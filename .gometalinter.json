@@ -1,0 +1,9 @@
+{
+    "Enable": ["deadcode", "golint", "vet", "gotype", "gocyclo", "maligned", "errcheck", "megacheck", "dupl", "misspell", "unused", "staticcheck", "safesql"],
+    "Exclude": ["test"],
+    "Format": "[{{.Severity}}]: {{.Path}}: {{.Line}}:{{if .Col}}{{.Col}}{{end}}: {{.Message}} ({{.Linter}})",
+    "Deadline": "120s",
+    "Aggregate": true,
+    "Sort": ["severity", "path", "line", "message"],
+    "Checkstyle": false
+}
