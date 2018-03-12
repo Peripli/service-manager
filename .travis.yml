@@ -27,4 +27,4 @@ script:
   - gas ./...
 
 notifications:
-  slack: openservicebrokerapi:KQo2QAC6LXeEeXPOemOXja48
+  slack: openservicebrokerapi:$SLACK_TOKEN
