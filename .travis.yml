@@ -28,4 +28,4 @@ script:
   - gas ./...
 
 notifications:
-  slack: ciintegration:$SLACK_TOKEN
+  slack: openservicebrokerapi:$SLACK_TOKEN
