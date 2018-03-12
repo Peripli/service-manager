@@ -1,7 +1,6 @@
 language: go
 
 go:
-#  - 1.8.x add aditional versions to execute a matrix job
   - 1.9.x
 
 install:
