@@ -20,8 +20,9 @@ script:
   - gometalinter  ./...
 
   #Execute tests
-  - go test ./... -cover
-  - goveralls -service=travis-ci
+  # Commented test execution as there are not go packages and tests available - to be uncommented
+  # - go test ./... -cover
+  # - goveralls -service=travis-ci
   
   #Execute security scan
   - gas ./...
