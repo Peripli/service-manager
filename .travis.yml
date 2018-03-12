@@ -1,0 +1,30 @@
+language: go
+
+go:
+  - 1.9.x
+
+install:
+  - go get github.com/onsi/gomega
+  - go get github.com/onsi/ginkgo/ginkgo
+  - go get github.com/alecthomas/gometalinter
+  - go get github.com/GoASTScanner/gas/cmd/gas/...
+  - go get golang.org/x/tools/cmd/cover
+  - go get github.com/mattn/goveralls
+
+before_script:
+  - gometalinter --install --update
+
+script:
+  # Execute static checks
+  - gometalinter  ./...
+
+  #Execute tests
+  # Commented test execution as there are not go packages and tests available - to be uncommented
+  # - go test ./... -cover
+  # - goveralls -service=travis-ci
+  
+  #Execute security scan
+  - gas ./...
+
+notifications:
+  slack: openservicebrokerapi:KQo2QAC6LXeEeXPOemOXja48
