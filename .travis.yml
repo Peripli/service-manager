@@ -25,7 +25,7 @@ script:
   - goveralls -service=travis-ci
   
   #Execute security scan
-  - gas ./...
+  # - gas ./...
 
 notifications:
   slack: openservicebrokerapi:KQo2QAC6LXeEeXPOemOXja48
