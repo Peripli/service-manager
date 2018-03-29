@@ -10,6 +10,8 @@ install:
   - go get github.com/GoASTScanner/gas/cmd/gas/...
   - go get golang.org/x/tools/cmd/cover
   - go get github.com/mattn/goveralls
+  - go get github.com/gorilla/mux
+  - go get github.com/Sirupsen/logrus 
 
 before_script:
   - gometalinter --install --update
