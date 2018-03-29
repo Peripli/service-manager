@@ -26,7 +26,7 @@ import (
 
 func TestApi(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Api Suite")
+	RunSpecs(t, "API Suite")
 }
 
 type testController struct {
@@ -36,8 +36,8 @@ func (c *testController) Routes() []rest.Route {
 	return []rest.Route{}
 }
 
-var _ = Describe("Api", func() {
-	var defaultAPI rest.Api
+var _ = Describe("API", func() {
+	var defaultAPI rest.API
 
 	BeforeEach(func() {
 		defaultAPI = Default()

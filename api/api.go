@@ -21,7 +21,7 @@ import (
 )
 
 // Default returns the minimum set of REST APIs needed for the Service Manager
-func Default() rest.Api {
+func Default() rest.API {
 	return &defaultAPI{}
 }
 

@@ -36,6 +36,7 @@ func (config *config) ShutdownTimeout() time.Duration {
 	return config.shutdownTimeout
 }
 
+// DefaultConfiguration returns a default server configuration
 func DefaultConfiguration() Configuration {
 	return &config{
 		address:         ":8080",

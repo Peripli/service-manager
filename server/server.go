@@ -49,7 +49,7 @@ type Server struct {
 
 // New creates a new server with the provided REST API configuration and server configuration
 // Returns the new server and an error if creation was not successful
-func New(api rest.Api, config Configuration) (*Server, error) {
+func New(api rest.API, config Configuration) (*Server, error) {
 	router := mux.NewRouter().StrictSlash(true)
 	registerControllers(router, api.Controllers())
 

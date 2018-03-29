@@ -19,9 +19,11 @@ package rest
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/Sirupsen/logrus"
 )
 
-// ErrorResponse struct used to store information about error  
+// ErrorResponse struct used to store information about error
 type ErrorResponse struct {
 	Error       string `json:"error,omitempty"`
 	Description string `json:"description"`
@@ -38,9 +40,12 @@ func ErrorHandlerFunc(handler APIHandler) http.Handler {
 // HandleError sends a JSON containing the error to the response writer
 func HandleError(err error, writer http.ResponseWriter) {
 	if err != nil {
-		SendJSON(writer, http.StatusInternalServerError, ErrorResponse{
+		sendErr := SendJSON(writer, http.StatusInternalServerError, ErrorResponse{
 			Description: err.Error(),
 		})
+		if sendErr != nil {
+			logrus.Errorf("Could not write error to response: %v", sendErr)
+		}
 	}
 }
 
