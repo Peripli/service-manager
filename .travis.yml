@@ -18,7 +18,7 @@ before_script:
 
 script:
   # Execute static checks
-  - gometalinter  ./...
+  - gometalinter --vendor ./...
 
   #Execute tests
   # Commented test execution as there are not go packages and tests available - to be uncommented
