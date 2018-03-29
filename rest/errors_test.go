@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/Sirupsen/logrus"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -50,9 +51,39 @@ func (writer *mockedResponseWriter) WriteHeader(status int) {
 	writer.status = status
 }
 
+type loggingInterceptorHook struct {
+	data []byte
+}
+
+func (*loggingInterceptorHook) Levels() []logrus.Level {
+	return logrus.AllLevels
+}
+
+func (hook *loggingInterceptorHook) Fire(entry *logrus.Entry) error {
+	str, _ := entry.String()
+	hook.data = append(hook.data, []byte(str)...)
+	return nil
+}
+
+type errorResponseWriter struct {
+}
+
+func (errorResponseWriter) Header() http.Header {
+	return http.Header{}
+}
+
+func (errorResponseWriter) Write([]byte) (int, error) {
+	return -1, errors.New("err")
+}
+
+func (errorResponseWriter) WriteHeader(statusCode int) {
+	// do nothing
+}
+
 var _ = Describe("Errors", func() {
 
 	mockedWriter := &mockedResponseWriter{}
+	testError := errors.New("test description")
 
 	BeforeEach(func() {
 		mockedWriter.data = []byte{}
@@ -65,7 +96,7 @@ var _ = Describe("Errors", func() {
 				if err := rest.SendJSON(mockedWriter, 200, response); err != nil {
 					Fail("Serializing valid ErrorResponse should be successful")
 				}
-				Expect(string(mockedWriter.data)).To(ContainSubstring("test description"))
+				Expect(string(mockedWriter.data)).To(ContainSubstring(testError.Error()))
 			})
 		})
 	})
@@ -73,15 +104,25 @@ var _ = Describe("Errors", func() {
 	Describe("Handle Error", func() {
 		Context("With nil error", func() {
 			It("Should have no data in Response Writer", func() {
-				rest.HandlerError(nil, mockedWriter)
+				rest.HandleError(nil, mockedWriter)
 				Expect(string(mockedWriter.data)).To(BeEmpty())
 			})
 		})
+
 		Context("With an error", func() {
 			It("Should write to Response Writer", func() {
-				rest.HandlerError(errors.New("test description"), mockedWriter)
-				Expect(string(mockedWriter.data)).To(ContainSubstring("test description"))
+				rest.HandleError(testError, mockedWriter)
+				Expect(string(mockedWriter.data)).To(ContainSubstring(testError.Error()))
 				Expect(mockedWriter.status).To(Equal(http.StatusInternalServerError))
+			})
+		})
+
+		Context("With SendJSON returning an error", func() {
+			It("Should not write to Response Writer and log", func() {
+				hook := &loggingInterceptorHook{}
+				logrus.AddHook(hook)
+				rest.HandleError(testError, &errorResponseWriter{})
+				Expect(hook.data).To(ContainSubstring("Could not write error to response"))
 			})
 		})
 	})
@@ -112,13 +153,13 @@ var _ = Describe("Errors", func() {
 
 		Context("With API Handler returning an error", func() {
 			BeforeEach(func() {
-				returnedData = errors.New("test description")
+				returnedData = testError
 			})
 
 			It("Should write to Response Writer", func() {
 				httpHandler := rest.ErrorHandlerFunc(mockedAPIHandler)
 				httpHandler.ServeHTTP(mockedWriter, nil)
-				Expect(string(mockedWriter.data)).To(ContainSubstring("test description"))
+				Expect(string(mockedWriter.data)).To(ContainSubstring(testError.Error()))
 				Expect(mockedWriter.status).To(Equal(http.StatusInternalServerError))
 			})
 		})
