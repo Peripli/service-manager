@@ -21,6 +21,7 @@ import (
 	"net/http"
 )
 
+// ErrorResponse struct used to store information about error  
 type ErrorResponse struct {
 	Error       string `json:"error,omitempty"`
 	Description string `json:"description"`
@@ -30,12 +31,12 @@ type ErrorResponse struct {
 func ErrorHandlerFunc(handler APIHandler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, reader *http.Request) {
 		err := handler(writer, reader)
-		HandlerError(err, writer)
+		HandleError(err, writer)
 	})
 }
 
 // HandleError sends a JSON containing the error to the response writer
-func HandlerError(err error, writer http.ResponseWriter) {
+func HandleError(err error, writer http.ResponseWriter) {
 	if err != nil {
 		SendJSON(writer, http.StatusInternalServerError, ErrorResponse{
 			Description: err.Error(),
