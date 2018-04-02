@@ -3,9 +3,11 @@ language: go
 go:
   - 1.9.x
 
+before_install:
+  - go get -u github.com/golang/dep/cmd/dep
+  - dep ensure
+
 install:
-  - go get github.com/onsi/gomega
-  - go get github.com/onsi/ginkgo/ginkgo
   - go get github.com/alecthomas/gometalinter
   - go get github.com/GoASTScanner/gas/cmd/gas/...
   - go get golang.org/x/tools/cmd/cover
@@ -16,15 +18,14 @@ before_script:
 
 script:
   # Execute static checks
-  - gometalinter  ./...
+  - gometalinter --vendor ./...
 
-  #Execute tests
-  # Commented test execution as there are not go packages and tests available - to be uncommented
-  # - go test ./... -cover
-  # - goveralls -service=travis-ci
+  # Execute tests
+  - go test ./... -cover
+  - goveralls -service=travis-ci
   
   #Execute security scan
-  - gas ./...
+  # - gas ./...
 
 notifications:
   slack: openservicebrokerapi:KQo2QAC6LXeEeXPOemOXja48
