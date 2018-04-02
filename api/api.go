@@ -17,12 +17,19 @@
 package api
 
 import (
+	"github.com/Peripli/service-manager/api/broker"
+	"github.com/Peripli/service-manager/api/platform"
 	"github.com/Peripli/service-manager/rest"
 )
 
 // Default returns the minimum set of REST APIs needed for the Service Manager
 func Default() rest.API {
-	return &defaultAPI{}
+	defaultAPI := &defaultAPI{}
+	defaultAPI.RegisterControllers(
+		&platform.Controller{},
+		&broker.Controller{},
+	)
+	return defaultAPI
 }
 
 type defaultAPI struct {
