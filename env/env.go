@@ -29,12 +29,12 @@ func init() {
 	}
 }
 
-// Returns the value associated with this key from the environment
+// Get returns the value associated with this key from the environment
 func Get(key string) interface{} {
 	return viper.Get(key)
 }
 
-// Loads the application.yml file from the specified location
+// Load loads the application.yml file from the specified location
 func Load(location string) error {
 	viper.AddConfigPath(location)
 	viper.SetConfigName("application")
