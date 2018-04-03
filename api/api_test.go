@@ -37,9 +37,16 @@ func (c *testController) Routes() []rest.Route {
 }
 
 var _ = Describe("API", func() {
-	defaultAPI := Default()
+	var defaultAPI rest.API
+
+	BeforeEach(func() {
+		defaultAPI = Default()
+	})
 
 	Describe("Controller Registration", func() {
+		JustBeforeEach(func() {
+			defaultAPI.RegisterControllers(&testController{})
+		})
 		Context("With nil controllers slice", func() {
 			It("Should panic", func() {
 				nilControllersSlice := func() {
@@ -61,11 +68,8 @@ var _ = Describe("API", func() {
 		})
 
 		Context("With no brokers registered", func() {
-			originalControllersCount := len(defaultAPI.Controllers())
-
-			It("Should increase broker count", func() {
-				defaultAPI.RegisterControllers(&testController{})
-				Expect(len(defaultAPI.Controllers())).To(Equal(originalControllersCount + 1))
+			It("Should have only one broker", func() {
+				Expect(len(defaultAPI.Controllers())).To(Equal(1))
 			})
 		})
 	})

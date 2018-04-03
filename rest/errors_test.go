@@ -130,9 +130,18 @@ var _ = Describe("Errors", func() {
 	Describe("Error Handler Func", func() {
 
 		var returnedData error
-		mockedAPIHandler := func(writer http.ResponseWriter, request *http.Request) error {
-			return returnedData
-		}
+
+		var mockedAPIHandler rest.APIHandler
+
+		BeforeEach(func() {
+			returnedData = nil
+		})
+
+		JustBeforeEach(func() {
+			mockedAPIHandler = func(writer http.ResponseWriter, request *http.Request) error {
+				return returnedData
+			}
+		})
 
 		Context("With API Handler not returning an error", func() {
 			It("Should have no data in Response Writer", func() {
@@ -143,9 +152,11 @@ var _ = Describe("Errors", func() {
 		})
 
 		Context("With API Handler returning an error", func() {
-			It("Should write to Response Writer", func() {
+			BeforeEach(func() {
 				returnedData = testError
+			})
 
+			It("Should write to Response Writer", func() {
 				httpHandler := rest.ErrorHandlerFunc(mockedAPIHandler)
 				httpHandler.ServeHTTP(mockedWriter, nil)
 				Expect(string(mockedWriter.data)).To(ContainSubstring(testError.Error()))
