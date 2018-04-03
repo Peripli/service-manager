@@ -28,11 +28,15 @@ func (errorResponse ErrorResponse) Error() string {
 	return errorResponse.Description
 }
 
+// Basic basic credentials
+type Basic struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
 // Credentials credentials
 type Credentials struct {
-	Type     string `json:"type"`
-	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"`
+	Basic *Basic `json:"basic,omitempty"`
 }
 
 // Platform platform struct
@@ -48,11 +52,10 @@ type Platform struct {
 
 // Broker broker struct
 type Broker struct {
-	ID          string                 `json:"id"`
-	Name        string                 `json:"name"`
-	URL         string                 `json:"broker_url"`
-	CreatedAt   string                 `json:"created_at"`
-	UpdatedAt   string                 `json:"updated_at"`
-	Credentials *Credentials           `json:"credentials,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	ID          string       `json:"id"`
+	Name        string       `json:"name"`
+	URL         string       `json:"broker_url"`
+	CreatedAt   string       `json:"created_at"`
+	UpdatedAt   string       `json:"updated_at"`
+	Credentials *Credentials `json:"credentials,omitempty"`
 }

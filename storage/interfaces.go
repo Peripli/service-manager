@@ -16,9 +16,39 @@
 
 package storage
 
+import "github.com/Peripli/service-manager/storage/dto"
+
+// Provider interface for db storage provider
 type Provider interface {
 	Provide() (Storage, error)
 }
 
+// Storage interface for db storage
 type Storage interface {
+	Broker() Broker
+	Platform() Platform
+	Credentials() Credentials
+}
+
+// Broker interface for Broker db operations
+type Broker interface {
+	Create(broker *dto.Broker) error
+	Get(id string) (*dto.Broker, error)
+	GetAll() ([]*dto.Broker, error)
+	Delete(id string) error
+	Update(broker *dto.Broker) error
+}
+
+// Platform interface for Platform db operations
+type Platform interface {
+	Create(platform *dto.Platform) error
+	Get(id string) (*dto.Platform, error)
+	GetAll() ([]*dto.Platform, error)
+	Delete(id string) error
+	Update(platform *dto.Platform) error
+}
+
+// Credentials interface for Credentials db operations
+type Credentials interface {
+	Create(credentials *dto.Credentials) (int, error)
 }

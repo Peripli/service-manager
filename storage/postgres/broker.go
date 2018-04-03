@@ -17,32 +17,30 @@
 package postgres
 
 import (
-	"github.com/Peripli/service-manager/storage"
+	"github.com/Peripli/service-manager/storage/dto"
 	"github.com/jmoiron/sqlx"
 )
 
-type postgresStorage struct {
-	brokerStorage      storage.Broker
-	platformStorage    storage.Platform
-	credentialsStorage storage.Credentials
+type brokerStorage struct {
+	db *sqlx.DB
 }
 
-func (p *postgresStorage) Broker() storage.Broker {
-	return p.brokerStorage
+func (storage *brokerStorage) Create(broker *dto.Broker) error {
+	return nil
 }
 
-func (p *postgresStorage) Platform() storage.Platform {
-	return p.platformStorage
+func (storage *brokerStorage) Get(id string) (*dto.Broker, error) {
+	return nil, nil
 }
 
-func (p *postgresStorage) Credentials() storage.Credentials {
-	return p.credentialsStorage
+func (storage *brokerStorage) GetAll() ([]*dto.Broker, error) {
+	return []*dto.Broker{}, nil
 }
 
-func newStorage(db *sqlx.DB) (storage.Storage, error) {
-	return &postgresStorage{
-		brokerStorage:      &brokerStorage{db},
-		platformStorage:    &platformStorage{db},
-		credentialsStorage: &credentialsStorage{db},
-	}, nil
+func (storage *brokerStorage) Delete(id string) error {
+	return nil
+}
+
+func (storage *brokerStorage) Update(broker *dto.Broker) error {
+	return nil
 }
