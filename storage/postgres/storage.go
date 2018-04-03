@@ -25,5 +25,5 @@ type postgresStorage struct {
 }
 
 func newStorage(db *sqlx.DB) (storage.Storage, error) {
-	return nil, nil
+	return &postgresStorage{}, nil
 }

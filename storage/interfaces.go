@@ -16,9 +16,13 @@
 
 package storage
 
+// Provider interface wraps the provide method which initializes a specific storage
 type Provider interface {
+	// Provide initializes a specific storage and returns it configured, ready to use or an error if one occurred
 	Provide() (Storage, error)
 }
 
+// Storage interface provides entity-specific storages
+// Implementations of this interface are storage-specific
 type Storage interface {
 }
