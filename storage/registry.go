@@ -23,8 +23,8 @@ import (
 )
 
 var (
-	mux              sync.RWMutex
-	providedStorages = make(map[string]Storage)
+	mux      sync.RWMutex
+	storages = make(map[string]Storage)
 )
 
 // Get returns a single storage
@@ -32,39 +32,35 @@ var (
 func Get() Storage {
 	mux.RLock()
 	defer mux.RUnlock()
-	storagesCount := len(providedStorages)
+	storagesCount := len(storages)
 	if storagesCount != 1 {
 		logrus.Panicf("Requested exactly one storage but %d storages are configured", storagesCount)
 	}
-	var providedStorage Storage
-	for _, v := range providedStorages {
-		providedStorage = v
+	var registeredStorage Storage
+	for _, v := range storages {
+		registeredStorage = v
 		break
 	}
-	return providedStorage
+	return registeredStorage
 }
 
 // GetByName returns a storage with this name and boolean indicating whether it exists
 func GetByName(name string) (Storage, bool) {
 	mux.RLock()
 	defer mux.RUnlock()
-	providedStorage, exists := providedStorages[name]
+	providedStorage, exists := storages[name]
 	return providedStorage, exists
 }
 
-// Register initializes a storage with the specified name using the given provider
-func Register(name string, provider Provider) {
-	if provider == nil {
-		logrus.Panic("Cannot register nil storage provider")
+// Register registers a storage with the specified name
+func Register(name string, storage Storage) {
+	if storage == nil {
+		logrus.Panic("Cannot register nil storage")
 	}
 	mux.Lock()
 	defer mux.Unlock()
-	if _, exists := providedStorages[name]; exists {
+	if _, exists := storages[name]; exists {
 		logrus.Panic("A storage with this name has already been registered")
 	}
-	providedStorage, err := provider.Provide()
-	if err != nil {
-		logrus.Panicf("Cannot provide a storage with name %s. Error : %v", name, err)
-	}
-	providedStorages[name] = providedStorage
+	storages[name] = storage
 }
