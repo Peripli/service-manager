@@ -16,7 +16,11 @@
 
 package storage
 
-// Storage interface provides entity-specific storages
-// Implementations of this interface are storage-specific
+// Storage interface provides entity-specific storages.
 type Storage interface {
+	// Open initializes the storage, e.g. opens a connection to the underlying storage
+	Open() error
+
+	// Close clears resources associated with this storage, e.g. closes the connection the underlying storage
+	Close() error
 }

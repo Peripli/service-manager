@@ -23,12 +23,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-func init() {
-	if err := Load("./config"); err != nil {
-		panic(fmt.Sprintf("Could not load environment configuration: %v", err))
-	}
-}
-
 // Get returns the value associated with this key from the environment
 func Get(key string) interface{} {
 	return viper.Get(key)

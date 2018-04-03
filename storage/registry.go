@@ -17,7 +17,11 @@
 package storage
 
 import (
+	"context"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -52,15 +56,36 @@ func GetByName(name string) (Storage, bool) {
 	return providedStorage, exists
 }
 
-// Register registers a storage with the specified name
-func Register(name string, storage Storage) {
-	if storage == nil {
-		logrus.Panic("Cannot register nil storage")
-	}
+// Use specifies the storage for the given name
+func Use(name string, storage Storage, ctx context.Context) {
 	mux.Lock()
 	defer mux.Unlock()
 	if _, exists := storages[name]; exists {
-		logrus.Panic("A storage with this name has already been registered")
+		logrus.Panic("A provider with this name has already been registered")
+	}
+	if err := storage.Open(); err != nil {
+		logrus.Panic(err)
 	}
 	storages[name] = storage
+	go awaitTermination(storage, ctx)
+}
+
+func awaitTermination(storage Storage, ctx context.Context) {
+	term := make(chan os.Signal)
+	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
+
+	select {
+	case <-term:
+		logrus.Debug("Received sigterm. Closing storage...")
+		closeStorage(storage)
+	case <-ctx.Done():
+		logrus.Debug("Context cancelled. Closing storage...")
+		closeStorage(storage)
+	}
+}
+
+func closeStorage(storage Storage) {
+	if err := storage.Close(); err != nil {
+		logrus.Panic(err)
+	}
 }

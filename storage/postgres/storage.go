@@ -17,9 +17,7 @@
 package postgres
 
 import (
-	"os"
-	"os/signal"
-	"syscall"
+	"sync"
 
 	"github.com/Peripli/service-manager/env"
 	"github.com/Peripli/service-manager/storage"
@@ -28,38 +26,28 @@ import (
 	_ "github.com/lib/pq"
 )
 
-func init() {
-	closeChan := make(chan os.Signal)
-	signal.Notify(closeChan, os.Interrupt, syscall.SIGTERM)
-
-	uri, ok := env.Get("storage.uri").(string)
-	if !ok {
-		logrus.Panicf("Could not open connection for provided uri %s from postgres storage provider", uri)
-	}
-	db, err := sqlx.Open("postgres", uri)
-	if err != nil {
-		logrus.Panicf("Could not connect to PostgreSQL storage" + err.Error())
-	}
-
-	go func() {
-		<-closeChan
-		logrus.Debug("Received close for postgres storage")
-		close(closeChan)
-		if err := db.Close(); err != nil {
-			logrus.Panic(err)
-		}
-	}()
-	storageToRegister, err := newStorage(db)
-	if err != nil {
-		logrus.Panicf("Cannot initialize postgres storage. Error : %v", err)
-	}
-	logrus.Debug("Initialized PostgreSQL storage")
-	storage.Register("postgres", storageToRegister)
+// Storage returns a PostgreSQL storage
+func Storage() storage.Storage {
+	return &postgresStorage{}
 }
 
 type postgresStorage struct {
+	once sync.Once
+	db   *sqlx.DB
 }
 
-func newStorage(db *sqlx.DB) (storage.Storage, error) {
-	return &postgresStorage{}, nil
+func (storage *postgresStorage) Open() error {
+	var err error
+	storage.once.Do(func() {
+		uri, ok := env.Get("storage.uri").(string)
+		if !ok {
+			logrus.Panicf("Could not open connection for provided uri %s from postgres storage provider", uri)
+		}
+		storage.db, err = sqlx.Open("postgres", uri)
+	})
+	return err
+}
+
+func (storage *postgresStorage) Close() error {
+	return storage.db.Close()
 }
