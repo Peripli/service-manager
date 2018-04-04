@@ -27,7 +27,6 @@ type Provider interface {
 type Storage interface {
 	Broker() Broker
 	Platform() Platform
-	Credentials() Credentials
 }
 
 // Broker interface for Broker db operations
@@ -41,14 +40,10 @@ type Broker interface {
 
 // Platform interface for Platform db operations
 type Platform interface {
-	Create(platform *dto.Platform) error
-	Get(id string) (*dto.Platform, error)
-	GetAll() ([]*dto.Platform, error)
+	Create(platform *dto.Platform, credentials *dto.Credentials) error
+	GetByID(id string) (*dto.Platform, error)
+	GetByName(id string) (*dto.Platform, error)
+	GetAll() ([]dto.Platform, error)
 	Delete(id string) error
 	Update(platform *dto.Platform) error
-}
-
-// Credentials interface for Credentials db operations
-type Credentials interface {
-	Create(credentials *dto.Credentials) (int, error)
 }

@@ -17,81 +17,60 @@
 package platform
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/Peripli/service-manager/rest"
-	"github.com/gorilla/mux"
 )
 
 const (
-	ApiVersion = "v1"
-	Root       = "platforms"
-	Url        = "/" + ApiVersion + "/" + Root
+	// APIVersion platform API version
+	APIVersion = "v1"
+	// Root platform path prefix
+	Root = "platforms"
+	// URL platform url
+	URL = "/" + APIVersion + "/" + Root
 )
 
+// Controller platform controller
 type Controller struct{}
 
+// Routes returns slice of routes which handle platform operations
 func (platformCtrl *Controller) Routes() []rest.Route {
 	return []rest.Route{
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodPost,
-				Path:   Url,
+				Path:   URL,
 			},
 			Handler: platformCtrl.addPlatform,
 		},
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodGet,
-				Path:   Url + "/{platform_id}",
+				Path:   URL + "/{platform_id}",
 			},
 			Handler: platformCtrl.getPlatform,
 		},
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodGet,
-				Path:   Url,
+				Path:   URL,
 			},
 			Handler: platformCtrl.getAllPlatforms,
 		},
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodDelete,
-				Path:   Url + "/{platform_id}",
+				Path:   URL + "/{platform_id}",
 			},
 			Handler: platformCtrl.deletePlatform,
 		},
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodPatch,
-				Path:   Url + "/{platform_id}",
+				Path:   URL + "/{platform_id}",
 			},
 			Handler: platformCtrl.updatePlatform,
 		},
 	}
-}
-
-func (platformCtrl *Controller) addPlatform(w http.ResponseWriter, r *http.Request) error {
-	return nil
-}
-
-func (platformCtrl *Controller) getPlatform(w http.ResponseWriter, r *http.Request) error {
-	vars := mux.Vars(r)
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Platform id: %v\n", vars["platform_id"])
-	return nil
-}
-
-func (platformCtrl *Controller) getAllPlatforms(w http.ResponseWriter, r *http.Request) error {
-	w.Write([]byte("No platforms available."))
-	return nil
-}
-
-func (platformCtrl *Controller) deletePlatform(w http.ResponseWriter, r *http.Request) error {
-	return nil
-}
-
-func (platformCtrl *Controller) updatePlatform(w http.ResponseWriter, r *http.Request) error {
-	return nil
 }

@@ -16,22 +16,24 @@
 
 package dto
 
+import "time"
+
 // Credentials dto
 type Credentials struct {
-	ID       int    `db:"id"`
+	Type     int    `db:"type"`
 	Username string `db:"username"`
 	Password string `db:"password"`
 }
 
 // Platform dto
 type Platform struct {
-	ID            string `db:"id"`
-	Type          string `db:"type"`
-	Name          string `db:"name"`
-	Description   string `db:"description"`
-	CreatedAt     string `db:"created_at"`
-	UpdatedAt     string `db:"updated_at"`
-	CredentialsID int    `db:"credentials_id"`
+	ID            string    `db:"id"`
+	Type          string    `db:"type"`
+	Name          string    `db:"name"`
+	Description   string    `db:"description"`
+	CreatedAt     time.Time `db:"created_at"`
+	UpdatedAt     time.Time `db:"updated_at"`
+	CredentialsID int       `db:"credentials_id"`
 }
 
 // Broker dto
