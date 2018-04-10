@@ -16,6 +16,13 @@
 
 package rest
 
+import (
+	"encoding/json"
+	"time"
+
+	"github.com/Peripli/service-manager/util"
+)
+
 // ErrorResponse struct used to store information about error
 type ErrorResponse struct {
 	ErrorType   string `json:"error,omitempty"`
@@ -45,9 +52,23 @@ type Platform struct {
 	Type        string       `json:"type"`
 	Name        string       `json:"name"`
 	Description string       `json:"description,omitempty"`
-	CreatedAt   string       `json:"created_at,omitempty"`
-	UpdatedAt   string       `json:"updated_at,omitempty"`
+	CreatedAt   time.Time    `json:"created_at,omitempty"`
+	UpdatedAt   time.Time    `json:"updated_at,omitempty"`
 	Credentials *Credentials `json:"credentials,omitempty"`
+}
+
+// MarshalJSON override json serialization for http response
+func (p *Platform) MarshalJSON() ([]byte, error) {
+	type Alias Platform
+	return json.Marshal(&struct {
+		CreatedAt string `json:"created_at,omitempty"`
+		UpdatedAt string `json:"updated_at,omitempty"`
+		*Alias
+	}{
+		Alias:     (*Alias)(p),
+		CreatedAt: util.ToRFCFormat(p.CreatedAt),
+		UpdatedAt: util.ToRFCFormat(p.UpdatedAt),
+	})
 }
 
 // Broker broker struct
@@ -55,7 +76,7 @@ type Broker struct {
 	ID          string       `json:"id"`
 	Name        string       `json:"name"`
 	URL         string       `json:"broker_url"`
-	CreatedAt   string       `json:"created_at"`
-	UpdatedAt   string       `json:"updated_at"`
+	CreatedAt   time.Time    `json:"created_at"`
+	UpdatedAt   time.Time    `json:"updated_at"`
 	Credentials *Credentials `json:"credentials,omitempty"`
 }

@@ -16,7 +16,11 @@
 
 package storage
 
-import "github.com/Peripli/service-manager/rest"
+import (
+	"errors"
+
+	"github.com/Peripli/service-manager/rest"
+)
 
 // Provider interface for db storage provider
 type Provider interface {
@@ -47,3 +51,6 @@ type Platform interface {
 	Delete(id string) error
 	Update(platform *rest.Platform) error
 }
+
+// DuplicateError error
+var DuplicateError = errors.New("Duplicate model insertion")

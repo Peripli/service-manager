@@ -17,7 +17,6 @@
 package broker
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -74,15 +73,15 @@ func (brokerCtrl *Controller) Routes() []rest.Route {
 }
 
 func (brokerCtrl *Controller) addBroker(w http.ResponseWriter, r *http.Request) error {
-	decoder := json.NewDecoder(r.Body)
-	broker := rest.Broker{}
-	err := decoder.Decode(&broker)
-	if err != nil {
-		panic(err)
-	}
-	defer r.Body.Close()
+	// decoder := json.NewDecoder(r.Body)
+	// broker := rest.Broker{}
+	// err := decoder.Decode(&broker)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// defer r.Body.Close()
 
-	storage.Get()
+	// storage.Get()
 
 	return nil
 }
