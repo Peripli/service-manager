@@ -17,10 +17,7 @@
 package postgres
 
 import (
-	"database/sql"
-	"fmt"
-
-	"github.com/Peripli/service-manager/storage/dto"
+	"github.com/Peripli/service-manager/rest"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -55,53 +52,59 @@ var (
 	insertPlatform = "INSERT INTO " + schema + "." + table + "(id, type, name, description, credentials_id, created_at, updated_at) VALUES(:id, :type, :name, :description, :credentials_id, :created_at, :updated_at)"
 )
 
-func (storage *platformStorage) Create(platform *dto.Platform, credentials *dto.Credentials) error {
-	tx := storage.db.MustBegin()
-	credentials.Type = basicCredentialsType
-	rs := tx.MustExec(insertCredentials, credentials)
-	credentialsID, err := rs.LastInsertId()
-	if err != nil {
-		rollbackErr := tx.Rollback()
-		if rollbackErr != nil {
-			return fmt.Errorf("Insert error: %s; Rollback error: %s", err.Error(), rollbackErr.Error())
-		}
-		return err
-	}
-	platform.CredentialsID = int(credentialsID)
-	tx.MustExec(insertPlatform, platform)
-	return tx.Commit()
+func (storage *platformStorage) Create(platform *rest.Platform) error {
+	// tx := storage.db.MustBegin()
+	// credentials.Type = basicCredentialsType
+	// rs := tx.MustExec(insertCredentials, credentials)
+	// credentialsID, err := rs.LastInsertId()
+	// if err != nil {
+	// 	rollbackErr := tx.Rollback()
+	// 	if rollbackErr != nil {
+	// 		return fmt.Errorf("Insert error: %s; Rollback error: %s", err.Error(), rollbackErr.Error())
+	// 	}
+	// 	return err
+	// }
+	// platform.CredentialsID = int(credentialsID)
+	// tx.MustExec(insertPlatform, platform)
+	// return tx.Commit()
+
+	return nil
 }
 
-func (storage *platformStorage) get(stmt string, arg string) (*dto.Platform, error) {
-	platform := dto.Platform{}
-	err := storage.db.Get(&platform, stmt, arg)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &platform, nil
+func (storage *platformStorage) get(stmt string, arg string) (*rest.Platform, error) {
+	// platform := dto.Platform{}
+	// err := storage.db.Get(&platform, stmt, arg)
+	// if err == sql.ErrNoRows {
+	// 	return nil, nil
+	// }
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// return &platform, nil
+
+	return nil, nil
 }
 
-func (storage *platformStorage) GetByID(id string) (*dto.Platform, error) {
+func (storage *platformStorage) GetByID(id string) (*rest.Platform, error) {
 	return storage.get(selectByID, id)
 }
 
-func (storage *platformStorage) GetByName(name string) (*dto.Platform, error) {
+func (storage *platformStorage) GetByName(name string) (*rest.Platform, error) {
 	return storage.get(selectByName, name)
 }
 
-func (storage *platformStorage) GetAll() ([]dto.Platform, error) {
-	platforms := []dto.Platform{}
-	err := storage.db.Select(&platforms, selectAll)
-	return platforms, err
+func (storage *platformStorage) GetAll() ([]rest.Platform, error) {
+	// platforms := []dto.Platform{}
+	// err := storage.db.Select(&platforms, selectAll)
+	// return platforms, err
+
+	return []rest.Platform{}, nil
 }
 
 func (storage *platformStorage) Delete(id string) error {
 	return nil
 }
 
-func (storage *platformStorage) Update(platform *dto.Platform) error {
+func (storage *platformStorage) Update(platform *rest.Platform) error {
 	return nil
 }

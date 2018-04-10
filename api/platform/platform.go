@@ -17,8 +17,6 @@
 package platform
 
 import (
-	"net/http"
-
 	"github.com/Peripli/service-manager/rest"
 )
 
@@ -31,46 +29,43 @@ const (
 	URL = "/" + APIVersion + "/" + Root
 )
 
-// Controller platform controller
-type Controller struct{}
-
 // Routes returns slice of routes which handle platform operations
 func (platformCtrl *Controller) Routes() []rest.Route {
 	return []rest.Route{
-		{
-			Endpoint: rest.Endpoint{
-				Method: http.MethodPost,
-				Path:   URL,
-			},
-			Handler: platformCtrl.addPlatform,
-		},
-		{
-			Endpoint: rest.Endpoint{
-				Method: http.MethodGet,
-				Path:   URL + "/{platform_id}",
-			},
-			Handler: platformCtrl.getPlatform,
-		},
-		{
-			Endpoint: rest.Endpoint{
-				Method: http.MethodGet,
-				Path:   URL,
-			},
-			Handler: platformCtrl.getAllPlatforms,
-		},
-		{
-			Endpoint: rest.Endpoint{
-				Method: http.MethodDelete,
-				Path:   URL + "/{platform_id}",
-			},
-			Handler: platformCtrl.deletePlatform,
-		},
-		{
-			Endpoint: rest.Endpoint{
-				Method: http.MethodPatch,
-				Path:   URL + "/{platform_id}",
-			},
-			Handler: platformCtrl.updatePlatform,
-		},
+		// {
+		// 	Endpoint: rest.Endpoint{
+		// 		Method: http.MethodPost,
+		// 		Path:   URL,
+		// 	},
+		// 	Handler: platformCtrl.addPlatform,
+		// },
+		// {
+		// 	Endpoint: rest.Endpoint{
+		// 		Method: http.MethodGet,
+		// 		Path:   URL + "/{platform_id}",
+		// 	},
+		// 	Handler: platformCtrl.getPlatform,
+		// },
+		// {
+		// 	Endpoint: rest.Endpoint{
+		// 		Method: http.MethodGet,
+		// 		Path:   URL,
+		// 	},
+		// 	Handler: platformCtrl.getAllPlatforms,
+		// },
+		// {
+		// 	Endpoint: rest.Endpoint{
+		// 		Method: http.MethodDelete,
+		// 		Path:   URL + "/{platform_id}",
+		// 	},
+		// 	Handler: platformCtrl.deletePlatform,
+		// },
+		// {
+		// 	Endpoint: rest.Endpoint{
+		// 		Method: http.MethodPatch,
+		// 		Path:   URL + "/{platform_id}",
+		// 	},
+		// 	Handler: platformCtrl.updatePlatform,
+		// },
 	}
 }
