@@ -34,7 +34,7 @@ type Storage interface {
 type Broker interface {
 	Create(broker *dto.Broker) error
 	Get(id string) (*dto.Broker, error)
-	GetAll() ([]*dto.Broker, error)
+	GetAll() ([]dto.Broker, error)
 	Delete(id string) error
 	Update(broker *dto.Broker) error
 }

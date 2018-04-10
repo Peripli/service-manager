@@ -18,10 +18,12 @@ package broker
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/storage"
+	"github.com/Peripli/service-manager/util"
+	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
 )
 
@@ -73,6 +75,10 @@ func (brokerCtrl *Controller) Routes() []rest.Route {
 	}
 }
 
+type allBrokersResponse struct {
+	Brokers []*rest.Broker `json: "brokers"`
+}
+
 func (brokerCtrl *Controller) addBroker(w http.ResponseWriter, r *http.Request) error {
 	decoder := json.NewDecoder(r.Body)
 	broker := rest.Broker{}
@@ -82,20 +88,36 @@ func (brokerCtrl *Controller) addBroker(w http.ResponseWriter, r *http.Request) 
 	}
 	defer r.Body.Close()
 
-	storage.Get()
-
 	return nil
 }
 
 func (brokerCtrl *Controller) getBroker(w http.ResponseWriter, r *http.Request) error {
+	logrus.Debugf("GET to %s", r.RequestURI)
 	vars := mux.Vars(r)
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Broker id: %v\n", vars["broker_id"])
+
+	brokerStorage := storage.Get().Broker()
+	broker, _ := brokerStorage.Get(vars["broker_id"])
+	brokerModel := broker.ConvertToRestModel()
+	brokerJSON, _ := json.Marshal(&brokerModel)
+	util.SendJSON(w, 200, brokerJSON)
 	return nil
 }
 
 func (brokerCtrl *Controller) getAllBrokers(w http.ResponseWriter, r *http.Request) error {
-	w.Write([]byte("No brokers available."))
+	/*
+		logrus.Debugf("GET to %s", r.RequestURI)
+		brokerStorage := storage.Get().Broker()
+		brokers, err := brokerStorage.GetAll()
+		if err != nil {
+			return errors.New("Unable to get all brokers")
+		}
+		result, errJSON := json.Marshal(&allBrokersResponse{brokers})
+		if errJSON != nil {
+			return errors.New("Unable to serialize brokers")
+		}
+
+		util.SendJSON(w, 200, result)
+	*/
 	return nil
 }
 

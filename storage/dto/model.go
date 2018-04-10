@@ -16,6 +16,8 @@
 
 package dto
 
+import "github.com/Peripli/service-manager/rest"
+
 // Credentials dto
 type Credentials struct {
 	ID       int    `db:"id"`
@@ -26,8 +28,8 @@ type Credentials struct {
 // Platform dto
 type Platform struct {
 	ID            string `db:"id"`
-	Type          string `db:"type"`
 	Name          string `db:"name"`
+	Type          string `db:"type"`
 	Description   string `db:"description"`
 	CreatedAt     string `db:"created_at"`
 	UpdatedAt     string `db:"updated_at"`
@@ -36,10 +38,20 @@ type Platform struct {
 
 // Broker dto
 type Broker struct {
-	ID            string `db:"id"`
-	Name          string `db:"name"`
-	URL           string `db:"broker_url"`
-	CreatedAt     string `db:"created_at"`
-	UpdatedAt     string `db:"updated_at"`
-	CredentialsID int    `db:"credentials_id"`
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Description   string `json:"description"`
+	CreatedAt     string `json:"created_at"`
+	UpdatedAt     string `json:"updated_at"`
+	BrokerURL     string `json:"broker_url"`
+	CredentialsID int    `json:"credentials_id"`
+}
+
+func (brokerDTO *Broker) ConvertToRestModel() *rest.Broker {
+	return &rest.Broker{ID: brokerDTO.ID,
+		Name:        brokerDTO.Name,
+		Description: brokerDTO.Description,
+		CreatedAt:   brokerDTO.CreatedAt,
+		UpdatedAt:   brokerDTO.UpdatedAt,
+		BrokerURL:   brokerDTO.BrokerURL}
 }

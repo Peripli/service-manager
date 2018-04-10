@@ -54,8 +54,9 @@ type Platform struct {
 type Broker struct {
 	ID          string       `json:"id"`
 	Name        string       `json:"name"`
-	URL         string       `json:"broker_url"`
+	Description string       `json:"description"`
 	CreatedAt   string       `json:"created_at"`
 	UpdatedAt   string       `json:"updated_at"`
+	BrokerURL   string       `json:"broker_url"`
 	Credentials *Credentials `json:"credentials,omitempty"`
 }
