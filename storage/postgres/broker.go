@@ -47,12 +47,16 @@ func (store *brokerStorage) Get(id string) (*rest.Broker, error) {
 }
 
 func (store *brokerStorage) GetAll() ([]rest.Broker, error) {
-	brokers := []rest.Broker{}
-	if err := store.db.Get(&brokers, "SELECT * FORM brokers"); err != nil {
+	brokers := []Broker{}
+	if err := store.db.Select(&brokers, "SELECT * FROM brokers"); err != nil {
 		logrus.Debug("An error occurred while retrieving all brokers")
 		return nil, err
 	}
-	return brokers, nil
+	restBrokers := make([]rest.Broker, len(brokers))
+	for i, val := range brokers {
+		restBrokers[i] = *val.ConvertToRestModel()
+	}
+	return restBrokers, nil
 }
 
 func (store *brokerStorage) Delete(id string) error {

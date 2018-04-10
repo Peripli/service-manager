@@ -13,10 +13,6 @@ import (
 
 type Controller struct{}
 
-type allBrokersResponse struct {
-	Brokers []*rest.Broker `json: "brokers"`
-}
-
 func (brokerCtrl *Controller) addBroker(w http.ResponseWriter, r *http.Request) error {
 	decoder := json.NewDecoder(r.Body)
 	broker := rest.Broker{}
@@ -46,20 +42,18 @@ func (brokerCtrl *Controller) getBroker(w http.ResponseWriter, r *http.Request) 
 }
 
 func (brokerCtrl *Controller) getAllBrokers(w http.ResponseWriter, r *http.Request) error {
-	/*
-		logrus.Debugf("GET to %s", r.RequestURI)
-		brokerStorage := storage.Get().Broker()
-		brokers, err := brokerStorage.GetAll()
-		if err != nil {
-			return errors.New("Unable to get all brokers")
-		}
-		result, errJSON := json.Marshal(&allBrokersResponse{brokers})
-		if errJSON != nil {
-			return errors.New("Unable to serialize brokers")
-		}
+	logrus.Debugf("GET %s", r.RequestURI)
 
-		util.SendJSON(w, 200, result)
-	*/
+	brokerStorage := storage.Get().Broker()
+	brokers, err := brokerStorage.GetAll()
+	if err != nil {
+		return err
+	}
+
+	type response struct {
+		Brokers []rest.Broker `json:"brokers"`
+	}
+	util.SendJSON(w, 200, response{brokers})
 	return nil
 }
 
