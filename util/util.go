@@ -22,6 +22,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
+	"time"
 )
 
 // SendJSON writes a JSON value and sets the specified HTTP Status code
@@ -52,4 +53,14 @@ func GenerateID() string {
 	rand.Read(id)
 	encodedID := hex.EncodeToString(id)
 	return encodedID
+}
+
+// ToRFCFormat return the time.Time object as string in RFC3339 format
+func ToRFCFormat(timestamp time.Time) string {
+	return timestamp.UTC().Format(time.RFC3339)
+}
+
+// FromRFCFormat return time.Time object from RFC3339 formatted string
+func FromRFCFormat(timestamp string) (time.Time, error) {
+	return time.Parse(time.RFC3339, timestamp)
 }

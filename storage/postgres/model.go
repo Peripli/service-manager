@@ -14,37 +14,39 @@
  *    limitations under the License.
  */
 
-package dto
+package postgres
+
+import "time"
 
 import "github.com/Peripli/service-manager/rest"
 
 // Credentials dto
 type Credentials struct {
-	ID       int    `db:"id"`
+	Type     int    `db:"type"`
 	Username string `db:"username"`
 	Password string `db:"password"`
 }
 
 // Platform dto
 type Platform struct {
-	ID            string `db:"id"`
-	Name          string `db:"name"`
-	Type          string `db:"type"`
-	Description   string `db:"description"`
-	CreatedAt     string `db:"created_at"`
-	UpdatedAt     string `db:"updated_at"`
-	CredentialsID int    `db:"credentials_id"`
+	ID            string    `db:"id"`
+	Type          string    `db:"type"`
+	Name          string    `db:"name"`
+	Description   string    `db:"description"`
+	CreatedAt     time.Time `db:"created_at"`
+	UpdatedAt     time.Time `db:"updated_at"`
+	CredentialsID int       `db:"credentials_id"`
 }
 
 // Broker dto
 type Broker struct {
-	ID            string `json:"id"`
-	Name          string `json:"name"`
-	Description   string `json:"description"`
-	CreatedAt     string `json:"created_at"`
-	UpdatedAt     string `json:"updated_at"`
-	BrokerURL     string `json:"broker_url"`
-	CredentialsID int    `json:"credentials_id"`
+	ID            string `db:"id"`
+	Name          string `db:"name"`
+	Description   string `db:"description"`
+	CreatedAt     string `db:"created_at"`
+	UpdatedAt     string `db:"updated_at"`
+	BrokerURL     string `db:"broker_url"`
+	CredentialsID int    `db:"credentials_id"`
 }
 
 func (brokerDTO *Broker) ConvertToRestModel() *rest.Broker {

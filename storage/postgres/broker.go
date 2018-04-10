@@ -17,7 +17,10 @@
 package postgres
 
 import (
-	"github.com/Peripli/service-manager/storage/dto"
+	"database/sql"
+
+	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/storage"
 	"github.com/Sirupsen/logrus"
 	"github.com/jmoiron/sqlx"
 )
@@ -26,41 +29,47 @@ type brokerStorage struct {
 	db *sqlx.DB
 }
 
-func (storage *brokerStorage) Create(broker *dto.Broker) error {
+func (store *brokerStorage) Create(broker *rest.Broker) error {
 	return nil
 }
 
-func (storage *brokerStorage) Get(id string) (*dto.Broker, error) {
-	broker := dto.Broker{}
-	if err := storage.db.Get(&broker, "SELECT * FROM brokers WHERE id = $1", id); err != nil {
+func (store *brokerStorage) Get(id string) (*rest.Broker, error) {
+	broker := Broker{}
+	if err := store.db.Get(&broker, "SELECT * FROM brokers WHERE id = $1", id); err != nil {
 		logrus.Debug("An error occurred while retrieving broker with id:", id)
+		if err == sql.ErrNoRows {
+			return nil, storage.NotFoundError
+		}
 		return nil, err
 	}
-	return &broker, nil
+
+	return broker.ConvertToRestModel(), nil
 }
 
-func (storage *brokerStorage) GetAll() ([]dto.Broker, error) {
-	brokers := []dto.Broker{}
-	if err := storage.db.Get(&brokers, "SELECT * FORM brokers"); err != nil {
+func (store *brokerStorage) GetAll() ([]rest.Broker, error) {
+	brokers := []rest.Broker{}
+	if err := store.db.Get(&brokers, "SELECT * FORM brokers"); err != nil {
 		logrus.Debug("An error occurred while retrieving all brokers")
 		return nil, err
 	}
 	return brokers, nil
 }
 
-func (storage *brokerStorage) Delete(id string) error {
-	if _, err := storage.db.Exec("DELETE FROM brokers WHERE id = $1", id); err != nil {
+func (store *brokerStorage) Delete(id string) error {
+	if _, err := store.db.Exec("DELETE FROM brokers WHERE id = $1", id); err != nil {
 		logrus.Debug("An error occurred while deleting broker with id:", id)
 		return err
 	}
 	return nil
 }
 
-func (storage *brokerStorage) Update(broker *dto.Broker) error {
-	_, err := storage.db.Exec("UPDATE brokers SET (id, name, description, created_at, updated_at, broker_url, credentials_id) = $1, $2, $3, $4, $5, $6, $7", broker.ID, broker.Name, broker.Description, broker.CreatedAt, broker.UpdatedAt, broker.BrokerURL, broker.CredentialsID)
-	if err != nil {
-		logrus.Debug("An error occurred while updating broker with id:", broker.ID)
-		return err
-	}
+func (store *brokerStorage) Update(broker *rest.Broker) error {
+	//_, err := store.db.Exec("UPDATE brokers SET (id, name, description, created_at, updated_at, broker_url, credentials_id) = $1, $2, $3, $4, $5, $6, $7", broker.ID, broker.Name, broker.Description, broker.CreatedAt, broker.UpdatedAt, broker.BrokerURL, broker.CredentialsID)
+	/*
+		if err != nil {
+			logrus.Debug("An error occurred while updating broker with id:", broker.ID)
+			return err
+		}
+	*/
 	return nil
 }

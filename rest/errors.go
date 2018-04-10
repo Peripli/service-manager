@@ -34,6 +34,7 @@ func ErrorHandlerFunc(handler APIHandler) http.Handler {
 
 // handleError sends a JSON containing the error to the response writer
 func handleError(err error, writer http.ResponseWriter) {
+	logrus.Error(err)
 	var respError *ErrorResponse
 	switch t := err.(type) {
 	case *ErrorResponse:
@@ -41,7 +42,11 @@ func handleError(err error, writer http.ResponseWriter) {
 	case ErrorResponse:
 		respError = &t
 	default:
-		respError = CreateErrorResponse(err, http.StatusInternalServerError, "GeneralError")
+		respError = &ErrorResponse{
+			ErrorType:   "InternalError",
+			Description: "Internal server error",
+			StatusCode:  http.StatusInternalServerError,
+		}
 	}
 
 	sendErr := util.SendJSON(writer, respError.StatusCode, respError)

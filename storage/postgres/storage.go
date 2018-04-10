@@ -22,9 +22,8 @@ import (
 )
 
 type postgresStorage struct {
-	brokerStorage      storage.Broker
-	platformStorage    storage.Platform
-	credentialsStorage storage.Credentials
+	brokerStorage   storage.Broker
+	platformStorage storage.Platform
 }
 
 func (p *postgresStorage) Broker() storage.Broker {
@@ -35,14 +34,9 @@ func (p *postgresStorage) Platform() storage.Platform {
 	return p.platformStorage
 }
 
-func (p *postgresStorage) Credentials() storage.Credentials {
-	return p.credentialsStorage
-}
-
 func newStorage(db *sqlx.DB) (storage.Storage, error) {
 	return &postgresStorage{
-		brokerStorage:      &brokerStorage{db},
-		platformStorage:    &platformStorage{db},
-		credentialsStorage: &credentialsStorage{db},
+		brokerStorage:   &brokerStorage{db},
+		platformStorage: &platformStorage{db},
 	}, nil
 }

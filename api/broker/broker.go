@@ -17,14 +17,9 @@
 package broker
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/Peripli/service-manager/rest"
-	"github.com/Peripli/service-manager/storage"
-	"github.com/Peripli/service-manager/util"
-	"github.com/Sirupsen/logrus"
-	"github.com/gorilla/mux"
 )
 
 const (
@@ -32,8 +27,6 @@ const (
 	Root       = "service_brokers"
 	Url        = "/" + ApiVersion + "/" + Root
 )
-
-type Controller struct{}
 
 func (brokerCtrl *Controller) Routes() []rest.Route {
 	return []rest.Route{
@@ -73,58 +66,4 @@ func (brokerCtrl *Controller) Routes() []rest.Route {
 			Handler: brokerCtrl.updateBroker,
 		},
 	}
-}
-
-type allBrokersResponse struct {
-	Brokers []*rest.Broker `json: "brokers"`
-}
-
-func (brokerCtrl *Controller) addBroker(w http.ResponseWriter, r *http.Request) error {
-	decoder := json.NewDecoder(r.Body)
-	broker := rest.Broker{}
-	err := decoder.Decode(&broker)
-	if err != nil {
-		panic(err)
-	}
-	defer r.Body.Close()
-
-	return nil
-}
-
-func (brokerCtrl *Controller) getBroker(w http.ResponseWriter, r *http.Request) error {
-	logrus.Debugf("GET to %s", r.RequestURI)
-	vars := mux.Vars(r)
-
-	brokerStorage := storage.Get().Broker()
-	broker, _ := brokerStorage.Get(vars["broker_id"])
-	brokerModel := broker.ConvertToRestModel()
-	brokerJSON, _ := json.Marshal(&brokerModel)
-	util.SendJSON(w, 200, brokerJSON)
-	return nil
-}
-
-func (brokerCtrl *Controller) getAllBrokers(w http.ResponseWriter, r *http.Request) error {
-	/*
-		logrus.Debugf("GET to %s", r.RequestURI)
-		brokerStorage := storage.Get().Broker()
-		brokers, err := brokerStorage.GetAll()
-		if err != nil {
-			return errors.New("Unable to get all brokers")
-		}
-		result, errJSON := json.Marshal(&allBrokersResponse{brokers})
-		if errJSON != nil {
-			return errors.New("Unable to serialize brokers")
-		}
-
-		util.SendJSON(w, 200, result)
-	*/
-	return nil
-}
-
-func (brokerCtrl *Controller) deleteBroker(w http.ResponseWriter, r *http.Request) error {
-	return nil
-}
-
-func (brokerCtrl *Controller) updateBroker(w http.ResponseWriter, r *http.Request) error {
-	return nil
 }
