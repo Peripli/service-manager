@@ -17,7 +17,7 @@
 package postgres
 
 import (
-	"github.com/Peripli/service-manager/storage/dto"
+	"github.com/Peripli/service-manager/rest"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -25,22 +25,22 @@ type brokerStorage struct {
 	db *sqlx.DB
 }
 
-func (storage *brokerStorage) Create(broker *dto.Broker) error {
+func (storage *brokerStorage) Create(broker *rest.Broker) error {
 	return nil
 }
 
-func (storage *brokerStorage) Get(id string) (*dto.Broker, error) {
+func (storage *brokerStorage) Get(id string) (*rest.Broker, error) {
 	return nil, nil
 }
 
-func (storage *brokerStorage) GetAll() ([]*dto.Broker, error) {
-	return []*dto.Broker{}, nil
+func (storage *brokerStorage) GetAll() ([]*rest.Broker, error) {
+	return []*rest.Broker{}, nil
 }
 
 func (storage *brokerStorage) Delete(id string) error {
 	return nil
 }
 
-func (storage *brokerStorage) Update(broker *dto.Broker) error {
+func (storage *brokerStorage) Update(broker *rest.Broker) error {
 	return nil
 }
