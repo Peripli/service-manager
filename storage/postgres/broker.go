@@ -30,19 +30,15 @@ type brokerStorage struct {
 }
 
 func (store *brokerStorage) Create(broker *rest.Broker) error {
+
 	return nil
 }
 
 func (store *brokerStorage) Get(id string) (*rest.Broker, error) {
-	broker := Broker{}
-	if err := store.db.Get(&broker, "SELECT * FROM brokers WHERE id = $1", id); err != nil {
-		logrus.Debug("An error occurred while retrieving broker with id:", id)
-		if err == sql.ErrNoRows {
-			return nil, storage.NotFoundError
-		}
+	broker, err := retrieveBroker(store.db.Get, id)
+	if err != nil {
 		return nil, err
 	}
-
 	return broker.ConvertToRestModel(), nil
 }
 
@@ -60,11 +56,32 @@ func (store *brokerStorage) GetAll() ([]rest.Broker, error) {
 }
 
 func (store *brokerStorage) Delete(id string) error {
-	if _, err := store.db.Exec("DELETE FROM brokers WHERE id = $1", id); err != nil {
+	tx, err := store.db.Beginx()
+	defer tx.Rollback()
+	if err != nil {
+		logrus.Debug("Unable to create transaction")
+		return err
+	}
+
+	broker, err := retrieveBroker(tx.Get, id)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec("DELETE FROM brokers WHERE id = $1", id)
+	if err != nil {
 		logrus.Debug("An error occurred while deleting broker with id:", id)
 		return err
 	}
-	return nil
+
+	crendentialsID := broker.CredentialsID
+	_, err = tx.Exec("DELETE FROM credentials WHERE id = $1", crendentialsID)
+	if err != nil {
+		logrus.Debug("Could not delete broker credentials with id:", crendentialsID)
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func (store *brokerStorage) Update(broker *rest.Broker) error {
@@ -76,4 +93,18 @@ func (store *brokerStorage) Update(broker *rest.Broker) error {
 		}
 	*/
 	return nil
+}
+
+type fetcher func(dest interface{}, query string, args ...interface{}) error
+
+func retrieveBroker(fetch fetcher, id string) (*Broker, error) {
+	broker := Broker{}
+	if err := fetch(&broker, "SELECT * FROM brokers WHERE id = $1", id); err != nil {
+		logrus.Debug("An error occurred while retrieving broker with id:", id)
+		if err == sql.ErrNoRows {
+			return nil, storage.NotFoundError
+		}
+		return nil, err
+	}
+	return &broker, nil
 }

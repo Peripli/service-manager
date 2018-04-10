@@ -19,7 +19,6 @@ package rest
 import (
 	"net/http"
 
-	"github.com/Peripli/service-manager/util"
 	"github.com/Sirupsen/logrus"
 )
 
@@ -49,7 +48,7 @@ func handleError(err error, writer http.ResponseWriter) {
 		}
 	}
 
-	sendErr := util.SendJSON(writer, respError.StatusCode, respError)
+	sendErr := SendJSON(writer, respError.StatusCode, respError)
 	if sendErr != nil {
 		logrus.Errorf("Could not write error to response: %v", sendErr)
 	}
