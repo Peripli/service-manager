@@ -25,6 +25,9 @@ import (
 	"github.com/Peripli/service-manager/env"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Sirupsen/logrus"
+	"github.com/golang-migrate/migrate"
+	migratepg "github.com/golang-migrate/migrate/database/postgres"
+	_ "github.com/golang-migrate/migrate/source/file"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
@@ -64,6 +67,27 @@ func (p *provider) Provide() (storage.Storage, error) {
 
 		logrus.Debug("Initialized PostgreSQL storage")
 		p.dbStorage, p.provisionError = newStorage(db)
+
+		logrus.Debug("Initializing database")
+		migrateSchema(db)
 	})
 	return p.dbStorage, p.provisionError
+}
+
+func migrateSchema(db *sqlx.DB) {
+	driver, err := migratepg.WithInstance(db, &migratepg.Config{})
+	if err != nil {
+		return err
+	}
+	m, err := migrate.NewWithDatabaseInstance(
+		"file://storage/postgres/migrations",
+		"postgres", driver)
+	if err != nil {
+		return err
+	}
+	err = m.Up()
+	if err == migrate.ErrNoChange {
+		err = nil
+	}
+	return err
 }
