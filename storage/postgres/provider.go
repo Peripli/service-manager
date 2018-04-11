@@ -51,9 +51,14 @@ func (p *provider) Provide() (storage.Storage, error) {
 		if !ok {
 			logrus.Panicf("Could not open connection for provided uri %s from postgres storage provider", uri)
 		}
-		db, err := sqlx.Open("postgres", uri)
+		db, err := sqlx.Connect("postgres", uri)
 		if err != nil {
-			logrus.Panicf("Could not connect to PostgreSQL storage" + err.Error())
+			logrus.Panicln("Could not connect to PostgreSQL:", err)
+		}
+
+		logrus.Debug("Updating database schema")
+		if err := updateSchema(db); err != nil {
+			logrus.Panicln("Could not update database schema:", err)
 		}
 
 		go func() {
@@ -67,15 +72,12 @@ func (p *provider) Provide() (storage.Storage, error) {
 
 		logrus.Debug("Initialized PostgreSQL storage")
 		p.dbStorage, p.provisionError = newStorage(db)
-
-		logrus.Debug("Initializing database")
-		migrateSchema(db)
 	})
 	return p.dbStorage, p.provisionError
 }
 
-func migrateSchema(db *sqlx.DB) {
-	driver, err := migratepg.WithInstance(db, &migratepg.Config{})
+func updateSchema(db *sqlx.DB) error {
+	driver, err := migratepg.WithInstance(db.DB, &migratepg.Config{})
 	if err != nil {
 		return err
 	}
@@ -87,6 +89,7 @@ func migrateSchema(db *sqlx.DB) {
 	}
 	err = m.Up()
 	if err == migrate.ErrNoChange {
+		logrus.Debug("Database schema already up to date")
 		err = nil
 	}
 	return err
