@@ -23,6 +23,7 @@ import (
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Sirupsen/logrus"
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 )
 
 type brokerStorage struct {
@@ -30,8 +31,40 @@ type brokerStorage struct {
 }
 
 func (store *brokerStorage) Create(broker *rest.Broker) error {
+	tx, err := store.db.Beginx()
+	defer tx.Rollback()
+	if err != nil {
+		logrus.Debug("Unable to create transaction")
+		return err
+	}
 
-	return nil
+	credentialsDTO := ConvertCredentialsToDTO(broker.Credentials)
+	statement, err := tx.PrepareNamed("INSERT INTO credentials (type, username, password, token) VALUES (:type, :username, :password, :token) RETURNING id")
+	if err != nil {
+		logrus.Debug("Unable to create prepared statement")
+		return err
+	}
+
+	var credentialsID int64
+	err = statement.Get(&credentialsID, credentialsDTO)
+	if err != nil {
+		logrus.Debug("Prepared statement execution failed")
+		return err
+	}
+	brokerDTO := ConvertBrokerToDTO(broker)
+	brokerDTO.CredentialsID = credentialsID
+
+	_, err = tx.NamedExec("INSERT INTO brokers (id, name, description, broker_url, created_at, updated_at, credentials_id) VALUES (:id, :name, :description, :broker_url, :created_at, :updated_at, :credentials_id)", brokerDTO)
+	if err != nil {
+		logrus.Debug("Unable to insert broker")
+		sqlErr, ok := err.(pq.Error)
+		if ok && sqlErr.Code.Name() == "unique_violation" {
+			return storage.UniqueViolationError
+		}
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func (store *brokerStorage) Get(id string) (*rest.Broker, error) {

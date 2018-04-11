@@ -23,6 +23,7 @@ import (
 )
 
 var NotFoundError = errors.New("Not found")
+var UniqueViolationError = errors.New("Unique constraint violation")
 
 // Provider interface for db storage provider
 type Provider interface {

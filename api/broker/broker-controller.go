@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
@@ -18,7 +19,17 @@ func (brokerCtrl *Controller) addBroker(response http.ResponseWriter, request *h
 	logrus.Debugf("POST %s", request.RequestURI)
 
 	broker := rest.Broker{}
-	rest.ReadJSONBody(request, &broker)
+	if err := rest.ReadJSONBody(request, &broker); err != nil {
+		logrus.Debug("Invalid request body")
+		return err
+	}
+
+	if broker.Name == "" || broker.BrokerURL == "" || broker.Credentials == nil {
+		return rest.CreateErrorResponse(
+			errors.New("Not all required properties are provided in the request body"),
+			http.StatusBadRequest,
+			"BadRequest")
+	}
 
 	uuid, err := uuid.NewV4()
 	if err != nil {
@@ -36,10 +47,14 @@ func (brokerCtrl *Controller) addBroker(response http.ResponseWriter, request *h
 	err = brokerStorage.Create(&broker)
 	if err != nil {
 		logrus.Debug("Could not persist broker")
+		if err == storage.UniqueViolationError {
+			return rest.CreateErrorResponse(err, http.StatusConflict, "Conflict")
+		}
 		return err
 	}
 
-	return nil
+	broker.Credentials = nil
+	return rest.SendJSON(response, http.StatusCreated, broker)
 }
 
 func (brokerCtrl *Controller) getBroker(response http.ResponseWriter, request *http.Request) error {
@@ -54,8 +69,7 @@ func (brokerCtrl *Controller) getBroker(response http.ResponseWriter, request *h
 		}
 		return err
 	}
-	rest.SendJSON(response, 200, broker)
-	return nil
+	return rest.SendJSON(response, http.StatusOK, broker)
 }
 
 func (brokerCtrl *Controller) getAllBrokers(response http.ResponseWriter, request *http.Request) error {
@@ -70,8 +84,7 @@ func (brokerCtrl *Controller) getAllBrokers(response http.ResponseWriter, reques
 	type brokerResponse struct {
 		Brokers []rest.Broker `json:"brokers"`
 	}
-	rest.SendJSON(response, 200, brokerResponse{brokers})
-	return nil
+	return rest.SendJSON(response, http.StatusOK, brokerResponse{brokers})
 }
 
 func (brokerCtrl *Controller) deleteBroker(response http.ResponseWriter, request *http.Request) error {
@@ -85,8 +98,7 @@ func (brokerCtrl *Controller) deleteBroker(response http.ResponseWriter, request
 		}
 		return err
 	}
-	rest.SendJSON(response, 200, map[string]int{})
-	return nil
+	return rest.SendJSON(response, http.StatusOK, map[string]int{})
 }
 
 func (brokerCtrl *Controller) updateBroker(response http.ResponseWriter, request *http.Request) error {
