@@ -59,7 +59,7 @@ func (server *Server) Run(ctx context.Context) {
 
 func moveRoutes(prefix string, fromRouter *mux.Router, toRouter *mux.Router) error {
 	subRouter := toRouter.PathPrefix(prefix).Subrouter()
-	return fromRouter.Walk(func(route *mux.Route, router *mux.Router, _ []*mux.Route) error {
+	return fromRouter.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
 
 		path, err := route.GetPathTemplate()
 		if err != nil {

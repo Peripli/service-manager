@@ -19,6 +19,7 @@ package storage
 import "github.com/Peripli/service-manager/types"
 
 // Storage interface provides entity-specific storages.
+//go:generate counterfeiter . Storage
 type Storage interface {
 	// Open initializes the storage, e.g. opens a connection to the underlying storage
 	Open(uri string) error

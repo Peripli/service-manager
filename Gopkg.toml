@@ -40,3 +40,6 @@
   name = "github.com/pmorie/osb-broker-lib"
   version = "0.0.6"
 
+[[constraint]]
+  name = "github.com/fatih/structs"
+  version = "1.0.0"

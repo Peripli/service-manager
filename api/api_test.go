@@ -22,6 +22,7 @@ import (
 	"github.com/Peripli/service-manager/rest"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/Peripli/service-manager/storage/storagefakes"
 )
 
 func TestApi(t *testing.T) {
@@ -37,13 +38,29 @@ func (c *testController) Routes() []rest.Route {
 }
 
 var _ = Describe("API", func() {
-	defaultAPI := Default()
+
+	var (
+		mockedStorage *storagefakes.FakeStorage
+		mockedBroker *storagefakes.FakeBroker
+		api rest.API
+	)
+
+	BeforeEach(func() {
+		mockedStorage = &storagefakes.FakeStorage{}
+		mockedBroker = &storagefakes.FakeBroker{}
+		mockedStorage.BrokerReturns(mockedBroker)
+
+		api = Default(mockedStorage)
+
+		Expect(mockedStorage.BrokerCallCount()).To(Equal(1))
+
+	})
 
 	Describe("Controller Registration", func() {
 		Context("With nil controllers slice", func() {
 			It("Should panic", func() {
 				nilControllersSlice := func() {
-					defaultAPI.RegisterControllers(nil)
+					api.RegisterControllers(nil)
 				}
 				Expect(nilControllersSlice).To(Panic())
 			})
@@ -54,18 +71,18 @@ var _ = Describe("API", func() {
 				nilControllerInSlice := func() {
 					var controllers []rest.Controller
 					controllers = append(controllers, nil)
-					defaultAPI.RegisterControllers(controllers...)
+					api.RegisterControllers(controllers...)
 				}
 				Expect(nilControllerInSlice).To(Panic())
 			})
 		})
 
 		Context("With no brokers registered", func() {
-			originalControllersCount := len(defaultAPI.Controllers())
 
 			It("Should increase broker count", func() {
-				defaultAPI.RegisterControllers(&testController{})
-				Expect(len(defaultAPI.Controllers())).To(Equal(originalControllersCount + 1))
+				originalControllersCount := len(api.Controllers())
+				api.RegisterControllers(&testController{})
+				Expect(len(api.Controllers())).To(Equal(originalControllersCount + 1))
 			})
 		})
 	})
