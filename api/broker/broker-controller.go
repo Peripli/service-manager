@@ -111,6 +111,8 @@ func (brokerCtrl *Controller) updateBroker(response http.ResponseWriter, request
 	}
 
 	broker.ID = mux.Vars(request)["broker_id"]
+	currentTime := time.Now().UTC()
+	broker.UpdatedAt = util.ToRFCFormat(currentTime)
 
 	brokerStorage := storage.Get().Broker()
 	if err := brokerStorage.Update(&broker); err != nil {
@@ -119,6 +121,11 @@ func (brokerCtrl *Controller) updateBroker(response http.ResponseWriter, request
 		}
 		return err
 	}
+	updatedBroker, err := brokerStorage.Get(broker.ID)
+	if err != nil {
+		logrus.Error("Failed to retrieve updated broker")
+		return err
+	}
 
-	return nil
+	return rest.SendJSON(response, http.StatusOK, updatedBroker)
 }

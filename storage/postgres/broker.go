@@ -18,6 +18,8 @@ package postgres
 
 import (
 	"database/sql"
+	"fmt"
+	"strings"
 
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
@@ -120,14 +122,67 @@ func (store *brokerStorage) Delete(id string) error {
 }
 
 func (store *brokerStorage) Update(broker *rest.Broker) error {
-	//_, err := store.db.Exec("UPDATE brokers SET (id, name, description, created_at, updated_at, broker_url, credentials_id) = $1, $2, $3, $4, $5, $6, $7", broker.ID, broker.Name, broker.Description, broker.CreatedAt, broker.UpdatedAt, broker.BrokerURL, broker.CredentialsID)
-	/*
+	tx, err := store.db.Beginx()
+	defer tx.Rollback()
+
+	if err != nil {
+		logrus.Error("Unable to create transaction")
+		return err
+	}
+
+	updateQueryString := generateUpdateQueryString(broker)
+
+	brokerDTO := ConvertBrokerToDTO(broker)
+	if updateQueryString != "" {
+		_, err := tx.NamedExec(updateQueryString, brokerDTO)
 		if err != nil {
-			logrus.Debug("An error occurred while updating broker with id:", broker.ID)
+			logrus.Error("Unable to update broker")
+			sqlErr, ok := err.(*pq.Error)
+			if ok && sqlErr.Code.Name() == "unique_violation" {
+				return storage.UniqueViolationError
+			}
 			return err
 		}
-	*/
-	return nil
+	}
+
+	if broker.Credentials != nil {
+		credentialsDTO := ConvertCredentialsToDTO(broker.Credentials)
+		err := tx.Get(&credentialsDTO.ID, "SELECT credentials_id FROM brokers WHERE id = $1", broker.ID)
+		if err != nil {
+			logrus.Error("Unable to retrieve broker credentials")
+			return err
+		}
+		_, err = tx.NamedExec(
+			"UPDATE credentials SET type = :type, username = :username, password = :password, token = :token WHERE id = :id",
+			credentialsDTO)
+		if err != nil {
+			logrus.Error("Unable to update credentials")
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+func generateUpdateQueryString(broker *rest.Broker) string {
+	set := make([]string, 0, 5)
+	if broker.Name != "" {
+		set = append(set, "name = :name")
+	}
+	if broker.Description != "" {
+		set = append(set, "description = :description")
+	}
+	if broker.BrokerURL != "" {
+		set = append(set, "broker_url = :broker_url")
+	}
+	if len(set) == 0 {
+		return ""
+	}
+	set = append(set, "updated_at = :updated_at")
+	update := fmt.Sprintf("UPDATE brokers SET %s WHERE id = :id",
+		strings.Join(set, ", "))
+
+	return update
 }
 
 func retrieveBroker(fetch fetcher, id string) (*Broker, error) {

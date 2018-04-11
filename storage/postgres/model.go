@@ -22,6 +22,7 @@ import "github.com/Peripli/service-manager/rest"
 
 // Credentials dto
 type Credentials struct {
+	ID       int    `db:"id"`
 	Type     int    `db:"type"`
 	Username string `db:"username"`
 	Password string `db:"password"`
