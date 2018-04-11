@@ -20,7 +20,7 @@ func (brokerCtrl *Controller) addBroker(response http.ResponseWriter, request *h
 
 	broker := rest.Broker{}
 	if err := rest.ReadJSONBody(request, &broker); err != nil {
-		logrus.Debug("Invalid request body")
+		logrus.Error("Invalid request body")
 		return err
 	}
 
@@ -33,7 +33,7 @@ func (brokerCtrl *Controller) addBroker(response http.ResponseWriter, request *h
 
 	uuid, err := uuid.NewV4()
 	if err != nil {
-		logrus.Debug("Could not generate GUID")
+		logrus.Error("Could not generate GUID")
 		return err
 	}
 
@@ -46,7 +46,7 @@ func (brokerCtrl *Controller) addBroker(response http.ResponseWriter, request *h
 	brokerStorage := storage.Get().Broker()
 	err = brokerStorage.Create(&broker)
 	if err != nil {
-		logrus.Debug("Could not persist broker")
+		logrus.Error("Could not persist broker")
 		if err == storage.UniqueViolationError {
 			return rest.CreateErrorResponse(err, http.StatusConflict, "Conflict")
 		}

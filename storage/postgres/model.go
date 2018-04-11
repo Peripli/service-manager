@@ -36,7 +36,7 @@ type Platform struct {
 	Description   string    `db:"description"`
 	CreatedAt     time.Time `db:"created_at"`
 	UpdatedAt     time.Time `db:"updated_at"`
-	CredentialsID int64     `db:"credentials_id"`
+	CredentialsID int       `db:"credentials_id"`
 }
 
 // Broker dto
@@ -47,7 +47,7 @@ type Broker struct {
 	CreatedAt     string `db:"created_at"`
 	UpdatedAt     string `db:"updated_at"`
 	BrokerURL     string `db:"broker_url"`
-	CredentialsID int64  `db:"credentials_id"`
+	CredentialsID int    `db:"credentials_id"`
 }
 
 func (brokerDTO *Broker) ConvertToRestModel() *rest.Broker {

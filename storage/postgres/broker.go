@@ -30,6 +30,8 @@ type brokerStorage struct {
 	db *sqlx.DB
 }
 
+type fetcher func(dest interface{}, query string, args ...interface{}) error
+
 func (store *brokerStorage) Create(broker *rest.Broker) error {
 	tx, err := store.db.Beginx()
 	defer tx.Rollback()
@@ -41,14 +43,14 @@ func (store *brokerStorage) Create(broker *rest.Broker) error {
 	credentialsDTO := ConvertCredentialsToDTO(broker.Credentials)
 	statement, err := tx.PrepareNamed("INSERT INTO credentials (type, username, password, token) VALUES (:type, :username, :password, :token) RETURNING id")
 	if err != nil {
-		logrus.Debug("Unable to create prepared statement")
+		logrus.Error("Unable to create prepared statement")
 		return err
 	}
 
-	var credentialsID int64
+	var credentialsID int
 	err = statement.Get(&credentialsID, credentialsDTO)
 	if err != nil {
-		logrus.Debug("Prepared statement execution failed")
+		logrus.Error("Prepared statement execution failed")
 		return err
 	}
 	brokerDTO := ConvertBrokerToDTO(broker)
@@ -56,7 +58,7 @@ func (store *brokerStorage) Create(broker *rest.Broker) error {
 
 	_, err = tx.NamedExec("INSERT INTO brokers (id, name, description, broker_url, created_at, updated_at, credentials_id) VALUES (:id, :name, :description, :broker_url, :created_at, :updated_at, :credentials_id)", brokerDTO)
 	if err != nil {
-		logrus.Debug("Unable to insert broker")
+		logrus.Error("Unable to insert broker")
 		sqlErr, ok := err.(pq.Error)
 		if ok && sqlErr.Code.Name() == "unique_violation" {
 			return storage.UniqueViolationError
@@ -78,7 +80,7 @@ func (store *brokerStorage) Get(id string) (*rest.Broker, error) {
 func (store *brokerStorage) GetAll() ([]rest.Broker, error) {
 	brokers := []Broker{}
 	if err := store.db.Select(&brokers, "SELECT * FROM brokers"); err != nil {
-		logrus.Debug("An error occurred while retrieving all brokers")
+		logrus.Error("An error occurred while retrieving all brokers")
 		return nil, err
 	}
 	restBrokers := make([]rest.Broker, len(brokers))
@@ -92,7 +94,7 @@ func (store *brokerStorage) Delete(id string) error {
 	tx, err := store.db.Beginx()
 	defer tx.Rollback()
 	if err != nil {
-		logrus.Debug("Unable to create transaction")
+		logrus.Error("Unable to create transaction")
 		return err
 	}
 
@@ -103,14 +105,14 @@ func (store *brokerStorage) Delete(id string) error {
 
 	_, err = tx.Exec("DELETE FROM brokers WHERE id = $1", id)
 	if err != nil {
-		logrus.Debug("An error occurred while deleting broker with id:", id)
+		logrus.Error("An error occurred while deleting broker with id:", id)
 		return err
 	}
 
 	crendentialsID := broker.CredentialsID
 	_, err = tx.Exec("DELETE FROM credentials WHERE id = $1", crendentialsID)
 	if err != nil {
-		logrus.Debug("Could not delete broker credentials with id:", crendentialsID)
+		logrus.Error("Could not delete broker credentials with id:", crendentialsID)
 		return err
 	}
 
@@ -128,12 +130,10 @@ func (store *brokerStorage) Update(broker *rest.Broker) error {
 	return nil
 }
 
-type fetcher func(dest interface{}, query string, args ...interface{}) error
-
 func retrieveBroker(fetch fetcher, id string) (*Broker, error) {
 	broker := Broker{}
 	if err := fetch(&broker, "SELECT * FROM brokers WHERE id = $1", id); err != nil {
-		logrus.Debug("An error occurred while retrieving broker with id:", id)
+		logrus.Error("An error occurred while retrieving broker with id:", id)
 		if err == sql.ErrNoRows {
 			return nil, storage.NotFoundError
 		}
