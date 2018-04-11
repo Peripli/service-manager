@@ -19,16 +19,17 @@ package postgres
 import (
 	"sync"
 
-	"github.com/Peripli/service-manager/env"
+	"fmt"
+
 	"github.com/Peripli/service-manager/storage"
-	"github.com/Sirupsen/logrus"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
 
-// Storage returns a PostgreSQL storage
-func Storage() storage.Storage {
-	return &postgresStorage{}
+const Storage = "postgres"
+
+func init() {
+	storage.Register(Storage, &postgresStorage{})
 }
 
 type postgresStorage struct {
@@ -36,14 +37,20 @@ type postgresStorage struct {
 	db   *sqlx.DB
 }
 
-func (storage *postgresStorage) Open() error {
+func (storage *postgresStorage) Broker() storage.Broker {
+	if storage.db == nil {
+		panic("Storage is not yet Open")
+	}
+	return &brokerStorage{db: storage.db}
+}
+
+func (storage *postgresStorage) Open(uri string) error {
 	var err error
+	if uri == "" {
+		return fmt.Errorf("Storage URI cannot be empty")
+	}
 	storage.once.Do(func() {
-		uri, ok := env.Get("storage.uri").(string)
-		if !ok {
-			logrus.Panicf("Could not open connection for provided uri %s from postgres storage provider", uri)
-		}
-		storage.db, err = sqlx.Open("postgres", uri)
+		storage.db, err = sqlx.Open(Storage, uri)
 	})
 	return err
 }

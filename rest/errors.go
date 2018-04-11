@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // ErrorResponse struct used to store information about error
@@ -29,6 +29,7 @@ type ErrorResponse struct {
 	Description string `json:"description"`
 }
 
+//TODO can be removed
 // ErrorHandlerFunc wraps an APIHandler and returns an http.Handler by providing a central error handling place for all APIHandlers
 func ErrorHandlerFunc(handler APIHandler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, reader *http.Request) {

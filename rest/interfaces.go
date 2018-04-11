@@ -39,7 +39,7 @@ type Route struct {
 	Endpoint Endpoint
 
 	// Handler is the function that should handle incoming requests for this endpoint
-	Handler APIHandler
+	Handler http.Handler
 }
 
 // Endpoint is a combination of a Path and an HTTP Method
@@ -49,3 +49,9 @@ type Endpoint struct {
 
 // APIHandler enriches http.HandlerFunc with an error response for further processing
 type APIHandler func(http.ResponseWriter, *http.Request) error
+
+//TODO try...
+func (ah APIHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
+	err := ah(rw, r)
+	HandleError(err, rw)
+}

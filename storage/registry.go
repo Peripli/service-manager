@@ -18,12 +18,11 @@ package storage
 
 import (
 	"context"
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 
-	"github.com/Sirupsen/logrus"
+	"fmt"
+
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -31,53 +30,45 @@ var (
 	storages = make(map[string]Storage)
 )
 
-// Get returns a single storage
-// Panics if more than one storage is configured. Use GetByName in such cases
-func Get() Storage {
+func Register(name string, storage Storage) {
 	mux.RLock()
 	defer mux.RUnlock()
-	storagesCount := len(storages)
-	if storagesCount != 1 {
-		logrus.Panicf("Requested exactly one storage but %d storages are configured", storagesCount)
+	if storage == nil {
+		panic("storage: Register storage is nil")
 	}
-	var registeredStorage Storage
-	for _, v := range storages {
-		registeredStorage = v
-		break
+	if _, dup := storages[name]; dup {
+		panic("storage: Register called twice for storage with name " + name)
 	}
-	return registeredStorage
+	storages[name] = storage
 }
 
-// GetByName returns a storage with this name and boolean indicating whether it exists
-func GetByName(name string) (Storage, bool) {
-	mux.RLock()
-	defer mux.RUnlock()
-	providedStorage, exists := storages[name]
-	return providedStorage, exists
-}
-
-// Use specifies the storage for the given name
-func Use(name string, storage Storage, ctx context.Context) {
+// Argumentation for refactoring
+//Use returning the storage seems more natural rather then doing .Get; .Get() introduces a hidden dependency as well)
+//This way we kind of provide a wrapper over the sqlx.db by keeping the same flow of usage while keeping an abstraction for Storage possible
+// Wrapping as follows
+// - postgres impl of storage _ imports the driver, we _import the postgres storage's package
+// Registering a storage "wraps" registering a driver and allows us to "use" the storage that wraps abstract opening a storage (in posgres it opens sqlx.db)
+// The idea is to allow abstraction of Storage while keeping the sqlx.db flow of usage as close as possible
+// uri is passed as argument as we don't want to obtain env variables in random places of the code as the config might not be provided as env vars)
+// It's better to abstract away the environment loading and use it to build a configuration that is passed to the server. The server than takes care
+// to split the configuration and pass segments to the components it initializes (to storage the server will pass uri)
+func Use(name string, uri string, ctx context.Context) (Storage, error) {
 	mux.Lock()
 	defer mux.Unlock()
-	if _, exists := storages[name]; exists {
-		logrus.Panic("A provider with this name has already been registered")
+	storage, exists := storages[name]
+	if !exists {
+		return nil, fmt.Errorf("Error locating storage with name %s", name)
 	}
-	if err := storage.Open(); err != nil {
-		logrus.Panic(err)
+	if err := storage.Open(uri); err != nil {
+		return nil, fmt.Errorf("Error opening storage: %s", err)
 	}
 	storages[name] = storage
 	go awaitTermination(storage, ctx)
+	return storage, nil
 }
 
 func awaitTermination(storage Storage, ctx context.Context) {
-	term := make(chan os.Signal)
-	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
-
 	select {
-	case <-term:
-		logrus.Debug("Received sigterm. Closing storage...")
-		closeStorage(storage)
 	case <-ctx.Done():
 		logrus.Debug("Context cancelled. Closing storage...")
 		closeStorage(storage)

@@ -17,23 +17,30 @@
 package api
 
 import (
+	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/storage"
 )
 
 // Default returns the minimum set of REST APIs needed for the Service Manager
-func Default() rest.API {
-	return &defaultAPI{}
+func Default(storage storage.Storage) rest.API {
+	return &smAPI{
+		controllers: []rest.Controller{
+			osb.Controller{
+				BrokerStorage: storage.Broker(),
+			}},
+	}
 }
 
-type defaultAPI struct {
+type smAPI struct {
 	controllers []rest.Controller
 }
 
-func (api *defaultAPI) Controllers() []rest.Controller {
+func (api *smAPI) Controllers() []rest.Controller {
 	return api.controllers
 }
 
-func (api *defaultAPI) RegisterControllers(controllers ...rest.Controller) {
+func (api *smAPI) RegisterControllers(controllers ...rest.Controller) {
 	for _, controller := range controllers {
 		if controller == nil {
 			panic("Cannot add nil controllers")
