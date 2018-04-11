@@ -19,7 +19,6 @@ package platform
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -72,7 +71,7 @@ func checkPlatformMandatoryProperties(platform *rest.Platform) error {
 
 // addPlatform handler for POST /v1/platforms
 func (platformCtrl *Controller) addPlatform(rw http.ResponseWriter, req *http.Request) error {
-	logrus.Debug("POST to %s", req.RequestURI)
+	logrus.Debugf("POST to %s", req.RequestURI)
 
 	platform, errDecode := getPlatformFromRequest(req)
 	if errDecode != nil {
@@ -99,7 +98,7 @@ func (platformCtrl *Controller) addPlatform(rw http.ResponseWriter, req *http.Re
 	}
 	platformStorage := storage.Get().Platform()
 	errSave := platformStorage.Create(platform)
-	if errSave == storage.DuplicateError {
+	if errSave == storage.ConflictEntityError {
 		return registerPlatformError(errSave, http.StatusConflict)
 	} else if errSave != nil {
 		return registerPlatformError(errorSavePlatform(errSave), http.StatusInternalServerError)
@@ -113,7 +112,7 @@ func (platformCtrl *Controller) addPlatform(rw http.ResponseWriter, req *http.Re
 
 // getPlatform handler for GET /v1/platforms/:platform_id
 func (platformCtrl *Controller) getPlatform(rw http.ResponseWriter, req *http.Request) error {
-	logrus.Debug("GET to %s", req.RequestURI)
+	logrus.Debugf("GET to %s", req.RequestURI)
 	platformID := getPlatformID(req)
 	platformStorage := storage.Get().Platform()
 	platform, err := platformStorage.GetByID(platformID)
@@ -131,11 +130,11 @@ func (platformCtrl *Controller) getPlatform(rw http.ResponseWriter, req *http.Re
 
 // getAllPlatforms handler for GET /v1/platforms
 func (platformCtrl *Controller) getAllPlatforms(rw http.ResponseWriter, req *http.Request) error {
-	logrus.Debug("GET to %s", req.RequestURI)
+	logrus.Debugf("GET to %s", req.RequestURI)
 	platformStorage := storage.Get().Platform()
 	platforms, err := platformStorage.GetAll()
 	if err != nil {
-		return getAllPlatformsError(internalError(err, "Could not get all platforms"), http.StatusInternalServerError)
+		return getAllPlatformsError(internalError(err, "could not get all platforms"), http.StatusInternalServerError)
 	}
 	platformsResponse := map[string][]rest.Platform{"platforms": platforms}
 
@@ -147,20 +146,15 @@ func (platformCtrl *Controller) getAllPlatforms(rw http.ResponseWriter, req *htt
 
 // deletePlatform handler for DELETE /v1/platforms/:platform_id
 func (platformCtrl *Controller) deletePlatform(rw http.ResponseWriter, req *http.Request) error {
-	logrus.Debug("DELETE to %s", req.RequestURI)
+	logrus.Debugf("DELETE to %s", req.RequestURI)
 	platformID := getPlatformID(req)
+
 	platformStorage := storage.Get().Platform()
-	// platformDTO, err := platformStorage.GetByID(platformID)
-	// if err != nil {
-	// 	return deletePlatformError(errorPlatformLookup(err), http.StatusInternalServerError)
-	// }
-	// if platformDTO == nil {
-	// 	return deletePlatformError(errorMissingPlatform(platformID), http.StatusNotFound)
-	// }
 	errDelete := platformStorage.Delete(platformID)
-	if errDelete != nil {
-		logrus.Error(errDelete)
-		return deletePlatformError(fmt.Errorf("Could not delete platform with id %s", platformID), http.StatusInternalServerError)
+	if errDelete == storage.MissingEntityError {
+		return deletePlatformError(errorMissingPlatform(platformID), http.StatusNotFound)
+	} else if errDelete != nil {
+		return deletePlatformError(internalError(errDelete, "could not delete platform with id %s", platformID), http.StatusInternalServerError)
 	}
 	// map[string]string{} will result in empty JSON
 	if errJSON := rest.SendJSON(rw, http.StatusOK, map[string]string{}); errJSON != nil {
@@ -169,39 +163,33 @@ func (platformCtrl *Controller) deletePlatform(rw http.ResponseWriter, req *http
 	return nil
 }
 
-// updatePlatform handler for PUT /v1/platforms/:platform_id
+// updatePlatform handler for PATCH /v1/platforms/:platform_id
 func (platformCtrl *Controller) updatePlatform(rw http.ResponseWriter, req *http.Request) error {
-	logrus.Debug("PUT to %s", req.RequestURI)
-	// platformID := getPlatformID(req)
-	// platformStorage := storage.Get().Platform()
-	// platformDTO, err := platformStorage.GetByID(platformID)
-	// if err != nil {
-	// 	return updatePlatformError(errorPlatformLookup(err), http.StatusInternalServerError)
-	// }
-	// if platformDTO == nil {
-	// 	return updatePlatformError(errorMissingPlatform(platformID), http.StatusNotFound)
-	// }
-	// newPlatform, errDecode := getPlatformFromRequest(req)
-	// if errDecode != nil {
-	// 	return updatePlatformError(errorRequestBodyDecode(errDecode), http.StatusBadRequest)
-	// }
-	// if platformDTO.Name != newPlatform.Name {
-	// 	platformWithSameName, errNameCollisionCheck := platformStorage.GetByName(newPlatform.Name)
-	// 	if errNameCollisionCheck != nil {
-	// 		logrus.Error(errNameCollisionCheck)
-	// 		return updatePlatformError(errors.New("Error during platform update"), http.StatusInternalServerError)
-	// 	}
-	// 	if platformWithSameName != nil {
-	// 		return updatePlatformError(fmt.Errorf("platform with name %s already exists", newPlatform.Name), http.StatusConflict)
-	// 	}
-	// }
-	// mergePlatforms(newPlatform, platformDTO)
+	logrus.Debugf("PATCH to %s", req.RequestURI)
+	platformID := getPlatformID(req)
+	newPlatform, errDecode := getPlatformFromRequest(req)
+	if errDecode != nil {
+		return updatePlatformError(errorRequestBodyDecode(errDecode), http.StatusBadRequest)
+	}
 
-	// if errUpdate := platformStorage.Update(platformDTO); errUpdate != nil {
-	// 	return updatePlatformError(errorSavePlatform(errUpdate), http.StatusInternalServerError)
-	// }
-	// if errJSON := rest.SendJSON(rw, http.StatusOK, newPlatform); errJSON != nil {
-	// 	return updatePlatformError(responseProcessingError(errJSON), http.StatusInternalServerError)
-	// }
+	platformStorage := storage.Get().Platform()
+	platform, err := platformStorage.GetByID(platformID)
+	if err != nil {
+		return updatePlatformError(errorPlatformLookup(err), http.StatusInternalServerError)
+	}
+	if platform == nil {
+		return updatePlatformError(errorMissingPlatform(platformID), http.StatusNotFound)
+	}
+	mergePlatforms(newPlatform, platform)
+
+	errUpdate := platformStorage.Update(platform)
+	if errUpdate == storage.MissingEntityError {
+		return updatePlatformError(errorMissingPlatform(platformID), http.StatusNotFound)
+	} else if errUpdate != nil {
+		return updatePlatformError(errorSavePlatform(errUpdate), http.StatusInternalServerError)
+	}
+	if errJSON := rest.SendJSON(rw, http.StatusOK, platform); errJSON != nil {
+		return updatePlatformError(responseProcessingError(errJSON), http.StatusInternalServerError)
+	}
 	return nil
 }

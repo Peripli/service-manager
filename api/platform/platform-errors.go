@@ -52,7 +52,7 @@ func errorRequestBodyDecode(reason error) error {
 }
 
 func responseProcessingError(err error) error {
-	return internalError(err, "Error while processing response")
+	return internalError(err, "error while processing response")
 }
 
 func registerPlatformError(err error, statusCode int) *rest.ErrorResponse {

@@ -52,5 +52,8 @@ type Platform interface {
 	Update(platform *rest.Platform) error
 }
 
-// DuplicateError error
-var DuplicateError = errors.New("Duplicate model insertion")
+// ConflictEntityError error
+var ConflictEntityError = errors.New("Conflict entity found")
+
+// MissingEntityError error
+var MissingEntityError = errors.New("Entity not found")

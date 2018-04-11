@@ -59,6 +59,18 @@ var (
 
 	// insertPlatform insert new platform
 	insertPlatform = "INSERT INTO " + schema + "." + table + "(id, type, name, description, credentials_id, created_at, updated_at) VALUES(:id, :type, :name, :description, :credentials_id, :created_at, :updated_at)"
+
+	// deletePlatform deletes platform and corresponding credentials
+	deletePlatform = `WITH pl AS (
+		DELETE FROM "SERVICE_MANAGER".platforms
+		WHERE
+			id = $1
+		RETURNING credentials_id
+	)
+	DELETE FROM "SERVICE_MANAGER".credentials
+	WHERE id IN (SELECT credentials_id from pl)`
+
+	updatePlatform = "UPDATE " + schema + "." + table + " SET name=:name, type=:type, description=:description, updated_at=:updated_at WHERE id=:id"
 )
 
 func handleRollback(transaction *sqlx.Tx, lastOperation error) error {
@@ -101,7 +113,7 @@ func (storage *platformStorage) Create(platform *rest.Platform) error {
 		}
 		if pqErr.Code.Name() == "unique_violation" {
 			logrus.Debug(pqErr)
-			return handleRollback(tx, store.DuplicateError)
+			return handleRollback(tx, store.ConflictEntityError)
 		}
 	}
 
@@ -160,9 +172,39 @@ func (storage *platformStorage) GetAll() ([]rest.Platform, error) {
 }
 
 func (storage *platformStorage) Delete(id string) error {
-	return nil
+	tx := storage.db.MustBegin()
+	result, err := tx.Exec(deletePlatform, &id)
+	if err != nil {
+		return handleRollback(tx, err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return handleRollback(tx, err)
+	}
+
+	if rowsAffected != 1 {
+		return handleRollback(tx, store.MissingEntityError)
+	}
+	return tx.Commit()
 }
 
 func (storage *platformStorage) Update(platform *rest.Platform) error {
+	result, err := storage.db.NamedExec(updatePlatform, &Platform{
+		ID:          platform.ID,
+		Type:        platform.Type,
+		Name:        platform.Name,
+		Description: platform.Description,
+		UpdatedAt:   platform.UpdatedAt,
+	})
+	if err != nil {
+		return err
+	}
+	affectedRows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affectedRows != 1 {
+		return store.MissingEntityError
+	}
 	return nil
 }
