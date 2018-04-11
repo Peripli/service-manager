@@ -102,5 +102,23 @@ func (brokerCtrl *Controller) deleteBroker(response http.ResponseWriter, request
 }
 
 func (brokerCtrl *Controller) updateBroker(response http.ResponseWriter, request *http.Request) error {
+	logrus.Debugf("PATCH %s", request.RequestURI)
+
+	broker := rest.Broker{}
+	if err := rest.ReadJSONBody(request, &broker); err != nil {
+		logrus.Error("Invalid request body")
+		return err
+	}
+
+	broker.ID = mux.Vars(request)["broker_id"]
+
+	brokerStorage := storage.Get().Broker()
+	if err := brokerStorage.Update(&broker); err != nil {
+		if err == storage.UniqueViolationError {
+			return rest.CreateErrorResponse(err, http.StatusConflict, "Conflict")
+		}
+		return err
+	}
+
 	return nil
 }
