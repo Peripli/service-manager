@@ -36,7 +36,7 @@ func (store *brokerStorage) Create(broker *rest.Broker) error {
 	tx, err := store.db.Beginx()
 	defer tx.Rollback()
 	if err != nil {
-		logrus.Debug("Unable to create transaction")
+		logrus.Error("Unable to create transaction")
 		return err
 	}
 
@@ -59,7 +59,7 @@ func (store *brokerStorage) Create(broker *rest.Broker) error {
 	_, err = tx.NamedExec("INSERT INTO brokers (id, name, description, broker_url, created_at, updated_at, credentials_id) VALUES (:id, :name, :description, :broker_url, :created_at, :updated_at, :credentials_id)", brokerDTO)
 	if err != nil {
 		logrus.Error("Unable to insert broker")
-		sqlErr, ok := err.(pq.Error)
+		sqlErr, ok := err.(*pq.Error)
 		if ok && sqlErr.Code.Name() == "unique_violation" {
 			return storage.UniqueViolationError
 		}
