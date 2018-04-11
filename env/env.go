@@ -18,36 +18,105 @@ package env
 
 import (
 	"fmt"
+	"strings"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/fatih/structs"
 	"github.com/spf13/viper"
 )
 
-// Get returns the value associated with this key from the environment
-func Get(key string) interface{} {
-	return viper.Get(key)
+type viperEnv struct {
+	Viper      *viper.Viper
+	configFile *ConfigFile
+	envPrefix  string
 }
 
-// Load loads the application.yml file from the specified location
-func Load(location string) error {
-	viper.AddConfigPath(location)
-	viper.SetConfigName("application")
-	viper.SetConfigType("yaml")
-	viper.AutomaticEnv()
-	if err := viper.ReadInConfig(); err != nil {
+type ConfigFile struct {
+	Name   string
+	Path   string
+	Format string
+}
+
+//var _ server.environment = &viperEnv{}
+
+func Default() *viperEnv {
+	envPrefix := "SM"
+	configFile := &ConfigFile{
+		Path:   ".",
+		Name:   "application",
+		Format: "yml",
+	}
+	return New(configFile, envPrefix)
+}
+
+func New(file *ConfigFile, envPrefix string) *viperEnv {
+	return &viperEnv{
+		Viper:      viper.New(),
+		configFile: file,
+		envPrefix:  envPrefix,
+	}
+}
+
+func (v *viperEnv) Load() error {
+	v.Viper.AddConfigPath(v.configFile.Path)
+	v.Viper.SetConfigName(v.configFile.Name)
+	v.Viper.SetConfigType(v.configFile.Format)
+	v.Viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	v.Viper.SetEnvPrefix(v.envPrefix)
+	v.Viper.AutomaticEnv()
+	if err := v.Viper.ReadInConfig(); err != nil {
 		panic(fmt.Sprintf("Could not read configuration file: %s", err))
 	}
-	initializeLogging()
 	return nil
 }
 
-func initializeLogging() {
-	logLevel := viper.GetString("log.level")
-	level, err := logrus.ParseLevel(logLevel)
-	if err != nil {
-		logrus.WithField("level", level).Warn("Missing or invalid log level! Falling back to Error...")
-		logrus.SetLevel(logrus.ErrorLevel)
-	} else {
-		logrus.SetLevel(level)
+func (v *viperEnv) Get(key string) interface{} {
+	return v.Viper.Get(key)
+}
+
+func (v *viperEnv) Unmarshal(value interface{}) error {
+	if err := bindStruct(v.Viper, value); err != nil {
+		return err
 	}
+	return v.Viper.Unmarshal(value)
+}
+
+//THIS IS OPTIONAL but automates something that is missing from viper -
+// If we pass a struct to be unmarshaled and we want some of the fields to be loaded
+// from env variables we would need to perform something manual to let viper know about each of these fields.
+// We would either need to do one of these:
+// specify default values for the fields in application.yml, pass default values as flags,
+// call viper.SetDefault(x.y) where x.y in env should be [PREFIX_]X_Y, call viper.BindEnv(x.y)
+//TODO method below needs refactoring
+func bindStruct(viper *viper.Viper, value interface{}) error {
+	var result = []string{}
+	var a func(value interface{}, buffer string)
+	a = func(value interface{}, buffer string) {
+		if !structs.IsStruct(value) {
+			index := strings.LastIndex(buffer, ".")
+			if index == -1 {
+				index = 0
+			}
+			result = append(result, strings.ToLower(buffer[0:index]))
+			return
+		}
+		s := structs.New(value)
+		for _, field := range s.Fields() {
+			if field.IsExported() {
+				if !field.IsEmbedded() {
+					buffer += (field.Name() + ".")
+				}
+				a(field.Value(), buffer)
+				if !field.IsEmbedded() {
+					buffer = buffer[0:strings.LastIndex(buffer, field.Name())]
+				}
+			}
+		}
+	}
+	a(value, "")
+	for _,val := range result {
+		if err := viper.BindEnv(val); err != nil {
+			return err
+			}
+	}
+	return nil
 }

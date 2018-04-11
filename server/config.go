@@ -16,31 +16,92 @@
 
 package server
 
-import "time"
+import (
+	"strconv"
+	"time"
+	"github.com/spf13/viper"
+)
 
-type config struct {
-	address         string
-	requestTimeout  time.Duration
-	shutdownTimeout time.Duration
+type environment interface {
+	Load() error
+	Get(key string) interface{}
+	Unmarshal(value interface{}) error
 }
 
-func (config *config) Address() string {
-	return config.address
+type Settings struct {
+	Server serverSettings
+	Db     dbSettings
+	Log    logSettings
 }
 
-func (config *config) RequestTimeout() time.Duration {
-	return config.requestTimeout
+type serverSettings struct {
+	Port            int
+	RequestTimeout  int
+	ShutdownTimeout int
 }
 
-func (config *config) ShutdownTimeout() time.Duration {
-	return config.shutdownTimeout
+type dbSettings struct {
+	URI string
+}
+
+type logSettings struct {
+	Level  string
+	Format string
+}
+
+type Config struct {
+	Address         string
+	RequestTimeout  time.Duration
+	ShutdownTimeout time.Duration
+	LogLevel        string
+	LogFormat       string
+	DbURI           string
+}
+
+func NewConfiguration(env environment) (*Config, error) {
+	config := DefaultConfiguration()
+
+	if err := env.Load(); err != nil {
+		return nil, err
+	}
+
+	configSettings := &Settings{}
+	if err := env.Unmarshal(configSettings); err != nil {
+		return nil, err
+	}
+
+	if configSettings.Server.Port != 0 {
+		config.Address = ":" + strconv.Itoa(configSettings.Server.Port)
+	}
+	if configSettings.Server.RequestTimeout != 0 {
+		config.RequestTimeout = time.Duration(configSettings.Server.RequestTimeout)
+	}
+	if configSettings.Server.ShutdownTimeout != 0 {
+		config.ShutdownTimeout = time.Duration(configSettings.Server.ShutdownTimeout)
+	}
+	if len(configSettings.Db.URI) != 0 {
+		config.DbURI = configSettings.Db.URI
+	}
+	if len(configSettings.Log.Format) != 0 {
+		config.LogFormat = configSettings.Log.Format
+	}
+	if len(configSettings.Log.Level) != 0 {
+		config.LogLevel = configSettings.Log.Level
+	}
+
+	return config, nil
 }
 
 // DefaultConfiguration returns a default server configuration
-func DefaultConfiguration() Configuration {
-	return &config{
-		address:         ":8080",
-		requestTimeout:  time.Millisecond * time.Duration(1500),
-		shutdownTimeout: time.Second * time.Duration(5),
+func DefaultConfiguration() *Config {
+	config := &Config{
+		Address:         ":8080",
+		RequestTimeout:  time.Millisecond * time.Duration(3000),
+		ShutdownTimeout: time.Millisecond * time.Duration(3000),
+		LogLevel:        "debug",
+		LogFormat:       "text",
+		DbURI:           "",
 	}
+
+	return config
 }

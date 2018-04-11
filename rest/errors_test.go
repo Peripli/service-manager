@@ -21,9 +21,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/sirupsen/logrus"
 
 	"github.com/Peripli/service-manager/rest"
 )
@@ -93,7 +93,7 @@ var _ = Describe("Errors", func() {
 		Context("With valid parameters", func() {
 			It("Writes to response writer", func() {
 				response := rest.ErrorResponse{Error: "test error", Description: "test description"}
-				if err := rest.SendJSON(mockedWriter, 200, response); err != nil {
+				if err := rest.SendJSON(mockedWriter, http.StatusOK, response); err != nil {
 					Fail("Serializing valid ErrorResponse should be successful")
 				}
 				Expect(string(mockedWriter.data)).To(ContainSubstring(testError.Error()))
