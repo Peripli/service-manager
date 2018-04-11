@@ -17,12 +17,9 @@
 package broker
 
 import (
-	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/Peripli/service-manager/rest"
-	"github.com/gorilla/mux"
 )
 
 const (
@@ -30,8 +27,6 @@ const (
 	Root       = "service_brokers"
 	Url        = "/" + ApiVersion + "/" + Root
 )
-
-type Controller struct{}
 
 func (brokerCtrl *Controller) Routes() []rest.Route {
 	return []rest.Route{
@@ -71,38 +66,4 @@ func (brokerCtrl *Controller) Routes() []rest.Route {
 			Handler: brokerCtrl.updateBroker,
 		},
 	}
-}
-
-func (brokerCtrl *Controller) addBroker(w http.ResponseWriter, r *http.Request) error {
-	decoder := json.NewDecoder(r.Body)
-	broker := rest.Broker{}
-	err := decoder.Decode(&broker)
-	if err != nil {
-		panic(err)
-	}
-	defer r.Body.Close()
-
-	storage.Get()
-
-	return nil
-}
-
-func (brokerCtrl *Controller) getBroker(w http.ResponseWriter, r *http.Request) error {
-	vars := mux.Vars(r)
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Broker id: %v\n", vars["broker_id"])
-	return nil
-}
-
-func (brokerCtrl *Controller) getAllBrokers(w http.ResponseWriter, r *http.Request) error {
-	w.Write([]byte("No brokers available."))
-	return nil
-}
-
-func (brokerCtrl *Controller) deleteBroker(w http.ResponseWriter, r *http.Request) error {
-	return nil
-}
-
-func (brokerCtrl *Controller) updateBroker(w http.ResponseWriter, r *http.Request) error {
-	return nil
 }

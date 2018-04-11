@@ -18,11 +18,15 @@ package postgres
 
 import "time"
 
+import "github.com/Peripli/service-manager/rest"
+
 // Credentials dto
 type Credentials struct {
+	ID       int    `db:"id"`
 	Type     int    `db:"type"`
 	Username string `db:"username"`
 	Password string `db:"password"`
+	Token    string `db:"token"`
 }
 
 // Platform dto
@@ -40,8 +44,38 @@ type Platform struct {
 type Broker struct {
 	ID            string `db:"id"`
 	Name          string `db:"name"`
-	URL           string `db:"broker_url"`
+	Description   string `db:"description"`
 	CreatedAt     string `db:"created_at"`
 	UpdatedAt     string `db:"updated_at"`
+	BrokerURL     string `db:"broker_url"`
 	CredentialsID int    `db:"credentials_id"`
+}
+
+func (brokerDTO *Broker) ConvertToRestModel() *rest.Broker {
+	return &rest.Broker{ID: brokerDTO.ID,
+		Name:        brokerDTO.Name,
+		Description: brokerDTO.Description,
+		CreatedAt:   brokerDTO.CreatedAt,
+		UpdatedAt:   brokerDTO.UpdatedAt,
+		BrokerURL:   brokerDTO.BrokerURL}
+}
+
+func ConvertCredentialsToDTO(credentials *rest.Credentials) *Credentials {
+	return &Credentials{
+		Type:     1,
+		Username: credentials.Basic.Username,
+		Password: credentials.Basic.Password,
+		Token:    "",
+	}
+}
+
+func ConvertBrokerToDTO(broker *rest.Broker) *Broker {
+	return &Broker{
+		ID:          broker.ID,
+		Name:        broker.Name,
+		Description: broker.Description,
+		BrokerURL:   broker.BrokerURL,
+		CreatedAt:   broker.CreatedAt,
+		UpdatedAt:   broker.UpdatedAt,
+	}
 }

@@ -16,7 +16,14 @@
 
 package storage
 
-import "github.com/Peripli/service-manager/rest"
+import (
+	"errors"
+
+	"github.com/Peripli/service-manager/rest"
+)
+
+var NotFoundError = errors.New("Not found")
+var UniqueViolationError = errors.New("Unique constraint violation")
 
 // Provider interface for db storage provider
 type Provider interface {
@@ -33,7 +40,7 @@ type Storage interface {
 type Broker interface {
 	Create(broker *rest.Broker) error
 	Get(id string) (*rest.Broker, error)
-	GetAll() ([]*rest.Broker, error)
+	GetAll() ([]rest.Broker, error)
 	Delete(id string) error
 	Update(broker *rest.Broker) error
 }
