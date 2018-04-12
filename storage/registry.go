@@ -30,6 +30,7 @@ var (
 	storages = make(map[string]Storage)
 )
 
+// Register adds a storage with the given name
 func Register(name string, storage Storage) {
 	mux.RLock()
 	defer mux.RUnlock()
@@ -42,7 +43,10 @@ func Register(name string, storage Storage) {
 	storages[name] = storage
 }
 
-func Use(name string, uri string, ctx context.Context) (Storage, error) {
+// Use specifies the storage for the given name
+// Returns the storage ready to be used and an error if one occurred during initialization
+// Upon context.Done signal the storage will be closed
+func Use(ctx context.Context, name string, uri string) (Storage, error) {
 	mux.Lock()
 	defer mux.Unlock()
 	storage, exists := storages[name]
@@ -53,19 +57,13 @@ func Use(name string, uri string, ctx context.Context) (Storage, error) {
 		return nil, fmt.Errorf("Error opening storage: %s", err)
 	}
 	storages[name] = storage
-	go awaitTermination(storage, ctx)
+	go awaitTermination(ctx, storage)
 	return storage, nil
 }
 
-func awaitTermination(storage Storage, ctx context.Context) {
-	select {
-	case <-ctx.Done():
-		logrus.Debug("Context cancelled. Closing storage...")
-		closeStorage(storage)
-	}
-}
-
-func closeStorage(storage Storage) {
+func awaitTermination(ctx context.Context, storage Storage) {
+	<-ctx.Done()
+	logrus.Debug("Context cancelled. Closing storage...")
 	if err := storage.Close(); err != nil {
 		logrus.Error(err)
 	}

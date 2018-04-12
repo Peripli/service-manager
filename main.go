@@ -32,7 +32,7 @@ func main() {
 	}
 
 
-	storage, err := storage.Use(postgres.Storage, config.DbURI, ctx)
+	storage, err := storage.Use(ctx, postgres.Storage, config.DbURI)
 	if err != nil {
 		logrus.Fatal("Error creating storage: ", err)
 	}

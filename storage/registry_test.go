@@ -80,7 +80,7 @@ var _ = Describe("Registry", func() {
 	Describe("Use storage", func() {
 		Context("With non-registered", func() {
 			It("Should return an error", func() {
-				returnedStorage, err := storage.Use("non-existing-storage", "uri", context.TODO())
+				returnedStorage, err := storage.Use(context.TODO(), "non-existing-storage", "uri")
 				Expect(returnedStorage).To(BeNil())
 				Expect(err).To(Not(BeNil()))
 			})
@@ -90,7 +90,7 @@ var _ = Describe("Registry", func() {
 			It("Should return an error", func() {
 				testStorage.OpenReturns(fmt.Errorf("Error"))
 				storage.Register("openFailingStorage", testStorage)
-				_, err := storage.Use("openFailingStorage", "uri", context.TODO())
+				_, err := storage.Use(context.TODO(), "openFailingStorage", "uri")
 				Expect(err).To(Not(BeNil()))
 			})
 		})
@@ -99,7 +99,7 @@ var _ = Describe("Registry", func() {
 			It("Should return storage", func() {
 				testStorage.OpenReturns(nil)
 				storage.Register("openOkStorage", testStorage)
-				configuredStorage, err := storage.Use("openOkStorage", "uri", context.TODO())
+				configuredStorage, err := storage.Use(context.TODO(), "openOkStorage", "uri")
 				Expect(configuredStorage).To(Not(BeNil()))
 				Expect(err).To(BeNil())
 			})
@@ -119,7 +119,7 @@ var _ = Describe("Registry", func() {
 				testStorage.CloseReturns(fmt.Errorf("Error"))
 				storage.Register("closeFailingStorage", testStorage)
 				ctx, cancel := context.WithCancel(context.TODO())
-				storage.Use("closeFailingStorage", "uri", ctx)
+				storage.Use(ctx, "closeFailingStorage", "uri")
 				cancel()
 				time.Sleep(time.Millisecond * 100)
 				Expect(interceptor.data).To(Not(BeEmpty()))
@@ -131,7 +131,7 @@ var _ = Describe("Registry", func() {
 				testStorage.CloseReturns(nil)
 				storage.Register("closeOkStorage", testStorage)
 				ctx, cancel := context.WithCancel(context.TODO())
-				storage.Use("closeOkStorage", "uri", ctx)
+				storage.Use(ctx, "closeOkStorage", "uri")
 				cancel()
 				time.Sleep(time.Millisecond * 100)
 				Eventually(interceptor.data).Should(BeEmpty())
