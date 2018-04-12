@@ -51,8 +51,7 @@ type Broker interface {
 // Platform interface for Platform db operations
 type Platform interface {
 	Create(platform *rest.Platform) error
-	GetByID(id string) (*rest.Platform, error)
-	GetByName(id string) (*rest.Platform, error)
+	Get(id string) (*rest.Platform, error)
 	GetAll() ([]rest.Platform, error)
 	Delete(id string) error
 	Update(platform *rest.Platform) error

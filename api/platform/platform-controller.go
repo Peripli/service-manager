@@ -17,8 +17,8 @@
 package platform
 
 import (
-	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -27,6 +27,7 @@ import (
 	"github.com/Peripli/service-manager/util"
 	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
+	uuid "github.com/satori/go.uuid"
 )
 
 // Controller platform controller
@@ -38,12 +39,8 @@ func getPlatformID(req *http.Request) string {
 }
 
 func getPlatformFromRequest(req *http.Request) (*rest.Platform, error) {
-	decoder := json.NewDecoder(req.Body)
 	var platform rest.Platform
-	if err := decoder.Decode(&platform); err != nil {
-		return nil, err
-	}
-	return &platform, nil
+	return &platform, rest.ReadJSONBody(req, &platform)
 }
 
 func mergePlatforms(source *rest.Platform, target *rest.Platform) {
@@ -61,12 +58,16 @@ func mergePlatforms(source *rest.Platform, target *rest.Platform) {
 
 func checkPlatformMandatoryProperties(platform *rest.Platform) error {
 	if platform.Type == "" {
-		return errors.New("missing platform type")
+		return errors.New("Missing platform type")
 	}
 	if platform.Name == "" {
-		return errors.New("missing platform name")
+		return errors.New("Missing platform name")
 	}
 	return nil
+}
+
+func errorMissingPlatform(platformID string) error {
+	return fmt.Errorf("Could not find platform with id %s", platformID)
 }
 
 // addPlatform handler for POST /v1/platforms
@@ -75,16 +76,19 @@ func (platformCtrl *Controller) addPlatform(rw http.ResponseWriter, req *http.Re
 
 	platform, errDecode := getPlatformFromRequest(req)
 	if errDecode != nil {
-		return registerPlatformError(errorRequestBodyDecode(errDecode), http.StatusBadRequest)
+		return errDecode
 	}
 	if errMandatoryProperties := checkPlatformMandatoryProperties(platform); errMandatoryProperties != nil {
-		logrus.Debug(errMandatoryProperties)
-		return registerPlatformError(errMandatoryProperties, http.StatusBadRequest)
+		return rest.CreateErrorResponse(errMandatoryProperties, http.StatusBadRequest, "BadRequest")
 	}
 	username, password := util.GenerateCredentials()
 	if platform.ID == "" {
-		// TODO: Use uuid package
-		platform.ID = util.GenerateID()
+		uuid, err := uuid.NewV4()
+		if err != nil {
+			logrus.Error("Could not generate GUID")
+			return err
+		}
+		platform.ID = uuid.String()
 	}
 	currentTime := time.Now().UTC()
 	platform.CreatedAt = currentTime
@@ -99,15 +103,12 @@ func (platformCtrl *Controller) addPlatform(rw http.ResponseWriter, req *http.Re
 	platformStorage := storage.Get().Platform()
 	errSave := platformStorage.Create(platform)
 	if errSave == storage.ErrUniqueViolation {
-		return registerPlatformError(errSave, http.StatusConflict)
+		return rest.CreateErrorResponse(errSave, http.StatusConflict, "Conflict")
 	} else if errSave != nil {
-		return registerPlatformError(errorSavePlatform(errSave), http.StatusInternalServerError)
+		return errSave
 	}
 
-	if errJSON := rest.SendJSON(rw, http.StatusCreated, platform); errJSON != nil {
-		return registerPlatformError(responseProcessingError(errJSON), http.StatusInternalServerError)
-	}
-	return nil
+	return rest.SendJSON(rw, http.StatusCreated, platform)
 }
 
 // getPlatform handler for GET /v1/platforms/:platform_id
@@ -115,17 +116,13 @@ func (platformCtrl *Controller) getPlatform(rw http.ResponseWriter, req *http.Re
 	logrus.Debugf("GET to %s", req.RequestURI)
 	platformID := getPlatformID(req)
 	platformStorage := storage.Get().Platform()
-	platform, err := platformStorage.GetByID(platformID)
-	if err != nil {
-		return getPlatformError(errorPlatformLookup(err), http.StatusInternalServerError)
+	platform, err := platformStorage.Get(platformID)
+	if err == storage.ErrNotFound {
+		return rest.CreateErrorResponse(errorMissingPlatform(platformID), http.StatusNotFound, "NotFound")
+	} else if err != nil {
+		return err
 	}
-	if platform == nil {
-		return getPlatformError(errorMissingPlatform(platformID), http.StatusNotFound)
-	}
-	if errJSON := rest.SendJSON(rw, http.StatusOK, platform); errJSON != nil {
-		return getPlatformError(responseProcessingError(errJSON), http.StatusInternalServerError)
-	}
-	return nil
+	return rest.SendJSON(rw, http.StatusOK, platform)
 }
 
 // getAllPlatforms handler for GET /v1/platforms
@@ -134,14 +131,11 @@ func (platformCtrl *Controller) getAllPlatforms(rw http.ResponseWriter, req *htt
 	platformStorage := storage.Get().Platform()
 	platforms, err := platformStorage.GetAll()
 	if err != nil {
-		return getAllPlatformsError(internalError(err, "could not get all platforms"), http.StatusInternalServerError)
+		return err
 	}
 	platformsResponse := map[string][]rest.Platform{"platforms": platforms}
 
-	if errJSON := rest.SendJSON(rw, http.StatusOK, &platformsResponse); errJSON != nil {
-		return getAllPlatformsError(responseProcessingError(errJSON), http.StatusInternalServerError)
-	}
-	return nil
+	return rest.SendJSON(rw, http.StatusOK, &platformsResponse)
 }
 
 // deletePlatform handler for DELETE /v1/platforms/:platform_id
@@ -152,15 +146,12 @@ func (platformCtrl *Controller) deletePlatform(rw http.ResponseWriter, req *http
 	platformStorage := storage.Get().Platform()
 	errDelete := platformStorage.Delete(platformID)
 	if errDelete == storage.ErrNotFound {
-		return deletePlatformError(errorMissingPlatform(platformID), http.StatusNotFound)
+		return rest.CreateErrorResponse(errorMissingPlatform(platformID), http.StatusNotFound, "NotFound")
 	} else if errDelete != nil {
-		return deletePlatformError(internalError(errDelete, "could not delete platform with id %s", platformID), http.StatusInternalServerError)
+		return errDelete
 	}
 	// map[string]string{} will result in empty JSON
-	if errJSON := rest.SendJSON(rw, http.StatusOK, map[string]string{}); errJSON != nil {
-		return deletePlatformError(responseProcessingError(errJSON), http.StatusInternalServerError)
-	}
-	return nil
+	return rest.SendJSON(rw, http.StatusOK, map[string]string{})
 }
 
 // updatePlatform handler for PATCH /v1/platforms/:platform_id
@@ -169,27 +160,23 @@ func (platformCtrl *Controller) updatePlatform(rw http.ResponseWriter, req *http
 	platformID := getPlatformID(req)
 	newPlatform, errDecode := getPlatformFromRequest(req)
 	if errDecode != nil {
-		return updatePlatformError(errorRequestBodyDecode(errDecode), http.StatusBadRequest)
+		return errDecode
 	}
-
+	newPlatform.ID = platformID
+	newPlatform.UpdatedAt = time.Now().UTC()
 	platformStorage := storage.Get().Platform()
-	platform, err := platformStorage.GetByID(platformID)
+	err := platformStorage.Update(newPlatform)
 	if err != nil {
-		return updatePlatformError(errorPlatformLookup(err), http.StatusInternalServerError)
+		if err == storage.ErrUniqueViolation {
+			return rest.CreateErrorResponse(err, http.StatusConflict, "Conflict")
+		} else if err == storage.ErrNotFound {
+			return rest.CreateErrorResponse(errorMissingPlatform(platformID), http.StatusNotFound, "NotFound")
+		}
+		return err
 	}
-	if platform == nil {
-		return updatePlatformError(errorMissingPlatform(platformID), http.StatusNotFound)
+	platform, err := platformStorage.Get(platformID)
+	if err != nil {
+		return err
 	}
-	mergePlatforms(newPlatform, platform)
-
-	errUpdate := platformStorage.Update(platform)
-	if errUpdate == storage.ErrNotFound {
-		return updatePlatformError(errorMissingPlatform(platformID), http.StatusNotFound)
-	} else if errUpdate != nil {
-		return updatePlatformError(errorSavePlatform(errUpdate), http.StatusInternalServerError)
-	}
-	if errJSON := rest.SendJSON(rw, http.StatusOK, platform); errJSON != nil {
-		return updatePlatformError(responseProcessingError(errJSON), http.StatusInternalServerError)
-	}
-	return nil
+	return rest.SendJSON(rw, http.StatusOK, platform)
 }

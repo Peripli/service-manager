@@ -59,13 +59,13 @@ type Platform struct {
 
 // MarshalJSON override json serialization for http response
 func (p *Platform) MarshalJSON() ([]byte, error) {
-	type Alias Platform
+	type P Platform
 	return json.Marshal(&struct {
 		CreatedAt string `json:"created_at,omitempty"`
 		UpdatedAt string `json:"updated_at,omitempty"`
-		*Alias
+		*P
 	}{
-		Alias:     (*Alias)(p),
+		P:         (*P)(p),
 		CreatedAt: util.ToRFCFormat(p.CreatedAt),
 		UpdatedAt: util.ToRFCFormat(p.UpdatedAt),
 	})

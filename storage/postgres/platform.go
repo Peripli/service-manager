@@ -19,6 +19,7 @@ package postgres
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/Peripli/service-manager/rest"
 	store "github.com/Peripli/service-manager/storage"
@@ -32,11 +33,8 @@ type platformStorage struct {
 }
 
 const (
-	// schema db schema name
-	schema = `"SERVICE_MANAGER"`
-
-	// table db table name for platforms
-	table = "platforms"
+	// platformTable db table name for platforms
+	platformTable = "platforms"
 
 	// table db table name for credentials
 	credentialsTable = "credentials"
@@ -46,31 +44,28 @@ const (
 
 var (
 	// selectByID selects platform by id
-	selectByID = "SELECT id, type, name, description, created_at, updated_at FROM " + schema + "." + table + " WHERE id=$1"
-
-	// selectByName selects platform by name
-	selectByName = "SELECT id, type, name, description, created_at, updated_at FROM " + schema + "." + table + " WHERE name=$1"
+	selectByID = "SELECT id, type, name, description, created_at, updated_at FROM " + platformTable + " WHERE id=$1"
 
 	// selectAll selects all platforms
-	selectAll = "SELECT id, type, name, description, created_at, updated_at FROM " + schema + "." + table
+	selectAll = "SELECT id, type, name, description, created_at, updated_at FROM " + platformTable
 
 	// insertCredentials insert new credentials
-	insertCredentials = "INSERT INTO " + schema + "." + credentialsTable + "(type, username, password) VALUES (:type, :username, :password) RETURNING id"
+	insertCredentials = "INSERT INTO " + credentialsTable + "(type, username, password) VALUES (:type, :username, :password) RETURNING id"
 
 	// insertPlatform insert new platform
-	insertPlatform = "INSERT INTO " + schema + "." + table + "(id, type, name, description, credentials_id, created_at, updated_at) VALUES(:id, :type, :name, :description, :credentials_id, :created_at, :updated_at)"
+	insertPlatform = "INSERT INTO " + platformTable + "(id, type, name, description, credentials_id, created_at, updated_at) VALUES(:id, :type, :name, :description, :credentials_id, :created_at, :updated_at)"
 
 	// deletePlatform deletes platform and corresponding credentials
-	deletePlatform = `WITH pl AS (
-		DELETE FROM "SERVICE_MANAGER".platforms
+	deletePlatform = fmt.Sprintf(`WITH pl AS (
+		DELETE FROM %s
 		WHERE
 			id = $1
 		RETURNING credentials_id
 	)
-	DELETE FROM "SERVICE_MANAGER".credentials
-	WHERE id IN (SELECT credentials_id from pl)`
+	DELETE FROM %s
+	WHERE id IN (SELECT credentials_id from pl)`, platformTable, credentialsTable)
 
-	updatePlatform = "UPDATE " + schema + "." + table + " SET name=:name, type=:type, description=:description, updated_at=:updated_at WHERE id=:id"
+	updatePlatform = "UPDATE " + platformTable + " SET name=:name, type=:type, description=:description, updated_at=:updated_at WHERE id=:id"
 )
 
 func handleRollback(transaction *sqlx.Tx, lastOperation error) error {
@@ -124,7 +119,7 @@ func (storage *platformStorage) get(stmt string, arg string) (*rest.Platform, er
 	platform := Platform{}
 	err := storage.db.Get(&platform, stmt, arg)
 	if err == sql.ErrNoRows {
-		return nil, nil
+		return nil, store.ErrNotFound
 	}
 	if err != nil {
 		return nil, err
@@ -139,12 +134,23 @@ func (storage *platformStorage) get(stmt string, arg string) (*rest.Platform, er
 	}, nil
 }
 
-func (storage *platformStorage) GetByID(id string) (*rest.Platform, error) {
-	return storage.get(selectByID, id)
-}
-
-func (storage *platformStorage) GetByName(name string) (*rest.Platform, error) {
-	return storage.get(selectByName, name)
+func (storage *platformStorage) Get(id string) (*rest.Platform, error) {
+	platform := Platform{}
+	err := storage.db.Get(&platform, selectByID, id)
+	if err == sql.ErrNoRows {
+		return nil, store.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &rest.Platform{
+		ID:          platform.ID,
+		Name:        platform.Name,
+		Type:        platform.Type,
+		Description: platform.Description,
+		CreatedAt:   platform.CreatedAt,
+		UpdatedAt:   platform.UpdatedAt,
+	}, nil
 }
 
 func restPlatformFromDTO(platform *Platform) *rest.Platform {
@@ -189,6 +195,12 @@ func (storage *platformStorage) Delete(id string) error {
 }
 
 func (storage *platformStorage) Update(platform *rest.Platform) error {
+	updateQuery := platformUpdateQueryString(platform)
+	if updateQuery == "" {
+		logrus.Debug("Platform update: nothing to update")
+		return nil
+	}
+
 	result, err := storage.db.NamedExec(updatePlatform, &Platform{
 		ID:          platform.ID,
 		Type:        platform.Type,
@@ -197,6 +209,10 @@ func (storage *platformStorage) Update(platform *rest.Platform) error {
 		UpdatedAt:   platform.UpdatedAt,
 	})
 	if err != nil {
+		sqlErr, ok := err.(*pq.Error)
+		if ok && sqlErr.Code.Name() == "unique_violation" {
+			return store.ErrUniqueViolation
+		}
 		return err
 	}
 	affectedRows, err := result.RowsAffected()
@@ -207,4 +223,22 @@ func (storage *platformStorage) Update(platform *rest.Platform) error {
 		return store.ErrNotFound
 	}
 	return nil
+}
+
+func platformUpdateQueryString(platform *rest.Platform) string {
+	set := make([]string, 0, 4)
+	if platform.Name != "" {
+		set = append(set, "name = :name")
+	}
+	if platform.Type != "" {
+		set = append(set, "type = :type")
+	}
+	if platform.Description != "" {
+		set = append(set, "description = :description")
+	}
+	if len(set) == 0 {
+		return ""
+	}
+	set = append(set, "updated_at = :updated_at")
+	return fmt.Sprintf("UPDATE %s SET %s WHERE id = :id", platformTable, strings.Join(set, ", "))
 }

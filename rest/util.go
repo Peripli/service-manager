@@ -21,6 +21,8 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+
+	"github.com/Sirupsen/logrus"
 )
 
 // SendJSON writes a JSON value and sets the specified HTTP Status code
@@ -32,6 +34,7 @@ func SendJSON(writer http.ResponseWriter, code int, value interface{}) error {
 	return encoder.Encode(value)
 }
 
+// ReadJSONBody parse request body
 func ReadJSONBody(request *http.Request, value interface{}) error {
 	contentType := request.Header.Get("Content-Type")
 	if !strings.Contains(contentType, "application/json") {
@@ -39,5 +42,9 @@ func ReadJSONBody(request *http.Request, value interface{}) error {
 	}
 	decoder := json.NewDecoder(request.Body)
 	defer request.Body.Close()
-	return decoder.Decode(value)
+	if err := decoder.Decode(value); err != nil {
+		logrus.Debug(err)
+		return CreateErrorResponse(errors.New("Failed to decode request body"), http.StatusBadRequest, "BadRequest")
+	}
+	return nil
 }

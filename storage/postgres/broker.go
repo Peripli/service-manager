@@ -111,10 +111,10 @@ func (store *brokerStorage) Delete(id string) error {
 		return err
 	}
 
-	crendentialsID := broker.CredentialsID
-	_, err = tx.Exec("DELETE FROM credentials WHERE id = $1", crendentialsID)
+	credentialsID := broker.CredentialsID
+	_, err = tx.Exec("DELETE FROM credentials WHERE id = $1", credentialsID)
 	if err != nil {
-		logrus.Error("Could not delete broker credentials with id:", crendentialsID)
+		logrus.Error("Could not delete broker credentials with id:", credentialsID)
 		return err
 	}
 
