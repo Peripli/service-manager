@@ -98,7 +98,7 @@ func (platformCtrl *Controller) addPlatform(rw http.ResponseWriter, req *http.Re
 	}
 	platformStorage := storage.Get().Platform()
 	errSave := platformStorage.Create(platform)
-	if errSave == storage.ConflictEntityError {
+	if errSave == storage.ErrUniqueViolation {
 		return registerPlatformError(errSave, http.StatusConflict)
 	} else if errSave != nil {
 		return registerPlatformError(errorSavePlatform(errSave), http.StatusInternalServerError)
@@ -151,7 +151,7 @@ func (platformCtrl *Controller) deletePlatform(rw http.ResponseWriter, req *http
 
 	platformStorage := storage.Get().Platform()
 	errDelete := platformStorage.Delete(platformID)
-	if errDelete == storage.MissingEntityError {
+	if errDelete == storage.ErrNotFound {
 		return deletePlatformError(errorMissingPlatform(platformID), http.StatusNotFound)
 	} else if errDelete != nil {
 		return deletePlatformError(internalError(errDelete, "could not delete platform with id %s", platformID), http.StatusInternalServerError)
@@ -183,7 +183,7 @@ func (platformCtrl *Controller) updatePlatform(rw http.ResponseWriter, req *http
 	mergePlatforms(newPlatform, platform)
 
 	errUpdate := platformStorage.Update(platform)
-	if errUpdate == storage.MissingEntityError {
+	if errUpdate == storage.ErrNotFound {
 		return updatePlatformError(errorMissingPlatform(platformID), http.StatusNotFound)
 	} else if errUpdate != nil {
 		return updatePlatformError(errorSavePlatform(errUpdate), http.StatusInternalServerError)

@@ -1,0 +1,9 @@
+BEGIN;
+
+DROP TABLE IF EXISTS platforms;
+DROP TABLE IF EXISTS brokers;
+DROP TABLE IF EXISTS credentials;
+
+DROP SEQUENCE IF EXISTS "credentials_id_seq";
+
+COMMIT;

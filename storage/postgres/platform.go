@@ -113,7 +113,7 @@ func (storage *platformStorage) Create(platform *rest.Platform) error {
 		}
 		if pqErr.Code.Name() == "unique_violation" {
 			logrus.Debug(pqErr)
-			return handleRollback(tx, store.ConflictEntityError)
+			return handleRollback(tx, store.ErrUniqueViolation)
 		}
 	}
 
@@ -183,7 +183,7 @@ func (storage *platformStorage) Delete(id string) error {
 	}
 
 	if rowsAffected != 1 {
-		return handleRollback(tx, store.MissingEntityError)
+		return handleRollback(tx, store.ErrNotFound)
 	}
 	return tx.Commit()
 }
@@ -204,7 +204,7 @@ func (storage *platformStorage) Update(platform *rest.Platform) error {
 		return err
 	}
 	if affectedRows != 1 {
-		return store.MissingEntityError
+		return store.ErrNotFound
 	}
 	return nil
 }

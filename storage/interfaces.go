@@ -22,6 +22,12 @@ import (
 	"github.com/Peripli/service-manager/rest"
 )
 
+// ErrNotFound error returned from storage when entity is not found
+var ErrNotFound = errors.New("Not found")
+
+// ErrUniqueViolation error returned from storage when entity has conflicting fields
+var ErrUniqueViolation = errors.New("Unique constraint violation")
+
 // Provider interface for db storage provider
 type Provider interface {
 	Provide() (Storage, error)
@@ -37,7 +43,7 @@ type Storage interface {
 type Broker interface {
 	Create(broker *rest.Broker) error
 	Get(id string) (*rest.Broker, error)
-	GetAll() ([]*rest.Broker, error)
+	GetAll() ([]rest.Broker, error)
 	Delete(id string) error
 	Update(broker *rest.Broker) error
 }
@@ -51,9 +57,3 @@ type Platform interface {
 	Delete(id string) error
 	Update(platform *rest.Platform) error
 }
-
-// ConflictEntityError error
-var ConflictEntityError = errors.New("Conflict entity found")
-
-// MissingEntityError error
-var MissingEntityError = errors.New("Entity not found")

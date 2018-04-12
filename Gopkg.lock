@@ -14,6 +14,18 @@
   version = "v1.4.7"
 
 [[projects]]
+  name = "github.com/golang-migrate/migrate"
+  packages = [
+    ".",
+    "database",
+    "database/postgres",
+    "source",
+    "source/file"
+  ]
+  revision = "22f249514de9aa3f8a720a7cabbdd45d294f83a1"
+  version = "v3.2.0"
+
+[[projects]]
   name = "github.com/gorilla/context"
   packages = ["."]
   revision = "1ea25387ff6f684839d82767c1733ff4d4d15d0a"
@@ -123,6 +135,11 @@
   version = "v1.1.0"
 
 [[projects]]
+  name = "github.com/satori/go.uuid"
+  packages = ["."]
+  revision = "36e9d2ebbde5e3f13ab2e25625fd453271d6522e"
+
+[[projects]]
   name = "github.com/spf13/afero"
   packages = [
     ".",
@@ -216,6 +233,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "18b1e63fc61554960ae3bc96e9ddd56aec95bb586f799bdafd21cc6ff879f799"
+  inputs-digest = "56ecafbae350436badd6eaeed7b7bf6b06383ca6323519493bf4a8eac78ef080"
   solver-name = "gps-cdcl"
   solver-version = 1

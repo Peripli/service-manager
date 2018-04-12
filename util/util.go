@@ -20,19 +20,8 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
-	"net/http"
 	"time"
 )
-
-// SendJSON writes a JSON value and sets the specified HTTP Status code
-func SendJSON(writer http.ResponseWriter, code int, value interface{}) error {
-	writer.Header().Add("Content-Type", "application/json")
-	writer.WriteHeader(code)
-
-	encoder := json.NewEncoder(writer)
-	return encoder.Encode(value)
-}
 
 // GenerateCredentials return user and password
 func GenerateCredentials() (string, string) {

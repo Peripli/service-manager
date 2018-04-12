@@ -75,8 +75,9 @@ func (p *Platform) MarshalJSON() ([]byte, error) {
 type Broker struct {
 	ID          string       `json:"id"`
 	Name        string       `json:"name"`
-	URL         string       `json:"broker_url"`
-	CreatedAt   time.Time    `json:"created_at"`
-	UpdatedAt   time.Time    `json:"updated_at"`
+	Description string       `json:"description"`
+	CreatedAt   string       `json:"created_at"`
+	UpdatedAt   string       `json:"updated_at"`
+	BrokerURL   string       `json:"broker_url"`
 	Credentials *Credentials `json:"credentials,omitempty"`
 }
