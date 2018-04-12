@@ -109,11 +109,9 @@ func gracefulShutdown(server *http.Server, shutdownTimeout time.Duration, ctx co
 	c, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 	logrus.Debugf("Shutdown with timeout: %s", shutdownTimeout)
-	if server.Shutdown(c) != nil {
-		server.Close()
-	}
 
-	if err := server.Shutdown(ctx); err != nil {
+	if err := server.Shutdown(c); err != nil {
+		server.Close()
 		logrus.Errorf("Error: %v", err)
 	} else {
 		logrus.Debug("Server stopped")

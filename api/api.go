@@ -24,6 +24,7 @@ import (
 // Default returns the minimum set of REST APIs needed for the Service Manager
 func Default(storage storage.Storage) rest.API {
 	return &smAPI{
+		// example of how a controller has to be built
 		//controllers: []rest.Controller{
 		//	osb.Controller{
 		//		BrokerStorage: storage.Broker(),
