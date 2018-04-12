@@ -2,6 +2,7 @@
 package storagefakes
 
 import (
+	"context"
 	"sync"
 
 	"github.com/Peripli/service-manager/storage"
@@ -9,9 +10,10 @@ import (
 )
 
 type FakeBroker struct {
-	CreateStub        func(broker *types.Broker) error
+	CreateStub        func(ctx context.Context, broker *types.Broker) error
 	createMutex       sync.RWMutex
 	createArgsForCall []struct {
+		ctx    context.Context
 		broker *types.Broker
 	}
 	createReturns struct {
@@ -20,10 +22,11 @@ type FakeBroker struct {
 	createReturnsOnCall map[int]struct {
 		result1 error
 	}
-	FindStub        func(id string) (*types.Broker, error)
+	FindStub        func(ctx context.Context, id string) (*types.Broker, error)
 	findMutex       sync.RWMutex
 	findArgsForCall []struct {
-		id string
+		ctx context.Context
+		id  string
 	}
 	findReturns struct {
 		result1 *types.Broker
@@ -33,10 +36,12 @@ type FakeBroker struct {
 		result1 *types.Broker
 		result2 error
 	}
-	FindAllStub        func() ([]*types.Broker, error)
+	FindAllStub        func(ctx context.Context) ([]*types.Broker, error)
 	findAllMutex       sync.RWMutex
-	findAllArgsForCall []struct{}
-	findAllReturns     struct {
+	findAllArgsForCall []struct {
+		ctx context.Context
+	}
+	findAllReturns struct {
 		result1 []*types.Broker
 		result2 error
 	}
@@ -44,10 +49,11 @@ type FakeBroker struct {
 		result1 []*types.Broker
 		result2 error
 	}
-	DeleteStub        func(id string) error
+	DeleteStub        func(ctx context.Context, id string) error
 	deleteMutex       sync.RWMutex
 	deleteArgsForCall []struct {
-		id string
+		ctx context.Context
+		id  string
 	}
 	deleteReturns struct {
 		result1 error
@@ -55,9 +61,10 @@ type FakeBroker struct {
 	deleteReturnsOnCall map[int]struct {
 		result1 error
 	}
-	UpdateStub        func(broker *types.Broker) error
+	UpdateStub        func(ctx context.Context, broker *types.Broker) error
 	updateMutex       sync.RWMutex
 	updateArgsForCall []struct {
+		ctx    context.Context
 		broker *types.Broker
 	}
 	updateReturns struct {
@@ -70,16 +77,17 @@ type FakeBroker struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeBroker) Create(broker *types.Broker) error {
+func (fake *FakeBroker) Create(ctx context.Context, broker *types.Broker) error {
 	fake.createMutex.Lock()
 	ret, specificReturn := fake.createReturnsOnCall[len(fake.createArgsForCall)]
 	fake.createArgsForCall = append(fake.createArgsForCall, struct {
+		ctx    context.Context
 		broker *types.Broker
-	}{broker})
-	fake.recordInvocation("Create", []interface{}{broker})
+	}{ctx, broker})
+	fake.recordInvocation("Create", []interface{}{ctx, broker})
 	fake.createMutex.Unlock()
 	if fake.CreateStub != nil {
-		return fake.CreateStub(broker)
+		return fake.CreateStub(ctx, broker)
 	}
 	if specificReturn {
 		return ret.result1
@@ -93,10 +101,10 @@ func (fake *FakeBroker) CreateCallCount() int {
 	return len(fake.createArgsForCall)
 }
 
-func (fake *FakeBroker) CreateArgsForCall(i int) *types.Broker {
+func (fake *FakeBroker) CreateArgsForCall(i int) (context.Context, *types.Broker) {
 	fake.createMutex.RLock()
 	defer fake.createMutex.RUnlock()
-	return fake.createArgsForCall[i].broker
+	return fake.createArgsForCall[i].ctx, fake.createArgsForCall[i].broker
 }
 
 func (fake *FakeBroker) CreateReturns(result1 error) {
@@ -118,16 +126,17 @@ func (fake *FakeBroker) CreateReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeBroker) Find(id string) (*types.Broker, error) {
+func (fake *FakeBroker) Find(ctx context.Context, id string) (*types.Broker, error) {
 	fake.findMutex.Lock()
 	ret, specificReturn := fake.findReturnsOnCall[len(fake.findArgsForCall)]
 	fake.findArgsForCall = append(fake.findArgsForCall, struct {
-		id string
-	}{id})
-	fake.recordInvocation("Find", []interface{}{id})
+		ctx context.Context
+		id  string
+	}{ctx, id})
+	fake.recordInvocation("Find", []interface{}{ctx, id})
 	fake.findMutex.Unlock()
 	if fake.FindStub != nil {
-		return fake.FindStub(id)
+		return fake.FindStub(ctx, id)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -141,10 +150,10 @@ func (fake *FakeBroker) FindCallCount() int {
 	return len(fake.findArgsForCall)
 }
 
-func (fake *FakeBroker) FindArgsForCall(i int) string {
+func (fake *FakeBroker) FindArgsForCall(i int) (context.Context, string) {
 	fake.findMutex.RLock()
 	defer fake.findMutex.RUnlock()
-	return fake.findArgsForCall[i].id
+	return fake.findArgsForCall[i].ctx, fake.findArgsForCall[i].id
 }
 
 func (fake *FakeBroker) FindReturns(result1 *types.Broker, result2 error) {
@@ -169,14 +178,16 @@ func (fake *FakeBroker) FindReturnsOnCall(i int, result1 *types.Broker, result2 
 	}{result1, result2}
 }
 
-func (fake *FakeBroker) FindAll() ([]*types.Broker, error) {
+func (fake *FakeBroker) FindAll(ctx context.Context) ([]*types.Broker, error) {
 	fake.findAllMutex.Lock()
 	ret, specificReturn := fake.findAllReturnsOnCall[len(fake.findAllArgsForCall)]
-	fake.findAllArgsForCall = append(fake.findAllArgsForCall, struct{}{})
-	fake.recordInvocation("FindAll", []interface{}{})
+	fake.findAllArgsForCall = append(fake.findAllArgsForCall, struct {
+		ctx context.Context
+	}{ctx})
+	fake.recordInvocation("FindAll", []interface{}{ctx})
 	fake.findAllMutex.Unlock()
 	if fake.FindAllStub != nil {
-		return fake.FindAllStub()
+		return fake.FindAllStub(ctx)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -188,6 +199,12 @@ func (fake *FakeBroker) FindAllCallCount() int {
 	fake.findAllMutex.RLock()
 	defer fake.findAllMutex.RUnlock()
 	return len(fake.findAllArgsForCall)
+}
+
+func (fake *FakeBroker) FindAllArgsForCall(i int) context.Context {
+	fake.findAllMutex.RLock()
+	defer fake.findAllMutex.RUnlock()
+	return fake.findAllArgsForCall[i].ctx
 }
 
 func (fake *FakeBroker) FindAllReturns(result1 []*types.Broker, result2 error) {
@@ -212,16 +229,17 @@ func (fake *FakeBroker) FindAllReturnsOnCall(i int, result1 []*types.Broker, res
 	}{result1, result2}
 }
 
-func (fake *FakeBroker) Delete(id string) error {
+func (fake *FakeBroker) Delete(ctx context.Context, id string) error {
 	fake.deleteMutex.Lock()
 	ret, specificReturn := fake.deleteReturnsOnCall[len(fake.deleteArgsForCall)]
 	fake.deleteArgsForCall = append(fake.deleteArgsForCall, struct {
-		id string
-	}{id})
-	fake.recordInvocation("Delete", []interface{}{id})
+		ctx context.Context
+		id  string
+	}{ctx, id})
+	fake.recordInvocation("Delete", []interface{}{ctx, id})
 	fake.deleteMutex.Unlock()
 	if fake.DeleteStub != nil {
-		return fake.DeleteStub(id)
+		return fake.DeleteStub(ctx, id)
 	}
 	if specificReturn {
 		return ret.result1
@@ -235,10 +253,10 @@ func (fake *FakeBroker) DeleteCallCount() int {
 	return len(fake.deleteArgsForCall)
 }
 
-func (fake *FakeBroker) DeleteArgsForCall(i int) string {
+func (fake *FakeBroker) DeleteArgsForCall(i int) (context.Context, string) {
 	fake.deleteMutex.RLock()
 	defer fake.deleteMutex.RUnlock()
-	return fake.deleteArgsForCall[i].id
+	return fake.deleteArgsForCall[i].ctx, fake.deleteArgsForCall[i].id
 }
 
 func (fake *FakeBroker) DeleteReturns(result1 error) {
@@ -260,16 +278,17 @@ func (fake *FakeBroker) DeleteReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeBroker) Update(broker *types.Broker) error {
+func (fake *FakeBroker) Update(ctx context.Context, broker *types.Broker) error {
 	fake.updateMutex.Lock()
 	ret, specificReturn := fake.updateReturnsOnCall[len(fake.updateArgsForCall)]
 	fake.updateArgsForCall = append(fake.updateArgsForCall, struct {
+		ctx    context.Context
 		broker *types.Broker
-	}{broker})
-	fake.recordInvocation("Update", []interface{}{broker})
+	}{ctx, broker})
+	fake.recordInvocation("Update", []interface{}{ctx, broker})
 	fake.updateMutex.Unlock()
 	if fake.UpdateStub != nil {
-		return fake.UpdateStub(broker)
+		return fake.UpdateStub(ctx, broker)
 	}
 	if specificReturn {
 		return ret.result1
@@ -283,10 +302,10 @@ func (fake *FakeBroker) UpdateCallCount() int {
 	return len(fake.updateArgsForCall)
 }
 
-func (fake *FakeBroker) UpdateArgsForCall(i int) *types.Broker {
+func (fake *FakeBroker) UpdateArgsForCall(i int) (context.Context, *types.Broker) {
 	fake.updateMutex.RLock()
 	defer fake.updateMutex.RUnlock()
-	return fake.updateArgsForCall[i].broker
+	return fake.updateArgsForCall[i].ctx, fake.updateArgsForCall[i].broker
 }
 
 func (fake *FakeBroker) UpdateReturns(result1 error) {

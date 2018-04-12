@@ -16,7 +16,10 @@
 
 package storage
 
-import "github.com/Peripli/service-manager/types"
+import (
+	"github.com/Peripli/service-manager/types"
+	"context"
+)
 
 // Storage interface provides entity-specific storages.
 //go:generate counterfeiter . Storage
@@ -31,16 +34,12 @@ type Storage interface {
 	Broker() Broker
 }
 
-type Config interface {
-	createFunc() Storage
-}
-
 // Broker interface for Broker db operations
 //go:generate counterfeiter . Broker
 type Broker interface {
-	Create(broker *types.Broker) error
-	Find(id string) (*types.Broker, error)
-	FindAll() ([]*types.Broker, error)
-	Delete(id string) error
-	Update(broker *types.Broker) error
+	Create(ctx context.Context, broker *types.Broker) error
+	Find(ctx context.Context, id string) (*types.Broker, error)
+	FindAll(ctx context.Context) ([]*types.Broker, error)
+	Delete(ctx context.Context, id string) error
+	Update(ctx context.Context, broker *types.Broker) error
 }
