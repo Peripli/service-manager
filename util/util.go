@@ -19,7 +19,6 @@ package util
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/hex"
 	"time"
 )
 
@@ -36,20 +35,7 @@ func GenerateCredentials() (string, string) {
 	return encodedUser, encodedPass
 }
 
-// GenerateID return ID
-func GenerateID() string {
-	id := make([]byte, 64)
-	rand.Read(id)
-	encodedID := hex.EncodeToString(id)
-	return encodedID
-}
-
 // ToRFCFormat return the time.Time object as string in RFC3339 format
 func ToRFCFormat(timestamp time.Time) string {
 	return timestamp.UTC().Format(time.RFC3339)
-}
-
-// FromRFCFormat return time.Time object from RFC3339 formatted string
-func FromRFCFormat(timestamp string) (time.Time, error) {
-	return time.Parse(time.RFC3339, timestamp)
 }

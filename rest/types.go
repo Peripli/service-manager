@@ -76,8 +76,22 @@ type Broker struct {
 	ID          string       `json:"id"`
 	Name        string       `json:"name"`
 	Description string       `json:"description"`
-	CreatedAt   string       `json:"created_at"`
-	UpdatedAt   string       `json:"updated_at"`
+	CreatedAt   time.Time    `json:"created_at"`
+	UpdatedAt   time.Time    `json:"updated_at"`
 	BrokerURL   string       `json:"broker_url"`
 	Credentials *Credentials `json:"credentials,omitempty"`
+}
+
+// MarshalJSON override json serialization for http response
+func (b *Broker) MarshalJSON() ([]byte, error) {
+	type B Broker
+	return json.Marshal(&struct {
+		CreatedAt string `json:"created_at,omitempty"`
+		UpdatedAt string `json:"updated_at,omitempty"`
+		*B
+	}{
+		B:         (*B)(b),
+		CreatedAt: util.ToRFCFormat(b.CreatedAt),
+		UpdatedAt: util.ToRFCFormat(b.UpdatedAt),
+	})
 }

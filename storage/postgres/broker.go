@@ -134,7 +134,7 @@ func (store *brokerStorage) Update(broker *rest.Broker) error {
 
 	brokerDTO := ConvertBrokerToDTO(broker)
 	if updateQueryString != "" {
-		_, err := tx.NamedExec(updateQueryString, brokerDTO)
+		result, err := tx.NamedExec(updateQueryString, brokerDTO)
 		if err != nil {
 			logrus.Error("Unable to update broker")
 			sqlErr, ok := err.(*pq.Error)
@@ -142,6 +142,13 @@ func (store *brokerStorage) Update(broker *rest.Broker) error {
 				return storage.ErrUniqueViolation
 			}
 			return err
+		}
+		affectedRows, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if affectedRows != 1 {
+			return storage.ErrNotFound
 		}
 	}
 
