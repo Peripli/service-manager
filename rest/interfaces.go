@@ -50,7 +50,6 @@ type Endpoint struct {
 // APIHandler enriches http.HandlerFunc with an error response for further processing
 type APIHandler func(http.ResponseWriter, *http.Request) error
 
-//TODO try...
 func (ah APIHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	err := ah(rw, r)
 	HandleError(err, rw)

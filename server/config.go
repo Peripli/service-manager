@@ -19,7 +19,6 @@ package server
 import (
 	"strconv"
 	"time"
-	"github.com/spf13/viper"
 )
 
 type environment interface {

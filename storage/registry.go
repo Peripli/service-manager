@@ -42,16 +42,6 @@ func Register(name string, storage Storage) {
 	storages[name] = storage
 }
 
-// Argumentation for refactoring
-//Use returning the storage seems more natural rather then doing .Get; .Get() introduces a hidden dependency as well)
-//This way we kind of provide a wrapper over the sqlx.db by keeping the same flow of usage while keeping an abstraction for Storage possible
-// Wrapping as follows
-// - postgres impl of storage _ imports the driver, we _import the postgres storage's package
-// Registering a storage "wraps" registering a driver and allows us to "use" the storage that wraps abstract opening a storage (in posgres it opens sqlx.db)
-// The idea is to allow abstraction of Storage while keeping the sqlx.db flow of usage as close as possible
-// uri is passed as argument as we don't want to obtain env variables in random places of the code as the config might not be provided as env vars)
-// It's better to abstract away the environment loading and use it to build a configuration that is passed to the server. The server than takes care
-// to split the configuration and pass segments to the components it initializes (to storage the server will pass uri)
 func Use(name string, uri string, ctx context.Context) (Storage, error) {
 	mux.Lock()
 	defer mux.Unlock()

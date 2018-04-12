@@ -80,17 +80,18 @@ func (v *viperEnv) Unmarshal(value interface{}) error {
 	return v.Viper.Unmarshal(value)
 }
 
-//THIS IS OPTIONAL but automates something that is missing from viper -
+// bindStruct automates something that is missing from viper:
 // If we pass a struct to be unmarshaled and we want some of the fields to be loaded
-// from env variables we would need to perform something manual to let viper know about each of these fields.
-// We would either need to do one of these:
-// specify default values for the fields in application.yml, pass default values as flags,
-// call viper.SetDefault(x.y) where x.y in env should be [PREFIX_]X_Y, call viper.BindEnv(x.y)
-//TODO method below needs refactoring
+// from env variables we would need to perform something manual steps to let viper know about each of these fields.
+// We would either need to do one of these: specify default values for the fields in application.yml, pass default values as flags or
+// call viper.SetDefault(x.y) where x.y in env should be [PREFIX_]X_Y or call viper.BindEnv(x.y)
+// This method automates that by telling viper that the any of the fields of the structure that is being unmarshaled should be looked for
+// in the environment
 func bindStruct(viper *viper.Viper, value interface{}) error {
 	var result = []string{}
-	var a func(value interface{}, buffer string)
-	a = func(value interface{}, buffer string) {
+	var pathBuilder func(value interface{}, buffer string)
+
+	pathBuilder = func(value interface{}, buffer string) {
 		if !structs.IsStruct(value) {
 			index := strings.LastIndex(buffer, ".")
 			if index == -1 {
@@ -105,14 +106,15 @@ func bindStruct(viper *viper.Viper, value interface{}) error {
 				if !field.IsEmbedded() {
 					buffer += (field.Name() + ".")
 				}
-				a(field.Value(), buffer)
+				pathBuilder(field.Value(), buffer)
 				if !field.IsEmbedded() {
 					buffer = buffer[0:strings.LastIndex(buffer, field.Name())]
 				}
 			}
 		}
 	}
-	a(value, "")
+
+	pathBuilder(value, "")
 	for _,val := range result {
 		if err := viper.BindEnv(val); err != nil {
 			return err

@@ -127,30 +127,4 @@ var _ = Describe("Errors", func() {
 		})
 	})
 
-	Describe("Error Handler Func", func() {
-
-		var returnedData error
-		mockedAPIHandler := func(writer http.ResponseWriter, request *http.Request) error {
-			return returnedData
-		}
-
-		Context("With API Handler not returning an error", func() {
-			It("Should have no data in Response Writer", func() {
-				httpHandler := rest.ErrorHandlerFunc(mockedAPIHandler)
-				httpHandler.ServeHTTP(mockedWriter, nil)
-				Expect(string(mockedWriter.data)).To(BeEmpty())
-			})
-		})
-
-		Context("With API Handler returning an error", func() {
-			It("Should write to Response Writer", func() {
-				returnedData = testError
-
-				httpHandler := rest.ErrorHandlerFunc(mockedAPIHandler)
-				httpHandler.ServeHTTP(mockedWriter, nil)
-				Expect(string(mockedWriter.data)).To(ContainSubstring(testError.Error()))
-				Expect(mockedWriter.status).To(Equal(http.StatusInternalServerError))
-			})
-		})
-	})
 })

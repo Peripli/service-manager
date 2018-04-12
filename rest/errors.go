@@ -29,15 +29,6 @@ type ErrorResponse struct {
 	Description string `json:"description"`
 }
 
-//TODO can be removed
-// ErrorHandlerFunc wraps an APIHandler and returns an http.Handler by providing a central error handling place for all APIHandlers
-func ErrorHandlerFunc(handler APIHandler) http.Handler {
-	return http.HandlerFunc(func(writer http.ResponseWriter, reader *http.Request) {
-		err := handler(writer, reader)
-		HandleError(err, writer)
-	})
-}
-
 // HandleError sends a JSON containing the error to the response writer
 func HandleError(err error, writer http.ResponseWriter) {
 	if err != nil {
