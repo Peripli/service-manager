@@ -57,7 +57,7 @@ func GetByName(name string) (Storage, bool) {
 }
 
 // Use specifies the storage for the given name
-func Use(name string, storage Storage, ctx context.Context) {
+func Use(ctx context.Context, name string, storage Storage) {
 	mux.Lock()
 	defer mux.Unlock()
 	if _, exists := storages[name]; exists {
@@ -67,11 +67,11 @@ func Use(name string, storage Storage, ctx context.Context) {
 		logrus.Panic(err)
 	}
 	storages[name] = storage
-	go awaitTermination(storage, ctx)
+	go awaitTermination(ctx, storage)
 }
 
-func awaitTermination(storage Storage, ctx context.Context) {
-	term := make(chan os.Signal)
+func awaitTermination(ctx context.Context, storage Storage) {
+	term := make(chan os.Signal, 1)
 	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
 
 	select {
