@@ -18,6 +18,8 @@ package rest
 
 import "net/http"
 
+const AllMethods = "*"
+
 // API is the primary interface for REST API registration
 type API interface {
 	// Controllers returns the controllers registered for the API

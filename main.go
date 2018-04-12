@@ -12,15 +12,10 @@ import (
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/postgres"
 	"github.com/sirupsen/logrus"
+	"fmt"
 )
 
 func main() {
-	//os.Setenv("SM_SERVER_PORT", "8181")
-	//os.Setenv("SM_SERVER_REQUESTTIMEOUT", "5")
-	//os.Setenv("SM_SERVER_SHUTDOWNTIMEOUT", "6")
-	//os.Setenv("SM_LOG_LEVEL", "error")
-	//os.Setenv("SM_LOG_FORMAT", "text")
-	//os.Setenv("SM_DB_URI", "postgres://postgres:postgres@localhost:5555/postgres?sslmode=disable")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -31,16 +26,19 @@ func main() {
 		logrus.Fatal("Error loading configuration: ", err)
 	}
 
+	if err := config.Validate(); err != nil {
+		logrus.Fatal("NewConfiguration: validation failed ", err)
+	}
 
 	storage, err := storage.Use(postgres.Storage, config.DbURI, ctx)
 	if err != nil {
-		logrus.Fatal("Error creating storage: ", err)
+		logrus.Fatal("Error using storage: ", err)
 	}
 	defaultAPI := api.Default(storage)
 
 	srv, err := server.New(defaultAPI, config)
 	if err != nil {
-		logrus.Fatal("Error creating new server: ", err)
+		logrus.Fatal("Error creating server: ", err)
 	}
 	srv.Run(ctx)
 }

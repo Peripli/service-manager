@@ -80,13 +80,14 @@ func (v *viperEnv) Unmarshal(value interface{}) error {
 	return v.Viper.Unmarshal(value)
 }
 
-// bindStruct automates something that is missing from viper:
-// If we pass a struct to be unmarshaled and we want some of the fields to be loaded
-// from env variables we would need to perform something manual steps to let viper know about each of these fields.
-// We would either need to do one of these: specify default values for the fields in application.yml, pass default values as flags or
-// call viper.SetDefault(x.y) where x.y in env should be [PREFIX_]X_Y or call viper.BindEnv(x.y)
-// This method automates that by telling viper that the any of the fields of the structure that is being unmarshaled should be looked for
-// in the environment
+// bindStruct automates something that is missing from viper.
+// If we pass a struct to be unmarshaled and we want some of the fields to be loaded from env variables we would need
+// to perform some manual steps to let viper know about each of these fields.
+// We would either need to do one of these: specify default values for the fields in application.yml or pass default
+// values as flags or call viper.SetDefault(x.y) or call viper.BindEnv(x.y) where x.y if present in environment
+// should look like [PREFIX_]X_Y.
+// This method automates that by telling viper that the any of the fields of the structure that is being unmarshaled
+// should be looked for in the environment
 func bindStruct(viper *viper.Viper, value interface{}) error {
 	var result = []string{}
 	var pathBuilder func(value interface{}, buffer string)
