@@ -14,6 +14,16 @@
   version = "v1.4.7"
 
 [[projects]]
+  name = "github.com/golang-migrate/migrate"
+  packages = [
+    ".",
+    "database",
+    "source"
+  ]
+  revision = "22f249514de9aa3f8a720a7cabbdd45d294f83a1"
+  version = "v3.2.0"
+
+[[projects]]
   name = "github.com/gorilla/context"
   packages = ["."]
   revision = "1ea25387ff6f684839d82767c1733ff4d4d15d0a"
@@ -221,6 +231,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "44c167f8ff1fe1bcc2878aedbd511ead9a7b40450d73eae8459c80a95cfce4a4"
+  inputs-digest = "db0f47794c3bb7b77aa0767a5b3a4681ee2bc1cd5b0fda11b332b401df7ed5c2"
   solver-name = "gps-cdcl"
   solver-version = 1
