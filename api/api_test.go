@@ -51,9 +51,6 @@ var _ = Describe("API", func() {
 		mockedStorage.BrokerReturns(mockedBroker)
 
 		api = Default(mockedStorage)
-
-		Expect(mockedStorage.BrokerCallCount()).To(Equal(1))
-
 	})
 
 	Describe("Controller Registration", func() {

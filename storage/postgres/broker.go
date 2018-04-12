@@ -3,17 +3,18 @@ package postgres
 import (
 	"github.com/Peripli/service-manager/types"
 	"github.com/jmoiron/sqlx"
+	"context"
 )
 
 type brokerStorage struct {
 	db *sqlx.DB
 }
 
-func (storage *brokerStorage) Create(broker *types.Broker) error {
+func (storage *brokerStorage) Create(ctx context.Context, broker *types.Broker) error {
 	return nil
 }
 
-func (storage *brokerStorage) Find(id string) (*types.Broker, error) {
+func (storage *brokerStorage) Find(ctx context.Context, id string) (*types.Broker, error) {
 	return &types.Broker{
 		Name:     "brokerName",
 		ID:       "brokerID",
@@ -23,14 +24,14 @@ func (storage *brokerStorage) Find(id string) (*types.Broker, error) {
 	}, nil
 }
 
-func (storage *brokerStorage) FindAll() ([]*types.Broker, error) {
+func (storage *brokerStorage) FindAll(ctx context.Context) ([]*types.Broker, error) {
 	return []*types.Broker{}, nil
 }
 
-func (storage *brokerStorage) Delete(id string) error {
+func (storage *brokerStorage) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (storage *brokerStorage) Update(broker *types.Broker) error {
+func (storage *brokerStorage) Update(ctx context.Context, broker *types.Broker) error {
 	return nil
 }

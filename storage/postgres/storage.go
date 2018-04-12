@@ -35,13 +35,14 @@ func init() {
 type postgresStorage struct {
 	once sync.Once
 	db   *sqlx.DB
+
 }
 
 func (storage *postgresStorage) Broker() storage.Broker {
 	if storage.db == nil {
 		panic("Storage is not yet Open")
 	}
-	return &brokerStorage{db: storage.db}
+	return &brokerStorage{storage.db}
 }
 
 func (storage *postgresStorage) Open(uri string) error {
