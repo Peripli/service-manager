@@ -36,11 +36,16 @@ type fetcher func(dest interface{}, query string, args ...interface{}) error
 
 func (store *brokerStorage) Create(broker *rest.Broker) error {
 	tx, err := store.db.Beginx()
-	defer tx.Rollback()
 	if err != nil {
 		logrus.Error("Unable to create transaction")
 		return err
 	}
+	mustRollback := true
+	defer func() {
+		if mustRollback {
+			handleRollback(tx)
+		}
+	}()
 
 	credentialsDTO := ConvertCredentialsToDTO(broker.Credentials)
 	statement, err := tx.PrepareNamed("INSERT INTO credentials (type, username, password, token) VALUES (:type, :username, :password, :token) RETURNING id")
@@ -68,7 +73,11 @@ func (store *brokerStorage) Create(broker *rest.Broker) error {
 		return err
 	}
 
-	return tx.Commit()
+	err = tx.Commit()
+	if err == nil {
+		mustRollback = false
+	}
+	return err
 }
 
 func (store *brokerStorage) Get(id string) (*rest.Broker, error) {
@@ -94,11 +103,16 @@ func (store *brokerStorage) GetAll() ([]rest.Broker, error) {
 
 func (store *brokerStorage) Delete(id string) error {
 	tx, err := store.db.Beginx()
-	defer tx.Rollback()
 	if err != nil {
 		logrus.Error("Unable to create transaction")
 		return err
 	}
+	mustRollback := true
+	defer func() {
+		if mustRollback {
+			handleRollback(tx)
+		}
+	}()
 
 	broker, err := retrieveBroker(tx.Get, id)
 	if err != nil {
@@ -118,17 +132,25 @@ func (store *brokerStorage) Delete(id string) error {
 		return err
 	}
 
-	return tx.Commit()
+	err = tx.Commit()
+	if err == nil {
+		mustRollback = false
+	}
+	return err
 }
 
 func (store *brokerStorage) Update(broker *rest.Broker) error {
 	tx, err := store.db.Beginx()
-	defer tx.Rollback()
-
 	if err != nil {
 		logrus.Error("Unable to create transaction")
 		return err
 	}
+	mustRollback := true
+	defer func() {
+		if mustRollback {
+			handleRollback(tx)
+		}
+	}()
 
 	updateQueryString := generateUpdateQueryString(broker)
 
@@ -168,7 +190,11 @@ func (store *brokerStorage) Update(broker *rest.Broker) error {
 		}
 	}
 
-	return tx.Commit()
+	err = tx.Commit()
+	if err == nil {
+		mustRollback = false
+	}
+	return err
 }
 
 func generateUpdateQueryString(broker *rest.Broker) string {

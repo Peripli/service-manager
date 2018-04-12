@@ -68,19 +68,21 @@ var (
 	updatePlatform = "UPDATE " + platformTable + " SET name=:name, type=:type, description=:description, updated_at=:updated_at WHERE id=:id"
 )
 
-func handleRollback(transaction *sqlx.Tx, lastOperation error) error {
-	rollbackErr := transaction.Rollback()
-	if rollbackErr != nil {
-		return fmt.Errorf("Rollback error: %s; Reason: %s", rollbackErr.Error(), lastOperation.Error())
-	}
-	return lastOperation
-}
-
 func (storage *platformStorage) Create(platform *rest.Platform) error {
-	tx := storage.db.MustBegin()
+	tx, err := storage.db.Beginx()
+	if err != nil {
+		logrus.Error("Unable to create transaction")
+		return err
+	}
+	mustRollback := true
+	defer func() {
+		if mustRollback {
+			handleRollback(tx)
+		}
+	}()
 	stmt, err := tx.PrepareNamed(insertCredentials)
 	if err != nil {
-		return handleRollback(tx, err)
+		return err
 	}
 	var credentialsID int
 	err = stmt.Get(&credentialsID, &Credentials{
@@ -89,7 +91,7 @@ func (storage *platformStorage) Create(platform *rest.Platform) error {
 		Password: platform.Credentials.Basic.Password,
 	})
 	if err != nil {
-		return handleRollback(tx, err)
+		return err
 	}
 
 	_, err = tx.NamedExec(insertPlatform, &Platform{
@@ -104,15 +106,19 @@ func (storage *platformStorage) Create(platform *rest.Platform) error {
 	if err != nil {
 		pqErr, ok := err.(*pq.Error)
 		if !ok {
-			return handleRollback(tx, err)
+			return err
 		}
 		if pqErr.Code.Name() == "unique_violation" {
 			logrus.Debug(pqErr)
-			return handleRollback(tx, store.ErrUniqueViolation)
+			return store.ErrUniqueViolation
 		}
 	}
 
-	return tx.Commit()
+	err = tx.Commit()
+	if err == nil {
+		mustRollback = false
+	}
+	return err
 }
 
 func (storage *platformStorage) get(stmt string, arg string) (*rest.Platform, error) {
@@ -178,20 +184,33 @@ func (storage *platformStorage) GetAll() ([]rest.Platform, error) {
 }
 
 func (storage *platformStorage) Delete(id string) error {
-	tx := storage.db.MustBegin()
+	tx, err := storage.db.Beginx()
+	if err != nil {
+		logrus.Error("Unable to create transaction")
+		return err
+	}
+	mustRollback := true
+	defer func() {
+		if mustRollback {
+			handleRollback(tx)
+		}
+	}()
 	result, err := tx.Exec(deletePlatform, &id)
 	if err != nil {
-		return handleRollback(tx, err)
+		return err
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return handleRollback(tx, err)
+		return err
 	}
-
 	if rowsAffected != 1 {
-		return handleRollback(tx, store.ErrNotFound)
+		return store.ErrNotFound
 	}
-	return tx.Commit()
+	err = tx.Commit()
+	if err == nil {
+		mustRollback = false
+	}
+	return err
 }
 
 func (storage *platformStorage) Update(platform *rest.Platform) error {
