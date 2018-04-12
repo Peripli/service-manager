@@ -1,60 +1,87 @@
+/*
+ * Copyright 2018 The Service Manager Authors
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package main
 
 import (
-	"context"
-
-	"os"
-	"os/signal"
-
-	"github.com/Peripli/service-manager/api"
-	"github.com/Peripli/service-manager/env"
-	"github.com/Peripli/service-manager/server"
-	"github.com/Peripli/service-manager/storage"
-	"github.com/Peripli/service-manager/storage/postgres"
-	"github.com/sirupsen/logrus"
+	"fmt"
+	"github.com/fatih/structs"
+	"strings"
 )
 
-func main() {
-	//os.Setenv("SM_SERVER_PORT", "8181")
-	//os.Setenv("SM_SERVER_REQUESTTIMEOUT", "5")
-	//os.Setenv("SM_SERVER_SHUTDOWNTIMEOUT", "6")
-	//os.Setenv("SM_LOG_LEVEL", "error")
-	//os.Setenv("SM_LOG_FORMAT", "text")
-	//os.Setenv("SM_DB_URI", "postgres://postgres:postgres@localhost:5555/postgres?sslmode=disable")
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	handleInterrupts(ctx, cancel)
-
-	config, err := server.NewConfiguration(env.Default())
-	if err != nil {
-		logrus.Fatal("Error loading configuration: ", err)
-	}
-
-
-	storage, err := storage.Use(ctx, postgres.Storage, config.DbURI)
-	if err != nil {
-		logrus.Fatal("Error creating storage: ", err)
-	}
-	defaultAPI := api.Default(storage)
-
-	srv, err := server.New(defaultAPI, config)
-	if err != nil {
-		logrus.Fatal("Error creating new server: ", err)
-	}
-	srv.Run(ctx)
+type Settings struct {
+	Server serverSettings
+	Db     dbSettings
+	Log    logSettings
+	Mocked mockSettings
 }
 
-func handleInterrupts(ctx context.Context, cancelFunc context.CancelFunc) {
-	term := make(chan os.Signal)
-	signal.Notify(term, os.Interrupt)
-	go func() {
-		select {
-		case <-term:
-			logrus.Error("Received OS interrupt, exiting gracefully...")
-			cancelFunc()
-		case <-ctx.Done():
-			return
+type nestedSettings struct {
+	Hello string
+}
+
+type mockSettings struct {
+	Nested nestedSettings
+	Bye    string
+}
+
+type serverSettings struct {
+	Port            int
+	RequestTimeout  int
+	ShutdownTimeout int
+}
+
+type dbSettings struct {
+	URI string
+}
+
+type logSettings struct {
+	Level  string
+	Format string
+}
+
+func main() {
+	fmt.Println(bindStruct(&Settings{}))
+}
+func bindStruct(value interface{}) []string {
+	var result []string
+
+	pathBuilder(value, "", &result)
+	return result
+}
+
+func pathBuilder(value interface{}, buffer string, result *[]string) {
+	if !structs.IsStruct(value) {
+		index := strings.LastIndex(buffer, ".")
+		if index == -1 {
+			index = 0
 		}
-	}()
+		*result = append(*result, strings.ToLower(buffer[0:index]))
+		return
+	}
+	s := structs.New(value)
+	for _, field := range s.Fields() {
+		if field.IsExported() {
+			if !field.IsEmbedded() {
+				buffer += field.Name() + "."
+			}
+			pathBuilder(field.Value(), buffer, result)
+			if !field.IsEmbedded() {
+				buffer = buffer[0:strings.LastIndex(buffer, field.Name())]
+			}
+		}
+	}
 }

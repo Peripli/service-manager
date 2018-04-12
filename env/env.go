@@ -22,25 +22,24 @@ import (
 
 	"github.com/fatih/structs"
 	"github.com/spf13/viper"
+	"github.com/Peripli/service-manager/server"
 )
 
 type viperEnv struct {
 	Viper      *viper.Viper
-	configFile *ConfigFile
+	configFile *configFile
 	envPrefix  string
 }
 
-type ConfigFile struct {
+type configFile struct {
 	Name   string
 	Path   string
 	Format string
 }
 
-//var _ server.environment = &viperEnv{}
-
-func Default() *viperEnv {
+func Default() server.Environment {
 	envPrefix := "SM"
-	configFile := &ConfigFile{
+	configFile := &configFile{
 		Path:   ".",
 		Name:   "application",
 		Format: "yml",
@@ -48,7 +47,7 @@ func Default() *viperEnv {
 	return New(configFile, envPrefix)
 }
 
-func New(file *ConfigFile, envPrefix string) *viperEnv {
+func New(file *configFile, envPrefix string) server.Environment {
 	return &viperEnv{
 		Viper:      viper.New(),
 		configFile: file,
@@ -64,7 +63,7 @@ func (v *viperEnv) Load() error {
 	v.Viper.SetEnvPrefix(v.envPrefix)
 	v.Viper.AutomaticEnv()
 	if err := v.Viper.ReadInConfig(); err != nil {
-		panic(fmt.Sprintf("Could not read configuration file: %s", err))
+		return fmt.Errorf("Could not read configuration file: %s", err)
 	}
 	return nil
 }
@@ -74,51 +73,43 @@ func (v *viperEnv) Get(key string) interface{} {
 }
 
 func (v *viperEnv) Unmarshal(value interface{}) error {
-	if err := bindStruct(v.Viper, value); err != nil {
+	if err := v.introduce(value); err != nil {
 		return err
 	}
 	return v.Viper.Unmarshal(value)
 }
 
-// bindStruct automates something that is missing from viper:
-// If we pass a struct to be unmarshaled and we want some of the fields to be loaded
-// from env variables we would need to perform something manual steps to let viper know about each of these fields.
-// We would either need to do one of these: specify default values for the fields in application.yml, pass default values as flags or
-// call viper.SetDefault(x.y) where x.y in env should be [PREFIX_]X_Y or call viper.BindEnv(x.y)
-// This method automates that by telling viper that the any of the fields of the structure that is being unmarshaled should be looked for
-// in the environment
-func bindStruct(viper *viper.Viper, value interface{}) error {
-	var result = []string{}
-	var pathBuilder func(value interface{}, buffer string)
-
-	pathBuilder = func(value interface{}, buffer string) {
-		if !structs.IsStruct(value) {
-			index := strings.LastIndex(buffer, ".")
-			if index == -1 {
-				index = 0
-			}
-			result = append(result, strings.ToLower(buffer[0:index]))
-			return
-		}
-		s := structs.New(value)
-		for _, field := range s.Fields() {
-			if field.IsExported() {
-				if !field.IsEmbedded() {
-					buffer += (field.Name() + ".")
-				}
-				pathBuilder(field.Value(), buffer)
-				if !field.IsEmbedded() {
-					buffer = buffer[0:strings.LastIndex(buffer, field.Name())]
-				}
-			}
-		}
-	}
-
-	pathBuilder(value, "")
-	for _,val := range result {
-		if err := viper.BindEnv(val); err != nil {
+// introduce introduces the structure's fields as viper properties
+func (v *viperEnv) introduce(value interface{}) error {
+	var properties []string
+	traverseFields(value, "", &properties)
+	for _, property := range properties {
+		if err := viper.BindEnv(property); err != nil {
 			return err
-			}
+		}
 	}
 	return nil
+}
+
+func traverseFields(value interface{}, buffer string, result *[]string) {
+	if !structs.IsStruct(value) {
+		index := strings.LastIndex(buffer, ".")
+		if index == -1 {
+			index = 0
+		}
+		*result = append(*result, strings.ToLower(buffer[0:index]))
+		return
+	}
+	s := structs.New(value)
+	for _, field := range s.Fields() {
+		if field.IsExported() {
+			if !field.IsEmbedded() {
+				buffer += field.Name() + "."
+			}
+			traverseFields(field.Value(), buffer, result)
+			if !field.IsEmbedded() {
+				buffer = buffer[0:strings.LastIndex(buffer, field.Name())]
+			}
+		}
+	}
 }

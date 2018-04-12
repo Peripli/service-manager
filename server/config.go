@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-type environment interface {
+type Environment interface {
 	Load() error
 	Get(key string) interface{}
 	Unmarshal(value interface{}) error
@@ -57,7 +57,7 @@ type Config struct {
 	DbURI           string
 }
 
-func NewConfiguration(env environment) (*Config, error) {
+func NewConfiguration(env Environment) (*Config, error) {
 	config := DefaultConfiguration()
 
 	if err := env.Load(); err != nil {
