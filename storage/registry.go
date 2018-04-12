@@ -67,6 +67,6 @@ func awaitTermination(storage Storage, ctx context.Context) {
 
 func closeStorage(storage Storage) {
 	if err := storage.Close(); err != nil {
-		logrus.Panic(err)
+		logrus.Error(err)
 	}
 }
