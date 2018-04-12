@@ -28,13 +28,13 @@ import (
 
 // Server is the server to process incoming HTTP requests
 type Server struct {
-	Configuration *Config
+	Configuration *config
 	Router        *mux.Router
 }
 
 // New creates a new server with the provided REST API configuration and server configuration
 // Returns the new server and an error if creation was not successful
-func New(api rest.API, config *Config) (*Server, error) {
+func New(api rest.API, config *config) (*Server, error) {
 	router := mux.NewRouter().StrictSlash(true)
 	registerControllers(router, api.Controllers())
 
@@ -85,7 +85,7 @@ func registerControllers(router *mux.Router, controllers []rest.Controller) {
 				moveRoutes(route.Endpoint.Path, fromRouter, router)
 			} else {
 				r := router.Handle(route.Endpoint.Path, route.Handler)
-				if route.Endpoint.Method != "*" {
+				if route.Endpoint.Method != rest.AllMethods {
 					r.Methods(route.Endpoint.Method)
 				}
 			}
@@ -109,11 +109,9 @@ func gracefulShutdown(server *http.Server, shutdownTimeout time.Duration, ctx co
 	c, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 	logrus.Debugf("Shutdown with timeout: %s", shutdownTimeout)
-	if server.Shutdown(c) != nil {
-		server.Close()
-	}
 
-	if err := server.Shutdown(ctx); err != nil {
+	if err := server.Shutdown(c); err != nil {
+		server.Close()
 		logrus.Errorf("Error: %v", err)
 	} else {
 		logrus.Debug("Server stopped")

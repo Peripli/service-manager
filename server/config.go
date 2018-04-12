@@ -19,36 +19,38 @@ package server
 import (
 	"strconv"
 	"time"
+	"fmt"
 )
 
-type Environment interface {
+//go:generate counterfeiter . environment
+type environment interface {
 	Load() error
 	Get(key string) interface{}
 	Unmarshal(value interface{}) error
 }
 
 type Settings struct {
-	Server serverSettings
-	Db     dbSettings
-	Log    logSettings
+	Server *ServerSettings
+	Db     *DbSettings
+	Log    *LogSettings
 }
 
-type serverSettings struct {
+type ServerSettings struct {
 	Port            int
 	RequestTimeout  int
 	ShutdownTimeout int
 }
 
-type dbSettings struct {
+type DbSettings struct {
 	URI string
 }
 
-type logSettings struct {
+type LogSettings struct {
 	Level  string
 	Format string
 }
 
-type Config struct {
+type config struct {
 	Address         string
 	RequestTimeout  time.Duration
 	ShutdownTimeout time.Duration
@@ -57,7 +59,21 @@ type Config struct {
 	DbURI           string
 }
 
-func NewConfiguration(env Environment) (*Config, error) {
+// DefaultConfiguration returns a default server configuration
+func DefaultConfiguration() *config {
+	config := &config{
+		Address:         ":8080",
+		RequestTimeout:  time.Millisecond * time.Duration(3000),
+		ShutdownTimeout: time.Millisecond * time.Duration(3000),
+		LogLevel:        "debug",
+		LogFormat:       "text",
+		DbURI:           "",
+	}
+
+	return config
+}
+
+func NewConfiguration(env environment) (*config, error) {
 	config := DefaultConfiguration()
 
 	if err := env.Load(); err != nil {
@@ -91,16 +107,24 @@ func NewConfiguration(env Environment) (*Config, error) {
 	return config, nil
 }
 
-// DefaultConfiguration returns a default server configuration
-func DefaultConfiguration() *Config {
-	config := &Config{
-		Address:         ":8080",
-		RequestTimeout:  time.Millisecond * time.Duration(3000),
-		ShutdownTimeout: time.Millisecond * time.Duration(3000),
-		LogLevel:        "debug",
-		LogFormat:       "text",
-		DbURI:           "",
+func (c *config) Validate() error {
+	if len(c.Address) == 0 {
+		return fmt.Errorf("Validate Config: Address missing")
 	}
-
-	return config
+	if c.RequestTimeout == 0 {
+		return fmt.Errorf("Validate Config: RequestTimeout missing")
+	}
+	if c.ShutdownTimeout == 0 {
+		return fmt.Errorf("Validate Config: ShutdownTimeout missing")
+	}
+	if len(c.LogLevel) == 0 {
+		return fmt.Errorf("Validate Config: LogLevel missing")
+	}
+	if len(c.LogFormat) == 0 {
+		return fmt.Errorf("Validate Config: LogFormat missing")
+	}
+	if len(c.DbURI) == 0 {
+		return fmt.Errorf("Validate Config: DbURI missing")
+	}
+	return nil
 }
