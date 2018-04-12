@@ -23,5 +23,8 @@ func ReadJSONBody(request *http.Request, value interface{}) error {
 	}
 	decoder := json.NewDecoder(request.Body)
 	defer request.Body.Close()
-	return decoder.Decode(value)
+	if err := decoder.Decode(value); err != nil {
+		return CreateErrorResponse(errors.New("Invalid JSON"), http.StatusBadRequest, "InvalidJSON")
+	}
+	return nil
 }

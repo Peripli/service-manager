@@ -39,3 +39,8 @@
 [[constraint]]
   name = "github.com/golang-migrate/migrate"
   version = "3.2.0"
+
+[[override]]
+  name = "github.com/valyala/fasthttp"
+  revision = "e5f51c11919d4f66400334047b897ef0a94c6f3c"
+

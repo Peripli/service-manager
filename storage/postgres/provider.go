@@ -22,7 +22,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/Peripli/service-manager/env"
+	_ "github.com/Peripli/service-manager/env"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Sirupsen/logrus"
 	"github.com/golang-migrate/migrate"
@@ -30,6 +30,7 @@ import (
 	_ "github.com/golang-migrate/migrate/source/file"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+	"github.com/spf13/viper"
 )
 
 func init() {
@@ -47,10 +48,7 @@ func (p *provider) Provide() (storage.Storage, error) {
 		closeChan := make(chan os.Signal)
 		signal.Notify(closeChan, os.Interrupt, syscall.SIGTERM)
 
-		uri, ok := env.Get("storage.uri").(string)
-		if !ok {
-			logrus.Panicf("Could not open connection for provided uri %s from postgres storage provider", uri)
-		}
+		uri := viper.GetString("storage.uri")
 		db, err := sqlx.Connect("postgres", uri)
 		if err != nil {
 			logrus.Panicln("Could not connect to PostgreSQL:", err)
@@ -81,12 +79,16 @@ func updateSchema(db *sqlx.DB) error {
 	if err != nil {
 		return err
 	}
+
+	home := viper.GetString("home")
 	m, err := migrate.NewWithDatabaseInstance(
-		"file://storage/postgres/migrations",
-		"postgres", driver)
+		"file://"+home+"/storage/postgres/migrations",
+		"postgres",
+		driver)
 	if err != nil {
 		return err
 	}
+
 	err = m.Up()
 	if err == migrate.ErrNoChange {
 		logrus.Debug("Database schema already up to date")
