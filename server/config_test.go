@@ -1,3 +1,19 @@
+/*
+ *    Copyright 2018 The Service Manager Authors
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package server_test
 
 import (
@@ -7,15 +23,15 @@ import (
 	"fmt"
 	. "github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/server/serverfakes"
-	"time"
 	"strconv"
+	"time"
 )
 
-var _ bool = Describe("config", func() {
+var _ = Describe("config", func() {
 
 	var (
-		config = DefaultConfiguration()
 		err    error
+		config *Config
 	)
 
 	Describe("Validate", func() {
@@ -26,6 +42,7 @@ var _ bool = Describe("config", func() {
 		}
 
 		BeforeEach(func() {
+			config = DefaultConfiguration()
 			config.DbURI = "postgres://postgres:postgres@localhost:5555/postgres?sslmode=disable"
 		})
 
@@ -114,77 +131,76 @@ var _ bool = Describe("config", func() {
 
 		Context("when loading and unmarshaling from environment are successful", func() {
 
-			assertEnvironmentLoadedAndUnmarshaled := func() {
-				Expect(fakeEnv.LoadCallCount()).To(Equal(1))
-				Expect(fakeEnv.UnmarshalCallCount()).To(Equal(1))
-			}
-
 			var (
-				settings *Settings
+				settings Settings
 
-				envSettings = &Settings{
+				envSettings = Settings{
 					Server: &ServerSettings{
-						Port: 8080,
+						Port:            8080,
 						ShutdownTimeout: 5000,
-						RequestTimeout: 5000,
-
+						RequestTimeout:  5000,
 					},
 					Db: &DbSettings{
 						URI: "dbUri",
 					},
 					Log: &LogSettings{
 						Format: "text",
-						Level: "debug",
+						Level:  "debug",
 					},
 				}
 
-				emptySettings = &Settings{
-					Server: &ServerSettings{
-					},
-					Db: &DbSettings{
-					},
-					Log: &LogSettings{
-					},
+				emptySettings = Settings{
+					Server: &ServerSettings{},
+					Db:     &DbSettings{},
+					Log:    &LogSettings{},
 				}
 			)
+
+			assertEnvironmentLoadedAndUnmarshaled := func() {
+				Expect(fakeEnv.LoadCallCount()).To(Equal(1))
+				Expect(fakeEnv.UnmarshalCallCount()).To(Equal(1))
+			}
 
 			BeforeEach(func() {
 				fakeEnv.LoadReturns(nil)
 				fakeEnv.UnmarshalReturns(nil)
 				fakeEnv.UnmarshalStub = func(value interface{}) error {
-					value = settings
+					val, ok := value.(*Settings)
+					if ok {
+						*val = settings
+					}
 					return nil
 				}
 			})
 
-				Context("when loaded from environment", func() {
-					JustBeforeEach(func() {
-						settings = envSettings
-					})
-
-					XSpecify("the environment values are used", func() {
-						c, err := NewConfiguration(fakeEnv)
-
-						Expect(err).To(Not(HaveOccurred()))
-						assertEnvironmentLoadedAndUnmarshaled()
-
-						Expect(err).To(Not(HaveOccurred()))
-
-						Expect(c.Address).Should(Equal(":" + strconv.Itoa(envSettings.Server.Port)))
-						Expect(c.RequestTimeout).Should(Equal(time.Duration(envSettings.Server.RequestTimeout)))
-						Expect(c.ShutdownTimeout).Should(Equal(time.Duration(envSettings.Server.ShutdownTimeout)))
-						Expect(c.LogLevel).Should(Equal(envSettings.Log.Level))
-						Expect(c.LogFormat).Should(Equal(envSettings.Log.Format))
-						Expect(c.DbURI).Should(Equal(envSettings.Db.URI))
-					})
+			Context("when loaded from environment", func() {
+				JustBeforeEach(func() {
+					settings = envSettings
 				})
+
+				Specify("the environment values are used", func() {
+					c, err := NewConfiguration(fakeEnv)
+
+					Expect(err).To(Not(HaveOccurred()))
+					assertEnvironmentLoadedAndUnmarshaled()
+
+					Expect(err).To(Not(HaveOccurred()))
+
+					Expect(c.Address).Should(Equal(":" + strconv.Itoa(envSettings.Server.Port)))
+					Expect(c.RequestTimeout).Should(Equal(time.Duration(envSettings.Server.RequestTimeout)))
+					Expect(c.ShutdownTimeout).Should(Equal(time.Duration(envSettings.Server.ShutdownTimeout)))
+					Expect(c.LogLevel).Should(Equal(envSettings.Log.Level))
+					Expect(c.LogFormat).Should(Equal(envSettings.Log.Format))
+					Expect(c.DbURI).Should(Equal(envSettings.Db.URI))
+				})
+			})
 
 			Context("when missing from environment", func() {
 				JustBeforeEach(func() {
 					settings = emptySettings
 				})
 
-				XSpecify("the default value is used", func() {
+				Specify("the default value is used", func() {
 					c, err := NewConfiguration(fakeEnv)
 					Expect(err).To(Not(HaveOccurred()))
 
@@ -196,4 +212,3 @@ var _ bool = Describe("config", func() {
 		})
 	})
 })
-

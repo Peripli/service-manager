@@ -50,7 +50,7 @@ type LogSettings struct {
 	Format string
 }
 
-type config struct {
+type Config struct {
 	Address         string
 	RequestTimeout  time.Duration
 	ShutdownTimeout time.Duration
@@ -60,8 +60,8 @@ type config struct {
 }
 
 // DefaultConfiguration returns a default server configuration
-func DefaultConfiguration() *config {
-	config := &config{
+func DefaultConfiguration() *Config {
+	config := &Config{
 		Address:         ":8080",
 		RequestTimeout:  time.Millisecond * time.Duration(3000),
 		ShutdownTimeout: time.Millisecond * time.Duration(3000),
@@ -73,7 +73,7 @@ func DefaultConfiguration() *config {
 	return config
 }
 
-func NewConfiguration(env Environment) (*config, error) {
+func NewConfiguration(env Environment) (*Config, error) {
 	config := DefaultConfiguration()
 
 	if err := env.Load(); err != nil {
@@ -107,7 +107,7 @@ func NewConfiguration(env Environment) (*config, error) {
 	return config, nil
 }
 
-func (c *config) Validate() error {
+func (c *Config) Validate() error {
 	if len(c.Address) == 0 {
 		return fmt.Errorf("Validate Config: Address missing")
 	}
