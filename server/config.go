@@ -22,8 +22,8 @@ import (
 	"fmt"
 )
 
-//go:generate counterfeiter . environment
-type environment interface {
+//go:generate counterfeiter . Environment
+type Environment interface {
 	Load() error
 	Get(key string) interface{}
 	Unmarshal(value interface{}) error
@@ -73,7 +73,7 @@ func DefaultConfiguration() *Config {
 	return config
 }
 
-func NewConfiguration(env environment) (*Config, error) {
+func NewConfiguration(env Environment) (*Config, error) {
 	config := DefaultConfiguration()
 
 	if err := env.Load(); err != nil {

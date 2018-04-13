@@ -35,7 +35,6 @@ type Storage interface {
 }
 
 // Broker interface for Broker db operations
-//go:generate counterfeiter . Broker
 type Broker interface {
 	Create(ctx context.Context, broker *types.Broker) error
 	Find(ctx context.Context, id string) (*types.Broker, error)

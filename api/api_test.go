@@ -41,14 +41,11 @@ var _ = Describe("API", func() {
 
 	var (
 		mockedStorage *storagefakes.FakeStorage
-		mockedBroker *storagefakes.FakeBroker
 		api rest.API
 	)
 
 	BeforeEach(func() {
 		mockedStorage = &storagefakes.FakeStorage{}
-		mockedBroker = &storagefakes.FakeBroker{}
-		mockedStorage.BrokerReturns(mockedBroker)
 
 		api = Default(mockedStorage)
 	})
