@@ -20,6 +20,16 @@ import "time"
 
 import "github.com/Peripli/service-manager/rest"
 
+const (
+	// platformTable db table name for platforms
+	platformTable = "platforms"
+
+	// table db table name for credentials
+	credentialsTable = "credentials"
+
+	basicCredentialsType = 1
+)
+
 // Credentials dto
 type Credentials struct {
 	ID       int    `db:"id"`
@@ -51,7 +61,8 @@ type Broker struct {
 	CredentialsID int       `db:"credentials_id"`
 }
 
-func (brokerDTO *Broker) convertToRestModel() *rest.Broker {
+// ToRestModel converts to rest.Broker
+func (brokerDTO *Broker) ToRestModel() *rest.Broker {
 	return &rest.Broker{ID: brokerDTO.ID,
 		Name:        brokerDTO.Name,
 		Description: brokerDTO.Description,
@@ -60,12 +71,35 @@ func (brokerDTO *Broker) convertToRestModel() *rest.Broker {
 		BrokerURL:   brokerDTO.BrokerURL}
 }
 
+// ToRestModel converts to rest.Platform
+func (platformDTO *Platform) ToRestModel() *rest.Platform {
+	return &rest.Platform{
+		ID:          platformDTO.ID,
+		Type:        platformDTO.Type,
+		Name:        platformDTO.Name,
+		Description: platformDTO.Description,
+		CreatedAt:   platformDTO.CreatedAt,
+		UpdatedAt:   platformDTO.UpdatedAt,
+	}
+}
+
 func convertCredentialsToDTO(credentials *rest.Credentials) *Credentials {
 	return &Credentials{
-		Type:     1,
+		Type:     basicCredentialsType,
 		Username: credentials.Basic.Username,
 		Password: credentials.Basic.Password,
 		Token:    "",
+	}
+}
+
+func convertPlatformToDTO(platform *rest.Platform) *Platform {
+	return &Platform{
+		ID:          platform.ID,
+		Type:        platform.Type,
+		Name:        platform.Name,
+		Description: platform.Description,
+		CreatedAt:   platform.CreatedAt,
+		UpdatedAt:   platform.UpdatedAt,
 	}
 }
 

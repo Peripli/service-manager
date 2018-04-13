@@ -70,7 +70,7 @@ func (store *brokerStorage) Get(id string) (*rest.Broker, error) {
 	if err != nil {
 		return nil, err
 	}
-	return broker.convertToRestModel(), nil
+	return broker.ToRestModel(), nil
 }
 
 func (store *brokerStorage) GetAll() ([]rest.Broker, error) {
@@ -81,7 +81,7 @@ func (store *brokerStorage) GetAll() ([]rest.Broker, error) {
 	}
 	restBrokers := make([]rest.Broker, len(brokers))
 	for i, val := range brokers {
-		restBrokers[i] = *val.convertToRestModel()
+		restBrokers[i] = *val.ToRestModel()
 	}
 	return restBrokers, nil
 }
