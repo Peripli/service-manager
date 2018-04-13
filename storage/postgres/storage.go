@@ -14,6 +14,7 @@
  *    limitations under the License.
  */
 
+ // package postgres implements the Service Manager storage interfaces for Postgresql DB
 package postgres
 
 import (

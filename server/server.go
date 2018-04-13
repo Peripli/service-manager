@@ -14,6 +14,7 @@
  *    limitations under the License.
  */
 
+ // Package server contains the logic of the Service Manager server
 package server
 
 import (

@@ -14,6 +14,7 @@
  *    limitations under the License.
  */
 
+ // Package api contains logic for building the Service Manager API business logic
 package api
 
 import (

@@ -14,6 +14,7 @@
  *    limitations under the License.
  */
 
+ // Package env contains logic for working with environment, flags and file configs via Viper
 package env
 
 import (
@@ -82,7 +83,7 @@ func (v *viperEnv) Unmarshal(value interface{}) error {
 	return v.Viper.Unmarshal(value)
 }
 
-// introduce introduces the structure's fields as viper properties
+// introduce introduces the structure's fields as viper properties.
 func (v *viperEnv) introduce(value interface{}) error {
 	var properties []string
 	traverseFields(value, "", &properties)
@@ -94,6 +95,8 @@ func (v *viperEnv) introduce(value interface{}) error {
 	return nil
 }
 
+// traverseFields traverses the provided structure and prepares a slice of strings that contains
+//
 func traverseFields(value interface{}, buffer string, result *[]string) {
 	if !structs.IsStruct(value) {
 		index := strings.LastIndex(buffer, ".")

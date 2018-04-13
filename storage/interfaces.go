@@ -14,6 +14,8 @@
  *    limitations under the License.
  */
 
+ // Package storage provides generic interfaces around the Service Manager storage and provides logic
+ // for registration and usage of storages
 package storage
 
 import (
@@ -36,9 +38,18 @@ type Storage interface {
 
 // Broker interface for Broker db operations
 type Broker interface {
+	// Just to showcase
 	Create(ctx context.Context, broker *types.Broker) error
+
+	// Just to showcase
 	Find(ctx context.Context, id string) (*types.Broker, error)
+
+	// Just to showcase
 	FindAll(ctx context.Context) ([]*types.Broker, error)
+
+	// Just to showcase
 	Delete(ctx context.Context, id string) error
+
+	// Just to showcase
 	Update(ctx context.Context, broker *types.Broker) error
 }

@@ -1,6 +1,7 @@
+// Package types defines the entity types used in the Service Manager
 package types
 
-// just to showcase how to use
+// Just to showcase how to use
 type Broker struct {
 	ID        string `db:"id"`
 	Name      string `db:"name"`

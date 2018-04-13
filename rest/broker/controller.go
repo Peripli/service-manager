@@ -1,3 +1,4 @@
+// Package broker contains logic for building Broker REST Controller
 package broker
 
 import (
