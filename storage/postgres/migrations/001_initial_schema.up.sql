@@ -7,7 +7,7 @@ CREATE SEQUENCE "credentials_id_seq"
     MAXVALUE 2147483647
     CACHE 1;
 
-CREATE TABLE IF NOT EXISTS credentials (
+CREATE TABLE credentials (
     id integer PRIMARY KEY NOT NULL DEFAULT nextval('"credentials_id_seq"'::regclass),
     type integer NOT NULL,
     username varchar(255),
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS credentials (
     token text
 );
 
-CREATE TABLE IF NOT EXISTS platforms (
+CREATE TABLE platforms (
     id varchar(100) PRIMARY KEY,
     type varchar(255) NOT NULL,
     name varchar(255) NOT NULL UNIQUE,
@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS platforms (
     FOREIGN KEY (credentials_id) REFERENCES credentials
 );
 
-CREATE TABLE IF NOT EXISTS brokers (
+CREATE TABLE brokers (
     id varchar(100) PRIMARY KEY,
     name varchar(255) NOT NULL UNIQUE,
     description text,
