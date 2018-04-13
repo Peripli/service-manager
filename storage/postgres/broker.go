@@ -36,7 +36,7 @@ type fetcher func(dest interface{}, query string, args ...interface{}) error
 
 func (store *brokerStorage) Create(broker *rest.Broker) error {
 	return transaction(store.db, func(tx *sqlx.Tx) error {
-		credentialsDTO := ConvertCredentialsToDTO(broker.Credentials)
+		credentialsDTO := convertCredentialsToDTO(broker.Credentials)
 		statement, err := tx.PrepareNamed("INSERT INTO credentials (type, username, password, token) VALUES (:type, :username, :password, :token) RETURNING id")
 		if err != nil {
 			logrus.Error("Unable to create prepared statement")
@@ -49,7 +49,7 @@ func (store *brokerStorage) Create(broker *rest.Broker) error {
 			logrus.Error("Prepared statement execution failed")
 			return err
 		}
-		brokerDTO := ConvertBrokerToDTO(broker)
+		brokerDTO := convertBrokerToDTO(broker)
 		brokerDTO.CredentialsID = credentialsID
 
 		_, err = tx.NamedExec("INSERT INTO brokers (id, name, description, broker_url, created_at, updated_at, credentials_id) VALUES (:id, :name, :description, :broker_url, :created_at, :updated_at, :credentials_id)", brokerDTO)
@@ -70,7 +70,7 @@ func (store *brokerStorage) Get(id string) (*rest.Broker, error) {
 	if err != nil {
 		return nil, err
 	}
-	return broker.ConvertToRestModel(), nil
+	return broker.convertToRestModel(), nil
 }
 
 func (store *brokerStorage) GetAll() ([]rest.Broker, error) {
@@ -81,7 +81,7 @@ func (store *brokerStorage) GetAll() ([]rest.Broker, error) {
 	}
 	restBrokers := make([]rest.Broker, len(brokers))
 	for i, val := range brokers {
-		restBrokers[i] = *val.ConvertToRestModel()
+		restBrokers[i] = *val.convertToRestModel()
 	}
 	return restBrokers, nil
 }
@@ -113,7 +113,7 @@ func (store *brokerStorage) Update(broker *rest.Broker) error {
 	return transaction(store.db, func(tx *sqlx.Tx) error {
 		updateQueryString := generateUpdateQueryString(broker)
 
-		brokerDTO := ConvertBrokerToDTO(broker)
+		brokerDTO := convertBrokerToDTO(broker)
 		if updateQueryString != "" {
 			result, err := tx.NamedExec(updateQueryString, brokerDTO)
 			if err != nil {
@@ -134,7 +134,7 @@ func (store *brokerStorage) Update(broker *rest.Broker) error {
 		}
 
 		if broker.Credentials != nil {
-			credentialsDTO := ConvertCredentialsToDTO(broker.Credentials)
+			credentialsDTO := convertCredentialsToDTO(broker.Credentials)
 			err := tx.Get(&credentialsDTO.ID, "SELECT credentials_id FROM brokers WHERE id = $1", broker.ID)
 			if err != nil {
 				logrus.Error("Unable to retrieve broker credentials")

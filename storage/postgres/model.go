@@ -51,7 +51,7 @@ type Broker struct {
 	CredentialsID int       `db:"credentials_id"`
 }
 
-func (brokerDTO *Broker) ConvertToRestModel() *rest.Broker {
+func (brokerDTO *Broker) convertToRestModel() *rest.Broker {
 	return &rest.Broker{ID: brokerDTO.ID,
 		Name:        brokerDTO.Name,
 		Description: brokerDTO.Description,
@@ -60,7 +60,7 @@ func (brokerDTO *Broker) ConvertToRestModel() *rest.Broker {
 		BrokerURL:   brokerDTO.BrokerURL}
 }
 
-func ConvertCredentialsToDTO(credentials *rest.Credentials) *Credentials {
+func convertCredentialsToDTO(credentials *rest.Credentials) *Credentials {
 	return &Credentials{
 		Type:     1,
 		Username: credentials.Basic.Username,
@@ -69,7 +69,7 @@ func ConvertCredentialsToDTO(credentials *rest.Credentials) *Credentials {
 	}
 }
 
-func ConvertBrokerToDTO(broker *rest.Broker) *Broker {
+func convertBrokerToDTO(broker *rest.Broker) *Broker {
 	return &Broker{
 		ID:          broker.ID,
 		Name:        broker.Name,

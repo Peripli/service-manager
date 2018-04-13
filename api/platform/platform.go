@@ -23,12 +23,9 @@ import (
 )
 
 const (
-	// APIVersion platform API version
-	APIVersion = "v1"
-	// Root platform path prefix
-	Root = "platforms"
-	// URL platform url
-	URL = "/" + APIVersion + "/" + Root
+	apiVersion = "v1"
+	root       = "platforms"
+	url        = "/" + apiVersion + "/" + root
 )
 
 // Routes returns slice of routes which handle platform operations
@@ -37,35 +34,35 @@ func (platformCtrl *Controller) Routes() []rest.Route {
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodPost,
-				Path:   URL,
+				Path:   url,
 			},
 			Handler: platformCtrl.addPlatform,
 		},
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodGet,
-				Path:   URL + "/{platform_id}",
+				Path:   url + "/{platform_id}",
 			},
 			Handler: platformCtrl.getPlatform,
 		},
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodGet,
-				Path:   URL,
+				Path:   url,
 			},
 			Handler: platformCtrl.getAllPlatforms,
 		},
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodDelete,
-				Path:   URL + "/{platform_id}",
+				Path:   url + "/{platform_id}",
 			},
 			Handler: platformCtrl.deletePlatform,
 		},
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodPatch,
-				Path:   URL + "/{platform_id}",
+				Path:   url + "/{platform_id}",
 			},
 			Handler: platformCtrl.updatePlatform,
 		},

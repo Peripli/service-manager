@@ -43,19 +43,6 @@ func getPlatformFromRequest(req *http.Request) (*rest.Platform, error) {
 	return &platform, rest.ReadJSONBody(req, &platform)
 }
 
-func mergePlatforms(source *rest.Platform, target *rest.Platform) {
-	if source.Name != "" {
-		target.Name = source.Name
-	}
-	if source.Description != "" {
-		target.Description = source.Description
-	}
-	if source.Type != "" {
-		target.Type = source.Type
-	}
-	target.UpdatedAt = time.Now().UTC()
-}
-
 func checkPlatformMandatoryProperties(platform *rest.Platform) error {
 	if platform.Type == "" {
 		return errors.New("Missing platform type")
@@ -81,7 +68,11 @@ func (platformCtrl *Controller) addPlatform(rw http.ResponseWriter, req *http.Re
 	if errMandatoryProperties := checkPlatformMandatoryProperties(platform); errMandatoryProperties != nil {
 		return rest.CreateErrorResponse(errMandatoryProperties, http.StatusBadRequest, "BadRequest")
 	}
-	username, password := util.GenerateCredentials()
+	username, password, err := util.GenerateCredentials()
+	if err != nil {
+		logrus.Error("Could not generate credentials for platform")
+		return err
+	}
 	if platform.ID == "" {
 		uuid, err := uuid.NewV4()
 		if err != nil {
