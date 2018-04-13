@@ -22,7 +22,7 @@ script:
 
   # Execute tests
   - go test $(go list ./... | grep -v "..fakes") -cover
-  - goveralls -service=travis-ci
+  - goveralls -ignore="fake_*" -service=travis-ci
   
   #Execute security scan
   # - gas ./...
