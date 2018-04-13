@@ -55,7 +55,7 @@ type LogSettings struct {
 	Format string
 }
 
-// Config
+// Config type represents Service Manager configuration
 type Config struct {
 	Address         string
 	RequestTimeout  time.Duration

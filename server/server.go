@@ -80,7 +80,6 @@ func moveRoutes(prefix string, fromRouter *mux.Router, toRouter *mux.Router) err
 		subRouter.Handle(path, route.GetHandler()).Methods(methods...)
 		return nil
 	})
-	return nil
 	}
 
 func registerControllers(router *mux.Router, controllers []rest.Controller) error {
@@ -120,8 +119,10 @@ func gracefulShutdown(ctx context.Context, server *http.Server, shutdownTimeout 
 	logrus.Debugf("Shutdown with timeout: %s", shutdownTimeout)
 
 	if err := server.Shutdown(c); err != nil {
-		server.Close()
-		logrus.Errorf("Error: %v", err)
+		logrus.Error("Error: ", err)
+		if err := server.Close(); err != nil {
+			logrus.Error("Error: ", err)
+		}
 	} else {
 		logrus.Debug("Server stopped")
 	}
