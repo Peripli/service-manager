@@ -57,22 +57,32 @@ var _ = Describe("Registry", func() {
 	})
 
 	Describe("Storage registration", func() {
+		var (
+			name string
+			s storage.Storage
+		)
+
+		registerStorage := func() {
+			storage.Register(name, s)
+		}
+
+		assertStorageRegistrationPanics := func() {
+			Expect(registerStorage).To(Panic())
+		}
+
 		Context("With nil storage", func() {
 			It("Should panic", func() {
-				registerNilStorage := func() {
-					storage.Register("storage", nil)
-				}
-				Expect(registerNilStorage).To(Panic())
+				name = "storage"
+				assertStorageRegistrationPanics()
 			})
 		})
 
 		Context("With duplicate storage name", func() {
 			It("Should panic", func() {
-				registerStorage := func() {
-					storage.Register("duplicate", testStorage)
-				}
+				name = "duplicate"
+				s = testStorage
 				registerStorage()
-				Expect(registerStorage).To(Panic())
+				assertStorageRegistrationPanics()
 			})
 		})
 	})

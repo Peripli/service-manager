@@ -28,13 +28,13 @@ import (
 
 // Server is the server to process incoming HTTP requests
 type Server struct {
-	Configuration *config
+	Configuration *Config
 	Router        *mux.Router
 }
 
 // New creates a new server with the provided REST API configuration and server configuration
 // Returns the new server and an error if creation was not successful
-func New(api rest.API, config *config) (*Server, error) {
+func New(api rest.API, config *Config) (*Server, error) {
 	router := mux.NewRouter().StrictSlash(true)
 	registerControllers(router, api.Controllers())
 

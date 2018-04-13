@@ -12,7 +12,6 @@ import (
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/postgres"
 	"github.com/sirupsen/logrus"
-	"fmt"
 )
 
 func main() {
@@ -56,3 +55,4 @@ func handleInterrupts(ctx context.Context, cancelFunc context.CancelFunc) {
 		}
 	}()
 }
+
