@@ -12,6 +12,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
+// Controller broker controller
 type Controller struct{}
 
 func (brokerCtrl *Controller) addBroker(response http.ResponseWriter, request *http.Request) error {

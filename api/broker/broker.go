@@ -23,45 +23,46 @@ import (
 )
 
 const (
-	ApiVersion = "v1"
-	Root       = "service_brokers"
-	Url        = "/" + ApiVersion + "/" + Root
+	apiVersion = "v1"
+	root       = "service_brokers"
+	url        = "/" + apiVersion + "/" + root
 )
 
+// Routes returns slice of routes which handle broker operations
 func (brokerCtrl *Controller) Routes() []rest.Route {
 	return []rest.Route{
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodPost,
-				Path:   Url,
+				Path:   url,
 			},
 			Handler: brokerCtrl.addBroker,
 		},
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodGet,
-				Path:   Url + "/{broker_id}",
+				Path:   url + "/{broker_id}",
 			},
 			Handler: brokerCtrl.getBroker,
 		},
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodGet,
-				Path:   Url,
+				Path:   url,
 			},
 			Handler: brokerCtrl.getAllBrokers,
 		},
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodDelete,
-				Path:   Url + "/{broker_id}",
+				Path:   url + "/{broker_id}",
 			},
 			Handler: brokerCtrl.deleteBroker,
 		},
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodPatch,
-				Path:   Url + "/{broker_id}",
+				Path:   url + "/{broker_id}",
 			},
 			Handler: brokerCtrl.updateBroker,
 		},

@@ -29,10 +29,12 @@ func init() {
 	}
 }
 
+// Get by key
 func Get(key string) interface{} {
 	return viper.Get(key)
 }
 
+// Load config
 func Load(location string) error {
 	viper.AddConfigPath(location)
 	viper.SetConfigName("application")
