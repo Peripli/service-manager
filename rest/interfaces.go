@@ -19,7 +19,7 @@ package rest
 
 import "net/http"
 
-// Matches all REST HTTP Methods
+// AllMethods matches all REST HTTP Methods
 const AllMethods = "*"
 
 // API is the primary interface for REST API registration

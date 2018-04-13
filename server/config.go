@@ -22,6 +22,7 @@ import (
 	"fmt"
 )
 
+// Environment represents an abstraction over the environment from which Service Manager configuration will be loaded
 //go:generate counterfeiter . Environment
 type Environment interface {
 	Load() error
@@ -29,6 +30,7 @@ type Environment interface {
 	Unmarshal(value interface{}) error
 }
 
+// Settings
 type Settings struct {
 	Server *ServerSettings
 	Db     *DbSettings

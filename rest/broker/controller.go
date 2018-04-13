@@ -7,12 +7,12 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
-// just to showcase usage
+// Controller just to showcase usage
 type Controller struct{
 	BrokerStorage storage.Broker
 }
 
-// just to showcase usage
+// Routes just to showcase usage
 func (c Controller) Routes() []rest.Route {
 	return []rest.Route{
 		{
@@ -27,7 +27,7 @@ func (c Controller) Routes() []rest.Route {
 	}
 }
 
-// just to showcase usage
+// addBroker just to showcase usage
 func (c *Controller) addBroker(response http.ResponseWriter, request *http.Request) error {
 		// use broker storage
 		return nil

@@ -27,6 +27,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// Defines the name of the PostgreSQL relational storage
 const Storage = "postgres"
 
 func init() {
