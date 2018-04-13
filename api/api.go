@@ -19,12 +19,17 @@ package api
 import (
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
+	"github.com/Peripli/service-manager/rest/broker"
 )
 
 // Default returns the minimum set of REST APIs needed for the Service Manager
 func Default(storage storage.Storage) rest.API {
 	return &smAPI{
-		controllers: []rest.Controller{},
+		controllers: []rest.Controller{
+			broker.Controller{
+				BrokerStorage: storage.Broker(),
+			},
+		},
 	}
 }
 

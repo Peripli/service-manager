@@ -1,5 +1,6 @@
 package types
 
+// just to showcase how to use
 type Broker struct {
 	ID        string `db:"id"`
 	Name      string `db:"name"`
