@@ -23,16 +23,23 @@ import (
 )
 
 // GenerateCredentials return user and password
-func GenerateCredentials() (string, string) {
+func GenerateCredentials() (string, string, error) {
 	password := make([]byte, 128)
 	user := make([]byte, 128)
-	rand.Read(user)
-	rand.Read(password)
+
+	_, err := rand.Read(user)
+	if err != nil {
+		return "", "", err
+	}
+	_, err = rand.Read(password)
+	if err != nil {
+		return "", "", err
+	}
 
 	encodedPass := base64.StdEncoding.EncodeToString(password)
 	encodedUser := base64.StdEncoding.EncodeToString(user)
 
-	return encodedUser, encodedPass
+	return encodedUser, encodedPass, nil
 }
 
 // ToRFCFormat return the time.Time object as string in RFC3339 format

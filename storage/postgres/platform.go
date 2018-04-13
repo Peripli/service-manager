@@ -32,16 +32,6 @@ type platformStorage struct {
 	db *sqlx.DB
 }
 
-const (
-	// platformTable db table name for platforms
-	platformTable = "platforms"
-
-	// table db table name for credentials
-	credentialsTable = "credentials"
-
-	basicCredentialsType = 1
-)
-
 var (
 	// selectByID selects platform by id
 	selectByID = "SELECT id, type, name, description, created_at, updated_at FROM " + platformTable + " WHERE id=$1"
@@ -75,35 +65,15 @@ func (storage *platformStorage) Create(platform *rest.Platform) error {
 			return err
 		}
 		var credentialsID int
-		err = stmt.Get(&credentialsID, &Credentials{
-			Type:     basicCredentialsType,
-			Username: platform.Credentials.Basic.Username,
-			Password: platform.Credentials.Basic.Password,
-		})
+		err = stmt.Get(&credentialsID, convertCredentialsToDTO(platform.Credentials))
 		if err != nil {
 			return err
 		}
 
-		_, err = tx.NamedExec(insertPlatform, &Platform{
-			ID:            platform.ID,
-			Name:          platform.Name,
-			Type:          platform.Type,
-			Description:   platform.Description,
-			CredentialsID: int(credentialsID),
-			CreatedAt:     platform.CreatedAt,
-			UpdatedAt:     platform.UpdatedAt,
-		})
-		if err != nil {
-			pqErr, ok := err.(*pq.Error)
-			if !ok {
-				return err
-			}
-			if pqErr.Code.Name() == "unique_violation" {
-				logrus.Debug(pqErr)
-				return store.ErrUniqueViolation
-			}
-		}
-		return nil
+		platformDTO := convertPlatformToDTO(platform)
+		platformDTO.CredentialsID = int(credentialsID)
+		_, err = tx.NamedExec(insertPlatform, &platformDTO)
+		return checkUniqueViolation(err)
 	})
 }
 
@@ -116,25 +86,7 @@ func (storage *platformStorage) Get(id string) (*rest.Platform, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &rest.Platform{
-		ID:          platform.ID,
-		Name:        platform.Name,
-		Type:        platform.Type,
-		Description: platform.Description,
-		CreatedAt:   platform.CreatedAt,
-		UpdatedAt:   platform.UpdatedAt,
-	}, nil
-}
-
-func restPlatformFromDTO(platform *Platform) *rest.Platform {
-	return &rest.Platform{
-		ID:          platform.ID,
-		Type:        platform.Type,
-		Name:        platform.Name,
-		Description: platform.Description,
-		CreatedAt:   platform.CreatedAt,
-		UpdatedAt:   platform.UpdatedAt,
-	}
+	return platform.ToRestModel(), nil
 }
 
 func (storage *platformStorage) GetAll() ([]rest.Platform, error) {
@@ -145,7 +97,7 @@ func (storage *platformStorage) GetAll() ([]rest.Platform, error) {
 	}
 	var platforms = make([]rest.Platform, 0, len(platformDTOs))
 	for _, platformDTO := range platformDTOs {
-		platforms = append(platforms, *restPlatformFromDTO(&platformDTO))
+		platforms = append(platforms, *platformDTO.ToRestModel())
 	}
 	return platforms, nil
 }
@@ -156,16 +108,8 @@ func (storage *platformStorage) Delete(id string) error {
 		if err != nil {
 			return err
 		}
-		rowsAffected, err := result.RowsAffected()
-		if err != nil {
-			return err
-		}
-		if rowsAffected != 1 {
-			return store.ErrNotFound
-		}
-		return nil
+		return checkRowsAffected(result)
 	})
-
 }
 
 func (storage *platformStorage) Update(platform *rest.Platform) error {
@@ -174,7 +118,6 @@ func (storage *platformStorage) Update(platform *rest.Platform) error {
 		logrus.Debug("Platform update: nothing to update")
 		return nil
 	}
-
 	result, err := storage.db.NamedExec(updatePlatform, &Platform{
 		ID:          platform.ID,
 		Type:        platform.Type,
@@ -182,18 +125,18 @@ func (storage *platformStorage) Update(platform *rest.Platform) error {
 		Description: platform.Description,
 		UpdatedAt:   platform.UpdatedAt,
 	})
-	if err != nil {
-		sqlErr, ok := err.(*pq.Error)
-		if ok && sqlErr.Code.Name() == "unique_violation" {
-			return store.ErrUniqueViolation
-		}
+	if err = checkUniqueViolation(err); err != nil {
 		return err
 	}
-	affectedRows, err := result.RowsAffected()
+	return checkRowsAffected(result)
+}
+
+func checkRowsAffected(result sql.Result) error {
+	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return err
 	}
-	if affectedRows != 1 {
+	if rowsAffected != 1 {
 		return store.ErrNotFound
 	}
 	return nil
@@ -215,4 +158,16 @@ func platformUpdateQueryString(platform *rest.Platform) string {
 	}
 	set = append(set, "updated_at = :updated_at")
 	return fmt.Sprintf("UPDATE %s SET %s WHERE id = :id", platformTable, strings.Join(set, ", "))
+}
+
+func checkUniqueViolation(err error) error {
+	if err == nil {
+		return nil
+	}
+	sqlErr, ok := err.(*pq.Error)
+	if ok && sqlErr.Code.Name() == "unique_violation" {
+		logrus.Debug(sqlErr)
+		return store.ErrUniqueViolation
+	}
+	return err
 }

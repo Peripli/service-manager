@@ -41,7 +41,6 @@ func ReadJSONBody(request *http.Request, value interface{}) error {
 		return CreateErrorResponse(errors.New("Invalid media type provided"), http.StatusUnsupportedMediaType, "InvalidMediaType")
 	}
 	decoder := json.NewDecoder(request.Body)
-	defer request.Body.Close()
 	if err := decoder.Decode(value); err != nil {
 		logrus.Debug(err)
 		return CreateErrorResponse(errors.New("Failed to decode request body"), http.StatusBadRequest, "BadRequest")

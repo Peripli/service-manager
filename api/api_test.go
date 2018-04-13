@@ -44,10 +44,8 @@ var _ = Describe("API", func() {
 	})
 
 	Describe("Controller Registration", func() {
-		JustBeforeEach(func() {
-			defaultAPI.RegisterControllers(&testController{})
-		})
-		Context("With nil controllers slice", func() {
+
+		Context("With nil controller", func() {
 			It("Should panic", func() {
 				nilControllersSlice := func() {
 					defaultAPI.RegisterControllers(nil)
@@ -60,6 +58,7 @@ var _ = Describe("API", func() {
 			It("Should panic", func() {
 				nilControllerInSlice := func() {
 					var controllers []rest.Controller
+					controllers = append(controllers, &testController{})
 					controllers = append(controllers, nil)
 					defaultAPI.RegisterControllers(controllers...)
 				}
@@ -69,7 +68,8 @@ var _ = Describe("API", func() {
 
 		Context("With no brokers registered", func() {
 			It("Should have only one broker", func() {
-				Expect(len(defaultAPI.Controllers())).To(Equal(1))
+				defaultAPI.RegisterControllers(&testController{})
+				Expect(len(defaultAPI.Controllers())).To(Equal(3))
 			})
 		})
 	})
