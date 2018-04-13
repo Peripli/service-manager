@@ -7,7 +7,6 @@ import (
 
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/Peripli/service-manager/util"
 	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
 	uuid "github.com/satori/go.uuid"
@@ -20,7 +19,6 @@ func (brokerCtrl *Controller) addBroker(response http.ResponseWriter, request *h
 
 	broker := rest.Broker{}
 	if err := rest.ReadJSONBody(request, &broker); err != nil {
-		logrus.Error("Invalid request body")
 		return err
 	}
 
@@ -40,14 +38,13 @@ func (brokerCtrl *Controller) addBroker(response http.ResponseWriter, request *h
 	broker.ID = uuid.String()
 
 	currentTime := time.Now().UTC()
-	broker.CreatedAt = util.ToRFCFormat(currentTime)
-	broker.UpdatedAt = util.ToRFCFormat(currentTime)
+	broker.CreatedAt = currentTime
+	broker.UpdatedAt = currentTime
 
 	brokerStorage := storage.Get().Broker()
 	err = brokerStorage.Create(&broker)
 	if err != nil {
-		logrus.Error("Could not persist broker")
-		if err == storage.UniqueViolationError {
+		if err == storage.ErrUniqueViolation {
 			return rest.CreateErrorResponse(err, http.StatusConflict, "Conflict")
 		}
 		return err
@@ -64,7 +61,7 @@ func (brokerCtrl *Controller) getBroker(response http.ResponseWriter, request *h
 	brokerStorage := storage.Get().Broker()
 	broker, err := brokerStorage.Get(brokerID)
 	if err != nil {
-		if err == storage.NotFoundError {
+		if err == storage.ErrNotFound {
 			return rest.CreateErrorResponse(err, http.StatusNotFound, "NotFound")
 		}
 		return err
@@ -93,7 +90,7 @@ func (brokerCtrl *Controller) deleteBroker(response http.ResponseWriter, request
 	brokerID := mux.Vars(request)["broker_id"]
 	brokerStorage := storage.Get().Broker()
 	if err := brokerStorage.Delete(brokerID); err != nil {
-		if err == storage.NotFoundError {
+		if err == storage.ErrNotFound {
 			return rest.CreateErrorResponse(err, http.StatusNotFound, "NotFound")
 		}
 		return err
@@ -111,12 +108,13 @@ func (brokerCtrl *Controller) updateBroker(response http.ResponseWriter, request
 	}
 
 	broker.ID = mux.Vars(request)["broker_id"]
-	currentTime := time.Now().UTC()
-	broker.UpdatedAt = util.ToRFCFormat(currentTime)
+	broker.UpdatedAt = time.Now().UTC()
 
 	brokerStorage := storage.Get().Broker()
 	if err := brokerStorage.Update(&broker); err != nil {
-		if err == storage.UniqueViolationError {
+		if err == storage.ErrNotFound {
+			return rest.CreateErrorResponse(err, http.StatusNotFound, "NotFound")
+		} else if err == storage.ErrUniqueViolation {
 			return rest.CreateErrorResponse(err, http.StatusConflict, "Conflict")
 		}
 		return err

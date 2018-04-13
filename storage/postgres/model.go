@@ -42,13 +42,13 @@ type Platform struct {
 
 // Broker dto
 type Broker struct {
-	ID            string `db:"id"`
-	Name          string `db:"name"`
-	Description   string `db:"description"`
-	CreatedAt     string `db:"created_at"`
-	UpdatedAt     string `db:"updated_at"`
-	BrokerURL     string `db:"broker_url"`
-	CredentialsID int    `db:"credentials_id"`
+	ID            string    `db:"id"`
+	Name          string    `db:"name"`
+	Description   string    `db:"description"`
+	CreatedAt     time.Time `db:"created_at"`
+	UpdatedAt     time.Time `db:"updated_at"`
+	BrokerURL     string    `db:"broker_url"`
+	CredentialsID int       `db:"credentials_id"`
 }
 
 func (brokerDTO *Broker) ConvertToRestModel() *rest.Broker {

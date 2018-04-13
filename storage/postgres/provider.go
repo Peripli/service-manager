@@ -49,7 +49,14 @@ func (p *provider) Provide() (storage.Storage, error) {
 		signal.Notify(closeChan, os.Interrupt, syscall.SIGTERM)
 
 		uri := viper.GetString("storage.uri")
+		if uri == "" {
+			logrus.Panicln("Storage URI not configured")
+		}
 		db, err := sqlx.Connect("postgres", uri)
+		if err != nil {
+			logrus.Panicln("Invalid PostgreSQL storage connection options: ", err)
+		}
+		err = db.Ping()
 		if err != nil {
 			logrus.Panicln("Could not connect to PostgreSQL:", err)
 		}

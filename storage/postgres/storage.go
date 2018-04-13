@@ -18,6 +18,7 @@ package postgres
 
 import (
 	"github.com/Peripli/service-manager/storage"
+	"github.com/Sirupsen/logrus"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -39,4 +40,26 @@ func newStorage(db *sqlx.DB) (storage.Storage, error) {
 		brokerStorage:   &brokerStorage{db},
 		platformStorage: &platformStorage{db},
 	}, nil
+}
+
+func transaction(db *sqlx.DB, f func(tx *sqlx.Tx) error) error {
+	tx, err := db.Beginx()
+	if err != nil {
+		logrus.Error("Could not create transaction")
+		return err
+	}
+	ok := false
+	defer func() {
+		if !ok {
+			if txError := tx.Rollback(); txError != nil {
+				logrus.Error("Could not rollback transaction", txError)
+			}
+		}
+	}()
+
+	if err = f(tx); err != nil {
+		return err
+	}
+	ok = true
+	return tx.Commit()
 }
