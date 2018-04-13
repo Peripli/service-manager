@@ -27,19 +27,21 @@ import (
 
 type viperEnv struct {
 	Viper      *viper.Viper
-	configFile *configFile
+	configFile *ConfigFile
 	envPrefix  string
 }
 
-type configFile struct {
+// ConfigFile describes the name and the format of the file to be used to load the configuration in the environment
+type ConfigFile struct {
 	Name   string
 	Path   string
 	Format string
 }
 
+// Default returns the default environment configuration to be loaded from application.yml
 func Default() server.Environment {
 	envPrefix := "SM"
-	configFile := &configFile{
+	configFile := &ConfigFile{
 		Path:   ".",
 		Name:   "application",
 		Format: "yml",
@@ -47,7 +49,8 @@ func Default() server.Environment {
 	return New(configFile, envPrefix)
 }
 
-func New(file *configFile, envPrefix string) server.Environment {
+// New returns a new application environment loaded from the given configuration file with variables prefixed by the given prefix
+func New(file *ConfigFile, envPrefix string) server.Environment {
 	return &viperEnv{
 		Viper:      viper.New(),
 		configFile: file,

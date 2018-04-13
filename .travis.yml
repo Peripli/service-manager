@@ -21,7 +21,7 @@ script:
   - gometalinter --vendor ./...
 
   # Execute tests
-  - go test ./... -cover
+  - go test $(go list ./... | grep -v "..fakes") -cover
   - goveralls -service=travis-ci
   
   #Execute security scan
