@@ -49,9 +49,13 @@ func (p *provider) Provide() (storage.Storage, error) {
 
 		uri, ok := env.Get("storage.uri").(string)
 		if !ok {
-			logrus.Panicf("Could not open connection for provided uri %s from postgres storage provider", uri)
+			logrus.Panicf("Could not read connection options for Postgres")
 		}
 		db, err := sqlx.Connect("postgres", uri)
+		if err != nil {
+			logrus.Panicln("Invalid PostgreSQL storage connection options: ", err)
+		}
+		err = db.Ping()
 		if err != nil {
 			logrus.Panicln("Could not connect to PostgreSQL:", err)
 		}

@@ -8,8 +8,8 @@ CREATE SEQUENCE "credentials_id_seq"
     CACHE 1;
 
 CREATE TABLE IF NOT EXISTS credentials (
-                id integer PRIMARY KEY NOT NULL DEFAULT nextval('"credentials_id_seq"'::regclass),
-                type integer NOT NULL,
+    id integer PRIMARY KEY NOT NULL DEFAULT nextval('"credentials_id_seq"'::regclass),
+    type integer NOT NULL,
     username varchar(255),
     password varchar(500),
     token text

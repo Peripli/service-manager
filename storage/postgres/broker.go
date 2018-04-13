@@ -35,40 +35,34 @@ type brokerStorage struct {
 type fetcher func(dest interface{}, query string, args ...interface{}) error
 
 func (store *brokerStorage) Create(broker *rest.Broker) error {
-	tx, err := store.db.Beginx()
-	defer tx.Rollback()
-	if err != nil {
-		logrus.Error("Unable to create transaction")
-		return err
-	}
-
-	credentialsDTO := ConvertCredentialsToDTO(broker.Credentials)
-	statement, err := tx.PrepareNamed("INSERT INTO credentials (type, username, password, token) VALUES (:type, :username, :password, :token) RETURNING id")
-	if err != nil {
-		logrus.Error("Unable to create prepared statement")
-		return err
-	}
-
-	var credentialsID int
-	err = statement.Get(&credentialsID, credentialsDTO)
-	if err != nil {
-		logrus.Error("Prepared statement execution failed")
-		return err
-	}
-	brokerDTO := ConvertBrokerToDTO(broker)
-	brokerDTO.CredentialsID = credentialsID
-
-	_, err = tx.NamedExec("INSERT INTO brokers (id, name, description, broker_url, created_at, updated_at, credentials_id) VALUES (:id, :name, :description, :broker_url, :created_at, :updated_at, :credentials_id)", brokerDTO)
-	if err != nil {
-		logrus.Error("Unable to insert broker")
-		sqlErr, ok := err.(*pq.Error)
-		if ok && sqlErr.Code.Name() == "unique_violation" {
-			return storage.UniqueViolationError
+	return transaction(store.db, func(tx *sqlx.Tx) error {
+		credentialsDTO := ConvertCredentialsToDTO(broker.Credentials)
+		statement, err := tx.PrepareNamed("INSERT INTO credentials (type, username, password, token) VALUES (:type, :username, :password, :token) RETURNING id")
+		if err != nil {
+			logrus.Error("Unable to create prepared statement")
+			return err
 		}
-		return err
-	}
 
-	return tx.Commit()
+		var credentialsID int
+		err = statement.Get(&credentialsID, credentialsDTO)
+		if err != nil {
+			logrus.Error("Prepared statement execution failed")
+			return err
+		}
+		brokerDTO := ConvertBrokerToDTO(broker)
+		brokerDTO.CredentialsID = credentialsID
+
+		_, err = tx.NamedExec("INSERT INTO brokers (id, name, description, broker_url, created_at, updated_at, credentials_id) VALUES (:id, :name, :description, :broker_url, :created_at, :updated_at, :credentials_id)", brokerDTO)
+		if err != nil {
+			logrus.Error("Unable to insert broker")
+			sqlErr, ok := err.(*pq.Error)
+			if ok && sqlErr.Code.Name() == "unique_violation" {
+				return storage.ErrUniqueViolation
+			}
+			return err
+		}
+		return nil
+	})
 }
 
 func (store *brokerStorage) Get(id string) (*rest.Broker, error) {
@@ -93,75 +87,69 @@ func (store *brokerStorage) GetAll() ([]rest.Broker, error) {
 }
 
 func (store *brokerStorage) Delete(id string) error {
-	tx, err := store.db.Beginx()
-	defer tx.Rollback()
-	if err != nil {
-		logrus.Error("Unable to create transaction")
-		return err
-	}
+	return transaction(store.db, func(tx *sqlx.Tx) error {
+		broker, err := retrieveBroker(tx.Get, id)
+		if err != nil {
+			return err
+		}
 
-	broker, err := retrieveBroker(tx.Get, id)
-	if err != nil {
-		return err
-	}
+		_, err = tx.Exec("DELETE FROM brokers WHERE id = $1", id)
+		if err != nil {
+			logrus.Error("An error occurred while deleting broker with id:", id)
+			return err
+		}
 
-	_, err = tx.Exec("DELETE FROM brokers WHERE id = $1", id)
-	if err != nil {
-		logrus.Error("An error occurred while deleting broker with id:", id)
-		return err
-	}
-
-	crendentialsID := broker.CredentialsID
-	_, err = tx.Exec("DELETE FROM credentials WHERE id = $1", crendentialsID)
-	if err != nil {
-		logrus.Error("Could not delete broker credentials with id:", crendentialsID)
-		return err
-	}
-
-	return tx.Commit()
+		credentialsID := broker.CredentialsID
+		_, err = tx.Exec("DELETE FROM credentials WHERE id = $1", credentialsID)
+		if err != nil {
+			logrus.Error("Could not delete broker credentials with id:", credentialsID)
+			return err
+		}
+		return nil
+	})
 }
 
 func (store *brokerStorage) Update(broker *rest.Broker) error {
-	tx, err := store.db.Beginx()
-	defer tx.Rollback()
+	return transaction(store.db, func(tx *sqlx.Tx) error {
+		updateQueryString := generateUpdateQueryString(broker)
 
-	if err != nil {
-		logrus.Error("Unable to create transaction")
-		return err
-	}
-
-	updateQueryString := generateUpdateQueryString(broker)
-
-	brokerDTO := ConvertBrokerToDTO(broker)
-	if updateQueryString != "" {
-		_, err := tx.NamedExec(updateQueryString, brokerDTO)
-		if err != nil {
-			logrus.Error("Unable to update broker")
-			sqlErr, ok := err.(*pq.Error)
-			if ok && sqlErr.Code.Name() == "unique_violation" {
-				return storage.UniqueViolationError
+		brokerDTO := ConvertBrokerToDTO(broker)
+		if updateQueryString != "" {
+			result, err := tx.NamedExec(updateQueryString, brokerDTO)
+			if err != nil {
+				logrus.Error("Unable to update broker")
+				sqlErr, ok := err.(*pq.Error)
+				if ok && sqlErr.Code.Name() == "unique_violation" {
+					return storage.ErrUniqueViolation
+				}
+				return err
 			}
-			return err
+			affectedRows, err := result.RowsAffected()
+			if err != nil {
+				return err
+			}
+			if affectedRows != 1 {
+				return storage.ErrNotFound
+			}
 		}
-	}
 
-	if broker.Credentials != nil {
-		credentialsDTO := ConvertCredentialsToDTO(broker.Credentials)
-		err := tx.Get(&credentialsDTO.ID, "SELECT credentials_id FROM brokers WHERE id = $1", broker.ID)
-		if err != nil {
-			logrus.Error("Unable to retrieve broker credentials")
-			return err
+		if broker.Credentials != nil {
+			credentialsDTO := ConvertCredentialsToDTO(broker.Credentials)
+			err := tx.Get(&credentialsDTO.ID, "SELECT credentials_id FROM brokers WHERE id = $1", broker.ID)
+			if err != nil {
+				logrus.Error("Unable to retrieve broker credentials")
+				return err
+			}
+			_, err = tx.NamedExec(
+				"UPDATE credentials SET type = :type, username = :username, password = :password, token = :token WHERE id = :id",
+				credentialsDTO)
+			if err != nil {
+				logrus.Error("Unable to update credentials")
+				return err
+			}
 		}
-		_, err = tx.NamedExec(
-			"UPDATE credentials SET type = :type, username = :username, password = :password, token = :token WHERE id = :id",
-			credentialsDTO)
-		if err != nil {
-			logrus.Error("Unable to update credentials")
-			return err
-		}
-	}
-
-	return tx.Commit()
+		return nil
+	})
 }
 
 func generateUpdateQueryString(broker *rest.Broker) string {
@@ -188,10 +176,10 @@ func generateUpdateQueryString(broker *rest.Broker) string {
 func retrieveBroker(fetch fetcher, id string) (*Broker, error) {
 	broker := Broker{}
 	if err := fetch(&broker, "SELECT * FROM brokers WHERE id = $1", id); err != nil {
-		logrus.Error("An error occurred while retrieving broker with id:", id)
 		if err == sql.ErrNoRows {
-			return nil, storage.NotFoundError
+			return nil, storage.ErrNotFound
 		}
+		logrus.Error("An error occurred while retrieving broker with id:", id)
 		return nil, err
 	}
 	return &broker, nil
