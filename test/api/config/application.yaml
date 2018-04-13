@@ -2,4 +2,4 @@ storage:
   uri: postgres://postgres@localhost:5432/postgres?sslmode=disable
 log:
   level: debug
-home: ../..
+homeDir: ../..

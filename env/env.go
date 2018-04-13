@@ -38,7 +38,7 @@ func Load(location string) error {
 	viper.SetConfigName("application")
 	viper.SetConfigType("yaml")
 	viper.SetEnvPrefix("sm")
-	viper.SetDefault("home", ".")
+	viper.SetDefault("homeDir", ".")
 	viper.AutomaticEnv()
 	if err := viper.ReadInConfig(); err != nil {
 		panic(fmt.Sprintf("Could not read configuration file: %s", err))

@@ -87,9 +87,9 @@ func updateSchema(db *sqlx.DB) error {
 		return err
 	}
 
-	home := viper.GetString("home")
+	homeDir := viper.GetString("homeDir")
 	m, err := migrate.NewWithDatabaseInstance(
-		"file://"+home+"/storage/postgres/migrations",
+		"file://"+homeDir+"/storage/postgres/migrations",
 		"postgres",
 		driver)
 	if err != nil {
