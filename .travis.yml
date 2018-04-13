@@ -1,7 +1,7 @@
 language: go
 
 go:
-  - 1.9.x
+  - 1.10.x
 
 before_install:
   - go get -u github.com/golang/dep/cmd/dep
@@ -12,7 +12,6 @@ install:
   - go get github.com/GoASTScanner/gas/cmd/gas/...
   - go get golang.org/x/tools/cmd/cover
   - go get github.com/mattn/goveralls
-  - go get github.com/modocache/gover
 
 before_script:
   - gometalinter --install --update
@@ -22,9 +21,7 @@ script:
   - gometalinter --vendor ./...
 
   # Execute tests
- # - go test $(go list ./... | grep -v "..fakes") -covermode=count -coverprofile=profile.cov
-  - ginkgo $(go list ./... | grep -v "..fakes") -cover
-  - gover
+  - go test $(go list ./... | grep -v "..fakes") -covermode=count -coverprofile=profile.cov
   - goveralls -coverprofile gover.coverprofile -service=travis-ci
   
   #Execute security scan
