@@ -67,7 +67,7 @@ func (v *viperEnv) Load() error {
 	v.Viper.SetEnvPrefix(v.envPrefix)
 	v.Viper.AutomaticEnv()
 	if err := v.Viper.ReadInConfig(); err != nil {
-		return fmt.Errorf("Could not read configuration file: %s", err)
+		return fmt.Errorf("could not read configuration file: %s", err)
 	}
 	return nil
 }

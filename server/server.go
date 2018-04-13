@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
- // Package server contains the logic of the Service Manager server
+// Package server contains the logic of the Service Manager server
 package server
 
 import (
@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"time"
 
+	"fmt"
 	"github.com/Peripli/service-manager/rest"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
@@ -37,7 +38,9 @@ type Server struct {
 // Returns the new server and an error if creation was not successful
 func New(api rest.API, config *Config) (*Server, error) {
 	router := mux.NewRouter().StrictSlash(true)
-	registerControllers(router, api.Controllers())
+	if err := registerControllers(router, api.Controllers()); err != nil {
+		return nil, fmt.Errorf("new Config: %s", err)
+	}
 
 	setUpLogging(config.LogLevel, config.LogFormat)
 
@@ -55,7 +58,7 @@ func (server *Server) Run(ctx context.Context) {
 		WriteTimeout: server.Configuration.RequestTimeout,
 		ReadTimeout:  server.Configuration.RequestTimeout,
 	}
-	startServer(handler, server.Configuration.ShutdownTimeout, ctx)
+	startServer(ctx, handler, server.Configuration.ShutdownTimeout)
 }
 
 func moveRoutes(prefix string, fromRouter *mux.Router, toRouter *mux.Router) error {
@@ -64,26 +67,30 @@ func moveRoutes(prefix string, fromRouter *mux.Router, toRouter *mux.Router) err
 
 		path, err := route.GetPathTemplate()
 		if err != nil {
-			return err
+			return fmt.Errorf("move routes: %s", err)
 		}
 
 		methods, err := route.GetMethods()
 		if err != nil {
-			return err
+			return fmt.Errorf("move routes: %s", err)
+
 		}
 
 		logrus.Info("Adding route with methods: ", methods, " and path: ", path)
 		subRouter.Handle(path, route.GetHandler()).Methods(methods...)
 		return nil
 	})
-}
+	return nil
+	}
 
-func registerControllers(router *mux.Router, controllers []rest.Controller) {
+func registerControllers(router *mux.Router, controllers []rest.Controller) error {
 	for _, ctrl := range controllers {
 		for _, route := range ctrl.Routes() {
 			fromRouter, ok := route.Handler.(*mux.Router)
 			if ok {
-				moveRoutes(route.Endpoint.Path, fromRouter, router)
+				if err := moveRoutes(route.Endpoint.Path, fromRouter, router); err != nil {
+					return fmt.Errorf("register controllers: %s", err)
+				}
 			} else {
 				r := router.Handle(route.Endpoint.Path, route.Handler)
 				if route.Endpoint.Method != rest.AllMethods {
@@ -92,10 +99,11 @@ func registerControllers(router *mux.Router, controllers []rest.Controller) {
 			}
 		}
 	}
+	return nil
 }
 
-func startServer(server *http.Server, shutdownTimeout time.Duration, ctx context.Context) {
-	go gracefulShutdown(server, shutdownTimeout, ctx)
+func startServer(ctx context.Context, server *http.Server, shutdownTimeout time.Duration) {
+	go gracefulShutdown(ctx, server, shutdownTimeout)
 
 	logrus.Debugf("Listening on %s", server.Addr)
 
@@ -104,7 +112,7 @@ func startServer(server *http.Server, shutdownTimeout time.Duration, ctx context
 	}
 }
 
-func gracefulShutdown(server *http.Server, shutdownTimeout time.Duration, ctx context.Context) {
+func gracefulShutdown(ctx context.Context, server *http.Server, shutdownTimeout time.Duration) {
 	<-ctx.Done()
 
 	c, cancel := context.WithTimeout(context.Background(), shutdownTimeout)

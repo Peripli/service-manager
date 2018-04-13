@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
- // package postgres implements the Service Manager storage interfaces for Postgresql DB
+ // Package postgres implements the Service Manager storage interfaces for Postgresql DB
 package postgres
 
 import (
@@ -27,7 +27,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// Defines the name of the PostgreSQL relational storage
+// Storage defines the name of the PostgreSQL relational storage
 const Storage = "postgres"
 
 func init() {
@@ -50,7 +50,7 @@ func (storage *postgresStorage) Broker() storage.Broker {
 func (storage *postgresStorage) Open(uri string) error {
 	var err error
 	if uri == "" {
-		return fmt.Errorf("Storage URI cannot be empty")
+		return fmt.Errorf("storage URI cannot be empty")
 	}
 	storage.once.Do(func() {
 		storage.db, err = sqlx.Open(Storage, uri)

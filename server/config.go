@@ -30,28 +30,32 @@ type Environment interface {
 	Unmarshal(value interface{}) error
 }
 
-// Settings
+// Settings type to be loaded from the environment
 type Settings struct {
-	Server *ServerSettings
+	Server *AppSettings
 	Db     *DbSettings
 	Log    *LogSettings
 }
 
-type ServerSettings struct {
+// AppSettings type to be loaded from the environment
+type AppSettings struct {
 	Port            int
 	RequestTimeout  int
 	ShutdownTimeout int
 }
 
+// DbSettings type to be loaded from the environment
 type DbSettings struct {
 	URI string
 }
 
+// LogSettings type to be loaded from the environment
 type LogSettings struct {
 	Level  string
 	Format string
 }
 
+// Config
 type Config struct {
 	Address         string
 	RequestTimeout  time.Duration
@@ -75,6 +79,7 @@ func DefaultConfiguration() *Config {
 	return config
 }
 
+// NewConfiguration creates a configuration from the provided environment
 func NewConfiguration(env Environment) (*Config, error) {
 	config := DefaultConfiguration()
 
@@ -109,24 +114,25 @@ func NewConfiguration(env Environment) (*Config, error) {
 	return config, nil
 }
 
+// Validate validates that the configuration contains all mandatory properties
 func (c *Config) Validate() error {
 	if len(c.Address) == 0 {
-		return fmt.Errorf("Validate Config: Address missing")
+		return fmt.Errorf("validate Config: Address missing")
 	}
 	if c.RequestTimeout == 0 {
-		return fmt.Errorf("Validate Config: RequestTimeout missing")
+		return fmt.Errorf("validate Config: RequestTimeout missing")
 	}
 	if c.ShutdownTimeout == 0 {
-		return fmt.Errorf("Validate Config: ShutdownTimeout missing")
+		return fmt.Errorf("validate Config: ShutdownTimeout missing")
 	}
 	if len(c.LogLevel) == 0 {
-		return fmt.Errorf("Validate Config: LogLevel missing")
+		return fmt.Errorf("validate Config: LogLevel missing")
 	}
 	if len(c.LogFormat) == 0 {
-		return fmt.Errorf("Validate Config: LogFormat missing")
+		return fmt.Errorf("validate Config: LogFormat missing")
 	}
 	if len(c.DbURI) == 0 {
-		return fmt.Errorf("Validate Config: DbURI missing")
+		return fmt.Errorf("validate Config: DbURI missing")
 	}
 	return nil
 }
