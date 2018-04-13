@@ -13,9 +13,6 @@ import (
 	. "github.com/onsi/ginkgo"
 )
 
-type Object map[string]interface{}
-type Array []interface{}
-
 func TestAPI(t *testing.T) {
 	RunSpecs(t, "API Tests Suite")
 }
@@ -84,10 +81,10 @@ var _ = Describe("Service Manager API", func() {
 					Expect().
 					Status(http.StatusOK).
 					JSON().Object()
-				reply.ValueEqual("id", id)
-				reply.ValueEqual("name", "broker1")
-				reply.ValueEqual("broker_url", "http://domain.com/broker")
-				reply.NotContainsKey("credentials")
+
+				broker["id"] = id
+				delete(broker, "credentials")
+				mapContains(reply.Raw(), broker)
 			})
 		})
 
@@ -102,7 +99,7 @@ var _ = Describe("Service Manager API", func() {
 			It("returns all the brokers", func() {
 				brokers := Array{}
 
-				addPlatform := func(name string, url string, description string) {
+				addBroker := func(name string, url string, description string) {
 					broker := makeBroker(name, url, description)
 					reply := sm.POST("/v1/service_brokers").WithJSON(broker).
 						Expect().Status(http.StatusCreated).JSON().Object()
@@ -123,8 +120,8 @@ var _ = Describe("Service Manager API", func() {
 					replyArray.ContainsOnly(brokers...)
 				}
 
-				addPlatform("broker1", "http://host1.com", "broker one")
-				addPlatform("broker2", "http://host2.com", "broker two")
+				addBroker("broker1", "http://host1.com", "broker one")
+				addBroker("broker2", "http://host2.com", "broker two")
 			})
 		})
 
@@ -174,10 +171,7 @@ var _ = Describe("Service Manager API", func() {
 				// optional fields returned with default values
 				broker["description"] = ""
 
-				delete(reply.Raw(), "created_at")
-				delete(reply.Raw(), "updated_at")
-
-				reply.Equal(broker)
+				mapContains(reply.Raw(), broker)
 			})
 
 			It("returns the new broker", func() {
@@ -188,21 +182,18 @@ var _ = Describe("Service Manager API", func() {
 				reply := sm.POST("/v1/service_brokers").
 					WithJSON(broker).
 					Expect().Status(http.StatusCreated).JSON().Object()
-
 				delete(broker, "credentials")
+
 				id := reply.Value("id").String().NotEmpty().Raw()
 				broker["id"] = id
-				delete(reply.Raw(), "created_at")
-				delete(reply.Raw(), "updated_at")
-				reply.Equal(broker)
+				mapContains(reply.Raw(), broker)
 
 				By("GET returns the same broker")
 
 				reply = sm.GET("/v1/service_brokers/" + id).
 					Expect().Status(http.StatusOK).JSON().Object()
-				delete(reply.Raw(), "created_at")
-				delete(reply.Raw(), "updated_at")
-				reply.Equal(broker)
+
+				mapContains(reply.Raw(), broker)
 			})
 
 			It("returns 409 if duplicate name is provided", func() {
@@ -217,5 +208,118 @@ var _ = Describe("Service Manager API", func() {
 			})
 		})
 
+		Describe("PATCH", func() {
+			var broker Object
+			var id string
+
+			BeforeEach(func() {
+				By("Create new broker")
+				broker = makeBroker("broker1", "http://domain.com/broker", "desc1")
+				reply := sm.POST("/v1/service_brokers").
+					WithJSON(broker).
+					Expect().Status(http.StatusCreated).JSON().Object()
+				delete(broker, "credentials")
+				id = reply.Value("id").String().Raw()
+				broker["id"] = id
+			})
+
+			It("returns 200 if all properties are updated", func() {
+				By("Update broker")
+
+				updatedBroker := makeBroker("broker2", "http://domain.com/broker2", "desc2")
+				updatedBroker["credentials"] = Object{
+					"basic": Object{
+						"username": "auser",
+						"password": "apass",
+					},
+				}
+
+				reply := sm.PATCH("/v1/service_brokers/" + id).
+					WithJSON(updatedBroker).
+					Expect().
+					Status(http.StatusOK).JSON().Object()
+				delete(updatedBroker, "credentials")
+
+				mapContains(reply.Raw(), updatedBroker)
+
+				By("Update is persisted")
+
+				reply = sm.GET("/v1/service_brokers/" + id).
+					Expect().
+					Status(http.StatusOK).JSON().Object()
+
+				mapContains(reply.Raw(), updatedBroker)
+			})
+
+			It("can update each property separately", func() {
+				newBroker := makeBroker("bb8", "http://lucas.arts", "a robot")
+				newBroker["credentials"] = Object{
+					"basic": Object{
+						"username": "auser",
+						"password": "apass",
+					},
+				}
+
+				for prop, val := range newBroker {
+					update := Object{}
+					update[prop] = val
+
+					reply := sm.PATCH("/v1/service_brokers/" + id).
+						WithJSON(update).
+						Expect().
+						Status(http.StatusOK).JSON().Object()
+
+					if prop != "credentials" { // credentials are not returned
+						broker[prop] = val
+					}
+					mapContains(reply.Raw(), broker)
+
+					reply = sm.GET("/v1/service_brokers/" + id).
+						Expect().
+						Status(http.StatusOK).JSON().Object()
+
+					mapContains(reply.Raw(), broker)
+				}
+			})
+
+			It("should not update broker id if provided", func() {
+				sm.PATCH("/v1/service_brokers/" + id).
+					WithJSON(Object{"id": "123"}).
+					Expect().
+					Status(http.StatusOK)
+
+				sm.GET("/v1/service_brokers/123").
+					Expect().
+					Status(http.StatusNotFound)
+			})
+		})
+
+		Describe("DELETE", func() {
+			It("returns 404 when trying to delete non-existing broker", func() {
+				sm.DELETE("/v1/service_brokers/999").
+					Expect().
+					Status(http.StatusNotFound)
+			})
+
+			It("deletes broker", func() {
+				broker := makeBroker("broker1", "http://domain.com/broker", "desc1")
+				reply := sm.POST("/v1/service_brokers").
+					WithJSON(broker).
+					Expect().Status(http.StatusCreated).JSON().Object()
+				id := reply.Value("id").String().Raw()
+
+				sm.GET("/v1/service_brokers/" + id).
+					Expect().
+					Status(http.StatusOK)
+
+				sm.DELETE("/v1/service_brokers/" + id).
+					Expect().
+					Status(http.StatusOK).JSON().Object().Empty()
+
+				sm.GET("/v1/service_brokers/" + id).
+					Expect().
+					Status(http.StatusNotFound)
+			})
+		})
 	})
 })
