@@ -69,75 +69,42 @@ var (
 )
 
 func (storage *platformStorage) Create(platform *rest.Platform) error {
-	tx, err := storage.db.Beginx()
-	if err != nil {
-		logrus.Error("Unable to create transaction")
-		return err
-	}
-	mustRollback := true
-	defer func() {
-		if mustRollback {
-			handleRollback(tx)
-		}
-	}()
-	stmt, err := tx.PrepareNamed(insertCredentials)
-	if err != nil {
-		return err
-	}
-	var credentialsID int
-	err = stmt.Get(&credentialsID, &Credentials{
-		Type:     basicCredentialsType,
-		Username: platform.Credentials.Basic.Username,
-		Password: platform.Credentials.Basic.Password,
-	})
-	if err != nil {
-		return err
-	}
-
-	_, err = tx.NamedExec(insertPlatform, &Platform{
-		ID:            platform.ID,
-		Name:          platform.Name,
-		Type:          platform.Type,
-		Description:   platform.Description,
-		CredentialsID: int(credentialsID),
-		CreatedAt:     platform.CreatedAt,
-		UpdatedAt:     platform.UpdatedAt,
-	})
-	if err != nil {
-		pqErr, ok := err.(*pq.Error)
-		if !ok {
+	return transaction(storage.db, func(tx *sqlx.Tx) error {
+		stmt, err := tx.PrepareNamed(insertCredentials)
+		if err != nil {
 			return err
 		}
-		if pqErr.Code.Name() == "unique_violation" {
-			logrus.Debug(pqErr)
-			return store.ErrUniqueViolation
+		var credentialsID int
+		err = stmt.Get(&credentialsID, &Credentials{
+			Type:     basicCredentialsType,
+			Username: platform.Credentials.Basic.Username,
+			Password: platform.Credentials.Basic.Password,
+		})
+		if err != nil {
+			return err
 		}
-	}
 
-	err = tx.Commit()
-	if err == nil {
-		mustRollback = false
-	}
-	return err
-}
-
-func (storage *platformStorage) get(stmt string, arg string) (*rest.Platform, error) {
-	platform := Platform{}
-	err := storage.db.Get(&platform, stmt, arg)
-	if err == sql.ErrNoRows {
-		return nil, store.ErrNotFound
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &rest.Platform{
-		ID:          platform.ID,
-		Name:        platform.Name,
-		Type:        platform.Type,
-		Description: platform.Description,
-		CreatedAt:   platform.CreatedAt,
-		UpdatedAt:   platform.UpdatedAt,
-	}, nil
+		_, err = tx.NamedExec(insertPlatform, &Platform{
+			ID:            platform.ID,
+			Name:          platform.Name,
+			Type:          platform.Type,
+			Description:   platform.Description,
+			CredentialsID: int(credentialsID),
+			CreatedAt:     platform.CreatedAt,
+			UpdatedAt:     platform.UpdatedAt,
+		})
+		if err != nil {
+			pqErr, ok := err.(*pq.Error)
+			if !ok {
+				return err
+			}
+			if pqErr.Code.Name() == "unique_violation" {
+				logrus.Debug(pqErr)
+				return store.ErrUniqueViolation
+			}
+		}
+		return nil
+	})
 }
 
 func (storage *platformStorage) Get(id string) (*rest.Platform, error) {
@@ -184,33 +151,21 @@ func (storage *platformStorage) GetAll() ([]rest.Platform, error) {
 }
 
 func (storage *platformStorage) Delete(id string) error {
-	tx, err := storage.db.Beginx()
-	if err != nil {
-		logrus.Error("Unable to create transaction")
-		return err
-	}
-	mustRollback := true
-	defer func() {
-		if mustRollback {
-			handleRollback(tx)
+	return transaction(storage.db, func(tx *sqlx.Tx) error {
+		result, err := tx.Exec(deletePlatform, &id)
+		if err != nil {
+			return err
 		}
-	}()
-	result, err := tx.Exec(deletePlatform, &id)
-	if err != nil {
-		return err
-	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if rowsAffected != 1 {
-		return store.ErrNotFound
-	}
-	err = tx.Commit()
-	if err == nil {
-		mustRollback = false
-	}
-	return err
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if rowsAffected != 1 {
+			return store.ErrNotFound
+		}
+		return nil
+	})
+
 }
 
 func (storage *platformStorage) Update(platform *rest.Platform) error {

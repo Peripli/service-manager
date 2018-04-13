@@ -42,8 +42,24 @@ func newStorage(db *sqlx.DB) (storage.Storage, error) {
 	}, nil
 }
 
-func handleRollback(transaction *sqlx.Tx) {
-	if rollbackErr := transaction.Rollback(); rollbackErr != nil {
-		logrus.Error("Unsuccessful rollback", rollbackErr)
+func transaction(db *sqlx.DB, f func(tx *sqlx.Tx) error) error {
+	tx, err := db.Beginx()
+	if err != nil {
+		logrus.Error("Could not create transaction")
+		return err
 	}
+	ok := false
+	defer func() {
+		if !ok {
+			if txError := tx.Rollback(); txError != nil {
+				logrus.Error("Could not rollback transaction", txError)
+			}
+		}
+	}()
+
+	if err = f(tx); err != nil {
+		return err
+	}
+	ok = true
+	return tx.Commit()
 }
