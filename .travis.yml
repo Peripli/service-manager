@@ -22,7 +22,7 @@ script:
 
   # Execute tests
   - go test $(go list ./... | grep -v "..fakes") -covermode=count -coverprofile=profile.cov
-  - goveralls -coverprofile gover.coverprofile -service=travis-ci
+  - goveralls -coverprofile profile.cov -service=travis-ci
   
   #Execute security scan
   # - gas ./...
