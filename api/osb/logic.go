@@ -16,6 +16,8 @@ import (
 	"github.com/pmorie/osb-broker-lib/pkg/broker"
 )
 
+const BrokerIDPathParam = "brokerID"
+
 // BusinessLogic provides an implementation of the osb.BusinessLogic interface.
 type BusinessLogic struct {
 	createFunc    osbc.CreateFunc
@@ -164,11 +166,12 @@ func clientConfigForBroker(broker *types.Broker) *osbc.ClientConfiguration {
 
 func (b *BusinessLogic) osbClient(request *http.Request) (osbc.Client, error) {
 	vars := mux.Vars(request)
-	brokerID, ok := vars["brokerID"]
+	brokerID, ok := vars[BrokerIDPathParam]
+	logrus.Debugf("Obtained path parameter [brokerID = %s] from mux vars", brokerID)
 	if !ok {
 		return nil, fmt.Errorf("Error creating OSB client: brokerID path parameter not found")
 	}
-	broker, err := b.brokerStorage.Find(nil, brokerID)
+	broker, err := b.brokerStorage.Find(request.Context(), brokerID)
 	if err != nil {
 		return nil, fmt.Errorf("Error obtaining broker with id %s from storage: %s", brokerID, err)
 	}

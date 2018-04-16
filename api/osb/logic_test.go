@@ -4,132 +4,157 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"context"
 	"net/http"
 	"net/http/httptest"
 
+	"fmt"
+
 	"github.com/Peripli/service-manager/storage/storagefakes"
 	"github.com/Peripli/service-manager/types"
+	"github.com/gorilla/mux"
 	"github.com/pmorie/go-open-service-broker-client/v2"
 	"github.com/pmorie/go-open-service-broker-client/v2/fake"
 	"github.com/pmorie/osb-broker-lib/pkg/broker"
 )
 
 var _ = Describe("Logic", func() {
-	const (
-		testClusterServiceClassName           = "test-service"
-		testClusterServicePlanName            = "test-plan"
-		testNonbindableClusterServicePlanName = "test-nb-plan"
-		testClassExternalID                   = "12345"
-		testPlanExternalID                    = "34567"
-		testNonbindablePlanExternalID         = "nb34567"
-	)
+
 	var (
-		fakeBroker              *types.Broker
-		fakeBrokerStorage       *storagefakes.FakeBroker
-		fakeClient              *fake.FakeClient
+		actualErr   error
+		expectedErr error
+
+		actionType fake.ActionType
+
+		brokerID string
+
+		fakeBroker        *types.Broker
+		fakeBrokerStorage *storagefakes.FakeBroker
+		fakeClient        *fake.FakeClient
+
 		createClientFnCallCount int
 		fakeClientCreateFunc    func(_ *v2.ClientConfiguration) (v2.Client, error)
-		reactionError           *v2.HTTPStatusCodeError
+
+		reactionError *v2.HTTPStatusCodeError
 
 		logic BusinessLogic
 	)
 
-	getTestCatalogResponse := func() *v2.CatalogResponse {
-		return &v2.CatalogResponse{
-			Services: []v2.Service{
-				{
-					Name:        testClusterServiceClassName,
-					ID:          testClassExternalID,
-					Description: "a test service",
-					Bindable:    true,
-					Plans: []v2.Plan{
-						{
-							Name:        testClusterServicePlanName,
-							Free:        boolPtr(true),
-							ID:          testPlanExternalID,
-							Description: "a test plan",
-						},
-						{
-							Name:        testNonbindableClusterServicePlanName,
-							Free:        boolPtr(true),
-							ID:          testNonbindablePlanExternalID,
-							Description: "an non-bindable test plan",
-							Bindable:    boolPtr(false),
-						},
-					},
-				},
-			},
+	newFakeClientFunc := func(client *fake.FakeClient, returnedError error) v2.CreateFunc {
+		createClientFnCallCount = 0
+		return func(_ *v2.ClientConfiguration) (v2.Client, error) {
+			createClientFnCallCount++
+			if returnedError != nil {
+				return nil, returnedError
+			}
+			return client, nil
 		}
 	}
 
-	happyPathConfig := func() fake.FakeClientConfiguration {
-		return fake.FakeClientConfiguration{
-			CatalogReaction: &fake.CatalogReaction{
-				Response: getTestCatalogResponse(),
-			},
-			ProvisionReaction: &fake.ProvisionReaction{
-				Response: &v2.ProvisionResponse{},
-			},
-			UpdateInstanceReaction: &fake.UpdateInstanceReaction{
-				Response: &v2.UpdateInstanceResponse{},
-			},
-			DeprovisionReaction: &fake.DeprovisionReaction{
-				Response: &v2.DeprovisionResponse{},
-			},
-			BindReaction: &fake.BindReaction{
-				Response: &v2.BindResponse{
-					Async: false,
-					Credentials: map[string]interface{}{
-						"host":     "localhost",
-						"port":     "8080",
-						"username": "admin",
-						"password": "admin",
-					},
-				},
-			},
-			UnbindReaction: &fake.UnbindReaction{
-				Response: &v2.UnbindResponse{},
-			},
-			PollLastOperationReaction: &fake.PollLastOperationReaction{
-				Response: &v2.LastOperationResponse{
-					State: v2.StateSucceeded,
-				},
-			},
-			PollBindingLastOperationReaction: &fake.PollBindingLastOperationReaction{
-				Response: &v2.LastOperationResponse{
-					State: v2.StateSucceeded,
-				},
-			},
-			GetBindingReaction: &fake.GetBindingReaction{
-				Response: &v2.GetBindingResponse{
-					Credentials: map[string]interface{}{
-						"host":     "localhost",
-						"port":     "8080",
-						"username": "admin",
-						"password": "admin",
-					},
-				},
-			},
-		}
-	}
-
-	assertErrorPropagation := func() {
-
-	}
-
-	assertOSBClientInvoked := func(invocationsCount int) func() {
+	assertOsbClientCreateFnInvoked := func(invocationsCount int) func() {
 		return func() {
 			Expect(createClientFnCallCount).To(Equal(invocationsCount))
 		}
 	}
 
-	newFakeClientFunc := func(config fake.FakeClientConfiguration) v2.CreateFunc {
-		createClientFnCallCount = 0
-		return func(_ *v2.ClientConfiguration) (v2.Client, error) {
-			createClientFnCallCount++
-			return fake.NewFakeClient(config), nil
-		}
+	assertAllRelevantInvocationsHappened := func() {
+		It("invokes find from broker storage", func() {
+			Expect(fakeBrokerStorage.FindCallCount()).To(Equal(1))
+			_, id := fakeBrokerStorage.FindArgsForCall(0)
+			Expect(id).To(Equal(brokerID))
+		})
+
+		It("invokes the OSB client creation function", func() {
+			assertOsbClientCreateFnInvoked(1)
+		})
+
+		It("invokes a proper client action", func() {
+			Expect(len(fakeClient.Actions())).To(Equal(1))
+			action := fakeClient.Actions()[0]
+			Expect(action.Type).To(Equal(actionType))
+		})
+	}
+
+	assertBehaviourWhenBrokerIDPathParameterIsMissing := func() {
+		It("does not invoke find from broker storage", func() {
+			Expect(fakeBrokerStorage.FindCallCount()).To(Equal(0))
+		})
+
+		It("does not invoke the OSB client create function", func() {
+			assertOsbClientCreateFnInvoked(0)
+		})
+
+		It("does not invoke any client action", func() {
+			Expect(len(fakeClient.Actions())).To(Equal(0))
+		})
+
+		It("returns an error", func() {
+			Expect(actualErr).To(HaveOccurred())
+		})
+	}
+
+	assertBehaviourWhenBrokerNotFoundInStorage := func() {
+		It("invokes find from broker storage", func() {
+			Expect(fakeBrokerStorage.FindCallCount()).To(Equal(1))
+			_, id := fakeBrokerStorage.FindArgsForCall(0)
+			Expect(id).To(Equal(brokerID))
+		})
+
+		It("does not invoke the OSB client create function", func() {
+			assertOsbClientCreateFnInvoked(0)
+		})
+
+		It("does not invoke any client action", func() {
+			Expect(len(fakeClient.Actions())).To(Equal(0))
+		})
+
+		It("returns an error", func() {
+			Expect(actualErr).To(HaveOccurred())
+			Expect(actualErr.Error()).To(ContainSubstring(expectedErr.Error()))
+		})
+	}
+
+	assertBehaviourWhenErrorOccursDuringOsbClientCreation := func() {
+		It("invokes find from broker storage", func() {
+			Expect(fakeBrokerStorage.FindCallCount()).To(Equal(1))
+			_, id := fakeBrokerStorage.FindArgsForCall(0)
+			Expect(id).To(Equal(brokerID))
+		})
+
+		It("invokes the OSB client creation function", func() {
+			assertOsbClientCreateFnInvoked(1)
+		})
+
+		It("does not invoke any client action", func() {
+			Expect(len(fakeClient.Actions())).To(Equal(0))
+		})
+
+		It("returns an error", func() {
+			Expect(actualErr).To(HaveOccurred())
+			Expect(actualErr).To(Equal(expectedErr))
+		})
+	}
+
+	assertBehaviourWhenErrorOccursDuringOsbCall := func() {
+		It("invokes find from broker storage", func() {
+			Expect(fakeBrokerStorage.FindCallCount()).To(Equal(1))
+			_, id := fakeBrokerStorage.FindArgsForCall(0)
+			Expect(id).To(Equal(brokerID))
+		})
+
+		It("invokes the OSB client create function", func() {
+			assertOsbClientCreateFnInvoked(1)
+		})
+
+		It("invokes a proper client action", func() {
+			Expect(len(fakeClient.Actions())).To(Equal(1))
+			action := fakeClient.Actions()[0]
+			Expect(action.Type).To(Equal(actionType))
+		})
+
+		It("returns an error", func() {
+			Expect(actualErr).To(HaveOccurred())
+			Expect(actualErr).To(Equal(expectedErr))
+		})
 	}
 
 	BeforeEach(func() {
@@ -140,149 +165,840 @@ var _ = Describe("Logic", func() {
 			User:     "admin",
 			Password: "admin",
 		}
-		fakeClientCreateFunc = newFakeClientFunc(happyPathConfig())
-		fakeBrokerStorage = &storagefakes.FakeBroker{}
-		logic = BusinessLogic{
-			createFunc:    fakeClientCreateFunc,
-			brokerStorage: fakeBrokerStorage,
-		}
+
 		reactionError = &v2.HTTPStatusCodeError{
 			StatusCode:   http.StatusInternalServerError,
 			ErrorMessage: strPtr("error message"),
 			Description:  strPtr("response description"),
 		}
+
+		brokerID = fakeBroker.ID
+
+		fakeClient = &fake.FakeClient{}
+		fakeClientCreateFunc = newFakeClientFunc(fakeClient, nil)
+		fakeBrokerStorage = &storagefakes.FakeBroker{}
+
+		logic = BusinessLogic{
+			createFunc:    fakeClientCreateFunc,
+			brokerStorage: fakeBrokerStorage,
+		}
+
 	})
 
 	Describe("GetCatalog", func() {
 
 		var (
-			expectedCatalogResponse *v2.CatalogResponse
+			expectedResponse *v2.CatalogResponse
+			actualResponse   *v2.CatalogResponse
 		)
 
 		callGetCatalog := func(brokerID string) (*v2.CatalogResponse, error) {
 			recorder := httptest.NewRecorder()
 			request, _ := http.NewRequest(http.MethodGet, "/osb/"+brokerID+"/v2/catalog", nil)
+
 			if brokerID != "" {
-				request.WithContext(context.WithValue(request.Context(), "brokerID", brokerID))
+				pathParams := map[string]string{
+					BrokerIDPathParam: brokerID,
+				}
+				request = mux.SetURLVars(request, pathParams)
 			}
+
 			context := &broker.RequestContext{
 				Writer:  recorder,
 				Request: request,
 			}
 			response, err := logic.GetCatalog(context)
-			var catalogResp *v2.CatalogResponse
+			var resp *v2.CatalogResponse
 			if response != nil {
-				catalogResp = &response.CatalogResponse
+				resp = &response.CatalogResponse
 			}
-			return catalogResp, err
+			return resp, err
 		}
 
 		BeforeEach(func() {
-			fakeBrokerStorage.FindReturns(fakeBroker, nil)
+			actionType = fake.GetCatalog
+			expectedResponse = &v2.CatalogResponse{
+				Services: []v2.Service{
+					{
+						Name: "test",
+					},
+				},
+			}
 			fakeClient.CatalogReaction = &fake.CatalogReaction{
-				Response: expectedCatalogResponse,
+				Response: expectedResponse,
 				Error:    nil,
 			}
+			fakeBrokerStorage.FindReturns(fakeBroker, nil)
+
 		})
 
-		It("invokes the OSB client", assertOSBClientInvoked(1))
+		Context("when no error occurs", func() {
+			BeforeEach(func() {
+				actualResponse, actualErr = callGetCatalog(brokerID)
 
-		It("returns proper catalog response", func() {
-			response, err := callGetCatalog("brokerID")
-		})
+				Expect(actualErr).ToNot(HaveOccurred())
+			})
 
-		It("returns no error", func() {
-			//_, err := logic.GetCatalog(requestContext)
+			assertAllRelevantInvocationsHappened()
 
-			//Expect(err).ToNot(HaveOccurred())
+			It("returns proper response", func() {
+
+				Expect(actualResponse).To(Equal(expectedResponse))
+
+			})
+
 		})
 
 		Context("when brokerID path parameter is missing", func() {
 			BeforeEach(func() {
-				// mock to return the error
+				brokerID = ""
+				actualResponse, actualErr = callGetCatalog(brokerID)
 			})
 
-			It("returns an error", assertErrorPropagation)
-
-			It("does not invoke the OSB client", assertOSBClientInvoked(0))
+			assertBehaviourWhenBrokerIDPathParameterIsMissing()
 		})
 
 		Context("when broker with brokerID is not found in the storage", func() {
 			BeforeEach(func() {
-				// mock to return the error
+				brokerID = "missingBroker"
+				expectedErr = fmt.Errorf("not found")
+				fakeBrokerStorage.FindReturns(nil, expectedErr)
+
+				actualResponse, actualErr = callGetCatalog(brokerID)
 			})
 
-			It("returns an error", assertErrorPropagation)
-
-			It("does not invoke the OSB client", assertOSBClientInvoked(0))
+			assertBehaviourWhenBrokerNotFoundInStorage()
 		})
 
 		Context("when an error occurs during OSB client creation", func() {
 			BeforeEach(func() {
-				// mock to return the error
+				expectedErr = reactionError
+				logic.createFunc = newFakeClientFunc(fakeClient, expectedErr)
+
+				actualResponse, actualErr = callGetCatalog(brokerID)
 			})
 
-			It("propagates the error", assertErrorPropagation)
-
-			It("does not invoke the OSB client", assertOSBClientInvoked(0))
+			assertBehaviourWhenErrorOccursDuringOsbClientCreation()
 		})
 
 		Context("when an error occurs during OSB client call", func() {
 			BeforeEach(func() {
-				// mock to return the error
+				expectedErr = reactionError
+
+				fakeClient.CatalogReaction = &fake.CatalogReaction{
+					Response: nil,
+					Error:    expectedErr,
+				}
+
+				actualResponse, actualErr = callGetCatalog(brokerID)
 			})
 
-			It("invokes the OSB client", assertOSBClientInvoked(1))
-
-			It("propagates the error", assertErrorPropagation)
+			assertBehaviourWhenErrorOccursDuringOsbCall()
 
 		})
 
 	})
 
 	Describe("Provision", func() {
-		//callProvision := func() {
 
-		//}
+		var (
+			expectedResponse *v2.ProvisionResponse
+			actualResponse   *v2.ProvisionResponse
+
+			actualRequest *v2.ProvisionRequest
+		)
+
+		callProvision := func(brokerID string) (*v2.ProvisionResponse, error) {
+			recorder := httptest.NewRecorder()
+			request, _ := http.NewRequest(http.MethodGet, "/osb/"+brokerID+"/v2/service_instances/{instance_id}", nil)
+
+			if brokerID != "" {
+				pathParams := map[string]string{
+					BrokerIDPathParam: brokerID,
+				}
+				request = mux.SetURLVars(request, pathParams)
+			}
+
+			context := &broker.RequestContext{
+				Writer:  recorder,
+				Request: request,
+			}
+			response, err := logic.Provision(actualRequest, context)
+			var resp *v2.ProvisionResponse
+			if response != nil {
+				resp = &response.ProvisionResponse
+			}
+			return resp, err
+		}
+
+		BeforeEach(func() {
+			actionType = fake.ProvisionInstance
+
+			actualRequest = &v2.ProvisionRequest{}
+			expectedResponse = &v2.ProvisionResponse{
+				Async:         false,
+				DashboardURL:  strPtr("http://localhost:8080"),
+				OperationKey:  nil,
+				ExtensionAPIs: nil,
+			}
+			fakeClient.ProvisionReaction = &fake.ProvisionReaction{
+				Response: expectedResponse,
+				Error:    nil,
+			}
+			fakeBrokerStorage.FindReturns(fakeBroker, nil)
+
+		})
+
+		Context("when no error occurs", func() {
+			BeforeEach(func() {
+				actualResponse, actualErr = callProvision(brokerID)
+
+				Expect(actualErr).ToNot(HaveOccurred())
+			})
+
+			assertAllRelevantInvocationsHappened()
+
+			It("returns proper response", func() {
+				Expect(actualResponse).To(Equal(expectedResponse))
+
+			})
+
+		})
+
+		Context("when brokerID path parameter is missing", func() {
+			BeforeEach(func() {
+				brokerID = ""
+				actualResponse, actualErr = callProvision(brokerID)
+			})
+
+			assertBehaviourWhenBrokerIDPathParameterIsMissing()
+		})
+
+		Context("when broker with brokerID is not found in the storage", func() {
+			BeforeEach(func() {
+				brokerID = "missingBroker"
+				expectedErr = fmt.Errorf("not found")
+				fakeBrokerStorage.FindReturns(nil, expectedErr)
+
+				actualResponse, actualErr = callProvision(brokerID)
+			})
+
+			assertBehaviourWhenBrokerNotFoundInStorage()
+		})
+
+		Context("when an error occurs during OSB client creation", func() {
+			BeforeEach(func() {
+				expectedErr = reactionError
+				logic.createFunc = newFakeClientFunc(fakeClient, expectedErr)
+
+				actualResponse, actualErr = callProvision(brokerID)
+			})
+
+			assertBehaviourWhenErrorOccursDuringOsbClientCreation()
+		})
+
+		Context("when an error occurs during OSB client call", func() {
+			BeforeEach(func() {
+				expectedErr = reactionError
+
+				fakeClient.ProvisionReaction = &fake.ProvisionReaction{
+					Response: nil,
+					Error:    expectedErr,
+				}
+
+				actualResponse, actualErr = callProvision(brokerID)
+			})
+
+			assertBehaviourWhenErrorOccursDuringOsbCall()
+
+		})
 
 	})
 
 	Describe("Desprovision", func() {
 
+		var (
+			expectedResponse *v2.DeprovisionResponse
+			actualResponse   *v2.DeprovisionResponse
+
+			actualRequest *v2.DeprovisionRequest
+		)
+
+		callDeprovision := func(brokerID string) (*v2.DeprovisionResponse, error) {
+			recorder := httptest.NewRecorder()
+			request, _ := http.NewRequest(http.MethodGet, "/osb/"+brokerID+"/v2/service_instances/{instance_id}", nil)
+
+			if brokerID != "" {
+				pathParams := map[string]string{
+					BrokerIDPathParam: brokerID,
+				}
+				request = mux.SetURLVars(request, pathParams)
+			}
+
+			context := &broker.RequestContext{
+				Writer:  recorder,
+				Request: request,
+			}
+			response, err := logic.Deprovision(actualRequest, context)
+			var resp *v2.DeprovisionResponse
+			if response != nil {
+				resp = &response.DeprovisionResponse
+			}
+			return resp, err
+		}
+
+		BeforeEach(func() {
+			actionType = fake.DeprovisionInstance
+
+			actualRequest = &v2.DeprovisionRequest{}
+			expectedResponse = &v2.DeprovisionResponse{
+				Async:        false,
+				OperationKey: nil,
+			}
+			fakeClient.DeprovisionReaction = &fake.DeprovisionReaction{
+				Response: expectedResponse,
+				Error:    nil,
+			}
+			fakeBrokerStorage.FindReturns(fakeBroker, nil)
+
+		})
+
+		Context("when no error occurs", func() {
+			BeforeEach(func() {
+				actualResponse, actualErr = callDeprovision(brokerID)
+
+				Expect(actualErr).ToNot(HaveOccurred())
+			})
+
+			assertAllRelevantInvocationsHappened()
+
+			It("returns proper response", func() {
+				Expect(actualResponse).To(Equal(expectedResponse))
+
+			})
+
+		})
+
+		Context("when brokerID path parameter is missing", func() {
+			BeforeEach(func() {
+				brokerID = ""
+				actualResponse, actualErr = callDeprovision(brokerID)
+			})
+
+			assertBehaviourWhenBrokerIDPathParameterIsMissing()
+		})
+
+		Context("when broker with brokerID is not found in the storage", func() {
+			BeforeEach(func() {
+				brokerID = "missingBroker"
+				expectedErr = fmt.Errorf("not found")
+				fakeBrokerStorage.FindReturns(nil, expectedErr)
+
+				actualResponse, actualErr = callDeprovision(brokerID)
+			})
+
+			assertBehaviourWhenBrokerNotFoundInStorage()
+		})
+
+		Context("when an error occurs during OSB client creation", func() {
+			BeforeEach(func() {
+				expectedErr = reactionError
+				logic.createFunc = newFakeClientFunc(fakeClient, expectedErr)
+
+				actualResponse, actualErr = callDeprovision(brokerID)
+			})
+
+			assertBehaviourWhenErrorOccursDuringOsbClientCreation()
+		})
+
+		Context("when an error occurs during OSB client call", func() {
+			BeforeEach(func() {
+				expectedErr = reactionError
+
+				fakeClient.DeprovisionReaction = &fake.DeprovisionReaction{
+					Response: nil,
+					Error:    expectedErr,
+				}
+
+				actualResponse, actualErr = callDeprovision(brokerID)
+			})
+
+			assertBehaviourWhenErrorOccursDuringOsbCall()
+
+		})
+
 	})
 
 	Describe("Last Operation", func() {
+		var (
+			expectedResponse *v2.LastOperationResponse
+			actualResponse   *v2.LastOperationResponse
+
+			actualRequest *v2.LastOperationRequest
+		)
+
+		callLastOperation := func(brokerID string) (*v2.LastOperationResponse, error) {
+			recorder := httptest.NewRecorder()
+			request, _ := http.NewRequest(http.MethodGet, "/osb/"+brokerID+"/v2/service_instances/{instance_id}/last_operation", nil)
+
+			if brokerID != "" {
+				pathParams := map[string]string{
+					BrokerIDPathParam: brokerID,
+				}
+				request = mux.SetURLVars(request, pathParams)
+			}
+
+			context := &broker.RequestContext{
+				Writer:  recorder,
+				Request: request,
+			}
+			response, err := logic.LastOperation(actualRequest, context)
+			var resp *v2.LastOperationResponse
+			if response != nil {
+				resp = &response.LastOperationResponse
+			}
+			return resp, err
+		}
+
+		BeforeEach(func() {
+			actionType = fake.PollLastOperation
+
+			actualRequest = &v2.LastOperationRequest{}
+			expectedResponse = &v2.LastOperationResponse{
+				State:       "pending",
+				Description: strPtr("test"),
+			}
+			fakeClient.PollLastOperationReaction = &fake.PollLastOperationReaction{
+				Response: expectedResponse,
+				Error:    nil,
+			}
+			fakeBrokerStorage.FindReturns(fakeBroker, nil)
+
+		})
+
+		Context("when no error occurs", func() {
+			BeforeEach(func() {
+				actualResponse, actualErr = callLastOperation(brokerID)
+
+				Expect(actualErr).ToNot(HaveOccurred())
+			})
+
+			assertAllRelevantInvocationsHappened()
+
+			It("returns proper response", func() {
+				Expect(actualResponse).To(Equal(expectedResponse))
+
+			})
+
+		})
+
+		Context("when brokerID path parameter is missing", func() {
+			BeforeEach(func() {
+				brokerID = ""
+				actualResponse, actualErr = callLastOperation(brokerID)
+			})
+
+			assertBehaviourWhenBrokerIDPathParameterIsMissing()
+		})
+
+		Context("when broker with brokerID is not found in the storage", func() {
+			BeforeEach(func() {
+				brokerID = "missingBroker"
+				expectedErr = fmt.Errorf("not found")
+				fakeBrokerStorage.FindReturns(nil, expectedErr)
+
+				actualResponse, actualErr = callLastOperation(brokerID)
+			})
+
+			assertBehaviourWhenBrokerNotFoundInStorage()
+		})
+
+		Context("when an error occurs during OSB client creation", func() {
+			BeforeEach(func() {
+				expectedErr = reactionError
+				logic.createFunc = newFakeClientFunc(fakeClient, expectedErr)
+
+				actualResponse, actualErr = callLastOperation(brokerID)
+			})
+
+			assertBehaviourWhenErrorOccursDuringOsbClientCreation()
+		})
+
+		Context("when an error occurs during OSB client call", func() {
+			BeforeEach(func() {
+				expectedErr = reactionError
+
+				fakeClient.PollLastOperationReaction = &fake.PollLastOperationReaction{
+					Response: nil,
+					Error:    expectedErr,
+				}
+
+				actualResponse, actualErr = callLastOperation(brokerID)
+			})
+
+			assertBehaviourWhenErrorOccursDuringOsbCall()
+
+		})
 
 	})
 
 	Describe("Bind", func() {
+		var (
+			expectedResponse *v2.BindResponse
+			actualResponse   *v2.BindResponse
+
+			actualRequest *v2.BindRequest
+		)
+
+		callBind := func(brokerID string) (*v2.BindResponse, error) {
+			recorder := httptest.NewRecorder()
+			request, _ := http.NewRequest(http.MethodGet, "/osb/"+brokerID+"/v2/service_instances/{instance_id}/service_bindings/{binding_id}", nil)
+
+			if brokerID != "" {
+				pathParams := map[string]string{
+					BrokerIDPathParam: brokerID,
+				}
+				request = mux.SetURLVars(request, pathParams)
+			}
+
+			context := &broker.RequestContext{
+				Writer:  recorder,
+				Request: request,
+			}
+			response, err := logic.Bind(actualRequest, context)
+			var resp *v2.BindResponse
+			if response != nil {
+				resp = &response.BindResponse
+			}
+			return resp, err
+		}
+
+		BeforeEach(func() {
+			actionType = fake.Bind
+
+			actualRequest = &v2.BindRequest{}
+
+			expectedResponse = &v2.BindResponse{
+				Async: false,
+				Credentials: map[string]interface{}{
+					"username": "admin",
+					"password": "admin",
+				},
+			}
+			fakeClient.BindReaction = &fake.BindReaction{
+				Response: expectedResponse,
+				Error:    nil,
+			}
+			fakeBrokerStorage.FindReturns(fakeBroker, nil)
+
+		})
+
+		Context("when no error occurs", func() {
+			BeforeEach(func() {
+				actualResponse, actualErr = callBind(brokerID)
+
+				Expect(actualErr).ToNot(HaveOccurred())
+			})
+
+			assertAllRelevantInvocationsHappened()
+
+			It("returns proper response", func() {
+				Expect(actualResponse).To(Equal(expectedResponse))
+
+			})
+
+		})
+
+		Context("when brokerID path parameter is missing", func() {
+			BeforeEach(func() {
+				brokerID = ""
+				actualResponse, actualErr = callBind(brokerID)
+			})
+
+			assertBehaviourWhenBrokerIDPathParameterIsMissing()
+		})
+
+		Context("when broker with brokerID is not found in the storage", func() {
+			BeforeEach(func() {
+				brokerID = "missingBroker"
+				expectedErr = fmt.Errorf("not found")
+				fakeBrokerStorage.FindReturns(nil, expectedErr)
+
+				actualResponse, actualErr = callBind(brokerID)
+			})
+
+			assertBehaviourWhenBrokerNotFoundInStorage()
+		})
+
+		Context("when an error occurs during OSB client creation", func() {
+			BeforeEach(func() {
+				expectedErr = reactionError
+				logic.createFunc = newFakeClientFunc(fakeClient, expectedErr)
+
+				actualResponse, actualErr = callBind(brokerID)
+			})
+
+			assertBehaviourWhenErrorOccursDuringOsbClientCreation()
+		})
+
+		Context("when an error occurs during OSB client call", func() {
+			BeforeEach(func() {
+				expectedErr = reactionError
+
+				fakeClient.BindReaction = &fake.BindReaction{
+					Response: nil,
+					Error:    expectedErr,
+				}
+
+				actualResponse, actualErr = callBind(brokerID)
+			})
+
+			assertBehaviourWhenErrorOccursDuringOsbCall()
+
+		})
 
 	})
 
 	Describe("Unbind", func() {
+		var (
+			expectedResponse *v2.UnbindResponse
+			actualResponse   *v2.UnbindResponse
+
+			actualRequest *v2.UnbindRequest
+		)
+
+		callUnbind := func(brokerID string) (*v2.UnbindResponse, error) {
+			recorder := httptest.NewRecorder()
+			request, _ := http.NewRequest(http.MethodGet, "/osb/"+brokerID+"/v2/service_instances/{instance_id}", nil)
+
+			if brokerID != "" {
+				pathParams := map[string]string{
+					BrokerIDPathParam: brokerID,
+				}
+				request = mux.SetURLVars(request, pathParams)
+			}
+
+			context := &broker.RequestContext{
+				Writer:  recorder,
+				Request: request,
+			}
+			response, err := logic.Unbind(actualRequest, context)
+			var resp *v2.UnbindResponse
+			if response != nil {
+				resp = &response.UnbindResponse
+			}
+			return resp, err
+		}
+
+		BeforeEach(func() {
+			actionType = fake.Unbind
+
+			actualRequest = &v2.UnbindRequest{}
+			expectedResponse = &v2.UnbindResponse{
+				Async:        false,
+				OperationKey: nil,
+			}
+			fakeClient.UnbindReaction = &fake.UnbindReaction{
+				Response: expectedResponse,
+				Error:    nil,
+			}
+			fakeBrokerStorage.FindReturns(fakeBroker, nil)
+
+		})
+
+		Context("when no error occurs", func() {
+			BeforeEach(func() {
+				actualResponse, actualErr = callUnbind(brokerID)
+
+				Expect(actualErr).ToNot(HaveOccurred())
+			})
+
+			assertAllRelevantInvocationsHappened()
+
+			It("returns proper response", func() {
+				Expect(actualResponse).To(Equal(expectedResponse))
+
+			})
+
+		})
+
+		Context("when brokerID path parameter is missing", func() {
+			BeforeEach(func() {
+				brokerID = ""
+				actualResponse, actualErr = callUnbind(brokerID)
+			})
+
+			assertBehaviourWhenBrokerIDPathParameterIsMissing()
+		})
+
+		Context("when broker with brokerID is not found in the storage", func() {
+			BeforeEach(func() {
+				brokerID = "missingBroker"
+				expectedErr = fmt.Errorf("not found")
+				fakeBrokerStorage.FindReturns(nil, expectedErr)
+
+				actualResponse, actualErr = callUnbind(brokerID)
+			})
+
+			assertBehaviourWhenBrokerNotFoundInStorage()
+		})
+
+		Context("when an error occurs during OSB client creation", func() {
+			BeforeEach(func() {
+				expectedErr = reactionError
+				logic.createFunc = newFakeClientFunc(fakeClient, expectedErr)
+
+				actualResponse, actualErr = callUnbind(brokerID)
+			})
+
+			assertBehaviourWhenErrorOccursDuringOsbClientCreation()
+		})
+
+		Context("when an error occurs during OSB client call", func() {
+			BeforeEach(func() {
+				expectedErr = reactionError
+
+				fakeClient.UnbindReaction = &fake.UnbindReaction{
+					Response: nil,
+					Error:    expectedErr,
+				}
+
+				actualResponse, actualErr = callUnbind(brokerID)
+			})
+
+			assertBehaviourWhenErrorOccursDuringOsbCall()
+
+		})
 
 	})
 
 	Describe("Update", func() {
+		var (
+			expectedResponse *v2.UpdateInstanceResponse
+			actualResponse   *v2.UpdateInstanceResponse
+
+			actualRequest *v2.UpdateInstanceRequest
+		)
+
+		callProvision := func(brokerID string) (*v2.UpdateInstanceResponse, error) {
+			recorder := httptest.NewRecorder()
+			request, _ := http.NewRequest(http.MethodGet, "/osb/"+brokerID+"/v2/service_instances/{instance_id}", nil)
+
+			if brokerID != "" {
+				pathParams := map[string]string{
+					BrokerIDPathParam: brokerID,
+				}
+				request = mux.SetURLVars(request, pathParams)
+			}
+
+			context := &broker.RequestContext{
+				Writer:  recorder,
+				Request: request,
+			}
+			response, err := logic.Update(actualRequest, context)
+			var resp *v2.UpdateInstanceResponse
+			if response != nil {
+				resp = &response.UpdateInstanceResponse
+			}
+			return resp, err
+		}
+
+		BeforeEach(func() {
+			actionType = fake.UpdateInstance
+
+			actualRequest = &v2.UpdateInstanceRequest{}
+			expectedResponse = &v2.UpdateInstanceResponse{
+				Async:        false,
+				OperationKey: nil,
+			}
+			fakeClient.UpdateInstanceReaction = &fake.UpdateInstanceReaction{
+				Response: expectedResponse,
+				Error:    nil,
+			}
+			fakeBrokerStorage.FindReturns(fakeBroker, nil)
+
+		})
+
+		Context("when no error occurs", func() {
+			BeforeEach(func() {
+				actualResponse, actualErr = callProvision(brokerID)
+
+				Expect(actualErr).ToNot(HaveOccurred())
+			})
+
+			assertAllRelevantInvocationsHappened()
+
+			It("returns proper response", func() {
+				Expect(actualResponse).To(Equal(expectedResponse))
+
+			})
+
+		})
+
+		Context("when brokerID path parameter is missing", func() {
+			BeforeEach(func() {
+				brokerID = ""
+				actualResponse, actualErr = callProvision(brokerID)
+			})
+
+			assertBehaviourWhenBrokerIDPathParameterIsMissing()
+		})
+
+		Context("when broker with brokerID is not found in the storage", func() {
+			BeforeEach(func() {
+				brokerID = "missingBroker"
+				expectedErr = fmt.Errorf("not found")
+				fakeBrokerStorage.FindReturns(nil, expectedErr)
+
+				actualResponse, actualErr = callProvision(brokerID)
+			})
+
+			assertBehaviourWhenBrokerNotFoundInStorage()
+		})
+
+		Context("when an error occurs during OSB client creation", func() {
+			BeforeEach(func() {
+				expectedErr = reactionError
+				logic.createFunc = newFakeClientFunc(fakeClient, expectedErr)
+
+				actualResponse, actualErr = callProvision(brokerID)
+			})
+
+			assertBehaviourWhenErrorOccursDuringOsbClientCreation()
+		})
+
+		Context("when an error occurs during OSB client call", func() {
+			BeforeEach(func() {
+				expectedErr = reactionError
+
+				fakeClient.UpdateInstanceReaction = &fake.UpdateInstanceReaction{
+					Response: nil,
+					Error:    expectedErr,
+				}
+
+				actualResponse, actualErr = callProvision(brokerID)
+			})
+
+			assertBehaviourWhenErrorOccursDuringOsbCall()
+
+		})
 
 	})
 
 	Describe("Validate Broker API Version", func() {
 		It("returns no error for latest API version", func() {
-
+			err := logic.ValidateBrokerAPIVersion(v2.LatestAPIVersion().HeaderValue())
+			Expect(err).To(Not(HaveOccurred()))
 		})
 
 		It("returns an error for older API versions", func() {
-
+			err := logic.ValidateBrokerAPIVersion("")
+			Expect(err).To(HaveOccurred())
 		})
 
 	})
 
 })
-
-func boolPtr(b bool) *bool {
-	return &b
-}
 
 func strPtr(s string) *string {
 	return &s
