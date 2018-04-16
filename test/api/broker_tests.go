@@ -1,4 +1,19 @@
-package api
+/*
+ *    Copyright 2018 The Service Manager Authors
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+package api_itest
 
 import (
 	"net/http"
@@ -190,6 +205,36 @@ func testBrokers() {
 			delete(broker, "credentials")
 			id = reply.Value("id").String().Raw()
 			broker["id"] = id
+		})
+
+		It("returns 415 if input is not valid JSON", func() {
+			sm.PATCH("/v1/service_brokers/" + id).
+				WithText("text").
+				Expect().Status(http.StatusUnsupportedMediaType)
+		})
+
+		It("returns 404 if broker is missing", func() {
+			sm.PATCH("/v1/service_brokers/invalid_id").
+				WithJSON(broker).
+				Expect().Status(http.StatusNotFound)
+		})
+
+		It("returns 400 if input is not valid JSON", func() {
+			sm.PATCH("/v1/service_brokers/"+id).
+				WithText("invalid json").
+				WithHeader("content-type", "application/json").
+				Expect().Status(http.StatusBadRequest)
+		})
+
+		It("returns 409 if duplicate name is provided", func() {
+			broker2 := makeBroker("broker2", "http://domain.com/broker2", "")
+
+			sm.POST("/v1/service_brokers").
+				WithJSON(broker2).
+				Expect().Status(http.StatusCreated)
+			sm.PATCH("/v1/service_brokers/" + id).
+				WithJSON(broker2).
+				Expect().Status(http.StatusConflict)
 		})
 
 		It("returns 200 if all properties are updated", func() {

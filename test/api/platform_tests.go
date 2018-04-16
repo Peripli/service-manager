@@ -1,4 +1,20 @@
-package api
+/*
+ *    Copyright 2018 The Service Manager Authors
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
+package api_itest
 
 import (
 	"net/http"
@@ -47,7 +63,6 @@ func testPlatforms() {
 				JSON().Object()
 
 			platform["id"] = id
-			delete(platform, "credentials")
 			mapContains(reply.Raw(), platform)
 		})
 	})
@@ -117,6 +132,16 @@ func testPlatforms() {
 			}
 		})
 
+		It("returns 409 if duplicate platform already exists", func() {
+			platform := makePlatform("platform1", "cf-10", "cf", "descr")
+			sm.POST("/v1/platforms").
+				WithJSON(platform).
+				Expect().Status(http.StatusCreated)
+			sm.POST("/v1/platforms").
+				WithJSON(platform).
+				Expect().Status(http.StatusConflict)
+		})
+
 		It("succeeds if optional fields are skipped", func() {
 			platform := makePlatform("platform1", "cf-10", "cf", "descr")
 			// delete optional fields
@@ -127,162 +152,154 @@ func testPlatforms() {
 				WithJSON(platform).
 				Expect().Status(http.StatusCreated).JSON().Object()
 
-			delete(platform, "credentials")
 			platform["id"] = reply.Value("id").String().Raw()
 			// optional fields returned with default values
 			platform["description"] = ""
 
 			mapContains(reply.Raw(), platform)
 		})
-		/*
-			It("returns the new platform", func() {
-				platform := makePlatform("platform1", "http://domain.com/platform", "platform one")
 
-				By("POST returns the new platform")
+		It("returns the new platform with generated id and credentials", func() {
+			platform := makePlatform("", "cf-10", "cf", "descr")
+			delete(platform, "id")
 
-				reply := sm.POST("/v1/platforms").
-					WithJSON(platform).
-					Expect().Status(http.StatusCreated).JSON().Object()
-				delete(platform, "credentials")
+			By("POST returns the new platform")
 
-				id := reply.Value("id").String().NotEmpty().Raw()
-				platform["id"] = id
-				mapContains(reply.Raw(), platform)
+			reply := sm.POST("/v1/platforms").
+				WithJSON(platform).
+				Expect().Status(http.StatusCreated).JSON().Object()
 
-				By("GET returns the same platform")
+			id := reply.Value("id").String().NotEmpty().Raw()
+			platform["id"] = id
+			mapContains(reply.Raw(), platform)
+			basic := reply.Value("credentials").Object().Value("basic").Object()
+			basic.Value("username").String().NotEmpty()
+			basic.Value("password").String().NotEmpty()
 
-				reply = sm.GET("/v1/platforms/" + id).
-					Expect().Status(http.StatusOK).JSON().Object()
+			By("GET returns the same platform")
 
-				mapContains(reply.Raw(), platform)
-			})
+			reply = sm.GET("/v1/platforms/" + id).
+				Expect().Status(http.StatusOK).JSON().Object()
 
-			It("returns 409 if duplicate name is provided", func() {
-				platform := makePlatform("platform1", "http://domain.com/platform", "")
-
-				sm.POST("/v1/platforms").
-					WithJSON(platform).
-					Expect().Status(http.StatusCreated)
-				sm.POST("/v1/platforms").
-					WithJSON(platform).
-					Expect().Status(http.StatusConflict)
-			})
-		*/
+			mapContains(reply.Raw(), platform)
+		})
 	})
-	/*
 
-		Describe("PATCH", func() {
-			var platform Object
-			var id string
+	Describe("PATCH", func() {
+		var platform Object
+		const id = "p1"
 
-			BeforeEach(func() {
-				By("Create new platform")
-				platform = makePlatform("platform1", "http://domain.com/platform", "desc1")
-				reply := sm.POST("/v1/platforms").
-					WithJSON(platform).
-					Expect().Status(http.StatusCreated).JSON().Object()
-				delete(platform, "credentials")
-				id = reply.Value("id").String().Raw()
-				platform["id"] = id
-			})
+		BeforeEach(func() {
+			By("Create new platform")
 
-			It("returns 200 if all properties are updated", func() {
-				By("Update platform")
+			platform = makePlatform(id, "cf-10", "cf", "descr")
+			sm.POST("/v1/platforms").
+				WithJSON(platform).
+				Expect().Status(http.StatusCreated)
+		})
 
-				updatedplatform := makePlatform("platform2", "http://domain.com/platform2", "desc2")
-				updatedplatform["credentials"] = Object{
-					"basic": Object{
-						"username": "auser",
-						"password": "apass",
-					},
-				}
+		It("returns 200 if all properties are updated", func() {
+			By("Update platform")
 
+			updatedPlatform := makePlatform("", "cf-11", "cff", "descr2")
+			delete(updatedPlatform, "id")
+
+			reply := sm.PATCH("/v1/platforms/" + id).
+				WithJSON(updatedPlatform).
+				Expect().
+				Status(http.StatusOK).JSON().Object()
+
+			updatedPlatform["id"] = id
+			mapContains(reply.Raw(), updatedPlatform)
+
+			By("Update is persisted")
+
+			reply = sm.GET("/v1/platforms/" + id).
+				Expect().
+				Status(http.StatusOK).JSON().Object()
+
+			mapContains(reply.Raw(), updatedPlatform)
+		})
+
+		It("can update each property separately", func() {
+			updatedPlatform := makePlatform("", "cf-11", "cff", "descr2")
+			delete(updatedPlatform, "id")
+
+			for prop, val := range updatedPlatform {
+				update := Object{}
+				update[prop] = val
 				reply := sm.PATCH("/v1/platforms/" + id).
-					WithJSON(updatedplatform).
+					WithJSON(update).
 					Expect().
 					Status(http.StatusOK).JSON().Object()
-				delete(updatedplatform, "credentials")
 
-				mapContains(reply.Raw(), updatedplatform)
-
-				By("Update is persisted")
+				platform[prop] = val
+				mapContains(reply.Raw(), platform)
 
 				reply = sm.GET("/v1/platforms/" + id).
 					Expect().
 					Status(http.StatusOK).JSON().Object()
 
-				mapContains(reply.Raw(), updatedplatform)
-			})
-
-			It("can update each property separately", func() {
-				newplatform := makePlatform("bb8", "http://lucas.arts", "a robot")
-				newplatform["credentials"] = Object{
-					"basic": Object{
-						"username": "auser",
-						"password": "apass",
-					},
-				}
-
-				for prop, val := range newplatform {
-					update := Object{}
-					update[prop] = val
-
-					reply := sm.PATCH("/v1/platforms/" + id).
-						WithJSON(update).
-						Expect().
-						Status(http.StatusOK).JSON().Object()
-
-					if prop != "credentials" { // credentials are not returned
-						platform[prop] = val
-					}
-					mapContains(reply.Raw(), platform)
-
-					reply = sm.GET("/v1/platforms/" + id).
-						Expect().
-						Status(http.StatusOK).JSON().Object()
-
-					mapContains(reply.Raw(), platform)
-				}
-			})
-
-			It("should not update platform id if provided", func() {
-				sm.PATCH("/v1/platforms/" + id).
-					WithJSON(Object{"id": "123"}).
-					Expect().
-					Status(http.StatusOK)
-
-				sm.GET("/v1/platforms/123").
-					Expect().
-					Status(http.StatusNotFound)
-			})
+				mapContains(reply.Raw(), platform)
+			}
 		})
 
-		Describe("DELETE", func() {
-			It("returns 404 when trying to delete non-existing platform", func() {
-				sm.DELETE("/v1/platforms/999").
-					Expect().
-					Status(http.StatusNotFound)
-			})
+		It("should not update platform id if provided", func() {
+			sm.PATCH("/v1/platforms/" + id).
+				WithJSON(Object{"id": "123"}).
+				Expect().
+				Status(http.StatusOK)
 
-			It("deletes platform", func() {
-				platform := makePlatform("platform1", "http://domain.com/platform", "desc1")
-				reply := sm.POST("/v1/platforms").
-					WithJSON(platform).
-					Expect().Status(http.StatusCreated).JSON().Object()
-				id := reply.Value("id").String().Raw()
-
-				sm.GET("/v1/platforms/" + id).
-					Expect().
-					Status(http.StatusOK)
-
-				sm.DELETE("/v1/platforms/" + id).
-					Expect().
-					Status(http.StatusOK).JSON().Object().Empty()
-
-				sm.GET("/v1/platforms/" + id).
-					Expect().
-					Status(http.StatusNotFound)
-			})
+			sm.GET("/v1/platforms/123").
+				Expect().
+				Status(http.StatusNotFound)
 		})
-	*/
+
+		It("should return 404 on missing platform", func() {
+			sm.PATCH("/v1/platforms/123").
+				WithJSON(Object{"name": "123"}).
+				Expect().
+				Status(http.StatusNotFound)
+		})
+
+		It("should return 409 on missing platform", func() {
+			platform2 := makePlatform("p2", "cf-12", "cf2", "descr2")
+			sm.POST("/v1/platforms").
+				WithJSON(platform2).
+				Expect().Status(http.StatusCreated)
+
+			sm.PATCH("/v1/platforms/" + id).
+				WithJSON(platform2).
+				Expect().
+				Status(http.StatusConflict)
+		})
+	})
+
+	Describe("DELETE", func() {
+		It("returns 404 when trying to delete non-existing platform", func() {
+			sm.DELETE("/v1/platforms/999").
+				Expect().
+				Status(http.StatusNotFound)
+		})
+
+		It("deletes platform", func() {
+			platform := makePlatform("p1", "cf-10", "cf", "descr")
+			sm.POST("/v1/platforms").
+				WithJSON(platform).
+				Expect().Status(http.StatusCreated)
+
+			sm.GET("/v1/platforms/p1").
+				Expect().
+				Status(http.StatusOK)
+
+			sm.DELETE("/v1/platforms/p1").
+				Expect().
+				Status(http.StatusOK).JSON().Object().Empty()
+
+			sm.GET("/v1/platforms/p1").
+				Expect().
+				Status(http.StatusNotFound)
+		})
+	})
+
 }
