@@ -1,5 +1,5 @@
 /*
- *    Copyright 2018 The Service Manager Authors
+ * Copyright 2018 The Service Manager Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -67,7 +67,7 @@ func (v *viperEnv) Load() error {
 	v.Viper.SetEnvPrefix(v.envPrefix)
 	v.Viper.AutomaticEnv()
 	if err := v.Viper.ReadInConfig(); err != nil {
-		return fmt.Errorf("Could not read configuration file: %s", err)
+		return fmt.Errorf("could not read configuration file: %s", err)
 	}
 	return nil
 }

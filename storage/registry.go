@@ -1,5 +1,5 @@
 /*
- *    Copyright 2018 The Service Manager Authors
+ * Copyright 2018 The Service Manager Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -51,10 +51,10 @@ func Use(ctx context.Context, name string, uri string) (Storage, error) {
 	defer mux.Unlock()
 	storage, exists := storages[name]
 	if !exists {
-		return nil, fmt.Errorf("Error locating storage with name %s", name)
+		return nil, fmt.Errorf("error locating storage with name %s", name)
 	}
 	if err := storage.Open(uri); err != nil {
-		return nil, fmt.Errorf("Error opening storage: %s", err)
+		return nil, fmt.Errorf("error opening storage: %s", err)
 	}
 	storages[name] = storage
 	go awaitTermination(ctx, storage)

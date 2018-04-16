@@ -1,5 +1,5 @@
 /*
- *    Copyright 2018 The Service Manager Authors
+ * Copyright 2018 The Service Manager Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -135,7 +135,7 @@ var _ = Describe("config", func() {
 				settings Settings
 
 				envSettings = Settings{
-					Server: &ServerSettings{
+					Server: &AppSettings{
 						Port:            8080,
 						ShutdownTimeout: 5000,
 						RequestTimeout:  5000,
@@ -150,7 +150,7 @@ var _ = Describe("config", func() {
 				}
 
 				emptySettings = Settings{
-					Server: &ServerSettings{},
+					Server: &AppSettings{},
 					Db:     &DbSettings{},
 					Log:    &LogSettings{},
 				}
