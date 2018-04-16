@@ -17,54 +17,54 @@
 package storage
 
 import (
+	"context"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
+	"fmt"
+
+	"github.com/sirupsen/logrus"
 )
 
 var (
-	mux              sync.RWMutex
-	providedStorages = make(map[string]Storage)
+	mux      sync.RWMutex
+	storages = make(map[string]Storage)
 )
 
-// Get returns a single storage
-// Panics if more than one storage is configured. Use GetByName in such cases
-func Get() Storage {
+// Register adds a storage with the given name
+func Register(name string, storage Storage) {
 	mux.RLock()
 	defer mux.RUnlock()
-	storagesCount := len(providedStorages)
-	if storagesCount != 1 {
-		logrus.Panicf("Requested exactly one storage but %d storages are configured", storagesCount)
+	if storage == nil {
+		panic("storage: Register storage is nil")
 	}
-	var providedStorage Storage
-	for _, v := range providedStorages {
-		providedStorage = v
-		break
+	if _, dup := storages[name]; dup {
+		panic("storage: Register called twice for storage with name " + name)
 	}
-	return providedStorage
+	storages[name] = storage
 }
 
-// GetByName returns a storage with this name and boolean indicating whether it exists
-func GetByName(name string) (Storage, bool) {
-	mux.RLock()
-	defer mux.RUnlock()
-	providedStorage, exists := providedStorages[name]
-	return providedStorage, exists
-}
-
-// Register initializes a storage with the specified name using the given provider
-func Register(name string, provider Provider) {
-	if provider == nil {
-		logrus.Panic("Cannot register nil storage provider")
-	}
+// Use specifies the storage for the given name
+// Returns the storage ready to be used and an error if one occurred during initialization
+// Upon context.Done signal the storage will be closed
+func Use(ctx context.Context, name string, uri string) (Storage, error) {
 	mux.Lock()
 	defer mux.Unlock()
-	if _, exists := providedStorages[name]; exists {
-		logrus.Panic("A storage with this name has already been registered")
+	storage, exists := storages[name]
+	if !exists {
+		return nil, fmt.Errorf("Error locating storage with name %s", name)
 	}
-	providedStorage, err := provider.Provide()
-	if err != nil {
-		logrus.Panicf("Cannot provide a storage with name %s. Error : %v", name, err)
+	if err := storage.Open(uri); err != nil {
+		return nil, fmt.Errorf("Error opening storage: %s", err)
 	}
-	providedStorages[name] = providedStorage
+	storages[name] = storage
+	go awaitTermination(ctx, storage)
+	return storage, nil
+}
+
+func awaitTermination(ctx context.Context, storage Storage) {
+	<-ctx.Done()
+	logrus.Debug("Context cancelled. Closing storage...")
+	if err := storage.Close(); err != nil {
+		logrus.Error(err)
+	}
 }

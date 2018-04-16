@@ -22,7 +22,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // SendJSON writes a JSON value and sets the specified HTTP Status code

@@ -14,6 +14,8 @@
  *    limitations under the License.
  */
 
+// Package storage provides generic interfaces around the Service Manager storage and provides logic
+// for registration and usage of storages
 package storage
 
 import (
@@ -22,22 +24,26 @@ import (
 	"github.com/Peripli/service-manager/rest"
 )
 
+// Storage interface provides entity-specific storages.
+//go:generate counterfeiter . Storage
+type Storage interface {
+	// Open initializes the storage, e.g. opens a connection to the underlying storage
+	Open(uri string) error
+
+	// Close clears resources associated with this storage, e.g. closes the connection the underlying storage
+	Close() error
+
+	// Broker provides access to service broker db operations
+	Broker() Broker
+
+	Platform() Platform
+}
+
 // ErrNotFound error returned from storage when entity is not found
 var ErrNotFound = errors.New("Not found")
 
 // ErrUniqueViolation error returned from storage when entity has conflicting fields
 var ErrUniqueViolation = errors.New("Unique constraint violation")
-
-// Provider interface for db storage provider
-type Provider interface {
-	Provide() (Storage, error)
-}
-
-// Storage interface for db storage
-type Storage interface {
-	Broker() Broker
-	Platform() Platform
-}
 
 // Broker interface for Broker db operations
 type Broker interface {

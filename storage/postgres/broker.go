@@ -23,9 +23,9 @@ import (
 
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/Sirupsen/logrus"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
+	"github.com/sirupsen/logrus"
 )
 
 type brokerStorage struct {
