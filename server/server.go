@@ -1,5 +1,5 @@
 /*
- *    Copyright 2018 The Service Manager Authors
+ * Copyright 2018 The Service Manager Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -14,69 +14,95 @@
  *    limitations under the License.
  */
 
+// Package server contains the logic of the Service Manager server
 package server
 
 import (
 	"context"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
+	"fmt"
 	"github.com/Peripli/service-manager/rest"
-	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
 )
-
-// Configuration represents the configuration to use for the server
-type Configuration interface {
-	// Address returns the port on which the server to listen. The port must be preceded by a colon, for example ":8080"
-	Address() string
-
-	// RequestTimeout returns the read/write request timeout
-	RequestTimeout() time.Duration
-
-	// ShutdownTimeout returns the timeout for which the server to wait running tasks before terminating
-	ShutdownTimeout() time.Duration
-}
 
 // Server is the server to process incoming HTTP requests
 type Server struct {
-	Configuration Configuration
+	Configuration *Config
 	Router        *mux.Router
 }
 
 // New creates a new server with the provided REST API configuration and server configuration
 // Returns the new server and an error if creation was not successful
-func New(api rest.API, config Configuration) (*Server, error) {
+func New(api rest.API, config *Config) (*Server, error) {
 	router := mux.NewRouter().StrictSlash(true)
-	registerControllers(router, api.Controllers())
+	if err := registerControllers(router, api.Controllers()); err != nil {
+		return nil, fmt.Errorf("new Config: %s", err)
+	}
 
-	return &Server{config, router}, nil
+	setUpLogging(config.LogLevel, config.LogFormat)
+
+	return &Server{
+		Configuration: config,
+		Router:        router,
+	}, nil
 }
 
 // Run starts the server awaiting for incoming requests
-func (server *Server) Run() {
+func (server *Server) Run(ctx context.Context) {
 	handler := &http.Server{
 		Handler:      server.Router,
-		Addr:         server.Configuration.Address(),
-		WriteTimeout: server.Configuration.RequestTimeout(),
-		ReadTimeout:  server.Configuration.RequestTimeout(),
+		Addr:         server.Configuration.Address,
+		WriteTimeout: server.Configuration.RequestTimeout,
+		ReadTimeout:  server.Configuration.RequestTimeout,
 	}
-	startServer(handler, server.Configuration.ShutdownTimeout())
+	startServer(ctx, handler, server.Configuration.ShutdownTimeout)
 }
 
-func registerControllers(router *mux.Router, controllers []rest.Controller) {
+func moveRoutes(prefix string, fromRouter *mux.Router, toRouter *mux.Router) error {
+	subRouter := toRouter.PathPrefix(prefix).Subrouter()
+	return fromRouter.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
+
+		path, err := route.GetPathTemplate()
+		if err != nil {
+			return fmt.Errorf("move routes: %s", err)
+		}
+
+		methods, err := route.GetMethods()
+		if err != nil {
+			return fmt.Errorf("move routes: %s", err)
+
+		}
+
+		logrus.Info("Adding route with methods: ", methods, " and path: ", path)
+		subRouter.Handle(path, route.GetHandler()).Methods(methods...)
+		return nil
+	})
+	}
+
+func registerControllers(router *mux.Router, controllers []rest.Controller) error {
 	for _, ctrl := range controllers {
 		for _, route := range ctrl.Routes() {
-			router.Handle(route.Endpoint.Path, rest.ErrorHandlerFunc(route.Handler)).Methods(route.Endpoint.Method)
+			fromRouter, ok := route.Handler.(*mux.Router)
+			if ok {
+				if err := moveRoutes(route.Endpoint.Path, fromRouter, router); err != nil {
+					return fmt.Errorf("register controllers: %s", err)
+				}
+			} else {
+				r := router.Handle(route.Endpoint.Path, route.Handler)
+				if route.Endpoint.Method != rest.AllMethods {
+					r.Methods(route.Endpoint.Method)
+				}
+			}
 		}
 	}
+	return nil
 }
 
-func startServer(server *http.Server, shutdownTimeout time.Duration) {
-	go gracefulShutdown(server, shutdownTimeout)
+func startServer(ctx context.Context, server *http.Server, shutdownTimeout time.Duration) {
+	go gracefulShutdown(ctx, server, shutdownTimeout)
 
 	logrus.Debugf("Listening on %s", server.Addr)
 
@@ -85,21 +111,32 @@ func startServer(server *http.Server, shutdownTimeout time.Duration) {
 	}
 }
 
-func gracefulShutdown(server *http.Server, shutdownTimeout time.Duration) {
-	stop := make(chan os.Signal, 1)
+func gracefulShutdown(ctx context.Context, server *http.Server, shutdownTimeout time.Duration) {
+	<-ctx.Done()
 
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-
-	<-stop
-
-	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	c, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
-
 	logrus.Debugf("Shutdown with timeout: %s", shutdownTimeout)
 
-	if err := server.Shutdown(ctx); err != nil {
-		logrus.Errorf("Error: %v", err)
+	if err := server.Shutdown(c); err != nil {
+		logrus.Error("Error: ", err)
+		if err := server.Close(); err != nil {
+			logrus.Error("Error: ", err)
+		}
 	} else {
 		logrus.Debug("Server stopped")
+	}
+}
+
+func setUpLogging(logLevel string, logFormat string) {
+	level, err := logrus.ParseLevel(logLevel)
+	if err != nil {
+		logrus.Fatal("Could not parse log level configuration")
+	}
+	logrus.SetLevel(level)
+	if logFormat == "json" {
+		logrus.SetFormatter(&logrus.JSONFormatter{})
+	} else {
+		logrus.SetFormatter(&logrus.TextFormatter{})
 	}
 }

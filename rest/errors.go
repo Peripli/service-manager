@@ -20,21 +20,13 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // ErrorResponse struct used to store information about error
 type ErrorResponse struct {
 	Error       string `json:"error,omitempty"`
 	Description string `json:"description"`
-}
-
-// ErrorHandlerFunc wraps an APIHandler and returns an http.Handler by providing a central error handling place for all APIHandlers
-func ErrorHandlerFunc(handler APIHandler) http.Handler {
-	return http.HandlerFunc(func(writer http.ResponseWriter, reader *http.Request) {
-		err := handler(writer, reader)
-		HandleError(err, writer)
-	})
 }
 
 // HandleError sends a JSON containing the error to the response writer

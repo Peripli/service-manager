@@ -1,5 +1,5 @@
 /*
- *    Copyright 2018 The Service Manager Authors
+ * Copyright 2018 The Service Manager Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -21,9 +21,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/sirupsen/logrus"
 
 	"github.com/Peripli/service-manager/rest"
 )
@@ -93,7 +93,7 @@ var _ = Describe("Errors", func() {
 		Context("With valid parameters", func() {
 			It("Writes to response writer", func() {
 				response := rest.ErrorResponse{Error: "test error", Description: "test description"}
-				if err := rest.SendJSON(mockedWriter, 200, response); err != nil {
+				if err := rest.SendJSON(mockedWriter, http.StatusOK, response); err != nil {
 					Fail("Serializing valid ErrorResponse should be successful")
 				}
 				Expect(string(mockedWriter.data)).To(ContainSubstring(testError.Error()))
@@ -127,30 +127,4 @@ var _ = Describe("Errors", func() {
 		})
 	})
 
-	Describe("Error Handler Func", func() {
-
-		var returnedData error
-		mockedAPIHandler := func(writer http.ResponseWriter, request *http.Request) error {
-			return returnedData
-		}
-
-		Context("With API Handler not returning an error", func() {
-			It("Should have no data in Response Writer", func() {
-				httpHandler := rest.ErrorHandlerFunc(mockedAPIHandler)
-				httpHandler.ServeHTTP(mockedWriter, nil)
-				Expect(string(mockedWriter.data)).To(BeEmpty())
-			})
-		})
-
-		Context("With API Handler returning an error", func() {
-			It("Should write to Response Writer", func() {
-				returnedData = testError
-
-				httpHandler := rest.ErrorHandlerFunc(mockedAPIHandler)
-				httpHandler.ServeHTTP(mockedWriter, nil)
-				Expect(string(mockedWriter.data)).To(ContainSubstring(testError.Error()))
-				Expect(mockedWriter.status).To(Equal(http.StatusInternalServerError))
-			})
-		})
-	})
 })
