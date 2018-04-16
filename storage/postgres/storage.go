@@ -14,10 +14,13 @@
  *    limitations under the License.
  */
 
- // Package postgres implements the Service Manager storage interfaces for Postgresql DB
+// Package postgres implements the Service Manager storage interfaces for Postgresql DB
 package postgres
 
 import (
+	"errors"
+	"path"
+	"runtime"
 	"sync"
 
 	"fmt"
@@ -81,14 +84,25 @@ func (storage *postgresStorage) Close() error {
 	return storage.db.Close()
 }
 
+func getMigrateDir() (string, error) {
+	_, filename, _, ok := runtime.Caller(1)
+	if !ok {
+		return "", errors.New("Could not get database migrations scripts dir")
+	}
+	return path.Join(path.Dir(filename), "migrations"), nil
+}
+
 func updateSchema(db *sqlx.DB) error {
 	driver, err := migratepg.WithInstance(db.DB, &migratepg.Config{})
 	if err != nil {
 		return err
 	}
-	m, err := migrate.NewWithDatabaseInstance(
-		"file://storage/postgres/migrations",
-		"postgres", driver)
+	migrateDir, err := getMigrateDir()
+	logrus.Debug("Migration scripts dir:", migrateDir)
+	if err != nil {
+		return err
+	}
+	m, err := migrate.NewWithDatabaseInstance(migrateDir, "postgres", driver)
 	if err != nil {
 		return err
 	}
