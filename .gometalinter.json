@@ -1,6 +1,6 @@
 {
-    "Enable": ["deadcode", "golint", "vet", "gotype", "gocyclo", "maligned", "errcheck", "megacheck", "dupl", "misspell", "unused", "staticcheck", "safesql"],
-    "Exclude": ["test"],
+    "Enable": ["deadcode", "golint", "vet", "gotype", "gocyclo", "maligned", "errcheck", "megacheck", "dupl", "misspell", "unused", "staticcheck"],
+    "Exclude": ["test", "fake_*"],
     "Format": "[{{.Severity}}]: {{.Path}}: {{.Line}}:{{if .Col}}{{.Col}}{{end}}: {{.Message}} ({{.Linter}})",
     "Deadline": "120s",
     "Aggregate": true,

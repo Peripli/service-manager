@@ -36,35 +36,35 @@ func (platformCtrl *Controller) Routes() []rest.Route {
 				Method: http.MethodPost,
 				Path:   url,
 			},
-			Handler: platformCtrl.addPlatform,
+			Handler: rest.APIHandler(platformCtrl.addPlatform),
 		},
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodGet,
 				Path:   url + "/{platform_id}",
 			},
-			Handler: platformCtrl.getPlatform,
+			Handler: rest.APIHandler(platformCtrl.getPlatform),
 		},
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodGet,
 				Path:   url,
 			},
-			Handler: platformCtrl.getAllPlatforms,
+			Handler: rest.APIHandler(platformCtrl.getAllPlatforms),
 		},
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodDelete,
 				Path:   url + "/{platform_id}",
 			},
-			Handler: platformCtrl.deletePlatform,
+			Handler: rest.APIHandler(platformCtrl.deletePlatform),
 		},
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodPatch,
 				Path:   url + "/{platform_id}",
 			},
-			Handler: platformCtrl.updatePlatform,
+			Handler: rest.APIHandler(platformCtrl.updatePlatform),
 		},
 	}
 }

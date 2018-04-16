@@ -1,5 +1,5 @@
 /*
- *    Copyright 2018 The Service Manager Authors
+ * Copyright 2018 The Service Manager Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -21,9 +21,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/sirupsen/logrus"
 )
 
 func TestRest(t *testing.T) {
@@ -81,7 +81,6 @@ func (errorResponseWriter) WriteHeader(statusCode int) {
 var _ = Describe("Errors", func() {
 
 	mockedWriter := &mockedResponseWriter{}
-	testError := errors.New("test description")
 
 	BeforeEach(func() {
 		mockedWriter.data = []byte{}
@@ -91,61 +90,10 @@ var _ = Describe("Errors", func() {
 		Context("With valid parameters", func() {
 			It("Writes to response writer", func() {
 				response := ErrorResponse{ErrorType: "test error", Description: "test description"}
-				if err := SendJSON(mockedWriter, 200, response); err != nil {
+				if err := SendJSON(mockedWriter, http.StatusOK, response); err != nil {
 					Fail("Serializing valid ErrorResponse should be successful")
 				}
 				Expect(string(mockedWriter.data)).To(ContainSubstring("test description"))
-			})
-		})
-	})
-
-	Describe("Error Handler Func", func() {
-
-		var returnedData error
-
-		var mockedAPIHandler APIHandler
-
-		BeforeEach(func() {
-			returnedData = nil
-		})
-
-		JustBeforeEach(func() {
-			mockedAPIHandler = func(writer http.ResponseWriter, request *http.Request) error {
-				return returnedData
-			}
-		})
-
-		Context("With API Handler not returning an error", func() {
-			It("Should have no data in Response Writer", func() {
-				httpHandler := ErrorHandlerFunc(mockedAPIHandler)
-				httpHandler.ServeHTTP(mockedWriter, nil)
-				Expect(string(mockedWriter.data)).To(BeEmpty())
-			})
-		})
-
-		Context("With API Handler returning an error", func() {
-			BeforeEach(func() {
-				returnedData = testError
-			})
-
-			It("Should write to Response Writer", func() {
-				httpHandler := ErrorHandlerFunc(mockedAPIHandler)
-				httpHandler.ServeHTTP(mockedWriter, nil)
-				Expect(string(mockedWriter.data)).To(ContainSubstring("Internal server error"))
-				Expect(mockedWriter.status).To(Equal(http.StatusInternalServerError))
-			})
-		})
-
-		Context("With API Handler returning a http error", func() {
-			BeforeEach(func() {
-				returnedData = CreateErrorResponse(testError, http.StatusBadRequest, "BadRequest")
-			})
-
-			It("Should write to Response Writer", func() {
-				httpHandler := ErrorHandlerFunc(mockedAPIHandler)
-				httpHandler.ServeHTTP(mockedWriter, nil)
-				Expect(string(mockedWriter.data)).To(ContainSubstring(testError.Error()))
-				Expect(mockedWriter.status).To(Equal(http.StatusBadRequest))
 			})
 		})
 	})

@@ -19,41 +19,35 @@ package rest
 import (
 	"net/http"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
-// ErrorHandlerFunc wraps an APIHandler and returns an http.Handler by providing a central error handling place for all APIHandlers
-func ErrorHandlerFunc(handler APIHandler) http.Handler {
-	return http.HandlerFunc(func(writer http.ResponseWriter, reader *http.Request) {
-		if err := handler(writer, reader); err != nil {
-			handleError(err, writer)
+// HandleError sends a JSON containing the error to the response writer
+func HandleError(err error, writer http.ResponseWriter) {
+	if err != nil {
+		var respError *ErrorResponse
+		switch t := err.(type) {
+		case *ErrorResponse:
+			logrus.Debug(err)
+			respError = t
+		case ErrorResponse:
+			logrus.Debug(err)
+			respError = &t
+		default:
+			logrus.Error(err)
+			respError = &ErrorResponse{
+				ErrorType:   "InternalError",
+				Description: "Internal server error",
+				StatusCode:  http.StatusInternalServerError,
+			}
 		}
-	})
-}
 
-// handleError sends a JSON containing the error to the response writer
-func handleError(err error, writer http.ResponseWriter) {
-	var respError *ErrorResponse
-	switch t := err.(type) {
-	case *ErrorResponse:
-		logrus.Debug(err)
-		respError = t
-	case ErrorResponse:
-		logrus.Debug(err)
-		respError = &t
-	default:
-		logrus.Error(err)
-		respError = &ErrorResponse{
-			ErrorType:   "InternalError",
-			Description: "Internal server error",
-			StatusCode:  http.StatusInternalServerError,
+		sendErr := SendJSON(writer, respError.StatusCode, respError)
+		if sendErr != nil {
+			logrus.Errorf("Could not write error to response: %v", sendErr)
 		}
 	}
 
-	sendErr := SendJSON(writer, respError.StatusCode, respError)
-	if sendErr != nil {
-		logrus.Errorf("Could not write error to response: %v", sendErr)
-	}
 }
 
 // CreateErrorResponse create ErrorResponse object

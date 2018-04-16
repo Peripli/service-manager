@@ -23,7 +23,7 @@ import (
 
 	"github.com/Peripli/service-manager/rest"
 	store "github.com/Peripli/service-manager/storage"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 )

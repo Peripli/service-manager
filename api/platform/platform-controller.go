@@ -25,13 +25,15 @@ import (
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/util"
-	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
 	uuid "github.com/satori/go.uuid"
+	"github.com/sirupsen/logrus"
 )
 
 // Controller platform controller
-type Controller struct{}
+type Controller struct {
+	PlatformStorage storage.Platform
+}
 
 func getPlatformID(req *http.Request) string {
 	vars := mux.Vars(req)
@@ -91,7 +93,7 @@ func (platformCtrl *Controller) addPlatform(rw http.ResponseWriter, req *http.Re
 			Password: password,
 		},
 	}
-	platformStorage := storage.Get().Platform()
+	platformStorage := platformCtrl.PlatformStorage
 	errSave := platformStorage.Create(platform)
 	if errSave == storage.ErrUniqueViolation {
 		return rest.CreateErrorResponse(errSave, http.StatusConflict, "Conflict")
@@ -106,7 +108,7 @@ func (platformCtrl *Controller) addPlatform(rw http.ResponseWriter, req *http.Re
 func (platformCtrl *Controller) getPlatform(rw http.ResponseWriter, req *http.Request) error {
 	logrus.Debugf("GET to %s", req.RequestURI)
 	platformID := getPlatformID(req)
-	platformStorage := storage.Get().Platform()
+	platformStorage := platformCtrl.PlatformStorage
 	platform, err := platformStorage.Get(platformID)
 	if err == storage.ErrNotFound {
 		return rest.CreateErrorResponse(errorMissingPlatform(platformID), http.StatusNotFound, "NotFound")
@@ -119,7 +121,7 @@ func (platformCtrl *Controller) getPlatform(rw http.ResponseWriter, req *http.Re
 // getAllPlatforms handler for GET /v1/platforms
 func (platformCtrl *Controller) getAllPlatforms(rw http.ResponseWriter, req *http.Request) error {
 	logrus.Debugf("GET to %s", req.RequestURI)
-	platformStorage := storage.Get().Platform()
+	platformStorage := platformCtrl.PlatformStorage
 	platforms, err := platformStorage.GetAll()
 	if err != nil {
 		return err
@@ -134,7 +136,7 @@ func (platformCtrl *Controller) deletePlatform(rw http.ResponseWriter, req *http
 	logrus.Debugf("DELETE to %s", req.RequestURI)
 	platformID := getPlatformID(req)
 
-	platformStorage := storage.Get().Platform()
+	platformStorage := platformCtrl.PlatformStorage
 	errDelete := platformStorage.Delete(platformID)
 	if errDelete == storage.ErrNotFound {
 		return rest.CreateErrorResponse(errorMissingPlatform(platformID), http.StatusNotFound, "NotFound")
@@ -155,7 +157,7 @@ func (platformCtrl *Controller) updatePlatform(rw http.ResponseWriter, req *http
 	}
 	newPlatform.ID = platformID
 	newPlatform.UpdatedAt = time.Now().UTC()
-	platformStorage := storage.Get().Platform()
+	platformStorage := platformCtrl.PlatformStorage
 	err := platformStorage.Update(newPlatform)
 	if err != nil {
 		if err == storage.ErrUniqueViolation {

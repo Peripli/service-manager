@@ -7,13 +7,15 @@ import (
 
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/gorilla/mux"
 	uuid "github.com/satori/go.uuid"
 )
 
 // Controller broker controller
-type Controller struct{}
+type Controller struct {
+	BrokerStorage storage.Broker
+}
 
 func (brokerCtrl *Controller) addBroker(response http.ResponseWriter, request *http.Request) error {
 	logrus.Debugf("POST %s", request.RequestURI)
@@ -42,7 +44,7 @@ func (brokerCtrl *Controller) addBroker(response http.ResponseWriter, request *h
 	broker.CreatedAt = currentTime
 	broker.UpdatedAt = currentTime
 
-	brokerStorage := storage.Get().Broker()
+	brokerStorage := brokerCtrl.BrokerStorage
 	err = brokerStorage.Create(&broker)
 	if err != nil {
 		if err == storage.ErrUniqueViolation {
@@ -59,7 +61,7 @@ func (brokerCtrl *Controller) getBroker(response http.ResponseWriter, request *h
 	logrus.Debugf("GET %s", request.RequestURI)
 
 	brokerID := mux.Vars(request)["broker_id"]
-	brokerStorage := storage.Get().Broker()
+	brokerStorage := brokerCtrl.BrokerStorage
 	broker, err := brokerStorage.Get(brokerID)
 	if err != nil {
 		if err == storage.ErrNotFound {
@@ -73,7 +75,7 @@ func (brokerCtrl *Controller) getBroker(response http.ResponseWriter, request *h
 func (brokerCtrl *Controller) getAllBrokers(response http.ResponseWriter, request *http.Request) error {
 	logrus.Debugf("GET %s", request.RequestURI)
 
-	brokerStorage := storage.Get().Broker()
+	brokerStorage := brokerCtrl.BrokerStorage
 	brokers, err := brokerStorage.GetAll()
 	if err != nil {
 		return err
@@ -89,7 +91,7 @@ func (brokerCtrl *Controller) deleteBroker(response http.ResponseWriter, request
 	logrus.Debugf("DELETE %s", request.RequestURI)
 
 	brokerID := mux.Vars(request)["broker_id"]
-	brokerStorage := storage.Get().Broker()
+	brokerStorage := brokerCtrl.BrokerStorage
 	if err := brokerStorage.Delete(brokerID); err != nil {
 		if err == storage.ErrNotFound {
 			return rest.CreateErrorResponse(err, http.StatusNotFound, "NotFound")
@@ -111,7 +113,7 @@ func (brokerCtrl *Controller) updateBroker(response http.ResponseWriter, request
 	broker.ID = mux.Vars(request)["broker_id"]
 	broker.UpdatedAt = time.Now().UTC()
 
-	brokerStorage := storage.Get().Broker()
+	brokerStorage := brokerCtrl.BrokerStorage
 	if err := brokerStorage.Update(&broker); err != nil {
 		if err == storage.ErrNotFound {
 			return rest.CreateErrorResponse(err, http.StatusNotFound, "NotFound")

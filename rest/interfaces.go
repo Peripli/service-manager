@@ -14,9 +14,13 @@
  *    limitations under the License.
  */
 
+// Package rest contains logic for building the Service Manager REST API
 package rest
 
 import "net/http"
+
+// AllMethods matches all REST HTTP Methods
+const AllMethods = "*"
 
 // API is the primary interface for REST API registration
 type API interface {
@@ -39,7 +43,7 @@ type Route struct {
 	Endpoint Endpoint
 
 	// Handler is the function that should handle incoming requests for this endpoint
-	Handler APIHandler
+	Handler http.Handler
 }
 
 // Endpoint is a combination of a Path and an HTTP Method
@@ -49,3 +53,9 @@ type Endpoint struct {
 
 // APIHandler enriches http.HandlerFunc with an error response for further processing
 type APIHandler func(http.ResponseWriter, *http.Request) error
+
+func (ah APIHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
+	if err := ah(rw, r); err != nil {
+		HandleError(err, rw)
+	}
+}

@@ -1,5 +1,5 @@
 /*
- *    Copyright 2018 The Service Manager Authors
+ * Copyright 2018 The Service Manager Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import (
 	"github.com/Peripli/service-manager/rest"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/Peripli/service-manager/storage/storagefakes"
 )
 
 func TestApi(t *testing.T) {
@@ -37,18 +38,23 @@ func (c *testController) Routes() []rest.Route {
 }
 
 var _ = Describe("API", func() {
-	var defaultAPI rest.API
+
+	var (
+		mockedStorage *storagefakes.FakeStorage
+		api rest.API
+	)
 
 	BeforeEach(func() {
-		defaultAPI = Default()
+		mockedStorage = &storagefakes.FakeStorage{}
+
+		api = Default(mockedStorage)
 	})
 
 	Describe("Controller Registration", func() {
-
-		Context("With nil controller", func() {
+		Context("With nil controllers slice", func() {
 			It("Should panic", func() {
 				nilControllersSlice := func() {
-					defaultAPI.RegisterControllers(nil)
+					api.RegisterControllers(nil)
 				}
 				Expect(nilControllersSlice).To(Panic())
 			})
@@ -60,16 +66,17 @@ var _ = Describe("API", func() {
 					var controllers []rest.Controller
 					controllers = append(controllers, &testController{})
 					controllers = append(controllers, nil)
-					defaultAPI.RegisterControllers(controllers...)
+					api.RegisterControllers(controllers...)
 				}
 				Expect(nilControllerInSlice).To(Panic())
 			})
 		})
 
 		Context("With no brokers registered", func() {
-			It("Should have only one broker", func() {
-				defaultAPI.RegisterControllers(&testController{})
-				Expect(len(defaultAPI.Controllers())).To(Equal(3))
+			It("Should increase broker count", func() {
+				originalControllersCount := len(api.Controllers())
+				api.RegisterControllers(&testController{})
+				Expect(len(api.Controllers())).To(Equal(originalControllersCount + 1))
 			})
 		})
 	})
