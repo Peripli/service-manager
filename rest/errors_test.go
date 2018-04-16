@@ -24,8 +24,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/sirupsen/logrus"
-
-	"github.com/Peripli/service-manager/rest"
 )
 
 func TestRest(t *testing.T) {
@@ -83,7 +81,6 @@ func (errorResponseWriter) WriteHeader(statusCode int) {
 var _ = Describe("Errors", func() {
 
 	mockedWriter := &mockedResponseWriter{}
-	testError := errors.New("test description")
 
 	BeforeEach(func() {
 		mockedWriter.data = []byte{}
@@ -92,8 +89,8 @@ var _ = Describe("Errors", func() {
 	Describe("Send JSON", func() {
 		Context("With valid parameters", func() {
 			It("Writes to response writer", func() {
-				response := rest.ErrorResponse{Error: "test error", Description: "test description"}
-				if err := rest.SendJSON(mockedWriter, http.StatusOK, response); err != nil {
+				response := ErrorResponse{ErrorType: "test error", Description: "test description"}
+				if err := SendJSON(mockedWriter, http.StatusOK, response); err != nil {
 					Fail("Serializing valid ErrorResponse should be successful")
 				}
 				Expect(string(mockedWriter.data)).To(ContainSubstring("test description"))

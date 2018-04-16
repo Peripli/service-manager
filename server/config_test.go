@@ -187,8 +187,8 @@ var _ = Describe("config", func() {
 					Expect(err).To(Not(HaveOccurred()))
 
 					Expect(c.Address).Should(Equal(":" + strconv.Itoa(envSettings.Server.Port)))
-					Expect(c.RequestTimeout).Should(Equal(time.Duration(envSettings.Server.RequestTimeout)))
-					Expect(c.ShutdownTimeout).Should(Equal(time.Duration(envSettings.Server.ShutdownTimeout)))
+					Expect(c.RequestTimeout).Should(Equal(time.Millisecond * time.Duration(envSettings.Server.RequestTimeout)))
+					Expect(c.ShutdownTimeout).Should(Equal(time.Millisecond * time.Duration(envSettings.Server.ShutdownTimeout)))
 					Expect(c.LogLevel).Should(Equal(envSettings.Log.Level))
 					Expect(c.LogFormat).Should(Equal(envSettings.Log.Format))
 					Expect(c.DbURI).Should(Equal(envSettings.Db.URI))

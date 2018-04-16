@@ -3,6 +3,8 @@ package serverfakes
 
 import (
 	"sync"
+
+	"github.com/Peripli/service-manager/server"
 )
 
 type FakeEnvironment struct {
@@ -204,3 +206,5 @@ func (fake *FakeEnvironment) recordInvocation(key string, args []interface{}) {
 	}
 	fake.invocations[key] = append(fake.invocations[key], args)
 }
+
+var _ server.Environment = new(FakeEnvironment)
