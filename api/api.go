@@ -14,13 +14,14 @@
  *    limitations under the License.
  */
 
- // Package api contains logic for building the Service Manager API business logic
+// Package api contains logic for building the Service Manager API business logic
 package api
 
 import (
+	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/rest"
-	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/rest/broker"
+	"github.com/Peripli/service-manager/storage"
 )
 
 // Default returns the minimum set of REST APIs needed for the Service Manager
@@ -28,6 +29,9 @@ func Default(storage storage.Storage) rest.API {
 	return &smAPI{
 		controllers: []rest.Controller{
 			broker.Controller{
+				BrokerStorage: storage.Broker(),
+			},
+			osb.Controller{
 				BrokerStorage: storage.Broker(),
 			},
 		},

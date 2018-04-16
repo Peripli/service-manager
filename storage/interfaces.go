@@ -14,13 +14,14 @@
  *    limitations under the License.
  */
 
- // Package storage provides generic interfaces around the Service Manager storage and provides logic
- // for registration and usage of storages
+// Package storage provides generic interfaces around the Service Manager storage and provides logic
+// for registration and usage of storages
 package storage
 
 import (
-	"github.com/Peripli/service-manager/types"
 	"context"
+
+	"github.com/Peripli/service-manager/types"
 )
 
 // Storage interface provides entity-specific storages.
@@ -37,6 +38,7 @@ type Storage interface {
 }
 
 // Broker interface for Broker db operations
+//go:generate counterfeiter . Broker
 type Broker interface {
 	// Just to showcase
 	Create(ctx context.Context, broker *types.Broker) error

@@ -35,3 +35,11 @@
 [[constraint]]
   name = "github.com/fatih/structs"
   version = "1.0.0"
+
+[[constraint]]
+  name = "github.com/pmorie/go-open-service-broker-client"
+  version = "0.0.9"
+
+[[constraint]]
+  name = "github.com/pmorie/osb-broker-lib"
+  version = "0.0.6"
