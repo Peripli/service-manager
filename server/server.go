@@ -137,6 +137,7 @@ func authenticationMiddleware(smUsername, smPassword string) mux.MiddlewareFunc 
 			if !authOK {
 				logrus.Debug("No authorization provided with request")
 
+				response.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
 				response.WriteHeader(http.StatusUnauthorized)
 				response.Write([]byte("Not authorized"))
 				return
@@ -145,6 +146,7 @@ func authenticationMiddleware(smUsername, smPassword string) mux.MiddlewareFunc 
 			if username != smUsername || password != smPassword {
 				logrus.Debug("Invalid credentials provided")
 
+				response.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
 				response.WriteHeader(http.StatusUnauthorized)
 				response.Write([]byte("Invalid credentials"))
 				return
