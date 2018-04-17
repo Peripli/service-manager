@@ -14,18 +14,21 @@
  *    limitations under the License.
  */
 
-package itest
+package util
 
 import (
 	"fmt"
 
+	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 )
+
+var SM *httpexpect.Expect
 
 type Object = map[string]interface{}
 type Array = []interface{}
 
-func mapContains(actual Object, expected Object) {
+func MapContains(actual Object, expected Object) {
 	for k, v := range expected {
 		value, ok := actual[k]
 		if !ok {

@@ -24,14 +24,13 @@ import (
 
 	"github.com/Peripli/service-manager/bootstrap"
 	"github.com/Peripli/service-manager/env"
+	. "github.com/Peripli/service-manager/test/api/util"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 )
-
-var sm *httpexpect.Expect
 
 func TestAPI(t *testing.T) {
 	os.Chdir("../..")
@@ -56,7 +55,7 @@ var _ = Describe("Service Manager API", func() {
 
 	BeforeSuite(func() {
 		testServer = httptest.NewServer(getServerRouter())
-		sm = httpexpect.New(GinkgoT(), testServer.URL)
+		SM = httpexpect.New(GinkgoT(), testServer.URL)
 	})
 
 	AfterSuite(func() {

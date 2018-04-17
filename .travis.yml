@@ -24,7 +24,7 @@ script:
   - gometalinter --vendor ./...
 
   # Execute tests
-  - go test $(go list ./... | grep -v "..fakes") -covermode=count -coverprofile=profile.cov
+  - go test $(go list ./... | grep -v "..fakes") -coverpkg ./... -covermode=count -coverprofile=profile.cov
   - goveralls -coverprofile profile.cov -service=travis-ci
 
   #Execute security scan
