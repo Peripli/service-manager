@@ -35,6 +35,7 @@ type Settings struct {
 	Server *AppSettings
 	Db     *DbSettings
 	Log    *LogSettings
+	Auth   *AuthSettings
 }
 
 // AppSettings type to be loaded from the environment
@@ -55,6 +56,12 @@ type LogSettings struct {
 	Format string
 }
 
+// AuthSettings type to be loaded from the environment
+type AuthSettings struct {
+	Username string
+	Password string
+}
+
 // Config type represents Service Manager configuration
 type Config struct {
 	Address         string
@@ -63,6 +70,8 @@ type Config struct {
 	LogLevel        string
 	LogFormat       string
 	DbURI           string
+	Username        string
+	Password        string
 }
 
 // DefaultConfiguration returns a default server configuration
@@ -74,6 +83,8 @@ func DefaultConfiguration() *Config {
 		LogLevel:        "debug",
 		LogFormat:       "text",
 		DbURI:           "",
+		Username:        "admin",
+		Password:        "admin",
 	}
 
 	return config
@@ -109,6 +120,12 @@ func NewConfiguration(env Environment) (*Config, error) {
 	}
 	if len(configSettings.Log.Level) != 0 {
 		config.LogLevel = configSettings.Log.Level
+	}
+	if configSettings.Auth.Username != "" {
+		config.Username = configSettings.Auth.Username
+	}
+	if configSettings.Auth.Password != "" {
+		config.Password = configSettings.Auth.Password
 	}
 
 	return config, nil

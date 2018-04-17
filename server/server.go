@@ -39,11 +39,12 @@ type Server struct {
 // Returns the new server and an error if creation was not successful
 func New(api rest.API, config *Config) (*Server, error) {
 	router := mux.NewRouter().StrictSlash(true)
+
 	if err := registerControllers(router, api.Controllers()); err != nil {
 		return nil, fmt.Errorf("new Config: %s", err)
 	}
 
-	//registerMiddlewares(api.)
+	router.Use(authenticationMiddleware(config.Username, config.Password))
 
 	setUpLogging(config.LogLevel, config.LogFormat)
 
@@ -141,5 +142,31 @@ func setUpLogging(logLevel string, logFormat string) {
 		logrus.SetFormatter(&logrus.JSONFormatter{})
 	} else {
 		logrus.SetFormatter(&logrus.TextFormatter{})
+	}
+}
+
+func authenticationMiddleware(smUsername, smPassword string) mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+
+			username, password, authOK := request.BasicAuth()
+			if !authOK {
+				logrus.Debug("No authorization provided with request")
+
+				response.WriteHeader(http.StatusUnauthorized)
+				response.Write([]byte("Not authorized"))
+				return
+			}
+
+			if username != smUsername || password != smPassword {
+				logrus.Debug("Invalid credentials provided")
+
+				response.WriteHeader(http.StatusUnauthorized)
+				response.Write([]byte("Invalid credentials"))
+				return
+			}
+
+			next.ServeHTTP(response, request)
+		})
 	}
 }

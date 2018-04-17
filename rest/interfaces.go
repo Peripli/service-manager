@@ -20,7 +20,6 @@ package rest
 import (
 	"net/http"
 
-	"github.com/gorilla/mux"
 )
 
 // AllMethods matches all REST HTTP Methods
@@ -30,8 +29,6 @@ const AllMethods = "*"
 type API interface {
 	// Controllers returns the controllers registered for the API
 	Controllers() []Controller
-
-	Middleware() []mux.MiddlewareFunc
 
 	// RegisterControllers registers a set of controllers
 	RegisterControllers(...Controller)
