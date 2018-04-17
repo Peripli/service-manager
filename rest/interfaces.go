@@ -17,7 +17,10 @@
 // Package rest contains logic for building the Service Manager REST API
 package rest
 
-import "net/http"
+import (
+	"net/http"
+
+)
 
 // AllMethods matches all REST HTTP Methods
 const AllMethods = "*"

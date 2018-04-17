@@ -43,6 +43,8 @@ func New(api rest.API, config *Config) (*Server, error) {
 		return nil, fmt.Errorf("new Config: %s", err)
 	}
 
+	router.Use(authenticationMiddleware(config.Username, config.Password))
+
 	return &Server{
 		Configuration: config,
 		Router:        router,
