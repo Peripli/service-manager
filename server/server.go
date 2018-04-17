@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"fmt"
+
 	"github.com/Peripli/service-manager/rest"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
@@ -41,6 +42,8 @@ func New(api rest.API, config *Config) (*Server, error) {
 	if err := registerControllers(router, api.Controllers()); err != nil {
 		return nil, fmt.Errorf("new Config: %s", err)
 	}
+
+	//registerMiddlewares(api.)
 
 	setUpLogging(config.LogLevel, config.LogFormat)
 
@@ -80,7 +83,7 @@ func moveRoutes(prefix string, fromRouter *mux.Router, toRouter *mux.Router) err
 		subRouter.Handle(path, route.GetHandler()).Methods(methods...)
 		return nil
 	})
-	}
+}
 
 func registerControllers(router *mux.Router, controllers []rest.Controller) error {
 	for _, ctrl := range controllers {

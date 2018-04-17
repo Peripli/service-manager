@@ -22,6 +22,7 @@ import (
 	"github.com/Peripli/service-manager/api/platform"
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
+	"github.com/gorilla/mux"
 )
 
 // Default returns the minimum set of REST APIs needed for the Service Manager
@@ -35,15 +36,23 @@ func Default(storage storage.Storage) rest.API {
 				PlatformStorage: storage.Platform(),
 			},
 		},
+		middleware: []mux.MiddlewareFunc{
+			authenticationMiddleware,
+		},
 	}
 }
 
 type smAPI struct {
 	controllers []rest.Controller
+	middleware  []mux.MiddlewareFunc
 }
 
 func (api *smAPI) Controllers() []rest.Controller {
 	return api.controllers
+}
+
+func (api *smAPI) Middleware() []mux.MiddlewareFunc {
+	return api.middleware
 }
 
 func (api *smAPI) RegisterControllers(controllers ...rest.Controller) {
