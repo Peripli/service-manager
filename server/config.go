@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 // Environment represents an abstraction over the environment from which Service Manager configuration will be loaded
@@ -128,6 +130,8 @@ func NewConfiguration(env Environment) (*Config, error) {
 		config.Password = configSettings.Auth.Password
 	}
 
+	setUpLogging(config.LogLevel, config.LogFormat)
+
 	return config, nil
 }
 
@@ -152,4 +156,17 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("validate Config: DbURI missing")
 	}
 	return nil
+}
+
+func setUpLogging(logLevel string, logFormat string) {
+	level, err := logrus.ParseLevel(logLevel)
+	if err != nil {
+		logrus.Fatal("Could not parse log level configuration")
+	}
+	logrus.SetLevel(level)
+	if logFormat == "json" {
+		logrus.SetFormatter(&logrus.JSONFormatter{})
+	} else {
+		logrus.SetFormatter(&logrus.TextFormatter{})
+	}
 }

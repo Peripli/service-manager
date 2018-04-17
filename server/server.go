@@ -39,13 +39,11 @@ type Server struct {
 // Returns the new server and an error if creation was not successful
 func New(api rest.API, config *Config) (*Server, error) {
 	router := mux.NewRouter().StrictSlash(true)
-
 	if err := registerControllers(router, api.Controllers()); err != nil {
 		return nil, fmt.Errorf("new Config: %s", err)
 	}
 
 	router.Use(authenticationMiddleware(config.Username, config.Password))
-
 	setUpLogging(config.LogLevel, config.LogFormat)
 
 	return &Server{
