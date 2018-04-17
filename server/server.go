@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"fmt"
+
 	"github.com/Peripli/service-manager/rest"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
@@ -41,8 +42,6 @@ func New(api rest.API, config *Config) (*Server, error) {
 	if err := registerControllers(router, api.Controllers()); err != nil {
 		return nil, fmt.Errorf("new Config: %s", err)
 	}
-
-	setUpLogging(config.LogLevel, config.LogFormat)
 
 	return &Server{
 		Configuration: config,
@@ -80,7 +79,7 @@ func moveRoutes(prefix string, fromRouter *mux.Router, toRouter *mux.Router) err
 		subRouter.Handle(path, route.GetHandler()).Methods(methods...)
 		return nil
 	})
-	}
+}
 
 func registerControllers(router *mux.Router, controllers []rest.Controller) error {
 	for _, ctrl := range controllers {
@@ -125,18 +124,5 @@ func gracefulShutdown(ctx context.Context, server *http.Server, shutdownTimeout 
 		}
 	} else {
 		logrus.Debug("Server stopped")
-	}
-}
-
-func setUpLogging(logLevel string, logFormat string) {
-	level, err := logrus.ParseLevel(logLevel)
-	if err != nil {
-		logrus.Fatal("Could not parse log level configuration")
-	}
-	logrus.SetLevel(level)
-	if logFormat == "json" {
-		logrus.SetFormatter(&logrus.JSONFormatter{})
-	} else {
-		logrus.SetFormatter(&logrus.TextFormatter{})
 	}
 }
