@@ -123,11 +123,14 @@ func NewConfiguration(env Environment) (*Config, error) {
 	if len(configSettings.Log.Level) != 0 {
 		config.LogLevel = configSettings.Log.Level
 	}
-	if configSettings.Auth.Username != "" {
-		config.Username = configSettings.Auth.Username
-	}
-	if configSettings.Auth.Password != "" {
-		config.Password = configSettings.Auth.Password
+
+	if configSettings.Auth != nil {
+		if configSettings.Auth.Username != "" {
+			config.Username = configSettings.Auth.Username
+		}
+		if configSettings.Auth.Password != "" {
+			config.Password = configSettings.Auth.Password
+		}
 	}
 
 	setUpLogging(config.LogLevel, config.LogFormat)
