@@ -44,7 +44,6 @@ func New(api rest.API, config *Config) (*Server, error) {
 	}
 
 	router.Use(authenticationMiddleware(config.Username, config.Password))
-	setUpLogging(config.LogLevel, config.LogFormat)
 
 	return &Server{
 		Configuration: config,
@@ -127,19 +126,6 @@ func gracefulShutdown(ctx context.Context, server *http.Server, shutdownTimeout 
 		}
 	} else {
 		logrus.Debug("Server stopped")
-	}
-}
-
-func setUpLogging(logLevel string, logFormat string) {
-	level, err := logrus.ParseLevel(logLevel)
-	if err != nil {
-		logrus.Fatal("Could not parse log level configuration")
-	}
-	logrus.SetLevel(level)
-	if logFormat == "json" {
-		logrus.SetFormatter(&logrus.JSONFormatter{})
-	} else {
-		logrus.SetFormatter(&logrus.TextFormatter{})
 	}
 }
 
