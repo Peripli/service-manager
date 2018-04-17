@@ -128,31 +128,3 @@ func gracefulShutdown(ctx context.Context, server *http.Server, shutdownTimeout 
 		logrus.Debug("Server stopped")
 	}
 }
-
-func authenticationMiddleware(smUsername, smPassword string) mux.MiddlewareFunc {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
-
-			username, password, authOK := request.BasicAuth()
-			if !authOK {
-				logrus.Debug("No authorization provided with request")
-
-				response.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
-				response.WriteHeader(http.StatusUnauthorized)
-				response.Write([]byte("Not authorized"))
-				return
-			}
-
-			if username != smUsername || password != smPassword {
-				logrus.Debug("Invalid credentials provided")
-
-				response.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
-				response.WriteHeader(http.StatusUnauthorized)
-				response.Write([]byte("Invalid credentials"))
-				return
-			}
-
-			next.ServeHTTP(response, request)
-		})
-	}
-}
