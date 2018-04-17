@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package api_itest
+package itest
 
 import (
 	"net/http"
