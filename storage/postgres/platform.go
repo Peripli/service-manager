@@ -54,8 +54,6 @@ var (
 	)
 	DELETE FROM %s
 	WHERE id IN (SELECT credentials_id from pl)`, platformTable, credentialsTable)
-
-	updatePlatform = "UPDATE " + platformTable + " SET name=:name, type=:type, description=:description, updated_at=:updated_at WHERE id=:id"
 )
 
 func (storage *platformStorage) Create(platform *rest.Platform) error {
@@ -118,13 +116,7 @@ func (storage *platformStorage) Update(platform *rest.Platform) error {
 		logrus.Debug("Platform update: nothing to update")
 		return nil
 	}
-	result, err := storage.db.NamedExec(updatePlatform, &Platform{
-		ID:          platform.ID,
-		Type:        platform.Type,
-		Name:        platform.Name,
-		Description: platform.Description,
-		UpdatedAt:   platform.UpdatedAt,
-	})
+	result, err := storage.db.NamedExec(updateQuery, convertPlatformToDTO(platform))
 	if err = checkUniqueViolation(err); err != nil {
 		return err
 	}

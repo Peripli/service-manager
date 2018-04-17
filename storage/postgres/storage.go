@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
- // Package postgres implements the Service Manager storage interfaces for Postgresql DB
+// Package postgres implements the Service Manager storage interfaces for Postgresql DB
 package postgres
 
 import (
@@ -86,9 +86,7 @@ func updateSchema(db *sqlx.DB) error {
 	if err != nil {
 		return err
 	}
-	m, err := migrate.NewWithDatabaseInstance(
-		"file://storage/postgres/migrations",
-		"postgres", driver)
+	m, err := migrate.NewWithDatabaseInstance("file://storage/postgres/migrations", "postgres", driver)
 	if err != nil {
 		return err
 	}
