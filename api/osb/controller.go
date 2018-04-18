@@ -14,6 +14,7 @@
  *    limitations under the License.
  */
 
+// Package osb contains logic for building the Service Manager OSB API
 package osb
 
 import (
@@ -29,10 +30,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Controller implements rest.Controller by providing OSB API logic
 type Controller struct {
 	BrokerStorage storage.Broker
 }
 
+var _ rest.Controller = &Controller{}
+
+// Routes implements rest.Controller.Routes by providing the routes for the OSB API
 func (c *Controller) Routes() []rest.Route {
 	return []rest.Route{
 		{
