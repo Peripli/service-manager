@@ -1,3 +1,19 @@
+/*
+ * Copyright 2018 The Service Manager Authors
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package osb
 
 import (
@@ -26,6 +42,7 @@ type BusinessLogic struct {
 
 var _ broker.Interface = &BusinessLogic{}
 
+// NewBusinessLogic creates an OSB business logic containing logic to proxy OSB calls
 func NewBusinessLogic(createFunc osbc.CreateFunc, brokerStorage storage.Broker) *BusinessLogic {
 	return &BusinessLogic{
 		createFunc:    createFunc,
@@ -169,13 +186,13 @@ func (b *BusinessLogic) osbClient(request *http.Request) (osbc.Client, error) {
 	brokerID, ok := vars[BrokerIDPathParam]
 	logrus.Debugf("Obtained path parameter [brokerID = %s] from mux vars", brokerID)
 	if !ok {
-		return nil, fmt.Errorf("Error creating OSB client: brokerID path parameter not found")
+		return nil, fmt.Errorf("error creating OSB client: brokerID path parameter not found")
 	}
-	broker, err := b.brokerStorage.Find(request.Context(), brokerID)
+	serviceBroker, err := b.brokerStorage.Find(request.Context(), brokerID)
 	if err != nil {
-		return nil, fmt.Errorf("Error obtaining broker with id %s from storage: %s", brokerID, err)
+		return nil, fmt.Errorf("error obtaining serviceBroker with id %s from storage: %s", brokerID, err)
 	}
-	config := clientConfigForBroker(broker)
-	logrus.Debug("Building OSB client for broker with name: ", config.Name, " accesible at: ", config.URL)
+	config := clientConfigForBroker(serviceBroker)
+	logrus.Debug("Building OSB client for serviceBroker with name: ", config.Name, " accessible at: ", config.URL)
 	return b.createFunc(config)
 }
