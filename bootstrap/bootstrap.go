@@ -24,6 +24,7 @@ import (
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/postgres"
+	"github.com/sirupsen/logrus"
 )
 
 // CreateServer creates service manager server
@@ -32,6 +33,8 @@ func CreateServer(ctx context.Context, serverEnv server.Environment) (*server.Se
 	if err != nil {
 		return nil, fmt.Errorf("Error loading configuration: %v", err)
 	}
+
+	setUpLogging(config.LogLevel, config.LogFormat)
 
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("Configuration validation failed: %v", err)
@@ -48,4 +51,17 @@ func CreateServer(ctx context.Context, serverEnv server.Environment) (*server.Se
 		return nil, fmt.Errorf("Error creating server: %v", err)
 	}
 	return srv, nil
+}
+
+func setUpLogging(logLevel string, logFormat string) {
+	level, err := logrus.ParseLevel(logLevel)
+	if err != nil {
+		logrus.Fatal("Could not parse log level configuration")
+	}
+	logrus.SetLevel(level)
+	if logFormat == "json" {
+		logrus.SetFormatter(&logrus.JSONFormatter{})
+	} else {
+		logrus.SetFormatter(&logrus.TextFormatter{})
+	}
 }
