@@ -13,11 +13,11 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-package itest
+package api
 
 import (
 	"net/http"
-	. "github.com/Peripli/service-manager/test/api/util"
+
 	. "github.com/onsi/ginkgo"
 )
 

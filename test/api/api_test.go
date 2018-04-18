@@ -13,7 +13,7 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-package itest
+package api
 
 import (
 	"context"
@@ -24,7 +24,6 @@ import (
 
 	"github.com/Peripli/service-manager/bootstrap"
 	"github.com/Peripli/service-manager/env"
-	. "github.com/Peripli/service-manager/test/api/util"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 
