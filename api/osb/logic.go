@@ -181,8 +181,7 @@ func (b *BusinessLogic) Update(request *osbc.UpdateInstanceRequest, c *broker.Re
 }
 
 // ValidateBrokerAPIVersion implements pmorie/osb-broker-lib/pkg/broker/Interface.ValidateBrokerAPIVersion by
-// proxying the method to the underlying implementation to an underlying service broker
-// the id of which should be provided as path parameter
+// checking that the version provided as parameter matches the latest supported version
 func (b *BusinessLogic) ValidateBrokerAPIVersion(version string) error {
 	expectedVersion := osbc.LatestAPIVersion().HeaderValue()
 	if version != expectedVersion {
