@@ -32,6 +32,7 @@ import (
 	"github.com/pmorie/osb-broker-lib/pkg/broker"
 )
 
+// BrokerIDPathParam is used as a key for broker id path parameter
 const BrokerIDPathParam = "brokerID"
 
 // BusinessLogic provides an implementation of the osb.BusinessLogic interface.

@@ -19,17 +19,18 @@ package broker
 
 import (
 	"net/http"
+
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
 )
 
 // Controller just to showcase usage
-type Controller struct{
+type Controller struct {
 	BrokerStorage storage.Broker
 }
 
 // Routes just to showcase usage
-func (c Controller) Routes() []rest.Route {
+func (c *Controller) Routes() []rest.Route {
 	return []rest.Route{
 		{
 			Endpoint: rest.Endpoint{
@@ -45,6 +46,6 @@ func (c Controller) Routes() []rest.Route {
 
 // addBroker just to showcase usage
 func (c *Controller) addBroker(response http.ResponseWriter, request *http.Request) error {
-		// use broker storage
-		return nil
-	}
+	// use broker storage
+	return nil
+}

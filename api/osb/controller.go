@@ -33,7 +33,7 @@ type Controller struct {
 	BrokerStorage storage.Broker
 }
 
-func (c Controller) Routes() []rest.Route {
+func (c *Controller) Routes() []rest.Route {
 	return []rest.Route{
 		{
 			Endpoint: rest.Endpoint{
@@ -45,7 +45,7 @@ func (c Controller) Routes() []rest.Route {
 	}
 }
 
-func (c Controller) osbHandler() http.Handler {
+func (c *Controller) osbHandler() http.Handler {
 	businessLogic := NewBusinessLogic(osbc.NewClient, c.BrokerStorage)
 
 	reg := prom.NewRegistry()

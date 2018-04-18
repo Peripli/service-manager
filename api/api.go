@@ -28,10 +28,10 @@ import (
 func Default(storage storage.Storage) rest.API {
 	return &smAPI{
 		controllers: []rest.Controller{
-			broker.Controller{
+			&broker.Controller{
 				BrokerStorage: storage.Broker(),
 			},
-			osb.Controller{
+			&osb.Controller{
 				BrokerStorage: storage.Broker(),
 			},
 		},

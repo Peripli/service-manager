@@ -67,7 +67,7 @@
     ".",
     "reflectx"
   ]
-  revision = "cf35089a197953c69420c8d0cecda90809764b1d"
+  revision = "2aeb6a910c2b94f2d5eb53d9895d80e27264ec41"
 
 [[projects]]
   branch = "master"
@@ -148,7 +148,10 @@
 
 [[projects]]
   name = "github.com/pmorie/go-open-service-broker-client"
-  packages = ["v2", "v2/fake"]
+  packages = [
+    "v2",
+    "v2/fake"
+  ]
   revision = "dca737037ce636eb282e84e3a1c7479c9692e884"
   version = "0.0.10"
 
@@ -160,8 +163,8 @@
     "pkg/rest",
     "pkg/server"
   ]
-  revision = "589b24e9f330a7e3ca646929907f3376cc1629b6"
-  version = "0.0.6"
+  revision = "cfcc33dad32c684db17e7e23ea3899df90a7b2c9"
+  version = "0.0.7"
 
 [[projects]]
   name = "github.com/prometheus/client_golang"
@@ -229,8 +232,8 @@
 [[projects]]
   name = "github.com/spf13/pflag"
   packages = ["."]
-  revision = "e57e3eeb33f795204c1ca35f56c44f83227c6e66"
-  version = "v1.0.0"
+  revision = "583c0c0531f06d5278b7d917446061adc344b5cd"
+  version = "v1.0.1"
 
 [[projects]]
   name = "github.com/spf13/viper"
@@ -242,7 +245,7 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "b2aa35443fbc700ab74c586ae79b81c171851023"
+  revision = "d6449816ce06963d9d136eee5a56fca5b0616e7e"
 
 [[projects]]
   branch = "master"
@@ -252,7 +255,7 @@
     "html/atom",
     "html/charset"
   ]
-  revision = "b3c676e531a6dc479fa1b35ac961c13f5e2b4d2e"
+  revision = "d41e8174641f662c5a2d1c7a5f9e828788eb8706"
 
 [[projects]]
   branch = "master"
@@ -261,7 +264,7 @@
     "unix",
     "windows"
   ]
-  revision = "1d206c9fa8975fb4cf00df1dc8bf3283dc24ba0e"
+  revision = "b126b21c05a91c856b027c16779c12e3bf236954"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -299,6 +302,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "9c88674e292395f1bb050fa16a93e1917983648769fbbb1d01bd015fc0cfe798"
+  inputs-digest = "1788f4e32b89d7136807cf208d6fcd555c6a7e47a06cef8c834699e74a69178d"
   solver-name = "gps-cdcl"
   solver-version = 1
