@@ -92,6 +92,7 @@ func registerControllers(router *mux.Router, controllers []rest.Controller) erro
 			fromRouter, ok := route.Handler.(*mux.Router)
 			if ok {
 				if err := registerRoutes(route.Endpoint.Path, fromRouter, router); err != nil {
+
 					return fmt.Errorf("register controllers: %s", err)
 				}
 			} else {
