@@ -95,6 +95,22 @@ var _ = Describe("Env", func() {
 		})
 	})
 
+	Describe("Set Property", func() {
+		It("Should put it in the environment", func() {
+			Expect(loadEnvironmentFromFile()).To(BeNil())
+			defaultEnv.Set("some.key", "some.value")
+			Expect(defaultEnv.Get("some.key")).To(Equal("some.value"))
+		})
+
+		It("Should override existing value for key", func() {
+			Expect(loadEnvironmentFromFile()).To(BeNil())
+			defaultEnv.Set("port", "1234")
+			actual := defaultEnv.Get("port")
+			Expect(actual).To(Not(Equal(expected["port"])))
+			Expect(actual).To(Equal("1234"))
+		})
+	})
+
 	Describe("Unmarshal", func() {
 		BeforeEach(func() {
 			Expect(loadEnvironmentFromFile()).To(BeNil())
