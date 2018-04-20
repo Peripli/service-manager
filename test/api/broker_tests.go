@@ -66,6 +66,7 @@ func testBrokers() {
 				Status(http.StatusOK).
 				JSON().Object()
 
+			reply.NotContainsKey("credentials")
 			broker["id"] = id
 			delete(broker, "credentials")
 			MapContains(reply.Raw(), broker)

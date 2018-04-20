@@ -26,6 +26,9 @@ const (
 	// platformTable db table name for platforms
 	platformTable = "platforms"
 
+	// brokerTable db table name for brokers
+	brokerTable = "brokers"
+
 	// table db table name for credentials
 	credentialsTable = "credentials"
 
@@ -70,7 +73,8 @@ func (brokerDTO *Broker) Convert() *types.Broker {
 		Description: brokerDTO.Description,
 		CreatedAt:   brokerDTO.CreatedAt,
 		UpdatedAt:   brokerDTO.UpdatedAt,
-		BrokerURL:   brokerDTO.BrokerURL}
+		BrokerURL:   brokerDTO.BrokerURL,
+	}
 }
 
 // Convert converts to types.Platform

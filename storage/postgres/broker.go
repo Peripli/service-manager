@@ -17,14 +17,11 @@
 package postgres
 
 import (
-	"database/sql"
 	"fmt"
 	"strings"
 
-	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/types"
 	"github.com/jmoiron/sqlx"
-	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 )
 
@@ -32,12 +29,11 @@ type brokerStorage struct {
 	db *sqlx.DB
 }
 
-type fetcher func(dest interface{}, query string, args ...interface{}) error
-
-func (store *brokerStorage) Create(broker *types.Broker) error {
-	return transaction(store.db, func(tx *sqlx.Tx) error {
+func (bs *brokerStorage) Create(broker *types.Broker) error {
+	return transaction(bs.db, func(tx *sqlx.Tx) error {
 		credentialsDTO := convertCredentialsToDTO(broker.Credentials)
-		statement, err := tx.PrepareNamed("INSERT INTO credentials (type, username, password, token) VALUES (:type, :username, :password, :token) RETURNING id")
+		statement, err := tx.PrepareNamed(
+			"INSERT INTO " + credentialsTable + " (type, username, password, token) VALUES (:type, :username, :password, :token) RETURNING id")
 		if err != nil {
 			logrus.Error("Unable to create prepared statement")
 			return err
@@ -52,30 +48,44 @@ func (store *brokerStorage) Create(broker *types.Broker) error {
 		brokerDTO := convertBrokerToDTO(broker)
 		brokerDTO.CredentialsID = credentialsID
 
-		_, err = tx.NamedExec("INSERT INTO brokers (id, name, description, broker_url, created_at, updated_at, credentials_id) VALUES (:id, :name, :description, :broker_url, :created_at, :updated_at, :credentials_id)", brokerDTO)
-		if err != nil {
-			logrus.Error("Unable to insert broker")
-			sqlErr, ok := err.(*pq.Error)
-			if ok && sqlErr.Code.Name() == "unique_violation" {
-				return storage.ErrUniqueViolation
-			}
-			return err
-		}
-		return nil
+		_, err = tx.NamedExec(fmt.Sprintf(
+			"INSERT INTO %s (id, name, description, broker_url, created_at, updated_at, credentials_id) %s",
+			brokerTable,
+			"VALUES (:id, :name, :description, :broker_url, :created_at, :updated_at, :credentials_id)"),
+			&brokerDTO)
+		return checkUniqueViolation(err)
 	})
 }
 
-func (store *brokerStorage) Get(id string) (*types.Broker, error) {
-	broker, err := retrieveBroker(store.db.Get, id)
-	if err != nil {
-		return nil, err
+func (bs *brokerStorage) Get(id string) (*types.Broker, error) {
+	broker := &struct {
+		*Broker
+		Username string `db:"username"`
+		Password string `db:"password"`
+	}{
+		&Broker{}, "", "",
 	}
-	return broker.Convert(), nil
+
+	query := fmt.Sprintf(`SELECT b.id, b.name, b.description, b.broker_url, b.created_at, b.updated_at, c.username, c.password
+						 FROM %s AS b INNER JOIN %s AS c ON (b.credentials_id=c.id)
+						 WHERE b.id=$1`, brokerTable, credentialsTable)
+
+	err := bs.db.Get(broker, query, id)
+
+	if err != nil {
+		return nil, checkSQLNoRows(err)
+	}
+
+	result := broker.Convert()
+	result.Credentials = types.NewBasicCredentials(broker.Username, broker.Password)
+
+	return result, nil
 }
 
-func (store *brokerStorage) GetAll() ([]types.Broker, error) {
+func (bs *brokerStorage) GetAll() ([]types.Broker, error) {
 	brokers := []Broker{}
-	if err := store.db.Select(&brokers, "SELECT id, name, description, created_at, updated_at, broker_url FROM brokers"); err != nil {
+	err := bs.db.Select(&brokers, "SELECT id, name, description, created_at, updated_at, broker_url FROM "+brokerTable)
+	if err != nil {
 		logrus.Error("An error occurred while retrieving all brokers")
 		return nil, err
 	}
@@ -86,62 +96,50 @@ func (store *brokerStorage) GetAll() ([]types.Broker, error) {
 	return restBrokers, nil
 }
 
-func (store *brokerStorage) Delete(id string) error {
-	return transaction(store.db, func(tx *sqlx.Tx) error {
-		broker, err := retrieveBroker(tx.Get, id)
-		if err != nil {
-			return err
-		}
+func (bs *brokerStorage) Delete(id string) error {
+	// deleteBroker is a query that deletes Broker and corresponding credentials
+	deleteBroker := fmt.Sprintf(`WITH br AS (
+		DELETE FROM %s
+		WHERE
+			id = $1
+		RETURNING credentials_id
+	)
+	DELETE FROM %s
+	WHERE id IN (SELECT credentials_id from br)`, brokerTable, credentialsTable)
 
-		_, err = tx.Exec("DELETE FROM brokers WHERE id = $1", id)
+	return transaction(bs.db, func(tx *sqlx.Tx) error {
+		result, err := tx.Exec(deleteBroker, &id)
 		if err != nil {
-			logrus.Error("An error occurred while deleting broker with id:", id)
 			return err
 		}
-
-		credentialsID := broker.CredentialsID
-		_, err = tx.Exec("DELETE FROM credentials WHERE id = $1", credentialsID)
-		if err != nil {
-			logrus.Error("Could not delete broker credentials with id:", credentialsID)
-			return err
-		}
-		return nil
+		return checkRowsAffected(result)
 	})
 }
 
-func (store *brokerStorage) Update(broker *types.Broker) error {
-	return transaction(store.db, func(tx *sqlx.Tx) error {
+func (bs *brokerStorage) Update(broker *types.Broker) error {
+	return transaction(bs.db, func(tx *sqlx.Tx) error {
 		updateQueryString := generateUpdateQueryString(broker)
 
 		brokerDTO := convertBrokerToDTO(broker)
 		if updateQueryString != "" {
 			result, err := tx.NamedExec(updateQueryString, brokerDTO)
-			if err != nil {
-				logrus.Error("Unable to update broker")
-				sqlErr, ok := err.(*pq.Error)
-				if ok && sqlErr.Code.Name() == "unique_violation" {
-					return storage.ErrUniqueViolation
-				}
+			if err = checkUniqueViolation(err); err != nil {
 				return err
 			}
-			affectedRows, err := result.RowsAffected()
-			if err != nil {
+			if err = checkRowsAffected(result); err != nil {
 				return err
-			}
-			if affectedRows < 1 {
-				return storage.ErrNotFound
 			}
 		}
 
 		if broker.Credentials != nil {
 			credentialsDTO := convertCredentialsToDTO(broker.Credentials)
-			err := tx.Get(&credentialsDTO.ID, "SELECT credentials_id FROM brokers WHERE id = $1", broker.ID)
+			err := tx.Get(&credentialsDTO.ID, "SELECT credentials_id FROM "+brokerTable+" WHERE id = $1", broker.ID)
 			if err != nil {
 				logrus.Error("Unable to retrieve broker credentials")
 				return err
 			}
 			_, err = tx.NamedExec(
-				"UPDATE credentials SET type = :type, username = :username, password = :password, token = :token WHERE id = :id",
+				"UPDATE "+credentialsTable+" SET type = :type, username = :username, password = :password, token = :token WHERE id = :id",
 				credentialsDTO)
 			if err != nil {
 				logrus.Error("Unable to update credentials")
@@ -167,20 +165,8 @@ func generateUpdateQueryString(broker *types.Broker) string {
 		return ""
 	}
 	set = append(set, "updated_at = :updated_at")
-	update := fmt.Sprintf("UPDATE brokers SET %s WHERE id = :id",
+	update := fmt.Sprintf("UPDATE "+brokerTable+" SET %s WHERE id = :id",
 		strings.Join(set, ", "))
 
 	return update
-}
-
-func retrieveBroker(fetch fetcher, id string) (*Broker, error) {
-	broker := Broker{}
-	if err := fetch(&broker, "SELECT * FROM brokers WHERE id = $1", id); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, storage.ErrNotFound
-		}
-		logrus.Error("An error occurred while retrieving broker with id:", id)
-		return nil, err
-	}
-	return &broker, nil
 }

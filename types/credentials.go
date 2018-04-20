@@ -26,3 +26,13 @@ type Basic struct {
 type Credentials struct {
 	Basic *Basic `json:"basic,omitempty"`
 }
+
+// NewBasicCredentials returns new basic credentials object
+func NewBasicCredentials(username string, password string) *Credentials {
+	return &Credentials{
+		Basic: &Basic{
+			Username: username,
+			Password: password,
+		},
+	}
+}

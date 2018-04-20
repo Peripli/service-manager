@@ -106,6 +106,8 @@ func (ctrl *Controller) getBroker(response http.ResponseWriter, request *http.Re
 	if err != nil {
 		return err
 	}
+	broker.Credentials = nil
+
 	return rest.SendJSON(response, http.StatusOK, broker)
 }
 

@@ -17,14 +17,11 @@
 package postgres
 
 import (
-	"database/sql"
 	"fmt"
 	"strings"
 
-	store "github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/types"
 	"github.com/jmoiron/sqlx"
-	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 )
 
@@ -32,33 +29,10 @@ type platformStorage struct {
 	db *sqlx.DB
 }
 
-var (
-	// selectByID selects platform by id
-	selectByID = "SELECT id, type, name, description, created_at, updated_at FROM " + platformTable + " WHERE id=$1"
-
-	// selectAll selects all platforms
-	selectAll = "SELECT id, type, name, description, created_at, updated_at FROM " + platformTable
-
-	// insertCredentials insert new credentials
-	insertCredentials = "INSERT INTO " + credentialsTable + "(type, username, password) VALUES (:type, :username, :password) RETURNING id"
-
-	// insertPlatform insert new platform
-	insertPlatform = "INSERT INTO " + platformTable + "(id, type, name, description, credentials_id, created_at, updated_at) VALUES(:id, :type, :name, :description, :credentials_id, :created_at, :updated_at)"
-
-	// deletePlatform deletes platform and corresponding credentials
-	deletePlatform = fmt.Sprintf(`WITH pl AS (
-		DELETE FROM %s
-		WHERE
-			id = $1
-		RETURNING credentials_id
-	)
-	DELETE FROM %s
-	WHERE id IN (SELECT credentials_id from pl)`, platformTable, credentialsTable)
-)
-
-func (storage *platformStorage) Create(platform *types.Platform) error {
-	return transaction(storage.db, func(tx *sqlx.Tx) error {
-		stmt, err := tx.PrepareNamed(insertCredentials)
+func (ps *platformStorage) Create(platform *types.Platform) error {
+	return transaction(ps.db, func(tx *sqlx.Tx) error {
+		stmt, err := tx.PrepareNamed(
+			"INSERT INTO " + credentialsTable + "(type, username, password) VALUES (:type, :username, :password) RETURNING id")
 		if err != nil {
 			return err
 		}
@@ -70,26 +44,30 @@ func (storage *platformStorage) Create(platform *types.Platform) error {
 
 		platformDTO := convertPlatformToDTO(platform)
 		platformDTO.CredentialsID = credentialsID
-		_, err = tx.NamedExec(insertPlatform, &platformDTO)
+		_, err = tx.NamedExec(fmt.Sprintf(
+			"INSERT INTO %s (id, type, name, description, credentials_id, created_at, updated_at) %s",
+			platformTable,
+			"VALUES(:id, :type, :name, :description, :credentials_id, :created_at, :updated_at)"),
+			&platformDTO)
 		return checkUniqueViolation(err)
 	})
 }
 
-func (storage *platformStorage) Get(id string) (*types.Platform, error) {
+func (ps *platformStorage) Get(id string) (*types.Platform, error) {
 	platform := Platform{}
-	err := storage.db.Get(&platform, selectByID, id)
-	if err == sql.ErrNoRows {
-		return nil, store.ErrNotFound
-	}
-	if err != nil {
+	err := ps.db.Get(&platform,
+		"SELECT id, type, name, description, created_at, updated_at FROM "+platformTable+" WHERE id=$1",
+		id)
+	if err = checkSQLNoRows(err); err != nil {
 		return nil, err
 	}
 	return platform.Convert(), nil
 }
 
-func (storage *platformStorage) GetAll() ([]types.Platform, error) {
+func (ps *platformStorage) GetAll() ([]types.Platform, error) {
 	platformDTOs := []Platform{}
-	err := storage.db.Select(&platformDTOs, selectAll)
+	err := ps.db.Select(&platformDTOs,
+		"SELECT id, type, name, description, created_at, updated_at FROM "+platformTable)
 	if err != nil || len(platformDTOs) == 0 {
 		return []types.Platform{}, err
 	}
@@ -100,8 +78,18 @@ func (storage *platformStorage) GetAll() ([]types.Platform, error) {
 	return platforms, nil
 }
 
-func (storage *platformStorage) Delete(id string) error {
-	return transaction(storage.db, func(tx *sqlx.Tx) error {
+func (ps *platformStorage) Delete(id string) error {
+	// deletePlatform is a query that deletes platform and corresponding credentials
+	deletePlatform := fmt.Sprintf(`WITH pl AS (
+		DELETE FROM %s
+		WHERE
+			id = $1
+		RETURNING credentials_id
+	)
+	DELETE FROM %s
+	WHERE id IN (SELECT credentials_id from pl)`, platformTable, credentialsTable)
+
+	return transaction(ps.db, func(tx *sqlx.Tx) error {
 		result, err := tx.Exec(deletePlatform, &id)
 		if err != nil {
 			return err
@@ -110,28 +98,17 @@ func (storage *platformStorage) Delete(id string) error {
 	})
 }
 
-func (storage *platformStorage) Update(platform *types.Platform) error {
+func (ps *platformStorage) Update(platform *types.Platform) error {
 	updateQuery := platformUpdateQueryString(platform)
 	if updateQuery == "" {
 		logrus.Debug("Platform update: nothing to update")
 		return nil
 	}
-	result, err := storage.db.NamedExec(updateQuery, convertPlatformToDTO(platform))
+	result, err := ps.db.NamedExec(updateQuery, convertPlatformToDTO(platform))
 	if err = checkUniqueViolation(err); err != nil {
 		return err
 	}
 	return checkRowsAffected(result)
-}
-
-func checkRowsAffected(result sql.Result) error {
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if rowsAffected < 1 {
-		return store.ErrNotFound
-	}
-	return nil
 }
 
 func platformUpdateQueryString(platform *types.Platform) string {
@@ -150,16 +127,4 @@ func platformUpdateQueryString(platform *types.Platform) string {
 	}
 	set = append(set, "updated_at = :updated_at")
 	return fmt.Sprintf("UPDATE %s SET %s WHERE id = :id", platformTable, strings.Join(set, ", "))
-}
-
-func checkUniqueViolation(err error) error {
-	if err == nil {
-		return nil
-	}
-	sqlErr, ok := err.(*pq.Error)
-	if ok && sqlErr.Code.Name() == "unique_violation" {
-		logrus.Debug(sqlErr)
-		return store.ErrUniqueViolation
-	}
-	return err
 }

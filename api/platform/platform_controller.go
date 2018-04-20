@@ -88,12 +88,7 @@ func (ctrl *Controller) addPlatform(rw http.ResponseWriter, req *http.Request) e
 		logrus.Error("Could not generate credentials for platform")
 		return err
 	}
-	platform.Credentials = &types.Credentials{
-		Basic: &types.Basic{
-			Username: username,
-			Password: password,
-		},
-	}
+	platform.Credentials = types.NewBasicCredentials(username, password)
 	err = common.HandleUniqueError(ctrl.PlatformStorage.Create(platform), "platform")
 	if err != nil {
 		return err
