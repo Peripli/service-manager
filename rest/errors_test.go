@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/Peripli/service-manager/types"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/sirupsen/logrus"
@@ -89,9 +90,9 @@ var _ = Describe("Errors", func() {
 	Describe("Send JSON", func() {
 		Context("With valid parameters", func() {
 			It("Writes to response writer", func() {
-				response := ErrorResponse{ErrorType: "test error", Description: "test description"}
+				response := types.ErrorResponse{ErrorType: "test error", Description: "test description"}
 				if err := SendJSON(mockedWriter, http.StatusOK, response); err != nil {
-					Fail("Serializing valid ErrorResponse should be successful")
+					Fail("Serializing valid types.ErrorResponse should be successful")
 				}
 				Expect(string(mockedWriter.data)).To(ContainSubstring("test description"))
 			})

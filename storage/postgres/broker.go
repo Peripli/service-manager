@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
+	"github.com/Peripli/service-manager/types"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
@@ -34,7 +34,7 @@ type brokerStorage struct {
 
 type fetcher func(dest interface{}, query string, args ...interface{}) error
 
-func (store *brokerStorage) Create(broker *rest.Broker) error {
+func (store *brokerStorage) Create(broker *types.Broker) error {
 	return transaction(store.db, func(tx *sqlx.Tx) error {
 		credentialsDTO := convertCredentialsToDTO(broker.Credentials)
 		statement, err := tx.PrepareNamed("INSERT INTO credentials (type, username, password, token) VALUES (:type, :username, :password, :token) RETURNING id")
@@ -65,23 +65,23 @@ func (store *brokerStorage) Create(broker *rest.Broker) error {
 	})
 }
 
-func (store *brokerStorage) Get(id string) (*rest.Broker, error) {
+func (store *brokerStorage) Get(id string) (*types.Broker, error) {
 	broker, err := retrieveBroker(store.db.Get, id)
 	if err != nil {
 		return nil, err
 	}
-	return broker.ToRestModel(), nil
+	return broker.Convert(), nil
 }
 
-func (store *brokerStorage) GetAll() ([]rest.Broker, error) {
+func (store *brokerStorage) GetAll() ([]types.Broker, error) {
 	brokers := []Broker{}
-	if err := store.db.Select(&brokers, "SELECT * FROM brokers"); err != nil {
+	if err := store.db.Select(&brokers, "SELECT id, name, description, created_at, updated_at, broker_url FROM brokers"); err != nil {
 		logrus.Error("An error occurred while retrieving all brokers")
 		return nil, err
 	}
-	restBrokers := make([]rest.Broker, len(brokers))
-	for i, val := range brokers {
-		restBrokers[i] = *val.ToRestModel()
+	restBrokers := make([]types.Broker, len(brokers))
+	for i, broker := range brokers {
+		restBrokers[i] = *broker.Convert()
 	}
 	return restBrokers, nil
 }
@@ -109,7 +109,7 @@ func (store *brokerStorage) Delete(id string) error {
 	})
 }
 
-func (store *brokerStorage) Update(broker *rest.Broker) error {
+func (store *brokerStorage) Update(broker *types.Broker) error {
 	return transaction(store.db, func(tx *sqlx.Tx) error {
 		updateQueryString := generateUpdateQueryString(broker)
 
@@ -128,7 +128,7 @@ func (store *brokerStorage) Update(broker *rest.Broker) error {
 			if err != nil {
 				return err
 			}
-			if affectedRows != 1 {
+			if affectedRows < 1 {
 				return storage.ErrNotFound
 			}
 		}
@@ -152,7 +152,7 @@ func (store *brokerStorage) Update(broker *rest.Broker) error {
 	})
 }
 
-func generateUpdateQueryString(broker *rest.Broker) string {
+func generateUpdateQueryString(broker *types.Broker) string {
 	set := make([]string, 0, 5)
 	if broker.Name != "" {
 		set = append(set, "name = :name")

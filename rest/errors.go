@@ -19,41 +19,28 @@ package rest
 import (
 	"net/http"
 
+	"github.com/Peripli/service-manager/types"
 	"github.com/sirupsen/logrus"
 )
 
 // HandleError sends a JSON containing the error to the response writer
 func HandleError(err error, writer http.ResponseWriter) {
-	if err != nil {
-		var respError *ErrorResponse
-		switch t := err.(type) {
-		case *ErrorResponse:
-			logrus.Debug(err)
-			respError = t
-		case ErrorResponse:
-			logrus.Debug(err)
-			respError = &t
-		default:
-			logrus.Error(err)
-			respError = &ErrorResponse{
-				ErrorType:   "InternalError",
-				Description: "Internal server error",
-				StatusCode:  http.StatusInternalServerError,
-			}
-		}
-
-		sendErr := SendJSON(writer, respError.StatusCode, respError)
-		if sendErr != nil {
-			logrus.Errorf("Could not write error to response: %v", sendErr)
+	var respError *types.ErrorResponse
+	switch t := err.(type) {
+	case *types.ErrorResponse:
+		logrus.Debug(err)
+		respError = t
+	default:
+		logrus.Error(err)
+		respError = &types.ErrorResponse{
+			ErrorType:   "InternalError",
+			Description: "Internal server error",
+			StatusCode:  http.StatusInternalServerError,
 		}
 	}
 
-}
-
-// CreateErrorResponse create ErrorResponse object
-func CreateErrorResponse(err error, statusCode int, errorType string) *ErrorResponse {
-	return &ErrorResponse{
-		ErrorType:   errorType,
-		Description: err.Error(),
-		StatusCode:  statusCode}
+	sendErr := SendJSON(writer, respError.StatusCode, respError)
+	if sendErr != nil {
+		logrus.Errorf("Could not write error to response: %v", sendErr)
+	}
 }

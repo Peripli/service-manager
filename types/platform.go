@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package rest
+package types
 
 import (
 	"encoding/json"
@@ -22,29 +22,6 @@ import (
 
 	"github.com/Peripli/service-manager/util"
 )
-
-// ErrorResponse struct used to store information about error
-type ErrorResponse struct {
-	ErrorType   string `json:"error,omitempty"`
-	Description string `json:"description"`
-	StatusCode  int    `json:"-"`
-}
-
-// Error ErrorResponse should implement error
-func (errorResponse ErrorResponse) Error() string {
-	return errorResponse.Description
-}
-
-// Basic basic credentials
-type Basic struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
-// Credentials credentials
-type Credentials struct {
-	Basic *Basic `json:"basic,omitempty"`
-}
 
 // Platform platform struct
 type Platform struct {
@@ -68,30 +45,5 @@ func (p *Platform) MarshalJSON() ([]byte, error) {
 		P:         (*P)(p),
 		CreatedAt: util.ToRFCFormat(p.CreatedAt),
 		UpdatedAt: util.ToRFCFormat(p.UpdatedAt),
-	})
-}
-
-// Broker broker struct
-type Broker struct {
-	ID          string       `json:"id"`
-	Name        string       `json:"name"`
-	Description string       `json:"description"`
-	CreatedAt   time.Time    `json:"created_at"`
-	UpdatedAt   time.Time    `json:"updated_at"`
-	BrokerURL   string       `json:"broker_url"`
-	Credentials *Credentials `json:"credentials,omitempty"`
-}
-
-// MarshalJSON override json serialization for http response
-func (b *Broker) MarshalJSON() ([]byte, error) {
-	type B Broker
-	return json.Marshal(&struct {
-		CreatedAt string `json:"created_at,omitempty"`
-		UpdatedAt string `json:"updated_at,omitempty"`
-		*B
-	}{
-		B:         (*B)(b),
-		CreatedAt: util.ToRFCFormat(b.CreatedAt),
-		UpdatedAt: util.ToRFCFormat(b.UpdatedAt),
 	})
 }

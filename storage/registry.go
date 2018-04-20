@@ -35,10 +35,10 @@ func Register(name string, storage Storage) {
 	mux.RLock()
 	defer mux.RUnlock()
 	if storage == nil {
-		panic("storage: Register storage is nil")
+		logrus.Panicln("storage: Register storage is nil")
 	}
 	if _, dup := storages[name]; dup {
-		panic("storage: Register called twice for storage with name " + name)
+		logrus.Panicf("storage: Register called twice for storage with name %s", name)
 	}
 	storages[name] = storage
 }

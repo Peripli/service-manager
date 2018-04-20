@@ -22,8 +22,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Peripli/service-manager/api/common"
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
+	"github.com/Peripli/service-manager/types"
 	"github.com/Peripli/service-manager/util"
 	"github.com/gorilla/mux"
 	uuid "github.com/satori/go.uuid"
@@ -36,16 +38,15 @@ type Controller struct {
 }
 
 func getPlatformID(req *http.Request) string {
-	vars := mux.Vars(req)
-	return vars["platform_id"]
+	return mux.Vars(req)["platform_id"]
 }
 
-func getPlatformFromRequest(req *http.Request) (*rest.Platform, error) {
-	var platform rest.Platform
+func getPlatformFromRequest(req *http.Request) (*types.Platform, error) {
+	var platform types.Platform
 	return &platform, rest.ReadJSONBody(req, &platform)
 }
 
-func checkPlatformMandatoryProperties(platform *rest.Platform) error {
+func checkPlatformMandatoryProperties(platform *types.Platform) error {
 	if platform.Type == "" {
 		return errors.New("Missing platform type")
 	}
@@ -60,20 +61,15 @@ func errorMissingPlatform(platformID string) error {
 }
 
 // addPlatform handler for POST /v1/platforms
-func (platformCtrl *Controller) addPlatform(rw http.ResponseWriter, req *http.Request) error {
-	logrus.Debugf("POST to %s", req.RequestURI)
+func (ctrl *Controller) addPlatform(rw http.ResponseWriter, req *http.Request) error {
+	logrus.Debug("Creating new platform")
 
 	platform, errDecode := getPlatformFromRequest(req)
 	if errDecode != nil {
 		return errDecode
 	}
 	if errMandatoryProperties := checkPlatformMandatoryProperties(platform); errMandatoryProperties != nil {
-		return rest.CreateErrorResponse(errMandatoryProperties, http.StatusBadRequest, "BadRequest")
-	}
-	username, password, err := util.GenerateCredentials()
-	if err != nil {
-		logrus.Error("Could not generate credentials for platform")
-		return err
+		return types.NewErrorResponse(errMandatoryProperties, http.StatusBadRequest, "BadRequest")
 	}
 	if platform.ID == "" {
 		uuid, err := uuid.NewV4()
@@ -87,84 +83,79 @@ func (platformCtrl *Controller) addPlatform(rw http.ResponseWriter, req *http.Re
 	platform.CreatedAt = currentTime
 	platform.UpdatedAt = currentTime
 
-	platform.Credentials = &rest.Credentials{
-		Basic: &rest.Basic{
+	username, password, err := util.GenerateCredentials()
+	if err != nil {
+		logrus.Error("Could not generate credentials for platform")
+		return err
+	}
+	platform.Credentials = &types.Credentials{
+		Basic: &types.Basic{
 			Username: username,
 			Password: password,
 		},
 	}
-	platformStorage := platformCtrl.PlatformStorage
-	errSave := platformStorage.Create(platform)
-	if errSave == storage.ErrUniqueViolation {
-		return rest.CreateErrorResponse(errSave, http.StatusConflict, "Conflict")
-	} else if errSave != nil {
-		return errSave
+	err = common.HandleUniqueError(ctrl.PlatformStorage.Create(platform), "platform")
+	if err != nil {
+		return err
 	}
 
 	return rest.SendJSON(rw, http.StatusCreated, platform)
 }
 
 // getPlatform handler for GET /v1/platforms/:platform_id
-func (platformCtrl *Controller) getPlatform(rw http.ResponseWriter, req *http.Request) error {
-	logrus.Debugf("GET to %s", req.RequestURI)
+func (ctrl *Controller) getPlatform(rw http.ResponseWriter, req *http.Request) error {
 	platformID := getPlatformID(req)
-	platformStorage := platformCtrl.PlatformStorage
-	platform, err := platformStorage.Get(platformID)
-	if err == storage.ErrNotFound {
-		return rest.CreateErrorResponse(errorMissingPlatform(platformID), http.StatusNotFound, "NotFound")
-	} else if err != nil {
+	logrus.Debugf("Getting platform with id %s", platformID)
+
+	platform, err := ctrl.PlatformStorage.Get(platformID)
+	if err = common.HandleNotFoundError(err, "platform", platformID); err != nil {
 		return err
 	}
 	return rest.SendJSON(rw, http.StatusOK, platform)
 }
 
 // getAllPlatforms handler for GET /v1/platforms
-func (platformCtrl *Controller) getAllPlatforms(rw http.ResponseWriter, req *http.Request) error {
-	logrus.Debugf("GET to %s", req.RequestURI)
-	platformStorage := platformCtrl.PlatformStorage
-	platforms, err := platformStorage.GetAll()
+func (ctrl *Controller) getAllPlatforms(rw http.ResponseWriter, req *http.Request) error {
+	logrus.Debug("Getting all platforms")
+	platforms, err := ctrl.PlatformStorage.GetAll()
 	if err != nil {
 		return err
 	}
-	platformsResponse := map[string][]rest.Platform{"platforms": platforms}
+	platformsResponse := map[string][]types.Platform{"platforms": platforms}
 
 	return rest.SendJSON(rw, http.StatusOK, &platformsResponse)
 }
 
 // deletePlatform handler for DELETE /v1/platforms/:platform_id
-func (platformCtrl *Controller) deletePlatform(rw http.ResponseWriter, req *http.Request) error {
-	logrus.Debugf("DELETE to %s", req.RequestURI)
+func (ctrl *Controller) deletePlatform(rw http.ResponseWriter, req *http.Request) error {
 	platformID := getPlatformID(req)
+	logrus.Debugf("Deleting platform with id %s", platformID)
 
-	platformStorage := platformCtrl.PlatformStorage
-	errDelete := platformStorage.Delete(platformID)
-	if errDelete == storage.ErrNotFound {
-		return rest.CreateErrorResponse(errorMissingPlatform(platformID), http.StatusNotFound, "NotFound")
-	} else if errDelete != nil {
-		return errDelete
+	err := ctrl.PlatformStorage.Delete(platformID)
+	if err = common.HandleNotFoundError(err, "platform", platformID); err != nil {
+		return err
 	}
 	// map[string]string{} will result in empty JSON
 	return rest.SendJSON(rw, http.StatusOK, map[string]string{})
 }
 
 // updatePlatform handler for PATCH /v1/platforms/:platform_id
-func (platformCtrl *Controller) updatePlatform(rw http.ResponseWriter, req *http.Request) error {
-	logrus.Debugf("PATCH to %s", req.RequestURI)
+func (ctrl *Controller) updatePlatform(rw http.ResponseWriter, req *http.Request) error {
 	platformID := getPlatformID(req)
+	logrus.Debugf("Updating platform with id %s", platformID)
 	newPlatform, errDecode := getPlatformFromRequest(req)
 	if errDecode != nil {
 		return errDecode
 	}
 	newPlatform.ID = platformID
 	newPlatform.UpdatedAt = time.Now().UTC()
-	platformStorage := platformCtrl.PlatformStorage
+	platformStorage := ctrl.PlatformStorage
 	err := platformStorage.Update(newPlatform)
+	err = common.CheckErrors(
+		common.HandleNotFoundError(err, "platform", platformID),
+		common.HandleUniqueError(err, "platform"),
+	)
 	if err != nil {
-		if err == storage.ErrUniqueViolation {
-			return rest.CreateErrorResponse(err, http.StatusConflict, "Conflict")
-		} else if err == storage.ErrNotFound {
-			return rest.CreateErrorResponse(errorMissingPlatform(platformID), http.StatusNotFound, "NotFound")
-		}
 		return err
 	}
 	platform, err := platformStorage.Get(platformID)

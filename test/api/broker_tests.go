@@ -306,6 +306,20 @@ func testBrokers() {
 				Expect().
 				Status(http.StatusNotFound)
 		})
+
+		It("should return 400 on malformed credentials", func() {
+			SM.PATCH("/v1/service_brokers/" + id).
+				WithJSON(Object{"credentials": "123"}).
+				Expect().
+				Status(http.StatusBadRequest)
+		})
+
+		It("should return 400 on incomplete credentials", func() {
+			SM.PATCH("/v1/service_brokers/" + id).
+				WithJSON(Object{"credentials": Object{"basic": Object{}}}).
+				Expect().
+				Status(http.StatusBadRequest)
+		})
 	})
 
 	Describe("DELETE", func() {

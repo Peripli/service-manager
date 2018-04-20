@@ -21,11 +21,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Peripli/service-manager/rest"
 	store "github.com/Peripli/service-manager/storage"
-	"github.com/sirupsen/logrus"
+	"github.com/Peripli/service-manager/types"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
+	"github.com/sirupsen/logrus"
 )
 
 type platformStorage struct {
@@ -56,7 +56,7 @@ var (
 	WHERE id IN (SELECT credentials_id from pl)`, platformTable, credentialsTable)
 )
 
-func (storage *platformStorage) Create(platform *rest.Platform) error {
+func (storage *platformStorage) Create(platform *types.Platform) error {
 	return transaction(storage.db, func(tx *sqlx.Tx) error {
 		stmt, err := tx.PrepareNamed(insertCredentials)
 		if err != nil {
@@ -69,13 +69,13 @@ func (storage *platformStorage) Create(platform *rest.Platform) error {
 		}
 
 		platformDTO := convertPlatformToDTO(platform)
-		platformDTO.CredentialsID = int(credentialsID)
+		platformDTO.CredentialsID = credentialsID
 		_, err = tx.NamedExec(insertPlatform, &platformDTO)
 		return checkUniqueViolation(err)
 	})
 }
 
-func (storage *platformStorage) Get(id string) (*rest.Platform, error) {
+func (storage *platformStorage) Get(id string) (*types.Platform, error) {
 	platform := Platform{}
 	err := storage.db.Get(&platform, selectByID, id)
 	if err == sql.ErrNoRows {
@@ -84,18 +84,18 @@ func (storage *platformStorage) Get(id string) (*rest.Platform, error) {
 	if err != nil {
 		return nil, err
 	}
-	return platform.ToRestModel(), nil
+	return platform.Convert(), nil
 }
 
-func (storage *platformStorage) GetAll() ([]rest.Platform, error) {
+func (storage *platformStorage) GetAll() ([]types.Platform, error) {
 	platformDTOs := []Platform{}
 	err := storage.db.Select(&platformDTOs, selectAll)
 	if err != nil || len(platformDTOs) == 0 {
-		return []rest.Platform{}, err
+		return []types.Platform{}, err
 	}
-	var platforms = make([]rest.Platform, 0, len(platformDTOs))
+	var platforms = make([]types.Platform, 0, len(platformDTOs))
 	for _, platformDTO := range platformDTOs {
-		platforms = append(platforms, *platformDTO.ToRestModel())
+		platforms = append(platforms, *platformDTO.Convert())
 	}
 	return platforms, nil
 }
@@ -110,7 +110,7 @@ func (storage *platformStorage) Delete(id string) error {
 	})
 }
 
-func (storage *platformStorage) Update(platform *rest.Platform) error {
+func (storage *platformStorage) Update(platform *types.Platform) error {
 	updateQuery := platformUpdateQueryString(platform)
 	if updateQuery == "" {
 		logrus.Debug("Platform update: nothing to update")
@@ -128,13 +128,13 @@ func checkRowsAffected(result sql.Result) error {
 	if err != nil {
 		return err
 	}
-	if rowsAffected != 1 {
+	if rowsAffected < 1 {
 		return store.ErrNotFound
 	}
 	return nil
 }
 
-func platformUpdateQueryString(platform *rest.Platform) string {
+func platformUpdateQueryString(platform *types.Platform) string {
 	set := make([]string, 0, 4)
 	if platform.Name != "" {
 		set = append(set, "name = :name")

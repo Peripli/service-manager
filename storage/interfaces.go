@@ -21,7 +21,7 @@ package storage
 import (
 	"errors"
 
-	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/types"
 )
 
 // Storage interface provides entity-specific storages.
@@ -47,18 +47,18 @@ var ErrUniqueViolation = errors.New("Unique constraint violation")
 
 // Broker interface for Broker db operations
 type Broker interface {
-	Create(broker *rest.Broker) error
-	Get(id string) (*rest.Broker, error)
-	GetAll() ([]rest.Broker, error)
+	Create(broker *types.Broker) error
+	Get(id string) (*types.Broker, error)
+	GetAll() ([]types.Broker, error)
 	Delete(id string) error
-	Update(broker *rest.Broker) error
+	Update(broker *types.Broker) error
 }
 
 // Platform interface for Platform db operations
 type Platform interface {
-	Create(platform *rest.Platform) error
-	Get(id string) (*rest.Platform, error)
-	GetAll() ([]rest.Platform, error)
+	Create(platform *types.Platform) error
+	Get(id string) (*types.Platform, error)
+	GetAll() ([]types.Platform, error)
 	Delete(id string) error
-	Update(platform *rest.Platform) error
+	Update(platform *types.Platform) error
 }

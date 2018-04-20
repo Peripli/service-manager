@@ -16,9 +16,11 @@
 
 package postgres
 
-import "time"
+import (
+	"time"
 
-import "github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/types"
+)
 
 const (
 	// platformTable db table name for platforms
@@ -61,9 +63,9 @@ type Broker struct {
 	CredentialsID int       `db:"credentials_id"`
 }
 
-// ToRestModel converts to rest.Broker
-func (brokerDTO *Broker) ToRestModel() *rest.Broker {
-	return &rest.Broker{ID: brokerDTO.ID,
+// Convert converts to types.Broker
+func (brokerDTO *Broker) Convert() *types.Broker {
+	return &types.Broker{ID: brokerDTO.ID,
 		Name:        brokerDTO.Name,
 		Description: brokerDTO.Description,
 		CreatedAt:   brokerDTO.CreatedAt,
@@ -71,9 +73,9 @@ func (brokerDTO *Broker) ToRestModel() *rest.Broker {
 		BrokerURL:   brokerDTO.BrokerURL}
 }
 
-// ToRestModel converts to rest.Platform
-func (platformDTO *Platform) ToRestModel() *rest.Platform {
-	return &rest.Platform{
+// Convert converts to types.Platform
+func (platformDTO *Platform) Convert() *types.Platform {
+	return &types.Platform{
 		ID:          platformDTO.ID,
 		Type:        platformDTO.Type,
 		Name:        platformDTO.Name,
@@ -83,7 +85,7 @@ func (platformDTO *Platform) ToRestModel() *rest.Platform {
 	}
 }
 
-func convertCredentialsToDTO(credentials *rest.Credentials) *Credentials {
+func convertCredentialsToDTO(credentials *types.Credentials) *Credentials {
 	return &Credentials{
 		Type:     basicCredentialsType,
 		Username: credentials.Basic.Username,
@@ -92,7 +94,7 @@ func convertCredentialsToDTO(credentials *rest.Credentials) *Credentials {
 	}
 }
 
-func convertPlatformToDTO(platform *rest.Platform) *Platform {
+func convertPlatformToDTO(platform *types.Platform) *Platform {
 	return &Platform{
 		ID:          platform.ID,
 		Type:        platform.Type,
@@ -103,7 +105,7 @@ func convertPlatformToDTO(platform *rest.Platform) *Platform {
 	}
 }
 
-func convertBrokerToDTO(broker *rest.Broker) *Broker {
+func convertBrokerToDTO(broker *types.Broker) *Broker {
 	return &Broker{
 		ID:          broker.ID,
 		Name:        broker.Name,
