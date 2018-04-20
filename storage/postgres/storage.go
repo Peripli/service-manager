@@ -102,7 +102,6 @@ func updateSchema(db *sqlx.DB) error {
 func transaction(db *sqlx.DB, f func(tx *sqlx.Tx) error) error {
 	tx, err := db.Beginx()
 	if err != nil {
-		logrus.Error("Could not create transaction")
 		return err
 	}
 	ok := false

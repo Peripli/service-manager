@@ -32,13 +32,15 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const reqPlatformId = "platform_id"
+
 // Controller platform controller
 type Controller struct {
 	PlatformStorage storage.Platform
 }
 
 func getPlatformID(req *http.Request) string {
-	return mux.Vars(req)["platform_id"]
+	return mux.Vars(req)[reqPlatformId]
 }
 
 func getPlatformFromRequest(req *http.Request) (*types.Platform, error) {

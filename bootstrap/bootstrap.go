@@ -34,11 +34,11 @@ func CreateServer(ctx context.Context, serverEnv server.Environment) (*server.Se
 		return nil, fmt.Errorf("Error loading configuration: %v", err)
 	}
 
-	setUpLogging(config.LogLevel, config.LogFormat)
-
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("Configuration validation failed: %v", err)
 	}
+
+	setUpLogging(config.LogLevel, config.LogFormat)
 
 	storage, err := storage.Use(ctx, postgres.Storage, config.DbURI)
 	if err != nil {
