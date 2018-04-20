@@ -18,7 +18,6 @@ package platform
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -32,7 +31,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const reqPlatformId = "platform_id"
+const reqPlatformID = "platform_id"
 
 // Controller platform controller
 type Controller struct {
@@ -40,7 +39,7 @@ type Controller struct {
 }
 
 func getPlatformID(req *http.Request) string {
-	return mux.Vars(req)[reqPlatformId]
+	return mux.Vars(req)[reqPlatformID]
 }
 
 func getPlatformFromRequest(req *http.Request) (*types.Platform, error) {
@@ -56,10 +55,6 @@ func checkPlatformMandatoryProperties(platform *types.Platform) error {
 		return errors.New("Missing platform name")
 	}
 	return nil
-}
-
-func errorMissingPlatform(platformID string) error {
-	return fmt.Errorf("Could not find platform with id %s", platformID)
 }
 
 // addPlatform handler for POST /v1/platforms

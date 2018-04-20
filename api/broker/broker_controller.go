@@ -31,7 +31,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const reqBrokerId = "broker_id"
+const reqBrokerID = "broker_id"
 
 // Controller broker controller
 type Controller struct {
@@ -96,7 +96,7 @@ func (ctrl *Controller) addBroker(response http.ResponseWriter, request *http.Re
 }
 
 func getBrokerID(request *http.Request) string {
-	return mux.Vars(request)[reqBrokerId]
+	return mux.Vars(request)[reqBrokerID]
 }
 
 func (ctrl *Controller) getBroker(response http.ResponseWriter, request *http.Request) error {
