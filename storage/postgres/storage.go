@@ -45,14 +45,14 @@ type postgresStorage struct {
 
 func (storage *postgresStorage) Broker() storage.Broker {
 	if storage.db == nil {
-		panic("Storage is not yet Open")
+		logrus.Panicln("Storage is not yet Open")
 	}
 	return &brokerStorage{storage.db}
 }
 
 func (storage *postgresStorage) Platform() storage.Platform {
 	if storage.db == nil {
-		panic("Storage is not yet Open")
+		logrus.Panicln("Storage is not yet Open")
 	}
 	return &platformStorage{storage.db}
 }

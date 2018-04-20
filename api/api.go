@@ -22,6 +22,7 @@ import (
 	"github.com/Peripli/service-manager/api/platform"
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
+	"github.com/sirupsen/logrus"
 )
 
 // Default returns the minimum set of REST APIs needed for the Service Manager
@@ -49,7 +50,7 @@ func (api *smAPI) Controllers() []rest.Controller {
 func (api *smAPI) RegisterControllers(controllers ...rest.Controller) {
 	for _, controller := range controllers {
 		if controller == nil {
-			panic("Cannot add nil controllers")
+			logrus.Panicln("Cannot add nil controllers")
 		}
 		api.controllers = append(api.controllers, controller)
 	}
