@@ -48,148 +48,167 @@ func testBrokers() {
 	})
 
 	Describe("GET", func() {
-		It("returns 404 if broker does not exist", func() {
-			SM.GET("/v1/service_brokers/999").
-				Expect().
-				Status(http.StatusNotFound).
-				JSON().Object().Keys().Contains("error", "description")
+		Context("When broker does not exist", func() {
+			It("returns 404", func() {
+				SM.GET("/v1/service_brokers/999").
+					Expect().
+					Status(http.StatusNotFound).
+					JSON().Object().Keys().Contains("error", "description")
+
+			})
 		})
+		Context("When broker exists", func() {
+			It("returns the broker with given id", func() {
+				broker := makeBroker("broker1", "http://domain.com/broker", "")
+				reply := SM.POST("/v1/service_brokers").WithJSON(broker).
+					Expect().Status(http.StatusCreated).JSON().Object()
+				id := reply.Value("id").String().Raw()
 
-		It("returns the broker with given id", func() {
-			broker := makeBroker("broker1", "http://domain.com/broker", "")
-			reply := SM.POST("/v1/service_brokers").WithJSON(broker).
-				Expect().Status(http.StatusCreated).JSON().Object()
-			id := reply.Value("id").String().Raw()
+				reply = SM.GET("/v1/service_brokers/" + id).
+					Expect().
+					Status(http.StatusOK).
+					JSON().Object()
 
-			reply = SM.GET("/v1/service_brokers/" + id).
-				Expect().
-				Status(http.StatusOK).
-				JSON().Object()
-
-			reply.NotContainsKey("credentials")
-			broker["id"] = id
-			delete(broker, "credentials")
-			MapContains(reply.Raw(), broker)
+				reply.NotContainsKey("credentials")
+				broker["id"] = id
+				delete(broker, "credentials")
+				MapContains(reply.Raw(), broker)
+			})
 		})
 	})
 
 	Describe("GET All", func() {
-		It("returns empty array if no brokers exist", func() {
-			SM.GET("/v1/service_brokers").
-				Expect().
-				Status(http.StatusOK).
-				JSON().Object().Value("brokers").Array().Empty()
-		})
-
-		It("returns all the brokers", func() {
-			brokers := Array{}
-
-			addBroker := func(name string, url string, description string) {
-				broker := makeBroker(name, url, description)
-				reply := SM.POST("/v1/service_brokers").WithJSON(broker).
-					Expect().Status(http.StatusCreated).JSON().Object()
-				id := reply.Value("id").String().Raw()
-				broker["id"] = id
-				delete(broker, "credentials")
-				brokers = append(brokers, broker)
-
-				replyArray := SM.GET("/v1/service_brokers").
+		Context("When no broker exists", func() {
+			It("returns empty array", func() {
+				SM.GET("/v1/service_brokers").
 					Expect().
 					Status(http.StatusOK).
-					JSON().Object().Value("brokers").Array()
-				for _, v := range replyArray.Iter() {
-					obj := v.Object().Raw()
-					delete(obj, "created_at")
-					delete(obj, "updated_at")
-				}
-				replyArray.ContainsOnly(brokers...)
-			}
+					JSON().Object().Value("brokers").Array().Empty()
+			})
+		})
+		Context("When there are brokers", func() {
+			It("returns all", func() {
+				brokers := Array{}
 
-			addBroker("broker1", "http://host1.com", "broker one")
-			addBroker("broker2", "http://host2.com", "broker two")
+				addBroker := func(name string, url string, description string) {
+					broker := makeBroker(name, url, description)
+					reply := SM.POST("/v1/service_brokers").WithJSON(broker).
+						Expect().Status(http.StatusCreated).JSON().Object()
+					id := reply.Value("id").String().Raw()
+					broker["id"] = id
+					delete(broker, "credentials")
+					brokers = append(brokers, broker)
+
+					replyArray := SM.GET("/v1/service_brokers").
+						Expect().
+						Status(http.StatusOK).
+						JSON().Object().Value("brokers").Array()
+					for _, v := range replyArray.Iter() {
+						obj := v.Object().Raw()
+						delete(obj, "created_at")
+						delete(obj, "updated_at")
+					}
+					replyArray.ContainsOnly(brokers...)
+				}
+
+				addBroker("broker1", "http://host1.com", "broker one")
+				addBroker("broker2", "http://host2.com", "broker two")
+			})
 		})
 	})
 
 	Describe("POST", func() {
-		It("returns 415 if input is not valid JSON", func() {
-			SM.POST("/v1/service_brokers").
-				WithText("text").
-				Expect().Status(http.StatusUnsupportedMediaType)
+		Context("When content type is not JSON", func() {
+			It("returns 415", func() {
+				SM.POST("/v1/service_brokers").
+					WithText("text").
+					Expect().Status(http.StatusUnsupportedMediaType)
+			})
 		})
 
-		It("returns 400 if input is not valid JSON", func() {
-			SM.POST("/v1/service_brokers").
-				WithText("invalid json").
-				WithHeader("content-type", "application/json").
-				Expect().Status(http.StatusBadRequest)
+		Context("When user input is not valid JSON", func() {
+			It("returns 400", func() {
+				SM.POST("/v1/service_brokers").
+					WithText("invalid json").
+					WithHeader("content-type", "application/json").
+					Expect().Status(http.StatusBadRequest)
+			})
 		})
 
-		It("returns 400 if mandatory field is missing", func() {
-			newBroker := func() Object {
-				return makeBroker("broker1", "http://domain.com/broker", "")
-			}
-			SM.POST("/v1/service_brokers").
-				WithJSON(newBroker()).
-				Expect().Status(http.StatusCreated)
+		Context("When mandatory field is missing", func() {
+			It("returns 400", func() {
+				newBroker := func() Object {
+					return makeBroker("broker1", "http://domain.com/broker", "")
+				}
+				SM.POST("/v1/service_brokers").
+					WithJSON(newBroker()).
+					Expect().Status(http.StatusCreated)
 
-			for _, prop := range []string{"name", "broker_url", "credentials"} {
-				broker := newBroker()
-				delete(broker, prop)
+				for _, prop := range []string{"name", "broker_url", "credentials"} {
+					broker := newBroker()
+					delete(broker, prop)
+
+					SM.POST("/v1/service_brokers").
+						WithJSON(broker).
+						Expect().Status(http.StatusBadRequest)
+				}
+			})
+		})
+
+		Context("When optional fields are missing", func() {
+			It("succeeds", func() {
+				broker := makeBroker("broker1", "http://domain.com/broker", "")
+				// delete optional fields
+				delete(broker, "description")
+
+				reply := SM.POST("/v1/service_brokers").
+					WithJSON(broker).
+					Expect().Status(http.StatusCreated).JSON().Object()
+
+				delete(broker, "credentials")
+				broker["id"] = reply.Value("id").String().Raw()
+				// optional fields returned with default values
+				broker["description"] = ""
+
+				MapContains(reply.Raw(), broker)
+			})
+		})
+
+		Context("When no fields are missing", func() {
+			It("returns the new broker", func() {
+				broker := makeBroker("broker1", "http://domain.com/broker", "broker one")
+
+				By("POST returns the new broker")
+
+				reply := SM.POST("/v1/service_brokers").
+					WithJSON(broker).
+					Expect().Status(http.StatusCreated).JSON().Object()
+				delete(broker, "credentials")
+
+				id := reply.Value("id").String().NotEmpty().Raw()
+				broker["id"] = id
+				MapContains(reply.Raw(), broker)
+
+				By("GET returns the same broker")
+
+				reply = SM.GET("/v1/service_brokers/" + id).
+					Expect().Status(http.StatusOK).JSON().Object()
+
+				MapContains(reply.Raw(), broker)
+			})
+		})
+
+		Context("When duplicate name is provided", func() {
+			It("returns 409", func() {
+				broker := makeBroker("broker1", "http://domain.com/broker", "")
 
 				SM.POST("/v1/service_brokers").
 					WithJSON(broker).
-					Expect().Status(http.StatusBadRequest)
-			}
-		})
-
-		It("succeeds if optional fields are skipped", func() {
-			broker := makeBroker("broker1", "http://domain.com/broker", "")
-			// delete optional fields
-			delete(broker, "description")
-
-			reply := SM.POST("/v1/service_brokers").
-				WithJSON(broker).
-				Expect().Status(http.StatusCreated).JSON().Object()
-
-			delete(broker, "credentials")
-			broker["id"] = reply.Value("id").String().Raw()
-			// optional fields returned with default values
-			broker["description"] = ""
-
-			MapContains(reply.Raw(), broker)
-		})
-
-		It("returns the new broker", func() {
-			broker := makeBroker("broker1", "http://domain.com/broker", "broker one")
-
-			By("POST returns the new broker")
-
-			reply := SM.POST("/v1/service_brokers").
-				WithJSON(broker).
-				Expect().Status(http.StatusCreated).JSON().Object()
-			delete(broker, "credentials")
-
-			id := reply.Value("id").String().NotEmpty().Raw()
-			broker["id"] = id
-			MapContains(reply.Raw(), broker)
-
-			By("GET returns the same broker")
-
-			reply = SM.GET("/v1/service_brokers/" + id).
-				Expect().Status(http.StatusOK).JSON().Object()
-
-			MapContains(reply.Raw(), broker)
-		})
-
-		It("returns 409 if duplicate name is provided", func() {
-			broker := makeBroker("broker1", "http://domain.com/broker", "")
-
-			SM.POST("/v1/service_brokers").
-				WithJSON(broker).
-				Expect().Status(http.StatusCreated)
-			SM.POST("/v1/service_brokers").
-				WithJSON(broker).
-				Expect().Status(http.StatusConflict)
+					Expect().Status(http.StatusCreated)
+				SM.POST("/v1/service_brokers").
+					WithJSON(broker).
+					Expect().Status(http.StatusConflict)
+			})
 		})
 	})
 
@@ -208,146 +227,168 @@ func testBrokers() {
 			broker["id"] = id
 		})
 
-		It("returns 415 if input is not valid JSON", func() {
-			SM.PATCH("/v1/service_brokers/" + id).
-				WithText("text").
-				Expect().Status(http.StatusUnsupportedMediaType)
+		Context("When content type is not JSON", func() {
+			It("returns 415", func() {
+				SM.PATCH("/v1/service_brokers/" + id).
+					WithText("text").
+					Expect().Status(http.StatusUnsupportedMediaType)
+			})
 		})
 
-		It("returns 404 if broker is missing", func() {
-			SM.PATCH("/v1/service_brokers/invalid_id").
-				WithJSON(broker).
-				Expect().Status(http.StatusNotFound)
+		Context("When broker is missing", func() {
+			It("returns 404", func() {
+				SM.PATCH("/v1/service_brokers/invalid_id").
+					WithJSON(broker).
+					Expect().Status(http.StatusNotFound)
+			})
 		})
 
-		It("returns 400 if input is not valid JSON", func() {
-			SM.PATCH("/v1/service_brokers/"+id).
-				WithText("invalid json").
-				WithHeader("content-type", "application/json").
-				Expect().Status(http.StatusBadRequest)
+		Context("When input is not valid JSON", func() {
+			It("returns 400 if input is not valid JSON", func() {
+				SM.PATCH("/v1/service_brokers/"+id).
+					WithText("invalid json").
+					WithHeader("content-type", "application/json").
+					Expect().Status(http.StatusBadRequest)
+			})
 		})
 
-		It("returns 409 if duplicate name is provided", func() {
-			broker2 := makeBroker("broker2", "http://domain.com/broker2", "")
+		Context("When duplicate name is provided", func() {
+			It("returns 409", func() {
+				broker2 := makeBroker("broker2", "http://domain.com/broker2", "")
 
-			SM.POST("/v1/service_brokers").
-				WithJSON(broker2).
-				Expect().Status(http.StatusCreated)
-			SM.PATCH("/v1/service_brokers/" + id).
-				WithJSON(broker2).
-				Expect().Status(http.StatusConflict)
+				SM.POST("/v1/service_brokers").
+					WithJSON(broker2).
+					Expect().Status(http.StatusCreated)
+				SM.PATCH("/v1/service_brokers/" + id).
+					WithJSON(broker2).
+					Expect().Status(http.StatusConflict)
+			})
 		})
 
-		It("returns 200 if all properties are updated", func() {
-			By("Update broker")
+		Context("When all properties are updated", func() {
+			It("returns 200", func() {
+				By("Update broker")
 
-			updatedBroker := makeBroker("broker2", "http://domain.com/broker2", "desc2")
-			updatedBroker["credentials"] = Object{
-				"basic": Object{
-					"username": "auser",
-					"password": "apass",
-				},
-			}
-
-			reply := SM.PATCH("/v1/service_brokers/" + id).
-				WithJSON(updatedBroker).
-				Expect().
-				Status(http.StatusOK).JSON().Object()
-			delete(updatedBroker, "credentials")
-
-			MapContains(reply.Raw(), updatedBroker)
-
-			By("Update is persisted")
-
-			reply = SM.GET("/v1/service_brokers/" + id).
-				Expect().
-				Status(http.StatusOK).JSON().Object()
-
-			MapContains(reply.Raw(), updatedBroker)
-		})
-
-		It("can update each property separately", func() {
-			newBroker := makeBroker("bb8", "http://lucas.arts", "a robot")
-			newBroker["credentials"] = Object{
-				"basic": Object{
-					"username": "auser",
-					"password": "apass",
-				},
-			}
-
-			for prop, val := range newBroker {
-				update := Object{}
-				update[prop] = val
+				updatedBroker := makeBroker("broker2", "http://domain.com/broker2", "desc2")
+				updatedBroker["credentials"] = Object{
+					"basic": Object{
+						"username": "auser",
+						"password": "apass",
+					},
+				}
 
 				reply := SM.PATCH("/v1/service_brokers/" + id).
-					WithJSON(update).
+					WithJSON(updatedBroker).
 					Expect().
 					Status(http.StatusOK).JSON().Object()
+				delete(updatedBroker, "credentials")
 
-				if prop != "credentials" { // credentials are not returned
-					broker[prop] = val
-				}
-				MapContains(reply.Raw(), broker)
+				MapContains(reply.Raw(), updatedBroker)
+
+				By("Update is persisted")
 
 				reply = SM.GET("/v1/service_brokers/" + id).
 					Expect().
 					Status(http.StatusOK).JSON().Object()
 
-				MapContains(reply.Raw(), broker)
-			}
+				MapContains(reply.Raw(), updatedBroker)
+			})
 		})
 
-		It("should not update broker id if provided", func() {
-			SM.PATCH("/v1/service_brokers/" + id).
-				WithJSON(Object{"id": "123"}).
-				Expect().
-				Status(http.StatusOK)
+		Context("When properties are separately updated", func() {
+			It("can update each one", func() {
+				newBroker := makeBroker("bb8", "http://lucas.arts", "a robot")
+				newBroker["credentials"] = Object{
+					"basic": Object{
+						"username": "auser",
+						"password": "apass",
+					},
+				}
 
-			SM.GET("/v1/service_brokers/123").
-				Expect().
-				Status(http.StatusNotFound)
+				for prop, val := range newBroker {
+					update := Object{}
+					update[prop] = val
+
+					reply := SM.PATCH("/v1/service_brokers/" + id).
+						WithJSON(update).
+						Expect().
+						Status(http.StatusOK).JSON().Object()
+
+					if prop != "credentials" { // credentials are not returned
+						broker[prop] = val
+					}
+					MapContains(reply.Raw(), broker)
+
+					reply = SM.GET("/v1/service_brokers/" + id).
+						Expect().
+						Status(http.StatusOK).JSON().Object()
+
+					MapContains(reply.Raw(), broker)
+				}
+			})
 		})
 
-		It("should return 400 on malformed credentials", func() {
-			SM.PATCH("/v1/service_brokers/" + id).
-				WithJSON(Object{"credentials": "123"}).
-				Expect().
-				Status(http.StatusBadRequest)
+		Context("When broker id is provided", func() {
+			It("should not change id", func() {
+				SM.PATCH("/v1/service_brokers/" + id).
+					WithJSON(Object{"id": "123"}).
+					Expect().
+					Status(http.StatusOK)
+
+				SM.GET("/v1/service_brokers/123").
+					Expect().
+					Status(http.StatusNotFound)
+			})
 		})
 
-		It("should return 400 on incomplete credentials", func() {
-			SM.PATCH("/v1/service_brokers/" + id).
-				WithJSON(Object{"credentials": Object{"basic": Object{}}}).
-				Expect().
-				Status(http.StatusBadRequest)
+		Context("When malformed credentials are provided", func() {
+			It("returns 400", func() {
+				SM.PATCH("/v1/service_brokers/" + id).
+					WithJSON(Object{"credentials": "123"}).
+					Expect().
+					Status(http.StatusBadRequest)
+			})
+		})
+
+		Context("When incomplete credentials are provided", func() {
+			It("returns 400", func() {
+				SM.PATCH("/v1/service_brokers/" + id).
+					WithJSON(Object{"credentials": Object{"basic": Object{}}}).
+					Expect().
+					Status(http.StatusBadRequest)
+			})
 		})
 	})
 
 	Describe("DELETE", func() {
-		It("returns 404 when trying to delete non-existing broker", func() {
-			SM.DELETE("/v1/service_brokers/999").
-				Expect().
-				Status(http.StatusNotFound)
+		Context("Non-existing broker", func() {
+			It("returns 404", func() {
+				SM.DELETE("/v1/service_brokers/999").
+					Expect().
+					Status(http.StatusNotFound)
+			})
 		})
 
-		It("deletes broker", func() {
-			broker := makeBroker("broker1", "http://domain.com/broker", "desc1")
-			reply := SM.POST("/v1/service_brokers").
-				WithJSON(broker).
-				Expect().Status(http.StatusCreated).JSON().Object()
-			id := reply.Value("id").String().Raw()
+		Context("Existing broker", func() {
+			It("succeeds", func() {
+				broker := makeBroker("broker1", "http://domain.com/broker", "desc1")
+				reply := SM.POST("/v1/service_brokers").
+					WithJSON(broker).
+					Expect().Status(http.StatusCreated).JSON().Object()
+				id := reply.Value("id").String().Raw()
 
-			SM.GET("/v1/service_brokers/" + id).
-				Expect().
-				Status(http.StatusOK)
+				SM.GET("/v1/service_brokers/" + id).
+					Expect().
+					Status(http.StatusOK)
 
-			SM.DELETE("/v1/service_brokers/" + id).
-				Expect().
-				Status(http.StatusOK).JSON().Object().Empty()
+				SM.DELETE("/v1/service_brokers/" + id).
+					Expect().
+					Status(http.StatusOK).JSON().Object().Empty()
 
-			SM.GET("/v1/service_brokers/" + id).
-				Expect().
-				Status(http.StatusNotFound)
+				SM.GET("/v1/service_brokers/" + id).
+					Expect().
+					Status(http.StatusNotFound)
+			})
 		})
 	})
 }
