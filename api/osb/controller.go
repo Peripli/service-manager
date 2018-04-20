@@ -30,6 +30,21 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const (
+
+	// v1 is a prefix the first version of the OSB API
+	v1 = "/v1"
+
+	// root is a prefix for the OSB API
+	root = "/osb"
+
+	//BrokerIDPathParam is a service broker ID path parameter
+	BrokerIDPathParam = "/{brokerID}"
+
+	// path is the OSB API controller path
+	path = v1 + root + BrokerIDPathParam
+)
+
 // Controller implements rest.Controller by providing OSB API logic
 type Controller struct {
 	BrokerStorage storage.Broker
@@ -43,7 +58,7 @@ func (c *Controller) Routes() []rest.Route {
 		{
 			Endpoint: rest.Endpoint{
 				Method: rest.AllMethods,
-				Path:   "/osb/{brokerID}",
+				Path:   path,
 			},
 			Handler: c.osbHandler(),
 		},

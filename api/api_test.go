@@ -20,9 +20,9 @@ import (
 	"testing"
 
 	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/storage/storagefakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/Peripli/service-manager/storage/storagefakes"
 )
 
 func TestApi(t *testing.T) {
@@ -41,7 +41,7 @@ var _ = Describe("API", func() {
 
 	var (
 		mockedStorage *storagefakes.FakeStorage
-		api rest.API
+		api           rest.API
 	)
 
 	BeforeEach(func() {

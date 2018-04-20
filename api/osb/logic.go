@@ -31,7 +31,6 @@ import (
 )
 
 // BrokerIDPathParam is used as a key for broker id path parameter
-const BrokerIDPathParam = "brokerID"
 
 // BusinessLogic provides an implementation of the pmorie/osb-broker-lib/pkg/broker/Interface interface.
 type BusinessLogic struct {
