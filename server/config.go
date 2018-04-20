@@ -27,6 +27,7 @@ import (
 type Environment interface {
 	Load() error
 	Get(key string) interface{}
+	Set(key string, value interface{})
 	Unmarshal(value interface{}) error
 }
 
