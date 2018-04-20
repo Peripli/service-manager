@@ -72,7 +72,7 @@ func (errorResponseWriter) Header() http.Header {
 }
 
 func (errorResponseWriter) Write([]byte) (int, error) {
-	return -1, errors.New("err")
+	return -1, errors.New("write error")
 }
 
 func (errorResponseWriter) WriteHeader(statusCode int) {
@@ -82,19 +82,34 @@ func (errorResponseWriter) WriteHeader(statusCode int) {
 var _ = Describe("Errors", func() {
 
 	mockedWriter := &mockedResponseWriter{}
+	mockedErrorWriter := &errorResponseWriter{}
 
 	BeforeEach(func() {
 		mockedWriter.data = []byte{}
 	})
 
-	Describe("Send JSON", func() {
-		Context("With valid parameters", func() {
-			It("Writes to response writer", func() {
-				response := types.ErrorResponse{ErrorType: "test error", Description: "test description"}
-				if err := SendJSON(mockedWriter, http.StatusOK, response); err != nil {
-					Fail("Serializing valid types.ErrorResponse should be successful")
-				}
+	Describe("HandleError", func() {
+		Context("With ErrorResponse as parameter", func() {
+			It("Writes to response writer the proper output", func() {
+				HandleError(&types.ErrorResponse{ErrorType: "test error", Description: "test description", StatusCode: http.StatusAccepted}, mockedWriter)
 				Expect(string(mockedWriter.data)).To(ContainSubstring("test description"))
+				Expect(mockedWriter.status).To(Equal(http.StatusAccepted))
+			})
+		})
+		Context("With error as parameter", func() {
+			It("Writes to response writer the proper output", func() {
+				HandleError(errors.New("must not be included"), mockedWriter)
+				Expect(string(mockedWriter.data)).To(ContainSubstring("Internal server error"))
+				Expect(string(mockedWriter.data)).ToNot(ContainSubstring("must not be included"))
+				Expect(mockedWriter.status).To(Equal(http.StatusInternalServerError))
+			})
+		})
+		Context("With broken writer", func() {
+			It("Logs write error", func() {
+				hook := &loggingInterceptorHook{}
+				logrus.AddHook(hook)
+				HandleError(errors.New(""), mockedErrorWriter)
+				Expect(string(hook.data)).To(ContainSubstring("Could not write error to response: write error"))
 			})
 		})
 	})
