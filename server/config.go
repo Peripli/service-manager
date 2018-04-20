@@ -17,9 +17,9 @@
 package server
 
 import (
+	"fmt"
 	"strconv"
 	"time"
-	"fmt"
 )
 
 // Environment represents an abstraction over the environment from which Service Manager configuration will be loaded
@@ -28,6 +28,7 @@ type Environment interface {
 	Load() error
 	Get(key string) interface{}
 	Set(key string, value interface{})
+	IsSet(key string) bool
 	Unmarshal(value interface{}) error
 }
 
@@ -93,22 +94,22 @@ func NewConfiguration(env Environment) (*Config, error) {
 		return nil, err
 	}
 
-	if configSettings.Server.Port != 0 {
+	if env.IsSet("server.port") && configSettings.Server.Port != 0 {
 		config.Address = ":" + strconv.Itoa(configSettings.Server.Port)
 	}
-	if configSettings.Server.RequestTimeout != 0 {
+	if env.IsSet("server.requestTimeout") && configSettings.Server.RequestTimeout != 0 {
 		config.RequestTimeout = time.Duration(configSettings.Server.RequestTimeout)
 	}
-	if configSettings.Server.ShutdownTimeout != 0 {
+	if env.IsSet("server.shutdownTimeout") && configSettings.Server.ShutdownTimeout != 0 {
 		config.ShutdownTimeout = time.Duration(configSettings.Server.ShutdownTimeout)
 	}
-	if len(configSettings.Db.URI) != 0 {
+	if env.IsSet("db.URI") && len(configSettings.Db.URI) != 0 {
 		config.DbURI = configSettings.Db.URI
 	}
-	if len(configSettings.Log.Format) != 0 {
+	if env.IsSet("log.format") && len(configSettings.Log.Format) != 0 {
 		config.LogFormat = configSettings.Log.Format
 	}
-	if len(configSettings.Log.Level) != 0 {
+	if env.IsSet("log.level") && len(configSettings.Log.Level) != 0 {
 		config.LogLevel = configSettings.Log.Level
 	}
 

@@ -14,16 +14,16 @@
  *    limitations under the License.
  */
 
- // Package env contains logic for working with environment, flags and file configs via Viper
+// Package env contains logic for working with environment, flags and file configs via Viper
 package env
 
 import (
 	"fmt"
 	"strings"
 
+	"github.com/Peripli/service-manager/server"
 	"github.com/fatih/structs"
 	"github.com/spf13/viper"
-	"github.com/Peripli/service-manager/server"
 )
 
 type viperEnv struct {
@@ -78,6 +78,10 @@ func (v *viperEnv) Get(key string) interface{} {
 
 func (v *viperEnv) Set(key string, value interface{}) {
 	v.Viper.Set(key, value)
+}
+
+func (v *viperEnv) IsSet(key string) bool {
+	return v.Viper.IsSet(key)
 }
 
 func (v *viperEnv) Unmarshal(value interface{}) error {
