@@ -80,6 +80,10 @@ func (v *viperEnv) Set(key string, value interface{}) {
 	v.Viper.Set(key, value)
 }
 
+func (v *viperEnv) IsSet(key string) bool {
+	return v.Viper.IsSet(key)
+}
+
 func (v *viperEnv) Unmarshal(value interface{}) error {
 	if err := v.introduce(value); err != nil {
 		return err
