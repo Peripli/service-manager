@@ -19,8 +19,8 @@ package env
 import (
 	"github.com/cloudfoundry-community/go-cfenv"
 	"github.com/Peripli/service-manager/server"
-	"fmt"
 	"github.com/sirupsen/logrus"
+	"strings"
 )
 
 // New returns a Cloud Foundry environment with a delegate
@@ -44,7 +44,7 @@ func (e *cfEnvironment) Load() error {
 }
 
 func (e *cfEnvironment) Get(key string) interface{} {
-	value, exists := cfenv.CurrentEnv()[key]
+	value, exists := cfenv.CurrentEnv()[strings.Title(key)]
 	if !exists {
 		return e.delegate.Get(key)
 	}
@@ -56,29 +56,11 @@ func (e *cfEnvironment) Set(key string, value interface{}) {
 }
 
 func (e *cfEnvironment) Unmarshal(value interface{}) error {
-	err := e.delegate.Unmarshal(value)
-	cfg, ok := value.(*server.Settings)
-	if ok {
-		storageName := "postgres"
-		service, err := e.cfEnv.Services.WithName(storageName)
-		if err != nil {
-			return fmt.Errorf("No service with name %s is bound to the application", storageName)
-		}
-		uri := service.Credentials["uri"]
-		if ok {
-			cfg.Db = &server.DbSettings{
-				URI: uri.(string),
-			}
-		}
-		cfg.Server = &server.AppSettings{
-			Port: e.cfEnv.Port,
-		}
-	}
-	return err
+	return e.delegate.Unmarshal(value)
 }
 
 func (e *cfEnvironment) databaseURI() string {
-	dbName := e.Get("db.name").(string)
+	dbName := e.delegate.Get("db.name").(string)
 	service, err := e.cfEnv.Services.WithName(dbName)
 	if err != nil {
 		logrus.Panicf("Could not find service with name %s", dbName)
