@@ -21,10 +21,11 @@ import (
 	. "github.com/onsi/gomega"
 
 	"fmt"
-	. "github.com/Peripli/service-manager/server"
-	"github.com/Peripli/service-manager/server/serverfakes"
 	"strconv"
 	"time"
+
+	. "github.com/Peripli/service-manager/server"
+	"github.com/Peripli/service-manager/server/serverfakes"
 )
 
 var _ = Describe("config", func() {

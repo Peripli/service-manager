@@ -6,8 +6,8 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/Peripli/service-manager/bootstrap"
 	"github.com/Peripli/service-manager/env"
+	"github.com/Peripli/service-manager/sm"
 	"github.com/sirupsen/logrus"
 )
 
@@ -16,7 +16,7 @@ func main() {
 	defer cancel()
 	handleInterrupts(ctx, cancel)
 
-	srv, err := bootstrap.CreateServer(ctx, env.Default())
+	srv, err := sm.NewServer(ctx, env.Default())
 	if err != nil {
 		logrus.Fatal("Error creating the server", err)
 	}

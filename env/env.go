@@ -100,7 +100,6 @@ func (v *viperEnv) introduce(value interface{}) error {
 }
 
 // traverseFields traverses the provided structure and prepares a slice of strings that contains
-//
 func traverseFields(value interface{}, buffer string, result *[]string) {
 	if !structs.IsStruct(value) {
 		index := strings.LastIndex(buffer, ".")

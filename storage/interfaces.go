@@ -46,6 +46,7 @@ var ErrNotFound = errors.New("Not found")
 var ErrUniqueViolation = errors.New("Unique constraint violation")
 
 // Broker interface for Broker db operations
+//go:generate counterfeiter . Broker
 type Broker interface {
 	Create(broker *types.Broker) error
 	Get(id string) (*types.Broker, error)

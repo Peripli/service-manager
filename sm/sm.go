@@ -14,7 +14,8 @@
  *    limitations under the License.
  */
 
-package bootstrap
+// Package sm contains logic for setting up the service manager server
+package sm
 
 import (
 	"context"
@@ -27,8 +28,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// CreateServer creates service manager server
-func CreateServer(ctx context.Context, serverEnv server.Environment) (*server.Server, error) {
+// NewServer creates service manager server
+func NewServer(ctx context.Context, serverEnv server.Environment) (*server.Server, error) {
 	config, err := server.NewConfiguration(serverEnv)
 	if err != nil {
 		return nil, fmt.Errorf("Error loading configuration: %v", err)

@@ -22,8 +22,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Peripli/service-manager/bootstrap"
 	"github.com/Peripli/service-manager/env"
+	"github.com/Peripli/service-manager/sm"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 
@@ -42,7 +42,7 @@ func getServerRouter() *mux.Router {
 		Name:   "application",
 		Format: "yml",
 	}, "SM")
-	srv, err := bootstrap.CreateServer(context.Background(), serverEnv)
+	srv, err := sm.NewServer(context.Background(), serverEnv)
 	if err != nil {
 		logrus.Fatal("Error creating server: ", err)
 	}

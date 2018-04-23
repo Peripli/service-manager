@@ -19,6 +19,7 @@ package api
 
 import (
 	"github.com/Peripli/service-manager/api/broker"
+	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/api/platform"
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
@@ -30,6 +31,9 @@ func Default(storage storage.Storage) rest.API {
 	return &smAPI{
 		controllers: []rest.Controller{
 			&broker.Controller{
+				BrokerStorage: storage.Broker(),
+			},
+			&osb.Controller{
 				BrokerStorage: storage.Broker(),
 			},
 			&platform.Controller{
