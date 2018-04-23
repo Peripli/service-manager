@@ -83,17 +83,17 @@ func (bs *brokerStorage) Get(id string) (*types.Broker, error) {
 }
 
 func (bs *brokerStorage) GetAll() ([]types.Broker, error) {
-	brokers := []Broker{}
-	err := bs.db.Select(&brokers, "SELECT id, name, description, created_at, updated_at, broker_url FROM "+brokerTable)
+	brokerDTOs := []Broker{}
+	err := bs.db.Select(&brokerDTOs, "SELECT id, name, description, created_at, updated_at, broker_url FROM "+brokerTable)
 	if err != nil {
 		logrus.Error("An error occurred while retrieving all brokers")
 		return nil, err
 	}
-	restBrokers := make([]types.Broker, len(brokers))
-	for i, broker := range brokers {
-		restBrokers[i] = *broker.Convert()
+	brokers := make([]types.Broker, 0, len(brokerDTOs)+1)
+	for _, broker := range brokerDTOs {
+		brokers = append(brokers, *broker.Convert())
 	}
-	return restBrokers, nil
+	return brokers, nil
 }
 
 func (bs *brokerStorage) Delete(id string) error {
@@ -151,7 +151,7 @@ func (bs *brokerStorage) Update(broker *types.Broker) error {
 }
 
 func generateUpdateQueryString(broker *types.Broker) string {
-	set := make([]string, 0, 5)
+	set := make([]string, 0, 6)
 	if broker.Name != "" {
 		set = append(set, "name = :name")
 	}

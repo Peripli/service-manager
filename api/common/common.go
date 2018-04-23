@@ -27,6 +27,9 @@ import (
 
 // CheckErrors check multiple ErrorResponse errors
 func CheckErrors(errors ...error) error {
+	if len(errors) == 0 {
+		return nil
+	}
 	for _, err := range errors {
 		if err != nil {
 			_, ok := err.(*types.ErrorResponse)

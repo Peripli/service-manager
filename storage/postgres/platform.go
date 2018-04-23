@@ -71,7 +71,7 @@ func (ps *platformStorage) GetAll() ([]types.Platform, error) {
 	if err != nil || len(platformDTOs) == 0 {
 		return []types.Platform{}, err
 	}
-	var platforms = make([]types.Platform, 0, len(platformDTOs))
+	var platforms = make([]types.Platform, 0, len(platformDTOs)+1)
 	for _, platformDTO := range platformDTOs {
 		platforms = append(platforms, *platformDTO.Convert())
 	}
@@ -112,7 +112,7 @@ func (ps *platformStorage) Update(platform *types.Platform) error {
 }
 
 func platformUpdateQueryString(platform *types.Platform) string {
-	set := make([]string, 0, 4)
+	set := make([]string, 0, 5)
 	if platform.Name != "" {
 		set = append(set, "name = :name")
 	}

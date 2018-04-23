@@ -47,3 +47,7 @@
 [[constraint]]
   name = "github.com/fatih/structs"
   version = "1.0.0"
+
+[[constraint]]
+  name = "github.com/gavv/httpexpect"
+  revision = "c44a6d7bb636b17e880a53998a7f7061a56ffacb"
