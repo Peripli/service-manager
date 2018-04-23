@@ -16,14 +16,17 @@ install:
 before_script:
   - gometalinter --install --update
 
+services:
+  - postgresql
+
 script:
   # Execute static checks
   - gometalinter --vendor ./...
 
-  # Execute tests
-  - go test $(go list ./... | grep -v "..fakes") -covermode=count -coverprofile=profile.cov
+  # Execute tests and generate coverage for all the packages except fakes and tests
+  - go test ./... -coverpkg $(go list ./... | egrep -v "fakes|test" | paste -sd "," -) -coverprofile=profile.cov
   - goveralls -coverprofile profile.cov -service=travis-ci
-  
+
   #Execute security scan
   # - gas ./...
 

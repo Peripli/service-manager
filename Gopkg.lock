@@ -2,10 +2,22 @@
 
 
 [[projects]]
+  name = "github.com/ajg/form"
+  packages = ["."]
+  revision = "cc2954064ec9ea8d93917f0f87456e11d7b881ad"
+  version = "v1.5"
+
+[[projects]]
   branch = "master"
   name = "github.com/beorn7/perks"
   packages = ["quantile"]
   revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
+
+[[projects]]
+  name = "github.com/davecgh/go-spew"
+  packages = ["spew"]
+  revision = "346938d642f2ec3594ed81d874461961cd0faa76"
+  version = "v1.1.0"
 
 [[projects]]
   name = "github.com/fatih/structs"
@@ -20,6 +32,29 @@
   version = "v1.4.7"
 
 [[projects]]
+  name = "github.com/gavv/httpexpect"
+  packages = ["."]
+  revision = "c44a6d7bb636b17e880a53998a7f7061a56ffacb"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/gavv/monotime"
+  packages = ["."]
+  revision = "6f8212e8d10df7383609d3c377ca08884d8f3ec0"
+
+[[projects]]
+  name = "github.com/golang-migrate/migrate"
+  packages = [
+    ".",
+    "database",
+    "database/postgres",
+    "source",
+    "source/file"
+  ]
+  revision = "22f249514de9aa3f8a720a7cabbdd45d294f83a1"
+  version = "v3.2.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/golang/glog"
   packages = ["."]
@@ -30,6 +65,12 @@
   packages = ["proto"]
   revision = "925541529c1fa6821df4e44ce2723319eb2be768"
   version = "v1.0.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/google/go-querystring"
+  packages = ["query"]
+  revision = "53e6ce116135b80d037921a7fdd5138cf32d7a8a"
 
 [[projects]]
   name = "github.com/gorilla/context"
@@ -61,6 +102,12 @@
   revision = "ef8a98b0bbce4a65b5aa4c368430a80ddc533168"
 
 [[projects]]
+  name = "github.com/imkira/go-interpol"
+  packages = ["."]
+  revision = "5accad8134979a6ac504d456a6c7f1c53da237ca"
+  version = "v1.1.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/jmoiron/sqlx"
   packages = [
@@ -68,6 +115,28 @@
     "reflectx"
   ]
   revision = "2aeb6a910c2b94f2d5eb53d9895d80e27264ec41"
+
+[[projects]]
+  name = "github.com/klauspost/compress"
+  packages = [
+    "flate",
+    "gzip",
+    "zlib"
+  ]
+  revision = "6c8db69c4b49dd4df1fff66996cf556176d0b9bf"
+  version = "v1.2.1"
+
+[[projects]]
+  name = "github.com/klauspost/cpuid"
+  packages = ["."]
+  revision = "ae7887de9fa5d2db4eaa8174a7eff2c1ac00f2da"
+  version = "v1.1"
+
+[[projects]]
+  name = "github.com/klauspost/crc32"
+  packages = ["."]
+  revision = "cb6bfca970f6908083f26f39a79009d608efd5cd"
+  version = "v1.1"
 
 [[projects]]
   branch = "master"
@@ -95,6 +164,12 @@
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
   revision = "00c29f56e2386353d58c599509e8dc3801b0d716"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/moul/http2curl"
+  packages = ["."]
+  revision = "9ac6cf4d929b2fa8fd2d2e6dec5bb0feb4f4911d"
 
 [[projects]]
   name = "github.com/onsi/ginkgo"
@@ -147,6 +222,12 @@
   version = "v1.1.0"
 
 [[projects]]
+  name = "github.com/pmezard/go-difflib"
+  packages = ["difflib"]
+  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
+  version = "v1.0.0"
+
+[[projects]]
   name = "github.com/pmorie/go-open-service-broker-client"
   packages = [
     "v2",
@@ -163,8 +244,8 @@
     "pkg/rest",
     "pkg/server"
   ]
-  revision = "cfcc33dad32c684db17e7e23ea3899df90a7b2c9"
-  version = "0.0.7"
+  revision = "052cd99aa13d67fd2c99ff853027a359f25dfbe7"
+  version = "0.0.9"
 
 [[projects]]
   name = "github.com/prometheus/client_golang"
@@ -201,6 +282,17 @@
     "xfs"
   ]
   revision = "8b1c2da0d56deffdbb9e48d4414b4e674bd8083e"
+
+[[projects]]
+  name = "github.com/satori/go.uuid"
+  packages = ["."]
+  revision = "36e9d2ebbde5e3f13ab2e25625fd453271d6522e"
+
+[[projects]]
+  name = "github.com/sergi/go-diff"
+  packages = ["diffmatchpatch"]
+  revision = "1744e2970ca51c86172c8190fadad617561ed6e7"
+  version = "v1.0.0"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
@@ -242,10 +334,73 @@
   version = "v1.0.2"
 
 [[projects]]
+  name = "github.com/stretchr/testify"
+  packages = [
+    "assert",
+    "require"
+  ]
+  revision = "12b6f73e6084dad08a7c6e575284b177ecafbc71"
+  version = "v1.2.1"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/valyala/bytebufferpool"
+  packages = ["."]
+  revision = "e746df99fe4a3986f4d4f79e13c1e0117ce9c2f7"
+
+[[projects]]
+  name = "github.com/valyala/fasthttp"
+  packages = [
+    ".",
+    "fasthttputil",
+    "stackless"
+  ]
+  revision = "e5f51c11919d4f66400334047b897ef0a94c6f3c"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/xeipuuv/gojsonpointer"
+  packages = ["."]
+  revision = "4e3ac2762d5f479393488629ee9370b50873b3a6"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/xeipuuv/gojsonreference"
+  packages = ["."]
+  revision = "bd5ef7bd5415a7ac448318e64f11a24cd21e594b"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/xeipuuv/gojsonschema"
+  packages = ["."]
+  revision = "2c8e4be869c17540b336bab0ea18b8d73e6a28b7"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/yalp/jsonpath"
+  packages = ["."]
+  revision = "91a5860ab683d85ac38cbb7cb466a17a673b6ae5"
+
+[[projects]]
+  name = "github.com/yudai/gojsondiff"
+  packages = [
+    ".",
+    "formatter"
+  ]
+  revision = "7b1b7adf999dab73a6eb02669c3d82dbb27a3dd6"
+  version = "1.0.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/yudai/golcs"
+  packages = ["."]
+  revision = "ecda9a501e8220fae3b4b600c3db4b0ba22cfc68"
+
+[[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "d6449816ce06963d9d136eee5a56fca5b0616e7e"
+  revision = "2b6c08872f4b66da917bb4ce98df4f0307330f78"
 
 [[projects]]
   branch = "master"
@@ -253,9 +408,11 @@
   packages = [
     "html",
     "html/atom",
-    "html/charset"
+    "html/charset",
+    "idna",
+    "publicsuffix"
   ]
-  revision = "d41e8174641f662c5a2d1c7a5f9e828788eb8706"
+  revision = "5f9ae10d9af5b1c89ae6904293b14b064d4ada23"
 
 [[projects]]
   branch = "master"
@@ -264,11 +421,13 @@
     "unix",
     "windows"
   ]
-  revision = "b126b21c05a91c856b027c16779c12e3bf236954"
+  revision = "79b0c6888797020a994db17c8510466c72fe75d9"
 
 [[projects]]
   name = "golang.org/x/text"
   packages = [
+    "collate",
+    "collate/build",
     "encoding",
     "encoding/charmap",
     "encoding/htmlindex",
@@ -279,6 +438,7 @@
     "encoding/simplifiedchinese",
     "encoding/traditionalchinese",
     "encoding/unicode",
+    "internal/colltab",
     "internal/gen",
     "internal/tag",
     "internal/triegen",
@@ -286,9 +446,12 @@
     "internal/utf8internal",
     "language",
     "runes",
+    "secure/bidirule",
     "transform",
+    "unicode/bidi",
     "unicode/cldr",
-    "unicode/norm"
+    "unicode/norm",
+    "unicode/rangetable"
   ]
   revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
   version = "v0.3.0"
@@ -302,6 +465,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "1788f4e32b89d7136807cf208d6fcd555c6a7e47a06cef8c834699e74a69178d"
+  inputs-digest = "de131a598cb9a3f9f8f554568f89abb6adacd815e71c10835deb96e11cec67ee"
   solver-name = "gps-cdcl"
   solver-version = 1

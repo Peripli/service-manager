@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
- // Package rest contains logic for building the Service Manager REST API
+// Package rest contains logic for building the Service Manager REST API
 package rest
 
 import "net/http"
@@ -55,6 +55,7 @@ type Endpoint struct {
 type APIHandler func(http.ResponseWriter, *http.Request) error
 
 func (ah APIHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
-	err := ah(rw, r)
-	HandleError(err, rw)
+	if err := ah(rw, r); err != nil {
+		HandleError(err, rw)
+	}
 }

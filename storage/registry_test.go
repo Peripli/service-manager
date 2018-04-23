@@ -20,13 +20,14 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"testing"
-	"github.com/Peripli/service-manager/storage"
 	"context"
 	"fmt"
+	"testing"
+	"time"
+
+	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/storagefakes"
 	"github.com/sirupsen/logrus"
-	"time"
 )
 
 func TestStorage(t *testing.T) {
@@ -59,7 +60,7 @@ var _ = Describe("Registry", func() {
 	Describe("Storage registration", func() {
 		var (
 			name string
-			s storage.Storage
+			s    storage.Storage
 		)
 
 		registerStorage := func() {

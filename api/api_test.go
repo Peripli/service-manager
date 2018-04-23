@@ -64,6 +64,7 @@ var _ = Describe("API", func() {
 			It("Should panic", func() {
 				nilControllerInSlice := func() {
 					var controllers []rest.Controller
+					controllers = append(controllers, &testController{})
 					controllers = append(controllers, nil)
 					api.RegisterControllers(controllers...)
 				}
@@ -72,7 +73,6 @@ var _ = Describe("API", func() {
 		})
 
 		Context("With no brokers registered", func() {
-
 			It("Should increase broker count", func() {
 				originalControllersCount := len(api.Controllers())
 				api.RegisterControllers(&testController{})

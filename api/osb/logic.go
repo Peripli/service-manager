@@ -192,11 +192,11 @@ func (b *BusinessLogic) ValidateBrokerAPIVersion(version string) error {
 func clientConfigForBroker(broker *types.Broker) *osbc.ClientConfiguration {
 	config := osbc.DefaultClientConfiguration()
 	config.Name = broker.Name
-	config.URL = broker.URL
+	config.URL = broker.BrokerURL
 	config.AuthConfig = &osbc.AuthConfig{
 		BasicAuthConfig: &osbc.BasicAuthConfig{
-			Username: broker.User,
-			Password: broker.Password,
+			Username: broker.Credentials.Basic.Username,
+			Password: broker.Credentials.Basic.Password,
 		},
 	}
 	return config
@@ -209,7 +209,7 @@ func (b *BusinessLogic) osbClient(request *http.Request) (osbc.Client, error) {
 	if !ok {
 		return nil, fmt.Errorf("error creating OSB client: brokerID path parameter not found")
 	}
-	serviceBroker, err := b.brokerStorage.Find(request.Context(), brokerID)
+	serviceBroker, err := b.brokerStorage.Get(brokerID)
 	if err != nil {
 		return nil, fmt.Errorf("error obtaining serviceBroker with id %s from storage: %s", brokerID, err)
 	}
