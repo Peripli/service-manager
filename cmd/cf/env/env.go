@@ -38,7 +38,9 @@ func (e *cfEnvironment) Load() error {
 	if err = e.delegate.Load(); err != nil {
 		return err
 	}
-	e.cfEnv, err = cfenv.Current()
+	if e.cfEnv, err = cfenv.Current(); err != nil {
+		return err
+	}
 	e.delegate.Set("db.uri", e.databaseURI())
 	return err
 }
