@@ -2,6 +2,11 @@
 
 
 [[projects]]
+  name = "github.com/cloudfoundry-community/go-cfenv"
+  packages = ["."]
+  revision = "e84b5c116637ef174eb8c7d68a28bc7269b3b9cb"
+
+[[projects]]
   name = "github.com/fatih/structs"
   packages = ["."]
   revision = "a720dfa8df582c51dee1b36feabb906bde1588bd"
@@ -222,6 +227,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "9a3f94f0725219f861a4a8b6deb42ff42ad66e0eda6df9017143f81ff15e119a"
+  inputs-digest = "410f63bd8cb2e8a3fa7725262a8603bd8b6c42082f3a03de92bb3ab0c52ec3dd"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -25,44 +25,36 @@ import (
 
 // New returns a Cloud Foundry environment with a delegate
 func New(delegate server.Environment) server.Environment {
-	return &cfEnvironment{delegate: delegate}
+	return &cfEnvironment{Environment: delegate}
 }
 
 type cfEnvironment struct {
 	cfEnv    *cfenv.App
-	delegate server.Environment
+	server.Environment
 }
 
 func (e *cfEnvironment) Load() error {
 	var err error
-	if err = e.delegate.Load(); err != nil {
+	if err = e.Environment.Load(); err != nil {
 		return err
 	}
 	if e.cfEnv, err = cfenv.Current(); err != nil {
 		return err
 	}
-	e.delegate.Set("db.uri", e.databaseURI())
+	e.Environment.Set("db.uri", e.databaseURI())
 	return err
 }
 
 func (e *cfEnvironment) Get(key string) interface{} {
 	value, exists := cfenv.CurrentEnv()[strings.Title(key)]
 	if !exists {
-		return e.delegate.Get(key)
+		return e.Environment.Get(key)
 	}
 	return value
 }
 
-func (e *cfEnvironment) Set(key string, value interface{}) {
-	e.delegate.Set(key, value)
-}
-
-func (e *cfEnvironment) Unmarshal(value interface{}) error {
-	return e.delegate.Unmarshal(value)
-}
-
 func (e *cfEnvironment) databaseURI() string {
-	dbName := e.delegate.Get("db.name").(string)
+	dbName := e.Environment.Get("db.name").(string)
 	service, err := e.cfEnv.Services.WithName(dbName)
 	if err != nil {
 		logrus.Panicf("Could not find service with name %s", dbName)
