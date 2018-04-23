@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The Service Manager Authors
+ *    Copyright 2018 The Service Manager Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -14,16 +14,30 @@
  *    limitations under the License.
  */
 
-// Package types defines the entity types used in the Service Manager
-package types
+package api
 
-// Broker Just to showcase how to use
-type Broker struct {
-	ID        string `db:"id"`
-	Name      string `db:"name"`
-	URL       string `db:"broker_url"`
-	CreatedAt string `db:"created_at"`
-	UpdatedAt string `db:"updated_at"`
-	User      string `db:"user"`
-	Password  string `db:"password"`
+import (
+	"fmt"
+
+	"github.com/gavv/httpexpect"
+	. "github.com/onsi/ginkgo"
+)
+
+var SM *httpexpect.Expect
+
+type Object = map[string]interface{}
+type Array = []interface{}
+
+func MapContains(actual Object, expected Object) {
+	for k, v := range expected {
+		value, ok := actual[k]
+		if !ok {
+			Fail(fmt.Sprintf("Missing property '%s'", k), 1)
+		}
+		if value != v {
+			Fail(
+				fmt.Sprintf("For property '%s':\nExpected: %s\nActual: %s", k, v, value),
+				1)
+		}
+	}
 }

@@ -1,9 +1,0 @@
-server:
-  requestTimeout: 3000
-  shutdownTimeout: 3000
-  port: 8080
-log:
-  level: debug
-  format: text
-db:
-  uri: postgres://postgres:postgres@localhost:5555/postgres?sslmode=disable

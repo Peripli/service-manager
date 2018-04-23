@@ -33,5 +33,21 @@
   branch = "master"
 
 [[constraint]]
+  name = "github.com/satori/go.uuid"
+  revision = "36e9d2ebbde5e3f13ab2e25625fd453271d6522e"
+
+[[constraint]]
+  name = "github.com/golang-migrate/migrate"
+  version = "3.2.0"
+
+[[override]]
+  name = "github.com/valyala/fasthttp"
+  revision = "e5f51c11919d4f66400334047b897ef0a94c6f3c"
+
+[[constraint]]
   name = "github.com/fatih/structs"
   version = "1.0.0"
+
+[[constraint]]
+  name = "github.com/gavv/httpexpect"
+  revision = "c44a6d7bb636b17e880a53998a7f7061a56ffacb"

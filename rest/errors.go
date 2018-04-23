@@ -17,35 +17,30 @@
 package rest
 
 import (
-	"encoding/json"
 	"net/http"
 
+	"github.com/Peripli/service-manager/types"
 	"github.com/sirupsen/logrus"
 )
 
-// ErrorResponse struct used to store information about error
-type ErrorResponse struct {
-	Error       string `json:"error,omitempty"`
-	Description string `json:"description"`
-}
-
 // HandleError sends a JSON containing the error to the response writer
 func HandleError(err error, writer http.ResponseWriter) {
-	if err != nil {
-		sendErr := SendJSON(writer, http.StatusInternalServerError, ErrorResponse{
-			Description: err.Error(),
-		})
-		if sendErr != nil {
-			logrus.Errorf("Could not write error to response: %v", sendErr)
+	var respError *types.ErrorResponse
+	switch t := err.(type) {
+	case *types.ErrorResponse:
+		logrus.Debug(err)
+		respError = t
+	default:
+		logrus.Error(err)
+		respError = &types.ErrorResponse{
+			ErrorType:   "InternalError",
+			Description: "Internal server error",
+			StatusCode:  http.StatusInternalServerError,
 		}
 	}
-}
 
-// SendJSON writes a JSON value and sets the specified HTTP Status code
-func SendJSON(writer http.ResponseWriter, code int, value interface{}) error {
-	writer.Header().Add("Content-Type", "application/json")
-	writer.WriteHeader(code)
-
-	encoder := json.NewEncoder(writer)
-	return encoder.Encode(value)
+	sendErr := SendJSON(writer, respError.StatusCode, respError)
+	if sendErr != nil {
+		logrus.Errorf("Could not write error to response: %v", sendErr)
+	}
 }

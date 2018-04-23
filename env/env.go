@@ -14,16 +14,16 @@
  *    limitations under the License.
  */
 
- // Package env contains logic for working with environment, flags and file configs via Viper
+// Package env contains logic for working with environment, flags and file configs via Viper
 package env
 
 import (
 	"fmt"
 	"strings"
 
+	"github.com/Peripli/service-manager/server"
 	"github.com/fatih/structs"
 	"github.com/spf13/viper"
-	"github.com/Peripli/service-manager/server"
 )
 
 type viperEnv struct {

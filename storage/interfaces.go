@@ -14,13 +14,14 @@
  *    limitations under the License.
  */
 
- // Package storage provides generic interfaces around the Service Manager storage and provides logic
- // for registration and usage of storages
+// Package storage provides generic interfaces around the Service Manager storage and provides logic
+// for registration and usage of storages
 package storage
 
 import (
+	"errors"
+
 	"github.com/Peripli/service-manager/types"
-	"context"
 )
 
 // Storage interface provides entity-specific storages.
@@ -34,22 +35,30 @@ type Storage interface {
 
 	// Broker provides access to service broker db operations
 	Broker() Broker
+
+	Platform() Platform
 }
+
+// ErrNotFound error returned from storage when entity is not found
+var ErrNotFound = errors.New("Not found")
+
+// ErrUniqueViolation error returned from storage when entity has conflicting fields
+var ErrUniqueViolation = errors.New("Unique constraint violation")
 
 // Broker interface for Broker db operations
 type Broker interface {
-	// Just to showcase
-	Create(ctx context.Context, broker *types.Broker) error
+	Create(broker *types.Broker) error
+	Get(id string) (*types.Broker, error)
+	GetAll() ([]types.Broker, error)
+	Delete(id string) error
+	Update(broker *types.Broker) error
+}
 
-	// Just to showcase
-	Find(ctx context.Context, id string) (*types.Broker, error)
-
-	// Just to showcase
-	FindAll(ctx context.Context) ([]*types.Broker, error)
-
-	// Just to showcase
-	Delete(ctx context.Context, id string) error
-
-	// Just to showcase
-	Update(ctx context.Context, broker *types.Broker) error
+// Platform interface for Platform db operations
+type Platform interface {
+	Create(platform *types.Platform) error
+	Get(id string) (*types.Platform, error)
+	GetAll() ([]types.Platform, error)
+	Delete(id string) error
+	Update(platform *types.Platform) error
 }

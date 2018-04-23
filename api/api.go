@@ -14,21 +14,26 @@
  *    limitations under the License.
  */
 
- // Package api contains logic for building the Service Manager API business logic
+// Package api contains logic for building the Service Manager API business logic
 package api
 
 import (
+	"github.com/Peripli/service-manager/api/broker"
+	"github.com/Peripli/service-manager/api/platform"
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/Peripli/service-manager/rest/broker"
+	"github.com/sirupsen/logrus"
 )
 
 // Default returns the minimum set of REST APIs needed for the Service Manager
 func Default(storage storage.Storage) rest.API {
 	return &smAPI{
 		controllers: []rest.Controller{
-			broker.Controller{
+			&broker.Controller{
 				BrokerStorage: storage.Broker(),
+			},
+			&platform.Controller{
+				PlatformStorage: storage.Platform(),
 			},
 		},
 	}
@@ -45,7 +50,7 @@ func (api *smAPI) Controllers() []rest.Controller {
 func (api *smAPI) RegisterControllers(controllers ...rest.Controller) {
 	for _, controller := range controllers {
 		if controller == nil {
-			panic("Cannot add nil controllers")
+			logrus.Panicln("Cannot add nil controllers")
 		}
 		api.controllers = append(api.controllers, controller)
 	}

@@ -1,5 +1,5 @@
 {
-    "Enable": ["deadcode", "golint", "vet", "gotype", "gocyclo", "maligned", "errcheck", "megacheck", "dupl", "misspell", "unused", "staticcheck"],
+    "Enable": ["deadcode", "golint", "vet", "gotype", "gocyclo", "maligned", "errcheck", "megacheck", "misspell", "unused", "staticcheck"],
     "Exclude": ["test", "fake_*"],
     "Format": "[{{.Severity}}]: {{.Path}}: {{.Line}}:{{if .Col}}{{.Col}}{{end}}: {{.Message}} ({{.Linter}})",
     "Deadline": "120s",
