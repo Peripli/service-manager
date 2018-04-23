@@ -76,6 +76,10 @@ func (v *viperEnv) Get(key string) interface{} {
 	return v.Viper.Get(key)
 }
 
+func (v *viperEnv) Set(key string, value interface{}) {
+	v.Viper.Set(key, value)
+}
+
 func (v *viperEnv) Unmarshal(value interface{}) error {
 	if err := v.introduce(value); err != nil {
 		return err

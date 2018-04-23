@@ -28,6 +28,12 @@ type FakeEnvironment struct {
 	getReturnsOnCall map[int]struct {
 		result1 interface{}
 	}
+	SetStub        func(key string, value interface{})
+	setMutex       sync.RWMutex
+	setArgsForCall []struct {
+		key   string
+		value interface{}
+	}
 	UnmarshalStub        func(value interface{}) error
 	unmarshalMutex       sync.RWMutex
 	unmarshalArgsForCall []struct {
@@ -131,6 +137,31 @@ func (fake *FakeEnvironment) GetReturnsOnCall(i int, result1 interface{}) {
 	}{result1}
 }
 
+func (fake *FakeEnvironment) Set(key string, value interface{}) {
+	fake.setMutex.Lock()
+	fake.setArgsForCall = append(fake.setArgsForCall, struct {
+		key   string
+		value interface{}
+	}{key, value})
+	fake.recordInvocation("Set", []interface{}{key, value})
+	fake.setMutex.Unlock()
+	if fake.SetStub != nil {
+		fake.SetStub(key, value)
+	}
+}
+
+func (fake *FakeEnvironment) SetCallCount() int {
+	fake.setMutex.RLock()
+	defer fake.setMutex.RUnlock()
+	return len(fake.setArgsForCall)
+}
+
+func (fake *FakeEnvironment) SetArgsForCall(i int) (string, interface{}) {
+	fake.setMutex.RLock()
+	defer fake.setMutex.RUnlock()
+	return fake.setArgsForCall[i].key, fake.setArgsForCall[i].value
+}
+
 func (fake *FakeEnvironment) Unmarshal(value interface{}) error {
 	fake.unmarshalMutex.Lock()
 	ret, specificReturn := fake.unmarshalReturnsOnCall[len(fake.unmarshalArgsForCall)]
@@ -186,6 +217,8 @@ func (fake *FakeEnvironment) Invocations() map[string][][]interface{} {
 	defer fake.loadMutex.RUnlock()
 	fake.getMutex.RLock()
 	defer fake.getMutex.RUnlock()
+	fake.setMutex.RLock()
+	defer fake.setMutex.RUnlock()
 	fake.unmarshalMutex.RLock()
 	defer fake.unmarshalMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
