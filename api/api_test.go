@@ -20,9 +20,9 @@ import (
 	"testing"
 
 	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/storage/storagefakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/Peripli/service-manager/storage/storagefakes"
 )
 
 func TestApi(t *testing.T) {
@@ -41,7 +41,7 @@ var _ = Describe("API", func() {
 
 	var (
 		mockedStorage *storagefakes.FakeStorage
-		api rest.API
+		api           rest.API
 	)
 
 	BeforeEach(func() {
@@ -64,6 +64,7 @@ var _ = Describe("API", func() {
 			It("Should panic", func() {
 				nilControllerInSlice := func() {
 					var controllers []rest.Controller
+					controllers = append(controllers, &testController{})
 					controllers = append(controllers, nil)
 					api.RegisterControllers(controllers...)
 				}
@@ -72,7 +73,6 @@ var _ = Describe("API", func() {
 		})
 
 		Context("With no brokers registered", func() {
-
 			It("Should increase broker count", func() {
 				originalControllersCount := len(api.Controllers())
 				api.RegisterControllers(&testController{})

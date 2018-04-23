@@ -14,16 +14,16 @@
  *    limitations under the License.
  */
 
- // Package env contains logic for working with environment, flags and file configs via Viper
+// Package env contains logic for working with environment, flags and file configs via Viper
 package env
 
 import (
 	"fmt"
 	"strings"
 
+	"github.com/Peripli/service-manager/server"
 	"github.com/fatih/structs"
 	"github.com/spf13/viper"
-	"github.com/Peripli/service-manager/server"
 )
 
 type viperEnv struct {
@@ -100,7 +100,6 @@ func (v *viperEnv) introduce(value interface{}) error {
 }
 
 // traverseFields traverses the provided structure and prepares a slice of strings that contains
-//
 func traverseFields(value interface{}, buffer string, result *[]string) {
 	if !structs.IsStruct(value) {
 		index := strings.LastIndex(buffer, ".")

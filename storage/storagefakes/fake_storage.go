@@ -37,6 +37,15 @@ type FakeStorage struct {
 	brokerReturnsOnCall map[int]struct {
 		result1 storage.Broker
 	}
+	PlatformStub        func() storage.Platform
+	platformMutex       sync.RWMutex
+	platformArgsForCall []struct{}
+	platformReturns     struct {
+		result1 storage.Platform
+	}
+	platformReturnsOnCall map[int]struct {
+		result1 storage.Platform
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
@@ -169,6 +178,46 @@ func (fake *FakeStorage) BrokerReturnsOnCall(i int, result1 storage.Broker) {
 	}{result1}
 }
 
+func (fake *FakeStorage) Platform() storage.Platform {
+	fake.platformMutex.Lock()
+	ret, specificReturn := fake.platformReturnsOnCall[len(fake.platformArgsForCall)]
+	fake.platformArgsForCall = append(fake.platformArgsForCall, struct{}{})
+	fake.recordInvocation("Platform", []interface{}{})
+	fake.platformMutex.Unlock()
+	if fake.PlatformStub != nil {
+		return fake.PlatformStub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fake.platformReturns.result1
+}
+
+func (fake *FakeStorage) PlatformCallCount() int {
+	fake.platformMutex.RLock()
+	defer fake.platformMutex.RUnlock()
+	return len(fake.platformArgsForCall)
+}
+
+func (fake *FakeStorage) PlatformReturns(result1 storage.Platform) {
+	fake.PlatformStub = nil
+	fake.platformReturns = struct {
+		result1 storage.Platform
+	}{result1}
+}
+
+func (fake *FakeStorage) PlatformReturnsOnCall(i int, result1 storage.Platform) {
+	fake.PlatformStub = nil
+	if fake.platformReturnsOnCall == nil {
+		fake.platformReturnsOnCall = make(map[int]struct {
+			result1 storage.Platform
+		})
+	}
+	fake.platformReturnsOnCall[i] = struct {
+		result1 storage.Platform
+	}{result1}
+}
+
 func (fake *FakeStorage) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -178,6 +227,8 @@ func (fake *FakeStorage) Invocations() map[string][][]interface{} {
 	defer fake.closeMutex.RUnlock()
 	fake.brokerMutex.RLock()
 	defer fake.brokerMutex.RUnlock()
+	fake.platformMutex.RLock()
+	defer fake.platformMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

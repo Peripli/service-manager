@@ -14,16 +14,16 @@
  *    limitations under the License.
  */
 
-// Package types defines the entity types used in the Service Manager
-package types
+package osb_test
 
-// Broker Just to showcase how to use
-type Broker struct {
-	ID        string `db:"id"`
-	Name      string `db:"name"`
-	URL       string `db:"broker_url"`
-	CreatedAt string `db:"created_at"`
-	UpdatedAt string `db:"updated_at"`
-	User      string `db:"user"`
-	Password  string `db:"password"`
+import (
+	"testing"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+)
+
+func TestOsb(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Osb Suite")
 }

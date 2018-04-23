@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"fmt"
+
 	"github.com/Peripli/service-manager/rest"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
@@ -42,8 +43,6 @@ func New(api rest.API, config *Config) (*Server, error) {
 		return nil, fmt.Errorf("new Config: %s", err)
 	}
 
-	setUpLogging(config.LogLevel, config.LogFormat)
-
 	return &Server{
 		Configuration: config,
 		Router:        router,
@@ -61,33 +60,37 @@ func (server *Server) Run(ctx context.Context) {
 	startServer(ctx, handler, server.Configuration.ShutdownTimeout)
 }
 
-func moveRoutes(prefix string, fromRouter *mux.Router, toRouter *mux.Router) error {
+func registerRoutes(prefix string, fromRouter *mux.Router, toRouter *mux.Router) error {
 	subRouter := toRouter.PathPrefix(prefix).Subrouter()
 	return fromRouter.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
 
 		path, err := route.GetPathTemplate()
 		if err != nil {
-			return fmt.Errorf("move routes: %s", err)
+			return fmt.Errorf("register routes: %s", err)
 		}
+		r := subRouter.Handle(path, route.GetHandler())
 
 		methods, err := route.GetMethods()
 		if err != nil {
-			return fmt.Errorf("move routes: %s", err)
+			return fmt.Errorf("register routes: %s", err)
 
 		}
+		if len(methods) > 0 {
+			r.Methods(methods...)
+		}
 
-		logrus.Info("Adding route with methods: ", methods, " and path: ", path)
-		subRouter.Handle(path, route.GetHandler()).Methods(methods...)
+		logrus.Info("Registering route with methods: ", methods, " and path: ", path, " behind prefix ", prefix)
 		return nil
 	})
-	}
+}
 
 func registerControllers(router *mux.Router, controllers []rest.Controller) error {
 	for _, ctrl := range controllers {
 		for _, route := range ctrl.Routes() {
 			fromRouter, ok := route.Handler.(*mux.Router)
 			if ok {
-				if err := moveRoutes(route.Endpoint.Path, fromRouter, router); err != nil {
+				if err := registerRoutes(route.Endpoint.Path, fromRouter, router); err != nil {
+
 					return fmt.Errorf("register controllers: %s", err)
 				}
 			} else {
@@ -125,18 +128,5 @@ func gracefulShutdown(ctx context.Context, server *http.Server, shutdownTimeout 
 		}
 	} else {
 		logrus.Debug("Server stopped")
-	}
-}
-
-func setUpLogging(logLevel string, logFormat string) {
-	level, err := logrus.ParseLevel(logLevel)
-	if err != nil {
-		logrus.Fatal("Could not parse log level configuration")
-	}
-	logrus.SetLevel(level)
-	if logFormat == "json" {
-		logrus.SetFormatter(&logrus.JSONFormatter{})
-	} else {
-		logrus.SetFormatter(&logrus.TextFormatter{})
 	}
 }
