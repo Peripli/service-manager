@@ -19,10 +19,12 @@ package env
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/Peripli/service-manager/server"
 	"github.com/fatih/structs"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
@@ -60,12 +62,19 @@ func New(file *ConfigFile, envPrefix string) server.Environment {
 }
 
 func (v *viperEnv) Load() error {
-	v.Viper.AddConfigPath(v.configFile.Path)
-	v.Viper.SetConfigName(v.configFile.Name)
-	v.Viper.SetConfigType(v.configFile.Format)
 	v.Viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.Viper.SetEnvPrefix(v.envPrefix)
 	v.Viper.AutomaticEnv()
+
+	configFilePath := v.configFile.Path + "/" + v.configFile.Name + "." + v.configFile.Format
+	if _, err := os.Stat(configFilePath); os.IsNotExist(err) {
+		logrus.WithError(err).Error("Configuration file missing: ", configFilePath)
+		return nil
+	}
+
+	v.Viper.AddConfigPath(v.configFile.Path)
+	v.Viper.SetConfigName(v.configFile.Name)
+	v.Viper.SetConfigType(v.configFile.Format)
 	if err := v.Viper.ReadInConfig(); err != nil {
 		return fmt.Errorf("could not read configuration file: %s", err)
 	}
@@ -78,10 +87,6 @@ func (v *viperEnv) Get(key string) interface{} {
 
 func (v *viperEnv) Set(key string, value interface{}) {
 	v.Viper.Set(key, value)
-}
-
-func (v *viperEnv) IsSet(key string) bool {
-	return v.Viper.IsSet(key)
 }
 
 func (v *viperEnv) Unmarshal(value interface{}) error {
