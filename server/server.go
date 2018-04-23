@@ -81,7 +81,7 @@ func registerRoutes(prefix string, fromRouter *mux.Router, toRouter *mux.Router)
 			r.Methods(methods...)
 		}
 
-		logrus.Info("Registering route with methods: ", methods, " and path: ", path)
+		logrus.Info("Registering route with methods: ", methods, " and path: ", path, " behind prefix ", prefix)
 		return nil
 	})
 }

@@ -17,9 +17,9 @@
 package server
 
 import (
+	"fmt"
 	"strconv"
 	"time"
-	"fmt"
 )
 
 // Environment represents an abstraction over the environment from which Service Manager configuration will be loaded
@@ -96,10 +96,10 @@ func NewConfiguration(env Environment) (*Config, error) {
 		config.Address = ":" + strconv.Itoa(configSettings.Server.Port)
 	}
 	if configSettings.Server.RequestTimeout != 0 {
-		config.RequestTimeout = time.Duration(configSettings.Server.RequestTimeout)
+		config.RequestTimeout = time.Millisecond * time.Duration(configSettings.Server.RequestTimeout)
 	}
 	if configSettings.Server.ShutdownTimeout != 0 {
-		config.ShutdownTimeout = time.Duration(configSettings.Server.ShutdownTimeout)
+		config.ShutdownTimeout = time.Millisecond * time.Duration(configSettings.Server.ShutdownTimeout)
 	}
 	if len(configSettings.Db.URI) != 0 {
 		config.DbURI = configSettings.Db.URI

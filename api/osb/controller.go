@@ -39,10 +39,10 @@ const (
 	root = "/osb"
 
 	//BrokerIDPathParam is a service broker ID path parameter
-	BrokerIDPathParam = "/{brokerID}"
+	BrokerIDPathParam = "brokerID"
 
 	// path is the OSB API controller path
-	path = v1 + root + BrokerIDPathParam
+	path = v1 + root + "/{" + BrokerIDPathParam + "}"
 )
 
 // Controller implements rest.Controller by providing OSB API logic

@@ -17,9 +17,10 @@
 package postgres
 
 import (
+	"context"
+
 	"github.com/Peripli/service-manager/types"
 	"github.com/jmoiron/sqlx"
-	"context"
 )
 
 type brokerStorage struct {
@@ -34,7 +35,7 @@ func (storage *brokerStorage) Find(ctx context.Context, id string) (*types.Broke
 	return &types.Broker{
 		Name:     "brokerName",
 		ID:       "brokerID",
-		URL:      "http://localhost:8080/broker",
+		URL:      "http://localhost:8080",
 		User:     "brokerAdmin",
 		Password: "brokerAdmin",
 	}, nil
