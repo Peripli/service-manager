@@ -54,7 +54,7 @@
 
 [[constraint]]
   name = "github.com/pmorie/osb-broker-lib"
-  version = "=0.0.6"
+  version = "=0.0.10"
 
 [[constraint]]
   name = "github.com/gavv/httpexpect"

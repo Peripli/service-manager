@@ -1,0 +1,8 @@
+---
+applications:
+  - name: service-manager-core-test
+    env:
+      GOPACKAGENAME: github.com/Peripli/service-manager
+      GOVERSION: go1.9
+    services:
+      - sm-postgres
