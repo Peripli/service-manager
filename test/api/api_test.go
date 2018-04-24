@@ -18,6 +18,7 @@ package api
 import (
 	"context"
 
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
@@ -49,6 +50,17 @@ func getServerRouter() *mux.Router {
 	return srv.Router
 }
 
+func removeAllBrokers() {
+	By("remove all service brokers")
+	resp := SM.GET("/v1/service_brokers").
+		Expect().Status(http.StatusOK).JSON().Object()
+	for _, val := range resp.Value("brokers").Array().Iter() {
+		id := val.Object().Value("id").String().Raw()
+		SM.DELETE("/v1/service_brokers/" + id).
+			Expect().Status(http.StatusOK)
+	}
+}
+
 var _ = Describe("Service Manager API", func() {
 	var testServer *httptest.Server
 
@@ -66,4 +78,6 @@ var _ = Describe("Service Manager API", func() {
 	Describe("Service Brokers", testBrokers)
 
 	Describe("Platforms", testPlatforms)
+
+	Describe("OSB", testOsb)
 })

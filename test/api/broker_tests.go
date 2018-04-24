@@ -37,14 +37,7 @@ func makeBroker(name string, url string, description string) Object {
 
 func testBrokers() {
 	BeforeEach(func() {
-		By("remove all service brokers")
-		resp := SM.GET("/v1/service_brokers").
-			Expect().Status(http.StatusOK).JSON().Object()
-		for _, val := range resp.Value("brokers").Array().Iter() {
-			id := val.Object().Value("id").String().Raw()
-			SM.DELETE("/v1/service_brokers/" + id).
-				Expect().Status(http.StatusOK)
-		}
+		removeAllBrokers()
 	})
 
 	Describe("GET", func() {
