@@ -359,7 +359,6 @@ var _ = Describe("Logic", func() {
 				Async:         false,
 				DashboardURL:  strPtr("http://localhost:8080"),
 				OperationKey:  nil,
-				ExtensionAPIs: nil,
 			}
 			fakeClient.ProvisionReaction = &fake.ProvisionReaction{
 				Response: expectedResponse,
