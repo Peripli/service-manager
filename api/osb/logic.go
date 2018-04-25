@@ -205,15 +205,29 @@ func clientConfigForBroker(broker *types.Broker) *osbc.ClientConfiguration {
 func (b *BusinessLogic) osbClient(request *http.Request) (osbc.Client, error) {
 	vars := mux.Vars(request)
 	brokerID, ok := vars[BrokerIDPathParam]
-	logrus.Debugf("Obtained path parameter [brokerID = %s] from mux vars", brokerID)
 	if !ok {
-		return nil, fmt.Errorf("error creating OSB client: brokerID path parameter not found")
+		logrus.Debugf("error creating OSB client: brokerID path parameter not found")
+		return nil, createHTTPErrorResponse("Invalid broker id path parameter", "BadRequest", http.StatusBadRequest)
 	}
+	logrus.Debugf("Obtained path parameter [brokerID = %s] from mux vars", brokerID)
+
 	serviceBroker, err := b.brokerStorage.Get(brokerID)
-	if err != nil {
-		return nil, fmt.Errorf("error obtaining serviceBroker with id %s from storage: %s", brokerID, err)
+	if err == storage.ErrNotFound {
+		logrus.Debugf("service broker with id %s not found", brokerID)
+		return nil, createHTTPErrorResponse(fmt.Sprintf("Could not find broker with id: %s", brokerID), "NotFound", http.StatusNotFound)
+	} else if err != nil {
+		logrus.Errorf("error obtaining serviceBroker with id %s from storage: %s", brokerID, err)
+		return nil, fmt.Errorf("Internal Server Error")
 	}
 	config := clientConfigForBroker(serviceBroker)
 	logrus.Debug("Building OSB client for serviceBroker with name: ", config.Name, " accessible at: ", config.URL)
 	return b.createFunc(config)
+}
+
+func createHTTPErrorResponse(description, errorMessage string, statusCode int) osbc.HTTPStatusCodeError {
+	return osbc.HTTPStatusCodeError{
+		Description:  &description,
+		ErrorMessage: &errorMessage,
+		StatusCode:   statusCode,
+	}
 }

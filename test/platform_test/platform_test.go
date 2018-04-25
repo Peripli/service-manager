@@ -14,33 +14,45 @@
  *    limitations under the License.
  */
 
-package api
+package platform_test
 
 import (
 	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
 
+	"github.com/Peripli/service-manager/test/common"
+	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 )
 
-func makePlatform(id string, name string, atype string, description string) Object {
-	return Object{
-		"id":          id,
-		"name":        name,
-		"type":        atype,
-		"description": description,
-	}
+type object common.Object
+type array common.Array
+
+// TestPlatforms tests for platform API
+func TestPlatforms(t *testing.T) {
+	os.Chdir("../..")
+	RunSpecs(t, "Platform API Tests Suite")
 }
 
-func testPlatforms() {
-	BeforeEach(func() {
-		By("remove all platforms")
-		resp := SM.GET("/v1/platforms").
-			Expect().Status(http.StatusOK).JSON().Object()
-		for _, val := range resp.Value("platforms").Array().Iter() {
-			id := val.Object().Value("id").String().Raw()
-			SM.DELETE("/v1/platforms/" + id).
-				Expect().Status(http.StatusOK)
+var _ = Describe("Service Manager Platform API", func() {
+	var SM *httpexpect.Expect
+	var testServer *httptest.Server
+
+	BeforeSuite(func() {
+		testServer = httptest.NewServer(common.GetServerRouter())
+		SM = httpexpect.New(GinkgoT(), testServer.URL)
+	})
+
+	AfterSuite(func() {
+		if testServer != nil {
+			testServer.Close()
 		}
+	})
+
+	BeforeEach(func() {
+		common.RemoveAllPlatforms(SM)
 	})
 
 	Describe("GET", func() {
@@ -55,7 +67,7 @@ func testPlatforms() {
 
 		Context("Existing platform", func() {
 			It("returns the platform with given id", func() {
-				platform := makePlatform("platform1", "cf-10", "cf", "descr")
+				platform := common.MakePlatform("platform1", "cf-10", "cf", "descr")
 				reply := SM.POST("/v1/platforms").WithJSON(platform).
 					Expect().Status(http.StatusCreated).JSON().Object()
 				id := reply.Value("id").String().Raw()
@@ -66,7 +78,7 @@ func testPlatforms() {
 					JSON().Object()
 
 				platform["id"] = id
-				MapContains(reply.Raw(), platform)
+				common.MapContains(reply.Raw(), platform)
 			})
 		})
 	})
@@ -82,10 +94,10 @@ func testPlatforms() {
 
 		Context("With some platforms", func() {
 			It("returns all the platforms", func() {
-				platforms := Array{}
+				platforms := array{}
 
 				addPlatform := func(id string, name string, atype string, description string) {
-					platform := makePlatform(id, name, atype, description)
+					platform := common.MakePlatform(id, name, atype, description)
 					SM.POST("/v1/platforms").WithJSON(platform).
 						Expect().Status(http.StatusCreated)
 					platforms = append(platforms, platform)
@@ -128,8 +140,8 @@ func testPlatforms() {
 
 		Context("With missing mandatory fields", func() {
 			It("returns 400", func() {
-				newplatform := func() Object {
-					return makePlatform("platform1", "cf-10", "cf", "descr")
+				newplatform := func() object {
+					return common.MakePlatform("platform1", "cf-10", "cf", "descr")
 				}
 				SM.POST("/v1/platforms").
 					WithJSON(newplatform()).
@@ -148,7 +160,7 @@ func testPlatforms() {
 
 		Context("With conflicting fields", func() {
 			It("returns 409", func() {
-				platform := makePlatform("platform1", "cf-10", "cf", "descr")
+				platform := common.MakePlatform("platform1", "cf-10", "cf", "descr")
 				SM.POST("/v1/platforms").
 					WithJSON(platform).
 					Expect().Status(http.StatusCreated)
@@ -160,7 +172,7 @@ func testPlatforms() {
 
 		Context("With optional fields skipped", func() {
 			It("succeeds", func() {
-				platform := makePlatform("platform1", "cf-10", "cf", "descr")
+				platform := common.MakePlatform("platform1", "cf-10", "cf", "descr")
 				// delete optional fields
 				delete(platform, "id")
 				delete(platform, "description")
@@ -173,13 +185,13 @@ func testPlatforms() {
 				// optional fields returned with default values
 				platform["description"] = ""
 
-				MapContains(reply.Raw(), platform)
+				common.MapContains(reply.Raw(), platform)
 			})
 		})
 
 		Context("Without id", func() {
 			It("returns the new platform with generated id and credentials", func() {
-				platform := makePlatform("", "cf-10", "cf", "descr")
+				platform := common.MakePlatform("", "cf-10", "cf", "descr")
 				delete(platform, "id")
 
 				By("POST returns the new platform")
@@ -190,7 +202,7 @@ func testPlatforms() {
 
 				id := reply.Value("id").String().NotEmpty().Raw()
 				platform["id"] = id
-				MapContains(reply.Raw(), platform)
+				common.MapContains(reply.Raw(), platform)
 				basic := reply.Value("credentials").Object().Value("basic").Object()
 				basic.Value("username").String().NotEmpty()
 				basic.Value("password").String().NotEmpty()
@@ -200,19 +212,19 @@ func testPlatforms() {
 				reply = SM.GET("/v1/platforms/" + id).
 					Expect().Status(http.StatusOK).JSON().Object()
 
-				MapContains(reply.Raw(), platform)
+				common.MapContains(reply.Raw(), platform)
 			})
 		})
 	})
 
 	Describe("PATCH", func() {
-		var platform Object
+		var platform object
 		const id = "p1"
 
 		BeforeEach(func() {
 			By("Create new platform")
 
-			platform = makePlatform(id, "cf-10", "cf", "descr")
+			platform = common.MakePlatform(id, "cf-10", "cf", "descr")
 			SM.POST("/v1/platforms").
 				WithJSON(platform).
 				Expect().Status(http.StatusCreated)
@@ -222,7 +234,7 @@ func testPlatforms() {
 			It("returns 200", func() {
 				By("Update platform")
 
-				updatedPlatform := makePlatform("", "cf-11", "cff", "descr2")
+				updatedPlatform := common.MakePlatform("", "cf-11", "cff", "descr2")
 				delete(updatedPlatform, "id")
 
 				reply := SM.PATCH("/v1/platforms/" + id).
@@ -231,7 +243,7 @@ func testPlatforms() {
 					Status(http.StatusOK).JSON().Object()
 
 				updatedPlatform["id"] = id
-				MapContains(reply.Raw(), updatedPlatform)
+				common.MapContains(reply.Raw(), updatedPlatform)
 
 				By("Update is persisted")
 
@@ -239,17 +251,17 @@ func testPlatforms() {
 					Expect().
 					Status(http.StatusOK).JSON().Object()
 
-				MapContains(reply.Raw(), updatedPlatform)
+				common.MapContains(reply.Raw(), updatedPlatform)
 			})
 		})
 
 		Context("With properties updated separately", func() {
 			It("returns 200", func() {
-				updatedPlatform := makePlatform("", "cf-11", "cff", "descr2")
+				updatedPlatform := common.MakePlatform("", "cf-11", "cff", "descr2")
 				delete(updatedPlatform, "id")
 
 				for prop, val := range updatedPlatform {
-					update := Object{}
+					update := object{}
 					update[prop] = val
 					reply := SM.PATCH("/v1/platforms/" + id).
 						WithJSON(update).
@@ -257,13 +269,13 @@ func testPlatforms() {
 						Status(http.StatusOK).JSON().Object()
 
 					platform[prop] = val
-					MapContains(reply.Raw(), platform)
+					common.MapContains(reply.Raw(), platform)
 
 					reply = SM.GET("/v1/platforms/" + id).
 						Expect().
 						Status(http.StatusOK).JSON().Object()
 
-					MapContains(reply.Raw(), platform)
+					common.MapContains(reply.Raw(), platform)
 				}
 			})
 		})
@@ -271,7 +283,7 @@ func testPlatforms() {
 		Context("With provided id", func() {
 			It("should not update platform id", func() {
 				SM.PATCH("/v1/platforms/" + id).
-					WithJSON(Object{"id": "123"}).
+					WithJSON(object{"id": "123"}).
 					Expect().
 					Status(http.StatusOK)
 
@@ -284,7 +296,7 @@ func testPlatforms() {
 		Context("On missing platform", func() {
 			It("returns 404", func() {
 				SM.PATCH("/v1/platforms/123").
-					WithJSON(Object{"name": "123"}).
+					WithJSON(object{"name": "123"}).
 					Expect().
 					Status(http.StatusNotFound)
 			})
@@ -292,7 +304,7 @@ func testPlatforms() {
 
 		Context("With conflicting fields", func() {
 			It("should return 409", func() {
-				platform2 := makePlatform("p2", "cf-12", "cf2", "descr2")
+				platform2 := common.MakePlatform("p2", "cf-12", "cf2", "descr2")
 				SM.POST("/v1/platforms").
 					WithJSON(platform2).
 					Expect().Status(http.StatusCreated)
@@ -316,7 +328,7 @@ func testPlatforms() {
 
 		Context("Existing platform", func() {
 			It("succeeds", func() {
-				platform := makePlatform("p1", "cf-10", "cf", "descr")
+				platform := common.MakePlatform("p1", "cf-10", "cf", "descr")
 				SM.POST("/v1/platforms").
 					WithJSON(platform).
 					Expect().Status(http.StatusCreated)
@@ -336,4 +348,4 @@ func testPlatforms() {
 		})
 	})
 
-}
+})
