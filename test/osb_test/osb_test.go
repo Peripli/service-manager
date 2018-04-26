@@ -149,17 +149,18 @@ var _ = Describe("Service Manager OSB API", func() {
 	})
 
 	Describe("Deprovision", func() {
-		// Context("when trying to deprovision existing service", func() {
-		// 	It("should be successfull", func() {
-		// 		SM.DELETE("/v1/osb/"+goodBrokerID+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "2.13").
-		// 			WithJSON(dummyService).Expect().Status(http.StatusOK).JSON().Object()
-		// 	})
-		// })
+		Context("when trying to deprovision existing service", func() {
+			It("should be successfull", func() {
+				SM.DELETE("/v1/osb/"+goodBrokerID+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "2.13").
+					WithQueryObject(dummyService).
+					Expect().Status(http.StatusOK).JSON().Object()
+			})
+		})
 
 		Context("when call to missing broker", func() {
 			It("deprovision fails", func() {
 				resp := SM.DELETE("/v1/osb/missing_broker_id/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "2.13").
-					WithJSON(dummyService).
+					WithQueryObject(dummyService).
 					Expect().Status(http.StatusNotFound).JSON().Object()
 
 				resp.ContainsKey("description").
