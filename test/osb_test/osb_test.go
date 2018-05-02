@@ -31,8 +31,8 @@ import (
 	. "github.com/onsi/ginkgo"
 )
 
-type object common.Object
-type array common.Array
+type object = common.Object
+type array = common.Array
 
 func setResponse(rw http.ResponseWriter, status int, message string) {
 	rw.WriteHeader(status)
@@ -83,6 +83,50 @@ func assertBadBrokerError(req *httpexpect.Request) {
 	body.Value("description").Equal("expected error")
 }
 
+func assertMissingBrokerError(req *httpexpect.Request) {
+	body := req.Expect().Status(http.StatusNotFound).JSON().Object()
+	body.ContainsKey("description").
+		Value("description").String().
+		Equal("Could not find broker with id: missing_broker_id")
+}
+
+func getDummyService(idsToRemove ...string) *object {
+	result := &object{
+		"service_id":        "dummyId",
+		"plan_id":           "dummyplanId",
+		"organization_guid": "orgguid",
+		"space_guid":        "spaceguid",
+	}
+	for _, id := range idsToRemove {
+		delete(*result, id)
+	}
+	return result
+}
+
+type smreq func(path string, pathargs ...interface{}) *httpexpect.Request
+
+func assertRequiredIDError(resp *httpexpect.Object, expectedIDName string) {
+	resp.ContainsKey("description").
+		Value("description").String().
+		Equal(expectedIDName + " is required")
+}
+
+func requestWithMissingIDsInBody(req smreq, url string, idName string, expectedIDName string) {
+	resp := req(url).WithHeader("X-Broker-API-Version", "2.13").
+		WithJSON(getDummyService(idName)).
+		Expect().Status(http.StatusBadRequest).JSON().Object()
+
+	assertRequiredIDError(resp, expectedIDName)
+}
+
+func requestWithMissingIDsInQuery(req smreq, url string, idName string, expectedIDName string) {
+	resp := req(url).WithHeader("X-Broker-API-Version", "2.13").
+		WithQueryObject(getDummyService(idName)).
+		Expect().Status(http.StatusBadRequest).JSON().Object()
+
+	assertRequiredIDError(resp, expectedIDName)
+}
+
 // TestOSB tests for OSB API
 func TestOSB(t *testing.T) {
 	os.Chdir("../..")
@@ -90,12 +134,6 @@ func TestOSB(t *testing.T) {
 }
 
 var _ = Describe("Service Manager OSB API", func() {
-	dummyService := object{
-		"service_id":        "dummyId",
-		"plan_id":           "dummyplanId",
-		"organization_guid": "orgguid",
-		"space_guid":        "spaceguid",
-	}
 	var SM *httpexpect.Expect
 	var testServer *httptest.Server
 
@@ -143,13 +181,19 @@ var _ = Describe("Service Manager OSB API", func() {
 					SM.GET("/v1/osb/"+badBrokerID+"/v2/catalog").WithHeader("X-Broker-API-Version", "2.13"))
 			})
 		})
+		Context("when call to missing broker", func() {
+			It("should get error", func() {
+				assertMissingBrokerError(
+					SM.GET("/v1/osb/missing_broker_id/v2/catalog").WithHeader("X-Broker-API-Version", "2.13"))
+			})
+		})
 	})
 
 	Describe("Provision", func() {
 		Context("when call to working broker", func() {
 			It("provisions successfully", func() {
 				resp := SM.PUT("/v1/osb/"+goodBrokerID+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "2.13").
-					WithJSON(dummyService).
+					WithJSON(getDummyService()).
 					Expect().Status(http.StatusCreated).JSON().Object()
 
 				resp.NotEmpty()
@@ -159,18 +203,23 @@ var _ = Describe("Service Manager OSB API", func() {
 			It("should get error", func() {
 				assertBadBrokerError(
 					SM.PUT("/v1/osb/"+badBrokerID+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "2.13").
-						WithJSON(dummyService))
+						WithJSON(getDummyService()))
 			})
 		})
 		Context("when call to missing broker", func() {
 			It("provision fails", func() {
-				resp := SM.PUT("/v1/osb/missing_broker_id/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "2.13").
-					WithJSON(dummyService).
-					Expect().Status(http.StatusNotFound).JSON().Object()
-
-				resp.ContainsKey("description").
-					Value("description").String().
-					Equal("Could not find broker with id: missing_broker_id")
+				assertMissingBrokerError(
+					SM.PUT("/v1/osb/missing_broker_id/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "2.13").
+						WithJSON(getDummyService()))
+			})
+		})
+		Context("when call to working broker with missing mandatory body fields", func() {
+			It("provision fails", func() {
+				url := "/v1/osb/" + goodBrokerID + "/v2/service_instances/12345"
+				requestWithMissingIDsInBody(SM.PUT, url, "service_id", "serviceID")
+				requestWithMissingIDsInBody(SM.PUT, url, "plan_id", "planID")
+				requestWithMissingIDsInBody(SM.PUT, url, "organization_guid", "organizationGUID")
+				requestWithMissingIDsInBody(SM.PUT, url, "space_guid", "spaceGUID")
 			})
 		})
 	})
@@ -179,7 +228,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when trying to deprovision existing service", func() {
 			It("should be successfull", func() {
 				SM.DELETE("/v1/osb/"+goodBrokerID+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "2.13").
-					WithQueryObject(dummyService).
+					WithQueryObject(getDummyService()).
 					Expect().Status(http.StatusOK).JSON().Object()
 			})
 		})
@@ -187,18 +236,21 @@ var _ = Describe("Service Manager OSB API", func() {
 			It("should get error", func() {
 				assertBadBrokerError(
 					SM.DELETE("/v1/osb/"+badBrokerID+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "2.13").
-						WithQueryObject(dummyService))
+						WithQueryObject(getDummyService()))
 			})
 		})
 		Context("when call to missing broker", func() {
 			It("deprovision fails", func() {
-				resp := SM.DELETE("/v1/osb/missing_broker_id/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "2.13").
-					WithQueryObject(dummyService).
-					Expect().Status(http.StatusNotFound).JSON().Object()
-
-				resp.ContainsKey("description").
-					Value("description").String().
-					Equal("Could not find broker with id: missing_broker_id")
+				assertMissingBrokerError(
+					SM.DELETE("/v1/osb/missing_broker_id/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "2.13").
+						WithQueryObject(getDummyService()))
+			})
+		})
+		Context("when call to working broker with missing mandatory body fields", func() {
+			It("deprovision fails", func() {
+				url := "/v1/osb/" + goodBrokerID + "/v2/service_instances/12345"
+				requestWithMissingIDsInQuery(SM.DELETE, url, "service_id", "serviceID")
+				requestWithMissingIDsInQuery(SM.DELETE, url, "plan_id", "planID")
 			})
 		})
 	})
@@ -207,7 +259,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when broker is working properly", func() {
 			It("should be successfull", func() {
 				resp := SM.PUT("/v1/osb/"+goodBrokerID+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "2.13").
-					WithJSON(dummyService).
+					WithJSON(getDummyService()).
 					Expect().Status(http.StatusCreated).JSON().Object()
 				credentials := resp.Value("credentials").Object()
 				credentials.Value("instance_id").String().Equal("iid")
@@ -218,7 +270,20 @@ var _ = Describe("Service Manager OSB API", func() {
 			It("should fail", func() {
 				assertBadBrokerError(
 					SM.PUT("/v1/osb/"+badBrokerID+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "2.13").
-						WithJSON(dummyService))
+						WithJSON(getDummyService()))
+			})
+		})
+		Context("when call to missing broker", func() {
+			It("bind fails", func() {
+				assertMissingBrokerError(SM.PUT("/v1/osb/missing_broker_id/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "2.13").
+					WithJSON(getDummyService()))
+			})
+		})
+		Context("when call to working broker with missing mandatory body fields", func() {
+			It("bind fails", func() {
+				url := "/v1/osb/" + goodBrokerID + "/v2/service_instances/iid/service_bindings/bid"
+				requestWithMissingIDsInBody(SM.PUT, url, "service_id", "serviceID")
+				requestWithMissingIDsInBody(SM.PUT, url, "plan_id", "planID")
 			})
 		})
 	})
@@ -227,7 +292,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when trying to delete binding", func() {
 			It("should be successfull", func() {
 				SM.DELETE("/v1/osb/"+goodBrokerID+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "2.13").
-					WithQueryObject(dummyService).
+					WithQueryObject(getDummyService()).
 					Expect().Status(http.StatusOK).JSON().Object()
 
 			})
@@ -236,7 +301,21 @@ var _ = Describe("Service Manager OSB API", func() {
 			It("should return error", func() {
 				assertBadBrokerError(
 					SM.DELETE("/v1/osb/"+badBrokerID+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "2.13").
-						WithQueryObject(dummyService))
+						WithQueryObject(getDummyService()))
+			})
+		})
+		Context("when call to missing broker", func() {
+			It("unbind fails", func() {
+				assertMissingBrokerError(
+					SM.DELETE("/v1/osb/missing_broker_id/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "2.13").
+						WithQueryObject(getDummyService()))
+			})
+		})
+		Context("when call to working broker with missing mandatory body fields", func() {
+			It("Unbind fails", func() {
+				url := "/v1/osb/" + goodBrokerID + "/v2/service_instances/iid/service_bindings/bid"
+				requestWithMissingIDsInQuery(SM.DELETE, url, "service_id", "serviceID")
+				requestWithMissingIDsInQuery(SM.DELETE, url, "plan_id", "planID")
 			})
 		})
 	})

@@ -57,7 +57,7 @@ func (b *BusinessLogic) GetCatalog(c *broker.RequestContext) (*broker.CatalogRes
 		return nil, err
 	}
 	response, err := client.GetCatalog()
-	if err != nil {
+	if err = toHTTPError(err); err != nil {
 		return nil, err
 	}
 
@@ -76,7 +76,7 @@ func (b *BusinessLogic) Provision(request *osbc.ProvisionRequest, c *broker.Requ
 	}
 
 	response, err := client.ProvisionInstance(request)
-	if err != nil {
+	if err = toHTTPError(err); err != nil {
 		return nil, err
 	}
 
@@ -94,7 +94,7 @@ func (b *BusinessLogic) Deprovision(request *osbc.DeprovisionRequest, c *broker.
 		return nil, err
 	}
 	response, err := client.DeprovisionInstance(request)
-	if err != nil {
+	if err = toHTTPError(err); err != nil {
 		return nil, err
 	}
 
@@ -112,7 +112,7 @@ func (b *BusinessLogic) LastOperation(request *osbc.LastOperationRequest, c *bro
 		return nil, err
 	}
 	response, err := client.PollLastOperation(request)
-	if err != nil {
+	if err = toHTTPError(err); err != nil {
 		return nil, err
 	}
 
@@ -131,7 +131,7 @@ func (b *BusinessLogic) Bind(request *osbc.BindRequest, c *broker.RequestContext
 	}
 
 	response, err := client.Bind(request)
-	if err != nil {
+	if err = toHTTPError(err); err != nil {
 		return nil, err
 	}
 
@@ -151,7 +151,7 @@ func (b *BusinessLogic) Unbind(request *osbc.UnbindRequest, c *broker.RequestCon
 	}
 
 	response, err := client.Unbind(request)
-	if err != nil {
+	if err = toHTTPError(err); err != nil {
 		return nil, err
 	}
 
@@ -170,7 +170,7 @@ func (b *BusinessLogic) Update(request *osbc.UpdateInstanceRequest, c *broker.Re
 	}
 
 	response, err := client.UpdateInstance(request)
-	if err != nil {
+	if err = toHTTPError(err); err != nil {
 		return nil, err
 	}
 
@@ -224,8 +224,18 @@ func (b *BusinessLogic) osbClient(request *http.Request) (osbc.Client, error) {
 	return b.createFunc(config)
 }
 
-func createHTTPErrorResponse(description, errorMessage string, statusCode int) osbc.HTTPStatusCodeError {
-	return osbc.HTTPStatusCodeError{
+func toHTTPError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if _, isHTTPError := osbc.IsHTTPError(err); isHTTPError {
+		return err
+	}
+	return createHTTPErrorResponse(err.Error(), "BadRequest", http.StatusBadRequest)
+}
+
+func createHTTPErrorResponse(description, errorMessage string, statusCode int) *osbc.HTTPStatusCodeError {
+	return &osbc.HTTPStatusCodeError{
 		Description:  &description,
 		ErrorMessage: &errorMessage,
 		StatusCode:   statusCode,

@@ -26,8 +26,8 @@ import (
 	. "github.com/onsi/ginkgo"
 )
 
-type object common.Object
-type array common.Array
+type object = common.Object
+type array = common.Array
 
 // TestBrokers tests for broker API
 func TestBrokers(t *testing.T) {

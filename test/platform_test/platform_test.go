@@ -27,8 +27,8 @@ import (
 	. "github.com/onsi/ginkgo"
 )
 
-type object common.Object
-type array common.Array
+type object = common.Object
+type array = common.Array
 
 // TestPlatforms tests for platform API
 func TestPlatforms(t *testing.T) {
