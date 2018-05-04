@@ -14,6 +14,11 @@
   revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
 
 [[projects]]
+  name = "github.com/cloudfoundry-community/go-cfenv"
+  packages = ["."]
+  revision = "e84b5c116637ef174eb8c7d68a28bc7269b3b9cb"
+
+[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
@@ -233,8 +238,8 @@
     "v2",
     "v2/fake"
   ]
-  revision = "dca737037ce636eb282e84e3a1c7479c9692e884"
-  version = "0.0.10"
+  revision = "e8aa16c9036317bd59ced8921e9da6197ab577e3"
+  version = "0.0.5"
 
 [[projects]]
   name = "github.com/pmorie/osb-broker-lib"
@@ -244,8 +249,8 @@
     "pkg/rest",
     "pkg/server"
   ]
-  revision = "052cd99aa13d67fd2c99ff853027a359f25dfbe7"
-  version = "0.0.9"
+  revision = "f4ca270ef323318b363f986229bd10bccb2d28b1"
+  version = "0.0.10"
 
 [[projects]]
   name = "github.com/prometheus/client_golang"
@@ -465,6 +470,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "de131a598cb9a3f9f8f554568f89abb6adacd815e71c10835deb96e11cec67ee"
+  inputs-digest = "2026e39e3ea062c75f46ac84e0a8d9eb6778ea0923d97044de2804abe0d52c8a"
   solver-name = "gps-cdcl"
   solver-version = 1
