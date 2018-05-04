@@ -14,6 +14,11 @@
   revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
 
 [[projects]]
+  name = "github.com/cloudfoundry-community/go-cfenv"
+  packages = ["."]
+  revision = "e84b5c116637ef174eb8c7d68a28bc7269b3b9cb"
+
+[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
@@ -63,8 +68,8 @@
 [[projects]]
   name = "github.com/golang/protobuf"
   packages = ["proto"]
-  revision = "925541529c1fa6821df4e44ce2723319eb2be768"
-  version = "v1.0.0"
+  revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
+  version = "v1.1.0"
 
 [[projects]]
   branch = "master"
@@ -233,8 +238,8 @@
     "v2",
     "v2/fake"
   ]
-  revision = "dca737037ce636eb282e84e3a1c7479c9692e884"
-  version = "0.0.10"
+  revision = "e8aa16c9036317bd59ced8921e9da6197ab577e3"
+  version = "0.0.5"
 
 [[projects]]
   name = "github.com/pmorie/osb-broker-lib"
@@ -244,8 +249,8 @@
     "pkg/rest",
     "pkg/server"
   ]
-  revision = "052cd99aa13d67fd2c99ff853027a359f25dfbe7"
-  version = "0.0.9"
+  revision = "f4ca270ef323318b363f986229bd10bccb2d28b1"
+  version = "0.0.10"
 
 [[projects]]
   name = "github.com/prometheus/client_golang"
@@ -270,7 +275,7 @@
     "internal/bitbucket.org/ww/goautoneg",
     "model"
   ]
-  revision = "d0f7cd64bda49e08b22ae8a730aa57aa0db125d6"
+  revision = "d811d2e9bf898806ecfb6ef6296774b13ffc314c"
 
 [[projects]]
   branch = "master"
@@ -400,7 +405,7 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "2b6c08872f4b66da917bb4ce98df4f0307330f78"
+  revision = "8b1d31080a7692e075c4681cb2458454a1fe0706"
 
 [[projects]]
   branch = "master"
@@ -412,7 +417,7 @@
     "idna",
     "publicsuffix"
   ]
-  revision = "5f9ae10d9af5b1c89ae6904293b14b064d4ada23"
+  revision = "640f4622ab692b87c2f3a94265e6f579fe38263d"
 
 [[projects]]
   branch = "master"
@@ -421,7 +426,7 @@
     "unix",
     "windows"
   ]
-  revision = "79b0c6888797020a994db17c8510466c72fe75d9"
+  revision = "78d5f264b493f125018180c204871ecf58a2dce1"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -465,6 +470,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "de131a598cb9a3f9f8f554568f89abb6adacd815e71c10835deb96e11cec67ee"
+  inputs-digest = "2026e39e3ea062c75f46ac84e0a8d9eb6778ea0923d97044de2804abe0d52c8a"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -20,8 +20,11 @@ package sm
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/Peripli/service-manager/api"
+	cfenv "github.com/Peripli/service-manager/cmd/cf/env"
+	"github.com/Peripli/service-manager/env"
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/postgres"
@@ -64,5 +67,16 @@ func setUpLogging(logLevel string, logFormat string) {
 		logrus.SetFormatter(&logrus.JSONFormatter{})
 	} else {
 		logrus.SetFormatter(&logrus.TextFormatter{})
+	}
+}
+
+func GetEnvironment() server.Environment {
+	envFlag := os.Getenv("SM_RUN_ENV")
+
+	switch envFlag {
+	case "cf":
+		return cfenv.New(env.Default())
+	default:
+		return env.Default()
 	}
 }
