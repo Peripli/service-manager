@@ -1,0 +1,10 @@
+---
+applications:
+- name: <application_name>
+  docker:
+    image: <repo_url>/<user_name>/<image_name>:<tag>
+  services:
+    - <postgre_instance_name>
+  env:
+    SM_LOG_FORMAT: json
+    SM_LOG_LEVEL: info
