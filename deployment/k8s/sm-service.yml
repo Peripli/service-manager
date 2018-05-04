@@ -1,0 +1,14 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name:  sm-service
+spec:
+  selector:
+    app: sm
+  type: NodePort
+  ports:
+  - name:  sm-access
+    port:  8080
+    targetPort:  8080
+    nodePort: 30234
+    protocol: TCP

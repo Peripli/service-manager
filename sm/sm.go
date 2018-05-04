@@ -24,6 +24,7 @@ import (
 
 	"github.com/Peripli/service-manager/api"
 	cfenv "github.com/Peripli/service-manager/cmd/cf/env"
+	k8senv "github.com/Peripli/service-manager/cmd/k8s/env"
 	"github.com/Peripli/service-manager/env"
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
@@ -76,6 +77,8 @@ func GetEnvironment() server.Environment {
 	switch envFlag {
 	case "cf":
 		return cfenv.New(env.Default())
+	case "k8s":
+		return k8senv.New(env.Default())
 	default:
 		return env.Default()
 	}

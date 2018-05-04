@@ -1,0 +1,13 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name:  postgre-service
+spec:
+  selector:
+    name: sm-postgres
+  type: ClusterIP
+  ports:
+  - name:  postgre-access
+    port:  5432
+    targetPort:  5432
+    protocol: TCP
