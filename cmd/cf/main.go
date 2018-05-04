@@ -24,13 +24,10 @@ import (
 	cfenv "github.com/Peripli/service-manager/cmd/cf/env"
 	"github.com/Peripli/service-manager/sm"
 	"github.com/sirupsen/logrus"
-	"github.com/pkg/errors"
-	"fmt"
 	"github.com/Peripli/service-manager/env"
 )
 
 func main() {
-	fmt.Println(errors.New("asdasd"))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	handleInterrupts(ctx, cancel)
