@@ -8,3 +8,4 @@ applications:
   env:
     SM_LOG_FORMAT: json
     SM_LOG_LEVEL: info
+    SM_DB_NAME: <postgre_instance_name>

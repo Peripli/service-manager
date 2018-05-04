@@ -6,3 +6,4 @@
 
 Service Manager Core Module
 
+[Run Service Manager on CF](deployment/cf/README.MD)
