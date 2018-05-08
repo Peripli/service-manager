@@ -17,6 +17,7 @@
 package osb
 
 import (
+	"github.com/Peripli/service-manager/storage"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -281,8 +282,8 @@ var _ = Describe("Logic", func() {
 		Context("when broker with brokerID is not found in the storage", func() {
 			BeforeEach(func() {
 				brokerID = "missingBroker"
-				expectedErr = fmt.Errorf("not found")
-				fakeBrokerStorage.GetReturns(nil, expectedErr)
+				expectedErr = fmt.Errorf("Could not find broker")
+				fakeBrokerStorage.GetReturns(nil, storage.ErrNotFound)
 
 				actualResponse, actualErr = callGetCatalog(brokerID)
 			})
@@ -356,9 +357,9 @@ var _ = Describe("Logic", func() {
 
 			actualRequest = &v2.ProvisionRequest{}
 			expectedResponse = &v2.ProvisionResponse{
-				Async:         false,
-				DashboardURL:  strPtr("http://localhost:8080"),
-				OperationKey:  nil,
+				Async:        false,
+				DashboardURL: strPtr("http://localhost:8080"),
+				OperationKey: nil,
 			}
 			fakeClient.ProvisionReaction = &fake.ProvisionReaction{
 				Response: expectedResponse,
@@ -396,8 +397,8 @@ var _ = Describe("Logic", func() {
 		Context("when broker with brokerID is not found in the storage", func() {
 			BeforeEach(func() {
 				brokerID = "missingBroker"
-				expectedErr = fmt.Errorf("not found")
-				fakeBrokerStorage.GetReturns(nil, expectedErr)
+				expectedErr = fmt.Errorf("Could not find broker")
+				fakeBrokerStorage.GetReturns(nil, storage.ErrNotFound)
 
 				actualResponse, actualErr = callProvision(brokerID)
 			})
@@ -510,8 +511,8 @@ var _ = Describe("Logic", func() {
 		Context("when broker with brokerID is not found in the storage", func() {
 			BeforeEach(func() {
 				brokerID = "missingBroker"
-				expectedErr = fmt.Errorf("not found")
-				fakeBrokerStorage.GetReturns(nil, expectedErr)
+				expectedErr = fmt.Errorf("Could not find broker")
+				fakeBrokerStorage.GetReturns(nil, storage.ErrNotFound)
 
 				actualResponse, actualErr = callDeprovision(brokerID)
 			})
@@ -623,8 +624,8 @@ var _ = Describe("Logic", func() {
 		Context("when broker with brokerID is not found in the storage", func() {
 			BeforeEach(func() {
 				brokerID = "missingBroker"
-				expectedErr = fmt.Errorf("not found")
-				fakeBrokerStorage.GetReturns(nil, expectedErr)
+				expectedErr = fmt.Errorf("Could not find broker")
+				fakeBrokerStorage.GetReturns(nil, storage.ErrNotFound)
 
 				actualResponse, actualErr = callLastOperation(brokerID)
 			})
@@ -740,8 +741,8 @@ var _ = Describe("Logic", func() {
 		Context("when broker with brokerID is not found in the storage", func() {
 			BeforeEach(func() {
 				brokerID = "missingBroker"
-				expectedErr = fmt.Errorf("not found")
-				fakeBrokerStorage.GetReturns(nil, expectedErr)
+				expectedErr = fmt.Errorf("Could not find broker")
+				fakeBrokerStorage.GetReturns(nil, storage.ErrNotFound)
 
 				actualResponse, actualErr = callBind(brokerID)
 			})
@@ -853,8 +854,8 @@ var _ = Describe("Logic", func() {
 		Context("when broker with brokerID is not found in the storage", func() {
 			BeforeEach(func() {
 				brokerID = "missingBroker"
-				expectedErr = fmt.Errorf("not found")
-				fakeBrokerStorage.GetReturns(nil, expectedErr)
+				expectedErr = fmt.Errorf("Could not find broker")
+				fakeBrokerStorage.GetReturns(nil, storage.ErrNotFound)
 
 				actualResponse, actualErr = callUnbind(brokerID)
 			})
@@ -966,8 +967,8 @@ var _ = Describe("Logic", func() {
 		Context("when broker with brokerID is not found in the storage", func() {
 			BeforeEach(func() {
 				brokerID = "missingBroker"
-				expectedErr = fmt.Errorf("not found")
-				fakeBrokerStorage.GetReturns(nil, expectedErr)
+				expectedErr = fmt.Errorf("Could not find broker")
+				fakeBrokerStorage.GetReturns(nil, storage.ErrNotFound)
 
 				actualResponse, actualErr = callProvision(brokerID)
 			})
