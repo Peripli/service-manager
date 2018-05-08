@@ -7,7 +7,7 @@ You need to install and configure docker on the machine that you are building.
 ## Build docker image
 
 ```sh
-docker build --build-arg SM_RUN_ENV=cf -t "<repo_url>/<user_name>/<image_name>:<tag>" -f Dockerfile .
+docker build -t "<repo_url>/<user_name>/<image_name>:<tag>" -f Dockerfile .
 ```
 
 ## Push image to a docker repository

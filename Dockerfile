@@ -3,47 +3,39 @@
 # docker container. The alpine build image has to match
 # the alpine image in the referencing runtime container.
 #########################################################
-FROM golang:1.10.1-alpine3.7 AS build-env
-
-# Set all env variables needed for go
-ENV GOBIN /go/bin
-ENV GOPATH /go
+FROM golang:1.10.1-alpine3.7 AS builder
 
 # We need so that dep can fetch it's dependencies
 RUN apk --no-cache add git
+RUN go get github.com/golang/dep/cmd/dep
 
 # Directory in workspace
-RUN mkdir -p "/go/src/github.com/Peripli/service-manager"
-COPY . "/go/src/github.com/Peripli/service-manager"
 WORKDIR "/go/src/github.com/Peripli/service-manager"
 
-# Install dep, dependencies and build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go get github.com/golang/dep/cmd/dep && \
-    dep ensure -v && \
-    go build -o /main cmd/main.go
+# Copy dep files only and ensure dependencies are satisfied
+COPY Gopkg.lock Gopkg.toml ./
+RUN dep ensure -vendor-only -v
 
-# RUN go build -o /main cmd/main.go
+# Copy and build source code
+COPY . ./
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -o /main cmd/main.go
 
 ########################################################
 # Build the runtime container
 ########################################################
-FROM alpine:3.7
+FROM scratch
 WORKDIR /app
 
 # Copy the executable file
-COPY --from=build-env /main /app/
+COPY --from=builder /main /app/
 
 # Copy the application.yml file to the executable container
-COPY --from=build-env /go/src/github.com/Peripli/service-manager/application.yml /app/
-
-# Create folder for migration scripts
-RUN mkdir -p "/app/storage/postgres/migrations"
+COPY --from=builder /go/src/github.com/Peripli/service-manager/application.yml /app/
 
 # Copy migration scripts
-COPY --from=build-env /go/src/github.com/Peripli/service-manager/storage/postgres/migrations/ /app/storage/postgres/migrations/
+COPY --from=builder /go/src/github.com/Peripli/service-manager/storage/postgres/migrations/ /app/storage/postgres/migrations/
 
-ARG SM_RUN_ENV=local
-ENV SM_RUN_ENV=${SM_RUN_ENV}
+ENV SM_RUN_ENV=local
 
 ENTRYPOINT [ "./main" ]
 EXPOSE 8080
