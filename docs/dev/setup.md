@@ -33,7 +33,7 @@ The following tools would need to be installed on your machine prior to being ab
 
 For MAC users both [Docker for Mac](https://docs.docker.com/docker-for-mac/install/) and [Docker ToolBox](https://docs.docker.com/toolbox/toolbox_install_mac/) should work.
 
-For Windows users only [Docker ToolBox](https://docs.docker.com/toolbox/toolbox_install_windows/) works. The reason Docker Toolbox uses VirtualBox for virtualization and [Docker for Windows](https://docs.docker.com/docker-for-windows/install/#about-windows-containers) uses the native OS virtualization (Hyper-V). Since PCF Dev requires VirtualBox and using VirtualBox on Windows requires disabling Hyper-V, it is currently not an option to use Docker for Windows.
+For Windows users only [Docker ToolBox](https://docs.docker.com/toolbox/toolbox_install_windows/) works. The reason is that Docker Toolbox uses VirtualBox for virtualization and [Docker for Windows](https://docs.docker.com/docker-for-windows/install/#about-windows-containers) uses the native OS virtualization (Hyper-V). Since PCF Dev requires VirtualBox and using VirtualBox on Windows requires disabling Hyper-V, it is currently not an option to use Docker for Windows.
 
 ### Setup VirtualBox
 
@@ -147,23 +147,23 @@ git clone https://github.com/Peripli/service-manager.git
 
 #### Run Service Manager on localhost
 
-**Prerequisites:**
-
-    Setup Postgresql
-
-        In order for the Service Manager to run locally, itrequires a Postgresql DB.
-
-    * Install on your machine
-
-            Windows users may follow [this guide](http://www.postgresqltutorial.com/install-postgresql/) in order to install postgresql.
-
-    * Spin up a postgres docker container
-
-            ``` bash
-            docker run --name postgres-docker -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres postgres
-            ```
-
-            The DB should be accessible on the ip that the docker machine is running on (docker-machine ip) and port 5432.
+>**Prerequisites:**
+>
+>Setup Postgresql
+>
+>In order for the Service Manager to run locally, itrequires a >Postgresql DB.
+>
+> * Install on your machine
+>
+>    Windows users may follow [this guide]>>(http://www.postgresqltutorial.com/install-postgresql/) in order to install postgresql.
+>
+> * Spin up a postgres docker container
+>
+>    ``` bash
+>    docker run --name postgres-docker -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres postgres
+>    ```
+>
+>The DB should be accessible on the ip that the docker machine is running on (docker-machine ip) and port 5432.
 
 * Modify the contents of application.yml to point to the configured Postgresql
 
