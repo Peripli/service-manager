@@ -26,6 +26,7 @@ import (
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/postgres"
 	"github.com/sirupsen/logrus"
+	"github.com/Peripli/service-manager/api/info"
 )
 
 // NewServer creates service manager server
@@ -45,7 +46,9 @@ func NewServer(ctx context.Context, serverEnv server.Environment) (*server.Serve
 	if err != nil {
 		return nil, fmt.Errorf("Error using storage: %v", err)
 	}
+
 	defaultAPI := api.Default(storage)
+	defaultAPI.RegisterControllers(info.NewController(serverEnv))
 
 	srv, err := server.New(defaultAPI, config)
 	if err != nil {

@@ -7,4 +7,7 @@ log:
   format: text
 db:
   name: sm-postgres
-  uri: postgres://postgres:postgres@192.168.99.101:5555/postgres?sslmode=disable
+  uri: postgres://postgres:postgres@192.168.99.100:5555/postgres?sslmode=disable
+token:
+  issue: https://uaa.local.pcfdev.io/oauth/token
+  key: https://uaa.local.pcfdev.io/check_token
