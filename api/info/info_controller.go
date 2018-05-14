@@ -19,38 +19,24 @@ package info
 import (
 	"net/http"
 	"github.com/Peripli/service-manager/server"
-	"io/ioutil"
 	"github.com/Peripli/service-manager/rest"
-	"github.com/sirupsen/logrus"
-	"encoding/json"
-	"strings"
 )
 
-type controller struct {
-	info map[string]string
+type informationResponse struct{
+	TokenIssuer string `mapstructure:"token_issuer" json:"token_issuer"`
 }
 
+type controller struct {
+	info informationResponse
+}
+
+// NewController returns a new info controller
 func NewController(environment server.Environment) rest.Controller {
-	bytes, err := ioutil.ReadFile("api/info/info.json")
-	if err != nil {
-		logrus.Panicf("Cannot read info file")
+	var info informationResponse
+	if err := environment.Unmarshal(&info); err != nil {
+		panic(err)
 	}
-	var infoJson map[string]string
-	if err := json.Unmarshal(bytes, &infoJson); err != nil {
-		logrus.Panic("Invalid JSON read from file")
-	}
-	ctrl := &controller{
-		info: make(map[string]string),
-	}
-	for key, value := range infoJson {
-		envVar := strings.Trim(value, "{}")
-		actualValue, ok := environment.Get(envVar).(string)
-		if !ok {
-			logrus.Panicf("Variable %s is not set!", envVar)
-		}
-		ctrl.info[key] = actualValue
-	}
-	return ctrl
+	return &controller{info}
 }
 
 func (c *controller) getInfo(writer http.ResponseWriter, request *http.Request) error {
