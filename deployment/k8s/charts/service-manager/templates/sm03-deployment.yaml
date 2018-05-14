@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "service-manager.fullname" . }}
+  labels:
+    app: {{ template "service-manager.name" . }}
+    chart: {{ template "service-manager.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "service-manager.name" . }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "service-manager.name" . }}
+        release: {{ .Release.Name }}
+    spec:
+      volumes:
+      - name: config-volume
+        configMap:
+          name: {{ template "service-manager.fullname" . }}
+      - name: pg-config
+        secret:
+          secretName: {{ template "service-manager.fullname" . }}-secret
+      containers:
+      - name: {{ .Chart.Name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/config
+        - name: pg-config
+          mountPath: "/etc/pg"
+          readOnly: true
+        env:
+        - name: CONFIG_MOUNT_PATH
+          value: "/etc/config/"
+        - name: POSTGRES_MOUNT_PATH
+          value: "/etc/pg/"
+        - name:  SM_RUN_ENV
+          value: k8s
+      ports:
+      - name: http
+        containerPort: 8080
+        protocol: TCP

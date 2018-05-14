@@ -1,31 +1,56 @@
-## How to deploy PostgreSQL on K8S Minikube:
+# Deploy Service Manager on Kubernetes on Minikube:
 
-1. Create a secret for the Postgres password
+## Build a docker image
+
+You can set the docker client to the Minikube docker environment by executing
+* windows: ```@FOR /f "tokens=*" %i IN ('minikube docker-env') DO @%i```
+* linux/mac: ```eval $(minikube docker-env)```
+
+and build the image
+
 ```sh
-    kubectl create -f postgre-secret.yml
+docker build -t "service-manager:latest" -f Dockerfile .
 ```
 
-2. To create the Postgre pod run
+Alternatively you can build a docker image and push it to an external repository.
+In this case you have to specify the image, tag and pullPolicy in the Service Manager helm install command.
+
 ```sh
-    kubectl create -f postgre-pod.yml
+docker build -t "<image_name>:<tag>" -f Dockerfile .
+docker push "<image_name>:<tag>"
 ```
 
-3. To expose a service for the postgres pod run:
+## Install Service Manager
+
+Go to *deployment/k8s/charts/service-manager* folder.
+
+Execute:
+
 ```sh
-    kubectl create -f postgre-service.yml
+helm dependency update
 ```
 
-4. Create a secret for the SM postgres db
+to get the required dependencies.
+
+To install the Service Manager and PostgreSQL database, execute:
+
 ```sh
-    kubectl create -f sm-secret.yml
+helm install --name service-manager --namespace service-manager .
 ```
 
-5. To create the Service Manager deployment run
+Alternatively you can use different PostgreSQL username or password:
+
 ```sh
-    kubectl create -f sm-deployment.yml
+helm install --name service-manager --namespace service-manager . --set postgresql.postgresUser=<pguser> --set postgresql.postgresPassword=<pgpass>
 ```
 
-6. To expose a service for the Service Manager pod run:
+Or install only Service Manager with external PostgreSQL:
+
 ```sh
-    kubectl create -f sm-service.yml
+helm install --name service-manager --namespace service-manager . --set postgresql.enabled=false --set postgresql.uri=<postgresql_connection_string>
+```
+
+Or use Service Manager docker image from external repo:
+```sh
+helm install --name service-manager --namespace service-manager . --set image.repository=<image_repo> --set image.tag=<image_tag> --set image.pullPolicy=Always
 ```

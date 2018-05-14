@@ -18,11 +18,33 @@ package env
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
-	"strings"
 
 	"github.com/Peripli/service-manager/server"
 )
+
+const configMountEnvVarName = "CONFIG_MOUNT_PATH"
+const postgresMountEnvVarName = "POSTGRES_MOUNT_PATH"
+
+func readConfig(configMount string, configName string) (string, error) {
+	data, err := ioutil.ReadFile(configMount + configName)
+	if err != nil {
+		return "", fmt.Errorf("Could not get configuration for %s. Reason: %s", configName, err)
+	}
+	if len(data) == 0 {
+		return "", fmt.Errorf("Configuration for %s is empty", configName)
+	}
+	return string(data), nil
+}
+
+func getMountPath(mountPathEnvVar string) (string, error) {
+	mountPath := os.Getenv(mountPathEnvVar)
+	if mountPath == "" {
+		return "", fmt.Errorf("Environment variable %s not set", mountPathEnvVar)
+	}
+	return mountPath, nil
+}
 
 // New returns a K8S environment with a delegate
 func New(delegate server.Environment) server.Environment {
@@ -33,31 +55,31 @@ type k8sEnvironment struct {
 	server.Environment
 }
 
+func (e *k8sEnvironment) setConfig(mountPath string, configFileName string, configName string) error {
+	config, err := readConfig(mountPath, configFileName)
+	if err != nil {
+		return err
+	}
+	e.Environment.Set(configName, config)
+	return nil
+}
+
 func (e *k8sEnvironment) Load() error {
-	var err error
-	if err = e.Environment.Load(); err != nil {
+	if err := e.Environment.Load(); err != nil {
+		return err
+	}
+	configMountPath, err := getMountPath(configMountEnvVarName)
+	if err != nil {
+		return err
+	}
+	postgresMountPath, err := getMountPath(postgresMountEnvVarName)
+	if err != nil {
 		return err
 	}
 
-	uri := e.databaseURI()
-	e.Environment.Set("db.uri", uri)
-	return err
-}
+	e.setConfig(configMountPath, "logLevel", "log.level")
+	e.setConfig(configMountPath, "logFormat", "log.format")
+	e.setConfig(postgresMountPath, "uri", "db.uri")
 
-func (e *k8sEnvironment) Get(key string) interface{} {
-	return e.Environment.Get(key)
-}
-
-func (e *k8sEnvironment) databaseURI() string {
-	dbName := e.Environment.Get("db.name").(string)
-	dbName = strings.ToUpper(dbName)
-	dbName = strings.Replace(dbName, "-", "_", -1)
-
-	dbHost := os.Getenv(dbName + "_SERVICE_HOST")
-	dbPort := os.Getenv(dbName + "_SERVICE_PORT")
-
-	dbUser := e.Environment.Get("db.username")
-	dbPassword := e.Environment.Get("db.password")
-
-	return fmt.Sprintf("postgres://%s:%s@%s:%s/postgres?sslmode=disable", dbUser, dbPassword, dbHost, dbPort)
+	return nil
 }

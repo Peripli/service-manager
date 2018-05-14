@@ -1,0 +1,22 @@
+replicaCount: 1
+
+image:
+  repository: service-manager
+  tag: latest
+  pullPolicy: Never
+
+service:
+  type: ClusterIP
+  port: 80
+
+postgresql:
+  #uri: postgres://<pguser>:<pgpassword>@<pghost>:<pgport>/postgres?sslmode=disable
+  enabled: true
+  postgresUser: pguser
+  postgresPassword: pgpassword
+  persistence:
+    size: 1Gi
+
+config:
+  logLevel: info
+  logFormat: text
