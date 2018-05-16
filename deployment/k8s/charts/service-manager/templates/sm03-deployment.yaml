@@ -37,9 +37,9 @@ spec:
           mountPath: "/etc/pg"
           readOnly: true
         env:
-        - name: CONFIG_MOUNT_PATH
+        - name: SM_CONFIG_LOCATION
           value: "/etc/config/"
-        - name: POSTGRES_MOUNT_PATH
+        - name: SM_POSTGRES_CONFIG_LOCATION
           value: "/etc/pg/"
         - name:  SM_RUN_ENV
           value: k8s

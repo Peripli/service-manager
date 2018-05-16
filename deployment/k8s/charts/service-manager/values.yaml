@@ -18,5 +18,9 @@ postgresql:
     size: 1Gi
 
 config:
-  logLevel: info
-  logFormat: text
+  log:
+    level: info
+    format: text
+  server:
+    requestTimeout: 3000
+    shutdownTimeout: 3000

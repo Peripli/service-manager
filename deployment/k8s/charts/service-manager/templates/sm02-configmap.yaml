@@ -3,5 +3,5 @@ kind: ConfigMap
 metadata:
   name: {{ template "service-manager.fullname" . }}
 data:
-  logLevel: {{ .Values.config.logLevel }}
-  logFormat: {{ .Values.config.logFormat }}
+  application.yaml: |-
+{{ toYaml .Values.config | indent 4 }}

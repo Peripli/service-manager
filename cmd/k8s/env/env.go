@@ -24,8 +24,11 @@ import (
 	"github.com/Peripli/service-manager/server"
 )
 
-const configMountEnvVarName = "CONFIG_MOUNT_PATH"
-const postgresMountEnvVarName = "POSTGRES_MOUNT_PATH"
+// K8SConfigLocationEnvVarName location of the config file for k8s deployment
+const K8SConfigLocationEnvVarName = "SM_CONFIG_LOCATION"
+
+// K8SPostgresConfigLocationEnvVarName location of the PostgreSQL config file for k8s deployment
+const K8SPostgresConfigLocationEnvVarName = "SM_POSTGRES_CONFIG_LOCATION"
 
 func readConfig(configMount string, configName string) (string, error) {
 	data, err := ioutil.ReadFile(configMount + configName)
@@ -38,10 +41,11 @@ func readConfig(configMount string, configName string) (string, error) {
 	return string(data), nil
 }
 
-func getMountPath(mountPathEnvVar string) (string, error) {
+// GetMountPath returns the location of the specified configuration
+func GetMountPath(mountPathEnvVar string) (string, error) {
 	mountPath := os.Getenv(mountPathEnvVar)
 	if mountPath == "" {
-		return "", fmt.Errorf("Environment variable %s not set", mountPathEnvVar)
+		return "", fmt.Errorf("Expected %s environment variable to be set", mountPathEnvVar)
 	}
 	return mountPath, nil
 }
@@ -55,31 +59,19 @@ type k8sEnvironment struct {
 	server.Environment
 }
 
-func (e *k8sEnvironment) setConfig(mountPath string, configFileName string, configName string) error {
-	config, err := readConfig(mountPath, configFileName)
-	if err != nil {
-		return err
-	}
-	e.Environment.Set(configName, config)
-	return nil
-}
-
 func (e *k8sEnvironment) Load() error {
 	if err := e.Environment.Load(); err != nil {
 		return err
 	}
-	configMountPath, err := getMountPath(configMountEnvVarName)
+	postgresMountPath, err := GetMountPath(K8SPostgresConfigLocationEnvVarName)
 	if err != nil {
 		return err
 	}
-	postgresMountPath, err := getMountPath(postgresMountEnvVarName)
+	postgresURI, err := readConfig(postgresMountPath, "uri")
 	if err != nil {
 		return err
 	}
-
-	e.setConfig(configMountPath, "logLevel", "log.level")
-	e.setConfig(configMountPath, "logFormat", "log.format")
-	e.setConfig(postgresMountPath, "uri", "db.uri")
+	e.Environment.Set("db.uri", postgresURI)
 
 	return nil
 }
