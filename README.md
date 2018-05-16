@@ -6,4 +6,6 @@
 
 Service Manager Core Module
 
-[Run Service Manager on CF](deployment/cf/README.MD)
+[Run Service Manager on CF](deployment/cf/README.md)
+
+[Run Service Manager on Kubernetes](deployment/k8s/README.md)

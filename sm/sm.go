@@ -24,6 +24,7 @@ import (
 
 	"github.com/Peripli/service-manager/api"
 	cfenv "github.com/Peripli/service-manager/cmd/cf/env"
+	k8senv "github.com/Peripli/service-manager/cmd/k8s/env"
 	"github.com/Peripli/service-manager/env"
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
@@ -70,12 +71,27 @@ func setUpLogging(logLevel string, logFormat string) {
 	}
 }
 
+func getK8SConfigFile() *env.ConfigFile {
+	configFileLocation, err := k8senv.GetMountPath(k8senv.K8SConfigLocationEnvVarName)
+	if err != nil {
+		panic(err.Error())
+	}
+	return &env.ConfigFile{
+		Path:   configFileLocation,
+		Name:   "application",
+		Format: "yaml",
+	}
+}
+
+// GetEnvironment returns the specific server.Environment required to run the Service Manager
 func GetEnvironment() server.Environment {
 	envFlag := os.Getenv("SM_RUN_ENV")
 
 	switch envFlag {
 	case "cf":
 		return cfenv.New(env.Default())
+	case "k8s":
+		return k8senv.New(env.New(getK8SConfigFile(), "SM"))
 	default:
 		return env.Default()
 	}
