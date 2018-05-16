@@ -20,7 +20,7 @@ import (
 	"strings"
 
 	"github.com/Peripli/service-manager/server"
-	"github.com/cloudfoundry-community/go-cfenv"
+	cfenv "github.com/cloudfoundry-community/go-cfenv"
 	"github.com/sirupsen/logrus"
 )
 

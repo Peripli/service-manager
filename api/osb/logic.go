@@ -57,7 +57,7 @@ func (b *BusinessLogic) GetCatalog(c *broker.RequestContext) (*broker.CatalogRes
 		return nil, err
 	}
 	response, err := client.GetCatalog()
-	if err != nil {
+	if err = toHTTPError(err); err != nil {
 		return nil, err
 	}
 
@@ -76,7 +76,7 @@ func (b *BusinessLogic) Provision(request *osbc.ProvisionRequest, c *broker.Requ
 	}
 
 	response, err := client.ProvisionInstance(request)
-	if err != nil {
+	if err = toHTTPError(err); err != nil {
 		return nil, err
 	}
 
@@ -94,7 +94,7 @@ func (b *BusinessLogic) Deprovision(request *osbc.DeprovisionRequest, c *broker.
 		return nil, err
 	}
 	response, err := client.DeprovisionInstance(request)
-	if err != nil {
+	if err = toHTTPError(err); err != nil {
 		return nil, err
 	}
 
@@ -112,7 +112,7 @@ func (b *BusinessLogic) LastOperation(request *osbc.LastOperationRequest, c *bro
 		return nil, err
 	}
 	response, err := client.PollLastOperation(request)
-	if err != nil {
+	if err = toHTTPError(err); err != nil {
 		return nil, err
 	}
 
@@ -131,7 +131,7 @@ func (b *BusinessLogic) Bind(request *osbc.BindRequest, c *broker.RequestContext
 	}
 
 	response, err := client.Bind(request)
-	if err != nil {
+	if err = toHTTPError(err); err != nil {
 		return nil, err
 	}
 
@@ -151,7 +151,7 @@ func (b *BusinessLogic) Unbind(request *osbc.UnbindRequest, c *broker.RequestCon
 	}
 
 	response, err := client.Unbind(request)
-	if err != nil {
+	if err = toHTTPError(err); err != nil {
 		return nil, err
 	}
 
@@ -170,7 +170,7 @@ func (b *BusinessLogic) Update(request *osbc.UpdateInstanceRequest, c *broker.Re
 	}
 
 	response, err := client.UpdateInstance(request)
-	if err != nil {
+	if err = toHTTPError(err); err != nil {
 		return nil, err
 	}
 
@@ -205,15 +205,39 @@ func clientConfigForBroker(broker *types.Broker) *osbc.ClientConfiguration {
 func (b *BusinessLogic) osbClient(request *http.Request) (osbc.Client, error) {
 	vars := mux.Vars(request)
 	brokerID, ok := vars[BrokerIDPathParam]
-	logrus.Debugf("Obtained path parameter [brokerID = %s] from mux vars", brokerID)
 	if !ok {
-		return nil, fmt.Errorf("error creating OSB client: brokerID path parameter not found")
+		logrus.Debugf("error creating OSB client: brokerID path parameter not found")
+		return nil, createHTTPErrorResponse("Invalid broker id path parameter", "BadRequest", http.StatusBadRequest)
 	}
+	logrus.Debugf("Obtained path parameter [brokerID = %s] from mux vars", brokerID)
+
 	serviceBroker, err := b.brokerStorage.Get(brokerID)
-	if err != nil {
-		return nil, fmt.Errorf("error obtaining serviceBroker with id %s from storage: %s", brokerID, err)
+	if err == storage.ErrNotFound {
+		logrus.Debugf("service broker with id %s not found", brokerID)
+		return nil, createHTTPErrorResponse(fmt.Sprintf("Could not find broker with id: %s", brokerID), "NotFound", http.StatusNotFound)
+	} else if err != nil {
+		logrus.Errorf("error obtaining serviceBroker with id %s from storage: %s", brokerID, err)
+		return nil, fmt.Errorf("Internal Server Error")
 	}
 	config := clientConfigForBroker(serviceBroker)
 	logrus.Debug("Building OSB client for serviceBroker with name: ", config.Name, " accessible at: ", config.URL)
 	return b.createFunc(config)
+}
+
+func toHTTPError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if _, isHTTPError := osbc.IsHTTPError(err); isHTTPError {
+		return err
+	}
+	return createHTTPErrorResponse(err.Error(), "BadRequest", http.StatusBadRequest)
+}
+
+func createHTTPErrorResponse(description, errorMessage string, statusCode int) *osbc.HTTPStatusCodeError {
+	return &osbc.HTTPStatusCodeError{
+		Description:  &description,
+		ErrorMessage: &errorMessage,
+		StatusCode:   statusCode,
+	}
 }
