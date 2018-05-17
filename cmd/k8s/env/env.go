@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"github.com/Peripli/service-manager/server"
 )
@@ -31,7 +32,7 @@ const K8SConfigLocationEnvVarName = "SM_CONFIG_LOCATION"
 const K8SPostgresConfigLocationEnvVarName = "SM_POSTGRES_CONFIG_LOCATION"
 
 func readConfig(configMount string, configName string) (string, error) {
-	data, err := ioutil.ReadFile(configMount + configName)
+	data, err := ioutil.ReadFile(filepath.Join(configMount, configName))
 	if err != nil {
 		return "", fmt.Errorf("Could not get configuration for %s. Reason: %s", configName, err)
 	}

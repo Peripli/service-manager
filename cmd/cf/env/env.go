@@ -17,11 +17,11 @@
 package env
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/Peripli/service-manager/server"
 	cfenv "github.com/cloudfoundry-community/go-cfenv"
-	"github.com/sirupsen/logrus"
 )
 
 // New returns a Cloud Foundry environment with a delegate
@@ -42,8 +42,12 @@ func (e *cfEnvironment) Load() error {
 	if e.cfEnv, err = cfenv.Current(); err != nil {
 		return err
 	}
-	e.Environment.Set("db.uri", e.databaseURI())
-	return err
+	dbURI, err := e.databaseURI()
+	if err != nil {
+		return err
+	}
+	e.Environment.Set("db.uri", dbURI)
+	return nil
 }
 
 func (e *cfEnvironment) Get(key string) interface{} {
@@ -54,11 +58,11 @@ func (e *cfEnvironment) Get(key string) interface{} {
 	return value
 }
 
-func (e *cfEnvironment) databaseURI() string {
+func (e *cfEnvironment) databaseURI() (string, error) {
 	dbName := e.Environment.Get("db.name").(string)
 	service, err := e.cfEnv.Services.WithName(dbName)
 	if err != nil {
-		logrus.Panicf("Could not find service with name %s", dbName)
+		return "", fmt.Errorf("Could not find service with name %s", dbName)
 	}
-	return service.Credentials["uri"].(string)
+	return service.Credentials["uri"].(string), nil
 }
