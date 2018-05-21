@@ -63,3 +63,7 @@
 [[constraint]]
   name = "github.com/cloudfoundry-community/go-cfenv"
   revision = "e84b5c116637ef174eb8c7d68a28bc7269b3b9cb"
+
+[[constraint]]
+  name = "github.com/coreos/go-oidc"
+  revision = "1180514eaf4d9f38d0d19eef639a1d695e066e72"

@@ -19,6 +19,11 @@
   revision = "e84b5c116637ef174eb8c7d68a28bc7269b3b9cb"
 
 [[projects]]
+  name = "github.com/coreos/go-oidc"
+  packages = ["."]
+  revision = "1180514eaf4d9f38d0d19eef639a1d695e066e72"
+
+[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
@@ -80,14 +85,14 @@
 [[projects]]
   name = "github.com/gorilla/context"
   packages = ["."]
-  revision = "1ea25387ff6f684839d82767c1733ff4d4d15d0a"
-  version = "v1.1"
+  revision = "08b5f424b9271eedf6f9f0ce86cb9396ed337a42"
+  version = "v1.1.1"
 
 [[projects]]
   name = "github.com/gorilla/mux"
   packages = ["."]
-  revision = "53c1911da2b537f792e7cafcb446b05ffe33b996"
-  version = "v1.6.1"
+  revision = "e3702bed27f0d39777b0b37b664b6280e8ef8fbf"
+  version = "v1.6.2"
 
 [[projects]]
   branch = "master"
@@ -155,8 +160,8 @@
 [[projects]]
   name = "github.com/magiconair/properties"
   packages = ["."]
-  revision = "c3beff4c2358b44d0493c7dda585e7db7ff28ae6"
-  version = "v1.7.6"
+  revision = "c2353362d570a7bfa228149c62842019201cfb71"
+  version = "v1.8.0"
 
 [[projects]]
   name = "github.com/matttproud/golang_protobuf_extensions"
@@ -168,7 +173,7 @@
   branch = "master"
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
-  revision = "00c29f56e2386353d58c599509e8dc3801b0d716"
+  revision = "bb74f1db0675b241733089d5a1faa5dd8b0ef57b"
 
 [[projects]]
   branch = "master"
@@ -198,8 +203,8 @@
     "reporters/stenographer/support/go-isatty",
     "types"
   ]
-  revision = "9eda700730cba42af70d53180f9dcce9266bc2bc"
-  version = "v1.4.0"
+  revision = "fa5fabab2a1bfbd924faf4c067d07ae414e2aedf"
+  version = "v1.5.0"
 
 [[projects]]
   name = "github.com/onsi/gomega"
@@ -217,8 +222,8 @@
     "matchers/support/goraph/util",
     "types"
   ]
-  revision = "003f63b7f4cff3fc95357005358af2de0f5fe152"
-  version = "v1.3.0"
+  revision = "62bff4df71bdbc266561a0caee19f0594b17c240"
+  version = "v1.4.0"
 
 [[projects]]
   name = "github.com/pelletier/go-toml"
@@ -253,6 +258,15 @@
   version = "0.0.10"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/pquerna/cachecontrol"
+  packages = [
+    ".",
+    "cacheobject"
+  ]
+  revision = "1555304b9b35fdd2b425bccf1a5613677705e7d0"
+
+[[projects]]
   name = "github.com/prometheus/client_golang"
   packages = [
     "prometheus",
@@ -275,7 +289,7 @@
     "internal/bitbucket.org/ww/goautoneg",
     "model"
   ]
-  revision = "d811d2e9bf898806ecfb6ef6296774b13ffc314c"
+  revision = "7600349dcfe1abd18d72d3a1770870d9800a7801"
 
 [[projects]]
   branch = "master"
@@ -404,20 +418,35 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
-  packages = ["ssh/terminal"]
-  revision = "4ec37c66abab2c7e02ae775328b2ff001c3f025a"
+  packages = [
+    "ed25519",
+    "ed25519/internal/edwards25519",
+    "ssh/terminal"
+  ]
+  revision = "1a580b3eff7814fc9b40602fd35256c63b50f491"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = [
+    "context",
+    "context/ctxhttp",
     "html",
     "html/atom",
     "html/charset",
     "idna",
     "publicsuffix"
   ]
-  revision = "640f4622ab692b87c2f3a94265e6f579fe38263d"
+  revision = "57065200b4b034a1c8ad54ff77069408c2218ae6"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/oauth2"
+  packages = [
+    ".",
+    "internal"
+  ]
+  revision = "cdc340f7c179dbbfa4afd43b7614e8fcadde4269"
 
 [[projects]]
   branch = "master"
@@ -426,7 +455,7 @@
     "unix",
     "windows"
   ]
-  revision = "6f686a352de66814cdd080d970febae7767857a3"
+  revision = "7c87d13f8e835d2fb3a70a2912c811ed0c1d241b"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -462,6 +491,30 @@
   version = "v0.3.0"
 
 [[projects]]
+  name = "google.golang.org/appengine"
+  packages = [
+    "internal",
+    "internal/base",
+    "internal/datastore",
+    "internal/log",
+    "internal/remote_api",
+    "internal/urlfetch",
+    "urlfetch"
+  ]
+  revision = "150dc57a1b433e64154302bdc40b6bb8aefa313a"
+  version = "v1.0.0"
+
+[[projects]]
+  name = "gopkg.in/square/go-jose.v2"
+  packages = [
+    ".",
+    "cipher",
+    "json"
+  ]
+  revision = "76dd09796242edb5b897103a75df2645c028c960"
+  version = "v2.1.6"
+
+[[projects]]
   name = "gopkg.in/yaml.v2"
   packages = ["."]
   revision = "5420a8b6744d3b0345ab293f6fcba19c978f1183"
@@ -470,6 +523,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "bf099e5f1c5701ea4534e6f2b51ef729fb777787d760ccc53558b7ec23b9ea81"
+  inputs-digest = "47b1ceb5fbf069c2ac85d374222a00ff2ac3d8ef4953cbfcf86eefe76b075990"
   solver-name = "gps-cdcl"
   solver-version = 1
