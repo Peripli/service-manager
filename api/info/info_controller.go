@@ -23,7 +23,7 @@ import (
 )
 
 type informationResponse struct{
-	TokenIssuer string `mapstructure:"token_issuer" json:"token_issuer"`
+	TokenIssuer string `mapstructure:"token_issuer_url" json:"token_issuer_url"`
 }
 
 type controller struct {

@@ -8,4 +8,4 @@ log:
 db:
   name: sm-postgres
   uri: postgres://postgres:postgres@192.168.99.100:5555/postgres?sslmode=disable
-token_issuer: https://uaa.local.pcfdev.io
+token_issuer_url: https://uaa.local.pcfdev.io
