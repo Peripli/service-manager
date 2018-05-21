@@ -40,6 +40,5 @@ func NewController(environment server.Environment) rest.Controller {
 }
 
 func (c *controller) getInfo(writer http.ResponseWriter, request *http.Request) error {
-	rest.SendJSON(writer, http.StatusOK, c.info)
-	return nil
+	return rest.SendJSON(writer, http.StatusOK, c.info)
 }
