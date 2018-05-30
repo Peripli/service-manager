@@ -40,6 +40,7 @@ type Settings struct {
 
 // AppSettings type to be loaded from the environment
 type AppSettings struct {
+	Host            string
 	Port            int
 	RequestTimeout  int
 	ShutdownTimeout int
@@ -94,7 +95,7 @@ func NewConfiguration(env Environment) (*Config, error) {
 	}
 
 	if configSettings.Server.Port != 0 {
-		config.Address = ":" + strconv.Itoa(configSettings.Server.Port)
+		config.Address = configSettings.Server.Host + ":" + strconv.Itoa(configSettings.Server.Port)
 	}
 	if configSettings.Server.RequestTimeout != 0 {
 		config.RequestTimeout = time.Millisecond * time.Duration(configSettings.Server.RequestTimeout)
