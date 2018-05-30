@@ -22,9 +22,9 @@ import (
 	"os/signal"
 
 	cfenv "github.com/Peripli/service-manager/cmd/cf/env"
+	"github.com/Peripli/service-manager/env"
 	"github.com/Peripli/service-manager/sm"
 	"github.com/sirupsen/logrus"
-	"github.com/Peripli/service-manager/env"
 )
 
 func main() {
@@ -34,7 +34,7 @@ func main() {
 
 	srv, err := sm.NewServer(ctx, cfenv.New(env.Default()))
 	if err != nil {
-		logrus.Fatal("Error creating the server", err)
+		logrus.Fatal("Error creating the server: ", err)
 	}
 	srv.Run(ctx)
 }
