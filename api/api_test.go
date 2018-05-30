@@ -19,6 +19,7 @@ package api
 import (
 	"testing"
 
+	"github.com/Peripli/service-manager/api/info"
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/server/serverfakes"
 	"github.com/Peripli/service-manager/storage/storagefakes"
@@ -47,10 +48,15 @@ var _ = Describe("API", func() {
 
 	BeforeEach(func() {
 		mockedStorage = &storagefakes.FakeStorage{}
-
 		fakeEnvironment := &serverfakes.FakeEnvironment{}
-		serverfakes.ConfigureEnvironmentUnmarshalInfo(fakeEnvironment)
-
+		response := info.Details{TokenIssuer: "https://example.com"}
+		fakeEnvironment.UnmarshalStub = func(value interface{}) error {
+			val, ok := value.(*info.Details)
+			if ok {
+				*val = response
+			}
+			return nil
+		}
 		api = Default(mockedStorage, fakeEnvironment)
 	})
 
