@@ -47,7 +47,10 @@ var _ = Describe("API", func() {
 
 	BeforeEach(func() {
 		mockedStorage = &storagefakes.FakeStorage{}
+
 		fakeEnvironment := &serverfakes.FakeEnvironment{}
+		serverfakes.ConfigureEnvironmentUnmarshalInfo(fakeEnvironment)
+
 		api = Default(mockedStorage, fakeEnvironment)
 	})
 

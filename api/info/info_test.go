@@ -38,17 +38,6 @@ var _ = Describe("Info API", func() {
 	var constructNewController func()
 	var controller rest.Controller
 
-	configureEnvironmentUnmarshal := func() {
-		response := Details{TokenIssuer: "https://example.com"}
-		environment.UnmarshalStub = func(value interface{}) error {
-			val, ok := value.(*Details)
-			if ok {
-				*val = response
-			}
-			return nil
-		}
-	}
-
 	BeforeEach(func() {
 		constructNewController = func() {
 			controller = NewController(environment)
@@ -77,7 +66,7 @@ var _ = Describe("Info API", func() {
 				})
 				Context("And TokenIssuer is not empty", func() {
 					BeforeEach(func() {
-						configureEnvironmentUnmarshal()
+						serverfakes.ConfigureEnvironmentUnmarshalInfo(environment)
 					})
 					It("Should be OK", func() {
 						Expect(constructNewController).To(Not(Panic()))
@@ -89,7 +78,7 @@ var _ = Describe("Info API", func() {
 
 	Describe("Routes", func() {
 		BeforeEach(func() {
-			configureEnvironmentUnmarshal()
+			serverfakes.ConfigureEnvironmentUnmarshalInfo(environment)
 		})
 		It("Returns one route", func() {
 			routes := controller.Routes()
