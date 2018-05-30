@@ -24,6 +24,7 @@ import (
 const (
 	apiVersion = "v1"
 	root       = "info"
+	// URL is the path of the info endpoint
 	URL        = "/" + apiVersion + "/" + root
 )
 

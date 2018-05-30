@@ -23,6 +23,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Details describe the public information provided by the Service Manager
 type Details struct{
 	TokenIssuer string `mapstructure:"token_issuer_url" json:"token_issuer_url"`
 }
