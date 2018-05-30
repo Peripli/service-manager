@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/server/serverfakes"
 	"github.com/Peripli/service-manager/storage/storagefakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -46,8 +47,8 @@ var _ = Describe("API", func() {
 
 	BeforeEach(func() {
 		mockedStorage = &storagefakes.FakeStorage{}
-
-		api = Default(mockedStorage)
+		fakeEnvironment := &serverfakes.FakeEnvironment{}
+		api = Default(mockedStorage, fakeEnvironment)
 	})
 
 	Describe("Controller Registration", func() {

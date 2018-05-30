@@ -24,7 +24,7 @@ import (
 const (
 	apiVersion = "v1"
 	root       = "info"
-	url        = "/" + apiVersion + "/" + root
+	URL        = "/" + apiVersion + "/" + root
 )
 
 func (c *controller) Routes() []rest.Route {
@@ -32,7 +32,7 @@ func (c *controller) Routes() []rest.Route {
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodGet,
-				Path:   url,
+				Path:   URL,
 			},
 			Handler: rest.APIHandler(c.getInfo),
 		},

@@ -20,21 +20,25 @@ import (
 	"net/http"
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/rest"
+	"github.com/sirupsen/logrus"
 )
 
-type informationResponse struct{
+type Details struct{
 	TokenIssuer string `mapstructure:"token_issuer_url" json:"token_issuer_url"`
 }
 
 type controller struct {
-	info informationResponse
+	info Details
 }
 
 // NewController returns a new info controller
 func NewController(environment server.Environment) rest.Controller {
-	var info informationResponse
+	var info Details
 	if err := environment.Unmarshal(&info); err != nil {
-		panic(err)
+		logrus.Panic(err)
+	}
+	if info.TokenIssuer == ""{
+		logrus.Panic("Token issuer URL is required")
 	}
 	return &controller{info}
 }
