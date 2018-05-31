@@ -109,7 +109,17 @@ func (ctrl *Controller) getPlatform(rw http.ResponseWriter, req *http.Request) e
 // getAllPlatforms handler for GET /v1/platforms
 func (ctrl *Controller) getAllPlatforms(rw http.ResponseWriter, req *http.Request) error {
 	logrus.Debug("Getting all platforms")
-	platforms, err := ctrl.PlatformStorage.GetAll()
+
+	var platforms []types.Platform
+	var err error
+
+	names := req.URL.Query()["name"]
+	if len(names) == 0 {
+		platforms, err = ctrl.PlatformStorage.GetAll()
+	} else {
+		platforms, err = ctrl.PlatformStorage.GetByName(names)
+	}
+
 	if err != nil {
 		return err
 	}

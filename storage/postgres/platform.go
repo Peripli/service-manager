@@ -78,6 +78,29 @@ func (ps *platformStorage) GetAll() ([]types.Platform, error) {
 	return platforms, nil
 }
 
+func (ps *platformStorage) GetByName(names []string) ([]types.Platform, error) {
+	platformDTOs := []Platform{}
+
+	whereClause := ""
+	for index, name := range names {
+		if index != 0 {
+			whereClause += " OR "
+		}
+		whereClause += fmt.Sprintf("name='%s'", name)
+	}
+
+	err := ps.db.Select(&platformDTOs, "SELECT id, type, name, description, created_at, updated_at FROM "+platformTable+" WHERE "+whereClause)
+	if err != nil {
+		logrus.Error("An error occurred while retrieving brokers")
+		return nil, err
+	}
+	platforms := make([]types.Platform, 0, len(platformDTOs)+1)
+	for _, platformDTO := range platformDTOs {
+		platforms = append(platforms, *platformDTO.Convert())
+	}
+	return platforms, nil
+}
+
 func (ps *platformStorage) Delete(id string) error {
 	// deletePlatform is a query that deletes platform and corresponding credentials
 	deletePlatform := fmt.Sprintf(`WITH pl AS (

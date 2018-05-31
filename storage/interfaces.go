@@ -51,6 +51,7 @@ type Broker interface {
 	Create(broker *types.Broker) error
 	Get(id string) (*types.Broker, error)
 	GetAll() ([]types.Broker, error)
+	GetByName([]string) ([]types.Broker, error)
 	Delete(id string) error
 	Update(broker *types.Broker) error
 }
@@ -60,6 +61,7 @@ type Platform interface {
 	Create(platform *types.Platform) error
 	Get(id string) (*types.Platform, error)
 	GetAll() ([]types.Platform, error)
+	GetByName([]string) ([]types.Platform, error)
 	Delete(id string) error
 	Update(platform *types.Platform) error
 }
