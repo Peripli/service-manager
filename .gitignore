@@ -17,7 +17,7 @@
 /vendor
 
 # debug executable
-/debug
+debug
 
 # IDE specific
 .vscode/
