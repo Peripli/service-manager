@@ -9,6 +9,12 @@ service:
   type: ClusterIP
   port: 80
 
+ingress:
+  enabled: true
+  host: local.service-manager
+  tls: {}
+    # secretName: ***
+
 postgresql:
   #uri: postgres://<pguser>:<pgpassword>@<pghost>:<pgport>/postgres?sslmode=disable
   enabled: true
