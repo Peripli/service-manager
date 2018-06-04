@@ -17,7 +17,7 @@ func main() {
 
 	srv, err := sm.NewServer(ctx, sm.GetEnvironment())
 	if err != nil {
-		logrus.Fatal("Error creating the server", err)
+		logrus.Fatal("Error creating the server: ", err)
 	}
 	srv.Run(ctx)
 }
