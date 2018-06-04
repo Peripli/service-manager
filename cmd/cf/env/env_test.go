@@ -56,8 +56,8 @@ var _ = Describe("CF Env", func() {
 			})
 		})
 
-		Context("existing environment variable", func() {
-			It("succeeds", func() {
+		Context("when non cf environment variable exists", func() {
+			It("should delegate the call", func() {
 				testEnv := &customEnvOk{}
 				os.Setenv("VCAP_SERVICES", "{}")
 				actualValue := New(testEnv).Get("MISSING_ENV_VAR")
@@ -106,14 +106,14 @@ var _ = Describe("CF Env", func() {
 			It("returns error", func() {
 				os.Setenv("VCAP_SERVICES", "Invalid")
 				testEnv := &customEnvOk{}
-				Expect(New(testEnv).Load()).ToNot(BeNil())
+				Expect(New(testEnv).Load()).To(HaveOccurred())
 			})
 		})
 
 		Context("with missing VCAP_SERVICES", func() {
 			It("returns error", func() {
 				testEnv := &customEnvOk{}
-				Expect(New(testEnv).Load()).ToNot(BeNil())
+				Expect(New(testEnv).Load()).To(HaveOccurred())
 			})
 		})
 	})
