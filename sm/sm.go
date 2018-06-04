@@ -72,9 +72,9 @@ func setUpLogging(logLevel string, logFormat string) {
 }
 
 func getK8SConfigFile() *env.ConfigFile {
-	configFileLocation, err := k8senv.GetMountPath(k8senv.K8SConfigLocationEnvVarName)
-	if err != nil {
-		logrus.Fatal(err)
+	configFileLocation := os.Getenv(k8senv.K8SConfigLocationEnvVarName)
+	if configFileLocation == "" {
+		logrus.Fatalf("Expected %s environment variable to be set", k8senv.K8SConfigLocationEnvVarName)
 	}
 	return &env.ConfigFile{
 		Path:   configFileLocation,

@@ -15,9 +15,10 @@ ingress:
   tls: {}
     # secretName: ***
 
+#externalPostgresURI: postgres://<pguser>:<pgpassword>@<pghost>:<pgport>/postgres?sslmode=disable
+
 postgresql:
-  #uri: postgres://<pguser>:<pgpassword>@<pghost>:<pgport>/postgres?sslmode=disable
-  enabled: true
+  install: true
   postgresUser: pguser
   postgresPassword: pgpassword
   persistence:

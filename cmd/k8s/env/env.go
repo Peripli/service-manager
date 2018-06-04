@@ -42,15 +42,6 @@ func readConfig(configMount string, configName string) (string, error) {
 	return string(data), nil
 }
 
-// GetMountPath returns the location of the specified configuration
-func GetMountPath(mountPathEnvVar string) (string, error) {
-	mountPath := os.Getenv(mountPathEnvVar)
-	if mountPath == "" {
-		return "", fmt.Errorf("Expected %s environment variable to be set", mountPathEnvVar)
-	}
-	return mountPath, nil
-}
-
 // New returns a K8S environment with a delegate
 func New(delegate server.Environment) server.Environment {
 	return &k8sEnvironment{Environment: delegate}
@@ -64,9 +55,9 @@ func (e *k8sEnvironment) Load() error {
 	if err := e.Environment.Load(); err != nil {
 		return err
 	}
-	postgresMountPath, err := GetMountPath(K8SPostgresConfigLocationEnvVarName)
-	if err != nil {
-		return err
+	postgresMountPath := os.Getenv(K8SPostgresConfigLocationEnvVarName)
+	if postgresMountPath == "" {
+		return fmt.Errorf("Expected %s environment variable to be set", K8SPostgresConfigLocationEnvVarName)
 	}
 	postgresURI, err := readConfig(postgresMountPath, "uri")
 	if err != nil {

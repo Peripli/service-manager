@@ -38,36 +38,6 @@ var _ = Describe("K8S Env", func() {
 		os.Unsetenv(K8SPostgresConfigLocationEnvVarName)
 	})
 
-	Describe("GetMountPath", func() {
-
-		const envVarKey = "K8S_ENV_TEST"
-		const envVarValue = "expected value"
-
-		BeforeEach(func() {
-			os.Setenv(envVarKey, envVarValue)
-		})
-
-		AfterEach(func() {
-			os.Unsetenv(envVarKey)
-		})
-
-		Context("With env var not set", func() {
-			It("Should return error", func() {
-				envVar, err := GetMountPath("NO_SUCH_ENV_VAR")
-				Expect(envVar).To(BeEmpty())
-				Expect(err).To(Not(BeNil()))
-			})
-		})
-
-		Context("With env var set", func() {
-			It("Should return value", func() {
-				envVar, err := GetMountPath(envVarKey)
-				Expect(err).To(BeNil())
-				Expect(envVar).To(Equal(envVarValue))
-			})
-		})
-	})
-
 	Describe("Load", func() {
 
 		AfterEach(func() {
