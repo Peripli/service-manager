@@ -23,9 +23,6 @@ spec:
       - name: config-volume
         configMap:
           name: {{ template "service-manager.fullname" . }}
-      - name: pg-config
-        secret:
-          secretName: {{ template "service-manager.fullname" . }}-secret
       containers:
       - name: {{ .Chart.Name }}
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -33,16 +30,14 @@ spec:
         volumeMounts:
         - name: config-volume
           mountPath: /etc/config
-        - name: pg-config
-          mountPath: "/etc/pg"
           readOnly: true
         env:
-        - name: SM_CONFIG_LOCATION
-          value: "/etc/config/"
-        - name: SM_POSTGRES_CONFIG_LOCATION
-          value: "/etc/pg/"
-        - name:  SM_RUN_ENV
-          value: k8s
+        - name: SM_DB_URI
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "service-manager.fullname" . }}-secret
+              key: uri
+        args: ["config_location=/etc/config/"]
       ports:
       - name: http
         containerPort: 8080

@@ -20,12 +20,8 @@ package sm
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/Peripli/service-manager/api"
-	cfenv "github.com/Peripli/service-manager/cmd/cf/env"
-	k8senv "github.com/Peripli/service-manager/cmd/k8s/env"
-	"github.com/Peripli/service-manager/env"
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/postgres"
@@ -68,31 +64,5 @@ func setUpLogging(logLevel string, logFormat string) {
 		logrus.SetFormatter(&logrus.JSONFormatter{})
 	} else {
 		logrus.SetFormatter(&logrus.TextFormatter{})
-	}
-}
-
-func getK8SConfigFile() *env.ConfigFile {
-	configFileLocation := os.Getenv(k8senv.K8SConfigLocationEnvVarName)
-	if configFileLocation == "" {
-		logrus.Fatalf("Expected %s environment variable to be set", k8senv.K8SConfigLocationEnvVarName)
-	}
-	return &env.ConfigFile{
-		Path:   configFileLocation,
-		Name:   "application",
-		Format: "yaml",
-	}
-}
-
-// GetEnvironment returns the specific server.Environment required to run the Service Manager
-func GetEnvironment() server.Environment {
-	envFlag := os.Getenv("SM_RUN_ENV")
-
-	switch envFlag {
-	case "cf":
-		return cfenv.New(env.Default())
-	case "k8s":
-		return k8senv.New(env.New(getK8SConfigFile(), "SM"))
-	default:
-		return env.Default()
 	}
 }

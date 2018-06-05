@@ -47,7 +47,7 @@ helm install --name service-manager --namespace service-manager . --set postgres
 Or install only Service Manager with external PostgreSQL:
 
 ```sh
-helm install --name service-manager --namespace service-manager . --set postgresql.enabled=false --set postgresql.uri=<postgresql_connection_string>
+helm install --name service-manager --namespace service-manager . --set postgresql.install=false --set externalPostgresURI=<postgresql_connection_string>
 ```
 
 Or use Service Manager docker image from external repo:
