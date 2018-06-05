@@ -20,11 +20,12 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"testing"
 	"io/ioutil"
 	"os"
-	"github.com/Peripli/service-manager/server"
+	"testing"
+
 	"github.com/Peripli/service-manager/env"
+	"github.com/Peripli/service-manager/server"
 )
 
 func TestApi(t *testing.T) {
@@ -35,6 +36,10 @@ func TestApi(t *testing.T) {
 var (
 	yamlExample = []byte(`debug: true
 port: 8080
+database:
+  uri: localhost:8080
+`)
+	partialYamlExample = []byte(`
 database:
   uri: localhost:8080
 `)
@@ -59,7 +64,7 @@ type dbSettings struct {
 
 var _ = Describe("Env", func() {
 	var defaultEnv server.Environment
-	loadEnvironmentFromFile := func() error {
+	loadEnvironmentFromFile := func(yamlExample []byte) error {
 		err := ioutil.WriteFile("application.yml", yamlExample, 0640)
 		Expect(err).To(BeNil())
 		defer func() {
@@ -73,22 +78,22 @@ var _ = Describe("Env", func() {
 	})
 
 	Describe("Load environment", func() {
-		Context("When file doesn't exist", func() {
-			It("Should panic", func() {
-				Expect(defaultEnv.Load()).To(Not(BeNil()))
+		Context("When file is read successfully", func() {
+			It("Should return nil", func() {
+				Expect(loadEnvironmentFromFile(yamlExample)).To(BeNil())
 			})
 		})
 
-		Context("When file is read successfully", func() {
+		Context("When file exists but contains only mandatory properties", func() {
 			It("Should return nil", func() {
-				Expect(loadEnvironmentFromFile()).To(BeNil())
+				Expect(loadEnvironmentFromFile(partialYamlExample)).To(BeNil())
 			})
 		})
 	})
 
 	Describe("Get property", func() {
 		It("Should return one from loaded configuration", func() {
-			Expect(loadEnvironmentFromFile()).To(BeNil())
+			Expect(loadEnvironmentFromFile(yamlExample)).To(BeNil())
 			for key, expectedValue := range expected {
 				Expect(defaultEnv.Get(key)).To(Equal(expectedValue))
 			}
@@ -97,13 +102,13 @@ var _ = Describe("Env", func() {
 
 	Describe("Set Property", func() {
 		It("Should put it in the environment", func() {
-			Expect(loadEnvironmentFromFile()).To(BeNil())
+			Expect(loadEnvironmentFromFile(yamlExample)).To(BeNil())
 			defaultEnv.Set("some.key", "some.value")
 			Expect(defaultEnv.Get("some.key")).To(Equal("some.value"))
 		})
 
 		It("Should override existing value for key", func() {
-			Expect(loadEnvironmentFromFile()).To(BeNil())
+			Expect(loadEnvironmentFromFile(yamlExample)).To(BeNil())
 			defaultEnv.Set("port", "1234")
 			actual := defaultEnv.Get("port")
 			Expect(actual).To(Not(Equal(expected["port"])))
@@ -113,7 +118,7 @@ var _ = Describe("Env", func() {
 
 	Describe("Unmarshal", func() {
 		BeforeEach(func() {
-			Expect(loadEnvironmentFromFile()).To(BeNil())
+			Expect(loadEnvironmentFromFile(yamlExample)).To(BeNil())
 		})
 
 		Context("With non-struct parameter", func() {
