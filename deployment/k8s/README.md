@@ -1,5 +1,13 @@
 # Deploy Service Manager on Kubernetes on Minikube:
 
+## Prerequisites
+
+The following must be fulfilled:
+
+ * Minikube is installed and configured.
+ * Helm is installed and configured.
+ * Ingress controller is configured (optional)
+
 ## Build a docker image
 
 You can set the docker client to the Minikube docker environment by executing
@@ -13,12 +21,13 @@ docker build -t "service-manager:latest" -f Dockerfile .
 ```
 
 Alternatively you can build a docker image and push it to an external repository.
-In this case you have to specify the image, tag and pullPolicy in the Service Manager helm install command.
 
 ```sh
 docker build -t "<image_name>:<tag>" -f Dockerfile .
 docker push "<image_name>:<tag>"
 ```
+
+In this case you have to specify the image, tag and pullPolicy in the Service Manager helm install command.
 
 ## Install Service Manager
 
@@ -53,4 +62,12 @@ helm install --name service-manager --namespace service-manager . --set postgres
 Or use Service Manager docker image from external repo:
 ```sh
 helm install --name service-manager --namespace service-manager . --set image.repository=<image_repo> --set image.tag=<image_tag> --set image.pullPolicy=Always
+```
+
+If ingress controller is not available you can disable ingress with `--set ingress.enabled=false`.
+To expose the Service Manager outside the Minikube you can change the service type to NodePort or LoadBalancer (if available).
+For example:
+
+```sh
+helm install --name service-manager --namespace service-manager . --set ingress.enabled=false --set service.type=NodePort
 ```

@@ -78,7 +78,7 @@ var _ = Describe("CF Env", func() {
 				}]}`
 				os.Setenv("VCAP_SERVICES", vcapServices)
 				err := New(testEnv).Load()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			})
 		})
 
@@ -88,8 +88,15 @@ var _ = Describe("CF Env", func() {
 				vcapServices := `{ "notpgservice": [{"credentials": {}}] }`
 				os.Setenv("VCAP_SERVICES", vcapServices)
 				err := New(testEnv).Load()
-				Expect(err).ToNot(BeNil())
+				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("Could not find service with name postgresql"))
+			})
+		})
+
+		Context("with missing postgres service name", func() {
+			It("returns error", func() {
+				testEnv := &customEnvNoPGServiceName{}
+				Expect(New(testEnv).Load()).ToNot(HaveOccurred())
 			})
 		})
 
@@ -97,7 +104,7 @@ var _ = Describe("CF Env", func() {
 			It("returns error", func() {
 				testEnv := &customEnvFail{}
 				err := New(testEnv).Load()
-				Expect(err).ToNot(BeNil())
+				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("expected fail"))
 			})
 		})
@@ -140,3 +147,10 @@ func (env *customEnvFail) Load() error                       { return errors.New
 func (env *customEnvFail) Get(key string) interface{}        { return "expected" }
 func (env *customEnvFail) Set(key string, value interface{}) {}
 func (env *customEnvFail) Unmarshal(value interface{}) error { return errors.New("expected fail") }
+
+type customEnvNoPGServiceName struct{}
+
+func (env *customEnvNoPGServiceName) Load() error                       { return nil }
+func (env *customEnvNoPGServiceName) Get(key string) interface{}        { return nil }
+func (env *customEnvNoPGServiceName) Set(key string, value interface{}) {}
+func (env *customEnvNoPGServiceName) Unmarshal(value interface{}) error { return nil }

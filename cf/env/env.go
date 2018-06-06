@@ -22,6 +22,7 @@ import (
 
 	"github.com/Peripli/service-manager/server"
 	cfenv "github.com/cloudfoundry-community/go-cfenv"
+	"github.com/sirupsen/logrus"
 )
 
 // New returns a Cloud Foundry environment with a delegate
@@ -34,20 +35,27 @@ type cfEnvironment struct {
 	server.Environment
 }
 
-func (e *cfEnvironment) Load() error {
-	var err error
+func (e *cfEnvironment) Load() (err error) {
 	if err = e.Environment.Load(); err != nil {
-		return err
+		return
+	}
+	var postgreServiceName string
+	if serviceName := e.Environment.Get("db.name"); serviceName != nil {
+		postgreServiceName = serviceName.(string)
+	} else {
+		logrus.Warning("No PostgreSQL service name found")
+		return
 	}
 	if e.cfEnv, err = cfenv.Current(); err != nil {
-		return err
+		return
 	}
-	dbURI, err := e.databaseURI()
+	service, err := e.cfEnv.Services.WithName(postgreServiceName)
 	if err != nil {
-		return err
+		logrus.Debug(err)
+		return fmt.Errorf("Could not find service with name %s", postgreServiceName)
 	}
-	e.Environment.Set("db.uri", dbURI)
-	return nil
+	e.Environment.Set("db.uri", service.Credentials["uri"].(string))
+	return
 }
 
 func (e *cfEnvironment) Get(key string) interface{} {
@@ -56,13 +64,4 @@ func (e *cfEnvironment) Get(key string) interface{} {
 		return e.Environment.Get(key)
 	}
 	return value
-}
-
-func (e *cfEnvironment) databaseURI() (string, error) {
-	dbName := e.Environment.Get("db.name").(string)
-	service, err := e.cfEnv.Services.WithName(dbName)
-	if err != nil {
-		return "", fmt.Errorf("Could not find service with name %s", dbName)
-	}
-	return service.Credentials["uri"].(string), nil
 }

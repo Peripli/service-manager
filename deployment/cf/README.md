@@ -1,5 +1,12 @@
 # Run Service Manager on CF
 
+## Prerequisites
+
+The following must be fulfilled:
+
+ * You are logged in CF.
+ * Go buildpack is installed with Go version 1.10 support.
+
 ## Create PostgreSQL service instance in your CF environment
 
 ```sh
