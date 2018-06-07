@@ -39,17 +39,6 @@ type ConfigFile struct {
 	Format string
 }
 
-// Default returns the default environment configuration to be loaded from application.yml
-func Default() server.Environment {
-	envPrefix := "SM"
-	configFile := &ConfigFile{
-		Path:   ".",
-		Name:   "application",
-		Format: "yml",
-	}
-	return New(configFile, envPrefix)
-}
-
 // New returns a new application environment loaded from the given configuration file with variables prefixed by the given prefix
 func New(file *ConfigFile, envPrefix string) server.Environment {
 	return &viperEnv{

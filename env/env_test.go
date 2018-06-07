@@ -20,11 +20,12 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"testing"
 	"io/ioutil"
 	"os"
-	"github.com/Peripli/service-manager/server"
+	"testing"
+
 	"github.com/Peripli/service-manager/env"
+	"github.com/Peripli/service-manager/server"
 )
 
 func TestApi(t *testing.T) {
@@ -69,7 +70,11 @@ var _ = Describe("Env", func() {
 	}
 
 	BeforeEach(func() {
-		defaultEnv = env.Default()
+		defaultEnv = env.New(&env.ConfigFile{
+			Path:   ".",
+			Name:   "application",
+			Format: "yml",
+		}, "SM")
 	})
 
 	Describe("Load environment", func() {

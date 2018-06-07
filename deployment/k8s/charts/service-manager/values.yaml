@@ -1,0 +1,33 @@
+replicaCount: 1
+
+image:
+  repository: service-manager
+  tag: latest
+  pullPolicy: Never
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  host: local.service-manager
+  tls: {}
+    # secretName: ***
+
+#externalPostgresURI: postgres://<pguser>:<pgpassword>@<pghost>:<pgport>/postgres?sslmode=disable
+
+postgresql:
+  install: true
+  postgresUser: pguser
+  postgresPassword: pgpassword
+  persistence:
+    size: 1Gi
+
+config:
+  log:
+    level: info
+    format: text
+  server:
+    requestTimeout: 3000
+    shutdownTimeout: 3000
