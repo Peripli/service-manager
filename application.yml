@@ -6,5 +6,4 @@ log:
   level: debug
   format: text
 db:
-  name: sm-postgres
   uri: postgres://postgres:postgres@192.168.99.101:5555/postgres?sslmode=disable
