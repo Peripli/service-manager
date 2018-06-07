@@ -24,12 +24,6 @@ Replace in `manifest.yml`:
 
 From the root of your project execute:
 
-Linux:
 ```sh
 cf push -f deployment/cf/manifest.yml
-```
-
-Windows:
-```sh
-cf push -f deployment\cf\manifest.yml
 ```

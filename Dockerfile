@@ -35,5 +35,5 @@ COPY --from=builder /go/src/github.com/Peripli/service-manager/application.yml /
 # Copy migration scripts
 COPY --from=builder /go/src/github.com/Peripli/service-manager/storage/postgres/migrations/ /app/storage/postgres/migrations/
 
-ENTRYPOINT [ "./main" ]
 EXPOSE 8080
+ENTRYPOINT [ "./main" ]

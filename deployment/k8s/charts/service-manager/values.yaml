@@ -24,6 +24,8 @@ postgresql:
   persistence:
     size: 1Gi
 
+configMountPath: /etc/config
+
 config:
   log:
     level: info

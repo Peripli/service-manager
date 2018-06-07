@@ -15,11 +15,13 @@ import (
 )
 
 func main() {
+	flags := initFlags()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	handleInterrupts(ctx, cancel)
 
-	srv, err := sm.NewServer(ctx, getEnvironment())
+	srv, err := sm.NewServer(ctx, getEnvironment(flags))
 	if err != nil {
 		logrus.Fatal("Error creating the server: ", err)
 	}
@@ -40,12 +42,15 @@ func handleInterrupts(ctx context.Context, cancelFunc context.CancelFunc) {
 	}()
 }
 
-func getEnvironment() server.Environment {
-	var configFileLocation string
-	flag.StringVar(&configFileLocation, "config_location", ".", "Location of the application.yaml file")
+func initFlags() map[string]interface{} {
+	configFileLocation := flag.String("config_location", ".", "Location of the application.yaml file")
 	flag.Parse()
+	return map[string]interface{}{"config_location": *configFileLocation}
+}
 
-	logrus.Debugf("config_location: %s", configFileLocation)
+func getEnvironment(flags map[string]interface{}) server.Environment {
+	configFileLocation := flags["config_location"].(string)
+	logrus.Infof("config_location: %s", configFileLocation)
 
 	runEnvironment := env.New(&env.ConfigFile{
 		Path:   configFileLocation,

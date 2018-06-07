@@ -29,7 +29,7 @@ spec:
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         volumeMounts:
         - name: config-volume
-          mountPath: /etc/config
+          mountPath: {{ .Values.configMountPath }}
           readOnly: true
         env:
         - name: SM_DB_URI
@@ -37,7 +37,7 @@ spec:
             secretKeyRef:
               name: {{ template "service-manager.fullname" . }}-secret
               key: uri
-        args: ["config_location=/etc/config/"]
+        args: ["config_location={{ .Values.configMountPath }}"]
       ports:
       - name: http
         containerPort: 8080

@@ -37,7 +37,7 @@ type cfEnvironment struct {
 
 func (e *cfEnvironment) Load() (err error) {
 	if err = e.Environment.Load(); err != nil {
-		return
+		return err
 	}
 	var postgreServiceName string
 	if serviceName := e.Environment.Get("db.name"); serviceName != nil {
@@ -47,12 +47,11 @@ func (e *cfEnvironment) Load() (err error) {
 		return
 	}
 	if e.cfEnv, err = cfenv.Current(); err != nil {
-		return
+		return err
 	}
 	service, err := e.cfEnv.Services.WithName(postgreServiceName)
 	if err != nil {
-		logrus.Debug(err)
-		return fmt.Errorf("Could not find service with name %s", postgreServiceName)
+		return fmt.Errorf("Could not find service with name %s: %v", postgreServiceName, err)
 	}
 	e.Environment.Set("db.uri", service.Credentials["uri"].(string))
 	return
