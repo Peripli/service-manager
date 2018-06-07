@@ -149,13 +149,13 @@ git clone https://github.com/Peripli/service-manager.git
 
 >**Prerequisites:**
 >
->Setup Postgresql
+>Setup PostgreSQL
 >
->In order for the Service Manager to run locally, itrequires a >Postgresql DB.
+>In order for the Service Manager to run locally, it requires a PostgreSQL DB.
 >
 > * Install on your machine
 >
->    Windows users may follow [this guide]>>(http://www.postgresqltutorial.com/install-postgresql/) in order to install postgresql.
+>    Windows users may follow [this guide]>>(http://www.postgresqltutorial.com/install-postgresql/) in order to install PostgreSQL.
 >
 > * Spin up a postgres docker container
 >
@@ -165,7 +165,7 @@ git clone https://github.com/Peripli/service-manager.git
 >
 >The DB should be accessible on the ip that the docker machine is running on (docker-machine ip) and port 5432.
 
-* Modify the contents of application.yml to point to the configured Postgresql
+* Modify the contents of application.yml to point to the configured PostgreSQL
 
     ``` yml
     server:
@@ -182,18 +182,10 @@ git clone https://github.com/Peripli/service-manager.git
 
     >**Note**: Modify `server.port` to specify a different port on which the Service Manager should run.
 
-* Modify the contents of `service-manager/api/osb/logic.go`
-
-    ```go
-    func (b *BusinessLogic) ValidateBrokerAPIVersion(version string) error {
-        return nil
-    }
-    ```
-
 * Navigate to the `service-manager` folder and run the application:
 
     ``` go
-    go run cmd/main.go
+    go run main.go
 
     ```
 
@@ -203,17 +195,9 @@ git clone https://github.com/Peripli/service-manager.git
 
 #### Run Service Manager inside PCF Dev
 
-* Modify the contents of `service-manager/api/osb/logic.go`
+* Deploy
 
-    ```go
-    func (b *BusinessLogic) ValidateBrokerAPIVersion(version string) error {
-        return nil
-    }
-    ```
-
-* Deploy as a Docker Container
-
-    Service Manager is deployed on CF as a docker container. The steps are described [here](https://github.com/Peripli/service-manager/blob/0c40dff68d1547ecea6841b2b87354dcc44b3bd8/deployment/cf/README.md).
+    The steps are described [here](../../deployment/cf/README.md).
 
 * Test that the setup works
 
@@ -223,17 +207,14 @@ git clone https://github.com/Peripli/service-manager.git
 
 * Install with Helm
 
-    The easiest way to install the Service Manager inside Minikube is to use the provided Helm charts. Run the following:
-
-    ```bash
-    TODO - add helm install for SM here
-    ```
+    The easiest way to install the Service Manager inside Minikube is to use the provided Helm charts.
+    The steps are described [here](../../deployment/k8s/README.md).
 
 * Test that it works
 
     TODO
 
-> **Note:** When regitering  a service broker inside the Service Manager beware of the fact that the Service Manager will need to be calling the broker's URLs. This is important in case in your local setup the Service Manager is running on PCF Dev or Minikube and the registered service broker is running on `localhost`. In this case the URLs of the broker registered in the SM should point to `10.0.2.2` instead of `localhost`. The reason is that the Service Manager is running inside a virtual machine(either Minikube or PCF Dev) and needs to call `localhost` (where the service broker runs). Inside both PCF Dev's and Minikube's VM the host's `localhost` is resolved under `10.0.2.2`.
+> **Note:** When registering  a service broker inside the Service Manager beware of the fact that the Service Manager will need to be calling the broker's URLs. This is important in case in your local setup the Service Manager is running on PCF Dev or Minikube and the registered service broker is running on `localhost`. In this case the URLs of the broker registered in the SM should point to `10.0.2.2` instead of `localhost`. The reason is that the Service Manager is running inside a virtual machine(either Minikube or PCF Dev) and needs to call `localhost` (where the service broker runs). Inside both PCF Dev's and Minikube's VM the host's `localhost` is resolved under `10.0.2.2`.
 
 ### Setup CF Proxy
 
@@ -245,14 +226,6 @@ git clone https://github.com/Peripli/service-manager-proxy-cf.git
 ```
 
 #### Run CF Proxy on localhost
-
-* Modify the contents of `vendor/github.com/Peripli/service-broker-proxy/pkg/osb/business_logic.go`
-
-    ```go
-    func (b *BusinessLogic) ValidateBrokerAPIVersion(version string) error {
-        return nil
-    }
-    ```
 
 * Make the following code changes
 
@@ -304,14 +277,6 @@ git clone https://github.com/Peripli/service-manager-proxy-cf.git
 
 The following steps describe how to run the CF Proxy to run inside PCF Dev.
 
-* Modify the contents of `vendor/github.com/Peripli/service-broker-proxy/pkg/osb/business_logic.go`
-
-    ```go
-    func (b *BusinessLogic) ValidateBrokerAPIVersion(version string) error {
-        return nil
-    }
-    ```
-
 * Make sure the `manifest.yml` looks simiar to:
 
 ```yml
@@ -327,6 +292,11 @@ applications:
       CF_PASSWORD: cfpassword
 ```
 
+Execute:
+```
+cf push -f manifest.yml
+```
+
 > **Note:** `SM_HOST` should point to the Service Manager that the proxy will be connecting to. If the Service Manager is running on the host's `localhost`, use `10.0.2.2` instead.
 
 ### Setup K8S Proxy
@@ -335,6 +305,7 @@ Clone the repository:
 
 ``` bash
 git clone https://github.com/Peripli/service-broker-proxy-k8s.git
+cd service-broker-proxy-k8s
 git checkout dev
 ```
 
