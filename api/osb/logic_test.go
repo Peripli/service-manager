@@ -1006,16 +1006,10 @@ var _ = Describe("Logic", func() {
 	})
 
 	Describe("Validate Broker API Version", func() {
-		It("returns no error for latest API version", func() {
+		It("doesn't return error", func() {
 			err := logic.ValidateBrokerAPIVersion(v2.LatestAPIVersion().HeaderValue())
 			Expect(err).To(Not(HaveOccurred()))
 		})
-
-		It("returns an error for older API versions", func() {
-			err := logic.ValidateBrokerAPIVersion("")
-			Expect(err).To(HaveOccurred())
-		})
-
 	})
 
 })
