@@ -116,7 +116,16 @@ func (ctrl *Controller) getBroker(response http.ResponseWriter, request *http.Re
 func (ctrl *Controller) getAllBrokers(response http.ResponseWriter, request *http.Request) error {
 	logrus.Debug("Getting all brokers")
 
-	brokers, err := ctrl.BrokerStorage.GetAll()
+	var brokers []types.Broker
+	var err error
+
+	names := request.URL.Query()["name"]
+	if len(names) == 0 {
+		brokers, err = ctrl.BrokerStorage.GetAll()
+	} else {
+		brokers, err = ctrl.BrokerStorage.GetByName(names)
+	}
+
 	if err != nil {
 		return err
 	}

@@ -96,6 +96,29 @@ func (bs *brokerStorage) GetAll() ([]types.Broker, error) {
 	return brokers, nil
 }
 
+func (bs *brokerStorage) GetByName(names []string) ([]types.Broker, error) {
+	brokerDTOs := []Broker{}
+
+	whereClause := ""
+	for index, name := range names {
+		if index != 0 {
+			whereClause += " OR "
+		}
+		whereClause += fmt.Sprintf("name='%s'", name)
+	}
+
+	err := bs.db.Select(&brokerDTOs, "SELECT id, name, description, created_at, updated_at, broker_url FROM "+brokerTable+" WHERE "+whereClause)
+	if err != nil {
+		logrus.Error("An error occurred while retrieving brokers")
+		return nil, err
+	}
+	brokers := make([]types.Broker, 0, len(brokerDTOs)+1)
+	for _, broker := range brokerDTOs {
+		brokers = append(brokers, *broker.Convert())
+	}
+	return brokers, nil
+}
+
 func (bs *brokerStorage) Delete(id string) error {
 	// deleteBroker is a query that deletes Broker and corresponding credentials
 	deleteBroker := fmt.Sprintf(`WITH br AS (
