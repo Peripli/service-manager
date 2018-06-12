@@ -1,0 +1,25 @@
+{{- if .Values.ingress.enabled -}}
+{{- $fullName := include "service-manager.fullname" . -}}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ $fullName }}
+  labels:
+    app: {{ template "service-manager.name" . }}
+    chart: {{ template "service-manager.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+{{- if .Values.ingress.tls }}
+  tls:
+    secretName: {{ .Values.ingress.tls.secretName }}
+{{- end }}
+  rules:
+  - host: {{ .Values.ingress.host }}
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: {{ $fullName }}
+          servicePort: {{ .Values.service.port }}
+{{- end }}
