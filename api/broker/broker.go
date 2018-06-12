@@ -29,42 +29,42 @@ const (
 )
 
 // Routes returns slice of routes which handle broker operations
-func (brokerCtrl *Controller) Routes() []rest.Route {
+func (c *Controller) Routes() []rest.Route {
 	return []rest.Route{
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodPost,
 				Path:   url,
 			},
-			Handler: rest.APIHandler(brokerCtrl.addBroker),
+			Handler: rest.APIHandler(c.createBroker),
 		},
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodGet,
 				Path:   url + "/{broker_id}",
 			},
-			Handler: rest.APIHandler(brokerCtrl.getBroker),
+			Handler: rest.APIHandler(c.getBroker),
 		},
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodGet,
 				Path:   url,
 			},
-			Handler: rest.APIHandler(brokerCtrl.getAllBrokers),
+			Handler: rest.APIHandler(c.getAllBrokers),
 		},
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodDelete,
 				Path:   url + "/{broker_id}",
 			},
-			Handler: rest.APIHandler(brokerCtrl.deleteBroker),
+			Handler: rest.APIHandler(c.deleteBroker),
 		},
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodPatch,
 				Path:   url + "/{broker_id}",
 			},
-			Handler: rest.APIHandler(brokerCtrl.updateBroker),
+			Handler: rest.APIHandler(c.updateBroker),
 		},
 	}
 }

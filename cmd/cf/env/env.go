@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-package env
+package cfenv
 
 import (
-	"github.com/cloudfoundry-community/go-cfenv"
-	"github.com/Peripli/service-manager/server"
-	"github.com/sirupsen/logrus"
 	"strings"
+
+	"github.com/Peripli/service-manager/server"
+	"github.com/cloudfoundry-community/go-cfenv"
+	"github.com/sirupsen/logrus"
 )
 
 // New returns a Cloud Foundry environment with a delegate
@@ -29,7 +30,7 @@ func New(delegate server.Environment) server.Environment {
 }
 
 type cfEnvironment struct {
-	cfEnv    *cfenv.App
+	cfEnv *cfenv.App
 	server.Environment
 }
 

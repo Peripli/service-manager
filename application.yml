@@ -1,10 +1,10 @@
 server:
-  requestTimeout: 3000
-  shutdownTimeout: 3000
-  port: 8080
+  requestTimeout: 300000
+  shutdownTimeout: 300000
+  port: 8085
 log:
   level: debug
   format: text
 db:
   name: sm-postgres
-  uri: postgres://postgres:postgres@192.168.99.101:5555/postgres?sslmode=disable
+  uri: postgres://postgres:postgres@192.168.99.100:5432/postgres?sslmode=disable

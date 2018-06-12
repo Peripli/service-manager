@@ -56,6 +56,7 @@ type Broker interface {
 }
 
 // Platform interface for Platform db operations
+//go:generate counterfeiter . Platform
 type Platform interface {
 	Create(platform *types.Platform) error
 	Get(id string) (*types.Platform, error)

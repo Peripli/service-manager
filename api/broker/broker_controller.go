@@ -21,21 +21,34 @@ import (
 	"net/http"
 	"time"
 
+	osbc "github.com/pmorie/go-open-service-broker-client/v2"
+
 	"github.com/Peripli/service-manager/api/common"
 
+	"encoding/json"
+
+	"bytes"
+
+	"strings"
+
+	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/types"
 	"github.com/gorilla/mux"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 )
 
-const reqBrokerID = "broker_id"
+const (
+	reqBrokerID  = "broker_id"
+	catalogParam = "catalog"
+)
 
 // Controller broker controller
 type Controller struct {
-	BrokerStorage storage.Broker
+	BrokerStorage       storage.Broker
+	OSBClientCreateFunc osbc.CreateFunc
 }
 
 func validateBrokerCredentials(brokerCredentials *types.Credentials) error {
@@ -61,7 +74,7 @@ func validateBroker(broker *types.Broker) error {
 	return validateBrokerCredentials(broker.Credentials)
 }
 
-func (ctrl *Controller) addBroker(response http.ResponseWriter, request *http.Request) error {
+func (c *Controller) createBroker(response http.ResponseWriter, request *http.Request) error {
 	logrus.Debug("Creating new broker")
 
 	broker := &types.Broker{}
@@ -85,7 +98,13 @@ func (ctrl *Controller) addBroker(response http.ResponseWriter, request *http.Re
 	broker.CreatedAt = currentTime
 	broker.UpdatedAt = currentTime
 
-	err = ctrl.BrokerStorage.Create(broker)
+	catalog, err := c.getBrokerCatalog(broker)
+	if err != nil {
+		return err
+	}
+	broker.Catalog = catalog
+
+	err = c.BrokerStorage.Create(broker)
 	err = common.HandleUniqueError(err, "broker")
 	if err != nil {
 		return err
@@ -99,26 +118,49 @@ func getBrokerID(request *http.Request) string {
 	return mux.Vars(request)[reqBrokerID]
 }
 
-func (ctrl *Controller) getBroker(response http.ResponseWriter, request *http.Request) error {
+func (c *Controller) getBrokerCatalog(broker *types.Broker) (json.RawMessage, error) {
+	osbClient, err := osb.OSBClient(c.OSBClientCreateFunc, broker)
+	if err != nil {
+		return nil, err
+	}
+	catalog, err := osbClient.GetCatalog()
+	if err != nil {
+		return nil, err
+	}
+
+	bytes, err := json.Marshal(catalog)
+	if err != nil {
+		return nil, err
+	}
+
+	return json.RawMessage(bytes), nil
+}
+
+func (c *Controller) getBroker(response http.ResponseWriter, request *http.Request) error {
 	brokerID := getBrokerID(request)
 	logrus.Debugf("Getting broker with id %s", brokerID)
 
-	broker, err := ctrl.BrokerStorage.Get(brokerID)
+	broker, err := c.BrokerStorage.Get(brokerID)
 	err = common.HandleNotFoundError(err, "broker", brokerID)
 	if err != nil {
 		return err
 	}
 	broker.Credentials = nil
-
+	broker.Catalog = nil
 	return rest.SendJSON(response, http.StatusOK, broker)
 }
 
-func (ctrl *Controller) getAllBrokers(response http.ResponseWriter, request *http.Request) error {
+func (c *Controller) getAllBrokers(response http.ResponseWriter, request *http.Request) error {
 	logrus.Debug("Getting all brokers")
-
-	brokers, err := ctrl.BrokerStorage.GetAll()
+	brokers, err := c.BrokerStorage.GetAll()
 	if err != nil {
 		return err
+	}
+	withCatalog := request.FormValue(catalogParam)
+	if strings.ToLower(withCatalog) != "true" {
+		for i := 0; i < len(brokers); i++ {
+			brokers[i].Catalog = nil
+		}
 	}
 
 	type brokerResponse struct {
@@ -127,11 +169,11 @@ func (ctrl *Controller) getAllBrokers(response http.ResponseWriter, request *htt
 	return rest.SendJSON(response, http.StatusOK, brokerResponse{brokers})
 }
 
-func (ctrl *Controller) deleteBroker(response http.ResponseWriter, request *http.Request) error {
+func (c *Controller) deleteBroker(response http.ResponseWriter, request *http.Request) error {
 	brokerID := getBrokerID(request)
 	logrus.Debugf("Deleting broker with id %s", brokerID)
 
-	err := ctrl.BrokerStorage.Delete(brokerID)
+	err := c.BrokerStorage.Delete(brokerID)
 	err = common.HandleNotFoundError(err, "broker", brokerID)
 	if err != nil {
 		return err
@@ -139,7 +181,7 @@ func (ctrl *Controller) deleteBroker(response http.ResponseWriter, request *http
 	return rest.SendJSON(response, http.StatusOK, map[string]int{})
 }
 
-func (ctrl *Controller) updateBroker(response http.ResponseWriter, request *http.Request) error {
+func (c *Controller) updateBroker(response http.ResponseWriter, request *http.Request) error {
 	brokerID := getBrokerID(request)
 	logrus.Debugf("Updating broker with id %s", brokerID)
 
@@ -152,14 +194,30 @@ func (ctrl *Controller) updateBroker(response http.ResponseWriter, request *http
 	broker.ID = brokerID
 	broker.UpdatedAt = time.Now().UTC()
 
-	brokerStorage := ctrl.BrokerStorage
 	if broker.Credentials != nil {
 		err := validateBrokerCredentials(broker.Credentials)
 		if err != nil {
 			return types.NewErrorResponse(err, http.StatusBadRequest, "BadRequest")
 		}
 	}
-	err := brokerStorage.Update(broker)
+
+	brokerFromDb, err := c.BrokerStorage.Get(broker.ID)
+	if err != nil {
+		logrus.Error("Failed to retrieve updated broker")
+		return err
+	}
+
+	catalog, err := c.getBrokerCatalog(brokerFromDb)
+	if err != nil {
+		return types.NewErrorResponse(err, http.StatusBadRequest, "BadRequest")
+	}
+
+	isCatalogModified := !bytes.Equal(brokerFromDb.Catalog, catalog)
+	if isCatalogModified {
+		broker.Catalog = catalog
+	}
+
+	err = c.BrokerStorage.Update(broker)
 	err = common.CheckErrors(
 		common.HandleNotFoundError(err, "broker", brokerID),
 		common.HandleUniqueError(err, "broker"),
@@ -168,11 +226,5 @@ func (ctrl *Controller) updateBroker(response http.ResponseWriter, request *http
 		return err
 	}
 
-	updatedBroker, err := brokerStorage.Get(broker.ID)
-	if err != nil {
-		logrus.Error("Failed to retrieve updated broker")
-		return err
-	}
-
-	return rest.SendJSON(response, http.StatusOK, updatedBroker)
+	return rest.SendJSON(response, http.StatusOK, map[string]string{})
 }

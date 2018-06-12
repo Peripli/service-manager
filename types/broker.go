@@ -25,13 +25,14 @@ import (
 
 // Broker broker struct
 type Broker struct {
-	ID          string       `json:"id"`
-	Name        string       `json:"name"`
-	Description string       `json:"description"`
-	CreatedAt   time.Time    `json:"created_at"`
-	UpdatedAt   time.Time    `json:"updated_at"`
-	BrokerURL   string       `json:"broker_url"`
-	Credentials *Credentials `json:"credentials,omitempty"`
+	ID          string          `json:"id"`
+	Name        string          `json:"name"`
+	Description string          `json:"description"`
+	CreatedAt   time.Time       `json:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at"`
+	BrokerURL   string          `json:"broker_url"`
+	Credentials *Credentials    `json:"credentials,omitempty"`
+	Catalog     json.RawMessage `json:"catalog,omitempty"`
 }
 
 // MarshalJSON override json serialization for http response

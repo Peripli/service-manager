@@ -19,7 +19,10 @@ package postgres
 import (
 	"time"
 
+	"encoding/json"
+
 	"github.com/Peripli/service-manager/types"
+	sqlxtypes "github.com/jmoiron/sqlx/types"
 )
 
 const (
@@ -34,6 +37,8 @@ const (
 
 	basicCredentialsType = 1
 )
+
+//TODO we can have generalized db types and if each db implementaion needs to adapt, let it adapt
 
 // Credentials dto
 type Credentials struct {
@@ -64,17 +69,24 @@ type Broker struct {
 	UpdatedAt     time.Time `db:"updated_at"`
 	BrokerURL     string    `db:"broker_url"`
 	CredentialsID int       `db:"credentials_id"`
+	*Credentials  `db:"c"`
+	Catalog       sqlxtypes.JSONText `db:"catalog"`
 }
 
 // Convert converts to types.Broker
 func (brokerDTO *Broker) Convert() *types.Broker {
-	return &types.Broker{ID: brokerDTO.ID,
+	broker := &types.Broker{ID: brokerDTO.ID,
 		Name:        brokerDTO.Name,
 		Description: brokerDTO.Description,
 		CreatedAt:   brokerDTO.CreatedAt,
 		UpdatedAt:   brokerDTO.UpdatedAt,
 		BrokerURL:   brokerDTO.BrokerURL,
+		Catalog:     json.RawMessage(brokerDTO.Catalog),
 	}
+	if brokerDTO.Credentials != nil {
+		broker.Credentials = types.NewBasicCredentials(brokerDTO.Username, brokerDTO.Password)
+	}
+	return broker
 }
 
 // Convert converts to types.Platform
@@ -117,5 +129,6 @@ func convertBrokerToDTO(broker *types.Broker) *Broker {
 		BrokerURL:   broker.BrokerURL,
 		CreatedAt:   broker.CreatedAt,
 		UpdatedAt:   broker.UpdatedAt,
+		Catalog:     sqlxtypes.JSONText(broker.Catalog),
 	}
 }

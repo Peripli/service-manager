@@ -36,7 +36,7 @@ func (platformCtrl *Controller) Routes() []rest.Route {
 				Method: http.MethodPost,
 				Path:   url,
 			},
-			Handler: rest.APIHandler(platformCtrl.addPlatform),
+			Handler: rest.APIHandler(platformCtrl.createPlatform),
 		},
 		{
 			Endpoint: rest.Endpoint{

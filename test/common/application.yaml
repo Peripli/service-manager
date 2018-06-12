@@ -1,6 +1,6 @@
 server:
   port: 1234
 db:
-  uri: postgres://postgres@localhost:5432/postgres?sslmode=disable
+  uri: postgres://postgres:postgres@localhost:5555/postgres?sslmode=disable
 log:
   level: debug

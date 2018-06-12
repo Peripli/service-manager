@@ -57,8 +57,8 @@ func checkPlatformMandatoryProperties(platform *types.Platform) error {
 	return nil
 }
 
-// addPlatform handler for POST /v1/platforms
-func (ctrl *Controller) addPlatform(rw http.ResponseWriter, req *http.Request) error {
+// createPlatform handler for POST /v1/platforms
+func (ctrl *Controller) createPlatform(rw http.ResponseWriter, req *http.Request) error {
 	logrus.Debug("Creating new platform")
 
 	platform, errDecode := getPlatformFromRequest(req)
