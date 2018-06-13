@@ -20,6 +20,7 @@ package api
 import (
 	"github.com/Peripli/service-manager/api/broker"
 	"github.com/Peripli/service-manager/api/info"
+	"github.com/Peripli/service-manager/api/catalog"
 	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/api/platform"
 	"github.com/Peripli/service-manager/rest"
@@ -44,6 +45,9 @@ func Default(storage storage.Storage, env server.Environment) rest.API {
 				PlatformStorage: storage.Platform(),
 			},
 			info.NewController(env),
+			&catalog.Controller{
+				BrokerStorage: storage.Broker(),
+			},
 		},
 	}
 }
