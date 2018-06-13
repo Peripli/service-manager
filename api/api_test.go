@@ -41,8 +41,8 @@ var _ = Describe("API", func() {
 
 	var (
 		mockedStorage *storagefakes.FakeStorage
-		api           rest.API
 		settings      Settings
+		api           *rest.API
 	)
 
 	BeforeEach(func() {
@@ -77,9 +77,9 @@ var _ = Describe("API", func() {
 
 		Context("With no brokers registered", func() {
 			It("Should increase broker count", func() {
-				originalControllersCount := len(api.Controllers())
+				originalControllersCount := len(api.Controllers)
 				api.RegisterControllers(&testController{})
-				Expect(len(api.Controllers())).To(Equal(originalControllersCount + 1))
+				Expect(len(api.Controllers)).To(Equal(originalControllersCount + 1))
 			})
 		})
 	})

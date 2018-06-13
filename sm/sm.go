@@ -42,9 +42,8 @@ func New(ctx context.Context, cfg *config.Settings) (*server.Server, error) {
 		return nil, fmt.Errorf("error using storage: %v", err)
 	}
 
-	api := api.New(storage, cfg.API)
-
-	srv, err := server.New(api, cfg.Server)
+	defaultAPI := api.Default(storage, cfg.API)
+	srv, err := server.New(defaultAPI, cfg.Server)
 	if err != nil {
 		return nil, fmt.Errorf("error creating server: %v", err)
 	}

@@ -26,7 +26,6 @@ import (
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
-	"github.com/sirupsen/logrus"
 )
 
 // Settings type to be loaded from the environment
@@ -34,10 +33,10 @@ type Settings struct {
 	TokenIssuerURL string `mapstructure:"token_issuer_url"`
 }
 
-// New returns the minimum set of REST APIs needed for the Service Manager
-func New(storage storage.Storage, settings Settings) rest.API {
-	return &smAPI{
-		controllers: []rest.Controller{
+// Default returns the minimum set of REST APIs needed for the Service Manager
+func Default(storage storage.Storage, settings Settings) *rest.API {
+	return &rest.API{
+		Controllers: []rest.Controller{
 			&broker.Controller{
 				BrokerStorage:       storage.Broker(),
 				OSBClientCreateFunc: osbc.NewClient,
@@ -55,22 +54,5 @@ func New(storage storage.Storage, settings Settings) rest.API {
 				BrokerStorage: storage.Broker(),
 			},
 		},
-	}
-}
-
-type smAPI struct {
-	controllers []rest.Controller
-}
-
-func (api *smAPI) Controllers() []rest.Controller {
-	return api.controllers
-}
-
-func (api *smAPI) RegisterControllers(controllers ...rest.Controller) {
-	for _, controller := range controllers {
-		if controller == nil {
-			logrus.Panicln("Cannot add nil controller")
-		}
-		api.controllers = append(api.controllers, controller)
 	}
 }

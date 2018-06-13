@@ -17,19 +17,12 @@
 // Package rest contains logic for building the Service Manager REST API
 package rest
 
-import "net/http"
+import (
+	"net/http"
+)
 
 // AllMethods matches all REST HTTP Methods
 const AllMethods = "*"
-
-// API is the primary interface for REST API registration
-type API interface {
-	// Controllers returns the controllers registered for the API
-	Controllers() []Controller
-
-	// RegisterControllers registers a set of controllers
-	RegisterControllers(...Controller)
-}
 
 // Controller is an entity that wraps a set of HTTP Routes
 type Controller interface {
