@@ -18,16 +18,18 @@
 package osb
 
 import (
+	"fmt"
+	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
+	"net/http/httputil"
+	"net/url"
+	"strings"
 
+	"github.com/Peripli/service-manager/pkg/filter"
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
-	osbc "github.com/pmorie/go-open-service-broker-client/v2"
-	"github.com/pmorie/osb-broker-lib/pkg/metrics"
-	osbrest "github.com/pmorie/osb-broker-lib/pkg/rest"
-	"github.com/pmorie/osb-broker-lib/pkg/server"
-	prom "github.com/prometheus/client_golang/prometheus"
-	"github.com/sirupsen/logrus"
+	"github.com/Peripli/service-manager/types"
 )
 
 const (
@@ -60,22 +62,74 @@ func (c *Controller) Routes() []rest.Route {
 				Method: rest.AllMethods,
 				Path:   path,
 			},
-			Handler: c.osbHandler(),
+			Handler: c.testHandler,
 		},
 	}
 }
 
-func (c *Controller) osbHandler() http.Handler {
-	businessLogic := NewBusinessLogic(osbc.NewClient, c.BrokerStorage)
+func (c *Controller) testHandler(request *filter.Request) (*filter.Response, error) {
+	reverseProxy := &httputil.ReverseProxy{
+		Director: func(req *http.Request) {
 
-	reg := prom.NewRegistry()
-	osbMetrics := metrics.New()
-	reg.MustRegister(osbMetrics)
-
-	api, err := osbrest.NewAPISurface(businessLogic, osbMetrics)
-	if err != nil {
-		logrus.Fatalf("Error creating OSB API surface: %s", err)
+		},
 	}
 
-	return server.NewHTTPHandler(api)
+	client := c.newBrokerClient(request)
+	target, _ := url.Parse(client.BrokerURL)
+	modifiedRequest := request.Request.WithContext(request.Context())
+	modifiedRequest.Header.Add("X-Broker-Api-Version", "2.13")
+	modifiedRequest.URL.Scheme = target.Scheme
+	modifiedRequest.URL.Host = target.Host
+	modifiedRequest.URL.Path = "/v2/catalog"
+	// modifiedRequest.URL.Path = singleJoiningSlash(target.Path, modifiedRequest.URL.Path)
+
+	fmt.Println(">>>>>>", modifiedRequest.URL)
+	recorder := httptest.NewRecorder()
+	reverseProxy.ServeHTTP(recorder, modifiedRequest)
+
+	body, err := ioutil.ReadAll(recorder.Body)
+	if err != nil {
+		return nil, err
+	}
+	headers := recorder.HeaderMap
+	resp := &filter.Response{
+		StatusCode: recorder.Code,
+		Body:       body,
+		Header:     headers,
+	}
+
+	return resp, nil
+}
+
+func (c *Controller) newBrokerClient(request *filter.Request) *types.Broker {
+	brokerId := request.PathParams[BrokerIDPathParam]
+	broker, _ := c.BrokerStorage.Get(brokerId)
+	return broker
+}
+
+// func (c *Controller) osbHandler() http.Handler {
+// 	businessLogic := NewBusinessLogic(osbc.NewClient, c.BrokerStorage)
+
+// 	reg := prom.NewRegistry()
+// 	osbMetrics := metrics.New()
+// 	reg.MustRegister(osbMetrics)
+
+// 	api, err := osbrest.NewAPISurface(businessLogic, osbMetrics)
+// 	if err != nil {
+// 		logrus.Fatalf("Error creating OSB API surface: %s", err)
+// 	}
+
+// 	return server.NewHTTPHandler(api)
+// }
+
+func singleJoiningSlash(a, b string) string {
+	aslash := strings.HasSuffix(a, "/")
+	bslash := strings.HasPrefix(b, "/")
+	switch {
+	case aslash && bslash:
+		return a + b[1:]
+	case !aslash && !bslash:
+		return a + "/" + b
+	}
+	return a + b
 }

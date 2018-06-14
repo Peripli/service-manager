@@ -21,6 +21,7 @@ import (
 	"github.com/Peripli/service-manager/api/broker"
 	"github.com/Peripli/service-manager/api/catalog"
 	"github.com/Peripli/service-manager/api/info"
+	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/api/platform"
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
@@ -49,9 +50,9 @@ func New(storage storage.Storage, settings Settings) *rest.API {
 			&catalog.Controller{
 				BrokerStorage: storage.Broker(),
 			},
-			// &osb.Controller{
-			// 	BrokerStorage: storage.Broker(),
-			// },
+			&osb.Controller{
+				BrokerStorage: storage.Broker(),
+			},
 			&platform.Controller{
 				PlatformStorage: storage.Platform(),
 			},

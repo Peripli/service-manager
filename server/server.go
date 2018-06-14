@@ -104,8 +104,9 @@ func registerControllers(router *mux.Router, api *rest.API) error {
 			// 	}
 			// } else {
 			logrus.Debugf("Register endpoint: %s %s", route.Endpoint.Method, route.Endpoint.Path)
-			r := router.Handle(route.Endpoint.Path,
-				newHttpHandler(matchFilters(&route.Endpoint, api.Filters), route.Handler))
+			r := router.PathPrefix(route.Endpoint.Path).Handler(newHttpHandler(matchFilters(&route.Endpoint, api.Filters), route.Handler))
+			// r := router.Handle(route.Endpoint.Path,
+			// 	newHttpHandler(matchFilters(&route.Endpoint, api.Filters), route.Handler))
 			if route.Endpoint.Method != rest.AllMethods {
 				r.Methods(route.Endpoint.Method)
 			}
