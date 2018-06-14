@@ -13,12 +13,14 @@ The following must be fulfilled:
 cf create-service <postgres_service_name> <plan_name> <postgre_instance_name>
 ```
 
+Alternatively, you can use external PostgreSQL. In this case you need to have a PostgreSQL uri.
+
 ## Update manifest.yml file
 
 Replace in `manifest.yml`:
 
  * <application_name> with the desired name of your Service Manager application.
- * <postgre_instance_name> with the instance name of you PostgreSQL service.
+ * <postgre_instance_name> with the instance name of your PostgreSQL service. Alternatively, you can use the `DB_URI` environment variable to set external PostgreSQL uri. In this case `SM_DB_NAME` environment variable must not be present and you need to remove the service from the manifest.yml.
 
 ## Push the application
 
