@@ -200,11 +200,11 @@ func (b *BusinessLogic) osbClient(request *http.Request) (osbc.Client, error) {
 		logrus.Errorf("error obtaining serviceBroker with id %s from storage: %s", brokerID, err)
 		return nil, fmt.Errorf("Internal Server Error")
 	}
-	return OSBClient(b.createFunc, serviceBroker)
+	return Client(b.createFunc, serviceBroker)
 }
 
-// OSBClient creates a osb client for the provided broker using the client create function
-func OSBClient(createFunc osbc.CreateFunc, broker *types.Broker) (osbc.Client, error) {
+// Client creates a osb client for the provided broker using the client create function
+func Client(createFunc osbc.CreateFunc, broker *types.Broker) (osbc.Client, error) {
 	config := clientConfigForBroker(broker)
 	logrus.Debug("Building OSB client for serviceBroker with name: ", config.Name, " accessible at: ", config.URL)
 	return createFunc(config)

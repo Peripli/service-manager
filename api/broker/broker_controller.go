@@ -222,7 +222,7 @@ func getBrokerID(request *http.Request) string {
 }
 
 func (c *Controller) getBrokerCatalog(broker *types.Broker) (json.RawMessage, error) {
-	osbClient, err := osb.OSBClient(c.OSBClientCreateFunc, broker)
+	osbClient, err := osb.Client(c.OSBClientCreateFunc, broker)
 	if err != nil {
 		return nil, err
 	}
