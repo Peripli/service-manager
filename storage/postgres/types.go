@@ -38,8 +38,6 @@ const (
 	basicCredentialsType = 1
 )
 
-//TODO we can have generalized db types and if each db implementaion needs to adapt, let it adapt
-
 // Credentials dto
 type Credentials struct {
 	ID       int    `db:"id"`
@@ -69,7 +67,7 @@ type Broker struct {
 	UpdatedAt     time.Time `db:"updated_at"`
 	BrokerURL     string    `db:"broker_url"`
 	CredentialsID int       `db:"credentials_id"`
-	*Credentials  `db:"c"`
+	*Credentials  `db:"c" structs:"-"`
 	Catalog       sqlxtypes.JSONText `db:"catalog"`
 }
 

@@ -53,23 +53,23 @@ type Controller struct {
 
 func validateBrokerCredentials(brokerCredentials *types.Credentials) error {
 	if brokerCredentials == nil || brokerCredentials.Basic == nil {
-		return errors.New("Missing broker credentials")
+		return errors.New("missing broker credentials")
 	}
 	if brokerCredentials.Basic.Username == "" {
-		return errors.New("Missing broker username")
+		return errors.New("missing broker username")
 	}
 	if brokerCredentials.Basic.Password == "" {
-		return errors.New("Missing broker password")
+		return errors.New("missing broker password")
 	}
 	return nil
 }
 
 func validateBroker(broker *types.Broker) error {
 	if broker.Name == "" {
-		return errors.New("Missing broker name")
+		return errors.New("missing broker name")
 	}
 	if broker.BrokerURL == "" {
-		return errors.New("Missing broker url")
+		return errors.New("missing broker url")
 	}
 	return validateBrokerCredentials(broker.Credentials)
 }
@@ -88,7 +88,6 @@ func (c *Controller) createBroker(response http.ResponseWriter, request *http.Re
 
 	uuid, err := uuid.NewV4()
 	if err != nil {
-		logrus.Error("Could not generate GUID")
 		return err
 	}
 
@@ -111,7 +110,111 @@ func (c *Controller) createBroker(response http.ResponseWriter, request *http.Re
 	}
 
 	broker.Credentials = nil
+	broker.Catalog = nil
 	return rest.SendJSON(response, http.StatusCreated, broker)
+}
+
+func (c *Controller) getBroker(response http.ResponseWriter, request *http.Request) error {
+	brokerID := getBrokerID(request)
+	logrus.Debugf("Getting broker with id %s", brokerID)
+
+	broker, err := c.BrokerStorage.Get(brokerID)
+	err = common.HandleNotFoundError(err, "broker", brokerID)
+	if err != nil {
+		return err
+	}
+
+	broker.Credentials = nil
+	broker.Catalog = nil
+	return rest.SendJSON(response, http.StatusOK, broker)
+}
+
+func (c *Controller) getAllBrokers(response http.ResponseWriter, request *http.Request) error {
+	logrus.Debug("Getting all brokers")
+	brokers, err := c.BrokerStorage.GetAll()
+	if err != nil {
+		return err
+	}
+	withCatalog := request.FormValue(catalogParam)
+	if strings.ToLower(withCatalog) != "true" {
+		for i := 0; i < len(brokers); i++ {
+			brokers[i].Catalog = nil
+		}
+	}
+
+	return rest.SendJSON(response, http.StatusOK, struct {
+		Brokers []types.Broker `json:"brokers"`
+	}{
+		Brokers: brokers,
+	})
+}
+
+func (c *Controller) deleteBroker(response http.ResponseWriter, request *http.Request) error {
+	brokerID := getBrokerID(request)
+	logrus.Debugf("Deleting broker with id %s", brokerID)
+
+	err := c.BrokerStorage.Delete(brokerID)
+	err = common.HandleNotFoundError(err, "broker", brokerID)
+	if err != nil {
+		return err
+	}
+	return rest.SendJSON(response, http.StatusOK, map[string]int{})
+}
+
+func (c *Controller) patchBroker(response http.ResponseWriter, request *http.Request) error {
+	brokerID := getBrokerID(request)
+	logrus.Debugf("Updating updateBroker with id %s", brokerID)
+
+	updateBroker := &types.Broker{}
+	if err := rest.ReadJSONBody(request, updateBroker); err != nil {
+		return err
+	}
+
+	updateBroker.ID = brokerID
+	updateBroker.UpdatedAt = time.Now().UTC()
+
+	if updateBroker.Credentials != nil {
+		err := validateBrokerCredentials(updateBroker.Credentials)
+		if err != nil {
+			return types.NewErrorResponse(err, http.StatusBadRequest, "BadRequest")
+		}
+	}
+
+	broker, err := c.BrokerStorage.Get(updateBroker.ID)
+	err = common.HandleNotFoundError(err, "broker", brokerID)
+	if err != nil {
+		return err
+	}
+
+	updateData, err := json.Marshal(updateBroker)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(updateData, broker); err != nil {
+		return err
+	}
+
+	catalog, err := c.getBrokerCatalog(broker)
+	if err != nil {
+		return types.NewErrorResponse(err, http.StatusBadRequest, "BadRequest")
+	}
+
+	isCatalogModified := !bytes.Equal(broker.Catalog, catalog)
+	if isCatalogModified {
+		updateBroker.Catalog = catalog
+	}
+
+	err = c.BrokerStorage.Update(updateBroker)
+	err = common.CheckErrors(
+		common.HandleNotFoundError(err, "broker", brokerID),
+		common.HandleUniqueError(err, "broker"),
+	)
+	if err != nil {
+		return err
+	}
+	broker.Credentials = nil
+	broker.Catalog = nil
+	return rest.SendJSON(response, http.StatusOK, broker)
 }
 
 func getBrokerID(request *http.Request) string {
@@ -134,97 +237,4 @@ func (c *Controller) getBrokerCatalog(broker *types.Broker) (json.RawMessage, er
 	}
 
 	return json.RawMessage(bytes), nil
-}
-
-func (c *Controller) getBroker(response http.ResponseWriter, request *http.Request) error {
-	brokerID := getBrokerID(request)
-	logrus.Debugf("Getting broker with id %s", brokerID)
-
-	broker, err := c.BrokerStorage.Get(brokerID)
-	err = common.HandleNotFoundError(err, "broker", brokerID)
-	if err != nil {
-		return err
-	}
-	broker.Credentials = nil
-	broker.Catalog = nil
-	return rest.SendJSON(response, http.StatusOK, broker)
-}
-
-func (c *Controller) getAllBrokers(response http.ResponseWriter, request *http.Request) error {
-	logrus.Debug("Getting all brokers")
-	brokers, err := c.BrokerStorage.GetAll()
-	if err != nil {
-		return err
-	}
-	withCatalog := request.FormValue(catalogParam)
-	if strings.ToLower(withCatalog) != "true" {
-		for i := 0; i < len(brokers); i++ {
-			brokers[i].Catalog = nil
-		}
-	}
-
-	type brokerResponse struct {
-		Brokers []types.Broker `json:"brokers"`
-	}
-	return rest.SendJSON(response, http.StatusOK, brokerResponse{brokers})
-}
-
-func (c *Controller) deleteBroker(response http.ResponseWriter, request *http.Request) error {
-	brokerID := getBrokerID(request)
-	logrus.Debugf("Deleting broker with id %s", brokerID)
-
-	err := c.BrokerStorage.Delete(brokerID)
-	err = common.HandleNotFoundError(err, "broker", brokerID)
-	if err != nil {
-		return err
-	}
-	return rest.SendJSON(response, http.StatusOK, map[string]int{})
-}
-
-func (c *Controller) updateBroker(response http.ResponseWriter, request *http.Request) error {
-	brokerID := getBrokerID(request)
-	logrus.Debugf("Updating broker with id %s", brokerID)
-
-	broker := &types.Broker{}
-	if err := rest.ReadJSONBody(request, broker); err != nil {
-		logrus.Error("Invalid request body")
-		return err
-	}
-
-	broker.ID = brokerID
-	broker.UpdatedAt = time.Now().UTC()
-
-	if broker.Credentials != nil {
-		err := validateBrokerCredentials(broker.Credentials)
-		if err != nil {
-			return types.NewErrorResponse(err, http.StatusBadRequest, "BadRequest")
-		}
-	}
-
-	brokerFromDb, err := c.BrokerStorage.Get(broker.ID)
-	if err != nil {
-		logrus.Error("Failed to retrieve updated broker")
-		return err
-	}
-
-	catalog, err := c.getBrokerCatalog(brokerFromDb)
-	if err != nil {
-		return types.NewErrorResponse(err, http.StatusBadRequest, "BadRequest")
-	}
-
-	isCatalogModified := !bytes.Equal(brokerFromDb.Catalog, catalog)
-	if isCatalogModified {
-		broker.Catalog = catalog
-	}
-
-	err = c.BrokerStorage.Update(broker)
-	err = common.CheckErrors(
-		common.HandleNotFoundError(err, "broker", brokerID),
-		common.HandleUniqueError(err, "broker"),
-	)
-	if err != nil {
-		return err
-	}
-
-	return rest.SendJSON(response, http.StatusOK, map[string]string{})
 }

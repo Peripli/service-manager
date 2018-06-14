@@ -203,6 +203,13 @@ func (b *BusinessLogic) osbClient(request *http.Request) (osbc.Client, error) {
 	return OSBClient(b.createFunc, serviceBroker)
 }
 
+// OSBClient creates a osb client for the provided broker using the client create function
+func OSBClient(createFunc osbc.CreateFunc, broker *types.Broker) (osbc.Client, error) {
+	config := clientConfigForBroker(broker)
+	logrus.Debug("Building OSB client for serviceBroker with name: ", config.Name, " accessible at: ", config.URL)
+	return createFunc(config)
+}
+
 func clientConfigForBroker(broker *types.Broker) *osbc.ClientConfiguration {
 	config := osbc.DefaultClientConfiguration()
 	config.Name = broker.Name
@@ -214,12 +221,6 @@ func clientConfigForBroker(broker *types.Broker) *osbc.ClientConfiguration {
 		},
 	}
 	return config
-}
-
-func OSBClient(createFunc osbc.CreateFunc, broker *types.Broker) (osbc.Client, error) {
-	config := clientConfigForBroker(broker)
-	logrus.Debug("Building OSB client for serviceBroker with name: ", config.Name, " accessible at: ", config.URL)
-	return createFunc(config)
 }
 
 func toHTTPError(err error) error {

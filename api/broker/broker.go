@@ -64,7 +64,7 @@ func (c *Controller) Routes() []rest.Route {
 				Method: http.MethodPatch,
 				Path:   url + "/{broker_id}",
 			},
-			Handler: rest.APIHandler(c.updateBroker),
+			Handler: rest.APIHandler(c.patchBroker),
 		},
 	}
 }

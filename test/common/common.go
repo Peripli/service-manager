@@ -26,7 +26,13 @@ import (
 	"github.com/gavv/httpexpect"
 	"github.com/gorilla/mux"
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/ghttp"
 	"github.com/sirupsen/logrus"
+	"net/url"
+	"reflect"
+	"regexp"
+	"strings"
 )
 
 type Object = map[string]interface{}
@@ -40,7 +46,7 @@ func GetServerRouter() *mux.Router {
 	}, "SM")
 	srv, err := sm.NewServer(context.Background(), serverEnv)
 	if err != nil {
-		logrus.Fatal("Error creating server: ", err)
+		logrus.Fatal("Error creating server router during test server initialization: ", err)
 	}
 	return srv.Router
 }
@@ -68,7 +74,7 @@ func RemoveAllPlatforms(SM *httpexpect.Expect) {
 }
 
 func removeAll(SM *httpexpect.Expect, entity string, rootURLPath string) {
-	By("remove all " + entity)
+	By("removing all " + entity)
 	resp := SM.GET(rootURLPath).
 		Expect().Status(http.StatusOK).JSON().Object()
 	for _, val := range resp.Value(entity).Array().Iter() {
@@ -99,4 +105,40 @@ func MakePlatform(id string, name string, atype string, description string) Obje
 		"type":        atype,
 		"description": description,
 	}
+}
+
+func FakeBrokerServer(code *int, response interface{}) *ghttp.Server {
+	brokerServer := ghttp.NewServer()
+	brokerServer.RouteToHandler(http.MethodGet, regexp.MustCompile(".*"), ghttp.RespondWithPtr(code, response))
+	return brokerServer
+}
+
+func VerifyReqReceived(server *ghttp.Server, times int, method, path string, rawQuery ...string) {
+	timesReceived := 0
+	for _, req := range server.ReceivedRequests() {
+		if req.Method == method && strings.Contains(req.URL.Path, path) {
+			if len(rawQuery) == 0 {
+				timesReceived++
+				continue
+			}
+			values, err := url.ParseQuery(rawQuery[0])
+			Expect(err).ShouldNot(HaveOccurred())
+			if reflect.DeepEqual(req.URL.Query(), values) {
+				timesReceived++
+			}
+		}
+	}
+	if times != timesReceived {
+		Fail(fmt.Sprintf("Request with method = %s, path = %s, rawQuery = %s expected to be received atleast "+
+			"%d times but was received %d times", method, path, rawQuery, times, timesReceived))
+	}
+}
+
+func VerifyBrokerCatalogEndpointInvoked(server *ghttp.Server, times int) {
+	VerifyReqReceived(server, times, http.MethodGet, "/v2/catalog")
+}
+
+func ClearReceivedRequests(code *int, response interface{}, server *ghttp.Server) {
+	server.Reset()
+	server.RouteToHandler(http.MethodGet, regexp.MustCompile(".*"), ghttp.RespondWithPtr(code, response))
 }

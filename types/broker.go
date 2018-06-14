@@ -25,13 +25,13 @@ import (
 
 // Broker broker struct
 type Broker struct {
-	ID          string          `json:"id"`
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	CreatedAt   time.Time       `json:"created_at"`
-	UpdatedAt   time.Time       `json:"updated_at"`
-	BrokerURL   string          `json:"broker_url"`
-	Credentials *Credentials    `json:"credentials,omitempty"`
+	ID          string          `json:"id,omitempty"`
+	Name        string          `json:"name,omitempty"`
+	Description string          `json:"description,omitempty"`
+	CreatedAt   time.Time       `json:"created_at,omitempty"`
+	UpdatedAt   time.Time       `json:"updated_at,omitempty"`
+	BrokerURL   string          `json:"broker_url,omitempty"`
+	Credentials *Credentials    `json:"credentials,omitempty" structs:"-"`
 	Catalog     json.RawMessage `json:"catalog,omitempty"`
 }
 
