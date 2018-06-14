@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "service-manager.fullname" . }}
+  labels:
+    app: {{ template "service-manager.name" . }}
+    chart: {{ template "service-manager.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "service-manager.name" . }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "service-manager.name" . }}
+        release: {{ .Release.Name }}
+    spec:
+      volumes:
+      - name: config-volume
+        configMap:
+          name: {{ template "service-manager.fullname" . }}
+      containers:
+      - name: {{ .Chart.Name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        volumeMounts:
+        - name: config-volume
+          mountPath: {{ .Values.configMountPath }}
+          readOnly: true
+        env:
+        - name: SM_DB_URI
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "service-manager.fullname" . }}-secret
+              key: uri
+        args: ["config_location={{ .Values.configMountPath }}"]
+      ports:
+      - name: http
+        containerPort: 8080
+        protocol: TCP

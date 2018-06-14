@@ -178,7 +178,7 @@ func (b *BusinessLogic) Update(request *osbc.UpdateInstanceRequest, c *broker.Re
 }
 
 // ValidateBrokerAPIVersion implements pmorie/osb-broker-lib/pkg/broker/Interface.ValidateBrokerAPIVersion by
-// checking that the version provided as parameter matches the latest supported version
+// allowing all versions of the API
 func (b *BusinessLogic) ValidateBrokerAPIVersion(version string) error {
 	return nil
 }

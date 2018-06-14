@@ -4,3 +4,4 @@ db:
   uri: postgres://postgres@localhost:5432/postgres?sslmode=disable
 log:
   level: debug
+token_issuer_url: https://example.com
