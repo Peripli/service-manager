@@ -19,6 +19,8 @@ package rest
 
 import (
 	"net/http"
+
+	"github.com/Peripli/service-manager/pkg/filter"
 )
 
 // AllMethods matches all REST HTTP Methods
@@ -36,7 +38,7 @@ type Route struct {
 	Endpoint Endpoint
 
 	// Handler is the function that should handle incoming requests for this endpoint
-	Handler http.Handler
+	Handler filter.Handler
 }
 
 // Endpoint is a combination of a Path and an HTTP Method

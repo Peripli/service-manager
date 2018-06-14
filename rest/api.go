@@ -27,9 +27,7 @@ func (api *API) RegisterControllers(controllers ...Controller) {
 
 // RegisterFilters registers a set of filters
 func (api *API) RegisterFilters(filters ...filter.Filter) {
-	for _, f := range filters {
-		api.Filters = append(api.Filters, f)
-	}
+	api.Filters = append(api.Filters, filters...)
 }
 
 // RegisterPlugins registers a set of plugins
@@ -38,6 +36,7 @@ func (api *API) RegisterPlugins(plugins ...plugin.Plugin) {
 		if plug == nil {
 			logrus.Panicln("Cannot add nil plugins")
 		}
+		// TODO: move this route specific logic to a better place
 		if p, ok := plug.(plugin.CatalogFetcher); ok {
 			api.RegisterFilters(filter.Filter{
 				filter.RequestMatcher{

@@ -2,6 +2,8 @@ package plugin
 
 import . "github.com/Peripli/service-manager/pkg/filter"
 
+// Interfaces for OSB operations
+
 type CatalogFetcher interface {
 	FetchCatalog(req *Request, next Handler) (*Response, error)
 }

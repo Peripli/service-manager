@@ -20,8 +20,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strings"
 
+	"github.com/Peripli/service-manager/pkg/filter"
 	"github.com/Peripli/service-manager/types"
 	"github.com/sirupsen/logrus"
 )
@@ -35,14 +35,21 @@ func SendJSON(writer http.ResponseWriter, code int, value interface{}) error {
 	return encoder.Encode(value)
 }
 
+func NewJSONResponse(code int, value interface{}) (*filter.Response, error) {
+	headers := http.Header{}
+	headers.Add("Content-Type", "application/json")
+	body, err := json.Marshal(value)
+	return &filter.Response{
+		StatusCode: code,
+		Header:     headers,
+		Body:       body,
+	}, err
+}
+
 // ReadJSONBody parse request body
-func ReadJSONBody(request *http.Request, value interface{}) error {
-	contentType := request.Header.Get("Content-Type")
-	if !strings.Contains(contentType, "application/json") {
-		return types.NewErrorResponse(errors.New("Invalid media type provided"), http.StatusUnsupportedMediaType, "InvalidMediaType")
-	}
-	decoder := json.NewDecoder(request.Body)
-	if err := decoder.Decode(value); err != nil {
+func ReadJSONBody(request *filter.Request, value interface{}) error {
+	err := json.Unmarshal(request.Body, value)
+	if err != nil {
 		logrus.Debug(err)
 		return types.NewErrorResponse(errors.New("Failed to decode request body"), http.StatusBadRequest, "BadRequest")
 	}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	"os"
 	"os/signal"
@@ -33,7 +34,12 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("error loading configuration: %s", err))
 	}
-	srv, err := sm.New(ctx, cfg)
+
+	parameters := &sm.Parameters{
+		Context:     ctx,
+		Environment: getEnvironment(flags),
+	}
+	srv, err := sm.New(cfg, parameters)
 	if err != nil {
 		panic(fmt.Sprintf("error creating SM server: %s", err))
 	}

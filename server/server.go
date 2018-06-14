@@ -96,19 +96,20 @@ func registerRoutes(prefix string, fromRouter *mux.Router, toRouter *mux.Router)
 func registerControllers(router *mux.Router, api *rest.API) error {
 	for _, ctrl := range api.Controllers {
 		for _, route := range ctrl.Routes() {
-			fromRouter, ok := route.Handler.(*mux.Router)
-			if ok {
-				if err := registerRoutes(route.Endpoint.Path, fromRouter, router); err != nil {
+			// fromRouter, ok := route.Handler.(*mux.Router)
+			// if ok {
+			// 	if err := registerRoutes(route.Endpoint.Path, fromRouter, router); err != nil {
 
-					return fmt.Errorf("register controllers: %s", err)
-				}
-			} else {
-				logrus.Debugf("Register endpoint: %s %s", route.Endpoint.Method, route.Endpoint.Path)
-				r := router.Handle(route.Endpoint.Path, route.Handler)
-				if route.Endpoint.Method != rest.AllMethods {
-					r.Methods(route.Endpoint.Method)
-				}
+			// 		return fmt.Errorf("register controllers: %s", err)
+			// 	}
+			// } else {
+			logrus.Debugf("Register endpoint: %s %s", route.Endpoint.Method, route.Endpoint.Path)
+			r := router.Handle(route.Endpoint.Path,
+				newHttpHandler(matchFilters(&route.Endpoint, api.Filters), route.Handler))
+			if route.Endpoint.Method != rest.AllMethods {
+				r.Methods(route.Endpoint.Method)
 			}
+			// }
 		}
 	}
 	return nil

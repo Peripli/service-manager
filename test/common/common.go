@@ -21,6 +21,12 @@ import (
 	"fmt"
 	"net/http"
 
+	"net/url"
+	"reflect"
+	"regexp"
+	"strings"
+
+	"github.com/Peripli/service-manager/config"
 	"github.com/Peripli/service-manager/sm"
 	"github.com/gavv/httpexpect"
 	"github.com/gorilla/mux"
@@ -28,11 +34,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
 	"github.com/sirupsen/logrus"
-	"github.com/Peripli/service-manager/config"
-	"net/url"
-	"reflect"
-	"regexp"
-	"strings"
 )
 
 type Object = map[string]interface{}
@@ -76,15 +77,20 @@ func GetServerRouter() *mux.Router {
 	config.AddPFlags(set)
 	set.Set("file.location", "./test/common")
 
-	serverEnv,err := config.NewEnv(set)
+	serverEnv, err := config.NewEnv(set)
 	if err != nil {
 		logrus.Fatal("Error creating server: ", err)
 	}
-	cfg,err := config.New(serverEnv)
+	cfg, err := config.New(serverEnv)
+
+	params := &sm.Parameters{
+		Environment: serverEnv,
+		Context:     context.Background(),
+	}
 	if err != nil {
 		logrus.Fatal("Error creating server: ", err)
 	}
-	srv, err := sm.New(context.Background(), cfg)
+	srv, err := sm.New(cfg, params)
 	if err != nil {
 		logrus.Fatal("Error creating server router during test server initialization: ", err)
 	}
