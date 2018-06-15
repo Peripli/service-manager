@@ -67,6 +67,7 @@ var _ rest.Controller = &Controller{}
 // Routes implements rest.Controller.Routes by providing the routes for the OSB API
 func (c *Controller) Routes() []rest.Route {
 	return []rest.Route{
+		// nolint: vet
 		{rest.Endpoint{"GET", catalogURL}, c.handler},
 		{rest.Endpoint{"PUT", serviceInstanceURL}, c.handler},
 		{rest.Endpoint{"DELETE", serviceInstanceURL}, c.handler},

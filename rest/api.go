@@ -37,6 +37,7 @@ func (api *API) RegisterPlugins(plugins ...plugin.Plugin) {
 			logrus.Panicln("Cannot add nil plugins")
 		}
 		// TODO: move this route specific logic to a better place
+		// nolint: vet
 		if p, ok := plug.(plugin.CatalogFetcher); ok {
 			api.RegisterFilters(filter.Filter{
 				filter.RequestMatcher{
