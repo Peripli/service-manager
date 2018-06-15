@@ -89,7 +89,11 @@ func NewConfiguration(env Environment) (*Config, error) {
 		return nil, err
 	}
 
-	configSettings := &Settings{}
+	configSettings := &Settings{
+		Server: &AppSettings{},
+		Db:     &DbSettings{},
+		Log:    &LogSettings{},
+	}
 	if err := env.Unmarshal(configSettings); err != nil {
 		return nil, err
 	}
@@ -98,10 +102,10 @@ func NewConfiguration(env Environment) (*Config, error) {
 		config.Address = configSettings.Server.Host + ":" + strconv.Itoa(configSettings.Server.Port)
 	}
 	if configSettings.Server.RequestTimeout != 0 {
-		config.RequestTimeout = time.Millisecond * time.Duration(configSettings.Server.RequestTimeout)
+		config.RequestTimeout = time.Duration(configSettings.Server.RequestTimeout)
 	}
 	if configSettings.Server.ShutdownTimeout != 0 {
-		config.ShutdownTimeout = time.Millisecond * time.Duration(configSettings.Server.ShutdownTimeout)
+		config.ShutdownTimeout = time.Duration(configSettings.Server.ShutdownTimeout)
 	}
 	if len(configSettings.Db.URI) != 0 {
 		config.DbURI = configSettings.Db.URI
