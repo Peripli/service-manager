@@ -89,7 +89,11 @@ func NewConfiguration(env Environment) (*Config, error) {
 		return nil, err
 	}
 
-	configSettings := &Settings{}
+	configSettings := &Settings{
+		Server: &AppSettings{},
+		Db:     &DbSettings{},
+		Log:    &LogSettings{},
+	}
 	if err := env.Unmarshal(configSettings); err != nil {
 		return nil, err
 	}
