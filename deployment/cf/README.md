@@ -4,8 +4,9 @@
 
 The following must be fulfilled:
 
- * You are logged in CF.
- * Go buildpack is installed with Go version 1.10 support.
+* You are logged in CF.
+* Go buildpack is installed with Go version 1.10 support.
+* PostgreSQL service is available or an external PostgreSQL is installed and accessible from the CF instance.
 
 ## Create PostgreSQL service instance in your CF environment
 
@@ -19,8 +20,8 @@ Alternatively, you can use external PostgreSQL. In this case you need to have a 
 
 Replace in `manifest.yml`:
 
- * <application_name> with the desired name of your Service Manager application.
- * <postgre_instance_name> with the instance name of your PostgreSQL service. Alternatively, you can use the `DB_URI` environment variable to set external PostgreSQL uri. In this case `SM_DB_NAME` environment variable must not be present and you need to remove the service from the manifest.yml.
+* <application_name> with the desired name of your Service Manager application.
+* <postgre_instance_name> with the instance name of your PostgreSQL service. Alternatively, you can use the `DB_URI` environment variable to set external PostgreSQL uri. In this case `SM_DB_NAME` environment variable must not be present and you need to remove the service from the manifest.yml.
 
 ## Push the application
 
