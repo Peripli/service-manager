@@ -28,39 +28,39 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// NewServer creates service manager server
-func NewServer(ctx context.Context, serverEnv server.Environment) (*server.Server, error) {
-	config, err := server.NewConfiguration(serverEnv)
+// New creates service manager server
+func New(ctx context.Context, serverEnv server.Environment) (*server.Server, error) {
+	config, err := server.NewConfig(serverEnv)
 	if err != nil {
-		return nil, fmt.Errorf("Error loading configuration: %v", err)
+		return nil, fmt.Errorf("error loading configuration: %v", err)
 	}
 
 	if err := config.Validate(); err != nil {
-		return nil, fmt.Errorf("Configuration validation failed: %v", err)
+		return nil, fmt.Errorf("configuration validation failed: %v", err)
 	}
 
-	setUpLogging(config.LogLevel, config.LogFormat)
+	setUpLogging(config.Log)
 
-	storage, err := storage.Use(ctx, postgres.Storage, config.DbURI)
+	storage, err := storage.Use(ctx, postgres.Storage, config.DB.URI)
 	if err != nil {
-		return nil, fmt.Errorf("Error using storage: %v", err)
+		return nil, fmt.Errorf("error using storage: %v", err)
 	}
 
 	defaultAPI := api.Default(storage, serverEnv)
 	srv, err := server.New(defaultAPI, config)
 	if err != nil {
-		return nil, fmt.Errorf("Error creating server: %v", err)
+		return nil, fmt.Errorf("error creating server: %v", err)
 	}
 	return srv, nil
 }
 
-func setUpLogging(logLevel string, logFormat string) {
-	level, err := logrus.ParseLevel(logLevel)
+func setUpLogging(settings server.LogSettings) {
+	level, err := logrus.ParseLevel(settings.Level)
 	if err != nil {
 		logrus.Fatal("Could not parse log level configuration")
 	}
 	logrus.SetLevel(level)
-	if logFormat == "json" {
+	if settings.Format == "json" {
 		logrus.SetFormatter(&logrus.JSONFormatter{})
 	} else {
 		logrus.SetFormatter(&logrus.TextFormatter{})

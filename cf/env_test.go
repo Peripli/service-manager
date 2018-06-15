@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package env
+package cf
 
 import (
 	"errors"
@@ -51,7 +51,7 @@ var _ = Describe("CF Env", func() {
 				testEnv := &customEnvOk{}
 				os.Setenv("VCAP_SERVICES", "{}")
 				os.Setenv("EXPECTED_ENV_VAR", "expected_value")
-				actualValue := New(testEnv).Get("EXPECTED_ENV_VAR")
+				actualValue := NewEnv(testEnv).Get("EXPECTED_ENV_VAR")
 				Expect(actualValue).To(Equal("expected_value"))
 			})
 		})
@@ -60,7 +60,7 @@ var _ = Describe("CF Env", func() {
 			It("should delegate the call", func() {
 				testEnv := &customEnvOk{}
 				os.Setenv("VCAP_SERVICES", "{}")
-				actualValue := New(testEnv).Get("MISSING_ENV_VAR")
+				actualValue := NewEnv(testEnv).Get("MISSING_ENV_VAR")
 				Expect(actualValue).To(Equal("expected"))
 			})
 		})
@@ -77,7 +77,7 @@ var _ = Describe("CF Env", func() {
 					"name": "postgresql"
 				}]}`
 				os.Setenv("VCAP_SERVICES", vcapServices)
-				err := New(testEnv).Load()
+				err := NewEnv(testEnv).Load()
 				Expect(err).ToNot(HaveOccurred())
 			})
 		})
@@ -87,7 +87,7 @@ var _ = Describe("CF Env", func() {
 				testEnv := &customEnvOk{}
 				vcapServices := `{ "notpgservice": [{"credentials": {}}] }`
 				os.Setenv("VCAP_SERVICES", vcapServices)
-				err := New(testEnv).Load()
+				err := NewEnv(testEnv).Load()
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("Could not find service with name postgresql"))
 			})
@@ -96,14 +96,14 @@ var _ = Describe("CF Env", func() {
 		Context("with missing postgres service name", func() {
 			It("returns error", func() {
 				testEnv := &customEnvNoPGServiceName{}
-				Expect(New(testEnv).Load()).ToNot(HaveOccurred())
+				Expect(NewEnv(testEnv).Load()).ToNot(HaveOccurred())
 			})
 		})
 
 		Context("with failing delegate", func() {
 			It("returns error", func() {
 				testEnv := &customEnvFail{}
-				err := New(testEnv).Load()
+				err := NewEnv(testEnv).Load()
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("expected fail"))
 			})
@@ -113,14 +113,14 @@ var _ = Describe("CF Env", func() {
 			It("returns error", func() {
 				os.Setenv("VCAP_SERVICES", "Invalid")
 				testEnv := &customEnvOk{}
-				Expect(New(testEnv).Load()).To(HaveOccurred())
+				Expect(NewEnv(testEnv).Load()).To(HaveOccurred())
 			})
 		})
 
 		Context("with missing VCAP_SERVICES", func() {
 			It("returns error", func() {
 				testEnv := &customEnvOk{}
-				Expect(New(testEnv).Load()).To(HaveOccurred())
+				Expect(NewEnv(testEnv).Load()).To(HaveOccurred())
 			})
 		})
 	})

@@ -18,32 +18,22 @@ package server
 
 import (
 	"fmt"
-	"strconv"
 	"time"
+
+	"github.com/spf13/pflag"
 )
 
-// Environment represents an abstraction over the environment from which Service Manager configuration will be loaded
-//go:generate counterfeiter . Environment
-type Environment interface {
-	Load() error
-	Get(key string) interface{}
-	Set(key string, value interface{})
-	Unmarshal(value interface{}) error
-}
-
-// Settings type to be loaded from the environment
-type Settings struct {
-	Server *AppSettings
-	Db     *DbSettings
-	Log    *LogSettings
+func init() {
+	pflag.String("db_uri", "", "Database URI used to connect to SM DB")
+	IntroducePFlags(Config{})
 }
 
 // AppSettings type to be loaded from the environment
 type AppSettings struct {
 	Host            string
 	Port            int
-	RequestTimeout  int
-	ShutdownTimeout int
+	RequestTimeout  time.Duration
+	ShutdownTimeout time.Duration
 }
 
 // DbSettings type to be loaded from the environment
@@ -57,60 +47,46 @@ type LogSettings struct {
 	Format string
 }
 
-// Config type represents Service Manager configuration
+//TODO we could add the file and tokenissuer configs in here too, so we have to init pflag only here?
+// Config type to be loaded from the environment
 type Config struct {
-	Address         string
-	RequestTimeout  time.Duration
-	ShutdownTimeout time.Duration
-	LogLevel        string
-	LogFormat       string
-	DbURI           string
+	Server AppSettings
+	DB     DbSettings
+	Log    LogSettings
 }
 
-// DefaultConfiguration returns a default server configuration
-func DefaultConfiguration() *Config {
+func DefaultConfig() *Config {
 	config := &Config{
-		Address:         ":8080",
-		RequestTimeout:  time.Millisecond * time.Duration(3000),
-		ShutdownTimeout: time.Millisecond * time.Duration(3000),
-		LogLevel:        "debug",
-		LogFormat:       "text",
-		DbURI:           "",
+		Server: AppSettings{
+			Host:            "127.0.0.1",
+			Port:            8080,
+			RequestTimeout:  time.Millisecond * time.Duration(3000),
+			ShutdownTimeout: time.Millisecond * time.Duration(3000),
+		},
+		DB: DbSettings{
+			URI: "",
+		},
+		Log: LogSettings{
+			Level:  "debug",
+			Format: "text",
+		},
 	}
-
 	return config
 }
 
-// NewConfiguration creates a configuration from the provided environment
-func NewConfiguration(env Environment) (*Config, error) {
-	config := DefaultConfiguration()
+// NewConfig creates a configuration from the provided environment
+func NewConfig(env Environment) (*Config, error) {
+	config := DefaultConfig()
 
+	//TODO we could do the below but then we need to move the info details tokenissuer as part of the config and pass config to the info controller instead of environment
+	//if err := env.Introduce(config); err != nil {
+	//	return nil, err
+	//}
 	if err := env.Load(); err != nil {
 		return nil, err
 	}
-
-	configSettings := &Settings{}
-	if err := env.Unmarshal(configSettings); err != nil {
+	if err := env.Unmarshal(config); err != nil {
 		return nil, err
-	}
-
-	if configSettings.Server.Port != 0 {
-		config.Address = configSettings.Server.Host + ":" + strconv.Itoa(configSettings.Server.Port)
-	}
-	if configSettings.Server.RequestTimeout != 0 {
-		config.RequestTimeout = time.Millisecond * time.Duration(configSettings.Server.RequestTimeout)
-	}
-	if configSettings.Server.ShutdownTimeout != 0 {
-		config.ShutdownTimeout = time.Millisecond * time.Duration(configSettings.Server.ShutdownTimeout)
-	}
-	if len(configSettings.Db.URI) != 0 {
-		config.DbURI = configSettings.Db.URI
-	}
-	if len(configSettings.Log.Format) != 0 {
-		config.LogFormat = configSettings.Log.Format
-	}
-	if len(configSettings.Log.Level) != 0 {
-		config.LogLevel = configSettings.Log.Level
 	}
 
 	return config, nil
@@ -118,22 +94,22 @@ func NewConfiguration(env Environment) (*Config, error) {
 
 // Validate validates that the configuration contains all mandatory properties
 func (c *Config) Validate() error {
-	if len(c.Address) == 0 {
-		return fmt.Errorf("validate Config: Address missing")
+	if c.Server.Port == 0 {
+		return fmt.Errorf("validate Config: Port missing")
 	}
-	if c.RequestTimeout == 0 {
+	if c.Server.RequestTimeout == 0 {
 		return fmt.Errorf("validate Config: RequestTimeout missing")
 	}
-	if c.ShutdownTimeout == 0 {
+	if c.Server.ShutdownTimeout == 0 {
 		return fmt.Errorf("validate Config: ShutdownTimeout missing")
 	}
-	if len(c.LogLevel) == 0 {
+	if len(c.Log.Level) == 0 {
 		return fmt.Errorf("validate Config: LogLevel missing")
 	}
-	if len(c.LogFormat) == 0 {
+	if len(c.Log.Format) == 0 {
 		return fmt.Errorf("validate Config: LogFormat missing")
 	}
-	if len(c.DbURI) == 0 {
+	if len(c.DB.URI) == 0 {
 		return fmt.Errorf("validate Config: DbURI missing")
 	}
 	return nil

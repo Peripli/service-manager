@@ -24,6 +24,8 @@ import (
 
 	"fmt"
 
+	"strconv"
+
 	"github.com/Peripli/service-manager/rest"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
@@ -50,14 +52,15 @@ func New(api rest.API, config *Config) (*Server, error) {
 }
 
 // Run starts the server awaiting for incoming requests
-func (server *Server) Run(ctx context.Context) {
+func (s *Server) Run(ctx context.Context) {
+	serverConfig := s.Configuration.Server
 	handler := &http.Server{
-		Handler:      server.Router,
-		Addr:         server.Configuration.Address,
-		WriteTimeout: server.Configuration.RequestTimeout,
-		ReadTimeout:  server.Configuration.RequestTimeout,
+		Handler:      s.Router,
+		Addr:         serverConfig.Host + ":" + strconv.Itoa(serverConfig.Port),
+		WriteTimeout: serverConfig.RequestTimeout,
+		ReadTimeout:  serverConfig.RequestTimeout,
 	}
-	startServer(ctx, handler, server.Configuration.ShutdownTimeout)
+	startServer(ctx, handler, serverConfig.ShutdownTimeout)
 }
 
 func registerRoutes(prefix string, fromRouter *mux.Router, toRouter *mux.Router) error {

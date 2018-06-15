@@ -21,24 +21,20 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Peripli/service-manager/env"
 	"github.com/Peripli/service-manager/sm"
 	"github.com/gavv/httpexpect"
 	"github.com/gorilla/mux"
 	. "github.com/onsi/ginkgo"
 	"github.com/sirupsen/logrus"
+	"github.com/Peripli/service-manager/server"
 )
 
 type Object = map[string]interface{}
 type Array = []interface{}
 
 func GetServerRouter() *mux.Router {
-	serverEnv := env.New(&env.ConfigFile{
-		Path:   "./test/common",
-		Name:   "application",
-		Format: "yml",
-	}, "SM")
-	srv, err := sm.NewServer(context.Background(), serverEnv)
+	serverEnv := server.NewEnv("SM")
+	srv, err := sm.New(context.Background(), serverEnv)
 	if err != nil {
 		logrus.Fatal("Error creating server: ", err)
 	}

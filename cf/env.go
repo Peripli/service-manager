@@ -14,20 +14,25 @@
  * limitations under the License.
  */
 
-package env
+package cf
 
 import (
 	"fmt"
 	"strings"
 
+	"os"
+
 	"github.com/Peripli/service-manager/server"
-	cfenv "github.com/cloudfoundry-community/go-cfenv"
+	"github.com/cloudfoundry-community/go-cfenv"
 	"github.com/sirupsen/logrus"
 )
 
-// New returns a Cloud Foundry environment with a delegate
-func New(delegate server.Environment) server.Environment {
-	return &cfEnvironment{Environment: delegate}
+// NewEnv returns a Cloud Foundry environment with a delegate
+func NewEnv(delegate server.Environment) server.Environment {
+	if _, exists := os.LookupEnv("VCAP_APPLICATION"); exists {
+		return &cfEnvironment{Environment: delegate}
+	}
+	return delegate
 }
 
 type cfEnvironment struct {
@@ -51,7 +56,7 @@ func (e *cfEnvironment) Load() (err error) {
 	}
 	service, err := e.cfEnv.Services.WithName(postgreServiceName)
 	if err != nil {
-		return fmt.Errorf("Could not find service with name %s: %v", postgreServiceName, err)
+		return fmt.Errorf("could not find service with name %s: %v", postgreServiceName, err)
 	}
 	e.Environment.Set("db.uri", service.Credentials["uri"].(string))
 	return

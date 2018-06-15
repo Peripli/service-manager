@@ -18,13 +18,18 @@ package info
 
 import (
 	"net/http"
-	"github.com/Peripli/service-manager/server"
+
 	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/server"
 	"github.com/sirupsen/logrus"
 )
 
+func init() {
+	server.IntroducePFlags(Details{})
+}
+
 // Details describe the public information provided by the Service Manager
-type Details struct{
+type Details struct {
 	TokenIssuer string `mapstructure:"token_issuer_url" json:"token_issuer_url"`
 }
 
@@ -33,12 +38,12 @@ type controller struct {
 }
 
 // NewController returns a new info controller
-func NewController(environment server.Environment) rest.Controller {
+func NewController(env server.Environment) rest.Controller {
 	var info Details
-	if err := environment.Unmarshal(&info); err != nil {
+	if err := env.Unmarshal(&info); err != nil {
 		logrus.Panic(err)
 	}
-	if info.TokenIssuer == ""{
+	if info.TokenIssuer == "" {
 		logrus.Panic("Token issuer URL is required")
 	}
 	return &controller{info}

@@ -14,18 +14,16 @@
  *    limitations under the License.
  */
 
-package env_test
+package server
 
 import (
+	"github.com/Peripli/service-broker-proxy/pkg/env"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
 	"io/ioutil"
 	"os"
 	"testing"
-
-	"github.com/Peripli/service-manager/env"
-	"github.com/Peripli/service-manager/server"
 )
 
 func TestApi(t *testing.T) {
@@ -58,8 +56,9 @@ type dbSettings struct {
 	URI string
 }
 
+//TODO test that getting pflag after seting and parsing it with Get() and Unmarshal() works too
 var _ = Describe("Env", func() {
-	var defaultEnv server.Environment
+	var defaultEnv Environment
 	loadEnvironmentFromFile := func() error {
 		err := ioutil.WriteFile("application.yml", yamlExample, 0640)
 		Expect(err).To(BeNil())
