@@ -23,13 +23,17 @@ import (
 	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/api/platform"
 	"github.com/Peripli/service-manager/rest"
-	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/sirupsen/logrus"
 )
 
+// Settings type to be loaded from the environment
+type Settings struct {
+	TokenIssuerURL string `mapstructure:"token_issuer_url"`
+}
+
 // Default returns the minimum set of REST APIs needed for the Service Manager
-func Default(storage storage.Storage, env server.Environment) rest.API {
+func Default(storage storage.Storage, settings Settings) rest.API {
 	return &smAPI{
 		controllers: []rest.Controller{
 			&broker.Controller{
@@ -41,7 +45,9 @@ func Default(storage storage.Storage, env server.Environment) rest.API {
 			&platform.Controller{
 				PlatformStorage: storage.Platform(),
 			},
-			info.NewController(env),
+			&info.Controller{
+				TokenIssuer: settings.TokenIssuerURL,
+			},
 		},
 	}
 }
@@ -57,7 +63,7 @@ func (api *smAPI) Controllers() []rest.Controller {
 func (api *smAPI) RegisterControllers(controllers ...rest.Controller) {
 	for _, controller := range controllers {
 		if controller == nil {
-			logrus.Panicln("Cannot add nil controllers")
+			logrus.Panicln("Cannot add nil controller")
 		}
 		api.controllers = append(api.controllers, controller)
 	}

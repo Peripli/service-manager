@@ -31,36 +31,43 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Settings type to be loaded from the environment
+type Settings struct {
+	Host            string
+	Port            int
+	RequestTimeout  time.Duration
+	ShutdownTimeout time.Duration
+}
+
 // Server is the server to process incoming HTTP requests
 type Server struct {
-	Configuration *Config
-	Router        *mux.Router
+	Config Settings
+	Router *mux.Router
 }
 
 // New creates a new server with the provided REST API configuration and server configuration
 // Returns the new server and an error if creation was not successful
-func New(api rest.API, config *Config) (*Server, error) {
+func New(api rest.API, config Settings) (*Server, error) {
 	router := mux.NewRouter().StrictSlash(true)
 	if err := registerControllers(router, api.Controllers()); err != nil {
-		return nil, fmt.Errorf("new Config: %s", err)
+		return nil, fmt.Errorf("new Settings: %s", err)
 	}
 
 	return &Server{
-		Configuration: config,
-		Router:        router,
+		Config: config,
+		Router: router,
 	}, nil
 }
 
 // Run starts the server awaiting for incoming requests
 func (s *Server) Run(ctx context.Context) {
-	serverConfig := s.Configuration.Server
 	handler := &http.Server{
 		Handler:      s.Router,
-		Addr:         serverConfig.Host + ":" + strconv.Itoa(serverConfig.Port),
-		WriteTimeout: serverConfig.RequestTimeout,
-		ReadTimeout:  serverConfig.RequestTimeout,
+		Addr:         s.Config.Host + ":" + strconv.Itoa(s.Config.Port),
+		WriteTimeout: s.Config.RequestTimeout,
+		ReadTimeout:  s.Config.RequestTimeout,
 	}
-	startServer(ctx, handler, serverConfig.ShutdownTimeout)
+	startServer(ctx, handler, s.Config.ShutdownTimeout)
 }
 
 func registerRoutes(prefix string, fromRouter *mux.Router, toRouter *mux.Router) error {
@@ -82,7 +89,7 @@ func registerRoutes(prefix string, fromRouter *mux.Router, toRouter *mux.Router)
 			r.Methods(methods...)
 		}
 
-		logrus.Info("Registering route with methods: ", methods, " and path: ", path, " behind prefix ", prefix)
+		logrus.Debug("Registering route: method: ", methods, " path: ", prefix, path)
 		return nil
 	})
 }
@@ -110,7 +117,7 @@ func registerControllers(router *mux.Router, controllers []rest.Controller) erro
 func startServer(ctx context.Context, server *http.Server, shutdownTimeout time.Duration) {
 	go gracefulShutdown(ctx, server, shutdownTimeout)
 
-	logrus.Debugf("Listening on %s", server.Addr)
+	logrus.Infof("Listening on %s", server.Addr)
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logrus.Fatal(err)

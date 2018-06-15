@@ -14,10 +14,9 @@
  *    limitations under the License.
  */
 
-package server
+package config
 
 import (
-	"github.com/Peripli/service-broker-proxy/pkg/env"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -69,11 +68,7 @@ var _ = Describe("Env", func() {
 	}
 
 	BeforeEach(func() {
-		defaultEnv = env.New(&env.ConfigFile{
-			Path:   ".",
-			Name:   "application",
-			Format: "yml",
-		}, "SM")
+		defaultEnv = NewEnv("SM")
 	})
 
 	Describe("Load environment", func() {

@@ -22,13 +22,13 @@ import (
 
 	"os"
 
-	"github.com/Peripli/service-manager/server"
+	"github.com/Peripli/service-manager/config"
 	"github.com/cloudfoundry-community/go-cfenv"
 	"github.com/sirupsen/logrus"
 )
 
 // NewEnv returns a Cloud Foundry environment with a delegate
-func NewEnv(delegate server.Environment) server.Environment {
+func NewEnv(delegate config.Environment) config.Environment {
 	if _, exists := os.LookupEnv("VCAP_APPLICATION"); exists {
 		return &cfEnvironment{Environment: delegate}
 	}
@@ -37,7 +37,7 @@ func NewEnv(delegate server.Environment) server.Environment {
 
 type cfEnvironment struct {
 	cfEnv *cfenv.App
-	server.Environment
+	config.Environment
 }
 
 func (e *cfEnvironment) Load() (err error) {

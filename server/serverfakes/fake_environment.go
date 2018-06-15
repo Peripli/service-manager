@@ -4,7 +4,7 @@ package serverfakes
 import (
 	"sync"
 
-	"github.com/Peripli/service-manager/server"
+	"github.com/Peripli/service-manager/config"
 )
 
 type FakeEnvironment struct {
@@ -43,6 +43,17 @@ type FakeEnvironment struct {
 		result1 error
 	}
 	unmarshalReturnsOnCall map[int]struct {
+		result1 error
+	}
+	BindPFlagsStub        func(value interface{}) error
+	bindPFlagsMutex       sync.RWMutex
+	bindPFlagsArgsForCall []struct {
+		value interface{}
+	}
+	bindPFlagsReturns struct {
+		result1 error
+	}
+	bindPFlagsReturnsOnCall map[int]struct {
 		result1 error
 	}
 	invocations      map[string][][]interface{}
@@ -210,6 +221,54 @@ func (fake *FakeEnvironment) UnmarshalReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
+func (fake *FakeEnvironment) BindPFlags(value interface{}) error {
+	fake.bindPFlagsMutex.Lock()
+	ret, specificReturn := fake.bindPFlagsReturnsOnCall[len(fake.bindPFlagsArgsForCall)]
+	fake.bindPFlagsArgsForCall = append(fake.bindPFlagsArgsForCall, struct {
+		value interface{}
+	}{value})
+	fake.recordInvocation("BindPFlags", []interface{}{value})
+	fake.bindPFlagsMutex.Unlock()
+	if fake.BindPFlagsStub != nil {
+		return fake.BindPFlagsStub(value)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fake.bindPFlagsReturns.result1
+}
+
+func (fake *FakeEnvironment) BindPFlagsCallCount() int {
+	fake.bindPFlagsMutex.RLock()
+	defer fake.bindPFlagsMutex.RUnlock()
+	return len(fake.bindPFlagsArgsForCall)
+}
+
+func (fake *FakeEnvironment) BindPFlagsArgsForCall(i int) interface{} {
+	fake.bindPFlagsMutex.RLock()
+	defer fake.bindPFlagsMutex.RUnlock()
+	return fake.bindPFlagsArgsForCall[i].value
+}
+
+func (fake *FakeEnvironment) BindPFlagsReturns(result1 error) {
+	fake.BindPFlagsStub = nil
+	fake.bindPFlagsReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeEnvironment) BindPFlagsReturnsOnCall(i int, result1 error) {
+	fake.BindPFlagsStub = nil
+	if fake.bindPFlagsReturnsOnCall == nil {
+		fake.bindPFlagsReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.bindPFlagsReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeEnvironment) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -221,6 +280,8 @@ func (fake *FakeEnvironment) Invocations() map[string][][]interface{} {
 	defer fake.setMutex.RUnlock()
 	fake.unmarshalMutex.RLock()
 	defer fake.unmarshalMutex.RUnlock()
+	fake.bindPFlagsMutex.RLock()
+	defer fake.bindPFlagsMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value
@@ -240,4 +301,4 @@ func (fake *FakeEnvironment) recordInvocation(key string, args []interface{}) {
 	fake.invocations[key] = append(fake.invocations[key], args)
 }
 
-var _ server.Environment = new(FakeEnvironment)
+var _ config.Environment = new(FakeEnvironment)

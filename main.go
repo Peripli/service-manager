@@ -6,22 +6,29 @@ import (
 	"os"
 	"os/signal"
 
+	"fmt"
+
 	"github.com/Peripli/service-manager/cf"
-	"github.com/Peripli/service-manager/server"
+	"github.com/Peripli/service-manager/config"
 	"github.com/Peripli/service-manager/sm"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
 )
+
+func init() {
+	pflag.String("api_token_issuer_url", "alabala", "authz token issuer url")
+}
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	handleInterrupts(ctx, cancel)
 
-	srv, err := sm.New(ctx, cf.NewEnv(server.NewEnv("SM")))
-
+	srv, err := sm.New(ctx, cf.NewEnv(config.NewEnv("SM")))
 	if err != nil {
-		logrus.Fatal("Error creating the server: ", err)
+		panic(fmt.Sprintf("error creating SM server: %s", err))
 	}
+
 	srv.Run(ctx)
 }
 

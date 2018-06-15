@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package server
+package config
 
 import (
 	. "github.com/onsi/ginkgo"
@@ -24,7 +24,7 @@ var _ = Describe("config", func() {
 
 	//var (
 	//	err    error
-	//	config *Config
+	//	config *Settings
 	//)
 
 	//Describe("Validate", func() {
@@ -81,7 +81,7 @@ var _ = Describe("config", func() {
 	//		})
 	//	})
 	//
-	//	Context("when DB URI is missing", func() {
+	//	Context("when Storage URI is missing", func() {
 	//		It("returns an error", func() {
 	//			config.DbURI = ""
 	//			assertErrorDuringValidate()
@@ -90,7 +90,7 @@ var _ = Describe("config", func() {
 	//
 	//})
 	//
-	//Describe("New Configuration", func() {
+	//Describe("New Settings", func() {
 	//
 	//	var (
 	//		fakeEnv       *smfakes.FakeEnvironment
@@ -98,7 +98,7 @@ var _ = Describe("config", func() {
 	//	)
 	//
 	//	assertErrorDuringNewConfiguration := func() {
-	//		_, err := NewConfig(fakeEnv)
+	//		_, err := New(fakeEnv)
 	//		Expect(err).To(HaveOccurred())
 	//	}
 	//
@@ -128,24 +128,24 @@ var _ = Describe("config", func() {
 	//			settings Settings
 	//
 	//			envSettings = Settings{
-	//				Server: &AppSettings{
+	//				Server: &Settings{
 	//					Port:            8080,
 	//					ShutdownTimeout: 5000,
 	//					RequestTimeout:  5000,
 	//				},
-	//				Db: &DbSettings{
+	//				Db: &StorageSettings{
 	//					URI: "dbUri",
 	//				},
-	//				Log: &LogSettings{
+	//				Log: &LoggingSettings{
 	//					Format: "text",
 	//					Level:  "debug",
 	//				},
 	//			}
 	//
 	//			emptySettings = Settings{
-	//				Server: &AppSettings{},
-	//				Db:     &DbSettings{},
-	//				Log:    &LogSettings{},
+	//				Server: &Settings{},
+	//				Db:     &StorageSettings{},
+	//				Log:    &LoggingSettings{},
 	//			}
 	//		)
 	//
@@ -172,7 +172,7 @@ var _ = Describe("config", func() {
 	//			})
 	//
 	//			Specify("the environment values are used", func() {
-	//				c, err := NewConfig(fakeEnv)
+	//				c, err := New(fakeEnv)
 	//
 	//				Expect(err).To(Not(HaveOccurred()))
 	//				assertEnvironmentLoadedAndUnmarshaled()
@@ -194,7 +194,7 @@ var _ = Describe("config", func() {
 	//			})
 	//
 	//			Specify("the default value is used", func() {
-	//				c, err := NewConfig(fakeEnv)
+	//				c, err := New(fakeEnv)
 	//				Expect(err).To(Not(HaveOccurred()))
 	//
 	//				assertEnvironmentLoadedAndUnmarshaled()
