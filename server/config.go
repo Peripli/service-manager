@@ -25,7 +25,7 @@ import (
 
 func init() {
 	pflag.String("db_uri", "", "Database URI used to connect to SM DB")
-	IntroducePFlags(Config{})
+	//IntroducePFlags(Config{})
 }
 
 // AppSettings type to be loaded from the environment

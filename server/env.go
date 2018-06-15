@@ -28,7 +28,10 @@ import (
 )
 
 func init() {
-	IntroducePFlags(struct{ File }{File: File{}})
+	pflag.String("file_name", "application", "The name of the config file")
+	pflag.String("file_location", ".", "The location of the config file")
+	pflag.String("file_format", "yml", "The format of the config file")
+
 }
 
 // Environment represents an abstraction over the environment from which Service Manager configuration will be loaded
@@ -45,6 +48,10 @@ type File struct {
 	Name     string
 	Location string
 	Format   string
+}
+
+type Cfg struct {
+	File File
 }
 
 type viperEnv struct {
@@ -72,16 +79,16 @@ func (v *viperEnv) Load() error {
 		v.Viper.BindPFlag(bindingName, flag)
 	})
 
-	file := struct{ File }{File: File{}}
-	if err := v.Unmarshal(&file); err != nil {
-		return fmt.Errorf("could not find configuration file: %s", err)
+	cfg := Cfg{}
+	if err := v.Unmarshal(&cfg); err != nil {
+		return fmt.Errorf("could not find configuration cfg: %s", err)
 	}
 
-	v.Viper.AddConfigPath(file.Location)
-	v.Viper.SetConfigName(file.Name)
-	v.Viper.SetConfigType(file.Format)
+	v.Viper.AddConfigPath(cfg.File.Location)
+	v.Viper.SetConfigName(cfg.File.Name)
+	v.Viper.SetConfigType(cfg.File.Format)
 	if err := v.Viper.ReadInConfig(); err != nil {
-		return fmt.Errorf("could not read configuration file: %s", err)
+		return fmt.Errorf("could not read configuration cfg: %s", err)
 	}
 
 	return nil
