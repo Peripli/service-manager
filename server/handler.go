@@ -63,7 +63,7 @@ func readRequest(request *http.Request) (*filter.Request, error) {
 
 	var body []byte
 	var err error
-	if request.Method == "PUT" || request.Method == "POST" {
+	if request.Method == "PUT" || request.Method == "POST" || request.Method == "PATCH" {
 		body, err = readBody(request)
 	}
 

@@ -17,9 +17,7 @@
 package osb
 
 import (
-	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage/storagefakes"
-	"github.com/gorilla/mux"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -40,14 +38,13 @@ var _ = Describe("Controller", func() {
 
 		})
 
-		It("returns one valid OSB endpoint with router as handler", func() {
+		It("returns routes for all valid OSB endpoints", func() {
 			routes := controller.Routes()
-			Expect(len(routes)).To(Equal(1))
+			Expect(len(routes)).To(Equal(5))
 
-			route := routes[0]
-			Expect(route.Handler).To(BeAssignableToTypeOf(mux.NewRouter()))
-			Expect(route.Endpoint.Path).To(ContainSubstring("/osb"))
-			Expect(route.Endpoint.Method).To(Equal(rest.AllMethods))
+			// route := routes[0]
+			// Expect(route.Endpoint.Path).To(ContainSubstring("/osb"))
+			// Expect(route.Endpoint.Method).To(Equal(rest.AllMethods))
 		})
 	})
 })

@@ -20,6 +20,7 @@ package osb
 import (
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -76,7 +77,10 @@ func (c *Controller) Routes() []rest.Route {
 }
 
 func (c *Controller) handler(request *filter.Request) (*filter.Response, error) {
-	broker := c.newBrokerClient(request)
+	broker, err := c.newBrokerClient(request)
+	if err != nil {
+		return nil, err
+	}
 	target, _ := url.Parse(broker.BrokerURL)
 
 	reverseProxy := httputil.ReverseProxy{
@@ -86,10 +90,10 @@ func (c *Controller) handler(request *filter.Request) (*filter.Response, error) 
 	}
 
 	modifiedRequest := request.Request.WithContext(request.Context())
-	fmt.Println(">>>>", broker.Credentials.Basic)
 	modifiedRequest.Header.Add("Authorization", basicAuth(broker.Credentials.Basic))
 	modifiedRequest.URL.Scheme = target.Scheme
 	modifiedRequest.URL.Host = target.Host
+
 	m := osbPattern.FindStringSubmatch(request.URL.Path)
 	if m == nil || len(m) < 2 {
 		return nil, fmt.Errorf("Could not get OSB path from URL %s", request.URL.Path)
@@ -105,7 +109,9 @@ func (c *Controller) handler(request *filter.Request) (*filter.Response, error) 
 	if err != nil {
 		return nil, err
 	}
+
 	headers := recorder.HeaderMap
+	headers.Set("Content-Type", "application/json")
 	resp := &filter.Response{
 		StatusCode: recorder.Code,
 		Body:       body,
@@ -120,26 +126,25 @@ func basicAuth(credentials *types.Basic) string {
 		[]byte(credentials.Username+":"+credentials.Password))
 }
 
-func (c *Controller) newBrokerClient(request *filter.Request) *types.Broker {
-	brokerId := request.PathParams[BrokerIDPathParam]
-	broker, _ := c.BrokerStorage.Get(brokerId)
-	return broker
+func (c *Controller) newBrokerClient(request *filter.Request) (*types.Broker, error) {
+	brokerID, ok := request.PathParams[BrokerIDPathParam]
+	if !ok {
+		logrus.Debugf("error creating OSB client: brokerID path parameter not found")
+		return nil, types.NewErrorResponse(errors.New("Invalid broker id path parameter"), http.StatusBadRequest, "BadRequest")
+	}
+	logrus.Debugf("Obtained path parameter [brokerID = %s] from path params", brokerID)
+
+	serviceBroker, err := c.BrokerStorage.Get(brokerID)
+	if err == storage.ErrNotFound {
+		logrus.Debugf("service broker with id %s not found", brokerID)
+		return nil, types.NewErrorResponse(fmt.Errorf("Could not find broker with id: %s", brokerID), http.StatusNotFound, "NotFound")
+	} else if err != nil {
+		logrus.Errorf("error obtaining serviceBroker with id %s from storage: %s", brokerID, err)
+		return nil, fmt.Errorf("Internal Server Error")
+	}
+
+	return serviceBroker, nil
 }
-
-// func (c *Controller) osbHandler() http.Handler {
-// 	businessLogic := NewBusinessLogic(osbc.NewClient, c.BrokerStorage)
-
-// 	reg := prom.NewRegistry()
-// 	osbMetrics := metrics.New()
-// 	reg.MustRegister(osbMetrics)
-
-// 	api, err := osbrest.NewAPISurface(businessLogic, osbMetrics)
-// 	if err != nil {
-// 		logrus.Fatalf("Error creating OSB API surface: %s", err)
-// 	}
-
-// 	return server.NewHTTPHandler(api)
-// }
 
 func singleJoiningSlash(a, b string) string {
 	aslash := strings.HasSuffix(a, "/")

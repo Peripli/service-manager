@@ -318,7 +318,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		})
 
 		Context("for brokern broker", func() {
-			It("should return error", func() {
+			FIt("should return error", func() {
 				assertBadBrokerError(
 					SM.DELETE("/v1/osb/"+failingBrokerID+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "2.13").
 						WithQueryObject(getDummyService()))
@@ -332,13 +332,12 @@ var _ = Describe("Service Manager OSB API", func() {
 						WithQueryObject(getDummyService()))
 			})
 		})
-
-		Context("when call to working broker with missing mandatory body fields", func() {
-			It("Unbind fails", func() {
-				url := "/v1/osb/" + validBrokerID + "/v2/service_instances/iid/service_bindings/bid"
-				requestWithMissingIDsInQuery(SM.DELETE, url, "service_id", "serviceID")
-				requestWithMissingIDsInQuery(SM.DELETE, url, "plan_id", "planID")
-			})
-		})
+		// Context("when call to working broker with missing mandatory body fields", func() {
+		// 	It("Unbind fails", func() {
+		// 		url := "/v1/osb/" + validBrokerID + "/v2/service_instances/iid/service_bindings/bid"
+		// 		requestWithMissingIDsInQuery(SM.DELETE, url, "service_id", "serviceID")
+		// 		requestWithMissingIDsInQuery(SM.DELETE, url, "plan_id", "planID")
+		// 	})
+		// })
 	})
 })
