@@ -28,7 +28,6 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"regexp"
-	"strings"
 
 	"github.com/Peripli/service-manager/pkg/filter"
 	"github.com/Peripli/service-manager/rest"
@@ -77,7 +76,7 @@ func (c *Controller) Routes() []rest.Route {
 }
 
 func (c *Controller) handler(request *filter.Request) (*filter.Response, error) {
-	broker, err := c.newBrokerClient(request)
+	broker, err := c.fetchBroker(request)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +110,6 @@ func (c *Controller) handler(request *filter.Request) (*filter.Response, error) 
 	}
 
 	headers := recorder.HeaderMap
-	headers.Set("Content-Type", "application/json")
 	resp := &filter.Response{
 		StatusCode: recorder.Code,
 		Body:       body,
@@ -126,7 +124,7 @@ func basicAuth(credentials *types.Basic) string {
 		[]byte(credentials.Username+":"+credentials.Password))
 }
 
-func (c *Controller) newBrokerClient(request *filter.Request) (*types.Broker, error) {
+func (c *Controller) fetchBroker(request *filter.Request) (*types.Broker, error) {
 	brokerID, ok := request.PathParams[BrokerIDPathParam]
 	if !ok {
 		logrus.Debugf("error creating OSB client: brokerID path parameter not found")
@@ -144,16 +142,4 @@ func (c *Controller) newBrokerClient(request *filter.Request) (*types.Broker, er
 	}
 
 	return serviceBroker, nil
-}
-
-func singleJoiningSlash(a, b string) string {
-	aslash := strings.HasSuffix(a, "/")
-	bslash := strings.HasPrefix(b, "/")
-	switch {
-	case aslash && bslash:
-		return a + b[1:]
-	case !aslash && !bslash:
-		return a + "/" + b
-	}
-	return a + b
 }
