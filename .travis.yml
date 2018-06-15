@@ -24,7 +24,7 @@ script:
   - gometalinter --vendor ./...
 
   # Execute tests and generate coverage for all the packages except fakes and tests
-  - go test ./... -coverpkg $(go list ./... | egrep -v "fakes|test" | paste -sd "," -) -coverprofile=profile.cov
+  - go test ./... -p 1 -coverpkg $(go list ./... | egrep -v "fakes|test" | paste -sd "," -) -coverprofile=profile.cov
   - goveralls -coverprofile profile.cov -service=travis-ci
 
   #Execute security scan
