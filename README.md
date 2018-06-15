@@ -10,38 +10,36 @@ Service Manager is a central registry for service brokers and platforms registra
 
 ## Setup Service Manager Components
 
-### Deploy Service Manager
+The overall setup of the solution consist of a single installation of Service Manager component and one or more Service Broker Proxy components that runs on each one of the registered platforms.
+For more information check the [specification page](https://github.com/Peripli/specification#how-it-works).
 
-Currently the Service Manager can be deployed on CF or on Kubernetes.
+### Run the Service Manager
+
+Currently the Service Manager can be run on CF or on Kubernetes.
 
 For more information see:
 
-* [Deploy to CF](deployment/cf/README.md)
-* [Deploy to Kubernetes](deployment/k8s/README.md)
+* [Run to CF](deployment/cf/README.md)
+* [Run to Kubernetes](deployment/k8s/README.md)
 
-After the deployment you need to have the Service Manager url.
+As a result of this step you will get a url address of the running Service Manager component.
 
-For CF/PCF Dev you can get the url with the `cf app <service-manager-app-name>` command. For example, if your *service-manager-app-name* is *service-manager* the command will be:
+### Run the Service Broker Proxies
 
-```sh
-cf app service-manager
-```
+Follow the links to get details how to run Service Broker Proxy component on CF or Kubernetes.
 
-### Deploy Service Broker Proxies
+* [Run Service Broker Proxy on CF](https://github.com/Peripli/service-broker-proxy-cf)
+* [Run Service Broker Proxy on Kubernetes](https://github.com/Peripli/service-broker-proxy-k8s)
 
-In order to consume services from the Service Manager you need to have a proxy deployed in your platform instance.
-For proxies to work they need to be able to access the [deployed Service Manager](#deploy-service-manager).
-
-* [Deploy the Service Broker Proxy on CF](https://github.com/Peripli/service-broker-proxy-cf)
-* [Deploy the Service Broker Proxy on Kubernetes](https://github.com/Peripli/service-broker-proxy-k8s)
+You need to make sure that the Service Manager is visible from the Service Broker Proxies.
 
 ### Install smctl
 
-In order to work with the Service Manager you can install the [command line tools](https://github.com/Peripli/service-manager-cli)
+You need to install the [command line tools](https://github.com/Peripli/service-manager-cli) and login to the Service Manager using the `smctl login` command.
 
 ### Test the setup
 
-If you deployed the Service Manager, smctl and at least one proxy you can register an OSB compliant broker using the *smctl register-broker* command.
+If you deployed the Service Manager, smctl and at least one Service Broker Proxy you can register an OSB compliant broker using the *smctl register-broker* command.
 
 ```sh
 smctl register-broker <broker_name> <broker_url> <description>
