@@ -18,18 +18,22 @@
 package osb
 
 import (
+	"bytes"
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
 	"net/url"
+	"regexp"
 	"strings"
 
 	"github.com/Peripli/service-manager/pkg/filter"
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/types"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -43,9 +47,15 @@ const (
 	//BrokerIDPathParam is a service broker ID path parameter
 	BrokerIDPathParam = "brokerID"
 
-	// path is the OSB API controller path
-	path = v1 + root + "/{" + BrokerIDPathParam + "}"
+	// baseURL is the OSB API controller path
+	baseURL = v1 + root + "/{" + BrokerIDPathParam + "}"
+
+	catalogURL         = baseURL + "/v2/catalog"
+	serviceInstanceURL = baseURL + "/v2/service_instances/{instance_id}"
+	serviceBindingURL  = baseURL + "/v2/service_instances/{instance_id}/service_bindings/{binding_id}"
 )
+
+var osbPattern = regexp.MustCompile("^" + v1 + root + "/[^/]+(/.*)$")
 
 // Controller implements rest.Controller by providing OSB API logic
 type Controller struct {
@@ -57,34 +67,38 @@ var _ rest.Controller = &Controller{}
 // Routes implements rest.Controller.Routes by providing the routes for the OSB API
 func (c *Controller) Routes() []rest.Route {
 	return []rest.Route{
-		{
-			Endpoint: rest.Endpoint{
-				Method: rest.AllMethods,
-				Path:   path,
-			},
-			Handler: c.testHandler,
-		},
+		{rest.Endpoint{"GET", catalogURL}, c.handler},
+		{rest.Endpoint{"PUT", serviceInstanceURL}, c.handler},
+		{rest.Endpoint{"DELETE", serviceInstanceURL}, c.handler},
+		{rest.Endpoint{"PUT", serviceBindingURL}, c.handler},
+		{rest.Endpoint{"DELETE", serviceBindingURL}, c.handler},
 	}
 }
 
-func (c *Controller) testHandler(request *filter.Request) (*filter.Response, error) {
-	reverseProxy := &httputil.ReverseProxy{
-		Director: func(req *http.Request) {
+func (c *Controller) handler(request *filter.Request) (*filter.Response, error) {
+	broker := c.newBrokerClient(request)
+	target, _ := url.Parse(broker.BrokerURL)
 
+	reverseProxy := httputil.ReverseProxy{
+		Director: func(req *http.Request) {
+			req.Header.Set("Host", target.Host)
 		},
 	}
 
-	client := c.newBrokerClient(request)
-	target, _ := url.Parse(client.BrokerURL)
 	modifiedRequest := request.Request.WithContext(request.Context())
-	modifiedRequest.Header.Add("X-Broker-Api-Version", "2.13")
+	fmt.Println(">>>>", broker.Credentials.Basic)
+	modifiedRequest.Header.Add("Authorization", basicAuth(broker.Credentials.Basic))
 	modifiedRequest.URL.Scheme = target.Scheme
 	modifiedRequest.URL.Host = target.Host
-	modifiedRequest.URL.Path = "/v2/catalog"
-	// modifiedRequest.URL.Path = singleJoiningSlash(target.Path, modifiedRequest.URL.Path)
+	m := osbPattern.FindStringSubmatch(request.URL.Path)
+	if m == nil || len(m) < 2 {
+		return nil, fmt.Errorf("Could not get OSB path from URL %s", request.URL.Path)
+	}
+	modifiedRequest.URL.Path = m[1]
 
-	fmt.Println(">>>>>>", modifiedRequest.URL)
+	logrus.Debugf("Forwarding OSB request to %s", modifiedRequest.URL)
 	recorder := httptest.NewRecorder()
+	modifiedRequest.Body = ioutil.NopCloser(bytes.NewReader(request.Body))
 	reverseProxy.ServeHTTP(recorder, modifiedRequest)
 
 	body, err := ioutil.ReadAll(recorder.Body)
@@ -97,8 +111,13 @@ func (c *Controller) testHandler(request *filter.Request) (*filter.Response, err
 		Body:       body,
 		Header:     headers,
 	}
-
+	logrus.Debugf("Service broker replied with status %d", resp.StatusCode)
 	return resp, nil
+}
+
+func basicAuth(credentials *types.Basic) string {
+	return "Basic " + base64.StdEncoding.EncodeToString(
+		[]byte(credentials.Username+":"+credentials.Password))
 }
 
 func (c *Controller) newBrokerClient(request *filter.Request) *types.Broker {
