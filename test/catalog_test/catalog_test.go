@@ -121,17 +121,7 @@ var _ = Describe("Service Manager Aggregated Catalog API", func() {
 
 		Context("when a single broker exists", func() {
 			BeforeEach(func() {
-				testBroker = map[string]interface{}{
-					"name":        "name",
-					"broker_url":  brokerServer.URL(),
-					"description": "description",
-					"credentials": map[string]interface{}{
-						"basic": map[string]interface{}{
-							"username": "buser",
-							"password": "bpass",
-						},
-					},
-				}
+				testBroker = common.MakeBroker("name", brokerServer.URL(), "description")
 			})
 
 			It("returns 200 with a single element broker array and one corresponding service", func() {
@@ -159,23 +149,12 @@ var _ = Describe("Service Manager Aggregated Catalog API", func() {
 		})
 
 		Context("when multiple brokers exist", func() {
-
 			var replies [brokersLen]*httpexpect.Object
 			var ids [brokersLen]string
 
 			BeforeEach(func() {
 				for i := 0; i < brokersLen; i++ {
-					testBrokers[i] = map[string]interface{}{
-						"name":        fmt.Sprintf("name%d", i),
-						"broker_url":  brokerServer.URL(),
-						"description": "description",
-						"credentials": map[string]interface{}{
-							"basic": map[string]interface{}{
-								"username": "buser",
-								"password": "bpass",
-							},
-						},
-					}
+					testBrokers[i] = common.MakeBroker(fmt.Sprintf("name%d", i), brokerServer.URL(), "description")
 				}
 			})
 
