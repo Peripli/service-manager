@@ -26,6 +26,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
+	"fmt"
 )
 
 func TestBrokers(t *testing.T) {
@@ -35,6 +36,7 @@ func TestBrokers(t *testing.T) {
 
 var _ = Describe("Service Manager Aggregated Catalog API", func() {
 
+	const brokersLen = 3
 	const catalog = `{
   "services": [
     {
@@ -75,6 +77,7 @@ var _ = Describe("Service Manager Aggregated Catalog API", func() {
 		brokerServer         *ghttp.Server
 
 		testBroker     map[string]interface{}
+		testBrokers    [brokersLen]map[string]interface{}
 
 		catalogResponse []byte
 		code            int
@@ -97,19 +100,6 @@ var _ = Describe("Service Manager Aggregated Catalog API", func() {
 		code = http.StatusOK
 		catalogResponse = []byte(catalog)
 		brokerServer = common.FakeBrokerServer(&code, &catalogResponse)
-
-		testBroker = map[string]interface{}{
-			"name":        "name",
-			"broker_url":  brokerServer.URL(),
-			"description": "description",
-			"credentials": map[string]interface{}{
-				"basic": map[string]interface{}{
-					"username": "buser",
-					"password": "bpass",
-				},
-			},
-		}
-
 		common.RemoveAllBrokers(SM)
 	})
 
@@ -130,6 +120,20 @@ var _ = Describe("Service Manager Aggregated Catalog API", func() {
 		})
 
 		Context("when a single broker exists", func() {
+			BeforeEach(func() {
+				testBroker = map[string]interface{}{
+					"name":        "name",
+					"broker_url":  brokerServer.URL(),
+					"description": "description",
+					"credentials": map[string]interface{}{
+						"basic": map[string]interface{}{
+							"username": "buser",
+							"password": "bpass",
+						},
+					},
+				}
+			})
+
 			It("returns 200 with a single element broker array and one corresponding service", func() {
 				reply := SM.POST("/v1/service_brokers").WithJSON(testBroker).
 					Expect().
@@ -155,15 +159,65 @@ var _ = Describe("Service Manager Aggregated Catalog API", func() {
 		})
 
 		Context("when multiple brokers exist", func() {
-			It("returns 200 with multiple element broker array with a single service each", func() {
-				/*
-				reply := SM.POST("/v1/service_brokers").WithJSON(testBroker).
-					Expect().
-					JSON().Object()
 
-				id := reply.Value("id").String().Raw()
+			var replies [brokersLen]*httpexpect.Object
+			var ids [brokersLen]string
+
+			BeforeEach(func() {
+				for i := 0; i < brokersLen; i++ {
+					testBrokers[i] = map[string]interface{}{
+						"name":        fmt.Sprintf("name%d", i),
+						"broker_url":  brokerServer.URL(),
+						"description": "description",
+						"credentials": map[string]interface{}{
+							"basic": map[string]interface{}{
+								"username": "buser",
+								"password": "bpass",
+							},
+						},
+					}
+				}
+			})
+
+			It("returns 200 with multiple element broker array with a single service each", func() {
+				for i := 0; i < brokersLen; i++ {
+					replies[i] = SM.POST("/v1/service_brokers").WithJSON(testBrokers[i]).
+						Expect().
+						JSON().Object()
+					ids[i] = replies[i].Value("id").String().Raw()
+				}
 
 				obj := SM.GET("/v1/sm_catalog").
+					Expect().
+					Status(http.StatusOK).
+					JSON().Object()
+
+				obj.Keys().ContainsOnly("brokers")
+
+				catalogBrokers := obj.Value("brokers").Array()
+				catalogBrokers.Length().Equal(brokersLen)
+
+				brokers := catalogBrokers.Iter()
+				for i := 0; i < brokersLen; i++ {
+					brokerObj := brokers[i].Object()
+					Expect(ids).To(ContainElement(brokerObj.Value("id").String().Raw()))
+
+					brokerCatalog := brokerObj.Value("catalog").Object()
+					brokerCatalog.Value("services").Array().Length().Equal(1)
+
+				}
+			})
+
+			It("returns 200 with single broker array when broker_id query param is provided", func() {
+				for i := 0; i < brokersLen; i++ {
+					replies[i] = SM.POST("/v1/service_brokers").WithJSON(testBrokers[i]).
+						Expect().
+						JSON().Object()
+					ids[i] = replies[i].Value("id").String().Raw()
+				}
+
+				obj := SM.GET("/v1/sm_catalog").
+					WithQuery("broker_id", ids[0]).
 					Expect().
 					Status(http.StatusOK).
 					JSON().Object()
@@ -174,10 +228,10 @@ var _ = Describe("Service Manager Aggregated Catalog API", func() {
 				catalogBrokers.Length().Equal(1)
 
 				broker := catalogBrokers.First().Object()
-				broker.Value("id").Equal(id)
+				broker.Value("id").Equal(ids[0])
+
 				brokerCatalog := broker.Value("catalog").Object()
 				brokerCatalog.Value("services").Array().Length().Equal(1)
-				*/
 			})
 		})
 
