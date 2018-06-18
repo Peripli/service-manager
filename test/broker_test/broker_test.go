@@ -54,7 +54,7 @@ var _ = Describe("Service Manager Broker API", func() {
 	BeforeSuite(func() {
 		os.Chdir("../..")
 
-		serviceManagerServer = httptest.NewServer(common.GetServerRouter())
+		serviceManagerServer = httptest.NewServer(common.GetServerRouter(nil))
 		SM = httpexpect.New(GinkgoT(), serviceManagerServer.URL)
 	})
 

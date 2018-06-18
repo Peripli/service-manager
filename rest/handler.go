@@ -10,7 +10,6 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/Peripli/service-manager/pkg/filter"
-	"github.com/Peripli/service-manager/types"
 	"github.com/gorilla/mux"
 )
 
@@ -75,7 +74,7 @@ func readRequest(request *http.Request) (*filter.Request, error) {
 func readBody(request *http.Request) ([]byte, error) {
 	contentType := request.Header.Get("Content-Type")
 	if !strings.Contains(contentType, "application/json") {
-		return nil, types.NewErrorResponse(errors.New("Invalid media type provided"),
+		return nil, filter.NewErrorResponse(errors.New("Invalid media type provided"),
 			http.StatusUnsupportedMediaType, "InvalidMediaType")
 	}
 	body, err := ioutil.ReadAll(request.Body)
@@ -83,7 +82,7 @@ func readBody(request *http.Request) ([]byte, error) {
 		return nil, err
 	}
 	if !json.Valid(body) {
-		return nil, types.NewErrorResponse(errors.New("Request body is not valid JSON"),
+		return nil, filter.NewErrorResponse(errors.New("Request body is not valid JSON"),
 			http.StatusBadRequest, "BadRequest")
 	}
 

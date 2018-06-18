@@ -62,7 +62,7 @@ func (c *Controller) createPlatform(request *filter.Request) (*filter.Response, 
 		return nil, errDecode
 	}
 	if errMandatoryProperties := checkPlatformMandatoryProperties(platform); errMandatoryProperties != nil {
-		return nil, types.NewErrorResponse(errMandatoryProperties, http.StatusBadRequest, "BadRequest")
+		return nil, filter.NewErrorResponse(errMandatoryProperties, http.StatusBadRequest, "BadRequest")
 	}
 	if platform.ID == "" {
 		uuid, err := uuid.NewV4()

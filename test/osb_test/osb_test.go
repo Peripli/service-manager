@@ -16,7 +16,6 @@
 package osb_test
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -25,64 +24,11 @@ import (
 
 	"github.com/Peripli/service-manager/test/common"
 	"github.com/gavv/httpexpect"
-	"github.com/gorilla/mux"
 
 	. "github.com/onsi/ginkgo"
 )
 
 type object = common.Object
-
-func setResponse(rw http.ResponseWriter, status int, message string) {
-	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(status)
-	rw.Write([]byte(message))
-}
-
-func createValidBrokerRouter() *mux.Router {
-	router := mux.NewRouter()
-
-	router.HandleFunc("/v2/catalog", func(rw http.ResponseWriter, req *http.Request) {
-		setResponse(rw, http.StatusOK, `{"services": []}`)
-	})
-
-	router.HandleFunc("/v2/service_instances/{instance_id}", func(rw http.ResponseWriter, req *http.Request) {
-		setResponse(rw, http.StatusCreated, "{}")
-	}).Methods("PUT")
-
-	router.HandleFunc("/v2/service_instances/{instance_id}", func(rw http.ResponseWriter, req *http.Request) {
-		setResponse(rw, http.StatusOK, "{}")
-	}).Methods("DELETE")
-
-	router.HandleFunc("/v2/service_instances/{instance_id}/service_bindings/{binding_id}", func(rw http.ResponseWriter, req *http.Request) {
-		response := fmt.Sprintf(`{"credentials": {"instance_id": "%s" , "binding_id": "%s"}}`, mux.Vars(req)["instance_id"], mux.Vars(req)["binding_id"])
-		setResponse(rw, http.StatusCreated, response)
-	}).Methods("PUT")
-
-	router.HandleFunc("/v2/service_instances/{instance_id}/service_bindings/{binding_id}", func(rw http.ResponseWriter, req *http.Request) {
-		setResponse(rw, http.StatusOK, "{}")
-	}).Methods("DELETE")
-
-	return router
-}
-
-func createFailingBrokerRouter() *mux.Router {
-	router := mux.NewRouter()
-	router.HandleFunc("/v2/catalog", func(rw http.ResponseWriter, req *http.Request) {
-		setResponse(rw, http.StatusOK, `{"services": [{ "name":"sv1" }]}`)
-	})
-	router.PathPrefix("/").HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		setResponse(rw, http.StatusNotAcceptable, `{"description": "expected error"}`)
-	})
-
-	return router
-}
-
-func registerBroker(brokerJSON object, SM *httpexpect.Expect) string {
-	reply := SM.POST("/v1/service_brokers").
-		WithJSON(brokerJSON).
-		Expect().Status(http.StatusCreated).JSON().Object()
-	return reply.Value("id").String().Raw()
-}
 
 func assertBadBrokerError(req *httpexpect.Request) {
 	body := req.Expect().Status(http.StatusNotAcceptable).JSON().Object()
@@ -150,18 +96,18 @@ var _ = Describe("Service Manager OSB API", func() {
 	)
 
 	BeforeSuite(func() {
-		testServer = httptest.NewServer(common.GetServerRouter())
+		testServer = httptest.NewServer(common.GetServerRouter(nil))
 		SM = httpexpect.New(GinkgoT(), testServer.URL)
 		common.RemoveAllBrokers(SM)
 
-		validServer := httptest.NewServer(createValidBrokerRouter())
-		failingBrokerServer := httptest.NewServer(createFailingBrokerRouter())
+		validServer := httptest.NewServer(common.NewValidBrokerRouter())
+		failingBrokerServer := httptest.NewServer(common.NewFailingBrokerRouter())
 
 		validBrokerJSON := common.MakeBroker("broker1", validServer.URL, "")
 		failingBrokerJSON := common.MakeBroker("broker2", failingBrokerServer.URL, "")
 
-		validBrokerID = registerBroker(validBrokerJSON, SM)
-		failingBrokerID = registerBroker(failingBrokerJSON, SM)
+		validBrokerID = common.RegisterBroker(validBrokerJSON, SM)
+		failingBrokerID = common.RegisterBroker(failingBrokerJSON, SM)
 	})
 
 	AfterSuite(func() {

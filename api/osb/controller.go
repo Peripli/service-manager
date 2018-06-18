@@ -129,14 +129,14 @@ func (c *Controller) fetchBroker(request *filter.Request) (*types.Broker, error)
 	brokerID, ok := request.PathParams[BrokerIDPathParam]
 	if !ok {
 		logrus.Debugf("error creating OSB client: brokerID path parameter not found")
-		return nil, types.NewErrorResponse(errors.New("Invalid broker id path parameter"), http.StatusBadRequest, "BadRequest")
+		return nil, filter.NewErrorResponse(errors.New("Invalid broker id path parameter"), http.StatusBadRequest, "BadRequest")
 	}
 	logrus.Debugf("Obtained path parameter [brokerID = %s] from path params", brokerID)
 
 	serviceBroker, err := c.BrokerStorage.Get(brokerID)
 	if err == storage.ErrNotFound {
 		logrus.Debugf("service broker with id %s not found", brokerID)
-		return nil, types.NewErrorResponse(fmt.Errorf("Could not find broker with id: %s", brokerID), http.StatusNotFound, "NotFound")
+		return nil, filter.NewErrorResponse(fmt.Errorf("Could not find broker with id: %s", brokerID), http.StatusNotFound, "NotFound")
 	} else if err != nil {
 		logrus.Errorf("error obtaining serviceBroker with id %s from storage: %s", brokerID, err)
 		return nil, fmt.Errorf("Internal Server Error")

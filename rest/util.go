@@ -22,7 +22,6 @@ import (
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/filter"
-	"github.com/Peripli/service-manager/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -51,7 +50,7 @@ func ReadJSONBody(request *filter.Request, value interface{}) error {
 	err := json.Unmarshal(request.Body, value)
 	if err != nil {
 		logrus.Debug(err)
-		return types.NewErrorResponse(errors.New("Failed to decode request body"), http.StatusBadRequest, "BadRequest")
+		return filter.NewErrorResponse(errors.New("Failed to decode request body"), http.StatusBadRequest, "BadRequest")
 	}
 	return nil
 }

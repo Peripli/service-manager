@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package types
+package filter
 
 // ErrorResponse struct used to store information about error
 type ErrorResponse struct {
@@ -28,7 +28,7 @@ func (errorResponse *ErrorResponse) Error() string {
 	return errorResponse.Description
 }
 
-// NewErrorResponse create types.ErrorResponse object
+// NewErrorResponse creates ErrorResponse object
 func NewErrorResponse(err error, statusCode int, errorType string) *ErrorResponse {
 	return &ErrorResponse{
 		ErrorType:   errorType,

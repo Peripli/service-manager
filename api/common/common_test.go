@@ -20,7 +20,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Peripli/service-manager/types"
+	"github.com/Peripli/service-manager/pkg/filter"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -48,8 +48,8 @@ var _ = Describe("api/common", func() {
 		Context("with ResponseErrors", func() {
 			It("should return the first ResponseError", func() {
 				err1 := errors.New("1")
-				err2 := types.NewErrorResponse(errors.New("2"), 200, "Err")
-				err3 := types.NewErrorResponse(errors.New("3"), 500, "Err")
+				err2 := filter.NewErrorResponse(errors.New("2"), 200, "Err")
+				err3 := filter.NewErrorResponse(errors.New("3"), 500, "Err")
 				Expect(CheckErrors(err1, err2, err3).Error()).To(Equal("2"))
 			})
 		})

@@ -1,0 +1,54 @@
+package osb_test
+
+import (
+	"fmt"
+	"os"
+	"testing"
+
+	. "github.com/onsi/ginkgo"
+)
+
+func TestDescribe(t *testing.T) {
+	os.Chdir("../..")
+	RunSpecs(t, "Test Describe")
+}
+
+var _ = Describe("ServicefgdfgdfgdfI", func() {
+	Describe("Nested Describe", func() {
+
+		BeforeEach(func() {
+			// API
+			// start SM
+			fmt.Println("BeforeEach 1")
+		})
+		AfterEach(func() {
+			// stop SM
+			fmt.Println("AfterEach 1")
+		})
+
+		It("Test case 1", func() {
+			fmt.Println("Test case 1")
+		})
+		It("Test case 2", func() {
+			fmt.Println("Test case 2")
+		})
+
+	})
+
+	Describe("Nested Describe 2", func() {
+
+		BeforeEach(func() {
+			fmt.Println("BeforeEach 2")
+		})
+		AfterEach(func() {
+			fmt.Println("AfterEach 2")
+		})
+
+		It("Test case 3", func() {
+			fmt.Println("Test case 3")
+		})
+		It("Test case 4", func() {
+			fmt.Println("Test case 4")
+		})
+	})
+})

@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Peripli/service-manager/types"
+	"github.com/Peripli/service-manager/pkg/filter"
 
 	"github.com/Peripli/service-manager/storage"
 )
@@ -32,7 +32,7 @@ func CheckErrors(errors ...error) error {
 	}
 	for _, err := range errors {
 		if err != nil {
-			_, ok := err.(*types.ErrorResponse)
+			_, ok := err.(*filter.ErrorResponse)
 			if ok {
 				return err
 			}
@@ -44,7 +44,7 @@ func CheckErrors(errors ...error) error {
 // HandleNotFoundError checks if entity is not found
 func HandleNotFoundError(err error, entityName string, entityID string) error {
 	if err == storage.ErrNotFound {
-		return types.NewErrorResponse(
+		return filter.NewErrorResponse(
 			fmt.Errorf("Could not find %s with id %s", entityName, entityID),
 			http.StatusNotFound,
 			"NotFound")
@@ -55,7 +55,7 @@ func HandleNotFoundError(err error, entityName string, entityID string) error {
 // HandleUniqueError checks if entity
 func HandleUniqueError(err error, entityName string) error {
 	if err == storage.ErrUniqueViolation {
-		return types.NewErrorResponse(
+		return filter.NewErrorResponse(
 			fmt.Errorf("Found conflicting %s", entityName),
 			http.StatusConflict,
 			"Conflict")
