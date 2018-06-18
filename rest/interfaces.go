@@ -18,13 +18,8 @@
 package rest
 
 import (
-	"net/http"
-
 	"github.com/Peripli/service-manager/pkg/filter"
 )
-
-// AllMethods matches all REST HTTP Methods
-const AllMethods = "*"
 
 // Controller is an entity that wraps a set of HTTP Routes
 type Controller interface {
@@ -45,13 +40,4 @@ type Route struct {
 type Endpoint struct {
 	Method string
 	Path   string
-}
-
-// APIHandler enriches http.HandlerFunc with an error response for further processing
-type APIHandler func(http.ResponseWriter, *http.Request) error
-
-func (ah APIHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
-	if err := ah(rw, r); err != nil {
-		HandleError(err, rw)
-	}
 }

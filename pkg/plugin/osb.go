@@ -1,37 +1,37 @@
 package plugin
 
-import . "github.com/Peripli/service-manager/pkg/filter"
+import "github.com/Peripli/service-manager/pkg/filter"
 
 // Interfaces for OSB operations
 
 type CatalogFetcher interface {
-	FetchCatalog(req *Request, next Handler) (*Response, error)
+	FetchCatalog(req *filter.Request, next filter.Handler) (*filter.Response, error)
 }
 
 type Provisioner interface {
-	Provision(req *Request, next Handler) (*Response, error)
+	Provision(req *filter.Request, next filter.Handler) (*filter.Response, error)
 }
 
 type Deprovisioner interface {
-	Deprovision(req *Request, next Handler) (*Response, error)
+	Deprovision(req *filter.Request, next filter.Handler) (*filter.Response, error)
 }
 
 type ServiceUpdater interface {
-	UpdateService(req *Request, next Handler) (*Response, error)
+	UpdateService(req *filter.Request, next filter.Handler) (*filter.Response, error)
 }
 
 type ServiceFetcher interface {
-	FetchService(req *Request, next Handler) (*Response, error)
+	FetchService(req *filter.Request, next filter.Handler) (*filter.Response, error)
 }
 
 type Binder interface {
-	Bind(req *Request, next Handler) (*Response, error)
+	Bind(req *filter.Request, next filter.Handler) (*filter.Response, error)
 }
 
 type Unbinder interface {
-	Unbind(req *Request, next Handler) (*Response, error)
+	Unbind(req *filter.Request, next filter.Handler) (*filter.Response, error)
 }
 
 type BindingFetcher interface {
-	FetchBinding(req *Request, next Handler) (*Response, error)
+	FetchBinding(req *filter.Request, next filter.Handler) (*filter.Response, error)
 }

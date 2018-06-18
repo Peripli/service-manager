@@ -1,30 +1,28 @@
-package server
+package rest
 
 import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"net/http"
-	"path"
 	"strings"
 
 	"github.com/sirupsen/logrus"
 
 	"github.com/Peripli/service-manager/pkg/filter"
-	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/types"
 	"github.com/gorilla/mux"
 )
 
-func newHttpHandler(filters []filter.Filter, handler filter.Handler) http.Handler {
+type httpHandler filter.Handler
+
+func NewHTTPHandler(filters []filter.Filter, handler filter.Handler) http.Handler {
 	return httpHandler(chain(filters, handler))
 }
 
-type httpHandler filter.Handler
-
 func (h httpHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	if err := h.serve(res, req); err != nil {
-		rest.HandleError(err, res)
+		HandleError(err, res)
 	}
 }
 
@@ -101,40 +99,4 @@ func chain(filters []filter.Filter, handler filter.Handler) filter.Handler {
 	return func(req *filter.Request) (*filter.Response, error) {
 		return f(req, next)
 	}
-}
-
-func matchFilters(endpoint *rest.Endpoint, filters []filter.Filter) []filter.Filter {
-	matches := []filter.Filter{}
-	for _, filter := range filters {
-		if matchPath(endpoint.Path, filter.PathPattern) &&
-			matchMethod(endpoint.Method, filter.Methods) {
-			matches = append(matches, filter)
-		}
-	}
-	logrus.Debugf("%d filters for endpoint %v", len(matches), endpoint)
-	return matches
-}
-
-func matchPath(endpointPath string, pattern string) bool {
-	if pattern == "" {
-		return true
-	}
-	// TODO: add support for **
-	match, err := path.Match(pattern, endpointPath)
-	if err != nil {
-		logrus.Fatalf("Invalid endpoint path pattern %s: %v", endpointPath, err)
-	}
-	return match
-}
-
-func matchMethod(method string, methods []string) bool {
-	if method == rest.AllMethods || methods == nil {
-		return true
-	}
-	for _, m := range methods {
-		if m == method {
-			return true
-		}
-	}
-	return false
 }
