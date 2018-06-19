@@ -47,6 +47,15 @@ func (api *API) RegisterPlugins(plugins ...plugin.Plugin) {
 				p.FetchCatalog,
 			})
 		}
+		if p, ok := plug.(plugin.ServiceFetcher); ok {
+			api.RegisterFilters(filter.Filter{
+				filter.RequestMatcher{
+					[]string{"GET"},
+					"/v1/osb/*/v2/service_instances/*",
+				},
+				p.FetchService,
+			})
+		}
 		if p, ok := plug.(plugin.Provisioner); ok {
 			api.RegisterFilters(filter.Filter{
 				filter.RequestMatcher{
@@ -56,6 +65,15 @@ func (api *API) RegisterPlugins(plugins ...plugin.Plugin) {
 				p.Provision,
 			})
 		}
+		if p, ok := plug.(plugin.ServiceUpdater); ok {
+			api.RegisterFilters(filter.Filter{
+				filter.RequestMatcher{
+					[]string{"PATCH"},
+					"/v1/osb/*/v2/service_instances/*",
+				},
+				p.UpdateService,
+			})
+		}
 		if p, ok := plug.(plugin.Deprovisioner); ok {
 			api.RegisterFilters(filter.Filter{
 				filter.RequestMatcher{
@@ -63,6 +81,15 @@ func (api *API) RegisterPlugins(plugins ...plugin.Plugin) {
 					"/v1/osb/*/v2/service_instances/*",
 				},
 				p.Deprovision,
+			})
+		}
+		if p, ok := plug.(plugin.BindingFetcher); ok {
+			api.RegisterFilters(filter.Filter{
+				filter.RequestMatcher{
+					[]string{"GET"},
+					"/v1/osb/*/v2/service_instances/*/service_bindings/*",
+				},
+				p.FetchBinding,
 			})
 		}
 		if p, ok := plug.(plugin.Binder); ok {

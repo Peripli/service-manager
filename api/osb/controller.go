@@ -69,8 +69,11 @@ func (c *Controller) Routes() []rest.Route {
 	return []rest.Route{
 		// nolint: vet
 		{rest.Endpoint{"GET", catalogURL}, c.handler},
+		{rest.Endpoint{"GET", serviceInstanceURL}, c.handler},
 		{rest.Endpoint{"PUT", serviceInstanceURL}, c.handler},
+		{rest.Endpoint{"PATCH", serviceInstanceURL}, c.handler},
 		{rest.Endpoint{"DELETE", serviceInstanceURL}, c.handler},
+		{rest.Endpoint{"GET", serviceBindingURL}, c.handler},
 		{rest.Endpoint{"PUT", serviceBindingURL}, c.handler},
 		{rest.Endpoint{"DELETE", serviceBindingURL}, c.handler},
 	}
@@ -93,6 +96,7 @@ func (c *Controller) handler(request *filter.Request) (*filter.Response, error) 
 	modifiedRequest.Header.Add("Authorization", basicAuth(broker.Credentials.Basic))
 	modifiedRequest.URL.Scheme = target.Scheme
 	modifiedRequest.URL.Host = target.Host
+	modifiedRequest.ContentLength = int64(len(request.Body))
 
 	m := osbPattern.FindStringSubmatch(request.URL.Path)
 	if m == nil || len(m) < 2 {

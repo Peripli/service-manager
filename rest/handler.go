@@ -43,11 +43,7 @@ func (h httpHandler) serve(res http.ResponseWriter, req *http.Request) error {
 		}
 	}
 
-	code := restRes.StatusCode
-	if code == 0 {
-		code = http.StatusOK
-	}
-	res.WriteHeader(code)
+	res.WriteHeader(restRes.StatusCode)
 	_, err = res.Write(restRes.Body)
 	if err != nil {
 		logrus.Error("Error sending response", err)
