@@ -1,9 +1,8 @@
 package rest
 
 import (
-	"path"
-
 	"github.com/Peripli/service-manager/pkg/filter"
+	"github.com/gobwas/glob"
 	"github.com/sirupsen/logrus"
 )
 
@@ -23,12 +22,11 @@ func matchPath(endpointPath string, pattern string) bool {
 	if pattern == "" {
 		return true
 	}
-	// TODO: add support for **
-	match, err := path.Match(pattern, endpointPath)
+	pat, err := glob.Compile(pattern, '/')
 	if err != nil {
-		logrus.Fatalf("Invalid endpoint path pattern %s: %v", endpointPath, err)
+		logrus.Panicf("Invalid endpoint path pattern %s: %v", pattern, err)
 	}
-	return match
+	return pat.Match(endpointPath) || pat.Match(endpointPath+"/")
 }
 
 func matchMethod(method string, methods []string) bool {
