@@ -56,8 +56,8 @@
     "source",
     "source/file"
   ]
-  revision = "22f249514de9aa3f8a720a7cabbdd45d294f83a1"
-  version = "v3.2.0"
+  revision = "bcd996f3df28363f43e2d0935484c4559537a3eb"
+  version = "v3.3.0"
 
 [[projects]]
   branch = "master"
@@ -378,7 +378,7 @@
   branch = "master"
   name = "github.com/xeipuuv/gojsonschema"
   packages = ["."]
-  revision = "9ff6d6c47f3f5de55acc6f464d6e3719b02818ae"
+  revision = "1d523034197ff1f222f6429836dd36a2457a1874"
 
 [[projects]]
   branch = "master"
@@ -405,7 +405,7 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "a8fb68e7206f8c78be19b432c58eb52a6aa34462"
+  revision = "027cca12c2d63e3d62b670d901e8a2c95854feec"
 
 [[projects]]
   branch = "master"
@@ -426,7 +426,7 @@
     "unix",
     "windows"
   ]
-  revision = "8014b7b116a67fea23fbb82cd834c9ad656ea44b"
+  revision = "6c888cc515d3ed83fc103cf1d84468aad274b0a7"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -470,6 +470,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "04023725ce2e21c39fa9fb6650afe99c4cc047926e66cb0a70c82b8e5796066f"
+  inputs-digest = "9e11b5ae73c9565b2dcd688c64936c42287ec0a7241a0b350c54133174142c4b"
   solver-name = "gps-cdcl"
   solver-version = 1

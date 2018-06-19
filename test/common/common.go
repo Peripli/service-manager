@@ -26,14 +26,14 @@ import (
 	"github.com/gorilla/mux"
 	. "github.com/onsi/ginkgo"
 	"github.com/sirupsen/logrus"
-	"github.com/Peripli/service-manager/server"
+	"github.com/Peripli/service-manager/config"
 )
 
 type Object = map[string]interface{}
 type Array = []interface{}
 
 func GetServerRouter() *mux.Router {
-	serverEnv := server.NewEnv("SM")
+	serverEnv := config.NewEnv("SM")
 	srv, err := sm.New(context.Background(), serverEnv)
 	if err != nil {
 		logrus.Fatal("Error creating server: ", err)

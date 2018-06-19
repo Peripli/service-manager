@@ -26,7 +26,7 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
-// Settings type to be loaded from the environment
+// Settings type to be loaded from the env
 type Config struct {
 	Server  server.Settings
 	Storage storage.Settings
@@ -56,13 +56,14 @@ func DefaultConfig() *Config {
 	return config
 }
 
-// New creates a configuration from the provided environment
+// New creates a configuration from the provided env
 func New(env Environment) (*Config, error) {
 	config := DefaultConfig()
 
-	if err := env.BindPFlags(config); err != nil {
+	if err := env.CreatePFlags(config); err != nil {
 		return nil, err
 	}
+
 	if err := env.Load(); err != nil {
 		return nil, err
 	}

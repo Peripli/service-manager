@@ -19,9 +19,7 @@ package api
 import (
 	"testing"
 
-	"github.com/Peripli/service-manager/api/info"
 	"github.com/Peripli/service-manager/rest"
-	"github.com/Peripli/service-manager/server/serverfakes"
 	"github.com/Peripli/service-manager/storage/storagefakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -44,20 +42,15 @@ var _ = Describe("API", func() {
 	var (
 		mockedStorage *storagefakes.FakeStorage
 		api           rest.API
+		settings      Settings
 	)
 
 	BeforeEach(func() {
 		mockedStorage = &storagefakes.FakeStorage{}
-		fakeEnvironment := &serverfakes.FakeEnvironment{}
-		response := info.Details{TokenIssuer: "https://example.com"}
-		fakeEnvironment.UnmarshalStub = func(value interface{}) error {
-			val, ok := value.(*info.Details)
-			if ok {
-				*val = response
-			}
-			return nil
+		settings = Settings{
+			TokenIssuerURL: "http://example.com",
 		}
-		api = Default(mockedStorage, fakeEnvironment)
+		api = Default(mockedStorage, settings)
 	})
 
 	Describe("Controller Registration", func() {
