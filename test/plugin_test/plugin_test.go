@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/Peripli/service-manager/pkg/filter"
@@ -70,22 +71,24 @@ func (ctx *testContext) Cleanup() {
 }
 
 type Broker struct {
-	StatusCode   int
-	ResponseBody []byte
-	Request      *http.Request
-	RequestBody  *httpexpect.Value
+	StatusCode     int
+	ResponseBody   []byte
+	Request        *http.Request
+	RequestBody    *httpexpect.Value
+	RawRequestBody []byte
 }
 
 func (b *Broker) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	b.Request = req
 
 	if req.Method == http.MethodPatch || req.Method == http.MethodPost || req.Method == http.MethodPut {
-		reqBody, err := ioutil.ReadAll(req.Body)
+		var err error
+		b.RawRequestBody, err = ioutil.ReadAll(req.Body)
 		if err != nil {
 			panic(err)
 		}
 		var reqData interface{}
-		err = json.Unmarshal(reqBody, &reqData)
+		err = json.Unmarshal(b.RawRequestBody, &reqData)
 		if err != nil {
 			panic(err)
 		}
@@ -124,6 +127,7 @@ var _ = Describe("Service Manager Plugins", func() {
 		})
 
 		It("Plugin modifies the request & response body", func() {
+			var resBodySize int
 			testPlugin["provision"] = func(req *filter.Request, next filter.Handler) (*filter.Response, error) {
 				var err error
 				req.Body, err = sjson.SetBytes(req.Body, "extra", "request")
@@ -140,7 +144,7 @@ var _ = Describe("Service Manager Plugins", func() {
 				if err != nil {
 					return nil, err
 				}
-
+				resBodySize = len(res.Body)
 				return res, nil
 			}
 			ctx.broker.StatusCode = http.StatusCreated
@@ -149,9 +153,13 @@ var _ = Describe("Service Manager Plugins", func() {
 				"service_id": "s123",
 				"plan_id":    "p123",
 			}
-			reply := ctx.SM.PUT(ctx.osbURL + "/v2/service_instances/1234").
-				WithJSON(provisionBody).Expect().Status(http.StatusCreated).JSON().Object()
+			resp := ctx.SM.PUT(ctx.osbURL + "/v2/service_instances/1234").
+				WithJSON(provisionBody).Expect().Status(http.StatusCreated)
+			resp.Header("content-length").Equal(strconv.Itoa(resBodySize))
+			reply := resp.JSON().Object()
 
+			Expect(ctx.broker.Request.Header.Get("content-length")).To(Equal(
+				strconv.Itoa(len(ctx.broker.RawRequestBody))))
 			reply.ValueEqual("extra", "response")
 			ctx.broker.RequestBody.Object().Equal(object{
 				"service_id": "s123",

@@ -96,6 +96,7 @@ func (c *Controller) handler(request *filter.Request) (*filter.Response, error) 
 	modifiedRequest.Header.Add("Authorization", basicAuth(broker.Credentials.Basic))
 	modifiedRequest.URL.Scheme = target.Scheme
 	modifiedRequest.URL.Host = target.Host
+	modifiedRequest.Body = ioutil.NopCloser(bytes.NewReader(request.Body))
 	modifiedRequest.ContentLength = int64(len(request.Body))
 
 	m := osbPattern.FindStringSubmatch(request.URL.Path)
@@ -106,7 +107,6 @@ func (c *Controller) handler(request *filter.Request) (*filter.Response, error) 
 
 	logrus.Debugf("Forwarding OSB request to %s", modifiedRequest.URL)
 	recorder := httptest.NewRecorder()
-	modifiedRequest.Body = ioutil.NopCloser(bytes.NewReader(request.Body))
 	reverseProxy.ServeHTTP(recorder, modifiedRequest)
 
 	body, err := ioutil.ReadAll(recorder.Body)
