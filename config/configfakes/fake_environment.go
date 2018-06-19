@@ -46,16 +46,10 @@ type FakeEnvironment struct {
 	unmarshalReturnsOnCall map[int]struct {
 		result1 error
 	}
-	CreatePFlagsStub        func(value interface{}) error
+	CreatePFlagsStub        func(value interface{})
 	createPFlagsMutex       sync.RWMutex
 	createPFlagsArgsForCall []struct {
 		value interface{}
-	}
-	createPFlagsReturns struct {
-		result1 error
-	}
-	createPFlagsReturnsOnCall map[int]struct {
-		result1 error
 	}
 	BindPFlagStub        func(key string, flag *pflag.Flag) error
 	bindPFlagMutex       sync.RWMutex
@@ -234,21 +228,16 @@ func (fake *FakeEnvironment) UnmarshalReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) CreatePFlags(value interface{}) error {
+func (fake *FakeEnvironment) CreatePFlags(value interface{}) {
 	fake.createPFlagsMutex.Lock()
-	ret, specificReturn := fake.createPFlagsReturnsOnCall[len(fake.createPFlagsArgsForCall)]
 	fake.createPFlagsArgsForCall = append(fake.createPFlagsArgsForCall, struct {
 		value interface{}
 	}{value})
 	fake.recordInvocation("CreatePFlags", []interface{}{value})
 	fake.createPFlagsMutex.Unlock()
 	if fake.CreatePFlagsStub != nil {
-		return fake.CreatePFlagsStub(value)
+		fake.CreatePFlagsStub(value)
 	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.createPFlagsReturns.result1
 }
 
 func (fake *FakeEnvironment) CreatePFlagsCallCount() int {
@@ -261,25 +250,6 @@ func (fake *FakeEnvironment) CreatePFlagsArgsForCall(i int) interface{} {
 	fake.createPFlagsMutex.RLock()
 	defer fake.createPFlagsMutex.RUnlock()
 	return fake.createPFlagsArgsForCall[i].value
-}
-
-func (fake *FakeEnvironment) CreatePFlagsReturns(result1 error) {
-	fake.CreatePFlagsStub = nil
-	fake.createPFlagsReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeEnvironment) CreatePFlagsReturnsOnCall(i int, result1 error) {
-	fake.CreatePFlagsStub = nil
-	if fake.createPFlagsReturnsOnCall == nil {
-		fake.createPFlagsReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.createPFlagsReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
 }
 
 func (fake *FakeEnvironment) BindPFlag(key string, flag *pflag.Flag) error {

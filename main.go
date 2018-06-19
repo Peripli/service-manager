@@ -19,7 +19,7 @@ func main() {
 	defer cancel()
 	handleInterrupts(ctx, cancel)
 
-	env := cf.NewEnv(config.NewEnv("SM"))
+	env := cf.NewEnv(config.NewEnv())
 	srv, err := sm.New(ctx, env)
 	if err != nil {
 		panic(fmt.Sprintf("error creating SM server: %s", err))

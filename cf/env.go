@@ -18,54 +18,44 @@ package cf
 
 import (
 	"fmt"
-	"strings"
 
 	"os"
 
 	"github.com/Peripli/service-manager/config"
 	"github.com/cloudfoundry-community/go-cfenv"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/cast"
 )
 
 // NewEnv returns a Cloud Foundry environment with a delegate
 func NewEnv(delegate config.Environment) config.Environment {
 	if _, exists := os.LookupEnv("VCAP_APPLICATION"); exists {
-		return &cfEnvironment{Environment: delegate}
+		return &cfEnvironment{Environment: config.NewEnv()}
 	}
 	return delegate
 }
 
 type cfEnvironment struct {
-	cfEnv *cfenv.App
 	config.Environment
 }
 
-func (e *cfEnvironment) Load() (err error) {
-	if err = e.Environment.Load(); err != nil {
+func (e *cfEnvironment) Load() error {
+	if err := e.Environment.Load(); err != nil {
 		return err
 	}
-	var postgreServiceName string
-	if serviceName := e.Environment.Get("db.name"); serviceName != nil {
-		postgreServiceName = serviceName.(string)
-	} else {
+	pgServiceName := cast.ToString(e.Environment.Get("db_name"))
+	if pgServiceName == "" {
 		logrus.Warning("No PostgreSQL service name found")
-		return
+		return nil
 	}
-	if e.cfEnv, err = cfenv.Current(); err != nil {
+	cfEnv, err := cfenv.Current()
+	if err != nil {
 		return err
 	}
-	service, err := e.cfEnv.Services.WithName(postgreServiceName)
+	service, err := cfEnv.Services.WithName(pgServiceName)
 	if err != nil {
-		return fmt.Errorf("could not find service with name %s: %v", postgreServiceName, err)
+		return fmt.Errorf("could not find service with name %s: %v", pgServiceName, err)
 	}
-	e.Environment.Set("db.uri", service.Credentials["uri"].(string))
-	return
-}
-
-func (e *cfEnvironment) Get(key string) interface{} {
-	value, exists := cfenv.CurrentEnv()[strings.Title(key)]
-	if !exists {
-		return e.Environment.Get(key)
-	}
-	return value
+	e.Environment.Set("db_uri", service.Credentials["uri"])
+	return nil
 }

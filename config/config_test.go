@@ -138,14 +138,6 @@ var _ = Describe("config", func() {
 			})
 		})
 
-		Context("when binding pflags fails", func() {
-			It("returns an error", func() {
-				fakeEnv.CreatePFlagsReturns(creationError)
-
-				assertErrorDuringNewConfiguration()
-			})
-		})
-
 		Context("when loading and unmarshaling from environment are successful", func() {
 
 			var (
@@ -181,7 +173,6 @@ var _ = Describe("config", func() {
 			BeforeEach(func() {
 				fakeEnv.LoadReturns(nil)
 				fakeEnv.UnmarshalReturns(nil)
-				fakeEnv.CreatePFlagsReturns(nil)
 
 				fakeEnv.UnmarshalStub = func(value interface{}) error {
 					val, ok := value.(*cfg.Config)

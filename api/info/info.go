@@ -29,6 +29,7 @@ const (
 	URL = "/" + apiVersion + "/" + root
 )
 
+// Routes returns a slice of the routs that handle info operations
 func (c *Controller) Routes() []rest.Route {
 	return []rest.Route{
 		{

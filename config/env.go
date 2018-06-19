@@ -14,7 +14,6 @@
  *    limitations under the License.
  */
 
-// Package env contains logic for working with env, flags and file configs via Viper
 package config
 
 import (
@@ -34,7 +33,7 @@ type Environment interface {
 	Get(key string) interface{}
 	Set(key string, value interface{})
 	Unmarshal(value interface{}) error
-	CreatePFlags(value interface{}) error
+	CreatePFlags(value interface{})
 	BindPFlag(key string, flag *pflag.Flag) error
 }
 
@@ -59,22 +58,19 @@ type cfg struct {
 }
 
 type viperEnv struct {
-	Viper     *viper.Viper
-	envPrefix string
+	Viper *viper.Viper
 }
 
 // NewEnv returns a new application env loaded from the given configuration file with variables prefixed by the given prefix
-func NewEnv(prefix string) Environment {
+func NewEnv() Environment {
 	return &viperEnv{
-		Viper:     viper.New(),
-		envPrefix: prefix,
+		Viper: viper.New(),
 	}
 }
 
 // Load prepares the environment for usage. It should be called after all relevant pflags have been created.
 func (v *viperEnv) Load() error {
 	v.Viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	v.Viper.SetEnvPrefix(v.envPrefix)
 	v.Viper.AutomaticEnv()
 
 	cfg := cfg{
@@ -88,7 +84,9 @@ func (v *viperEnv) Load() error {
 	// bind any flags that were added using the standard way and not via the CreatePFlags(interface{}) method.
 	// This way, all pflags that are also available for retrieval via env Get using their names
 	pflag.CommandLine.VisitAll(func(flag *pflag.Flag) {
-		v.Viper.BindPFlag(flag.Name, flag)
+		if err := v.Viper.BindPFlag(flag.Name, flag); err != nil {
+			panic(fmt.Sprintf("error binding flag with name %s to viper env", flag.Name))
+		}
 	})
 
 	pflag.Parse()
@@ -104,7 +102,7 @@ func (v *viperEnv) Load() error {
 		return fmt.Errorf("could not read configuration cfg: %s", err)
 	}
 
-	// allows nested properties loaded from config files to be accessible with underscore separator as well as with dot
+	//allows nested properties loaded from config files to be accessible with underscore separator as well as with dot
 	for _, key := range v.Viper.AllKeys() {
 		alias := strings.Replace(key, ".", "_", -1)
 		if key != alias {
@@ -121,6 +119,10 @@ func (v *viperEnv) Get(key string) interface{} {
 
 // Set exposes viper's Set
 func (v *viperEnv) Set(key string, value interface{}) {
+	alias := strings.Replace(key, ".", "_", -1)
+	if alias != key {
+		v.Viper.RegisterAlias(alias, key)
+	}
 	v.Viper.Set(key, value)
 }
 
@@ -162,7 +164,7 @@ func (v *viperEnv) prepareBindings(value interface{}) error {
 // as pflag default values. PFlags can also be manually added using the standard way (not using this method).
 // If a pflag with the same name was already added using the standard way, this method will not override it.
 // Creating pflags should be done before calling Load() - pflags created after loading will be ignored.
-func (v *viperEnv) CreatePFlags(value interface{}) error {
+func (v *viperEnv) CreatePFlags(value interface{}) {
 	properties := make(map[string]interface{})
 	traverseFields(value, "", properties)
 	for bindingName, defaultValue := range properties {
@@ -172,7 +174,6 @@ func (v *viperEnv) CreatePFlags(value interface{}) error {
 			pflag.String(flagName, cast.ToString(defaultValue), fmt.Sprintf("commandline argument for %s", flagName))
 		}
 	}
-	return nil
 }
 
 // BindPFlag allows binding a single flag to the env

@@ -26,7 +26,7 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
-// Settings type to be loaded from the env
+// Config is used to setup the Service Manager
 type Config struct {
 	Server  server.Settings
 	Storage storage.Settings
@@ -34,6 +34,7 @@ type Config struct {
 	API     api.Settings
 }
 
+// DefaultConfig returns the default values for configuring the Service Manager
 func DefaultConfig() *Config {
 	config := &Config{
 		Server: server.Settings{
@@ -60,9 +61,7 @@ func DefaultConfig() *Config {
 func New(env Environment) (*Config, error) {
 	config := DefaultConfig()
 
-	if err := env.CreatePFlags(config); err != nil {
-		return nil, err
-	}
+	env.CreatePFlags(config)
 
 	if err := env.Load(); err != nil {
 		return nil, err

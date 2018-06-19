@@ -17,13 +17,43 @@
 package cf
 
 import (
-	"errors"
 	"os"
 	"testing"
 
+	"io/ioutil"
+
+	"github.com/Peripli/service-manager/config"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
+
+const VCAP_SERVICES_VALUE = `{ "postgresql": [
+   {
+    "binding_name": null,
+    "credentials": {
+     "dbname": "smdb",
+     "hostname": "10.11.2.197",
+     "password": "fdb669853c9506578c357487fc7d0c0f",
+     "port": "5432",
+     "read_url": "jdbc:postgresql://10.11.2.192,10.11.2.193/3e546b2a3482d5de4c34                                                                                                                                   ab92f78260b9?targetServerType=preferSlave\u0026loadBalanceHosts=true",
+     "uri": "postgres://9ec6640112be6ad0380ed35544db7932:fdb669853c9506578c35748                                                                                                                                   7fc7d0c0f@10.11.2.197:5432/3e546b2a3482d5de4c34ab92f78260b9",
+     "username": "9ec6640112be6ad0380ed35544db7932",
+     "write_url": "jdbc:postgresql://10.11.2.192,10.11.2.193/3e546b2a3482d5de4c3                                                                                                                                   4ab92f78260b9?targetServerType=master"
+    },
+    "instance_name": "smdb",
+    "label": "postgresql",
+    "name": "smdb",
+    "plan": "v9.6-xsmall",
+    "provider": null,
+    "syslog_drain_url": null,
+    "tags": [
+     "postgresql",
+     "relational"
+    ],
+    "volume_mounts": []
+   }
+  ]
+ }`
 
 func TestApi(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -31,126 +61,96 @@ func TestApi(t *testing.T) {
 }
 
 var _ = Describe("CF Env", func() {
+	var delegate config.Environment
+	var env config.Environment
 
 	BeforeSuite(func() {
-		os.Setenv("VCAP_APPLICATION", "{}")
-		os.Unsetenv("VCAP_SERVICES")
-	})
-
-	AfterEach(func() {
-		os.Unsetenv("VCAP_SERVICES")
+		Expect(ioutil.WriteFile("application.yml", []byte{}, 0640)).ShouldNot(HaveOccurred())
 	})
 
 	AfterSuite(func() {
-		os.Unsetenv("VCAP_APPLICATION")
+		Expect(os.Remove("application.yml")).ShouldNot(HaveOccurred())
 	})
 
-	Describe("Get", func() {
-		Context("existing environment variable", func() {
-			It("succeeds", func() {
-				testEnv := &customEnvOk{}
-				os.Setenv("VCAP_SERVICES", "{}")
-				os.Setenv("EXPECTED_ENV_VAR", "expected_value")
-				actualValue := NewEnv(testEnv).Get("EXPECTED_ENV_VAR")
-				Expect(actualValue).To(Equal("expected_value"))
+	BeforeEach(func() {
+		Expect(os.Setenv("VCAP_APPLICATION", "{}")).ShouldNot(HaveOccurred())
+		Expect(os.Setenv("VCAP_SERVICES", VCAP_SERVICES_VALUE)).ShouldNot(HaveOccurred())
+		Expect(os.Setenv("DB_NAME", "smdb")).ShouldNot(HaveOccurred())
+
+		delegate = config.NewEnv()
+		env = NewEnv(delegate)
+	})
+
+	AfterEach(func() {
+		Expect(os.Unsetenv("VCAP_APPLICATION")).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv("VCAP_SERVICES")).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv("DB_NAME")).ShouldNot(HaveOccurred())
+	})
+
+	Describe("New", func() {
+		verifyEnvIsCFEnv := func(isCFEnv bool) {
+			env = NewEnv(delegate)
+			_, ok := env.(*cfEnvironment)
+
+			Expect(ok).To(Equal(isCFEnv))
+		}
+
+		Context("when VCAP_APPLICATION is missing", func() {
+			It("returns non cf env", func() {
+				Expect(os.Unsetenv("VCAP_APPLICATION")).ShouldNot(HaveOccurred())
+				verifyEnvIsCFEnv(false)
 			})
 		})
 
-		Context("when non cf environment variable exists", func() {
-			It("should delegate the call", func() {
-				testEnv := &customEnvOk{}
-				os.Setenv("VCAP_SERVICES", "{}")
-				actualValue := NewEnv(testEnv).Get("MISSING_ENV_VAR")
-				Expect(actualValue).To(Equal("expected"))
+		Context("when VCAP_APPLICATION is present", func() {
+			It("returns cf env", func() {
+				verifyEnvIsCFEnv(true)
 			})
 		})
-
 	})
 
 	Describe("Load", func() {
-
-		Context("with valid postgresql service", func() {
+		Context("with missing db_name", func() {
 			It("succeeds", func() {
-				testEnv := &customEnvOk{}
-				vcapServices := `{ "postgresql": [{
-					"credentials": { "uri": "expectedUri" },
-					"name": "postgresql"
-				}]}`
-				os.Setenv("VCAP_SERVICES", vcapServices)
-				err := NewEnv(testEnv).Load()
-				Expect(err).ToNot(HaveOccurred())
+				Expect(os.Unsetenv("DB_NAME")).ShouldNot(HaveOccurred())
+				err := env.Load()
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(env.Get("db_name")).Should(BeNil())
+				Expect(env.Get("db_uri")).Should(BeNil())
 			})
 		})
 
 		Context("with missing postgresql service", func() {
 			It("returns error", func() {
-				testEnv := &customEnvOk{}
-				vcapServices := `{ "notpgservice": [{"credentials": {}}] }`
-				os.Setenv("VCAP_SERVICES", vcapServices)
-				err := NewEnv(testEnv).Load()
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("Could not find service with name postgresql"))
-			})
-		})
+				Expect(os.Setenv("DB_NAME", "missing")).ShouldNot(HaveOccurred())
+				err := env.Load()
 
-		Context("with missing postgres service name", func() {
-			It("returns error", func() {
-				testEnv := &customEnvNoPGServiceName{}
-				Expect(NewEnv(testEnv).Load()).ToNot(HaveOccurred())
-			})
-		})
-
-		Context("with failing delegate", func() {
-			It("returns error", func() {
-				testEnv := &customEnvFail{}
-				err := NewEnv(testEnv).Load()
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("expected fail"))
+				Expect(err).Should(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("could not find service with name"))
 			})
 		})
 
 		Context("with invalid VCAP_SERVICES", func() {
 			It("returns error", func() {
-				os.Setenv("VCAP_SERVICES", "Invalid")
-				testEnv := &customEnvOk{}
-				Expect(NewEnv(testEnv).Load()).To(HaveOccurred())
+				Expect(os.Setenv("VCAP_SERVICES", "Invalid")).ShouldNot(HaveOccurred())
+
+				Expect(env.Load()).Should(HaveOccurred())
 			})
 		})
 
 		Context("with missing VCAP_SERVICES", func() {
 			It("returns error", func() {
-				testEnv := &customEnvOk{}
-				Expect(NewEnv(testEnv).Load()).To(HaveOccurred())
+				Expect(os.Unsetenv("VCAP_SERVICES")).ShouldNot(HaveOccurred())
+
+				Expect(env.Load()).Should(HaveOccurred())
 			})
+		})
+
+		It("sets the db_uri error", func() {
+			Expect(env.Load()).ShouldNot(HaveOccurred())
+
+			Expect(env.Get("db_uri")).ShouldNot(BeEmpty())
 		})
 	})
 })
-
-type customEnvOk struct{}
-
-func (env *customEnvOk) Load() error { return nil }
-func (env *customEnvOk) Get(key string) interface{} {
-	if key == "db.name" {
-		return "postgresql"
-	}
-	return "expected"
-}
-func (env *customEnvOk) Set(key string, value interface{}) {
-	Expect(key).To(Equal("db.uri"))
-	Expect(value.(string)).To(Equal("expectedUri"))
-}
-func (env *customEnvOk) Unmarshal(value interface{}) error { return nil }
-
-type customEnvFail struct{}
-
-func (env *customEnvFail) Load() error                       { return errors.New("expected fail") }
-func (env *customEnvFail) Get(key string) interface{}        { return "expected" }
-func (env *customEnvFail) Set(key string, value interface{}) {}
-func (env *customEnvFail) Unmarshal(value interface{}) error { return errors.New("expected fail") }
-
-type customEnvNoPGServiceName struct{}
-
-func (env *customEnvNoPGServiceName) Load() error                       { return nil }
-func (env *customEnvNoPGServiceName) Get(key string) interface{}        { return nil }
-func (env *customEnvNoPGServiceName) Set(key string, value interface{}) {}
-func (env *customEnvNoPGServiceName) Unmarshal(value interface{}) error { return nil }

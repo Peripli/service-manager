@@ -42,7 +42,6 @@ func TestApi(t *testing.T) {
 
 var _ = Describe("Env", func() {
 	const (
-		envPrefix        = "SM"
 		key              = "test"
 		flagDefaultValue = "pflagDefaultValue"
 		fileValue        = "fileValue"
@@ -124,37 +123,38 @@ var _ = Describe("Env", func() {
 	}
 
 	setEnvVars := func() {
-		Expect(os.Setenv(strings.ToTitle(envPrefix+"_"+keyWbool), cast.ToString(structure.WBool))).ShouldNot(HaveOccurred())
-		Expect(os.Setenv(strings.ToTitle(envPrefix+"_"+keyWint), cast.ToString(structure.WInt))).ShouldNot(HaveOccurred())
-		Expect(os.Setenv(strings.ToTitle(envPrefix+"_"+keyWstring), structure.WString)).ShouldNot(HaveOccurred())
-		Expect(os.Setenv(strings.ToTitle(envPrefix+"_"+keyWmappedVal), structure.WMappedVal)).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.ToTitle(keyWbool), cast.ToString(structure.WBool))).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.ToTitle(keyWint), cast.ToString(structure.WInt))).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.ToTitle(keyWstring), structure.WString)).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.ToTitle(keyWmappedVal), structure.WMappedVal)).ShouldNot(HaveOccurred())
 
-		Expect(os.Setenv(strings.ToTitle(envPrefix+"_"+keyNbool), cast.ToString(structure.Nest.NBool))).ShouldNot(HaveOccurred())
-		Expect(os.Setenv(strings.ToTitle(envPrefix+"_"+keyNint), cast.ToString(structure.Nest.NInt))).ShouldNot(HaveOccurred())
-		Expect(os.Setenv(strings.ToTitle(envPrefix+"_"+keyNstring), structure.Nest.NString)).ShouldNot(HaveOccurred())
-		Expect(os.Setenv(strings.ToTitle(envPrefix+"_"+keyNmappedVal), structure.Nest.NMappedVal)).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.ToTitle(keyNbool), cast.ToString(structure.Nest.NBool))).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.ToTitle(keyNint), cast.ToString(structure.Nest.NInt))).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.ToTitle(keyNstring), structure.Nest.NString)).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.ToTitle(keyNmappedVal), structure.Nest.NMappedVal)).ShouldNot(HaveOccurred())
 	}
 
 	unsetEnvVars := func() {
-		Expect(os.Unsetenv(envPrefix + "_" + keyWbool)).ShouldNot(HaveOccurred())
-		Expect(os.Unsetenv(envPrefix + "_" + keyWint)).ShouldNot(HaveOccurred())
-		Expect(os.Unsetenv(envPrefix + "_" + keyWstring)).ShouldNot(HaveOccurred())
-		Expect(os.Unsetenv(envPrefix + "_" + keyWmappedVal)).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(keyWbool)).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(keyWint)).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(keyWstring)).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(keyWmappedVal)).ShouldNot(HaveOccurred())
 
-		Expect(os.Unsetenv(envPrefix + "_" + keyNbool)).ShouldNot(HaveOccurred())
-		Expect(os.Unsetenv(envPrefix + "_" + keyNint)).ShouldNot(HaveOccurred())
-		Expect(os.Unsetenv(envPrefix + "_" + keyNstring)).ShouldNot(HaveOccurred())
-		Expect(os.Unsetenv(envPrefix + "_" + keyNmappedVal)).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(keyNbool)).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(keyNint)).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(keyNstring)).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(keyNmappedVal)).ShouldNot(HaveOccurred())
 
-		Expect(os.Unsetenv(envPrefix + "_" + key)).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(key)).ShouldNot(HaveOccurred())
 	}
 
 	loadEnv := func() {
 		err := ioutil.WriteFile("application.yml", []byte{}, 0640)
 		defer func() {
-			os.Remove("application.yml")
+			Expect(os.Remove("application.yml")).ShouldNot(HaveOccurred())
+
 		}()
-		Expect(err).ShouldNot(HaveOccurred())
+		Expect(ioutil.WriteFile("application.yml", []byte{}, 0640)).ShouldNot(HaveOccurred())
 
 		err = env.Load()
 		Expect(err).ShouldNot(HaveOccurred())
@@ -193,7 +193,7 @@ var _ = Describe("Env", func() {
 
 	BeforeEach(func() {
 		file = config.DefaultFile()
-		env = config.NewEnv(envPrefix)
+		env = config.NewEnv()
 		Expect(env).ShouldNot(BeNil())
 
 		structure = Outer{
@@ -383,7 +383,7 @@ var _ = Describe("Env", func() {
 				loadEnvWithConfigFile(file, properties)
 				Expect(env.Get(key)).Should(Equal(fileValue))
 
-				os.Setenv(strings.ToTitle(envPrefix+"_"+key), envValue)
+				os.Setenv(strings.ToTitle(key), envValue)
 				Expect(env.Get(key)).Should(Equal(envValue))
 
 				pflag.Set(key, flagValue)
@@ -396,7 +396,15 @@ var _ = Describe("Env", func() {
 	})
 
 	Describe("Set", func() {
-		It("puts the property in the environment abstraction", func() {
+
+		It("creates an alias for the value in case it contains dot separators", func() {
+			loadEnv()
+			env.Set("test.key", "value")
+
+			Expect(env.Get("test_key")).To(Equal("value"))
+		})
+
+		It("adds the property in the environment abstraction", func() {
 			loadEnv()
 			env.Set(key, overrideValue)
 
@@ -512,7 +520,7 @@ var _ = Describe("Env", func() {
 					loadEnvWithConfigFile(file, s{fileValue})
 					verifyUnmarshallingIsCorrect(&str, &s{fileValue})
 
-					os.Setenv(strings.ToTitle(envPrefix+"_"+key), envValue)
+					os.Setenv(strings.ToTitle(key), envValue)
 					verifyUnmarshallingIsCorrect(&str, &s{envValue})
 					Expect(env.Get(key)).Should(Equal(envValue))
 

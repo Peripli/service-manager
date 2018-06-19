@@ -28,6 +28,7 @@ type DetailsResponse struct {
 	TokenIssuer string `json:"token_issuer_url"`
 }
 
+// Controller info controller
 type Controller struct {
 	TokenIssuer string
 }
