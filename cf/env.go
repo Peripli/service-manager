@@ -30,7 +30,7 @@ import (
 // NewEnv returns a Cloud Foundry environment with a delegate
 func NewEnv(delegate config.Environment) config.Environment {
 	if _, exists := os.LookupEnv("VCAP_APPLICATION"); exists {
-		return &cfEnvironment{Environment: config.NewEnv()}
+		return &cfEnvironment{Environment: delegate}
 	}
 	return delegate
 }

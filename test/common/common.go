@@ -33,8 +33,16 @@ type Object = map[string]interface{}
 type Array = []interface{}
 
 func GetServerRouter() *mux.Router {
-	serverEnv := config.NewEnv()
-	srv, err := sm.New(context.Background(), serverEnv)
+	serverEnv := config.NewEnv(config.File{
+		Location:   "./test/common",
+		Name:   "application",
+		Format: "yml",
+	})
+	cfg,err := config.New(serverEnv)
+	if err != nil {
+		logrus.Fatal("Error creating server: ", err)
+	}
+	srv, err := sm.New(context.Background(), cfg)
 	if err != nil {
 		logrus.Fatal("Error creating server: ", err)
 	}

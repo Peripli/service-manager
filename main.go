@@ -19,8 +19,16 @@ func main() {
 	defer cancel()
 	handleInterrupts(ctx, cancel)
 
-	env := cf.NewEnv(config.NewEnv())
-	srv, err := sm.New(ctx, env)
+	env := cf.NewEnv(config.NewEnv(config.File{
+		Location: ".",
+		Name:     "application",
+		Format:   "yml",
+	}))
+	cfg, err := config.New(env)
+	if err != nil {
+		panic(fmt.Sprintf("error loading configuration: %s", err))
+	}
+	srv, err := sm.New(ctx, cfg)
 	if err != nil {
 		panic(fmt.Sprintf("error creating SM server: %s", err))
 	}

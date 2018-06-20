@@ -58,13 +58,15 @@ type cfg struct {
 }
 
 type viperEnv struct {
-	Viper *viper.Viper
+	Viper      *viper.Viper
+	ConfigFile File
 }
 
 // NewEnv returns a new application env loaded from the given configuration file with variables prefixed by the given prefix
-func NewEnv() Environment {
+func NewEnv(defaultConfigFile File) Environment {
 	return &viperEnv{
-		Viper: viper.New(),
+		Viper:      viper.New(),
+		ConfigFile: defaultConfigFile,
 	}
 }
 
@@ -74,7 +76,7 @@ func (v *viperEnv) Load() error {
 	v.Viper.AutomaticEnv()
 
 	cfg := cfg{
-		File: DefaultFile(),
+		v.ConfigFile,
 	}
 
 	// create and bind flags for providing SM config file using a structure - this creates the pflags using default

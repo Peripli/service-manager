@@ -30,11 +30,7 @@ import (
 )
 
 // New creates a SM server
-func New(ctx context.Context, serverEnv config.Environment) (*server.Server, error) {
-	cfg, err := config.New(serverEnv)
-	if err != nil {
-		return nil, fmt.Errorf("error loading configuration: %v", err)
-	}
+func New(ctx context.Context, cfg *config.Config) (*server.Server, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("configuration validation failed: %v", err)
 	}
