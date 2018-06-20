@@ -135,17 +135,17 @@ var _ = Describe("Env", func() {
 	}
 
 	unsetEnvVars := func() {
-		Expect(os.Unsetenv(keyWbool)).ShouldNot(HaveOccurred())
-		Expect(os.Unsetenv(keyWint)).ShouldNot(HaveOccurred())
-		Expect(os.Unsetenv(keyWstring)).ShouldNot(HaveOccurred())
-		Expect(os.Unsetenv(keyWmappedVal)).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(strings.ToTitle(keyWbool))).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(strings.ToTitle(keyWint))).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(strings.ToTitle(keyWstring))).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(strings.ToTitle(keyWmappedVal))).ShouldNot(HaveOccurred())
 
-		Expect(os.Unsetenv(keyNbool)).ShouldNot(HaveOccurred())
-		Expect(os.Unsetenv(keyNint)).ShouldNot(HaveOccurred())
-		Expect(os.Unsetenv(keyNstring)).ShouldNot(HaveOccurred())
-		Expect(os.Unsetenv(keyNmappedVal)).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(strings.ToTitle(keyNbool))).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(strings.ToTitle(keyNint))).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(strings.ToTitle(keyNstring))).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(strings.ToTitle(keyNmappedVal))).ShouldNot(HaveOccurred())
 
-		Expect(os.Unsetenv(key)).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(strings.ToTitle(key))).ShouldNot(HaveOccurred())
 	}
 
 	loadEnv := func() {
