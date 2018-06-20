@@ -75,7 +75,7 @@ var _ = Describe("CF Env", func() {
 	BeforeEach(func() {
 		Expect(os.Setenv("VCAP_APPLICATION", "{}")).ShouldNot(HaveOccurred())
 		Expect(os.Setenv("VCAP_SERVICES", VCAP_SERVICES_VALUE)).ShouldNot(HaveOccurred())
-		Expect(os.Setenv("DB_NAME", "smdb")).ShouldNot(HaveOccurred())
+		Expect(os.Setenv("STORAGE_NAME", "smdb")).ShouldNot(HaveOccurred())
 
 		delegate = config.NewEnv()
 		env = NewEnv(delegate)
@@ -84,7 +84,7 @@ var _ = Describe("CF Env", func() {
 	AfterEach(func() {
 		Expect(os.Unsetenv("VCAP_APPLICATION")).ShouldNot(HaveOccurred())
 		Expect(os.Unsetenv("VCAP_SERVICES")).ShouldNot(HaveOccurred())
-		Expect(os.Unsetenv("DB_NAME")).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv("STORAGE_NAME")).ShouldNot(HaveOccurred())
 	})
 
 	Describe("New", func() {
@@ -110,20 +110,21 @@ var _ = Describe("CF Env", func() {
 	})
 
 	Describe("Load", func() {
-		Context("with missing db_name", func() {
+		Context("with missing STORAGE_name", func() {
 			It("succeeds", func() {
-				Expect(os.Unsetenv("DB_NAME")).ShouldNot(HaveOccurred())
+				Expect(os.Unsetenv("STORAGE_NAME")).ShouldNot(HaveOccurred())
 				err := env.Load()
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Expect(env.Get("db_name")).Should(BeNil())
-				Expect(env.Get("db_uri")).Should(BeNil())
+				Expect(env.Get("storage_name")).Should(BeNil())
+				Expect(env.Get("storage_uri")).Should(BeNil())
+
 			})
 		})
 
 		Context("with missing postgresql service", func() {
 			It("returns error", func() {
-				Expect(os.Setenv("DB_NAME", "missing")).ShouldNot(HaveOccurred())
+				Expect(os.Setenv("STORAGE_NAME", "missing")).ShouldNot(HaveOccurred())
 				err := env.Load()
 
 				Expect(err).Should(HaveOccurred())
@@ -147,10 +148,9 @@ var _ = Describe("CF Env", func() {
 			})
 		})
 
-		It("sets the db_uri error", func() {
+		It("sets the STORAGE_uri error", func() {
 			Expect(env.Load()).ShouldNot(HaveOccurred())
-
-			Expect(env.Get("db_uri")).ShouldNot(BeEmpty())
+			Expect(env.Get("storage_uri")).ShouldNot(BeEmpty())
 		})
 	})
 })

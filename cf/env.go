@@ -43,7 +43,7 @@ func (e *cfEnvironment) Load() error {
 	if err := e.Environment.Load(); err != nil {
 		return err
 	}
-	pgServiceName := cast.ToString(e.Environment.Get("db_name"))
+	pgServiceName := cast.ToString(e.Environment.Get("storage_name"))
 	if pgServiceName == "" {
 		logrus.Warning("No PostgreSQL service name found")
 		return nil
@@ -56,6 +56,6 @@ func (e *cfEnvironment) Load() error {
 	if err != nil {
 		return fmt.Errorf("could not find service with name %s: %v", pgServiceName, err)
 	}
-	e.Environment.Set("db_uri", service.Credentials["uri"])
+	e.Environment.Set("storage_uri", service.Credentials["uri"])
 	return nil
 }

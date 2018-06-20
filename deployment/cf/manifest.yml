@@ -8,6 +8,6 @@ applications:
   env:
     LOG_FORMAT: json
     LOG_LEVEL: info
-    DB_NAME: <postgre_instance_name>
+    STORAGE_NAME: <postgre_instance_name>
     GOVERSION: go1.10
     GOPACKAGENAME: github.com/Peripli/service-manager

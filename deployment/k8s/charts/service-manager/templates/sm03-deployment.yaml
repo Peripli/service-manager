@@ -32,7 +32,7 @@ spec:
           mountPath: {{ .Values.configMountPath }}
           readOnly: true
         env:
-        - name: DB_URI
+        - name: STORAGE_URI
           valueFrom:
             secretKeyRef:
               name: {{ template "service-manager.fullname" . }}-secret
