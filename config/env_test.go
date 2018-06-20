@@ -193,7 +193,11 @@ var _ = Describe("Env", func() {
 
 	BeforeEach(func() {
 		file = config.DefaultFile()
-		env = config.NewEnv()
+		env = config.NewEnv(config.File{
+			Name:     "application",
+			Location: ".",
+			Format:   "yml",
+		})
 		Expect(env).ShouldNot(BeNil())
 
 		structure = Outer{

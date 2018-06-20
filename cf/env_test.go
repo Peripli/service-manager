@@ -77,7 +77,11 @@ var _ = Describe("CF Env", func() {
 		Expect(os.Setenv("VCAP_SERVICES", VCAP_SERVICES_VALUE)).ShouldNot(HaveOccurred())
 		Expect(os.Setenv("STORAGE_NAME", "smdb")).ShouldNot(HaveOccurred())
 
-		delegate = config.NewEnv()
+		delegate = config.NewEnv(config.File{
+			Name:     "application",
+			Location: ".",
+			Format:   "yml",
+		})
 		env = NewEnv(delegate)
 	})
 
