@@ -16,20 +16,6 @@
 
 package authorization
 
-type Attributes struct{
-	User *User
-	Verb string
-	Resource string
-}
-
-type Decision int
-
-const(
-	DecisionDeny Decision = iota
-	DecisionAllow
-	DecisionAbstain
-)
-
 type Authorizer interface {
 	Authorize(attributes Attributes) (Decision, error)
 }

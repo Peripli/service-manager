@@ -21,3 +21,17 @@ type User struct {
 
 	Scopes []string
 }
+
+type Attributes struct{
+	User *User
+	Verb string
+	Resource string
+}
+
+type Decision int
+
+const(
+	DecisionDeny Decision = iota
+	DecisionAllow
+	DecisionAbstain
+)
