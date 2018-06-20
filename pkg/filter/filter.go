@@ -1,55 +1,67 @@
 package filter
 
 import (
-	"encoding/json"
 	"net/http"
 )
 
+// Request contains the original http.Request  and some additional data.
 type Request struct {
+	// Request is the original http.Request
 	*http.Request
+
+	// PathParams contains the URL path parameters
 	PathParams map[string]string
-	Body       []byte
+
+	// Body is the loaded request body (usually JSON)
+	Body []byte
 }
 
-func (r *Request) String() string {
-	return stringify(r)
-}
-
+// Response defines the attributes of the HTTP response that will be sent to the client
 type Response struct {
 	// StatusCode is the HTTP status code
 	StatusCode int
 
+	// Header contains the response headers
 	Header http.Header
-	Body   []byte
+
+	// Body is the response body (usually JSON)
+	Body []byte
 }
 
-func (r *Response) String() string {
-	return stringify(r)
-}
-
-func stringify(v interface{}) string {
-	b, _ := json.MarshalIndent(v, "", "  ")
-	return string(b)
-}
-
+// Handler is a function that handles a request after all the applicable filters
 type Handler func(*Request) (*Response, error)
+
+// Middleware is a function that intercepts a request before it reaches the final handler.
+// Normally this function should invoke next with the request to proceed with
+// the next middleware or the final handler.
+// It can also terminate the request processing by not invoking next.
 type Middleware func(req *Request, next Handler) (*Response, error)
 
-type RequestMatcher struct {
-	// Methods match request method
-	// if nil, matches any method
+// RouteMatcher defines the criteria to match against registered routes.
+//
+// NOTE: This does not match against HTTP requests at runtime but registered
+// routes at startup. This improves performance but has some limitations.
+type RouteMatcher struct {
+	// Methods match route method.
+	// If nil, matches any method.
+	//
 	// NOTE: This will work as long as each route handles a single method.
-	// If a route handles multiple methods (e.g. *),
+	// If a route handles multiple methods,
 	// the filter could be called for methods which are not listed here.
 	Methods []string
 
-	// PathPattern matches endpoint path (as registered in mux)
+	// PathPattern matches route path (as registered in mux).
 	// This is a glob pattern so you can use * and **.
+	// ** matches also / but * does not.
 	// If empty, matches any path.
 	PathPattern string
 }
 
+// Filter defines a function that can intercept requests on specific routes
 type Filter struct {
-	RequestMatcher
+	// RouteMatcher defines the criteria for which routes to apply this filter
+	RouteMatcher
+
+	// Middleware is a function that intercepts a request before it reaches the final handler.
 	Middleware
 }

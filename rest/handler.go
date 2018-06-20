@@ -46,6 +46,8 @@ func (h httpHandler) serve(res http.ResponseWriter, req *http.Request) error {
 	res.WriteHeader(restRes.StatusCode)
 	_, err = res.Write(restRes.Body)
 	if err != nil {
+		// HTTP headers and status are sent already
+		// if we return an error, the error handler will try to send them again
 		logrus.Error("Error sending response", err)
 	}
 	return nil

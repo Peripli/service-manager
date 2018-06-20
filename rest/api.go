@@ -36,79 +36,45 @@ func (api *API) RegisterPlugins(plugins ...plugin.Plugin) {
 		if plug == nil {
 			logrus.Panicln("Cannot add nil plugins")
 		}
-		// TODO: move this route specific logic to a better place
-		// nolint: vet
-		if p, ok := plug.(plugin.CatalogFetcher); ok {
+		match := false
+		register := func(method string, pathPattern string, middleware filter.Middleware) {
 			api.RegisterFilters(filter.Filter{
-				filter.RequestMatcher{
-					[]string{"GET"},
-					"/v1/osb/*/v2/catalog",
+				RouteMatcher: filter.RouteMatcher{
+					Methods:     []string{method},
+					PathPattern: pathPattern,
 				},
-				p.FetchCatalog,
+				Middleware: middleware,
 			})
+			match = true
+		}
+
+		if p, ok := plug.(plugin.CatalogFetcher); ok {
+			register("GET", "/v1/osb/*/v2/catalog", p.FetchCatalog)
 		}
 		if p, ok := plug.(plugin.ServiceFetcher); ok {
-			api.RegisterFilters(filter.Filter{
-				filter.RequestMatcher{
-					[]string{"GET"},
-					"/v1/osb/*/v2/service_instances/*",
-				},
-				p.FetchService,
-			})
+			register("GET", "/v1/osb/*/v2/service_instances/*", p.FetchService)
 		}
 		if p, ok := plug.(plugin.Provisioner); ok {
-			api.RegisterFilters(filter.Filter{
-				filter.RequestMatcher{
-					[]string{"PUT"},
-					"/v1/osb/*/v2/service_instances/*",
-				},
-				p.Provision,
-			})
+			register("PUT", "/v1/osb/*/v2/service_instances/*", p.Provision)
 		}
 		if p, ok := plug.(plugin.ServiceUpdater); ok {
-			api.RegisterFilters(filter.Filter{
-				filter.RequestMatcher{
-					[]string{"PATCH"},
-					"/v1/osb/*/v2/service_instances/*",
-				},
-				p.UpdateService,
-			})
+			register("PATCH", "/v1/osb/*/v2/service_instances/*", p.UpdateService)
 		}
 		if p, ok := plug.(plugin.Deprovisioner); ok {
-			api.RegisterFilters(filter.Filter{
-				filter.RequestMatcher{
-					[]string{"DELETE"},
-					"/v1/osb/*/v2/service_instances/*",
-				},
-				p.Deprovision,
-			})
+			register("DELETE", "/v1/osb/*/v2/service_instances/*", p.Deprovision)
 		}
 		if p, ok := plug.(plugin.BindingFetcher); ok {
-			api.RegisterFilters(filter.Filter{
-				filter.RequestMatcher{
-					[]string{"GET"},
-					"/v1/osb/*/v2/service_instances/*/service_bindings/*",
-				},
-				p.FetchBinding,
-			})
+			register("GET", "/v1/osb/*/v2/service_instances/*/service_bindings/*", p.FetchBinding)
 		}
 		if p, ok := plug.(plugin.Binder); ok {
-			api.RegisterFilters(filter.Filter{
-				filter.RequestMatcher{
-					[]string{"PUT"},
-					"/v1/osb/*/v2/service_instances/*/service_bindings/*",
-				},
-				p.Bind,
-			})
+			register("PUT", "/v1/osb/*/v2/service_instances/*/service_bindings/*", p.Bind)
 		}
 		if p, ok := plug.(plugin.Unbinder); ok {
-			api.RegisterFilters(filter.Filter{
-				filter.RequestMatcher{
-					[]string{"DELETE"},
-					"/v1/osb/*/v2/service_instances/*/service_bindings/*",
-				},
-				p.Unbind,
-			})
+			register("DELETE", "/v1/osb/*/v2/service_instances/*/service_bindings/*", p.Unbind)
+		}
+		if !match {
+			logrus.Panicf("%T is not a plugin", plug)
 		}
 	}
+
 }
