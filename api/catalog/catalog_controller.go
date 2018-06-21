@@ -23,6 +23,7 @@ import (
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/sirupsen/logrus"
+	"github.com/Peripli/service-manager/types"
 )
 
 type Controller struct {
@@ -46,32 +47,39 @@ func (ctrl *Controller) getCatalog(writer http.ResponseWriter, request *http.Req
 		return err
 	}
 
-	brokerIds := request.URL.Query()["broker_id"]
-
-	logrus.Debugf("Filtering based on the provided query parameters: %s", brokerIds)
-
-	services := make([]brokerServices, 0, len(brokers)+1)
-	for i, _ := range brokers {
-		if shouldBrokerBeAdded(brokers[i].ID, brokerIds) {
-			services = append(services, brokerServices{
-				ID:      brokers[i].ID,
-				Name:    brokers[i].Name,
-				Catalog: brokers[i].Catalog,
-			})
-		}
+	resultServices := make([]brokerServices, 0, len(brokers)+1)
+	queryBrokerIDs := request.URL.Query()["broker_id"]
+	if len(queryBrokerIDs) != 0 {
+		logrus.Debugf("Filtering based on the provided query parameters: %s", queryBrokerIDs)
+		filterBrokersById(brokers, queryBrokerIDs, &resultServices)
+	} else {
+		retrieveAllBrokers(brokers, &resultServices)
 	}
 
-	return rest.SendJSON(writer, http.StatusOK, aggregatedCatalog{services})
+	return rest.SendJSON(writer, http.StatusOK, aggregatedCatalog{resultServices})
 }
 
-func shouldBrokerBeAdded(brokerId string, brokerIds []string) bool {
-	if len(brokerIds) != 0 {
-		for _, bID := range brokerIds {
-			if brokerId == bID {
-				return true
+func filterBrokersById(dbBrokers []types.Broker, queryBrokerIDs []string, filteredBrokers *[]brokerServices) {
+	for _, queryBrokerID := range queryBrokerIDs{
+		for _, dbBroker := range dbBrokers {
+			if queryBrokerID == dbBroker.ID {
+				*filteredBrokers = append(*filteredBrokers, brokerServices{
+					ID: 	dbBroker.ID,
+					Name: 	dbBroker.Name,
+					Catalog:dbBroker.Catalog,
+				})
+				break
 			}
 		}
-		return false
 	}
-	return true
+}
+
+func retrieveAllBrokers(dbBrokers []types.Broker, brokers *[]brokerServices) {
+	for _, dbBroker := range dbBrokers {
+		*brokers = append(*brokers, brokerServices{
+			ID: 	dbBroker.ID,
+			Name: 	dbBroker.Name,
+			Catalog:dbBroker.Catalog,
+		})
+	}
 }
