@@ -54,3 +54,10 @@ cf service-brokers
 ```
 
 **Note:** It could take a couple of minutes before the broker appears in the platform instance.
+
+
+[Run Service Manager on Kubernetes](deployment/k8s/README.md)
+
+## Extending Service Manager Core
+
+[Plugins](docs/plugins.md)
