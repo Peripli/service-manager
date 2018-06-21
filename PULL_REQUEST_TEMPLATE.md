@@ -21,7 +21,16 @@ For example:
 
 Feel free to construct the checklist with whatever items seem most reasonable for your change. You could disassemble the Implementation part to even smaller separate checklist items if you're working on something big for example. But do make the effort to provide a checklist of some sort so that the core team as well as the community can have an idea about the progress of your Pull Request. 
 
-#### Work in Progress label
+
+## Third-party code
+If you use third party code with your contribution such as, components, libraries, or snippets make sure to mention that. 
+
+Make sure that your contribution complies with our [Contribution guidelines][1].
+
+## Work in Progress label
 For as long as development of your Pull Request is still ongoing you MUST label it with a **wip** label as well as prefix the name of the PR with *[WIP]*.
 
 For example: *[WIP] Aggregated Catalog API* 
+
+
+[1]: https://github.com/Peripli/service-manager/blob/master/CONTRIBUTING.md

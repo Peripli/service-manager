@@ -1,4 +1,4 @@
-## Issue Template
+# Issue Template
 
 ### Step 1: Is this issue for here?
 
