@@ -6,6 +6,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// MatchFilters returns all filters that mach the provided endpoint's path and method
 func MatchFilters(endpoint *Endpoint, filters []filter.Filter) []filter.Filter {
 	matches := []filter.Filter{}
 	for _, filter := range filters {

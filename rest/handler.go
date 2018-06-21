@@ -15,6 +15,7 @@ import (
 
 type httpHandler filter.Handler
 
+// NewHTTPHandler wraps the controller handler and its filters in a http.Handler function
 func NewHTTPHandler(filters []filter.Filter, handler filter.Handler) http.Handler {
 	return httpHandler(chain(filters, handler))
 }

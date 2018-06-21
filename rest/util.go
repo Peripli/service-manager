@@ -34,6 +34,7 @@ func SendJSON(writer http.ResponseWriter, code int, value interface{}) error {
 	return encoder.Encode(value)
 }
 
+// NewJSONResponse turns plain object into a byte array representing JSON value and wraps it in filter.Response
 func NewJSONResponse(code int, value interface{}) (*filter.Response, error) {
 	headers := http.Header{}
 	headers.Add("Content-Type", "application/json")
