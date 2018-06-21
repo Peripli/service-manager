@@ -29,7 +29,7 @@ import (
 	"fmt"
 )
 
-func TestBrokers(t *testing.T) {
+func TestCatalog(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Aggregated Catalog API Tests Suite")
 }
