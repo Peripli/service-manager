@@ -30,8 +30,6 @@ import (
 	"github.com/pmorie/osb-broker-lib/pkg/broker"
 )
 
-// BrokerIDPathParam is used as a key for broker id path parameter
-
 // BusinessLogic provides an implementation of the pmorie/osb-broker-lib/pkg/broker/Interface interface.
 type BusinessLogic struct {
 	createFunc    osbc.CreateFunc
@@ -185,19 +183,6 @@ func (b *BusinessLogic) ValidateBrokerAPIVersion(version string) error {
 	return nil
 }
 
-func clientConfigForBroker(broker *types.Broker) *osbc.ClientConfiguration {
-	config := osbc.DefaultClientConfiguration()
-	config.Name = broker.Name
-	config.URL = broker.BrokerURL
-	config.AuthConfig = &osbc.AuthConfig{
-		BasicAuthConfig: &osbc.BasicAuthConfig{
-			Username: broker.Credentials.Basic.Username,
-			Password: broker.Credentials.Basic.Password,
-		},
-	}
-	return config
-}
-
 func (b *BusinessLogic) osbClient(request *http.Request) (osbc.Client, error) {
 	vars := mux.Vars(request)
 	brokerID, ok := vars[BrokerIDPathParam]
@@ -215,9 +200,27 @@ func (b *BusinessLogic) osbClient(request *http.Request) (osbc.Client, error) {
 		logrus.Errorf("error obtaining serviceBroker with id %s from storage: %s", brokerID, err)
 		return nil, fmt.Errorf("Internal Server Error")
 	}
-	config := clientConfigForBroker(serviceBroker)
+	return Client(b.createFunc, serviceBroker)
+}
+
+// Client creates a osb client for the provided broker using the client create function
+func Client(createFunc osbc.CreateFunc, broker *types.Broker) (osbc.Client, error) {
+	config := clientConfigForBroker(broker)
 	logrus.Debug("Building OSB client for serviceBroker with name: ", config.Name, " accessible at: ", config.URL)
-	return b.createFunc(config)
+	return createFunc(config)
+}
+
+func clientConfigForBroker(broker *types.Broker) *osbc.ClientConfiguration {
+	config := osbc.DefaultClientConfiguration()
+	config.Name = broker.Name
+	config.URL = broker.BrokerURL
+	config.AuthConfig = &osbc.AuthConfig{
+		BasicAuthConfig: &osbc.BasicAuthConfig{
+			Username: broker.Credentials.Basic.Username,
+			Password: broker.Credentials.Basic.Password,
+		},
+	}
+	return config
 }
 
 func toHTTPError(err error) error {

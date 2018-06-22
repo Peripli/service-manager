@@ -25,6 +25,7 @@ import (
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
+	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 	"github.com/sirupsen/logrus"
 )
 
@@ -33,7 +34,8 @@ func Default(storage storage.Storage, env server.Environment) rest.API {
 	return &smAPI{
 		controllers: []rest.Controller{
 			&broker.Controller{
-				BrokerStorage: storage.Broker(),
+				BrokerStorage:       storage.Broker(),
+				OSBClientCreateFunc: osbc.NewClient,
 			},
 			&osb.Controller{
 				BrokerStorage: storage.Broker(),
