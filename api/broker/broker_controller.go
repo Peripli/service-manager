@@ -190,8 +190,8 @@ func (c *Controller) patchBroker(response http.ResponseWriter, request *http.Req
 	if err != nil {
 		return err
 	}
-
-	if err := json.Unmarshal(updateData, broker); err != nil {
+ 
+  if err := json.Unmarshal(updateData, broker); err != nil {
 		return err
 	}
 

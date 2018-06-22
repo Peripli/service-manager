@@ -27,6 +27,7 @@ import (
 	"github.com/Peripli/service-manager/storage"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 	"github.com/sirupsen/logrus"
+	"github.com/Peripli/service-manager/api/catalog"
 )
 
 // Default returns the minimum set of REST APIs needed for the Service Manager
@@ -44,6 +45,9 @@ func Default(storage storage.Storage, env server.Environment) rest.API {
 				PlatformStorage: storage.Platform(),
 			},
 			info.NewController(env),
+			&catalog.Controller{
+				BrokerStorage: storage.Broker(),
+			},
 		},
 	}
 }
