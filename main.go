@@ -43,7 +43,7 @@ func handleInterrupts(ctx context.Context, cancelFunc context.CancelFunc) {
 }
 
 func initFlags() map[string]interface{} {
-	configFileLocation := flag.String("config_location", ".", "Location of the application.yaml file")
+	configFileLocation := flag.String("config_location", ".", "Location of the application.yml file")
 	flag.Parse()
 	return map[string]interface{}{"config_location": *configFileLocation}
 }
