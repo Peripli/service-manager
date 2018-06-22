@@ -9,15 +9,6 @@ import (
 )
 
 type FakeEnvironment struct {
-	LoadStub        func() error
-	loadMutex       sync.RWMutex
-	loadArgsForCall []struct{}
-	loadReturns     struct {
-		result1 error
-	}
-	loadReturnsOnCall map[int]struct {
-		result1 error
-	}
 	GetStub        func(key string) interface{}
 	getMutex       sync.RWMutex
 	getArgsForCall []struct {
@@ -46,11 +37,6 @@ type FakeEnvironment struct {
 	unmarshalReturnsOnCall map[int]struct {
 		result1 error
 	}
-	CreatePFlagsStub        func(value interface{})
-	createPFlagsMutex       sync.RWMutex
-	createPFlagsArgsForCall []struct {
-		value interface{}
-	}
 	BindPFlagStub        func(key string, flag *pflag.Flag) error
 	bindPFlagMutex       sync.RWMutex
 	bindPFlagArgsForCall []struct {
@@ -65,46 +51,6 @@ type FakeEnvironment struct {
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
-}
-
-func (fake *FakeEnvironment) Load() error {
-	fake.loadMutex.Lock()
-	ret, specificReturn := fake.loadReturnsOnCall[len(fake.loadArgsForCall)]
-	fake.loadArgsForCall = append(fake.loadArgsForCall, struct{}{})
-	fake.recordInvocation("Load", []interface{}{})
-	fake.loadMutex.Unlock()
-	if fake.LoadStub != nil {
-		return fake.LoadStub()
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.loadReturns.result1
-}
-
-func (fake *FakeEnvironment) LoadCallCount() int {
-	fake.loadMutex.RLock()
-	defer fake.loadMutex.RUnlock()
-	return len(fake.loadArgsForCall)
-}
-
-func (fake *FakeEnvironment) LoadReturns(result1 error) {
-	fake.LoadStub = nil
-	fake.loadReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeEnvironment) LoadReturnsOnCall(i int, result1 error) {
-	fake.LoadStub = nil
-	if fake.loadReturnsOnCall == nil {
-		fake.loadReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.loadReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
 }
 
 func (fake *FakeEnvironment) Get(key string) interface{} {
@@ -228,30 +174,6 @@ func (fake *FakeEnvironment) UnmarshalReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) CreatePFlags(value interface{}) {
-	fake.createPFlagsMutex.Lock()
-	fake.createPFlagsArgsForCall = append(fake.createPFlagsArgsForCall, struct {
-		value interface{}
-	}{value})
-	fake.recordInvocation("CreatePFlags", []interface{}{value})
-	fake.createPFlagsMutex.Unlock()
-	if fake.CreatePFlagsStub != nil {
-		fake.CreatePFlagsStub(value)
-	}
-}
-
-func (fake *FakeEnvironment) CreatePFlagsCallCount() int {
-	fake.createPFlagsMutex.RLock()
-	defer fake.createPFlagsMutex.RUnlock()
-	return len(fake.createPFlagsArgsForCall)
-}
-
-func (fake *FakeEnvironment) CreatePFlagsArgsForCall(i int) interface{} {
-	fake.createPFlagsMutex.RLock()
-	defer fake.createPFlagsMutex.RUnlock()
-	return fake.createPFlagsArgsForCall[i].value
-}
-
 func (fake *FakeEnvironment) BindPFlag(key string, flag *pflag.Flag) error {
 	fake.bindPFlagMutex.Lock()
 	ret, specificReturn := fake.bindPFlagReturnsOnCall[len(fake.bindPFlagArgsForCall)]
@@ -304,16 +226,12 @@ func (fake *FakeEnvironment) BindPFlagReturnsOnCall(i int, result1 error) {
 func (fake *FakeEnvironment) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.loadMutex.RLock()
-	defer fake.loadMutex.RUnlock()
 	fake.getMutex.RLock()
 	defer fake.getMutex.RUnlock()
 	fake.setMutex.RLock()
 	defer fake.setMutex.RUnlock()
 	fake.unmarshalMutex.RLock()
 	defer fake.unmarshalMutex.RUnlock()
-	fake.createPFlagsMutex.RLock()
-	defer fake.createPFlagsMutex.RUnlock()
 	fake.bindPFlagMutex.RLock()
 	defer fake.bindPFlagMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}

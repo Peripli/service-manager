@@ -43,6 +43,7 @@ func TestApi(t *testing.T) {
 var _ = Describe("Env", func() {
 	const (
 		key              = "test"
+		description      = "desc"
 		flagDefaultValue = "pflagDefaultValue"
 		fileValue        = "fileValue"
 		envValue         = "envValue"
@@ -53,12 +54,11 @@ var _ = Describe("Env", func() {
 		keyWint       = "wint"
 		keyWstring    = "wstring"
 		keyWmappedVal = "w_mapped_val"
-		keyNbool      = "nest_nbool"
 
-		description   = "desc"
-		keyNint       = "nest_nint"
-		keyNstring    = "nest_nstring"
-		keyNmappedVal = "nest_n_mapped_val"
+		keyNbool      = "nest.nbool"
+		keyNint       = "nest.nint"
+		keyNstring    = "nest.nstring"
+		keyNmappedVal = "nest.n_mapped_val"
 	)
 	type Nest struct {
 		NBool      bool
@@ -75,51 +75,61 @@ var _ = Describe("Env", func() {
 		Nest       Nest
 	}
 
+	type testFile struct {
+		config.File
+		content interface{}
+	}
+
 	var (
-		properties        map[string]interface{}
-		structure         Outer
-		overrideStructure Outer
-		env               config.Environment
-		file              config.File
+		structure Outer
+
+		cfgFile   testFile
+		testFlags *pflag.FlagSet
+
+		env config.Environment
+		err error
 	)
 
-	addStructurePFlags := func() *pflag.FlagSet {
+	generatedPFlagsSet := func(s interface{}) *pflag.FlagSet {
 		set := pflag.NewFlagSet("testflags", pflag.ExitOnError)
-
-		set.Bool(keyWbool, structure.WBool, description)
-		set.Int(keyWint, structure.WInt, description)
-		set.String(keyWstring, structure.WString, description)
-		set.String(keyWmappedVal, structure.WMappedVal, description)
-
-		set.Bool(keyNbool, structure.Nest.NBool, description)
-		set.Int(keyNint, structure.Nest.NInt, description)
-		set.String(keyNstring, structure.Nest.NString, description)
-		set.String(keyNmappedVal, structure.Nest.NMappedVal, description)
-
-		pflag.CommandLine.AddFlagSet(set)
+		config.CreatePFlags(set, s)
 
 		return set
 	}
 
-	addSingleFlag := func(key, defaultValue, description string) *pflag.FlagSet {
+	standardPFlagsSet := func(s Outer) *pflag.FlagSet {
+		set := pflag.NewFlagSet("testflags", pflag.ExitOnError)
+
+		set.Bool(keyWbool, s.WBool, description)
+		set.Int(keyWint, s.WInt, description)
+		set.String(keyWstring, s.WString, description)
+		set.String(keyWmappedVal, s.WMappedVal, description)
+
+		set.Bool(keyNbool, s.Nest.NBool, description)
+		set.Int(keyNint, s.Nest.NInt, description)
+		set.String(keyNstring, s.Nest.NString, description)
+		set.String(keyNmappedVal, s.Nest.NMappedVal, description)
+
+		return set
+	}
+
+	singlePFlagSet := func(key, defaultValue, description string) *pflag.FlagSet {
 		set := pflag.NewFlagSet("testflags", pflag.ExitOnError)
 		set.String(key, defaultValue, description)
 
-		pflag.CommandLine.AddFlagSet(set)
-
 		return set
 	}
 
-	setPFlags := func() {
-		Expect(pflag.Set(keyWbool, cast.ToString(overrideStructure.WBool))).ShouldNot(HaveOccurred())
-		Expect(pflag.Set(keyWint, cast.ToString(overrideStructure.WInt))).ShouldNot(HaveOccurred())
-		Expect(pflag.Set(keyWstring, overrideStructure.WString)).ShouldNot(HaveOccurred())
-		Expect(pflag.Set(keyWmappedVal, overrideStructure.WMappedVal)).ShouldNot(HaveOccurred())
+	setPFlags := func(o Outer) {
+		Expect(testFlags.Set(keyWbool, cast.ToString(o.WBool))).ShouldNot(HaveOccurred())
+		Expect(testFlags.Set(keyWint, cast.ToString(o.WInt))).ShouldNot(HaveOccurred())
+		Expect(testFlags.Set(keyWstring, o.WString)).ShouldNot(HaveOccurred())
+		Expect(testFlags.Set(keyWmappedVal, o.WMappedVal)).ShouldNot(HaveOccurred())
 
-		Expect(pflag.Set(keyNbool, cast.ToString(overrideStructure.Nest.NBool))).ShouldNot(HaveOccurred())
-		Expect(pflag.Set(keyNint, cast.ToString(overrideStructure.Nest.NInt))).ShouldNot(HaveOccurred())
-		Expect(pflag.Set(keyNstring, overrideStructure.Nest.NString)).ShouldNot(HaveOccurred())
-		Expect(pflag.Set(keyNmappedVal, overrideStructure.Nest.NMappedVal)).ShouldNot(HaveOccurred())
+		Expect(testFlags.Set(keyNbool, cast.ToString(o.Nest.NBool))).ShouldNot(HaveOccurred())
+		Expect(testFlags.Set(keyNint, cast.ToString(o.Nest.NInt))).ShouldNot(HaveOccurred())
+		Expect(testFlags.Set(keyNstring, o.Nest.NString)).ShouldNot(HaveOccurred())
+		Expect(testFlags.Set(keyNmappedVal, o.Nest.NMappedVal)).ShouldNot(HaveOccurred())
 	}
 
 	setEnvVars := func() {
@@ -128,42 +138,35 @@ var _ = Describe("Env", func() {
 		Expect(os.Setenv(strings.ToTitle(keyWstring), structure.WString)).ShouldNot(HaveOccurred())
 		Expect(os.Setenv(strings.ToTitle(keyWmappedVal), structure.WMappedVal)).ShouldNot(HaveOccurred())
 
-		Expect(os.Setenv(strings.ToTitle(keyNbool), cast.ToString(structure.Nest.NBool))).ShouldNot(HaveOccurred())
-		Expect(os.Setenv(strings.ToTitle(keyNint), cast.ToString(structure.Nest.NInt))).ShouldNot(HaveOccurred())
-		Expect(os.Setenv(strings.ToTitle(keyNstring), structure.Nest.NString)).ShouldNot(HaveOccurred())
-		Expect(os.Setenv(strings.ToTitle(keyNmappedVal), structure.Nest.NMappedVal)).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyNbool), ".", "_", 1), cast.ToString(structure.Nest.NBool))).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyNint), ".", "_", 1), cast.ToString(structure.Nest.NInt))).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyNstring), ".", "_", 1), structure.Nest.NString)).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyNmappedVal), ".", "_", 1), structure.Nest.NMappedVal)).ShouldNot(HaveOccurred())
 	}
 
-	unsetEnvVars := func() {
+	cleanUpEnvVars := func() {
 		Expect(os.Unsetenv(strings.ToTitle(keyWbool))).ShouldNot(HaveOccurred())
 		Expect(os.Unsetenv(strings.ToTitle(keyWint))).ShouldNot(HaveOccurred())
 		Expect(os.Unsetenv(strings.ToTitle(keyWstring))).ShouldNot(HaveOccurred())
 		Expect(os.Unsetenv(strings.ToTitle(keyWmappedVal))).ShouldNot(HaveOccurred())
 
-		Expect(os.Unsetenv(strings.ToTitle(keyNbool))).ShouldNot(HaveOccurred())
-		Expect(os.Unsetenv(strings.ToTitle(keyNint))).ShouldNot(HaveOccurred())
-		Expect(os.Unsetenv(strings.ToTitle(keyNstring))).ShouldNot(HaveOccurred())
-		Expect(os.Unsetenv(strings.ToTitle(keyNmappedVal))).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyNbool), ".", "_", 1))).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyNint), ".", "_", 1))).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyNstring), ".", "_", 1))).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyNmappedVal), ".", "_", 1))).ShouldNot(HaveOccurred())
 
 		Expect(os.Unsetenv(strings.ToTitle(key))).ShouldNot(HaveOccurred())
 	}
 
-	loadEnv := func() {
-		err := ioutil.WriteFile("application.yml", []byte{}, 0640)
-		defer func() {
-			Expect(os.Remove("application.yml")).ShouldNot(HaveOccurred())
-
-		}()
-		Expect(ioutil.WriteFile("application.yml", []byte{}, 0640)).ShouldNot(HaveOccurred())
-
-		err = env.Load()
-		Expect(err).ShouldNot(HaveOccurred())
+	cleanUpFlags := func() {
+		pflag.CommandLine = pflag.NewFlagSet(os.Args[0], pflag.ExitOnError)
+		testFlags = pflag.NewFlagSet(os.Args[0], pflag.ExitOnError)
 	}
 
-	loadEnvWithConfigFile := func(file config.File, content interface{}) {
-		if content != nil {
-			f := file.Location + string(filepath.Separator) + file.Name + "." + file.Format
-			bytes, err := yaml.Marshal(content)
+	createEnv := func() error {
+		if cfgFile.content != nil {
+			f := cfgFile.Location + string(filepath.Separator) + cfgFile.Name + "." + cfgFile.Format
+			bytes, err := yaml.Marshal(cfgFile.content)
 			Expect(err).ShouldNot(HaveOccurred())
 			err = ioutil.WriteFile(f, bytes, 0640)
 			Expect(err).ShouldNot(HaveOccurred())
@@ -173,8 +176,12 @@ var _ = Describe("Env", func() {
 			}()
 		}
 
-		err := env.Load()
-		Expect(err).ShouldNot(HaveOccurred())
+		env, err = config.NewEnv(testFlags)
+		return err
+	}
+
+	verifyEnvCreated := func() {
+		Expect(createEnv()).ShouldNot(HaveOccurred())
 	}
 
 	verifyEnvContainsValues := func(expected interface{}) {
@@ -183,7 +190,7 @@ var _ = Describe("Env", func() {
 			switch v := expectedValue.(type) {
 			case map[string]interface{}:
 				for nestedKey, nestedExpectedValue := range v {
-					Expect(cast.ToString(env.Get(key + "_" + nestedKey))).Should(Equal(cast.ToString(nestedExpectedValue)))
+					Expect(cast.ToString(env.Get(key + "." + nestedKey))).Should(Equal(cast.ToString(nestedExpectedValue)))
 				}
 			default:
 				Expect(cast.ToString(env.Get(key))).To(Equal(cast.ToString(expectedValue)))
@@ -192,13 +199,7 @@ var _ = Describe("Env", func() {
 	}
 
 	BeforeEach(func() {
-		file = config.DefaultFile()
-		env = config.NewEnv(config.File{
-			Name:     "application",
-			Location: ".",
-			Format:   "yml",
-		})
-		Expect(env).ShouldNot(BeNil())
+		testFlags = config.SMFlagSet()
 
 		structure = Outer{
 			WBool:      true,
@@ -212,81 +213,100 @@ var _ = Describe("Env", func() {
 				NMappedVal: "nmappedval",
 			},
 		}
-
-		overrideStructure = Outer{
-			WBool:      false,
-			WInt:       8888,
-			WString:    "overrideval",
-			WMappedVal: "overrideval",
-			Nest: Nest{
-				NBool:      false,
-				NInt:       9999,
-				NString:    "overrideval",
-				NMappedVal: "overrideval",
-			},
-		}
 	})
 
 	AfterEach(func() {
-		// clean up env
-		unsetEnvVars()
-
-		// clean up pflags
-		pflag.CommandLine = pflag.NewFlagSet(os.Args[0], pflag.ExitOnError)
+		cleanUpEnvVars()
+		cleanUpFlags()
 	})
 
-	Describe("Load", func() {
+	Describe("NewEnv", func() {
 		const (
-			keyFileName     = "file_name"
-			keyFileLocation = "file_location"
-			keyFileFormat   = "file_format"
+			keyFileName     = "file.name"
+			keyFileLocation = "file.location"
+			keyFileFormat   = "file.format"
 		)
 
-		It("adds default viper bindings to standard pflags", func() {
-			addStructurePFlags()
+		It("adds viper bindings for the provided flags", func() {
+			testFlags.AddFlagSet(standardPFlagsSet(structure))
 
-			loadEnv()
+			verifyEnvCreated()
+
 			verifyEnvContainsValues(structure)
 		})
 
-		Context("when SM config file doesn't exist", func() {
-			It("returns an error", func() {
-				Expect(env.Load()).Should(HaveOccurred())
+		Context("when SM config file exists", func() {
+			BeforeEach(func() {
+				cfgFile = testFile{
+					File:    config.DefaultFile(),
+					content: structure,
+				}
+			})
+
+			Context("when SM config file pflags are not provided", func() {
+				BeforeEach(func() {
+					Expect(testFlags.Lookup(keyFileName)).Should(BeNil())
+					Expect(testFlags.Lookup(keyFileLocation)).Should(BeNil())
+					Expect(testFlags.Lookup(keyFileFormat)).Should(BeNil())
+				})
+
+				It("returns no error", func() {
+					verifyEnvCreated()
+
+					Expect(env.Get(keyFileName)).Should(BeNil())
+					Expect(env.Get(keyFileName)).Should(BeNil())
+					Expect(env.Get(keyFileName)).Should(BeNil())
+				})
+
+			})
+
+			Context("when SM config file pflags are provided", func() {
+				BeforeEach(func() {
+					config.AddPFlags(testFlags)
+				})
+
+				It("allows obtaining SM config file values from the env", func() {
+					verifyEnvCreated()
+
+					verifyEnvContainsValues(struct{ File config.File }{File: cfgFile.File})
+
+				})
+
+				It("allows unmarshaling SM config file values from the env", func() {
+					verifyEnvCreated()
+
+					file := testFile{}
+					Expect(env.Unmarshal(&file)).ShouldNot(HaveOccurred())
+					Expect(file.File).Should(Equal(cfgFile.File))
+				})
+
+				It("allows overriding the config file properties", func() {
+					cfgFile.Name = "updatedName"
+					testFlags.Set(keyFileName, "updatedName")
+					verifyEnvCreated()
+
+					verifyEnvContainsValues(struct{ File config.File }{File: cfgFile.File})
+				})
+
+				It("reads the file in the environment", func() {
+					verifyEnvCreated()
+
+					verifyEnvContainsValues(structure)
+				})
+
+				It("returns an err if config file loading fails", func() {
+					cfgFile.Format = "json"
+					testFlags.Set(keyFileFormat, "json")
+
+					Expect(createEnv()).Should(HaveOccurred())
+				})
 			})
 		})
 
-		Context("when SM config file exists", func() {
-			It("creates pflags for SM config file with proper default values", func() {
-				loadEnvWithConfigFile(file, structure)
-
-				Expect(pflag.Lookup("file_name").Value.String()).Should(Equal(file.Name))
-				Expect(pflag.Lookup("file_location").Value.String()).Should(Equal(file.Location))
-				Expect(pflag.Lookup("file_format").Value.String()).Should(Equal(file.Format))
-			})
-
-			It("binds the SM config file pflags to the env", func() {
-				loadEnvWithConfigFile(file, structure)
-
-				Expect(env.Get(keyFileName)).Should(Equal(file.Name))
-				Expect(env.Get(keyFileLocation)).Should(Equal(file.Location))
-				Expect(env.Get(keyFileFormat)).Should(Equal(file.Format))
-
-				cfgFile := struct {
-					File config.File
-				}{}
-
-				Expect(env.Unmarshal(&cfgFile)).ShouldNot(HaveOccurred())
-				Expect(cfgFile.File).Should(Equal(file))
-			})
-
-			It("allows overriding the config file properties", func() {
-				file.Name = "updatedName"
-				pflag.String(keyFileName, "application", "")
-				pflag.Set(keyFileName, "updatedName")
-
-				loadEnvWithConfigFile(file, structure)
-
-				verifyEnvContainsValues(structure)
+		Context("when SM config file doesn't exist", func() {
+			It("returns no error", func() {
+				_, err := config.NewEnv(testFlags)
+				Expect(err).ShouldNot(HaveOccurred())
 			})
 		})
 	})
@@ -298,14 +318,14 @@ var _ = Describe("Env", func() {
 			aliasKey    = "test.flag"
 		)
 		It("allows getting a pflag from the env with an alias name", func() {
-			addSingleFlag(key, flagDefaultValue, description)
+			testFlags.AddFlagSet(singlePFlagSet(key, flagDefaultValue, description))
 
-			env.Load()
+			verifyEnvCreated()
 
 			Expect(env.Get(key)).To(Equal(flagDefaultValue))
 			Expect(env.Get(aliasKey)).To(BeNil())
 
-			env.BindPFlag(aliasKey, pflag.Lookup(key))
+			env.BindPFlag(aliasKey, testFlags.Lookup(key))
 
 			Expect(env.Get(key)).To(Equal(flagDefaultValue))
 			Expect(env.Get(aliasKey)).To(Equal(flagDefaultValue))
@@ -313,84 +333,107 @@ var _ = Describe("Env", func() {
 	})
 
 	Describe("Get", func() {
+		var overrideStructure Outer
+
+		BeforeEach(func() {
+			overrideStructure = Outer{
+				WBool:      false,
+				WInt:       8888,
+				WString:    "overrideval",
+				WMappedVal: "overrideval",
+				Nest: Nest{
+					NBool:      false,
+					NInt:       9999,
+					NString:    "overrideval",
+					NMappedVal: "overrideval",
+				},
+			}
+		})
+
+		JustBeforeEach(func() {
+			verifyEnvCreated()
+		})
+
 		Context("when properties are loaded via standard pflags", func() {
 			BeforeEach(func() {
-				addStructurePFlags()
+				testFlags.AddFlagSet(standardPFlagsSet(structure))
 			})
 
 			It("returns the default flag value if the flag is not set", func() {
-				loadEnv()
-
 				verifyEnvContainsValues(structure)
 			})
 
 			It("returns the flags values if the flags are set", func() {
-				setPFlags()
-				loadEnv()
+				setPFlags(overrideStructure)
+
 				verifyEnvContainsValues(overrideStructure)
 
 			})
 		})
 
-		Context("when properties are loaded via pflags structure binding", func() {
+		Context("when properties are loaded via generated pflags", func() {
 			BeforeEach(func() {
-				env.CreatePFlags(structure)
+				testFlags.AddFlagSet(generatedPFlagsSet(structure))
 			})
 
 			It("returns the default flag value if the flag is not set", func() {
-				loadEnv()
-
 				verifyEnvContainsValues(structure)
 			})
 
 			It("returns the flags values if the flags are set", func() {
-				setPFlags()
-				loadEnv()
+				setPFlags(overrideStructure)
 
 				verifyEnvContainsValues(overrideStructure)
 			})
 		})
 
-		Context("when properties are loaded via config file", func() {
-			It("returns values from config file", func() {
-				loadEnvWithConfigFile(file, structure)
+		Context("when properties are loaded via SM config file", func() {
+			BeforeEach(func() {
+				cfgFile = testFile{
+					File:    config.DefaultFile(),
+					content: structure,
+				}
+				config.AddPFlags(testFlags)
+				verifyEnvCreated()
+			})
 
+			It("returns values from the config file", func() {
 				verifyEnvContainsValues(structure)
 			})
 		})
 
-		Context("when properties are loaded via OS env variable", func() {
+		Context("when properties are loaded via OS env variables", func() {
 			BeforeEach(func() {
 				setEnvVars()
 			})
 
 			It("returns values from env", func() {
-				loadEnv()
-
 				verifyEnvContainsValues(structure)
 			})
-
 		})
 
 		Context("override > pflag set > env > file > pflag default", func() {
 			BeforeEach(func() {
-				properties = map[string]interface{}{
-					key: fileValue,
-				}
+				testFlags.AddFlagSet(singlePFlagSet(key, flagDefaultValue, description))
 			})
 
 			It("respects loading order", func() {
-				addSingleFlag(key, flagDefaultValue, "")
-				loadEnv()
 				Expect(env.Get(key)).Should(Equal(flagDefaultValue))
 
-				loadEnvWithConfigFile(file, properties)
+				config.AddPFlags(testFlags)
+				cfgFile = testFile{
+					File: config.DefaultFile(),
+					content: map[string]interface{}{
+						key: fileValue,
+					},
+				}
+				verifyEnvCreated()
 				Expect(env.Get(key)).Should(Equal(fileValue))
 
 				os.Setenv(strings.ToTitle(key), envValue)
 				Expect(env.Get(key)).Should(Equal(envValue))
 
-				pflag.Set(key, flagValue)
+				testFlags.Set(key, flagValue)
 				Expect(env.Get(key)).Should(Equal(flagValue))
 
 				env.Set(key, overrideValue)
@@ -400,31 +443,20 @@ var _ = Describe("Env", func() {
 	})
 
 	Describe("Set", func() {
-
-		It("creates an alias for the value in case it contains dot separators", func() {
-			loadEnv()
-			env.Set("test.key", "value")
-
-			Expect(env.Get("test_key")).To(Equal("value"))
-		})
-
 		It("adds the property in the environment abstraction", func() {
-			loadEnv()
+			verifyEnvCreated()
 			env.Set(key, overrideValue)
 
 			Expect(env.Get(key)).To(Equal(overrideValue))
 		})
 
 		It("has highest priority", func() {
-			properties = map[string]interface{}{
-				key: fileValue,
-			}
-			addSingleFlag(key, flagDefaultValue, "")
+			testFlags.AddFlagSet(singlePFlagSet(key, flagDefaultValue, description))
 			os.Setenv(key, envValue)
-			loadEnvWithConfigFile(file, properties)
+			verifyEnvCreated()
+			testFlags.Set(key, flagValue)
 
 			env.Set(key, overrideValue)
-			pflag.Set(key, flagValue)
 
 			Expect(env.Get(key)).Should(Equal(overrideValue))
 		})
@@ -437,19 +469,17 @@ var _ = Describe("Env", func() {
 			actual = Outer{}
 		})
 
-		Context("when parameter is not a struct", func() {
-			It("returns an error", func() {
-				loadEnv()
-
-				Expect(env.Unmarshal(10)).To(Not(BeNil()))
-			})
+		JustBeforeEach(func() {
+			verifyEnvCreated()
 		})
 
 		Context("when parameter is not a pointer to a struct", func() {
 			It("returns an error", func() {
-				loadEnv()
-
 				Expect(env.Unmarshal(actual)).To(Not(BeNil()))
+			})
+
+			It("returns an error", func() {
+				Expect(env.Unmarshal(10)).To(Not(BeNil()))
 			})
 		})
 
@@ -462,45 +492,44 @@ var _ = Describe("Env", func() {
 
 			Context("when properties are loaded via standard pflags", func() {
 				BeforeEach(func() {
-					addStructurePFlags()
-
+					testFlags.AddFlagSet(standardPFlagsSet(structure))
 				})
 
 				It("unmarshals correctly", func() {
-					loadEnv()
-
 					verifyUnmarshallingIsCorrect(&actual, &structure)
 				})
 			})
 
-			Context("when properties are loaded via pflags structure binding", func() {
+			Context("when properties are loaded via generated pflags", func() {
 				BeforeEach(func() {
-					env.CreatePFlags(structure)
+					testFlags.AddFlagSet(generatedPFlagsSet(structure))
 				})
 
 				It("unmarshals correctly", func() {
-					loadEnv()
-
 					verifyUnmarshallingIsCorrect(&actual, &structure)
 				})
 			})
 
 			Context("when property is loaded via config file", func() {
-				It("unmarshals correctly", func() {
-					loadEnvWithConfigFile(file, structure)
+				BeforeEach(func() {
+					cfgFile = testFile{
+						File:    config.DefaultFile(),
+						content: structure,
+					}
+					config.AddPFlags(testFlags)
+				})
 
+				It("unmarshals correctly", func() {
 					verifyUnmarshallingIsCorrect(&actual, &structure)
 				})
 			})
 
-			Context("when properties are loaded via OS env variable", func() {
+			Context("when properties are loaded via OS env variables", func() {
 				BeforeEach(func() {
 					setEnvVars()
 				})
 
 				It("unmarshals correctly", func() {
-					loadEnv()
-
 					verifyUnmarshallingIsCorrect(&actual, &structure)
 				})
 			})
@@ -514,21 +543,27 @@ var _ = Describe("Env", func() {
 
 				BeforeEach(func() {
 					str = s{}
+					testFlags.AddFlagSet(singlePFlagSet(key, flagDefaultValue, ""))
 				})
 
 				It("respects loading order", func() {
-					addSingleFlag(key, flagDefaultValue, "")
-					loadEnv()
 					verifyUnmarshallingIsCorrect(&str, &s{flagDefaultValue})
 
-					loadEnvWithConfigFile(file, s{fileValue})
+					cfgFile = testFile{
+						File: config.DefaultFile(),
+						content: map[string]interface{}{
+							key: fileValue,
+						},
+					}
+					config.AddPFlags(testFlags)
+					verifyEnvCreated()
 					verifyUnmarshallingIsCorrect(&str, &s{fileValue})
 
 					os.Setenv(strings.ToTitle(key), envValue)
 					verifyUnmarshallingIsCorrect(&str, &s{envValue})
 					Expect(env.Get(key)).Should(Equal(envValue))
 
-					pflag.Set(key, flagValue)
+					testFlags.Set(key, flagValue)
 					verifyUnmarshallingIsCorrect(&str, &s{flagValue})
 
 					env.Set(key, overrideValue)

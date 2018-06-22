@@ -30,7 +30,7 @@ import (
 )
 
 // New creates a SM server
-func New(ctx context.Context, cfg *config.Config) (*server.Server, error) {
+func New(ctx context.Context, cfg *config.Settings) (*server.Server, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("configuration validation failed: %v", err)
 	}
@@ -42,7 +42,7 @@ func New(ctx context.Context, cfg *config.Config) (*server.Server, error) {
 		return nil, fmt.Errorf("error using storage: %v", err)
 	}
 
-	api := api.Default(storage, cfg.API)
+	api := api.New(storage, cfg.API)
 
 	srv, err := server.New(api, cfg.Server)
 	if err != nil {

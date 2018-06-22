@@ -19,11 +19,16 @@ func main() {
 	defer cancel()
 	handleInterrupts(ctx, cancel)
 
-	env := cf.NewEnv(config.NewEnv(config.File{
-		Location: ".",
-		Name:     "application",
-		Format:   "yml",
-	}))
+	set := config.SMFlagSet()
+	config.AddPFlags(set)
+
+	env, err := config.NewEnv(set)
+	if err != nil {
+		panic(fmt.Sprintf("error loading environment: %s", err))
+	}
+	if err := cf.SetEnvValues(env); err != nil {
+		panic(fmt.Sprintf("error setting CF environment values: %s", err))
+	}
 	cfg, err := config.New(env)
 	if err != nil {
 		panic(fmt.Sprintf("error loading configuration: %s", err))

@@ -27,35 +27,23 @@ import (
 	"github.com/spf13/cast"
 )
 
-// NewEnv returns a Cloud Foundry environment with a delegate
-func NewEnv(delegate config.Environment) config.Environment {
+// SetEnvValues overrides some SM environment with values from CF's VCAP environment variables
+func SetEnvValues(env config.Environment) error {
 	if _, exists := os.LookupEnv("VCAP_APPLICATION"); exists {
-		return &cfEnvironment{Environment: delegate}
+		pgServiceName := cast.ToString(env.Get("storage.name"))
+		if pgServiceName == "" {
+			logrus.Warning("No PostgreSQL service name found")
+			return nil
+		}
+		cfEnv, err := cfenv.Current()
+		if err != nil {
+			return fmt.Errorf("could not load VCAP environment: %s", err)
+		}
+		service, err := cfEnv.Services.WithName(pgServiceName)
+		if err != nil {
+			return fmt.Errorf("could not find service with name %s: %v", pgServiceName, err)
+		}
+		env.Set("storage.uri", service.Credentials["uri"])
 	}
-	return delegate
-}
-
-type cfEnvironment struct {
-	config.Environment
-}
-
-func (e *cfEnvironment) Load() error {
-	if err := e.Environment.Load(); err != nil {
-		return err
-	}
-	pgServiceName := cast.ToString(e.Environment.Get("storage_name"))
-	if pgServiceName == "" {
-		logrus.Warning("No PostgreSQL service name found")
-		return nil
-	}
-	cfEnv, err := cfenv.Current()
-	if err != nil {
-		return err
-	}
-	service, err := cfEnv.Services.WithName(pgServiceName)
-	if err != nil {
-		return fmt.Errorf("could not find service with name %s: %v", pgServiceName, err)
-	}
-	e.Environment.Set("storage_uri", service.Credentials["uri"])
 	return nil
 }

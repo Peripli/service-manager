@@ -32,8 +32,8 @@ type Settings struct {
 	TokenIssuerURL string `mapstructure:"token_issuer_url"`
 }
 
-// Default returns the minimum set of REST APIs needed for the Service Manager
-func Default(storage storage.Storage, settings Settings) rest.API {
+// New returns the minimum set of REST APIs needed for the Service Manager
+func New(storage storage.Storage, settings Settings) rest.API {
 	return &smAPI{
 		controllers: []rest.Controller{
 			&broker.Controller{

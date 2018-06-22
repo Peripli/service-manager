@@ -20,167 +20,64 @@ import (
 	"fmt"
 	"strings"
 
+	"os"
+
 	"github.com/fatih/structs"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cast"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
-// Environment represents an abstraction over the env from which Service Manager configuration will be loaded
-//go:generate counterfeiter . Environment
-type Environment interface {
-	Load() error
-	Get(key string) interface{}
-	Set(key string, value interface{})
-	Unmarshal(value interface{}) error
-	CreatePFlags(value interface{})
-	BindPFlag(key string, flag *pflag.Flag) error
-}
-
-// File describes the name, path and the format of the file to be used to load the configuration in the env
-type File struct {
-	Name     string
-	Location string
-	Format   string
-}
-
-// DefaultFile holds the default SM config file properties
-func DefaultFile() File {
-	return File{
-		Name:     "application",
-		Location: ".",
-		Format:   "yml",
-	}
-}
-
-type cfg struct {
-	File File
-}
-
 type viperEnv struct {
-	Viper      *viper.Viper
-	ConfigFile File
+	*viper.Viper
 }
 
-// NewEnv returns a new application env loaded from the given configuration file with variables prefixed by the given prefix
-func NewEnv(defaultConfigFile File) Environment {
-	return &viperEnv{
-		Viper:      viper.New(),
-		ConfigFile: defaultConfigFile,
+//CreatePFlags Creates pflags for the value structure and adds them in the provided set
+func CreatePFlags(set *pflag.FlagSet, value interface{}) {
+	properties := make(map[string]interface{})
+	traverseFields(value, "", properties)
+	for bindingName, defaultValue := range properties {
+		if set.Lookup(bindingName) == nil {
+			set.String(bindingName, cast.ToString(defaultValue), fmt.Sprintf("commandline argument for %s", bindingName))
+		}
 	}
 }
 
-// Load prepares the environment for usage. It should be called after all relevant pflags have been created.
-func (v *viperEnv) Load() error {
-	v.Viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	v.Viper.AutomaticEnv()
-
-	cfg := cfg{
-		v.ConfigFile,
+// NewEnv creates a new environment. It accepts a flag set that should contain all the flags that the
+// environment should be aware of.
+func NewEnv(set *pflag.FlagSet) (Environment, error) {
+	v := &viperEnv{
+		Viper: viper.New(),
 	}
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	v.AutomaticEnv()
 
-	// create and bind flags for providing SM config file using a structure - this creates the pflags using default
-	// values from the structure and also binds them to viper.
-	v.CreatePFlags(cfg)
-
-	// bind any flags that were added using the standard way and not via the CreatePFlags(interface{}) method.
-	// This way, all pflags that are also available for retrieval via env Get using their names
-	pflag.CommandLine.VisitAll(func(flag *pflag.Flag) {
-		if err := v.Viper.BindPFlag(flag.Name, flag); err != nil {
-			panic(fmt.Sprintf("error binding flag with name %s to viper env", flag.Name))
+	set.Parse(os.Args[1:])
+	set.VisitAll(func(flag *pflag.Flag) {
+		if err := v.BindPFlag(flag.Name, flag); err != nil {
+			logrus.Panic(err)
 		}
 	})
 
-	pflag.Parse()
-
-	if err := v.Unmarshal(&cfg); err != nil {
-		return fmt.Errorf("could not find configuration cfg: %s", err)
+	if err := v.setupConfigFile(); err != nil {
+		return nil, err
 	}
 
-	v.Viper.AddConfigPath(cfg.File.Location)
-	v.Viper.SetConfigName(cfg.File.Name)
-	v.Viper.SetConfigType(cfg.File.Format)
-	if err := v.Viper.ReadInConfig(); err != nil {
-		return fmt.Errorf("could not read configuration cfg: %s", err)
-	}
-
-	//allows nested properties loaded from config files to be accessible with underscore separator as well as with dot
-	for _, key := range v.Viper.AllKeys() {
-		alias := strings.Replace(key, ".", "_", -1)
-		if key != alias {
-			v.Viper.RegisterAlias(alias, key)
-		}
-	}
-	return nil
-}
-
-// Get exposes viper's Get
-func (v *viperEnv) Get(key string) interface{} {
-	return v.Viper.Get(key)
-}
-
-// Set exposes viper's Set
-func (v *viperEnv) Set(key string, value interface{}) {
-	alias := strings.Replace(key, ".", "_", -1)
-	if alias != key {
-		v.Viper.RegisterAlias(alias, key)
-	}
-	v.Viper.Set(key, value)
+	return v, nil
 }
 
 // Unmarshal exposes viper's Unmarshal. Prior to unmarshaling it creates the necessary pflag and env var bindings
 // so that pflag / env var values are also used during the unmarshaling.
 func (v *viperEnv) Unmarshal(value interface{}) error {
-	if err := v.prepareBindings(value); err != nil {
-		return err
-	}
-	return v.Viper.Unmarshal(value)
-}
-
-// prepareBindings binds the structure's fields as env variables and pflags to viper
-// so that viper knows to look for them during unmarshaling.
-func (v *viperEnv) prepareBindings(value interface{}) error {
 	properties := make(map[string]interface{})
-
 	traverseFields(value, "", properties)
-	for bindingFlagName := range properties {
-		// let viper's AllKeys know about the env variables that would be used during unmarshaling
-		if err := v.Viper.BindEnv(bindingFlagName); err != nil {
+	for flagName := range properties {
+		if err := v.Viper.BindEnv(flagName); err != nil {
 			return err
 		}
-
-		// PFlags are already bound with underscore separator on nest points - however during unmarshaling viper
-		// is using dot as separator for nested paths in structures - therefore additional pflag bindings are required.
-		key := strings.Replace(bindingFlagName, ".", "_", -1)
-		flag := pflag.Lookup(key)
-		if flag != nil {
-			if err := v.Viper.BindPFlag(bindingFlagName, flag); err != nil {
-				return err
-			}
-		}
 	}
-	return nil
-}
-
-// CreatePFlags creates pflags for the structure's fields. If values are present within the structure, they will be used
-// as pflag default values. PFlags can also be manually added using the standard way (not using this method).
-// If a pflag with the same name was already added using the standard way, this method will not override it.
-// Creating pflags should be done before calling Load() - pflags created after loading will be ignored.
-func (v *viperEnv) CreatePFlags(value interface{}) {
-	properties := make(map[string]interface{})
-	traverseFields(value, "", properties)
-	for bindingName, defaultValue := range properties {
-		//  underscores instead of dots in flag names
-		flagName := strings.Replace(bindingName, ".", "_", -1)
-		if pflag.Lookup(flagName) == nil {
-			pflag.String(flagName, cast.ToString(defaultValue), fmt.Sprintf("commandline argument for %s", flagName))
-		}
-	}
-}
-
-// BindPFlag allows binding a single flag to the env
-func (v *viperEnv) BindPFlag(key string, value *pflag.Flag) error {
-	return v.Viper.BindPFlag(key, value)
+	return v.Viper.Unmarshal(value)
 }
 
 // traverseFields traverses the provided structure and prepares a slice of strings that contains
@@ -213,4 +110,24 @@ func traverseFields(value interface{}, buffer string, result map[string]interfac
 			}
 		}
 	}
+}
+
+func (v *viperEnv) setupConfigFile() error {
+	cfg := struct{ File File }{File: File{}}
+	if err := v.Unmarshal(&cfg); err != nil {
+		return fmt.Errorf("could not find configuration cfg: %s", err)
+	}
+
+	v.Viper.AddConfigPath(cfg.File.Location)
+	v.Viper.SetConfigName(cfg.File.Name)
+	v.Viper.SetConfigType(cfg.File.Format)
+
+	if err := v.Viper.ReadInConfig(); err != nil {
+		if err, ok := err.(viper.ConfigFileNotFoundError); ok {
+			logrus.Warn("Config File was not found: ", err)
+			return nil
+		}
+		return fmt.Errorf("could not read configuration cfg: %s", err)
+	}
+	return nil
 }

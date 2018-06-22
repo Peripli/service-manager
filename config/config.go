@@ -24,19 +24,36 @@ import (
 	"github.com/Peripli/service-manager/log"
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
+	"github.com/spf13/pflag"
 )
 
-// Config is used to setup the Service Manager
-type Config struct {
+// Environment represents an abstraction over the env from which Service Manager configuration will be loaded
+//go:generate counterfeiter . Environment
+type Environment interface {
+	Get(key string) interface{}
+	Set(key string, value interface{})
+	Unmarshal(value interface{}) error
+	BindPFlag(key string, flag *pflag.Flag) error
+}
+
+// Settings is used to setup the Service Manager
+type Settings struct {
 	Server  server.Settings
 	Storage storage.Settings
 	Log     log.Settings
 	API     api.Settings
 }
 
-// DefaultConfig returns the default values for configuring the Service Manager
-func DefaultConfig() *Config {
-	config := &Config{
+// File describes the name, path and the format of the file to be used to load the configuration in the env
+type File struct {
+	Name     string
+	Location string
+	Format   string
+}
+
+// DefaultSettings returns the default values for configuring the Service Manager
+func DefaultSettings() *Settings {
+	config := &Settings{
 		Server: server.Settings{
 			Host:            "127.0.0.1",
 			Port:            8080,
@@ -57,15 +74,29 @@ func DefaultConfig() *Config {
 	return config
 }
 
-// New creates a configuration from the provided env
-func New(env Environment) (*Config, error) {
-	config := DefaultConfig()
-
-	env.CreatePFlags(config)
-
-	if err := env.Load(); err != nil {
-		return nil, err
+// DefaultFile holds the default SM config file properties
+func DefaultFile() File {
+	return File{
+		Name:     "application",
+		Location: ".",
+		Format:   "yml",
 	}
+}
+
+func AddPFlags(set *pflag.FlagSet) {
+	CreatePFlags(set, DefaultSettings())
+	CreatePFlags(set, struct{ File File }{File: DefaultFile()})
+}
+
+func SMFlagSet() *pflag.FlagSet {
+	set := pflag.NewFlagSet("Service Manager Configuration Flags", pflag.ExitOnError)
+	set.AddFlagSet(pflag.CommandLine)
+	return set
+}
+
+// New creates a configuration from the provided env
+func New(env Environment) (*Settings, error) {
+	config := &Settings{}
 	if err := env.Unmarshal(config); err != nil {
 		return nil, err
 	}
@@ -74,7 +105,7 @@ func New(env Environment) (*Config, error) {
 }
 
 // Validate validates that the configuration contains all mandatory properties
-func (c *Config) Validate() error {
+func (c *Settings) Validate() error {
 	if c.Server.Port == 0 {
 		return fmt.Errorf("validate Settings: Port missing")
 	}

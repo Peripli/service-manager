@@ -25,6 +25,7 @@ import (
 	"github.com/Peripli/service-manager/config"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/spf13/pflag"
 )
 
 const VCAP_SERVICES_VALUE = `{ "postgresql": [
@@ -61,8 +62,10 @@ func TestApi(t *testing.T) {
 }
 
 var _ = Describe("CF Env", func() {
-	var delegate config.Environment
-	var env config.Environment
+	var (
+		env config.Environment
+		err error
+	)
 
 	BeforeSuite(func() {
 		Expect(ioutil.WriteFile("application.yml", []byte{}, 0640)).ShouldNot(HaveOccurred())
@@ -77,12 +80,8 @@ var _ = Describe("CF Env", func() {
 		Expect(os.Setenv("VCAP_SERVICES", VCAP_SERVICES_VALUE)).ShouldNot(HaveOccurred())
 		Expect(os.Setenv("STORAGE_NAME", "smdb")).ShouldNot(HaveOccurred())
 
-		delegate = config.NewEnv(config.File{
-			Name:     "application",
-			Location: ".",
-			Format:   "yml",
-		})
-		env = NewEnv(delegate)
+		env, err = config.NewEnv(pflag.CommandLine)
+		Expect(err).ShouldNot(HaveOccurred())
 	})
 
 	AfterEach(func() {
@@ -91,70 +90,59 @@ var _ = Describe("CF Env", func() {
 		Expect(os.Unsetenv("STORAGE_NAME")).ShouldNot(HaveOccurred())
 	})
 
-	Describe("New", func() {
-		verifyEnvIsCFEnv := func(isCFEnv bool) {
-			env = NewEnv(delegate)
-			_, ok := env.(*cfEnvironment)
-
-			Expect(ok).To(Equal(isCFEnv))
-		}
-
+	Describe("Set CF env values", func() {
 		Context("when VCAP_APPLICATION is missing", func() {
-			It("returns non cf env", func() {
+			It("returns no error", func() {
 				Expect(os.Unsetenv("VCAP_APPLICATION")).ShouldNot(HaveOccurred())
-				verifyEnvIsCFEnv(false)
+
+				Expect(SetEnvValues(env)).ShouldNot(HaveOccurred())
+				Expect(env.Get("store.uri")).Should(BeNil())
 			})
 		})
 
 		Context("when VCAP_APPLICATION is present", func() {
-			It("returns cf env", func() {
-				verifyEnvIsCFEnv(true)
+			Context("when storage.name is missing from env", func() {
+				It("returns no error", func() {
+					Expect(os.Unsetenv("STORAGE_NAME")).ShouldNot(HaveOccurred())
+
+					Expect(SetEnvValues(env)).ShouldNot(HaveOccurred())
+					Expect(env.Get("storage.name")).Should(BeNil())
+					Expect(env.Get("storage.uri")).Should(BeNil())
+
+				})
 			})
-		})
-	})
 
-	Describe("Load", func() {
-		Context("with missing STORAGE_name", func() {
-			It("succeeds", func() {
-				Expect(os.Unsetenv("STORAGE_NAME")).ShouldNot(HaveOccurred())
-				err := env.Load()
+			Context("when storage with name storage.name is missing from VCAP_SERVICES", func() {
+				It("returns error", func() {
+					Expect(os.Setenv("STORAGE_NAME", "missing")).ShouldNot(HaveOccurred())
 
-				Expect(err).ShouldNot(HaveOccurred())
-				Expect(env.Get("storage_name")).Should(BeNil())
-				Expect(env.Get("storage_uri")).Should(BeNil())
-
+					err := SetEnvValues(env)
+					Expect(SetEnvValues(env)).Should(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("could not find service with name"))
+				})
 			})
-		})
 
-		Context("with missing postgresql service", func() {
-			It("returns error", func() {
-				Expect(os.Setenv("STORAGE_NAME", "missing")).ShouldNot(HaveOccurred())
-				err := env.Load()
+			Context("when VCAP_SERVICES is invalid", func() {
+				It("returns error", func() {
+					Expect(os.Setenv("VCAP_SERVICES", "Invalid")).ShouldNot(HaveOccurred())
 
-				Expect(err).Should(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("could not find service with name"))
+					Expect(SetEnvValues(env)).Should(HaveOccurred())
+				})
 			})
-		})
 
-		Context("with invalid VCAP_SERVICES", func() {
-			It("returns error", func() {
-				Expect(os.Setenv("VCAP_SERVICES", "Invalid")).ShouldNot(HaveOccurred())
+			Context("when VCAP_SERVICES is missing", func() {
+				It("returns error", func() {
+					Expect(os.Unsetenv("VCAP_SERVICES")).ShouldNot(HaveOccurred())
 
-				Expect(env.Load()).Should(HaveOccurred())
+					Expect(SetEnvValues(env)).Should(HaveOccurred())
+				})
 			})
-		})
 
-		Context("with missing VCAP_SERVICES", func() {
-			It("returns error", func() {
-				Expect(os.Unsetenv("VCAP_SERVICES")).ShouldNot(HaveOccurred())
+			It("sets the storage.uri if successful", func() {
+				Expect(SetEnvValues(env)).ShouldNot(HaveOccurred())
 
-				Expect(env.Load()).Should(HaveOccurred())
+				Expect(env.Get("storage.uri")).ShouldNot(BeEmpty())
 			})
-		})
-
-		It("sets the STORAGE_uri error", func() {
-			Expect(env.Load()).ShouldNot(HaveOccurred())
-			Expect(env.Get("storage_uri")).ShouldNot(BeEmpty())
 		})
 	})
 })

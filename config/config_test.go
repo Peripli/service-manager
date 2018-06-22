@@ -33,7 +33,7 @@ var _ = Describe("config", func() {
 
 	var (
 		err    error
-		config *cfg.Config
+		config *cfg.Settings
 	)
 
 	Describe("Validate", func() {
@@ -44,7 +44,7 @@ var _ = Describe("config", func() {
 		}
 
 		BeforeEach(func() {
-			config = cfg.DefaultConfig()
+			config = cfg.DefaultSettings()
 			config.Storage.URI = "postgres://postgres:postgres@localhost:5555/postgres?sslmode=disable"
 			config.API.TokenIssuerURL = "http://example.com"
 		})
@@ -106,7 +106,7 @@ var _ = Describe("config", func() {
 		})
 	})
 
-	Describe("New Config", func() {
+	Describe("New Settings", func() {
 
 		var (
 			fakeEnv       *configfakes.FakeEnvironment
@@ -122,14 +122,6 @@ var _ = Describe("config", func() {
 			fakeEnv = &configfakes.FakeEnvironment{}
 		})
 
-		Context("when loading from environment fails", func() {
-			It("returns an error", func() {
-				fakeEnv.LoadReturns(creationError)
-
-				assertErrorDuringNewConfiguration()
-			})
-		})
-
 		Context("when unmarshaling from environment fails", func() {
 			It("returns an error", func() {
 				fakeEnv.UnmarshalReturns(creationError)
@@ -138,12 +130,12 @@ var _ = Describe("config", func() {
 			})
 		})
 
-		Context("when loading and unmarshaling from environment are successful", func() {
+		Context("when creating settings is successful", func() {
 
 			var (
-				configuration cfg.Config
+				configuration cfg.Settings
 
-				envConfig = cfg.Config{
+				envConfig = cfg.Settings{
 					Server: server.Settings{
 						Port:            8080,
 						ShutdownTimeout: 5000,
@@ -161,21 +153,18 @@ var _ = Describe("config", func() {
 					},
 				}
 
-				emptyConfig = cfg.Config{}
+				emptyConfig = cfg.Settings{}
 			)
 
 			assertEnvironmentLoadedAndUnmarshaled := func() {
-				Expect(fakeEnv.LoadCallCount()).To(Equal(1))
 				Expect(fakeEnv.UnmarshalCallCount()).To(Equal(1))
-				Expect(fakeEnv.CreatePFlagsCallCount()).To(Equal(1))
 			}
 
 			BeforeEach(func() {
-				fakeEnv.LoadReturns(nil)
 				fakeEnv.UnmarshalReturns(nil)
 
 				fakeEnv.UnmarshalStub = func(value interface{}) error {
-					val, ok := value.(*cfg.Config)
+					val, ok := value.(*cfg.Settings)
 					if ok {
 						*val = configuration
 					}
