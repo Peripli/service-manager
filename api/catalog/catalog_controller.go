@@ -26,6 +26,7 @@ import (
 	"github.com/Peripli/service-manager/types"
 )
 
+// Controller catalog controller
 type Controller struct {
 	BrokerStorage storage.Broker
 }
@@ -51,7 +52,7 @@ func (ctrl *Controller) getCatalog(writer http.ResponseWriter, request *http.Req
 	queryBrokerIDs := request.URL.Query()["broker_id"]
 	if len(queryBrokerIDs) != 0 {
 		logrus.Debugf("Filtering based on the provided query parameters: %s", queryBrokerIDs)
-		filterBrokersById(brokers, queryBrokerIDs, &resultServices)
+		filterBrokersByID(brokers, queryBrokerIDs, &resultServices)
 	} else {
 		retrieveAllBrokers(brokers, &resultServices)
 	}
@@ -59,7 +60,7 @@ func (ctrl *Controller) getCatalog(writer http.ResponseWriter, request *http.Req
 	return rest.SendJSON(writer, http.StatusOK, aggregatedCatalog{resultServices})
 }
 
-func filterBrokersById(dbBrokers []types.Broker, queryBrokerIDs []string, filteredBrokers *[]brokerServices) {
+func filterBrokersByID(dbBrokers []types.Broker, queryBrokerIDs []string, filteredBrokers *[]brokerServices) {
 	for _, queryBrokerID := range queryBrokerIDs{
 		for _, dbBroker := range dbBrokers {
 			if queryBrokerID == dbBroker.ID {

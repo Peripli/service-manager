@@ -29,6 +29,7 @@ const (
 	URL = "/" + apiVersion + "/" + root
 )
 
+// Routes returns slice of routes which handle catalog operations
 func (catalogCtrl *Controller) Routes() []rest.Route {
 	return []rest.Route{
 		{
