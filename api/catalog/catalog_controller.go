@@ -41,9 +41,9 @@ type aggregatedCatalog struct {
 	Brokers []brokerServices `json:"brokers"`
 }
 
-func (ctrl *Controller) getCatalog(writer http.ResponseWriter, request *http.Request) error {
+func (c *Controller) getCatalog(writer http.ResponseWriter, request *http.Request) error {
 	logrus.Debugf("Aggregating all broker catalogs")
-	brokers, err := ctrl.BrokerStorage.GetAll()
+	brokers, err := c.BrokerStorage.GetAll()
 	if err != nil {
 		return err
 	}

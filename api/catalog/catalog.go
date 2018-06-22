@@ -30,14 +30,14 @@ const (
 )
 
 // Routes returns slice of routes which handle catalog operations
-func (catalogCtrl *Controller) Routes() []rest.Route {
+func (c *Controller) Routes() []rest.Route {
 	return []rest.Route{
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodGet,
 				Path:   URL,
 			},
-			Handler: rest.APIHandler(catalogCtrl.getCatalog),
+			Handler: rest.APIHandler(c.getCatalog),
 		},
 	}
 }
