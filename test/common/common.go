@@ -35,6 +35,8 @@ type Array = []interface{}
 func GetServerRouter() *mux.Router {
 	set := config.SMFlagSet()
 	config.AddPFlags(set)
+	set.Set("file.location", "./test/common")
+
 	serverEnv,err := config.NewEnv(set)
 	if err != nil {
 		logrus.Fatal("Error creating server: ", err)
