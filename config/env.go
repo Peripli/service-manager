@@ -53,7 +53,10 @@ func NewEnv(set *pflag.FlagSet) (Environment, error) {
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 
-	set.Parse(os.Args[1:])
+	if err := set.Parse(os.Args[1:]); err != nil {
+		return nil, err
+	}
+	
 	set.VisitAll(func(flag *pflag.Flag) {
 		if err := v.BindPFlag(flag.Name, flag); err != nil {
 			logrus.Panic(err)
