@@ -170,8 +170,8 @@ func (c *Controller) patchBroker(response http.ResponseWriter, request *http.Req
 		return err
 	}
 
-	updateBroker.ID = brokerID
 	updateBroker.UpdatedAt = time.Now().UTC()
+	updateBroker.ID = brokerID
 
 	if updateBroker.Credentials != nil {
 		err := validateBrokerCredentials(updateBroker.Credentials)
@@ -180,7 +180,7 @@ func (c *Controller) patchBroker(response http.ResponseWriter, request *http.Req
 		}
 	}
 
-	broker, err := c.BrokerStorage.Get(updateBroker.ID)
+	broker, err := c.BrokerStorage.Get(brokerID)
 	err = common.HandleNotFoundError(err, "broker", brokerID)
 	if err != nil {
 		return err
@@ -190,13 +190,14 @@ func (c *Controller) patchBroker(response http.ResponseWriter, request *http.Req
 	if err != nil {
 		return err
 	}
-	if err := json.Unmarshal(updateData, broker); err != nil {
+ 
+  if err := json.Unmarshal(updateData, broker); err != nil {
 		return err
 	}
 
 	catalog, err := c.getBrokerCatalog(broker)
 	if err != nil {
-		return types.NewErrorResponse(err, http.StatusBadRequest, "BadRequest")
+		return err
 	}
 
 	isCatalogModified := !bytes.Equal(broker.Catalog, catalog)
