@@ -26,8 +26,8 @@ func (p *MyPlugin) FetchCatalog(req *filter.Request, next filter.Handler) (*filt
     if err != nil {
         return nil, err
     }
-
-    res.Body, err = sjson.SetBytes(res.Body, "extra", "response")
+    serviceName := gjson.GetBytes(res.Body, "services.0.name").String()
+    res.Body, err = sjson.SetBytes(res.Body, "services.0.name", serviceName + "-suffix")
     return res, err
 }
 ```
@@ -45,10 +45,13 @@ import (
 )
 
 func (p *MyPlugin) Provision(req *filter.Request, next filter.Handler) (*filter.Response, error) {
-    res, err := next(req)
+    if !checkCredentials(req) {
+        return &filter.Response{
+            StatusCode: 401 // Unauthorized
+        }, nil
+    }
 
-    res.StatusCode = 401 // Unauthorized
-    return res, err
+    return next(req)
 }
 ```
 
@@ -104,6 +107,5 @@ Our `filter.Request` contains the original `http.Request` object, but it **shoul
 
 ### Chaining
 
-Make sure the plugin calls the `next(req)` function, otherwise the chain will not get to the next plugin (or even the Service Manager handler).
-
-Sometimes this might be the desired behaviour, but make sure to check it twice.
+As part of execution of your code call the `next(req)` function, this will forward control to the next plugin in the chain.
+In case your logic require to stop the chain and exit, just omit the call to next(req) function.
