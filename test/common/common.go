@@ -38,6 +38,39 @@ import (
 type Object = map[string]interface{}
 type Array = []interface{}
 
+const Catalog = `{
+  "services": [
+    {
+      "bindable": true,
+      "description": "service",
+      "id": "98418a7a-002e-4ff9-b66a-d03fc3d56b16",
+      "metadata": {
+        "displayName": "test",
+        "longDescription": "test"
+      },
+      "name": "test",
+      "plan_updateable": false,
+      "plans": [
+        {
+          "description": "test",
+          "free": true,
+          "id": "9bb3b29e-bbf9-4900-b926-2f8e9c9a3347",
+          "metadata": {
+            "bullets": [
+              "Plan with basic functionality and relaxed security, excellent for development and try-out purposes"
+            ],
+            "displayName": "lite"
+          },
+          "name": "lite"
+        }
+      ],
+      "tags": [
+        "test"
+      ]
+    }
+  ]
+}`
+
 func GetServerRouter() *mux.Router {
 	set := config.SMFlagSet()
 	config.AddPFlags(set)
