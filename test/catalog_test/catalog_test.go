@@ -74,7 +74,7 @@ var _ = Describe("Service Manager Aggregated Catalog API", func() {
 
 	Describe("GET", func() {
 		Context("when no brokers exist", func() {
-			FIt("returns 200 and empty brokers array", func() {
+			It("returns 200 and empty brokers array", func() {
 				obj := SM.GET("/v1/sm_catalog").
 					Expect().
 					Status(http.StatusOK).

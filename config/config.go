@@ -89,7 +89,7 @@ func AddPFlags(set *pflag.FlagSet) {
 	CreatePFlags(set, struct{ File File }{File: DefaultFile()})
 }
 
-// SMFlagSet creates an empty flag and adds the default se of flags to it
+// SMFlagSet creates an empty flag set and adds the default se of flags to it
 func SMFlagSet() *pflag.FlagSet {
 	set := pflag.NewFlagSet("Service Manager Configuration Flags", pflag.ExitOnError)
 	set.AddFlagSet(pflag.CommandLine)
