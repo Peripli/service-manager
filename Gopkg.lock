@@ -117,7 +117,8 @@
   name = "github.com/jmoiron/sqlx"
   packages = [
     ".",
-    "reflectx"
+    "reflectx",
+    "types"
   ]
   revision = "0dae4fefe7c0e190f7b5a78dac28a1c82cc8d849"
 
@@ -128,19 +129,13 @@
     "gzip",
     "zlib"
   ]
-  revision = "6c8db69c4b49dd4df1fff66996cf556176d0b9bf"
-  version = "v1.2.1"
+  revision = "5fb1f31b0a61e9858f12f39266e059848a5f1cea"
+  version = "v1.3.0"
 
 [[projects]]
   name = "github.com/klauspost/cpuid"
   packages = ["."]
   revision = "ae7887de9fa5d2db4eaa8174a7eff2c1ac00f2da"
-  version = "v1.1"
-
-[[projects]]
-  name = "github.com/klauspost/crc32"
-  packages = ["."]
-  revision = "cb6bfca970f6908083f26f39a79009d608efd5cd"
   version = "v1.1"
 
 [[projects]]
@@ -206,6 +201,7 @@
   packages = [
     ".",
     "format",
+    "ghttp",
     "internal/assertion",
     "internal/asyncassertion",
     "internal/oraclematcher",
@@ -217,8 +213,8 @@
     "matchers/support/goraph/util",
     "types"
   ]
-  revision = "62bff4df71bdbc266561a0caee19f0594b17c240"
-  version = "v1.4.0"
+  revision = "003f63b7f4cff3fc95357005358af2de0f5fe152"
+  version = "v1.3.0"
 
 [[projects]]
   name = "github.com/pelletier/go-toml"
@@ -426,7 +422,7 @@
     "unix",
     "windows"
   ]
-  revision = "ad87a3a340fa7f3bed189293fbfa7a9b7e021ae1"
+  revision = "63fc586f45fe72d95d5240a5d5eb95e6503907d3"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -470,6 +466,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "9e11b5ae73c9565b2dcd688c64936c42287ec0a7241a0b350c54133174142c4b"
+  inputs-digest = "4f3fea5fa4d29d27c12d59dea7ff0a16f290521644bd56ba4287c0e69398c431"
   solver-name = "gps-cdcl"
   solver-version = 1
