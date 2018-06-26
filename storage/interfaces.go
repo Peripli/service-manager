@@ -14,8 +14,7 @@
  *    limitations under the License.
  */
 
-// Package storage provides generic interfaces around the Service Manager storage and provides logic
-// for registration and usage of storages
+// Package storage contains logic around the Service Manager persistent storage
 package storage
 
 import (
@@ -24,7 +23,20 @@ import (
 	"github.com/Peripli/service-manager/types"
 )
 
-// Storage interface provides entity-specific storages.
+var (
+	// ErrNotFound error returned from storage when entity is not found
+	ErrNotFound = errors.New("not found")
+
+	// ErrUniqueViolation error returned from storage when entity has conflicting fields
+	ErrUniqueViolation = errors.New("unique constraint violation")
+)
+
+// Settings type to be loaded from the environment
+type Settings struct {
+	URI string
+}
+
+// Storage interface provides entity-specific storages
 //go:generate counterfeiter . Storage
 type Storage interface {
 	// Open initializes the storage, e.g. opens a connection to the underlying storage
@@ -36,31 +48,44 @@ type Storage interface {
 	// Broker provides access to service broker db operations
 	Broker() Broker
 
+	// Platform provides access to platform db operations
 	Platform() Platform
 }
-
-// ErrNotFound error returned from storage when entity is not found
-var ErrNotFound = errors.New("Not found")
-
-// ErrUniqueViolation error returned from storage when entity has conflicting fields
-var ErrUniqueViolation = errors.New("Unique constraint violation")
 
 // Broker interface for Broker db operations
 //go:generate counterfeiter . Broker
 type Broker interface {
+	// Create stores a broker in SM DB
 	Create(broker *types.Broker) error
+
+	// Get retrieves a broker using the provided id from SM DB
 	Get(id string) (*types.Broker, error)
+
+	// GetAll retrieves all brokers from SM DB
 	GetAll() ([]types.Broker, error)
+
+	// Delete deletes a broker from SM DB
 	Delete(id string) error
+
+	// Update updates a broker from SM DB
 	Update(broker *types.Broker) error
 }
 
 // Platform interface for Platform db operations
 //go:generate counterfeiter . Platform
 type Platform interface {
+	// Create stores a platform in SM DB
 	Create(platform *types.Platform) error
+
+	// Get retrieves a platform using the provided id from SM DB
 	Get(id string) (*types.Platform, error)
+
+	// GetAll retrieves all platforms from SM DB
 	GetAll() ([]types.Platform, error)
+
+	// Delete deletes a platform from SM DB
 	Delete(id string) error
+
+	// Update updates a platform from SM DB
 	Update(platform *types.Platform) error
 }

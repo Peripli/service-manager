@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Peripli/service-manager/env"
 	"github.com/Peripli/service-manager/sm"
 	"github.com/gavv/httpexpect"
 	"github.com/gorilla/mux"
@@ -29,6 +28,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
 	"github.com/sirupsen/logrus"
+	"github.com/Peripli/service-manager/config"
 	"net/url"
 	"reflect"
 	"regexp"
@@ -38,13 +38,53 @@ import (
 type Object = map[string]interface{}
 type Array = []interface{}
 
+const Catalog = `{
+  "services": [
+    {
+      "bindable": true,
+      "description": "service",
+      "id": "98418a7a-002e-4ff9-b66a-d03fc3d56b16",
+      "metadata": {
+        "displayName": "test",
+        "longDescription": "test"
+      },
+      "name": "test",
+      "plan_updateable": false,
+      "plans": [
+        {
+          "description": "test",
+          "free": true,
+          "id": "9bb3b29e-bbf9-4900-b926-2f8e9c9a3347",
+          "metadata": {
+            "bullets": [
+              "Plan with basic functionality and relaxed security, excellent for development and try-out purposes"
+            ],
+            "displayName": "lite"
+          },
+          "name": "lite"
+        }
+      ],
+      "tags": [
+        "test"
+      ]
+    }
+  ]
+}`
+
 func GetServerRouter() *mux.Router {
-	serverEnv := env.New(&env.ConfigFile{
-		Path:   "./test/common",
-		Name:   "application",
-		Format: "yml",
-	}, "SM")
-	srv, err := sm.NewServer(context.Background(), serverEnv)
+	set := config.SMFlagSet()
+	config.AddPFlags(set)
+	set.Set("file.location", "./test/common")
+
+	serverEnv,err := config.NewEnv(set)
+	if err != nil {
+		logrus.Fatal("Error creating server: ", err)
+	}
+	cfg,err := config.New(serverEnv)
+	if err != nil {
+		logrus.Fatal("Error creating server: ", err)
+	}
+	srv, err := sm.New(context.Background(), cfg)
 	if err != nil {
 		logrus.Fatal("Error creating server router during test server initialization: ", err)
 	}

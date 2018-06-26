@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
-package info
+package info_test
 
 import (
-	"errors"
 	"net/http"
 	"testing"
 
+	"github.com/Peripli/service-manager/api/info"
 	"github.com/Peripli/service-manager/rest"
-	"github.com/Peripli/service-manager/server/serverfakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -34,69 +33,21 @@ func Test(t *testing.T) {
 
 var _ = Describe("Info API", func() {
 
-	environment := &serverfakes.FakeEnvironment{}
-	var constructNewController func()
 	var controller rest.Controller
 
-	configureEnvironmentUnmarshalInfo := func() {
-		response := Details{TokenIssuer: "https://example.com"}
-		environment.UnmarshalStub = func(value interface{}) error {
-			val, ok := value.(*Details)
-			if ok {
-				*val = response
-			}
-			return nil
-		}
-	}
-
 	BeforeEach(func() {
-		constructNewController = func() {
-			controller = NewController(environment)
+		controller = &info.Controller{
+			TokenIssuer: "https://example.com",
 		}
-	})
-
-	Describe("Construct Info Controller", func() {
-		Context("When unmarshal", func() {
-			Context("Returns an error", func() {
-				BeforeEach(func() {
-					environment.UnmarshalReturns(errors.New("error"))
-				})
-
-				It("Should panic", func() {
-					Expect(constructNewController).To(Panic())
-				})
-			})
-			Context("Doesn't return an error", func() {
-				BeforeEach(func() {
-					environment.UnmarshalReturns(nil)
-				})
-				Context("And TokenIssuer is empty", func() {
-					It("Should panic", func() {
-						Expect(constructNewController).To(Panic())
-					})
-				})
-				Context("And TokenIssuer is not empty", func() {
-					BeforeEach(func() {
-						configureEnvironmentUnmarshalInfo()
-					})
-					It("Should be OK", func() {
-						Expect(constructNewController).To(Not(Panic()))
-					})
-				})
-			})
-		})
 	})
 
 	Describe("Routes", func() {
-		BeforeEach(func() {
-			configureEnvironmentUnmarshalInfo()
-		})
 		It("Returns one route", func() {
 			routes := controller.Routes()
 			Expect(len(routes)).To(Equal(1))
 
 			route := routes[0]
-			Expect(route.Endpoint.Path).To(Equal(URL))
+			Expect(route.Endpoint.Path).To(Equal(info.URL))
 			Expect(route.Endpoint.Method).To(Equal(http.MethodGet))
 		})
 	})

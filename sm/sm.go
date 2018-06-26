@@ -22,47 +22,31 @@ import (
 	"fmt"
 
 	"github.com/Peripli/service-manager/api"
+	"github.com/Peripli/service-manager/config"
+	"github.com/Peripli/service-manager/log"
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/postgres"
-	"github.com/sirupsen/logrus"
 )
 
-// NewServer creates service manager server
-func NewServer(ctx context.Context, serverEnv server.Environment) (*server.Server, error) {
-	config, err := server.NewConfiguration(serverEnv)
-	if err != nil {
-		return nil, fmt.Errorf("Error loading configuration: %v", err)
+// New creates a SM server
+func New(ctx context.Context, cfg *config.Settings) (*server.Server, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("configuration validation failed: %v", err)
 	}
 
-	if err := config.Validate(); err != nil {
-		return nil, fmt.Errorf("Configuration validation failed: %v", err)
+	log.SetupLogging(cfg.Log)
+
+	storage, err := storage.Use(ctx, postgres.Storage, cfg.Storage.URI)
+	if err != nil {
+		return nil, fmt.Errorf("error using storage: %v", err)
 	}
 
-	setUpLogging(config.LogLevel, config.LogFormat)
+	api := api.New(storage, cfg.API)
 
-	storage, err := storage.Use(ctx, postgres.Storage, config.DbURI)
+	srv, err := server.New(api, cfg.Server)
 	if err != nil {
-		return nil, fmt.Errorf("Error using storage: %v", err)
-	}
-
-	defaultAPI := api.Default(storage, serverEnv)
-	srv, err := server.New(defaultAPI, config)
-	if err != nil {
-		return nil, fmt.Errorf("Error creating server: %v", err)
+		return nil, fmt.Errorf("error creating server: %v", err)
 	}
 	return srv, nil
-}
-
-func setUpLogging(logLevel string, logFormat string) {
-	level, err := logrus.ParseLevel(logLevel)
-	if err != nil {
-		logrus.Fatal("Could not parse log level configuration")
-	}
-	logrus.SetLevel(level)
-	if logFormat == "json" {
-		logrus.SetFormatter(&logrus.JSONFormatter{})
-	} else {
-		logrus.SetFormatter(&logrus.TextFormatter{})
-	}
 }

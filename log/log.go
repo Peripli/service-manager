@@ -14,16 +14,27 @@
  *    limitations under the License.
  */
 
-package server_test
+// Package log contains logic for setting up logging for SM
+package log
 
-import (
-	"testing"
+import "github.com/sirupsen/logrus"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-)
+// Settings type to be loaded from the environment
+type Settings struct {
+	Level  string
+	Format string
+}
 
-func TestServer(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Server Suite")
+// SetupLogging configures logrus logging using the provided settings
+func SetupLogging(settings Settings) {
+	level, err := logrus.ParseLevel(settings.Level)
+	if err != nil {
+		panic("Could not parse log level configuration")
+	}
+	logrus.SetLevel(level)
+	if settings.Format == "json" {
+		logrus.SetFormatter(&logrus.JSONFormatter{})
+	} else {
+		logrus.SetFormatter(&logrus.TextFormatter{})
+	}
 }

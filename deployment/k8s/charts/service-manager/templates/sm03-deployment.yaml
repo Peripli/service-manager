@@ -32,12 +32,12 @@ spec:
           mountPath: {{ .Values.configMountPath }}
           readOnly: true
         env:
-        - name: SM_DB_URI
+        - name: STORAGE_URI
           valueFrom:
             secretKeyRef:
               name: {{ template "service-manager.fullname" . }}-secret
               key: uri
-        args: ["config_location={{ .Values.configMountPath }}"]
+        args: ["file.location={{ .Values.configMountPath }}"]
       ports:
       - name: http
         containerPort: 8080

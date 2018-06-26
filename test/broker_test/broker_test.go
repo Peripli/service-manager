@@ -38,39 +38,6 @@ func TestBrokers(t *testing.T) {
 
 var _ = Describe("Service Manager Broker API", func() {
 
-	const catalog = `{
-  "services": [
-    {
-      "bindable": true,
-      "description": "service",
-      "id": "98418a7a-002e-4ff9-b66a-d03fc3d56b16",
-      "metadata": {
-        "displayName": "test",
-        "longDescription": "test"
-      },
-      "name": "test",
-      "plan_updateable": false,
-      "plans": [
-        {
-          "description": "test",
-          "free": true,
-          "id": "9bb3b29e-bbf9-4900-b926-2f8e9c9a3347",
-          "metadata": {
-            "bullets": [
-              "Plan with basic functionality and relaxed security, excellent for development and try-out purposes"
-            ],
-            "displayName": "lite"
-          },
-          "name": "lite"
-        }
-      ],
-      "tags": [
-        "test"
-      ]
-    }
-  ]
-}`
-
 	var (
 		SM *httpexpect.Expect
 
@@ -99,7 +66,7 @@ var _ = Describe("Service Manager Broker API", func() {
 
 	BeforeEach(func() {
 		code = http.StatusOK
-		catalogResponse = []byte(catalog)
+		catalogResponse = []byte(common.Catalog)
 		brokerServer = common.FakeBrokerServer(&code, &catalogResponse)
 
 		testBroker = map[string]interface{}{
@@ -579,7 +546,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					}
 
 					unmarshaledCatalog = map[string]interface{}{}
-					err = json.Unmarshal([]byte(catalog), &unmarshaledCatalog)
+					err = json.Unmarshal([]byte(common.Catalog), &unmarshaledCatalog)
 				})
 
 				It("should not change them", func() {

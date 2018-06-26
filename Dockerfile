@@ -29,9 +29,6 @@ WORKDIR /app
 # Copy the executable file
 COPY --from=builder /main /app/
 
-# Copy the application.yml file to the executable container
-COPY --from=builder /go/src/github.com/Peripli/service-manager/application.yml /app/
-
 # Copy migration scripts
 COPY --from=builder /go/src/github.com/Peripli/service-manager/storage/postgres/migrations/ /app/storage/postgres/migrations/
 

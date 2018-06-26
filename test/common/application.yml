@@ -1,7 +1,8 @@
 server:
   port: 1234
-db:
+storage:
   uri: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
 log:
   level: debug
-token_issuer_url: https://example.com
+api:
+  token_issuer_url: https://example.com

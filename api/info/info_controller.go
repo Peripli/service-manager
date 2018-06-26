@@ -18,32 +18,23 @@ package info
 
 import (
 	"net/http"
-	"github.com/Peripli/service-manager/server"
+
 	"github.com/Peripli/service-manager/rest"
-	"github.com/sirupsen/logrus"
 )
 
-// Details describe the public information provided by the Service Manager
-type Details struct{
-	TokenIssuer string `mapstructure:"token_issuer_url" json:"token_issuer_url"`
+// DetailsResponse describes the public information provided by the Service Manager and is returned as a response
+// from the info API
+type DetailsResponse struct {
+	TokenIssuer string `json:"token_issuer_url"`
 }
 
-type controller struct {
-	info Details
+// Controller info controller
+type Controller struct {
+	TokenIssuer string
 }
 
-// NewController returns a new info controller
-func NewController(environment server.Environment) rest.Controller {
-	var info Details
-	if err := environment.Unmarshal(&info); err != nil {
-		logrus.Panic(err)
-	}
-	if info.TokenIssuer == ""{
-		logrus.Panic("Token issuer URL is required")
-	}
-	return &controller{info}
-}
-
-func (c *controller) getInfo(writer http.ResponseWriter, request *http.Request) error {
-	return rest.SendJSON(writer, http.StatusOK, c.info)
+func (c *Controller) getInfo(writer http.ResponseWriter, request *http.Request) error {
+	return rest.SendJSON(writer, http.StatusOK, DetailsResponse{
+		TokenIssuer: c.TokenIssuer,
+	})
 }
