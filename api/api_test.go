@@ -42,12 +42,15 @@ var _ = Describe("API", func() {
 	var (
 		mockedStorage *storagefakes.FakeStorage
 		api           rest.API
+		settings      Settings
 	)
 
 	BeforeEach(func() {
 		mockedStorage = &storagefakes.FakeStorage{}
-
-		api = Default(mockedStorage)
+		settings = Settings{
+			TokenIssuerURL: "http://example.com",
+		}
+		api = New(mockedStorage, settings)
 	})
 
 	Describe("Controller Registration", func() {

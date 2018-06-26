@@ -57,8 +57,8 @@ func checkPlatformMandatoryProperties(platform *types.Platform) error {
 	return nil
 }
 
-// addPlatform handler for POST /v1/platforms
-func (ctrl *Controller) addPlatform(rw http.ResponseWriter, req *http.Request) error {
+// createPlatform handler for POST /v1/platforms
+func (c *Controller) createPlatform(rw http.ResponseWriter, req *http.Request) error {
 	logrus.Debug("Creating new platform")
 
 	platform, errDecode := getPlatformFromRequest(req)
@@ -86,7 +86,7 @@ func (ctrl *Controller) addPlatform(rw http.ResponseWriter, req *http.Request) e
 		return err
 	}
 	platform.Credentials = types.NewBasicCredentials(username, password)
-	err = common.HandleUniqueError(ctrl.PlatformStorage.Create(platform), "platform")
+	err = common.HandleUniqueError(c.PlatformStorage.Create(platform), "platform")
 	if err != nil {
 		return err
 	}
@@ -95,11 +95,11 @@ func (ctrl *Controller) addPlatform(rw http.ResponseWriter, req *http.Request) e
 }
 
 // getPlatform handler for GET /v1/platforms/:platform_id
-func (ctrl *Controller) getPlatform(rw http.ResponseWriter, req *http.Request) error {
+func (c *Controller) getPlatform(rw http.ResponseWriter, req *http.Request) error {
 	platformID := getPlatformID(req)
 	logrus.Debugf("Getting platform with id %s", platformID)
 
-	platform, err := ctrl.PlatformStorage.Get(platformID)
+	platform, err := c.PlatformStorage.Get(platformID)
 	if err = common.HandleNotFoundError(err, "platform", platformID); err != nil {
 		return err
 	}
@@ -107,9 +107,9 @@ func (ctrl *Controller) getPlatform(rw http.ResponseWriter, req *http.Request) e
 }
 
 // getAllPlatforms handler for GET /v1/platforms
-func (ctrl *Controller) getAllPlatforms(rw http.ResponseWriter, req *http.Request) error {
+func (c *Controller) getAllPlatforms(rw http.ResponseWriter, req *http.Request) error {
 	logrus.Debug("Getting all platforms")
-	platforms, err := ctrl.PlatformStorage.GetAll()
+	platforms, err := c.PlatformStorage.GetAll()
 	if err != nil {
 		return err
 	}
@@ -119,11 +119,11 @@ func (ctrl *Controller) getAllPlatforms(rw http.ResponseWriter, req *http.Reques
 }
 
 // deletePlatform handler for DELETE /v1/platforms/:platform_id
-func (ctrl *Controller) deletePlatform(rw http.ResponseWriter, req *http.Request) error {
+func (c *Controller) deletePlatform(rw http.ResponseWriter, req *http.Request) error {
 	platformID := getPlatformID(req)
 	logrus.Debugf("Deleting platform with id %s", platformID)
 
-	err := ctrl.PlatformStorage.Delete(platformID)
+	err := c.PlatformStorage.Delete(platformID)
 	if err = common.HandleNotFoundError(err, "platform", platformID); err != nil {
 		return err
 	}
@@ -131,8 +131,8 @@ func (ctrl *Controller) deletePlatform(rw http.ResponseWriter, req *http.Request
 	return rest.SendJSON(rw, http.StatusOK, map[string]string{})
 }
 
-// updatePlatform handler for PATCH /v1/platforms/:platform_id
-func (ctrl *Controller) updatePlatform(rw http.ResponseWriter, req *http.Request) error {
+// patchPlatform handler for PATCH /v1/platforms/:platform_id
+func (c *Controller) patchPlatform(rw http.ResponseWriter, req *http.Request) error {
 	platformID := getPlatformID(req)
 	logrus.Debugf("Updating platform with id %s", platformID)
 	newPlatform, errDecode := getPlatformFromRequest(req)
@@ -141,7 +141,7 @@ func (ctrl *Controller) updatePlatform(rw http.ResponseWriter, req *http.Request
 	}
 	newPlatform.ID = platformID
 	newPlatform.UpdatedAt = time.Now().UTC()
-	platformStorage := ctrl.PlatformStorage
+	platformStorage := c.PlatformStorage
 	err := platformStorage.Update(newPlatform)
 	err = common.CheckErrors(
 		common.HandleNotFoundError(err, "platform", platformID),

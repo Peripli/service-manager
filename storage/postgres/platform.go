@@ -18,7 +18,6 @@ package postgres
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/Peripli/service-manager/types"
 	"github.com/jmoiron/sqlx"
@@ -99,32 +98,18 @@ func (ps *platformStorage) Delete(id string) error {
 }
 
 func (ps *platformStorage) Update(platform *types.Platform) error {
-	updateQuery := platformUpdateQueryString(platform)
+	platformDTO := convertPlatformToDTO(platform)
+	updateQuery, err := updateQuery(platformTable, platformDTO)
+	if err != nil {
+		return err
+	}
 	if updateQuery == "" {
 		logrus.Debug("Platform update: nothing to update")
 		return nil
 	}
-	result, err := ps.db.NamedExec(updateQuery, convertPlatformToDTO(platform))
+	result, err := ps.db.NamedExec(updateQuery, platformDTO)
 	if err = checkUniqueViolation(err); err != nil {
 		return err
 	}
 	return checkRowsAffected(result)
-}
-
-func platformUpdateQueryString(platform *types.Platform) string {
-	set := make([]string, 0, 5)
-	if platform.Name != "" {
-		set = append(set, "name = :name")
-	}
-	if platform.Type != "" {
-		set = append(set, "type = :type")
-	}
-	if platform.Description != "" {
-		set = append(set, "description = :description")
-	}
-	if len(set) == 0 {
-		return ""
-	}
-	set = append(set, "updated_at = :updated_at")
-	return fmt.Sprintf("UPDATE %s SET %s WHERE id = :id", platformTable, strings.Join(set, ", "))
 }

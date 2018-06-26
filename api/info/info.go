@@ -17,22 +17,25 @@
 package info
 
 import (
-	"github.com/Peripli/service-manager/rest"
 	"net/http"
+
+	"github.com/Peripli/service-manager/rest"
 )
 
 const (
 	apiVersion = "v1"
 	root       = "info"
-	url        = "/" + apiVersion + "/" + root
+	// URL is the path of the info endpoint
+	URL = "/" + apiVersion + "/" + root
 )
 
-func (c *controller) Routes() []rest.Route {
+// Routes returns a slice of the routs that handle info operations
+func (c *Controller) Routes() []rest.Route {
 	return []rest.Route{
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodGet,
-				Path:   url,
+				Path:   URL,
 			},
 			Handler: rest.APIHandler(c.getInfo),
 		},

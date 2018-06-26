@@ -29,42 +29,42 @@ const (
 )
 
 // Routes returns slice of routes which handle platform operations
-func (platformCtrl *Controller) Routes() []rest.Route {
+func (c *Controller) Routes() []rest.Route {
 	return []rest.Route{
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodPost,
 				Path:   url,
 			},
-			Handler: rest.APIHandler(platformCtrl.addPlatform),
+			Handler: rest.APIHandler(c.createPlatform),
 		},
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodGet,
 				Path:   url + "/{platform_id}",
 			},
-			Handler: rest.APIHandler(platformCtrl.getPlatform),
+			Handler: rest.APIHandler(c.getPlatform),
 		},
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodGet,
 				Path:   url,
 			},
-			Handler: rest.APIHandler(platformCtrl.getAllPlatforms),
+			Handler: rest.APIHandler(c.getAllPlatforms),
 		},
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodDelete,
 				Path:   url + "/{platform_id}",
 			},
-			Handler: rest.APIHandler(platformCtrl.deletePlatform),
+			Handler: rest.APIHandler(c.deletePlatform),
 		},
 		{
 			Endpoint: rest.Endpoint{
 				Method: http.MethodPatch,
 				Path:   url + "/{platform_id}",
 			},
-			Handler: rest.APIHandler(platformCtrl.updatePlatform),
+			Handler: rest.APIHandler(c.patchPlatform),
 		},
 	}
 }

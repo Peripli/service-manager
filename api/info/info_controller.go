@@ -18,28 +18,23 @@ package info
 
 import (
 	"net/http"
-	"github.com/Peripli/service-manager/server"
+
 	"github.com/Peripli/service-manager/rest"
 )
 
-type informationResponse struct{
-	TokenIssuer string `mapstructure:"token_issuer" json:"token_issuer"`
+// DetailsResponse describes the public information provided by the Service Manager and is returned as a response
+// from the info API
+type DetailsResponse struct {
+	TokenIssuer string `json:"token_issuer_url"`
 }
 
-type controller struct {
-	info informationResponse
+// Controller info controller
+type Controller struct {
+	TokenIssuer string
 }
 
-// NewController returns a new info controller
-func NewController(environment server.Environment) rest.Controller {
-	var info informationResponse
-	if err := environment.Unmarshal(&info); err != nil {
-		panic(err)
-	}
-	return &controller{info}
-}
-
-func (c *controller) getInfo(writer http.ResponseWriter, request *http.Request) error {
-	rest.SendJSON(writer, http.StatusOK, c.info)
-	return nil
+func (c *Controller) getInfo(writer http.ResponseWriter, request *http.Request) error {
+	return rest.SendJSON(writer, http.StatusOK, DetailsResponse{
+		TokenIssuer: c.TokenIssuer,
+	})
 }

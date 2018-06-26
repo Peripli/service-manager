@@ -1,11 +1,11 @@
 server:
-  requestTimeout: 3000
-  shutdownTimeout: 3000
+  requestTimeout: 4000ms
+  shutdownTimeout: 4000ms
   port: 8080
 log:
   level: debug
   format: text
-db:
-  name: sm-postgres
-  uri: postgres://postgres:postgres@192.168.99.100:5555/postgres?sslmode=disable
-token_issuer: https://uaa.local.pcfdev.io
+storage:
+  uri: postgres://postgres:postgres@192.168.99.100:5432/postgres?sslmode=disable
+api:
+  token_issuer_url: https://uaa.local.pcfdev.io
