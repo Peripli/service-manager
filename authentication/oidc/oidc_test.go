@@ -140,17 +140,17 @@ var _ = Describe("OIDC", func() {
 			var readError error
 
 			BeforeEach(func() {
-				body = ioutil.NopCloser(bytes.NewReader(openIdResponseBodyBytes))
-				readError = nil
-			})
-
-			BeforeEach(func() {
 				readConfigFunc = func(request *http.Request) (*http.Response, error) {
 					return &http.Response{
 						StatusCode: openIdResponseCode,
 						Body:       body,
 					}, readError
 				}
+			})
+
+			AfterEach(func() {
+				body = ioutil.NopCloser(bytes.NewReader(openIdResponseBodyBytes))
+				readError = nil
 			})
 
 			Context("When read config returns an error", func() {
