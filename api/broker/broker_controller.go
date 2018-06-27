@@ -32,12 +32,10 @@ import (
 
 	"strings"
 
-	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/types"
 	"github.com/satori/go.uuid"
-	uuid "github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -222,7 +220,7 @@ func (c *Controller) patchBroker(request *filter.Request) (*filter.Response, err
 }
 
 func (c *Controller) getBrokerCatalog(broker *types.Broker) (json.RawMessage, error) {
-	osbClient, err := osb.Client(c.OSBClientCreateFunc, broker)
+	osbClient, err := osbClient(c.OSBClientCreateFunc, broker)
 	if err != nil {
 		return nil, err
 	}
@@ -237,4 +235,23 @@ func (c *Controller) getBrokerCatalog(broker *types.Broker) (json.RawMessage, er
 	}
 
 	return json.RawMessage(bytes), nil
+}
+
+func osbClient(createFunc osbc.CreateFunc, broker *types.Broker) (osbc.Client, error) {
+	config := clientConfigForBroker(broker)
+	logrus.Debug("Building OSB client for serviceBroker with name: ", config.Name, " accessible at: ", config.URL)
+	return createFunc(config)
+}
+
+func clientConfigForBroker(broker *types.Broker) *osbc.ClientConfiguration {
+	config := osbc.DefaultClientConfiguration()
+	config.Name = broker.Name
+	config.URL = broker.BrokerURL
+	config.AuthConfig = &osbc.AuthConfig{
+		BasicAuthConfig: &osbc.BasicAuthConfig{
+			Username: broker.Credentials.Basic.Username,
+			Password: broker.Credentials.Basic.Password,
+		},
+	}
+	return config
 }

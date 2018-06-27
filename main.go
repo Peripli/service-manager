@@ -7,11 +7,9 @@ import (
 	"os"
 	"os/signal"
 
-	"fmt"
-
+	"github.com/Peripli/service-manager/app"
 	"github.com/Peripli/service-manager/cf"
 	"github.com/Peripli/service-manager/config"
-	"github.com/Peripli/service-manager/sm"
 	"github.com/sirupsen/logrus"
 )
 
@@ -35,11 +33,10 @@ func main() {
 		panic(fmt.Sprintf("error loading configuration: %s", err))
 	}
 
-	parameters := &sm.Parameters{
-		Context:     ctx,
-		Environment: getEnvironment(flags),
+	parameters := &app.Parameters{
+		Context: ctx,
 	}
-	srv, err := sm.New(cfg, parameters)
+	srv, err := app.New(cfg, parameters)
 	if err != nil {
 		panic(fmt.Sprintf("error creating SM server: %s", err))
 	}

@@ -1,6 +1,8 @@
 package rest
 
 import (
+	"strings"
+
 	"github.com/Peripli/service-manager/pkg/filter"
 	"github.com/gobwas/glob"
 	"github.com/sirupsen/logrus"
@@ -34,8 +36,9 @@ func matchMethod(method string, methods []string) bool {
 	if methods == nil {
 		return true
 	}
+
 	for _, m := range methods {
-		if m == method {
+		if strings.ToLower(m) == strings.ToLower(method) {
 			return true
 		}
 	}

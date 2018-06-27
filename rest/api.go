@@ -59,16 +59,6 @@ func (api *API) RegisterPlugins(plugins ...plugin.Plugin) {
 			logrus.Panicln("Cannot add nil plugins")
 		}
 		match := false
-		register := func(method string, pathPattern string, middleware filter.Middleware) {
-			api.RegisterFilters(filter.Filter{
-				RouteMatcher: filter.RouteMatcher{
-					Methods:     []string{method},
-					PathPattern: pathPattern,
-				},
-				Middleware: middleware,
-			})
-			match = true
-		}
 
 		ptype := reflect.TypeOf(plug)
 		for k, v := range pluginsMap {
@@ -76,7 +66,7 @@ func (api *API) RegisterPlugins(plugins ...plugin.Plugin) {
 				method := reflect.ValueOf(plug).MethodByName(v.methodName)
 				middlewareRef, ok := method.Interface().((func(*filter.Request, filter.Handler) (*filter.Response, error)))
 				if ok {
-					register(k.method, k.path, middlewareRef)
+					match = register(api, k.method, k.path, middlewareRef)
 				}
 			}
 		}
@@ -85,4 +75,15 @@ func (api *API) RegisterPlugins(plugins ...plugin.Plugin) {
 			logrus.Panicf("%T is not a plugin", plug)
 		}
 	}
+}
+
+func register(api *API, method string, pathPattern string, middleware filter.Middleware) bool {
+	api.RegisterFilters(filter.Filter{
+		RouteMatcher: filter.RouteMatcher{
+			Methods:     []string{method},
+			PathPattern: pathPattern,
+		},
+		Middleware: middleware,
+	})
+	return true
 }

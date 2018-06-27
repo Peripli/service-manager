@@ -14,8 +14,8 @@
  *    limitations under the License.
  */
 
-// Package sm contains logic for setting up the service manager server
-package sm
+// Package app contains logic for setting up the service manager server
+package app
 
 import (
 	"context"
@@ -32,15 +32,13 @@ import (
 
 // Parameters contains context, environment for configuring a Service Manager server and optional extensions API
 type Parameters struct {
-	Context     context.Context
-	Environment server.Environment
-
+	Context context.Context
 	// API can define REST API extensions
 	API *rest.API
 }
 
 // New creates a SM server
-func New(ctx context.Context, cfg *config.Settings, params *Parameters) (*server.Server, error) {
+func New(cfg *config.Settings, params *Parameters) (*server.Server, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("configuration validation failed: %v", err)
 	}
@@ -53,10 +51,10 @@ func New(ctx context.Context, cfg *config.Settings, params *Parameters) (*server
 	}
 
 	coreAPI := api.New(storage, cfg.API)
-	srv, err := server.New(defaultAPI, cfg.Server)
+	srv, err := server.New(coreAPI, cfg.Server)
 	if params.API != nil {
 		coreAPI.RegisterControllers(params.API.Controllers...)
 		coreAPI.RegisterFilters(params.API.Filters...)
 	}
-	return server.New(coreAPI, config), nil
+	return srv, nil
 }

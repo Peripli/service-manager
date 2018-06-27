@@ -4,7 +4,8 @@ import (
 	"net/http"
 )
 
-// Request contains the original http.Request  and some additional data.
+// Request contains the original http.Request, path parameters and the raw body
+// Request.Request.Body should not be used as it would be already processed by internal implementation
 type Request struct {
 	// Request is the original http.Request
 	*http.Request

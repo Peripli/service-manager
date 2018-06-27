@@ -2,6 +2,12 @@ package plugin
 
 import "github.com/Peripli/service-manager/pkg/filter"
 
+// Plugin can intercept Service Manager operations and
+// augment them with additional logic.
+// To intercept SM operations a plugin implements one or more of
+// the interfaces defined in this package.
+type Plugin interface{}
+
 // Interfaces for OSB operations
 
 // CatalogFetcher should be implemented by plugins that need to intercept OSB call for get catalog operation

@@ -26,9 +26,9 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/Peripli/service-manager/app"
 	"github.com/Peripli/service-manager/config"
 	"github.com/Peripli/service-manager/rest"
-	"github.com/Peripli/service-manager/sm"
 	"github.com/gavv/httpexpect"
 	"github.com/gorilla/mux"
 	. "github.com/onsi/ginkgo"
@@ -84,15 +84,11 @@ func GetServerRouter(api *rest.API) *mux.Router {
 	}
 	cfg, err := config.New(serverEnv)
 
-	params := &sm.Parameters{
-		Environment: serverEnv,
-		Context:     context.Background(),
-		API:         api,
+	params := &app.Parameters{
+		Context: context.Background(),
+		API:     api,
 	}
-	if err != nil {
-		logrus.Fatal("Error creating server: ", err)
-	}
-	srv, err := sm.New(cfg, params)
+	srv, err := app.New(cfg, params)
 	if err != nil {
 		logrus.Fatal("Error creating server router during test server initialization: ", err)
 	}

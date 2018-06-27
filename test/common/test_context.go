@@ -28,6 +28,20 @@ import (
 	"github.com/gavv/httpexpect"
 )
 
+var serviceCatalog = `{
+	"services": [{
+		"id": "1234",
+		"name": "service1",
+		"description": "sample-test",
+		"bindable": true,
+		"plans": [{
+			"id": "plan-id",
+			"name": "plan-name",
+			"description": "plan-desc"
+		}]
+	}]
+}`
+
 func NewTestContext(api *rest.API) *TestContext {
 	smServer := httptest.NewServer(GetServerRouter(api))
 	SM := httpexpect.New(GinkgoT(), smServer.URL)
@@ -37,7 +51,9 @@ func NewTestContext(api *rest.API) *TestContext {
 	broker := &Broker{}
 	brokerServer := httptest.NewServer(broker)
 	brokerJSON := MakeBroker("broker1", brokerServer.URL, "")
+	broker.ResponseBody = []byte(serviceCatalog)
 	brokerID := RegisterBroker(brokerJSON, SM)
+	broker.ResponseBody = nil
 	osbURL := "/v1/osb/" + brokerID
 
 	return &TestContext{

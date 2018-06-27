@@ -58,6 +58,6 @@ cf service-brokers
 
 [Run Service Manager on Kubernetes](deployment/k8s/README.md)
 
-## Extending Service Manager Core
+## Plugins
 
 [Plugins](docs/plugins.md)

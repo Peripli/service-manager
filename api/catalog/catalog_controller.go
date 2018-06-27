@@ -20,10 +20,11 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/Peripli/service-manager/pkg/filter"
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/sirupsen/logrus"
 	"github.com/Peripli/service-manager/types"
+	"github.com/sirupsen/logrus"
 )
 
 // Controller catalog controller
@@ -41,11 +42,11 @@ type aggregatedCatalog struct {
 	Brokers []brokerServices `json:"brokers"`
 }
 
-func (c *Controller) getCatalog(writer http.ResponseWriter, request *http.Request) error {
+func (c *Controller) getCatalog(request *filter.Request) (*filter.Response, error) {
 	logrus.Debugf("Aggregating all broker catalogs")
 	brokers, err := c.BrokerStorage.GetAll()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	resultServices := make([]brokerServices, 0, len(brokers)+1)
@@ -57,17 +58,17 @@ func (c *Controller) getCatalog(writer http.ResponseWriter, request *http.Reques
 		retrieveAllBrokers(brokers, &resultServices)
 	}
 
-	return rest.SendJSON(writer, http.StatusOK, aggregatedCatalog{resultServices})
+	return rest.NewJSONResponse(http.StatusOK, aggregatedCatalog{resultServices})
 }
 
 func filterBrokersByID(dbBrokers []types.Broker, queryBrokerIDs []string, filteredBrokers *[]brokerServices) {
-	for _, queryBrokerID := range queryBrokerIDs{
+	for _, queryBrokerID := range queryBrokerIDs {
 		for _, dbBroker := range dbBrokers {
 			if queryBrokerID == dbBroker.ID {
 				*filteredBrokers = append(*filteredBrokers, brokerServices{
-					ID: 	dbBroker.ID,
-					Name: 	dbBroker.Name,
-					Catalog:dbBroker.Catalog,
+					ID:      dbBroker.ID,
+					Name:    dbBroker.Name,
+					Catalog: dbBroker.Catalog,
 				})
 				break
 			}
@@ -78,9 +79,9 @@ func filterBrokersByID(dbBrokers []types.Broker, queryBrokerIDs []string, filter
 func retrieveAllBrokers(dbBrokers []types.Broker, brokers *[]brokerServices) {
 	for _, dbBroker := range dbBrokers {
 		*brokers = append(*brokers, brokerServices{
-			ID: 	dbBroker.ID,
-			Name: 	dbBroker.Name,
-			Catalog:dbBroker.Catalog,
+			ID:      dbBroker.ID,
+			Name:    dbBroker.Name,
+			Catalog: dbBroker.Catalog,
 		})
 	}
 }
