@@ -98,6 +98,7 @@ func NewAuthenticator(ctx context.Context, options Options) (authentication.Auth
 	return &Authenticator{Verifier: &oidcVerifier{oidc.NewVerifier(p.Issuer, keySet, cfg)}}, nil
 }
 
+// Authenticate returns information about the user by obtaining it from the bearer token, or an error if authentication is unsuccessful
 func (a *Authenticator) Authenticate(request *http.Request) (*authentication.User, error) {
 	authorizationHeader := request.Header.Get("Authorization")
 	if authorizationHeader == "" {
