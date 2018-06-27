@@ -19,5 +19,4 @@ package authentication
 // User holds the information for the current user
 type User struct {
 	Name string
-	UID  string
 }

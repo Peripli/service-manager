@@ -35,10 +35,10 @@ type providerJSON struct {
 	JWKSURL string `json:"jwks_uri"`
 }
 
-type goOidcVerifier struct {
+type oidcVerifier struct {
 	*oidc.IDTokenVerifier
 }
 
-func (v *goOidcVerifier) Verify(ctx context.Context, idToken string) (authentication.Token, error) {
+func (v *oidcVerifier) Verify(ctx context.Context, idToken string) (authentication.Token, error) {
 	return v.IDTokenVerifier.Verify(ctx, idToken)
 }

@@ -23,53 +23,66 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/Peripli/service-manager/authentication"
 	"github.com/coreos/go-oidc"
+	"github.com/sirupsen/logrus"
 )
 
 // Options is the configuration used to construct a new OIDC authenticator
 type Options struct {
 	IssuerURL string
 	ClientID  string
-	Client    *http.Client
+
+	ReadConfigurationFunc DoRequestFunc
 }
 
-// Authenticator is the OIDC implementation of authentication.Authenticator
+// DoRequestFunc is an alias for any function that takes an http request and returns a response and error
+type DoRequestFunc func(request *http.Request) (*http.Response, error)
+
+// Authenticator is the OpenID implementation of authentication.Authenticator
 type Authenticator struct {
 	Verifier authentication.TokenVerifier
 }
 
-// NewAuthenticator returns a new OIDC authenticator or an error if one couldn't be configured
+// NewAuthenticator returns a new OpenID authenticator or an error if one couldn't be configured
 func NewAuthenticator(ctx context.Context, options Options) (authentication.Authenticator, error) {
 	// Work around for UAA until https://github.com/cloudfoundry/uaa/issues/805 is fixed
 	// Then oidc.NewProvider(ctx, options.IssuerURL) should be used
+	if _, err := url.ParseRequestURI(options.IssuerURL); err != nil {
+		return nil, err
+	}
 	wellKnown := strings.TrimSuffix(options.IssuerURL, "/") + "/.well-known/openid-configuration"
-	req, err := http.NewRequest("GET", wellKnown, nil)
+	req, err := http.NewRequest(http.MethodGet, wellKnown, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	var client *http.Client
-	if options.Client == nil {
-		client = options.Client
+	var readConfigFunc DoRequestFunc
+	if options.ReadConfigurationFunc != nil {
+		readConfigFunc = options.ReadConfigurationFunc
 	} else {
-		client = http.DefaultClient
+		readConfigFunc = http.DefaultClient.Do
 	}
 
-	resp, err := client.Do(req.WithContext(ctx))
+	resp, err := readConfigFunc(req.WithContext(ctx))
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logrus.Errorf("OpenID configuration response body couldn't be closed", err)
+		}
+	}()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to read response body: %v", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%s: %s", resp.Status, body)
+		return nil, fmt.Errorf("Unexpected status code %s: %s", resp.Status, body)
 	}
 
 	var p providerJSON
@@ -82,7 +95,7 @@ func NewAuthenticator(ctx context.Context, options Options) (authentication.Auth
 	cfg := &oidc.Config{
 		ClientID: options.ClientID,
 	}
-	return &Authenticator{Verifier: &goOidcVerifier{oidc.NewVerifier(p.Issuer, keySet, cfg)}}, nil
+	return &Authenticator{Verifier: &oidcVerifier{oidc.NewVerifier(p.Issuer, keySet, cfg)}}, nil
 }
 
 func (a *Authenticator) Authenticate(request *http.Request) (*authentication.User, error) {
@@ -90,7 +103,7 @@ func (a *Authenticator) Authenticate(request *http.Request) (*authentication.Use
 	if authorizationHeader == "" {
 		return nil, errors.New("Missing authorization header")
 	}
-	token := strings.TrimPrefix(authorizationHeader, "Bearer ")
+	token := strings.TrimPrefix(strings.ToLower(authorizationHeader), "bearer ")
 	if token == "" {
 		return nil, errors.New("Token is required in authorization header")
 	}
@@ -104,6 +117,5 @@ func (a *Authenticator) Authenticate(request *http.Request) (*authentication.Use
 	}
 	return &authentication.User{
 		Name: claims.Username,
-		UID:  claims.UserID,
 	}, nil
 }

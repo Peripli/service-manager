@@ -23,16 +23,22 @@ import (
 
 // Authenticator extracts the authenticator information from the request and
 // returns information about the current user or an error if authentication was not successful
+//go:generate counterfeiter . Authenticator
 type Authenticator interface {
+	// Authenticate returns information about the user if authentication is successful and an error otherwise
 	Authenticate(req *http.Request) (*User, error)
 }
 
 // Token interface provides means to unmarshal the claims in a struct
+//go:generate counterfeiter . Token
 type Token interface {
+	// Claims unmarshals the claims into the specified struct
 	Claims(v interface{}) error
 }
 
 // TokenVerifier attempts to verify a token and returns it or an error if the verification was not successful
+//go:generate counterfeiter . TokenVerifier
 type TokenVerifier interface {
+	// Verify verifies that the token is valid and returns a token if so, otherwise returns an error
 	Verify(ctx context.Context, token string) (Token, error)
 }
