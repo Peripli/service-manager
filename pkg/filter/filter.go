@@ -35,7 +35,7 @@ type Handler func(*Request) (*Response, error)
 // Normally this function should invoke next with the request to proceed with
 // the next middleware or the final handler.
 // It can also terminate the request processing by not invoking next.
-type Middleware func(req *Request, next Handler) (*Response, error)
+type Middleware func(*Request, Handler) (*Response, error)
 
 // RouteMatcher defines the criteria to match against registered routes.
 //

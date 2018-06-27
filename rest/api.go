@@ -1,10 +1,32 @@
 package rest
 
 import (
+	"reflect"
+
 	"github.com/Peripli/service-manager/pkg/filter"
 	"github.com/Peripli/service-manager/pkg/plugin"
 	"github.com/sirupsen/logrus"
 )
+
+type pluginMatcher struct {
+	method, path string
+}
+
+type pluginContainer struct {
+	methodName    string
+	operationType reflect.Type
+}
+
+var pluginsMap = map[pluginMatcher]pluginContainer{
+	pluginMatcher{"GET", "/v1/osb/*/v2/catalog"}:                                   pluginContainer{"FetchCatalog", reflect.TypeOf((*plugin.CatalogFetcher)(nil)).Elem()},
+	pluginMatcher{"GET", "/v1/osb/*/v2/service_instances/*"}:                       pluginContainer{"FetchService", reflect.TypeOf((*plugin.ServiceFetcher)(nil)).Elem()},
+	pluginMatcher{"PUT", "/v1/osb/*/v2/service_instances/*"}:                       pluginContainer{"Provision", reflect.TypeOf((*plugin.Provisioner)(nil)).Elem()},
+	pluginMatcher{"PATCH", "/v1/osb/*/v2/service_instances/*"}:                     pluginContainer{"UpdateService", reflect.TypeOf((*plugin.ServiceUpdater)(nil)).Elem()},
+	pluginMatcher{"DELETE", "/v1/osb/*/v2/service_instances/*"}:                    pluginContainer{"Deprovision", reflect.TypeOf((*plugin.Deprovisioner)(nil)).Elem()},
+	pluginMatcher{"GET", "/v1/osb/*/v2/service_instances/*/service_bindings/*"}:    pluginContainer{"FetchBinding", reflect.TypeOf((*plugin.BindingFetcher)(nil)).Elem()},
+	pluginMatcher{"PUT", "/v1/osb/*/v2/service_instances/*/service_bindings/*"}:    pluginContainer{"Bind", reflect.TypeOf((*plugin.Binder)(nil)).Elem()},
+	pluginMatcher{"DELETE", "/v1/osb/*/v2/service_instances/*/service_bindings/*"}: pluginContainer{"Unbind", reflect.TypeOf((*plugin.Unbinder)(nil)).Elem()},
+}
 
 // API is the primary point for REST API registration
 type API struct {
@@ -48,33 +70,19 @@ func (api *API) RegisterPlugins(plugins ...plugin.Plugin) {
 			match = true
 		}
 
-		if p, ok := plug.(plugin.CatalogFetcher); ok {
-			register("GET", "/v1/osb/*/v2/catalog", p.FetchCatalog)
+		ptype := reflect.TypeOf(plug)
+		for k, v := range pluginsMap {
+			if ptype.Implements(v.operationType) {
+				method := reflect.ValueOf(plug).MethodByName(v.methodName)
+				middlewareRef, ok := method.Interface().((func(*filter.Request, filter.Handler) (*filter.Response, error)))
+				if ok {
+					register(k.method, k.path, middlewareRef)
+				}
+			}
 		}
-		if p, ok := plug.(plugin.ServiceFetcher); ok {
-			register("GET", "/v1/osb/*/v2/service_instances/*", p.FetchService)
-		}
-		if p, ok := plug.(plugin.Provisioner); ok {
-			register("PUT", "/v1/osb/*/v2/service_instances/*", p.Provision)
-		}
-		if p, ok := plug.(plugin.ServiceUpdater); ok {
-			register("PATCH", "/v1/osb/*/v2/service_instances/*", p.UpdateService)
-		}
-		if p, ok := plug.(plugin.Deprovisioner); ok {
-			register("DELETE", "/v1/osb/*/v2/service_instances/*", p.Deprovision)
-		}
-		if p, ok := plug.(plugin.BindingFetcher); ok {
-			register("GET", "/v1/osb/*/v2/service_instances/*/service_bindings/*", p.FetchBinding)
-		}
-		if p, ok := plug.(plugin.Binder); ok {
-			register("PUT", "/v1/osb/*/v2/service_instances/*/service_bindings/*", p.Bind)
-		}
-		if p, ok := plug.(plugin.Unbinder); ok {
-			register("DELETE", "/v1/osb/*/v2/service_instances/*/service_bindings/*", p.Unbind)
-		}
+
 		if !match {
 			logrus.Panicf("%T is not a plugin", plug)
 		}
 	}
-
 }
