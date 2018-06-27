@@ -26,7 +26,7 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("error loading environment: %s", err))
 	}
-	if err := cf.SetEnvValues(env); err != nil {
+	if err := cf.SetCFOverrides(env); err != nil {
 		panic(fmt.Sprintf("error setting CF environment values: %s", err))
 	}
 	cfg, err := config.New(env)
