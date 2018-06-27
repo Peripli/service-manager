@@ -33,9 +33,13 @@ import (
 
 // Options is the configuration used to construct a new OIDC authenticator
 type Options struct {
+	// IssuerURL is the base URL of the token issuer
 	IssuerURL string
-	ClientID  string
 
+	// ClientID is the id of the oauth client used to verify the tokens
+	ClientID string
+
+	// ReadConfigurationFunc is the function used to call the token issuer. If one is not provided, http.DefaultClient.Do will be used
 	ReadConfigurationFunc DoRequestFunc
 }
 
