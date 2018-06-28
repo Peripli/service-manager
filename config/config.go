@@ -55,7 +55,6 @@ type File struct {
 func DefaultSettings() *Settings {
 	config := &Settings{
 		Server: server.Settings{
-			Host:            "127.0.0.1",
 			Port:            8080,
 			RequestTimeout:  time.Millisecond * time.Duration(3000),
 			ShutdownTimeout: time.Millisecond * time.Duration(3000),
