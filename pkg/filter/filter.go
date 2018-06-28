@@ -44,7 +44,7 @@ type Middleware func(*Request, Handler) (*Response, error)
 // routes at startup. This improves performance but has some limitations.
 type RouteMatcher struct {
 	// Methods match route method.
-	// If nil, matches any method.
+	// If it contains one element of value "*", matches any method.
 	//
 	// NOTE: This will work as long as each route handles a single method.
 	// If a route handles multiple methods,
@@ -54,7 +54,7 @@ type RouteMatcher struct {
 	// PathPattern matches route path (as registered in mux).
 	// This is a glob pattern so you can use * and **.
 	// ** matches also / but * does not.
-	// If empty, matches any path.
+	// If empty, will not match at all.
 	PathPattern string
 }
 
