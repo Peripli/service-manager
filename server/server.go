@@ -33,7 +33,6 @@ import (
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	Host            string
 	Port            int
 	RequestTimeout  time.Duration
 	ShutdownTimeout time.Duration
@@ -63,7 +62,7 @@ func New(api rest.API, config Settings) (*Server, error) {
 func (s *Server) Run(ctx context.Context) {
 	handler := &http.Server{
 		Handler:      s.Router,
-		Addr:         s.Config.Host + ":" + strconv.Itoa(s.Config.Port),
+		Addr:         ":" + strconv.Itoa(s.Config.Port),
 		WriteTimeout: s.Config.RequestTimeout,
 		ReadTimeout:  s.Config.RequestTimeout,
 	}
