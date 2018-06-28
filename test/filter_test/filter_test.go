@@ -41,6 +41,7 @@ var _ = Describe("Service Manager Filters", func() {
 			testFilters = []filter.Filter{
 				{
 					RouteMatcher: filter.RouteMatcher{
+						Methods:     []string{"*"},
 						PathPattern: "/v1/osb/**",
 					},
 					Middleware: func(req *filter.Request, next filter.Handler) (*filter.Response, error) {
@@ -78,6 +79,8 @@ var _ = Describe("Service Manager Filters", func() {
 				{
 					RouteMatcher: filter.RouteMatcher{
 						// match all requests
+						Methods:     []string{"*"},
+						PathPattern: "/**",
 					},
 					Middleware: func(req *filter.Request, next filter.Handler) (*filter.Response, error) {
 						order += "a1"
@@ -88,6 +91,7 @@ var _ = Describe("Service Manager Filters", func() {
 				},
 				{
 					RouteMatcher: filter.RouteMatcher{
+						Methods:     []string{"*"},
 						PathPattern: "/v1/**",
 					},
 					Middleware: func(req *filter.Request, next filter.Handler) (*filter.Response, error) {

@@ -23,7 +23,7 @@ func MatchFilters(endpoint *Endpoint, filters []filter.Filter) []filter.Filter {
 
 func matchPath(endpointPath string, pattern string) bool {
 	if pattern == "" {
-		return true
+		return false
 	}
 	pat, err := glob.Compile(pattern, '/')
 	if err != nil {
@@ -34,6 +34,10 @@ func matchPath(endpointPath string, pattern string) bool {
 
 func matchMethod(method string, methods []string) bool {
 	if methods == nil {
+		return false
+	}
+
+	if len(methods) == 1 && methods[0] == "*" {
 		return true
 	}
 
