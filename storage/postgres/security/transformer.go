@@ -16,22 +16,16 @@
 
 package security
 
-type TwoLayerEncrypter struct {
-	Fetcher KeyFetcher
+import "github.com/Peripli/service-manager/security"
+
+type EncryptionTransformer struct{
+	Encrypter security.Encrypter
 }
 
-func (e *TwoLayerEncrypter) Encrypt(plaintext []byte) ([]byte, error) {
-	key, err := e.Fetcher.GetEncryptionKey()
-	if err != nil {
-		return nil, err
-	}
-	return Encrypt(plaintext, key)
+func (e *EncryptionTransformer) Transform(secret []byte) ([]byte, error) {
+	return e.Encrypter.Encrypt(secret)
 }
 
-func (e *TwoLayerEncrypter) Decrypt(ciphertext []byte) ([]byte, error) {
-	key, err := e.Fetcher.GetEncryptionKey()
-	if err != nil {
-		return nil, err
-	}
-	return Decrypt(ciphertext, key)
+func (e * EncryptionTransformer) Reverse(cipher []byte) ([]byte, error){
+	return e.Encrypter.Decrypt(cipher)
 }

@@ -36,7 +36,6 @@ func NewKeySetter(db *sqlx.DB, encryptionKey []byte) *keySetter {
 
 // Sets the encryption key by encrypting it beforehand with the encryption key in the environment
 func (k *keySetter) SetEncryptionKey(key []byte) error {
-	// return postgres.Transaction(k.db, func(tx *sqlx.Tx) error {
 	bytes, err := security.Encrypt(key, k.encryptionKey)
 	if err != nil {
 		return err
@@ -68,5 +67,4 @@ func (k *keySetter) SetEncryptionKey(key []byte) error {
 		}
 	}
 	return err
-	// })
 }

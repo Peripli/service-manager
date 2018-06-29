@@ -46,7 +46,7 @@ type postgresStorage struct {
 	db   *sqlx.DB
 }
 
-func (storage *postgresStorage) KeySetter(encryptionKey []byte) security.EncryptionSetter {
+func (storage *postgresStorage) KeySetter(encryptionKey []byte) security.KeySetter {
 	if storage.db == nil {
 		logrus.Panicln("Storage is not yet Open")
 	}

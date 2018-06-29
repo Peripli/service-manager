@@ -16,22 +16,18 @@
 
 package security
 
-type TwoLayerEncrypter struct {
-	Fetcher KeyFetcher
+import (
+	"code.cloudfoundry.org/cli/cf/errors"
+	"golang.org/x/crypto/bcrypt"
+)
+
+type HashTransformer struct {
 }
 
-func (e *TwoLayerEncrypter) Encrypt(plaintext []byte) ([]byte, error) {
-	key, err := e.Fetcher.GetEncryptionKey()
-	if err != nil {
-		return nil, err
-	}
-	return Encrypt(plaintext, key)
+func (*HashTransformer) Transform(secret []byte) ([]byte, error) {
+	return bcrypt.GenerateFromPassword(secret, bcrypt.DefaultCost)
 }
 
-func (e *TwoLayerEncrypter) Decrypt(ciphertext []byte) ([]byte, error) {
-	key, err := e.Fetcher.GetEncryptionKey()
-	if err != nil {
-		return nil, err
-	}
-	return Decrypt(ciphertext, key)
+func (*HashTransformer) Reverse(cipher []byte) ([]byte, error) {
+	return nil, errors.New("Hashing is a non-reversible operation")
 }

@@ -52,7 +52,7 @@ type Storage interface {
 	// Platform provides access to platform db operations
 	Platform() Platform
 
-	KeySetter(encryptionKey []byte) security.EncryptionSetter
+	KeySetter(encryptionKey []byte) security.KeySetter
 }
 
 // Broker interface for Broker db operations

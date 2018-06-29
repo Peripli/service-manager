@@ -23,11 +23,12 @@ import (
 
 	"github.com/Peripli/service-manager/api/common"
 	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/types"
 	"github.com/Peripli/service-manager/util"
 	"github.com/gorilla/mux"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -35,7 +36,8 @@ const reqPlatformID = "platform_id"
 
 // Controller platform controller
 type Controller struct {
-	PlatformStorage storage.Platform
+	PlatformStorage        storage.Platform
+	CredentialsTransformer security.CredentialsTransformer
 }
 
 func getPlatformID(req *http.Request) string {
@@ -85,12 +87,16 @@ func (c *Controller) createPlatform(rw http.ResponseWriter, req *http.Request) e
 		logrus.Error("Could not generate credentials for platform")
 		return err
 	}
-	platform.Credentials = types.NewBasicCredentials(username, password)
+	transformedPassword, err := c.CredentialsTransformer.Transform([]byte(password))
+	if err != nil {
+		return err
+	}
+	platform.Credentials = types.NewBasicCredentials(username, string(transformedPassword))
 	err = common.HandleUniqueError(c.PlatformStorage.Create(platform), "platform")
 	if err != nil {
 		return err
 	}
-
+	platform.Credentials.Basic.Password = password
 	return rest.SendJSON(rw, http.StatusCreated, platform)
 }
 

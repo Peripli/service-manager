@@ -45,9 +45,9 @@ const (
 
 // Controller broker controller
 type Controller struct {
-	BrokerStorage       storage.Broker
-	OSBClientCreateFunc osbc.CreateFunc
-	Encrypter           *security.Encrypter
+	BrokerStorage          storage.Broker
+	OSBClientCreateFunc    osbc.CreateFunc
+	CredentialsTransformer security.CredentialsTransformer
 }
 
 func validateBrokerCredentials(brokerCredentials *types.Credentials) error {
@@ -102,13 +102,11 @@ func (c *Controller) createBroker(response http.ResponseWriter, request *http.Re
 	}
 	broker.Catalog = catalog
 
-	if broker.Credentials != nil && broker.Credentials.Basic != nil {
-		encryptedPassword, err := c.Encrypter.Encrypt([]byte(broker.Credentials.Basic.Password))
-		if err != nil {
-			return err
-		}
-		broker.Credentials.Basic.Password = string(encryptedPassword)
+	transformed, err := c.CredentialsTransformer.Transform([]byte(broker.Credentials.Basic.Password))
+	if err != nil {
+		return err
 	}
+	broker.Credentials.Basic.Password = string(transformed)
 	err = c.BrokerStorage.Create(broker)
 	err = common.HandleUniqueError(err, "broker")
 	if err != nil {
@@ -130,8 +128,8 @@ func (c *Controller) getBroker(response http.ResponseWriter, request *http.Reque
 		return err
 	}
 
-	//TODO: just shows that the password is actually OK
-	pass, err := c.Encrypter.Decrypt([]byte(broker.Credentials.Basic.Password))
+	// TODO: just shows that the password is actually OK
+	pass, err := c.CredentialsTransformer.Reverse([]byte(broker.Credentials.Basic.Password))
 	if err != nil {
 		return err
 	}
@@ -189,6 +187,11 @@ func (c *Controller) patchBroker(response http.ResponseWriter, request *http.Req
 		if err != nil {
 			return types.NewErrorResponse(err, http.StatusBadRequest, "BadRequest")
 		}
+		transformed, err := c.CredentialsTransformer.Transform([]byte(updateBroker.Credentials.Basic.Password))
+		if err != nil {
+			return err
+		}
+		updateBroker.Credentials.Basic.Password = string(transformed)
 	}
 
 	broker, err := c.BrokerStorage.Get(brokerID)

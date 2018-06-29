@@ -30,7 +30,7 @@ type getter struct {
 	encryptionkey []byte
 }
 
-func NewKeyGetter(ctx context.Context, settings security.Settings) *getter {
+func NewKeyFetcher(ctx context.Context, settings security.Settings) *getter {
 	db, err := sqlx.Connect("postgres", settings.URI)
 	if err != nil {
 		logrus.Panicln("Could not connect to PostgreSQL secure storage: ", err)

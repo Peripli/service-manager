@@ -46,7 +46,7 @@ func New(ctx context.Context, cfg *config.Settings) (*server.Server, error) {
 		return nil, fmt.Errorf("error using storage: %v", err)
 	}
 
-	keyGetter := security2.NewKeyGetter(ctx, cfg.Security)
+	keyGetter := security2.NewKeyFetcher(ctx, cfg.Security)
 	encryptionKey, err := keyGetter.GetEncryptionKey()
 	if err != nil {
 		return nil, err

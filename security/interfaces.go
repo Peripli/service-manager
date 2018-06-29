@@ -16,10 +16,20 @@
 
 package security
 
-type EncryptionSetter interface {
-	SetEncryptionKey(key []byte) error
+type CredentialsTransformer interface {
+	Transform(secret []byte) ([]byte, error)
+	Reverse(cipher []byte) ([]byte, error)
 }
 
-type EncryptionGetter interface {
+type Encrypter interface {
+	Encrypt(plaintext []byte) ([]byte, error)
+	Decrypt(ciphertext []byte) ([]byte, error)
+}
+
+type KeyFetcher interface {
 	GetEncryptionKey() ([]byte, error)
+}
+
+type KeySetter interface {
+	SetEncryptionKey(key []byte) error
 }

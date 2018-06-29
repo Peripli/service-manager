@@ -45,15 +45,18 @@ func New(ctx context.Context, storage storage.Storage, settings Settings, securi
 			&broker.Controller{
 				BrokerStorage:       storage.Broker(),
 				OSBClientCreateFunc: osbc.NewClient,
-				Encrypter: &security.Encrypter{
-					EncryptionGetter: security2.NewKeyGetter(ctx, securitySettings),
+				CredentialsTransformer: &security2.EncryptionTransformer{
+					Encrypter: &security.TwoLayerEncrypter{
+						Fetcher: security2.NewKeyFetcher(ctx, securitySettings),
+					},
 				},
 			},
 			&osb.Controller{
 				BrokerStorage: storage.Broker(),
 			},
 			&platform.Controller{
-				PlatformStorage: storage.Platform(),
+				PlatformStorage:        storage.Platform(),
+				CredentialsTransformer: &security.HashTransformer{},
 			},
 			&info.Controller{
 				TokenIssuer: settings.TokenIssuerURL,
