@@ -17,6 +17,7 @@
 package security
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/Peripli/service-manager/security"
@@ -29,16 +30,21 @@ type getter struct {
 	encryptionkey []byte
 }
 
-func NewKeyGetter(settings security.Settings) *getter {
+func NewKeyGetter(ctx context.Context, settings security.Settings) *getter {
 	db, err := sqlx.Connect("postgres", settings.URI)
 	if err != nil {
 		logrus.Panicln("Could not connect to PostgreSQL secure storage: ", err)
 	}
+	go awaitTermination(ctx, db)
 	return &getter{db, []byte(settings.EncryptionKey)}
 }
 
-func (s *getter) Close() error {
-	return s.db.Close()
+func awaitTermination(ctx context.Context, db *sqlx.DB) {
+	<-ctx.Done()
+	logrus.Debug("Context cancelled. Closing storage...")
+	if err := db.Close(); err != nil {
+		logrus.Error(err)
+	}
 }
 
 // GetEncryptionKey returns the encryption key used to encrypt the credentials for brokers

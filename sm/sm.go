@@ -46,7 +46,7 @@ func New(ctx context.Context, cfg *config.Settings) (*server.Server, error) {
 		return nil, fmt.Errorf("error using storage: %v", err)
 	}
 
-	keyGetter := security2.NewKeyGetter(cfg.Security)
+	keyGetter := security2.NewKeyGetter(ctx, cfg.Security)
 	encryptionKey, err := keyGetter.GetEncryptionKey()
 	if err != nil {
 		return nil, err
@@ -67,7 +67,7 @@ func New(ctx context.Context, cfg *config.Settings) (*server.Server, error) {
 	}
 
 	// TODO: this should remain API, but a service layer should be introduced between the API and the DB
-	api := api.New(storage, cfg.API, cfg.Security)
+	api := api.New(ctx, storage, cfg.API, cfg.Security)
 
 	srv, err := server.New(api, cfg.Server)
 	if err != nil {
