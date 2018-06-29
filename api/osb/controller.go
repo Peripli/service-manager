@@ -21,6 +21,7 @@ import (
 	"net/http"
 
 	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/storage"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 	"github.com/pmorie/osb-broker-lib/pkg/metrics"
@@ -48,6 +49,7 @@ const (
 // Controller implements rest.Controller by providing OSB API logic
 type Controller struct {
 	BrokerStorage storage.Broker
+	CredentialsTransformer security.CredentialsTransformer
 }
 
 var _ rest.Controller = &Controller{}
@@ -66,7 +68,7 @@ func (c *Controller) Routes() []rest.Route {
 }
 
 func (c *Controller) osbHandler() http.Handler {
-	businessLogic := NewBusinessLogic(osbc.NewClient, c.BrokerStorage)
+	businessLogic := NewBusinessLogic(osbc.NewClient, c.BrokerStorage, c.CredentialsTransformer)
 
 	reg := prom.NewRegistry()
 	osbMetrics := metrics.New()

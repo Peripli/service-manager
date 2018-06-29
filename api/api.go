@@ -40,19 +40,21 @@ type Settings struct {
 
 // New returns the minimum set of REST APIs needed for the Service Manager
 func New(ctx context.Context, storage storage.Storage, settings Settings, securitySettings security.Settings) rest.API {
+	transformer := &security2.EncryptionTransformer{
+		Encrypter: &security.TwoLayerEncrypter{
+			Fetcher: security2.NewKeyFetcher(ctx, securitySettings),
+		},
+	}
 	return &smAPI{
 		controllers: []rest.Controller{
 			&broker.Controller{
-				BrokerStorage:       storage.Broker(),
-				OSBClientCreateFunc: osbc.NewClient,
-				CredentialsTransformer: &security2.EncryptionTransformer{
-					Encrypter: &security.TwoLayerEncrypter{
-						Fetcher: security2.NewKeyFetcher(ctx, securitySettings),
-					},
-				},
+				BrokerStorage:          storage.Broker(),
+				OSBClientCreateFunc:    osbc.NewClient,
+				CredentialsTransformer: transformer,
 			},
 			&osb.Controller{
-				BrokerStorage: storage.Broker(),
+				BrokerStorage:          storage.Broker(),
+				CredentialsTransformer: transformer,
 			},
 			&platform.Controller{
 				PlatformStorage:        storage.Platform(),

@@ -237,7 +237,7 @@ func getBrokerID(request *http.Request) string {
 }
 
 func (c *Controller) getBrokerCatalog(broker *types.Broker) (json.RawMessage, error) {
-	osbClient, err := osb.Client(c.OSBClientCreateFunc, broker)
+	osbClient, err := osb.Client(c.OSBClientCreateFunc, broker, c.CredentialsTransformer)
 	if err != nil {
 		return nil, err
 	}

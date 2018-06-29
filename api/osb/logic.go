@@ -17,10 +17,10 @@
 package osb
 
 import (
+	"fmt"
 	"net/http"
 
-	"fmt"
-
+	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/types"
 	"github.com/gorilla/mux"
@@ -34,15 +34,17 @@ import (
 type BusinessLogic struct {
 	createFunc    osbc.CreateFunc
 	brokerStorage storage.Broker
+	transformer   security.CredentialsTransformer
 }
 
 var _ broker.Interface = &BusinessLogic{}
 
 // NewBusinessLogic creates an OSB business logic containing logic to proxy OSB calls
-func NewBusinessLogic(createFunc osbc.CreateFunc, brokerStorage storage.Broker) *BusinessLogic {
+func NewBusinessLogic(createFunc osbc.CreateFunc, brokerStorage storage.Broker, transformer security.CredentialsTransformer) *BusinessLogic {
 	return &BusinessLogic{
 		createFunc:    createFunc,
 		brokerStorage: brokerStorage,
+		transformer:   transformer,
 	}
 }
 
@@ -200,27 +202,34 @@ func (b *BusinessLogic) osbClient(request *http.Request) (osbc.Client, error) {
 		logrus.Errorf("error obtaining serviceBroker with id %s from storage: %s", brokerID, err)
 		return nil, fmt.Errorf("Internal Server Error")
 	}
-	return Client(b.createFunc, serviceBroker)
+	return Client(b.createFunc, serviceBroker, b.transformer)
 }
 
 // Client creates a osb client for the provided broker using the client create function
-func Client(createFunc osbc.CreateFunc, broker *types.Broker) (osbc.Client, error) {
-	config := clientConfigForBroker(broker)
+func Client(createFunc osbc.CreateFunc, broker *types.Broker, transformer security.CredentialsTransformer) (osbc.Client, error) {
+	config, err := clientConfigForBroker(broker, transformer)
+	if err != nil {
+		return nil, err
+	}
 	logrus.Debug("Building OSB client for serviceBroker with name: ", config.Name, " accessible at: ", config.URL)
 	return createFunc(config)
 }
 
-func clientConfigForBroker(broker *types.Broker) *osbc.ClientConfiguration {
+func clientConfigForBroker(broker *types.Broker, transformer security.CredentialsTransformer) (*osbc.ClientConfiguration, error) {
 	config := osbc.DefaultClientConfiguration()
 	config.Name = broker.Name
 	config.URL = broker.BrokerURL
+	plaintextPassword, err := transformer.Reverse([]byte(broker.Credentials.Basic.Password))
+	if err != nil {
+		return nil, err
+	}
 	config.AuthConfig = &osbc.AuthConfig{
 		BasicAuthConfig: &osbc.BasicAuthConfig{
 			Username: broker.Credentials.Basic.Username,
-			Password: broker.Credentials.Basic.Password,
+			Password: string(plaintextPassword),
 		},
 	}
-	return config
+	return config, nil
 }
 
 func toHTTPError(err error) error {
