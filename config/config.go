@@ -22,6 +22,7 @@ import (
 
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/log"
+	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/spf13/pflag"
@@ -38,10 +39,11 @@ type Environment interface {
 
 // Settings is used to setup the Service Manager
 type Settings struct {
-	Server  server.Settings
-	Storage storage.Settings
-	Log     log.Settings
-	API     api.Settings
+	Server   server.Settings
+	Storage  storage.Settings
+	Security security.Settings
+	Log      log.Settings
+	API      api.Settings
 }
 
 // File describes the name, path and the format of the file to be used to load the configuration in the env
@@ -61,6 +63,9 @@ func DefaultSettings() *Settings {
 		},
 		Storage: storage.Settings{
 			URI: "",
+		},
+		Security: security.Settings{
+			EncryptionKey: "",
 		},
 		Log: log.Settings{
 			Level:  "debug",
@@ -127,6 +132,12 @@ func (c *Settings) Validate() error {
 	}
 	if (len(c.API.TokenIssuerURL)) == 0 {
 		return fmt.Errorf("validate Settings: APITokenIssuerURL missing")
+	}
+	if c.Security.EncryptionKey == "" {
+		return fmt.Errorf("validate Settings: SecurityEncryptionkey missing")
+	}
+	if len(c.Security.URI) == 0 {
+		return fmt.Errorf("validate Settings: SecurityURI missing")
 	}
 	return nil
 }

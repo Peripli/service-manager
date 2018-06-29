@@ -23,7 +23,9 @@ import (
 
 	"fmt"
 
+	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/storage"
+	security2 "github.com/Peripli/service-manager/storage/postgres/security"
 	"github.com/golang-migrate/migrate"
 	migratepg "github.com/golang-migrate/migrate/database/postgres"
 	_ "github.com/golang-migrate/migrate/source/file"
@@ -42,6 +44,13 @@ func init() {
 type postgresStorage struct {
 	once sync.Once
 	db   *sqlx.DB
+}
+
+func (storage *postgresStorage) KeySetter(encryptionKey []byte) security.EncryptionSetter {
+	if storage.db == nil {
+		logrus.Panicln("Storage is not yet Open")
+	}
+	return security2.NewKeySetter(storage.db, encryptionKey)
 }
 
 func (storage *postgresStorage) Broker() storage.Broker {
@@ -99,7 +108,7 @@ func updateSchema(db *sqlx.DB) error {
 	return err
 }
 
-func transaction(db *sqlx.DB, f func(tx *sqlx.Tx) error) error {
+func Transaction(db *sqlx.DB, f func(tx *sqlx.Tx) error) error {
 	tx, err := db.Beginx()
 	if err != nil {
 		return err
@@ -108,7 +117,7 @@ func transaction(db *sqlx.DB, f func(tx *sqlx.Tx) error) error {
 	defer func() {
 		if !ok {
 			if txError := tx.Rollback(); txError != nil {
-				logrus.Error("Could not rollback transaction", txError)
+				logrus.Error("Could not rollback Transaction", txError)
 			}
 		}
 	}()

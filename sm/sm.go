@@ -19,6 +19,7 @@ package sm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/Peripli/service-manager/api"
@@ -27,6 +28,9 @@ import (
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/postgres"
+	security2 "github.com/Peripli/service-manager/storage/postgres/security"
+	"github.com/satori/go.uuid"
+	"github.com/sirupsen/logrus"
 )
 
 // New creates a SM server
@@ -42,7 +46,28 @@ func New(ctx context.Context, cfg *config.Settings) (*server.Server, error) {
 		return nil, fmt.Errorf("error using storage: %v", err)
 	}
 
-	api := api.New(storage, cfg.API)
+	keyGetter := security2.NewKeyGetter(cfg.Security)
+	encryptionKey, err := keyGetter.GetEncryptionKey()
+	if err != nil {
+		return nil, err
+	}
+	if len(encryptionKey) == 0 {
+		logrus.Debug("No encryption key is present. Generating new one...")
+		uuids, err := uuid.NewV4()
+		if err != nil {
+			logrus.Error(err)
+			return nil, errors.New("Could not generate new encryption key " + err.Error())
+		}
+		newEncryptionKey := uuids.Bytes()
+		keySetter := storage.KeySetter([]byte(cfg.Security.EncryptionKey))
+		if err := keySetter.SetEncryptionKey(newEncryptionKey); err != nil {
+			logrus.Error(err)
+			return nil, err
+		}
+	}
+
+	// TODO: this should remain API, but a service layer should be introduced between the API and the DB
+	api := api.New(storage, cfg.API, cfg.Security)
 
 	srv, err := server.New(api, cfg.Server)
 	if err != nil {

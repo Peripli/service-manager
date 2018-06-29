@@ -20,6 +20,7 @@ package storage
 import (
 	"errors"
 
+	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/types"
 )
 
@@ -50,6 +51,8 @@ type Storage interface {
 
 	// Platform provides access to platform db operations
 	Platform() Platform
+
+	KeySetter(encryptionKey []byte) security.EncryptionSetter
 }
 
 // Broker interface for Broker db operations

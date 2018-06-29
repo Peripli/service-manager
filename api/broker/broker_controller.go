@@ -17,19 +17,17 @@
 package broker
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/Peripli/service-manager/security"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 
 	"github.com/Peripli/service-manager/api/common"
-
-	"encoding/json"
-
-	"bytes"
-
-	"strings"
 
 	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/rest"
@@ -49,6 +47,7 @@ const (
 type Controller struct {
 	BrokerStorage       storage.Broker
 	OSBClientCreateFunc osbc.CreateFunc
+	Encrypter           *security.Encrypter
 }
 
 func validateBrokerCredentials(brokerCredentials *types.Credentials) error {
@@ -103,6 +102,13 @@ func (c *Controller) createBroker(response http.ResponseWriter, request *http.Re
 	}
 	broker.Catalog = catalog
 
+	if broker.Credentials != nil && broker.Credentials.Basic != nil {
+		encryptedPassword, err := c.Encrypter.Encrypt([]byte(broker.Credentials.Basic.Password))
+		if err != nil {
+			return err
+		}
+		broker.Credentials.Basic.Password = string(encryptedPassword)
+	}
 	err = c.BrokerStorage.Create(broker)
 	err = common.HandleUniqueError(err, "broker")
 	if err != nil {
@@ -124,7 +130,12 @@ func (c *Controller) getBroker(response http.ResponseWriter, request *http.Reque
 		return err
 	}
 
-	broker.Credentials = nil
+	//TODO: just shows that the password is actually OK
+	pass, err := c.Encrypter.Decrypt([]byte(broker.Credentials.Basic.Password))
+	if err != nil {
+		return err
+	}
+	broker.Credentials.Basic.Password = string(pass)
 	broker.Catalog = nil
 	return rest.SendJSON(response, http.StatusOK, broker)
 }
@@ -190,8 +201,8 @@ func (c *Controller) patchBroker(response http.ResponseWriter, request *http.Req
 	if err != nil {
 		return err
 	}
- 
-  if err := json.Unmarshal(updateData, broker); err != nil {
+
+	if err := json.Unmarshal(updateData, broker); err != nil {
 		return err
 	}
 

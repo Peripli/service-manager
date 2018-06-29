@@ -24,7 +24,9 @@ import (
 	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/api/platform"
 	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/storage"
+	security2 "github.com/Peripli/service-manager/storage/postgres/security"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 	"github.com/sirupsen/logrus"
 )
@@ -35,12 +37,15 @@ type Settings struct {
 }
 
 // New returns the minimum set of REST APIs needed for the Service Manager
-func New(storage storage.Storage, settings Settings) rest.API {
+func New(storage storage.Storage, settings Settings, securitySettings security.Settings) rest.API {
 	return &smAPI{
 		controllers: []rest.Controller{
 			&broker.Controller{
 				BrokerStorage:       storage.Broker(),
 				OSBClientCreateFunc: osbc.NewClient,
+				Encrypter: &security.Encrypter{
+					EncryptionGetter: security2.NewKeyGetter(securitySettings),
+				},
 			},
 			&osb.Controller{
 				BrokerStorage: storage.Broker(),
