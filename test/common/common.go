@@ -145,7 +145,7 @@ func NewValidBrokerRouter() *mux.Router {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/v2/catalog", func(rw http.ResponseWriter, req *http.Request) {
-		setResponse(rw, http.StatusOK, `{"services": [{ "name":"sv1" }]}`)
+		setResponse(rw, http.StatusOK, Catalog)
 	})
 
 	router.HandleFunc("/v2/service_instances/{instance_id}", func(rw http.ResponseWriter, req *http.Request) {
@@ -170,6 +170,10 @@ func NewValidBrokerRouter() *mux.Router {
 
 func NewFailingBrokerRouter() *mux.Router {
 	router := mux.NewRouter()
+
+	router.PathPrefix("/v2/catalog").HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		setResponse(rw, http.StatusOK, Catalog)
+	})
 
 	router.PathPrefix("/").HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		setResponse(rw, http.StatusNotAcceptable, `{"description": "expected error"}`)

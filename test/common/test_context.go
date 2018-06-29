@@ -54,6 +54,8 @@ func NewTestContext(api *rest.API) *TestContext {
 	broker.ResponseBody = []byte(serviceCatalog)
 	brokerID := RegisterBroker(brokerJSON, SM)
 	broker.ResponseBody = nil
+	broker.Request = nil
+
 	osbURL := "/v1/osb/" + brokerID
 
 	return &TestContext{

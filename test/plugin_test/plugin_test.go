@@ -130,7 +130,7 @@ var _ = Describe("Service Manager Plugins", func() {
 	}
 	for _, op := range osbOperations {
 		op := op
-		FIt(fmt.Sprintf("Plugin intercepts %s operation", op.name), func() {
+		It(fmt.Sprintf("Plugin intercepts %s operation", op.name), func() {
 			testPlugin[op.name] = func(req *filter.Request, next filter.Handler) (*filter.Response, error) {
 				res, err := next(req)
 				if err == nil {

@@ -93,7 +93,7 @@ func (c *Controller) handler(request *filter.Request) (*filter.Response, error) 
 	}
 
 	modifiedRequest := request.Request.WithContext(request.Context())
-	modifiedRequest.Header.Add("Authorization", basicAuth(broker.Credentials.Basic))
+	modifiedRequest.Header.Set("Authorization", basicAuth(broker.Credentials.Basic))
 	modifiedRequest.URL.Scheme = target.Scheme
 	modifiedRequest.URL.Host = target.Host
 	modifiedRequest.Body = ioutil.NopCloser(bytes.NewReader(request.Body))

@@ -51,10 +51,10 @@ func New(cfg *config.Settings, params *Parameters) (*server.Server, error) {
 	}
 
 	coreAPI := api.New(storage, cfg.API)
-	srv, err := server.New(coreAPI, cfg.Server)
 	if params.API != nil {
 		coreAPI.RegisterControllers(params.API.Controllers...)
 		coreAPI.RegisterFilters(params.API.Filters...)
 	}
-	return srv, nil
+
+	return server.New(coreAPI, cfg.Server)
 }
