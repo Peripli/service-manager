@@ -15,6 +15,7 @@
 .glide/
 
 /vendor
+/vendor.orig
 
 # debug executable
 debug

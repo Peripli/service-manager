@@ -10,6 +10,7 @@ import (
 
 	"github.com/Peripli/service-manager/cf"
 	"github.com/Peripli/service-manager/config"
+	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/sm"
 	"github.com/sirupsen/logrus"
 )
@@ -19,14 +20,14 @@ func main() {
 	defer cancel()
 	handleInterrupts(ctx, cancel)
 
-	set := config.SMFlagSet()
+	set := env.EmptyFlagSet()
 	config.AddPFlags(set)
 
-	env, err := config.NewEnv(set)
+	env, err := env.New(set)
 	if err != nil {
 		panic(fmt.Sprintf("error loading environment: %s", err))
 	}
-	if err := cf.SetEnvValues(env); err != nil {
+	if err := cf.SetCFOverrides(env); err != nil {
 		panic(fmt.Sprintf("error setting CF environment values: %s", err))
 	}
 	cfg, err := config.New(env)

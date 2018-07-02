@@ -413,7 +413,7 @@
     "idna",
     "publicsuffix"
   ]
-  revision = "afe8f62b1d6bbd81f31868121a50b06d8188e1f9"
+  revision = "4cb1c02c05b0e749b0365f61ae859a8e0cfceed9"
 
 [[projects]]
   branch = "master"
@@ -422,7 +422,7 @@
     "unix",
     "windows"
   ]
-  revision = "63fc586f45fe72d95d5240a5d5eb95e6503907d3"
+  revision = "7138fd3d9dc8335c567ca206f4333fb75eb05d56"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -466,6 +466,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "4f3fea5fa4d29d27c12d59dea7ff0a16f290521644bd56ba4287c0e69398c431"
+  inputs-digest = "426d1acd668c061da7ca9c54c8310f39f8d5e6e608c4647899e3b43697ee6160"
   solver-name = "gps-cdcl"
   solver-version = 1

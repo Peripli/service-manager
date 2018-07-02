@@ -22,7 +22,7 @@ import (
 
 	"io/ioutil"
 
-	"github.com/Peripli/service-manager/config"
+	"github.com/Peripli/service-manager/pkg/env"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/spf13/pflag"
@@ -63,8 +63,8 @@ func TestApi(t *testing.T) {
 
 var _ = Describe("CF Env", func() {
 	var (
-		env config.Environment
-		err error
+		environment env.Environment
+		err         error
 	)
 
 	BeforeSuite(func() {
@@ -80,7 +80,7 @@ var _ = Describe("CF Env", func() {
 		Expect(os.Setenv("VCAP_SERVICES", VCAP_SERVICES_VALUE)).ShouldNot(HaveOccurred())
 		Expect(os.Setenv("STORAGE_NAME", "smdb")).ShouldNot(HaveOccurred())
 
-		env, err = config.NewEnv(pflag.CommandLine)
+		environment, err = env.New(pflag.CommandLine)
 		Expect(err).ShouldNot(HaveOccurred())
 	})
 
@@ -90,24 +90,24 @@ var _ = Describe("CF Env", func() {
 		Expect(os.Unsetenv("STORAGE_NAME")).ShouldNot(HaveOccurred())
 	})
 
-	Describe("Set CF env values", func() {
+	Describe("Set CF environment values", func() {
 		Context("when VCAP_APPLICATION is missing", func() {
 			It("returns no error", func() {
 				Expect(os.Unsetenv("VCAP_APPLICATION")).ShouldNot(HaveOccurred())
 
-				Expect(SetEnvValues(env)).ShouldNot(HaveOccurred())
-				Expect(env.Get("store.uri")).Should(BeNil())
+				Expect(SetCFOverrides(environment)).ShouldNot(HaveOccurred())
+				Expect(environment.Get("store.uri")).Should(BeNil())
 			})
 		})
 
 		Context("when VCAP_APPLICATION is present", func() {
-			Context("when storage.name is missing from env", func() {
+			Context("when storage.name is missing from environment", func() {
 				It("returns no error", func() {
 					Expect(os.Unsetenv("STORAGE_NAME")).ShouldNot(HaveOccurred())
 
-					Expect(SetEnvValues(env)).ShouldNot(HaveOccurred())
-					Expect(env.Get("storage.name")).Should(BeNil())
-					Expect(env.Get("storage.uri")).Should(BeNil())
+					Expect(SetCFOverrides(environment)).ShouldNot(HaveOccurred())
+					Expect(environment.Get("storage.name")).Should(BeNil())
+					Expect(environment.Get("storage.uri")).Should(BeNil())
 
 				})
 			})
@@ -116,8 +116,8 @@ var _ = Describe("CF Env", func() {
 				It("returns error", func() {
 					Expect(os.Setenv("STORAGE_NAME", "missing")).ShouldNot(HaveOccurred())
 
-					err := SetEnvValues(env)
-					Expect(SetEnvValues(env)).Should(HaveOccurred())
+					err := SetCFOverrides(environment)
+					Expect(SetCFOverrides(environment)).Should(HaveOccurred())
 					Expect(err.Error()).To(ContainSubstring("could not find service with name"))
 				})
 			})
@@ -126,7 +126,7 @@ var _ = Describe("CF Env", func() {
 				It("returns error", func() {
 					Expect(os.Setenv("VCAP_SERVICES", "Invalid")).ShouldNot(HaveOccurred())
 
-					Expect(SetEnvValues(env)).Should(HaveOccurred())
+					Expect(SetCFOverrides(environment)).Should(HaveOccurred())
 				})
 			})
 
@@ -134,14 +134,14 @@ var _ = Describe("CF Env", func() {
 				It("returns error", func() {
 					Expect(os.Unsetenv("VCAP_SERVICES")).ShouldNot(HaveOccurred())
 
-					Expect(SetEnvValues(env)).Should(HaveOccurred())
+					Expect(SetCFOverrides(environment)).Should(HaveOccurred())
 				})
 			})
 
 			It("sets the storage.uri if successful", func() {
-				Expect(SetEnvValues(env)).ShouldNot(HaveOccurred())
+				Expect(SetCFOverrides(environment)).ShouldNot(HaveOccurred())
 
-				Expect(env.Get("storage.uri")).ShouldNot(BeEmpty())
+				Expect(environment.Get("storage.uri")).ShouldNot(BeEmpty())
 			})
 		})
 	})

@@ -23,7 +23,7 @@ import (
 
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/config"
-	"github.com/Peripli/service-manager/log"
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/postgres"

@@ -1,13 +1,12 @@
 ---
 applications:
-- name: <application_name>
-  buildpack: go_buildpack
+- name: smanager
   memory: 64M
   services:
-    - <postgre_instance_name>
+    - sm-postgres
   env:
-    LOG_FORMAT: json
-    LOG_LEVEL: info
-    STORAGE_NAME: <postgre_instance_name>
+    LOG_FORMAT: text
+    LOG_LEVEL: debug
+    STORAGE_NAME: SM-POSTGRES
     GOVERSION: go1.10
     GOPACKAGENAME: github.com/Peripli/service-manager
