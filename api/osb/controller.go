@@ -88,7 +88,7 @@ func (c *Controller) handler(request *filter.Request) (*filter.Response, error) 
 
 	reverseProxy := httputil.ReverseProxy{
 		Director: func(req *http.Request) {
-			req.Header.Set("Host", target.Host)
+			req.Host = target.Host
 		},
 	}
 

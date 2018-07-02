@@ -118,6 +118,13 @@ var _ = Describe("Service Manager Plugins", func() {
 		Expect(ctx.Broker.Called()).To(BeFalse())
 	})
 
+	It("Request host header is properly set", func() {
+		ctx.SM.GET(ctx.OSBURL + "/v2/catalog").
+			Expect().Status(http.StatusOK)
+
+		Expect(ctx.BrokerServer.URL).To(ContainSubstring(ctx.Broker.Request.Host))
+	})
+
 	osbOperations := []struct{ name, method, path string }{
 		{"fetchCatalog", "GET", "/v2/catalog"},
 		{"provision", "PUT", "/v2/service_instances/1234"},
