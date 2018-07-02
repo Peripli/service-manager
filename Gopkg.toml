@@ -4,7 +4,7 @@
   go-tests = true
   unused-packages = true
 
-# Backwards-incompatible change is introduced in mux 1.6.2 - gorilla/mux#338 
+# Backwards-incompatible change is introduced in mux 1.6.2 - gorilla/mux#338
 [[constraint]]
   name = "github.com/gorilla/mux"
   version = "=1.6.1"
@@ -76,3 +76,7 @@
 [[constraint]]
   name = "gopkg.in/yaml.v2"
   version = "2.2.1"
+
+[[constraint]]
+  name = "github.com/coreos/go-oidc"
+  revision = "1180514eaf4d9f38d0d19eef639a1d695e066e72"

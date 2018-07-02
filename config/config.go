@@ -46,8 +46,7 @@ func AddPFlags(set *pflag.FlagSet) {
 func DefaultSettings() *Settings {
 	config := &Settings{
 		Server: server.Settings{
-			Host:            "",
-			Port:            0,
+			Port:            8080,
 			RequestTimeout:  time.Second * 3,
 			ShutdownTimeout: time.Second * 3,
 		},

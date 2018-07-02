@@ -35,7 +35,7 @@ func SetCFOverrides(env env.Environment) error {
 			return fmt.Errorf("could not load VCAP environment: %s", err)
 		}
 
-		env.Set("server.port", os.Getenv("PORT"))
+		env.Set("server.port", cfEnv.Port)
 
 		pgServiceName := cast.ToString(env.Get("storage.name"))
 		if pgServiceName == "" {

@@ -19,6 +19,11 @@
   revision = "e84b5c116637ef174eb8c7d68a28bc7269b3b9cb"
 
 [[projects]]
+  name = "github.com/coreos/go-oidc"
+  packages = ["."]
+  revision = "1180514eaf4d9f38d0d19eef639a1d695e066e72"
+
+[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
@@ -249,6 +254,15 @@
   version = "0.0.10"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/pquerna/cachecontrol"
+  packages = [
+    ".",
+    "cacheobject"
+  ]
+  revision = "1555304b9b35fdd2b425bccf1a5613677705e7d0"
+
+[[projects]]
   name = "github.com/prometheus/client_golang"
   packages = [
     "prometheus",
@@ -282,7 +296,7 @@
     "nfs",
     "xfs"
   ]
-  revision = "7d6f385de8bea29190f15ba9931442a0eaef9af7"
+  revision = "40f013a808ec4fa79def444a1a56de4d1727efcb"
 
 [[projects]]
   name = "github.com/satori/go.uuid"
@@ -400,13 +414,19 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
-  packages = ["ssh/terminal"]
+  packages = [
+    "ed25519",
+    "ed25519/internal/edwards25519",
+    "ssh/terminal"
+  ]
   revision = "a49355c7e3f8fe157a85be2f77e6e269a0f89602"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = [
+    "context",
+    "context/ctxhttp",
     "html",
     "html/atom",
     "html/charset",
@@ -414,6 +434,15 @@
     "publicsuffix"
   ]
   revision = "4cb1c02c05b0e749b0365f61ae859a8e0cfceed9"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/oauth2"
+  packages = [
+    ".",
+    "internal"
+  ]
+  revision = "ef147856a6ddbb60760db74283d2424e98c87bff"
 
 [[projects]]
   branch = "master"
@@ -458,6 +487,30 @@
   version = "v0.3.0"
 
 [[projects]]
+  name = "google.golang.org/appengine"
+  packages = [
+    "internal",
+    "internal/base",
+    "internal/datastore",
+    "internal/log",
+    "internal/remote_api",
+    "internal/urlfetch",
+    "urlfetch"
+  ]
+  revision = "b1f26356af11148e710935ed1ac8a7f5702c7612"
+  version = "v1.1.0"
+
+[[projects]]
+  name = "gopkg.in/square/go-jose.v2"
+  packages = [
+    ".",
+    "cipher",
+    "json"
+  ]
+  revision = "76dd09796242edb5b897103a75df2645c028c960"
+  version = "v2.1.6"
+
+[[projects]]
   name = "gopkg.in/yaml.v2"
   packages = ["."]
   revision = "5420a8b6744d3b0345ab293f6fcba19c978f1183"
@@ -466,6 +519,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "426d1acd668c061da7ca9c54c8310f39f8d5e6e608c4647899e3b43697ee6160"
+  inputs-digest = "31809ea5f7141be47fd017d182f66a9f9abe04c95ec576592b2c3284afcbf40d"
   solver-name = "gps-cdcl"
   solver-version = 1
