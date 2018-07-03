@@ -27,6 +27,7 @@ import (
 	"strconv"
 
 	"github.com/Peripli/service-manager/rest"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 )
@@ -46,9 +47,9 @@ type Server struct {
 
 // New creates a new server with the provided REST API configuration and server configuration
 // Returns the new server and an error if creation was not successful
-func New(api *rest.API, config Settings) (*Server, error) {
+func New(api rest.API, config Settings) (*Server, error) {
 	router := mux.NewRouter().StrictSlash(true)
-	if err := registerControllers(router, api); err != nil {
+	if err := registerControllers(router, api.Controllers()); err != nil {
 		return nil, fmt.Errorf("new Settings: %s", err)
 	}
 
@@ -58,10 +59,23 @@ func New(api *rest.API, config Settings) (*Server, error) {
 	}, nil
 }
 
+type recoveryHandlerLogger struct{}
+
+// PrintLn prints panic message and stack to error output
+func (r *recoveryHandlerLogger) Println(args ...interface{}) {
+	logrus.Errorln(args...)
+}
+
 // Run starts the server awaiting for incoming requests
 func (s *Server) Run(ctx context.Context) {
+
+	recoveryHandler := handlers.RecoveryHandler(
+		handlers.PrintRecoveryStack(true),
+		handlers.RecoveryLogger(&recoveryHandlerLogger{}),
+	)(s.Router)
+
 	handler := &http.Server{
-		Handler:      s.Router,
+		Handler:      recoveryHandler,
 		Addr:         ":" + strconv.Itoa(s.Config.Port),
 		WriteTimeout: s.Config.RequestTimeout,
 		ReadTimeout:  s.Config.RequestTimeout,
@@ -69,14 +83,45 @@ func (s *Server) Run(ctx context.Context) {
 	startServer(ctx, handler, s.Config.ShutdownTimeout)
 }
 
-func registerControllers(router *mux.Router, api *rest.API) error {
-	for _, ctrl := range api.Controllers {
+func registerRoutes(prefix string, fromRouter *mux.Router, toRouter *mux.Router) error {
+	subRouter := toRouter.PathPrefix(prefix).Subrouter()
+	return fromRouter.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
+
+		path, err := route.GetPathTemplate()
+		if err != nil {
+			return fmt.Errorf("register routes: %s", err)
+		}
+		r := subRouter.Handle(path, route.GetHandler())
+
+		methods, err := route.GetMethods()
+		if err != nil {
+			return fmt.Errorf("register routes: %s", err)
+
+		}
+		if len(methods) > 0 {
+			r.Methods(methods...)
+		}
+
+		logrus.Debug("Registering route: method: ", methods, " path: ", prefix, path)
+		return nil
+	})
+}
+
+func registerControllers(router *mux.Router, controllers []rest.Controller) error {
+	for _, ctrl := range controllers {
 		for _, route := range ctrl.Routes() {
-			logrus.Debugf("Register endpoint: %s %s", route.Endpoint.Method, route.Endpoint.Path)
-			filters := rest.MatchFilters(&route.Endpoint, api.Filters)
-			handler := rest.NewHTTPHandler(filters, route.Handler)
-			r := router.Handle(route.Endpoint.Path, handler)
-			r.Methods(route.Endpoint.Method)
+			fromRouter, ok := route.Handler.(*mux.Router)
+			if ok {
+				if err := registerRoutes(route.Endpoint.Path, fromRouter, router); err != nil {
+
+					return fmt.Errorf("register controllers: %s", err)
+				}
+			} else {
+				r := router.Handle(route.Endpoint.Path, route.Handler)
+				if route.Endpoint.Method != rest.AllMethods {
+					r.Methods(route.Endpoint.Method)
+				}
+			}
 		}
 	}
 	return nil

@@ -4,6 +4,10 @@
   go-tests = true
   unused-packages = true
 
+[[constraint]]
+  name = "github.com/gorilla/handlers"
+  version = "=1.3.0"
+
 # Backwards-incompatible change is introduced in mux 1.6.2 - gorilla/mux#338
 [[constraint]]
   name = "github.com/gorilla/mux"
