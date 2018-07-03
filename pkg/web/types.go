@@ -1,4 +1,4 @@
-package filter
+package web
 
 import (
 	"net/http"
@@ -60,6 +60,9 @@ type RouteMatcher struct {
 
 // Filter defines a function that can intercept requests on specific routes
 type Filter struct {
+	// Name is the filter name used for logging
+	Name string
+
 	// RouteMatcher defines the criteria for which routes to apply this filter
 	RouteMatcher
 

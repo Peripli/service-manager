@@ -73,8 +73,9 @@ func registerControllers(router *mux.Router, api *rest.API) error {
 	for _, ctrl := range api.Controllers {
 		for _, route := range ctrl.Routes() {
 			logrus.Debugf("Register endpoint: %s %s", route.Endpoint.Method, route.Endpoint.Path)
-			r := router.Handle(route.Endpoint.Path,
-				rest.NewHTTPHandler(rest.MatchFilters(&route.Endpoint, api.Filters), route.Handler))
+			filters := rest.MatchFilters(&route.Endpoint, api.Filters)
+			handler := rest.NewHTTPHandler(filters, route.Handler)
+			r := router.Handle(route.Endpoint.Path, handler)
 			r.Methods(route.Endpoint.Method)
 		}
 	}

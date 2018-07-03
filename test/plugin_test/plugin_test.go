@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/Peripli/service-manager/pkg/filter"
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
@@ -43,7 +43,7 @@ var _ = Describe("Service Manager Plugins", func() {
 
 	It("Plugin modifies the request & response body", func() {
 		var resBodySize int
-		testPlugin["provision"] = func(req *filter.Request, next filter.Handler) (*filter.Response, error) {
+		testPlugin["provision"] = func(req *web.Request, next web.Handler) (*web.Response, error) {
 			var err error
 			req.Body, err = sjson.SetBytes(req.Body, "extra", "request")
 			if err != nil {
@@ -84,7 +84,7 @@ var _ = Describe("Service Manager Plugins", func() {
 	})
 
 	It("Plugin modifies the request & response headers", func() {
-		testPlugin["fetchCatalog"] = func(req *filter.Request, next filter.Handler) (*filter.Response, error) {
+		testPlugin["fetchCatalog"] = func(req *web.Request, next web.Handler) (*web.Response, error) {
 			h := req.Header.Get("extra")
 			req.Header.Set("extra", h+"-request")
 
@@ -105,8 +105,8 @@ var _ = Describe("Service Manager Plugins", func() {
 	})
 
 	It("Plugin aborts the request", func() {
-		testPlugin["fetchCatalog"] = func(req *filter.Request, next filter.Handler) (*filter.Response, error) {
-			return nil, filter.NewErrorResponse(errors.New("Plugin error"), http.StatusBadRequest, "PluginErr")
+		testPlugin["fetchCatalog"] = func(req *web.Request, next web.Handler) (*web.Response, error) {
+			return nil, web.NewHTTPError(errors.New("Plugin error"), http.StatusBadRequest, "PluginErr")
 		}
 
 		ctx.SM.GET(ctx.OSBURL + "/v2/catalog").
@@ -138,7 +138,7 @@ var _ = Describe("Service Manager Plugins", func() {
 	for _, op := range osbOperations {
 		op := op
 		It(fmt.Sprintf("Plugin intercepts %s operation", op.name), func() {
-			testPlugin[op.name] = func(req *filter.Request, next filter.Handler) (*filter.Response, error) {
+			testPlugin[op.name] = func(req *web.Request, next web.Handler) (*web.Response, error) {
 				res, err := next(req)
 				if err == nil {
 					res.Header.Set("X-Plugin", op.name)
@@ -155,43 +155,43 @@ var _ = Describe("Service Manager Plugins", func() {
 
 })
 
-type TestPlugin map[string]func(req *filter.Request, next filter.Handler) (*filter.Response, error)
+type TestPlugin map[string]func(req *web.Request, next web.Handler) (*web.Response, error)
 
-func (p TestPlugin) call(f filter.Middleware, req *filter.Request, next filter.Handler) (*filter.Response, error) {
+func (p TestPlugin) call(f web.Middleware, req *web.Request, next web.Handler) (*web.Response, error) {
 	if f == nil {
 		return next(req)
 	}
 	return f(req, next)
 }
 
-func (p TestPlugin) FetchCatalog(req *filter.Request, next filter.Handler) (*filter.Response, error) {
+func (p TestPlugin) FetchCatalog(req *web.Request, next web.Handler) (*web.Response, error) {
 	return p.call(p["fetchCatalog"], req, next)
 }
 
-func (p TestPlugin) Provision(req *filter.Request, next filter.Handler) (*filter.Response, error) {
+func (p TestPlugin) Provision(req *web.Request, next web.Handler) (*web.Response, error) {
 	return p.call(p["provision"], req, next)
 }
 
-func (p TestPlugin) Deprovision(req *filter.Request, next filter.Handler) (*filter.Response, error) {
+func (p TestPlugin) Deprovision(req *web.Request, next web.Handler) (*web.Response, error) {
 	return p.call(p["deprovision"], req, next)
 }
 
-func (p TestPlugin) UpdateService(req *filter.Request, next filter.Handler) (*filter.Response, error) {
+func (p TestPlugin) UpdateService(req *web.Request, next web.Handler) (*web.Response, error) {
 	return p.call(p["updateService"], req, next)
 }
 
-func (p TestPlugin) FetchService(req *filter.Request, next filter.Handler) (*filter.Response, error) {
+func (p TestPlugin) FetchService(req *web.Request, next web.Handler) (*web.Response, error) {
 	return p.call(p["fetchService"], req, next)
 }
 
-func (p TestPlugin) Bind(req *filter.Request, next filter.Handler) (*filter.Response, error) {
+func (p TestPlugin) Bind(req *web.Request, next web.Handler) (*web.Response, error) {
 	return p.call(p["bind"], req, next)
 }
 
-func (p TestPlugin) Unbind(req *filter.Request, next filter.Handler) (*filter.Response, error) {
+func (p TestPlugin) Unbind(req *web.Request, next web.Handler) (*web.Response, error) {
 	return p.call(p["unbind"], req, next)
 }
 
-func (p TestPlugin) FetchBinding(req *filter.Request, next filter.Handler) (*filter.Response, error) {
+func (p TestPlugin) FetchBinding(req *web.Request, next web.Handler) (*web.Response, error) {
 	return p.call(p["fetchBinding"], req, next)
 }

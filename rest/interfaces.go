@@ -18,7 +18,7 @@
 package rest
 
 import (
-	"github.com/Peripli/service-manager/pkg/filter"
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
 // Controller is an entity that wraps a set of HTTP Routes
@@ -33,7 +33,7 @@ type Route struct {
 	Endpoint Endpoint
 
 	// Handler is the function that should handle incoming requests for this endpoint
-	Handler filter.Handler
+	Handler web.Handler
 }
 
 // Endpoint is a combination of a Path and an HTTP Method

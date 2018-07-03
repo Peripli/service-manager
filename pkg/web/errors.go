@@ -14,23 +14,23 @@
  *    limitations under the License.
  */
 
-package filter
+package web
 
-// ErrorResponse struct used to store information about error
-type ErrorResponse struct {
+// HTTPError struct used to store information about error
+type HTTPError struct {
 	ErrorType   string `json:"error,omitempty"`
 	Description string `json:"description"`
 	StatusCode  int    `json:"-"`
 }
 
-// Error ErrorResponse should implement error
-func (errorResponse *ErrorResponse) Error() string {
+// Error HTTPError should implement error
+func (errorResponse *HTTPError) Error() string {
 	return errorResponse.Description
 }
 
-// NewErrorResponse creates ErrorResponse object
-func NewErrorResponse(err error, statusCode int, errorType string) *ErrorResponse {
-	return &ErrorResponse{
+// NewHTTPError creates HTTPError object
+func NewHTTPError(err error, statusCode int, errorType string) *HTTPError {
+	return &HTTPError{
 		ErrorType:   errorType,
 		Description: err.Error(),
 		StatusCode:  statusCode}

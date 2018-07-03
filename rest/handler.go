@@ -9,14 +9,14 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/Peripli/service-manager/pkg/filter"
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gorilla/mux"
 )
 
-type httpHandler filter.Handler
+type httpHandler web.Handler
 
 // NewHTTPHandler wraps the controller handler and its filters in a http.Handler function
-func NewHTTPHandler(filters []filter.Filter, handler filter.Handler) http.Handler {
+func NewHTTPHandler(filters []web.Filter, handler web.Handler) http.Handler {
 	return httpHandler(chain(filters, handler))
 }
 
@@ -54,7 +54,7 @@ func (h httpHandler) serve(res http.ResponseWriter, req *http.Request) error {
 	return nil
 }
 
-func readRequest(request *http.Request) (*filter.Request, error) {
+func readRequest(request *http.Request) (*web.Request, error) {
 	pathParams := mux.Vars(request)
 
 	var body []byte
@@ -63,7 +63,7 @@ func readRequest(request *http.Request) (*filter.Request, error) {
 		body, err = readBody(request)
 	}
 
-	return &filter.Request{
+	return &web.Request{
 		Request:    request,
 		PathParams: pathParams,
 		Body:       body,
@@ -73,7 +73,7 @@ func readRequest(request *http.Request) (*filter.Request, error) {
 func readBody(request *http.Request) ([]byte, error) {
 	contentType := request.Header.Get("Content-Type")
 	if !strings.Contains(contentType, "application/json") {
-		return nil, filter.NewErrorResponse(errors.New("Invalid media type provided"),
+		return nil, web.NewHTTPError(errors.New("Invalid media type provided"),
 			http.StatusUnsupportedMediaType, "InvalidMediaType")
 	}
 	body, err := ioutil.ReadAll(request.Body)
@@ -81,20 +81,20 @@ func readBody(request *http.Request) ([]byte, error) {
 		return nil, err
 	}
 	if !json.Valid(body) {
-		return nil, filter.NewErrorResponse(errors.New("Request body is not valid JSON"),
+		return nil, web.NewHTTPError(errors.New("Request body is not valid JSON"),
 			http.StatusBadRequest, "BadRequest")
 	}
 
 	return body, nil
 }
 
-func chain(filters []filter.Filter, handler filter.Handler) filter.Handler {
+func chain(filters []web.Filter, handler web.Handler) web.Handler {
 	if len(filters) == 0 {
 		return handler
 	}
 	next := chain(filters[1:], handler)
 	f := filters[0].Middleware
-	return func(req *filter.Request) (*filter.Response, error) {
+	return func(req *web.Request) (*web.Response, error) {
 		return f(req, next)
 	}
 }

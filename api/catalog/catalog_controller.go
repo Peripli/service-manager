@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/filter"
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/types"
@@ -42,7 +42,7 @@ type aggregatedCatalog struct {
 	Brokers []brokerServices `json:"brokers"`
 }
 
-func (c *Controller) getCatalog(request *filter.Request) (*filter.Response, error) {
+func (c *Controller) getCatalog(request *web.Request) (*web.Response, error) {
 	logrus.Debugf("Aggregating all broker catalogs")
 	brokers, err := c.BrokerStorage.GetAll()
 	if err != nil {

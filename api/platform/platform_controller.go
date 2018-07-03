@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/Peripli/service-manager/api/common"
-	"github.com/Peripli/service-manager/pkg/filter"
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/types"
@@ -38,7 +38,7 @@ type Controller struct {
 	PlatformStorage storage.Platform
 }
 
-func getPlatformFromRequest(req *filter.Request) (*types.Platform, error) {
+func getPlatformFromRequest(req *web.Request) (*types.Platform, error) {
 	var platform types.Platform
 	return &platform, rest.ReadJSONBody(req, &platform)
 }
@@ -54,7 +54,7 @@ func checkPlatformMandatoryProperties(platform *types.Platform) error {
 }
 
 // createPlatform handler for POST /v1/platforms
-func (c *Controller) createPlatform(request *filter.Request) (*filter.Response, error) {
+func (c *Controller) createPlatform(request *web.Request) (*web.Response, error) {
 	logrus.Debug("Creating new platform")
 
 	platform, errDecode := getPlatformFromRequest(request)
@@ -62,7 +62,7 @@ func (c *Controller) createPlatform(request *filter.Request) (*filter.Response, 
 		return nil, errDecode
 	}
 	if errMandatoryProperties := checkPlatformMandatoryProperties(platform); errMandatoryProperties != nil {
-		return nil, filter.NewErrorResponse(errMandatoryProperties, http.StatusBadRequest, "BadRequest")
+		return nil, web.NewHTTPError(errMandatoryProperties, http.StatusBadRequest, "BadRequest")
 	}
 	if platform.ID == "" {
 		uuid, err := uuid.NewV4()
@@ -91,7 +91,7 @@ func (c *Controller) createPlatform(request *filter.Request) (*filter.Response, 
 }
 
 // getPlatform handler for GET /v1/platforms/:platform_id
-func (c *Controller) getPlatform(request *filter.Request) (*filter.Response, error) {
+func (c *Controller) getPlatform(request *web.Request) (*web.Response, error) {
 	platformID := request.PathParams[reqPlatformID]
 	logrus.Debugf("Getting platform with id %s", platformID)
 
@@ -103,7 +103,7 @@ func (c *Controller) getPlatform(request *filter.Request) (*filter.Response, err
 }
 
 // getAllPlatforms handler for GET /v1/platforms
-func (c *Controller) getAllPlatforms(request *filter.Request) (*filter.Response, error) {
+func (c *Controller) getAllPlatforms(request *web.Request) (*web.Response, error) {
 	logrus.Debug("Getting all platforms")
 	platforms, err := c.PlatformStorage.GetAll()
 	if err != nil {
@@ -115,7 +115,7 @@ func (c *Controller) getAllPlatforms(request *filter.Request) (*filter.Response,
 }
 
 // deletePlatform handler for DELETE /v1/platforms/:platform_id
-func (c *Controller) deletePlatform(request *filter.Request) (*filter.Response, error) {
+func (c *Controller) deletePlatform(request *web.Request) (*web.Response, error) {
 	platformID := request.PathParams[reqPlatformID]
 	logrus.Debugf("Deleting platform with id %s", platformID)
 
@@ -128,7 +128,7 @@ func (c *Controller) deletePlatform(request *filter.Request) (*filter.Response, 
 }
 
 // updatePlatform handler for PATCH /v1/platforms/:platform_id
-func (c *Controller) patchPlatform(request *filter.Request) (*filter.Response, error) {
+func (c *Controller) patchPlatform(request *web.Request) (*web.Response, error) {
 	platformID := request.PathParams[reqPlatformID]
 	logrus.Debugf("Updating platform with id %s", platformID)
 	newPlatform, errDecode := getPlatformFromRequest(request)

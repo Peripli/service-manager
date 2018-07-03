@@ -6,7 +6,7 @@ One can modify both the request before it reaches the broker and the response be
 There are several interfaces that the plugin can implement for different OSB API operations.
 They can be found [here](pkg/plugin/osb.go)
 
-There are several types one has to know about. They can be found [here](pkg/filter/filter.go)
+There are several types one has to know about. They can be found [here](pkg/web/web.go)
 
 ## Catalog modification plugin
 
@@ -21,7 +21,7 @@ import (
 
 type MyPlugin struct {}
 
-func (p *MyPlugin) FetchCatalog(req *filter.Request, next filter.Handler) (*filter.Response, error) {
+func (p *MyPlugin) FetchCatalog(req *web.Request, next web.Handler) (*web.Response, error) {
     res, err := next(req)
     if err != nil {
         return nil, err
@@ -44,9 +44,9 @@ import (
     "github.com/tidwall/sjson"
 )
 
-func (p *MyPlugin) Provision(req *filter.Request, next filter.Handler) (*filter.Response, error) {
+func (p *MyPlugin) Provision(req *web.Request, next web.Handler) (*web.Response, error) {
     if !checkCredentials(req) {
-        return &filter.Response{
+        return &web.Response{
             StatusCode: 401 // Unauthorized
         }, nil
     }
@@ -101,9 +101,9 @@ Request and response work with plain byte arrays (usually JSON). That's why we r
 
 ### Do not modify the original Request object
 
-Our `filter.Request` contains the original `http.Request` object, but it **should NOT** be modified as this might lead to undesired behaviours.
+Our `web.Request` contains the original `http.Request` object, but it **should NOT** be modified as this might lead to undesired behaviours.
 
-**Do NOT** use the `http.Request.Body` as this reader is already processed by our code. The body can be accessed from `filter.Request.Body` which is a byte array.
+**Do NOT** use the `http.Request.Body` as this reader is already processed by our code. The body can be accessed from `web.Request.Body` which is a byte array.
 
 ### Chaining
 

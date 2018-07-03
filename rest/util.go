@@ -21,7 +21,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/filter"
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/sirupsen/logrus"
 )
 
@@ -34,12 +34,12 @@ func SendJSON(writer http.ResponseWriter, code int, value interface{}) error {
 	return encoder.Encode(value)
 }
 
-// NewJSONResponse turns plain object into a byte array representing JSON value and wraps it in filter.Response
-func NewJSONResponse(code int, value interface{}) (*filter.Response, error) {
+// NewJSONResponse turns plain object into a byte array representing JSON value and wraps it in web.Response
+func NewJSONResponse(code int, value interface{}) (*web.Response, error) {
 	headers := http.Header{}
 	headers.Add("Content-Type", "application/json")
 	body, err := json.Marshal(value)
-	return &filter.Response{
+	return &web.Response{
 		StatusCode: code,
 		Header:     headers,
 		Body:       body,
@@ -47,11 +47,11 @@ func NewJSONResponse(code int, value interface{}) (*filter.Response, error) {
 }
 
 // ReadJSONBody parse request body
-func ReadJSONBody(request *filter.Request, value interface{}) error {
+func ReadJSONBody(request *web.Request, value interface{}) error {
 	err := json.Unmarshal(request.Body, value)
 	if err != nil {
 		logrus.Debug(err)
-		return filter.NewErrorResponse(errors.New("Failed to decode request body"), http.StatusBadRequest, "BadRequest")
+		return web.NewHTTPError(errors.New("Failed to decode request body"), http.StatusBadRequest, "BadRequest")
 	}
 	return nil
 }

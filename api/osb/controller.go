@@ -29,7 +29,7 @@ import (
 	"net/url"
 	"regexp"
 
-	"github.com/Peripli/service-manager/pkg/filter"
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/types"
@@ -79,7 +79,7 @@ func (c *Controller) Routes() []rest.Route {
 	}
 }
 
-func (c *Controller) handler(request *filter.Request) (*filter.Response, error) {
+func (c *Controller) handler(request *web.Request) (*web.Response, error) {
 	broker, err := c.fetchBroker(request)
 	if err != nil {
 		return nil, err
@@ -115,7 +115,7 @@ func (c *Controller) handler(request *filter.Request) (*filter.Response, error) 
 	}
 
 	headers := recorder.HeaderMap
-	resp := &filter.Response{
+	resp := &web.Response{
 		StatusCode: recorder.Code,
 		Body:       body,
 		Header:     headers,
@@ -129,18 +129,18 @@ func basicAuth(credentials *types.Basic) string {
 		[]byte(credentials.Username+":"+credentials.Password))
 }
 
-func (c *Controller) fetchBroker(request *filter.Request) (*types.Broker, error) {
+func (c *Controller) fetchBroker(request *web.Request) (*types.Broker, error) {
 	brokerID, ok := request.PathParams[BrokerIDPathParam]
 	if !ok {
 		logrus.Debugf("error creating OSB client: brokerID path parameter not found")
-		return nil, filter.NewErrorResponse(errors.New("Invalid broker id path parameter"), http.StatusBadRequest, "BadRequest")
+		return nil, web.NewHTTPError(errors.New("Invalid broker id path parameter"), http.StatusBadRequest, "BadRequest")
 	}
 	logrus.Debugf("Obtained path parameter [brokerID = %s] from path params", brokerID)
 
 	serviceBroker, err := c.BrokerStorage.Get(brokerID)
 	if err == storage.ErrNotFound {
 		logrus.Debugf("service broker with id %s not found", brokerID)
-		return nil, filter.NewErrorResponse(fmt.Errorf("Could not find broker with id: %s", brokerID), http.StatusNotFound, "NotFound")
+		return nil, web.NewHTTPError(fmt.Errorf("Could not find broker with id: %s", brokerID), http.StatusNotFound, "NotFound")
 	} else if err != nil {
 		logrus.Errorf("error obtaining serviceBroker with id %s from storage: %s", brokerID, err)
 		return nil, fmt.Errorf("Internal Server Error")

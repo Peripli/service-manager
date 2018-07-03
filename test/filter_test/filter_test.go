@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Peripli/service-manager/pkg/filter"
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
@@ -21,10 +21,10 @@ func TestFilters(t *testing.T) {
 	RunSpecs(t, "Plugin Tests Suite")
 }
 
-var _ = Describe("Service Manager Filters", func() {
+var _ = FDescribe("Service Manager Filters", func() {
 	var ctx *common.TestContext
 
-	var testFilters []filter.Filter
+	var testFilters []web.Filter
 
 	JustBeforeEach(func() {
 		api := &rest.API{}
@@ -38,13 +38,14 @@ var _ = Describe("Service Manager Filters", func() {
 
 	Describe("Attach filter on multiple endpoints", func() {
 		BeforeEach(func() {
-			testFilters = []filter.Filter{
+			testFilters = []web.Filter{
 				{
-					RouteMatcher: filter.RouteMatcher{
+					Name: "OSB filter",
+					RouteMatcher: web.RouteMatcher{
 						Methods:     []string{"*"},
 						PathPattern: "/v1/osb/**",
 					},
-					Middleware: func(req *filter.Request, next filter.Handler) (*filter.Response, error) {
+					Middleware: func(req *web.Request, next web.Handler) (*web.Response, error) {
 						res, err := next(req)
 						if err == nil {
 							res.Header.Set("filter", "called")
@@ -75,14 +76,15 @@ var _ = Describe("Service Manager Filters", func() {
 	Describe("Attach filter on whole API", func() {
 		var order string
 		BeforeEach(func() {
-			testFilters = []filter.Filter{
+			testFilters = []web.Filter{
 				{
-					RouteMatcher: filter.RouteMatcher{
+					Name: "Global filter",
+					RouteMatcher: web.RouteMatcher{
 						// match all requests
 						Methods:     []string{"*"},
 						PathPattern: "/**",
 					},
-					Middleware: func(req *filter.Request, next filter.Handler) (*filter.Response, error) {
+					Middleware: func(req *web.Request, next web.Handler) (*web.Response, error) {
 						order += "a1"
 						res, err := next(req)
 						order += "a2"
@@ -90,11 +92,12 @@ var _ = Describe("Service Manager Filters", func() {
 					},
 				},
 				{
-					RouteMatcher: filter.RouteMatcher{
+					Name: "/v1 filter",
+					RouteMatcher: web.RouteMatcher{
 						Methods:     []string{"*"},
 						PathPattern: "/v1/**",
 					},
-					Middleware: func(req *filter.Request, next filter.Handler) (*filter.Response, error) {
+					Middleware: func(req *web.Request, next web.Handler) (*web.Response, error) {
 						order += "b1"
 						res, err := next(req)
 						order += "b2"
