@@ -58,6 +58,6 @@ cf service-brokers
 
 [Run Service Manager on Kubernetes](deployment/k8s/README.md)
 
-## Plugins
+## Plugins and Filters
 
-[Plugins](docs/plugins.md)
+[Plugins and Filters](docs/plugins.md)
