@@ -14,24 +14,42 @@
  *    limitations under the License.
  */
 
-package types
+package rest
 
-// ErrorResponse struct used to store information about error
-type ErrorResponse struct {
-	ErrorType   string `json:"error,omitempty"`
-	Description string `json:"description"`
-	StatusCode  int    `json:"-"`
+import (
+	"testing"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+)
+
+func TestAPI(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "API Suite")
 }
 
-// Error ErrorResponse should implement error
-func (errorResponse *ErrorResponse) Error() string {
-	return errorResponse.Description
-}
+var _ = Describe("API", func() {
+	var api API
 
-// NewErrorResponse create types.ErrorResponse object
-func NewErrorResponse(err error, statusCode int, errorType string) *ErrorResponse {
-	return &ErrorResponse{
-		ErrorType:   errorType,
-		Description: err.Error(),
-		StatusCode:  statusCode}
-}
+	BeforeEach(func() {
+		api = API{}
+	})
+
+	Describe("RegisterPlugins", func() {
+		It("Panics if argument is nil", func() {
+			Expect(func() {
+				api.RegisterPlugins(nil)
+			}).To(Panic())
+		})
+
+		It("Panics if argument is an empty plugin", func() {
+			Expect(func() {
+				api.RegisterPlugins(&Plugin{})
+			}).To(Panic())
+		})
+	})
+})
+
+type Plugin struct{}
+
+func (p *Plugin) Name() string { return "" }

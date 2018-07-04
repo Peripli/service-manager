@@ -14,16 +14,42 @@
  *    limitations under the License.
  */
 
-package osb_test
+package rest
 
 import (
 	"testing"
 
+	"github.com/Peripli/service-manager/pkg/web"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-func TestOsb(t *testing.T) {
+func TestHandler(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Osb Suite")
+	RunSpecs(t, "Handler Suite")
 }
+
+var _ = Describe("Handler", func() {
+	Describe("NewHTTPHandler", func() {
+		It("Panics if a filter has no middleware function", func() {
+			filters := []web.Filter{{
+				Name: "test-filter",
+				RouteMatcher: web.RouteMatcher{
+					PathPattern: "*",
+				},
+			}}
+			handler := func(*web.Request) (*web.Response, error) { return nil, nil }
+
+			Expect(func() {
+				NewHTTPHandler(filters, handler)
+			}).To(Panic())
+
+			filters[0].Middleware = func(*web.Request, web.Handler) (*web.Response, error) {
+				return nil, nil
+			}
+			Expect(func() {
+				NewHTTPHandler(filters, handler)
+			}).ToNot(Panic())
+		})
+	})
+})

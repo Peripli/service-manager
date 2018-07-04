@@ -19,20 +19,20 @@ package rest
 import (
 	"net/http"
 
-	"github.com/Peripli/service-manager/types"
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/sirupsen/logrus"
 )
 
 // HandleError sends a JSON containing the error to the response writer
 func HandleError(err error, writer http.ResponseWriter) {
-	var respError *types.ErrorResponse
+	var respError *web.HTTPError
 	switch t := err.(type) {
-	case *types.ErrorResponse:
+	case *web.HTTPError:
 		logrus.Debug(err)
 		respError = t
 	default:
 		logrus.Error(err)
-		respError = &types.ErrorResponse{
+		respError = &web.HTTPError{
 			ErrorType:   "InternalError",
 			Description: "Internal server error",
 			StatusCode:  http.StatusInternalServerError,

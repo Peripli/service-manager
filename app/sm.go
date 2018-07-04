@@ -14,8 +14,8 @@
  *    limitations under the License.
  */
 
-// Package sm contains logic for setting up the service manager server
-package sm
+// Package app contains logic for setting up the service manager server
+package app
 
 import (
 	"context"
@@ -24,29 +24,38 @@ import (
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/config"
 	"github.com/Peripli/service-manager/log"
+	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/postgres"
 )
 
+// Parameters contains settings for configuring a Service Manager server and optional extensions API
+type Parameters struct {
+	Settings *config.Settings
+
+	// API can define REST API extensions
+	API *rest.API
+}
+
 // New creates a SM server
-func New(ctx context.Context, cfg *config.Settings) (*server.Server, error) {
-	if err := cfg.Validate(); err != nil {
+func New(ctx context.Context, params *Parameters) (*server.Server, error) {
+	if err := params.Settings.Validate(); err != nil {
 		return nil, fmt.Errorf("configuration validation failed: %v", err)
 	}
 
-	log.SetupLogging(cfg.Log)
+	log.SetupLogging(params.Settings.Log)
 
-	storage, err := storage.Use(ctx, postgres.Storage, cfg.Storage.URI)
+	storage, err := storage.Use(ctx, postgres.Storage, params.Settings.Storage.URI)
 	if err != nil {
 		return nil, fmt.Errorf("error using storage: %v", err)
 	}
 
-	api := api.New(storage, cfg.API)
-
-	srv, err := server.New(api, cfg.Server)
-	if err != nil {
-		return nil, fmt.Errorf("error creating server: %v", err)
+	coreAPI := api.New(storage, params.Settings.API)
+	if params.API != nil {
+		coreAPI.RegisterControllers(params.API.Controllers...)
+		coreAPI.RegisterFilters(params.API.Filters...)
 	}
-	return srv, nil
+
+	return server.New(coreAPI, params.Settings.Server)
 }

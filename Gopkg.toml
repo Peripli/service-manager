@@ -50,14 +50,6 @@
   version = "1.0.0"
 
 [[constraint]]
-  name = "github.com/pmorie/go-open-service-broker-client"
-  version = "=0.0.10"
-
-[[constraint]]
-  name = "github.com/pmorie/osb-broker-lib"
-  version = "=0.0.10"
-
-[[constraint]]
   name = "github.com/gavv/httpexpect"
   revision = "c44a6d7bb636b17e880a53998a7f7061a56ffacb"
 
@@ -72,6 +64,14 @@
 [[constraint]]
   name = "gopkg.in/yaml.v2"
   version = "2.2.1"
+
+[[constraint]]
+  name = "github.com/gobwas/glob"
+  version = "0.2.3"
+
+[[constraint]]
+  name = "github.com/pmorie/go-open-service-broker-client"
+  version = "=0.0.10"
 
 [[constraint]]
   name = "github.com/coreos/go-oidc"

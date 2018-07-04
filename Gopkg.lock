@@ -8,12 +8,6 @@
   version = "v1.5"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/beorn7/perks"
-  packages = ["quantile"]
-  revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
-
-[[projects]]
   name = "github.com/cloudfoundry-community/go-cfenv"
   packages = ["."]
   revision = "e84b5c116637ef174eb8c7d68a28bc7269b3b9cb"
@@ -51,6 +45,21 @@
   name = "github.com/gavv/monotime"
   packages = ["."]
   revision = "6f8212e8d10df7383609d3c377ca08884d8f3ec0"
+
+[[projects]]
+  name = "github.com/gobwas/glob"
+  packages = [
+    ".",
+    "compiler",
+    "match",
+    "syntax",
+    "syntax/ast",
+    "syntax/lexer",
+    "util/runes",
+    "util/strings"
+  ]
+  revision = "5ccd90ef52e1e632236f7326478d4faa74f99438"
+  version = "v0.2.3"
 
 [[projects]]
   name = "github.com/golang-migrate/migrate"
@@ -159,12 +168,6 @@
   version = "v1.8.0"
 
 [[projects]]
-  name = "github.com/matttproud/golang_protobuf_extensions"
-  packages = ["pbutil"]
-  revision = "c12348ce28de40eed0136aa2b644d0ee0650e56c"
-  version = "v1.0.1"
-
-[[projects]]
   branch = "master"
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
@@ -235,22 +238,8 @@
 
 [[projects]]
   name = "github.com/pmorie/go-open-service-broker-client"
-  packages = [
-    "v2",
-    "v2/fake"
-  ]
+  packages = ["v2"]
   revision = "dca737037ce636eb282e84e3a1c7479c9692e884"
-  version = "0.0.10"
-
-[[projects]]
-  name = "github.com/pmorie/osb-broker-lib"
-  packages = [
-    "pkg/broker",
-    "pkg/metrics",
-    "pkg/rest",
-    "pkg/server"
-  ]
-  revision = "f4ca270ef323318b363f986229bd10bccb2d28b1"
   version = "0.0.10"
 
 [[projects]]
@@ -261,42 +250,6 @@
     "cacheobject"
   ]
   revision = "1555304b9b35fdd2b425bccf1a5613677705e7d0"
-
-[[projects]]
-  name = "github.com/prometheus/client_golang"
-  packages = [
-    "prometheus",
-    "prometheus/promhttp"
-  ]
-  revision = "c5b7fccd204277076155f10851dad72b76a49317"
-  version = "v0.8.0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/prometheus/client_model"
-  packages = ["go"]
-  revision = "99fa1f4be8e564e8a6b613da7fa6f46c9edafc6c"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/prometheus/common"
-  packages = [
-    "expfmt",
-    "internal/bitbucket.org/ww/goautoneg",
-    "model"
-  ]
-  revision = "7600349dcfe1abd18d72d3a1770870d9800a7801"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/prometheus/procfs"
-  packages = [
-    ".",
-    "internal/util",
-    "nfs",
-    "xfs"
-  ]
-  revision = "7d6f385de8bea29190f15ba9931442a0eaef9af7"
 
 [[projects]]
   name = "github.com/satori/go.uuid"
@@ -356,6 +309,24 @@
   ]
   revision = "f35b8ab0b5a2cef36673838d662e249dd9c94686"
   version = "v1.2.2"
+
+[[projects]]
+  name = "github.com/tidwall/gjson"
+  packages = ["."]
+  revision = "f123b340873a0084cb27267eddd8ff615115fbff"
+  version = "v1.1.2"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/tidwall/match"
+  packages = ["."]
+  revision = "1731857f09b1f38450e2c12409748407822dc6be"
+
+[[projects]]
+  name = "github.com/tidwall/sjson"
+  packages = ["."]
+  revision = "6a22caf2fd45d5e2119bfc3717e984f15a7eb7ee"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
@@ -433,7 +404,7 @@
     "idna",
     "publicsuffix"
   ]
-  revision = "afe8f62b1d6bbd81f31868121a50b06d8188e1f9"
+  revision = "ed29d75add3d7c4bf7ca65aac0c6df3d1420216f"
 
 [[projects]]
   branch = "master"
@@ -451,7 +422,7 @@
     "unix",
     "windows"
   ]
-  revision = "63fc586f45fe72d95d5240a5d5eb95e6503907d3"
+  revision = "151529c776cdc58ddbe7963ba9af779f3577b419"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -519,6 +490,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "9bdbac7f8b5b20f46937b17c4ece648a8fce4be5f86e1262ae0a761b32189c3e"
+  inputs-digest = "98569813c64fff2f18a0dee6ae73ad11763973e20dc6be25227c5d45833f5e12"
   solver-name = "gps-cdcl"
   solver-version = 1
