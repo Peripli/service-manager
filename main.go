@@ -34,9 +34,9 @@ func main() {
 	}
 
 	parameters := &app.Parameters{
-		Context: ctx,
+		Settings: cfg,
 	}
-	srv, err := app.New(cfg, parameters)
+	srv, err := app.New(ctx, parameters)
 	if err != nil {
 		panic(fmt.Sprintf("error creating SM server: %s", err))
 	}

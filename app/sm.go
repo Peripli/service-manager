@@ -30,31 +30,32 @@ import (
 	"github.com/Peripli/service-manager/storage/postgres"
 )
 
-// Parameters contains context, environment for configuring a Service Manager server and optional extensions API
+// Parameters contains settings for configuring a Service Manager server and optional extensions API
 type Parameters struct {
-	Context context.Context
+	Settings *config.Settings
+
 	// API can define REST API extensions
 	API *rest.API
 }
 
 // New creates a SM server
-func New(cfg *config.Settings, params *Parameters) (*server.Server, error) {
-	if err := cfg.Validate(); err != nil {
+func New(ctx context.Context, params *Parameters) (*server.Server, error) {
+	if err := params.Settings.Validate(); err != nil {
 		return nil, fmt.Errorf("configuration validation failed: %v", err)
 	}
 
-	log.SetupLogging(cfg.Log)
+	log.SetupLogging(params.Settings.Log)
 
-	storage, err := storage.Use(params.Context, postgres.Storage, cfg.Storage.URI)
+	storage, err := storage.Use(ctx, postgres.Storage, params.Settings.Storage.URI)
 	if err != nil {
 		return nil, fmt.Errorf("error using storage: %v", err)
 	}
 
-	coreAPI := api.New(storage, cfg.API)
+	coreAPI := api.New(storage, params.Settings.API)
 	if params.API != nil {
 		coreAPI.RegisterControllers(params.API.Controllers...)
 		coreAPI.RegisterFilters(params.API.Filters...)
 	}
 
-	return server.New(coreAPI, cfg.Server)
+	return server.New(coreAPI, params.Settings.Server)
 }

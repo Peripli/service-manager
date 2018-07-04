@@ -19,37 +19,37 @@ package rest
 import (
 	"testing"
 
+	"github.com/Peripli/service-manager/pkg/web"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-func TestAPI(t *testing.T) {
+func TestHandler(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "API Suite")
+	RunSpecs(t, "Handler Suite")
 }
 
-var _ = Describe("API", func() {
-	var api API
+var _ = Describe("Handler", func() {
+	Describe("NewHTTPHandler", func() {
+		It("Panics if a filter has no middleware function", func() {
+			filters := []web.Filter{{
+				Name: "test-filter",
+				RouteMatcher: web.RouteMatcher{
+					PathPattern: "*",
+				},
+			}}
+			handler := func(*web.Request) (*web.Response, error) { return nil, nil }
 
-	BeforeEach(func() {
-		api = API{}
-	})
-
-	Describe("RegisterPlugins", func() {
-		It("Panics if argument is nil", func() {
 			Expect(func() {
-				api.RegisterPlugins(nil)
+				NewHTTPHandler(filters, handler)
 			}).To(Panic())
-		})
 
-		It("Panics if argument is an empty plugin", func() {
+			filters[0].Middleware = func(*web.Request, web.Handler) (*web.Response, error) {
+				return nil, nil
+			}
 			Expect(func() {
-				api.RegisterPlugins(&Plugin{})
-			}).To(Panic())
+				NewHTTPHandler(filters, handler)
+			}).ToNot(Panic())
 		})
 	})
 })
-
-type Plugin struct{}
-
-func (p *Plugin) Name() string { return "" }

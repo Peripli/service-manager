@@ -40,10 +40,11 @@ func (api *API) RegisterPlugins(plugins ...plugin.Plugin) {
 			logrus.Panicln("Cannot add nil plugins")
 		}
 		match := false
-		register := func(method string, pathPattern string, middleware web.Middleware) {
+		register := func(opName, method, pathPattern string, middleware web.Middleware) {
 			api.RegisterFilters(web.Filter{
+				Name: plug.Name() + "-" + opName,
 				RouteMatcher: web.RouteMatcher{
-					//Methods:     []string{method},
+					Methods:     []string{method},
 					PathPattern: pathPattern,
 				},
 				Middleware: middleware,
@@ -52,31 +53,31 @@ func (api *API) RegisterPlugins(plugins ...plugin.Plugin) {
 		}
 
 		if p, ok := plug.(plugin.CatalogFetcher); ok {
-			register(http.MethodGet, "/v1/osb/*/v2/catalog", p.FetchCatalog)
+			register("FetchCatalog", http.MethodGet, "/v1/osb/*/v2/catalog", p.FetchCatalog)
 		}
 		if p, ok := plug.(plugin.ServiceFetcher); ok {
-			register(http.MethodGet, "/v1/osb/*/v2/service_instances/*", p.FetchService)
+			register("FetchService", http.MethodGet, "/v1/osb/*/v2/service_instances/*", p.FetchService)
 		}
 		if p, ok := plug.(plugin.Provisioner); ok {
-			register(http.MethodPut, "/v1/osb/*/v2/service_instances/*", p.Provision)
+			register("Provision", http.MethodPut, "/v1/osb/*/v2/service_instances/*", p.Provision)
 		}
 		if p, ok := plug.(plugin.ServiceUpdater); ok {
-			register(http.MethodPatch, "/v1/osb/*/v2/service_instances/*", p.UpdateService)
+			register("UpdateService", http.MethodPatch, "/v1/osb/*/v2/service_instances/*", p.UpdateService)
 		}
 		if p, ok := plug.(plugin.Deprovisioner); ok {
-			register(http.MethodDelete, "/v1/osb/*/v2/service_instances/*", p.Deprovision)
+			register("Deprovision", http.MethodDelete, "/v1/osb/*/v2/service_instances/*", p.Deprovision)
 		}
 		if p, ok := plug.(plugin.BindingFetcher); ok {
-			register(http.MethodGet, "/v1/osb/*/v2/service_instances/*/service_bindings/*", p.FetchBinding)
+			register("FetchBinding", http.MethodGet, "/v1/osb/*/v2/service_instances/*/service_bindings/*", p.FetchBinding)
 		}
 		if p, ok := plug.(plugin.Binder); ok {
-			register(http.MethodPut, "/v1/osb/*/v2/service_instances/*/service_bindings/*", p.Bind)
+			register("Bind", http.MethodPut, "/v1/osb/*/v2/service_instances/*/service_bindings/*", p.Bind)
 		}
 		if p, ok := plug.(plugin.Unbinder); ok {
-			register(http.MethodDelete, "/v1/osb/*/v2/service_instances/*/service_bindings/*", p.Unbind)
+			register("Unbind", http.MethodDelete, "/v1/osb/*/v2/service_instances/*/service_bindings/*", p.Unbind)
 		}
 		if !match {
-			logrus.Panicf("%T is not a plugin", plug)
+			logrus.Panicf("%T does not implement any plugin operation", plug)
 		}
 	}
 

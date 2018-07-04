@@ -6,7 +6,9 @@ import "github.com/Peripli/service-manager/pkg/web"
 // augment them with additional logic.
 // To intercept SM operations a plugin implements one or more of
 // the interfaces defined in this package.
-type Plugin interface{}
+type Plugin interface {
+	Name() string
+}
 
 // Interfaces for OSB operations
 

@@ -17,11 +17,9 @@
 package rest
 
 import (
-	"net/http"
 	"testing"
 
 	"github.com/Peripli/service-manager/pkg/web"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -38,7 +36,7 @@ var _ = Describe("Filters", func() {
 				MatchFilters(&Endpoint{"GET", "/"}, []web.Filter{
 					{
 						RouteMatcher: web.RouteMatcher{
-							Methods: []string{http.MethodGet},
+							Methods: []string{"GET"},
 						},
 					},
 				})
@@ -49,41 +47,77 @@ var _ = Describe("Filters", func() {
 			description string
 			endpoint    *Endpoint
 			filters     []web.Filter
-			result      []int
+			result      []string
 		}{
 			{
-				"",
+				"** matches multiple path segments",
 				&Endpoint{"GET", "/a/b/c"},
 				[]web.Filter{
 					{
+						Name: "a",
 						RouteMatcher: web.RouteMatcher{
 							Methods:     []string{"GET"},
 							PathPattern: "/a/**",
 						},
 					},
 					{
-						RouteMatcher: web.RouteMatcher{
-							Methods:     []string{"PUT"},
-							PathPattern: "/a/**",
-						},
-					},
-					{
+						Name: "b",
 						RouteMatcher: web.RouteMatcher{
 							Methods:     []string{"GET"},
-							PathPattern: "/a/b/*",
+							PathPattern: "/b/**",
 						},
 					},
 				},
-				[]int{0, 2},
+				[]string{"a"},
+			},
+			{
+				"No method matches any method",
+				&Endpoint{"GET", "/a/b/c"},
+				[]web.Filter{
+					{
+						Name: "a",
+						RouteMatcher: web.RouteMatcher{
+							PathPattern: "/a/**",
+						},
+					},
+				},
+				[]string{"a"},
+			},
+			{
+				"Non strict trailing slash",
+				&Endpoint{"GET", "/a/b/c"},
+				[]web.Filter{
+					{
+						Name: "a",
+						RouteMatcher: web.RouteMatcher{
+							PathPattern: "/a/b/c/**",
+						},
+					},
+					{
+						Name: "b",
+						RouteMatcher: web.RouteMatcher{
+							PathPattern: "/a/b/c/*",
+						},
+					},
+					{
+						Name: "c",
+						RouteMatcher: web.RouteMatcher{
+							PathPattern: "/a/b/c/",
+						},
+					},
+				},
+				[]string{"a", "b", "c"},
 			},
 		}
+
 		for _, t := range tests {
 			It(t.description, func() {
-				result := make([]web.Filter, len(t.result))
-				for i, r := range t.result {
-					result[i] = t.filters[r]
+				matchedFilters := MatchFilters(t.endpoint, t.filters)
+				matchedNames := make([]string, len(matchedFilters))
+				for i, f := range matchedFilters {
+					matchedNames[i] = f.Name
 				}
-				Expect(MatchFilters(t.endpoint, t.filters)).To(Equal(result))
+				Expect(matchedNames).To(Equal(t.result))
 			})
 		}
 	})

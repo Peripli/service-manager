@@ -51,10 +51,6 @@ func matchMethod(method string, methods []string) bool {
 		return true
 	}
 
-	if len(methods) == 1 && methods[0] == "*" {
-		return true
-	}
-
 	for _, m := range methods {
 		if strings.ToLower(m) == strings.ToLower(method) {
 			return true

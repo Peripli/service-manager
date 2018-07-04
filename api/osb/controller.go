@@ -55,7 +55,7 @@ const (
 	serviceBindingURL  = baseURL + "/v2/service_instances/{instance_id}/service_bindings/{binding_id}"
 )
 
-var osbPattern = regexp.MustCompile("^" + v1 + root + "/[^/]+(/.*)$")
+var osbPathPattern = regexp.MustCompile("^" + v1 + root + "/[^/]+(/.*)$")
 
 // Controller implements rest.Controller by providing OSB API logic
 type Controller struct {
@@ -99,7 +99,7 @@ func (c *Controller) handler(request *web.Request) (*web.Response, error) {
 	modifiedRequest.Body = ioutil.NopCloser(bytes.NewReader(request.Body))
 	modifiedRequest.ContentLength = int64(len(request.Body))
 
-	m := osbPattern.FindStringSubmatch(request.URL.Path)
+	m := osbPathPattern.FindStringSubmatch(request.URL.Path)
 	if m == nil || len(m) < 2 {
 		return nil, fmt.Errorf("Could not get OSB path from URL %s", request.URL.Path)
 	}

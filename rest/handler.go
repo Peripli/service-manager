@@ -94,6 +94,9 @@ func chain(filters []web.Filter, handler web.Handler) web.Handler {
 	}
 	next := chain(filters[1:], handler)
 	f := filters[0].Middleware
+	if f == nil {
+		logrus.Panicf("Missing middleware function for filter %s", filters[0].Name)
+	}
 	return func(req *web.Request) (*web.Response, error) {
 		return f(req, next)
 	}

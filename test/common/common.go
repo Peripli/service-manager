@@ -85,10 +85,10 @@ func GetServerRouter(api *rest.API) *mux.Router {
 	cfg, err := config.New(serverEnv)
 
 	params := &app.Parameters{
-		Context: context.Background(),
-		API:     api,
+		Settings: cfg,
+		API:      api,
 	}
-	srv, err := app.New(cfg, params)
+	srv, err := app.New(context.Background(), params)
 	if err != nil {
 		logrus.Fatal("Error creating server router during test server initialization: ", err)
 	}

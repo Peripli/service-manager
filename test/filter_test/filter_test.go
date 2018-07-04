@@ -21,7 +21,7 @@ func TestFilters(t *testing.T) {
 	RunSpecs(t, "Plugin Tests Suite")
 }
 
-var _ = FDescribe("Service Manager Filters", func() {
+var _ = Describe("Service Manager Filters", func() {
 	var ctx *common.TestContext
 
 	var testFilters []web.Filter
@@ -42,7 +42,6 @@ var _ = FDescribe("Service Manager Filters", func() {
 				{
 					Name: "OSB filter",
 					RouteMatcher: web.RouteMatcher{
-						Methods:     []string{"*"},
 						PathPattern: "/v1/osb/**",
 					},
 					Middleware: func(req *web.Request, next web.Handler) (*web.Response, error) {
@@ -80,8 +79,6 @@ var _ = FDescribe("Service Manager Filters", func() {
 				{
 					Name: "Global filter",
 					RouteMatcher: web.RouteMatcher{
-						// match all requests
-						Methods:     []string{"*"},
 						PathPattern: "/**",
 					},
 					Middleware: func(req *web.Request, next web.Handler) (*web.Response, error) {
@@ -94,7 +91,6 @@ var _ = FDescribe("Service Manager Filters", func() {
 				{
 					Name: "/v1 filter",
 					RouteMatcher: web.RouteMatcher{
-						Methods:     []string{"*"},
 						PathPattern: "/v1/**",
 					},
 					Middleware: func(req *web.Request, next web.Handler) (*web.Response, error) {

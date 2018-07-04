@@ -32,13 +32,13 @@ func TestApp(t *testing.T) {
 }
 
 var _ = Describe("SM test", func() {
-	params := &app.Parameters{Context: context.Background()}
-
 	Context("New server", func() {
 		It("should fail on config validation", func() {
+			params := &app.Parameters{}
 			settings := config.DefaultSettings()
 			settings.Server.Port = 0
-			_, err := app.New(settings, params)
+			params.Settings = settings
+			_, err := app.New(context.Background(), params)
 			Expect(err.Error()).To(ContainSubstring("configuration validation failed"))
 		})
 	})
