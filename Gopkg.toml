@@ -72,3 +72,7 @@
 [[constraint]]
   name = "github.com/pmorie/go-open-service-broker-client"
   version = "=0.0.10"
+
+[[constraint]]
+  name = "github.com/coreos/go-oidc"
+  revision = "1180514eaf4d9f38d0d19eef639a1d695e066e72"
