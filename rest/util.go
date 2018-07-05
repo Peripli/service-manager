@@ -53,5 +53,13 @@ func ReadJSONBody(request *web.Request, value interface{}) error {
 		logrus.Debug(err)
 		return web.NewHTTPError(errors.New("Failed to decode request body"), http.StatusBadRequest, "BadRequest")
 	}
+
+	if input, ok := value.(InputValidator); ok {
+		return input.Validate()
+	}
 	return nil
+}
+
+type InputValidator interface {
+	Validate() error
 }
