@@ -51,29 +51,16 @@ var _ = Describe("Validator test", func() {
 	})
 
 	Context("HasRFC3986ReservedSymbols with multiple symbols", func() {
-		assertHasReservedCharacters("@a\\/")
-		assertHasReservedCharacters("@a@")
-		assertHasReservedCharacters("a:b")
-		assertHasReservedCharacters("a:;b")
-		assertHasReservedCharacters(":;@")
-		assertHasReservedCharacters("()")
-		assertHasReservedCharacters("+a+")
-		assertHasReservedCharacters("[a+]")
-		assertHasReservedCharacters("a=3?")
+		cases := []string{"@a\\/", "@a@", "a:b", "a:;b", ":;@", "()", "+a+", "[a+]", "a=3?"}
+		for _, casse := range cases {
+			assertHasReservedCharacters(casse)
+		}
 	})
 
 	Context("HasRFC3986ReservedSymbols with no reserved symbols", func() {
-		assertNoReservedCharacters("a")
-		assertNoReservedCharacters("a~b")
-		assertNoReservedCharacters("a_b")
-		assertNoReservedCharacters("a-b")
-		assertNoReservedCharacters("")
-		assertNoReservedCharacters("74a")
-		assertNoReservedCharacters("a00")
-		assertNoReservedCharacters("--a")
-		assertNoReservedCharacters("-a")
-		assertNoReservedCharacters("a-")
-		assertNoReservedCharacters("a--")
-		assertNoReservedCharacters("-")
+		cases := []string{"a", "a~b", "a_b", "a-b", "", "74a", "a00", "--a", "-a", "a-", "a--", "-"}
+		for _, casse := range cases {
+			assertNoReservedCharacters(casse)
+		}
 	})
 })
