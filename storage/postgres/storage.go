@@ -58,6 +58,13 @@ func (storage *postgresStorage) Platform() storage.Platform {
 	return &platformStorage{storage.db}
 }
 
+func (storage *postgresStorage) Credentials() storage.Credentials {
+	if storage.db == nil {
+		logrus.Panicln("Storage is not yet Open")
+	}
+	return &credentialStorage{storage.db}
+}
+
 func (storage *postgresStorage) Open(uri string) error {
 	var err error
 	if uri == "" {

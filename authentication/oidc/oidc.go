@@ -29,6 +29,7 @@ import (
 	"github.com/Peripli/service-manager/authentication"
 	"github.com/coreos/go-oidc"
 	"github.com/sirupsen/logrus"
+	"crypto/tls"
 )
 
 // Options is the configuration used to construct a new OIDC authenticator
@@ -68,6 +69,7 @@ func NewAuthenticator(ctx context.Context, options Options) (authentication.Auth
 	if options.ReadConfigurationFunc != nil {
 		readConfigFunc = options.ReadConfigurationFunc
 	} else {
+		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 		readConfigFunc = http.DefaultClient.Do
 	}
 
@@ -108,7 +110,7 @@ func (a *Authenticator) Authenticate(request *http.Request) (*authentication.Use
 	if authorizationHeader == "" {
 		return nil, errors.New("Missing authorization header")
 	}
-	token := strings.TrimPrefix(strings.ToLower(authorizationHeader), "bearer ")
+	token := strings.TrimPrefix(authorizationHeader, "Bearer ")
 	if token == "" {
 		return nil, errors.New("Token is required in authorization header")
 	}

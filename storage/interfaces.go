@@ -50,6 +50,9 @@ type Storage interface {
 
 	// Platform provides access to platform db operations
 	Platform() Platform
+
+	// Credentials provides access to credentials db operations
+	Credentials() Credentials
 }
 
 // Broker interface for Broker db operations
@@ -88,4 +91,10 @@ type Platform interface {
 
 	// Update updates a platform from SM DB
 	Update(platform *types.Platform) error
+}
+
+// Platform interface for Platform db operations
+type Credentials interface {
+	// Get retrieves credentials using the provided username from SM DB
+	Get(username string) (*types.Credentials, error)
 }
