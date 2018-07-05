@@ -43,7 +43,7 @@ var serviceCatalog = `{
 }`
 
 func NewTestContext(api *rest.API) *TestContext {
-	smServer := httptest.NewServer(GetServerRouter(api))
+	smServer := httptest.NewServer(GetServerHandler(api))
 	SM := httpexpect.New(GinkgoT(), smServer.URL)
 
 	RemoveAllBrokers(SM)

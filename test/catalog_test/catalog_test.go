@@ -55,7 +55,7 @@ var _ = Describe("Service Manager Aggregated Catalog API", func() {
 	BeforeSuite(func() {
 		os.Chdir("../..")
 
-		serviceManagerServer = httptest.NewServer(common.GetServerRouter(nil))
+		serviceManagerServer = httptest.NewServer(common.GetServerHandler(nil))
 		SM = httpexpect.New(GinkgoT(), serviceManagerServer.URL)
 	})
 

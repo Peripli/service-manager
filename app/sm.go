@@ -57,5 +57,5 @@ func New(ctx context.Context, params *Parameters) (*server.Server, error) {
 		coreAPI.RegisterFilters(params.API.Filters...)
 	}
 
-	return server.New(coreAPI, params.Settings.Server)
+	return server.New(coreAPI, params.Settings.Server), nil
 }

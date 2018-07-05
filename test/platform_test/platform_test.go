@@ -41,7 +41,7 @@ var _ = Describe("Service Manager Platform API", func() {
 	var testServer *httptest.Server
 
 	BeforeSuite(func() {
-		testServer = httptest.NewServer(common.GetServerRouter(nil))
+		testServer = httptest.NewServer(common.GetServerHandler(nil))
 		SM = httpexpect.New(GinkgoT(), testServer.URL)
 	})
 
