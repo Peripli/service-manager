@@ -60,6 +60,7 @@ var _ = Describe("Server", func() {
 				SM := httpexpect.New(GinkgoT(), testServer.URL)
 				SM.GET("/").Expect().Status(http.StatusOK)
 				SM.GET("/").WithQueryString("fail=true").Expect().Status(http.StatusInternalServerError)
+				SM.GET("/").Expect().Status(http.StatusOK)
 			})
 		})
 	})
