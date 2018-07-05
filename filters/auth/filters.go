@@ -25,11 +25,13 @@ const authFilterName = "AuthenticationFilter"
 
 type AuthenticationFilter struct {
 	CredentialsStorage storage.Credentials
+	TokenIssuerURL string
 }
 
-func NewAuthenticationFilter(credentialStorage storage.Credentials) AuthenticationFilter {
+func NewAuthenticationFilter(credentialStorage storage.Credentials, tokenIssuerURL string) AuthenticationFilter {
 	return AuthenticationFilter{
 		CredentialsStorage: credentialStorage,
+		TokenIssuerURL: tokenIssuerURL,
 	}
 }
 
@@ -47,7 +49,21 @@ func (authFilter AuthenticationFilter) Filters() []web.Filter {
 			RouteMatcher: web.RouteMatcher{
 				PathPattern: "/v1/service_brokers/**",
 			},
-			Middleware: authFilter.basicAuth,
+			Middleware: authFilter.filterDispatcher,
+		},
+		{
+			Name: authFilterName,
+			RouteMatcher: web.RouteMatcher{
+				PathPattern: "/v1/platforms/**",
+			},
+			Middleware: authFilter.oAuth,
+		},
+		{
+			Name: authFilterName,
+			RouteMatcher: web.RouteMatcher{
+				PathPattern: "/v1/sm_catalog",
+			},
+			Middleware: authFilter.oAuth,
 		},
 	}
 }

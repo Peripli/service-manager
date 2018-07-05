@@ -18,13 +18,60 @@ package auth
 
 import (
 	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/authentication/oidc"
 	"github.com/Peripli/service-manager/authentication/basic"
+	"errors"
+	"strings"
+	"fmt"
 )
+
+
+func (authFilter AuthenticationFilter) filterDispatcher(req *web.Request, handler web.Handler) (*web.Response, error) {
+	authHeader := req.Header.Get("Authorization")
+	if authHeader == "" {
+		return nil, errors.New("Missing Authorization header!")
+	}
+
+	header := strings.Split(authHeader, " ")
+	schema := header[0]
+
+	switch schema {
+	case "Basic":
+		fmt.Println("BASIC")
+		return authFilter.basicAuth(req, handler)
+	case "Bearer":
+		fmt.Println("BEARER")
+		return authFilter.oAuth(req, handler)
+	}
+
+
+	return &web.Response{
+		StatusCode: 400,
+	}, nil
+}
 
 // Filter which authenticates requests coming from Broker proxies using Basic Authentication
 func (authFilter AuthenticationFilter) basicAuth(req *web.Request, handler web.Handler) (*web.Response, error) {
 	authenticator := basic.NewAuthenticator(authFilter.CredentialsStorage)
 	_, err := authenticator.Authenticate(req.Request)
+	if err != nil {
+		return nil, err
+	}
+
+	return handler(req)
+}
+
+// Filter which authenticates requests coming from Service Manger CLI using OAuth
+func (authFilter AuthenticationFilter) oAuth(req *web.Request, handler web.Handler) (*web.Response, error) {
+	authenticator, err := oidc.NewAuthenticator(req.Request.Context(), oidc.Options{
+		IssuerURL: authFilter.TokenIssuerURL,
+		ClientID: "cf",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = authenticator.Authenticate(req.Request)
 	if err != nil {
 		return nil, err
 	}
