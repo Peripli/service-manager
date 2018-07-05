@@ -59,7 +59,3 @@ func ReadJSONBody(request *web.Request, value interface{}) error {
 	}
 	return nil
 }
-
-type InputValidator interface {
-	Validate() error
-}

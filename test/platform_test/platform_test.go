@@ -189,6 +189,18 @@ var _ = Describe("Service Manager Platform API", func() {
 			})
 		})
 
+		Context("With invalid id", func() {
+			It("fails", func() {
+				platform := common.MakePlatform("platform/1", "cf-10", "cf", "descr")
+
+				reply := SM.POST("/v1/platforms").
+					WithJSON(platform).
+					Expect().Status(http.StatusBadRequest).JSON().Object()
+
+				reply.Value("description").Equal("platform/1 contains invalid character(s)")
+			})
+		})
+
 		Context("Without id", func() {
 			It("returns the new platform with generated id and credentials", func() {
 				platform := common.MakePlatform("", "cf-10", "cf", "descr")
