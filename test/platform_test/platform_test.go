@@ -41,7 +41,7 @@ var _ = Describe("Service Manager Platform API", func() {
 	var testServer *httptest.Server
 
 	BeforeSuite(func() {
-		testServer = httptest.NewServer(common.GetServerRouter())
+		testServer = httptest.NewServer(common.GetServerHandler(nil))
 		SM = httpexpect.New(GinkgoT(), testServer.URL)
 	})
 
@@ -186,6 +186,18 @@ var _ = Describe("Service Manager Platform API", func() {
 				platform["description"] = ""
 
 				common.MapContains(reply.Raw(), platform)
+			})
+		})
+
+		Context("With invalid id", func() {
+			It("fails", func() {
+				platform := common.MakePlatform("platform/1", "cf-10", "cf", "descr")
+
+				reply := SM.POST("/v1/platforms").
+					WithJSON(platform).
+					Expect().Status(http.StatusBadRequest).JSON().Object()
+
+				reply.Value("description").Equal("platform/1 contains invalid character(s)")
 			})
 		})
 

@@ -14,16 +14,19 @@
  *    limitations under the License.
  */
 
-package osb_test
+package validator
 
 import (
-	"testing"
-
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	"strings"
 )
 
-func TestOsb(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Osb Suite")
+var (
+	reservedSymbolsRFC3986 = strings.Join([]string{
+		":", "/", "?", "#", "[", "]", "@", "!", "$", "&", "'", "(", ")", "*", "+", ",", ";", "=",
+	}, "")
+)
+
+// HasRFC3986ReservedSymbols returns true if input contains any reserver characters as defined in RFC3986 section 2.2
+func HasRFC3986ReservedSymbols(input string) bool {
+	return strings.ContainsAny(input, reservedSymbolsRFC3986)
 }

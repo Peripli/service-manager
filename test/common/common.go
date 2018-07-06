@@ -21,19 +21,21 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Peripli/service-manager/sm"
+	"net/url"
+	"reflect"
+	"regexp"
+	"strings"
+
+	"github.com/Peripli/service-manager/app"
+	"github.com/Peripli/service-manager/config"
+	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/Peripli/service-manager/rest"
 	"github.com/gavv/httpexpect"
 	"github.com/gorilla/mux"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
 	"github.com/sirupsen/logrus"
-	"github.com/Peripli/service-manager/config"
-	"net/url"
-	"reflect"
-	"regexp"
-	"strings"
-	"github.com/Peripli/service-manager/pkg/env"
 )
 
 type Object = map[string]interface{}
@@ -72,24 +74,27 @@ const Catalog = `{
   ]
 }`
 
-func GetServerRouter() *mux.Router {
+func GetServerHandler(api *rest.API) http.Handler {
 	set := env.EmptyFlagSet()
+
 	config.AddPFlags(set)
 	set.Set("file.location", "./test/common")
 
-	serverEnv,err := env.New(set)
+	serverEnv, err := env.New(set)
 	if err != nil {
 		logrus.Fatal("Error creating server: ", err)
 	}
-	cfg,err := config.New(serverEnv)
-	if err != nil {
-		logrus.Fatal("Error creating server: ", err)
+	cfg, err := config.New(serverEnv)
+
+	params := &app.Parameters{
+		Settings: cfg,
+		API:      api,
 	}
-	srv, err := sm.New(context.Background(), cfg)
+	srv, err := app.New(context.Background(), params)
 	if err != nil {
 		logrus.Fatal("Error creating server router during test server initialization: ", err)
 	}
-	return srv.Router
+	return srv.Handler
 }
 
 func MapContains(actual Object, expected Object) {
@@ -123,6 +128,60 @@ func removeAll(SM *httpexpect.Expect, entity string, rootURLPath string) {
 		SM.DELETE(rootURLPath + "/" + id).
 			Expect().Status(http.StatusOK)
 	}
+}
+
+func RegisterBroker(brokerJSON Object, SM *httpexpect.Expect) string {
+	reply := SM.POST("/v1/service_brokers").
+		WithJSON(brokerJSON).
+		Expect().Status(http.StatusCreated).JSON().Object()
+	return reply.Value("id").String().Raw()
+}
+
+func setResponse(rw http.ResponseWriter, status int, message string) {
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(status)
+	rw.Write([]byte(message))
+}
+
+func NewValidBrokerRouter() *mux.Router {
+	router := mux.NewRouter()
+
+	router.HandleFunc("/v2/catalog", func(rw http.ResponseWriter, req *http.Request) {
+		setResponse(rw, http.StatusOK, Catalog)
+	})
+
+	router.HandleFunc("/v2/service_instances/{instance_id}", func(rw http.ResponseWriter, req *http.Request) {
+		setResponse(rw, http.StatusCreated, "{}")
+	}).Methods("PUT")
+
+	router.HandleFunc("/v2/service_instances/{instance_id}", func(rw http.ResponseWriter, req *http.Request) {
+		setResponse(rw, http.StatusOK, "{}")
+	}).Methods("DELETE")
+
+	router.HandleFunc("/v2/service_instances/{instance_id}/service_bindings/{binding_id}", func(rw http.ResponseWriter, req *http.Request) {
+		response := fmt.Sprintf(`{"credentials": {"instance_id": "%s" , "binding_id": "%s"}}`, mux.Vars(req)["instance_id"], mux.Vars(req)["binding_id"])
+		setResponse(rw, http.StatusCreated, response)
+	}).Methods("PUT")
+
+	router.HandleFunc("/v2/service_instances/{instance_id}/service_bindings/{binding_id}", func(rw http.ResponseWriter, req *http.Request) {
+		setResponse(rw, http.StatusOK, "{}")
+	}).Methods("DELETE")
+
+	return router
+}
+
+func NewFailingBrokerRouter() *mux.Router {
+	router := mux.NewRouter()
+
+	router.PathPrefix("/v2/catalog").HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		setResponse(rw, http.StatusOK, Catalog)
+	})
+
+	router.PathPrefix("/").HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		setResponse(rw, http.StatusNotAcceptable, `{"description": "expected error"}`)
+	})
+
+	return router
 }
 
 func MakeBroker(name string, url string, description string) Object {

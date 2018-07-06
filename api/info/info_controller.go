@@ -19,6 +19,7 @@ package info
 import (
 	"net/http"
 
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/rest"
 )
 
@@ -33,8 +34,8 @@ type Controller struct {
 	TokenIssuer string
 }
 
-func (c *Controller) getInfo(writer http.ResponseWriter, request *http.Request) error {
-	return rest.SendJSON(writer, http.StatusOK, DetailsResponse{
+func (c *Controller) getInfo(request *web.Request) (*web.Response, error) {
+	return rest.NewJSONResponse(http.StatusOK, DetailsResponse{
 		TokenIssuer: c.TokenIssuer,
 	})
 }

@@ -21,7 +21,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/Peripli/service-manager/types"
+	"github.com/Peripli/service-manager/pkg/web"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/sirupsen/logrus"
@@ -89,9 +89,9 @@ var _ = Describe("Errors", func() {
 	})
 
 	Describe("HandleError", func() {
-		Context("With ErrorResponse as parameter", func() {
+		Context("With HTTPError as parameter", func() {
 			It("Writes to response writer the proper output", func() {
-				HandleError(&types.ErrorResponse{ErrorType: "test error", Description: "test description", StatusCode: http.StatusAccepted}, mockedWriter)
+				HandleError(&web.HTTPError{ErrorType: "test error", Description: "test description", StatusCode: http.StatusAccepted}, mockedWriter)
 				Expect(string(mockedWriter.data)).To(ContainSubstring("test description"))
 				Expect(mockedWriter.status).To(Equal(http.StatusAccepted))
 			})

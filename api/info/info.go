@@ -37,7 +37,7 @@ func (c *Controller) Routes() []rest.Route {
 				Method: http.MethodGet,
 				Path:   URL,
 			},
-			Handler: rest.APIHandler(c.getInfo),
+			Handler: c.getInfo,
 		},
 	}
 }

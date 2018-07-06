@@ -17,19 +17,9 @@
 // Package rest contains logic for building the Service Manager REST API
 package rest
 
-import "net/http"
-
-// AllMethods matches all REST HTTP Methods
-const AllMethods = "*"
-
-// API is the primary interface for REST API registration
-type API interface {
-	// Controllers returns the controllers registered for the API
-	Controllers() []Controller
-
-	// RegisterControllers registers a set of controllers
-	RegisterControllers(...Controller)
-}
+import (
+	"github.com/Peripli/service-manager/pkg/web"
+)
 
 // Controller is an entity that wraps a set of HTTP Routes
 type Controller interface {
@@ -43,19 +33,16 @@ type Route struct {
 	Endpoint Endpoint
 
 	// Handler is the function that should handle incoming requests for this endpoint
-	Handler http.Handler
+	Handler web.Handler
 }
 
 // Endpoint is a combination of a Path and an HTTP Method
 type Endpoint struct {
-	Path, Method string
+	Method string
+	Path   string
 }
 
-// APIHandler enriches http.HandlerFunc with an error response for further processing
-type APIHandler func(http.ResponseWriter, *http.Request) error
-
-func (ah APIHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
-	if err := ah(rw, r); err != nil {
-		HandleError(err, rw)
-	}
+// InputValidator should be implemented by types that need input validation check
+type InputValidator interface {
+	Validate() error
 }

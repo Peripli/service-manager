@@ -14,10 +14,9 @@
  *    limitations under the License.
  */
 
-package common
+package rest
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -25,33 +24,32 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestCommon(t *testing.T) {
+func TestHandler(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "api/Common Suite")
+	RunSpecs(t, "Handler Suite")
 }
 
-var _ = Describe("api/common", func() {
+var _ = Describe("Handler", func() {
+	Describe("NewHTTPHandler", func() {
+		It("Panics if a filter has no middleware function", func() {
+			filters := []web.Filter{{
+				Name: "test-filter",
+				RouteMatcher: web.RouteMatcher{
+					PathPattern: "*",
+				},
+			}}
+			handler := func(*web.Request) (*web.Response, error) { return nil, nil }
 
-	Describe("CheckErrors", func() {
-		Context("with no errors", func() {
-			It("returns nil", func() {
-				Expect(CheckErrors()).To(BeNil())
-			})
-		})
-		Context("with errors", func() {
-			It("should return first error", func() {
-				err1 := errors.New("1")
-				err2 := errors.New("2")
-				Expect(CheckErrors(err1, err2).Error()).To(Equal("1"))
-			})
-		})
-		Context("with ResponseErrors", func() {
-			It("should return the first ResponseError", func() {
-				err1 := errors.New("1")
-				err2 := web.NewHTTPError(errors.New("2"), 200, "Err")
-				err3 := web.NewHTTPError(errors.New("3"), 500, "Err")
-				Expect(CheckErrors(err1, err2, err3).Error()).To(Equal("2"))
-			})
+			Expect(func() {
+				NewHTTPHandler(filters, handler)
+			}).To(Panic())
+
+			filters[0].Middleware = func(*web.Request, web.Handler) (*web.Response, error) {
+				return nil, nil
+			}
+			Expect(func() {
+				NewHTTPHandler(filters, handler)
+			}).ToNot(Panic())
 		})
 	})
 })

@@ -18,15 +18,21 @@
 package osb
 
 import (
+	"bytes"
+	"encoding/base64"
+	"errors"
+	"fmt"
+	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
+	"net/http/httputil"
+	"net/url"
+	"regexp"
 
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
-	osbc "github.com/pmorie/go-open-service-broker-client/v2"
-	"github.com/pmorie/osb-broker-lib/pkg/metrics"
-	osbrest "github.com/pmorie/osb-broker-lib/pkg/rest"
-	"github.com/pmorie/osb-broker-lib/pkg/server"
-	prom "github.com/prometheus/client_golang/prometheus"
+	"github.com/Peripli/service-manager/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -41,9 +47,15 @@ const (
 	//BrokerIDPathParam is a service broker ID path parameter
 	BrokerIDPathParam = "brokerID"
 
-	// path is the OSB API controller path
-	path = v1 + root + "/{" + BrokerIDPathParam + "}"
+	// baseURL is the OSB API controller path
+	baseURL = v1 + root + "/{" + BrokerIDPathParam + "}"
+
+	catalogURL         = baseURL + "/v2/catalog"
+	serviceInstanceURL = baseURL + "/v2/service_instances/{instance_id}"
+	serviceBindingURL  = baseURL + "/v2/service_instances/{instance_id}/service_bindings/{binding_id}"
 )
+
+var osbPathPattern = regexp.MustCompile("^" + v1 + root + "/[^/]+(/.*)$")
 
 // Controller implements rest.Controller by providing OSB API logic
 type Controller struct {
@@ -55,27 +67,84 @@ var _ rest.Controller = &Controller{}
 // Routes implements rest.Controller.Routes by providing the routes for the OSB API
 func (c *Controller) Routes() []rest.Route {
 	return []rest.Route{
-		{
-			Endpoint: rest.Endpoint{
-				Method: rest.AllMethods,
-				Path:   path,
-			},
-			Handler: c.osbHandler(),
-		},
+		// nolint: vet
+		{rest.Endpoint{"GET", catalogURL}, c.handler},
+		{rest.Endpoint{"GET", serviceInstanceURL}, c.handler},
+		{rest.Endpoint{"PUT", serviceInstanceURL}, c.handler},
+		{rest.Endpoint{"PATCH", serviceInstanceURL}, c.handler},
+		{rest.Endpoint{"DELETE", serviceInstanceURL}, c.handler},
+		{rest.Endpoint{"GET", serviceBindingURL}, c.handler},
+		{rest.Endpoint{"PUT", serviceBindingURL}, c.handler},
+		{rest.Endpoint{"DELETE", serviceBindingURL}, c.handler},
 	}
 }
 
-func (c *Controller) osbHandler() http.Handler {
-	businessLogic := NewBusinessLogic(osbc.NewClient, c.BrokerStorage)
-
-	reg := prom.NewRegistry()
-	osbMetrics := metrics.New()
-	reg.MustRegister(osbMetrics)
-
-	api, err := osbrest.NewAPISurface(businessLogic, osbMetrics)
+func (c *Controller) handler(request *web.Request) (*web.Response, error) {
+	broker, err := c.fetchBroker(request)
 	if err != nil {
-		logrus.Fatalf("Error creating OSB API surface: %s", err)
+		return nil, err
+	}
+	target, _ := url.Parse(broker.BrokerURL)
+
+	reverseProxy := httputil.ReverseProxy{
+		Director: func(req *http.Request) {
+			req.Host = target.Host
+		},
 	}
 
-	return server.NewHTTPHandler(api)
+	modifiedRequest := request.Request.WithContext(request.Context())
+	modifiedRequest.Header.Set("Authorization", basicAuth(broker.Credentials.Basic))
+	modifiedRequest.URL.Scheme = target.Scheme
+	modifiedRequest.URL.Host = target.Host
+	modifiedRequest.Body = ioutil.NopCloser(bytes.NewReader(request.Body))
+	modifiedRequest.ContentLength = int64(len(request.Body))
+
+	m := osbPathPattern.FindStringSubmatch(request.URL.Path)
+	if m == nil || len(m) < 2 {
+		return nil, fmt.Errorf("Could not get OSB path from URL %s", request.URL.Path)
+	}
+	modifiedRequest.URL.Path = m[1]
+
+	logrus.Debugf("Forwarding OSB request to %s", modifiedRequest.URL)
+	recorder := httptest.NewRecorder()
+	reverseProxy.ServeHTTP(recorder, modifiedRequest)
+
+	body, err := ioutil.ReadAll(recorder.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	headers := recorder.HeaderMap
+	resp := &web.Response{
+		StatusCode: recorder.Code,
+		Body:       body,
+		Header:     headers,
+	}
+	logrus.Debugf("Service broker replied with status %d", resp.StatusCode)
+	return resp, nil
+}
+
+func basicAuth(credentials *types.Basic) string {
+	return "Basic " + base64.StdEncoding.EncodeToString(
+		[]byte(credentials.Username+":"+credentials.Password))
+}
+
+func (c *Controller) fetchBroker(request *web.Request) (*types.Broker, error) {
+	brokerID, ok := request.PathParams[BrokerIDPathParam]
+	if !ok {
+		logrus.Debugf("error creating OSB client: brokerID path parameter not found")
+		return nil, web.NewHTTPError(errors.New("Invalid broker id path parameter"), http.StatusBadRequest, "BadRequest")
+	}
+	logrus.Debugf("Obtained path parameter [brokerID = %s] from path params", brokerID)
+
+	serviceBroker, err := c.BrokerStorage.Get(brokerID)
+	if err == storage.ErrNotFound {
+		logrus.Debugf("service broker with id %s not found", brokerID)
+		return nil, web.NewHTTPError(fmt.Errorf("Could not find broker with id: %s", brokerID), http.StatusNotFound, "NotFound")
+	} else if err != nil {
+		logrus.Errorf("error obtaining serviceBroker with id %s from storage: %s", brokerID, err)
+		return nil, fmt.Errorf("Internal Server Error")
+	}
+
+	return serviceBroker, nil
 }

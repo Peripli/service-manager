@@ -8,12 +8,6 @@
   version = "v1.5"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/beorn7/perks"
-  packages = ["quantile"]
-  revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
-
-[[projects]]
   name = "github.com/cloudfoundry-community/go-cfenv"
   packages = ["."]
   revision = "e84b5c116637ef174eb8c7d68a28bc7269b3b9cb"
@@ -53,6 +47,21 @@
   revision = "6f8212e8d10df7383609d3c377ca08884d8f3ec0"
 
 [[projects]]
+  name = "github.com/gobwas/glob"
+  packages = [
+    ".",
+    "compiler",
+    "match",
+    "syntax",
+    "syntax/ast",
+    "syntax/lexer",
+    "util/runes",
+    "util/strings"
+  ]
+  revision = "5ccd90ef52e1e632236f7326478d4faa74f99438"
+  version = "v0.2.3"
+
+[[projects]]
   name = "github.com/golang-migrate/migrate"
   packages = [
     ".",
@@ -87,6 +96,12 @@
   packages = ["."]
   revision = "08b5f424b9271eedf6f9f0ce86cb9396ed337a42"
   version = "v1.1.1"
+
+[[projects]]
+  name = "github.com/gorilla/handlers"
+  packages = ["."]
+  revision = "90663712d74cb411cbef281bc1e08c19d1a76145"
+  version = "v1.3.0"
 
 [[projects]]
   name = "github.com/gorilla/mux"
@@ -159,12 +174,6 @@
   version = "v1.8.0"
 
 [[projects]]
-  name = "github.com/matttproud/golang_protobuf_extensions"
-  packages = ["pbutil"]
-  revision = "c12348ce28de40eed0136aa2b644d0ee0650e56c"
-  version = "v1.0.1"
-
-[[projects]]
   branch = "master"
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
@@ -235,22 +244,8 @@
 
 [[projects]]
   name = "github.com/pmorie/go-open-service-broker-client"
-  packages = [
-    "v2",
-    "v2/fake"
-  ]
+  packages = ["v2"]
   revision = "dca737037ce636eb282e84e3a1c7479c9692e884"
-  version = "0.0.10"
-
-[[projects]]
-  name = "github.com/pmorie/osb-broker-lib"
-  packages = [
-    "pkg/broker",
-    "pkg/metrics",
-    "pkg/rest",
-    "pkg/server"
-  ]
-  revision = "f4ca270ef323318b363f986229bd10bccb2d28b1"
   version = "0.0.10"
 
 [[projects]]
@@ -261,42 +256,6 @@
     "cacheobject"
   ]
   revision = "1555304b9b35fdd2b425bccf1a5613677705e7d0"
-
-[[projects]]
-  name = "github.com/prometheus/client_golang"
-  packages = [
-    "prometheus",
-    "prometheus/promhttp"
-  ]
-  revision = "c5b7fccd204277076155f10851dad72b76a49317"
-  version = "v0.8.0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/prometheus/client_model"
-  packages = ["go"]
-  revision = "99fa1f4be8e564e8a6b613da7fa6f46c9edafc6c"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/prometheus/common"
-  packages = [
-    "expfmt",
-    "internal/bitbucket.org/ww/goautoneg",
-    "model"
-  ]
-  revision = "7600349dcfe1abd18d72d3a1770870d9800a7801"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/prometheus/procfs"
-  packages = [
-    ".",
-    "internal/util",
-    "nfs",
-    "xfs"
-  ]
-  revision = "40f013a808ec4fa79def444a1a56de4d1727efcb"
 
 [[projects]]
   name = "github.com/satori/go.uuid"
@@ -356,6 +315,24 @@
   ]
   revision = "f35b8ab0b5a2cef36673838d662e249dd9c94686"
   version = "v1.2.2"
+
+[[projects]]
+  name = "github.com/tidwall/gjson"
+  packages = ["."]
+  revision = "f123b340873a0084cb27267eddd8ff615115fbff"
+  version = "v1.1.2"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/tidwall/match"
+  packages = ["."]
+  revision = "1731857f09b1f38450e2c12409748407822dc6be"
+
+[[projects]]
+  name = "github.com/tidwall/sjson"
+  packages = ["."]
+  revision = "6a22caf2fd45d5e2119bfc3717e984f15a7eb7ee"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
@@ -433,7 +410,7 @@
     "idna",
     "publicsuffix"
   ]
-  revision = "4cb1c02c05b0e749b0365f61ae859a8e0cfceed9"
+  revision = "32a936f46389aa10549d60bd7833e54b01685d09"
 
 [[projects]]
   branch = "master"
@@ -451,7 +428,7 @@
     "unix",
     "windows"
   ]
-  revision = "7138fd3d9dc8335c567ca206f4333fb75eb05d56"
+  revision = "ce36f3865eeb42541ce3f87f32f8462c5687befa"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -519,6 +496,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "31809ea5f7141be47fd017d182f66a9f9abe04c95ec576592b2c3284afcbf40d"
+  inputs-digest = "950e72ff8e4f6931d767c487535ba9cf4b9a1d0f889e1180e0cfec90ff6939d2"
   solver-name = "gps-cdcl"
   solver-version = 1
