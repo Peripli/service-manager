@@ -73,7 +73,7 @@ const Catalog = `{
   ]
 }`
 
-func GetServerRouter(api *rest.API) *mux.Router {
+func GetServerHandler(api *rest.API) http.Handler {
 	set := config.SMFlagSet()
 	config.AddPFlags(set)
 	set.Set("file.location", "./test/common")
@@ -92,7 +92,7 @@ func GetServerRouter(api *rest.API) *mux.Router {
 	if err != nil {
 		logrus.Fatal("Error creating server router during test server initialization: ", err)
 	}
-	return srv.Router
+	return srv.Handler
 }
 
 func MapContains(actual Object, expected Object) {

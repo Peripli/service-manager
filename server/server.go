@@ -22,11 +22,10 @@ import (
 	"net/http"
 	"time"
 
-	"fmt"
-
 	"strconv"
 
 	"github.com/Peripli/service-manager/rest"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 )
@@ -40,28 +39,38 @@ type Settings struct {
 
 // Server is the server to process incoming HTTP requests
 type Server struct {
-	Config Settings
-	Router *mux.Router
+	Config  Settings
+	Handler http.Handler
 }
 
 // New creates a new server with the provided REST API configuration and server configuration
 // Returns the new server and an error if creation was not successful
-func New(api *rest.API, config Settings) (*Server, error) {
+func New(api *rest.API, config Settings) *Server {
 	router := mux.NewRouter().StrictSlash(true)
-	if err := registerControllers(router, api); err != nil {
-		return nil, fmt.Errorf("new Settings: %s", err)
-	}
+	registerControllers(router, api)
+
+	recoveryHandler := handlers.RecoveryHandler(
+		handlers.PrintRecoveryStack(true),
+		handlers.RecoveryLogger(&recoveryHandlerLogger{}),
+	)(router)
 
 	return &Server{
-		Config: config,
-		Router: router,
-	}, nil
+		Config:  config,
+		Handler: recoveryHandler,
+	}
+}
+
+type recoveryHandlerLogger struct{}
+
+// PrintLn prints panic message and stack to error output
+func (r *recoveryHandlerLogger) Println(args ...interface{}) {
+	logrus.Errorln(args...)
 }
 
 // Run starts the server awaiting for incoming requests
 func (s *Server) Run(ctx context.Context) {
 	handler := &http.Server{
-		Handler:      s.Router,
+		Handler:      s.Handler,
 		Addr:         ":" + strconv.Itoa(s.Config.Port),
 		WriteTimeout: s.Config.RequestTimeout,
 		ReadTimeout:  s.Config.RequestTimeout,
@@ -69,7 +78,7 @@ func (s *Server) Run(ctx context.Context) {
 	startServer(ctx, handler, s.Config.ShutdownTimeout)
 }
 
-func registerControllers(router *mux.Router, api *rest.API) error {
+func registerControllers(router *mux.Router, api *rest.API) {
 	for _, ctrl := range api.Controllers {
 		for _, route := range ctrl.Routes() {
 			logrus.Debugf("Register endpoint: %s %s", route.Endpoint.Method, route.Endpoint.Path)
@@ -79,7 +88,6 @@ func registerControllers(router *mux.Router, api *rest.API) error {
 			r.Methods(route.Endpoint.Method)
 		}
 	}
-	return nil
 }
 
 func startServer(ctx context.Context, server *http.Server, shutdownTimeout time.Duration) {
