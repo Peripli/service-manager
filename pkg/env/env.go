@@ -46,6 +46,7 @@ func DefaultConfigFile() File {
 	}
 }
 
+// CreatePFlagsForConfigFile creates pflags for setting the configuration file
 func CreatePFlagsForConfigFile(set *pflag.FlagSet) {
 	CreatePFlags(set, struct{ File File }{File: DefaultConfigFile()})
 }
