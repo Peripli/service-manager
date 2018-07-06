@@ -11,9 +11,12 @@ import (
 	"github.com/Peripli/service-manager/cf"
 	"github.com/Peripli/service-manager/config"
 	"github.com/sirupsen/logrus"
+	"net/http"
+	"crypto/tls"
 )
 
 func main() {
+	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	handleInterrupts(ctx, cancel)

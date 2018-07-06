@@ -108,7 +108,7 @@ func (a *Authenticator) Authenticate(request *http.Request) (*authentication.Use
 	if authorizationHeader == "" {
 		return nil, errors.New("Missing authorization header")
 	}
-	token := strings.TrimPrefix(strings.ToLower(authorizationHeader), "bearer ")
+	token := strings.TrimPrefix(authorizationHeader, "Bearer ")
 	if token == "" {
 		return nil, errors.New("Token is required in authorization header")
 	}
