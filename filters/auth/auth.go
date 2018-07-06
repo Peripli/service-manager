@@ -22,35 +22,43 @@ import (
 	"github.com/Peripli/service-manager/authentication/basic"
 	"errors"
 	"strings"
-	"fmt"
+	"net/http"
+	"github.com/sirupsen/logrus"
 )
 
+
+const (
+	basicScheme = "Basic"
+
+	bearerScheme = "Bearer"
+)
 
 func (authFilter AuthenticationFilter) filterDispatcher(req *web.Request, handler web.Handler) (*web.Response, error) {
 	authHeader := req.Header.Get("Authorization")
 	if authHeader == "" {
-		return nil, errors.New("Missing Authorization header!")
+		return nil, web.NewHTTPError(
+			errors.New("Missing Authorization header!"),
+			http.StatusUnauthorized,
+				"Unauthorized")
 	}
 
 	header := strings.Split(authHeader, " ")
-	schema := header[0]
+	scheme := header[0]
 
-	switch schema {
-	case "Basic":
-		fmt.Println("BASIC")
+	switch scheme {
+	case basicScheme:
 		return authFilter.basicAuth(req, handler)
-	case "Bearer":
-		fmt.Println("BEARER")
+	case bearerScheme:
 		return authFilter.oAuth(req, handler)
 	}
 
 
-	return &web.Response{
-		StatusCode: 400,
-	}, nil
+	return nil, web.NewHTTPError(
+		errors.New("Unsupported authentication scheme!"),
+		http.StatusUnauthorized,
+		"Unauthorized")
 }
 
-// Filter which authenticates requests coming from Broker proxies using Basic Authentication
 func (authFilter AuthenticationFilter) basicAuth(req *web.Request, handler web.Handler) (*web.Response, error) {
 	authenticator := basic.NewAuthenticator(authFilter.CredentialsStorage)
 	_, err := authenticator.Authenticate(req.Request)
@@ -61,19 +69,25 @@ func (authFilter AuthenticationFilter) basicAuth(req *web.Request, handler web.H
 	return handler(req)
 }
 
-// Filter which authenticates requests coming from Service Manger CLI using OAuth
 func (authFilter AuthenticationFilter) oAuth(req *web.Request, handler web.Handler) (*web.Response, error) {
 	authenticator, err := oidc.NewAuthenticator(req.Request.Context(), oidc.Options{
 		IssuerURL: authFilter.TokenIssuerURL,
 		ClientID: "cf",
 	})
 	if err != nil {
-		return nil, err
+		logrus.Error(err)
+		return nil, web.NewHTTPError(
+			errors.New("Authentication failed!"),
+			http.StatusBadRequest,
+			"BadRequest")
 	}
 
 	_, err = authenticator.Authenticate(req.Request)
 	if err != nil {
-		return nil, err
+		return nil, web.NewHTTPError(
+			errors.New("Authentication failed!"),
+			http.StatusUnauthorized,
+			"Unauthorized")
 	}
 
 	return handler(req)
