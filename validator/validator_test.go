@@ -40,27 +40,29 @@ func assertNoReservedCharacters(input string) {
 	})
 }
 
+func assertReservedCases(cases []string, hasReserved bool) {
+	for _, str := range cases {
+		if hasReserved {
+			assertHasReservedCharacters(str)
+		} else {
+			assertNoReservedCharacters(str)
+		}
+	}
+}
+
 var _ = Describe("Validator test", func() {
 	Context("HasRFC3986ReservedSymbols with single characters", func() {
-		It("should return true", func() {
-			reserved := []string{":", "/", "?", "#", "[", "]", "@", "!", "$", "&", "'", "(", ")", "*", "+", ",", ";", "="}
-			for _, c := range reserved {
-				Expect(HasRFC3986ReservedSymbols(c)).To(Equal(true))
-			}
-		})
+		reserved := []string{":", "/", "?", "#", "[", "]", "@", "!", "$", "&", "'", "(", ")", "*", "+", ",", ";", "="}
+		assertReservedCases(reserved, true)
 	})
 
 	Context("HasRFC3986ReservedSymbols with multiple symbols", func() {
 		cases := []string{"@a\\/", "@a@", "a:b", "a:;b", ":;@", "()", "+a+", "[a+]", "a=3?"}
-		for _, casse := range cases {
-			assertHasReservedCharacters(casse)
-		}
+		assertReservedCases(cases, true)
 	})
 
 	Context("HasRFC3986ReservedSymbols with no reserved symbols", func() {
 		cases := []string{"a", "a~b", "a_b", "a-b", "", "74a", "a00", "--a", "-a", "a-", "a--", "-"}
-		for _, casse := range cases {
-			assertNoReservedCharacters(casse)
-		}
+		assertReservedCases(cases, false)
 	})
 })
