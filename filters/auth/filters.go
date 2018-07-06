@@ -19,6 +19,7 @@ package auth
 import (
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
+	"net/http"
 )
 
 const authFilterName = "AuthenticationFilter"
@@ -47,9 +48,18 @@ func (authFilter AuthenticationFilter) Filters() []web.Filter {
 		{
 			Name: authFilterName,
 			RouteMatcher: web.RouteMatcher{
+				Methods: []string{http.MethodGet},
 				PathPattern: "/v1/service_brokers/**",
 			},
 			Middleware: authFilter.filterDispatcher,
+		},
+		{
+			Name: authFilterName,
+			RouteMatcher: web.RouteMatcher{
+				Methods: []string{http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete},
+				PathPattern: "/v1/service_brokers/**",
+			},
+			Middleware: authFilter.oAuth,
 		},
 		{
 			Name: authFilterName,
