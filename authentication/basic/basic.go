@@ -21,6 +21,7 @@ import (
 	"github.com/Peripli/service-manager/authentication"
 	"errors"
 	"github.com/Peripli/service-manager/storage"
+	"crypto/subtle"
 )
 
 type Authenticator struct {
@@ -38,7 +39,7 @@ func (a *Authenticator) Authenticate(request *http.Request) (*authentication.Use
 	}
 
 	credentials, err := a.CredentialStorage.Get(username)
-	if err != nil || credentials.Basic.Password != password {
+	if err != nil || subtle.ConstantTimeCompare([]byte(credentials.Basic.Password), []byte(password)) == 1 {
 		return nil, err
 	}
 
