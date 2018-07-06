@@ -33,39 +33,66 @@ func TestServer(t *testing.T) {
 	RunSpecs(t, "Server Suite")
 }
 
+var sm *httpexpect.Expect
+
 var _ = Describe("Server", func() {
+
+	BeforeSuite(func() {
+		api := &rest.API{}
+		route := rest.Route{
+			Endpoint: rest.Endpoint{
+				Path:   "/",
+				Method: http.MethodGet,
+			},
+			Handler: testHandler,
+		}
+		testCtl := &testController{}
+		testCtl.RegisterRoutes(route)
+		api.RegisterControllers(testCtl)
+		api.RegisterFilters(web.Filter{
+			RouteMatcher: web.RouteMatcher{
+				PathPattern: "**",
+			},
+			Middleware: testMiddleware,
+		})
+		serverSettings := Settings{
+			Port:            0,
+			RequestTimeout:  time.Second * 3,
+			ShutdownTimeout: time.Second * 3,
+		}
+		server := New(api, serverSettings)
+		Expect(server).ToNot(BeNil())
+		testServer := httptest.NewServer(server.Handler)
+		sm = httpexpect.New(GinkgoT(), testServer.URL)
+	})
 
 	Describe("New", func() {
 		Context("when controller has panicing http.handler", func() {
 			It("should return 500", func() {
-				api := &rest.API{}
-				route := rest.Route{
-					Endpoint: rest.Endpoint{
-						Path:   "/",
-						Method: http.MethodGet,
-					},
-					Handler: testHandler,
-				}
-				testCtl := &testController{}
-				testCtl.RegisterRoutes(route)
-				api.RegisterControllers(testCtl)
-				serverSettings := Settings{
-					Port:            0,
-					RequestTimeout:  time.Second * 3,
-					ShutdownTimeout: time.Second * 3,
-				}
-				server := New(api, serverSettings)
-				Expect(server).ToNot(BeNil())
-				testServer := httptest.NewServer(server.Handler)
-				SM := httpexpect.New(GinkgoT(), testServer.URL)
-				SM.GET("/").Expect().Status(http.StatusOK)
-				SM.GET("/").WithQueryString("fail=true").Expect().Status(http.StatusInternalServerError)
-				SM.GET("/").Expect().Status(http.StatusOK)
+				assertRecover("fail=true")
+			})
+		})
+
+		Context("when controller has panicing filter", func() {
+			It("should return 500", func() {
+				assertRecover("filter_fail_before=true")
+			})
+		})
+
+		Context("when controller has panicing filter", func() {
+			It("should return 500", func() {
+				assertRecover("filter_fail_after=true")
 			})
 		})
 	})
 
 })
+
+func assertRecover(query string) {
+	sm.GET("/").Expect().Status(http.StatusOK)
+	sm.GET("/").WithQueryString(query).Expect().Status(http.StatusInternalServerError)
+	sm.GET("/").Expect().Status(http.StatusOK)
+}
 
 type testController struct {
 	testRoutes []rest.Route
@@ -86,4 +113,15 @@ func testHandler(req *web.Request) (*web.Response, error) {
 	resp := web.Response{}
 	resp.StatusCode = http.StatusOK
 	return &resp, nil
+}
+
+func testMiddleware(req *web.Request, next web.Handler) (*web.Response, error) {
+	if req.URL.Query().Get("filter_fail_before") == "true" {
+		panic("expected")
+	}
+	res, err := next(req)
+	if req.URL.Query().Get("filter_fail_after") == "true" {
+		panic("expected")
+	}
+	return res, err
 }
