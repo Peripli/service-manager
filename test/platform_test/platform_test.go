@@ -37,15 +37,20 @@ func TestPlatforms(t *testing.T) {
 }
 
 var _ = Describe("Service Manager Platform API", func() {
-	var accessToken string
 	var SM *httpexpect.Expect
 	var testServer *httptest.Server
-	var mockOuathServer *httptest.Server
+	var mockOauthServer *httptest.Server
 
 	BeforeSuite(func() {
-		mockOuathServer, accessToken = common.SetupMockOAuthServer()
-		testServer = httptest.NewServer(common.GetServerRouter(nil, mockOuathServer.URL))
+		mockOauthServer = common.SetupMockOAuthServer()
+		testServer = httptest.NewServer(common.GetServerRouter(nil, mockOauthServer.URL))
 		SM = httpexpect.New(GinkgoT(), testServer.URL)
+
+		accessToken := common.RequestToken(mockOauthServer.URL)
+
+		SM = SM.Builder(func(req *httpexpect.Request) {
+			req.WithHeader("Authorization", "Bearer "+accessToken)
+		})
 	})
 
 	AfterSuite(func() {
@@ -55,14 +60,13 @@ var _ = Describe("Service Manager Platform API", func() {
 	})
 
 	BeforeEach(func() {
-		common.RemoveAllPlatforms(SM, accessToken)
+		common.RemoveAllPlatforms(SM)
 	})
 
-	FDescribe("GET", func() {
+	Describe("GET", func() {
 		Context("Missing platform", func() {
 			It("returns 404", func() {
 				SM.GET("/v1/platforms/999").
-					WithHeader("Authorization", "Bearer "+accessToken).
 					Expect().
 					Status(http.StatusNotFound).
 					JSON().Object().Keys().Contains("error", "description")

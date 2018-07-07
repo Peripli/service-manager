@@ -22,6 +22,7 @@ import (
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -120,22 +121,20 @@ func MapContains(actual Object, expected Object) {
 }
 
 func RemoveAllBrokers(SM *httpexpect.Expect) {
-	removeAll(SM, "brokers", "/v1/service_brokers", "")
+	removeAll(SM, "brokers", "/v1/service_brokers")
 }
 
-func RemoveAllPlatforms(SM *httpexpect.Expect, accessToken string) {
-	removeAll(SM, "platforms", "/v1/platforms", accessToken)
+func RemoveAllPlatforms(SM *httpexpect.Expect) {
+	removeAll(SM, "platforms", "/v1/platforms")
 }
 
-func removeAll(SM *httpexpect.Expect, entity, rootURLPath, accessToken string) {
+func removeAll(SM *httpexpect.Expect, entity, rootURLPath string) {
 	By("removing all " + entity)
 	resp := SM.GET(rootURLPath).
-		WithHeader("Authorization", "Bearer "+accessToken).
 		Expect().Status(http.StatusOK).JSON().Object()
 	for _, val := range resp.Value(entity).Array().Iter() {
 		id := val.Object().Value("id").String().Raw()
-		SM.DELETE(rootURLPath+"/"+id).
-			WithHeader("Authorization", "Bearer "+accessToken).
+		SM.DELETE(rootURLPath + "/" + id).
 			Expect().Status(http.StatusOK)
 	}
 }
@@ -194,22 +193,59 @@ func NewFailingBrokerRouter() *mux.Router {
 	return router
 }
 
-func SetupMockOAuthServer() (*httptest.Server, string) {
+func generatePrivateKey() *rsa.PrivateKey {
 	privateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
-	publicKey := privateKey.PublicKey
-	nBytes := publicKey.N.Bytes()
-	modulus := base64.RawURLEncoding.EncodeToString(nBytes)
+	return privateKey
+}
+
+type jwkResponse struct {
+	KeyType   string `json:"kty"`
+	Use       string `json:"sig"`
+	KeyID     string `json:"kid"`
+	Algorithm string `json:"alg"`
+	Value     string `json:"value"`
+
+	PublicKeyExponent string `json:"e"`
+	PublicKeyModulus  string `json:"n"`
+}
+
+func newJwkResponse(keyID string, publicKey rsa.PublicKey) *jwkResponse {
+	modulus := base64.RawURLEncoding.EncodeToString(publicKey.N.Bytes())
+
 	bytes := make([]byte, 4)
 	binary.LittleEndian.PutUint32(bytes, uint32(publicKey.E))
 	bytes = bytes[:3]
 	exponent := base64.RawURLEncoding.EncodeToString(bytes)
+
+	return &jwkResponse{
+		KeyType:           "RSA",
+		Use:               "sig",
+		KeyID:             keyID,
+		Algorithm:         "RSA256",
+		Value:             "",
+		PublicKeyModulus:  modulus,
+		PublicKeyExponent: exponent,
+	}
+}
+
+func RequestToken(issuerURL string) string {
+	issuer := httpexpect.New(GinkgoT(), issuerURL)
+	token := issuer.GET("/oauth/token").Expect().
+		Status(http.StatusOK).JSON().Object().
+		Value("access_token").String().Raw()
+
+	return token
+}
+
+func SetupMockOAuthServer() *httptest.Server {
+	privateKey := generatePrivateKey()
+	publicKey := privateKey.PublicKey
 	signer := jwt.RS256(privateKey, &publicKey)
-	nextYear := time.Now().Add(24 * 30 * 12 * time.Hour)
-	var token string
-	var err error
+	keyID := "test-key"
+
+	var issuerURL string
 
 	mux := http.NewServeMux()
-	var issuerURL string
 	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{
@@ -219,38 +255,36 @@ func SetupMockOAuthServer() (*httptest.Server, string) {
 	})
 
 	mux.HandleFunc("/oauth/token", func(w http.ResponseWriter, r *http.Request) {
+		nextYear := time.Now().Add(24 * 30 * 12 * time.Hour)
+		token, err := jwt.Sign(signer, &jwt.Options{
+			Issuer:         issuerURL + "/oauth/token",
+			KeyID:          keyID,
+			Audience:       "cf",
+			ExpirationTime: nextYear})
+		if err != nil {
+			panic(err)
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"access_token": "` + token + `"}`))
 	})
 
 	mux.HandleFunc("/token_keys", func(w http.ResponseWriter, r *http.Request) {
+		jwk := newJwkResponse(keyID, publicKey)
+		responseBody, _ := json.Marshal(&struct {
+			Keys []jwkResponse `json:"keys"`
+		}{
+			Keys: []jwkResponse{*jwk},
+		})
+
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{
-			"keys": [{
-				"kty": "RSA",
-				"e": "` + exponent + `",
-				"use": "sig",
-				"kid": "testKey",
-				"alg": "RSA256",
-				"value": "",
-				"n": "` + modulus + `"
-			}]
-		}`))
+		w.Write(responseBody)
 	})
 
 	server := httptest.NewServer(mux)
 	issuerURL = server.URL
 
-	token, err = jwt.Sign(signer, &jwt.Options{
-		Issuer:         issuerURL + "/oauth/token",
-		KeyID:          "testKey",
-		Audience:       "cf",
-		ExpirationTime: nextYear})
-	if err != nil {
-		panic(err)
-	}
-
-	return server, token
+	return server
 }
 
 func MakeBroker(name string, url string, description string) Object {

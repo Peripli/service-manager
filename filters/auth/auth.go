@@ -17,15 +17,15 @@
 package auth
 
 import (
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/authentication/oidc"
-	"github.com/Peripli/service-manager/authentication/basic"
 	"errors"
-	"strings"
 	"net/http"
+	"strings"
+
+	"github.com/Peripli/service-manager/authentication/basic"
+	"github.com/Peripli/service-manager/authentication/oidc"
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/sirupsen/logrus"
 )
-
 
 const (
 	basicScheme = "Basic"
@@ -39,7 +39,7 @@ func (authFilter AuthenticationFilter) filterDispatcher(req *web.Request, handle
 		return nil, web.NewHTTPError(
 			errors.New("Missing Authorization header!"),
 			http.StatusUnauthorized,
-				"Unauthorized")
+			"Unauthorized")
 	}
 
 	header := strings.Split(authHeader, " ")
@@ -51,7 +51,6 @@ func (authFilter AuthenticationFilter) filterDispatcher(req *web.Request, handle
 	case bearerScheme:
 		return authFilter.oAuth(req, handler)
 	}
-
 
 	return nil, web.NewHTTPError(
 		errors.New("Unsupported authentication scheme!"),
@@ -72,7 +71,7 @@ func (authFilter AuthenticationFilter) basicAuth(req *web.Request, handler web.H
 func (authFilter AuthenticationFilter) oAuth(req *web.Request, handler web.Handler) (*web.Response, error) {
 	authenticator, err := oidc.NewAuthenticator(req.Request.Context(), oidc.Options{
 		IssuerURL: authFilter.TokenIssuerURL,
-		ClientID: "cf",
+		ClientID:  "cf",
 	})
 	if err != nil {
 		logrus.Error(err)
