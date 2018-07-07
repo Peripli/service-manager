@@ -96,7 +96,7 @@ var _ = Describe("Service Manager OSB API", func() {
 	)
 
 	BeforeSuite(func() {
-		testServer = httptest.NewServer(common.GetServerRouter(nil))
+		testServer = httptest.NewServer(common.GetServerRouter(nil, ""))
 		SM = httpexpect.New(GinkgoT(), testServer.URL)
 		common.RemoveAllBrokers(SM)
 

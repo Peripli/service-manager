@@ -26,10 +26,11 @@ import (
 	"net/url"
 	"strings"
 
+	"crypto/tls"
+
 	"github.com/Peripli/service-manager/authentication"
 	"github.com/coreos/go-oidc"
 	"github.com/sirupsen/logrus"
-	"crypto/tls"
 )
 
 // Options is the configuration used to construct a new OIDC authenticator

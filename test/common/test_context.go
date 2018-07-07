@@ -43,11 +43,11 @@ var serviceCatalog = `{
 }`
 
 func NewTestContext(api *rest.API) *TestContext {
-	smServer := httptest.NewServer(GetServerRouter(api))
+	smServer := httptest.NewServer(GetServerRouter(api, ""))
 	SM := httpexpect.New(GinkgoT(), smServer.URL)
 
 	RemoveAllBrokers(SM)
-	RemoveAllPlatforms(SM)
+	RemoveAllPlatforms(SM, "")
 	broker := &Broker{}
 	brokerServer := httptest.NewServer(broker)
 	brokerJSON := MakeBroker("broker1", brokerServer.URL, "")
@@ -80,7 +80,7 @@ func (ctx *TestContext) Cleanup() {
 	}
 	if ctx.SMServer != nil {
 		RemoveAllBrokers(ctx.SM)
-		RemoveAllPlatforms(ctx.SM)
+		RemoveAllPlatforms(ctx.SM, "")
 		ctx.SMServer.Close()
 	}
 	if ctx.BrokerServer != nil {

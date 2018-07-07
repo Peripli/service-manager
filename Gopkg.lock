@@ -47,6 +47,12 @@
   revision = "6f8212e8d10df7383609d3c377ca08884d8f3ec0"
 
 [[projects]]
+  name = "github.com/gbrlsnchs/jwt"
+  packages = ["."]
+  revision = "fd3b16eda068e8d51d245b07019854d63dc4b591"
+  version = "v0.5.0"
+
+[[projects]]
   name = "github.com/gobwas/glob"
   packages = [
     ".",
@@ -490,6 +496,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "98569813c64fff2f18a0dee6ae73ad11763973e20dc6be25227c5d45833f5e12"
+  inputs-digest = "de1afb664a203254c495ef64eb73d1d63a151c5352429775260f2d05208c7e33"
   solver-name = "gps-cdcl"
   solver-version = 1
