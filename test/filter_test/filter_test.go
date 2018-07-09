@@ -56,18 +56,18 @@ var _ = Describe("Service Manager Filters", func() {
 		})
 
 		It("should be called only on OSB API", func() {
-			ctx.SM.GET(ctx.OSBURL + "/v2/catalog").
+			ctx.SMWithBasic.GET(ctx.OSBURL + "/v2/catalog").
 				Expect().Status(http.StatusOK).Header("filter").Equal("called")
 
-			ctx.SM.PUT(ctx.OSBURL+"/v2/service_instances/1234").
+			ctx.SMWithBasic.PUT(ctx.OSBURL+"/v2/service_instances/1234").
 				WithHeader("Content-Type", "application/json").
 				WithJSON(object{}).
 				Expect().Status(http.StatusOK).Header("filter").Equal("called")
 
-			ctx.SM.DELETE(ctx.OSBURL + "/v2/service_instances/1234/service_bindings/111").
+			ctx.SMWithBasic.DELETE(ctx.OSBURL + "/v2/service_instances/1234/service_bindings/111").
 				Expect().Status(http.StatusOK).Header("filter").Equal("called")
 
-			ctx.SM.GET("/v1/service_brokers").
+			ctx.SMWithOAuth.GET("/v1/service_brokers").
 				Expect().Status(http.StatusOK).Header("filter").Empty()
 		})
 	})
@@ -105,7 +105,7 @@ var _ = Describe("Service Manager Filters", func() {
 
 		It("should be called on platform API", func() {
 			order = ""
-			ctx.SM.GET("/v1/platforms").
+			ctx.SMWithOAuth.GET("/v1/platforms").
 				Expect().Status(http.StatusOK)
 			Expect(order).To(Equal("a1b1b2a2"))
 		})

@@ -36,9 +36,11 @@ import (
 	"github.com/Peripli/service-manager/app"
 	"github.com/Peripli/service-manager/config"
 	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/types"
 	"github.com/gavv/httpexpect"
 	"github.com/gbrlsnchs/jwt"
 	"github.com/gorilla/mux"
+	"github.com/mitchellh/mapstructure"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
@@ -144,6 +146,16 @@ func RegisterBroker(brokerJSON Object, SM *httpexpect.Expect) string {
 		WithJSON(brokerJSON).
 		Expect().Status(http.StatusCreated).JSON().Object()
 	return reply.Value("id").String().Raw()
+}
+
+func RegisterPlatform(platformJSON Object, SM *httpexpect.Expect) *types.Platform {
+	reply := SM.POST("/v1/platforms").
+		WithJSON(platformJSON).
+		Expect().Status(http.StatusCreated).JSON().Object().Raw()
+
+	platform := &types.Platform{}
+	mapstructure.Decode(reply, platform)
+	return platform
 }
 
 func setResponse(rw http.ResponseWriter, status int, message string) {

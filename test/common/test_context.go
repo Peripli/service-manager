@@ -22,6 +22,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"github.com/Peripli/service-manager/authentication/basic"
+
 	. "github.com/onsi/ginkgo"
 
 	"github.com/Peripli/service-manager/rest"
@@ -43,35 +45,57 @@ var serviceCatalog = `{
 }`
 
 func NewTestContext(api *rest.API) *TestContext {
-	smServer := httptest.NewServer(GetServerRouter(api, ""))
+	mockOauthServer := SetupMockOAuthServer()
+	smServer := httptest.NewServer(GetServerRouter(api, mockOauthServer.URL))
 	SM := httpexpect.New(GinkgoT(), smServer.URL)
 
-	RemoveAllBrokers(SM)
-	RemoveAllPlatforms(SM)
-	broker := &Broker{}
-	brokerServer := httptest.NewServer(broker)
-	brokerJSON := MakeBroker("broker1", brokerServer.URL, "")
-	broker.ResponseBody = []byte(serviceCatalog)
-	brokerID := RegisterBroker(brokerJSON, SM)
-	broker.ResponseBody = nil
-	broker.Request = nil
+	accessToken := RequestToken(mockOauthServer.URL)
+	SMWithOAuth := SM.Builder(func(req *httpexpect.Request) {
+		req.WithHeader("Authorization", "Bearer "+accessToken)
+	})
 
-	osbURL := "/v1/osb/" + brokerID
+	RemoveAllBrokers(SMWithOAuth)
+	RemoveAllPlatforms(SMWithOAuth)
+
+	platformJSON := MakePlatform("ctx-platform-test", "ctx-platform-test", "platform-type", "")
+	platform := RegisterPlatform(platformJSON, SMWithOAuth)
+	SMWithBasic := SM.Builder(func(req *httpexpect.Request) {
+		username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
+		req.WithHeader("Authorization", basic.EncodeCredentials(username, password))
+	})
 
 	return &TestContext{
-		SM:           SM,
-		SMServer:     smServer,
-		BrokerServer: brokerServer,
-		OSBURL:       osbURL,
-		Broker:       broker,
+		SM:          SM,
+		SMWithOAuth: SMWithOAuth,
+		SMWithBasic: SMWithBasic,
+		SMServer:    smServer,
+		Brokers:     make(map[string]*Broker),
 	}
 }
 
 type TestContext struct {
-	SM                     *httpexpect.Expect
-	SMServer, BrokerServer *httptest.Server
-	OSBURL                 string
-	Broker                 *Broker
+	SM          *httpexpect.Expect
+	SMWithOAuth *httpexpect.Expect
+	SMWithBasic *httpexpect.Expect
+	SMServer    *httptest.Server
+
+	Brokers map[string]*Broker
+}
+
+func (ctx *TestContext) RegisterBroker(name string) {
+	broker := &Broker{}
+	brokerServer := httptest.NewServer(broker)
+	brokerJSON := MakeBroker(name, brokerServer.URL, "")
+	broker.ResponseBody = []byte(serviceCatalog)
+	brokerID := RegisterBroker(brokerJSON, ctx.SMWithOAuth)
+
+	broker.OSBURL = "/v1/osb/" + brokerID
+	broker.Server = brokerServer
+
+	broker.ResponseBody = nil
+	broker.Request = nil
+
+	ctx.Brokers[name] = broker
 }
 
 func (ctx *TestContext) Cleanup() {
@@ -79,12 +103,15 @@ func (ctx *TestContext) Cleanup() {
 		return
 	}
 	if ctx.SMServer != nil {
-		RemoveAllBrokers(ctx.SM)
-		RemoveAllPlatforms(ctx.SM)
+		RemoveAllBrokers(ctx.SMWithOAuth)
+		RemoveAllPlatforms(ctx.SMWithOAuth)
 		ctx.SMServer.Close()
 	}
-	if ctx.BrokerServer != nil {
-		ctx.BrokerServer.Close()
+
+	for _, broker := range ctx.Brokers {
+		if broker.Server != nil {
+			broker.Server.Close()
+		}
 	}
 }
 
@@ -94,6 +121,8 @@ type Broker struct {
 	Request        *http.Request
 	RequestBody    *httpexpect.Value
 	RawRequestBody []byte
+	OSBURL         string
+	Server         *httptest.Server
 }
 
 func (b *Broker) ServeHTTP(rw http.ResponseWriter, req *http.Request) {

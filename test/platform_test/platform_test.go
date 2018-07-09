@@ -37,18 +37,16 @@ func TestPlatforms(t *testing.T) {
 }
 
 var _ = Describe("Service Manager Platform API", func() {
-	var SM *httpexpect.Expect
+	var SM, SMWithAuth *httpexpect.Expect
 	var testServer *httptest.Server
-	var mockOauthServer *httptest.Server
 
 	BeforeSuite(func() {
-		mockOauthServer = common.SetupMockOAuthServer()
+		mockOauthServer := common.SetupMockOAuthServer()
 		testServer = httptest.NewServer(common.GetServerRouter(nil, mockOauthServer.URL))
 		SM = httpexpect.New(GinkgoT(), testServer.URL)
 
 		accessToken := common.RequestToken(mockOauthServer.URL)
-
-		SM = SM.Builder(func(req *httpexpect.Request) {
+		SMWithAuth = SM.Builder(func(req *httpexpect.Request) {
 			req.WithHeader("Authorization", "Bearer "+accessToken)
 		})
 	})
@@ -60,13 +58,13 @@ var _ = Describe("Service Manager Platform API", func() {
 	})
 
 	BeforeEach(func() {
-		common.RemoveAllPlatforms(SM)
+		common.RemoveAllPlatforms(SMWithAuth)
 	})
 
 	Describe("GET", func() {
 		Context("Missing platform", func() {
 			It("returns 404", func() {
-				SM.GET("/v1/platforms/999").
+				SMWithAuth.GET("/v1/platforms/999").
 					Expect().
 					Status(http.StatusNotFound).
 					JSON().Object().Keys().Contains("error", "description")
@@ -76,11 +74,11 @@ var _ = Describe("Service Manager Platform API", func() {
 		Context("Existing platform", func() {
 			It("returns the platform with given id", func() {
 				platform := common.MakePlatform("platform1", "cf-10", "cf", "descr")
-				reply := SM.POST("/v1/platforms").WithJSON(platform).
+				reply := SMWithAuth.POST("/v1/platforms").WithJSON(platform).
 					Expect().Status(http.StatusCreated).JSON().Object()
 				id := reply.Value("id").String().Raw()
 
-				reply = SM.GET("/v1/platforms/" + id).
+				reply = SMWithAuth.GET("/v1/platforms/" + id).
 					Expect().
 					Status(http.StatusOK).
 					JSON().Object()
@@ -93,7 +91,7 @@ var _ = Describe("Service Manager Platform API", func() {
 	Describe("GET All", func() {
 		Context("With no platforms", func() {
 			It("returns empty array", func() {
-				SM.GET("/v1/platforms").
+				SMWithAuth.GET("/v1/platforms").
 					Expect().
 					Status(http.StatusOK).
 					JSON().Object().Value("platforms").Array().Empty()
@@ -106,11 +104,11 @@ var _ = Describe("Service Manager Platform API", func() {
 
 				addPlatform := func(id string, name string, atype string, description string) {
 					platform := common.MakePlatform(id, name, atype, description)
-					SM.POST("/v1/platforms").WithJSON(platform).
+					SMWithAuth.POST("/v1/platforms").WithJSON(platform).
 						Expect().Status(http.StatusCreated)
 					platforms = append(platforms, platform)
 
-					replyArray := SM.GET("/v1/platforms").
+					replyArray := SMWithAuth.GET("/v1/platforms").
 						Expect().
 						Status(http.StatusOK).
 						JSON().Object().Value("platforms").Array()
@@ -131,7 +129,7 @@ var _ = Describe("Service Manager Platform API", func() {
 	Describe("POST", func() {
 		Context("With invalid content type", func() {
 			It("returns 415", func() {
-				SM.POST("/v1/platforms").
+				SMWithAuth.POST("/v1/platforms").
 					WithText("text").
 					Expect().Status(http.StatusUnsupportedMediaType)
 			})
@@ -139,7 +137,7 @@ var _ = Describe("Service Manager Platform API", func() {
 
 		Context("With invalid content JSON", func() {
 			It("returns 400 if input is not valid JSON", func() {
-				SM.POST("/v1/platforms").
+				SMWithAuth.POST("/v1/platforms").
 					WithText("invalid json").
 					WithHeader("content-type", "application/json").
 					Expect().Status(http.StatusBadRequest)
@@ -151,7 +149,7 @@ var _ = Describe("Service Manager Platform API", func() {
 				newplatform := func() object {
 					return common.MakePlatform("platform1", "cf-10", "cf", "descr")
 				}
-				SM.POST("/v1/platforms").
+				SMWithAuth.POST("/v1/platforms").
 					WithJSON(newplatform()).
 					Expect().Status(http.StatusCreated)
 
@@ -159,7 +157,7 @@ var _ = Describe("Service Manager Platform API", func() {
 					platform := newplatform()
 					delete(platform, prop)
 
-					SM.POST("/v1/platforms").
+					SMWithAuth.POST("/v1/platforms").
 						WithJSON(platform).
 						Expect().Status(http.StatusBadRequest)
 				}
@@ -169,10 +167,10 @@ var _ = Describe("Service Manager Platform API", func() {
 		Context("With conflicting fields", func() {
 			It("returns 409", func() {
 				platform := common.MakePlatform("platform1", "cf-10", "cf", "descr")
-				SM.POST("/v1/platforms").
+				SMWithAuth.POST("/v1/platforms").
 					WithJSON(platform).
 					Expect().Status(http.StatusCreated)
-				SM.POST("/v1/platforms").
+				SMWithAuth.POST("/v1/platforms").
 					WithJSON(platform).
 					Expect().Status(http.StatusConflict)
 			})
@@ -185,7 +183,7 @@ var _ = Describe("Service Manager Platform API", func() {
 				delete(platform, "id")
 				delete(platform, "description")
 
-				reply := SM.POST("/v1/platforms").
+				reply := SMWithAuth.POST("/v1/platforms").
 					WithJSON(platform).
 					Expect().Status(http.StatusCreated).JSON().Object()
 
@@ -204,7 +202,7 @@ var _ = Describe("Service Manager Platform API", func() {
 
 				By("POST returns the new platform")
 
-				reply := SM.POST("/v1/platforms").
+				reply := SMWithAuth.POST("/v1/platforms").
 					WithJSON(platform).
 					Expect().Status(http.StatusCreated).JSON().Object()
 
@@ -217,7 +215,7 @@ var _ = Describe("Service Manager Platform API", func() {
 
 				By("GET returns the same platform")
 
-				reply = SM.GET("/v1/platforms/" + id).
+				reply = SMWithAuth.GET("/v1/platforms/" + id).
 					Expect().Status(http.StatusOK).JSON().Object()
 
 				common.MapContains(reply.Raw(), platform)
@@ -233,7 +231,7 @@ var _ = Describe("Service Manager Platform API", func() {
 			By("Create new platform")
 
 			platform = common.MakePlatform(id, "cf-10", "cf", "descr")
-			SM.POST("/v1/platforms").
+			SMWithAuth.POST("/v1/platforms").
 				WithJSON(platform).
 				Expect().Status(http.StatusCreated)
 		})
@@ -245,7 +243,7 @@ var _ = Describe("Service Manager Platform API", func() {
 				updatedPlatform := common.MakePlatform("", "cf-11", "cff", "descr2")
 				delete(updatedPlatform, "id")
 
-				reply := SM.PATCH("/v1/platforms/" + id).
+				reply := SMWithAuth.PATCH("/v1/platforms/" + id).
 					WithJSON(updatedPlatform).
 					Expect().
 					Status(http.StatusOK).JSON().Object()
@@ -255,7 +253,7 @@ var _ = Describe("Service Manager Platform API", func() {
 
 				By("Update is persisted")
 
-				reply = SM.GET("/v1/platforms/" + id).
+				reply = SMWithAuth.GET("/v1/platforms/" + id).
 					Expect().
 					Status(http.StatusOK).JSON().Object()
 
@@ -271,7 +269,7 @@ var _ = Describe("Service Manager Platform API", func() {
 				for prop, val := range updatedPlatform {
 					update := object{}
 					update[prop] = val
-					reply := SM.PATCH("/v1/platforms/" + id).
+					reply := SMWithAuth.PATCH("/v1/platforms/" + id).
 						WithJSON(update).
 						Expect().
 						Status(http.StatusOK).JSON().Object()
@@ -279,7 +277,7 @@ var _ = Describe("Service Manager Platform API", func() {
 					platform[prop] = val
 					common.MapContains(reply.Raw(), platform)
 
-					reply = SM.GET("/v1/platforms/" + id).
+					reply = SMWithAuth.GET("/v1/platforms/" + id).
 						Expect().
 						Status(http.StatusOK).JSON().Object()
 
@@ -290,12 +288,12 @@ var _ = Describe("Service Manager Platform API", func() {
 
 		Context("With provided id", func() {
 			It("should not update platform id", func() {
-				SM.PATCH("/v1/platforms/" + id).
+				SMWithAuth.PATCH("/v1/platforms/" + id).
 					WithJSON(object{"id": "123"}).
 					Expect().
 					Status(http.StatusOK)
 
-				SM.GET("/v1/platforms/123").
+				SMWithAuth.GET("/v1/platforms/123").
 					Expect().
 					Status(http.StatusNotFound)
 			})
@@ -303,7 +301,7 @@ var _ = Describe("Service Manager Platform API", func() {
 
 		Context("On missing platform", func() {
 			It("returns 404", func() {
-				SM.PATCH("/v1/platforms/123").
+				SMWithAuth.PATCH("/v1/platforms/123").
 					WithJSON(object{"name": "123"}).
 					Expect().
 					Status(http.StatusNotFound)
@@ -313,11 +311,11 @@ var _ = Describe("Service Manager Platform API", func() {
 		Context("With conflicting fields", func() {
 			It("should return 409", func() {
 				platform2 := common.MakePlatform("p2", "cf-12", "cf2", "descr2")
-				SM.POST("/v1/platforms").
+				SMWithAuth.POST("/v1/platforms").
 					WithJSON(platform2).
 					Expect().Status(http.StatusCreated)
 
-				SM.PATCH("/v1/platforms/" + id).
+				SMWithAuth.PATCH("/v1/platforms/" + id).
 					WithJSON(platform2).
 					Expect().
 					Status(http.StatusConflict)
@@ -328,7 +326,7 @@ var _ = Describe("Service Manager Platform API", func() {
 	Describe("DELETE", func() {
 		Context("Non existing platform", func() {
 			It("returns 404", func() {
-				SM.DELETE("/v1/platforms/999").
+				SMWithAuth.DELETE("/v1/platforms/999").
 					Expect().
 					Status(http.StatusNotFound)
 			})
@@ -337,19 +335,19 @@ var _ = Describe("Service Manager Platform API", func() {
 		Context("Existing platform", func() {
 			It("succeeds", func() {
 				platform := common.MakePlatform("p1", "cf-10", "cf", "descr")
-				SM.POST("/v1/platforms").
+				SMWithAuth.POST("/v1/platforms").
 					WithJSON(platform).
 					Expect().Status(http.StatusCreated)
 
-				SM.GET("/v1/platforms/p1").
+				SMWithAuth.GET("/v1/platforms/p1").
 					Expect().
 					Status(http.StatusOK)
 
-				SM.DELETE("/v1/platforms/p1").
+				SMWithAuth.DELETE("/v1/platforms/p1").
 					Expect().
 					Status(http.StatusOK).JSON().Object().Empty()
 
-				SM.GET("/v1/platforms/p1").
+				SMWithAuth.GET("/v1/platforms/p1").
 					Expect().
 					Status(http.StatusNotFound)
 			})

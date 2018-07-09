@@ -46,6 +46,15 @@ type FakeStorage struct {
 	platformReturnsOnCall map[int]struct {
 		result1 storage.Platform
 	}
+	CredentialsStub        func() storage.Credentials
+	credentialsMutex       sync.RWMutex
+	credentialsArgsForCall []struct{}
+	credentialsReturns     struct {
+		result1 storage.Credentials
+	}
+	credentialsReturnsOnCall map[int]struct {
+		result1 storage.Credentials
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
@@ -218,6 +227,46 @@ func (fake *FakeStorage) PlatformReturnsOnCall(i int, result1 storage.Platform) 
 	}{result1}
 }
 
+func (fake *FakeStorage) Credentials() storage.Credentials {
+	fake.credentialsMutex.Lock()
+	ret, specificReturn := fake.credentialsReturnsOnCall[len(fake.credentialsArgsForCall)]
+	fake.credentialsArgsForCall = append(fake.credentialsArgsForCall, struct{}{})
+	fake.recordInvocation("Credentials", []interface{}{})
+	fake.credentialsMutex.Unlock()
+	if fake.CredentialsStub != nil {
+		return fake.CredentialsStub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fake.credentialsReturns.result1
+}
+
+func (fake *FakeStorage) CredentialsCallCount() int {
+	fake.credentialsMutex.RLock()
+	defer fake.credentialsMutex.RUnlock()
+	return len(fake.credentialsArgsForCall)
+}
+
+func (fake *FakeStorage) CredentialsReturns(result1 storage.Credentials) {
+	fake.CredentialsStub = nil
+	fake.credentialsReturns = struct {
+		result1 storage.Credentials
+	}{result1}
+}
+
+func (fake *FakeStorage) CredentialsReturnsOnCall(i int, result1 storage.Credentials) {
+	fake.CredentialsStub = nil
+	if fake.credentialsReturnsOnCall == nil {
+		fake.credentialsReturnsOnCall = make(map[int]struct {
+			result1 storage.Credentials
+		})
+	}
+	fake.credentialsReturnsOnCall[i] = struct {
+		result1 storage.Credentials
+	}{result1}
+}
+
 func (fake *FakeStorage) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -229,6 +278,8 @@ func (fake *FakeStorage) Invocations() map[string][][]interface{} {
 	defer fake.brokerMutex.RUnlock()
 	fake.platformMutex.RLock()
 	defer fake.platformMutex.RUnlock()
+	fake.credentialsMutex.RLock()
+	defer fake.credentialsMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

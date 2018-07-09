@@ -28,6 +28,7 @@ func TestPlugins(t *testing.T) {
 
 var _ = Describe("Service Manager Plugins", func() {
 	var ctx *common.TestContext
+	var testBroker *common.Broker
 
 	AfterEach(func() {
 		ctx.Cleanup()
@@ -38,14 +39,17 @@ var _ = Describe("Service Manager Plugins", func() {
 			api := &rest.API{}
 			api.RegisterPlugins(&PartialPlugin{})
 			ctx = common.NewTestContext(api)
+			ctx.RegisterBroker("broker1")
+			testBroker = ctx.Brokers["broker1"]
+
 		})
 
 		It("should be called for provision and not for deprovision", func() {
-			ctx.SM.PUT(ctx.OSBURL+"/v2/service_instances/1234").
+			ctx.SMWithBasic.PUT(testBroker.OSBURL+"/v2/service_instances/1234").
 				WithHeader("Content-Type", "application/json").
 				WithJSON(object{}).
 				Expect().Status(http.StatusOK).Header("X-Plugin").Equal("provision")
-			ctx.SM.DELETE(ctx.OSBURL+"/v2/service_instances/1234").
+			ctx.SMWithBasic.DELETE(testBroker.OSBURL+"/v2/service_instances/1234").
 				WithHeader("Content-Type", "application/json").
 				WithJSON(object{}).
 				Expect().Status(http.StatusOK).Header("X-Plugin").Empty()
@@ -60,6 +64,8 @@ var _ = Describe("Service Manager Plugins", func() {
 			api := &rest.API{}
 			api.RegisterPlugins(testPlugin)
 			ctx = common.NewTestContext(api)
+			ctx.RegisterBroker("broker1")
+			testBroker = ctx.Brokers["broker1"]
 		})
 
 		It("Plugin modifies the request & response body", func() {
@@ -83,21 +89,21 @@ var _ = Describe("Service Manager Plugins", func() {
 				resBodySize = len(res.Body)
 				return res, nil
 			}
-			ctx.Broker.StatusCode = http.StatusCreated
+			testBroker.StatusCode = http.StatusCreated
 
 			provisionBody := object{
 				"service_id": "s123",
 				"plan_id":    "p123",
 			}
-			resp := ctx.SM.PUT(ctx.OSBURL + "/v2/service_instances/1234").
+			resp := ctx.SMWithBasic.PUT(testBroker.OSBURL + "/v2/service_instances/1234").
 				WithJSON(provisionBody).Expect().Status(http.StatusCreated)
 			resp.Header("content-length").Equal(strconv.Itoa(resBodySize))
 			reply := resp.JSON().Object()
 
-			Expect(ctx.Broker.Request.Header.Get("content-length")).To(Equal(
-				strconv.Itoa(len(ctx.Broker.RawRequestBody))))
+			Expect(testBroker.Request.Header.Get("content-length")).To(Equal(
+				strconv.Itoa(len(testBroker.RawRequestBody))))
 			reply.ValueEqual("extra", "response")
-			ctx.Broker.RequestBody.Object().Equal(object{
+			testBroker.RequestBody.Object().Equal(object{
 				"service_id": "s123",
 				"plan_id":    "p123",
 				"extra":      "request",
@@ -117,12 +123,12 @@ var _ = Describe("Service Manager Plugins", func() {
 				res.Header.Set("extra", h+"-response")
 				return res, nil
 			}
-			ctx.Broker.StatusCode = http.StatusOK
+			testBroker.StatusCode = http.StatusOK
 
-			ctx.SM.GET(ctx.OSBURL+"/v2/catalog").WithHeader("extra", "value").
+			ctx.SMWithBasic.GET(testBroker.OSBURL+"/v2/catalog").WithHeader("extra", "value").
 				Expect().Status(http.StatusOK).Header("extra").Equal("value-response")
 
-			Expect(ctx.Broker.Request.Header.Get("extra")).To(Equal("value-request"))
+			Expect(testBroker.Request.Header.Get("extra")).To(Equal("value-request"))
 		})
 
 		It("Plugin aborts the request", func() {
@@ -130,20 +136,20 @@ var _ = Describe("Service Manager Plugins", func() {
 				return nil, web.NewHTTPError(errors.New("Plugin error"), http.StatusBadRequest, "PluginErr")
 			}
 
-			ctx.SM.GET(ctx.OSBURL + "/v2/catalog").
+			ctx.SMWithBasic.GET(testBroker.OSBURL + "/v2/catalog").
 				Expect().Status(http.StatusBadRequest).JSON().Object().Equal(object{
 				"error":       "PluginErr",
 				"description": "Plugin error",
 			})
 
-			Expect(ctx.Broker.Called()).To(BeFalse())
+			Expect(testBroker.Called()).To(BeFalse())
 		})
 
 		It("Request host header is properly set", func() {
-			ctx.SM.GET(ctx.OSBURL + "/v2/catalog").
+			ctx.SMWithBasic.GET(testBroker.OSBURL + "/v2/catalog").
 				Expect().Status(http.StatusOK)
 
-			Expect(ctx.BrokerServer.URL).To(ContainSubstring(ctx.Broker.Request.Host))
+			Expect(testBroker.Server.URL).To(ContainSubstring(testBroker.Request.Host))
 		})
 
 		osbOperations := []struct{ name, method, path string }{
@@ -167,7 +173,7 @@ var _ = Describe("Service Manager Plugins", func() {
 					return res, err
 				}
 
-				ctx.SM.Request(op.method, ctx.OSBURL+op.path).
+				ctx.SMWithBasic.Request(op.method, testBroker.OSBURL+op.path).
 					WithHeader("Content-Type", "application/json").
 					WithJSON(object{}).
 					Expect().Status(http.StatusOK).Header("X-Plugin").Equal(op.name)

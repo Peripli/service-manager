@@ -93,17 +93,21 @@ var _ = Describe("Service Manager OSB API", func() {
 		listener        net.Listener
 		validBrokerID   string
 		failingBrokerID string
+		ctx             *common.TestContext
 	)
 
 	BeforeSuite(func() {
+		ctx = common.NewTestContext(nil)
+
 		testServer = httptest.NewServer(common.GetServerRouter(nil, ""))
 		SM = httpexpect.New(GinkgoT(), testServer.URL)
+
 		common.RemoveAllBrokers(SM)
 
-		validServer := httptest.NewServer(common.NewValidBrokerRouter())
+		validBrokerServer := httptest.NewServer(common.NewValidBrokerRouter())
 		failingBrokerServer := httptest.NewServer(common.NewFailingBrokerRouter())
 
-		validBrokerJSON := common.MakeBroker("broker1", validServer.URL, "")
+		validBrokerJSON := common.MakeBroker("broker1", validBrokerServer.URL, "")
 		failingBrokerJSON := common.MakeBroker("broker2", failingBrokerServer.URL, "")
 
 		validBrokerID = common.RegisterBroker(validBrokerJSON, SM)
