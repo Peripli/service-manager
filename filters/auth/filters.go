@@ -24,11 +24,13 @@ import (
 
 const authFilterName = "AuthenticationFilter"
 
+// AuthenticationFilter holds authentication information
 type AuthenticationFilter struct {
 	CredentialsStorage storage.Credentials
 	TokenIssuerURL string
 }
 
+// NewAuthenticationFilter constructs a new AuthenticationFilter object
 func NewAuthenticationFilter(credentialStorage storage.Credentials, tokenIssuerURL string) AuthenticationFilter {
 	return AuthenticationFilter{
 		CredentialsStorage: credentialStorage,
@@ -36,6 +38,7 @@ func NewAuthenticationFilter(credentialStorage storage.Credentials, tokenIssuerU
 	}
 }
 
+// Filters returns the default authentication filters
 func (authFilter AuthenticationFilter) Filters() []web.Filter {
 	return []web.Filter{
 		{

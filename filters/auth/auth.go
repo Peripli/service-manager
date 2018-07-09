@@ -37,7 +37,7 @@ func (authFilter AuthenticationFilter) filterDispatcher(req *web.Request, handle
 	authHeader := req.Header.Get("Authorization")
 	if authHeader == "" {
 		return nil, web.NewHTTPError(
-			errors.New("Missing Authorization header!"),
+			errors.New("Missing Authorization header"),
 			http.StatusUnauthorized,
 			"Unauthorized")
 	}
@@ -53,7 +53,7 @@ func (authFilter AuthenticationFilter) filterDispatcher(req *web.Request, handle
 	}
 
 	return nil, web.NewHTTPError(
-		errors.New("Unsupported authentication scheme!"),
+		errors.New("Unsupported authentication scheme"),
 		http.StatusUnauthorized,
 		"Unauthorized")
 }
@@ -76,7 +76,7 @@ func (authFilter AuthenticationFilter) oAuth(req *web.Request, handler web.Handl
 	if err != nil {
 		logrus.Error(err)
 		return nil, web.NewHTTPError(
-			errors.New("Authentication failed!"),
+			errors.New("Authentication failed"),
 			http.StatusBadRequest,
 			"BadRequest")
 	}
@@ -84,7 +84,7 @@ func (authFilter AuthenticationFilter) oAuth(req *web.Request, handler web.Handl
 	_, err = authenticator.Authenticate(req.Request)
 	if err != nil {
 		return nil, web.NewHTTPError(
-			errors.New("Authentication failed!"),
+			errors.New("Authentication failed"),
 			http.StatusUnauthorized,
 			"Unauthorized")
 	}

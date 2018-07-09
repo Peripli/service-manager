@@ -93,7 +93,7 @@ type Platform interface {
 	Update(platform *types.Platform) error
 }
 
-// Platform interface for Platform db operations
+// Credentials interface for Credentials db operations
 type Credentials interface {
 	// Get retrieves credentials using the provided username from SM DB
 	Get(username string) (*types.Credentials, error)

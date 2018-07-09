@@ -24,19 +24,22 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
+// Authenticator for basic authentication
 type Authenticator struct {
 	CredentialStorage storage.Credentials
 }
 
+// NewAuthenticator constructs a Basic authentication Authenticator
 func NewAuthenticator(storage storage.Credentials) (authentication.Authenticator) {
 	return 	&Authenticator{CredentialStorage: storage}
 }
 
+// Authenticate authenticates by using the provided Basic credentials
 func (a *Authenticator) Authenticate(request *http.Request) (*authentication.User, error) {
 	username, password, ok := request.BasicAuth()
 	if !ok {
 		return nil, web.NewHTTPError(
-			errors.New("Missing or invalid Authorization header!"),
+			errors.New("Missing or invalid Authorization header"),
 			http.StatusUnauthorized,
 			"Unauthorized")
 	}
@@ -44,7 +47,7 @@ func (a *Authenticator) Authenticate(request *http.Request) (*authentication.Use
 	credentials, err := a.CredentialStorage.Get(username)
 	if err != nil || credentials.Basic.Password != password {
 		return nil, web.NewHTTPError(
-			errors.New("Authentication failed!"),
+			errors.New("Authentication failed"),
 			http.StatusUnauthorized,
 			"Unauthorized")
 	}
