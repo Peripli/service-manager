@@ -23,6 +23,7 @@ import (
 	"os/signal"
 
 	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/server"
 
 	"github.com/Peripli/service-manager/app"
 	"github.com/Peripli/service-manager/cf"
@@ -36,8 +37,8 @@ import (
 
 // ServiceManager service manager struct
 type ServiceManager struct {
-	Context context.Context
-	Config  *config.Settings
+	context context.Context
+	config  *config.Settings
 	api     *rest.API
 }
 
@@ -53,20 +54,32 @@ func (sm *ServiceManager) RegisterFilters(filters ...web.Filter) {
 
 // Run starts the Service Manager
 func (sm *ServiceManager) Run() {
-	srv, err := app.New(sm.Context, &app.Parameters{
-		Settings: sm.Config,
+	sm.getServer().Run(sm.context)
+}
+
+func (sm *ServiceManager) getServer() *server.Server {
+	srv, err := app.New(sm.context, &app.Parameters{
+		Settings: sm.config,
 		API:      sm.api,
 	})
 	if err != nil {
 		panic(fmt.Sprintf("error creating SM server: %s", err))
 	}
-	srv.Run(sm.Context)
+	return srv
 }
 
 // New returns service-manager server with default setup. The function panics on bad configuration
 func New(ctx context.Context, cancel context.CancelFunc) *ServiceManager {
 	handleInterrupts(ctx, cancel)
 
+	return &ServiceManager{
+		context: ctx,
+		config:  getConfig(ctx),
+		api:     &rest.API{},
+	}
+}
+
+func getConfig(ctx context.Context) *config.Settings {
 	set := env.EmptyFlagSet()
 	config.AddPFlags(set)
 
@@ -81,12 +94,7 @@ func New(ctx context.Context, cancel context.CancelFunc) *ServiceManager {
 	if err != nil {
 		panic(fmt.Sprintf("error loading configuration: %s", err))
 	}
-
-	return &ServiceManager{
-		Context: ctx,
-		Config:  cfg,
-		api:     &rest.API{},
-	}
+	return cfg
 }
 
 func handleInterrupts(ctx context.Context, cancelFunc context.CancelFunc) {

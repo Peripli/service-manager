@@ -18,6 +18,7 @@ package config_test
 
 import (
 	"fmt"
+	"testing"
 
 	"github.com/Peripli/service-manager/api"
 	cfg "github.com/Peripli/service-manager/config"
@@ -28,6 +29,11 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
+
+func TestConfig(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Config Suite")
+}
 
 var _ = Describe("config", func() {
 

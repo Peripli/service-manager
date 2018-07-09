@@ -36,7 +36,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-func TestApi(t *testing.T) {
+func TestEnv(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Env Suite")
 }
