@@ -23,6 +23,7 @@ func TestFilters(t *testing.T) {
 
 var _ = Describe("Service Manager Filters", func() {
 	var ctx *common.TestContext
+	var testBroker *common.Broker
 
 	var testFilters []web.Filter
 
@@ -30,6 +31,8 @@ var _ = Describe("Service Manager Filters", func() {
 		api := &rest.API{}
 		api.RegisterFilters(testFilters...)
 		ctx = common.NewTestContext(api)
+		ctx.RegisterBroker("broker1", nil)
+		testBroker = ctx.Brokers["broker1"]
 	})
 
 	AfterEach(func() {
@@ -56,15 +59,15 @@ var _ = Describe("Service Manager Filters", func() {
 		})
 
 		It("should be called only on OSB API", func() {
-			ctx.SMWithBasic.GET(ctx.OSBURL + "/v2/catalog").
+			ctx.SMWithBasic.GET(testBroker.OSBURL + "/v2/catalog").
 				Expect().Status(http.StatusOK).Header("filter").Equal("called")
 
-			ctx.SMWithBasic.PUT(ctx.OSBURL+"/v2/service_instances/1234").
+			ctx.SMWithBasic.PUT(testBroker.OSBURL+"/v2/service_instances/1234").
 				WithHeader("Content-Type", "application/json").
 				WithJSON(object{}).
 				Expect().Status(http.StatusOK).Header("filter").Equal("called")
 
-			ctx.SMWithBasic.DELETE(ctx.OSBURL + "/v2/service_instances/1234/service_bindings/111").
+			ctx.SMWithBasic.DELETE(testBroker.OSBURL + "/v2/service_instances/1234/service_bindings/111").
 				Expect().Status(http.StatusOK).Header("filter").Equal("called")
 
 			ctx.SMWithOAuth.GET("/v1/service_brokers").

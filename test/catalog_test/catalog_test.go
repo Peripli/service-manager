@@ -17,7 +17,6 @@ package catalog_test
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"testing"
 
@@ -40,10 +39,8 @@ var _ = Describe("Service Manager Aggregated Catalog API", func() {
 	const brokersLen = 3
 
 	var (
-		SM *httpexpect.Expect
-
-		serviceManagerServer *httptest.Server
-		brokerServer         *ghttp.Server
+		ctx          *common.TestContext
+		brokerServer *ghttp.Server
 
 		testBroker  map[string]interface{}
 		testBrokers [brokersLen]map[string]interface{}
@@ -55,27 +52,24 @@ var _ = Describe("Service Manager Aggregated Catalog API", func() {
 	BeforeSuite(func() {
 		os.Chdir("../..")
 
-		serviceManagerServer = httptest.NewServer(common.GetServerRouter(nil, ""))
-		SM = httpexpect.New(GinkgoT(), serviceManagerServer.URL)
+		ctx = common.NewTestContext(nil)
 	})
 
 	AfterSuite(func() {
-		if serviceManagerServer != nil {
-			serviceManagerServer.Close()
-		}
+		ctx.Cleanup()
 	})
 
 	BeforeEach(func() {
 		code = http.StatusOK
 		catalogResponse = []byte(common.Catalog)
 		brokerServer = common.FakeBrokerServer(&code, &catalogResponse)
-		common.RemoveAllBrokers(SM)
+		common.RemoveAllBrokers(ctx.SMWithOAuth)
 	})
 
 	Describe("GET", func() {
 		Context("when no brokers exist", func() {
 			It("returns 200 and empty brokers array", func() {
-				obj := SM.GET("/v1/sm_catalog").
+				obj := ctx.SMWithOAuth.GET("/v1/sm_catalog").
 					Expect().
 					Status(http.StatusOK).
 					JSON().Object()
@@ -92,13 +86,13 @@ var _ = Describe("Service Manager Aggregated Catalog API", func() {
 			})
 
 			It("returns 200 with a single element broker array and one corresponding service", func() {
-				reply := SM.POST("/v1/service_brokers").WithJSON(testBroker).
+				reply := ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(testBroker).
 					Expect().
 					JSON().Object()
 
 				id := reply.Value("id").String().Raw()
 
-				obj := SM.GET("/v1/sm_catalog").
+				obj := ctx.SMWithOAuth.GET("/v1/sm_catalog").
 					Expect().
 					Status(http.StatusOK).
 					JSON().Object()
@@ -127,13 +121,13 @@ var _ = Describe("Service Manager Aggregated Catalog API", func() {
 
 			It("returns 200 with multiple element broker array with a single service each", func() {
 				for i := 0; i < brokersLen; i++ {
-					replies[i] = SM.POST("/v1/service_brokers").WithJSON(testBrokers[i]).
+					replies[i] = ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(testBrokers[i]).
 						Expect().
 						JSON().Object()
 					ids[i] = replies[i].Value("id").String().Raw()
 				}
 
-				obj := SM.GET("/v1/sm_catalog").
+				obj := ctx.SMWithOAuth.GET("/v1/sm_catalog").
 					Expect().
 					Status(http.StatusOK).
 					JSON().Object()
@@ -156,13 +150,13 @@ var _ = Describe("Service Manager Aggregated Catalog API", func() {
 
 			It("returns 200 with single broker array when broker_id query param is provided", func() {
 				for i := 0; i < brokersLen; i++ {
-					replies[i] = SM.POST("/v1/service_brokers").WithJSON(testBrokers[i]).
+					replies[i] = ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(testBrokers[i]).
 						Expect().
 						JSON().Object()
 					ids[i] = replies[i].Value("id").String().Raw()
 				}
 
-				obj := SM.GET("/v1/sm_catalog").
+				obj := ctx.SMWithOAuth.GET("/v1/sm_catalog").
 					WithQuery("broker_id", ids[0]).
 					Expect().
 					Status(http.StatusOK).

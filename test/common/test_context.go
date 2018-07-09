@@ -82,20 +82,23 @@ type TestContext struct {
 	Brokers map[string]*Broker
 }
 
-func (ctx *TestContext) RegisterBroker(name string) {
+func (ctx *TestContext) RegisterBroker(name string, server *httptest.Server) *Broker {
 	broker := &Broker{}
-	brokerServer := httptest.NewServer(broker)
-	brokerJSON := MakeBroker(name, brokerServer.URL, "")
+	if server == nil {
+		server = httptest.NewServer(broker)
+	}
+	brokerJSON := MakeBroker(name, server.URL, "")
 	broker.ResponseBody = []byte(serviceCatalog)
 	brokerID := RegisterBroker(brokerJSON, ctx.SMWithOAuth)
 
 	broker.OSBURL = "/v1/osb/" + brokerID
-	broker.Server = brokerServer
+	broker.Server = server
 
 	broker.ResponseBody = nil
 	broker.Request = nil
 
 	ctx.Brokers[name] = broker
+	return broker
 }
 
 func (ctx *TestContext) Cleanup() {
