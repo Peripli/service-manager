@@ -71,7 +71,7 @@ func (authFilter AuthenticationFilter) basicAuth(req *web.Request, handler web.H
 func (authFilter AuthenticationFilter) oAuth(req *web.Request, handler web.Handler) (*web.Response, error) {
 	authenticator, err := oidc.NewAuthenticator(req.Request.Context(), oidc.Options{
 		IssuerURL: authFilter.TokenIssuerURL,
-		ClientID:  "cf",
+		ClientID:  "smctl",
 	})
 	if err != nil {
 		logrus.Error(err)
