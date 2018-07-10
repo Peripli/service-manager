@@ -271,7 +271,7 @@ func SetupMockOAuthServer() *httptest.Server {
 		token, err := jwt.Sign(signer, &jwt.Options{
 			Issuer:         issuerURL + "/oauth/token",
 			KeyID:          keyID,
-			Audience:       "cf",
+			Audience:       "smctl",
 			ExpirationTime: nextYear})
 		if err != nil {
 			panic(err)
