@@ -44,17 +44,24 @@ type postgresStorage struct {
 	db   *sqlx.DB
 }
 
-func (storage *postgresStorage) Broker() storage.Broker {
+func (storage *postgresStorage) checkOpen() {
 	if storage.db == nil {
 		logrus.Panicln("Storage is not yet Open")
 	}
+}
+
+func (storage *postgresStorage) Ping() error {
+	storage.checkOpen()
+	return storage.db.Ping()
+}
+
+func (storage *postgresStorage) Broker() storage.Broker {
+	storage.checkOpen()
 	return &brokerStorage{storage.db}
 }
 
 func (storage *postgresStorage) Platform() storage.Platform {
-	if storage.db == nil {
-		logrus.Panicln("Storage is not yet Open")
-	}
+	storage.checkOpen()
 	return &platformStorage{storage.db}
 }
 
@@ -79,6 +86,7 @@ func (storage *postgresStorage) Open(uri string) error {
 }
 
 func (storage *postgresStorage) Close() error {
+	storage.checkOpen()
 	return storage.db.Close()
 }
 
