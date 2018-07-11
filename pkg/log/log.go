@@ -17,7 +17,11 @@
 // Package log contains logic for setting up logging for SM
 package log
 
-import "github.com/sirupsen/logrus"
+import (
+	"fmt"
+
+	"github.com/sirupsen/logrus"
+)
 
 // Settings type to be loaded from the environment
 type Settings struct {
@@ -25,16 +29,21 @@ type Settings struct {
 	Format string
 }
 
+var supportedFormatters = map[string]logrus.Formatter{
+	"json": &logrus.JSONFormatter{},
+	"text": &logrus.TextFormatter{},
+}
+
 // SetupLogging configures logrus logging using the provided settings
 func SetupLogging(settings Settings) {
 	level, err := logrus.ParseLevel(settings.Level)
 	if err != nil {
-		panic("Could not parse log level configuration")
+		panic(fmt.Sprintf("Could not parse log level configuration: %s", err.Error()))
 	}
 	logrus.SetLevel(level)
-	if settings.Format == "json" {
-		logrus.SetFormatter(&logrus.JSONFormatter{})
-	} else {
-		logrus.SetFormatter(&logrus.TextFormatter{})
+	formatter, ok := supportedFormatters[settings.Format]
+	if !ok {
+		panic(fmt.Sprintf("Invalid log format: %s", settings.Format))
 	}
+	logrus.SetFormatter(formatter)
 }

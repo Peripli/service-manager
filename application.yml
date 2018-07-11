@@ -7,5 +7,8 @@ log:
   format: text
 storage:
   uri: postgres://postgres:postgres@192.168.99.100:5432/postgres?sslmode=disable
+#storage:
+#  name: sm-postgres
 api:
   token_issuer_url: https://uaa.local.pcfdev.io
+

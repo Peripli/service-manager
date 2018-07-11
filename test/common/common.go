@@ -28,6 +28,7 @@ import (
 
 	"github.com/Peripli/service-manager/app"
 	"github.com/Peripli/service-manager/config"
+	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/rest"
 	"github.com/gavv/httpexpect"
 	"github.com/gorilla/mux"
@@ -74,11 +75,12 @@ const Catalog = `{
 }`
 
 func GetServerHandler(api *rest.API) http.Handler {
-	set := config.SMFlagSet()
+	set := env.EmptyFlagSet()
+
 	config.AddPFlags(set)
 	set.Set("file.location", "./test/common")
 
-	serverEnv, err := config.NewEnv(set)
+	serverEnv, err := env.New(set)
 	if err != nil {
 		logrus.Fatal("Error creating server: ", err)
 	}
