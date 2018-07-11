@@ -37,13 +37,13 @@ func TestPlatforms(t *testing.T) {
 }
 
 var _ = Describe("Service Manager Platform API", func() {
-	var SM, SMWithAuth *httpexpect.Expect
+	var SMWithAuth *httpexpect.Expect
 	var testServer *httptest.Server
 
 	BeforeSuite(func() {
 		mockOauthServer := common.SetupMockOAuthServer()
 		testServer = httptest.NewServer(common.GetServerRouter(nil, mockOauthServer.URL))
-		SM = httpexpect.New(GinkgoT(), testServer.URL)
+		SM := httpexpect.New(GinkgoT(), testServer.URL)
 
 		accessToken := common.RequestToken(mockOauthServer.URL)
 		SMWithAuth = SM.Builder(func(req *httpexpect.Request) {

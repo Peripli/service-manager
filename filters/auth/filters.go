@@ -28,13 +28,15 @@ const authFilterName = "AuthenticationFilter"
 type AuthenticationFilter struct {
 	CredentialsStorage storage.Credentials
 	TokenIssuerURL string
+	CLIClientID    string
 }
 
 // NewAuthenticationFilter constructs a new AuthenticationFilter object
-func NewAuthenticationFilter(credentialStorage storage.Credentials, tokenIssuerURL string) AuthenticationFilter {
+func NewAuthenticationFilter(credentialStorage storage.Credentials, tokenIssuerURL, cliClientID string) AuthenticationFilter {
 	return AuthenticationFilter{
 		CredentialsStorage: credentialStorage,
 		TokenIssuerURL: tokenIssuerURL,
+		CLIClientID: cliClientID,
 	}
 }
 

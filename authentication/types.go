@@ -20,3 +20,8 @@ package authentication
 type User struct {
 	Name string
 }
+
+// CLISettings type to be loaded from the environment
+type CLISettings struct {
+	ClientID string
+}

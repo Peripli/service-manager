@@ -63,6 +63,6 @@ func New(ctx context.Context, params *Parameters) (*server.Server, error) {
 }
 
 func registerDefaultFilters(api *rest.API, storage storage.Storage, cfg *config.Settings) {
-	authFilter := auth.NewAuthenticationFilter(storage.Credentials(), cfg.API.TokenIssuerURL)
+	authFilter := auth.NewAuthenticationFilter(storage.Credentials(), cfg.API.TokenIssuerURL, cfg.CLI.ClientID)
 	api.RegisterFilters(authFilter.Filters()...)
 }

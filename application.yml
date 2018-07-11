@@ -9,3 +9,5 @@ storage:
   uri: postgres://postgres:postgres@192.168.99.100:5432/postgres?sslmode=disable
 api:
   token_issuer_url: https://uaa.local.pcfdev.io
+cli:
+  clientId: smctl

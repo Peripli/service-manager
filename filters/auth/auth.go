@@ -50,12 +50,12 @@ func (authFilter AuthenticationFilter) filterDispatcher(req *web.Request, handle
 		return authFilter.basicAuth(req, handler)
 	case bearerScheme:
 		return authFilter.oAuth(req, handler)
+	default:
+		return nil, web.NewHTTPError(
+			errors.New("Unsupported authentication scheme"),
+			http.StatusUnauthorized,
+			"Unauthorized")
 	}
-
-	return nil, web.NewHTTPError(
-		errors.New("Unsupported authentication scheme"),
-		http.StatusUnauthorized,
-		"Unauthorized")
 }
 
 func (authFilter AuthenticationFilter) basicAuth(req *web.Request, handler web.Handler) (*web.Response, error) {
@@ -71,14 +71,14 @@ func (authFilter AuthenticationFilter) basicAuth(req *web.Request, handler web.H
 func (authFilter AuthenticationFilter) oAuth(req *web.Request, handler web.Handler) (*web.Response, error) {
 	authenticator, err := oidc.NewAuthenticator(req.Request.Context(), oidc.Options{
 		IssuerURL: authFilter.TokenIssuerURL,
-		ClientID:  "smctl",
+		ClientID:  authFilter.CLIClientID,
 	})
 	if err != nil {
 		logrus.Error(err)
 		return nil, web.NewHTTPError(
 			errors.New("Authentication failed"),
-			http.StatusBadRequest,
-			"BadRequest")
+			http.StatusInternalServerError,
+			"InternalServerError")
 	}
 
 	_, err = authenticator.Authenticate(req.Request)

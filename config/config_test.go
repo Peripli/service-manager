@@ -27,6 +27,7 @@ import (
 	"github.com/Peripli/service-manager/storage"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/Peripli/service-manager/authentication"
 )
 
 var _ = Describe("config", func() {
@@ -47,6 +48,7 @@ var _ = Describe("config", func() {
 			config = cfg.DefaultSettings()
 			config.Storage.URI = "postgres://postgres:postgres@localhost:5555/postgres?sslmode=disable"
 			config.API.TokenIssuerURL = "http://example.com"
+			config.CLI.ClientID = "smctl"
 		})
 
 		Context("when config is valid", func() {
@@ -104,6 +106,13 @@ var _ = Describe("config", func() {
 				assertErrorDuringValidate()
 			})
 		})
+
+		Context("when CLI ClientID is missing", func() {
+			It("returns an error", func() {
+				config.CLI.ClientID = ""
+				assertErrorDuringValidate()
+			})
+		})
 	})
 
 	Describe("New Settings", func() {
@@ -150,6 +159,9 @@ var _ = Describe("config", func() {
 					},
 					API: api.Settings{
 						TokenIssuerURL: "http://example.com",
+					},
+					CLI: authentication.CLISettings{
+						ClientID: "smctl",
 					},
 				}
 

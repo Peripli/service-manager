@@ -25,6 +25,7 @@ import (
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/spf13/pflag"
+	"github.com/Peripli/service-manager/authentication"
 )
 
 // Environment represents an abstraction over the env from which Service Manager configuration will be loaded
@@ -42,6 +43,7 @@ type Settings struct {
 	Storage storage.Settings
 	Log     log.Settings
 	API     api.Settings
+	CLI     authentication.CLISettings
 }
 
 // File describes the name, path and the format of the file to be used to load the configuration in the env
@@ -68,6 +70,9 @@ func DefaultSettings() *Settings {
 		},
 		API: api.Settings{
 			TokenIssuerURL: "",
+		},
+		CLI: authentication.CLISettings{
+			ClientID: "",
 		},
 	}
 	return config
@@ -127,6 +132,9 @@ func (c *Settings) Validate() error {
 	}
 	if (len(c.API.TokenIssuerURL)) == 0 {
 		return fmt.Errorf("validate Settings: APITokenIssuerURL missing")
+	}
+	if (len(c.CLI.ClientID)) == 0 {
+		return fmt.Errorf("validate Settings: CLIClientID missing")
 	}
 	return nil
 }
