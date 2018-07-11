@@ -39,7 +39,7 @@ type Settings struct {
 // AddPFlags adds the SM config flags to the provided flag set
 func AddPFlags(set *pflag.FlagSet) {
 	env.CreatePFlags(set, DefaultSettings())
-	env.CreatePFlags(set, struct{ File env.File }{File: env.DefaultConfigFile()})
+	env.CreatePFlagsForConfigFile(set)
 }
 
 // DefaultSettings returns the default values for configuring the Service Manager

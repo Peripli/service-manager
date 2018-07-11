@@ -29,6 +29,11 @@ type Settings struct {
 	Format string
 }
 
+var supportedFormatters = map[string]logrus.Formatter{
+	"json": &logrus.JSONFormatter{},
+	"text": &logrus.TextFormatter{},
+}
+
 // SetupLogging configures logrus logging using the provided settings
 func SetupLogging(settings Settings) {
 	level, err := logrus.ParseLevel(settings.Level)
@@ -36,12 +41,9 @@ func SetupLogging(settings Settings) {
 		panic(fmt.Sprintf("Could not parse log level configuration: %s", err.Error()))
 	}
 	logrus.SetLevel(level)
-	switch settings.Format {
-	case "json":
-		logrus.SetFormatter(&logrus.JSONFormatter{})
-	case "text":
-		logrus.SetFormatter(&logrus.TextFormatter{})
-	default:
+	formatter, ok := supportedFormatters[settings.Format]
+	if !ok {
 		panic(fmt.Sprintf("Invalid log format: %s", settings.Format))
 	}
+	logrus.SetFormatter(formatter)
 }
