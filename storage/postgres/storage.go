@@ -20,6 +20,7 @@ package postgres
 import (
 	"database/sql"
 	"sync"
+	"time"
 
 	"fmt"
 
@@ -40,8 +41,9 @@ func init() {
 }
 
 type postgresStorage struct {
-	once sync.Once
-	db   *sqlx.DB
+	once  sync.Once
+	db    *sqlx.DB
+	state *storageState
 }
 
 func (storage *postgresStorage) checkOpen() {
@@ -52,7 +54,7 @@ func (storage *postgresStorage) checkOpen() {
 
 func (storage *postgresStorage) Ping() error {
 	storage.checkOpen()
-	return storage.db.Ping()
+	return storage.state.Get()
 }
 
 func (storage *postgresStorage) Broker() storage.Broker {
@@ -75,7 +77,13 @@ func (storage *postgresStorage) Open(uri string) error {
 		if err != nil {
 			logrus.Panicln("Could not connect to PostgreSQL:", err)
 		}
-
+		storage.state = &storageState{
+			storageError:         nil,
+			lastCheck:            time.Now(),
+			mutex:                &sync.RWMutex{},
+			db:                   storage.db,
+			storageCheckInterval: time.Second * 5,
+		}
 		logrus.Debug("Updating database schema")
 		if err := updateSchema(storage.db); err != nil {
 			logrus.Panicln("Could not update database schema:", err)

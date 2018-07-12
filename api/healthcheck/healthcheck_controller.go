@@ -69,7 +69,7 @@ func (c *Controller) healthCheck(request *web.Request) (*web.Response, error) {
 	logrus.Debug("Healthcheck")
 
 	if err := c.Storage.Ping(); err != nil {
-		logrus.Debugf("storage.Ping failed %s", err)
+		logrus.Debugf("storage.Ping failed: %s", err)
 		return rest.NewJSONResponse(http.StatusServiceUnavailable, statusStorageFailureResponse)
 	}
 	return rest.NewJSONResponse(http.StatusOK, statusRunningResponse)
