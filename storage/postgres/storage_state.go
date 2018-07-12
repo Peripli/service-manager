@@ -37,7 +37,7 @@ func (state *storageState) Get() error {
 	if cacheIsValid, storageError := state.getCashed(); cacheIsValid {
 		return storageError
 	}
-	return state.get()
+	return state.checkDB()
 }
 
 func (state *storageState) cachedStateIsValid() bool {
@@ -53,7 +53,7 @@ func (state *storageState) getCashed() (cacheIsValid bool, storageError error) {
 	return false, nil
 }
 
-func (state *storageState) get() error {
+func (state *storageState) checkDB() error {
 	state.mutex.Lock()
 	defer state.mutex.Unlock()
 	// check if someone hasn't updated the cached state already
