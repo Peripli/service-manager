@@ -17,11 +17,13 @@
 package basic
 
 import (
-	"net/http"
-	"github.com/Peripli/service-manager/authentication"
 	"errors"
-	"github.com/Peripli/service-manager/storage"
+	"net/http"
+
+	"github.com/Peripli/service-manager/authentication"
 	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/storage"
+	"github.com/sirupsen/logrus"
 )
 
 // Authenticator for basic authentication
@@ -30,8 +32,8 @@ type Authenticator struct {
 }
 
 // NewAuthenticator constructs a Basic authentication Authenticator
-func NewAuthenticator(storage storage.Credentials) (authentication.Authenticator) {
-	return 	&Authenticator{CredentialStorage: storage}
+func NewAuthenticator(storage storage.Credentials) authentication.Authenticator {
+	return &Authenticator{CredentialStorage: storage}
 }
 
 // Authenticate authenticates by using the provided Basic credentials
@@ -45,11 +47,25 @@ func (a *Authenticator) Authenticate(request *http.Request) (*authentication.Use
 	}
 
 	credentials, err := a.CredentialStorage.Get(username)
-	if err != nil || credentials.Basic.Password != password {
+
+	responseError := web.NewHTTPError(
+		errors.New("Authentication failed"),
+		http.StatusUnauthorized,
+		"Unauthorized")
+	if err == storage.ErrNotFound {
+		logrus.Debugf("Username not found")
+		return nil, responseError
+	} else if credentials.Basic.Password != password {
+		logrus.Debugf("Password mismatch")
+		return nil, responseError
+	}
+
+	if err != nil {
+		logrus.Errorf("Could not get credentials entity from storage")
 		return nil, web.NewHTTPError(
-			errors.New("Authentication failed"),
-			http.StatusUnauthorized,
-			"Unauthorized")
+			errors.New("Internal Server Error"),
+			http.StatusInternalServerError,
+			"InternalServerError")
 	}
 
 	return &authentication.User{
