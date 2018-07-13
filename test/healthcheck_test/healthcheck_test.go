@@ -17,7 +17,6 @@
 package healthcheck_test
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -56,7 +55,6 @@ var _ = Describe("Healthcheck API", func() {
 				Expect().
 				Status(http.StatusOK).
 				JSON().Object()
-			fmt.Println("Test")
 			responseObject.Value("status").String().Equal("UP")
 			responseObject.Value("storage").Object().Value("status").String().Equal("UP")
 		})
