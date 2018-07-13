@@ -25,29 +25,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const (
-	apiVersion = "v1"
-	root       = "monitor/health"
-	// URL is the path of the healthcheck endpoint
-	URL = "/" + apiVersion + "/" + root
-)
-
 // Controller platform controller
 type Controller struct {
 	Storage storage.Storage
-}
-
-// Routes returns slice of routes which handle healthcheck operation
-func (c *Controller) Routes() []rest.Route {
-	return []rest.Route{
-		{
-			Endpoint: rest.Endpoint{
-				Method: http.MethodGet,
-				Path:   URL,
-			},
-			Handler: c.healthCheck,
-		},
-	}
 }
 
 var statusRunningResponse = map[string]interface{}{
