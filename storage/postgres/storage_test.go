@@ -40,6 +40,14 @@ var _ = Describe("Postgres Storage", func() {
 		})
 	})
 
+	Describe("Ping", func() {
+		Context("Called with uninitialized db", func() {
+			It("Should panic", func() {
+				Expect(func() { pgStorage.Ping() }).To(Panic())
+			})
+		})
+	})
+
 	Describe("Open", func() {
 		Context("Called with empty uri", func() {
 			It("Should return error", func() {
