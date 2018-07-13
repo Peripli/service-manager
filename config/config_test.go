@@ -18,17 +18,23 @@ package config_test
 
 import (
 	"fmt"
+	"testing"
 
 	"github.com/Peripli/service-manager/api"
 	cfg "github.com/Peripli/service-manager/config"
-	"github.com/Peripli/service-manager/config/configfakes"
-	"github.com/Peripli/service-manager/log"
+	"github.com/Peripli/service-manager/pkg/env/envfakes"
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/Peripli/service-manager/authentication"
 )
+
+func TestConfig(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Config Suite")
+}
 
 var _ = Describe("config", func() {
 
@@ -118,7 +124,7 @@ var _ = Describe("config", func() {
 	Describe("New Settings", func() {
 
 		var (
-			fakeEnv       *configfakes.FakeEnvironment
+			fakeEnv       *envfakes.FakeEnvironment
 			creationError = fmt.Errorf("creation error")
 		)
 
@@ -128,7 +134,7 @@ var _ = Describe("config", func() {
 		}
 
 		BeforeEach(func() {
-			fakeEnv = &configfakes.FakeEnvironment{}
+			fakeEnv = &envfakes.FakeEnvironment{}
 		})
 
 		Context("when unmarshaling from environment fails", func() {

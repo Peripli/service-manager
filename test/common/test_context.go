@@ -46,7 +46,7 @@ var serviceCatalog = `{
 
 func NewTestContext(api *rest.API) *TestContext {
 	mockOauthServer := SetupMockOAuthServer()
-	smServer := httptest.NewServer(GetServerRouter(api, mockOauthServer.URL))
+	smServer := httptest.NewServer(GetServerHandler(api, mockOauthServer.URL))
 	SM := httpexpect.New(GinkgoT(), smServer.URL)
 
 	accessToken := RequestToken(mockOauthServer.URL)

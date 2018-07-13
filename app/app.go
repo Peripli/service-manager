@@ -23,7 +23,7 @@ import (
 
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/config"
-	"github.com/Peripli/service-manager/log"
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
@@ -59,7 +59,7 @@ func New(ctx context.Context, params *Parameters) (*server.Server, error) {
 		coreAPI.RegisterFilters(params.API.Filters...)
 	}
 
-	return server.New(coreAPI, params.Settings.Server)
+	return server.New(coreAPI, params.Settings.Server), nil
 }
 
 func registerDefaultFilters(api *rest.API, storage storage.Storage, cfg *config.Settings) {

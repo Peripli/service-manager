@@ -35,6 +35,7 @@ import (
 
 	"github.com/Peripli/service-manager/app"
 	"github.com/Peripli/service-manager/config"
+	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/types"
 	"github.com/gavv/httpexpect"
@@ -83,12 +84,12 @@ const Catalog = `{
   ]
 }`
 
-func GetServerRouter(api *rest.API, tokenIssuerURL string) *mux.Router {
-	set := config.SMFlagSet()
+func GetServerHandler(api *rest.API, tokenIssuerURL string) http.Handler {
+	set := env.EmptyFlagSet()
 	config.AddPFlags(set)
 	set.Set("file.location", "./test/common")
 
-	serverEnv, err := config.NewEnv(set)
+	serverEnv, err := env.New(set)
 	if err != nil {
 		logrus.Fatal("Error creating server: ", err)
 	}
@@ -105,7 +106,7 @@ func GetServerRouter(api *rest.API, tokenIssuerURL string) *mux.Router {
 	if err != nil {
 		logrus.Fatal("Error creating server router during test server initialization: ", err)
 	}
-	return srv.Router
+	return srv.Handler
 }
 
 func MapContains(actual Object, expected Object) {
@@ -245,7 +246,6 @@ func RequestToken(issuerURL string) string {
 	token := issuer.GET("/oauth/token").Expect().
 		Status(http.StatusOK).JSON().Object().
 		Value("access_token").String().Raw()
-
 	return token
 }
 

@@ -26,27 +26,16 @@ func requestLogging(req *web.Request, next web.Handler) (*web.Response, error) {
 func main() {
     ctx, cancel := context.WithCancel(context.Background())
     defer cancel()
-
-    api := &rest.API{}
-    api.RegisterFilter(&web.Filter{
+    sm := servicemanager.New(ctx, cancel)
+    sm.RegisterFilter(&web.Filter{
         RouterMatcher: &web.RouterMatcher{
             // Will match any HTTP request
             PathPattern: "**",
         },
         Middleware: requestLogging,
     })
-	parameters := &app.Parameters{
-        Settings: ..., // provide Settings
-        API: api
-	}
-	srv, err := app.New(ctx, parameters)
-	if err != nil {
-		panic(fmt.Sprintf("error creating SM server: %s", err))
-	}
-
-    srv.Run(ctx)
+    sm.Run()
 }
-
 ...
 ```
 
@@ -115,19 +104,9 @@ In order to add this plugin to the Service Manager one has to do the following:
 func main() {
     ctx, cancel := context.WithCancel(context.Background())
     defer cancel()
-
-    api := &rest.API{}
-    api.RegisterPlugin(&MyPlugin{})
-	parameters := &app.Parameters{
-        Settings: ..., // provide Settings
-        API: api
-	}
-	srv, err := app.New(ctx, parameters)
-	if err != nil {
-		panic(fmt.Sprintf("error creating SM server: %s", err))
-	}
-
-    srv.Run(ctx)
+    sm := servicemanager.New(ctx, cancel)
+    sm.RegisterPlugin(&mypackage.MyPlugin{})
+    sm.Run()
 }
 
 ...

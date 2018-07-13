@@ -14,10 +14,11 @@
  *    limitations under the License.
  */
 
-package config
+package env
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	"os"
@@ -29,8 +30,45 @@ import (
 	"github.com/spf13/viper"
 )
 
+// File describes the name, path and the format of the file to be used to load the configuration in the env
+type File struct {
+	Name     string
+	Location string
+	Format   string
+}
+
+// DefaultConfigFile holds the default SM config file properties
+func DefaultConfigFile() File {
+	return File{
+		Name:     "application",
+		Location: ".",
+		Format:   "yml",
+	}
+}
+
+// CreatePFlagsForConfigFile creates pflags for setting the configuration file
+func CreatePFlagsForConfigFile(set *pflag.FlagSet) {
+	CreatePFlags(set, struct{ File File }{File: DefaultConfigFile()})
+}
+
+// Environment represents an abstraction over the env from which Service Manager configuration will be loaded
+//go:generate counterfeiter . Environment
+type Environment interface {
+	Get(key string) interface{}
+	Set(key string, value interface{})
+	Unmarshal(value interface{}) error
+	BindPFlag(key string, flag *pflag.Flag) error
+}
+
 type viperEnv struct {
 	*viper.Viper
+}
+
+// EmptyFlagSet creates an empty flag set and adds the default se of flags to it
+func EmptyFlagSet() *pflag.FlagSet {
+	set := pflag.NewFlagSet("Service Manager Configuration Flags", pflag.ExitOnError)
+	set.AddFlagSet(pflag.CommandLine)
+	return set
 }
 
 //CreatePFlags Creates pflags for the value structure and adds them in the provided set
@@ -44,9 +82,9 @@ func CreatePFlags(set *pflag.FlagSet, value interface{}) {
 	}
 }
 
-// NewEnv creates a new environment. It accepts a flag set that should contain all the flags that the
+// New creates a new environment. It accepts a flag set that should contain all the flags that the
 // environment should be aware of.
-func NewEnv(set *pflag.FlagSet) (Environment, error) {
+func New(set *pflag.FlagSet) (Environment, error) {
 	v := &viperEnv{
 		Viper: viper.New(),
 	}
@@ -95,22 +133,19 @@ func traverseFields(value interface{}, buffer string, result map[string]interfac
 		result[key] = value
 		return
 	}
+
 	s := structs.New(value)
 	for _, field := range s.Fields() {
-		if field.IsExported() {
+		if field.IsExported() && field.Kind() != reflect.Interface && field.Kind() != reflect.Func {
 			var name string
 			if field.Tag("mapstructure") != "" {
 				name = field.Tag("mapstructure")
 			} else {
 				name = field.Name()
 			}
-			if !field.IsEmbedded() {
-				buffer += name + "."
-			}
+			buffer += name + "."
 			traverseFields(field.Value(), buffer, result)
-			if !field.IsEmbedded() {
-				buffer = buffer[0:strings.LastIndex(buffer, name)]
-			}
+			buffer = buffer[0:strings.LastIndex(buffer, name)]
 		}
 	}
 }

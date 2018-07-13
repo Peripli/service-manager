@@ -1,12 +1,14 @@
 server:
   requestTimeout: 4000ms
   shutdownTimeout: 4000ms
-  port: 8080
+port: 8080
 log:
   level: debug
   format: text
 storage:
   uri: postgres://postgres:postgres@192.168.99.100:5432/postgres?sslmode=disable
+#storage:
+#  name: sm-postgres
 api:
   token_issuer_url: https://uaa.local.pcfdev.io
 cli:

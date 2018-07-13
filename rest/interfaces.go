@@ -41,3 +41,8 @@ type Endpoint struct {
 	Method string
 	Path   string
 }
+
+// InputValidator should be implemented by types that need input validation check
+type InputValidator interface {
+	Validate() error
+}

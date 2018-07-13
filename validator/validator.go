@@ -14,27 +14,19 @@
  *    limitations under the License.
  */
 
-// Package log contains logic for setting up logging for SM
-package log
+package validator
 
-import "github.com/sirupsen/logrus"
+import (
+	"strings"
+)
 
-// Settings type to be loaded from the environment
-type Settings struct {
-	Level  string
-	Format string
-}
+var (
+	reservedSymbolsRFC3986 = strings.Join([]string{
+		":", "/", "?", "#", "[", "]", "@", "!", "$", "&", "'", "(", ")", "*", "+", ",", ";", "=",
+	}, "")
+)
 
-// SetupLogging configures logrus logging using the provided settings
-func SetupLogging(settings Settings) {
-	level, err := logrus.ParseLevel(settings.Level)
-	if err != nil {
-		panic("Could not parse log level configuration")
-	}
-	logrus.SetLevel(level)
-	if settings.Format == "json" {
-		logrus.SetFormatter(&logrus.JSONFormatter{})
-	} else {
-		logrus.SetFormatter(&logrus.TextFormatter{})
-	}
+// HasRFC3986ReservedSymbols returns true if input contains any reserver characters as defined in RFC3986 section 2.2
+func HasRFC3986ReservedSymbols(input string) bool {
+	return strings.ContainsAny(input, reservedSymbolsRFC3986)
 }
