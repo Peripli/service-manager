@@ -48,11 +48,12 @@ func (a *Authenticator) Authenticate(request *http.Request) (*authentication.Use
 
 	credentials, err := a.CredentialStorage.Get(username)
 
-	if err == storage.ErrNotFound || credentials.Basic.Password != password {
-		return nil, web.NewHTTPError(
-			errors.New("Authentication failed"),
-			http.StatusUnauthorized,
-			"Unauthorized")
+	responseError := web.NewHTTPError(
+		errors.New("Authentication failed"),
+		http.StatusUnauthorized,
+		"Unauthorized")
+	if err == storage.ErrNotFound {
+		return nil, responseError
 	}
 
 	if err != nil {
@@ -61,6 +62,10 @@ func (a *Authenticator) Authenticate(request *http.Request) (*authentication.Use
 			errors.New("Internal Server Error"),
 			http.StatusInternalServerError,
 			"InternalServerError")
+	}
+
+	if credentials.Basic.Password != password {
+		return nil, responseError
 	}
 
 	return &authentication.User{
