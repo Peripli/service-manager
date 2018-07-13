@@ -1,7 +1,7 @@
 server:
   requestTimeout: 4000ms
   shutdownTimeout: 4000ms
-port: 8080
+  port: 8080
 log:
   level: debug
   format: text
