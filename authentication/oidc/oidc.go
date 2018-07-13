@@ -26,8 +26,6 @@ import (
 	"net/url"
 	"strings"
 
-	"crypto/tls"
-
 	"github.com/Peripli/service-manager/authentication"
 	"github.com/coreos/go-oidc"
 	"github.com/sirupsen/logrus"
@@ -70,7 +68,6 @@ func NewAuthenticator(ctx context.Context, options Options) (authentication.Auth
 	if options.ReadConfigurationFunc != nil {
 		readConfigFunc = options.ReadConfigurationFunc
 	} else {
-		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 		readConfigFunc = http.DefaultClient.Do
 	}
 
