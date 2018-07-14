@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-package authentication
+package basic
 
-// User holds the information for the current user
-type User struct {
-	Name string
-}
+import (
+	"encoding/base64"
+)
 
-// CLISettings type to be loaded from the environment
-type CLISettings struct {
-	ClientID string
+// EncodeCredentials encodes Basic authorization header
+func EncodeCredentials(username, password string) string {
+	return "Basic " + base64.StdEncoding.EncodeToString(
+		[]byte(username+":"+password))
 }

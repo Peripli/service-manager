@@ -19,7 +19,6 @@ package osb
 
 import (
 	"bytes"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -29,6 +28,7 @@ import (
 	"net/url"
 	"regexp"
 
+	"github.com/Peripli/service-manager/authentication/basic"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
@@ -93,7 +93,8 @@ func (c *Controller) handler(request *web.Request) (*web.Response, error) {
 	}
 
 	modifiedRequest := request.Request.WithContext(request.Context())
-	modifiedRequest.Header.Set("Authorization", basicAuth(broker.Credentials.Basic))
+	username, password := broker.Credentials.Basic.Username, broker.Credentials.Basic.Password
+	modifiedRequest.Header.Set("Authorization", basic.EncodeCredentials(username, password))
 	modifiedRequest.URL.Scheme = target.Scheme
 	modifiedRequest.URL.Host = target.Host
 	modifiedRequest.Body = ioutil.NopCloser(bytes.NewReader(request.Body))
@@ -122,11 +123,6 @@ func (c *Controller) handler(request *web.Request) (*web.Response, error) {
 	}
 	logrus.Debugf("Service broker replied with status %d", resp.StatusCode)
 	return resp, nil
-}
-
-func basicAuth(credentials *types.Basic) string {
-	return "Basic " + base64.StdEncoding.EncodeToString(
-		[]byte(credentials.Username+":"+credentials.Password))
 }
 
 func (c *Controller) fetchBroker(request *web.Request) (*types.Broker, error) {

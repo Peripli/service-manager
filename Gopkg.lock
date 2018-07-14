@@ -47,6 +47,12 @@
   revision = "6f8212e8d10df7383609d3c377ca08884d8f3ec0"
 
 [[projects]]
+  name = "github.com/gbrlsnchs/jwt"
+  packages = ["."]
+  revision = "fd3b16eda068e8d51d245b07019854d63dc4b591"
+  version = "v0.5.0"
+
+[[projects]]
   name = "github.com/gobwas/glob"
   packages = [
     ".",
@@ -149,8 +155,8 @@
     "gzip",
     "zlib"
   ]
-  revision = "5fb1f31b0a61e9858f12f39266e059848a5f1cea"
-  version = "v1.3.0"
+  revision = "b939724e787a27c0005cabe3f78e7ed7987ac74f"
+  version = "v1.4.0"
 
 [[projects]]
   name = "github.com/klauspost/cpuid"
@@ -410,7 +416,7 @@
     "idna",
     "publicsuffix"
   ]
-  revision = "32a936f46389aa10549d60bd7833e54b01685d09"
+  revision = "cffdcf672aee934982473246bc7e9a8ba446aa9b"
 
 [[projects]]
   branch = "master"
@@ -428,7 +434,7 @@
     "unix",
     "windows"
   ]
-  revision = "ce36f3865eeb42541ce3f87f32f8462c5687befa"
+  revision = "1b2967e3c290b7c545b3db0deeda16e9be4f98a2"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -496,6 +502,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "950e72ff8e4f6931d767c487535ba9cf4b9a1d0f889e1180e0cfec90ff6939d2"
+  inputs-digest = "972784f230d19d3b7ef171b8cfcf6fca263400908561e0b113af9aa827ef0d12"
   solver-name = "gps-cdcl"
   solver-version = 1

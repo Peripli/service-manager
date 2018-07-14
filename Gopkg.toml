@@ -84,3 +84,7 @@
 [[constraint]]
   name = "github.com/coreos/go-oidc"
   revision = "1180514eaf4d9f38d0d19eef639a1d695e066e72"
+
+[[constraint]]
+  name = "github.com/gbrlsnchs/jwt"
+  version = "0.5.0"

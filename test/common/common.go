@@ -18,8 +18,15 @@ package common
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"encoding/base64"
+	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
+	"time"
 
 	"net/url"
 	"reflect"
@@ -30,8 +37,11 @@ import (
 	"github.com/Peripli/service-manager/config"
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/types"
 	"github.com/gavv/httpexpect"
+	"github.com/gbrlsnchs/jwt"
 	"github.com/gorilla/mux"
+	"github.com/mitchellh/mapstructure"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
@@ -74,9 +84,8 @@ const Catalog = `{
   ]
 }`
 
-func GetServerHandler(api *rest.API) http.Handler {
+func GetServerHandler(api *rest.API, tokenIssuerURL string) http.Handler {
 	set := env.EmptyFlagSet()
-
 	config.AddPFlags(set)
 	set.Set("file.location", "./test/common")
 
@@ -89,6 +98,9 @@ func GetServerHandler(api *rest.API) http.Handler {
 	params := &app.Parameters{
 		Settings: cfg,
 		API:      api,
+	}
+	if tokenIssuerURL != "" {
+		cfg.API.TokenIssuerURL = tokenIssuerURL
 	}
 	srv, err := app.New(context.Background(), params)
 	if err != nil {
@@ -119,7 +131,7 @@ func RemoveAllPlatforms(SM *httpexpect.Expect) {
 	removeAll(SM, "platforms", "/v1/platforms")
 }
 
-func removeAll(SM *httpexpect.Expect, entity string, rootURLPath string) {
+func removeAll(SM *httpexpect.Expect, entity, rootURLPath string) {
 	By("removing all " + entity)
 	resp := SM.GET(rootURLPath).
 		Expect().Status(http.StatusOK).JSON().Object()
@@ -135,6 +147,16 @@ func RegisterBroker(brokerJSON Object, SM *httpexpect.Expect) string {
 		WithJSON(brokerJSON).
 		Expect().Status(http.StatusCreated).JSON().Object()
 	return reply.Value("id").String().Raw()
+}
+
+func RegisterPlatform(platformJSON Object, SM *httpexpect.Expect) *types.Platform {
+	reply := SM.POST("/v1/platforms").
+		WithJSON(platformJSON).
+		Expect().Status(http.StatusCreated).JSON().Object().Raw()
+
+	platform := &types.Platform{}
+	mapstructure.Decode(reply, platform)
+	return platform
 }
 
 func setResponse(rw http.ResponseWriter, status int, message string) {
@@ -182,6 +204,99 @@ func NewFailingBrokerRouter() *mux.Router {
 	})
 
 	return router
+}
+
+func generatePrivateKey() *rsa.PrivateKey {
+	privateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+	return privateKey
+}
+
+type jwkResponse struct {
+	KeyType   string `json:"kty"`
+	Use       string `json:"sig"`
+	KeyID     string `json:"kid"`
+	Algorithm string `json:"alg"`
+	Value     string `json:"value"`
+
+	PublicKeyExponent string `json:"e"`
+	PublicKeyModulus  string `json:"n"`
+}
+
+func newJwkResponse(keyID string, publicKey rsa.PublicKey) *jwkResponse {
+	modulus := base64.RawURLEncoding.EncodeToString(publicKey.N.Bytes())
+
+	bytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(bytes, uint32(publicKey.E))
+	bytes = bytes[:3]
+	exponent := base64.RawURLEncoding.EncodeToString(bytes)
+
+	return &jwkResponse{
+		KeyType:           "RSA",
+		Use:               "sig",
+		KeyID:             keyID,
+		Algorithm:         "RSA256",
+		Value:             "",
+		PublicKeyModulus:  modulus,
+		PublicKeyExponent: exponent,
+	}
+}
+
+func RequestToken(issuerURL string) string {
+	issuer := httpexpect.New(GinkgoT(), issuerURL)
+	token := issuer.GET("/oauth/token").Expect().
+		Status(http.StatusOK).JSON().Object().
+		Value("access_token").String().Raw()
+	return token
+}
+
+func SetupMockOAuthServer() *httptest.Server {
+	privateKey := generatePrivateKey()
+	publicKey := privateKey.PublicKey
+	signer := jwt.RS256(privateKey, &publicKey)
+	keyID := "test-key"
+
+	var issuerURL string
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{
+			"issuer": "` + issuerURL + `/oauth/token",
+			"jwks_uri": "` + issuerURL + `/token_keys"
+		}`))
+	})
+
+	mux.HandleFunc("/oauth/token", func(w http.ResponseWriter, r *http.Request) {
+		nextYear := time.Now().Add(24 * 30 * 12 * time.Hour)
+		token, err := jwt.Sign(signer, &jwt.Options{
+			Issuer:         issuerURL + "/oauth/token",
+			KeyID:          keyID,
+			Audience:       "smctl",
+			ExpirationTime: nextYear})
+		if err != nil {
+			panic(err)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"access_token": "` + token + `"}`))
+	})
+
+	mux.HandleFunc("/token_keys", func(w http.ResponseWriter, r *http.Request) {
+		jwk := newJwkResponse(keyID, publicKey)
+		responseBody, _ := json.Marshal(&struct {
+			Keys []jwkResponse `json:"keys"`
+		}{
+			Keys: []jwkResponse{*jwk},
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(responseBody)
+	})
+
+	server := httptest.NewServer(mux)
+	issuerURL = server.URL
+
+	return server
 }
 
 func MakeBroker(name string, url string, description string) Object {

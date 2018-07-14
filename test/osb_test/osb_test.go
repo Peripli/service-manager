@@ -16,7 +16,6 @@
 package osb_test
 
 import (
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -88,42 +87,26 @@ func TestOSB(t *testing.T) {
 
 var _ = Describe("Service Manager OSB API", func() {
 	var (
-		SM              *httpexpect.Expect
-		testServer      *httptest.Server
-		listener        net.Listener
-		validBrokerID   string
-		failingBrokerID string
+		ctx                        *common.TestContext
+		validBroker, failingBroker *common.Broker
 	)
 
 	BeforeSuite(func() {
-		testServer = httptest.NewServer(common.GetServerHandler(nil))
-		SM = httpexpect.New(GinkgoT(), testServer.URL)
-		common.RemoveAllBrokers(SM)
-
-		validServer := httptest.NewServer(common.NewValidBrokerRouter())
+		ctx = common.NewTestContext(nil)
+		validBrokerServer := httptest.NewServer(common.NewValidBrokerRouter())
 		failingBrokerServer := httptest.NewServer(common.NewFailingBrokerRouter())
-
-		validBrokerJSON := common.MakeBroker("broker1", validServer.URL, "")
-		failingBrokerJSON := common.MakeBroker("broker2", failingBrokerServer.URL, "")
-
-		validBrokerID = common.RegisterBroker(validBrokerJSON, SM)
-		failingBrokerID = common.RegisterBroker(failingBrokerJSON, SM)
+		validBroker = ctx.RegisterBroker("broker1", validBrokerServer)
+		failingBroker = ctx.RegisterBroker("broker2", failingBrokerServer)
 	})
 
 	AfterSuite(func() {
-		if testServer != nil {
-			common.RemoveAllBrokers(SM)
-			testServer.Close()
-		}
-		if listener != nil {
-			listener.Close()
-		}
+		ctx.Cleanup()
 	})
 
 	Describe("Catalog", func() {
 		assertGETCatalogReturns200 := func() {
 			It("should get catalog", func() {
-				resp := SM.GET("/v1/osb/"+validBrokerID+"/v2/catalog").WithHeader("X-Broker-API-Version", "2.13").
+				resp := ctx.SMWithBasic.GET(validBroker.OSBURL+"/v2/catalog").WithHeader("X-Broker-API-Version", "2.13").
 					Expect().Status(http.StatusOK).JSON().Object()
 
 				resp.ContainsKey("services")
@@ -141,7 +124,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to missing broker", func() {
 			It("should get error", func() {
 				assertMissingBrokerError(
-					SM.GET("/v1/osb/missing_broker_id/v2/catalog").WithHeader("X-Broker-API-Version", "2.13"))
+					ctx.SMWithBasic.GET("/v1/osb/missing_broker_id/v2/catalog").WithHeader("X-Broker-API-Version", "2.13"))
 			})
 		})
 	})
@@ -149,7 +132,7 @@ var _ = Describe("Service Manager OSB API", func() {
 	Describe("Provision", func() {
 		Context("when call to working broker", func() {
 			It("provisions successfully", func() {
-				resp := SM.PUT("/v1/osb/"+validBrokerID+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "2.13").
+				resp := ctx.SMWithBasic.PUT(validBroker.OSBURL+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "2.13").
 					WithJSON(getDummyService()).
 					Expect().Status(http.StatusCreated).JSON().Object()
 				resp.Empty()
@@ -159,7 +142,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to broken broker", func() {
 			It("should get error", func() {
 				assertBadBrokerError(
-					SM.PUT("/v1/osb/"+failingBrokerID+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "2.13").
+					ctx.SMWithBasic.PUT(failingBroker.OSBURL+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "2.13").
 						WithJSON(getDummyService()))
 			})
 		})
@@ -167,7 +150,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to missing broker", func() {
 			It("provision fails", func() {
 				assertMissingBrokerError(
-					SM.PUT("/v1/osb/missing_broker_id/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "2.13").
+					ctx.SMWithBasic.PUT("/v1/osb/missing_broker_id/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "2.13").
 						WithJSON(getDummyService()))
 			})
 		})
@@ -176,7 +159,7 @@ var _ = Describe("Service Manager OSB API", func() {
 	Describe("Deprovision", func() {
 		Context("when trying to deprovision existing service", func() {
 			It("should be successfull", func() {
-				SM.DELETE("/v1/osb/"+validBrokerID+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "2.13").
+				ctx.SMWithBasic.DELETE(validBroker.OSBURL+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "2.13").
 					WithQueryObject(getDummyService()).
 					Expect().Status(http.StatusOK).JSON().Object()
 			})
@@ -185,7 +168,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to broken broker", func() {
 			It("should get error", func() {
 				assertBadBrokerError(
-					SM.DELETE("/v1/osb/"+failingBrokerID+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "2.13").
+					ctx.SMWithBasic.DELETE(failingBroker.OSBURL+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "2.13").
 						WithQueryObject(getDummyService()))
 			})
 		})
@@ -193,7 +176,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to missing broker", func() {
 			It("deprovision fails", func() {
 				assertMissingBrokerError(
-					SM.DELETE("/v1/osb/missing_broker_id/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "2.13").
+					ctx.SMWithBasic.DELETE("/v1/osb/missing_broker_id/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "2.13").
 						WithQueryObject(getDummyService()))
 			})
 		})
@@ -202,7 +185,7 @@ var _ = Describe("Service Manager OSB API", func() {
 	Describe("Bind", func() {
 		Context("when broker is working properly", func() {
 			It("should be successfull", func() {
-				resp := SM.PUT("/v1/osb/"+validBrokerID+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "2.13").
+				resp := ctx.SMWithBasic.PUT(validBroker.OSBURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "2.13").
 					WithJSON(getDummyService()).
 					Expect().Status(http.StatusCreated).JSON().Object()
 				credentials := resp.Value("credentials").Object()
@@ -214,14 +197,14 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when broker is not working properly", func() {
 			It("should fail", func() {
 				assertBadBrokerError(
-					SM.PUT("/v1/osb/"+failingBrokerID+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "2.13").
+					ctx.SMWithBasic.PUT(failingBroker.OSBURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "2.13").
 						WithJSON(getDummyService()))
 			})
 		})
 
 		Context("when call to missing broker", func() {
 			It("bind fails", func() {
-				assertMissingBrokerError(SM.PUT("/v1/osb/missing_broker_id/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "2.13").
+				assertMissingBrokerError(ctx.SMWithBasic.PUT("/v1/osb/missing_broker_id/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "2.13").
 					WithJSON(getDummyService()))
 			})
 		})
@@ -230,7 +213,7 @@ var _ = Describe("Service Manager OSB API", func() {
 	Describe("Unbind", func() {
 		Context("when trying to delete binding", func() {
 			It("should be successfull", func() {
-				SM.DELETE("/v1/osb/"+validBrokerID+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "2.13").
+				ctx.SMWithBasic.DELETE(validBroker.OSBURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "2.13").
 					WithQueryObject(getDummyService()).
 					Expect().Status(http.StatusOK).JSON().Object()
 
@@ -240,7 +223,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("for brokern broker", func() {
 			It("should return error", func() {
 				assertBadBrokerError(
-					SM.DELETE("/v1/osb/"+failingBrokerID+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "2.13").
+					ctx.SMWithBasic.DELETE(failingBroker.OSBURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "2.13").
 						WithQueryObject(getDummyService()))
 			})
 		})
@@ -248,7 +231,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to missing broker", func() {
 			It("unbind fails", func() {
 				assertMissingBrokerError(
-					SM.DELETE("/v1/osb/missing_broker_id/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "2.13").
+					ctx.SMWithBasic.DELETE("/v1/osb/missing_broker_id/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "2.13").
 						WithQueryObject(getDummyService()))
 			})
 		})

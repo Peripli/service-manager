@@ -86,28 +86,8 @@ var _ = Describe("servicemanager", func() {
 			})
 		})
 
-		Context("with plugins", func() {
-			It("should return server", func() {
-				ctx, cancel := context.WithCancel(context.Background())
-				defer cancel()
-				servicemanager := New(ctx, cancel)
-				servicemanager.RegisterPlugins(&customPlugin{})
-				serviceManagerServer = httptest.NewServer(servicemanager.getServer().Handler)
-				assertResponse(serviceManagerServer, "/v1/osb/abc/v2/catalog", 200, "OK")
-			})
-		})
 	})
 })
-
-type customPlugin struct{}
-
-func (cp *customPlugin) Name() string {
-	return "customPlugin"
-}
-
-func (cp *customPlugin) FetchCatalog(req *web.Request, next web.Handler) (*web.Response, error) {
-	return responseOk()
-}
 
 func responseOk() (*web.Response, error) {
 	return &web.Response{
