@@ -45,6 +45,9 @@ type Storage interface {
 	// Close clears resources associated with this storage, e.g. closes the connection the underlying storage
 	Close() error
 
+	// Ping verifies a connection to the database is still alive, establishing a connection if necessary.
+	Ping() error
+
 	// Broker provides access to service broker db operations
 	Broker() Broker
 
