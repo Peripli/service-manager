@@ -39,7 +39,7 @@ var _ = Describe("Healthcheck API", func() {
 	var testServer *httptest.Server
 
 	BeforeSuite(func() {
-		testServer = httptest.NewServer(common.GetServerHandler(nil))
+		testServer = httptest.NewServer(common.GetServerHandler(nil, ""))
 		sm = httpexpect.New(GinkgoT(), testServer.URL)
 	})
 
