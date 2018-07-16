@@ -17,26 +17,43 @@
 package auth
 
 import (
+	"context"
+	"fmt"
+	"net/http"
+
+	"github.com/Peripli/service-manager/authentication/basic"
+	"github.com/Peripli/service-manager/config"
+
+	"github.com/Peripli/service-manager/authentication"
+
+	"github.com/Peripli/service-manager/authentication/oidc"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
-	"net/http"
 )
 
 const authFilterName = "AuthenticationFilter"
 
 // AuthenticationFilter holds authentication information
 type AuthenticationFilter struct {
-	CredentialsStorage storage.Credentials
-	TokenIssuerURL string
-	CLIClientID    string
+	oAuthAuthenticator authentication.Authenticator
+	basicAuthenticator authentication.Authenticator
 }
 
 // NewAuthenticationFilter constructs a new AuthenticationFilter object
-func NewAuthenticationFilter(credentialStorage storage.Credentials, tokenIssuerURL, cliClientID string) AuthenticationFilter {
+func NewAuthenticationFilter(ctx context.Context, credentialStorage storage.Credentials, cfg *config.Settings) AuthenticationFilter {
+	oauthAuthenticator, err := oidc.NewAuthenticator(ctx, oidc.Options{
+		ClientID:  cfg.OAuth.ClientID,
+		IssuerURL: cfg.API.TokenIssuerURL,
+	})
+	if err != nil {
+		panic(fmt.Errorf("Could not construct OAuth authenticator. Reason: %s", err))
+	}
+
+	basicAuthenticator := basic.NewAuthenticator(credentialStorage)
+
 	return AuthenticationFilter{
-		CredentialsStorage: credentialStorage,
-		TokenIssuerURL: tokenIssuerURL,
-		CLIClientID: cliClientID,
+		oAuthAuthenticator: oauthAuthenticator,
+		basicAuthenticator: basicAuthenticator,
 	}
 }
 
@@ -53,7 +70,7 @@ func (authFilter AuthenticationFilter) Filters() []web.Filter {
 		{
 			Name: authFilterName,
 			RouteMatcher: web.RouteMatcher{
-				Methods: []string{http.MethodGet},
+				Methods:     []string{http.MethodGet},
 				PathPattern: "/v1/service_brokers/**",
 			},
 			Middleware: authFilter.filterDispatcher,
@@ -61,7 +78,7 @@ func (authFilter AuthenticationFilter) Filters() []web.Filter {
 		{
 			Name: authFilterName,
 			RouteMatcher: web.RouteMatcher{
-				Methods: []string{http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete},
+				Methods:     []string{http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete},
 				PathPattern: "/v1/service_brokers/**",
 			},
 			Middleware: authFilter.oAuth,

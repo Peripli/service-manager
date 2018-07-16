@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/Peripli/service-manager/api"
+	"github.com/Peripli/service-manager/authentication"
 	cfg "github.com/Peripli/service-manager/config"
 	"github.com/Peripli/service-manager/pkg/env/envfakes"
 	"github.com/Peripli/service-manager/pkg/log"
@@ -28,7 +29,6 @@ import (
 	"github.com/Peripli/service-manager/storage"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/Peripli/service-manager/authentication"
 )
 
 func TestConfig(t *testing.T) {
@@ -54,7 +54,7 @@ var _ = Describe("config", func() {
 			config = cfg.DefaultSettings()
 			config.Storage.URI = "postgres://postgres:postgres@localhost:5555/postgres?sslmode=disable"
 			config.API.TokenIssuerURL = "http://example.com"
-			config.CLI.ClientID = "smctl"
+			config.OAuth.ClientID = "smctl"
 		})
 
 		Context("when config is valid", func() {
@@ -113,9 +113,9 @@ var _ = Describe("config", func() {
 			})
 		})
 
-		Context("when CLI ClientID is missing", func() {
+		Context("when OAuth ClientID is missing", func() {
 			It("returns an error", func() {
-				config.CLI.ClientID = ""
+				config.OAuth.ClientID = ""
 				assertErrorDuringValidate()
 			})
 		})
@@ -166,7 +166,7 @@ var _ = Describe("config", func() {
 					API: api.Settings{
 						TokenIssuerURL: "http://example.com",
 					},
-					CLI: authentication.CLISettings{
+					OAuth: authentication.OAuthSettings{
 						ClientID: "smctl",
 					},
 				}

@@ -21,7 +21,7 @@ type User struct {
 	Name string
 }
 
-// CLISettings type to be loaded from the environment
-type CLISettings struct {
+// OAuthSettings type to be loaded from the environment
+type OAuthSettings struct {
 	ClientID string
 }

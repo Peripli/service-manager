@@ -11,5 +11,5 @@ storage:
 #  name: sm-postgres
 api:
   token_issuer_url: https://uaa.local.pcfdev.io
-cli:
+oauth:
   clientId: smctl

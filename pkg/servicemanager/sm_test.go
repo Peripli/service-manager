@@ -22,6 +22,7 @@ import (
 	"os"
 
 	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/test/common"
 
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
@@ -39,14 +40,21 @@ func TestServiceManager(t *testing.T) {
 var _ = Describe("servicemanager", func() {
 
 	var serviceManagerServer *httptest.Server
+	var mockUAAServer *httptest.Server
 
 	BeforeSuite(func() {
 		os.Chdir("../..")
 		os.Setenv("FILE_LOCATION", "test/common")
+		mockUAAServer = common.SetupMockOAuthServer()
+		os.Setenv("API_TOKEN_ISSUER_URL", mockUAAServer.URL)
 	})
 
 	AfterSuite(func() {
 		os.Unsetenv("FILE_LOCATION")
+		os.Unsetenv("API_TOKEN_ISSUER_URL")
+		if mockUAAServer != nil {
+			mockUAAServer.Close()
+		}
 	})
 
 	AfterEach(func() {

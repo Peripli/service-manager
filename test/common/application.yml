@@ -6,5 +6,5 @@ log:
   level: debug
 api:
   token_issuer_url: https://example.com
-cli:
+oauth:
   clientId: smctl

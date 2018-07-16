@@ -21,10 +21,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Peripli/service-manager/authentication/basic"
-	"github.com/Peripli/service-manager/authentication/oidc"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -59,8 +56,7 @@ func (authFilter AuthenticationFilter) filterDispatcher(req *web.Request, handle
 }
 
 func (authFilter AuthenticationFilter) basicAuth(req *web.Request, handler web.Handler) (*web.Response, error) {
-	authenticator := basic.NewAuthenticator(authFilter.CredentialsStorage)
-	_, err := authenticator.Authenticate(req.Request)
+	_, err := authFilter.basicAuthenticator.Authenticate(req.Request)
 	if err != nil {
 		return nil, err
 	}
@@ -69,19 +65,7 @@ func (authFilter AuthenticationFilter) basicAuth(req *web.Request, handler web.H
 }
 
 func (authFilter AuthenticationFilter) oAuth(req *web.Request, handler web.Handler) (*web.Response, error) {
-	authenticator, err := oidc.NewAuthenticator(req.Request.Context(), oidc.Options{
-		IssuerURL: authFilter.TokenIssuerURL,
-		ClientID:  authFilter.CLIClientID,
-	})
-	if err != nil {
-		logrus.Error(err)
-		return nil, web.NewHTTPError(
-			errors.New("Authentication failed"),
-			http.StatusInternalServerError,
-			"InternalServerError")
-	}
-
-	_, err = authenticator.Authenticate(req.Request)
+	_, err := authFilter.oAuthAuthenticator.Authenticate(req.Request)
 	if err != nil {
 		return nil, web.NewHTTPError(
 			errors.New("Authentication failed"),
