@@ -34,24 +34,28 @@ func Test(t *testing.T) {
 }
 
 var _ = Describe("Healthcheck API", func() {
-
-	var sm *httpexpect.Expect
-	var testServer *httptest.Server
+	var SM *httpexpect.Expect
+	var smServer *httptest.Server
+	var mockOauthServer *httptest.Server
 
 	BeforeSuite(func() {
-		testServer = httptest.NewServer(common.GetServerHandler(nil, ""))
-		sm = httpexpect.New(GinkgoT(), testServer.URL)
+		mockOauthServer = common.SetupMockOAuthServer()
+		smServer = httptest.NewServer(common.GetServerHandler(nil, mockOauthServer.URL))
+		SM = httpexpect.New(GinkgoT(), smServer.URL)
 	})
 
 	AfterSuite(func() {
-		if testServer != nil {
-			testServer.Close()
+		if smServer != nil {
+			smServer.Close()
+		}
+		if mockOauthServer != nil {
+			mockOauthServer.Close()
 		}
 	})
 
 	Describe("Get info handler", func() {
 		It("Returns correct response", func() {
-			responseObject := sm.GET(healthcheck.URL).
+			responseObject := SM.GET(healthcheck.URL).
 				Expect().
 				Status(http.StatusOK).
 				JSON().Object()
