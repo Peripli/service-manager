@@ -44,7 +44,7 @@ type Server struct {
 	API    *web.API
 }
 
-// newPluginSegment creates a new server with the provided REST API configuration and server configuration
+// New creates a new server with the provided REST API configuration and server configuration
 // Returns the new server and an error if creation was not successful
 func New(config Settings, api *web.API) *Server {
 	router := mux.NewRouter().StrictSlash(true)

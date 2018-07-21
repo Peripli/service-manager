@@ -15,7 +15,7 @@ type API struct {
 	Filters []Filter
 }
 
-// pluginSegment represents one piece of a web.PlguinImpl. Each web.PlguinImpl is decomposed into as many plugin segments as
+// pluginSegment represents one piece of a web.PluginImpl. Each web.PluginImpl is decomposed into as many plugin segments as
 // the count of OSB operations it provides. Each pluginSegment is treated as a web.Filter.
 type pluginSegment struct {
 	NameValue          string

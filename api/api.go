@@ -38,7 +38,7 @@ type Settings struct {
 	ClientID       string `mapstructure:"client_id"`
 }
 
-// newPluginSegment returns the minimum set of REST APIs needed for the Service Manager
+// New returns the minimum set of REST APIs needed for the Service Manager
 func New(ctx context.Context, storage storage.Storage, settings Settings) (*web.API, error) {
 	bearerAuthnFilter, err := authn.NewBearerAuthnFilter(ctx, settings.TokenIssuerURL, settings.ClientID)
 	if err != nil {

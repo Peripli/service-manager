@@ -44,13 +44,13 @@ var _ = Describe("API", func() {
 
 		It("Panics if argument is an empty plugin", func() {
 			Expect(func() {
-				api.RegisterPlugins(&PlguinImpl{})
+				api.RegisterPlugins(&PluginImpl{})
 			}).To(Panic())
 		})
 	})
 })
 
-type PlguinImpl struct {
+type PluginImpl struct {
 }
 
-func (p *PlguinImpl) Name() string { return "" }
+func (p *PluginImpl) Name() string { return "" }

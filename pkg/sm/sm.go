@@ -111,7 +111,7 @@ func (sm *ServiceManager) RegisterControllers(controllers ...web.Controller) {
 	sm.server.API.RegisterControllers(controllers...)
 }
 
-// ChainMatching starts the Service Manager
+// Run starts the Service Manager
 func (sm *ServiceManager) Run() {
 	sm.server.Run(sm.ctx)
 }

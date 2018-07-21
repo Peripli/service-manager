@@ -11,6 +11,7 @@ type oidcVerifier struct {
 	*oidc.IDTokenVerifier
 }
 
+// Verify implements security.TokenVerifier and delegates to oidc.IDTokenVerifier
 func (v *oidcVerifier) Verify(ctx context.Context, idToken string) (security.Token, error) {
 	return v.IDTokenVerifier.Verify(ctx, idToken)
 }
