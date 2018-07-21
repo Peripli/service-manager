@@ -1,7 +1,7 @@
 /*
  * Copyright 2018 The Service Manager Authors
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
+ * Licensed under the Apache License, Version oidc_authn.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/Peripli/service-manager/api/info"
-	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/pkg/web"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -33,7 +33,7 @@ func Test(t *testing.T) {
 
 var _ = Describe("Info API", func() {
 
-	var controller rest.Controller
+	var controller web.Controller
 
 	BeforeEach(func() {
 		controller = &info.Controller{

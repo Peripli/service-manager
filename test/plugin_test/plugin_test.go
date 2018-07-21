@@ -8,13 +8,14 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
 	"github.com/tidwall/sjson"
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util"
 )
 
 type object = common.Object
@@ -36,7 +37,7 @@ var _ = Describe("Service Manager Plugins", func() {
 
 	Describe("Partial plugin", func() {
 		BeforeEach(func() {
-			api := &rest.API{}
+			api := &api.API{}
 			api.RegisterPlugins(&PartialPlugin{})
 			ctx = common.NewTestContext(api)
 			ctx.RegisterBroker("broker1", nil)
@@ -61,7 +62,7 @@ var _ = Describe("Service Manager Plugins", func() {
 
 		BeforeEach(func() {
 			testPlugin = TestPlugin{}
-			api := &rest.API{}
+			api := &api.API{}
 			api.RegisterPlugins(testPlugin)
 			ctx = common.NewTestContext(api)
 			ctx.RegisterBroker("broker1", nil)
@@ -70,7 +71,7 @@ var _ = Describe("Service Manager Plugins", func() {
 
 		It("Plugin modifies the request & response body", func() {
 			var resBodySize int
-			testPlugin["provision"] = func(req *web.Request, next web.Handler) (*web.Response, error) {
+			testPlugin["provision"] = func(req *types.Request, next types.SMHandler) (*types.Response, error) {
 				var err error
 				req.Body, err = sjson.SetBytes(req.Body, "extra", "request")
 				if err != nil {
@@ -111,7 +112,7 @@ var _ = Describe("Service Manager Plugins", func() {
 		})
 
 		It("Plugin modifies the request & response headers", func() {
-			testPlugin["fetchCatalog"] = func(req *web.Request, next web.Handler) (*web.Response, error) {
+			testPlugin["fetchCatalog"] = func(req *types.Request, next types.SMHandler) (*types.Response, error) {
 				h := req.Header.Get("extra")
 				req.Header.Set("extra", h+"-request")
 
@@ -132,8 +133,8 @@ var _ = Describe("Service Manager Plugins", func() {
 		})
 
 		It("Plugin aborts the request", func() {
-			testPlugin["fetchCatalog"] = func(req *web.Request, next web.Handler) (*web.Response, error) {
-				return nil, web.NewHTTPError(errors.New("Plugin error"), http.StatusBadRequest, "PluginErr")
+			testPlugin["fetchCatalog"] = func(req *types.Request, next types.SMHandler) (*types.Response, error) {
+				return nil, util.NewHTTPError(errors.New("Plugin error"), http.StatusBadRequest, "PluginErr")
 			}
 
 			ctx.SMWithBasic.GET(testBroker.OSBURL + "/v2/catalog").
@@ -165,7 +166,7 @@ var _ = Describe("Service Manager Plugins", func() {
 		for _, op := range osbOperations {
 			op := op
 			It(fmt.Sprintf("Plugin intercepts %s operation", op.name), func() {
-				testPlugin[op.name] = func(req *web.Request, next web.Handler) (*web.Response, error) {
+				testPlugin[op.name] = func(req *types.Request, next types.SMHandler) (*types.Response, error) {
 					res, err := next(req)
 					if err == nil {
 						res.Header.Set("X-Plugin", op.name)
@@ -184,46 +185,46 @@ var _ = Describe("Service Manager Plugins", func() {
 
 })
 
-type TestPlugin map[string]func(req *web.Request, next web.Handler) (*web.Response, error)
+type TestPlugin map[string]func(req *types.Request, next types.SMHandler) (*types.Response, error)
 
 func (p TestPlugin) Name() string { return "TestPlugin" }
 
-func (p TestPlugin) call(f web.Middleware, req *web.Request, next web.Handler) (*web.Response, error) {
+func (p TestPlugin) call(f types.Middleware, req *types.Request, next types.SMHandler) (*types.Response, error) {
 	if f == nil {
 		return next(req)
 	}
 	return f(req, next)
 }
 
-func (p TestPlugin) FetchCatalog(req *web.Request, next web.Handler) (*web.Response, error) {
+func (p TestPlugin) FetchCatalog(req *types.Request, next types.SMHandler) (*types.Response, error) {
 	return p.call(p["fetchCatalog"], req, next)
 }
 
-func (p TestPlugin) Provision(req *web.Request, next web.Handler) (*web.Response, error) {
+func (p TestPlugin) Provision(req *types.Request, next types.SMHandler) (*types.Response, error) {
 	return p.call(p["provision"], req, next)
 }
 
-func (p TestPlugin) Deprovision(req *web.Request, next web.Handler) (*web.Response, error) {
+func (p TestPlugin) Deprovision(req *types.Request, next types.SMHandler) (*types.Response, error) {
 	return p.call(p["deprovision"], req, next)
 }
 
-func (p TestPlugin) UpdateService(req *web.Request, next web.Handler) (*web.Response, error) {
+func (p TestPlugin) UpdateService(req *types.Request, next types.SMHandler) (*types.Response, error) {
 	return p.call(p["updateService"], req, next)
 }
 
-func (p TestPlugin) FetchService(req *web.Request, next web.Handler) (*web.Response, error) {
+func (p TestPlugin) FetchService(req *types.Request, next types.SMHandler) (*types.Response, error) {
 	return p.call(p["fetchService"], req, next)
 }
 
-func (p TestPlugin) Bind(req *web.Request, next web.Handler) (*web.Response, error) {
+func (p TestPlugin) Bind(req *types.Request, next types.SMHandler) (*types.Response, error) {
 	return p.call(p["bind"], req, next)
 }
 
-func (p TestPlugin) Unbind(req *web.Request, next web.Handler) (*web.Response, error) {
+func (p TestPlugin) Unbind(req *types.Request, next types.SMHandler) (*types.Response, error) {
 	return p.call(p["unbind"], req, next)
 }
 
-func (p TestPlugin) FetchBinding(req *web.Request, next web.Handler) (*web.Response, error) {
+func (p TestPlugin) FetchBinding(req *types.Request, next types.SMHandler) (*types.Response, error) {
 	return p.call(p["fetchBinding"], req, next)
 }
 
@@ -231,7 +232,7 @@ type PartialPlugin struct{}
 
 func (p PartialPlugin) Name() string { return "PartialPlugin" }
 
-func (p PartialPlugin) Provision(req *web.Request, next web.Handler) (*web.Response, error) {
+func (p PartialPlugin) Provision(req *types.Request, next types.SMHandler) (*types.Response, error) {
 	res, err := next(req)
 	if err == nil {
 		res.Header.Set("X-Plugin", "provision")

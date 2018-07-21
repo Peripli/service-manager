@@ -1,7 +1,7 @@
 /*
  * Copyright 2018 The Service Manager Authors
  *
- *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    Licensed under the Apache License, Version oidc_authn.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
@@ -19,7 +19,9 @@ package api
 import (
 	"testing"
 
-	"github.com/Peripli/service-manager/rest"
+	"context"
+
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage/storagefakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -33,8 +35,8 @@ func TestApi(t *testing.T) {
 type testController struct {
 }
 
-func (c *testController) Routes() []rest.Route {
-	return []rest.Route{}
+func (c *testController) Routes() []web.Route {
+	return []web.Route{}
 }
 
 var _ = Describe("API", func() {
@@ -42,7 +44,8 @@ var _ = Describe("API", func() {
 	var (
 		mockedStorage *storagefakes.FakeStorage
 		settings      Settings
-		api           *rest.API
+		api           *web.API
+		err           error
 	)
 
 	BeforeEach(func() {
@@ -50,7 +53,9 @@ var _ = Describe("API", func() {
 		settings = Settings{
 			TokenIssuerURL: "http://example.com",
 		}
-		api = New(mockedStorage, settings)
+
+		api, err = New(context.TODO(), mockedStorage, settings)
+		Expect(err).ShouldNot(HaveOccurred())
 	})
 
 	Describe("Controller Registration", func() {
@@ -66,7 +71,7 @@ var _ = Describe("API", func() {
 		Context("With nil controller in slice", func() {
 			It("Should panic", func() {
 				nilControllerInSlice := func() {
-					var controllers []rest.Controller
+					var controllers []web.Controller
 					controllers = append(controllers, &testController{})
 					controllers = append(controllers, nil)
 					api.RegisterControllers(controllers...)

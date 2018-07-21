@@ -1,7 +1,7 @@
 /*
  * Copyright 2018 The Service Manager Authors
  *
- *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    Licensed under the Apache License, Version oidc_authn.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
@@ -84,7 +84,7 @@ func CreatePFlags(set *pflag.FlagSet, value interface{}) {
 
 // New creates a new environment. It accepts a flag set that should contain all the flags that the
 // environment should be aware of.
-func New(set *pflag.FlagSet) (Environment, error) {
+func New(set *pflag.FlagSet) (*viperEnv, error) {
 	v := &viperEnv{
 		Viper: viper.New(),
 	}

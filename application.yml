@@ -1,6 +1,6 @@
 server:
-  requestTimeout: 4000ms
-  shutdownTimeout: 4000ms
+  request_timeout: 4000ms
+  shutdown_timeout: 4000ms
   port: 8080
 log:
   level: debug
@@ -11,5 +11,5 @@ storage:
 #  name: sm-postgres
 api:
   token_issuer_url: https://uaa.local.pcfdev.io
-cli:
-  clientId: smctl
+  client_id: sm
+

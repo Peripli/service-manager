@@ -1,7 +1,7 @@
 /*
 * Copyright 2018 The Service Manager Authors
 *
-*    Licensed under the Apache License, Version 2.0 (the "License");
+*    Licensed under the Apache License, Version oidc_authn.0 (the "License");
 *    you may not use this file except in compliance with the License.
 *    You may obtain a copy of the License at
 *
@@ -24,11 +24,11 @@ import (
 	cfg "github.com/Peripli/service-manager/config"
 	"github.com/Peripli/service-manager/pkg/env/envfakes"
 	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/Peripli/service-manager/authentication"
 )
 
 func TestConfig(t *testing.T) {
@@ -166,7 +166,7 @@ var _ = Describe("config", func() {
 					API: api.Settings{
 						TokenIssuerURL: "http://example.com",
 					},
-					CLI: authentication.CLISettings{
+					CLI: security.Settings{
 						ClientID: "smctl",
 					},
 				}

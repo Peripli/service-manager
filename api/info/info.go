@@ -1,7 +1,7 @@
 /*
  * Copyright 2018 The Service Manager Authors
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
+ * Licensed under the Apache License, Version oidc_authn.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
+// Package info contains logic for the Service Manager info API
 package info
 
 import (
 	"net/http"
 
-	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
 const (
@@ -30,10 +31,10 @@ const (
 )
 
 // Routes returns a slice of the routs that handle info operations
-func (c *Controller) Routes() []rest.Route {
-	return []rest.Route{
+func (c *Controller) Routes() []web.Route {
+	return []web.Route{
 		{
-			Endpoint: rest.Endpoint{
+			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
 				Path:   URL,
 			},

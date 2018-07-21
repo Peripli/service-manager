@@ -1,7 +1,7 @@
 /*
  *    Copyright 2018 The Service Manager Authors
  *
- *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    Licensed under the Apache License, Version oidc_authn.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
@@ -19,12 +19,14 @@ package main
 import (
 	"context"
 
-	"github.com/Peripli/service-manager/pkg/servicemanager"
+	"github.com/Peripli/service-manager/pkg/sm"
 )
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	sm := servicemanager.New(ctx, cancel)
+
+	env := sm.DefaultEnv()
+	sm := sm.New(ctx, cancel, env)
 	sm.Run()
 }

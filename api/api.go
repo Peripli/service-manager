@@ -1,7 +1,7 @@
 /*
  * Copyright 2018 The Service Manager Authors
  *
- *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    Licensed under the Apache License, Version oidc_authn.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
@@ -18,13 +18,16 @@
 package api
 
 import (
+	"context"
+
 	"github.com/Peripli/service-manager/api/broker"
 	"github.com/Peripli/service-manager/api/catalog"
+	"github.com/Peripli/service-manager/api/filters/authn"
 	"github.com/Peripli/service-manager/api/healthcheck"
 	"github.com/Peripli/service-manager/api/info"
 	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/api/platform"
-	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 )
@@ -32,12 +35,18 @@ import (
 // Settings type to be loaded from the environment
 type Settings struct {
 	TokenIssuerURL string `mapstructure:"token_issuer_url"`
+	ClientID       string `mapstructure:"client_id"`
 }
 
-// New returns the minimum set of REST APIs needed for the Service Manager
-func New(storage storage.Storage, settings Settings) *rest.API {
-	return &rest.API{
-		Controllers: []rest.Controller{
+// newPluginSegment returns the minimum set of REST APIs needed for the Service Manager
+func New(ctx context.Context, storage storage.Storage, settings Settings) (*web.API, error) {
+	bearerAuthnFilter, err := authn.NewBearerAuthnFilter(ctx, settings.TokenIssuerURL, settings.ClientID)
+	if err != nil {
+		return nil, err
+	}
+	return &web.API{
+		// Default controllers - more filters can be registered using the relevant API methods
+		Controllers: []web.Controller{
 			&broker.Controller{
 				BrokerStorage:       storage.Broker(),
 				OSBClientCreateFunc: osbc.NewClient,
@@ -58,5 +67,11 @@ func New(storage storage.Storage, settings Settings) *rest.API {
 				Storage: storage,
 			},
 		},
-	}
+		// Default filters - more filters can be registered using the relevant API methods
+		Filters: []web.Filter{
+			authn.NewBasicAuthnFilter(storage.Credentials()),
+			bearerAuthnFilter,
+			authn.NewRequiredAuthnFilter(),
+		},
+	}, nil
 }

@@ -1,7 +1,7 @@
 /*
  *    Copyright 2018 The Service Manager Authors
  *
- *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    Licensed under the Apache License, Version oidc_authn.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
@@ -36,8 +36,8 @@ import (
 	"github.com/Peripli/service-manager/app"
 	"github.com/Peripli/service-manager/config"
 	"github.com/Peripli/service-manager/pkg/env"
-	"github.com/Peripli/service-manager/rest"
-	"github.com/Peripli/service-manager/types"
+	"github.com/Peripli/service-manager/api"
+	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/gavv/httpexpect"
 	"github.com/gbrlsnchs/jwt"
 	"github.com/gorilla/mux"
@@ -84,7 +84,7 @@ const Catalog = `{
   ]
 }`
 
-func GetServerHandler(api *rest.API, tokenIssuerURL string) http.Handler {
+func GetServerHandler(api *api.API, tokenIssuerURL string) http.Handler {
 	set := env.EmptyFlagSet()
 	config.AddPFlags(set)
 	set.Set("file.location", "./test/common")

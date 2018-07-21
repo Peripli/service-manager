@@ -1,7 +1,7 @@
 /*
  *    Copyright 2018 The Service Manager Authors
  *
- *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    Licensed under the Apache License, Version oidc_authn.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
@@ -22,11 +22,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	"github.com/Peripli/service-manager/authentication/basic"
-
 	. "github.com/onsi/ginkgo"
 
-	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/api"
 	"github.com/gavv/httpexpect"
 )
 
@@ -44,7 +42,7 @@ var serviceCatalog = `{
 	}]
 }`
 
-func NewTestContext(api *rest.API) *TestContext {
+func NewTestContext(api *api.API) *TestContext {
 	mockOauthServer := SetupMockOAuthServer()
 	smServer := httptest.NewServer(GetServerHandler(api, mockOauthServer.URL))
 	SM := httpexpect.New(GinkgoT(), smServer.URL)
@@ -61,7 +59,7 @@ func NewTestContext(api *rest.API) *TestContext {
 	platform := RegisterPlatform(platformJSON, SMWithOAuth)
 	SMWithBasic := SM.Builder(func(req *httpexpect.Request) {
 		username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
-		req.WithHeader("Authorization", basic.EncodeCredentials(username, password))
+		req.WithBasicAuth(username, password)
 	})
 
 	return &TestContext{
@@ -133,6 +131,7 @@ func (b *Broker) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	if req.Method == http.MethodPatch || req.Method == http.MethodPost || req.Method == http.MethodPut {
 		var err error
+		//todo
 		b.RawRequestBody, err = ioutil.ReadAll(req.Body)
 		if err != nil {
 			panic(err)

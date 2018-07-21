@@ -1,7 +1,7 @@
 /*
  *    Copyright 2018 The Service Manager Authors
  *
- *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    Licensed under the Apache License, Version oidc_authn.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
@@ -17,17 +17,14 @@
 package platform
 
 import (
-	"errors"
 	"net/http"
 	"time"
 
-	"github.com/Peripli/service-manager/api/common"
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/Peripli/service-manager/types"
-	"github.com/Peripli/service-manager/util"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -38,32 +35,17 @@ type Controller struct {
 	PlatformStorage storage.Platform
 }
 
-func getPlatformFromRequest(req *web.Request) (*types.Platform, error) {
-	var platform types.Platform
-	return &platform, rest.ReadJSONBody(req, &platform)
-}
-
-func checkPlatformMandatoryProperties(platform *types.Platform) error {
-	if platform.Type == "" {
-		return errors.New("Missing platform type")
-	}
-	if platform.Name == "" {
-		return errors.New("Missing platform name")
-	}
-	return nil
-}
+var _ web.Controller = &Controller{}
 
 // createPlatform handler for POST /v1/platforms
 func (c *Controller) createPlatform(request *web.Request) (*web.Response, error) {
 	logrus.Debug("Creating new platform")
+	var platform *types.Platform
 
-	platform, errDecode := getPlatformFromRequest(request)
-	if errDecode != nil {
-		return nil, errDecode
+	if err := util.UnmarshalAndValidate(request.Body, platform); err != nil {
+		return nil, err
 	}
-	if errMandatoryProperties := checkPlatformMandatoryProperties(platform); errMandatoryProperties != nil {
-		return nil, web.NewHTTPError(errMandatoryProperties, http.StatusBadRequest, "BadRequest")
-	}
+
 	if platform.ID == "" {
 		uuid, err := uuid.NewV4()
 		if err != nil {
@@ -76,18 +58,19 @@ func (c *Controller) createPlatform(request *web.Request) (*web.Response, error)
 	platform.CreatedAt = currentTime
 	platform.UpdatedAt = currentTime
 
-	username, password, err := util.GenerateCredentials()
+	credentials, err := types.GenerateCredentials()
 	if err != nil {
 		logrus.Error("Could not generate credentials for platform")
 		return nil, err
 	}
-	platform.Credentials = types.NewBasicCredentials(username, password)
-	err = common.HandleUniqueError(c.PlatformStorage.Create(platform), "platform")
+	platform.Credentials = credentials
+
+	err = storage.HandleUniqueError(c.PlatformStorage.Create(platform), "platform")
 	if err != nil {
 		return nil, err
 	}
 
-	return rest.NewJSONResponse(http.StatusCreated, platform)
+	return util.NewJSONResponse(http.StatusCreated, platform)
 }
 
 // getPlatform handler for GET /v1/platforms/:platform_id
@@ -96,10 +79,10 @@ func (c *Controller) getPlatform(request *web.Request) (*web.Response, error) {
 	logrus.Debugf("Getting platform with id %s", platformID)
 
 	platform, err := c.PlatformStorage.Get(platformID)
-	if err = common.HandleNotFoundError(err, "platform", platformID); err != nil {
+	if err = storage.HandleNotFoundError(err, "platform", platformID); err != nil {
 		return nil, err
 	}
-	return rest.NewJSONResponse(http.StatusOK, platform)
+	return util.NewJSONResponse(http.StatusOK, platform)
 }
 
 // getAllPlatforms handler for GET /v1/platforms
@@ -111,7 +94,7 @@ func (c *Controller) getAllPlatforms(request *web.Request) (*web.Response, error
 	}
 	platformsResponse := map[string][]types.Platform{"platforms": platforms}
 
-	return rest.NewJSONResponse(http.StatusOK, &platformsResponse)
+	return util.NewJSONResponse(http.StatusOK, &platformsResponse)
 }
 
 // deletePlatform handler for DELETE /v1/platforms/:platform_id
@@ -120,35 +103,38 @@ func (c *Controller) deletePlatform(request *web.Request) (*web.Response, error)
 	logrus.Debugf("Deleting platform with id %s", platformID)
 
 	err := c.PlatformStorage.Delete(platformID)
-	if err = common.HandleNotFoundError(err, "platform", platformID); err != nil {
+	if err = storage.HandleNotFoundError(err, "platform", platformID); err != nil {
 		return nil, err
 	}
 	// map[string]string{} will result in empty JSON
-	return rest.NewJSONResponse(http.StatusOK, map[string]string{})
+	return util.NewJSONResponse(http.StatusOK, map[string]string{})
 }
 
 // updatePlatform handler for PATCH /v1/platforms/:platform_id
 func (c *Controller) patchPlatform(request *web.Request) (*web.Response, error) {
 	platformID := request.PathParams[reqPlatformID]
 	logrus.Debugf("Updating platform with id %s", platformID)
-	newPlatform, errDecode := getPlatformFromRequest(request)
-	if errDecode != nil {
-		return nil, errDecode
+
+	platform, err := c.PlatformStorage.Get(platformID)
+	err = storage.HandleNotFoundError(err, "platform", platformID)
+	if err != nil {
+		return nil, err
 	}
-	newPlatform.ID = platformID
-	newPlatform.UpdatedAt = time.Now().UTC()
-	platformStorage := c.PlatformStorage
-	err := platformStorage.Update(newPlatform)
-	err = common.CheckErrors(
-		common.HandleNotFoundError(err, "platform", platformID),
-		common.HandleUniqueError(err, "platform"),
+
+	if err := util.UnmarshalAndValidate(request.Body, platform); err != nil {
+		return nil, err
+	}
+
+	platform.UpdatedAt = time.Now().UTC()
+
+	err = c.PlatformStorage.Update(platform)
+	err = storage.CheckErrors(
+		storage.HandleNotFoundError(err, "platform", platformID),
+		storage.HandleUniqueError(err, "platform"),
 	)
 	if err != nil {
 		return nil, err
 	}
-	platform, err := platformStorage.Get(platformID)
-	if err != nil {
-		return nil, err
-	}
-	return rest.NewJSONResponse(http.StatusOK, platform)
+
+	return util.NewJSONResponse(http.StatusOK, platform)
 }

@@ -1,7 +1,7 @@
 /*
  *    Copyright 2018 The Service Manager Authors
  *
- *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    Licensed under the Apache License, Version oidc_authn.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
@@ -21,8 +21,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/api"
+	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -38,9 +38,9 @@ var sm *httpexpect.Expect
 var _ = Describe("Server", func() {
 
 	BeforeSuite(func() {
-		api := &rest.API{}
-		route := rest.Route{
-			Endpoint: rest.Endpoint{
+		api := &api.API{}
+		route := api.Route{
+			Endpoint: api.Endpoint{
 				Path:   "/",
 				Method: http.MethodGet,
 			},
@@ -49,8 +49,8 @@ var _ = Describe("Server", func() {
 		testCtl := &testController{}
 		testCtl.RegisterRoutes(route)
 		api.RegisterControllers(testCtl)
-		api.RegisterFilters(web.Filter{
-			RouteMatcher: web.RouteMatcher{
+		api.RegisterFilters(types.Filter{
+			RouteMatcher: types.RouteMatcher{
 				PathPattern: "**",
 			},
 			Middleware: testMiddleware,
@@ -66,7 +66,7 @@ var _ = Describe("Server", func() {
 		sm = httpexpect.New(GinkgoT(), testServer.URL)
 	})
 
-	Describe("New", func() {
+	Describe("newPluginSegment", func() {
 		Context("when controller has panicing http.handler", func() {
 			It("should return 500", func() {
 				assertRecover("fail=true")
@@ -95,27 +95,27 @@ func assertRecover(query string) {
 }
 
 type testController struct {
-	testRoutes []rest.Route
+	testRoutes []api.Route
 }
 
-func (t *testController) RegisterRoutes(routes ...rest.Route) {
+func (t *testController) RegisterRoutes(routes ...api.Route) {
 	t.testRoutes = append(t.testRoutes, routes...)
 }
 
-func (t *testController) Routes() []rest.Route {
+func (t *testController) Routes() []api.Route {
 	return t.testRoutes
 }
 
-func testHandler(req *web.Request) (*web.Response, error) {
+func testHandler(req *types.Request) (*types.Response, error) {
 	if req.URL.Query().Get("fail") == "true" {
 		panic("expected")
 	}
-	resp := web.Response{}
+	resp := types.Response{}
 	resp.StatusCode = http.StatusOK
 	return &resp, nil
 }
 
-func testMiddleware(req *web.Request, next web.Handler) (*web.Response, error) {
+func testMiddleware(req *types.Request, next types.SMHandler) (*types.Response, error) {
 	if req.URL.Query().Get("filter_fail_before") == "true" {
 		panic("expected")
 	}

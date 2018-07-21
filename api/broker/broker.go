@@ -1,7 +1,7 @@
 /*
  *    Copyright 2018 The Service Manager Authors
  *
- *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    Licensed under the Apache License, Version oidc_authn.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
@@ -14,12 +14,13 @@
  *    limitations under the License.
  */
 
+// Package osb contains logic for building the Service Manager Broker Management API
 package broker
 
 import (
 	"net/http"
 
-	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
 const (
@@ -29,38 +30,38 @@ const (
 )
 
 // Routes returns slice of routes which handle broker operations
-func (c *Controller) Routes() []rest.Route {
-	return []rest.Route{
+func (c *Controller) Routes() []web.Route {
+	return []web.Route{
 		{
-			Endpoint: rest.Endpoint{
+			Endpoint: web.Endpoint{
 				Method: http.MethodPost,
 				Path:   url,
 			},
 			Handler: c.createBroker,
 		},
 		{
-			Endpoint: rest.Endpoint{
+			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
 				Path:   url + "/{broker_id}",
 			},
 			Handler: c.getBroker,
 		},
 		{
-			Endpoint: rest.Endpoint{
+			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
 				Path:   url,
 			},
 			Handler: c.getAllBrokers,
 		},
 		{
-			Endpoint: rest.Endpoint{
+			Endpoint: web.Endpoint{
 				Method: http.MethodDelete,
 				Path:   url + "/{broker_id}",
 			},
 			Handler: c.deleteBroker,
 		},
 		{
-			Endpoint: rest.Endpoint{
+			Endpoint: web.Endpoint{
 				Method: http.MethodPatch,
 				Path:   url + "/{broker_id}",
 			},

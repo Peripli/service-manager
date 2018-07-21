@@ -5,11 +5,12 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
 type object = common.Object
@@ -21,14 +22,14 @@ func TestFilters(t *testing.T) {
 	RunSpecs(t, "Plugin Tests Suite")
 }
 
-var _ = Describe("Service Manager Filters", func() {
+var _ = Describe("Service Manager Middlewares", func() {
 	var ctx *common.TestContext
 	var testBroker *common.Broker
 
 	var testFilters []web.Filter
 
 	JustBeforeEach(func() {
-		api := &rest.API{}
+		api := &api.API{}
 		api.RegisterFilters(testFilters...)
 		ctx = common.NewTestContext(api)
 		ctx.RegisterBroker("broker1", nil)
@@ -41,13 +42,13 @@ var _ = Describe("Service Manager Filters", func() {
 
 	Describe("Attach filter on multiple endpoints", func() {
 		BeforeEach(func() {
-			testFilters = []web.Filter{
+			testFilters = []types.Filter{
 				{
 					Name: "OSB filter",
-					RouteMatcher: web.RouteMatcher{
+					RouteMatcher: types.RouteMatcher{
 						PathPattern: "/v1/osb/**",
 					},
-					Middleware: func(req *web.Request, next web.Handler) (*web.Response, error) {
+					Middleware: func(req *types.Request, next types.SMHandler) (*types.Response, error) {
 						res, err := next(req)
 						if err == nil {
 							res.Header.Set("filter", "called")
@@ -78,13 +79,13 @@ var _ = Describe("Service Manager Filters", func() {
 	Describe("Attach filter on whole API", func() {
 		var order string
 		BeforeEach(func() {
-			testFilters = []web.Filter{
+			testFilters = []types.Filter{
 				{
 					Name: "Global filter",
-					RouteMatcher: web.RouteMatcher{
+					RouteMatcher: types.RouteMatcher{
 						PathPattern: "/**",
 					},
-					Middleware: func(req *web.Request, next web.Handler) (*web.Response, error) {
+					Middleware: func(req *types.Request, next types.SMHandler) (*types.Response, error) {
 						order += "a1"
 						res, err := next(req)
 						order += "a2"
@@ -93,10 +94,10 @@ var _ = Describe("Service Manager Filters", func() {
 				},
 				{
 					Name: "/v1 filter",
-					RouteMatcher: web.RouteMatcher{
+					RouteMatcher: types.RouteMatcher{
 						PathPattern: "/v1/**",
 					},
-					Middleware: func(req *web.Request, next web.Handler) (*web.Response, error) {
+					Middleware: func(req *types.Request, next types.SMHandler) (*types.Response, error) {
 						order += "b1"
 						res, err := next(req)
 						order += "b2"

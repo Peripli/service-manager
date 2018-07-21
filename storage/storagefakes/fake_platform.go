@@ -4,8 +4,8 @@ package storagefakes
 import (
 	"sync"
 
+	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/Peripli/service-manager/types"
 )
 
 type FakePlatform struct {

@@ -1,7 +1,7 @@
 /*
  * Copyright 2018 The Service Manager Authors
  *
- *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    Licensed under the Apache License, Version oidc_authn.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
@@ -18,17 +18,7 @@
 package storage
 
 import (
-	"errors"
-
-	"github.com/Peripli/service-manager/types"
-)
-
-var (
-	// ErrNotFound error returned from storage when entity is not found
-	ErrNotFound = errors.New("not found")
-
-	// ErrUniqueViolation error returned from storage when entity has conflicting fields
-	ErrUniqueViolation = errors.New("unique constraint violation")
+	"github.com/Peripli/service-manager/pkg/types"
 )
 
 // Settings type to be loaded from the environment

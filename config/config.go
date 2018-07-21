@@ -1,7 +1,7 @@
 /*
  * Copyright 2018 The Service Manager Authors
  *
- *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    Licensed under the Apache License, Version oidc_authn.0 (the "License");
  *    you may not use this file except in compliance with the License.
  *    You may obtain a copy of the License at
  *
@@ -26,7 +26,6 @@ import (
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/spf13/pflag"
-	"github.com/Peripli/service-manager/authentication"
 )
 
 // Settings is used to setup the Service Manager
@@ -35,7 +34,6 @@ type Settings struct {
 	Storage storage.Settings
 	Log     log.Settings
 	API     api.Settings
-	CLI     authentication.CLISettings
 }
 
 // AddPFlags adds the SM config flags to the provided flag set
@@ -61,9 +59,7 @@ func DefaultSettings() *Settings {
 		},
 		API: api.Settings{
 			TokenIssuerURL: "",
-		},
-		CLI: authentication.CLISettings{
-			ClientID: "",
+			ClientID:       "",
 		},
 	}
 	return config
@@ -102,8 +98,8 @@ func (c *Settings) Validate() error {
 	if (len(c.API.TokenIssuerURL)) == 0 {
 		return fmt.Errorf("validate Settings: APITokenIssuerURL missing")
 	}
-	if (len(c.CLI.ClientID)) == 0 {
-		return fmt.Errorf("validate Settings: CLIClientID missing")
+	if (len(c.API.ClientID)) == 0 {
+		return fmt.Errorf("validate Settings: APIClientID missing")
 	}
 	return nil
 }
