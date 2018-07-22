@@ -42,7 +42,6 @@ func ReadHTTPRequestBody(request *http.Request) ([]byte, error) {
 			StatusCode:  http.StatusUnsupportedMediaType,
 		}
 	}
-	//TODO
 	body, err := ioutil.ReadAll(request.Body)
 	if err != nil {
 		return nil, err

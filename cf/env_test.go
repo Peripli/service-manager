@@ -33,13 +33,13 @@ const VCAP_SERVICES_VALUE = `{ "postgresql": [
     "binding_name": null,
     "credentials": {
      "dbname": "smdb",
-     "hostname": "10.11.oidc_authn.197",
+     "hostname": "10.11.5.197",
      "password": "fdb669853c9506578c357487fc7d0c0f",
      "port": "5432",
-     "read_url": "jdbc:postgresql://10.11.oidc_authn.192,10.11.oidc_authn.193/3e546b2a3482d5de4c34                                                                                                                                   ab92f78260b9?targetServerType=preferSlave\u0026loadBalanceHosts=true",
+     "read_url": "jdbc:postgresql://10.11.5.192,10.11.5.193/3e546b2a3482d5de4c34                                                                                                                                   ab92f78260b9?targetServerType=preferSlave\u0026loadBalanceHosts=true",
      "uri": "postgres://9ec6640112be6ad0380ed35544db7932:fdb669853c9506578c35748                                                                                                                                   7fc7d0c0f@10.11.oidc_authn.197:5432/3e546b2a3482d5de4c34ab92f78260b9",
      "username": "9ec6640112be6ad0380ed35544db7932",
-     "write_url": "jdbc:postgresql://10.11.oidc_authn.192,10.11.oidc_authn.193/3e546b2a3482d5de4c3                                                                                                                                   4ab92f78260b9?targetServerType=master"
+     "write_url": "jdbc:postgresql://10.11.5.192,10.11.5.193/3e546b2a3482d5de4c3                                                                                                                                   4ab92f78260b9?targetServerType=master"
     },
     "instance_name": "smdb",
     "label": "postgresql",
