@@ -15,7 +15,7 @@ type API struct {
 	Filters []Filter
 }
 
-// pluginSegment represents one piece of a web.PluginImpl. Each web.PluginImpl is decomposed into as many plugin segments as
+// pluginSegment represents one piece of a web.invalidPlugin. Each web.invalidPlugin is decomposed into as many plugin segments as
 // the count of OSB operations it provides. Each pluginSegment is treated as a web.Filter.
 type pluginSegment struct {
 	NameValue          string
@@ -53,9 +53,6 @@ func (dp *pluginSegment) RouteMatchers() []RouteMatcher {
 // RegisterControllers registers a set of controllers
 func (api *API) RegisterControllers(controllers ...Controller) {
 	for _, controller := range controllers {
-		if controller == nil {
-			logrus.Panicln("Cannot add nil controllers")
-		}
 		api.Controllers = append(api.Controllers, controller)
 	}
 }
@@ -68,19 +65,18 @@ func (api *API) RegisterFilters(filters ...Filter) {
 // RegisterPlugins registers a set of plugins
 func (api *API) RegisterPlugins(plugins ...Plugin) {
 	for _, plugin := range plugins {
-		pluginFilters := api.decomposePlugin(plugin)
-
-		if len(pluginFilters) == 0 {
+		pluginSegments := api.decomposePlugin(plugin)
+		if len(pluginSegments) == 0 {
 			logrus.Panicf("%T does not implement any plugin operation", plugin)
 		}
 
-		api.RegisterFilters(pluginFilters...)
+		api.RegisterFilters(pluginSegments...)
 	}
 }
 
 //func(api *API) decomposePlugin(opName, method, pathPattern string, middleware types.Handler) {
 func (api *API) decomposePlugin(plug Plugin) []Filter {
-	filters := make([]Filter, 1)
+	filters := make([]Filter, 0)
 
 	if p, ok := plug.(CatalogFetcher); ok {
 		filter := newPluginSegment("FetchCatalog", http.MethodGet, "/v1/osb/*/v2/catalog/*", MiddlewareFunc(p.FetchCatalog))

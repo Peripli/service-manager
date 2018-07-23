@@ -53,6 +53,7 @@ type Named interface {
 	Name() string
 }
 
+//go:generate counterfeiter . Handler
 type Handler interface {
 	Handle(req *Request) (resp *Response, err error)
 }

@@ -21,8 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Peripli/service-manager/api"
-	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -38,9 +37,9 @@ var sm *httpexpect.Expect
 var _ = Describe("Server", func() {
 
 	BeforeSuite(func() {
-		api := &api.API{}
-		route := api.Route{
-			Endpoint: api.Endpoint{
+		api := &web.API{}
+		route := web.Route{
+			Endpoint: web.Endpoint{
 				Path:   "/",
 				Method: http.MethodGet,
 			},
@@ -49,8 +48,8 @@ var _ = Describe("Server", func() {
 		testCtl := &testController{}
 		testCtl.RegisterRoutes(route)
 		api.RegisterControllers(testCtl)
-		api.RegisterFilters(types.Filter{
-			RouteMatcher: types.RouteMatcher{
+		api.RegisterFilters(web.Filter{
+			RouteMatcher: web.RouteMatcher{
 				PathPattern: "**",
 			},
 			Middleware: testMiddleware,
@@ -62,7 +61,7 @@ var _ = Describe("Server", func() {
 		}
 		server := New(api, serverSettings)
 		Expect(server).ToNot(BeNil())
-		testServer := httptest.NewServer(server.Handler)
+		testServer := httptest.NewServer(server.Router)
 		sm = httpexpect.New(GinkgoT(), testServer.URL)
 	})
 
@@ -95,33 +94,35 @@ func assertRecover(query string) {
 }
 
 type testController struct {
-	testRoutes []api.Route
+	testRoutes []web.Route
 }
 
-func (t *testController) RegisterRoutes(routes ...api.Route) {
+func (t *testController) RegisterRoutes(routes ...web.Route) {
 	t.testRoutes = append(t.testRoutes, routes...)
 }
 
-func (t *testController) Routes() []api.Route {
+func (t *testController) Routes() []web.Route {
 	return t.testRoutes
 }
 
-func testHandler(req *types.Request) (*types.Response, error) {
+func testHandler(req *web.Request) (*web.Response, error) {
 	if req.URL.Query().Get("fail") == "true" {
 		panic("expected")
 	}
-	resp := types.Response{}
+	resp := web.Response{}
 	resp.StatusCode = http.StatusOK
 	return &resp, nil
 }
 
-func testMiddleware(req *types.Request, next types.SMHandler) (*types.Response, error) {
-	if req.URL.Query().Get("filter_fail_before") == "true" {
-		panic("expected")
-	}
-	res, err := next(req)
-	if req.URL.Query().Get("filter_fail_after") == "true" {
-		panic("expected")
-	}
-	return res, err
+func testMiddleware(next web.Handler) web.Handler {
+	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
+		if request.URL.Query().Get("filter_fail_before") == "true" {
+			panic("expected")
+		}
+		res, err := next.Handle(request)
+		if request.URL.Query().Get("filter_fail_after") == "true" {
+			panic("expected")
+		}
+		return res, err
+	})
 }

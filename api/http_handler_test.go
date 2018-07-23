@@ -17,9 +17,16 @@
 package api
 
 import (
+	"strings"
 	"testing"
 
-	"github.com/Peripli/service-manager/pkg/types"
+	"net/http"
+	"net/http/httptest"
+
+	"bytes"
+	"fmt"
+
+	"github.com/Peripli/service-manager/pkg/web/webfakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -29,27 +36,57 @@ func TestHandler(t *testing.T) {
 	RunSpecs(t, "SMHandler Suite")
 }
 
-var _ = Describe("SMHandler", func() {
-	Describe("NewHTTPHandler", func() {
-		It("Panics if a filter has no middleware function", func() {
-			filters := []types.Filter{{
-				Name: "test-filter",
-				RouteMatcher: types.RouteMatcher{
-					PathPattern: "*",
-				},
-			}}
-			handler := func(*types.Request) (*types.Response, error) { return nil, nil }
+var _ = Describe("Handler", func() {
+	var fakeHandler *webfakes.FakeHandler
+	var handler *HTTPHandler
+	var httpRecorder *httptest.ResponseRecorder
 
-			Expect(func() {
-				NewHTTPHandler(filters, handler)
-			}).To(Panic())
+	BeforeEach(func() {
+		httpRecorder = httptest.NewRecorder()
+		handler = NewHTTPHandler(fakeHandler)
+	})
 
-			filters[0].Middleware = func(*types.Request, types.SMHandler) (*types.Response, error) {
-				return nil, nil
-			}
-			Expect(func() {
-				NewHTTPHandler(filters, handler)
-			}).ToNot(Panic())
+	makeRequest := func() *httptest.ResponseRecorder {
+		recorder := httptest.NewRecorder()
+		request, _ := httptest.NewRequest(method, path, strings.NewReader(body))
+		request, _ := http.NewRequest("GET", "/v2/catalog", nil)
+
+		request.Header.Add("X-Broker-API-Version", "2.13")
+		request.SetBasicAuth(credentials.Username, credentials.Password)
+		request = request.WithContext(ctx)
+		brokerAPI.ServeHTTP(recorder, request)
+		return recorder
+	}
+
+	createFakeRequest := func(i, b string) *http.Request {
+		body := bytes.NewBufferString("")
+		uri := fmt.Sprintf("/v2/service_instances/%s/service_bindings/%s", i, b)
+		return httptest.NewRequest("GET", uri, body)
+	}
+
+	Describe("ServeHttp", func() {
+		Context()
+		Context("when http request is GET", func() {
+
+		})
+
+		Context("when http request is PUT/PATCH/POST and has invalid media type", func() {
+
+		})
+
+		Context("when http request is PUT/PATCH/POST and has invalid json body", func() {
+
+		})
+
+		Context("when web handler returns an error", func() {
+
 		})
 	})
+
+	Describe("Handle", func() {
+		It("invokes the underlying web.Handler", func() {
+
+		})
+	})
+
 })

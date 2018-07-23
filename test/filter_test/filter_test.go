@@ -5,21 +5,18 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
 type object = common.Object
-type array = common.Array
 
 func TestFilters(t *testing.T) {
 	os.Chdir("../..")
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Plugin Tests Suite")
+	RunSpecs(t, "Filter Tests Suite")
 }
 
 var _ = Describe("Service Manager Middlewares", func() {
@@ -29,7 +26,7 @@ var _ = Describe("Service Manager Middlewares", func() {
 	var testFilters []web.Filter
 
 	JustBeforeEach(func() {
-		api := &api.API{}
+		api := &web.API{}
 		api.RegisterFilters(testFilters...)
 		ctx = common.NewTestContext(api)
 		ctx.RegisterBroker("broker1", nil)
@@ -41,69 +38,50 @@ var _ = Describe("Service Manager Middlewares", func() {
 	})
 
 	Describe("Attach filter on multiple endpoints", func() {
+		var order string
 		BeforeEach(func() {
-			testFilters = []types.Filter{
-				{
-					Name: "OSB filter",
-					RouteMatcher: types.RouteMatcher{
-						PathPattern: "/v1/osb/**",
-					},
-					Middleware: func(req *types.Request, next types.SMHandler) (*types.Response, error) {
-						res, err := next(req)
-						if err == nil {
-							res.Header.Set("filter", "called")
-						}
-						return res, err
-					},
-				},
+			order = ""
+			testFilters = []web.Filter{
+				osbTestFilter{state: order},
 			}
 		})
 
-		It("should be called only on OSB API", func() {
-			ctx.SMWithBasic.GET(testBroker.OSBURL + "/v2/catalog").
-				Expect().Status(http.StatusOK).Header("filter").Equal("called")
+		Context("should be called only on OSB API", func() {
+			Specify("/v2/catalog", func() {
+				ctx.SMWithBasic.GET(testBroker.OSBURL + "/v2/catalog").
+					Expect().Status(http.StatusOK)
+				Expect(order).To(Equal("osb1osb2"))
+			})
 
-			ctx.SMWithBasic.PUT(testBroker.OSBURL+"/v2/service_instances/1234").
-				WithHeader("Content-Type", "application/json").
-				WithJSON(object{}).
-				Expect().Status(http.StatusOK).Header("filter").Equal("called")
+			Specify("/v2/service_instances/1234", func() {
+				ctx.SMWithBasic.PUT(testBroker.OSBURL+"/v2/service_instances/1234").
+					WithHeader("Content-Type", "application/json").
+					WithJSON(object{}).
+					Expect().Status(http.StatusOK)
+				Expect(order).To(Equal("osb1osb2"))
 
-			ctx.SMWithBasic.DELETE(testBroker.OSBURL + "/v2/service_instances/1234/service_bindings/111").
-				Expect().Status(http.StatusOK).Header("filter").Equal("called")
+			})
 
-			ctx.SMWithOAuth.GET("/v1/service_brokers").
-				Expect().Status(http.StatusOK).Header("filter").Empty()
+			Specify("/v2/service_instances/1234/service_bindings/111", func() {
+				ctx.SMWithBasic.DELETE(testBroker.OSBURL + "/v2/service_instances/1234/service_bindings/111").
+					Expect().Status(http.StatusOK)
+				Expect(order).To(Equal("osb1osb2"))
+			})
+
+			Specify("/v1/service_brokers", func() {
+				ctx.SMWithOAuth.GET("/v1/service_brokers").
+					Expect().Status(http.StatusOK)
+				Expect(order).To(Equal("osb1osb2"))
+			})
 		})
 	})
 
 	Describe("Attach filter on whole API", func() {
 		var order string
 		BeforeEach(func() {
-			testFilters = []types.Filter{
-				{
-					Name: "Global filter",
-					RouteMatcher: types.RouteMatcher{
-						PathPattern: "/**",
-					},
-					Middleware: func(req *types.Request, next types.SMHandler) (*types.Response, error) {
-						order += "a1"
-						res, err := next(req)
-						order += "a2"
-						return res, err
-					},
-				},
-				{
-					Name: "/v1 filter",
-					RouteMatcher: types.RouteMatcher{
-						PathPattern: "/v1/**",
-					},
-					Middleware: func(req *types.Request, next types.SMHandler) (*types.Response, error) {
-						order += "b1"
-						res, err := next(req)
-						order += "b2"
-						return res, err
-					},
-				},
+			testFilters = []web.Filter{
+				globalTestFilterA{state: order},
+				globalTestFilterB{state: order},
 			}
 		})
 
@@ -115,3 +93,91 @@ var _ = Describe("Service Manager Middlewares", func() {
 		})
 	})
 })
+
+type osbTestFilter struct {
+	state string
+}
+
+func (tf osbTestFilter) Name() string {
+	return "OSB Filter"
+}
+
+func (tf osbTestFilter) RouteMatchers() []web.RouteMatcher {
+	return []web.RouteMatcher {
+		{
+			Matchers: []web.Matcher{
+				web.Path("/v1/osb/**"),
+			},
+		},
+	}
+}
+
+func (tf osbTestFilter) Run(next web.Handler) web.Handler {
+	return web.HandlerFunc(func(request *web.Request)(*web.Response,error) {
+		tf.state += "osb1"
+		res, err := next.Handle(request)
+		if err == nil {
+			tf.state += "osb2"
+		}
+		return res, err
+	})
+}
+
+type globalTestFilterA struct {
+	state string
+}
+
+func (gfa globalTestFilterA) Name() string {
+	return "GlobalTestFilterA"
+}
+
+func (gfa globalTestFilterA) RouteMatchers() []web.RouteMatcher {
+	return []web.RouteMatcher {
+		{
+			Matchers: []web.Matcher{
+				web.Path("/**"),
+			},
+		},
+	}
+}
+
+func (gfa globalTestFilterA) Run(next web.Handler) web.Handler {
+	return web.HandlerFunc(func(request *web.Request)(*web.Response,error) {
+		gfa.state += "a1"
+		res, err := next.Handle(request)
+		if err == nil {
+			gfa.state += "a2"
+		}
+		return res, err
+	})
+}
+
+type globalTestFilterB struct {
+	state string
+}
+
+func (gfb globalTestFilterB) Name() string {
+	return "GlobalTestFilterB"
+}
+
+func (gfb globalTestFilterB) RouteMatchers() []web.RouteMatcher {
+	return []web.RouteMatcher {
+		{
+			Matchers: []web.Matcher{
+				web.Path("/v1/**"),
+			},
+		},
+	}
+}
+
+func (gfb globalTestFilterB) Run(next web.Handler) web.Handler {
+	return web.HandlerFunc(func(request *web.Request)(*web.Response,error) {
+		gfb.state += "b1"
+		res, err := next.Handle(request)
+		if err == nil {
+			gfb.state += "b2"
+		}
+		return res, err
+	})
+}
+

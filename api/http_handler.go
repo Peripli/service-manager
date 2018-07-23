@@ -31,6 +31,7 @@ type HTTPHandler struct {
 	Handler web.Handler
 }
 
+// NewHTTPHandler creates a new HTTPHandler from the provided web.Handler
 func NewHTTPHandler(handler web.Handler) *HTTPHandler {
 	return &HTTPHandler{
 		Handler: handler,

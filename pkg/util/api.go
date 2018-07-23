@@ -69,6 +69,7 @@ func UnmarshalAndValidate(body []byte, value interface{}) error {
 	return nil
 }
 
+// Unmarshal unmarshals the specified []byte into the provided value and returns an HttpError in unmarshaling fails
 func Unmarshal(body []byte, value interface{}) error {
 	err := json.Unmarshal(body, value)
 	if err != nil {
@@ -82,6 +83,7 @@ func Unmarshal(body []byte, value interface{}) error {
 	return nil
 }
 
+// Validate validates the specified value in case it implements InputValidator
 func Validate(value interface{}) error {
 	if input, ok := value.(InputValidator); ok {
 		return &HTTPError{

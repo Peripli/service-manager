@@ -28,29 +28,131 @@ func TestAPI(t *testing.T) {
 	RunSpecs(t, "API Suite")
 }
 
-var _ = Describe("API", func() {
-	var api API
+var _ = FDescribe("API", func() {
+	var (
+		api *API
+	)
 
 	BeforeEach(func() {
-		api = API{}
+		api = &API{}
+	})
+
+	Describe("RegisterControllers", func() {
+		It("increases broker count", func() {
+			originalCount := len(api.Controllers)
+			api.RegisterControllers(&testController{})
+			Expect(len(api.Controllers)).To(Equal(originalCount + 1))
+		})
 	})
 
 	Describe("RegisterPlugins", func() {
-		It("Panics if argument is nil", func() {
+		It("panics if argument is an empty plugin", func() {
 			Expect(func() {
-				api.RegisterPlugins(nil)
+				api.RegisterPlugins(&invalidPlugin{})
 			}).To(Panic())
 		})
 
-		It("Panics if argument is an empty plugin", func() {
-			Expect(func() {
-				api.RegisterPlugins(&PluginImpl{})
-			}).To(Panic())
+		It("increases filter count if successful", func() {
+			originalCount := len(api.Filters)
+			api.RegisterPlugins(&validPlugin{})
+			Expect(len(api.Filters)).To(Equal(originalCount + 8))
+		})
+
+	})
+
+	Describe("RegisterFilters", func() {
+		It("increases filter count if successful", func() {
+			originalCount := len(api.Filters)
+			api.RegisterFilters(&testFilter{})
+			Expect(len(api.Filters)).To(Equal(originalCount + 1))
 		})
 	})
 })
 
-type PluginImpl struct {
+type testController struct {
 }
 
-func (p *PluginImpl) Name() string { return "" }
+func (c *testController) Routes() []Route {
+	return []Route{}
+}
+
+type testFilter struct {
+}
+
+func (tf testFilter) Name() string {
+	return "testFilter"
+}
+
+func (tf testFilter) Run(next Handler) Handler {
+	return HandlerFunc(func(request *Request) (*Response, error) {
+		return next.Handle(request)
+	})
+}
+
+func (tf testFilter) RouteMatchers() []RouteMatcher {
+	return []RouteMatcher{}
+}
+
+type invalidPlugin struct {
+}
+
+func (p *invalidPlugin) Name() string {
+	return "invalidPlugin"
+}
+
+type validPlugin struct {
+}
+
+func (c *validPlugin) UpdateService(next Handler) Handler {
+	return HandlerFunc(func(request *Request) (*Response, error) {
+		return next.Handle(request)
+	})
+}
+
+func (c *validPlugin) Unbind(next Handler) Handler {
+	return HandlerFunc(func(request *Request) (*Response, error) {
+		return next.Handle(request)
+
+	})
+}
+
+func (c *validPlugin) Bind(next Handler) Handler {
+	return HandlerFunc(func(request *Request) (*Response, error) {
+		return next.Handle(request)
+
+	})
+}
+
+func (c *validPlugin) FetchBinding(next Handler) Handler {
+	return HandlerFunc(func(request *Request) (*Response, error) {
+		return next.Handle(request)
+	})
+}
+
+func (c *validPlugin) Deprovision(next Handler) Handler {
+	return HandlerFunc(func(request *Request) (*Response, error) {
+		return next.Handle(request)
+	})
+}
+
+func (c *validPlugin) Provision(next Handler) Handler {
+	return HandlerFunc(func(request *Request) (*Response, error) {
+		return next.Handle(request)
+	})
+}
+
+func (c *validPlugin) FetchService(next Handler) Handler {
+	return HandlerFunc(func(request *Request) (*Response, error) {
+		return next.Handle(request)
+	})
+}
+
+func (c *validPlugin) FetchCatalog(next Handler) Handler {
+	return HandlerFunc(func(request *Request) (*Response, error) {
+		return next.Handle(request)
+	})
+}
+
+func (c *validPlugin) Name() string {
+	return "validPlugin"
+}

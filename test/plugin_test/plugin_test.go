@@ -16,6 +16,7 @@ import (
 	"github.com/tidwall/sjson"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
 type object = common.Object
@@ -37,7 +38,7 @@ var _ = Describe("Service Manager Plugins", func() {
 
 	Describe("Partial plugin", func() {
 		BeforeEach(func() {
-			api := &api.API{}
+			api := &web.API{}
 			api.RegisterPlugins(&PartialPlugin{})
 			ctx = common.NewTestContext(api)
 			ctx.RegisterBroker("broker1", nil)
@@ -62,7 +63,7 @@ var _ = Describe("Service Manager Plugins", func() {
 
 		BeforeEach(func() {
 			testPlugin = TestPlugin{}
-			api := &api.API{}
+			api := &web.API{}
 			api.RegisterPlugins(testPlugin)
 			ctx = common.NewTestContext(api)
 			ctx.RegisterBroker("broker1", nil)
@@ -71,7 +72,7 @@ var _ = Describe("Service Manager Plugins", func() {
 
 		It("Plugin modifies the request & response body", func() {
 			var resBodySize int
-			testPlugin["provision"] = func(req *types.Request, next types.SMHandler) (*types.Response, error) {
+			testPlugin["provision"] = func(req *web.Request, next web.Handler) (*web.Response, error) {
 				var err error
 				req.Body, err = sjson.SetBytes(req.Body, "extra", "request")
 				if err != nil {

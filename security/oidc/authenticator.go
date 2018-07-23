@@ -65,6 +65,10 @@ type Authenticator struct {
 
 // NewAuthenticator returns a new OpenID authenticator or an error if one couldn't be configured
 func NewAuthenticator(ctx context.Context, options Options) (*Authenticator, error) {
+	if options.IssuerURL == "" || options.ClientID == "" {
+		logrus.Warn("Missing configuration for oidc authenticator")
+		return nil, nil
+	}
 	// Work around for UAA until https://github.com/cloudfoundry/uaa/issues/805 is fixed
 	// Then oidc.NewProvider(ctx, options.IssuerURL) should be used
 	if _, err := url.ParseRequestURI(options.IssuerURL); err != nil {
@@ -121,6 +125,9 @@ func (a *Authenticator) Authenticate(request *http.Request) (*security.User, err
 	authorizationHeader := request.Header.Get("Authorization")
 	if authorizationHeader == "" {
 		return nil, errors.New("Missing authorization header")
+	}
+	if a.Verifier == nil {
+		return nil, errors.New("Authenticator is not configured")
 	}
 	token := strings.TrimPrefix(authorizationHeader, "Bearer ")
 	if token == "" {
