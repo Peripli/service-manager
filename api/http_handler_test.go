@@ -17,15 +17,13 @@
 package api
 
 import (
-	"strings"
 	"testing"
 
-	"net/http"
 	"net/http/httptest"
 
-	"bytes"
-	"fmt"
+	"strings"
 
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/pkg/web/webfakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -33,59 +31,88 @@ import (
 
 func TestHandler(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "SMHandler Suite")
+	RunSpecs(t, "HTTPHandler Suite")
 }
 
 var _ = Describe("Handler", func() {
+	const validJSON = `{"key1":"value1","key2":"value2"}`
+	const invalidJSON = `{{{"KEY"`
+
 	var fakeHandler *webfakes.FakeHandler
+	var fakeHandlerWebResponse *web.Response
+	var fakeHandlerError error
 	var handler *HTTPHandler
-	var httpRecorder *httptest.ResponseRecorder
+	var actualResponse *httptest.ResponseRecorder
 
 	BeforeEach(func() {
-		httpRecorder = httptest.NewRecorder()
+		actualResponse = httptest.NewRecorder()
+		fakeHandler.HandleReturns(fakeHandlerWebResponse, fakeHandlerError)
+
 		handler = NewHTTPHandler(fakeHandler)
 	})
 
-	makeRequest := func() *httptest.ResponseRecorder {
+	makeRequest := func(method, path, body string, headers map[string]string) *httptest.ResponseRecorder {
 		recorder := httptest.NewRecorder()
-		request, _ := httptest.NewRequest(method, path, strings.NewReader(body))
-		request, _ := http.NewRequest("GET", "/v2/catalog", nil)
+		request := httptest.NewRequest(method, path, strings.NewReader(body))
 
-		request.Header.Add("X-Broker-API-Version", "2.13")
-		request.SetBasicAuth(credentials.Username, credentials.Password)
-		request = request.WithContext(ctx)
-		brokerAPI.ServeHTTP(recorder, request)
+		for k, v := range headers {
+			request.Header.Add(k, v)
+		}
+		handler.ServeHTTP(recorder, request)
 		return recorder
 	}
 
-	createFakeRequest := func(i, b string) *http.Request {
-		body := bytes.NewBufferString("")
-		uri := fmt.Sprintf("/v2/service_instances/%s/service_bindings/%s", i, b)
-		return httptest.NewRequest("GET", uri, body)
-	}
+	Describe("ServeHTTP", func() {
+		Context("when http request has invalid media type", func() {
+			Specify("actualResponse contains a proper HTTPError", func() {
 
-	Describe("ServeHttp", func() {
-		Context()
-		Context("when http request is GET", func() {
-
+			})
 		})
 
-		Context("when http request is PUT/PATCH/POST and has invalid media type", func() {
+		Context("when http request has invalid json body", func() {
+			Specify("actualResponse contains a proper HTTPError", func() {
 
+			})
 		})
 
-		Context("when http request is PUT/PATCH/POST and has invalid json body", func() {
+		Context("when call to web handler returns an error", func() {
+			Specify("actualResponse contains a proper HTTPError", func() {
 
+			})
 		})
 
-		Context("when web handler returns an error", func() {
+		Context("when call to web handler is successful", func() {
+			Context("when writing to ResponseWriter fails", func() {
+				Specify("actualResponse contains a proper HTTPError", func() {
 
+				})
+			})
+
+			Context("when headers are present the web.Handler's actualResponse", func() {
+				Specify("Content-Length header is not copied to the HTTPHandler's actualResponse", func() {
+
+				})
+
+				Specify("other headers are copied to the HTTPHandler's actualResponse", func() {
+
+				})
+			})
+
+			It("propagates the actualResponse from the web.Handler to the HTTPHandler", func() {
+
+			})
 		})
 	})
 
 	Describe("Handle", func() {
 		It("invokes the underlying web.Handler", func() {
+			handler.Handle(&web.Request{
+				Request:    httptest.NewRequest("", "", strings.NewReader("")),
+				PathParams: map[string]string{},
+				Body:       []byte("{}"),
+			})
 
+			Expect(fakeHandler.HandleCallCount()).To(Equal(1))
 		})
 	})
 

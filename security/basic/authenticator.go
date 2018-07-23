@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package basic_authn
+package basic
 
 import (
 	"net/http"
@@ -39,11 +39,7 @@ func NewAuthenticator(storage storage.Credentials) *Authenticator {
 func (a *Authenticator) Authenticate(request *http.Request) (*security.User, error) {
 	username, password, ok := request.BasicAuth()
 	if !ok {
-		return nil, &util.HTTPError{
-			ErrorType:   "Unauthorized",
-			Description: "missing or invalid Authorization header",
-			StatusCode:  http.StatusUnauthorized,
-		}
+		return nil, nil
 	}
 
 	credentials, err := a.CredentialStorage.Get(username)

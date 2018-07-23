@@ -7,13 +7,13 @@ import (
 )
 
 type basicAuthnFilter struct {
-	Midleware
+	Middleware
 }
 
 func NewBasicAuthnFilter(storage storage.Credentials) *basicAuthnFilter {
 	return &basicAuthnFilter{
-		Midleware: Midleware{
-			authenticator: basic_authn.NewAuthenticator(storage),
+		Middleware: Middleware{
+			authenticator: basic.NewAuthenticator(storage),
 		},
 	}
 }

@@ -12,7 +12,7 @@ import (
 )
 
 type bearerAuthnFilter struct {
-	Midleware
+	Middleware
 }
 
 func NewBearerAuthnFilter(ctx context.Context, tokenIssuer, clientID string) (*bearerAuthnFilter, error) {
@@ -24,7 +24,7 @@ func NewBearerAuthnFilter(ctx context.Context, tokenIssuer, clientID string) (*b
 		return nil, err
 	}
 	return &bearerAuthnFilter{
-		Midleware: Midleware{
+		Middleware: Middleware{
 			authenticator: authenticator,
 		},
 	}, nil

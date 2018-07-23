@@ -124,7 +124,7 @@ func NewAuthenticator(ctx context.Context, options Options) (*Authenticator, err
 func (a *Authenticator) Authenticate(request *http.Request) (*security.User, error) {
 	authorizationHeader := request.Header.Get("Authorization")
 	if authorizationHeader == "" {
-		return nil, errors.New("Missing authorization header")
+		return nil, nil
 	}
 	if a.Verifier == nil {
 		return nil, errors.New("Authenticator is not configured")

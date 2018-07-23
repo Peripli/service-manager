@@ -20,6 +20,9 @@ func (raf *requiredAuthnFilter) Name() string {
 
 func (raf *requiredAuthnFilter) Run(next web.Handler) web.Handler {
 	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
+		if request.Context().Value("user") != nil {
+			return next.Handle(request)
+		}
 		return nil, &util.HTTPError{
 			ErrorType:   "Unauthorized",
 			Description: "unsupported authentication scheme",

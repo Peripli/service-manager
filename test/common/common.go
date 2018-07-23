@@ -46,6 +46,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
 	"github.com/sirupsen/logrus"
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
 type Object = map[string]interface{}
@@ -84,7 +85,7 @@ const Catalog = `{
   ]
 }`
 
-func GetServerHandler(api *api.API, tokenIssuerURL string) http.Handler {
+func GetServerHandler(api *web.API, tokenIssuerURL string) http.Handler {
 	set := env.EmptyFlagSet()
 	config.AddPFlags(set)
 	set.Set("file.location", "./test/common")

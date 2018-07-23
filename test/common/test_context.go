@@ -24,7 +24,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 
-	"github.com/Peripli/service-manager/api"
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gavv/httpexpect"
 )
 
@@ -42,7 +42,7 @@ var serviceCatalog = `{
 	}]
 }`
 
-func NewTestContext(api *api.API) *TestContext {
+func NewTestContext(api *web.API) *TestContext {
 	mockOauthServer := SetupMockOAuthServer()
 	smServer := httptest.NewServer(GetServerHandler(api, mockOauthServer.URL))
 	SM := httpexpect.New(GinkgoT(), smServer.URL)
