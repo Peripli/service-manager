@@ -99,6 +99,7 @@ func (c *Controller) getPlatform(request *web.Request) (*web.Response, error) {
 	if err = common.HandleNotFoundError(err, "platform", platformID); err != nil {
 		return nil, err
 	}
+	platform.Credentials = nil
 	return rest.NewJSONResponse(http.StatusOK, platform)
 }
 
@@ -109,9 +110,15 @@ func (c *Controller) getAllPlatforms(request *web.Request) (*web.Response, error
 	if err != nil {
 		return nil, err
 	}
-	platformsResponse := map[string][]types.Platform{"platforms": platforms}
+	for _, platform := range platforms {
+		platform.Credentials = nil
+	}
 
-	return rest.NewJSONResponse(http.StatusOK, &platformsResponse)
+	return rest.NewJSONResponse(http.StatusOK, struct {
+		Platforms []*types.Platform `json:"platforms"`
+	}{
+		Platforms: platforms,
+	})
 }
 
 // deletePlatform handler for DELETE /v1/platforms/:platform_id
@@ -136,6 +143,7 @@ func (c *Controller) patchPlatform(request *web.Request) (*web.Response, error) 
 		return nil, errDecode
 	}
 	newPlatform.ID = platformID
+	newPlatform.CreatedAt = time.Time{}
 	newPlatform.UpdatedAt = time.Now().UTC()
 	platformStorage := c.PlatformStorage
 	err := platformStorage.Update(newPlatform)

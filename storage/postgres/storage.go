@@ -122,27 +122,6 @@ func updateSchema(db *sqlx.DB) error {
 	return err
 }
 
-func transaction(db *sqlx.DB, f func(tx *sqlx.Tx) error) error {
-	tx, err := db.Beginx()
-	if err != nil {
-		return err
-	}
-	ok := false
-	defer func() {
-		if !ok {
-			if txError := tx.Rollback(); txError != nil {
-				logrus.Error("Could not rollback transaction", txError)
-			}
-		}
-	}()
-
-	if err = f(tx); err != nil {
-		return err
-	}
-	ok = true
-	return tx.Commit()
-}
-
 func checkUniqueViolation(err error) error {
 	if err == nil {
 		return nil

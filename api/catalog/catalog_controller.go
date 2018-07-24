@@ -61,7 +61,7 @@ func (c *Controller) getCatalog(request *web.Request) (*web.Response, error) {
 	return rest.NewJSONResponse(http.StatusOK, aggregatedCatalog{resultServices})
 }
 
-func filterBrokersByID(dbBrokers []types.Broker, queryBrokerIDs []string, filteredBrokers *[]brokerServices) {
+func filterBrokersByID(dbBrokers []*types.Broker, queryBrokerIDs []string, filteredBrokers *[]brokerServices) {
 	for _, queryBrokerID := range queryBrokerIDs {
 		for _, dbBroker := range dbBrokers {
 			if queryBrokerID == dbBroker.ID {
@@ -76,7 +76,7 @@ func filterBrokersByID(dbBrokers []types.Broker, queryBrokerIDs []string, filter
 	}
 }
 
-func retrieveAllBrokers(dbBrokers []types.Broker, brokers *[]brokerServices) {
+func retrieveAllBrokers(dbBrokers []*types.Broker, brokers *[]brokerServices) {
 	for _, dbBroker := range dbBrokers {
 		*brokers = append(*brokers, brokerServices{
 			ID:      dbBroker.ID,

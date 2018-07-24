@@ -29,72 +29,47 @@ type platformStorage struct {
 }
 
 func (ps *platformStorage) Create(platform *types.Platform) error {
-	return transaction(ps.db, func(tx *sqlx.Tx) error {
-		stmt, err := tx.PrepareNamed(
-			"INSERT INTO " + credentialsTable + "(type, username, password) VALUES (:type, :username, :password) RETURNING id")
-		if err != nil {
-			return err
-		}
-		var credentialsID int
-		err = stmt.Get(&credentialsID, convertCredentialsToDTO(platform.Credentials))
-		if err != nil {
-			return err
-		}
-
-		platformDTO := convertPlatformToDTO(platform)
-		platformDTO.CredentialsID = credentialsID
-		_, err = tx.NamedExec(fmt.Sprintf(
-			"INSERT INTO %s (id, type, name, description, credentials_id, created_at, updated_at) %s",
-			platformTable,
-			"VALUES(:id, :type, :name, :description, :credentials_id, :created_at, :updated_at)"),
-			&platformDTO)
-		return checkUniqueViolation(err)
-	})
+	platformDTO := convertPlatformToDTO(platform)
+	query := fmt.Sprintf(
+		"INSERT INTO %s (id, type, name, description, created_at, updated_at, username, password) %s",
+		platformTable,
+		"VALUES(:id, :type, :name, :description, :created_at, :updated_at, :username, :password)")
+	_, err := ps.db.NamedExec(query, &platformDTO)
+	return checkUniqueViolation(err)
 }
 
 func (ps *platformStorage) Get(id string) (*types.Platform, error) {
 	platform := Platform{}
-	err := ps.db.Get(&platform,
-		"SELECT id, type, name, description, created_at, updated_at FROM "+platformTable+" WHERE id=$1",
-		id)
+	query := "SELECT * FROM " + platformTable + " WHERE id=$1"
+	err := ps.db.Get(&platform, query, id)
 	if err = checkSQLNoRows(err); err != nil {
 		return nil, err
 	}
 	return platform.Convert(), nil
 }
 
-func (ps *platformStorage) GetAll() ([]types.Platform, error) {
+func (ps *platformStorage) GetAll() ([]*types.Platform, error) {
 	platformDTOs := []Platform{}
-	err := ps.db.Select(&platformDTOs,
-		"SELECT id, type, name, description, created_at, updated_at FROM "+platformTable)
+	query := "SELECT * FROM " + platformTable
+	err := ps.db.Select(&platformDTOs, query)
 	if err != nil || len(platformDTOs) == 0 {
-		return []types.Platform{}, err
+		return []*types.Platform{}, err
 	}
-	var platforms = make([]types.Platform, 0, len(platformDTOs)+1)
+	var platforms = make([]*types.Platform, 0, len(platformDTOs)+1)
 	for _, platformDTO := range platformDTOs {
-		platforms = append(platforms, *platformDTO.Convert())
+		platforms = append(platforms, platformDTO.Convert())
 	}
 	return platforms, nil
 }
 
 func (ps *platformStorage) Delete(id string) error {
-	// deletePlatform is a query that deletes platform and corresponding credentials
-	deletePlatform := fmt.Sprintf(`WITH pl AS (
-		DELETE FROM %s
-		WHERE
-			id = $1
-		RETURNING credentials_id
-	)
-	DELETE FROM %s
-	WHERE id IN (SELECT credentials_id from pl)`, platformTable, credentialsTable)
+	deletePlatform := fmt.Sprintf("DELETE FROM %s WHERE id=$1", platformTable)
 
-	return transaction(ps.db, func(tx *sqlx.Tx) error {
-		result, err := tx.Exec(deletePlatform, &id)
-		if err != nil {
-			return err
-		}
-		return checkRowsAffected(result)
-	})
+	result, err := ps.db.Exec(deletePlatform, &id)
+	if err != nil {
+		return err
+	}
+	return checkRowsAffected(result)
 }
 
 func (ps *platformStorage) Update(platform *types.Platform) error {

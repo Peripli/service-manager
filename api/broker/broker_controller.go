@@ -135,15 +135,16 @@ func (c *Controller) getAllBrokers(request *web.Request) (*web.Response, error) 
 	if err != nil {
 		return nil, err
 	}
-	withCatalog := request.FormValue(catalogParam)
-	if strings.ToLower(withCatalog) != "true" {
-		for i := 0; i < len(brokers); i++ {
-			brokers[i].Catalog = nil
+	removeCatalog := strings.ToLower(request.FormValue(catalogParam)) != "true"
+	for _, broker := range brokers {
+		broker.Credentials = nil
+		if removeCatalog {
+			broker.Catalog = nil
 		}
 	}
 
 	return rest.NewJSONResponse(http.StatusOK, struct {
-		Brokers []types.Broker `json:"brokers"`
+		Brokers []*types.Broker `json:"brokers"`
 	}{
 		Brokers: brokers,
 	})
@@ -170,6 +171,7 @@ func (c *Controller) patchBroker(request *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
+	updateBroker.CreatedAt = time.Time{}
 	updateBroker.UpdatedAt = time.Now().UTC()
 	updateBroker.ID = brokerID
 
