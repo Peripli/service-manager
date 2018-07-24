@@ -19,36 +19,114 @@ package util
 import (
 	"errors"
 	"net/http"
-	"testing"
 
-	"github.com/Peripli/service-manager/pkg/web"
-	. "github.com/onsi/ginkgo"
+	"net/http/httptest"
+
 	. "github.com/onsi/gomega"
+
+	"encoding/json"
+
+	"fmt"
+
+	. "github.com/onsi/ginkgo"
 	"github.com/sirupsen/logrus"
 )
 
-func TestRest(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Rest Suite")
-}
+var _ = Describe("Errors", func() {
 
-type mockedResponseWriter struct {
-	data   []byte
-	status int
-}
+	var (
+		responseRecorder *httptest.ResponseRecorder
+		fakeErrorWriter  *errorResponseWriter
+		testHTTPError    *HTTPError
+	)
 
-func (writer *mockedResponseWriter) Header() http.Header {
-	return http.Header{}
-}
+	BeforeEach(func() {
+		responseRecorder = httptest.NewRecorder()
+		fakeErrorWriter = &errorResponseWriter{}
+		testHTTPError = &HTTPError{
+			ErrorType:   "test error",
+			Description: "test description",
+			StatusCode:  http.StatusTeapot,
+		}
+	})
 
-func (writer *mockedResponseWriter) Write(data []byte) (int, error) {
-	writer.data = append(writer.data, data...)
-	return len(data), nil
-}
+	Describe("HandleAPIError", func() {
+		Context("when parameter is HTTPError", func() {
+			It("writes to response writer the proper output", func() {
+				HandleAPIError(testHTTPError, responseRecorder)
 
-func (writer *mockedResponseWriter) WriteHeader(status int) {
-	writer.status = status
-}
+				Expect(responseRecorder.Code).To(Equal(http.StatusTeapot))
+				Expect(responseRecorder.Body.String()).To(ContainSubstring("test description"))
+			})
+		})
+		Context("With error as parameter", func() {
+			It("Writes to response writer the proper output", func() {
+				HandleAPIError(errors.New("must not be included"), responseRecorder)
+
+				Expect(responseRecorder.Code).To(Equal(http.StatusInternalServerError))
+				Expect(responseRecorder.Body.String()).To(ContainSubstring("Internal server error"))
+				Expect(string(responseRecorder.Body.String())).ToNot(ContainSubstring("must not be included"))
+			})
+		})
+
+		Context("With broken writer", func() {
+			It("Logs write error", func() {
+				hook := &loggingInterceptorHook{}
+				logrus.AddHook(hook)
+				HandleAPIError(errors.New(""), fakeErrorWriter)
+
+				Expect(string(hook.data)).To(ContainSubstring("Could not write error to response: write error"))
+			})
+		})
+	})
+
+	Describe("HandleClientError", func() {
+		Context("when response contains HTTPError", func() {
+			It("returns an HTTPError containing the same error information", func() {
+				bytes, err := json.Marshal(testHTTPError)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				response := &http.Response{
+					StatusCode: testHTTPError.StatusCode,
+					Body:       closer(string(bytes)),
+				}
+				Expect(err).ShouldNot(HaveOccurred())
+
+				err = HandleClientResponseError(response)
+				validateHTTPErrorOccured(err, response.StatusCode)
+
+			})
+		})
+
+		Context("when response contains standard error", func() {
+			It("returns an error containing information about the error handling failure", func() {
+				e := fmt.Errorf("test error")
+				response := &http.Response{
+					StatusCode: http.StatusTeapot,
+					Body:       closer(e.Error()),
+				}
+
+				err := HandleClientResponseError(response)
+				Expect(err.Error()).To(ContainSubstring("error handling client response error"))
+			})
+		})
+
+		Describe("HTTPError", func() {
+			var err *HTTPError
+			BeforeEach(func() {
+				err = &HTTPError{
+					ErrorType:   "err",
+					Description: "err",
+					StatusCode:  http.StatusTeapot,
+				}
+			})
+
+			It("implements the error interface by returning the description", func() {
+				Expect(err.Error()).To(Equal(err.Description))
+			})
+		})
+	})
+})
 
 type loggingInterceptorHook struct {
 	data []byte
@@ -78,39 +156,3 @@ func (errorResponseWriter) Write([]byte) (int, error) {
 func (errorResponseWriter) WriteHeader(statusCode int) {
 	// do nothing
 }
-
-var _ = Describe("Errors", func() {
-
-	mockedWriter := &mockedResponseWriter{}
-	mockedErrorWriter := &errorResponseWriter{}
-
-	BeforeEach(func() {
-		mockedWriter.data = []byte{}
-	})
-
-	Describe("HandleError", func() {
-		Context("With HTTPError as parameter", func() {
-			It("Writes to response writer the proper output", func() {
-				HandleError(&web.HTTPError{ErrorType: "test error", Description: "test description", StatusCode: http.StatusAccepted}, mockedWriter)
-				Expect(string(mockedWriter.data)).To(ContainSubstring("test description"))
-				Expect(mockedWriter.status).To(Equal(http.StatusAccepted))
-			})
-		})
-		Context("With error as parameter", func() {
-			It("Writes to response writer the proper output", func() {
-				HandleError(errors.New("must not be included"), mockedWriter)
-				Expect(string(mockedWriter.data)).To(ContainSubstring("Internal server error"))
-				Expect(string(mockedWriter.data)).ToNot(ContainSubstring("must not be included"))
-				Expect(mockedWriter.status).To(Equal(http.StatusInternalServerError))
-			})
-		})
-		Context("With broken writer", func() {
-			It("Logs write error", func() {
-				hook := &loggingInterceptorHook{}
-				logrus.AddHook(hook)
-				HandleError(errors.New(""), mockedErrorWriter)
-				Expect(string(hook.data)).To(ContainSubstring("Could not write error to response: write error"))
-			})
-		})
-	})
-})

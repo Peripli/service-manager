@@ -59,18 +59,18 @@ func ReadHTTPRequestBody(request *http.Request) ([]byte, error) {
 
 // UnmarshalAndValidate parses and validates the request body
 func UnmarshalAndValidate(body []byte, value interface{}) error {
-	if err := Unmarshal(body, value); err != nil {
+	if err := unmarshal(body, value); err != nil {
 		return err
 	}
-	if err := Validate(value); err != nil {
+	if err := validate(value); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// Unmarshal unmarshals the specified []byte into the provided value and returns an HttpError in unmarshaling fails
-func Unmarshal(body []byte, value interface{}) error {
+// unmarshal unmarshals the specified []byte into the provided value and returns an HttpError in unmarshaling fails
+func unmarshal(body []byte, value interface{}) error {
 	err := json.Unmarshal(body, value)
 	if err != nil {
 		logrus.Error("Failed to decode request body: ", err)
@@ -83,13 +83,15 @@ func Unmarshal(body []byte, value interface{}) error {
 	return nil
 }
 
-// Validate validates the specified value in case it implements InputValidator
-func Validate(value interface{}) error {
+// validate validates the specified value in case it implements InputValidator
+func validate(value interface{}) error {
 	if input, ok := value.(InputValidator); ok {
-		return &HTTPError{
-			ErrorType:   "BadRequest",
-			Description: input.Validate().Error(),
-			StatusCode:  http.StatusBadRequest,
+		if err := input.Validate(); err != nil {
+			return &HTTPError{
+				ErrorType:   "BadRequest",
+				Description: input.Validate().Error(),
+				StatusCode:  http.StatusBadRequest,
+			}
 		}
 	}
 	return nil

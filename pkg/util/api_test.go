@@ -1,49 +1,237 @@
 package util
 
-import "testing"
-import . "github.com/onsi/ginkgo"
-import . "github.com/onsi/gomega"
+import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
 
-func TestValidator(t *testing.T) {
+	. "github.com/onsi/ginkgo"
+
+	. "github.com/onsi/gomega"
+)
+
+func TestUtil(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Util test suite")
 }
 
-func assertHasReservedCharacters(input string) {
-	It("should return true", func() {
-		Expect(HasRFC3986ReservedSymbols(input)).To(Equal(true))
-	})
+func validateHTTPErrorOccured(err error, expectedStatusCode int) {
+	Expect(err).Should(HaveOccurred())
+
+	httpError, ok := err.(*HTTPError)
+	Expect(ok).To(BeTrue())
+
+	Expect(httpError.StatusCode).To(Equal(expectedStatusCode))
+
+	Expect(httpError.ErrorType).To(Not(BeEmpty()))
+	Expect(httpError.Description).To(Not(BeEmpty()))
 }
 
-func assertNoReservedCharacters(input string) {
-	It("should return false", func() {
-		Expect(HasRFC3986ReservedSymbols(input)).To(Equal(false))
-	})
-}
+var _ = Describe("Utils test", func() {
 
-func assertReservedCases(cases []string, hasReserved bool) {
-	for _, str := range cases {
-		if hasReserved {
-			assertHasReservedCharacters(str)
-		} else {
-			assertNoReservedCharacters(str)
+	Describe("HasRFC3986ReservedSymbols", func() {
+
+		assertHasReservedCharacters := func(input string) {
+			It("should return true", func() {
+				Expect(HasRFC3986ReservedSymbols(input)).To(Equal(true))
+			})
 		}
-	}
-}
 
-var _ = Describe("Validator test", func() {
-	Context("HasRFC3986ReservedSymbols with single characters", func() {
-		reserved := []string{":", "/", "?", "#", "[", "]", "@", "!", "$", "&", "'", "(", ")", "*", "+", ",", ";", "="}
-		assertReservedCases(reserved, true)
+		assertNoReservedCharacters := func(input string) {
+			It("should return false", func() {
+				Expect(HasRFC3986ReservedSymbols(input)).To(Equal(false))
+			})
+		}
+
+		assertReservedCases := func(cases []string, hasReserved bool) {
+			for _, str := range cases {
+				if hasReserved {
+					assertHasReservedCharacters(str)
+				} else {
+					assertNoReservedCharacters(str)
+				}
+			}
+		}
+
+		Context("HasRFC3986ReservedSymbols with single characters", func() {
+			reserved := []string{":", "/", "?", "#", "[", "]", "@", "!", "$", "&", "'", "(", ")", "*", "+", ",", ";", "="}
+			assertReservedCases(reserved, true)
+		})
+
+		Context("HasRFC3986ReservedSymbols with multiple symbols", func() {
+			cases := []string{"@a\\/", "@a@", "a:b", "a:;b", ":;@", "()", "+a+", "[a+]", "a=3?"}
+			assertReservedCases(cases, true)
+		})
+
+		Context("HasRFC3986ReservedSymbols with no reserved symbols", func() {
+			cases := []string{"a", "a~b", "a_b", "a-b", "", "74a", "a00", "--a", "-a", "a-", "a--", "-"}
+			assertReservedCases(cases, false)
+		})
 	})
 
-	Context("HasRFC3986ReservedSymbols with multiple symbols", func() {
-		cases := []string{"@a\\/", "@a@", "a:b", "a:;b", ":;@", "()", "+a+", "[a+]", "a=3?"}
-		assertReservedCases(cases, true)
+	Describe("ReadHTTPRequestBody", func() {
+		const validJSON = `{"key1":"value1","key2":"value2"}`
+		const invalidJSON = `{{{"KEY"`
+
+		var req *http.Request
+
+		Context("when Content-type is not application/json", func() {
+			It("returns a proper HTTPError", func() {
+				req = httptest.NewRequest(http.MethodPost, "http://example.com", strings.NewReader(validJSON))
+				req.Header.Add("Content-Type", "application/xml")
+				_, err := ReadHTTPRequestBody(req)
+
+				validateHTTPErrorOccured(err, http.StatusUnsupportedMediaType)
+			})
+		})
+
+		Context("when reading body bytes fails", func() {
+			It("returns a proper HTTPError", func() {
+				req = httptest.NewRequest(http.MethodPost, "http://example.com", errorReader{})
+				req.Header.Add("Content-Type", "application/json")
+				_, err := ReadHTTPRequestBody(req)
+
+				Expect(err).Should(HaveOccurred())
+			})
+		})
+
+		Context("when body is not valid JSON", func() {
+			It("returns a proper HTTPError", func() {
+				req = httptest.NewRequest(http.MethodPost, "http://example.com", strings.NewReader(invalidJSON))
+				req.Header.Add("Content-Type", "application/json")
+				_, err := ReadHTTPRequestBody(req)
+
+				validateHTTPErrorOccured(err, http.StatusBadRequest)
+			})
+		})
+
+		Context("when successful", func() {
+			It("returns the []byte representation of the request body", func() {
+				req = httptest.NewRequest(http.MethodPost, "http://example.com", strings.NewReader(validJSON))
+				req.Header.Add("Content-Type", "application/json")
+				bytes, err := ReadHTTPRequestBody(req)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(string(bytes)).To(Equal(validJSON))
+			})
+		})
 	})
 
-	Context("HasRFC3986ReservedSymbols with no reserved symbols", func() {
-		cases := []string{"a", "a~b", "a_b", "a-b", "", "74a", "a00", "--a", "-a", "a-", "a--", "-"}
-		assertReservedCases(cases, false)
+	Describe("UnmarshalAndValidate", func() {
+		const (
+			testTypeValid    = `{"field1":"value1", "field2":"value2"}`
+			testTypeNotValid = `{"field1":"value1"}`
+			randomJSON       = `{"f1":"v1", "f2":"v2"}`
+		)
+
+		var (
+			testTypeValidation   testTypeValidated
+			testTypeNoValidation testTypeNotValidated
+		)
+
+		BeforeEach(func() {
+			testTypeValidation = testTypeValidated{}
+			testTypeNoValidation = testTypeNotValidated{}
+		})
+
+		Context("when JSON unmarshaling fails", func() {
+			It("returns a proper HTTPError", func() {
+				err := UnmarshalAndValidate([]byte(randomJSON), &testTypeValidation)
+
+				validateHTTPErrorOccured(err, http.StatusBadRequest)
+			})
+		})
+
+		Context("when input validation fails", func() {
+			It("returns a proper HTTPError", func() {
+				err := UnmarshalAndValidate([]byte(testTypeNotValid), &testTypeValidation)
+
+				validateHTTPErrorOccured(err, http.StatusBadRequest)
+			})
+		})
+
+		Context("when value is not InputValidator", func() {
+			It("returns nil", func() {
+				err := UnmarshalAndValidate([]byte(testTypeNotValid), &testTypeNoValidation)
+
+				Expect(err).ShouldNot(HaveOccurred())
+			})
+		})
+
+		Context("when unmarshaling and validation succeed", func() {
+			It("returns nil", func() {
+				err := UnmarshalAndValidate([]byte(testTypeValid), &testTypeValidation)
+
+				Expect(err).ShouldNot(HaveOccurred())
+			})
+		})
+	})
+
+	Describe("SendJSON", func() {
+		const testTypeValid = `{"field1":"Value1", "field2":"Value2"}`
+
+		It("writes the code and value to the ResponseWriter and adds a Content-Type header", func() {
+			expectedCode := http.StatusOK
+			testValue := testTypeValidated{
+				Field1: "Value1",
+				Field2: "Value2",
+			}
+			recorder := httptest.NewRecorder()
+
+			err := SendJSON(recorder, expectedCode, testValue)
+
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(recorder.Code).To(Equal(expectedCode))
+			Expect(recorder.Body).Should(MatchJSON(testTypeValid))
+			Expect(recorder.Header().Get("Content-Type")).To(Equal("application/json"))
+
+		})
+	})
+
+	Describe("NewJSONResponse", func() {
+		const testTypeValid = `{"field1":"Value1", "field2":"Value2"}`
+
+		It("builds a web.Response containing the marshalled value with a Content-Type header", func() {
+			expectedCode := http.StatusOK
+			testValue := testTypeValidated{
+				Field1: "Value1",
+				Field2: "Value2",
+			}
+			response, err := NewJSONResponse(expectedCode, testValue)
+
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(expectedCode))
+			Expect(response.Body).Should(MatchJSON(testTypeValid))
+			Expect(response.Header.Get("Content-Type")).To(Equal("application/json"))
+		})
 	})
 })
+
+type testTypeValidated struct {
+	Field1 string `json:"field1"`
+	Field2 string `json:"field2"`
+}
+
+func (tt testTypeValidated) Validate() error {
+	if tt.Field1 == "" {
+		return fmt.Errorf("empty field1")
+	}
+	if tt.Field2 == "" {
+		return fmt.Errorf("empty field2")
+	}
+	return nil
+}
+
+type testTypeNotValidated struct {
+	Field1 string `json:"field1"`
+	Field2 string `json:"field2"`
+}
+
+type errorReader struct {
+}
+
+func (errorReader) Read(p []byte) (n int, err error) {
+	return 0, fmt.Errorf("error")
+}

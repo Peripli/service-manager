@@ -36,7 +36,7 @@ func TestServiceManager(t *testing.T) {
 	RunSpecs(t, "Service Manager Suite")
 }
 
-var _ = Describe("sm", func() {
+var _ = Describe("SM", func() {
 
 	var serviceManagerServer *httptest.Server
 

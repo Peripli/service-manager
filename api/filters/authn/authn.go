@@ -10,13 +10,16 @@ import (
 	"github.com/Peripli/service-manager/security"
 )
 
+// UserKey represents the authenticated user from the request context
+const UserKey = "user"
+
 type Middleware struct {
 	authenticator security.Authenticator
 }
 
 func (ba *Middleware) Run(next web.Handler) web.Handler {
 	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
-		if request.Context().Value("user") != nil {
+		if request.Context().Value(UserKey) != nil {
 			return next.Handle(request)
 		}
 		user, err := ba.authenticator.Authenticate(request.Request)
@@ -27,7 +30,7 @@ func (ba *Middleware) Run(next web.Handler) web.Handler {
 				StatusCode:  http.StatusUnauthorized,
 			}
 		}
-		request.Request = request.WithContext(context.WithValue(request.Context(), "user", user))
+		request.Request = request.WithContext(context.WithValue(request.Context(), UserKey, user))
 		return next.Handle(request)
 	})
 }

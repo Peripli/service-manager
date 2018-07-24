@@ -5,6 +5,8 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/security"
+	"github.com/sirupsen/logrus"
 )
 
 type requiredAuthnFilter struct {
@@ -20,9 +22,12 @@ func (raf *requiredAuthnFilter) Name() string {
 
 func (raf *requiredAuthnFilter) Run(next web.Handler) web.Handler {
 	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
-		if request.Context().Value("user") != nil {
+		user := request.Context().Value(UserKey)
+		if _, ok := user.(*security.User); ok {
 			return next.Handle(request)
 		}
+
+		logrus.Error("No authenticated user found in request context")
 		return nil, &util.HTTPError{
 			ErrorType:   "Unauthorized",
 			Description: "unsupported authentication scheme",

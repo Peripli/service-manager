@@ -67,8 +67,7 @@ func HandleClientResponseError(response *http.Response) error {
 	}
 
 	if err := ReadClientResponseContent(httpErr, response.Body); err != nil {
-		httpErr.Description = err.Error()
-		return fmt.Errorf("error handling failure response: %s", err)
+		return fmt.Errorf("error handling client response error: %s", err)
 	}
 
 	return httpErr
