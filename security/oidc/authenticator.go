@@ -67,7 +67,7 @@ type Authenticator struct {
 func NewAuthenticator(ctx context.Context, options Options) (*Authenticator, error) {
 	if options.IssuerURL == "" || options.ClientID == "" {
 		logrus.Warn("Missing configuration for oidc authenticator")
-		return nil, nil
+		return nil, errors.New("missing config for OIDC Authenticator")
 	}
 	// Work around for UAA until https://github.com/cloudfoundry/uaa/issues/805 is fixed
 	// Then oidc.NewProvider(ctx, options.IssuerURL) should be used
@@ -121,27 +121,27 @@ func NewAuthenticator(ctx context.Context, options Options) (*Authenticator, err
 }
 
 // Authenticate returns information about the user by obtaining it from the bearer token, or an error if security is unsuccessful
-func (a *Authenticator) Authenticate(request *http.Request) (*security.User, error) {
+func (a *Authenticator) Authenticate(request *http.Request) (*security.User, bool, error) {
 	authorizationHeader := request.Header.Get("Authorization")
 	if authorizationHeader == "" {
-		return nil, nil
+		return nil, false, nil
 	}
 	if a.Verifier == nil {
-		return nil, errors.New("Authenticator is not configured")
+		return nil, true, errors.New("Authenticator is not configured")
 	}
 	token := strings.TrimPrefix(authorizationHeader, "Bearer ")
 	if token == "" {
-		return nil, errors.New("Token is required in authorization header")
+		return nil, true, errors.New("Token is required in authorization header")
 	}
 	idToken, err := a.Verifier.Verify(request.Context(), token)
 	if err != nil {
-		return nil, err
+		return nil, true, err
 	}
 	claims := &claims{}
 	if err := idToken.Claims(claims); err != nil {
-		return nil, err
+		return nil, true, err
 	}
 	return &security.User{
 		Name: claims.Username,
-	}, nil
+	}, true, nil
 }

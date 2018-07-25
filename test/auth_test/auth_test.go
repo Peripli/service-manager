@@ -168,7 +168,7 @@ var _ = Describe("Service Manager Authentication", func() {
 
 		for _, request := range authRequests {
 			request := request
-			It(request.name, func() {
+			It(request.name+" "+request.method+" "+request.path+" auth_header: "+request.authHeader, func() {
 				expectUnauthorizedRequest(ctx, request.method, request.path, request.authHeader)
 			})
 		}

@@ -1,6 +1,8 @@
 package authn
 
 import (
+	"net/http"
+
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/security/basic"
 	"github.com/Peripli/service-manager/storage"
@@ -28,6 +30,12 @@ func (ba *basicAuthnFilter) RouteMatchers() []web.RouteMatcher {
 		{
 			Matchers: []web.Matcher{
 				web.Path("/v1/osb/**"),
+			},
+		},
+		{
+			Matchers: []web.Matcher{
+				web.Methods(http.MethodGet),
+				web.Path("/v1/service_brokers/**"),
 			},
 		},
 	}

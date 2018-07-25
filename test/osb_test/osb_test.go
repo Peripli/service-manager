@@ -18,16 +18,22 @@ package osb_test
 import (
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"testing"
-
 	"github.com/Peripli/service-manager/test/common"
 	"github.com/gavv/httpexpect"
 
 	. "github.com/onsi/ginkgo"
+	"testing"
+	"os"
 )
 
 type object = common.Object
+
+
+// TestOSB tests for OSB API
+func TestOSB(t *testing.T) {
+	os.Chdir("../..")
+	RunSpecs(t, "OSB API Tests Suite")
+}
 
 func assertBadBrokerError(req *httpexpect.Request) {
 	body := req.Expect().Status(http.StatusNotAcceptable).JSON().Object()
@@ -39,7 +45,7 @@ func assertMissingBrokerError(req *httpexpect.Request) {
 	body := req.Expect().Status(http.StatusNotFound).JSON().Object()
 	body.ContainsKey("description").
 		Value("description").String().
-		Equal("Could not find broker with id: missing_broker_id")
+		Equal("could not find broker with id: missing_broker_id")
 }
 
 func getDummyService(idsToRemove ...string) *object {
@@ -79,11 +85,7 @@ func requestWithMissingIDsInQuery(req smreq, url string, idName string, expected
 	assertRequiredIDError(resp, expectedIDName)
 }
 
-// TestOSB tests for OSB API
-func TestOSB(t *testing.T) {
-	os.Chdir("../..")
-	RunSpecs(t, "OSB API Tests Suite")
-}
+
 
 var _ = Describe("Service Manager OSB API", func() {
 	var (

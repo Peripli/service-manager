@@ -242,7 +242,12 @@ func SetupMockOAuthServer() *httptest.Server {
 			Issuer:         issuerURL + "/oauth/token",
 			KeyID:          keyID,
 			Audience:       "sm",
-			ExpirationTime: nextYear})
+			ExpirationTime: nextYear,
+			Public: map[string]interface{} {
+				"user_name": "testUser",
+			},
+
+		})
 		if err != nil {
 			panic(err)
 		}

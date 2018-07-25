@@ -1,3 +1,19 @@
+/*
+ * Copyright 2018 The Service Manager Authors
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package util
 
 import (
@@ -59,7 +75,7 @@ func ReadHTTPRequestBody(request *http.Request) ([]byte, error) {
 
 // UnmarshalAndValidate parses and validates the request body
 func UnmarshalAndValidate(body []byte, value interface{}) error {
-	if err := unmarshal(body, value); err != nil {
+	if err := Unmarshal(body, value); err != nil {
 		return err
 	}
 	if err := validate(value); err != nil {
@@ -70,7 +86,7 @@ func UnmarshalAndValidate(body []byte, value interface{}) error {
 }
 
 // unmarshal unmarshals the specified []byte into the provided value and returns an HttpError in unmarshaling fails
-func unmarshal(body []byte, value interface{}) error {
+func Unmarshal(body []byte, value interface{}) error {
 	err := json.Unmarshal(body, value)
 	if err != nil {
 		logrus.Error("Failed to decode request body: ", err)

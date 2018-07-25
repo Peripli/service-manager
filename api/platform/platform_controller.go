@@ -125,6 +125,7 @@ func (c *Controller) patchPlatform(request *web.Request) (*web.Response, error) 
 		return nil, err
 	}
 
+	platform.ID = platformID
 	platform.UpdatedAt = time.Now().UTC()
 
 	err = c.PlatformStorage.Update(platform)

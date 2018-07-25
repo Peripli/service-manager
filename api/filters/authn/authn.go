@@ -23,11 +23,24 @@ func (ba *Middleware) Run(next web.Handler) web.Handler {
 		if request.Context().Value(UserKey) != nil {
 			return next.Handle(request)
 		}
-		user, err := ba.authenticator.Authenticate(request.Request)
+		user, ran, err := ba.authenticator.Authenticate(request.Request)
+
+		if !ran {
+			return next.Handle(request)
+		}
+
 		if err != nil {
 			return nil, &util.HTTPError{
 				ErrorType:   "Unauthorized",
 				Description: "authentication failed",
+				StatusCode:  http.StatusUnauthorized,
+			}
+		}
+
+		if user == nil {
+			return nil, &util.HTTPError{
+				ErrorType:   "Unauthorized",
+				Description: "authentication failed: username identity could not be established",
 				StatusCode:  http.StatusUnauthorized,
 			}
 		}

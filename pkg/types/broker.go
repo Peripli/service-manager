@@ -32,12 +32,12 @@ type Brokers struct {
 
 // Broker broker struct
 type Broker struct {
-	ID          string          `json:"id,omitempty"`
-	Name        string          `json:"name,omitempty"`
-	Description string          `json:"description,omitempty"`
+	ID          string          `json:"id"`
+	Name        string          `json:"name"`
+	Description string          `json:"description"`
 	CreatedAt   time.Time       `json:"created_at"`
 	UpdatedAt   time.Time       `json:"updated_at"`
-	BrokerURL   string          `json:"broker_url,omitempty"`
+	BrokerURL   string          `json:"broker_url"`
 	Credentials *Credentials    `json:"credentials,omitempty" structs:"-"`
 	Catalog     json.RawMessage `json:"catalog,omitempty"`
 }
@@ -48,6 +48,9 @@ func (b *Broker) Validate() error {
 	}
 	if b.BrokerURL == "" {
 		return errors.New("missing broker url")
+	}
+	if b.Credentials == nil {
+		return errors.New("missing credentials")
 	}
 	return b.Credentials.Validate()
 }

@@ -139,6 +139,11 @@ func (c *Controller) patchBroker(request *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
+	bb := &types.Broker{}
+	if err := util.Unmarshal(request.Body, bb); err != nil {
+		return nil, err
+	}
+
 	if err := util.UnmarshalAndValidate(request.Body, broker); err != nil {
 		return nil, err
 	}
@@ -148,6 +153,7 @@ func (c *Controller) patchBroker(request *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
+	broker.ID = brokerID
 	broker.Catalog = catalog
 	broker.UpdatedAt = time.Now().UTC()
 

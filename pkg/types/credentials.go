@@ -30,7 +30,7 @@ type Basic struct {
 
 // Credentials credentials
 type Credentials struct {
-	Basic *Basic `json:"basic,omitempty"`
+	Basic *Basic `json:"basic"`
 }
 
 func (c *Credentials) Validate() error {

@@ -17,26 +17,22 @@ func NewRequiredAuthnFilter() *requiredAuthnFilter {
 }
 
 func (raf *requiredAuthnFilter) Name() string {
-	return "AuthenticationRequiredFilter"
+	return "RequiredAuthenticationFilter"
 }
 
 func (raf *requiredAuthnFilter) Run(next web.Handler) web.Handler {
 	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
-		logrus.Debug("Entering filter: ", raf.Name())
-
 		user := request.Context().Value(UserKey)
-		if _, ok := user.(*security.User); ok {
-			resp, err := next.Handle(request)
-			logrus.Debug("Exiting filter: ", raf.Name())
-			return resp, err
+		if _, ok := user.(*security.User); !ok {
+			logrus.Error("No authenticated user found in request context during execution of filter ", raf.Name())
+			return nil, &util.HTTPError{
+				ErrorType:   "Unauthorized",
+				Description: "unsupported authentication scheme",
+				StatusCode:  http.StatusUnauthorized,
+			}
 		}
 
-		logrus.Error("No authenticated user found in request context during execution of filter ", raf.Name())
-		return nil, &util.HTTPError{
-			ErrorType:   "Unauthorized",
-			Description: "unsupported authentication scheme",
-			StatusCode:  http.StatusUnauthorized,
-		}
+		return next.Handle(request)
 	})
 }
 
@@ -44,7 +40,7 @@ func (raf *requiredAuthnFilter) RouteMatchers() []web.RouteMatcher {
 	return []web.RouteMatcher{
 		{
 			Matchers: []web.Matcher{
-				web.Path("/v1/service_brokers/**", "/v1/platforms/**", "/v1/sm_catalog", "v1/osb/**"),
+				web.Path("/v1/service_brokers/**", "/v1/platforms/**", "/v1/sm_catalog", "/v1/osb/**"),
 			},
 		},
 	}

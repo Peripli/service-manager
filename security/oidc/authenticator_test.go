@@ -254,8 +254,9 @@ var _ = Describe("OIDC Authenticator", func() {
 		request, _ := http.NewRequest(http.MethodGet, "https://example.com", &mockReader{err: nil, buff: ""})
 		validateAuthenticateReturnsError := func() {
 			authenticator, _ := NewAuthenticator(ctx, options)
-			user, err := authenticator.Authenticate(request)
+			user, ran, err := authenticator.Authenticate(request)
 			Expect(user).To(BeNil())
+			Expect(ran).To(BeTrue())
 			Expect(err).To(Not(BeNil()))
 		}
 
@@ -276,9 +277,15 @@ var _ = Describe("OIDC Authenticator", func() {
 		Context("When Authorization header is empty", func() {
 			It("Should return error", func() {
 				request.Header.Set("Authorization", "")
-				validateAuthenticateReturnsError()
+
+				authenticator, _ := NewAuthenticator(ctx, options)
+				user, ran, err := authenticator.Authenticate(request)
+				Expect(user).To(BeNil())
+				Expect(ran).To(BeFalse())
+				Expect(err).To(BeNil())
 			})
 		})
+
 		Context("When Authorization header is not bearer", func() {
 			It("Should return an error", func() {
 				request.Header.Set("Authorization", "Basic admin:admin")
@@ -289,12 +296,12 @@ var _ = Describe("OIDC Authenticator", func() {
 		Context("When Bearer header has empty token", func() {
 			It("Should return an error", func() {
 				request.Header.Set("Authorization", "bearer ")
+
 				validateAuthenticateReturnsError()
 			})
 		})
 
-		Context("When Bearer has token", func() {
-
+		Context("When Bearer token", func() {
 			var verifier = &securityfakes.FakeTokenVerifier{}
 			var authenticator security.Authenticator
 			var expectedError error
@@ -312,8 +319,9 @@ var _ = Describe("OIDC Authenticator", func() {
 				})
 
 				It("Should return an error", func() {
-					user, err := authenticator.Authenticate(request)
+					user, ran, err := authenticator.Authenticate(request)
 					Expect(user).To(BeNil())
+					Expect(ran).To(BeTrue())
 					Expect(err).To(Equal(expectedError))
 				})
 			})
@@ -328,8 +336,9 @@ var _ = Describe("OIDC Authenticator", func() {
 
 				})
 				It("Should return error", func() {
-					user, err := authenticator.Authenticate(request)
+					user, ran, err := authenticator.Authenticate(request)
 					Expect(user).To(BeNil())
+					Expect(ran).To(BeTrue())
 					Expect(err).To(Equal(expectedError))
 				})
 			})
@@ -348,9 +357,10 @@ var _ = Describe("OIDC Authenticator", func() {
 
 				It("Should return user", func() {
 					authenticator := &Authenticator{Verifier: verifier}
-					user, err := authenticator.Authenticate(request)
+					user, ran, err := authenticator.Authenticate(request)
 					Expect(user).To(Not(BeNil()))
 					Expect(user.Name).To(Equal(expectedUserName))
+					Expect(ran).To(BeTrue())
 					Expect(err).To(BeNil())
 				})
 			})

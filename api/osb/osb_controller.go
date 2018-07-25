@@ -110,7 +110,7 @@ func (c *Controller) fetchBroker(request *web.Request) (*types.Broker, error) {
 
 		return nil, &util.HTTPError{
 			ErrorType:   "NotFound",
-			Description: fmt.Sprint("could not find broker with id %s", brokerID),
+			Description: fmt.Sprintf("could not find broker with id: %s", brokerID),
 			StatusCode:  http.StatusNotFound,
 		}
 	} else if err != nil {

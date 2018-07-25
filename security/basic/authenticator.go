@@ -36,10 +36,10 @@ func NewAuthenticator(storage storage.Credentials) *Authenticator {
 }
 
 // Authenticate authenticates by using the provided Basic credentials
-func (a *Authenticator) Authenticate(request *http.Request) (*security.User, error) {
+func (a *Authenticator) Authenticate(request *http.Request) (*security.User, bool, error) {
 	username, password, ok := request.BasicAuth()
 	if !ok {
-		return nil, nil
+		return nil, false, nil
 	}
 
 	credentials, err := a.CredentialStorage.Get(username)
@@ -50,12 +50,12 @@ func (a *Authenticator) Authenticate(request *http.Request) (*security.User, err
 		StatusCode:  http.StatusUnauthorized,
 	}
 	if err == storage.ErrNotFound {
-		return nil, responseError
+		return nil, true, responseError
 	}
 
 	if err != nil {
 		logrus.Errorf("Could not get credentials entity from storage")
-		return nil, &util.HTTPError{
+		return nil, true, &util.HTTPError{
 			ErrorType:   "InternalServerError",
 			Description: "Internal Server Error",
 			StatusCode:  http.StatusInternalServerError,
@@ -63,10 +63,10 @@ func (a *Authenticator) Authenticate(request *http.Request) (*security.User, err
 	}
 
 	if credentials.Basic.Password != password {
-		return nil, responseError
+		return nil, true, responseError
 	}
 
 	return &security.User{
 		Name: username,
-	}, nil
+	}, true, nil
 }
