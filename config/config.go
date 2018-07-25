@@ -21,11 +21,10 @@ import (
 	"time"
 
 	"github.com/Peripli/service-manager/api"
-	"github.com/Peripli/service-manager/log"
-	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/authentication"
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/spf13/pflag"
@@ -33,13 +32,13 @@ import (
 
 // Settings is used to setup the Service Manager
 type Settings struct {
-	Server  server.Settings
-	Storage storage.Settings
-	Log     log.Settings
-	API     api.Settings
-	OAuth   authentication.OAuthSettings
+	Server   server.Settings
+	Storage  storage.Settings
+	Log      log.Settings
+	API      api.Settings
+	OAuth    authentication.OAuthSettings
 	Security security.Settings
-
+}
 
 // AddPFlags adds the SM config flags to the provided flag set
 func AddPFlags(set *pflag.FlagSet) {

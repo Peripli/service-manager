@@ -17,25 +17,22 @@
 package broker
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/security"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 
 	"github.com/Peripli/service-manager/api/common"
 
-	"encoding/json"
-
-	"bytes"
-
-	"strings"
-
-	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/types"
-	"github.com/gorilla/mux"
 	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 )
@@ -107,7 +104,7 @@ func (c *Controller) createBroker(request *web.Request) (*web.Response, error) {
 
 	transformed, err := c.CredentialsTransformer.Transform([]byte(broker.Credentials.Basic.Password))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	broker.Credentials.Basic.Password = string(transformed)
 	err = c.BrokerStorage.Create(broker)
@@ -134,7 +131,7 @@ func (c *Controller) getBroker(request *web.Request) (*web.Response, error) {
 	// TODO: just shows that the password is actually OK
 	pass, err := c.CredentialsTransformer.Reverse([]byte(broker.Credentials.Basic.Password))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	broker.Credentials.Basic.Password = string(pass)
 	broker.Catalog = nil
@@ -192,7 +189,7 @@ func (c *Controller) patchBroker(request *web.Request) (*web.Response, error) {
 		}
 		transformed, err := c.CredentialsTransformer.Transform([]byte(updateBroker.Credentials.Basic.Password))
 		if err != nil {
-			return err
+			return nil, err
 		}
 		updateBroker.Credentials.Basic.Password = string(transformed)
 	}
