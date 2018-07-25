@@ -17,11 +17,8 @@
 package postgres
 
 import (
-	"fmt"
-
 	"github.com/Peripli/service-manager/types"
 	"github.com/jmoiron/sqlx"
-	"github.com/sirupsen/logrus"
 )
 
 type brokerStorage struct {
@@ -29,33 +26,25 @@ type brokerStorage struct {
 }
 
 func (bs *brokerStorage) Create(broker *types.Broker) error {
-	brokerDTO := convertBrokerToDTO(broker)
-	query := fmt.Sprintf(
-		"INSERT INTO %s (id, name, description, broker_url, created_at, updated_at, catalog, username, password) %s",
-		brokerTable,
-		"VALUES (:id, :name, :description, :broker_url, :created_at, :updated_at, :catalog, :username, :password)")
-	_, err := bs.db.NamedExec(query, &brokerDTO)
-	return checkUniqueViolation(err)
+	return create(bs.db, brokerTable, convertBrokerToDTO(broker))
+
 }
 
 func (bs *brokerStorage) Get(id string) (*types.Broker, error) {
 	broker := &Broker{}
-	query := "SELECT * FROM " + brokerTable + " WHERE id=$1"
-	err := bs.db.Get(broker, query, id)
-	if err != nil {
-		return nil, checkSQLNoRows(err)
+	if err := get(bs.db, id, brokerTable, broker); err != nil {
+		return nil, err
 	}
 	return broker.Convert(), nil
 }
 
 func (bs *brokerStorage) GetAll() ([]*types.Broker, error) {
 	brokerDTOs := []Broker{}
-	query := "SELECT * FROM " + brokerTable
-	err := bs.db.Select(&brokerDTOs, query)
+	err := getAll(bs.db, brokerTable, &brokerDTOs)
 	if err != nil || len(brokerDTOs) == 0 {
 		return []*types.Broker{}, err
 	}
-	brokers := make([]*types.Broker, 0, len(brokerDTOs)+1)
+	brokers := make([]*types.Broker, 0, len(brokerDTOs))
 	for _, broker := range brokerDTOs {
 		brokers = append(brokers, broker.Convert())
 	}
@@ -63,28 +52,9 @@ func (bs *brokerStorage) GetAll() ([]*types.Broker, error) {
 }
 
 func (bs *brokerStorage) Delete(id string) error {
-	deleteBroker := fmt.Sprintf(`DELETE FROM %s WHERE id=$1`, brokerTable)
-
-	result, err := bs.db.Exec(deleteBroker, &id)
-	if err != nil {
-		return err
-	}
-	return checkRowsAffected(result)
+	return delete(bs.db, id, brokerTable)
 }
 
 func (bs *brokerStorage) Update(broker *types.Broker) error {
-	brokerDTO := convertBrokerToDTO(broker)
-	updateQueryString, err := updateQuery(brokerTable, brokerDTO)
-	if err != nil {
-		return err
-	}
-	if updateQueryString == "" {
-		logrus.Debug("Broker update: nothing to update")
-		return nil
-	}
-	result, err := bs.db.NamedExec(updateQueryString, brokerDTO)
-	if err = checkUniqueViolation(err); err != nil {
-		return err
-	}
-	return checkRowsAffected(result)
+	return update(bs.db, brokerTable, convertBrokerToDTO(broker))
 }

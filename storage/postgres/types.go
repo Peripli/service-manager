@@ -17,6 +17,7 @@
 package postgres
 
 import (
+	"database/sql"
 	"time"
 
 	"encoding/json"
@@ -35,21 +36,21 @@ const (
 
 // Platform dto
 type Platform struct {
-	ID          string    `db:"id"`
-	Type        string    `db:"type"`
-	Name        string    `db:"name"`
-	Description string    `db:"description"`
-	CreatedAt   time.Time `db:"created_at"`
-	UpdatedAt   time.Time `db:"updated_at"`
-	Username    string    `db:"username"`
-	Password    string    `db:"password"`
+	ID          string         `db:"id"`
+	Type        string         `db:"type"`
+	Name        string         `db:"name"`
+	Description sql.NullString `db:"description"`
+	CreatedAt   time.Time      `db:"created_at"`
+	UpdatedAt   time.Time      `db:"updated_at"`
+	Username    string         `db:"username"`
+	Password    string         `db:"password"`
 }
 
 // Broker dto
 type Broker struct {
 	ID          string             `db:"id"`
 	Name        string             `db:"name"`
-	Description string             `db:"description"`
+	Description sql.NullString     `db:"description"`
 	CreatedAt   time.Time          `db:"created_at"`
 	UpdatedAt   time.Time          `db:"updated_at"`
 	BrokerURL   string             `db:"broker_url"`
@@ -62,7 +63,7 @@ type Broker struct {
 func (brokerDTO *Broker) Convert() *types.Broker {
 	broker := &types.Broker{ID: brokerDTO.ID,
 		Name:        brokerDTO.Name,
-		Description: brokerDTO.Description,
+		Description: brokerDTO.Description.String,
 		CreatedAt:   brokerDTO.CreatedAt,
 		UpdatedAt:   brokerDTO.UpdatedAt,
 		BrokerURL:   brokerDTO.BrokerURL,
@@ -80,7 +81,7 @@ func (platformDTO *Platform) Convert() *types.Platform {
 		ID:          platformDTO.ID,
 		Type:        platformDTO.Type,
 		Name:        platformDTO.Name,
-		Description: platformDTO.Description,
+		Description: platformDTO.Description.String,
 		CreatedAt:   platformDTO.CreatedAt,
 		UpdatedAt:   platformDTO.UpdatedAt,
 	}
@@ -92,12 +93,14 @@ func (platformDTO *Platform) Convert() *types.Platform {
 
 func convertPlatformToDTO(platform *types.Platform) *Platform {
 	result := &Platform{
-		ID:          platform.ID,
-		Type:        platform.Type,
-		Name:        platform.Name,
-		Description: platform.Description,
-		CreatedAt:   platform.CreatedAt,
-		UpdatedAt:   platform.UpdatedAt,
+		ID:        platform.ID,
+		Type:      platform.Type,
+		Name:      platform.Name,
+		CreatedAt: platform.CreatedAt,
+		UpdatedAt: platform.UpdatedAt,
+	}
+	if platform.Description != "" {
+		result.Description = sql.NullString{String: platform.Description, Valid: true}
 	}
 	if platform.Credentials != nil {
 		result.Username = platform.Credentials.Basic.Username
@@ -108,13 +111,15 @@ func convertPlatformToDTO(platform *types.Platform) *Platform {
 
 func convertBrokerToDTO(broker *types.Broker) *Broker {
 	result := &Broker{
-		ID:          broker.ID,
-		Name:        broker.Name,
-		Description: broker.Description,
-		BrokerURL:   broker.BrokerURL,
-		CreatedAt:   broker.CreatedAt,
-		UpdatedAt:   broker.UpdatedAt,
-		Catalog:     sqlxtypes.JSONText(broker.Catalog),
+		ID:        broker.ID,
+		Name:      broker.Name,
+		BrokerURL: broker.BrokerURL,
+		CreatedAt: broker.CreatedAt,
+		UpdatedAt: broker.UpdatedAt,
+		Catalog:   sqlxtypes.JSONText(broker.Catalog),
+	}
+	if broker.Description != "" {
+		result.Description = sql.NullString{String: broker.Description, Valid: true}
 	}
 	if broker.Credentials != nil {
 		result.Username = broker.Credentials.Basic.Username

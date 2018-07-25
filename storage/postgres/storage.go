@@ -18,7 +18,6 @@
 package postgres
 
 import (
-	"database/sql"
 	"sync"
 	"time"
 
@@ -29,7 +28,6 @@ import (
 	migratepg "github.com/golang-migrate/migrate/database/postgres"
 	_ "github.com/golang-migrate/migrate/source/file"
 	"github.com/jmoiron/sqlx"
-	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 )
 
@@ -118,36 +116,6 @@ func updateSchema(db *sqlx.DB) error {
 	if err == migrate.ErrNoChange {
 		logrus.Debug("Database schema already up to date")
 		err = nil
-	}
-	return err
-}
-
-func checkUniqueViolation(err error) error {
-	if err == nil {
-		return nil
-	}
-	sqlErr, ok := err.(*pq.Error)
-	if ok && sqlErr.Code.Name() == "unique_violation" {
-		logrus.Debug(sqlErr)
-		return storage.ErrUniqueViolation
-	}
-	return err
-}
-
-func checkRowsAffected(result sql.Result) error {
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if rowsAffected < 1 {
-		return storage.ErrNotFound
-	}
-	return nil
-}
-
-func checkSQLNoRows(err error) error {
-	if err == sql.ErrNoRows {
-		return storage.ErrNotFound
 	}
 	return err
 }
