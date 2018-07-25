@@ -46,7 +46,7 @@ func NewSecureStorage(ctx context.Context, securitySettings api.Security) (secur
 	return &storage{db, []byte(securitySettings.EncryptionKey)}, nil
 }
 
-func awaitTermination(ctx context.Context, db *sqlx.EncryptionTransformerDB) {
+func awaitTermination(ctx context.Context, db *sqlx.DB) {
 	<-ctx.Done()
 	logrus.Debug("Context cancelled. Closing storage...")
 	if err := db.Close(); err != nil {
