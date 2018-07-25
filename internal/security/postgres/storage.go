@@ -33,6 +33,7 @@ type storage struct {
 	encryptionKey []byte
 }
 
+// NewSecureStorage returns a security storage for obtaining encryption keys from a database
 func NewSecureStorage(ctx context.Context, securitySettings api.Security) (security.Storage, error) {
 	if securitySettings.URI == "" {
 		return nil, fmt.Errorf("storage URI cannot be empty")
@@ -45,7 +46,7 @@ func NewSecureStorage(ctx context.Context, securitySettings api.Security) (secur
 	return &storage{db, []byte(securitySettings.EncryptionKey)}, nil
 }
 
-func awaitTermination(ctx context.Context, db *sqlx.DB) {
+func awaitTermination(ctx context.Context, db *sqlx.EncryptionTransformerDB) {
 	<-ctx.Done()
 	logrus.Debug("Context cancelled. Closing storage...")
 	if err := db.Close(); err != nil {
@@ -53,10 +54,12 @@ func awaitTermination(ctx context.Context, db *sqlx.DB) {
 	}
 }
 
+// Fetcher returns a KeyFetcher configured to fetch a key from the database
 func (s *storage) Fetcher() security.KeyFetcher {
 	return &keyFetcher{s.db, []byte(s.encryptionKey)}
 }
 
+// Setter returns a KeySetter configured to set a key in the database
 func (s *storage) Setter() security.KeySetter {
 	return &keySetter{s.db, s.encryptionKey}
 }

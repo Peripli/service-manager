@@ -29,7 +29,7 @@ type platformStorage struct {
 }
 
 func (ps *platformStorage) Create(platform *types.Platform) error {
-	return Transaction(ps.db, func(tx *sqlx.Tx) error {
+	return transaction(ps.db, func(tx *sqlx.Tx) error {
 		stmt, err := tx.PrepareNamed(
 			"INSERT INTO " + credentialsTable + "(type, username, password) VALUES (:type, :username, :password) RETURNING id")
 		if err != nil {
@@ -88,7 +88,7 @@ func (ps *platformStorage) Delete(id string) error {
 	DELETE FROM %s
 	WHERE id IN (SELECT credentials_id from pl)`, platformTable, credentialsTable)
 
-	return Transaction(ps.db, func(tx *sqlx.Tx) error {
+	return transaction(ps.db, func(tx *sqlx.Tx) error {
 		result, err := tx.Exec(deletePlatform, &id)
 		if err != nil {
 			return err

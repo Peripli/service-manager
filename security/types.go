@@ -20,12 +20,14 @@ import (
 	"time"
 )
 
+// Safe is a representation of how a secret is stored
 type Safe struct {
 	Secret    string    `db:"secret"`
 	CreatedAt time.Time `db:"created_at"`
 	UpdatedAt time.Time `db:"updated_at"`
 }
 
+// Storage is provides functionality to manage encryption keys
 type Storage interface {
 	Fetcher() KeyFetcher
 	Setter() KeySetter

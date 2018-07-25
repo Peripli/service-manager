@@ -121,7 +121,7 @@ func updateSchema(db *sqlx.DB) error {
 	return err
 }
 
-func Transaction(db *sqlx.DB, f func(tx *sqlx.Tx) error) error {
+func transaction(db *sqlx.DB, f func(tx *sqlx.Tx) error) error {
 	tx, err := db.Beginx()
 	if err != nil {
 		return err

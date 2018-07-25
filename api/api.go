@@ -30,6 +30,7 @@ import (
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 )
 
+// Security is the configuration used for the encryption of data
 type Security struct {
 	// EncryptionKey is the encryption key from the env_vars
 	EncryptionKey string `mapstructure:"encryption_key"`

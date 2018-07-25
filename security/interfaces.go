@@ -16,20 +16,24 @@
 
 package security
 
+// CredentialsTransformer provides functionality to modify credentials and to reverse already modified credentials
 type CredentialsTransformer interface {
 	Transform(secret []byte) ([]byte, error)
 	Reverse(cipher []byte) ([]byte, error)
 }
 
+// Encrypter provides functionality to encrypt and decrypt data
 type Encrypter interface {
 	Encrypt(plaintext []byte) ([]byte, error)
 	Decrypt(ciphertext []byte) ([]byte, error)
 }
 
+// KeyFetcher provides functionality to get encryption key from a remote location
 type KeyFetcher interface {
 	GetEncryptionKey() ([]byte, error)
 }
 
+// KeySetter provides functionality to set encryption key in a remote location
 type KeySetter interface {
 	SetEncryptionKey(key []byte) error
 }

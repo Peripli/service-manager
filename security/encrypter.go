@@ -16,10 +16,12 @@
 
 package security
 
+// TwoLayerEncrypter is an encrypter that fetches the encryption key from a remote location
 type TwoLayerEncrypter struct {
 	Fetcher KeyFetcher
 }
 
+// Encrypt encrypts the plaintext with a key obtained from a remote location
 func (e *TwoLayerEncrypter) Encrypt(plaintext []byte) ([]byte, error) {
 	key, err := e.Fetcher.GetEncryptionKey()
 	if err != nil {
@@ -28,6 +30,7 @@ func (e *TwoLayerEncrypter) Encrypt(plaintext []byte) ([]byte, error) {
 	return Encrypt(plaintext, key)
 }
 
+// Decrypt decrypts the cipher text with a key obtained from a remote location
 func (e *TwoLayerEncrypter) Decrypt(ciphertext []byte) ([]byte, error) {
 	key, err := e.Fetcher.GetEncryptionKey()
 	if err != nil {

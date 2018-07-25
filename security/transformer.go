@@ -16,14 +16,17 @@
 
 package security
 
+// EncryptionTransformer implements CredentialsTransformer by encrypting and decrypting the credentials
 type EncryptionTransformer struct {
 	Encrypter Encrypter
 }
 
+// Transform encrypts the provided secret
 func (e *EncryptionTransformer) Transform(secret []byte) ([]byte, error) {
 	return e.Encrypter.Encrypt(secret)
 }
 
+// Reverse decrypts the provided cipher
 func (e *EncryptionTransformer) Reverse(cipher []byte) ([]byte, error) {
 	return e.Encrypter.Decrypt(cipher)
 }

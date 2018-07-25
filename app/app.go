@@ -97,6 +97,7 @@ func initializeSecureStorage(ctx context.Context, securitySettings api.Security)
 		if err := keySetter.SetEncryptionKey(newEncryptionKey); err != nil {
 			return nil, err
 		}
+		logrus.Debug("Successfully generated new encryption key")
 	}
 	return secureStorage, nil
 }

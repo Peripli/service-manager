@@ -28,7 +28,7 @@ type brokerStorage struct {
 }
 
 func (bs *brokerStorage) Create(broker *types.Broker) error {
-	return Transaction(bs.db, func(tx *sqlx.Tx) error {
+	return transaction(bs.db, func(tx *sqlx.Tx) error {
 		credentialsDTO := convertCredentialsToDTO(broker.Credentials)
 		statement, err := tx.PrepareNamed(
 			"INSERT INTO " + credentialsTable + " (type, username, password, token) VALUES (:type, :username, :password, :token) RETURNING id")
@@ -95,7 +95,7 @@ func (bs *brokerStorage) Delete(id string) error {
 	DELETE FROM %s
 	WHERE id IN (SELECT credentials_id from br)`, brokerTable, credentialsTable)
 
-	return Transaction(bs.db, func(tx *sqlx.Tx) error {
+	return transaction(bs.db, func(tx *sqlx.Tx) error {
 		result, err := tx.Exec(deleteBroker, &id)
 		if err != nil {
 			return fmt.Errorf("unable to delete broker: %s", err)
@@ -105,7 +105,7 @@ func (bs *brokerStorage) Delete(id string) error {
 }
 
 func (bs *brokerStorage) Update(broker *types.Broker) error {
-	return Transaction(bs.db, func(tx *sqlx.Tx) error {
+	return transaction(bs.db, func(tx *sqlx.Tx) error {
 		brokerDTO := convertBrokerToDTO(broker)
 
 		updateQueryString, err := updateQuery(brokerTable, brokerDTO)
