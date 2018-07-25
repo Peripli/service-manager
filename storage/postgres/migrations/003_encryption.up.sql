@@ -15,7 +15,7 @@ CREATE ROLE access_user;
 
 GRANT CONNECT ON DATABASE postgres TO access_user;
 GRANT USAGE ON SCHEMA vault TO access_user;
-GRANT SELECT ON vault.safe TO access_user;
+GRANT SELECT, INSERT ON vault.safe TO access_user;
 
 -- This requires guard to be a user in the database
 GRANT access_user TO guard;
