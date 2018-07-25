@@ -16,16 +16,17 @@
 
 package security
 
-import "github.com/Peripli/service-manager/security"
+import (
+	"time"
+)
 
-type EncryptionTransformer struct{
-	Encrypter security.Encrypter
+type Safe struct {
+	Secret    string    `db:"secret"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
 }
 
-func (e *EncryptionTransformer) Transform(secret []byte) ([]byte, error) {
-	return e.Encrypter.Encrypt(secret)
-}
-
-func (e * EncryptionTransformer) Reverse(cipher []byte) ([]byte, error){
-	return e.Encrypter.Decrypt(cipher)
+type Storage interface {
+	Fetcher() KeyFetcher
+	Setter() KeySetter
 }

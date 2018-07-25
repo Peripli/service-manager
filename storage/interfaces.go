@@ -20,7 +20,6 @@ package storage
 import (
 	"errors"
 
-	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/types"
 )
 
@@ -57,8 +56,6 @@ type Storage interface {
 
 	// Credentials provides access to credentials db operations
 	Credentials() Credentials
-
-	KeySetter(encryptionKey []byte) security.KeySetter
 }
 
 // Broker interface for Broker db operations

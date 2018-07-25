@@ -24,11 +24,15 @@ import (
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/config"
 	"github.com/Peripli/service-manager/filters/auth"
+	"github.com/Peripli/service-manager/internal/security/postgresql"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/postgres"
+	"github.com/satori/go.uuid"
+	"github.com/sirupsen/logrus"
 )
 
 // Parameters contains settings for configuring a Service Manager server and optional extensions API
@@ -52,7 +56,18 @@ func New(ctx context.Context, params *Parameters) (*server.Server, error) {
 		return nil, fmt.Errorf("error using storage: %v", err)
 	}
 
-	coreAPI := api.New(storage, params.Settings.API)
+	secureStorage, err := initializeSecureStorage(ctx, params.Settings.API.Security)
+	if err != nil {
+		return nil, err
+	}
+
+	transformer := &security.EncryptionTransformer{
+		Encrypter: &security.TwoLayerEncrypter{
+			Fetcher: secureStorage.Fetcher(),
+		},
+	}
+
+	coreAPI := api.New(storage, params.Settings.API, transformer)
 	registerDefaultFilters(ctx, coreAPI, storage, params.Settings)
 	if params.API != nil {
 		coreAPI.RegisterControllers(params.API.Controllers...)
@@ -60,6 +75,32 @@ func New(ctx context.Context, params *Parameters) (*server.Server, error) {
 	}
 
 	return server.New(coreAPI, params.Settings.Server), nil
+}
+
+func initializeSecureStorage(ctx context.Context, securitySettings api.Security) (security.Storage, error) {
+	secureStorage, err := postgresql.NewSecureStorage(ctx, securitySettings)
+	if err != nil {
+		return nil, fmt.Errorf("error creating secure storage: %v", err)
+	}
+	keyFetcher := secureStorage.Fetcher()
+	encryptionKey, err := keyFetcher.GetEncryptionKey()
+	if err != nil {
+		return nil, err
+	}
+	if len(encryptionKey) == 0 {
+		logrus.Debug("No encryption key is present. Generating new one...")
+		uuids, err := uuid.NewV4()
+		if err != nil {
+			return nil, fmt.Errorf("Could not generate new encryption key: %v", err)
+		}
+
+		newEncryptionKey := uuids.Bytes()
+		keySetter := secureStorage.Setter()
+		if err := keySetter.SetEncryptionKey(newEncryptionKey); err != nil {
+			return nil, err
+		}
+	}
+	return secureStorage, nil
 }
 
 func registerDefaultFilters(ctx context.Context, api *rest.API, storage storage.Storage, cfg *config.Settings) {

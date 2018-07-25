@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-package security
+package postgresql
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/Peripli/service-manager/security"
@@ -25,31 +24,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type getter struct {
+type keyFetcher struct {
 	db            *sqlx.DB
 	encryptionkey []byte
 }
 
-func NewKeyFetcher(ctx context.Context, settings security.Settings) *getter {
-	db, err := sqlx.Connect("postgres", settings.URI)
-	if err != nil {
-		logrus.Panicln("Could not connect to PostgreSQL secure storage: ", err)
-	}
-	go awaitTermination(ctx, db)
-	return &getter{db, []byte(settings.EncryptionKey)}
-}
-
-func awaitTermination(ctx context.Context, db *sqlx.DB) {
-	<-ctx.Done()
-	logrus.Debug("Context cancelled. Closing storage...")
-	if err := db.Close(); err != nil {
-		logrus.Error(err)
-	}
-}
-
 // GetEncryptionKey returns the encryption key used to encrypt the credentials for brokers
-func (s *getter) GetEncryptionKey() ([]byte, error) {
-	var safes []Safe
+func (s *keyFetcher) GetEncryptionKey() ([]byte, error) {
+	var safes []security.Safe
 	if err := s.db.Select(&safes, fmt.Sprintf("SELECT * FROM %s.safe", schema)); err != nil {
 		return nil, err
 	}

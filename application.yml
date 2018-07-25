@@ -7,11 +7,11 @@ log:
   format: text
 storage:
   uri: postgres://postgres:postgres@192.168.99.100:5555/postgres?sslmode=disable
-security:
-  # 32-bit key
-  encryptionkey: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
-  uri: postgres://guard:guard@192.168.99.100:5555/postgres?sslmode=disable
 api:
   token_issuer_url: https://uaa.local.pcfdev.io
+  security:
+    # 32-bit key
+    encryptionkey: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
+    uri: postgres://guard:guard@192.168.99.101:5555/postgres?sslmode=disable
 oauth:
   clientId: smctl

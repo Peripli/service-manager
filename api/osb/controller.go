@@ -96,7 +96,11 @@ func (c *Controller) handler(request *web.Request) (*web.Response, error) {
 
 	modifiedRequest := request.Request.WithContext(request.Context())
 	username, password := broker.Credentials.Basic.Username, broker.Credentials.Basic.Password
-	modifiedRequest.Header.Set("Authorization", basic.EncodeCredentials(username, password))
+	plaintextPassword, err := c.CredentialsTransformer.Reverse([]byte(password))
+	if err != nil{
+		return nil, err
+	}
+	modifiedRequest.Header.Set("Authorization", basic.EncodeCredentials(username, string(plaintextPassword)))
 	modifiedRequest.URL.Scheme = target.Scheme
 	modifiedRequest.URL.Host = target.Host
 	modifiedRequest.Body = ioutil.NopCloser(bytes.NewReader(request.Body))

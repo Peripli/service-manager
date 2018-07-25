@@ -25,25 +25,36 @@ import (
 	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/api/platform"
 	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/storage"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 )
 
+type Security struct {
+	// this is the encryption key from the env_vars
+	EncryptionKey string
+	// this is the URI used to access the storage with the secondary encryption key
+	URI string
+}
+
 // Settings type to be loaded from the environment
 type Settings struct {
-	TokenIssuerURL string `mapstructure:"token_issuer_url"`
+	TokenIssuerURL string   `mapstructure:"token_issuer_url"`
+	Security       Security `mapstructure:"security"`
 }
 
 // New returns the minimum set of REST APIs needed for the Service Manager
-func New(storage storage.Storage, settings Settings) *rest.API {
+func New(storage storage.Storage, settings Settings, transformer security.CredentialsTransformer) *rest.API {
 	return &rest.API{
 		Controllers: []rest.Controller{
 			&broker.Controller{
-				BrokerStorage:       storage.Broker(),
-				OSBClientCreateFunc: osbc.NewClient,
+				BrokerStorage:          storage.Broker(),
+				OSBClientCreateFunc:    osbc.NewClient,
+				CredentialsTransformer: transformer,
 			},
 			&platform.Controller{
-				PlatformStorage: storage.Platform(),
+				PlatformStorage:        storage.Platform(),
+				CredentialsTransformer: transformer,
 			},
 			&info.Controller{
 				TokenIssuer: settings.TokenIssuerURL,
@@ -52,7 +63,8 @@ func New(storage storage.Storage, settings Settings) *rest.API {
 				BrokerStorage: storage.Broker(),
 			},
 			&osb.Controller{
-				BrokerStorage: storage.Broker(),
+				BrokerStorage:          storage.Broker(),
+				CredentialsTransformer: transformer,
 			},
 			&healthcheck.Controller{
 				Storage: storage,

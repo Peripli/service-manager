@@ -28,8 +28,7 @@ import (
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/types"
 	"github.com/Peripli/service-manager/util"
-	"github.com/gorilla/mux"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -86,7 +85,7 @@ func (c *Controller) createPlatform(request *web.Request) (*web.Response, error)
 	}
 	transformedPassword, err := c.CredentialsTransformer.Transform([]byte(password))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	platform.Credentials = types.NewBasicCredentials(username, string(transformedPassword))
 	err = common.HandleUniqueError(c.PlatformStorage.Create(platform), "platform")

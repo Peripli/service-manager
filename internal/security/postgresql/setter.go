@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package security
+package postgresql
 
 import (
 	"fmt"
@@ -30,17 +30,13 @@ type keySetter struct {
 	encryptionKey []byte
 }
 
-func NewKeySetter(db *sqlx.DB, encryptionKey []byte) *keySetter {
-	return &keySetter{db, encryptionKey}
-}
-
 // Sets the encryption key by encrypting it beforehand with the encryption key in the environment
 func (k *keySetter) SetEncryptionKey(key []byte) error {
 	bytes, err := security.Encrypt(key, k.encryptionKey)
 	if err != nil {
 		return err
 	}
-	safe := Safe{
+	safe := security.Safe{
 		Secret:    string(bytes),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),

@@ -16,12 +16,14 @@
 
 package security
 
-import "time"
+type EncryptionTransformer struct {
+	Encrypter Encrypter
+}
 
-const schema = "vault"
+func (e *EncryptionTransformer) Transform(secret []byte) ([]byte, error) {
+	return e.Encrypter.Encrypt(secret)
+}
 
-type Safe struct {
-	Secret    string    `db:"secret"`
-	CreatedAt time.Time `db:"created_at"`
-	UpdatedAt time.Time `db:"updated_at"`
+func (e *EncryptionTransformer) Reverse(cipher []byte) ([]byte, error) {
+	return e.Encrypter.Decrypt(cipher)
 }

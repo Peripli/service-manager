@@ -19,14 +19,11 @@ package postgres
 
 import (
 	"database/sql"
+	"fmt"
 	"sync"
 	"time"
 
-	"fmt"
-
-	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/storage"
-	security2 "github.com/Peripli/service-manager/storage/postgres/security"
 	"github.com/golang-migrate/migrate"
 	migratepg "github.com/golang-migrate/migrate/database/postgres"
 	_ "github.com/golang-migrate/migrate/source/file"
@@ -46,13 +43,6 @@ type postgresStorage struct {
 	once  sync.Once
 	db    *sqlx.DB
 	state *storageState
-}
-
-func (storage *postgresStorage) KeySetter(encryptionKey []byte) security.KeySetter {
-	if storage.db == nil {
-		logrus.Panicln("Storage is not yet Open")
-	}
-	return security2.NewKeySetter(storage.db, encryptionKey)
 }
 
 func (storage *postgresStorage) checkOpen() {
