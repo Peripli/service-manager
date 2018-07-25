@@ -18,7 +18,12 @@ package types
 
 import (
 	"encoding/json"
+	"fmt"
+	"net/http"
 	"time"
+
+	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/validator"
 
 	"github.com/Peripli/service-manager/util"
 )
@@ -46,4 +51,12 @@ func (p *Platform) MarshalJSON() ([]byte, error) {
 		CreatedAt: util.ToRFCFormat(p.CreatedAt),
 		UpdatedAt: util.ToRFCFormat(p.UpdatedAt),
 	})
+}
+
+// Validate checks whether platform type input has invalid content
+func (p *Platform) Validate() error {
+	if validator.HasRFC3986ReservedSymbols(p.ID) {
+		return web.NewHTTPError(fmt.Errorf("%s contains invalid character(s)", p.ID), http.StatusBadRequest, "InputValidation")
+	}
+	return nil
 }

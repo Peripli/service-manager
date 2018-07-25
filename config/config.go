@@ -23,34 +23,28 @@ import (
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/log"
 	"github.com/Peripli/service-manager/security"
+	"github.com/Peripli/service-manager/authentication"
+	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/spf13/pflag"
 )
 
-// Environment represents an abstraction over the env from which Service Manager configuration will be loaded
-//go:generate counterfeiter . Environment
-type Environment interface {
-	Get(key string) interface{}
-	Set(key string, value interface{})
-	Unmarshal(value interface{}) error
-	BindPFlag(key string, flag *pflag.Flag) error
-}
-
 // Settings is used to setup the Service Manager
 type Settings struct {
-	Server   server.Settings
-	Storage  storage.Settings
+	Server  server.Settings
+	Storage storage.Settings
+	Log     log.Settings
+	API     api.Settings
+	OAuth   authentication.OAuthSettings
 	Security security.Settings
-	Log      log.Settings
-	API      api.Settings
-}
 
-// File describes the name, path and the format of the file to be used to load the configuration in the env
-type File struct {
-	Name     string
-	Location string
-	Format   string
+
+// AddPFlags adds the SM config flags to the provided flag set
+func AddPFlags(set *pflag.FlagSet) {
+	env.CreatePFlags(set, DefaultSettings())
+	env.CreatePFlagsForConfigFile(set)
 }
 
 // DefaultSettings returns the default values for configuring the Service Manager
@@ -58,8 +52,8 @@ func DefaultSettings() *Settings {
 	config := &Settings{
 		Server: server.Settings{
 			Port:            8080,
-			RequestTimeout:  time.Millisecond * time.Duration(3000),
-			ShutdownTimeout: time.Millisecond * time.Duration(3000),
+			RequestTimeout:  time.Second * 3,
+			ShutdownTimeout: time.Second * 3,
 		},
 		Storage: storage.Settings{
 			URI: "",
@@ -74,34 +68,15 @@ func DefaultSettings() *Settings {
 		API: api.Settings{
 			TokenIssuerURL: "",
 		},
+		OAuth: authentication.OAuthSettings{
+			ClientID: "",
+		},
 	}
 	return config
 }
 
-// DefaultFile holds the default SM config file properties
-func DefaultFile() File {
-	return File{
-		Name:     "application",
-		Location: ".",
-		Format:   "yml",
-	}
-}
-
-// AddPFlags adds the SM config flags to the provided flag set
-func AddPFlags(set *pflag.FlagSet) {
-	CreatePFlags(set, DefaultSettings())
-	CreatePFlags(set, struct{ File File }{File: DefaultFile()})
-}
-
-// SMFlagSet creates an empty flag set and adds the default se of flags to it
-func SMFlagSet() *pflag.FlagSet {
-	set := pflag.NewFlagSet("Service Manager Configuration Flags", pflag.ExitOnError)
-	set.AddFlagSet(pflag.CommandLine)
-	return set
-}
-
 // New creates a configuration from the provided env
-func New(env Environment) (*Settings, error) {
+func New(env env.Environment) (*Settings, error) {
 	config := &Settings{}
 	if err := env.Unmarshal(config); err != nil {
 		return nil, err
@@ -138,6 +113,9 @@ func (c *Settings) Validate() error {
 	}
 	if len(c.Security.URI) == 0 {
 		return fmt.Errorf("validate Settings: SecurityURI missing")
+	}
+	if (len(c.OAuth.ClientID)) == 0 {
+		return fmt.Errorf("validate Settings: CLIClientID missing")
 	}
 	return nil
 }

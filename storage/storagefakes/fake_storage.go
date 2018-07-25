@@ -28,6 +28,15 @@ type FakeStorage struct {
 	closeReturnsOnCall map[int]struct {
 		result1 error
 	}
+	PingStub        func() error
+	pingMutex       sync.RWMutex
+	pingArgsForCall []struct{}
+	pingReturns     struct {
+		result1 error
+	}
+	pingReturnsOnCall map[int]struct {
+		result1 error
+	}
 	BrokerStub        func() storage.Broker
 	brokerMutex       sync.RWMutex
 	brokerArgsForCall []struct{}
@@ -45,6 +54,15 @@ type FakeStorage struct {
 	}
 	platformReturnsOnCall map[int]struct {
 		result1 storage.Platform
+	}
+	CredentialsStub        func() storage.Credentials
+	credentialsMutex       sync.RWMutex
+	credentialsArgsForCall []struct{}
+	credentialsReturns     struct {
+		result1 storage.Credentials
+	}
+	credentialsReturnsOnCall map[int]struct {
+		result1 storage.Credentials
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
@@ -138,6 +156,46 @@ func (fake *FakeStorage) CloseReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
+func (fake *FakeStorage) Ping() error {
+	fake.pingMutex.Lock()
+	ret, specificReturn := fake.pingReturnsOnCall[len(fake.pingArgsForCall)]
+	fake.pingArgsForCall = append(fake.pingArgsForCall, struct{}{})
+	fake.recordInvocation("Ping", []interface{}{})
+	fake.pingMutex.Unlock()
+	if fake.PingStub != nil {
+		return fake.PingStub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fake.pingReturns.result1
+}
+
+func (fake *FakeStorage) PingCallCount() int {
+	fake.pingMutex.RLock()
+	defer fake.pingMutex.RUnlock()
+	return len(fake.pingArgsForCall)
+}
+
+func (fake *FakeStorage) PingReturns(result1 error) {
+	fake.PingStub = nil
+	fake.pingReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeStorage) PingReturnsOnCall(i int, result1 error) {
+	fake.PingStub = nil
+	if fake.pingReturnsOnCall == nil {
+		fake.pingReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.pingReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeStorage) Broker() storage.Broker {
 	fake.brokerMutex.Lock()
 	ret, specificReturn := fake.brokerReturnsOnCall[len(fake.brokerArgsForCall)]
@@ -218,6 +276,46 @@ func (fake *FakeStorage) PlatformReturnsOnCall(i int, result1 storage.Platform) 
 	}{result1}
 }
 
+func (fake *FakeStorage) Credentials() storage.Credentials {
+	fake.credentialsMutex.Lock()
+	ret, specificReturn := fake.credentialsReturnsOnCall[len(fake.credentialsArgsForCall)]
+	fake.credentialsArgsForCall = append(fake.credentialsArgsForCall, struct{}{})
+	fake.recordInvocation("Credentials", []interface{}{})
+	fake.credentialsMutex.Unlock()
+	if fake.CredentialsStub != nil {
+		return fake.CredentialsStub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fake.credentialsReturns.result1
+}
+
+func (fake *FakeStorage) CredentialsCallCount() int {
+	fake.credentialsMutex.RLock()
+	defer fake.credentialsMutex.RUnlock()
+	return len(fake.credentialsArgsForCall)
+}
+
+func (fake *FakeStorage) CredentialsReturns(result1 storage.Credentials) {
+	fake.CredentialsStub = nil
+	fake.credentialsReturns = struct {
+		result1 storage.Credentials
+	}{result1}
+}
+
+func (fake *FakeStorage) CredentialsReturnsOnCall(i int, result1 storage.Credentials) {
+	fake.CredentialsStub = nil
+	if fake.credentialsReturnsOnCall == nil {
+		fake.credentialsReturnsOnCall = make(map[int]struct {
+			result1 storage.Credentials
+		})
+	}
+	fake.credentialsReturnsOnCall[i] = struct {
+		result1 storage.Credentials
+	}{result1}
+}
+
 func (fake *FakeStorage) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -225,10 +323,14 @@ func (fake *FakeStorage) Invocations() map[string][][]interface{} {
 	defer fake.openMutex.RUnlock()
 	fake.closeMutex.RLock()
 	defer fake.closeMutex.RUnlock()
+	fake.pingMutex.RLock()
+	defer fake.pingMutex.RUnlock()
 	fake.brokerMutex.RLock()
 	defer fake.brokerMutex.RUnlock()
 	fake.platformMutex.RLock()
 	defer fake.platformMutex.RUnlock()
+	fake.credentialsMutex.RLock()
+	defer fake.credentialsMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

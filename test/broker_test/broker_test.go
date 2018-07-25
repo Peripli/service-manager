@@ -17,7 +17,6 @@ package broker_test
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -25,7 +24,6 @@ import (
 	"encoding/json"
 
 	"github.com/Peripli/service-manager/test/common"
-	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
@@ -39,10 +37,8 @@ func TestBrokers(t *testing.T) {
 var _ = Describe("Service Manager Broker API", func() {
 
 	var (
-		SM *httpexpect.Expect
-
-		serviceManagerServer *httptest.Server
-		brokerServer         *ghttp.Server
+		ctx *common.TestContext
+		brokerServer *ghttp.Server
 
 		testBroker     map[string]interface{}
 		expectedBroker map[string]interface{}
@@ -54,14 +50,11 @@ var _ = Describe("Service Manager Broker API", func() {
 	BeforeSuite(func() {
 		os.Chdir("../..")
 
-		serviceManagerServer = httptest.NewServer(common.GetServerRouter())
-		SM = httpexpect.New(GinkgoT(), serviceManagerServer.URL)
+		ctx = common.NewTestContext(nil)
 	})
 
 	AfterSuite(func() {
-		if serviceManagerServer != nil {
-			serviceManagerServer.Close()
-		}
+		ctx.Cleanup()
 	})
 
 	BeforeEach(func() {
@@ -86,7 +79,7 @@ var _ = Describe("Service Manager Broker API", func() {
 			"broker_url":  brokerServer.URL(),
 			"description": "description",
 		}
-		common.RemoveAllBrokers(SM)
+		common.RemoveAllBrokers(ctx.SMWithOAuth)
 	})
 
 	Describe("GET", func() {
@@ -102,7 +95,7 @@ var _ = Describe("Service Manager Broker API", func() {
 			})
 
 			It("returns 404", func() {
-				SM.GET("/v1/service_brokers/"+id).
+				ctx.SMWithOAuth.GET("/v1/service_brokers/"+id).
 					Expect().
 					Status(http.StatusNotFound).
 					JSON().Object().
@@ -112,7 +105,7 @@ var _ = Describe("Service Manager Broker API", func() {
 
 		Context("when the broker exists", func() {
 			BeforeEach(func() {
-				reply := SM.POST("/v1/service_brokers").WithJSON(testBroker).
+				reply := ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(testBroker).
 					Expect().
 					Status(http.StatusCreated).
 					JSON().Object().
@@ -125,7 +118,7 @@ var _ = Describe("Service Manager Broker API", func() {
 			})
 
 			It("returns the broker with given id", func() {
-				SM.GET("/v1/service_brokers/"+id).
+				ctx.SMWithOAuth.GET("/v1/service_brokers/"+id).
 					Expect().
 					Status(http.StatusOK).
 					JSON().Object().
@@ -142,7 +135,7 @@ var _ = Describe("Service Manager Broker API", func() {
 
 		Context("when no brokers exist", func() {
 			It("returns empty array", func() {
-				SM.GET("/v1/service_brokers").
+				ctx.SMWithOAuth.GET("/v1/service_brokers").
 					Expect().
 					Status(http.StatusOK).
 					JSON().Object().Value("brokers").Array().
@@ -152,7 +145,7 @@ var _ = Describe("Service Manager Broker API", func() {
 
 		Context("when brokers exist", func() {
 			BeforeEach(func() {
-				SM.POST("/v1/service_brokers").WithJSON(testBroker).
+				ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(testBroker).
 					Expect().
 					Status(http.StatusCreated).
 					JSON().Object().
@@ -165,7 +158,7 @@ var _ = Describe("Service Manager Broker API", func() {
 			})
 
 			It("returns all without catalog if no query parameter is provided", func() {
-				SM.GET("/v1/service_brokers").
+				ctx.SMWithOAuth.GET("/v1/service_brokers").
 					Expect().
 					Status(http.StatusOK).
 					JSON().Object().Value("brokers").Array().First().Object().
@@ -175,7 +168,7 @@ var _ = Describe("Service Manager Broker API", func() {
 			})
 
 			It("returns all with catalog if query parameter is provided", func() {
-				SM.GET("/v1/service_brokers").WithQuery("catalog", true).
+				ctx.SMWithOAuth.GET("/v1/service_brokers").WithQuery("catalog", true).
 					Expect().
 					Status(http.StatusOK).
 					JSON().Object().Value("brokers").Array().First().Object().
@@ -189,7 +182,7 @@ var _ = Describe("Service Manager Broker API", func() {
 	Describe("POST", func() {
 		Context("when content type is not JSON", func() {
 			It("returns 415", func() {
-				SM.POST("/v1/service_brokers").WithText("text").
+				ctx.SMWithOAuth.POST("/v1/service_brokers").WithText("text").
 					Expect().
 					Status(http.StatusUnsupportedMediaType).
 					JSON().Object().
@@ -201,7 +194,7 @@ var _ = Describe("Service Manager Broker API", func() {
 
 		Context("when request body is not a valid JSON", func() {
 			It("returns 400", func() {
-				SM.POST("/v1/service_brokers").
+				ctx.SMWithOAuth.POST("/v1/service_brokers").
 					WithText("invalid json").
 					WithHeader("content-type", "application/json").
 					Expect().
@@ -221,7 +214,7 @@ var _ = Describe("Service Manager Broker API", func() {
 				})
 
 				It("returns 400", func() {
-					SM.POST("/v1/service_brokers").WithJSON(testBroker).
+					ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(testBroker).
 						Expect().
 						Status(http.StatusBadRequest).
 						JSON().Object().
@@ -238,7 +231,7 @@ var _ = Describe("Service Manager Broker API", func() {
 				})
 
 				It("returns 201", func() {
-					SM.POST("/v1/service_brokers").WithJSON(testBroker).
+					ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(testBroker).
 						Expect().
 						Status(http.StatusCreated).
 						JSON().Object().
@@ -273,7 +266,7 @@ var _ = Describe("Service Manager Broker API", func() {
 			})
 
 			It("returns an error", func() {
-				SM.POST("/v1/service_brokers").
+				ctx.SMWithOAuth.POST("/v1/service_brokers").
 					WithJSON(testBroker).
 					Expect().Status(http.StatusInternalServerError).
 					JSON().Object().
@@ -285,7 +278,7 @@ var _ = Describe("Service Manager Broker API", func() {
 
 		Context("when request is successful", func() {
 			It("returns 201", func() {
-				SM.POST("/v1/service_brokers").WithJSON(testBroker).
+				ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(testBroker).
 					Expect().
 					Status(http.StatusCreated).
 					JSON().Object().
@@ -298,11 +291,11 @@ var _ = Describe("Service Manager Broker API", func() {
 
 		Context("When broker with name already exists", func() {
 			It("returns 409", func() {
-				SM.POST("/v1/service_brokers").WithJSON(testBroker).
+				ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(testBroker).
 					Expect().
 					Status(http.StatusCreated)
 
-				SM.POST("/v1/service_brokers").WithJSON(testBroker).
+				ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(testBroker).
 					Expect().
 					Status(http.StatusConflict).
 					JSON().Object().
@@ -317,7 +310,7 @@ var _ = Describe("Service Manager Broker API", func() {
 		var id string
 
 		BeforeEach(func() {
-			reply := SM.POST("/v1/service_brokers").WithJSON(testBroker).
+			reply := ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(testBroker).
 				Expect().
 				Status(http.StatusCreated).
 				JSON().Object().
@@ -331,7 +324,7 @@ var _ = Describe("Service Manager Broker API", func() {
 
 		Context("when content type is not JSON", func() {
 			It("returns 415", func() {
-				SM.PATCH("/v1/service_brokers/"+id).
+				ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+id).
 					WithText("text").
 					Expect().Status(http.StatusUnsupportedMediaType).
 					JSON().Object().
@@ -347,7 +340,7 @@ var _ = Describe("Service Manager Broker API", func() {
 			})
 
 			It("returns 404", func() {
-				SM.PATCH("/v1/service_brokers/"+id).
+				ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+id).
 					WithJSON(testBroker).
 					Expect().Status(http.StatusNotFound).
 					JSON().Object().
@@ -357,7 +350,7 @@ var _ = Describe("Service Manager Broker API", func() {
 
 		Context("when request body is not valid JSON", func() {
 			It("returns 400", func() {
-				SM.PATCH("/v1/service_brokers/"+id).
+				ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+id).
 					WithText("invalid json").
 					WithHeader("content-type", "application/json").
 					Expect().
@@ -369,7 +362,7 @@ var _ = Describe("Service Manager Broker API", func() {
 
 		Context("when request body contains invalid credentials", func() {
 			It("returns 400", func() {
-				SM.PATCH("/v1/service_brokers/"+id).
+				ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+id).
 					WithJSON(map[string]interface{}{"credentials": "123"}).
 					Expect().
 					Status(http.StatusBadRequest).
@@ -380,7 +373,7 @@ var _ = Describe("Service Manager Broker API", func() {
 
 		Context("when request body contains incomplete credentials", func() {
 			It("returns 400", func() {
-				SM.PATCH("/v1/service_brokers/"+id).
+				ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+id).
 					WithJSON(map[string]interface{}{"credentials": map[string]interface{}{"basic": map[string]interface{}{}}}).
 					Expect().
 					Status(http.StatusBadRequest).
@@ -410,14 +403,14 @@ var _ = Describe("Service Manager Broker API", func() {
 			})
 
 			It("returns 409", func() {
-				SM.POST("/v1/service_brokers").
+				ctx.SMWithOAuth.POST("/v1/service_brokers").
 					WithJSON(anotherTestBroker).
 					Expect().
 					Status(http.StatusCreated)
 
 				common.VerifyBrokerCatalogEndpointInvoked(anotherBrokerServer, 1)
 
-				SM.PATCH("/v1/service_brokers/"+id).
+				ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+id).
 					WithJSON(anotherTestBroker).
 					Expect().Status(http.StatusConflict).
 					JSON().Object().
@@ -458,7 +451,7 @@ var _ = Describe("Service Manager Broker API", func() {
 
 			Context("when all updatable fields are updated at once", func() {
 				It("returns 200", func() {
-					SM.PATCH("/v1/service_brokers/"+id).
+					ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+id).
 						WithJSON(updatedBroker).
 						Expect().
 						Status(http.StatusOK).
@@ -466,7 +459,7 @@ var _ = Describe("Service Manager Broker API", func() {
 						ContainsMap(expectedUpdatedBroker).
 						Keys().NotContains("catalog", "credentials")
 
-					SM.GET("/v1/service_brokers/"+id).
+					ctx.SMWithOAuth.GET("/v1/service_brokers/"+id).
 						Expect().
 						Status(http.StatusOK).
 						JSON().Object().
@@ -483,7 +476,7 @@ var _ = Describe("Service Manager Broker API", func() {
 						update := map[string]interface{}{}
 						update[prop] = val
 
-						reply := SM.PATCH("/v1/service_brokers/" + id).
+						reply := ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
 							WithJSON(update).
 							Expect().
 							Status(http.StatusOK).
@@ -492,7 +485,7 @@ var _ = Describe("Service Manager Broker API", func() {
 							reply.ContainsMap(update)
 						}
 
-						reply = SM.GET("/v1/service_brokers/" + id).
+						reply = ctx.SMWithOAuth.GET("/v1/service_brokers/" + id).
 							Expect().
 							Status(http.StatusOK).
 							JSON().Object()
@@ -511,14 +504,14 @@ var _ = Describe("Service Manager Broker API", func() {
 			Context("when broker id is provided in request body", func() {
 				It("should not create the broker", func() {
 					testBroker = map[string]interface{}{"id": "123"}
-					SM.PATCH("/v1/service_brokers/" + id).
+					ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
 						WithJSON(testBroker).
 						Expect().
 						Status(http.StatusOK).
 						JSON().Object().
 						NotContainsMap(testBroker)
 
-					SM.GET("/v1/service_brokers/123").
+					ctx.SMWithOAuth.GET("/v1/service_brokers/123").
 						Expect().
 						Status(http.StatusNotFound)
 
@@ -550,14 +543,14 @@ var _ = Describe("Service Manager Broker API", func() {
 				})
 
 				It("should not change them", func() {
-					SM.PATCH("/v1/service_brokers/" + id).
+					ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
 						WithJSON(testBroker).
 						Expect().
 						Status(http.StatusOK).
 						JSON().Object().
 						NotContainsMap(testBroker)
 
-					SM.GET("/v1/service_brokers").
+					ctx.SMWithOAuth.GET("/v1/service_brokers").
 						WithQuery("catalog", true).
 						Expect().
 						Status(http.StatusOK).
@@ -586,12 +579,12 @@ var _ = Describe("Service Manager Broker API", func() {
 			})
 
 			It("updates the catalog for the broker", func() {
-				SM.PATCH("/v1/service_brokers/" + id).
+				ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
 					WithJSON(map[string]interface{}{}).
 					Expect().
 					Status(http.StatusOK)
 
-				SM.GET("/v1/service_brokers").
+				ctx.SMWithOAuth.GET("/v1/service_brokers").
 					WithQuery("catalog", true).
 					Expect().
 					Status(http.StatusOK).
@@ -611,7 +604,7 @@ var _ = Describe("Service Manager Broker API", func() {
 
 		Context("when broker does not exist", func() {
 			It("returns 404", func() {
-				SM.DELETE("/v1/service_brokers/999").
+				ctx.SMWithOAuth.DELETE("/v1/service_brokers/999").
 					Expect().
 					Status(http.StatusNotFound).
 					JSON().Object().
@@ -623,7 +616,7 @@ var _ = Describe("Service Manager Broker API", func() {
 			var id string
 
 			BeforeEach(func() {
-				reply := SM.POST("/v1/service_brokers").WithJSON(testBroker).
+				reply := ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(testBroker).
 					Expect().
 					Status(http.StatusCreated).
 					JSON().Object().
@@ -636,15 +629,15 @@ var _ = Describe("Service Manager Broker API", func() {
 			})
 
 			It("returns 200", func() {
-				SM.GET("/v1/service_brokers/" + id).
+				ctx.SMWithOAuth.GET("/v1/service_brokers/" + id).
 					Expect().
 					Status(http.StatusOK)
 
-				SM.DELETE("/v1/service_brokers/" + id).
+				ctx.SMWithOAuth.DELETE("/v1/service_brokers/" + id).
 					Expect().
 					Status(http.StatusOK).JSON().Object().Empty()
 
-				SM.GET("/v1/service_brokers/" + id).
+				ctx.SMWithOAuth.GET("/v1/service_brokers/" + id).
 					Expect().
 					Status(http.StatusNotFound)
 			})

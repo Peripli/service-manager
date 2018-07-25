@@ -20,6 +20,7 @@ package postgres
 import (
 	"database/sql"
 	"sync"
+	"time"
 
 	"fmt"
 
@@ -42,8 +43,9 @@ func init() {
 }
 
 type postgresStorage struct {
-	once sync.Once
-	db   *sqlx.DB
+	once  sync.Once
+	db    *sqlx.DB
+	state *storageState
 }
 
 func (storage *postgresStorage) KeySetter(encryptionKey []byte) security.KeySetter {
@@ -53,18 +55,32 @@ func (storage *postgresStorage) KeySetter(encryptionKey []byte) security.KeySett
 	return security2.NewKeySetter(storage.db, encryptionKey)
 }
 
-func (storage *postgresStorage) Broker() storage.Broker {
+func (storage *postgresStorage) checkOpen() {
 	if storage.db == nil {
 		logrus.Panicln("Storage is not yet Open")
 	}
+}
+
+func (storage *postgresStorage) Ping() error {
+	storage.checkOpen()
+	return storage.state.Get()
+}
+
+func (storage *postgresStorage) Broker() storage.Broker {
+	storage.checkOpen()
 	return &brokerStorage{storage.db}
 }
 
 func (storage *postgresStorage) Platform() storage.Platform {
+	storage.checkOpen()
+	return &platformStorage{storage.db}
+}
+
+func (storage *postgresStorage) Credentials() storage.Credentials {
 	if storage.db == nil {
 		logrus.Panicln("Storage is not yet Open")
 	}
-	return &platformStorage{storage.db}
+	return &credentialStorage{storage.db}
 }
 
 func (storage *postgresStorage) Open(uri string) error {
@@ -77,7 +93,13 @@ func (storage *postgresStorage) Open(uri string) error {
 		if err != nil {
 			logrus.Panicln("Could not connect to PostgreSQL:", err)
 		}
-
+		storage.state = &storageState{
+			storageError:         nil,
+			lastCheck:            time.Now(),
+			mutex:                &sync.RWMutex{},
+			db:                   storage.db,
+			storageCheckInterval: time.Second * 5,
+		}
 		logrus.Debug("Updating database schema")
 		if err := updateSchema(storage.db); err != nil {
 			logrus.Panicln("Could not update database schema:", err)
@@ -88,6 +110,7 @@ func (storage *postgresStorage) Open(uri string) error {
 }
 
 func (storage *postgresStorage) Close() error {
+	storage.checkOpen()
 	return storage.db.Close()
 }
 

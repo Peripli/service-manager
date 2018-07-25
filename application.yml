@@ -13,3 +13,5 @@ security:
   uri: postgres://guard:guard@192.168.99.100:5555/postgres?sslmode=disable
 api:
   token_issuer_url: https://uaa.local.pcfdev.io
+oauth:
+  clientId: smctl

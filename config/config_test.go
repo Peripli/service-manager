@@ -18,16 +18,23 @@ package config_test
 
 import (
 	"fmt"
+	"testing"
 
 	"github.com/Peripli/service-manager/api"
+	"github.com/Peripli/service-manager/authentication"
 	cfg "github.com/Peripli/service-manager/config"
-	"github.com/Peripli/service-manager/config/configfakes"
-	"github.com/Peripli/service-manager/log"
+	"github.com/Peripli/service-manager/pkg/env/envfakes"
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
+
+func TestConfig(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Config Suite")
+}
 
 var _ = Describe("config", func() {
 
@@ -47,6 +54,7 @@ var _ = Describe("config", func() {
 			config = cfg.DefaultSettings()
 			config.Storage.URI = "postgres://postgres:postgres@localhost:5555/postgres?sslmode=disable"
 			config.API.TokenIssuerURL = "http://example.com"
+			config.OAuth.ClientID = "smctl"
 		})
 
 		Context("when config is valid", func() {
@@ -104,12 +112,19 @@ var _ = Describe("config", func() {
 				assertErrorDuringValidate()
 			})
 		})
+
+		Context("when OAuth ClientID is missing", func() {
+			It("returns an error", func() {
+				config.OAuth.ClientID = ""
+				assertErrorDuringValidate()
+			})
+		})
 	})
 
 	Describe("New Settings", func() {
 
 		var (
-			fakeEnv       *configfakes.FakeEnvironment
+			fakeEnv       *envfakes.FakeEnvironment
 			creationError = fmt.Errorf("creation error")
 		)
 
@@ -119,7 +134,7 @@ var _ = Describe("config", func() {
 		}
 
 		BeforeEach(func() {
-			fakeEnv = &configfakes.FakeEnvironment{}
+			fakeEnv = &envfakes.FakeEnvironment{}
 		})
 
 		Context("when unmarshaling from environment fails", func() {
@@ -150,6 +165,9 @@ var _ = Describe("config", func() {
 					},
 					API: api.Settings{
 						TokenIssuerURL: "http://example.com",
+					},
+					OAuth: authentication.OAuthSettings{
+						ClientID: "smctl",
 					},
 				}
 

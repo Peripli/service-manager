@@ -18,19 +18,15 @@
 package api
 
 import (
-	"context"
-
 	"github.com/Peripli/service-manager/api/broker"
 	"github.com/Peripli/service-manager/api/catalog"
+	"github.com/Peripli/service-manager/api/healthcheck"
 	"github.com/Peripli/service-manager/api/info"
 	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/api/platform"
 	"github.com/Peripli/service-manager/rest"
-	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/storage"
-	security2 "github.com/Peripli/service-manager/storage/postgres/security"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
-	"github.com/sirupsen/logrus"
 )
 
 // Settings type to be loaded from the environment
@@ -39,26 +35,15 @@ type Settings struct {
 }
 
 // New returns the minimum set of REST APIs needed for the Service Manager
-func New(ctx context.Context, storage storage.Storage, settings Settings, securitySettings security.Settings) rest.API {
-	transformer := &security2.EncryptionTransformer{
-		Encrypter: &security.TwoLayerEncrypter{
-			Fetcher: security2.NewKeyFetcher(ctx, securitySettings),
-		},
-	}
-	return &smAPI{
-		controllers: []rest.Controller{
+func New(storage storage.Storage, settings Settings) *rest.API {
+	return &rest.API{
+		Controllers: []rest.Controller{
 			&broker.Controller{
-				BrokerStorage:          storage.Broker(),
-				OSBClientCreateFunc:    osbc.NewClient,
-				CredentialsTransformer: transformer,
-			},
-			&osb.Controller{
-				BrokerStorage:          storage.Broker(),
-				CredentialsTransformer: transformer,
+				BrokerStorage:       storage.Broker(),
+				OSBClientCreateFunc: osbc.NewClient,
 			},
 			&platform.Controller{
-				PlatformStorage:        storage.Platform(),
-				CredentialsTransformer: &security.HashTransformer{},
+				PlatformStorage: storage.Platform(),
 			},
 			&info.Controller{
 				TokenIssuer: settings.TokenIssuerURL,
@@ -66,23 +51,12 @@ func New(ctx context.Context, storage storage.Storage, settings Settings, securi
 			&catalog.Controller{
 				BrokerStorage: storage.Broker(),
 			},
+			&osb.Controller{
+				BrokerStorage: storage.Broker(),
+			},
+			&healthcheck.Controller{
+				Storage: storage,
+			},
 		},
-	}
-}
-
-type smAPI struct {
-	controllers []rest.Controller
-}
-
-func (api *smAPI) Controllers() []rest.Controller {
-	return api.controllers
-}
-
-func (api *smAPI) RegisterControllers(controllers ...rest.Controller) {
-	for _, controller := range controllers {
-		if controller == nil {
-			logrus.Panicln("Cannot add nil controller")
-		}
-		api.controllers = append(api.controllers, controller)
 	}
 }
