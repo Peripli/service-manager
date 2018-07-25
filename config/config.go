@@ -64,6 +64,7 @@ func DefaultSettings() *Settings {
 			Security: api.Security{
 				EncryptionKey: "",
 				URI:           "",
+				Len:           32,
 			},
 		},
 		OAuth: authentication.OAuthSettings{
@@ -106,11 +107,14 @@ func (c *Settings) Validate() error {
 	if (len(c.API.TokenIssuerURL)) == 0 {
 		return fmt.Errorf("validate Settings: APITokenIssuerURL missing")
 	}
-	if c.Security.EncryptionKey == "" {
+	if c.API.Security.EncryptionKey == "" {
 		return fmt.Errorf("validate Settings: SecurityEncryptionkey missing")
 	}
-	if len(c.Security.URI) == 0 {
+	if len(c.API.Security.URI) == 0 {
 		return fmt.Errorf("validate Settings: SecurityURI missing")
+	}
+	if c.API.Security.Len < 32 {
+		return fmt.Errorf("validate Settings: SecurityLen must be at least 32")
 	}
 	if (len(c.OAuth.ClientID)) == 0 {
 		return fmt.Errorf("validate Settings: CLIClientID missing")
