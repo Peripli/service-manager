@@ -113,10 +113,20 @@ func (fs Filters) ChainMatching(route Route) Handler {
 }
 
 func (fs Filters) Chain(h Handler) Handler {
+	wrappedFilters := make([]Handler, len(fs)+1)
+	wrappedFilters[len(fs)] = h
+
 	for i := len(fs) - 1; i >= 0; i-- {
-		h = fs[i].Run(h)
+		i := i
+		wrappedFilters[i] = HandlerFunc(func(request *Request) (*Response, error) {
+			logrus.Debug("Entering Filter: ", fs[i].Name())
+			resp, err := fs[i].Run(wrappedFilters[i+1]).Handle(request)
+			logrus.Debug("Exiting Filter: ", fs[i].Name())
+			return resp, err
+		})
 	}
-	return h
+
+	return wrappedFilters[0]
 }
 
 func (fs Filters) Matching(route Route) Filters {

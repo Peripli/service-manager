@@ -44,6 +44,7 @@ type Controller struct {
 var _ web.Controller = &Controller{}
 
 func (c *Controller) handler(request *web.Request) (*web.Response, error) {
+	logrus.Debug("Executing OSB operation: ", request.URL.Path)
 	broker, err := c.fetchBroker(request)
 	if err != nil {
 		return nil, err

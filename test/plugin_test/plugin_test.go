@@ -60,6 +60,9 @@ var _ = Describe("Service Manager Plugins", func() {
 
 		BeforeEach(func() {
 			testPlugin = TestPlugin{}
+		})
+
+		JustBeforeEach(func() {
 			api := &web.API{}
 			api.RegisterPlugins(testPlugin)
 			ctx = common.NewTestContext(api)
@@ -67,28 +70,30 @@ var _ = Describe("Service Manager Plugins", func() {
 			testBroker = ctx.Brokers["broker1"]
 		})
 
+
 		It("Plugin modifies the request & response body", func() {
 			var resBodySize int
 			testPlugin["provision"] = web.MiddlewareFunc(func(next web.Handler) web.Handler {
 				return web.HandlerFunc(func(req *web.Request) (*web.Response, error) {
-				var err error
-				req.Body, err = sjson.SetBytes(req.Body, "extra", "request")
-				if err != nil {
-					return nil, err
-				}
+					var err error
+					req.Body, err = sjson.SetBytes(req.Body, "extra", "request")
+					if err != nil {
+						return nil, err
+					}
 
-				res, err := next.Handle(req)
-				if err != nil {
-					return nil, err
-				}
+					res, err := next.Handle(req)
+					if err != nil {
+						return nil, err
+					}
 
-				res.Body, err = sjson.SetBytes(res.Body, "extra", "response")
-				if err != nil {
-					return nil, err
-				}
-				resBodySize = len(res.Body)
-				return res, nil
-				})})
+					res.Body, err = sjson.SetBytes(res.Body, "extra", "response")
+					if err != nil {
+						return nil, err
+					}
+					resBodySize = len(res.Body)
+					return res, nil
+				})
+			})
 			testBroker.StatusCode = http.StatusCreated
 
 			provisionBody := object{
@@ -113,17 +118,18 @@ var _ = Describe("Service Manager Plugins", func() {
 		It("Plugin modifies the request & response headers", func() {
 			testPlugin["fetchCatalog"] = web.MiddlewareFunc(func(next web.Handler) web.Handler {
 				return web.HandlerFunc(func(req *web.Request) (*web.Response, error) {
-				h := req.Header.Get("extra")
-				req.Header.Set("extra", h+"-request")
+					h := req.Header.Get("extra")
+					req.Header.Set("extra", h+"-request")
 
-				res, err := next.Handle(req)
-				if err != nil {
-					return nil, err
-				}
+					res, err := next.Handle(req)
+					if err != nil {
+						return nil, err
+					}
 
-				res.Header.Set("extra", h+"-response")
-				return res, nil
-			})})
+					res.Header.Set("extra", h+"-response")
+					return res, nil
+				})
+			})
 			testBroker.StatusCode = http.StatusOK
 
 			ctx.SMWithBasic.GET(testBroker.OSBURL+"/v2/catalog").WithHeader("extra", "value").
@@ -133,7 +139,7 @@ var _ = Describe("Service Manager Plugins", func() {
 		})
 
 		It("Plugin aborts the request", func() {
-			testPlugin["fetchCatalog"] = web.MiddlewareFunc(func(next web.Handler) web.Handler{
+			testPlugin["fetchCatalog"] = web.MiddlewareFunc(func(next web.Handler) web.Handler {
 				return web.HandlerFunc(func(req *web.Request) (*web.Response, error) {
 					return nil, &util.HTTPError{
 						ErrorType:   "PluginErr",
@@ -161,18 +167,18 @@ var _ = Describe("Service Manager Plugins", func() {
 
 		osbOperations := []struct{ name, method, path string }{
 			{"fetchCatalog", "GET", "/v2/catalog"},
-			//{"provision", "PUT", "/v2/service_instances/1234"},
-			//{"deprovision", "DELETE", "/v2/service_instances/1234"},
-			//{"updateService", "PATCH", "/v2/service_instances/1234"},
-			//{"fetchService", "GET", "/v2/service_instances/1234"},
-			//{"bind", "PUT", "/v2/service_instances/1234/service_bindings/111"},
-			//{"unbind", "DELETE", "/v2/service_instances/1234/service_bindings/111"},
-			//{"fetchBinding", "GET", "/v2/service_instances/1234/service_bindings/111"},
+			{"provision", "PUT", "/v2/service_instances/1234"},
+			{"deprovision", "DELETE", "/v2/service_instances/1234"},
+			{"updateService", "PATCH", "/v2/service_instances/1234"},
+			{"fetchService", "GET", "/v2/service_instances/1234"},
+			{"bind", "PUT", "/v2/service_instances/1234/service_bindings/111"},
+			{"unbind", "DELETE", "/v2/service_instances/1234/service_bindings/111"},
+			{"fetchBinding", "GET", "/v2/service_instances/1234/service_bindings/111"},
 		}
 
 		for _, op := range osbOperations {
 			op := op
-			FIt(fmt.Sprintf("Plugin intercepts %s operation", op.name), func() {
+			It(fmt.Sprintf("Plugin intercepts %s operation", op.name), func() {
 				testPlugin[op.name] = web.MiddlewareFunc(func(next web.Handler) web.Handler {
 					return web.HandlerFunc(func(req *web.Request) (*web.Response, error) {
 						res, err := next.Handle(req)
@@ -199,10 +205,12 @@ type TestPlugin map[string]web.Middleware
 func (p TestPlugin) Name() string { return "TestPlugin" }
 
 func (p TestPlugin) call(middleware web.Middleware, next web.Handler) web.Handler {
-	if middleware == nil {
-		return next
-	}
-	return middleware.Run(next)
+	return web.HandlerFunc(func(r *web.Request) (*web.Response, error) {
+			if middleware == nil {
+				return next.Handle(r)
+		}
+		return middleware.Run(next).Handle(r)
+	})
 }
 
 func (p TestPlugin) FetchCatalog(next web.Handler) web.Handler {
@@ -220,7 +228,6 @@ func (p TestPlugin) Deprovision(next web.Handler) web.Handler {
 func (p TestPlugin) UpdateService(next web.Handler) web.Handler {
 	return p.call(p["updateService"], next)
 }
-
 func (p TestPlugin) FetchService(next web.Handler) web.Handler {
 	return p.call(p["fetchService"], next)
 }
