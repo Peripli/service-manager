@@ -36,7 +36,7 @@ import (
 
 func TestApi(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "OIDC BasicAuthenticator")
+	RunSpecs(t, "OIDC Authenticator")
 }
 
 type mockReader struct {
@@ -78,7 +78,7 @@ func (hook *loggingInterceptorHook) Fire(entry *logrus.Entry) error {
 	return nil
 }
 
-var _ = Describe("OIDC", func() {
+var _ = Describe("OIDC Authenticator", func() {
 
 	ctx := context.TODO()
 	var openidServer *ghttp.Server
@@ -124,7 +124,7 @@ var _ = Describe("OIDC", func() {
 		openidServer.Close()
 	})
 
-	Context("NewAuthenticator BasicAuthenticator", func() {
+	Context("NewAuthenticator", func() {
 
 		Context("When no Issuer URL is present", func() {
 			It("Should return an error", func() {

@@ -18,13 +18,11 @@ package healthcheck_test
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"testing"
 
 	"github.com/Peripli/service-manager/api/healthcheck"
 	"github.com/Peripli/service-manager/test/common"
-	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 )
 
@@ -35,23 +33,19 @@ func Test(t *testing.T) {
 
 var _ = Describe("Healthcheck API", func() {
 
-	var sm *httpexpect.Expect
-	var testServer *httptest.Server
+	var ctx *common.TestContext
 
 	BeforeSuite(func() {
-		testServer = httptest.NewServer(common.GetServerHandler(nil, ""))
-		sm = httpexpect.New(GinkgoT(), testServer.URL)
+		ctx = common.NewTestContext()
 	})
 
 	AfterSuite(func() {
-		if testServer != nil {
-			testServer.Close()
-		}
+		ctx.Cleanup()
 	})
 
 	Describe("Get info handler", func() {
 		It("Returns correct response", func() {
-			responseObject := sm.GET(healthcheck.URL).
+			responseObject := ctx.SM.GET(healthcheck.URL).
 				Expect().
 				Status(http.StatusOK).
 				JSON().Object()

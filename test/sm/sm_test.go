@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package sm
+package sm_test
 
 import (
 	"context"
@@ -28,6 +28,9 @@ import (
 	. "github.com/onsi/gomega"
 
 	"testing"
+
+	"github.com/Peripli/service-manager/pkg/sm"
+	"github.com/Peripli/service-manager/test/common"
 )
 
 // TestServiceManager tests servermanager package
@@ -43,10 +46,12 @@ var _ = Describe("SM", func() {
 	BeforeSuite(func() {
 		os.Chdir("../..")
 		os.Setenv("FILE_LOCATION", "test/common")
+		os.Setenv("API_TOKEN_ISSUER_URL", common.SetupMockOAuthServer().URL)
 	})
 
 	AfterSuite(func() {
 		os.Unsetenv("FILE_LOCATION")
+		os.Unsetenv("API_TOKEN_ISSUER_URL")
 	})
 
 	AfterEach(func() {
@@ -60,8 +65,9 @@ var _ = Describe("SM", func() {
 			It("should return server", func() {
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
-				servicemanager := New(ctx, cancel)
-				serviceManagerServer = httptest.NewServer(servicemanager.getServer().Handler)
+				servicemanager := sm.New(ctx, cancel, sm.DefaultEnv()).Build()
+
+				serviceManagerServer = httptest.NewServer(servicemanager.Server.Router)
 				assertResponse(serviceManagerServer, "/v1/info", 200, "")
 			})
 		})
@@ -70,36 +76,46 @@ var _ = Describe("SM", func() {
 			It("should return server", func() {
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
-				servicemanager := New(ctx, cancel)
-				customFilter := web.Filter{
-					Name: "test filter",
-					RouteMatcher: web.RouteMatcher{
-						PathPattern: "**",
-					},
-					Middleware: func(req *web.Request, next web.Handler) (*web.Response, error) {
-						return responseOk()
-					},
-				}
-				servicemanager.RegisterFilters(customFilter)
-				serviceManagerServer = httptest.NewServer(servicemanager.getServer().Handler)
-				assertResponse(serviceManagerServer, "/v1/info", 200, "OK")
+				smanager := sm.New(ctx, cancel, sm.DefaultEnv())
+				smanager.RegisterFilters(testFilter{})
+				serviceManagerServer = httptest.NewServer(smanager.Build().Server.Router)
+				assertResponse(serviceManagerServer, "/v1/info", 200, "")
 			})
 		})
 
 	})
 })
 
-func responseOk() (*web.Response, error) {
-	return &web.Response{
-		StatusCode: 200,
-		Body:       []byte("OK"),
-	}, nil
-}
-
 func assertResponse(serviceManagerServer *httptest.Server, url string, statusCode int, body string) {
 	SM := httpexpect.New(GinkgoT(), serviceManagerServer.URL)
 	resp := SM.GET(url).Expect().Status(statusCode)
 	if body != "" {
 		resp.Body().Equal(body)
+	}
+}
+
+type testFilter struct {
+}
+
+func (tf testFilter) Name() string {
+	return "testFilter"
+}
+
+func (tf testFilter) Run(next web.Handler) web.Handler {
+	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
+		return &web.Response{
+			StatusCode: 200,
+			Body:       []byte("OK"),
+		}, nil
+	})
+}
+
+func (tf testFilter) RouteMatchers() []web.RouteMatcher {
+	return []web.RouteMatcher{
+		{
+			Matchers: []web.Matcher{
+				web.Path("**"),
+			},
+		},
 	}
 }

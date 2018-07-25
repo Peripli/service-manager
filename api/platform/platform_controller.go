@@ -40,8 +40,8 @@ var _ web.Controller = &Controller{}
 // createPlatform handler for POST /v1/platforms
 func (c *Controller) createPlatform(request *web.Request) (*web.Response, error) {
 	logrus.Debug("Creating new platform")
-	var platform *types.Platform
 
+	platform := &types.Platform{}
 	if err := util.UnmarshalAndValidate(request.Body, platform); err != nil {
 		return nil, err
 	}

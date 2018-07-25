@@ -14,6 +14,7 @@ func NewBasicAuthnFilter(storage storage.Credentials) *basicAuthnFilter {
 	return &basicAuthnFilter{
 		Middleware: Middleware{
 			authenticator: basic.NewAuthenticator(storage),
+			name:          "BasicAuthenticationFilter",
 		},
 	}
 }
@@ -30,9 +31,4 @@ func (ba *basicAuthnFilter) RouteMatchers() []web.RouteMatcher {
 			},
 		},
 	}
-}
-
-func (ba *basicAuthnFilter) Matches(request *web.Request) bool {
-	_, _, ok := request.BasicAuth()
-	return ok
 }

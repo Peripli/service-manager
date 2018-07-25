@@ -27,6 +27,6 @@ func main() {
 	defer cancel()
 
 	env := sm.DefaultEnv()
-	sm := sm.New(ctx, cancel, env)
+	sm := sm.New(ctx, cancel, env).Build()
 	sm.Run()
 }

@@ -53,7 +53,7 @@ var _ = Describe("config", func() {
 			config = cfg.DefaultSettings()
 			config.Storage.URI = "postgres://postgres:postgres@localhost:5555/postgres?sslmode=disable"
 			config.API.TokenIssuerURL = "http://example.com"
-			config.API.ClientID = "smctl"
+			config.API.ClientID = "sm"
 		})
 
 		Context("when config is valid", func() {
@@ -164,7 +164,7 @@ var _ = Describe("config", func() {
 					},
 					API: api.Settings{
 						TokenIssuerURL: "http://example.com",
-						ClientID:       "smctl",
+						ClientID:       "sm",
 					},
 				}
 

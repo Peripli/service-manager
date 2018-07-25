@@ -17,6 +17,7 @@
 package common
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -24,6 +25,9 @@ import (
 
 	. "github.com/onsi/ginkgo"
 
+	"github.com/Peripli/service-manager/config"
+	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/Peripli/service-manager/pkg/sm"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gavv/httpexpect"
 )
@@ -42,9 +46,28 @@ var serviceCatalog = `{
 	}]
 }`
 
-func NewTestContext(api *web.API) *TestContext {
+func NewTestContext(additionalAPIs ...*web.API) *TestContext {
+	ctx, cancel := context.WithCancel(context.Background())
 	mockOauthServer := SetupMockOAuthServer()
-	smServer := httptest.NewServer(GetServerHandler(api, mockOauthServer.URL))
+
+	set := env.EmptyFlagSet()
+	config.AddPFlags(set)
+	set.Set("file.location", "./test/common")
+	set.Set("api.token_issuer_url", mockOauthServer.URL)
+
+	env, err := env.New(set)
+	if err != nil {
+		panic(err)
+	}
+
+	smanagerBuilder := sm.New(ctx, cancel, env)
+	for _, additionalAPI := range additionalAPIs {
+		smanagerBuilder.RegisterControllers(additionalAPI.Controllers...)
+		smanagerBuilder.RegisterFilters(additionalAPI.Filters...)
+	}
+	serviceManager := smanagerBuilder.Build()
+	smServer := httptest.NewServer(serviceManager.Server.Router)
+
 	SM := httpexpect.New(GinkgoT(), smServer.URL)
 
 	accessToken := RequestToken(mockOauthServer.URL)
@@ -55,7 +78,7 @@ func NewTestContext(api *web.API) *TestContext {
 	RemoveAllBrokers(SMWithOAuth)
 	RemoveAllPlatforms(SMWithOAuth)
 
-	platformJSON := MakePlatform("ctx-platform-test", "ctx-platform-test", "platform-type", "")
+	platformJSON := MakePlatform("ctx-platform-test", "ctx-platform-test", "platform-type", "test-platform")
 	platform := RegisterPlatform(platformJSON, SMWithOAuth)
 	SMWithBasic := SM.Builder(func(req *httpexpect.Request) {
 		username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
@@ -103,6 +126,7 @@ func (ctx *TestContext) Cleanup() {
 	if ctx == nil {
 		return
 	}
+
 	if ctx.SMServer != nil {
 		RemoveAllBrokers(ctx.SMWithOAuth)
 		RemoveAllPlatforms(ctx.SMWithOAuth)
@@ -131,7 +155,6 @@ func (b *Broker) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	if req.Method == http.MethodPatch || req.Method == http.MethodPost || req.Method == http.MethodPut {
 		var err error
-		//todo
 		b.RawRequestBody, err = ioutil.ReadAll(req.Body)
 		if err != nil {
 			panic(err)

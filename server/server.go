@@ -48,6 +48,8 @@ type Server struct {
 // Returns the new server and an error if creation was not successful
 func New(config Settings, api *web.API) *Server {
 	router := mux.NewRouter().StrictSlash(true)
+	registerControllers(api, router)
+
 	return &Server{
 		Config: config,
 		Router: router,
@@ -63,16 +65,15 @@ func (s *Server) Run(ctx context.Context) {
 		WriteTimeout: s.Config.RequestTimeout,
 		ReadTimeout:  s.Config.RequestTimeout,
 	}
-	s.registerControllers()
 	startServer(ctx, handler, s.Config.ShutdownTimeout)
 }
 
-func (s *Server) registerControllers() {
-	for _, ctrl := range s.API.Controllers {
+func registerControllers(API *web.API, router *mux.Router) {
+	for _, ctrl := range API.Controllers {
 		for _, route := range ctrl.Routes() {
 			logrus.Debugf("Registering endpoint: %s %s", route.Endpoint.Method, route.Endpoint.Path)
-			handler := web.Filters(s.API.Filters).ChainMatching(route)
-			r := s.Router.Handle(route.Endpoint.Path, api.NewHTTPHandler(handler))
+			handler := web.Filters(API.Filters).ChainMatching(route)
+			r := router.Handle(route.Endpoint.Path, api.NewHTTPHandler(handler))
 			r.Methods(route.Endpoint.Method)
 		}
 	}

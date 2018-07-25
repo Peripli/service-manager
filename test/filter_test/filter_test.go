@@ -24,6 +24,7 @@ var _ = Describe("Service Manager Middlewares", func() {
 	var testBroker *common.Broker
 
 	var testFilters []web.Filter
+	var order string
 
 	JustBeforeEach(func() {
 		api := &web.API{}
@@ -38,12 +39,11 @@ var _ = Describe("Service Manager Middlewares", func() {
 	})
 
 	Describe("Attach filter on multiple endpoints", func() {
-		var order string
 		BeforeEach(func() {
-			order = ""
 			testFilters = []web.Filter{
-				osbTestFilter{state: order},
+				osbTestFilter{state: &order},
 			}
+			order = ""
 		})
 
 		Context("should be called only on OSB API", func() {
@@ -71,17 +71,22 @@ var _ = Describe("Service Manager Middlewares", func() {
 			Specify("/v1/service_brokers", func() {
 				ctx.SMWithOAuth.GET("/v1/service_brokers").
 					Expect().Status(http.StatusOK)
-				Expect(order).To(Equal("osb1osb2"))
+				Expect(order).ToNot(Equal("osb1osb2"))
+			})
+
+			Specify("/v1/platforms", func() {
+				ctx.SMWithOAuth.GET("/v1/service_brokers").
+					Expect().Status(http.StatusOK)
+				Expect(order).ToNot(Equal("osb1osb2"))
 			})
 		})
 	})
 
 	Describe("Attach filter on whole API", func() {
-		var order string
 		BeforeEach(func() {
 			testFilters = []web.Filter{
-				globalTestFilterA{state: order},
-				globalTestFilterB{state: order},
+				globalTestFilterA{state: &order},
+				globalTestFilterB{state: &order},
 			}
 		})
 
@@ -95,7 +100,7 @@ var _ = Describe("Service Manager Middlewares", func() {
 })
 
 type osbTestFilter struct {
-	state string
+	state *string
 }
 
 func (tf osbTestFilter) Name() string {
@@ -114,17 +119,17 @@ func (tf osbTestFilter) RouteMatchers() []web.RouteMatcher {
 
 func (tf osbTestFilter) Run(next web.Handler) web.Handler {
 	return web.HandlerFunc(func(request *web.Request)(*web.Response,error) {
-		tf.state += "osb1"
+		*tf.state += "osb1"
 		res, err := next.Handle(request)
 		if err == nil {
-			tf.state += "osb2"
+			*tf.state += "osb2"
 		}
 		return res, err
 	})
 }
 
 type globalTestFilterA struct {
-	state string
+	state *string
 }
 
 func (gfa globalTestFilterA) Name() string {
@@ -143,17 +148,17 @@ func (gfa globalTestFilterA) RouteMatchers() []web.RouteMatcher {
 
 func (gfa globalTestFilterA) Run(next web.Handler) web.Handler {
 	return web.HandlerFunc(func(request *web.Request)(*web.Response,error) {
-		gfa.state += "a1"
+		*gfa.state += "a1"
 		res, err := next.Handle(request)
 		if err == nil {
-			gfa.state += "a2"
+			*gfa.state += "a2"
 		}
 		return res, err
 	})
 }
 
 type globalTestFilterB struct {
-	state string
+	state *string
 }
 
 func (gfb globalTestFilterB) Name() string {
@@ -172,10 +177,10 @@ func (gfb globalTestFilterB) RouteMatchers() []web.RouteMatcher {
 
 func (gfb globalTestFilterB) Run(next web.Handler) web.Handler {
 	return web.HandlerFunc(func(request *web.Request)(*web.Response,error) {
-		gfb.state += "b1"
+		*gfb.state += "b1"
 		res, err := next.Handle(request)
 		if err == nil {
-			gfb.state += "b2"
+			*gfb.state += "b2"
 		}
 		return res, err
 	})

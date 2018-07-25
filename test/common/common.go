@@ -17,7 +17,6 @@
 package common
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/base64"
@@ -33,10 +32,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Peripli/service-manager/app"
-	"github.com/Peripli/service-manager/config"
-	"github.com/Peripli/service-manager/pkg/env"
-	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/gavv/httpexpect"
 	"github.com/gbrlsnchs/jwt"
@@ -45,8 +40,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
-	"github.com/sirupsen/logrus"
-	"github.com/Peripli/service-manager/pkg/web"
 )
 
 type Object = map[string]interface{}
@@ -85,30 +78,6 @@ const Catalog = `{
   ]
 }`
 
-func GetServerHandler(api *web.API, tokenIssuerURL string) http.Handler {
-	set := env.EmptyFlagSet()
-	config.AddPFlags(set)
-	set.Set("file.location", "./test/common")
-
-	serverEnv, err := env.New(set)
-	if err != nil {
-		logrus.Fatal("Error creating server: ", err)
-	}
-	cfg, err := config.New(serverEnv)
-
-	params := &app.Parameters{
-		Settings: cfg,
-		API:      api,
-	}
-	if tokenIssuerURL != "" {
-		cfg.API.TokenIssuerURL = tokenIssuerURL
-	}
-	srv, err := app.New(context.Background(), params)
-	if err != nil {
-		logrus.Fatal("Error creating server router during test server initialization: ", err)
-	}
-	return srv.Handler
-}
 
 func MapContains(actual Object, expected Object) {
 	for k, v := range expected {
@@ -272,7 +241,7 @@ func SetupMockOAuthServer() *httptest.Server {
 		token, err := jwt.Sign(signer, &jwt.Options{
 			Issuer:         issuerURL + "/oauth/token",
 			KeyID:          keyID,
-			Audience:       "smctl",
+			Audience:       "sm",
 			ExpirationTime: nextYear})
 		if err != nil {
 			panic(err)

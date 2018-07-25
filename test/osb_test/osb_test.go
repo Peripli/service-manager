@@ -92,7 +92,7 @@ var _ = Describe("Service Manager OSB API", func() {
 	)
 
 	BeforeSuite(func() {
-		ctx = common.NewTestContext(nil)
+		ctx = common.NewTestContext()
 		validBrokerServer := httptest.NewServer(common.NewValidBrokerRouter())
 		failingBrokerServer := httptest.NewServer(common.NewFailingBrokerRouter())
 		validBroker = ctx.RegisterBroker("broker1", validBrokerServer)

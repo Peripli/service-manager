@@ -22,12 +22,16 @@ func (raf *requiredAuthnFilter) Name() string {
 
 func (raf *requiredAuthnFilter) Run(next web.Handler) web.Handler {
 	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
+		logrus.Debug("Entering filter: ", raf.Name())
+
 		user := request.Context().Value(UserKey)
 		if _, ok := user.(*security.User); ok {
-			return next.Handle(request)
+			resp, err := next.Handle(request)
+			logrus.Debug("Exiting filter: ", raf.Name())
+			return resp, err
 		}
 
-		logrus.Error("No authenticated user found in request context")
+		logrus.Error("No authenticated user found in request context during execution of filter ", raf.Name())
 		return nil, &util.HTTPError{
 			ErrorType:   "Unauthorized",
 			Description: "unsupported authentication scheme",

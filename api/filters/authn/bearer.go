@@ -3,8 +3,6 @@ package authn
 import (
 	"net/http"
 
-	"strings"
-
 	"context"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -26,6 +24,7 @@ func NewBearerAuthnFilter(ctx context.Context, tokenIssuer, clientID string) (*b
 	return &bearerAuthnFilter{
 		Middleware: Middleware{
 			authenticator: authenticator,
+			name:          "BearerAuthenticationFilter",
 		},
 	}, nil
 }
@@ -59,8 +58,4 @@ func (ba *bearerAuthnFilter) RouteMatchers() []web.RouteMatcher {
 			},
 		},
 	}
-}
-
-func (ba *bearerAuthnFilter) Matches(request *web.Request) bool {
-	return strings.HasPrefix(request.Header.Get("Authorization"), "Bearer ")
 }

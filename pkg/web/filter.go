@@ -123,8 +123,8 @@ func (fs Filters) Matching(route Route) Filters {
 	matchedFilters := make([]Filter, 0)
 	matchedNames := make([]string, 0)
 	for _, filter := range fs {
-		missMatch := false
 		for _, routeMatcher := range filter.RouteMatchers() {
+			missMatch := false
 			for _, matcher := range routeMatcher.Matchers {
 				match, err := matcher.Matches(route)
 				if err != nil {
@@ -142,6 +142,6 @@ func (fs Filters) Matching(route Route) Filters {
 			}
 		}
 	}
-	logrus.Debugf("Middlewares for endpoint %s:%s: [%v]", route.Endpoint.Path, route.Endpoint.Method, matchedNames)
+	logrus.Debugf("Filters for endpoint %s:%s: [%v]", route.Endpoint.Path, route.Endpoint.Method, matchedNames)
 	return matchedFilters
 }

@@ -23,28 +23,36 @@ import (
 	"os/signal"
 
 	"github.com/Peripli/service-manager/api"
-	"github.com/Peripli/service-manager/server"
-
 	"github.com/Peripli/service-manager/config"
-	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/Peripli/service-manager/server"
+	"github.com/Peripli/service-manager/storage"
+	"github.com/Peripli/service-manager/storage/postgres"
 
 	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/cf"
+	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/storage"
-	"github.com/Peripli/service-manager/storage/postgres"
 	"github.com/sirupsen/logrus"
 )
 
-// ServiceManager  struct
-type ServiceManager struct {
-	ctx    context.Context
-	server *server.Server
+// DefaultEnv creates a default environment that can be used to boot up a Service Manager
+func DefaultEnv() env.Environment {
+	set := env.EmptyFlagSet()
+	config.AddPFlags(set)
+
+	environment, err := env.New(set)
+	if err != nil {
+		panic(fmt.Errorf("error loading environment: %s", err))
+	}
+	if err := cf.SetCFOverrides(environment); err != nil {
+		panic(fmt.Errorf("error setting CF environment values: %s", err))
+	}
+	return environment
 }
 
-// New returns service-manager server with default setup. The function panics on bad configuration
-func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *ServiceManager {
+// New returns service-manager Server with default setup. The function panics on bad configuration
+func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *ServiceManagerBuilder {
 	// graceful shutdown and handle interrupts
 	handleInterrupts(ctx, cancel)
 
@@ -67,53 +75,60 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	}
 
 	// setup core API
-	coreAPI, err := api.New(ctx, storage, cfg.API)
+	API, err := api.New(ctx, storage, cfg.API)
 	if err != nil {
 		panic(fmt.Sprintf("error creating core API: %s", err))
 	}
 
-	// setup server and add relevant global middleware
-	srv := server.New(cfg.Server, coreAPI)
-	srv.Router.Use(filters.NewRecoveryMiddleware())
-
-	return &ServiceManager{
-		server: srv,
+	return &ServiceManagerBuilder{
+		ctx:    ctx,
+		cancel: cancel,
+		API:    API,
 	}
 }
 
-// DefaultEnv creates a default environment that can be used to boot up a Service Manager
-func DefaultEnv() env.Environment {
-	set := env.EmptyFlagSet()
-	config.AddPFlags(set)
-
-	environment, err := env.New(set)
-	if err != nil {
-		panic(fmt.Errorf("error loading environment: %s", err))
-	}
-	if err := cf.SetCFOverrides(environment); err != nil {
-		panic(fmt.Errorf("error setting CF environment values: %s", err))
-	}
-	return environment
-}
-
-// RegisterPlugins adds plugins to the Service Manager
-func (sm *ServiceManager) RegisterPlugins(plugins ...web.Plugin) {
-	sm.server.API.RegisterPlugins(plugins...)
-}
-
-// RegisterFilters adds filters to the Service Manager
-func (sm *ServiceManager) RegisterFilters(filters ...web.Filter) {
-	sm.server.API.RegisterFilters(filters...)
-}
-
-// RegisterControllers adds controllers to the Service Manager
-func (sm *ServiceManager) RegisterControllers(controllers ...web.Controller) {
-	sm.server.API.RegisterControllers(controllers...)
+// ServiceManager  struct
+type ServiceManager struct {
+	ctx    context.Context
+	Server *server.Server
 }
 
 // Run starts the Service Manager
 func (sm *ServiceManager) Run() {
-	sm.server.Run(sm.ctx)
+	sm.Server.Run(sm.ctx)
+}
+
+type ServiceManagerBuilder struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+	cfg    server.Settings
+	API    *web.API
+}
+
+// RegisterPlugins adds plugins to the Service Manager
+func (smb *ServiceManagerBuilder) RegisterPlugins(plugins ...web.Plugin) {
+	smb.API.RegisterPlugins(plugins...)
+}
+
+// RegisterFilters adds filters to the Service Manager
+func (smb *ServiceManagerBuilder) RegisterFilters(filters ...web.Filter) {
+	smb.API.RegisterFilters(filters...)
+}
+
+// RegisterControllers adds controllers to the Service Manager
+func (smb *ServiceManagerBuilder) RegisterControllers(controllers ...web.Controller) {
+	smb.API.RegisterControllers(controllers...)
+}
+
+func (smb *ServiceManagerBuilder) Build() *ServiceManager {
+	// setup server and add relevant global middleware
+	srv := server.New(smb.cfg, smb.API)
+	srv.Router.Use(filters.NewRecoveryMiddleware())
+
+	return &ServiceManager{
+		ctx:    smb.ctx,
+		Server: srv,
+	}
 }
 
 func handleInterrupts(ctx context.Context, cancelFunc context.CancelFunc) {
