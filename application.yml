@@ -10,8 +10,8 @@ storage:
 api:
   token_issuer_url: https://uaa.local.pcfdev.io
   security:
-    # 32-bit key
-    encryptionkey: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
+    len: 32
+    encryption_key: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
     uri: postgres://guard:guard@192.168.99.101:5555/postgres?sslmode=disable
 oauth:
   clientId: smctl

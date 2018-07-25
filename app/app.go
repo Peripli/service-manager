@@ -19,19 +19,19 @@ package app
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/config"
 	"github.com/Peripli/service-manager/filters/auth"
-	"github.com/Peripli/service-manager/internal/security/postgresql"
+	sec "github.com/Peripli/service-manager/internal/security/postgres"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/postgres"
-	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -78,7 +78,7 @@ func New(ctx context.Context, params *Parameters) (*server.Server, error) {
 }
 
 func initializeSecureStorage(ctx context.Context, securitySettings api.Security) (security.Storage, error) {
-	secureStorage, err := postgresql.NewSecureStorage(ctx, securitySettings)
+	secureStorage, err := sec.NewSecureStorage(ctx, securitySettings)
 	if err != nil {
 		return nil, fmt.Errorf("error creating secure storage: %v", err)
 	}
@@ -89,12 +89,10 @@ func initializeSecureStorage(ctx context.Context, securitySettings api.Security)
 	}
 	if len(encryptionKey) == 0 {
 		logrus.Debug("No encryption key is present. Generating new one...")
-		uuids, err := uuid.NewV4()
-		if err != nil {
-			return nil, fmt.Errorf("Could not generate new encryption key: %v", err)
+		newEncryptionKey := make([]byte, securitySettings.Len)
+		if _, err := rand.Read(newEncryptionKey); err != nil {
+			return nil, fmt.Errorf("Could not generate encryption key: %v", err)
 		}
-
-		newEncryptionKey := uuids.Bytes()
 		keySetter := secureStorage.Setter()
 		if err := keySetter.SetEncryptionKey(newEncryptionKey); err != nil {
 			return nil, err

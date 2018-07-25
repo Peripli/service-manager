@@ -31,10 +31,12 @@ import (
 )
 
 type Security struct {
-	// this is the encryption key from the env_vars
-	EncryptionKey string
-	// this is the URI used to access the storage with the secondary encryption key
-	URI string
+	// EncryptionKey is the encryption key from the env_vars
+	EncryptionKey string `mapstructure:"encryption_key"`
+	// URI is the URI used to access the storage with the secondary encryption key
+	URI string `mapstructure:"uri"`
+	// Len is the byte count for the stored encryption key
+	Len int `mapstructure:"len"`
 }
 
 // Settings type to be loaded from the environment
