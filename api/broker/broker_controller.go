@@ -128,12 +128,7 @@ func (c *Controller) getBroker(request *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	// TODO: just shows that the password is actually OK
-	pass, err := c.CredentialsTransformer.Reverse([]byte(broker.Credentials.Basic.Password))
-	if err != nil {
-		return nil, err
-	}
-	broker.Credentials.Basic.Password = string(pass)
+	broker.Credentials = nil
 	broker.Catalog = nil
 	return rest.NewJSONResponse(http.StatusOK, broker)
 }

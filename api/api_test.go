@@ -50,7 +50,7 @@ var _ = Describe("API", func() {
 		settings = Settings{
 			TokenIssuerURL: "http://example.com",
 		}
-		api = New(mockedStorage, settings)
+		api = New(mockedStorage, settings, nil)
 	})
 
 	Describe("Controller Registration", func() {
