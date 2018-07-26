@@ -19,9 +19,10 @@ package postgres
 
 import (
 	"database/sql"
-	"fmt"
 	"sync"
 	"time"
+
+	"fmt"
 
 	"github.com/Peripli/service-manager/storage"
 	"github.com/golang-migrate/migrate"
@@ -130,7 +131,7 @@ func transaction(db *sqlx.DB, f func(tx *sqlx.Tx) error) error {
 	defer func() {
 		if !ok {
 			if txError := tx.Rollback(); txError != nil {
-				logrus.Error("Could not rollback Transaction", txError)
+				logrus.Error("Could not rollback transaction", txError)
 			}
 		}
 	}()
