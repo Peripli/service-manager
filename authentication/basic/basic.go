@@ -22,18 +22,20 @@ import (
 
 	"github.com/Peripli/service-manager/authentication"
 	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/sirupsen/logrus"
 )
 
 // Authenticator for basic authentication
 type Authenticator struct {
-	CredentialStorage storage.Credentials
+	CredentialStorage      storage.Credentials
+	CredentialsTransformer security.CredentialsTransformer
 }
 
 // NewAuthenticator constructs a Basic authentication Authenticator
-func NewAuthenticator(storage storage.Credentials) authentication.Authenticator {
-	return &Authenticator{CredentialStorage: storage}
+func NewAuthenticator(storage storage.Credentials, transformer security.CredentialsTransformer) authentication.Authenticator {
+	return &Authenticator{CredentialStorage: storage, CredentialsTransformer: transformer}
 }
 
 // Authenticate authenticates by using the provided Basic credentials
@@ -64,7 +66,11 @@ func (a *Authenticator) Authenticate(request *http.Request) (*authentication.Use
 			"InternalServerError")
 	}
 
-	if credentials.Basic.Password != password {
+	passwordBytes, err := a.CredentialsTransformer.Reverse([]byte(credentials.Basic.Password))
+	if err != nil {
+		return nil, err
+	}
+	if string(passwordBytes) != password {
 		return nil, responseError
 	}
 

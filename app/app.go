@@ -68,7 +68,7 @@ func New(ctx context.Context, params *Parameters) (*server.Server, error) {
 	}
 
 	coreAPI := api.New(storage, params.Settings.API, transformer)
-	registerDefaultFilters(ctx, coreAPI, storage, params.Settings)
+	registerDefaultFilters(ctx, coreAPI, storage, transformer, params.Settings)
 	if params.API != nil {
 		coreAPI.RegisterControllers(params.API.Controllers...)
 		coreAPI.RegisterFilters(params.API.Filters...)
@@ -102,7 +102,7 @@ func initializeSecureStorage(ctx context.Context, securitySettings api.Security)
 	return secureStorage, nil
 }
 
-func registerDefaultFilters(ctx context.Context, api *rest.API, storage storage.Storage, cfg *config.Settings) {
-	authFilter := auth.NewAuthenticationFilter(ctx, storage.Credentials(), cfg)
+func registerDefaultFilters(ctx context.Context, api *rest.API, storage storage.Storage, transformer security.CredentialsTransformer, cfg *config.Settings) {
+	authFilter := auth.NewAuthenticationFilter(ctx, storage.Credentials(), transformer, cfg)
 	api.RegisterFilters(authFilter.Filters()...)
 }

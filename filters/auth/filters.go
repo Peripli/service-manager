@@ -23,6 +23,7 @@ import (
 
 	"github.com/Peripli/service-manager/authentication/basic"
 	"github.com/Peripli/service-manager/config"
+	"github.com/Peripli/service-manager/security"
 
 	"github.com/Peripli/service-manager/authentication"
 
@@ -40,7 +41,7 @@ type AuthenticationFilter struct {
 }
 
 // NewAuthenticationFilter constructs a new AuthenticationFilter object
-func NewAuthenticationFilter(ctx context.Context, credentialStorage storage.Credentials, cfg *config.Settings) AuthenticationFilter {
+func NewAuthenticationFilter(ctx context.Context, credentialStorage storage.Credentials, transformer security.CredentialsTransformer, cfg *config.Settings) AuthenticationFilter {
 	oauthAuthenticator, err := oidc.NewAuthenticator(ctx, oidc.Options{
 		ClientID:  cfg.OAuth.ClientID,
 		IssuerURL: cfg.API.TokenIssuerURL,
@@ -49,7 +50,7 @@ func NewAuthenticationFilter(ctx context.Context, credentialStorage storage.Cred
 		panic(fmt.Errorf("Could not construct OAuth authenticator. Reason: %s", err))
 	}
 
-	basicAuthenticator := basic.NewAuthenticator(credentialStorage)
+	basicAuthenticator := basic.NewAuthenticator(credentialStorage, transformer)
 
 	return AuthenticationFilter{
 		oAuthAuthenticator: oauthAuthenticator,
