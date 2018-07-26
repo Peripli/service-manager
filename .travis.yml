@@ -15,14 +15,10 @@ install:
 
 before_script:
   - gometalinter --install --update
-  - psql -e 'CREATE USER guard WITH PASSWORD guard;' -U postgres
-  - psql -e 'GRANT CONNECT ON DATABASE postgres TO access_user;' -U postgres
+  - psql -c 'CREATE USER guard WITH PASSWORD guard;' -U postgres
 
 services:
   - postgresql
-  
-addons:
-  postgresql: "9.4"
 
 script:
   # Execute static checks
