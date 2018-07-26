@@ -15,7 +15,7 @@ install:
 
 before_script:
   - gometalinter --install --update
-  - psql -c 'CREATE USER guard WITH PASSWORD guard;' -U postgres
+  - psql -c 'CREATE USER guard WITH PASSWORD 'guard';' -U postgres
 
 services:
   - postgresql
