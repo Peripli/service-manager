@@ -15,12 +15,14 @@ install:
 
 before_script:
   - gometalinter --install --update
-  - psql -c 'CREATE DATABASE postgres;' -U postgres
   - psql -e 'CREATE USER guard WITH PASSWORD guard;' -U postgres
   - psql -e 'GRANT CONNECT ON DATABASE postgres TO access_user;' -U postgres
 
 services:
   - postgresql
+  
+addons:
+  postgresql: "9.4"
 
 script:
   # Execute static checks
