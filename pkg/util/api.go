@@ -14,6 +14,7 @@
  *    limitations under the License.
  */
 
+// Package util contains web utils for APIs, clients and error handling
 package util
 
 import (
@@ -49,6 +50,8 @@ func ToRFCFormat(timestamp time.Time) string {
 	return timestamp.UTC().Format(time.RFC3339)
 }
 
+// ReadHTTPRequestBody reads the request body and returns []byte with its content or an error if
+// the media type is incorrect or if the body is not a valid JSON
 func ReadHTTPRequestBody(request *http.Request) ([]byte, error) {
 	contentType := request.Header.Get("Content-Type")
 	if !strings.Contains(contentType, "application/json") {

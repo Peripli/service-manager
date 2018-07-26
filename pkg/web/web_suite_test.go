@@ -14,4 +14,13 @@
  *    limitations under the License.
  */
 
-package web
+package web_test
+
+import "testing"
+import . "github.com/onsi/ginkgo"
+import . "github.com/onsi/gomega"
+
+func TestWeb(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Web Suite")
+}

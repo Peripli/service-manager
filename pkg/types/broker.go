@@ -14,6 +14,7 @@
  *    limitations under the License.
  */
 
+// Package types contains the Service Manager web entities
 package types
 
 import (
@@ -42,6 +43,7 @@ type Broker struct {
 	Catalog     json.RawMessage `json:"catalog,omitempty"`
 }
 
+// Validate implements InputValidator and verifies all mandatory fields are populated
 func (b *Broker) Validate() error {
 	if b.Name == "" {
 		return errors.New("missing broker name")

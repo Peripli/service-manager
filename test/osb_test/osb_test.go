@@ -69,24 +69,6 @@ func assertRequiredIDError(resp *httpexpect.Object, expectedIDName string) {
 		Equal(expectedIDName + " is required")
 }
 
-func requestWithMissingIDsInBody(req smreq, url string, idName string, expectedIDName string) {
-	resp := req(url).WithHeader("X-Broker-API-Version", "oidc_authn.13").
-		WithJSON(getDummyService(idName)).
-		Expect().Status(http.StatusBadRequest).JSON().Object()
-
-	assertRequiredIDError(resp, expectedIDName)
-}
-
-func requestWithMissingIDsInQuery(req smreq, url string, idName string, expectedIDName string) {
-	resp := req(url).WithHeader("X-Broker-API-Version", "oidc_authn.13").
-		WithQueryObject(getDummyService(idName)).
-		Expect().Status(http.StatusBadRequest).JSON().Object()
-
-	assertRequiredIDError(resp, expectedIDName)
-}
-
-
-
 var _ = Describe("Service Manager OSB API", func() {
 	var (
 		ctx                        *common.TestContext

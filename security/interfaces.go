@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+// Package security contains logic for setting SM security
 package security
 
 import (

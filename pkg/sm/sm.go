@@ -98,6 +98,8 @@ func (sm *ServiceManager) Run() {
 	sm.Server.Run(sm.ctx)
 }
 
+// ServiceManagerBuilder type is an extention point that allows adding additional filters, plugins and
+// controllers before running ServiceManager.
 type ServiceManagerBuilder struct {
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -120,6 +122,7 @@ func (smb *ServiceManagerBuilder) RegisterControllers(controllers ...web.Control
 	smb.API.RegisterControllers(controllers...)
 }
 
+// Build builds the Service Manager
 func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	// setup server and add relevant global middleware
 	srv := server.New(smb.cfg, smb.API)

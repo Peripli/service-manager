@@ -19,7 +19,7 @@ func TestFilters(t *testing.T) {
 	RunSpecs(t, "Filter Tests Suite")
 }
 
-var _ = Describe("Service Manager Middlewares", func() {
+var _ = Describe("Service Manager Filters", func() {
 	var ctx *common.TestContext
 	var testBroker *common.Broker
 
@@ -32,6 +32,7 @@ var _ = Describe("Service Manager Middlewares", func() {
 		ctx = common.NewTestContext(api)
 		ctx.RegisterBroker("broker1", nil)
 		testBroker = ctx.Brokers["broker1"]
+		order = ""
 	})
 
 	AfterEach(func() {
@@ -43,7 +44,6 @@ var _ = Describe("Service Manager Middlewares", func() {
 			testFilters = []web.Filter{
 				osbTestFilter{state: &order},
 			}
-			order = ""
 		})
 
 		Context("should be called only on OSB API", func() {
@@ -91,7 +91,6 @@ var _ = Describe("Service Manager Middlewares", func() {
 		})
 
 		It("should be called on platform API", func() {
-			order = ""
 			ctx.SMWithOAuth.GET("/v1/platforms").
 				Expect().Status(http.StatusOK)
 			Expect(order).To(Equal("a1b1b2a2"))
@@ -107,8 +106,8 @@ func (tf osbTestFilter) Name() string {
 	return "OSB Filter"
 }
 
-func (tf osbTestFilter) RouteMatchers() []web.RouteMatcher {
-	return []web.RouteMatcher {
+func (tf osbTestFilter) FilterMatchers() []web.FilterMatcher {
+	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
 				web.Path("/v1/osb/**"),
@@ -136,8 +135,8 @@ func (gfa globalTestFilterA) Name() string {
 	return "GlobalTestFilterA"
 }
 
-func (gfa globalTestFilterA) RouteMatchers() []web.RouteMatcher {
-	return []web.RouteMatcher {
+func (gfa globalTestFilterA) FilterMatchers() []web.FilterMatcher {
+	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
 				web.Path("/**"),
@@ -165,8 +164,8 @@ func (gfb globalTestFilterB) Name() string {
 	return "GlobalTestFilterB"
 }
 
-func (gfb globalTestFilterB) RouteMatchers() []web.RouteMatcher {
-	return []web.RouteMatcher {
+func (gfb globalTestFilterB) FilterMatchers() []web.FilterMatcher {
+	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
 				web.Path("/v1/**"),

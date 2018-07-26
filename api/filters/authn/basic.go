@@ -25,8 +25,8 @@ func (ba *basicAuthnFilter) Name() string {
 	return "BasicAuthenticationFilter"
 }
 
-func (ba *basicAuthnFilter) RouteMatchers() []web.RouteMatcher {
-	return []web.RouteMatcher{
+func (ba *basicAuthnFilter) FilterMatchers() []web.FilterMatcher {
+	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
 				web.Path("/v1/osb/**"),

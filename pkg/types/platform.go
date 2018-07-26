@@ -59,7 +59,7 @@ func (p *Platform) MarshalJSON() ([]byte, error) {
 	return json.Marshal(toMarshal)
 }
 
-// Validate checks whether platform type input has invalid content
+// Validate implements InputValidator and verifies all mandatory fields are populated
 func (p *Platform) Validate() error {
 	if p.Type == "" {
 		return errors.New("missing platform type")

@@ -14,110 +14,263 @@
  *    limitations under the License.
  */
 
-package web
+package web_test
 
-//import (
-//	"testing"
-//
-//	. "github.com/onsi/ginkgo"
-//	. "github.com/onsi/gomega"
-//)
-//
-//func TestFilters(t *testing.T) {
-//	RegisterFailHandler(Fail)
-//	RunSpecs(t, "Middlewares Suite")
-//}
-//
-//var _ = Describe("Middlewares", func() {
-//	Describe("MatchFilters", func() {
-//		It("Panics if filter path is empty", func() {
-//			Expect(func() {
-//				MatchFilters(&Endpoint{"GET", "/"}, []Filter{
-//					{
-//						RouteMatcher: RouteMatcher{
-//							Methods: []string{"GET"},
-//						},
-//					},
-//				})
-//			}).To(Panic())
-//		})
-//
-//		tests := []struct {
-//			description string
-//			endpoint    *Endpoint
-//			filters     []Filter
-//			result      []string
-//		}{
-//			{
-//				"** matches multiple path segments",
-//				&Endpoint{"GET", "/a/b/c"},
-//				[]Filter{
-//					{
-//						Name: "a",
-//						RouteMatcher: RouteMatcher{
-//							Methods:     []string{"GET"},
-//							PathPattern: "/a/**",
-//						},
-//					},
-//					{
-//						Name: "b",
-//						RouteMatcher: RouteMatcher{
-//							Methods:     []string{"GET"},
-//							PathPattern: "/b/**",
-//						},
-//					},
-//				},
-//				[]string{"a"},
-//			},
-//			{
-//				"No method matches any method",
-//				&Endpoint{"GET", "/a/b/c"},
-//				[]Filter{
-//					{
-//						Name: "a",
-//						RouteMatcher: RouteMatcher{
-//							PathPattern: "/a/**",
-//						},
-//					},
-//				},
-//				[]string{"a"},
-//			},
-//			{
-//				"Non strict trailing slash",
-//				&Endpoint{"GET", "/a/b/c"},
-//				[]Filter{
-//					{
-//						Name: "a",
-//						RouteMatcher: RouteMatcher{
-//							PathPattern: "/a/b/c/**",
-//						},
-//					},
-//					{
-//						Name: "b",
-//						RouteMatcher: RouteMatcher{
-//							PathPattern: "/a/b/c/*",
-//						},
-//					},
-//					{
-//						Name: "c",
-//						RouteMatcher: RouteMatcher{
-//							PathPattern: "/a/b/c/",
-//						},
-//					},
-//				},
-//				[]string{"a", "b", "c"},
-//			},
-//		}
-//
-//		for _, t := range tests {
-//			It(t.description, func() {
-//				matchedFilters := MatchFilters(t.endpoint, t.filters)
-//				matchedNames := make([]string, len(matchedFilters))
-//				for i, f := range matchedFilters {
-//					matchedNames[i] = f.Name
-//				}
-//				Expect(matchedNames).To(Equal(t.result))
-//			})
-//		}
-//	})
-//})
+import (
+	"net/http"
+
+	"net/http/httptest"
+	"strings"
+
+	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/pkg/web/webfakes"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+	"github.com/sirupsen/logrus"
+)
+
+var _ = Describe("Filters", func() {
+	fakeFilter := func(name string, f web.MiddlewareFunc, matchers []web.FilterMatcher) web.Filter {
+		filter := &webfakes.FakeFilter{}
+		filter.RunStub = f
+		filter.NameReturns(name)
+		filter.FilterMatchersReturns(matchers)
+		return filter
+	}
+
+	delegatingMiddleware := func(next web.Handler) web.Handler {
+		return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
+			return next.Handle(request)
+		})
+	}
+
+	loggingValidationMiddleware := func(prevFilterName, currFilterName, nextFilterName string, hook *LoggingInterceptorHook) web.MiddlewareFunc {
+		return web.MiddlewareFunc(func(next web.Handler) web.Handler {
+			return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
+				if prevFilterName != "" {
+					Expect(string(hook.data)).To(ContainSubstring("Entering Filter: " + prevFilterName))
+				}
+				Expect(string(hook.data)).To(ContainSubstring("Entering Filter: " + currFilterName))
+				resp, err := next.Handle(request)
+				if nextFilterName != "" {
+					Expect(string(hook.data)).To(ContainSubstring("Exiting Filter: " + nextFilterName))
+				}
+				return resp, err
+			})
+		})
+	}
+
+	Describe("Matching", func() {
+		Context("Panics", func() {
+
+			tests := []struct {
+				description string
+				endpoint    web.Endpoint
+				filters     []web.Filter
+				result      []string
+			}{
+				{
+					"Empty method matches should panic",
+					web.Endpoint{http.MethodGet, "/a/b/c"},
+					[]web.Filter{
+						fakeFilter("filter1", delegatingMiddleware, []web.FilterMatcher{
+							{
+								Matchers: []web.Matcher{
+									web.Methods(),
+								},
+							},
+						}),
+					},
+					[]string{},
+				},
+				{
+					"Empty path pattern should panic",
+					web.Endpoint{http.MethodGet, "/a/b/c"},
+					[]web.Filter{
+						fakeFilter("filter2", delegatingMiddleware, []web.FilterMatcher{
+							{
+								Matchers: []web.Matcher{
+									web.Path(),
+								},
+							},
+						}),
+					},
+					[]string{},
+				},
+			}
+
+			for _, t := range tests {
+				t := t
+				It(t.description, func() {
+					Expect(func() { web.Filters(t.filters).Matching(t.endpoint) }).To(Panic())
+				})
+
+			}
+		})
+
+		tests := []struct {
+			description string
+			endpoint    web.Endpoint
+			filters     []web.Filter
+			result      []string
+		}{
+			{
+				"** matches multiple path segments",
+				web.Endpoint{http.MethodGet, "/a/b/c"},
+				[]web.Filter{
+					fakeFilter("filter1", delegatingMiddleware, []web.FilterMatcher{
+						{
+							Matchers: []web.Matcher{
+								web.Methods(http.MethodGet),
+								web.Path("/a/**"),
+							},
+						},
+					}),
+					fakeFilter("filter2", delegatingMiddleware, []web.FilterMatcher{
+						{
+							Matchers: []web.Matcher{
+								web.Methods(http.MethodGet),
+								web.Path("/b/**"),
+							},
+						},
+					}),
+				},
+				[]string{"filter1"},
+			},
+			{
+				"No matchers matches anything",
+				web.Endpoint{http.MethodGet, "/a/b/c"},
+				[]web.Filter{
+					fakeFilter("filter1", delegatingMiddleware, []web.FilterMatcher{}),
+				},
+				[]string{"filter1"},
+			},
+			{
+				"Path ending with ** matches prefixes",
+				web.Endpoint{http.MethodGet, "/a/b/c"},
+				[]web.Filter{
+					fakeFilter("filter1", delegatingMiddleware, []web.FilterMatcher{
+						{
+							Matchers: []web.Matcher{
+								web.Path("/a/**"),
+							},
+						},
+					}),
+				},
+				[]string{"filter1"},
+			},
+			{
+				"Non strict trailing slash",
+				web.Endpoint{http.MethodGet, "/a/b/c"},
+				[]web.Filter{
+					fakeFilter("filter1", delegatingMiddleware, []web.FilterMatcher{
+						{
+							Matchers: []web.Matcher{
+								web.Path("/a/b/c/**"),
+							},
+						},
+					}),
+					fakeFilter("filter2", delegatingMiddleware, []web.FilterMatcher{
+						{
+							Matchers: []web.Matcher{
+								web.Path("/a/b/c/*"),
+							},
+						},
+					}),
+					fakeFilter("filter3", delegatingMiddleware, []web.FilterMatcher{
+						{
+							Matchers: []web.Matcher{
+								web.Path("/a/b/c/"),
+							},
+						},
+					}),
+					fakeFilter("filter4", delegatingMiddleware, []web.FilterMatcher{
+						{
+							Matchers: []web.Matcher{
+								web.Path("/a/b/c"),
+							},
+						},
+					}),
+					fakeFilter("filter5", delegatingMiddleware, []web.FilterMatcher{
+						{
+							Matchers: []web.Matcher{
+								web.Path("/a/b/**"),
+							},
+						},
+					}),
+				},
+				[]string{"filter1", "filter2", "filter3", "filter4", "filter5"},
+			},
+		}
+
+		for _, t := range tests {
+			t := t
+			It(t.description, func() {
+				matchedFilters := web.Filters(t.filters).Matching(t.endpoint)
+				matchedNames := make([]string, len(matchedFilters))
+				for i, f := range matchedFilters {
+					matchedNames[i] = f.Name()
+				}
+				Expect(matchedNames).To(Equal(t.result))
+			})
+		}
+	})
+
+	Describe("Chain", func() {
+		handler := web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
+			headers := http.Header{}
+			headers.Add("handler", "handler")
+			resp := &web.Response{
+				StatusCode: http.StatusOK,
+				Header:     headers,
+				Body:       []byte(`{}`),
+			}
+
+			return resp, nil
+		})
+
+		var filters []web.Filter
+		var level logrus.Level
+
+		BeforeEach(func() {
+			hook := &LoggingInterceptorHook{}
+			level = logrus.GetLevel()
+			logrus.SetLevel(logrus.DebugLevel)
+			logrus.AddHook(hook)
+			filters = []web.Filter{
+				fakeFilter("filter1", loggingValidationMiddleware("", "filter1", "filter2", hook), []web.FilterMatcher{}),
+				fakeFilter("filter2", loggingValidationMiddleware("filter1", "filter2", "filter3", hook), []web.FilterMatcher{}),
+				fakeFilter("filter3", loggingValidationMiddleware("filter2", "filter3", "", hook), []web.FilterMatcher{}),
+			}
+		})
+		AfterEach(func() {
+			logrus.SetLevel(level)
+		})
+
+		It("executes all chained filters in the correct order", func() {
+			webReq := web.Request{
+				Request: httptest.NewRequest("GET", "http://example.com", strings.NewReader("")),
+			}
+			chainedHandler := web.Filters(filters).Chain(handler)
+			resp, err := chainedHandler.Handle(&webReq)
+
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(resp.Header.Get("handler")).To(Equal("handler"))
+		})
+
+	})
+})
+
+type LoggingInterceptorHook struct {
+	data []byte
+}
+
+func (*LoggingInterceptorHook) Levels() []logrus.Level {
+	return logrus.AllLevels
+}
+
+func (hook *LoggingInterceptorHook) Fire(entry *logrus.Entry) error {
+	str, _ := entry.String()
+	hook.data = append(hook.data, []byte(str)...)
+	return nil
+}

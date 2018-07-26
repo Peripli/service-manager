@@ -28,19 +28,21 @@ var (
 	errEmptyHttpMethods   = errors.New("empty http methods not allowed")
 )
 
+// Methods returns a Matcher that matches to routes that contain any of the specified methods
 func Methods(methods ...string) Matcher {
-	return MatcherFunc(func(route Route) (bool, error) {
+	return MatcherFunc(func(endpoint Endpoint) (bool, error) {
 		if len(methods) == 0 {
 			return false, errEmptyHttpMethods
 		}
-		method := route.Endpoint.Method
+		method := endpoint.Method
 		return matchInArray(methods, method), nil
 	})
 }
 
+// Path returns a Matcher that matches to routes a path that matches any of the specified patterns
 func Path(patterns ...string) Matcher {
-	return MatcherFunc(func(route Route) (bool, error) {
-		path := route.Endpoint.Path
+	return MatcherFunc(func(endpoint Endpoint) (bool, error) {
+		path := endpoint.Path
 		if len(patterns) == 0 {
 			return false, errEmptyPathPattern
 		}

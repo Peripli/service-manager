@@ -110,8 +110,8 @@ func (tf testFilter) Run(next web.Handler) web.Handler {
 	})
 }
 
-func (tf testFilter) RouteMatchers() []web.RouteMatcher {
-	return []web.RouteMatcher{
+func (tf testFilter) RouteMatchers() []web.FilterMatcher {
+	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
 				web.Path("**"),

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+// Package oidc contains logic for setting up an oidc authenticator
 package oidc
 
 import (

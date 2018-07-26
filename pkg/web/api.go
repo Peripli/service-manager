@@ -14,6 +14,8 @@
  *    limitations under the License.
  */
 
+// Package web exposes the extension points of the Service Manager. One can add additional controllers, filters
+// and plugins to already built SM.
 package web
 
 import (
@@ -36,14 +38,16 @@ type API struct {
 type pluginSegment struct {
 	NameValue          string
 	PluginOp           Middleware
-	RouteMatchersValue []RouteMatcher
+	RouteMatchersValue []FilterMatcher
 }
 
+// newPluginSegment creates a plugin segment with the specified Middleware function and name matching the
+// specified path and method
 func newPluginSegment(name, method, pathPattern string, f Middleware) *pluginSegment {
 	return &pluginSegment{
 		NameValue: name,
 		PluginOp:  f,
-		RouteMatchersValue: []RouteMatcher{
+		RouteMatchersValue: []FilterMatcher{
 			{
 				Matchers: []Matcher{
 					Methods(method),
@@ -62,7 +66,7 @@ func (dp *pluginSegment) Name() string {
 	return dp.NameValue
 }
 
-func (dp *pluginSegment) RouteMatchers() []RouteMatcher {
+func (dp *pluginSegment) FilterMatchers() []FilterMatcher {
 	return dp.RouteMatchersValue
 }
 
@@ -90,7 +94,7 @@ func (api *API) RegisterPlugins(plugins ...Plugin) {
 	}
 }
 
-//func(api *API) decomposePlugin(opName, method, pathPattern string, middleware types.Handler) {
+// decomposePlugin decomposes a Plugin into multiple Filters
 func (api *API) decomposePlugin(plug Plugin) []Filter {
 	filters := make([]Filter, 0)
 

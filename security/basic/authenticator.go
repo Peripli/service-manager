@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+// Package basic contains logic for setting up a basic authenticator
 package basic
 
 import (

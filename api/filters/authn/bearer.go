@@ -33,8 +33,8 @@ func (ba *bearerAuthnFilter) Name() string {
 	return "BearerAuthenticationFilter"
 }
 
-func (ba *bearerAuthnFilter) RouteMatchers() []web.RouteMatcher {
-	return []web.RouteMatcher{
+func (ba *bearerAuthnFilter) FilterMatchers() []web.FilterMatcher {
+	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
 				web.Methods(http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch),

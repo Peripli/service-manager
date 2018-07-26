@@ -30,8 +30,6 @@ type HTTPError struct {
 	StatusCode  int    `json:"-"`
 }
 
-//TODO put error types here
-
 // Error HTTPError should implement error
 func (e *HTTPError) Error() string {
 	return e.Description

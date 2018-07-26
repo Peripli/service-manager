@@ -49,69 +49,93 @@ type Response struct {
 	Body []byte
 }
 
+// Named is an interface that objects that need to be identified by a particular name should implement.
 type Named interface {
+
+	// Name returns the string identifier for the object
 	Name() string
 }
 
+// Handler is an interface that objects can implement to be registered in the SM REST API.
 //go:generate counterfeiter . Handler
 type Handler interface {
+
+	// Handle processes a Request and returns a corresponding Response or error
 	Handle(req *Request) (resp *Response, err error)
 }
 
+// HandlerFunc is an adapter that allows to use regular functions as Handler interface implementations.
 type HandlerFunc func(req *Request) (resp *Response, err error)
 
+// Handle allows HandlerFunc to act as a Handler
 func (rhf HandlerFunc) Handle(req *Request) (resp *Response, err error) {
 	return rhf(req)
 }
 
+// Middleware is an interface that objects that should act as filters or plugins need to implement. It intercepts
+// the request before reaching the final handler and allows during preprocessing and postprocessing.
 type Middleware interface {
+
+	// Run returns a handler that contains the handling logic of the Middleware. The implementation of Run
+	// should invoke next's Handle if the request should be chained to the next Handler.
+	// It may also terminate the request by not invoking the next Handler.
 	Run(next Handler) Handler
 }
 
+// MiddlewareFunc is an adapter that allows to use regular functions as Middleware
 type MiddlewareFunc func(handler Handler) Handler
 
+// Run allows MiddlewareFunc to act as a Middleware
 func (mf MiddlewareFunc) Run(handler Handler) Handler {
 	return mf(handler)
 }
 
+// Matcher allows checking whether an Endpoint matches a particular condition
 type Matcher interface {
-	Matches(route Route) (bool, error)
+
+	// Matches matches a route against a particular condition
+	Matches(endpoint Endpoint) (bool, error)
 }
 
-type MatcherFunc func(route Route) (bool, error)
+// MatcherFunc is an adapter that allows regular functions to act as Matchers
+type MatcherFunc func(endpoint Endpoint) (bool, error)
 
-func (m MatcherFunc) Matches(route Route) (bool, error) {
-	return m(route)
+// Matches allows MatcherFunc to act as a Matcher
+func (m MatcherFunc) Matches(endpoint Endpoint) (bool, error) {
+	return m(endpoint)
 }
 
-type RouteMatcher struct {
+// FilterMatcher type represents a set of conditions (Matchers) that need to match if order
+// for a FilterMatcher to match
+type FilterMatcher struct {
+
+	// Matchers represents a set of conditions that need to be matched
 	Matchers []Matcher
 }
 
+// Filter is an interface that Named Middlewares that should satisfy a set of Matchers (conditions) should implement.
+//go:generate counterfeiter . Filter
 type Filter interface {
 	Named
 	Middleware
 
-	RouteMatchers() []RouteMatcher
+	// Returns a set of FilterMatchers each containing a set of Matchers. Each FilterMatcher represents one place
+	// where the Filter would run.
+	FilterMatchers() []FilterMatcher
 }
 
-type Middlewares []Middleware
-
-func (ms Middlewares) Chain(h Handler) Handler {
-	for i := len(ms) - 1; i >= 0; i-- {
-		h = ms[i].Run(h)
-	}
-	return h
-}
-
+// Filters represents a slice of Filter elements
 type Filters []Filter
 
-// ChainMatching builds a pkg/web.Handler that chains up the filters that match the provided route and the actual handler
+// ChainMatching builds a pkg/web.Handler that chains up the filters that match the provided route and
+// the actual handler
 func (fs Filters) ChainMatching(route Route) Handler {
-	filters := fs.Matching(route)
+	filters := fs.Matching(route.Endpoint)
 	return filters.Chain(route.Handler)
 }
 
+// Chain chains the Filters around the specified Handler and returns a Handler. It also adds logic for logging before
+// entering and after exiting from filters.
 func (fs Filters) Chain(h Handler) Handler {
 	wrappedFilters := make([]Handler, len(fs)+1)
 	wrappedFilters[len(fs)] = h
@@ -129,14 +153,19 @@ func (fs Filters) Chain(h Handler) Handler {
 	return wrappedFilters[0]
 }
 
-func (fs Filters) Matching(route Route) Filters {
+// Matching returns a subset of Filters that match the specified route
+func (fs Filters) Matching(endpoint Endpoint) Filters {
 	matchedFilters := make([]Filter, 0)
 	matchedNames := make([]string, 0)
 	for _, filter := range fs {
-		for _, routeMatcher := range filter.RouteMatchers() {
+		if len(filter.FilterMatchers()) == 0 {
+			matchedFilters = append(matchedFilters, filter)
+			matchedNames = append(matchedNames, filter.Name())
+		}
+		for _, routeMatcher := range filter.FilterMatchers() {
 			missMatch := false
 			for _, matcher := range routeMatcher.Matchers {
-				match, err := matcher.Matches(route)
+				match, err := matcher.Matches(endpoint)
 				if err != nil {
 					panic(fmt.Sprintf("error matching filter %s: %s", filter.Name(), err.Error()))
 				}
@@ -152,6 +181,6 @@ func (fs Filters) Matching(route Route) Filters {
 			}
 		}
 	}
-	logrus.Debugf("Filters for endpoint %s:%s: [%v]", route.Endpoint.Path, route.Endpoint.Method, matchedNames)
+	logrus.Debugf("Filters for endpoint %s:%s: [%v]", endpoint.Path, endpoint.Method, matchedNames)
 	return matchedFilters
 }

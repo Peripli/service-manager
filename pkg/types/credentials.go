@@ -33,6 +33,7 @@ type Credentials struct {
 	Basic *Basic `json:"basic"`
 }
 
+// Validate implements InputValidator and verifies all mandatory fields are populated
 func (c *Credentials) Validate() error {
 	if c.Basic == nil {
 		return errors.New("missing broker credentials")

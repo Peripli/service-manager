@@ -65,7 +65,7 @@ var _ = Describe("Handler", func() {
 		return responseRecorder
 	}
 
-	validateHTTPErrorOccured := func(response *httptest.ResponseRecorder, expectedStatusCode int) {
+	validateHTTPErrorOccurred := func(response *httptest.ResponseRecorder, expectedStatusCode int) {
 		Expect(response.Code).To(Equal(expectedStatusCode))
 
 		var body util.HTTPError
@@ -83,7 +83,7 @@ var _ = Describe("Handler", func() {
 					"Content-Type": "application/xml",
 				})
 
-				validateHTTPErrorOccured(response, http.StatusUnsupportedMediaType)
+				validateHTTPErrorOccurred(response, http.StatusUnsupportedMediaType)
 			})
 		})
 
@@ -93,7 +93,7 @@ var _ = Describe("Handler", func() {
 					"Content-Type": "application/json",
 				})
 
-				validateHTTPErrorOccured(response, http.StatusBadRequest)
+				validateHTTPErrorOccurred(response, http.StatusBadRequest)
 			})
 		})
 
@@ -106,7 +106,7 @@ var _ = Describe("Handler", func() {
 					"Content-Type": "application/json",
 				})
 
-				validateHTTPErrorOccured(response, http.StatusInternalServerError)
+				validateHTTPErrorOccurred(response, http.StatusInternalServerError)
 			})
 		})
 

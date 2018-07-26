@@ -36,8 +36,8 @@ func (raf *requiredAuthnFilter) Run(next web.Handler) web.Handler {
 	})
 }
 
-func (raf *requiredAuthnFilter) RouteMatchers() []web.RouteMatcher {
-	return []web.RouteMatcher{
+func (raf *requiredAuthnFilter) FilterMatchers() []web.FilterMatcher {
+	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
 				web.Path("/v1/service_brokers/**", "/v1/platforms/**", "/v1/sm_catalog", "/v1/osb/**"),

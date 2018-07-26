@@ -71,7 +71,7 @@ var _ = Describe("Errors", func() {
 
 		Context("With broken writer", func() {
 			It("Logs write error", func() {
-				hook := &loggingInterceptorHook{}
+				hook := &LoggingInterceptorHook{}
 				logrus.AddHook(hook)
 				HandleAPIError(errors.New(""), fakeErrorWriter)
 
@@ -128,15 +128,15 @@ var _ = Describe("Errors", func() {
 	})
 })
 
-type loggingInterceptorHook struct {
+type LoggingInterceptorHook struct {
 	data []byte
 }
 
-func (*loggingInterceptorHook) Levels() []logrus.Level {
+func (*LoggingInterceptorHook) Levels() []logrus.Level {
 	return logrus.AllLevels
 }
 
-func (hook *loggingInterceptorHook) Fire(entry *logrus.Entry) error {
+func (hook *LoggingInterceptorHook) Fire(entry *logrus.Entry) error {
 	str, _ := entry.String()
 	hook.data = append(hook.data, []byte(str)...)
 	return nil

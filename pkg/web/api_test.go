@@ -14,27 +14,21 @@
  *    limitations under the License.
  */
 
-package web
+package web_test
 
 import (
-	"testing"
-
+	"github.com/Peripli/service-manager/pkg/web"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-func TestAPI(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "API Suite")
-}
-
-var _ = FDescribe("API", func() {
+var _ = Describe("API", func() {
 	var (
-		api *API
+		api *web.API
 	)
 
 	BeforeEach(func() {
-		api = &API{}
+		api = &web.API{}
 	})
 
 	Describe("RegisterControllers", func() {
@@ -72,8 +66,8 @@ var _ = FDescribe("API", func() {
 type testController struct {
 }
 
-func (c *testController) Routes() []Route {
-	return []Route{}
+func (c *testController) Routes() []web.Route {
+	return []web.Route{}
 }
 
 type testFilter struct {
@@ -83,14 +77,14 @@ func (tf testFilter) Name() string {
 	return "testFilter"
 }
 
-func (tf testFilter) Run(next Handler) Handler {
-	return HandlerFunc(func(request *Request) (*Response, error) {
+func (tf testFilter) Run(next web.Handler) web.Handler {
+	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
 		return next.Handle(request)
 	})
 }
 
-func (tf testFilter) RouteMatchers() []RouteMatcher {
-	return []RouteMatcher{}
+func (tf testFilter) FilterMatchers() []web.FilterMatcher {
+	return []web.FilterMatcher{}
 }
 
 type invalidPlugin struct {
@@ -103,52 +97,52 @@ func (p *invalidPlugin) Name() string {
 type validPlugin struct {
 }
 
-func (c *validPlugin) UpdateService(next Handler) Handler {
-	return HandlerFunc(func(request *Request) (*Response, error) {
+func (c *validPlugin) UpdateService(next web.Handler) web.Handler {
+	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
 		return next.Handle(request)
 	})
 }
 
-func (c *validPlugin) Unbind(next Handler) Handler {
-	return HandlerFunc(func(request *Request) (*Response, error) {
-		return next.Handle(request)
-
-	})
-}
-
-func (c *validPlugin) Bind(next Handler) Handler {
-	return HandlerFunc(func(request *Request) (*Response, error) {
+func (c *validPlugin) Unbind(next web.Handler) web.Handler {
+	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
 		return next.Handle(request)
 
 	})
 }
 
-func (c *validPlugin) FetchBinding(next Handler) Handler {
-	return HandlerFunc(func(request *Request) (*Response, error) {
+func (c *validPlugin) Bind(next web.Handler) web.Handler {
+	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
+		return next.Handle(request)
+
+	})
+}
+
+func (c *validPlugin) FetchBinding(next web.Handler) web.Handler {
+	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
 		return next.Handle(request)
 	})
 }
 
-func (c *validPlugin) Deprovision(next Handler) Handler {
-	return HandlerFunc(func(request *Request) (*Response, error) {
+func (c *validPlugin) Deprovision(next web.Handler) web.Handler {
+	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
 		return next.Handle(request)
 	})
 }
 
-func (c *validPlugin) Provision(next Handler) Handler {
-	return HandlerFunc(func(request *Request) (*Response, error) {
+func (c *validPlugin) Provision(next web.Handler) web.Handler {
+	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
 		return next.Handle(request)
 	})
 }
 
-func (c *validPlugin) FetchService(next Handler) Handler {
-	return HandlerFunc(func(request *Request) (*Response, error) {
+func (c *validPlugin) FetchService(next web.Handler) web.Handler {
+	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
 		return next.Handle(request)
 	})
 }
 
-func (c *validPlugin) FetchCatalog(next Handler) Handler {
-	return HandlerFunc(func(request *Request) (*Response, error) {
+func (c *validPlugin) FetchCatalog(next web.Handler) web.Handler {
+	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
 		return next.Handle(request)
 	})
 }
