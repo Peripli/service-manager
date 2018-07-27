@@ -18,6 +18,8 @@
 package api
 
 import (
+	"fmt"
+
 	"github.com/Peripli/service-manager/api/broker"
 	"github.com/Peripli/service-manager/api/catalog"
 	"github.com/Peripli/service-manager/api/healthcheck"
@@ -40,10 +42,33 @@ type Security struct {
 	Len int `mapstructure:"len"`
 }
 
+func (s *Security) Validate() error {
+	if s.EncryptionKey == "" {
+		return fmt.Errorf("validate Settings: SecurityEncryptionkey missing")
+	}
+	if len(s.URI) == 0 {
+		return fmt.Errorf("validate Settings: SecurityURI missing")
+	}
+	if s.Len < 32 {
+		return fmt.Errorf("validate Settings: SecurityLen must be at least 32")
+	}
+	return nil
+}
+
 // Settings type to be loaded from the environment
 type Settings struct {
 	TokenIssuerURL string   `mapstructure:"token_issuer_url"`
 	Security       Security `mapstructure:"security"`
+}
+
+func (s *Settings) Validate() error {
+	if (len(s.TokenIssuerURL)) == 0 {
+		return fmt.Errorf("validate Settings: APITokenIssuerURL missing")
+	}
+	if err := s.Security.Validate(); err != nil {
+		return err
+	}
+	return nil
 }
 
 // New returns the minimum set of REST APIs needed for the Service Manager

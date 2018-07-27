@@ -19,6 +19,7 @@ package storage
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/Peripli/service-manager/types"
 )
@@ -34,6 +35,13 @@ var (
 // Settings type to be loaded from the environment
 type Settings struct {
 	URI string
+}
+
+func (s *Settings) Validate() error {
+	if len(s.URI) == 0 {
+		return fmt.Errorf("validate Settings: StorageURI missing")
+	}
+	return nil
 }
 
 // Storage interface provides entity-specific storages

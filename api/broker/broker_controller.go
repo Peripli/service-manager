@@ -102,11 +102,9 @@ func (c *Controller) createBroker(request *web.Request) (*web.Response, error) {
 	}
 	broker.Catalog = catalog
 
-	transformed, err := c.CredentialsTransformer.Transform([]byte(broker.Credentials.Basic.Password))
-	if err != nil {
+	if err := transformBrokerCredentials(broker, c.CredentialsTransformer.Transform); err != nil {
 		return nil, err
 	}
-	broker.Credentials.Basic.Password = string(transformed)
 	err = c.BrokerStorage.Create(broker)
 	err = common.HandleUniqueError(err, "broker")
 	if err != nil {
@@ -177,16 +175,8 @@ func (c *Controller) patchBroker(request *web.Request) (*web.Response, error) {
 	updateBroker.UpdatedAt = time.Now().UTC()
 	updateBroker.ID = brokerID
 
-	if updateBroker.Credentials != nil {
-		err := validateBrokerCredentials(updateBroker.Credentials)
-		if err != nil {
-			return nil, web.NewHTTPError(err, http.StatusBadRequest, "BadRequest")
-		}
-		transformed, err := c.CredentialsTransformer.Transform([]byte(updateBroker.Credentials.Basic.Password))
-		if err != nil {
-			return nil, err
-		}
-		updateBroker.Credentials.Basic.Password = string(transformed)
+	if err := transformBrokerCredentials(updateBroker, c.CredentialsTransformer.Transform); err != nil {
+		return nil, web.NewHTTPError(err, http.StatusBadRequest, "BadRequest")
 	}
 
 	broker, err := c.BrokerStorage.Get(brokerID)
@@ -263,4 +253,18 @@ func clientConfigForBroker(broker *types.Broker) *osbc.ClientConfiguration {
 		},
 	}
 	return config
+}
+
+func transformBrokerCredentials(broker *types.Broker, transformationFunc func([]byte) ([]byte, error)) error {
+	if broker.Credentials != nil {
+		if err := validateBrokerCredentials(broker.Credentials); err != nil {
+			return err
+		}
+		transformedPassword, err := transformationFunc([]byte(broker.Credentials.Basic.Password))
+		if err != nil {
+			return err
+		}
+		broker.Credentials.Basic.Password = string(transformedPassword)
+	}
+	return nil
 }

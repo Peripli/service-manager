@@ -16,6 +16,8 @@
 
 package authentication
 
+import "fmt"
+
 // User holds the information for the current user
 type User struct {
 	Name string
@@ -25,3 +27,11 @@ type User struct {
 type OAuthSettings struct {
 	ClientID string
 }
+
+func (s *OAuthSettings) Validate() error {
+	if (len(s.ClientID)) == 0 {
+		return fmt.Errorf("validate Settings: CLIClientID missing")
+	}
+	return nil
+}
+

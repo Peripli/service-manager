@@ -17,7 +17,6 @@
 package config
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/Peripli/service-manager/api"
@@ -86,38 +85,20 @@ func New(env env.Environment) (*Settings, error) {
 
 // Validate validates that the configuration contains all mandatory properties
 func (c *Settings) Validate() error {
-	if c.Server.Port == 0 {
-		return fmt.Errorf("validate Settings: Port missing")
+	if err := c.Server.Validate(); err != nil {
+		return err
 	}
-	if c.Server.RequestTimeout == 0 {
-		return fmt.Errorf("validate Settings: RequestTimeout missing")
+	if err := c.Log.Validate(); err != nil {
+		return err
 	}
-	if c.Server.ShutdownTimeout == 0 {
-		return fmt.Errorf("validate Settings: ShutdownTimeout missing")
+	if err := c.API.Validate(); err != nil {
+		return err
 	}
-	if len(c.Log.Level) == 0 {
-		return fmt.Errorf("validate Settings: LogLevel missing")
+	if err := c.Storage.Validate(); err != nil {
+		return err
 	}
-	if len(c.Log.Format) == 0 {
-		return fmt.Errorf("validate Settings: LogFormat missing")
-	}
-	if len(c.Storage.URI) == 0 {
-		return fmt.Errorf("validate Settings: StorageURI missing")
-	}
-	if (len(c.API.TokenIssuerURL)) == 0 {
-		return fmt.Errorf("validate Settings: APITokenIssuerURL missing")
-	}
-	if c.API.Security.EncryptionKey == "" {
-		return fmt.Errorf("validate Settings: SecurityEncryptionkey missing")
-	}
-	if len(c.API.Security.URI) == 0 {
-		return fmt.Errorf("validate Settings: SecurityURI missing")
-	}
-	if c.API.Security.Len < 32 {
-		return fmt.Errorf("validate Settings: SecurityLen must be at least 32")
-	}
-	if (len(c.OAuth.ClientID)) == 0 {
-		return fmt.Errorf("validate Settings: CLIClientID missing")
+	if err := c.OAuth.Validate(); err != nil {
+		return err
 	}
 	return nil
 }

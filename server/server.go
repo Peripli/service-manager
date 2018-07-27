@@ -19,6 +19,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -35,6 +36,18 @@ type Settings struct {
 	Port            int
 	RequestTimeout  time.Duration
 	ShutdownTimeout time.Duration
+}
+
+func (s *Settings) Validate() error {
+	if s.Port == 0 {
+		return fmt.Errorf("validate Settings: Port missing")
+	}
+	if s.RequestTimeout == 0 {
+		return fmt.Errorf("validate Settings: RequestTimeout missing")
+	}
+	if s.ShutdownTimeout == 0 {
+		return fmt.Errorf("validate Settings: ShutdownTimeout missing")
+	}
 }
 
 // Server is the server to process incoming HTTP requests
