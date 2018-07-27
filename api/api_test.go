@@ -50,7 +50,7 @@ var _ = Describe("API", func() {
 			Expect(err).ShouldNot(HaveOccurred())
 		})
 
-		It("returns an error if creatio fails", func() {
+		It("returns an error if creation fails", func() {
 			API, err = New(context.TODO(), mockedStorage, Settings{
 				TokenIssuerURL: "http://invalidurl.com",
 				ClientID:       "invalidclient",

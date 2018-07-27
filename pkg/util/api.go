@@ -22,7 +22,6 @@ import (
 	"net/http"
 	"time"
 
-	"io/ioutil"
 	"strings"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -50,9 +49,9 @@ func ToRFCFormat(timestamp time.Time) string {
 	return timestamp.UTC().Format(time.RFC3339)
 }
 
-// ReadHTTPRequestBody reads the request body and returns []byte with its content or an error if
+// RequestBodyToBytes reads the request body and returns []byte with its content or an error if
 // the media type is incorrect or if the body is not a valid JSON
-func ReadHTTPRequestBody(request *http.Request) ([]byte, error) {
+func RequestBodyToBytes(request *http.Request) ([]byte, error) {
 	contentType := request.Header.Get("Content-Type")
 	if !strings.Contains(contentType, "application/json") {
 		return nil, &HTTPError{
@@ -61,10 +60,12 @@ func ReadHTTPRequestBody(request *http.Request) ([]byte, error) {
 			StatusCode:  http.StatusUnsupportedMediaType,
 		}
 	}
-	body, err := ioutil.ReadAll(request.Body)
+
+	body, err := BodyToBytes(request.Body)
 	if err != nil {
 		return nil, err
 	}
+
 	if !json.Valid(body) {
 		return nil, &HTTPError{
 			ErrorType:   "BadRequest",
@@ -76,9 +77,9 @@ func ReadHTTPRequestBody(request *http.Request) ([]byte, error) {
 	return body, nil
 }
 
-// UnmarshalAndValidate parses and validates the request body
-func UnmarshalAndValidate(body []byte, value interface{}) error {
-	if err := Unmarshal(body, value); err != nil {
+// BytesToObject converts the provided bytes to object and validates it
+func BytesToObject(body []byte, value interface{}) error {
+	if err := unmarshal(body, value); err != nil {
 		return err
 	}
 	if err := validate(value); err != nil {
@@ -89,7 +90,7 @@ func UnmarshalAndValidate(body []byte, value interface{}) error {
 }
 
 // unmarshal unmarshals the specified []byte into the provided value and returns an HttpError in unmarshaling fails
-func Unmarshal(body []byte, value interface{}) error {
+func unmarshal(body []byte, value interface{}) error {
 	err := json.Unmarshal(body, value)
 	if err != nil {
 		logrus.Error("Failed to decode request body: ", err)
@@ -116,8 +117,8 @@ func validate(value interface{}) error {
 	return nil
 }
 
-// SendJSON writes a JSON value and sets the specified HTTP Status code
-func SendJSON(writer http.ResponseWriter, code int, value interface{}) error {
+// WriteJSON writes a JSON value and sets the specified HTTP Status code
+func WriteJSON(writer http.ResponseWriter, code int, value interface{}) error {
 	writer.Header().Add("Content-Type", "application/json")
 	writer.WriteHeader(code)
 

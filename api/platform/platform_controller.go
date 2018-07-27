@@ -42,7 +42,7 @@ func (c *Controller) createPlatform(request *web.Request) (*web.Response, error)
 	logrus.Debug("Creating new platform")
 
 	platform := &types.Platform{}
-	if err := util.UnmarshalAndValidate(request.Body, platform); err != nil {
+	if err := util.BytesToObject(request.Body, platform); err != nil {
 		return nil, err
 	}
 
@@ -121,7 +121,7 @@ func (c *Controller) patchPlatform(request *web.Request) (*web.Response, error) 
 		return nil, err
 	}
 
-	if err := util.UnmarshalAndValidate(request.Body, platform); err != nil {
+	if err := util.BytesToObject(request.Body, platform); err != nil {
 		return nil, err
 	}
 

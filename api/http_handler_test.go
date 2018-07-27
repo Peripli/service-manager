@@ -17,8 +17,6 @@
 package api
 
 import (
-	"testing"
-
 	"net/http/httptest"
 
 	"strings"
@@ -35,11 +33,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
-
-func TestHandler(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "HTTPHandler Suite")
-}
 
 var _ = Describe("Handler", func() {
 	const validJSON = `{"key1":"value1","key2":"value2"}`

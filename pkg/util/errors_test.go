@@ -50,10 +50,10 @@ var _ = Describe("Errors", func() {
 		}
 	})
 
-	Describe("HandleAPIError", func() {
+	Describe("WriteError", func() {
 		Context("when parameter is HTTPError", func() {
 			It("writes to response writer the proper output", func() {
-				HandleAPIError(testHTTPError, responseRecorder)
+				WriteError(testHTTPError, responseRecorder)
 
 				Expect(responseRecorder.Code).To(Equal(http.StatusTeapot))
 				Expect(responseRecorder.Body.String()).To(ContainSubstring("test description"))
@@ -61,7 +61,7 @@ var _ = Describe("Errors", func() {
 		})
 		Context("With error as parameter", func() {
 			It("Writes to response writer the proper output", func() {
-				HandleAPIError(errors.New("must not be included"), responseRecorder)
+				WriteError(errors.New("must not be included"), responseRecorder)
 
 				Expect(responseRecorder.Code).To(Equal(http.StatusInternalServerError))
 				Expect(responseRecorder.Body.String()).To(ContainSubstring("Internal server error"))
@@ -73,7 +73,7 @@ var _ = Describe("Errors", func() {
 			It("Logs write error", func() {
 				hook := &LoggingInterceptorHook{}
 				logrus.AddHook(hook)
-				HandleAPIError(errors.New(""), fakeErrorWriter)
+				WriteError(errors.New(""), fakeErrorWriter)
 
 				Expect(string(hook.data)).To(ContainSubstring("Could not write error to response: write error"))
 			})
@@ -92,7 +92,7 @@ var _ = Describe("Errors", func() {
 				}
 				Expect(err).ShouldNot(HaveOccurred())
 
-				err = HandleClientResponseError(response)
+				err = HandleResponseError(response)
 				validateHTTPErrorOccured(err, response.StatusCode)
 
 			})
@@ -106,8 +106,21 @@ var _ = Describe("Errors", func() {
 					Body:       closer(e.Error()),
 				}
 
-				err := HandleClientResponseError(response)
-				Expect(err.Error()).To(ContainSubstring("error handling client response error"))
+				err := HandleResponseError(response)
+				Expect(err.Error()).To(ContainSubstring("could not read error response"))
+			})
+		})
+
+		Context("when response contains JSON error that has no description", func() {
+			It("returns an error containing the response body", func() {
+				e := `{"key":"value"}`
+				response := &http.Response{
+					StatusCode: http.StatusTeapot,
+					Body:       closer(e),
+				}
+
+				err := HandleResponseError(response)
+				Expect(err.Error()).To(ContainSubstring(e))
 			})
 		})
 

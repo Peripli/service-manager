@@ -34,12 +34,16 @@ import (
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
 )
 
 // DefaultEnv creates a default environment that can be used to boot up a Service Manager
-func DefaultEnv() env.Environment {
+func DefaultEnv(additionalPFlags ...func(set *pflag.FlagSet)) env.Environment {
 	set := env.EmptyFlagSet()
 	config.AddPFlags(set)
+	for _, addFlags := range additionalPFlags {
+		addFlags(set)
+	}
 
 	environment, err := env.New(set)
 	if err != nil {

@@ -20,7 +20,10 @@ import (
 	"fmt"
 	"net/http"
 
+	"encoding/json"
+
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/cast"
 )
 
 // HTTPError is an error type that provides error details compliant with the Open Service Broker API conventions
@@ -35,8 +38,8 @@ func (e *HTTPError) Error() string {
 	return e.Description
 }
 
-// HandleError sends a JSON containing the error to the response writer
-func HandleAPIError(err error, writer http.ResponseWriter) {
+// WriteError sends a JSON containing the error to the response writer
+func WriteError(err error, writer http.ResponseWriter) {
 	var respError *HTTPError
 	switch t := err.(type) {
 	case *HTTPError:
@@ -51,22 +54,34 @@ func HandleAPIError(err error, writer http.ResponseWriter) {
 		}
 	}
 
-	sendErr := SendJSON(writer, respError.StatusCode, respError)
+	sendErr := WriteJSON(writer, respError.StatusCode, respError)
 	if sendErr != nil {
 		logrus.Errorf("Could not write error to response: %v", sendErr)
 	}
 }
 
-// HandleClientResponseError builds at HttpErrorResponse from the given response.
-func HandleClientResponseError(response *http.Response) error {
+// HandleResponseError builds at HttpErrorResponse from the given response.
+func HandleResponseError(response *http.Response) error {
 	logrus.Errorf("Handling failure response: returned status code %d", response.StatusCode)
 	httpErr := &HTTPError{
 		StatusCode: response.StatusCode,
 	}
 
-	if err := ReadClientResponseContent(httpErr, response.Body); err != nil {
-		return fmt.Errorf("error handling client response error: %s", err)
+	bytes, err := BodyToBytes(response.Body)
+	if err != nil {
+		return err
 	}
 
+	r := make(map[string]interface{})
+	if err := json.Unmarshal(bytes, &r); err != nil {
+		httpErr.Description = fmt.Errorf("could not read error response: %s", err).Error()
+		return httpErr
+	}
+
+	httpErr.ErrorType = cast.ToString(r["error"])
+	httpErr.Description = cast.ToString(r["description"])
+	if httpErr.Description == "" {
+		httpErr.Description = string(bytes)
+	}
 	return httpErr
 }

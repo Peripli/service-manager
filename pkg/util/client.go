@@ -23,12 +23,14 @@ import (
 	"net/http"
 
 	"io/ioutil"
+
+	"github.com/sirupsen/logrus"
 )
 
 type doRequestFunc func(request *http.Request) (*http.Response, error)
 
-// SendClientRequest sends a request to the specified client and the provided URL with the specified parameters and body.
-func SendClientRequest(doRequest doRequestFunc, method, url string, params map[string]string, body interface{}) (*http.Response, error) {
+// SendRequest sends a request to the specified client and the provided URL with the specified parameters and body.
+func SendRequest(doRequest doRequestFunc, method, url string, params map[string]string, body interface{}) (*http.Response, error) {
 	var bodyReader io.Reader
 	if body != nil {
 		bodyBytes, err := json.Marshal(body)
@@ -54,9 +56,24 @@ func SendClientRequest(doRequest doRequestFunc, method, url string, params map[s
 	return doRequest(request)
 }
 
-// ReadClientResponseContent of the request inside given struct
-func ReadClientResponseContent(value interface{}, closer io.ReadCloser) error {
+// BodyToObject of the request inside given struct
+func BodyToBytes(closer io.ReadCloser) ([]byte, error) {
+	defer func() {
+		if err := closer.Close(); err != nil {
+			logrus.Errorf("ReadCloser couldn't be closed", err)
+		}
+	}()
+
 	body, err := ioutil.ReadAll(closer)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+// BodyToObject of the request inside given struct
+func BodyToObject(value interface{}, closer io.ReadCloser) error {
+	body, err := BodyToBytes(closer)
 	if err != nil {
 		return err
 	}

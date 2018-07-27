@@ -86,13 +86,13 @@ var _ = Describe("Client Utils", func() {
 		requestFunc = doHTTP(reaction, expectations)
 	})
 
-	Describe("SendClientRequest", func() {
+	Describe("SendRequest", func() {
 		Context("when marshaling request body fails", func() {
 			It("returns an error", func() {
 				body := testTypeErrorMarshaling{
 					Field: "Value",
 				}
-				_, err := SendClientRequest(requestFunc, "GET", "http://example.com", map[string]string{}, body)
+				_, err := SendRequest(requestFunc, "GET", "http://example.com", map[string]string{}, body)
 
 				Expect(err).Should(HaveOccurred())
 			})
@@ -101,7 +101,7 @@ var _ = Describe("Client Utils", func() {
 
 		Context("when method is invalid", func() {
 			It("returns an error", func() {
-				_, err := SendClientRequest(requestFunc, "?+?.>", "http://example.com", map[string]string{}, nil)
+				_, err := SendRequest(requestFunc, "?+?.>", "http://example.com", map[string]string{}, nil)
 
 				Expect(err).Should(HaveOccurred())
 			})
@@ -123,7 +123,7 @@ var _ = Describe("Client Utils", func() {
 				reaction.err = nil
 				reaction.status = http.StatusOK
 
-				resp, err := SendClientRequest(requestFunc, "POST", "http://example.com", params, body)
+				resp, err := SendRequest(requestFunc, "POST", "http://example.com", params, body)
 
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(resp.StatusCode).To(Equal(http.StatusOK))
@@ -131,7 +131,7 @@ var _ = Describe("Client Utils", func() {
 		})
 	})
 
-	Describe("ReadClientResponseContent", func() {
+	Describe("BodyToObject", func() {
 		var resp *http.Response
 		var err error
 
@@ -140,14 +140,14 @@ var _ = Describe("Client Utils", func() {
 			reaction.status = http.StatusOK
 			reaction.body = `{"field":"value"}`
 
-			resp, err = SendClientRequest(requestFunc, "POST", "http://example.com", map[string]string{}, nil)
+			resp, err = SendRequest(requestFunc, "POST", "http://example.com", map[string]string{}, nil)
 			Expect(err).ShouldNot(HaveOccurred())
 		})
 
 		Context("when unmarshaling fails", func() {
 			It("returns an error", func() {
 				var val testType
-				err = ReadClientResponseContent(val, resp.Body)
+				err = BodyToObject(val, resp.Body)
 
 				Expect(err).Should(HaveOccurred())
 			})
@@ -155,7 +155,7 @@ var _ = Describe("Client Utils", func() {
 
 		It("reads the client response content", func() {
 			var val testType
-			err = ReadClientResponseContent(&val, resp.Body)
+			err = BodyToObject(&val, resp.Body)
 
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(val.Field).To(Equal("value"))

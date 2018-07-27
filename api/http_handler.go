@@ -44,7 +44,7 @@ func (h *HTTPHandler) Handle(req *web.Request) (resp *web.Response, err error) {
 
 func (h *HTTPHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	if err := h.serve(res, req); err != nil {
-		util.HandleAPIError(err, res)
+		util.WriteError(err, res)
 	}
 }
 
@@ -82,7 +82,7 @@ func convertToWebRequest(request *http.Request) (*web.Request, error) {
 	var body []byte
 	var err error
 	if request.Method == "PUT" || request.Method == "POST" || request.Method == "PATCH" {
-		body, err = util.ReadHTTPRequestBody(request)
+		body, err = util.RequestBodyToBytes(request)
 	}
 
 	return &web.Request{

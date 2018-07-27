@@ -51,7 +51,7 @@ func (c *Controller) createBroker(request *web.Request) (*web.Response, error) {
 	logrus.Debug("Creating new broker")
 
 	broker := &types.Broker{}
-	if err := util.UnmarshalAndValidate(request.Body, broker); err != nil {
+	if err := util.BytesToObject(request.Body, broker); err != nil {
 		return nil, err
 	}
 
@@ -139,12 +139,7 @@ func (c *Controller) patchBroker(request *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	bb := &types.Broker{}
-	if err := util.Unmarshal(request.Body, bb); err != nil {
-		return nil, err
-	}
-
-	if err := util.UnmarshalAndValidate(request.Body, broker); err != nil {
+	if err := util.BytesToObject(request.Body, broker); err != nil {
 		return nil, err
 	}
 

@@ -87,7 +87,7 @@ var _ = Describe("Utils test", func() {
 		})
 	})
 
-	Describe("ReadHTTPRequestBody", func() {
+	Describe("RequestBodyToBytes", func() {
 		const validJSON = `{"key1":"value1","key2":"value2"}`
 		const invalidJSON = `{{{"KEY"`
 
@@ -97,7 +97,7 @@ var _ = Describe("Utils test", func() {
 			It("returns a proper HTTPError", func() {
 				req = httptest.NewRequest(http.MethodPost, "http://example.com", strings.NewReader(validJSON))
 				req.Header.Add("Content-Type", "application/xml")
-				_, err := ReadHTTPRequestBody(req)
+				_, err := RequestBodyToBytes(req)
 
 				validateHTTPErrorOccured(err, http.StatusUnsupportedMediaType)
 			})
@@ -107,7 +107,7 @@ var _ = Describe("Utils test", func() {
 			It("returns a proper HTTPError", func() {
 				req = httptest.NewRequest(http.MethodPost, "http://example.com", errorReader{})
 				req.Header.Add("Content-Type", "application/json")
-				_, err := ReadHTTPRequestBody(req)
+				_, err := RequestBodyToBytes(req)
 
 				Expect(err).Should(HaveOccurred())
 			})
@@ -117,7 +117,7 @@ var _ = Describe("Utils test", func() {
 			It("returns a proper HTTPError", func() {
 				req = httptest.NewRequest(http.MethodPost, "http://example.com", strings.NewReader(invalidJSON))
 				req.Header.Add("Content-Type", "application/json")
-				_, err := ReadHTTPRequestBody(req)
+				_, err := RequestBodyToBytes(req)
 
 				validateHTTPErrorOccured(err, http.StatusBadRequest)
 			})
@@ -127,7 +127,7 @@ var _ = Describe("Utils test", func() {
 			It("returns the []byte representation of the request body", func() {
 				req = httptest.NewRequest(http.MethodPost, "http://example.com", strings.NewReader(validJSON))
 				req.Header.Add("Content-Type", "application/json")
-				bytes, err := ReadHTTPRequestBody(req)
+				bytes, err := RequestBodyToBytes(req)
 
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(string(bytes)).To(Equal(validJSON))
@@ -135,7 +135,7 @@ var _ = Describe("Utils test", func() {
 		})
 	})
 
-	Describe("UnmarshalAndValidate", func() {
+	Describe("BytesToObject", func() {
 		const (
 			testTypeValid    = `{"field1":"value1", "field2":"value2"}`
 			testTypeNotValid = `{"field1":"value1"}`
@@ -154,7 +154,7 @@ var _ = Describe("Utils test", func() {
 
 		Context("when JSON unmarshaling fails", func() {
 			It("returns a proper HTTPError", func() {
-				err := UnmarshalAndValidate([]byte(randomJSON), &testTypeValidation)
+				err := BytesToObject([]byte(randomJSON), &testTypeValidation)
 
 				validateHTTPErrorOccured(err, http.StatusBadRequest)
 			})
@@ -162,7 +162,7 @@ var _ = Describe("Utils test", func() {
 
 		Context("when input validation fails", func() {
 			It("returns a proper HTTPError", func() {
-				err := UnmarshalAndValidate([]byte(testTypeNotValid), &testTypeValidation)
+				err := BytesToObject([]byte(testTypeNotValid), &testTypeValidation)
 
 				validateHTTPErrorOccured(err, http.StatusBadRequest)
 			})
@@ -170,7 +170,7 @@ var _ = Describe("Utils test", func() {
 
 		Context("when value is not InputValidator", func() {
 			It("returns nil", func() {
-				err := UnmarshalAndValidate([]byte(testTypeNotValid), &testTypeNoValidation)
+				err := BytesToObject([]byte(testTypeNotValid), &testTypeNoValidation)
 
 				Expect(err).ShouldNot(HaveOccurred())
 			})
@@ -178,14 +178,14 @@ var _ = Describe("Utils test", func() {
 
 		Context("when unmarshaling and validation succeed", func() {
 			It("returns nil", func() {
-				err := UnmarshalAndValidate([]byte(testTypeValid), &testTypeValidation)
+				err := BytesToObject([]byte(testTypeValid), &testTypeValidation)
 
 				Expect(err).ShouldNot(HaveOccurred())
 			})
 		})
 	})
 
-	Describe("SendJSON", func() {
+	Describe("WriteJSON", func() {
 		const testTypeValid = `{"field1":"Value1", "field2":"Value2"}`
 
 		It("writes the code and value to the ResponseWriter and adds a Content-Type header", func() {
@@ -196,7 +196,7 @@ var _ = Describe("Utils test", func() {
 			}
 			recorder := httptest.NewRecorder()
 
-			err := SendJSON(recorder, expectedCode, testValue)
+			err := WriteJSON(recorder, expectedCode, testValue)
 
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(recorder.Code).To(Equal(expectedCode))

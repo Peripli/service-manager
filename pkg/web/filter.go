@@ -181,6 +181,6 @@ func (fs Filters) Matching(endpoint Endpoint) Filters {
 			}
 		}
 	}
-	logrus.Debugf("Filters for endpoint %s:%s: [%v]", endpoint.Path, endpoint.Method, matchedNames)
+	logrus.Debugf("Filters for %s %s:%v", endpoint.Method, endpoint.Path, matchedNames)
 	return matchedFilters
 }

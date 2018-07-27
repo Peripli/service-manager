@@ -99,35 +99,35 @@ func (api *API) decomposePlugin(plug Plugin) []Filter {
 	filters := make([]Filter, 0)
 
 	if p, ok := plug.(CatalogFetcher); ok {
-		filter := newPluginSegment("FetchCatalog", http.MethodGet, "/v1/osb/*/v2/catalog/*", MiddlewareFunc(p.FetchCatalog))
+		filter := newPluginSegment(plug.Name()+":FetchCatalog", http.MethodGet, "/v1/osb/*/v2/catalog/*", MiddlewareFunc(p.FetchCatalog))
 		filters = append(filters, filter)
 	}
 	if p, ok := plug.(ServiceFetcher); ok {
-		filter := newPluginSegment("FetchService", http.MethodGet, "/v1/osb/*/v2/service_instances/*", MiddlewareFunc(p.FetchService))
+		filter := newPluginSegment(plug.Name()+":FetchService", http.MethodGet, "/v1/osb/*/v2/service_instances/*", MiddlewareFunc(p.FetchService))
 		filters = append(filters, filter)
 	}
 	if p, ok := plug.(Provisioner); ok {
-		filter := newPluginSegment("Provision", http.MethodPut, "/v1/osb/*/v2/service_instances/*", MiddlewareFunc(p.Provision))
+		filter := newPluginSegment(plug.Name()+":Provision", http.MethodPut, "/v1/osb/*/v2/service_instances/*", MiddlewareFunc(p.Provision))
 		filters = append(filters, filter)
 	}
 	if p, ok := plug.(ServiceUpdater); ok {
-		filter := newPluginSegment("UpdateService", http.MethodPatch, "/v1/osb/*/v2/service_instances/*", MiddlewareFunc(p.UpdateService))
+		filter := newPluginSegment(plug.Name()+":UpdateService", http.MethodPatch, "/v1/osb/*/v2/service_instances/*", MiddlewareFunc(p.UpdateService))
 		filters = append(filters, filter)
 	}
 	if p, ok := plug.(Deprovisioner); ok {
-		filter := newPluginSegment("Deprovision", http.MethodDelete, "/v1/osb/*/v2/service_instances/*", MiddlewareFunc(p.Deprovision))
+		filter := newPluginSegment(plug.Name()+":Deprovision", http.MethodDelete, "/v1/osb/*/v2/service_instances/*", MiddlewareFunc(p.Deprovision))
 		filters = append(filters, filter)
 	}
 	if p, ok := plug.(BindingFetcher); ok {
-		filter := newPluginSegment("FetchBinding", http.MethodGet, "/v1/osb/*/v2/service_instances/*/service_bindings/*", MiddlewareFunc(p.FetchBinding))
+		filter := newPluginSegment(plug.Name()+":FetchBinding", http.MethodGet, "/v1/osb/*/v2/service_instances/*/service_bindings/*", MiddlewareFunc(p.FetchBinding))
 		filters = append(filters, filter)
 	}
 	if p, ok := plug.(Binder); ok {
-		filter := newPluginSegment("Bind", http.MethodPut, "/v1/osb/*/v2/service_instances/*/service_bindings/*", MiddlewareFunc(p.Bind))
+		filter := newPluginSegment(plug.Name()+":Bind", http.MethodPut, "/v1/osb/*/v2/service_instances/*/service_bindings/*", MiddlewareFunc(p.Bind))
 		filters = append(filters, filter)
 	}
 	if p, ok := plug.(Unbinder); ok {
-		filter := newPluginSegment("Unbind", http.MethodDelete, "/v1/osb/*/v2/service_instances/*/service_bindings/*", MiddlewareFunc(p.Unbind))
+		filter := newPluginSegment(plug.Name()+":Unbind", http.MethodDelete, "/v1/osb/*/v2/service_instances/*/service_bindings/*", MiddlewareFunc(p.Unbind))
 		filters = append(filters, filter)
 	}
 
