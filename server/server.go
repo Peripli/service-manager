@@ -48,6 +48,7 @@ func (s *Settings) Validate() error {
 	if s.ShutdownTimeout == 0 {
 		return fmt.Errorf("validate Settings: ShutdownTimeout missing")
 	}
+	return nil
 }
 
 // Server is the server to process incoming HTTP requests
