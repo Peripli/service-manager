@@ -12,6 +12,6 @@ api:
   security:
     len: 32
     encryption_key: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
-    uri: postgres://guard:user@192.168.99.100:5555/postgres?sslmode=disable
+    uri: postgres://guard:guard@192.168.99.100:5555/postgres?sslmode=disable
 oauth:
   clientId: smctl

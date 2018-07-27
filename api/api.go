@@ -42,6 +42,7 @@ type Security struct {
 	Len int `mapstructure:"len"`
 }
 
+// Validate validates the API Security settings
 func (s *Security) Validate() error {
 	if s.EncryptionKey == "" {
 		return fmt.Errorf("validate Settings: SecurityEncryptionkey missing")
@@ -61,6 +62,7 @@ type Settings struct {
 	Security       Security `mapstructure:"security"`
 }
 
+// Validate validates the API settings
 func (s *Settings) Validate() error {
 	if (len(s.TokenIssuerURL)) == 0 {
 		return fmt.Errorf("validate Settings: APITokenIssuerURL missing")

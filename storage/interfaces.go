@@ -37,6 +37,7 @@ type Settings struct {
 	URI string
 }
 
+// Validate validates the storage settings
 func (s *Settings) Validate() error {
 	if len(s.URI) == 0 {
 		return fmt.Errorf("validate Settings: StorageURI missing")

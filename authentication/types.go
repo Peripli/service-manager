@@ -28,6 +28,7 @@ type OAuthSettings struct {
 	ClientID string
 }
 
+// Validate validates the OAuth settings
 func (s *OAuthSettings) Validate() error {
 	if (len(s.ClientID)) == 0 {
 		return fmt.Errorf("validate Settings: CLIClientID missing")

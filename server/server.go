@@ -38,6 +38,7 @@ type Settings struct {
 	ShutdownTimeout time.Duration
 }
 
+// Validate validates the server settings
 func (s *Settings) Validate() error {
 	if s.Port == 0 {
 		return fmt.Errorf("validate Settings: Port missing")
