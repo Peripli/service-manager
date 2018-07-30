@@ -1,40 +1,26 @@
 BEGIN;
 
-CREATE SEQUENCE "credentials_id_seq"
-    INCREMENT 1
-    START 1
-    MINVALUE 1
-    MAXVALUE 2147483647
-    CACHE 1;
-
-CREATE TABLE credentials (
-    id integer PRIMARY KEY NOT NULL DEFAULT nextval('"credentials_id_seq"'::regclass),
-    type integer NOT NULL,
-    username varchar(255),
-    password varchar(500),
-    token text
-);
-
 CREATE TABLE platforms (
-    id varchar(100) PRIMARY KEY,
+    id varchar(100) PRIMARY KEY NOT NULL,
     type varchar(255) NOT NULL,
     name varchar(255) NOT NULL UNIQUE,
     description text,
-    created_at timestamp DEFAULT current_timestamp,
-    updated_at timestamp DEFAULT current_timestamp,
-    credentials_id integer NOT NULL,
-    FOREIGN KEY (credentials_id) REFERENCES credentials
+    created_at timestamp DEFAULT current_timestamp NOT NULL,
+    updated_at timestamp DEFAULT current_timestamp NOT NULL,
+    username varchar(255) NOT NULL UNIQUE,
+    password varchar(500) NOT NULL
 );
 
 CREATE TABLE brokers (
-    id varchar(100) PRIMARY KEY,
+    id varchar(100) PRIMARY KEY NOT NULL,
     name varchar(255) NOT NULL UNIQUE,
     description text,
     broker_url text NOT NULL,
-    created_at timestamp DEFAULT current_timestamp,
-    updated_at timestamp DEFAULT current_timestamp,
-    credentials_id integer NOT NULL,
-    FOREIGN KEY (credentials_id) REFERENCES credentials
+    created_at timestamp DEFAULT current_timestamp NOT NULL,
+    updated_at timestamp DEFAULT current_timestamp NOT NULL,
+    username varchar(255) NOT NULL,
+    password varchar(500) NOT NULL,
+    catalog json NOT NULL
 );
 
 COMMIT;

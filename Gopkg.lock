@@ -76,8 +76,8 @@
     "source",
     "source/file"
   ]
-  revision = "6bb3e494e544a6bba307308388e641393e7b4767"
-  version = "v3.3.1"
+  revision = "e968e8a5f0fd43301a2e0ef025ce6db56eedb205"
+  version = "v3.4.0"
 
 [[projects]]
   branch = "master"
@@ -414,7 +414,7 @@
     "ed25519/internal/edwards25519",
     "ssh/terminal"
   ]
-  revision = "a2144134853fc9a27a7b1e3eb4f19f1a76df13c9"
+  revision = "c126467f60eb25f8f27e5a981f32a87e3965053f"
 
 [[projects]]
   branch = "master"
@@ -428,7 +428,7 @@
     "idna",
     "publicsuffix"
   ]
-  revision = "a680a1efc54dd51c040b3b5ce4939ea3cf2ea0d1"
+  revision = "c4299a1a0d8524c11563db160fbf9bddbceadb21"
 
 [[projects]]
   branch = "master"
@@ -437,7 +437,7 @@
     ".",
     "internal"
   ]
-  revision = "ef147856a6ddbb60760db74283d2424e98c87bff"
+  revision = "3d292e4d0cdc3a0113e6d207bb137145ef1de42f"
 
 [[projects]]
   branch = "master"
@@ -446,7 +446,7 @@
     "unix",
     "windows"
   ]
-  revision = "ac767d655b305d4e9612f5f6e33120b9176c4ad4"
+  revision = "bd9dbc187b6e1dacfdd2722a87e83093c2d7bd6e"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -509,8 +509,8 @@
     "cipher",
     "json"
   ]
-  revision = "76dd09796242edb5b897103a75df2645c028c960"
-  version = "v2.1.6"
+  revision = "349dc03548930652802aadc09fb126e2b7cb6d80"
+  version = "v2.1.7"
 
 [[projects]]
   branch = "v1"
@@ -527,6 +527,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d6dec36e010db76bb83769f7ebad66797380253cf90f86a5db18336118de5ee1"
+  inputs-digest = "0c44545f797adb2e842ab02f1239b7380dc503514dab48d828b1da20c3c2de4f"
   solver-name = "gps-cdcl"
   solver-version = 1

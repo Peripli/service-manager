@@ -33,15 +33,15 @@ type FakePlatform struct {
 		result1 *types.Platform
 		result2 error
 	}
-	GetAllStub        func() ([]types.Platform, error)
+	GetAllStub        func() ([]*types.Platform, error)
 	getAllMutex       sync.RWMutex
 	getAllArgsForCall []struct{}
 	getAllReturns     struct {
-		result1 []types.Platform
+		result1 []*types.Platform
 		result2 error
 	}
 	getAllReturnsOnCall map[int]struct {
-		result1 []types.Platform
+		result1 []*types.Platform
 		result2 error
 	}
 	DeleteStub        func(id string) error
@@ -169,7 +169,7 @@ func (fake *FakePlatform) GetReturnsOnCall(i int, result1 *types.Platform, resul
 	}{result1, result2}
 }
 
-func (fake *FakePlatform) GetAll() ([]types.Platform, error) {
+func (fake *FakePlatform) GetAll() ([]*types.Platform, error) {
 	fake.getAllMutex.Lock()
 	ret, specificReturn := fake.getAllReturnsOnCall[len(fake.getAllArgsForCall)]
 	fake.getAllArgsForCall = append(fake.getAllArgsForCall, struct{}{})
@@ -190,24 +190,24 @@ func (fake *FakePlatform) GetAllCallCount() int {
 	return len(fake.getAllArgsForCall)
 }
 
-func (fake *FakePlatform) GetAllReturns(result1 []types.Platform, result2 error) {
+func (fake *FakePlatform) GetAllReturns(result1 []*types.Platform, result2 error) {
 	fake.GetAllStub = nil
 	fake.getAllReturns = struct {
-		result1 []types.Platform
+		result1 []*types.Platform
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *FakePlatform) GetAllReturnsOnCall(i int, result1 []types.Platform, result2 error) {
+func (fake *FakePlatform) GetAllReturnsOnCall(i int, result1 []*types.Platform, result2 error) {
 	fake.GetAllStub = nil
 	if fake.getAllReturnsOnCall == nil {
 		fake.getAllReturnsOnCall = make(map[int]struct {
-			result1 []types.Platform
+			result1 []*types.Platform
 			result2 error
 		})
 	}
 	fake.getAllReturnsOnCall[i] = struct {
-		result1 []types.Platform
+		result1 []*types.Platform
 		result2 error
 	}{result1, result2}
 }

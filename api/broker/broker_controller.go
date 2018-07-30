@@ -103,10 +103,12 @@ func (c *Controller) getAllBrokers(request *web.Request) (*web.Response, error) 
 	if err != nil {
 		return nil, err
 	}
-	withCatalog := request.FormValue(catalogParam)
-	if strings.ToLower(withCatalog) != "true" {
-		for i := 0; i < len(brokers); i++ {
-			brokers[i].Catalog = nil
+
+	removeCatalog := strings.ToLower(request.FormValue(catalogParam)) != "true"
+	for _, broker := range brokers {
+		broker.Credentials = nil
+		if removeCatalog {
+			broker.Catalog = nil
 		}
 	}
 
@@ -145,6 +147,7 @@ func (c *Controller) patchBroker(request *web.Request) (*web.Response, error) {
 
 	broker.ID = brokerID
 	broker.Catalog = catalog
+	broker.CreatedAt = time.Time{}
 	broker.UpdatedAt = time.Now().UTC()
 
 	if err := c.BrokerStorage.Update(broker); err != nil {

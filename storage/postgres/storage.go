@@ -18,19 +18,16 @@
 package postgres
 
 import (
-	"database/sql"
 	"sync"
 	"time"
 
 	"fmt"
 
-	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/golang-migrate/migrate"
 	migratepg "github.com/golang-migrate/migrate/database/postgres"
 	_ "github.com/golang-migrate/migrate/source/file"
 	"github.com/jmoiron/sqlx"
-	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 )
 
@@ -117,57 +114,6 @@ func updateSchema(db *sqlx.DB) error {
 	if err == migrate.ErrNoChange {
 		logrus.Debug("Database schema already up to date")
 		err = nil
-	}
-	return err
-}
-
-func transaction(db *sqlx.DB, f func(tx *sqlx.Tx) error) error {
-	tx, err := db.Beginx()
-	if err != nil {
-		return err
-	}
-	ok := false
-	defer func() {
-		if !ok {
-			if txError := tx.Rollback(); txError != nil {
-				logrus.Error("Could not rollback transaction", txError)
-			}
-		}
-	}()
-
-	if err = f(tx); err != nil {
-		return err
-	}
-	ok = true
-	return tx.Commit()
-}
-
-func checkUniqueViolation(err error) error {
-	if err == nil {
-		return nil
-	}
-	sqlErr, ok := err.(*pq.Error)
-	if ok && sqlErr.Code.Name() == "unique_violation" {
-		logrus.Debug(sqlErr)
-		return util.ErrAlreadyExistsInStorage
-	}
-	return err
-}
-
-func checkRowsAffected(result sql.Result) error {
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if rowsAffected < 1 {
-		return util.ErrNotFoundInStorage
-	}
-	return nil
-}
-
-func checkSQLNoRows(err error) error {
-	if err == sql.ErrNoRows {
-		return util.ErrNotFoundInStorage
 	}
 	return err
 }

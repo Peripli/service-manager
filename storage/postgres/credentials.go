@@ -28,22 +28,14 @@ type credentialStorage struct {
 }
 
 func (cs *credentialStorage) Get(username string) (*types.Credentials, error) {
-	credentials := &Credentials{}
-	query := fmt.Sprintf(`SELECT c.username "username",
- 								 c.password "password"
-							FROM %s AS c JOIN %s as p ON c.id=p.credentials_id
-							WHERE c.username=$1`, credentialsTable, platformTable)
+	platformCredentials := &Platform{}
+	query := fmt.Sprintf("SELECT username, password FROM %s WHERE username=$1", platformTable)
 
-	err := cs.db.Get(credentials, query, username)
+	err := cs.db.Get(platformCredentials, query, username)
 
 	if err != nil {
 		return nil, checkSQLNoRows(err)
 	}
 
-	return &types.Credentials{
-		Basic: &types.Basic{
-			Username: credentials.Username,
-			Password: credentials.Password,
-		},
-	}, nil
+	return types.NewBasicCredentials(platformCredentials.Username, platformCredentials.Password), nil
 }
