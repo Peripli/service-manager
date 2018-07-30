@@ -85,11 +85,13 @@ type Encrypter interface {
 }
 
 // KeyFetcher provides functionality to get encryption key from a remote location
+//go:generate counterfeiter . KeyFetcher
 type KeyFetcher interface {
 	GetEncryptionKey() ([]byte, error)
 }
 
 // KeySetter provides functionality to set encryption key in a remote location
+//go:generate counterfeiter . KeySetter
 type KeySetter interface {
 	SetEncryptionKey(key []byte) error
 }
