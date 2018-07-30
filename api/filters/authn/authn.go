@@ -58,9 +58,8 @@ func (ba *Middleware) Run(next web.Handler) web.Handler {
 					Description: err.Error(),
 					StatusCode:  http.StatusUnauthorized,
 				}
-			} else {
-				return nil, err
 			}
+			return nil, err
 		}
 
 		switch decision {

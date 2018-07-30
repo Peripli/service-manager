@@ -86,6 +86,7 @@ var (
 	ErrAlreadyExistsInStorage = errors.New("unique constraint violation")
 )
 
+// HandleStorageError handles storage errors by converting them to relevant HTTPErrors
 func HandleStorageError(err error, entityName, entityID string) error {
 	if err == nil {
 		return nil

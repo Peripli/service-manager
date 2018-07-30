@@ -62,7 +62,7 @@ type Environment interface {
 	BindPFlag(key string, flag *pflag.Flag) error
 }
 
-type viperEnv struct {
+type ViperEnv struct {
 	*viper.Viper
 }
 
@@ -87,8 +87,8 @@ func CreatePFlags(set *pflag.FlagSet, value interface{}) {
 
 // New creates a new environment. It accepts a flag set that should contain all the flags that the
 // environment should be aware of.
-func New(set *pflag.FlagSet) (*viperEnv, error) {
-	v := &viperEnv{
+func New(set *pflag.FlagSet) (*ViperEnv, error) {
+	v := &ViperEnv{
 		Viper: viper.New(),
 	}
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
@@ -113,7 +113,7 @@ func New(set *pflag.FlagSet) (*viperEnv, error) {
 
 // Unmarshal exposes viper's Unmarshal. Prior to unmarshaling it creates the necessary pflag and env var bindings
 // so that pflag / env var values are also used during the unmarshaling.
-func (v *viperEnv) Unmarshal(value interface{}) error {
+func (v *ViperEnv) Unmarshal(value interface{}) error {
 	properties := make(map[string]interface{})
 	traverseFields(value, "", properties)
 	for flagName := range properties {
@@ -153,7 +153,7 @@ func traverseFields(value interface{}, buffer string, result map[string]interfac
 	}
 }
 
-func (v *viperEnv) setupConfigFile() error {
+func (v *ViperEnv) setupConfigFile() error {
 	cfg := struct{ File File }{File: File{}}
 	if err := v.Unmarshal(&cfg); err != nil {
 		return fmt.Errorf("could not find configuration cfg: %s", err)
