@@ -19,7 +19,6 @@ package basic
 import (
 	"encoding/base64"
 	"fmt"
-	"io"
 	"net/http"
 	"testing"
 
@@ -35,23 +34,6 @@ import (
 func TestApi(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Basic Authenticator")
-}
-
-
-type mockReader struct {
-	buff      string
-	err       error
-	readIndex int64
-}
-
-func (e *mockReader) Read(p []byte) (n int, err error) {
-	if e.readIndex >= int64(len(e.buff)) {
-		err = io.EOF
-		return
-	}
-	n = copy(p, e.buff[e.readIndex:])
-	e.readIndex += int64(n)
-	return n, e.err
 }
 
 var _ = Describe("Basic Authenticator", func() {
@@ -76,7 +58,7 @@ var _ = Describe("Basic Authenticator", func() {
 		var request *http.Request
 		BeforeEach(func() {
 			var err error
-			request, err = http.NewRequest(http.MethodGet, "https://example.com", &mockReader{err: nil, buff: ""})
+			request, err = http.NewRequest(http.MethodGet, "https://example.com", nil)
 			Expect(err).ShouldNot(HaveOccurred())
 		})
 		Context("When authorization is not basic", func() {
