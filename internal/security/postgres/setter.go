@@ -58,9 +58,8 @@ func (k *keySetter) SetEncryptionKey(key []byte) error {
 		" VALUES(:secret, :created_at, :updated_at)", schema), &safe); err == nil {
 		if err := tx.Commit(); err == nil {
 			ok = true
-		} else {
-			return err
 		}
+		return err
 	}
 	return err
 }

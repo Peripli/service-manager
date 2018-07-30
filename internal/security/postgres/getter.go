@@ -26,7 +26,7 @@ import (
 
 type keyFetcher struct {
 	db            *sqlx.DB
-	encryptionkey []byte
+	encryptionKey []byte
 }
 
 // GetEncryptionKey returns the encryption key used to encrypt the credentials for brokers
@@ -40,5 +40,5 @@ func (s *keyFetcher) GetEncryptionKey() ([]byte, error) {
 		return []byte{}, nil
 	}
 	encryptedKey := []byte(safes[0].Secret)
-	return security.Decrypt(encryptedKey, s.encryptionkey)
+	return security.Decrypt(encryptedKey, s.encryptionKey)
 }

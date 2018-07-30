@@ -56,10 +56,18 @@ func awaitTermination(ctx context.Context, db *sqlx.DB) {
 
 // Fetcher returns a KeyFetcher configured to fetch a key from the database
 func (s *storage) Fetcher() security.KeyFetcher {
+	s.checkOpen()
 	return &keyFetcher{s.db, []byte(s.encryptionKey)}
 }
 
 // Setter returns a KeySetter configured to set a key in the database
 func (s *storage) Setter() security.KeySetter {
+	s.checkOpen()
 	return &keySetter{s.db, s.encryptionKey}
+}
+
+func (s *storage) checkOpen() {
+	if s.db == nil {
+		logrus.Panicln("Security Storage is not initialized")
+	}
 }
