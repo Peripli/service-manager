@@ -8,5 +8,5 @@ metadata:
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 data:
-  application.yaml: |-
+  {{ .Values.file.name }}.{{ .Values.file.format }}: |-
 {{ toYaml .Values.config | indent 4 }}

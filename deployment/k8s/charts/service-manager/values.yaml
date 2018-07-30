@@ -24,7 +24,10 @@ postgresql:
   persistence:
     size: 1Gi
 
-configMountPath: /etc/config
+file:
+  name: application
+  location: /etc/config
+  format: yml
 
 config:
   log:
@@ -33,3 +36,6 @@ config:
   server:
     request_timeout: 3000ms
     shutdown_timeout: 3000ms
+  api:
+    token_issuer_url: https://uaa.local.pcfdev.io
+    client_id: smctl

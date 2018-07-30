@@ -23,7 +23,10 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -o /mai
 ########################################################
 # Build the runtime container
 ########################################################
-FROM scratch
+FROM alpine:3.7 AS package_step
+
+RUN apk update && apk add ca-certificates
+
 WORKDIR /app
 
 # Copy the executable file
