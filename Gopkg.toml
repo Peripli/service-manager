@@ -90,8 +90,8 @@
   version = "0.5.0"
 
 [[constraint]]
-  name = "gopkg.in/DATA-DOG/go-sqlmock.v1"
-  version = "v1.3.0"
+  name = "github.com/DATA-DOG/go-sqlmock"
+  revision = "852fc940e4b9b895dc144b88ee8f6e39228127b0"
 
 # Refer to issue https://github.com/golang/dep/issues/1799
 [[override]]
