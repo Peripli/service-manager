@@ -65,10 +65,11 @@ func (c *Controller) createPlatform(request *web.Request) (*web.Response, error)
 		logrus.Error("Could not generate credentials for platform")
 		return nil, err
 	}
-	transformedPassword, err := c.CredentialsTransformer.Transform([]byte(password))
+	transformedPassword, err := c.CredentialsTransformer.Transform([]byte(credentials.Basic.Password))
 	if err != nil {
 		return nil, err
 	}
+	credentials.Basic.Password = string(transformedPassword)
 	platform.Credentials = credentials
 
 	if err := c.PlatformStorage.Create(platform); err != nil {

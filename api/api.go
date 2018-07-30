@@ -71,6 +71,9 @@ func (s *Settings) Validate() error {
 	if (len(s.TokenIssuerURL)) == 0 {
 		return fmt.Errorf("validate Settings: APITokenIssuerURL missing")
 	}
+	if (len(s.ClientID)) == 0 {
+		return fmt.Errorf("validate Settings: APIClientID missing")
+	}
 	if err := s.Security.Validate(); err != nil {
 		return err
 	}
@@ -111,7 +114,7 @@ func New(ctx context.Context, storage storage.Storage, settings Settings, transf
 		},
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
-			authn.NewBasicAuthnFilter(storage.Credentials()),
+			authn.NewBasicAuthnFilter(storage.Credentials(), transformer),
 			bearerAuthnFilter,
 			authn.NewRequiredAuthnFilter(),
 		},

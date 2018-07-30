@@ -17,19 +17,14 @@
 package broker
 
 import (
-	"bytes"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
-
 	"github.com/Peripli/service-manager/security"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
-
-
-	"fmt"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -207,9 +202,6 @@ func clientConfigForBroker(broker *types.Broker) *osbc.ClientConfiguration {
 
 func transformBrokerCredentials(broker *types.Broker, transformationFunc func([]byte) ([]byte, error)) error {
 	if broker.Credentials != nil {
-		if err := validateBrokerCredentials(broker.Credentials); err != nil {
-			return err
-		}
 		transformedPassword, err := transformationFunc([]byte(broker.Credentials.Basic.Password))
 		if err != nil {
 			return err

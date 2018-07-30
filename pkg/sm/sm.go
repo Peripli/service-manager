@@ -18,18 +18,21 @@ package sm
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"os"
 	"os/signal"
 
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/config"
+	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/postgres"
 
 	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/cf"
+	sec "github.com/Peripli/service-manager/internal/security/postgres"
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -78,8 +81,19 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 		panic(fmt.Sprintf("error using smStorage: %s", err))
 	}
 
+	secureStorage, err := initializeSecureStorage(ctx, cfg.API.Security)
+	if err != nil {
+		panic(fmt.Sprintf("error initialzing secure storage: %v", err))
+	}
+
+	transformer := &security.EncryptionTransformer{
+		Encrypter: &security.TwoLayerEncrypter{
+			Fetcher: secureStorage.Fetcher(),
+		},
+	}
+
 	// setup core API
-	API, err := api.New(ctx, smStorage, cfg.API)
+	API, err := api.New(ctx, smStorage, cfg.API, transformer)
 	if err != nil {
 		panic(fmt.Sprintf("error creating core API: %s", err))
 	}
@@ -136,6 +150,31 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 		ctx:    smb.ctx,
 		Server: srv,
 	}
+}
+
+func initializeSecureStorage(ctx context.Context, securitySettings api.Security) (security.Storage, error) {
+	secureStorage, err := sec.NewSecureStorage(ctx, securitySettings)
+	if err != nil {
+		return nil, fmt.Errorf("error creating secure storage: %v", err)
+	}
+	keyFetcher := secureStorage.Fetcher()
+	encryptionKey, err := keyFetcher.GetEncryptionKey()
+	if err != nil {
+		return nil, err
+	}
+	if len(encryptionKey) == 0 {
+		logrus.Debug("No encryption key is present. Generating new one...")
+		newEncryptionKey := make([]byte, securitySettings.Len)
+		if _, err := rand.Read(newEncryptionKey); err != nil {
+			return nil, fmt.Errorf("Could not generate encryption key: %v", err)
+		}
+		keySetter := secureStorage.Setter()
+		if err := keySetter.SetEncryptionKey(newEncryptionKey); err != nil {
+			return nil, err
+		}
+		logrus.Debug("Successfully generated new encryption key")
+	}
+	return secureStorage, nil
 }
 
 func handleInterrupts(ctx context.Context, cancelFunc context.CancelFunc) {

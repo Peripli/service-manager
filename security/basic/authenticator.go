@@ -34,7 +34,7 @@ type Authenticator struct {
 }
 
 // NewAuthenticator constructs a Basic authentication Authenticator
-func NewAuthenticator(storage storage.Credentials, transformer security.CredentialsTransformer) authentication.Authenticator {
+func NewAuthenticator(storage storage.Credentials, transformer security.CredentialsTransformer) security.Authenticator {
 	return &Authenticator{CredentialStorage: storage, CredentialsTransformer: transformer}
 }
 
@@ -49,7 +49,7 @@ func (a *Authenticator) Authenticate(request *http.Request) (*security.User, sec
 
 	passwordBytes, err := a.CredentialsTransformer.Reverse([]byte(credentials.Basic.Password))
 	if err != nil {
-		return nil, err
+		return nil, security.Deny, err
 	}
 
 	if err == util.ErrNotFoundInStorage || string(passwordBytes) != password {
