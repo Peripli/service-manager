@@ -14,7 +14,7 @@ WORKDIR "/go/src/github.com/Peripli/service-manager"
 
 # Copy dep files only and ensure dependencies are satisfied
 COPY Gopkg.lock Gopkg.toml ./
-RUN dep ensure -vendor-only -v
+RUN dep ensure --vendor-only -v
 
 # Copy and build source code
 COPY . ./
