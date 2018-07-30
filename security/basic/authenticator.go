@@ -18,9 +18,8 @@
 package basic
 
 import (
-	"net/http"
-
 	"fmt"
+	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/security"
@@ -47,17 +46,19 @@ func (a *Authenticator) Authenticate(request *http.Request) (*security.User, sec
 
 	credentials, err := a.CredentialStorage.Get(username)
 
+	if err != nil {
+		if err == util.ErrNotFoundInStorage {
+			return nil, security.Deny, err
+		}
+		return nil, security.Abstain, fmt.Errorf("could not get credentials entity from storage: %s", err)
+	}
 	passwordBytes, err := a.CredentialsTransformer.Reverse([]byte(credentials.Basic.Password))
 	if err != nil {
-		return nil, security.Deny, err
+		return nil, security.Abstain, fmt.Errorf("could not reverse credentials from storage: %v", err)
 	}
 
-	if err == util.ErrNotFoundInStorage || string(passwordBytes) != password {
+	if string(passwordBytes) != password {
 		return nil, security.Deny, nil
-	}
-
-	if err != nil {
-		return nil, security.Abstain, fmt.Errorf("could not get credentials entity from storage: %s", err)
 	}
 
 	return &security.User{

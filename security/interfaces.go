@@ -73,6 +73,7 @@ type TokenVerifier interface {
 }
 
 // CredentialsTransformer provides functionality to modify credentials and to reverse already modified credentials
+//go:generate counterfeiter . CredentialsTransformer
 type CredentialsTransformer interface {
 	Transform(secret []byte) ([]byte, error)
 	Reverse(cipher []byte) ([]byte, error)
