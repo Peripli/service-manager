@@ -17,6 +17,7 @@
 package postgres
 
 import (
+	"database/sql"
 	"time"
 
 	"encoding/json"
@@ -31,57 +32,44 @@ const (
 
 	// brokerTable db table name for brokers
 	brokerTable = "brokers"
-
-	// table db table name for credentials
-	credentialsTable = "credentials"
-
-	basicCredentialsType = 1
 )
-
-// Credentials dto
-type Credentials struct {
-	ID       int    `db:"id"`
-	Type     int    `db:"type"`
-	Username string `db:"username"`
-	Password string `db:"password"`
-	Token    string `db:"token"`
-}
 
 // Platform dto
 type Platform struct {
-	ID            string    `db:"id"`
-	Type          string    `db:"type"`
-	Name          string    `db:"name"`
-	Description   string    `db:"description"`
-	CreatedAt     time.Time `db:"created_at"`
-	UpdatedAt     time.Time `db:"updated_at"`
-	CredentialsID int       `db:"credentials_id"`
+	ID          string         `db:"id"`
+	Type        string         `db:"type"`
+	Name        string         `db:"name"`
+	Description sql.NullString `db:"description"`
+	CreatedAt   time.Time      `db:"created_at"`
+	UpdatedAt   time.Time      `db:"updated_at"`
+	Username    string         `db:"username"`
+	Password    string         `db:"password"`
 }
 
 // Broker dto
 type Broker struct {
-	ID            string    `db:"id"`
-	Name          string    `db:"name"`
-	Description   string    `db:"description"`
-	CreatedAt     time.Time `db:"created_at"`
-	UpdatedAt     time.Time `db:"updated_at"`
-	BrokerURL     string    `db:"broker_url"`
-	CredentialsID int       `db:"credentials_id"`
-	*Credentials  `db:"c" structs:"-"`
-	Catalog       sqlxtypes.JSONText `db:"catalog"`
+	ID          string             `db:"id"`
+	Name        string             `db:"name"`
+	Description sql.NullString     `db:"description"`
+	CreatedAt   time.Time          `db:"created_at"`
+	UpdatedAt   time.Time          `db:"updated_at"`
+	BrokerURL   string             `db:"broker_url"`
+	Username    string             `db:"username"`
+	Password    string             `db:"password"`
+	Catalog     sqlxtypes.JSONText `db:"catalog"`
 }
 
 // Convert converts to types.Broker
 func (brokerDTO *Broker) Convert() *types.Broker {
 	broker := &types.Broker{ID: brokerDTO.ID,
 		Name:        brokerDTO.Name,
-		Description: brokerDTO.Description,
+		Description: brokerDTO.Description.String,
 		CreatedAt:   brokerDTO.CreatedAt,
 		UpdatedAt:   brokerDTO.UpdatedAt,
 		BrokerURL:   brokerDTO.BrokerURL,
 		Catalog:     json.RawMessage(brokerDTO.Catalog),
 	}
-	if brokerDTO.Credentials != nil {
+	if brokerDTO.Username != "" {
 		broker.Credentials = types.NewBasicCredentials(brokerDTO.Username, brokerDTO.Password)
 	}
 	return broker
@@ -89,44 +77,53 @@ func (brokerDTO *Broker) Convert() *types.Broker {
 
 // Convert converts to types.Platform
 func (platformDTO *Platform) Convert() *types.Platform {
-	return &types.Platform{
+	platform := &types.Platform{
 		ID:          platformDTO.ID,
 		Type:        platformDTO.Type,
 		Name:        platformDTO.Name,
-		Description: platformDTO.Description,
+		Description: platformDTO.Description.String,
 		CreatedAt:   platformDTO.CreatedAt,
 		UpdatedAt:   platformDTO.UpdatedAt,
 	}
-}
-
-func convertCredentialsToDTO(credentials *types.Credentials) *Credentials {
-	return &Credentials{
-		Type:     basicCredentialsType,
-		Username: credentials.Basic.Username,
-		Password: credentials.Basic.Password,
-		Token:    "",
+	if platformDTO.Username != "" {
+		platform.Credentials = types.NewBasicCredentials(platformDTO.Username, platformDTO.Password)
 	}
+	return platform
 }
 
 func convertPlatformToDTO(platform *types.Platform) *Platform {
-	return &Platform{
-		ID:          platform.ID,
-		Type:        platform.Type,
-		Name:        platform.Name,
-		Description: platform.Description,
-		CreatedAt:   platform.CreatedAt,
-		UpdatedAt:   platform.UpdatedAt,
+	result := &Platform{
+		ID:        platform.ID,
+		Type:      platform.Type,
+		Name:      platform.Name,
+		CreatedAt: platform.CreatedAt,
+		UpdatedAt: platform.UpdatedAt,
 	}
+	if platform.Description != "" {
+		result.Description = sql.NullString{String: platform.Description, Valid: true}
+	}
+	if platform.Credentials != nil {
+		result.Username = platform.Credentials.Basic.Username
+		result.Password = platform.Credentials.Basic.Password
+	}
+	return result
 }
 
 func convertBrokerToDTO(broker *types.Broker) *Broker {
-	return &Broker{
-		ID:          broker.ID,
-		Name:        broker.Name,
-		Description: broker.Description,
-		BrokerURL:   broker.BrokerURL,
-		CreatedAt:   broker.CreatedAt,
-		UpdatedAt:   broker.UpdatedAt,
-		Catalog:     sqlxtypes.JSONText(broker.Catalog),
+	result := &Broker{
+		ID:        broker.ID,
+		Name:      broker.Name,
+		BrokerURL: broker.BrokerURL,
+		CreatedAt: broker.CreatedAt,
+		UpdatedAt: broker.UpdatedAt,
+		Catalog:   sqlxtypes.JSONText(broker.Catalog),
 	}
+	if broker.Description != "" {
+		result.Description = sql.NullString{String: broker.Description, Valid: true}
+	}
+	if broker.Credentials != nil {
+		result.Username = broker.Credentials.Basic.Username
+		result.Password = broker.Credentials.Basic.Password
+	}
+	return result
 }

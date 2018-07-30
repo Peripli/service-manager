@@ -10,7 +10,7 @@ storage:
 #storage:
 #  name: sm-postgres
 api:
-  # token_issuer_url: https://uaa.local.pcfdev.io
+  token_issuer_url: https://uaa.local.pcfdev.io
   client_id: sm
   token_issuer_url: https://uaa.local.pcfdev.io
   security:

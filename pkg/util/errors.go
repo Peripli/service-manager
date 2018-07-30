@@ -72,7 +72,7 @@ func HandleResponseError(response *http.Response) error {
 	}
 
 	if err := BytesToObject(body, httpErr); err != nil || httpErr.Description == "" {
-		logrus.Debug("Failure response with status code %d is not an HTTPError. Error converting body: %s", response.StatusCode, err)
+		logrus.Debugf("Failure response with status code %d is not an HTTPError. Error converting body: %v. Default err will be returned.", response.StatusCode, err)
 		return fmt.Errorf("StatusCode: %d Body: %s", response.StatusCode, body)
 	}
 	return httpErr

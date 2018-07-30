@@ -40,8 +40,8 @@ var _ = Describe("Service Manager Broker API", func() {
 		ctx          *common.TestContext
 		brokerServer *ghttp.Server
 
-		testBroker     map[string]interface{}
-		expectedBroker map[string]interface{}
+		testBroker     common.Object
+		expectedBroker common.Object
 
 		catalogResponse []byte
 		code            int
@@ -62,19 +62,19 @@ var _ = Describe("Service Manager Broker API", func() {
 		catalogResponse = []byte(common.Catalog)
 		brokerServer = common.FakeBrokerServer(&code, &catalogResponse)
 
-		testBroker = map[string]interface{}{
+		testBroker = common.Object{
 			"name":        "name",
 			"broker_url":  brokerServer.URL(),
 			"description": "description",
-			"credentials": map[string]interface{}{
-				"basic": map[string]interface{}{
+			"credentials": common.Object{
+				"basic": common.Object{
 					"username": "buser",
 					"password": "bpass",
 				},
 			},
 		}
 
-		expectedBroker = map[string]interface{}{
+		expectedBroker = common.Object{
 			"name":        "name",
 			"broker_url":  brokerServer.URL(),
 			"description": "description",
@@ -363,7 +363,7 @@ var _ = Describe("Service Manager Broker API", func() {
 		Context("when request body contains invalid credentials", func() {
 			It("returns 400", func() {
 				ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+id).
-					WithJSON(map[string]interface{}{"credentials": "123"}).
+					WithJSON(common.Object{"credentials": "123"}).
 					Expect().
 					Status(http.StatusBadRequest).
 					JSON().Object().
@@ -374,7 +374,7 @@ var _ = Describe("Service Manager Broker API", func() {
 		Context("when request body contains incomplete credentials", func() {
 			It("returns 400", func() {
 				ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+id).
-					WithJSON(map[string]interface{}{"credentials": map[string]interface{}{"basic": map[string]interface{}{"password": ""}}}).
+					WithJSON(common.Object{"credentials": common.Object{"basic": common.Object{"password": ""}}}).
 					Expect().
 					Status(http.StatusBadRequest).
 					JSON().Object().
@@ -383,18 +383,18 @@ var _ = Describe("Service Manager Broker API", func() {
 		})
 
 		Context("when broker with the name already exists", func() {
-			var anotherTestBroker map[string]interface{}
+			var anotherTestBroker common.Object
 			var anotherBrokerServer *ghttp.Server
 
 			BeforeEach(func() {
 				anotherBrokerServer = common.FakeBrokerServer(&code, &catalogResponse)
 
-				anotherTestBroker = map[string]interface{}{
+				anotherTestBroker = common.Object{
 					"name":        "another_name",
 					"broker_url":  anotherBrokerServer.URL(),
 					"description": "another_description",
-					"credentials": map[string]interface{}{
-						"basic": map[string]interface{}{
+					"credentials": common.Object{
+						"basic": common.Object{
 							"username": "buser",
 							"password": "bpass",
 						},
@@ -423,30 +423,49 @@ var _ = Describe("Service Manager Broker API", func() {
 		Context("when updatable fields are being updated", func() {
 			var (
 				updatedBrokerServer   *ghttp.Server
-				updatedBroker         map[string]interface{}
-				expectedUpdatedBroker map[string]interface{}
+				updatedBroker         common.Object
+				expectedUpdatedBroker common.Object
 			)
 
 			BeforeEach(func() {
 				updatedBrokerServer = common.FakeBrokerServer(&code, &catalogResponse)
 
-				updatedBroker = map[string]interface{}{
+				updatedBroker = common.Object{
 					"name":        "updated_name",
 					"description": "updated_description",
 					"broker_url":  updatedBrokerServer.URL(),
-					"credentials": map[string]interface{}{
-						"basic": map[string]interface{}{
+					"credentials": common.Object{
+						"basic": common.Object{
 							"username": "updated_user",
 							"password": "updated_password",
 						},
 					},
 				}
 
-				expectedUpdatedBroker = map[string]interface{}{
+				expectedUpdatedBroker = common.Object{
 					"name":        updatedBroker["name"],
 					"description": updatedBroker["description"],
 					"broker_url":  updatedBroker["broker_url"],
 				}
+			})
+
+			Context("when created_at provided in body", func() {
+				It("should not change created_at", func() {
+					createdAt := "2015-01-01T00:00:00Z"
+
+					ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+id).
+						WithJSON(common.Object{"created_at": createdAt}).
+						Expect().
+						Status(http.StatusOK).JSON().Object().
+						ContainsKey("created_at").
+						ValueNotEqual("created_at", createdAt)
+
+					ctx.SMWithOAuth.GET("/v1/service_brokers/"+id).
+						Expect().
+						Status(http.StatusOK).JSON().Object().
+						ContainsKey("created_at").
+						ValueNotEqual("created_at", createdAt)
+				})
 			})
 
 			Context("when all updatable fields are updated at once", func() {
@@ -473,7 +492,7 @@ var _ = Describe("Service Manager Broker API", func() {
 			Context("when updatable fields are separately updated", func() {
 				It("returns 200", func() {
 					for prop, val := range updatedBroker {
-						update := map[string]interface{}{}
+						update := common.Object{}
 						update[prop] = val
 
 						reply := ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
@@ -503,7 +522,7 @@ var _ = Describe("Service Manager Broker API", func() {
 		Context("when not updatable fields are provided in the request body", func() {
 			Context("when broker id is provided in request body", func() {
 				It("should not create the broker", func() {
-					testBroker = map[string]interface{}{"id": "123"}
+					testBroker = common.Object{"id": "123"}
 					ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
 						WithJSON(testBroker).
 						Expect().
@@ -522,23 +541,23 @@ var _ = Describe("Service Manager Broker API", func() {
 			Context("when unmodifiable fields are provided request body", func() {
 				var (
 					err                error
-					unmarshaledCatalog map[string]interface{}
+					unmarshaledCatalog common.Object
 				)
 
 				BeforeEach(func() {
-					testBroker = map[string]interface{}{
+					testBroker = common.Object{
 						"created_at": "2016-06-08T16:41:26Z",
 						"updated_at": "2016-06-08T16:41:26Z",
-						"credentials": map[string]interface{}{
-							"basic": map[string]interface{}{
+						"credentials": common.Object{
+							"basic": common.Object{
 								"username": "updated_user",
 								"password": "updated_password",
 							},
 						},
-						"catalog": map[string]interface{}{},
+						"catalog": common.Object{},
 					}
 
-					unmarshaledCatalog = map[string]interface{}{}
+					unmarshaledCatalog = common.Object{}
 					err = json.Unmarshal([]byte(common.Catalog), &unmarshaledCatalog)
 				})
 
@@ -566,11 +585,11 @@ var _ = Describe("Service Manager Broker API", func() {
 		Context("when underlying broker catalog is modified", func() {
 			var (
 				err            error
-				updatedCatalog map[string]interface{}
+				updatedCatalog common.Object
 			)
 
 			BeforeEach(func() {
-				updatedCatalog = map[string]interface{}{
+				updatedCatalog = common.Object{
 					"services": []interface{}{},
 				}
 
@@ -580,7 +599,7 @@ var _ = Describe("Service Manager Broker API", func() {
 
 			It("updates the catalog for the broker", func() {
 				ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
-					WithJSON(map[string]interface{}{}).
+					WithJSON(common.Object{}).
 					Expect().
 					Status(http.StatusOK)
 
