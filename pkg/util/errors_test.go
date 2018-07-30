@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package util
+package util_test
 
 import (
 	"errors"
@@ -28,6 +28,7 @@ import (
 
 	"fmt"
 
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	"github.com/sirupsen/logrus"
@@ -38,13 +39,13 @@ var _ = Describe("Errors", func() {
 	var (
 		responseRecorder *httptest.ResponseRecorder
 		fakeErrorWriter  *errorResponseWriter
-		testHTTPError    *HTTPError
+		testHTTPError    *util.HTTPError
 	)
 
 	BeforeEach(func() {
 		responseRecorder = httptest.NewRecorder()
 		fakeErrorWriter = &errorResponseWriter{}
-		testHTTPError = &HTTPError{
+		testHTTPError = &util.HTTPError{
 			ErrorType:   "test error",
 			Description: "test description",
 			StatusCode:  http.StatusTeapot,
@@ -54,7 +55,7 @@ var _ = Describe("Errors", func() {
 	Describe("WriteError", func() {
 		Context("when parameter is HTTPError", func() {
 			It("writes to response writer the proper output", func() {
-				WriteError(testHTTPError, responseRecorder)
+				util.WriteError(testHTTPError, responseRecorder)
 
 				Expect(responseRecorder.Code).To(Equal(http.StatusTeapot))
 				Expect(responseRecorder.Body.String()).To(ContainSubstring("test description"))
@@ -62,7 +63,7 @@ var _ = Describe("Errors", func() {
 		})
 		Context("With error as parameter", func() {
 			It("Writes to response writer the proper output", func() {
-				WriteError(errors.New("must not be included"), responseRecorder)
+				util.WriteError(errors.New("must not be included"), responseRecorder)
 
 				Expect(responseRecorder.Code).To(Equal(http.StatusInternalServerError))
 				Expect(responseRecorder.Body.String()).To(ContainSubstring("Internal server error"))
@@ -74,7 +75,7 @@ var _ = Describe("Errors", func() {
 			It("Logs write error", func() {
 				hook := &LoggingInterceptorHook{}
 				logrus.AddHook(hook)
-				WriteError(errors.New(""), fakeErrorWriter)
+				util.WriteError(errors.New(""), fakeErrorWriter)
 
 				Expect(string(hook.data)).To(ContainSubstring("Could not write error to response: write error"))
 			})
@@ -93,7 +94,7 @@ var _ = Describe("Errors", func() {
 				}
 				Expect(err).ShouldNot(HaveOccurred())
 
-				err = HandleResponseError(response)
+				err = util.HandleResponseError(response)
 				validateHTTPErrorOccured(err, response.StatusCode)
 
 			})
@@ -107,7 +108,7 @@ var _ = Describe("Errors", func() {
 					Body:       common.Closer(e.Error()),
 				}
 
-				err := HandleResponseError(response)
+				err := util.HandleResponseError(response)
 				Expect(err.Error()).To(ContainSubstring(e.Error()))
 			})
 		})
@@ -120,7 +121,7 @@ var _ = Describe("Errors", func() {
 					Body:       common.Closer(e),
 				}
 
-				err := HandleResponseError(response)
+				err := util.HandleResponseError(response)
 				Expect(err.Error()).To(ContainSubstring(e))
 			})
 		})
@@ -128,7 +129,7 @@ var _ = Describe("Errors", func() {
 		Describe("HandleStorageError", func() {
 			Context("with no errors", func() {
 				It("returns nil", func() {
-					err := HandleStorageError(nil, "", "")
+					err := util.HandleStorageError(nil, "", "")
 
 					Expect(err).To(Not(HaveOccurred()))
 				})
@@ -136,7 +137,7 @@ var _ = Describe("Errors", func() {
 
 			Context("with unique constraint violation storage error", func() {
 				It("returns proper HTTPError", func() {
-					err := HandleStorageError(ErrAlreadyExistsInStorage, "entityName", "entityID")
+					err := util.HandleStorageError(util.ErrAlreadyExistsInStorage, "entityName", "entityID")
 
 					validateHTTPErrorOccured(err, http.StatusConflict)
 				})
@@ -144,7 +145,7 @@ var _ = Describe("Errors", func() {
 
 			Context("with not found in storage error", func() {
 				It("returns proper HTTPError", func() {
-					err := HandleStorageError(ErrNotFoundInStorage, "entityName", "entityID")
+					err := util.HandleStorageError(util.ErrNotFoundInStorage, "entityName", "entityID")
 
 					validateHTTPErrorOccured(err, http.StatusNotFound)
 				})
@@ -153,7 +154,7 @@ var _ = Describe("Errors", func() {
 			Context("with unrecongized error", func() {
 				It("propagates it", func() {
 					e := errors.New("test error")
-					err := HandleStorageError(e, "entityName", "entityID")
+					err := util.HandleStorageError(e, "entityName", "entityID")
 
 					Expect(err.Error()).To(ContainSubstring(e.Error()))
 				})
@@ -161,9 +162,9 @@ var _ = Describe("Errors", func() {
 		})
 
 		Describe("HTTPError", func() {
-			var err *HTTPError
+			var err *util.HTTPError
 			BeforeEach(func() {
-				err = &HTTPError{
+				err = &util.HTTPError{
 					ErrorType:   "err",
 					Description: "err",
 					StatusCode:  http.StatusTeapot,

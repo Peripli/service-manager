@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package util
+package util_test
 
 import (
 	"fmt"
@@ -25,6 +25,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 
+	"github.com/Peripli/service-manager/pkg/util"
 	. "github.com/onsi/gomega"
 )
 
@@ -36,7 +37,7 @@ func TestUtil(t *testing.T) {
 func validateHTTPErrorOccured(err error, expectedStatusCode int) {
 	Expect(err).Should(HaveOccurred())
 
-	httpError, ok := err.(*HTTPError)
+	httpError, ok := err.(*util.HTTPError)
 	Expect(ok).To(BeTrue())
 
 	Expect(httpError.StatusCode).To(Equal(expectedStatusCode))
@@ -51,13 +52,13 @@ var _ = Describe("Utils test", func() {
 
 		assertHasReservedCharacters := func(input string) {
 			It("should return true", func() {
-				Expect(HasRFC3986ReservedSymbols(input)).To(Equal(true))
+				Expect(util.HasRFC3986ReservedSymbols(input)).To(Equal(true))
 			})
 		}
 
 		assertNoReservedCharacters := func(input string) {
 			It("should return false", func() {
-				Expect(HasRFC3986ReservedSymbols(input)).To(Equal(false))
+				Expect(util.HasRFC3986ReservedSymbols(input)).To(Equal(false))
 			})
 		}
 
@@ -97,7 +98,7 @@ var _ = Describe("Utils test", func() {
 			It("returns a proper HTTPError", func() {
 				req = httptest.NewRequest(http.MethodPost, "http://example.com", strings.NewReader(validJSON))
 				req.Header.Add("Content-Type", "application/xml")
-				_, err := RequestBodyToBytes(req)
+				_, err := util.RequestBodyToBytes(req)
 
 				validateHTTPErrorOccured(err, http.StatusUnsupportedMediaType)
 			})
@@ -107,7 +108,7 @@ var _ = Describe("Utils test", func() {
 			It("returns a proper HTTPError", func() {
 				req = httptest.NewRequest(http.MethodPost, "http://example.com", errorReader{})
 				req.Header.Add("Content-Type", "application/json")
-				_, err := RequestBodyToBytes(req)
+				_, err := util.RequestBodyToBytes(req)
 
 				Expect(err).Should(HaveOccurred())
 			})
@@ -117,7 +118,7 @@ var _ = Describe("Utils test", func() {
 			It("returns a proper HTTPError", func() {
 				req = httptest.NewRequest(http.MethodPost, "http://example.com", strings.NewReader(invalidJSON))
 				req.Header.Add("Content-Type", "application/json")
-				_, err := RequestBodyToBytes(req)
+				_, err := util.RequestBodyToBytes(req)
 
 				validateHTTPErrorOccured(err, http.StatusBadRequest)
 			})
@@ -127,7 +128,7 @@ var _ = Describe("Utils test", func() {
 			It("returns the []byte representation of the request body", func() {
 				req = httptest.NewRequest(http.MethodPost, "http://example.com", strings.NewReader(validJSON))
 				req.Header.Add("Content-Type", "application/json")
-				bytes, err := RequestBodyToBytes(req)
+				bytes, err := util.RequestBodyToBytes(req)
 
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(string(bytes)).To(Equal(validJSON))
@@ -154,7 +155,7 @@ var _ = Describe("Utils test", func() {
 
 		Context("when JSON unmarshaling fails", func() {
 			It("returns a proper HTTPError", func() {
-				err := BytesToObject([]byte(randomJSON), &testTypeValidation)
+				err := util.BytesToObject([]byte(randomJSON), &testTypeValidation)
 
 				validateHTTPErrorOccured(err, http.StatusBadRequest)
 			})
@@ -162,7 +163,7 @@ var _ = Describe("Utils test", func() {
 
 		Context("when input validation fails", func() {
 			It("returns a proper HTTPError", func() {
-				err := BytesToObject([]byte(testTypeNotValid), &testTypeValidation)
+				err := util.BytesToObject([]byte(testTypeNotValid), &testTypeValidation)
 
 				validateHTTPErrorOccured(err, http.StatusBadRequest)
 			})
@@ -170,7 +171,7 @@ var _ = Describe("Utils test", func() {
 
 		Context("when value is not InputValidator", func() {
 			It("returns nil", func() {
-				err := BytesToObject([]byte(testTypeNotValid), &testTypeNoValidation)
+				err := util.BytesToObject([]byte(testTypeNotValid), &testTypeNoValidation)
 
 				Expect(err).ShouldNot(HaveOccurred())
 			})
@@ -178,7 +179,7 @@ var _ = Describe("Utils test", func() {
 
 		Context("when unmarshaling and validation succeed", func() {
 			It("returns nil", func() {
-				err := BytesToObject([]byte(testTypeValid), &testTypeValidation)
+				err := util.BytesToObject([]byte(testTypeValid), &testTypeValidation)
 
 				Expect(err).ShouldNot(HaveOccurred())
 			})
@@ -196,7 +197,7 @@ var _ = Describe("Utils test", func() {
 			}
 			recorder := httptest.NewRecorder()
 
-			err := WriteJSON(recorder, expectedCode, testValue)
+			err := util.WriteJSON(recorder, expectedCode, testValue)
 
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(recorder.Code).To(Equal(expectedCode))
@@ -215,7 +216,7 @@ var _ = Describe("Utils test", func() {
 				Field1: "Value1",
 				Field2: "Value2",
 			}
-			response, err := NewJSONResponse(expectedCode, testValue)
+			response, err := util.NewJSONResponse(expectedCode, testValue)
 
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(expectedCode))

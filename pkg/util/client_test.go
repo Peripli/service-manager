@@ -14,13 +14,14 @@
  *    limitations under the License.
  */
 
-package util
+package util_test
 
 import (
 	"net/http"
 
 	"fmt"
 
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -28,7 +29,7 @@ import (
 
 var _ = Describe("Client Utils", func() {
 	var (
-		requestFunc  doRequestFunc
+		requestFunc  func(*http.Request) (*http.Response, error)
 		reaction     *common.HTTPReaction
 		expectations *common.HTTPExpectations
 	)
@@ -45,7 +46,7 @@ var _ = Describe("Client Utils", func() {
 				body := testTypeErrorMarshaling{
 					Field: "Value",
 				}
-				_, err := SendRequest(requestFunc, "GET", "http://example.com", map[string]string{}, body)
+				_, err := util.SendRequest(requestFunc, "GET", "http://example.com", map[string]string{}, body)
 
 				Expect(err).Should(HaveOccurred())
 			})
@@ -54,7 +55,7 @@ var _ = Describe("Client Utils", func() {
 
 		Context("when method is invalid", func() {
 			It("returns an error", func() {
-				_, err := SendRequest(requestFunc, "?+?.>", "http://example.com", map[string]string{}, nil)
+				_, err := util.SendRequest(requestFunc, "?+?.>", "http://example.com", map[string]string{}, nil)
 
 				Expect(err).Should(HaveOccurred())
 			})
@@ -76,7 +77,7 @@ var _ = Describe("Client Utils", func() {
 				reaction.Err = nil
 				reaction.Status = http.StatusOK
 
-				resp, err := SendRequest(requestFunc, "POST", "http://example.com", params, body)
+				resp, err := util.SendRequest(requestFunc, "POST", "http://example.com", params, body)
 
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(resp.StatusCode).To(Equal(http.StatusOK))
@@ -93,14 +94,14 @@ var _ = Describe("Client Utils", func() {
 			reaction.Status = http.StatusOK
 			reaction.Body = `{"field":"value"}`
 
-			resp, err = SendRequest(requestFunc, "POST", "http://example.com", map[string]string{}, nil)
+			resp, err = util.SendRequest(requestFunc, "POST", "http://example.com", map[string]string{}, nil)
 			Expect(err).ShouldNot(HaveOccurred())
 		})
 
 		Context("when unmarshaling fails", func() {
 			It("returns an error", func() {
 				var val testType
-				err = BodyToObject(resp.Body, val)
+				err = util.BodyToObject(resp.Body, val)
 
 				Expect(err).Should(HaveOccurred())
 			})
@@ -108,7 +109,7 @@ var _ = Describe("Client Utils", func() {
 
 		It("reads the client response content", func() {
 			var val testType
-			err = BodyToObject(resp.Body, &val)
+			err = util.BodyToObject(resp.Body, &val)
 
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(val.Field).To(Equal("value"))

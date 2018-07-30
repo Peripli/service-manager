@@ -62,6 +62,7 @@ type Environment interface {
 	BindPFlag(key string, flag *pflag.Flag) error
 }
 
+// ViperEnv represents an implementation of the Environment interface that uses viper
 type ViperEnv struct {
 	*viper.Viper
 }
