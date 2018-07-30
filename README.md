@@ -20,8 +20,8 @@ Currently the Service Manager can be run on CF or on Kubernetes.
 
 For more information see:
 
-* [Run to CF](deployment/cf/README.md)
-* [Run to Kubernetes](deployment/k8s/README.md)
+* [Run on CF](deployment/cf/README.md)
+* [Run on Kubernetes](deployment/k8s/README.md)
 
 As a result of this step you will get a url address of the running Service Manager component.
 
