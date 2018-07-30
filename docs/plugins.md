@@ -1,77 +1,111 @@
-# Plugins and Filters
+# Filters and Plugins
+
+The main extension points of the service manager are filters, plugins and controllers. The
+interfaces that need to be implement in order to provide an extension point can be found
+the `pkg/web` package.
+
 
 ## Filters
-Filters provide means to intercept any HTTP request to Service Manager.
+
+Filters provide means to intercept any HTTP request to the Service Manager. It allows adding
+custom logic before the request reaches the actual handler (HTTP Endpoint logic) and also
+before it returns the response. Filters can either propagate a request to the next filter
+in the chain or stop the request and write their own response
+
 Service Manager HTTP endpoints are described in the [API Specification](https://github.com/Peripli/specification/blob/master/api.md).
 
 There are several types one has to know about. They can be found [here](pkg/web/types.go)
 
-### Example: Request logging filter
+### Example: Request Logging Filter
 
 ```go
-...
+package myfilter
 
-func requestLogging(req *web.Request, next web.Handler) (*web.Response, error) {
-    res, err := next(req)
-    if err != nil {
-        fmt.Printf("%s request to URL %s completed with error %s",
-            req.Method, req.URL, err)
-    } else {
-        fmt.Printf("%s request to URL %s completed with status %d",
-            req.Method, req.URL, res.StatusCode)
-    }
-    return res, err
+import "github.com/Peripli/service-manager/pkg/web"
+
+// Filter implements web.Filter (a Named Middleware that matches (runs on)
+// certain conditions called FilterMatchers)
+type Filter struct{}
+
+// Name implements web.Named
+func (f *Filter) Name() string { return "FilterName" }
+
+// Run implements web.Middleware
+func (f *Filter) Run(next web.Handler) web.Handler {
+	return web.HandlerFunc(func(r *web.Request) (*web.Response, error) {
+		// pre processing logic
+		fmt.Printf("request with method %s to URL %s\n", r.Method, r.URL)
+
+		// call next filter in chain
+		resp, err := next.Handle(r)
+
+		// add post processing logic
+		fmt.Printf("response with status code %d and error %v\n", resp.StatusCode, err)
+
+		return resp, err
+	})
 }
 
-func main() {
-    ctx, cancel := context.WithCancel(context.Background())
-    defer cancel()
-    sm := servicemanager.New(ctx, cancel)
-    sm.RegisterFilter(&web.Filter{
-        RouterMatcher: &web.RouterMatcher{
-            // Will match any HTTP request
-            PathPattern: "**",
+// FilterMatchers that specify when the filter should run. Each
+// FilterMatcher consists of Matchers that represent one endpoint ("place")
+// where the filter should run.
+// For example the following matches GET requests on /v1/platforms/** and
+// all requests on /v1/service_brokers/**
+func (f *Filter) FilterMatchers() []web.FilterMatcher {
+	return []web.FilterMatcher{
+		{
+			// Matches all GET requests on /v1/platforms/**
+			Matchers: []web.Matcher{
+				web.Path("/v1/platforms/**"),
+				web.Method("GET),
+			},
+		},
+		{
+        	// Matches all requests on /v1/service_brokers/**
+        	Matchers: []web.Matcher{
+        	    web.Path("/v1/service_brokers/**"),
+        	},
         },
-        Middleware: requestLogging,
-    })
-    sm.Run()
+	}
 }
-...
 ```
 
 ## Plugins
+
 Plugins provide means to intercept different OSB calls (provision, deprovision, bind, etc.).
 It can modify both the request before it reaches the broker and the response before being sent to the client.
 
 There are several interfaces that the plugin can implement for different OSB API operations.
-They can be found [here](pkg/plugin/plugin.go).
+They can be found `pkg/web/plugin.go`.
 For each OSB operation intercepted by the plugin, Service Manager creates a new filter for the respective HTTP endpoint.
 
-There are several types one has to know about. They can be found [here](pkg/web/types.go)
 
 ### Example: Catalog modification plugin
 
 For example a plugin that modifies the catalog can be written as follows:
 
 ```go
-package mypackage
+package myplugin
 
 import (
     "github.com/tidwall/sjson"
+    "github.com/Peripli/service-manager/pkg/web"
 )
 
 type MyPlugin struct {}
 
 func (p *MyPlugin) Name() string { return "MyPlugin" }
 
-func (p *MyPlugin) FetchCatalog(req *web.Request, next web.Handler) (*web.Response, error) {
-    res, err := next(req)
-    if err != nil {
-        return nil, err
+func (p *MyPlugin) FetchCatalog(next web.Handler) web.Handler {
+    return web.HandlerFunc(req *web.Request)(*web.Response, error) {
+        res, err := next.Handle(req)
+        if err != nil {
+            return nil, err
+        }
+        serviceName := gjson.GetBytes(res.Body, "services.0.name").String()
+        res.Body, err = sjson.SetBytes(res.Body, "services.0.name", serviceName + "-suffix")
+        return res, err
     }
-    serviceName := gjson.GetBytes(res.Body, "services.0.name").String()
-    res.Body, err = sjson.SetBytes(res.Body, "services.0.name", serviceName + "-suffix")
-    return res, err
 }
 ```
 
@@ -81,32 +115,36 @@ This plugin will implement another interface on the plugin from the previous sec
 It will modify the response status code for provision operation.
 
 ```go
-package mypackage
-
-func (p *MyPlugin) Provision(req *web.Request, next web.Handler) (*web.Response, error) {
-    if !checkCredentials(req) {
-        return &web.Response{
-            StatusCode: 401 // Unauthorized
-        }, nil
+func (p *MyPlugin) Provision(next web.Handler) web.Handler {
+    return web.HandlerFunc(req *web.Request)(*web.Response, error) {
+        if !checkCredentials(req) {
+            return &web.Response{
+                StatusCode: 401 // Unauthorized
+            }, nil
+        }
+        return next.Handle(req)
     }
-
-    return next(req)
 }
 ```
 
-### Register a plugin
+## Registering Extensions
 
 In order to add this plugin to the Service Manager one has to do the following:
 
 ```go
 ...
-
 func main() {
     ctx, cancel := context.WithCancel(context.Background())
-    defer cancel()
-    sm := servicemanager.New(ctx, cancel)
-    sm.RegisterPlugin(&mypackage.MyPlugin{})
-    sm.Run()
+   	defer cancel()
+
+   	env := sm.DefaultEnv()
+   	serviceManager := sm.New(ctx, cancel, env)
+
+    serviceManager.RegisterPlugins(myplugin.MyPlugin{})
+    serviceManager.RegisterFilters(myfilter.MyFilter{})
+
+   	sm := serviceManager.Build()
+   	sm.Run()
 }
 
 ...
@@ -120,6 +158,7 @@ Request and response work with plain byte arrays (usually JSON). That's why it i
 
 * For JSON modification (as in the [catalog plugin](#catalog-modification-plugin)) use this library https://github.com/tidwall/sjson
 * To extract some value from JSON use https://github.com/tidwall/gjson
+
 * **NOTE:** Be aware that JSON request and response may contain non-standard properties.
 So when modifying the JSON body make sure to preserve them.
 For example avoid marshalling from fixed structures.
@@ -132,11 +171,12 @@ For example avoid marshalling from fixed structures.
 
 ### Chaining
 
-As part of execution of filter/plugin code call the `next(req)` function, this will forward control to the next filter/plugin in the chain.
-In case filter/plugin logic requires to stop the chain and exit, just omit the call to `next(req)` function.
+As part of execution of filter/plugin code call the `next.Handle(req)` function, this will forward control to the next filter/plugin in the chain.
+In case filter/plugin logic requires to stop the chain and exit, just omit the call to `next.Handle(req)` function.
 
 ### Error handling
 
 In case of error, return `nil` response and an error object.
-Use `web.NewHTTPError` function to send error information and status code to the HTTP client.
+Use `util.HTTPError` function to send error information and status code to the HTTP client.
+Use the `pkg/util` package for different utility methods for processing and creating requests, responses and errors.
 All other errors will result in status 500 (Internal Server Error) being returned to the client.
