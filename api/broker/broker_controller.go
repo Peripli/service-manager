@@ -136,6 +136,8 @@ func (c *Controller) patchBroker(request *web.Request) (*web.Response, error) {
 		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
 
+	createdAt := broker.CreatedAt
+
 	if err := util.BytesToObject(request.Body, broker); err != nil {
 		return nil, err
 	}
@@ -147,7 +149,7 @@ func (c *Controller) patchBroker(request *web.Request) (*web.Response, error) {
 
 	broker.ID = brokerID
 	broker.Catalog = catalog
-	broker.CreatedAt = time.Time{}
+	broker.CreatedAt = createdAt
 	broker.UpdatedAt = time.Now().UTC()
 
 	if err := c.BrokerStorage.Update(broker); err != nil {

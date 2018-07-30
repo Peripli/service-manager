@@ -127,12 +127,14 @@ func (c *Controller) patchPlatform(request *web.Request) (*web.Response, error) 
 		return nil, util.HandleStorageError(err, "platform", platformID)
 	}
 
+	createdAt := platform.CreatedAt
+
 	if err := util.BytesToObject(request.Body, platform); err != nil {
 		return nil, err
 	}
 
 	platform.ID = platformID
-	platform.CreatedAt = time.Time{}
+	platform.CreatedAt = createdAt
 	platform.UpdatedAt = time.Now().UTC()
 
 	if err := c.PlatformStorage.Update(platform); err != nil {
