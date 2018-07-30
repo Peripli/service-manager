@@ -22,6 +22,8 @@ import (
 	"net/http"
 )
 
+// AuthenticationDecision represents a Authenticator decision to allow or deny authentication or to abstain from
+// taking a decision
 type AuthenticationDecision int
 
 var decisions = []string{"Allow", "Deny", "Abstain"}
@@ -37,6 +39,7 @@ const (
 	Abstain
 )
 
+// String implements Stringer and converts the decision to human-readable value
 func (a AuthenticationDecision) String() string {
 	return decisions[a]
 }
