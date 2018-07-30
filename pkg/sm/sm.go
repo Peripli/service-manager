@@ -72,14 +72,14 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	// setup logging
 	log.SetupLogging(cfg.Log)
 
-	// setup storage
-	storage, err := storage.Use(ctx, postgres.Storage, cfg.Storage.URI)
+	// setup smStorage
+	smStorage, err := storage.Use(ctx, postgres.Storage, cfg.Storage.URI)
 	if err != nil {
-		panic(fmt.Sprintf("error using storage: %s", err))
+		panic(fmt.Sprintf("error using smStorage: %s", err))
 	}
 
 	// setup core API
-	API, err := api.New(ctx, storage, cfg.API)
+	API, err := api.New(ctx, smStorage, cfg.API)
 	if err != nil {
 		panic(fmt.Sprintf("error creating core API: %s", err))
 	}
@@ -102,7 +102,7 @@ func (sm *ServiceManager) Run() {
 	sm.Server.Run(sm.ctx)
 }
 
-// ServiceManagerBuilder type is an extention point that allows adding additional filters, plugins and
+// ServiceManagerBuilder type is an extension point that allows adding additional filters, plugins and
 // controllers before running ServiceManager.
 type ServiceManagerBuilder struct {
 	ctx    context.Context

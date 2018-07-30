@@ -26,6 +26,8 @@ import (
 
 	"strings"
 
+	"fmt"
+
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -55,13 +57,12 @@ func (c *Controller) createBroker(request *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	uuid, err := uuid.NewV4()
+	UUID, err := uuid.NewV4()
 	if err != nil {
-		logrus.Error("Could not generate GUID")
-		return nil, err
+		return nil, fmt.Errorf("could not generate GUID for broker: %s", err)
 	}
 
-	broker.ID = uuid.String()
+	broker.ID = UUID.String()
 
 	currentTime := time.Now().UTC()
 	broker.CreatedAt = currentTime
@@ -73,10 +74,8 @@ func (c *Controller) createBroker(request *web.Request) (*web.Response, error) {
 	}
 	broker.Catalog = catalog
 
-	err = c.BrokerStorage.Create(broker)
-	err = storage.HandleUniqueError(err, "broker")
-	if err != nil {
-		return nil, err
+	if err := c.BrokerStorage.Create(broker); err != nil {
+		return nil, util.HandleStorageError(err, "broker", broker.ID)
 	}
 
 	broker.Credentials = nil
@@ -89,9 +88,8 @@ func (c *Controller) getBroker(request *web.Request) (*web.Response, error) {
 	logrus.Debugf("Getting broker with id %s", brokerID)
 
 	broker, err := c.BrokerStorage.Get(brokerID)
-	err = storage.HandleNotFoundError(err, "broker", brokerID)
 	if err != nil {
-		return nil, err
+		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
 
 	broker.Credentials = nil
@@ -121,10 +119,8 @@ func (c *Controller) deleteBroker(request *web.Request) (*web.Response, error) {
 	brokerID := request.PathParams[reqBrokerID]
 	logrus.Debugf("Deleting broker with id %s", brokerID)
 
-	err := c.BrokerStorage.Delete(brokerID)
-	err = storage.HandleNotFoundError(err, "broker", brokerID)
-	if err != nil {
-		return nil, err
+	if err := c.BrokerStorage.Delete(brokerID); err != nil {
+		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
 	return util.NewJSONResponse(http.StatusOK, map[string]int{})
 }
@@ -134,9 +130,8 @@ func (c *Controller) patchBroker(request *web.Request) (*web.Response, error) {
 	logrus.Debugf("Updating updateBroker with id %s", brokerID)
 
 	broker, err := c.BrokerStorage.Get(brokerID)
-	err = storage.HandleNotFoundError(err, "broker", brokerID)
 	if err != nil {
-		return nil, err
+		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
 
 	if err := util.BytesToObject(request.Body, broker); err != nil {
@@ -152,13 +147,8 @@ func (c *Controller) patchBroker(request *web.Request) (*web.Response, error) {
 	broker.Catalog = catalog
 	broker.UpdatedAt = time.Now().UTC()
 
-	err = c.BrokerStorage.Update(broker)
-	err = storage.CheckErrors(
-		storage.HandleNotFoundError(err, "broker", brokerID),
-		storage.HandleUniqueError(err, "broker"),
-	)
-	if err != nil {
-		return nil, err
+	if err := c.BrokerStorage.Update(broker); err != nil {
+		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
 
 	broker.Credentials = nil

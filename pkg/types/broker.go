@@ -26,7 +26,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
-// Brokers struct
+// rokers struct
 type Brokers struct {
 	Brokers []Broker `json:"brokers"`
 }

@@ -19,14 +19,14 @@ package oidc
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 
+	"fmt"
+
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/security"
 	"github.com/coreos/go-oidc"
 	"github.com/sirupsen/logrus"
@@ -67,9 +67,59 @@ type Authenticator struct {
 // NewAuthenticator returns a new OpenID authenticator or an error if one couldn't be configured
 func NewAuthenticator(ctx context.Context, options Options) (*Authenticator, error) {
 	if options.IssuerURL == "" || options.ClientID == "" {
-		logrus.Warn("Missing configuration for oidc authenticator")
+		logrus.Warn("Missing config for OIDC authenticator")
 		return nil, errors.New("missing config for OIDC Authenticator")
 	}
+	resp, err := getOpenIDConfig(ctx, options)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, util.HandleResponseError(resp)
+	}
+
+	var p providerJSON
+	if err = util.BodyToObject(resp.Body, &p); err != nil {
+		return nil, fmt.Errorf("error decoding body of response with status %s: %s", resp.Status, err.Error())
+	}
+
+	keySet := oidc.NewRemoteKeySet(ctx, p.JWKSURL)
+	cfg := &oidc.Config{
+		ClientID: options.ClientID,
+	}
+	return &Authenticator{Verifier: &oidcVerifier{
+		IDTokenVerifier: oidc.NewVerifier(p.Issuer, keySet, cfg),
+	}}, nil
+}
+
+// Authenticate returns information about the user by obtaining it from the bearer token, or an error if security is unsuccessful
+func (a *Authenticator) Authenticate(request *http.Request) (*security.User, security.AuthenticationDecision, error) {
+	authorizationHeader := request.Header.Get("Authorization")
+	if authorizationHeader == "" || !strings.HasPrefix(strings.ToLower(authorizationHeader), "bearer") {
+		return nil, security.Abstain, nil
+	}
+	if a.Verifier == nil {
+		return nil, security.Abstain, errors.New("authenticator is not configured")
+	}
+	token := strings.TrimPrefix(authorizationHeader, "Bearer ")
+	if token == "" {
+		return nil, security.Deny, nil
+	}
+	idToken, err := a.Verifier.Verify(request.Context(), token)
+	if err != nil {
+		return nil, security.Deny, err
+	}
+	claims := &claims{}
+	if err := idToken.Claims(claims); err != nil {
+		return nil, security.Deny, err
+	}
+	return &security.User{
+		Name: claims.Username,
+	}, security.Allow, nil
+}
+
+func getOpenIDConfig(ctx context.Context, options Options) (*http.Response, error) {
 	// Work around for UAA until https://github.com/cloudfoundry/uaa/issues/805 is fixed
 	// Then oidc.NewProvider(ctx, options.IssuerURL) should be used
 	if _, err := url.ParseRequestURI(options.IssuerURL); err != nil {
@@ -92,57 +142,5 @@ func NewAuthenticator(ctx context.Context, options Options) (*Authenticator, err
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			logrus.Errorf("OpenID configuration response body couldn't be closed", err)
-		}
-	}()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("Unable to read response body: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Unexpected status code %s: %s", resp.Status, body)
-	}
-
-	var p providerJSON
-	err = json.Unmarshal(body, &p)
-	if err != nil {
-		return nil, err
-	}
-
-	keySet := oidc.NewRemoteKeySet(ctx, p.JWKSURL)
-	cfg := &oidc.Config{
-		ClientID: options.ClientID,
-	}
-	return &Authenticator{Verifier: &oidcVerifier{
-		IDTokenVerifier: oidc.NewVerifier(p.Issuer, keySet, cfg),
-	}}, nil
-}
-
-// Authenticate returns information about the user by obtaining it from the bearer token, or an error if security is unsuccessful
-func (a *Authenticator) Authenticate(request *http.Request) (*security.User, bool, error) {
-	authorizationHeader := request.Header.Get("Authorization")
-	if authorizationHeader == "" {
-		return nil, false, nil
-	}
-	if a.Verifier == nil {
-		return nil, true, errors.New("Authenticator is not configured")
-	}
-	token := strings.TrimPrefix(authorizationHeader, "Bearer ")
-	if token == "" {
-		return nil, true, errors.New("Token is required in authorization header")
-	}
-	idToken, err := a.Verifier.Verify(request.Context(), token)
-	if err != nil {
-		return nil, true, err
-	}
-	claims := &claims{}
-	if err := idToken.Claims(claims); err != nil {
-		return nil, true, err
-	}
-	return &security.User{
-		Name: claims.Username,
-	}, true, nil
+	return resp, err
 }

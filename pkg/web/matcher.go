@@ -25,14 +25,14 @@ import (
 var (
 	errEmptyPathPattern   = errors.New("empty path pattern not allowed")
 	errInvalidPathPattern = errors.New("invalid path pattern")
-	errEmptyHttpMethods   = errors.New("empty http methods not allowed")
+	errEmptyHTTPMethods   = errors.New("empty http methods not allowed")
 )
 
 // Methods returns a Matcher that matches to routes that contain any of the specified methods
 func Methods(methods ...string) Matcher {
 	return MatcherFunc(func(endpoint Endpoint) (bool, error) {
 		if len(methods) == 0 {
-			return false, errEmptyHttpMethods
+			return false, errEmptyHTTPMethods
 		}
 		method := endpoint.Method
 		return matchInArray(methods, method), nil

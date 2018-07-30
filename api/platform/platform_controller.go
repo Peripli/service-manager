@@ -47,12 +47,12 @@ func (c *Controller) createPlatform(request *web.Request) (*web.Response, error)
 	}
 
 	if platform.ID == "" {
-		uuid, err := uuid.NewV4()
+		UUID, err := uuid.NewV4()
 		if err != nil {
 			logrus.Error("Could not generate GUID")
 			return nil, err
 		}
-		platform.ID = uuid.String()
+		platform.ID = UUID.String()
 	}
 	currentTime := time.Now().UTC()
 	platform.CreatedAt = currentTime
@@ -65,9 +65,8 @@ func (c *Controller) createPlatform(request *web.Request) (*web.Response, error)
 	}
 	platform.Credentials = credentials
 
-	err = storage.HandleUniqueError(c.PlatformStorage.Create(platform), "platform")
-	if err != nil {
-		return nil, err
+	if err := c.PlatformStorage.Create(platform); err != nil {
+		return nil, util.HandleStorageError(err, "platform", platform.ID)
 	}
 
 	return util.NewJSONResponse(http.StatusCreated, platform)
@@ -79,7 +78,7 @@ func (c *Controller) getPlatform(request *web.Request) (*web.Response, error) {
 	logrus.Debugf("Getting platform with id %s", platformID)
 
 	platform, err := c.PlatformStorage.Get(platformID)
-	if err = storage.HandleNotFoundError(err, "platform", platformID); err != nil {
+	if err = util.HandleStorageError(err, "platform", platformID); err != nil {
 		return nil, err
 	}
 	return util.NewJSONResponse(http.StatusOK, platform)
@@ -102,10 +101,10 @@ func (c *Controller) deletePlatform(request *web.Request) (*web.Response, error)
 	platformID := request.PathParams[reqPlatformID]
 	logrus.Debugf("Deleting platform with id %s", platformID)
 
-	err := c.PlatformStorage.Delete(platformID)
-	if err = storage.HandleNotFoundError(err, "platform", platformID); err != nil {
-		return nil, err
+	if err := c.PlatformStorage.Delete(platformID); err != nil {
+		return nil, util.HandleStorageError(err, "platform", platformID)
 	}
+
 	// map[string]string{} will result in empty JSON
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
 }
@@ -116,9 +115,8 @@ func (c *Controller) patchPlatform(request *web.Request) (*web.Response, error) 
 	logrus.Debugf("Updating platform with id %s", platformID)
 
 	platform, err := c.PlatformStorage.Get(platformID)
-	err = storage.HandleNotFoundError(err, "platform", platformID)
 	if err != nil {
-		return nil, err
+		return nil, util.HandleStorageError(err, "platform", platformID)
 	}
 
 	if err := util.BytesToObject(request.Body, platform); err != nil {
@@ -128,11 +126,10 @@ func (c *Controller) patchPlatform(request *web.Request) (*web.Response, error) 
 	platform.ID = platformID
 	platform.UpdatedAt = time.Now().UTC()
 
-	err = c.PlatformStorage.Update(platform)
-	err = storage.CheckErrors(
-		storage.HandleNotFoundError(err, "platform", platformID),
-		storage.HandleUniqueError(err, "platform"),
-	)
+	if err := c.PlatformStorage.Update(platform); err != nil {
+		return nil, util.HandleStorageError(err, "platform", platformID)
+	}
+
 	if err != nil {
 		return nil, err
 	}

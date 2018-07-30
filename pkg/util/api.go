@@ -78,11 +78,11 @@ func RequestBodyToBytes(request *http.Request) ([]byte, error) {
 }
 
 // BytesToObject converts the provided bytes to object and validates it
-func BytesToObject(body []byte, value interface{}) error {
-	if err := unmarshal(body, value); err != nil {
+func BytesToObject(bytes []byte, object interface{}) error {
+	if err := unmarshal(bytes, object); err != nil {
 		return err
 	}
-	if err := validate(value); err != nil {
+	if err := validate(object); err != nil {
 		return err
 	}
 

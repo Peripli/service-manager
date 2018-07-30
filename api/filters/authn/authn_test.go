@@ -24,6 +24,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/pkg/web/webfakes"
 	"github.com/Peripli/service-manager/security"
@@ -37,95 +38,229 @@ func TestHandler(t *testing.T) {
 	RunSpecs(t, "Authn Suite")
 }
 
+type testStructure struct {
+	authnResp                *security.User
+	authnDecision            security.AuthenticationDecision
+	authnErr                 error
+	request                  *web.Request
+	actualHandlerInvokations int
+	expectedErr              error
+	expectedResp             *web.Response
+}
+
 var _ = Describe("Authn", func() {
+	var (
+		fakeAuthenticator   *securityfakes.FakeAuthenticator
+		fakeHandler         *webfakes.FakeHandler
+		expectedWebResponse *web.Response
+		authnError          error
+	)
 
-	Describe("Middleware", func() {
-		Describe("Run", func() {
-			Context("With authentication propagated to next handler", func() {
-				It("Should invoke next handler", func() {
-					fakeAuthenticator := getFakeAuthenticator(nil, false, nil)
-					fakeHandler := getFakeHandler(nil, errors.New("expected"))
-					middleware := getMiddleware(fakeAuthenticator, "name")
-					fakeRequest := getWebRequest(httptest.NewRequest("GET", "/", strings.NewReader("")))
-					_, err := middleware.Run(fakeHandler).Handle(fakeRequest)
-					Expect(err).To(HaveOccurred())
-					Expect(err.Error()).To(Equal("expected"))
+	BeforeEach(func() {
+		fakeAuthenticator = &securityfakes.FakeAuthenticator{}
+		fakeHandler = &webfakes.FakeHandler{}
+		expectedWebResponse = &web.Response{
+			StatusCode: http.StatusOK,
+			Body:       []byte(`{}`),
+		}
+
+		authnError = errors.New("error")
+
+	})
+
+	validateMiddlewareBehavesCorrectly := func(middleware web.Middleware, t *testStructure) {
+		fakeAuthenticator.AuthenticateReturns(t.authnResp, t.authnDecision, t.authnErr)
+		fakeHandler.HandleReturns(expectedWebResponse, nil)
+		resp, err := middleware.Run(fakeHandler).Handle(t.request)
+
+		Expect(fakeHandler.HandleCallCount()).To(Equal(t.actualHandlerInvokations))
+
+		if t.expectedResp != nil {
+			Expect(resp).To(Equal(t.expectedResp))
+		} else {
+			Expect(resp).To(BeNil())
+		}
+
+		if t.expectedErr != nil {
+			Expect(err).To(Equal(t.expectedErr))
+
+		} else {
+			Expect(err).To(BeNil())
+		}
+	}
+
+	errUnauthorizedWithDescription := func(description string) error {
+		return &util.HTTPError{
+			ErrorType:   "Unauthorized",
+			Description: description,
+			StatusCode:  http.StatusUnauthorized,
+		}
+	}
+
+	reqWithContext := func(ctx context.Context) *web.Request {
+		httpReq := httptest.NewRequest("GET", "/", strings.NewReader("")).WithContext(ctx)
+		webReq := &web.Request{Request: httpReq}
+		return webReq
+	}
+
+	Describe("Authentication Middleware", func() {
+		validateAuthnMiddlewareBehavesCorrectly := func(t *testStructure) {
+			validateMiddlewareBehavesCorrectly(&Middleware{
+				authenticator: fakeAuthenticator,
+				name:          "name",
+			}, t)
+		}
+
+		Context("when user is already authenticated and present in context", func() {
+			It("invokes the next handler", func() {
+				validateAuthnMiddlewareBehavesCorrectly(&testStructure{
+					request:                  reqWithContext(context.WithValue(context.Background(), userKey, &security.User{Name: "username"})),
+					actualHandlerInvokations: 1,
+					expectedResp:             expectedWebResponse,
 				})
 			})
 
-			Context("With authentication already successfull", func() {
-				It("Should invoke next handler", func() {
-					fakeAuthenticator := getFakeAuthenticator(nil, true, nil)
-					fakeHandler := getFakeHandler(nil, errors.New("expected"))
-					middleware := getMiddleware(fakeAuthenticator, "name")
-					customContext := context.WithValue(context.Background(), UserKey, &security.User{Name: "username"})
-					httpRequest := httptest.NewRequest("GET", "/", strings.NewReader(""))
-					fakeRequest := getWebRequest(httpRequest.WithContext(customContext))
-					_, err := middleware.Run(fakeHandler).Handle(fakeRequest)
-					Expect(err).To(HaveOccurred())
-					Expect(err.Error()).To(Equal("expected"))
+		})
+
+		Context("when authenticator abstains from taking authentication decision", func() {
+			Context("and returns an error", func() {
+				It("propagates the same error", func() {
+					validateAuthnMiddlewareBehavesCorrectly(&testStructure{
+						authnErr:                 authnError,
+						authnDecision:            security.Abstain,
+						request:                  reqWithContext(context.Background()),
+						actualHandlerInvokations: 0,
+						expectedErr:              authnError,
+					})
 				})
 			})
 
-			Context("With authentication returning error", func() {
-				It("Should return the error", func() {
-					fakeAuthenticator := getFakeAuthenticator(nil, true, errors.New("expected"))
-					fakeHandler := getFakeHandler(nil, errors.New("must not happen"))
-					middleware := getMiddleware(fakeAuthenticator, "name")
-					fakeRequest := getWebRequest(httptest.NewRequest("GET", "/", strings.NewReader("")))
-					_, err := middleware.Run(fakeHandler).Handle(fakeRequest)
-					Expect(err).To(HaveOccurred())
-					Expect(err.Error()).To(Equal("authentication failed"))
+			Context("and returns no error", func() {
+				It("invokes the next handler", func() {
+					validateAuthnMiddlewareBehavesCorrectly(&testStructure{
+						authnErr:                 nil,
+						authnDecision:            security.Abstain,
+						request:                  reqWithContext(context.Background()),
+						actualHandlerInvokations: 1,
+						expectedResp:             expectedWebResponse,
+					})
+				})
+			})
+		})
+
+		Context("when authenticator allows authentication", func() {
+			Context("and returns an error", func() {
+				It("propagates the same error", func() {
+					validateAuthnMiddlewareBehavesCorrectly(&testStructure{
+						authnDecision:            security.Allow,
+						authnErr:                 authnError,
+						request:                  reqWithContext(context.Background()),
+						actualHandlerInvokations: 0,
+						expectedErr:              authnError,
+					})
 				})
 			})
 
-			Context("With authentication returning nil user", func() {
-				It("Should return the error", func() {
-					fakeAuthenticator := getFakeAuthenticator(nil, true, nil)
-					fakeHandler := getFakeHandler(nil, errors.New("must not happen"))
-					middleware := getMiddleware(fakeAuthenticator, "name")
-					fakeRequest := getWebRequest(httptest.NewRequest("GET", "/", strings.NewReader("")))
-					_, err := middleware.Run(fakeHandler).Handle(fakeRequest)
-					Expect(err).To(HaveOccurred())
-					Expect(err.Error()).To(Equal("authentication failed: username identity could not be established"))
+			Context("and returns no error", func() {
+				Context("and returns no user", func() {
+					It("returns a missing user info error", func() {
+						validateAuthnMiddlewareBehavesCorrectly(&testStructure{
+							authnErr:                 nil,
+							authnResp:                nil,
+							authnDecision:            security.Allow,
+							request:                  reqWithContext(context.Background()),
+							actualHandlerInvokations: 0,
+							expectedErr:              errUserNotFound,
+						})
+					})
+				})
+
+				Context("and returns a user", func() {
+					It("invokes the next handler and adds the user to the request context", func() {
+						testStruct := &testStructure{
+							authnResp: &security.User{
+								Name: "username",
+							},
+							authnDecision:            security.Allow,
+							authnErr:                 nil,
+							request:                  reqWithContext(context.Background()),
+							actualHandlerInvokations: 1,
+							expectedErr:              nil,
+							expectedResp:             expectedWebResponse,
+						}
+
+						validateAuthnMiddlewareBehavesCorrectly(testStruct)
+
+						_, ok := UserFromContext(testStruct.request.Context())
+						Expect(ok).To(BeTrue())
+					})
+				})
+			})
+		})
+
+		Context("when authenticator denies authentication", func() {
+			Context("and returns no error", func() {
+				It("returns a generic authorization denied HTTPError", func() {
+					validateAuthnMiddlewareBehavesCorrectly(&testStructure{
+						authnDecision:            security.Deny,
+						authnErr:                 nil,
+						request:                  reqWithContext(context.Background()),
+						expectedErr:              errUnauthorized,
+						actualHandlerInvokations: 0,
+					})
 				})
 			})
 
-			Context("With authentication success on current authenticator", func() {
-				It("Should invoke next handler", func() {
-					fakeAuthenticator := getFakeAuthenticator(&security.User{Name: "username"}, true, nil)
-					fakeHandler := getFakeHandler(nil, errors.New("expected"))
-					middleware := getMiddleware(fakeAuthenticator, "name")
-					fakeRequest := getWebRequest(httptest.NewRequest("GET", "/", strings.NewReader("")))
-					_, err := middleware.Run(fakeHandler).Handle(fakeRequest)
-					Expect(err).To(HaveOccurred())
-					Expect(err.Error()).To(Equal("expected"))
+			Context("and returns an error", func() {
+				It("returns an HTTPError containg the authentication error", func() {
+					validateAuthnMiddlewareBehavesCorrectly(&testStructure{
+						authnDecision:            security.Deny,
+						authnErr:                 authnError,
+						request:                  reqWithContext(context.Background()),
+						actualHandlerInvokations: 0,
+
+						expectedErr: errUnauthorizedWithDescription(authnError.Error()),
+					})
 				})
 			})
 		})
 	})
 
+	Describe("Authentication Required Middleware", func() {
+		var (
+			fakeHandler         *webfakes.FakeHandler
+			authnRequiredFilter *RequiredAuthnFilter
+		)
+
+		validateRequiredMiddlewareBehavesCorrectly := func(t *testStructure) {
+			validateMiddlewareBehavesCorrectly(web.MiddlewareFunc(authnRequiredFilter.Run), t)
+		}
+
+		BeforeEach(func() {
+			fakeHandler = &webfakes.FakeHandler{}
+			authnRequiredFilter = NewRequiredAuthnFilter()
+		})
+
+		Context("when user is in context", func() {
+			It("invokes next handler", func() {
+				validateRequiredMiddlewareBehavesCorrectly(&testStructure{
+					request:                  reqWithContext(context.WithValue(context.Background(), userKey, &security.User{Name: "username"})),
+					actualHandlerInvokations: 1,
+					expectedErr:              nil,
+					expectedResp:             expectedWebResponse,
+				})
+			})
+		})
+
+		Context("when user is missing from context", func() {
+			It("returns unauthorized error", func() {
+				validateRequiredMiddlewareBehavesCorrectly(&testStructure{
+					request:                  reqWithContext(context.Background()),
+					actualHandlerInvokations: 0,
+					expectedErr:              errUnauthorized,
+					expectedResp:             nil,
+				})
+			})
+		})
+	})
 })
-
-func getFakeAuthenticator(user *security.User, used bool, err error) *securityfakes.FakeAuthenticator {
-	fakeAuthenticator := &securityfakes.FakeAuthenticator{}
-	fakeAuthenticator.AuthenticateReturns(user, used, err)
-	return fakeAuthenticator
-}
-
-func getFakeHandler(resp *web.Response, err error) *webfakes.FakeHandler {
-	fakeHandler := &webfakes.FakeHandler{}
-	fakeHandler.HandleReturns(resp, err)
-	return fakeHandler
-}
-
-func getMiddleware(authenticator security.Authenticator, name string) *Middleware {
-	return &Middleware{
-		authenticator: authenticator,
-		name:          name,
-	}
-}
-
-func getWebRequest(req *http.Request) *web.Request {
-	return &web.Request{Request: req}
-}

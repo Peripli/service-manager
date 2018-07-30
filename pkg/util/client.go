@@ -32,6 +32,7 @@ type doRequestFunc func(request *http.Request) (*http.Response, error)
 // SendRequest sends a request to the specified client and the provided URL with the specified parameters and body.
 func SendRequest(doRequest doRequestFunc, method, url string, params map[string]string, body interface{}) (*http.Response, error) {
 	var bodyReader io.Reader
+
 	if body != nil {
 		bodyBytes, err := json.Marshal(body)
 		if err != nil {
@@ -56,7 +57,7 @@ func SendRequest(doRequest doRequestFunc, method, url string, params map[string]
 	return doRequest(request)
 }
 
-// BodyToObject of the request inside given struct
+// BodyToBytes of the request inside given struct
 func BodyToBytes(closer io.ReadCloser) ([]byte, error) {
 	defer func() {
 		if err := closer.Close(); err != nil {
@@ -72,10 +73,10 @@ func BodyToBytes(closer io.ReadCloser) ([]byte, error) {
 }
 
 // BodyToObject of the request inside given struct
-func BodyToObject(value interface{}, closer io.ReadCloser) error {
+func BodyToObject(closer io.ReadCloser, object interface{}) error {
 	body, err := BodyToBytes(closer)
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(body, value)
+	return BytesToObject(body, object)
 }

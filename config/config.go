@@ -59,7 +59,7 @@ func DefaultSettings() *Settings {
 		},
 		API: api.Settings{
 			TokenIssuerURL: "",
-			ClientID:       "",
+			ClientID:       "sm",
 		},
 	}
 	return config

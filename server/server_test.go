@@ -69,13 +69,13 @@ var _ = Describe("Server", func() {
 			})
 		})
 
-		Context("when controller has panicing filter", func() {
+		Context("when controller has panicing filter before delegating to next handler", func() {
 			It("should return 500", func() {
 				assertRecover("filter_fail_before=true")
 			})
 		})
 
-		Context("when controller has panicing filter", func() {
+		Context("when controller has panicing filter after delegating to next handler", func() {
 			It("should return 500", func() {
 				assertRecover("filter_fail_after=true")
 			})

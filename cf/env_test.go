@@ -25,7 +25,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/env"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/spf13/pflag"
 )
 
 const VCAP_SERVICES_VALUE = `{ "postgresql": [
@@ -80,7 +79,7 @@ var _ = Describe("CF Env", func() {
 		Expect(os.Setenv("VCAP_SERVICES", VCAP_SERVICES_VALUE)).ShouldNot(HaveOccurred())
 		Expect(os.Setenv("STORAGE_NAME", "smdb")).ShouldNot(HaveOccurred())
 
-		environment, err = env.New(pflag.CommandLine)
+		environment, err = env.New(env.EmptyFlagSet())
 		Expect(err).ShouldNot(HaveOccurred())
 	})
 

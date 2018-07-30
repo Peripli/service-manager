@@ -9,26 +9,26 @@ import (
 )
 
 type FakeAuthenticator struct {
-	AuthenticateStub        func(req *http.Request) (*security.User, bool, error)
+	AuthenticateStub        func(req *http.Request) (*security.User, security.AuthenticationDecision, error)
 	authenticateMutex       sync.RWMutex
 	authenticateArgsForCall []struct {
 		req *http.Request
 	}
 	authenticateReturns struct {
 		result1 *security.User
-		result2 bool
+		result2 security.AuthenticationDecision
 		result3 error
 	}
 	authenticateReturnsOnCall map[int]struct {
 		result1 *security.User
-		result2 bool
+		result2 security.AuthenticationDecision
 		result3 error
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeAuthenticator) Authenticate(req *http.Request) (*security.User, bool, error) {
+func (fake *FakeAuthenticator) Authenticate(req *http.Request) (*security.User, security.AuthenticationDecision, error) {
 	fake.authenticateMutex.Lock()
 	ret, specificReturn := fake.authenticateReturnsOnCall[len(fake.authenticateArgsForCall)]
 	fake.authenticateArgsForCall = append(fake.authenticateArgsForCall, struct {
@@ -57,27 +57,27 @@ func (fake *FakeAuthenticator) AuthenticateArgsForCall(i int) *http.Request {
 	return fake.authenticateArgsForCall[i].req
 }
 
-func (fake *FakeAuthenticator) AuthenticateReturns(result1 *security.User, result2 bool, result3 error) {
+func (fake *FakeAuthenticator) AuthenticateReturns(result1 *security.User, result2 security.AuthenticationDecision, result3 error) {
 	fake.AuthenticateStub = nil
 	fake.authenticateReturns = struct {
 		result1 *security.User
-		result2 bool
+		result2 security.AuthenticationDecision
 		result3 error
 	}{result1, result2, result3}
 }
 
-func (fake *FakeAuthenticator) AuthenticateReturnsOnCall(i int, result1 *security.User, result2 bool, result3 error) {
+func (fake *FakeAuthenticator) AuthenticateReturnsOnCall(i int, result1 *security.User, result2 security.AuthenticationDecision, result3 error) {
 	fake.AuthenticateStub = nil
 	if fake.authenticateReturnsOnCall == nil {
 		fake.authenticateReturnsOnCall = make(map[int]struct {
 			result1 *security.User
-			result2 bool
+			result2 security.AuthenticationDecision
 			result3 error
 		})
 	}
 	fake.authenticateReturnsOnCall[i] = struct {
 		result1 *security.User
-		result2 bool
+		result2 security.AuthenticationDecision
 		result3 error
 	}{result1, result2, result3}
 }

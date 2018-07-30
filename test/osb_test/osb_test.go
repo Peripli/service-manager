@@ -17,7 +17,6 @@ package osb_test
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"github.com/Peripli/service-manager/test/common"
 	"github.com/gavv/httpexpect"
 
@@ -45,7 +44,7 @@ func assertMissingBrokerError(req *httpexpect.Request) {
 	body := req.Expect().Status(http.StatusNotFound).JSON().Object()
 	body.ContainsKey("description").
 		Value("description").String().
-		Equal("could not find broker with id: missing_broker_id")
+		Equal("could not find broker with id missing_broker_id")
 }
 
 func getDummyService(idsToRemove ...string) *object {
@@ -61,14 +60,6 @@ func getDummyService(idsToRemove ...string) *object {
 	return result
 }
 
-type smreq func(path string, pathargs ...interface{}) *httpexpect.Request
-
-func assertRequiredIDError(resp *httpexpect.Object, expectedIDName string) {
-	resp.ContainsKey("description").
-		Value("description").String().
-		Equal(expectedIDName + " is required")
-}
-
 var _ = Describe("Service Manager OSB API", func() {
 	var (
 		ctx                        *common.TestContext
@@ -77,10 +68,8 @@ var _ = Describe("Service Manager OSB API", func() {
 
 	BeforeSuite(func() {
 		ctx = common.NewTestContext()
-		validBrokerServer := httptest.NewServer(common.NewValidBrokerRouter())
-		failingBrokerServer := httptest.NewServer(common.NewFailingBrokerRouter())
-		validBroker = ctx.RegisterBroker("broker1", validBrokerServer)
-		failingBroker = ctx.RegisterBroker("broker2", failingBrokerServer)
+		validBroker = ctx.RegisterBroker("broker1", common.SetupFakeServiceBrokerServer("broker1"))
+		failingBroker = ctx.RegisterBroker("broker2", common.SetupFakeFailingBrokerServer("broker2"))
 	})
 
 	AfterSuite(func() {

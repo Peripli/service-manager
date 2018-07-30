@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-// Package osb contains logic for building the Service Manager Broker Management API
+// Package broker contains logic for building the Service Manager Broker Management API
 package broker
 
 import (

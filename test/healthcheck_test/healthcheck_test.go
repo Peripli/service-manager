@@ -45,12 +45,14 @@ var _ = Describe("Healthcheck API", func() {
 
 	Describe("Get info handler", func() {
 		It("Returns correct response", func() {
-			responseObject := ctx.SM.GET(healthcheck.URL).
+			ctx.SM.GET(healthcheck.URL).
 				Expect().
-				Status(http.StatusOK).
-				JSON().Object()
-			responseObject.Value("status").String().Equal("UP")
-			responseObject.Value("storage").Object().Value("status").String().Equal("UP")
+				Status(http.StatusOK).JSON().Object().ContainsMap(map[string]interface{}{
+				"status": "UP",
+				"storage": map[string]interface{}{
+					"status": "UP",
+				},
+			})
 		})
 	})
 })

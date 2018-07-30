@@ -14,14 +14,16 @@
  *    limitations under the License.
  */
 
-package api
+package api_test
 
 import (
 	"context"
 	"testing"
 
+	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage/storagefakes"
+	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -46,12 +48,16 @@ var _ = Describe("API", func() {
 	})
 	Describe("New", func() {
 		It("returns no error if creation is successful", func() {
-			API, err = New(context.TODO(), mockedStorage, Settings{})
+			server := common.SetupFakeOAuthServer()
+			API, err = api.New(context.TODO(), mockedStorage, api.Settings{
+				TokenIssuerURL: server.URL,
+				ClientID:       "sm",
+			})
 			Expect(err).ShouldNot(HaveOccurred())
 		})
 
 		It("returns an error if creation fails", func() {
-			API, err = New(context.TODO(), mockedStorage, Settings{
+			API, err = api.New(context.TODO(), mockedStorage, api.Settings{
 				TokenIssuerURL: "http://invalidurl.com",
 				ClientID:       "invalidclient",
 			})

@@ -57,7 +57,7 @@ func New(config Settings, api *web.API) *Server {
 	}
 }
 
-// ChainMatching starts the server awaiting for incoming requests
+// Run starts the server awaiting for incoming requests
 func (s *Server) Run(ctx context.Context) {
 	handler := &http.Server{
 		Handler:      s.Router,
@@ -73,8 +73,7 @@ func registerControllers(API *web.API, router *mux.Router) {
 		for _, route := range ctrl.Routes() {
 			logrus.Debugf("Registering endpoint: %s %s", route.Endpoint.Method, route.Endpoint.Path)
 			handler := web.Filters(API.Filters).ChainMatching(route)
-			r := router.Handle(route.Endpoint.Path, api.NewHTTPHandler(handler))
-			r.Methods(route.Endpoint.Method)
+			router.Handle(route.Endpoint.Path, api.NewHTTPHandler(handler)).Methods(route.Endpoint.Method)
 		}
 	}
 }

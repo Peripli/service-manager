@@ -8,12 +8,15 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
-type basicAuthnFilter struct {
+// BasicAuthnFilter performs Basic authentication by validating the Authorization header
+type BasicAuthnFilter struct {
 	Middleware
 }
 
-func NewBasicAuthnFilter(storage storage.Credentials) *basicAuthnFilter {
-	return &basicAuthnFilter{
+// NewBasicAuthnFilter returns a BasicAuthnFilter using the provided credentials storage
+// in order to validate the credentials
+func NewBasicAuthnFilter(storage storage.Credentials) *BasicAuthnFilter {
+	return &BasicAuthnFilter{
 		Middleware: Middleware{
 			authenticator: basic.NewAuthenticator(storage),
 			name:          "BasicAuthenticationFilter",
@@ -21,11 +24,13 @@ func NewBasicAuthnFilter(storage storage.Credentials) *basicAuthnFilter {
 	}
 }
 
-func (ba *basicAuthnFilter) Name() string {
+// Name implements the web.Filter interface and returns the identifier of the filter
+func (ba *BasicAuthnFilter) Name() string {
 	return "BasicAuthenticationFilter"
 }
 
-func (ba *basicAuthnFilter) FilterMatchers() []web.FilterMatcher {
+// FilterMatchers implements the web.Filter interface and returns the conditions on which the filter should be executed
+func (ba *BasicAuthnFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{

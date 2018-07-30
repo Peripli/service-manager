@@ -6,9 +6,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type RecoveryMiddleware struct {
-}
-
+// NewRecoveryMiddleware returns a standard mux middleware that provides panic recovery
 func NewRecoveryMiddleware() mux.MiddlewareFunc {
 	return handlers.RecoveryHandler(
 		handlers.PrintRecoveryStack(true),

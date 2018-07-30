@@ -38,10 +38,12 @@ func NewHTTPHandler(handler web.Handler) *HTTPHandler {
 	}
 }
 
+// Handle implements the web.Handler interface
 func (h *HTTPHandler) Handle(req *web.Request) (resp *web.Response, err error) {
 	return h.Handler.Handle(req)
 }
 
+// ServeHTTP implements the http.Handler interface and allows wrapping web.Handlers into http.Handlers
 func (h *HTTPHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	if err := h.serve(res, req); err != nil {
 		util.WriteError(err, res)

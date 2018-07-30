@@ -1,42 +1,39 @@
 package authn
 
 import (
-	"net/http"
-
-	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/security"
 	"github.com/sirupsen/logrus"
 )
 
-type requiredAuthnFilter struct {
+// RequiredAuthnFilter type verifies that authentication has been performed for APIs that are secured
+type RequiredAuthnFilter struct {
 }
 
-func NewRequiredAuthnFilter() *requiredAuthnFilter {
-	return &requiredAuthnFilter{}
+// NewRequiredAuthnFilter returns RequiredAuthnFilter
+func NewRequiredAuthnFilter() *RequiredAuthnFilter {
+	return &RequiredAuthnFilter{}
 }
 
-func (raf *requiredAuthnFilter) Name() string {
+// Name implements the web.Filter interface and returns the identifier of the filter
+func (raf *RequiredAuthnFilter) Name() string {
 	return "RequiredAuthenticationFilter"
 }
 
-func (raf *requiredAuthnFilter) Run(next web.Handler) web.Handler {
+// Run implements web.Filter and represents the authentication middleware function that verifies the user is
+// authenticated
+func (raf *RequiredAuthnFilter) Run(next web.Handler) web.Handler {
 	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
-		user := request.Context().Value(UserKey)
-		if _, ok := user.(*security.User); !ok {
+		if _, ok := UserFromContext(request.Context()); !ok {
 			logrus.Error("No authenticated user found in request context during execution of filter ", raf.Name())
-			return nil, &util.HTTPError{
-				ErrorType:   "Unauthorized",
-				Description: "unsupported authentication scheme",
-				StatusCode:  http.StatusUnauthorized,
-			}
+			return nil, errUnauthorized
 		}
 
 		return next.Handle(request)
 	})
 }
 
-func (raf *requiredAuthnFilter) FilterMatchers() []web.FilterMatcher {
+// FilterMatchers implements the web.Filter interface and returns the conditions on which the filter should be executed
+func (raf *RequiredAuthnFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{

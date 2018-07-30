@@ -248,6 +248,6 @@ type testTypeNotValidated struct {
 type errorReader struct {
 }
 
-func (errorReader) Read(p []byte) (n int, err error) {
+func (e errorReader) Read(p []byte) (n int, err error) {
 	return 0, fmt.Errorf("error")
 }

@@ -43,7 +43,6 @@ var _ = Describe("config", func() {
 	)
 
 	Describe("Validate", func() {
-
 		assertErrorDuringValidate := func() {
 			err = config.Validate()
 			Expect(err).To(HaveOccurred())

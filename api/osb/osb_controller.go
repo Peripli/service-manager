@@ -105,17 +105,9 @@ func (c *Controller) fetchBroker(request *web.Request) (*types.Broker, error) {
 	logrus.Debugf("Obtained path parameter [brokerID = %s] from path params", brokerID)
 
 	serviceBroker, err := c.BrokerStorage.Get(brokerID)
-	if err == storage.ErrNotFound {
-		logrus.Debugf("service broker with id %s not found", brokerID)
-
-		return nil, &util.HTTPError{
-			ErrorType:   "NotFound",
-			Description: fmt.Sprintf("could not find broker with id: %s", brokerID),
-			StatusCode:  http.StatusNotFound,
-		}
-	} else if err != nil {
-		logrus.Errorf("error obtaining serviceBroker with id %s from storage: %s", brokerID, err)
-		return nil, fmt.Errorf("internal Server Error")
+	if err != nil {
+		logrus.Debugf("Broker with id %s not found in storage during OSB %s operation", brokerID, request.URL.Path)
+		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
 
 	return serviceBroker, nil

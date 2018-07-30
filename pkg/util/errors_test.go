@@ -28,6 +28,7 @@ import (
 
 	"fmt"
 
+	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	"github.com/sirupsen/logrus"
 )
@@ -88,7 +89,7 @@ var _ = Describe("Errors", func() {
 
 				response := &http.Response{
 					StatusCode: testHTTPError.StatusCode,
-					Body:       closer(string(bytes)),
+					Body:       common.Closer(string(bytes)),
 				}
 				Expect(err).ShouldNot(HaveOccurred())
 
@@ -103,11 +104,11 @@ var _ = Describe("Errors", func() {
 				e := fmt.Errorf("test error")
 				response := &http.Response{
 					StatusCode: http.StatusTeapot,
-					Body:       closer(e.Error()),
+					Body:       common.Closer(e.Error()),
 				}
 
 				err := HandleResponseError(response)
-				Expect(err.Error()).To(ContainSubstring("could not read error response"))
+				Expect(err.Error()).To(ContainSubstring(e.Error()))
 			})
 		})
 
@@ -116,11 +117,46 @@ var _ = Describe("Errors", func() {
 				e := `{"key":"value"}`
 				response := &http.Response{
 					StatusCode: http.StatusTeapot,
-					Body:       closer(e),
+					Body:       common.Closer(e),
 				}
 
 				err := HandleResponseError(response)
 				Expect(err.Error()).To(ContainSubstring(e))
+			})
+		})
+
+		Describe("HandleStorageError", func() {
+			Context("with no errors", func() {
+				It("returns nil", func() {
+					err := HandleStorageError(nil, "", "")
+
+					Expect(err).To(Not(HaveOccurred()))
+				})
+			})
+
+			Context("with unique constraint violation storage error", func() {
+				It("returns proper HTTPError", func() {
+					err := HandleStorageError(ErrAlreadyExistsInStorage, "entityName", "entityID")
+
+					validateHTTPErrorOccured(err, http.StatusConflict)
+				})
+			})
+
+			Context("with not found in storage error", func() {
+				It("returns proper HTTPError", func() {
+					err := HandleStorageError(ErrNotFoundInStorage, "entityName", "entityID")
+
+					validateHTTPErrorOccured(err, http.StatusNotFound)
+				})
+			})
+
+			Context("with unrecongized error", func() {
+				It("propagates it", func() {
+					e := errors.New("test error")
+					err := HandleStorageError(e, "entityName", "entityID")
+
+					Expect(err.Error()).To(ContainSubstring(e.Error()))
+				})
 			})
 		})
 

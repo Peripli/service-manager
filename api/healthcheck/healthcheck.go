@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-// Package info contains logic for the Service Manager healthcheck API
+// Package healthcheck contains logic for the Service Manager healthcheck API
 package healthcheck
 
 import (

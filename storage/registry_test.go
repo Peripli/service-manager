@@ -48,6 +48,14 @@ func (interceptor *logInterceptor) Fire(e *logrus.Entry) (err error) {
 	return
 }
 
+func (interceptor *logInterceptor) VerifyData(emptyData bool) {
+	if emptyData {
+		Eventually(interceptor.data).Should(BeEmpty())
+	} else {
+		Eventually(interceptor.data).Should(Not(BeEmpty()))
+	}
+}
+
 var _ = Describe("Registry", func() {
 	var testStorage *storagefakes.FakeStorage
 
@@ -133,7 +141,7 @@ var _ = Describe("Registry", func() {
 				storage.Use(ctx, "closeFailingStorage", "uri")
 				cancel()
 				time.Sleep(time.Millisecond * 100)
-				Expect(interceptor.data).To(Not(BeEmpty()))
+				interceptor.VerifyData(false)
 			})
 		})
 
@@ -145,7 +153,7 @@ var _ = Describe("Registry", func() {
 				storage.Use(ctx, "closeOkStorage", "uri")
 				cancel()
 				time.Sleep(time.Millisecond * 100)
-				Eventually(interceptor.data).Should(BeEmpty())
+				interceptor.VerifyData(true)
 			})
 		})
 	})

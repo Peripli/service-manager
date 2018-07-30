@@ -21,77 +21,162 @@ import (
 	"net/http/httptest"
 	"os"
 
-	"github.com/Peripli/service-manager/pkg/web"
-
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/spf13/pflag"
 
 	"testing"
 
+	"net/http"
+
+	"errors"
+
+	"github.com/Peripli/service-manager/api/healthcheck"
+	"github.com/Peripli/service-manager/pkg/env/envfakes"
 	"github.com/Peripli/service-manager/pkg/sm"
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/test/common"
 )
 
-// TestServiceManager tests servermanager package
 func TestServiceManager(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Service Manager Suite")
 }
 
 var _ = Describe("SM", func() {
-
-	var serviceManagerServer *httptest.Server
+	var (
+		serviceManagerServer *httptest.Server
+		ctx                  context.Context
+		cancel               context.CancelFunc
+	)
 
 	BeforeSuite(func() {
 		os.Chdir("../..")
 		os.Setenv("FILE_LOCATION", "test/common")
-		os.Setenv("API_TOKEN_ISSUER_URL", common.SetupMockOAuthServer().URL)
 	})
 
 	AfterSuite(func() {
 		os.Unsetenv("FILE_LOCATION")
-		os.Unsetenv("API_TOKEN_ISSUER_URL")
+	})
+
+	BeforeEach(func() {
+		ctx, cancel = context.WithCancel(context.Background())
+		os.Setenv("API_TOKEN_ISSUER_URL", common.SetupFakeOAuthServer().URL)
+
 	})
 
 	AfterEach(func() {
+		defer cancel()
+		os.Unsetenv("API_TOKEN_ISSUER_URL")
 		if serviceManagerServer != nil {
 			serviceManagerServer.Close()
 		}
 	})
 
 	Describe("New", func() {
-		Context("with no filters or plugins", func() {
-			It("should return server", func() {
-				ctx, cancel := context.WithCancel(context.Background())
-				defer cancel()
-				servicemanager := sm.New(ctx, cancel, sm.DefaultEnv()).Build()
+		Context("when setting up config fails", func() {
+			It("should panic", func() {
+				fakeEnv := &envfakes.FakeEnvironment{}
+				fakeEnv.UnmarshalReturns(errors.New("error"))
 
-				serviceManagerServer = httptest.NewServer(servicemanager.Server.Router)
-				assertResponse(serviceManagerServer, "/v1/info", 200, "")
+				Expect(func() {
+					sm.New(ctx, cancel, fakeEnv)
+				}).To(Panic())
 			})
 		})
 
-		Context("with filters", func() {
-			It("should return server", func() {
-				ctx, cancel := context.WithCancel(context.Background())
-				defer cancel()
+		Context("when validating config fails", func() {
+			It("should panic", func() {
+				Expect(func() {
+					sm.New(ctx, cancel, sm.DefaultEnv(func(set *pflag.FlagSet) {
+						set.Set("log.level", "")
+					}))
+				}).To(Panic())
+			})
+		})
+
+		Context("when setting up storage fails", func() {
+			It("should panic", func() {
+				Expect(func() {
+					sm.New(ctx, cancel, sm.DefaultEnv(func(set *pflag.FlagSet) {
+						set.Set("storage.uri", "invalid")
+					}))
+				}).To(Panic())
+			})
+		})
+
+		Context("when setting up API fails", func() {
+			It("should panic", func() {
+				Expect(func() {
+					sm.New(ctx, cancel, sm.DefaultEnv(func(set *pflag.FlagSet) {
+						set.Set("api.token_issuer_url", "")
+					}))
+				}).To(Panic())
+			})
+		})
+
+		Context("when no API extensions are registered", func() {
+			It("should return working service manager", func() {
+				smanager := sm.New(ctx, cancel, sm.DefaultEnv())
+
+				verifyServiceManagerStartsSuccessFully(httptest.NewServer(smanager.Build().Server.Router))
+
+			})
+		})
+
+		Context("when additional filter is registered", func() {
+			It("should return working service manager with a new filter", func() {
 				smanager := sm.New(ctx, cancel, sm.DefaultEnv())
 				smanager.RegisterFilters(testFilter{})
-				serviceManagerServer = httptest.NewServer(smanager.Build().Server.Router)
-				assertResponse(serviceManagerServer, "/v1/info", 200, "")
+
+				SM := verifyServiceManagerStartsSuccessFully(httptest.NewServer(smanager.Build().Server.Router))
+
+				SM.GET("/v1/info").
+					Expect().
+					Status(http.StatusOK).JSON().Object().Value("invoked").Equal("filter")
 			})
 		})
 
+		Context("when additional controller is registered", func() {
+			It("should return working service manager with additional controller", func() {
+				smanager := sm.New(ctx, cancel, sm.DefaultEnv())
+				smanager.RegisterControllers(testController{})
+
+				SM := verifyServiceManagerStartsSuccessFully(httptest.NewServer(smanager.Build().Server.Router))
+
+				SM.GET("/v1/test").
+					Expect().
+					Status(http.StatusOK).JSON().Object().Value("invoked").Equal("controller")
+
+			})
+		})
 	})
 })
 
-func assertResponse(serviceManagerServer *httptest.Server, url string, statusCode int, body string) {
+func verifyServiceManagerStartsSuccessFully(serviceManagerServer *httptest.Server) *httpexpect.Expect {
 	SM := httpexpect.New(GinkgoT(), serviceManagerServer.URL)
-	resp := SM.GET(url).Expect().Status(statusCode)
-	if body != "" {
-		resp.Body().Equal(body)
-	}
+	SM.GET(healthcheck.URL).
+		Expect().
+		Status(http.StatusOK).JSON().Object().ContainsMap(map[string]interface{}{
+		"status": "UP",
+		"storage": map[string]interface{}{
+			"status": "UP",
+		},
+	})
+	return SM
+}
+
+func testHandler(identifier string) web.HandlerFunc {
+	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
+		headers := http.Header{}
+		headers.Add("Content-Type", "application/json")
+		return &web.Response{
+			StatusCode: 200,
+			Header:     headers,
+			Body:       []byte(`{"invoked": "` + identifier + `"}`),
+		}, nil
+	})
 }
 
 type testFilter struct {
@@ -102,20 +187,30 @@ func (tf testFilter) Name() string {
 }
 
 func (tf testFilter) Run(next web.Handler) web.Handler {
-	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
-		return &web.Response{
-			StatusCode: 200,
-			Body:       []byte("OK"),
-		}, nil
-	})
+	return testHandler("filter")
 }
 
-func (tf testFilter) RouteMatchers() []web.FilterMatcher {
+func (tf testFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
-				web.Path("**"),
+				web.Path("/v1/info/*"),
 			},
+		},
+	}
+}
+
+type testController struct {
+}
+
+func (tc testController) Routes() []web.Route {
+	return []web.Route{
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodGet,
+				Path:   "/v1/test",
+			},
+			Handler: testHandler("controller"),
 		},
 	}
 }

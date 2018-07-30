@@ -20,10 +20,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"encoding/json"
+	"errors"
 
 	"github.com/sirupsen/logrus"
-	"github.com/spf13/cast"
 )
 
 // HTTPError is an error type that provides error details compliant with the Open Service Broker API conventions
@@ -67,21 +66,43 @@ func HandleResponseError(response *http.Response) error {
 		StatusCode: response.StatusCode,
 	}
 
-	bytes, err := BodyToBytes(response.Body)
+	body, err := BodyToBytes(response.Body)
 	if err != nil {
-		return err
+		return fmt.Errorf("error processing response body of resp with status code %d: %s", response.StatusCode, err)
 	}
 
-	r := make(map[string]interface{})
-	if err := json.Unmarshal(bytes, &r); err != nil {
-		httpErr.Description = fmt.Errorf("could not read error response: %s", err).Error()
-		return httpErr
-	}
-
-	httpErr.ErrorType = cast.ToString(r["error"])
-	httpErr.Description = cast.ToString(r["description"])
-	if httpErr.Description == "" {
-		httpErr.Description = string(bytes)
+	if err := BytesToObject(body, httpErr); err != nil || httpErr.Description == "" {
+		logrus.Debug("Failure response with status code %d is not an HTTPError. Error converting body: %s", response.StatusCode, err)
+		return fmt.Errorf("StatusCode: %d Body: %s", response.StatusCode, body)
 	}
 	return httpErr
+}
+
+var (
+	// ErrNotFoundInStorage error returned from storage when entity is not found
+	ErrNotFoundInStorage = errors.New("not found")
+
+	// ErrAlreadyExistsInStorage error returned from storage when entity has conflicting fields
+	ErrAlreadyExistsInStorage = errors.New("unique constraint violation")
+)
+
+func HandleStorageError(err error, entityName, entityID string) error {
+	if err == nil {
+		return nil
+	}
+	switch err {
+	case ErrAlreadyExistsInStorage:
+		return &HTTPError{
+			ErrorType:   "Conflict",
+			Description: fmt.Sprintf("found conflicting %s", entityName),
+			StatusCode:  http.StatusConflict,
+		}
+	case ErrNotFoundInStorage:
+		return &HTTPError{
+			ErrorType:   "NotFound",
+			Description: fmt.Sprintf("could not find %s with id %s", entityName, entityID),
+			StatusCode:  http.StatusNotFound,
+		}
+	}
+	return fmt.Errorf("unknown error type returned from storage layer: %s", err)
 }

@@ -26,6 +26,8 @@ import (
 	"net/http"
 	"testing"
 
+	"errors"
+
 	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/security/securityfakes"
 	. "github.com/onsi/ginkgo"
@@ -125,7 +127,6 @@ var _ = Describe("OIDC Authenticator", func() {
 	})
 
 	Context("NewAuthenticator", func() {
-
 		Context("When no Issuer URL is present", func() {
 			It("Should return an error", func() {
 				options.IssuerURL = ""
@@ -229,8 +230,8 @@ var _ = Describe("OIDC Authenticator", func() {
 
 				It("Should return error", func() {
 					_, err := NewAuthenticator(ctx, options)
+
 					Expect(err).To(Not(BeNil()))
-					Expect(err.Error()).To(ContainSubstring("Unexpected status code"))
 				})
 			})
 
@@ -250,17 +251,34 @@ var _ = Describe("OIDC Authenticator", func() {
 	})
 
 	Context("Authenticate", func() {
-
-		request, _ := http.NewRequest(http.MethodGet, "https://example.com", &mockReader{err: nil, buff: ""})
-		validateAuthenticateReturnsError := func() {
+		var (
+			request *http.Request
+			err     error
+		)
+		validateAuthenticationReturns := func(expectedUser *security.User, expectedDecision security.AuthenticationDecision, expectedErr error) {
 			authenticator, _ := NewAuthenticator(ctx, options)
-			user, ran, err := authenticator.Authenticate(request)
-			Expect(user).To(BeNil())
-			Expect(ran).To(BeTrue())
-			Expect(err).To(Not(BeNil()))
+
+			user, decision, err := authenticator.Authenticate(request)
+
+			if expectedUser != nil {
+				Expect(user).To(Equal(expectedUser))
+			} else {
+				Expect(user).To(BeNil())
+			}
+
+			Expect(decision).To(Equal(expectedDecision))
+
+			if expectedErr != nil {
+				Expect(err).To(Equal(expectedErr))
+			} else {
+				Expect(err).ToNot(HaveOccurred())
+			}
 		}
 
 		BeforeEach(func() {
+			request, err = http.NewRequest(http.MethodGet, "https://example.com", &mockReader{err: nil, buff: ""})
+			Expect(err).ShouldNot(HaveOccurred())
+
 			readConfigFunc = func(request *http.Request) (*http.Response, error) {
 				return &http.Response{
 					StatusCode: openIdResponseCode,
@@ -269,99 +287,110 @@ var _ = Describe("OIDC Authenticator", func() {
 			}
 		})
 
-		Context("When Authorization header is missing", func() {
-			It("Should return error", func() {
-				validateAuthenticateReturnsError()
+		Context("when Authorization header is missing", func() {
+			It("should abstain authentication decision with no error", func() {
+				Expect(request.Header.Get("Authorization")).To(Equal(""))
+
+				validateAuthenticationReturns(nil, security.Abstain, nil)
 			})
 		})
-		Context("When Authorization header is empty", func() {
-			It("Should return error", func() {
+
+		Context("when Authorization header is empty", func() {
+			It("should abstain authentication decision with no error", func() {
 				request.Header.Set("Authorization", "")
 
-				authenticator, _ := NewAuthenticator(ctx, options)
-				user, ran, err := authenticator.Authenticate(request)
-				Expect(user).To(BeNil())
-				Expect(ran).To(BeFalse())
-				Expect(err).To(BeNil())
+				validateAuthenticationReturns(nil, security.Abstain, nil)
 			})
 		})
 
 		Context("When Authorization header is not bearer", func() {
-			It("Should return an error", func() {
+			It("should abstain authentication decision with no error", func() {
 				request.Header.Set("Authorization", "Basic admin:admin")
-				validateAuthenticateReturnsError()
+
+				validateAuthenticationReturns(nil, security.Abstain, nil)
 			})
 		})
 
-		Context("When Bearer header has empty token", func() {
-			It("Should return an error", func() {
-				request.Header.Set("Authorization", "bearer ")
+		Context("when Authorization header is bearer", func() {
+			Context("when token is missing", func() {
+				It("should deny authentication with malformed token error", func() {
+					request.Header.Set("Authorization", "bearer ")
 
-				validateAuthenticateReturnsError()
-			})
-		})
-
-		Context("When Bearer token", func() {
-			var verifier = &securityfakes.FakeTokenVerifier{}
-			var authenticator security.Authenticator
-			var expectedError error
-
-			BeforeEach(func() {
-				request.Header.Set("Authorization", "bearer token")
-				authenticator = &Authenticator{Verifier: verifier}
-			})
-
-			Context("When verifier returns an error", func() {
-				BeforeEach(func() {
-					expectedError = fmt.Errorf("Verifier returned error")
-
-					verifier.VerifyReturns(nil, expectedError)
-				})
-
-				It("Should return an error", func() {
-					user, ran, err := authenticator.Authenticate(request)
-					Expect(user).To(BeNil())
-					Expect(ran).To(BeTrue())
-					Expect(err).To(Equal(expectedError))
+					validateAuthenticationReturns(nil, security.Deny, errors.New("oidc: malformed jwt: square/go-jose: compact JWS format must have three parts"))
 				})
 			})
-
-			Context("When returned token cannot extract claims", func() {
-				BeforeEach(func() {
-					expectedError = fmt.Errorf("Claims extraction error")
-
-					fakeToken := &securityfakes.FakeToken{}
-					fakeToken.ClaimsReturns(expectedError)
-					verifier.VerifyReturns(fakeToken, nil)
-
-				})
-				It("Should return error", func() {
-					user, ran, err := authenticator.Authenticate(request)
-					Expect(user).To(BeNil())
-					Expect(ran).To(BeTrue())
-					Expect(err).To(Equal(expectedError))
-				})
-			})
-
-			Context("When returned token is valid", func() {
-				expectedUserName := "test_user"
+			Context("when token is present", func() {
+				var (
+					verifier      *securityfakes.FakeTokenVerifier
+					authenticator security.Authenticator
+					expectedError error
+				)
 
 				BeforeEach(func() {
-					tokenJson := fmt.Sprintf("{\"user_name\": \"%s\"}", expectedUserName)
-					token := &securityfakes.FakeToken{}
-					token.ClaimsStub = func(v interface{}) error {
-						return json.Unmarshal([]byte(tokenJson), v)
-					}
-					verifier.VerifyReturns(token, nil)
+					verifier = &securityfakes.FakeTokenVerifier{}
+					authenticator = &Authenticator{Verifier: verifier}
+
+					request.Header.Set("Authorization", "Bearer token")
 				})
 
-				It("Should return user", func() {
-					authenticator := &Authenticator{Verifier: verifier}
-					user, ran, err := authenticator.Authenticate(request)
-					Expect(user).To(Not(BeNil()))
-					Expect(user.Name).To(Equal(expectedUserName))
-					Expect(ran).To(BeTrue())
-					Expect(err).To(BeNil())
+				Context("when verifier returns an error", func() {
+					BeforeEach(func() {
+						expectedError = fmt.Errorf("Verifier returned error")
+
+						verifier.VerifyReturns(nil, expectedError)
+					})
+
+					It("should deby with an error", func() {
+						user, decision, err := authenticator.Authenticate(request)
+
+						Expect(user).To(BeNil())
+						Expect(decision).To(Equal(security.Deny))
+						Expect(err).To(Equal(expectedError))
+					})
+				})
+
+				Context("when returned token cannot extract claims", func() {
+					var fakeToken *securityfakes.FakeToken
+
+					BeforeEach(func() {
+						expectedError = fmt.Errorf("Claims extraction error")
+
+						fakeToken = &securityfakes.FakeToken{}
+						fakeToken.ClaimsReturns(expectedError)
+
+						verifier.VerifyReturns(fakeToken, nil)
+
+					})
+
+					It("should deny with an error", func() {
+						user, decision, err := authenticator.Authenticate(request)
+
+						Expect(user).To(BeNil())
+						Expect(decision).To(Equal(security.Deny))
+						Expect(err).To(Equal(expectedError))
+					})
+				})
+
+				Context("when returned token is valid", func() {
+					expectedUserName := "test_user"
+
+					BeforeEach(func() {
+						tokenJson := fmt.Sprintf("{\"user_name\": \"%s\"}", expectedUserName)
+						token := &securityfakes.FakeToken{}
+						token.ClaimsStub = func(v interface{}) error {
+							return json.Unmarshal([]byte(tokenJson), v)
+						}
+						verifier.VerifyReturns(token, nil)
+					})
+
+					It("should allow authentication and return user", func() {
+						user, decision, err := authenticator.Authenticate(request)
+
+						Expect(user).To(Not(BeNil()))
+						Expect(user.Name).To(Equal(expectedUserName))
+						Expect(decision).To(Equal(security.Allow))
+						Expect(err).To(BeNil())
+					})
 				})
 			})
 		})

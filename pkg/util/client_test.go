@@ -17,73 +17,26 @@
 package util
 
 import (
-	"bytes"
 	"net/http"
-
-	"io"
-
-	"io/ioutil"
 
 	"fmt"
 
-	"strings"
-
+	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Client Utils", func() {
-	doHTTP := func(reaction *httpReaction, checks *httpExpectations) func(*http.Request) (*http.Response, error) {
-		return func(request *http.Request) (*http.Response, error) {
-
-			if len(checks.URL) > 0 && !strings.Contains(checks.URL, request.URL.Host) {
-				Fail(fmt.Sprintf("unexpected URL; expected %v, got %v", checks.URL, request.URL.Path))
-			}
-
-			for k, v := range checks.headers {
-				actualValue := request.Header.Get(k)
-				if e, a := v, actualValue; e != a {
-					Fail(fmt.Sprintf("unexpected header value for key %q; expected %v, got %v", k, e, a))
-				}
-			}
-
-			for k, v := range checks.params {
-				actualValue := request.URL.Query().Get(k)
-				if e, a := v, actualValue; e != a {
-					Fail(fmt.Sprintf("unexpected parameter value for key %q; expected %v, got %v", k, e, a))
-				}
-			}
-
-			var bodyBytes []byte
-			if request.Body != nil {
-				var err error
-				bodyBytes, err = ioutil.ReadAll(request.Body)
-				if err != nil {
-					Fail(fmt.Sprintf("error reading request body bytes: %v", err))
-				}
-			}
-
-			if e, a := checks.body, string(bodyBytes); e != a {
-				Fail(fmt.Sprintf("unexpected request body: expected %v, got %v", e, a))
-			}
-
-			return &http.Response{
-				StatusCode: reaction.status,
-				Body:       closer(reaction.body),
-			}, reaction.err
-		}
-	}
-
 	var (
 		requestFunc  doRequestFunc
-		reaction     *httpReaction
-		expectations *httpExpectations
+		reaction     *common.HTTPReaction
+		expectations *common.HTTPExpectations
 	)
 
 	BeforeEach(func() {
-		reaction = &httpReaction{}
-		expectations = &httpExpectations{}
-		requestFunc = doHTTP(reaction, expectations)
+		reaction = &common.HTTPReaction{}
+		expectations = &common.HTTPExpectations{}
+		requestFunc = common.DoHTTP(reaction, expectations)
 	})
 
 	Describe("SendRequest", func() {
@@ -117,11 +70,11 @@ var _ = Describe("Client Utils", func() {
 				}{Field: "value"}
 
 				expectations.URL = "http://example.com"
-				expectations.params = params
-				expectations.body = `{"field":"value"}`
+				expectations.Params = params
+				expectations.Body = `{"field":"value"}`
 
-				reaction.err = nil
-				reaction.status = http.StatusOK
+				reaction.Err = nil
+				reaction.Status = http.StatusOK
 
 				resp, err := SendRequest(requestFunc, "POST", "http://example.com", params, body)
 
@@ -136,9 +89,9 @@ var _ = Describe("Client Utils", func() {
 		var err error
 
 		BeforeEach(func() {
-			reaction.err = nil
-			reaction.status = http.StatusOK
-			reaction.body = `{"field":"value"}`
+			reaction.Err = nil
+			reaction.Status = http.StatusOK
+			reaction.Body = `{"field":"value"}`
 
 			resp, err = SendRequest(requestFunc, "POST", "http://example.com", map[string]string{}, nil)
 			Expect(err).ShouldNot(HaveOccurred())
@@ -147,7 +100,7 @@ var _ = Describe("Client Utils", func() {
 		Context("when unmarshaling fails", func() {
 			It("returns an error", func() {
 				var val testType
-				err = BodyToObject(val, resp.Body)
+				err = BodyToObject(resp.Body, val)
 
 				Expect(err).Should(HaveOccurred())
 			})
@@ -155,36 +108,13 @@ var _ = Describe("Client Utils", func() {
 
 		It("reads the client response content", func() {
 			var val testType
-			err = BodyToObject(&val, resp.Body)
+			err = BodyToObject(resp.Body, &val)
 
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(val.Field).To(Equal("value"))
 		})
 	})
 })
-
-type httpReaction struct {
-	status int
-	body   string
-	err    error
-}
-
-type httpExpectations struct {
-	URL     string
-	body    string
-	params  map[string]string
-	headers map[string]string
-}
-
-type nopCloser struct {
-	io.Reader
-}
-
-func (nopCloser) Close() error { return nil }
-
-func closer(s string) io.ReadCloser {
-	return nopCloser{bytes.NewBufferString(s)}
-}
 
 type testTypeErrorMarshaling struct {
 	Field string `json:"field"`

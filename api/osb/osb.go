@@ -45,16 +45,15 @@ const (
 // Routes implements api.Controller.Routes by providing the routes for the OSB API
 func (c *Controller) Routes() []web.Route {
 	return []web.Route{
-		// nolint: vet
-		{web.Endpoint{http.MethodGet, catalogURL}, c.handler},
+		{Endpoint: web.Endpoint{Method: http.MethodGet, Path: catalogURL}, Handler: c.handler},
 
-		{web.Endpoint{http.MethodGet, serviceInstanceURL}, c.handler},
-		{web.Endpoint{http.MethodPut, serviceInstanceURL}, c.handler},
-		{web.Endpoint{http.MethodPatch, serviceInstanceURL}, c.handler},
-		{web.Endpoint{http.MethodDelete, serviceInstanceURL}, c.handler},
+		{Endpoint: web.Endpoint{Method: http.MethodGet, Path: serviceInstanceURL}, Handler: c.handler},
+		{Endpoint: web.Endpoint{Method: http.MethodPut, Path: serviceInstanceURL}, Handler: c.handler},
+		{Endpoint: web.Endpoint{Method: http.MethodPatch, Path: serviceInstanceURL}, Handler: c.handler},
+		{Endpoint: web.Endpoint{Method: http.MethodDelete, Path: serviceInstanceURL}, Handler: c.handler},
 
-		{web.Endpoint{http.MethodGet, serviceBindingURL}, c.handler},
-		{web.Endpoint{http.MethodPut, serviceBindingURL}, c.handler},
-		{web.Endpoint{http.MethodDelete, serviceBindingURL}, c.handler},
+		{Endpoint: web.Endpoint{Method: http.MethodGet, Path: serviceBindingURL}, Handler: c.handler},
+		{Endpoint: web.Endpoint{Method: http.MethodPut, Path: serviceBindingURL}, Handler: c.handler},
+		{Endpoint: web.Endpoint{Method: http.MethodDelete, Path: serviceBindingURL}, Handler: c.handler},
 	}
 }

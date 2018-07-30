@@ -32,7 +32,7 @@ var _ = Describe("API", func() {
 	})
 
 	Describe("RegisterControllers", func() {
-		It("increases broker count", func() {
+		It("increases controllers count", func() {
 			originalCount := len(api.Controllers)
 			api.RegisterControllers(&testController{})
 			Expect(len(api.Controllers)).To(Equal(originalCount + 1))

@@ -32,6 +32,7 @@ import (
 	"regexp"
 	"strings"
 
+	"bytes"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/gavv/httpexpect"
 	"github.com/gbrlsnchs/jwt"
@@ -40,6 +41,8 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
+	"io"
+	"io/ioutil"
 )
 
 type Object = map[string]interface{}
@@ -78,7 +81,6 @@ const Catalog = `{
   ]
 }`
 
-
 func MapContains(actual Object, expected Object) {
 	for k, v := range expected {
 		value, ok := actual[k]
@@ -104,11 +106,10 @@ func RemoveAllPlatforms(SM *httpexpect.Expect) {
 func removeAll(SM *httpexpect.Expect, entity, rootURLPath string) {
 	By("removing all " + entity)
 	resp := SM.GET(rootURLPath).
-		Expect().Status(http.StatusOK).JSON().Object()
+		Expect().JSON().Object()
 	for _, val := range resp.Value(entity).Array().Iter() {
 		id := val.Object().Value("id").String().Raw()
-		SM.DELETE(rootURLPath + "/" + id).
-			Expect().Status(http.StatusOK)
+		SM.DELETE(rootURLPath + "/" + id).Expect()
 	}
 }
 
@@ -123,57 +124,56 @@ func RegisterPlatform(platformJSON Object, SM *httpexpect.Expect) *types.Platfor
 	reply := SM.POST("/v1/platforms").
 		WithJSON(platformJSON).
 		Expect().Status(http.StatusCreated).JSON().Object().Raw()
-
 	platform := &types.Platform{}
 	mapstructure.Decode(reply, platform)
 	return platform
 }
 
-func setResponse(rw http.ResponseWriter, status int, message string) {
+func setResponse(rw http.ResponseWriter, status int, message, brokerID string) {
 	rw.Header().Set("Content-Type", "application/json")
+	rw.Header().Set("X-Broker-ID", brokerID)
 	rw.WriteHeader(status)
 	rw.Write([]byte(message))
 }
 
-func NewValidBrokerRouter() *mux.Router {
+func SetupFakeServiceBrokerServer(brokerID string) *httptest.Server {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/v2/catalog", func(rw http.ResponseWriter, req *http.Request) {
-		setResponse(rw, http.StatusOK, Catalog)
+		setResponse(rw, http.StatusOK, Catalog, brokerID)
 	})
 
 	router.HandleFunc("/v2/service_instances/{instance_id}", func(rw http.ResponseWriter, req *http.Request) {
-		setResponse(rw, http.StatusCreated, "{}")
+		setResponse(rw, http.StatusCreated, "{}", brokerID)
 	}).Methods("PUT")
 
 	router.HandleFunc("/v2/service_instances/{instance_id}", func(rw http.ResponseWriter, req *http.Request) {
-		setResponse(rw, http.StatusOK, "{}")
+		setResponse(rw, http.StatusOK, "{}", brokerID)
 	}).Methods("DELETE")
 
 	router.HandleFunc("/v2/service_instances/{instance_id}/service_bindings/{binding_id}", func(rw http.ResponseWriter, req *http.Request) {
 		response := fmt.Sprintf(`{"credentials": {"instance_id": "%s" , "binding_id": "%s"}}`, mux.Vars(req)["instance_id"], mux.Vars(req)["binding_id"])
-		setResponse(rw, http.StatusCreated, response)
+		setResponse(rw, http.StatusCreated, response, brokerID)
 	}).Methods("PUT")
 
 	router.HandleFunc("/v2/service_instances/{instance_id}/service_bindings/{binding_id}", func(rw http.ResponseWriter, req *http.Request) {
-		setResponse(rw, http.StatusOK, "{}")
+		setResponse(rw, http.StatusOK, "{}", brokerID)
 	}).Methods("DELETE")
-
-	return router
+	return httptest.NewServer(router)
 }
 
-func NewFailingBrokerRouter() *mux.Router {
+func SetupFakeFailingBrokerServer(brokerID string) *httptest.Server {
 	router := mux.NewRouter()
 
 	router.PathPrefix("/v2/catalog").HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		setResponse(rw, http.StatusOK, Catalog)
+		setResponse(rw, http.StatusOK, Catalog, brokerID)
 	})
 
 	router.PathPrefix("/").HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		setResponse(rw, http.StatusNotAcceptable, `{"description": "expected error"}`)
+		setResponse(rw, http.StatusNotAcceptable, `{"description": "expected error"}`, brokerID)
 	})
 
-	return router
+	return httptest.NewServer(router)
 }
 
 func generatePrivateKey() *rsa.PrivateKey {
@@ -219,7 +219,7 @@ func RequestToken(issuerURL string) string {
 	return token
 }
 
-func SetupMockOAuthServer() *httptest.Server {
+func SetupFakeOAuthServer() *httptest.Server {
 	privateKey := generatePrivateKey()
 	publicKey := privateKey.PublicKey
 	signer := jwt.RS256(privateKey, &publicKey)
@@ -243,10 +243,9 @@ func SetupMockOAuthServer() *httptest.Server {
 			KeyID:          keyID,
 			Audience:       "sm",
 			ExpirationTime: nextYear,
-			Public: map[string]interface{} {
+			Public: map[string]interface{}{
 				"user_name": "testUser",
 			},
-
 		})
 		if err != nil {
 			panic(err)
@@ -331,4 +330,68 @@ func VerifyBrokerCatalogEndpointInvoked(server *ghttp.Server, times int) {
 func ClearReceivedRequests(code *int, response interface{}, server *ghttp.Server) {
 	server.Reset()
 	server.RouteToHandler(http.MethodGet, regexp.MustCompile(".*"), ghttp.RespondWithPtr(code, response))
+}
+
+type HTTPReaction struct {
+	Status int
+	Body   string
+	Err    error
+}
+
+type HTTPExpectations struct {
+	URL     string
+	Body    string
+	Params  map[string]string
+	Headers map[string]string
+}
+
+type NopCloser struct {
+	io.Reader
+}
+
+func (NopCloser) Close() error { return nil }
+
+func Closer(s string) io.ReadCloser {
+	return NopCloser{bytes.NewBufferString(s)}
+}
+
+func DoHTTP(reaction *HTTPReaction, checks *HTTPExpectations) func(*http.Request) (*http.Response, error) {
+	return func(request *http.Request) (*http.Response, error) {
+		if checks != nil {
+			if len(checks.URL) > 0 && !strings.Contains(checks.URL, request.URL.Host) {
+				Fail(fmt.Sprintf("unexpected URL; expected %v, got %v", checks.URL, request.URL.Path))
+			}
+
+			for k, v := range checks.Headers {
+				actualValue := request.Header.Get(k)
+				if e, a := v, actualValue; e != a {
+					Fail(fmt.Sprintf("unexpected header value for key %q; expected %v, got %v", k, e, a))
+				}
+			}
+
+			for k, v := range checks.Params {
+				actualValue := request.URL.Query().Get(k)
+				if e, a := v, actualValue; e != a {
+					Fail(fmt.Sprintf("unexpected parameter value for key %q; expected %v, got %v", k, e, a))
+				}
+			}
+
+			var bodyBytes []byte
+			if request.Body != nil {
+				var err error
+				bodyBytes, err = ioutil.ReadAll(request.Body)
+				if err != nil {
+					Fail(fmt.Sprintf("error reading request Body bytes: %v", err))
+				}
+			}
+
+			if e, a := checks.Body, string(bodyBytes); e != a {
+				Fail(fmt.Sprintf("unexpected request Body: expected %v, got %v", e, a))
+			}
+		}
+		return &http.Response{
+			StatusCode: reaction.Status,
+			Body:       Closer(reaction.Body),
+		}, reaction.Err
+	}
 }

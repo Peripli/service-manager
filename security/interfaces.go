@@ -22,18 +22,37 @@ import (
 	"net/http"
 )
 
+type AuthenticationDecision int
+
+var decisions = []string{"Allow", "Deny", "Abstain"}
+
+const (
+	// Allow represents an authentication decision to allow to proceed
+	Allow AuthenticationDecision = iota
+
+	// Deny represents an authentication decision to deny proceeding
+	Deny
+
+	// Abstain represents an authentication decision to abstain from deciding - let another component to decide
+	Abstain
+)
+
+func (a AuthenticationDecision) String() string {
+	return decisions[a]
+}
+
 // User holds the information for the current user
 type User struct {
 	Name string `json:"name"`
 }
 
-// BasicAuthenticator extracts the authenticator information from the request and
+// Authenticator extracts the authenticator information from the request and
 // returns information about the current user or an error if security was not successful
 //go:generate counterfeiter . Authenticator
 type Authenticator interface {
 	// Authenticate returns information about the user if security is successful, a bool specifying
 	// whether the authenticator ran or not and an error if one occurs
-	Authenticate(req *http.Request) (*User, bool, error)
+	Authenticate(req *http.Request) (*User, AuthenticationDecision, error)
 }
 
 // Token interface provides means to unmarshal the claims in a struct
