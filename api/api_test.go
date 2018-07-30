@@ -14,73 +14,55 @@
  *    limitations under the License.
  */
 
-package api
+package api_test
 
 import (
+	"context"
 	"testing"
 
-	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/api"
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage/storagefakes"
+	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-func TestApi(t *testing.T) {
+func TestAPI(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "API Suite")
 }
 
-type testController struct {
-}
-
-func (c *testController) Routes() []rest.Route {
-	return []rest.Route{}
-}
-
 var _ = Describe("API", func() {
-
 	var (
+		API           *web.API
+		err           error
 		mockedStorage *storagefakes.FakeStorage
-		settings      Settings
-		api           *rest.API
+		ctx           context.Context
 	)
 
 	BeforeEach(func() {
 		mockedStorage = &storagefakes.FakeStorage{}
-		settings = Settings{
-			TokenIssuerURL: "http://example.com",
-		}
-		api = New(mockedStorage, settings)
+		ctx = context.TODO()
+
 	})
-
-	Describe("Controller Registration", func() {
-		Context("With nil controllers slice", func() {
-			It("Should panic", func() {
-				nilControllersSlice := func() {
-					api.RegisterControllers(nil)
-				}
-				Expect(nilControllersSlice).To(Panic())
+	Describe("New", func() {
+		It("returns no error if creation is successful", func() {
+			server := common.SetupFakeOAuthServer()
+			API, err = api.New(context.TODO(), mockedStorage, api.Settings{
+				TokenIssuerURL: server.URL,
+				ClientID:       "sm",
 			})
+			Expect(err).ShouldNot(HaveOccurred())
 		})
 
-		Context("With nil controller in slice", func() {
-			It("Should panic", func() {
-				nilControllerInSlice := func() {
-					var controllers []rest.Controller
-					controllers = append(controllers, &testController{})
-					controllers = append(controllers, nil)
-					api.RegisterControllers(controllers...)
-				}
-				Expect(nilControllerInSlice).To(Panic())
+		It("returns an error if creation fails", func() {
+			API, err = api.New(context.TODO(), mockedStorage, api.Settings{
+				TokenIssuerURL: "http://invalidurl.com",
+				ClientID:       "invalidclient",
 			})
-		})
+			Expect(err).Should(HaveOccurred())
 
-		Context("With no brokers registered", func() {
-			It("Should increase broker count", func() {
-				originalControllersCount := len(api.Controllers)
-				api.RegisterControllers(&testController{})
-				Expect(len(api.Controllers)).To(Equal(originalControllersCount + 1))
-			})
 		})
 	})
 })

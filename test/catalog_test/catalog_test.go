@@ -35,7 +35,6 @@ func TestCatalog(t *testing.T) {
 }
 
 var _ = Describe("Service Manager Aggregated Catalog API", func() {
-
 	const brokersLen = 3
 
 	var (
@@ -52,7 +51,7 @@ var _ = Describe("Service Manager Aggregated Catalog API", func() {
 	BeforeSuite(func() {
 		os.Chdir("../..")
 
-		ctx = common.NewTestContext(nil)
+		ctx = common.NewTestContextFromAPIs()
 	})
 
 	AfterSuite(func() {

@@ -19,12 +19,12 @@ package info
 import (
 	"net/http"
 
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/rest"
 )
 
-// DetailsResponse describes the public information provided by the Service Manager and is returned as a response
-// from the info API
+// DetailsResponse describes the public information provided by the Service Manager and is returned as a
+// response from the info API.
 type DetailsResponse struct {
 	TokenIssuer string `json:"token_issuer_url"`
 }
@@ -34,8 +34,10 @@ type Controller struct {
 	TokenIssuer string
 }
 
+var _ web.Controller = &Controller{}
+
 func (c *Controller) getInfo(request *web.Request) (*web.Response, error) {
-	return rest.NewJSONResponse(http.StatusOK, DetailsResponse{
+	return util.NewJSONResponse(http.StatusOK, &DetailsResponse{
 		TokenIssuer: c.TokenIssuer,
 	})
 }

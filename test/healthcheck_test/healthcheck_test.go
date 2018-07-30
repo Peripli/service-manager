@@ -18,13 +18,11 @@ package healthcheck_test
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"testing"
 
 	"github.com/Peripli/service-manager/api/healthcheck"
 	"github.com/Peripli/service-manager/test/common"
-	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 )
 
@@ -34,33 +32,27 @@ func Test(t *testing.T) {
 }
 
 var _ = Describe("Healthcheck API", func() {
-	var SM *httpexpect.Expect
-	var smServer *httptest.Server
-	var mockOauthServer *httptest.Server
+
+	var ctx *common.TestContext
 
 	BeforeSuite(func() {
-		mockOauthServer = common.SetupMockOAuthServer()
-		smServer = httptest.NewServer(common.GetServerHandler(nil, mockOauthServer.URL))
-		SM = httpexpect.New(GinkgoT(), smServer.URL)
+		ctx = common.NewTestContextFromAPIs()
 	})
 
 	AfterSuite(func() {
-		if smServer != nil {
-			smServer.Close()
-		}
-		if mockOauthServer != nil {
-			mockOauthServer.Close()
-		}
+		ctx.Cleanup()
 	})
 
 	Describe("Get info handler", func() {
 		It("Returns correct response", func() {
-			responseObject := SM.GET(healthcheck.URL).
+			ctx.SM.GET(healthcheck.URL).
 				Expect().
-				Status(http.StatusOK).
-				JSON().Object()
-			responseObject.Value("status").String().Equal("UP")
-			responseObject.Value("storage").Object().Value("status").String().Equal("UP")
+				Status(http.StatusOK).JSON().Object().ContainsMap(map[string]interface{}{
+				"status": "UP",
+				"storage": map[string]interface{}{
+					"status": "UP",
+				},
+			})
 		})
 	})
 })

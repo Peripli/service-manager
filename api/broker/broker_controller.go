@@ -17,24 +17,21 @@
 package broker
 
 import (
-	"errors"
 	"net/http"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/web"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
-
-	"github.com/Peripli/service-manager/api/common"
 
 	"encoding/json"
 
-	"bytes"
-
 	"strings"
 
-	"github.com/Peripli/service-manager/rest"
+	"fmt"
+
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/Peripli/service-manager/types"
 	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 )
@@ -50,48 +47,22 @@ type Controller struct {
 	OSBClientCreateFunc osbc.CreateFunc
 }
 
-func validateBrokerCredentials(brokerCredentials *types.Credentials) error {
-	if brokerCredentials == nil || brokerCredentials.Basic == nil {
-		return errors.New("missing broker credentials")
-	}
-	if brokerCredentials.Basic.Username == "" {
-		return errors.New("missing broker username")
-	}
-	if brokerCredentials.Basic.Password == "" {
-		return errors.New("missing broker password")
-	}
-	return nil
-}
-
-func validateBroker(broker *types.Broker) error {
-	if broker.Name == "" {
-		return errors.New("missing broker name")
-	}
-	if broker.BrokerURL == "" {
-		return errors.New("missing broker url")
-	}
-	return validateBrokerCredentials(broker.Credentials)
-}
+var _ web.Controller = &Controller{}
 
 func (c *Controller) createBroker(request *web.Request) (*web.Response, error) {
 	logrus.Debug("Creating new broker")
 
 	broker := &types.Broker{}
-	if err := rest.ReadJSONBody(request, broker); err != nil {
+	if err := util.BytesToObject(request.Body, broker); err != nil {
 		return nil, err
 	}
 
-	if err := validateBroker(broker); err != nil {
-		return nil, web.NewHTTPError(err, http.StatusBadRequest, "BadRequest")
-	}
-
-	uuid, err := uuid.NewV4()
+	UUID, err := uuid.NewV4()
 	if err != nil {
-		logrus.Error("Could not generate GUID")
-		return nil, err
+		return nil, fmt.Errorf("could not generate GUID for broker: %s", err)
 	}
 
-	broker.ID = uuid.String()
+	broker.ID = UUID.String()
 
 	currentTime := time.Now().UTC()
 	broker.CreatedAt = currentTime
@@ -103,15 +74,13 @@ func (c *Controller) createBroker(request *web.Request) (*web.Response, error) {
 	}
 	broker.Catalog = catalog
 
-	err = c.BrokerStorage.Create(broker)
-	err = common.HandleUniqueError(err, "broker")
-	if err != nil {
-		return nil, err
+	if err := c.BrokerStorage.Create(broker); err != nil {
+		return nil, util.HandleStorageError(err, "broker", broker.ID)
 	}
 
 	broker.Credentials = nil
 	broker.Catalog = nil
-	return rest.NewJSONResponse(http.StatusCreated, broker)
+	return util.NewJSONResponse(http.StatusCreated, broker)
 }
 
 func (c *Controller) getBroker(request *web.Request) (*web.Response, error) {
@@ -119,14 +88,13 @@ func (c *Controller) getBroker(request *web.Request) (*web.Response, error) {
 	logrus.Debugf("Getting broker with id %s", brokerID)
 
 	broker, err := c.BrokerStorage.Get(brokerID)
-	err = common.HandleNotFoundError(err, "broker", brokerID)
 	if err != nil {
-		return nil, err
+		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
 
 	broker.Credentials = nil
 	broker.Catalog = nil
-	return rest.NewJSONResponse(http.StatusOK, broker)
+	return util.NewJSONResponse(http.StatusOK, broker)
 }
 
 func (c *Controller) getAllBrokers(request *web.Request) (*web.Response, error) {
@@ -135,6 +103,7 @@ func (c *Controller) getAllBrokers(request *web.Request) (*web.Response, error) 
 	if err != nil {
 		return nil, err
 	}
+
 	removeCatalog := strings.ToLower(request.FormValue(catalogParam)) != "true"
 	for _, broker := range brokers {
 		broker.Credentials = nil
@@ -143,9 +112,7 @@ func (c *Controller) getAllBrokers(request *web.Request) (*web.Response, error) 
 		}
 	}
 
-	return rest.NewJSONResponse(http.StatusOK, struct {
-		Brokers []*types.Broker `json:"brokers"`
-	}{
+	return util.NewJSONResponse(http.StatusOK, &types.Brokers{
 		Brokers: brokers,
 	})
 }
@@ -154,46 +121,24 @@ func (c *Controller) deleteBroker(request *web.Request) (*web.Response, error) {
 	brokerID := request.PathParams[reqBrokerID]
 	logrus.Debugf("Deleting broker with id %s", brokerID)
 
-	err := c.BrokerStorage.Delete(brokerID)
-	err = common.HandleNotFoundError(err, "broker", brokerID)
-	if err != nil {
-		return nil, err
+	if err := c.BrokerStorage.Delete(brokerID); err != nil {
+		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
-	return rest.NewJSONResponse(http.StatusOK, map[string]int{})
+	return util.NewJSONResponse(http.StatusOK, map[string]int{})
 }
 
 func (c *Controller) patchBroker(request *web.Request) (*web.Response, error) {
 	brokerID := request.PathParams[reqBrokerID]
 	logrus.Debugf("Updating updateBroker with id %s", brokerID)
 
-	updateBroker := &types.Broker{}
-	if err := rest.ReadJSONBody(request, updateBroker); err != nil {
-		return nil, err
-	}
-
-	updateBroker.CreatedAt = time.Time{}
-	updateBroker.UpdatedAt = time.Now().UTC()
-	updateBroker.ID = brokerID
-
-	if updateBroker.Credentials != nil {
-		err := validateBrokerCredentials(updateBroker.Credentials)
-		if err != nil {
-			return nil, web.NewHTTPError(err, http.StatusBadRequest, "BadRequest")
-		}
-	}
-
 	broker, err := c.BrokerStorage.Get(brokerID)
-	err = common.HandleNotFoundError(err, "broker", brokerID)
 	if err != nil {
-		return nil, err
+		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
 
-	updateData, err := json.Marshal(updateBroker)
-	if err != nil {
-		return nil, err
-	}
+	createdAt := broker.CreatedAt
 
-	if err := json.Unmarshal(updateData, broker); err != nil {
+	if err := util.BytesToObject(request.Body, broker); err != nil {
 		return nil, err
 	}
 
@@ -202,23 +147,19 @@ func (c *Controller) patchBroker(request *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	isCatalogModified := !bytes.Equal(broker.Catalog, catalog)
-	if isCatalogModified {
-		updateBroker.Catalog = catalog
+	broker.ID = brokerID
+	broker.Catalog = catalog
+	broker.CreatedAt = createdAt
+	broker.UpdatedAt = time.Now().UTC()
+
+	if err := c.BrokerStorage.Update(broker); err != nil {
+		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
 
-	err = c.BrokerStorage.Update(updateBroker)
-	err = common.CheckErrors(
-		common.HandleNotFoundError(err, "broker", brokerID),
-		common.HandleUniqueError(err, "broker"),
-	)
-	if err != nil {
-		return nil, err
-	}
 	broker.Credentials = nil
 	broker.Catalog = nil
 
-	return rest.NewJSONResponse(http.StatusOK, broker)
+	return util.NewJSONResponse(http.StatusOK, broker)
 }
 
 func (c *Controller) getBrokerCatalog(broker *types.Broker) (json.RawMessage, error) {

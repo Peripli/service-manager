@@ -38,7 +38,7 @@ var _ = Describe("Service Manager Platform API", func() {
 	var ctx *common.TestContext
 
 	BeforeSuite(func() {
-		ctx = common.NewTestContext(nil)
+		ctx = common.NewTestContextFromAPIs()
 	})
 
 	AfterSuite(func() {
@@ -258,6 +258,32 @@ var _ = Describe("Service Manager Platform API", func() {
 					Status(http.StatusOK).JSON().Object()
 
 				common.MapContains(reply.Raw(), updatedPlatform)
+			})
+		})
+
+		Context("With created_at in body", func() {
+			It("should not update created_at", func() {
+				By("Update platform")
+
+				createdAt := "2015-01-01T00:00:00Z"
+				updatedPlatform := common.Object{
+					"created_at": createdAt,
+				}
+
+				ctx.SMWithOAuth.PATCH("/v1/platforms/"+id).
+					WithJSON(updatedPlatform).
+					Expect().
+					Status(http.StatusOK).JSON().Object().
+					ContainsKey("created_at").
+					ValueNotEqual("created_at", createdAt)
+
+				By("Update is persisted")
+
+				ctx.SMWithOAuth.GET("/v1/platforms/"+id).
+					Expect().
+					Status(http.StatusOK).JSON().Object().
+					ContainsKey("created_at").
+					ValueNotEqual("created_at", createdAt)
 			})
 		})
 

@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/Peripli/service-manager/api"
-	"github.com/Peripli/service-manager/authentication"
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/server"
@@ -35,7 +34,6 @@ type Settings struct {
 	Storage storage.Settings
 	Log     log.Settings
 	API     api.Settings
-	OAuth   authentication.OAuthSettings
 }
 
 // AddPFlags adds the SM config flags to the provided flag set
@@ -61,9 +59,7 @@ func DefaultSettings() *Settings {
 		},
 		API: api.Settings{
 			TokenIssuerURL: "",
-		},
-		OAuth: authentication.OAuthSettings{
-			ClientID: "",
+			ClientID:       "sm",
 		},
 	}
 	return config
@@ -102,8 +98,8 @@ func (c *Settings) Validate() error {
 	if (len(c.API.TokenIssuerURL)) == 0 {
 		return fmt.Errorf("validate Settings: APITokenIssuerURL missing")
 	}
-	if (len(c.OAuth.ClientID)) == 0 {
-		return fmt.Errorf("validate Settings: CLIClientID missing")
+	if (len(c.API.ClientID)) == 0 {
+		return fmt.Errorf("validate Settings: APIClientID missing")
 	}
 	return nil
 }

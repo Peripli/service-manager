@@ -39,7 +39,6 @@ func init() {
 }
 
 type postgresStorage struct {
-	once  sync.Once
 	db    *sqlx.DB
 	state *storageState
 }
@@ -77,7 +76,7 @@ func (storage *postgresStorage) Open(uri string) error {
 	if uri == "" {
 		return fmt.Errorf("storage URI cannot be empty")
 	}
-	storage.once.Do(func() {
+	if storage.db == nil {
 		storage.db, err = sqlx.Connect(Storage, uri)
 		if err != nil {
 			logrus.Panicln("Could not connect to PostgreSQL:", err)
@@ -93,8 +92,7 @@ func (storage *postgresStorage) Open(uri string) error {
 		if err := updateSchema(storage.db); err != nil {
 			logrus.Panicln("Could not update database schema:", err)
 		}
-
-	})
+	}
 	return err
 }
 

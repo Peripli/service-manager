@@ -18,17 +18,7 @@
 package storage
 
 import (
-	"errors"
-
-	"github.com/Peripli/service-manager/types"
-)
-
-var (
-	// ErrNotFound error returned from storage when entity is not found
-	ErrNotFound = errors.New("not found")
-
-	// ErrUniqueViolation error returned from storage when entity has conflicting fields
-	ErrUniqueViolation = errors.New("unique constraint violation")
+	"github.com/Peripli/service-manager/pkg/types"
 )
 
 // Settings type to be loaded from the environment

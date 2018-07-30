@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/Peripli/service-manager/api"
-	"github.com/Peripli/service-manager/authentication"
 	cfg "github.com/Peripli/service-manager/config"
 	"github.com/Peripli/service-manager/pkg/env/envfakes"
 	"github.com/Peripli/service-manager/pkg/log"
@@ -44,7 +43,6 @@ var _ = Describe("config", func() {
 	)
 
 	Describe("Validate", func() {
-
 		assertErrorDuringValidate := func() {
 			err = config.Validate()
 			Expect(err).To(HaveOccurred())
@@ -54,7 +52,7 @@ var _ = Describe("config", func() {
 			config = cfg.DefaultSettings()
 			config.Storage.URI = "postgres://postgres:postgres@localhost:5555/postgres?sslmode=disable"
 			config.API.TokenIssuerURL = "http://example.com"
-			config.OAuth.ClientID = "smctl"
+			config.API.ClientID = "sm"
 		})
 
 		Context("when config is valid", func() {
@@ -113,15 +111,15 @@ var _ = Describe("config", func() {
 			})
 		})
 
-		Context("when OAuth ClientID is missing", func() {
+		Context("when CLI ClientID is missing", func() {
 			It("returns an error", func() {
-				config.OAuth.ClientID = ""
+				config.API.ClientID = ""
 				assertErrorDuringValidate()
 			})
 		})
 	})
 
-	Describe("New Settings", func() {
+	Describe("New", func() {
 
 		var (
 			fakeEnv       *envfakes.FakeEnvironment
@@ -145,7 +143,7 @@ var _ = Describe("config", func() {
 			})
 		})
 
-		Context("when creating settings is successful", func() {
+		Context("when creating is successful", func() {
 
 			var (
 				configuration cfg.Settings
@@ -165,18 +163,12 @@ var _ = Describe("config", func() {
 					},
 					API: api.Settings{
 						TokenIssuerURL: "http://example.com",
-					},
-					OAuth: authentication.OAuthSettings{
-						ClientID: "smctl",
+						ClientID:       "sm",
 					},
 				}
 
 				emptyConfig = cfg.Settings{}
 			)
-
-			assertEnvironmentLoadedAndUnmarshaled := func() {
-				Expect(fakeEnv.UnmarshalCallCount()).To(Equal(1))
-			}
 
 			BeforeEach(func() {
 				fakeEnv.UnmarshalReturns(nil)
@@ -199,7 +191,7 @@ var _ = Describe("config", func() {
 					c, err := cfg.New(fakeEnv)
 
 					Expect(err).To(Not(HaveOccurred()))
-					assertEnvironmentLoadedAndUnmarshaled()
+					Expect(fakeEnv.UnmarshalCallCount()).To(Equal(1))
 
 					Expect(err).To(Not(HaveOccurred()))
 
@@ -214,9 +206,9 @@ var _ = Describe("config", func() {
 
 				It("returns an empty config", func() {
 					c, err := cfg.New(fakeEnv)
-					Expect(err).To(Not(HaveOccurred()))
 
-					assertEnvironmentLoadedAndUnmarshaled()
+					Expect(err).To(Not(HaveOccurred()))
+					Expect(fakeEnv.UnmarshalCallCount()).To(Equal(1))
 
 					Expect(c).Should(Equal(&emptyConfig))
 				})

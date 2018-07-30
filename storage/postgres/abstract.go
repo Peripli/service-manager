@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Peripli/service-manager/storage"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/fatih/structs"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
@@ -119,7 +119,7 @@ func checkUniqueViolation(err error) error {
 	sqlErr, ok := err.(*pq.Error)
 	if ok && sqlErr.Code.Name() == "unique_violation" {
 		logrus.Debug(sqlErr)
-		return storage.ErrUniqueViolation
+		return util.ErrAlreadyExistsInStorage
 	}
 	return err
 }
@@ -130,14 +130,14 @@ func checkRowsAffected(result sql.Result) error {
 		return err
 	}
 	if rowsAffected < 1 {
-		return storage.ErrNotFound
+		return util.ErrNotFoundInStorage
 	}
 	return nil
 }
 
 func checkSQLNoRows(err error) error {
 	if err == sql.ErrNoRows {
-		return storage.ErrNotFound
+		return util.ErrNotFoundInStorage
 	}
 	return err
 }

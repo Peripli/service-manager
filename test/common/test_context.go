@@ -17,16 +17,17 @@
 package common
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 
-	"github.com/Peripli/service-manager/authentication/basic"
-
 	. "github.com/onsi/ginkgo"
+	"github.com/spf13/pflag"
 
-	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/pkg/sm"
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gavv/httpexpect"
 )
 
@@ -44,12 +45,9 @@ var serviceCatalog = `{
 	}]
 }`
 
-func NewTestContext(api *rest.API) *TestContext {
-	mockOauthServer := SetupMockOAuthServer()
-	smServer := httptest.NewServer(GetServerHandler(api, mockOauthServer.URL))
-	SM := httpexpect.New(GinkgoT(), smServer.URL)
-
-	accessToken := RequestToken(mockOauthServer.URL)
+func NewTestContext(smURL, tokenIssuerURL string) *TestContext {
+	SM := httpexpect.New(GinkgoT(), smURL)
+	accessToken := RequestToken(tokenIssuerURL)
 	SMWithOAuth := SM.Builder(func(req *httpexpect.Request) {
 		req.WithHeader("Authorization", "Bearer "+accessToken)
 	})
@@ -57,20 +55,39 @@ func NewTestContext(api *rest.API) *TestContext {
 	RemoveAllBrokers(SMWithOAuth)
 	RemoveAllPlatforms(SMWithOAuth)
 
-	platformJSON := MakePlatform("ctx-platform-test", "ctx-platform-test", "platform-type", "")
+	platformJSON := MakePlatform("ctx-platform-test", "ctx-platform-test", "platform-type", "test-platform")
 	platform := RegisterPlatform(platformJSON, SMWithOAuth)
+
 	SMWithBasic := SM.Builder(func(req *httpexpect.Request) {
 		username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
-		req.WithHeader("Authorization", basic.EncodeCredentials(username, password))
+		req.WithBasicAuth(username, password)
 	})
-
 	return &TestContext{
 		SM:          SM,
 		SMWithOAuth: SMWithOAuth,
 		SMWithBasic: SMWithBasic,
-		SMServer:    smServer,
-		Brokers:     make(map[string]*Broker),
+		brokers:     make(map[string]*Broker),
 	}
+}
+
+func NewTestContextFromAPIs(additionalAPIs ...*web.API) *TestContext {
+	ctx, cancel := context.WithCancel(context.Background())
+	mockOauthServer := SetupFakeOAuthServer()
+
+	env := sm.DefaultEnv(func(set *pflag.FlagSet) {
+		set.Set("file.location", "./test/common")
+		set.Set("api.token_issuer_url", mockOauthServer.URL)
+	})
+
+	smanagerBuilder := sm.New(ctx, cancel, env)
+	for _, additionalAPI := range additionalAPIs {
+		smanagerBuilder.RegisterControllers(additionalAPI.Controllers...)
+		smanagerBuilder.RegisterFilters(additionalAPI.Filters...)
+	}
+	serviceManager := smanagerBuilder.Build()
+	smServer := httptest.NewServer(serviceManager.Server.Router)
+
+	return NewTestContext(smServer.URL, mockOauthServer.URL)
 }
 
 type TestContext struct {
@@ -79,7 +96,7 @@ type TestContext struct {
 	SMWithBasic *httpexpect.Expect
 	SMServer    *httptest.Server
 
-	Brokers map[string]*Broker
+	brokers map[string]*Broker
 }
 
 func (ctx *TestContext) RegisterBroker(name string, server *httptest.Server) *Broker {
@@ -97,7 +114,7 @@ func (ctx *TestContext) RegisterBroker(name string, server *httptest.Server) *Br
 	broker.ResponseBody = nil
 	broker.Request = nil
 
-	ctx.Brokers[name] = broker
+	ctx.brokers[name] = broker
 	return broker
 }
 
@@ -105,13 +122,14 @@ func (ctx *TestContext) Cleanup() {
 	if ctx == nil {
 		return
 	}
+
 	if ctx.SMServer != nil {
 		RemoveAllBrokers(ctx.SMWithOAuth)
 		RemoveAllPlatforms(ctx.SMWithOAuth)
 		ctx.SMServer.Close()
 	}
 
-	for _, broker := range ctx.Brokers {
+	for _, broker := range ctx.brokers {
 		if broker.Server != nil {
 			broker.Server.Close()
 		}

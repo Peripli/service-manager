@@ -14,12 +14,13 @@
  *    limitations under the License.
  */
 
+// Package healthcheck contains logic for the Service Manager healthcheck API
 package healthcheck
 
 import (
 	"net/http"
 
-	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
 const (
@@ -30,10 +31,10 @@ const (
 )
 
 // Routes returns slice of routes which handle healthcheck operation
-func (c *Controller) Routes() []rest.Route {
-	return []rest.Route{
+func (c *Controller) Routes() []web.Route {
+	return []web.Route{
 		{
-			Endpoint: rest.Endpoint{
+			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
 				Path:   URL,
 			},

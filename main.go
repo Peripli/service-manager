@@ -19,12 +19,14 @@ package main
 import (
 	"context"
 
-	"github.com/Peripli/service-manager/pkg/servicemanager"
+	"github.com/Peripli/service-manager/pkg/sm"
 )
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	sm := servicemanager.New(ctx, cancel)
-	sm.Run()
+
+	env := sm.DefaultEnv()
+	serviceManager := sm.New(ctx, cancel, env).Build()
+	serviceManager.Run()
 }
