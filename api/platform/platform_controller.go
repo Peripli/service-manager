@@ -65,7 +65,8 @@ func (c *Controller) createPlatform(request *web.Request) (*web.Response, error)
 		logrus.Error("Could not generate credentials for platform")
 		return nil, err
 	}
-	transformedPassword, err := c.CredentialsTransformer.Transform([]byte(credentials.Basic.Password))
+	plainPassword := credentials.Basic.Password
+	transformedPassword, err := c.CredentialsTransformer.Transform([]byte(plainPassword))
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +76,7 @@ func (c *Controller) createPlatform(request *web.Request) (*web.Response, error)
 	if err := c.PlatformStorage.Create(platform); err != nil {
 		return nil, util.HandleStorageError(err, "platform", platform.ID)
 	}
-
+	platform.Credentials.Basic.Password = plainPassword
 	return util.NewJSONResponse(http.StatusCreated, platform)
 }
 
