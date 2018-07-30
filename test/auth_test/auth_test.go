@@ -49,7 +49,7 @@ var _ = Describe("Service Manager Authentication", func() {
 
 	BeforeSuite(func() {
 		os.Chdir("../..")
-		ctx = common.NewTestContext()
+		ctx = common.NewTestContextFromAPIs()
 	})
 
 	AfterSuite(func() {

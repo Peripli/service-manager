@@ -29,7 +29,7 @@ var _ = Describe("Service Manager Filters", func() {
 	JustBeforeEach(func() {
 		api := &web.API{}
 		api.RegisterFilters(testFilters...)
-		ctx = common.NewTestContext(api)
+		ctx = common.NewTestContextFromAPIs(api)
 		testBroker  = ctx.RegisterBroker("broker1", nil)
 		order = ""
 	})

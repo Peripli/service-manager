@@ -36,7 +36,7 @@ var _ = Describe("Service Manager Plugins", func() {
 		BeforeEach(func() {
 			api := &web.API{}
 			api.RegisterPlugins(&PartialPlugin{})
-			ctx = common.NewTestContext(api)
+			ctx = common.NewTestContextFromAPIs(api)
 			testBroker = ctx.RegisterBroker("broker1", nil)
 
 		})
@@ -64,7 +64,7 @@ var _ = Describe("Service Manager Plugins", func() {
 		JustBeforeEach(func() {
 			api := &web.API{}
 			api.RegisterPlugins(testPlugin)
-			ctx = common.NewTestContext(api)
+			ctx = common.NewTestContextFromAPIs(api)
 			testBroker = ctx.RegisterBroker("broker1", nil)
 		})
 

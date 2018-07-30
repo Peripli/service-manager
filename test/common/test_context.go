@@ -45,9 +45,9 @@ var serviceCatalog = `{
 	}]
 }`
 
-func NewTestContext2(smURL, tokenIssuerURL string) *TestContext {
+func NewTestContext(smURL, tokenIssuerURL string) *TestContext {
 	SM := httpexpect.New(GinkgoT(), smURL)
-	accessToken := RequestToken(tokenIssuerURL + "/oauth/token")
+	accessToken := RequestToken(tokenIssuerURL)
 	SMWithOAuth := SM.Builder(func(req *httpexpect.Request) {
 		req.WithHeader("Authorization", "Bearer "+accessToken)
 	})
@@ -69,7 +69,8 @@ func NewTestContext2(smURL, tokenIssuerURL string) *TestContext {
 		brokers:     make(map[string]*Broker),
 	}
 }
-func NewTestContext(additionalAPIs ...*web.API) *TestContext {
+
+func NewTestContextFromAPIs(additionalAPIs ...*web.API) *TestContext {
 	ctx, cancel := context.WithCancel(context.Background())
 	mockOauthServer := SetupFakeOAuthServer()
 
@@ -86,7 +87,7 @@ func NewTestContext(additionalAPIs ...*web.API) *TestContext {
 	serviceManager := smanagerBuilder.Build()
 	smServer := httptest.NewServer(serviceManager.Server.Router)
 
-	return NewTestContext2(smServer.URL, mockOauthServer.URL)
+	return NewTestContext(smServer.URL, mockOauthServer.URL)
 }
 
 type TestContext struct {
