@@ -57,7 +57,7 @@ func (a *Authenticator) Authenticate(request *http.Request) (*authentication.Use
 	}
 
 	if err != nil {
-		logrus.Errorf("Could not get credentials entity from storage")
+		logrus.Errorf("Could not get credentials entity from storage: %s", err)
 		return nil, web.NewHTTPError(
 			errors.New("Internal Server Error"),
 			http.StatusInternalServerError,

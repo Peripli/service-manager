@@ -68,7 +68,7 @@ type Broker interface {
 	Get(id string) (*types.Broker, error)
 
 	// GetAll retrieves all brokers from SM DB
-	GetAll() ([]types.Broker, error)
+	GetAll() ([]*types.Broker, error)
 
 	// Delete deletes a broker from SM DB
 	Delete(id string) error
@@ -87,7 +87,7 @@ type Platform interface {
 	Get(id string) (*types.Platform, error)
 
 	// GetAll retrieves all platforms from SM DB
-	GetAll() ([]types.Platform, error)
+	GetAll() ([]*types.Platform, error)
 
 	// Delete deletes a platform from SM DB
 	Delete(id string) error

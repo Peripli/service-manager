@@ -24,21 +24,13 @@ import (
 var _ = Describe("Postgres Storage Abstract", func() {
 
 	Describe("updateQuery", func() {
-		Context("Called with non-structure second parameter", func() {
-			It("Should return error", func() {
-				_, err := updateQuery("n/a", 5)
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(Equal("unable to query n/a"))
-			})
-		})
 
 		Context("Called with structure with no db tag", func() {
 			It("Should return proper query", func() {
 				type ts struct {
 					Field string
 				}
-				query, err := updateQuery("n/a", ts{Field: "value"})
-				Expect(err).ToNot(HaveOccurred())
+				query := updateQuery("n/a", ts{Field: "value"})
 				Expect(query).To(Equal("UPDATE n/a SET field = :field WHERE id = :id"))
 			})
 		})
@@ -48,8 +40,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 				type ts struct {
 					Field string `db:"taggedField"`
 				}
-				query, err := updateQuery("n/a", ts{Field: "value"})
-				Expect(err).ToNot(HaveOccurred())
+				query := updateQuery("n/a", ts{Field: "value"})
 				Expect(query).To(Equal("UPDATE n/a SET taggedField = :taggedField WHERE id = :id"))
 			})
 		})
@@ -59,8 +50,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 				type ts struct {
 					Field string
 				}
-				query, err := updateQuery("n/a", ts{})
-				Expect(err).ToNot(HaveOccurred())
+				query := updateQuery("n/a", ts{})
 				Expect(query).To(Equal(""))
 			})
 		})
@@ -68,8 +58,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 		Context("Called with structure with no fields", func() {
 			It("Should return proper query", func() {
 				type ts struct{}
-				query, err := updateQuery("n/a", ts{})
-				Expect(err).ToNot(HaveOccurred())
+				query := updateQuery("n/a", ts{})
 				Expect(query).To(Equal(""))
 			})
 		})

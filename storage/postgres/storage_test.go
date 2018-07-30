@@ -40,6 +40,14 @@ var _ = Describe("Postgres Storage", func() {
 		})
 	})
 
+	Describe("Credentials", func() {
+		Context("Called with uninitialized db", func() {
+			It("Should panic", func() {
+				Expect(func() { pgStorage.Credentials() }).To(Panic())
+			})
+		})
+	})
+
 	Describe("Ping", func() {
 		Context("Called with uninitialized db", func() {
 			It("Should panic", func() {
