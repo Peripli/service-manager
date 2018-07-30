@@ -8,8 +8,11 @@ CREATE TABLE vault.safe (
   updated_at TIMESTAMP NOT NULL
 );
 
-ALTER TABLE credentials
+ALTER TABLE platforms
     ALTER COLUMN password TYPE bytea USING(password::bytea);
+
+ALTER TABLE brokers
+  ALTER COLUMN password TYPE bytea USING(password::bytea);
 
 CREATE ROLE access_user;
 

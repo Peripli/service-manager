@@ -22,11 +22,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/Peripli/service-manager/security"
 	"github.com/jmoiron/sqlx"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
 var _ = Describe("DbKeyFetcher", func() {

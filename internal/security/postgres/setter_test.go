@@ -20,19 +20,13 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"fmt"
-	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/Peripli/service-manager/security"
 	"github.com/jmoiron/sqlx"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
-
-func Test(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Internal Security Storage Test Suite")
-}
 
 var _ = Describe("DbKeySetter", func() {
 	Describe("Set encryption key", func() {
