@@ -21,8 +21,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/rest"
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -38,9 +38,9 @@ var sm *httpexpect.Expect
 var _ = Describe("Server", func() {
 
 	BeforeSuite(func() {
-		api := &rest.API{}
-		route := rest.Route{
-			Endpoint: rest.Endpoint{
+		api := &web.API{}
+		route := web.Route{
+			Endpoint: web.Endpoint{
 				Path:   "/",
 				Method: http.MethodGet,
 			},
@@ -49,37 +49,33 @@ var _ = Describe("Server", func() {
 		testCtl := &testController{}
 		testCtl.RegisterRoutes(route)
 		api.RegisterControllers(testCtl)
-		api.RegisterFilters(web.Filter{
-			RouteMatcher: web.RouteMatcher{
-				PathPattern: "**",
-			},
-			Middleware: testMiddleware,
-		})
+		api.RegisterFilters(&testFilter{})
 		serverSettings := Settings{
 			Port:            0,
 			RequestTimeout:  time.Second * 3,
 			ShutdownTimeout: time.Second * 3,
 		}
-		server := New(api, serverSettings)
+		server := New(serverSettings, api)
+		server.Router.Use(filters.NewRecoveryMiddleware())
 		Expect(server).ToNot(BeNil())
-		testServer := httptest.NewServer(server.Handler)
+		testServer := httptest.NewServer(server.Router)
 		sm = httpexpect.New(GinkgoT(), testServer.URL)
 	})
 
-	Describe("New", func() {
+	Describe("Panic Recovery", func() {
 		Context("when controller has panicing http.handler", func() {
 			It("should return 500", func() {
 				assertRecover("fail=true")
 			})
 		})
 
-		Context("when controller has panicing filter", func() {
+		Context("when controller has panicing filter before delegating to next handler", func() {
 			It("should return 500", func() {
 				assertRecover("filter_fail_before=true")
 			})
 		})
 
-		Context("when controller has panicing filter", func() {
+		Context("when controller has panicing filter after delegating to next handler", func() {
 			It("should return 500", func() {
 				assertRecover("filter_fail_after=true")
 			})
@@ -95,33 +91,52 @@ func assertRecover(query string) {
 }
 
 type testController struct {
-	testRoutes []rest.Route
+	testRoutes []web.Route
 }
 
-func (t *testController) RegisterRoutes(routes ...rest.Route) {
+func (t *testController) RegisterRoutes(routes ...web.Route) {
 	t.testRoutes = append(t.testRoutes, routes...)
 }
 
-func (t *testController) Routes() []rest.Route {
+func (t *testController) Routes() []web.Route {
 	return t.testRoutes
+}
+
+type testFilter struct {
+}
+
+func (tf testFilter) Name() string {
+	return "testFilter"
+}
+
+func (tf testFilter) Run(next web.Handler) web.Handler {
+	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
+		if request.URL.Query().Get("filter_fail_before") == "true" {
+			panic("expected")
+		}
+		res, err := next.Handle(request)
+		if request.URL.Query().Get("filter_fail_after") == "true" {
+			panic("expected")
+		}
+		return res, err
+	})
+}
+
+func (tf testFilter) FilterMatchers() []web.FilterMatcher {
+	return []web.FilterMatcher{
+		{
+			Matchers: []web.Matcher{
+				web.Path("**"),
+			},
+		},
+	}
 }
 
 func testHandler(req *web.Request) (*web.Response, error) {
 	if req.URL.Query().Get("fail") == "true" {
 		panic("expected")
 	}
-	resp := web.Response{}
-	resp.StatusCode = http.StatusOK
-	return &resp, nil
-}
-
-func testMiddleware(req *web.Request, next web.Handler) (*web.Response, error) {
-	if req.URL.Query().Get("filter_fail_before") == "true" {
-		panic("expected")
-	}
-	res, err := next(req)
-	if req.URL.Query().Get("filter_fail_after") == "true" {
-		panic("expected")
-	}
-	return res, err
+	return &web.Response{
+		StatusCode: http.StatusOK,
+	}, nil
 }

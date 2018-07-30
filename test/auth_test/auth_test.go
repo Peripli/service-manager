@@ -49,7 +49,7 @@ var _ = Describe("Service Manager Authentication", func() {
 
 	BeforeSuite(func() {
 		os.Chdir("../..")
-		ctx = common.NewTestContext(nil)
+		ctx = common.NewTestContextFromAPIs()
 	})
 
 	AfterSuite(func() {
@@ -84,15 +84,15 @@ var _ = Describe("Service Manager Authentication", func() {
 		})
 	})
 
-	Context("Failing authentication scenarios", func() {
+	Context("Failing security scenarios", func() {
 		authRequests := []struct{ name, method, path, authHeader string }{
 			// PLATFORMS
-			{"Missing authorization header", "GET", "/v1/platforms/999", ""	},
+			{"Missing authorization header", "GET", "/v1/platforms/999", ""},
 			{"Invalid authorization schema", "GET", "/v1/platforms/999", "Basic abc"},
 			{"Missing token in authorization header", "GET", "/v1/platforms/999", "Bearer "},
 			{"Invalid token in authorization header", "GET", "/v1/platforms/999", "Bearer abc"},
 
-			{"Missing authorization header", "GET", "/v1/platforms", ""	},
+			{"Missing authorization header", "GET", "/v1/platforms", ""},
 			{"Invalid authorization schema", "GET", "/v1/platforms", "Basic abc"},
 			{"Missing token in authorization header", "GET", "/v1/platforms", "Bearer "},
 			{"Invalid token in authorization header", "GET", "/v1/platforms", "Bearer abc"},
@@ -113,12 +113,12 @@ var _ = Describe("Service Manager Authentication", func() {
 			{"Invalid token in authorization header", "DELETE", "/v1/platforms/999", "Bearer abc"},
 
 			// BROKERS
-			{"Missing authorization header", "GET", "/v1/service_brokers/999", ""	},
+			{"Missing authorization header", "GET", "/v1/service_brokers/999", ""},
 			{"Invalid authorization schema", "GET", "/v1/service_brokers/999", "Basic abc"},
 			{"Missing token in authorization header", "GET", "/v1/service_brokers/999", "Bearer "},
 			{"Invalid token in authorization header", "GET", "/v1/service_brokers/999", "Bearer abc"},
 
-			{"Missing authorization header", "GET", "/v1/service_brokers", ""	},
+			{"Missing authorization header", "GET", "/v1/service_brokers", ""},
 			{"Invalid authorization schema", "GET", "/v1/service_brokers", "Basic abc"},
 			{"Missing token in authorization header", "GET", "/v1/service_brokers", "Bearer "},
 			{"Invalid token in authorization header", "GET", "/v1/service_brokers", "Bearer abc"},
@@ -139,28 +139,28 @@ var _ = Describe("Service Manager Authentication", func() {
 			{"Invalid token in authorization header", "DELETE", "/v1/service_brokers/999", "Bearer abc"},
 
 			// AGGREGATED CATALOG
-			{"Missing authorization header", "GET", "/v1/sm_catalog", ""	},
+			{"Missing authorization header", "GET", "/v1/sm_catalog", ""},
 			{"Invalid authorization schema", "GET", "/v1/sm_catalog", "Basic abc"},
 			{"Missing token in authorization header", "GET", "/v1/sm_catalog", "Bearer "},
 			{"Invalid token in authorization header", "GET", "/v1/sm_catalog", "Bearer abc"},
 
 			// OSB
-			{"Missing authorization header", "GET", "/v1/osb/999/v2/catalog", ""	},
+			{"Missing authorization header", "GET", "/v1/osb/999/v2/catalog", ""},
 			{"Invalid authorization schema", "GET", "/v1/osb/999/v2/catalog", "Basic abc"},
 			{"Missing token in authorization header", "GET", "/v1/osb/999/v2/catalog", "Bearer "},
 			{"Invalid token in authorization header", "GET", "/v1/osb/999/v2/catalog", "Bearer abc"},
 
-			{"Missing authorization header", "PUT", "/v1/osb/999/v2/service_instances/111", ""	},
+			{"Missing authorization header", "PUT", "/v1/osb/999/v2/service_instances/111", ""},
 			{"Invalid authorization schema", "PUT", "/v1/osb/999/v2/service_instances/111", "Basic abc"},
 			{"Missing token in authorization header", "PUT", "/v1/osb/999/v2/service_instances/111", "Bearer "},
 			{"Invalid token in authorization header", "PUT", "/v1/osb/999/v2/service_instances/111", "Bearer abc"},
 
-			{"Missing authorization header", "PATCH", "/v1/osb/999/v2/service_instances/111", ""	},
+			{"Missing authorization header", "PATCH", "/v1/osb/999/v2/service_instances/111", ""},
 			{"Invalid authorization schema", "PATCH", "/v1/osb/999/v2/service_instances/111", "Basic abc"},
 			{"Missing token in authorization header", "PATCH", "/v1/osb/999/v2/service_instances/111", "Bearer "},
 			{"Invalid token in authorization header", "PATCH", "/v1/osb/999/v2/service_instances/111", "Bearer abc"},
 
-			{"Missing authorization header", "DELETE", "/v1/osb/999/v2/service_instances/111/service_bindings/222", ""	},
+			{"Missing authorization header", "DELETE", "/v1/osb/999/v2/service_instances/111/service_bindings/222", ""},
 			{"Invalid authorization schema", "DELETE", "/v1/osb/999/v2/service_instances/111/service_bindings/222", "Basic abc"},
 			{"Missing token in authorization header", "DELETE", "/v1/osb/999/v2/service_instances/111/service_bindings/222", "Bearer "},
 			{"Invalid token in authorization header", "DELETE", "/v1/osb/999/v2/service_instances/111/service_bindings/222", "Bearer abc"},
@@ -168,7 +168,7 @@ var _ = Describe("Service Manager Authentication", func() {
 
 		for _, request := range authRequests {
 			request := request
-			It(request.name, func() {
+			It(request.name+" "+request.method+" "+request.path+" auth_header: "+request.authHeader, func() {
 				expectUnauthorizedRequest(ctx, request.method, request.path, request.authHeader)
 			})
 		}

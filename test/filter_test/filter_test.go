@@ -5,20 +5,18 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
 type object = common.Object
-type array = common.Array
 
 func TestFilters(t *testing.T) {
 	os.Chdir("../..")
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Plugin Tests Suite")
+	RunSpecs(t, "Filter Tests Suite")
 }
 
 var _ = Describe("Service Manager Filters", func() {
@@ -26,13 +24,14 @@ var _ = Describe("Service Manager Filters", func() {
 	var testBroker *common.Broker
 
 	var testFilters []web.Filter
+	var order string
 
 	JustBeforeEach(func() {
-		api := &rest.API{}
+		api := &web.API{}
 		api.RegisterFilters(testFilters...)
-		ctx = common.NewTestContext(api)
-		ctx.RegisterBroker("broker1", nil)
-		testBroker = ctx.Brokers["broker1"]
+		ctx = common.NewTestContextFromAPIs(api)
+		testBroker  = ctx.RegisterBroker("broker1", nil)
+		order = ""
 	})
 
 	AfterEach(func() {
@@ -42,75 +41,146 @@ var _ = Describe("Service Manager Filters", func() {
 	Describe("Attach filter on multiple endpoints", func() {
 		BeforeEach(func() {
 			testFilters = []web.Filter{
-				{
-					Name: "OSB filter",
-					RouteMatcher: web.RouteMatcher{
-						PathPattern: "/v1/osb/**",
-					},
-					Middleware: func(req *web.Request, next web.Handler) (*web.Response, error) {
-						res, err := next(req)
-						if err == nil {
-							res.Header.Set("filter", "called")
-						}
-						return res, err
-					},
-				},
+				osbTestFilter{state: &order},
 			}
 		})
 
-		It("should be called only on OSB API", func() {
-			ctx.SMWithBasic.GET(testBroker.OSBURL + "/v2/catalog").
-				Expect().Status(http.StatusOK).Header("filter").Equal("called")
+		Context("should be called only on OSB API", func() {
+			Specify("/v2/catalog", func() {
+				ctx.SMWithBasic.GET(testBroker.OSBURL + "/v2/catalog").
+					Expect().Status(http.StatusOK)
+				Expect(order).To(Equal("osb1osb2"))
+			})
 
-			ctx.SMWithBasic.PUT(testBroker.OSBURL+"/v2/service_instances/1234").
-				WithHeader("Content-Type", "application/json").
-				WithJSON(object{}).
-				Expect().Status(http.StatusOK).Header("filter").Equal("called")
+			Specify("/v2/service_instances/1234", func() {
+				ctx.SMWithBasic.PUT(testBroker.OSBURL+"/v2/service_instances/1234").
+					WithHeader("Content-Type", "application/json").
+					WithJSON(object{}).
+					Expect().Status(http.StatusOK)
+				Expect(order).To(Equal("osb1osb2"))
 
-			ctx.SMWithBasic.DELETE(testBroker.OSBURL + "/v2/service_instances/1234/service_bindings/111").
-				Expect().Status(http.StatusOK).Header("filter").Equal("called")
+			})
 
-			ctx.SMWithOAuth.GET("/v1/service_brokers").
-				Expect().Status(http.StatusOK).Header("filter").Empty()
+			Specify("/v2/service_instances/1234/service_bindings/111", func() {
+				ctx.SMWithBasic.DELETE(testBroker.OSBURL + "/v2/service_instances/1234/service_bindings/111").
+					Expect().Status(http.StatusOK)
+				Expect(order).To(Equal("osb1osb2"))
+			})
+
+			Specify("/v1/service_brokers", func() {
+				ctx.SMWithOAuth.GET("/v1/service_brokers").
+					Expect().Status(http.StatusOK)
+				Expect(order).ToNot(Equal("osb1osb2"))
+			})
+
+			Specify("/v1/platforms", func() {
+				ctx.SMWithOAuth.GET("/v1/service_brokers").
+					Expect().Status(http.StatusOK)
+				Expect(order).ToNot(Equal("osb1osb2"))
+			})
 		})
 	})
 
 	Describe("Attach filter on whole API", func() {
-		var order string
 		BeforeEach(func() {
 			testFilters = []web.Filter{
-				{
-					Name: "Global filter",
-					RouteMatcher: web.RouteMatcher{
-						PathPattern: "/**",
-					},
-					Middleware: func(req *web.Request, next web.Handler) (*web.Response, error) {
-						order += "a1"
-						res, err := next(req)
-						order += "a2"
-						return res, err
-					},
-				},
-				{
-					Name: "/v1 filter",
-					RouteMatcher: web.RouteMatcher{
-						PathPattern: "/v1/**",
-					},
-					Middleware: func(req *web.Request, next web.Handler) (*web.Response, error) {
-						order += "b1"
-						res, err := next(req)
-						order += "b2"
-						return res, err
-					},
-				},
+				globalTestFilterA{state: &order},
+				globalTestFilterB{state: &order},
 			}
 		})
 
 		It("should be called on platform API", func() {
-			order = ""
 			ctx.SMWithOAuth.GET("/v1/platforms").
 				Expect().Status(http.StatusOK)
 			Expect(order).To(Equal("a1b1b2a2"))
 		})
 	})
 })
+
+type osbTestFilter struct {
+	state *string
+}
+
+func (tf osbTestFilter) Name() string {
+	return "OSB Filter"
+}
+
+func (tf osbTestFilter) FilterMatchers() []web.FilterMatcher {
+	return []web.FilterMatcher{
+		{
+			Matchers: []web.Matcher{
+				web.Path("/v1/osb/**"),
+			},
+		},
+	}
+}
+
+func (tf osbTestFilter) Run(next web.Handler) web.Handler {
+	return web.HandlerFunc(func(request *web.Request)(*web.Response,error) {
+		*tf.state += "osb1"
+		res, err := next.Handle(request)
+		if err == nil {
+			*tf.state += "osb2"
+		}
+		return res, err
+	})
+}
+
+type globalTestFilterA struct {
+	state *string
+}
+
+func (gfa globalTestFilterA) Name() string {
+	return "GlobalTestFilterA"
+}
+
+func (gfa globalTestFilterA) FilterMatchers() []web.FilterMatcher {
+	return []web.FilterMatcher{
+		{
+			Matchers: []web.Matcher{
+				web.Path("/**"),
+			},
+		},
+	}
+}
+
+func (gfa globalTestFilterA) Run(next web.Handler) web.Handler {
+	return web.HandlerFunc(func(request *web.Request)(*web.Response,error) {
+		*gfa.state += "a1"
+		res, err := next.Handle(request)
+		if err == nil {
+			*gfa.state += "a2"
+		}
+		return res, err
+	})
+}
+
+type globalTestFilterB struct {
+	state *string
+}
+
+func (gfb globalTestFilterB) Name() string {
+	return "GlobalTestFilterB"
+}
+
+func (gfb globalTestFilterB) FilterMatchers() []web.FilterMatcher {
+	return []web.FilterMatcher{
+		{
+			Matchers: []web.Matcher{
+				web.Path("/v1/**"),
+			},
+		},
+	}
+}
+
+func (gfb globalTestFilterB) Run(next web.Handler) web.Handler {
+	return web.HandlerFunc(func(request *web.Request)(*web.Response,error) {
+		*gfb.state += "b1"
+		res, err := next.Handle(request)
+		if err == nil {
+			*gfb.state += "b2"
+		}
+		return res, err
+	})
+}
+

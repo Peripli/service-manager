@@ -20,10 +20,10 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/rest"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/Peripli/service-manager/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -31,6 +31,8 @@ import (
 type Controller struct {
 	BrokerStorage storage.Broker
 }
+
+var _ web.Controller = &Controller{}
 
 type brokerServices struct {
 	ID      string          `json:"id"`
@@ -58,7 +60,7 @@ func (c *Controller) getCatalog(request *web.Request) (*web.Response, error) {
 		retrieveAllBrokers(brokers, &resultServices)
 	}
 
-	return rest.NewJSONResponse(http.StatusOK, aggregatedCatalog{resultServices})
+	return util.NewJSONResponse(http.StatusOK, aggregatedCatalog{resultServices})
 }
 
 func filterBrokersByID(dbBrokers []types.Broker, queryBrokerIDs []string, filteredBrokers *[]brokerServices) {

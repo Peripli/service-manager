@@ -1,0 +1,130 @@
+/*
+ * Copyright 2018 The Service Manager Authors
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
+package util_test
+
+import (
+	"net/http"
+
+	"fmt"
+
+	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/test/common"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+)
+
+var _ = Describe("Client Utils", func() {
+	var (
+		requestFunc  func(*http.Request) (*http.Response, error)
+		reaction     *common.HTTPReaction
+		expectations *common.HTTPExpectations
+	)
+
+	BeforeEach(func() {
+		reaction = &common.HTTPReaction{}
+		expectations = &common.HTTPExpectations{}
+		requestFunc = common.DoHTTP(reaction, expectations)
+	})
+
+	Describe("SendRequest", func() {
+		Context("when marshaling request body fails", func() {
+			It("returns an error", func() {
+				body := testTypeErrorMarshaling{
+					Field: "Value",
+				}
+				_, err := util.SendRequest(requestFunc, "GET", "http://example.com", map[string]string{}, body)
+
+				Expect(err).Should(HaveOccurred())
+			})
+
+		})
+
+		Context("when method is invalid", func() {
+			It("returns an error", func() {
+				_, err := util.SendRequest(requestFunc, "?+?.>", "http://example.com", map[string]string{}, nil)
+
+				Expect(err).Should(HaveOccurred())
+			})
+		})
+
+		Context("when request that has parameters and body is successful", func() {
+			It("returns no error", func() {
+				params := map[string]string{
+					"key": "val",
+				}
+				body := struct {
+					Field string `json:"field"`
+				}{Field: "value"}
+
+				expectations.URL = "http://example.com"
+				expectations.Params = params
+				expectations.Body = `{"field":"value"}`
+
+				reaction.Err = nil
+				reaction.Status = http.StatusOK
+
+				resp, err := util.SendRequest(requestFunc, "POST", "http://example.com", params, body)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+			})
+		})
+	})
+
+	Describe("BodyToObject", func() {
+		var resp *http.Response
+		var err error
+
+		BeforeEach(func() {
+			reaction.Err = nil
+			reaction.Status = http.StatusOK
+			reaction.Body = `{"field":"value"}`
+
+			resp, err = util.SendRequest(requestFunc, "POST", "http://example.com", map[string]string{}, nil)
+			Expect(err).ShouldNot(HaveOccurred())
+		})
+
+		Context("when unmarshaling fails", func() {
+			It("returns an error", func() {
+				var val testType
+				err = util.BodyToObject(resp.Body, val)
+
+				Expect(err).Should(HaveOccurred())
+			})
+		})
+
+		It("reads the client response content", func() {
+			var val testType
+			err = util.BodyToObject(resp.Body, &val)
+
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(val.Field).To(Equal("value"))
+		})
+	})
+})
+
+type testTypeErrorMarshaling struct {
+	Field string `json:"field"`
+}
+
+func (testTypeErrorMarshaling) MarshalJSON() ([]byte, error) {
+	return nil, fmt.Errorf("error")
+}
+
+type testType struct {
+	Field string `json:"field"`
+}

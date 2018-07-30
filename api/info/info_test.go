@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/Peripli/service-manager/api/info"
-	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/pkg/web"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -33,7 +33,7 @@ func Test(t *testing.T) {
 
 var _ = Describe("Info API", func() {
 
-	var controller rest.Controller
+	var controller web.Controller
 
 	BeforeEach(func() {
 		controller = &info.Controller{

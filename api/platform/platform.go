@@ -14,12 +14,13 @@
  *    limitations under the License.
  */
 
+// Package platform contains logic for the Service Manager Platform Management API
 package platform
 
 import (
 	"net/http"
 
-	"github.com/Peripli/service-manager/rest"
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
 const (
@@ -29,38 +30,38 @@ const (
 )
 
 // Routes returns slice of routes which handle platform operations
-func (c *Controller) Routes() []rest.Route {
-	return []rest.Route{
+func (c *Controller) Routes() []web.Route {
+	return []web.Route{
 		{
-			Endpoint: rest.Endpoint{
+			Endpoint: web.Endpoint{
 				Method: http.MethodPost,
 				Path:   url,
 			},
 			Handler: c.createPlatform,
 		},
 		{
-			Endpoint: rest.Endpoint{
+			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
 				Path:   url + "/{platform_id}",
 			},
 			Handler: c.getPlatform,
 		},
 		{
-			Endpoint: rest.Endpoint{
+			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
 				Path:   url,
 			},
 			Handler: c.getAllPlatforms,
 		},
 		{
-			Endpoint: rest.Endpoint{
+			Endpoint: web.Endpoint{
 				Method: http.MethodDelete,
 				Path:   url + "/{platform_id}",
 			},
 			Handler: c.deletePlatform,
 		},
 		{
-			Endpoint: rest.Endpoint{
+			Endpoint: web.Endpoint{
 				Method: http.MethodPatch,
 				Path:   url + "/{platform_id}",
 			},

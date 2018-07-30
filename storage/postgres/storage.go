@@ -24,6 +24,7 @@ import (
 
 	"fmt"
 
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/golang-migrate/migrate"
 	migratepg "github.com/golang-migrate/migrate/database/postgres"
@@ -41,7 +42,6 @@ func init() {
 }
 
 type postgresStorage struct {
-	once  sync.Once
 	db    *sqlx.DB
 	state *storageState
 }
@@ -79,7 +79,7 @@ func (storage *postgresStorage) Open(uri string) error {
 	if uri == "" {
 		return fmt.Errorf("storage URI cannot be empty")
 	}
-	storage.once.Do(func() {
+	if storage.db == nil {
 		storage.db, err = sqlx.Connect(Storage, uri)
 		if err != nil {
 			logrus.Panicln("Could not connect to PostgreSQL:", err)
@@ -95,8 +95,7 @@ func (storage *postgresStorage) Open(uri string) error {
 		if err := updateSchema(storage.db); err != nil {
 			logrus.Panicln("Could not update database schema:", err)
 		}
-
-	})
+	}
 	return err
 }
 
@@ -150,7 +149,7 @@ func checkUniqueViolation(err error) error {
 	sqlErr, ok := err.(*pq.Error)
 	if ok && sqlErr.Code.Name() == "unique_violation" {
 		logrus.Debug(sqlErr)
-		return storage.ErrUniqueViolation
+		return util.ErrAlreadyExistsInStorage
 	}
 	return err
 }
@@ -161,14 +160,14 @@ func checkRowsAffected(result sql.Result) error {
 		return err
 	}
 	if rowsAffected < 1 {
-		return storage.ErrNotFound
+		return util.ErrNotFoundInStorage
 	}
 	return nil
 }
 
 func checkSQLNoRows(err error) error {
 	if err == sql.ErrNoRows {
-		return storage.ErrNotFound
+		return util.ErrNotFoundInStorage
 	}
 	return err
 }

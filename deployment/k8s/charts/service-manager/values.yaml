@@ -31,5 +31,5 @@ config:
     level: info
     format: text
   server:
-    requestTimeout: 3000
-    shutdownTimeout: 3000
+    request_timeout: 3000ms
+    shutdown_timeout: 3000ms

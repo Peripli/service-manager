@@ -18,13 +18,11 @@ package info_test
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"testing"
 
 	"github.com/Peripli/service-manager/api/info"
 	"github.com/Peripli/service-manager/test/common"
-	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 )
 
@@ -34,31 +32,23 @@ func Test(t *testing.T) {
 }
 
 var _ = Describe("Info API", func() {
-	var SM *httpexpect.Expect
-	var smServer *httptest.Server
-	var mockOauthServer *httptest.Server
+
+	var ctx *common.TestContext
 
 	BeforeSuite(func() {
-		mockOauthServer = common.SetupMockOAuthServer()
-		smServer = httptest.NewServer(common.GetServerHandler(nil, mockOauthServer.URL))
-		SM = httpexpect.New(GinkgoT(), smServer.URL)
+		ctx = common.NewTestContextFromAPIs()
 	})
 
 	AfterSuite(func() {
-		if smServer != nil {
-			smServer.Close()
-		}
-		if mockOauthServer != nil {
-			mockOauthServer.Close()
-		}
+		ctx.Cleanup()
 	})
 
 	Describe("Get info handler", func() {
 		It("Returns correct response", func() {
-			SM.GET(info.URL).
+			ctx.SM.GET(info.URL).
 				Expect().
 				Status(http.StatusOK).
-				JSON().Object().Value("token_issuer_url").String().Equal(mockOauthServer.URL)
+				JSON().Object().Keys().Contains("token_issuer_url")
 		})
 	})
 })

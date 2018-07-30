@@ -19,7 +19,7 @@ package postgres
 import (
 	"fmt"
 
-	"github.com/Peripli/service-manager/types"
+	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 )

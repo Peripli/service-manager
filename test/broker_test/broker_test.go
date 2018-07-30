@@ -37,7 +37,7 @@ func TestBrokers(t *testing.T) {
 var _ = Describe("Service Manager Broker API", func() {
 
 	var (
-		ctx *common.TestContext
+		ctx          *common.TestContext
 		brokerServer *ghttp.Server
 
 		testBroker     map[string]interface{}
@@ -50,7 +50,7 @@ var _ = Describe("Service Manager Broker API", func() {
 	BeforeSuite(func() {
 		os.Chdir("../..")
 
-		ctx = common.NewTestContext(nil)
+		ctx = common.NewTestContextFromAPIs()
 	})
 
 	AfterSuite(func() {
@@ -374,7 +374,7 @@ var _ = Describe("Service Manager Broker API", func() {
 		Context("when request body contains incomplete credentials", func() {
 			It("returns 400", func() {
 				ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+id).
-					WithJSON(map[string]interface{}{"credentials": map[string]interface{}{"basic": map[string]interface{}{}}}).
+					WithJSON(map[string]interface{}{"credentials": map[string]interface{}{"basic": map[string]interface{}{"password": ""}}}).
 					Expect().
 					Status(http.StatusBadRequest).
 					JSON().Object().

@@ -17,9 +17,10 @@
 package postgres
 
 import (
-	"github.com/jmoiron/sqlx"
 	"fmt"
-	"github.com/Peripli/service-manager/types"
+
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/jmoiron/sqlx"
 )
 
 type credentialStorage struct {

@@ -17,6 +17,7 @@
 package config
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/Peripli/service-manager/api"
@@ -34,7 +35,6 @@ type Settings struct {
 	Storage storage.Settings
 	Log     log.Settings
 	API     api.Settings
-	OAuth   authentication.OAuthSettings
 }
 
 // AddPFlags adds the SM config flags to the provided flag set
@@ -60,14 +60,12 @@ func DefaultSettings() *Settings {
 		},
 		API: api.Settings{
 			TokenIssuerURL: "",
+			ClientID:       "sm",
 			Security: api.Security{
 				EncryptionKey: "",
 				URI:           "",
 				Len:           32,
 			},
-		},
-		OAuth: authentication.OAuthSettings{
-			ClientID: "",
 		},
 	}
 	return config
@@ -95,9 +93,6 @@ func (c *Settings) Validate() error {
 		return err
 	}
 	if err := c.Storage.Validate(); err != nil {
-		return err
-	}
-	if err := c.OAuth.Validate(); err != nil {
 		return err
 	}
 	return nil

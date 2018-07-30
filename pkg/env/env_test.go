@@ -43,7 +43,7 @@ func TestEnv(t *testing.T) {
 
 var _ = Describe("Env", func() {
 	const (
-		key              = "test"
+		key              = "key"
 		description      = "desc"
 		flagDefaultValue = "pflagDefaultValue"
 		fileValue        = "fileValue"
@@ -537,7 +537,7 @@ var _ = Describe("Env", func() {
 
 			Context("override > pflag set > environment > file > pflag default", func() {
 				type s struct {
-					Test string
+					Key string `mapstructure:"key"`
 				}
 
 				var str s

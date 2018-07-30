@@ -14,26 +14,60 @@
  * limitations under the License.
  */
 
+// Package security contains logic for setting SM security
 package security
 
-// CredentialsTransformer provides functionality to modify credentials and to reverse already modified credentials
-type CredentialsTransformer interface {
-	Transform(secret []byte) ([]byte, error)
-	Reverse(cipher []byte) ([]byte, error)
+import (
+	"context"
+	"net/http"
+)
+
+// AuthenticationDecision represents a Authenticator decision to allow or deny authentication or to abstain from
+// taking a decision
+type AuthenticationDecision int
+
+var decisions = []string{"Allow", "Deny", "Abstain"}
+
+const (
+	// Allow represents an authentication decision to allow to proceed
+	Allow AuthenticationDecision = iota
+
+	// Deny represents an authentication decision to deny proceeding
+	Deny
+
+	// Abstain represents an authentication decision to abstain from deciding - let another component to decide
+	Abstain
+)
+
+// String implements Stringer and converts the decision to human-readable value
+func (a AuthenticationDecision) String() string {
+	return decisions[a]
 }
 
-// Encrypter provides functionality to encrypt and decrypt data
-type Encrypter interface {
-	Encrypt(plaintext []byte) ([]byte, error)
-	Decrypt(ciphertext []byte) ([]byte, error)
+// User holds the information for the current user
+type User struct {
+	Name string `json:"name"`
 }
 
-// KeyFetcher provides functionality to get encryption key from a remote location
-type KeyFetcher interface {
-	GetEncryptionKey() ([]byte, error)
+// Authenticator extracts the authenticator information from the request and
+// returns information about the current user or an error if security was not successful
+//go:generate counterfeiter . Authenticator
+type Authenticator interface {
+	// Authenticate returns information about the user if security is successful, a bool specifying
+	// whether the authenticator ran or not and an error if one occurs
+	Authenticate(req *http.Request) (*User, AuthenticationDecision, error)
 }
 
-// KeySetter provides functionality to set encryption key in a remote location
-type KeySetter interface {
-	SetEncryptionKey(key []byte) error
+// Token interface provides means to unmarshal the claims in a struct
+//go:generate counterfeiter . Token
+type Token interface {
+	// Claims unmarshals the claims into the specified struct
+	Claims(v interface{}) error
+}
+
+// TokenVerifier attempts to verify a token and returns it or an error if the verification was not successful
+//go:generate counterfeiter . TokenVerifier
+type TokenVerifier interface {
+	// Verify verifies that the token is valid and returns a token if so, otherwise returns an error
+	Verify(ctx context.Context, token string) (Token, error)
 }

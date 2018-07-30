@@ -21,7 +21,7 @@ import (
 
 	"encoding/json"
 
-	"github.com/Peripli/service-manager/types"
+	"github.com/Peripli/service-manager/pkg/types"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
 )
 

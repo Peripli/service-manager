@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-// Package server contains the logic of the Service Manager server
+// Package server contains the logic of the Service Manager server and a mux router
 package server
 
 import (
@@ -25,8 +25,8 @@ import (
 
 	"strconv"
 
-	"github.com/Peripli/service-manager/rest"
-	"github.com/gorilla/handlers"
+	"github.com/Peripli/service-manager/api"
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 )
@@ -34,8 +34,8 @@ import (
 // Settings type to be loaded from the environment
 type Settings struct {
 	Port            int
-	RequestTimeout  time.Duration
-	ShutdownTimeout time.Duration
+	RequestTimeout  time.Duration `mapstructure:"request_timeout"`
+	ShutdownTimeout time.Duration `mapstructure:"shutdown_timeout"`
 }
 
 // Validate validates the server settings
@@ -54,38 +54,28 @@ func (s *Settings) Validate() error {
 
 // Server is the server to process incoming HTTP requests
 type Server struct {
-	Config  Settings
-	Handler http.Handler
+	Config Settings
+	Router *mux.Router
+	API    *web.API
 }
 
 // New creates a new server with the provided REST API configuration and server configuration
 // Returns the new server and an error if creation was not successful
-func New(api *rest.API, config Settings) *Server {
+func New(config Settings, api *web.API) *Server {
 	router := mux.NewRouter().StrictSlash(true)
-	registerControllers(router, api)
-
-	recoveryHandler := handlers.RecoveryHandler(
-		handlers.PrintRecoveryStack(true),
-		handlers.RecoveryLogger(&recoveryHandlerLogger{}),
-	)(router)
+	registerControllers(api, router)
 
 	return &Server{
-		Config:  config,
-		Handler: recoveryHandler,
+		Config: config,
+		Router: router,
+		API:    api,
 	}
-}
-
-type recoveryHandlerLogger struct{}
-
-// PrintLn prints panic message and stack to error output
-func (r *recoveryHandlerLogger) Println(args ...interface{}) {
-	logrus.Errorln(args...)
 }
 
 // Run starts the server awaiting for incoming requests
 func (s *Server) Run(ctx context.Context) {
 	handler := &http.Server{
-		Handler:      s.Handler,
+		Handler:      s.Router,
 		Addr:         ":" + strconv.Itoa(s.Config.Port),
 		WriteTimeout: s.Config.RequestTimeout,
 		ReadTimeout:  s.Config.RequestTimeout,
@@ -93,14 +83,12 @@ func (s *Server) Run(ctx context.Context) {
 	startServer(ctx, handler, s.Config.ShutdownTimeout)
 }
 
-func registerControllers(router *mux.Router, api *rest.API) {
-	for _, ctrl := range api.Controllers {
+func registerControllers(API *web.API, router *mux.Router) {
+	for _, ctrl := range API.Controllers {
 		for _, route := range ctrl.Routes() {
-			logrus.Debugf("Register endpoint: %s %s", route.Endpoint.Method, route.Endpoint.Path)
-			filters := rest.MatchFilters(&route.Endpoint, api.Filters)
-			handler := rest.NewHTTPHandler(filters, route.Handler)
-			r := router.Handle(route.Endpoint.Path, handler)
-			r.Methods(route.Endpoint.Method)
+			logrus.Debugf("Registering endpoint: %s %s", route.Endpoint.Method, route.Endpoint.Path)
+			handler := web.Filters(API.Filters).ChainMatching(route)
+			router.Handle(route.Endpoint.Path, api.NewHTTPHandler(handler)).Methods(route.Endpoint.Method)
 		}
 	}
 }
