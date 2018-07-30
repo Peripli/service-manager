@@ -87,6 +87,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	return &ServiceManagerBuilder{
 		ctx:    ctx,
 		cancel: cancel,
+		cfg:    cfg.Server,
 		API:    API,
 	}
 }

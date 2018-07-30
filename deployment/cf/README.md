@@ -20,7 +20,6 @@ Alternatively, you can use external PostgreSQL. In this case you need to have a 
 
 Replace in `manifest.yml`:
 
-* <application_name> with the desired name of your Service Manager application.
 * <postgre_instance_name> with the instance name of your PostgreSQL service. Alternatively, you can use the `STORAGE_URI` environment variable to set external PostgreSQL uri. In this case `STORAGE_NAME` environment variable must not be present and you need to remove the service from the manifest.yml.
 
 ## Push the application
