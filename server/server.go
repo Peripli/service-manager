@@ -21,9 +21,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
-
 	"strconv"
+	"time"
 
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -33,7 +32,7 @@ import (
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	Port            int
+	Port            int           `mapstructure:"port"`
 	RequestTimeout  time.Duration `mapstructure:"request_timeout"`
 	ShutdownTimeout time.Duration `mapstructure:"shutdown_timeout"`
 }

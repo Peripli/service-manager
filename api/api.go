@@ -37,7 +37,7 @@ import (
 
 // Security is the configuration used for the encryption of data
 type Security struct {
-	// EncryptionKey is the encryption key from the env_vars
+	// EncryptionKey is the encryption key from the environment
 	EncryptionKey string `mapstructure:"encryption_key"`
 	// URI is the URI used to access the storage with the secondary encryption key
 	URI string `mapstructure:"uri"`
