@@ -32,8 +32,7 @@ import (
 
 	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/cf"
-	sec "github.com/Peripli/service-manager/internal/security/postgres"
-	"github.com/Peripli/service-manager/pkg/env"
+		"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/sirupsen/logrus"
@@ -76,19 +75,19 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	log.SetupLogging(cfg.Log)
 
 	// setup smStorage
-	smStorage, err := storage.Use(ctx, postgres.Storage, cfg.Storage.URI)
+	smStorage, err := storage.Use(ctx, postgres.Storage, cfg.Storage.URI, []byte(cfg.API.Security.EncryptionKey))
 	if err != nil {
 		panic(fmt.Sprintf("error using smStorage: %s", err))
 	}
 
-	secureStorage, err := initializeSecureStorage(ctx, cfg.API.Security)
-	if err != nil {
+	securityStorage := smStorage.Security()
+	if err := initializeSecureStorage(securityStorage); err != nil {
 		panic(fmt.Sprintf("error initialzing secure storage: %v", err))
 	}
 
 	transformer := &security.EncryptionTransformer{
 		Encrypter: &security.TwoLayerEncrypter{
-			Fetcher: secureStorage.Fetcher(),
+			Fetcher: securityStorage.Fetcher(),
 		},
 	}
 
@@ -152,29 +151,25 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	}
 }
 
-func initializeSecureStorage(ctx context.Context, securitySettings api.Security) (security.Storage, error) {
-	secureStorage, err := sec.NewSecureStorage(ctx, securitySettings)
-	if err != nil {
-		return nil, fmt.Errorf("error creating secure storage: %v", err)
-	}
+func initializeSecureStorage(secureStorage security.Storage)  error {
 	keyFetcher := secureStorage.Fetcher()
 	encryptionKey, err := keyFetcher.GetEncryptionKey()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if len(encryptionKey) == 0 {
 		logrus.Debug("No encryption key is present. Generating new one...")
-		newEncryptionKey := make([]byte, securitySettings.Len)
+		newEncryptionKey := make([]byte, 32)
 		if _, err := rand.Read(newEncryptionKey); err != nil {
-			return nil, fmt.Errorf("Could not generate encryption key: %v", err)
+			return fmt.Errorf("Could not generate encryption key: %v", err)
 		}
 		keySetter := secureStorage.Setter()
 		if err := keySetter.SetEncryptionKey(newEncryptionKey); err != nil {
-			return nil, err
+			return err
 		}
 		logrus.Debug("Successfully generated new encryption key")
 	}
-	return secureStorage, nil
+	return nil
 }
 
 func handleInterrupts(ctx context.Context, cancelFunc context.CancelFunc) {

@@ -13,4 +13,3 @@ api:
   security:
     len: 32
     encryption_key: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
-    uri: postgres://guard:guard@localhost:5432/postgres?sslmode=disable

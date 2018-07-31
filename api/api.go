@@ -39,8 +39,6 @@ import (
 type Security struct {
 	// EncryptionKey is the encryption key from the environment
 	EncryptionKey string `mapstructure:"encryption_key"`
-	// URI is the URI used to access the storage with the secondary encryption key
-	URI string `mapstructure:"uri"`
 	// Len is the byte count for the stored encryption key
 	Len int `mapstructure:"len"`
 }
@@ -49,9 +47,6 @@ type Security struct {
 func (s *Security) Validate() error {
 	if s.EncryptionKey == "" {
 		return fmt.Errorf("validate Settings: SecurityEncryptionkey missing")
-	}
-	if len(s.URI) == 0 {
-		return fmt.Errorf("validate Settings: SecurityURI missing")
 	}
 	if s.Len < 32 {
 		return fmt.Errorf("validate Settings: SecurityLen must be at least 32")
