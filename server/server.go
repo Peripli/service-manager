@@ -32,9 +32,10 @@ import (
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	Port            int           `mapstructure:"port"`
-	RequestTimeout  time.Duration `mapstructure:"request_timeout"`
-	ShutdownTimeout time.Duration `mapstructure:"shutdown_timeout"`
+	Port              int           `mapstructure:"port"`
+	RequestTimeout    time.Duration `mapstructure:"request_timeout"`
+	ShutdownTimeout   time.Duration `mapstructure:"shutdown_timeout"`
+	SkipSSLValidation bool 			`mapstructure:"skip_ssl_validation"`
 }
 
 // Server is the server to process incoming HTTP requests

@@ -49,6 +49,7 @@ func DefaultSettings() *Settings {
 			Port:            8080,
 			RequestTimeout:  time.Second * 3,
 			ShutdownTimeout: time.Second * 3,
+			SkipSSLValidation: false,
 		},
 		Storage: storage.Settings{
 			URI: "",
