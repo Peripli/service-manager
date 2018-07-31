@@ -211,18 +211,24 @@ var _ = Describe("Service Manager OSB API", func() {
 	})
 
 	Describe("Get Last Operation", func() {
-		Context("For service instance", func() {
-			resp := ctx.SMWithBasic.GET(validBroker.OSBURL+ "/v2/service_instances/iid/last_operation").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+
+		assertLastOperationHasState := func(url string) {
+			resp := ctx.SMWithBasic.GET(url).WithHeader("X-Broker-API-Version", "oidc_authn.13").
 				Expect().Status(http.StatusOK).JSON().Object()
 
 			resp.ContainsKey("state")
+		}
+
+		Context("For service instance", func() {
+			It("should return state", func(){
+				assertLastOperationHasState(validBroker.OSBURL+ "/v2/service_instances/iid/last_operation")
+			})
 		})
 
 		Context("For service binding", func() {
-			resp := ctx.SMWithBasic.GET(validBroker.OSBURL+ "/v2/service_instances/iid/service_bindings/bid/last_operation").WithHeader("X-Broker-API-Version", "oidc_authn.13").
-				Expect().Status(http.StatusOK).JSON().Object()
-
-			resp.ContainsKey("state")
+			It("should return state", func() {
+				assertLastOperationHasState(validBroker.OSBURL+ "/v2/service_instances/iid/service_bindings/bid/last_operation")
+			})
 		})
 	})
 })
