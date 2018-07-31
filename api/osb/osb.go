@@ -24,22 +24,23 @@ import (
 )
 
 const (
-
 	// v1 is a prefix the first version of the OSB API
 	v1 = "/v1"
 
 	// root is a prefix for the OSB API
 	root = "/osb"
 
-	//BrokerIDPathParam is a service broker ID path parameter
+	// BrokerIDPathParam is a service broker ID path parameter
 	BrokerIDPathParam = "brokerID"
 
 	// baseURL is the OSB API controller path
 	baseURL = v1 + root + "/{" + BrokerIDPathParam + "}"
 
-	catalogURL         = baseURL + "/v2/catalog"
-	serviceInstanceURL = baseURL + "/v2/service_instances/{instance_id}"
-	serviceBindingURL  = baseURL + "/v2/service_instances/{instance_id}/service_bindings/{binding_id}"
+	catalogURL                      = baseURL + "/v2/catalog"
+	serviceInstanceURL              = baseURL + "/v2/service_instances/{instance_id}"
+	serviceInstanceLastOperationURL = baseURL + "/v2/service_instances/{instance_id}/last_operation"
+	serviceBindingURL               = baseURL + "/v2/service_instances/{instance_id}/service_bindings/{binding_id}"
+	serviceBindingLastOperationURL  = baseURL + "/v2/service_instances/{instance_id}/service_bindings/{binding_id}/last_operation"
 )
 
 // Routes implements api.Controller.Routes by providing the routes for the OSB API
@@ -55,5 +56,8 @@ func (c *Controller) Routes() []web.Route {
 		{Endpoint: web.Endpoint{Method: http.MethodGet, Path: serviceBindingURL}, Handler: c.handler},
 		{Endpoint: web.Endpoint{Method: http.MethodPut, Path: serviceBindingURL}, Handler: c.handler},
 		{Endpoint: web.Endpoint{Method: http.MethodDelete, Path: serviceBindingURL}, Handler: c.handler},
+
+		{Endpoint: web.Endpoint{Method: http.MethodGet, Path: serviceInstanceLastOperationURL}, Handler: c.handler},
+		{Endpoint: web.Endpoint{Method: http.MethodGet, Path: serviceBindingLastOperationURL}, Handler: c.handler},
 	}
 }
