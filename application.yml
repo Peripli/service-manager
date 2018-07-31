@@ -12,7 +12,6 @@ storage:
 api:
   token_issuer_url: https://uaa.local.pcfdev.io
   client_id: sm
-  token_issuer_url: https://uaa.local.pcfdev.io
   security:
     len: 32
     encryption_key: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
