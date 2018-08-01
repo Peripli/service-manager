@@ -1,0 +1,16 @@
+vendor/
+debug
+.vscode/
+.git
+.gitignore
+.gometalinter.json
+.travis.yml
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+ISSUE_TEMPLATE.md
+LICENSE
+NOTICE
+AUTHORS.md
+PULL_REQUEST_TEMPLATE.md
+README.md
+release-notes.md
