@@ -52,22 +52,22 @@ var _ = Describe("SM", func() {
 	)
 
 	BeforeSuite(func() {
+		// TODO: storage must be refactored and so that context be in BeforeEach
+		ctx, cancel = context.WithCancel(context.Background())
 		os.Chdir("../..")
 		os.Setenv("FILE_LOCATION", "test/common")
 	})
 
 	AfterSuite(func() {
+		defer cancel()
 		os.Unsetenv("FILE_LOCATION")
 	})
 
 	BeforeEach(func() {
-		ctx, cancel = context.WithCancel(context.Background())
 		os.Setenv("API_TOKEN_ISSUER_URL", common.SetupFakeOAuthServer().URL)
-
 	})
 
 	AfterEach(func() {
-		defer cancel()
 		os.Unsetenv("API_TOKEN_ISSUER_URL")
 		if serviceManagerServer != nil {
 			serviceManagerServer.Close()

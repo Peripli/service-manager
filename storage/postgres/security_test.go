@@ -20,7 +20,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"fmt"
-	"time"
+		"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/Peripli/service-manager/security"
@@ -150,6 +150,7 @@ var _ = Describe("Security", func() {
 		Context("When everything passed", func() {
 			BeforeEach(func() {
 				result := sqlmock.NewResult(int64(1), int64(1))
+				mock.ExpectQuery("SELECT").WillReturnRows(sqlmock.NewRows([]string{"secret", "created_at", "updated_at"}))
 				mock.ExpectExec("INSERT").WillReturnResult(result)
 			})
 			It("Should return nil", func() {

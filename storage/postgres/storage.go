@@ -74,9 +74,6 @@ func (storage *postgresStorage) Credentials() storage.Credentials {
 
 func (storage *postgresStorage) Security() storage.Security{
 	storage.checkOpen()
-	if storage.encryptionKey == nil || len(storage.encryptionKey) < 32 {
-		logrus.Panicln("Security storage requires at least 32 bit encryption key")
-	}
 	return &securityStorage{storage.db, storage.encryptionKey}
 }
 
