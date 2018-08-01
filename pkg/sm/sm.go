@@ -35,7 +35,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
-	"github.com/Peripli/service-manager/pkg/util"
 )
 
 // DefaultEnv creates a default environment that can be used to boot up a Service Manager
@@ -78,9 +77,6 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	if err != nil {
 		panic(fmt.Sprintf("error using smStorage: %s", err))
 	}
-
-	// setup certificate validation
-	util.ConfigureCertificateValidation(cfg.Server.SkipSSLValidation)
 
 	// setup core API
 	API, err := api.New(ctx, smStorage, cfg.API)

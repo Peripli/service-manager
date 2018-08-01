@@ -28,6 +28,7 @@ import (
 
 	"errors"
 
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/security/securityfakes"
 	. "github.com/onsi/ginkgo"
@@ -88,7 +89,7 @@ var _ = Describe("OIDC Authenticator", func() {
 	var openIdResponseBody providerJSON
 	var openIdResponseBodyBytes []byte
 
-	var readConfigFunc DoRequestFunc
+	var readConfigFunc util.DoRequestFunc
 	var options Options
 
 	issuerPath := "/oauth/token"

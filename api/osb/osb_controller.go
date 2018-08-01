@@ -75,6 +75,8 @@ func (c *Controller) handler(request *web.Request) (*web.Response, error) {
 
 	logrus.Debugf("Forwarding OSB request to %s", modifiedRequest.URL)
 	recorder := httptest.NewRecorder()
+
+	reverseProxy.Transport = util.DefaultHTTPClient(true).Transport
 	reverseProxy.ServeHTTP(recorder, modifiedRequest)
 
 	body, err := ioutil.ReadAll(recorder.Body)

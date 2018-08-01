@@ -15,11 +15,13 @@ type BearerAuthnFilter struct {
 }
 
 // NewBearerAuthnFilter returns a BearerAuthnFilter
-func NewBearerAuthnFilter(ctx context.Context, tokenIssuer, clientID string) (*BearerAuthnFilter, error) {
+func NewBearerAuthnFilter(ctx context.Context, tokenIssuer, clientID string, skipSSLValidation bool) (*BearerAuthnFilter, error) {
 	authenticator, err := oidc.NewAuthenticator(ctx, oidc.Options{
 		IssuerURL: tokenIssuer,
 		ClientID:  clientID,
-	})
+	},
+		skipSSLValidation,
+	)
 	if err != nil {
 		return nil, err
 	}

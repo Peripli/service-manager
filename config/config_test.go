@@ -162,8 +162,9 @@ var _ = Describe("config", func() {
 						Level:  "debug",
 					},
 					API: api.Settings{
-						TokenIssuerURL: "http://example.com",
-						ClientID:       "sm",
+						TokenIssuerURL:    "http://example.com",
+						ClientID:          "sm",
+						SkipSSLValidation: false,
 					},
 				}
 

@@ -17,11 +17,29 @@
 package util
 
 import (
-	"net/http"
 	"crypto/tls"
+	"net/http"
 )
 
-// ConfigureCertificateValidation configures the default HTTP client to either skip or validate certificates
-func ConfigureCertificateValidation(shouldValidate bool) {
-	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: shouldValidate}
+// DefaultHTTPClient constructs a default HTTP Client with a specific certificate validation configuration
+func DefaultHTTPClient(skipSSLValidation bool) *http.Client {
+	client := http.DefaultClient
+	client.Transport = defaultHTTPTransport(skipSSLValidation)
+	return client
+}
+
+func defaultHTTPTransport(skipSSLValidation bool) http.RoundTripper {
+	defaultTransport := http.DefaultTransport.(*http.Transport)
+
+	transportWithSelfSignedTLS := &http.Transport{
+		Proxy:                 defaultTransport.Proxy,
+		DialContext:           defaultTransport.DialContext,
+		MaxIdleConns:          defaultTransport.MaxIdleConns,
+		IdleConnTimeout:       defaultTransport.IdleConnTimeout,
+		ExpectContinueTimeout: defaultTransport.ExpectContinueTimeout,
+		TLSHandshakeTimeout:   defaultTransport.TLSHandshakeTimeout,
+		TLSClientConfig:       &tls.Config{InsecureSkipVerify: skipSSLValidation},
+	}
+
+	return transportWithSelfSignedTLS
 }

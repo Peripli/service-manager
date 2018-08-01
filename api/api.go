@@ -34,13 +34,14 @@ import (
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	TokenIssuerURL string `mapstructure:"token_issuer_url"`
-	ClientID       string `mapstructure:"client_id"`
+	TokenIssuerURL    string `mapstructure:"token_issuer_url"`
+	ClientID          string `mapstructure:"client_id"`
+	SkipSSLValidation bool   `mapstructure:"skip_ssl_validation"`
 }
 
 // New returns the minimum set of REST APIs needed for the Service Manager
 func New(ctx context.Context, storage storage.Storage, settings Settings) (*web.API, error) {
-	bearerAuthnFilter, err := authn.NewBearerAuthnFilter(ctx, settings.TokenIssuerURL, settings.ClientID)
+	bearerAuthnFilter, err := authn.NewBearerAuthnFilter(ctx, settings.TokenIssuerURL, settings.ClientID, settings.SkipSSLValidation)
 	if err != nil {
 		return nil, err
 	}

@@ -32,9 +32,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// DoRequestFunc is an alias for any function that takes an http request and returns a response and error
-type DoRequestFunc func(request *http.Request) (*http.Response, error)
-
 type claims struct {
 	UserID   string `json:"user_id"`
 	Username string `json:"user_name"`
@@ -56,7 +53,7 @@ type Options struct {
 	ClientID string
 
 	// ReadConfigurationFunc is the function used to call the token issuer. If one is not provided, http.DefaultClient.Do will be used
-	ReadConfigurationFunc DoRequestFunc
+	ReadConfigurationFunc util.DoRequestFunc
 }
 
 // Authenticator is the OpenID implementation of security.Authenticator
@@ -65,12 +62,12 @@ type Authenticator struct {
 }
 
 // NewAuthenticator returns a new OpenID authenticator or an error if one couldn't be configured
-func NewAuthenticator(ctx context.Context, options Options) (*Authenticator, error) {
+func NewAuthenticator(ctx context.Context, options Options, skipSSLValidation bool) (*Authenticator, error) {
 	if options.IssuerURL == "" || options.ClientID == "" {
 		logrus.Warn("Missing config for OIDC authenticator")
 		return nil, errors.New("missing config for OIDC Authenticator")
 	}
-	resp, err := getOpenIDConfig(ctx, options)
+	resp, err := getOpenIDConfig(ctx, options, skipSSLValidation)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +116,7 @@ func (a *Authenticator) Authenticate(request *http.Request) (*security.User, sec
 	}, security.Allow, nil
 }
 
-func getOpenIDConfig(ctx context.Context, options Options) (*http.Response, error) {
+func getOpenIDConfig(ctx context.Context, options Options, skipSSLValidation bool) (*http.Response, error) {
 	// Work around for UAA until https://github.com/cloudfoundry/uaa/issues/805 is fixed
 	// Then oidc.NewProvider(ctx, options.IssuerURL) should be used
 	if _, err := url.ParseRequestURI(options.IssuerURL); err != nil {
@@ -131,11 +128,11 @@ func getOpenIDConfig(ctx context.Context, options Options) (*http.Response, erro
 		return nil, err
 	}
 
-	var readConfigFunc DoRequestFunc
+	var readConfigFunc util.DoRequestFunc
 	if options.ReadConfigurationFunc != nil {
 		readConfigFunc = options.ReadConfigurationFunc
 	} else {
-		readConfigFunc = http.DefaultClient.Do
+		readConfigFunc = util.DefaultHTTPClient(skipSSLValidation).Do
 	}
 
 	resp, err := readConfigFunc(req.WithContext(ctx))
