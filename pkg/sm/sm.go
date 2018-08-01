@@ -149,7 +149,7 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	}
 }
 
-func initializeSecureStorage(secureStorage security.Storage) error {
+func initializeSecureStorage(secureStorage storage.Security) error {
 	keyFetcher := secureStorage.Fetcher()
 	encryptionKey, err := keyFetcher.GetEncryptionKey()
 	if err != nil {

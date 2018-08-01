@@ -13,5 +13,4 @@ api:
   token_issuer_url: https://uaa.local.pcfdev.io
   client_id: sm
   security:
-    len: 32
     encryption_key: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8

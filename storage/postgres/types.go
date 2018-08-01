@@ -18,9 +18,8 @@ package postgres
 
 import (
 	"database/sql"
-	"time"
-
 	"encoding/json"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
@@ -33,6 +32,13 @@ const (
 	// brokerTable db table name for brokers
 	brokerTable = "brokers"
 )
+
+// Safe is a representation of how a secret is stored
+type Safe struct {
+	Secret    []byte    `db:"secret"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
+}
 
 // Platform dto
 type Platform struct {
