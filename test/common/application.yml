@@ -10,3 +10,4 @@ storage:
 api:
 #  token_issuer_url: https://uaa.local.pcfdev.io
   client_id: sm
+  skip_ssl_validation: false
