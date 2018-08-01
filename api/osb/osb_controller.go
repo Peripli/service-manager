@@ -35,10 +35,16 @@ import (
 
 var osbPathPattern = regexp.MustCompile("^" + v1 + root + "/[^/]+(/.*)$")
 
+// ProxyConfig provides configuration for the reverse proxy used for the OSB calls
+type ProxyConfig struct {
+	SkipSSLValidation bool
+}
+
 // Controller implements api.Controller by providing OSB API logic
 type Controller struct {
 	BrokerStorage storage.Broker
 	Filters       web.Filters
+	Configuration ProxyConfig
 }
 
 var _ web.Controller = &Controller{}
@@ -76,7 +82,7 @@ func (c *Controller) handler(request *web.Request) (*web.Response, error) {
 	logrus.Debugf("Forwarding OSB request to %s", modifiedRequest.URL)
 	recorder := httptest.NewRecorder()
 
-	reverseProxy.Transport = util.DefaultHTTPClient(true).Transport
+	reverseProxy.Transport = util.DefaultHTTPClient(c.Configuration.SkipSSLValidation).Transport
 	reverseProxy.ServeHTTP(recorder, modifiedRequest)
 
 	body, err := ioutil.ReadAll(recorder.Body)

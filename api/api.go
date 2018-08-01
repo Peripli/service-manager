@@ -63,6 +63,9 @@ func New(ctx context.Context, storage storage.Storage, settings Settings) (*web.
 			},
 			&osb.Controller{
 				BrokerStorage: storage.Broker(),
+				Configuration: osb.ProxyConfig{
+					SkipSSLValidation: settings.SkipSSLValidation,
+				},
 			},
 			&healthcheck.Controller{
 				Storage: storage,
