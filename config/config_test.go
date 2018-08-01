@@ -55,7 +55,6 @@ var _ = Describe("config", func() {
 			config.API.ClientID = "sm"
 			config.API.Security.Len = 32
 			config.API.Security.EncryptionKey = "some-encryption-key"
-			config.API.Security.URI = "some-uri"
 		})
 
 		Context("when config is valid", func() {

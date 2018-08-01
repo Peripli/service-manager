@@ -58,6 +58,7 @@ type Storage interface {
 	// Credentials provides access to credentials db operations
 	Credentials() Credentials
 
+	// Security provides access to encryption key management
 	Security() Security
 }
 
@@ -105,7 +106,10 @@ type Credentials interface {
 	Get(username string) (*types.Credentials, error)
 }
 
+// Security interface for encryption key operations
 type Security interface{
+	// Fetcher provides means to obtain the encryption key
 	Fetcher() security.KeyFetcher
+	// Setter provides means to change the encryption key
 	Setter() security.KeySetter
 }

@@ -17,6 +17,7 @@
 package postgres
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/Peripli/service-manager/security"
@@ -65,6 +66,13 @@ type keySetter struct {
 
 // Sets the encryption key by encrypting it beforehand with the encryption key in the environment
 func (k *keySetter) SetEncryptionKey(key []byte) error {
+	var safes []security.Safe
+	if err := getAll(k.db, "safe", &safes); err != nil {
+		return err
+	}
+	if len(safes) != 0 {
+		return fmt.Errorf("Encryption key is already set")
+	}
 	bytes, err := security.Encrypt(key, k.encryptionKey)
 	if err != nil {
 		return err
