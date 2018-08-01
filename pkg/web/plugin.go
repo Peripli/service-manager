@@ -79,3 +79,17 @@ type BindingFetcher interface {
 
 	FetchBinding(next Handler) Handler
 }
+
+// InstancePoller should be implemented by plugins that need to intercept OSB calls for polling last operation for service instances
+type InstancePoller interface {
+	Plugin
+
+	PollInstance(next Handler) Handler
+}
+
+// BindingPoller should be implemented by plugins that need to intercept OSB Calls for polling last operation for service bindings
+type BindingPoller interface {
+	Plugin
+
+	PollBinding(next Handler) Handler
+}

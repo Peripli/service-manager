@@ -172,6 +172,8 @@ var _ = Describe("Service Manager Plugins", func() {
 			{"bind", "PUT", "/v2/service_instances/1234/service_bindings/111"},
 			{"unbind", "DELETE", "/v2/service_instances/1234/service_bindings/111"},
 			{"fetchBinding", "GET", "/v2/service_instances/1234/service_bindings/111"},
+			{"pollInstance", "GET","/v2/service_instances/1234/last_operation"},
+			{"pollBinding", "GET", "/v2/service_instances/1234/service_bindings/111/last_operation"},
 		}
 
 		for _, op := range osbOperations {
@@ -240,6 +242,14 @@ func (p TestPlugin) Unbind(next web.Handler) web.Handler {
 
 func (p TestPlugin) FetchBinding(next web.Handler) web.Handler {
 	return p.call(p["fetchBinding"], next)
+}
+
+func (p TestPlugin) PollInstance(next web.Handler) web.Handler {
+	return p.call(p["pollInstance"], next)
+}
+
+func (p TestPlugin) PollBinding(next web.Handler) web.Handler {
+	return p.call(p["pollBinding"], next)
 }
 
 type PartialPlugin struct{}
