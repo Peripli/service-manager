@@ -2,8 +2,7 @@
 
 The main extension points of the service manager are filters, plugins and controllers. The
 interfaces that need to be implement in order to provide an extension point can be found
-the `pkg/web` package.
-
+in the `pkg/web` package.
 
 ## Filters
 
@@ -32,18 +31,18 @@ func (f *Filter) Name() string { return "FilterName" }
 
 // Run implements web.Middleware
 func (f *Filter) Run(next web.Handler) web.Handler {
-	return web.HandlerFunc(func(r *web.Request) (*web.Response, error) {
-		// pre processing logic
-		fmt.Printf("request with method %s to URL %s\n", r.Method, r.URL)
+    return web.HandlerFunc(func(r *web.Request) (*web.Response, error) {
+        // pre processing logic
+        fmt.Printf("request with method %s to URL %s\n", r.Method, r.URL)
 
-		// call next filter in chain
-		resp, err := next.Handle(r)
+        // call next filter in chain
+        resp, err := next.Handle(r)
 
-		// add post processing logic
-		fmt.Printf("response with status code %d and error %v\n", resp.StatusCode, err)
+        // add post processing logic
+        fmt.Printf("response with status code %d and error %v\n", resp.StatusCode, err)
 
-		return resp, err
-	})
+        return resp, err
+    })
 }
 
 // FilterMatchers that specify when the filter should run. Each
@@ -52,21 +51,21 @@ func (f *Filter) Run(next web.Handler) web.Handler {
 // For example the following matches GET requests on /v1/platforms/** and
 // all requests on /v1/service_brokers/**
 func (f *Filter) FilterMatchers() []web.FilterMatcher {
-	return []web.FilterMatcher{
-		{
-			// Matches all GET requests on /v1/platforms/**
-			Matchers: []web.Matcher{
-				web.Path("/v1/platforms/**"),
-				web.Method("GET),
-			},
-		},
-		{
-        	// Matches all requests on /v1/service_brokers/**
-        	Matchers: []web.Matcher{
-        	    web.Path("/v1/service_brokers/**"),
-        	},
+    return []web.FilterMatcher{
+        {
+            // Matches all GET requests on /v1/platforms/**
+            Matchers: []web.Matcher{
+                web.Path("/v1/platforms/**"),
+                web.Method("GET"),
+            },
         },
-	}
+        {
+            // Matches all requests on /v1/service_brokers/**
+            Matchers: []web.Matcher{
+                web.Path("/v1/service_brokers/**"),
+            },
+        },
+    }
 }
 ```
 
@@ -78,7 +77,6 @@ It can modify both the request before it reaches the broker and the response bef
 There are several interfaces that the plugin can implement for different OSB API operations.
 They can be found `pkg/web/plugin.go`.
 For each OSB operation intercepted by the plugin, Service Manager creates a new filter for the respective HTTP endpoint.
-
 
 ### Example: Catalog modification plugin
 
@@ -135,16 +133,16 @@ In order to add this plugin to the Service Manager one has to do the following:
 ...
 func main() {
     ctx, cancel := context.WithCancel(context.Background())
-   	defer cancel()
+       defer cancel()
 
-   	env := sm.DefaultEnv()
-   	serviceManager := sm.New(ctx, cancel, env)
+       env := sm.DefaultEnv()
+       serviceManager := sm.New(ctx, cancel, env)
 
     serviceManager.RegisterPlugins(myplugin.MyPlugin{})
     serviceManager.RegisterFilters(myfilter.MyFilter{})
 
-   	sm := serviceManager.Build()
-   	sm.Run()
+       sm := serviceManager.Build()
+       sm.Run()
 }
 
 ...
@@ -156,10 +154,12 @@ func main() {
 
 Request and response work with plain byte arrays (usually JSON). That's why it is recommended:
 
-* For JSON modification (as in the [catalog plugin](#catalog-modification-plugin)) use this library https://github.com/tidwall/sjson
-* To extract some value from JSON use https://github.com/tidwall/gjson
+* For JSON modification (as in the [catalog plugin](#catalog-modification-plugin)) use [sjson](https://github.com/tidwall/sjson)
+
+* To extract some value from JSON use [gjson](https://github.com/tidwall/gjson)
 
 * **NOTE:** Be aware that JSON request and response may contain non-standard properties.
+
 So when modifying the JSON body make sure to preserve them.
 For example avoid marshalling from fixed structures.
 
