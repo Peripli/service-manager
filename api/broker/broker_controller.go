@@ -43,7 +43,7 @@ const (
 type Controller struct {
 	BrokerStorage          storage.Broker
 	OSBClientCreateFunc    osbc.CreateFunc
-	CredentialsTransformer security.CredentialsTransformer
+	Encrypter security.Encrypter
 }
 
 var _ web.Controller = &Controller{}
@@ -73,7 +73,7 @@ func (c *Controller) createBroker(request *web.Request) (*web.Response, error) {
 	}
 	broker.Catalog = catalog
 
-	if err := transformBrokerCredentials(broker, c.CredentialsTransformer.Transform); err != nil {
+	if err := transformBrokerCredentials(broker, c.Encrypter.Encrypt); err != nil {
 		return nil, err
 	}
 	if err := c.BrokerStorage.Create(broker); err != nil {
@@ -144,7 +144,7 @@ func (c *Controller) patchBroker(request *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	if err := transformBrokerCredentials(broker, c.CredentialsTransformer.Transform); err != nil {
+	if err := transformBrokerCredentials(broker, c.Encrypter.Encrypt); err != nil {
 		return nil, err
 	}
 

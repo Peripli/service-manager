@@ -38,9 +38,9 @@ var osbPathPattern = regexp.MustCompile("^" + v1 + root + "/[^/]+(/.*)$")
 
 // Controller implements api.Controller by providing OSB API logic
 type Controller struct {
-	BrokerStorage          storage.Broker
-	Filters                web.Filters
-	CredentialsTransformer security.CredentialsTransformer
+	BrokerStorage storage.Broker
+	Filters       web.Filters
+	Encrypter     security.Encrypter
 }
 
 var _ web.Controller = &Controller{}
@@ -62,7 +62,7 @@ func (c *Controller) handler(request *web.Request) (*web.Response, error) {
 	username, password := broker.Credentials.Basic.Username, broker.Credentials.Basic.Password
 
 	modifiedRequest := request.Request.WithContext(request.Context())
-	plaintextPassword, err := c.CredentialsTransformer.Reverse([]byte(password))
+	plaintextPassword, err := c.Encrypter.Decrypt([]byte(password))
 	if err != nil {
 		return nil, err
 	}

@@ -32,7 +32,7 @@ import (
 
 	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/cf"
-		"github.com/Peripli/service-manager/pkg/env"
+	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/sirupsen/logrus"
@@ -85,14 +85,12 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 		panic(fmt.Sprintf("error initialzing secure storage: %v", err))
 	}
 
-	transformer := &security.EncryptionTransformer{
-		Encrypter: &security.TwoLayerEncrypter{
-			Fetcher: securityStorage.Fetcher(),
-		},
+	encrypter := &security.TwoLayerEncrypter{
+		Fetcher: securityStorage.Fetcher(),
 	}
 
 	// setup core API
-	API, err := api.New(ctx, smStorage, cfg.API, transformer)
+	API, err := api.New(ctx, smStorage, cfg.API, encrypter)
 	if err != nil {
 		panic(fmt.Sprintf("error creating core API: %s", err))
 	}
@@ -151,7 +149,7 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	}
 }
 
-func initializeSecureStorage(secureStorage security.Storage)  error {
+func initializeSecureStorage(secureStorage security.Storage) error {
 	keyFetcher := secureStorage.Fetcher()
 	encryptionKey, err := keyFetcher.GetEncryptionKey()
 	if err != nil {

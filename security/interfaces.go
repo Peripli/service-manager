@@ -72,14 +72,8 @@ type TokenVerifier interface {
 	Verify(ctx context.Context, token string) (Token, error)
 }
 
-// CredentialsTransformer provides functionality to modify credentials and to reverse already modified credentials
-//go:generate counterfeiter . CredentialsTransformer
-type CredentialsTransformer interface {
-	Transform(secret []byte) ([]byte, error)
-	Reverse(cipher []byte) ([]byte, error)
-}
-
 // Encrypter provides functionality to encrypt and decrypt data
+//go:generate counterfeiter . Encrypter
 type Encrypter interface {
 	Encrypt(plaintext []byte) ([]byte, error)
 	Decrypt(ciphertext []byte) ([]byte, error)

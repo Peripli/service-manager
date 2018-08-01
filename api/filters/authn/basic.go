@@ -16,10 +16,10 @@ type BasicAuthnFilter struct {
 
 // NewBasicAuthnFilter returns a BasicAuthnFilter using the provided credentials storage
 // in order to validate the credentials
-func NewBasicAuthnFilter(storage storage.Credentials, transformer security.CredentialsTransformer) *BasicAuthnFilter {
+func NewBasicAuthnFilter(storage storage.Credentials, encrypter security.Encrypter) *BasicAuthnFilter {
 	return &BasicAuthnFilter{
 		Middleware: Middleware{
-			authenticator: basic.NewAuthenticator(storage, transformer),
+			authenticator: basic.NewAuthenticator(storage, encrypter),
 			name:          "BasicAuthenticationFilter",
 		},
 	}

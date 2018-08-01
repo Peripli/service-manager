@@ -28,13 +28,13 @@ import (
 
 // Authenticator for basic security
 type Authenticator struct {
-	CredentialStorage      storage.Credentials
-	CredentialsTransformer security.CredentialsTransformer
+	CredentialStorage storage.Credentials
+	Encrypter         security.Encrypter
 }
 
 // NewAuthenticator constructs a Basic authentication Authenticator
-func NewAuthenticator(storage storage.Credentials, transformer security.CredentialsTransformer) security.Authenticator {
-	return &Authenticator{CredentialStorage: storage, CredentialsTransformer: transformer}
+func NewAuthenticator(storage storage.Credentials, encrypter security.Encrypter) security.Authenticator {
+	return &Authenticator{CredentialStorage: storage, Encrypter: encrypter}
 }
 
 // Authenticate authenticates by using the provided Basic credentials
@@ -52,7 +52,7 @@ func (a *Authenticator) Authenticate(request *http.Request) (*security.User, sec
 		}
 		return nil, security.Abstain, fmt.Errorf("could not get credentials entity from storage: %s", err)
 	}
-	passwordBytes, err := a.CredentialsTransformer.Reverse([]byte(credentials.Basic.Password))
+	passwordBytes, err := a.Encrypter.Decrypt([]byte(credentials.Basic.Password))
 	if err != nil {
 		return nil, security.Abstain, fmt.Errorf("could not reverse credentials from storage: %v", err)
 	}

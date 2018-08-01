@@ -34,7 +34,7 @@ const reqPlatformID = "platform_id"
 // Controller platform controller
 type Controller struct {
 	PlatformStorage storage.Platform
-	CredentialsTransformer security.CredentialsTransformer
+	Encrypter security.Encrypter
 }
 
 var _ web.Controller = &Controller{}
@@ -66,7 +66,7 @@ func (c *Controller) createPlatform(request *web.Request) (*web.Response, error)
 		return nil, err
 	}
 	plainPassword := credentials.Basic.Password
-	transformedPassword, err := c.CredentialsTransformer.Transform([]byte(plainPassword))
+	transformedPassword, err := c.Encrypter.Encrypt([]byte(plainPassword))
 	if err != nil {
 		return nil, err
 	}

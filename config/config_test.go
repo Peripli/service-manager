@@ -53,8 +53,7 @@ var _ = Describe("config", func() {
 			config.Storage.URI = "postgres://postgres:postgres@localhost:5555/postgres?sslmode=disable"
 			config.API.TokenIssuerURL = "http://example.com"
 			config.API.ClientID = "sm"
-			config.API.Security.Len = 32
-			config.API.Security.EncryptionKey = "some-encryption-key"
+			config.API.Security.EncryptionKey = "ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8"
 		})
 
 		Context("when config is valid", func() {

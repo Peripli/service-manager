@@ -38,7 +38,7 @@ func TestApi(t *testing.T) {
 
 var _ = Describe("Basic Authenticator", func() {
 	credentialsStorage := &storagefakes.FakeCredentials{}
-	credentialsTransformer := &securityfakes.FakeCredentialsTransformer{}
+	encrypter := &securityfakes.FakeEncrypter{}
 	user := "user"
 	password := "password"
 	credentials := &types.Credentials{
@@ -51,7 +51,7 @@ var _ = Describe("Basic Authenticator", func() {
 	var authenticator security.Authenticator
 
 	JustBeforeEach(func() {
-		authenticator = NewAuthenticator(credentialsStorage, credentialsTransformer)
+		authenticator = NewAuthenticator(credentialsStorage, encrypter)
 	})
 
 	Describe("Authenticate", func() {
@@ -101,7 +101,7 @@ var _ = Describe("Basic Authenticator", func() {
 			transformationError := fmt.Errorf("Credentials password cannot be reversed")
 			BeforeEach(func() {
 				credentialsStorage.GetReturns(credentials, nil)
-				credentialsTransformer.ReverseReturns(nil, transformationError)
+				encrypter.DecryptReturns(nil, transformationError)
 			})
 			It("Should abstain with error", func() {
 				request.Header.Add("Authorization", "Basic " + basicHeader)
@@ -115,7 +115,7 @@ var _ = Describe("Basic Authenticator", func() {
 		Context("When passwords do not match", func() {
 			BeforeEach(func() {
 				credentialsStorage.GetReturns(credentials, nil)
-				credentialsTransformer.ReverseReturns([]byte("not-password"), nil)
+				encrypter.DecryptReturns([]byte("not-password"), nil)
 			})
 			It("Should deny", func() {
 				request.Header.Add("Authorization", "Basic " + basicHeader)
@@ -129,7 +129,7 @@ var _ = Describe("Basic Authenticator", func() {
 		Context("When passwords match", func() {
 			BeforeEach(func() {
 				credentialsStorage.GetReturns(credentials, nil)
-				credentialsTransformer.ReverseReturns([]byte(password), nil)
+				encrypter.DecryptReturns([]byte(password), nil)
 			})
 			It("Should allow", func() {
 				request.Header.Add("Authorization", "Basic " + basicHeader)

@@ -61,7 +61,6 @@ func DefaultSettings() *Settings {
 			ClientID:       "sm",
 			Security: api.Security{
 				EncryptionKey: "",
-				Len:           32,
 			},
 		},
 	}

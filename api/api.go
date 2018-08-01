@@ -39,17 +39,12 @@ import (
 type Security struct {
 	// EncryptionKey is the encryption key from the environment
 	EncryptionKey string `mapstructure:"encryption_key"`
-	// Len is the byte count for the stored encryption key
-	Len int `mapstructure:"len"`
 }
 
 // Validate validates the API Security settings
 func (s *Security) Validate() error {
-	if s.EncryptionKey == "" {
-		return fmt.Errorf("validate Settings: SecurityEncryptionkey missing")
-	}
-	if s.Len < 32 {
-		return fmt.Errorf("validate Settings: SecurityLen must be at least 32")
+	if len(s.EncryptionKey) != 32 {
+		return fmt.Errorf("validate Settings: SecurityEncryptionkey length must be exactly 32")
 	}
 	return nil
 }
@@ -76,7 +71,7 @@ func (s *Settings) Validate() error {
 }
 
 // New returns the minimum set of REST APIs needed for the Service Manager
-func New(ctx context.Context, storage storage.Storage, settings Settings, transformer security.CredentialsTransformer) (*web.API, error) {
+func New(ctx context.Context, storage storage.Storage, settings Settings, encrypter security.Encrypter) (*web.API, error) {
 	bearerAuthnFilter, err := authn.NewBearerAuthnFilter(ctx, settings.TokenIssuerURL, settings.ClientID)
 	if err != nil {
 		return nil, err
@@ -85,13 +80,13 @@ func New(ctx context.Context, storage storage.Storage, settings Settings, transf
 		// Default controllers - more filters can be registered using the relevant API methods
 		Controllers: []web.Controller{
 			&broker.Controller{
-				BrokerStorage:          storage.Broker(),
-				OSBClientCreateFunc:    osbc.NewClient,
-				CredentialsTransformer: transformer,
+				BrokerStorage:       storage.Broker(),
+				OSBClientCreateFunc: osbc.NewClient,
+				Encrypter:           encrypter,
 			},
 			&platform.Controller{
 				PlatformStorage:        storage.Platform(),
-				CredentialsTransformer: transformer,
+				Encrypter: encrypter,
 			},
 			&info.Controller{
 				TokenIssuer: settings.TokenIssuerURL,
@@ -101,7 +96,7 @@ func New(ctx context.Context, storage storage.Storage, settings Settings, transf
 			},
 			&osb.Controller{
 				BrokerStorage:          storage.Broker(),
-				CredentialsTransformer: transformer,
+				Encrypter: encrypter,
 			},
 			&healthcheck.Controller{
 				Storage: storage,
@@ -109,7 +104,7 @@ func New(ctx context.Context, storage storage.Storage, settings Settings, transf
 		},
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
-			authn.NewBasicAuthnFilter(storage.Credentials(), transformer),
+			authn.NewBasicAuthnFilter(storage.Credentials(), encrypter),
 			bearerAuthnFilter,
 			authn.NewRequiredAuthnFilter(),
 		},
