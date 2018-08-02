@@ -19,10 +19,10 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net/http"
-	"time"
-
 	"strconv"
+	"time"
 
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -35,6 +35,20 @@ type Settings struct {
 	Port            int           `mapstructure:"port"`
 	RequestTimeout  time.Duration `mapstructure:"request_timeout"`
 	ShutdownTimeout time.Duration `mapstructure:"shutdown_timeout"`
+}
+
+// Validate validates the server settings
+func (s *Settings) Validate() error {
+	if s.Port == 0 {
+		return fmt.Errorf("validate Settings: Port missing")
+	}
+	if s.RequestTimeout == 0 {
+		return fmt.Errorf("validate Settings: RequestTimeout missing")
+	}
+	if s.ShutdownTimeout == 0 {
+		return fmt.Errorf("validate Settings: ShutdownTimeout missing")
+	}
+	return nil
 }
 
 // Server is the server to process incoming HTTP requests

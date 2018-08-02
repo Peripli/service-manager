@@ -29,6 +29,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/sirupsen/logrus"
 )
@@ -39,6 +40,7 @@ var osbPathPattern = regexp.MustCompile("^" + v1 + root + "/[^/]+(/.*)$")
 type Controller struct {
 	BrokerStorage storage.Broker
 	Filters       web.Filters
+	Encrypter     security.Encrypter
 }
 
 var _ web.Controller = &Controller{}
@@ -60,8 +62,11 @@ func (c *Controller) handler(request *web.Request) (*web.Response, error) {
 	username, password := broker.Credentials.Basic.Username, broker.Credentials.Basic.Password
 
 	modifiedRequest := request.Request.WithContext(request.Context())
-
-	modifiedRequest.SetBasicAuth(username, password)
+	plaintextPassword, err := c.Encrypter.Decrypt([]byte(password))
+	if err != nil {
+		return nil, err
+	}
+	modifiedRequest.SetBasicAuth(username, string(plaintextPassword))
 	modifiedRequest.URL.Scheme = target.Scheme
 	modifiedRequest.URL.Host = target.Host
 	modifiedRequest.Body = ioutil.NopCloser(bytes.NewReader(request.Body))

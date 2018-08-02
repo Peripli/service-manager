@@ -41,6 +41,7 @@ func init() {
 type postgresStorage struct {
 	db    *sqlx.DB
 	state *storageState
+	encryptionKey []byte
 }
 
 func (storage *postgresStorage) checkOpen() {
@@ -71,7 +72,12 @@ func (storage *postgresStorage) Credentials() storage.Credentials {
 	return &credentialStorage{storage.db}
 }
 
-func (storage *postgresStorage) Open(uri string) error {
+func (storage *postgresStorage) Security() storage.Security{
+	storage.checkOpen()
+	return &securityStorage{storage.db, storage.encryptionKey}
+}
+
+func (storage *postgresStorage) Open(uri string, encryptionKey []byte) error {
 	var err error
 	if uri == "" {
 		return fmt.Errorf("storage URI cannot be empty")
@@ -88,6 +94,7 @@ func (storage *postgresStorage) Open(uri string) error {
 			db:                   storage.db,
 			storageCheckInterval: time.Second * 5,
 		}
+		storage.encryptionKey = encryptionKey
 		logrus.Debug("Updating database schema")
 		if err := updateSchema(storage.db); err != nil {
 			logrus.Panicln("Could not update database schema:", err)

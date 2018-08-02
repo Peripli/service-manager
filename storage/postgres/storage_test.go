@@ -48,6 +48,14 @@ var _ = Describe("Postgres Storage", func() {
 		})
 	})
 
+	Context("Security Storage", func() {
+		Context("Called with uninitialized db", func() {
+			It("Should panic", func() {
+				Expect(func() {pgStorage.Security()})
+			})
+		})
+	})
+
 	Describe("Ping", func() {
 		Context("Called with uninitialized db", func() {
 			It("Should panic", func() {
@@ -59,7 +67,7 @@ var _ = Describe("Postgres Storage", func() {
 	Describe("Open", func() {
 		Context("Called with empty uri", func() {
 			It("Should return error", func() {
-				err := pgStorage.Open("")
+				err := pgStorage.Open("", nil)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(Equal("storage URI cannot be empty"))
 			})
@@ -67,7 +75,7 @@ var _ = Describe("Postgres Storage", func() {
 
 		Context("Called with invalid postgres uri", func() {
 			It("Should panic", func() {
-				Expect(func() { pgStorage.Open("invalid_uri") }).To(Panic())
+				Expect(func() { pgStorage.Open("invalid_uri", nil) }).To(Panic())
 			})
 		})
 	})

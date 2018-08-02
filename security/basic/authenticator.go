@@ -18,9 +18,8 @@
 package basic
 
 import (
-	"net/http"
-
 	"fmt"
+	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/security"
@@ -30,11 +29,12 @@ import (
 // Authenticator for basic security
 type Authenticator struct {
 	CredentialStorage storage.Credentials
+	Encrypter         security.Encrypter
 }
 
-// NewAuthenticator constructs a Basic security Authenticator
-func NewAuthenticator(storage storage.Credentials) *Authenticator {
-	return &Authenticator{CredentialStorage: storage}
+// NewAuthenticator constructs a Basic authentication Authenticator
+func NewAuthenticator(storage storage.Credentials, encrypter security.Encrypter) security.Authenticator {
+	return &Authenticator{CredentialStorage: storage, Encrypter: encrypter}
 }
 
 // Authenticate authenticates by using the provided Basic credentials
@@ -46,12 +46,19 @@ func (a *Authenticator) Authenticate(request *http.Request) (*security.User, sec
 
 	credentials, err := a.CredentialStorage.Get(username)
 
-	if err == util.ErrNotFoundInStorage || credentials.Basic.Password != password {
-		return nil, security.Deny, nil
+	if err != nil {
+		if err == util.ErrNotFoundInStorage {
+			return nil, security.Deny, err
+		}
+		return nil, security.Abstain, fmt.Errorf("could not get credentials entity from storage: %s", err)
+	}
+	passwordBytes, err := a.Encrypter.Decrypt([]byte(credentials.Basic.Password))
+	if err != nil {
+		return nil, security.Abstain, fmt.Errorf("could not reverse credentials from storage: %v", err)
 	}
 
-	if err != nil {
-		return nil, security.Abstain, fmt.Errorf("could not get credentials entity from storage: %s", err)
+	if string(passwordBytes) != password {
+		return nil, security.Deny, nil
 	}
 
 	return &security.User{

@@ -99,7 +99,7 @@ var _ = Describe("Registry", func() {
 	Describe("Use storage", func() {
 		Context("With non-registered", func() {
 			It("Should return an error", func() {
-				returnedStorage, err := storage.Use(context.TODO(), "non-existing-storage", "uri")
+				returnedStorage, err := storage.Use(context.TODO(), "non-existing-storage", "uri", nil)
 				Expect(returnedStorage).To(BeNil())
 				Expect(err).To(Not(BeNil()))
 			})
@@ -109,7 +109,7 @@ var _ = Describe("Registry", func() {
 			It("Should return an error", func() {
 				testStorage.OpenReturns(fmt.Errorf("Error"))
 				storage.Register("openFailingStorage", testStorage)
-				_, err := storage.Use(context.TODO(), "openFailingStorage", "uri")
+				_, err := storage.Use(context.TODO(), "openFailingStorage", "uri", nil)
 				Expect(err).To(Not(BeNil()))
 			})
 		})
@@ -118,7 +118,7 @@ var _ = Describe("Registry", func() {
 			It("Should return storage", func() {
 				testStorage.OpenReturns(nil)
 				storage.Register("openOkStorage", testStorage)
-				configuredStorage, err := storage.Use(context.TODO(), "openOkStorage", "uri")
+				configuredStorage, err := storage.Use(context.TODO(), "openOkStorage", "uri", nil)
 				Expect(configuredStorage).To(Not(BeNil()))
 				Expect(err).To(BeNil())
 			})
@@ -138,7 +138,7 @@ var _ = Describe("Registry", func() {
 				testStorage.CloseReturns(fmt.Errorf("Error"))
 				storage.Register("closeFailingStorage", testStorage)
 				ctx, cancel := context.WithCancel(context.TODO())
-				storage.Use(ctx, "closeFailingStorage", "uri")
+				storage.Use(ctx, "closeFailingStorage", "uri", nil)
 				cancel()
 				time.Sleep(time.Millisecond * 100)
 				interceptor.VerifyData(false)
@@ -150,7 +150,7 @@ var _ = Describe("Registry", func() {
 				testStorage.CloseReturns(nil)
 				storage.Register("closeOkStorage", testStorage)
 				ctx, cancel := context.WithCancel(context.TODO())
-				storage.Use(ctx, "closeOkStorage", "uri")
+				storage.Use(ctx, "closeOkStorage", "uri", nil)
 				cancel()
 				time.Sleep(time.Millisecond * 100)
 				interceptor.VerifyData(true)

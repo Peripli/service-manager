@@ -41,6 +41,11 @@
   revision = "c44a6d7bb636b17e880a53998a7f7061a56ffacb"
 
 [[projects]]
+  name = "github.com/DATA-DOG/go-sqlmock"
+  packages = ["."]
+  revision = "852fc940e4b9b895dc144b88ee8f6e39228127b0"
+
+[[projects]]
   branch = "master"
   name = "github.com/gavv/monotime"
   packages = ["."]

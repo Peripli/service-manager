@@ -18,7 +18,10 @@
 package storage
 
 import (
+	"fmt"
+
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/security"
 )
 
 // Settings type to be loaded from the environment
@@ -26,11 +29,19 @@ type Settings struct {
 	URI string
 }
 
+// Validate validates the storage settings
+func (s *Settings) Validate() error {
+	if len(s.URI) == 0 {
+		return fmt.Errorf("validate Settings: StorageURI missing")
+	}
+	return nil
+}
+
 // Storage interface provides entity-specific storages
 //go:generate counterfeiter . Storage
 type Storage interface {
 	// Open initializes the storage, e.g. opens a connection to the underlying storage
-	Open(uri string) error
+	Open(uri string, encryptionKey []byte) error
 
 	// Close clears resources associated with this storage, e.g. closes the connection the underlying storage
 	Close() error
@@ -46,6 +57,9 @@ type Storage interface {
 
 	// Credentials provides access to credentials db operations
 	Credentials() Credentials
+
+	// Security provides access to encryption key management
+	Security() Security
 }
 
 // Broker interface for Broker db operations
@@ -90,4 +104,12 @@ type Platform interface {
 type Credentials interface {
 	// Get retrieves credentials using the provided username from SM DB
 	Get(username string) (*types.Credentials, error)
+}
+
+// Security interface for encryption key operations
+type Security interface{
+	// Fetcher provides means to obtain the encryption key
+	Fetcher() security.KeyFetcher
+	// Setter provides means to change the encryption key
+	Setter() security.KeySetter
 }

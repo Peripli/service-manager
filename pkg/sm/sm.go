@@ -18,12 +18,14 @@ package sm
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"os"
 	"os/signal"
 
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/config"
+	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/postgres"
@@ -73,13 +75,22 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	log.SetupLogging(cfg.Log)
 
 	// setup smStorage
-	smStorage, err := storage.Use(ctx, postgres.Storage, cfg.Storage.URI)
+	smStorage, err := storage.Use(ctx, postgres.Storage, cfg.Storage.URI, []byte(cfg.API.Security.EncryptionKey))
 	if err != nil {
 		panic(fmt.Sprintf("error using smStorage: %s", err))
 	}
 
+	securityStorage := smStorage.Security()
+	if err := initializeSecureStorage(securityStorage); err != nil {
+		panic(fmt.Sprintf("error initialzing secure storage: %v", err))
+	}
+
+	encrypter := &security.TwoLayerEncrypter{
+		Fetcher: securityStorage.Fetcher(),
+	}
+
 	// setup core API
-	API, err := api.New(ctx, smStorage, cfg.API)
+	API, err := api.New(ctx, smStorage, cfg.API, encrypter)
 	if err != nil {
 		panic(fmt.Sprintf("error creating core API: %s", err))
 	}
@@ -137,6 +148,27 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 		ctx:    smb.ctx,
 		Server: srv,
 	}
+}
+
+func initializeSecureStorage(secureStorage storage.Security) error {
+	keyFetcher := secureStorage.Fetcher()
+	encryptionKey, err := keyFetcher.GetEncryptionKey()
+	if err != nil {
+		return err
+	}
+	if len(encryptionKey) == 0 {
+		logrus.Debug("No encryption key is present. Generating new one...")
+		newEncryptionKey := make([]byte, 32)
+		if _, err := rand.Read(newEncryptionKey); err != nil {
+			return fmt.Errorf("Could not generate encryption key: %v", err)
+		}
+		keySetter := secureStorage.Setter()
+		if err := keySetter.SetEncryptionKey(newEncryptionKey); err != nil {
+			return err
+		}
+		logrus.Debug("Successfully generated new encryption key")
+	}
+	return nil
 }
 
 func handleInterrupts(ctx context.Context, cancelFunc context.CancelFunc) {

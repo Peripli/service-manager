@@ -24,6 +24,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
+	"github.com/Peripli/service-manager/security"
 	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 )
@@ -33,6 +34,7 @@ const reqPlatformID = "platform_id"
 // Controller platform controller
 type Controller struct {
 	PlatformStorage storage.Platform
+	Encrypter security.Encrypter
 }
 
 var _ web.Controller = &Controller{}
@@ -63,12 +65,18 @@ func (c *Controller) createPlatform(request *web.Request) (*web.Response, error)
 		logrus.Error("Could not generate credentials for platform")
 		return nil, err
 	}
+	plainPassword := credentials.Basic.Password
+	transformedPassword, err := c.Encrypter.Encrypt([]byte(plainPassword))
+	if err != nil {
+		return nil, err
+	}
+	credentials.Basic.Password = string(transformedPassword)
 	platform.Credentials = credentials
 
 	if err := c.PlatformStorage.Create(platform); err != nil {
 		return nil, util.HandleStorageError(err, "platform", platform.ID)
 	}
-
+	platform.Credentials.Basic.Password = plainPassword
 	return util.NewJSONResponse(http.StatusCreated, platform)
 }
 
