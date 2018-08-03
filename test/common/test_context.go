@@ -94,7 +94,6 @@ type TestContext struct {
 	SM          *httpexpect.Expect
 	SMWithOAuth *httpexpect.Expect
 	SMWithBasic *httpexpect.Expect
-	SMServer    *httptest.Server
 
 	brokers map[string]*Broker
 }
@@ -123,10 +122,9 @@ func (ctx *TestContext) Cleanup() {
 		return
 	}
 
-	if ctx.SMServer != nil {
+	if ctx.SMWithOAuth != nil {
 		RemoveAllBrokers(ctx.SMWithOAuth)
 		RemoveAllPlatforms(ctx.SMWithOAuth)
-		ctx.SMServer.Close()
 	}
 
 	for _, broker := range ctx.brokers {

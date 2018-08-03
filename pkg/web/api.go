@@ -130,6 +130,14 @@ func (api *API) decomposePlugin(plug Plugin) []Filter {
 		filter := newPluginSegment(plug.Name()+":Unbind", http.MethodDelete, "/v1/osb/*/v2/service_instances/*/service_bindings/*", MiddlewareFunc(p.Unbind))
 		filters = append(filters, filter)
 	}
+	if p, ok := plug.(InstancePoller); ok {
+		filter := newPluginSegment(plug.Name()+":PollInstance", http.MethodGet, "/v1/osb/*/v2/service_instances/*/last_operation", MiddlewareFunc(p.PollInstance))
+		filters = append(filters, filter)
+	}
+	if p, ok := plug.(BindingPoller); ok {
+		filter := newPluginSegment(plug.Name()+":PollBinding", http.MethodGet, "/v1/osb/*/v2/service_instances/*/service_bindings/*/last_operation", MiddlewareFunc(p.PollBinding))
+		filters = append(filters, filter)
+	}
 
 	return filters
 }

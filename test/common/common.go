@@ -159,6 +159,15 @@ func SetupFakeServiceBrokerServer(brokerID string) *httptest.Server {
 	router.HandleFunc("/v2/service_instances/{instance_id}/service_bindings/{binding_id}", func(rw http.ResponseWriter, req *http.Request) {
 		setResponse(rw, http.StatusOK, "{}", brokerID)
 	}).Methods("DELETE")
+
+	router.HandleFunc("/v2/service_instances/{instance_id}/last_operation", func(rw http.ResponseWriter, req *http.Request) {
+		setResponse(rw, http.StatusOK, `{"state": "succeeded"}`, brokerID)
+	}).Methods("GET")
+
+	router.HandleFunc("/v2/service_instances/{instance_id}/service_bindings/{binding_id}/last_operation", func(rw http.ResponseWriter, req *http.Request) {
+		setResponse(rw, http.StatusOK, `{"state": "succeeded"}`, brokerID)
+	}).Methods("GET")
+
 	return httptest.NewServer(router)
 }
 

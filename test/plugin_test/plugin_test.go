@@ -42,12 +42,12 @@ var _ = Describe("Service Manager Plugins", func() {
 		})
 
 		It("should be called for provision and not for deprovision", func() {
-			ctx.SMWithBasic.PUT(testBroker.OSBURL+"/v2/service_instances/1234").
+			ctx.SMWithBasic.PUT(testBroker.OSBURL + "/v2/service_instances/1234").
 				WithHeader("Content-Type", "application/json").
 				WithJSON(object{}).
 				Expect().Status(http.StatusOK).Header("X-Plugin").Equal("provision")
 
-			ctx.SMWithBasic.DELETE(testBroker.OSBURL+"/v2/service_instances/1234").
+			ctx.SMWithBasic.DELETE(testBroker.OSBURL + "/v2/service_instances/1234").
 				WithHeader("Content-Type", "application/json").
 				WithJSON(object{}).
 				Expect().Status(http.StatusOK).Header("X-Plugin").Empty()
@@ -67,7 +67,6 @@ var _ = Describe("Service Manager Plugins", func() {
 			ctx = common.NewTestContextFromAPIs(api)
 			testBroker = ctx.RegisterBroker("broker1", nil)
 		})
-
 
 		It("Plugin modifies the request & response body", func() {
 			var resBodySize int
@@ -130,7 +129,7 @@ var _ = Describe("Service Manager Plugins", func() {
 			})
 			testBroker.StatusCode = http.StatusOK
 
-			ctx.SMWithBasic.GET(testBroker.OSBURL+"/v2/catalog").WithHeader("extra", "value").
+			ctx.SMWithBasic.GET(testBroker.OSBURL + "/v2/catalog").WithHeader("extra", "value").
 				Expect().Status(http.StatusOK).Header("extra").Equal("value-response")
 
 			Expect(testBroker.Request.Header.Get("extra")).To(Equal("value-request"))
@@ -163,15 +162,22 @@ var _ = Describe("Service Manager Plugins", func() {
 			Expect(testBroker.Server.URL).To(ContainSubstring(testBroker.Request.Host))
 		})
 
-		osbOperations := []struct{ name, method, path string }{
-			{"fetchCatalog", "GET", "/v2/catalog"},
-			{"provision", "PUT", "/v2/service_instances/1234"},
-			{"deprovision", "DELETE", "/v2/service_instances/1234"},
-			{"updateService", "PATCH", "/v2/service_instances/1234"},
-			{"fetchService", "GET", "/v2/service_instances/1234"},
-			{"bind", "PUT", "/v2/service_instances/1234/service_bindings/111"},
-			{"unbind", "DELETE", "/v2/service_instances/1234/service_bindings/111"},
-			{"fetchBinding", "GET", "/v2/service_instances/1234/service_bindings/111"},
+		osbOperations := []struct {
+			name    string
+			method  string
+			path    string
+			queries []string
+		}{
+			{"fetchCatalog", "GET", "/v2/catalog", []string{""}},
+			{"provision", "PUT", "/v2/service_instances/1234", []string{"", "accepts_incomplete=true"}},
+			{"deprovision", "DELETE", "/v2/service_instances/1234", []string{""}},
+			{"updateService", "PATCH", "/v2/service_instances/1234", []string{""}},
+			{"fetchService", "GET", "/v2/service_instances/1234", []string{""}},
+			{"bind", "PUT", "/v2/service_instances/1234/service_bindings/111", []string{""}},
+			{"unbind", "DELETE", "/v2/service_instances/1234/service_bindings/111", []string{""}},
+			{"fetchBinding", "GET", "/v2/service_instances/1234/service_bindings/111", []string{""}},
+			{"pollInstance", "GET", "/v2/service_instances/1234/last_operation", []string{"", "service_id=serviceId", "plan_id=planId", "operation=provision", "service_id=serviceId&plan_id=planId&operation=provision"}},
+			{"pollBinding", "GET", "/v2/service_instances/1234/service_bindings/111/last_operation", []string{"", "service_id=serviceId", "plan_id=planId", "operation=provision", "service_id=serviceId&plan_id=planId&operation=provision"}},
 		}
 
 		for _, op := range osbOperations {
@@ -187,10 +193,13 @@ var _ = Describe("Service Manager Plugins", func() {
 					})
 				})
 
-				ctx.SMWithBasic.Request(op.method, testBroker.OSBURL+op.path).
-					WithHeader("Content-Type", "application/json").
-					WithJSON(object{}).
-					Expect().Status(http.StatusOK).Header("X-Plugin").Equal(op.name)
+				for _, query := range op.queries {
+					ctx.SMWithBasic.Request(op.method, testBroker.OSBURL+op.path).
+						WithHeader("Content-Type", "application/json").
+						WithJSON(object{}).
+						WithQueryString(query).
+						Expect().Status(http.StatusOK).Header("X-Plugin").Equal(op.name)
+				}
 			})
 		}
 
@@ -204,8 +213,8 @@ func (p TestPlugin) Name() string { return "TestPlugin" }
 
 func (p TestPlugin) call(middleware web.Middleware, next web.Handler) web.Handler {
 	return web.HandlerFunc(func(r *web.Request) (*web.Response, error) {
-			if middleware == nil {
-				return next.Handle(r)
+		if middleware == nil {
+			return next.Handle(r)
 		}
 		return middleware.Run(next).Handle(r)
 	})
@@ -240,6 +249,14 @@ func (p TestPlugin) Unbind(next web.Handler) web.Handler {
 
 func (p TestPlugin) FetchBinding(next web.Handler) web.Handler {
 	return p.call(p["fetchBinding"], next)
+}
+
+func (p TestPlugin) PollInstance(next web.Handler) web.Handler {
+	return p.call(p["pollInstance"], next)
+}
+
+func (p TestPlugin) PollBinding(next web.Handler) web.Handler {
+	return p.call(p["pollBinding"], next)
 }
 
 type PartialPlugin struct{}
