@@ -18,9 +18,8 @@
 package api
 
 import (
-	"fmt"
-
 	"context"
+	"fmt"
 
 	"github.com/Peripli/service-manager/api/broker"
 	"github.com/Peripli/service-manager/api/catalog"
@@ -33,6 +32,7 @@ import (
 	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/storage"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
+	"k8s.io/client-go/transport"
 )
 
 // Security is the configuration used for the encryption of data
@@ -51,9 +51,10 @@ func (s *Security) Validate() error {
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	TokenIssuerURL string `mapstructure:"token_issuer_url"`
-	ClientID       string `mapstructure:"client_id"`
-	Security       Security `mapstructure:"security"`
+	TokenIssuerURL  string            `mapstructure:"token_issuer_url"`
+	ClientID        string            `mapstructure:"client_id"`
+	Security        Security          `mapstructure:"security"`
+	TransportConfig *transport.Config `mapstructure:"transport"`
 }
 
 // Validate validates the API settings
@@ -72,7 +73,11 @@ func (s *Settings) Validate() error {
 
 // New returns the minimum set of REST APIs needed for the Service Manager
 func New(ctx context.Context, storage storage.Storage, settings Settings, encrypter security.Encrypter) (*web.API, error) {
-	bearerAuthnFilter, err := authn.NewBearerAuthnFilter(ctx, settings.TokenIssuerURL, settings.ClientID)
+	tlsConfig, err := transport.TLSConfigFor(settings.TransportConfig)
+	if err != nil {
+		return nil, err
+	}
+	bearerAuthnFilter, err := authn.NewBearerAuthnFilter(ctx, settings.TokenIssuerURL, settings.ClientID, settings.TransportConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -83,10 +88,11 @@ func New(ctx context.Context, storage storage.Storage, settings Settings, encryp
 				BrokerStorage:       storage.Broker(),
 				OSBClientCreateFunc: osbc.NewClient,
 				Encrypter:           encrypter,
+				TLSConfig:           tlsConfig,
 			},
 			&platform.Controller{
-				PlatformStorage:        storage.Platform(),
-				Encrypter: encrypter,
+				PlatformStorage: storage.Platform(),
+				Encrypter:       encrypter,
 			},
 			&info.Controller{
 				TokenIssuer: settings.TokenIssuerURL,
@@ -95,11 +101,9 @@ func New(ctx context.Context, storage storage.Storage, settings Settings, encryp
 				BrokerStorage: storage.Broker(),
 			},
 			&osb.Controller{
-				BrokerStorage:          storage.Broker(),
-				Encrypter: encrypter,
-				Configuration: osb.ProxyConfig{
-					SkipSSLValidation: settings.SkipSSLValidation,
-				},
+				BrokerStorage:   storage.Broker(),
+				Encrypter:       encrypter,
+				TransportConfig: settings.TransportConfig,
 			},
 			&healthcheck.Controller{
 				Storage: storage,

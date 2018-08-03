@@ -17,6 +17,7 @@
 package config
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/Peripli/service-manager/api"
@@ -25,6 +26,7 @@ import (
 	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/spf13/pflag"
+	"k8s.io/client-go/transport"
 )
 
 // Settings is used to setup the Service Manager
@@ -62,7 +64,11 @@ func DefaultSettings() *Settings {
 			Security: api.Security{
 				EncryptionKey: "",
 			},
-			SkipSSLValidation: false,
+			TransportConfig: &transport.Config{
+				TLS: transport.TLSConfig{
+					Insecure: false,
+				},
+			},
 		},
 	}
 	return config
@@ -74,6 +80,7 @@ func New(env env.Environment) (*Settings, error) {
 	if err := env.Unmarshal(config); err != nil {
 		return nil, err
 	}
+	http.DefaultTransport.(*http.Transport).TLSClientConfig.InsecureSkipVerify = true
 
 	return config, nil
 }

@@ -32,21 +32,17 @@ import (
 	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/sirupsen/logrus"
+	"k8s.io/client-go/transport"
 )
 
 var osbPathPattern = regexp.MustCompile("^" + v1 + root + "/[^/]+(/.*)$")
 
-// ProxyConfig provides configuration for the reverse proxy used for the OSB calls
-type ProxyConfig struct {
-	SkipSSLValidation bool
-}
-
 // Controller implements api.Controller by providing OSB API logic
 type Controller struct {
-	BrokerStorage storage.Broker
-	Filters       web.Filters
-	Encrypter     security.Encrypter
-	Configuration ProxyConfig
+	BrokerStorage   storage.Broker
+	Filters         web.Filters
+	Encrypter       security.Encrypter
+	TransportConfig *transport.Config
 }
 
 var _ web.Controller = &Controller{}
@@ -87,7 +83,11 @@ func (c *Controller) handler(request *web.Request) (*web.Response, error) {
 	logrus.Debugf("Forwarding OSB request to %s", modifiedRequest.URL)
 	recorder := httptest.NewRecorder()
 
-	reverseProxy.Transport = util.DefaultHTTPClient(c.Configuration.SkipSSLValidation).Transport
+	transport, err := transport.New(c.TransportConfig)
+	if err != nil {
+		return nil, err
+	}
+	reverseProxy.Transport = transport
 	reverseProxy.ServeHTTP(recorder, modifiedRequest)
 
 	body, err := ioutil.ReadAll(recorder.Body)
