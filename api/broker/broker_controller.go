@@ -17,16 +17,14 @@
 package broker
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/Peripli/service-manager/security"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
-
-	"encoding/json"
-
-	"strings"
-
-	"fmt"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -43,8 +41,9 @@ const (
 
 // Controller broker controller
 type Controller struct {
-	BrokerStorage       storage.Broker
-	OSBClientCreateFunc osbc.CreateFunc
+	BrokerStorage          storage.Broker
+	OSBClientCreateFunc    osbc.CreateFunc
+	Encrypter security.Encrypter
 }
 
 var _ web.Controller = &Controller{}
@@ -74,6 +73,9 @@ func (c *Controller) createBroker(request *web.Request) (*web.Response, error) {
 	}
 	broker.Catalog = catalog
 
+	if err := transformBrokerCredentials(broker, c.Encrypter.Encrypt); err != nil {
+		return nil, err
+	}
 	if err := c.BrokerStorage.Create(broker); err != nil {
 		return nil, util.HandleStorageError(err, "broker", broker.ID)
 	}
@@ -142,6 +144,10 @@ func (c *Controller) patchBroker(request *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
+	if err := transformBrokerCredentials(broker, c.Encrypter.Encrypt); err != nil {
+		return nil, err
+	}
+
 	catalog, err := c.getBrokerCatalog(broker)
 	if err != nil {
 		return nil, err
@@ -197,4 +203,15 @@ func clientConfigForBroker(broker *types.Broker) *osbc.ClientConfiguration {
 		},
 	}
 	return config
+}
+
+func transformBrokerCredentials(broker *types.Broker, transformationFunc func([]byte) ([]byte, error)) error {
+	if broker.Credentials != nil {
+		transformedPassword, err := transformationFunc([]byte(broker.Credentials.Basic.Password))
+		if err != nil {
+			return err
+		}
+		broker.Credentials.Basic.Password = string(transformedPassword)
+	}
+	return nil
 }

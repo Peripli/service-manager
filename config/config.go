@@ -17,7 +17,6 @@
 package config
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/Peripli/service-manager/api"
@@ -60,6 +59,9 @@ func DefaultSettings() *Settings {
 		API: api.Settings{
 			TokenIssuerURL: "",
 			ClientID:       "sm",
+			Security: api.Security{
+				EncryptionKey: "",
+			},
 			SkipSSLValidation: false,
 		},
 	}
@@ -78,29 +80,17 @@ func New(env env.Environment) (*Settings, error) {
 
 // Validate validates that the configuration contains all mandatory properties
 func (c *Settings) Validate() error {
-	if c.Server.Port == 0 {
-		return fmt.Errorf("validate Settings: Port missing")
+	if err := c.Server.Validate(); err != nil {
+		return err
 	}
-	if c.Server.RequestTimeout == 0 {
-		return fmt.Errorf("validate Settings: RequestTimeout missing")
+	if err := c.Log.Validate(); err != nil {
+		return err
 	}
-	if c.Server.ShutdownTimeout == 0 {
-		return fmt.Errorf("validate Settings: ShutdownTimeout missing")
+	if err := c.API.Validate(); err != nil {
+		return err
 	}
-	if len(c.Log.Level) == 0 {
-		return fmt.Errorf("validate Settings: LogLevel missing")
-	}
-	if len(c.Log.Format) == 0 {
-		return fmt.Errorf("validate Settings: LogFormat missing")
-	}
-	if len(c.Storage.URI) == 0 {
-		return fmt.Errorf("validate Settings: StorageURI missing")
-	}
-	if (len(c.API.TokenIssuerURL)) == 0 {
-		return fmt.Errorf("validate Settings: APITokenIssuerURL missing")
-	}
-	if (len(c.API.ClientID)) == 0 {
-		return fmt.Errorf("validate Settings: APIClientID missing")
+	if err := c.Storage.Validate(); err != nil {
+		return err
 	}
 	return nil
 }

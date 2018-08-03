@@ -29,6 +29,17 @@ type Settings struct {
 	Format string
 }
 
+// Validate validates the logging settings
+func (s *Settings) Validate() error {
+	if len(s.Level) == 0 {
+		return fmt.Errorf("validate Settings: LogLevel missing")
+	}
+	if len(s.Format) == 0 {
+		return fmt.Errorf("validate Settings: LogFormat missing")
+	}
+	return nil
+}
+
 var supportedFormatters = map[string]logrus.Formatter{
 	"json": &logrus.JSONFormatter{},
 	"text": &logrus.TextFormatter{},

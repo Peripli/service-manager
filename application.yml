@@ -6,11 +6,13 @@ log:
   level: debug
   format: text
 storage:
-  uri: postgres://postgres:postgres@192.168.99.101:5432/postgres?sslmode=disable
+  uri: postgres://postgres:postgres@192.168.99.100:5432/postgres?sslmode=disable
 #storage:
 #  name: sm-postgres
 api:
   token_issuer_url: https://uaa.local.pcfdev.io
   client_id: sm
+  security:
+    encryption_key: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
   skip_ssl_validation: false
 

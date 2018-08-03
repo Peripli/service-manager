@@ -52,7 +52,7 @@ var _ = Describe("API", func() {
 			API, err = api.New(context.TODO(), mockedStorage, api.Settings{
 				TokenIssuerURL: server.URL,
 				ClientID:       "sm",
-			})
+			}, nil)
 			Expect(err).ShouldNot(HaveOccurred())
 		})
 
@@ -60,7 +60,7 @@ var _ = Describe("API", func() {
 			API, err = api.New(context.TODO(), mockedStorage, api.Settings{
 				TokenIssuerURL: "http://invalidurl.com",
 				ClientID:       "invalidclient",
-			})
+			}, nil)
 			Expect(err).Should(HaveOccurred())
 
 		})

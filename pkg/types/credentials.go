@@ -59,8 +59,8 @@ func NewBasicCredentials(username string, password string) *Credentials {
 
 // GenerateCredentials return user and password
 func GenerateCredentials() (*Credentials, error) {
-	password := make([]byte, 128)
-	user := make([]byte, 128)
+	password := make([]byte, 32)
+	user := make([]byte, 32)
 
 	_, err := rand.Read(user)
 	if err != nil {
