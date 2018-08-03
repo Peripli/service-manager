@@ -19,7 +19,9 @@ package sm
 import (
 	"context"
 	"crypto/rand"
+	"crypto/tls"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 
@@ -70,6 +72,8 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	if err := cfg.Validate(); err != nil {
 		panic(fmt.Sprintf("error validating config: %s", err))
 	}
+
+	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: cfg.API.SkipSSLValidation}
 
 	// setup logging
 	log.SetupLogging(cfg.Log)

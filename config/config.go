@@ -17,7 +17,7 @@
 package config
 
 import (
-	"time"
+		"time"
 
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/pkg/env"
@@ -62,6 +62,7 @@ func DefaultSettings() *Settings {
 			Security: api.Security{
 				EncryptionKey: "",
 			},
+			SkipSSLValidation: false,
 		},
 	}
 	return config

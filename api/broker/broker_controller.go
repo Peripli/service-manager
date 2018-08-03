@@ -41,9 +41,9 @@ const (
 
 // Controller broker controller
 type Controller struct {
-	BrokerStorage          storage.Broker
-	OSBClientCreateFunc    osbc.CreateFunc
-	Encrypter security.Encrypter
+	BrokerStorage       storage.Broker
+	OSBClientCreateFunc osbc.CreateFunc
+	Encrypter           security.Encrypter
 }
 
 var _ web.Controller = &Controller{}

@@ -32,9 +32,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// DoRequestFunc is an alias for any function that takes an http request and returns a response and error
-type DoRequestFunc func(request *http.Request) (*http.Response, error)
-
 type claims struct {
 	UserID   string `json:"user_id"`
 	Username string `json:"user_name"`
@@ -56,7 +53,7 @@ type Options struct {
 	ClientID string
 
 	// ReadConfigurationFunc is the function used to call the token issuer. If one is not provided, http.DefaultClient.Do will be used
-	ReadConfigurationFunc DoRequestFunc
+	ReadConfigurationFunc util.DoRequestFunc
 }
 
 // Authenticator is the OpenID implementation of security.Authenticator
@@ -131,7 +128,7 @@ func getOpenIDConfig(ctx context.Context, options Options) (*http.Response, erro
 		return nil, err
 	}
 
-	var readConfigFunc DoRequestFunc
+	var readConfigFunc util.DoRequestFunc
 	if options.ReadConfigurationFunc != nil {
 		readConfigFunc = options.ReadConfigurationFunc
 	} else {
