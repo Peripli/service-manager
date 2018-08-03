@@ -38,9 +38,9 @@ var osbPathPattern = regexp.MustCompile("^" + v1 + root + "/[^/]+(/.*)$")
 
 // Controller implements api.Controller by providing OSB API logic
 type Controller struct {
-	BrokerStorage     storage.Broker
-	Filters           web.Filters
-	Encrypter         security.Encrypter
+	BrokerStorage storage.Broker
+	Filters       web.Filters
+	Encrypter     security.Encrypter
 }
 
 var _ web.Controller = &Controller{}
@@ -80,7 +80,6 @@ func (c *Controller) handler(request *web.Request) (*web.Response, error) {
 
 	logrus.Debugf("Forwarding OSB request to %s", modifiedRequest.URL)
 	recorder := httptest.NewRecorder()
-
 	reverseProxy.ServeHTTP(recorder, modifiedRequest)
 
 	body, err := ioutil.ReadAll(recorder.Body)

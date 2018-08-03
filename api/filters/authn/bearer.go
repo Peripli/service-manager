@@ -1,8 +1,9 @@
 package authn
 
 import (
-	"context"
 	"net/http"
+
+	"context"
 
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/security/oidc"
@@ -15,12 +16,10 @@ type BearerAuthnFilter struct {
 
 // NewBearerAuthnFilter returns a BearerAuthnFilter
 func NewBearerAuthnFilter(ctx context.Context, tokenIssuer, clientID string) (*BearerAuthnFilter, error) {
-	authenticator, err := oidc.NewAuthenticator(ctx,
-		oidc.Options{
-			IssuerURL: tokenIssuer,
-			ClientID:  clientID,
-		},
-	)
+	authenticator, err := oidc.NewAuthenticator(ctx, oidc.Options{
+		IssuerURL: tokenIssuer,
+		ClientID:  clientID,
+	})
 	if err != nil {
 		return nil, err
 	}

@@ -93,10 +93,6 @@
   name = "github.com/DATA-DOG/go-sqlmock"
   revision = "852fc940e4b9b895dc144b88ee8f6e39228127b0"
 
-[[constraint]]
-  name = "k8s.io/client-go"
-  version = "v8.0.0"
-
 # Refer to issue https://github.com/golang/dep/issues/1799
 [[override]]
 name = "gopkg.in/fsnotify.v1"
