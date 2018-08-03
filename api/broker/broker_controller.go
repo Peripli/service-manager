@@ -17,7 +17,6 @@
 package broker
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -45,7 +44,6 @@ type Controller struct {
 	BrokerStorage       storage.Broker
 	OSBClientCreateFunc osbc.CreateFunc
 	Encrypter           security.Encrypter
-	TLSConfig           *tls.Config
 }
 
 var _ web.Controller = &Controller{}
@@ -171,7 +169,7 @@ func (c *Controller) patchBroker(request *web.Request) (*web.Response, error) {
 }
 
 func (c *Controller) getBrokerCatalog(broker *types.Broker) (json.RawMessage, error) {
-	osbClient, err := osbClient(c.OSBClientCreateFunc, broker, c.TLSConfig)
+	osbClient, err := osbClient(c.OSBClientCreateFunc, broker)
 	if err != nil {
 		return nil, err
 	}
@@ -188,13 +186,13 @@ func (c *Controller) getBrokerCatalog(broker *types.Broker) (json.RawMessage, er
 	return json.RawMessage(bytes), nil
 }
 
-func osbClient(createFunc osbc.CreateFunc, broker *types.Broker, tlsConfig *tls.Config) (osbc.Client, error) {
-	config := clientConfigForBroker(broker, tlsConfig)
+func osbClient(createFunc osbc.CreateFunc, broker *types.Broker) (osbc.Client, error) {
+	config := clientConfigForBroker(broker)
 	logrus.Debug("Building OSB client for serviceBroker with name: ", config.Name, " accessible at: ", config.URL)
 	return createFunc(config)
 }
 
-func clientConfigForBroker(broker *types.Broker, tlsConfig *tls.Config) *osbc.ClientConfiguration {
+func clientConfigForBroker(broker *types.Broker) *osbc.ClientConfiguration {
 	config := osbc.DefaultClientConfiguration()
 	config.Name = broker.Name
 	config.URL = broker.BrokerURL
@@ -204,7 +202,6 @@ func clientConfigForBroker(broker *types.Broker, tlsConfig *tls.Config) *osbc.Cl
 			Password: broker.Credentials.Basic.Password,
 		},
 	}
-	config.TLSConfig = tlsConfig
 	return config
 }
 

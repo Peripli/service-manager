@@ -32,7 +32,6 @@ import (
 	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/storage"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
-	"k8s.io/client-go/transport"
 )
 
 // Security is the configuration used for the encryption of data
@@ -51,10 +50,10 @@ func (s *Security) Validate() error {
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	TokenIssuerURL  string            `mapstructure:"token_issuer_url"`
-	ClientID        string            `mapstructure:"client_id"`
-	Security        Security          `mapstructure:"security"`
-	TransportConfig *transport.Config `mapstructure:"transport"`
+	TokenIssuerURL    string   `mapstructure:"token_issuer_url"`
+	ClientID          string   `mapstructure:"client_id"`
+	Security          Security `mapstructure:"security"`
+	SkipSSLValidation bool     `mapstructure:"skip_ssl_validation"`
 }
 
 // Validate validates the API settings
@@ -73,11 +72,7 @@ func (s *Settings) Validate() error {
 
 // New returns the minimum set of REST APIs needed for the Service Manager
 func New(ctx context.Context, storage storage.Storage, settings Settings, encrypter security.Encrypter) (*web.API, error) {
-	tlsConfig, err := transport.TLSConfigFor(settings.TransportConfig)
-	if err != nil {
-		return nil, err
-	}
-	bearerAuthnFilter, err := authn.NewBearerAuthnFilter(ctx, settings.TokenIssuerURL, settings.ClientID, settings.TransportConfig)
+	bearerAuthnFilter, err := authn.NewBearerAuthnFilter(ctx, settings.TokenIssuerURL, settings.ClientID)
 	if err != nil {
 		return nil, err
 	}
@@ -85,10 +80,11 @@ func New(ctx context.Context, storage storage.Storage, settings Settings, encryp
 		// Default controllers - more filters can be registered using the relevant API methods
 		Controllers: []web.Controller{
 			&broker.Controller{
-				BrokerStorage:       storage.Broker(),
-				OSBClientCreateFunc: osbc.NewClient,
-				Encrypter:           encrypter,
-				TLSConfig:           tlsConfig,
+				BrokerStorage: storage.Broker(),
+				OSBClientCreateFunc: func() osbc.CreateFunc {
+					return newOSBClient(settings.SkipSSLValidation)
+				}(),
+				Encrypter: encrypter,
 			},
 			&platform.Controller{
 				PlatformStorage: storage.Platform(),
@@ -101,9 +97,8 @@ func New(ctx context.Context, storage storage.Storage, settings Settings, encryp
 				BrokerStorage: storage.Broker(),
 			},
 			&osb.Controller{
-				BrokerStorage:   storage.Broker(),
-				Encrypter:       encrypter,
-				TransportConfig: settings.TransportConfig,
+				BrokerStorage: storage.Broker(),
+				Encrypter:     encrypter,
 			},
 			&healthcheck.Controller{
 				Storage: storage,
@@ -116,4 +111,11 @@ func New(ctx context.Context, storage storage.Storage, settings Settings, encryp
 			authn.NewRequiredAuthnFilter(),
 		},
 	}, nil
+}
+
+func newOSBClient(skipSsl bool) osbc.CreateFunc {
+	return func(configuration *osbc.ClientConfiguration) (osbc.Client, error) {
+		configuration.Insecure = skipSsl
+		return osbc.NewClient(configuration)
+	}
 }

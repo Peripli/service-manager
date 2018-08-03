@@ -54,6 +54,7 @@ var _ = Describe("config", func() {
 			config.API.TokenIssuerURL = "http://example.com"
 			config.API.ClientID = "sm"
 			config.API.Security.EncryptionKey = "ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8"
+			config.API.SkipSSLValidation = true
 		})
 
 		Context("when config is valid", func() {

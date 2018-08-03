@@ -131,7 +131,7 @@ var _ = Describe("OIDC Authenticator", func() {
 		Context("When no Issuer URL is present", func() {
 			It("Should return an error", func() {
 				options.IssuerURL = ""
-				authenticator, err := NewAuthenticator(ctx, options, true)
+				authenticator, err := NewAuthenticator(ctx, options)
 				Expect(authenticator).To(BeNil())
 				Expect(err).To(Not(BeNil()))
 			})
@@ -160,7 +160,7 @@ var _ = Describe("OIDC Authenticator", func() {
 					readError = fmt.Errorf("could not read config")
 				})
 				It("Should return an error", func() {
-					_, err := NewAuthenticator(ctx, options, true)
+					_, err := NewAuthenticator(ctx, options)
 					Expect(err).To(Not(BeNil()))
 				})
 			})
@@ -172,7 +172,7 @@ var _ = Describe("OIDC Authenticator", func() {
 					body = ioutil.NopCloser(&mockReader{buff: "{}", err: expectedErr})
 				})
 				It("Should return an error", func() {
-					_, err := NewAuthenticator(ctx, options, true)
+					_, err := NewAuthenticator(ctx, options)
 					Expect(err).To(Not(BeNil()))
 					Expect(err.Error()).To(ContainSubstring(expectedErr.Error()))
 				})
@@ -184,7 +184,7 @@ var _ = Describe("OIDC Authenticator", func() {
 					body = ioutil.NopCloser(&mockReader{buff: "{invalidJson", err: nil})
 				})
 				It("Should return an error", func() {
-					_, err := NewAuthenticator(ctx, options, true)
+					_, err := NewAuthenticator(ctx, options)
 					Expect(err).To(Not(BeNil()))
 				})
 			})
@@ -201,7 +201,7 @@ var _ = Describe("OIDC Authenticator", func() {
 				})
 
 				It("Should log an error", func() {
-					NewAuthenticator(ctx, options, true)
+					NewAuthenticator(ctx, options)
 					loggedError := string(loggingInterceptor.data)
 					Expect(loggedError).To(ContainSubstring(expectedError.Error()))
 				})
@@ -211,7 +211,7 @@ var _ = Describe("OIDC Authenticator", func() {
 					openIdResponseCode = http.StatusOK
 				})
 				It("Should return an authenticator", func() {
-					authenticator, err := NewAuthenticator(ctx, options, true)
+					authenticator, err := NewAuthenticator(ctx, options)
 					Expect(err).To(BeNil())
 					Expect(authenticator).To(Not(BeNil()))
 				})
@@ -230,7 +230,7 @@ var _ = Describe("OIDC Authenticator", func() {
 				})
 
 				It("Should return error", func() {
-					_, err := NewAuthenticator(ctx, options, true)
+					_, err := NewAuthenticator(ctx, options)
 
 					Expect(err).To(Not(BeNil()))
 				})
@@ -243,7 +243,7 @@ var _ = Describe("OIDC Authenticator", func() {
 				})
 
 				It("Should return an authenticator", func() {
-					authenticator, err := NewAuthenticator(ctx, options, true)
+					authenticator, err := NewAuthenticator(ctx, options)
 					Expect(err).To(BeNil())
 					Expect(authenticator).To(Not(BeNil()))
 				})
@@ -257,7 +257,7 @@ var _ = Describe("OIDC Authenticator", func() {
 			err     error
 		)
 		validateAuthenticationReturns := func(expectedUser *security.User, expectedDecision security.AuthenticationDecision, expectedErr error) {
-			authenticator, _ := NewAuthenticator(ctx, options, true)
+			authenticator, _ := NewAuthenticator(ctx, options)
 
 			user, decision, err := authenticator.Authenticate(request)
 

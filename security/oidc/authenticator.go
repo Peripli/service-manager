@@ -20,16 +20,16 @@ package oidc
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"fmt"
 
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/security"
 	"github.com/coreos/go-oidc"
 	"github.com/sirupsen/logrus"
-	"k8s.io/client-go/transport"
 )
 
 type claims struct {
@@ -52,7 +52,8 @@ type Options struct {
 	// ClientID is the id of the oauth client used to verify the tokens
 	ClientID string
 
-	TransportConfig *transport.Config
+	// ReadConfigurationFunc is the function used to call the token issuer. If one is not provided, http.DefaultClient.Do will be used
+	ReadConfigurationFunc util.DoRequestFunc
 }
 
 // Authenticator is the OpenID implementation of security.Authenticator
@@ -127,13 +128,14 @@ func getOpenIDConfig(ctx context.Context, options Options) (*http.Response, erro
 		return nil, err
 	}
 
-	roundTripper, err := transport.New(options.TransportConfig)
-	if err != nil {
-		return nil, err
+	var readConfigFunc util.DoRequestFunc
+	if options.ReadConfigurationFunc != nil {
+		readConfigFunc = options.ReadConfigurationFunc
+	} else {
+		readConfigFunc = http.DefaultClient.Do
 	}
-	
-	client := &http.Client{Transport: roundTripper}
-	resp, err := client.Do(req.WithContext(ctx))
+
+	resp, err := readConfigFunc(req.WithContext(ctx))
 	if err != nil {
 		return nil, err
 	}

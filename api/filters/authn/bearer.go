@@ -6,7 +6,6 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/security/oidc"
-	"k8s.io/client-go/transport"
 )
 
 // BearerAuthnFilter performs Bearer authentication by validating the Authorization header
@@ -15,12 +14,11 @@ type BearerAuthnFilter struct {
 }
 
 // NewBearerAuthnFilter returns a BearerAuthnFilter
-func NewBearerAuthnFilter(ctx context.Context, tokenIssuer, clientID string, config *transport.Config) (*BearerAuthnFilter, error) {
+func NewBearerAuthnFilter(ctx context.Context, tokenIssuer, clientID string) (*BearerAuthnFilter, error) {
 	authenticator, err := oidc.NewAuthenticator(ctx,
 		oidc.Options{
-			IssuerURL:       tokenIssuer,
-			ClientID:        clientID,
-			TransportConfig: config,
+			IssuerURL: tokenIssuer,
+			ClientID:  clientID,
 		},
 	)
 	if err != nil {
