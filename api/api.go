@@ -31,6 +31,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/storage"
+	"github.com/Peripli/service-manager/work"
+	"github.com/Peripli/service-manager/worker"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 )
 
@@ -76,6 +78,16 @@ func New(ctx context.Context, storage storage.Storage, settings Settings, encryp
 	if err != nil {
 		return nil, err
 	}
+	brokerWorker := &worker.Broker{Encrypter: encrypter, BrokerStorage: storage.Broker(), OSBClientCreateFunc: func() osbc.CreateFunc {
+		return newOSBClient(settings.SkipSSLValidation)
+	}(),
+	}
+	var workers []work.Worker
+	workers = append(workers, brokerWorker)
+	jobQueue := make(chan work.Job)
+	dispatcher := NewDispatcher(5, jobQueue, workers)
+	dispatcher.Run()
+
 	return &web.API{
 		// Default controllers - more filters can be registered using the relevant API methods
 		Controllers: []web.Controller{
@@ -85,6 +97,7 @@ func New(ctx context.Context, storage storage.Storage, settings Settings, encryp
 					return newOSBClient(settings.SkipSSLValidation)
 				}(),
 				Encrypter: encrypter,
+				JobQueue:  jobQueue,
 			},
 			&platform.Controller{
 				PlatformStorage: storage.Platform(),

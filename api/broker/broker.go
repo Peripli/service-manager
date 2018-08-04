@@ -37,7 +37,7 @@ func (c *Controller) Routes() []web.Route {
 				Method: http.MethodPost,
 				Path:   url,
 			},
-			Handler: c.createBroker,
+			Handler: c.asyncCreateBroker,
 		},
 		{
 			Endpoint: web.Endpoint{
@@ -58,7 +58,7 @@ func (c *Controller) Routes() []web.Route {
 				Method: http.MethodDelete,
 				Path:   url + "/{broker_id}",
 			},
-			Handler: c.deleteBroker,
+			Handler: c.asyncDeleteBroker,
 		},
 		{
 			Endpoint: web.Endpoint{

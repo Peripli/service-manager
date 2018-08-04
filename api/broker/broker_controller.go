@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Peripli/service-manager/work"
 	"github.com/Peripli/service-manager/security"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 
@@ -44,6 +45,7 @@ type Controller struct {
 	BrokerStorage       storage.Broker
 	OSBClientCreateFunc osbc.CreateFunc
 	Encrypter           security.Encrypter
+	JobQueue            chan work.Job
 }
 
 var _ web.Controller = &Controller{}
