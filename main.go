@@ -18,15 +18,44 @@ package main
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/Peripli/service-manager/api/filters/authn"
 	"github.com/Peripli/service-manager/pkg/sm"
+	"github.com/Peripli/service-manager/pkg/web"
 )
+
+type LoggingFilter struct {
+}
+
+func (*LoggingFilter) Name() string {
+	return "LoggingFilter"
+}
+
+func (*LoggingFilter) Run(next web.Handler) web.Handler {
+	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
+		fmt.Println("!!!! Entered in filter !!!!")
+		return next.Handle(request)
+	})
+}
+
+func (*LoggingFilter) FilterMatchers() []web.FilterMatcher {
+	return []web.FilterMatcher{
+		{
+			Matchers: []web.Matcher{
+				web.Path("**"),
+			},
+		},
+	}
+}
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	env := sm.DefaultEnv()
-	serviceManager := sm.New(ctx, cancel, env).Build()
+	builder := sm.New(ctx, cancel, env)
+	builder.ReplaceFilter(authn.BasicAuthnFilterName, &LoggingFilter{})
+	serviceManager := builder.Build()
 	serviceManager.Run()
 }

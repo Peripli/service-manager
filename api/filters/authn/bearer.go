@@ -1,13 +1,14 @@
 package authn
 
 import (
-	"net/http"
-
 	"context"
+	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/security/oidc"
 )
+
+const BearerAuthnFilterName string = "BearerAuthnFilter"
 
 // BearerAuthnFilter performs Bearer authentication by validating the Authorization header
 type BearerAuthnFilter struct {
@@ -26,14 +27,14 @@ func NewBearerAuthnFilter(ctx context.Context, tokenIssuer, clientID string) (*B
 	return &BearerAuthnFilter{
 		Middleware: Middleware{
 			authenticator: authenticator,
-			name:          "BearerAuthenticationFilter",
+			name:          BearerAuthnFilterName,
 		},
 	}, nil
 }
 
 // Name implements the web.Filter interface and returns the identifier of the filter
 func (ba *BearerAuthnFilter) Name() string {
-	return "BearerAuthenticationFilter"
+	return BearerAuthnFilterName
 }
 
 // FilterMatchers implements the web.Filter interface and returns the conditions on which the filter should be executed

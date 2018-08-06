@@ -142,6 +142,10 @@ func (smb *ServiceManagerBuilder) RegisterControllers(controllers ...web.Control
 	smb.API.RegisterControllers(controllers...)
 }
 
+func (smb *ServiceManagerBuilder) ReplaceFilter(filterName string, filter web.Filter){
+	smb.API.ReplaceFilter(filterName, filter)
+}
+
 // Build builds the Service Manager
 func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	// setup server and add relevant global middleware

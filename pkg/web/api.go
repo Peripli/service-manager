@@ -82,6 +82,25 @@ func (api *API) RegisterFilters(filters ...Filter) {
 	api.Filters = append(api.Filters, filters...)
 }
 
+func (api *API) ReplaceFilter(replacedFilterName string, filter Filter){
+	registeredFilterPosition := api.filterPosition(replacedFilterName)
+	api.Filters[registeredFilterPosition] = filter
+}
+
+func (api *API) filterPosition(filterName string) int {
+	registeredFilterPosition := -1
+	for i := range api.Filters {
+		registeredFilter := api.Filters[i]
+		if registeredFilter.Name() == filterName {
+			registeredFilterPosition = i
+		}
+	}
+	if registeredFilterPosition < 0 {
+		logrus.Panicf("Filter with name %s is not registered", filterName)
+	}
+	return registeredFilterPosition
+}
+
 // RegisterPlugins registers a set of plugins
 func (api *API) RegisterPlugins(plugins ...Plugin) {
 	for _, plugin := range plugins {
