@@ -26,6 +26,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const getEncryptionKeyRetryCount = 5
+
 // generates a new encryption key only if the node is a leader. Otherwise waits for the leader to generate one
 func initializeSecureStorage(secureStorage storage.Security, isLeader bool) error {
 	keyFetcher := secureStorage.Fetcher()
@@ -57,7 +59,7 @@ func generateEncryptionKey(keySetter security.KeySetter) error {
 
 func waitForLeader(keyFetcher security.KeyFetcher) error {
 	var encryptionKey []byte
-	for i := 0; i < 5; i++ {
+	for i := 0; i < getEncryptionKeyRetryCount ; i++ {
 		logrus.Debugf("Waiting for leader to generate encryption key...")
 		encryptionKey, err := keyFetcher.GetEncryptionKey()
 		if err != nil {
