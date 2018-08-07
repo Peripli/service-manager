@@ -132,14 +132,13 @@ func (api *API) ReplaceFilter(replacedFilterName string, filter Filter) {
 }
 
 func (api *API) findFilterPosition(filterName string) int {
-	registeredFilterPosition := -1
 	for i := range api.Filters {
 		registeredFilter := api.Filters[i]
 		if registeredFilter.Name() == filterName {
-			registeredFilterPosition = i
+			return i
 		}
 	}
-	return registeredFilterPosition
+	return -1
 }
 
 func (api *API) findFilterPositionOrDie(filterName string) int {
