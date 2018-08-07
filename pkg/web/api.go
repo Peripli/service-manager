@@ -20,6 +20,7 @@ package web
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 )
@@ -82,7 +83,49 @@ func (api *API) RegisterFilters(filters ...Filter) {
 	api.Filters = append(api.Filters, filters...)
 }
 
-func (api *API) ReplaceFilter(replacedFilterName string, filter Filter){
+func (api *API) registerFilterRelatively(filterName string, newFilter Filter, newFilterPosition func(filterPosition int) int) {
+	registeredFilterPosition := api.filterPosition(filterName)
+	filterPosition := newFilterPosition(registeredFilterPosition)
+	api.Filters = append(api.Filters, nil)
+	copy(api.Filters[filterPosition+1:], api.Filters[filterPosition:])
+	api.Filters[filterPosition] = newFilter
+}
+
+func (api *API) RegisterFilterBefore(beforeFilterName string, filter Filter) {
+	logrus.Debugf("Registering filter %s before %s", filter.Name(), beforeFilterName)
+	api.registerFilterRelatively(beforeFilterName, filter, func(beforeFilterPosition int) int {
+		if beforeFilterPosition == 0 {
+			return 0
+		}
+		return beforeFilterPosition - 1
+	})
+}
+
+// RegisterFilterAfter adds the given filter after the filter with the specified name
+// If the filter with the specified name is not registered, the method panics
+// If for some routes, the filter with the given name does not match the routes of the provided filter, then
+// the filter will be registered at the place at which the filter with this name would have been, had it been
+// configured to match route
+//
+// Example:
+//  Flter with name A matches routes /api/v1/service_brokers and /api/v1/platforms.
+//  Filter with name B matches routes /api/v1/service_brokers and /api/v1/service_instances
+//  Filter with name C matches routes /api/v1/platforms and /api/v1/service_instances
+//  Filter B is registered after filter A
+// Calling RegisterFilterAfter("A", filterC) will result in the following:
+//  calling /api/v1/service_brokers will go through A, then B, then reach the handler. Event though filter C is registered after filter A
+// it is not executed because it doesn't match the route
+//  calling /api/v1/platforms will go through A, then C, then reach the handler
+//  calling /api/v1/service_instances will go through C, then B, then reach the handler
+func (api *API) RegisterFilterAfter(afterFilterName string, filter Filter) {
+	logrus.Debugf("Registering filter %s after %s", filter.Name(), afterFilterName)
+	api.registerFilterRelatively(afterFilterName, filter, func(filterPosition int) int {
+		return filterPosition + 1
+	})
+}
+
+func (api *API) ReplaceFilter(replacedFilterName string, filter Filter) {
+	logrus.Debugf("Replacing filter %s with %s", replacedFilterName, filter.Name())
 	registeredFilterPosition := api.filterPosition(replacedFilterName)
 	api.Filters[registeredFilterPosition] = filter
 }
@@ -104,12 +147,68 @@ func (api *API) filterPosition(filterName string) int {
 // RegisterPlugins registers a set of plugins
 func (api *API) RegisterPlugins(plugins ...Plugin) {
 	for _, plugin := range plugins {
-		pluginSegments := api.decomposePlugin(plugin)
-		if len(pluginSegments) == 0 {
-			logrus.Panicf("%T does not implement any plugin operation", plugin)
-		}
-
+		pluginSegments := api.decomposePluginOrDie(plugin)
 		api.RegisterFilters(pluginSegments...)
+	}
+}
+
+func (api *API) RegisterPluginBefore(name string, plugin Plugin) {
+	logrus.Debugf("Registering plugin %s before %s", plugin.Name(), name)
+	api.registerPluginRelatively(name, plugin, api.RegisterFilterBefore)
+}
+
+func (api *API) RegisterPluginAfter(name string, plugin Plugin) {
+	logrus.Debugf("Registering plugin %s after %s", plugin.Name(), name)
+	api.registerPluginRelatively(name, plugin, api.RegisterFilterAfter)
+}
+
+func (api *API) registerPluginRelatively(relativeName string, plugin Plugin, relationFunc func(string, Filter)) {
+	pluginSegments := api.decomposePluginOrDie(plugin)
+	for i := range pluginSegments {
+		pluginSegment := pluginSegments[i]
+		relationFunc(relativeName, pluginSegment)
+	}
+}
+
+func (api *API) decomposePluginOrDie(plugin Plugin) []Filter {
+	pluginSegments := api.decomposePlugin(plugin)
+	if len(pluginSegments) == 0 {
+		logrus.Panicf("%T does not implement any plugin operation", plugin)
+	}
+	return pluginSegments
+}
+
+func (api *API) ReplacePlugin(name string, plugin Plugin) {
+	logrus.Debugf("Replacing plugin %s with %s", name, plugin.Name())
+	var replacedPluginPositions []int
+	for i := range api.Filters {
+		filter := api.Filters[i]
+		if strings.HasPrefix(filter.Name(), name+":") {
+			replacedPluginPositions = append(replacedPluginPositions, i)
+		}
+	}
+	pluginSegments := api.decomposePluginOrDie(plugin)
+	replacedPluginFiltersCount := len(replacedPluginPositions)
+	newPluginFiltersCount := len(pluginSegments)
+
+	i := 0
+	for _, filterPosition := range replacedPluginPositions {
+		if i >= newPluginFiltersCount {
+			break
+		}
+		api.Filters[filterPosition] = pluginSegments[i]
+		i++
+	}
+
+	// remove leftover filters
+	// TODO: do while have filter with name prefix, remove them
+	for j := i+1; j < replacedPluginFiltersCount; j++ {
+		api.Filters = append(api.Filters[:j], api.Filters[j+1:]...)
+	}
+
+	// add new filters after the last one
+	for j := i; j < newPluginFiltersCount; j++ {
+		api.RegisterFilterAfter(pluginSegments[i-1].Name(), pluginSegments[i])
 	}
 }
 

@@ -121,29 +121,10 @@ func (sm *ServiceManager) Run() {
 // ServiceManagerBuilder type is an extension point that allows adding additional filters, plugins and
 // controllers before running ServiceManager.
 type ServiceManagerBuilder struct {
+	*web.API
 	ctx    context.Context
 	cancel context.CancelFunc
 	cfg    server.Settings
-	API    *web.API
-}
-
-// RegisterPlugins adds plugins to the Service Manager
-func (smb *ServiceManagerBuilder) RegisterPlugins(plugins ...web.Plugin) {
-	smb.API.RegisterPlugins(plugins...)
-}
-
-// RegisterFilters adds filters to the Service Manager
-func (smb *ServiceManagerBuilder) RegisterFilters(filters ...web.Filter) {
-	smb.API.RegisterFilters(filters...)
-}
-
-// RegisterControllers adds controllers to the Service Manager
-func (smb *ServiceManagerBuilder) RegisterControllers(controllers ...web.Controller) {
-	smb.API.RegisterControllers(controllers...)
-}
-
-func (smb *ServiceManagerBuilder) ReplaceFilter(filterName string, filter web.Filter){
-	smb.API.ReplaceFilter(filterName, filter)
 }
 
 // Build builds the Service Manager
