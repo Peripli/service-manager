@@ -10,7 +10,7 @@ storage:
 #storage:
 #  name: sm-postgres
 api:
-  token_issuer_url: https://uaa.cf.eu20.hana.ondemand.com
+  token_issuer_url: https://uaa.local.pcfdev.io
   client_id: sm
   security:
     encryption_key: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
