@@ -18,8 +18,7 @@ package sm
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/tls"
+		"crypto/tls"
 	"fmt"
 	"net/http"
 	"os"
@@ -85,7 +84,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	}
 
 	securityStorage := smStorage.Security()
-	if err := initializeSecureStorage(securityStorage); err != nil {
+	if err := initializeSecureStorage(securityStorage, cfg.IsLeader); err != nil {
 		panic(fmt.Sprintf("error initialzing secure storage: %v", err))
 	}
 
@@ -152,27 +151,6 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 		ctx:    smb.ctx,
 		Server: srv,
 	}
-}
-
-func initializeSecureStorage(secureStorage storage.Security) error {
-	keyFetcher := secureStorage.Fetcher()
-	encryptionKey, err := keyFetcher.GetEncryptionKey()
-	if err != nil {
-		return err
-	}
-	if len(encryptionKey) == 0 {
-		logrus.Debug("No encryption key is present. Generating new one...")
-		newEncryptionKey := make([]byte, 32)
-		if _, err := rand.Read(newEncryptionKey); err != nil {
-			return fmt.Errorf("Could not generate encryption key: %v", err)
-		}
-		keySetter := secureStorage.Setter()
-		if err := keySetter.SetEncryptionKey(newEncryptionKey); err != nil {
-			return err
-		}
-		logrus.Debug("Successfully generated new encryption key")
-	}
-	return nil
 }
 
 func handleInterrupts(ctx context.Context, cancelFunc context.CancelFunc) {

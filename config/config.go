@@ -17,7 +17,7 @@
 package config
 
 import (
-		"time"
+	"time"
 
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/pkg/env"
@@ -29,10 +29,11 @@ import (
 
 // Settings is used to setup the Service Manager
 type Settings struct {
-	Server  server.Settings
-	Storage storage.Settings
-	Log     log.Settings
-	API     api.Settings
+	Server   server.Settings
+	Storage  storage.Settings
+	Log      log.Settings
+	API      api.Settings
+	IsLeader bool `mapstructure:"is_leader"`
 }
 
 // AddPFlags adds the SM config flags to the provided flag set
@@ -64,6 +65,7 @@ func DefaultSettings() *Settings {
 			},
 			SkipSSLValidation: false,
 		},
+		IsLeader: true,
 	}
 	return config
 }
