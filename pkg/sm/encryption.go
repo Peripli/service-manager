@@ -36,9 +36,8 @@ func initializeSecureStorage(secureStorage storage.Security, isLeader bool) erro
 	if len(encryptionKey) == 0 {
 		if isLeader {
 			return generateEncryptionKey(secureStorage.Setter())
-		} else {
-			return waitForLeader(keyFetcher)
 		}
+		return waitForLeader(keyFetcher)
 	}
 	return nil
 }
