@@ -19,6 +19,7 @@
 package web
 
 import (
+	"math"
 	"net/http"
 	"strings"
 
@@ -84,7 +85,7 @@ func (api *API) RegisterFilters(filters ...Filter) {
 }
 
 func (api *API) registerFilterRelatively(filterName string, newFilter Filter, newFilterPosition func(filterPosition int) int) {
-	registeredFilterPosition := api.filterPosition(filterName)
+	registeredFilterPosition := api.findFilterPositionOrDie(filterName)
 	filterPosition := newFilterPosition(registeredFilterPosition)
 	api.Filters = append(api.Filters, nil)
 	copy(api.Filters[filterPosition+1:], api.Filters[filterPosition:])
@@ -126,11 +127,11 @@ func (api *API) RegisterFilterAfter(afterFilterName string, filter Filter) {
 
 func (api *API) ReplaceFilter(replacedFilterName string, filter Filter) {
 	logrus.Debugf("Replacing filter %s with %s", replacedFilterName, filter.Name())
-	registeredFilterPosition := api.filterPosition(replacedFilterName)
+	registeredFilterPosition := api.findFilterPositionOrDie(replacedFilterName)
 	api.Filters[registeredFilterPosition] = filter
 }
 
-func (api *API) filterPosition(filterName string) int {
+func (api *API) findFilterPosition(filterName string) int {
 	registeredFilterPosition := -1
 	for i := range api.Filters {
 		registeredFilter := api.Filters[i]
@@ -138,6 +139,11 @@ func (api *API) filterPosition(filterName string) int {
 			registeredFilterPosition = i
 		}
 	}
+	return registeredFilterPosition
+}
+
+func (api *API) findFilterPositionOrDie(filterName string) int {
+	registeredFilterPosition := api.findFilterPosition(filterName)
 	if registeredFilterPosition < 0 {
 		logrus.Panicf("Filter with name %s is not registered", filterName)
 	}
@@ -154,12 +160,37 @@ func (api *API) RegisterPlugins(plugins ...Plugin) {
 
 func (api *API) RegisterPluginBefore(name string, plugin Plugin) {
 	logrus.Debugf("Registering plugin %s before %s", plugin.Name(), name)
-	api.registerPluginRelatively(name, plugin, api.RegisterFilterBefore)
+	lowestFilterName := ""
+	lowestFilterPos := math.MaxInt64
+	for i := range api.Filters {
+		filter := api.Filters[i]
+		if strings.HasPrefix(filter.Name(), name+":") && i < lowestFilterPos {
+			lowestFilterPos = i
+			lowestFilterName = filter.Name()
+		}
+	}
+	api.registerPluginRelatively(lowestFilterName, plugin, api.RegisterFilterBefore)
+}
+
+func (api *API) RemoveFilter(name string) {
+	position := api.findFilterPosition(name)
+	if position >= 0 {
+		api.Filters = append(api.Filters[:position], api.Filters[position+1:]...)
+	}
 }
 
 func (api *API) RegisterPluginAfter(name string, plugin Plugin) {
 	logrus.Debugf("Registering plugin %s after %s", plugin.Name(), name)
-	api.registerPluginRelatively(name, plugin, api.RegisterFilterAfter)
+	highestFilterName := ""
+	highestFilterPos := math.MinInt64
+	for i := range api.Filters {
+		filter := api.Filters[i]
+		if strings.HasPrefix(filter.Name(), name+":") && i > highestFilterPos {
+			highestFilterPos = i
+			highestFilterName = filter.Name()
+		}
+	}
+	api.registerPluginRelatively(highestFilterName, plugin, api.RegisterFilterAfter)
 }
 
 func (api *API) registerPluginRelatively(relativeName string, plugin Plugin, relationFunc func(string, Filter)) {
@@ -180,15 +211,14 @@ func (api *API) decomposePluginOrDie(plugin Plugin) []Filter {
 
 func (api *API) ReplacePlugin(name string, plugin Plugin) {
 	logrus.Debugf("Replacing plugin %s with %s", name, plugin.Name())
-	var replacedPluginPositions []int
+	replacedPluginPositions := make(map[string]int)
 	for i := range api.Filters {
 		filter := api.Filters[i]
 		if strings.HasPrefix(filter.Name(), name+":") {
-			replacedPluginPositions = append(replacedPluginPositions, i)
+			replacedPluginPositions[filter.Name()] = i
 		}
 	}
 	pluginSegments := api.decomposePluginOrDie(plugin)
-	replacedPluginFiltersCount := len(replacedPluginPositions)
 	newPluginFiltersCount := len(pluginSegments)
 
 	i := 0
@@ -200,15 +230,13 @@ func (api *API) ReplacePlugin(name string, plugin Plugin) {
 		i++
 	}
 
-	// remove leftover filters
-	// TODO: do while have filter with name prefix, remove them
-	for j := i+1; j < replacedPluginFiltersCount; j++ {
-		api.Filters = append(api.Filters[:j], api.Filters[j+1:]...)
+	for name := range replacedPluginPositions {
+		api.RemoveFilter(name)
 	}
 
 	// add new filters after the last one
 	for j := i; j < newPluginFiltersCount; j++ {
-		api.RegisterFilterAfter(pluginSegments[i-1].Name(), pluginSegments[i])
+		api.RegisterFilterAfter(pluginSegments[j-1].Name(), pluginSegments[j])
 	}
 }
 

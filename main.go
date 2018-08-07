@@ -17,9 +17,12 @@
 package main
 
 import (
-		"fmt"
+	"context"
+	"fmt"
 
-			"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/api/filters/authn"
+	"github.com/Peripli/service-manager/pkg/sm"
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
 type LoggingFilter struct {
@@ -47,15 +50,12 @@ func (*LoggingFilter) FilterMatchers() []web.FilterMatcher {
 }
 
 func main() {
-	// ctx, cancel := context.WithCancel(context.Background())
-	// defer cancel()
-	//
-	// env := sm.DefaultEnv()
-	// builder := sm.New(ctx, cancel, env)
-	// builder.ReplaceFilter(authn.BasicAuthnFilterName, &LoggingFilter{})
-	// serviceManager := builder.Build()
-	// serviceManager.Run()
-	digits := []int{1,2,3,4,5,6,7,8,9,10}
-	digits = append(digits[:2], digits[5:]...)
-	fmt.Printf("%v", digits)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	env := sm.DefaultEnv()
+	builder := sm.New(ctx, cancel, env)
+	builder.ReplaceFilter(authn.BasicAuthnFilterName, &LoggingFilter{})
+	serviceManager := builder.Build()
+	serviceManager.Run()
 }
