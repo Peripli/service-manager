@@ -74,6 +74,9 @@ func New(config Settings, api *web.API) *Server {
 
 // Run starts the server awaiting for incoming requests
 func (s *Server) Run(ctx context.Context) {
+	if err := s.Config.Validate(); err != nil {
+		panic(fmt.Sprintf("invalid server config: %v", s.Config))
+	}
 	handler := &http.Server{
 		Handler:      s.Router,
 		Addr:         s.Config.Host + ":" + strconv.Itoa(s.Config.Port),
