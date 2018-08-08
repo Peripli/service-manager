@@ -20,7 +20,8 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"fmt"
-		"time"
+	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/Peripli/service-manager/security"
@@ -28,6 +29,11 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
+func TestAPostgresStorage(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Postgres Storage Suite")
+}
+
 
 var _ = Describe("Security", func() {
 
@@ -156,6 +162,74 @@ var _ = Describe("Security", func() {
 			It("Should return nil", func() {
 				err := setter.SetEncryptionKey([]byte{})
 				Expect(err).To(BeNil())
+			})
+		})
+	})
+
+	Describe("Locking", func() {
+		var mockdb *sql.DB
+		var mock sqlmock.Sqlmock
+		var storage *securityStorage
+		envEncryptionKey := make([]byte, 32)
+
+		JustBeforeEach(func() {
+			storage = &securityStorage{
+				db:            sqlx.NewDb(mockdb, "sqlmock"),
+				encryptionKey: envEncryptionKey,
+				isLocked: false,
+			}
+		})
+		BeforeEach(func() {
+			mockdb, mock, _ = sqlmock.New()
+			rand.Read(envEncryptionKey)
+		})
+		AfterEach(func() {
+			mockdb.Close()
+		})
+
+		Describe("Lock", func() {
+
+			Context("When lock is already acquired", func() {
+				It("Should return an error", func() {
+					storage.isLocked = true
+					err := storage.Lock()
+					Expect(err).ToNot(BeNil())
+				})
+			})
+
+			Context("When lock is not yet acquired", func() {
+				AfterEach(func() {
+					storage.Unlock()
+				})
+				BeforeEach(func() {
+					mock.ExpectExec("SELECT").WillReturnResult(sqlmock.NewResult(int64(1), int64(1)))
+				})
+				It("Should acquire lock", func() {
+					err := storage.Lock()
+					Expect(err).To(BeNil())
+					Expect(storage.isLocked).To(Equal(true))
+				})
+			})
+		})
+
+		Describe("Unlock", func() {
+			Context("When lock is not acquired", func() {
+				It("Should return nil", func() {
+					storage.isLocked = false
+					err := storage.Unlock()
+					Expect(err).To(BeNil())
+				})
+			})
+			Context("When lock is acquired", func() {
+				BeforeEach(func() {
+					mock.ExpectExec("SELECT").WillReturnResult(sqlmock.NewResult(int64(1), int64(1)))
+				})
+				It("Should release lock", func() {
+					storage.isLocked = true
+					err := storage.Unlock()
+					Expect(err).To(BeNil())
+					Expect(storage.isLocked).To(Equal(false))
+				})
 			})
 		})
 	})

@@ -29,10 +29,10 @@ import (
 
 // Settings is used to setup the Service Manager
 type Settings struct {
-	Server   server.Settings
-	Storage  storage.Settings
-	Log      log.Settings
-	API      api.Settings
+	Server  server.Settings
+	Storage storage.Settings
+	Log     log.Settings
+	API     api.Settings
 }
 
 // AddPFlags adds the SM config flags to the provided flag set
