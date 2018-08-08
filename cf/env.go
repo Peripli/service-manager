@@ -46,7 +46,6 @@ func SetCFOverrides(env env.Environment) error {
 		if err != nil {
 			return fmt.Errorf("could not find service with name %s: %v", pgServiceName, err)
 		}
-		env.Set("is.leader", cfEnv.Index == 0)
 		env.Set("storage.uri", service.Credentials["uri"])
 	}
 	return nil

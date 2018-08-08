@@ -74,7 +74,7 @@ func (storage *postgresStorage) Credentials() storage.Credentials {
 
 func (storage *postgresStorage) Security() storage.Security{
 	storage.checkOpen()
-	return &securityStorage{storage.db, storage.encryptionKey}
+	return &securityStorage{storage.db, storage.encryptionKey, false}
 }
 
 func (storage *postgresStorage) Open(uri string, encryptionKey []byte) error {
