@@ -33,7 +33,6 @@ type Settings struct {
 	Storage  storage.Settings
 	Log      log.Settings
 	API      api.Settings
-	IsLeader bool `mapstructure:"is_leader"`
 }
 
 // AddPFlags adds the SM config flags to the provided flag set
@@ -65,7 +64,6 @@ func DefaultSettings() *Settings {
 			},
 			SkipSSLValidation: false,
 		},
-		IsLeader: true,
 	}
 	return config
 }

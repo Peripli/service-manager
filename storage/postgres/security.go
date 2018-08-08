@@ -25,9 +25,40 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const securityLockIndex = 111
+
 type securityStorage struct {
 	db            *sqlx.DB
 	encryptionKey []byte
+	isLocked      bool
+}
+
+// Lock acquires a database lock so that only one process can manipulate the encryption key.
+// Returns an error if the process has already acquired the lock
+func (s *securityStorage) Lock() error {
+	if s.isLocked {
+		return fmt.Errorf("Lock is already acquired")
+	}
+	_, err := s.db.Exec("SELECT pg_advisory_lock($1)", securityLockIndex)
+	if err != nil {
+		return err
+	}
+	s.isLocked = true
+	return nil
+}
+
+// Unlock releases the database lock.
+func (s *securityStorage) Unlock() error {
+	if !s.isLocked {
+		return nil
+	}
+
+	_, err := s.db.Exec("SELECT pg_advisory_unlock($1)", securityLockIndex)
+	if err != nil {
+		return err
+	}
+	s.isLocked = false
+	return nil
 }
 
 // Fetcher returns a KeyFetcher configured to fetch a key from the database

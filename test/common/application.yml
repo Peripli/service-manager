@@ -1,4 +1,3 @@
-is_leader: true
 server:
   request_timeout: 4000ms
   shutdown_timeout: 4000ms
