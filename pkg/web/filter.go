@@ -143,9 +143,22 @@ func (fs Filters) Chain(h Handler) Handler {
 	for i := len(fs) - 1; i >= 0; i-- {
 		i := i
 		wrappedFilters[i] = HandlerFunc(func(request *Request) (*Response, error) {
-			logrus.Debug("Entering Filter: ", fs[i].Name(), " Path: ", request.URL.Path, " Method: ", request.Method)
+			params := map[string]interface{}{
+				"path":   request.URL.Path,
+				"method": request.Method,
+			}
+
+			logrus.WithFields(params).Debug("Entering Filter: ", fs[i].Name())
+
 			resp, err := fs[i].Run(request, wrappedFilters[i+1])
-			logrus.Debug("Exiting Filter: ", fs[i].Name(), " Err: ", err, " Path: ", request.URL.Path, " Method: ", request.Method)
+
+			params["err"] = err
+			if resp != nil {
+				params["statusCode"] = resp.StatusCode
+			}
+
+			logrus.WithFields(params).Debug("Exiting Filter: ", fs[i].Name())
+
 			return resp, err
 		})
 	}
