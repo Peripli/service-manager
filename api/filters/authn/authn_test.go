@@ -71,7 +71,7 @@ var _ = Describe("Authn", func() {
 	validateMiddlewareBehavesCorrectly := func(middleware web.Middleware, t *testStructure) {
 		fakeAuthenticator.AuthenticateReturns(t.authnResp, t.authnDecision, t.authnErr)
 		fakeHandler.HandleReturns(expectedWebResponse, nil)
-		resp, err := middleware.Run(fakeHandler).Handle(t.request)
+		resp, err := middleware.Run(t.request, fakeHandler)
 
 		Expect(fakeHandler.HandleCallCount()).To(Equal(t.actualHandlerInvokations))
 
