@@ -17,15 +17,12 @@
 package osb
 
 import (
-	"bytes"
 	"fmt"
-	"io/ioutil"
 	"net/http"
-	"net/http/httptest"
-	"net/http/httputil"
 	"net/url"
 	"regexp"
 
+	"github.com/Peripli/service-manager/pkg/proxy"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -41,6 +38,7 @@ type Controller struct {
 	BrokerStorage storage.Broker
 	Filters       web.Filters
 	Encrypter     security.Encrypter
+	Handler       web.HandlerFunc
 }
 
 var _ web.Controller = &Controller{}
@@ -53,45 +51,25 @@ func (c *Controller) handler(request *web.Request) (*web.Response, error) {
 	}
 	target, _ := url.Parse(broker.BrokerURL)
 
-	reverseProxy := httputil.ReverseProxy{
-		Director: func(req *http.Request) {
-			req.Host = target.Host
-		},
-	}
-
 	username, password := broker.Credentials.Basic.Username, broker.Credentials.Basic.Password
-
-	modifiedRequest := request.Request.WithContext(request.Context())
 	plaintextPassword, err := c.Encrypter.Decrypt([]byte(password))
 	if err != nil {
 		return nil, err
 	}
-	modifiedRequest.SetBasicAuth(username, string(plaintextPassword))
-	modifiedRequest.URL.Scheme = target.Scheme
-	modifiedRequest.URL.Host = target.Host
-	modifiedRequest.Body = ioutil.NopCloser(bytes.NewReader(request.Body))
-	modifiedRequest.ContentLength = int64(len(request.Body))
+
+	proxier := proxy.ReverseProxy()
+	reqBuilder := proxier.RequestBuilder().Auth(username, string(plaintextPassword))
 
 	m := osbPathPattern.FindStringSubmatch(request.URL.Path)
 	if m == nil || len(m) < 2 {
 		return nil, fmt.Errorf("could not get OSB path from URL %s", request.URL.Path)
 	}
-	modifiedRequest.URL.Path = target.Path + m[1]
+	target.Path = target.Path + m[1]
+	reqBuilder.URL(target)
 
-	logrus.Debugf("Forwarding OSB request to %s", modifiedRequest.URL)
-	recorder := httptest.NewRecorder()
-	reverseProxy.ServeHTTP(recorder, modifiedRequest)
-
-	body, err := ioutil.ReadAll(recorder.Body)
+	resp, err := proxier.ProxyRequest(request.Request, reqBuilder, request.Body)
 	if err != nil {
 		return nil, err
-	}
-
-	headers := recorder.HeaderMap
-	resp := &web.Response{
-		StatusCode: recorder.Code,
-		Body:       body,
-		Header:     headers,
 	}
 	logrus.Debugf("Service broker replied with status %d", resp.StatusCode)
 	return resp, nil

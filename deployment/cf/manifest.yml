@@ -1,17 +1,15 @@
 ---
 applications:
 - name: service-manager
-  buildpack: go_buildpack
+  buildpack: go_buildpack_new
   memory: 64M
-  services:
-    - <postgre_instance_name>
   env:
-    GOVERSION: go1.10
+    GOVERSION: go1.10.2
     GOPACKAGENAME: github.com/Peripli/service-manager
     LOG_FORMAT: json
-    LOG_LEVEL: info
-    STORAGE_NAME: <postgre_instance_name>
+    LOG_LEVEL: debug
+    STORAGE_URI: postgres://postgres:postgres@192.168.99.100:5432/postgres?sslmode=disable
     API_TOKEN_ISSUER_URL: https://uaa.local.pcfdev.io
-    API_CLIENT_ID: smctl
+    API_CLIENT_ID: cf
     API_SECURITY_ENCRYPTION_KEY: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
     API_SKIP_SSL_VALIDATION: false

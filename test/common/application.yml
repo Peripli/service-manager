@@ -6,7 +6,7 @@ log:
   level: debug
   format: text
 storage:
-  uri: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+  uri: postgres://postgres:postgres@192.168.99.100:5432/postgres?sslmode=disable
 api:
 #  token_issuer_url: https://uaa.local.pcfdev.io
   client_id: sm
