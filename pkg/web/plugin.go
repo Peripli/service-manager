@@ -28,68 +28,68 @@ type Plugin interface {
 type CatalogFetcher interface {
 	Plugin
 
-	FetchCatalog(next Handler) Handler
+	FetchCatalog(request *Request, next Handler) (*Response, error)
 }
 
 // Provisioner should be implemented by plugins that need to intercept OSB call for provision operation
 type Provisioner interface {
 	Plugin
 
-	Provision(next Handler) Handler
+	Provision(request *Request, next Handler) (*Response, error)
 }
 
 // Deprovisioner should be implemented by plugins that need to intercept OSB call for deprovision operation
 type Deprovisioner interface {
 	Plugin
 
-	Deprovision(next Handler) Handler
+	Deprovision(request *Request, next Handler) (*Response, error)
 }
 
 // ServiceUpdater should be implemented by plugins that need to intercept OSB call for update service operation
 type ServiceUpdater interface {
 	Plugin
 
-	UpdateService(next Handler) Handler
+	UpdateService(request *Request, next Handler) (*Response, error)
 }
 
 // ServiceFetcher should be implemented by plugins that need to intercept OSB call for get service operation
 type ServiceFetcher interface {
 	Plugin
 
-	FetchService(next Handler) Handler
+	FetchService(request *Request, next Handler) (*Response, error)
 }
 
 // Binder should be implemented by plugins that need to intercept OSB call for bind service operation
 type Binder interface {
 	Plugin
 
-	Bind(next Handler) Handler
+	Bind(request *Request, next Handler) (*Response, error)
 }
 
 // Unbinder should be implemented by plugins that need to intercept OSB call for unbind service operation
 type Unbinder interface {
 	Plugin
 
-	Unbind(next Handler) Handler
+	Unbind(request *Request, next Handler) (*Response, error)
 }
 
 // BindingFetcher should be implemented by plugins that need to intercept OSB call for unbind service operation
 type BindingFetcher interface {
 	Plugin
 
-	FetchBinding(next Handler) Handler
+	FetchBinding(request *Request, next Handler) (*Response, error)
 }
 
 // InstancePoller should be implemented by plugins that need to intercept OSB calls for polling last operation for service instances
 type InstancePoller interface {
 	Plugin
 
-	PollInstance(next Handler) Handler
+	PollInstance(request *Request, next Handler) (*Response, error)
 }
 
 // BindingPoller should be implemented by plugins that need to intercept OSB Calls for polling last operation for service bindings
 type BindingPoller interface {
 	Plugin
 
-	PollBinding(next Handler) Handler
+	PollBinding(request *Request, next Handler) (*Response, error)
 }

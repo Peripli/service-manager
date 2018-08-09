@@ -38,26 +38,22 @@ var _ = Describe("Filters", func() {
 		return filter
 	}
 
-	delegatingMiddleware := func(next web.Handler) web.Handler {
-		return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
-			return next.Handle(request)
-		})
+	delegatingMiddleware := func(request *web.Request, next web.Handler) (*web.Response, error) {
+		return next.Handle(request)
 	}
 
 	loggingValidationMiddleware := func(prevFilterName, currFilterName, nextFilterName string, hook *LoggingInterceptorHook) web.MiddlewareFunc {
-		return web.MiddlewareFunc(func(next web.Handler) web.Handler {
-			return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
-				if prevFilterName != "" {
-					Expect(string(hook.data)).To(ContainSubstring("Entering Filter: " + prevFilterName))
-				}
-				Expect(string(hook.data)).To(ContainSubstring("Entering Filter: " + currFilterName))
-				resp, err := next.Handle(request)
-				if nextFilterName != "" {
-					Expect(string(hook.data)).To(ContainSubstring("Exiting Filter: " + nextFilterName))
-				}
-				return resp, err
-			})
-		})
+		return func(request *web.Request, next web.Handler) (*web.Response, error) {
+			if prevFilterName != "" {
+				Expect(string(hook.data)).To(ContainSubstring("Entering Filter: " + prevFilterName))
+			}
+			Expect(string(hook.data)).To(ContainSubstring("Entering Filter: " + currFilterName))
+			resp, err := next.Handle(request)
+			if nextFilterName != "" {
+				Expect(string(hook.data)).To(ContainSubstring("Exiting Filter: " + nextFilterName))
+			}
+			return resp, err
+		}
 	}
 
 	Describe("Matching", func() {

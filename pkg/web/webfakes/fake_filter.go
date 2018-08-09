@@ -17,16 +17,19 @@ type FakeFilter struct {
 	nameReturnsOnCall map[int]struct {
 		result1 string
 	}
-	RunStub        func(next web.Handler) web.Handler
+	RunStub        func(req *web.Request, next web.Handler) (*web.Response, error)
 	runMutex       sync.RWMutex
 	runArgsForCall []struct {
+		req  *web.Request
 		next web.Handler
 	}
 	runReturns struct {
-		result1 web.Handler
+		result1 *web.Response
+		result2 error
 	}
 	runReturnsOnCall map[int]struct {
-		result1 web.Handler
+		result1 *web.Response
+		result2 error
 	}
 	FilterMatchersStub        func() []web.FilterMatcher
 	filterMatchersMutex       sync.RWMutex
@@ -81,21 +84,22 @@ func (fake *FakeFilter) NameReturnsOnCall(i int, result1 string) {
 	}{result1}
 }
 
-func (fake *FakeFilter) Run(next web.Handler) web.Handler {
+func (fake *FakeFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	fake.runMutex.Lock()
 	ret, specificReturn := fake.runReturnsOnCall[len(fake.runArgsForCall)]
 	fake.runArgsForCall = append(fake.runArgsForCall, struct {
+		req  *web.Request
 		next web.Handler
-	}{next})
-	fake.recordInvocation("Run", []interface{}{next})
+	}{req, next})
+	fake.recordInvocation("Run", []interface{}{req, next})
 	fake.runMutex.Unlock()
 	if fake.RunStub != nil {
-		return fake.RunStub(next)
+		return fake.RunStub(req, next)
 	}
 	if specificReturn {
-		return ret.result1
+		return ret.result1, ret.result2
 	}
-	return fake.runReturns.result1
+	return fake.runReturns.result1, fake.runReturns.result2
 }
 
 func (fake *FakeFilter) RunCallCount() int {
@@ -104,29 +108,32 @@ func (fake *FakeFilter) RunCallCount() int {
 	return len(fake.runArgsForCall)
 }
 
-func (fake *FakeFilter) RunArgsForCall(i int) web.Handler {
+func (fake *FakeFilter) RunArgsForCall(i int) (*web.Request, web.Handler) {
 	fake.runMutex.RLock()
 	defer fake.runMutex.RUnlock()
-	return fake.runArgsForCall[i].next
+	return fake.runArgsForCall[i].req, fake.runArgsForCall[i].next
 }
 
-func (fake *FakeFilter) RunReturns(result1 web.Handler) {
+func (fake *FakeFilter) RunReturns(result1 *web.Response, result2 error) {
 	fake.RunStub = nil
 	fake.runReturns = struct {
-		result1 web.Handler
-	}{result1}
+		result1 *web.Response
+		result2 error
+	}{result1, result2}
 }
 
-func (fake *FakeFilter) RunReturnsOnCall(i int, result1 web.Handler) {
+func (fake *FakeFilter) RunReturnsOnCall(i int, result1 *web.Response, result2 error) {
 	fake.RunStub = nil
 	if fake.runReturnsOnCall == nil {
 		fake.runReturnsOnCall = make(map[int]struct {
-			result1 web.Handler
+			result1 *web.Response
+			result2 error
 		})
 	}
 	fake.runReturnsOnCall[i] = struct {
-		result1 web.Handler
-	}{result1}
+		result1 *web.Response
+		result2 error
+	}{result1, result2}
 }
 
 func (fake *FakeFilter) FilterMatchers() []web.FilterMatcher {

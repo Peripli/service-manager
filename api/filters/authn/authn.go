@@ -44,34 +44,32 @@ type Middleware struct {
 
 // Run represents the authentication middleware function that delegates the authentication
 // to the provided authenticator
-func (ba *Middleware) Run(next web.Handler) web.Handler {
-	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
-		if _, ok := UserFromContext(request.Context()); ok {
-			return next.Handle(request)
-		}
-
-		user, decision, err := ba.authenticator.Authenticate(request.Request)
-		if err != nil {
-			if decision == security.Deny {
-				return nil, &util.HTTPError{
-					ErrorType:   "Unauthorized",
-					Description: err.Error(),
-					StatusCode:  http.StatusUnauthorized,
-				}
-			}
-			return nil, err
-		}
-
-		switch decision {
-		case security.Allow:
-			if user == nil {
-				return nil, errUserNotFound
-			}
-			request.Request = request.WithContext(context.WithValue(request.Context(), userKey, user))
-		case security.Deny:
-			return nil, errUnauthorized
-		}
-
+func (ba *Middleware) Run(request *web.Request, next web.Handler) (*web.Response, error) {
+	if _, ok := UserFromContext(request.Context()); ok {
 		return next.Handle(request)
-	})
+	}
+
+	user, decision, err := ba.authenticator.Authenticate(request.Request)
+	if err != nil {
+		if decision == security.Deny {
+			return nil, &util.HTTPError{
+				ErrorType:   "Unauthorized",
+				Description: err.Error(),
+				StatusCode:  http.StatusUnauthorized,
+			}
+		}
+		return nil, err
+	}
+
+	switch decision {
+	case security.Allow:
+		if user == nil {
+			return nil, errUserNotFound
+		}
+		request.Request = request.WithContext(context.WithValue(request.Context(), userKey, user))
+	case security.Deny:
+		return nil, errUnauthorized
+	}
+
+	return next.Handle(request)
 }

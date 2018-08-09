@@ -17,7 +17,7 @@
 package config
 
 import (
-		"time"
+	"time"
 
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/pkg/env"

@@ -186,8 +186,8 @@ func (tf testFilter) Name() string {
 	return "testFilter"
 }
 
-func (tf testFilter) Run(next web.Handler) web.Handler {
-	return testHandler("filter")
+func (tf testFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
+	return testHandler("filter")(request)
 }
 
 func (tf testFilter) FilterMatchers() []web.FilterMatcher {
