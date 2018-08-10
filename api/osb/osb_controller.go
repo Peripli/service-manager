@@ -18,6 +18,7 @@ package osb
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -57,7 +58,9 @@ func (c *Controller) handler(request *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	proxier := proxy.ReverseProxy(http.DefaultTransport)
+	proxier := proxy.ReverseProxy(proxy.Options{
+		Transport: http.DefaultTransport,
+	})
 	reqBuilder := proxier.RequestBuilder().Auth(username, string(plaintextPassword))
 
 	m := osbPathPattern.FindStringSubmatch(request.URL.Path)
@@ -71,8 +74,19 @@ func (c *Controller) handler(request *web.Request) (*web.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	logrus.Debugf("Service broker replied with status %d", resp.StatusCode)
-	return resp, nil
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	webResp := &web.Response{
+		StatusCode: resp.StatusCode,
+		Header:     resp.Header,
+		Body:       respBody,
+	}
+
+	logrus.Debugf("Service broker replied with status %d", webResp.StatusCode)
+	return webResp, nil
 }
 
 func (c *Controller) fetchBroker(request *web.Request) (*types.Broker, error) {

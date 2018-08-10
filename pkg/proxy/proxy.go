@@ -1,3 +1,19 @@
+/*
+ * Copyright 2018 The Service Manager Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package proxy
 
 import (
@@ -6,38 +22,19 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
-	"net/url"
 
-	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/sirupsen/logrus"
 )
 
-type myProxy struct {
+type Proxy struct {
 	reverseProxy *httputil.ReverseProxy
 }
 
-type requestBuilder struct {
-	username string
-	password string
-	url      *url.URL
+type Options struct {
+	Transport http.RoundTripper
 }
 
-func (r *requestBuilder) Auth(username, password string) *requestBuilder {
-	r.username = username
-	r.password = password
-	return r
-}
-
-func (r *requestBuilder) URL(url *url.URL) *requestBuilder {
-	r.url = url
-	return r
-}
-
-func (p *myProxy) RequestBuilder() *requestBuilder {
-	return &requestBuilder{}
-}
-
-func (p *myProxy) ProxyRequest(req *http.Request, reqBuilder *requestBuilder, body []byte) (*web.Response, error) {
+func (p *Proxy) ProxyRequest(req *http.Request, reqBuilder *requestBuilder, body []byte) (*http.Response, error) {
 	modifiedRequest := req.WithContext(req.Context())
 
 	if reqBuilder.username != "" && reqBuilder.password != "" {
@@ -57,27 +54,21 @@ func (p *myProxy) ProxyRequest(req *http.Request, reqBuilder *requestBuilder, bo
 	recorder := httptest.NewRecorder()
 	p.reverseProxy.ServeHTTP(recorder, modifiedRequest)
 
-	responseBody, err := ioutil.ReadAll(recorder.Body)
-	if err != nil {
-		return nil, err
-	}
-
 	headers := recorder.HeaderMap
-	resp := &web.Response{
+	resp := &http.Response{
 		StatusCode: recorder.Code,
-		Body:       responseBody,
+		Body:       ioutil.NopCloser(recorder.Body),
 		Header:     headers,
 	}
+
 	return resp, nil
 }
 
-func ReverseProxy(transport http.RoundTripper) *myProxy {
-	return &myProxy{
+func ReverseProxy(options Options) *Proxy {
+	return &Proxy{
 		reverseProxy: &httputil.ReverseProxy{
-			Transport: transport,
-			Director: func(req *http.Request) {
-
-			},
+			Transport: options.Transport,
+			Director:  func(req *http.Request) {},
 		},
 	}
 }
