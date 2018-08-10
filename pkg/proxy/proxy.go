@@ -34,17 +34,17 @@ type Options struct {
 	Transport http.RoundTripper
 }
 
-func (p *Proxy) ProxyRequest(req *http.Request, reqBuilder *requestBuilder, body []byte) (*http.Response, error) {
-	modifiedRequest := req.WithContext(req.Context())
+func (p *Proxy) ProxyRequest(prevReq *http.Request, newReqBuilder *requestBuilder, body []byte) (*http.Response, error) {
+	modifiedRequest := prevReq.WithContext(prevReq.Context())
 
-	if reqBuilder.username != "" && reqBuilder.password != "" {
-		modifiedRequest.SetBasicAuth(reqBuilder.username, reqBuilder.password)
+	if newReqBuilder.username != "" && newReqBuilder.password != "" {
+		modifiedRequest.SetBasicAuth(newReqBuilder.username, newReqBuilder.password)
 	}
 
-	modifiedRequest.Host = reqBuilder.url.Host
-	modifiedRequest.URL.Scheme = reqBuilder.url.Scheme
-	modifiedRequest.URL.Host = reqBuilder.url.Host
-	modifiedRequest.URL.Path = reqBuilder.url.Path
+	modifiedRequest.Host = newReqBuilder.url.Host
+	modifiedRequest.URL.Scheme = newReqBuilder.url.Scheme
+	modifiedRequest.URL.Host = newReqBuilder.url.Host
+	modifiedRequest.URL.Path = newReqBuilder.url.Path
 
 	modifiedRequest.Body = ioutil.NopCloser(bytes.NewReader(body))
 	modifiedRequest.ContentLength = int64(len(body))
