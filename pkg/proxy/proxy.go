@@ -26,14 +26,28 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Proxy reverse proxy implementation with optional basic authentication and transport overriding
 type Proxy struct {
 	reverseProxy *httputil.ReverseProxy
 }
 
+// Options to configure new reverse proxy
 type Options struct {
 	Transport http.RoundTripper
 }
 
+// NewReverseProxy returns new configured reverse proxy
+func NewReverseProxy(options Options) *Proxy {
+	return &Proxy{
+		reverseProxy: &httputil.ReverseProxy{
+			Transport: options.Transport,
+			Director:  func(req *http.Request) {},
+		},
+	}
+}
+
+// ProxyRequest proxies the prevReq request by newReqBuilder rules and optional body.
+// Use RequestBuilder method to get new request builder
 func (p *Proxy) ProxyRequest(prevReq *http.Request, newReqBuilder *requestBuilder, body []byte) (*http.Response, error) {
 	modifiedRequest := prevReq.WithContext(prevReq.Context())
 
@@ -46,8 +60,10 @@ func (p *Proxy) ProxyRequest(prevReq *http.Request, newReqBuilder *requestBuilde
 	modifiedRequest.URL.Host = newReqBuilder.url.Host
 	modifiedRequest.URL.Path = newReqBuilder.url.Path
 
-	modifiedRequest.Body = ioutil.NopCloser(bytes.NewReader(body))
-	modifiedRequest.ContentLength = int64(len(body))
+	if body != nil && len(body) != 0 {
+		modifiedRequest.Body = ioutil.NopCloser(bytes.NewReader(body))
+		modifiedRequest.ContentLength = int64(len(body))
+	}
 
 	logrus.Debugf("Forwarding request to %s", modifiedRequest.URL)
 
@@ -62,13 +78,4 @@ func (p *Proxy) ProxyRequest(prevReq *http.Request, newReqBuilder *requestBuilde
 	}
 
 	return resp, nil
-}
-
-func ReverseProxy(options Options) *Proxy {
-	return &Proxy{
-		reverseProxy: &httputil.ReverseProxy{
-			Transport: options.Transport,
-			Director:  func(req *http.Request) {},
-		},
-	}
 }

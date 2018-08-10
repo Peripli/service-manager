@@ -24,17 +24,20 @@ type requestBuilder struct {
 	url      *url.URL
 }
 
+// Auth add basic authentication to the request
 func (r *requestBuilder) Auth(username, password string) *requestBuilder {
 	r.username = username
 	r.password = password
 	return r
 }
 
+// URL which url to forward the new request to
 func (r *requestBuilder) URL(url *url.URL) *requestBuilder {
 	r.url = url
 	return r
 }
 
+// RequestBuilder returns new request builder
 func (p *Proxy) RequestBuilder() *requestBuilder {
 	return &requestBuilder{}
 }

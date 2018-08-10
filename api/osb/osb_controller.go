@@ -58,7 +58,7 @@ func (c *Controller) handler(request *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	proxier := proxy.ReverseProxy(proxy.Options{
+	proxier := proxy.NewReverseProxy(proxy.Options{
 		Transport: http.DefaultTransport,
 	})
 	reqBuilder := proxier.RequestBuilder().Auth(username, string(plaintextPassword))
