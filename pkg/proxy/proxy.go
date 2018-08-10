@@ -48,7 +48,7 @@ func NewReverseProxy(options Options) *Proxy {
 
 // ProxyRequest proxies the prevReq request by newReqBuilder rules and optional body.
 // Use RequestBuilder method to get new request builder
-func (p *Proxy) ProxyRequest(prevReq *http.Request, newReqBuilder *requestBuilder, body []byte) (*http.Response, error) {
+func (p *Proxy) ProxyRequest(prevReq *http.Request, newReqBuilder *RequestBuilder, body []byte) (*http.Response, error) {
 	modifiedRequest := prevReq.WithContext(prevReq.Context())
 
 	if newReqBuilder.username != "" && newReqBuilder.password != "" {

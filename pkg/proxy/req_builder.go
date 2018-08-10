@@ -18,26 +18,27 @@ package proxy
 
 import "net/url"
 
-type requestBuilder struct {
+// RequestBuilder used to build rules for reverse proxy requests
+type RequestBuilder struct {
 	username string
 	password string
 	url      *url.URL
 }
 
 // Auth add basic authentication to the request
-func (r *requestBuilder) Auth(username, password string) *requestBuilder {
+func (r *RequestBuilder) Auth(username, password string) *RequestBuilder {
 	r.username = username
 	r.password = password
 	return r
 }
 
 // URL which url to forward the new request to
-func (r *requestBuilder) URL(url *url.URL) *requestBuilder {
+func (r *RequestBuilder) URL(url *url.URL) *RequestBuilder {
 	r.url = url
 	return r
 }
 
 // RequestBuilder returns new request builder
-func (p *Proxy) RequestBuilder() *requestBuilder {
-	return &requestBuilder{}
+func (p *Proxy) RequestBuilder() *RequestBuilder {
+	return &RequestBuilder{}
 }
