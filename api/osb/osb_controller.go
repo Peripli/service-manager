@@ -57,7 +57,7 @@ func (c *Controller) handler(request *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	proxier := proxy.ReverseProxy()
+	proxier := proxy.ReverseProxy(http.DefaultTransport)
 	reqBuilder := proxier.RequestBuilder().Auth(username, string(plaintextPassword))
 
 	m := osbPathPattern.FindStringSubmatch(request.URL.Path)

@@ -71,9 +71,10 @@ func (p *myProxy) ProxyRequest(req *http.Request, reqBuilder *requestBuilder, bo
 	return resp, nil
 }
 
-func ReverseProxy() *myProxy {
+func ReverseProxy(transport http.RoundTripper) *myProxy {
 	return &myProxy{
 		reverseProxy: &httputil.ReverseProxy{
+			Transport: transport,
 			Director: func(req *http.Request) {
 
 			},
