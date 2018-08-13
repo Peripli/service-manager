@@ -28,6 +28,8 @@ import (
 
 	"errors"
 
+	"github.com/Peripli/service-manager/pkg/sec"
+	"github.com/Peripli/service-manager/pkg/sec/secfakes"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/security/securityfakes"
@@ -256,7 +258,7 @@ var _ = Describe("OIDC Authenticator", func() {
 			request *http.Request
 			err     error
 		)
-		validateAuthenticationReturns := func(expectedUser *security.User, expectedDecision security.AuthenticationDecision, expectedErr error) {
+		validateAuthenticationReturns := func(expectedUser *sec.User, expectedDecision security.AuthenticationDecision, expectedErr error) {
 			authenticator, _ := NewAuthenticator(ctx, options)
 
 			user, decision, err := authenticator.Authenticate(request)
@@ -341,7 +343,7 @@ var _ = Describe("OIDC Authenticator", func() {
 						verifier.VerifyReturns(nil, expectedError)
 					})
 
-					It("should deby with an error", func() {
+					It("should deny with an error", func() {
 						user, decision, err := authenticator.Authenticate(request)
 
 						Expect(user).To(BeNil())
@@ -351,12 +353,12 @@ var _ = Describe("OIDC Authenticator", func() {
 				})
 
 				Context("when returned token cannot extract claims", func() {
-					var fakeToken *securityfakes.FakeToken
+					var fakeToken *secfakes.FakeToken
 
 					BeforeEach(func() {
 						expectedError = fmt.Errorf("Claims extraction error")
 
-						fakeToken = &securityfakes.FakeToken{}
+						fakeToken = &secfakes.FakeToken{}
 						fakeToken.ClaimsReturns(expectedError)
 
 						verifier.VerifyReturns(fakeToken, nil)
@@ -376,8 +378,8 @@ var _ = Describe("OIDC Authenticator", func() {
 					expectedUserName := "test_user"
 
 					BeforeEach(func() {
-						tokenJson := fmt.Sprintf("{\"user_name\": \"%s\"}", expectedUserName)
-						token := &securityfakes.FakeToken{}
+						tokenJson := fmt.Sprintf(`{"user_name": "%s", "abc": "xyz"}`, expectedUserName)
+						token := &secfakes.FakeToken{}
 						token.ClaimsStub = func(v interface{}) error {
 							return json.Unmarshal([]byte(tokenJson), v)
 						}
@@ -391,6 +393,13 @@ var _ = Describe("OIDC Authenticator", func() {
 						Expect(user.Name).To(Equal(expectedUserName))
 						Expect(decision).To(Equal(security.Allow))
 						Expect(err).To(BeNil())
+
+						claims := struct {
+							Abc string
+						}{}
+						err = user.Claims(&claims)
+						Expect(err).To(BeNil())
+						Expect(claims.Abc).To(Equal("xyz"))
 					})
 				})
 			})

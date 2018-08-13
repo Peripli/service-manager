@@ -19,7 +19,7 @@ package oidc
 import (
 	"context"
 
-	"github.com/Peripli/service-manager/security"
+	"github.com/Peripli/service-manager/pkg/sec"
 	"github.com/coreos/go-oidc"
 )
 
@@ -28,6 +28,6 @@ type oidcVerifier struct {
 }
 
 // Verify implements security.TokenVerifier and delegates to oidc.IDTokenVerifier
-func (v *oidcVerifier) Verify(ctx context.Context, idToken string) (security.Token, error) {
+func (v *oidcVerifier) Verify(ctx context.Context, idToken string) (sec.Token, error) {
 	return v.IDTokenVerifier.Verify(ctx, idToken)
 }

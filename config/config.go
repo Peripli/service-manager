@@ -58,7 +58,7 @@ func DefaultSettings() *Settings {
 		},
 		API: api.Settings{
 			TokenIssuerURL: "",
-			ClientID:       "sm",
+			ClientID:       "",
 			Security: api.Security{
 				EncryptionKey: "",
 			},

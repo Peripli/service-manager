@@ -23,47 +23,41 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-const (
-	apiVersion = "v1"
-	root       = "service_brokers"
-	url        = "/" + apiVersion + "/" + root
-)
-
 // Routes returns slice of routes which handle broker operations
 func (c *Controller) Routes() []web.Route {
 	return []web.Route{
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodPost,
-				Path:   url,
+				Path:   web.BrokersURL,
 			},
 			Handler: c.createBroker,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   url + "/{broker_id}",
+				Path:   web.BrokersURL + "/{broker_id}",
 			},
 			Handler: c.getBroker,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   url,
+				Path:   web.BrokersURL,
 			},
 			Handler: c.getAllBrokers,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodDelete,
-				Path:   url + "/{broker_id}",
+				Path:   web.BrokersURL + "/{broker_id}",
 			},
 			Handler: c.deleteBroker,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodPatch,
-				Path:   url + "/{broker_id}",
+				Path:   web.BrokersURL + "/{broker_id}",
 			},
 			Handler: c.patchBroker,
 		},
