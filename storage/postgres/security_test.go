@@ -17,9 +17,11 @@
 package postgres
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -177,6 +179,7 @@ var _ = Describe("Security", func() {
 				db:            sqlx.NewDb(mockdb, "sqlmock"),
 				encryptionKey: envEncryptionKey,
 				isLocked: false,
+				mutex: &sync.Mutex{},
 			}
 		})
 		BeforeEach(func() {
@@ -192,7 +195,7 @@ var _ = Describe("Security", func() {
 			Context("When lock is already acquired", func() {
 				It("Should return an error", func() {
 					storage.isLocked = true
-					err := storage.Lock()
+					err := storage.Lock(context.TODO())
 					Expect(err).ToNot(BeNil())
 				})
 			})
@@ -205,7 +208,7 @@ var _ = Describe("Security", func() {
 					mock.ExpectExec("SELECT").WillReturnResult(sqlmock.NewResult(int64(1), int64(1)))
 				})
 				It("Should acquire lock", func() {
-					err := storage.Lock()
+					err := storage.Lock(context.TODO())
 					Expect(err).To(BeNil())
 					Expect(storage.isLocked).To(Equal(true))
 				})

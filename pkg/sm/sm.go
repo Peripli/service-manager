@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/config"
@@ -155,7 +156,9 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 }
 
 func initializeSecureStorage(secureStorage storage.Security) error {
-	if err := secureStorage.Lock(); err != nil {
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancelFunc()
+	if err := secureStorage.Lock(ctx); err != nil {
 		return err
 	}
 	keyFetcher := secureStorage.Fetcher()

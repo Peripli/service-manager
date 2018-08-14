@@ -17,7 +17,9 @@
 package postgres
 
 import (
+	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/Peripli/service-manager/security"
@@ -31,15 +33,18 @@ type securityStorage struct {
 	db            *sqlx.DB
 	encryptionKey []byte
 	isLocked      bool
+	mutex         *sync.Mutex
 }
 
 // Lock acquires a database lock so that only one process can manipulate the encryption key.
 // Returns an error if the process has already acquired the lock
-func (s *securityStorage) Lock() error {
+func (s *securityStorage) Lock(ctx context.Context) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	if s.isLocked {
 		return fmt.Errorf("Lock is already acquired")
 	}
-	_, err := s.db.Exec("SELECT pg_advisory_lock($1)", securityLockIndex)
+	_, err := s.db.ExecContext(ctx, "SELECT pg_advisory_lock($1)", securityLockIndex)
 	if err != nil {
 		return err
 	}
@@ -49,6 +54,8 @@ func (s *securityStorage) Lock() error {
 
 // Unlock releases the database lock.
 func (s *securityStorage) Unlock() error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	if !s.isLocked {
 		return nil
 	}

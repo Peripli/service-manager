@@ -18,6 +18,7 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/Peripli/service-manager/pkg/types"
@@ -110,7 +111,7 @@ type Credentials interface {
 type Security interface {
 	// Lock locks the storage so that only one process can manipulate the encryption key.
 	// Returns an error if the process has already acquired the lock
-	Lock() error
+	Lock(ctx context.Context) error
 	// Unlock releases the acquired lock.
 	Unlock() error
 	// Fetcher provides means to obtain the encryption key
