@@ -22,7 +22,6 @@ import (
 	"database/sql"
 	"fmt"
 	"sync"
-	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -31,11 +30,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
-func TestAPostgresStorage(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Postgres Storage Suite")
-}
-
 
 var _ = Describe("Security", func() {
 
@@ -178,8 +172,8 @@ var _ = Describe("Security", func() {
 			storage = &securityStorage{
 				db:            sqlx.NewDb(mockdb, "sqlmock"),
 				encryptionKey: envEncryptionKey,
-				isLocked: false,
-				mutex: &sync.Mutex{},
+				isLocked:      false,
+				mutex:         &sync.Mutex{},
 			}
 		})
 		BeforeEach(func() {
