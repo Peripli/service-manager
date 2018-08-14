@@ -44,8 +44,7 @@ func (s *securityStorage) Lock(ctx context.Context) error {
 	if s.isLocked {
 		return fmt.Errorf("Lock is already acquired")
 	}
-	_, err := s.db.ExecContext(ctx, "SELECT pg_advisory_lock($1)", securityLockIndex)
-	if err != nil {
+	if _, err := s.db.ExecContext(ctx, "SELECT pg_advisory_lock($1)", securityLockIndex); err != nil {
 		return err
 	}
 	s.isLocked = true
@@ -60,8 +59,7 @@ func (s *securityStorage) Unlock() error {
 		return nil
 	}
 
-	_, err := s.db.Exec("SELECT pg_advisory_unlock($1)", securityLockIndex)
-	if err != nil {
+	if _, err := s.db.Exec("SELECT pg_advisory_unlock($1)", securityLockIndex); err != nil {
 		return err
 	}
 	s.isLocked = false
