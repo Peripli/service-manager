@@ -96,10 +96,10 @@ func New(ctx context.Context, storage storage.Storage, settings Settings, encryp
 			&catalog.Controller{
 				BrokerStorage: storage.Broker(),
 			},
-			&osb.Controller{
+			osb.NewController(&osb.BusinessLogic{
 				BrokerStorage: storage.Broker(),
 				Encrypter:     encrypter,
-			},
+			}),
 			&healthcheck.Controller{
 				Storage: storage,
 			},
