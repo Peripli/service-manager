@@ -86,7 +86,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	}
 
 	securityStorage := smStorage.Security()
-	if err := initializeSecureStorage(securityStorage); err != nil {
+	if err := initializeSecureStorage(ctx, securityStorage); err != nil {
 		panic(fmt.Sprintf("error initialzing secure storage: %v", err))
 	}
 
@@ -155,8 +155,8 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	}
 }
 
-func initializeSecureStorage(secureStorage storage.Security) error {
-	ctx, cancelFunc := context.WithTimeout(context.Background(), 2*time.Second)
+func initializeSecureStorage(ctx context.Context, secureStorage storage.Security) error {
+	ctx, cancelFunc := context.WithTimeout(ctx, 2*time.Second)
 	defer cancelFunc()
 	if err := secureStorage.Lock(ctx); err != nil {
 		return err
