@@ -51,7 +51,7 @@ var _ = Describe("Service Manager Aggregated Catalog API", func() {
 	BeforeSuite(func() {
 		os.Chdir("../..")
 
-		ctx = common.NewTestContextFromAPIs()
+		ctx = common.NewTestContextFromAPIs(nil)
 	})
 
 	AfterSuite(func() {

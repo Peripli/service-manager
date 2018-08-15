@@ -17,17 +17,10 @@
 package web_test
 
 import (
-	"testing"
-
-	"github.com/Peripli/service-manager/pkg/web"
+		"github.com/Peripli/service-manager/pkg/web"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
-
-func TestWaeb(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Web Suite")
-}
 
 var _ = Describe("API", func() {
 	var (

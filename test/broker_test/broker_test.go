@@ -50,7 +50,7 @@ var _ = Describe("Service Manager Broker API", func() {
 	BeforeSuite(func() {
 		os.Chdir("../..")
 
-		ctx = common.NewTestContextFromAPIs()
+		ctx = common.NewTestContextFromAPIs(nil)
 	})
 
 	AfterSuite(func() {

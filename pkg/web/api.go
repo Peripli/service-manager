@@ -84,21 +84,10 @@ func (api *API) RegisterFilters(filters ...Filter) {
 	api.Filters = append(api.Filters, filters...)
 }
 
-func (api *API) validateFilters(filters ...Filter) {
-	newFilterNames := api.filterNames(filters)
-	if slice.StringsAnyEquals(newFilterNames, "") {
-		logrus.Panicf("Filters cannot have empty names")
-	}
-	registeredFilterNames := api.filterNames(api.Filters)
-	commonFilterNames := slice.StringsIntersection(registeredFilterNames, newFilterNames)
-	if len(commonFilterNames) > 0 {
-		logrus.Panicf("Filters %s are already registered", commonFilterNames)
-	}
-	if slice.StringsAnySubstring(newFilterNames, ":") {
-		logrus.Panic("Cannot register filters with : in their names")
-	}
-}
-
+// RegisterFilterBefore registers the specified filter before the one with the given name.
+// If for some routes, the filter with the given name does not match the routes of the provided filter, then
+// the filter will be registered at the place at which the filter with this name would have been, had it been
+// configured to match route.
 func (api *API) RegisterFilterBefore(beforeFilterName string, filter Filter) {
 	logrus.Debugf("Registering filter %s before %s", filter.Name(), beforeFilterName)
 	api.validateFilters(filter)
@@ -107,6 +96,10 @@ func (api *API) RegisterFilterBefore(beforeFilterName string, filter Filter) {
 	})
 }
 
+// RegisterFilterAfter registers the specified filter after the one with the given name.
+// If for some routes, the filter with the given name does not match the routes of the provided filter, then
+// the filter will be registered after the place at which the filter with this name would have been, had it been
+// configured to match route.
 func (api *API) RegisterFilterAfter(afterFilterName string, filter Filter) {
 	logrus.Debugf("Registering filter %s after %s", filter.Name(), afterFilterName)
 	api.validateFilters(filter)
@@ -115,6 +108,7 @@ func (api *API) RegisterFilterAfter(afterFilterName string, filter Filter) {
 	})
 }
 
+// ReplaceFilter registers the given filter in the place of the filter with the given name.
 func (api *API) ReplaceFilter(replacedFilterName string, filter Filter) {
 	logrus.Debugf("Replacing filter %s with %s", replacedFilterName, filter.Name())
 	api.validateFilters(filter)
@@ -136,6 +130,21 @@ func (api *API) RegisterPlugins(plugins ...Plugin) {
 		}
 		pluginSegments := api.decomposePluginOrDie(plugin)
 		api.Filters = append(api.Filters, pluginSegments...)
+	}
+}
+
+func (api *API) validateFilters(filters ...Filter) {
+	newFilterNames := api.filterNames(filters)
+	if slice.StringsAnyEquals(newFilterNames, "") {
+		logrus.Panicf("Filters cannot have empty names")
+	}
+	registeredFilterNames := api.filterNames(api.Filters)
+	commonFilterNames := slice.StringsIntersection(registeredFilterNames, newFilterNames)
+	if len(commonFilterNames) > 0 {
+		logrus.Panicf("Filters %s are already registered", commonFilterNames)
+	}
+	if slice.StringsAnySubstring(newFilterNames, ":") {
+		logrus.Panic("Cannot register filters with : in their names")
 	}
 }
 

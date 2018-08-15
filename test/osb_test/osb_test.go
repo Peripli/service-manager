@@ -68,7 +68,7 @@ var _ = Describe("Service Manager OSB API", func() {
 	)
 
 	BeforeSuite(func() {
-		ctx = common.NewTestContextFromAPIs()
+		ctx = common.NewTestContextFromAPIs(nil)
 		validBroker = ctx.RegisterBroker("broker1", common.SetupFakeServiceBrokerServer("broker1"))
 		failingBroker = ctx.RegisterBroker("broker2", common.SetupFakeFailingBrokerServer("broker2"))
 	})
@@ -238,7 +238,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Describe("Catalog", func() {
 
 			BeforeEach(func() {
-				ctx = common.NewTestContextFromAPIs()
+				ctx = common.NewTestContextFromAPIs(nil)
 				validBroker = ctx.RegisterBroker("broker1", common.SetupFakeServiceBrokerServerWithPrefix("broker1", "/sm"))
 			})
 
