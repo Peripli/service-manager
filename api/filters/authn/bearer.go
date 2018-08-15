@@ -2,7 +2,6 @@ package authn
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/security/oidc"
