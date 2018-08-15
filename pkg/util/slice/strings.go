@@ -33,7 +33,7 @@ func StringsIntersection(str1, str2 []string) []string {
 	return intersection
 }
 
-// StringsAnySubstring returns true if the string is contained in the slice.
+// StringsAnySubstring returns true if the string is contained in any of the elements of the slice.
 func StringsAnySubstring(stringSlice []string, str string) bool {
 	for _, v := range stringSlice {
 		if strings.Contains(v, str) {
