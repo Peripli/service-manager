@@ -59,8 +59,8 @@ func newPluginSegment(name, method, pathPattern string, f Middleware) *pluginSeg
 	}
 }
 
-func (dp *pluginSegment) Run(next Handler) Handler {
-	return dp.PluginOp.Run(next)
+func (dp *pluginSegment) Run(request *Request, next Handler) (*Response, error) {
+	return dp.PluginOp.Run(request, next)
 }
 
 func (dp *pluginSegment) Name() string {

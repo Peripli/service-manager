@@ -33,6 +33,9 @@ import (
 	"strings"
 
 	"bytes"
+	"io"
+	"io/ioutil"
+
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/gavv/httpexpect"
 	"github.com/gbrlsnchs/jwt"
@@ -41,8 +44,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
-	"io"
-	"io/ioutil"
 )
 
 type Object = map[string]interface{}
@@ -136,39 +137,48 @@ func setResponse(rw http.ResponseWriter, status int, message, brokerID string) {
 	rw.Write([]byte(message))
 }
 
-func SetupFakeServiceBrokerServer(brokerID string) *httptest.Server {
+func SetupFakeServiceBrokerServerWithPrefix(brokerID, prefix string) *httptest.Server {
 	router := mux.NewRouter()
 
-	router.HandleFunc("/v2/catalog", func(rw http.ResponseWriter, req *http.Request) {
+	router.HandleFunc(prefix+"/v2/catalog", func(rw http.ResponseWriter, req *http.Request) {
 		setResponse(rw, http.StatusOK, Catalog, brokerID)
 	})
 
-	router.HandleFunc("/v2/service_instances/{instance_id}", func(rw http.ResponseWriter, req *http.Request) {
+	router.HandleFunc(prefix+"/v2/service_instances/{instance_id}", func(rw http.ResponseWriter, req *http.Request) {
 		setResponse(rw, http.StatusCreated, "{}", brokerID)
 	}).Methods("PUT")
 
-	router.HandleFunc("/v2/service_instances/{instance_id}", func(rw http.ResponseWriter, req *http.Request) {
+	router.HandleFunc(prefix+"/v2/service_instances/{instance_id}", func(rw http.ResponseWriter, req *http.Request) {
 		setResponse(rw, http.StatusOK, "{}", brokerID)
 	}).Methods("DELETE")
 
-	router.HandleFunc("/v2/service_instances/{instance_id}/service_bindings/{binding_id}", func(rw http.ResponseWriter, req *http.Request) {
+	router.HandleFunc(prefix+"/v2/service_instances/{instance_id}/service_bindings/{binding_id}", func(rw http.ResponseWriter, req *http.Request) {
 		response := fmt.Sprintf(`{"credentials": {"instance_id": "%s" , "binding_id": "%s"}}`, mux.Vars(req)["instance_id"], mux.Vars(req)["binding_id"])
 		setResponse(rw, http.StatusCreated, response, brokerID)
 	}).Methods("PUT")
 
-	router.HandleFunc("/v2/service_instances/{instance_id}/service_bindings/{binding_id}", func(rw http.ResponseWriter, req *http.Request) {
+	router.HandleFunc(prefix+"/v2/service_instances/{instance_id}/service_bindings/{binding_id}", func(rw http.ResponseWriter, req *http.Request) {
 		setResponse(rw, http.StatusOK, "{}", brokerID)
 	}).Methods("DELETE")
 
-	router.HandleFunc("/v2/service_instances/{instance_id}/last_operation", func(rw http.ResponseWriter, req *http.Request) {
+	router.HandleFunc(prefix+"/v2/service_instances/{instance_id}/last_operation", func(rw http.ResponseWriter, req *http.Request) {
 		setResponse(rw, http.StatusOK, `{"state": "succeeded"}`, brokerID)
 	}).Methods("GET")
 
-	router.HandleFunc("/v2/service_instances/{instance_id}/service_bindings/{binding_id}/last_operation", func(rw http.ResponseWriter, req *http.Request) {
+	router.HandleFunc(prefix+"/v2/service_instances/{instance_id}/service_bindings/{binding_id}/last_operation", func(rw http.ResponseWriter, req *http.Request) {
 		setResponse(rw, http.StatusOK, `{"state": "succeeded"}`, brokerID)
 	}).Methods("GET")
 
-	return httptest.NewServer(router)
+	server := httptest.NewServer(router)
+	if prefix != "" {
+		server.URL = server.URL + prefix
+	}
+
+	return server
+}
+
+func SetupFakeServiceBrokerServer(brokerID string) *httptest.Server {
+	return SetupFakeServiceBrokerServerWithPrefix(brokerID, "")
 }
 
 func SetupFakeFailingBrokerServer(brokerID string) *httptest.Server {

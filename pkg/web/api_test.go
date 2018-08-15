@@ -224,10 +224,8 @@ func (tf testFilter) Name() string {
 	return tf.name
 }
 
-func (tf testFilter) Run(next web.Handler) web.Handler {
-	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
-		return next.Handle(request)
-	})
+func (tf testFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
+	return next.Handle(request)
 }
 
 func (tf testFilter) FilterMatchers() []web.FilterMatcher {
@@ -244,54 +242,36 @@ func (p *invalidPlugin) Name() string {
 type validPlugin struct {
 }
 
-func (c *validPlugin) UpdateService(next web.Handler) web.Handler {
-	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
-		return next.Handle(request)
-	})
+func (c *validPlugin) UpdateService(request *web.Request, next web.Handler) (*web.Response, error) {
+	return next.Handle(request)
 }
 
-func (c *validPlugin) Unbind(next web.Handler) web.Handler {
-	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
-		return next.Handle(request)
-
-	})
+func (c *validPlugin) Unbind(request *web.Request, next web.Handler) (*web.Response, error) {
+	return next.Handle(request)
 }
 
-func (c *validPlugin) Bind(next web.Handler) web.Handler {
-	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
-		return next.Handle(request)
-
-	})
+func (c *validPlugin) Bind(request *web.Request, next web.Handler) (*web.Response, error) {
+	return next.Handle(request)
 }
 
-func (c *validPlugin) FetchBinding(next web.Handler) web.Handler {
-	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
-		return next.Handle(request)
-	})
+func (c *validPlugin) FetchBinding(request *web.Request, next web.Handler) (*web.Response, error) {
+	return next.Handle(request)
 }
 
-func (c *validPlugin) Deprovision(next web.Handler) web.Handler {
-	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
-		return next.Handle(request)
-	})
+func (c *validPlugin) Deprovision(request *web.Request, next web.Handler) (*web.Response, error) {
+	return next.Handle(request)
 }
 
-func (c *validPlugin) Provision(next web.Handler) web.Handler {
-	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
-		return next.Handle(request)
-	})
+func (c *validPlugin) Provision(request *web.Request, next web.Handler) (*web.Response, error) {
+	return next.Handle(request)
 }
 
-func (c *validPlugin) FetchService(next web.Handler) web.Handler {
-	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
-		return next.Handle(request)
-	})
+func (c *validPlugin) FetchService(request *web.Request, next web.Handler) (*web.Response, error) {
+	return next.Handle(request)
 }
 
-func (c *validPlugin) FetchCatalog(next web.Handler) web.Handler {
-	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
-		return next.Handle(request)
-	})
+func (c *validPlugin) FetchCatalog(request *web.Request, next web.Handler) (*web.Response, error) {
+	return next.Handle(request)
 }
 
 func (c *validPlugin) Name() string {

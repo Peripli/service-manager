@@ -42,13 +42,6 @@ func (ba *BearerAuthnFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
-				web.Methods(http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch),
-				web.Path("/v1/service_brokers/**"),
-			},
-		},
-		{
-			Matchers: []web.Matcher{
-				web.Methods(http.MethodGet),
 				web.Path("/v1/service_brokers/**"),
 			},
 		},

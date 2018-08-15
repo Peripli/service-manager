@@ -30,19 +30,17 @@ type Filter struct{}
 func (f *Filter) Name() string { return "FilterName" }
 
 // Run implements web.Middleware
-func (f *Filter) Run(next web.Handler) web.Handler {
-    return web.HandlerFunc(func(r *web.Request) (*web.Response, error) {
-        // pre processing logic
-        fmt.Printf("request with method %s to URL %s\n", r.Method, r.URL)
+func (f *Filter) Run(r *web.Request, next web.Handler) (*web.Response, error) {
+    // pre processing logic
+    fmt.Printf("request with method %s to URL %s\n", r.Method, r.URL)
 
-        // call next filter in chain
-        resp, err := next.Handle(r)
+    // call next filter in chain
+    resp, err := next.Handle(r)
 
-        // add post processing logic
-        fmt.Printf("response with status code %d and error %v\n", resp.StatusCode, err)
+    // add post processing logic
+    fmt.Printf("response with status code %d and error %v\n", resp.StatusCode, err)
 
-        return resp, err
-    })
+    return resp, err
 }
 
 // FilterMatchers that specify when the filter should run. Each
@@ -94,16 +92,14 @@ type MyPlugin struct {}
 
 func (p *MyPlugin) Name() string { return "MyPlugin" }
 
-func (p *MyPlugin) FetchCatalog(next web.Handler) web.Handler {
-    return web.HandlerFunc(req *web.Request)(*web.Response, error) {
-        res, err := next.Handle(req)
-        if err != nil {
-            return nil, err
-        }
-        serviceName := gjson.GetBytes(res.Body, "services.0.name").String()
-        res.Body, err = sjson.SetBytes(res.Body, "services.0.name", serviceName + "-suffix")
-        return res, err
-    }
+func (p *MyPlugin) FetchCatalog(req *web.Request, next web.Handler) (*web.Response, error) {
+	res, err := next.Handle(req)
+	if err != nil {
+		return nil, err
+	}
+	serviceName := gjson.GetBytes(res.Body, "services.0.name").String()
+	res.Body, err = sjson.SetBytes(res.Body, "services.0.name", serviceName+"-suffix")
+	return res, err
 }
 ```
 
@@ -113,15 +109,13 @@ This plugin will implement another interface on the plugin from the previous sec
 It will modify the response status code for provision operation.
 
 ```go
-func (p *MyPlugin) Provision(next web.Handler) web.Handler {
-    return web.HandlerFunc(req *web.Request)(*web.Response, error) {
-        if !checkCredentials(req) {
-            return &web.Response{
-                StatusCode: 401 // Unauthorized
-            }, nil
-        }
-        return next.Handle(req)
+func (p *MyPlugin) Provision(req *web.Request, next web.Handler) (*web.Response, error) {
+    if !checkCredentials(req) {
+        return &web.Response{
+            StatusCode: 401 // Unauthorized
+        }, nil
     }
+    return next.Handle(req)
 }
 ```
 

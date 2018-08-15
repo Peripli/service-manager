@@ -76,7 +76,7 @@ func (c *Controller) handler(request *web.Request) (*web.Response, error) {
 	if m == nil || len(m) < 2 {
 		return nil, fmt.Errorf("could not get OSB path from URL %s", request.URL.Path)
 	}
-	modifiedRequest.URL.Path = m[1]
+	modifiedRequest.URL.Path = target.Path + m[1]
 
 	logrus.Debugf("Forwarding OSB request to %s", modifiedRequest.URL)
 	recorder := httptest.NewRecorder()

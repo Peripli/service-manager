@@ -70,7 +70,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 		panic(fmt.Errorf("error loading configuration: %s", err))
 	}
 	if err := cfg.Validate(); err != nil {
-		panic(fmt.Sprintf("error validating config: %s", err))
+		panic(fmt.Sprintf("error validating configuration: %s", err))
 	}
 
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: cfg.API.SkipSSLValidation}
