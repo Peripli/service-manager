@@ -52,3 +52,13 @@ func StringsAnyPrefix(stringSlice []string, prefix string) bool {
 	}
 	return false
 }
+
+// StringsAnyEquals returns true if any of the strings in the slice equal the given string.
+func StringsAnyEquals(stringSlice []string, str string) bool {
+	for _, v := range stringSlice {
+		if v == str {
+			return true
+		}
+	}
+	return false
+}

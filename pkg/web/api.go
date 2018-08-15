@@ -80,8 +80,16 @@ func (api *API) RegisterControllers(controllers ...Controller) {
 
 // RegisterFilters registers a set of filters
 func (api *API) RegisterFilters(filters ...Filter) {
-	registeredFilterNames := api.filterNames(api.Filters)
+	api.validateFilters(filters...)
+	api.Filters = append(api.Filters, filters...)
+}
+
+func (api *API) validateFilters(filters ...Filter) {
 	newFilterNames := api.filterNames(filters)
+	if slice.StringsAnyEquals(newFilterNames, "") {
+		logrus.Panicf("Filters cannot have empty names")
+	}
+	registeredFilterNames := api.filterNames(api.Filters)
 	commonFilterNames := slice.StringsIntersection(registeredFilterNames, newFilterNames)
 	if len(commonFilterNames) > 0 {
 		logrus.Panicf("Filters %s are already registered", commonFilterNames)
@@ -89,11 +97,11 @@ func (api *API) RegisterFilters(filters ...Filter) {
 	if slice.StringsAnySubstring(newFilterNames, ":") {
 		logrus.Panic("Cannot register filters with : in their names")
 	}
-	api.Filters = append(api.Filters, filters...)
 }
 
 func (api *API) RegisterFilterBefore(beforeFilterName string, filter Filter) {
 	logrus.Debugf("Registering filter %s before %s", filter.Name(), beforeFilterName)
+	api.validateFilters(filter)
 	api.registerFilterRelatively(beforeFilterName, filter, func(beforeFilterPosition int) int {
 		return beforeFilterPosition
 	})
@@ -101,6 +109,7 @@ func (api *API) RegisterFilterBefore(beforeFilterName string, filter Filter) {
 
 func (api *API) RegisterFilterAfter(afterFilterName string, filter Filter) {
 	logrus.Debugf("Registering filter %s after %s", filter.Name(), afterFilterName)
+	api.validateFilters(filter)
 	api.registerFilterRelatively(afterFilterName, filter, func(filterPosition int) int {
 		return filterPosition + 1
 	})
@@ -108,6 +117,7 @@ func (api *API) RegisterFilterAfter(afterFilterName string, filter Filter) {
 
 func (api *API) ReplaceFilter(replacedFilterName string, filter Filter) {
 	logrus.Debugf("Replacing filter %s with %s", replacedFilterName, filter.Name())
+	api.validateFilters(filter)
 	registeredFilterPosition := api.findFilterPosition(replacedFilterName)
 	api.Filters[registeredFilterPosition] = filter
 }

@@ -138,7 +138,7 @@ var _ = Describe("API", func() {
 		Context("When filter with such name exists", func() {
 			It("Adds the filter before it", func() {
 				filter := &testFilter{"testFilter"}
-				newFilter := &testFilter{"testFilter"}
+				newFilter := &testFilter{"testFilter2"}
 				api.RegisterFilters(filter)
 				api.RegisterFilterAfter(filter.Name(), newFilter)
 				names := filterNames()
@@ -193,6 +193,15 @@ var _ = Describe("API", func() {
 			It("Panics", func() {
 				registerFilter := func() {
 					api.RegisterFilters(&testFilter{"name:"})
+				}
+				Expect(registerFilter).To(Panic())
+			})
+		})
+
+		Context("When filter name is empty", func() {
+			It("Panics", func() {
+				registerFilter := func() {
+					api.RegisterFilters(&testFilter{""})
 				}
 				Expect(registerFilter).To(Panic())
 			})
