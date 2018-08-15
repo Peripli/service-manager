@@ -19,10 +19,9 @@
 package web
 
 import (
-	"math"
 	"net/http"
-	"strings"
 
+	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/sirupsen/logrus"
 )
 
@@ -81,43 +80,25 @@ func (api *API) RegisterControllers(controllers ...Controller) {
 
 // RegisterFilters registers a set of filters
 func (api *API) RegisterFilters(filters ...Filter) {
+	registeredFilterNames := api.filterNames(api.Filters)
+	newFilterNames := api.filterNames(filters)
+	commonFilterNames := slice.StringsIntersection(registeredFilterNames, newFilterNames)
+	if len(commonFilterNames) > 0 {
+		logrus.Panicf("Filters %s are already registered", commonFilterNames)
+	}
+	if slice.StringsAnySubstring(newFilterNames, ":") {
+		logrus.Panic("Cannot register filters with : in their names")
+	}
 	api.Filters = append(api.Filters, filters...)
-}
-
-func (api *API) registerFilterRelatively(filterName string, newFilter Filter, newFilterPosition func(filterPosition int) int) {
-	registeredFilterPosition := api.findFilterPositionOrDie(filterName)
-	filterPosition := newFilterPosition(registeredFilterPosition)
-	api.Filters = append(api.Filters, nil)
-	copy(api.Filters[filterPosition+1:], api.Filters[filterPosition:])
-	api.Filters[filterPosition] = newFilter
 }
 
 func (api *API) RegisterFilterBefore(beforeFilterName string, filter Filter) {
 	logrus.Debugf("Registering filter %s before %s", filter.Name(), beforeFilterName)
 	api.registerFilterRelatively(beforeFilterName, filter, func(beforeFilterPosition int) int {
-		if beforeFilterPosition == 0 {
-			return 0
-		}
-		return beforeFilterPosition - 1
+		return beforeFilterPosition
 	})
 }
 
-// RegisterFilterAfter adds the given filter after the filter with the specified name
-// If the filter with the specified name is not registered, the method panics
-// If for some routes, the filter with the given name does not match the routes of the provided filter, then
-// the filter will be registered at the place at which the filter with this name would have been, had it been
-// configured to match route
-//
-// Example:
-//  Flter with name A matches routes /api/v1/service_brokers and /api/v1/platforms.
-//  Filter with name B matches routes /api/v1/service_brokers and /api/v1/service_instances
-//  Filter with name C matches routes /api/v1/platforms and /api/v1/service_instances
-//  Filter B is registered after filter A
-// Calling RegisterFilterAfter("A", filterC) will result in the following:
-//  calling /api/v1/service_brokers will go through A, then B, then reach the handler. Event though filter C is registered after filter A
-// it is not executed because it doesn't match the route
-//  calling /api/v1/platforms will go through A, then C, then reach the handler
-//  calling /api/v1/service_instances will go through C, then B, then reach the handler
 func (api *API) RegisterFilterAfter(afterFilterName string, filter Filter) {
 	logrus.Debugf("Registering filter %s after %s", filter.Name(), afterFilterName)
 	api.registerFilterRelatively(afterFilterName, filter, func(filterPosition int) int {
@@ -127,77 +108,57 @@ func (api *API) RegisterFilterAfter(afterFilterName string, filter Filter) {
 
 func (api *API) ReplaceFilter(replacedFilterName string, filter Filter) {
 	logrus.Debugf("Replacing filter %s with %s", replacedFilterName, filter.Name())
-	registeredFilterPosition := api.findFilterPositionOrDie(replacedFilterName)
+	registeredFilterPosition := api.findFilterPosition(replacedFilterName)
 	api.Filters[registeredFilterPosition] = filter
 }
 
-func (api *API) findFilterPosition(filterName string) int {
-	for i := range api.Filters {
-		registeredFilter := api.Filters[i]
-		if registeredFilter.Name() == filterName {
-			return i
-		}
-	}
-	return -1
-}
-
-func (api *API) findFilterPositionOrDie(filterName string) int {
-	registeredFilterPosition := api.findFilterPosition(filterName)
-	if registeredFilterPosition < 0 {
-		logrus.Panicf("Filter with name %s is not registered", filterName)
-	}
-	return registeredFilterPosition
+func (api *API) RemoveFilter(name string) {
+	position := api.findFilterPosition(name)
+	api.Filters = append(api.Filters[:position], api.Filters[position+1:]...)
 }
 
 // RegisterPlugins registers a set of plugins
 func (api *API) RegisterPlugins(plugins ...Plugin) {
 	for _, plugin := range plugins {
+		registeredFilterNames := api.filterNames(api.Filters)
+		if slice.StringsAnyPrefix(registeredFilterNames, plugin.Name()+":") {
+			logrus.Panicf("Plugin %s is already registered", plugin.Name())
+		}
 		pluginSegments := api.decomposePluginOrDie(plugin)
-		api.RegisterFilters(pluginSegments...)
+		api.Filters = append(api.Filters, pluginSegments...)
 	}
 }
 
-func (api *API) RegisterPluginBefore(name string, plugin Plugin) {
-	logrus.Debugf("Registering plugin %s before %s", plugin.Name(), name)
-	lowestFilterName := ""
-	lowestFilterPos := math.MaxInt64
+func (api *API) registerFilterRelatively(filterName string, newFilter Filter, newFilterPosition func(filterPosition int) int) {
+	registeredFilterPosition := api.findFilterPosition(filterName)
+	filterPosition := newFilterPosition(registeredFilterPosition)
+	api.Filters = append(api.Filters, nil)
+	copy(api.Filters[filterPosition+1:], api.Filters[filterPosition:])
+	api.Filters[filterPosition] = newFilter
+}
+
+func (api *API) findFilterPosition(filterName string) int {
+	filterPosition := -1
 	for i := range api.Filters {
-		filter := api.Filters[i]
-		if strings.HasPrefix(filter.Name(), name+":") && i < lowestFilterPos {
-			lowestFilterPos = i
-			lowestFilterName = filter.Name()
+		registeredFilter := api.Filters[i]
+		if registeredFilter.Name() == filterName {
+			filterPosition = i
+			break
 		}
 	}
-	api.registerPluginRelatively(lowestFilterName, plugin, api.RegisterFilterBefore)
+	if filterPosition < 0 {
+		logrus.Panicf("Filter with name %s is not found", filterName)
+	}
+	return filterPosition
 }
 
-func (api *API) RemoveFilter(name string) {
-	position := api.findFilterPosition(name)
-	if position >= 0 {
-		api.Filters = append(api.Filters[:position], api.Filters[position+1:]...)
+func (api *API) filterNames(filters []Filter) []string {
+	var filterNames []string
+	for i := range filters {
+		filter := filters[i]
+		filterNames = append(filterNames, filter.Name())
 	}
-}
-
-func (api *API) RegisterPluginAfter(name string, plugin Plugin) {
-	logrus.Debugf("Registering plugin %s after %s", plugin.Name(), name)
-	highestFilterName := ""
-	highestFilterPos := math.MinInt64
-	for i := range api.Filters {
-		filter := api.Filters[i]
-		if strings.HasPrefix(filter.Name(), name+":") && i > highestFilterPos {
-			highestFilterPos = i
-			highestFilterName = filter.Name()
-		}
-	}
-	api.registerPluginRelatively(highestFilterName, plugin, api.RegisterFilterAfter)
-}
-
-func (api *API) registerPluginRelatively(relativeName string, plugin Plugin, relationFunc func(string, Filter)) {
-	pluginSegments := api.decomposePluginOrDie(plugin)
-	for i := range pluginSegments {
-		pluginSegment := pluginSegments[i]
-		relationFunc(relativeName, pluginSegment)
-	}
+	return filterNames
 }
 
 func (api *API) decomposePluginOrDie(plugin Plugin) []Filter {
@@ -206,37 +167,6 @@ func (api *API) decomposePluginOrDie(plugin Plugin) []Filter {
 		logrus.Panicf("%T does not implement any plugin operation", plugin)
 	}
 	return pluginSegments
-}
-
-func (api *API) ReplacePlugin(name string, plugin Plugin) {
-	logrus.Debugf("Replacing plugin %s with %s", name, plugin.Name())
-	replacedPluginPositions := make(map[string]int)
-	for i := range api.Filters {
-		filter := api.Filters[i]
-		if strings.HasPrefix(filter.Name(), name+":") {
-			replacedPluginPositions[filter.Name()] = i
-		}
-	}
-	pluginSegments := api.decomposePluginOrDie(plugin)
-	newPluginFiltersCount := len(pluginSegments)
-
-	i := 0
-	for _, filterPosition := range replacedPluginPositions {
-		if i >= newPluginFiltersCount {
-			break
-		}
-		api.Filters[filterPosition] = pluginSegments[i]
-		i++
-	}
-
-	for name := range replacedPluginPositions {
-		api.RemoveFilter(name)
-	}
-
-	// add new filters after the last one
-	for j := i; j < newPluginFiltersCount; j++ {
-		api.RegisterFilterAfter(pluginSegments[j-1].Name(), pluginSegments[j])
-	}
 }
 
 // decomposePlugin decomposes a Plugin into multiple Filters
