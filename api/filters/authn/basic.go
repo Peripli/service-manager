@@ -9,6 +9,7 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
+// BasicAuthnFilterName is the name of the basic authentication filter
 const BasicAuthnFilterName string = "BasicAuthnFilter"
 
 // BasicAuthnFilter performs Basic authentication by validating the Authorization header

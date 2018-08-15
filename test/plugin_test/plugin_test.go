@@ -63,8 +63,7 @@ var _ = Describe("Service Manager Plugins", func() {
 
 		JustBeforeEach(func() {
 			api := &web.API{}
-			api.RegisterPlugins(testPlugin)
-			ctx = common.NewTestContextFromAPIs(nil, api)
+			ctx = common.NewTestContextFromAPIs([]web.Plugin{testPlugin}, api)
 			testBroker = ctx.RegisterBroker("broker1", nil)
 		})
 

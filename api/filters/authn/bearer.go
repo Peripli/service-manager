@@ -7,6 +7,7 @@ import (
 	"github.com/Peripli/service-manager/security/oidc"
 )
 
+// BearerAuthnFilterName is the name of the bearer authentication filter
 const BearerAuthnFilterName string = "BearerAuthnFilter"
 
 // BearerAuthnFilter performs Bearer authentication by validating the Authorization header

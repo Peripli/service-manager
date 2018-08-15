@@ -116,9 +116,12 @@ func (api *API) ReplaceFilter(replacedFilterName string, filter Filter) {
 	api.Filters[registeredFilterPosition] = filter
 }
 
+// RemoveFilter removes the filter with the given name
 func (api *API) RemoveFilter(name string) {
 	position := api.findFilterPosition(name)
-	api.Filters = append(api.Filters[:position], api.Filters[position+1:]...)
+	copy(api.Filters[position:], api.Filters[position+1:])
+	api.Filters[len(api.Filters)-1] = nil
+	api.Filters = api.Filters[:len(api.Filters)-1]
 }
 
 // RegisterPlugins registers a set of plugins
