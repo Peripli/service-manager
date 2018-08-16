@@ -4,6 +4,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/Peripli/service-manager)](https://goreportcard.com/report/github.com/Peripli/service-manager)
 [![Coverage Status](https://coveralls.io/repos/github/Peripli/service-manager/badge.svg)](https://coveralls.io/github/Peripli/service-manager)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/Peripli/service-manager/blob/master/LICENSE)
+[![Docker Repository on Quay](https://quay.io/repository/service-manager/core/status "Docker Repository on Quay")](https://quay.io/repository/service-manager/core)
 
 ## What is Service Manager
 
