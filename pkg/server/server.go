@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/Peripli/service-manager/api"
+	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
@@ -36,6 +37,24 @@ type Settings struct {
 	Port            int           `mapstructure:"port"`
 	RequestTimeout  time.Duration `mapstructure:"request_timeout"`
 	ShutdownTimeout time.Duration `mapstructure:"shutdown_timeout"`
+}
+
+// DefaultSettings returns the default values for configuring the Service Manager
+func DefaultSettings() *Settings {
+	return &Settings{
+		Port:            8080,
+		RequestTimeout:  time.Second * 3,
+		ShutdownTimeout: time.Second * 3,
+	}
+}
+
+func NewSettings(env env.Environment) (*Settings, error) {
+	config := &Settings{}
+	if err := env.Unmarshal(config); err != nil {
+		return nil, err
+	}
+
+	return config, nil
 }
 
 // Validate validates the server settings
@@ -54,21 +73,22 @@ func (s *Settings) Validate() error {
 
 // Server is the server to process incoming HTTP requests
 type Server struct {
-	Config Settings
-	Router *mux.Router
-	API    *web.API
+	*mux.Router
+
+	Config *Settings
+	api    *web.API
 }
 
-// New creates a new server with the provided REST API configuration and server configuration
+// New creates a new server with the provided REST api configuration and server configuration
 // Returns the new server and an error if creation was not successful
-func New(config Settings, api *web.API) *Server {
+func New(config *Settings, api *web.API) *Server {
 	router := mux.NewRouter().StrictSlash(true)
 	registerControllers(api, router)
 
 	return &Server{
 		Config: config,
 		Router: router,
-		API:    api,
+		api:    api,
 	}
 }
 

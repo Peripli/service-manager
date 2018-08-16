@@ -17,22 +17,20 @@
 package config
 
 import (
-		"time"
-
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/server"
+	"github.com/Peripli/service-manager/pkg/server"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/spf13/pflag"
 )
 
 // Settings is used to setup the Service Manager
 type Settings struct {
-	Server  server.Settings
-	Storage storage.Settings
-	Log     log.Settings
-	API     api.Settings
+	Server  *server.Settings
+	Storage *storage.Settings
+	Log     *log.Settings
+	API     *api.Settings
 }
 
 // AddPFlags adds the SM config flags to the provided flag set
@@ -42,21 +40,14 @@ func AddPFlags(set *pflag.FlagSet) {
 }
 
 // DefaultSettings returns the default values for configuring the Service Manager
-func DefaultSettings() *Settings {
+func DefaultSettings() Settings {
 	config := &Settings{
-		Server: server.Settings{
-			Port:            8080,
-			RequestTimeout:  time.Second * 3,
-			ShutdownTimeout: time.Second * 3,
-		},
-		Storage: storage.Settings{
+		Server: server.DefaultSettings(),
+		Storage: &storage.Settings{
 			URI: "",
 		},
-		Log: log.Settings{
-			Level:  "debug",
-			Format: "text",
-		},
-		API: api.Settings{
+		Log: &log.DefaultSettings(),
+		API: &api.Settings{
 			TokenIssuerURL: "",
 			ClientID:       "sm",
 			Security: api.Security{
