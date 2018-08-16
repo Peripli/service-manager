@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/config"
@@ -85,7 +86,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	}
 
 	securityStorage := smStorage.Security()
-	if err := initializeSecureStorage(securityStorage); err != nil {
+	if err := initializeSecureStorage(ctx, securityStorage); err != nil {
 		panic(fmt.Sprintf("error initialzing secure storage: %v", err))
 	}
 
@@ -154,7 +155,12 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	}
 }
 
-func initializeSecureStorage(secureStorage storage.Security) error {
+func initializeSecureStorage(ctx context.Context, secureStorage storage.Security) error {
+	ctx, cancelFunc := context.WithTimeout(ctx, 2*time.Second)
+	defer cancelFunc()
+	if err := secureStorage.Lock(ctx); err != nil {
+		return err
+	}
 	keyFetcher := secureStorage.Fetcher()
 	encryptionKey, err := keyFetcher.GetEncryptionKey()
 	if err != nil {
@@ -172,7 +178,7 @@ func initializeSecureStorage(secureStorage storage.Security) error {
 		}
 		logrus.Debug("Successfully generated new encryption key")
 	}
-	return nil
+	return secureStorage.Unlock()
 }
 
 func handleInterrupts(ctx context.Context, cancelFunc context.CancelFunc) {
