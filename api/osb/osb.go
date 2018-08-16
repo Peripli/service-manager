@@ -45,21 +45,19 @@ const (
 
 // Routes implements api.Controller.Routes by providing the routes for the OSB API
 func (c *controller) Routes() []web.Route {
-	handler := c.adapter.Handler()
-
 	return []web.Route{
-		{Endpoint: web.Endpoint{Method: http.MethodGet, Path: catalogURL}, Handler: handler},
+		{Endpoint: web.Endpoint{Method: http.MethodGet, Path: catalogURL}, Handler: c.handler},
 
-		{Endpoint: web.Endpoint{Method: http.MethodGet, Path: serviceInstanceURL}, Handler: handler},
-		{Endpoint: web.Endpoint{Method: http.MethodPut, Path: serviceInstanceURL}, Handler: handler},
-		{Endpoint: web.Endpoint{Method: http.MethodPatch, Path: serviceInstanceURL}, Handler: handler},
-		{Endpoint: web.Endpoint{Method: http.MethodDelete, Path: serviceInstanceURL}, Handler: handler},
+		{Endpoint: web.Endpoint{Method: http.MethodGet, Path: serviceInstanceURL}, Handler: c.handler},
+		{Endpoint: web.Endpoint{Method: http.MethodPut, Path: serviceInstanceURL}, Handler: c.handler},
+		{Endpoint: web.Endpoint{Method: http.MethodPatch, Path: serviceInstanceURL}, Handler: c.handler},
+		{Endpoint: web.Endpoint{Method: http.MethodDelete, Path: serviceInstanceURL}, Handler: c.handler},
 
-		{Endpoint: web.Endpoint{Method: http.MethodGet, Path: serviceBindingURL}, Handler: handler},
-		{Endpoint: web.Endpoint{Method: http.MethodPut, Path: serviceBindingURL}, Handler: handler},
-		{Endpoint: web.Endpoint{Method: http.MethodDelete, Path: serviceBindingURL}, Handler: handler},
+		{Endpoint: web.Endpoint{Method: http.MethodGet, Path: serviceBindingURL}, Handler: c.handler},
+		{Endpoint: web.Endpoint{Method: http.MethodPut, Path: serviceBindingURL}, Handler: c.handler},
+		{Endpoint: web.Endpoint{Method: http.MethodDelete, Path: serviceBindingURL}, Handler: c.handler},
 
-		{Endpoint: web.Endpoint{Method: http.MethodGet, Path: serviceInstanceLastOperationURL}, Handler: handler},
-		{Endpoint: web.Endpoint{Method: http.MethodGet, Path: serviceBindingLastOperationURL}, Handler: handler},
+		{Endpoint: web.Endpoint{Method: http.MethodGet, Path: serviceInstanceLastOperationURL}, Handler: c.handler},
+		{Endpoint: web.Endpoint{Method: http.MethodGet, Path: serviceBindingLastOperationURL}, Handler: c.handler},
 	}
 }

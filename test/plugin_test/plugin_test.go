@@ -42,12 +42,12 @@ var _ = Describe("Service Manager Plugins", func() {
 		})
 
 		It("should be called for provision and not for deprovision", func() {
-			ctx.SMWithBasic.PUT(testBroker.OSBURL + "/v2/service_instances/1234").
+			ctx.SMWithBasic.PUT(testBroker.OSBURL+"/v2/service_instances/1234").
 				WithHeader("Content-Type", "application/json").
 				WithJSON(object{}).
 				Expect().Status(http.StatusOK).Header("X-Plugin").Equal("provision")
 
-			ctx.SMWithBasic.DELETE(testBroker.OSBURL + "/v2/service_instances/1234").
+			ctx.SMWithBasic.DELETE(testBroker.OSBURL+"/v2/service_instances/1234").
 				WithHeader("Content-Type", "application/json").
 				WithJSON(object{}).
 				Expect().Status(http.StatusOK).Header("X-Plugin").Empty()
@@ -129,7 +129,7 @@ var _ = Describe("Service Manager Plugins", func() {
 			})
 			testBroker.StatusCode = http.StatusOK
 
-			ctx.SMWithBasic.GET(testBroker.OSBURL + "/v2/catalog").WithHeader("extra", "value").
+			ctx.SMWithBasic.GET(testBroker.OSBURL+"/v2/catalog").WithHeader("extra", "value").
 				Expect().Status(http.StatusOK).Header("extra").Equal("value-response")
 
 			Expect(testBroker.Request.Header.Get("extra")).To(Equal("value-request"))
