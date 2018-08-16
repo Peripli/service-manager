@@ -26,6 +26,6 @@ func main() {
 	defer cancel()
 
 	env := sm.DefaultEnv()
-	serviceManager := sm.New(ctx, cancel, env).Build()
+	serviceManager := sm.New(ctx, env).Build()
 	serviceManager.Run()
 }

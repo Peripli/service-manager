@@ -40,13 +40,13 @@ func AddPFlags(set *pflag.FlagSet) {
 }
 
 // DefaultSettings returns the default values for configuring the Service Manager
-func DefaultSettings() Settings {
+func DefaultSettings() *Settings {
 	config := &Settings{
 		Server: server.DefaultSettings(),
 		Storage: &storage.Settings{
 			URI: "",
 		},
-		Log: &log.DefaultSettings(),
+		Log: log.DefaultSettings(),
 		API: &api.Settings{
 			TokenIssuerURL: "",
 			ClientID:       "sm",
@@ -61,7 +61,7 @@ func DefaultSettings() Settings {
 
 // New creates a configuration from the provided env
 func New(env env.Environment) (*Settings, error) {
-	config := &Settings{}
+	config := DefaultSettings()
 	if err := env.Unmarshal(config); err != nil {
 		return nil, err
 	}

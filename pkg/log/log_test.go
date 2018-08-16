@@ -37,7 +37,7 @@ var _ = Describe("log", func() {
 
 		Context("with invalid log level", func() {
 			It("should panic", func() {
-				expectPanic(Settings{
+				expectPanic(&Settings{
 					Level:  "invalid",
 					Format: "text",
 				})
@@ -46,7 +46,7 @@ var _ = Describe("log", func() {
 
 		Context("with invalid log level", func() {
 			It("should panic", func() {
-				expectPanic(Settings{
+				expectPanic(&Settings{
 					Level:  "debug",
 					Format: "invalid",
 				})
@@ -77,7 +77,7 @@ func (wr *MyWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func expectPanic(settings Settings) {
+func expectPanic(settings *Settings) {
 	wrapper := func() {
 		SetupLogging(settings)
 	}
@@ -86,7 +86,7 @@ func expectPanic(settings Settings) {
 
 func expectOutput(substring string, logFormat string) {
 	w := &MyWriter{}
-	SetupLogging(Settings{
+	SetupLogging(&Settings{
 		Level:  "debug",
 		Format: logFormat,
 	})

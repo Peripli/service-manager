@@ -5,10 +5,10 @@ import (
 	"os"
 	"testing"
 
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/Peripli/service-manager/pkg/web"
 )
 
 type object = common.Object
@@ -30,7 +30,7 @@ var _ = Describe("Service Manager Filters", func() {
 		api := &web.API{}
 		api.RegisterFilters(testFilters...)
 		ctx = common.NewTestContextFromAPIs(api)
-		testBroker  = ctx.RegisterBroker("broker1", nil)
+		testBroker = ctx.RegisterBroker("broker1", nil)
 		order = ""
 	})
 
@@ -116,7 +116,7 @@ func (tf osbTestFilter) FilterMatchers() []web.FilterMatcher {
 }
 
 func (tf osbTestFilter) Run(next web.Handler) web.Handler {
-	return web.HandlerFunc(func(request *web.Request)(*web.Response,error) {
+	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
 		*tf.state += "osb1"
 		res, err := next.Handle(request)
 		if err == nil {
@@ -145,7 +145,7 @@ func (gfa globalTestFilterA) FilterMatchers() []web.FilterMatcher {
 }
 
 func (gfa globalTestFilterA) Run(next web.Handler) web.Handler {
-	return web.HandlerFunc(func(request *web.Request)(*web.Response,error) {
+	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
 		*gfa.state += "a1"
 		res, err := next.Handle(request)
 		if err == nil {
@@ -174,7 +174,7 @@ func (gfb globalTestFilterB) FilterMatchers() []web.FilterMatcher {
 }
 
 func (gfb globalTestFilterB) Run(next web.Handler) web.Handler {
-	return web.HandlerFunc(func(request *web.Request)(*web.Response,error) {
+	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
 		*gfb.state += "b1"
 		res, err := next.Handle(request)
 		if err == nil {
@@ -183,4 +183,3 @@ func (gfb globalTestFilterB) Run(next web.Handler) web.Handler {
 		return res, err
 	})
 }
-

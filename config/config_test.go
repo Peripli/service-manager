@@ -24,7 +24,7 @@ import (
 	cfg "github.com/Peripli/service-manager/config"
 	"github.com/Peripli/service-manager/pkg/env/envfakes"
 	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/server"
+	"github.com/Peripli/service-manager/pkg/server"
 	"github.com/Peripli/service-manager/storage"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -151,19 +151,19 @@ var _ = Describe("config", func() {
 				configuration cfg.Settings
 
 				envConfig = cfg.Settings{
-					Server: server.Settings{
+					Server: &server.Settings{
 						Port:            8080,
 						ShutdownTimeout: 5000,
 						RequestTimeout:  5000,
 					},
-					Storage: storage.Settings{
+					Storage: &storage.Settings{
 						URI: "dbUri",
 					},
-					Log: log.Settings{
+					Log: &log.Settings{
 						Format: "text",
 						Level:  "debug",
 					},
-					API: api.Settings{
+					API: &api.Settings{
 						TokenIssuerURL:    "http://example.com",
 						ClientID:          "sm",
 						SkipSSLValidation: false,

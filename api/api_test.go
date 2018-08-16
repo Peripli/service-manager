@@ -49,7 +49,7 @@ var _ = Describe("API", func() {
 	Describe("New", func() {
 		It("returns no error if creation is successful", func() {
 			server := common.SetupFakeOAuthServer()
-			API, err = api.New(context.TODO(), mockedStorage, api.Settings{
+			API, err = api.New(context.TODO(), mockedStorage, &api.Settings{
 				TokenIssuerURL: server.URL,
 				ClientID:       "sm",
 			}, nil)
@@ -57,7 +57,7 @@ var _ = Describe("API", func() {
 		})
 
 		It("returns an error if creation fails", func() {
-			API, err = api.New(context.TODO(), mockedStorage, api.Settings{
+			API, err = api.New(context.TODO(), mockedStorage, &api.Settings{
 				TokenIssuerURL: "http://invalidurl.com",
 				ClientID:       "invalidclient",
 			}, nil)
