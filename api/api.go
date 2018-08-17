@@ -57,6 +57,19 @@ type Settings struct {
 	SkipSSLValidation bool     `mapstructure:"skip_ssl_validation"`
 }
 
+// DefaultSettings returns default values for API settings
+func DefaultSettings() *Settings {
+	return &Settings{
+		TokenIssuerURL: "",
+		ClientID:       "sm",
+		Security: Security{
+			EncryptionKey: "",
+		},
+		SkipSSLValidation: false,
+	}
+
+}
+
 // Validate validates the API settings
 func (s *Settings) Validate() error {
 	if (len(s.TokenIssuerURL)) == 0 {
@@ -95,7 +108,7 @@ func New(ctx context.Context, storage storage.Storage, settings *Settings, encry
 			&catalog.Controller{
 				BrokerStorage: storage.Broker(),
 			},
-			osb.NewController(&osb.BusinessLogic{
+			osb.NewController(&osb.BrokerTransport{
 				BrokerStorage: storage.Broker(),
 				Encrypter:     encrypter,
 				Tr:            http.DefaultTransport,

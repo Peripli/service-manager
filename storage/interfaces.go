@@ -29,6 +29,13 @@ type Settings struct {
 	URI string
 }
 
+// DefaultSettings returns default values for storage settings
+func DefaultSettings() *Settings {
+	return &Settings{
+		URI: "",
+	}
+}
+
 // Validate validates the storage settings
 func (s *Settings) Validate() error {
 	if len(s.URI) == 0 {
@@ -107,7 +114,7 @@ type Credentials interface {
 }
 
 // Security interface for encryption key operations
-type Security interface{
+type Security interface {
 	// Fetcher provides means to obtain the encryption key
 	Fetcher() security.KeyFetcher
 	// Setter provides means to change the encryption key

@@ -42,19 +42,10 @@ func AddPFlags(set *pflag.FlagSet) {
 // DefaultSettings returns the default values for configuring the Service Manager
 func DefaultSettings() *Settings {
 	config := &Settings{
-		Server: server.DefaultSettings(),
-		Storage: &storage.Settings{
-			URI: "",
-		},
-		Log: log.DefaultSettings(),
-		API: &api.Settings{
-			TokenIssuerURL: "",
-			ClientID:       "sm",
-			Security: api.Security{
-				EncryptionKey: "",
-			},
-			SkipSSLValidation: false,
-		},
+		Server:  server.DefaultSettings(),
+		Storage: storage.DefaultSettings(),
+		Log:     log.DefaultSettings(),
+		API:     api.DefaultSettings(),
 	}
 	return config
 }
@@ -71,17 +62,14 @@ func New(env env.Environment) (*Settings, error) {
 
 // Validate validates that the configuration contains all mandatory properties
 func (c *Settings) Validate() error {
-	if err := c.Server.Validate(); err != nil {
-		return err
-	}
-	if err := c.Log.Validate(); err != nil {
-		return err
-	}
-	if err := c.API.Validate(); err != nil {
-		return err
-	}
-	if err := c.Storage.Validate(); err != nil {
-		return err
+	validatable := []interface {
+		Validate() error
+	}{c.Server, c.Storage, c.Log, c.API}
+
+	for _, item := range validatable {
+		if err := item.Validate(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
