@@ -66,6 +66,7 @@ func (c *Controller) createBroker(request *web.Request) (*web.Response, error) {
 	currentTime := time.Now().UTC()
 	broker.CreatedAt = currentTime
 	broker.UpdatedAt = currentTime
+
 	broker.BrokerURL = strings.TrimRight(broker.BrokerURL, "/")
 
 	catalog, err := c.getBrokerCatalog(broker)
