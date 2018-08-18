@@ -32,7 +32,6 @@ import (
 	"github.com/Peripli/service-manager/storage"
 	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
-	"path/filepath"
 )
 
 const (
@@ -67,7 +66,7 @@ func (c *Controller) createBroker(request *web.Request) (*web.Response, error) {
 	currentTime := time.Now().UTC()
 	broker.CreatedAt = currentTime
 	broker.UpdatedAt = currentTime
-	broker.BrokerURL = filepath.Clean(broker.BrokerURL)
+	broker.BrokerURL = strings.TrimRight(broker.BrokerURL, "/")
 
 	catalog, err := c.getBrokerCatalog(broker)
 	if err != nil {
