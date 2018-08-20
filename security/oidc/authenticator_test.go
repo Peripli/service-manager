@@ -33,6 +33,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/security/securityfakes"
+	goidc "github.com/coreos/go-oidc"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
@@ -239,7 +240,6 @@ var _ = Describe("OIDC Authenticator", func() {
 			})
 
 			Context("When configuration is correct", func() {
-
 				BeforeEach(func() {
 					openIdResponseCode = http.StatusOK
 				})
@@ -248,6 +248,39 @@ var _ = Describe("OIDC Authenticator", func() {
 					authenticator, err := NewAuthenticator(ctx, options)
 					Expect(err).To(BeNil())
 					Expect(authenticator).To(Not(BeNil()))
+				})
+			})
+
+			Context("Client ID", func() {
+				tokenVerifier := newTokenVerifier
+				var verifierConfig *goidc.Config
+
+				BeforeEach(func() {
+					newTokenVerifier = func(issuerURL string, keySet goidc.KeySet,
+						config *goidc.Config) *goidc.IDTokenVerifier {
+						verifierConfig = config
+						return tokenVerifier(issuerURL, keySet, config)
+					}
+				})
+
+				AfterEach(func() {
+					newTokenVerifier = tokenVerifier
+				})
+
+				It("Should not skip client id check when client id is not empty", func() {
+					options.ClientID = "client-id"
+					authenticator, err := NewAuthenticator(ctx, options)
+					Expect(err).To(BeNil())
+					Expect(authenticator).To(Not(BeNil()))
+					Expect(verifierConfig.SkipClientIDCheck).To(BeFalse())
+				})
+
+				It("Should skip client id check when client id is empty", func() {
+					options.ClientID = "x"
+					authenticator, err := NewAuthenticator(ctx, options)
+					Expect(err).To(BeNil())
+					Expect(authenticator).To(Not(BeNil()))
+					Expect(verifierConfig.SkipClientIDCheck).To(BeTrue())
 				})
 			})
 		})

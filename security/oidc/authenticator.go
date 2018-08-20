@@ -61,10 +61,12 @@ type Authenticator struct {
 	Verifier security.TokenVerifier
 }
 
+var newTokenVerifier = goidc.NewVerifier
+
 // NewAuthenticator returns a new OpenID authenticator or an error if one couldn't be configured
 func NewAuthenticator(ctx context.Context, options Options) (*Authenticator, error) {
 	if options.IssuerURL == "" {
-		return nil, errors.New("Missing issuer URL")
+		return nil, errors.New("missing issuer URL")
 	}
 	resp, err := getOpenIDConfig(ctx, options)
 	if err != nil {
@@ -86,7 +88,7 @@ func NewAuthenticator(ctx context.Context, options Options) (*Authenticator, err
 		SkipClientIDCheck: options.ClientID == "",
 	}
 	return &Authenticator{Verifier: &oidcVerifier{
-		IDTokenVerifier: goidc.NewVerifier(p.Issuer, keySet, cfg),
+		IDTokenVerifier: newTokenVerifier(p.Issuer, keySet, cfg),
 	}}, nil
 }
 
