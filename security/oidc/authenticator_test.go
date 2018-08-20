@@ -276,7 +276,7 @@ var _ = Describe("OIDC Authenticator", func() {
 				})
 
 				It("Should skip client id check when client id is empty", func() {
-					options.ClientID = "x"
+					options.ClientID = ""
 					authenticator, err := NewAuthenticator(ctx, options)
 					Expect(err).To(BeNil())
 					Expect(authenticator).To(Not(BeNil()))
