@@ -277,7 +277,7 @@ var _ = Describe("Service Manager Broker API", func() {
 			})
 		})
 
-		FContext("when request is successful", func() {
+		Context("when request is successful", func() {
 			assertPOSTReturns201 := func() {
 				It("returns 201", func() {
 					ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(testBroker).
