@@ -27,6 +27,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
+	"github.com/spf13/cast"
 )
 
 func TestBrokers(t *testing.T) {
@@ -277,15 +278,35 @@ var _ = Describe("Service Manager Broker API", func() {
 		})
 
 		Context("when request is successful", func() {
-			It("returns 201", func() {
-				ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(testBroker).
-					Expect().
-					Status(http.StatusCreated).
-					JSON().Object().
-					ContainsMap(expectedBroker).
-					Keys().NotContains("catalog", "credentials")
+			assertPOSTReturns201 := func() {
+				It("returns 201", func() {
+					ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(testBroker).
+						Expect().
+						Status(http.StatusCreated).
+						JSON().Object().
+						ContainsMap(expectedBroker).
+						Keys().NotContains("catalog", "credentials")
 
-				common.VerifyBrokerCatalogEndpointInvoked(brokerServer, 1)
+					common.VerifyBrokerCatalogEndpointInvoked(brokerServer, 1)
+				})
+			}
+
+			Context("when broker URL does not end with trailing slash", func() {
+				BeforeEach(func() {
+					testBroker["broker_url"] = strings.TrimRight(cast.ToString(testBroker["broker_url"]), "/")
+					expectedBroker["broker_url"] = strings.TrimRight(cast.ToString(expectedBroker["broker_url"]), "/")
+				})
+
+				assertPOSTReturns201()
+			})
+
+			Context("when broker URL ends with trailing slash", func() {
+				BeforeEach(func() {
+					testBroker["broker_url"] = cast.ToString(testBroker["broker_url"]) + "/"
+					expectedBroker["broker_url"] = cast.ToString(expectedBroker["broker_url"]) + "/"
+				})
+
+				assertPOSTReturns201()
 			})
 		})
 
