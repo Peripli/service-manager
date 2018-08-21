@@ -26,8 +26,8 @@ import (
 
 	"fmt"
 
-	"github.com/Peripli/service-manager/pkg/sec"
 	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/security"
 	goidc "github.com/coreos/go-oidc"
 )
@@ -93,7 +93,7 @@ func NewAuthenticator(ctx context.Context, options Options) (*Authenticator, err
 }
 
 // Authenticate returns information about the user by obtaining it from the bearer token, or an error if security is unsuccessful
-func (a *Authenticator) Authenticate(request *http.Request) (*sec.User, security.AuthenticationDecision, error) {
+func (a *Authenticator) Authenticate(request *http.Request) (*web.User, security.AuthenticationDecision, error) {
 	authorizationHeader := request.Header.Get("Authorization")
 	if authorizationHeader == "" || !strings.HasPrefix(strings.ToLower(authorizationHeader), "bearer") {
 		return nil, security.Abstain, nil
@@ -113,7 +113,7 @@ func (a *Authenticator) Authenticate(request *http.Request) (*sec.User, security
 	if err := idToken.Claims(claims); err != nil {
 		return nil, security.Deny, err
 	}
-	return &sec.User{
+	return &web.User{
 		Name:      claims.Username,
 		TokenData: idToken,
 	}, security.Allow, nil

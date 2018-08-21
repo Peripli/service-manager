@@ -1,4 +1,4 @@
-package sec
+package web
 
 // TokenData represents the authentication token
 //go:generate counterfeiter . TokenData

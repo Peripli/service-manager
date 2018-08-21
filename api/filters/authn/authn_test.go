@@ -24,7 +24,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Peripli/service-manager/pkg/sec"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/pkg/web/webfakes"
@@ -40,7 +39,7 @@ func TestHandler(t *testing.T) {
 }
 
 type testStructure struct {
-	authnResp                *sec.User
+	authnResp                *web.User
 	authnDecision            security.AuthenticationDecision
 	authnErr                 error
 	request                  *web.Request
@@ -115,7 +114,7 @@ var _ = Describe("Authn", func() {
 		Context("when user is already authenticated and present in context", func() {
 			It("invokes the next handler", func() {
 				validateAuthnMiddlewareBehavesCorrectly(&testStructure{
-					request:                  reqWithContext(web.NewContextWithUser(context.Background(), &sec.User{Name: "username"})),
+					request:                  reqWithContext(web.NewContextWithUser(context.Background(), &web.User{Name: "username"})),
 					actualHandlerInvokations: 1,
 					expectedResp:             expectedWebResponse,
 				})
@@ -179,7 +178,7 @@ var _ = Describe("Authn", func() {
 				Context("and returns a user", func() {
 					It("invokes the next handler and adds the user to the request context", func() {
 						testStruct := &testStructure{
-							authnResp: &sec.User{
+							authnResp: &web.User{
 								Name: "username",
 							},
 							authnDecision:            security.Allow,
@@ -245,7 +244,7 @@ var _ = Describe("Authn", func() {
 		Context("when user is in context", func() {
 			It("invokes next handler", func() {
 				validateRequiredMiddlewareBehavesCorrectly(&testStructure{
-					request:                  reqWithContext(web.NewContextWithUser(context.Background(), &sec.User{Name: "username"})),
+					request:                  reqWithContext(web.NewContextWithUser(context.Background(), &web.User{Name: "username"})),
 					actualHandlerInvokations: 1,
 					expectedErr:              nil,
 					expectedResp:             expectedWebResponse,

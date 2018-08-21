@@ -28,9 +28,9 @@ import (
 
 	"errors"
 
-	"github.com/Peripli/service-manager/pkg/sec"
-	"github.com/Peripli/service-manager/pkg/sec/secfakes"
 	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/pkg/web/webfakes"
 	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/security/securityfakes"
 	goidc "github.com/coreos/go-oidc"
@@ -291,7 +291,7 @@ var _ = Describe("OIDC Authenticator", func() {
 			request *http.Request
 			err     error
 		)
-		validateAuthenticationReturns := func(expectedUser *sec.User, expectedDecision security.AuthenticationDecision, expectedErr error) {
+		validateAuthenticationReturns := func(expectedUser *web.User, expectedDecision security.AuthenticationDecision, expectedErr error) {
 			authenticator, _ := NewAuthenticator(ctx, options)
 
 			user, decision, err := authenticator.Authenticate(request)
@@ -386,12 +386,12 @@ var _ = Describe("OIDC Authenticator", func() {
 				})
 
 				Context("when returned token cannot extract claims", func() {
-					var fakeToken *secfakes.FakeTokenData
+					var fakeToken *webfakes.FakeTokenData
 
 					BeforeEach(func() {
 						expectedError = fmt.Errorf("Claims extraction error")
 
-						fakeToken = &secfakes.FakeTokenData{}
+						fakeToken = &webfakes.FakeTokenData{}
 						fakeToken.ClaimsReturns(expectedError)
 
 						verifier.VerifyReturns(fakeToken, nil)
@@ -412,7 +412,7 @@ var _ = Describe("OIDC Authenticator", func() {
 
 					BeforeEach(func() {
 						tokenJson := fmt.Sprintf(`{"user_name": "%s", "abc": "xyz"}`, expectedUserName)
-						token := &secfakes.FakeTokenData{}
+						token := &webfakes.FakeTokenData{}
 						token.ClaimsStub = func(v interface{}) error {
 							return json.Unmarshal([]byte(tokenJson), v)
 						}
