@@ -144,10 +144,11 @@ func (api *API) validateFilters(filters ...Filter) {
 	registeredFilterNames := api.filterNames(api.Filters)
 	commonFilterNames := slice.StringsIntersection(registeredFilterNames, newFilterNames)
 	if len(commonFilterNames) > 0 {
-		logrus.Panicf("Filters %s are already registered", commonFilterNames)
+		logrus.Panicf("Filters %q are already registered", commonFilterNames)
 	}
-	if slice.StringsAnySubstring(newFilterNames, ":") {
-		logrus.Panic("Cannot register filters with : in their names")
+	filterNamesWithColon := slice.StringsContaining(newFilterNames, ":")
+	if  len(filterNamesWithColon) > 0 {
+		logrus.Panicf("Cannot register filters with : in their names. Invalid filter names: %q", filterNamesWithColon)
 	}
 }
 

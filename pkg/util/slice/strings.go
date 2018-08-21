@@ -33,14 +33,15 @@ func StringsIntersection(str1, str2 []string) []string {
 	return intersection
 }
 
-// StringsAnySubstring returns true if the string is contained in any of the elements of the slice.
-func StringsAnySubstring(stringSlice []string, str string) bool {
+// StringsContaining returns a slice of the strings containing the specified string.
+func StringsContaining(stringSlice []string, str string) []string {
+	var result []string
 	for _, v := range stringSlice {
 		if strings.Contains(v, str) {
-			return true
+			result = append(result, v)
 		}
 	}
-	return false
+	return result
 }
 
 // StringsAnyPrefix returns true if any of the strings in the slice have the given prefix.
