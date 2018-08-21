@@ -39,17 +39,11 @@ func (ba *BearerAuthnFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
-				web.Path("/v1/service_brokers/**"),
-			},
-		},
-		{
-			Matchers: []web.Matcher{
-				web.Path("/v1/platforms/**"),
-			},
-		},
-		{
-			Matchers: []web.Matcher{
-				web.Path("/v1/sm_catalog"),
+				web.Path(
+					web.BrokersURL+"/**",
+					web.PlatformsURL+"/**",
+					web.SMCatalogURL,
+				),
 			},
 		},
 	}

@@ -35,7 +35,12 @@ func (raf *RequiredAuthnFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
-				web.Path("/v1/service_brokers/**", "/v1/platforms/**", "/v1/sm_catalog", "/v1/osb/**"),
+				web.Path(
+					web.BrokersURL+"/**",
+					web.PlatformsURL+"/**",
+					web.SMCatalogURL,
+					web.OSBURL+"/**",
+				),
 			},
 		},
 	}

@@ -14,4 +14,10 @@ const (
 
 	// OSBURL is the OSB API base URL path
 	OSBURL = "/" + apiVersion + "/osb"
+
+	// MonitorHealthURL is the path of the healthcheck endpoint
+	MonitorHealthURL = "/" + apiVersion + "/monitor/health"
+
+	// InfoURL is the path of the info endpoint
+	InfoURL = "/" + apiVersion + "/info"
 )
