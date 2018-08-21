@@ -63,7 +63,6 @@ type Storage interface {
 }
 
 // Broker interface for Broker db operations
-//go:generate counterfeiter . Broker
 type Broker interface {
 	// Create stores a broker in SM DB
 	Create(broker *types.Broker) error
@@ -82,7 +81,6 @@ type Broker interface {
 }
 
 // Platform interface for Platform db operations
-//go:generate counterfeiter . Platform
 type Platform interface {
 	// Create stores a platform in SM DB
 	Create(platform *types.Platform) error
@@ -107,7 +105,7 @@ type Credentials interface {
 }
 
 // Security interface for encryption key operations
-type Security interface{
+type Security interface {
 	// Fetcher provides means to obtain the encryption key
 	Fetcher() security.KeyFetcher
 	// Setter provides means to change the encryption key
