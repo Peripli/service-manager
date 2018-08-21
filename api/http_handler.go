@@ -21,9 +21,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"bytes"
-	"io/ioutil"
-
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gorilla/mux"
@@ -88,7 +85,6 @@ func convertToWebRequest(request *http.Request) (*web.Request, error) {
 	var err error
 	if request.Method == "PUT" || request.Method == "POST" || request.Method == "PATCH" {
 		body, err = util.RequestBodyToBytes(request)
-		request.Body = ioutil.NopCloser(bytes.NewReader(body))
 	}
 
 	return &web.Request{

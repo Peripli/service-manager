@@ -27,6 +27,8 @@ import (
 
 	"net/http/httptest"
 
+	"bytes"
+
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -73,6 +75,7 @@ func (c *Controller) handler(request *web.Request) (*web.Response, error) {
 	modifiedRequest.SetBasicAuth(username, string(plaintextPassword))
 	modifiedRequest.Host = target.Host
 	modifiedRequest.URL.Path = m[1]
+	modifiedRequest.Body = ioutil.NopCloser(bytes.NewReader(request.Body))
 
 	logrus.Debugf("Forwarding OSB request to %s", modifiedRequest.URL)
 
