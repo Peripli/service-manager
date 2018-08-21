@@ -73,9 +73,10 @@ func (c *Controller) handler(request *web.Request) (*web.Response, error) {
 
 	modifiedRequest := request.Request.WithContext(request.Context())
 	modifiedRequest.SetBasicAuth(username, string(plaintextPassword))
+	modifiedRequest.Body = ioutil.NopCloser(bytes.NewReader(request.Body))
+	modifiedRequest.ContentLength = int64(len(request.Body))
 	modifiedRequest.Host = target.Host
 	modifiedRequest.URL.Path = m[1]
-	modifiedRequest.Body = ioutil.NopCloser(bytes.NewReader(request.Body))
 
 	logrus.Debugf("Forwarding OSB request to %s", modifiedRequest.URL)
 
