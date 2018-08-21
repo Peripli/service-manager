@@ -267,20 +267,20 @@ var _ = Describe("OIDC Authenticator", func() {
 					newTokenVerifier = tokenVerifier
 				})
 
-				It("Should not skip client id check when client id is not empty", func() {
-					options.ClientID = "client-id"
+				checkClientID := func(clientid string, skipClientIDCheck bool) {
+					options.ClientID = clientid
 					authenticator, err := NewAuthenticator(ctx, options)
 					Expect(err).To(BeNil())
 					Expect(authenticator).To(Not(BeNil()))
-					Expect(verifierConfig.SkipClientIDCheck).To(BeFalse())
+					Expect(verifierConfig.SkipClientIDCheck).To(Equal(skipClientIDCheck))
+				}
+
+				It("Should not skip client id check when client id is not empty", func() {
+					checkClientID("client1", false)
 				})
 
 				It("Should skip client id check when client id is empty", func() {
-					options.ClientID = ""
-					authenticator, err := NewAuthenticator(ctx, options)
-					Expect(err).To(BeNil())
-					Expect(authenticator).To(Not(BeNil()))
-					Expect(verifierConfig.SkipClientIDCheck).To(BeTrue())
+					checkClientID("", true)
 				})
 			})
 		})
