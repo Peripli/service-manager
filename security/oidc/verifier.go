@@ -28,6 +28,6 @@ type oidcVerifier struct {
 }
 
 // Verify implements security.TokenVerifier and delegates to oidc.IDTokenVerifier
-func (v *oidcVerifier) Verify(ctx context.Context, idToken string) (sec.Token, error) {
+func (v *oidcVerifier) Verify(ctx context.Context, idToken string) (sec.TokenData, error) {
 	return v.IDTokenVerifier.Verify(ctx, idToken)
 }

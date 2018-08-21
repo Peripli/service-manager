@@ -59,7 +59,7 @@ type Authenticator interface {
 //go:generate counterfeiter . TokenVerifier
 type TokenVerifier interface {
 	// Verify verifies that the token is valid and returns a token if so, otherwise returns an error
-	Verify(ctx context.Context, token string) (sec.Token, error)
+	Verify(ctx context.Context, token string) (sec.TokenData, error)
 }
 
 // Encrypter provides functionality to encrypt and decrypt data

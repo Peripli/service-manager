@@ -386,12 +386,12 @@ var _ = Describe("OIDC Authenticator", func() {
 				})
 
 				Context("when returned token cannot extract claims", func() {
-					var fakeToken *secfakes.FakeToken
+					var fakeToken *secfakes.FakeTokenData
 
 					BeforeEach(func() {
 						expectedError = fmt.Errorf("Claims extraction error")
 
-						fakeToken = &secfakes.FakeToken{}
+						fakeToken = &secfakes.FakeTokenData{}
 						fakeToken.ClaimsReturns(expectedError)
 
 						verifier.VerifyReturns(fakeToken, nil)
@@ -412,7 +412,7 @@ var _ = Describe("OIDC Authenticator", func() {
 
 					BeforeEach(func() {
 						tokenJson := fmt.Sprintf(`{"user_name": "%s", "abc": "xyz"}`, expectedUserName)
-						token := &secfakes.FakeToken{}
+						token := &secfakes.FakeTokenData{}
 						token.ClaimsStub = func(v interface{}) error {
 							return json.Unmarshal([]byte(tokenJson), v)
 						}

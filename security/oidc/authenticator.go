@@ -114,8 +114,8 @@ func (a *Authenticator) Authenticate(request *http.Request) (*sec.User, security
 		return nil, security.Deny, err
 	}
 	return &sec.User{
-		Name:  claims.Username,
-		Token: idToken,
+		Name:      claims.Username,
+		TokenData: idToken,
 	}, security.Allow, nil
 }
 
