@@ -35,13 +35,13 @@ func (ba *BasicAuthnFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
-				web.Path("/v1/osb/**"),
+				web.Path(web.OSBURL + "/**"),
 			},
 		},
 		{
 			Matchers: []web.Matcher{
 				web.Methods(http.MethodGet),
-				web.Path("/v1/service_brokers/**"),
+				web.Path(web.BrokersURL + "/**"),
 			},
 		},
 	}
