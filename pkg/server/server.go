@@ -48,6 +48,7 @@ func DefaultSettings() *Settings {
 	}
 }
 
+// NewSettings returns Server settings for the given enrivonment
 func NewSettings(env env.Environment) (*Settings, error) {
 	config := &Settings{}
 	if err := env.Unmarshal(config); err != nil {
@@ -94,6 +95,9 @@ func New(config *Settings, api *web.API) *Server {
 
 // Run starts the server awaiting for incoming requests
 func (s *Server) Run(ctx context.Context) {
+	if err := s.Config.Validate(); err != nil {
+		panic(fmt.Sprintf("invalid server config: %s", err))
+	}
 	handler := &http.Server{
 		Handler:      s.Router,
 		Addr:         s.Config.Host + ":" + strconv.Itoa(s.Config.Port),

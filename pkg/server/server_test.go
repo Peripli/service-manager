@@ -109,17 +109,15 @@ func (tf testFilter) Name() string {
 	return "testFilter"
 }
 
-func (tf testFilter) Run(next web.Handler) web.Handler {
-	return web.HandlerFunc(func(request *web.Request) (*web.Response, error) {
-		if request.URL.Query().Get("filter_fail_before") == "true" {
-			panic("expected")
-		}
-		res, err := next.Handle(request)
-		if request.URL.Query().Get("filter_fail_after") == "true" {
-			panic("expected")
-		}
-		return res, err
-	})
+func (tf testFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
+	if request.URL.Query().Get("filter_fail_before") == "true" {
+		panic("expected")
+	}
+	res, err := next.Handle(request)
+	if request.URL.Query().Get("filter_fail_after") == "true" {
+		panic("expected")
+	}
+	return res, err
 }
 
 func (tf testFilter) FilterMatchers() []web.FilterMatcher {

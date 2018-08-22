@@ -79,15 +79,15 @@ type Middleware interface {
 	// Run returns a handler that contains the handling logic of the Middleware. The implementation of Run
 	// should invoke next's Handle if the request should be chained to the next Handler.
 	// It may also terminate the request by not invoking the next Handler.
-	Run(next Handler) Handler
+	Run(req *Request, next Handler) (*Response, error)
 }
 
 // MiddlewareFunc is an adapter that allows to use regular functions as Middleware
-type MiddlewareFunc func(handler Handler) Handler
+type MiddlewareFunc func(req *Request, next Handler) (*Response, error)
 
 // Run allows MiddlewareFunc to act as a Middleware
-func (mf MiddlewareFunc) Run(handler Handler) Handler {
-	return mf(handler)
+func (mf MiddlewareFunc) Run(req *Request, handler Handler) (*Response, error) {
+	return mf(req, handler)
 }
 
 // Matcher allows checking whether an Endpoint matches a particular condition
@@ -143,9 +143,22 @@ func (fs Filters) Chain(h Handler) Handler {
 	for i := len(fs) - 1; i >= 0; i-- {
 		i := i
 		wrappedFilters[i] = HandlerFunc(func(request *Request) (*Response, error) {
-			logrus.Debug("Entering Filter: ", fs[i].Name(), " Path: ", request.URL.Path, " Method: ", request.Method)
-			resp, err := fs[i].Run(wrappedFilters[i+1]).Handle(request)
-			logrus.Debug("Exiting Filter: ", fs[i].Name(), " Err: ", err, " Path: ", request.URL.Path, " Method: ", request.Method)
+			params := map[string]interface{}{
+				"path":   request.URL.Path,
+				"method": request.Method,
+			}
+
+			logrus.WithFields(params).Debug("Entering Filter: ", fs[i].Name())
+
+			resp, err := fs[i].Run(request, wrappedFilters[i+1])
+
+			params["err"] = err
+			if resp != nil {
+				params["statusCode"] = resp.StatusCode
+			}
+
+			logrus.WithFields(params).Debug("Exiting Filter: ", fs[i].Name())
+
 			return resp, err
 		})
 	}

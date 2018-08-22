@@ -17,14 +17,17 @@
 package osb
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/http/httptest"
-	"net/http/httputil"
 	"net/url"
 	"regexp"
+
+	"net/http/httputil"
+
+	"net/http/httptest"
+
+	"bytes"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -85,32 +88,32 @@ func (c *controller) handler(request *web.Request) (*web.Response, error) {
 	if m == nil || len(m) < 2 {
 		return nil, fmt.Errorf("could not get OSB path from URL %s", request.URL.Path)
 	}
-	targetBrokerURL.Path = targetBrokerURL.Path + m[1]
 
 	modifiedRequest := request.Request.WithContext(request.Context())
 	modifiedRequest.SetBasicAuth(broker.Credentials.Basic.Username, broker.Credentials.Basic.Password)
-	modifiedRequest.Host = targetBrokerURL.Host
-	modifiedRequest.URL.Scheme = targetBrokerURL.Scheme
-	modifiedRequest.URL.Host = targetBrokerURL.Host
-	modifiedRequest.URL.Path = targetBrokerURL.Path
 	modifiedRequest.Body = ioutil.NopCloser(bytes.NewReader(request.Body))
 	modifiedRequest.ContentLength = int64(len(request.Body))
+	modifiedRequest.Host = targetBrokerURL.Host
+	modifiedRequest.URL.Path = m[1]
 
 	logrus.Debugf("Forwarding OSB request to %s", modifiedRequest.URL)
+
+	proxy := httputil.NewSingleHostReverseProxy(targetBrokerURL)
+	proxy.Transport = c.fetcher
 	recorder := httptest.NewRecorder()
-	c.proxy.ServeHTTP(recorder, modifiedRequest)
+
+	proxy.ServeHTTP(recorder, modifiedRequest)
 
 	respBody, err := ioutil.ReadAll(recorder.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	webResp := &web.Response{
+	resp := &web.Response{
 		StatusCode: recorder.Code,
 		Header:     recorder.HeaderMap,
 		Body:       respBody,
 	}
-
-	logrus.Debugf("Service broker replied with status %d", webResp.StatusCode)
-	return webResp, nil
+	logrus.Debugf("Service broker replied with status %d", resp.StatusCode)
+	return resp, nil
 }

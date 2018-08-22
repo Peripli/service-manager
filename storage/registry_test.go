@@ -25,6 +25,8 @@ import (
 	"testing"
 	"time"
 
+	"sync"
+
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/storagefakes"
 	"github.com/sirupsen/logrus"
@@ -37,6 +39,7 @@ func TestStorage(t *testing.T) {
 
 type logInterceptor struct {
 	data string
+	lock sync.RWMutex
 }
 
 func (*logInterceptor) Levels() []logrus.Level {
@@ -44,11 +47,17 @@ func (*logInterceptor) Levels() []logrus.Level {
 }
 
 func (interceptor *logInterceptor) Fire(e *logrus.Entry) (err error) {
+	interceptor.lock.Lock()
+	defer interceptor.lock.Unlock()
+
 	interceptor.data, err = e.String()
 	return
 }
 
 func (interceptor *logInterceptor) VerifyData(emptyData bool) {
+	interceptor.lock.Lock()
+	defer interceptor.lock.Unlock()
+
 	if emptyData {
 		Eventually(interceptor.data).Should(BeEmpty())
 	} else {

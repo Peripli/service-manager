@@ -18,10 +18,9 @@
 package postgres
 
 import (
+	"fmt"
 	"sync"
 	"time"
-
-	"fmt"
 
 	"github.com/Peripli/service-manager/storage"
 	"github.com/golang-migrate/migrate"
@@ -39,9 +38,10 @@ func init() {
 }
 
 type postgresStorage struct {
-	db    *sqlx.DB
-	state *storageState
+	db            *sqlx.DB
+	state         *storageState
 	encryptionKey []byte
+	mutex         *sync.Mutex
 }
 
 func (storage *postgresStorage) checkOpen() {
@@ -72,9 +72,9 @@ func (storage *postgresStorage) Credentials() storage.Credentials {
 	return &credentialStorage{storage.db}
 }
 
-func (storage *postgresStorage) Security() storage.Security{
+func (storage *postgresStorage) Security() storage.Security {
 	storage.checkOpen()
-	return &securityStorage{storage.db, storage.encryptionKey}
+	return &securityStorage{storage.db, storage.encryptionKey, false, storage.mutex}
 }
 
 func (storage *postgresStorage) Open(uri string, encryptionKey []byte) error {
@@ -94,6 +94,7 @@ func (storage *postgresStorage) Open(uri string, encryptionKey []byte) error {
 			db:                   storage.db,
 			storageCheckInterval: time.Second * 5,
 		}
+		storage.mutex = &sync.Mutex{}
 		storage.encryptionKey = encryptionKey
 		logrus.Debug("Updating database schema")
 		if err := updateSchema(storage.db); err != nil {

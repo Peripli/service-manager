@@ -8,6 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// HandleInterrupts handles process signal interrupts
 func HandleInterrupts() (context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithCancel(context.Background())
 	term := make(chan os.Signal)

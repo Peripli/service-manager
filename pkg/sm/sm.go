@@ -22,6 +22,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/config"
@@ -81,7 +82,7 @@ func New(ctx context.Context, env env.Environment) *ServiceManagerBuilder {
 		panic(fmt.Errorf("error loading configuration: %s", err))
 	}
 	if err := cfg.Validate(); err != nil {
-		panic(fmt.Sprintf("error validating config: %s", err))
+		panic(fmt.Sprintf("error validating configuration: %s", err))
 	}
 
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: cfg.API.SkipSSLValidation}
@@ -96,7 +97,7 @@ func New(ctx context.Context, env env.Environment) *ServiceManagerBuilder {
 	}
 
 	securityStorage := smStorage.Security()
-	if err := initializeSecureStorage(securityStorage); err != nil {
+	if err := initializeSecureStorage(ctx, securityStorage); err != nil {
 		panic(fmt.Sprintf("error initialzing secure storage: %v", err))
 	}
 
@@ -134,7 +135,12 @@ func (sm *ServiceManager) Run() {
 	sm.Server.Run(sm.ctx)
 }
 
-func initializeSecureStorage(secureStorage storage.Security) error {
+func initializeSecureStorage(ctx context.Context, secureStorage storage.Security) error {
+	ctx, cancelFunc := context.WithTimeout(ctx, 2*time.Second)
+	defer cancelFunc()
+	if err := secureStorage.Lock(ctx); err != nil {
+		return err
+	}
 	keyFetcher := secureStorage.Fetcher()
 	encryptionKey, err := keyFetcher.GetEncryptionKey()
 	if err != nil {
@@ -152,5 +158,5 @@ func initializeSecureStorage(secureStorage storage.Security) error {
 		}
 		logrus.Debug("Successfully generated new encryption key")
 	}
-	return nil
+	return secureStorage.Unlock()
 }

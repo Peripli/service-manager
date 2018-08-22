@@ -25,6 +25,8 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -o /mai
 ########################################################
 FROM alpine:3.7 AS package_step
 
+RUN apk add --no-cache ca-certificates
+
 WORKDIR /app
 
 # Copy the executable file

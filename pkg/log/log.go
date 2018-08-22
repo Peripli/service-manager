@@ -30,6 +30,7 @@ type Settings struct {
 	Format string
 }
 
+// DefaultSettings returns default values for Log settings
 func DefaultSettings() *Settings {
 	return &Settings{
 		Level:  "debug",
@@ -37,6 +38,7 @@ func DefaultSettings() *Settings {
 	}
 }
 
+// NewSettings returns Server settings for the given enrivonment
 func NewSettings(env env.Environment) (*Settings, error) {
 	config := &Settings{}
 	if err := env.Unmarshal(config); err != nil {
