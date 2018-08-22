@@ -13,3 +13,5 @@ api:
   skip_ssl_validation: false
   security:
     encryption_key: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
+  filters:
+    blacklist: []

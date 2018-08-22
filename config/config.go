@@ -63,6 +63,9 @@ func DefaultSettings() *Settings {
 				EncryptionKey: "",
 			},
 			SkipSSLValidation: false,
+			Filters: api.Filters{
+				Blacklist: []string{},
+			},
 		},
 	}
 	return config

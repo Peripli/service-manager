@@ -40,6 +40,12 @@ type Security struct {
 	EncryptionKey string `mapstructure:"encryption_key"`
 }
 
+// Filters is the configuration used for filter settings
+type Filters struct {
+	// Blacklist holds the names of filters to be excluded
+	Blacklist []string `mapstructure:"blacklist"`
+}
+
 // Validate validates the API Security settings
 func (s *Security) Validate() error {
 	if len(s.EncryptionKey) != 32 {
@@ -54,6 +60,7 @@ type Settings struct {
 	ClientID          string   `mapstructure:"client_id"`
 	Security          Security `mapstructure:"security"`
 	SkipSSLValidation bool     `mapstructure:"skip_ssl_validation"`
+	Filters           Filters  `mapstructure:"filters"`
 }
 
 // Validate validates the API settings

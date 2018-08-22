@@ -32,10 +32,15 @@ import (
 
 	"errors"
 
+	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/api/healthcheck"
+	"github.com/Peripli/service-manager/config"
+	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/env/envfakes"
 	"github.com/Peripli/service-manager/pkg/sm"
 	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/security/securityfakes"
+	"github.com/Peripli/service-manager/storage/storagefakes"
 	"github.com/Peripli/service-manager/test/common"
 )
 
@@ -49,6 +54,8 @@ var _ = Describe("SM", func() {
 		serviceManagerServer *httptest.Server
 		ctx                  context.Context
 		cancel               context.CancelFunc
+		defaultSMEnvironment env.Environment
+		defaultSMFilters     []web.Filter
 	)
 
 	BeforeSuite(func() {
@@ -56,6 +63,8 @@ var _ = Describe("SM", func() {
 		ctx, cancel = context.WithCancel(context.Background())
 		os.Chdir("../..")
 		os.Setenv("FILE_LOCATION", "test/common")
+
+		defaultSMFilters = retrieveDefaultSMFilters()
 	})
 
 	AfterSuite(func() {
@@ -65,6 +74,7 @@ var _ = Describe("SM", func() {
 
 	BeforeEach(func() {
 		os.Setenv("API_TOKEN_ISSUER_URL", common.SetupFakeOAuthServer().URL)
+		defaultSMEnvironment = sm.DefaultEnv()
 	})
 
 	AfterEach(func() {
@@ -125,6 +135,66 @@ var _ = Describe("SM", func() {
 			})
 		})
 
+		Context("When no filters are blacklisted", func() {
+			It("should return working service manager with all default filters registered", func() {
+				smanager := sm.New(ctx, cancel, sm.DefaultEnv())
+				actualFiltersRegistered := smanager.API.Filters
+
+				Expect(len(actualFiltersRegistered)).To(Equal(len(defaultSMFilters)))
+				verifyServiceManagerStartsSuccessFully(httptest.NewServer(smanager.Build().Server.Router))
+			})
+		})
+
+		Context("When an invalid filter is blacklisted", func() {
+			It("should return working service manager with all default filters registered", func() {
+				filterToExclude := "abc"
+				defaultSMEnvironment.Set("api.filters.blacklist", []string{filterToExclude})
+
+				smanager := sm.New(ctx, cancel, defaultSMEnvironment)
+				actualFiltersRegistered := smanager.API.Filters
+
+				Expect(len(actualFiltersRegistered)).To(Equal(len(defaultSMFilters)))
+				for _, filter := range actualFiltersRegistered {
+					Expect(filter.Name()).ShouldNot(Equal(filterToExclude))
+				}
+				verifyServiceManagerStartsSuccessFully(httptest.NewServer(smanager.Build().Server.Router))
+			})
+		})
+
+		Context("When a valid default filter is blacklisted", func() {
+			It("should return working service manager with all default filters registered except for the blacklisted one", func() {
+				filterToExclude := defaultSMFilters[0]
+
+				defaultSMEnvironment.Set("api.filters.blacklist", []string{filterToExclude.Name()})
+				smanager := sm.New(ctx, cancel, defaultSMEnvironment)
+
+				actualFiltersRegistered := smanager.API.Filters
+
+				Expect(len(actualFiltersRegistered)).Should(BeNumerically("<", len(defaultSMFilters)))
+				for _, filter := range actualFiltersRegistered {
+					Expect(filter.Name()).ShouldNot(Equal(filterToExclude))
+				}
+				verifyServiceManagerStartsSuccessFully(httptest.NewServer(smanager.Build().Server.Router))
+			})
+		})
+
+		Context("When all default filters are blacklisted", func() {
+			It("should return working service manager no filters registered", func() {
+				filtersToExclude := make([]string, len(defaultSMFilters))
+				for i, filter := range defaultSMFilters {
+					filtersToExclude[i] = filter.Name()
+				}
+
+				defaultSMEnvironment.Set("api.filters.blacklist", filtersToExclude)
+				smanager := sm.New(ctx, cancel, defaultSMEnvironment)
+
+				actualFiltersRegistered := smanager.API.Filters
+
+				Expect(len(actualFiltersRegistered)).To(Equal(0))
+				verifyServiceManagerStartsSuccessFully(httptest.NewServer(smanager.Build().Server.Router))
+			})
+		})
+
 		Context("when additional filter is registered", func() {
 			It("should return working service manager with a new filter", func() {
 				smanager := sm.New(ctx, cancel, sm.DefaultEnv())
@@ -153,6 +223,18 @@ var _ = Describe("SM", func() {
 		})
 	})
 })
+
+func retrieveDefaultSMFilters() []web.Filter {
+	mockOauthServer := common.SetupFakeOAuthServer()
+	defaultAPISettings := config.DefaultSettings().API
+	defaultAPISettings.TokenIssuerURL = mockOauthServer.URL
+	defaultAPISettings.ClientID = "cf"
+
+	defaultAPI, _ := api.New(context.Background(), &storagefakes.FakeStorage{}, defaultAPISettings, &securityfakes.FakeEncrypter{})
+
+	mockOauthServer.Close()
+	return defaultAPI.Filters
+}
 
 func verifyServiceManagerStartsSuccessFully(serviceManagerServer *httptest.Server) *httpexpect.Expect {
 	SM := httpexpect.New(GinkgoT(), serviceManagerServer.URL)

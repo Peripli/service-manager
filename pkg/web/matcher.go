@@ -35,7 +35,7 @@ func Methods(methods ...string) Matcher {
 			return false, errEmptyHTTPMethods
 		}
 		method := endpoint.Method
-		return matchInArray(methods, method), nil
+		return MatchInArray(methods, method), nil
 	})
 }
 
@@ -61,7 +61,8 @@ func Path(patterns ...string) Matcher {
 
 }
 
-func matchInArray(arr []string, value string) bool {
+// MatchInArray returns true if the given array contains the provided string value
+func MatchInArray(arr []string, value string) bool {
 	for _, v := range arr {
 		if v == value {
 			return true
