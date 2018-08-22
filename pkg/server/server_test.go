@@ -50,7 +50,7 @@ var _ = Describe("Server", func() {
 		testCtl.RegisterRoutes(route)
 		api.RegisterControllers(testCtl)
 		api.RegisterFilters(&testFilter{})
-		serverSettings := Settings{
+		serverSettings := &Settings{
 			Port:            0,
 			RequestTimeout:  time.Second * 3,
 			ShutdownTimeout: time.Second * 3,

@@ -71,7 +71,7 @@ func NewTestContext(smURL, tokenIssuerURL string) *TestContext {
 }
 
 func NewTestContextFromAPIs(additionalAPIs ...*web.API) *TestContext {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, _ := context.WithCancel(context.Background())
 	mockOauthServer := SetupFakeOAuthServer()
 
 	env := sm.DefaultEnv(func(set *pflag.FlagSet) {
@@ -79,7 +79,7 @@ func NewTestContextFromAPIs(additionalAPIs ...*web.API) *TestContext {
 		set.Set("api.token_issuer_url", mockOauthServer.URL)
 	})
 
-	smanagerBuilder := sm.New(ctx, cancel, env)
+	smanagerBuilder := sm.New(ctx, env)
 	for _, additionalAPI := range additionalAPIs {
 		smanagerBuilder.RegisterControllers(additionalAPI.Controllers...)
 		smanagerBuilder.RegisterFilters(additionalAPI.Filters...)

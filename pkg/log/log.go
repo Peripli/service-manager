@@ -20,6 +20,7 @@ package log
 import (
 	"fmt"
 
+	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/sirupsen/logrus"
 )
 
@@ -27,6 +28,24 @@ import (
 type Settings struct {
 	Level  string
 	Format string
+}
+
+// DefaultSettings returns default values for Log settings
+func DefaultSettings() *Settings {
+	return &Settings{
+		Level:  "debug",
+		Format: "text",
+	}
+}
+
+// NewSettings returns Server settings for the given enrivonment
+func NewSettings(env env.Environment) (*Settings, error) {
+	config := &Settings{}
+	if err := env.Unmarshal(config); err != nil {
+		return nil, err
+	}
+
+	return config, nil
 }
 
 // Validate validates the logging settings
@@ -46,7 +65,7 @@ var supportedFormatters = map[string]logrus.Formatter{
 }
 
 // SetupLogging configures logrus logging using the provided settings
-func SetupLogging(settings Settings) {
+func SetupLogging(settings *Settings) {
 	level, err := logrus.ParseLevel(settings.Level)
 	if err != nil {
 		panic(fmt.Sprintf("Could not parse log level configuration: %s", err.Error()))
