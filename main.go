@@ -17,16 +17,59 @@
 package main
 
 import (
-	"context"
+	"fmt"
+	"net/http"
+	"os"
 
-	"github.com/Peripli/service-manager/pkg/sm"
+	"github.com/Peripli/service-manager/pkg/caller"
+	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/sirupsen/logrus"
 )
 
-func main() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+type afilter struct {
+	name string
+}
 
-	env := sm.DefaultEnv()
-	serviceManager := sm.New(ctx, cancel, env).Build()
-	serviceManager.Run()
+func (s *afilter) Name() string {
+	return s.name
+}
+
+func (*afilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
+	panic("implement me")
+}
+
+func (*afilter) FilterMatchers() []web.FilterMatcher {
+	panic("implement me")
+}
+
+func main() {
+	logrus.SetLevel(logrus.DebugLevel)
+	logrus.SetOutput(os.Stdout)
+	config := caller.DefaultConfig("testCall")
+	config.FallbackHandler = func(e error) error {
+		fmt.Printf("Handled error %s", e)
+		return nil
+	}
+	caller, err := caller.New(config)
+	if err != nil {
+		panic(err)
+	}
+	request, err := http.NewRequest(http.MethodGet, "https://sdfsdf.com/BB%D0%B8-280-%D0%B3%D1%80-", nil)
+	if err != nil {
+		panic(err)
+	}
+	r := &web.Request{Request: request}
+	response, err := caller.Call(r)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("%#v", response)
+	// ctx, cancel := context.WithCancel(context.Background())
+	// defer cancel()
+	//
+	// env := sm.DefaultEnv()
+	// builder := sm.New(ctx, cancel, env)
+	// builder.RegisterFilters(&afilter{"Filter:Name"}, &afilter{"A   USD:woijf:afasd"})
+	// serviceManager := builder.Build()
+	// serviceManager.Run()
 }
