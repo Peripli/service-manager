@@ -23,3 +23,5 @@ debug
 # IDE specific
 .vscode/
 /.idea
+
+local_dev
