@@ -100,6 +100,8 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 		panic(fmt.Sprintf("error creating core API: %s", err))
 	}
 
+	excludeBlacklistedFilters(&API.Filters, cfg.API.Filters.Blacklist)
+
 	return &ServiceManagerBuilder{
 		ctx:    ctx,
 		cancel: cancel,
@@ -179,6 +181,18 @@ func initializeSecureStorage(ctx context.Context, secureStorage storage.Security
 		logrus.Debug("Successfully generated new encryption key")
 	}
 	return secureStorage.Unlock()
+}
+
+func excludeBlacklistedFilters(filters *[]web.Filter, filterBlacklist []string) {
+	removedFilters := 0
+	for i := range *filters {
+		idx := i - removedFilters
+		if web.MatchInArray(filterBlacklist, (*filters)[idx].Name()) {
+			copiedElements := copy((*filters)[idx:], (*filters)[idx+1:])
+			*filters = (*filters)[:idx+copiedElements]
+			removedFilters++
+		}
+	}
 }
 
 func handleInterrupts(ctx context.Context, cancelFunc context.CancelFunc) {
