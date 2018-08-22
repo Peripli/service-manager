@@ -61,6 +61,7 @@ func Path(patterns ...string) Matcher {
 
 }
 
+// MatchInArray returns true if the given array contains the provided string value
 func MatchInArray(arr []string, value string) bool {
 	for _, v := range arr {
 		if v == value {
