@@ -135,7 +135,7 @@ var _ = Describe("SM", func() {
 			})
 		})
 
-		Context("When no filter are blacklisted", func() {
+		Context("When no filters are blacklisted", func() {
 			It("should return working service manager with all default filters registered", func() {
 				smanager := sm.New(ctx, cancel, sm.DefaultEnv())
 				actualFiltersRegistered := smanager.API.Filters
@@ -161,7 +161,7 @@ var _ = Describe("SM", func() {
 			})
 		})
 
-		Context("When a valid filter is blacklisted", func() {
+		Context("When a valid default filter is blacklisted", func() {
 			It("should return working service manager with all default filters registered except for the blacklisted one", func() {
 				filterToExclude := defaultSMFilters[0]
 
