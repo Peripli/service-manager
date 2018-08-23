@@ -38,7 +38,7 @@ const (
 )
 
 // Routes implements api.Controller.Routes by providing the routes for the OSB API
-func (c *Controller) Routes() []web.Route {
+func (c *controller) Routes() []web.Route {
 	return []web.Route{
 		{Endpoint: web.Endpoint{Method: http.MethodGet, Path: catalogURL}, Handler: c.handler},
 

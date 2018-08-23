@@ -20,6 +20,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/Peripli/service-manager/api/broker"
 	"github.com/Peripli/service-manager/api/catalog"
@@ -56,6 +57,19 @@ type Settings struct {
 	SkipSSLValidation bool     `mapstructure:"skip_ssl_validation"`
 }
 
+// DefaultSettings returns default values for API settings
+func DefaultSettings() *Settings {
+	return &Settings{
+		TokenIssuerURL: "",
+		ClientID:       "",
+		Security: Security{
+			EncryptionKey: "",
+		},
+		SkipSSLValidation: false,
+	}
+
+}
+
 // Validate validates the API settings
 func (s *Settings) Validate() error {
 	if (len(s.TokenIssuerURL)) == 0 {
@@ -68,7 +82,7 @@ func (s *Settings) Validate() error {
 }
 
 // New returns the minimum set of REST APIs needed for the Service Manager
-func New(ctx context.Context, storage storage.Storage, settings Settings, encrypter security.Encrypter) (*web.API, error) {
+func New(ctx context.Context, storage storage.Storage, settings *Settings, encrypter security.Encrypter) (*web.API, error) {
 	bearerAuthnFilter, err := authn.NewBearerAuthnFilter(ctx, settings.TokenIssuerURL, settings.ClientID)
 	if err != nil {
 		return nil, err
@@ -91,10 +105,11 @@ func New(ctx context.Context, storage storage.Storage, settings Settings, encryp
 			&catalog.Controller{
 				BrokerStorage: storage.Broker(),
 			},
-			&osb.Controller{
+			osb.NewController(&osb.BrokerTransport{
 				BrokerStorage: storage.Broker(),
 				Encrypter:     encrypter,
-			},
+				Tr:            http.DefaultTransport,
+			}),
 			&healthcheck.Controller{
 				Storage: storage,
 			},
