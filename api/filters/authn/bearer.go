@@ -14,7 +14,7 @@ type BearerAuthnFilter struct {
 
 // NewBearerAuthnFilter returns a BearerAuthnFilter
 func NewBearerAuthnFilter(ctx context.Context, tokenIssuer, clientID string) (*BearerAuthnFilter, error) {
-	authenticator, err := oidc.NewAuthenticator(ctx, oidc.Options{
+	authenticator, err := oidc.NewAuthenticator(ctx, &oidc.Options{
 		IssuerURL: tokenIssuer,
 		ClientID:  clientID,
 	})

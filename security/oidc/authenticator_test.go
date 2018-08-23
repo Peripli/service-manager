@@ -33,7 +33,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/web/webfakes"
 	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/security/securityfakes"
-	goidc "github.com/coreos/go-oidc"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
@@ -93,7 +92,7 @@ var _ = Describe("OIDC Authenticator", func() {
 	var openIdResponseBodyBytes []byte
 
 	var readConfigFunc util.DoRequestFunc
-	var options Options
+	var options *Options
 
 	issuerPath := "/oauth/token"
 	jwksPath := "/public_keys"
@@ -119,7 +118,7 @@ var _ = Describe("OIDC Authenticator", func() {
 	})
 
 	JustBeforeEach(func() {
-		options = Options{
+		options = &Options{
 			ReadConfigurationFunc: readConfigFunc,
 			IssuerURL:             openidServer.URL(),
 			ClientID:              "client-id",
@@ -251,36 +250,15 @@ var _ = Describe("OIDC Authenticator", func() {
 				})
 			})
 
-			Context("Client ID", func() {
-				tokenVerifier := newTokenVerifier
-				var verifierConfig *goidc.Config
-
-				BeforeEach(func() {
-					newTokenVerifier = func(issuerURL string, keySet goidc.KeySet,
-						config *goidc.Config) *goidc.IDTokenVerifier {
-						verifierConfig = config
-						return tokenVerifier(issuerURL, keySet, config)
-					}
-				})
-
-				AfterEach(func() {
-					newTokenVerifier = tokenVerifier
-				})
-
-				checkClientID := func(clientid string, skipClientIDCheck bool) {
-					options.ClientID = clientid
-					authenticator, err := NewAuthenticator(ctx, options)
-					Expect(err).To(BeNil())
-					Expect(authenticator).To(Not(BeNil()))
-					Expect(verifierConfig.SkipClientIDCheck).To(Equal(skipClientIDCheck))
-				}
-
+			Context("newOIDCConfig", func() {
 				It("Should not skip client id check when client id is not empty", func() {
-					checkClientID("client1", false)
+					config := newOIDCConfig(&Options{ClientID: "client1"})
+					Expect(config.SkipClientIDCheck).To(BeFalse())
 				})
 
 				It("Should skip client id check when client id is empty", func() {
-					checkClientID("", true)
+					config := newOIDCConfig(&Options{ClientID: ""})
+					Expect(config.SkipClientIDCheck).To(BeTrue())
 				})
 			})
 		})

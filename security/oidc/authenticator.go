@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// Package oidc contains logic for setting up an oidc authenticator
+// Package oidc contains logic for setting up an Open ID Connect authenticator
 package oidc
 
 import (
@@ -61,10 +61,8 @@ type Authenticator struct {
 	Verifier security.TokenVerifier
 }
 
-var newTokenVerifier = goidc.NewVerifier
-
 // NewAuthenticator returns a new OpenID authenticator or an error if one couldn't be configured
-func NewAuthenticator(ctx context.Context, options Options) (*Authenticator, error) {
+func NewAuthenticator(ctx context.Context, options *Options) (*Authenticator, error) {
 	if options.IssuerURL == "" {
 		return nil, errors.New("missing issuer URL")
 	}
@@ -83,13 +81,16 @@ func NewAuthenticator(ctx context.Context, options Options) (*Authenticator, err
 	}
 
 	keySet := goidc.NewRemoteKeySet(ctx, p.JWKSURL)
-	cfg := &goidc.Config{
+	return &Authenticator{Verifier: &oidcVerifier{
+		IDTokenVerifier: goidc.NewVerifier(p.Issuer, keySet, newOIDCConfig(options)),
+	}}, nil
+}
+
+func newOIDCConfig(options *Options) *goidc.Config {
+	return &goidc.Config{
 		ClientID:          options.ClientID,
 		SkipClientIDCheck: options.ClientID == "",
 	}
-	return &Authenticator{Verifier: &oidcVerifier{
-		IDTokenVerifier: newTokenVerifier(p.Issuer, keySet, cfg),
-	}}, nil
 }
 
 // Authenticate returns information about the user by obtaining it from the bearer token, or an error if security is unsuccessful
@@ -119,7 +120,7 @@ func (a *Authenticator) Authenticate(request *http.Request) (*web.User, security
 	}, security.Allow, nil
 }
 
-func getOpenIDConfig(ctx context.Context, options Options) (*http.Response, error) {
+func getOpenIDConfig(ctx context.Context, options *Options) (*http.Response, error) {
 	// Work around for UAA until https://github.com/cloudfoundry/uaa/issues/805 is fixed
 	// Then goidc.NewProvider(ctx, options.IssuerURL) should be used
 	if _, err := url.ParseRequestURI(options.IssuerURL); err != nil {
