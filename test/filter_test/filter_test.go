@@ -30,7 +30,7 @@ var _ = Describe("Service Manager Filters", func() {
 		api := &web.API{}
 		api.RegisterFilters(testFilters...)
 		ctx = common.NewTestContextFromAPIs(nil, api)
-		testBroker  = ctx.RegisterBroker("broker1", nil)
+		testBroker = ctx.RegisterBroker("broker1", nil)
 		order = ""
 	})
 

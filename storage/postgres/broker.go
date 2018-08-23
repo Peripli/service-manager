@@ -27,7 +27,6 @@ type brokerStorage struct {
 
 func (bs *brokerStorage) Create(broker *types.Broker) error {
 	return create(bs.db, brokerTable, convertBrokerToDTO(broker))
-
 }
 
 func (bs *brokerStorage) Get(id string) (*types.Broker, error) {

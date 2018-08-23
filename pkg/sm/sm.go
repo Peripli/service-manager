@@ -22,13 +22,12 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
-	"os"
-	"os/signal"
+	"time"
 
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/config"
+	"github.com/Peripli/service-manager/pkg/server"
 	"github.com/Peripli/service-manager/security"
-	"github.com/Peripli/service-manager/server"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/postgres"
 
@@ -40,6 +39,21 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )
+
+// ServiceManagerBuilder type is an extension point that allows adding additional filters, plugins and
+// controllers before running ServiceManager.
+type ServiceManagerBuilder struct {
+	*web.API
+
+	ctx context.Context
+	cfg *server.Settings
+}
+
+// ServiceManager  struct
+type ServiceManager struct {
+	ctx    context.Context
+	Server *server.Server
+}
 
 // DefaultEnv creates a default environment that can be used to boot up a Service Manager
 func DefaultEnv(additionalPFlags ...func(set *pflag.FlagSet)) env.Environment {
@@ -60,10 +74,7 @@ func DefaultEnv(additionalPFlags ...func(set *pflag.FlagSet)) env.Environment {
 }
 
 // New returns service-manager Server with default setup. The function panics on bad configuration
-func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *ServiceManagerBuilder {
-	// graceful shutdown and handle interrupts
-	handleInterrupts(ctx, cancel)
-
+func New(ctx context.Context, env env.Environment) *ServiceManagerBuilder {
 	// setup config from env
 	cfg, err := config.New(env)
 	if err != nil {
@@ -85,7 +96,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	}
 
 	securityStorage := smStorage.Security()
-	if err := initializeSecureStorage(securityStorage); err != nil {
+	if err := initializeSecureStorage(ctx, securityStorage); err != nil {
 		panic(fmt.Sprintf("error initialzing secure storage: %v", err))
 	}
 
@@ -93,17 +104,16 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 		Fetcher: securityStorage.Fetcher(),
 	}
 
-	// setup core API
+	// setup core api
 	API, err := api.New(ctx, smStorage, cfg.API, encrypter)
 	if err != nil {
-		panic(fmt.Sprintf("error creating core API: %s", err))
+		panic(fmt.Sprintf("error creating core api: %s", err))
 	}
 
 	return &ServiceManagerBuilder{
-		ctx:    ctx,
-		cancel: cancel,
-		cfg:    cfg.Server,
-		API:    API,
+		ctx: ctx,
+		cfg: cfg.Server,
+		API: API,
 	}
 }
 
@@ -131,7 +141,7 @@ type ServiceManagerBuilder struct {
 func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	// setup server and add relevant global middleware
 	srv := server.New(smb.cfg, smb.API)
-	srv.Router.Use(filters.NewRecoveryMiddleware())
+	srv.Use(filters.NewRecoveryMiddleware())
 
 	return &ServiceManager{
 		ctx:    smb.ctx,
@@ -139,7 +149,17 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	}
 }
 
-func initializeSecureStorage(secureStorage storage.Security) error {
+// Run starts the Service Manager
+func (sm *ServiceManager) Run() {
+	sm.Server.Run(sm.ctx)
+}
+
+func initializeSecureStorage(ctx context.Context, secureStorage storage.Security) error {
+	ctx, cancelFunc := context.WithTimeout(ctx, 2*time.Second)
+	defer cancelFunc()
+	if err := secureStorage.Lock(ctx); err != nil {
+		return err
+	}
 	keyFetcher := secureStorage.Fetcher()
 	encryptionKey, err := keyFetcher.GetEncryptionKey()
 	if err != nil {
@@ -157,19 +177,5 @@ func initializeSecureStorage(secureStorage storage.Security) error {
 		}
 		logrus.Debug("Successfully generated new encryption key")
 	}
-	return nil
-}
-
-func handleInterrupts(ctx context.Context, cancelFunc context.CancelFunc) {
-	term := make(chan os.Signal)
-	signal.Notify(term, os.Interrupt)
-	go func() {
-		select {
-		case <-term:
-			logrus.Error("Received OS interrupt, exiting gracefully...")
-			cancelFunc()
-		case <-ctx.Done():
-			return
-		}
-	}()
+	return secureStorage.Unlock()
 }

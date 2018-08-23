@@ -38,10 +38,10 @@ spec:
               name: {{ template "service-manager.fullname" . }}-secret
               key: uri
         - name: API_SECURITY_ENCRYPTION_KEY
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "service-manager.fullname" . }}-secret
-                key: encryption_key
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "service-manager.fullname" . }}-secret
+              key: encryption_key
         args:
          - "--file.location={{ .Values.file.location }}"
          - "--file.name={{ .Values.file.name }}"
