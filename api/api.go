@@ -61,7 +61,7 @@ type Settings struct {
 func DefaultSettings() *Settings {
 	return &Settings{
 		TokenIssuerURL: "",
-		ClientID:       "sm",
+		ClientID:       "",
 		Security: Security{
 			EncryptionKey: "",
 		},
@@ -74,9 +74,6 @@ func DefaultSettings() *Settings {
 func (s *Settings) Validate() error {
 	if (len(s.TokenIssuerURL)) == 0 {
 		return fmt.Errorf("validate Settings: APITokenIssuerURL missing")
-	}
-	if (len(s.ClientID)) == 0 {
-		return fmt.Errorf("validate Settings: APIClientID missing")
 	}
 	if err := s.Security.Validate(); err != nil {
 		return err

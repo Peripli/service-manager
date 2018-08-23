@@ -23,47 +23,41 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-const (
-	apiVersion = "v1"
-	root       = "platforms"
-	url        = "/" + apiVersion + "/" + root
-)
-
 // Routes returns slice of routes which handle platform operations
 func (c *Controller) Routes() []web.Route {
 	return []web.Route{
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodPost,
-				Path:   url,
+				Path:   web.PlatformsURL,
 			},
 			Handler: c.createPlatform,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   url + "/{platform_id}",
+				Path:   web.PlatformsURL + "/{platform_id}",
 			},
 			Handler: c.getPlatform,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   url,
+				Path:   web.PlatformsURL,
 			},
 			Handler: c.getAllPlatforms,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodDelete,
-				Path:   url + "/{platform_id}",
+				Path:   web.PlatformsURL + "/{platform_id}",
 			},
 			Handler: c.deletePlatform,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodPatch,
-				Path:   url + "/{platform_id}",
+				Path:   web.PlatformsURL + "/{platform_id}",
 			},
 			Handler: c.patchPlatform,
 		},

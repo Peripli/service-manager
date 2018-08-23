@@ -20,6 +20,8 @@ package security
 import (
 	"context"
 	"net/http"
+
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
 // AuthenticationDecision represents a Authenticator decision to allow or deny authentication or to abstain from
@@ -44,32 +46,20 @@ func (a AuthenticationDecision) String() string {
 	return decisions[a]
 }
 
-// User holds the information for the current user
-type User struct {
-	Name string `json:"name"`
-}
-
 // Authenticator extracts the authenticator information from the request and
 // returns information about the current user or an error if security was not successful
 //go:generate counterfeiter . Authenticator
 type Authenticator interface {
 	// Authenticate returns information about the user if security is successful, a bool specifying
 	// whether the authenticator ran or not and an error if one occurs
-	Authenticate(req *http.Request) (*User, AuthenticationDecision, error)
-}
-
-// Token interface provides means to unmarshal the claims in a struct
-//go:generate counterfeiter . Token
-type Token interface {
-	// Claims unmarshals the claims into the specified struct
-	Claims(v interface{}) error
+	Authenticate(req *http.Request) (*web.User, AuthenticationDecision, error)
 }
 
 // TokenVerifier attempts to verify a token and returns it or an error if the verification was not successful
 //go:generate counterfeiter . TokenVerifier
 type TokenVerifier interface {
 	// Verify verifies that the token is valid and returns a token if so, otherwise returns an error
-	Verify(ctx context.Context, token string) (Token, error)
+	Verify(ctx context.Context, token string) (web.TokenData, error)
 }
 
 // Encrypter provides functionality to encrypt and decrypt data

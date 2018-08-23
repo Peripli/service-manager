@@ -24,17 +24,11 @@ import (
 )
 
 const (
-	// v1 is a prefix the first version of the OSB API
-	v1 = "/v1"
-
-	// root is a prefix for the OSB API
-	root = "/osb"
-
 	// BrokerIDPathParam is a service broker ID path parameter
 	BrokerIDPathParam = "brokerID"
 
 	// baseURL is the OSB API controller path
-	baseURL = v1 + root + "/{" + BrokerIDPathParam + "}"
+	baseURL = web.OSBURL + "/{" + BrokerIDPathParam + "}"
 
 	catalogURL                      = baseURL + "/v2/catalog"
 	serviceInstanceURL              = baseURL + "/v2/service_instances/{instance_id}"
