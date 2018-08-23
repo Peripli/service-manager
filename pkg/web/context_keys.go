@@ -6,7 +6,9 @@ import (
 
 type contextKey int
 
-const userKey contextKey = 0
+const (
+	userKey contextKey = iota
+)
 
 // UserFromContext gets the authenticated user from the context
 func UserFromContext(ctx context.Context) (*User, bool) {
