@@ -23,9 +23,9 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/security"
-	"github.com/satori/go.uuid"
+	"github.com/Peripli/service-manager/storage"
+	"github.com/gofrs/uuid"
 	"github.com/sirupsen/logrus"
 )
 
