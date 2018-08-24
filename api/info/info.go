@@ -23,12 +23,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-const (
-	apiVersion = "v1"
-	root       = "info"
-	// URL is the path of the info endpoint
-	URL = "/" + apiVersion + "/" + root
-)
+// URL is the path of the info endpoint
+const URL = web.InfoURL
 
 // Routes returns a slice of the routs that handle info operations
 func (c *Controller) Routes() []web.Route {

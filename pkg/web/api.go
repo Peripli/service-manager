@@ -21,6 +21,7 @@ package web
 import (
 	"net/http"
 
+	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/sirupsen/logrus"
 )
 
@@ -79,19 +80,116 @@ func (api *API) RegisterControllers(controllers ...Controller) {
 
 // RegisterFilters registers a set of filters
 func (api *API) RegisterFilters(filters ...Filter) {
+	api.validateFilters(filters...)
 	api.Filters = append(api.Filters, filters...)
+}
+
+// RegisterFilterBefore registers the specified filter before the one with the given name.
+// If for some routes, the filter with the given name does not match the routes of the provided filter, then
+// the filter will be registered at the place at which the filter with this name would have been, had it been
+// configured to match route.
+func (api *API) RegisterFilterBefore(beforeFilterName string, filter Filter) {
+	logrus.Debugf("Registering filter %s before %s", filter.Name(), beforeFilterName)
+	api.validateFilters(filter)
+	api.registerFilterRelatively(beforeFilterName, filter, func(beforeFilterPosition int) int {
+		return beforeFilterPosition
+	})
+}
+
+// RegisterFilterAfter registers the specified filter after the one with the given name.
+// If for some routes, the filter with the given name does not match the routes of the provided filter, then
+// the filter will be registered after the place at which the filter with this name would have been, had it been
+// configured to match route.
+func (api *API) RegisterFilterAfter(afterFilterName string, filter Filter) {
+	logrus.Debugf("Registering filter %s after %s", filter.Name(), afterFilterName)
+	api.validateFilters(filter)
+	api.registerFilterRelatively(afterFilterName, filter, func(filterPosition int) int {
+		return filterPosition + 1
+	})
+}
+
+// ReplaceFilter registers the given filter in the place of the filter with the given name.
+func (api *API) ReplaceFilter(replacedFilterName string, filter Filter) {
+	logrus.Debugf("Replacing filter %s with %s", replacedFilterName, filter.Name())
+	api.validateFilters(filter)
+	registeredFilterPosition := api.findFilterPosition(replacedFilterName)
+	api.Filters[registeredFilterPosition] = filter
+}
+
+// RemoveFilter removes the filter with the given name
+func (api *API) RemoveFilter(name string) {
+	position := api.findFilterPosition(name)
+	copy(api.Filters[position:], api.Filters[position+1:])
+	api.Filters[len(api.Filters)-1] = nil
+	api.Filters = api.Filters[:len(api.Filters)-1]
 }
 
 // RegisterPlugins registers a set of plugins
 func (api *API) RegisterPlugins(plugins ...Plugin) {
 	for _, plugin := range plugins {
-		pluginSegments := api.decomposePlugin(plugin)
-		if len(pluginSegments) == 0 {
-			logrus.Panicf("%T does not implement any plugin operation", plugin)
+		registeredFilterNames := api.filterNames(api.Filters)
+		if slice.StringsAnyPrefix(registeredFilterNames, plugin.Name()+":") {
+			logrus.Panicf("Plugin %s is already registered", plugin.Name())
 		}
-
-		api.RegisterFilters(pluginSegments...)
+		pluginSegments := api.decomposePluginOrDie(plugin)
+		api.Filters = append(api.Filters, pluginSegments...)
 	}
+}
+
+func (api *API) validateFilters(filters ...Filter) {
+	newFilterNames := api.filterNames(filters)
+	if slice.StringsAnyEquals(newFilterNames, "") {
+		logrus.Panicf("Filters cannot have empty names")
+	}
+	registeredFilterNames := api.filterNames(api.Filters)
+	commonFilterNames := slice.StringsIntersection(registeredFilterNames, newFilterNames)
+	if len(commonFilterNames) > 0 {
+		logrus.Panicf("Filters %q are already registered", commonFilterNames)
+	}
+	filterNamesWithColon := slice.StringsContaining(newFilterNames, ":")
+	if  len(filterNamesWithColon) > 0 {
+		logrus.Panicf("Cannot register filters with : in their names. Invalid filter names: %q", filterNamesWithColon)
+	}
+}
+
+func (api *API) registerFilterRelatively(filterName string, newFilter Filter, newFilterPosition func(filterPosition int) int) {
+	registeredFilterPosition := api.findFilterPosition(filterName)
+	filterPosition := newFilterPosition(registeredFilterPosition)
+	api.Filters = append(api.Filters, nil)
+	copy(api.Filters[filterPosition+1:], api.Filters[filterPosition:])
+	api.Filters[filterPosition] = newFilter
+}
+
+func (api *API) findFilterPosition(filterName string) int {
+	filterPosition := -1
+	for i := range api.Filters {
+		registeredFilter := api.Filters[i]
+		if registeredFilter.Name() == filterName {
+			filterPosition = i
+			break
+		}
+	}
+	if filterPosition < 0 {
+		logrus.Panicf("Filter with name %s is not found", filterName)
+	}
+	return filterPosition
+}
+
+func (api *API) filterNames(filters []Filter) []string {
+	var filterNames []string
+	for i := range filters {
+		filter := filters[i]
+		filterNames = append(filterNames, filter.Name())
+	}
+	return filterNames
+}
+
+func (api *API) decomposePluginOrDie(plugin Plugin) []Filter {
+	pluginSegments := api.decomposePlugin(plugin)
+	if len(pluginSegments) == 0 {
+		logrus.Panicf("%T does not implement any plugin operation", plugin)
+	}
+	return pluginSegments
 }
 
 // decomposePlugin decomposes a Plugin into multiple Filters

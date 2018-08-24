@@ -35,7 +35,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var osbPathPattern = regexp.MustCompile("^" + v1 + root + "/[^/]+(/.*)$")
+var osbPathPattern = regexp.MustCompile("^" + web.OSBURL + "/[^/]+(/.*)$")
 
 // BrokerRoundTripper is implemented by OSB handler providers
 type BrokerRoundTripper interface {

@@ -112,13 +112,6 @@ var _ = Describe("config", func() {
 				assertErrorDuringValidate()
 			})
 		})
-
-		Context("when CLI ClientID is missing", func() {
-			It("returns an error", func() {
-				config.API.ClientID = ""
-				assertErrorDuringValidate()
-			})
-		})
 	})
 
 	Describe("New", func() {

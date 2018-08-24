@@ -5,29 +5,30 @@ import (
 	"context"
 	"sync"
 
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/security"
 )
 
 type FakeTokenVerifier struct {
-	VerifyStub        func(ctx context.Context, token string) (security.Token, error)
+	VerifyStub        func(ctx context.Context, token string) (web.TokenData, error)
 	verifyMutex       sync.RWMutex
 	verifyArgsForCall []struct {
 		ctx   context.Context
 		token string
 	}
 	verifyReturns struct {
-		result1 security.Token
+		result1 web.TokenData
 		result2 error
 	}
 	verifyReturnsOnCall map[int]struct {
-		result1 security.Token
+		result1 web.TokenData
 		result2 error
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeTokenVerifier) Verify(ctx context.Context, token string) (security.Token, error) {
+func (fake *FakeTokenVerifier) Verify(ctx context.Context, token string) (web.TokenData, error) {
 	fake.verifyMutex.Lock()
 	ret, specificReturn := fake.verifyReturnsOnCall[len(fake.verifyArgsForCall)]
 	fake.verifyArgsForCall = append(fake.verifyArgsForCall, struct {
@@ -57,24 +58,24 @@ func (fake *FakeTokenVerifier) VerifyArgsForCall(i int) (context.Context, string
 	return fake.verifyArgsForCall[i].ctx, fake.verifyArgsForCall[i].token
 }
 
-func (fake *FakeTokenVerifier) VerifyReturns(result1 security.Token, result2 error) {
+func (fake *FakeTokenVerifier) VerifyReturns(result1 web.TokenData, result2 error) {
 	fake.VerifyStub = nil
 	fake.verifyReturns = struct {
-		result1 security.Token
+		result1 web.TokenData
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *FakeTokenVerifier) VerifyReturnsOnCall(i int, result1 security.Token, result2 error) {
+func (fake *FakeTokenVerifier) VerifyReturnsOnCall(i int, result1 web.TokenData, result2 error) {
 	fake.VerifyStub = nil
 	if fake.verifyReturnsOnCall == nil {
 		fake.verifyReturnsOnCall = make(map[int]struct {
-			result1 security.Token
+			result1 web.TokenData
 			result2 error
 		})
 	}
 	fake.verifyReturnsOnCall[i] = struct {
-		result1 security.Token
+		result1 web.TokenData
 		result2 error
 	}{result1, result2}
 }

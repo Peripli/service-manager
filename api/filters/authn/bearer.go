@@ -7,6 +7,9 @@ import (
 	"github.com/Peripli/service-manager/security/oidc"
 )
 
+// BearerAuthnFilterName is the name of the bearer authentication filter
+const BearerAuthnFilterName string = "BearerAuthnFilter"
+
 // BearerAuthnFilter performs Bearer authentication by validating the Authorization header
 type BearerAuthnFilter struct {
 	Middleware
@@ -14,7 +17,7 @@ type BearerAuthnFilter struct {
 
 // NewBearerAuthnFilter returns a BearerAuthnFilter
 func NewBearerAuthnFilter(ctx context.Context, tokenIssuer, clientID string) (*BearerAuthnFilter, error) {
-	authenticator, err := oidc.NewAuthenticator(ctx, oidc.Options{
+	authenticator, err := oidc.NewAuthenticator(ctx, &oidc.Options{
 		IssuerURL: tokenIssuer,
 		ClientID:  clientID,
 	})
@@ -24,14 +27,14 @@ func NewBearerAuthnFilter(ctx context.Context, tokenIssuer, clientID string) (*B
 	return &BearerAuthnFilter{
 		Middleware: Middleware{
 			authenticator: authenticator,
-			name:          "BearerAuthenticationFilter",
+			name:          BearerAuthnFilterName,
 		},
 	}, nil
 }
 
 // Name implements the web.Filter interface and returns the identifier of the filter
 func (ba *BearerAuthnFilter) Name() string {
-	return "BearerAuthenticationFilter"
+	return BearerAuthnFilterName
 }
 
 // FilterMatchers implements the web.Filter interface and returns the conditions on which the filter should be executed
@@ -39,17 +42,11 @@ func (ba *BearerAuthnFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
-				web.Path("/v1/service_brokers/**"),
-			},
-		},
-		{
-			Matchers: []web.Matcher{
-				web.Path("/v1/platforms/**"),
-			},
-		},
-		{
-			Matchers: []web.Matcher{
-				web.Path("/v1/sm_catalog"),
+				web.Path(
+					web.BrokersURL+"/**",
+					web.PlatformsURL+"/**",
+					web.SMCatalogURL,
+				),
 			},
 		},
 	}
