@@ -18,6 +18,7 @@ package filters
 
 import (
 	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gofrs/uuid"
 )
@@ -36,7 +37,7 @@ func (*Logging) Name() string {
 func (l *Logging) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	var correlationId string
 	for key, val := range req.Header {
-		if l.contains(CorrelationIdHeaders, key) {
+		if slice.StringsAnyEquals(CorrelationIdHeaders, key) {
 			correlationId = val[0]
 			break
 		}
@@ -52,15 +53,6 @@ func (l *Logging) Run(req *web.Request, next web.Handler) (*web.Response, error)
 	ctx := log.ContextWithLogger(req.Context(), entry)
 	req.Request = req.WithContext(ctx)
 	return next.Handle(req)
-}
-
-func (l *Logging) contains(str []string, k string) bool {
-	for _, s := range str {
-		if s == k {
-			return true
-		}
-	}
-	return false
 }
 
 func (*Logging) FilterMatchers() []web.FilterMatcher {
