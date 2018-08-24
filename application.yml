@@ -4,13 +4,13 @@ server:
   port: 8080
 log:
   level: debug
-  format: custom
+  format: text
 storage:
-  uri: postgres://postgres:postgres@192.168.99.100:5555/postgres?sslmode=disable
+  uri: postgres://postgres:postgres@192.168.99.100:5432/postgres?sslmode=disable
 #storage:
 #  name: sm-postgres
 api:
-  token_issuer_url: https://uaa.cf.eu20.hana.ondemand.com/
+  token_issuer_url: https://uaa.local.pcfdev.io
   client_id: sm
   security:
     encryption_key: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8

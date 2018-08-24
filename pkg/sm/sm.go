@@ -58,6 +58,7 @@ type ServiceManager struct {
 // DefaultEnv creates a default environment that can be used to boot up a Service Manager
 func DefaultEnv(additionalPFlags ...func(set *pflag.FlagSet)) env.Environment {
 	set := env.EmptyFlagSet()
+
 	config.AddPFlags(set)
 	for _, addFlags := range additionalPFlags {
 		addFlags(set)
@@ -117,11 +118,6 @@ func New(ctx context.Context, env env.Environment) *ServiceManagerBuilder {
 	}
 }
 
-// Run starts the Service Manager
-func (sm *ServiceManager) Run() {
-	sm.Server.Run(sm.ctx)
-}
-
 // Build builds the Service Manager
 func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	// setup server and add relevant global middleware
@@ -132,6 +128,11 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 		ctx:    smb.ctx,
 		Server: srv,
 	}
+}
+
+// Run starts the Service Manager
+func (sm *ServiceManager) Run() {
+	sm.Server.Run(sm.ctx)
 }
 
 func initializeSecureStorage(ctx context.Context, secureStorage storage.Security) error {
