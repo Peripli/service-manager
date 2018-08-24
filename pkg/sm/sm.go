@@ -117,24 +117,9 @@ func New(ctx context.Context, env env.Environment) *ServiceManagerBuilder {
 	}
 }
 
-// ServiceManager  struct
-type ServiceManager struct {
-	ctx    context.Context
-	Server *server.Server
-}
-
 // Run starts the Service Manager
 func (sm *ServiceManager) Run() {
 	sm.Server.Run(sm.ctx)
-}
-
-// ServiceManagerBuilder type is an extension point that allows adding additional filters, plugins and
-// controllers before running ServiceManager.
-type ServiceManagerBuilder struct {
-	*web.API
-	ctx    context.Context
-	cancel context.CancelFunc
-	cfg    server.Settings
 }
 
 // Build builds the Service Manager
@@ -147,11 +132,6 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 		ctx:    smb.ctx,
 		Server: srv,
 	}
-}
-
-// Run starts the Service Manager
-func (sm *ServiceManager) Run() {
-	sm.Server.Run(sm.ctx)
 }
 
 func initializeSecureStorage(ctx context.Context, secureStorage storage.Security) error {
