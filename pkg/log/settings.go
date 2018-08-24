@@ -20,9 +20,7 @@ package log
 import (
 	"fmt"
 
-	"github.com/Peripli/service-manager/pkg/env"
-	"github.com/sirupsen/logrus"
-)
+		)
 
 // Settings type to be loaded from the environment
 type Settings struct {
@@ -38,16 +36,6 @@ func DefaultSettings() *Settings {
 	}
 }
 
-// NewSettings returns Server settings for the given enrivonment
-func NewSettings(env env.Environment) (*Settings, error) {
-	config := &Settings{}
-	if err := env.Unmarshal(config); err != nil {
-		return nil, err
-	}
-
-	return config, nil
-}
-
 // Validate validates the logging settings
 func (s *Settings) Validate() error {
 	if len(s.Level) == 0 {
@@ -57,23 +45,4 @@ func (s *Settings) Validate() error {
 		return fmt.Errorf("validate Settings: LogFormat missing")
 	}
 	return nil
-}
-
-var supportedFormatters = map[string]logrus.Formatter{
-	"json": &logrus.JSONFormatter{},
-	"text": &logrus.TextFormatter{},
-}
-
-// SetupLogging configures logrus logging using the provided settings
-func SetupLogging(settings *Settings) {
-	level, err := logrus.ParseLevel(settings.Level)
-	if err != nil {
-		panic(fmt.Sprintf("Could not parse log level configuration: %s", err.Error()))
-	}
-	logrus.SetLevel(level)
-	formatter, ok := supportedFormatters[settings.Format]
-	if !ok {
-		panic(fmt.Sprintf("Invalid log format: %s", settings.Format))
-	}
-	logrus.SetFormatter(formatter)
 }

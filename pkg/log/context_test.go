@@ -18,6 +18,7 @@
 package log
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -79,14 +80,14 @@ func (wr *MyWriter) Write(p []byte) (n int, err error) {
 
 func expectPanic(settings *Settings) {
 	wrapper := func() {
-		SetupLogging(settings)
+		Configure(context.TODO(), settings)
 	}
 	Expect(wrapper).To(Panic())
 }
 
 func expectOutput(substring string, logFormat string) {
 	w := &MyWriter{}
-	SetupLogging(&Settings{
+	Configure(context.TODO(), &Settings{
 		Level:  "debug",
 		Format: logFormat,
 	})
