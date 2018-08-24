@@ -9,6 +9,9 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
+// BasicAuthnFilterName is the name of the basic authentication filter
+const BasicAuthnFilterName string = "BasicAuthnFilter"
+
 // BasicAuthnFilter performs Basic authentication by validating the Authorization header
 type BasicAuthnFilter struct {
 	Middleware
@@ -20,14 +23,14 @@ func NewBasicAuthnFilter(storage storage.Credentials, encrypter security.Encrypt
 	return &BasicAuthnFilter{
 		Middleware: Middleware{
 			authenticator: basic.NewAuthenticator(storage, encrypter),
-			name:          "BasicAuthenticationFilter",
+			name:          BasicAuthnFilterName,
 		},
 	}
 }
 
 // Name implements the web.Filter interface and returns the identifier of the filter
 func (ba *BasicAuthnFilter) Name() string {
-	return "BasicAuthenticationFilter"
+	return BasicAuthnFilterName
 }
 
 // FilterMatchers implements the web.Filter interface and returns the conditions on which the filter should be executed
