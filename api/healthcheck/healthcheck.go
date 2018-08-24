@@ -23,12 +23,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-const (
-	apiVersion = "v1"
-	root       = "monitor/health"
-	// URL is the path of the healthcheck endpoint
-	URL = "/" + apiVersion + "/" + root
-)
+// URL is the path of the healthcheck endpoint
+const URL = web.MonitorHealthURL
 
 // Routes returns slice of routes which handle healthcheck operation
 func (c *Controller) Routes() []web.Route {

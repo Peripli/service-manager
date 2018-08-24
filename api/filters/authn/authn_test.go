@@ -39,7 +39,7 @@ func TestHandler(t *testing.T) {
 }
 
 type testStructure struct {
-	authnResp                *security.User
+	authnResp                *web.User
 	authnDecision            security.AuthenticationDecision
 	authnErr                 error
 	request                  *web.Request
@@ -114,7 +114,7 @@ var _ = Describe("Authn", func() {
 		Context("when user is already authenticated and present in context", func() {
 			It("invokes the next handler", func() {
 				validateAuthnMiddlewareBehavesCorrectly(&testStructure{
-					request:                  reqWithContext(context.WithValue(context.Background(), userKey, &security.User{Name: "username"})),
+					request:                  reqWithContext(web.NewContextWithUser(context.Background(), &web.User{Name: "username"})),
 					actualHandlerInvokations: 1,
 					expectedResp:             expectedWebResponse,
 				})
@@ -178,7 +178,7 @@ var _ = Describe("Authn", func() {
 				Context("and returns a user", func() {
 					It("invokes the next handler and adds the user to the request context", func() {
 						testStruct := &testStructure{
-							authnResp: &security.User{
+							authnResp: &web.User{
 								Name: "username",
 							},
 							authnDecision:            security.Allow,
@@ -191,7 +191,7 @@ var _ = Describe("Authn", func() {
 
 						validateAuthnMiddlewareBehavesCorrectly(testStruct)
 
-						_, ok := UserFromContext(testStruct.request.Context())
+						_, ok := web.UserFromContext(testStruct.request.Context())
 						Expect(ok).To(BeTrue())
 					})
 				})
@@ -244,7 +244,7 @@ var _ = Describe("Authn", func() {
 		Context("when user is in context", func() {
 			It("invokes next handler", func() {
 				validateRequiredMiddlewareBehavesCorrectly(&testStructure{
-					request:                  reqWithContext(context.WithValue(context.Background(), userKey, &security.User{Name: "username"})),
+					request:                  reqWithContext(web.NewContextWithUser(context.Background(), &web.User{Name: "username"})),
 					actualHandlerInvokations: 1,
 					expectedErr:              nil,
 					expectedResp:             expectedWebResponse,

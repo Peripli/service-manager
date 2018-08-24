@@ -23,12 +23,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-const (
-	apiVersion = "v1"
-	root       = "sm_catalog"
-	// URL is the path of the aggregated catalog endpoint
-	URL = "/" + apiVersion + "/" + root
-)
+// URL is the path of the aggregated catalog endpoint
+const URL = web.SMCatalogURL
 
 // Routes returns slice of routes which handle catalog operations
 func (c *Controller) Routes() []web.Route {
