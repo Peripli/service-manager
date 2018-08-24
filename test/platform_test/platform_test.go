@@ -38,7 +38,7 @@ var _ = Describe("Service Manager Platform API", func() {
 	var ctx *common.TestContext
 
 	BeforeSuite(func() {
-		ctx = common.NewTestContextFromAPIs()
+		ctx = common.NewTestContext()
 	})
 
 	AfterSuite(func() {

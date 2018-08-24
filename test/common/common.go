@@ -227,14 +227,6 @@ func newJwkResponse(keyID string, publicKey rsa.PublicKey) *jwkResponse {
 	}
 }
 
-func RequestToken(issuerURL string) string {
-	issuer := httpexpect.New(GinkgoT(), issuerURL)
-	token := issuer.GET("/oauth/token").Expect().
-		Status(http.StatusOK).JSON().Object().
-		Value("access_token").String().Raw()
-	return token
-}
-
 func MakeBroker(name string, url string, description string) Object {
 	return Object{
 		"name":        name,

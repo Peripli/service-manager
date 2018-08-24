@@ -26,6 +26,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	"github.com/spf13/pflag"
 
+	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/sm"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gavv/httpexpect"
@@ -45,9 +46,54 @@ var serviceCatalog = `{
 	}]
 }`
 
-func NewTestContext(smServer *httptest.Server, oauthServer *OAuthServer) *TestContext {
+type ContextParams struct {
+	AdditionalAPI *web.API
+	configFlags   map[string]string
+}
+
+func buildEnv(flags map[string]string) env.Environment {
+	return sm.DefaultEnv(func(set *pflag.FlagSet) {
+		for k, v := range flags {
+			set.Set(k, v)
+		}
+	})
+}
+
+func buildSM(params *ContextParams, issuerURL string) *httptest.Server {
+	flags := map[string]string{
+		"file.location":        "./test/common",
+		"api.token_issuer_url": issuerURL,
+	}
+	for k, v := range params.configFlags {
+		flags[k] = v
+	}
+
+	ctx, _ := context.WithCancel(context.Background())
+	smanagerBuilder := sm.New(ctx, buildEnv(flags))
+	if params.AdditionalAPI != nil {
+		smanagerBuilder.RegisterControllers(params.AdditionalAPI.Controllers...)
+		smanagerBuilder.RegisterFilters(params.AdditionalAPI.Filters...)
+	}
+	serviceManager := smanagerBuilder.Build()
+	return httptest.NewServer(serviceManager.Server.Router)
+}
+
+func NewTestContext(ctxParams ...ContextParams) *TestContext {
+	var params ContextParams
+	if len(ctxParams) > 1 {
+		panic("At most one ContextParams expected")
+	}
+	if len(ctxParams) == 1 {
+		params = ctxParams[0]
+	}
+
+	oauthServer := NewOAuthServer()
+	oauthServer.Start()
+
+	smServer := buildSM(&params, oauthServer.URL)
 	SM := httpexpect.New(GinkgoT(), smServer.URL)
-	accessToken := RequestToken(oauthServer.URL)
+
+	accessToken := oauthServer.CreateToken(map[string]interface{}{})
 	SMWithOAuth := SM.Builder(func(req *httpexpect.Request) {
 		req.WithHeader("Authorization", "Bearer "+accessToken)
 	})
@@ -57,11 +103,11 @@ func NewTestContext(smServer *httptest.Server, oauthServer *OAuthServer) *TestCo
 
 	platformJSON := MakePlatform("ctx-platform-test", "ctx-platform-test", "platform-type", "test-platform")
 	platform := RegisterPlatform(platformJSON, SMWithOAuth)
-
 	SMWithBasic := SM.Builder(func(req *httpexpect.Request) {
 		username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
 		req.WithBasicAuth(username, password)
 	})
+
 	return &TestContext{
 		SM:          SM,
 		SMWithOAuth: SMWithOAuth,
@@ -70,27 +116,6 @@ func NewTestContext(smServer *httptest.Server, oauthServer *OAuthServer) *TestCo
 		smServer:    smServer,
 		oauthServer: oauthServer,
 	}
-}
-
-func NewTestContextFromAPIs(additionalAPIs ...*web.API) *TestContext {
-	ctx, _ := context.WithCancel(context.Background())
-	mockOauthServer := NewOAuthServer()
-	mockOauthServer.Start()
-
-	env := sm.DefaultEnv(func(set *pflag.FlagSet) {
-		set.Set("file.location", "./test/common")
-		set.Set("api.token_issuer_url", mockOauthServer.URL)
-	})
-
-	smanagerBuilder := sm.New(ctx, env)
-	for _, additionalAPI := range additionalAPIs {
-		smanagerBuilder.RegisterControllers(additionalAPI.Controllers...)
-		smanagerBuilder.RegisterFilters(additionalAPI.Filters...)
-	}
-	serviceManager := smanagerBuilder.Build()
-	smServer := httptest.NewServer(serviceManager.Server.Router)
-
-	return NewTestContext(smServer, mockOauthServer)
 }
 
 type TestContext struct {
