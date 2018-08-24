@@ -17,6 +17,7 @@
 package common
 
 import (
+	"crypto/rsa"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -26,70 +27,85 @@ import (
 )
 
 type OAuthServer struct {
-	server *httptest.Server
+	URL string
+
+	server     *httptest.Server
+	mux        *http.ServeMux
+	privateKey *rsa.PrivateKey // public key privateKey.PublicKey
+	signer     jwt.Signer
+	keyID      string
 }
 
 func NewOAuthServer() *OAuthServer {
 	privateKey := generatePrivateKey()
-	publicKey := privateKey.PublicKey
-	signer := jwt.RS256(privateKey, &publicKey)
-	keyID := "test-key"
 
-	var issuerURL string
-	mux := http.NewServeMux()
-
-	server := httptest.NewServer(mux)
-	issuerURL = server.URL
-
-	return &OAuthServer{
-		server: server,
+	os := &OAuthServer{
+		privateKey: privateKey,
+		signer:     jwt.RS256(privateKey, &privateKey.PublicKey),
+		keyID:      "test-key",
+		mux:        http.NewServeMux(),
 	}
+	os.mux.HandleFunc("/.well-known/openid-configuration", os.getOpenIDConfig)
+	os.mux.HandleFunc("/oauth/token", os.getToken)
+	os.mux.HandleFunc("/token_keys", os.getTokenKeys)
+
+	return os
+}
+
+func (os *OAuthServer) Start() {
+	if os.server != nil {
+		panic("OAuth server already started")
+	}
+	os.server = httptest.NewServer(os.mux)
+	os.URL = os.server.URL
 }
 
 func (os *OAuthServer) Close() {
-	os.server.Close()
+	if os != nil && os.server != nil {
+		os.server.Close()
+		os.server = nil
+	}
 }
 
-func SetupFakeOAuthServer() *httptest.Server {
+func (os *OAuthServer) getOpenIDConfig(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{
+		"issuer": "` + os.URL + `/oauth/token",
+		"jwks_uri": "` + os.URL + `/token_keys"
+	}`))
+}
 
-	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{
-			"issuer": "` + issuerURL + `/oauth/token",
-			"jwks_uri": "` + issuerURL + `/token_keys"
-		}`))
+func (os *OAuthServer) getToken(w http.ResponseWriter, r *http.Request) {
+	token := os.CreateToken(map[string]interface{}{
+		"user_name": "testUser",
+	})
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"access_token": "` + token + `"}`))
+}
+
+func (os *OAuthServer) CreateToken(payload map[string]interface{}) string {
+	nextYear := time.Now().Add(365 * 24 * time.Hour)
+	token, err := jwt.Sign(os.signer, &jwt.Options{
+		Issuer:         os.URL + "/oauth/token",
+		KeyID:          os.keyID,
+		Audience:       "sm",
+		ExpirationTime: nextYear,
+		Public:         payload,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return token
+}
+
+func (os *OAuthServer) getTokenKeys(w http.ResponseWriter, r *http.Request) {
+	jwk := newJwkResponse(os.keyID, os.privateKey.PublicKey)
+	responseBody, _ := json.Marshal(&struct {
+		Keys []jwkResponse `json:"keys"`
+	}{
+		Keys: []jwkResponse{*jwk},
 	})
 
-	mux.HandleFunc("/oauth/token", func(w http.ResponseWriter, r *http.Request) {
-		nextYear := time.Now().Add(24 * 30 * 12 * time.Hour)
-		token, err := jwt.Sign(signer, &jwt.Options{
-			Issuer:         issuerURL + "/oauth/token",
-			KeyID:          keyID,
-			Audience:       "sm",
-			ExpirationTime: nextYear,
-			Public: map[string]interface{}{
-				"user_name": "testUser",
-			},
-		})
-		if err != nil {
-			panic(err)
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"access_token": "` + token + `"}`))
-	})
-
-	mux.HandleFunc("/token_keys", func(w http.ResponseWriter, r *http.Request) {
-		jwk := newJwkResponse(keyID, publicKey)
-		responseBody, _ := json.Marshal(&struct {
-			Keys []jwkResponse `json:"keys"`
-		}{
-			Keys: []jwkResponse{*jwk},
-		})
-
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(responseBody)
-	})
-
-	return server
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(responseBody)
 }

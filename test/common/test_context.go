@@ -45,9 +45,9 @@ var serviceCatalog = `{
 	}]
 }`
 
-func NewTestContext(smURL, tokenIssuerURL string) *TestContext {
-	SM := httpexpect.New(GinkgoT(), smURL)
-	accessToken := RequestToken(tokenIssuerURL)
+func NewTestContext(smServer *httptest.Server, oauthServer *OAuthServer) *TestContext {
+	SM := httpexpect.New(GinkgoT(), smServer.URL)
+	accessToken := RequestToken(oauthServer.URL)
 	SMWithOAuth := SM.Builder(func(req *httpexpect.Request) {
 		req.WithHeader("Authorization", "Bearer "+accessToken)
 	})
@@ -67,12 +67,15 @@ func NewTestContext(smURL, tokenIssuerURL string) *TestContext {
 		SMWithOAuth: SMWithOAuth,
 		SMWithBasic: SMWithBasic,
 		brokers:     make(map[string]*Broker),
+		smServer:    smServer,
+		oauthServer: oauthServer,
 	}
 }
 
 func NewTestContextFromAPIs(additionalAPIs ...*web.API) *TestContext {
 	ctx, _ := context.WithCancel(context.Background())
-	mockOauthServer := SetupFakeOAuthServer()
+	mockOauthServer := NewOAuthServer()
+	mockOauthServer.Start()
 
 	env := sm.DefaultEnv(func(set *pflag.FlagSet) {
 		set.Set("file.location", "./test/common")
@@ -87,7 +90,7 @@ func NewTestContextFromAPIs(additionalAPIs ...*web.API) *TestContext {
 	serviceManager := smanagerBuilder.Build()
 	smServer := httptest.NewServer(serviceManager.Server.Router)
 
-	return NewTestContext(smServer.URL, mockOauthServer.URL)
+	return NewTestContext(smServer, mockOauthServer)
 }
 
 type TestContext struct {
@@ -95,7 +98,9 @@ type TestContext struct {
 	SMWithOAuth *httpexpect.Expect
 	SMWithBasic *httpexpect.Expect
 
-	brokers map[string]*Broker
+	smServer    *httptest.Server
+	oauthServer *OAuthServer
+	brokers     map[string]*Broker
 }
 
 func (ctx *TestContext) RegisterBroker(name string, server *httptest.Server) *Broker {
@@ -132,6 +137,11 @@ func (ctx *TestContext) Cleanup() {
 			broker.Server.Close()
 		}
 	}
+
+	if ctx.smServer != nil {
+		ctx.smServer.Close()
+	}
+	ctx.oauthServer.Close()
 }
 
 type Broker struct {
