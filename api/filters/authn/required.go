@@ -1,9 +1,9 @@
 package authn
 
 import (
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/sirupsen/logrus"
-)
+	)
 
 // RequiredAuthnFilter type verifies that authentication has been performed for APIs that are secured
 type RequiredAuthnFilter struct {
@@ -23,7 +23,7 @@ func (raf *RequiredAuthnFilter) Name() string {
 // authenticated
 func (raf *RequiredAuthnFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
 	if _, ok := web.UserFromContext(request.Context()); !ok {
-		logrus.Error("No authenticated user found in request context during execution of filter ", raf.Name())
+		log.R(request, "filters/required").Error("No authenticated user found in request context during execution of filter ", raf.Name())
 		return nil, errUnauthorized
 	}
 

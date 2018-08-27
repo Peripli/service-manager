@@ -36,8 +36,9 @@ var (
 	defaultEntry              = logrus.NewEntry(logrus.StandardLogger())
 	initializationError error = nil
 	once                      = sync.Once{}
-	G                         = Get
-	R                         = Request
+	C                         = ForContext
+	R                         = ForRequest
+	D                         = Default
 )
 
 func Configure(ctx context.Context, settings *Settings) (context.Context, error) {
@@ -52,6 +53,8 @@ func Configure(ctx context.Context, settings *Settings) (context.Context, error)
 			initializationError = fmt.Errorf("Invalid log format: %s", settings.Format)
 			return
 		}
+		logrus.SetLevel(level)
+		logrus.SetFormatter(formatter)
 		logger := &logrus.Logger{
 			Formatter: formatter,
 			Level:     level,
@@ -63,16 +66,20 @@ func Configure(ctx context.Context, settings *Settings) (context.Context, error)
 	return ContextWithLogger(ctx, defaultEntry), initializationError
 }
 
-func Get(ctx context.Context, component string) *logrus.Entry {
+func ForContext(ctx context.Context, component string) *logrus.Entry {
 	entry := ctx.Value(logKey{})
 	if entry == nil {
-		return defaultEntry.WithField("package", component)
+		entry = defaultEntry
 	}
 	return entry.(*logrus.Entry).WithField("package", component)
 }
 
-func Request(request *web.Request, component string) *logrus.Entry {
-	return Get(request.Context(), component)
+func ForRequest(request *web.Request, component string) *logrus.Entry {
+	return ForContext(request.Context(), component)
+}
+
+func Default(component string) *logrus.Entry {
+	return ForContext(context.Background(), component)
 }
 
 func ContextWithLogger(ctx context.Context, entry *logrus.Entry) context.Context {

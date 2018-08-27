@@ -35,7 +35,7 @@ const componentName = "storage/registry"
 func Register(name string, storage Storage) {
 	mux.RLock()
 	defer mux.RUnlock()
-	logger := log.G(context.Background(), componentName)
+	logger := log.D(componentName)
 	if storage == nil {
 		logger.Panicln("storage: Register storage is nil")
 	}
@@ -65,7 +65,7 @@ func Use(ctx context.Context, name string, uri string, encryptionKey []byte) (St
 
 func awaitTermination(ctx context.Context, storage Storage) {
 	<-ctx.Done()
-	logger := log.G(context.Background(), componentName)
+	logger := log.D(componentName)
 	logger.Debug("Context cancelled. Closing storage...")
 	if err := storage.Close(); err != nil {
 		logger.Error(err)

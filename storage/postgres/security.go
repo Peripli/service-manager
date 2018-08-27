@@ -22,10 +22,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/security"
 	"github.com/jmoiron/sqlx"
-	"github.com/sirupsen/logrus"
-)
+	)
 
 const securityLockIndex = 111
 
@@ -88,7 +88,7 @@ func (s *keyFetcher) GetEncryptionKey() ([]byte, error) {
 		return nil, err
 	}
 	if len(safes) != 1 {
-		logrus.Warnf("Unexpected number of keys found: %d", len(safes))
+		log.D("storage/postgres/security").Warnf("Unexpected number of keys found: %d", len(safes))
 		return []byte{}, nil
 	}
 	encryptedKey := []byte(safes[0].Secret)

@@ -21,11 +21,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/fatih/structs"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
-	"github.com/sirupsen/logrus"
 )
 
 func create(db *sqlx.DB, table string, dto interface{}) error {
@@ -41,7 +41,7 @@ func create(db *sqlx.DB, table string, dto interface{}) error {
 		strings.Join(set, ", "),
 		strings.Join(set, ", :"),
 	)
-	logrus.Debugf("Insert query %s", query)
+	log.D("storage/postgres/abstract").Debugf("Insert query %s", query)
 	_, err := db.NamedExec(query, dto)
 	return checkUniqueViolation(err)
 }
@@ -70,10 +70,10 @@ func delete(db *sqlx.DB, id string, table string) error {
 func update(db *sqlx.DB, table string, dto interface{}) error {
 	updateQueryString := updateQuery(table, dto)
 	if updateQueryString == "" {
-		logrus.Debugf("%s update: Nothing to update", table)
+		log.D("storage/postgres/abstract").Debugf("%s update: Nothing to update", table)
 		return nil
 	}
-	logrus.Debugf("Update query %s", updateQueryString)
+	log.D("storage/postgres/abstract").Debugf("Update query %s", updateQueryString)
 	result, err := db.NamedExec(updateQueryString, dto)
 	if err = checkUniqueViolation(err); err != nil {
 		return err
@@ -118,7 +118,7 @@ func checkUniqueViolation(err error) error {
 	}
 	sqlErr, ok := err.(*pq.Error)
 	if ok && sqlErr.Code.Name() == "unique_violation" {
-		logrus.Debug(sqlErr)
+		log.D("storage/postgres/abstract").Debug(sqlErr)
 		return util.ErrAlreadyExistsInStorage
 	}
 	return err

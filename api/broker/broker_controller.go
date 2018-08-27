@@ -17,12 +17,14 @@
 package broker
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/security"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 
@@ -31,12 +33,12 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/gofrs/uuid"
-	"github.com/sirupsen/logrus"
 )
 
 const (
 	reqBrokerID  = "broker_id"
 	catalogParam = "catalog"
+	name         = "controller/broker"
 )
 
 // Controller broker controller
@@ -48,11 +50,11 @@ type Controller struct {
 
 var _ web.Controller = &Controller{}
 
-func (c *Controller) createBroker(request *web.Request) (*web.Response, error) {
-	logrus.Debug("Creating new broker")
+func (c *Controller) createBroker(r *web.Request) (*web.Response, error) {
+	log.R(r, name).Debug("Creating new broker")
 
 	broker := &types.Broker{}
-	if err := util.BytesToObject(request.Body, broker); err != nil {
+	if err := util.BytesToObject(r.Body, broker); err != nil {
 		return nil, err
 	}
 
@@ -67,7 +69,7 @@ func (c *Controller) createBroker(request *web.Request) (*web.Response, error) {
 	broker.CreatedAt = currentTime
 	broker.UpdatedAt = currentTime
 
-	catalog, err := c.getBrokerCatalog(broker)
+	catalog, err := c.getBrokerCatalog(r.Context(), broker)
 	if err != nil {
 		return nil, err
 	}
@@ -85,9 +87,9 @@ func (c *Controller) createBroker(request *web.Request) (*web.Response, error) {
 	return util.NewJSONResponse(http.StatusCreated, broker)
 }
 
-func (c *Controller) getBroker(request *web.Request) (*web.Response, error) {
-	brokerID := request.PathParams[reqBrokerID]
-	logrus.Debugf("Getting broker with id %s", brokerID)
+func (c *Controller) getBroker(r *web.Request) (*web.Response, error) {
+	brokerID := r.PathParams[reqBrokerID]
+	log.R(r, name).Debugf("Getting broker with id %s", brokerID)
 
 	broker, err := c.BrokerStorage.Get(brokerID)
 	if err != nil {
@@ -99,14 +101,14 @@ func (c *Controller) getBroker(request *web.Request) (*web.Response, error) {
 	return util.NewJSONResponse(http.StatusOK, broker)
 }
 
-func (c *Controller) getAllBrokers(request *web.Request) (*web.Response, error) {
-	logrus.Debug("Getting all brokers")
+func (c *Controller) getAllBrokers(r *web.Request) (*web.Response, error) {
+	log.R(r, name).Debug("Getting all brokers")
 	brokers, err := c.BrokerStorage.GetAll()
 	if err != nil {
 		return nil, err
 	}
 
-	removeCatalog := strings.ToLower(request.FormValue(catalogParam)) != "true"
+	removeCatalog := strings.ToLower(r.FormValue(catalogParam)) != "true"
 	for _, broker := range brokers {
 		broker.Credentials = nil
 		if removeCatalog {
@@ -119,9 +121,9 @@ func (c *Controller) getAllBrokers(request *web.Request) (*web.Response, error) 
 	})
 }
 
-func (c *Controller) deleteBroker(request *web.Request) (*web.Response, error) {
-	brokerID := request.PathParams[reqBrokerID]
-	logrus.Debugf("Deleting broker with id %s", brokerID)
+func (c *Controller) deleteBroker(r *web.Request) (*web.Response, error) {
+	brokerID := r.PathParams[reqBrokerID]
+	log.R(r, name).Debugf("Deleting broker with id %s", brokerID)
 
 	if err := c.BrokerStorage.Delete(brokerID); err != nil {
 		return nil, util.HandleStorageError(err, "broker", brokerID)
@@ -129,9 +131,9 @@ func (c *Controller) deleteBroker(request *web.Request) (*web.Response, error) {
 	return util.NewJSONResponse(http.StatusOK, map[string]int{})
 }
 
-func (c *Controller) patchBroker(request *web.Request) (*web.Response, error) {
-	brokerID := request.PathParams[reqBrokerID]
-	logrus.Debugf("Updating updateBroker with id %s", brokerID)
+func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
+	brokerID := r.PathParams[reqBrokerID]
+	log.R(r, name).Debugf("Updating updateBroker with id %s", brokerID)
 
 	broker, err := c.BrokerStorage.Get(brokerID)
 	if err != nil {
@@ -140,7 +142,7 @@ func (c *Controller) patchBroker(request *web.Request) (*web.Response, error) {
 
 	createdAt := broker.CreatedAt
 
-	if err := util.BytesToObject(request.Body, broker); err != nil {
+	if err := util.BytesToObject(r.Body, broker); err != nil {
 		return nil, err
 	}
 
@@ -168,8 +170,8 @@ func (c *Controller) patchBroker(request *web.Request) (*web.Response, error) {
 	return util.NewJSONResponse(http.StatusOK, broker)
 }
 
-func (c *Controller) getBrokerCatalog(broker *types.Broker) (json.RawMessage, error) {
-	osbClient, err := osbClient(c.OSBClientCreateFunc, broker)
+func (c *Controller) getBrokerCatalog(ctx context.Context, broker *types.Broker) (json.RawMessage, error) {
+	osbClient, err := osbClient(ctx, c.OSBClientCreateFunc, broker)
 	if err != nil {
 		return nil, err
 	}
@@ -186,9 +188,9 @@ func (c *Controller) getBrokerCatalog(broker *types.Broker) (json.RawMessage, er
 	return json.RawMessage(bytes), nil
 }
 
-func osbClient(createFunc osbc.CreateFunc, broker *types.Broker) (osbc.Client, error) {
+func osbClient(ctx context.Context, createFunc osbc.CreateFunc, broker *types.Broker) (osbc.Client, error) {
 	config := clientConfigForBroker(broker)
-	logrus.Debug("Building OSB client for serviceBroker with name: ", config.Name, " accessible at: ", config.URL)
+	log.C(ctx, name).Debug("Building OSB client for serviceBroker with name: ", config.Name, " accessible at: ", config.URL)
 	return createFunc(config)
 }
 

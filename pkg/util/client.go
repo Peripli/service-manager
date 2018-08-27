@@ -18,13 +18,12 @@ package util
 
 import (
 	"bytes"
-	"encoding/json"
+		"encoding/json"
 	"io"
+	"io/ioutil"
 	"net/http"
 
-	"io/ioutil"
-
-	"github.com/sirupsen/logrus"
+	"github.com/Peripli/service-manager/pkg/log"
 )
 
 // DoRequestFunc is an alias for any function that takes an http request and returns a response and error
@@ -62,7 +61,7 @@ func SendRequest(doRequest DoRequestFunc, method, url string, params map[string]
 func BodyToBytes(closer io.ReadCloser) ([]byte, error) {
 	defer func() {
 		if err := closer.Close(); err != nil {
-			logrus.Errorf("ReadCloser couldn't be closed", err)
+			log.D("pkg/util/client").Errorf("ReadCloser couldn't be closed", err)
 		}
 	}()
 

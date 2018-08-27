@@ -17,12 +17,14 @@
 package web
 
 import (
-	"net/http"
+"fmt"
+"net/http"
 
-	"fmt"
 
-	"github.com/sirupsen/logrus"
-)
+
+
+"github.com/Peripli/service-manager/pkg/log"
+	)
 
 // Request contains the original http.Request, path parameters and the raw body
 // Request.Request.Body should not be used as it would be already processed by internal implementation
@@ -148,7 +150,7 @@ func (fs Filters) Chain(h Handler) Handler {
 				"method": request.Method,
 			}
 
-			logrus.WithFields(params).Debug("Entering Filter: ", fs[i].Name())
+			log.R(request, "pkg/web/filter").WithFields(params).Debug("Entering Filter: ", fs[i].Name())
 
 			resp, err := fs[i].Run(request, wrappedFilters[i+1])
 
@@ -157,7 +159,7 @@ func (fs Filters) Chain(h Handler) Handler {
 				params["statusCode"] = resp.StatusCode
 			}
 
-			logrus.WithFields(params).Debug("Exiting Filter: ", fs[i].Name())
+			log.R(request, "pkg/web/filter").WithFields(params).Debug("Exiting Filter: ", fs[i].Name())
 
 			return resp, err
 		})
@@ -194,6 +196,6 @@ func (fs Filters) Matching(endpoint Endpoint) Filters {
 			}
 		}
 	}
-	logrus.Debugf("Filters for %s %s:%v", endpoint.Method, endpoint.Path, matchedNames)
+	log.D("pkg/web/filter").Debugf("Filters for %s %s:%v", endpoint.Method, endpoint.Path, matchedNames)
 	return matchedFilters
 }

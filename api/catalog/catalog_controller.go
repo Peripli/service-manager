@@ -20,11 +20,11 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/sirupsen/logrus"
 )
 
 // Controller catalog controller
@@ -33,6 +33,8 @@ type Controller struct {
 }
 
 var _ web.Controller = &Controller{}
+
+const name = "controller/catalog"
 
 type brokerServices struct {
 	ID      string          `json:"id"`
@@ -44,17 +46,17 @@ type aggregatedCatalog struct {
 	Brokers []brokerServices `json:"brokers"`
 }
 
-func (c *Controller) getCatalog(request *web.Request) (*web.Response, error) {
-	logrus.Debugf("Aggregating all broker catalogs")
+func (c *Controller) getCatalog(r *web.Request) (*web.Response, error) {
+	log.R(r, name).Debugf("Aggregating all broker catalogs")
 	brokers, err := c.BrokerStorage.GetAll()
 	if err != nil {
 		return nil, err
 	}
 
 	resultServices := make([]brokerServices, 0, len(brokers)+1)
-	queryBrokerIDs := request.URL.Query()["broker_id"]
+	queryBrokerIDs := r.URL.Query()["broker_id"]
 	if len(queryBrokerIDs) != 0 {
-		logrus.Debugf("Filtering based on the provided query parameters: %s", queryBrokerIDs)
+		log.R(r, name).Debugf("Filtering based on the provided query parameters: %s", queryBrokerIDs)
 		filterBrokersByID(brokers, queryBrokerIDs, &resultServices)
 	} else {
 		retrieveAllBrokers(brokers, &resultServices)
