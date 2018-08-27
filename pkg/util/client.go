@@ -55,6 +55,7 @@ func SendRequest(doRequest DoRequestFunc, method, url string, params map[string]
 		request.URL.RawQuery = q.Encode()
 	}
 
+	logrus.Debugf("Sending a request to %s", request.URL)
 	return doRequest(request)
 }
 
