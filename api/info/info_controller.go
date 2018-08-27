@@ -17,6 +17,7 @@
 package info
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -29,15 +30,18 @@ type DetailsResponse struct {
 	TokenIssuer string `json:"token_issuer_url"`
 }
 
+// TokenIssuerProvider returns the token issuer url. For multi-tenant environment, this might be constructed from the context
+type TokenIssuerProvider func(ctx context.Context) string
+
 // Controller info controller
 type Controller struct {
-	TokenIssuer string
+	TokenIssuerProvider TokenIssuerProvider
 }
 
 var _ web.Controller = &Controller{}
 
 func (c *Controller) getInfo(request *web.Request) (*web.Response, error) {
 	return util.NewJSONResponse(http.StatusOK, &DetailsResponse{
-		TokenIssuer: c.TokenIssuer,
+		TokenIssuer: c.TokenIssuerProvider(request.Context()),
 	})
 }
