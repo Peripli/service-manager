@@ -17,6 +17,7 @@
 package info_test
 
 import (
+	"context"
 	"net/http"
 	"testing"
 
@@ -37,7 +38,9 @@ var _ = Describe("Info API", func() {
 
 	BeforeEach(func() {
 		controller = &info.Controller{
-			TokenIssuer: "https://example.com",
+			TokenIssuerProvider: func(ctx context.Context) string {
+				return "https://example.com"
+			},
 		}
 	})
 

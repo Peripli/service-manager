@@ -100,7 +100,9 @@ func New(ctx context.Context, storage storage.Storage, settings *Settings, encry
 				Encrypter:       encrypter,
 			},
 			&info.Controller{
-				TokenIssuer: settings.TokenIssuerURL,
+				TokenIssuerProvider: func(ctx context.Context) string {
+					return settings.TokenIssuerURL
+				},
 			},
 			&catalog.Controller{
 				BrokerStorage: storage.Broker(),
