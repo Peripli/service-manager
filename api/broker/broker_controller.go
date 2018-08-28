@@ -175,7 +175,7 @@ func (c *Controller) getBrokerCatalog(broker *types.Broker) (json.RawMessage, er
 	}
 	catalog, err := osbClient.GetCatalog()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error fetching catalog from broker %s: %v", broker.Name, err)
 	}
 
 	bytes, err := json.Marshal(catalog)
