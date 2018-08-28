@@ -72,6 +72,7 @@ var _ = Describe("Service Manager Authentication", func() {
 			code := http.StatusOK
 			catalogResponse := []byte(common.Catalog)
 			brokerServer := common.FakeBrokerServer(&code, &catalogResponse)
+			defer brokerServer.Close()
 
 			brokerJSON := common.MakeBroker("broker-id", brokerServer.URL(), "")
 			ctx.SMWithOAuth.POST("/v1/service_brokers").
@@ -79,8 +80,6 @@ var _ = Describe("Service Manager Authentication", func() {
 				WithJSON(brokerJSON).
 				Expect().
 				Status(http.StatusCreated)
-
-			brokerServer.Close()
 		})
 	})
 
