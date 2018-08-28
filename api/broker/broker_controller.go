@@ -150,7 +150,7 @@ func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	catalog, err := c.getBrokerCatalog(broker)
+	catalog, err := c.getBrokerCatalog(r.Context(), broker)
 	if err != nil {
 		return nil, err
 	}

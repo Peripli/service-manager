@@ -22,7 +22,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/sirupsen/logrus"
 )
 
@@ -33,13 +32,18 @@ var (
 		"json": &logrus.JSONFormatter{},
 		"text": &logrus.TextFormatter{},
 	}
+	mux                       = sync.Mutex{}
 	defaultEntry              = logrus.NewEntry(logrus.StandardLogger())
 	initializationError error = nil
 	once                      = sync.Once{}
 	C                         = ForContext
-	R                         = ForRequest
+	R                         = ForContextProvider
 	D                         = Default
 )
+
+type Contexter interface {
+	Context() context.Context
+}
 
 func Configure(ctx context.Context, settings *Settings) (context.Context, error) {
 	once.Do(func() {
@@ -58,7 +62,7 @@ func Configure(ctx context.Context, settings *Settings) (context.Context, error)
 		logger := &logrus.Logger{
 			Formatter: formatter,
 			Level:     level,
-			Out:       os.Stderr,
+			Out:       os.Stdout,
 			Hooks:     make(logrus.LevelHooks),
 		}
 		defaultEntry = logrus.NewEntry(logger)
@@ -74,8 +78,8 @@ func ForContext(ctx context.Context, component string) *logrus.Entry {
 	return entry.(*logrus.Entry).WithField("package", component)
 }
 
-func ForRequest(request *web.Request, component string) *logrus.Entry {
-	return ForContext(request.Context(), component)
+func ForContextProvider(contexter Contexter, component string) *logrus.Entry {
+	return ForContext(contexter.Context(), component)
 }
 
 func Default(component string) *logrus.Entry {
@@ -84,4 +88,10 @@ func Default(component string) *logrus.Entry {
 
 func ContextWithLogger(ctx context.Context, entry *logrus.Entry) context.Context {
 	return context.WithValue(ctx, logKey{}, entry)
+}
+
+func RegisterFormatter(name string, formatter logrus.Formatter) {
+	mux.Lock()
+	defer mux.Unlock()
+	supportedFormatters[name] = formatter
 }

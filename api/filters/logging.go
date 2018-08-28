@@ -23,7 +23,7 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-var CorrelationIdHeaders = []string{"X-Correlation-ID", "X-CorrelationID", "X-ForRequest-ID"}
+var CorrelationIdHeaders = []string{"X-Correlation-ID", "X-CorrelationID", "X-ForRequest-ID", "X-Vcap-Request-Id"}
 
 const LoggingFilterName = "LoggingFilter"
 
