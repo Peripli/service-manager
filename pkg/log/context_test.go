@@ -19,12 +19,13 @@ package log
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"sync"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/sirupsen/logrus"
 )
 
 // TestServiceManager tests servermanager package
@@ -80,19 +81,26 @@ func (wr *MyWriter) Write(p []byte) (n int, err error) {
 
 func expectPanic(settings *Settings) {
 	wrapper := func() {
-		Configure(context.TODO(), settings)
+		configure(settings)
 	}
 	Expect(wrapper).To(Panic())
 }
 
 func expectOutput(substring string, logFormat string) {
 	w := &MyWriter{}
-	Configure(context.TODO(), &Settings{
+	ctx := configure(&Settings{
 		Level:  "debug",
 		Format: logFormat,
 	})
-	logrus.SetOutput(w)
-	defer logrus.SetOutput(os.Stderr) // return default output
-	logrus.Debug("Test")
+	entry := ForContext(ctx, "log/context_test")
+	entry.Logger.SetOutput(w)
+	defer entry.Logger.SetOutput(os.Stderr) // return default output
+	entry.Debug("Test")
+	fmt.Println(w.Data)
 	Expect(w.Data).To(ContainSubstring(substring))
+}
+
+func configure(settings *Settings) context.Context {
+	once = sync.Once{}
+	return Configure(context.TODO(), settings)
 }

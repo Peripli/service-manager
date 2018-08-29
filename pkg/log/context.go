@@ -32,30 +32,54 @@ var (
 		"json": &logrus.JSONFormatter{},
 		"text": &logrus.TextFormatter{},
 	}
-	mux                       = sync.Mutex{}
-	defaultEntry              = logrus.NewEntry(logrus.StandardLogger())
-	initializationError error = nil
-	once                      = sync.Once{}
-	C                         = ForContext
-	R                         = ForContextProvider
-	D                         = Default
+	mux          = sync.Mutex{}
+	once         = sync.Once{}
+	defaultEntry = logrus.NewEntry(logrus.StandardLogger())
+	C            = ForContext
+	R            = ForContextProvider
+	D            = Default
 )
 
+// Contexter interface
 type Contexter interface {
 	Context() context.Context
 }
 
-func Configure(ctx context.Context, settings *Settings) (context.Context, error) {
+// Settings type to be loaded from the environment
+type Settings struct {
+	Level  string
+	Format string
+}
+
+// DefaultSettings returns default values for Log settings
+func DefaultSettings() *Settings {
+	return &Settings{
+		Level:  "debug",
+		Format: "text",
+	}
+}
+
+// Validate validates the logging settings
+func (s *Settings) Validate() error {
+	if len(s.Level) == 0 {
+		return fmt.Errorf("validate Settings: LogLevel missing")
+	}
+	if len(s.Format) == 0 {
+		return fmt.Errorf("validate Settings: LogFormat missing")
+	}
+	return nil
+}
+
+// Configure creates a new context with a logger using the provided settings.
+func Configure(ctx context.Context, settings *Settings) context.Context {
 	once.Do(func() {
 		level, err := logrus.ParseLevel(settings.Level)
 		if err != nil {
-			initializationError = fmt.Errorf("Could not parse log level configuration: %s", err)
-			return
+			panic(fmt.Sprintf("Could not parse log level configuration: %s", err))
 		}
 		formatter, ok := supportedFormatters[settings.Format]
 		if !ok {
-			initializationError = fmt.Errorf("Invalid log format: %s", settings.Format)
-			return
+			panic(fmt.Sprintf("Invalid log format: %s", settings.Format))
 		}
 		logrus.SetLevel(level)
 		logrus.SetFormatter(formatter)
@@ -67,31 +91,73 @@ func Configure(ctx context.Context, settings *Settings) (context.Context, error)
 		}
 		defaultEntry = logrus.NewEntry(logger)
 	})
-	return ContextWithLogger(ctx, defaultEntry), initializationError
+	return ContextWithLogger(ctx, defaultEntry)
 }
 
-func ForContext(ctx context.Context, component string) *logrus.Entry {
+// ForContext retrieves the current logger from the context, configured for the provided component.
+// Optionally keys mapped to values from the context can be provided.
+// If no logger is present in the context, the default logger is returned
+func ForContext(ctx context.Context, component string, keys ...interface{}) *logrus.Entry {
 	entry := ctx.Value(logKey{})
 	if entry == nil {
-		entry = defaultEntry
+		// copy so that changes to the new entry do not reflect the default entry
+		entry = copyEntry(defaultEntry)
 	}
-	return entry.(*logrus.Entry).WithField("package", component)
+	fields := make(logrus.Fields, len(keys)+1)
+	fields["package"] = component
+	for _, key := range keys {
+		value := ctx.Value(key)
+		if value != nil {
+			fields[fmt.Sprint(key)] = value
+		}
+	}
+	logEntry := entry.(*logrus.Entry).WithFields(fields)
+	contextLogLevel, exists := ctx.Value("log.level").(string)
+	if exists {
+		level, err := logrus.ParseLevel(contextLogLevel)
+		if err != nil {
+			logEntry.Warnf("Dynamic log level change not supported for log level %s", contextLogLevel)
+		} else {
+			logEntry.Logger.Level = level
+		}
+	}
+	return logEntry
 }
 
-func ForContextProvider(contexter Contexter, component string) *logrus.Entry {
-	return ForContext(contexter.Context(), component)
+// ForContextProvider retrieves the current logger from the context provided.
+func ForContextProvider(contexter Contexter, component string, keys ...interface{}) *logrus.Entry {
+	return ForContext(contexter.Context(), component, keys)
 }
 
-func Default(component string) *logrus.Entry {
-	return ForContext(context.Background(), component)
+// Default returns the default logger configured for the provided component.
+func Default(component string, keys ...interface{}) *logrus.Entry {
+	return ForContext(context.Background(), component, keys)
 }
 
+// ContextWithLogger returns a new context with the provided logger.
 func ContextWithLogger(ctx context.Context, entry *logrus.Entry) context.Context {
 	return context.WithValue(ctx, logKey{}, entry)
 }
 
+// RegisterFormatter registers a new logrus Formatter
 func RegisterFormatter(name string, formatter logrus.Formatter) {
 	mux.Lock()
 	defer mux.Unlock()
 	supportedFormatters[name] = formatter
+}
+
+func copyEntry(entry *logrus.Entry) *logrus.Entry {
+	return &logrus.Entry{
+		Logger: &logrus.Logger{
+			Level:     entry.Logger.Level,
+			Formatter: entry.Logger.Formatter,
+			Hooks:     entry.Logger.Hooks,
+			Out:       entry.Logger.Out,
+		},
+		Level:   entry.Level,
+		Data:    entry.Data,
+		Time:    entry.Time,
+		Message: entry.Message,
+		Buffer:  entry.Buffer,
+	}
 }

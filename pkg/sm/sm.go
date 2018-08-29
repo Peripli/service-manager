@@ -87,10 +87,7 @@ func New(ctx context.Context, env env.Environment) *ServiceManagerBuilder {
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: cfg.API.SkipSSLValidation}
 
 	// setup logging
-	ctx, err = log.Configure(ctx, cfg.Log)
-	if err != nil {
-		panic(fmt.Sprintf("Could not initialize logging: %s", err))
-	}
+	ctx = log.Configure(ctx, cfg.Log)
 
 	// setup smStorage
 	smStorage, err := storage.Use(ctx, postgres.Storage, cfg.Storage.URI, []byte(cfg.API.Security.EncryptionKey))

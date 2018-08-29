@@ -17,15 +17,20 @@
 package filters
 
 import (
+	"context"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gofrs/uuid"
 )
 
-var CorrelationIdHeaders = []string{"X-Correlation-ID", "X-CorrelationID", "X-ForRequest-ID", "X-Vcap-Request-Id"}
+var correlationIdHeaders = []string{"X-Correlation-ID", "X-CorrelationID", "X-ForRequest-ID", "X-Vcap-Request-Id"}
 
-const LoggingFilterName = "LoggingFilter"
+const (
+	LoggingFilterName = "LoggingFilter"
+	logLevelHeader    = "X-Log-Level"
+)
 
 type Logging struct {
 }
@@ -37,7 +42,7 @@ func (*Logging) Name() string {
 func (l *Logging) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	var correlationId string
 	for key, val := range req.Header {
-		if slice.StringsAnyEquals(CorrelationIdHeaders, key) {
+		if slice.StringsAnyEquals(correlationIdHeaders, key) {
 			correlationId = val[0]
 			break
 		}
@@ -51,6 +56,11 @@ func (l *Logging) Run(req *web.Request, next web.Handler) (*web.Response, error)
 	}
 	entry := log.R(req, LoggingFilterName).WithField("correlation_id", correlationId)
 	ctx := log.ContextWithLogger(req.Context(), entry)
+	requestLogLevel, exists := req.Header[logLevelHeader]
+	if exists {
+		entry.Debugf("Attempting to change request log level to %s", requestLogLevel)
+		ctx = context.WithValue(ctx, "log.level", requestLogLevel[0])
+	}
 	req.Request = req.WithContext(ctx)
 	return next.Handle(req)
 }
