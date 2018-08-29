@@ -36,7 +36,7 @@ var _ = Describe("Info API", func() {
 	var ctx *common.TestContext
 
 	BeforeSuite(func() {
-		ctx = common.NewTestContext()
+		ctx = common.NewTestContext(nil)
 	})
 
 	AfterSuite(func() {

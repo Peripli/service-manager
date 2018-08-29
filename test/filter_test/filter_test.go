@@ -27,9 +27,7 @@ var _ = Describe("Service Manager Filters", func() {
 	var order string
 
 	JustBeforeEach(func() {
-		api := &web.API{}
-		api.RegisterFilters(testFilters...)
-		ctx = common.NewTestContext(common.ContextParams{AdditionalAPI: api})
+		ctx = common.NewTestContext(&common.ContextParams{AdditionalFilters: testFilters})
 		testBroker = ctx.RegisterBroker("broker1", nil)
 		order = ""
 	})

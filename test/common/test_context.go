@@ -47,7 +47,10 @@ var serviceCatalog = `{
 }`
 
 type ContextParams struct {
-	AdditionalAPI      *web.API
+	AdditionalFilters     []web.Filter
+	AdditionalPlugins     []web.Plugin
+	AdditionalControllers []web.Controller
+
 	Environment        env.Environment
 	DefaultTokenClaims map[string]interface{}
 }
@@ -66,27 +69,22 @@ func buildSM(params *ContextParams, issuerURL string) *httptest.Server {
 
 	ctx, _ := context.WithCancel(context.Background())
 	smanagerBuilder := sm.New(ctx, params.Environment)
-	if params.AdditionalAPI != nil {
-		smanagerBuilder.RegisterControllers(params.AdditionalAPI.Controllers...)
-		smanagerBuilder.RegisterFilters(params.AdditionalAPI.Filters...)
-	}
+	smanagerBuilder.RegisterControllers(params.AdditionalControllers...)
+	smanagerBuilder.RegisterFilters(params.AdditionalFilters...)
+	smanagerBuilder.RegisterPlugins(params.AdditionalPlugins...)
 	serviceManager := smanagerBuilder.Build()
 	return httptest.NewServer(serviceManager.Server.Router)
 }
 
-func NewTestContext(ctxParams ...ContextParams) *TestContext {
-	var params ContextParams
-	if len(ctxParams) > 1 {
-		panic("At most one ContextParams expected")
-	}
-	if len(ctxParams) == 1 {
-		params = ctxParams[0]
+func NewTestContext(params *ContextParams) *TestContext {
+	if params == nil {
+		params = &ContextParams{}
 	}
 
 	oauthServer := NewOAuthServer()
 	oauthServer.Start()
 
-	smServer := buildSM(&params, oauthServer.URL)
+	smServer := buildSM(params, oauthServer.URL)
 	SM := httpexpect.New(GinkgoT(), smServer.URL)
 
 	accessToken := oauthServer.CreateToken(params.DefaultTokenClaims)
