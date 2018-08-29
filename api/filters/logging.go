@@ -58,7 +58,7 @@ func (l *Logging) Run(req *web.Request, next web.Handler) (*web.Response, error)
 	ctx := log.ContextWithLogger(req.Context(), entry)
 	requestLogLevel, exists := req.Header[logLevelHeader]
 	if exists {
-		entry.Debugf("Attempting to change request log level to %s", requestLogLevel)
+		entry.Debugf("Changing request log level to %s", requestLogLevel)
 		ctx = context.WithValue(ctx, "log.level", requestLogLevel[0])
 	}
 	req.Request = req.WithContext(ctx)
