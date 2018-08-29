@@ -32,3 +32,6 @@ script:
 
 notifications:
   slack: openservicebrokerapi:KQo2QAC6LXeEeXPOemOXja48
+
+addons:
+  srcclr: true
