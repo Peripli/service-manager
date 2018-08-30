@@ -46,9 +46,9 @@ func TestServiceManager(t *testing.T) {
 
 var _ = Describe("SM", func() {
 	var (
-		serviceManagerServer *httptest.Server
-		ctx                  context.Context
-		cancel               context.CancelFunc
+		ctx         context.Context
+		cancel      context.CancelFunc
+		oauthServer *common.OAuthServer
 	)
 
 	BeforeSuite(func() {
@@ -56,22 +56,16 @@ var _ = Describe("SM", func() {
 		ctx, cancel = context.WithCancel(context.Background())
 		os.Chdir("../..")
 		os.Setenv("FILE_LOCATION", "test/common")
+		oauthServer = common.NewOAuthServer()
+		oauthServer.Start()
+		os.Setenv("API_TOKEN_ISSUER_URL", oauthServer.URL)
 	})
 
 	AfterSuite(func() {
 		defer cancel()
 		os.Unsetenv("FILE_LOCATION")
-	})
-
-	BeforeEach(func() {
-		os.Setenv("API_TOKEN_ISSUER_URL", common.SetupFakeOAuthServer().URL)
-	})
-
-	AfterEach(func() {
+		oauthServer.Close()
 		os.Unsetenv("API_TOKEN_ISSUER_URL")
-		if serviceManagerServer != nil {
-			serviceManagerServer.Close()
-		}
 	})
 
 	Describe("New", func() {

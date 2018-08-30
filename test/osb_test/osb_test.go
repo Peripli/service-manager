@@ -63,14 +63,15 @@ func getDummyService(idsToRemove ...string) *object {
 
 var _ = Describe("Service Manager OSB API", func() {
 	var (
-		ctx                        *common.TestContext
-		validBroker, failingBroker *common.Broker
+		ctx                                          *common.TestContext
+		validBroker, failingBroker, brokerWithPrefix *common.Broker
 	)
 
 	BeforeSuite(func() {
-		ctx = common.NewTestContextFromAPIs(nil)
+		ctx = common.NewTestContext(nil)
 		validBroker = ctx.RegisterBroker("broker1", common.SetupFakeServiceBrokerServer("broker1"))
 		failingBroker = ctx.RegisterBroker("broker2", common.SetupFakeFailingBrokerServer("broker2"))
+		brokerWithPrefix = ctx.RegisterBroker("broker3", common.SetupFakeServiceBrokerServerWithPrefix("broker3", "/sm"))
 	})
 
 	AfterSuite(func() {
@@ -234,25 +235,12 @@ var _ = Describe("Service Manager OSB API", func() {
 	})
 
 	Describe("Prefixed broker path", func() {
+		Context("when call to working broker", func() {
+			It("should get catalog", func() {
+				resp := ctx.SMWithBasic.GET(brokerWithPrefix.OSBURL + "/v2/catalog").
+					Expect().Status(http.StatusOK).JSON().Object()
 
-		Describe("Catalog", func() {
-
-			BeforeEach(func() {
-				ctx = common.NewTestContextFromAPIs(nil)
-				validBroker = ctx.RegisterBroker("broker1", common.SetupFakeServiceBrokerServerWithPrefix("broker1", "/sm"))
-			})
-
-			AfterEach(func() {
-				ctx.Cleanup()
-			})
-
-			Context("when call to working broker", func() {
-				It("should get catalog", func() {
-					resp := ctx.SMWithBasic.GET(validBroker.OSBURL+"/v2/catalog").WithHeader("X-Broker-API-Version", "oidc_authn.13").
-						Expect().Status(http.StatusOK).JSON().Object()
-
-					resp.ContainsKey("services")
-				})
+				resp.ContainsKey("services")
 			})
 		})
 	})

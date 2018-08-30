@@ -34,7 +34,9 @@ var _ = Describe("Service Manager Plugins", func() {
 
 	Describe("Partial plugin", func() {
 		BeforeEach(func() {
-			ctx = common.NewTestContextFromAPIs([]web.Plugin{&PartialPlugin{}})
+			ctx = common.NewTestContext(&common.ContextParams{
+				AdditionalPlugins: []web.Plugin{&PartialPlugin{}},
+			})
 			testBroker = ctx.RegisterBroker("broker1", nil)
 
 		})
@@ -60,30 +62,32 @@ var _ = Describe("Service Manager Plugins", func() {
 		})
 
 		JustBeforeEach(func() {
-			ctx = common.NewTestContextFromAPIs([]web.Plugin{testPlugin})
+			ctx = common.NewTestContext(&common.ContextParams{
+				AdditionalPlugins: []web.Plugin{testPlugin},
+			})
 			testBroker = ctx.RegisterBroker("broker1", nil)
 		})
 
 		It("Plugin modifies the request & response body", func() {
 			var resBodySize int
 			testPlugin["provision"] = web.MiddlewareFunc(func(req *web.Request, next web.Handler) (*web.Response, error) {
-					var err error
-					req.Body, err = sjson.SetBytes(req.Body, "extra", "request")
-					if err != nil {
-						return nil, err
-					}
+				var err error
+				req.Body, err = sjson.SetBytes(req.Body, "extra", "request")
+				if err != nil {
+					return nil, err
+				}
 
-					res, err := next.Handle(req)
-					if err != nil {
-						return nil, err
-					}
+				res, err := next.Handle(req)
+				if err != nil {
+					return nil, err
+				}
 
-					res.Body, err = sjson.SetBytes(res.Body, "extra", "response")
-					if err != nil {
-						return nil, err
-					}
-					resBodySize = len(res.Body)
-					return res, nil
+				res.Body, err = sjson.SetBytes(res.Body, "extra", "response")
+				if err != nil {
+					return nil, err
+				}
+				resBodySize = len(res.Body)
+				return res, nil
 			})
 			testBroker.StatusCode = http.StatusCreated
 
@@ -108,16 +112,16 @@ var _ = Describe("Service Manager Plugins", func() {
 
 		It("Plugin modifies the request & response headers", func() {
 			testPlugin["fetchCatalog"] = web.MiddlewareFunc(func(req *web.Request, next web.Handler) (*web.Response, error) {
-					h := req.Header.Get("extra")
-					req.Header.Set("extra", h+"-request")
+				h := req.Header.Get("extra")
+				req.Header.Set("extra", h+"-request")
 
-					res, err := next.Handle(req)
-					if err != nil {
-						return nil, err
-					}
+				res, err := next.Handle(req)
+				if err != nil {
+					return nil, err
+				}
 
-					res.Header.Set("extra", h+"-response")
-					return res, nil
+				res.Header.Set("extra", h+"-response")
+				return res, nil
 			})
 			testBroker.StatusCode = http.StatusOK
 
@@ -129,11 +133,11 @@ var _ = Describe("Service Manager Plugins", func() {
 
 		It("Plugin aborts the request", func() {
 			testPlugin["fetchCatalog"] = web.MiddlewareFunc(func(req *web.Request, next web.Handler) (*web.Response, error) {
-					return nil, &util.HTTPError{
-						ErrorType:   "PluginErr",
-						Description: "Plugin error",
-						StatusCode:  http.StatusBadRequest,
-					}
+				return nil, &util.HTTPError{
+					ErrorType:   "PluginErr",
+					Description: "Plugin error",
+					StatusCode:  http.StatusBadRequest,
+				}
 			})
 
 			ctx.SMWithBasic.GET(testBroker.OSBURL + "/v2/catalog").
@@ -174,11 +178,11 @@ var _ = Describe("Service Manager Plugins", func() {
 			op := op
 			It(fmt.Sprintf("Plugin intercepts %s operation", op.name), func() {
 				testPlugin[op.name] = web.MiddlewareFunc(func(req *web.Request, next web.Handler) (*web.Response, error) {
-						res, err := next.Handle(req)
-						if err == nil {
-							res.Header.Set("X-Plugin", op.name)
-						}
-						return res, err
+					res, err := next.Handle(req)
+					if err == nil {
+						res.Header.Set("X-Plugin", op.name)
+					}
+					return res, err
 				})
 
 				for _, query := range op.queries {
@@ -200,10 +204,10 @@ type TestPlugin map[string]web.Middleware
 func (p TestPlugin) Name() string { return "TestPlugin" }
 
 func (p TestPlugin) call(middleware web.Middleware, req *web.Request, next web.Handler) (*web.Response, error) {
-		if middleware == nil {
-			return next.Handle(req)
-		}
-		return middleware.Run(req, next)
+	if middleware == nil {
+		return next.Handle(req)
+	}
+	return middleware.Run(req, next)
 }
 
 func (p TestPlugin) FetchCatalog(request *web.Request, next web.Handler) (*web.Response, error) {
@@ -211,38 +215,38 @@ func (p TestPlugin) FetchCatalog(request *web.Request, next web.Handler) (*web.R
 }
 
 func (p TestPlugin) Provision(request *web.Request, next web.Handler) (*web.Response, error) {
-	return p.call(p["provision"], request,next)
+	return p.call(p["provision"], request, next)
 }
 
 func (p TestPlugin) Deprovision(request *web.Request, next web.Handler) (*web.Response, error) {
-	return p.call(p["deprovision"], request,next)
+	return p.call(p["deprovision"], request, next)
 }
 
 func (p TestPlugin) UpdateService(request *web.Request, next web.Handler) (*web.Response, error) {
-	return p.call(p["updateService"],request, next)
+	return p.call(p["updateService"], request, next)
 }
 func (p TestPlugin) FetchService(request *web.Request, next web.Handler) (*web.Response, error) {
-	return p.call(p["fetchService"],request, next)
+	return p.call(p["fetchService"], request, next)
 }
 
 func (p TestPlugin) Bind(request *web.Request, next web.Handler) (*web.Response, error) {
-	return p.call(p["bind"], request,next)
+	return p.call(p["bind"], request, next)
 }
 
 func (p TestPlugin) Unbind(request *web.Request, next web.Handler) (*web.Response, error) {
-	return p.call(p["unbind"],request, next)
+	return p.call(p["unbind"], request, next)
 }
 
 func (p TestPlugin) FetchBinding(request *web.Request, next web.Handler) (*web.Response, error) {
-	return p.call(p["fetchBinding"],request, next)
+	return p.call(p["fetchBinding"], request, next)
 }
 
 func (p TestPlugin) PollInstance(request *web.Request, next web.Handler) (*web.Response, error) {
-	return p.call(p["pollInstance"], request,next)
+	return p.call(p["pollInstance"], request, next)
 }
 
 func (p TestPlugin) PollBinding(request *web.Request, next web.Handler) (*web.Response, error) {
-	return p.call(p["pollBinding"],request, next)
+	return p.call(p["pollBinding"], request, next)
 }
 
 type PartialPlugin struct{}
