@@ -26,6 +26,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/sirupsen/logrus"
 )
 
 // TestServiceManager tests servermanager package
@@ -66,7 +67,47 @@ var _ = Describe("log", func() {
 				expectOutput("\"msg\":\"Test\"", "json")
 			})
 		})
+	})
 
+	Describe("Logger for Context", func() {
+		Context("When keys are provided", func() {
+			It("Should add fields as values from context", func() {
+				contextKey := "key"
+				contextValue := "value"
+				ctx := context.WithValue(context.TODO(), contextKey, contextValue)
+				logger := ForContext(ctx, "component", "key")
+				fieldValue := logger.Data[contextKey].(string)
+				Expect(fieldValue).To(Equal(contextValue))
+			})
+		})
+		Context("When log level is provided", func() {
+			It("Should use the log level", func() {
+				ctx := context.WithValue(context.TODO(), FieldLogLevel, logrus.WarnLevel.String())
+				entry := ForContext(ctx, "component")
+				Expect(entry.Logger.Level).To(Equal(logrus.WarnLevel))
+			})
+			It("Should not change default log level when invalid", func() {
+				ctx := context.WithValue(context.TODO(), FieldLogLevel, "invalid")
+				entry := ForContext(ctx, "component")
+				Expect(entry.Logger.Level).To(Equal(defaultEntry.Logger.Level))
+			})
+		})
+	})
+	Describe("Register formatter", func() {
+		Context("When a formatter with such name is not registered", func() {
+			It("Registers it", func() {
+				name := "formatter_name"
+				err := RegisterFormatter(name, &logrus.TextFormatter{})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(supportedFormatters[name]).ToNot(BeNil())
+			})
+		})
+		Context("When a formatter with such name is registered", func() {
+			It("Returns an error", func() {
+				err := RegisterFormatter("text", &logrus.TextFormatter{})
+				Expect(err).To(HaveOccurred())
+			})
+		})
 	})
 })
 

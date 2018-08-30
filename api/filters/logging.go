@@ -25,24 +25,28 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-var correlationIdHeaders = []string{"X-Correlation-ID", "X-CorrelationID", "X-ForRequest-ID", "X-Vcap-Request-Id"}
+var correlationIDHeaders = []string{"X-Correlation-ID", "X-CorrelationID", "X-ForRequest-ID", "X-Vcap-Request-Id"}
 
 const (
+	// LoggingFilterName is the name of the logging filter
 	LoggingFilterName = "LoggingFilter"
 	logLevelHeader    = "X-Log-Level"
 )
 
+// Logging is filter that configures logging per request.
 type Logging struct {
 }
 
+// Name implements the web.Filter interface and returns the identifier of the filter.
 func (*Logging) Name() string {
 	return LoggingFilterName
 }
 
+// Run represents the logging middleware function that processes the request and configures the request-scoped logging.
 func (l *Logging) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	var correlationId string
 	for key, val := range req.Header {
-		if slice.StringsAnyEquals(correlationIdHeaders, key) {
+		if slice.StringsAnyEquals(correlationIDHeaders, key) {
 			correlationId = val[0]
 			break
 		}
@@ -54,17 +58,18 @@ func (l *Logging) Run(req *web.Request, next web.Handler) (*web.Response, error)
 		}
 		correlationId = uuids.String()
 	}
-	entry := log.R(req, LoggingFilterName).WithField("correlation_id", correlationId)
+	entry := log.R(req, LoggingFilterName).WithField(log.FieldCorrelationID, correlationId)
 	ctx := log.ContextWithLogger(req.Context(), entry)
 	requestLogLevel, exists := req.Header[logLevelHeader]
 	if exists {
 		entry.Debugf("Changing request log level to %s", requestLogLevel)
-		ctx = context.WithValue(ctx, "log.level", requestLogLevel[0])
+		ctx = context.WithValue(ctx, log.LevelKey{}, requestLogLevel[0])
 	}
 	req.Request = req.WithContext(ctx)
 	return next.Handle(req)
 }
 
+// FilterMatchers implements the web.Filter interface and returns the conditions on which the filter should be executed.
 func (*Logging) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{

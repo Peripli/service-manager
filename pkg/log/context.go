@@ -27,6 +27,9 @@ import (
 
 type logKey struct{}
 
+// LevelKey is the context key for the log level
+type LevelKey struct{}
+
 var (
 	supportedFormatters = map[string]logrus.Formatter{
 		"json": &logrus.JSONFormatter{},
@@ -35,9 +38,19 @@ var (
 	mux          = sync.Mutex{}
 	once         = sync.Once{}
 	defaultEntry = logrus.NewEntry(logrus.StandardLogger())
-	C            = ForContext
-	R            = ForContextProvider
-	D            = Default
+	// C is an alias for ForContext
+	C = ForContext
+	// R is an alias for ForContextProvider
+	R = ForContextProvider
+	// D is an alias for Default
+	D = Default
+)
+
+const (
+	// FieldComponentName is the key of the component field in the log message.
+	FieldComponentName = "component"
+	// FieldCorrelationID is the key of the correlation id field in the log message.
+	FieldCorrelationID = "correlation_id"
 )
 
 // Contexter interface
@@ -90,6 +103,7 @@ func Configure(ctx context.Context, settings *Settings) context.Context {
 			Hooks:     make(logrus.LevelHooks),
 		}
 		defaultEntry = logrus.NewEntry(logger)
+		defaultEntry.Level = level
 	})
 	return ContextWithLogger(ctx, defaultEntry)
 }
@@ -104,7 +118,7 @@ func ForContext(ctx context.Context, component string, keys ...interface{}) *log
 		entry = copyEntry(defaultEntry)
 	}
 	fields := make(logrus.Fields, len(keys)+1)
-	fields["package"] = component
+	fields[FieldComponentName] = component
 	for _, key := range keys {
 		value := ctx.Value(key)
 		if value != nil {
@@ -112,13 +126,14 @@ func ForContext(ctx context.Context, component string, keys ...interface{}) *log
 		}
 	}
 	logEntry := entry.(*logrus.Entry).WithFields(fields)
-	contextLogLevel, exists := ctx.Value("log.level").(string)
+	contextLogLevel, exists := ctx.Value(LevelKey{}).(string)
 	if exists {
 		level, err := logrus.ParseLevel(contextLogLevel)
 		if err != nil {
 			logEntry.Warnf("Dynamic log level change not supported for log level %s", contextLogLevel)
 		} else {
 			logEntry.Logger.Level = level
+			logEntry.Level = level
 		}
 	}
 	return logEntry
@@ -139,11 +154,16 @@ func ContextWithLogger(ctx context.Context, entry *logrus.Entry) context.Context
 	return context.WithValue(ctx, logKey{}, entry)
 }
 
-// RegisterFormatter registers a new logrus Formatter
-func RegisterFormatter(name string, formatter logrus.Formatter) {
+// RegisterFormatter registers a new logrus Formatter with the given name.
+// Returns an error if there is a formatter with the same name.
+func RegisterFormatter(name string, formatter logrus.Formatter) error {
 	mux.Lock()
 	defer mux.Unlock()
+	if _, exists := supportedFormatters[name]; exists {
+		return fmt.Errorf("Formatter with name %s is already registered", name)
+	}
 	supportedFormatters[name] = formatter
+	return nil
 }
 
 func copyEntry(entry *logrus.Entry) *logrus.Entry {
