@@ -19,7 +19,7 @@ var (
 	errUserNotFound = errors.New("user identity must be provided when allowing authentication")
 )
 
-// Middleware type represents an anthentication middleware
+// Middleware type represents an authentication middleware
 type Middleware struct {
 	authenticator security.Authenticator
 	name          string

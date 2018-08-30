@@ -18,6 +18,7 @@ package osb
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -32,13 +33,15 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
+const name = "api/controller/osb"
+
 var osbPathPattern = regexp.MustCompile("^" + web.OSBURL + "/[^/]+(/.*)$")
 
 // BrokerRoundTripper is implemented by OSB handler providers
 type BrokerRoundTripper interface {
 	http.RoundTripper
 
-	Broker(brokerID string) (*types.Broker, error)
+	Broker(ctx context.Context, brokerID string) (*types.Broker, error)
 }
 
 // Controller implements api.Controller by providing OSB API logic
@@ -46,8 +49,6 @@ type controller struct {
 	fetcher BrokerRoundTripper
 	proxy   *httputil.ReverseProxy
 }
-
-const name = "controller/osb"
 
 var _ web.Controller = &controller{}
 
@@ -76,7 +77,7 @@ func (c *controller) handler(r *web.Request) (*web.Response, error) {
 	}
 	log.R(r, name).Debugf("Obtained path parameter [brokerID = %s] from path params", brokerID)
 
-	broker, err := c.fetcher.Broker(brokerID)
+	broker, err := c.fetcher.Broker(r.Context(), brokerID)
 	if err != nil {
 		return nil, err
 	}

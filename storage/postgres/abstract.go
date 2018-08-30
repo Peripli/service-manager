@@ -17,6 +17,7 @@
 package postgres
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -28,7 +29,9 @@ import (
 	"github.com/lib/pq"
 )
 
-func create(db *sqlx.DB, table string, dto interface{}) error {
+const aname = "storage/postgres/abstract"
+
+func create(ctx context.Context, db *sqlx.DB, table string, dto interface{}) error {
 	set := getDBTags(dto)
 
 	if len(set) == 0 {
@@ -41,41 +44,43 @@ func create(db *sqlx.DB, table string, dto interface{}) error {
 		strings.Join(set, ", "),
 		strings.Join(set, ", :"),
 	)
-	log.D("storage/postgres/abstract").Debugf("Insert query %s", query)
-	_, err := db.NamedExec(query, dto)
-	return checkUniqueViolation(err)
+	log.C(ctx, aname).Debugf("Executing query %s", query)
+	_, err := db.NamedExecContext(ctx, query, dto)
+	return checkUniqueViolation(ctx, err)
 }
 
-func get(db *sqlx.DB, id string, table string, dto interface{}) error {
+func get(ctx context.Context, db *sqlx.DB, id string, table string, dto interface{}) error {
 	query := "SELECT * FROM " + table + " WHERE id=$1"
-	err := db.Get(dto, query, &id)
+	log.C(ctx, aname).Debugf("Executing query %s", query)
+	err := db.GetContext(ctx, dto, query, &id)
 	return checkSQLNoRows(err)
 }
 
-func getAll(db *sqlx.DB, table string, dtos interface{}) error {
+func getAll(ctx context.Context, db *sqlx.DB, table string, dtos interface{}) error {
 	query := "SELECT * FROM " + table
-	return db.Select(dtos, query)
+	log.C(ctx, aname).Debugf("Executing query %s", query)
+	return db.SelectContext(ctx, dtos, query)
 }
 
-func delete(db *sqlx.DB, id string, table string) error {
+func delete(ctx context.Context, db *sqlx.DB, id string, table string) error {
 	query := "DELETE FROM " + table + " WHERE id=$1"
-
-	result, err := db.Exec(query, &id)
+	log.C(ctx, aname).Debugf("Executing query %s", query)
+	result, err := db.ExecContext(ctx, query, &id)
 	if err != nil {
 		return err
 	}
 	return checkRowsAffected(result)
 }
 
-func update(db *sqlx.DB, table string, dto interface{}) error {
+func update(ctx context.Context, db *sqlx.DB, table string, dto interface{}) error {
 	updateQueryString := updateQuery(table, dto)
 	if updateQueryString == "" {
-		log.D("storage/postgres/abstract").Debugf("%s update: Nothing to update", table)
+		log.C(ctx, aname).Debugf("%s update: Nothing to update", table)
 		return nil
 	}
-	log.D("storage/postgres/abstract").Debugf("Update query %s", updateQueryString)
-	result, err := db.NamedExec(updateQueryString, dto)
-	if err = checkUniqueViolation(err); err != nil {
+	log.C(ctx, aname).Debugf("Executing query %s", updateQueryString)
+	result, err := db.NamedExecContext(ctx, updateQueryString, dto)
+	if err = checkUniqueViolation(ctx, err); err != nil {
 		return err
 	}
 	return checkRowsAffected(result)
@@ -112,13 +117,13 @@ func updateQuery(tableName string, structure interface{}) string {
 		strings.Join(set, ", "))
 }
 
-func checkUniqueViolation(err error) error {
+func checkUniqueViolation(ctx context.Context, err error) error {
 	if err == nil {
 		return nil
 	}
 	sqlErr, ok := err.(*pq.Error)
 	if ok && sqlErr.Code.Name() == "unique_violation" {
-		log.D("storage/postgres/abstract").Debug(sqlErr)
+		log.C(ctx, aname).Debug(sqlErr)
 		return util.ErrAlreadyExistsInStorage
 	}
 	return err

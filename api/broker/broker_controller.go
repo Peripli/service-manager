@@ -38,7 +38,7 @@ import (
 const (
 	reqBrokerID  = "broker_id"
 	catalogParam = "catalog"
-	name         = "controller/broker"
+	name         = "api/controller/broker"
 )
 
 // Controller broker controller
@@ -75,10 +75,10 @@ func (c *Controller) createBroker(r *web.Request) (*web.Response, error) {
 	}
 	broker.Catalog = catalog
 
-	if err := transformBrokerCredentials(broker, c.Encrypter.Encrypt); err != nil {
+	if err := transformBrokerCredentials(r.Context(), broker, c.Encrypter.Encrypt); err != nil {
 		return nil, err
 	}
-	if err := c.BrokerStorage.Create(broker); err != nil {
+	if err := c.BrokerStorage.Create(r.Context(), broker); err != nil {
 		return nil, util.HandleStorageError(err, "broker", broker.ID)
 	}
 
@@ -91,7 +91,7 @@ func (c *Controller) getBroker(r *web.Request) (*web.Response, error) {
 	brokerID := r.PathParams[reqBrokerID]
 	log.R(r, name).Debugf("Getting broker with id %s", brokerID)
 
-	broker, err := c.BrokerStorage.Get(brokerID)
+	broker, err := c.BrokerStorage.Get(r.Context(), brokerID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
@@ -103,7 +103,7 @@ func (c *Controller) getBroker(r *web.Request) (*web.Response, error) {
 
 func (c *Controller) getAllBrokers(r *web.Request) (*web.Response, error) {
 	log.R(r, name).Debug("Getting all brokers")
-	brokers, err := c.BrokerStorage.GetAll()
+	brokers, err := c.BrokerStorage.GetAll(r.Context())
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +125,7 @@ func (c *Controller) deleteBroker(r *web.Request) (*web.Response, error) {
 	brokerID := r.PathParams[reqBrokerID]
 	log.R(r, name).Debugf("Deleting broker with id %s", brokerID)
 
-	if err := c.BrokerStorage.Delete(brokerID); err != nil {
+	if err := c.BrokerStorage.Delete(r.Context(), brokerID); err != nil {
 		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
 	return util.NewJSONResponse(http.StatusOK, map[string]int{})
@@ -135,7 +135,7 @@ func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
 	brokerID := r.PathParams[reqBrokerID]
 	log.R(r, name).Debugf("Updating updateBroker with id %s", brokerID)
 
-	broker, err := c.BrokerStorage.Get(brokerID)
+	broker, err := c.BrokerStorage.Get(r.Context(), brokerID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
@@ -146,7 +146,7 @@ func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	if err := transformBrokerCredentials(broker, c.Encrypter.Encrypt); err != nil {
+	if err := transformBrokerCredentials(r.Context(), broker, c.Encrypter.Encrypt); err != nil {
 		return nil, err
 	}
 
@@ -160,7 +160,7 @@ func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
 	broker.CreatedAt = createdAt
 	broker.UpdatedAt = time.Now().UTC()
 
-	if err := c.BrokerStorage.Update(broker); err != nil {
+	if err := c.BrokerStorage.Update(r.Context(), broker); err != nil {
 		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
 
@@ -207,9 +207,9 @@ func clientConfigForBroker(broker *types.Broker) *osbc.ClientConfiguration {
 	return config
 }
 
-func transformBrokerCredentials(broker *types.Broker, transformationFunc func([]byte) ([]byte, error)) error {
+func transformBrokerCredentials(ctx context.Context, broker *types.Broker, transformationFunc func(context.Context, []byte) ([]byte, error)) error {
 	if broker.Credentials != nil {
-		transformedPassword, err := transformationFunc([]byte(broker.Credentials.Basic.Password))
+		transformedPassword, err := transformationFunc(ctx, []byte(broker.Credentials.Basic.Password))
 		if err != nil {
 			return err
 		}

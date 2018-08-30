@@ -31,7 +31,7 @@ import (
 
 const (
 	reqPlatformID = "platform_id"
-	name          = "controller/platform"
+	name          = "api/controller/platform"
 )
 
 // Controller platform controller
@@ -69,14 +69,14 @@ func (c *Controller) createPlatform(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 	plainPassword := credentials.Basic.Password
-	transformedPassword, err := c.Encrypter.Encrypt([]byte(plainPassword))
+	transformedPassword, err := c.Encrypter.Encrypt(r.Context(), []byte(plainPassword))
 	if err != nil {
 		return nil, err
 	}
 	credentials.Basic.Password = string(transformedPassword)
 	platform.Credentials = credentials
 
-	if err := c.PlatformStorage.Create(platform); err != nil {
+	if err := c.PlatformStorage.Create(r.Context(), platform); err != nil {
 		return nil, util.HandleStorageError(err, "platform", platform.ID)
 	}
 	platform.Credentials.Basic.Password = plainPassword
@@ -88,7 +88,7 @@ func (c *Controller) getPlatform(r *web.Request) (*web.Response, error) {
 	platformID := r.PathParams[reqPlatformID]
 	log.R(r, name).Debugf("Getting platform with id %s", platformID)
 
-	platform, err := c.PlatformStorage.Get(platformID)
+	platform, err := c.PlatformStorage.Get(r.Context(), platformID)
 	if err = util.HandleStorageError(err, "platform", platformID); err != nil {
 		return nil, err
 	}
@@ -99,7 +99,7 @@ func (c *Controller) getPlatform(r *web.Request) (*web.Response, error) {
 // getAllPlatforms handler for GET /v1/platforms
 func (c *Controller) getAllPlatforms(r *web.Request) (*web.Response, error) {
 	log.R(r, name).Debug("Getting all platforms")
-	platforms, err := c.PlatformStorage.GetAll()
+	platforms, err := c.PlatformStorage.GetAll(r.Context())
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func (c *Controller) deletePlatform(r *web.Request) (*web.Response, error) {
 	platformID := r.PathParams[reqPlatformID]
 	log.R(r, name).Debugf("Deleting platform with id %s", platformID)
 
-	if err := c.PlatformStorage.Delete(platformID); err != nil {
+	if err := c.PlatformStorage.Delete(r.Context(), platformID); err != nil {
 		return nil, util.HandleStorageError(err, "platform", platformID)
 	}
 
@@ -133,7 +133,7 @@ func (c *Controller) patchPlatform(r *web.Request) (*web.Response, error) {
 	platformID := r.PathParams[reqPlatformID]
 	log.R(r, name).Debugf("Updating platform with id %s", platformID)
 
-	platform, err := c.PlatformStorage.Get(platformID)
+	platform, err := c.PlatformStorage.Get(r.Context(), platformID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, "platform", platformID)
 	}
@@ -148,7 +148,7 @@ func (c *Controller) patchPlatform(r *web.Request) (*web.Response, error) {
 	platform.CreatedAt = createdAt
 	platform.UpdatedAt = time.Now().UTC()
 
-	if err := c.PlatformStorage.Update(platform); err != nil {
+	if err := c.PlatformStorage.Update(r.Context(), platform); err != nil {
 		return nil, util.HandleStorageError(err, "platform", platformID)
 	}
 

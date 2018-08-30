@@ -17,14 +17,13 @@
 package web
 
 import (
-"fmt"
-"net/http"
+	"fmt"
+	"net/http"
 
+	"github.com/Peripli/service-manager/pkg/log"
+)
 
-
-
-"github.com/Peripli/service-manager/pkg/log"
-	)
+const fname = "pkg/web/filter"
 
 // Request contains the original http.Request, path parameters and the raw body
 // Request.Request.Body should not be used as it would be already processed by internal implementation
@@ -53,7 +52,6 @@ type Response struct {
 
 // Named is an interface that objects that need to be identified by a particular name should implement.
 type Named interface {
-
 	// Name returns the string identifier for the object
 	Name() string
 }
@@ -61,7 +59,6 @@ type Named interface {
 // Handler is an interface that objects can implement to be registered in the SM REST API.
 //go:generate counterfeiter . Handler
 type Handler interface {
-
 	// Handle processes a Request and returns a corresponding Response or error
 	Handle(req *Request) (resp *Response, err error)
 }
@@ -77,7 +74,6 @@ func (rhf HandlerFunc) Handle(req *Request) (resp *Response, err error) {
 // Middleware is an interface that objects that should act as filters or plugins need to implement. It intercepts
 // the request before reaching the final handler and allows during preprocessing and postprocessing.
 type Middleware interface {
-
 	// Run returns a handler that contains the handling logic of the Middleware. The implementation of Run
 	// should invoke next's Handle if the request should be chained to the next Handler.
 	// It may also terminate the request by not invoking the next Handler.
@@ -94,7 +90,6 @@ func (mf MiddlewareFunc) Run(req *Request, handler Handler) (*Response, error) {
 
 // Matcher allows checking whether an Endpoint matches a particular condition
 type Matcher interface {
-
 	// Matches matches a route against a particular condition
 	Matches(endpoint Endpoint) (bool, error)
 }
@@ -110,7 +105,6 @@ func (m MatcherFunc) Matches(endpoint Endpoint) (bool, error) {
 // FilterMatcher type represents a set of conditions (Matchers) that need to match if order
 // for a FilterMatcher to match
 type FilterMatcher struct {
-
 	// Matchers represents a set of conditions that need to be matched
 	Matchers []Matcher
 }
@@ -150,7 +144,7 @@ func (fs Filters) Chain(h Handler) Handler {
 				"method": request.Method,
 			}
 
-			log.R(request, "pkg/web/filter").WithFields(params).Debug("Entering Filter: ", fs[i].Name())
+			log.R(request, fname).WithFields(params).Debug("Entering Filter: ", fs[i].Name())
 
 			resp, err := fs[i].Run(request, wrappedFilters[i+1])
 
@@ -159,7 +153,7 @@ func (fs Filters) Chain(h Handler) Handler {
 				params["statusCode"] = resp.StatusCode
 			}
 
-			log.R(request, "pkg/web/filter").WithFields(params).Debug("Exiting Filter: ", fs[i].Name())
+			log.R(request, fname).WithFields(params).Debug("Exiting Filter: ", fs[i].Name())
 
 			return resp, err
 		})
@@ -196,6 +190,6 @@ func (fs Filters) Matching(endpoint Endpoint) Filters {
 			}
 		}
 	}
-	log.D("pkg/web/filter").Debugf("Filters for %s %s:%v", endpoint.Method, endpoint.Path, matchedNames)
+	log.D(fname).Debugf("Filters for %s %s:%v", endpoint.Method, endpoint.Path, matchedNames)
 	return matchedFilters
 }

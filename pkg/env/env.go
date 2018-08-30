@@ -30,7 +30,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-const name = "pkg/env"
+const name = "pkg/env/env"
 
 // File describes the name, path and the format of the file to be used to load the configuration in the env
 type File struct {

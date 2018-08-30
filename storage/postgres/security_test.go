@@ -60,7 +60,7 @@ var _ = Describe("Security", func() {
 				mock.ExpectQuery("SELECT").WillReturnError(expectedError)
 			})
 			It("Should return error", func() {
-				encryptionKey, err := fetcher.GetEncryptionKey()
+				encryptionKey, err := fetcher.GetEncryptionKey(context.TODO())
 				Expect(encryptionKey).To(BeNil())
 				Expect(err).To(Equal(expectedError))
 			})
@@ -72,7 +72,7 @@ var _ = Describe("Security", func() {
 				mock.ExpectQuery("SELECT").WillReturnRows(rows)
 			})
 			It("Should return empty byte array", func() {
-				encryptionKey, err := fetcher.GetEncryptionKey()
+				encryptionKey, err := fetcher.GetEncryptionKey(context.TODO())
 				Expect(encryptionKey).To(Not(BeNil()))
 				Expect(encryptionKey).To(BeEmpty())
 				Expect(err).To(BeNil())
@@ -89,7 +89,7 @@ var _ = Describe("Security", func() {
 				mock.ExpectQuery("SELECT").WillReturnRows(rows)
 			})
 			It("Should return decrypted key", func() {
-				encryptionKey, err := fetcher.GetEncryptionKey()
+				encryptionKey, err := fetcher.GetEncryptionKey(context.TODO())
 				Expect(encryptionKey).To(Equal(plaintext))
 				Expect(err).To(BeNil())
 			})
@@ -120,7 +120,7 @@ var _ = Describe("Security", func() {
 
 		Context("When encrypting key returns error", func() {
 			It("Should return error", func() {
-				err := setter.SetEncryptionKey([]byte{})
+				err := setter.SetEncryptionKey(context.TODO(), []byte{})
 				Expect(err).To(Not(BeNil()))
 			})
 		})
@@ -132,7 +132,7 @@ var _ = Describe("Security", func() {
 				mock.ExpectExec("INSERT").WillReturnError(expectedError)
 			})
 			It("Should return error", func() {
-				err := setter.SetEncryptionKey([]byte{})
+				err := setter.SetEncryptionKey(context.TODO(), []byte{})
 				Expect(err).To(Not(BeNil()))
 			})
 		})
@@ -144,7 +144,7 @@ var _ = Describe("Security", func() {
 				mock.ExpectCommit().WillReturnError(expectedError)
 			})
 			It("Should return error", func() {
-				err := setter.SetEncryptionKey([]byte{})
+				err := setter.SetEncryptionKey(context.TODO(), []byte{})
 				Expect(err).To(Not(BeNil()))
 			})
 		})
@@ -156,7 +156,7 @@ var _ = Describe("Security", func() {
 				mock.ExpectExec("INSERT").WillReturnResult(result)
 			})
 			It("Should return nil", func() {
-				err := setter.SetEncryptionKey([]byte{})
+				err := setter.SetEncryptionKey(context.TODO(), []byte{})
 				Expect(err).To(BeNil())
 			})
 		})
@@ -196,7 +196,7 @@ var _ = Describe("Security", func() {
 
 			Context("When lock is not yet acquired", func() {
 				AfterEach(func() {
-					storage.Unlock()
+					storage.Unlock(context.TODO())
 				})
 				BeforeEach(func() {
 					mock.ExpectExec("SELECT").WillReturnResult(sqlmock.NewResult(int64(1), int64(1)))
@@ -213,7 +213,7 @@ var _ = Describe("Security", func() {
 			Context("When lock is not acquired", func() {
 				It("Should return nil", func() {
 					storage.isLocked = false
-					err := storage.Unlock()
+					err := storage.Unlock(context.TODO())
 					Expect(err).To(BeNil())
 				})
 			})
@@ -223,7 +223,7 @@ var _ = Describe("Security", func() {
 				})
 				It("Should release lock", func() {
 					storage.isLocked = true
-					err := storage.Unlock()
+					err := storage.Unlock(context.TODO())
 					Expect(err).To(BeNil())
 					Expect(storage.isLocked).To(Equal(false))
 				})

@@ -1,6 +1,7 @@
 package osb
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -25,15 +26,15 @@ func (bt *BrokerTransport) RoundTrip(request *http.Request) (*http.Response, err
 }
 
 // Broker obtains the broker coordinates (auth and URL)
-func (bt *BrokerTransport) Broker(brokerID string) (*types.Broker, error) {
-	broker, err := bt.BrokerStorage.Get(brokerID)
+func (bt *BrokerTransport) Broker(ctx context.Context, brokerID string) (*types.Broker, error) {
+	broker, err := bt.BrokerStorage.Get(ctx, brokerID)
 	if err != nil {
 		log.D("api/osb/transport").Debugf("Broker with id %s not found in storage", brokerID)
 		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
 
 	password := broker.Credentials.Basic.Password
-	plaintextPassword, err := bt.Encrypter.Decrypt([]byte(password))
+	plaintextPassword, err := bt.Encrypter.Decrypt(ctx, []byte(password))
 	if err != nil {
 		return nil, err
 	}

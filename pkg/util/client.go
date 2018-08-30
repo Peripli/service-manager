@@ -27,8 +27,12 @@ import (
 	"github.com/Peripli/service-manager/pkg/log"
 )
 
-// CorrelationIDHeader is the header for correlation id
-const CorrelationIDHeader = "X-Correlation-ID"
+const (
+	cname = "pkg/util/client"
+
+	// CorrelationIDHeader is the header for correlation id
+	CorrelationIDHeader = "X-Correlation-ID"
+)
 
 // DoRequestFunc is an alias for any function that takes an http request and returns a response and error
 type DoRequestFunc func(request *http.Request) (*http.Response, error)
@@ -59,7 +63,7 @@ func SendRequest(ctx context.Context, doRequest DoRequestFunc, method, url strin
 	}
 
 	request = request.WithContext(ctx)
-	logger := log.C(ctx, "pkg/util/client")
+	logger := log.C(ctx, cname)
 	correlationID, exists := logger.Data[log.FieldCorrelationID].(string)
 	if exists {
 		request.Header[CorrelationIDHeader] = []string{correlationID}
@@ -73,7 +77,7 @@ func SendRequest(ctx context.Context, doRequest DoRequestFunc, method, url strin
 func BodyToBytes(closer io.ReadCloser) ([]byte, error) {
 	defer func() {
 		if err := closer.Close(); err != nil {
-			log.D("pkg/util/client").Errorf("ReadCloser couldn't be closed", err)
+			log.D(cname).Errorf("ReadCloser couldn't be closed", err)
 		}
 	}()
 

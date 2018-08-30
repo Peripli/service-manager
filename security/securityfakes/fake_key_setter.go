@@ -2,15 +2,17 @@
 package securityfakes
 
 import (
+	"context"
 	"sync"
 
 	"github.com/Peripli/service-manager/security"
 )
 
 type FakeKeySetter struct {
-	SetEncryptionKeyStub        func(key []byte) error
+	SetEncryptionKeyStub        func(ctx context.Context, key []byte) error
 	setEncryptionKeyMutex       sync.RWMutex
 	setEncryptionKeyArgsForCall []struct {
+		ctx context.Context
 		key []byte
 	}
 	setEncryptionKeyReturns struct {
@@ -23,7 +25,7 @@ type FakeKeySetter struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeKeySetter) SetEncryptionKey(key []byte) error {
+func (fake *FakeKeySetter) SetEncryptionKey(ctx context.Context, key []byte) error {
 	var keyCopy []byte
 	if key != nil {
 		keyCopy = make([]byte, len(key))
@@ -32,12 +34,13 @@ func (fake *FakeKeySetter) SetEncryptionKey(key []byte) error {
 	fake.setEncryptionKeyMutex.Lock()
 	ret, specificReturn := fake.setEncryptionKeyReturnsOnCall[len(fake.setEncryptionKeyArgsForCall)]
 	fake.setEncryptionKeyArgsForCall = append(fake.setEncryptionKeyArgsForCall, struct {
+		ctx context.Context
 		key []byte
-	}{keyCopy})
-	fake.recordInvocation("SetEncryptionKey", []interface{}{keyCopy})
+	}{ctx, keyCopy})
+	fake.recordInvocation("SetEncryptionKey", []interface{}{ctx, keyCopy})
 	fake.setEncryptionKeyMutex.Unlock()
 	if fake.SetEncryptionKeyStub != nil {
-		return fake.SetEncryptionKeyStub(key)
+		return fake.SetEncryptionKeyStub(ctx, key)
 	}
 	if specificReturn {
 		return ret.result1
@@ -51,10 +54,10 @@ func (fake *FakeKeySetter) SetEncryptionKeyCallCount() int {
 	return len(fake.setEncryptionKeyArgsForCall)
 }
 
-func (fake *FakeKeySetter) SetEncryptionKeyArgsForCall(i int) []byte {
+func (fake *FakeKeySetter) SetEncryptionKeyArgsForCall(i int) (context.Context, []byte) {
 	fake.setEncryptionKeyMutex.RLock()
 	defer fake.setEncryptionKeyMutex.RUnlock()
-	return fake.setEncryptionKeyArgsForCall[i].key
+	return fake.setEncryptionKeyArgsForCall[i].ctx, fake.setEncryptionKeyArgsForCall[i].key
 }
 
 func (fake *FakeKeySetter) SetEncryptionKeyReturns(result1 error) {

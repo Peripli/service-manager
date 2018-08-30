@@ -141,22 +141,22 @@ func initializeSecureStorage(ctx context.Context, secureStorage storage.Security
 		return err
 	}
 	keyFetcher := secureStorage.Fetcher()
-	encryptionKey, err := keyFetcher.GetEncryptionKey()
+	encryptionKey, err := keyFetcher.GetEncryptionKey(ctx)
 	if err != nil {
 		return err
 	}
 	if len(encryptionKey) == 0 {
-		logger := log.C(ctx, "sm/sm")
+		logger := log.C(ctx, "pkg/sm/sm")
 		logger.Debug("No encryption key is present. Generating new one...")
 		newEncryptionKey := make([]byte, 32)
 		if _, err := rand.Read(newEncryptionKey); err != nil {
 			return fmt.Errorf("Could not generate encryption key: %v", err)
 		}
 		keySetter := secureStorage.Setter()
-		if err := keySetter.SetEncryptionKey(newEncryptionKey); err != nil {
+		if err := keySetter.SetEncryptionKey(ctx, newEncryptionKey); err != nil {
 			return err
 		}
 		logger.Debug("Successfully generated new encryption key")
 	}
-	return secureStorage.Unlock()
+	return secureStorage.Unlock(ctx)
 }

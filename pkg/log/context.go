@@ -103,7 +103,6 @@ func Configure(ctx context.Context, settings *Settings) context.Context {
 			Hooks:     make(logrus.LevelHooks),
 		}
 		defaultEntry = logrus.NewEntry(logger)
-		defaultEntry.Level = level
 	})
 	return ContextWithLogger(ctx, defaultEntry)
 }
@@ -133,7 +132,6 @@ func ForContext(ctx context.Context, component string, keys ...interface{}) *log
 			logEntry.Warnf("Dynamic log level change not supported for log level %s", contextLogLevel)
 		} else {
 			logEntry.Logger.Level = level
-			logEntry.Level = level
 		}
 	}
 	return logEntry
@@ -146,7 +144,7 @@ func ForContextProvider(contexter Contexter, component string, keys ...interface
 
 // Default returns the default logger configured for the provided component.
 func Default(component string, keys ...interface{}) *logrus.Entry {
-	return ForContext(context.Background(), component, keys)
+	return ForContext(context.Background(), component, keys).WithField(FieldCorrelationID, "default")
 }
 
 // ContextWithLogger returns a new context with the provided logger.

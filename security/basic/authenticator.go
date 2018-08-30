@@ -45,7 +45,7 @@ func (a *Authenticator) Authenticate(request *http.Request) (*web.User, security
 		return nil, security.Abstain, nil
 	}
 
-	credentials, err := a.CredentialStorage.Get(username)
+	credentials, err := a.CredentialStorage.Get(request.Context(), username)
 
 	if err != nil {
 		if err == util.ErrNotFoundInStorage {
@@ -53,7 +53,7 @@ func (a *Authenticator) Authenticate(request *http.Request) (*web.User, security
 		}
 		return nil, security.Abstain, fmt.Errorf("could not get credentials entity from storage: %s", err)
 	}
-	passwordBytes, err := a.Encrypter.Decrypt([]byte(credentials.Basic.Password))
+	passwordBytes, err := a.Encrypter.Decrypt(request.Context(), []byte(credentials.Basic.Password))
 	if err != nil {
 		return nil, security.Abstain, fmt.Errorf("could not reverse credentials from storage: %v", err)
 	}

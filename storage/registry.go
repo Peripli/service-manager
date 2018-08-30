@@ -65,7 +65,7 @@ func Use(ctx context.Context, name string, uri string, encryptionKey []byte) (St
 
 func awaitTermination(ctx context.Context, storage Storage) {
 	<-ctx.Done()
-	logger := log.D(componentName)
+	logger := log.C(ctx, componentName)
 	logger.Debug("Context cancelled. Closing storage...")
 	if err := storage.Close(); err != nil {
 		logger.Error(err)

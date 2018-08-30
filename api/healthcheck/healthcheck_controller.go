@@ -25,12 +25,12 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
+const name = "api/controller/healthcheck"
+
 // Controller platform controller
 type Controller struct {
 	Storage storage.Storage
 }
-
-const name = "controller/healthcheck"
 
 var _ web.Controller = &Controller{}
 

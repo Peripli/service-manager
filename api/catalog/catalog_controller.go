@@ -27,14 +27,14 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
+const name = "api/controller/catalog"
+
 // Controller catalog controller
 type Controller struct {
 	BrokerStorage storage.Broker
 }
 
 var _ web.Controller = &Controller{}
-
-const name = "controller/catalog"
 
 type brokerServices struct {
 	ID      string          `json:"id"`
@@ -48,7 +48,7 @@ type aggregatedCatalog struct {
 
 func (c *Controller) getCatalog(r *web.Request) (*web.Response, error) {
 	log.R(r, name).Debugf("Aggregating all broker catalogs")
-	brokers, err := c.BrokerStorage.GetAll()
+	brokers, err := c.BrokerStorage.GetAll(r.Context())
 	if err != nil {
 		return nil, err
 	}

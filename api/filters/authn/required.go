@@ -23,7 +23,7 @@ func (raf *RequiredAuthnFilter) Name() string {
 // authenticated
 func (raf *RequiredAuthnFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
 	if _, ok := web.UserFromContext(request.Context()); !ok {
-		log.R(request, "filters/required").Error("No authenticated user found in request context during execution of filter ", raf.Name())
+		log.R(request, "api/filters/required").Error("No authenticated user found in request context during execution of filter ", raf.Name())
 		return nil, errUnauthorized
 	}
 
