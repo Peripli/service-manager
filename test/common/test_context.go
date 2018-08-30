@@ -30,11 +30,8 @@ import (
 )
 
 type ContextParams struct {
-	AdditionalFilters     []web.Filter
-	AdditionalPlugins     []web.Plugin
-	AdditionalControllers []web.Controller
-
 	Environment        env.Environment
+	RegisterExtensions func(api *web.API)
 	DefaultTokenClaims map[string]interface{}
 }
 
@@ -52,9 +49,9 @@ func buildSM(params *ContextParams, issuerURL string) *httptest.Server {
 
 	ctx, _ := context.WithCancel(context.Background())
 	smanagerBuilder := sm.New(ctx, params.Environment)
-	smanagerBuilder.RegisterControllers(params.AdditionalControllers...)
-	smanagerBuilder.RegisterFilters(params.AdditionalFilters...)
-	smanagerBuilder.RegisterPlugins(params.AdditionalPlugins...)
+	if params.RegisterExtensions != nil {
+		params.RegisterExtensions(smanagerBuilder.API)
+	}
 	serviceManager := smanagerBuilder.Build()
 	return httptest.NewServer(serviceManager.Server.Router)
 }
