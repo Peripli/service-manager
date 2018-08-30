@@ -5,10 +5,10 @@ import (
 	"os"
 	"testing"
 
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/Peripli/service-manager/pkg/web"
 )
 
 type object = common.Object
@@ -27,9 +27,7 @@ var _ = Describe("Service Manager Filters", func() {
 	var order string
 
 	JustBeforeEach(func() {
-		api := &web.API{}
-		api.RegisterFilters(testFilters...)
-		ctx = common.NewTestContextFromAPIs(nil, api)
+		ctx = common.NewTestContext(&common.ContextParams{AdditionalFilters: testFilters})
 		testBroker = ctx.RegisterBroker("broker1", nil)
 		order = ""
 	})
@@ -116,12 +114,12 @@ func (tf osbTestFilter) FilterMatchers() []web.FilterMatcher {
 }
 
 func (tf osbTestFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
-		*tf.state += "osb1"
-		res, err := next.Handle(request)
-		if err == nil {
-			*tf.state += "osb2"
-		}
-		return res, err
+	*tf.state += "osb1"
+	res, err := next.Handle(request)
+	if err == nil {
+		*tf.state += "osb2"
+	}
+	return res, err
 }
 
 type globalTestFilterA struct {
@@ -142,13 +140,13 @@ func (gfa globalTestFilterA) FilterMatchers() []web.FilterMatcher {
 	}
 }
 
-func (gfa globalTestFilterA) Run(request *web.Request, next web.Handler) (*web.Response,error) {
-		*gfa.state += "a1"
-		res, err := next.Handle(request)
-		if err == nil {
-			*gfa.state += "a2"
-		}
-		return res, err
+func (gfa globalTestFilterA) Run(request *web.Request, next web.Handler) (*web.Response, error) {
+	*gfa.state += "a1"
+	res, err := next.Handle(request)
+	if err == nil {
+		*gfa.state += "a2"
+	}
+	return res, err
 }
 
 type globalTestFilterB struct {
@@ -169,12 +167,11 @@ func (gfb globalTestFilterB) FilterMatchers() []web.FilterMatcher {
 	}
 }
 
-func (gfb globalTestFilterB) Run(request *web.Request, next web.Handler) (*web.Response,error) {
-		*gfb.state += "b1"
-		res, err := next.Handle(request)
-		if err == nil {
-			*gfb.state += "b2"
-		}
-		return res, err
+func (gfb globalTestFilterB) Run(request *web.Request, next web.Handler) (*web.Response, error) {
+	*gfb.state += "b1"
+	res, err := next.Handle(request)
+	if err == nil {
+		*gfb.state += "b2"
+	}
+	return res, err
 }
-

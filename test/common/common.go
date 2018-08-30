@@ -17,26 +17,25 @@
 package common
 
 import (
-	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+
 	"net/url"
 	"reflect"
 	"regexp"
 	"strings"
-	"time"
+
+	"bytes"
+	"io"
+	"io/ioutil"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/gavv/httpexpect"
-	"github.com/gbrlsnchs/jwt"
 	"github.com/gorilla/mux"
 	"github.com/mitchellh/mapstructure"
 	. "github.com/onsi/ginkgo"
@@ -226,68 +225,6 @@ func newJwkResponse(keyID string, publicKey rsa.PublicKey) *jwkResponse {
 		PublicKeyModulus:  modulus,
 		PublicKeyExponent: exponent,
 	}
-}
-
-func RequestToken(issuerURL string) string {
-	issuer := httpexpect.New(GinkgoT(), issuerURL)
-	token := issuer.GET("/oauth/token").Expect().
-		Status(http.StatusOK).JSON().Object().
-		Value("access_token").String().Raw()
-	return token
-}
-
-func SetupFakeOAuthServer() *httptest.Server {
-	privateKey := generatePrivateKey()
-	publicKey := privateKey.PublicKey
-	signer := jwt.RS256(privateKey, &publicKey)
-	keyID := "test-key"
-
-	var issuerURL string
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{
-			"issuer": "` + issuerURL + `/oauth/token",
-			"jwks_uri": "` + issuerURL + `/token_keys"
-		}`))
-	})
-
-	mux.HandleFunc("/oauth/token", func(w http.ResponseWriter, r *http.Request) {
-		nextYear := time.Now().Add(24 * 30 * 12 * time.Hour)
-		token, err := jwt.Sign(signer, &jwt.Options{
-			Issuer:         issuerURL + "/oauth/token",
-			KeyID:          keyID,
-			Audience:       "sm",
-			ExpirationTime: nextYear,
-			Public: map[string]interface{}{
-				"user_name": "testUser",
-			},
-		})
-		if err != nil {
-			panic(err)
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"access_token": "` + token + `"}`))
-	})
-
-	mux.HandleFunc("/token_keys", func(w http.ResponseWriter, r *http.Request) {
-		jwk := newJwkResponse(keyID, publicKey)
-		responseBody, _ := json.Marshal(&struct {
-			Keys []jwkResponse `json:"keys"`
-		}{
-			Keys: []jwkResponse{*jwk},
-		})
-
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(responseBody)
-	})
-
-	server := httptest.NewServer(mux)
-	issuerURL = server.URL
-
-	return server
 }
 
 func MakeBroker(name string, url string, description string) Object {
