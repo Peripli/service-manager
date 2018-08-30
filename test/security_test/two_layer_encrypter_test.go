@@ -17,6 +17,7 @@
 package security_test
 
 import (
+	"context"
 	"crypto/rand"
 	"fmt"
 	"log"
@@ -60,7 +61,7 @@ var _ = Describe("Encrypter", func() {
 				fetcher.GetEncryptionKeyReturns(nil, expectedError)
 			})
 			It("Should return error", func() {
-				encryptedString, err := encrypter.Encrypt(plaintext)
+				encryptedString, err := encrypter.Encrypt(context.TODO(), plaintext)
 				Expect(encryptedString).To(BeNil())
 				Expect(err).To(Equal(expectedError))
 			})
@@ -72,7 +73,7 @@ var _ = Describe("Encrypter", func() {
 				fetcher.GetEncryptionKeyReturns(encryptionKey, nil)
 			})
 			It("Should encrypt the data", func() {
-				encryptedString, err := encrypter.Encrypt(plaintext)
+				encryptedString, err := encrypter.Encrypt(context.TODO(), plaintext)
 				Expect(encryptedString).To(Not(BeNil()))
 				Expect(err).To(BeNil())
 			})
@@ -87,7 +88,7 @@ var _ = Describe("Encrypter", func() {
 				fetcher.GetEncryptionKeyReturns(nil, expectedError)
 			})
 			It("Should return error", func() {
-				encryptedString, err := encrypter.Decrypt([]byte("cipher"))
+				encryptedString, err := encrypter.Decrypt(context.TODO(), []byte("cipher"))
 				Expect(encryptedString).To(BeNil())
 				Expect(err).To(Equal(expectedError))
 			})
@@ -101,8 +102,8 @@ var _ = Describe("Encrypter", func() {
 			fetcher.GetEncryptionKeyReturns(encryptionKey, nil)
 		})
 		It("Should decrypt the data", func() {
-			encryptedString, _ := encrypter.Encrypt(plaintext)
-			decryptedBytes, err := encrypter.Decrypt(encryptedString)
+			encryptedString, _ := encrypter.Encrypt(context.TODO(), plaintext)
+			decryptedBytes, err := encrypter.Decrypt(context.TODO(), encryptedString)
 			Expect(decryptedBytes).To(Not(BeNil()))
 			Expect(err).To(BeNil())
 			Expect(decryptedBytes).To(Equal(plaintext))

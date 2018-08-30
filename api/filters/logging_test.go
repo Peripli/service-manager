@@ -73,12 +73,12 @@ var _ = Describe("Logging Filter", func() {
 		})
 		Context("When header is provided", func() {
 			It("Should change log level", func() {
-				preFilterLogger := log.R(request, "test")
+				preFilterEntry := log.R(request, "test")
 				request.Header[logLevelHeader] = []string{logrus.WarnLevel.String()}
 				loggingFilter.Run(request, handler)
-				postFilterLogger := log.R(request, "test")
-				Expect(preFilterLogger.Level).ToNot(Equal(postFilterLogger.Level))
-				Expect(postFilterLogger.Level).To(Equal(logrus.WarnLevel))
+				postFilterEntry := log.R(request, "test")
+				Expect(preFilterEntry.Logger.Level).ToNot(Equal(postFilterEntry.Logger.Level))
+				Expect(postFilterEntry.Logger.Level).To(Equal(logrus.WarnLevel))
 			})
 		})
 	})
