@@ -17,7 +17,7 @@
 package web_test
 
 import (
-		"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/pkg/web"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -100,21 +100,29 @@ var _ = Describe("API", func() {
 		Context("When filter with such name does not exist", func() {
 			It("Panics", func() {
 				replaceFilter := func() {
-					api.RegisterFilterBefore("some-filter", &testFilter{"testFilter"})
+					api.RegisterFiltersBefore("some-filter", &testFilter{"testFilter"})
 				}
 				Expect(replaceFilter).To(Panic())
 			})
 		})
 
 		Context("When filter with such name exists", func() {
-			It("Adds the filter before it", func() {
-				filter1 := &testFilter{"testFilter"}
+			It("Adds a filter before it", func() {
+				filter1 := &testFilter{"testFilter1"}
 				filter2 := &testFilter{"testFilter2"}
 				filter3 := &testFilter{"testFilter3"}
 				api.RegisterFilters(filter1, filter2)
-				api.RegisterFilterBefore(filter2.Name(), filter3)
-				names := filterNames()
-				Expect(names).To(Equal([]string{filter1.Name(), filter3.Name(), filter2.Name()}))
+				api.RegisterFiltersBefore(filter2.Name(), filter3)
+				Expect(filterNames()).To(Equal([]string{filter1.Name(), filter3.Name(), filter2.Name()}))
+			})
+
+			It("Adds multiple filters before it", func() {
+				filter1 := &testFilter{"testFilter1"}
+				filter2 := &testFilter{"testFilter2"}
+				filter3 := &testFilter{"testFilter3"}
+				api.RegisterFilters(filter1)
+				api.RegisterFiltersBefore(filter1.Name(), filter2, filter3)
+				Expect(filterNames()).To(Equal([]string{filter2.Name(), filter3.Name(), filter1.Name()}))
 			})
 		})
 	})
@@ -123,19 +131,29 @@ var _ = Describe("API", func() {
 		Context("When filter with such name does not exist", func() {
 			It("Panics", func() {
 				replaceFilter := func() {
-					api.RegisterFilterAfter("some-filter", &testFilter{"testFilter"})
+					api.RegisterFiltersAfter("some-filter", &testFilter{"testFilter"})
 				}
 				Expect(replaceFilter).To(Panic())
 			})
 		})
 		Context("When filter with such name exists", func() {
-			It("Adds the filter before it", func() {
-				filter := &testFilter{"testFilter"}
-				newFilter := &testFilter{"testFilter2"}
-				api.RegisterFilters(filter)
-				api.RegisterFilterAfter(filter.Name(), newFilter)
-				names := filterNames()
-				Expect(names).To(Equal([]string{filter.Name(), newFilter.Name()}))
+			It("Adds a filter after it", func() {
+				filter1 := &testFilter{"testFilter1"}
+				filter2 := &testFilter{"testFilter2"}
+				filter3 := &testFilter{"testFilter3"}
+				api.RegisterFilters(filter1, filter2)
+				api.RegisterFiltersAfter(filter1.Name(), filter3)
+				Expect(filterNames()).To(Equal([]string{filter1.Name(), filter3.Name(), filter2.Name()}))
+			})
+
+			It("Adds multiple filters after it", func() {
+				filter1 := &testFilter{"testFilter1"}
+				filter2 := &testFilter{"testFilter2"}
+				filter3 := &testFilter{"testFilter3"}
+				filter4 := &testFilter{"testFilter4"}
+				api.RegisterFilters(filter1, filter2)
+				api.RegisterFiltersAfter(filter1.Name(), filter3, filter4)
+				Expect(filterNames()).To(Equal([]string{filter1.Name(), filter3.Name(), filter4.Name(), filter2.Name()}))
 			})
 		})
 	})
