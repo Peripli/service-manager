@@ -73,9 +73,7 @@ func (dp *pluginSegment) FilterMatchers() []FilterMatcher {
 
 // RegisterControllers registers a set of controllers
 func (api *API) RegisterControllers(controllers ...Controller) {
-	for _, controller := range controllers {
-		api.Controllers = append(api.Controllers, controller)
-	}
+	api.Controllers = append(api.Controllers, controllers...)
 }
 
 // RegisterFilters registers a set of filters

@@ -34,17 +34,17 @@ type storageState struct {
 
 // Get returns error if the db connectivity is down and nil otherwise
 func (state *storageState) Get() error {
-	if cacheIsValid, storageError := state.getCashed(); cacheIsValid {
+	if cacheIsValid, storageError := state.getCached(); cacheIsValid {
 		return storageError
 	}
 	return state.checkDB()
 }
 
 func (state *storageState) cachedStateIsValid() bool {
-	return time.Now().Sub(state.lastCheck) < state.storageCheckInterval
+	return time.Since(state.lastCheck) < state.storageCheckInterval
 }
 
-func (state *storageState) getCashed() (cacheIsValid bool, storageError error) {
+func (state *storageState) getCached() (cacheIsValid bool, storageError error) {
 	state.mutex.RLock()
 	defer state.mutex.RUnlock()
 	if state.cachedStateIsValid() {

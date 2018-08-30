@@ -5,6 +5,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// RequiredAuthenticationFilterName is the name of RequiredAuthenticationFilter
 const RequiredAuthenticationFilterName = "RequiredAuthenticationFilter"
 
 // RequiredAuthnFilter type verifies that authentication has been performed for APIs that are secured
