@@ -17,24 +17,22 @@
 package common
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"time"
-
 	"net/url"
 	"reflect"
 	"regexp"
 	"strings"
-
-	"bytes"
-	"io"
-	"io/ioutil"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/gavv/httpexpect"
@@ -411,6 +409,7 @@ func DoHTTP(reaction *HTTPReaction, checks *HTTPExpectations) func(*http.Request
 		return &http.Response{
 			StatusCode: reaction.Status,
 			Body:       Closer(reaction.Body),
+			Request:    request,
 		}, reaction.Err
 	}
 }

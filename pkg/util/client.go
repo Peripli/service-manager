@@ -18,7 +18,8 @@ package util
 
 import (
 	"bytes"
-		"encoding/json"
+	"context"
+	"encoding/json"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -26,11 +27,14 @@ import (
 	"github.com/Peripli/service-manager/pkg/log"
 )
 
+// CorrelationIDHeader is the header for correlation id
+const CorrelationIDHeader = "X-Correlation-ID"
+
 // DoRequestFunc is an alias for any function that takes an http request and returns a response and error
 type DoRequestFunc func(request *http.Request) (*http.Response, error)
 
 // SendRequest sends a request to the specified client and the provided URL with the specified parameters and body.
-func SendRequest(doRequest DoRequestFunc, method, url string, params map[string]string, body interface{}) (*http.Response, error) {
+func SendRequest(ctx context.Context, doRequest DoRequestFunc, method, url string, params map[string]string, body interface{}) (*http.Response, error) {
 	var bodyReader io.Reader
 
 	if body != nil {
@@ -54,7 +58,14 @@ func SendRequest(doRequest DoRequestFunc, method, url string, params map[string]
 		request.URL.RawQuery = q.Encode()
 	}
 
-	logrus.Debugf("Sending a request to %s", request.URL)
+	request = request.WithContext(ctx)
+	logger := log.C(ctx, "pkg/util/client")
+	correlationID, exists := logger.Data[log.FieldCorrelationID].(string)
+	if exists {
+		request.Header[CorrelationIDHeader] = []string{correlationID}
+	}
+
+	logger.Debugf("Sending a request to %s", request.URL)
 	return doRequest(request)
 }
 
