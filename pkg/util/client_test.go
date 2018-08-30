@@ -87,7 +87,7 @@ var _ = Describe("Client Utils", func() {
 		})
 
 		Context("When context has correlation id", func() {
-			FIt("should attach it as header", func() {
+			It("should attach it as header", func() {
 				expectations.URL = "http://example.com"
 
 				reaction.Err = nil
