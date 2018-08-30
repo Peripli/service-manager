@@ -5,6 +5,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const RequiredAuthenticationFilterName = "RequiredAuthenticationFilter"
+
 // RequiredAuthnFilter type verifies that authentication has been performed for APIs that are secured
 type RequiredAuthnFilter struct {
 }
@@ -16,7 +18,7 @@ func NewRequiredAuthnFilter() *RequiredAuthnFilter {
 
 // Name implements the web.Filter interface and returns the identifier of the filter
 func (raf *RequiredAuthnFilter) Name() string {
-	return "RequiredAuthenticationFilter"
+	return RequiredAuthenticationFilterName
 }
 
 // Run implements web.Filter and represents the authentication middleware function that verifies the user is
