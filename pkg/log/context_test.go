@@ -82,12 +82,12 @@ var _ = Describe("log", func() {
 		})
 		Context("When log level is provided", func() {
 			It("Should use the log level", func() {
-				ctx := context.WithValue(context.TODO(), FieldLogLevel, logrus.WarnLevel.String())
+				ctx := context.WithValue(context.TODO(), LevelKey{}, logrus.WarnLevel.String())
 				entry := ForContext(ctx, "component")
 				Expect(entry.Logger.Level).To(Equal(logrus.WarnLevel))
 			})
 			It("Should not change default log level when invalid", func() {
-				ctx := context.WithValue(context.TODO(), FieldLogLevel, "invalid")
+				ctx := context.WithValue(context.TODO(), LevelKey{}, "invalid")
 				entry := ForContext(ctx, "component")
 				Expect(entry.Logger.Level).To(Equal(defaultEntry.Logger.Level))
 			})

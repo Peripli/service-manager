@@ -44,21 +44,21 @@ func (*Logging) Name() string {
 
 // Run represents the logging middleware function that processes the request and configures the request-scoped logging.
 func (l *Logging) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	var correlationId string
+	var correlationID string
 	for key, val := range req.Header {
 		if slice.StringsAnyEquals(correlationIDHeaders, key) {
-			correlationId = val[0]
+			correlationID = val[0]
 			break
 		}
 	}
-	if correlationId == "" {
+	if correlationID == "" {
 		uuids, err := uuid.NewV4()
 		if err != nil {
 			return nil, err
 		}
-		correlationId = uuids.String()
+		correlationID = uuids.String()
 	}
-	entry := log.R(req, LoggingFilterName).WithField(log.FieldCorrelationID, correlationId)
+	entry := log.R(req, LoggingFilterName).WithField(log.FieldCorrelationID, correlationID)
 	ctx := log.ContextWithLogger(req.Context(), entry)
 	requestLogLevel, exists := req.Header[logLevelHeader]
 	if exists {

@@ -47,7 +47,7 @@ var _ = Describe("Logging Filter", func() {
 			It("Should generate a new for logger", func() {
 				loggingFilter.Run(request, handler)
 				logger := log.R(request, "test")
-				correlationId := logger.Data[log.FieldCorrelationId].(string)
+				correlationId := logger.Data[log.FieldCorrelationID].(string)
 				Expect(correlationId).ToNot(BeEmpty())
 			})
 		})
@@ -57,7 +57,7 @@ var _ = Describe("Logging Filter", func() {
 				request.Header[correlationIDHeaders[0]] = []string{expectedCorrelationId}
 				loggingFilter.Run(request, handler)
 				logger := log.R(request, "test")
-				correlationId := logger.Data[log.FieldCorrelationId].(string)
+				correlationId := logger.Data[log.FieldCorrelationID].(string)
 				Expect(correlationId).To(Equal(expectedCorrelationId))
 			})
 		})
