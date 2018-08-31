@@ -18,9 +18,6 @@ package common
 
 import (
 	"context"
-	"encoding/json"
-	"io/ioutil"
-	"net/http"
 	"net/http/httptest"
 
 	. "github.com/onsi/ginkgo"
@@ -32,26 +29,9 @@ import (
 	"github.com/gavv/httpexpect"
 )
 
-var serviceCatalog = `{
-	"services": [{
-		"id": "1234",
-		"name": "service1",
-		"description": "sample-test",
-		"bindable": true,
-		"plans": [{
-			"id": "plan-id",
-			"name": "plan-name",
-			"description": "plan-desc"
-		}]
-	}]
-}`
-
 type ContextParams struct {
-	AdditionalFilters     []web.Filter
-	AdditionalPlugins     []web.Plugin
-	AdditionalControllers []web.Controller
-
 	Environment        env.Environment
+	RegisterExtensions func(api *web.API)
 	DefaultTokenClaims map[string]interface{}
 }
 
@@ -69,9 +49,9 @@ func buildSM(params *ContextParams, issuerURL string) *httptest.Server {
 
 	ctx, _ := context.WithCancel(context.Background())
 	smanagerBuilder := sm.New(ctx, params.Environment)
-	smanagerBuilder.RegisterControllers(params.AdditionalControllers...)
-	smanagerBuilder.RegisterFilters(params.AdditionalFilters...)
-	smanagerBuilder.RegisterPlugins(params.AdditionalPlugins...)
+	if params.RegisterExtensions != nil {
+		params.RegisterExtensions(smanagerBuilder.API)
+	}
 	serviceManager := smanagerBuilder.Build()
 	return httptest.NewServer(serviceManager.Server.Router)
 }
@@ -168,52 +148,4 @@ func (ctx *TestContext) Cleanup() {
 		ctx.smServer.Close()
 	}
 	ctx.OAuthServer.Close()
-}
-
-type Broker struct {
-	StatusCode     int
-	ResponseBody   []byte
-	Request        *http.Request
-	RequestBody    *httpexpect.Value
-	RawRequestBody []byte
-	OSBURL         string
-	Server         *httptest.Server
-	ID             string
-}
-
-func (b *Broker) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	b.Request = req
-	responseBody := b.ResponseBody
-	switch req.Method {
-	case http.MethodPatch, http.MethodPost, http.MethodPut:
-		var err error
-		b.RawRequestBody, err = ioutil.ReadAll(req.Body)
-		if err != nil {
-			panic(err)
-		}
-		var reqData interface{}
-		err = json.Unmarshal(b.RawRequestBody, &reqData)
-		if err != nil {
-			panic(err)
-		}
-		b.RequestBody = httpexpect.NewValue(GinkgoT(), reqData)
-
-	case http.MethodGet:
-		if responseBody == nil && req.URL.Path == "/v2/catalog" {
-			responseBody = []byte(serviceCatalog)
-		}
-	}
-
-	code := b.StatusCode
-	if code == 0 {
-		code = http.StatusOK
-	}
-	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(code)
-
-	rw.Write(responseBody)
-}
-
-func (b *Broker) Called() bool {
-	return b.Request != nil
 }

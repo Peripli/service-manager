@@ -77,7 +77,7 @@ func SendRequest(ctx context.Context, doRequest DoRequestFunc, method, url strin
 func BodyToBytes(closer io.ReadCloser) ([]byte, error) {
 	defer func() {
 		if err := closer.Close(); err != nil {
-			log.D(cname).Errorf("ReadCloser couldn't be closed", err)
+			log.D(cname).Errorf("ReadCloser couldn't be closed: %v", err)
 		}
 	}()
 

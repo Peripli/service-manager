@@ -228,7 +228,6 @@ var _ = Describe("Authn", func() {
 
 	Describe("Authentication Required Middleware", func() {
 		var (
-			fakeHandler         *webfakes.FakeHandler
 			authnRequiredFilter *RequiredAuthnFilter
 		)
 
@@ -237,7 +236,6 @@ var _ = Describe("Authn", func() {
 		}
 
 		BeforeEach(func() {
-			fakeHandler = &webfakes.FakeHandler{}
 			authnRequiredFilter = NewRequiredAuthnFilter()
 		})
 

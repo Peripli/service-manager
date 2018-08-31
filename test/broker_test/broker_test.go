@@ -561,7 +561,6 @@ var _ = Describe("Service Manager Broker API", func() {
 
 			Context("when unmodifiable fields are provided request body", func() {
 				var (
-					err                error
 					unmarshaledCatalog common.Object
 				)
 
@@ -579,7 +578,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					}
 
 					unmarshaledCatalog = common.Object{}
-					err = json.Unmarshal([]byte(common.Catalog), &unmarshaledCatalog)
+					json.Unmarshal([]byte(common.Catalog), &unmarshaledCatalog)
 				})
 
 				It("should not change them", func() {
