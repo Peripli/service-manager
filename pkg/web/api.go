@@ -34,7 +34,7 @@ type API struct {
 	Filters []Filter
 }
 
-// pluginSegment represents one piece of a web.invalidPlugin. Each web.invalidPlugin is decomposed into as many plugin segments as
+// pluginSegment represents one piece of a web.Plugin. Each web.Plugin is decomposed into as many plugin segments as
 // the count of OSB operations it provides. Each pluginSegment is treated as a web.Filter.
 type pluginSegment struct {
 	NameValue          string
@@ -73,9 +73,7 @@ func (dp *pluginSegment) FilterMatchers() []FilterMatcher {
 
 // RegisterControllers registers a set of controllers
 func (api *API) RegisterControllers(controllers ...Controller) {
-	for _, controller := range controllers {
-		api.Controllers = append(api.Controllers, controller)
-	}
+	api.Controllers = append(api.Controllers, controllers...)
 }
 
 // RegisterFilters registers a set of filters
@@ -84,28 +82,32 @@ func (api *API) RegisterFilters(filters ...Filter) {
 	api.Filters = append(api.Filters, filters...)
 }
 
-// RegisterFilterBefore registers the specified filter before the one with the given name.
+// RegisterFiltersBefore registers the specified filters before the one with the given name.
 // If for some routes, the filter with the given name does not match the routes of the provided filter, then
-// the filter will be registered at the place at which the filter with this name would have been, had it been
+// the filters will be registered at the place at which the filter with this name would have been, had it been
 // configured to match route.
-func (api *API) RegisterFilterBefore(beforeFilterName string, filter Filter) {
-	logrus.Debugf("Registering filter %s before %s", filter.Name(), beforeFilterName)
-	api.validateFilters(filter)
-	api.registerFilterRelatively(beforeFilterName, filter, func(beforeFilterPosition int) int {
-		return beforeFilterPosition
-	})
+func (api *API) RegisterFiltersBefore(beforeFilterName string, filters ...Filter) {
+	for _, filter := range filters {
+		logrus.Debugf("Registering filter %s before %s", filter.Name(), beforeFilterName)
+		api.validateFilters(filter)
+		api.registerFilterRelatively(beforeFilterName, filter, func(beforeFilterPosition int) int {
+			return beforeFilterPosition
+		})
+	}
 }
 
-// RegisterFilterAfter registers the specified filter after the one with the given name.
+// RegisterFiltersAfter registers the specified filter after the one with the given name.
 // If for some routes, the filter with the given name does not match the routes of the provided filter, then
 // the filter will be registered after the place at which the filter with this name would have been, had it been
 // configured to match route.
-func (api *API) RegisterFilterAfter(afterFilterName string, filter Filter) {
-	logrus.Debugf("Registering filter %s after %s", filter.Name(), afterFilterName)
-	api.validateFilters(filter)
-	api.registerFilterRelatively(afterFilterName, filter, func(filterPosition int) int {
-		return filterPosition + 1
-	})
+func (api *API) RegisterFiltersAfter(afterFilterName string, filters ...Filter) {
+	for i, filter := range filters {
+		logrus.Debugf("Registering filter %s after %s", filter.Name(), afterFilterName)
+		api.validateFilters(filter)
+		api.registerFilterRelatively(afterFilterName, filter, func(filterPosition int) int {
+			return filterPosition + 1 + i
+		})
+	}
 }
 
 // ReplaceFilter registers the given filter in the place of the filter with the given name.
@@ -147,7 +149,7 @@ func (api *API) validateFilters(filters ...Filter) {
 		logrus.Panicf("Filters %q are already registered", commonFilterNames)
 	}
 	filterNamesWithColon := slice.StringsContaining(newFilterNames, ":")
-	if  len(filterNamesWithColon) > 0 {
+	if len(filterNamesWithColon) > 0 {
 		logrus.Panicf("Cannot register filters with : in their names. Invalid filter names: %q", filterNamesWithColon)
 	}
 }

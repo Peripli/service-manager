@@ -63,7 +63,7 @@ func SendRequest(doRequest DoRequestFunc, method, url string, params map[string]
 func BodyToBytes(closer io.ReadCloser) ([]byte, error) {
 	defer func() {
 		if err := closer.Close(); err != nil {
-			logrus.Errorf("ReadCloser couldn't be closed", err)
+			logrus.Errorf("ReadCloser couldn't be closed: %v", err)
 		}
 	}()
 
