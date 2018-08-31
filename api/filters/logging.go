@@ -43,8 +43,7 @@ func (l *Logging) Run(req *web.Request, next web.Handler) (*web.Response, error)
 	correlationID := web.CorrelationIDFromHeaders(req.Header)
 	entry := log.R(req, LoggingFilterName).WithField(log.FieldCorrelationID, correlationID)
 	ctx := log.ContextWithLogger(req.Context(), entry)
-	requestLogLevel, exists := req.Header[logLevelHeader]
-	if exists {
+	if requestLogLevel, exists := req.Header[logLevelHeader]; exists {
 		entry.Debugf("Changing request log level to %s", requestLogLevel)
 		ctx = context.WithValue(ctx, log.LevelKey{}, requestLogLevel[0])
 	}
