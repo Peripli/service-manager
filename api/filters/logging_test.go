@@ -54,7 +54,7 @@ var _ = Describe("Logging Filter", func() {
 		Context("When one is provided in header", func() {
 			It("Uses it for logger", func() {
 				expectedCorrelationId := "correlationId"
-				request.Header[correlationIDHeaders[0]] = []string{expectedCorrelationId}
+				request.Header["X-Correlation-ID"] = []string{expectedCorrelationId}
 				loggingFilter.Run(request, handler)
 				logger := log.R(request, "test")
 				correlationId := logger.Data[log.FieldCorrelationID].(string)
