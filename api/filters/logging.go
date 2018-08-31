@@ -20,12 +20,8 @@ import (
 	"context"
 
 	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/gofrs/uuid"
 )
-
-var correlationIDHeaders = []string{"X-Correlation-ID", "X-CorrelationID", "X-ForRequest-ID", "X-Vcap-Request-Id"}
 
 const (
 	// LoggingFilterName is the name of the logging filter
@@ -44,20 +40,7 @@ func (*Logging) Name() string {
 
 // Run represents the logging middleware function that processes the request and configures the request-scoped logging.
 func (l *Logging) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	var correlationID string
-	for key, val := range req.Header {
-		if slice.StringsAnyEquals(correlationIDHeaders, key) {
-			correlationID = val[0]
-			break
-		}
-	}
-	if correlationID == "" {
-		uuids, err := uuid.NewV4()
-		if err != nil {
-			return nil, err
-		}
-		correlationID = uuids.String()
-	}
+	correlationID := web.CorrelationIDFromHeaders(req.Header)
 	entry := log.R(req, LoggingFilterName).WithField(log.FieldCorrelationID, correlationID)
 	ctx := log.ContextWithLogger(req.Context(), entry)
 	requestLogLevel, exists := req.Header[logLevelHeader]

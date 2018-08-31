@@ -125,6 +125,9 @@ func ForContext(ctx context.Context, component string, keys ...interface{}) *log
 		}
 	}
 	logEntry := entry.(*logrus.Entry).WithFields(fields)
+	if _, exists := logEntry.Data[FieldCorrelationID]; !exists {
+		logEntry = logEntry.WithField(FieldCorrelationID, "default")
+	}
 	contextLogLevel, exists := ctx.Value(LevelKey{}).(string)
 	if exists {
 		level, err := logrus.ParseLevel(contextLogLevel)
@@ -144,7 +147,7 @@ func ForContextProvider(contexter Contexter, component string, keys ...interface
 
 // Default returns the default logger configured for the provided component.
 func Default(component string, keys ...interface{}) *logrus.Entry {
-	return ForContext(context.Background(), component, keys).WithField(FieldCorrelationID, "default")
+	return ForContext(context.Background(), component, keys)
 }
 
 // ContextWithLogger returns a new context with the provided logger.
