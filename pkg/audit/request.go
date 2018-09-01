@@ -18,23 +18,15 @@ func NewEventForRequest(r *web.Request) (*Event, error) {
 	if err != nil {
 		return nil, err
 	}
-	event := &Event{
+	return &Event{
 		AuditID:          uuids.String(),
 		RequestTimestamp: time.Now(),
 		RequestObject:    r.Body,
 		Verb:             r.Method,
 		RequestURI:       r.URL.RequestURI(),
 		UserAgent:        userAgent(r),
-	}
-
-	ips := SourceIPs(r)
-	event.SourceIPs = make([]string, len(ips))
-	for i := range ips {
-		event.SourceIPs[i] = ips[i].String()
-	}
-	event.RequestObject = r.Body
-
-	return event, nil
+		SourceIPs:        SourceIPs(r),
+	}, nil
 }
 
 func userAgent(request *web.Request) string {
@@ -46,19 +38,14 @@ func userAgent(request *web.Request) string {
 	return ua
 }
 
-func SourceIPs(req *web.Request) []net.IP {
-	hdr := req.Header
-	// First check the X-Forwarded-For header for requests via proxy.
-	hdrForwardedFor := hdr.Get("X-Forwarded-For")
-	forwardedForIPs := []net.IP{}
+func SourceIPs(req *web.Request) []string {
+	hdrForwardedFor := req.Header.Get("X-Forwarded-For")
+	var forwardedForIPs []string
 	if hdrForwardedFor != "" {
-		// X-Forwarded-For can be a csv of IPs in case of multiple proxies.
-		// Use the first valid one.
 		parts := strings.Split(hdrForwardedFor, ",")
 		for _, part := range parts {
-			ip := net.ParseIP(strings.TrimSpace(part))
-			if ip != nil {
-				forwardedForIPs = append(forwardedForIPs, ip)
+			if ip := net.ParseIP(strings.TrimSpace(part)); ip != nil {
+				forwardedForIPs = append(forwardedForIPs, ip.String())
 			}
 		}
 	}
@@ -68,17 +55,25 @@ func SourceIPs(req *web.Request) []net.IP {
 
 	// Fallback to Remote Address in request, which will give the correct client IP when there is no proxy.
 	// Remote Address in Go's HTTP server is in the form host:port so we need to split that first.
-	host, _, err := net.SplitHostPort(req.RemoteAddr)
-	if err == nil {
+	if host, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
 		if remoteIP := net.ParseIP(host); remoteIP != nil {
-			return []net.IP{remoteIP}
+			return []string{remoteIP.String()}
 		}
 	}
 
 	// Fallback if Remote Address was just IP.
 	if remoteIP := net.ParseIP(req.RemoteAddr); remoteIP != nil {
-		return []net.IP{remoteIP}
+		return []string{remoteIP.String()}
 	}
 
 	return nil
+}
+
+func RequestWithEvent(request *web.Request) (*web.Request, *Event, error) {
+	event, err := NewEventForRequest(request)
+	if err != nil {
+		return request, nil, err
+	}
+	request.Request = request.WithContext(web.ContextWithAuditEvent(request.Context(), event))
+	return request, event, nil
 }

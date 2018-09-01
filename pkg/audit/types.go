@@ -35,5 +35,5 @@ type Backend interface {
 }
 
 type Formatter interface {
-	Format(event Event) string
+	Format(event *Event) []byte
 }

@@ -1,6 +1,7 @@
 package authn
 
 import (
+	"github.com/Peripli/service-manager/pkg/audit"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/sirupsen/logrus"
 )
@@ -27,6 +28,16 @@ func (raf *RequiredAuthnFilter) Name() string {
 func (raf *RequiredAuthnFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
 	if _, ok := web.UserFromContext(request.Context()); !ok {
 		logrus.Error("No authenticated user found in request context during execution of filter ", raf.Name())
+		_, event, err := audit.RequestWithEvent(request)
+		if err != nil {
+			//log
+			return nil, err
+		}
+		event.ResponseObject = []byte(errUnauthorized.Description)
+		event.ResponseStatus = errUnauthorized.StatusCode
+		event.State = audit.StatePostRequest
+
+		audit.Send(event)
 		return nil, errUnauthorized
 	}
 

@@ -1,13 +1,13 @@
 package filters
 
 import (
+	"fmt"
 	"github.com/Peripli/service-manager/pkg/audit"
 	"github.com/Peripli/service-manager/pkg/web"
 	"net/http"
 )
 
 type AuditFilter struct {
-	auditBackend audit.Backend
 }
 
 func (*AuditFilter) Name() string {
@@ -15,13 +15,13 @@ func (*AuditFilter) Name() string {
 }
 
 func (f *AuditFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	event, e := audit.NewEventForRequest(req)
+	req, event, e := audit.RequestWithEvent(req)
 	if e != nil {
-		return nil, e
+		return nil, fmt.Errorf("failed to create audit event: %v", err)
 	}
 
 	event.State = audit.StatePreRequest
-	f.auditBackend.Process(event)
+	audit.Send(event)
 
 	resp, err := next.Handle(req)
 	if err != nil {
@@ -33,7 +33,7 @@ func (f *AuditFilter) Run(req *web.Request, next web.Handler) (*web.Response, er
 		event.ResponseStatus = resp.StatusCode
 		event.ResponseObject = resp.Body
 	}
-	f.auditBackend.Process(event)
+	audit.Send(event)
 	return resp, err
 }
 
