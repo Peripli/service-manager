@@ -27,17 +27,21 @@ func NewContextWithUser(ctx context.Context, user *User) context.Context {
 	return context.WithValue(ctx, userKey, user)
 }
 
-// CorrelationIDFromHeaders returns checks the http headers for any of the supported correlation id headers.
+// CorrelationIDForRequest returns checks the http headers for any of the supported correlation id headers.
 // The first that matches is taken as the correlation id. If none exists a new one is generated.
-func CorrelationIDFromHeaders(header http.Header) string {
-	for key, val := range header {
+func CorrelationIDForRequest(request *http.Request) string {
+	for key, val := range request.Header {
 		if slice.StringsAnyEquals(correlationIDHeaders, key) {
 			return val[0]
 		}
 	}
+	var newCorrelationID string
 	uuids, err := uuid.NewV4()
 	if err != nil {
-		return "default"
+		newCorrelationID = "default"
+	}else{
+		newCorrelationID = uuids.String()
 	}
-	return uuids.String()
+	request.Header[correlationIDHeaders[0]] = []string{newCorrelationID}
+	return newCorrelationID
 }

@@ -40,7 +40,7 @@ func (*Logging) Name() string {
 
 // Run represents the logging middleware function that processes the request and configures the request-scoped logging.
 func (l *Logging) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	correlationID := web.CorrelationIDFromHeaders(req.Header)
+	correlationID := web.CorrelationIDForRequest(req.Request)
 	entry := log.R(req, LoggingFilterName).WithField(log.FieldCorrelationID, correlationID)
 	ctx := log.ContextWithLogger(req.Context(), entry)
 	if requestLogLevel, exists := req.Header[logLevelHeader]; exists {

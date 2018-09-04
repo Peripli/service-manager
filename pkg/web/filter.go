@@ -142,7 +142,7 @@ func (fs Filters) Chain(h Handler) Handler {
 			params := map[string]interface{}{
 				"path":                 request.URL.Path,
 				"method":               request.Method,
-				log.FieldCorrelationID: CorrelationIDFromHeaders(request.Header),
+				log.FieldCorrelationID: CorrelationIDForRequest(request.Request),
 			}
 
 			log.R(request, fname).WithFields(params).Debug("Entering Filter: ", fs[i].Name())
