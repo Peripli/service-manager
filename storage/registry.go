@@ -29,13 +29,11 @@ var (
 	storages = make(map[string]Storage)
 )
 
-const componentName = "storage/registry"
-
 // Register adds a storage with the given name
 func Register(name string, storage Storage) {
 	mux.RLock()
 	defer mux.RUnlock()
-	logger := log.D(componentName)
+	logger := log.D()
 	if storage == nil {
 		logger.Panicln("storage: Register storage is nil")
 	}
@@ -65,7 +63,7 @@ func Use(ctx context.Context, name string, uri string, encryptionKey []byte) (St
 
 func awaitTermination(ctx context.Context, storage Storage) {
 	<-ctx.Done()
-	logger := log.C(ctx, componentName)
+	logger := log.C(ctx)
 	logger.Debug("Context cancelled. Closing storage...")
 	if err := storage.Close(); err != nil {
 		logger.Error(err)

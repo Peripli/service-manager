@@ -38,7 +38,6 @@ import (
 const (
 	reqBrokerID  = "broker_id"
 	catalogParam = "catalog"
-	name         = "api/controller/broker"
 )
 
 // Controller broker controller
@@ -51,7 +50,7 @@ type Controller struct {
 var _ web.Controller = &Controller{}
 
 func (c *Controller) createBroker(r *web.Request) (*web.Response, error) {
-	log.R(r, name).Debug("Creating new broker")
+	log.C(r.Context()).Debug("Creating new broker")
 
 	broker := &types.Broker{}
 	if err := util.BytesToObject(r.Body, broker); err != nil {
@@ -89,7 +88,7 @@ func (c *Controller) createBroker(r *web.Request) (*web.Response, error) {
 
 func (c *Controller) getBroker(r *web.Request) (*web.Response, error) {
 	brokerID := r.PathParams[reqBrokerID]
-	log.R(r, name).Debugf("Getting broker with id %s", brokerID)
+	log.C(r.Context()).Debugf("Getting broker with id %s", brokerID)
 
 	broker, err := c.BrokerStorage.Get(r.Context(), brokerID)
 	if err != nil {
@@ -102,7 +101,7 @@ func (c *Controller) getBroker(r *web.Request) (*web.Response, error) {
 }
 
 func (c *Controller) getAllBrokers(r *web.Request) (*web.Response, error) {
-	log.R(r, name).Debug("Getting all brokers")
+	log.C(r.Context()).Debug("Getting all brokers")
 	brokers, err := c.BrokerStorage.GetAll(r.Context())
 	if err != nil {
 		return nil, err
@@ -123,7 +122,7 @@ func (c *Controller) getAllBrokers(r *web.Request) (*web.Response, error) {
 
 func (c *Controller) deleteBroker(r *web.Request) (*web.Response, error) {
 	brokerID := r.PathParams[reqBrokerID]
-	log.R(r, name).Debugf("Deleting broker with id %s", brokerID)
+	log.C(r.Context()).Debugf("Deleting broker with id %s", brokerID)
 
 	if err := c.BrokerStorage.Delete(r.Context(), brokerID); err != nil {
 		return nil, util.HandleStorageError(err, "broker", brokerID)
@@ -133,7 +132,7 @@ func (c *Controller) deleteBroker(r *web.Request) (*web.Response, error) {
 
 func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
 	brokerID := r.PathParams[reqBrokerID]
-	log.R(r, name).Debugf("Updating updateBroker with id %s", brokerID)
+	log.C(r.Context()).Debugf("Updating updateBroker with id %s", brokerID)
 
 	broker, err := c.BrokerStorage.Get(r.Context(), brokerID)
 	if err != nil {
@@ -190,7 +189,7 @@ func (c *Controller) getBrokerCatalog(ctx context.Context, broker *types.Broker)
 
 func osbClient(ctx context.Context, createFunc osbc.CreateFunc, broker *types.Broker) (osbc.Client, error) {
 	config := clientConfigForBroker(broker)
-	log.C(ctx, name).Debug("Building OSB client for serviceBroker with name: ", config.Name, " accessible at: ", config.URL)
+	log.C(ctx).Debug("Building OSB client for serviceBroker with name: ", config.Name, " accessible at: ", config.URL)
 	return createFunc(config)
 }
 

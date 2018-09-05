@@ -25,7 +25,6 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
-const name = "api/controller/healthcheck"
 
 // Controller platform controller
 type Controller struct {
@@ -50,13 +49,15 @@ var statusStorageFailureResponse = map[string]interface{}{
 
 // healthCheck handler for GET /v1/monitor/health
 func (c *Controller) healthCheck(r *web.Request) (*web.Response, error) {
-	log.R(r, name).Debug("Performing health check...")
+	ctx := r.Context()
+	logger := log.C(ctx)
+	logger.Debug("Performing health check...")
 
 	if err := c.Storage.Ping(); err != nil {
-		log.R(r, name).Debugf("storage.Ping failed: %s", err)
+		logger.Debugf("storage.Ping failed: %s", err)
 		return util.NewJSONResponse(http.StatusServiceUnavailable, statusStorageFailureResponse)
 	}
 
-	log.R(r, name).Debug("Successfully completed health check")
+	logger.Debug("Successfully completed health check")
 	return util.NewJSONResponse(http.StatusOK, statusRunningResponse)
 }

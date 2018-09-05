@@ -24,8 +24,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/log"
 )
 
-const ename = "pkg/util/errors"
-
 // HTTPError is an error type that provides error details compliant with the Open Service Broker API conventions
 type HTTPError struct {
 	ErrorType   string `json:"error,omitempty"`
@@ -41,7 +39,7 @@ func (e *HTTPError) Error() string {
 // WriteError sends a JSON containing the error to the response writer
 func WriteError(err error, writer http.ResponseWriter) {
 	var respError *HTTPError
-	logger := log.D(ename)
+	logger := log.D()
 	switch t := err.(type) {
 	case *HTTPError:
 		logger.Debug(err)
@@ -63,7 +61,7 @@ func WriteError(err error, writer http.ResponseWriter) {
 
 // HandleResponseError builds at HttpErrorResponse from the given response.
 func HandleResponseError(response *http.Response) error {
-	logger := log.D(ename)
+	logger := log.D()
 	logger.Errorf("Handling failure response: returned status code %d", response.StatusCode)
 	httpErr := &HTTPError{
 		StatusCode: response.StatusCode,

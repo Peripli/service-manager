@@ -99,7 +99,7 @@ var _ = Describe("Client Utils", func() {
 				ctx := log.ContextWithLogger(context.TODO(), entry)
 				resp, err := util.SendRequest(ctx, requestFunc, "GET", "http://example.com", nil, nil)
 
-				correlationID := resp.Request.Header[util.CorrelationIDHeader][0]
+				correlationID := resp.Request.Header.Get(util.CorrelationIDHeader)
 				Expect(correlationID).To(Equal(expectedCorrelationID))
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(resp.StatusCode).To(Equal(http.StatusOK))

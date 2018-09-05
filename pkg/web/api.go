@@ -25,8 +25,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/util/slice"
 )
 
-const aname = "pkg/web/api"
-
 // API is the primary point for REST API registration
 type API struct {
 	// Controllers contains the registered controllers
@@ -90,7 +88,7 @@ func (api *API) RegisterFilters(filters ...Filter) {
 // configured to match route.
 func (api *API) RegisterFiltersBefore(beforeFilterName string, filters ...Filter) {
 	for _, filter := range filters {
-		log.D(aname).Debugf("Registering filter %s before %s", filter.Name(), beforeFilterName)
+		log.D().Debugf("Registering filter %s before %s", filter.Name(), beforeFilterName)
 		api.validateFilters(filter)
 		api.registerFilterRelatively(beforeFilterName, filter, func(beforeFilterPosition int) int {
 			return beforeFilterPosition
@@ -104,7 +102,7 @@ func (api *API) RegisterFiltersBefore(beforeFilterName string, filters ...Filter
 // configured to match route.
 func (api *API) RegisterFiltersAfter(afterFilterName string, filters ...Filter) {
 	for i, filter := range filters {
-		log.D(aname).Debugf("Registering filter %s after %s", filter.Name(), afterFilterName)
+		log.D().Debugf("Registering filter %s after %s", filter.Name(), afterFilterName)
 		api.validateFilters(filter)
 		api.registerFilterRelatively(afterFilterName, filter, func(filterPosition int) int {
 			return filterPosition + 1 + i
@@ -114,7 +112,7 @@ func (api *API) RegisterFiltersAfter(afterFilterName string, filters ...Filter) 
 
 // ReplaceFilter registers the given filter in the place of the filter with the given name.
 func (api *API) ReplaceFilter(replacedFilterName string, filter Filter) {
-	log.D(aname).Debugf("Replacing filter %s with %s", replacedFilterName, filter.Name())
+	log.D().Debugf("Replacing filter %s with %s", replacedFilterName, filter.Name())
 	api.validateFilters(filter)
 	registeredFilterPosition := api.findFilterPosition(replacedFilterName)
 	api.Filters[registeredFilterPosition] = filter
@@ -133,7 +131,7 @@ func (api *API) RegisterPlugins(plugins ...Plugin) {
 	for _, plugin := range plugins {
 		registeredFilterNames := api.filterNames(api.Filters)
 		if slice.StringsAnyPrefix(registeredFilterNames, plugin.Name()+":") {
-			log.D(aname).Panicf("Plugin %s is already registered", plugin.Name())
+			log.D().Panicf("Plugin %s is already registered", plugin.Name())
 		}
 		pluginSegments := api.decomposePluginOrDie(plugin)
 		api.Filters = append(api.Filters, pluginSegments...)
@@ -143,16 +141,16 @@ func (api *API) RegisterPlugins(plugins ...Plugin) {
 func (api *API) validateFilters(filters ...Filter) {
 	newFilterNames := api.filterNames(filters)
 	if slice.StringsAnyEquals(newFilterNames, "") {
-		log.D(aname).Panicf("Filters cannot have empty names")
+		log.D().Panicf("Filters cannot have empty names")
 	}
 	registeredFilterNames := api.filterNames(api.Filters)
 	commonFilterNames := slice.StringsIntersection(registeredFilterNames, newFilterNames)
 	if len(commonFilterNames) > 0 {
-		log.D(aname).Panicf("Filters %q are already registered", commonFilterNames)
+		log.D().Panicf("Filters %q are already registered", commonFilterNames)
 	}
 	filterNamesWithColon := slice.StringsContaining(newFilterNames, ":")
 	if len(filterNamesWithColon) > 0 {
-		log.D(aname).Panicf("Cannot register filters with : in their names. Invalid filter names: %q", filterNamesWithColon)
+		log.D().Panicf("Cannot register filters with : in their names. Invalid filter names: %q", filterNamesWithColon)
 	}
 }
 
@@ -174,7 +172,7 @@ func (api *API) findFilterPosition(filterName string) int {
 		}
 	}
 	if filterPosition < 0 {
-		log.D(aname).Panicf("Filter with name %s is not found", filterName)
+		log.D().Panicf("Filter with name %s is not found", filterName)
 	}
 	return filterPosition
 }
@@ -191,7 +189,7 @@ func (api *API) filterNames(filters []Filter) []string {
 func (api *API) decomposePluginOrDie(plugin Plugin) []Filter {
 	pluginSegments := api.decomposePlugin(plugin)
 	if len(pluginSegments) == 0 {
-		log.D(aname).Panicf("%T does not implement any plugin operation", plugin)
+		log.D().Panicf("%T does not implement any plugin operation", plugin)
 	}
 	return pluginSegments
 }

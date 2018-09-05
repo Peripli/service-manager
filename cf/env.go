@@ -38,7 +38,7 @@ func SetCFOverrides(env env.Environment) error {
 
 		pgServiceName := cast.ToString(env.Get("storage.name"))
 		if pgServiceName == "" {
-			log.D("cf/env").Warning("No PostgreSQL service name found")
+			log.D().Warning("No PostgreSQL service name found")
 			return nil
 		}
 		service, err := cfEnv.Services.WithName(pgServiceName)

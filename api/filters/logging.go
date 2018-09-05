@@ -17,8 +17,6 @@
 package filters
 
 import (
-	"context"
-
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/web"
 )
@@ -26,7 +24,6 @@ import (
 const (
 	// LoggingFilterName is the name of the logging filter
 	LoggingFilterName = "LoggingFilter"
-	logLevelHeader    = "X-Log-Level"
 )
 
 // Logging is filter that configures logging per request.
@@ -40,13 +37,11 @@ func (*Logging) Name() string {
 
 // Run represents the logging middleware function that processes the request and configures the request-scoped logging.
 func (l *Logging) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	correlationID := web.CorrelationIDForRequest(req.Request)
-	entry := log.R(req, LoggingFilterName).WithField(log.FieldCorrelationID, correlationID)
-	ctx := log.ContextWithLogger(req.Context(), entry)
-	if requestLogLevel, exists := req.Header[logLevelHeader]; exists {
-		entry.Debugf("Changing request log level to %s", requestLogLevel)
-		ctx = context.WithValue(ctx, log.LevelKey{}, requestLogLevel[0])
+	entry := log.C(req.Context())
+	if correlationID := log.CorrelationIDForRequest(req.Request); correlationID != "" {
+		entry = entry.WithField(log.FieldCorrelationID, correlationID)
 	}
+	ctx := log.ContextWithLogger(req.Context(), entry)
 	req.Request = req.WithContext(ctx)
 	return next.Handle(req)
 }

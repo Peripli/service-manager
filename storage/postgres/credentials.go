@@ -32,7 +32,7 @@ type credentialStorage struct {
 func (cs *credentialStorage) Get(ctx context.Context, username string) (*types.Credentials, error) {
 	platformCredentials := &Platform{}
 	query := fmt.Sprintf("SELECT username, password FROM %s WHERE username=$1", platformTable)
-	log.C(ctx, "storage/postgres/credentials").Debugf("Executing query %s", query)
+	log.C(ctx).Debugf("Executing query %s", query)
 
 	err := cs.db.GetContext(ctx, platformCredentials, query, username)
 

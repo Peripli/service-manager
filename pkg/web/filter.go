@@ -23,8 +23,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/log"
 )
 
-const fname = "pkg/web/filter"
-
 // Request contains the original http.Request, path parameters and the raw body
 // Request.Request.Body should not be used as it would be already processed by internal implementation
 type Request struct {
@@ -138,23 +136,23 @@ func (fs Filters) Chain(h Handler) Handler {
 
 	for i := len(fs) - 1; i >= 0; i-- {
 		i := i
-		wrappedFilters[i] = HandlerFunc(func(request *Request) (*Response, error) {
+		wrappedFilters[i] = HandlerFunc(func(r *Request) (*Response, error) {
 			params := map[string]interface{}{
-				"path":                 request.URL.Path,
-				"method":               request.Method,
-				log.FieldCorrelationID: CorrelationIDForRequest(request.Request),
+				"path":                 r.URL.Path,
+				"method":               r.Method,
+				log.FieldCorrelationID: log.CorrelationIDForRequest(r.Request),
 			}
+			logger := log.C(r.Context())
+			logger.WithFields(params).Debug("Entering Filter: ", fs[i].Name())
 
-			log.R(request, fname).WithFields(params).Debug("Entering Filter: ", fs[i].Name())
-
-			resp, err := fs[i].Run(request, wrappedFilters[i+1])
+			resp, err := fs[i].Run(r, wrappedFilters[i+1])
 
 			params["err"] = err
 			if resp != nil {
 				params["statusCode"] = resp.StatusCode
 			}
 
-			log.R(request, fname).WithFields(params).Debug("Exiting Filter: ", fs[i].Name())
+			logger.WithFields(params).Debug("Exiting Filter: ", fs[i].Name())
 
 			return resp, err
 		})
@@ -191,6 +189,6 @@ func (fs Filters) Matching(endpoint Endpoint) Filters {
 			}
 		}
 	}
-	log.D(fname).Debugf("Filters for %s %s:%v", endpoint.Method, endpoint.Path, matchedNames)
+	log.D().Debugf("Filters for %s %s:%v", endpoint.Method, endpoint.Path, matchedNames)
 	return matchedFilters
 }

@@ -22,26 +22,22 @@ import (
 	"os"
 	"sync"
 
+	"github.com/onrik/logrus/filename"
 	"github.com/sirupsen/logrus"
 )
 
 type logKey struct{}
-
-// LevelKey is the context key for the log level
-type LevelKey struct{}
 
 var (
 	supportedFormatters = map[string]logrus.Formatter{
 		"json": &logrus.JSONFormatter{},
 		"text": &logrus.TextFormatter{},
 	}
-	mux          = sync.Mutex{}
-	once         = sync.Once{}
-	defaultEntry = logrus.NewEntry(logrus.StandardLogger())
+	mux                  = sync.Mutex{}
+	once                 = sync.Once{}
+	defaultEntry         = logrus.NewEntry(logrus.StandardLogger())
 	// C is an alias for ForContext
 	C = ForContext
-	// R is an alias for ForContextProvider
-	R = ForContextProvider
 	// D is an alias for Default
 	D = Default
 )
@@ -52,11 +48,6 @@ const (
 	// FieldCorrelationID is the key of the correlation id field in the log message.
 	FieldCorrelationID = "correlation_id"
 )
-
-// Contexter interface
-type Contexter interface {
-	Context() context.Context
-}
 
 // Settings type to be loaded from the environment
 type Settings struct {
@@ -94,60 +85,35 @@ func Configure(ctx context.Context, settings *Settings) context.Context {
 		if !ok {
 			panic(fmt.Sprintf("Invalid log format: %s", settings.Format))
 		}
-		logrus.SetLevel(level)
-		logrus.SetFormatter(formatter)
 		logger := &logrus.Logger{
 			Formatter: formatter,
 			Level:     level,
 			Out:       os.Stdout,
 			Hooks:     make(logrus.LevelHooks),
 		}
+
+		hook := filename.NewHook()
+		hook.Field = FieldComponentName
+		logger.AddHook(hook)
 		defaultEntry = logrus.NewEntry(logger)
+		defaultEntry = defaultEntry.WithField(FieldCorrelationID, "-")
 	})
 	return ContextWithLogger(ctx, defaultEntry)
 }
 
-// ForContext retrieves the current logger from the context, configured for the provided component.
-// Optionally keys mapped to values from the context can be provided.
-// If no logger is present in the context, the default logger is returned
-func ForContext(ctx context.Context, component string, keys ...interface{}) *logrus.Entry {
+// ForContext retrieves the current logger from the context.
+func ForContext(ctx context.Context) *logrus.Entry {
 	entry := ctx.Value(logKey{})
 	if entry == nil {
 		// copy so that changes to the new entry do not reflect the default entry
 		entry = copyEntry(defaultEntry)
 	}
-	fields := make(logrus.Fields, len(keys)+1)
-	fields[FieldComponentName] = component
-	for _, key := range keys {
-		value := ctx.Value(key)
-		if value != nil {
-			fields[fmt.Sprint(key)] = value
-		}
-	}
-	logEntry := entry.(*logrus.Entry).WithFields(fields)
-	if _, exists := logEntry.Data[FieldCorrelationID]; !exists {
-		logEntry = logEntry.WithField(FieldCorrelationID, "default")
-	}
-	contextLogLevel, exists := ctx.Value(LevelKey{}).(string)
-	if exists {
-		level, err := logrus.ParseLevel(contextLogLevel)
-		if err != nil {
-			logEntry.Warnf("Dynamic log level change not supported for log level %s", contextLogLevel)
-		} else {
-			logEntry.Logger.Level = level
-		}
-	}
-	return logEntry
+	return entry.(*logrus.Entry)
 }
 
-// ForContextProvider retrieves the current logger from the context provided.
-func ForContextProvider(contexter Contexter, component string, keys ...interface{}) *logrus.Entry {
-	return ForContext(contexter.Context(), component, keys)
-}
-
-// Default returns the default logger configured for the provided component.
-func Default(component string, keys ...interface{}) *logrus.Entry {
-	return ForContext(context.Background(), component, keys)
+// Default returns the default logger
+func Default() *logrus.Entry {
+	return ForContext(context.Background())
 }
 
 // ContextWithLogger returns a new context with the provided logger.

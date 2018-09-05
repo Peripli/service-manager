@@ -19,5 +19,5 @@ type recoveryHandlerLogger struct {
 
 // PrintLn prints panic message and stack to error output
 func (r *recoveryHandlerLogger) Println(args ...interface{}) {
-	log.D("api/filters/recovery").Errorln(args...)
+	log.D().Errorln(args...)
 }

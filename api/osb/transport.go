@@ -29,7 +29,7 @@ func (bt *BrokerTransport) RoundTrip(request *http.Request) (*http.Response, err
 func (bt *BrokerTransport) Broker(ctx context.Context, brokerID string) (*types.Broker, error) {
 	broker, err := bt.BrokerStorage.Get(ctx, brokerID)
 	if err != nil {
-		log.D("api/osb/transport").Debugf("Broker with id %s not found in storage", brokerID)
+		log.D().Debugf("Broker with id %s not found in storage", brokerID)
 		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
 

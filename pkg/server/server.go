@@ -31,8 +31,6 @@ import (
 	"github.com/gorilla/mux"
 	)
 
-const name = "pkg/server/server"
-
 // Settings type to be loaded from the environment
 type Settings struct {
 	Host            string        `mapstructure:"host"`
@@ -112,7 +110,7 @@ func (s *Server) Run(ctx context.Context) {
 func registerControllers(API *web.API, router *mux.Router) {
 	for _, ctrl := range API.Controllers {
 		for _, route := range ctrl.Routes() {
-			log.D(name).Debugf("Registering endpoint: %s %s", route.Endpoint.Method, route.Endpoint.Path)
+			log.D().Debugf("Registering endpoint: %s %s", route.Endpoint.Method, route.Endpoint.Path)
 			handler := web.Filters(API.Filters).ChainMatching(route)
 			router.Handle(route.Endpoint.Path, api.NewHTTPHandler(handler)).Methods(route.Endpoint.Method)
 		}
@@ -122,10 +120,10 @@ func registerControllers(API *web.API, router *mux.Router) {
 func startServer(ctx context.Context, server *http.Server, shutdownTimeout time.Duration) {
 	go gracefulShutdown(ctx, server, shutdownTimeout)
 
-	log.C(ctx, name).Infof("Listening on %s", server.Addr)
+	log.C(ctx).Infof("Listening on %s", server.Addr)
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.C(ctx,name).Fatal(err)
+		log.C(ctx).Fatal(err)
 	}
 }
 
@@ -134,7 +132,7 @@ func gracefulShutdown(ctx context.Context, server *http.Server, shutdownTimeout 
 
 	c, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
-	logger := log.C(ctx, name)
+	logger := log.C(ctx)
 	logger.Debugf("Shutdown with timeout: %s", shutdownTimeout)
 
 	if err := server.Shutdown(c); err != nil {

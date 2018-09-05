@@ -92,7 +92,7 @@ func BytesToObject(bytes []byte, object interface{}) error {
 func unmarshal(body []byte, value interface{}) error {
 	err := json.Unmarshal(body, value)
 	if err != nil {
-		log.D("pkg/util/api").Error("Failed to decode request body: ", err)
+		log.D().Error("Failed to decode request body: ", err)
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: "Failed to decode request body",

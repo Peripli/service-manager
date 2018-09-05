@@ -146,7 +146,7 @@ func initializeSecureStorage(ctx context.Context, secureStorage storage.Security
 		return err
 	}
 	if len(encryptionKey) == 0 {
-		logger := log.C(ctx, "pkg/sm/sm")
+		logger := log.C(ctx)
 		logger.Debug("No encryption key is present. Generating new one...")
 		newEncryptionKey := make([]byte, 32)
 		if _, err := rand.Read(newEncryptionKey); err != nil {

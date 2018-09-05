@@ -72,7 +72,7 @@ func (h *HTTPHandler) serve(res http.ResponseWriter, req *http.Request) error {
 	if err != nil {
 		// HTTP headers and status are sent already
 		// if we return an error, the error Handler will try to send them again
-		log.R(req, "api/http_handler").Error("Error sending response", err)
+		log.C(req.Context()).Error("Error sending response", err)
 	}
 	return nil
 }

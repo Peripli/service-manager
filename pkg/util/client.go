@@ -28,8 +28,6 @@ import (
 )
 
 const (
-	cname = "pkg/util/client"
-
 	// CorrelationIDHeader is the header for correlation id
 	CorrelationIDHeader = "X-Correlation-ID"
 )
@@ -63,10 +61,10 @@ func SendRequest(ctx context.Context, doRequest DoRequestFunc, method, url strin
 	}
 
 	request = request.WithContext(ctx)
-	logger := log.C(ctx, cname)
+	logger := log.C(ctx)
 	correlationID, exists := logger.Data[log.FieldCorrelationID].(string)
 	if exists {
-		request.Header[CorrelationIDHeader] = []string{correlationID}
+		request.Header.Set(CorrelationIDHeader, correlationID)
 	}
 
 	logger.Debugf("Sending a request to %s", request.URL)
@@ -77,7 +75,7 @@ func SendRequest(ctx context.Context, doRequest DoRequestFunc, method, url strin
 func BodyToBytes(closer io.ReadCloser) ([]byte, error) {
 	defer func() {
 		if err := closer.Close(); err != nil {
-			log.D(cname).Errorf("ReadCloser couldn't be closed: %v", err)
+			log.D().Errorf("ReadCloser couldn't be closed: %v", err)
 		}
 	}()
 

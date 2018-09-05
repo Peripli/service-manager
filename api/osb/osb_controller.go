@@ -33,8 +33,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-const name = "api/controller/osb"
-
 var osbPathPattern = regexp.MustCompile("^" + web.OSBURL + "/[^/]+(/.*)$")
 
 // BrokerRoundTripper is implemented by OSB handler providers
@@ -64,20 +62,22 @@ func NewController(fetcher BrokerRoundTripper) web.Controller {
 }
 
 func (c *controller) handler(r *web.Request) (*web.Response, error) {
-	log.R(r, name).Debug("Executing OSB operation: ", r.URL.Path)
+	ctx := r.Context()
+	logger := log.C(ctx)
+	logger.Debug("Executing OSB operation: ", r.URL.Path)
 
 	brokerID, ok := r.PathParams[BrokerIDPathParam]
 	if !ok {
-		log.R(r, name).Debugf("error creating OSB client: brokerID path parameter not found")
+		logger.Debugf("error creating OSB client: brokerID path parameter not found")
 		return nil, &util.HTTPError{
 			ErrorType:   "BadRequest",
 			Description: "invalid broker id path parameter",
 			StatusCode:  http.StatusBadRequest,
 		}
 	}
-	log.R(r, name).Debugf("Obtained path parameter [brokerID = %s] from path params", brokerID)
+	logger.Debugf("Obtained path parameter [brokerID = %s] from path params", brokerID)
 
-	broker, err := c.fetcher.Broker(r.Context(), brokerID)
+	broker, err := c.fetcher.Broker(ctx, brokerID)
 	if err != nil {
 		return nil, err
 	}
@@ -89,14 +89,14 @@ func (c *controller) handler(r *web.Request) (*web.Response, error) {
 		return nil, fmt.Errorf("could not get OSB path from URL %s", r.URL.Path)
 	}
 
-	modifiedRequest := r.Request.WithContext(r.Context())
+	modifiedRequest := r.Request.WithContext(ctx)
 	modifiedRequest.SetBasicAuth(broker.Credentials.Basic.Username, broker.Credentials.Basic.Password)
 	modifiedRequest.Body = ioutil.NopCloser(bytes.NewReader(r.Body))
 	modifiedRequest.ContentLength = int64(len(r.Body))
 	modifiedRequest.Host = targetBrokerURL.Host
 	modifiedRequest.URL.Path = m[1]
 
-	log.R(r, name).Debugf("Forwarding OSB r to %s", modifiedRequest.URL)
+	logger.Debugf("Forwarding OSB r to %s", modifiedRequest.URL)
 
 	proxy := httputil.NewSingleHostReverseProxy(targetBrokerURL)
 	proxy.Transport = c.fetcher
@@ -113,6 +113,6 @@ func (c *controller) handler(r *web.Request) (*web.Response, error) {
 		Header:     recorder.HeaderMap,
 		Body:       respBody,
 	}
-	log.R(r, name).Debugf("Service broker replied with status %d", resp.StatusCode)
+	logger.Debugf("Service broker replied with status %d", resp.StatusCode)
 	return resp, nil
 }

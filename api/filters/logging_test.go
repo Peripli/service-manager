@@ -25,7 +25,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/web/webfakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/sirupsen/logrus"
 )
 
 func TestHandler(t *testing.T) {
@@ -46,7 +45,7 @@ var _ = Describe("Logging Filter", func() {
 		Context("When none is provided in header", func() {
 			It("Should generate a new for logger", func() {
 				loggingFilter.Run(request, handler)
-				logger := log.R(request, "test")
+				logger := log.C(request.Context())
 				correlationId := logger.Data[log.FieldCorrelationID].(string)
 				Expect(correlationId).ToNot(BeEmpty())
 			})
@@ -56,29 +55,9 @@ var _ = Describe("Logging Filter", func() {
 				expectedCorrelationId := "correlationId"
 				request.Header["X-Correlation-ID"] = []string{expectedCorrelationId}
 				loggingFilter.Run(request, handler)
-				logger := log.R(request, "test")
+				logger := log.C(request.Context())
 				correlationId := logger.Data[log.FieldCorrelationID].(string)
 				Expect(correlationId).To(Equal(expectedCorrelationId))
-			})
-		})
-	})
-	Describe("Dynamic log level", func() {
-		Context("When no header is provided", func() {
-			It("Should keep configured log level", func() {
-				preFilterLogger := log.R(request, "test")
-				loggingFilter.Run(request, handler)
-				postFilterLogger := log.R(request, "test")
-				Expect(preFilterLogger.Level).To(Equal(postFilterLogger.Level))
-			})
-		})
-		Context("When header is provided", func() {
-			It("Should change log level", func() {
-				preFilterEntry := log.R(request, "test")
-				request.Header[logLevelHeader] = []string{logrus.WarnLevel.String()}
-				loggingFilter.Run(request, handler)
-				postFilterEntry := log.R(request, "test")
-				Expect(preFilterEntry.Logger.Level).ToNot(Equal(postFilterEntry.Logger.Level))
-				Expect(postFilterEntry.Logger.Level).To(Equal(logrus.WarnLevel))
 			})
 		})
 	})

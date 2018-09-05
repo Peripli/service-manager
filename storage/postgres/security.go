@@ -88,7 +88,7 @@ func (s *keyFetcher) GetEncryptionKey(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 	if len(safes) != 1 {
-		log.C(ctx, "storage/postgres/security").Warnf("Unexpected number of keys found: %d", len(safes))
+		log.C(ctx).Warnf("Unexpected number of keys found: %d", len(safes))
 		return []byte{}, nil
 	}
 	encryptedKey := []byte(safes[0].Secret)

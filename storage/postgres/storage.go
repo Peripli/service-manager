@@ -46,7 +46,7 @@ type postgresStorage struct {
 
 func (storage *postgresStorage) checkOpen() {
 	if storage.db == nil {
-		log.D("storage/postgres/storage").Panicln("Storage is not yet Open")
+		log.D().Panicln("Storage is not yet Open")
 	}
 }
 
@@ -67,7 +67,7 @@ func (storage *postgresStorage) Platform() storage.Platform {
 
 func (storage *postgresStorage) Credentials() storage.Credentials {
 	if storage.db == nil {
-		log.D("storage/postgres/storage").Panicln("Storage is not yet Open")
+		log.D().Panicln("Storage is not yet Open")
 	}
 	return &credentialStorage{storage.db}
 }
@@ -85,7 +85,7 @@ func (storage *postgresStorage) Open(uri string, encryptionKey []byte) error {
 	if storage.db == nil {
 		storage.db, err = sqlx.Connect(Storage, uri)
 		if err != nil {
-			log.D("storage/postgres/storage").Panicln("Could not connect to PostgreSQL:", err)
+			log.D().Panicln("Could not connect to PostgreSQL:", err)
 		}
 		storage.state = &storageState{
 			storageError:         nil,
@@ -96,9 +96,9 @@ func (storage *postgresStorage) Open(uri string, encryptionKey []byte) error {
 		}
 		storage.mutex = &sync.Mutex{}
 		storage.encryptionKey = encryptionKey
-		log.D("storage/postgres/storage").Debug("Updating database schema")
+		log.D().Debug("Updating database schema")
 		if err := updateSchema(storage.db); err != nil {
-			log.D("storage/postgres/storage").Panicln("Could not update database schema:", err)
+			log.D().Panicln("Could not update database schema:", err)
 		}
 	}
 	return err
@@ -120,7 +120,7 @@ func updateSchema(db *sqlx.DB) error {
 	}
 	err = m.Up()
 	if err == migrate.ErrNoChange {
-		log.D("storage/postgres/storage").Debug("Database schema already up to date")
+		log.D().Debug("Database schema already up to date")
 		err = nil
 	}
 	return err

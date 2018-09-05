@@ -69,30 +69,6 @@ var _ = Describe("log", func() {
 		})
 	})
 
-	Describe("Logger for Context", func() {
-		Context("When keys are provided", func() {
-			It("Should add fields as values from context", func() {
-				contextKey := "key"
-				contextValue := "value"
-				ctx := context.WithValue(context.TODO(), contextKey, contextValue)
-				logger := ForContext(ctx, "component", "key")
-				fieldValue := logger.Data[contextKey].(string)
-				Expect(fieldValue).To(Equal(contextValue))
-			})
-		})
-		Context("When log level is provided", func() {
-			It("Should use the log level", func() {
-				ctx := context.WithValue(context.TODO(), LevelKey{}, logrus.WarnLevel.String())
-				entry := ForContext(ctx, "component")
-				Expect(entry.Logger.Level).To(Equal(logrus.WarnLevel))
-			})
-			It("Should not change default log level when invalid", func() {
-				ctx := context.WithValue(context.TODO(), LevelKey{}, "invalid")
-				entry := ForContext(ctx, "component")
-				Expect(entry.Logger.Level).To(Equal(defaultEntry.Logger.Level))
-			})
-		})
-	})
 	Describe("Register formatter", func() {
 		Context("When a formatter with such name is not registered", func() {
 			It("Registers it", func() {
@@ -133,7 +109,7 @@ func expectOutput(substring string, logFormat string) {
 		Level:  "debug",
 		Format: logFormat,
 	})
-	entry := ForContext(ctx, "log/context_test")
+	entry := ForContext(ctx)
 	entry.Logger.SetOutput(w)
 	defer entry.Logger.SetOutput(os.Stderr) // return default output
 	entry.Debug("Test")

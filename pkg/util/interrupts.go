@@ -16,7 +16,7 @@ func HandleInterrupts() (context.Context, context.CancelFunc) {
 	go func() {
 		select {
 		case <-term:
-			log.C(ctx, "pkg/util/interrupts").Error("Received OS interrupt, exiting gracefully...")
+			log.C(ctx).Error("Received OS interrupt, exiting gracefully...")
 			cancel()
 		case <-ctx.Done():
 			return

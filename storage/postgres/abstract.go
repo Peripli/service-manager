@@ -29,8 +29,6 @@ import (
 	"github.com/lib/pq"
 )
 
-const aname = "storage/postgres/abstract"
-
 func create(ctx context.Context, db *sqlx.DB, table string, dto interface{}) error {
 	set := getDBTags(dto)
 
@@ -44,27 +42,27 @@ func create(ctx context.Context, db *sqlx.DB, table string, dto interface{}) err
 		strings.Join(set, ", "),
 		strings.Join(set, ", :"),
 	)
-	log.C(ctx, aname).Debugf("Executing query %s", query)
+	log.C(ctx).Debugf("Executing query %s", query)
 	_, err := db.NamedExecContext(ctx, query, dto)
 	return checkUniqueViolation(ctx, err)
 }
 
 func get(ctx context.Context, db *sqlx.DB, id string, table string, dto interface{}) error {
 	query := "SELECT * FROM " + table + " WHERE id=$1"
-	log.C(ctx, aname).Debugf("Executing query %s", query)
+	log.C(ctx).Debugf("Executing query %s", query)
 	err := db.GetContext(ctx, dto, query, &id)
 	return checkSQLNoRows(err)
 }
 
 func getAll(ctx context.Context, db *sqlx.DB, table string, dtos interface{}) error {
 	query := "SELECT * FROM " + table
-	log.C(ctx, aname).Debugf("Executing query %s", query)
+	log.C(ctx).Debugf("Executing query %s", query)
 	return db.SelectContext(ctx, dtos, query)
 }
 
 func delete(ctx context.Context, db *sqlx.DB, id string, table string) error {
 	query := "DELETE FROM " + table + " WHERE id=$1"
-	log.C(ctx, aname).Debugf("Executing query %s", query)
+	log.C(ctx).Debugf("Executing query %s", query)
 	result, err := db.ExecContext(ctx, query, &id)
 	if err != nil {
 		return err
@@ -75,10 +73,10 @@ func delete(ctx context.Context, db *sqlx.DB, id string, table string) error {
 func update(ctx context.Context, db *sqlx.DB, table string, dto interface{}) error {
 	updateQueryString := updateQuery(table, dto)
 	if updateQueryString == "" {
-		log.C(ctx, aname).Debugf("%s update: Nothing to update", table)
+		log.C(ctx).Debugf("%s update: Nothing to update", table)
 		return nil
 	}
-	log.C(ctx, aname).Debugf("Executing query %s", updateQueryString)
+	log.C(ctx).Debugf("Executing query %s", updateQueryString)
 	result, err := db.NamedExecContext(ctx, updateQueryString, dto)
 	if err = checkUniqueViolation(ctx, err); err != nil {
 		return err
@@ -123,7 +121,7 @@ func checkUniqueViolation(ctx context.Context, err error) error {
 	}
 	sqlErr, ok := err.(*pq.Error)
 	if ok && sqlErr.Code.Name() == "unique_violation" {
-		log.C(ctx, aname).Debug(sqlErr)
+		log.C(ctx).Debug(sqlErr)
 		return util.ErrAlreadyExistsInStorage
 	}
 	return err

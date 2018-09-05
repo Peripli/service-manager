@@ -27,7 +27,6 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
-const name = "api/controller/catalog"
 
 // Controller catalog controller
 type Controller struct {
@@ -47,7 +46,7 @@ type aggregatedCatalog struct {
 }
 
 func (c *Controller) getCatalog(r *web.Request) (*web.Response, error) {
-	log.R(r, name).Debugf("Aggregating all broker catalogs")
+	log.C(r.Context()).Debugf("Aggregating all broker catalogs")
 	brokers, err := c.BrokerStorage.GetAll(r.Context())
 	if err != nil {
 		return nil, err
@@ -56,7 +55,7 @@ func (c *Controller) getCatalog(r *web.Request) (*web.Response, error) {
 	resultServices := make([]brokerServices, 0, len(brokers)+1)
 	queryBrokerIDs := r.URL.Query()["broker_id"]
 	if len(queryBrokerIDs) != 0 {
-		log.R(r, name).Debugf("Filtering based on the provided query parameters: %s", queryBrokerIDs)
+		log.C(r.Context()).Debugf("Filtering based on the provided query parameters: %s", queryBrokerIDs)
 		filterBrokersByID(brokers, queryBrokerIDs, &resultServices)
 	} else {
 		retrieveAllBrokers(brokers, &resultServices)
