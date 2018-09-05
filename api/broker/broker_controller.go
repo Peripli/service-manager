@@ -50,7 +50,8 @@ type Controller struct {
 var _ web.Controller = &Controller{}
 
 func (c *Controller) createBroker(r *web.Request) (*web.Response, error) {
-	log.C(r.Context()).Debug("Creating new broker")
+	ctx := r.Context()
+	log.C(ctx).Debug("Creating new broker")
 
 	broker := &types.Broker{}
 	if err := util.BytesToObject(r.Body, broker); err != nil {
@@ -68,16 +69,16 @@ func (c *Controller) createBroker(r *web.Request) (*web.Response, error) {
 	broker.CreatedAt = currentTime
 	broker.UpdatedAt = currentTime
 
-	catalog, err := c.getBrokerCatalog(r.Context(), broker)
+	catalog, err := c.getBrokerCatalog(ctx, broker)
 	if err != nil {
 		return nil, err
 	}
 	broker.Catalog = catalog
 
-	if err := transformBrokerCredentials(r.Context(), broker, c.Encrypter.Encrypt); err != nil {
+	if err := transformBrokerCredentials(ctx, broker, c.Encrypter.Encrypt); err != nil {
 		return nil, err
 	}
-	if err := c.BrokerStorage.Create(r.Context(), broker); err != nil {
+	if err := c.BrokerStorage.Create(ctx, broker); err != nil {
 		return nil, util.HandleStorageError(err, "broker", broker.ID)
 	}
 
@@ -88,9 +89,10 @@ func (c *Controller) createBroker(r *web.Request) (*web.Response, error) {
 
 func (c *Controller) getBroker(r *web.Request) (*web.Response, error) {
 	brokerID := r.PathParams[reqBrokerID]
-	log.C(r.Context()).Debugf("Getting broker with id %s", brokerID)
+	ctx := r.Context()
+	log.C(ctx).Debugf("Getting broker with id %s", brokerID)
 
-	broker, err := c.BrokerStorage.Get(r.Context(), brokerID)
+	broker, err := c.BrokerStorage.Get(ctx, brokerID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
@@ -101,8 +103,9 @@ func (c *Controller) getBroker(r *web.Request) (*web.Response, error) {
 }
 
 func (c *Controller) getAllBrokers(r *web.Request) (*web.Response, error) {
-	log.C(r.Context()).Debug("Getting all brokers")
-	brokers, err := c.BrokerStorage.GetAll(r.Context())
+	ctx := r.Context()
+	log.C(ctx).Debug("Getting all brokers")
+	brokers, err := c.BrokerStorage.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -122,9 +125,10 @@ func (c *Controller) getAllBrokers(r *web.Request) (*web.Response, error) {
 
 func (c *Controller) deleteBroker(r *web.Request) (*web.Response, error) {
 	brokerID := r.PathParams[reqBrokerID]
-	log.C(r.Context()).Debugf("Deleting broker with id %s", brokerID)
+	ctx := r.Context()
+	log.C(ctx).Debugf("Deleting broker with id %s", brokerID)
 
-	if err := c.BrokerStorage.Delete(r.Context(), brokerID); err != nil {
+	if err := c.BrokerStorage.Delete(ctx, brokerID); err != nil {
 		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
 	return util.NewJSONResponse(http.StatusOK, map[string]int{})
@@ -132,9 +136,10 @@ func (c *Controller) deleteBroker(r *web.Request) (*web.Response, error) {
 
 func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
 	brokerID := r.PathParams[reqBrokerID]
-	log.C(r.Context()).Debugf("Updating updateBroker with id %s", brokerID)
+	ctx := r.Context()
+	log.C(ctx).Debugf("Updating updateBroker with id %s", brokerID)
 
-	broker, err := c.BrokerStorage.Get(r.Context(), brokerID)
+	broker, err := c.BrokerStorage.Get(ctx, brokerID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
@@ -145,11 +150,11 @@ func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	if err := transformBrokerCredentials(r.Context(), broker, c.Encrypter.Encrypt); err != nil {
+	if err := transformBrokerCredentials(ctx, broker, c.Encrypter.Encrypt); err != nil {
 		return nil, err
 	}
 
-	catalog, err := c.getBrokerCatalog(r.Context(), broker)
+	catalog, err := c.getBrokerCatalog(ctx, broker)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +164,7 @@ func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
 	broker.CreatedAt = createdAt
 	broker.UpdatedAt = time.Now().UTC()
 
-	if err := c.BrokerStorage.Update(r.Context(), broker); err != nil {
+	if err := c.BrokerStorage.Update(ctx, broker); err != nil {
 		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
 

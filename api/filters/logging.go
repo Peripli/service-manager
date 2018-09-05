@@ -37,11 +37,12 @@ func (*Logging) Name() string {
 
 // Run represents the logging middleware function that processes the request and configures the request-scoped logging.
 func (l *Logging) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	entry := log.C(req.Context())
+	ctx := req.Context()
+	entry := log.C(ctx)
 	if correlationID := log.CorrelationIDForRequest(req.Request); correlationID != "" {
 		entry = entry.WithField(log.FieldCorrelationID, correlationID)
 	}
-	ctx := log.ContextWithLogger(req.Context(), entry)
+	ctx = log.ContextWithLogger(ctx, entry)
 	req.Request = req.WithContext(ctx)
 	return next.Handle(req)
 }

@@ -28,7 +28,8 @@ type Middleware struct {
 // Run represents the authentication middleware function that delegates the authentication
 // to the provided authenticator
 func (ba *Middleware) Run(request *web.Request, next web.Handler) (*web.Response, error) {
-	if _, ok := web.UserFromContext(request.Context()); ok {
+	ctx := request.Context()
+	if _, ok := web.UserFromContext(ctx); ok {
 		return next.Handle(request)
 	}
 
@@ -49,7 +50,7 @@ func (ba *Middleware) Run(request *web.Request, next web.Handler) (*web.Response
 		if user == nil {
 			return nil, errUserNotFound
 		}
-		request.Request = request.WithContext(web.NewContextWithUser(request.Context(), user))
+		request.Request = request.WithContext(web.NewContextWithUser(ctx, user))
 	case security.Deny:
 		return nil, errUnauthorized
 	}

@@ -46,8 +46,9 @@ type aggregatedCatalog struct {
 }
 
 func (c *Controller) getCatalog(r *web.Request) (*web.Response, error) {
-	log.C(r.Context()).Debugf("Aggregating all broker catalogs")
-	brokers, err := c.BrokerStorage.GetAll(r.Context())
+	ctx := r.Context()
+	log.C(ctx).Debugf("Aggregating all broker catalogs")
+	brokers, err := c.BrokerStorage.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +56,7 @@ func (c *Controller) getCatalog(r *web.Request) (*web.Response, error) {
 	resultServices := make([]brokerServices, 0, len(brokers)+1)
 	queryBrokerIDs := r.URL.Query()["broker_id"]
 	if len(queryBrokerIDs) != 0 {
-		log.C(r.Context()).Debugf("Filtering based on the provided query parameters: %s", queryBrokerIDs)
+		log.C(ctx).Debugf("Filtering based on the provided query parameters: %s", queryBrokerIDs)
 		filterBrokersByID(brokers, queryBrokerIDs, &resultServices)
 	} else {
 		retrieveAllBrokers(brokers, &resultServices)
