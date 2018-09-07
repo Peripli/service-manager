@@ -35,7 +35,7 @@ var (
 	}
 	mux          = sync.Mutex{}
 	once         = sync.Once{}
-	defaultEntry *logrus.Entry
+	defaultEntry = logrus.NewEntry(logrus.StandardLogger())
 	// C is an alias for ForContext
 	C = ForContext
 	// D is an alias for Default
@@ -91,7 +91,6 @@ func Configure(ctx context.Context, settings *Settings) context.Context {
 			Out:       os.Stdout,
 			Hooks:     make(logrus.LevelHooks),
 		}
-
 		hook := filename.NewHook()
 		hook.Field = FieldComponentName
 		logger.AddHook(hook)
