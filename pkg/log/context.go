@@ -35,7 +35,7 @@ var (
 	}
 	mux          = sync.Mutex{}
 	once         = sync.Once{}
-	defaultEntry = logrus.NewEntry(logrus.StandardLogger())
+	defaultEntry *logrus.Entry
 	// C is an alias for ForContext
 	C = ForContext
 	// D is an alias for Default
@@ -133,6 +133,7 @@ func RegisterFormatter(name string, formatter logrus.Formatter) error {
 	return nil
 }
 
+// AddHook adds a hook to all loggers
 func AddHook(hook logrus.Hook) {
 	defaultEntry.Logger.AddHook(hook)
 }
