@@ -33,9 +33,9 @@ var (
 		"json": &logrus.JSONFormatter{},
 		"text": &logrus.TextFormatter{},
 	}
-	mux                  = sync.Mutex{}
-	once                 = sync.Once{}
-	defaultEntry         = logrus.NewEntry(logrus.StandardLogger())
+	mux          = sync.Mutex{}
+	once         = sync.Once{}
+	defaultEntry = logrus.NewEntry(logrus.StandardLogger())
 	// C is an alias for ForContext
 	C = ForContext
 	// D is an alias for Default
@@ -131,6 +131,10 @@ func RegisterFormatter(name string, formatter logrus.Formatter) error {
 	}
 	supportedFormatters[name] = formatter
 	return nil
+}
+
+func AddHook(hook logrus.Hook) {
+	defaultEntry.Logger.AddHook(hook)
 }
 
 func copyEntry(entry *logrus.Entry) *logrus.Entry {
