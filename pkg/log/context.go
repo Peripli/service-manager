@@ -33,7 +33,7 @@ var (
 		"json": &logrus.JSONFormatter{},
 		"text": &logrus.TextFormatter{},
 	}
-	mux          = sync.Mutex{}
+	regMutex     = sync.Mutex{}
 	once         = sync.Once{}
 	defaultEntry = logrus.NewEntry(logrus.StandardLogger())
 	// C is an alias for ForContext
@@ -123,8 +123,8 @@ func ContextWithLogger(ctx context.Context, entry *logrus.Entry) context.Context
 // RegisterFormatter registers a new logrus Formatter with the given name.
 // Returns an error if there is a formatter with the same name.
 func RegisterFormatter(name string, formatter logrus.Formatter) error {
-	mux.Lock()
-	defer mux.Unlock()
+	regMutex.Lock()
+	defer regMutex.Unlock()
 	if _, exists := supportedFormatters[name]; exists {
 		return fmt.Errorf("Formatter with name %s is already registered", name)
 	}

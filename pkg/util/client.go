@@ -27,11 +27,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/log"
 )
 
-const (
-	// CorrelationIDHeader is the header for correlation id
-	CorrelationIDHeader = "X-Correlation-ID"
-)
-
 // DoRequestFunc is an alias for any function that takes an http request and returns a response and error
 type DoRequestFunc func(request *http.Request) (*http.Response, error)
 
@@ -64,7 +59,7 @@ func SendRequest(ctx context.Context, doRequest DoRequestFunc, method, url strin
 	logger := log.C(ctx)
 	correlationID, exists := logger.Data[log.FieldCorrelationID].(string)
 	if exists {
-		request.Header.Set(CorrelationIDHeader, correlationID)
+		request.Header.Set(log.CorrelationIDHeaders[0], correlationID)
 	}
 
 	logger.Debugf("Sending a request to %s", request.URL)

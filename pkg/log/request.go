@@ -23,13 +23,14 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-var correlationIDHeaders = []string{"X-Correlation-ID", "X-CorrelationID", "X-ForRequest-ID"}
+// CorrelationIDHeaders are the headers whose values will be taken as a correlation id for incoming requests
+var CorrelationIDHeaders = []string{"X-Correlation-ID", "X-CorrelationID", "X-ForRequest-ID"}
 
 // CorrelationIDForRequest returns checks the http headers for any of the supported correlation id headers.
 // The first that matches is taken as the correlation id. If none exists a new one is generated.
 func CorrelationIDForRequest(request *http.Request) string {
 	for key, val := range request.Header {
-		if slice.StringsAnyEquals(correlationIDHeaders, key) {
+		if slice.StringsAnyEquals(CorrelationIDHeaders, key) {
 			return val[0]
 		}
 	}
@@ -37,7 +38,7 @@ func CorrelationIDForRequest(request *http.Request) string {
 	uuids, err := uuid.NewV4()
 	if err == nil {
 		newCorrelationID = uuids.String()
-		request.Header[correlationIDHeaders[0]] = []string{newCorrelationID}
+		request.Header.Set(CorrelationIDHeaders[0], newCorrelationID)
 	}
 	return newCorrelationID
 }
