@@ -27,7 +27,7 @@ type Event struct {
 
 	State State
 
-	Metadata map[string]interface{}
+	Metadata map[string]string
 }
 
 type Backend interface {

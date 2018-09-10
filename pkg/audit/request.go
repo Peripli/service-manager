@@ -3,6 +3,8 @@ package audit
 import (
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gofrs/uuid"
+	"github.com/sirupsen/logrus"
+
 	"net"
 	"strings"
 	"time"
@@ -76,4 +78,17 @@ func RequestWithEvent(request *web.Request) (*web.Request, *Event, error) {
 	}
 	request.Request = request.WithContext(web.ContextWithAuditEvent(request.Context(), event))
 	return request, event, nil
+}
+
+func LogMetadata(event *Event, key string, value string) {
+	if event == nil {
+		return
+	}
+	if event.Metadata == nil {
+		event.Metadata = make(map[string]string)
+	}
+	if val, exists := event.Metadata[key]; exists {
+		logrus.Warnf("Cannot override metadata key %s to %s for audit event %s. Values is already set to %s", key, value, event.AuditID, val)
+	}
+	event.Metadata[key] = value
 }

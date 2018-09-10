@@ -17,11 +17,11 @@ func (*AuditFilter) Name() string {
 func (f *AuditFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	req, event, e := audit.RequestWithEvent(req)
 	if e != nil {
-		return nil, fmt.Errorf("failed to create audit event: %v", err)
+		return nil, fmt.Errorf("failed to create audit event: %v", e)
 	}
 
 	event.State = audit.StatePreRequest
-	audit.Send(event)
+	audit.Process(event)
 
 	resp, err := next.Handle(req)
 	if err != nil {
@@ -33,7 +33,7 @@ func (f *AuditFilter) Run(req *web.Request, next web.Handler) (*web.Response, er
 		event.ResponseStatus = resp.StatusCode
 		event.ResponseObject = resp.Body
 	}
-	audit.Send(event)
+	audit.Process(event)
 	return resp, err
 }
 

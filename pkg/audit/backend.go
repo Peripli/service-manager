@@ -2,24 +2,25 @@ package audit
 
 import (
 	"encoding/json"
-	"github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"sync"
+
+	"github.com/sirupsen/logrus"
 )
 
 var (
 	auditProcessors []Backend
-	mux             = sync.Mutex{}
+	regMutex        = sync.Mutex{}
 )
 
 func RegisterProcessor(auditProcessor Backend) {
-	mux.Lock()
-	defer mux.Unlock()
+	regMutex.Lock()
+	defer regMutex.Unlock()
 	auditProcessors = append(auditProcessors, auditProcessor)
 }
 
-func Send(events ...*Event) {
+func Process(events ...*Event) {
 	for _, processor := range auditProcessors {
 		processor.Process(events...)
 	}

@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+
 	"github.com/Peripli/service-manager/pkg/audit"
 )
 
@@ -25,4 +26,9 @@ func NewContextWithUser(ctx context.Context, user *User) context.Context {
 
 func ContextWithAuditEvent(ctx context.Context, event *audit.Event) context.Context {
 	return context.WithValue(ctx, auditKey, event)
+}
+
+func AuditEventFromContext(ctx context.Context) *audit.Event {
+	event, _ := ctx.Value(auditKey).(*audit.Event)
+	return event
 }

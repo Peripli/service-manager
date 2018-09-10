@@ -30,14 +30,14 @@ func (raf *RequiredAuthnFilter) Run(request *web.Request, next web.Handler) (*we
 		logrus.Error("No authenticated user found in request context during execution of filter ", raf.Name())
 		_, event, err := audit.RequestWithEvent(request)
 		if err != nil {
-			//log
+			// log
 			return nil, err
 		}
 		event.ResponseObject = []byte(errUnauthorized.Description)
 		event.ResponseStatus = errUnauthorized.StatusCode
 		event.State = audit.StatePostRequest
 
-		audit.Send(event)
+		audit.Process(event)
 		return nil, errUnauthorized
 	}
 
