@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage/storagefakes"
 
 	. "github.com/onsi/ginkgo"
@@ -47,7 +48,7 @@ var _ = Describe("Healthcheck controller", func() {
 	Describe("healthCheck", func() {
 		Context("when ping returns error", func() {
 			It("should respond with 503", func() {
-				resp, err := createController(errors.New("expected")).healthCheck(nil)
+				resp, err := createController(errors.New("expected")).healthCheck(&web.Request{Request: &http.Request{}})
 				Expect(err).ToNot(HaveOccurred())
 				Expect(resp.StatusCode).To(Equal(http.StatusServiceUnavailable))
 				Expect(string(resp.Body)).To(Equal(string(unavailableResponse)))
@@ -56,7 +57,7 @@ var _ = Describe("Healthcheck controller", func() {
 
 		Context("when ping returns nil", func() {
 			It("should respond with 200", func() {
-				resp, err := createController(nil).healthCheck(nil)
+				resp, err := createController(nil).healthCheck(&web.Request{Request: &http.Request{}})
 				Expect(err).ToNot(HaveOccurred())
 				Expect(resp.StatusCode).To(Equal(http.StatusOK))
 				Expect(string(resp.Body)).To(Equal(string(availableResponse)))

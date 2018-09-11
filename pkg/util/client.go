@@ -18,20 +18,20 @@ package util
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
+	"io/ioutil"
 	"net/http"
 
-	"io/ioutil"
-
-	"github.com/sirupsen/logrus"
+	"github.com/Peripli/service-manager/pkg/log"
 )
 
 // DoRequestFunc is an alias for any function that takes an http request and returns a response and error
 type DoRequestFunc func(request *http.Request) (*http.Response, error)
 
 // SendRequest sends a request to the specified client and the provided URL with the specified parameters and body.
-func SendRequest(doRequest DoRequestFunc, method, url string, params map[string]string, body interface{}) (*http.Response, error) {
+func SendRequest(ctx context.Context, doRequest DoRequestFunc, method, url string, params map[string]string, body interface{}) (*http.Response, error) {
 	var bodyReader io.Reader
 
 	if body != nil {
@@ -55,7 +55,14 @@ func SendRequest(doRequest DoRequestFunc, method, url string, params map[string]
 		request.URL.RawQuery = q.Encode()
 	}
 
-	logrus.Debugf("Sending a request to %s", request.URL)
+	request = request.WithContext(ctx)
+	logger := log.C(ctx)
+	correlationID, exists := logger.Data[log.FieldCorrelationID].(string)
+	if exists {
+		request.Header.Set(log.CorrelationIDHeaders[0], correlationID)
+	}
+
+	logger.Debugf("Sending a request to %s", request.URL)
 	return doRequest(request)
 }
 
@@ -63,7 +70,7 @@ func SendRequest(doRequest DoRequestFunc, method, url string, params map[string]
 func BodyToBytes(closer io.ReadCloser) ([]byte, error) {
 	defer func() {
 		if err := closer.Close(); err != nil {
-			logrus.Errorf("ReadCloser couldn't be closed: %v", err)
+			log.D().Errorf("ReadCloser couldn't be closed: %v", err)
 		}
 	}()
 

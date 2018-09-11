@@ -18,14 +18,13 @@
 package util
 
 import (
-	"encoding/json"
+		"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
-	"strings"
-
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -93,7 +92,7 @@ func BytesToObject(bytes []byte, object interface{}) error {
 func unmarshal(body []byte, value interface{}) error {
 	err := json.Unmarshal(body, value)
 	if err != nil {
-		logrus.Error("Failed to decode request body: ", err)
+		log.D().Error("Failed to decode request body: ", err)
 		return &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: "Failed to decode request body",

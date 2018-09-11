@@ -18,11 +18,10 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
-	"fmt"
-
-	"github.com/sirupsen/logrus"
+	"github.com/Peripli/service-manager/pkg/log"
 )
 
 var (
@@ -34,11 +33,12 @@ var (
 func Register(name string, storage Storage) {
 	mux.RLock()
 	defer mux.RUnlock()
+	logger := log.D()
 	if storage == nil {
-		logrus.Panicln("storage: Register storage is nil")
+		logger.Panicln("storage: Register storage is nil")
 	}
 	if _, dup := storages[name]; dup {
-		logrus.Panicf("storage: Register called twice for storage with name %s", name)
+		logger.Panicf("storage: Register called twice for storage with name %s", name)
 	}
 	storages[name] = storage
 }
@@ -63,8 +63,9 @@ func Use(ctx context.Context, name string, uri string, encryptionKey []byte) (St
 
 func awaitTermination(ctx context.Context, storage Storage) {
 	<-ctx.Done()
-	logrus.Debug("Context cancelled. Closing storage...")
+	logger := log.C(ctx)
+	logger.Debug("Context cancelled. Closing storage...")
 	if err := storage.Close(); err != nil {
-		logrus.Error(err)
+		logger.Error(err)
 	}
 }

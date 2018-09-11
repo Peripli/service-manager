@@ -17,14 +17,16 @@
 package util_test
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 
-	"fmt"
-
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/sirupsen/logrus"
 )
 
 var _ = Describe("Client Utils", func() {
@@ -46,7 +48,7 @@ var _ = Describe("Client Utils", func() {
 				body := testTypeErrorMarshaling{
 					Field: "Value",
 				}
-				_, err := util.SendRequest(requestFunc, "GET", "http://example.com", map[string]string{}, body)
+				_, err := util.SendRequest(context.TODO(), requestFunc, "GET", "http://example.com", map[string]string{}, body)
 
 				Expect(err).Should(HaveOccurred())
 			})
@@ -55,7 +57,7 @@ var _ = Describe("Client Utils", func() {
 
 		Context("when method is invalid", func() {
 			It("returns an error", func() {
-				_, err := util.SendRequest(requestFunc, "?+?.>", "http://example.com", map[string]string{}, nil)
+				_, err := util.SendRequest(context.TODO(), requestFunc, "?+?.>", "http://example.com", map[string]string{}, nil)
 
 				Expect(err).Should(HaveOccurred())
 			})
@@ -77,8 +79,28 @@ var _ = Describe("Client Utils", func() {
 				reaction.Err = nil
 				reaction.Status = http.StatusOK
 
-				resp, err := util.SendRequest(requestFunc, "POST", "http://example.com", params, body)
+				resp, err := util.SendRequest(context.TODO(), requestFunc, "POST", "http://example.com", params, body)
 
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+			})
+		})
+
+		Context("When context has correlation id", func() {
+			It("should attach it as header", func() {
+				expectations.URL = "http://example.com"
+
+				reaction.Err = nil
+				reaction.Status = http.StatusOK
+
+				expectedCorrelationID := "correlation-id"
+				entry := logrus.NewEntry(logrus.StandardLogger())
+				entry = entry.WithField(log.FieldCorrelationID, expectedCorrelationID)
+				ctx := log.ContextWithLogger(context.TODO(), entry)
+				resp, err := util.SendRequest(ctx, requestFunc, "GET", "http://example.com", nil, nil)
+
+				correlationID := resp.Request.Header.Get(log.CorrelationIDHeaders[0])
+				Expect(correlationID).To(Equal(expectedCorrelationID))
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(resp.StatusCode).To(Equal(http.StatusOK))
 			})
@@ -94,7 +116,7 @@ var _ = Describe("Client Utils", func() {
 			reaction.Status = http.StatusOK
 			reaction.Body = `{"field":"value"}`
 
-			resp, err = util.SendRequest(requestFunc, "POST", "http://example.com", map[string]string{}, nil)
+			resp, err = util.SendRequest(context.TODO(), requestFunc, "POST", "http://example.com", map[string]string{}, nil)
 			Expect(err).ShouldNot(HaveOccurred())
 		})
 

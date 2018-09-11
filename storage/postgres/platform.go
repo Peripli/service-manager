@@ -17,6 +17,8 @@
 package postgres
 
 import (
+	"context"
+
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/jmoiron/sqlx"
 )
@@ -25,21 +27,21 @@ type platformStorage struct {
 	db *sqlx.DB
 }
 
-func (ps *platformStorage) Create(platform *types.Platform) error {
-	return create(ps.db, platformTable, convertPlatformToDTO(platform))
+func (ps *platformStorage) Create(ctx context.Context, platform *types.Platform) error {
+	return create(ctx, ps.db, platformTable, convertPlatformToDTO(platform))
 }
 
-func (ps *platformStorage) Get(id string) (*types.Platform, error) {
+func (ps *platformStorage) Get(ctx context.Context, id string) (*types.Platform, error) {
 	platform := &Platform{}
-	if err := get(ps.db, id, platformTable, platform); err != nil {
+	if err := get(ctx, ps.db, id, platformTable, platform); err != nil {
 		return nil, err
 	}
 	return platform.Convert(), nil
 }
 
-func (ps *platformStorage) GetAll() ([]*types.Platform, error) {
-	platformDTOs := []Platform{}
-	err := getAll(ps.db, platformTable, &platformDTOs)
+func (ps *platformStorage) GetAll(ctx context.Context) ([]*types.Platform, error) {
+	var platformDTOs []Platform
+	err := getAll(ctx, ps.db, platformTable, &platformDTOs)
 	if err != nil || len(platformDTOs) == 0 {
 		return []*types.Platform{}, err
 	}
@@ -50,11 +52,10 @@ func (ps *platformStorage) GetAll() ([]*types.Platform, error) {
 	return platforms, nil
 }
 
-func (ps *platformStorage) Delete(id string) error {
-	return delete(ps.db, id, platformTable)
+func (ps *platformStorage) Delete(ctx context.Context, id string) error {
+	return delete(ctx, ps.db, id, platformTable)
 }
 
-func (ps *platformStorage) Update(platform *types.Platform) error {
-	return update(ps.db, platformTable, convertPlatformToDTO(platform))
-
+func (ps *platformStorage) Update(ctx context.Context, platform *types.Platform) error {
+	return update(ctx, ps.db, platformTable, convertPlatformToDTO(platform))
 }

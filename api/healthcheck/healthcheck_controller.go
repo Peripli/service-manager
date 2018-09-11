@@ -19,11 +19,12 @@ package healthcheck
 import (
 	"net/http"
 
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/sirupsen/logrus"
 )
+
 
 // Controller platform controller
 type Controller struct {
@@ -47,14 +48,16 @@ var statusStorageFailureResponse = map[string]interface{}{
 }
 
 // healthCheck handler for GET /v1/monitor/health
-func (c *Controller) healthCheck(request *web.Request) (*web.Response, error) {
-	logrus.Debug("Performing health check...")
+func (c *Controller) healthCheck(r *web.Request) (*web.Response, error) {
+	ctx := r.Context()
+	logger := log.C(ctx)
+	logger.Debug("Performing health check...")
 
 	if err := c.Storage.Ping(); err != nil {
-		logrus.Debugf("storage.Ping failed: %s", err)
+		logger.Debugf("storage.Ping failed: %s", err)
 		return util.NewJSONResponse(http.StatusServiceUnavailable, statusStorageFailureResponse)
 	}
 
-	logrus.Debug("Successfully completed health check")
+	logger.Debug("Successfully completed health check")
 	return util.NewJSONResponse(http.StatusOK, statusRunningResponse)
 }

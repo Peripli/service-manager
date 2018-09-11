@@ -22,10 +22,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/security"
 	"github.com/jmoiron/sqlx"
-	"github.com/sirupsen/logrus"
-)
+	)
 
 const securityLockIndex = 111
 
@@ -52,14 +52,14 @@ func (s *securityStorage) Lock(ctx context.Context) error {
 }
 
 // Unlock releases the database lock.
-func (s *securityStorage) Unlock() error {
+func (s *securityStorage) Unlock(ctx context.Context) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	if !s.isLocked {
 		return nil
 	}
 
-	if _, err := s.db.Exec("SELECT pg_advisory_unlock($1)", securityLockIndex); err != nil {
+	if _, err := s.db.ExecContext(ctx, "SELECT pg_advisory_unlock($1)", securityLockIndex); err != nil {
 		return err
 	}
 	s.isLocked = false
@@ -82,13 +82,13 @@ type keyFetcher struct {
 }
 
 // GetEncryptionKey returns the encryption key used to encrypt the credentials for brokers
-func (s *keyFetcher) GetEncryptionKey() ([]byte, error) {
+func (s *keyFetcher) GetEncryptionKey(ctx context.Context) ([]byte, error) {
 	var safes []Safe
-	if err := getAll(s.db, "safe", &safes); err != nil {
+	if err := getAll(ctx, s.db, "safe", &safes); err != nil {
 		return nil, err
 	}
 	if len(safes) != 1 {
-		logrus.Warnf("Unexpected number of keys found: %d", len(safes))
+		log.C(ctx).Warnf("Unexpected number of keys found: %d", len(safes))
 		return []byte{}, nil
 	}
 	encryptedKey := []byte(safes[0].Secret)
@@ -101,9 +101,9 @@ type keySetter struct {
 }
 
 // Sets the encryption key by encrypting it beforehand with the encryption key in the environment
-func (k *keySetter) SetEncryptionKey(key []byte) error {
+func (k *keySetter) SetEncryptionKey(ctx context.Context, key []byte) error {
 	var safes []Safe
-	if err := getAll(k.db, "safe", &safes); err != nil {
+	if err := getAll(ctx, k.db, "safe", &safes); err != nil {
 		return err
 	}
 	if len(safes) != 0 {
@@ -118,5 +118,5 @@ func (k *keySetter) SetEncryptionKey(key []byte) error {
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	return create(k.db, "safe", safe)
+	return create(ctx, k.db, "safe", safe)
 }

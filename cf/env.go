@@ -17,13 +17,12 @@
 package cf
 
 import (
-	"fmt"
-
+		"fmt"
 	"os"
 
 	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/cloudfoundry-community/go-cfenv"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cast"
 )
 
@@ -39,7 +38,7 @@ func SetCFOverrides(env env.Environment) error {
 
 		pgServiceName := cast.ToString(env.Get("storage.name"))
 		if pgServiceName == "" {
-			logrus.Warning("No PostgreSQL service name found")
+			log.D().Warning("No PostgreSQL service name found")
 			return nil
 		}
 		service, err := cfEnv.Services.WithName(pgServiceName)

@@ -117,6 +117,7 @@ func New(ctx context.Context, storage storage.Storage, settings *Settings, encry
 		},
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
+			&filters.Logging{},
 			&filters.AuditFilter{},
 			authn.NewBasicAuthnFilter(storage.Credentials(), encrypter),
 			bearerAuthnFilter,

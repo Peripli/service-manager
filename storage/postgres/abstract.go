@@ -17,18 +17,19 @@
 package postgres
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
 
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/fatih/structs"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
-	"github.com/sirupsen/logrus"
 )
 
-func create(db *sqlx.DB, table string, dto interface{}) error {
+func create(ctx context.Context, db *sqlx.DB, table string, dto interface{}) error {
 	set := getDBTags(dto)
 
 	if len(set) == 0 {
@@ -41,41 +42,43 @@ func create(db *sqlx.DB, table string, dto interface{}) error {
 		strings.Join(set, ", "),
 		strings.Join(set, ", :"),
 	)
-	logrus.Debugf("Insert query %s", query)
-	_, err := db.NamedExec(query, dto)
-	return checkUniqueViolation(err)
+	log.C(ctx).Debugf("Executing query %s", query)
+	_, err := db.NamedExecContext(ctx, query, dto)
+	return checkUniqueViolation(ctx, err)
 }
 
-func get(db *sqlx.DB, id string, table string, dto interface{}) error {
+func get(ctx context.Context, db *sqlx.DB, id string, table string, dto interface{}) error {
 	query := "SELECT * FROM " + table + " WHERE id=$1"
-	err := db.Get(dto, query, &id)
+	log.C(ctx).Debugf("Executing query %s", query)
+	err := db.GetContext(ctx, dto, query, &id)
 	return checkSQLNoRows(err)
 }
 
-func getAll(db *sqlx.DB, table string, dtos interface{}) error {
+func getAll(ctx context.Context, db *sqlx.DB, table string, dtos interface{}) error {
 	query := "SELECT * FROM " + table
-	return db.Select(dtos, query)
+	log.C(ctx).Debugf("Executing query %s", query)
+	return db.SelectContext(ctx, dtos, query)
 }
 
-func delete(db *sqlx.DB, id string, table string) error {
+func delete(ctx context.Context, db *sqlx.DB, id string, table string) error {
 	query := "DELETE FROM " + table + " WHERE id=$1"
-
-	result, err := db.Exec(query, &id)
+	log.C(ctx).Debugf("Executing query %s", query)
+	result, err := db.ExecContext(ctx, query, &id)
 	if err != nil {
 		return err
 	}
 	return checkRowsAffected(result)
 }
 
-func update(db *sqlx.DB, table string, dto interface{}) error {
+func update(ctx context.Context, db *sqlx.DB, table string, dto interface{}) error {
 	updateQueryString := updateQuery(table, dto)
 	if updateQueryString == "" {
-		logrus.Debugf("%s update: Nothing to update", table)
+		log.C(ctx).Debugf("%s update: Nothing to update", table)
 		return nil
 	}
-	logrus.Debugf("Update query %s", updateQueryString)
-	result, err := db.NamedExec(updateQueryString, dto)
-	if err = checkUniqueViolation(err); err != nil {
+	log.C(ctx).Debugf("Executing query %s", updateQueryString)
+	result, err := db.NamedExecContext(ctx, updateQueryString, dto)
+	if err = checkUniqueViolation(ctx, err); err != nil {
 		return err
 	}
 	return checkRowsAffected(result)
@@ -112,13 +115,13 @@ func updateQuery(tableName string, structure interface{}) string {
 		strings.Join(set, ", "))
 }
 
-func checkUniqueViolation(err error) error {
+func checkUniqueViolation(ctx context.Context, err error) error {
 	if err == nil {
 		return nil
 	}
 	sqlErr, ok := err.(*pq.Error)
 	if ok && sqlErr.Code.Name() == "unique_violation" {
-		logrus.Debug(sqlErr)
+		log.C(ctx).Debug(sqlErr)
 		return util.ErrAlreadyExistsInStorage
 	}
 	return err

@@ -5,7 +5,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/sirupsen/logrus"
+	"github.com/Peripli/service-manager/pkg/log"
 )
 
 // HandleInterrupts handles process signal interrupts
@@ -16,7 +16,7 @@ func HandleInterrupts() (context.Context, context.CancelFunc) {
 	go func() {
 		select {
 		case <-term:
-			logrus.Error("Received OS interrupt, exiting gracefully...")
+			log.C(ctx).Error("Received OS interrupt, exiting gracefully...")
 			cancel()
 		case <-ctx.Done():
 			return
