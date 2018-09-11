@@ -17,8 +17,10 @@
 package postgres
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/jmoiron/sqlx"
 )
@@ -27,11 +29,12 @@ type credentialStorage struct {
 	db *sqlx.DB
 }
 
-func (cs *credentialStorage) Get(username string) (*types.Credentials, error) {
+func (cs *credentialStorage) Get(ctx context.Context, username string) (*types.Credentials, error) {
 	platformCredentials := &Platform{}
 	query := fmt.Sprintf("SELECT username, password FROM %s WHERE username=$1", platformTable)
+	log.C(ctx).Debugf("Executing query %s", query)
 
-	err := cs.db.Get(platformCredentials, query, username)
+	err := cs.db.GetContext(ctx, platformCredentials, query, username)
 
 	if err != nil {
 		return nil, checkSQLNoRows(err)

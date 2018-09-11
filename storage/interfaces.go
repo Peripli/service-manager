@@ -73,43 +73,44 @@ type Storage interface {
 // Broker interface for Broker db operations
 type Broker interface {
 	// Create stores a broker in SM DB
-	Create(broker *types.Broker) error
+	Create(ctx context.Context, broker *types.Broker) error
 
 	// Get retrieves a broker using the provided id from SM DB
-	Get(id string) (*types.Broker, error)
+	Get(ctx context.Context, id string) (*types.Broker, error)
 
 	// GetAll retrieves all brokers from SM DB
-	GetAll() ([]*types.Broker, error)
+	GetAll(ctx context.Context) ([]*types.Broker, error)
 
 	// Delete deletes a broker from SM DB
-	Delete(id string) error
+	Delete(ctx context.Context, id string) error
 
 	// Update updates a broker from SM DB
-	Update(broker *types.Broker) error
+	Update(ctx context.Context, broker *types.Broker) error
 }
 
 // Platform interface for Platform db operations
 type Platform interface {
 	// Create stores a platform in SM DB
-	Create(platform *types.Platform) error
+	Create(ctx context.Context, platform *types.Platform) error
 
 	// Get retrieves a platform using the provided id from SM DB
-	Get(id string) (*types.Platform, error)
+	Get(ctx context.Context, id string) (*types.Platform, error)
 
 	// GetAll retrieves all platforms from SM DB
-	GetAll() ([]*types.Platform, error)
+	GetAll(ctx context.Context) ([]*types.Platform, error)
 
 	// Delete deletes a platform from SM DB
-	Delete(id string) error
+	Delete(ctx context.Context, id string) error
 
 	// Update updates a platform from SM DB
-	Update(platform *types.Platform) error
+	Update(ctx context.Context, platform *types.Platform) error
 }
 
 // Credentials interface for Credentials db operations
+//go:generate counterfeiter . Credentials
 type Credentials interface {
 	// Get retrieves credentials using the provided username from SM DB
-	Get(username string) (*types.Credentials, error)
+	Get(ctx context.Context, username string) (*types.Credentials, error)
 }
 
 // Security interface for encryption key operations
@@ -118,7 +119,7 @@ type Security interface {
 	// Returns an error if the process has already acquired the lock
 	Lock(ctx context.Context) error
 	// Unlock releases the acquired lock.
-	Unlock() error
+	Unlock(ctx context.Context) error
 	// Fetcher provides means to obtain the encryption key
 	Fetcher() security.KeyFetcher
 	// Setter provides means to change the encryption key

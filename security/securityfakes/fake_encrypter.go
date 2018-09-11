@@ -2,15 +2,17 @@
 package securityfakes
 
 import (
+	"context"
 	"sync"
 
 	"github.com/Peripli/service-manager/security"
 )
 
 type FakeEncrypter struct {
-	EncryptStub        func(plaintext []byte) ([]byte, error)
+	EncryptStub        func(ctx context.Context, plaintext []byte) ([]byte, error)
 	encryptMutex       sync.RWMutex
 	encryptArgsForCall []struct {
+		ctx       context.Context
 		plaintext []byte
 	}
 	encryptReturns struct {
@@ -21,9 +23,10 @@ type FakeEncrypter struct {
 		result1 []byte
 		result2 error
 	}
-	DecryptStub        func(ciphertext []byte) ([]byte, error)
+	DecryptStub        func(ctx context.Context, ciphertext []byte) ([]byte, error)
 	decryptMutex       sync.RWMutex
 	decryptArgsForCall []struct {
+		ctx        context.Context
 		ciphertext []byte
 	}
 	decryptReturns struct {
@@ -38,7 +41,7 @@ type FakeEncrypter struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeEncrypter) Encrypt(plaintext []byte) ([]byte, error) {
+func (fake *FakeEncrypter) Encrypt(ctx context.Context, plaintext []byte) ([]byte, error) {
 	var plaintextCopy []byte
 	if plaintext != nil {
 		plaintextCopy = make([]byte, len(plaintext))
@@ -47,12 +50,13 @@ func (fake *FakeEncrypter) Encrypt(plaintext []byte) ([]byte, error) {
 	fake.encryptMutex.Lock()
 	ret, specificReturn := fake.encryptReturnsOnCall[len(fake.encryptArgsForCall)]
 	fake.encryptArgsForCall = append(fake.encryptArgsForCall, struct {
+		ctx       context.Context
 		plaintext []byte
-	}{plaintextCopy})
-	fake.recordInvocation("Encrypt", []interface{}{plaintextCopy})
+	}{ctx, plaintextCopy})
+	fake.recordInvocation("Encrypt", []interface{}{ctx, plaintextCopy})
 	fake.encryptMutex.Unlock()
 	if fake.EncryptStub != nil {
-		return fake.EncryptStub(plaintext)
+		return fake.EncryptStub(ctx, plaintext)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -66,10 +70,10 @@ func (fake *FakeEncrypter) EncryptCallCount() int {
 	return len(fake.encryptArgsForCall)
 }
 
-func (fake *FakeEncrypter) EncryptArgsForCall(i int) []byte {
+func (fake *FakeEncrypter) EncryptArgsForCall(i int) (context.Context, []byte) {
 	fake.encryptMutex.RLock()
 	defer fake.encryptMutex.RUnlock()
-	return fake.encryptArgsForCall[i].plaintext
+	return fake.encryptArgsForCall[i].ctx, fake.encryptArgsForCall[i].plaintext
 }
 
 func (fake *FakeEncrypter) EncryptReturns(result1 []byte, result2 error) {
@@ -94,7 +98,7 @@ func (fake *FakeEncrypter) EncryptReturnsOnCall(i int, result1 []byte, result2 e
 	}{result1, result2}
 }
 
-func (fake *FakeEncrypter) Decrypt(ciphertext []byte) ([]byte, error) {
+func (fake *FakeEncrypter) Decrypt(ctx context.Context, ciphertext []byte) ([]byte, error) {
 	var ciphertextCopy []byte
 	if ciphertext != nil {
 		ciphertextCopy = make([]byte, len(ciphertext))
@@ -103,12 +107,13 @@ func (fake *FakeEncrypter) Decrypt(ciphertext []byte) ([]byte, error) {
 	fake.decryptMutex.Lock()
 	ret, specificReturn := fake.decryptReturnsOnCall[len(fake.decryptArgsForCall)]
 	fake.decryptArgsForCall = append(fake.decryptArgsForCall, struct {
+		ctx        context.Context
 		ciphertext []byte
-	}{ciphertextCopy})
-	fake.recordInvocation("Decrypt", []interface{}{ciphertextCopy})
+	}{ctx, ciphertextCopy})
+	fake.recordInvocation("Decrypt", []interface{}{ctx, ciphertextCopy})
 	fake.decryptMutex.Unlock()
 	if fake.DecryptStub != nil {
-		return fake.DecryptStub(ciphertext)
+		return fake.DecryptStub(ctx, ciphertext)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -122,10 +127,10 @@ func (fake *FakeEncrypter) DecryptCallCount() int {
 	return len(fake.decryptArgsForCall)
 }
 
-func (fake *FakeEncrypter) DecryptArgsForCall(i int) []byte {
+func (fake *FakeEncrypter) DecryptArgsForCall(i int) (context.Context, []byte) {
 	fake.decryptMutex.RLock()
 	defer fake.decryptMutex.RUnlock()
-	return fake.decryptArgsForCall[i].ciphertext
+	return fake.decryptArgsForCall[i].ctx, fake.decryptArgsForCall[i].ciphertext
 }
 
 func (fake *FakeEncrypter) DecryptReturns(result1 []byte, result2 error) {

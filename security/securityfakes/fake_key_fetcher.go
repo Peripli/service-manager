@@ -2,16 +2,19 @@
 package securityfakes
 
 import (
+	"context"
 	"sync"
 
 	"github.com/Peripli/service-manager/security"
 )
 
 type FakeKeyFetcher struct {
-	GetEncryptionKeyStub        func() ([]byte, error)
+	GetEncryptionKeyStub        func(ctx context.Context) ([]byte, error)
 	getEncryptionKeyMutex       sync.RWMutex
-	getEncryptionKeyArgsForCall []struct{}
-	getEncryptionKeyReturns     struct {
+	getEncryptionKeyArgsForCall []struct {
+		ctx context.Context
+	}
+	getEncryptionKeyReturns struct {
 		result1 []byte
 		result2 error
 	}
@@ -23,14 +26,16 @@ type FakeKeyFetcher struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeKeyFetcher) GetEncryptionKey() ([]byte, error) {
+func (fake *FakeKeyFetcher) GetEncryptionKey(ctx context.Context) ([]byte, error) {
 	fake.getEncryptionKeyMutex.Lock()
 	ret, specificReturn := fake.getEncryptionKeyReturnsOnCall[len(fake.getEncryptionKeyArgsForCall)]
-	fake.getEncryptionKeyArgsForCall = append(fake.getEncryptionKeyArgsForCall, struct{}{})
-	fake.recordInvocation("GetEncryptionKey", []interface{}{})
+	fake.getEncryptionKeyArgsForCall = append(fake.getEncryptionKeyArgsForCall, struct {
+		ctx context.Context
+	}{ctx})
+	fake.recordInvocation("GetEncryptionKey", []interface{}{ctx})
 	fake.getEncryptionKeyMutex.Unlock()
 	if fake.GetEncryptionKeyStub != nil {
-		return fake.GetEncryptionKeyStub()
+		return fake.GetEncryptionKeyStub(ctx)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -42,6 +47,12 @@ func (fake *FakeKeyFetcher) GetEncryptionKeyCallCount() int {
 	fake.getEncryptionKeyMutex.RLock()
 	defer fake.getEncryptionKeyMutex.RUnlock()
 	return len(fake.getEncryptionKeyArgsForCall)
+}
+
+func (fake *FakeKeyFetcher) GetEncryptionKeyArgsForCall(i int) context.Context {
+	fake.getEncryptionKeyMutex.RLock()
+	defer fake.getEncryptionKeyMutex.RUnlock()
+	return fake.getEncryptionKeyArgsForCall[i].ctx
 }
 
 func (fake *FakeKeyFetcher) GetEncryptionKeyReturns(result1 []byte, result2 error) {

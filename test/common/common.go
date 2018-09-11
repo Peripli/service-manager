@@ -346,6 +346,7 @@ func DoHTTP(reaction *HTTPReaction, checks *HTTPExpectations) func(*http.Request
 		return &http.Response{
 			StatusCode: reaction.Status,
 			Body:       Closer(reaction.Body),
+			Request:    request,
 		}, reaction.Err
 	}
 }

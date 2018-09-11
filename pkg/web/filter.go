@@ -17,11 +17,10 @@
 package web
 
 import (
+	"fmt"
 	"net/http"
 
-	"fmt"
-
-	"github.com/sirupsen/logrus"
+	"github.com/Peripli/service-manager/pkg/log"
 )
 
 // Request contains the original http.Request, path parameters and the raw body
@@ -51,7 +50,6 @@ type Response struct {
 
 // Named is an interface that objects that need to be identified by a particular name should implement.
 type Named interface {
-
 	// Name returns the string identifier for the object
 	Name() string
 }
@@ -59,7 +57,6 @@ type Named interface {
 // Handler is an interface that objects can implement to be registered in the SM REST API.
 //go:generate counterfeiter . Handler
 type Handler interface {
-
 	// Handle processes a Request and returns a corresponding Response or error
 	Handle(req *Request) (resp *Response, err error)
 }
@@ -75,7 +72,6 @@ func (rhf HandlerFunc) Handle(req *Request) (resp *Response, err error) {
 // Middleware is an interface that objects that should act as filters or plugins need to implement. It intercepts
 // the request before reaching the final handler and allows during preprocessing and postprocessing.
 type Middleware interface {
-
 	// Run returns a handler that contains the handling logic of the Middleware. The implementation of Run
 	// should invoke next's Handle if the request should be chained to the next Handler.
 	// It may also terminate the request by not invoking the next Handler.
@@ -92,7 +88,6 @@ func (mf MiddlewareFunc) Run(req *Request, handler Handler) (*Response, error) {
 
 // Matcher allows checking whether an Endpoint matches a particular condition
 type Matcher interface {
-
 	// Matches matches a route against a particular condition
 	Matches(endpoint Endpoint) (bool, error)
 }
@@ -108,7 +103,6 @@ func (m MatcherFunc) Matches(endpoint Endpoint) (bool, error) {
 // FilterMatcher type represents a set of conditions (Matchers) that need to match if order
 // for a FilterMatcher to match
 type FilterMatcher struct {
-
 	// Matchers represents a set of conditions that need to be matched
 	Matchers []Matcher
 }
@@ -142,22 +136,23 @@ func (fs Filters) Chain(h Handler) Handler {
 
 	for i := len(fs) - 1; i >= 0; i-- {
 		i := i
-		wrappedFilters[i] = HandlerFunc(func(request *Request) (*Response, error) {
+		wrappedFilters[i] = HandlerFunc(func(r *Request) (*Response, error) {
 			params := map[string]interface{}{
-				"path":   request.URL.Path,
-				"method": request.Method,
+				"path":                 r.URL.Path,
+				"method":               r.Method,
+				log.FieldCorrelationID: log.CorrelationIDForRequest(r.Request),
 			}
+			logger := log.C(r.Context())
+			logger.WithFields(params).Debug("Entering Filter: ", fs[i].Name())
 
-			logrus.WithFields(params).Debug("Entering Filter: ", fs[i].Name())
-
-			resp, err := fs[i].Run(request, wrappedFilters[i+1])
+			resp, err := fs[i].Run(r, wrappedFilters[i+1])
 
 			params["err"] = err
 			if resp != nil {
 				params["statusCode"] = resp.StatusCode
 			}
 
-			logrus.WithFields(params).Debug("Exiting Filter: ", fs[i].Name())
+			logger.WithFields(params).Debug("Exiting Filter: ", fs[i].Name())
 
 			return resp, err
 		})
@@ -194,6 +189,6 @@ func (fs Filters) Matching(endpoint Endpoint) Filters {
 			}
 		}
 	}
-	logrus.Debugf("Filters for %s %s:%v", endpoint.Method, endpoint.Path, matchedNames)
+	log.D().Debugf("Filters for %s %s:%v", endpoint.Method, endpoint.Path, matchedNames)
 	return matchedFilters
 }

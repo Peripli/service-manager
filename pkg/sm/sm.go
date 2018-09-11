@@ -26,6 +26,7 @@ import (
 
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/config"
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/server"
 	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/storage"
@@ -34,9 +35,7 @@ import (
 	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/cf"
 	"github.com/Peripli/service-manager/pkg/env"
-	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )
 
@@ -88,7 +87,7 @@ func New(ctx context.Context, env env.Environment) *ServiceManagerBuilder {
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: cfg.API.SkipSSLValidation}
 
 	// setup logging
-	log.SetupLogging(cfg.Log)
+	ctx = log.Configure(ctx, cfg.Log)
 
 	// setup smStorage
 	smStorage, err := storage.Use(ctx, postgres.Storage, cfg.Storage.URI, []byte(cfg.API.Security.EncryptionKey))
@@ -142,21 +141,22 @@ func initializeSecureStorage(ctx context.Context, secureStorage storage.Security
 		return err
 	}
 	keyFetcher := secureStorage.Fetcher()
-	encryptionKey, err := keyFetcher.GetEncryptionKey()
+	encryptionKey, err := keyFetcher.GetEncryptionKey(ctx)
 	if err != nil {
 		return err
 	}
 	if len(encryptionKey) == 0 {
-		logrus.Debug("No encryption key is present. Generating new one...")
+		logger := log.C(ctx)
+		logger.Debug("No encryption key is present. Generating new one...")
 		newEncryptionKey := make([]byte, 32)
 		if _, err := rand.Read(newEncryptionKey); err != nil {
 			return fmt.Errorf("Could not generate encryption key: %v", err)
 		}
 		keySetter := secureStorage.Setter()
-		if err := keySetter.SetEncryptionKey(newEncryptionKey); err != nil {
+		if err := keySetter.SetEncryptionKey(ctx, newEncryptionKey); err != nil {
 			return err
 		}
-		logrus.Debug("Successfully generated new encryption key")
+		logger.Debug("Successfully generated new encryption key")
 	}
-	return secureStorage.Unlock()
+	return secureStorage.Unlock(ctx)
 }

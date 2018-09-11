@@ -24,6 +24,7 @@ import (
 
 	"github.com/Peripli/service-manager/api/broker"
 	"github.com/Peripli/service-manager/api/catalog"
+	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/api/filters/authn"
 	"github.com/Peripli/service-manager/api/healthcheck"
 	"github.com/Peripli/service-manager/api/info"
@@ -116,6 +117,7 @@ func New(ctx context.Context, storage storage.Storage, settings *Settings, encry
 		},
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
+			&filters.Logging{},
 			authn.NewBasicAuthnFilter(storage.Credentials(), encrypter),
 			bearerAuthnFilter,
 			authn.NewRequiredAuthnFilter(),

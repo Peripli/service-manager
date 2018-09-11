@@ -19,8 +19,7 @@ package api
 import (
 	"net/http"
 
-	"github.com/sirupsen/logrus"
-
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gorilla/mux"
@@ -73,7 +72,7 @@ func (h *HTTPHandler) serve(res http.ResponseWriter, req *http.Request) error {
 	if err != nil {
 		// HTTP headers and status are sent already
 		// if we return an error, the error Handler will try to send them again
-		logrus.Error("Error sending response", err)
+		log.C(req.Context()).Error("Error sending response", err)
 	}
 	return nil
 }

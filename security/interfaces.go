@@ -65,18 +65,18 @@ type TokenVerifier interface {
 // Encrypter provides functionality to encrypt and decrypt data
 //go:generate counterfeiter . Encrypter
 type Encrypter interface {
-	Encrypt(plaintext []byte) ([]byte, error)
-	Decrypt(ciphertext []byte) ([]byte, error)
+	Encrypt(ctx context.Context, plaintext []byte) ([]byte, error)
+	Decrypt(ctx context.Context, ciphertext []byte) ([]byte, error)
 }
 
 // KeyFetcher provides functionality to get encryption key from a remote location
 //go:generate counterfeiter . KeyFetcher
 type KeyFetcher interface {
-	GetEncryptionKey() ([]byte, error)
+	GetEncryptionKey(ctx context.Context) ([]byte, error)
 }
 
 // KeySetter provides functionality to set encryption key in a remote location
 //go:generate counterfeiter . KeySetter
 type KeySetter interface {
-	SetEncryptionKey(key []byte) error
+	SetEncryptionKey(ctx context.Context, key []byte) error
 }

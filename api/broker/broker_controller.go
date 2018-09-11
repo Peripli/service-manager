@@ -17,12 +17,14 @@
 package broker
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/security"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 
@@ -31,7 +33,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/gofrs/uuid"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -48,11 +49,12 @@ type Controller struct {
 
 var _ web.Controller = &Controller{}
 
-func (c *Controller) createBroker(request *web.Request) (*web.Response, error) {
-	logrus.Debug("Creating new broker")
+func (c *Controller) createBroker(r *web.Request) (*web.Response, error) {
+	ctx := r.Context()
+	log.C(ctx).Debug("Creating new broker")
 
 	broker := &types.Broker{}
-	if err := util.BytesToObject(request.Body, broker); err != nil {
+	if err := util.BytesToObject(r.Body, broker); err != nil {
 		return nil, err
 	}
 
@@ -67,16 +69,16 @@ func (c *Controller) createBroker(request *web.Request) (*web.Response, error) {
 	broker.CreatedAt = currentTime
 	broker.UpdatedAt = currentTime
 
-	catalog, err := c.getBrokerCatalog(broker)
+	catalog, err := c.getBrokerCatalog(ctx, broker)
 	if err != nil {
 		return nil, err
 	}
 	broker.Catalog = catalog
 
-	if err := transformBrokerCredentials(broker, c.Encrypter.Encrypt); err != nil {
+	if err := transformBrokerCredentials(ctx, broker, c.Encrypter.Encrypt); err != nil {
 		return nil, err
 	}
-	if err := c.BrokerStorage.Create(broker); err != nil {
+	if err := c.BrokerStorage.Create(ctx, broker); err != nil {
 		return nil, util.HandleStorageError(err, "broker", broker.ID)
 	}
 
@@ -85,11 +87,12 @@ func (c *Controller) createBroker(request *web.Request) (*web.Response, error) {
 	return util.NewJSONResponse(http.StatusCreated, broker)
 }
 
-func (c *Controller) getBroker(request *web.Request) (*web.Response, error) {
-	brokerID := request.PathParams[reqBrokerID]
-	logrus.Debugf("Getting broker with id %s", brokerID)
+func (c *Controller) getBroker(r *web.Request) (*web.Response, error) {
+	brokerID := r.PathParams[reqBrokerID]
+	ctx := r.Context()
+	log.C(ctx).Debugf("Getting broker with id %s", brokerID)
 
-	broker, err := c.BrokerStorage.Get(brokerID)
+	broker, err := c.BrokerStorage.Get(ctx, brokerID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
@@ -99,14 +102,15 @@ func (c *Controller) getBroker(request *web.Request) (*web.Response, error) {
 	return util.NewJSONResponse(http.StatusOK, broker)
 }
 
-func (c *Controller) getAllBrokers(request *web.Request) (*web.Response, error) {
-	logrus.Debug("Getting all brokers")
-	brokers, err := c.BrokerStorage.GetAll()
+func (c *Controller) getAllBrokers(r *web.Request) (*web.Response, error) {
+	ctx := r.Context()
+	log.C(ctx).Debug("Getting all brokers")
+	brokers, err := c.BrokerStorage.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	removeCatalog := strings.ToLower(request.FormValue(catalogParam)) != "true"
+	removeCatalog := strings.ToLower(r.FormValue(catalogParam)) != "true"
 	for _, broker := range brokers {
 		broker.Credentials = nil
 		if removeCatalog {
@@ -119,36 +123,38 @@ func (c *Controller) getAllBrokers(request *web.Request) (*web.Response, error) 
 	})
 }
 
-func (c *Controller) deleteBroker(request *web.Request) (*web.Response, error) {
-	brokerID := request.PathParams[reqBrokerID]
-	logrus.Debugf("Deleting broker with id %s", brokerID)
+func (c *Controller) deleteBroker(r *web.Request) (*web.Response, error) {
+	brokerID := r.PathParams[reqBrokerID]
+	ctx := r.Context()
+	log.C(ctx).Debugf("Deleting broker with id %s", brokerID)
 
-	if err := c.BrokerStorage.Delete(brokerID); err != nil {
+	if err := c.BrokerStorage.Delete(ctx, brokerID); err != nil {
 		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
 	return util.NewJSONResponse(http.StatusOK, map[string]int{})
 }
 
-func (c *Controller) patchBroker(request *web.Request) (*web.Response, error) {
-	brokerID := request.PathParams[reqBrokerID]
-	logrus.Debugf("Updating updateBroker with id %s", brokerID)
+func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
+	brokerID := r.PathParams[reqBrokerID]
+	ctx := r.Context()
+	log.C(ctx).Debugf("Updating updateBroker with id %s", brokerID)
 
-	broker, err := c.BrokerStorage.Get(brokerID)
+	broker, err := c.BrokerStorage.Get(ctx, brokerID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
 
 	createdAt := broker.CreatedAt
 
-	if err := util.BytesToObject(request.Body, broker); err != nil {
+	if err := util.BytesToObject(r.Body, broker); err != nil {
 		return nil, err
 	}
 
-	if err := transformBrokerCredentials(broker, c.Encrypter.Encrypt); err != nil {
+	if err := transformBrokerCredentials(ctx, broker, c.Encrypter.Encrypt); err != nil {
 		return nil, err
 	}
 
-	catalog, err := c.getBrokerCatalog(broker)
+	catalog, err := c.getBrokerCatalog(ctx, broker)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +164,7 @@ func (c *Controller) patchBroker(request *web.Request) (*web.Response, error) {
 	broker.CreatedAt = createdAt
 	broker.UpdatedAt = time.Now().UTC()
 
-	if err := c.BrokerStorage.Update(broker); err != nil {
+	if err := c.BrokerStorage.Update(ctx, broker); err != nil {
 		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
 
@@ -168,8 +174,8 @@ func (c *Controller) patchBroker(request *web.Request) (*web.Response, error) {
 	return util.NewJSONResponse(http.StatusOK, broker)
 }
 
-func (c *Controller) getBrokerCatalog(broker *types.Broker) (json.RawMessage, error) {
-	osbClient, err := osbClient(c.OSBClientCreateFunc, broker)
+func (c *Controller) getBrokerCatalog(ctx context.Context, broker *types.Broker) (json.RawMessage, error) {
+	osbClient, err := osbClient(ctx, c.OSBClientCreateFunc, broker)
 	if err != nil {
 		return nil, err
 	}
@@ -186,9 +192,9 @@ func (c *Controller) getBrokerCatalog(broker *types.Broker) (json.RawMessage, er
 	return json.RawMessage(bytes), nil
 }
 
-func osbClient(createFunc osbc.CreateFunc, broker *types.Broker) (osbc.Client, error) {
+func osbClient(ctx context.Context, createFunc osbc.CreateFunc, broker *types.Broker) (osbc.Client, error) {
 	config := clientConfigForBroker(broker)
-	logrus.Debug("Building OSB client for serviceBroker with name: ", config.Name, " accessible at: ", config.URL)
+	log.C(ctx).Debug("Building OSB client for serviceBroker with name: ", config.Name, " accessible at: ", config.URL)
 	return createFunc(config)
 }
 
@@ -205,9 +211,9 @@ func clientConfigForBroker(broker *types.Broker) *osbc.ClientConfiguration {
 	return config
 }
 
-func transformBrokerCredentials(broker *types.Broker, transformationFunc func([]byte) ([]byte, error)) error {
+func transformBrokerCredentials(ctx context.Context, broker *types.Broker, transformationFunc func(context.Context, []byte) ([]byte, error)) error {
 	if broker.Credentials != nil {
-		transformedPassword, err := transformationFunc([]byte(broker.Credentials.Basic.Password))
+		transformedPassword, err := transformationFunc(ctx, []byte(broker.Credentials.Basic.Password))
 		if err != nil {
 			return err
 		}

@@ -17,6 +17,8 @@
 package postgres
 
 import (
+	"context"
+
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/jmoiron/sqlx"
 )
@@ -25,21 +27,21 @@ type brokerStorage struct {
 	db *sqlx.DB
 }
 
-func (bs *brokerStorage) Create(broker *types.Broker) error {
-	return create(bs.db, brokerTable, convertBrokerToDTO(broker))
+func (bs *brokerStorage) Create(ctx context.Context, broker *types.Broker) error {
+	return create(ctx, bs.db, brokerTable, convertBrokerToDTO(broker))
 }
 
-func (bs *brokerStorage) Get(id string) (*types.Broker, error) {
+func (bs *brokerStorage) Get(ctx context.Context, id string) (*types.Broker, error) {
 	broker := &Broker{}
-	if err := get(bs.db, id, brokerTable, broker); err != nil {
+	if err := get(ctx, bs.db, id, brokerTable, broker); err != nil {
 		return nil, err
 	}
 	return broker.Convert(), nil
 }
 
-func (bs *brokerStorage) GetAll() ([]*types.Broker, error) {
-	brokerDTOs := []Broker{}
-	err := getAll(bs.db, brokerTable, &brokerDTOs)
+func (bs *brokerStorage) GetAll(ctx context.Context) ([]*types.Broker, error) {
+	var brokerDTOs []Broker
+	err := getAll(ctx, bs.db, brokerTable, &brokerDTOs)
 	if err != nil || len(brokerDTOs) == 0 {
 		return []*types.Broker{}, err
 	}
@@ -50,10 +52,10 @@ func (bs *brokerStorage) GetAll() ([]*types.Broker, error) {
 	return brokers, nil
 }
 
-func (bs *brokerStorage) Delete(id string) error {
-	return delete(bs.db, id, brokerTable)
+func (bs *brokerStorage) Delete(ctx context.Context, id string) error {
+	return delete(ctx, bs.db, id, brokerTable)
 }
 
-func (bs *brokerStorage) Update(broker *types.Broker) error {
-	return update(bs.db, brokerTable, convertBrokerToDTO(broker))
+func (bs *brokerStorage) Update(ctx context.Context, broker *types.Broker) error {
+	return update(ctx, bs.db, brokerTable, convertBrokerToDTO(broker))
 }

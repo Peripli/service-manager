@@ -17,12 +17,11 @@
 package util
 
 import (
+		"errors"
 	"fmt"
 	"net/http"
 
-	"errors"
-
-	"github.com/sirupsen/logrus"
+	"github.com/Peripli/service-manager/pkg/log"
 )
 
 // HTTPError is an error type that provides error details compliant with the Open Service Broker API conventions
@@ -40,12 +39,13 @@ func (e *HTTPError) Error() string {
 // WriteError sends a JSON containing the error to the response writer
 func WriteError(err error, writer http.ResponseWriter) {
 	var respError *HTTPError
+	logger := log.D()
 	switch t := err.(type) {
 	case *HTTPError:
-		logrus.Debug(err)
+		logger.Debug(err)
 		respError = t
 	default:
-		logrus.Error(err)
+		logger.Error(err)
 		respError = &HTTPError{
 			ErrorType:   "InternalError",
 			Description: "Internal server error",
@@ -55,13 +55,14 @@ func WriteError(err error, writer http.ResponseWriter) {
 
 	sendErr := WriteJSON(writer, respError.StatusCode, respError)
 	if sendErr != nil {
-		logrus.Errorf("Could not write error to response: %v", sendErr)
+		logger.Errorf("Could not write error to response: %v", sendErr)
 	}
 }
 
 // HandleResponseError builds at HttpErrorResponse from the given response.
 func HandleResponseError(response *http.Response) error {
-	logrus.Errorf("Handling failure response: returned status code %d", response.StatusCode)
+	logger := log.D()
+	logger.Errorf("Handling failure response: returned status code %d", response.StatusCode)
 	httpErr := &HTTPError{
 		StatusCode: response.StatusCode,
 	}
@@ -72,7 +73,7 @@ func HandleResponseError(response *http.Response) error {
 	}
 
 	if err := BytesToObject(body, httpErr); err != nil || httpErr.Description == "" {
-		logrus.Debugf("Failure response with status code %d is not an HTTPError. Error converting body: %v. Default err will be returned.", response.StatusCode, err)
+		logger.Debugf("Failure response with status code %d is not an HTTPError. Error converting body: %v. Default err will be returned.", response.StatusCode, err)
 		return fmt.Errorf("StatusCode: %d Body: %s", response.StatusCode, body)
 	}
 	return httpErr

@@ -1,9 +1,9 @@
 package authn
 
 import (
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/sirupsen/logrus"
-)
+	)
 
 // RequiredAuthenticationFilterName is the name of RequiredAuthenticationFilter
 const RequiredAuthenticationFilterName = "RequiredAuthenticationFilter"
@@ -25,8 +25,9 @@ func (raf *RequiredAuthnFilter) Name() string {
 // Run implements web.Filter and represents the authentication middleware function that verifies the user is
 // authenticated
 func (raf *RequiredAuthnFilter) Run(request *web.Request, next web.Handler) (*web.Response, error) {
-	if _, ok := web.UserFromContext(request.Context()); !ok {
-		logrus.Error("No authenticated user found in request context during execution of filter ", raf.Name())
+	ctx := request.Context()
+	if _, ok := web.UserFromContext(ctx); !ok {
+		log.C(ctx).Error("No authenticated user found in request context during execution of filter ", raf.Name())
 		return nil, errUnauthorized
 	}
 

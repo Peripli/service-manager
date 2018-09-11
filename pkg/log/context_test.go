@@ -18,7 +18,10 @@
 package log
 
 import (
+	"context"
+	"fmt"
 	"os"
+	"sync"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -64,7 +67,23 @@ var _ = Describe("log", func() {
 				expectOutput("\"msg\":\"Test\"", "json")
 			})
 		})
+	})
 
+	Describe("Register formatter", func() {
+		Context("When a formatter with such name is not registered", func() {
+			It("Registers it", func() {
+				name := "formatter_name"
+				err := RegisterFormatter(name, &logrus.TextFormatter{})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(supportedFormatters[name]).ToNot(BeNil())
+			})
+		})
+		Context("When a formatter with such name is registered", func() {
+			It("Returns an error", func() {
+				err := RegisterFormatter("text", &logrus.TextFormatter{})
+				Expect(err).To(HaveOccurred())
+			})
+		})
 	})
 })
 
@@ -79,19 +98,26 @@ func (wr *MyWriter) Write(p []byte) (n int, err error) {
 
 func expectPanic(settings *Settings) {
 	wrapper := func() {
-		SetupLogging(settings)
+		configure(settings)
 	}
 	Expect(wrapper).To(Panic())
 }
 
 func expectOutput(substring string, logFormat string) {
 	w := &MyWriter{}
-	SetupLogging(&Settings{
+	ctx := configure(&Settings{
 		Level:  "debug",
 		Format: logFormat,
 	})
-	logrus.SetOutput(w)
-	defer logrus.SetOutput(os.Stderr) // return default output
-	logrus.Debug("Test")
+	entry := ForContext(ctx)
+	entry.Logger.SetOutput(w)
+	defer entry.Logger.SetOutput(os.Stderr) // return default output
+	entry.Debug("Test")
+	fmt.Println(w.Data)
 	Expect(w.Data).To(ContainSubstring(substring))
+}
+
+func configure(settings *Settings) context.Context {
+	once = sync.Once{}
+	return Configure(context.TODO(), settings)
 }

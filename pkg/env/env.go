@@ -17,16 +17,14 @@
 package env
 
 import (
+		"flag"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 
-	"os"
-
-	"flag"
-
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/fatih/structs"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cast"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -75,7 +73,7 @@ func EmptyFlagSet() *pflag.FlagSet {
 	return set
 }
 
-//CreatePFlags Creates pflags for the value structure and adds them in the provided set
+// CreatePFlags Creates pflags for the value structure and adds them in the provided set
 func CreatePFlags(set *pflag.FlagSet, value interface{}) {
 	properties := make(map[string]interface{})
 	traverseFields(value, "", properties)
@@ -101,7 +99,7 @@ func New(set *pflag.FlagSet) (*ViperEnv, error) {
 
 	set.VisitAll(func(flag *pflag.Flag) {
 		if err := v.BindPFlag(flag.Name, flag); err != nil {
-			logrus.Panic(err)
+			log.D().Panic(err)
 		}
 	})
 
@@ -166,7 +164,7 @@ func (v *ViperEnv) setupConfigFile() error {
 
 	if err := v.Viper.ReadInConfig(); err != nil {
 		if err, ok := err.(viper.ConfigFileNotFoundError); ok {
-			logrus.Info("Config File was not found: ", err)
+			log.D().Info("Config File was not found: ", err)
 			return nil
 		}
 		return fmt.Errorf("could not read configuration cfg: %s", err)
