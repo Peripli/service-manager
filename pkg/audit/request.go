@@ -1,19 +1,33 @@
+/*
+ * Copyright 2018 The Service Manager Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package audit
 
 import (
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/gofrs/uuid"
-	"github.com/sirupsen/logrus"
-
+	"context"
 	"net"
 	"strings"
 	"time"
+
+	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/gofrs/uuid"
+	"github.com/sirupsen/logrus"
 )
 
-const (
-	maxUserAgentLength      = 1024
-	userAgentTruncateSuffix = "...TRUNCATED"
-)
+const auditKey = iota
 
 func NewEventForRequest(r *web.Request) (*Event, error) {
 	uuids, err := uuid.NewV4()
@@ -26,18 +40,9 @@ func NewEventForRequest(r *web.Request) (*Event, error) {
 		RequestObject:    r.Body,
 		Verb:             r.Method,
 		RequestURI:       r.URL.RequestURI(),
-		UserAgent:        userAgent(r),
+		UserAgent:        r.UserAgent(),
 		SourceIPs:        SourceIPs(r),
 	}, nil
-}
-
-func userAgent(request *web.Request) string {
-	ua := request.UserAgent()
-	if len(ua) > maxUserAgentLength {
-		ua = ua[:maxUserAgentLength] + userAgentTruncateSuffix
-	}
-
-	return ua
 }
 
 func SourceIPs(req *web.Request) []string {
@@ -76,7 +81,7 @@ func RequestWithEvent(request *web.Request) (*web.Request, *Event, error) {
 	if err != nil {
 		return request, nil, err
 	}
-	request.Request = request.WithContext(web.ContextWithAuditEvent(request.Context(), event))
+	request.Request = request.WithContext(ContextWithEvent(request.Context(), event))
 	return request, event, nil
 }
 
@@ -91,4 +96,13 @@ func LogMetadata(event *Event, key string, value string) {
 		logrus.Warnf("Cannot override metadata key %s to %s for audit event %s. Values is already set to %s", key, value, event.AuditID, val)
 	}
 	event.Metadata[key] = value
+}
+
+func ContextWithEvent(ctx context.Context, event *Event) context.Context {
+	return context.WithValue(ctx, auditKey, event)
+}
+
+func EventFromContext(ctx context.Context) *Event {
+	event, _ := ctx.Value(auditKey).(*Event)
+	return event
 }

@@ -26,6 +26,7 @@ type Event struct {
 	ResponseError  error
 
 	State State
+	User  string
 
 	Metadata map[string]string
 }

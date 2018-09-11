@@ -4,27 +4,9 @@ import (
 	"encoding/json"
 	"io"
 	"os"
-	"sync"
 
 	"github.com/sirupsen/logrus"
 )
-
-var (
-	auditProcessors []Backend
-	regMutex        = sync.Mutex{}
-)
-
-func RegisterProcessor(auditProcessor Backend) {
-	regMutex.Lock()
-	defer regMutex.Unlock()
-	auditProcessors = append(auditProcessors, auditProcessor)
-}
-
-func Process(events ...*Event) {
-	for _, processor := range auditProcessors {
-		processor.Process(events...)
-	}
-}
 
 func NewStdoutJsonBackend() Backend {
 	return &WriterBackend{
@@ -42,7 +24,7 @@ func (*JsonFormatter) Format(event *Event) []byte {
 		logrus.Errorf("Could not create formatted audit event. Affected event: %v", event)
 		return []byte{}
 	}
-	return formatted
+	return append(formatted, []byte("\n")...)
 }
 
 type WriterBackend struct {
@@ -54,5 +36,22 @@ func (b *WriterBackend) Process(events ...*Event) {
 	for _, e := range events {
 		formattedEvent := b.Formatter.Format(e)
 		b.Writer.Write(formattedEvent)
+	}
+}
+
+func Union(backends ...Backend) Backend {
+	if len(backends) == 1 {
+		return backends[0]
+	}
+	return union{backends}
+}
+
+type union struct {
+	backends []Backend
+}
+
+func (u union) Process(events ...*Event) {
+	for _, backend := range u.backends {
+		backend.Process(events...)
 	}
 }

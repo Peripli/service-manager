@@ -4,7 +4,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/audit"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/web"
-	)
+	"github.com/Peripli/service-manager/security"
+)
 
 // RequiredAuthenticationFilterName is the name of RequiredAuthenticationFilter
 const RequiredAuthenticationFilterName = "RequiredAuthenticationFilter"
@@ -29,16 +30,10 @@ func (raf *RequiredAuthnFilter) Run(request *web.Request, next web.Handler) (*we
 	ctx := request.Context()
 	if _, ok := web.UserFromContext(ctx); !ok {
 		log.C(ctx).Error("No authenticated user found in request context during execution of filter ", raf.Name())
-		_, event, err := audit.RequestWithEvent(request)
-		if err != nil {
-			// log
-			return nil, err
+		if event := audit.EventFromContext(ctx); event != nil {
+			audit.LogMetadata(event, authenticationDecisionKey, security.Deny.String())
+			audit.LogMetadata(event, authenticationReasonKey, "Wrong or missing credentials")
 		}
-		event.ResponseObject = []byte(errUnauthorized.Description)
-		event.ResponseStatus = errUnauthorized.StatusCode
-		event.State = audit.StatePostRequest
-
-		audit.Process(event)
 		return nil, errUnauthorized
 	}
 

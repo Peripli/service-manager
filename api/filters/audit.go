@@ -2,12 +2,13 @@ package filters
 
 import (
 	"fmt"
+
 	"github.com/Peripli/service-manager/pkg/audit"
 	"github.com/Peripli/service-manager/pkg/web"
-	"net/http"
 )
 
 type AuditFilter struct {
+	Backend audit.Backend
 }
 
 func (*AuditFilter) Name() string {
@@ -21,19 +22,18 @@ func (f *AuditFilter) Run(req *web.Request, next web.Handler) (*web.Response, er
 	}
 
 	event.State = audit.StatePreRequest
-	audit.Process(event)
+	f.Backend.Process(event)
 
 	resp, err := next.Handle(req)
-	if err != nil {
-		event.State = audit.StateError
-		event.ResponseStatus = http.StatusInternalServerError
-		event.ResponseError = err
-	} else {
+	if err == nil {
 		event.State = audit.StatePostRequest
 		event.ResponseStatus = resp.StatusCode
 		event.ResponseObject = resp.Body
 	}
-	audit.Process(event)
+	if user, exists := web.UserFromContext(req.Context()); exists {
+		event.User = user.Name
+	}
+	f.Backend.Process(event)
 	return resp, err
 }
 

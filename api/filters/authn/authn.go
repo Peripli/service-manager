@@ -1,10 +1,10 @@
 package authn
 
 import (
+	"errors"
 	"net/http"
 
-	"errors"
-
+	"github.com/Peripli/service-manager/pkg/audit"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/security"
@@ -17,6 +17,11 @@ var (
 		StatusCode:  http.StatusUnauthorized,
 	}
 	errUserNotFound = errors.New("user identity must be provided when allowing authentication")
+)
+
+const (
+	authenticationDecisionKey = "authentication_decision"
+	authenticationReasonKey   = "authentication_reason"
 )
 
 // Middleware type represents an authentication middleware
@@ -33,27 +38,34 @@ func (ba *Middleware) Run(request *web.Request, next web.Handler) (*web.Response
 		return next.Handle(request)
 	}
 
+	event := audit.EventFromContext(ctx)
 	user, decision, err := ba.authenticator.Authenticate(request.Request)
 	if err != nil {
 		if decision == security.Deny {
-			return nil, &util.HTTPError{
+			err = &util.HTTPError{
 				ErrorType:   "Unauthorized",
 				Description: err.Error(),
 				StatusCode:  http.StatusUnauthorized,
 			}
 		}
+		audit.LogMetadata(event, authenticationDecisionKey, decision.String())
+		audit.LogMetadata(event, authenticationReasonKey, err.Error())
 		return nil, err
 	}
 
 	switch decision {
 	case security.Allow:
 		if user == nil {
+			audit.LogMetadata(event, authenticationDecisionKey, security.Deny.String())
+			audit.LogMetadata(event, authenticationReasonKey, "User not found")
 			return nil, errUserNotFound
 		}
+		audit.LogMetadata(event, authenticationDecisionKey, security.Allow.String())
 		request.Request = request.WithContext(web.NewContextWithUser(ctx, user))
 	case security.Deny:
+		audit.LogMetadata(event, authenticationDecisionKey, security.Deny.String())
+		audit.LogMetadata(event, authenticationReasonKey, "Wrong credentials")
 		return nil, errUnauthorized
 	}
-
 	return next.Handle(request)
 }

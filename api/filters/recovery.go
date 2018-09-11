@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"runtime/debug"
 
+	"github.com/Peripli/service-manager/pkg/audit"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/gorilla/mux"
@@ -15,6 +16,10 @@ func NewRecoveryMiddleware() mux.MiddlewareFunc {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if err := recover(); err != nil {
+					if event := audit.EventFromContext(r.Context()); event != nil {
+						event.State = audit.StateError
+						audit.LogMetadata(event, "panic_reason", err.(string))
+					}
 					httpError := &util.HTTPError{
 						StatusCode:  http.StatusInternalServerError,
 						Description: "Internal Server Error",

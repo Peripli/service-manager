@@ -45,9 +45,9 @@ import (
 type ServiceManagerBuilder struct {
 	*web.API
 
-	ctx             context.Context
-	cfg             *server.Settings
-	auditProcessors []audit.Backend
+	ctx           context.Context
+	cfg           *server.Settings
+	auditBackends []audit.Backend
 }
 
 // ServiceManager  struct
@@ -119,20 +119,15 @@ func New(ctx context.Context, env env.Environment) *ServiceManagerBuilder {
 	}
 }
 
-func (smb *ServiceManagerBuilder) RegisterAuditEventProcessor(backend audit.Backend) *ServiceManagerBuilder {
-	smb.auditProcessors = append(smb.auditProcessors, backend)
+func (smb *ServiceManagerBuilder) AddAuditEventProcessor(backend audit.Backend) *ServiceManagerBuilder {
+	smb.auditBackends = append(smb.auditBackends, backend)
 	return smb
 }
 
 // Build builds the Service Manager
 func (smb *ServiceManagerBuilder) Build() *ServiceManager {
-	// set up audit event processors
-	if len(smb.auditProcessors) == 0 {
-		audit.RegisterProcessor(audit.NewStdoutJsonBackend())
-	} else {
-		for _, processor := range smb.auditProcessors {
-			audit.RegisterProcessor(processor)
-		}
+	if len(smb.auditBackends) > 0 {
+		smb.API.RegisterFiltersAfter(filters.LoggingFilterName, &filters.AuditFilter{Backend: audit.Union(smb.auditBackends...)})
 	}
 	// setup server and add relevant global middleware
 	srv := server.New(smb.cfg, smb.API)
