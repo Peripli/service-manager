@@ -66,9 +66,7 @@ func (storage *postgresStorage) Platform() storage.Platform {
 }
 
 func (storage *postgresStorage) Credentials() storage.Credentials {
-	if storage.db == nil {
-		log.D().Panicln("Storage is not yet Open")
-	}
+	storage.checkOpen()
 	return &credentialStorage{storage.db}
 }
 

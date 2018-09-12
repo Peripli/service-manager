@@ -23,7 +23,6 @@ import (
 	"net/http"
 
 	"github.com/Peripli/service-manager/api/broker"
-	"github.com/Peripli/service-manager/api/catalog"
 	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/api/filters/authn"
 	"github.com/Peripli/service-manager/api/healthcheck"
@@ -102,9 +101,6 @@ func New(ctx context.Context, storage storage.Storage, settings *Settings, encry
 			},
 			&info.Controller{
 				TokenIssuer: settings.TokenIssuerURL,
-			},
-			&catalog.Controller{
-				BrokerStorage: storage.Broker(),
 			},
 			osb.NewController(&osb.BrokerTransport{
 				BrokerStorage: storage.Broker(),

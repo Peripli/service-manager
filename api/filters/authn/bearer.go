@@ -45,7 +45,6 @@ func (ba *BearerAuthnFilter) FilterMatchers() []web.FilterMatcher {
 				web.Path(
 					web.BrokersURL+"/**",
 					web.PlatformsURL+"/**",
-					web.SMCatalogURL,
 				),
 			},
 		},
