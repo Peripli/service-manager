@@ -1,7 +1,7 @@
 # Filters and Plugins
 
 The main extension points of the service manager are filters, plugins and controllers. The
-interfaces that need to be implement in order to provide an extension point can be found
+interfaces that need to be implemented in order to provide an extension point can be found
 in the `pkg/web` package.
 
 ## Filters
@@ -9,7 +9,7 @@ in the `pkg/web` package.
 Filters provide means to intercept any HTTP request to the Service Manager. It allows adding
 custom logic before the request reaches the actual handler (HTTP Endpoint logic) and also
 before it returns the response. Filters can either propagate a request to the next filter
-in the chain or stop the request and write their own response
+in the chain or stop the request and write their own response.
 
 Service Manager HTTP endpoints are described in the [API Specification](https://github.com/Peripli/specification/blob/master/api.md).
 
