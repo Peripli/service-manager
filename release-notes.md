@@ -1,8 +1,6 @@
 # Service Manager Release Notes
 
+## v0.1.0
+2018-09-19
 
-## init
-2018-02-28
-
-* Repository is created
-
+* Initial version
