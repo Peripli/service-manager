@@ -103,9 +103,6 @@ func registerControllers(API *web.API, router *mux.Router) {
 
 // Run starts the server awaiting for incoming requests
 func (s *Server) Run(ctx context.Context) {
-	if err := s.Config.Validate(); err != nil {
-		panic(fmt.Sprintf("invalid server config: %s", err))
-	}
 	handler := &http.Server{
 		Handler:      s.Router,
 		Addr:         s.Config.Host + ":" + strconv.Itoa(s.Config.Port),
