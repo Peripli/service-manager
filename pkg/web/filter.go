@@ -113,8 +113,8 @@ type Filter interface {
 	Named
 	Middleware
 
-	// Returns a set of FilterMatchers each containing a set of Matchers. Each FilterMatcher represents one place
-	// where the Filter would run.
+	// FilterMatchers Returns a set of FilterMatchers each containing a set of Matchers. Each FilterMatcher represents
+	// one place where the Filter would run.
 	FilterMatchers() []FilterMatcher
 }
 
