@@ -10,24 +10,24 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
-// BrokerDetails provides handler for the Service Manager OSB business logic
-type BrokerDetails struct {
+// StorageBrokerFetcher provides logic for fetching the broker coordinates from the storage
+type StorageBrokerFetcher struct {
 	BrokerStorage storage.Broker
 	Encrypter     security.Encrypter
 }
 
-var _ BrokerFetcher = &BrokerDetails{}
+var _ BrokerFetcher = &StorageBrokerFetcher{}
 
 // FetchBroker obtains the broker coordinates (auth and URL)
-func (bd *BrokerDetails) FetchBroker(ctx context.Context, brokerID string) (*types.Broker, error) {
-	broker, err := bd.BrokerStorage.Get(ctx, brokerID)
+func (sbf *StorageBrokerFetcher) FetchBroker(ctx context.Context, brokerID string) (*types.Broker, error) {
+	broker, err := sbf.BrokerStorage.Get(ctx, brokerID)
 	if err != nil {
-		log.D().Debugf("FetchBroker with id %s not found in storage", brokerID)
+		log.C(ctx).Debugf("FetchBroker with id %s not found in storage", brokerID)
 		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
 
 	password := broker.Credentials.Basic.Password
-	plaintextPassword, err := bd.Encrypter.Decrypt(ctx, []byte(password))
+	plaintextPassword, err := sbf.Encrypter.Decrypt(ctx, []byte(password))
 	if err != nil {
 		return nil, err
 	}

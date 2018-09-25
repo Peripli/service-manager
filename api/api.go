@@ -107,7 +107,7 @@ func New(ctx context.Context, storage storage.Storage, settings *Settings, encry
 			&catalog.Controller{
 				BrokerStorage: storage.Broker(),
 			},
-			osb.NewController(&osb.BrokerDetails{
+			osb.NewController(&osb.StorageBrokerFetcher{
 				BrokerStorage: storage.Broker(),
 				Encrypter:     encrypter,
 			}, http.DefaultTransport),
