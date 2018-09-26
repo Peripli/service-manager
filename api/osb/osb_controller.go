@@ -35,26 +35,24 @@ import (
 
 var osbPathPattern = regexp.MustCompile("^" + web.OSBURL + "/[^/]+(/.*)$")
 
-// BrokerRoundTripper is implemented by OSB handler providers
-type BrokerRoundTripper interface {
-	http.RoundTripper
-
-	Broker(ctx context.Context, brokerID string) (*types.Broker, error)
+// BrokerFetcher is implemented by OSB handler providers
+type BrokerFetcher interface {
+	FetchBroker(ctx context.Context, brokerID string) (*types.Broker, error)
 }
 
 // Controller implements api.Controller by providing OSB API logic
 type controller struct {
-	fetcher BrokerRoundTripper
+	fetcher BrokerFetcher
 	proxy   *httputil.ReverseProxy
 }
 
 var _ web.Controller = &controller{}
 
 // NewController returns new OSB controller
-func NewController(fetcher BrokerRoundTripper) web.Controller {
+func NewController(fetcher BrokerFetcher, roundTripper http.RoundTripper) web.Controller {
 	return &controller{
 		proxy: &httputil.ReverseProxy{
-			Transport: fetcher,
+			Transport: roundTripper,
 			Director:  func(req *http.Request) {},
 		},
 		fetcher: fetcher,
@@ -77,7 +75,7 @@ func (c *controller) handler(r *web.Request) (*web.Response, error) {
 	}
 	logger.Debugf("Obtained path parameter [brokerID = %s] from path params", brokerID)
 
-	broker, err := c.fetcher.Broker(ctx, brokerID)
+	broker, err := c.fetcher.FetchBroker(ctx, brokerID)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +97,6 @@ func (c *controller) handler(r *web.Request) (*web.Response, error) {
 	logger.Debugf("Forwarding OSB r to %s", modifiedRequest.URL)
 
 	proxy := httputil.NewSingleHostReverseProxy(targetBrokerURL)
-	proxy.Transport = c.fetcher
 	recorder := httptest.NewRecorder()
 
 	proxy.ServeHTTP(recorder, modifiedRequest)

@@ -20,6 +20,7 @@ package api
 import (
 	"context"
 	"fmt"
+
 	"net/http"
 
 	"github.com/Peripli/service-manager/api/broker"
@@ -106,11 +107,10 @@ func New(ctx context.Context, storage storage.Storage, settings *Settings, encry
 			&catalog.Controller{
 				BrokerStorage: storage.Broker(),
 			},
-			osb.NewController(&osb.BrokerTransport{
+			osb.NewController(&osb.StorageBrokerFetcher{
 				BrokerStorage: storage.Broker(),
 				Encrypter:     encrypter,
-				Tr:            http.DefaultTransport,
-			}),
+			}, http.DefaultTransport),
 			&healthcheck.Controller{
 				Storage: storage,
 			},
