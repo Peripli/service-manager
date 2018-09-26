@@ -16,7 +16,9 @@
 
 package security
 
-import "context"
+import (
+	"context"
+)
 
 // TwoLayerEncrypter is an encrypter that fetches the encryption key from a remote location
 type TwoLayerEncrypter struct {

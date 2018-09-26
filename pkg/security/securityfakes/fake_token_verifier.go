@@ -5,8 +5,8 @@ import (
 	"context"
 	"sync"
 
+	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/security"
 )
 
 type FakeTokenVerifier struct {

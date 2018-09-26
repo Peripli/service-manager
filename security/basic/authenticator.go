@@ -23,7 +23,7 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/security"
+	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/storage"
 )
 
@@ -39,7 +39,7 @@ func NewAuthenticator(storage storage.Credentials, encrypter security.Encrypter)
 }
 
 // Authenticate authenticates by using the provided Basic credentials
-func (a *Authenticator) Authenticate(request *http.Request) (*web.User, security.AuthenticationDecision, error) {
+func (a *Authenticator) Authenticate(request *http.Request) (*web.User, security.Decision, error) {
 	username, password, ok := request.BasicAuth()
 	if !ok {
 		return nil, security.Abstain, nil

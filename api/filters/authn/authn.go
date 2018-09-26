@@ -7,7 +7,7 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/security"
+	"github.com/Peripli/service-manager/pkg/security"
 )
 
 var (

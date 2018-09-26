@@ -22,7 +22,7 @@ import (
 	"fmt"
 
 	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/security"
+	"github.com/Peripli/service-manager/pkg/security"
 )
 
 // Settings type to be loaded from the environment

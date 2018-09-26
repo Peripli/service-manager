@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/Peripli/service-manager/security"
+	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/jmoiron/sqlx"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

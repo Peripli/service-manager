@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/security"
+	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/security/basic"
 	"github.com/Peripli/service-manager/storage"
 )

@@ -24,8 +24,8 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/security"
-	"github.com/Peripli/service-manager/security/securityfakes"
+	"github.com/Peripli/service-manager/pkg/security"
+	"github.com/Peripli/service-manager/pkg/security/securityfakes"
 	"github.com/Peripli/service-manager/storage/storagefakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

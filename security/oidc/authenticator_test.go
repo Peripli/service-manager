@@ -28,11 +28,11 @@ import (
 
 	"errors"
 
+	"github.com/Peripli/service-manager/pkg/security"
+	"github.com/Peripli/service-manager/pkg/security/securityfakes"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/pkg/web/webfakes"
-	"github.com/Peripli/service-manager/security"
-	"github.com/Peripli/service-manager/security/securityfakes"
 	"github.com/Peripli/service-manager/test/testutil"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -255,7 +255,7 @@ var _ = Describe("OIDC Authenticator", func() {
 			request *http.Request
 			err     error
 		)
-		validateAuthenticationReturns := func(expectedUser *web.User, expectedDecision security.AuthenticationDecision, expectedErr error) {
+		validateAuthenticationReturns := func(expectedUser *web.User, expectedDecision security.Decision, expectedErr error) {
 			authenticator, _ := NewAuthenticator(ctx, options)
 
 			user, decision, err := authenticator.Authenticate(request)

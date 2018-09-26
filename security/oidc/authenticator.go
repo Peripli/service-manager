@@ -28,7 +28,7 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/security"
+	"github.com/Peripli/service-manager/pkg/security"
 	goidc "github.com/coreos/go-oidc"
 )
 
@@ -94,7 +94,7 @@ func newOIDCConfig(options *Options) *goidc.Config {
 }
 
 // Authenticate returns information about the user by obtaining it from the bearer token, or an error if security is unsuccessful
-func (a *Authenticator) Authenticate(request *http.Request) (*web.User, security.AuthenticationDecision, error) {
+func (a *Authenticator) Authenticate(request *http.Request) (*web.User, security.Decision, error) {
 	authorizationHeader := request.Header.Get("Authorization")
 	if authorizationHeader == "" || !strings.HasPrefix(strings.ToLower(authorizationHeader), "bearer") {
 		return nil, security.Abstain, nil
