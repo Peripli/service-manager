@@ -21,12 +21,12 @@ import (
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/pkg/try"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
 )
-
 
 // Controller catalog controller
 type Controller struct {
@@ -48,8 +48,11 @@ type aggregatedCatalog struct {
 func (c *Controller) getCatalog(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Aggregating all broker catalogs")
-	brokers, err := c.BrokerStorage.GetAll(ctx)
-	if err != nil {
+	var brokers []*types.Broker
+	if err := try.To("CallDatabase").Execute(func() (err error) {
+		brokers, err = c.BrokerStorage.GetAll(ctx)
+		return
+	}); err != nil {
 		return nil, err
 	}
 
