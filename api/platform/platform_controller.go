@@ -21,13 +21,11 @@ import (
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/try"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/cenkalti/backoff"
 	"github.com/gofrs/uuid"
 )
 
@@ -92,11 +90,7 @@ func (c *Controller) getPlatform(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Getting platform with id %s", platformID)
 
-	var platform *types.Platform
-	err := try.To("CallDatabase").Execute(func() (err error) {
-		platform, err = c.PlatformStorage.Get(ctx, platformID)
-		return
-	})
+	platform, err := c.PlatformStorage.Get(ctx, platformID)
 	if err = util.HandleStorageError(err, "platform", platformID); err != nil {
 		return nil, err
 	}
@@ -108,11 +102,7 @@ func (c *Controller) getPlatform(r *web.Request) (*web.Response, error) {
 func (c *Controller) getAllPlatforms(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debug("Getting all platforms")
-	platforms := []*types.Platform{}
-	err := try.To("CallDatabase").WithBackoff(backoff.NewConstantBackOff(time.Second * 1)).Execute(func() (err error) {
-		platforms, err = c.PlatformStorage.GetAll(ctx)
-		return
-	})
+	platforms, err := c.PlatformStorage.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}

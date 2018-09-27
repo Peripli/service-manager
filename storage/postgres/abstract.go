@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/pkg/try"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/fatih/structs"
 	"github.com/jmoiron/sqlx"
@@ -43,27 +44,38 @@ func create(ctx context.Context, db *sqlx.DB, table string, dto interface{}) err
 		strings.Join(set, ", :"),
 	)
 	log.C(ctx).Debugf("Executing query %s", query)
-	_, err := db.NamedExecContext(ctx, query, dto)
+	err := try.To("CallDatabase").Execute(func() error {
+		_, err := db.NamedExecContext(ctx, query, dto)
+		return err
+	})
 	return checkUniqueViolation(ctx, err)
 }
 
 func get(ctx context.Context, db *sqlx.DB, id string, table string, dto interface{}) error {
 	query := "SELECT * FROM " + table + " WHERE id=$1"
 	log.C(ctx).Debugf("Executing query %s", query)
-	err := db.GetContext(ctx, dto, query, &id)
+	err := try.To("CallDatabase").Execute(func() error {
+		return db.GetContext(ctx, dto, query, &id)
+	})
 	return checkSQLNoRows(err)
 }
 
 func getAll(ctx context.Context, db *sqlx.DB, table string, dtos interface{}) error {
 	query := "SELECT * FROM " + table
 	log.C(ctx).Debugf("Executing query %s", query)
-	return db.SelectContext(ctx, dtos, query)
+	return try.To("CallDatabase").Execute(func() error {
+		return db.SelectContext(ctx, dtos, query)
+	})
 }
 
 func delete(ctx context.Context, db *sqlx.DB, id string, table string) error {
 	query := "DELETE FROM " + table + " WHERE id=$1"
 	log.C(ctx).Debugf("Executing query %s", query)
-	result, err := db.ExecContext(ctx, query, &id)
+	var result sql.Result
+	err := try.To("CallDatabase").Execute(func() (err error) {
+		result, err = db.ExecContext(ctx, query, &id)
+		return
+	})
 	if err != nil {
 		return err
 	}
@@ -77,7 +89,11 @@ func update(ctx context.Context, db *sqlx.DB, table string, dto interface{}) err
 		return nil
 	}
 	log.C(ctx).Debugf("Executing query %s", updateQueryString)
-	result, err := db.NamedExecContext(ctx, updateQueryString, dto)
+	var result sql.Result
+	err := try.To("CallDatabase").Execute(func() (err error) {
+		result, err = db.NamedExecContext(ctx, updateQueryString, dto)
+		return
+	})
 	if err = checkUniqueViolation(ctx, err); err != nil {
 		return err
 	}
