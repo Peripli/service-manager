@@ -23,6 +23,28 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
+// Decision represents a decision to allow or deny further
+// processing or to abstain from taking a decision
+type Decision int
+
+var decisions = []string{"Allow", "Deny", "Abstain"}
+
+const (
+	// Allow represents decision to allow to proceed
+	Allow Decision = iota
+
+	// Deny represents decision to deny to proceed
+	Deny
+
+	// Abstain represents a decision to abstain from deciding - let another component decide
+	Abstain
+)
+
+// String implements Stringer and converts the decision to human-readable value
+func (a Decision) String() string {
+	return decisions[a]
+}
+
 // Authenticator extracts the authenticator information from the request and
 // returns information about the current user or an error if security was not successful
 //go:generate counterfeiter . Authenticator
@@ -30,6 +52,15 @@ type Authenticator interface {
 	// Authenticate returns information about the user if security is successful, a bool specifying
 	// whether the authenticator ran or not and an error if one occurs
 	Authenticate(req *http.Request) (*web.User, Decision, error)
+}
+
+// Authorizer extracts the information from the authenticated user and
+// returns a decision if the authorization passed
+//go:generate counterfeiter . Authorizer
+type Authorizer interface {
+	// Authorize returns decision specifying
+	// whether the authorizer ran or not and an error if one occurs
+	Authorize(req *http.Request) (Decision, error)
 }
 
 // TokenVerifier attempts to verify a token and returns it or an error if the verification was not successful

@@ -29,6 +29,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/web/webfakes"
 	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/security/securityfakes"
+	"github.com/Peripli/service-manager/pkg/security/middlewares"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -105,10 +106,7 @@ var _ = Describe("Authn", func() {
 
 	Describe("Authentication Middleware", func() {
 		validateAuthnMiddlewareBehavesCorrectly := func(t *testStructure) {
-			validateMiddlewareBehavesCorrectly(&Middleware{
-				authenticator: fakeAuthenticator,
-				name:          "name",
-			}, t)
+			validateMiddlewareBehavesCorrectly(middlewares.NewAuthnMiddleware("name", fakeAuthenticator), t)
 		}
 
 		Context("when user is already authenticated and present in context", func() {
@@ -170,7 +168,7 @@ var _ = Describe("Authn", func() {
 							authnDecision:            security.Allow,
 							request:                  reqWithContext(context.Background()),
 							actualHandlerInvokations: 0,
-							expectedErr:              errUserNotFound,
+							expectedErr:              middlewares.ErrUserNotFound,
 						})
 					})
 				})
@@ -205,7 +203,7 @@ var _ = Describe("Authn", func() {
 						authnDecision:            security.Deny,
 						authnErr:                 nil,
 						request:                  reqWithContext(context.Background()),
-						expectedErr:              errUnauthorized,
+						expectedErr:              middlewares.UnauthorizedHTTPError(nil),
 						actualHandlerInvokations: 0,
 					})
 				})
@@ -255,7 +253,7 @@ var _ = Describe("Authn", func() {
 				validateRequiredMiddlewareBehavesCorrectly(&testStructure{
 					request:                  reqWithContext(context.Background()),
 					actualHandlerInvokations: 0,
-					expectedErr:              errUnauthorized,
+					expectedErr:              middlewares.UnauthorizedHTTPError(nil),
 					expectedResp:             nil,
 				})
 			})

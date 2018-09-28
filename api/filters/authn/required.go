@@ -1,9 +1,12 @@
 package authn
 
 import (
+	"net/http"
+
 	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
-	)
+)
 
 // RequiredAuthenticationFilterName is the name of RequiredAuthenticationFilter
 const RequiredAuthenticationFilterName = "RequiredAuthenticationFilter"
@@ -28,7 +31,11 @@ func (raf *RequiredAuthnFilter) Run(request *web.Request, next web.Handler) (*we
 	ctx := request.Context()
 	if _, ok := web.UserFromContext(ctx); !ok {
 		log.C(ctx).Error("No authenticated user found in request context during execution of filter ", raf.Name())
-		return nil, errUnauthorized
+		return nil, &util.HTTPError{
+			ErrorType:   "Unauthorized",
+			Description: "authentication failed",
+			StatusCode:  http.StatusUnauthorized,
+		}
 	}
 
 	return next.Handle(request)
