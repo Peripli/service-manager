@@ -60,7 +60,11 @@ func (state *storageState) checkDB() error {
 	if state.cachedStateIsValid() {
 		return state.storageError
 	}
-	if _, err := state.db.Query("SELECT 1"); err != nil {
+	rows, err := state.db.Query("SELECT 1")
+	if rows != nil {
+		rows.Close()
+	}
+	if err != nil {
 		state.storageError = err
 	} else {
 		state.storageError = nil
