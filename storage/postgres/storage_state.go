@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -61,13 +62,13 @@ func (state *storageState) checkDB() error {
 		return state.storageError
 	}
 	rows, err := state.db.Query("SELECT 1")
-	if rows != nil {
-		rows.Close()
-	}
 	if err != nil {
 		state.storageError = err
 	} else {
 		state.storageError = nil
+		if err := rows.Close(); err != nil {
+			log.D().Errorf("Could not release connection when checking database state. Error: %v", err)
+		}
 	}
 	state.lastCheck = time.Now()
 	return state.storageError
