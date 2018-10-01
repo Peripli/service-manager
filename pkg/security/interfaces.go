@@ -27,17 +27,17 @@ import (
 // processing or to abstain from taking a decision
 type Decision int
 
-var decisions = []string{"Allow", "Deny", "Abstain"}
+var decisions = []string{"Abstain", "Allow", "Deny"}
 
 const (
+	// Abstain represents a decision to abstain from deciding - let another component decide
+	Abstain Decision = iota
+
 	// Allow represents decision to allow to proceed
-	Allow Decision = iota
+	Allow
 
 	// Deny represents decision to deny to proceed
 	Deny
-
-	// Abstain represents a decision to abstain from deciding - let another component decide
-	Abstain
 )
 
 // String implements Stringer and converts the decision to human-readable value
