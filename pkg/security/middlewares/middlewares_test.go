@@ -57,9 +57,11 @@ var _ = Describe("Middlewares tests", func() {
 		})
 
 		Describe("when Filter.FilterMatchers is invoked", func() {
-			It("should return empty array of matchers", func() {
+			It("should panic", func() {
 				authzFilter := NewAuthzMiddleware(filterName, nil)
-				Expect(authzFilter.FilterMatchers()).To(HaveLen(0))
+				Expect(func() {
+					authzFilter.FilterMatchers()
+				}).To(Panic())
 			})
 		})
 
@@ -74,7 +76,7 @@ var _ = Describe("Middlewares tests", func() {
 			Context("when authorization already confirmed", func() {
 				It("should continue", func() {
 					authzFilter := NewAuthzMiddleware(filterName, nil)
-					req.Request = req.Request.WithContext(web.ConfirmAuthorization(req.Context()))
+					req.Request = req.Request.WithContext(web.WithAuthorizedContext(req.Context()))
 					authzFilter.Run(req, handler)
 					Expect(handler.HandleCallCount()).To(Equal(1))
 				})
@@ -98,8 +100,7 @@ var _ = Describe("Middlewares tests", func() {
 						authzFilter := NewAuthzMiddleware(filterName, authorizer)
 						_, err := authzFilter.Run(req, handler)
 						checkExpectedErrorMessage(expectedErrorMessage, err)
-						isAuthorized := web.GetAuthorizationConfirmation(req.Context())
-						Expect(isAuthorized).To(BeFalse())
+						Expect(web.IsAuthorized(req.Context())).To(BeFalse())
 					})
 				})
 				Context("Allow", func() {
@@ -109,8 +110,7 @@ var _ = Describe("Middlewares tests", func() {
 						authzFilter := NewAuthzMiddleware(filterName, authorizer)
 						_, err := authzFilter.Run(req, handler)
 						checkExpectedErrorMessage(expectedErrorMessage, err)
-						isAuthorized := web.GetAuthorizationConfirmation(req.Context())
-						Expect(isAuthorized).To(BeTrue())
+						Expect(web.IsAuthorized(req.Context())).To(BeTrue())
 					})
 				})
 			})
@@ -155,9 +155,11 @@ var _ = Describe("Middlewares tests", func() {
 		})
 
 		Describe("when Filter.FilterMatchers is invoked", func() {
-			It("should return empty array of matchers", func() {
+			It("should panic", func() {
 				authnFilter := NewAuthnMiddleware(filterName, nil)
-				Expect(authnFilter.FilterMatchers()).To(HaveLen(0))
+				Expect(func() {
+					authnFilter.FilterMatchers()
+				}).To(Panic())
 			})
 		})
 
@@ -220,7 +222,7 @@ var _ = Describe("Middlewares tests", func() {
 							handler.HandleReturns(nil, errors.New(expectedErrorMessage))
 							authzFilter := NewAuthnMiddleware(filterName, authenticator)
 							_, err := authzFilter.Run(req, handler)
-							Expect(err).To(Equal(ErrUserNotFound))
+							Expect(err).To(Equal(security.ErrUserNotFound))
 						})
 					})
 				})

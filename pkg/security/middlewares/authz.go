@@ -43,23 +43,23 @@ type authzMiddleware struct {
 // to the provided authorizer
 func (m *authzMiddleware) Run(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
-	if web.GetAuthorizationConfirmation(ctx) {
+	if web.IsAuthorized(ctx) {
 		return next.Handle(request)
 	}
 
 	decision, err := m.Authorizer.Authorize(request.Request)
 	if err != nil {
 		if decision == security.Deny {
-			return nil, ForbiddenHTTPError(err)
+			return nil, security.ForbiddenHTTPError(err.Error())
 		}
 		return nil, err
 	}
 
 	switch decision {
 	case security.Allow:
-		request.Request = request.WithContext(web.ConfirmAuthorization(ctx))
+		request.Request = request.WithContext(web.WithAuthorizedContext(ctx))
 	case security.Deny:
-		return nil, ForbiddenHTTPError(nil)
+		return nil, security.ForbiddenHTTPError("authorization failed")
 	}
 
 	return next.Handle(request)

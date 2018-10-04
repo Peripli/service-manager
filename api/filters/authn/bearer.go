@@ -11,27 +11,13 @@ import (
 // BearerAuthnFilterName is the name of the bearer authentication filter
 const BearerAuthnFilterName string = "BearerAuthnFilter"
 
-// BearerAuthnFilter performs Bearer authentication by validating the Authorization header
-type BearerAuthnFilter struct {
+// bearerAuthnFilter performs Bearer authentication by validating the Authorization header
+type bearerAuthnFilter struct {
 	web.Filter
 }
 
-// NewBearerAuthnFilter returns a BearerAuthnFilter
-func NewBearerAuthnFilter(ctx context.Context, tokenIssuer, clientID string) (*BearerAuthnFilter, error) {
-	authenticator, err := oidc.NewAuthenticator(ctx, &oidc.Options{
-		IssuerURL: tokenIssuer,
-		ClientID:  clientID,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &BearerAuthnFilter{
-		Filter: middlewares.NewAuthnMiddleware(BearerAuthnFilterName, authenticator),
-	}, nil
-}
-
 // FilterMatchers implements the web.Filter interface and returns the conditions on which the filter should be executed
-func (ba *BearerAuthnFilter) FilterMatchers() []web.FilterMatcher {
+func (ba *bearerAuthnFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
@@ -43,4 +29,18 @@ func (ba *BearerAuthnFilter) FilterMatchers() []web.FilterMatcher {
 			},
 		},
 	}
+}
+
+// NewBearerAuthnFilter returns a web.Filter for Bearer authentication
+func NewBearerAuthnFilter(ctx context.Context, tokenIssuer, clientID string) (web.Filter, error) {
+	authenticator, err := oidc.NewAuthenticator(ctx, &oidc.Options{
+		IssuerURL: tokenIssuer,
+		ClientID:  clientID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &bearerAuthnFilter{
+		Filter: middlewares.NewAuthnMiddleware(BearerAuthnFilterName, authenticator),
+	}, nil
 }

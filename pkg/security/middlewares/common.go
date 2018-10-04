@@ -17,10 +17,6 @@
 package middlewares
 
 import (
-	"errors"
-	"net/http"
-
-	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
@@ -35,29 +31,5 @@ func (m *middleware) Name() string {
 
 // FilterMatchers implements the web.Filter interface and returns the conditions on which the filter should be executed
 func (m *middleware) FilterMatchers() []web.FilterMatcher {
-	return []web.FilterMatcher{}
-}
-
-// ErrUserNotFound error when authentication passed but no user found
-var ErrUserNotFound = errors.New("user identity must be provided when allowing authentication")
-
-// UnauthorizedHTTPError returns HTTPError 401 with description from given error
-func UnauthorizedHTTPError(err error) *util.HTTPError {
-	return httpError(err, "authentication failed", "Unauthorized", http.StatusUnauthorized)
-}
-
-// ForbiddenHTTPError returns HTTPError 403
-func ForbiddenHTTPError(err error) *util.HTTPError {
-	return httpError(err, "authorization failed", "Forbidden", http.StatusForbidden)
-}
-
-func httpError(err error, description string, errorType string, statusCode int) *util.HTTPError {
-	if err != nil {
-		description = err.Error()
-	}
-	return &util.HTTPError{
-		ErrorType:   errorType,
-		Description: description,
-		StatusCode:  statusCode,
-	}
+	panic("FilterMatchers not implemented")
 }

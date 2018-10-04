@@ -22,13 +22,13 @@ func NewContextWithUser(ctx context.Context, user *User) context.Context {
 	return context.WithValue(ctx, userKey, user)
 }
 
-// GetAuthorizationConfirmation returns whether the request has been authorized
-func GetAuthorizationConfirmation(ctx context.Context) bool {
+// IsAuthorized returns whether the request has been authorized
+func IsAuthorized(ctx context.Context) bool {
 	_, ok := ctx.Value(isAuthorizedKey).(bool)
 	return ok
 }
 
-// ConfirmAuthorization sets the boolean flag isAuthorized in the request context
-func ConfirmAuthorization(ctx context.Context) context.Context {
+// WithAuthorizedContext sets the boolean flag isAuthorized in the request context
+func WithAuthorizedContext(ctx context.Context) context.Context {
 	return context.WithValue(ctx, isAuthorizedKey, true)
 }

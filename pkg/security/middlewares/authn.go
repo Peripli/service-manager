@@ -50,7 +50,7 @@ func (m *authnMiddleware) Run(request *web.Request, next web.Handler) (*web.Resp
 	user, decision, err := m.Authenticator.Authenticate(request.Request)
 	if err != nil {
 		if decision == security.Deny {
-			return nil, UnauthorizedHTTPError(err)
+			return nil, security.UnauthorizedHTTPError(err.Error())
 		}
 		return nil, err
 	}
@@ -58,11 +58,11 @@ func (m *authnMiddleware) Run(request *web.Request, next web.Handler) (*web.Resp
 	switch decision {
 	case security.Allow:
 		if user == nil {
-			return nil, ErrUserNotFound
+			return nil, security.ErrUserNotFound
 		}
 		request.Request = request.WithContext(web.NewContextWithUser(ctx, user))
 	case security.Deny:
-		return nil, UnauthorizedHTTPError(nil)
+		return nil, security.UnauthorizedHTTPError("authentication failed")
 	}
 
 	return next.Handle(request)

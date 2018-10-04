@@ -13,21 +13,13 @@ import (
 // BasicAuthnFilterName is the name of the basic authentication filter
 const BasicAuthnFilterName string = "BasicAuthnFilter"
 
-// BasicAuthnFilter performs Basic authentication by validating the Authorization header
-type BasicAuthnFilter struct {
+// basicAuthnFilter performs Basic authentication by validating the Authorization header
+type basicAuthnFilter struct {
 	web.Filter
 }
 
-// NewBasicAuthnFilter returns a BasicAuthnFilter using the provided credentials storage
-// in order to validate the credentials
-func NewBasicAuthnFilter(storage storage.Credentials, encrypter security.Encrypter) *BasicAuthnFilter {
-	return &BasicAuthnFilter{
-		Filter: middlewares.NewAuthnMiddleware(BasicAuthnFilterName, basic.NewAuthenticator(storage, encrypter)),
-	}
-}
-
 // FilterMatchers implements the web.Filter interface and returns the conditions on which the filter should be executed
-func (ba *BasicAuthnFilter) FilterMatchers() []web.FilterMatcher {
+func (ba *basicAuthnFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
@@ -40,5 +32,13 @@ func (ba *BasicAuthnFilter) FilterMatchers() []web.FilterMatcher {
 				web.Path(web.BrokersURL + "/**"),
 			},
 		},
+	}
+}
+
+// NewBasicAuthnFilter returns a web.Filter for basic auth using the provided
+// credentials storage in order to validate the credentials
+func NewBasicAuthnFilter(storage storage.Credentials, encrypter security.Encrypter) web.Filter {
+	return &basicAuthnFilter{
+		Filter: middlewares.NewAuthnMiddleware(BasicAuthnFilterName, basic.NewAuthenticator(storage, encrypter)),
 	}
 }

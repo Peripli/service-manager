@@ -24,12 +24,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/pkg/security"
+	"github.com/Peripli/service-manager/pkg/security/middlewares"
+	"github.com/Peripli/service-manager/pkg/security/securityfakes"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/pkg/web/webfakes"
-	"github.com/Peripli/service-manager/pkg/security"
-	"github.com/Peripli/service-manager/pkg/security/securityfakes"
-	"github.com/Peripli/service-manager/pkg/security/middlewares"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -87,14 +86,6 @@ var _ = Describe("Authn", func() {
 
 		} else {
 			Expect(err).To(BeNil())
-		}
-	}
-
-	errUnauthorizedWithDescription := func(description string) error {
-		return &util.HTTPError{
-			ErrorType:   "Unauthorized",
-			Description: description,
-			StatusCode:  http.StatusUnauthorized,
 		}
 	}
 
@@ -168,7 +159,7 @@ var _ = Describe("Authn", func() {
 							authnDecision:            security.Allow,
 							request:                  reqWithContext(context.Background()),
 							actualHandlerInvokations: 0,
-							expectedErr:              middlewares.ErrUserNotFound,
+							expectedErr:              security.ErrUserNotFound,
 						})
 					})
 				})
@@ -203,7 +194,7 @@ var _ = Describe("Authn", func() {
 						authnDecision:            security.Deny,
 						authnErr:                 nil,
 						request:                  reqWithContext(context.Background()),
-						expectedErr:              middlewares.UnauthorizedHTTPError(nil),
+						expectedErr:              security.UnauthorizedHTTPError("authentication failed"),
 						actualHandlerInvokations: 0,
 					})
 				})
@@ -217,7 +208,7 @@ var _ = Describe("Authn", func() {
 						request:                  reqWithContext(context.Background()),
 						actualHandlerInvokations: 0,
 
-						expectedErr: errUnauthorizedWithDescription(authnError.Error()),
+						expectedErr: security.UnauthorizedHTTPError(authnError.Error()),
 					})
 				})
 			})
@@ -226,7 +217,7 @@ var _ = Describe("Authn", func() {
 
 	Describe("Authentication Required Middleware", func() {
 		var (
-			authnRequiredFilter *RequiredAuthnFilter
+			authnRequiredFilter web.Filter
 		)
 
 		validateRequiredMiddlewareBehavesCorrectly := func(t *testStructure) {
@@ -253,7 +244,7 @@ var _ = Describe("Authn", func() {
 				validateRequiredMiddlewareBehavesCorrectly(&testStructure{
 					request:                  reqWithContext(context.Background()),
 					actualHandlerInvokations: 0,
-					expectedErr:              middlewares.UnauthorizedHTTPError(nil),
+					expectedErr:              security.UnauthorizedHTTPError("No authenticated user found"),
 					expectedResp:             nil,
 				})
 			})
