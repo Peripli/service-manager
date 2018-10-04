@@ -73,3 +73,8 @@ type Indicator interface {
 type Aggregator interface {
 	Aggregate(healths map[string]*Health) *Health
 }
+
+type Provider interface {
+	AddHealthIndicator(indicator Indicator)
+	HealthIndicators() []Indicator
+}

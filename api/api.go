@@ -26,7 +26,6 @@ import (
 	"github.com/Peripli/service-manager/api/catalog"
 	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/api/filters/authn"
-	"github.com/Peripli/service-manager/api/healthcheck"
 	"github.com/Peripli/service-manager/api/info"
 	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/api/platform"
@@ -89,6 +88,8 @@ func New(ctx context.Context, store storage.Storage, settings *Settings, encrypt
 	if err != nil {
 		return nil, err
 	}
+	healthProvider := health.DefaultProvider()
+	healthProvider.AddHealthIndicator(&storage.HealthIndicator{Storage: store})
 	return &web.API{
 		// Default controllers - more filters can be registered using the relevant API methods
 		Controllers: []web.Controller{
@@ -111,9 +112,6 @@ func New(ctx context.Context, store storage.Storage, settings *Settings, encrypt
 				BrokerStorage: store.Broker(),
 				Encrypter:     encrypter,
 			}, http.DefaultTransport),
-			&healthcheck.Controller{
-				Indicator: health.NewCompositeIndicator([]health.Indicator{&storage.HealthIndicator{Storage: store}}),
-			},
 		},
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
@@ -122,6 +120,7 @@ func New(ctx context.Context, store storage.Storage, settings *Settings, encrypt
 			bearerAuthnFilter,
 			authn.NewRequiredAuthnFilter(),
 		},
+		Provider: healthProvider,
 	}, nil
 }
 

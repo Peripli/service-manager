@@ -21,6 +21,8 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"fmt"
+	"github.com/Peripli/service-manager/api/healthcheck"
+	"github.com/Peripli/service-manager/pkg/health"
 	"net/http"
 	"time"
 
@@ -120,6 +122,9 @@ func New(ctx context.Context, env env.Environment) *ServiceManagerBuilder {
 // Build builds the Service Manager
 func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	// setup server and add relevant global middleware
+	if len(smb.HealthIndicators()) > 0 {
+		smb.RegisterControllers(&healthcheck.Controller{Indicator: health.NewCompositeIndicator(smb.HealthIndicators())})
+	}
 	srv := server.New(smb.cfg, smb.API)
 	srv.Use(filters.NewRecoveryMiddleware())
 
