@@ -31,7 +31,15 @@ endif
 GO_BUILD = env CGO_ENABLED=0 GOOS=$(PLATFORM) GOARCH=$(ARCH) \
            go build
 
-build: .init service-manager
+build: .init dep service-manager
+
+dep:
+	dep ensure -v
+
+dep-vendor:
+	dep ensure --vendor-only -v
+
+dep-reload: clean-vendor dep
 
 service-manager: $(BINDIR)/service-manager
 
@@ -62,3 +70,7 @@ clean-test:
 
 clean-coverage:
 	rm -f $(COVERAGE)
+
+clean-vendor:
+	rm -rf vendor
+	@echo > Gopkg.lock
