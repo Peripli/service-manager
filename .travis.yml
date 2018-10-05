@@ -4,7 +4,6 @@ go:
   - 1.10.x
 
 before_install:
-  - go get -u github.com/golang/dep/cmd/dep
   - make dep-vendor
 
 install:
