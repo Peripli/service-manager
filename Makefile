@@ -28,7 +28,7 @@ BUILD_LDFLAGS =
 GO_BUILD = env CGO_ENABLED=0 GOOS=$(PLATFORM) GOARCH=$(ARCH) \
            go build $(GOFLAGS) -ldflags '-s -w $(BUILD_LDFLAGS)'
 
-build: .init dep service-manager
+build: .init dep-vendor service-manager
 
 dep-check:
 	@which dep 2>/dev/null || go get -u -v github.com/golang/dep/cmd/dep
