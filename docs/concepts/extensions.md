@@ -1,4 +1,4 @@
-# Filters and Plugins
+# Filters, Plugins, Controllers
 
 The main extension points of the service manager are filters, plugins and controllers. The
 interfaces that need to be implemented in order to provide an extension point can be found
@@ -174,3 +174,7 @@ In case of error, return `nil` response and an error object.
 Use `util.HTTPError` function to send error information and status code to the HTTP client.
 Use the `pkg/util` package for different utility methods for processing and creating requests, responses and errors.
 All other errors will result in status 500 (Internal Server Error) being returned to the client.
+
+## Controllers
+
+TODO add content

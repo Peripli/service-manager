@@ -1,0 +1,1 @@
+Two sections (SM on CF and SM on K8S)
