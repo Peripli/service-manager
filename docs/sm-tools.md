@@ -55,8 +55,6 @@ Alternatively, **Windows** users may follow these steps:
 
     helm repo add svc-cat https://svc-catalog-charts.storage.googleapis.com
 
-    helm search service-catalog
-
     kubectl create clusterrolebinding tiller-cluster-admin  --clusterrole=cluster-admin --serviceaccount=kube-system:default
 
     kubectl -n kube-system patch deployment tiller-deploy -p '{"spec": {"template": {"spec": {"automountServiceAccountToken": true}}}}'
