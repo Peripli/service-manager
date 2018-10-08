@@ -74,6 +74,9 @@ The Service Manager components use go1.10 and currenty  the buildpack installed 
 
     ```bash
     cf update-buildpack go_buildpack <buildpackzipname>.zip 1
+    ```
+
+**Note:** Alternatively, one can use [CF Dev](https://github.com/cloudfoundry-incubator/cfdev)
 
 ### [smctl](https://github.com/Peripli/service-manager-cli/blob/master/README.md)
 
