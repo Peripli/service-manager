@@ -24,6 +24,7 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/pkg/web/webfakes"
+	"github.com/Peripli/service-manager/test/testutil"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/sirupsen/logrus"
@@ -42,15 +43,15 @@ var _ = Describe("Filters", func() {
 		return next.Handle(request)
 	}
 
-	loggingValidationMiddleware := func(prevFilterName, currFilterName, nextFilterName string, hook *LoggingInterceptorHook) web.MiddlewareFunc {
+	loggingValidationMiddleware := func(prevFilterName, currFilterName, nextFilterName string, hook *testutil.LogInterceptor) web.MiddlewareFunc {
 		return func(request *web.Request, next web.Handler) (*web.Response, error) {
 			if prevFilterName != "" {
-				Expect(string(hook.data)).To(ContainSubstring("Entering Filter: " + prevFilterName))
+				Expect(hook).To(ContainSubstring("Entering Filter: " + prevFilterName))
 			}
-			Expect(string(hook.data)).To(ContainSubstring("Entering Filter: " + currFilterName))
+			Expect(hook).To(ContainSubstring("Entering Filter: " + currFilterName))
 			resp, err := next.Handle(request)
 			if nextFilterName != "" {
-				Expect(string(hook.data)).To(ContainSubstring("Exiting Filter: " + nextFilterName))
+				Expect(hook).To(ContainSubstring("Exiting Filter: " + nextFilterName))
 			}
 			return resp, err
 		}
@@ -229,7 +230,7 @@ var _ = Describe("Filters", func() {
 		var level logrus.Level
 
 		BeforeEach(func() {
-			hook := &LoggingInterceptorHook{}
+			hook := &testutil.LogInterceptor{}
 			level = logrus.GetLevel()
 			logrus.SetLevel(logrus.DebugLevel)
 			logrus.AddHook(hook)
@@ -256,17 +257,3 @@ var _ = Describe("Filters", func() {
 
 	})
 })
-
-type LoggingInterceptorHook struct {
-	data []byte
-}
-
-func (*LoggingInterceptorHook) Levels() []logrus.Level {
-	return logrus.AllLevels
-}
-
-func (hook *LoggingInterceptorHook) Fire(entry *logrus.Entry) error {
-	str, _ := entry.String()
-	hook.data = append(hook.data, []byte(str)...)
-	return nil
-}
