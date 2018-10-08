@@ -31,7 +31,7 @@ GO_BUILD = env CGO_ENABLED=0 GOOS=$(PLATFORM) GOARCH=$(ARCH) \
 build: .init dep-vendor service-manager
 
 dep-check:
-	@which dep 2>/dev/null || go get -u -v github.com/golang/dep/cmd/dep
+	@which dep || (echo dep is required to build the project; exit 1)
 
 dep: dep-check
 	@dep ensure -v
