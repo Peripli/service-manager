@@ -1,4 +1,4 @@
-# Filters and Plugins
+# Filters, Plugins, Controllers
 
 The main extension points of the service manager are filters, plugins and controllers. The
 interfaces that need to be implemented in order to provide an extension point can be found
@@ -93,13 +93,13 @@ type MyPlugin struct {}
 func (p *MyPlugin) Name() string { return "MyPlugin" }
 
 func (p *MyPlugin) FetchCatalog(req *web.Request, next web.Handler) (*web.Response, error) {
-	res, err := next.Handle(req)
-	if err != nil {
-		return nil, err
-	}
-	serviceName := gjson.GetBytes(res.Body, "services.0.name").String()
-	res.Body, err = sjson.SetBytes(res.Body, "services.0.name", serviceName+"-suffix")
-	return res, err
+    res, err := next.Handle(req)
+    if err != nil {
+        return nil, err
+    }
+    serviceName := gjson.GetBytes(res.Body, "services.0.name").String()
+    res.Body, err = sjson.SetBytes(res.Body, "services.0.name", serviceName+"-suffix")
+    return res, err
 }
 ```
 
@@ -117,29 +117,6 @@ func (p *MyPlugin) Provision(req *web.Request, next web.Handler) (*web.Response,
     }
     return next.Handle(req)
 }
-```
-
-## Registering Extensions
-
-In order to add this plugin to the Service Manager one has to do the following:
-
-```go
-...
-func main() {
-    ctx, cancel := context.WithCancel(context.Background())
-       defer cancel()
-
-       env := sm.DefaultEnv()
-       serviceManager := sm.New(ctx, cancel, env)
-
-    serviceManager.RegisterPlugins(myplugin.MyPlugin{})
-    serviceManager.RegisterFilters(myfilter.MyFilter{})
-
-       sm := serviceManager.Build()
-       sm.Run()
-}
-
-...
 ```
 
 ## Best practices for writing filters and plugins
@@ -174,3 +151,59 @@ In case of error, return `nil` response and an error object.
 Use `util.HTTPError` function to send error information and status code to the HTTP client.
 Use the `pkg/util` package for different utility methods for processing and creating requests, responses and errors.
 All other errors will result in status 500 (Internal Server Error) being returned to the client.
+
+## Controllers
+
+Controllers provide means to add additional APIs to the Service Manager. The Service Manager `pkg/web` package exposes interfaces one should implement in order to add additional SM APIs.
+
+### Example Controller
+
+```go
+...
+// Controller
+type MyController struct {
+}
+
+var _ web.Controller = &MyController{}
+
+func (c *MyController) ping(r *web.Request) (*web.Response, error) {
+    return util.NewJSONResponse(http.StatusOK, map[string]string{})
+}
+
+// Routes specifies the routes in which the controller should run and the handler that should be executed
+func (c *MyController) Routes() []web.Route {
+    return []web.Route{
+        {
+            Endpoint: web.Endpoint{
+                Method: http.MethodGet,
+                Path:   "/api/v1/monitor/health",
+            },
+            Handler: c.ping,
+        },
+    }
+}
+...
+```
+
+## Registering Extensions
+
+In order to add this plugin to the Service Manager one has to do the following:
+
+```go
+...
+func main() {
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
+
+    env := sm.DefaultEnv()
+    serviceManager := sm.New(ctx, cancel, env)
+
+    serviceManager.RegisterPlugins(&myplugin.MyPlugin{})
+    serviceManager.RegisterFilters(&myfilter.MyFilter{})
+    serviceManager.RegisterController(&mycontroller.MyController{})
+
+    sm := serviceManager.Build()
+    sm.Run()
+}
+...
+```

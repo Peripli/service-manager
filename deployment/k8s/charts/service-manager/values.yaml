@@ -1,9 +1,9 @@
 replicaCount: 1
 
 image:
-  repository: service-manager
-  tag: latest
-  pullPolicy: Never
+  repository: quay.io/service-manager/core
+  tag: v0.1.0
+  pullPolicy: IfNotPresent
 
 service:
   type: ClusterIP
@@ -37,6 +37,6 @@ config:
     request_timeout: 3000ms
     shutdown_timeout: 3000ms
   api:
-    token_issuer_url: https://uaa.local.pcfdev.io
-    client_id: sm
+    token_issuer_url: https://uaa.dev.cfdev.sh
+    client_id: cf
     skip_ssl_validation: false
