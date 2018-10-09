@@ -32,7 +32,7 @@ Participation on the project is governed by the [code of conduct](CODE_OF_CONDUC
 
 ## Community
 
-* [Slack]()
+* [Slack](https://openservicebrokerapi.slack.com/messages/C99PBB6ER)
 * [Mailing list](https://groups.google.com/forum/#!forum/service-manager-wg)
 
 ## Feedback and Support
