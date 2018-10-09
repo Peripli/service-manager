@@ -14,7 +14,7 @@ In order to setup development environment for the project you would need some pr
 
 ## [Build Components](build.md)
 
-## [Run Tests](run-tests.md)
+## [Run Tests](tests.md)
 
 ## [Dependency Management](dep.md)
 
