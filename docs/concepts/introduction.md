@@ -31,7 +31,7 @@ The Service Manager is based on the Open Service Broker API , an open standard f
 
 ### Open Service Broker API
 
-The [Open Service Broker (OSB) specification](https://github.com/openservicebrokerapi/servicebroker) defines n HTTP(S) interface between Platforms and Service Brokers. A Service Broker must exist for each service that wants to be part of the services infrastructure of a platform. The OSB API allows a platform programmatically to discover services and create and delete service instances and bind / unbind service instances to applications. This standardization enables platforms to handle all kinds of services without knowing the service details. The most popular platforms today make use of this interface are Cloud Foundry and Kubernetes. Platforms that don’t support OSB can be enhanced by exposing the services they offer by providing Service Brokers.
+The [Open Service Broker (OSB) specification](https://github.com/openservicebrokerapi/servicebroker) defines an HTTP(S) interface between Platforms and Service Brokers. A Service Broker must exist for each service that wants to be part of the services infrastructure of a platform. The OSB API allows a platform programmatically to discover services and create and delete service instances and bind / unbind service instances to applications. This standardization enables platforms to handle all kinds of services without knowing the service details. The most popular platforms today make use of this interface are Cloud Foundry and Kubernetes. Platforms that don’t support OSB can be enhanced by exposing the services they offer by providing Service Brokers.
 
 ### Architecture
 
