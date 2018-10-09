@@ -27,5 +27,5 @@ The `docs` folder contains end-to-end documentation for the Service Manager and 
   * [Build Components](./development/build.md)
   * [Running Tests](./development/tests.md)
   * [Manage Dependencies](./development/dep.md)
-* [Extensions](./concepts/extensions.md)
+* [Extensions](./development/extensions.md)
 * [Contribution Process](./development/contrib-process.md)
