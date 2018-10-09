@@ -1,3 +1,5 @@
+# Walkthrough
+
 To follow the walkthrough you need to have Service Manager running either on CloudFoundry or on Kubernetes. Also you need the Service Broker Proxies for Kubernetes and/or CloudFoundry as well as the `smctl cli`. Please follow the [installation instructions](https://github.com/Peripli/service-manager/blob/rework-docs/docs/install/README.md) if you don't already have the needed components.
 
 This walkthrough uses the following setup:
@@ -8,13 +10,13 @@ This walkthrough uses the following setup:
 
 However, everything should work the same regardless of where you set up the components, provided that there is visibility from the `service broker proxies` to the `service manager` and from the `service manager` to the `service broker`.
 
-# Step 1 - Installing the Service Broker
+## Step 1 - Installing the Service Broker
 
 We're going to deploy the sample service broker. For the purposes of this guide, we'll be using the Service Catalog's demo service broker as it's lightweight and has all the necessary functionalities.
 To install the service broker, please follow the [installation guide](https://github.com/kubernetes-incubator/service-catalog/blob/master/charts/ups-broker/README.md) 
 
 
-# Step 2 - Registering the Service Broker
+## Step 2 - Registering the Service Broker
 
 We haven't registered any service brokers inside the service manager, so upon querying it should return an empty list:
 
@@ -26,7 +28,7 @@ No brokers registered.
 Also, because the service manager's job is to propagate the registrations to the respective platforms and as there are no registrations currently, if we query 
 the platform's broker registry we should see that there are no brokers provided by the service manager.
 
-## CloudFoundry
+### CloudFoundry
 ```console
 $ cf service-brokers
 Getting service brokers as admin...
@@ -38,7 +40,7 @@ redis-odb    http://10.144.0.147:12345
 ```
 Note: Service brokers provided by the service manager have a well known pattern which is `sm-proxy-<guid>`
 
-## Kubernetes
+### Kubernetes
 ```console
 svcat get brokers
   NAME   NAMESPACE   URL   STATUS
@@ -57,12 +59,12 @@ a0d0a401-3048-4db7-a6d5-c5098be84d6d  ups-broker  http://192.168.64.2:30445  UPS
 
 We get in return the whole information for the service-broker as registered in the service manager.
 
-# Step 3 - Ensure broker registration is propagated
+## Step 3 - Ensure broker registration is propagated
 
 After the service broker is registered in the service manager, the platforms will periodically synchronize
 the state in the platform and that in the service manager. Thus when we list the brokers in the respective platform, we should see that the broker we registered inside the service manager has been propagated.
 
-## CloudFoundry
+### CloudFoundry
 ```console
 $ cf service-brokers
 Getting service brokers as admin...
@@ -74,7 +76,7 @@ redis-odb                                       http://10.144.0.147:12345
 sm-proxy-a0d0a401-3048-4db7-a6d5-c5098be84d6d   https://cfproxy.dev.cfdev.sh/v1/osb/a0d0a401-3048-4db7-a6d5-c5098be84d6d
 ```
 
-## Kubernetes
+### Kubernetes
 ```console
 $ svcat get brokers
                       NAME                        NAMESPACE                                                 URL                                                 STATUS
@@ -82,13 +84,13 @@ $ svcat get brokers
   sm-proxy-a0d0a401-3048-4db7-a6d5-c5098be84d6d               http://service-broker-proxy.service-broker-proxy:80/v1/osb/a0d0a401-3048-4db7-a6d5-c5098be84d6d   Ready
 ```
 
-# Step 4 - Ensure the services are visible 
+## Step 4 - Ensure the services are visible 
 
 After the service broker is registered in each platform, its services and plans are made available to everyone. 
 
 The service broker provides a set of services (`user-provided-service`, `user-provided-service-single-plan` and `user-provided-service-with-schemas`) each with its respective plans:
 
-## CloudFoundry
+### CloudFoundry
 ```console
 $ cf marketplace
 Getting services from marketplace in org test / space test as admin...
@@ -103,7 +105,7 @@ user-provided-service-single-plan    default                                  A 
 user-provided-service-with-schemas   default                                  A user provided service
 ```
 
-## Kubernetes
+### Kubernetes
 ```console
 $ svcat get classes
                  NAME                  NAMESPACE         DESCRIPTION
@@ -124,18 +126,18 @@ $ svcat get plans
                                                              response schemas
 ```
 
-# Step 5 - Create Service Instance
+## Step 5 - Create Service Instance
 
 Now that we see the `user-provided-service` in both platforms we can go ahead and create a new service instance.
 
-## CloudFoundry
+### CloudFoundry
 ```console
 $ cf create-service user-provided-service default ups
 Creating service instance ups in org test / space test as admin...
 OK
 ```
 
-## Kubernetes
+### Kubernetes
 ```console
 $ svcat provision ups --class user-provided-service --plan default
   Name:        ups
@@ -163,11 +165,11 @@ Bindings:
 No bindings defined
 ```
 
-# Step 6 - Create a new Service Binding
+## Step 6 - Create a new Service Binding
 
 Now that we have created `ups` instance of the `user-provided-service` we can go ahead and create a service binding for it:
 
-## CloudFoundry
+### CloudFoundry
 
 For CloudFoundry it's easiest to create a service key:
 
@@ -187,7 +189,7 @@ Getting key ups-key for service instance ups as admin...
 }
 ```
 
-## Kubernetes
+### Kubernetes
 
 ```console
 $ svcat bind ups
@@ -217,11 +219,11 @@ Secret Data:
   special-key-2   special-value-2
 ```
 
-# Step 7 - Delete the service binding
+## Step 7 - Delete the service binding
 
 Now let's clean up the resources we've created:
 
-## CloudFoundry
+### CloudFoundry
 
 ```console
 $ cf delete-service-key ups ups-key
@@ -231,7 +233,7 @@ Deleting key ups-key for service instance ups as admin...
 OK
 ```
 
-## Kubernetes
+### Kubernetes
 
 ```console
 $ svcat unbind ups
@@ -245,11 +247,11 @@ $ svcat get bindings
 +------+-----------+----------+--------+
 ```
 
-# Step 8 - Delete the service instance
+## Step 8 - Delete the service instance
 
 Next, we can deprovision the service instance:
 
-## CloudFoundry
+### CloudFoundry
 
 ```console
 $ cf delete-service ups
@@ -259,7 +261,7 @@ Deleting service ups in org test / space test as admin...
 OK
 ```
 
-## Kubernetes
+### Kubernetes
 
 ```console
 $ svcat deprovision ups
@@ -274,11 +276,11 @@ $ svcat get instances
 +------+-----------+-------+------+--------+
 ```
 
-# Step 9 - Delete the service broker
+## Step 9 - Delete the service broker
 
 We can try and delete the service broker in the respective platform, but due to the architecture of the service manager it will reappear after a configured period of time:
 
-## CloudFoundry
+### CloudFoundry
 
 ```console
 $ cf delete-service-broker sm-proxy-a0d0a401-3048-4db7-a6d5-c5098be84d6d
@@ -301,7 +303,7 @@ redis-odb                                       http://10.144.0.147:12345
 sm-proxy-a0d0a401-3048-4db7-a6d5-c5098be84d6d   https://cfproxy.dev.cfdev.sh/v1/osb/a0d0a401-3048-4db7-a6d5-c5098be84d6d
 ```
 
-## Kubernetes
+### Kubernetes
 
 ```console
 $ kubectl delete clusterservicebrokers sm-proxy-a0d0a401-3048-4db7-a6d5-c5098be84d6d
@@ -326,7 +328,7 @@ Broker with name: ups-broker successfully deleted
 
 And after the configured period of time, the platforms will resync the state from the service manager, removing the service broker:
 
-## CloudFoundry
+### CloudFoundry
 
 ```console
 $ cf service-brokers
@@ -338,7 +340,7 @@ p.rabbitmq   http://10.144.0.146:8080
 redis-odb    http://10.144.0.147:12345
 ```
 
-## Kubernetes
+### Kubernetes
 ```console
 $ svcat get brokers
   NAME   NAMESPACE   URL   STATUS

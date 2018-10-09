@@ -5,28 +5,27 @@ The `docs` folder contains end-to-end documentation for the Service Manager and 
 ## Introduction
 
 * [Overview & high-level architecture](introduction.md)
-* [Components]()
+* [Components](concepts/components.md)
 
 ## Usage
 
-* [Walkthrough]()
-* [Example Scenarios]()
-* [Additional Resources]()
+* [Walkthrough](usage/walkthrough.md)
+* [Example Scenarios](usage/example-usage.md)
 
 ## Installation
 
-* [Installation Guide]()
-    * [Install Service Manager]()
-    * [Install smctl]()
-    * [Install CF Proxy]()
-    * [Install K8S Proxy]()
+* [Installation Guide](install/README.md)
+    * [Install Service Manager](install/sm.md)
+    * [Install smctl](install/cli.md)
+    * [Install CF Proxy](install/cf-proxy.md)
+    * [Install K8S Proxy](install/k8s-proxy.md)
 
 ## Development
 
-* [Developer's Guide]()
+* [Developer's Guide](development/devguide.md)
     * [Source Code Repositories]()
     * [Set up a local dev environment]()
-    * [Build and run test]()
+    * [Build and run tests]()
     * [Manage Dependencies]()
-* [Extensions]()
-* [Contribution Process]()
+* [Extensions](concepts/extensions.md)
+* [Contribution Process](development/contrib-process.md)
