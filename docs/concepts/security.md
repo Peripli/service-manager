@@ -1,3 +1,0 @@
- authn
-
- authz

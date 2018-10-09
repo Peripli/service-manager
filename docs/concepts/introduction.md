@@ -15,16 +15,16 @@ A central, Platform Instance independent component is needed to allow a sane man
 But there are use-cases that require sharing of a service instance across platforms.
 For example, a database created in Kubernetes should be accessible in Cloud Foundry.
 
-<img src="diagrams/Services-Platforms.png" alt="Services and platforms diagram" width="300"/>
+<img src="./../diagrams/Services-Platforms.png" alt="Services and platforms diagram" width="300"/>
 
 A standardized way is needed for managing service broker registrations and propagating them to the registered Platform Instances when necessary.
 Also there should be a mechanism for tracking service instances creation that allows sharing of service instances across Platform Instances.
 
-<img src="diagrams/Services-SM-Platforms.png" alt="SM between services and platforms diagram" width="300"/>
+<img src="./../diagrams/Services-SM-Platforms.png" alt="SM between services and platforms diagram" width="300"/>
 
 ## High-level Architecture
 
-![Service Manager diagram](diagrams/SM-overview.png)
+![Service Manager diagram](./../diagrams/SM-overview.png)
 
 
 The Service Manager is based on the Open Service Broker API , an open standard for provisioning and deprovisioning service instances and binding service instances to applications.

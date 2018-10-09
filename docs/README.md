@@ -4,28 +4,27 @@ The `docs` folder contains end-to-end documentation for the Service Manager and 
 
 ## Introduction
 
-* [Overview & high-level architecture](introduction.md)
-* [Components](concepts/components.md)
+* [Overview & High-Level architecture](./concepts/introduction.md)
+* [Components](./concepts/components.md)
 
 ## Usage
 
-* [Walkthrough](usage/walkthrough.md)
-* [Example Scenarios](usage/example-usage.md)
+* [Walkthrough](./usage/walkthrough.md)
+* [Example Scenarios](./usage/example-usage.md)
 
 ## Installation
 
-* [Installation Guide](install/README.md)
-    * [Install Service Manager](install/sm.md)
-    * [Install smctl](install/cli.md)
-    * [Install CF Proxy](install/cf-proxy.md)
-    * [Install K8S Proxy](install/k8s-proxy.md)
+* [Installation Guide](./install/README.md)
+  * [Install Service Manager](./install/sm.md)
+  * [Install smctl](./install/cli.md)
+  * [Install CF Proxy](./install/cf-proxy.md)
+  * [Install K8S Proxy](./install/k8s-proxy.md)
 
 ## Development
 
-* [Developer's Guide](development/devguide.md)
-    * [Source Code Repositories]()
-    * [Set up a local dev environment]()
-    * [Build and run tests]()
-    * [Manage Dependencies]()
-* [Extensions](concepts/extensions.md)
-* [Contribution Process](development/contrib-process.md)
+* [Developer's Guide](./development/README.md)
+  * [Source Code Repositories](./development/repositories-structure.md)
+  * [Build and run tests]()
+  * [Manage Dependencies]()
+* [Extensions](./development/extensions.md)
+* [Contribution Process](./development/contrib-process.md)

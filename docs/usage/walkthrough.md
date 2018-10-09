@@ -65,6 +65,7 @@ After the service broker is registered in the service manager, the platforms wil
 the state in the platform and that in the service manager. Thus when we list the brokers in the respective platform, we should see that the broker we registered inside the service manager has been propagated.
 
 ### CloudFoundry
+
 ```console
 $ cf service-brokers
 Getting service brokers as admin...
