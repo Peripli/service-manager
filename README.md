@@ -16,7 +16,7 @@ The Service Manager allows for an application to use services and service instan
 
 ## Documentation
 
-Refer to the [Service Manager Documentation]() for extensive details about concepts, use-cases, installation, etc...
+Refer to the [Service Manager Documentation](./docs) for extensive details about concepts, use-cases, installation, etc...
 
 ## Project Status
 
@@ -24,11 +24,11 @@ The project is currently in pre-alpha version with active ongoing development.
 
 ## Terminology
 
-Take a look at the [terminology page]() for definitions of terms as they are used in the project.
+Take a look at the [terminology page](./docs/concepts/glossary.md) for definitions of terms as they are used in the project.
 
 ## Code of Conduct
 
-Participation on the project is governed by the [code of conduct]().
+Participation on the project is governed by the [code of conduct](./CODE_OF_CONDUCT.md).
 
 ## Community
 
@@ -38,16 +38,12 @@ Participation on the project is governed by the [code of conduct]().
 
 ## Feedback and Support
 
-Feedback and contributions are always welcome. Please refer to the [contribution guidelines]() as well as the [developer's guide]() for more details.
+Feedback and contributions are always welcome. Please refer to the [contribution guidelines](./docs/development/contrib-process.md) as well as the [developer's guide](./docs/development) for more details.
 
 ## Additional Resources
 
-- Execution of a flow similar to the one described in the [walkthrough](docs/usage/walkthrough.md) can be found [here]().
+* Execution of a flow similar to the one described in the [walkthrough](docs/usage/walkthrough.md) can be found [here](https://www.youtube.com/watch?v=FG2bIv34P10).
 
-- Session about Service Manager on the [Europe CF Summit 2018](https://www.cloudfoundry.org/event/eusummit2018/) can be found [here](). A quick execution of the demo in the session can be found [here](https://www.youtube.com/watch?v=FG2bIv34P10)
+* Details about the SM API can be found [here](https://github.com/Peripli/specification/blob/master/api.md).
 
-- Documentation glossary can be found [here](docs/concepts/glossary.md)
-
-- Details about the SM API can be found [here](https://github.com/Peripli/specification/blob/master/api.md) 
-
-- Service Manager CLI documentation is located [here](https://github.com/Peripli/service-manager-cli/tree/master/docs)
+* Service Manager CLI documentation is located [here](https://github.com/Peripli/service-manager-cli/tree/master/docs).
