@@ -4,11 +4,11 @@
 
 This page intends to get you up-and-running with the Service Manager project.
 
-If you are interested in contributing, take a look at the [contribution guide]().
+If you are interested in contributing, take a look at the [contribution guide](../../CONTRIBUTING.md).
 
 ## Prerequisites
 
-In order to setup development environment for the project you would need some preinstalled tools. Details can be found in the [SM Toolbox page]()
+In order to setup development environment for the project you would need some preinstalled tools. Details can be found in the [SM Toolbox page](sm-tools.md)
 
 ## Repository Structure
 
@@ -109,4 +109,4 @@ This repository contains the implementation for the Service Manager CLI `smctl`.
 
 ## Extensibility
 
-The Service Manager can be used as a library and extended with custom controllers, filters and plugins. This allows adding additional APIs, request preprocessing and response postprocessing to the Service Manager. More Details on extesibility can be found [here]().
+The Service Manager can be used as a library and extended with custom controllers, filters and plugins. This allows adding additional APIs, request preprocessing and response postprocessing to the Service Manager. More Details on extesibility can be found [here](../concepts/extensions.md).
