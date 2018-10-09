@@ -37,30 +37,30 @@ Alternatively, **Windows** users may follow these steps:
 #### [Helm](https://github.com/kubernetes/helm/blob/master/docs/install.md)
 
 Alternatively, **Windows** users may follow [these steps](https://medium.com/@JockDaRock/take-the-helm-with-kubernetes-on-windows-c2cd4373104b):
-    
+
 
 Afterwards, start Minikube and initialize Tiller.
 
-    ```bash
-    minikube start --extra-config=apiserver.Authorization.Mode=RBAC
+```bash
+$ minikube start --extra-config=apiserver.Authorization.Mode=RBAC
 
-    helm init
-    ```
+$ helm init
+```
  #### [servicecatalog](https://github.com/kubernetes-incubator/service-catalog/blob/master/docs/install.md)
 
 Alternatively, **Windows** users may follow these steps:
 
-    ```bash
-    kubectl create clusterrolebinding add-on-cluster-admin --clusterrole=cluster-admin --serviceaccount=kube-system:default
+ ```bash
+ $ kubectl create clusterrolebinding add-on-cluster-admin --clusterrole=cluster-admin --serviceaccount=kube-system:default
 
-    helm repo add svc-cat https://svc-catalog-charts.storage.googleapis.com
+ $ helm repo add svc-cat https://svc-catalog-charts.storage.googleapis.com
 
-    kubectl create clusterrolebinding tiller-cluster-admin  --clusterrole=cluster-admin --serviceaccount=kube-system:default
+ $ kubectl create clusterrolebinding tiller-cluster-admin  --clusterrole=cluster-admin --serviceaccount=kube-system:default
 
-    kubectl -n kube-system patch deployment tiller-deploy -p '{"spec": {"template": {"spec": {"automountServiceAccountToken": true}}}}'
+ $ kubectl -n kube-system patch deployment tiller-deploy -p '{"spec": {"template": {"spec": {"automountServiceAccountToken": true}}}}'
 
-    helm install svc-cat/catalog  --name catalog --namespace catalog
-    ```
+ $ helm install svc-cat/catalog  --name catalog --namespace catalog
+ ```
 
 ### [CF CLI and PCF Dev](https://pivotal.io/platform/pcf-tutorials/getting-started-with-pivotal-cloud-foundry-dev/introduction)
 

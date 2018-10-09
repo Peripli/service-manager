@@ -50,6 +50,8 @@ This repository provides a framework for writing Service Manager Service Broker 
 
 * interfaces that the `Peripli/service-broker-proxy-cf` and `Peripli/service-broker-proxy-k8s` implement in order to talk to the  corresponding platform controller during state reconcilation.
 
+Tree structure look like this:
+
     .
     ├── pkg                     # Contains all reusable packages as part of the framework
     │   └── logging             # Logging extensions and hooks
@@ -69,6 +71,7 @@ This repository provides a framework for writing Service Manager Service Broker 
 
 This repository contains a CF specific implementation of the `Peripli/service-broker-proxy`. It reuses the proxy framework and implements the
 necessary interfaces in order to work with service brokers and service access.
+
     .
     ├── cf                      # Contains implementation of the interfaces specified in `Peripli/service-broker-proxy/tree/master/pkg/platform`
     ├── .travis.yml             # travis CI pipeline definition

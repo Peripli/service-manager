@@ -1,6 +1,6 @@
 # Walkthrough
 
-To follow the walkthrough you need to have Service Manager running either on CloudFoundry or on Kubernetes. Also you need the Service Broker Proxies for Kubernetes and/or CloudFoundry as well as the `smctl cli`. Please follow the [installation instructions](https://github.com/Peripli/service-manager/blob/rework-docs/docs/install/README.md) if you don't already have the needed components.
+To follow the walkthrough you need to have Service Manager running either on CloudFoundry or on Kubernetes. Also you need the Service Broker Proxies for Kubernetes and/or CloudFoundry as well as the `smctl` command line tool. Please follow the [installation instructions](https://github.com/Peripli/service-manager/blob/master/docs/install/README.md) if you don't already have the needed components.
 
 This walkthrough uses the following setup:
 - Service Manager running on [minikube](https://github.com/kubernetes/minikube)
@@ -8,7 +8,7 @@ This walkthrough uses the following setup:
 - Service Broker Proxy for Kubernetes running on [minikube](https://github.com/kubernetes/minikube)
 - Service Broker Proxy for CloudFoundry running on [cfdev](https://github.com/cloudfoundry-incubator/cfdev)
 
-However, everything should work the same regardless of where you set up the components, provided that there is visibility from the `service broker proxies` to the `service manager` and from the `service manager` to the `service broker`.
+However, everything should work the same regardless of where you set up the components, provided that there is visibility from the `service broker proxies` to the `service manager` and from the `service manager` to the `service brokers`.
 
 ## Step 1 - Installing the Service Broker
 
@@ -25,10 +25,10 @@ $ smctl list-brokers
 No brokers registered.
 ```
 
-Also, because the service manager's job is to propagate the registrations to the respective platforms and as there are no registrations currently, if we query 
-the platform's broker registry we should see that there are no brokers provided by the service manager.
 
 ### CloudFoundry
+Because the service manager's job is to propagate the registrations to the respective platforms and as there are no registrations currently, the query to the platform's broker registry returns that there are no brokers provided by the service manager.
+
 ```console
 $ cf service-brokers
 Getting service brokers as admin...
@@ -42,7 +42,7 @@ Note: Service brokers provided by the service manager have a well known pattern 
 
 ### Kubernetes
 ```console
-svcat get brokers
+$ svcat get brokers
   NAME   NAMESPACE   URL   STATUS
 +------+-----------+-----+--------+
 ```
@@ -61,8 +61,7 @@ We get in return the whole information for the service-broker as registered in t
 
 ## Step 3 - Ensure broker registration is propagated
 
-After the service broker is registered in the service manager, the platforms will periodically synchronize
-the state in the platform and that in the service manager. Thus when we list the brokers in the respective platform, we should see that the broker we registered inside the service manager has been propagated.
+After the service broker is registered in the service manager, the platforms will periodically synchronize the state in the platform and that in the service manager. Thus when we list the brokers in the respective platform, we should see that the broker we registered inside the service manager has been propagated.
 
 ### CloudFoundry
 

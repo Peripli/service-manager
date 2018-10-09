@@ -16,16 +16,16 @@
 
 Clone the [service-broker-proxy-cf](https://github.com/Peripli/service-broker-proxy-cf) git repository.
 
-```sh
-git clone https://github.com/Peripli/service-broker-proxy-cf.git && cd service-broker-proxy-cf
+```console
+$ git clone https://github.com/Peripli/service-broker-proxy-cf.git && cd service-broker-proxy-cf
 ```
 
 **Note:** Do not use `go get`. Instead use git to clone the repository.
 
 ## Install dependencies
 
-```sh
-dep ensure --vendor-only
+```console
+$ dep ensure --vendor-only
 ```
 
 ## Register CF in Service Manager
@@ -34,8 +34,8 @@ To start the service-broker-proxy-cf you need to register CF in Service Manager.
 As a result this will return the credentials used for communicating with the Service Manager.
 For example:
 
-```sh
-smctl register-platform mycf cf example
+```console
+$ smctl register-platform mycf cf example
 
 ID                                    Name  Type  Description  Created               Updated               Username                                      Password
 ------------------------------------  ----  ----  -----------  --------------------  --------------------  --------------------------------------------  --------------------------------------------
@@ -57,6 +57,6 @@ You can also use the `application.yml` file which has lower priority than the En
 
 Execute:
 
-```sh
-cf push -f manifest.yml
+```console
+$ cf push -f manifest.yml
 ```
