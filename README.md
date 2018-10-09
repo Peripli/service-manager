@@ -11,7 +11,7 @@
 <img src="docs/logos/small-sm-logo-with-text-black.png">
 </p>
 
-Service Manager is a central registry for service brokers and platforms registration. It tracks service instances creation and allows sharing of services and service instances between different Platform Instances.
+Service Manager is a central registry for service brokers and platforms. It tracks service instances creation and allows sharing of services and service instances between different Platform Instances.
 The Service Manager allows for an application to use services and service instances from multiple platforms.
 
 ## Documentation
