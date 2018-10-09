@@ -12,7 +12,7 @@ The SM ToolBox page contains details about all the tools that are needed for ins
 
 ### [Docker Windows](https://docs.docker.com/docker-for-mac/install/) / [Docker Mac](https://docs.docker.com/docker-for-windows/install/)
 
-### [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) 
+### [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 
 ### [Minikube](https://kubernetes.io/docs/getting-started-guides/minikube/#installation)
 
