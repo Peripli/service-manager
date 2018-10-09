@@ -293,7 +293,7 @@ OK
 Listing the brokers after a while we will see that the service broker is recreated:
 
 ```console
-cf service-brokers
+$ cf service-brokers
 Getting service brokers as admin...
 
 name                                            url
