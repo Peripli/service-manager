@@ -178,7 +178,7 @@ func (c *MyController) Routes() []web.Route {
                 Method: http.MethodGet,
                 Path:   "/api/v1/monitor/health",
             },
-            Handler: c.healthCheck,
+            Handler: c.ping,
         },
     }
 }
@@ -198,9 +198,9 @@ func main() {
     env := sm.DefaultEnv()
     serviceManager := sm.New(ctx, cancel, env)
 
-    serviceManager.RegisterPlugins(myplugin.MyPlugin{})
-    serviceManager.RegisterFilters(myfilter.MyFilter{})
-    serviceManager.RegisterController(mycontroller.MyController{})
+    serviceManager.RegisterPlugins(&myplugin.MyPlugin{})
+    serviceManager.RegisterFilters(&myfilter.MyFilter{})
+    serviceManager.RegisterController(&mycontroller.MyController{})
 
     sm := serviceManager.Build()
     sm.Run()
