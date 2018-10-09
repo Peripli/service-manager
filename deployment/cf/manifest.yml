@@ -15,4 +15,4 @@ applications:
     API_TOKEN_ISSUER_URL: <api_token_issuer_url>
     API_CLIENT_ID: cf
     API_SECURITY_ENCRYPTION_KEY: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
-    API_SKIP_SSL_VALIDATION: true
+    API_SKIP_SSL_VALIDATION: false
