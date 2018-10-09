@@ -5,7 +5,7 @@ The `docs` folder contains end-to-end documentation for the Service Manager and 
 ## Introduction
 
 * [Overview & high-level architecture](introduction.md)
-* [Components](introduction.md#Components)
+* [Components](concepts/components.md)
 
 ## Usage
 

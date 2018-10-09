@@ -64,36 +64,6 @@ The Service Manager can also enforce different policies at a central place, e.g.
 
 When a service broker is registered or deregistered with the Service Manager or any visibility policies are enforced the Service Manager has to replicate this desired state in some Platform Instance(s). In order to achieve this, the Service Manager forwards this information to the corresponding Service Broker Proxy that runs in this Platform Instance. After that the Service Broker Proxy knows how to interpret this information in the context of this Platform Instance and by using the provided Platform Instance APIs it tries to reconcile the desired state provided by the Service Manager with the current state in the Platform Instance. One example might be when a new service broker has to be made available in the Platform Instance. When the Service Broker Proxy is informaed about this event, it takes care to register itself with a specific URL in the Platform Instance, so that later on when the Platform Instance calls the proxy on that specific URL, it (the proxy) will know to forward the call to the Service Manager and include details about which actual service broker this OSB call is ment for.
 
-## Components
-
-Each component has its own source repository:
-
-#### [Service Manager Core](https://github.com/Peripli/service-manager)
-
-The central registry for service broker and platform registration, as well as for tracking of all service instances. This component will act as the single source of truth for platforms integrated with the Service Manager with regards to existing brokers.
-
-#### [Service Manager command line tool (CLI)](https://github.com/Peripli/service-manager-cli)
-
-The official tool to communicate directly with a Service Manager instance and manage service broker and platform registrations.
-
-#### [Cloud Foundry Broker Proxy](https://github.com/Peripli/service-broker-proxy-cf)
-
-Cloud Foundry specific implementation of the **Common Broker Proxy library**.
-
-This proxy implementation ensures the brokers registered in the Cloud Controller are in sync with those in the Service Manager.
-
-#### [Kubernetes Broker Proxy](https://github.com/Peripli/service-broker-proxy-k8s)
-
-Kubernetes specific implementation of the **Common Broker Proxy library**.
-
-This proxy implementation ensures the brokers registered in the Service Catalog are in sync with those in the Service Manager.
-
-#### [Common Broker Proxy library](https://github.com/Peripli/service-broker-proxy)
-
-Contains code for writing Service Manager broker proxies. A broker proxy is deployed in each platform. Each proxy checks on regular intervals what brokers are registered in the Service Manager and makes sure the brokers in the specific platform reflect that by either creating new brokers, updating existing ones or deleting removed ones. Afterwards the broker proxy forwards OSB calls from the platform to the Service Manager.
-
-> This component is used by both the Cloud Foundry and Kubernetes broker proxies.
-
 ## Benefits of the Solution
 
 Service Manager dramatically simplifies the management of services and service instances in the scenarios with many platforms (or even many cloud providers). The fact, that the Service Manager is not bound to a specific platform and the use of an open API avoids an environment lock-in and therefore will also work with future platforms.
