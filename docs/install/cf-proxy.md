@@ -17,7 +17,7 @@
 Clone the [service-broker-proxy-cf](https://github.com/Peripli/service-broker-proxy-cf) git repository.
 
 ```sh
-git clone https://github.com/Peripli/service-broker-proxy-cf.git
+git clone https://github.com/Peripli/service-broker-proxy-cf.git && cd service-broker-proxy-cf
 ```
 
 **Note:** Do not use `go get`. Instead use git to clone the repository.

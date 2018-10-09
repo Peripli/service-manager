@@ -10,7 +10,7 @@
 Clone the [service-broker-proxy-k8s](https://github.com/Peripli/service-broker-proxy-k8s) git repository.
 
 ```sh
-git clone https://github.com/Peripli/service-broker-proxy-k8s.git
+git clone https://github.com/Peripli/service-broker-proxy-k8s.git && cd service-broker-proxy-k8s
 ```
 
 **Note:** Do not use `go get`. Instead use git to clone the repository.
@@ -43,6 +43,6 @@ Clone the repository and execute:
 helm install charts/service-broker-proxy --name service-broker-proxy --namespace service-broker-proxy --set config.sm.url=<SM_URL> --set sm.user=<USER> --set sm.password=<PASSWORD>
 ```
 
-**Note:** Make sure you substitute <SM_URL> with the Service Manager url, <USER> and <PASSWORD> with the credentials for the Service Manager. These credentials are obtained when registering the cluster in Service Manager.
+**Note:** Make sure you substitute <SM_URL> with the Service Manager URL, <USER> and <PASSWORD> with the credentials for the Service Manager. These credentials are obtained when registering the cluster in Service Manager.
 
 To use your own images you can set `image.repository`, `image.tag` and `image.pullPolicy` to the helm install command.
