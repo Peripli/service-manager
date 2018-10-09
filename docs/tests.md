@@ -2,9 +2,7 @@
 
 For testing we use the frameworks - [Ginkgo](https://onsi.github.io/ginkgo/) and [Gomega](https://onsi.github.io/gomega/)
 
-## Unit and integration tests
-
-### Prerequisites
+## Prerequisites
 
 * PostgreSQL running
     - Standalone or...
@@ -12,7 +10,10 @@ For testing we use the frameworks - [Ginkgo](https://onsi.github.io/ginkgo/) and
     ```sh
     docker run -d -p5432:5432 --name prod_postgres --user postgres postgres
     ```
-    Set the connection uri to the Postgres in file: `test/common/application.yml`
+
+If PostgreSQL is not running with default settings, the connection URI can be changed in file: [application.yml](https://github.com/Peripli/service-manager/blob/master/test/common/application.yml#L9)
+
+## Unit and integration tests
 
 Currently unit and integration tests are run with one command.
 
