@@ -34,7 +34,6 @@ Participation on the project is governed by the [code of conduct](CODE_OF_CONDUC
 
 * [Slack]()
 * [Mailing list](https://groups.google.com/forum/#!forum/service-manager-wg)
-* [Bi-weekly meeting](https://pivotal.zoom.us/j/738845880)
 
 ## Feedback and Support
 
