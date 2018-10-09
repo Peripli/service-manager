@@ -4,4 +4,4 @@ If you would like to discuss an issue before starting to work on it, do not hesi
 
 :warning: Ensure that your modifications pass the lint checks, formatting checks, static code checks, and unit tests by executing. Before you start working on your issue, please read our [Code Standards](code-standards.md) document.
 
-:warning: When creating a PR, make sure to include all relevant details outlined in the [PR template](). Familiarize yourself with the [Contribution Guide](../../CONTRIBUTING.md).
+:warning: When creating a PR, make sure to include all relevant details outlined in the [PR template](../../PULL_REQUEST_TEMPLATE.md). Familiarize yourself with the [Contribution Guide](../../CONTRIBUTING.md).

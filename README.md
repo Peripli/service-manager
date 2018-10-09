@@ -16,7 +16,7 @@ The Service Manager allows for an application to use services and service instan
 
 ## Documentation
 
-Refer to the [Service Manager Documentation]() for extensive details about concepts, use-cases, installation, etc...
+Refer to the [Service Manager Documentation](docs/README.md) for extensive details about concepts, use-cases, installation, etc...
 
 ## Project Status
 
@@ -24,17 +24,17 @@ The project is currently in pre-alpha version with active ongoing development.
 
 ## Terminology
 
-Take a look at the [terminology page]() for definitions of terms as they are used in the project.
+Take a look at the [terminology page](docs/concepts/glossary.md) for definitions of terms as they are used in the project.
 
 ## Code of Conduct
 
-Participation on the project is governed by the [code of conduct]().
+Participation on the project is governed by the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Community
 
-* slack
-* mailing list
-* bi-weekly meeting
+* [Slack]()
+* [Mailing list](https://groups.google.com/forum/#!forum/service-manager-wg)
+* [Bi-weekly meeting](https://pivotal.zoom.us/j/738845880)
 
 ## Feedback and Support
 
