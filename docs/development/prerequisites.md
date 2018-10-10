@@ -41,7 +41,7 @@ Alternatively, **Windows** users may follow [these steps](https://medium.com/@Jo
 
 Afterwards, start Minikube and initialize Tiller.
 
-```bash
+```console
 $ minikube start --extra-config=apiserver.Authorization.Mode=RBAC
 
 $ helm init
@@ -50,7 +50,7 @@ $ helm init
 
 Alternatively, **Windows** users may follow these steps:
 
- ```bash
+ ```console
  $ kubectl create clusterrolebinding add-on-cluster-admin --clusterrole=cluster-admin --serviceaccount=kube-system:default
 
  $ helm repo add svc-cat https://svc-catalog-charts.storage.googleapis.com
@@ -70,8 +70,8 @@ The Service Manager components use go1.10 and currenty  the buildpack installed 
 * Rename the zip so it cotnains no dots (.) and slashes (-)
 * Navigate to the directory the zip was downloaded to and run:
 
-    ```bash
-    cf update-buildpack go_buildpack <buildpackzipname>.zip 1
+    ```console
+    $ cf update-buildpack go_buildpack <buildpackzipname>.zip 1
     ```
 
 **Note:** Alternatively, one can use [CF Dev](https://github.com/cloudfoundry-incubator/cfdev)
