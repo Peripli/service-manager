@@ -1,17 +1,18 @@
 ---
 applications:
 - name: service-manager
-  buildpack: go_buildpack
   memory: 64M
   services:
   - <postgre_instance_name>
+  docker:
+    image: quay.io/service-manager/core:v0.1.0
   env:
     GOVERSION: go1.10
     GOPACKAGENAME: github.com/Peripli/service-manager
     LOG_FORMAT: json
     LOG_LEVEL: info
     STORAGE_NAME: <postgre_instance_name>
-    API_TOKEN_ISSUER_URL: https://uaa.local.pcfdev.io
-    API_CLIENT_ID: smctl
+    API_TOKEN_ISSUER_URL: <api_token_issuer_url>
+    API_CLIENT_ID: cf
     API_SECURITY_ENCRYPTION_KEY: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
     API_SKIP_SSL_VALIDATION: false

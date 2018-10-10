@@ -30,6 +30,7 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/test/common"
+	"github.com/Peripli/service-manager/test/testutil"
 	. "github.com/onsi/ginkgo"
 	"github.com/sirupsen/logrus"
 )
@@ -73,11 +74,11 @@ var _ = Describe("Errors", func() {
 
 		Context("With broken writer", func() {
 			It("Logs write error", func() {
-				hook := &LoggingInterceptorHook{}
+				hook := &testutil.LogInterceptor{}
 				logrus.AddHook(hook)
 				util.WriteError(errors.New(""), fakeErrorWriter)
 
-				Expect(string(hook.data)).To(ContainSubstring("Could not write error to response: write error"))
+				Expect(hook).To(ContainSubstring("Could not write error to response: write error"))
 			})
 		})
 	})
@@ -177,20 +178,6 @@ var _ = Describe("Errors", func() {
 		})
 	})
 })
-
-type LoggingInterceptorHook struct {
-	data []byte
-}
-
-func (*LoggingInterceptorHook) Levels() []logrus.Level {
-	return logrus.AllLevels
-}
-
-func (hook *LoggingInterceptorHook) Fire(entry *logrus.Entry) error {
-	str, _ := entry.String()
-	hook.data = append(hook.data, []byte(str)...)
-	return nil
-}
 
 type errorResponseWriter struct {
 }
