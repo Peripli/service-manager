@@ -14,7 +14,7 @@ The following page contains some example scenarios in which the Service Manager 
 
 ## Service Sharing Examples
 
-1. An application running in SAP CP CloudFoundry can consume services provided by the different evironments offered by the SAP CP Multicloud (e.g. from multiple CF installations as well as K8S clusters).
+1. An application running in Kubernetes can consume services provided by the different evironments offered by the Multicloud (e.g. from multiple CF installations as well as K8S clusters). How this works can be seen [HERE](https://youtu.be/AYULBewzEwI).
 
 2. The same is valid for scenarios across cloud providers - the application may very well consume service-x from Azure, service-y from GCP and service-z from SAP CP. The only requirement is that the services offered by these cloud providers are exposed via service brokers.
 
