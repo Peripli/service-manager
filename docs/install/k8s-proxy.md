@@ -37,7 +37,7 @@ Docker Images are available on [quay.io/service-manager/sb-proxy](https://quay.i
 
 The service-broker-proxy-k8s is installed via a helm chart located in the [service-broker-proxy GitHub repository](https://github.com/Peripli/service-broker-proxy-k8s).
 
-Navigate to the root of cloned repository and execute:
+Navigate to the root of the cloned repository and execute:
 
 ```console
 $ helm install charts/service-broker-proxy --name service-broker-proxy --namespace service-broker-proxy --set config.sm.url=<SM_URL> --set sm.user=<USER> --set sm.password=<PASSWORD>
