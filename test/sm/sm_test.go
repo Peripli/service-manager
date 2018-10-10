@@ -154,9 +154,6 @@ func verifyServiceManagerStartsSuccessFully(serviceManagerServer *httptest.Serve
 		Expect().
 		Status(http.StatusOK).JSON().Object().ContainsMap(map[string]interface{}{
 		"status": "UP",
-		"storage": map[string]interface{}{
-			"status": "UP",
-		},
 	})
 	return SM
 }

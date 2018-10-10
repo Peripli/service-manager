@@ -16,11 +16,13 @@
 
 package health
 
+// CompositeIndicator aggregates multiple health indicators and provides one detailed health
 type CompositeIndicator struct {
 	aggregator Aggregator
 	indicators []Indicator
 }
 
+// NewCompositeIndicator returns a new CompositeIndicator for the provided health indicators
 func NewCompositeIndicator(indicators []Indicator) Indicator {
 	return &CompositeIndicator{
 		aggregator: &DefaultAggregator{},
@@ -28,10 +30,12 @@ func NewCompositeIndicator(indicators []Indicator) Indicator {
 	}
 }
 
+// Name returns the name of the CompositeIndicator
 func (i *CompositeIndicator) Name() string {
 	return "CompositeHealthIndicator"
 }
 
+// Health returns the aggregated health of all health indicators
 func (i *CompositeIndicator) Health() *Health {
 	healths := make(map[string]*Health)
 	for _, indicator := range i.indicators {

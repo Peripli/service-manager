@@ -40,7 +40,7 @@ func (c *Controller) healthCheck(r *web.Request) (*web.Response, error) {
 	healthResult := c.Indicator.Health()
 	var status int
 	if healthResult.Status == health.StatusDown {
-		status = http.StatusInternalServerError
+		status = http.StatusServiceUnavailable
 	} else {
 		status = http.StatusOK
 	}

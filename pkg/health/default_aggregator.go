@@ -16,9 +16,12 @@
 
 package health
 
+// DefaultAggregator aggregates the healths by constructing a new Health based on the given
+// where the overall health status is negative if one of the healths is negative and positive if all are positive
 type DefaultAggregator struct {
 }
 
+// Aggregate aggregates the given healths
 func (*DefaultAggregator) Aggregate(healths map[string]*Health) *Health {
 	overallStatus := StatusUp
 	for _, health := range healths {
@@ -31,5 +34,5 @@ func (*DefaultAggregator) Aggregate(healths map[string]*Health) *Health {
 	for k, v := range healths {
 		details[k] = v
 	}
-	return NewHealth().WithStatus(overallStatus).WithDetails(details)
+	return New().WithStatus(overallStatus).WithDetails(details)
 }

@@ -88,8 +88,8 @@ func New(ctx context.Context, store storage.Storage, settings *Settings, encrypt
 	if err != nil {
 		return nil, err
 	}
-	healthProvider := health.DefaultProvider()
-	healthProvider.AddHealthIndicator(&storage.HealthIndicator{Storage: store})
+	healthRegistry := health.DefaultRegistry()
+	healthRegistry.AddHealthIndicator(&storage.HealthIndicator{Storage: store})
 	return &web.API{
 		// Default controllers - more filters can be registered using the relevant API methods
 		Controllers: []web.Controller{
@@ -120,7 +120,7 @@ func New(ctx context.Context, store storage.Storage, settings *Settings, encrypt
 			bearerAuthnFilter,
 			authn.NewRequiredAuthnFilter(),
 		},
-		Provider: healthProvider,
+		Registry: healthRegistry,
 	}, nil
 }
 

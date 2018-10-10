@@ -18,19 +18,22 @@ package storage
 
 import "github.com/Peripli/service-manager/pkg/health"
 
+// HealthIndicator returns a new indicator for the storage
 type HealthIndicator struct {
 	Storage Storage
 }
 
+// Name returns the name of the storage component
 func (i *HealthIndicator) Name() string {
 	return "storage"
 }
 
+// Health returns the health of the storage component
 func (i *HealthIndicator) Health() *health.Health {
 	err := i.Storage.Ping()
-	health := health.NewHealth()
+	health := health.New()
 	if err != nil {
-		return health.WithError(err).Down()
+		return health.WithError(err)
 	}
 	return health.Up()
 }

@@ -16,18 +16,19 @@
 
 package health
 
-func DefaultProvider() Provider {
-	return &defaultProvider{}
+// DefaultRegistry returns a default health indicator registry
+func DefaultRegistry() Registry {
+	return &defaultRegistry{}
 }
 
-type defaultProvider struct {
+type defaultRegistry struct {
 	indicators []Indicator
 }
 
-func (p *defaultProvider) AddHealthIndicator(indicator Indicator) {
+func (p *defaultRegistry) AddHealthIndicator(indicator Indicator) {
 	p.indicators = append(p.indicators, indicator)
 }
 
-func (p *defaultProvider) HealthIndicators() []Indicator {
+func (p *defaultRegistry) HealthIndicators() []Indicator {
 	return p.indicators
 }

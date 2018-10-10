@@ -16,8 +16,8 @@
 package healthcheck
 
 import (
-	"encoding/json"
 	"errors"
+	"github.com/Peripli/service-manager/storage"
 	"net/http"
 	"testing"
 
@@ -35,15 +35,8 @@ func TestServer(t *testing.T) {
 
 var _ = Describe("Healthcheck controller", func() {
 
-	var availableResponse, unavailableResponse []byte
-
-	BeforeSuite(func() {
-		var err error
-		availableResponse, err = json.Marshal(statusRunningResponse)
-		Expect(err).ToNot(HaveOccurred())
-		unavailableResponse, err = json.Marshal(statusStorageFailureResponse)
-		Expect(err).ToNot(HaveOccurred())
-	})
+	availableResponse := `"status":"UP"`
+	unavailableResponse := `"status":"DOWN"`
 
 	Describe("healthCheck", func() {
 		Context("when ping returns error", func() {
@@ -51,7 +44,7 @@ var _ = Describe("Healthcheck controller", func() {
 				resp, err := createController(errors.New("expected")).healthCheck(&web.Request{Request: &http.Request{}})
 				Expect(err).ToNot(HaveOccurred())
 				Expect(resp.StatusCode).To(Equal(http.StatusServiceUnavailable))
-				Expect(string(resp.Body)).To(Equal(string(unavailableResponse)))
+				Expect(string(resp.Body)).To(ContainSubstring(string(unavailableResponse)))
 			})
 		})
 
@@ -60,7 +53,7 @@ var _ = Describe("Healthcheck controller", func() {
 				resp, err := createController(nil).healthCheck(&web.Request{Request: &http.Request{}})
 				Expect(err).ToNot(HaveOccurred())
 				Expect(resp.StatusCode).To(Equal(http.StatusOK))
-				Expect(string(resp.Body)).To(Equal(string(availableResponse)))
+				Expect(string(resp.Body)).To(ContainSubstring(string(availableResponse)))
 			})
 		})
 	})
@@ -71,6 +64,6 @@ func createController(pingError error) *Controller {
 	fakeStorage := &storagefakes.FakeStorage{}
 	fakeStorage.PingReturns(pingError)
 	return &Controller{
-		Storage: fakeStorage,
+		&storage.HealthIndicator{Storage: fakeStorage},
 	}
 }

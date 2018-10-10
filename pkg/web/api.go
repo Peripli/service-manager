@@ -34,7 +34,8 @@ type API struct {
 	// Filters contains the registered filters
 	Filters []Filter
 
-	health.Provider
+	// Registry is the health indicators registry for this API
+	health.Registry
 }
 
 // pluginSegment represents one piece of a web.Plugin. Each web.Plugin is decomposed into as many plugin segments as
