@@ -9,8 +9,8 @@
 
 Clone the [service-broker-proxy-k8s](https://github.com/Peripli/service-broker-proxy-k8s) git repository.
 
-```sh
-git clone https://github.com/Peripli/service-broker-proxy-k8s.git && cd service-broker-proxy-k8s
+```console
+$ git clone https://github.com/Peripli/service-broker-proxy-k8s.git && cd service-broker-proxy-k8s
 ```
 
 **Note:** Do not use `go get`. Instead use git to clone the repository.
@@ -21,8 +21,8 @@ To start the service-broker-proxy-k8s you need to register the kubernetes cluste
 As a result this will return the credentials used for communicating with the Service Manager.
 For example:
 
-```sh
-smctl register-platform mycluster k8s example
+```console
+$ smctl register-platform mycluster k8s example
 
 ID                                    Name       Type  Description  Created               Updated               Username                                      Password
 ------------------------------------  ---------  ----  -----------  --------------------  --------------------  --------------------------------------------  --------------------------------------------
@@ -37,12 +37,12 @@ Docker Images are available on [quay.io/service-manager/sb-proxy](https://quay.i
 
 The service-broker-proxy-k8s is installed via a helm chart located in the [service-broker-proxy GitHub repository](https://github.com/Peripli/service-broker-proxy-k8s).
 
-Clone the repository and execute:
+Navigate to the root of the cloned repository and execute:
 
-```bash
-helm install charts/service-broker-proxy --name service-broker-proxy --namespace service-broker-proxy --set config.sm.url=<SM_URL> --set sm.user=<USER> --set sm.password=<PASSWORD>
+```console
+$ helm install charts/service-broker-proxy --name service-broker-proxy --namespace service-broker-proxy --set config.sm.url=<SM_URL> --set sm.user=<USER> --set sm.password=<PASSWORD>
 ```
 
-**Note:** Make sure you substitute <SM_URL> with the Service Manager URL, <USER> and <PASSWORD> with the credentials for the Service Manager. These credentials are obtained when registering the cluster in Service Manager.
+**Note:** Make sure you substitute `<SM_URL>` with the Service Manager URL, `<USER>` and `<PASSWORD>` with the credentials issued from Service Manager when this platform was registered there.
 
 To use your own images you can set `image.repository`, `image.tag` and `image.pullPolicy` to the helm install command.
