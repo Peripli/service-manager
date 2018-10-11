@@ -30,6 +30,7 @@ type controller struct {
 	indicator health.Indicator
 }
 
+// NewController returns a new healthcheck controller with the given indicators and aggregation policy
 func NewController(indicators []health.Indicator, aggregator health.AggregationPolicy) web.Controller {
 	return &controller{
 		indicator: newCompositeIndicator(indicators, aggregator),

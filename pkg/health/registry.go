@@ -18,8 +18,8 @@ package health
 
 import "sync"
 
-// DefaultRegistry returns a default health indicator registry with a single ping indicator and a default aggregationPolicy
-func DefaultRegistry() Registry {
+// NewDefaultRegistry returns a default health registry with a single ping indicator and a default aggregation policy
+func NewDefaultRegistry() Registry {
 	return &defaultRegistry{
 		indicators:        []Indicator{&pingIndicator{}},
 		aggregationPolicy: &DefaultAggregationPolicy{},

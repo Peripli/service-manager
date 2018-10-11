@@ -96,6 +96,7 @@ type Indicator interface {
 }
 
 // AggregationPolicy is an interface to provide aggregated health information
+//go:generate counterfeiter . AggregationPolicy
 type AggregationPolicy interface {
 	// Apply processes the given healths to build a single health
 	Apply(healths map[string]*Health) *Health

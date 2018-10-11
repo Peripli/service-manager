@@ -88,7 +88,7 @@ func New(ctx context.Context, store storage.Storage, settings *Settings, encrypt
 	if err != nil {
 		return nil, err
 	}
-	healthRegistry := health.DefaultRegistry()
+	healthRegistry := health.NewDefaultRegistry()
 	healthRegistry.AddHealthIndicator(&storage.HealthIndicator{Storage: store})
 	return &web.API{
 		// Default controllers - more filters can be registered using the relevant API methods

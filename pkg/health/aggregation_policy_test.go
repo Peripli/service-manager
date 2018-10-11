@@ -17,16 +17,9 @@
 package health
 
 import (
-	"testing"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
-
-func TestHealthcheck(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Healthcheck Suite")
-}
 
 var _ = Describe("Healthcheck AggregationPolicy", func() {
 
@@ -38,6 +31,14 @@ var _ = Describe("Healthcheck AggregationPolicy", func() {
 			"test1": New().Up(),
 			"test2": New().Up(),
 		}
+	})
+
+	When("No healths are provided", func() {
+		It("Returns UNKNOWN and an error detail", func() {
+			aggregatedHealth := aggregationPolicy.Apply(nil)
+			Expect(aggregatedHealth.Status).To(Equal(StatusUnknown))
+			Expect(aggregatedHealth.Details["error"]).ToNot(BeNil())
+		})
 	})
 
 	When("At least one health is DOWN", func() {

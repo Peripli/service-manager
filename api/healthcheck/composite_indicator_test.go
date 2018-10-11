@@ -17,8 +17,9 @@
 package healthcheck
 
 import (
-	"sync"
 	"testing"
+
+	"github.com/Peripli/service-manager/pkg/health/healthfakes"
 
 	"github.com/Peripli/service-manager/pkg/health"
 	. "github.com/onsi/ginkgo"
@@ -51,47 +52,20 @@ var _ = Describe("Healthcheck Composite indicator", func() {
 
 		Context("With provided indicators", func() {
 			It("Aggregates the healths", func() {
-				testIndicator := &testIndicator{}
-				indicator := newCompositeIndicator([]health.Indicator{testIndicator}, &health.DefaultAggregationPolicy{})
-				aggregationPolicy := newTestAggregationPolicy()
-				indicator.(*compositeIndicator).aggregationPolicy = aggregationPolicy
-				invocationsCnt := aggregationPolicy.invocationCount
+				testIndicator := &healthfakes.FakeIndicator{}
+				testIndicator.HealthReturns(health.New().Up())
+				testIndicator.NameReturns("fake")
+
+				aggregationPolicy := &healthfakes.FakeAggregationPolicy{}
+				defaultAggregationPolicy := &health.DefaultAggregationPolicy{}
+				aggregationPolicy.ApplyStub = defaultAggregationPolicy.Apply
+
+				indicator := newCompositeIndicator([]health.Indicator{testIndicator}, aggregationPolicy)
+				invocationsCnt := aggregationPolicy.ApplyCallCount()
 				health := indicator.Health()
-				Expect(aggregationPolicy.invocationCount).To(Equal(invocationsCnt + 1))
+				Expect(aggregationPolicy.ApplyCallCount()).To(Equal(invocationsCnt + 1))
 				Expect(health.Details[testIndicator.Name()]).ToNot(BeNil())
 			})
 		})
 	})
 })
-
-type testIndicator struct {
-}
-
-func (*testIndicator) Name() string {
-	return "test"
-}
-
-func (*testIndicator) Health() *health.Health {
-	return health.New().Up()
-}
-
-type testAggregationPolicy struct {
-	invocationCount int
-	delegate        health.AggregationPolicy
-	mutex           sync.Mutex
-}
-
-func newTestAggregationPolicy() *testAggregationPolicy {
-	return &testAggregationPolicy{
-		invocationCount: 0,
-		delegate:        &health.DefaultAggregationPolicy{},
-		mutex:           sync.Mutex{},
-	}
-}
-
-func (a *testAggregationPolicy) Apply(healths map[string]*health.Health) *health.Health {
-	a.mutex.Lock()
-	defer a.mutex.Unlock()
-	a.invocationCount++
-	return a.delegate.Apply(healths)
-}
