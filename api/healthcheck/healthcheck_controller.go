@@ -39,10 +39,10 @@ func (c *Controller) healthCheck(r *web.Request) (*web.Response, error) {
 	logger.Debug("Performing healthResult check...")
 	healthResult := c.Indicator.Health()
 	var status int
-	if healthResult.Status == health.StatusDown {
-		status = http.StatusServiceUnavailable
-	} else {
+	if healthResult.Status == health.StatusUp {
 		status = http.StatusOK
+	} else {
+		status = http.StatusServiceUnavailable
 	}
 	return util.NewJSONResponse(status, healthResult)
 }
