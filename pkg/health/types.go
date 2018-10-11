@@ -16,12 +16,16 @@
 
 package health
 
+// Status represents the overall health status of a component
 type Status string
 
 const (
-	StatusUp      Status = "UP"
-	StatusDown           = "DOWN"
-	StatusUnknown        = "UNKNOWN"
+	// StatusUp indicates that the checked component is up and running
+	StatusUp Status = "UP"
+	// StatusDown indicates the the checked component has an issue and is unavailable
+	StatusDown Status = "DOWN"
+	// StatusUnknown indicates that the health of the checked component cannot be determined
+	StatusUnknown Status = "UNKNOWN"
 )
 
 // Health contains information about the health of a component.
@@ -68,6 +72,12 @@ func (h *Health) Down() *Health {
 	return h
 }
 
+// Unknown sets the health status to unknown
+func (h *Health) Unknown() *Health {
+	h.Status = StatusUnknown
+	return h
+}
+
 // WithDetails adds the given details to the health
 func (h *Health) WithDetails(details map[string]interface{}) *Health {
 	for k, v := range details {
@@ -85,6 +95,7 @@ type Indicator interface {
 }
 
 // Aggregator is an interface to provide aggregate health information
+//go:generate counterfeiter . Aggregator
 type Aggregator interface {
 	// Aggregate processes the given healths to build a single health
 	Aggregate(healths map[string]*Health) *Health

@@ -23,6 +23,9 @@ type DefaultAggregator struct {
 
 // Aggregate aggregates the given healths
 func (*DefaultAggregator) Aggregate(healths map[string]*Health) *Health {
+	if len(healths) == 0 {
+		return New().WithDetail("error", "no health indicators registered").Unknown()
+	}
 	overallStatus := StatusUp
 	for _, health := range healths {
 		if health.Status == StatusDown {
