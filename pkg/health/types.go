@@ -87,6 +87,7 @@ func (h *Health) WithDetails(details map[string]interface{}) *Health {
 }
 
 // Indicator is an interface to provide the health of a component
+//go:generate counterfeiter . Indicator
 type Indicator interface {
 	// Name returns the name of the component
 	Name() string
@@ -94,11 +95,10 @@ type Indicator interface {
 	Health() *Health
 }
 
-// Aggregator is an interface to provide aggregate health information
-//go:generate counterfeiter . Aggregator
-type Aggregator interface {
-	// Aggregate processes the given healths to build a single health
-	Aggregate(healths map[string]*Health) *Health
+// AggregationPolicy is an interface to provide aggregated health information
+type AggregationPolicy interface {
+	// Apply processes the given healths to build a single health
+	Apply(healths map[string]*Health) *Health
 }
 
 // Registry is an interface to store and fetch health indicators
@@ -107,4 +107,9 @@ type Registry interface {
 	AddHealthIndicator(indicator Indicator)
 	// HealthIndicators returns the currently registered health indicators
 	HealthIndicators() []Indicator
+
+	// RegisterHealthAggregationPolicy sets the health aggregationPolicy
+	RegisterHealthAggregationPolicy(aggregator AggregationPolicy)
+	// HealthAggregationPolicy returns the registered health aggregationPolicy
+	HealthAggregationPolicy() AggregationPolicy
 }

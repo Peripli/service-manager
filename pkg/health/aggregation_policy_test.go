@@ -17,9 +17,10 @@
 package health
 
 import (
+	"testing"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"testing"
 )
 
 func TestHealthcheck(t *testing.T) {
@@ -27,9 +28,9 @@ func TestHealthcheck(t *testing.T) {
 	RunSpecs(t, "Healthcheck Suite")
 }
 
-var _ = Describe("Healthcheck Aggregator", func() {
+var _ = Describe("Healthcheck AggregationPolicy", func() {
 
-	healthAggregator := &DefaultAggregator{}
+	aggregationPolicy := &DefaultAggregationPolicy{}
 	var healths map[string]*Health
 
 	BeforeEach(func() {
@@ -42,21 +43,21 @@ var _ = Describe("Healthcheck Aggregator", func() {
 	When("At least one health is DOWN", func() {
 		It("Returns DOWN", func() {
 			healths["test3"] = New().Down()
-			aggregatedHealth := healthAggregator.Aggregate(healths)
+			aggregatedHealth := aggregationPolicy.Apply(healths)
 			Expect(aggregatedHealth.Status).To(Equal(StatusDown))
 		})
 	})
 
 	When("All healths are UP", func() {
 		It("Returns UP", func() {
-			aggregatedHealth := healthAggregator.Aggregate(healths)
+			aggregatedHealth := aggregationPolicy.Apply(healths)
 			Expect(aggregatedHealth.Status).To(Equal(StatusUp))
 		})
 	})
 
 	When("Aggregating healths", func() {
 		It("Includes them as overall details", func() {
-			aggregatedHealth := healthAggregator.Aggregate(healths)
+			aggregatedHealth := aggregationPolicy.Apply(healths)
 			for name, h := range healths {
 				Expect(aggregatedHealth.Details[name]).To(Equal(h))
 			}

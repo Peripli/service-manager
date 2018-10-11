@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-package health
+package healthcheck
 
 import (
 	"sync"
 	"testing"
 
+	"github.com/Peripli/service-manager/pkg/health"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -29,16 +30,11 @@ func TestNewCompositeIndicator(t *testing.T) {
 	RunSpecs(t, "Healthcheck Suite")
 }
 
-var _ = Describe("Healthcheck Composite Indicator", func() {
+var _ = Describe("Healthcheck Composite indicator", func() {
 
-	Context("New Composite Indicator", func() {
-		It("Uses Default aggregator", func() {
-			indicator := NewCompositeIndicator(nil)
-			Expect(indicator.(*CompositeIndicator).aggregator).To(BeAssignableToTypeOf(&DefaultAggregator{}))
-		})
-
+	Context("New Composite indicator", func() {
 		It("Has a name", func() {
-			indicator := NewCompositeIndicator(nil)
+			indicator := newCompositeIndicator(nil, nil)
 			Expect(indicator.Name()).ToNot(BeEmpty())
 		})
 	})
@@ -46,22 +42,22 @@ var _ = Describe("Healthcheck Composite Indicator", func() {
 	When("Checking health", func() {
 		Context("With empty indicators", func() {
 			It("Returns unknown status", func() {
-				indicator := NewCompositeIndicator(nil)
-				health := indicator.Health()
-				Expect(health.Status).To(Equal(StatusUnknown))
-				Expect(health.Details["error"]).ToNot(BeNil())
+				indicator := newCompositeIndicator(nil, &health.DefaultAggregationPolicy{})
+				h := indicator.Health()
+				Expect(h.Status).To(Equal(health.StatusUnknown))
+				Expect(h.Details["error"]).ToNot(BeNil())
 			})
 		})
 
 		Context("With provided indicators", func() {
 			It("Aggregates the healths", func() {
 				testIndicator := &testIndicator{}
-				indicator := NewCompositeIndicator([]Indicator{testIndicator})
-				aggregator := newTestAggregator()
-				indicator.(*CompositeIndicator).aggregator = aggregator
-				invocationsCnt := aggregator.invocationCount
+				indicator := newCompositeIndicator([]health.Indicator{testIndicator}, &health.DefaultAggregationPolicy{})
+				aggregationPolicy := newTestAggregationPolicy()
+				indicator.(*compositeIndicator).aggregationPolicy = aggregationPolicy
+				invocationsCnt := aggregationPolicy.invocationCount
 				health := indicator.Health()
-				Expect(aggregator.invocationCount).To(Equal(invocationsCnt + 1))
+				Expect(aggregationPolicy.invocationCount).To(Equal(invocationsCnt + 1))
 				Expect(health.Details[testIndicator.Name()]).ToNot(BeNil())
 			})
 		})
@@ -75,27 +71,27 @@ func (*testIndicator) Name() string {
 	return "test"
 }
 
-func (*testIndicator) Health() *Health {
-	return New().Up()
+func (*testIndicator) Health() *health.Health {
+	return health.New().Up()
 }
 
-type testAggregator struct {
+type testAggregationPolicy struct {
 	invocationCount int
-	delegate        Aggregator
+	delegate        health.AggregationPolicy
 	mutex           sync.Mutex
 }
 
-func newTestAggregator() *testAggregator {
-	return &testAggregator{
+func newTestAggregationPolicy() *testAggregationPolicy {
+	return &testAggregationPolicy{
 		invocationCount: 0,
-		delegate:        &DefaultAggregator{},
+		delegate:        &health.DefaultAggregationPolicy{},
 		mutex:           sync.Mutex{},
 	}
 }
 
-func (a *testAggregator) Aggregate(healths map[string]*Health) *Health {
+func (a *testAggregationPolicy) Apply(healths map[string]*health.Health) *health.Health {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 	a.invocationCount++
-	return a.delegate.Aggregate(healths)
+	return a.delegate.Apply(healths)
 }

@@ -21,10 +21,10 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"fmt"
-	"github.com/Peripli/service-manager/api/healthcheck"
-	"github.com/Peripli/service-manager/pkg/health"
 	"net/http"
 	"time"
+
+	"github.com/Peripli/service-manager/api/healthcheck"
 
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/config"
@@ -135,7 +135,7 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 
 func (smb *ServiceManagerBuilder) installHealth() {
 	if len(smb.HealthIndicators()) > 0 {
-		smb.RegisterControllers(&healthcheck.Controller{Indicator: health.NewCompositeIndicator(smb.HealthIndicators())})
+		smb.RegisterControllers(healthcheck.NewController(smb.HealthIndicators(), smb.HealthAggregationPolicy()))
 	}
 }
 

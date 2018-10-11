@@ -16,16 +16,38 @@
 
 package health
 
-// DefaultRegistry returns a default health indicator registry
+import "sync"
+
+// DefaultRegistry returns a default health indicator registry with a single ping indicator and a default aggregationPolicy
 func DefaultRegistry() Registry {
-	return &defaultRegistry{}
+	return &defaultRegistry{
+		indicators:        []Indicator{&pingIndicator{}},
+		aggregationPolicy: &DefaultAggregationPolicy{},
+		indicatorsMutex:   sync.Mutex{},
+		aggregatorMutex:   sync.Mutex{},
+	}
 }
 
 type defaultRegistry struct {
-	indicators []Indicator
+	indicators        []Indicator
+	aggregationPolicy AggregationPolicy
+	indicatorsMutex   sync.Mutex
+	aggregatorMutex   sync.Mutex
+}
+
+func (p *defaultRegistry) RegisterHealthAggregationPolicy(aggregator AggregationPolicy) {
+	p.aggregatorMutex.Lock()
+	defer p.aggregatorMutex.Unlock()
+	p.aggregationPolicy = aggregator
+}
+
+func (p *defaultRegistry) HealthAggregationPolicy() AggregationPolicy {
+	return p.aggregationPolicy
 }
 
 func (p *defaultRegistry) AddHealthIndicator(indicator Indicator) {
+	p.indicatorsMutex.Lock()
+	defer p.indicatorsMutex.Unlock()
 	p.indicators = append(p.indicators, indicator)
 }
 

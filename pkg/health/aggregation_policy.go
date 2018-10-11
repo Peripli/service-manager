@@ -16,13 +16,13 @@
 
 package health
 
-// DefaultAggregator aggregates the healths by constructing a new Health based on the given
+// DefaultAggregationPolicy aggregates the healths by constructing a new Health based on the given
 // where the overall health status is negative if one of the healths is negative and positive if all are positive
-type DefaultAggregator struct {
+type DefaultAggregationPolicy struct {
 }
 
-// Aggregate aggregates the given healths
-func (*DefaultAggregator) Aggregate(healths map[string]*Health) *Health {
+// Apply aggregates the given healths
+func (*DefaultAggregationPolicy) Apply(healths map[string]*Health) *Health {
 	if len(healths) == 0 {
 		return New().WithDetail("error", "no health indicators registered").Unknown()
 	}

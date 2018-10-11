@@ -25,19 +25,23 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-// Controller platform controller
-type Controller struct {
-	Indicator health.Indicator
+// controller platform controller
+type controller struct {
+	indicator health.Indicator
 }
 
-var _ web.Controller = &Controller{}
+func NewController(indicators []health.Indicator, aggregator health.AggregationPolicy) web.Controller {
+	return &controller{
+		indicator: newCompositeIndicator(indicators, aggregator),
+	}
+}
 
 // healthCheck handler for GET /v1/monitor/health
-func (c *Controller) healthCheck(r *web.Request) (*web.Response, error) {
+func (c *controller) healthCheck(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	logger := log.C(ctx)
-	logger.Debug("Performing healthResult check...")
-	healthResult := c.Indicator.Health()
+	logger.Debugf("Performing health check with %s...", c.indicator.Name())
+	healthResult := c.indicator.Health()
 	var status int
 	if healthResult.Status == health.StatusUp {
 		status = http.StatusOK

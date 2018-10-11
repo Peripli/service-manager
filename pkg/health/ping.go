@@ -14,26 +14,16 @@
  * limitations under the License.
  */
 
-package storage
+package health
 
-import "github.com/Peripli/service-manager/pkg/health"
-
-// HealthIndicator returns a new indicator for the storage
-type HealthIndicator struct {
-	Storage Storage
+// pingIndicator is a default indicator that always returns up
+type pingIndicator struct {
 }
 
-// Name returns the name of the storage component
-func (i *HealthIndicator) Name() string {
-	return "storage"
+func (*pingIndicator) Name() string {
+	return "ping"
 }
 
-// Health returns the health of the storage component
-func (i *HealthIndicator) Health() *health.Health {
-	err := i.Storage.Ping()
-	healthz := health.New()
-	if err != nil {
-		return healthz.WithError(err).WithDetail("message", "Storage ping failed")
-	}
-	return healthz.Up()
+func (*pingIndicator) Health() *Health {
+	return New().Up()
 }
