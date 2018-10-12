@@ -24,7 +24,7 @@ import (
 )
 
 // CorrelationIDHeaders are the headers whose values will be taken as a correlation id for incoming requests
-var CorrelationIDHeaders = []string{"X-Correlation-ID", "X-CorrelationID", "X-ForRequest-ID"}
+var CorrelationIDHeaders = []string{"X-Correlation-ID", "X-CorrelationID", "X-ForRequest-ID", "X-Request-ID"}
 
 // CorrelationIDForRequest returns checks the http headers for any of the supported correlation id headers.
 // The first that matches is taken as the correlation id. If none exists a new one is generated.
@@ -38,7 +38,7 @@ func CorrelationIDForRequest(request *http.Request) string {
 	uuids, err := uuid.NewV4()
 	if err == nil {
 		newCorrelationID = uuids.String()
-		request.Header.Set(CorrelationIDHeaders[0], newCorrelationID)
+		request.Header[CorrelationIDHeaders[0]] = []string{newCorrelationID} // case-sensitive, do not use canonical set
 	}
 	return newCorrelationID
 }
