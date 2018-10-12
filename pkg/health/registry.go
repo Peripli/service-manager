@@ -16,28 +16,20 @@
 
 package health
 
-import "sync"
-
 // NewDefaultRegistry returns a default health registry with a single ping indicator and a default aggregation policy
 func NewDefaultRegistry() Registry {
 	return &defaultRegistry{
 		indicators:        []Indicator{&pingIndicator{}},
 		aggregationPolicy: &DefaultAggregationPolicy{},
-		indicatorsMutex:   sync.Mutex{},
-		aggregatorMutex:   sync.Mutex{},
 	}
 }
 
 type defaultRegistry struct {
 	indicators        []Indicator
 	aggregationPolicy AggregationPolicy
-	indicatorsMutex   sync.Mutex
-	aggregatorMutex   sync.Mutex
 }
 
 func (p *defaultRegistry) RegisterHealthAggregationPolicy(aggregator AggregationPolicy) {
-	p.aggregatorMutex.Lock()
-	defer p.aggregatorMutex.Unlock()
 	p.aggregationPolicy = aggregator
 }
 
@@ -46,8 +38,6 @@ func (p *defaultRegistry) HealthAggregationPolicy() AggregationPolicy {
 }
 
 func (p *defaultRegistry) AddHealthIndicator(indicator Indicator) {
-	p.indicatorsMutex.Lock()
-	defer p.indicatorsMutex.Unlock()
 	p.indicators = append(p.indicators, indicator)
 }
 

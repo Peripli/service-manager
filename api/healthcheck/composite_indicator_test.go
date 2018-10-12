@@ -34,9 +34,25 @@ func TestNewCompositeIndicator(t *testing.T) {
 var _ = Describe("Healthcheck Composite indicator", func() {
 
 	Context("New Composite indicator", func() {
-		It("Has a name", func() {
-			indicator := newCompositeIndicator(nil, nil)
-			Expect(indicator.Name()).ToNot(BeEmpty())
+		When("No indicators are provided ", func() {
+			It("Has default name", func() {
+				indicator := newCompositeIndicator(nil, nil)
+				Expect(indicator.Name()).To(Equal(defaultCompositeName))
+			})
+		})
+
+		When("Has indicators", func() {
+			It("Has the name of the indicator", func() {
+				fakeIndicator1 := &healthfakes.FakeIndicator{}
+				fakeIndicator1.NameReturns("fake1")
+
+				fakeIndicator2 := &healthfakes.FakeIndicator{}
+				fakeIndicator2.NameReturns("fake2")
+				indicators := []health.Indicator{fakeIndicator1, fakeIndicator2}
+				indicator := newCompositeIndicator(indicators, nil)
+
+				Expect(indicator.Name()).To(Equal(aggregateIndicatorNames(indicators)))
+			})
 		})
 	})
 

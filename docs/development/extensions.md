@@ -1,8 +1,18 @@
-# Filters, Plugins, Controllers
+# Extending the Service Manager
+
+- [Filters](#filters)
+- [Plugins](#plugins)
+- [Controllers](#controllers)
+- [Health](#provide-your-own-health-indicators)
 
 The main extension points of the service manager are filters, plugins and controllers. The
 interfaces that need to be implemented in order to provide an extension point can be found
-in the `pkg/web` package.
+in the `pkg/web` package. 
+
+In addition, for your components you can provide your own health metrics by adding a simple health indicator.
+You can also configure how all the provided health metrics be displayed by registering your aggregation policy
+which can customize the health report. 
+
 
 ## Filters
 
@@ -207,3 +217,21 @@ func main() {
 }
 ...
 ```
+
+## Provide your own health indicators
+
+You can add your own health metrics to be available on the health endpoint (`/v1/monitor/health`).
+The calculated healths can then be formatted to your liking by registering an aggregation policy.
+
+```go
+...
+func main() {
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
+
+    env := sm.DefaultEnv()
+    serviceManager := sm.New(ctx, cancel, env)
+    serviceManager.AddHealthIndicator(&MyHealthIndicator{})
+    serviceManager.RegisterHealthAggregationPolicy(&MyAggregationPolicy{})
+}
+``` 
