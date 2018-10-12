@@ -24,6 +24,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/util"
+
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/config"
 	"github.com/Peripli/service-manager/pkg/log"
@@ -74,7 +76,7 @@ func DefaultEnv(additionalPFlags ...func(set *pflag.FlagSet)) env.Environment {
 }
 
 // New returns service-manager Server with default setup. The function panics on bad configuration
-func New(ctx context.Context, env env.Environment) *ServiceManagerBuilder {
+func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *ServiceManagerBuilder {
 	// setup config from env
 	cfg, err := config.New(env)
 	if err != nil {
@@ -88,6 +90,9 @@ func New(ctx context.Context, env env.Environment) *ServiceManagerBuilder {
 
 	// setup logging
 	ctx = log.Configure(ctx, cfg.Log)
+
+	// goroutines that log must be started after the log has been configured
+	util.HandleInterrupts(ctx, cancel)
 
 	// setup smStorage
 	smStorage, err := storage.Use(ctx, postgres.Storage, cfg.Storage.URI, []byte(cfg.API.Security.EncryptionKey))

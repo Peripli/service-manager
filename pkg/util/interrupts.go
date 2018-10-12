@@ -9,8 +9,7 @@ import (
 )
 
 // HandleInterrupts handles process signal interrupts
-func HandleInterrupts() (context.Context, context.CancelFunc) {
-	ctx, cancel := context.WithCancel(context.Background())
+func HandleInterrupts(ctx context.Context, cancel context.CancelFunc) {
 	term := make(chan os.Signal)
 	signal.Notify(term, os.Interrupt)
 	go func() {
@@ -22,5 +21,4 @@ func HandleInterrupts() (context.Context, context.CancelFunc) {
 			return
 		}
 	}()
-	return ctx, cancel
 }
