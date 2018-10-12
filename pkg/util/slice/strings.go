@@ -18,6 +18,8 @@ package slice
 
 import "strings"
 
+type stringPredicate func(next string) bool
+
 // StringsIntersection returns the common elements in two string slices.
 func StringsIntersection(str1, str2 []string) []string {
 	var intersection []string
@@ -35,41 +37,41 @@ func StringsIntersection(str1, str2 []string) []string {
 
 // StringsContaining returns a slice of the strings containing the specified string.
 func StringsContaining(stringSlice []string, str string) []string {
-	var result []string
-	for _, v := range stringSlice {
-		if strings.Contains(v, str) {
-			result = append(result, v)
-		}
-	}
-	return result
+	return filter(stringSlice, func(next string) bool {
+		return strings.Contains(next, str)
+	})
 }
 
 // StringsAnyPrefix returns true if any of the strings in the slice have the given prefix.
 func StringsAnyPrefix(stringSlice []string, prefix string) bool {
-	for _, v := range stringSlice {
-		if strings.HasPrefix(v, prefix) {
-			return true
-		}
-	}
-	return false
+	stringsWithPrefix := filter(stringSlice, func(next string) bool {
+		return strings.HasPrefix(next, prefix)
+	})
+	return len(stringsWithPrefix) > 0
 }
 
 // StringsAnyEquals returns true if any of the strings in the slice equal the given string.
 func StringsAnyEquals(stringSlice []string, str string) bool {
-	for _, v := range stringSlice {
-		if v == str {
-			return true
-		}
-	}
-	return false
+	equalStrings := filter(stringSlice, func(next string) bool {
+		return next == str
+	})
+	return len(equalStrings) > 0
 }
 
 // StringsAnyEqualsIgnoreCase returns true if any of the strings in the slice equal the given string ignoring the case.
 func StringsAnyEqualsIgnoreCase(stringSlice []string, str string) bool {
+	equalIgnoreCase := filter(stringSlice, func(next string) bool {
+		return strings.EqualFold(next, str)
+	})
+	return len(equalIgnoreCase) > 0
+}
+
+func filter(stringSlice []string, predicate stringPredicate) []string {
+	var result []string
 	for _, v := range stringSlice {
-		if strings.EqualFold(v, str) {
-			return true
+		if predicate(v) {
+			result = append(result, v)
 		}
 	}
-	return false
+	return result
 }
