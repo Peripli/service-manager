@@ -233,5 +233,7 @@ func main() {
     serviceManager := sm.New(ctx, cancel, env)
     serviceManager.AddHealthIndicator(&MyHealthIndicator{})
     serviceManager.RegisterHealthAggregationPolicy(&MyAggregationPolicy{})
+    sm := serviceManager.Build()
+    sm.Run()
 }
 ``` 
