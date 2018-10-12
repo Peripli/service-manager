@@ -55,7 +55,7 @@ $(BINDIR):
 
 test: build
 	@echo Running tests:
-	@go test ./... -p 1 -coverpkg $(shell go list ./... | egrep -v "fakes|test" | paste -sd "," -) -coverprofile=$(TEST_PROFILE)
+	@go test ./... -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test" | paste -sd "," -) -coverprofile=$(TEST_PROFILE)
 
 coverage: build test
 	@go tool cover -html=$(TEST_PROFILE) -o "$(COVERAGE)"
