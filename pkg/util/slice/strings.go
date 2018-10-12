@@ -63,3 +63,13 @@ func StringsAnyEquals(stringSlice []string, str string) bool {
 	}
 	return false
 }
+
+// StringsAnyEqualsIgnoreCase returns true if any of the strings in the slice equal the given string ignoring the case.
+func StringsAnyEqualsIgnoreCase(stringSlice []string, str string) bool {
+	for _, v := range stringSlice {
+		if strings.EqualFold(v, str) {
+			return true
+		}
+	}
+	return false
+}

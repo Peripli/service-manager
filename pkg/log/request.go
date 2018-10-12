@@ -30,7 +30,7 @@ var CorrelationIDHeaders = []string{"X-Correlation-ID", "X-CorrelationID", "X-Fo
 // The first that matches is taken as the correlation id. If none exists a new one is generated.
 func CorrelationIDForRequest(request *http.Request) string {
 	for key, val := range request.Header {
-		if slice.StringsAnyEquals(CorrelationIDHeaders, key) {
+		if slice.StringsAnyEqualsIgnoreCase(CorrelationIDHeaders, key) {
 			return val[0]
 		}
 	}
@@ -38,7 +38,7 @@ func CorrelationIDForRequest(request *http.Request) string {
 	uuids, err := uuid.NewV4()
 	if err == nil {
 		newCorrelationID = uuids.String()
-		request.Header[CorrelationIDHeaders[0]] = []string{newCorrelationID} // case-sensitive, do not use canonical set
+		request.Header.Set(CorrelationIDHeaders[0], newCorrelationID)
 	}
 	return newCorrelationID
 }
