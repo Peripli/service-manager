@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-// Package oidc contains logic for setting up an Open ID Connect authenticator
-package oidc
+// Package oauth contains logic for setting up an Open ID Connect authenticator
+package oauth
 
 import (
 	"context"
@@ -26,9 +26,9 @@ import (
 
 	"fmt"
 
+	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/pkg/security"
 	goidc "github.com/coreos/go-oidc"
 )
 
@@ -44,8 +44,8 @@ type providerJSON struct {
 	JWKSURL string `json:"jwks_uri"`
 }
 
-// Options is the configuration used to construct a new OIDC authenticator
-type Options struct {
+// options is the configuration used to construct a new OIDC authenticator
+type options struct {
 	// IssuerURL is the base URL of the token issuer
 	IssuerURL string
 
@@ -56,13 +56,13 @@ type Options struct {
 	ReadConfigurationFunc util.DoRequestFunc
 }
 
-// Authenticator is the OpenID implementation of security.Authenticator
-type Authenticator struct {
+// oauthAuthenticator is the OpenID implementation of security.Authenticator
+type oauthAuthenticator struct {
 	Verifier security.TokenVerifier
 }
 
-// NewAuthenticator returns a new OpenID authenticator or an error if one couldn't be configured
-func NewAuthenticator(ctx context.Context, options *Options) (*Authenticator, error) {
+// newAuthenticator returns a new OpenID authenticator or an error if one couldn't be configured
+func newAuthenticator(ctx context.Context, options *options) (security.Authenticator, error) {
 	if options.IssuerURL == "" {
 		return nil, errors.New("missing issuer URL")
 	}
@@ -81,12 +81,12 @@ func NewAuthenticator(ctx context.Context, options *Options) (*Authenticator, er
 	}
 
 	keySet := goidc.NewRemoteKeySet(ctx, p.JWKSURL)
-	return &Authenticator{Verifier: &oidcVerifier{
+	return &oauthAuthenticator{Verifier: &oidcVerifier{
 		IDTokenVerifier: goidc.NewVerifier(p.Issuer, keySet, newOIDCConfig(options)),
 	}}, nil
 }
 
-func newOIDCConfig(options *Options) *goidc.Config {
+func newOIDCConfig(options *options) *goidc.Config {
 	return &goidc.Config{
 		ClientID:          options.ClientID,
 		SkipClientIDCheck: options.ClientID == "",
@@ -94,7 +94,7 @@ func newOIDCConfig(options *Options) *goidc.Config {
 }
 
 // Authenticate returns information about the user by obtaining it from the bearer token, or an error if security is unsuccessful
-func (a *Authenticator) Authenticate(request *http.Request) (*web.User, security.Decision, error) {
+func (a *oauthAuthenticator) Authenticate(request *http.Request) (*web.User, security.Decision, error) {
 	authorizationHeader := request.Header.Get("Authorization")
 	if authorizationHeader == "" || !strings.HasPrefix(strings.ToLower(authorizationHeader), "bearer") {
 		return nil, security.Abstain, nil
@@ -120,7 +120,7 @@ func (a *Authenticator) Authenticate(request *http.Request) (*web.User, security
 	}, security.Allow, nil
 }
 
-func getOpenIDConfig(ctx context.Context, options *Options) (*http.Response, error) {
+func getOpenIDConfig(ctx context.Context, options *options) (*http.Response, error) {
 	// Work around for UAA until https://github.com/cloudfoundry/uaa/issues/805 is fixed
 	// Then goidc.NewProvider(ctx, options.IssuerURL) should be used
 	if _, err := url.ParseRequestURI(options.IssuerURL); err != nil {

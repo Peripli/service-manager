@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package oidc
+package oauth
 
 import (
 	"bytes"
@@ -73,54 +73,54 @@ func (c *mockReadCloser) Close() error {
 var _ = Describe("OIDC Authenticator", func() {
 
 	ctx := context.TODO()
-	var openidServer *ghttp.Server
-	openIdResponseCode := http.StatusOK
-	var openIdResponseBody providerJSON
-	var openIdResponseBodyBytes []byte
+	var openIDServer *ghttp.Server
+	openIDResponseCode := http.StatusOK
+	var openIDResponseBody providerJSON
+	var openIDResponseBodyBytes []byte
 
 	var readConfigFunc util.DoRequestFunc
-	var options *Options
+	var oauthOptions *options
 
 	issuerPath := "/oauth/token"
 	jwksPath := "/public_keys"
 
-	newOpenIdServer := func() *ghttp.Server {
+	newOpenIDServer := func() *ghttp.Server {
 		server := ghttp.NewServer()
-		openIdResponseBody = providerJSON{
+		openIDResponseBody = providerJSON{
 			Issuer:  server.URL() + issuerPath,
 			JWKSURL: server.URL() + jwksPath,
 		}
-		openIdResponseBodyBytes, _ = json.Marshal(&openIdResponseBody)
+		openIDResponseBodyBytes, _ = json.Marshal(&openIDResponseBody)
 		server.RouteToHandler(http.MethodGet, "/.well-known/openid-configuration", func(writer http.ResponseWriter, request *http.Request) {
 			writer.Header().Set("Content-Type", "application/json")
-			writer.WriteHeader(openIdResponseCode)
-			writer.Write(openIdResponseBodyBytes)
+			writer.WriteHeader(openIDResponseCode)
+			writer.Write(openIDResponseBodyBytes)
 		})
 		return server
 	}
 
 	BeforeEach(func() {
-		openidServer = newOpenIdServer()
-		openIdResponseCode = http.StatusOK
+		openIDServer = newOpenIDServer()
+		openIDResponseCode = http.StatusOK
 	})
 
 	JustBeforeEach(func() {
-		options = &Options{
+		oauthOptions = &options{
 			ReadConfigurationFunc: readConfigFunc,
-			IssuerURL:             openidServer.URL(),
+			IssuerURL:             openIDServer.URL(),
 			ClientID:              "client-id",
 		}
 	})
 
 	AfterEach(func() {
-		openidServer.Close()
+		openIDServer.Close()
 	})
 
-	Context("NewAuthenticator", func() {
+	Context("newAuthenticator", func() {
 		Context("When no Issuer URL is present", func() {
 			It("Should return an error", func() {
-				options.IssuerURL = ""
-				authenticator, err := NewAuthenticator(ctx, options)
+				oauthOptions.IssuerURL = ""
+				authenticator, err := newAuthenticator(ctx, oauthOptions)
 				Expect(authenticator).To(BeNil())
 				Expect(err).To(Not(BeNil()))
 			})
@@ -133,14 +133,14 @@ var _ = Describe("OIDC Authenticator", func() {
 			BeforeEach(func() {
 				readConfigFunc = func(request *http.Request) (*http.Response, error) {
 					return &http.Response{
-						StatusCode: openIdResponseCode,
+						StatusCode: openIDResponseCode,
 						Body:       body,
 					}, readError
 				}
 			})
 
 			AfterEach(func() {
-				body = ioutil.NopCloser(bytes.NewReader(openIdResponseBodyBytes))
+				body = ioutil.NopCloser(bytes.NewReader(openIDResponseBodyBytes))
 				readError = nil
 			})
 
@@ -149,7 +149,7 @@ var _ = Describe("OIDC Authenticator", func() {
 					readError = fmt.Errorf("could not read config")
 				})
 				It("Should return an error", func() {
-					_, err := NewAuthenticator(ctx, options)
+					_, err := newAuthenticator(ctx, oauthOptions)
 					Expect(err).To(Not(BeNil()))
 				})
 			})
@@ -157,11 +157,11 @@ var _ = Describe("OIDC Authenticator", func() {
 			Context("When reader returns an error", func() {
 				expectedErr := fmt.Errorf("read error")
 				BeforeEach(func() {
-					openIdResponseCode = http.StatusOK
+					openIDResponseCode = http.StatusOK
 					body = ioutil.NopCloser(&mockReader{buff: "{}", err: expectedErr})
 				})
 				It("Should return an error", func() {
-					_, err := NewAuthenticator(ctx, options)
+					_, err := newAuthenticator(ctx, oauthOptions)
 					Expect(err).To(Not(BeNil()))
 					Expect(err.Error()).To(ContainSubstring(expectedErr.Error()))
 				})
@@ -169,11 +169,11 @@ var _ = Describe("OIDC Authenticator", func() {
 
 			Context("When response is not a json", func() {
 				BeforeEach(func() {
-					openIdResponseCode = http.StatusOK
+					openIDResponseCode = http.StatusOK
 					body = ioutil.NopCloser(&mockReader{buff: "{invalidJson", err: nil})
 				})
 				It("Should return an error", func() {
-					_, err := NewAuthenticator(ctx, options)
+					_, err := newAuthenticator(ctx, oauthOptions)
 					Expect(err).To(Not(BeNil()))
 				})
 			})
@@ -190,16 +190,16 @@ var _ = Describe("OIDC Authenticator", func() {
 				})
 
 				It("Should log an error", func() {
-					NewAuthenticator(ctx, options)
+					newAuthenticator(ctx, oauthOptions)
 					Expect(loggingInterceptor).To(ContainSubstring(expectedError.Error()))
 				})
 			})
 			Context("When configuration is correct", func() {
 				BeforeEach(func() {
-					openIdResponseCode = http.StatusOK
+					openIDResponseCode = http.StatusOK
 				})
 				It("Should return an authenticator", func() {
-					authenticator, err := NewAuthenticator(ctx, options)
+					authenticator, err := newAuthenticator(ctx, oauthOptions)
 					Expect(err).To(BeNil())
 					Expect(authenticator).To(Not(BeNil()))
 				})
@@ -214,11 +214,11 @@ var _ = Describe("OIDC Authenticator", func() {
 
 			Context("When invalid status code is returned", func() {
 				BeforeEach(func() {
-					openIdResponseCode = http.StatusInternalServerError
+					openIDResponseCode = http.StatusInternalServerError
 				})
 
 				It("Should return error", func() {
-					_, err := NewAuthenticator(ctx, options)
+					_, err := newAuthenticator(ctx, oauthOptions)
 
 					Expect(err).To(Not(BeNil()))
 				})
@@ -226,11 +226,11 @@ var _ = Describe("OIDC Authenticator", func() {
 
 			Context("When configuration is correct", func() {
 				BeforeEach(func() {
-					openIdResponseCode = http.StatusOK
+					openIDResponseCode = http.StatusOK
 				})
 
 				It("Should return an authenticator", func() {
-					authenticator, err := NewAuthenticator(ctx, options)
+					authenticator, err := newAuthenticator(ctx, oauthOptions)
 					Expect(err).To(BeNil())
 					Expect(authenticator).To(Not(BeNil()))
 				})
@@ -238,12 +238,12 @@ var _ = Describe("OIDC Authenticator", func() {
 
 			Context("newOIDCConfig", func() {
 				It("Should not skip client id check when client id is not empty", func() {
-					config := newOIDCConfig(&Options{ClientID: "client1"})
+					config := newOIDCConfig(&options{ClientID: "client1"})
 					Expect(config.SkipClientIDCheck).To(BeFalse())
 				})
 
 				It("Should skip client id check when client id is empty", func() {
-					config := newOIDCConfig(&Options{ClientID: ""})
+					config := newOIDCConfig(&options{ClientID: ""})
 					Expect(config.SkipClientIDCheck).To(BeTrue())
 				})
 			})
@@ -256,7 +256,7 @@ var _ = Describe("OIDC Authenticator", func() {
 			err     error
 		)
 		validateAuthenticationReturns := func(expectedUser *web.User, expectedDecision security.Decision, expectedErr error) {
-			authenticator, _ := NewAuthenticator(ctx, options)
+			authenticator, _ := newAuthenticator(ctx, oauthOptions)
 
 			user, decision, err := authenticator.Authenticate(request)
 
@@ -281,8 +281,8 @@ var _ = Describe("OIDC Authenticator", func() {
 
 			readConfigFunc = func(request *http.Request) (*http.Response, error) {
 				return &http.Response{
-					StatusCode: openIdResponseCode,
-					Body:       ioutil.NopCloser(bytes.NewReader(openIdResponseBodyBytes)),
+					StatusCode: openIDResponseCode,
+					Body:       ioutil.NopCloser(bytes.NewReader(openIDResponseBodyBytes)),
 				}, nil
 			}
 		})
@@ -328,7 +328,7 @@ var _ = Describe("OIDC Authenticator", func() {
 
 				BeforeEach(func() {
 					verifier = &securityfakes.FakeTokenVerifier{}
-					authenticator = &Authenticator{Verifier: verifier}
+					authenticator = &oauthAuthenticator{Verifier: verifier}
 
 					request.Header.Set("Authorization", "Bearer token")
 				})
@@ -375,10 +375,10 @@ var _ = Describe("OIDC Authenticator", func() {
 					expectedUserName := "test_user"
 
 					BeforeEach(func() {
-						tokenJson := fmt.Sprintf(`{"user_name": "%s", "abc": "xyz"}`, expectedUserName)
+						tokenJSON := fmt.Sprintf(`{"user_name": "%s", "abc": "xyz"}`, expectedUserName)
 						token := &webfakes.FakeTokenData{}
 						token.ClaimsStub = func(v interface{}) error {
-							return json.Unmarshal([]byte(tokenJson), v)
+							return json.Unmarshal([]byte(tokenJSON), v)
 						}
 						verifier.VerifyReturns(token, nil)
 					})

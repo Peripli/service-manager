@@ -73,14 +73,6 @@ var _ = Describe("Middlewares tests", func() {
 		})
 
 		Describe("when Filter.Run is invoked", func() {
-			Context("when authorization already confirmed", func() {
-				It("should continue", func() {
-					authzFilter := NewAuthzMiddleware(filterName, nil)
-					req.Request = req.Request.WithContext(web.WithAuthorizedContext(req.Context()))
-					authzFilter.Run(req, handler)
-					Expect(handler.HandleCallCount()).To(Equal(1))
-				})
-			})
 
 			Context("when authorizer returns decision", func() {
 				Context("Deny", func() {

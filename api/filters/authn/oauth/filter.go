@@ -1,11 +1,10 @@
-package authn
+package oauth
 
 import (
 	"context"
 
 	"github.com/Peripli/service-manager/pkg/security/middlewares"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/security/oidc"
 )
 
 // BearerAuthnFilterName is the name of the bearer authentication filter
@@ -31,9 +30,9 @@ func (ba *bearerAuthnFilter) FilterMatchers() []web.FilterMatcher {
 	}
 }
 
-// NewBearerAuthnFilter returns a web.Filter for Bearer authentication
-func NewBearerAuthnFilter(ctx context.Context, tokenIssuer, clientID string) (web.Filter, error) {
-	authenticator, err := oidc.NewAuthenticator(ctx, &oidc.Options{
+// NewFilter returns a web.Filter for Bearer authentication
+func NewFilter(ctx context.Context, tokenIssuer, clientID string) (web.Filter, error) {
+	authenticator, err := newAuthenticator(ctx, &options{
 		IssuerURL: tokenIssuer,
 		ClientID:  clientID,
 	})

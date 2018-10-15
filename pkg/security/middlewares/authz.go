@@ -42,11 +42,6 @@ type authzMiddleware struct {
 // Run represents the authorization middleware function that delegates the authorization
 // to the provided authorizer
 func (m *authzMiddleware) Run(request *web.Request, next web.Handler) (*web.Response, error) {
-	ctx := request.Context()
-	if web.IsAuthorized(ctx) {
-		return next.Handle(request)
-	}
-
 	decision, err := m.Authorizer.Authorize(request.Request)
 	if err != nil {
 		if decision == security.Deny {
@@ -57,7 +52,10 @@ func (m *authzMiddleware) Run(request *web.Request, next web.Handler) (*web.Resp
 
 	switch decision {
 	case security.Allow:
-		request.Request = request.WithContext(web.WithAuthorizedContext(ctx))
+		ctx := request.Context()
+		if !web.IsAuthorized(ctx) {
+			request.Request = request.WithContext(web.WithAuthorizedContext(ctx))
+		}
 	case security.Deny:
 		return nil, security.ForbiddenHTTPError("authorization failed")
 	}
