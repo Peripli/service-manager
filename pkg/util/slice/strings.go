@@ -58,14 +58,6 @@ func StringsAnyEquals(stringSlice []string, str string) bool {
 	return len(equalStrings) > 0
 }
 
-// StringsAnyEqualsIgnoreCase returns true if any of the strings in the slice equal the given string ignoring the case.
-func StringsAnyEqualsIgnoreCase(stringSlice []string, str string) bool {
-	equalIgnoreCase := filter(stringSlice, func(next string) bool {
-		return strings.EqualFold(next, str)
-	})
-	return len(equalIgnoreCase) > 0
-}
-
 func filter(stringSlice []string, predicate stringPredicate) []string {
 	var result []string
 	for _, v := range stringSlice {
