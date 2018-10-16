@@ -19,19 +19,19 @@ package log
 import (
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/gofrs/uuid"
 )
 
 // CorrelationIDHeaders are the headers whose values will be taken as a correlation id for incoming requests
-var CorrelationIDHeaders = []string{"X-Correlation-ID", "X-CorrelationID", "X-ForRequest-ID"}
+var CorrelationIDHeaders = []string{"X-Correlation-ID", "X-CorrelationID", "X-ForRequest-ID", "X-Request-ID"}
 
 // CorrelationIDForRequest returns checks the http headers for any of the supported correlation id headers.
 // The first that matches is taken as the correlation id. If none exists a new one is generated.
 func CorrelationIDForRequest(request *http.Request) string {
-	for key, val := range request.Header {
-		if slice.StringsAnyEquals(CorrelationIDHeaders, key) {
-			return val[0]
+	for _, header := range CorrelationIDHeaders {
+		headerValue := request.Header.Get(header)
+		if headerValue != "" {
+			return headerValue
 		}
 	}
 	newCorrelationID := ""
