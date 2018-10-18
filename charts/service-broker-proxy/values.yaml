@@ -1,0 +1,46 @@
+# Default values for service-broker-proxy.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: quay.io/service-manager/sb-proxy-k8s
+  tag: latest
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 80
+
+file:
+  name: application
+  location: /etc/config
+  format: yml
+
+sm:
+  user: HdfiqAG9MoFHeMY4d5aQ+GJq4mEwMmlP26lHS9+E+sw=
+  password: o97eZRZeE2FvUIL6pl0EMK/NgS4W9nFjA2HAutRPQic=
+
+# Credentials used to register the proxy as a broker
+reg:
+  user: admin
+  password: admin
+
+config:
+  server:
+    port: 8081
+    request_timeout: 4000ms
+    shutdown_timeout: 4000ms
+  log:
+    level: debug
+    format: text
+  sm:
+    url: http://192.168.64.2:31876
+    osb_api_path: /v1/osb
+    request_timeout: 6000ms
+    skip_ssl_validation: false
+    resync_period: 1m
+  k8s:
+    client:
+      timeout: 30000ms

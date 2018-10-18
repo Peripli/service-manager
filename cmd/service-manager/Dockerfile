@@ -18,7 +18,7 @@ RUN dep ensure --vendor-only -v
 
 # Copy and build source code
 COPY . ./
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -o /main main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -o /main-sm cmd/service-manager/main.go
 
 ########################################################
 # Build the runtime container
@@ -30,10 +30,13 @@ RUN apk add --no-cache ca-certificates
 WORKDIR /app
 
 # Copy the executable file
-COPY --from=builder /main /app/
+COPY --from=builder /main-sm /app/
 
 # Copy migration scripts
 COPY --from=builder /go/src/github.com/Peripli/service-manager/storage/postgres/migrations/ /app/storage/postgres/migrations/
 
+# Copy configuration
+COPY --from=builder /go/src/github.com/Peripli/service-manager/cmd/service-manager/application.yml /app/cmd/service-manager/application.yml
+
 EXPOSE 8080
-ENTRYPOINT [ "./main" ]
+ENTRYPOINT [ "./main-sm" ]

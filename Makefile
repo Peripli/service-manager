@@ -17,7 +17,7 @@ all: build test
 BINDIR ?= bin
 TEST_PROFILE ?= $(CURDIR)/profile.cov
 COVERAGE ?= $(CURDIR)/coverage.html
-PROJECT_PKG = github.com/Peripli/service-manager
+PROJECT_PKG = github.com/Peripli/service-manager/cmd/service-manager
 
 PLATFORM ?= linux
 ARCH     ?= amd64

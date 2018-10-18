@@ -71,7 +71,7 @@
 
 [[constraint]]
   name = "gopkg.in/yaml.v2"
-  version = "2.2.1"
+  branch = "v2"
 
 [[constraint]]
   name = "github.com/gobwas/glob"
@@ -92,6 +92,18 @@
 [[constraint]]
   name = "github.com/DATA-DOG/go-sqlmock"
   revision = "852fc940e4b9b895dc144b88ee8f6e39228127b0"
+
+[[constraint]]
+  name = "github.com/pkg/errors"
+  version = "0.8.0"
+
+[[constraint]]
+  name = "github.com/kubernetes-incubator/service-catalog"
+  version = "=0.1.36"
+
+[[constraint]]
+  name = "github.com/cloudfoundry-community/go-cfclient"
+  branch = "master"
 
 # Refer to issue https://github.com/golang/dep/issues/1799
 [[override]]

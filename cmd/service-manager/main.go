@@ -19,13 +19,16 @@ package main
 import (
 	"github.com/Peripli/service-manager/pkg/sm"
 	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/spf13/pflag"
 )
 
 func main() {
 	ctx, cancel := util.HandleInterrupts()
 	defer cancel()
 
-	env := sm.DefaultEnv()
+	env := sm.DefaultEnv(func(set *pflag.FlagSet) {
+		set.Set("file.location", "cmd/service-manager")
+	})
 	serviceManager := sm.New(ctx, env).Build()
 	serviceManager.Run()
 }
