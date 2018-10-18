@@ -19,45 +19,35 @@ package healthcheck
 import (
 	"net/http"
 
+	"github.com/Peripli/service-manager/pkg/health"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/storage"
 )
 
-
-// Controller platform controller
-type Controller struct {
-	Storage storage.Storage
+// controller platform controller
+type controller struct {
+	indicator health.Indicator
 }
 
-var _ web.Controller = &Controller{}
-
-var statusRunningResponse = map[string]interface{}{
-	"status": "UP",
-	"storage": map[string]interface{}{
-		"status": "UP",
-	},
-}
-
-var statusStorageFailureResponse = map[string]interface{}{
-	"status": "OUT_OF_SERVICE",
-	"storage": map[string]interface{}{
-		"status": "DOWN",
-	},
+// NewController returns a new healthcheck controller with the given indicators and aggregation policy
+func NewController(indicators []health.Indicator, aggregator health.AggregationPolicy) web.Controller {
+	return &controller{
+		indicator: newCompositeIndicator(indicators, aggregator),
+	}
 }
 
 // healthCheck handler for GET /v1/monitor/health
-func (c *Controller) healthCheck(r *web.Request) (*web.Response, error) {
+func (c *controller) healthCheck(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	logger := log.C(ctx)
-	logger.Debug("Performing health check...")
-
-	if err := c.Storage.Ping(); err != nil {
-		logger.Debugf("storage.Ping failed: %s", err)
-		return util.NewJSONResponse(http.StatusServiceUnavailable, statusStorageFailureResponse)
+	logger.Debugf("Performing health check with %s...", c.indicator.Name())
+	healthResult := c.indicator.Health()
+	var status int
+	if healthResult.Status == health.StatusUp {
+		status = http.StatusOK
+	} else {
+		status = http.StatusServiceUnavailable
 	}
-
-	logger.Debug("Successfully completed health check")
-	return util.NewJSONResponse(http.StatusOK, statusRunningResponse)
+	return util.NewJSONResponse(status, healthResult)
 }

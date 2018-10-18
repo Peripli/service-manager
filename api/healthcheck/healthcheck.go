@@ -27,7 +27,7 @@ import (
 const URL = web.MonitorHealthURL
 
 // Routes returns slice of routes which handle healthcheck operation
-func (c *Controller) Routes() []web.Route {
+func (c *controller) Routes() []web.Route {
 	return []web.Route{
 		{
 			Endpoint: web.Endpoint{

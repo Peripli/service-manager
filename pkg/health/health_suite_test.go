@@ -14,42 +14,16 @@
  * limitations under the License.
  */
 
-package healthcheck_test
+package health
 
 import (
-	"net/http"
-	"os"
 	"testing"
 
-	"github.com/Peripli/service-manager/api/healthcheck"
-	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
-func Test(t *testing.T) {
-	os.Chdir("../..")
+func TestHealthcheck(t *testing.T) {
+	RegisterFailHandler(Fail)
 	RunSpecs(t, "Healthcheck Suite")
 }
-
-var _ = Describe("Healthcheck API", func() {
-
-	var ctx *common.TestContext
-
-	BeforeSuite(func() {
-		ctx = common.NewTestContext(nil)
-	})
-
-	AfterSuite(func() {
-		ctx.Cleanup()
-	})
-
-	Describe("Get info handler", func() {
-		It("Returns correct response", func() {
-			ctx.SM.GET(healthcheck.URL).
-				Expect().
-				Status(http.StatusOK).JSON().Object().ContainsMap(map[string]interface{}{
-				"status": "UP",
-			})
-		})
-	})
-})

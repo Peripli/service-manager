@@ -24,6 +24,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Peripli/service-manager/api/healthcheck"
+
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/config"
 	"github.com/Peripli/service-manager/pkg/log"
@@ -120,12 +122,20 @@ func New(ctx context.Context, env env.Environment) *ServiceManagerBuilder {
 // Build builds the Service Manager
 func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	// setup server and add relevant global middleware
+	smb.installHealth()
+
 	srv := server.New(smb.cfg, smb.API)
 	srv.Use(filters.NewRecoveryMiddleware())
 
 	return &ServiceManager{
 		ctx:    smb.ctx,
 		Server: srv,
+	}
+}
+
+func (smb *ServiceManagerBuilder) installHealth() {
+	if len(smb.HealthIndicators()) > 0 {
+		smb.RegisterControllers(healthcheck.NewController(smb.HealthIndicators(), smb.HealthAggregationPolicy()))
 	}
 }
 
