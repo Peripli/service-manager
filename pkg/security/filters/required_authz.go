@@ -58,7 +58,6 @@ func (raf *requiredAuthzFilter) FilterMatchers() []web.FilterMatcher {
 				web.Path(
 					web.BrokersURL+"/**",
 					web.PlatformsURL+"/**",
-					web.SMCatalogURL,
 					web.OSBURL+"/**",
 				),
 			},

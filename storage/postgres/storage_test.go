@@ -51,7 +51,7 @@ var _ = Describe("Postgres Storage", func() {
 	Context("Security Storage", func() {
 		Context("Called with uninitialized db", func() {
 			It("Should panic", func() {
-				Expect(func() {pgStorage.Security()})
+				Expect(func() { pgStorage.Security() }).To(Panic())
 			})
 		})
 	})
@@ -76,6 +76,14 @@ var _ = Describe("Postgres Storage", func() {
 		Context("Called with invalid postgres uri", func() {
 			It("Should panic", func() {
 				Expect(func() { pgStorage.Open("invalid_uri", nil) }).To(Panic())
+			})
+		})
+	})
+
+	Describe("Close", func() {
+		Context("Called with uninitialized db", func() {
+			It("Should panic", func() {
+				Expect(func() { pgStorage.Close() }).To(Panic())
 			})
 		})
 	})
