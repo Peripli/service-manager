@@ -35,7 +35,7 @@ Alternatively, you can use external PostgreSQL. In this case you need to have a 
 
 ### Update manifest.yml file
 
-Prepare the manifest for deployment using *[deployment/cf/manifest.yml](https://github.com/Peripli/service-manager/blob/master/deployment/cf/manifest.yml)* as template:
+Prepare the manifest for deployment using *[cmd/service-manager/manifest.yml](https://github.com/Peripli/service-manager/blob/master/cmd/service-manager/manifest.yml)* as template:
 
 * Update environment variable `STORAGE_NAME` by replacing the value *<postgre_instance_name>* with the instance name of your PostgreSQL service. Alternatively, you can use the `STORAGE_URI` environment variable to set external PostgreSQL URI, but in this case `STORAGE_NAME` environment variable and its value must be removed from the manifest.yml.
 * Update environment variable `API_TOKEN_ISSUER_URL` by replacing the value *<api_token_issuer_url>* with the URL of your OAuth server. For example if you are running in CFDev you can use the CFDev UAA.
@@ -51,7 +51,7 @@ $ cf curl /v2/info | jq .token_endpoint
 From the root of the service manager project execute:
 
 ```console
-$ cf push -f deployment/cf/manifest.yml
+$ cf push -f cmd/service-manager/manifest.yml
 ```
 
 ## Run on Kubernetes
@@ -66,7 +66,7 @@ The following must be fulfilled:
 
 ### Install Service Manager
 
-Go to *deployment/k8s/charts/service-manager* folder.
+Go to *charts/service-manager* folder.
 
 Execute:
 
@@ -90,7 +90,7 @@ To change the PostgreSQL username or password you can use the `postgresql.postgr
 $ helm install --name service-manager --namespace service-manager . --set postgresql.postgresUser=<pguser> --set postgresql.postgresPassword=<pgpass>
 ```
 
-**Note:** These credentials will remain in your bash history. Alternatively you can change these values directly in *deployment/k8s/charts/service-manager/values.yaml* file.
+**Note:** These credentials will remain in your bash history. Alternatively you can change these values directly in *charts/service-manager/values.yaml* file.
 
 You can install the Service Manager with external PostgreSQL using a connection string:
 
