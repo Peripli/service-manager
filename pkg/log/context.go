@@ -104,10 +104,9 @@ func Configure(ctx context.Context, settings *Settings) context.Context {
 func ForContext(ctx context.Context) *logrus.Entry {
 	entry := ctx.Value(logKey{})
 	if entry == nil {
-		// copy so that changes to the new entry do not reflect the default entry
-		entry = copyEntry(defaultEntry)
+		entry = defaultEntry
 	}
-	return entry.(*logrus.Entry)
+	return copyEntry(entry.(*logrus.Entry))
 }
 
 // Default returns the default logger
@@ -138,6 +137,10 @@ func AddHook(hook logrus.Hook) {
 }
 
 func copyEntry(entry *logrus.Entry) *logrus.Entry {
+	entryData := make(logrus.Fields, len(entry.Data))
+	for k, v := range entry.Data {
+		entryData[k] = v
+	}
 	return &logrus.Entry{
 		Logger: &logrus.Logger{
 			Level:     entry.Logger.Level,
@@ -146,7 +149,7 @@ func copyEntry(entry *logrus.Entry) *logrus.Entry {
 			Out:       entry.Logger.Out,
 		},
 		Level:   entry.Level,
-		Data:    entry.Data,
+		Data:    entryData,
 		Time:    entry.Time,
 		Message: entry.Message,
 		Buffer:  entry.Buffer,
