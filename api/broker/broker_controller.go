@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/security"
+	"github.com/Peripli/service-manager/pkg/security"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 
 	"github.com/Peripli/service-manager/pkg/types"

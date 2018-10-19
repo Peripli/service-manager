@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-// Package security contains logic for setting SM security
 package security
 
 import (
@@ -24,25 +23,25 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-// AuthenticationDecision represents a Authenticator decision to allow or deny authentication or to abstain from
-// taking a decision
-type AuthenticationDecision int
+// Decision represents a decision to allow or deny further
+// processing or to abstain from taking a decision
+type Decision int
 
-var decisions = []string{"Allow", "Deny", "Abstain"}
+var decisions = []string{"Abstain", "Allow", "Deny"}
 
 const (
-	// Allow represents an authentication decision to allow to proceed
-	Allow AuthenticationDecision = iota
+	// Abstain represents a decision to abstain from deciding - let another component decide
+	Abstain Decision = iota
 
-	// Deny represents an authentication decision to deny proceeding
+	// Allow represents decision to allow to proceed
+	Allow
+
+	// Deny represents decision to deny to proceed
 	Deny
-
-	// Abstain represents an authentication decision to abstain from deciding - let another component to decide
-	Abstain
 )
 
 // String implements Stringer and converts the decision to human-readable value
-func (a AuthenticationDecision) String() string {
+func (a Decision) String() string {
 	return decisions[a]
 }
 
@@ -52,7 +51,16 @@ func (a AuthenticationDecision) String() string {
 type Authenticator interface {
 	// Authenticate returns information about the user if security is successful, a bool specifying
 	// whether the authenticator ran or not and an error if one occurs
-	Authenticate(req *http.Request) (*web.User, AuthenticationDecision, error)
+	Authenticate(req *http.Request) (*web.User, Decision, error)
+}
+
+// Authorizer extracts the information from the authenticated user and
+// returns a decision if the authorization passed
+//go:generate counterfeiter . Authorizer
+type Authorizer interface {
+	// Authorize returns decision specifying
+	// whether the authorizer ran or not and an error if one occurs
+	Authorize(req *http.Request) (Decision, error)
 }
 
 // TokenVerifier attempts to verify a token and returns it or an error if the verification was not successful

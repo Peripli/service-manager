@@ -19,12 +19,12 @@ This repository contains the source code for the Service Manager component. It a
     │   └── platform            # SM Platforms API controller
     ├── cf                      # cloudfoundry specific logic; required for running SM on CF
     ├── config                  # SM options; startup config loaded from env, flags, cfg files
-    ├── security                # Security related components (authenticators, encryptors, etc)
     ├── storage                 # SM storage abstraction
     │   └── postgres            # Postgresql-specific implementation of the SM Storage abstraction
     ├── pkg                     # Contains reusable packages
     │   └── env                 # Environment abstraction; allows loading config from env, pflags and config files
     │   └── log                 # Logging abstraction; allows logging with CorrelationIDs and other request scoped fields
+    |   └── security            # Security related components (authentication and authorization interfaces, encryptors, etc)
     │   └── server              # Allows to set up a server with an API that handles graceful shutdowns
     │   └── sm                  # Creates the service manager application
     │   └── types               # Types used in the Service Manager

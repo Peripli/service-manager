@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package oidc
+package oauth
 
 import (
 	"context"

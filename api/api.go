@@ -24,13 +24,15 @@ import (
 
 	"github.com/Peripli/service-manager/api/broker"
 	"github.com/Peripli/service-manager/api/filters"
-	"github.com/Peripli/service-manager/api/filters/authn"
+	"github.com/Peripli/service-manager/api/filters/authn/basic"
+	"github.com/Peripli/service-manager/api/filters/authn/oauth"
 	"github.com/Peripli/service-manager/api/info"
 	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/api/platform"
 	"github.com/Peripli/service-manager/pkg/health"
+	"github.com/Peripli/service-manager/pkg/security"
+	secfilters "github.com/Peripli/service-manager/pkg/security/filters"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/storage"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 )
@@ -83,7 +85,7 @@ func (s *Settings) Validate() error {
 
 // New returns the minimum set of REST APIs needed for the Service Manager
 func New(ctx context.Context, store storage.Storage, settings *Settings, encrypter security.Encrypter) (*web.API, error) {
-	bearerAuthnFilter, err := authn.NewBearerAuthnFilter(ctx, settings.TokenIssuerURL, settings.ClientID)
+	bearerAuthnFilter, err := oauth.NewFilter(ctx, settings.TokenIssuerURL, settings.ClientID)
 	if err != nil {
 		return nil, err
 	}
@@ -112,9 +114,9 @@ func New(ctx context.Context, store storage.Storage, settings *Settings, encrypt
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
 			&filters.Logging{},
-			authn.NewBasicAuthnFilter(store.Credentials(), encrypter),
+			basic.NewFilter(store.Credentials(), encrypter),
 			bearerAuthnFilter,
-			authn.NewRequiredAuthnFilter(),
+			secfilters.NewRequiredAuthnFilter(),
 		},
 		Registry: healthRegistry,
 	}, nil

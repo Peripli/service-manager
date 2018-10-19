@@ -22,10 +22,10 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/Peripli/service-manager/pkg/security"
+	"github.com/Peripli/service-manager/pkg/security/securityfakes"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/security"
-	"github.com/Peripli/service-manager/security/securityfakes"
 	"github.com/Peripli/service-manager/storage/storagefakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -51,7 +51,7 @@ var _ = Describe("Basic Authenticator", func() {
 	var authenticator security.Authenticator
 
 	JustBeforeEach(func() {
-		authenticator = NewAuthenticator(credentialsStorage, encrypter)
+		authenticator = &basicAuthenticator{CredentialStorage: credentialsStorage, Encrypter: encrypter}
 	})
 
 	Describe("Authenticate", func() {
@@ -75,7 +75,7 @@ var _ = Describe("Basic Authenticator", func() {
 				credentialsStorage.GetReturns(nil, util.ErrNotFoundInStorage)
 			})
 			It("Should deny", func() {
-				request.Header.Add("Authorization", "Basic " + basicHeader)
+				request.Header.Add("Authorization", "Basic "+basicHeader)
 				user, decision, err := authenticator.Authenticate(request)
 				Expect(err).To(Equal(util.ErrNotFoundInStorage))
 				Expect(user).To(BeNil())
@@ -89,7 +89,7 @@ var _ = Describe("Basic Authenticator", func() {
 				credentialsStorage.GetReturns(nil, expectedError)
 			})
 			It("Should abstain with error", func() {
-				request.Header.Add("Authorization", "Basic " + basicHeader)
+				request.Header.Add("Authorization", "Basic "+basicHeader)
 				user, decision, err := authenticator.Authenticate(request)
 				Expect(err.Error()).To(ContainSubstring(expectedError.Error()))
 				Expect(user).To(BeNil())
@@ -104,7 +104,7 @@ var _ = Describe("Basic Authenticator", func() {
 				encrypter.DecryptReturns(nil, transformationError)
 			})
 			It("Should abstain with error", func() {
-				request.Header.Add("Authorization", "Basic " + basicHeader)
+				request.Header.Add("Authorization", "Basic "+basicHeader)
 				user, decision, err := authenticator.Authenticate(request)
 				Expect(err.Error()).To(ContainSubstring(transformationError.Error()))
 				Expect(user).To(BeNil())
@@ -118,7 +118,7 @@ var _ = Describe("Basic Authenticator", func() {
 				encrypter.DecryptReturns([]byte("not-password"), nil)
 			})
 			It("Should deny", func() {
-				request.Header.Add("Authorization", "Basic " + basicHeader)
+				request.Header.Add("Authorization", "Basic "+basicHeader)
 				user, decision, err := authenticator.Authenticate(request)
 				Expect(err).To(BeNil())
 				Expect(user).To(BeNil())
@@ -132,7 +132,7 @@ var _ = Describe("Basic Authenticator", func() {
 				encrypter.DecryptReturns([]byte(password), nil)
 			})
 			It("Should allow", func() {
-				request.Header.Add("Authorization", "Basic " + basicHeader)
+				request.Header.Add("Authorization", "Basic "+basicHeader)
 				user, decision, err := authenticator.Authenticate(request)
 				Expect(err).To(BeNil())
 				Expect(user).To(Not(BeNil()))
