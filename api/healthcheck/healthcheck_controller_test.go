@@ -16,13 +16,15 @@
 package healthcheck
 
 import (
-	"encoding/json"
-	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 
+	"github.com/Peripli/service-manager/pkg/health/healthfakes"
+
+	"github.com/Peripli/service-manager/pkg/health"
+
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/storage/storagefakes"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -30,47 +32,47 @@ import (
 
 func TestServer(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Healthcheck Controller Suite")
+	RunSpecs(t, "Healthcheck controller Suite")
 }
 
 var _ = Describe("Healthcheck controller", func() {
 
-	var availableResponse, unavailableResponse []byte
+	statusText := func(status health.Status) string {
+		return fmt.Sprintf(`status":"%s"`, status)
+	}
 
-	BeforeSuite(func() {
-		var err error
-		availableResponse, err = json.Marshal(statusRunningResponse)
+	assertResponse := func(status health.Status, httpStatus int) {
+		resp, err := createController(status).healthCheck(&web.Request{Request: &http.Request{}})
 		Expect(err).ToNot(HaveOccurred())
-		unavailableResponse, err = json.Marshal(statusStorageFailureResponse)
-		Expect(err).ToNot(HaveOccurred())
-	})
+		Expect(resp.StatusCode).To(Equal(httpStatus))
+		Expect(string(resp.Body)).To(ContainSubstring(statusText(status)))
+	}
 
 	Describe("healthCheck", func() {
-		Context("when ping returns error", func() {
+		When("health returns down", func() {
 			It("should respond with 503", func() {
-				resp, err := createController(errors.New("expected")).healthCheck(&web.Request{Request: &http.Request{}})
-				Expect(err).ToNot(HaveOccurred())
-				Expect(resp.StatusCode).To(Equal(http.StatusServiceUnavailable))
-				Expect(string(resp.Body)).To(Equal(string(unavailableResponse)))
+				assertResponse(health.StatusDown, http.StatusServiceUnavailable)
 			})
 		})
 
-		Context("when ping returns nil", func() {
+		When("health returns unknown", func() {
+			It("should respond with 503", func() {
+				assertResponse(health.StatusUnknown, http.StatusServiceUnavailable)
+			})
+		})
+
+		When("health returns up", func() {
 			It("should respond with 200", func() {
-				resp, err := createController(nil).healthCheck(&web.Request{Request: &http.Request{}})
-				Expect(err).ToNot(HaveOccurred())
-				Expect(resp.StatusCode).To(Equal(http.StatusOK))
-				Expect(string(resp.Body)).To(Equal(string(availableResponse)))
+				assertResponse(health.StatusUp, http.StatusOK)
 			})
 		})
 	})
-
 })
 
-func createController(pingError error) *Controller {
-	fakeStorage := &storagefakes.FakeStorage{}
-	fakeStorage.PingReturns(pingError)
-	return &Controller{
-		Storage: fakeStorage,
+func createController(status health.Status) *controller {
+	indicator := &healthfakes.FakeIndicator{}
+	indicator.HealthReturns(health.New().WithStatus(status))
+	return &controller{
+		indicator: indicator,
 	}
 }

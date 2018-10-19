@@ -20,17 +20,16 @@ package api
 import (
 	"context"
 	"fmt"
-
 	"net/http"
 
 	"github.com/Peripli/service-manager/api/broker"
 	"github.com/Peripli/service-manager/api/catalog"
 	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/api/filters/authn"
-	"github.com/Peripli/service-manager/api/healthcheck"
 	"github.com/Peripli/service-manager/api/info"
 	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/api/platform"
+	"github.com/Peripli/service-manager/pkg/health"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/storage"
@@ -84,44 +83,44 @@ func (s *Settings) Validate() error {
 }
 
 // New returns the minimum set of REST APIs needed for the Service Manager
-func New(ctx context.Context, storage storage.Storage, settings *Settings, encrypter security.Encrypter) (*web.API, error) {
+func New(ctx context.Context, store storage.Storage, settings *Settings, encrypter security.Encrypter) (*web.API, error) {
 	bearerAuthnFilter, err := authn.NewBearerAuthnFilter(ctx, settings.TokenIssuerURL, settings.ClientID)
 	if err != nil {
 		return nil, err
 	}
+	healthRegistry := health.NewDefaultRegistry()
+	healthRegistry.AddHealthIndicator(&storage.HealthIndicator{Storage: store})
 	return &web.API{
 		// Default controllers - more filters can be registered using the relevant API methods
 		Controllers: []web.Controller{
 			&broker.Controller{
-				BrokerStorage:       storage.Broker(),
+				BrokerStorage:       store.Broker(),
 				OSBClientCreateFunc: newOSBClient(settings.SkipSSLValidation),
 				Encrypter:           encrypter,
 			},
 			&platform.Controller{
-				PlatformStorage: storage.Platform(),
+				PlatformStorage: store.Platform(),
 				Encrypter:       encrypter,
 			},
 			&info.Controller{
 				TokenIssuer: settings.TokenIssuerURL,
 			},
 			&catalog.Controller{
-				BrokerStorage: storage.Broker(),
+				BrokerStorage: store.Broker(),
 			},
 			osb.NewController(&osb.StorageBrokerFetcher{
-				BrokerStorage: storage.Broker(),
+				BrokerStorage: store.Broker(),
 				Encrypter:     encrypter,
 			}, http.DefaultTransport),
-			&healthcheck.Controller{
-				Storage: storage,
-			},
 		},
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
 			&filters.Logging{},
-			authn.NewBasicAuthnFilter(storage.Credentials(), encrypter),
+			authn.NewBasicAuthnFilter(store.Credentials(), encrypter),
 			bearerAuthnFilter,
 			authn.NewRequiredAuthnFilter(),
 		},
+		Registry: healthRegistry,
 	}, nil
 }
 
