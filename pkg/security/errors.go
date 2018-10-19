@@ -36,10 +36,10 @@ func UnauthorizedHTTPError(description string) error {
 }
 
 // ForbiddenHTTPError returns HTTPError 403 with some description
-func ForbiddenHTTPError(message string) error {
+func ForbiddenHTTPError(description string) error {
 	return &util.HTTPError{
 		ErrorType:   "Forbidden",
-		Description: message,
+		Description: description,
 		StatusCode:  http.StatusForbidden,
 	}
 }

@@ -26,8 +26,7 @@ import (
 const RequiredAuthorizationFilterName = "RequiredAuthorizationFilter"
 
 // requiredAuthzFilter type verifies that authorization has been performed for APIs that are secured
-type requiredAuthzFilter struct {
-}
+type requiredAuthzFilter struct{}
 
 // NewRequiredAuthzFilter returns web.Filter which requires at least one authorization flows to be successful
 func NewRequiredAuthzFilter() web.Filter {

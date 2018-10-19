@@ -17,8 +17,8 @@ func UserFromContext(ctx context.Context) (*User, bool) {
 	return userStr, ok
 }
 
-// NewContextWithUser sets the authenticated user in the context
-func NewContextWithUser(ctx context.Context, user *User) context.Context {
+// ContextWithUser sets the authenticated user in the context
+func ContextWithUser(ctx context.Context, user *User) context.Context {
 	return context.WithValue(ctx, userKey, user)
 }
 
@@ -28,7 +28,7 @@ func IsAuthorized(ctx context.Context) bool {
 	return ok
 }
 
-// WithAuthorizedContext sets the boolean flag isAuthorized in the request context
-func WithAuthorizedContext(ctx context.Context) context.Context {
+// ContextWithAuthorization sets the boolean flag isAuthorized in the request context
+func ContextWithAuthorization(ctx context.Context) context.Context {
 	return context.WithValue(ctx, isAuthorizedKey, true)
 }

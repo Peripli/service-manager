@@ -54,7 +54,7 @@ func (m *authzMiddleware) Run(request *web.Request, next web.Handler) (*web.Resp
 	case security.Allow:
 		ctx := request.Context()
 		if !web.IsAuthorized(ctx) {
-			request.Request = request.WithContext(web.WithAuthorizedContext(ctx))
+			request.Request = request.WithContext(web.ContextWithAuthorization(ctx))
 		}
 	case security.Deny:
 		return nil, security.ForbiddenHTTPError("authorization failed")

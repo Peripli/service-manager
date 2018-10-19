@@ -167,7 +167,7 @@ var _ = Describe("Middlewares tests", func() {
 			Context("when authentication already passed", func() {
 				It("should continue", func() {
 					authnFilter := NewAuthnMiddleware(filterName, nil)
-					req.Request = req.Request.WithContext(web.NewContextWithUser(req.Context(), &web.User{}))
+					req.Request = req.Request.WithContext(web.ContextWithUser(req.Context(), &web.User{}))
 					authnFilter.Run(req, handler)
 					Expect(handler.HandleCallCount()).To(Equal(1))
 				})

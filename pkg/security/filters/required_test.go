@@ -64,7 +64,7 @@ var _ = Describe("Filters tests", func() {
 		Describe("when Filter.Run is invoked with authorization confirmation", func() {
 			It("should continue", func() {
 				requiredAuthzFilter := NewRequiredAuthzFilter()
-				req.Request = req.WithContext(web.WithAuthorizedContext(req.Context()))
+				req.Request = req.WithContext(web.ContextWithAuthorization(req.Context()))
 				_, err := requiredAuthzFilter.Run(req, handler)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(handler.HandleCallCount()).To(Equal(1))
@@ -95,7 +95,7 @@ var _ = Describe("Filters tests", func() {
 		Describe("when Filter.Run is invoked with user in context", func() {
 			It("should continue", func() {
 				requiredAuthzFilter := NewRequiredAuthnFilter()
-				req.Request = req.WithContext(web.NewContextWithUser(req.Context(), &web.User{}))
+				req.Request = req.WithContext(web.ContextWithUser(req.Context(), &web.User{}))
 				_, err := requiredAuthzFilter.Run(req, handler)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(handler.HandleCallCount()).To(Equal(1))

@@ -60,7 +60,7 @@ func (m *authnMiddleware) Run(request *web.Request, next web.Handler) (*web.Resp
 		if user == nil {
 			return nil, security.ErrUserNotFound
 		}
-		request.Request = request.WithContext(web.NewContextWithUser(ctx, user))
+		request.Request = request.WithContext(web.ContextWithUser(ctx, user))
 	case security.Deny:
 		return nil, security.UnauthorizedHTTPError("authentication failed")
 	}
