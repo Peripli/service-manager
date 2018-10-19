@@ -137,12 +137,6 @@ var _ = Describe("Service Manager Authentication", func() {
 			{"Missing token in authorization header", "DELETE", "/v1/service_brokers/999", "Bearer "},
 			{"Invalid token in authorization header", "DELETE", "/v1/service_brokers/999", "Bearer abc"},
 
-			// AGGREGATED CATALOG
-			{"Missing authorization header", "GET", "/v1/sm_catalog", ""},
-			{"Invalid authorization schema", "GET", "/v1/sm_catalog", "Basic abc"},
-			{"Missing token in authorization header", "GET", "/v1/sm_catalog", "Bearer "},
-			{"Invalid token in authorization header", "GET", "/v1/sm_catalog", "Bearer abc"},
-
 			// OSB
 			{"Missing authorization header", "GET", "/v1/osb/999/v2/catalog", ""},
 			{"Invalid authorization schema", "GET", "/v1/osb/999/v2/catalog", "Basic abc"},

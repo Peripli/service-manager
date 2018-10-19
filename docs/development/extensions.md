@@ -7,12 +7,11 @@
 
 The main extension points of the service manager are filters, plugins and controllers. The
 interfaces that need to be implemented in order to provide an extension point can be found
-in the `pkg/web` package. 
+in the `pkg/web` package.
 
 In addition, for your components you can provide your own health metrics by adding a simple health indicator.
 You can also configure how all the provided health metrics be displayed by registering your aggregation policy
-which can customize the health report. 
-
+which can customize the health report.
 
 ## Filters
 
@@ -135,11 +134,11 @@ func (p *MyPlugin) Provision(req *web.Request, next web.Handler) (*web.Response,
 
 Request and response work with plain byte arrays (usually JSON). That's why it is recommended:
 
-* For JSON modification (as in the [catalog plugin](#catalog-modification-plugin)) use [sjson](https://github.com/tidwall/sjson)
+- For JSON modification (as in the [catalog plugin](#catalog-modification-plugin)) use [sjson](https://github.com/tidwall/sjson)
 
-* To extract some value from JSON use [gjson](https://github.com/tidwall/gjson)
+- To extract some value from JSON use [gjson](https://github.com/tidwall/gjson)
 
-* **NOTE:** Be aware that JSON request and response may contain non-standard properties.
+- **NOTE:** Be aware that JSON request and response may contain non-standard properties.
 
 So when modifying the JSON body make sure to preserve them.
 For example avoid marshalling from fixed structures.
@@ -236,4 +235,4 @@ func main() {
     sm := serviceManager.Build()
     sm.Run()
 }
-``` 
+```
