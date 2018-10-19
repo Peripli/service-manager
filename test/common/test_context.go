@@ -47,8 +47,8 @@ func buildSM(params *ContextParams, issuerURL string) *httptest.Server {
 	}
 	params.Environment.Set("api.token_issuer_url", issuerURL)
 
-	ctx, _ := context.WithCancel(context.Background())
-	smanagerBuilder := sm.New(ctx, params.Environment)
+	ctx, cancel := context.WithCancel(context.Background())
+	smanagerBuilder := sm.New(ctx, cancel, params.Environment)
 	if params.RegisterExtensions != nil {
 		params.RegisterExtensions(smanagerBuilder.API)
 	}
