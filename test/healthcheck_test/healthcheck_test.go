@@ -49,9 +49,6 @@ var _ = Describe("Healthcheck API", func() {
 				Expect().
 				Status(http.StatusOK).JSON().Object().ContainsMap(map[string]interface{}{
 				"status": "UP",
-				"storage": map[string]interface{}{
-					"status": "UP",
-				},
 			})
 		})
 	})

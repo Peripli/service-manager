@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The Service Manager Authors
+ *    Copyright 2018 The Service Manager Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@
 package web
 
 import (
+	"github.com/Peripli/service-manager/pkg/health"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -32,6 +33,9 @@ type API struct {
 
 	// Filters contains the registered filters
 	Filters []Filter
+
+	// Registry is the health indicators registry for this API
+	health.Registry
 }
 
 // pluginSegment represents one piece of a web.Plugin. Each web.Plugin is decomposed into as many plugin segments as

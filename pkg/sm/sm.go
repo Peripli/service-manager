@@ -25,9 +25,11 @@ import (
 	"time"
 
 	"github.com/Peripli/service-manager/api"
+	"github.com/Peripli/service-manager/api/healthcheck"
 	"github.com/Peripli/service-manager/config"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/server"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/postgres"
@@ -74,7 +76,7 @@ func DefaultEnv(additionalPFlags ...func(set *pflag.FlagSet)) env.Environment {
 }
 
 // New returns service-manager Server with default setup. The function panics on bad configuration
-func New(ctx context.Context, env env.Environment) *ServiceManagerBuilder {
+func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *ServiceManagerBuilder {
 	// setup config from env
 	cfg, err := config.New(env)
 	if err != nil {
@@ -88,6 +90,9 @@ func New(ctx context.Context, env env.Environment) *ServiceManagerBuilder {
 
 	// setup logging
 	ctx = log.Configure(ctx, cfg.Log)
+
+	// goroutines that log must be started after the log has been configured
+	util.HandleInterrupts(ctx, cancel)
 
 	// setup smStorage
 	smStorage, err := storage.Use(ctx, postgres.Storage, cfg.Storage.URI, []byte(cfg.API.Security.EncryptionKey))
@@ -120,12 +125,20 @@ func New(ctx context.Context, env env.Environment) *ServiceManagerBuilder {
 // Build builds the Service Manager
 func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	// setup server and add relevant global middleware
+	smb.installHealth()
+
 	srv := server.New(smb.cfg, smb.API)
 	srv.Use(filters.NewRecoveryMiddleware())
 
 	return &ServiceManager{
 		ctx:    smb.ctx,
 		Server: srv,
+	}
+}
+
+func (smb *ServiceManagerBuilder) installHealth() {
+	if len(smb.HealthIndicators()) > 0 {
+		smb.RegisterControllers(healthcheck.NewController(smb.HealthIndicators(), smb.HealthAggregationPolicy()))
 	}
 }
 

@@ -75,7 +75,7 @@ var _ = Describe("SM", func() {
 				fakeEnv.UnmarshalReturns(errors.New("error"))
 
 				Expect(func() {
-					sm.New(ctx, fakeEnv)
+					sm.New(ctx, cancel, fakeEnv)
 				}).To(Panic())
 			})
 		})
@@ -83,7 +83,7 @@ var _ = Describe("SM", func() {
 		Context("when validating config fails", func() {
 			It("should panic", func() {
 				Expect(func() {
-					sm.New(ctx, sm.DefaultEnv(func(set *pflag.FlagSet) {
+					sm.New(ctx, cancel, sm.DefaultEnv(func(set *pflag.FlagSet) {
 						set.Set("log.level", "")
 					}))
 				}).To(Panic())
@@ -93,7 +93,7 @@ var _ = Describe("SM", func() {
 		Context("when setting up storage fails", func() {
 			It("should panic", func() {
 				Expect(func() {
-					sm.New(ctx, sm.DefaultEnv(func(set *pflag.FlagSet) {
+					sm.New(ctx, cancel, sm.DefaultEnv(func(set *pflag.FlagSet) {
 						set.Set("storage.uri", "invalid")
 					}))
 				}).To(Panic())
@@ -103,7 +103,7 @@ var _ = Describe("SM", func() {
 		Context("when setting up API fails", func() {
 			It("should panic", func() {
 				Expect(func() {
-					sm.New(ctx, sm.DefaultEnv(func(set *pflag.FlagSet) {
+					sm.New(ctx, cancel, sm.DefaultEnv(func(set *pflag.FlagSet) {
 						set.Set("api.token_issuer_url", "")
 					}))
 				}).To(Panic())
@@ -112,7 +112,7 @@ var _ = Describe("SM", func() {
 
 		Context("when no API extensions are registered", func() {
 			It("should return working service manager", func() {
-				smanager := sm.New(ctx, sm.DefaultEnv())
+				smanager := sm.New(ctx, cancel, sm.DefaultEnv())
 
 				verifyServiceManagerStartsSuccessFully(httptest.NewServer(smanager.Build().Server.Router))
 
@@ -121,7 +121,7 @@ var _ = Describe("SM", func() {
 
 		Context("when additional filter is registered", func() {
 			It("should return working service manager with a new filter", func() {
-				smanager := sm.New(ctx, sm.DefaultEnv())
+				smanager := sm.New(ctx, cancel, sm.DefaultEnv())
 				smanager.RegisterFilters(testFilter{})
 
 				SM := verifyServiceManagerStartsSuccessFully(httptest.NewServer(smanager.Build().Server.Router))
@@ -134,7 +134,7 @@ var _ = Describe("SM", func() {
 
 		Context("when additional controller is registered", func() {
 			It("should return working service manager with additional controller", func() {
-				smanager := sm.New(ctx, sm.DefaultEnv())
+				smanager := sm.New(ctx, cancel, sm.DefaultEnv())
 				smanager.RegisterControllers(testController{})
 
 				SM := verifyServiceManagerStartsSuccessFully(httptest.NewServer(smanager.Build().Server.Router))
@@ -154,9 +154,6 @@ func verifyServiceManagerStartsSuccessFully(serviceManagerServer *httptest.Serve
 		Expect().
 		Status(http.StatusOK).JSON().Object().ContainsMap(map[string]interface{}{
 		"status": "UP",
-		"storage": map[string]interface{}{
-			"status": "UP",
-		},
 	})
 	return SM
 }

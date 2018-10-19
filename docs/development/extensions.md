@@ -1,15 +1,24 @@
-# Filters and Plugins
+# Extending the Service Manager
+
+- [Filters](#filters)
+- [Plugins](#plugins)
+- [Controllers](#controllers)
+- [Health](#provide-your-own-health-indicators)
 
 The main extension points of the service manager are filters, plugins and controllers. The
-interfaces that need to be implement in order to provide an extension point can be found
+interfaces that need to be implemented in order to provide an extension point can be found
 in the `pkg/web` package.
+
+In addition, for your components you can provide your own health metrics by adding a simple health indicator.
+You can also configure how all the provided health metrics be displayed by registering your aggregation policy
+which can customize the health report.
 
 ## Filters
 
 Filters provide means to intercept any HTTP request to the Service Manager. It allows adding
 custom logic before the request reaches the actual handler (HTTP Endpoint logic) and also
 before it returns the response. Filters can either propagate a request to the next filter
-in the chain or stop the request and write their own response
+in the chain or stop the request and write their own response.
 
 Service Manager HTTP endpoints are described in the [API Specification](https://github.com/Peripli/specification/blob/master/api.md).
 
@@ -93,13 +102,13 @@ type MyPlugin struct {}
 func (p *MyPlugin) Name() string { return "MyPlugin" }
 
 func (p *MyPlugin) FetchCatalog(req *web.Request, next web.Handler) (*web.Response, error) {
-	res, err := next.Handle(req)
-	if err != nil {
-		return nil, err
-	}
-	serviceName := gjson.GetBytes(res.Body, "services.0.name").String()
-	res.Body, err = sjson.SetBytes(res.Body, "services.0.name", serviceName+"-suffix")
-	return res, err
+    res, err := next.Handle(req)
+    if err != nil {
+        return nil, err
+    }
+    serviceName := gjson.GetBytes(res.Body, "services.0.name").String()
+    res.Body, err = sjson.SetBytes(res.Body, "services.0.name", serviceName+"-suffix")
+    return res, err
 }
 ```
 
@@ -119,40 +128,17 @@ func (p *MyPlugin) Provision(req *web.Request, next web.Handler) (*web.Response,
 }
 ```
 
-## Registering Extensions
-
-In order to add this plugin to the Service Manager one has to do the following:
-
-```go
-...
-func main() {
-    ctx, cancel := context.WithCancel(context.Background())
-    defer cancel()
-
-    env := sm.DefaultEnv()
-    serviceManager := sm.New(ctx, cancel, env)
-
-    serviceManager.RegisterPlugins(myplugin.MyPlugin{})
-    serviceManager.RegisterFilters(myfilter.MyFilter{})
-
-    sm := serviceManager.Build()
-    sm.Run()
-}
-
-...
-```
-
 ## Best practices for writing filters and plugins
 
 ### Request and response body modifications
 
 Request and response work with plain byte arrays (usually JSON). That's why it is recommended:
 
-* For JSON modification (as in the [catalog plugin](#catalog-modification-plugin)) use [sjson](https://github.com/tidwall/sjson)
+- For JSON modification (as in the [catalog plugin](#catalog-modification-plugin)) use [sjson](https://github.com/tidwall/sjson)
 
-* To extract some value from JSON use [gjson](https://github.com/tidwall/gjson)
+- To extract some value from JSON use [gjson](https://github.com/tidwall/gjson)
 
-* **NOTE:** Be aware that JSON request and response may contain non-standard properties.
+- **NOTE:** Be aware that JSON request and response may contain non-standard properties.
 
 So when modifying the JSON body make sure to preserve them.
 For example avoid marshalling from fixed structures.
@@ -174,3 +160,79 @@ In case of error, return `nil` response and an error object.
 Use `util.HTTPError` function to send error information and status code to the HTTP client.
 Use the `pkg/util` package for different utility methods for processing and creating requests, responses and errors.
 All other errors will result in status 500 (Internal Server Error) being returned to the client.
+
+## Controllers
+
+Controllers provide means to add additional APIs to the Service Manager. The Service Manager `pkg/web` package exposes interfaces one should implement in order to add additional SM APIs.
+
+### Example Controller
+
+```go
+...
+// Controller
+type MyController struct {
+}
+
+var _ web.Controller = &MyController{}
+
+func (c *MyController) ping(r *web.Request) (*web.Response, error) {
+    return util.NewJSONResponse(http.StatusOK, map[string]string{})
+}
+
+// Routes specifies the routes in which the controller should run and the handler that should be executed
+func (c *MyController) Routes() []web.Route {
+    return []web.Route{
+        {
+            Endpoint: web.Endpoint{
+                Method: http.MethodGet,
+                Path:   "/api/v1/monitor/health",
+            },
+            Handler: c.ping,
+        },
+    }
+}
+...
+```
+
+## Registering Extensions
+
+In order to add this plugin to the Service Manager one has to do the following:
+
+```go
+...
+func main() {
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
+
+    env := sm.DefaultEnv()
+    serviceManager := sm.New(ctx, cancel, env)
+
+    serviceManager.RegisterPlugins(&myplugin.MyPlugin{})
+    serviceManager.RegisterFilters(&myfilter.MyFilter{})
+    serviceManager.RegisterController(&mycontroller.MyController{})
+
+    sm := serviceManager.Build()
+    sm.Run()
+}
+...
+```
+
+## Provide your own health indicators
+
+You can add your own health metrics to be available on the health endpoint (`/v1/monitor/health`).
+The calculated healths can then be formatted to your liking by registering an aggregation policy.
+
+```go
+...
+func main() {
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
+
+    env := sm.DefaultEnv()
+    serviceManager := sm.New(ctx, cancel, env)
+    serviceManager.AddHealthIndicator(&MyHealthIndicator{})
+    serviceManager.RegisterHealthAggregationPolicy(&MyAggregationPolicy{})
+    sm := serviceManager.Build()
+    sm.Run()
+}
+```

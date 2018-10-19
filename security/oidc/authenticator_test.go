@@ -33,6 +33,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/web/webfakes"
 	"github.com/Peripli/service-manager/security"
 	"github.com/Peripli/service-manager/security/securityfakes"
+	"github.com/Peripli/service-manager/test/testutil"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
@@ -67,20 +68,6 @@ type mockReadCloser struct {
 
 func (c *mockReadCloser) Close() error {
 	return c.closeError
-}
-
-type loggingInterceptorHook struct {
-	data []byte
-}
-
-func (*loggingInterceptorHook) Levels() []logrus.Level {
-	return logrus.AllLevels
-}
-
-func (hook *loggingInterceptorHook) Fire(entry *logrus.Entry) error {
-	str, _ := entry.String()
-	hook.data = append(hook.data, []byte(str)...)
-	return nil
 }
 
 var _ = Describe("OIDC Authenticator", func() {
@@ -193,7 +180,7 @@ var _ = Describe("OIDC Authenticator", func() {
 
 			Context("When response body close fails", func() {
 				expectedError := fmt.Errorf("Closing failed in mock closer")
-				loggingInterceptor := &loggingInterceptorHook{}
+				loggingInterceptor := &testutil.LogInterceptor{}
 				BeforeEach(func() {
 					body = &mockReadCloser{
 						Reader:     &mockReader{buff: "{}", err: nil},
@@ -204,8 +191,7 @@ var _ = Describe("OIDC Authenticator", func() {
 
 				It("Should log an error", func() {
 					NewAuthenticator(ctx, options)
-					loggedError := string(loggingInterceptor.data)
-					Expect(loggedError).To(ContainSubstring(expectedError.Error()))
+					Expect(loggingInterceptor).To(ContainSubstring(expectedError.Error()))
 				})
 			})
 			Context("When configuration is correct", func() {

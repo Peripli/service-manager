@@ -29,7 +29,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gorilla/mux"
-	)
+)
 
 // Settings type to be loaded from the environment
 type Settings struct {
@@ -77,7 +77,6 @@ type Server struct {
 	*mux.Router
 
 	Config *Settings
-	api    *web.API
 }
 
 // New creates a new server with the provided REST api configuration and server configuration
@@ -87,9 +86,18 @@ func New(config *Settings, api *web.API) *Server {
 	registerControllers(api, router)
 
 	return &Server{
-		Config: config,
 		Router: router,
-		api:    api,
+		Config: config,
+	}
+}
+
+func registerControllers(API *web.API, router *mux.Router) {
+	for _, ctrl := range API.Controllers {
+		for _, route := range ctrl.Routes() {
+			log.D().Debugf("Registering endpoint: %s %s", route.Endpoint.Method, route.Endpoint.Path)
+			handler := web.Filters(API.Filters).ChainMatching(route)
+			router.Handle(route.Endpoint.Path, api.NewHTTPHandler(handler)).Methods(route.Endpoint.Method)
+		}
 	}
 }
 
@@ -105,16 +113,6 @@ func (s *Server) Run(ctx context.Context) {
 		ReadTimeout:  s.Config.RequestTimeout,
 	}
 	startServer(ctx, handler, s.Config.ShutdownTimeout)
-}
-
-func registerControllers(API *web.API, router *mux.Router) {
-	for _, ctrl := range API.Controllers {
-		for _, route := range ctrl.Routes() {
-			log.D().Debugf("Registering endpoint: %s %s", route.Endpoint.Method, route.Endpoint.Path)
-			handler := web.Filters(API.Filters).ChainMatching(route)
-			router.Handle(route.Endpoint.Path, api.NewHTTPHandler(handler)).Methods(route.Endpoint.Method)
-		}
-	}
 }
 
 func startServer(ctx context.Context, server *http.Server, shutdownTimeout time.Duration) {

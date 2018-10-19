@@ -113,8 +113,8 @@ type Filter interface {
 	Named
 	Middleware
 
-	// Returns a set of FilterMatchers each containing a set of Matchers. Each FilterMatcher represents one place
-	// where the Filter would run.
+	// FilterMatchers Returns a set of FilterMatchers each containing a set of Matchers. Each FilterMatcher represents
+	// one place where the Filter would run.
 	FilterMatchers() []FilterMatcher
 }
 
@@ -161,7 +161,7 @@ func (fs Filters) Chain(h Handler) Handler {
 	return wrappedFilters[0]
 }
 
-// Matching returns a subset of Filters that match the specified route
+// Matching returns a subset of Filters that match the specified endpoint
 func (fs Filters) Matching(endpoint Endpoint) Filters {
 	matchedFilters := make([]Filter, 0)
 	matchedNames := make([]string, 0)
