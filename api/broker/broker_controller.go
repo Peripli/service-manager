@@ -150,12 +150,12 @@ func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	if err := transformBrokerCredentials(ctx, broker, c.Encrypter.Encrypt); err != nil {
+	catalog, err := c.getBrokerCatalog(ctx, broker)
+	if err != nil {
 		return nil, err
 	}
 
-	catalog, err := c.getBrokerCatalog(ctx, broker)
-	if err != nil {
+	if err := transformBrokerCredentials(ctx, broker, c.Encrypter.Encrypt); err != nil {
 		return nil, err
 	}
 
