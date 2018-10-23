@@ -41,8 +41,12 @@ Feedback and contributions are always welcome. Please refer to the [contribution
 
 ## Additional Resources
 
-* Execution of a flow similar to the one described in the [walkthrough](./docs/usage/walkthrough.md) can be found [here](https://www.youtube.com/watch?v=FG2bIv34P10).
-
 * Details about the SM API can be found [here](https://github.com/Peripli/specification/blob/master/api.md).
 
 * Service Manager CLI documentation is located [here](https://github.com/Peripli/service-manager-cli/tree/master/docs).
+
+* Execution of a flow similar to the one described in the [walkthrough](./docs/usage/walkthrough.md) can be found [here](https://www.youtube.com/watch?v=FG2bIv34P10).
+
+* Service Manager Introduction as part of the keynote @ CF Summit Europe 2018 can be found [here](https://www.youtube.com/watch?v=LMwo_zgfYjU).
+
+* Service Manager Session @ CF Summit Europe 2018 can be found [here](https://www.youtube.com/watch?v=SGfwVPx-kmE).
