@@ -71,10 +71,22 @@ var _ = Describe("Service Manager Authentication", func() {
 
 			code := http.StatusOK
 			catalogResponse := []byte(common.Catalog)
-			brokerServer := common.FakeBrokerServer(&code, &catalogResponse)
+
+			username, password := "buser", "bpass"
+			brokerServer := common.FakeBrokerServer(&code, &catalogResponse, username, password)
 			defer brokerServer.Close()
 
-			brokerJSON := common.MakeBroker("broker-id", brokerServer.URL(), "")
+			brokerJSON := common.Object{
+				"name":        "broker-id",
+				"broker_url":  brokerServer.URL(),
+				"description": "",
+				"credentials": common.Object{
+					"basic": common.Object{
+						"username": username,
+						"password": password,
+					},
+				},
+			}
 			ctx.SMWithOAuth.POST("/v1/service_brokers").
 				WithHeader("Content-type", "application/json").
 				WithJSON(brokerJSON).

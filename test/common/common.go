@@ -227,20 +227,6 @@ func newJwkResponse(keyID string, publicKey rsa.PublicKey) *jwkResponse {
 	}
 }
 
-func MakeBroker(name string, url string, description string) Object {
-	return Object{
-		"name":        name,
-		"broker_url":  url,
-		"description": description,
-		"credentials": Object{
-			"basic": Object{
-				"username": "buser",
-				"password": "bpass",
-			},
-		},
-	}
-}
-
 func MakePlatform(id string, name string, atype string, description string) Object {
 	return Object{
 		"id":          id,
@@ -250,9 +236,10 @@ func MakePlatform(id string, name string, atype string, description string) Obje
 	}
 }
 
-func FakeBrokerServer(code *int, response interface{}) *ghttp.Server {
+func FakeBrokerServer(code *int, response interface{}, username, password string) *ghttp.Server {
 	brokerServer := ghttp.NewServer()
-	brokerServer.RouteToHandler(http.MethodGet, regexp.MustCompile(".*"), ghttp.RespondWithPtr(code, response))
+	handler := ghttp.CombineHandlers(ghttp.VerifyBasicAuth(username, password), ghttp.RespondWithPtr(code, response))
+	brokerServer.RouteToHandler(http.MethodGet, regexp.MustCompile(".*"), handler)
 	return brokerServer
 }
 

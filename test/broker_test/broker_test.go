@@ -61,16 +61,17 @@ var _ = Describe("Service Manager Broker API", func() {
 	BeforeEach(func() {
 		code = http.StatusOK
 		catalogResponse = []byte(common.Catalog)
-		brokerServer = common.FakeBrokerServer(&code, &catalogResponse)
 
+		username, password := "buser", "bpass"
+		brokerServer = common.FakeBrokerServer(&code, &catalogResponse, username, password)
 		testBroker = common.Object{
 			"name":        "name",
 			"broker_url":  brokerServer.URL(),
 			"description": "description",
 			"credentials": common.Object{
 				"basic": common.Object{
-					"username": "buser",
-					"password": "bpass",
+					"username": username,
+					"password": password,
 				},
 			},
 		}
@@ -408,16 +409,16 @@ var _ = Describe("Service Manager Broker API", func() {
 			var anotherBrokerServer *ghttp.Server
 
 			BeforeEach(func() {
-				anotherBrokerServer = common.FakeBrokerServer(&code, &catalogResponse)
-
+				username, password := "buser", "bpass"
+				anotherBrokerServer = common.FakeBrokerServer(&code, &catalogResponse, username, password)
 				anotherTestBroker = common.Object{
 					"name":        "another_name",
 					"broker_url":  anotherBrokerServer.URL(),
 					"description": "another_description",
 					"credentials": common.Object{
 						"basic": common.Object{
-							"username": "buser",
-							"password": "bpass",
+							"username": username,
+							"password": password,
 						},
 					},
 				}
@@ -449,8 +450,8 @@ var _ = Describe("Service Manager Broker API", func() {
 			)
 
 			BeforeEach(func() {
-				updatedBrokerServer = common.FakeBrokerServer(&code, &catalogResponse)
-
+				username, password := "updated_user", "updated_password"
+				updatedBrokerServer = common.FakeBrokerServer(&code, &catalogResponse, username, password)
 				updatedBroker = common.Object{
 					"name":        "updated_name",
 					"description": "updated_description",
@@ -514,24 +515,28 @@ var _ = Describe("Service Manager Broker API", func() {
 				It("returns 200", func() {
 					for prop, val := range updatedBroker {
 						update := common.Object{}
-						update[prop] = val
+						// When only changing the credential we also need to change the test broker url
+						if prop == "credentials" || prop == "broker_url" {
+							update["credentials"] = updatedBroker["credentials"]
+							update["broker_url"] = updatedBroker["broker_url"]
+						} else {
+							update[prop] = val
+						}
 
 						reply := ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
 							WithJSON(update).
 							Expect().
 							Status(http.StatusOK).
 							JSON().Object()
-						if strings.ToLower(prop) != "credentials" {
-							reply.ContainsMap(update)
-						}
+
+						delete(update, "credentials")
+						reply.ContainsMap(update)
 
 						reply = ctx.SMWithOAuth.GET("/v1/service_brokers/" + id).
 							Expect().
 							Status(http.StatusOK).
 							JSON().Object()
-						if strings.ToLower(prop) != "credentials" {
-							reply.ContainsMap(update)
-						}
+						reply.ContainsMap(update)
 					}
 
 					Expect(len(brokerServer.ReceivedRequests()) + len(updatedBrokerServer.ReceivedRequests())).To(Equal(len(updatedBroker)))

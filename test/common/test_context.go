@@ -107,7 +107,17 @@ func (ctx *TestContext) RegisterBroker(name string, server *httptest.Server) *Br
 	if server == nil {
 		server = httptest.NewServer(broker)
 	}
-	brokerJSON := MakeBroker(name, server.URL, "")
+	brokerJSON := Object{
+		"name":        name,
+		"broker_url":  server.URL,
+		"description": "",
+		"credentials": Object{
+			"basic": Object{
+				"username": "buser",
+				"password": "bpass",
+			},
+		},
+	}
 	broker.ID = RegisterBroker(brokerJSON, ctx.SMWithOAuth)
 
 	broker.OSBURL = "/v1/osb/" + broker.ID
