@@ -145,6 +145,9 @@ func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
 	}
 
 	createdAt := broker.CreatedAt
+	if err := transformBrokerCredentials(ctx, broker, c.Encrypter.Decrypt); err != nil {
+		return nil, err
+	}
 
 	if err := util.BytesToObject(r.Body, broker); err != nil {
 		return nil, err
