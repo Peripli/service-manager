@@ -19,8 +19,9 @@
 package web
 
 import (
-	"github.com/Peripli/service-manager/pkg/health"
 	"net/http"
+
+	"github.com/Peripli/service-manager/pkg/health"
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/util/slice"
@@ -78,6 +79,69 @@ func (dp *pluginSegment) FilterMatchers() []FilterMatcher {
 // RegisterControllers registers a set of controllers
 func (api *API) RegisterControllers(controllers ...Controller) {
 	api.Controllers = append(api.Controllers, controllers...)
+	if duplicateEndpoints := api.findDuplicateControllerEndpoints(); len(duplicateEndpoints) > 0 {
+		log.D().Panicf("Cannot register duplicate endpoints %v", duplicateEndpoints)
+	}
+}
+
+func (api *API) RemoveController(controller Controller) {
+	position := api.findControllerPosition(controller)
+	copy(api.Controllers[position:], api.Controllers[position+1:])
+	api.Controllers[len(api.Controllers)-1] = nil
+	api.Controllers = api.Controllers[:len(api.Controllers)-1]
+}
+
+func (api *API) findControllerPosition(controller Controller) int {
+	controllerPosition := -1
+	for i, ctrl := range api.Controllers {
+		if api.routesMatch(ctrl.Routes(), controller.Routes()) {
+			controllerPosition = i
+			break
+		}
+	}
+	if controllerPosition < 0 {
+		log.D().Panic("Controller not found")
+	}
+	return controllerPosition
+}
+
+func (api *API) routesMatch(routes []Route, routes2 []Route) bool {
+	endpoints := make(map[Endpoint]bool)
+	for _, route := range routes {
+		endpoints[route.Endpoint] = true
+	}
+
+	for _, route := range routes2 {
+		if !endpoints[route.Endpoint] {
+			return false
+		}
+	}
+	return true
+}
+
+func (api *API) findDuplicateControllerEndpoints() []Endpoint {
+	duplicateEndpointsCount := 0
+	duplicateEndpointsMap := make(map[Endpoint]bool)
+	for _, controller := range api.Controllers {
+		for _, route := range controller.Routes() {
+			if _, exists := duplicateEndpointsMap[route.Endpoint]; !exists {
+				duplicateEndpointsMap[route.Endpoint] = false
+			} else {
+				duplicateEndpointsMap[route.Endpoint] = true
+				duplicateEndpointsCount++
+			}
+		}
+	}
+
+	i := 0
+	duplicateEndpoints := make([]Endpoint, duplicateEndpointsCount)
+	for endpoint, isDuplicate := range duplicateEndpointsMap {
+		if isDuplicate {
+			duplicateEndpoints[i] = endpoint
+			i++
+		}
+	}
+	return duplicateEndpoints
 }
 
 // RegisterFilters registers a set of filters
