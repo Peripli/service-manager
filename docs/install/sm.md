@@ -2,16 +2,13 @@
 
 ## Prerequisites
 
-* You need to have an OAuth server to be used by the Service Manager. This OAuth server must support [OpenID Connect Discovery](https://openid.net/specs/openid-connect-discovery-1_0.html). In CF this could be the CF UAA.
-* `git` is installed.
+* You need to have an OAuth server to be used by the Service Manager. This OAuth server must support [OpenID Connect Discovery](https://openid.net/specs/openid-connect-discovery-1_0.html). In CF this could be the CF UAA. One way to get this setup is to install [cfdev/pcfdev]() or to directly install [UAA]() 
+* Install [git]().
+* Clone the [service-manager](https://github.com/Peripli/service-manager) repository.
 
-## Clone the repository
-
-Clone the [service-manager](https://github.com/Peripli/service-manager) git repository.
-
-```console
-$ git clone https://github.com/Peripli/service-manager.git && cd service-manager
-```
+    ```console
+    $ git clone https://github.com/Peripli/service-manager.git $GOPATH/src/github.com/Peripli/service-manager && cd $GOPATH/src/github.com/Peripli/service-manager
+    ```
 
 **Note:** Do not use `go get`. Instead use git to clone the repository.
 
@@ -21,9 +18,9 @@ $ git clone https://github.com/Peripli/service-manager.git && cd service-manager
 
 The following must be fulfilled:
 
-* You have CF cli installed and configured.
+* You have CF CLI installed and configured.
 * You are logged in to CF.
-* PostgreSQL service is available or an external PostgreSQL is installed and accessible from the CF environment.
+* PostgreSQL service is available or an external PostgreSQL is accessible from the CF environment.
 
 ### Create PostgreSQL service instance in your CF environment
 
@@ -31,7 +28,7 @@ The following must be fulfilled:
 $ cf create-service <postgres_service_name> <plan_name> <postgre_instance_name>
 ```
 
-Alternatively, you can use external PostgreSQL. In this case you need to have a PostgreSQL URI.
+Alternatively, you can use external PostgreSQL. In this case you need to have a PostgreSQL URI and substitute it in the the `STORAG_URI` in `manifest.yml` as outlined below.
 
 ### Update manifest.yml file
 
@@ -60,8 +57,8 @@ $ cf push -f deployment/cf/manifest.yml
 
 The following must be fulfilled:
 
-* *kubectl* is installed and configured to be used with the Kubernetes cluster.
-* Helm is installed and configured.
+* [kubectl]() is installed and configured to be used with the Kubernetes cluster.
+* [Helm]() is installed and configured on the cluster.
 * Ingress controller is configured on the cluster *(optional)*
 
 ### Install Service Manager
@@ -92,7 +89,7 @@ $ helm install --name service-manager --namespace service-manager . --set postgr
 
 **Note:** These credentials will remain in your bash history. Alternatively you can change these values directly in *deployment/k8s/charts/service-manager/values.yaml* file.
 
-You can install the Service Manager with external PostgreSQL using a connection string:
+You can also install the Service Manager with external PostgreSQL using a connection string (here `externalPostgresURI` sets the value for `STORAGE_URI` env var):
 
 ```console
 $ helm install --name service-manager --namespace service-manager . --set postgresql.install=false --set externalPostgresURI=<postgresql_connection_string>

@@ -15,6 +15,7 @@ The `docs` folder contains end-to-end documentation for the Service Manager and 
 ## Installation
 
 * [Installation Guide](./install/README.md)
+  * [Prerequisites](./development/install-prerequisites.md)
   * [Install Service Manager](./install/sm.md)
   * [Install smctl](./install/cli.md)
   * [Install CF Proxy](./install/cf-proxy.md)
@@ -23,6 +24,7 @@ The `docs` folder contains end-to-end documentation for the Service Manager and 
 ## Development
 
 * [Developer's Guide](./development/README.md)
+  * [Running Locally](./development/local.md)
   * [Source Code Repositories](./development/repositories-structure.md)
   * [Build Components](./development/build.md)
   * [Running Tests](./development/tests.md)

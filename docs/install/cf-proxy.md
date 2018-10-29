@@ -2,12 +2,12 @@
 
 ## Prerequisites
 
-* `git` is installed
-* `go` is installed
-* `dep` is installed
-* `cf cli` is installed.
+* [git]() is installed
+* [go]() is installed
+* [dep]() is installed
+* [cf cli]() is installed.
 * You are logged in CF.
-* `go_buildpack` is installed with support for go version 1.10
+* [go_buildpack]() is installed with support for go version 1.10
 * [Service-Manager](./sm.md) is installed.
 
 **Note:** The used go buildpack should be named `go_buildpack`.
@@ -35,6 +35,12 @@ As a result this will return the credentials used for communicating with the Ser
 For example:
 
 ```console
+$ smctl login -u admin -p admin -a http://service-manager.dev.cfdev.sh --skip-ssl-validation
+
+Logged in successfully.
+```
+
+```console
 $ smctl register-platform mycf cf example
 
 ID                                    Name  Type  Description  Created               Updated               Username                                      Password
@@ -46,8 +52,8 @@ ID                                    Name  Type  Description  Created          
 
 In the [service-broker-proxy-cf](https://github.com/Peripli/service-broker-proxy-cf) repository you need to replace in the `manifest.yml` the following things:
 
+* Administrative credentials for CF with env variables `CF_USERNAME`, `CF_PASSWORD` and `CF_APIADDRESS`.
 * Service-Manager URL using the `SM_URL` env variable.
-* Administrative credentials for CF with env variables `CF_USERNAME` and `CF_PASSWORD`.
 * Credentials for Service Manager with env variables `SM_USER` and `SM_PASSWORD`. These are the credentials obtained by the `smctl register-platform` command
 
 In addition you can change other configurations like log level and log format.
