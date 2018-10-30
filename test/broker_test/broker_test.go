@@ -26,7 +26,6 @@ import (
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/onsi/gomega/ghttp"
 	"github.com/spf13/cast"
 )
 
@@ -39,13 +38,16 @@ var _ = Describe("Service Manager Broker API", func() {
 
 	var (
 		ctx          *common.TestContext
-		brokerServer *ghttp.Server
+		brokerServer *common.BrokerServer
 
-		testBroker     common.Object
-		expectedBroker common.Object
+		testBroker             common.Object
+		expectedBrokerResponse common.Object
 
 		catalogResponse []byte
 		code            int
+
+		username string
+		password string
 	)
 
 	BeforeSuite(func() {
@@ -61,9 +63,9 @@ var _ = Describe("Service Manager Broker API", func() {
 	BeforeEach(func() {
 		code = http.StatusOK
 		catalogResponse = []byte(common.Catalog)
+		username, password = "buser", "bpass"
+		brokerServer = common.FakeBrokerServer(&code, &catalogResponse, &username, &password)
 
-		username, password := "buser", "bpass"
-		brokerServer = common.FakeBrokerServer(&code, &catalogResponse, username, password)
 		testBroker = common.Object{
 			"name":        "name",
 			"broker_url":  brokerServer.URL(),
@@ -75,8 +77,7 @@ var _ = Describe("Service Manager Broker API", func() {
 				},
 			},
 		}
-
-		expectedBroker = common.Object{
+		expectedBrokerResponse = common.Object{
 			"name":        "name",
 			"broker_url":  brokerServer.URL(),
 			"description": "description",
@@ -88,16 +89,12 @@ var _ = Describe("Service Manager Broker API", func() {
 		var id string
 
 		AfterEach(func() {
-			common.VerifyBrokerCatalogEndpointInvoked(brokerServer, 0)
+			brokerServer.VerifyCatalogEndpointInvoked(0)
 		})
 
 		Context("when the broker does not exist", func() {
-			BeforeEach(func() {
-				id = "12345"
-			})
-
 			It("returns 404", func() {
-				ctx.SMWithOAuth.GET("/v1/service_brokers/"+id).
+				ctx.SMWithOAuth.GET("/v1/service_brokers/12345").
 					Expect().
 					Status(http.StatusNotFound).
 					JSON().Object().
@@ -111,12 +108,12 @@ var _ = Describe("Service Manager Broker API", func() {
 					Expect().
 					Status(http.StatusCreated).
 					JSON().Object().
-					ContainsMap(expectedBroker)
+					ContainsMap(expectedBrokerResponse)
 
 				id = reply.Value("id").String().Raw()
 
-				common.VerifyBrokerCatalogEndpointInvoked(brokerServer, 1)
-				common.ClearReceivedRequests(&code, &catalogResponse, brokerServer)
+				brokerServer.VerifyCatalogEndpointInvoked(1)
+				brokerServer.ClearReceivedRequests()
 			})
 
 			It("returns the broker with given id", func() {
@@ -124,7 +121,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					Expect().
 					Status(http.StatusOK).
 					JSON().Object().
-					ContainsMap(expectedBroker).
+					ContainsMap(expectedBrokerResponse).
 					Keys().NotContains("credentials", "catalog")
 			})
 		})
@@ -132,7 +129,7 @@ var _ = Describe("Service Manager Broker API", func() {
 
 	Describe("GET All", func() {
 		AfterEach(func() {
-			common.VerifyBrokerCatalogEndpointInvoked(brokerServer, 0)
+			brokerServer.VerifyCatalogEndpointInvoked(0)
 		})
 
 		Context("when no brokers exist", func() {
@@ -151,12 +148,12 @@ var _ = Describe("Service Manager Broker API", func() {
 					Expect().
 					Status(http.StatusCreated).
 					JSON().Object().
-					ContainsMap(expectedBroker).
+					ContainsMap(expectedBrokerResponse).
 					Keys().
 					NotContains("credentials", "catalog")
 
-				common.VerifyBrokerCatalogEndpointInvoked(brokerServer, 1)
-				common.ClearReceivedRequests(&code, &catalogResponse, brokerServer)
+				brokerServer.VerifyCatalogEndpointInvoked(1)
+				brokerServer.ClearReceivedRequests()
 			})
 
 			It("returns all without catalog if no query parameter is provided", func() {
@@ -164,7 +161,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					Expect().
 					Status(http.StatusOK).
 					JSON().Object().Value("brokers").Array().First().Object().
-					ContainsMap(expectedBroker).
+					ContainsMap(expectedBrokerResponse).
 					Keys().
 					NotContains("credentials", "catalog")
 			})
@@ -174,7 +171,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					Expect().
 					Status(http.StatusOK).
 					JSON().Object().Value("brokers").Array().First().Object().
-					ContainsMap(expectedBroker).
+					ContainsMap(expectedBrokerResponse).
 					ContainsKey("catalog").
 					NotContainsKey("credentials")
 			})
@@ -190,7 +187,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					JSON().Object().
 					Keys().Contains("error", "description")
 
-				common.VerifyBrokerCatalogEndpointInvoked(brokerServer, 0)
+				brokerServer.VerifyCatalogEndpointInvoked(0)
 			})
 		})
 
@@ -204,7 +201,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					JSON().Object().
 					Keys().Contains("error", "description")
 
-				common.VerifyBrokerCatalogEndpointInvoked(brokerServer, 0)
+				brokerServer.VerifyCatalogEndpointInvoked(0)
 			})
 		})
 
@@ -212,7 +209,7 @@ var _ = Describe("Service Manager Broker API", func() {
 			assertPOSTReturns400WhenFieldIsMissing := func(field string) {
 				BeforeEach(func() {
 					delete(testBroker, field)
-					delete(expectedBroker, field)
+					delete(expectedBrokerResponse, field)
 				})
 
 				It("returns 400", func() {
@@ -222,14 +219,14 @@ var _ = Describe("Service Manager Broker API", func() {
 						JSON().Object().
 						Keys().Contains("error", "description")
 
-					common.VerifyBrokerCatalogEndpointInvoked(brokerServer, 0)
+					brokerServer.VerifyCatalogEndpointInvoked(0)
 				})
 			}
 
 			assertPOSTReturns201WhenFieldIsMissing := func(field string) {
 				BeforeEach(func() {
 					delete(testBroker, field)
-					delete(expectedBroker, field)
+					delete(expectedBrokerResponse, field)
 				})
 
 				It("returns 201", func() {
@@ -237,10 +234,10 @@ var _ = Describe("Service Manager Broker API", func() {
 						Expect().
 						Status(http.StatusCreated).
 						JSON().Object().
-						ContainsMap(expectedBroker).
+						ContainsMap(expectedBrokerResponse).
 						Keys().NotContains("catalog", "credentials")
 
-					common.VerifyBrokerCatalogEndpointInvoked(brokerServer, 1)
+					brokerServer.VerifyCatalogEndpointInvoked(1)
 				})
 			}
 
@@ -274,7 +271,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					JSON().Object().
 					Keys().Contains("error", "description")
 
-				common.VerifyBrokerCatalogEndpointInvoked(brokerServer, 1)
+				brokerServer.VerifyCatalogEndpointInvoked(1)
 			})
 		})
 
@@ -285,17 +282,17 @@ var _ = Describe("Service Manager Broker API", func() {
 						Expect().
 						Status(http.StatusCreated).
 						JSON().Object().
-						ContainsMap(expectedBroker).
+						ContainsMap(expectedBrokerResponse).
 						Keys().NotContains("catalog", "credentials")
 
-					common.VerifyBrokerCatalogEndpointInvoked(brokerServer, 1)
+					brokerServer.VerifyCatalogEndpointInvoked(1)
 				})
 			}
 
 			Context("when broker URL does not end with trailing slash", func() {
 				BeforeEach(func() {
 					testBroker["broker_url"] = strings.TrimRight(cast.ToString(testBroker["broker_url"]), "/")
-					expectedBroker["broker_url"] = strings.TrimRight(cast.ToString(expectedBroker["broker_url"]), "/")
+					expectedBrokerResponse["broker_url"] = strings.TrimRight(cast.ToString(expectedBrokerResponse["broker_url"]), "/")
 				})
 
 				assertPOSTReturns201()
@@ -304,7 +301,7 @@ var _ = Describe("Service Manager Broker API", func() {
 			Context("when broker URL ends with trailing slash", func() {
 				BeforeEach(func() {
 					testBroker["broker_url"] = cast.ToString(testBroker["broker_url"]) + "/"
-					expectedBroker["broker_url"] = cast.ToString(expectedBroker["broker_url"]) + "/"
+					expectedBrokerResponse["broker_url"] = cast.ToString(expectedBrokerResponse["broker_url"]) + "/"
 				})
 
 				assertPOSTReturns201()
@@ -323,7 +320,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					JSON().Object().
 					Keys().Contains("error", "description")
 
-				common.VerifyBrokerCatalogEndpointInvoked(brokerServer, 2)
+				brokerServer.VerifyCatalogEndpointInvoked(2)
 			})
 		})
 	})
@@ -336,12 +333,12 @@ var _ = Describe("Service Manager Broker API", func() {
 				Expect().
 				Status(http.StatusCreated).
 				JSON().Object().
-				ContainsMap(expectedBroker)
+				ContainsMap(expectedBrokerResponse)
 
 			id = reply.Value("id").String().Raw()
 
-			common.VerifyBrokerCatalogEndpointInvoked(brokerServer, 1)
-			common.ClearReceivedRequests(&code, &catalogResponse, brokerServer)
+			brokerServer.VerifyCatalogEndpointInvoked(1)
+			brokerServer.ClearReceivedRequests()
 		})
 
 		Context("when content type is not JSON", func() {
@@ -352,17 +349,13 @@ var _ = Describe("Service Manager Broker API", func() {
 					JSON().Object().
 					Keys().Contains("error", "description")
 
-				common.VerifyBrokerCatalogEndpointInvoked(brokerServer, 0)
+				brokerServer.VerifyCatalogEndpointInvoked(0)
 			})
 		})
 
 		Context("when broker is missing", func() {
-			BeforeEach(func() {
-				id = "invalid_id"
-			})
-
 			It("returns 404", func() {
-				ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+id).
+				ctx.SMWithOAuth.PATCH("/v1/service_brokers/no_such_id").
 					WithJSON(testBroker).
 					Expect().Status(http.StatusNotFound).
 					JSON().Object().
@@ -406,11 +399,10 @@ var _ = Describe("Service Manager Broker API", func() {
 
 		Context("when broker with the name already exists", func() {
 			var anotherTestBroker common.Object
-			var anotherBrokerServer *ghttp.Server
+			var anotherBrokerServer *common.BrokerServer
 
 			BeforeEach(func() {
-				username, password := "buser", "bpass"
-				anotherBrokerServer = common.FakeBrokerServer(&code, &catalogResponse, username, password)
+				anotherBrokerServer = common.FakeBrokerServer(&code, &catalogResponse, &username, &password)
 				anotherTestBroker = common.Object{
 					"name":        "another_name",
 					"broker_url":  anotherBrokerServer.URL(),
@@ -430,7 +422,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					Expect().
 					Status(http.StatusCreated)
 
-				common.VerifyBrokerCatalogEndpointInvoked(anotherBrokerServer, 1)
+				anotherBrokerServer.VerifyCatalogEndpointInvoked(1)
 
 				ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+id).
 					WithJSON(anotherTestBroker).
@@ -438,28 +430,79 @@ var _ = Describe("Service Manager Broker API", func() {
 					JSON().Object().
 					Keys().Contains("error", "description")
 
-				common.VerifyBrokerCatalogEndpointInvoked(brokerServer, 0)
+				brokerServer.VerifyCatalogEndpointInvoked(0)
 			})
 		})
 
-		Context("when updatable fields are being updated", func() {
+		Context("when credentials are updated", func() {
+			It("returns 200", func() {
+				username = "updatedUsername"
+				password = "updatedPassword"
+				update := common.Object{
+					"credentials": common.Object{
+						"basic": common.Object{
+							"username": username,
+							"password": password,
+						},
+					},
+				}
+				brokerServer.VerifyCatalogEndpointInvoked(0)
+
+				reply := ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+					WithJSON(update).
+					Expect().
+					Status(http.StatusOK).
+					JSON().Object()
+
+				brokerServer.VerifyCatalogEndpointInvoked(1)
+
+				reply = ctx.SMWithOAuth.GET("/v1/service_brokers/" + id).
+					Expect().
+					Status(http.StatusOK).
+					JSON().Object()
+				reply.ContainsMap(expectedBrokerResponse)
+			})
+		})
+
+		Context("when created_at provided in body", func() {
+			It("should not change created_at", func() {
+				createdAt := "2015-01-01T00:00:00Z"
+
+				ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+id).
+					WithJSON(common.Object{"created_at": createdAt}).
+					Expect().
+					Status(http.StatusOK).JSON().Object().
+					ContainsKey("created_at").
+					ValueNotEqual("created_at", createdAt)
+				brokerServer.VerifyCatalogEndpointInvoked(1)
+
+				ctx.SMWithOAuth.GET("/v1/service_brokers/"+id).
+					Expect().
+					Status(http.StatusOK).JSON().Object().
+					ContainsKey("created_at").
+					ValueNotEqual("created_at", createdAt)
+			})
+		})
+
+		Context("when new broker server is available", func() {
 			var (
-				updatedBrokerServer   *ghttp.Server
-				updatedBroker         common.Object
-				expectedUpdatedBroker common.Object
+				updatedBrokerServer              *common.BrokerServer
+				updatedBroker                    common.Object
+				expectedUpdatedBroker            common.Object
+				updatedUsername, updatedPassword string
 			)
 
 			BeforeEach(func() {
-				username, password := "updated_user", "updated_password"
-				updatedBrokerServer = common.FakeBrokerServer(&code, &catalogResponse, username, password)
+				updatedUsername, updatedPassword = "updated_user", "updated_password"
+				updatedBrokerServer = common.FakeBrokerServer(&code, &catalogResponse, &updatedUsername, &updatedPassword)
 				updatedBroker = common.Object{
 					"name":        "updated_name",
 					"description": "updated_description",
 					"broker_url":  updatedBrokerServer.URL(),
 					"credentials": common.Object{
 						"basic": common.Object{
-							"username": "updated_user",
-							"password": "updated_password",
+							"username": updatedUsername,
+							"password": updatedPassword,
 						},
 					},
 				}
@@ -469,25 +512,6 @@ var _ = Describe("Service Manager Broker API", func() {
 					"description": updatedBroker["description"],
 					"broker_url":  updatedBroker["broker_url"],
 				}
-			})
-
-			Context("when created_at provided in body", func() {
-				It("should not change created_at", func() {
-					createdAt := "2015-01-01T00:00:00Z"
-
-					ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+id).
-						WithJSON(common.Object{"created_at": createdAt}).
-						Expect().
-						Status(http.StatusOK).JSON().Object().
-						ContainsKey("created_at").
-						ValueNotEqual("created_at", createdAt)
-
-					ctx.SMWithOAuth.GET("/v1/service_brokers/"+id).
-						Expect().
-						Status(http.StatusOK).JSON().Object().
-						ContainsKey("created_at").
-						ValueNotEqual("created_at", createdAt)
-				})
 			})
 
 			Context("when all updatable fields are updated at once", func() {
@@ -507,43 +531,87 @@ var _ = Describe("Service Manager Broker API", func() {
 						ContainsMap(expectedUpdatedBroker).
 						Keys().NotContains("catalog", "credentials")
 
-					common.VerifyBrokerCatalogEndpointInvoked(updatedBrokerServer, 1)
+					brokerServer.VerifyCatalogEndpointInvoked(0)
+					updatedBrokerServer.VerifyCatalogEndpointInvoked(1)
 				})
 			})
 
-			Context("when updatable fields are separately updated", func() {
+			Context("when broker_url is changed and the credentials are correct", func() {
 				It("returns 200", func() {
-					for prop, val := range updatedBroker {
-						update := common.Object{}
-						// When only changing the credential we also need to change the test broker url
-						if prop == "credentials" || prop == "broker_url" {
-							update["credentials"] = updatedBroker["credentials"]
-							update["broker_url"] = updatedBroker["broker_url"]
-						} else {
-							update[prop] = val
-						}
-
-						reply := ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
-							WithJSON(update).
-							Expect().
-							Status(http.StatusOK).
-							JSON().Object()
-
-						delete(update, "credentials")
-						reply.ContainsMap(update)
-
-						reply = ctx.SMWithOAuth.GET("/v1/service_brokers/" + id).
-							Expect().
-							Status(http.StatusOK).
-							JSON().Object()
-						reply.ContainsMap(update)
+					update := common.Object{
+						"broker_url": updatedBrokerServer.URL(),
 					}
+					updatedUsername = username
+					updatedPassword = password
 
-					Expect(len(brokerServer.ReceivedRequests()) + len(updatedBrokerServer.ReceivedRequests())).To(Equal(len(updatedBroker)))
+					ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+id).
+						WithJSON(update).
+						Expect().
+						Status(http.StatusOK).
+						JSON().Object().
+						ContainsMap(update).
+						Keys().NotContains("catalog", "credentials")
 
+					ctx.SMWithOAuth.GET("/v1/service_brokers/"+id).
+						Expect().
+						Status(http.StatusOK).
+						JSON().Object().
+						ContainsMap(update).
+						Keys().NotContains("catalog", "credentials")
+
+					brokerServer.VerifyCatalogEndpointInvoked(0)
+					updatedBrokerServer.VerifyCatalogEndpointInvoked(1)
 				})
 			})
+
+			Context("when broker_url is changed but the credentials are wrong", func() {
+				It("returns 500", func() {
+					update := common.Object{
+						"broker_url": updatedBrokerServer.URL(),
+					}
+					ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+						WithJSON(update).
+						Expect().
+						Status(http.StatusInternalServerError)
+
+					ctx.SMWithOAuth.GET("/v1/service_brokers/"+id).
+						Expect().
+						Status(http.StatusOK).
+						JSON().Object().
+						ContainsMap(expectedBrokerResponse).
+						Keys().NotContains("catalog", "credentials")
+
+					brokerServer.VerifyCatalogEndpointInvoked(0)
+					updatedBrokerServer.VerifyCatalogEndpointInvoked(1)
+				})
+			})
+
 		})
+
+		for _, prop := range []string{"name", "description"} {
+			Context("when only '"+prop+"' is updated", func() {
+				It("returns 200", func() {
+					update := common.Object{}
+					update[prop] = "updated"
+					ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+id).
+						WithJSON(update).
+						Expect().
+						Status(http.StatusOK).
+						JSON().Object().
+						ContainsMap(update).
+						Keys().NotContains("catalog", "credentials")
+
+					ctx.SMWithOAuth.GET("/v1/service_brokers/"+id).
+						Expect().
+						Status(http.StatusOK).
+						JSON().Object().
+						ContainsMap(update).
+						Keys().NotContains("catalog", "credentials")
+
+					brokerServer.VerifyCatalogEndpointInvoked(1)
+				})
+			})
+		}
 
 		Context("when not updatable fields are provided in the request body", func() {
 			Context("when broker id is provided in request body", func() {
@@ -560,30 +628,24 @@ var _ = Describe("Service Manager Broker API", func() {
 						Expect().
 						Status(http.StatusNotFound)
 
-					common.VerifyBrokerCatalogEndpointInvoked(brokerServer, 1)
+					brokerServer.VerifyCatalogEndpointInvoked(1)
 				})
 			})
 
 			Context("when unmodifiable fields are provided request body", func() {
 				var (
-					unmarshaledCatalog common.Object
+					unmarshalledCatalog common.Object
 				)
 
 				BeforeEach(func() {
 					testBroker = common.Object{
 						"created_at": "2016-06-08T16:41:26Z",
 						"updated_at": "2016-06-08T16:41:26Z",
-						"credentials": common.Object{
-							"basic": common.Object{
-								"username": "updated_user",
-								"password": "updated_password",
-							},
-						},
-						"catalog": common.Object{},
+						"catalog":    common.Object{},
 					}
 
-					unmarshaledCatalog = common.Object{}
-					json.Unmarshal([]byte(common.Catalog), &unmarshaledCatalog)
+					unmarshalledCatalog = common.Object{}
+					json.Unmarshal([]byte(common.Catalog), &unmarshalledCatalog)
 				})
 
 				It("should not change them", func() {
@@ -599,10 +661,10 @@ var _ = Describe("Service Manager Broker API", func() {
 						Expect().
 						Status(http.StatusOK).
 						JSON().Object().Value("brokers").Array().First().Object().
-						ContainsMap(expectedBroker).
-						Value("catalog").Equal(unmarshaledCatalog)
+						ContainsMap(expectedBrokerResponse).
+						Value("catalog").Equal(unmarshalledCatalog)
 
-					common.VerifyBrokerCatalogEndpointInvoked(brokerServer, 1)
+					brokerServer.VerifyCatalogEndpointInvoked(1)
 				})
 			})
 		})
@@ -633,17 +695,17 @@ var _ = Describe("Service Manager Broker API", func() {
 					Expect().
 					Status(http.StatusOK).
 					JSON().Object().Value("brokers").Array().First().Object().
-					ContainsMap(expectedBroker).
+					ContainsMap(expectedBrokerResponse).
 					Value("catalog").Equal(updatedCatalog)
 
-				common.VerifyBrokerCatalogEndpointInvoked(brokerServer, 1)
+				brokerServer.VerifyCatalogEndpointInvoked(1)
 			})
 		})
 	})
 
 	Describe("DELETE", func() {
 		AfterEach(func() {
-			common.VerifyBrokerCatalogEndpointInvoked(brokerServer, 0)
+			brokerServer.VerifyCatalogEndpointInvoked(0)
 		})
 
 		Context("when broker does not exist", func() {
@@ -664,12 +726,12 @@ var _ = Describe("Service Manager Broker API", func() {
 					Expect().
 					Status(http.StatusCreated).
 					JSON().Object().
-					ContainsMap(expectedBroker)
+					ContainsMap(expectedBrokerResponse)
 
 				id = reply.Value("id").String().Raw()
 
-				common.VerifyBrokerCatalogEndpointInvoked(brokerServer, 1)
-				common.ClearReceivedRequests(&code, &catalogResponse, brokerServer)
+				brokerServer.VerifyCatalogEndpointInvoked(1)
+				brokerServer.ClearReceivedRequests()
 			})
 
 			It("returns 200", func() {

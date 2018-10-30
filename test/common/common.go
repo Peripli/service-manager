@@ -236,16 +236,54 @@ func MakePlatform(id string, name string, atype string, description string) Obje
 	}
 }
 
-func FakeBrokerServer(code *int, response interface{}, username, password string) *ghttp.Server {
-	brokerServer := ghttp.NewServer()
-	handler := ghttp.CombineHandlers(ghttp.VerifyBasicAuth(username, password), ghttp.RespondWithPtr(code, response))
-	brokerServer.RouteToHandler(http.MethodGet, regexp.MustCompile(".*"), handler)
+// BrokerServer http server which acts as a broker
+type BrokerServer struct {
+	*ghttp.Server
+
+	Handler http.HandlerFunc
+}
+
+// FakeBrokerServer creates and starts a new http server which acts as a broker
+func FakeBrokerServer(code *int, response interface{}, username, password *string) *BrokerServer {
+	brokerServer := &BrokerServer{
+		Server:  ghttp.NewServer(),
+		Handler: verifyBasicAuth(username, password, ghttp.RespondWithPtr(code, response)),
+	}
+	brokerServer.attachHandler()
 	return brokerServer
 }
 
-func VerifyReqReceived(server *ghttp.Server, times int, method, path string, rawQuery ...string) {
+func (bs *BrokerServer) attachHandler() {
+	bs.RouteToHandler(http.MethodGet, regexp.MustCompile(".*"), bs.Handler)
+}
+
+func verifyBasicAuth(username, password *string, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		auth := req.Header.Get("Authorization")
+		if auth == "" {
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte("Missing authorization header"))
+			return
+		}
+		const basicHeaderPrefixLength = len("Basic ")
+		decoded, err := base64.StdEncoding.DecodeString(auth[basicHeaderPrefixLength:])
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte(err.Error()))
+			return
+		}
+		if string(decoded) != fmt.Sprintf("%s:%s", *username, *password) {
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte("Credentials mismatch"))
+			return
+		}
+		next(w, req)
+	}
+}
+
+func (bs *BrokerServer) verifyReqReceived(times int, method, path string, rawQuery ...string) {
 	timesReceived := 0
-	for _, req := range server.ReceivedRequests() {
+	for _, req := range bs.ReceivedRequests() {
 		if req.Method == method && strings.Contains(req.URL.Path, path) {
 			if len(rawQuery) == 0 {
 				timesReceived++
@@ -264,13 +302,15 @@ func VerifyReqReceived(server *ghttp.Server, times int, method, path string, raw
 	}
 }
 
-func VerifyBrokerCatalogEndpointInvoked(server *ghttp.Server, times int) {
-	VerifyReqReceived(server, times, http.MethodGet, "/v2/catalog")
+// VerifyCatalogEndpointInvoked checks if broker has been called specific amount of times on /v2/catalog endpoint
+func (bs *BrokerServer) VerifyCatalogEndpointInvoked(times int) {
+	bs.verifyReqReceived(times, http.MethodGet, "/v2/catalog")
 }
 
-func ClearReceivedRequests(code *int, response interface{}, server *ghttp.Server) {
-	server.Reset()
-	server.RouteToHandler(http.MethodGet, regexp.MustCompile(".*"), ghttp.RespondWithPtr(code, response))
+// ClearReceivedRequests resets the broker server
+func (bs *BrokerServer) ClearReceivedRequests() {
+	bs.Reset()
+	bs.attachHandler()
 }
 
 type HTTPReaction struct {

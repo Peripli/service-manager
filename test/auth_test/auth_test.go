@@ -73,7 +73,7 @@ var _ = Describe("Service Manager Authentication", func() {
 			catalogResponse := []byte(common.Catalog)
 
 			username, password := "buser", "bpass"
-			brokerServer := common.FakeBrokerServer(&code, &catalogResponse, username, password)
+			brokerServer := common.FakeBrokerServer(&code, &catalogResponse, &username, &password)
 			defer brokerServer.Close()
 
 			brokerJSON := common.Object{
