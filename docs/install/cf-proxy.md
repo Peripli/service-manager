@@ -2,15 +2,14 @@
 
 ## Prerequisites
 
-* [git]() is installed
-* [go]() is installed
-* [dep]() is installed
-* [cf cli]() is installed.
-* You are logged in CF.
-* [go_buildpack]() is installed with support for go version 1.10
+* git
+* go 1.10
+* dep
+* CF CLI
+* go_buildpack 1.8.19+
 * [Service-Manager](./sm.md) is installed.
 
-**Note:** The used go buildpack should be named `go_buildpack`.
+**Note:** For details about the prerequisites you may refer to the [installation prerequisites page](./../development/install-prerequisites.md)
 
 ## Clone the repository
 

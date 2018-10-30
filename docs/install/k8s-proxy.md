@@ -2,9 +2,13 @@
 
 ## Prerequisites
 
-* [git]() is installed.
-* [helm]() is installed and configured in the Kubernetes cluster
-* [`service-catalog`]() is installed and configured in the Kubernetes cluster.
+* git
+* kubectl
+* helm
+* service-catalog 
+* [Service-Manager](./sm.md) is installed.
+
+**Note:** For details about the prerequisites you may refer to the [installation prerequisites page](./../development/install-prerequisites.md)
 
 ## Clone the repository
 

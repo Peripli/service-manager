@@ -1,10 +1,8 @@
 # Run Service Manager
 
-## Prerequisites
+## Clone the Repository
 
-* You need to have an OAuth server to be used by the Service Manager. This OAuth server must support [OpenID Connect Discovery](https://openid.net/specs/openid-connect-discovery-1_0.html). In CF this could be the CF UAA. One way to get this setup is to install [cfdev/pcfdev]() or to directly install [UAA]() 
-* Install [git]().
-* Clone the [service-manager](https://github.com/Peripli/service-manager) repository.
+Clone the [service-manager](https://github.com/Peripli/service-manager) repository.
 
     ```console
     $ git clone https://github.com/Peripli/service-manager.git $GOPATH/src/github.com/Peripli/service-manager && cd $GOPATH/src/github.com/Peripli/service-manager
@@ -16,11 +14,15 @@
 
 ### Prerequisites for CF deployment
 
-The following must be fulfilled:
-
-* You have CF CLI installed and configured.
-* You are logged in to CF.
+* git
+* go 1.10
+* dep
+* OpenID compliant Authorization Server 
+* CF CLI installed and configured.
+* go_buildpack 1.8.19+
 * PostgreSQL service is available or an external PostgreSQL is accessible from the CF environment.
+
+**Note:** For details about the prerequisites you may refer to the [installation prerequisites page](./../development/install-prerequisites.md)
 
 ### Create PostgreSQL service instance in your CF environment
 
@@ -28,7 +30,7 @@ The following must be fulfilled:
 $ cf create-service <postgres_service_name> <plan_name> <postgre_instance_name>
 ```
 
-Alternatively, you can use external PostgreSQL. In this case you need to have a PostgreSQL URI and substitute it in the the `STORAG_URI` in `manifest.yml` as outlined below.
+Alternatively, you can use external PostgreSQL as described in the [installation prerequisites page](./../development/install-prerequisites.md#postgres-database). In this case you need to have a PostgreSQL URI and substitute it in the the `STORAG_URI` in `manifest.yml` as outlined below.
 
 ### Update manifest.yml file
 
@@ -55,11 +57,16 @@ $ cf push -f deployment/cf/manifest.yml
 
 ### Prerequisites for Kubernetes deployment
 
-The following must be fulfilled:
+* git
+* go 1.10
+* dep
+* OpenID compliant Authorization Server 
+* kubectl is installed and configured to be used with the Kubernetes cluster
+* helm is installed and configured on the cluster
+* ingress controller is configured on the cluster *(optional)*
+* External PostgreSQL accessible from the cluster *(optional)*
 
-* [kubectl]() is installed and configured to be used with the Kubernetes cluster.
-* [Helm]() is installed and configured on the cluster.
-* Ingress controller is configured on the cluster *(optional)*
+**Note:** For details about the prerequisites you may refer to the [installation prerequisites page](./../development/install-prerequisites.md)
 
 ### Install Service Manager
 

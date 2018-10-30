@@ -32,10 +32,12 @@ Follow [run on Kubernetes](./../install/sm.md#run-on-Kubernertes) installation s
 
 Edit the following `env` vars in the `$GOPATH/src/github.com/Peripli/service-manager/deployment/cf/manifest.yml`:
 * set the token endpoint of the authorization server that was setup as part of the prerequisites
+
     ```yml
     env:
       API_TOKEN_ISSUER_URL: https://uaa.dev.cfdev.sh
     ```
+
 * set the storage configuration
 
     If you are using an external database that is running on `localhost:5432` then set the `STORAGE_URI` (use 10.0.2.2 as the application will run inside the CF Dev VM and `10.0.2.2` maps to the host's `localhost`):
@@ -68,8 +70,9 @@ Follow [run on CF](./../install/sm.md#run-on-CF) installation steps.
 
 #### Configuration Adjustments
 
-Edit the following `properties` in the `$GOPATH/src/github.com/Peripli/service-manager/deployment/cf/manifest.yml`:
+Edit the following `properties` in the `$GOPATH/src/github.com/Peripli/service-manager/application.yml`:
 * set the token endpoint of the authorization server that was setup as part of the prerequisites
+    
     ```yml
     api:
       token_issuer_url: https://uaa.dev.cfdev.sh
@@ -89,6 +92,12 @@ Edit the following `properties` in the `$GOPATH/src/github.com/Peripli/service-m
 
 ```console
 $ go run main.go
+```
+
+**Note:** One may skip the configuration adjustments in the `application.yml` file and instead set the values as commandline flags.
+
+```console
+go run main.go --storage.uri=postgres://postgres:postgres@10.0.2.2:5432/postgres?sslmode=disable --api.token_issuer_url=https://uaa.dev.cfdev.sh --api.skip_ssl_verification=true
 ```
 
 ## Service Broker CF Proxy
@@ -144,11 +153,11 @@ Follow the [run on K8S](./../install/k8s-proxy.md) installation steps.
 
 ## Service Manager CLI
 
-### SMCTL as Binary
+### smctl as Binary
 
 Follow the [installation steps](./../installation/cli.md) to install the binary.
 
-### SMCTL Locally
+### smctl Locally
 
 * Clone the [smctl](https://github.com/Peripli/service-manager-cli) repository.
 
@@ -161,6 +170,7 @@ Follow the [installation steps](./../installation/cli.md) to install the binary.
     ```console
     $ dep ensure --vendor-only
     ```
+ 
 * Run/debug a command by executing `go run main.go` followed by the command
 
     Example:

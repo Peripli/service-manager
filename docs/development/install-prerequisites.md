@@ -10,6 +10,14 @@ Generally required prerequisites in order to get started with the Service Manage
 
 Setup is described [here](https://git-scm.com/)
 
+### Go
+
+Currently Service Manager requires Go version 1.10. Installation steps can be found [here](https://golang.org/doc/install).
+
+### Dep
+
+Most of the Service Manager github repositories do not include a `vendor` folder. You would need to have `dep` installed and run `dep ensure --vendor-only` to download the project dependencies. Installation details can be found [here](https://github.com/golang/dep#installation).
+
 ### smctl
 
 Install `smctl` as described [here](https://github.com/Peripli/service-manager-cli/blob/master/README.md).
@@ -105,7 +113,7 @@ Details about installing `CF CLI` can be found [here](https://github.com/cloudfo
 
 You would also need a Cloud Foundry installation and either user/pass or oauth client credentials to manage service brokers as well as service access at the Cloud Controller API.
 
-**Note:** The CF installation should have a `go_buildpack` installed with support for Go 1.10+. The buildpack should use the name `go_buildpack`. Steps:
+**Note:** The CF installation should have a `go_buildpack` installed with support for Go 1.10+. This would imply that the go buildpack version should be newer than 1.8.19. The buildpack should use the name `go_buildpack`. Steps to upgrade the `go_buildpack` in case this is required:
 * Download the latest Release from [here](https://github.com/cloudfoundry/go-buildpack/releases)
 * Rename the zip so it contains no dots (.) and slashes (-)
 * Navigate to the directory the zip was downloaded to and run:

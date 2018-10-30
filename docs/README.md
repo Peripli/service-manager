@@ -24,10 +24,10 @@ The `docs` folder contains end-to-end documentation for the Service Manager and 
 ## Development
 
 * [Developer's Guide](./development/README.md)
-  * [Running Locally](./development/local.md)
+  * [Run Components Locally](./development/local.md)
   * [Source Code Repositories](./development/repositories-structure.md)
   * [Build Components](./development/build.md)
-  * [Running Tests](./development/tests.md)
+  * [Run Tests](./development/tests.md)
   * [Manage Dependencies](./development/dep.md)
 * [Extensions](./development/extensions.md)
 * [Contribution Process](./development/contrib-process.md)

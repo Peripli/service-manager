@@ -30,7 +30,7 @@ Makefiles are provided in the repositories. In order to use them, one would need
 ### Postgres on Docker
 
 ```console
-$ docker run --name postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres -d postgres
+$ docker run --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres -d postgres
 ```
 
 **Note:** If you are using `Docker for Window` or `Docker for Mac`, the database URI should be `postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable`. Otherwise, instead of `localhost` you would need to use the `$(docker-machine ip)`. 
@@ -45,8 +45,6 @@ A locally running K8S Cluster. Check the [minikube installation guide](https://k
 
 Alternatively, **Windows** users may follow these steps:
 
-> **Note:** On Windows Minikube versions 26.x does not work on Windows. Currently version 25.2 is the latest tested version on Windows that works properly.
-
 * Setup chocolately package manager
 
 ```powershell
@@ -56,7 +54,7 @@ Alternatively, **Windows** users may follow these steps:
 * Install minikube
 
     ```bat
-    choco install minikube --version 0.25.2
+    choco install minikube
     ```
 
 >**Note:** In order to reuse the docker daemon and speed up local development check the [Reusing the Docker daemon section of the minikube getting started guide](https://kubernetes.io/docs/getting-started-guides/minikube/#reusing-the-docker-daemon)
@@ -70,18 +68,6 @@ The [kubernetes deployment prerequisites]() section outlines some additional ste
 ### PCF Dev
 
 A locally running CF installation that includes an Authorization Server (UAA). Installation steps for PCFDev can be found [here](https://pivotal.io/platform/pcf-tutorials/getting-started-with-pivotal-cloud-foundry-dev/introduction).
-
-#### Install go_buildpack
-
-The Service Manager components use go1.10 and currenty  the buildpack installed in PCF Dev does not support go1.10. The following steps install the latest go buildpack version on PCF Dev:
-
-* Download the latest Release from [here](https://github.com/cloudfoundry/go-buildpack/releases)
-* Rename the zip so it contains no dots (.) and slashes (-)
-* Navigate to the directory the zip was downloaded to and run:
-
-    ```console
-    $ cf update-buildpack go_buildpack <buildpackzipname>.zip 1
-    ```
 
 ### CF Dev 
 
