@@ -51,7 +51,7 @@ The service-broker-proxy-k8s is installed via a helm chart located in the [servi
 Navigate to the root of the cloned repository and execute:
 
 ```console
-name helm install charts/service-broker-proxy --service-broker-proxy --namespace service-broker-proxy --set config.sm.url=<SM_URL> --set sm.user=<SM_USER> --set sm.password=<SM_PASSWORD>
+helm install charts/service-broker-proxy --service-broker-proxy --namespace service-broker-proxy --set config.sm.url=<SM_URL> --set sm.user=<SM_USER> --set sm.password=<SM_PASSWORD>
 ```
 
 **Note:** Make sure you substitute `<SM_URL>` with the Service Manager URL, `<SM_USER>` and `<SM_PASSWORD>` with the credentials issued from Service Manager when this platform was registered there.
