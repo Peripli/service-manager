@@ -76,7 +76,7 @@ Alternatively, instead of `PCF Dev` one can use [CF Dev](https://github.com/clou
 **Note**: Installing `PCF Dev` or `CF Dev` also includes an Authrization Server(UAA). To get the CF UAA URL you can execute the following command (you need to install [jq](https://stedolan.github.io/jq/)):
 
 ```console
-$ cf curl /v2/info | jq .token_endpoint
+cf curl /v2/info | jq .token_endpoint
 ```
 
 The obtained value can be used to set the Service Manager `API_TOKEN_ISSUER_URL`.

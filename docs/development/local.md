@@ -10,10 +10,10 @@ Each of the sections below outlines only the prerequisites required to run the p
 
 #### Prerequisites
 
- * [general deployment prerequisites](./install-prerequisites.md#general-deployment-prerequisites)
- * [minikube](./develop-prerequisites.md#minikube)
- * [K8S deployment prerequisites](./install-prerequisites.md#kubernetes-deployment-prerequisites)
- * in case you are planning to develop/contribute code, you should check the [local development prerequisites](./develop-prerequisites#local-development-prerequisites)
+* [general deployment prerequisites](./install-prerequisites.md#general-deployment-prerequisites)
+* [minikube](./develop-prerequisites.md#minikube)
+* [K8S deployment prerequisites](./install-prerequisites.md#kubernetes-deployment-prerequisites)
+* in case you are planning to develop/contribute code, you should check the [local development prerequisites](./develop-prerequisites#local-development-prerequisites)
 
 #### Installation 
 
@@ -23,14 +23,15 @@ Follow [run on Kubernetes](./../install/sm.md#run-on-Kubernertes) installation s
 
 #### Prerequisites
 
- * [general deployment prerequisites](./install-prerequisites.md#general-deployment-prerequisites)
- * [local CF installation](./develop-prerequisites.md#local-cf-setup)
- * [CF deployment prerequisites](./install-prerequisites.md#cloud-foundry-deployment-prerequisites)
- * in case you are planning to develop/contribute code, you should check the [local development prerequisites](./develop-prerequisites#local-development-prerequisites)
+* [general deployment prerequisites](./install-prerequisites.md#general-deployment-prerequisites)
+* [local CF installation](./develop-prerequisites.md#local-cf-setup)
+* [CF deployment prerequisites](./install-prerequisites.md#cloud-foundry-deployment-prerequisites)
+* in case you are planning to develop/contribute code, you should check the [local development prerequisites](./develop-prerequisites#local-development-prerequisites)
  
 #### Configuration Adjustments
 
 Edit the following `env` vars in the `$GOPATH/src/github.com/Peripli/service-manager/deployment/cf/manifest.yml`:
+
 * set the token endpoint of the authorization server that was setup as part of the prerequisites
 
     ```yml
@@ -71,8 +72,9 @@ Follow [run on CF](./../install/sm.md#run-on-CF) installation steps.
 #### Configuration Adjustments
 
 Edit the following `properties` in the `$GOPATH/src/github.com/Peripli/service-manager/application.yml`:
+
 * set the token endpoint of the authorization server that was setup as part of the prerequisites
-    
+
     ```yml
     api:
       token_issuer_url: https://uaa.dev.cfdev.sh
@@ -91,7 +93,7 @@ Edit the following `properties` in the `$GOPATH/src/github.com/Peripli/service-m
 #### Installation
 
 ```console
-$ go run main.go
+go run main.go
 ```
 
 **Note:** One may skip the configuration adjustments in the `application.yml` file and instead set the values as commandline flags.
@@ -142,10 +144,10 @@ Follow the [run on CF](./../install/cf-proxy.md) installation steps.
 
 #### Prerequisites
 
- * [git](https://git-scm.com/)
- * [smctl](https://github.com/Peripli/service-manager-cli/blob/master/README.md)
- * [minikube](./develop-prerequisites.md#local-k8s-setup)
- * [K8S deployment prerequisites](./install-prerequisites.md#kubernetes-deployment-prerequisites)
+* [git](https://git-scm.com/)
+* [smctl](https://github.com/Peripli/service-manager-cli/blob/master/README.md)
+* [minikube](./develop-prerequisites.md#local-k8s-setup)
+* [K8S deployment prerequisites](./install-prerequisites.md#kubernetes-deployment-prerequisites)
 
 #### Installation
 
@@ -162,15 +164,15 @@ Follow the [installation steps](./../installation/cli.md) to install the binary.
 * Clone the [smctl](https://github.com/Peripli/service-manager-cli) repository.
 
     ```console
-    $ git clone https://github.com/Peripli/service-manager-cli.git $GOPATH/src/github.com/Peripli/service-manager-cli && cd $GOPATH/src/github.com/Peripli/service-manager-cli
+    git clone https://github.com/Peripli/service-manager-cli.git $GOPATH/src/github.com/Peripli/service-manager-cli && cd $GOPATH/src/github.com/Peripli/service-manager-cli
     ```
 
 * install dependencies
 
     ```console
-    $ dep ensure --vendor-only
+    dep ensure --vendor-only
     ```
- 
+
 * Run/debug a command by executing `go run main.go` followed by the command
 
     Example:

@@ -16,7 +16,7 @@
 Clone the [service-broker-proxy-cf](https://github.com/Peripli/service-broker-proxy-cf) git repository.
 
 ```console
-$ git clone https://github.com/Peripli/service-broker-proxy-cf.git && cd service-broker-proxy-cf
+git clone https://github.com/Peripli/service-broker-proxy-cf.git && cd service-broker-proxy-cf
 ```
 
 **Note:** Do not use `go get`. Instead use git to clone the repository.
@@ -24,7 +24,7 @@ $ git clone https://github.com/Peripli/service-broker-proxy-cf.git && cd service
 ## Install dependencies
 
 ```console
-$ dep ensure --vendor-only
+dep ensure --vendor-only
 ```
 
 ## Register CF in Service Manager
@@ -63,5 +63,5 @@ You can also use the `application.yml` file which has lower priority than the En
 Execute:
 
 ```console
-$ cf push -f manifest.yml
+cf push -f manifest.yml
 ```

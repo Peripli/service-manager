@@ -114,10 +114,11 @@ Details about installing `CF CLI` can be found [here](https://github.com/cloudfo
 You would also need a Cloud Foundry installation and either user/pass or oauth client credentials to manage service brokers as well as service access at the Cloud Controller API.
 
 **Note:** The CF installation should have a `go_buildpack` installed with support for Go 1.10+. This would imply that the go buildpack version should be newer than 1.8.19. The buildpack should use the name `go_buildpack`. Steps to upgrade the `go_buildpack` in case this is required:
+
 * Download the latest Release from [here](https://github.com/cloudfoundry/go-buildpack/releases)
 * Rename the zip so it contains no dots (.) and slashes (-)
 * Navigate to the directory the zip was downloaded to and run:
 
     ```console
-    $ cf update-buildpack go_buildpack <buildpackzipname>.zip 1
+    cf update-buildpack go_buildpack <buildpackzipname>.zip 1
     ```
