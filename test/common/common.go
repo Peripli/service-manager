@@ -23,11 +23,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 
-	"net/url"
-	"reflect"
-	"regexp"
 	"strings"
 
 	"bytes"
@@ -36,48 +32,12 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/gavv/httpexpect"
-	"github.com/gorilla/mux"
 	"github.com/mitchellh/mapstructure"
 	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-	"github.com/onsi/gomega/ghttp"
 )
 
 type Object = map[string]interface{}
 type Array = []interface{}
-
-const Catalog = `{
-  "services": [
-    {
-      "bindable": true,
-      "description": "service",
-      "id": "98418a7a-002e-4ff9-b66a-d03fc3d56b16",
-      "metadata": {
-        "displayName": "test",
-        "longDescription": "test"
-      },
-      "name": "test",
-      "plan_updateable": false,
-      "plans": [
-        {
-          "description": "test",
-          "free": true,
-          "id": "9bb3b29e-bbf9-4900-b926-2f8e9c9a3347",
-          "metadata": {
-            "bullets": [
-              "Plan with basic functionality and relaxed security, excellent for development and try-out purposes"
-            ],
-            "displayName": "lite"
-          },
-          "name": "lite"
-        }
-      ],
-      "tags": [
-        "test"
-      ]
-    }
-  ]
-}`
 
 func MapContains(actual Object, expected Object) {
 	for k, v := range expected {
@@ -111,14 +71,14 @@ func removeAll(SM *httpexpect.Expect, entity, rootURLPath string) {
 	}
 }
 
-func RegisterBroker(brokerJSON Object, SM *httpexpect.Expect) string {
+func RegisterBrokerInSM(brokerJSON Object, SM *httpexpect.Expect) string {
 	reply := SM.POST("/v1/service_brokers").
 		WithJSON(brokerJSON).
 		Expect().Status(http.StatusCreated).JSON().Object()
 	return reply.Value("id").String().Raw()
 }
 
-func RegisterPlatform(platformJSON Object, SM *httpexpect.Expect) *types.Platform {
+func RegisterPlatformInSM(platformJSON Object, SM *httpexpect.Expect) *types.Platform {
 	reply := SM.POST("/v1/platforms").
 		WithJSON(platformJSON).
 		Expect().Status(http.StatusCreated).JSON().Object().Raw()
@@ -132,64 +92,6 @@ func setResponse(rw http.ResponseWriter, status int, message, brokerID string) {
 	rw.Header().Set("X-Broker-ID", brokerID)
 	rw.WriteHeader(status)
 	rw.Write([]byte(message))
-}
-
-func SetupFakeServiceBrokerServerWithPrefix(brokerID, prefix string) *httptest.Server {
-	router := mux.NewRouter()
-
-	router.HandleFunc(prefix+"/v2/catalog", func(rw http.ResponseWriter, req *http.Request) {
-		setResponse(rw, http.StatusOK, Catalog, brokerID)
-	})
-
-	router.HandleFunc(prefix+"/v2/service_instances/{instance_id}", func(rw http.ResponseWriter, req *http.Request) {
-		setResponse(rw, http.StatusCreated, "{}", brokerID)
-	}).Methods("PUT")
-
-	router.HandleFunc(prefix+"/v2/service_instances/{instance_id}", func(rw http.ResponseWriter, req *http.Request) {
-		setResponse(rw, http.StatusOK, "{}", brokerID)
-	}).Methods("DELETE")
-
-	router.HandleFunc(prefix+"/v2/service_instances/{instance_id}/service_bindings/{binding_id}", func(rw http.ResponseWriter, req *http.Request) {
-		response := fmt.Sprintf(`{"credentials": {"instance_id": "%s" , "binding_id": "%s"}}`, mux.Vars(req)["instance_id"], mux.Vars(req)["binding_id"])
-		setResponse(rw, http.StatusCreated, response, brokerID)
-	}).Methods("PUT")
-
-	router.HandleFunc(prefix+"/v2/service_instances/{instance_id}/service_bindings/{binding_id}", func(rw http.ResponseWriter, req *http.Request) {
-		setResponse(rw, http.StatusOK, "{}", brokerID)
-	}).Methods("DELETE")
-
-	router.HandleFunc(prefix+"/v2/service_instances/{instance_id}/last_operation", func(rw http.ResponseWriter, req *http.Request) {
-		setResponse(rw, http.StatusOK, `{"state": "succeeded"}`, brokerID)
-	}).Methods("GET")
-
-	router.HandleFunc(prefix+"/v2/service_instances/{instance_id}/service_bindings/{binding_id}/last_operation", func(rw http.ResponseWriter, req *http.Request) {
-		setResponse(rw, http.StatusOK, `{"state": "succeeded"}`, brokerID)
-	}).Methods("GET")
-
-	server := httptest.NewServer(router)
-	if prefix != "" {
-		server.URL = server.URL + prefix
-	}
-
-	return server
-}
-
-func SetupFakeServiceBrokerServer(brokerID string) *httptest.Server {
-	return SetupFakeServiceBrokerServerWithPrefix(brokerID, "")
-}
-
-func SetupFakeFailingBrokerServer(brokerID string) *httptest.Server {
-	router := mux.NewRouter()
-
-	router.PathPrefix("/v2/catalog").HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		setResponse(rw, http.StatusOK, Catalog, brokerID)
-	})
-
-	router.PathPrefix("/").HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		setResponse(rw, http.StatusNotAcceptable, `{"description": "expected error"}`, brokerID)
-	})
-
-	return httptest.NewServer(router)
 }
 
 func generatePrivateKey() *rsa.PrivateKey {
@@ -234,83 +136,6 @@ func MakePlatform(id string, name string, atype string, description string) Obje
 		"type":        atype,
 		"description": description,
 	}
-}
-
-// BrokerServer http server which acts as a broker
-type BrokerServer struct {
-	*ghttp.Server
-
-	Handler http.HandlerFunc
-}
-
-// FakeBrokerServer creates and starts a new http server which acts as a broker
-func FakeBrokerServer(code *int, response interface{}, username, password *string) *BrokerServer {
-	brokerServer := &BrokerServer{
-		Server:  ghttp.NewServer(),
-		Handler: verifyBasicAuth(username, password, ghttp.RespondWithPtr(code, response)),
-	}
-	brokerServer.attachHandler()
-	return brokerServer
-}
-
-func (bs *BrokerServer) attachHandler() {
-	bs.RouteToHandler(http.MethodGet, regexp.MustCompile(".*"), bs.Handler)
-}
-
-func verifyBasicAuth(username, password *string, next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		auth := req.Header.Get("Authorization")
-		if auth == "" {
-			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte("Missing authorization header"))
-			return
-		}
-		const basicHeaderPrefixLength = len("Basic ")
-		decoded, err := base64.StdEncoding.DecodeString(auth[basicHeaderPrefixLength:])
-		if err != nil {
-			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte(err.Error()))
-			return
-		}
-		if string(decoded) != fmt.Sprintf("%s:%s", *username, *password) {
-			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte("Credentials mismatch"))
-			return
-		}
-		next(w, req)
-	}
-}
-
-func (bs *BrokerServer) verifyReqReceived(times int, method, path string, rawQuery ...string) {
-	timesReceived := 0
-	for _, req := range bs.ReceivedRequests() {
-		if req.Method == method && strings.Contains(req.URL.Path, path) {
-			if len(rawQuery) == 0 {
-				timesReceived++
-				continue
-			}
-			values, err := url.ParseQuery(rawQuery[0])
-			Expect(err).ShouldNot(HaveOccurred())
-			if reflect.DeepEqual(req.URL.Query(), values) {
-				timesReceived++
-			}
-		}
-	}
-	if times != timesReceived {
-		Fail(fmt.Sprintf("Request with method = %s, path = %s, rawQuery = %s expected to be received atleast "+
-			"%d times but was received %d times", method, path, rawQuery, times, timesReceived))
-	}
-}
-
-// VerifyCatalogEndpointInvoked checks if broker has been called specific amount of times on /v2/catalog endpoint
-func (bs *BrokerServer) VerifyCatalogEndpointInvoked(times int) {
-	bs.verifyReqReceived(times, http.MethodGet, "/v2/catalog")
-}
-
-// ClearReceivedRequests resets the broker server
-func (bs *BrokerServer) ClearReceivedRequests() {
-	bs.Reset()
-	bs.attachHandler()
 }
 
 type HTTPReaction struct {
