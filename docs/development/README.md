@@ -4,11 +4,11 @@
 
 This page intends to get you up-and-running with the Service Manager project.
 
-If you are interested in contributing, take a look at the [contribution guide](../../CONTRIBUTING.md).
+If you are interested in contributing, take a look at the [contribution guide](./../../CONTRIBUTING.md).
 
-## [Prerequisites](prerequisites.md)
+## [Prerequisites](develop-prerequisites.md)
 
-In order to setup development environment for the project you would need some preinstalled tools.
+## [Run Locally](local.md)
 
 ## [Repository Structure](repositories-structure.md)
 
