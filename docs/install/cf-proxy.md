@@ -51,7 +51,7 @@ ID                                    Name  Type  Description  Created          
 
 In the [service-broker-proxy-cf](https://github.com/Peripli/service-broker-proxy-cf) repository you need to replace in the `manifest.yml` the following things:
 
-* Administrative credentials for CF with env variables `CF_CLIENT_USERNAME`, `CF_CLIENT_PASSWORD` and `CF_CLIENT_APIADDRESS.
+* Administrative credentials for CF with env variables `CF_CLIENT_USERNAME` and `CF_CLIENT_PASSWORD`.
 * Service-Manager URL using the `SM_URL` env variable.
 * Credentials for Service Manager with env variables `SM_USER` and `SM_PASSWORD`. These are the credentials obtained by the `smctl register-platform` command
 
