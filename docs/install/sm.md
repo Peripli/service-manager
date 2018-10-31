@@ -1,17 +1,12 @@
 # Run Service Manager
 
-## Prerequisites
+## Clone the Repository
 
-* You need to have an OAuth server to be used by the Service Manager. This OAuth server must support [OpenID Connect Discovery](https://openid.net/specs/openid-connect-discovery-1_0.html). In CF this could be the CF UAA.
-* `git` is installed.
+Clone the [service-manager](https://github.com/Peripli/service-manager) repository.
 
-## Clone the repository
-
-Clone the [service-manager](https://github.com/Peripli/service-manager) git repository.
-
-```console
-$ git clone https://github.com/Peripli/service-manager.git && cd service-manager
-```
+    ```console
+    $ git clone https://github.com/Peripli/service-manager.git $GOPATH/src/github.com/Peripli/service-manager && cd $GOPATH/src/github.com/Peripli/service-manager
+    ```
 
 **Note:** Do not use `go get`. Instead use git to clone the repository.
 
@@ -19,19 +14,23 @@ $ git clone https://github.com/Peripli/service-manager.git && cd service-manager
 
 ### Prerequisites for CF deployment
 
-The following must be fulfilled:
+* git
+* go 1.10
+* dep
+* OpenID compliant Authorization Server 
+* CF CLI installed and configured.
+* go_buildpack 1.8.19+
+* PostgreSQL service is available or an external PostgreSQL is accessible from the CF environment.
 
-* You have CF cli installed and configured.
-* You are logged in to CF.
-* PostgreSQL service is available or an external PostgreSQL is installed and accessible from the CF environment.
+**Note:** For details about the prerequisites you may refer to the [installation prerequisites page](./../development/install-prerequisites.md)
 
 ### Create PostgreSQL service instance in your CF environment
 
 ```console
-$ cf create-service <postgres_service_name> <plan_name> <postgre_instance_name>
+cf create-service <postgres_service_name> <plan_name> <postgre_instance_name>
 ```
 
-Alternatively, you can use external PostgreSQL. In this case you need to have a PostgreSQL URI.
+Alternatively, you can use external PostgreSQL as described in the [installation prerequisites page](./../development/install-prerequisites.md#postgres-database). In this case you need to have a PostgreSQL URI and substitute it in the the `STORAG_URI` in `manifest.yml` as outlined below.
 
 ### Update manifest.yml file
 
@@ -43,7 +42,7 @@ Prepare the manifest for deployment using *[deployment/cf/manifest.yml](https://
 **Note:** To get the CF UAA URL you can execute the following command (you need to install [jq](https://stedolan.github.io/jq/)):
 
 ```console
-$ cf curl /v2/info | jq .token_endpoint
+cf curl /v2/info | jq .token_endpoint
 ```
 
 ### Push the application
@@ -51,18 +50,23 @@ $ cf curl /v2/info | jq .token_endpoint
 From the root of the service manager project execute:
 
 ```console
-$ cf push -f deployment/cf/manifest.yml
+cf push -f deployment/cf/manifest.yml
 ```
 
 ## Run on Kubernetes
 
 ### Prerequisites for Kubernetes deployment
 
-The following must be fulfilled:
+* git
+* go 1.10
+* dep
+* OpenID compliant Authorization Server 
+* kubectl is installed and configured to be used with the Kubernetes cluster
+* helm is installed and configured on the cluster
+* ingress controller is configured on the cluster *(optional)*
+* External PostgreSQL accessible from the cluster *(optional)*
 
-* *kubectl* is installed and configured to be used with the Kubernetes cluster.
-* Helm is installed and configured.
-* Ingress controller is configured on the cluster *(optional)*
+**Note:** For details about the prerequisites you may refer to the [installation prerequisites page](./../development/install-prerequisites.md)
 
 ### Install Service Manager
 
@@ -71,7 +75,7 @@ Go to *deployment/k8s/charts/service-manager* folder.
 Execute:
 
 ```console
-$ helm dependency build
+helm dependency build
 ```
 
 to get the required dependencies.
@@ -79,7 +83,7 @@ to get the required dependencies.
 To install the Service Manager and PostgreSQL database, execute:
 
 ```console
-$ helm install --name service-manager --namespace service-manager . --set config.api.token_issuer_url=<api_token_issuer_url>
+helm install --name service-manager --namespace service-manager . --set config.api.token_issuer_url=<api_token_issuer_url>
 ```
 
 where *<api_token_issuer_url>* is the URL of your OAuth server. If this configuration is not set it will use the CFDev UAA URL - `https://uaa.dev.cfdev.sh`
@@ -87,21 +91,21 @@ where *<api_token_issuer_url>* is the URL of your OAuth server. If this configur
 To change the PostgreSQL username or password you can use the `postgresql.postgresUser` and `postgresql.postgresPassword` configurations as in the example below:
 
 ```console
-$ helm install --name service-manager --namespace service-manager . --set postgresql.postgresUser=<pguser> --set postgresql.postgresPassword=<pgpass>
+helm install --name service-manager --namespace service-manager . --set postgresql.postgresUser=<pguser> --set postgresql.postgresPassword=<pgpass>
 ```
 
 **Note:** These credentials will remain in your bash history. Alternatively you can change these values directly in *deployment/k8s/charts/service-manager/values.yaml* file.
 
-You can install the Service Manager with external PostgreSQL using a connection string:
+You can also install the Service Manager with external PostgreSQL using a connection string (here `externalPostgresURI` sets the value for `STORAGE_URI` env var):
 
 ```console
-$ helm install --name service-manager --namespace service-manager . --set postgresql.install=false --set externalPostgresURI=<postgresql_connection_string>
+helm install --name service-manager --namespace service-manager . --set postgresql.install=false --set externalPostgresURI=<postgresql_connection_string>
 ```
 
 Or use Service Manager docker image from a different repository:
 
 ```console
-$ helm install --name service-manager --namespace service-manager . --set image.repository=<image_repo> --set image.tag=<image_tag>
+helm install --name service-manager --namespace service-manager . --set image.repository=<image_repo> --set image.tag=<image_tag>
 ```
 
 If ingress controller is not available you can disable ingress with `--set ingress.enabled=false`.
@@ -109,5 +113,5 @@ To expose the Service Manager outside the Kubernetes cluster you can change the 
 For example:
 
 ```console
-$ helm install --name service-manager --namespace service-manager . --set ingress.enabled=false --set service.type=NodePort
+helm install --name service-manager --namespace service-manager . --set ingress.enabled=false --set service.type=NodePort
 ```

@@ -2,22 +2,21 @@
 
 ## Prerequisites
 
-* `git` is installed
-* `go` is installed
-* `dep` is installed
-* `cf cli` is installed.
-* You are logged in CF.
-* `go_buildpack` is installed with support for go version 1.10
+* git
+* go 1.10
+* dep
+* CF CLI
+* go_buildpack 1.8.19+
 * [Service-Manager](./sm.md) is installed.
 
-**Note:** The used go buildpack should be named `go_buildpack`.
+**Note:** For details about the prerequisites you may refer to the [installation prerequisites page](./../development/install-prerequisites.md)
 
 ## Clone the repository
 
 Clone the [service-broker-proxy-cf](https://github.com/Peripli/service-broker-proxy-cf) git repository.
 
 ```console
-$ git clone https://github.com/Peripli/service-broker-proxy-cf.git && cd service-broker-proxy-cf
+git clone https://github.com/Peripli/service-broker-proxy-cf.git && cd service-broker-proxy-cf
 ```
 
 **Note:** Do not use `go get`. Instead use git to clone the repository.
@@ -25,7 +24,7 @@ $ git clone https://github.com/Peripli/service-broker-proxy-cf.git && cd service
 ## Install dependencies
 
 ```console
-$ dep ensure --vendor-only
+dep ensure --vendor-only
 ```
 
 ## Register CF in Service Manager
@@ -33,6 +32,12 @@ $ dep ensure --vendor-only
 To start the service-broker-proxy-cf you need to register CF in Service Manager. You can use the [smctl](./cli.md) `register-platform` command.
 As a result this will return the credentials used for communicating with the Service Manager.
 For example:
+
+```console
+$ smctl login -u admin -p admin -a http://service-manager.dev.cfdev.sh --skip-ssl-validation
+
+Logged in successfully.
+```
 
 ```console
 $ smctl register-platform mycf cf example
@@ -46,8 +51,8 @@ ID                                    Name  Type  Description  Created          
 
 In the [service-broker-proxy-cf](https://github.com/Peripli/service-broker-proxy-cf) repository you need to replace in the `manifest.yml` the following things:
 
+* Administrative credentials for CF with env variables `CF_CLIENT_USERNAME`, `CF_CLIENT_PASSWORD` and `CF_CLIENT_APIADDRESS.
 * Service-Manager URL using the `SM_URL` env variable.
-* Administrative credentials for CF with env variables `CF_USERNAME` and `CF_PASSWORD`.
 * Credentials for Service Manager with env variables `SM_USER` and `SM_PASSWORD`. These are the credentials obtained by the `smctl register-platform` command
 
 In addition you can change other configurations like log level and log format.
@@ -58,5 +63,5 @@ You can also use the `application.yml` file which has lower priority than the En
 Execute:
 
 ```console
-$ cf push -f manifest.yml
+cf push -f manifest.yml
 ```

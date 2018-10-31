@@ -163,7 +163,7 @@ All other errors will result in status 500 (Internal Server Error) being returne
 
 ## Controllers
 
-Controllers provide means to add additional APIs to the Service Manager. The Service Manager `pkg/web` package exposes interfaces one should implement in order to add additional SM APIs.
+Controllers provide means to add additional APIs to the Service Manager. A controlle is a way to group a set of routes. Registering a controller in the Service Manager would register the controller routes with their respective handlers as part of the REST API. The registration happens only during Service Manager startup. The Service Manager `pkg/web` package exposes interfaces one should implement in order to add additional SM APIs.
 
 ### Example Controller
 
@@ -236,3 +236,7 @@ func main() {
     sm.Run()
 }
 ```
+
+## Extensions in the Service Broker Proxies
+
+The service broker proxies (currently the [K8S proxy](https://github.com/Peripli/service-broker-proxy-k8s) and the [CF proxy](httyps://github.com/Peripli/service-broker-proxy-cf)) that base their implementation on the [Broker Proxy Framework](https://github.com/Peripli/service-broker-proxy) by default get the same extension capabilities that the Service Manager has. This would imply that one can register filters, plugins, controllers and health indicators as extensions in the proxies, too.
