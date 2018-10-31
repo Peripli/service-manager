@@ -53,6 +53,14 @@ $(BINDIR)/service-manager: .init .
 $(BINDIR):
 	mkdir -p $@
 
+# make deploy_cf_proxy ARGS="--api.endpoint=https://api.cf.example.com"
+deploy_cf_proxy:
+	./hack/deploy_cf_sbproxy ${ARGS}
+
+# make deploy_sm_cf ARGS="--postgresql.service.instance=postgre"
+deploy_sm_cf:
+	./hack/deploy_service_manager_cf ${ARGS}
+
 test: build
 	@echo Running tests:
 	@go test ./... -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test" | paste -sd "," -) -coverprofile=$(TEST_PROFILE)

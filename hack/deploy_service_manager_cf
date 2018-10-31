@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Copyright 2018 The Service Manager Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+source ./common
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+    --api.endpoint=*)
+        API_ENDPOINT="${1#*=}";;
+    --org.name=*)
+        ORG_NAME="${1#*=}";;
+    --space.name=*)
+        SPACE_NAME="${1#*=}";;
+    --cf.username=*)
+        CF_USERNAME="${1#*=}";;
+    --cf.password=*)
+        CF_PASSWORD="${1#*=}";;
+    --manifest.location=*)
+        MANIFEST_LOCATION="${1#*=}";;
+    --api.token_issuer.url=*)
+        API_TOKEN_ISSUER_URL="${1#*=}";;
+    --postgresql.service.name=*)
+        POSTGRESQL_SERVICE_NAME="${1#*=}";;
+    --postgresql.service.plan=*)
+        POSTGRESQL_SERVICE_PLAN="${1#*=}";;
+    --postgresql.service.instance=*)
+        POSTGRESQL_SERVICE_INSTANCE="${1#*=}";;
+    *) echo "Invalid option $1"
+        exit 1
+    esac
+    shift
+done
+
+if [ -z ${API_TOKEN_ISSUER_URL} ]; then
+    API_TOKEN_ISSUER_URL=$(curl "${API_ENDPOINT}/v2/info" | jq -r .token_endpoint)
+fi
+
+cf api ${API_ENDPOINT}
+cf auth ${CF_USERNAME} ${CF_PASSWORD}
+cf orgs ${ORG_NAME} || cf create-org ${ORG_NAME}
+cf target -o ${ORG_NAME}
+cf spaces ${SPACE_NAME} || cf create-space ${SPACE_NAME}
+cf target -s ${SPACE_NAME}
+
+cf service ${POSTGRESQL_SERVICE_INSTANCE} || cf create-service ${POSTGRESQL_SERVICE_NAME} ${POSTGRESQL_SERVICE_PLAN} ${POSTGRESQL_SERVICE_INSTANCE} && wait_for_service_status ${POSTGRESQL_SERVICE_INSTANCE} "create in progress"
+
+# replace placeholders in manifest
+sed -i -e "s/<postgre_instance_name>/${POSTGRESQL_SERVICE_INSTANCE}/g" ${MANIFEST_LOCATION}
+sed -i -e "s#<api_token_issuer_url>#${API_TOKEN_ISSUER_URL}#g" ${MANIFEST_LOCATION} # use pound sign as delimiter because URL has slashes
+
+cf push -f ${MANIFEST_LOCATION}
+
+# restore placeholders in manifest
+sed -i -e "s/${POSTGRESQL_SERVICE_INSTANCE}/<postgre_instance_name>/g" ${MANIFEST_LOCATION}
+sed -i -e "s#${API_TOKEN_ISSUER_URL}#<api_token_issuer_url>#g" ${MANIFEST_LOCATION} # use pound sign as delimiter because URL has slashes
