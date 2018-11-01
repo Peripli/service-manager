@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -e
+
 source ./common
 
 while [ $# -gt 0 ]; do
@@ -54,14 +56,14 @@ cf target -o ${ORG_NAME}
 cf spaces ${SPACE_NAME} || cf create-space ${SPACE_NAME}
 cf target -s ${SPACE_NAME}
 
-cf service ${POSTGRESQL_SERVICE_INSTANCE} || cf create-service ${POSTGRESQL_SERVICE_NAME} ${POSTGRESQL_SERVICE_PLAN} ${POSTGRESQL_SERVICE_INSTANCE} && wait_for_service_status ${POSTGRESQL_SERVICE_INSTANCE} "create in progress"
+#cf service ${POSTGRESQL_SERVICE_INSTANCE} || cf create-service ${POSTGRESQL_SERVICE_NAME} ${POSTGRESQL_SERVICE_PLAN} ${POSTGRESQL_SERVICE_INSTANCE} && wait_for_service_status ${POSTGRESQL_SERVICE_INSTANCE} "create in progress"
 
 # replace placeholders in manifest
 sed -i -e "s/<postgre_instance_name>/${POSTGRESQL_SERVICE_INSTANCE}/g" ${MANIFEST_LOCATION}
 sed -i -e "s#<api_token_issuer_url>#${API_TOKEN_ISSUER_URL}#g" ${MANIFEST_LOCATION} # use pound sign as delimiter because URL has slashes
 
-cf push -f ${MANIFEST_LOCATION}
+#cf push -f ${MANIFEST_LOCATION}
 
 # restore placeholders in manifest
-sed -i -e "s/${POSTGRESQL_SERVICE_INSTANCE}/<postgre_instance_name>/g" ${MANIFEST_LOCATION}
-sed -i -e "s#${API_TOKEN_ISSUER_URL}#<api_token_issuer_url>#g" ${MANIFEST_LOCATION} # use pound sign as delimiter because URL has slashes
+#sed -i -e "s/${POSTGRESQL_SERVICE_INSTANCE}/<postgre_instance_name>/g" ${MANIFEST_LOCATION}
+#sed -i -e "s#${API_TOKEN_ISSUER_URL}#<api_token_issuer_url>#g" ${MANIFEST_LOCATION} # use pound sign as delimiter because URL has slashes
