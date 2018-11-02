@@ -87,13 +87,6 @@ func RegisterPlatformInSM(platformJSON Object, SM *httpexpect.Expect) *types.Pla
 	return platform
 }
 
-func setResponse(rw http.ResponseWriter, status int, message, brokerID string) {
-	rw.Header().Set("Content-Type", "application/json")
-	rw.Header().Set("X-Broker-ID", brokerID)
-	rw.WriteHeader(status)
-	rw.Write([]byte(message))
-}
-
 func generatePrivateKey() *rsa.PrivateKey {
 	privateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 	return privateKey

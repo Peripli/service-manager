@@ -18,12 +18,12 @@ package common
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/gorilla/mux"
 )
 
@@ -234,13 +234,9 @@ func (b *BrokerServer) defaultBindingLastOpHandler(rw http.ResponseWriter, req *
 }
 
 func SetResponse(rw http.ResponseWriter, status int, message interface{}) {
-	rw.Header().Set("Content-Type", "application/json")
-	rawMessage, err := json.Marshal(message)
+	err := util.WriteJSON(rw, status, message)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		rw.Write([]byte(err.Error()))
-	} else {
-		rw.WriteHeader(status)
-		rw.Write(rawMessage)
 	}
 }
