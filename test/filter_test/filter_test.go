@@ -21,7 +21,7 @@ func TestFilters(t *testing.T) {
 
 var _ = Describe("Service Manager Filters", func() {
 	var ctx *common.TestContext
-	var testBroker *common.Broker
+	var osbURL string
 
 	var testFilters []web.Filter
 	var order string
@@ -32,7 +32,8 @@ var _ = Describe("Service Manager Filters", func() {
 				api.RegisterFilters(testFilters...)
 			},
 		})
-		testBroker = ctx.RegisterBroker("broker1", nil)
+		brokerID, _ := ctx.RegisterBroker()
+		osbURL = "/v1/osb/" + brokerID
 		order = ""
 	})
 
@@ -49,22 +50,21 @@ var _ = Describe("Service Manager Filters", func() {
 
 		Context("should be called only on OSB API", func() {
 			Specify("/v2/catalog", func() {
-				ctx.SMWithBasic.GET(testBroker.OSBURL + "/v2/catalog").
+				ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
 					Expect().Status(http.StatusOK)
 				Expect(order).To(Equal("osb1osb2"))
 			})
 
 			Specify("/v2/service_instances/1234", func() {
-				ctx.SMWithBasic.PUT(testBroker.OSBURL+"/v2/service_instances/1234").
+				ctx.SMWithBasic.PUT(osbURL+"/v2/service_instances/1234").
 					WithHeader("Content-Type", "application/json").
 					WithJSON(object{}).
-					Expect().Status(http.StatusOK)
+					Expect().Status(http.StatusCreated)
 				Expect(order).To(Equal("osb1osb2"))
-
 			})
 
 			Specify("/v2/service_instances/1234/service_bindings/111", func() {
-				ctx.SMWithBasic.DELETE(testBroker.OSBURL + "/v2/service_instances/1234/service_bindings/111").
+				ctx.SMWithBasic.DELETE(osbURL + "/v2/service_instances/1234/service_bindings/111").
 					Expect().Status(http.StatusOK)
 				Expect(order).To(Equal("osb1osb2"))
 			})
@@ -76,7 +76,7 @@ var _ = Describe("Service Manager Filters", func() {
 			})
 
 			Specify("/v1/platforms", func() {
-				ctx.SMWithOAuth.GET("/v1/service_brokers").
+				ctx.SMWithOAuth.GET("/v1/platforms").
 					Expect().Status(http.StatusOK)
 				Expect(order).ToNot(Equal("osb1osb2"))
 			})

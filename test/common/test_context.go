@@ -20,6 +20,7 @@ import (
 	"context"
 	"net/http/httptest"
 
+	"github.com/gofrs/uuid"
 	. "github.com/onsi/ginkgo"
 	"github.com/spf13/pflag"
 
@@ -76,7 +77,7 @@ func NewTestContext(params *ContextParams) *TestContext {
 	RemoveAllPlatforms(SMWithOAuth)
 
 	platformJSON := MakePlatform("ctx-platform-test", "ctx-platform-test", "platform-type", "test-platform")
-	platform := RegisterPlatform(platformJSON, SMWithOAuth)
+	platform := RegisterPlatformInSM(platformJSON, SMWithOAuth)
 	SMWithBasic := SM.Builder(func(req *httpexpect.Request) {
 		username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
 		req.WithBasicAuth(username, password)
@@ -86,7 +87,7 @@ func NewTestContext(params *ContextParams) *TestContext {
 		SM:          SM,
 		SMWithOAuth: SMWithOAuth,
 		SMWithBasic: SMWithBasic,
-		brokers:     make(map[string]*Broker),
+		brokers:     make(map[string]*BrokerServer),
 		smServer:    smServer,
 		OAuthServer: oauthServer,
 	}
@@ -99,43 +100,41 @@ type TestContext struct {
 
 	smServer    *httptest.Server
 	OAuthServer *OAuthServer
-	brokers     map[string]*Broker
+	brokers     map[string]*BrokerServer
 }
 
-func (ctx *TestContext) RegisterBroker(name string, server *httptest.Server) *Broker {
-	broker := &Broker{}
-	if server == nil {
-		server = httptest.NewServer(broker)
+func (ctx *TestContext) RegisterBroker() (string, *BrokerServer) {
+	brokerServer := NewBrokerServer()
+	UUID, err := uuid.NewV4()
+
+	if err != nil {
+		panic(err)
 	}
 	brokerJSON := Object{
-		"name":        name,
-		"broker_url":  server.URL,
+		"name":        UUID.String(),
+		"broker_url":  brokerServer.URL,
 		"description": "",
 		"credentials": Object{
 			"basic": Object{
-				"username": "buser",
-				"password": "bpass",
+				"username": brokerServer.Username,
+				"password": brokerServer.Password,
 			},
 		},
 	}
-	broker.ID = RegisterBroker(brokerJSON, ctx.SMWithOAuth)
+	brokerID := RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth)
+	brokerServer.ResetCallHistory()
 
-	broker.OSBURL = "/v1/osb/" + broker.ID
-	broker.Server = server
-
-	broker.Request = nil
-
-	ctx.brokers[name] = broker
-	return broker
+	ctx.brokers[brokerID] = brokerServer
+	return brokerID, brokerServer
 }
 
-func (ctx *TestContext) CleanupBroker(name string) {
-	broker := ctx.brokers[name]
-	ctx.SMWithOAuth.DELETE("/v1/service_brokers/" + broker.ID).Expect()
-	if broker.Server != nil {
+func (ctx *TestContext) CleanupBroker(id string) {
+	broker := ctx.brokers[id]
+	ctx.SMWithOAuth.DELETE("/v1/service_brokers/" + id).Expect()
+	if broker != nil && broker.Server != nil {
 		broker.Server.Close()
 	}
-	delete(ctx.brokers, name)
+	delete(ctx.brokers, id)
 }
 
 func (ctx *TestContext) Cleanup() {
@@ -149,7 +148,7 @@ func (ctx *TestContext) Cleanup() {
 	}
 
 	for _, broker := range ctx.brokers {
-		if broker.Server != nil {
+		if broker != nil && broker.Server != nil {
 			broker.Server.Close()
 		}
 	}
