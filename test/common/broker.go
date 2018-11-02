@@ -235,10 +235,12 @@ func (b *BrokerServer) defaultBindingLastOpHandler(rw http.ResponseWriter, req *
 
 func SetResponse(rw http.ResponseWriter, status int, message interface{}) {
 	rw.Header().Set("Content-Type", "application/json")
-	rw.WriteHeader(status)
 	rawMessage, err := json.Marshal(message)
 	if err != nil {
-		panic(err)
+		rw.WriteHeader(http.StatusInternalServerError)
+		rw.Write([]byte(err.Error()))
+	} else {
+		rw.WriteHeader(status)
+		rw.Write(rawMessage)
 	}
-	rw.Write(rawMessage)
 }
