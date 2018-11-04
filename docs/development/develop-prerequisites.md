@@ -22,6 +22,8 @@ Most of the Service Manager github repositories do not include a `vendor` folder
 
 Makefiles are provided in the repositories. In order to use them, one would need to setup `make` as described [here](https://www.gnu.org/software/make/manual/make.html).
 
+**Note:** Running `make help` would print out the Makefile documentation.
+
 ### Docker
 
 * [Docker for Windows](https://docs.docker.com/docker-for-mac/install/)

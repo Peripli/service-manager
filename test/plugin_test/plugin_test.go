@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"testing"
 
@@ -20,7 +19,6 @@ import (
 type object = common.Object
 
 func TestPlugins(t *testing.T) {
-	os.Chdir("../..")
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Plugin Tests Suite")
 }

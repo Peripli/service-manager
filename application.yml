@@ -1,7 +1,7 @@
 server:
   request_timeout: 4000ms
   shutdown_timeout: 4000ms
-  port: 8080
+  port: 8079
 log:
   level: debug
   format: text
@@ -10,7 +10,7 @@ storage:
 # storage:
 #  name: sm-postgres
 api:
-  token_issuer_url: https://uaa.dev.cfdev.sh
+  token_issuer_url: http://localhost:8080/uaa
   client_id: sm
   security:
     encryption_key: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8

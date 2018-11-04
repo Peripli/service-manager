@@ -19,6 +19,8 @@ package postgres
 
 import (
 	"fmt"
+	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 
@@ -28,10 +30,15 @@ import (
 	migratepg "github.com/golang-migrate/migrate/database/postgres"
 	_ "github.com/golang-migrate/migrate/source/file"
 	"github.com/jmoiron/sqlx"
-	)
+)
 
 // Storage defines the name of the PostgreSQL relational storage
 const Storage = "postgres"
+
+var (
+	_, b, _, _ = runtime.Caller(0)
+	basepath   = filepath.Dir(b)
+)
 
 func init() {
 	storage.Register(Storage, &postgresStorage{})
@@ -95,7 +102,7 @@ func (storage *postgresStorage) Open(uri string, encryptionKey []byte) error {
 		storage.mutex = &sync.Mutex{}
 		storage.encryptionKey = encryptionKey
 		log.D().Debug("Updating database schema")
-		if err := updateSchema(storage.db); err != nil {
+		if err := storage.updateSchema(); err != nil {
 			log.D().Panicln("Could not update database schema:", err)
 		}
 	}
@@ -107,12 +114,12 @@ func (storage *postgresStorage) Close() error {
 	return storage.db.Close()
 }
 
-func updateSchema(db *sqlx.DB) error {
-	driver, err := migratepg.WithInstance(db.DB, &migratepg.Config{})
+func (storage *postgresStorage) updateSchema() error {
+	driver, err := migratepg.WithInstance(storage.db.DB, &migratepg.Config{})
 	if err != nil {
 		return err
 	}
-	m, err := migrate.NewWithDatabaseInstance("file://storage/postgres/migrations", "postgres", driver)
+	m, err := migrate.NewWithDatabaseInstance(fmt.Sprintf("file://%s/migrations", basepath), "postgres", driver)
 	if err != nil {
 		return err
 	}

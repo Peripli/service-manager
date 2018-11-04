@@ -18,7 +18,6 @@ package info_test
 
 import (
 	"net/http"
-	"os"
 	"testing"
 
 	"github.com/Peripli/service-manager/api/info"
@@ -27,7 +26,6 @@ import (
 )
 
 func Test(t *testing.T) {
-	os.Chdir("../..")
 	RunSpecs(t, "Info Suite")
 }
 

@@ -23,7 +23,6 @@ import (
 	"github.com/Peripli/service-manager/test/common"
 	"github.com/gavv/httpexpect"
 
-	"os"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -34,7 +33,6 @@ type array = common.Array
 
 // TestOSB tests for OSB API
 func TestOSB(t *testing.T) {
-	os.Chdir("../..")
 	RunSpecs(t, "OSB API Tests Suite")
 }
 

@@ -14,6 +14,7 @@
  *    limitations under the License.
  */
 
+//TODO rewrite these using sql mock and only testing the get method
 package postgres
 
 import (
