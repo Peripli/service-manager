@@ -15,7 +15,7 @@
 Clone the [service-broker-proxy-k8s](https://github.com/Peripli/service-broker-proxy-k8s) git repository.
 
 ```console
-git clone https://github.com/Peripli/service-broker-proxy-k8s.git && cd service-broker-proxy-k8s
+$ git clone https://github.com/Peripli/service-broker-proxy-k8s.git $GOPATH/src/github.com/Peripli/service-broker-proxy-k8s && cd $GOPATH/src/github.com/Peripli/service-broker-proxy-k8s
 ```
 
 **Note:** Do not use `go get`. Instead use git to clone the repository.
