@@ -153,6 +153,7 @@ format: ## Formats the source code files with gofmt
 	@$(GOFMT) -l -s -w $(SOURCE_FILES)
 
 format-check: ## Checks for style violation using gofmt
+	@echo Checking if files are formatted with gofmt...
 	@$(GOFMT) -l -s $(SOURCE_FILES) | grep ".*\.go"; if [ "$$?" = "0" ]; then echo "Files need reformating!" ; exit 1; fi
 
 lint: ## Runs some linters and static code checks
