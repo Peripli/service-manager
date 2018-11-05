@@ -35,7 +35,7 @@ Makefiles are provided in the repositories. In order to use them, one would need
 $ docker run --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres -d postgres
 ```
 
-**Note:** If you are using `Docker for Window` or `Docker for Mac`, the database URI should be `postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable`. Otherwise, instead of `localhost` you would need to use the `$(docker-machine ip)`. 
+**Note:** If you are using `Docker for Window` or `Docker for Mac`, the database URI should be `postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable`. Otherwise, instead of `localhost` you would need to use the `$(docker-machine ip)`.
 
 The obtained value can be used to set the Service Manger `STORAGE_URI`.
 
@@ -63,7 +63,7 @@ Alternatively, **Windows** users may follow these steps:
 
 ### Fulfill the K8S Deployment Prerequisites
 
-The [kubernetes deployment prerequisites]() section outlines some additional steps you would need to perform to fully setup the development environment. 
+The [kubernetes deployment prerequisites]() section outlines some additional steps you would need to perform to fully setup the development environment.
 
 ## Local CF Setup
 
@@ -71,7 +71,7 @@ The [kubernetes deployment prerequisites]() section outlines some additional ste
 
 A locally running CF installation that includes an Authorization Server (UAA). Installation steps for PCFDev can be found [here](https://pivotal.io/platform/pcf-tutorials/getting-started-with-pivotal-cloud-foundry-dev/introduction).
 
-### CF Dev 
+### CF Dev
 
 Alternatively, instead of `PCF Dev` one can use [CF Dev](https://github.com/cloudfoundry-incubator/cfdev)
 
@@ -86,4 +86,3 @@ The obtained value can be used to set the Service Manager `API_TOKEN_ISSUER_URL`
 ### Fulfill the Deployment Prerequisites
 
 Depending on which pieces of the SM you will be developing on, you would need to fulfill the relevant deployment prerequisites in order to eventually be able to run/start/install the Service Manager components. For further details, check the [installation prerequisites page](install-prerequisites.md).
-

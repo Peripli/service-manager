@@ -53,7 +53,7 @@ GO_UNIT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v
 
 prepare: ## Installs some tools (dep, gometalinter, cover, goveralls)
 	@echo "Installing dep..."
-	@curl -L -s https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-${OS}-amd64 -o ${GOPATH}/bin/dep
+	@go get -u github.com/golang/dep/cmd/dep
 	@chmod a+x ${GOPATH}/bin/dep
 	@echo "Installing gometalinter..."
 	@go get -u github.com/alecthomas/gometalinter
