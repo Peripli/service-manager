@@ -16,10 +16,10 @@
 Clone the [service-broker-proxy-cf](https://github.com/Peripli/service-broker-proxy-cf) git repository.
 
 ```console
-git clone https://github.com/Peripli/service-broker-proxy-cf.git && cd service-broker-proxy-cf
+$ git clone https://github.com/Peripli/service-broker-proxy-cf.git $GOPATH/src/github.com/Peripli/service-broker-proxy-cf && cd $GOPATH/src/github.com/Peripli/service-broker-proxy-cf
 ```
 
-**Note:** Do not use `go get`. Instead use git to clone the repository, but within `$GOPATH/src` to allow `dep ensure`.
+**Note:** Do not use `go get`. Instead use git to clone the repository.
 
 ## Install dependencies
 
