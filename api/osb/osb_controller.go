@@ -107,7 +107,7 @@ func (c *controller) handler(r *web.Request) (*web.Response, error) {
 
 	resp := &web.Response{
 		StatusCode: recorder.Code,
-		Header:     recorder.HeaderMap,
+		Header:     recorder.Header(),
 		Body:       respBody,
 	}
 	logger.Debugf("Service broker replied with status %d", resp.StatusCode)

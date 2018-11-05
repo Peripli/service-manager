@@ -157,17 +157,14 @@ format-check: ## Checks for style violation using gofmt
 	@$(GOFMT) -l -s $(SOURCE_FILES) | grep ".*\.go"; if [ "$$?" = "0" ]; then echo "Files need reformating!" ; exit 1; fi
 
 lint: ## Runs some linters and static code checks
-	@echo Running linter checks
+	@echo Running linter checks...
 	@gometalinter --vendor --disable-all \
 		--enable=megacheck \
 		--enable=deadcode \
 		--enable=ineffassign \
-		--enable=gofmt \
-		--enable=goimports \
 		--enable=misspell \
 		--enable=errcheck \
 		--enable=vet \
-		--enable=vetshadow \
 		--deadline=10m \
 		./...
 
