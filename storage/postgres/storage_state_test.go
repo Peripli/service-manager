@@ -14,77 +14,75 @@
  *    limitations under the License.
  */
 
-//TODO rewrite these using sql mock and only testing the get method
 package postgres
 
 import (
-	"errors"
-	"io/ioutil"
-	"sync"
-	"time"
-
-	"github.com/Peripli/service-manager/config"
+	"database/sql"
+	"fmt"
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/jmoiron/sqlx"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/sirupsen/logrus"
-	yaml "gopkg.in/yaml.v2"
+	"sync"
+	"time"
 )
 
 var _ = Describe("Postgres Storage State", func() {
 
-	var storageURI string
+	var (
+		mockDB *sql.DB
+		sqlxDB *sqlx.DB
+		mock   sqlmock.Sqlmock
 
-	BeforeSuite(func() {
-		config := config.DefaultSettings()
-		appYml, err := ioutil.ReadFile("../../test/common/application.yml")
-		Expect(err).ToNot(HaveOccurred())
-		err = yaml.Unmarshal(appYml, config)
-		Expect(err).ToNot(HaveOccurred())
-		storageURI = config.Storage.URI
-		Expect(storageURI).ToNot(BeEmpty())
+		state *storageState
+	)
+	BeforeEach(func() {
+		var err error
+		mockDB, mock, err = sqlmock.New()
+		Expect(err).To(Not(HaveOccurred()))
+		sqlxDB = sqlx.NewDb(mockDB, "sqlmock")
+
+		state = &storageState{
+			lastCheckTime:        time.Now(),
+			mutex:                &sync.RWMutex{},
+			db:                   sqlxDB,
+			storageCheckInterval: time.Second * 1,
+		}
+	})
+
+	AfterEach(func() {
+		mockDB.Close()
+		sqlxDB.Close()
 	})
 
 	Describe("Get", func() {
-		Context("With valid cache", func() {
-			It("should return cached storageError", func() {
-				state := newStorageState(errors.New("expected"), time.Now(), nil, time.Second*5)
-				err := state.Get()
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(Equal("expected"))
+		Context("when cache has not yet expired", func() {
+			It("returns nil", func() {
+				Expect(state.Get()).To(Not(HaveOccurred()))
 			})
 		})
 
-		Context("With invalid cache", func() {
-			It("should return cached storageError", func() {
-				db, err := sqlx.Connect(Storage, storageURI)
-				if err != nil {
-					logrus.Panicln("Could not connect to PostgreSQL:", err)
-				}
-				state := newStorageState(errors.New("No"), time.Now(), db, time.Second*(-1))
-				err = state.Get()
-				Expect(err).ToNot(HaveOccurred())
+		Context("when cache has expired", func() {
+			Context("when storage query fails", func() {
+				BeforeEach(func() {
+					mock.ExpectQuery("^SELECT 1$").WillReturnError(fmt.Errorf("error"))
+				})
+
+				It("returns error", func() {
+					Eventually(func() error { return state.Get() }, time.Second*2).Should(Equal(fmt.Errorf("error")))
+				})
 			})
-		})
-	})
-	Describe("checkDB", func() {
-		Context("With valid cache", func() {
-			It("should return cached storageError", func() {
-				state := newStorageState(errors.New("expected"), time.Now(), nil, time.Second*5)
-				err := state.checkDB()
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(Equal("expected"))
+
+			Context("when storage query succeeds", func() {
+				BeforeEach(func() {
+					mock.ExpectQuery("^SELECT 1$").WillReturnRows(sqlmock.NewRows([]string{"1"}))
+
+				})
+
+				It("returns nil", func() {
+					Eventually(func() error { return state.Get() }, time.Second*2).ShouldNot(HaveOccurred())
+				})
 			})
 		})
 	})
 })
-
-func newStorageState(storageError error, lastCheck time.Time, db *sqlx.DB, storageCheckInterval time.Duration) *storageState {
-	return &storageState{
-		storageError:         storageError,
-		lastCheck:            lastCheck,
-		mutex:                &sync.RWMutex{},
-		db:                   db,
-		storageCheckInterval: storageCheckInterval,
-	}
-}

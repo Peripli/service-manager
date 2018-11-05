@@ -48,7 +48,6 @@ type postgresStorage struct {
 	db            *sqlx.DB
 	state         *storageState
 	encryptionKey []byte
-	mutex         *sync.Mutex
 }
 
 func (storage *postgresStorage) checkOpen() {
@@ -79,7 +78,7 @@ func (storage *postgresStorage) Credentials() storage.Credentials {
 
 func (storage *postgresStorage) Security() storage.Security {
 	storage.checkOpen()
-	return &securityStorage{storage.db, storage.encryptionKey, false, storage.mutex}
+	return &securityStorage{storage.db, storage.encryptionKey, false, &sync.Mutex{}}
 }
 
 func (storage *postgresStorage) Open(uri string, encryptionKey []byte) error {
@@ -93,13 +92,11 @@ func (storage *postgresStorage) Open(uri string, encryptionKey []byte) error {
 			log.D().Panicln("Could not connect to PostgreSQL:", err)
 		}
 		storage.state = &storageState{
-			storageError:         nil,
-			lastCheck:            time.Now(),
+			lastCheckTime:        time.Now(),
 			mutex:                &sync.RWMutex{},
 			db:                   storage.db,
 			storageCheckInterval: time.Second * 5,
 		}
-		storage.mutex = &sync.Mutex{}
 		storage.encryptionKey = encryptionKey
 		log.D().Debug("Updating database schema")
 		if err := storage.updateSchema(); err != nil {

@@ -14,7 +14,6 @@
  *    limitations under the License.
  */
 
-// Package postgres implements the Service Manager storage interfaces for Postgresql Storage
 package postgres
 
 import (
@@ -26,50 +25,33 @@ import (
 )
 
 type storageState struct {
-	storageError         error
-	lastCheck            time.Time
+	lastCheckTime        time.Time
 	mutex                *sync.RWMutex
 	db                   *sqlx.DB
 	storageCheckInterval time.Duration
 }
 
-// Get returns error if the db connectivity is down and nil otherwise
-func (state *storageState) Get() error {
-	if cacheIsValid, storageError := state.getCached(); cacheIsValid {
-		return storageError
+func (s *storageState) Get() error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if time.Since(s.lastCheckTime) < s.storageCheckInterval {
+		return nil
 	}
-	return state.checkDB()
+
+	return s.checkDB()
 }
 
-func (state *storageState) cachedStateIsValid() bool {
-	return time.Since(state.lastCheck) < state.storageCheckInterval
-}
-
-func (state *storageState) getCached() (cacheIsValid bool, storageError error) {
-	state.mutex.RLock()
-	defer state.mutex.RUnlock()
-	if state.cachedStateIsValid() {
-		return true, state.storageError
-	}
-	return false, nil
-}
-
-func (state *storageState) checkDB() error {
-	state.mutex.Lock()
-	defer state.mutex.Unlock()
-	// check if someone hasn't updated the cached state already
-	if state.cachedStateIsValid() {
-		return state.storageError
-	}
-	rows, err := state.db.Query("SELECT 1")
+func (s *storageState) checkDB() error {
+	rows, err := s.db.Query("SELECT 1")
 	if err != nil {
-		state.storageError = err
+		return err
 	} else {
-		state.storageError = nil
 		if err := rows.Close(); err != nil {
-			log.D().Errorf("Could not release connection when checking database state. Error: %v", err)
+			log.D().Errorf("Could not release connection when checking database s. Error: %s", err)
+			return err
 		}
 	}
-	state.lastCheck = time.Now()
-	return state.storageError
+	s.lastCheckTime = time.Now()
+	return nil
 }
