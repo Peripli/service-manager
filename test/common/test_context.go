@@ -19,6 +19,7 @@ package common
 import (
 	"context"
 	"flag"
+	"github.com/gofrs/uuid"
 	"github.com/spf13/pflag"
 	"net/http/httptest"
 	"path/filepath"
@@ -76,7 +77,7 @@ func TestEnv(additionalFlagFuncs ...func(set *pflag.FlagSet)) env.Environment {
 
 	additionalFlagFuncs = append(additionalFlagFuncs, f)
 
-	//will be used as default value and overridden if --file.location={{location}} is passed to go test
+	// will be used as default value and overridden if --file.location={{location}} is passed to go test
 	additionalFlagFuncs = append(additionalFlagFuncs, SetTestFileLocation)
 
 	return sm.DefaultEnv(additionalFlagFuncs...)
@@ -89,24 +90,24 @@ type ContextParams struct {
 }
 
 func NewSMServer(params *ContextParams, issuerURL string) *httptest.Server {
-	var env env.Environment
+	var smEnv env.Environment
 	if params.Env != nil {
-		env = params.Env
+		smEnv = params.Env
 	} else {
-		env = e
+		smEnv = e
 	}
 
 	flag.VisitAll(func(flag *flag.Flag) {
 		if flag.Value.String() != "" {
-			env.Set(flag.Name, flag.Value.String())
+			smEnv.Set(flag.Name, flag.Value.String())
 		}
 	})
 	if flag.Lookup("api.token_issuer_url") != nil && flag.Lookup("api.token_issuer_url").Value.String() == "" {
-		env.Set("api.token_issuer_url", issuerURL)
+		smEnv.Set("api.token_issuer_url", issuerURL)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	smanagerBuilder := sm.New(ctx, cancel, env)
+	smanagerBuilder := sm.New(ctx, cancel, smEnv)
 	if params.RegisterExtensions != nil {
 		params.RegisterExtensions(smanagerBuilder.API)
 	}
@@ -134,7 +135,7 @@ func NewTestContext(params *ContextParams) *TestContext {
 	RemoveAllPlatforms(SMWithOAuth)
 
 	platformJSON := MakePlatform("ctx-platform-test", "ctx-platform-test", "platform-type", "test-platform")
-	platform := RegisterPlatform(platformJSON, SMWithOAuth)
+	platform := RegisterPlatformInSM(platformJSON, SMWithOAuth)
 	SMWithBasic := SM.Builder(func(req *httpexpect.Request) {
 		username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
 		req.WithBasicAuth(username, password)
@@ -144,7 +145,7 @@ func NewTestContext(params *ContextParams) *TestContext {
 		SM:          SM,
 		SMWithOAuth: SMWithOAuth,
 		SMWithBasic: SMWithBasic,
-		brokers:     make(map[string]*Broker),
+		brokers:     make(map[string]*BrokerServer),
 		smServer:    smServer,
 		OAuthServer: oauthServer,
 	}
@@ -157,43 +158,40 @@ type TestContext struct {
 
 	smServer    *httptest.Server
 	OAuthServer *OAuthServer
-	brokers     map[string]*Broker
+	brokers     map[string]*BrokerServer
 }
 
-func (ctx *TestContext) RegisterBroker(name string, server *httptest.Server) *Broker {
-	broker := &Broker{}
-	if server == nil {
-		server = httptest.NewServer(broker)
+func (ctx *TestContext) RegisterBroker() (string, *BrokerServer) {
+	brokerServer := NewBrokerServer()
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
 	}
 	brokerJSON := Object{
-		"name":        name,
-		"broker_url":  server.URL,
+		"name":        UUID.String(),
+		"broker_url":  brokerServer.URL,
 		"description": "",
 		"credentials": Object{
 			"basic": Object{
-				"username": "buser",
-				"password": "bpass",
+				"username": brokerServer.Username,
+				"password": brokerServer.Password,
 			},
 		},
 	}
-	broker.ID = RegisterBroker(brokerJSON, ctx.SMWithOAuth)
 
-	broker.OSBURL = "/v1/osb/" + broker.ID
-	broker.Server = server
-
-	broker.Request = nil
-
-	ctx.brokers[name] = broker
-	return broker
+	brokerID := RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth)
+	brokerServer.ResetCallHistory()
+	ctx.brokers[brokerID] = brokerServer
+	return brokerID, brokerServer
 }
 
-func (ctx *TestContext) CleanupBroker(name string) {
-	broker := ctx.brokers[name]
-	ctx.SMWithOAuth.DELETE("/v1/service_brokers/" + broker.ID).Expect()
-	if broker.Server != nil {
+func (ctx *TestContext) CleanupBroker(id string) {
+	broker := ctx.brokers[id]
+	ctx.SMWithOAuth.DELETE("/v1/service_brokers/" + id).Expect()
+	if broker != nil && broker.Server != nil {
 		broker.Server.Close()
 	}
-	delete(ctx.brokers, name)
+	delete(ctx.brokers, id)
 }
 
 func (ctx *TestContext) Cleanup() {
@@ -207,7 +205,7 @@ func (ctx *TestContext) Cleanup() {
 	}
 
 	for _, broker := range ctx.brokers {
-		if broker.Server != nil {
+		if broker != nil && broker.Server != nil {
 			broker.Server.Close()
 		}
 	}
