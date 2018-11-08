@@ -102,7 +102,7 @@ func (a *oauthAuthenticator) Authenticate(request *http.Request) (*web.User, sec
 	if a.Verifier == nil {
 		return nil, security.Abstain, errors.New("authenticator is not configured")
 	}
-	token := authorizationHeader[len("Bearer ")-1:]
+	token := strings.TrimSpace(authorizationHeader[len("Bearer "):])
 	if token == "" {
 		return nil, security.Deny, nil
 	}
