@@ -9,7 +9,6 @@ before_install:
 
 install:
   - go get github.com/alecthomas/gometalinter
-  - go get github.com/GoASTScanner/gas/cmd/gas/...
   - go get golang.org/x/tools/cmd/cover
   - go get github.com/mattn/goveralls
 
@@ -26,9 +25,6 @@ script:
   # Execute tests and generate coverage for all the packages except fakes and tests
   - make test
   - goveralls -coverprofile profile.cov -service=travis-ci
-
-  #Execute security scan
-  # - gas ./...
 
 notifications:
   slack: openservicebrokerapi:KQo2QAC6LXeEeXPOemOXja48
