@@ -145,7 +145,7 @@ var _ = Describe("Service Manager OSB API", func() {
 	Describe("Deprovision", func() {
 		Context("when trying to deprovision existing service", func() {
 			It("should be successfull", func() {
-				ctx.SMWithBasic.DELETE(validBrokerOSBUrl+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+				ctx.SMWithBasic.DELETE(workingBrokerURL+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 					WithQueryObject(getDummyService()).
 					Expect().Status(http.StatusOK).JSON().Object()
 			})
@@ -199,7 +199,7 @@ var _ = Describe("Service Manager OSB API", func() {
 	Describe("Unbind", func() {
 		Context("when trying to delete binding", func() {
 			It("should be successfull", func() {
-				ctx.SMWithBasic.DELETE(validBrokerOSBUrl+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+				ctx.SMWithBasic.DELETE(workingBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 					WithQueryObject(getDummyService()).
 					Expect().Status(http.StatusOK).JSON().Object()
 
