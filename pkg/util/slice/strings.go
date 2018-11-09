@@ -63,3 +63,13 @@ func StringsAnyEquals(stringSlice []string, str string) bool {
 	}
 	return false
 }
+
+// StringsAnySuffix returns true if any of the strings in the slice have the given suffix.
+func StringsAnySuffix(stringSlice []string, suffix string) bool {
+	for _, v := range stringSlice {
+		if strings.HasSuffix(v, suffix) {
+			return true
+		}
+	}
+	return false
+}
