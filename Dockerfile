@@ -33,7 +33,7 @@ WORKDIR /app
 COPY --from=builder /main /app/
 
 # Copy migration scripts
-COPY --from=builder /go/src/github.com/Peripli/service-manager/storage/postgres/migrations/ /app/storage/postgres/migrations/
+COPY --from=builder /go/src/github.com/Peripli/service-manager/storage/postgres/migrations/ /go/src/github.com/Peripli/service-manager/storage/postgres/migrations/
 
 EXPOSE 8080
 ENTRYPOINT [ "./main" ]
