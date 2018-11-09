@@ -96,13 +96,13 @@ func newOIDCConfig(options *options) *goidc.Config {
 // Authenticate returns information about the user by obtaining it from the bearer token, or an error if security is unsuccessful
 func (a *oauthAuthenticator) Authenticate(request *http.Request) (*web.User, security.Decision, error) {
 	authorizationHeader := request.Header.Get("Authorization")
-	if authorizationHeader == "" || !strings.HasPrefix(strings.ToLower(authorizationHeader), "bearer") {
+	if authorizationHeader == "" || !strings.HasPrefix(strings.ToLower(authorizationHeader), "bearer ") {
 		return nil, security.Abstain, nil
 	}
 	if a.Verifier == nil {
 		return nil, security.Abstain, errors.New("authenticator is not configured")
 	}
-	token := strings.TrimPrefix(authorizationHeader, "Bearer ")
+	token := strings.TrimSpace(authorizationHeader[len("Bearer "):])
 	if token == "" {
 		return nil, security.Deny, nil
 	}

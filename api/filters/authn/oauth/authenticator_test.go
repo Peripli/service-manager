@@ -26,8 +26,6 @@ import (
 	"net/http"
 	"testing"
 
-	"errors"
-
 	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/security/securityfakes"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -303,7 +301,7 @@ var _ = Describe("OIDC Authenticator", func() {
 			})
 		})
 
-		Context("When Authorization header is not bearer", func() {
+		Context("when Authorization header is not bearer", func() {
 			It("should abstain authentication decision with no error", func() {
 				request.Header.Set("Authorization", "Basic admin:admin")
 
@@ -313,12 +311,13 @@ var _ = Describe("OIDC Authenticator", func() {
 
 		Context("when Authorization header is bearer", func() {
 			Context("when token is missing", func() {
-				It("should deny authentication with malformed token error", func() {
+				It("should deny authentication with no error", func() {
 					request.Header.Set("Authorization", "bearer ")
 
-					validateAuthenticationReturns(nil, security.Deny, errors.New("oidc: malformed jwt: square/go-jose: compact JWS format must have three parts"))
+					validateAuthenticationReturns(nil, security.Deny, nil)
 				})
 			})
+
 			Context("when token is present", func() {
 				var (
 					verifier      *securityfakes.FakeTokenVerifier
@@ -326,78 +325,98 @@ var _ = Describe("OIDC Authenticator", func() {
 					expectedError error
 				)
 
-				BeforeEach(func() {
-					verifier = &securityfakes.FakeTokenVerifier{}
-					authenticator = &oauthAuthenticator{Verifier: verifier}
+				verifyTokenCases := func() {
+					Context("when verifier returns an error", func() {
+						BeforeEach(func() {
+							expectedError = fmt.Errorf("Verifier returned error")
 
-					request.Header.Set("Authorization", "Bearer token")
+							verifier.VerifyReturns(nil, expectedError)
+						})
+
+						It("should deny with an error", func() {
+							user, decision, err := authenticator.Authenticate(request)
+
+							Expect(user).To(BeNil())
+							Expect(decision).To(Equal(security.Deny))
+							Expect(err).To(Equal(expectedError))
+						})
+					})
+
+					Context("when returned token cannot extract claims", func() {
+						var fakeToken *webfakes.FakeTokenData
+
+						BeforeEach(func() {
+							expectedError = fmt.Errorf("Claims extraction error")
+
+							fakeToken = &webfakes.FakeTokenData{}
+							fakeToken.ClaimsReturns(expectedError)
+
+							verifier.VerifyReturns(fakeToken, nil)
+
+						})
+
+						It("should deny with an error", func() {
+							user, decision, err := authenticator.Authenticate(request)
+
+							Expect(user).To(BeNil())
+							Expect(decision).To(Equal(security.Deny))
+							Expect(err).To(Equal(expectedError))
+						})
+					})
+
+					Context("when returned token is valid", func() {
+						expectedUserName := "test_user"
+
+						BeforeEach(func() {
+							tokenJSON := fmt.Sprintf(`{"user_name": "%s", "abc": "xyz"}`, expectedUserName)
+							token := &webfakes.FakeTokenData{}
+							token.ClaimsStub = func(v interface{}) error {
+								return json.Unmarshal([]byte(tokenJSON), v)
+							}
+							verifier.VerifyReturns(token, nil)
+						})
+
+						It("should allow authentication and return user", func() {
+							user, decision, err := authenticator.Authenticate(request)
+
+							Expect(user).To(Not(BeNil()))
+							Expect(user.Name).To(Equal(expectedUserName))
+							Expect(decision).To(Equal(security.Allow))
+							Expect(err).To(BeNil())
+
+							claims := struct {
+								Abc string
+							}{}
+							err = user.Claims(&claims)
+
+							_, token := verifier.VerifyArgsForCall(0)
+							Expect(token).To(Equal("token"))
+							Expect(err).To(BeNil())
+							Expect(claims.Abc).To(Equal("xyz"))
+						})
+					})
+				}
+
+				Context("when Bearer starts with uppercase", func() {
+					BeforeEach(func() {
+						verifier = &securityfakes.FakeTokenVerifier{}
+						authenticator = &oauthAuthenticator{Verifier: verifier}
+
+						request.Header.Set("Authorization", "Bearer token")
+					})
+
+					verifyTokenCases()
 				})
 
-				Context("when verifier returns an error", func() {
+				Context("when bearer starts with lowercase", func() {
 					BeforeEach(func() {
-						expectedError = fmt.Errorf("Verifier returned error")
+						verifier = &securityfakes.FakeTokenVerifier{}
+						authenticator = &oauthAuthenticator{Verifier: verifier}
 
-						verifier.VerifyReturns(nil, expectedError)
+						request.Header.Set("Authorization", "bearer token")
 					})
 
-					It("should deny with an error", func() {
-						user, decision, err := authenticator.Authenticate(request)
-
-						Expect(user).To(BeNil())
-						Expect(decision).To(Equal(security.Deny))
-						Expect(err).To(Equal(expectedError))
-					})
-				})
-
-				Context("when returned token cannot extract claims", func() {
-					var fakeToken *webfakes.FakeTokenData
-
-					BeforeEach(func() {
-						expectedError = fmt.Errorf("Claims extraction error")
-
-						fakeToken = &webfakes.FakeTokenData{}
-						fakeToken.ClaimsReturns(expectedError)
-
-						verifier.VerifyReturns(fakeToken, nil)
-
-					})
-
-					It("should deny with an error", func() {
-						user, decision, err := authenticator.Authenticate(request)
-
-						Expect(user).To(BeNil())
-						Expect(decision).To(Equal(security.Deny))
-						Expect(err).To(Equal(expectedError))
-					})
-				})
-
-				Context("when returned token is valid", func() {
-					expectedUserName := "test_user"
-
-					BeforeEach(func() {
-						tokenJSON := fmt.Sprintf(`{"user_name": "%s", "abc": "xyz"}`, expectedUserName)
-						token := &webfakes.FakeTokenData{}
-						token.ClaimsStub = func(v interface{}) error {
-							return json.Unmarshal([]byte(tokenJSON), v)
-						}
-						verifier.VerifyReturns(token, nil)
-					})
-
-					It("should allow authentication and return user", func() {
-						user, decision, err := authenticator.Authenticate(request)
-
-						Expect(user).To(Not(BeNil()))
-						Expect(user.Name).To(Equal(expectedUserName))
-						Expect(decision).To(Equal(security.Allow))
-						Expect(err).To(BeNil())
-
-						claims := struct {
-							Abc string
-						}{}
-						err = user.Claims(&claims)
-						Expect(err).To(BeNil())
-						Expect(claims.Abc).To(Equal("xyz"))
-					})
+					verifyTokenCases()
 				})
 			})
 		})
