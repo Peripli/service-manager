@@ -95,7 +95,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	util.HandleInterrupts(ctx, cancel)
 
 	// setup smStorage
-	smStorage, err := storage.Use(ctx, postgres.Storage, cfg.Storage.URI, []byte(cfg.API.Security.EncryptionKey))
+	smStorage, err := storage.Use(ctx, postgres.Storage, cfg.Storage)
 	if err != nil {
 		panic(fmt.Sprintf("error using smStorage: %s", err))
 	}

@@ -64,9 +64,7 @@ var _ = Describe("Service Manager Plugins", func() {
 
 		BeforeEach(func() {
 			testPlugin = TestPlugin{}
-		})
 
-		JustBeforeEach(func() {
 			ctx = common.NewTestContext(&common.ContextParams{
 				RegisterExtensions: func(api *web.API) {
 					api.RegisterPlugins(testPlugin)

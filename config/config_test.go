@@ -53,8 +53,8 @@ var _ = Describe("config", func() {
 			config.Storage.URI = "postgres://postgres:postgres@localhost:5555/postgres?sslmode=disable"
 			config.API.TokenIssuerURL = "http://example.com"
 			config.API.ClientID = "sm"
-			config.API.Security.EncryptionKey = "ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8"
 			config.API.SkipSSLValidation = true
+			config.Storage.EncryptionKey = "ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8"
 		})
 
 		Context("when config is valid", func() {
@@ -106,6 +106,13 @@ var _ = Describe("config", func() {
 			})
 		})
 
+		Context("when Storage Encryption key is missing", func() {
+			It("returns an error", func() {
+				config.Storage.EncryptionKey = ""
+				assertErrorDuringValidate()
+			})
+		})
+
 		Context("when API token issuer URL is missing", func() {
 			It("returns an error", func() {
 				config.API.TokenIssuerURL = ""
@@ -115,7 +122,6 @@ var _ = Describe("config", func() {
 	})
 
 	Describe("New", func() {
-
 		var (
 			fakeEnv       *envfakes.FakeEnvironment
 			creationError = fmt.Errorf("creation error")

@@ -18,9 +18,6 @@
 package postgres
 
 import (
-	"fmt"
-	"path/filepath"
-	"runtime"
 	"sync"
 	"time"
 
@@ -34,11 +31,6 @@ import (
 
 // Storage defines the name of the PostgreSQL relational storage
 const Storage = "postgres"
-
-var (
-	_, b, _, _ = runtime.Caller(0)
-	basepath   = filepath.Dir(b)
-)
 
 func init() {
 	storage.Register(Storage, &postgresStorage{})
@@ -81,13 +73,13 @@ func (storage *postgresStorage) Security() storage.Security {
 	return &securityStorage{storage.db, storage.encryptionKey, false, &sync.Mutex{}}
 }
 
-func (storage *postgresStorage) Open(uri string, encryptionKey []byte) error {
+func (storage *postgresStorage) Open(options *storage.Settings) error {
 	var err error
-	if uri == "" {
-		return fmt.Errorf("storage URI cannot be empty")
+	if err = options.Validate(); err != nil {
+		return err
 	}
 	if storage.db == nil {
-		storage.db, err = sqlx.Connect(Storage, uri)
+		storage.db, err = sqlx.Connect(Storage, options.URI)
 		if err != nil {
 			log.D().Panicln("Could not connect to PostgreSQL:", err)
 		}
@@ -97,9 +89,9 @@ func (storage *postgresStorage) Open(uri string, encryptionKey []byte) error {
 			db:                   storage.db,
 			storageCheckInterval: time.Second * 5,
 		}
-		storage.encryptionKey = encryptionKey
+		storage.encryptionKey = []byte(options.EncryptionKey)
 		log.D().Debug("Updating database schema")
-		if err := storage.updateSchema(); err != nil {
+		if err := storage.updateSchema(options.MigrationsURL); err != nil {
 			log.D().Panicln("Could not update database schema:", err)
 		}
 	}
@@ -111,12 +103,12 @@ func (storage *postgresStorage) Close() error {
 	return storage.db.Close()
 }
 
-func (storage *postgresStorage) updateSchema() error {
+func (storage *postgresStorage) updateSchema(migrationsURL string) error {
 	driver, err := migratepg.WithInstance(storage.db.DB, &migratepg.Config{})
 	if err != nil {
 		return err
 	}
-	m, err := migrate.NewWithDatabaseInstance(fmt.Sprintf("file://%s/migrations", basepath), "postgres", driver)
+	m, err := migrate.NewWithDatabaseInstance(migrationsURL, "postgres", driver)
 	if err != nil {
 		return err
 	}
