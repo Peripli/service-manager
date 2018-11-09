@@ -85,35 +85,21 @@ func (c *controller) handler(r *web.Request) (*web.Response, error) {
 
 	m := osbPathPattern.FindStringSubmatch(r.URL.Path)
 	if m == nil || len(m) < 2 {
-		return nil, fmt.Errorf("could not get OSB path from URL %s", r.URL)
+		return nil, fmt.Errorf("could not get OSB path from URL %s", r.URL.Path)
 	}
 
 	modifiedRequest := r.Request.WithContext(ctx)
 	modifiedRequest.SetBasicAuth(broker.Credentials.Basic.Username, broker.Credentials.Basic.Password)
 	modifiedRequest.Body = ioutil.NopCloser(bytes.NewReader(r.Body))
 	modifiedRequest.ContentLength = int64(len(r.Body))
+	modifiedRequest.Host = targetBrokerURL.Host
 	modifiedRequest.URL.Path = m[1]
 
 	proxy := httputil.NewSingleHostReverseProxy(targetBrokerURL)
-	director := proxy.Director
-	proxy.Director = func(request *http.Request) {
-		logger.Debugf("Forwarded OSB request to service broker %s at %s", broker.Name, request.URL)
-		director(request)
-	}
-	proxy.ModifyResponse = func(response *http.Response) error {
-		logger.Debugf("Service broker %s replied with status %d", broker.Name, response.StatusCode)
-		return nil
-	}
-	proxy.ErrorHandler = func(writer http.ResponseWriter, request *http.Request, e error) {
-		logger.WithError(e).Errorf("Error while forwarding request to service broker %s", broker.Name)
-		util.WriteError(&util.HTTPError{
-			ErrorType:   "ServiceBrokerErr",
-			Description: fmt.Sprintf("could not reach service broker %s at %s", broker.Name, request.URL),
-			StatusCode:  http.StatusBadGateway,
-		}, writer)
-	}
 
 	recorder := httptest.NewRecorder()
+
+	logger.Debugf("Forwarding OSB r to %s", modifiedRequest.URL)
 
 	proxy.ServeHTTP(recorder, modifiedRequest)
 

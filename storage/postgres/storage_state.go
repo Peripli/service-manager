@@ -46,11 +46,10 @@ func (s *storageState) checkDB() error {
 	rows, err := s.db.Query("SELECT 1")
 	if err != nil {
 		return err
-	} else {
-		if err := rows.Close(); err != nil {
-			log.D().Errorf("Could not release connection when checking database s. Error: %s", err)
-			return err
-		}
+	}
+	if err := rows.Close(); err != nil {
+		log.D().Errorf("Could not release connection when checking database s. Error: %s", err)
+		return err
 	}
 	s.lastCheckTime = time.Now()
 	return nil
