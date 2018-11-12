@@ -90,7 +90,7 @@ func (storage *postgresStorage) Open(options *storage.Settings) error {
 			storageCheckInterval: time.Second * 5,
 		}
 		storage.encryptionKey = []byte(options.EncryptionKey)
-		log.D().Debug("Updating database schema")
+		log.D().Debugf("Updating database schema using migrations from %s", options.MigrationsURL)
 		if err := storage.updateSchema(options.MigrationsURL); err != nil {
 			log.D().Panicln("Could not update database schema:", err)
 		}

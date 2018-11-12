@@ -2,16 +2,16 @@
 package webfakes
 
 import (
-	"sync"
+	sync "sync"
 
-	"github.com/Peripli/service-manager/pkg/web"
+	web "github.com/Peripli/service-manager/pkg/web"
 )
 
 type FakeHandler struct {
-	HandleStub        func(req *web.Request) (resp *web.Response, err error)
+	HandleStub        func(*web.Request) (*web.Response, error)
 	handleMutex       sync.RWMutex
 	handleArgsForCall []struct {
-		req *web.Request
+		arg1 *web.Request
 	}
 	handleReturns struct {
 		result1 *web.Response
@@ -25,21 +25,22 @@ type FakeHandler struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeHandler) Handle(req *web.Request) (resp *web.Response, err error) {
+func (fake *FakeHandler) Handle(arg1 *web.Request) (*web.Response, error) {
 	fake.handleMutex.Lock()
 	ret, specificReturn := fake.handleReturnsOnCall[len(fake.handleArgsForCall)]
 	fake.handleArgsForCall = append(fake.handleArgsForCall, struct {
-		req *web.Request
-	}{req})
-	fake.recordInvocation("Handle", []interface{}{req})
+		arg1 *web.Request
+	}{arg1})
+	fake.recordInvocation("Handle", []interface{}{arg1})
 	fake.handleMutex.Unlock()
 	if fake.HandleStub != nil {
-		return fake.HandleStub(req)
+		return fake.HandleStub(arg1)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	return fake.handleReturns.result1, fake.handleReturns.result2
+	fakeReturns := fake.handleReturns
+	return fakeReturns.result1, fakeReturns.result2
 }
 
 func (fake *FakeHandler) HandleCallCount() int {
@@ -48,13 +49,22 @@ func (fake *FakeHandler) HandleCallCount() int {
 	return len(fake.handleArgsForCall)
 }
 
+func (fake *FakeHandler) HandleCalls(stub func(*web.Request) (*web.Response, error)) {
+	fake.handleMutex.Lock()
+	defer fake.handleMutex.Unlock()
+	fake.HandleStub = stub
+}
+
 func (fake *FakeHandler) HandleArgsForCall(i int) *web.Request {
 	fake.handleMutex.RLock()
 	defer fake.handleMutex.RUnlock()
-	return fake.handleArgsForCall[i].req
+	argsForCall := fake.handleArgsForCall[i]
+	return argsForCall.arg1
 }
 
 func (fake *FakeHandler) HandleReturns(result1 *web.Response, result2 error) {
+	fake.handleMutex.Lock()
+	defer fake.handleMutex.Unlock()
 	fake.HandleStub = nil
 	fake.handleReturns = struct {
 		result1 *web.Response
@@ -63,6 +73,8 @@ func (fake *FakeHandler) HandleReturns(result1 *web.Response, result2 error) {
 }
 
 func (fake *FakeHandler) HandleReturnsOnCall(i int, result1 *web.Response, result2 error) {
+	fake.handleMutex.Lock()
+	defer fake.handleMutex.Unlock()
 	fake.HandleStub = nil
 	if fake.handleReturnsOnCall == nil {
 		fake.handleReturnsOnCall = make(map[int]struct {
