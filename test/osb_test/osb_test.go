@@ -16,10 +16,12 @@
 package osb_test
 
 import (
-	"github.com/gofrs/uuid"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
+
+	"github.com/gofrs/uuid"
 
 	"github.com/Peripli/service-manager/test/common"
 	"github.com/gavv/httpexpect"
@@ -35,6 +37,7 @@ type array = common.Array
 
 // TestOSB tests for OSB API
 func TestOSB(t *testing.T) {
+	os.Chdir("../..")
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "OSB API Tests Suite")
 }
