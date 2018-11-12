@@ -43,7 +43,6 @@ type BrokerFetcher interface {
 // Controller implements api.Controller by providing OSB API logic
 type controller struct {
 	fetcher BrokerFetcher
-	proxy   *httputil.ReverseProxy
 }
 
 var _ web.Controller = &controller{}
@@ -51,10 +50,6 @@ var _ web.Controller = &controller{}
 // NewController returns new OSB controller
 func NewController(fetcher BrokerFetcher, roundTripper http.RoundTripper) web.Controller {
 	return &controller{
-		proxy: &httputil.ReverseProxy{
-			Transport: roundTripper,
-			Director:  func(req *http.Request) {},
-		},
 		fetcher: fetcher,
 	}
 }
@@ -97,8 +92,8 @@ func (c *controller) handler(r *web.Request) (*web.Response, error) {
 	proxy := httputil.NewSingleHostReverseProxy(targetBrokerURL)
 	director := proxy.Director
 	proxy.Director = func(request *http.Request) {
-		logger.Debugf("Forwarded OSB request to service broker %s at %s", broker.Name, request.URL)
 		director(request)
+		logger.Debugf("Forwarded OSB request to service broker %s at %s", broker.Name, request.URL)
 	}
 	proxy.ModifyResponse = func(response *http.Response) error {
 		logger.Debugf("Service broker %s replied with status %d", broker.Name, response.StatusCode)
