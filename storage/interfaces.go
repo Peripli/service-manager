@@ -20,7 +20,7 @@ package storage
 import (
 	"context"
 	"fmt"
-	"path/filepath"
+	"path"
 	"runtime"
 
 	"github.com/Peripli/service-manager/pkg/security"
@@ -29,7 +29,7 @@ import (
 
 var (
 	_, b, _, _ = runtime.Caller(0)
-	basepath   = filepath.Dir(b)
+	basepath   = path.Dir(b)
 )
 
 // Settings type to be loaded from the environment

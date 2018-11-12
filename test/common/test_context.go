@@ -19,11 +19,12 @@ package common
 import (
 	"context"
 	"flag"
+	"net/http/httptest"
+	"path"
+	"runtime"
+
 	"github.com/gofrs/uuid"
 	"github.com/spf13/pflag"
-	"net/http/httptest"
-	"path/filepath"
-	"runtime"
 
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/sm"
@@ -35,7 +36,7 @@ import (
 var (
 	e          env.Environment
 	_, b, _, _ = runtime.Caller(0)
-	basePath   = filepath.Dir(b)
+	basePath   = path.Dir(b)
 )
 
 type FlagValue struct {
