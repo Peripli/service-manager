@@ -157,7 +157,7 @@ var _ = Describe("Service Manager Plugins", func() {
 			Expect(len(brokerServer.CatalogEndpointRequests)).To(Equal(0))
 		})
 
-		It("Request host header is properly set", func() {
+		It("Request host header is properly set to the service broker's host", func() {
 			ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
 				Expect().Status(http.StatusOK)
 

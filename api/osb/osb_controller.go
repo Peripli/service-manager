@@ -92,8 +92,11 @@ func (c *controller) handler(r *web.Request) (*web.Response, error) {
 	modifiedRequest.SetBasicAuth(broker.Credentials.Basic.Username, broker.Credentials.Basic.Password)
 	modifiedRequest.Body = ioutil.NopCloser(bytes.NewReader(r.Body))
 	modifiedRequest.ContentLength = int64(len(r.Body))
-	modifiedRequest.Host = targetBrokerURL.Host
 	modifiedRequest.URL.Path = m[1]
+
+	// This is needed because the request is shallow copy of the request to the Service Manager
+	// This sets the host header to point to the service broker that the request will be proxied to
+	modifiedRequest.Host = targetBrokerURL.Host
 
 	proxy := httputil.NewSingleHostReverseProxy(targetBrokerURL)
 
