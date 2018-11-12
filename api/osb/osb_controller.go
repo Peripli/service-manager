@@ -89,6 +89,10 @@ func (c *controller) handler(r *web.Request) (*web.Response, error) {
 	modifiedRequest.ContentLength = int64(len(r.Body))
 	modifiedRequest.URL.Path = m[1]
 
+	// This is needed because the request is shallow copy of the request to the Service Manager
+	// This sets the host header to point to the service broker that the request will be proxied to
+	modifiedRequest.Host = targetBrokerURL.Host
+
 	proxy := httputil.NewSingleHostReverseProxy(targetBrokerURL)
 	director := proxy.Director
 	proxy.Director = func(request *http.Request) {
