@@ -30,11 +30,12 @@ const (
 	// baseURL is the OSB API controller path
 	baseURL = web.OSBURL + "/{" + BrokerIDPathParam + "}"
 
-	catalogURL                      = baseURL + "/v2/catalog"
-	serviceInstanceURL              = baseURL + "/v2/service_instances/{instance_id}"
-	serviceInstanceLastOperationURL = baseURL + "/v2/service_instances/{instance_id}/last_operation"
-	serviceBindingURL               = baseURL + "/v2/service_instances/{instance_id}/service_bindings/{binding_id}"
-	serviceBindingLastOperationURL  = baseURL + "/v2/service_instances/{instance_id}/service_bindings/{binding_id}/last_operation"
+	catalogURL                        = baseURL + "/v2/catalog"
+	serviceInstanceURL                = baseURL + "/v2/service_instances/{instance_id}"
+	serviceInstanceLastOperationURL   = baseURL + "/v2/service_instances/{instance_id}/last_operation"
+	serviceBindingURL                 = baseURL + "/v2/service_instances/{instance_id}/service_bindings/{binding_id}"
+	serviceBindingLastOperationURL    = baseURL + "/v2/service_instances/{instance_id}/service_bindings/{binding_id}/last_operation"
+	serviceBindingAdaptCredentialsURL = baseURL + "/v2/service_instances/{instance_id}/service_bindings/{binding_id}/adapt_credentials"
 )
 
 // Routes implements api.Controller.Routes by providing the routes for the OSB API
@@ -53,5 +54,6 @@ func (c *controller) Routes() []web.Route {
 
 		{Endpoint: web.Endpoint{Method: http.MethodGet, Path: serviceInstanceLastOperationURL}, Handler: c.handler},
 		{Endpoint: web.Endpoint{Method: http.MethodGet, Path: serviceBindingLastOperationURL}, Handler: c.handler},
+		{Endpoint: web.Endpoint{Method: http.MethodPost, Path: serviceBindingAdaptCredentialsURL}, Handler: c.handler},
 	}
 }
