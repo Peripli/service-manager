@@ -131,6 +131,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		failingBrokerServer.CatalogHandler = failingHandler
 		failingBrokerServer.ServiceInstanceLastOpHandler = failingHandler
 		failingBrokerServer.BindingLastOpHandler = failingHandler
+		failingBrokerServer.BindingAdaptCredentialsHandler = failingHandler
 
 		UUID, err := uuid.NewV4()
 		if err != nil {
@@ -441,6 +442,24 @@ var _ = Describe("Service Manager OSB API", func() {
 				assertWorkingBrokerResponse(
 					ctx.SMWithBasic.GET(queryParamVerificationBrokerOSBURL+"/v2/service_instances/iid/service_bindings/bid/last_operation").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 						WithJSON(getDummyService()).WithQuery(headerKey, headerValue), http.StatusOK)
+			})
+		})
+	})
+
+	Describe("Post Binding Adapt Credentials", func() {
+		Context("when call to working service broker", func() {
+			It("should succeed", func() {
+				assertWorkingBrokerResponse(
+					ctx.SMWithBasic.POST(workingBrokerURL+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader("X-Broker-API-Version", "oidc_authn.13").WithJSON(&object{}),
+					http.StatusOK, "credentials")
+			})
+		})
+
+		Context("when call to broken service broker", func() {
+			It("should fail", func() {
+				assertBrokenBrokerError(
+					ctx.SMWithBasic.POST(brokerBrokerURL+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader("X-Broker-API-Version", "oidc_authn.13").WithJSON(&object{}))
+
 			})
 		})
 	})
