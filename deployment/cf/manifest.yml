@@ -6,7 +6,7 @@ applications:
   docker:
     image: quay.io/service-manager/core:v0.1.1
   env:
-    GOVERSION: go1.10
+    GOVERSION: go1.11
     GOPACKAGENAME: github.com/Peripli/service-manager
     LOG_FORMAT: json
     LOG_LEVEL: info
