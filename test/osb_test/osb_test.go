@@ -16,10 +16,10 @@
 package osb_test
 
 import (
+	"github.com/gofrs/uuid"
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"github.com/gofrs/uuid"
 
 	"github.com/Peripli/service-manager/test/common"
 	"github.com/gavv/httpexpect"
