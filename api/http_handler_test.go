@@ -17,7 +17,9 @@
 package api
 
 import (
+	"bytes"
 	"net/http/httptest"
+	"strconv"
 
 	"strings"
 
@@ -34,6 +36,23 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+const (
+	bodyMaxSize = 2000000
+)
+
+func generateJSON(size int) string {
+	var result bytes.Buffer
+	result.WriteString(`{`)
+	size = size / 16
+	for i := 0; i < size-1; i++ {
+		result.WriteString(fmt.Sprintf(`"property%s":"value%s",`, strconv.Itoa(int(size)), strconv.Itoa(int(size))))
+	}
+	result.WriteString(fmt.Sprintf(`"property%s":"value%s"`, strconv.Itoa(int(size)), strconv.Itoa(int(size))))
+	result.WriteString(`}`)
+
+	return result.String()
+}
+
 var _ = Describe("Handler", func() {
 	const validJSON = `{"key1":"value1","key2":"value2"}`
 	const invalidJSON = `{{{"KEY"`
@@ -45,7 +64,7 @@ var _ = Describe("Handler", func() {
 	BeforeEach(func() {
 		fakeHandler = &webfakes.FakeHandler{}
 		responseRecorder = httptest.NewRecorder()
-		handler = NewHTTPHandler(fakeHandler)
+		handler = NewHTTPHandler(fakeHandler, bodyMaxSize)
 	})
 
 	makeRequest := func(method, path, body string, headers map[string]string) *httptest.ResponseRecorder {
@@ -87,6 +106,17 @@ var _ = Describe("Handler", func() {
 				})
 
 				validateHTTPErrorOccurred(response, http.StatusBadRequest)
+			})
+		})
+
+		Context("when http request has too large body", func() {
+			Specify("response contains a proper HTTPError", func() {
+				var bodySize int = 2100000
+				response := makeRequest(http.MethodPost, "http://example.com", generateJSON(bodySize), map[string]string{
+					"Content-Type": "application/json",
+				})
+
+				validateHTTPErrorOccurred(response, http.StatusRequestEntityTooLarge)
 			})
 		})
 
