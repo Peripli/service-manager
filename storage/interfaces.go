@@ -53,9 +53,6 @@ func (s *Settings) Validate() error {
 	if len(s.URI) == 0 {
 		return fmt.Errorf("validate Settings: StorageURI missing")
 	}
-	if len(s.MigrationsURL) == 0 {
-		return fmt.Errorf("validate Settings: StorageMigrationsURL missing")
-	}
 	if len(s.EncryptionKey) != 32 {
 		return fmt.Errorf("validate Settings: StorageEncryptionKey must be exactly 32 symbols long but was %d symbols long", len(s.EncryptionKey))
 	}

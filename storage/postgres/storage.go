@@ -18,6 +18,7 @@
 package postgres
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -77,6 +78,9 @@ func (storage *postgresStorage) Open(options *storage.Settings) error {
 	var err error
 	if err = options.Validate(); err != nil {
 		return err
+	}
+	if len(options.MigrationsURL) == 0 {
+		return fmt.Errorf("validate Settings: StorageMigrationsURL missing")
 	}
 	if storage.db == nil {
 		storage.db, err = sqlx.Connect(Storage, options.URI)

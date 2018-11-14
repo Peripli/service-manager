@@ -68,7 +68,19 @@ var _ = Describe("Postgres Storage", func() {
 	Describe("Open", func() {
 		Context("Called with empty uri", func() {
 			It("Should return error", func() {
-				err := pgStorage.Open(&storage.Settings{})
+				err := pgStorage.Open(&storage.Settings{
+					URI:           "",
+					MigrationsURL: "file://migrations",
+				})
+				Expect(err).To(HaveOccurred())
+			})
+		})
+
+		Context("Called with empty migrations", func() {
+			It("Should return error", func() {
+				err := pgStorage.Open(&storage.Settings{
+					MigrationsURL: "",
+				})
 				Expect(err).To(HaveOccurred())
 			})
 		})
