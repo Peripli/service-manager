@@ -43,7 +43,6 @@ type BrokerFetcher interface {
 // Controller implements api.Controller by providing OSB API logic
 type controller struct {
 	fetcher BrokerFetcher
-	proxy   *httputil.ReverseProxy
 }
 
 var _ web.Controller = &controller{}
@@ -51,10 +50,6 @@ var _ web.Controller = &controller{}
 // NewController returns new OSB controller
 func NewController(fetcher BrokerFetcher, roundTripper http.RoundTripper) web.Controller {
 	return &controller{
-		proxy: &httputil.ReverseProxy{
-			Transport: roundTripper,
-			Director:  func(req *http.Request) {},
-		},
 		fetcher: fetcher,
 	}
 }
@@ -85,7 +80,7 @@ func (c *controller) handler(r *web.Request) (*web.Response, error) {
 
 	m := osbPathPattern.FindStringSubmatch(r.URL.Path)
 	if m == nil || len(m) < 2 {
-		return nil, fmt.Errorf("could not get OSB path from URL %s", r.URL.Path)
+		return nil, fmt.Errorf("could not get OSB path from URL %s", r.URL)
 	}
 
 	modifiedRequest := r.Request.WithContext(ctx)
@@ -100,9 +95,25 @@ func (c *controller) handler(r *web.Request) (*web.Response, error) {
 
 	proxy := httputil.NewSingleHostReverseProxy(targetBrokerURL)
 
-	recorder := httptest.NewRecorder()
+	director := proxy.Director
+	proxy.Director = func(request *http.Request) {
+		director(request)
+		logger.Debugf("Forwarded OSB request to service broker %s at %s", broker.Name, request.URL)
+	}
+	proxy.ModifyResponse = func(response *http.Response) error {
+		logger.Debugf("Service broker %s replied with status %d", broker.Name, response.StatusCode)
+		return nil
+	}
+	proxy.ErrorHandler = func(writer http.ResponseWriter, request *http.Request, e error) {
+		logger.WithError(e).Errorf("Error while forwarding request to service broker %s", broker.Name)
+		util.WriteError(&util.HTTPError{
+			ErrorType:   "ServiceBrokerErr",
+			Description: fmt.Sprintf("could not reach service broker %s at %s", broker.Name, request.URL),
+			StatusCode:  http.StatusBadGateway,
+		}, writer)
+	}
 
-	logger.Debugf("Forwarding OSB r to %s", modifiedRequest.URL)
+	recorder := httptest.NewRecorder()
 
 	proxy.ServeHTTP(recorder, modifiedRequest)
 

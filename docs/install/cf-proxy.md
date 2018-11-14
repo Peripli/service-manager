@@ -16,7 +16,7 @@
 Clone the [service-broker-proxy-cf](https://github.com/Peripli/service-broker-proxy-cf) git repository.
 
 ```console
-git clone https://github.com/Peripli/service-broker-proxy-cf.git && cd service-broker-proxy-cf
+$ git clone https://github.com/Peripli/service-broker-proxy-cf.git $GOPATH/src/github.com/Peripli/service-broker-proxy-cf && cd $GOPATH/src/github.com/Peripli/service-broker-proxy-cf
 ```
 
 **Note:** Do not use `go get`. Instead use git to clone the repository.
@@ -51,7 +51,8 @@ ID                                    Name  Type  Description  Created          
 
 In the [service-broker-proxy-cf](https://github.com/Peripli/service-broker-proxy-cf) repository you need to replace in the `manifest.yml` the following things:
 
-* Administrative credentials for CF with env variables `CF_CLIENT_USERNAME`, `CF_CLIENT_PASSWORD` and `CF_CLIENT_APIADDRESS.
+* Administrative credentials for CF with env variables `CF_CLIENT_USERNAME` and `CF_CLIENT_PASSWORD`.
+* Optional: adapt env variable `CF_CLIENT_APIADDRESS`.
 * Service-Manager URL using the `SM_URL` env variable.
 * Credentials for Service Manager with env variables `SM_USER` and `SM_PASSWORD`. These are the credentials obtained by the `smctl register-platform` command
 
