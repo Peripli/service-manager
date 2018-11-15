@@ -20,7 +20,7 @@ import (
 	"context"
 
 	"github.com/Peripli/service-manager/pkg/sm"
-	"github.com/Peripli/service-manager/pkg/version"
+	"github.com/Peripli/service-manager/version"
 )
 
 func main() {
