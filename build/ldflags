@@ -2,7 +2,5 @@
 
 VERSION_PACKAGE=github.com/Peripli/service-manager/pkg/version
 GIT_COMMIT=$(git rev-list -1 HEAD)
-echo -X $VERSION_PACKAGE.GitCommit=$GIT_COMMIT
-
-#DEBUG
->&2 echo GIT_COMMIT=$GIT_COMMIT
+VERSION=$(git describe --tags)
+echo -X $VERSION_PACKAGE.GitCommit=$GIT_COMMIT -X $VERSION_PACKAGE.Version=$VERSION
