@@ -17,6 +17,8 @@
 package web_test
 
 import (
+	"net/http"
+
 	"github.com/Peripli/service-manager/pkg/web"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -40,10 +42,21 @@ var _ = Describe("API", func() {
 	}
 
 	Describe("RegisterControllers", func() {
-		It("increases controllers count", func() {
-			originalCount := len(api.Controllers)
-			api.RegisterControllers(&testController{})
-			Expect(len(api.Controllers)).To(Equal(originalCount + 1))
+		Context("When there are no duplicate endpoints", func() {
+			It("increases controllers count", func() {
+				originalCount := len(api.Controllers)
+				api.RegisterControllers(&testController{})
+				Expect(len(api.Controllers)).To(Equal(originalCount + 1))
+			})
+		})
+
+		Context("When there are endpoint duplications", func() {
+			It("Panics", func() {
+				api.RegisterControllers(&testController{})
+				Expect(func() {
+					api.RegisterControllers(&testController{})
+				}).To(Panic())
+			})
 		})
 	})
 
@@ -224,7 +237,17 @@ type testController struct {
 }
 
 func (c *testController) Routes() []web.Route {
-	return []web.Route{}
+	return []web.Route{
+		{
+			Endpoint: web.Endpoint{
+				Path:   "/v1/test/test",
+				Method: http.MethodGet,
+			},
+			Handler: func(req *web.Request) (resp *web.Response, err error) {
+				return &web.Response{StatusCode: http.StatusOK}, nil
+			},
+		},
+	}
 }
 
 type testFilter struct {
