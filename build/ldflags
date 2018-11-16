@@ -1,0 +1,9 @@
+#!/bin/sh
+
+# this script injects the version by generating proper go build options
+
+VERSION_PACKAGE=github.com/Peripli/service-manager/version
+GIT_COMMIT=$(git rev-list -1 HEAD)
+VERSION=$(git describe --tags)
+>&2 echo Version=$VERSION GitCommit=$GIT_COMMIT
+echo "-X $VERSION_PACKAGE.GitCommit=$GIT_COMMIT -X $VERSION_PACKAGE.Version=$VERSION"
