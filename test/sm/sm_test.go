@@ -18,14 +18,10 @@ package sm_test
 
 import (
 	"context"
-	"net/http/httptest"
-	"os"
-
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/spf13/pflag"
-
+	"net/http/httptest"
 	"testing"
 
 	"net/http"
@@ -54,18 +50,14 @@ var _ = Describe("SM", func() {
 	BeforeSuite(func() {
 		// TODO: storage must be refactored and so that context be in BeforeEach
 		ctx, cancel = context.WithCancel(context.Background())
-		os.Chdir("../..")
-		os.Setenv("FILE_LOCATION", "test/common")
+
 		oauthServer = common.NewOAuthServer()
 		oauthServer.Start()
-		os.Setenv("API_TOKEN_ISSUER_URL", oauthServer.URL)
 	})
 
 	AfterSuite(func() {
 		defer cancel()
-		os.Unsetenv("FILE_LOCATION")
 		oauthServer.Close()
-		os.Unsetenv("API_TOKEN_ISSUER_URL")
 	})
 
 	Describe("New", func() {
@@ -83,9 +75,10 @@ var _ = Describe("SM", func() {
 		Context("when validating config fails", func() {
 			It("should panic", func() {
 				Expect(func() {
-					sm.New(ctx, cancel, sm.DefaultEnv(func(set *pflag.FlagSet) {
-						set.Set("log.level", "")
-					}))
+					env := sm.DefaultEnv(common.SetTestFileLocation)
+					env.Set("api.token_issuer_url", oauthServer.URL)
+					env.Set("log.level", "invalid")
+					sm.New(ctx, cancel, env)
 				}).To(Panic())
 			})
 		})
@@ -93,9 +86,10 @@ var _ = Describe("SM", func() {
 		Context("when setting up storage fails", func() {
 			It("should panic", func() {
 				Expect(func() {
-					sm.New(ctx, cancel, sm.DefaultEnv(func(set *pflag.FlagSet) {
-						set.Set("storage.uri", "invalid")
-					}))
+					env := sm.DefaultEnv(common.SetTestFileLocation)
+					env.Set("api.token_issuer_url", oauthServer.URL)
+					env.Set("storage.uri", "invalid")
+					sm.New(ctx, cancel, env)
 				}).To(Panic())
 			})
 		})
@@ -103,16 +97,18 @@ var _ = Describe("SM", func() {
 		Context("when setting up API fails", func() {
 			It("should panic", func() {
 				Expect(func() {
-					sm.New(ctx, cancel, sm.DefaultEnv(func(set *pflag.FlagSet) {
-						set.Set("api.token_issuer_url", "")
-					}))
+					env := sm.DefaultEnv(common.SetTestFileLocation)
+					env.Set("api.token_issuer_url", "")
+					sm.New(ctx, cancel, env)
 				}).To(Panic())
 			})
 		})
 
 		Context("when no API extensions are registered", func() {
 			It("should return working service manager", func() {
-				smanager := sm.New(ctx, cancel, sm.DefaultEnv())
+				env := sm.DefaultEnv(common.SetTestFileLocation)
+				env.Set("api.token_issuer_url", oauthServer.URL)
+				smanager := sm.New(ctx, cancel, env)
 
 				verifyServiceManagerStartsSuccessFully(httptest.NewServer(smanager.Build().Server.Router))
 
@@ -121,7 +117,9 @@ var _ = Describe("SM", func() {
 
 		Context("when additional filter is registered", func() {
 			It("should return working service manager with a new filter", func() {
-				smanager := sm.New(ctx, cancel, sm.DefaultEnv())
+				env := sm.DefaultEnv(common.SetTestFileLocation)
+				env.Set("api.token_issuer_url", oauthServer.URL)
+				smanager := sm.New(ctx, cancel, env)
 				smanager.RegisterFilters(testFilter{})
 
 				SM := verifyServiceManagerStartsSuccessFully(httptest.NewServer(smanager.Build().Server.Router))
@@ -134,7 +132,9 @@ var _ = Describe("SM", func() {
 
 		Context("when additional controller is registered", func() {
 			It("should return working service manager with additional controller", func() {
-				smanager := sm.New(ctx, cancel, sm.DefaultEnv())
+				env := sm.DefaultEnv(common.SetTestFileLocation)
+				env.Set("api.token_issuer_url", oauthServer.URL)
+				smanager := sm.New(ctx, cancel, env)
 				smanager.RegisterControllers(testController{})
 
 				SM := verifyServiceManagerStartsSuccessFully(httptest.NewServer(smanager.Build().Server.Router))

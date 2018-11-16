@@ -20,16 +20,15 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	"log"
-	"testing"
-
 	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/security/securityfakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"log"
+	"testing"
 )
 
-func TestApi(t *testing.T) {
+func TestEncrypter(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Encrypter Test Suite")
 }

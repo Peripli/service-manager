@@ -12,8 +12,8 @@ applications:
     LOG_LEVEL: info
     API_TOKEN_ISSUER_URL: https://uaa.dev.cfdev.sh
     API_CLIENT_ID: cf
-    API_SECURITY_ENCRYPTION_KEY: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
     API_SKIP_SSL_VALIDATION: true
+    STORAGE_ENCRYPTION_KEY: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
     STORAGE_NAME: <postgre_instance_name>
     # Set STORAGE_URI and remove STORAGE_NAME if using external postgreSQL
     # STORAGE_URI: postgres://postgres:postgres@10.0.2.2:5432/postgres?sslmode=disable
