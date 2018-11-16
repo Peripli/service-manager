@@ -94,6 +94,7 @@ func (c *controller) handler(r *web.Request) (*web.Response, error) {
 	modifiedRequest.Host = targetBrokerURL.Host
 
 	proxy := httputil.NewSingleHostReverseProxy(targetBrokerURL)
+
 	director := proxy.Director
 	proxy.Director = func(request *http.Request) {
 		director(request)

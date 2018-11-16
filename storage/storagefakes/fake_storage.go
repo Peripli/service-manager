@@ -2,17 +2,46 @@
 package storagefakes
 
 import (
-	"sync"
+	sync "sync"
 
-	"github.com/Peripli/service-manager/storage"
+	storage "github.com/Peripli/service-manager/storage"
 )
 
 type FakeStorage struct {
-	OpenStub        func(uri string, encryptionKey []byte) error
+	BrokerStub        func() storage.Broker
+	brokerMutex       sync.RWMutex
+	brokerArgsForCall []struct {
+	}
+	brokerReturns struct {
+		result1 storage.Broker
+	}
+	brokerReturnsOnCall map[int]struct {
+		result1 storage.Broker
+	}
+	CloseStub        func() error
+	closeMutex       sync.RWMutex
+	closeArgsForCall []struct {
+	}
+	closeReturns struct {
+		result1 error
+	}
+	closeReturnsOnCall map[int]struct {
+		result1 error
+	}
+	CredentialsStub        func() storage.Credentials
+	credentialsMutex       sync.RWMutex
+	credentialsArgsForCall []struct {
+	}
+	credentialsReturns struct {
+		result1 storage.Credentials
+	}
+	credentialsReturnsOnCall map[int]struct {
+		result1 storage.Credentials
+	}
+	OpenStub        func(*storage.Settings) error
 	openMutex       sync.RWMutex
 	openArgsForCall []struct {
-		uri           string
-		encryptionKey []byte
+		arg1 *storage.Settings
 	}
 	openReturns struct {
 		result1 error
@@ -20,55 +49,31 @@ type FakeStorage struct {
 	openReturnsOnCall map[int]struct {
 		result1 error
 	}
-	CloseStub        func() error
-	closeMutex       sync.RWMutex
-	closeArgsForCall []struct{}
-	closeReturns     struct {
-		result1 error
-	}
-	closeReturnsOnCall map[int]struct {
-		result1 error
-	}
 	PingStub        func() error
 	pingMutex       sync.RWMutex
-	pingArgsForCall []struct{}
-	pingReturns     struct {
+	pingArgsForCall []struct {
+	}
+	pingReturns struct {
 		result1 error
 	}
 	pingReturnsOnCall map[int]struct {
 		result1 error
 	}
-	BrokerStub        func() storage.Broker
-	brokerMutex       sync.RWMutex
-	brokerArgsForCall []struct{}
-	brokerReturns     struct {
-		result1 storage.Broker
-	}
-	brokerReturnsOnCall map[int]struct {
-		result1 storage.Broker
-	}
 	PlatformStub        func() storage.Platform
 	platformMutex       sync.RWMutex
-	platformArgsForCall []struct{}
-	platformReturns     struct {
+	platformArgsForCall []struct {
+	}
+	platformReturns struct {
 		result1 storage.Platform
 	}
 	platformReturnsOnCall map[int]struct {
 		result1 storage.Platform
 	}
-	CredentialsStub        func() storage.Credentials
-	credentialsMutex       sync.RWMutex
-	credentialsArgsForCall []struct{}
-	credentialsReturns     struct {
-		result1 storage.Credentials
-	}
-	credentialsReturnsOnCall map[int]struct {
-		result1 storage.Credentials
-	}
 	SecurityStub        func() storage.Security
 	securityMutex       sync.RWMutex
-	securityArgsForCall []struct{}
-	securityReturns     struct {
+	securityArgsForCall []struct {
+	}
+	securityReturns struct {
 		result1 storage.Security
 	}
 	securityReturnsOnCall map[int]struct {
@@ -78,144 +83,11 @@ type FakeStorage struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeStorage) Open(uri string, encryptionKey []byte) error {
-	var encryptionKeyCopy []byte
-	if encryptionKey != nil {
-		encryptionKeyCopy = make([]byte, len(encryptionKey))
-		copy(encryptionKeyCopy, encryptionKey)
-	}
-	fake.openMutex.Lock()
-	ret, specificReturn := fake.openReturnsOnCall[len(fake.openArgsForCall)]
-	fake.openArgsForCall = append(fake.openArgsForCall, struct {
-		uri           string
-		encryptionKey []byte
-	}{uri, encryptionKeyCopy})
-	fake.recordInvocation("Open", []interface{}{uri, encryptionKeyCopy})
-	fake.openMutex.Unlock()
-	if fake.OpenStub != nil {
-		return fake.OpenStub(uri, encryptionKey)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.openReturns.result1
-}
-
-func (fake *FakeStorage) OpenCallCount() int {
-	fake.openMutex.RLock()
-	defer fake.openMutex.RUnlock()
-	return len(fake.openArgsForCall)
-}
-
-func (fake *FakeStorage) OpenArgsForCall(i int) (string, []byte) {
-	fake.openMutex.RLock()
-	defer fake.openMutex.RUnlock()
-	return fake.openArgsForCall[i].uri, fake.openArgsForCall[i].encryptionKey
-}
-
-func (fake *FakeStorage) OpenReturns(result1 error) {
-	fake.OpenStub = nil
-	fake.openReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeStorage) OpenReturnsOnCall(i int, result1 error) {
-	fake.OpenStub = nil
-	if fake.openReturnsOnCall == nil {
-		fake.openReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.openReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeStorage) Close() error {
-	fake.closeMutex.Lock()
-	ret, specificReturn := fake.closeReturnsOnCall[len(fake.closeArgsForCall)]
-	fake.closeArgsForCall = append(fake.closeArgsForCall, struct{}{})
-	fake.recordInvocation("Close", []interface{}{})
-	fake.closeMutex.Unlock()
-	if fake.CloseStub != nil {
-		return fake.CloseStub()
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.closeReturns.result1
-}
-
-func (fake *FakeStorage) CloseCallCount() int {
-	fake.closeMutex.RLock()
-	defer fake.closeMutex.RUnlock()
-	return len(fake.closeArgsForCall)
-}
-
-func (fake *FakeStorage) CloseReturns(result1 error) {
-	fake.CloseStub = nil
-	fake.closeReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeStorage) CloseReturnsOnCall(i int, result1 error) {
-	fake.CloseStub = nil
-	if fake.closeReturnsOnCall == nil {
-		fake.closeReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.closeReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeStorage) Ping() error {
-	fake.pingMutex.Lock()
-	ret, specificReturn := fake.pingReturnsOnCall[len(fake.pingArgsForCall)]
-	fake.pingArgsForCall = append(fake.pingArgsForCall, struct{}{})
-	fake.recordInvocation("Ping", []interface{}{})
-	fake.pingMutex.Unlock()
-	if fake.PingStub != nil {
-		return fake.PingStub()
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.pingReturns.result1
-}
-
-func (fake *FakeStorage) PingCallCount() int {
-	fake.pingMutex.RLock()
-	defer fake.pingMutex.RUnlock()
-	return len(fake.pingArgsForCall)
-}
-
-func (fake *FakeStorage) PingReturns(result1 error) {
-	fake.PingStub = nil
-	fake.pingReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeStorage) PingReturnsOnCall(i int, result1 error) {
-	fake.PingStub = nil
-	if fake.pingReturnsOnCall == nil {
-		fake.pingReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.pingReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
 func (fake *FakeStorage) Broker() storage.Broker {
 	fake.brokerMutex.Lock()
 	ret, specificReturn := fake.brokerReturnsOnCall[len(fake.brokerArgsForCall)]
-	fake.brokerArgsForCall = append(fake.brokerArgsForCall, struct{}{})
+	fake.brokerArgsForCall = append(fake.brokerArgsForCall, struct {
+	}{})
 	fake.recordInvocation("Broker", []interface{}{})
 	fake.brokerMutex.Unlock()
 	if fake.BrokerStub != nil {
@@ -224,7 +96,8 @@ func (fake *FakeStorage) Broker() storage.Broker {
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.brokerReturns.result1
+	fakeReturns := fake.brokerReturns
+	return fakeReturns.result1
 }
 
 func (fake *FakeStorage) BrokerCallCount() int {
@@ -233,7 +106,15 @@ func (fake *FakeStorage) BrokerCallCount() int {
 	return len(fake.brokerArgsForCall)
 }
 
+func (fake *FakeStorage) BrokerCalls(stub func() storage.Broker) {
+	fake.brokerMutex.Lock()
+	defer fake.brokerMutex.Unlock()
+	fake.BrokerStub = stub
+}
+
 func (fake *FakeStorage) BrokerReturns(result1 storage.Broker) {
+	fake.brokerMutex.Lock()
+	defer fake.brokerMutex.Unlock()
 	fake.BrokerStub = nil
 	fake.brokerReturns = struct {
 		result1 storage.Broker
@@ -241,6 +122,8 @@ func (fake *FakeStorage) BrokerReturns(result1 storage.Broker) {
 }
 
 func (fake *FakeStorage) BrokerReturnsOnCall(i int, result1 storage.Broker) {
+	fake.brokerMutex.Lock()
+	defer fake.brokerMutex.Unlock()
 	fake.BrokerStub = nil
 	if fake.brokerReturnsOnCall == nil {
 		fake.brokerReturnsOnCall = make(map[int]struct {
@@ -252,50 +135,63 @@ func (fake *FakeStorage) BrokerReturnsOnCall(i int, result1 storage.Broker) {
 	}{result1}
 }
 
-func (fake *FakeStorage) Platform() storage.Platform {
-	fake.platformMutex.Lock()
-	ret, specificReturn := fake.platformReturnsOnCall[len(fake.platformArgsForCall)]
-	fake.platformArgsForCall = append(fake.platformArgsForCall, struct{}{})
-	fake.recordInvocation("Platform", []interface{}{})
-	fake.platformMutex.Unlock()
-	if fake.PlatformStub != nil {
-		return fake.PlatformStub()
+func (fake *FakeStorage) Close() error {
+	fake.closeMutex.Lock()
+	ret, specificReturn := fake.closeReturnsOnCall[len(fake.closeArgsForCall)]
+	fake.closeArgsForCall = append(fake.closeArgsForCall, struct {
+	}{})
+	fake.recordInvocation("Close", []interface{}{})
+	fake.closeMutex.Unlock()
+	if fake.CloseStub != nil {
+		return fake.CloseStub()
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.platformReturns.result1
+	fakeReturns := fake.closeReturns
+	return fakeReturns.result1
 }
 
-func (fake *FakeStorage) PlatformCallCount() int {
-	fake.platformMutex.RLock()
-	defer fake.platformMutex.RUnlock()
-	return len(fake.platformArgsForCall)
+func (fake *FakeStorage) CloseCallCount() int {
+	fake.closeMutex.RLock()
+	defer fake.closeMutex.RUnlock()
+	return len(fake.closeArgsForCall)
 }
 
-func (fake *FakeStorage) PlatformReturns(result1 storage.Platform) {
-	fake.PlatformStub = nil
-	fake.platformReturns = struct {
-		result1 storage.Platform
+func (fake *FakeStorage) CloseCalls(stub func() error) {
+	fake.closeMutex.Lock()
+	defer fake.closeMutex.Unlock()
+	fake.CloseStub = stub
+}
+
+func (fake *FakeStorage) CloseReturns(result1 error) {
+	fake.closeMutex.Lock()
+	defer fake.closeMutex.Unlock()
+	fake.CloseStub = nil
+	fake.closeReturns = struct {
+		result1 error
 	}{result1}
 }
 
-func (fake *FakeStorage) PlatformReturnsOnCall(i int, result1 storage.Platform) {
-	fake.PlatformStub = nil
-	if fake.platformReturnsOnCall == nil {
-		fake.platformReturnsOnCall = make(map[int]struct {
-			result1 storage.Platform
+func (fake *FakeStorage) CloseReturnsOnCall(i int, result1 error) {
+	fake.closeMutex.Lock()
+	defer fake.closeMutex.Unlock()
+	fake.CloseStub = nil
+	if fake.closeReturnsOnCall == nil {
+		fake.closeReturnsOnCall = make(map[int]struct {
+			result1 error
 		})
 	}
-	fake.platformReturnsOnCall[i] = struct {
-		result1 storage.Platform
+	fake.closeReturnsOnCall[i] = struct {
+		result1 error
 	}{result1}
 }
 
 func (fake *FakeStorage) Credentials() storage.Credentials {
 	fake.credentialsMutex.Lock()
 	ret, specificReturn := fake.credentialsReturnsOnCall[len(fake.credentialsArgsForCall)]
-	fake.credentialsArgsForCall = append(fake.credentialsArgsForCall, struct{}{})
+	fake.credentialsArgsForCall = append(fake.credentialsArgsForCall, struct {
+	}{})
 	fake.recordInvocation("Credentials", []interface{}{})
 	fake.credentialsMutex.Unlock()
 	if fake.CredentialsStub != nil {
@@ -304,7 +200,8 @@ func (fake *FakeStorage) Credentials() storage.Credentials {
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.credentialsReturns.result1
+	fakeReturns := fake.credentialsReturns
+	return fakeReturns.result1
 }
 
 func (fake *FakeStorage) CredentialsCallCount() int {
@@ -313,7 +210,15 @@ func (fake *FakeStorage) CredentialsCallCount() int {
 	return len(fake.credentialsArgsForCall)
 }
 
+func (fake *FakeStorage) CredentialsCalls(stub func() storage.Credentials) {
+	fake.credentialsMutex.Lock()
+	defer fake.credentialsMutex.Unlock()
+	fake.CredentialsStub = stub
+}
+
 func (fake *FakeStorage) CredentialsReturns(result1 storage.Credentials) {
+	fake.credentialsMutex.Lock()
+	defer fake.credentialsMutex.Unlock()
 	fake.CredentialsStub = nil
 	fake.credentialsReturns = struct {
 		result1 storage.Credentials
@@ -321,6 +226,8 @@ func (fake *FakeStorage) CredentialsReturns(result1 storage.Credentials) {
 }
 
 func (fake *FakeStorage) CredentialsReturnsOnCall(i int, result1 storage.Credentials) {
+	fake.credentialsMutex.Lock()
+	defer fake.credentialsMutex.Unlock()
 	fake.CredentialsStub = nil
 	if fake.credentialsReturnsOnCall == nil {
 		fake.credentialsReturnsOnCall = make(map[int]struct {
@@ -332,10 +239,175 @@ func (fake *FakeStorage) CredentialsReturnsOnCall(i int, result1 storage.Credent
 	}{result1}
 }
 
+func (fake *FakeStorage) Open(arg1 *storage.Settings) error {
+	fake.openMutex.Lock()
+	ret, specificReturn := fake.openReturnsOnCall[len(fake.openArgsForCall)]
+	fake.openArgsForCall = append(fake.openArgsForCall, struct {
+		arg1 *storage.Settings
+	}{arg1})
+	fake.recordInvocation("Open", []interface{}{arg1})
+	fake.openMutex.Unlock()
+	if fake.OpenStub != nil {
+		return fake.OpenStub(arg1)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.openReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeStorage) OpenCallCount() int {
+	fake.openMutex.RLock()
+	defer fake.openMutex.RUnlock()
+	return len(fake.openArgsForCall)
+}
+
+func (fake *FakeStorage) OpenCalls(stub func(*storage.Settings) error) {
+	fake.openMutex.Lock()
+	defer fake.openMutex.Unlock()
+	fake.OpenStub = stub
+}
+
+func (fake *FakeStorage) OpenArgsForCall(i int) *storage.Settings {
+	fake.openMutex.RLock()
+	defer fake.openMutex.RUnlock()
+	argsForCall := fake.openArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeStorage) OpenReturns(result1 error) {
+	fake.openMutex.Lock()
+	defer fake.openMutex.Unlock()
+	fake.OpenStub = nil
+	fake.openReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeStorage) OpenReturnsOnCall(i int, result1 error) {
+	fake.openMutex.Lock()
+	defer fake.openMutex.Unlock()
+	fake.OpenStub = nil
+	if fake.openReturnsOnCall == nil {
+		fake.openReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.openReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeStorage) Ping() error {
+	fake.pingMutex.Lock()
+	ret, specificReturn := fake.pingReturnsOnCall[len(fake.pingArgsForCall)]
+	fake.pingArgsForCall = append(fake.pingArgsForCall, struct {
+	}{})
+	fake.recordInvocation("Ping", []interface{}{})
+	fake.pingMutex.Unlock()
+	if fake.PingStub != nil {
+		return fake.PingStub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.pingReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeStorage) PingCallCount() int {
+	fake.pingMutex.RLock()
+	defer fake.pingMutex.RUnlock()
+	return len(fake.pingArgsForCall)
+}
+
+func (fake *FakeStorage) PingCalls(stub func() error) {
+	fake.pingMutex.Lock()
+	defer fake.pingMutex.Unlock()
+	fake.PingStub = stub
+}
+
+func (fake *FakeStorage) PingReturns(result1 error) {
+	fake.pingMutex.Lock()
+	defer fake.pingMutex.Unlock()
+	fake.PingStub = nil
+	fake.pingReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeStorage) PingReturnsOnCall(i int, result1 error) {
+	fake.pingMutex.Lock()
+	defer fake.pingMutex.Unlock()
+	fake.PingStub = nil
+	if fake.pingReturnsOnCall == nil {
+		fake.pingReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.pingReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeStorage) Platform() storage.Platform {
+	fake.platformMutex.Lock()
+	ret, specificReturn := fake.platformReturnsOnCall[len(fake.platformArgsForCall)]
+	fake.platformArgsForCall = append(fake.platformArgsForCall, struct {
+	}{})
+	fake.recordInvocation("Platform", []interface{}{})
+	fake.platformMutex.Unlock()
+	if fake.PlatformStub != nil {
+		return fake.PlatformStub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.platformReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeStorage) PlatformCallCount() int {
+	fake.platformMutex.RLock()
+	defer fake.platformMutex.RUnlock()
+	return len(fake.platformArgsForCall)
+}
+
+func (fake *FakeStorage) PlatformCalls(stub func() storage.Platform) {
+	fake.platformMutex.Lock()
+	defer fake.platformMutex.Unlock()
+	fake.PlatformStub = stub
+}
+
+func (fake *FakeStorage) PlatformReturns(result1 storage.Platform) {
+	fake.platformMutex.Lock()
+	defer fake.platformMutex.Unlock()
+	fake.PlatformStub = nil
+	fake.platformReturns = struct {
+		result1 storage.Platform
+	}{result1}
+}
+
+func (fake *FakeStorage) PlatformReturnsOnCall(i int, result1 storage.Platform) {
+	fake.platformMutex.Lock()
+	defer fake.platformMutex.Unlock()
+	fake.PlatformStub = nil
+	if fake.platformReturnsOnCall == nil {
+		fake.platformReturnsOnCall = make(map[int]struct {
+			result1 storage.Platform
+		})
+	}
+	fake.platformReturnsOnCall[i] = struct {
+		result1 storage.Platform
+	}{result1}
+}
+
 func (fake *FakeStorage) Security() storage.Security {
 	fake.securityMutex.Lock()
 	ret, specificReturn := fake.securityReturnsOnCall[len(fake.securityArgsForCall)]
-	fake.securityArgsForCall = append(fake.securityArgsForCall, struct{}{})
+	fake.securityArgsForCall = append(fake.securityArgsForCall, struct {
+	}{})
 	fake.recordInvocation("Security", []interface{}{})
 	fake.securityMutex.Unlock()
 	if fake.SecurityStub != nil {
@@ -344,7 +416,8 @@ func (fake *FakeStorage) Security() storage.Security {
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.securityReturns.result1
+	fakeReturns := fake.securityReturns
+	return fakeReturns.result1
 }
 
 func (fake *FakeStorage) SecurityCallCount() int {
@@ -353,7 +426,15 @@ func (fake *FakeStorage) SecurityCallCount() int {
 	return len(fake.securityArgsForCall)
 }
 
+func (fake *FakeStorage) SecurityCalls(stub func() storage.Security) {
+	fake.securityMutex.Lock()
+	defer fake.securityMutex.Unlock()
+	fake.SecurityStub = stub
+}
+
 func (fake *FakeStorage) SecurityReturns(result1 storage.Security) {
+	fake.securityMutex.Lock()
+	defer fake.securityMutex.Unlock()
 	fake.SecurityStub = nil
 	fake.securityReturns = struct {
 		result1 storage.Security
@@ -361,6 +442,8 @@ func (fake *FakeStorage) SecurityReturns(result1 storage.Security) {
 }
 
 func (fake *FakeStorage) SecurityReturnsOnCall(i int, result1 storage.Security) {
+	fake.securityMutex.Lock()
+	defer fake.securityMutex.Unlock()
 	fake.SecurityStub = nil
 	if fake.securityReturnsOnCall == nil {
 		fake.securityReturnsOnCall = make(map[int]struct {
@@ -375,18 +458,18 @@ func (fake *FakeStorage) SecurityReturnsOnCall(i int, result1 storage.Security) 
 func (fake *FakeStorage) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.openMutex.RLock()
-	defer fake.openMutex.RUnlock()
-	fake.closeMutex.RLock()
-	defer fake.closeMutex.RUnlock()
-	fake.pingMutex.RLock()
-	defer fake.pingMutex.RUnlock()
 	fake.brokerMutex.RLock()
 	defer fake.brokerMutex.RUnlock()
-	fake.platformMutex.RLock()
-	defer fake.platformMutex.RUnlock()
+	fake.closeMutex.RLock()
+	defer fake.closeMutex.RUnlock()
 	fake.credentialsMutex.RLock()
 	defer fake.credentialsMutex.RUnlock()
+	fake.openMutex.RLock()
+	defer fake.openMutex.RUnlock()
+	fake.pingMutex.RLock()
+	defer fake.pingMutex.RUnlock()
+	fake.platformMutex.RLock()
+	defer fake.platformMutex.RUnlock()
 	fake.securityMutex.RLock()
 	defer fake.securityMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}

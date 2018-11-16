@@ -20,20 +20,31 @@ package storage
 import (
 	"context"
 	"fmt"
+	"path"
+	"runtime"
 
-	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/security"
+	"github.com/Peripli/service-manager/pkg/types"
+)
+
+var (
+	_, b, _, _ = runtime.Caller(0)
+	basepath   = path.Dir(b)
 )
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	URI string
+	URI           string
+	MigrationsURL string `mapstructure:"migrations_url"`
+	EncryptionKey string `mapstructure:"encryption_key"`
 }
 
 // DefaultSettings returns default values for storage settings
 func DefaultSettings() *Settings {
 	return &Settings{
-		URI: "",
+		URI:           "",
+		MigrationsURL: fmt.Sprintf("file://%s/postgres/migrations", basepath),
+		EncryptionKey: "",
 	}
 }
 
@@ -42,6 +53,9 @@ func (s *Settings) Validate() error {
 	if len(s.URI) == 0 {
 		return fmt.Errorf("validate Settings: StorageURI missing")
 	}
+	if len(s.EncryptionKey) != 32 {
+		return fmt.Errorf("validate Settings: StorageEncryptionKey must be exactly 32 symbols long but was %d symbols long", len(s.EncryptionKey))
+	}
 	return nil
 }
 
@@ -49,7 +63,7 @@ func (s *Settings) Validate() error {
 //go:generate counterfeiter . Storage
 type Storage interface {
 	// Open initializes the storage, e.g. opens a connection to the underlying storage
-	Open(uri string, encryptionKey []byte) error
+	Open(options *Settings) error
 
 	// Close clears resources associated with this storage, e.g. closes the connection the underlying storage
 	Close() error

@@ -33,7 +33,11 @@ WORKDIR /app
 COPY --from=builder /main /app/
 
 # Copy migration scripts
-COPY --from=builder /go/src/github.com/Peripli/service-manager/storage/postgres/migrations/ /app/storage/postgres/migrations/
+COPY --from=builder /go/src/github.com/Peripli/service-manager/storage/postgres/migrations/ /app/
+
+# If one wants to use migrations scripts from somewhere else, overriding this env var would override the scripts from the image
+ENV STORAGE_MIGRATIONS_URL=file:///app
 
 EXPOSE 8080
+
 ENTRYPOINT [ "./main" ]

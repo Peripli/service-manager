@@ -18,38 +18,97 @@ package common
 
 import (
 	"context"
+	"flag"
 	"net/http/httptest"
+	"path"
+	"runtime"
 
 	"github.com/gofrs/uuid"
-	. "github.com/onsi/ginkgo"
 	"github.com/spf13/pflag"
 
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/sm"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gavv/httpexpect"
+	. "github.com/onsi/ginkgo"
 )
 
+var (
+	e          env.Environment
+	_, b, _, _ = runtime.Caller(0)
+	basePath   = path.Dir(b)
+)
+
+type FlagValue struct {
+	pflagValue pflag.Value
+}
+
+func (f FlagValue) Set(s string) error {
+	return f.pflagValue.Set(s)
+}
+
+func (f FlagValue) String() string {
+	return f.pflagValue.String()
+}
+
+func init() {
+	e = TestEnv()
+}
+
+func SetTestFileLocation(set *pflag.FlagSet) {
+	set.Set("file.location", basePath)
+}
+
+func TestEnv(additionalFlagFuncs ...func(set *pflag.FlagSet)) env.Environment {
+	f := func(set *pflag.FlagSet) {
+		if set == nil {
+			return
+		}
+
+		set.VisitAll(func(pflag *pflag.Flag) {
+			if flag.Lookup(pflag.Name) != nil {
+				return
+			}
+
+			flag.Var(FlagValue{
+				pflagValue: pflag.Value,
+			}, pflag.Name, pflag.Usage)
+		})
+	}
+
+	additionalFlagFuncs = append(additionalFlagFuncs, f)
+
+	// will be used as default value and overridden if --file.location={{location}} is passed to go test
+	additionalFlagFuncs = append(additionalFlagFuncs, SetTestFileLocation)
+
+	return sm.DefaultEnv(additionalFlagFuncs...)
+}
+
 type ContextParams struct {
-	Environment        env.Environment
 	RegisterExtensions func(api *web.API)
 	DefaultTokenClaims map[string]interface{}
+	Env                env.Environment
 }
 
-func LoadEnvironment(confgiFileDir string) env.Environment {
-	return sm.DefaultEnv(func(set *pflag.FlagSet) {
-		set.Set("file.location", confgiFileDir)
-	})
-}
-
-func buildSM(params *ContextParams, issuerURL string) *httptest.Server {
-	if params.Environment == nil {
-		params.Environment = LoadEnvironment("./test/common")
+func NewSMServer(params *ContextParams, issuerURL string) *httptest.Server {
+	var smEnv env.Environment
+	if params.Env != nil {
+		smEnv = params.Env
+	} else {
+		smEnv = e
 	}
-	params.Environment.Set("api.token_issuer_url", issuerURL)
+
+	flag.VisitAll(func(flag *flag.Flag) {
+		if flag.Value.String() != "" {
+			smEnv.Set(flag.Name, flag.Value.String())
+		}
+	})
+	if flag.Lookup("api.token_issuer_url") != nil && flag.Lookup("api.token_issuer_url").Value.String() == "" {
+		smEnv.Set("api.token_issuer_url", issuerURL)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	smanagerBuilder := sm.New(ctx, cancel, params.Environment)
+	smanagerBuilder := sm.New(ctx, cancel, smEnv)
 	if params.RegisterExtensions != nil {
 		params.RegisterExtensions(smanagerBuilder.API)
 	}
@@ -65,7 +124,7 @@ func NewTestContext(params *ContextParams) *TestContext {
 	oauthServer := NewOAuthServer()
 	oauthServer.Start()
 
-	smServer := buildSM(params, oauthServer.URL)
+	smServer := NewSMServer(params, oauthServer.URL)
 	SM := httpexpect.New(GinkgoT(), smServer.URL)
 
 	accessToken := oauthServer.CreateToken(params.DefaultTokenClaims)
@@ -106,7 +165,6 @@ type TestContext struct {
 func (ctx *TestContext) RegisterBroker() (string, *BrokerServer) {
 	brokerServer := NewBrokerServer()
 	UUID, err := uuid.NewV4()
-
 	if err != nil {
 		panic(err)
 	}
@@ -121,9 +179,9 @@ func (ctx *TestContext) RegisterBroker() (string, *BrokerServer) {
 			},
 		},
 	}
+
 	brokerID := RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth)
 	brokerServer.ResetCallHistory()
-
 	ctx.brokers[brokerID] = brokerServer
 	return brokerID, brokerServer
 }
