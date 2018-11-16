@@ -46,14 +46,14 @@ func Register(name string, storage Storage) {
 // Use specifies the storage for the given name
 // Returns the storage ready to be used and an error if one occurred during initialization
 // Upon context.Done signal the storage will be closed
-func Use(ctx context.Context, name string, uri string, encryptionKey []byte) (Storage, error) {
+func Use(ctx context.Context, name string, options *Settings) (Storage, error) {
 	mux.Lock()
 	defer mux.Unlock()
 	storage, exists := storages[name]
 	if !exists {
 		return nil, fmt.Errorf("error locating storage with name %s", name)
 	}
-	if err := storage.Open(uri, encryptionKey); err != nil {
+	if err := storage.Open(options); err != nil {
 		return nil, fmt.Errorf("error opening storage: %s", err)
 	}
 	storages[name] = storage

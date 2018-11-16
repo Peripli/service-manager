@@ -7,9 +7,9 @@ log:
   format: text
 storage:
   uri: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+  encryption_key: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
 api:
-#  token_issuer_url: https://uaa.local.pcfdev.io
+  token_issuer_url: http://localhost:8080/uaa
   client_id: sm
   skip_ssl_validation: false
-  security:
-    encryption_key: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
+

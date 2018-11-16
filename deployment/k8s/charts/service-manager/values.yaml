@@ -24,6 +24,9 @@ postgresql:
   persistence:
     size: 1Gi
 
+storage:
+  migrations_url: ""
+
 file:
   name: application
   location: /etc/config

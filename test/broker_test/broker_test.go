@@ -17,7 +17,6 @@ package broker_test
 
 import (
 	"net/http"
-	"os"
 	"strings"
 	"testing"
 
@@ -43,8 +42,6 @@ var _ = Describe("Service Manager Broker API", func() {
 	)
 
 	BeforeSuite(func() {
-		os.Chdir("../..")
-
 		brokerServer = common.NewBrokerServer()
 		ctx = common.NewTestContext(nil)
 	})

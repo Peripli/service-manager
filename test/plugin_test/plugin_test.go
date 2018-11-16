@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"testing"
 
@@ -20,7 +19,6 @@ import (
 type object = common.Object
 
 func TestPlugins(t *testing.T) {
-	os.Chdir("../..")
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Plugin Tests Suite")
 }
@@ -66,9 +64,7 @@ var _ = Describe("Service Manager Plugins", func() {
 
 		BeforeEach(func() {
 			testPlugin = TestPlugin{}
-		})
 
-		JustBeforeEach(func() {
 			ctx = common.NewTestContext(&common.ContextParams{
 				RegisterExtensions: func(api *web.API) {
 					api.RegisterPlugins(testPlugin)

@@ -18,7 +18,6 @@ package auth_test
 
 import (
 	"net/http"
-	"os"
 	"testing"
 
 	"github.com/Peripli/service-manager/test/common"
@@ -48,7 +47,6 @@ var _ = Describe("Service Manager Authentication", func() {
 	)
 
 	BeforeSuite(func() {
-		os.Chdir("../..")
 		ctx = common.NewTestContext(nil)
 	})
 
