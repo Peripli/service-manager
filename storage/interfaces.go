@@ -37,6 +37,7 @@ type Settings struct {
 	URI           string
 	MigrationsURL string `mapstructure:"migrations_url"`
 	EncryptionKey string `mapstructure:"encryption_key"`
+	SkipSSL       bool   `mapstructure:"skip_ssl"`
 }
 
 // DefaultSettings returns default values for storage settings
@@ -45,6 +46,7 @@ func DefaultSettings() *Settings {
 		URI:           "",
 		MigrationsURL: fmt.Sprintf("file://%s/postgres/migrations", basepath),
 		EncryptionKey: "",
+		SkipSSL:       false,
 	}
 }
 

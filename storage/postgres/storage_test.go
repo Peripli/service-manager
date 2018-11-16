@@ -17,10 +17,22 @@
 package postgres
 
 import (
+	"database/sql/driver"
+	"fmt"
+
 	"github.com/Peripli/service-manager/storage"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
+
+type fakePostgresDriver struct {
+	dsn string
+}
+
+func (d *fakePostgresDriver) Open(dsn string) (driver.Conn, error) {
+	d.dsn = dsn
+	return nil, fmt.Errorf("not supported")
+}
 
 var _ = Describe("Postgres Storage", func() {
 	pgStorage := &postgresStorage{}
@@ -92,6 +104,7 @@ var _ = Describe("Postgres Storage", func() {
 						URI:           "invalid",
 						MigrationsURL: "invalid",
 						EncryptionKey: "ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8",
+						SkipSSL:       true,
 					})
 				}).To(Panic())
 			})
