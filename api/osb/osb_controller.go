@@ -43,7 +43,6 @@ type BrokerFetcher interface {
 // Controller implements api.Controller by providing OSB API logic
 type controller struct {
 	fetcher BrokerFetcher
-	proxy   *httputil.ReverseProxy
 }
 
 var _ web.Controller = &controller{}
@@ -51,10 +50,6 @@ var _ web.Controller = &controller{}
 // NewController returns new OSB controller
 func NewController(fetcher BrokerFetcher, roundTripper http.RoundTripper) web.Controller {
 	return &controller{
-		proxy: &httputil.ReverseProxy{
-			Transport: roundTripper,
-			Director:  func(req *http.Request) {},
-		},
 		fetcher: fetcher,
 	}
 }
@@ -79,27 +74,49 @@ func (c *controller) handler(r *web.Request) (*web.Response, error) {
 	if err != nil {
 		return nil, err
 	}
+	logger.Debugf("Fetched broker %s with id %s accessible at %s", broker.ID, broker.Name, broker.BrokerURL)
 
 	targetBrokerURL, _ := url.Parse(broker.BrokerURL)
 
 	m := osbPathPattern.FindStringSubmatch(r.URL.Path)
 	if m == nil || len(m) < 2 {
-		return nil, fmt.Errorf("could not get OSB path from URL %s", r.URL.Path)
+		return nil, fmt.Errorf("could not get OSB path from URL %s", r.URL)
 	}
 
 	modifiedRequest := r.Request.WithContext(ctx)
 	modifiedRequest.SetBasicAuth(broker.Credentials.Basic.Username, broker.Credentials.Basic.Password)
 	modifiedRequest.Body = ioutil.NopCloser(bytes.NewReader(r.Body))
 	modifiedRequest.ContentLength = int64(len(r.Body))
-	modifiedRequest.Host = targetBrokerURL.Host
 	modifiedRequest.URL.Path = m[1]
 
-	logger.Debugf("Forwarding OSB r to %s", modifiedRequest.URL)
+	// This is needed because the request is shallow copy of the request to the Service Manager
+	// This sets the host header to point to the service broker that the request will be proxied to
+	modifiedRequest.Host = targetBrokerURL.Host
 
 	proxy := httputil.NewSingleHostReverseProxy(targetBrokerURL)
+
+	director := proxy.Director
+	proxy.Director = func(request *http.Request) {
+		director(request)
+		logger.Debugf("Forwarded OSB request to service broker %s at %s", broker.Name, request.URL)
+	}
+	proxy.ModifyResponse = func(response *http.Response) error {
+		logger.Debugf("Service broker %s replied with status %d", broker.Name, response.StatusCode)
+		return nil
+	}
+	proxy.ErrorHandler = func(writer http.ResponseWriter, request *http.Request, e error) {
+		logger.WithError(e).Errorf("Error while forwarding request to service broker %s", broker.Name)
+		util.WriteError(&util.HTTPError{
+			ErrorType:   "ServiceBrokerErr",
+			Description: fmt.Sprintf("could not reach service broker %s at %s", broker.Name, request.URL),
+			StatusCode:  http.StatusBadGateway,
+		}, writer)
+	}
+
 	recorder := httptest.NewRecorder()
 
 	proxy.ServeHTTP(recorder, modifiedRequest)
+
 	respBody, err := ioutil.ReadAll(recorder.Body)
 	if err != nil {
 		return nil, err
@@ -107,9 +124,8 @@ func (c *controller) handler(r *web.Request) (*web.Response, error) {
 
 	resp := &web.Response{
 		StatusCode: recorder.Code,
-		Header:     recorder.HeaderMap,
+		Header:     recorder.Header(),
 		Body:       respBody,
 	}
-	logger.Debugf("Service broker replied with status %d", resp.StatusCode)
 	return resp, nil
 }

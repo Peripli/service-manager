@@ -17,7 +17,6 @@
 package env
 
 import (
-		"flag"
 	"fmt"
 	"os"
 	"reflect"
@@ -69,7 +68,6 @@ type ViperEnv struct {
 func EmptyFlagSet() *pflag.FlagSet {
 	set := pflag.NewFlagSet("Service Manager Configuration Flags", pflag.ExitOnError)
 	set.AddFlagSet(pflag.CommandLine)
-	set.AddGoFlagSet(flag.CommandLine)
 	return set
 }
 

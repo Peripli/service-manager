@@ -2,7 +2,6 @@ package filter_test
 
 import (
 	"net/http"
-	"os"
 	"testing"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -14,7 +13,6 @@ import (
 type object = common.Object
 
 func TestFilters(t *testing.T) {
-	os.Chdir("../..")
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Filter Tests Suite")
 }
