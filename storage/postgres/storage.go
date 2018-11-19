@@ -83,7 +83,11 @@ func (storage *postgresStorage) Open(options *storage.Settings) error {
 		return fmt.Errorf("validate Settings: StorageMigrationsURL missing")
 	}
 	if storage.db == nil {
-		storage.db, err = sqlx.Connect(Storage, options.URI)
+		sslModeParam := ""
+		if options.SkipSSLValidation {
+			sslModeParam = "?sslmode=disable"
+		}
+		storage.db, err = sqlx.Connect(Storage, options.URI+sslModeParam)
 		if err != nil {
 			log.D().Panicln("Could not connect to PostgreSQL:", err)
 		}

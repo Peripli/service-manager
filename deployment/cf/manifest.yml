@@ -15,5 +15,6 @@ applications:
     API_SKIP_SSL_VALIDATION: true
     STORAGE_ENCRYPTION_KEY: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
     STORAGE_NAME: <postgre_instance_name>
+    STORAGE_SKIP_SSL_VALIDATION: false
     # Set STORAGE_URI and remove STORAGE_NAME if using external postgreSQL
     # STORAGE_URI: postgres://postgres:postgres@10.0.2.2:5432/postgres?sslmode=disable
