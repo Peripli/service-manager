@@ -17,6 +17,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -27,13 +28,15 @@ import (
 
 // HTTPHandler converts a pkg/web.Handler and pkg/web.HandlerFunc to a standard http.Handler
 type HTTPHandler struct {
-	Handler web.Handler
+	Handler            web.Handler
+	requestBodyMaxSize int
 }
 
 // NewHTTPHandler creates a new HTTPHandler from the provided web.Handler
-func NewHTTPHandler(handler web.Handler) *HTTPHandler {
+func NewHTTPHandler(handler web.Handler, requestBodyMaxSize int) *HTTPHandler {
 	return &HTTPHandler{
-		Handler: handler,
+		Handler:            handler,
+		requestBodyMaxSize: requestBodyMaxSize,
 	}
 }
 
@@ -50,6 +53,8 @@ func (h *HTTPHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 }
 
 func (h *HTTPHandler) serve(res http.ResponseWriter, req *http.Request) error {
+	req.Body = http.MaxBytesReader(res, req.Body, int64(h.requestBodyMaxSize))
+
 	request, err := convertToWebRequest(req)
 	if err != nil {
 		return err
@@ -84,6 +89,7 @@ func convertToWebRequest(request *http.Request) (*web.Request, error) {
 	var err error
 	if request.Method == "PUT" || request.Method == "POST" || request.Method == "PATCH" {
 		body, err = util.RequestBodyToBytes(request)
+		err = isPayloadTooLargeErr(request.Context(), err)
 	}
 
 	return &web.Request{
@@ -91,4 +97,18 @@ func convertToWebRequest(request *http.Request) (*web.Request, error) {
 		PathParams: pathParams,
 		Body:       body,
 	}, err
+}
+
+func isPayloadTooLargeErr(ctx context.Context, err error) error {
+	// Go http package uses errors.New() to return the below error, so
+	// we can only check it with string matching
+	if err != nil && err.Error() == "http: request body too large" {
+		log.C(ctx).Errorf(err.Error())
+		return &util.HTTPError{
+			StatusCode:  http.StatusRequestEntityTooLarge,
+			ErrorType:   "PayloadTooLarge",
+			Description: "Payload too large",
+		}
+	}
+	return err
 }
