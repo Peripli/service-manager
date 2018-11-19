@@ -18,7 +18,7 @@ RUN dep ensure --vendor-only -v
 
 # Copy and build source code
 COPY . ./
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -o /main main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags "$(build/ldflags)" -o /main main.go
 
 ########################################################
 # Build the runtime container
