@@ -84,7 +84,7 @@ func (storage *postgresStorage) Open(options *storage.Settings) error {
 	}
 	if storage.db == nil {
 		sslModeParam := ""
-		if options.SkipSSL {
+		if options.SkipSSLValidation {
 			sslModeParam = "?sslmode=disable"
 		}
 		storage.db, err = sqlx.Connect(Storage, options.URI+sslModeParam)

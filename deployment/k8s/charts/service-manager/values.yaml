@@ -26,6 +26,7 @@ postgresql:
 
 storage:
   migrations_url: ""
+  skip_ssl_validation: false
 
 file:
   name: application
