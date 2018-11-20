@@ -31,12 +31,20 @@ import (
 	"github.com/gorilla/mux"
 )
 
+const (
+	_      = iota
+	kb int = 1 << (10 * iota)
+	mb
+)
+
 // Settings type to be loaded from the environment
 type Settings struct {
 	Host            string        `mapstructure:"host"`
 	Port            int           `mapstructure:"port"`
 	RequestTimeout  time.Duration `mapstructure:"request_timeout"`
 	ShutdownTimeout time.Duration `mapstructure:"shutdown_timeout"`
+	MaxBodyBytes    int           `mapstructure:"max_body_bytes"`
+	MaxHeaderBytes  int           `mapstructure:"max_header_bytes"`
 }
 
 // DefaultSettings returns the default values for configuring the Service Manager
@@ -45,6 +53,8 @@ func DefaultSettings() *Settings {
 		Port:            8080,
 		RequestTimeout:  time.Second * 3,
 		ShutdownTimeout: time.Second * 3,
+		MaxBodyBytes:    mb,
+		MaxHeaderBytes:  kb,
 	}
 }
 
@@ -83,7 +93,7 @@ type Server struct {
 // Returns the new server and an error if creation was not successful
 func New(config *Settings, api *web.API) *Server {
 	router := mux.NewRouter().StrictSlash(true)
-	registerControllers(api, router)
+	registerControllers(api, router, config)
 
 	return &Server{
 		Router: router,
@@ -91,12 +101,12 @@ func New(config *Settings, api *web.API) *Server {
 	}
 }
 
-func registerControllers(API *web.API, router *mux.Router) {
+func registerControllers(API *web.API, router *mux.Router, config *Settings) {
 	for _, ctrl := range API.Controllers {
 		for _, route := range ctrl.Routes() {
 			log.D().Debugf("Registering endpoint: %s %s", route.Endpoint.Method, route.Endpoint.Path)
 			handler := web.Filters(API.Filters).ChainMatching(route)
-			router.Handle(route.Endpoint.Path, api.NewHTTPHandler(handler)).Methods(route.Endpoint.Method)
+			router.Handle(route.Endpoint.Path, api.NewHTTPHandler(handler, config.MaxBodyBytes)).Methods(route.Endpoint.Method)
 		}
 	}
 }
@@ -107,10 +117,11 @@ func (s *Server) Run(ctx context.Context) {
 		panic(fmt.Sprintf("invalid server config: %s", err))
 	}
 	handler := &http.Server{
-		Handler:      s.Router,
-		Addr:         s.Config.Host + ":" + strconv.Itoa(s.Config.Port),
-		WriteTimeout: s.Config.RequestTimeout,
-		ReadTimeout:  s.Config.RequestTimeout,
+		Handler:        s.Router,
+		Addr:           s.Config.Host + ":" + strconv.Itoa(s.Config.Port),
+		WriteTimeout:   s.Config.RequestTimeout,
+		ReadTimeout:    s.Config.RequestTimeout,
+		MaxHeaderBytes: s.Config.MaxHeaderBytes,
 	}
 	startServer(ctx, handler, s.Config.ShutdownTimeout)
 }
