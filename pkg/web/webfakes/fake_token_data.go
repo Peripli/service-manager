@@ -2,16 +2,16 @@
 package webfakes
 
 import (
-	"sync"
+	sync "sync"
 
-	"github.com/Peripli/service-manager/pkg/web"
+	web "github.com/Peripli/service-manager/pkg/web"
 )
 
 type FakeTokenData struct {
-	ClaimsStub        func(v interface{}) error
+	ClaimsStub        func(interface{}) error
 	claimsMutex       sync.RWMutex
 	claimsArgsForCall []struct {
-		v interface{}
+		arg1 interface{}
 	}
 	claimsReturns struct {
 		result1 error
@@ -23,21 +23,22 @@ type FakeTokenData struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeTokenData) Claims(v interface{}) error {
+func (fake *FakeTokenData) Claims(arg1 interface{}) error {
 	fake.claimsMutex.Lock()
 	ret, specificReturn := fake.claimsReturnsOnCall[len(fake.claimsArgsForCall)]
 	fake.claimsArgsForCall = append(fake.claimsArgsForCall, struct {
-		v interface{}
-	}{v})
-	fake.recordInvocation("Claims", []interface{}{v})
+		arg1 interface{}
+	}{arg1})
+	fake.recordInvocation("Claims", []interface{}{arg1})
 	fake.claimsMutex.Unlock()
 	if fake.ClaimsStub != nil {
-		return fake.ClaimsStub(v)
+		return fake.ClaimsStub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.claimsReturns.result1
+	fakeReturns := fake.claimsReturns
+	return fakeReturns.result1
 }
 
 func (fake *FakeTokenData) ClaimsCallCount() int {
@@ -46,13 +47,22 @@ func (fake *FakeTokenData) ClaimsCallCount() int {
 	return len(fake.claimsArgsForCall)
 }
 
+func (fake *FakeTokenData) ClaimsCalls(stub func(interface{}) error) {
+	fake.claimsMutex.Lock()
+	defer fake.claimsMutex.Unlock()
+	fake.ClaimsStub = stub
+}
+
 func (fake *FakeTokenData) ClaimsArgsForCall(i int) interface{} {
 	fake.claimsMutex.RLock()
 	defer fake.claimsMutex.RUnlock()
-	return fake.claimsArgsForCall[i].v
+	argsForCall := fake.claimsArgsForCall[i]
+	return argsForCall.arg1
 }
 
 func (fake *FakeTokenData) ClaimsReturns(result1 error) {
+	fake.claimsMutex.Lock()
+	defer fake.claimsMutex.Unlock()
 	fake.ClaimsStub = nil
 	fake.claimsReturns = struct {
 		result1 error
@@ -60,6 +70,8 @@ func (fake *FakeTokenData) ClaimsReturns(result1 error) {
 }
 
 func (fake *FakeTokenData) ClaimsReturnsOnCall(i int, result1 error) {
+	fake.claimsMutex.Lock()
+	defer fake.claimsMutex.Unlock()
 	fake.ClaimsStub = nil
 	if fake.claimsReturnsOnCall == nil {
 		fake.claimsReturnsOnCall = make(map[int]struct {
