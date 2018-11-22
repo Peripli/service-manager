@@ -67,17 +67,17 @@ type OpenCloser interface {
 	Close() error
 }
 
-// MiddlewareFunc is an adapter that allows to use regular functions as Middleware
+type Pinger interface {
+	// Ping verifies a connection to the database is still alive, establishing a connection if necessary.
+	Ping() error
+}
+
+// PingFunc is an adapter that allows to use regular functions as Pinger
 type PingFunc func() error
 
 // Run allows MiddlewareFunc to act as a Middleware
 func (mf PingFunc) Ping() error {
 	return mf()
-}
-
-type Pinger interface {
-	// Ping verifies a connection to the database is still alive, establishing a connection if necessary.
-	Ping() error
 }
 
 type Warehouse interface {
@@ -153,7 +153,6 @@ type Platform interface {
 }
 
 // ServiceOffering instance for Service Offerings DB operations
-//go:generate counterfeiter . ServiceOffering
 type ServiceOffering interface {
 	// Create stores a service offering in SM DB
 	Create(ctx context.Context, serviceOffering *types.ServiceOffering) error
@@ -178,8 +177,7 @@ type ServiceOffering interface {
 	Update(ctx context.Context, serviceOffering *types.ServiceOffering) error
 }
 
-// ServiceOffering instance for Service Offerings DB operations
-//go:generate counterfeiter . ServiceOffering
+// ServiceOffering instance for Service Plan DB operations
 type ServicePlan interface {
 	// Create stores a service service_plan in SM DB
 	Create(ctx context.Context, servicePlan *types.ServicePlan) error

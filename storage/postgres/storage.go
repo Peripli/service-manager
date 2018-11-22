@@ -45,8 +45,6 @@ type postgresStorage struct {
 }
 
 type transactionalStorage struct {
-	//*postgresStorage
-
 	tx *sqlx.Tx
 }
 
