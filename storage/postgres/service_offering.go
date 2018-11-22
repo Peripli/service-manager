@@ -79,7 +79,9 @@ func (sos *serviceOfferingStorage) ListWithServicePlansByBrokerID(ctx context.Co
 			*ServicePlan     `db:"plans"`
 		}{}
 
-		rows.StructScan(&row)
+		if err := rows.StructScan(&row); err != nil {
+			return nil, err
+		}
 
 		if serviceOffering, ok := services[row.ServiceOffering.ID]; !ok {
 			serviceOffering = row.ServiceOffering.ToDTO()

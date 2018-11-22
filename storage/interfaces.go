@@ -59,20 +59,28 @@ func (s *Settings) Validate() error {
 	return nil
 }
 
-// Storage interface provides entity-specific storages
-//go:generate counterfeiter . Storage
-type Storage interface {
-	//FieldQueryTranslator
-
+type OpenCloser interface {
 	// Open initializes the storage, e.g. opens a connection to the underlying storage
 	Open(options *Settings) error
 
 	// Close clears resources associated with this storage, e.g. closes the connection the underlying storage
 	Close() error
+}
 
+// MiddlewareFunc is an adapter that allows to use regular functions as Middleware
+type PingFunc func() error
+
+// Run allows MiddlewareFunc to act as a Middleware
+func (mf PingFunc) Ping() error {
+	return mf()
+}
+
+type Pinger interface {
 	// Ping verifies a connection to the database is still alive, establishing a connection if necessary.
 	Ping() error
+}
 
+type Warehouse interface {
 	// Broker provides access to service broker db operations
 	Broker() Broker
 
@@ -90,8 +98,19 @@ type Storage interface {
 
 	// Security provides access to encryption key management
 	Security() Security
+}
 
-	Transactional(ctx context.Context, f func(ctx context.Context, storage Storage) error) error
+type Repository interface {
+	Warehouse
+	InTransaction(ctx context.Context, f func(ctx context.Context, storage Warehouse) error) error
+}
+
+// Repository interface provides entity-specific storages
+//go:generate counterfeiter . Storage
+type Storage interface {
+	OpenCloser
+	Pinger
+	Repository
 }
 
 // Broker interface for Broker db operations

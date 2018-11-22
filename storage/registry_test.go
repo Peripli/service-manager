@@ -17,9 +17,6 @@
 package storage_test
 
 import (
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-
 	"context"
 	"fmt"
 	"testing"
@@ -34,7 +31,7 @@ import (
 
 func TestStorage(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Storage Suite")
+	RunSpecs(t, "Repository Suite")
 }
 
 type logInterceptor struct {
@@ -80,7 +77,7 @@ var _ = Describe("Registry", func() {
 		}
 	})
 
-	Describe("Storage registration", func() {
+	Describe("Repository registration", func() {
 		var (
 			name string
 			s    storage.Storage

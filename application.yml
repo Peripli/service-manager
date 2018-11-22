@@ -11,6 +11,6 @@ storage:
 # storage:
 #  name: sm-postgres
 api:
-  token_issuer_url: http://localhost:8080/uaa
-  client_id: sm
+  token_issuer_url: https://uaa.cf.sap.hana.ondemand.com
+  client_id: cf
   skip_ssl_validation: false

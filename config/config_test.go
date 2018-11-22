@@ -26,8 +26,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/server"
 	"github.com/Peripli/service-manager/storage"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 )
 
 func TestConfig(t *testing.T) {
@@ -99,14 +97,14 @@ var _ = Describe("config", func() {
 			})
 		})
 
-		Context("when Storage URI is missing", func() {
+		Context("when Repository URI is missing", func() {
 			It("returns an error", func() {
 				config.Storage.URI = ""
 				assertErrorDuringValidate()
 			})
 		})
 
-		Context("when Storage Encryption key is missing", func() {
+		Context("when Repository Encryption key is missing", func() {
 			It("returns an error", func() {
 				config.Storage.EncryptionKey = ""
 				assertErrorDuringValidate()

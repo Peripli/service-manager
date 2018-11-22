@@ -42,7 +42,8 @@ const (
 
 // Controller broker controller
 type Controller struct {
-	Storage             storage.Storage
+	Repository storage.Repository
+
 	OSBClientCreateFunc osbc.CreateFunc
 	Encrypter           security.Encrypter
 }
@@ -78,7 +79,7 @@ func (c *Controller) createBroker(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	if err := c.Storage.Transactional(ctx, func(ctx context.Context, storage storage.Storage) error {
+	if err := c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
 		if err := storage.Broker().Create(ctx, broker); err != nil {
 			return util.HandleStorageError(err, "broker", broker.ID)
 		}
@@ -141,7 +142,7 @@ func (c *Controller) getBroker(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Getting broker with id %s", brokerID)
 
-	broker, err := c.Storage.Broker().Get(ctx, brokerID)
+	broker, err := c.Repository.Broker().Get(ctx, brokerID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
@@ -157,15 +158,17 @@ func (c *Controller) getAllBrokers(r *web.Request) (*web.Response, error) {
 	log.C(ctx).Debug("Getting all brokers")
 	includeCatalog := strings.ToLower(r.FormValue(catalogParam)) == "true"
 
+	brokers, err = c.Repository.Broker().List(ctx)
+	if err != nil {
+		return nil, err
+	}
 	if includeCatalog {
-		brokers, err = c.Storage.Broker().ListWithCatalog(ctx)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		brokers, err = c.Storage.Broker().List(ctx)
-		if err != nil {
-			return nil, err
+		for _, broker := range brokers {
+			offerings, err := c.Repository.ServiceOffering().ListWithServicePlansByBrokerID(ctx, broker.ID)
+			if err != nil {
+				return nil, err
+			}
+			broker.Services = offerings
 		}
 	}
 
@@ -183,7 +186,7 @@ func (c *Controller) deleteBroker(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting broker with id %s", brokerID)
 
-	if err := c.Storage.Broker().Delete(ctx, brokerID); err != nil {
+	if err := c.Repository.Broker().Delete(ctx, brokerID); err != nil {
 		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
 	return util.NewJSONResponse(http.StatusOK, map[string]int{})
@@ -194,7 +197,7 @@ func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Updating updateBroker with id %s", brokerID)
 
-	broker, err := c.Storage.Broker().Get(ctx, brokerID)
+	broker, err := c.Repository.Broker().Get(ctx, brokerID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, "broker", brokerID)
 	}
@@ -223,7 +226,7 @@ func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
 	broker.Credentials = nil
 
 	log.C(ctx).Debugf("Updating catalog storage for broker with id %s", brokerID)
-	if err := c.Storage.Transactional(ctx, func(ctx context.Context, storage storage.Storage) error {
+	if err := c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
 		if err := storage.Broker().Update(ctx, broker); err != nil {
 			return util.HandleStorageError(err, "broker", broker.ID)
 		}
@@ -253,7 +256,7 @@ func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
 				if err := existingServiceOffering.Validate(); err != nil {
 					return fmt.Errorf("service offering constructed during catalog update for broker %s is invalid: %s", broker.ID, err)
 				}
-				if err := c.Storage.ServiceOffering().Update(ctx, existingServiceOffering); err != nil {
+				if err := c.Repository.ServiceOffering().Update(ctx, existingServiceOffering); err != nil {
 					return util.HandleStorageError(err, "service_offering", existingServiceOffering.ID)
 				}
 			} else {
@@ -273,7 +276,7 @@ func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
 				if err := serviceOffering.Validate(); err != nil {
 					return fmt.Errorf("service offering constructed during catalog update for broker %s is invalid: %s", broker.ID, err)
 				}
-				if err := c.Storage.ServiceOffering().Create(ctx, serviceOffering); err != nil {
+				if err := c.Repository.ServiceOffering().Create(ctx, serviceOffering); err != nil {
 					return util.HandleStorageError(err, "service_offering", existingServiceOffering.ID)
 				}
 			}
@@ -289,7 +292,7 @@ func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
 		}
 
 		for _, existingServiceOffering := range existingServicesOfferingsMap {
-			if err := c.Storage.ServiceOffering().Delete(ctx, existingServiceOffering.ID); err != nil {
+			if err := c.Repository.ServiceOffering().Delete(ctx, existingServiceOffering.ID); err != nil {
 				return util.HandleStorageError(err, "service_offering", existingServiceOffering.ID)
 			}
 		}
@@ -306,7 +309,7 @@ func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
 				if err := existingServicePlan.Validate(); err != nil {
 					return fmt.Errorf("service plan constructed during catalog update for broker %s is invalid: %s", broker.ID, err)
 				}
-				if err := c.Storage.ServicePlan().Update(ctx, existingServicePlan); err != nil {
+				if err := c.Repository.ServicePlan().Update(ctx, existingServicePlan); err != nil {
 					return util.HandleStorageError(err, "service_plan", existingServicePlan.ID)
 				}
 			} else {
@@ -325,14 +328,14 @@ func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
 				if err := servicePlan.Validate(); err != nil {
 					return fmt.Errorf("service plan constructed during catalog update for broker %s is invalid: %s", broker.ID, err)
 				}
-				if err := c.Storage.ServicePlan().Create(ctx, servicePlan); err != nil {
+				if err := c.Repository.ServicePlan().Create(ctx, servicePlan); err != nil {
 					return util.HandleStorageError(err, "service_plan", existingServicePlan.ID)
 				}
 			}
 		}
 
 		for _, existingServicePlan := range existingServicePlansMap {
-			if err := c.Storage.ServiceOffering().Delete(ctx, existingServicePlan.ID); err != nil {
+			if err := c.Repository.ServiceOffering().Delete(ctx, existingServicePlan.ID); err != nil {
 				return util.HandleStorageError(err, "service_plan", existingServicePlan.ID)
 			}
 		}

@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-// Package postgres implements the Service Manager storage interfaces for Postgresql Storage
+// Package postgres implements the Service Manager storage interfaces for Postgresql Repository
 package postgres
 
 import (
@@ -31,7 +31,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// Storage defines the name of the PostgreSQL relational storage
+// Repository defines the name of the PostgreSQL relational storage
 const Storage = "postgres"
 
 func init() {
@@ -45,9 +45,21 @@ type postgresStorage struct {
 }
 
 type transactionalStorage struct {
-	*postgresStorage
+	//*postgresStorage
 
 	tx *sqlx.Tx
+}
+
+func (storage *transactionalStorage) ServiceOffering() storage.ServiceOffering {
+	panic("implement me")
+}
+
+func (storage *transactionalStorage) ServicePlan() storage.ServicePlan {
+	panic("implement me")
+}
+
+func (storage *transactionalStorage) Security() storage.Security {
+	panic("implement me")
 }
 
 func (storage *transactionalStorage) Broker() storage.Broker {
@@ -66,12 +78,12 @@ func (storage *transactionalStorage) Credentials() storage.Credentials {
 }
 
 func (storage *transactionalStorage) checkOpen() {
-	storage.postgresStorage.checkOpen()
 	if storage.tx == nil {
-		log.D().Panicln("Storage tx is not present for transactional storage")
+		log.D().Panicln("Repository tx is not present for transactional storage")
 	}
 }
-func (storage *postgresStorage) Transactional(ctx context.Context, f func(ctx context.Context, transactionalStorage storage.Storage) error) error {
+
+func (storage *postgresStorage) InTransaction(ctx context.Context, f func(ctx context.Context, transactionalStorage storage.Warehouse) error) error {
 	ok := false
 	tx, err := storage.db.Beginx()
 	if err != nil {
@@ -86,8 +98,7 @@ func (storage *postgresStorage) Transactional(ctx context.Context, f func(ctx co
 	}()
 
 	transactionalStorage := &transactionalStorage{
-		tx:              tx,
-		postgresStorage: storage,
+		tx: tx,
 	}
 
 	if err := f(ctx, transactionalStorage); err != nil {
@@ -186,6 +197,6 @@ func (storage *postgresStorage) updateSchema(migrationsURL string) error {
 
 func (storage *postgresStorage) checkOpen() {
 	if storage.db == nil {
-		log.D().Panicln("Storage is not yet Open")
+		log.D().Panicln("Repository is not yet Open")
 	}
 }
