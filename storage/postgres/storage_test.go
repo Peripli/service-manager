@@ -18,6 +18,9 @@ package postgres
 
 import (
 	"github.com/Peripli/service-manager/storage"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Postgres Repository", func() {

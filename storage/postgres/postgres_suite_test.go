@@ -18,6 +18,9 @@ package postgres
 
 import (
 	"testing"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
 func TestPostgresStorage(t *testing.T) {

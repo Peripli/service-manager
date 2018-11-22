@@ -16,6 +16,11 @@
 
 package postgres
 
+import (
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+)
+
 var _ = Describe("Postgres Repository Abstract", func() {
 
 	Describe("updateQuery", func() {
