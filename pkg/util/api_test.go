@@ -225,16 +225,33 @@ var _ = Describe("Utils test", func() {
 		})
 
 		It("builds a web.Response containing an empty response value when return code is 204 No Content", func() {
-			expectedCode := http.StatusNoContent
-			response, err := util.NewJSONResponse(expectedCode, util.EmptyResponseBody{})
+			testJSONResponse(http.StatusNoContent, util.EmptyResponseBody{}, []byte{})
+		})
+
+		It("builds a web.Response containing an empty response value when return code is 200 OK and EmptyResponseBody is provided", func() {
+			testJSONResponse(http.StatusOK, util.EmptyResponseBody{}, []byte{})
+		})
+
+		It("builds a web.Response containing a non-empty response value when instead of EmptyResponseBody an empty data structure is provided", func() {
+			response, err := util.NewJSONResponse(http.StatusOK, struct{}{})
 
 			Expect(err).ShouldNot(HaveOccurred())
-			Expect(response.StatusCode).To(Equal(expectedCode))
-			Expect(response.Body).Should(Equal([]byte{}))
+			Expect(response.StatusCode).To(Equal(http.StatusOK))
+			Expect(response.Body).ShouldNot(BeEmpty())
+			Expect(response.Body).ShouldNot(Equal(util.EmptyResponseBody{}))
 			Expect(response.Header.Get("Content-Type")).To(Equal("application/json"))
 		})
 	})
 })
+
+func testJSONResponse(expectedCode int, providedBody, expectedMarshalledBody interface{}) {
+	response, err := util.NewJSONResponse(expectedCode, providedBody)
+
+	Expect(err).ShouldNot(HaveOccurred())
+	Expect(response.StatusCode).To(Equal(expectedCode))
+	Expect(response.Body).Should(Equal(expectedMarshalledBody))
+	Expect(response.Header.Get("Content-Type")).To(Equal("application/json"))
+}
 
 type testTypeValidated struct {
 	Field1 string `json:"field1"`
