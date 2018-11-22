@@ -226,7 +226,7 @@ var _ = Describe("Utils test", func() {
 
 		It("builds a web.Response containing an empty response value when return code is 204 No Content", func() {
 			expectedCode := http.StatusNoContent
-			response, err := util.NewJSONResponse(expectedCode, struct{}{})
+			response, err := util.NewJSONResponse(expectedCode, util.EmptyResponseBody{})
 
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(expectedCode))

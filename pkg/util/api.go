@@ -33,6 +33,8 @@ var (
 	}, "")
 )
 
+type EmptyResponseBody struct {}
+
 // InputValidator should be implemented by types that need input validation check. For a reference refer to pkg/types
 type InputValidator interface {
 	Validate() error
@@ -132,7 +134,7 @@ func NewJSONResponse(code int, value interface{}) (*web.Response, error) {
 
 	body := make([]byte, 0)
 	var err error
-	if code != http.StatusNoContent {
+	if _, ok := value.(EmptyResponseBody); !ok {
 		body, err = json.Marshal(value)
 	}
 
