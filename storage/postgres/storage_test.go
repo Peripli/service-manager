@@ -90,9 +90,10 @@ var _ = Describe("Postgres Repository", func() {
 			It("Should panic", func() {
 				Expect(func() {
 					pgStorage.Open(&storage.Settings{
-						URI:           "invalid",
-						MigrationsURL: "invalid",
-						EncryptionKey: "ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8",
+						URI:               "invalid",
+						MigrationsURL:     "invalid",
+						EncryptionKey:     "ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8",
+						SkipSSLValidation: true,
 					})
 				}).To(Panic())
 			})

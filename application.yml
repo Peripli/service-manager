@@ -2,14 +2,16 @@ server:
   request_timeout: 4000ms
   shutdown_timeout: 4000ms
   port: 8080
+  # max_body_bytes: 4000
+  # max_header_bytes: 1000
 log:
   level: debug
   format: text
 storage:
+#  name: sm-postgres
   uri: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
   encryption_key: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
-# storage:
-#  name: sm-postgres
+  skip_ssl_validation: false
 api:
   token_issuer_url: https://uaa.cf.sap.hana.ondemand.com
   client_id: cf

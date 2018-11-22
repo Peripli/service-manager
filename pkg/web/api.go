@@ -19,8 +19,9 @@
 package web
 
 import (
-	"github.com/Peripli/service-manager/pkg/health"
 	"net/http"
+
+	"github.com/Peripli/service-manager/pkg/health"
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/util/slice"
