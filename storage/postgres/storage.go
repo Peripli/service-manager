@@ -65,8 +65,14 @@ func (storage *transactionalStorage) Credentials() storage.Credentials {
 	return &credentialStorage{storage.tx}
 }
 
+func (storage *transactionalStorage) checkOpen() {
+	storage.postgresStorage.checkOpen()
+	if storage.tx == nil {
+		log.D().Panicln("Storage tx is not present for transactional storage")
+	}
+}
 func (storage *postgresStorage) Transactional(ctx context.Context, f func(ctx context.Context, transactionalStorage storage.Storage) error) error {
-	ok := true
+	ok := false
 	tx, err := storage.db.Beginx()
 	if err != nil {
 		return err
@@ -88,8 +94,11 @@ func (storage *postgresStorage) Transactional(ctx context.Context, f func(ctx co
 		return err
 	}
 
+	if err := tx.Commit(); err != nil {
+		return err
+	}
 	ok = true
-	return tx.Commit()
+	return nil
 }
 
 func (storage *postgresStorage) Ping() error {

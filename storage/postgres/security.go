@@ -107,7 +107,7 @@ func (k *keySetter) SetEncryptionKey(ctx context.Context, key []byte) error {
 		return err
 	}
 	if len(safes) != 0 {
-		return fmt.Errorf("Encryption key is already set")
+		return fmt.Errorf("encryption key is already set")
 	}
 	bytes, err := security.Encrypt(key, k.encryptionKey)
 	if err != nil {
