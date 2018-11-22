@@ -33,7 +33,8 @@ var (
 	}, "")
 )
 
-type EmptyResponseBody struct {}
+// EmptyResponseBody represents an empty response body value
+type EmptyResponseBody struct{}
 
 // InputValidator should be implemented by types that need input validation check. For a reference refer to pkg/types
 type InputValidator interface {
