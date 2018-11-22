@@ -129,7 +129,13 @@ func WriteJSON(writer http.ResponseWriter, code int, value interface{}) error {
 func NewJSONResponse(code int, value interface{}) (*web.Response, error) {
 	headers := http.Header{}
 	headers.Add("Content-Type", "application/json")
-	body, err := json.Marshal(value)
+
+	body := make([]byte, 0)
+	var err error
+	if code != http.StatusNoContent {
+		body, err = json.Marshal(value)
+	}
+
 	return &web.Response{
 		StatusCode: code,
 		Header:     headers,

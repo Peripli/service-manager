@@ -223,6 +223,16 @@ var _ = Describe("Utils test", func() {
 			Expect(response.Body).Should(MatchJSON(testTypeValid))
 			Expect(response.Header.Get("Content-Type")).To(Equal("application/json"))
 		})
+
+		It("builds a web.Response containing an empty response value when return code is 204 No Content", func() {
+			expectedCode := http.StatusNoContent
+			response, err := util.NewJSONResponse(expectedCode, struct{}{})
+
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(expectedCode))
+			Expect(response.Body).Should(Equal([]byte{}))
+			Expect(response.Header.Get("Content-Type")).To(Equal("application/json"))
+		})
 	})
 })
 
