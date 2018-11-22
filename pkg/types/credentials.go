@@ -19,18 +19,28 @@ package types
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 )
 
 // Basic basic credentials
 type Basic struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
 }
 
 // Credentials credentials
 type Credentials struct {
-	Basic *Basic `json:"basic"`
+	Basic *Basic `json:"basic,omitempty"`
+}
+
+func (c *Credentials) MarshalJSON() ([]byte, error) {
+	type C Credentials
+	toMarshal := (*C)(c)
+	if toMarshal.Basic == nil || toMarshal.Basic.Username == "" || toMarshal.Basic.Password == "" {
+		toMarshal.Basic = nil
+	}
+	return json.Marshal(toMarshal)
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
@@ -45,16 +55,6 @@ func (c *Credentials) Validate() error {
 		return errors.New("missing broker password")
 	}
 	return nil
-}
-
-// NewBasicCredentials returns new basic credentials object
-func NewBasicCredentials(username string, password string) *Credentials {
-	return &Credentials{
-		Basic: &Basic{
-			Username: username,
-			Password: password,
-		},
-	}
 }
 
 // GenerateCredentials return user and password
@@ -74,5 +74,10 @@ func GenerateCredentials() (*Credentials, error) {
 	encodedPass := base64.StdEncoding.EncodeToString(password)
 	encodedUser := base64.StdEncoding.EncodeToString(user)
 
-	return NewBasicCredentials(encodedUser, encodedPass), nil
+	return &Credentials{
+		Basic: &Basic{
+			Username: encodedUser,
+			Password: encodedPass,
+		},
+	}, nil
 }

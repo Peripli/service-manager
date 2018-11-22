@@ -20,7 +20,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -43,14 +42,10 @@ func (s *storageState) Get() error {
 }
 
 func (s *storageState) checkDB() error {
-	rows, err := s.db.Query("SELECT 1")
+	m := map[string]int{}
+	err := s.db.Get(&m, "SELECT 1")
 	if err != nil {
 		return err
 	}
-	if err := rows.Close(); err != nil {
-		log.D().Errorf("Could not release connection when checking database s. Error: %s", err)
-		return err
-	}
-	s.lastCheckTime = time.Now()
 	return nil
 }

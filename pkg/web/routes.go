@@ -6,6 +6,12 @@ const (
 	// BrokersURL is the URL path to manage service brokers
 	BrokersURL = "/" + apiVersion + "/service_brokers"
 
+	// ServiceOfferingsURL is the URL path to manage service offerings
+	ServiceOfferingsURL = "/" + apiVersion + "/service_offerings"
+
+	// ServicePlansURL is the URL path to manage service plans
+	ServicePlansURL = "/" + apiVersion + "/service_plans"
+
 	// PlatformsURL is the URL path to manage platforms
 	PlatformsURL = "/" + apiVersion + "/platforms"
 

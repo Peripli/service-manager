@@ -22,11 +22,10 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/jmoiron/sqlx"
 )
 
 type credentialStorage struct {
-	db *sqlx.DB
+	db pgDB
 }
 
 func (cs *credentialStorage) Get(ctx context.Context, username string) (*types.Credentials, error) {
@@ -40,5 +39,10 @@ func (cs *credentialStorage) Get(ctx context.Context, username string) (*types.C
 		return nil, checkSQLNoRows(err)
 	}
 
-	return types.NewBasicCredentials(platformCredentials.Username, platformCredentials.Password), nil
+	return &types.Credentials{
+		Basic: &types.Basic{
+			Username: platformCredentials.Username,
+			Password: platformCredentials.Password,
+		},
+	}, nil
 }

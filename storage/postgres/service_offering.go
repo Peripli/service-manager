@@ -1,1 +1,120 @@
 package postgres
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/pkg/types"
+)
+
+type serviceOfferingStorage struct {
+	db pgDB
+}
+
+func (sos *serviceOfferingStorage) Create(ctx context.Context, serviceOffering *types.ServiceOffering) error {
+	var so *ServiceOffering
+	so.FromDTO(serviceOffering)
+	return create(ctx, sos.db, serviceOfferingTable, so)
+}
+
+func (sos *serviceOfferingStorage) Get(ctx context.Context, id string) (*types.ServiceOffering, error) {
+	var serviceOffering *ServiceOffering
+	if err := get(ctx, sos.db, id, serviceOfferingTable, serviceOffering); err != nil {
+		return nil, err
+	}
+	return serviceOffering.ToDTO(), nil
+}
+
+func (sos *serviceOfferingStorage) List(ctx context.Context) ([]*types.ServiceOffering, error) {
+	var serviceOfferings []*ServiceOffering
+	err := list(ctx, sos.db, serviceOfferingTable, map[string]string{}, &serviceOfferings)
+	if err != nil || len(serviceOfferings) == 0 {
+		return []*types.ServiceOffering{}, err
+	}
+	serviceOfferingDTOs := make([]*types.ServiceOffering, 0, len(serviceOfferings))
+	for _, so := range serviceOfferings {
+		serviceOfferingDTOs = append(serviceOfferingDTOs, so.ToDTO())
+	}
+	return serviceOfferingDTOs, nil
+}
+
+func (sos *serviceOfferingStorage) ListByCatalogName(ctx context.Context, name string) ([]*types.ServiceOffering, error) {
+	var serviceOfferings []*ServiceOffering
+	err := list(ctx, sos.db, serviceOfferingTable, map[string]string{"catalog_name": name}, &serviceOfferings)
+	if err != nil || len(serviceOfferings) == 0 {
+		return []*types.ServiceOffering{}, err
+	}
+	serviceOfferingDTOs := make([]*types.ServiceOffering, 0, len(serviceOfferings))
+	for _, so := range serviceOfferings {
+		serviceOfferingDTOs = append(serviceOfferingDTOs, so.ToDTO())
+	}
+	return serviceOfferingDTOs, nil
+}
+
+func (sos *serviceOfferingStorage) ListWithServicePlansByBrokerID(ctx context.Context, brokerID string) ([]*types.ServiceOffering, error) {
+	query := fmt.Sprintf(`SELECT * 
+	FROM 
+		%[1]s JOIN %[2]s ON %[1]s.id = %[2]s.service_id
+	WHERE brokers.id=$1`, serviceOfferingTable, servicePlanTable)
+
+	log.C(ctx).Debugf("Executing query %s", query)
+	rows, err := sos.db.QueryxContext(ctx, query, brokerID)
+
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.C(ctx).Errorf("Could not release connection when checking database s. Error: %s", err)
+		}
+	}()
+	if err != nil {
+		return nil, checkSQLNoRows(err)
+	}
+
+	services := make(map[string]*types.ServiceOffering, 0)
+	result := make([]*types.ServiceOffering, 0)
+
+	for rows.Next() {
+		row := struct {
+			*ServiceOffering `db:"services"`
+			*ServicePlan     `db:"plans"`
+		}{}
+
+		rows.StructScan(&row)
+
+		if serviceOffering, ok := services[row.ServiceOffering.ID]; !ok {
+			serviceOffering = row.ServiceOffering.ToDTO()
+			serviceOffering.Plans = append(serviceOffering.Plans, row.ServicePlan.ToDTO())
+
+			services[row.ServiceOffering.ID] = serviceOffering
+			result = append(result, serviceOffering)
+		} else {
+			serviceOffering.Plans = append(serviceOffering.Plans, row.ServicePlan.ToDTO())
+		}
+	}
+
+	return result, nil
+}
+
+func (sos *serviceOfferingStorage) ListByBrokerID(ctx context.Context, brokerID string) ([]*types.ServiceOffering, error) {
+	var serviceOfferings []*ServiceOffering
+	err := list(ctx, sos.db, serviceOfferingTable, map[string]string{"broker_id": brokerID}, &serviceOfferings)
+	if err != nil || len(serviceOfferings) == 0 {
+		return []*types.ServiceOffering{}, err
+	}
+	serviceOfferingDTOs := make([]*types.ServiceOffering, 0, len(serviceOfferings))
+	for _, so := range serviceOfferings {
+		serviceOfferingDTOs = append(serviceOfferingDTOs, so.ToDTO())
+	}
+	return serviceOfferingDTOs, nil
+}
+
+func (sos *serviceOfferingStorage) Delete(ctx context.Context, id string) error {
+	return delete(ctx, sos.db, id, serviceOfferingTable)
+}
+
+func (sos *serviceOfferingStorage) Update(ctx context.Context, serviceOffering *types.ServiceOffering) error {
+	var so *ServiceOffering
+	so.FromDTO(serviceOffering)
+	return update(ctx, sos.db, serviceOfferingTable, so)
+
+}

@@ -2,6 +2,7 @@
 package storagefakes
 
 import (
+	context "context"
 	sync "sync"
 
 	storage "github.com/Peripli/service-manager/storage"
@@ -78,6 +79,38 @@ type FakeStorage struct {
 	}
 	securityReturnsOnCall map[int]struct {
 		result1 storage.Security
+	}
+	ServiceOfferingStub        func() storage.ServiceOffering
+	serviceOfferingMutex       sync.RWMutex
+	serviceOfferingArgsForCall []struct {
+	}
+	serviceOfferingReturns struct {
+		result1 storage.ServiceOffering
+	}
+	serviceOfferingReturnsOnCall map[int]struct {
+		result1 storage.ServiceOffering
+	}
+	ServicePlanStub        func() storage.ServicePlan
+	servicePlanMutex       sync.RWMutex
+	servicePlanArgsForCall []struct {
+	}
+	servicePlanReturns struct {
+		result1 storage.ServicePlan
+	}
+	servicePlanReturnsOnCall map[int]struct {
+		result1 storage.ServicePlan
+	}
+	TransactionalStub        func(context.Context, func(ctx context.Context, storage storage.Storage) error) error
+	transactionalMutex       sync.RWMutex
+	transactionalArgsForCall []struct {
+		arg1 context.Context
+		arg2 func(ctx context.Context, storage storage.Storage) error
+	}
+	transactionalReturns struct {
+		result1 error
+	}
+	transactionalReturnsOnCall map[int]struct {
+		result1 error
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
@@ -455,6 +488,171 @@ func (fake *FakeStorage) SecurityReturnsOnCall(i int, result1 storage.Security) 
 	}{result1}
 }
 
+func (fake *FakeStorage) ServiceOffering() storage.ServiceOffering {
+	fake.serviceOfferingMutex.Lock()
+	ret, specificReturn := fake.serviceOfferingReturnsOnCall[len(fake.serviceOfferingArgsForCall)]
+	fake.serviceOfferingArgsForCall = append(fake.serviceOfferingArgsForCall, struct {
+	}{})
+	fake.recordInvocation("ServiceOffering", []interface{}{})
+	fake.serviceOfferingMutex.Unlock()
+	if fake.ServiceOfferingStub != nil {
+		return fake.ServiceOfferingStub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.serviceOfferingReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeStorage) ServiceOfferingCallCount() int {
+	fake.serviceOfferingMutex.RLock()
+	defer fake.serviceOfferingMutex.RUnlock()
+	return len(fake.serviceOfferingArgsForCall)
+}
+
+func (fake *FakeStorage) ServiceOfferingCalls(stub func() storage.ServiceOffering) {
+	fake.serviceOfferingMutex.Lock()
+	defer fake.serviceOfferingMutex.Unlock()
+	fake.ServiceOfferingStub = stub
+}
+
+func (fake *FakeStorage) ServiceOfferingReturns(result1 storage.ServiceOffering) {
+	fake.serviceOfferingMutex.Lock()
+	defer fake.serviceOfferingMutex.Unlock()
+	fake.ServiceOfferingStub = nil
+	fake.serviceOfferingReturns = struct {
+		result1 storage.ServiceOffering
+	}{result1}
+}
+
+func (fake *FakeStorage) ServiceOfferingReturnsOnCall(i int, result1 storage.ServiceOffering) {
+	fake.serviceOfferingMutex.Lock()
+	defer fake.serviceOfferingMutex.Unlock()
+	fake.ServiceOfferingStub = nil
+	if fake.serviceOfferingReturnsOnCall == nil {
+		fake.serviceOfferingReturnsOnCall = make(map[int]struct {
+			result1 storage.ServiceOffering
+		})
+	}
+	fake.serviceOfferingReturnsOnCall[i] = struct {
+		result1 storage.ServiceOffering
+	}{result1}
+}
+
+func (fake *FakeStorage) ServicePlan() storage.ServicePlan {
+	fake.servicePlanMutex.Lock()
+	ret, specificReturn := fake.servicePlanReturnsOnCall[len(fake.servicePlanArgsForCall)]
+	fake.servicePlanArgsForCall = append(fake.servicePlanArgsForCall, struct {
+	}{})
+	fake.recordInvocation("ServicePlan", []interface{}{})
+	fake.servicePlanMutex.Unlock()
+	if fake.ServicePlanStub != nil {
+		return fake.ServicePlanStub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.servicePlanReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeStorage) ServicePlanCallCount() int {
+	fake.servicePlanMutex.RLock()
+	defer fake.servicePlanMutex.RUnlock()
+	return len(fake.servicePlanArgsForCall)
+}
+
+func (fake *FakeStorage) ServicePlanCalls(stub func() storage.ServicePlan) {
+	fake.servicePlanMutex.Lock()
+	defer fake.servicePlanMutex.Unlock()
+	fake.ServicePlanStub = stub
+}
+
+func (fake *FakeStorage) ServicePlanReturns(result1 storage.ServicePlan) {
+	fake.servicePlanMutex.Lock()
+	defer fake.servicePlanMutex.Unlock()
+	fake.ServicePlanStub = nil
+	fake.servicePlanReturns = struct {
+		result1 storage.ServicePlan
+	}{result1}
+}
+
+func (fake *FakeStorage) ServicePlanReturnsOnCall(i int, result1 storage.ServicePlan) {
+	fake.servicePlanMutex.Lock()
+	defer fake.servicePlanMutex.Unlock()
+	fake.ServicePlanStub = nil
+	if fake.servicePlanReturnsOnCall == nil {
+		fake.servicePlanReturnsOnCall = make(map[int]struct {
+			result1 storage.ServicePlan
+		})
+	}
+	fake.servicePlanReturnsOnCall[i] = struct {
+		result1 storage.ServicePlan
+	}{result1}
+}
+
+func (fake *FakeStorage) Transactional(arg1 context.Context, arg2 func(ctx context.Context, storage storage.Storage) error) error {
+	fake.transactionalMutex.Lock()
+	ret, specificReturn := fake.transactionalReturnsOnCall[len(fake.transactionalArgsForCall)]
+	fake.transactionalArgsForCall = append(fake.transactionalArgsForCall, struct {
+		arg1 context.Context
+		arg2 func(ctx context.Context, storage storage.Storage) error
+	}{arg1, arg2})
+	fake.recordInvocation("Transactional", []interface{}{arg1, arg2})
+	fake.transactionalMutex.Unlock()
+	if fake.TransactionalStub != nil {
+		return fake.TransactionalStub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.transactionalReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeStorage) TransactionalCallCount() int {
+	fake.transactionalMutex.RLock()
+	defer fake.transactionalMutex.RUnlock()
+	return len(fake.transactionalArgsForCall)
+}
+
+func (fake *FakeStorage) TransactionalCalls(stub func(context.Context, func(ctx context.Context, storage storage.Storage) error) error) {
+	fake.transactionalMutex.Lock()
+	defer fake.transactionalMutex.Unlock()
+	fake.TransactionalStub = stub
+}
+
+func (fake *FakeStorage) TransactionalArgsForCall(i int) (context.Context, func(ctx context.Context, storage storage.Storage) error) {
+	fake.transactionalMutex.RLock()
+	defer fake.transactionalMutex.RUnlock()
+	argsForCall := fake.transactionalArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeStorage) TransactionalReturns(result1 error) {
+	fake.transactionalMutex.Lock()
+	defer fake.transactionalMutex.Unlock()
+	fake.TransactionalStub = nil
+	fake.transactionalReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeStorage) TransactionalReturnsOnCall(i int, result1 error) {
+	fake.transactionalMutex.Lock()
+	defer fake.transactionalMutex.Unlock()
+	fake.TransactionalStub = nil
+	if fake.transactionalReturnsOnCall == nil {
+		fake.transactionalReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.transactionalReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeStorage) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -472,6 +670,12 @@ func (fake *FakeStorage) Invocations() map[string][][]interface{} {
 	defer fake.platformMutex.RUnlock()
 	fake.securityMutex.RLock()
 	defer fake.securityMutex.RUnlock()
+	fake.serviceOfferingMutex.RLock()
+	defer fake.serviceOfferingMutex.RUnlock()
+	fake.servicePlanMutex.RLock()
+	defer fake.servicePlanMutex.RUnlock()
+	fake.transactionalMutex.RLock()
+	defer fake.transactionalMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

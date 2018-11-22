@@ -48,12 +48,14 @@ type controller struct {
 var _ web.Controller = &controller{}
 
 // NewController returns new OSB controller
-func NewController(fetcher BrokerFetcher, roundTripper http.RoundTripper) web.Controller {
+func NewController(fetcher BrokerFetcher, _ http.RoundTripper) web.Controller {
 	return &controller{
 		fetcher: fetcher,
 	}
 }
 
+//TODO this should stop proxying the get catalog call and instead pull it from storage
+//TODO (can use storage.ServiceOffering().listWithServicePlansByBrokerID)
 func (c *controller) handler(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	logger := log.C(ctx)

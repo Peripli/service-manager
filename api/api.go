@@ -88,7 +88,7 @@ func New(ctx context.Context, store storage.Storage, settings *Settings, encrypt
 		// Default controllers - more filters can be registered using the relevant API methods
 		Controllers: []web.Controller{
 			&broker.Controller{
-				BrokerStorage:       store.Broker(),
+				Storage:             store,
 				OSBClientCreateFunc: newOSBClient(settings.SkipSSLValidation),
 				Encrypter:           encrypter,
 			},

@@ -84,7 +84,7 @@ type keyFetcher struct {
 // GetEncryptionKey returns the encryption key used to encrypt the credentials for brokers
 func (s *keyFetcher) GetEncryptionKey(ctx context.Context) ([]byte, error) {
 	var safes []Safe
-	if err := getAll(ctx, s.db, "safe", &safes); err != nil {
+	if err := list(ctx, s.db, "safe", map[string]string{}, &safes); err != nil {
 		return nil, err
 	}
 	if len(safes) != 1 {
@@ -103,7 +103,7 @@ type keySetter struct {
 // Sets the encryption key by encrypting it beforehand with the encryption key in the environment
 func (k *keySetter) SetEncryptionKey(ctx context.Context, key []byte) error {
 	var safes []Safe
-	if err := getAll(ctx, k.db, "safe", &safes); err != nil {
+	if err := list(ctx, k.db, "safe", map[string]string{}, &safes); err != nil {
 		return err
 	}
 	if len(safes) != 0 {

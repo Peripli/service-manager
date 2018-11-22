@@ -116,7 +116,7 @@ var _ = Describe("SM", func() {
 		})
 
 		Context("when additional filter is registered", func() {
-			It("should return working service manager with a new filter", func() {
+			It("should return working servicemanager with a new filter", func() {
 				env := sm.DefaultEnv(common.SetTestFileLocation)
 				env.Set("api.token_issuer_url", oauthServer.URL)
 				smanager := sm.New(ctx, cancel, env)

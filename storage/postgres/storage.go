@@ -18,6 +18,7 @@
 package postgres
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -43,10 +44,52 @@ type postgresStorage struct {
 	encryptionKey []byte
 }
 
-func (storage *postgresStorage) checkOpen() {
-	if storage.db == nil {
-		log.D().Panicln("Storage is not yet Open")
+type transactionalStorage struct {
+	*postgresStorage
+
+	tx *sqlx.Tx
+}
+
+func (storage *transactionalStorage) Broker() storage.Broker {
+	storage.checkOpen()
+	return &brokerStorage{storage.tx}
+}
+
+func (storage *transactionalStorage) Platform() storage.Platform {
+	storage.checkOpen()
+	return &platformStorage{storage.tx}
+}
+
+func (storage *transactionalStorage) Credentials() storage.Credentials {
+	storage.checkOpen()
+	return &credentialStorage{storage.tx}
+}
+
+func (storage *postgresStorage) Transactional(ctx context.Context, f func(ctx context.Context, transactionalStorage storage.Storage) error) error {
+	ok := true
+	tx, err := storage.db.Beginx()
+	if err != nil {
+		return err
 	}
+	defer func() {
+		if !ok {
+			if txError := tx.Rollback(); txError != nil {
+				log.C(ctx).Error("Could not rollback transaction", txError)
+			}
+		}
+	}()
+
+	transactionalStorage := &transactionalStorage{
+		tx:              tx,
+		postgresStorage: storage,
+	}
+
+	if err := f(ctx, transactionalStorage); err != nil {
+		return err
+	}
+
+	ok = true
+	return tx.Commit()
 }
 
 func (storage *postgresStorage) Ping() error {
@@ -67,6 +110,14 @@ func (storage *postgresStorage) Platform() storage.Platform {
 func (storage *postgresStorage) Credentials() storage.Credentials {
 	storage.checkOpen()
 	return &credentialStorage{storage.db}
+}
+
+func (storage *postgresStorage) ServiceOffering() storage.ServiceOffering {
+	return &serviceOfferingStorage{storage.db}
+}
+
+func (storage *postgresStorage) ServicePlan() storage.ServicePlan {
+	return &servicePlanStorage{storage.db}
 }
 
 func (storage *postgresStorage) Security() storage.Security {
@@ -122,4 +173,10 @@ func (storage *postgresStorage) updateSchema(migrationsURL string) error {
 		err = nil
 	}
 	return err
+}
+
+func (storage *postgresStorage) checkOpen() {
+	if storage.db == nil {
+		log.D().Panicln("Storage is not yet Open")
+	}
 }
