@@ -54,8 +54,6 @@ func NewController(fetcher BrokerFetcher, _ http.RoundTripper) web.Controller {
 	}
 }
 
-//TODO this should stop proxying the get catalog call and instead pull it from storage
-//TODO (can use storage.ServiceOffering().listWithServicePlansByBrokerID)
 func (c *controller) handler(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	logger := log.C(ctx)

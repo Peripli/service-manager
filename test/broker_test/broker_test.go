@@ -685,7 +685,7 @@ var _ = Describe("Service Manager Broker API", func() {
 			//		Expect().
 			//		Status(http.StatusOK)
 			//
-			//	//TODO subset the response catalog to the broker catalog (sm catalog has more fields..)
+			// subset the response catalog to the broker catalog (sm catalog has more fields..)
 			//	ctx.SMWithOAuth.GET("/v1/service_brokers").
 			//		WithQuery("catalog", true).
 			//		Expect().
