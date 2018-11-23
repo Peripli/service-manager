@@ -53,9 +53,9 @@ func (s *Security) Validate() error {
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	TokenIssuerURL    string `mapstructure:"token_issuer_url"`
-	ClientID          string `mapstructure:"client_id"`
-	SkipSSLValidation bool   `mapstructure:"skip_ssl_validation"`
+	TokenIssuerURL    string `mapstructure:"token_issuer_url" description:"url of the token issuer which to use for validating tokens"`
+	ClientID          string `mapstructure:"client_id" description:"id of the client from which the token must be issued"`
+	SkipSSLValidation bool   `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when making calls to external services"`
 }
 
 // DefaultSettings returns default values for API settings
