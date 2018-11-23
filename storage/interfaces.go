@@ -36,7 +36,7 @@ var (
 type Settings struct {
 	URI               string `mapstructure:"uri" description:"URI of the storage"`
 	MigrationsURL     string `mapstructure:"migrations_url" description:"location of a directory containing sql migrations scripts"`
-	EncryptionKey     string `mapstructure:"encryption_key" description:"key to use for encrypting database entries"`
+	EncryptionKey     string `mapstructure:"encryption_key" description:"key to use for encrypting storage entries"`
 	SkipSSLValidation bool   `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when connecting to the storage"`
 }
 
