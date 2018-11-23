@@ -31,9 +31,9 @@ import (
 
 // File describes the name, path and the format of the file to be used to load the configuration in the env
 type File struct {
-	Name     string
-	Location string
-	Format   string
+	Name     string `description:"name of the configuration file"`
+	Location string `description:"location of the configuration file"`
+	Format   string `description:"extension of the configuration file"`
 }
 
 // DefaultConfigFile holds the default SM config file properties
@@ -73,13 +73,54 @@ func EmptyFlagSet() *pflag.FlagSet {
 
 // CreatePFlags Creates pflags for the value structure and adds them in the provided set
 func CreatePFlags(set *pflag.FlagSet, value interface{}) {
-	properties := make(map[string]interface{})
-	traverseFields(value, "", properties)
-	for bindingName, defaultValue := range properties {
-		if set.Lookup(bindingName) == nil {
-			set.String(bindingName, cast.ToString(defaultValue), fmt.Sprintf("commandline argument for %s", bindingName))
+	tree := &DescriptionTree{}
+	var parameters []Parameter
+	s := structs.New(value)
+	for _, field := range s.Fields() {
+		if field.Tag("description") != "" {
+			baseTree := NewDescriptionTree(field.Tag("description"))
+			buildFlagDescriptionTree(field, baseTree, "", &parameters)
 		}
 	}
+	buildFlagDescriptionTree(value, tree, "", &parameters)
+	descriptions := buildFlagDescriptionsFromTree(tree)
+	descriptionsCount := len(descriptions)
+	parametersCount := len(parameters)
+	if descriptionsCount < parametersCount {
+		log.D().Warnf("Unexpected number of descriptions found for %s: %d. Expected the same number as the configuration parameters: %d. Using default descriptions...", s.Names(), descriptionsCount, parametersCount)
+		for _, binding := range parameters {
+			descriptions = append(descriptions, fmt.Sprintf("commandline argument for %s", binding.Name))
+		}
+	}
+
+	for i, bindingName := range parameters {
+		if set.Lookup(bindingName.Name) == nil {
+			set.String(bindingName.Name, bindingName.DefaultValue, descriptions[i])
+		}
+	}
+}
+
+func buildFlagDescriptionsFromTree(tree *DescriptionTree) []string {
+	return buildDescriptionPaths(tree, []*DescriptionTree{})
+}
+
+func buildDescriptionPaths(root *DescriptionTree, path []*DescriptionTree) []string {
+	path = append(path, root)
+	var result []string
+	if root.Children == nil || len(root.Children) == 0 {
+		res := ""
+		for _, node := range path {
+			res += node.Value
+		}
+		if res != "" {
+			result = append(result, res)
+		}
+		return result
+	}
+	for _, node := range root.Children {
+		result = append(result, buildDescriptionPaths(node, path)...)
+	}
+	return result
 }
 
 // New creates a new environment. It accepts a flag set that should contain all the flags that the
@@ -108,45 +149,88 @@ func New(set *pflag.FlagSet) (*ViperEnv, error) {
 	return v, nil
 }
 
+type DescriptionTree struct {
+	Value    string
+	Children []*DescriptionTree
+}
+
+func NewDescriptionTree(root string) *DescriptionTree {
+	return &DescriptionTree{
+		Value:    root,
+		Children: nil,
+	}
+}
+
+func (t *DescriptionTree) AddNode(tree *DescriptionTree) {
+	if t.Children == nil {
+		t.Children = []*DescriptionTree{tree}
+		return
+	}
+	t.Children = append(t.Children, tree)
+}
+
+type Parameter struct {
+	Name         string
+	DefaultValue string
+}
+
 // Unmarshal exposes viper's Unmarshal. Prior to unmarshaling it creates the necessary pflag and env var bindings
 // so that pflag / env var values are also used during the unmarshaling.
 func (v *ViperEnv) Unmarshal(value interface{}) error {
-	properties := make(map[string]interface{})
-	traverseFields(value, "", properties)
-	for flagName := range properties {
-		if err := v.Viper.BindEnv(flagName); err != nil {
+	tree := &DescriptionTree{}
+	var parameters []Parameter
+	s := structs.New(value)
+	for _, field := range s.Fields() {
+		if field.Tag("description") != "" {
+			baseTree := NewDescriptionTree(field.Tag("description"))
+			buildFlagDescriptionTree(field, baseTree, "", &parameters)
+		}
+	}
+	buildFlagDescriptionTree(value, tree, "", &parameters)
+	for _, bindingName := range parameters {
+		if err := v.Viper.BindEnv(bindingName.Name); err != nil {
 			return err
 		}
 	}
+
 	return v.Viper.Unmarshal(value)
 }
 
-// traverseFields traverses the provided structure and prepares a slice of strings that contains
-// the paths to the structure fields (nested paths in the provided structure use dot as a separator)
-func traverseFields(value interface{}, buffer string, result map[string]interface{}) {
+func buildFlagDescriptionTree(value interface{}, tree *DescriptionTree, buffer string, result *[]Parameter) {
 	if !structs.IsStruct(value) {
 		index := strings.LastIndex(buffer, ".")
 		if index == -1 {
 			index = 0
 		}
 		key := strings.ToLower(buffer[0:index])
-		result[key] = value
+		*result = append(*result, Parameter{Name: key, DefaultValue: cast.ToString(value)})
+		tree.Children = nil
 		return
 	}
-
+	var fields []*structs.Field
 	s := structs.New(value)
 	for _, field := range s.Fields() {
-		if field.IsExported() && field.Kind() != reflect.Interface && field.Kind() != reflect.Func {
-			var name string
-			if field.Tag("mapstructure") != "" {
-				name = field.Tag("mapstructure")
-			} else {
-				name = field.Name()
-			}
-			buffer += name + "."
-			traverseFields(field.Value(), buffer, result)
-			buffer = buffer[0:strings.LastIndex(buffer, name)]
+		if field.Kind() != reflect.Slice {
+			fields = append(fields, field)
 		}
+	}
+	for i, field := range fields {
+		var name string
+		if field.Tag("mapstructure") != "" {
+			name = field.Tag("mapstructure")
+		} else {
+			name = field.Name()
+		}
+		description := ""
+		if field.Tag("description") != "" {
+			description = field.Tag("description")
+		}
+
+		baseTree := NewDescriptionTree(description)
+		tree.AddNode(baseTree)
+		buffer += name + "."
+		buildFlagDescriptionTree(field.Value(), tree.Children[i], buffer, result)
+		buffer = buffer[0:strings.LastIndex(buffer, name)]
 	}
 }
 
