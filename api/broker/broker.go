@@ -45,7 +45,7 @@ func (c *Controller) Routes() []web.Route {
 				Method: http.MethodGet,
 				Path:   web.BrokersURL,
 			},
-			Handler: c.getAllBrokers,
+			Handler: c.listBrokers,
 		},
 		{
 			Endpoint: web.Endpoint{

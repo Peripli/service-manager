@@ -66,6 +66,7 @@ func (sos *serviceOfferingStorage) ListWithServicePlansByBrokerID(ctx context.Co
 		%[2]s.catalog_id "%[2]s.catalog_id",
 		%[2]s.catalog_name "%[2]s.catalog_name",
 		%[2]s.metadata "%[2]s.metadata",
+		%[2]s.schemas "%[2]s.schemas",
 		%[2]s.service_offering_id "%[2]s.service_offering_id"
 	FROM %[1]s 
 	JOIN %[2]s ON %[1]s.id = %[2]s.service_offering_id

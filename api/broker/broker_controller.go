@@ -89,7 +89,8 @@ func (c *Controller) createBroker(r *web.Request) (*web.Response, error) {
 			return util.HandleStorageError(err, "broker", broker.ID)
 		}
 		for _, service := range catalog.Services {
-			serviceOffering, err := osbcCatalogServiceToServiceOffering(&service)
+			serviceOffering := &types.ServiceOffering{}
+			err := osbcCatalogServiceToServiceOffering(serviceOffering, &service)
 			if err != nil {
 				return err
 			}
@@ -108,9 +109,10 @@ func (c *Controller) createBroker(r *web.Request) (*web.Response, error) {
 			if err := storage.ServiceOffering().Create(ctx, serviceOffering); err != nil {
 				return util.HandleStorageError(err, "service_offering", service.ID)
 			}
-			for _, plan := range service.Plans {
-				servicePlan, err := osbcCatalogPlanToServicePlan(&catalogPlanWithServiceOfferingID{
-					Plan:            &plan,
+			for planIndex := range service.Plans {
+				servicePlan := &types.ServicePlan{}
+				err := osbcCatalogPlanToServicePlan(servicePlan, &catalogPlanWithServiceOfferingID{
+					Plan:            &service.Plans[planIndex],
 					ServiceOffering: serviceOffering,
 				})
 				if err != nil {
@@ -129,7 +131,7 @@ func (c *Controller) createBroker(r *web.Request) (*web.Response, error) {
 				}
 
 				if err := storage.ServicePlan().Create(ctx, servicePlan); err != nil {
-					return util.HandleStorageError(err, "service_plan", plan.ID)
+					return util.HandleStorageError(err, "service_plan", service.Plans[planIndex].ID)
 				}
 			}
 		}
@@ -156,7 +158,7 @@ func (c *Controller) getBroker(r *web.Request) (*web.Response, error) {
 	return util.NewJSONResponse(http.StatusOK, broker)
 }
 
-func (c *Controller) getAllBrokers(r *web.Request) (*web.Response, error) {
+func (c *Controller) listBrokers(r *web.Request) (*web.Response, error) {
 	var brokers []*types.Broker
 	var err error
 	ctx := r.Context()
@@ -174,6 +176,7 @@ func (c *Controller) getAllBrokers(r *web.Request) (*web.Response, error) {
 				return nil, err
 			}
 			broker.Services = offerings
+
 		}
 	}
 
@@ -216,7 +219,10 @@ func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	if err := c.resyncBrokerCatalog(ctx, broker); err != nil {
+	broker.ID = brokerID
+	broker.CreatedAt = createdAt
+	broker.UpdatedAt = time.Now().UTC()
+	if err := c.resyncBrokerAndCatalog(ctx, broker); err != nil {
 		return nil, err
 	}
 
@@ -224,22 +230,18 @@ func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	broker.ID = brokerID
-	broker.CreatedAt = createdAt
-	broker.UpdatedAt = time.Now().UTC()
 	broker.Credentials = nil
-
 	return util.NewJSONResponse(http.StatusOK, broker)
 }
 
 func convertExistingCatalogToMaps(serviceOfferings []*types.ServiceOffering) (map[string]*types.ServiceOffering, map[string]*types.ServicePlan) {
-	serviceOfferingsMap := make(map[string]*types.ServiceOffering, len(serviceOfferings))
-	servicePlansMap := make(map[string]*types.ServicePlan, 0)
+	serviceOfferingsMap := make(map[string]*types.ServiceOffering)
+	servicePlansMap := make(map[string]*types.ServicePlan)
 
-	for _, serviceOffering := range serviceOfferings {
-		serviceOfferingsMap[serviceOffering.CatalogID] = serviceOffering
-		for _, servicePlan := range serviceOffering.Plans {
-			servicePlansMap[servicePlan.CatalogID] = servicePlan
+	for serviceOfferingIndex := range serviceOfferings {
+		serviceOfferingsMap[serviceOfferings[serviceOfferingIndex].CatalogID] = serviceOfferings[serviceOfferingIndex]
+		for servicePlanIndex := range serviceOfferings[serviceOfferingIndex].Plans {
+			servicePlansMap[serviceOfferings[serviceOfferingIndex].Plans[servicePlanIndex].CatalogID] = serviceOfferings[serviceOfferingIndex].Plans[servicePlanIndex]
 		}
 	}
 
@@ -260,91 +262,75 @@ func (c *Controller) getBrokerCatalog(ctx context.Context, broker *types.Broker)
 }
 
 func getBrokerCatalogServicesAndPlans(catalog *osbc.CatalogResponse) ([]*osbc.Service, map[string][]*osbc.Plan, error) {
-	services := make([]*osbc.Service, len(catalog.Services))
-	plans := make(map[string][]*osbc.Plan, len(catalog.Services))
+	services := make([]*osbc.Service, 0, len(catalog.Services))
+	plans := make(map[string][]*osbc.Plan)
 
-	for _, service := range catalog.Services {
-		services = append(services, &service)
-		plansForService := make([]*osbc.Plan, len(service.Plans))
-		for _, plan := range service.Plans {
-			plansForService = append(plansForService, &plan)
+	for serviceIndex := range catalog.Services {
+		services = append(services, &catalog.Services[serviceIndex])
+		plansForService := make([]*osbc.Plan, 0)
+		for planIndex := range catalog.Services[serviceIndex].Plans {
+			log.D().Error(catalog.Services[serviceIndex].Plans[planIndex].ID)
+			plansForService = append(plansForService, &catalog.Services[serviceIndex].Plans[planIndex])
 		}
-		plans[service.ID] = plansForService
+		plans[catalog.Services[serviceIndex].ID] = plansForService
 	}
 	return services, plans, nil
 }
 
-func osbcCatalogServiceToServiceOffering(service *osbc.Service) (*types.ServiceOffering, error) {
+func osbcCatalogServiceToServiceOffering(serviceOffering *types.ServiceOffering, service *osbc.Service) error {
 	serviceTagsBytes, err := json.Marshal(service.Tags)
 	if err != nil {
-		return nil, fmt.Errorf("could not marshal service tags: %s", err)
+		return fmt.Errorf("could not marshal service tags: %s", err)
 	}
 	serviceRequiresBytes, err := json.Marshal(service.Requires)
 	if err != nil {
-		return nil, fmt.Errorf("could not marshal service requires: %s", err)
+		return fmt.Errorf("could not marshal service requires: %s", err)
 	}
 	serviceMetadataBytes, err := json.Marshal(service.Metadata)
 	if err != nil {
-		return nil, fmt.Errorf("could not marshal service metadata: %s", err)
+		return fmt.Errorf("could not marshal service metadata: %s", err)
 	}
 
-	return &types.ServiceOffering{
-		Name:                 service.Name,
-		Description:          service.Description,
-		Bindable:             service.Bindable,
-		InstancesRetrievable: true,
-		BindingsRetrievable:  service.BindingsRetrievable,
-		PlanUpdatable:        boolPointerToBool(service.PlanUpdatable, false),
-		CatalogID:            service.ID,
-		CatalogName:          service.Name,
-		Tags:                 json.RawMessage(serviceTagsBytes),
-		Requires:             json.RawMessage(serviceRequiresBytes),
-		Metadata:             json.RawMessage(serviceMetadataBytes),
-	}, nil
+	serviceOffering.Name = service.Name
+	serviceOffering.Description = service.Description
+	serviceOffering.Bindable = service.Bindable
+	serviceOffering.InstancesRetrievable = service.BindingsRetrievable
+	serviceOffering.BindingsRetrievable = service.BindingsRetrievable
+	serviceOffering.PlanUpdatable = boolPointerToBool(service.PlanUpdatable, serviceOffering.PlanUpdatable)
+	serviceOffering.CatalogID = service.ID
+	serviceOffering.CatalogName = service.Name
+	serviceOffering.Tags = json.RawMessage(serviceTagsBytes)
+	serviceOffering.Requires = json.RawMessage(serviceRequiresBytes)
+	serviceOffering.Metadata = json.RawMessage(serviceMetadataBytes)
+
+	return nil
 }
 
-func osbcCatalogPlanToServicePlan(plan *catalogPlanWithServiceOfferingID) (*types.ServicePlan, error) {
+func osbcCatalogPlanToServicePlan(servicePlan *types.ServicePlan, plan *catalogPlanWithServiceOfferingID) error {
 	planMetadataBytes, err := json.Marshal(plan.Metadata)
 	if err != nil {
-		return nil, fmt.Errorf("could not marshal plan metadata: %s", err)
+		return fmt.Errorf("could not marshal plan metadata: %s", err)
 	}
-	createInstanceSchemaBytes := make([]byte, 0)
-	if plan.Schemas != nil && plan.Schemas.ServiceInstance != nil && plan.Schemas.ServiceInstance.Create != nil {
-		createInstanceSchemaBytes, err = json.Marshal(plan.Schemas.ServiceInstance.Create)
+	schemasBytes := make([]byte, 0)
+	if plan.Schemas != nil {
+		schemasBytes, err = json.Marshal(plan.Schemas)
 		if err != nil {
-			return nil, fmt.Errorf("could not marshal plan service instance create schema: %s", err)
+			return fmt.Errorf("could not marshal plan service instance create schema: %s", err)
 		}
 	}
 
-	updateServiceInstanceBytes := make([]byte, 0)
-	if plan.Schemas != nil && plan.Schemas.ServiceInstance != nil && plan.Schemas.ServiceInstance.Update != nil {
-		updateServiceInstanceBytes, err = json.Marshal(plan.Schemas.ServiceInstance.Update)
-		if err != nil {
-			return nil, fmt.Errorf("could not marshal plan service instance update schema: %s", err)
-		}
-	}
+	servicePlan.Name = plan.Plan.Name
+	servicePlan.Description = plan.Plan.Description
+	servicePlan.CatalogID = plan.Plan.ID
+	servicePlan.CatalogName = plan.Plan.Name
+	servicePlan.Free = boolPointerToBool(plan.Plan.Free, servicePlan.Free)
+	servicePlan.Bindable = boolPointerToBool(plan.Plan.Bindable, plan.ServiceOffering.Bindable)
+	servicePlan.PlanUpdatable = boolPointerToBool(&plan.ServiceOffering.PlanUpdatable, servicePlan.PlanUpdatable)
+	servicePlan.Metadata = json.RawMessage(planMetadataBytes)
+	servicePlan.Schemas = schemasBytes
+	servicePlan.ServiceOfferingID = plan.ServiceOffering.ID
 
-	createServiceBindingSchemaBytes := make([]byte, 0)
-	if plan.Schemas != nil && plan.Schemas.ServiceBinding != nil && plan.Schemas.ServiceInstance.Create != nil {
-		createServiceBindingSchemaBytes, err = json.Marshal(plan.Schemas.ServiceBinding.Create)
-		if err != nil {
-			return nil, fmt.Errorf("could not marshal plan service binding create schema: %s", err)
-		}
-	}
-	return &types.ServicePlan{
-		Name:                 plan.Name,
-		Description:          plan.Description,
-		CatalogID:            plan.ID,
-		CatalogName:          plan.Name,
-		Free:                 boolPointerToBool(plan.Free, false),
-		Bindable:             boolPointerToBool(plan.Bindable, plan.ServiceOffering.Bindable),
-		PlanUpdatable:        boolPointerToBool(&plan.ServiceOffering.PlanUpdatable, false),
-		Metadata:             json.RawMessage(planMetadataBytes),
-		CreateInstanceSchema: createInstanceSchemaBytes,
-		UpdateInstanceSchema: updateServiceInstanceBytes,
-		CreateBindingSchema:  createServiceBindingSchemaBytes,
-		ServiceOfferingID:    plan.ServiceOffering.ID,
-	}, nil
+	return nil
 }
 
 func osbcClient(ctx context.Context, createFunc osbc.CreateFunc, broker *types.Broker) (osbc.Client, error) {
@@ -359,34 +345,6 @@ func osbcClient(ctx context.Context, createFunc osbc.CreateFunc, broker *types.B
 	}
 	log.C(ctx).Debug("Building OSB client for service broker with name: ", config.Name, " accessible at: ", config.URL)
 	return createFunc(config)
-}
-
-func updateServiceOfferingWithCatalogService(serviceOffering *types.ServiceOffering, catalogService *osbc.Service) error {
-	var err error
-	if catalogService.PlanUpdatable == nil {
-		catalogService.PlanUpdatable = &serviceOffering.PlanUpdatable
-	}
-	serviceOffering, err = osbcCatalogServiceToServiceOffering(catalogService)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func updateServicePlanWithCatalogPlan(servicePlan *types.ServicePlan, catalogPlan *catalogPlanWithServiceOfferingID) error {
-	var err error
-	if catalogPlan.Bindable == nil {
-		catalogPlan.Bindable = &servicePlan.Bindable
-	}
-	if catalogPlan.Free == nil {
-		catalogPlan.Free = &servicePlan.Free
-	}
-
-	servicePlan, err = osbcCatalogPlanToServicePlan(catalogPlan)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func transformBrokerCredentials(ctx context.Context, broker *types.Broker, transformationFunc func(context.Context, []byte) ([]byte, error)) error {
@@ -407,7 +365,7 @@ func boolPointerToBool(value *bool, defaultValue bool) bool {
 	return *value
 }
 
-func (c *Controller) resyncBrokerCatalog(ctx context.Context, broker *types.Broker) error {
+func (c *Controller) resyncBrokerAndCatalog(ctx context.Context, broker *types.Broker) error {
 	catalog, err := c.getBrokerCatalog(ctx, broker)
 	if err != nil {
 		return err
@@ -423,22 +381,25 @@ func (c *Controller) resyncBrokerCatalog(ctx context.Context, broker *types.Brok
 			return err
 		}
 		existingServicesOfferingsMap, existingServicePlansMap := convertExistingCatalogToMaps(existingServiceOfferingsWithServicePlans)
+		log.C(ctx).Debugf("Found %d services and %d plans currently known for broker", len(existingServicesOfferingsMap), len(existingServicePlansMap))
 
 		catalogServices, catalogPlansMap, err := getBrokerCatalogServicesAndPlans(catalog)
 		if err != nil {
 			return err
 		}
+		log.C(ctx).Debugf("Found %d services and %d plans in catalog for broker with id %s", len(catalogServices), len(catalogPlansMap), broker.ID)
 
-		catalogPlans := make([]*catalogPlanWithServiceOfferingID, len(catalogServices))
+		catalogPlans := make([]*catalogPlanWithServiceOfferingID, 0)
 
+		log.C(ctx).Debugf("Resyncing service offerings for broker with id %s...", broker.ID)
 		for _, catalogService := range catalogServices {
 			existingServiceOffering, ok := existingServicesOfferingsMap[catalogService.ID]
 			delete(existingServicesOfferingsMap, catalogService.ID)
 			if ok {
-				existingServiceOffering.UpdatedAt = time.Now().UTC()
-				if err := updateServiceOfferingWithCatalogService(existingServiceOffering, catalogService); err != nil {
+				if err := osbcCatalogServiceToServiceOffering(existingServiceOffering, catalogService); err != nil {
 					return err
 				}
+				existingServiceOffering.UpdatedAt = time.Now().UTC()
 
 				if err := existingServiceOffering.Validate(); err != nil {
 					return fmt.Errorf("service offering constructed during catalog update for broker %s is invalid: %s", broker.ID, err)
@@ -452,13 +413,13 @@ func (c *Controller) resyncBrokerCatalog(ctx context.Context, broker *types.Brok
 					return fmt.Errorf("could not generate GUID for service_plan: %s", err)
 				}
 				serviceOffering := &types.ServiceOffering{}
+				if err := osbcCatalogServiceToServiceOffering(serviceOffering, catalogService); err != nil {
+					return err
+				}
 				serviceOffering.ID = serviceUUID.String()
 				serviceOffering.CreatedAt = time.Now().UTC()
 				serviceOffering.UpdatedAt = time.Now().UTC()
 				serviceOffering.BrokerID = broker.ID
-				if err := updateServiceOfferingWithCatalogService(serviceOffering, catalogService); err != nil {
-					return err
-				}
 
 				if err := serviceOffering.Validate(); err != nil {
 					return fmt.Errorf("service offering constructed during catalog update for broker %s is invalid: %s", broker.ID, err)
@@ -469,9 +430,9 @@ func (c *Controller) resyncBrokerCatalog(ctx context.Context, broker *types.Brok
 			}
 
 			catalogPlansForService := catalogPlansMap[catalogService.ID]
-			for _, catalogPlanOfCatalogService := range catalogPlansForService {
+			for catalogPlanOfCatalogServiceIndex := range catalogPlansForService {
 				catalogPlan := &catalogPlanWithServiceOfferingID{
-					Plan:            catalogPlanOfCatalogService,
+					Plan:            catalogPlansForService[catalogPlanOfCatalogServiceIndex],
 					ServiceOffering: existingServiceOffering,
 				}
 				catalogPlans = append(catalogPlans, catalogPlan)
@@ -483,15 +444,17 @@ func (c *Controller) resyncBrokerCatalog(ctx context.Context, broker *types.Brok
 				return util.HandleStorageError(err, "service_offering", existingServiceOffering.ID)
 			}
 		}
+		log.C(ctx).Debugf("Successfully resynced service offerings for broker with id %s", broker.ID)
 
+		log.C(ctx).Debugf("Resyncing service plans for broker with id %s", broker.ID)
 		for _, catalogPlan := range catalogPlans {
 			existingServicePlan, ok := existingServicePlansMap[catalogPlan.ID]
 			delete(existingServicePlansMap, catalogPlan.ID)
 			if ok {
-				existingServicePlan.UpdatedAt = time.Now().UTC()
-				if err := updateServicePlanWithCatalogPlan(existingServicePlan, catalogPlan); err != nil {
+				if err := osbcCatalogPlanToServicePlan(existingServicePlan, catalogPlan); err != nil {
 					return err
 				}
+				existingServicePlan.UpdatedAt = time.Now().UTC()
 
 				if err := existingServicePlan.Validate(); err != nil {
 					return fmt.Errorf("service plan constructed during catalog update for broker %s is invalid: %s", broker.ID, err)
@@ -505,13 +468,12 @@ func (c *Controller) resyncBrokerCatalog(ctx context.Context, broker *types.Brok
 					return fmt.Errorf("could not generate GUID for service_plan: %s", err)
 				}
 				servicePlan := &types.ServicePlan{}
+				if err := osbcCatalogPlanToServicePlan(servicePlan, catalogPlan); err != nil {
+					return err
+				}
 				servicePlan.ID = planUUID.String()
 				servicePlan.CreatedAt = time.Now().UTC()
 				servicePlan.UpdatedAt = time.Now().UTC()
-
-				if err := updateServicePlanWithCatalogPlan(servicePlan, catalogPlan); err != nil {
-					return err
-				}
 				if err := servicePlan.Validate(); err != nil {
 					return fmt.Errorf("service plan constructed during catalog update for broker %s is invalid: %s", broker.ID, err)
 				}
@@ -526,6 +488,7 @@ func (c *Controller) resyncBrokerCatalog(ctx context.Context, broker *types.Brok
 				return util.HandleStorageError(err, "service_plan", existingServicePlan.ID)
 			}
 		}
+		log.C(ctx).Debugf("Successfully resynced service plans for broker with id %s", broker.ID)
 
 		return nil
 	}); err != nil {
