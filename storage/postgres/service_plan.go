@@ -28,7 +28,7 @@ func (sps *servicePlanStorage) Get(ctx context.Context, id string) (*types.Servi
 }
 
 func (sps *servicePlanStorage) List(ctx context.Context) ([]*types.ServicePlan, error) {
-	var plans []*ServicePlan
+	var plans []ServicePlan
 	err := list(ctx, sps.db, servicePlanTable, map[string]string{}, &plans)
 	if err != nil || len(plans) == 0 {
 		return []*types.ServicePlan{}, err
@@ -41,7 +41,7 @@ func (sps *servicePlanStorage) List(ctx context.Context) ([]*types.ServicePlan, 
 }
 
 func (sps *servicePlanStorage) ListByCatalogName(ctx context.Context, name string) ([]*types.ServicePlan, error) {
-	var plans []*ServicePlan
+	var plans []ServicePlan
 	err := list(ctx, sps.db, servicePlanTable, map[string]string{"catalog_name": name}, &plans)
 	if err != nil || len(plans) == 0 {
 		return []*types.ServicePlan{}, err
@@ -54,7 +54,7 @@ func (sps *servicePlanStorage) ListByCatalogName(ctx context.Context, name strin
 }
 
 func (sps *servicePlanStorage) ListByBrokerID(ctx context.Context, brokerID string) ([]*types.ServicePlan, error) {
-	var plans []*ServicePlan
+	var plans []ServicePlan
 	query := fmt.Sprintf(`
 	SELECT * 
 	FROM %[1]s JOIN %[2]s on %[1]s.service_id=%[2]s.id 

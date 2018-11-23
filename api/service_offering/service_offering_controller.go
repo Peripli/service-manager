@@ -29,7 +29,7 @@ func (c *Controller) getServiceOffering(r *web.Request) (*web.Response, error) {
 	return util.NewJSONResponse(http.StatusOK, serviceOffering)
 }
 
-func (c *Controller) ListServiceOfferings(r *web.Request) (*web.Response, error) {
+func (c *Controller) listServiceOfferings(r *web.Request) (*web.Response, error) {
 	var serviceOfferings []*types.ServiceOffering
 	var err error
 	ctx := r.Context()

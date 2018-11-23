@@ -21,7 +21,7 @@ func (c *Controller) Routes() []web.Route {
 				Method: http.MethodGet,
 				Path:   web.ServiceOfferingsURL,
 			},
-			Handler: c.ListServiceOfferings,
+			Handler: c.listServiceOfferings,
 		},
 	}
 }

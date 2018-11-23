@@ -306,18 +306,44 @@ func osbcCatalogServiceToServiceOffering(service *osbc.Service) (*types.ServiceO
 func osbcCatalogPlanToServicePlan(plan *catalogPlanWithServiceOfferingID) (*types.ServicePlan, error) {
 	planMetadataBytes, err := json.Marshal(plan.Metadata)
 	if err != nil {
-		return nil, fmt.Errorf("could not marshal service_plan metadata: %s", err)
+		return nil, fmt.Errorf("could not marshal plan metadata: %s", err)
+	}
+	createInstanceSchemaBytes := make([]byte, 0)
+	if plan.Schemas != nil && plan.Schemas.ServiceInstance != nil && plan.Schemas.ServiceInstance.Create != nil {
+		createInstanceSchemaBytes, err = json.Marshal(plan.Schemas.ServiceInstance.Create)
+		if err != nil {
+			return nil, fmt.Errorf("could not marshal plan service instance create schema: %s", err)
+		}
+	}
+
+	updateServiceInstanceBytes := make([]byte, 0)
+	if plan.Schemas != nil && plan.Schemas.ServiceInstance != nil && plan.Schemas.ServiceInstance.Update != nil {
+		updateServiceInstanceBytes, err = json.Marshal(plan.Schemas.ServiceInstance.Update)
+		if err != nil {
+			return nil, fmt.Errorf("could not marshal plan service instance update schema: %s", err)
+		}
+	}
+
+	createServiceBindingSchemaBytes := make([]byte, 0)
+	if plan.Schemas != nil && plan.Schemas.ServiceBinding != nil && plan.Schemas.ServiceInstance.Create != nil {
+		createServiceBindingSchemaBytes, err = json.Marshal(plan.Schemas.ServiceBinding.Create)
+		if err != nil {
+			return nil, fmt.Errorf("could not marshal plan service binding create schema: %s", err)
+		}
 	}
 	return &types.ServicePlan{
-		Name:              plan.Name,
-		Description:       plan.Description,
-		CatalogID:         plan.ID,
-		CatalogName:       plan.Name,
-		Free:              boolPointerToBool(plan.Free, false),
-		Bindable:          boolPointerToBool(plan.Bindable, plan.ServiceOffering.Bindable),
-		PlanUpdatable:     boolPointerToBool(&plan.ServiceOffering.PlanUpdatable, false),
-		Metadata:          json.RawMessage(planMetadataBytes),
-		ServiceOfferingID: plan.ServiceOffering.ID,
+		Name:                 plan.Name,
+		Description:          plan.Description,
+		CatalogID:            plan.ID,
+		CatalogName:          plan.Name,
+		Free:                 boolPointerToBool(plan.Free, false),
+		Bindable:             boolPointerToBool(plan.Bindable, plan.ServiceOffering.Bindable),
+		PlanUpdatable:        boolPointerToBool(&plan.ServiceOffering.PlanUpdatable, false),
+		Metadata:             json.RawMessage(planMetadataBytes),
+		CreateInstanceSchema: createInstanceSchemaBytes,
+		UpdateInstanceSchema: updateServiceInstanceBytes,
+		CreateBindingSchema:  createServiceBindingSchemaBytes,
+		ServiceOfferingID:    plan.ServiceOffering.ID,
 	}, nil
 }
 

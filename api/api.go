@@ -23,12 +23,16 @@ import (
 	"net/http"
 
 	"github.com/Peripli/service-manager/api/broker"
+	"github.com/Peripli/service-manager/api/platform"
+
+	"github.com/Peripli/service-manager/api/service_offering"
+	"github.com/Peripli/service-manager/api/service_plan"
+
 	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/api/filters/authn/basic"
 	"github.com/Peripli/service-manager/api/filters/authn/oauth"
 	"github.com/Peripli/service-manager/api/info"
 	"github.com/Peripli/service-manager/api/osb"
-	"github.com/Peripli/service-manager/api/platform"
 	"github.com/Peripli/service-manager/pkg/health"
 	"github.com/Peripli/service-manager/pkg/security"
 	secfilters "github.com/Peripli/service-manager/pkg/security/filters"
@@ -92,6 +96,12 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 			&platform.Controller{
 				PlatformStorage: repository.Platform(),
 				Encrypter:       encrypter,
+			},
+			&service_offering.Controller{
+				ServiceOfferingStorage: repository.ServiceOffering(),
+			},
+			&service_plan.Controller{
+				ServicePlanStorage: repository.ServicePlan(),
 			},
 			&info.Controller{
 				TokenIssuer: settings.TokenIssuerURL,

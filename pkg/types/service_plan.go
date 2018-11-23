@@ -21,7 +21,10 @@ type ServicePlan struct {
 	Bindable      bool   `json:"bindable"`
 	PlanUpdatable bool   `json:"plan_updateable"`
 
-	Metadata json.RawMessage `json:"metadata,omitempty"`
+	Metadata             json.RawMessage `json:"metadata,omitempty"`
+	CreateInstanceSchema json.RawMessage `json:"create_instance_schema"`
+	UpdateInstanceSchema json.RawMessage `json:"update_instance_schema"`
+	CreateBindingSchema  json.RawMessage `json:"create_binding_schema"`
 
 	ServiceOfferingID string `json:"service_offering_id"`
 }

@@ -11,12 +11,12 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestServiceOfferrings(t *testing.T) {
+func TestServicePlans(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Service Offerings Tests Suite")
+	RunSpecs(t, "Service Plans Tests Suite")
 }
 
-var _ = Describe("Service Manager Service Offerings API", func() {
+var _ = Describe("Service Manager Service Plans API", func() {
 	var (
 		ctx              *common.TestContext
 		brokerServer     *common.BrokerServer
@@ -52,9 +52,9 @@ var _ = Describe("Service Manager Service Offerings API", func() {
 	})
 
 	Describe("GET", func() {
-		Context("when the service offering does not exist", func() {
+		Context("when the service plan does not exist", func() {
 			It("returns 404", func() {
-				ctx.SMWithOAuth.GET("/v1/service_offerings/12345").
+				ctx.SMWithOAuth.GET("/v1/service_plans/12345").
 					Expect().
 					Status(http.StatusNotFound).
 					JSON().Object().
@@ -62,7 +62,7 @@ var _ = Describe("Service Manager Service Offerings API", func() {
 			})
 		})
 
-		Context("when the service offering exists", func() {
+		Context("when the service plan exists", func() {
 			BeforeEach(func() {
 				ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(brokerServerJSON).
 					Expect().
@@ -71,16 +71,16 @@ var _ = Describe("Service Manager Service Offerings API", func() {
 				brokerServer.ResetCallHistory()
 			})
 
-			It("returns the service offering with the given id", func() {
-				id := ctx.SMWithOAuth.GET("/v1/service_offerings").
+			It("returns the service plan with the given id", func() {
+				id := ctx.SMWithOAuth.GET("/v1/service_plans").
 					Expect().
 					Status(http.StatusOK).
-					JSON().Object().Value("service_offerings").Array().First().Object().
+					JSON().Object().Value("service_plans").Array().First().Object().
 					Value("id").String().Raw()
 
 				Expect(id).ToNot(BeEmpty())
 
-				ctx.SMWithOAuth.GET("/v1/service_offerings/"+id).
+				ctx.SMWithOAuth.GET("/v1/service_plans/"+id).
 					Expect().
 					Status(http.StatusOK).
 					JSON().Object().
@@ -90,12 +90,12 @@ var _ = Describe("Service Manager Service Offerings API", func() {
 	})
 
 	Describe("List", func() {
-		Context("when no service offerings exist", func() {
+		Context("when no service plans exist", func() {
 			It("returns an empty array", func() {
-				ctx.SMWithOAuth.GET("/v1/service_offerings").
+				ctx.SMWithOAuth.GET("/v1/service_plans").
 					Expect().
 					Status(http.StatusOK).
-					JSON().Object().Value("service_offerings").Array().
+					JSON().Object().Value("service_plans").Array().
 					Empty()
 			})
 		})
@@ -110,23 +110,23 @@ var _ = Describe("Service Manager Service Offerings API", func() {
 			})
 
 			Context("when catalog_name parameter is not provided", func() {
-				It("returns the broker's service offerings as part of the response", func() {
-					ctx.SMWithOAuth.GET("/v1/service_offerings").
+				It("returns the broker's service plans as part of the response", func() {
+					ctx.SMWithOAuth.GET("/v1/service_plans").
 						Expect().
 						Status(http.StatusOK).
-						JSON().Object().Value("service_offerings").Array().Length().Equal(1)
+						JSON().Object().Value("service_plans").Array().Length().Equal(2)
 				})
 			})
 
 			Context("when catalog_name query parameter is provided", func() {
-				It("returns the service offering with the specified catalog_name", func() {
-					serviceCatalogName := common.DefaultCatalog()["services"].([]interface{})[0].(map[string]interface{})["name"]
+				It("returns the service plan with the specified catalog_name", func() {
+					serviceCatalogName := common.DefaultCatalog()["services"].([]interface{})[0].(map[string]interface{})["plans"].([]interface{})[0].(map[string]interface{})["name"]
 					Expect(serviceCatalogName).ToNot(BeEmpty())
 
-					ctx.SMWithOAuth.GET("/v1/service_offerings").WithQuery("catalog_name", serviceCatalogName).
+					ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("catalog_name", serviceCatalogName).
 						Expect().
 						Status(http.StatusOK).
-						JSON().Object().Value("service_offerings").Array().Length().Equal(1)
+						JSON().Object().Value("service_plans").Array().Length().Equal(1)
 				})
 			})
 		})

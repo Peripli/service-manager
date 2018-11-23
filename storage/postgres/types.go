@@ -102,7 +102,10 @@ type ServicePlan struct {
 	CatalogID     string `db:"catalog_id"`
 	CatalogName   string `db:"catalog_name"`
 
-	Metadata sqlxtypes.JSONText `db:"metadata"`
+	Metadata             sqlxtypes.JSONText `db:"metadata"`
+	CreateInstanceSchema sqlxtypes.JSONText `db:"create_instance_schema"`
+	UpdateInstanceSchema sqlxtypes.JSONText `db:"update_instance_schema"`
+	CreateBindingSchema  sqlxtypes.JSONText `db:"create_binding_schema"`
 
 	ServiceOfferingID string `db:"service_offering_id"`
 }
@@ -222,34 +225,40 @@ func (so *ServiceOffering) FromDTO(offering *types.ServiceOffering) {
 
 func (sp *ServicePlan) ToDTO() *types.ServicePlan {
 	return &types.ServicePlan{
-		ID:                sp.ID,
-		Name:              sp.Name,
-		Description:       sp.Description,
-		CreatedAt:         sp.CreatedAt,
-		UpdatedAt:         sp.UpdatedAt,
-		CatalogID:         sp.CatalogID,
-		CatalogName:       sp.CatalogName,
-		Free:              sp.Free,
-		Bindable:          sp.Bindable,
-		PlanUpdatable:     sp.PlanUpdatable,
-		Metadata:          json.RawMessage(sp.Metadata),
-		ServiceOfferingID: sp.ServiceOfferingID,
+		ID:                   sp.ID,
+		Name:                 sp.Name,
+		Description:          sp.Description,
+		CreatedAt:            sp.CreatedAt,
+		UpdatedAt:            sp.UpdatedAt,
+		CatalogID:            sp.CatalogID,
+		CatalogName:          sp.CatalogName,
+		Free:                 sp.Free,
+		Bindable:             sp.Bindable,
+		PlanUpdatable:        sp.PlanUpdatable,
+		Metadata:             json.RawMessage(sp.Metadata),
+		CreateInstanceSchema: json.RawMessage(sp.CreateInstanceSchema),
+		UpdateInstanceSchema: json.RawMessage(sp.UpdateInstanceSchema),
+		CreateBindingSchema:  json.RawMessage(sp.CreateBindingSchema),
+		ServiceOfferingID:    sp.ServiceOfferingID,
 	}
 }
 
 func (sp *ServicePlan) FromDTO(plan *types.ServicePlan) {
 	*sp = ServicePlan{
-		ID:                plan.ID,
-		Name:              plan.Name,
-		Description:       plan.Description,
-		CreatedAt:         plan.CreatedAt,
-		UpdatedAt:         plan.UpdatedAt,
-		Free:              plan.Free,
-		Bindable:          plan.Bindable,
-		PlanUpdatable:     plan.PlanUpdatable,
-		CatalogID:         plan.CatalogID,
-		CatalogName:       plan.CatalogName,
-		Metadata:          sqlxtypes.JSONText(plan.Metadata),
-		ServiceOfferingID: plan.ServiceOfferingID,
+		ID:                   plan.ID,
+		Name:                 plan.Name,
+		Description:          plan.Description,
+		CreatedAt:            plan.CreatedAt,
+		UpdatedAt:            plan.UpdatedAt,
+		Free:                 plan.Free,
+		Bindable:             plan.Bindable,
+		PlanUpdatable:        plan.PlanUpdatable,
+		CatalogID:            plan.CatalogID,
+		CatalogName:          plan.CatalogName,
+		Metadata:             sqlxtypes.JSONText(plan.Metadata),
+		CreateInstanceSchema: sqlxtypes.JSONText(plan.CreateInstanceSchema),
+		UpdateInstanceSchema: sqlxtypes.JSONText(plan.UpdateInstanceSchema),
+		CreateBindingSchema:  sqlxtypes.JSONText(plan.CreateBindingSchema),
+		ServiceOfferingID:    plan.ServiceOfferingID,
 	}
 }

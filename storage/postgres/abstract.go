@@ -82,11 +82,11 @@ func get(ctx context.Context, db getterContext, id string, table string, dto int
 func list(ctx context.Context, db selecterContext, table string, filter map[string]string, dtos interface{}) error {
 	query := "SELECT * FROM " + table
 	if len(filter) != 0 {
-		pairs := make([]string, len(filter))
+		pairs := make([]string, 0)
 		for key, value := range filter {
-			pairs = append(pairs, fmt.Sprintf("%s=%s", key, value))
+			pairs = append(pairs, fmt.Sprintf("%s='%s'", key, value))
 		}
-		query += " WHERE " + strings.Join(pairs, " AND")
+		query += " WHERE " + strings.Join(pairs, " AND ")
 	}
 	log.C(ctx).Debugf("Executing query %s", query)
 	return db.SelectContext(ctx, dtos, query)
