@@ -13,17 +13,17 @@ CREATE TABLE service_offerings (
     catalog_id            varchar(255)             NOT NULL,
     catalog_name          varchar(255)             NOT NULL,
 
-    bindable              smallint  NOT NULL DEFAULT '0',
-    plan_updatable        smallint  NOT NULL DEFAULT '0',
-    instances_retrievable smallint  NOT NULL DEFAULT '0',
-    bindings_retrievable  smallint  NOT NULL DEFAULT '0',
+    bindable              boolean  NOT NULL DEFAULT '0',
+    plan_updateable        boolean  NOT NULL DEFAULT '0',
+    instances_retrievable boolean  NOT NULL DEFAULT '0',
+    bindings_retrievable  boolean  NOT NULL DEFAULT '0',
 
     metadata              json                     NOT NULL DEFAULT '{}',
     tags                  json                     NOT NULL DEFAULT '{}',
     requires              json                     NOT NULL DEFAULT '{}',
 
-    service_broker_id     varchar(100)             NOT NULL REFERENCES brokers(id) ON DELETE CASCADE,
-    UNIQUE (catalog_id, service_broker_id)
+    broker_id     varchar(100)             NOT NULL REFERENCES brokers(id) ON DELETE CASCADE,
+    UNIQUE (catalog_id, broker_id)
 );
 
 CREATE TABLE service_plans (
@@ -35,9 +35,9 @@ CREATE TABLE service_plans (
    catalog_name varchar(255) NOT NULL,
    catalog_id varchar(255) NOT NULL,
 
-   bindable smallint NOT NULL,
-   plan_updatable smallint NOT NULL,
-   free smallint NOT NULL,
+   bindable boolean NOT NULL,
+   plan_updateable boolean NOT NULL,
+   free boolean NOT NULL,
 
    metadata json NOT NULL DEFAULT '{}',
    create_instance_schema json NOT NULL DEFAULT '{}',

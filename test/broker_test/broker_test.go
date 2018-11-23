@@ -114,12 +114,12 @@ var _ = Describe("Service Manager Broker API", func() {
 					Status(http.StatusOK).
 					JSON().Object().
 					ContainsMap(expectedBrokerResponse).
-					Keys().NotContains("credentials", "catalog")
+					Keys().NotContains("credentials", "services")
 			})
 		})
 	})
 
-	Describe("GET All", func() {
+	Describe("List", func() {
 		AfterEach(func() {
 			assertInvocationCount(brokerServer.CatalogEndpointRequests, 0)
 		})
@@ -142,7 +142,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					JSON().Object().
 					ContainsMap(expectedBrokerResponse).
 					Keys().
-					NotContains("credentials", "catalog")
+					NotContains("credentials", "services")
 
 				assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 				brokerServer.ResetCallHistory()
@@ -155,7 +155,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					JSON().Object().Value("brokers").Array().First().Object().
 					ContainsMap(expectedBrokerResponse).
 					Keys().
-					NotContains("credentials", "catalog")
+					NotContains("credentials", "services")
 			})
 
 			It("returns all with catalog if query parameter is provided", func() {
@@ -164,7 +164,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					Status(http.StatusOK).
 					JSON().Object().Value("brokers").Array().First().Object().
 					ContainsMap(expectedBrokerResponse).
-					ContainsKey("catalog").
+					ContainsKey("services").
 					NotContainsKey("credentials")
 			})
 		})
@@ -227,7 +227,7 @@ var _ = Describe("Service Manager Broker API", func() {
 						Status(http.StatusCreated).
 						JSON().Object().
 						ContainsMap(expectedBrokerResponse).
-						Keys().NotContains("catalog", "credentials")
+						Keys().NotContains("services", "credentials")
 
 					assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 				})
@@ -277,7 +277,7 @@ var _ = Describe("Service Manager Broker API", func() {
 						Status(http.StatusCreated).
 						JSON().Object().
 						ContainsMap(expectedBrokerResponse).
-						Keys().NotContains("catalog", "credentials")
+						Keys().NotContains("services", "credentials")
 
 					assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 				})
@@ -529,7 +529,7 @@ var _ = Describe("Service Manager Broker API", func() {
 						Status(http.StatusOK).
 						JSON().Object().
 						ContainsMap(expectedUpdatedBrokerResponse).
-						Keys().NotContains("catalog", "credentials")
+						Keys().NotContains("services", "credentials")
 
 					assertInvocationCount(updatedBrokerServer.CatalogEndpointRequests, 1)
 
@@ -538,7 +538,7 @@ var _ = Describe("Service Manager Broker API", func() {
 						Status(http.StatusOK).
 						JSON().Object().
 						ContainsMap(expectedUpdatedBrokerResponse).
-						Keys().NotContains("catalog", "credentials")
+						Keys().NotContains("services", "credentials")
 				})
 			})
 
@@ -556,7 +556,7 @@ var _ = Describe("Service Manager Broker API", func() {
 						Status(http.StatusOK).
 						JSON().Object().
 						ContainsMap(updatedBrokerJSON).
-						Keys().NotContains("catalog", "credentials")
+						Keys().NotContains("services", "credentials")
 
 					assertInvocationCount(brokerServer.CatalogEndpointRequests, 0)
 					assertInvocationCount(updatedBrokerServer.CatalogEndpointRequests, 1)
@@ -566,7 +566,7 @@ var _ = Describe("Service Manager Broker API", func() {
 						Status(http.StatusOK).
 						JSON().Object().
 						ContainsMap(updatedBrokerJSON).
-						Keys().NotContains("catalog", "credentials")
+						Keys().NotContains("services", "credentials")
 				})
 			})
 
@@ -587,7 +587,7 @@ var _ = Describe("Service Manager Broker API", func() {
 						Status(http.StatusOK).
 						JSON().Object().
 						ContainsMap(expectedBrokerResponse).
-						Keys().NotContains("catalog", "credentials")
+						Keys().NotContains("services", "credentials")
 				})
 			})
 
@@ -604,14 +604,14 @@ var _ = Describe("Service Manager Broker API", func() {
 						Status(http.StatusOK).
 						JSON().Object().
 						ContainsMap(updatedBrokerJSON).
-						Keys().NotContains("catalog", "credentials")
+						Keys().NotContains("services", "credentials")
 
 					ctx.SMWithOAuth.GET("/v1/service_brokers/"+id).
 						Expect().
 						Status(http.StatusOK).
 						JSON().Object().
 						ContainsMap(updatedBrokerJSON).
-						Keys().NotContains("catalog", "credentials")
+						Keys().NotContains("services", "credentials")
 
 					assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 				})
@@ -643,7 +643,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					brokerServerJSON = common.Object{
 						"created_at": "2016-06-08T16:41:26Z",
 						"updated_at": "2016-06-08T16:41:26Z",
-						"catalog":    common.Object{},
+						"services":   common.Object{"a": "b"},
 					}
 				})
 
@@ -656,12 +656,12 @@ var _ = Describe("Service Manager Broker API", func() {
 						NotContainsMap(brokerServerJSON)
 
 					ctx.SMWithOAuth.GET("/v1/service_brokers").
-						WithQuery("catalog", true).
+						WithQuery("services", true).
 						Expect().
 						Status(http.StatusOK).
 						JSON().Object().Value("brokers").Array().First().Object().
 						ContainsMap(expectedBrokerResponse).
-						Value("catalog").Equal(common.DefaultCatalog)
+						ContainsMap(common.DefaultCatalog)
 
 					assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 				})
@@ -688,7 +688,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					Status(http.StatusOK).
 					JSON().Object().Value("brokers").Array().First().Object().
 					ContainsMap(expectedBrokerResponse).
-					Value("catalog").Equal(brokerServer.Catalog)
+					ContainsMap(brokerServer.Catalog)
 
 				assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 			})

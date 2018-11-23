@@ -41,7 +41,7 @@ type Broker struct {
 	BrokerURL   string       `json:"broker_url"`
 	Credentials *Credentials `json:"credentials,omitempty" structs:"-"`
 
-	Services []*ServiceOffering `json:"service_offerings,omitempty" structs:"-"`
+	Services []*ServiceOffering `json:"services,omitempty" structs:"-"`
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

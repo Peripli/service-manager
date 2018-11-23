@@ -14,7 +14,7 @@ type servicePlanStorage struct {
 }
 
 func (sps *servicePlanStorage) Create(ctx context.Context, servicePlan *types.ServicePlan) error {
-	var plan *ServicePlan
+	plan := &ServicePlan{}
 	plan.FromDTO(servicePlan)
 	return create(ctx, sps.db, servicePlanTable, plan)
 }
@@ -79,7 +79,7 @@ func (sps *servicePlanStorage) Delete(ctx context.Context, id string) error {
 }
 
 func (sps *servicePlanStorage) Update(ctx context.Context, servicePlan *types.ServicePlan) error {
-	var plan *ServicePlan
+	plan := &ServicePlan{}
 	plan.FromDTO(servicePlan)
 	return update(ctx, sps.db, servicePlanTable, plan)
 }

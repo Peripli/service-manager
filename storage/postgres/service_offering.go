@@ -13,7 +13,7 @@ type serviceOfferingStorage struct {
 }
 
 func (sos *serviceOfferingStorage) Create(ctx context.Context, serviceOffering *types.ServiceOffering) error {
-	var so *ServiceOffering
+	so := &ServiceOffering{}
 	so.FromDTO(serviceOffering)
 	return create(ctx, sos.db, serviceOfferingTable, so)
 }
@@ -53,10 +53,23 @@ func (sos *serviceOfferingStorage) ListByCatalogName(ctx context.Context, name s
 }
 
 func (sos *serviceOfferingStorage) ListWithServicePlansByBrokerID(ctx context.Context, brokerID string) ([]*types.ServiceOffering, error) {
-	query := fmt.Sprintf(`SELECT * 
-	FROM 
-		%[1]s JOIN %[2]s ON %[1]s.id = %[2]s.service_id
-	WHERE brokers.id=$1`, serviceOfferingTable, servicePlanTable)
+	query := fmt.Sprintf(`SELECT 
+		%[1]s.*,
+		%[2]s.id "%[2]s.id",
+		%[2]s.name "%[2]s.name",
+		%[2]s.description "%[2]s.description",
+		%[2]s.created_at "%[2]s.created_at",
+		%[2]s.updated_at "%[2]s.updated_at",
+		%[2]s.free "%[2]s.free",
+		%[2]s.bindable "%[2]s.bindable",
+		%[2]s.plan_updateable "%[2]s.plan_updateable",
+		%[2]s.catalog_id "%[2]s.catalog_id",
+		%[2]s.catalog_name "%[2]s.catalog_name",
+		%[2]s.metadata "%[2]s.metadata",
+		%[2]s.service_offering_id "%[2]s.service_offering_id"
+	FROM %[1]s 
+	JOIN %[2]s ON %[1]s.id = %[2]s.service_offering_id
+	WHERE %[1]s.broker_id=$1;`, serviceOfferingTable, servicePlanTable)
 
 	log.C(ctx).Debugf("Executing query %s", query)
 	rows, err := sos.db.QueryxContext(ctx, query, brokerID)
@@ -75,8 +88,8 @@ func (sos *serviceOfferingStorage) ListWithServicePlansByBrokerID(ctx context.Co
 
 	for rows.Next() {
 		row := struct {
-			*ServiceOffering `db:"services"`
-			*ServicePlan     `db:"plans"`
+			*ServiceOffering
+			*ServicePlan `db:"service_plans"`
 		}{}
 
 		if err := rows.StructScan(&row); err != nil {
@@ -115,7 +128,7 @@ func (sos *serviceOfferingStorage) Delete(ctx context.Context, id string) error 
 }
 
 func (sos *serviceOfferingStorage) Update(ctx context.Context, serviceOffering *types.ServiceOffering) error {
-	var so *ServiceOffering
+	so := &ServiceOffering{}
 	so.FromDTO(serviceOffering)
 	return update(ctx, sos.db, serviceOfferingTable, so)
 

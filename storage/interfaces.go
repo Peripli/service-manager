@@ -61,6 +61,7 @@ func (s *Settings) Validate() error {
 	return nil
 }
 
+// OpenCloser represents an openable and closeable storage
 type OpenCloser interface {
 	// Open initializes the storage, e.g. opens a connection to the underlying storage
 	Open(options *Settings) error
@@ -69,6 +70,7 @@ type OpenCloser interface {
 	Close() error
 }
 
+// Pinger allows pinging the storage to check liveliness
 type Pinger interface {
 	// Ping verifies a connection to the database is still alive, establishing a connection if necessary.
 	Ping() error
@@ -82,6 +84,7 @@ func (mf PingFunc) Ping() error {
 	return mf()
 }
 
+// Warehouse is a storage warehouse that contains the Service Manager data access object providers
 type Warehouse interface {
 	// Broker provides access to service broker db operations
 	Broker() Broker
@@ -102,12 +105,15 @@ type Warehouse interface {
 	Security() Security
 }
 
+// Repository is a storage warehouse that can initiate a transaction
 type Repository interface {
 	Warehouse
+
+	// InTransaction initiates a transaction and allows passing a function to be executed within the transaction
 	InTransaction(ctx context.Context, f func(ctx context.Context, storage Warehouse) error) error
 }
 
-// Repository interface provides entity-specific storages
+// Storage interface provides entity-specific storages
 //go:generate counterfeiter . Storage
 type Storage interface {
 	OpenCloser
@@ -122,9 +128,6 @@ type Broker interface {
 
 	// Get retrieves a broker using the provided id from SM DB
 	Get(ctx context.Context, id string) (*types.Broker, error)
-
-	// ListWithCatalog retrieves all broker from SM DB with their respective services and plans
-	ListWithCatalog(ctx context.Context) ([]*types.Broker, error)
 
 	// List retrieves all brokers from SM DB
 	List(ctx context.Context) ([]*types.Broker, error)
@@ -162,10 +165,7 @@ type ServiceOffering interface {
 	// Get retrieves a service offering using the provided id from SM DB
 	Get(ctx context.Context, id string) (*types.ServiceOffering, error)
 
-	// TODO calls getBy(where clause of some sorts)
 	ListByCatalogName(ctx context.Context, name string) ([]*types.ServiceOffering, error)
-
-	//ListByBrokerID(ctx context.Context, brokerID string) ([]*types.ServiceOffering, error)
 
 	ListWithServicePlansByBrokerID(ctx context.Context, brokerID string) ([]*types.ServiceOffering, error)
 
@@ -189,10 +189,6 @@ type ServicePlan interface {
 
 	ListByCatalogName(ctx context.Context, name string) ([]*types.ServicePlan, error)
 
-	ListByBrokerID(ctx context.Context, brokerID string) ([]*types.ServicePlan, error)
-
-	//TODO eventually pass to List a ... of something that can be used to build a query
-	// List retrieves all service service_plan from SM DB
 	List(ctx context.Context) ([]*types.ServicePlan, error)
 
 	// Delete deletes a service service_plan from SM DB

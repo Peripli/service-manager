@@ -66,9 +66,6 @@ type Broker struct {
 	BrokerURL   string         `db:"broker_url"`
 	Username    string         `db:"username"`
 	Password    string         `db:"password"`
-
-	//TODO this might not be needed
-	//Services []*ServiceOffering `db:"-"`
 }
 
 type ServiceOffering struct {
@@ -79,18 +76,17 @@ type ServiceOffering struct {
 	UpdatedAt   time.Time `db:"updated_at"`
 
 	Bindable             bool   `db:"bindable"`
-	InstancesRetrievable bool   `db:"instances_retrievable,omitempty"`
-	BindingsRetrievable  bool   `db:"bindings_retrievable,omitempty"`
-	PlanUpdatable        bool   `db:"plan_updatable,omitempty"`
+	InstancesRetrievable bool   `db:"instances_retrievable"`
+	BindingsRetrievable  bool   `db:"bindings_retrievable"`
+	PlanUpdatable        bool   `db:"plan_updateable"`
 	CatalogID            string `db:"catalog_id"`
 	CatalogName          string `db:"catalog_name"`
 
-	Tags     sqlxtypes.JSONText `db:"tags,omitempty"`
-	Requires sqlxtypes.JSONText `db:"requires,omitempty"`
-	Metadata sqlxtypes.JSONText `db:"metadata,omitempty"`
+	Tags     sqlxtypes.JSONText `db:"tags"`
+	Requires sqlxtypes.JSONText `db:"requires"`
+	Metadata sqlxtypes.JSONText `db:"metadata"`
 
 	BrokerID string `db:"broker_id"`
-	//Plans    []*ServicePlan `db:"-"`
 }
 
 type ServicePlan struct {
@@ -100,23 +96,18 @@ type ServicePlan struct {
 	CreatedAt   time.Time `db:"created_at"`
 	UpdatedAt   time.Time `db:"updated_at"`
 
-	Free          bool   `db:"free,omitempty"`
-	Bindable      bool   `db:"bindable,omitempty"`
-	PlanUpdatable bool   `db:"plan_updatable,omitempty"`
+	Free          bool   `db:"free"`
+	Bindable      bool   `db:"bindable"`
+	PlanUpdatable bool   `db:"plan_updateable"`
 	CatalogID     string `db:"catalog_id"`
 	CatalogName   string `db:"catalog_name"`
 
-	Metadata sqlxtypes.JSONText `db:"metadata,omitempty"`
+	Metadata sqlxtypes.JSONText `db:"metadata"`
 
-	ServiceOfferingID string `db:"service__offering_id"`
+	ServiceOfferingID string `db:"service_offering_id"`
 }
 
 func (b *Broker) ToDTO() *types.Broker {
-	//services := make([]*types.ServiceOffering, len(b.Services))
-	//for _, service := range b.Services {
-	//	services = append(services, service.ToDTO())
-	//}
-
 	broker := &types.Broker{
 		ID:          b.ID,
 		Name:        b.Name,
@@ -130,7 +121,6 @@ func (b *Broker) ToDTO() *types.Broker {
 				Password: b.Password,
 			},
 		},
-		//Services: services,
 	}
 	return broker
 }

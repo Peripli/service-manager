@@ -92,10 +92,10 @@ func list(ctx context.Context, db selecterContext, table string, filter map[stri
 	return db.SelectContext(ctx, dtos, query)
 }
 
-func delete(ctx context.Context, db namedExecerContext, id string, table string) error {
+func delete(ctx context.Context, db sqlx.ExecerContext, id string, table string) error {
 	query := "DELETE FROM " + table + " WHERE id=$1"
 	log.C(ctx).Debugf("Executing query %s", query)
-	result, err := db.NamedExecContext(ctx, query, &id)
+	result, err := db.ExecContext(ctx, query, id)
 	if err != nil {
 		return err
 	}
@@ -122,10 +122,13 @@ func getDBTags(structure interface{}) []string {
 	set := make([]string, 0, len(fields))
 
 	for _, field := range fields {
-		if field.IsEmbedded() || field.IsZero() {
+		if field.IsEmbedded() {
 			continue
 		}
 		dbTag := field.Tag("db")
+		if dbTag == "-" {
+			continue
+		}
 		if dbTag == "" {
 			dbTag = strings.ToLower(field.Name())
 		}

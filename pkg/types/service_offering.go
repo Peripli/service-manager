@@ -20,7 +20,7 @@ type ServiceOffering struct {
 	Bindable             bool   `json:"bindable"`
 	InstancesRetrievable bool   `json:"instances_retrievable"`
 	BindingsRetrievable  bool   `json:"bindings_retrievable"`
-	PlanUpdatable        bool   `json:"plan_updatable"`
+	PlanUpdatable        bool   `json:"plan_updateable"`
 	CatalogID            string `json:"catalog_id"`
 	CatalogName          string `json:"catalog_name"`
 

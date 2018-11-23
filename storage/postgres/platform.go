@@ -27,7 +27,7 @@ type platformStorage struct {
 }
 
 func (ps *platformStorage) Create(ctx context.Context, platform *types.Platform) error {
-	var p *Platform
+	p := &Platform{}
 	p.FromDTO(platform)
 	return create(ctx, ps.db, platformTable, p)
 }
@@ -58,7 +58,7 @@ func (ps *platformStorage) Delete(ctx context.Context, id string) error {
 }
 
 func (ps *platformStorage) Update(ctx context.Context, platform *types.Platform) error {
-	var p *Platform
+	p := &Platform{}
 	p.FromDTO(platform)
 	return update(ctx, ps.db, platformTable, p)
 }

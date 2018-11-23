@@ -44,46 +44,49 @@ type postgresStorage struct {
 	encryptionKey []byte
 }
 
-type transactionalStorage struct {
+type transactionalWarehouse struct {
 	tx *sqlx.Tx
 }
 
-func (storage *transactionalStorage) ServiceOffering() storage.ServiceOffering {
-	panic("implement me")
+func (ts *transactionalWarehouse) ServiceOffering() storage.ServiceOffering {
+	ts.checkOpen()
+	return &serviceOfferingStorage{db: ts.tx}
 }
 
-func (storage *transactionalStorage) ServicePlan() storage.ServicePlan {
-	panic("implement me")
+func (ts *transactionalWarehouse) ServicePlan() storage.ServicePlan {
+	ts.checkOpen()
+	return &servicePlanStorage{db: ts.tx}
 }
 
-func (storage *transactionalStorage) Security() storage.Security {
-	panic("implement me")
+func (ts *transactionalWarehouse) Security() storage.Security {
+	ts.checkOpen()
+	return &securityStorage{db: ts.tx}
 }
 
-func (storage *transactionalStorage) Broker() storage.Broker {
-	storage.checkOpen()
-	return &brokerStorage{storage.tx}
+func (ts *transactionalWarehouse) Broker() storage.Broker {
+	ts.checkOpen()
+	return &brokerStorage{db: ts.tx}
 }
 
-func (storage *transactionalStorage) Platform() storage.Platform {
-	storage.checkOpen()
-	return &platformStorage{storage.tx}
+func (ts *transactionalWarehouse) Platform() storage.Platform {
+	ts.checkOpen()
+	return &platformStorage{db: ts.tx}
 }
 
-func (storage *transactionalStorage) Credentials() storage.Credentials {
-	storage.checkOpen()
-	return &credentialStorage{storage.tx}
+func (ts *transactionalWarehouse) Credentials() storage.Credentials {
+	ts.checkOpen()
+	return &credentialStorage{db: ts.tx}
 }
 
-func (storage *transactionalStorage) checkOpen() {
-	if storage.tx == nil {
-		log.D().Panicln("Repository tx is not present for transactional storage")
+func (ts *transactionalWarehouse) checkOpen() {
+	if ts.tx == nil {
+		log.D().Panicln("Repository tx is not present for transactional ts")
 	}
 }
 
-func (storage *postgresStorage) InTransaction(ctx context.Context, f func(ctx context.Context, transactionalStorage storage.Warehouse) error) error {
+func (ps *postgresStorage) InTransaction(ctx context.Context, f func(ctx context.Context, transactionalStorage storage.Warehouse) error) error {
 	ok := false
-	tx, err := storage.db.Beginx()
+	tx, err := ps.db.Beginx()
 	if err != nil {
 		return err
 	}
@@ -95,7 +98,7 @@ func (storage *postgresStorage) InTransaction(ctx context.Context, f func(ctx co
 		}
 	}()
 
-	transactionalStorage := &transactionalStorage{
+	transactionalStorage := &transactionalWarehouse{
 		tx: tx,
 	}
 
@@ -110,40 +113,40 @@ func (storage *postgresStorage) InTransaction(ctx context.Context, f func(ctx co
 	return nil
 }
 
-func (storage *postgresStorage) Ping() error {
-	storage.checkOpen()
-	return storage.state.Get()
+func (ps *postgresStorage) Ping() error {
+	ps.checkOpen()
+	return ps.state.Get()
 }
 
-func (storage *postgresStorage) Broker() storage.Broker {
-	storage.checkOpen()
-	return &brokerStorage{storage.db}
+func (ps *postgresStorage) Broker() storage.Broker {
+	ps.checkOpen()
+	return &brokerStorage{ps.db}
 }
 
-func (storage *postgresStorage) Platform() storage.Platform {
-	storage.checkOpen()
-	return &platformStorage{storage.db}
+func (ps *postgresStorage) Platform() storage.Platform {
+	ps.checkOpen()
+	return &platformStorage{ps.db}
 }
 
-func (storage *postgresStorage) Credentials() storage.Credentials {
-	storage.checkOpen()
-	return &credentialStorage{storage.db}
+func (ps *postgresStorage) Credentials() storage.Credentials {
+	ps.checkOpen()
+	return &credentialStorage{ps.db}
 }
 
-func (storage *postgresStorage) ServiceOffering() storage.ServiceOffering {
-	return &serviceOfferingStorage{storage.db}
+func (ps *postgresStorage) ServiceOffering() storage.ServiceOffering {
+	return &serviceOfferingStorage{ps.db}
 }
 
-func (storage *postgresStorage) ServicePlan() storage.ServicePlan {
-	return &servicePlanStorage{storage.db}
+func (ps *postgresStorage) ServicePlan() storage.ServicePlan {
+	return &servicePlanStorage{ps.db}
 }
 
-func (storage *postgresStorage) Security() storage.Security {
-	storage.checkOpen()
-	return &securityStorage{storage.db, storage.encryptionKey, false, &sync.Mutex{}}
+func (ps *postgresStorage) Security() storage.Security {
+	ps.checkOpen()
+	return &securityStorage{ps.db, ps.encryptionKey, false, &sync.Mutex{}}
 }
 
-func (storage *postgresStorage) Open(options *storage.Settings) error {
+func (ps *postgresStorage) Open(options *storage.Settings) error {
 	var err error
 	if err = options.Validate(); err != nil {
 		return err
@@ -151,37 +154,37 @@ func (storage *postgresStorage) Open(options *storage.Settings) error {
 	if len(options.MigrationsURL) == 0 {
 		return fmt.Errorf("validate Settings: StorageMigrationsURL missing")
 	}
-	if storage.db == nil {
+	if ps.db == nil {
 		sslModeParam := ""
 		if options.SkipSSLValidation {
 			sslModeParam = "?sslmode=disable"
 		}
-		storage.db, err = sqlx.Connect(Storage, options.URI+sslModeParam)
+		ps.db, err = sqlx.Connect(Storage, options.URI+sslModeParam)
 		if err != nil {
 			log.D().Panicln("Could not connect to PostgreSQL:", err)
 		}
-		storage.state = &storageState{
+		ps.state = &storageState{
 			lastCheckTime:        time.Now(),
 			mutex:                &sync.RWMutex{},
-			db:                   storage.db,
+			db:                   ps.db,
 			storageCheckInterval: time.Second * 5,
 		}
-		storage.encryptionKey = []byte(options.EncryptionKey)
+		ps.encryptionKey = []byte(options.EncryptionKey)
 		log.D().Debugf("Updating database schema using migrations from %s", options.MigrationsURL)
-		if err := storage.updateSchema(options.MigrationsURL); err != nil {
+		if err := ps.updateSchema(options.MigrationsURL); err != nil {
 			log.D().Panicln("Could not update database schema:", err)
 		}
 	}
 	return err
 }
 
-func (storage *postgresStorage) Close() error {
-	storage.checkOpen()
-	return storage.db.Close()
+func (ps *postgresStorage) Close() error {
+	ps.checkOpen()
+	return ps.db.Close()
 }
 
-func (storage *postgresStorage) updateSchema(migrationsURL string) error {
-	driver, err := migratepg.WithInstance(storage.db.DB, &migratepg.Config{})
+func (ps *postgresStorage) updateSchema(migrationsURL string) error {
+	driver, err := migratepg.WithInstance(ps.db.DB, &migratepg.Config{})
 	if err != nil {
 		return err
 	}
@@ -197,8 +200,8 @@ func (storage *postgresStorage) updateSchema(migrationsURL string) error {
 	return err
 }
 
-func (storage *postgresStorage) checkOpen() {
-	if storage.db == nil {
+func (ps *postgresStorage) checkOpen() {
+	if ps.db == nil {
 		log.D().Panicln("Repository is not yet Open")
 	}
 }

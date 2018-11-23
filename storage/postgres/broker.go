@@ -28,7 +28,8 @@ type brokerStorage struct {
 
 func (bs *brokerStorage) Create(ctx context.Context, broker *types.Broker) error {
 	b := &Broker{}
-	return create(ctx, bs.db, brokerTable, b.ToDTO())
+	b.FromDTO(broker)
+	return create(ctx, bs.db, brokerTable, b)
 }
 
 func (bs *brokerStorage) Get(ctx context.Context, id string) (*types.Broker, error) {
@@ -52,17 +53,12 @@ func (bs *brokerStorage) List(ctx context.Context) ([]*types.Broker, error) {
 	return brokers, nil
 }
 
-func (bs *brokerStorage) ListWithCatalog(ctx context.Context) ([]*types.Broker, error) {
-	//TODO
-	panic("implement me")
-}
-
 func (bs *brokerStorage) Delete(ctx context.Context, id string) error {
 	return delete(ctx, bs.db, id, brokerTable)
 }
 
 func (bs *brokerStorage) Update(ctx context.Context, broker *types.Broker) error {
-	var b *Broker
+	b := &Broker{}
 	b.FromDTO(broker)
 	return update(ctx, bs.db, brokerTable, b)
 }

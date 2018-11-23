@@ -24,13 +24,12 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/security"
-	"github.com/jmoiron/sqlx"
 )
 
 const securityLockIndex = 111
 
 type securityStorage struct {
-	db            *sqlx.DB
+	db            pgDB
 	encryptionKey []byte
 	isLocked      bool
 	mutex         *sync.Mutex
@@ -42,7 +41,7 @@ func (s *securityStorage) Lock(ctx context.Context) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	if s.isLocked {
-		return fmt.Errorf("Lock is already acquired")
+		return fmt.Errorf("lock is already acquired")
 	}
 	if _, err := s.db.ExecContext(ctx, "SELECT pg_advisory_lock($1)", securityLockIndex); err != nil {
 		return err
@@ -77,7 +76,7 @@ func (s *securityStorage) Setter() security.KeySetter {
 }
 
 type keyFetcher struct {
-	db            *sqlx.DB
+	db            pgDB
 	encryptionKey []byte
 }
 
@@ -96,7 +95,7 @@ func (s *keyFetcher) GetEncryptionKey(ctx context.Context) ([]byte, error) {
 }
 
 type keySetter struct {
-	db            *sqlx.DB
+	db            pgDB
 	encryptionKey []byte
 }
 

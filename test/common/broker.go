@@ -52,6 +52,18 @@ var DefaultCatalog = Object{
 					},
 					"name": "lite",
 				},
+				Object{
+					"description": "test2",
+					"free":        true,
+					"id":          "1bb3b29e-bbf9-4900-b926-2f8e9c9a3347",
+					"metadata": Object{
+						"bullets": Array{
+							"Plan with more functionality and relaxed security, excellent for development and try-out purposes",
+						},
+						"displayName": "paid",
+					},
+					"name": "paid",
+				},
 			},
 			"tags": Array{
 				"test",

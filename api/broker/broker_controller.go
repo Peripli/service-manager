@@ -50,6 +50,11 @@ type Controller struct {
 
 var _ web.Controller = &Controller{}
 
+type catalogPlanWithServiceOfferingID struct {
+	*osbc.Plan
+	ServiceOffering *types.ServiceOffering
+}
+
 func (c *Controller) createBroker(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debug("Creating new broker")
@@ -211,8 +216,7 @@ func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	catalog, err := c.getBrokerCatalog(ctx, broker)
-	if err != nil {
+	if err := c.resyncBrokerCatalog(ctx, broker); err != nil {
 		return nil, err
 	}
 
@@ -224,127 +228,6 @@ func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
 	broker.CreatedAt = createdAt
 	broker.UpdatedAt = time.Now().UTC()
 	broker.Credentials = nil
-
-	log.C(ctx).Debugf("Updating catalog storage for broker with id %s", brokerID)
-	if err := c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
-		if err := storage.Broker().Update(ctx, broker); err != nil {
-			return util.HandleStorageError(err, "broker", broker.ID)
-		}
-
-		existingServiceOfferings, err := storage.ServiceOffering().ListWithServicePlansByBrokerID(ctx, broker.ID)
-		if err != nil {
-			return err
-		}
-		existingServicesOfferingsMap, existingServicePlansMap := convertExistingCatalogToMaps(existingServiceOfferings)
-
-		catalogServices, catalogPlansMap, err := getBrokerCatalogServicesAndPlans(catalog)
-		if err != nil {
-			return err
-		}
-
-		catalogPlans := make([]*catalogPlanWithServiceOfferingID, len(catalogServices))
-
-		for _, catalogService := range catalogServices {
-			existingServiceOffering, ok := existingServicesOfferingsMap[catalogService.ID]
-			delete(existingServicesOfferingsMap, catalogService.ID)
-			if ok {
-				existingServiceOffering.UpdatedAt = time.Now().UTC()
-				if err := updateServiceOfferingWithCatalogService(existingServiceOffering, catalogService); err != nil {
-					return err
-				}
-
-				if err := existingServiceOffering.Validate(); err != nil {
-					return fmt.Errorf("service offering constructed during catalog update for broker %s is invalid: %s", broker.ID, err)
-				}
-				if err := c.Repository.ServiceOffering().Update(ctx, existingServiceOffering); err != nil {
-					return util.HandleStorageError(err, "service_offering", existingServiceOffering.ID)
-				}
-			} else {
-				serviceUUID, err := uuid.NewV4()
-				if err != nil {
-					return fmt.Errorf("could not generate GUID for service_plan: %s", err)
-				}
-				serviceOffering := &types.ServiceOffering{}
-				serviceOffering.ID = serviceUUID.String()
-				serviceOffering.CreatedAt = time.Now().UTC()
-				serviceOffering.UpdatedAt = time.Now().UTC()
-				serviceOffering.BrokerID = broker.ID
-				if err := updateServiceOfferingWithCatalogService(serviceOffering, catalogService); err != nil {
-					return err
-				}
-
-				if err := serviceOffering.Validate(); err != nil {
-					return fmt.Errorf("service offering constructed during catalog update for broker %s is invalid: %s", broker.ID, err)
-				}
-				if err := c.Repository.ServiceOffering().Create(ctx, serviceOffering); err != nil {
-					return util.HandleStorageError(err, "service_offering", existingServiceOffering.ID)
-				}
-			}
-
-			catalogPlansForService := catalogPlansMap[catalogService.ID]
-			for _, catalogPlanOfCatalogService := range catalogPlansForService {
-				catalogPlan := &catalogPlanWithServiceOfferingID{
-					Plan:            catalogPlanOfCatalogService,
-					ServiceOffering: existingServiceOffering,
-				}
-				catalogPlans = append(catalogPlans, catalogPlan)
-			}
-		}
-
-		for _, existingServiceOffering := range existingServicesOfferingsMap {
-			if err := c.Repository.ServiceOffering().Delete(ctx, existingServiceOffering.ID); err != nil {
-				return util.HandleStorageError(err, "service_offering", existingServiceOffering.ID)
-			}
-		}
-
-		for _, catalogPlan := range catalogPlans {
-			existingServicePlan, ok := existingServicePlansMap[catalogPlan.ID]
-			delete(existingServicePlansMap, catalogPlan.ID)
-			if ok {
-				existingServicePlan.UpdatedAt = time.Now().UTC()
-				if err := updateServicePlanWithCatalogPlan(existingServicePlan, catalogPlan); err != nil {
-					return err
-				}
-
-				if err := existingServicePlan.Validate(); err != nil {
-					return fmt.Errorf("service plan constructed during catalog update for broker %s is invalid: %s", broker.ID, err)
-				}
-				if err := c.Repository.ServicePlan().Update(ctx, existingServicePlan); err != nil {
-					return util.HandleStorageError(err, "service_plan", existingServicePlan.ID)
-				}
-			} else {
-				planUUID, err := uuid.NewV4()
-				if err != nil {
-					return fmt.Errorf("could not generate GUID for service_plan: %s", err)
-				}
-				servicePlan := &types.ServicePlan{}
-				servicePlan.ID = planUUID.String()
-				servicePlan.CreatedAt = time.Now().UTC()
-				servicePlan.UpdatedAt = time.Now().UTC()
-
-				if err := updateServicePlanWithCatalogPlan(servicePlan, catalogPlan); err != nil {
-					return err
-				}
-				if err := servicePlan.Validate(); err != nil {
-					return fmt.Errorf("service plan constructed during catalog update for broker %s is invalid: %s", broker.ID, err)
-				}
-				if err := c.Repository.ServicePlan().Create(ctx, servicePlan); err != nil {
-					return util.HandleStorageError(err, "service_plan", existingServicePlan.ID)
-				}
-			}
-		}
-
-		for _, existingServicePlan := range existingServicePlansMap {
-			if err := c.Repository.ServiceOffering().Delete(ctx, existingServicePlan.ID); err != nil {
-				return util.HandleStorageError(err, "service_plan", existingServicePlan.ID)
-			}
-		}
-
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-	log.C(ctx).Debugf("Successfully updated catalog storage for broker with id %s", brokerID)
 
 	return util.NewJSONResponse(http.StatusOK, broker)
 }
@@ -498,19 +381,131 @@ func boolPointerToBool(value *bool, defaultValue bool) bool {
 	return *value
 }
 
-func resyncBrokerCatalog() {
+func (c *Controller) resyncBrokerCatalog(ctx context.Context, broker *types.Broker) error {
+	catalog, err := c.getBrokerCatalog(ctx, broker)
+	if err != nil {
+		return err
+	}
+	log.C(ctx).Debugf("Updating catalog storage for broker with id %s", broker.ID)
+	if err := c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
+		if err := storage.Broker().Update(ctx, broker); err != nil {
+			return util.HandleStorageError(err, "broker", broker.ID)
+		}
 
-}
+		existingServiceOfferingsWithServicePlans, err := storage.ServiceOffering().ListWithServicePlansByBrokerID(ctx, broker.ID)
+		if err != nil {
+			return err
+		}
+		existingServicesOfferingsMap, existingServicePlansMap := convertExistingCatalogToMaps(existingServiceOfferingsWithServicePlans)
 
-func resyncServiceOfferings() {
+		catalogServices, catalogPlansMap, err := getBrokerCatalogServicesAndPlans(catalog)
+		if err != nil {
+			return err
+		}
 
-}
+		catalogPlans := make([]*catalogPlanWithServiceOfferingID, len(catalogServices))
 
-func resyncServicePlans() {
+		for _, catalogService := range catalogServices {
+			existingServiceOffering, ok := existingServicesOfferingsMap[catalogService.ID]
+			delete(existingServicesOfferingsMap, catalogService.ID)
+			if ok {
+				existingServiceOffering.UpdatedAt = time.Now().UTC()
+				if err := updateServiceOfferingWithCatalogService(existingServiceOffering, catalogService); err != nil {
+					return err
+				}
 
-}
+				if err := existingServiceOffering.Validate(); err != nil {
+					return fmt.Errorf("service offering constructed during catalog update for broker %s is invalid: %s", broker.ID, err)
+				}
+				if err := c.Repository.ServiceOffering().Update(ctx, existingServiceOffering); err != nil {
+					return util.HandleStorageError(err, "service_offering", existingServiceOffering.ID)
+				}
+			} else {
+				serviceUUID, err := uuid.NewV4()
+				if err != nil {
+					return fmt.Errorf("could not generate GUID for service_plan: %s", err)
+				}
+				serviceOffering := &types.ServiceOffering{}
+				serviceOffering.ID = serviceUUID.String()
+				serviceOffering.CreatedAt = time.Now().UTC()
+				serviceOffering.UpdatedAt = time.Now().UTC()
+				serviceOffering.BrokerID = broker.ID
+				if err := updateServiceOfferingWithCatalogService(serviceOffering, catalogService); err != nil {
+					return err
+				}
 
-type catalogPlanWithServiceOfferingID struct {
-	*osbc.Plan
-	ServiceOffering *types.ServiceOffering
+				if err := serviceOffering.Validate(); err != nil {
+					return fmt.Errorf("service offering constructed during catalog update for broker %s is invalid: %s", broker.ID, err)
+				}
+				if err := c.Repository.ServiceOffering().Create(ctx, serviceOffering); err != nil {
+					return util.HandleStorageError(err, "service_offering", existingServiceOffering.ID)
+				}
+			}
+
+			catalogPlansForService := catalogPlansMap[catalogService.ID]
+			for _, catalogPlanOfCatalogService := range catalogPlansForService {
+				catalogPlan := &catalogPlanWithServiceOfferingID{
+					Plan:            catalogPlanOfCatalogService,
+					ServiceOffering: existingServiceOffering,
+				}
+				catalogPlans = append(catalogPlans, catalogPlan)
+			}
+		}
+
+		for _, existingServiceOffering := range existingServicesOfferingsMap {
+			if err := c.Repository.ServiceOffering().Delete(ctx, existingServiceOffering.ID); err != nil {
+				return util.HandleStorageError(err, "service_offering", existingServiceOffering.ID)
+			}
+		}
+
+		for _, catalogPlan := range catalogPlans {
+			existingServicePlan, ok := existingServicePlansMap[catalogPlan.ID]
+			delete(existingServicePlansMap, catalogPlan.ID)
+			if ok {
+				existingServicePlan.UpdatedAt = time.Now().UTC()
+				if err := updateServicePlanWithCatalogPlan(existingServicePlan, catalogPlan); err != nil {
+					return err
+				}
+
+				if err := existingServicePlan.Validate(); err != nil {
+					return fmt.Errorf("service plan constructed during catalog update for broker %s is invalid: %s", broker.ID, err)
+				}
+				if err := c.Repository.ServicePlan().Update(ctx, existingServicePlan); err != nil {
+					return util.HandleStorageError(err, "service_plan", existingServicePlan.ID)
+				}
+			} else {
+				planUUID, err := uuid.NewV4()
+				if err != nil {
+					return fmt.Errorf("could not generate GUID for service_plan: %s", err)
+				}
+				servicePlan := &types.ServicePlan{}
+				servicePlan.ID = planUUID.String()
+				servicePlan.CreatedAt = time.Now().UTC()
+				servicePlan.UpdatedAt = time.Now().UTC()
+
+				if err := updateServicePlanWithCatalogPlan(servicePlan, catalogPlan); err != nil {
+					return err
+				}
+				if err := servicePlan.Validate(); err != nil {
+					return fmt.Errorf("service plan constructed during catalog update for broker %s is invalid: %s", broker.ID, err)
+				}
+				if err := c.Repository.ServicePlan().Create(ctx, servicePlan); err != nil {
+					return util.HandleStorageError(err, "service_plan", existingServicePlan.ID)
+				}
+			}
+		}
+
+		for _, existingServicePlan := range existingServicePlansMap {
+			if err := c.Repository.ServiceOffering().Delete(ctx, existingServicePlan.ID); err != nil {
+				return util.HandleStorageError(err, "service_plan", existingServicePlan.ID)
+			}
+		}
+
+		return nil
+	}); err != nil {
+		return err
+	}
+	log.C(ctx).Debugf("Successfully updated catalog storage for broker with id %s", broker.ID)
+
+	return nil
 }
