@@ -50,24 +50,14 @@ type configurationParameter struct {
 
 func buildParametersAndDescriptions(value interface{}) ([]configurationParameter, []string) {
 	tree := &descriptionTree{}
-	parameters := buildParametersForDescriptionTree(value, tree)
+	var parameters []configurationParameter
+	buildDescriptionTreeWithParameters(value, tree, "", &parameters)
 	return parameters, buildDescriptionsFromTree(tree)
 }
 
 func buildParameters(value interface{}) []configurationParameter {
 	tree := &descriptionTree{}
-	return buildParametersForDescriptionTree(value, tree)
-}
-
-func buildParametersForDescriptionTree(value interface{}, tree *descriptionTree) []configurationParameter {
 	var parameters []configurationParameter
-	s := structs.New(value)
-	for _, field := range s.Fields() {
-		if field.Tag("description") != "" {
-			baseTree := newDescriptionTree(field.Tag("description"))
-			buildDescriptionTreeWithParameters(field, baseTree, "", &parameters)
-		}
-	}
 	buildDescriptionTreeWithParameters(value, tree, "", &parameters)
 	return parameters
 }
