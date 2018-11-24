@@ -19,7 +19,10 @@ package env
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
+
+	"github.com/spf13/cast"
 
 	"github.com/fatih/structs"
 
@@ -76,18 +79,26 @@ func CreatePFlags(set *pflag.FlagSet, value interface{}) {
 
 	descriptionsCount := len(descriptions)
 	parametersCount := len(parameters)
-	if descriptionsCount < parametersCount {
+	if descriptionsCount != parametersCount {
 		log.D().Warnf("Unexpected number of descriptions found for %s: %d. "+
 			"Expected the same number as the configuration parameters: %d. Using default descriptions...",
 			structs.New(value).Names(), descriptionsCount, parametersCount)
+		descriptions = make([]string, 0, len(parameters))
 		for _, binding := range parameters {
 			descriptions = append(descriptions, fmt.Sprintf("commandline argument for %s", binding.Name))
 		}
 	}
 
-	for i, bindingName := range parameters {
-		if set.Lookup(bindingName.Name) == nil {
-			set.String(bindingName.Name, bindingName.DefaultValue, descriptions[i])
+	for i, parameter := range parameters {
+		if set.Lookup(parameter.Name) == nil {
+			flag := &flag{value: parameter.DefaultValue}
+			set.AddFlag(&pflag.Flag{
+				Name:      parameter.Name,
+				Value:     flag,
+				Usage:     descriptions[i],
+				Shorthand: "",
+				DefValue:  flag.String(),
+			})
 		}
 	}
 }
@@ -149,4 +160,21 @@ func (v *ViperEnv) setupConfigFile() error {
 		return fmt.Errorf("could not read configuration cfg: %s", err)
 	}
 	return nil
+}
+
+type flag struct {
+	value interface{}
+}
+
+func (f *flag) String() string {
+	return cast.ToString(f.value)
+}
+
+func (f *flag) Set(s string) error {
+	f.value = s
+	return nil
+}
+
+func (f *flag) Type() string {
+	return reflect.TypeOf(f.value).Name()
 }
