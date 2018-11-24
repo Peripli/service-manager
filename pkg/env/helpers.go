@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	"github.com/fatih/structs"
-	"github.com/spf13/cast"
 )
 
 type descriptionTree struct {
@@ -46,7 +45,7 @@ func (t *descriptionTree) AddNode(tree *descriptionTree) {
 
 type configurationParameter struct {
 	Name         string
-	DefaultValue string
+	DefaultValue interface{}
 }
 
 func buildParametersAndDescriptions(value interface{}) ([]configurationParameter, []string) {
@@ -103,33 +102,34 @@ func buildDescriptionTreeWithParameters(value interface{}, tree *descriptionTree
 			index = 0
 		}
 		key := strings.ToLower(buffer[0:index])
-		*result = append(*result, configurationParameter{Name: key, DefaultValue: cast.ToString(value)})
+		*result = append(*result, configurationParameter{Name: key, DefaultValue: value})
 		tree.Children = nil
 		return
 	}
-	var fields []*structs.Field
 	s := structs.New(value)
-	for _, field := range s.Fields() {
-		if field.Kind() != reflect.Slice {
-			fields = append(fields, field)
-		}
-	}
-	for i, field := range fields {
-		var name string
-		if field.Tag("mapstructure") != "" {
-			name = field.Tag("mapstructure")
-		} else {
-			name = field.Name()
-		}
-		description := ""
-		if field.Tag("description") != "" {
-			description = field.Tag("description")
-		}
+	for i, field := range s.Fields() {
+		if isValidField(field) {
+			var name string
+			if field.Tag("mapstructure") != "" {
+				name = field.Tag("mapstructure")
+			} else {
+				name = field.Name()
+			}
+			description := ""
+			if field.Tag("description") != "" {
+				description = field.Tag("description")
+			}
 
-		baseTree := newDescriptionTree(description)
-		tree.AddNode(baseTree)
-		buffer += name + "."
-		buildDescriptionTreeWithParameters(field.Value(), tree.Children[i], buffer, result)
-		buffer = buffer[0:strings.LastIndex(buffer, name)]
+			baseTree := newDescriptionTree(description)
+			tree.AddNode(baseTree)
+			buffer += name + "."
+			buildDescriptionTreeWithParameters(field.Value(), tree.Children[i], buffer, result)
+			buffer = buffer[0:strings.LastIndex(buffer, name)]
+		}
 	}
+}
+
+func isValidField(field *structs.Field) bool {
+	kind := field.Kind()
+	return field.IsExported() && kind != reflect.Slice && kind != reflect.Interface && kind != reflect.Func
 }
