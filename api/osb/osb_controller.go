@@ -40,7 +40,7 @@ type BrokerFetcher interface {
 	FetchBroker(ctx context.Context, brokerID string) (*types.Broker, error)
 }
 
-// Controller implements api.Controller by providing OSB API logic
+// controller implements api.Controller by providing OSB API logic
 type controller struct {
 	fetcher BrokerFetcher
 }

@@ -79,12 +79,12 @@ type Pinger interface {
 // PingFunc is an adapter that allows to use regular functions as Pinger
 type PingFunc func() error
 
-// Run allows MiddlewareFunc to act as a Middleware
+// Run allows PingFunc to act as a Pinger
 func (mf PingFunc) Ping() error {
 	return mf()
 }
 
-// Warehouse is a storage warehouse that contains the Service Manager data access object providers
+// Warehouse contains the Service Manager data access object providers
 type Warehouse interface {
 	// Broker provides access to service broker db operations
 	Broker() Broker
@@ -165,11 +165,13 @@ type ServiceOffering interface {
 	// Get retrieves a service offering using the provided id from SM DB
 	Get(ctx context.Context, id string) (*types.ServiceOffering, error)
 
+	// ListByCatalogName retrieves all service offerings from SM DB that match the specified catalog name
 	ListByCatalogName(ctx context.Context, name string) ([]*types.ServiceOffering, error)
 
+	// ListWithServicePlansByBrokerID retrieves all service offerings with their service plans from SM DB that match the specified broker ID
 	ListWithServicePlansByBrokerID(ctx context.Context, brokerID string) ([]*types.ServiceOffering, error)
 
-	// List retrieves all service offering from SM DB
+	// List retrieves all service offerings from SM DB
 	List(ctx context.Context) ([]*types.ServiceOffering, error)
 
 	// Delete deletes a service offering from SM DB
@@ -187,8 +189,10 @@ type ServicePlan interface {
 	// Get retrieves a service service_plan using the provided id from SM DB
 	Get(ctx context.Context, id string) (*types.ServicePlan, error)
 
+	// ListByCatalogName retrieves all service plans from SM DB that match the specified catalog name
 	ListByCatalogName(ctx context.Context, name string) ([]*types.ServicePlan, error)
 
+	// List retrieves all service plans from SM DB
 	List(ctx context.Context) ([]*types.ServicePlan, error)
 
 	// Delete deletes a service service_plan from SM DB

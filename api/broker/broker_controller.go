@@ -269,7 +269,6 @@ func getBrokerCatalogServicesAndPlans(catalog *osbc.CatalogResponse) ([]*osbc.Se
 		services = append(services, &catalog.Services[serviceIndex])
 		plansForService := make([]*osbc.Plan, 0)
 		for planIndex := range catalog.Services[serviceIndex].Plans {
-			log.D().Error(catalog.Services[serviceIndex].Plans[planIndex].ID)
 			plansForService = append(plansForService, &catalog.Services[serviceIndex].Plans[planIndex])
 		}
 		plans[catalog.Services[serviceIndex].ID] = plansForService
@@ -484,7 +483,11 @@ func (c *Controller) resyncBrokerAndCatalog(ctx context.Context, broker *types.B
 		}
 
 		for _, existingServicePlan := range existingServicePlansMap {
-			if err := c.Repository.ServiceOffering().Delete(ctx, existingServicePlan.ID); err != nil {
+			if err := c.Repository.ServicePlan().Delete(ctx, existingServicePlan.ID); err != nil {
+				if err == util.ErrNotFoundInStorage {
+					// If the service for the plan was deleted, plan would already be gone
+					continue
+				}
 				return util.HandleStorageError(err, "service_plan", existingServicePlan.ID)
 			}
 		}

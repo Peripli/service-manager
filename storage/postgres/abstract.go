@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -122,7 +123,7 @@ func getDBTags(structure interface{}) []string {
 	set := make([]string, 0, len(fields))
 
 	for _, field := range fields {
-		if field.IsEmbedded() {
+		if field.IsEmbedded() || (field.Kind() == reflect.Ptr && field.IsZero()) {
 			continue
 		}
 		dbTag := field.Tag("db")

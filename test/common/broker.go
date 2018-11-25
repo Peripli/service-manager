@@ -120,7 +120,8 @@ var Catalog = `
           }
         }
       }
-    }, {
+    }, 
+	{
       "name": "fake-plan-2",
       "id": "0f4008b5-XXXX-XXXX-XXXX-dace631cd648",
       "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections. 100 async.",
@@ -150,6 +151,61 @@ var Catalog = `
 }
 `
 
+var AnotherService = `
+{
+    "name": "another-fake-service",
+    "id": "another7c-XXXX-XXXX-XXXX-feb140a59a66",
+    "description": "another description",
+    "tags": ["another-no-sql", "another-relational"],
+    "requires": ["another-route_forwarding"],
+    "bindable": true,
+    "instances_retrievable": true,
+    "bindings_retrievable": true,
+    "metadata": {
+      "provider": {
+        "name": "another name"
+      },
+      "listing": {
+        "imageUrl": "http://example.com/cat.gif",
+        "blurb": "another blurb here",
+        "longDescription": "A long time ago, in a another galaxy far far away..."
+      },
+      "displayName": "another Fake Service Broker"
+    },
+    "plan_updateable": true,
+    "plans": []
+  }
+`
+
+var AnotherPlan = `
+	{
+      "name": "another-fake-plan",
+      "id": "123008b5-XXXX-XXXX-XXXX-dace631cd648",
+      "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections. 100 async.",
+      "free": false,
+      "metadata": {
+        "max_storage_tb": 5,
+        "costs":[
+            {
+               "amount":{
+                  "usd":199.0
+               },
+               "unit":"MONTHLY"
+            },
+            {
+               "amount":{
+                  "usd":0.99
+               },
+               "unit":"1GB of messages over 20GB"
+            }
+         ],
+        "bullets": [
+          "40 concurrent connections"
+        ]
+      }
+    }
+`
+
 type BrokerServer struct {
 	*httptest.Server
 
@@ -173,12 +229,16 @@ type BrokerServer struct {
 	router *mux.Router
 }
 
-func DefaultCatalog() map[string]interface{} {
+func JSONToMap(j string) map[string]interface{} {
 	jsonMap := make(map[string]interface{})
-	if err := json.Unmarshal([]byte(Catalog), &jsonMap); err != nil {
+	if err := json.Unmarshal([]byte(j), &jsonMap); err != nil {
 		panic(err)
 	}
 	return jsonMap
+}
+
+func DefaultCatalog() map[string]interface{} {
+	return JSONToMap(Catalog)
 }
 
 func NewBrokerServer() *BrokerServer {

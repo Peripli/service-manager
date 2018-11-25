@@ -38,14 +38,6 @@ func (s *storageState) Get() error {
 		return nil
 	}
 
-	return s.checkDB()
-}
-
-func (s *storageState) checkDB() error {
-	m := map[string]int{}
-	err := s.db.Get(&m, "SELECT 1")
-	if err != nil {
-		return err
-	}
-	return nil
+	m := make(map[string]interface{})
+	return s.db.Get(&m, "SELECT 1")
 }
