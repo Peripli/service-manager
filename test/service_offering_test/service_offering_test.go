@@ -27,7 +27,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestServiceOfferrings(t *testing.T) {
+func TestServiceOfferings(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Service Offerings Tests Suite")
 }

@@ -701,10 +701,10 @@ var _ = Describe("Service Manager Broker API", func() {
 					//	JSON().
 					//	Path("$.service_offerings[*].catalog_id").Array().NotContains(anotherServiceID)
 
-					ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
-						WithJSON(common.Object{}).
-						Expect().
-						Status(http.StatusOK)
+					//ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
+					//	WithJSON(common.Object{}).
+					//	Expect().
+					//	Status(http.StatusOK)
 
 					//jsonResp := ctx.SMWithOAuth.GET("/v1/service_offerings").
 					//	Expect().
@@ -713,7 +713,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					//jsonResp.Path("$.service_offerings[*].catalog_id").Array().Contains(anotherServiceID)
 					//jsonResp.Path("$.service_offerings[*].broker_id").Array().Contains(brokerID)
 
-					assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+					//assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 				})
 			})
 
