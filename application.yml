@@ -13,6 +13,6 @@ storage:
   encryption_key: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
   skip_ssl_validation: false
 api:
-  token_issuer_url: https://uaa.cf.sap.hana.ondemand.com
-  client_id: cf
+  token_issuer_url: http://localhost:8080/uaa
+  client_id: sm
   skip_ssl_validation: false
