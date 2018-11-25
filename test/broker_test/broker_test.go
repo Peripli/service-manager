@@ -333,7 +333,7 @@ var _ = Describe("Service Manager Broker API", func() {
 		})
 	})
 
-	Describe("PATCH", func() {
+	XDescribe("PATCH", func() {
 		var brokerID string
 
 		BeforeEach(func() {
