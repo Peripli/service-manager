@@ -21,7 +21,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Postgres Repository Abstract", func() {
+var _ = Describe("Postgres Storage Abstract", func() {
 
 	Describe("updateQuery", func() {
 

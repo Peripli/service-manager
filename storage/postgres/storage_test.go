@@ -23,7 +23,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Postgres Repository", func() {
+var _ = Describe("Postgres Storage", func() {
 	pgStorage := &postgresStorage{}
 
 	Describe("Broker", func() {
@@ -50,7 +50,7 @@ var _ = Describe("Postgres Repository", func() {
 		})
 	})
 
-	Context("Security Repository", func() {
+	Context("Security", func() {
 		Context("Called with uninitialized db", func() {
 			It("Should panic", func() {
 				Expect(func() { pgStorage.Security() }).To(Panic())

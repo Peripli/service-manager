@@ -34,7 +34,7 @@ import (
 
 func TestStorage(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Repository Suite")
+	RunSpecs(t, "Storage Suite")
 }
 
 type logInterceptor struct {
@@ -80,7 +80,7 @@ var _ = Describe("Registry", func() {
 		}
 	})
 
-	Describe("Repository registration", func() {
+	Describe("Storage registration", func() {
 		var (
 			name string
 			s    storage.Storage

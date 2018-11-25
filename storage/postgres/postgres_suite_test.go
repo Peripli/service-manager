@@ -25,5 +25,5 @@ import (
 
 func TestPostgresStorage(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Postgres Repository Suite")
+	RunSpecs(t, "Postgres Storage Suite")
 }

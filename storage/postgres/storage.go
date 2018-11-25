@@ -31,7 +31,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// Repository defines the name of the PostgreSQL relational storage
+// Storage defines the name of the PostgreSQL relational storage
 const Storage = "postgres"
 
 func init() {
@@ -80,7 +80,7 @@ func (ts *transactionalWarehouse) Credentials() storage.Credentials {
 
 func (ts *transactionalWarehouse) checkOpen() {
 	if ts.tx == nil {
-		log.D().Panicln("Repository tx is not present for transactional ts")
+		log.D().Panicln("Storage transaction is not present for transactional warehouse")
 	}
 }
 
