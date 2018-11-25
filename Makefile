@@ -173,7 +173,7 @@ clean-coverage: clean-test-report ## Cleans up coverage artifacts
 # Formatting, Linting, Static code checks
 #-----------------------------------------------------------------------------
 
-precommit: build coverage format-check lint-check ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
+precommit: build test-report format-check lint-check ## Run this before commiting (builds, recreates fakes, runs tests, checks linting and formating). This also runs integration tests - check test-int target for details
 
 format: ## Formats the source code files with gofmt
 	@echo The following files were reformated:
