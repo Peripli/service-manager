@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package sm_test
+package sm_test_test
 
 import (
 	"context"
