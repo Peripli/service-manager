@@ -680,39 +680,6 @@ var _ = Describe("Service Manager Broker API", func() {
 		})
 
 		Context("when the broker catalog is modified", func() {
-			//TODO for some reason this test works locally but causes travis to hang...
-			Context("when a new service offering is added", func() {
-				It("is returned from the Services API associated with the correct broker", func() {
-					anotherService := common.JSONToMap(common.AnotherService)
-					anotherServiceID := anotherService["id"].(string)
-					Expect(anotherServiceID).ToNot(BeEmpty())
-
-					updatedCatalog, err := sjson.Set(common.Catalog, "services.1", anotherService)
-					Expect(err).ShouldNot(HaveOccurred())
-					brokerServer.Catalog = common.JSONToMap(updatedCatalog)
-
-					ctx.SMWithOAuth.GET("/v1/service_offerings").
-						Expect().
-						Status(http.StatusOK).
-						JSON().
-						Path("$.service_offerings[*].catalog_id").Array().NotContains(anotherServiceID)
-
-					ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
-						WithJSON(common.Object{}).
-						Expect().
-						Status(http.StatusOK)
-
-					jsonResp := ctx.SMWithOAuth.GET("/v1/service_offerings").
-						Expect().
-						Status(http.StatusOK).
-						JSON()
-					jsonResp.Path("$.service_offerings[*].catalog_id").Array().Contains(anotherServiceID)
-					jsonResp.Path("$.service_offerings[*].broker_id").Array().Contains(brokerID)
-
-					assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
-				})
-			})
-
 			Context("when an existing service offering is removed", func() {
 				var serviceOfferingID string
 
