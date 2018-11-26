@@ -115,6 +115,8 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 		panic(fmt.Sprintf("error creating core api: %s", err))
 	}
 
+	API.AddHealthIndicator(&storage.HealthIndicator{Pinger: storage.PingFunc(smStorage.Ping)})
+
 	return &ServiceManagerBuilder{
 		ctx: ctx,
 		cfg: cfg.Server,

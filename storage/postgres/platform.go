@@ -20,15 +20,16 @@ import (
 	"context"
 
 	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/jmoiron/sqlx"
 )
 
 type platformStorage struct {
-	db *sqlx.DB
+	db pgDB
 }
 
 func (ps *platformStorage) Create(ctx context.Context, platform *types.Platform) error {
-	return create(ctx, ps.db, platformTable, convertPlatformToDTO(platform))
+	p := &Platform{}
+	p.FromDTO(platform)
+	return create(ctx, ps.db, platformTable, p)
 }
 
 func (ps *platformStorage) Get(ctx context.Context, id string) (*types.Platform, error) {
@@ -36,20 +37,20 @@ func (ps *platformStorage) Get(ctx context.Context, id string) (*types.Platform,
 	if err := get(ctx, ps.db, id, platformTable, platform); err != nil {
 		return nil, err
 	}
-	return platform.Convert(), nil
+	return platform.ToDTO(), nil
 }
 
-func (ps *platformStorage) GetAll(ctx context.Context) ([]*types.Platform, error) {
-	var platformDTOs []Platform
-	err := getAll(ctx, ps.db, platformTable, &platformDTOs)
-	if err != nil || len(platformDTOs) == 0 {
+func (ps *platformStorage) List(ctx context.Context) ([]*types.Platform, error) {
+	var platforms []Platform
+	err := list(ctx, ps.db, platformTable, map[string]string{}, &platforms)
+	if err != nil || len(platforms) == 0 {
 		return []*types.Platform{}, err
 	}
-	var platforms = make([]*types.Platform, 0, len(platformDTOs))
-	for _, platformDTO := range platformDTOs {
-		platforms = append(platforms, platformDTO.Convert())
+	var platformDTOs = make([]*types.Platform, 0, len(platforms))
+	for _, platform := range platforms {
+		platformDTOs = append(platformDTOs, platform.ToDTO())
 	}
-	return platforms, nil
+	return platformDTOs, nil
 }
 
 func (ps *platformStorage) Delete(ctx context.Context, id string) error {
@@ -57,5 +58,7 @@ func (ps *platformStorage) Delete(ctx context.Context, id string) error {
 }
 
 func (ps *platformStorage) Update(ctx context.Context, platform *types.Platform) error {
-	return update(ctx, ps.db, platformTable, convertPlatformToDTO(platform))
+	p := &Platform{}
+	p.FromDTO(platform)
+	return update(ctx, ps.db, platformTable, p)
 }

@@ -74,7 +74,7 @@ var _ = Describe("Service Manager Platform API", func() {
 			})
 		})
 	})
-	Describe("GET All", func() {
+	Describe("List", func() {
 		Context("With no platforms", func() {
 			It("returns empty array", func() {
 				ctx.SMWithOAuth.GET("/v1/platforms").

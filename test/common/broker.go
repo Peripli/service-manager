@@ -18,6 +18,7 @@ package common
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -27,38 +28,183 @@ import (
 	"github.com/gorilla/mux"
 )
 
-var DefaultCatalog = Object{
-	"services": Array{
-		Object{
-			"bindable":    true,
-			"description": "service",
-			"id":          "98418a7a-002e-4ff9-b66a-d03fc3d56b16",
-			"metadata": Object{
-				"displayName":     "test",
-				"longDescription": "test",
-			},
-			"name":            "test",
-			"plan_updateable": false,
-			"plans": Array{
-				Object{
-					"description": "test",
-					"free":        true,
-					"id":          "9bb3b29e-bbf9-4900-b926-2f8e9c9a3347",
-					"metadata": Object{
-						"bullets": Array{
-							"Plan with basic functionality and relaxed security, excellent for development and try-out purposes",
-						},
-						"displayName": "lite",
-					},
-					"name": "lite",
-				},
-			},
-			"tags": Array{
-				"test",
-			},
-		},
-	},
+var Catalog = `
+{
+  "services": [{
+    "name": "fake-service",
+    "id": "acb56d7c-XXXX-XXXX-XXXX-feb140a59a66",
+    "description": "A fake service.",
+    "tags": ["no-sql", "relational"],
+    "requires": ["route_forwarding"],
+    "bindable": true,
+    "instances_retrievable": true,
+    "bindings_retrievable": true,
+    "metadata": {
+      "provider": {
+        "name": "The name"
+      },
+      "listing": {
+        "imageUrl": "http://example.com/cat.gif",
+        "blurb": "Add a blurb here",
+        "longDescription": "A long time ago, in a galaxy far far away..."
+      },
+      "displayName": "The Fake Service Broker"
+    },
+    "plan_updateable": true,
+    "plans": [{
+      "name": "fake-plan-1",
+      "id": "d3031751-XXXX-XXXX-XXXX-a42377d3320e",
+      "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections.",
+      "free": false,
+      "metadata": {
+        "max_storage_tb": 5,
+        "costs":[
+            {
+               "amount":{
+                  "usd":99.0
+               },
+               "unit":"MONTHLY"
+            },
+            {
+               "amount":{
+                  "usd":0.99
+               },
+               "unit":"1GB of messages over 20GB"
+            }
+         ],
+        "bullets": [
+          "Shared fake server",
+          "5 TB storage",
+          "40 concurrent connections"
+        ]
+      },
+      "schemas": {
+        "service_instance": {
+          "create": {
+            "parameters": {
+              "$schema": "http://json-schema.org/draft-04/schema#",
+              "type": "object",
+              "properties": {
+                "billing-account": {
+                  "description": "Billing account number used to charge use of shared fake server.",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "update": {
+            "parameters": {
+              "$schema": "http://json-schema.org/draft-04/schema#",
+              "type": "object",
+              "properties": {
+                "billing-account": {
+                  "description": "Billing account number used to charge use of shared fake server.",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "service_binding": {
+          "create": {
+            "parameters": {
+              "$schema": "http://json-schema.org/draft-04/schema#",
+              "type": "object",
+              "properties": {
+                "billing-account": {
+                  "description": "Billing account number used to charge use of shared fake server.",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }, 
+	{
+      "name": "fake-plan-2",
+      "id": "0f4008b5-XXXX-XXXX-XXXX-dace631cd648",
+      "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections. 100 async.",
+      "free": false,
+      "metadata": {
+        "max_storage_tb": 5,
+        "costs":[
+            {
+               "amount":{
+                  "usd":199.0
+               },
+               "unit":"MONTHLY"
+            },
+            {
+               "amount":{
+                  "usd":0.99
+               },
+               "unit":"1GB of messages over 20GB"
+            }
+         ],
+        "bullets": [
+          "40 concurrent connections"
+        ]
+      }
+    }]
+  }]
 }
+`
+
+var AnotherService = `
+{
+    "name": "another-fake-service",
+    "id": "another7c-XXXX-XXXX-XXXX-feb140a59a66",
+    "description": "another description",
+    "tags": ["another-no-sql", "another-relational"],
+    "requires": ["another-route_forwarding"],
+    "bindable": true,
+    "instances_retrievable": true,
+    "bindings_retrievable": true,
+    "metadata": {
+      "provider": {
+        "name": "another name"
+      },
+      "listing": {
+        "imageUrl": "http://example.com/cat.gif",
+        "blurb": "another blurb here",
+        "longDescription": "A long time ago, in a another galaxy far far away..."
+      },
+      "displayName": "another Fake Service Broker"
+    },
+    "plan_updateable": true,
+    "plans": []
+  }
+`
+
+var AnotherPlan = `
+	{
+      "name": "another-fake-plan",
+      "id": "123008b5-XXXX-XXXX-XXXX-dace631cd648",
+      "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections. 100 async.",
+      "free": false,
+      "metadata": {
+        "max_storage_tb": 5,
+        "costs":[
+            {
+               "amount":{
+                  "usd":199.0
+               },
+               "unit":"MONTHLY"
+            },
+            {
+               "amount":{
+                  "usd":0.99
+               },
+               "unit":"1GB of messages over 20GB"
+            }
+         ],
+        "bullets": [
+          "40 concurrent connections"
+        ]
+      }
+    }
+`
 
 type BrokerServer struct {
 	*httptest.Server
@@ -83,6 +229,18 @@ type BrokerServer struct {
 	router *mux.Router
 }
 
+func JSONToMap(j string) map[string]interface{} {
+	jsonMap := make(map[string]interface{})
+	if err := json.Unmarshal([]byte(j), &jsonMap); err != nil {
+		panic(err)
+	}
+	return jsonMap
+}
+
+func DefaultCatalog() map[string]interface{} {
+	return JSONToMap(Catalog)
+}
+
 func NewBrokerServer() *BrokerServer {
 	brokerServer := &BrokerServer{}
 	brokerServer.initRouter()
@@ -102,7 +260,7 @@ func (b *BrokerServer) Reset() {
 func (b *BrokerServer) ResetProperties() {
 	b.Username = "buser"
 	b.Password = "bpassword"
-	b.Catalog = &DefaultCatalog
+	b.Catalog = DefaultCatalog()
 	b.LastRequestBody = []byte{}
 	b.LastRequest = nil
 }

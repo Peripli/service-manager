@@ -18,11 +18,12 @@ package sm_test
 
 import (
 	"context"
+	"net/http/httptest"
+	"testing"
+
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"net/http/httptest"
-	"testing"
 
 	"net/http"
 

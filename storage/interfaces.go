@@ -61,20 +61,39 @@ func (s *Settings) Validate() error {
 	return nil
 }
 
-// Storage interface provides entity-specific storages
-//go:generate counterfeiter . Storage
-type Storage interface {
+// OpenCloser represents an openable and closeable storage
+type OpenCloser interface {
 	// Open initializes the storage, e.g. opens a connection to the underlying storage
 	Open(options *Settings) error
 
 	// Close clears resources associated with this storage, e.g. closes the connection the underlying storage
 	Close() error
+}
 
+// Pinger allows pinging the storage to check liveliness
+type Pinger interface {
 	// Ping verifies a connection to the database is still alive, establishing a connection if necessary.
 	Ping() error
+}
 
+// PingFunc is an adapter that allows to use regular functions as Pinger
+type PingFunc func() error
+
+// Run allows PingFunc to act as a Pinger
+func (mf PingFunc) Ping() error {
+	return mf()
+}
+
+// Warehouse contains the Service Manager data access object providers
+type Warehouse interface {
 	// Broker provides access to service broker db operations
 	Broker() Broker
+
+	// ServiceOffering provides access to service offering db operations
+	ServiceOffering() ServiceOffering
+
+	// ServicePlan provides access to service plan db operations
+	ServicePlan() ServicePlan
 
 	// Platform provides access to platform db operations
 	Platform() Platform
@@ -86,6 +105,22 @@ type Storage interface {
 	Security() Security
 }
 
+// Repository is a storage warehouse that can initiate a transaction
+type Repository interface {
+	Warehouse
+
+	// InTransaction initiates a transaction and allows passing a function to be executed within the transaction
+	InTransaction(ctx context.Context, f func(ctx context.Context, storage Warehouse) error) error
+}
+
+// Storage interface provides entity-specific storages
+//go:generate counterfeiter . Storage
+type Storage interface {
+	OpenCloser
+	Pinger
+	Repository
+}
+
 // Broker interface for Broker db operations
 type Broker interface {
 	// Create stores a broker in SM DB
@@ -94,8 +129,8 @@ type Broker interface {
 	// Get retrieves a broker using the provided id from SM DB
 	Get(ctx context.Context, id string) (*types.Broker, error)
 
-	// GetAll retrieves all brokers from SM DB
-	GetAll(ctx context.Context) ([]*types.Broker, error)
+	// List retrieves all brokers from SM DB
+	List(ctx context.Context) ([]*types.Broker, error)
 
 	// Delete deletes a broker from SM DB
 	Delete(ctx context.Context, id string) error
@@ -104,7 +139,7 @@ type Broker interface {
 	Update(ctx context.Context, broker *types.Broker) error
 }
 
-// Platform interface for Platform db operations
+// Platform interface for Platform DB operations
 type Platform interface {
 	// Create stores a platform in SM DB
 	Create(ctx context.Context, platform *types.Platform) error
@@ -112,14 +147,59 @@ type Platform interface {
 	// Get retrieves a platform using the provided id from SM DB
 	Get(ctx context.Context, id string) (*types.Platform, error)
 
-	// GetAll retrieves all platforms from SM DB
-	GetAll(ctx context.Context) ([]*types.Platform, error)
+	// List retrieves all platforms from SM DB
+	List(ctx context.Context) ([]*types.Platform, error)
 
 	// Delete deletes a platform from SM DB
 	Delete(ctx context.Context, id string) error
 
 	// Update updates a platform from SM DB
 	Update(ctx context.Context, platform *types.Platform) error
+}
+
+// ServiceOffering instance for Service Offerings DB operations
+type ServiceOffering interface {
+	// Create stores a service offering in SM DB
+	Create(ctx context.Context, serviceOffering *types.ServiceOffering) error
+
+	// Get retrieves a service offering using the provided id from SM DB
+	Get(ctx context.Context, id string) (*types.ServiceOffering, error)
+
+	// ListByCatalogName retrieves all service offerings from SM DB that match the specified catalog name
+	ListByCatalogName(ctx context.Context, name string) ([]*types.ServiceOffering, error)
+
+	// ListWithServicePlansByBrokerID retrieves all service offerings with their service plans from SM DB that match the specified broker ID
+	ListWithServicePlansByBrokerID(ctx context.Context, brokerID string) ([]*types.ServiceOffering, error)
+
+	// List retrieves all service offerings from SM DB
+	List(ctx context.Context) ([]*types.ServiceOffering, error)
+
+	// Delete deletes a service offering from SM DB
+	Delete(ctx context.Context, id string) error
+
+	// Update updates a service offering from SM DB
+	Update(ctx context.Context, serviceOffering *types.ServiceOffering) error
+}
+
+// ServiceOffering instance for Service Plan DB operations
+type ServicePlan interface {
+	// Create stores a service service_plan in SM DB
+	Create(ctx context.Context, servicePlan *types.ServicePlan) error
+
+	// Get retrieves a service service_plan using the provided id from SM DB
+	Get(ctx context.Context, id string) (*types.ServicePlan, error)
+
+	// ListByCatalogName retrieves all service plans from SM DB that match the specified catalog name
+	ListByCatalogName(ctx context.Context, name string) ([]*types.ServicePlan, error)
+
+	// List retrieves all service plans from SM DB
+	List(ctx context.Context) ([]*types.ServicePlan, error)
+
+	// Delete deletes a service service_plan from SM DB
+	Delete(ctx context.Context, id string) error
+
+	// Update updates a service service_plan from SM DB
+	Update(ctx context.Context, servicePlan *types.ServicePlan) error
 }
 
 // Credentials interface for Credentials db operations
@@ -134,10 +214,13 @@ type Security interface {
 	// Lock locks the storage so that only one process can manipulate the encryption key.
 	// Returns an error if the process has already acquired the lock
 	Lock(ctx context.Context) error
+
 	// Unlock releases the acquired lock.
 	Unlock(ctx context.Context) error
+
 	// Fetcher provides means to obtain the encryption key
 	Fetcher() security.KeyFetcher
-	// Setter provides means to change the encryption key
+
+	// Setter provides means to change the encryption  key
 	Setter() security.KeySetter
 }

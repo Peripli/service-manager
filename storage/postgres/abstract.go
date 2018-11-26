@@ -20,16 +20,42 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"reflect"
 	"strings"
+
+	"github.com/jmoiron/sqlx"
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/fatih/structs"
-	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 )
 
-func create(ctx context.Context, db *sqlx.DB, table string, dto interface{}) error {
+type namedExecerContext interface {
+	NamedExecContext(ctx context.Context, query string, arg interface{}) (sql.Result, error)
+}
+
+type namedQuerierContext interface {
+	NamedQuery(query string, arg interface{}) (*sqlx.Rows, error)
+}
+
+type selecterContext interface {
+	SelectContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error
+}
+
+type getterContext interface {
+	GetContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error
+}
+
+type pgDB interface {
+	namedExecerContext
+	namedQuerierContext
+	selecterContext
+	getterContext
+	sqlx.ExtContext
+}
+
+func create(ctx context.Context, db namedExecerContext, table string, dto interface{}) error {
 	set := getDBTags(dto)
 
 	if len(set) == 0 {
@@ -47,30 +73,37 @@ func create(ctx context.Context, db *sqlx.DB, table string, dto interface{}) err
 	return checkUniqueViolation(ctx, err)
 }
 
-func get(ctx context.Context, db *sqlx.DB, id string, table string, dto interface{}) error {
+func get(ctx context.Context, db getterContext, id string, table string, dto interface{}) error {
 	query := "SELECT * FROM " + table + " WHERE id=$1"
 	log.C(ctx).Debugf("Executing query %s", query)
 	err := db.GetContext(ctx, dto, query, &id)
 	return checkSQLNoRows(err)
 }
 
-func getAll(ctx context.Context, db *sqlx.DB, table string, dtos interface{}) error {
+func list(ctx context.Context, db selecterContext, table string, filter map[string]string, dtos interface{}) error {
 	query := "SELECT * FROM " + table
+	if len(filter) != 0 {
+		pairs := make([]string, 0)
+		for key, value := range filter {
+			pairs = append(pairs, fmt.Sprintf("%s='%s'", key, value))
+		}
+		query += " WHERE " + strings.Join(pairs, " AND ")
+	}
 	log.C(ctx).Debugf("Executing query %s", query)
 	return db.SelectContext(ctx, dtos, query)
 }
 
-func delete(ctx context.Context, db *sqlx.DB, id string, table string) error {
+func delete(ctx context.Context, db sqlx.ExecerContext, id string, table string) error {
 	query := "DELETE FROM " + table + " WHERE id=$1"
 	log.C(ctx).Debugf("Executing query %s", query)
-	result, err := db.ExecContext(ctx, query, &id)
+	result, err := db.ExecContext(ctx, query, id)
 	if err != nil {
 		return err
 	}
 	return checkRowsAffected(result)
 }
 
-func update(ctx context.Context, db *sqlx.DB, table string, dto interface{}) error {
+func update(ctx context.Context, db namedExecerContext, table string, dto interface{}) error {
 	updateQueryString := updateQuery(table, dto)
 	if updateQueryString == "" {
 		log.C(ctx).Debugf("%s update: Nothing to update", table)
@@ -90,10 +123,13 @@ func getDBTags(structure interface{}) []string {
 	set := make([]string, 0, len(fields))
 
 	for _, field := range fields {
-		if field.IsEmbedded() || field.IsZero() {
+		if field.IsEmbedded() || (field.Kind() == reflect.Ptr && field.IsZero()) {
 			continue
 		}
 		dbTag := field.Tag("db")
+		if dbTag == "-" {
+			continue
+		}
 		if dbTag == "" {
 			dbTag = strings.ToLower(field.Name())
 		}

@@ -20,15 +20,16 @@ import (
 	"context"
 
 	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/jmoiron/sqlx"
 )
 
 type brokerStorage struct {
-	db *sqlx.DB
+	db pgDB
 }
 
 func (bs *brokerStorage) Create(ctx context.Context, broker *types.Broker) error {
-	return create(ctx, bs.db, brokerTable, convertBrokerToDTO(broker))
+	b := &Broker{}
+	b.FromDTO(broker)
+	return create(ctx, bs.db, brokerTable, b)
 }
 
 func (bs *brokerStorage) Get(ctx context.Context, id string) (*types.Broker, error) {
@@ -36,18 +37,18 @@ func (bs *brokerStorage) Get(ctx context.Context, id string) (*types.Broker, err
 	if err := get(ctx, bs.db, id, brokerTable, broker); err != nil {
 		return nil, err
 	}
-	return broker.Convert(), nil
+	return broker.ToDTO(), nil
 }
 
-func (bs *brokerStorage) GetAll(ctx context.Context) ([]*types.Broker, error) {
+func (bs *brokerStorage) List(ctx context.Context) ([]*types.Broker, error) {
 	var brokerDTOs []Broker
-	err := getAll(ctx, bs.db, brokerTable, &brokerDTOs)
+	err := list(ctx, bs.db, brokerTable, map[string]string{}, &brokerDTOs)
 	if err != nil || len(brokerDTOs) == 0 {
 		return []*types.Broker{}, err
 	}
 	brokers := make([]*types.Broker, 0, len(brokerDTOs))
 	for _, broker := range brokerDTOs {
-		brokers = append(brokers, broker.Convert())
+		brokers = append(brokers, broker.ToDTO())
 	}
 	return brokers, nil
 }
@@ -57,5 +58,7 @@ func (bs *brokerStorage) Delete(ctx context.Context, id string) error {
 }
 
 func (bs *brokerStorage) Update(ctx context.Context, broker *types.Broker) error {
-	return update(ctx, bs.db, brokerTable, convertBrokerToDTO(broker))
+	b := &Broker{}
+	b.FromDTO(broker)
+	return update(ctx, bs.db, brokerTable, b)
 }

@@ -33,14 +33,15 @@ type Brokers struct {
 
 // Broker broker struct
 type Broker struct {
-	ID          string          `json:"id"`
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	CreatedAt   time.Time       `json:"created_at"`
-	UpdatedAt   time.Time       `json:"updated_at"`
-	BrokerURL   string          `json:"broker_url"`
-	Credentials *Credentials    `json:"credentials,omitempty" structs:"-"`
-	Catalog     json.RawMessage `json:"catalog,omitempty"`
+	ID          string       `json:"id"`
+	Name        string       `json:"name"`
+	Description string       `json:"description"`
+	CreatedAt   time.Time    `json:"created_at"`
+	UpdatedAt   time.Time    `json:"updated_at"`
+	BrokerURL   string       `json:"broker_url"`
+	Credentials *Credentials `json:"credentials,omitempty" structs:"-"`
+
+	Services []*ServiceOffering `json:"services,omitempty" structs:"-"`
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
