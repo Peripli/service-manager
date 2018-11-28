@@ -312,7 +312,7 @@ func (b *BrokerServer) initRouter() {
 	}).Methods(http.MethodGet)
 
 	router.HandleFunc("/v2/service_instances/{instance_id}/service_bindings/{binding_id}/adapt_credentials", func(rw http.ResponseWriter, req *http.Request) {
-		b.BindingAdaptCredentialsEndpointRequests = append(b.BindingLastOpEndpointRequests, req)
+		b.BindingAdaptCredentialsEndpointRequests = append(b.BindingAdaptCredentialsEndpointRequests, req)
 		b.BindingAdaptCredentialsHandler(rw, req)
 	}).Methods(http.MethodPost)
 
