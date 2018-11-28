@@ -38,6 +38,6 @@ func (s *storageState) Get() error {
 		return nil
 	}
 
-	m := make(map[string]interface{})
-	return s.db.Get(&m, "SELECT 1")
+	m := new(int64)
+	return s.db.Get(m, "SELECT 1")
 }
