@@ -681,14 +681,20 @@ var _ = Describe("Service Manager Broker API", func() {
 
 		Context("when the broker catalog is modified", func() {
 			Context("when a new service offering is added", func() {
-				It("is returned from the Services API associated with the correct broker", func() {
+				FIt("is returned from the Services API associated with the correct broker", func() {
 					anotherService := common.JSONToMap(common.AnotherService)
 					anotherServiceID := anotherService["id"].(string)
 					Expect(anotherServiceID).ToNot(BeEmpty())
 
-					//updatedCatalog, err := sjson.Set(common.Catalog, "services.1", anotherService)
-					//Expect(err).ShouldNot(HaveOccurred())
-					//brokerServer.Catalog = common.JSONToMap(updatedCatalog)
+					By("111111")
+					updatedCatalog, err := sjson.Set(common.Catalog, "services.1", anotherService)
+					By("2222")
+
+					Expect(err).ShouldNot(HaveOccurred())
+					By("33333")
+
+					brokerServer.Catalog = common.JSONToMap(updatedCatalog)
+					By("44444")
 
 					ctx.SMWithOAuth.GET("/v1/service_offerings").
 						Expect().
