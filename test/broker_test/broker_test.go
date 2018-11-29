@@ -20,8 +20,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/tidwall/gjson"
 
 	"github.com/tidwall/sjson"
@@ -682,22 +680,22 @@ var _ = Describe("Service Manager Broker API", func() {
 		})
 
 		Context("when the broker catalog is modified", func() {
+			var anotherServiceID string
+
 			Context("when a new service offering is added", func() {
-				FIt("is returned from the Services API associated with the correct broker", func() {
+				BeforeEach(func() {
 					anotherService := common.JSONToMap(common.AnotherService)
-					anotherServiceID := anotherService["id"].(string)
+					anotherServiceID = anotherService["id"].(string)
 					Expect(anotherServiceID).ToNot(BeEmpty())
 
-					logrus.Error("111111")
-					updatedCatalog, err := sjson.Set(common.Catalog, "services.-1", anotherService)
-					logrus.Error("2222")
+					currServices := gjson.Get(common.Catalog, "services").Raw
+					updatedServices := common.JSONToArray(currServices)
+					updatedServices = append(updatedServices, anotherService)
 
-					Expect(err).ShouldNot(HaveOccurred())
-					logrus.Error("33333")
+					brokerServer.Catalog = map[string]interface{}{"services": updatedServices}
+				})
 
-					brokerServer.Catalog = common.JSONToMap(updatedCatalog)
-					logrus.Error("44444")
-
+				It("is returned from the Services API associated with the correct broker", func() {
 					ctx.SMWithOAuth.GET("/v1/service_offerings").
 						Expect().
 						Status(http.StatusOK).

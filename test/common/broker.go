@@ -229,6 +229,14 @@ type BrokerServer struct {
 	router *mux.Router
 }
 
+func JSONToArray(j string) []interface{} {
+	jsonArray := make([]interface{}, 0)
+	if err := json.Unmarshal([]byte(j), &jsonArray); err != nil {
+		panic(err)
+	}
+	return jsonArray
+}
+
 func JSONToMap(j string) map[string]interface{} {
 	jsonMap := make(map[string]interface{})
 	if err := json.Unmarshal([]byte(j), &jsonMap); err != nil {
