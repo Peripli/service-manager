@@ -754,14 +754,13 @@ var _ = Describe("Service Manager Broker API", func() {
 					anotherServiceID = anotherService["id"].(string)
 					Expect(anotherServiceID).ToNot(BeEmpty())
 
-					currServices := gjson.Get(common.Catalog, "services").Raw
-					updatedServices := common.JSONToArray(currServices)
-					updatedServices = append(updatedServices, anotherService)
+					currServices := common.JSONToMap(common.Catalog)["services"].([]interface{})
+					currServices = append(currServices, anotherService)
 
-					brokerServer.Catalog = map[string]interface{}{"services": updatedServices}
+					brokerServer.Catalog = map[string]interface{}{"services": currServices}
 				})
 
-				It("is returned from the Services API associated with the correct broker", func() {
+				FIt("is returned from the Services API associated with the correct broker", func() {
 					ctx.SMWithOAuth.GET("/v1/service_offerings").
 						Expect().
 						Status(http.StatusOK).
