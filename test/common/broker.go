@@ -28,7 +28,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-var Catalog = `
+const Catalog = `
 {
   "services": [{
     "name": "fake-service",
@@ -151,7 +151,7 @@ var Catalog = `
 }
 `
 
-var AnotherService = `
+const AnotherService = `
 {
     "name": "another-fake-service",
     "id": "another7c-XXXX-XXXX-XXXX-feb140a59a66",
@@ -177,7 +177,7 @@ var AnotherService = `
   }
 `
 
-var AnotherPlan = `
+const AnotherPlan = `
 	{
       "name": "another-fake-plan",
       "id": "123008b5-XXXX-XXXX-XXXX-dace631cd648",

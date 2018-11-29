@@ -20,6 +20,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/tidwall/gjson"
 
 	"github.com/tidwall/sjson"
@@ -686,15 +688,15 @@ var _ = Describe("Service Manager Broker API", func() {
 					anotherServiceID := anotherService["id"].(string)
 					Expect(anotherServiceID).ToNot(BeEmpty())
 
-					By("111111")
-					updatedCatalog, err := sjson.Set(common.Catalog, "services.1", anotherService)
-					By("2222")
+					logrus.Error("111111")
+					updatedCatalog, err := sjson.Set(common.Catalog, "services.-1", anotherService)
+					logrus.Error("2222")
 
 					Expect(err).ShouldNot(HaveOccurred())
-					By("33333")
+					logrus.Error("33333")
 
 					brokerServer.Catalog = common.JSONToMap(updatedCatalog)
-					By("44444")
+					logrus.Error("44444")
 
 					ctx.SMWithOAuth.GET("/v1/service_offerings").
 						Expect().
@@ -813,7 +815,7 @@ var _ = Describe("Service Manager Broker API", func() {
 							break
 						}
 					}
-					s, err := sjson.Set(common.Catalog, "services.0.plans.2", anotherPlan)
+					s, err := sjson.Set(common.Catalog, "services.0.plans.-1", anotherPlan)
 					Expect(err).ShouldNot(HaveOccurred())
 					brokerServer.Catalog = common.JSONToMap(s)
 				})
