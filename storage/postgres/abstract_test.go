@@ -46,9 +46,19 @@ var _ = Describe("Postgres Storage Abstract", func() {
 		})
 
 		Context("Called with structure with empty field", func() {
-			It("Should return proper query", func() {
+			It("allows setting default values for fields", func() {
 				type ts struct {
 					Field string
+				}
+				query := updateQuery("n/a", ts{})
+				Expect(query).To(Equal("UPDATE n/a SET field = :field WHERE id = :id"))
+			})
+		})
+
+		Context("Called with structure with nil field", func() {
+			It("ignores nils", func() {
+				type ts struct {
+					Field *string
 				}
 				query := updateQuery("n/a", ts{})
 				Expect(query).To(Equal(""))

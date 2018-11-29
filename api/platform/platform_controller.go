@@ -102,7 +102,7 @@ func (c *Controller) getPlatform(r *web.Request) (*web.Response, error) {
 func (c *Controller) getAllPlatforms(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debug("Getting all platforms")
-	platforms, err := c.PlatformStorage.GetAll(ctx)
+	platforms, err := c.PlatformStorage.List(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -14,8 +14,8 @@
  *    limitations under the License.
  */
 
-// Package broker contains logic for building the Service Manager Broker Management API
-package broker
+// Package service_offering contains logic for building the Service Manager service offerings API
+package service_offering
 
 import (
 	"net/http"
@@ -23,43 +23,22 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-// Routes returns slice of routes which handle broker operations
+// Routes returns slice of routes which handle service offering operations
 func (c *Controller) Routes() []web.Route {
 	return []web.Route{
 		{
 			Endpoint: web.Endpoint{
-				Method: http.MethodPost,
-				Path:   web.BrokersURL,
+				Method: http.MethodGet,
+				Path:   web.ServiceOfferingsURL + "/{service_offering_id}",
 			},
-			Handler: c.createBroker,
+			Handler: c.getServiceOffering,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   web.BrokersURL + "/{broker_id}",
+				Path:   web.ServiceOfferingsURL,
 			},
-			Handler: c.getBroker,
-		},
-		{
-			Endpoint: web.Endpoint{
-				Method: http.MethodGet,
-				Path:   web.BrokersURL,
-			},
-			Handler: c.listBrokers,
-		},
-		{
-			Endpoint: web.Endpoint{
-				Method: http.MethodDelete,
-				Path:   web.BrokersURL + "/{broker_id}",
-			},
-			Handler: c.deleteBroker,
-		},
-		{
-			Endpoint: web.Endpoint{
-				Method: http.MethodPatch,
-				Path:   web.BrokersURL + "/{broker_id}",
-			},
-			Handler: c.patchBroker,
+			Handler: c.listServiceOfferings,
 		},
 	}
 }

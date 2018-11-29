@@ -23,12 +23,16 @@ import (
 	"net/http"
 
 	"github.com/Peripli/service-manager/api/broker"
+	"github.com/Peripli/service-manager/api/platform"
+
+	"github.com/Peripli/service-manager/api/service_offering"
+	"github.com/Peripli/service-manager/api/service_plan"
+
 	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/api/filters/authn/basic"
 	"github.com/Peripli/service-manager/api/filters/authn/oauth"
 	"github.com/Peripli/service-manager/api/info"
 	"github.com/Peripli/service-manager/api/osb"
-	"github.com/Peripli/service-manager/api/platform"
 	"github.com/Peripli/service-manager/pkg/health"
 	"github.com/Peripli/service-manager/pkg/security"
 	secfilters "github.com/Peripli/service-manager/pkg/security/filters"
@@ -65,7 +69,6 @@ func DefaultSettings() *Settings {
 		ClientID:          "",
 		SkipSSLValidation: false,
 	}
-
 }
 
 // Validate validates the API settings
@@ -77,41 +80,45 @@ func (s *Settings) Validate() error {
 }
 
 // New returns the minimum set of REST APIs needed for the Service Manager
-func New(ctx context.Context, store storage.Storage, settings *Settings, encrypter security.Encrypter) (*web.API, error) {
+func New(ctx context.Context, repository storage.Repository, settings *Settings, encrypter security.Encrypter) (*web.API, error) {
 	bearerAuthnFilter, err := oauth.NewFilter(ctx, settings.TokenIssuerURL, settings.ClientID)
 	if err != nil {
 		return nil, err
 	}
-	healthRegistry := health.NewDefaultRegistry()
-	healthRegistry.AddHealthIndicator(&storage.HealthIndicator{Storage: store})
 	return &web.API{
 		// Default controllers - more filters can be registered using the relevant API methods
 		Controllers: []web.Controller{
 			&broker.Controller{
-				BrokerStorage:       store.Broker(),
+				Repository:          repository,
 				OSBClientCreateFunc: newOSBClient(settings.SkipSSLValidation),
 				Encrypter:           encrypter,
 			},
 			&platform.Controller{
-				PlatformStorage: store.Platform(),
+				PlatformStorage: repository.Platform(),
 				Encrypter:       encrypter,
+			},
+			&service_offering.Controller{
+				ServiceOfferingStorage: repository.ServiceOffering(),
+			},
+			&service_plan.Controller{
+				ServicePlanStorage: repository.ServicePlan(),
 			},
 			&info.Controller{
 				TokenIssuer: settings.TokenIssuerURL,
 			},
 			osb.NewController(&osb.StorageBrokerFetcher{
-				BrokerStorage: store.Broker(),
+				BrokerStorage: repository.Broker(),
 				Encrypter:     encrypter,
 			}, http.DefaultTransport),
 		},
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
 			&filters.Logging{},
-			basic.NewFilter(store.Credentials(), encrypter),
+			basic.NewFilter(repository.Credentials(), encrypter),
 			bearerAuthnFilter,
 			secfilters.NewRequiredAuthnFilter(),
 		},
-		Registry: healthRegistry,
+		Registry: health.NewDefaultRegistry(),
 	}, nil
 }
 

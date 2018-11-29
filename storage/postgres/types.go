@@ -31,16 +31,20 @@ const (
 
 	// brokerTable db table name for brokers
 	brokerTable = "brokers"
+
+	serviceOfferingTable = "service_offerings"
+
+	servicePlanTable = "service_plans"
 )
 
-// Safe is a representation of how a secret is stored
+// Safe represents a secret entity
 type Safe struct {
 	Secret    []byte    `db:"secret"`
 	CreatedAt time.Time `db:"created_at"`
 	UpdatedAt time.Time `db:"updated_at"`
 }
 
-// Platform dto
+// Platform entity
 type Platform struct {
 	ID          string         `db:"id"`
 	Type        string         `db:"type"`
@@ -52,84 +56,203 @@ type Platform struct {
 	Password    string         `db:"password"`
 }
 
-// Broker dto
+// Broker entity
 type Broker struct {
-	ID          string             `db:"id"`
-	Name        string             `db:"name"`
-	Description sql.NullString     `db:"description"`
-	CreatedAt   time.Time          `db:"created_at"`
-	UpdatedAt   time.Time          `db:"updated_at"`
-	BrokerURL   string             `db:"broker_url"`
-	Username    string             `db:"username"`
-	Password    string             `db:"password"`
-	Catalog     sqlxtypes.JSONText `db:"catalog"`
+	ID          string         `db:"id"`
+	Name        string         `db:"name"`
+	Description sql.NullString `db:"description"`
+	CreatedAt   time.Time      `db:"created_at"`
+	UpdatedAt   time.Time      `db:"updated_at"`
+	BrokerURL   string         `db:"broker_url"`
+	Username    string         `db:"username"`
+	Password    string         `db:"password"`
 }
 
-// Convert converts to types.Broker
-func (brokerDTO *Broker) Convert() *types.Broker {
-	broker := &types.Broker{ID: brokerDTO.ID,
-		Name:        brokerDTO.Name,
-		Description: brokerDTO.Description.String,
-		CreatedAt:   brokerDTO.CreatedAt,
-		UpdatedAt:   brokerDTO.UpdatedAt,
-		BrokerURL:   brokerDTO.BrokerURL,
-		Catalog:     json.RawMessage(brokerDTO.Catalog),
-	}
-	if brokerDTO.Username != "" {
-		broker.Credentials = types.NewBasicCredentials(brokerDTO.Username, brokerDTO.Password)
+type ServiceOffering struct {
+	ID          string    `db:"id"`
+	Name        string    `db:"name"`
+	Description string    `db:"description"`
+	CreatedAt   time.Time `db:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at"`
+
+	Bindable             bool   `db:"bindable"`
+	InstancesRetrievable bool   `db:"instances_retrievable"`
+	BindingsRetrievable  bool   `db:"bindings_retrievable"`
+	PlanUpdatable        bool   `db:"plan_updateable"`
+	CatalogID            string `db:"catalog_id"`
+	CatalogName          string `db:"catalog_name"`
+
+	Tags     sqlxtypes.JSONText `db:"tags"`
+	Requires sqlxtypes.JSONText `db:"requires"`
+	Metadata sqlxtypes.JSONText `db:"metadata"`
+
+	BrokerID string `db:"broker_id"`
+}
+
+type ServicePlan struct {
+	ID          string    `db:"id"`
+	Name        string    `db:"name"`
+	Description string    `db:"description"`
+	CreatedAt   time.Time `db:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at"`
+
+	Free          bool   `db:"free"`
+	Bindable      bool   `db:"bindable"`
+	PlanUpdatable bool   `db:"plan_updateable"`
+	CatalogID     string `db:"catalog_id"`
+	CatalogName   string `db:"catalog_name"`
+
+	Metadata sqlxtypes.JSONText `db:"metadata"`
+	Schemas  sqlxtypes.JSONText `db:"schemas"`
+
+	ServiceOfferingID string `db:"service_offering_id"`
+}
+
+func (b *Broker) ToDTO() *types.Broker {
+	broker := &types.Broker{
+		ID:          b.ID,
+		Name:        b.Name,
+		Description: b.Description.String,
+		CreatedAt:   b.CreatedAt,
+		UpdatedAt:   b.UpdatedAt,
+		BrokerURL:   b.BrokerURL,
+		Credentials: &types.Credentials{
+			Basic: &types.Basic{
+				Username: b.Username,
+				Password: b.Password,
+			},
+		},
 	}
 	return broker
 }
 
-// Convert converts to types.Platform
-func (platformDTO *Platform) Convert() *types.Platform {
-	platform := &types.Platform{
-		ID:          platformDTO.ID,
-		Type:        platformDTO.Type,
-		Name:        platformDTO.Name,
-		Description: platformDTO.Description.String,
-		CreatedAt:   platformDTO.CreatedAt,
-		UpdatedAt:   platformDTO.UpdatedAt,
+func (b *Broker) FromDTO(broker *types.Broker) {
+	*b = Broker{
+		ID:          broker.ID,
+		Description: sql.NullString{String: broker.Description},
+		Name:        broker.Name,
+		BrokerURL:   broker.BrokerURL,
+		CreatedAt:   broker.CreatedAt,
+		UpdatedAt:   broker.UpdatedAt,
 	}
-	if platformDTO.Username != "" {
-		platform.Credentials = types.NewBasicCredentials(platformDTO.Username, platformDTO.Password)
-	}
-	return platform
-}
 
-func convertPlatformToDTO(platform *types.Platform) *Platform {
-	result := &Platform{
-		ID:        platform.ID,
-		Type:      platform.Type,
-		Name:      platform.Name,
-		CreatedAt: platform.CreatedAt,
-		UpdatedAt: platform.UpdatedAt,
-	}
-	if platform.Description != "" {
-		result.Description = sql.NullString{String: platform.Description, Valid: true}
-	}
-	if platform.Credentials != nil {
-		result.Username = platform.Credentials.Basic.Username
-		result.Password = platform.Credentials.Basic.Password
-	}
-	return result
-}
-
-func convertBrokerToDTO(broker *types.Broker) *Broker {
-	result := &Broker{
-		ID:        broker.ID,
-		Name:      broker.Name,
-		BrokerURL: broker.BrokerURL,
-		CreatedAt: broker.CreatedAt,
-		UpdatedAt: broker.UpdatedAt,
-		Catalog:   sqlxtypes.JSONText(broker.Catalog),
-	}
 	if broker.Description != "" {
-		result.Description = sql.NullString{String: broker.Description, Valid: true}
+		b.Description.Valid = true
 	}
-	if broker.Credentials != nil {
-		result.Username = broker.Credentials.Basic.Username
-		result.Password = broker.Credentials.Basic.Password
+	if broker.Credentials != nil && broker.Credentials.Basic != nil {
+		b.Username = broker.Credentials.Basic.Username
+		b.Password = broker.Credentials.Basic.Password
 	}
-	return result
+}
+
+func (p *Platform) ToDTO() *types.Platform {
+	return &types.Platform{
+		ID:          p.ID,
+		Type:        p.Type,
+		Name:        p.Name,
+		Description: p.Description.String,
+		CreatedAt:   p.CreatedAt,
+		UpdatedAt:   p.UpdatedAt,
+		Credentials: &types.Credentials{
+			Basic: &types.Basic{
+				Username: p.Username,
+				Password: p.Password,
+			},
+		},
+	}
+}
+
+func (p *Platform) FromDTO(platform *types.Platform) {
+	*p = Platform{
+		ID:          platform.ID,
+		Type:        platform.Type,
+		Name:        platform.Name,
+		CreatedAt:   platform.CreatedAt,
+		Description: sql.NullString{String: platform.Description},
+		UpdatedAt:   platform.UpdatedAt,
+	}
+
+	if platform.Description != "" {
+		p.Description.Valid = true
+	}
+	if platform.Credentials != nil && platform.Credentials.Basic != nil {
+		p.Username = platform.Credentials.Basic.Username
+		p.Password = platform.Credentials.Basic.Password
+	}
+}
+
+func (so *ServiceOffering) ToDTO() *types.ServiceOffering {
+	return &types.ServiceOffering{
+		ID:                   so.ID,
+		Name:                 so.Name,
+		Description:          so.Description,
+		CreatedAt:            so.CreatedAt,
+		UpdatedAt:            so.UpdatedAt,
+		Bindable:             so.Bindable,
+		InstancesRetrievable: so.InstancesRetrievable,
+		BindingsRetrievable:  so.BindingsRetrievable,
+		PlanUpdatable:        so.PlanUpdatable,
+		CatalogID:            so.CatalogID,
+		CatalogName:          so.CatalogName,
+		Tags:                 json.RawMessage(so.Tags),
+		Requires:             json.RawMessage(so.Requires),
+		Metadata:             json.RawMessage(so.Metadata),
+		BrokerID:             so.BrokerID,
+	}
+}
+
+func (so *ServiceOffering) FromDTO(offering *types.ServiceOffering) {
+	*so = ServiceOffering{
+		ID:                   offering.ID,
+		Name:                 offering.Name,
+		Description:          offering.Description,
+		CreatedAt:            offering.CreatedAt,
+		UpdatedAt:            offering.UpdatedAt,
+		Bindable:             offering.Bindable,
+		InstancesRetrievable: offering.InstancesRetrievable,
+		BindingsRetrievable:  offering.BindingsRetrievable,
+		PlanUpdatable:        offering.PlanUpdatable,
+		CatalogID:            offering.CatalogID,
+		CatalogName:          offering.CatalogName,
+		Tags:                 sqlxtypes.JSONText(offering.Tags),
+		Requires:             sqlxtypes.JSONText(offering.Requires),
+		Metadata:             sqlxtypes.JSONText(offering.Metadata),
+		BrokerID:             offering.BrokerID,
+	}
+}
+
+func (sp *ServicePlan) ToDTO() *types.ServicePlan {
+	return &types.ServicePlan{
+		ID:                sp.ID,
+		Name:              sp.Name,
+		Description:       sp.Description,
+		CreatedAt:         sp.CreatedAt,
+		UpdatedAt:         sp.UpdatedAt,
+		CatalogID:         sp.CatalogID,
+		CatalogName:       sp.CatalogName,
+		Free:              sp.Free,
+		Bindable:          sp.Bindable,
+		PlanUpdatable:     sp.PlanUpdatable,
+		Metadata:          json.RawMessage(sp.Metadata),
+		Schemas:           json.RawMessage(sp.Schemas),
+		ServiceOfferingID: sp.ServiceOfferingID,
+	}
+}
+
+func (sp *ServicePlan) FromDTO(plan *types.ServicePlan) {
+	*sp = ServicePlan{
+		ID:                plan.ID,
+		Name:              plan.Name,
+		Description:       plan.Description,
+		CreatedAt:         plan.CreatedAt,
+		UpdatedAt:         plan.UpdatedAt,
+		Free:              plan.Free,
+		Bindable:          plan.Bindable,
+		PlanUpdatable:     plan.PlanUpdatable,
+		CatalogID:         plan.CatalogID,
+		CatalogName:       plan.CatalogName,
+		Metadata:          sqlxtypes.JSONText(plan.Metadata),
+		Schemas:           sqlxtypes.JSONText(plan.Schemas),
+		ServiceOfferingID: plan.ServiceOfferingID,
+	}
 }

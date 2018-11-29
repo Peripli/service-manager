@@ -20,7 +20,7 @@ import "github.com/Peripli/service-manager/pkg/health"
 
 // HealthIndicator returns a new indicator for the storage
 type HealthIndicator struct {
-	Storage Storage
+	Pinger Pinger
 }
 
 // Name returns the name of the storage component
@@ -30,10 +30,10 @@ func (i *HealthIndicator) Name() string {
 
 // Health returns the health of the storage component
 func (i *HealthIndicator) Health() *health.Health {
-	err := i.Storage.Ping()
+	err := i.Pinger.Ping()
 	healthz := health.New()
 	if err != nil {
-		return healthz.WithError(err).WithDetail("message", "Storage ping failed")
+		return healthz.WithError(err).WithDetail("message", "Repository ping failed")
 	}
 	return healthz.Up()
 }

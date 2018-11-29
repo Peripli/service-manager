@@ -143,6 +143,28 @@ var _ = Describe("Service Manager Authentication", func() {
 			{"Invalid authorization schema", "DELETE", "/v1/osb/999/v2/service_instances/111/service_bindings/222", "Basic abc"},
 			{"Missing token in authorization header", "DELETE", "/v1/osb/999/v2/service_instances/111/service_bindings/222", "Bearer "},
 			{"Invalid token in authorization header", "DELETE", "/v1/osb/999/v2/service_instances/111/service_bindings/222", "Bearer abc"},
+
+			// SERVICE OFFERINGS
+			{"Missing authorization header", "GET", "/v1/service_offerings/999", ""},
+			{"Invalid basic credentials", "GET", "/v1/service_offerings/999", "Basic abc"},
+			{"Missing token in authorization header", "GET", "/v1/service_offerings/999", "Bearer "},
+			{"Invalid token in authorization header", "GET", "/v1/service_offerings/999", "Bearer abc"},
+
+			{"Missing authorization header", "GET", "/v1/service_offerings", ""},
+			{"Invalid basic credentials", "GET", "/v1/service_offerings", "Basic abc"},
+			{"Missing token in authorization header", "GET", "/v1/service_offerings", "Bearer "},
+			{"Invalid token in authorization header", "GET", "/v1/service_offerings", "Bearer abc"},
+
+			// SERVICE PLANS
+			{"Missing authorization header", "GET", "/v1/service_plans/999", ""},
+			{"Invalid basic credentials", "GET", "/v1/service_plans/999", "Basic abc"},
+			{"Missing token in authorization header", "GET", "/v1/service_plans/999", "Bearer "},
+			{"Invalid token in authorization header", "GET", "/v1/service_plans/999", "Bearer abc"},
+
+			{"Missing authorization header", "GET", "/v1/service_plans", ""},
+			{"Invalid basic credentials", "GET", "/v1/service_plans", "Basic abc"},
+			{"Missing token in authorization header", "GET", "/v1/service_plans", "Bearer "},
+			{"Invalid token in authorization header", "GET", "/v1/service_plans", "Bearer abc"},
 		}
 
 		for _, request := range authRequests {

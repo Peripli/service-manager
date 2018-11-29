@@ -19,15 +19,16 @@ package postgres
 import (
 	"database/sql"
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/jmoiron/sqlx"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"sync"
-	"time"
 )
 
-var _ = Describe("Postgres Storage State", func() {
+var _ = Describe("Postgres Storageƒ State", func() {
 
 	var (
 		mockDB *sql.DB
