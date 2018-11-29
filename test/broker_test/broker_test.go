@@ -680,44 +680,6 @@ var _ = Describe("Service Manager Broker API", func() {
 		})
 
 		Context("when the broker catalog is modified", func() {
-			var anotherServiceID string
-
-			Context("when a new service offering is added", func() {
-				BeforeEach(func() {
-					anotherService := common.JSONToMap(common.AnotherService)
-					anotherServiceID = anotherService["id"].(string)
-					Expect(anotherServiceID).ToNot(BeEmpty())
-
-					currServices := gjson.Get(common.Catalog, "services").Raw
-					updatedServices := common.JSONToArray(currServices)
-					updatedServices = append(updatedServices, anotherService)
-
-					brokerServer.Catalog = map[string]interface{}{"services": updatedServices}
-				})
-
-				It("is returned from the Services API associated with the correct broker", func() {
-					ctx.SMWithOAuth.GET("/v1/service_offerings").
-						Expect().
-						Status(http.StatusOK).
-						JSON().
-						Path("$.service_offerings[*].catalog_id").Array().NotContains(anotherServiceID)
-
-					ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
-						WithJSON(common.Object{}).
-						Expect().
-						Status(http.StatusOK)
-
-					jsonResp := ctx.SMWithOAuth.GET("/v1/service_offerings").
-						Expect().
-						Status(http.StatusOK).
-						JSON()
-					jsonResp.Path("$.service_offerings[*].catalog_id").Array().Contains(anotherServiceID)
-					jsonResp.Path("$.service_offerings[*].broker_id").Array().Contains(brokerID)
-
-					assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
-				})
-			})
-
 			Context("when an existing service offering is removed", func() {
 				var serviceOfferingID string
 
@@ -779,6 +741,44 @@ var _ = Describe("Service Manager Broker API", func() {
 						Expect().
 						Status(http.StatusOK).
 						JSON().Path("$.service_plans[*].id").Array().NotContains(planIDsForService)
+
+					assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+				})
+			})
+
+			Context("when a new service offering is added", func() {
+				var anotherServiceID string
+
+				BeforeEach(func() {
+					anotherService := common.JSONToMap(common.AnotherService)
+					anotherServiceID = anotherService["id"].(string)
+					Expect(anotherServiceID).ToNot(BeEmpty())
+
+					currServices := gjson.Get(common.Catalog, "services").Raw
+					updatedServices := common.JSONToArray(currServices)
+					updatedServices = append(updatedServices, anotherService)
+
+					brokerServer.Catalog = map[string]interface{}{"services": updatedServices}
+				})
+
+				It("is returned from the Services API associated with the correct broker", func() {
+					ctx.SMWithOAuth.GET("/v1/service_offerings").
+						Expect().
+						Status(http.StatusOK).
+						JSON().
+						Path("$.service_offerings[*].catalog_id").Array().NotContains(anotherServiceID)
+
+					ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
+						WithJSON(common.Object{}).
+						Expect().
+						Status(http.StatusOK)
+
+					jsonResp := ctx.SMWithOAuth.GET("/v1/service_offerings").
+						Expect().
+						Status(http.StatusOK).
+						JSON()
+					jsonResp.Path("$.service_offerings[*].catalog_id").Array().Contains(anotherServiceID)
+					jsonResp.Path("$.service_offerings[*].broker_id").Array().Contains(brokerID)
 
 					assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 				})
