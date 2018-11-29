@@ -686,9 +686,9 @@ var _ = Describe("Service Manager Broker API", func() {
 					anotherServiceID := anotherService["id"].(string)
 					Expect(anotherServiceID).ToNot(BeEmpty())
 
-					updatedCatalog, err := sjson.Set(common.Catalog, "services.1", anotherService)
-					Expect(err).ShouldNot(HaveOccurred())
-					brokerServer.Catalog = common.JSONToMap(updatedCatalog)
+					//updatedCatalog, err := sjson.Set(common.Catalog, "services.1", anotherService)
+					//Expect(err).ShouldNot(HaveOccurred())
+					//brokerServer.Catalog = common.JSONToMap(updatedCatalog)
 
 					ctx.SMWithOAuth.GET("/v1/service_offerings").
 						Expect().
