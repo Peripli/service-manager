@@ -12,10 +12,12 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
+// StorageCatalogFetcher fetches the broker's catalog from SM DB
 type StorageCatalogFetcher struct {
 	CatalogStorage storage.ServiceOffering
 }
 
+// FetchCatalog implements osb.CatalogFetcher and fetches the catalog for the broker with the specified broker id from SM DB
 func (scf *StorageCatalogFetcher) FetchCatalog(ctx context.Context, brokerID string) (*web.Response, error) {
 	catalog, err := scf.CatalogStorage.ListWithServicePlansByBrokerID(ctx, brokerID)
 	if err != nil {

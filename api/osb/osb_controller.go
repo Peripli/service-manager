@@ -42,12 +42,15 @@ type BrokerFetcher interface {
 	FetchBroker(ctx context.Context, brokerID string) (*types.Broker, error)
 }
 
+// CatalogFetcher is implemented by OSB catalog providers
 type CatalogFetcher interface {
 	FetchCatalog(ctx context.Context, brokerID string) (*web.Response, error)
 }
 
+// CatalogFetcherFunc allows functions to implement CatalogFetcher
 type CatalogFetcherFunc func(ctx context.Context, brokerID string) (*web.Response, error)
 
+// FetchCatalog implements osb.CatalogFetcher and uses the provided function to fetch the catalog for the specified broker
 func (rhf CatalogFetcherFunc) FetchCatalog(ctx context.Context, brokerID string) (*web.Response, error) {
 	return rhf(ctx, brokerID)
 }
