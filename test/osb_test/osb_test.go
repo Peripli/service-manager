@@ -110,22 +110,25 @@ var _ = Describe("Service Manager OSB API", func() {
 	var (
 		ctx *common.TestContext
 
-		workingBrokerURL                   string
-		brokerBrokerURL                    string
-		missingBrokerURL                   string
-		stoppedBrokerURL                   string
-		queryParamVerificationBrokerOSBURL string
-		headerKey                          string
-		headerValue                        string
+		validBrokerServer *common.BrokerServer
+		validBrokerID     string
+
+		smUrlToWorkingBroker           string
+		smUrlToBrokenBroker            string
+		smUrlToMissingBroker           string
+		smUrlToStoppedBroker           string
+		smUrlToQueryVerificationBroker string
+		headerKey                      string
+		headerValue                    string
 	)
 
 	BeforeSuite(func() {
 		ctx = common.NewTestContext(nil)
-		validBrokerID, validBrokerServer := ctx.RegisterBroker()
-		workingBrokerURL = validBrokerServer.URL + "/v1/osb/" + validBrokerID
+		validBrokerID, validBrokerServer = ctx.RegisterBroker()
+		smUrlToWorkingBroker = validBrokerServer.URL + "/v1/osb/" + validBrokerID
 
 		failingBrokerID, failingBrokerServer := ctx.RegisterBroker()
-		brokerBrokerURL = failingBrokerServer.URL + "/v1/osb/" + failingBrokerID
+		smUrlToBrokenBroker = failingBrokerServer.URL + "/v1/osb/" + failingBrokerID
 		failingBrokerServer.ServiceInstanceHandler = failingHandler
 		failingBrokerServer.BindingHandler = failingHandler
 		failingBrokerServer.CatalogHandler = failingHandler
@@ -136,12 +139,12 @@ var _ = Describe("Service Manager OSB API", func() {
 		if err != nil {
 			Expect(err).ToNot(HaveOccurred())
 		}
-		missingBrokerURL = "http://localhost:32123/v1/osb/" + UUID.String()
+		smUrlToMissingBroker = "http://localhost:32123/v1/osb/" + UUID.String()
 
 		stoppedBrokerID, stoppedBrokerServer := ctx.RegisterBroker()
 		stoppedBrokerServer.Close()
 
-		stoppedBrokerURL = stoppedBrokerServer.URL + "/v1/osb/" + stoppedBrokerID
+		smUrlToStoppedBroker = stoppedBrokerServer.URL + "/v1/osb/" + stoppedBrokerID
 
 		headerKey, headerValue = generateRandomQueryParam()
 		queryParameterVerificationServerID, queryParameterVerificationServer := ctx.RegisterBroker()
@@ -150,7 +153,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		queryParameterVerificationServer.CatalogHandler = queryParameterVerificationHandler(headerKey, headerValue)
 		queryParameterVerificationServer.ServiceInstanceLastOpHandler = queryParameterVerificationHandler(headerKey, headerValue)
 		queryParameterVerificationServer.BindingLastOpHandler = queryParameterVerificationHandler(headerKey, headerValue)
-		queryParamVerificationBrokerOSBURL = queryParameterVerificationServer.URL + "/v1/osb/" + queryParameterVerificationServerID
+		smUrlToQueryVerificationBroker = queryParameterVerificationServer.URL + "/v1/osb/" + queryParameterVerificationServerID
 
 	})
 
@@ -158,20 +161,33 @@ var _ = Describe("Service Manager OSB API", func() {
 		ctx.Cleanup()
 	})
 
-	Describe("Catalog", func() {
+	AfterEach(func() {
+		validBrokerServer.ResetCallHistory()
+
+	})
+
+	FDescribe("Catalog", func() {
 		Context("when call to working service broker", func() {
 			It("should succeed", func() {
 				assertWorkingBrokerResponse(
-					ctx.SMWithBasic.GET(workingBrokerURL+"/v2/catalog").WithHeader("X-Broker-API-Version", "oidc_authn.13"),
+					ctx.SMWithBasic.GET(smUrlToWorkingBroker+"/v2/catalog").WithHeader("X-Broker-API-Version", "oidc_authn.13"),
 					http.StatusOK, "services")
 
+			})
+
+			FIt("should not reach service broker", func() {
+				assertWorkingBrokerResponse(
+					ctx.SMWithBasic.GET(smUrlToWorkingBroker+"/v2/catalog").WithHeader("X-Broker-API-Version", "oidc_authn.13"),
+					http.StatusOK, "services")
+
+				Expect(len(validBrokerServer.CatalogEndpointRequests)).To(Equal(0))
 			})
 		})
 
 		Context("when call to broken service broker", func() {
 			It("should fail", func() {
 				assertBrokenBrokerError(
-					ctx.SMWithBasic.GET(brokerBrokerURL+"/v2/catalog").WithHeader("X-Broker-API-Version", "oidc_authn.13"))
+					ctx.SMWithBasic.GET(smUrlToBrokenBroker+"/v2/catalog").WithHeader("X-Broker-API-Version", "oidc_authn.13"))
 
 			})
 		})
@@ -179,21 +195,21 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to missing service broker", func() {
 			It("should fail", func() {
 				assertMissingBrokerError(
-					ctx.SMWithBasic.GET(missingBrokerURL+"/v2/catalog").WithHeader("X-Broker-API-Version", "oidc_authn.13"))
+					ctx.SMWithBasic.GET(smUrlToMissingBroker+"/v2/catalog").WithHeader("X-Broker-API-Version", "oidc_authn.13"))
 			})
 		})
 
 		Context("when call to stopped service broker", func() {
 			It("should fail", func() {
 				assertStoppedBrokerError(
-					ctx.SMWithBasic.GET(stoppedBrokerURL+"/v2/catalog").WithHeader("X-Broker-API-Version", "oidc_authn.13"))
+					ctx.SMWithBasic.GET(smUrlToStoppedBroker+"/v2/catalog").WithHeader("X-Broker-API-Version", "oidc_authn.13"))
 			})
 		})
 
 		Context("when call contains query params", func() {
 			It("propagates them to the service broker", func() {
 				assertWorkingBrokerResponse(
-					ctx.SMWithBasic.GET(queryParamVerificationBrokerOSBURL+"/v2/catalog").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+					ctx.SMWithBasic.GET(smUrlToQueryVerificationBroker+"/v2/catalog").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 						WithJSON(getDummyService()).WithQuery(headerKey, headerValue), http.StatusOK)
 			})
 		})
@@ -203,7 +219,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("call to working service broker", func() {
 			It("should succeed", func() {
 				assertWorkingBrokerResponse(
-					ctx.SMWithBasic.PUT(workingBrokerURL+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+					ctx.SMWithBasic.PUT(smUrlToWorkingBroker+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 						WithJSON(getDummyService()), http.StatusCreated)
 			})
 		})
@@ -211,7 +227,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to broken service broker", func() {
 			It("should fail", func() {
 				assertBrokenBrokerError(
-					ctx.SMWithBasic.PUT(brokerBrokerURL+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+					ctx.SMWithBasic.PUT(smUrlToBrokenBroker+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 						WithJSON(getDummyService()))
 			})
 		})
@@ -219,7 +235,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to missing broker", func() {
 			It("should fail", func() {
 				assertMissingBrokerError(
-					ctx.SMWithBasic.PUT(missingBrokerURL+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+					ctx.SMWithBasic.PUT(smUrlToMissingBroker+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 						WithJSON(getDummyService()))
 			})
 		})
@@ -227,7 +243,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to stopped service broker", func() {
 			It("should fail", func() {
 				assertStoppedBrokerError(
-					ctx.SMWithBasic.PUT(stoppedBrokerURL+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+					ctx.SMWithBasic.PUT(smUrlToStoppedBroker+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 						WithJSON(getDummyService()))
 			})
 		})
@@ -235,7 +251,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call contains query params", func() {
 			It("propagates them to the service broker", func() {
 				assertWorkingBrokerResponse(
-					ctx.SMWithBasic.PUT(queryParamVerificationBrokerOSBURL+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+					ctx.SMWithBasic.PUT(smUrlToQueryVerificationBroker+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 						WithJSON(getDummyService()).WithQuery(headerKey, headerValue), http.StatusCreated)
 			})
 		})
@@ -243,7 +259,7 @@ var _ = Describe("Service Manager OSB API", func() {
 	Describe("Deprovision", func() {
 		Context("when trying to deprovision existing service", func() {
 			It("should be successfull", func() {
-				ctx.SMWithBasic.DELETE(workingBrokerURL+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+				ctx.SMWithBasic.DELETE(smUrlToWorkingBroker+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 					WithQueryObject(getDummyService()).
 					Expect().Status(http.StatusOK).JSON().Object()
 			})
@@ -252,7 +268,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to broken broker", func() {
 			It("should fail", func() {
 				assertBrokenBrokerError(
-					ctx.SMWithBasic.DELETE(brokerBrokerURL+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+					ctx.SMWithBasic.DELETE(smUrlToBrokenBroker+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 						WithQueryObject(getDummyService()))
 			})
 		})
@@ -260,14 +276,14 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to missing service broker", func() {
 			It("should fail", func() {
 				assertMissingBrokerError(
-					ctx.SMWithBasic.DELETE(missingBrokerURL+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+					ctx.SMWithBasic.DELETE(smUrlToMissingBroker+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 						WithQueryObject(getDummyService()))
 			})
 		})
 
 		Context("when call to stopped service broker", func() {
 			It("should fail", func() {
-				assertStoppedBrokerError(ctx.SMWithBasic.DELETE(stoppedBrokerURL+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+				assertStoppedBrokerError(ctx.SMWithBasic.DELETE(smUrlToStoppedBroker+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 					WithQueryObject(getDummyService()))
 			})
 		})
@@ -275,7 +291,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call contains query params", func() {
 			It("propagates them to the service broker", func() {
 				assertWorkingBrokerResponse(
-					ctx.SMWithBasic.DELETE(queryParamVerificationBrokerOSBURL+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+					ctx.SMWithBasic.DELETE(smUrlToQueryVerificationBroker+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 						WithJSON(getDummyService()).WithQuery(headerKey, headerValue), http.StatusOK)
 			})
 		})
@@ -285,7 +301,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("call to working service broker", func() {
 			It("should succeed", func() {
 				assertWorkingBrokerResponse(
-					ctx.SMWithBasic.PUT(workingBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+					ctx.SMWithBasic.PUT(smUrlToWorkingBroker+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 						WithJSON(getDummyService()), http.StatusCreated, "credentials")
 			})
 		})
@@ -293,21 +309,21 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to broker service broker", func() {
 			It("should fail", func() {
 				assertBrokenBrokerError(
-					ctx.SMWithBasic.PUT(brokerBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+					ctx.SMWithBasic.PUT(smUrlToBrokenBroker+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 						WithJSON(getDummyService()))
 			})
 		})
 
 		Context("when call to missing service broker", func() {
 			It("should fail", func() {
-				assertMissingBrokerError(ctx.SMWithBasic.PUT(missingBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+				assertMissingBrokerError(ctx.SMWithBasic.PUT(smUrlToMissingBroker+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 					WithJSON(getDummyService()))
 			})
 		})
 
 		Context("when call to stopped service broker", func() {
 			It("should fail", func() {
-				assertStoppedBrokerError(ctx.SMWithBasic.PUT(stoppedBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+				assertStoppedBrokerError(ctx.SMWithBasic.PUT(smUrlToStoppedBroker+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 					WithJSON(getDummyService()))
 			})
 		})
@@ -315,7 +331,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call contains query params", func() {
 			It("propagates them to the service broker", func() {
 				assertWorkingBrokerResponse(
-					ctx.SMWithBasic.PUT(queryParamVerificationBrokerOSBURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+					ctx.SMWithBasic.PUT(smUrlToQueryVerificationBroker+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 						WithJSON(getDummyService()).WithQuery(headerKey, headerValue), http.StatusCreated)
 			})
 		})
@@ -324,7 +340,7 @@ var _ = Describe("Service Manager OSB API", func() {
 	Describe("Unbind", func() {
 		Context("when trying to delete binding", func() {
 			It("should be successfull", func() {
-				ctx.SMWithBasic.DELETE(workingBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+				ctx.SMWithBasic.DELETE(smUrlToWorkingBroker+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 					WithQueryObject(getDummyService()).
 					Expect().Status(http.StatusOK).JSON().Object()
 
@@ -334,7 +350,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to broken service broker", func() {
 			It("should return error", func() {
 				assertBrokenBrokerError(
-					ctx.SMWithBasic.DELETE(brokerBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+					ctx.SMWithBasic.DELETE(smUrlToBrokenBroker+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 						WithQueryObject(getDummyService()))
 			})
 		})
@@ -342,7 +358,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to missing broker", func() {
 			It("unbind fails", func() {
 				assertMissingBrokerError(
-					ctx.SMWithBasic.DELETE(missingBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+					ctx.SMWithBasic.DELETE(smUrlToMissingBroker+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 						WithQueryObject(getDummyService()))
 			})
 		})
@@ -350,7 +366,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to stopped service broker", func() {
 			It("should fail", func() {
 				assertStoppedBrokerError(
-					ctx.SMWithBasic.DELETE(stoppedBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+					ctx.SMWithBasic.DELETE(smUrlToStoppedBroker+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 						WithQueryObject(getDummyService()))
 
 			})
@@ -359,7 +375,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call contains query params", func() {
 			It("propagates them to the service broker", func() {
 				assertWorkingBrokerResponse(
-					ctx.SMWithBasic.DELETE(queryParamVerificationBrokerOSBURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+					ctx.SMWithBasic.DELETE(smUrlToQueryVerificationBroker+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 						WithJSON(getDummyService()).WithQuery(headerKey, headerValue), http.StatusOK)
 			})
 		})
@@ -369,7 +385,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to working service broker", func() {
 			It("should succeed", func() {
 				assertWorkingBrokerResponse(
-					ctx.SMWithBasic.GET(workingBrokerURL+"/v2/service_instances/iid/last_operation").WithHeader("X-Broker-API-Version", "oidc_authn.13"),
+					ctx.SMWithBasic.GET(smUrlToWorkingBroker+"/v2/service_instances/iid/last_operation").WithHeader("X-Broker-API-Version", "oidc_authn.13"),
 					http.StatusOK, "state")
 			})
 		})
@@ -377,7 +393,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to broken service broker", func() {
 			It("should fail", func() {
 				assertBrokenBrokerError(
-					ctx.SMWithBasic.GET(brokerBrokerURL+"/v2/service_instances/iid/last_operation").WithHeader("X-Broker-API-Version", "oidc_authn.13"))
+					ctx.SMWithBasic.GET(smUrlToBrokenBroker+"/v2/service_instances/iid/last_operation").WithHeader("X-Broker-API-Version", "oidc_authn.13"))
 
 			})
 		})
@@ -385,21 +401,21 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to missing service broker", func() {
 			It("should fail", func() {
 				assertMissingBrokerError(
-					ctx.SMWithBasic.GET(missingBrokerURL+"/v2/service_instances/iid/last_operation").WithHeader("X-Broker-API-Version", "oidc_authn.13"))
+					ctx.SMWithBasic.GET(smUrlToMissingBroker+"/v2/service_instances/iid/last_operation").WithHeader("X-Broker-API-Version", "oidc_authn.13"))
 			})
 		})
 
 		Context("when call to stopped service broker", func() {
 			It("should fail", func() {
 				assertStoppedBrokerError(
-					ctx.SMWithBasic.GET(stoppedBrokerURL+"/v2/service_instances/iid/last_operation").WithHeader("X-Broker-API-Version", "oidc_authn.13"))
+					ctx.SMWithBasic.GET(smUrlToStoppedBroker+"/v2/service_instances/iid/last_operation").WithHeader("X-Broker-API-Version", "oidc_authn.13"))
 			})
 		})
 
 		Context("when call contains query params", func() {
 			It("propagates them to the service broker", func() {
 				assertWorkingBrokerResponse(
-					ctx.SMWithBasic.GET(queryParamVerificationBrokerOSBURL+"/v2/service_instances/iid/last_operation").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+					ctx.SMWithBasic.GET(smUrlToQueryVerificationBroker+"/v2/service_instances/iid/last_operation").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 						WithJSON(getDummyService()).WithQuery(headerKey, headerValue), http.StatusOK)
 			})
 		})
@@ -409,7 +425,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to working service broker", func() {
 			It("should succeed", func() {
 				assertWorkingBrokerResponse(
-					ctx.SMWithBasic.GET(workingBrokerURL+"/v2/service_instances/iid/service_bindings/bid/last_operation").WithHeader("X-Broker-API-Version", "oidc_authn.13"),
+					ctx.SMWithBasic.GET(smUrlToWorkingBroker+"/v2/service_instances/iid/service_bindings/bid/last_operation").WithHeader("X-Broker-API-Version", "oidc_authn.13"),
 					http.StatusOK, "state")
 			})
 		})
@@ -417,7 +433,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to broken service broker", func() {
 			It("should fail", func() {
 				assertBrokenBrokerError(
-					ctx.SMWithBasic.GET(brokerBrokerURL+"/v2/service_instances/iid/service_bindings/bid/last_operation").WithHeader("X-Broker-API-Version", "oidc_authn.13"))
+					ctx.SMWithBasic.GET(smUrlToBrokenBroker+"/v2/service_instances/iid/service_bindings/bid/last_operation").WithHeader("X-Broker-API-Version", "oidc_authn.13"))
 
 			})
 		})
@@ -425,21 +441,21 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to missing service broker", func() {
 			It("should fail", func() {
 				assertMissingBrokerError(
-					ctx.SMWithBasic.GET(missingBrokerURL+"/v2/service_instances/iid/service_bindings/bid/last_operation").WithHeader("X-Broker-API-Version", "oidc_authn.13"))
+					ctx.SMWithBasic.GET(smUrlToMissingBroker+"/v2/service_instances/iid/service_bindings/bid/last_operation").WithHeader("X-Broker-API-Version", "oidc_authn.13"))
 			})
 		})
 
 		Context("when call to stopped service broker", func() {
 			It("should fail", func() {
 				assertStoppedBrokerError(
-					ctx.SMWithBasic.GET(stoppedBrokerURL+"/v2/service_instances/iid/service_bindings/bid/last_operation").WithHeader("X-Broker-API-Version", "oidc_authn.13"))
+					ctx.SMWithBasic.GET(smUrlToStoppedBroker+"/v2/service_instances/iid/service_bindings/bid/last_operation").WithHeader("X-Broker-API-Version", "oidc_authn.13"))
 			})
 		})
 
 		Context("when call contains query params", func() {
 			It("propagates them to the service broker", func() {
 				assertWorkingBrokerResponse(
-					ctx.SMWithBasic.GET(queryParamVerificationBrokerOSBURL+"/v2/service_instances/iid/service_bindings/bid/last_operation").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+					ctx.SMWithBasic.GET(smUrlToQueryVerificationBroker+"/v2/service_instances/iid/service_bindings/bid/last_operation").WithHeader("X-Broker-API-Version", "oidc_authn.13").
 						WithJSON(getDummyService()).WithQuery(headerKey, headerValue), http.StatusOK)
 			})
 		})

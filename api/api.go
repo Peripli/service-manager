@@ -41,20 +41,6 @@ import (
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 )
 
-// Security is the configuration used for the encryption of data
-type Security struct {
-	// EncryptionKey is the encryption key from the environment
-	EncryptionKey string `mapstructure:"encryption_key"`
-}
-
-// Validate validates the API Security settings
-func (s *Security) Validate() error {
-	if len(s.EncryptionKey) != 32 {
-		return fmt.Errorf("validate Settings: SecurityEncryptionkey length must be exactly 32")
-	}
-	return nil
-}
-
 // Settings type to be loaded from the environment
 type Settings struct {
 	TokenIssuerURL    string `mapstructure:"token_issuer_url"`
@@ -109,7 +95,11 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 			osb.NewController(&osb.StorageBrokerFetcher{
 				BrokerStorage: repository.Broker(),
 				Encrypter:     encrypter,
-			}, http.DefaultTransport),
+			}, &osb.StorageCatalogFetcher{
+				CatalogStorage: repository.ServiceOffering(),
+			},
+				http.DefaultTransport,
+			),
 		},
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
