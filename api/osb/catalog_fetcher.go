@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 
@@ -20,5 +21,7 @@ func (scf *StorageCatalogFetcher) FetchCatalog(ctx context.Context, brokerID str
 	if err != nil {
 		return nil, fmt.Errorf("could not fetch catalog for broker with id %s from SMDB: %s", brokerID, err)
 	}
-	return util.NewJSONResponse(http.StatusOK, catalog)
+	return util.NewJSONResponse(http.StatusOK, &types.ServiceOfferings{
+		ServiceOfferings: catalog,
+	})
 }

@@ -25,6 +25,11 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
+// ServiceOfferings struct
+type ServiceOfferings struct {
+	ServiceOfferings []*ServiceOffering `json:"services"`
+}
+
 // Service Offering struct
 type ServiceOffering struct {
 	ID          string    `json:"id"`
