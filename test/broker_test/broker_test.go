@@ -679,6 +679,24 @@ var _ = Describe("Service Manager Broker API", func() {
 			})
 		})
 
+		Context("when fetching the broker catalog fails", func() {
+			BeforeEach(func() {
+				brokerServer.CatalogHandler = func(w http.ResponseWriter, req *http.Request) {
+					common.SetResponse(w, http.StatusInternalServerError, common.Object{})
+				}
+			})
+
+			It("returns an error", func() {
+				ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+brokerID).
+					WithJSON(brokerServerJSON).
+					Expect().Status(http.StatusInternalServerError).
+					JSON().Object().
+					Keys().Contains("error", "description")
+
+				assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+			})
+		})
+
 		Context("when the broker catalog is modified", func() {
 			Context("when an existing service offering is removed", func() {
 				var serviceOfferingID string

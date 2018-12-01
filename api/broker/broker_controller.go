@@ -173,7 +173,7 @@ func (c *Controller) listBrokers(r *web.Request) (*web.Response, error) {
 		for _, broker := range brokers {
 			offerings, err := c.Repository.ServiceOffering().ListWithServicePlansByBrokerID(ctx, broker.ID)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error getting catalog for broker with id %s from SM DB", broker.ID)
 			}
 			broker.Services = offerings
 
@@ -377,7 +377,8 @@ func (c *Controller) resyncBrokerAndCatalog(ctx context.Context, broker *types.B
 
 		existingServiceOfferingsWithServicePlans, err := storage.ServiceOffering().ListWithServicePlansByBrokerID(ctx, broker.ID)
 		if err != nil {
-			return err
+			return fmt.Errorf("error getting catalog for broker with id %s from SM DB", broker.ID)
+
 		}
 		existingServicesOfferingsMap, existingServicePlansMap := convertExistingCatalogToMaps(existingServiceOfferingsWithServicePlans)
 		log.C(ctx).Debugf("Found %d services and %d plans currently known for broker", len(existingServicesOfferingsMap), len(existingServicePlansMap))

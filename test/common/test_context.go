@@ -162,8 +162,8 @@ type TestContext struct {
 	brokers     map[string]*BrokerServer
 }
 
-func (ctx *TestContext) RegisterBroker() (string, *BrokerServer) {
-	brokerServer := NewBrokerServer()
+func (ctx *TestContext) RegisterBrokerWithCatalog(catalog string) (string, *BrokerServer) {
+	brokerServer := NewBrokerServerWithCatalog(catalog)
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		panic(err)
@@ -184,6 +184,9 @@ func (ctx *TestContext) RegisterBroker() (string, *BrokerServer) {
 	brokerServer.ResetCallHistory()
 	ctx.brokers[brokerID] = brokerServer
 	return brokerID, brokerServer
+}
+func (ctx *TestContext) RegisterBroker() (string, *BrokerServer) {
+	return ctx.RegisterBrokerWithCatalog(Catalog)
 }
 
 func (ctx *TestContext) CleanupBroker(id string) {

@@ -20,6 +20,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Peripli/service-manager/pkg/util"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
 )
@@ -122,6 +124,10 @@ func (sos *serviceOfferingStorage) ListWithServicePlansByBrokerID(ctx context.Co
 		} else {
 			serviceOffering.Plans = append(serviceOffering.Plans, row.ServicePlan.ToDTO())
 		}
+	}
+
+	if len(result) == 0 {
+		return nil, util.ErrNotFoundInStorage
 	}
 
 	return result, nil
