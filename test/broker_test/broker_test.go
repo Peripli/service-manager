@@ -46,12 +46,7 @@ var _ = Describe("Service Manager Broker API", func() {
 		expectedBrokerResponse common.Object
 	)
 
-	BeforeSuite(func() {
-		brokerServer = common.NewBrokerServer()
-		ctx = common.NewTestContext(nil)
-	})
-
-	AfterSuite(func() {
+	AfterEach(func() {
 		ctx.Cleanup()
 		if brokerServer != nil {
 			brokerServer.Close()
@@ -59,6 +54,8 @@ var _ = Describe("Service Manager Broker API", func() {
 	})
 
 	BeforeEach(func() {
+		brokerServer = common.NewBrokerServer()
+		ctx = common.NewTestContext(nil)
 		brokerServer.Reset()
 		brokerName := "brokerName"
 		brokerDescription := "description"
