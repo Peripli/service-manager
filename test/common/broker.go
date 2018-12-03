@@ -23,7 +23,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"sync"
 
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/gorilla/mux"
@@ -199,7 +198,7 @@ type BrokerServer struct {
 	BindingLastOpHandler         http.HandlerFunc // /v2/service_instances/{instance_id}/service_bindings/{binding_id}/last_operation
 
 	Username, Password string
-	C                  interface{}
+	Catalog            interface{}
 	LastRequestBody    []byte
 	LastRequest        *http.Request
 
@@ -208,8 +207,6 @@ type BrokerServer struct {
 	ServiceInstanceLastOpEndpointRequests []*http.Request
 	BindingEndpointRequests               []*http.Request
 	BindingLastOpEndpointRequests         []*http.Request
-
-	mutex sync.RWMutex
 
 	router *mux.Router
 }
@@ -253,7 +250,7 @@ func (b *BrokerServer) Reset() {
 func (b *BrokerServer) ResetProperties() {
 	b.Username = "buser"
 	b.Password = "bpassword"
-	b.Catalog(DefaultCatalog())
+	b.Catalog = DefaultCatalog()
 	b.LastRequestBody = []byte{}
 	b.LastRequest = nil
 }
@@ -307,13 +304,6 @@ func (b *BrokerServer) initRouter() {
 	b.router = router
 }
 
-func (b *BrokerServer) Catalog(catalog interface{}) {
-	b.mutex.Lock()
-	defer b.mutex.Unlock()
-
-	b.C = catalog
-}
-
 func (b *BrokerServer) authenticationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		auth := req.Header.Get("Authorization")
@@ -355,7 +345,7 @@ func (b *BrokerServer) saveRequestMiddleware(next http.Handler) http.Handler {
 }
 
 func (b *BrokerServer) defaultCatalogHandler(rw http.ResponseWriter, req *http.Request) {
-	SetResponse(rw, http.StatusOK, b.C)
+	SetResponse(rw, http.StatusOK, b.Catalog)
 }
 
 func (b *BrokerServer) defaultServiceInstanceHandler(rw http.ResponseWriter, req *http.Request) {
