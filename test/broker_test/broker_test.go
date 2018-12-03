@@ -280,7 +280,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					catalog, err := sjson.Delete(common.Catalog, fieldPath)
 					Expect(err).ToNot(HaveOccurred())
 
-					brokerServer.Catalog(common.JSONToMap(catalog))
+					brokerServer.Catalog = common.JSONToMap(catalog)
 				})
 
 				It("returns correct response", func() {
@@ -296,7 +296,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					catalog, err := sjson.Set(common.Catalog, fieldPath, fieldValue)
 					Expect(err).ToNot(HaveOccurred())
 
-					brokerServer.Catalog(common.JSONToMap(catalog))
+					brokerServer.Catalog = common.JSONToMap(catalog)
 				})
 
 				It("returns correct response", func() {
@@ -810,7 +810,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					catalog, err := sjson.Delete(common.Catalog, fieldPath)
 					Expect(err).ToNot(HaveOccurred())
 
-					brokerServer.Catalog(common.JSONToMap(catalog))
+					brokerServer.Catalog = common.JSONToMap(catalog)
 				})
 
 				It("returns correct response", func() {
@@ -826,7 +826,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					catalog, err := sjson.Set(common.Catalog, fieldPath, fieldValue)
 					Expect(err).ToNot(HaveOccurred())
 
-					brokerServer.Catalog(common.JSONToMap(catalog))
+					brokerServer.Catalog = common.JSONToMap(catalog)
 				})
 
 				It("returns correct response", func() {
@@ -848,7 +848,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					currServices := common.JSONToMap(common.Catalog)["services"].([]interface{})
 					currServices = append(currServices, anotherService)
 
-					brokerServer.Catalog(map[string]interface{}{"services": currServices})
+					brokerServer.Catalog = map[string]interface{}{"services": currServices}
 				})
 
 				It("is returned from the Services API associated with the correct broker", func() {
@@ -900,7 +900,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					}
 					s, err := sjson.Delete(common.Catalog, "services.0")
 					Expect(err).ShouldNot(HaveOccurred())
-					brokerServer.Catalog(common.JSONToMap(s))
+					brokerServer.Catalog = common.JSONToMap(s)
 				})
 
 				It("is no longer returned by the Services and Plans API", func() {
@@ -1008,7 +1008,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					}
 					s, err := sjson.Set(common.Catalog, "services.0.plans.2", anotherPlan)
 					Expect(err).ShouldNot(HaveOccurred())
-					brokerServer.Catalog(common.JSONToMap(s))
+					brokerServer.Catalog = common.JSONToMap(s)
 				})
 
 				It("is returned from the Plans API associated with the correct service offering", func() {
@@ -1042,7 +1042,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					Expect(removedPlanCatalogID).ToNot(BeEmpty())
 					s, err := sjson.Delete(common.Catalog, "services.0.plans.0")
 					Expect(err).ShouldNot(HaveOccurred())
-					brokerServer.Catalog(common.JSONToMap(s))
+					brokerServer.Catalog = common.JSONToMap(s)
 				})
 
 				It("is no longer returned by the Plans API", func() {
