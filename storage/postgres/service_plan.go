@@ -41,29 +41,11 @@ func (sps *servicePlanStorage) Get(ctx context.Context, id string) (*types.Servi
 }
 
 func (sps *servicePlanStorage) List(ctx context.Context) ([]*types.ServicePlan, error) {
-	var plans []ServicePlan
-	err := list(ctx, sps.db, servicePlanTable, map[string]string{}, &plans)
-	if err != nil || len(plans) == 0 {
-		return []*types.ServicePlan{}, err
-	}
-	servicePlans := make([]*types.ServicePlan, 0, len(plans))
-	for _, plan := range plans {
-		servicePlans = append(servicePlans, plan.ToDTO())
-	}
-	return servicePlans, nil
+	return sps.list(ctx, map[string]string{})
 }
 
 func (sps *servicePlanStorage) ListByCatalogName(ctx context.Context, name string) ([]*types.ServicePlan, error) {
-	var plans []ServicePlan
-	err := list(ctx, sps.db, servicePlanTable, map[string]string{"catalog_name": name}, &plans)
-	if err != nil || len(plans) == 0 {
-		return []*types.ServicePlan{}, err
-	}
-	servicePlans := make([]*types.ServicePlan, 0, len(plans))
-	for _, plan := range plans {
-		servicePlans = append(servicePlans, plan.ToDTO())
-	}
-	return servicePlans, nil
+	return sps.list(ctx, map[string]string{"catalog_name": name})
 }
 
 func (sps *servicePlanStorage) Delete(ctx context.Context, id string) error {
@@ -74,4 +56,17 @@ func (sps *servicePlanStorage) Update(ctx context.Context, servicePlan *types.Se
 	plan := &ServicePlan{}
 	plan.FromDTO(servicePlan)
 	return update(ctx, sps.db, servicePlanTable, plan)
+}
+
+func (sps *servicePlanStorage) list(ctx context.Context, filter map[string]string) ([]*types.ServicePlan, error) {
+	var plans []ServicePlan
+	err := list(ctx, sps.db, servicePlanTable, filter, &plans)
+	if err != nil || len(plans) == 0 {
+		return []*types.ServicePlan{}, err
+	}
+	servicePlans := make([]*types.ServicePlan, 0, len(plans))
+	for _, plan := range plans {
+		servicePlans = append(servicePlans, plan.ToDTO())
+	}
+	return servicePlans, nil
 }

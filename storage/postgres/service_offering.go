@@ -43,29 +43,11 @@ func (sos *serviceOfferingStorage) Get(ctx context.Context, id string) (*types.S
 }
 
 func (sos *serviceOfferingStorage) List(ctx context.Context) ([]*types.ServiceOffering, error) {
-	var serviceOfferings []ServiceOffering
-	err := list(ctx, sos.db, serviceOfferingTable, map[string]string{}, &serviceOfferings)
-	if err != nil || len(serviceOfferings) == 0 {
-		return []*types.ServiceOffering{}, err
-	}
-	serviceOfferingDTOs := make([]*types.ServiceOffering, 0, len(serviceOfferings))
-	for _, so := range serviceOfferings {
-		serviceOfferingDTOs = append(serviceOfferingDTOs, so.ToDTO())
-	}
-	return serviceOfferingDTOs, nil
+	return sos.list(ctx, map[string]string{})
 }
 
 func (sos *serviceOfferingStorage) ListByCatalogName(ctx context.Context, name string) ([]*types.ServiceOffering, error) {
-	var serviceOfferings []ServiceOffering
-	err := list(ctx, sos.db, serviceOfferingTable, map[string]string{"catalog_name": name}, &serviceOfferings)
-	if err != nil || len(serviceOfferings) == 0 {
-		return []*types.ServiceOffering{}, err
-	}
-	serviceOfferingDTOs := make([]*types.ServiceOffering, 0, len(serviceOfferings))
-	for _, so := range serviceOfferings {
-		serviceOfferingDTOs = append(serviceOfferingDTOs, so.ToDTO())
-	}
-	return serviceOfferingDTOs, nil
+	return sos.list(ctx, map[string]string{"catalog_name": name})
 }
 
 func (sos *serviceOfferingStorage) ListWithServicePlansByBrokerID(ctx context.Context, brokerID string) ([]*types.ServiceOffering, error) {
@@ -136,4 +118,17 @@ func (sos *serviceOfferingStorage) Update(ctx context.Context, serviceOffering *
 	so.FromDTO(serviceOffering)
 	return update(ctx, sos.db, serviceOfferingTable, so)
 
+}
+
+func (sos *serviceOfferingStorage) list(ctx context.Context, filter map[string]string) ([]*types.ServiceOffering, error) {
+	var serviceOfferings []ServiceOffering
+	err := list(ctx, sos.db, serviceOfferingTable, filter, &serviceOfferings)
+	if err != nil || len(serviceOfferings) == 0 {
+		return []*types.ServiceOffering{}, err
+	}
+	serviceOfferingDTOs := make([]*types.ServiceOffering, 0, len(serviceOfferings))
+	for _, so := range serviceOfferings {
+		serviceOfferingDTOs = append(serviceOfferingDTOs, so.ToDTO())
+	}
+	return serviceOfferingDTOs, nil
 }

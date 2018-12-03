@@ -79,7 +79,7 @@ type Pinger interface {
 // PingFunc is an adapter that allows to use regular functions as Pinger
 type PingFunc func() error
 
-// Run allows PingFunc to act as a Pinger
+// Ping allows PingFunc to act as a Pinger
 func (mf PingFunc) Ping() error {
 	return mf()
 }
