@@ -314,13 +314,6 @@ func (b *BrokerServer) Catalog(catalog interface{}) {
 	b.C = catalog
 }
 
-func (b *BrokerServer) GCatalog() interface{} {
-	b.mutex.Lock()
-	defer b.mutex.Unlock()
-
-	return b.C
-}
-
 func (b *BrokerServer) authenticationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		auth := req.Header.Get("Authorization")
@@ -362,7 +355,7 @@ func (b *BrokerServer) saveRequestMiddleware(next http.Handler) http.Handler {
 }
 
 func (b *BrokerServer) defaultCatalogHandler(rw http.ResponseWriter, req *http.Request) {
-	SetResponse(rw, http.StatusOK, b.GCatalog())
+	SetResponse(rw, http.StatusOK, b.C)
 }
 
 func (b *BrokerServer) defaultServiceInstanceHandler(rw http.ResponseWriter, req *http.Request) {
