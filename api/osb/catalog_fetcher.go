@@ -18,6 +18,16 @@ func (scf *StorageCatalogFetcher) FetchCatalog(ctx context.Context, brokerID str
 	if err != nil {
 		return nil, err
 	}
+
+	// SM generates its own ids for the services and plans - currently for the platform we want to provide the original catalog id
+	for _, service := range catalog {
+		service.ID = service.CatalogID
+		service.Name = service.CatalogName
+		for _, plan := range service.Plans {
+			plan.ID = plan.CatalogID
+			plan.Name = plan.CatalogName
+		}
+	}
 	return &types.ServiceOfferings{
 		ServiceOfferings: catalog,
 	}, nil
