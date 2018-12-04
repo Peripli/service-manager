@@ -44,7 +44,7 @@ func NewLabelTranslator() util.Translator {
 }
 
 func (l *LabelTranslator) Translate(input string) (string, error) {
-	filterStatements := make([]util.FilterStatement, 0)
+	filterStatements := util.FilterStatements(make([]util.FilterStatement, 0))
 
 	rawFilterStatements := strings.FieldsFunc(input, l.split)
 	for _, rawStatement := range rawFilterStatements {
@@ -54,6 +54,10 @@ func (l *LabelTranslator) Translate(input string) (string, error) {
 		}
 		statement := l.convertRawToFilterStatement(rawStatement, op)
 		filterStatements = append(filterStatements, statement)
+	}
+
+	if err := filterStatements.Validate(); err != nil {
+		return "", fmt.Errorf("label query parameter is invalid")
 	}
 
 	conditions := l.getSQLConditions(filterStatements)
