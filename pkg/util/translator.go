@@ -23,7 +23,7 @@ type Translator interface {
 }
 
 type Operation interface {
-	Get() string
+	fmt.Stringer
 	IsMultivalue() bool
 }
 
@@ -33,22 +33,18 @@ type FilterStatement struct {
 	RightOp []string
 }
 
+func (fs FilterStatement) Validate() error {
+	if len(fs.RightOp) > 1 && !fs.Op.IsMultivalue() {
+		return fmt.Errorf("multiple values received for single value operation")
+	}
+
+	return nil
+}
+
 func NewFilterStatement(leftOp string, op Operation, rightOp []string) FilterStatement {
 	return FilterStatement{
 		LeftOp:  leftOp,
 		Op:      op,
 		RightOp: rightOp,
 	}
-}
-
-type FilterStatements []FilterStatement
-
-func (fs FilterStatements) Validate() error {
-	for _, statement := range fs {
-		if len(statement.RightOp) > 1 && !statement.Op.IsMultivalue() {
-			return fmt.Errorf("validate Settings: Multiple values received for single value operation")
-		}
-	}
-
-	return nil
 }
