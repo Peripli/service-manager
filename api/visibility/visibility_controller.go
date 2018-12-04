@@ -75,14 +75,14 @@ func (c *Controller) listVisibilities(r *web.Request) (*web.Response, error) {
 	if !ok {
 		return nil, errors.New("user details not found in request context")
 	}
-	var p struct {
-		PlatformID string `json:"platform_id"`
-	}
-	if err := user.Data.Data(&p); err != nil {
+
+	p := &types.Platform{}
+
+	if err := user.Data.Data(p); err != nil {
 		return nil, err
 	}
-	if p.PlatformID != "" {
-		visibilities, err = c.VisibilityStorage.ListByPlatformID(ctx, p.PlatformID)
+	if p.ID != "" {
+		visibilities, err = c.VisibilityStorage.ListByPlatformID(ctx, p.ID)
 	} else {
 		visibilities, err = c.VisibilityStorage.List(ctx)
 	}

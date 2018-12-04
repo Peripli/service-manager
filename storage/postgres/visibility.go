@@ -55,9 +55,9 @@ func (vs *visibilityStorage) List(ctx context.Context) ([]*types.Visibility, err
 
 func (vs *visibilityStorage) ListByPlatformID(ctx context.Context, platformID string) ([]*types.Visibility, error) {
 	var visibilities []Visibility
-	err := list(ctx, vs.db, serviceOfferingTable, map[string]string{"platform_id": platformID}, &visibilities)
+	err := list(ctx, vs.db, visibilityTable, map[string]string{"platform_id": platformID}, &visibilities)
 	if err != nil || len(visibilities) == 0 {
-		return []*types.Visibility{}, err
+		return nil, err
 	}
 	visibilityDTOs := make([]*types.Visibility, 0, len(visibilities))
 	for _, v := range visibilities {
