@@ -462,6 +462,31 @@ var _ = Describe("Service Manager OSB API", func() {
 
 			})
 		})
+
+		Context("when call to missing service broker", func() {
+			It("should fail", func() {
+				assertMissingBrokerError(
+					ctx.SMWithBasic.POST(missingBrokerURL+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader("X-Broker-API-Version", "oidc_authn.13").WithJSON(&object{}))
+
+			})
+		})
+
+		Context("when call to stopped service broker", func() {
+			It("should fail", func() {
+				assertStoppedBrokerError(
+					ctx.SMWithBasic.POST(stoppedBrokerURL+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader("X-Broker-API-Version", "oidc_authn.13").WithJSON(&object{}))
+
+			})
+		})
+
+		Context("when call contains query params", func() {
+			It("propagates them to the service broker", func() {
+				assertWorkingBrokerResponse(
+					ctx.SMWithBasic.GET(queryParamVerificationBrokerOSBURL+"/v2/service_instances/iid/service_bindings/bid/last_operation").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+						WithJSON(getDummyService()).WithQuery(headerKey, headerValue), http.StatusOK)
+			})
+		})
+
 	})
 
 	Describe("Prefixed broker path", func() {
