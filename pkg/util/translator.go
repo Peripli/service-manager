@@ -16,19 +16,39 @@
 
 package util
 
+import "fmt"
+
 type Translator interface {
 	Translate(input string) (string, error)
 }
 
-type FilterStatement struct {
-	LeftOp, Op string
-	RightOp    []string
+type Operation interface {
+	Get() string
+	IsMultivalue() bool
 }
 
-func NewFilterStatement(leftOp, op string, rightOp []string) FilterStatement {
+type FilterStatement struct {
+	LeftOp  string
+	Op      Operation
+	RightOp []string
+}
+
+func NewFilterStatement(leftOp string, op Operation, rightOp []string) FilterStatement {
 	return FilterStatement{
 		LeftOp:  leftOp,
 		Op:      op,
 		RightOp: rightOp,
 	}
+}
+
+type FilterStatements []FilterStatement
+
+func (fs FilterStatements) Validate() error {
+	for _, statement := range fs {
+		if len(statement.RightOp) > 1 && !statement.Op.IsMultivalue() {
+			return fmt.Errorf("validate Settings: Multiple values received for single value operation")
+		}
+	}
+
+	return nil
 }

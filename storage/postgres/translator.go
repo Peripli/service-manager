@@ -17,26 +17,25 @@
 package postgres
 
 import (
-	"errors"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/util"
 	"strings"
 )
 
 type LabelTranslator struct {
-	allowedOperations map[string]string
+	allowedOperations map[string]util.Operation
 	allowedSeparators []rune
 }
 
 func NewLabelTranslator() util.Translator {
 	return &LabelTranslator{
-		allowedOperations: map[string]string{
-			"IN": "IN",
-			">":  ">",
-			">=": ">=",
-			"<=": "<=",
-			"<":  "<",
-			"=":  "=",
+		allowedOperations: map[string]util.Operation{
+			"IN": inOp{},
+			"=":  eqOp{},
+			">":  gtOp{},
+			">=": gteOp{},
+			"<":  ltOp{},
+			"<=": lteOp{},
 		},
 		allowedSeparators: []rune{
 			';',
@@ -75,12 +74,12 @@ func (l *LabelTranslator) split(r rune) bool {
 func (l *LabelTranslator) getRawOperation(rawStatement string) (string, error) {
 	opIdx := -1
 	for _, op := range l.allowedOperations {
-		opIdx = strings.Index(rawStatement, op)
+		opIdx = strings.Index(rawStatement, op.Get())
 		if opIdx != -1 {
-			return op, nil
+			return op.Get(), nil
 		}
 	}
-	return "", errors.New("Invalid label query")
+	return "", fmt.Errorf("invalid label query parameter")
 }
 
 func (l *LabelTranslator) convertRawToFilterStatement(rawStatement, op string) util.FilterStatement {
@@ -92,7 +91,7 @@ func (l *LabelTranslator) convertRawToFilterStatement(rawStatement, op string) u
 		rightOp[len(rightOp)-1] = strings.Trim(rightOp[len(rightOp)-1], "]")
 	}
 
-	return util.NewFilterStatement(rawStatement[:opIdx], op, rightOp)
+	return util.NewFilterStatement(rawStatement[:opIdx], l.allowedOperations[op], rightOp)
 }
 
 func (l *LabelTranslator) getSQLConditions(filterStatements []util.FilterStatement) []string {
@@ -104,10 +103,10 @@ func (l *LabelTranslator) getSQLConditions(filterStatements []util.FilterStateme
 		}
 		var value string
 		if len(statement.RightOp) > 1 {
-			value = fmt.Sprintf("value %s (%s)", l.allowedOperations[statement.Op], strings.Join(statement.RightOp, ","))
+			value = fmt.Sprintf("value %s (%s)", statement.Op.Get(), strings.Join(statement.RightOp, ","))
 		}
 		if len(statement.RightOp) == 1 {
-			value = fmt.Sprintf("value %s %s", l.allowedOperations[statement.Op], statement.RightOp[0])
+			value = fmt.Sprintf("value %s %s", statement.Op.Get(), statement.RightOp[0])
 		}
 
 		condition := fmt.Sprintf("(key='%s' AND %s)", statement.LeftOp, value)
