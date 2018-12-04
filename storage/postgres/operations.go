@@ -23,20 +23,20 @@ type gtOp struct{}
 type lteOp struct{}
 type gteOp struct{}
 
-func (op inOp) Get() string        { return "IN" }
+func (op inOp) String() string     { return "IN" }
 func (op inOp) IsMultivalue() bool { return true }
 
-func (op eqOp) Get() string        { return "=" }
+func (op eqOp) String() string     { return "=" }
 func (op eqOp) IsMultivalue() bool { return false }
 
-func (op ltOp) Get() string        { return "<" }
+func (op ltOp) String() string     { return "<" }
 func (op ltOp) IsMultivalue() bool { return false }
 
-func (op gtOp) Get() string        { return ">" }
+func (op gtOp) String() string     { return ">" }
 func (op gtOp) IsMultivalue() bool { return false }
 
-func (op lteOp) Get() string        { return "<=" }
+func (op lteOp) String() string     { return "<=" }
 func (op lteOp) IsMultivalue() bool { return false }
 
-func (op gteOp) Get() string        { return ">=" }
+func (op gteOp) String() string     { return ">=" }
 func (op gteOp) IsMultivalue() bool { return false }
