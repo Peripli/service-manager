@@ -5,6 +5,9 @@ CREATE TABLE visibilities (
    platform_id varchar(255) REFERENCES platforms(id) ON DELETE CASCADE,
    service_plan_id varchar(255) NOT NULL REFERENCES service_plans(id) ON DELETE CASCADE,
 
+   created_at            timestamp                NOT NULL DEFAULT CURRENT_TIMESTAMP,
+   updated_at            timestamp                NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
    UNIQUE (platform_id, service_plan_id)
 );
 
