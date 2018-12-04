@@ -95,7 +95,7 @@ var _ = Describe("Filters tests", func() {
 		Describe("when Filter.Run is invoked with user in context", func() {
 			It("should continue", func() {
 				requiredAuthzFilter := NewRequiredAuthnFilter()
-				req.Request = req.WithContext(web.ContextWithUser(req.Context(), &web.User{}))
+				req.Request = req.WithContext(web.ContextWithUser(req.Context(), &web.UserContext{}))
 				_, err := requiredAuthzFilter.Run(req, handler)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(handler.HandleCallCount()).To(Equal(1))

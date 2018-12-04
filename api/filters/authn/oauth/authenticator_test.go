@@ -253,7 +253,7 @@ var _ = Describe("OIDC Authenticator", func() {
 			request *http.Request
 			err     error
 		)
-		validateAuthenticationReturns := func(expectedUser *web.User, expectedDecision security.Decision, expectedErr error) {
+		validateAuthenticationReturns := func(expectedUser *web.UserContext, expectedDecision security.Decision, expectedErr error) {
 			authenticator, _ := newAuthenticator(ctx, oauthOptions)
 
 			user, decision, err := authenticator.Authenticate(request)

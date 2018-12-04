@@ -64,7 +64,6 @@ var _ = Describe("Service Manager Service Plans API", func() {
 				},
 			},
 		}
-		common.RemoveAllBrokers(ctx.SMWithOAuth)
 	})
 
 	Describe("GET", func() {

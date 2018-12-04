@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The Service Manager Authors
+ *    Copyright 2018 The Service Manager Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -14,20 +14,31 @@
  *    limitations under the License.
  */
 
-package oauth
+package visibility_test
 
 import (
-	"context"
+	"testing"
 
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/coreos/go-oidc"
+	"github.com/Peripli/service-manager/test/common"
+	. "github.com/onsi/ginkgo"
 )
 
-type oidcVerifier struct {
-	*oidc.IDTokenVerifier
+func TestVisibilities(t *testing.T) {
+	RunSpecs(t, "Platform API Tests Suite")
 }
 
-// Verify implements security.TokenVerifier and delegates to oidc.IDTokenVerifier
-func (v *oidcVerifier) Verify(ctx context.Context, idToken string) (web.TokenData, error) {
-	return v.IDTokenVerifier.Verify(ctx, idToken)
-}
+var _ = Describe("Service Manager Platform API", func() {
+
+	var (
+		ctx *common.TestContext
+	)
+
+	BeforeSuite(func() {
+		ctx = common.NewTestContext(nil)
+	})
+
+	AfterSuite(func() {
+		ctx.Cleanup()
+	})
+
+})

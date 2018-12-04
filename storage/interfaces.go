@@ -95,6 +95,9 @@ type Warehouse interface {
 	// ServicePlan provides access to service plan db operations
 	ServicePlan() ServicePlan
 
+	// Visibility provides access to visibilities db operations
+	Visibility() Visibility
+
 	// Platform provides access to platform db operations
 	Platform() Platform
 
@@ -183,10 +186,10 @@ type ServiceOffering interface {
 
 // ServiceOffering instance for Service Plan DB operations
 type ServicePlan interface {
-	// Create stores a service service_plan in SM DB
+	// Create stores a service plan in SM DB
 	Create(ctx context.Context, servicePlan *types.ServicePlan) error
 
-	// Get retrieves a service service_plan using the provided id from SM DB
+	// Get retrieves a service plan using the provided id from SM DB
 	Get(ctx context.Context, id string) (*types.ServicePlan, error)
 
 	// ListByCatalogName retrieves all service plans from SM DB that match the specified catalog name
@@ -195,11 +198,32 @@ type ServicePlan interface {
 	// List retrieves all service plans from SM DB
 	List(ctx context.Context) ([]*types.ServicePlan, error)
 
-	// Delete deletes a service service_plan from SM DB
+	// Delete deletes a  service plan from SM DB
 	Delete(ctx context.Context, id string) error
 
-	// Update updates a service service_plan from SM DB
+	// Update updates a service plan from SM DB
 	Update(ctx context.Context, servicePlan *types.ServicePlan) error
+}
+
+// Visibility interface for Visibility db operations
+type Visibility interface {
+	// Create stores a visibility in SM DB
+	Create(ctx context.Context, servicePlan *types.Visibility) error
+
+	// Get retrieves a visibility using the provided id from SM DB
+	Get(ctx context.Context, id string) (*types.Visibility, error)
+
+	// ListByPlatformID retrieves all visibilities from SM DB that match the specified platform id
+	ListByPlatformID(ctx context.Context, platformID string) ([]*types.Visibility, error)
+
+	// List retrieves all visibilities from SM DB
+	List(ctx context.Context) ([]*types.Visibility, error)
+
+	// Delete deletes a visibility from SM DB
+	Delete(ctx context.Context, id string) error
+
+	// Update updates a visibility from SM DB
+	Update(ctx context.Context, servicePlan *types.Visibility) error
 }
 
 // Credentials interface for Credentials db operations

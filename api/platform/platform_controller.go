@@ -98,8 +98,8 @@ func (c *Controller) getPlatform(r *web.Request) (*web.Response, error) {
 	return util.NewJSONResponse(http.StatusOK, platform)
 }
 
-// getAllPlatforms handler for GET /v1/platforms
-func (c *Controller) getAllPlatforms(r *web.Request) (*web.Response, error) {
+// listPlatforms handler for GET /v1/platforms
+func (c *Controller) listPlatforms(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debug("Getting all platforms")
 	platforms, err := c.PlatformStorage.List(ctx)
