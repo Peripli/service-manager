@@ -101,10 +101,6 @@ func (l *LabelTranslator) convertRawStatementToFilterStatement(rawStatement, op 
 func (l *LabelTranslator) convertFilterStatementsToSQLConditions(filterStatements []util.FilterStatement) []string {
 	conditions := make([]string, 0)
 	for _, statement := range filterStatements {
-		values := make([]string, 0)
-		for _, value := range statement.RightOp {
-			values = append(values, fmt.Sprintf("value %s '%s'", value))
-		}
 		var value string
 		if len(statement.RightOp) > 1 {
 			value = fmt.Sprintf("value %s (%s)", statement.Op.String(), strings.Join(statement.RightOp, ","))
