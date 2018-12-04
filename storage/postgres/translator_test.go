@@ -35,6 +35,14 @@ var _ = Describe("Postgres Translator", func() {
 			})
 		})
 
+		Context("Called with multivalue operator and single value", func() {
+			It("Should return proper result surrounded in brackets", func() {
+				result, err := translator.Translate("subAccountIN[s1]")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(result).To(Equal("(key='subAccount' AND value IN (s1))"))
+			})
+		})
+
 		Context("Called with missing operator", func() {
 			It("Should return error", func() {
 				_, err := translator.Translate("subAccount[s1];clusterIdIN[c1,c2];globalAccountId=5")
