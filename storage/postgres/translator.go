@@ -57,7 +57,7 @@ func (l *LabelTranslator) Translate(input string) (string, error) {
 	}
 
 	if err := filterStatements.Validate(); err != nil {
-		return "", fmt.Errorf("label query parameter is invalid")
+		return "", fmt.Errorf("label query is invalid")
 	}
 
 	conditions := l.getSQLConditions(filterStatements)
@@ -83,7 +83,7 @@ func (l *LabelTranslator) getRawOperation(rawStatement string) (string, error) {
 			return op.Get(), nil
 		}
 	}
-	return "", fmt.Errorf("invalid label query parameter")
+	return "", fmt.Errorf("label query operation is invalid")
 }
 
 func (l *LabelTranslator) convertRawToFilterStatement(rawStatement, op string) util.FilterStatement {
@@ -98,7 +98,7 @@ func (l *LabelTranslator) convertRawToFilterStatement(rawStatement, op string) u
 	return util.NewFilterStatement(rawStatement[:opIdx], l.allowedOperations[op], rightOp)
 }
 
-func (l *LabelTranslator) getSQLConditions(filterStatements []util.FilterStatement) []string {
+func (l *LabelTranslator) getSQLConditions(filterStatements util.FilterStatements) []string {
 	conditions := make([]string, 0)
 	for _, statement := range filterStatements {
 		values := make([]string, 0)
