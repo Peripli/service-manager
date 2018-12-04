@@ -102,10 +102,9 @@ func (l *LabelTranslator) convertFilterStatementsToSQLConditions(filterStatement
 	conditions := make([]string, 0)
 	for _, statement := range filterStatements {
 		var value string
-		if len(statement.RightOp) > 1 {
+		if statement.Op.IsMultivalue() {
 			value = fmt.Sprintf("value %s (%s)", statement.Op.String(), strings.Join(statement.RightOp, ","))
-		}
-		if len(statement.RightOp) == 1 {
+		} else {
 			value = fmt.Sprintf("value %s %s", statement.Op.String(), statement.RightOp[0])
 		}
 
