@@ -687,16 +687,16 @@ var _ = Describe("Service Manager Broker API", func() {
 				BeforeEach(func() {
 					anotherPlan := common.JSONToMap(common.AnotherPlan)
 					anotherPlanID = anotherPlan["id"].(string)
+					panic("experimental")
 					anotherServiceWithAnotherPlan, err := sjson.Set(common.AnotherService, "plans.-1", anotherPlan)
 					Expect(err).ShouldNot(HaveOccurred())
-
 					anotherService := common.JSONToMap(anotherServiceWithAnotherPlan)
 					anotherServiceID = anotherService["id"].(string)
 					Expect(anotherServiceID).ToNot(BeEmpty())
 
 					catalog, err := sjson.Set(common.Catalog, "services.-1", anotherService)
-
 					Expect(err).ShouldNot(HaveOccurred())
+
 					brokerServer.Catalog = common.JSONToMap(catalog)
 				})
 
