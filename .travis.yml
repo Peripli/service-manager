@@ -10,7 +10,7 @@ services:
   - postgresql
 
 script:
-  - make precommit
+  - travis_wait make precommit
   - goveralls -coverprofile profile.cov -service=travis-ci
 
 notifications:
