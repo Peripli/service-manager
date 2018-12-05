@@ -19,7 +19,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
-
+	"fmt"
 	"github.com/tidwall/gjson"
 
 	"github.com/tidwall/sjson"
@@ -687,7 +687,7 @@ var _ = Describe("Service Manager Broker API", func() {
 				BeforeEach(func() {
 					anotherPlan := common.JSONToMap(common.AnotherPlan)
 					anotherPlanID = anotherPlan["id"].(string)
-			
+					fmt.Println(anotherPlanID)
 					anotherServiceWithAnotherPlan, err := sjson.Set(common.AnotherService, "plans.-1", anotherPlan)
                                          
 					Expect(err).ShouldNot(HaveOccurred())
