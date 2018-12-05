@@ -1,11 +1,10 @@
 package visibility
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/Peripli/service-manager/storage"
 
