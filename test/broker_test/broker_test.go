@@ -712,10 +712,6 @@ var _ = Describe("Service Manager Broker API", func() {
 						WithJSON(common.Object{}).
 						Expect().
 						Status(http.StatusOK)
-					servicesJsonResp := ctx.SMWithOAuth.GET("/v1/service_offerings").
-						Expect().
-						Status(http.StatusOK).
-						JSON()
 				})
 			})
 
