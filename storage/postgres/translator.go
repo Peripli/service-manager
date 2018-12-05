@@ -18,94 +18,27 @@ package postgres
 
 import (
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/util"
 	"strings"
+
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
-type LabelTranslator struct {
-	allowedOperations map[string]util.Operation
-	allowedSeparators []rune
-}
+type LabelTranslator struct{}
 
-func NewLabelTranslator() util.Translator {
-	return &LabelTranslator{
-		allowedOperations: map[string]util.Operation{
-			"IN": inOp{},
-			"=":  eqOp{},
-			">":  gtOp{},
-			">=": gteOp{},
-			"<":  ltOp{},
-			"<=": lteOp{},
-		},
-		allowedSeparators: []rune{
-			';',
-		},
-	}
-}
-
-func (l *LabelTranslator) Translate(input string) (string, error) {
-	filterStatements := make([]util.FilterStatement, 0)
-
-	rawFilterStatements := strings.FieldsFunc(input, l.split)
-	for _, rawStatement := range rawFilterStatements {
-		op, err := l.getRawOperation(rawStatement)
-		if err != nil {
-			return "", err
-		}
-
-		filterStatement := l.convertRawStatementToFilterStatement(rawStatement, op)
-		if err := filterStatement.Validate(); err != nil {
-			return "", err
-		}
-
-		filterStatements = append(filterStatements, filterStatement)
-	}
-
-	sqlConditions := l.convertFilterStatementsToSQLConditions(filterStatements)
+func (l *LabelTranslator) Translate(segments []web.QuerySegment) (string, error) {
+	sqlConditions := l.convertFilterStatementsToSQLConditions(segments)
 	resultClause := strings.Join(sqlConditions, " AND ")
 	return resultClause, nil
 }
 
-func (l *LabelTranslator) split(r rune) bool {
-	for _, sep := range l.allowedSeparators {
-		if r == sep {
-			return true
-		}
-	}
-	return false
-}
-
-func (l *LabelTranslator) getRawOperation(rawStatement string) (string, error) {
-	opIdx := -1
-	for _, op := range l.allowedOperations {
-		opIdx = strings.Index(rawStatement, op.String())
-		if opIdx != -1 {
-			return op.String(), nil
-		}
-	}
-	return "", fmt.Errorf("label query operator is missing")
-}
-
-func (l *LabelTranslator) convertRawStatementToFilterStatement(rawStatement, op string) util.FilterStatement {
-	opIdx := strings.Index(rawStatement, op)
-	rightOp := strings.Split(rawStatement[opIdx+len(op):], ",")
-
-	if l.allowedOperations[op].IsMultivalue() {
-		rightOp[0] = strings.Trim(rightOp[0], "[")
-		rightOp[len(rightOp)-1] = strings.Trim(rightOp[len(rightOp)-1], "]")
-	}
-
-	return util.NewFilterStatement(rawStatement[:opIdx], l.allowedOperations[op], rightOp)
-}
-
-func (l *LabelTranslator) convertFilterStatementsToSQLConditions(filterStatements []util.FilterStatement) []string {
+func (l *LabelTranslator) convertFilterStatementsToSQLConditions(filterStatements []web.QuerySegment) []string {
 	conditions := make([]string, 0)
 	for _, statement := range filterStatements {
 		var value string
-		if statement.Op.IsMultivalue() {
-			value = fmt.Sprintf("value %s (%s)", statement.Op.String(), strings.Join(statement.RightOp, ","))
+		if statement.Operator.IsMultiVariate() {
+			value = fmt.Sprintf("value %s (%s)", statement.Operator, strings.Join(statement.RightOp, ","))
 		} else {
-			value = fmt.Sprintf("value %s %s", statement.Op.String(), statement.RightOp[0])
+			value = fmt.Sprintf("value %s %s", statement.Operator, statement.RightOp[0])
 		}
 
 		condition := fmt.Sprintf("(key='%s' AND %s)", statement.LeftOp, value)

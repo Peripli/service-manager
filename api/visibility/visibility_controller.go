@@ -84,6 +84,11 @@ func (c *Controller) listVisibilities(r *web.Request) (*web.Response, error) {
 	if p.ID != "" {
 		visibilities, err = c.VisibilityStorage.ListByPlatformID(ctx, p.ID)
 	} else {
+		// build filter segments
+		_, err := web.BuildFilterSegmentsForRequest(r)
+		if err != nil {
+			return nil, err
+		}
 		visibilities, err = c.VisibilityStorage.List(ctx)
 	}
 	if err != nil {

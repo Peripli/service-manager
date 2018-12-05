@@ -23,6 +23,8 @@ import (
 	"path"
 	"runtime"
 
+	"github.com/Peripli/service-manager/pkg/web"
+
 	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/types"
 )
@@ -247,4 +249,8 @@ type Security interface {
 
 	// Setter provides means to change the encryption  key
 	Setter() security.KeySetter
+}
+
+type Translator interface {
+	Translate(querySegments []web.QuerySegment) (string, error)
 }

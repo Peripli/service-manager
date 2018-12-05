@@ -2,19 +2,19 @@
 package storagefakes
 
 import (
-	context "context"
-	sync "sync"
+	"context"
+	"sync"
 
-	types "github.com/Peripli/service-manager/pkg/types"
-	storage "github.com/Peripli/service-manager/storage"
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
 )
 
 type FakeCredentials struct {
-	GetStub        func(context.Context, string) (*types.Credentials, error)
+	GetStub        func(ctx context.Context, username string) (*types.Credentials, error)
 	getMutex       sync.RWMutex
 	getArgsForCall []struct {
-		arg1 context.Context
-		arg2 string
+		ctx      context.Context
+		username string
 	}
 	getReturns struct {
 		result1 *types.Credentials
@@ -28,23 +28,22 @@ type FakeCredentials struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeCredentials) Get(arg1 context.Context, arg2 string) (*types.Credentials, error) {
+func (fake *FakeCredentials) Get(ctx context.Context, username string) (*types.Credentials, error) {
 	fake.getMutex.Lock()
 	ret, specificReturn := fake.getReturnsOnCall[len(fake.getArgsForCall)]
 	fake.getArgsForCall = append(fake.getArgsForCall, struct {
-		arg1 context.Context
-		arg2 string
-	}{arg1, arg2})
-	fake.recordInvocation("Get", []interface{}{arg1, arg2})
+		ctx      context.Context
+		username string
+	}{ctx, username})
+	fake.recordInvocation("Get", []interface{}{ctx, username})
 	fake.getMutex.Unlock()
 	if fake.GetStub != nil {
-		return fake.GetStub(arg1, arg2)
+		return fake.GetStub(ctx, username)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.getReturns
-	return fakeReturns.result1, fakeReturns.result2
+	return fake.getReturns.result1, fake.getReturns.result2
 }
 
 func (fake *FakeCredentials) GetCallCount() int {
@@ -53,22 +52,13 @@ func (fake *FakeCredentials) GetCallCount() int {
 	return len(fake.getArgsForCall)
 }
 
-func (fake *FakeCredentials) GetCalls(stub func(context.Context, string) (*types.Credentials, error)) {
-	fake.getMutex.Lock()
-	defer fake.getMutex.Unlock()
-	fake.GetStub = stub
-}
-
 func (fake *FakeCredentials) GetArgsForCall(i int) (context.Context, string) {
 	fake.getMutex.RLock()
 	defer fake.getMutex.RUnlock()
-	argsForCall := fake.getArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
+	return fake.getArgsForCall[i].ctx, fake.getArgsForCall[i].username
 }
 
 func (fake *FakeCredentials) GetReturns(result1 *types.Credentials, result2 error) {
-	fake.getMutex.Lock()
-	defer fake.getMutex.Unlock()
 	fake.GetStub = nil
 	fake.getReturns = struct {
 		result1 *types.Credentials
@@ -77,8 +67,6 @@ func (fake *FakeCredentials) GetReturns(result1 *types.Credentials, result2 erro
 }
 
 func (fake *FakeCredentials) GetReturnsOnCall(i int, result1 *types.Credentials, result2 error) {
-	fake.getMutex.Lock()
-	defer fake.getMutex.Unlock()
 	fake.GetStub = nil
 	if fake.getReturnsOnCall == nil {
 		fake.getReturnsOnCall = make(map[int]struct {
