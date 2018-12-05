@@ -60,7 +60,7 @@ type pgDB interface {
 	sqlx.ExtContext
 }
 
-func create(ctx context.Context, db prepareNamedContext, table string, dto interface{}) (string, error) {
+func create(ctx context.Context, db pgDB, table string, dto interface{}) (string, error) {
 	var lastInsertId string
 	set := getDBTags(dto)
 
@@ -77,16 +77,17 @@ func create(ctx context.Context, db prepareNamedContext, table string, dto inter
 
 	id, ok := structs.New(dto).FieldOk("ID")
 	if ok {
-		query += fmt.Sprintf(" Returning %s", id.Tag("db"))
+		queryReturningID := fmt.Sprintf("%s Returning %s", query, id.Tag("db"))
+		log.C(ctx).Debugf("Executing query %s", queryReturningID)
+		stmt, err := db.PrepareNamedContext(ctx, queryReturningID)
+		if err != nil {
+			return "", err
+		}
+		err = stmt.GetContext(ctx, &lastInsertId, dto)
+		return lastInsertId, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
 	}
-
 	log.C(ctx).Debugf("Executing query %s", query)
-	stmt, err := db.PrepareNamedContext(ctx, query)
-	if err != nil {
-		return lastInsertId, err
-	}
-
-	err = stmt.QueryRowxContext(ctx, dto).Scan(&lastInsertId)
+	_, err := db.NamedExecContext(ctx, query, dto)
 	return lastInsertId, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
 }
 

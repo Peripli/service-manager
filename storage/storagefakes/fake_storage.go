@@ -112,6 +112,16 @@ type FakeStorage struct {
 	servicePlanReturnsOnCall map[int]struct {
 		result1 storage.ServicePlan
 	}
+	VisibilityStub        func() storage.Visibility
+	visibilityMutex       sync.RWMutex
+	visibilityArgsForCall []struct {
+	}
+	visibilityReturns struct {
+		result1 storage.Visibility
+	}
+	visibilityReturnsOnCall map[int]struct {
+		result1 storage.Visibility
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
@@ -653,6 +663,58 @@ func (fake *FakeStorage) ServicePlanReturnsOnCall(i int, result1 storage.Service
 	}{result1}
 }
 
+func (fake *FakeStorage) Visibility() storage.Visibility {
+	fake.visibilityMutex.Lock()
+	ret, specificReturn := fake.visibilityReturnsOnCall[len(fake.visibilityArgsForCall)]
+	fake.visibilityArgsForCall = append(fake.visibilityArgsForCall, struct {
+	}{})
+	fake.recordInvocation("Visibility", []interface{}{})
+	fake.visibilityMutex.Unlock()
+	if fake.VisibilityStub != nil {
+		return fake.VisibilityStub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.visibilityReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeStorage) VisibilityCallCount() int {
+	fake.visibilityMutex.RLock()
+	defer fake.visibilityMutex.RUnlock()
+	return len(fake.visibilityArgsForCall)
+}
+
+func (fake *FakeStorage) VisibilityCalls(stub func() storage.Visibility) {
+	fake.visibilityMutex.Lock()
+	defer fake.visibilityMutex.Unlock()
+	fake.VisibilityStub = stub
+}
+
+func (fake *FakeStorage) VisibilityReturns(result1 storage.Visibility) {
+	fake.visibilityMutex.Lock()
+	defer fake.visibilityMutex.Unlock()
+	fake.VisibilityStub = nil
+	fake.visibilityReturns = struct {
+		result1 storage.Visibility
+	}{result1}
+}
+
+func (fake *FakeStorage) VisibilityReturnsOnCall(i int, result1 storage.Visibility) {
+	fake.visibilityMutex.Lock()
+	defer fake.visibilityMutex.Unlock()
+	fake.VisibilityStub = nil
+	if fake.visibilityReturnsOnCall == nil {
+		fake.visibilityReturnsOnCall = make(map[int]struct {
+			result1 storage.Visibility
+		})
+	}
+	fake.visibilityReturnsOnCall[i] = struct {
+		result1 storage.Visibility
+	}{result1}
+}
+
 func (fake *FakeStorage) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -676,6 +738,8 @@ func (fake *FakeStorage) Invocations() map[string][][]interface{} {
 	defer fake.serviceOfferingMutex.RUnlock()
 	fake.servicePlanMutex.RLock()
 	defer fake.servicePlanMutex.RUnlock()
+	fake.visibilityMutex.RLock()
+	defer fake.visibilityMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

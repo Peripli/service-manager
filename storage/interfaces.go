@@ -161,6 +161,7 @@ type Platform interface {
 }
 
 // ServiceOffering instance for Service Offerings DB operations
+//go:generate counterfeiter . ServiceOffering
 type ServiceOffering interface {
 	// Create stores a service offering in SM DB
 	Create(ctx context.Context, serviceOffering *types.ServiceOffering) (string, error)
