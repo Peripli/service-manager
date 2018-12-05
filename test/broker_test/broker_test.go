@@ -112,7 +112,7 @@ var _ = Describe("Service Manager Broker API", func() {
 				brokerServer.ResetCallHistory()
 			})
 
-			It("returns the broker with given id", func() {
+			It("returns the broker with givepann id", func() {
 				ctx.SMWithOAuth.GET("/v1/service_brokers/"+id).
 					Expect().
 					Status(http.StatusOK).
@@ -716,7 +716,6 @@ var _ = Describe("Service Manager Broker API", func() {
 						Expect().
 						Status(http.StatusOK).
 						JSON()
-					panic("123")
 					servicesJsonResp.Path("$.service_offerings[*].catalog_id").Array().Contains(anotherServiceID)
 					servicesJsonResp.Path("$.service_offerings[*].broker_id").Array().Contains(brokerID)
 
