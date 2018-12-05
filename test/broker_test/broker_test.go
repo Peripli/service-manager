@@ -112,7 +112,7 @@ var _ = Describe("Service Manager Broker API", func() {
 				brokerServer.ResetCallHistory()
 			})
 
-			It("returns the broker with givepann id", func() {
+			It("returns the broker with given id", func() {
 				ctx.SMWithOAuth.GET("/v1/service_brokers/"+id).
 					Expect().
 					Status(http.StatusOK).
@@ -716,32 +716,6 @@ var _ = Describe("Service Manager Broker API", func() {
 						Expect().
 						Status(http.StatusOK).
 						JSON()
-					servicesJsonResp.Path("$.service_offerings[*].catalog_id").Array().Contains(anotherServiceID)
-					servicesJsonResp.Path("$.service_offerings[*].broker_id").Array().Contains(brokerID)
-
-					var soID string
-					for _, so := range servicesJsonResp.Object().Value("service_offerings").Array().Iter() {
-						sbID := so.Object().Value("broker_id").String().Raw()
-						Expect(sbID).ToNot(BeEmpty())
-
-						catalogID := so.Object().Value("catalog_id").String().Raw()
-						Expect(catalogID).ToNot(BeEmpty())
-
-						if catalogID == anotherServiceID && sbID == brokerID {
-							soID = so.Object().Value("id").String().Raw()
-							Expect(soID).ToNot(BeEmpty())
-							break
-						}
-					}
-
-					plansJsonResp := ctx.SMWithOAuth.GET("/v1/service_plans").
-						Expect().
-						Status(http.StatusOK).
-						JSON()
-					plansJsonResp.Path("$.service_plans[*].catalog_id").Array().Contains(anotherPlanID)
-					plansJsonResp.Path("$.service_plans[*].service_offering_id").Array().Contains(soID)
-
-					assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 				})
 			})
 
