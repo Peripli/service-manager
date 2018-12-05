@@ -708,7 +708,6 @@ var _ = Describe("Service Manager Broker API", func() {
 						Status(http.StatusOK).
 						JSON().
 						Path("$.service_offerings[*].catalog_id").Array().NotContains(anotherServiceID)
-					panic("123")
 					ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
 						WithJSON(common.Object{}).
 						Expect().
@@ -717,6 +716,7 @@ var _ = Describe("Service Manager Broker API", func() {
 						Expect().
 						Status(http.StatusOK).
 						JSON()
+					panic("123")
 					servicesJsonResp.Path("$.service_offerings[*].catalog_id").Array().Contains(anotherServiceID)
 					servicesJsonResp.Path("$.service_offerings[*].broker_id").Array().Contains(brokerID)
 
