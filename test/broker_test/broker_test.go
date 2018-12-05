@@ -697,8 +697,9 @@ var _ = Describe("Service Manager Broker API", func() {
 
 					catalog, err := sjson.Set(common.Catalog, "services.-1", anotherService)
 					Expect(err).ShouldNot(HaveOccurred())
-					panic("experimental")
+					
 					brokerServer.Catalog = common.JSONToMap(catalog)
+					panic("exxp")
 				})
 
 				It("is returned from the Services API associated with the correct broker", func() {
