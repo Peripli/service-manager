@@ -117,5 +117,6 @@ func (k *keySetter) SetEncryptionKey(ctx context.Context, key []byte) error {
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	return create(ctx, k.db, "safe", safe)
+	_, err = create(ctx, k.db, "safe", safe)
+	return err
 }

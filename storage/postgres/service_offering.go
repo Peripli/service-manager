@@ -28,7 +28,7 @@ type serviceOfferingStorage struct {
 	db pgDB
 }
 
-func (sos *serviceOfferingStorage) Create(ctx context.Context, serviceOffering *types.ServiceOffering) error {
+func (sos *serviceOfferingStorage) Create(ctx context.Context, serviceOffering *types.ServiceOffering) (string, error) {
 	so := &ServiceOffering{}
 	so.FromDTO(serviceOffering)
 	return create(ctx, sos.db, serviceOfferingTable, so)

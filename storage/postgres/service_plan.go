@@ -26,7 +26,7 @@ type servicePlanStorage struct {
 	db pgDB
 }
 
-func (sps *servicePlanStorage) Create(ctx context.Context, servicePlan *types.ServicePlan) error {
+func (sps *servicePlanStorage) Create(ctx context.Context, servicePlan *types.ServicePlan) (string, error) {
 	plan := &ServicePlan{}
 	plan.FromDTO(servicePlan)
 	return create(ctx, sps.db, servicePlanTable, plan)
