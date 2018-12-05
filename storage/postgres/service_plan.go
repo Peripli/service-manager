@@ -67,7 +67,7 @@ func (sps *servicePlanStorage) ListByCatalogName(ctx context.Context, name strin
 }
 
 func (sps *servicePlanStorage) Delete(ctx context.Context, id string) error {
-	return delete(ctx, sps.db, id, servicePlanTable)
+	return remove(ctx, sps.db, id, servicePlanTable)
 }
 
 func (sps *servicePlanStorage) Update(ctx context.Context, servicePlan *types.ServicePlan) error {

@@ -85,6 +85,8 @@ var (
 
 	// ErrAlreadyExistsInStorage error returned from storage when entity has conflicting fields
 	ErrAlreadyExistsInStorage = errors.New("unique constraint violation")
+
+	ErrIntegrityCheckViolation = errors.New("integrity check violation")
 )
 
 // HandleStorageError handles storage errors by converting them to relevant HTTPErrors
@@ -104,6 +106,12 @@ func HandleStorageError(err error, entityName, entityID string) error {
 			ErrorType:   "NotFound",
 			Description: fmt.Sprintf("could not find %s with id %s", entityName, entityID),
 			StatusCode:  http.StatusNotFound,
+		}
+	case ErrIntegrityCheckViolation:
+		return &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: fmt.Sprintf("storage contraints violation: %s", err),
+			StatusCode:  http.StatusBadRequest,
 		}
 	}
 	return fmt.Errorf("unknown error type returned from storage layer: %s", err)

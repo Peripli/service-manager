@@ -54,7 +54,7 @@ func (bs *brokerStorage) List(ctx context.Context) ([]*types.Broker, error) {
 }
 
 func (bs *brokerStorage) Delete(ctx context.Context, id string) error {
-	return delete(ctx, bs.db, id, brokerTable)
+	return remove(ctx, bs.db, id, brokerTable)
 }
 
 func (bs *brokerStorage) Update(ctx context.Context, broker *types.Broker) error {

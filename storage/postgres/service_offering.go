@@ -128,7 +128,7 @@ func (sos *serviceOfferingStorage) ListWithServicePlansByBrokerID(ctx context.Co
 }
 
 func (sos *serviceOfferingStorage) Delete(ctx context.Context, id string) error {
-	return delete(ctx, sos.db, id, serviceOfferingTable)
+	return remove(ctx, sos.db, id, serviceOfferingTable)
 }
 
 func (sos *serviceOfferingStorage) Update(ctx context.Context, serviceOffering *types.ServiceOffering) error {

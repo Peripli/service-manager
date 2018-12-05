@@ -67,7 +67,7 @@ func (vs *visibilityStorage) ListByPlatformID(ctx context.Context, platformID st
 }
 
 func (vs *visibilityStorage) Delete(ctx context.Context, id string) error {
-	return delete(ctx, vs.db, id, visibilityTable)
+	return remove(ctx, vs.db, id, visibilityTable)
 }
 
 func (vs *visibilityStorage) Update(ctx context.Context, visibility *types.Visibility) error {

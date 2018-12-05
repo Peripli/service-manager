@@ -54,7 +54,7 @@ func (ps *platformStorage) List(ctx context.Context) ([]*types.Platform, error) 
 }
 
 func (ps *platformStorage) Delete(ctx context.Context, id string) error {
-	return delete(ctx, ps.db, id, platformTable)
+	return remove(ctx, ps.db, id, platformTable)
 }
 
 func (ps *platformStorage) Update(ctx context.Context, platform *types.Platform) error {

@@ -70,7 +70,7 @@ func create(ctx context.Context, db namedExecerContext, table string, dto interf
 	)
 	log.C(ctx).Debugf("Executing query %s", query)
 	_, err := db.NamedExecContext(ctx, query, dto)
-	return checkUniqueViolation(ctx, err)
+	return checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
 }
 
 func get(ctx context.Context, db getterContext, id string, table string, dto interface{}) error {
@@ -93,7 +93,7 @@ func list(ctx context.Context, db selecterContext, table string, filter map[stri
 	return db.SelectContext(ctx, dtos, query)
 }
 
-func delete(ctx context.Context, db sqlx.ExecerContext, id string, table string) error {
+func remove(ctx context.Context, db sqlx.ExecerContext, id string, table string) error {
 	query := "DELETE FROM " + table + " WHERE id=$1"
 	log.C(ctx).Debugf("Executing query %s", query)
 	result, err := db.ExecContext(ctx, query, id)
@@ -111,7 +111,7 @@ func update(ctx context.Context, db namedExecerContext, table string, dto interf
 	}
 	log.C(ctx).Debugf("Executing query %s", updateQueryString)
 	result, err := db.NamedExecContext(ctx, updateQueryString, dto)
-	if err = checkUniqueViolation(ctx, err); err != nil {
+	if err = checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err)); err != nil {
 		return err
 	}
 	return checkRowsAffected(result)
@@ -159,6 +159,18 @@ func checkUniqueViolation(ctx context.Context, err error) error {
 	if ok && sqlErr.Code.Name() == "unique_violation" {
 		log.C(ctx).Debug(sqlErr)
 		return util.ErrAlreadyExistsInStorage
+	}
+	return err
+}
+
+func checkIntegrityViolation(ctx context.Context, err error) error {
+	if err == nil {
+		return nil
+	}
+	sqlErr, ok := err.(*pq.Error)
+	if ok && sqlErr.Code.Class() == "42" || sqlErr.Code.Class() == "44" {
+		log.C(ctx).Debug(sqlErr)
+		return util.ErrIntegrityCheckViolation
 	}
 	return err
 }
