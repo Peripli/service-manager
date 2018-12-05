@@ -699,7 +699,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					Expect(err).ShouldNot(HaveOccurred())
 					
 					brokerServer.Catalog = common.JSONToMap(catalog)
-					panic("exxp")
+					
 				})
 
 				It("is returned from the Services API associated with the correct broker", func() {
@@ -708,6 +708,7 @@ var _ = Describe("Service Manager Broker API", func() {
 						Status(http.StatusOK).
 						JSON().
 						Path("$.service_offerings[*].catalog_id").Array().NotContains(anotherServiceID)
+					panic("123")
 					ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
 						WithJSON(common.Object{}).
 						Expect().
