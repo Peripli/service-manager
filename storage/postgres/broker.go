@@ -42,7 +42,7 @@ func (bs *brokerStorage) Get(ctx context.Context, id string) (*types.Broker, err
 
 func (bs *brokerStorage) List(ctx context.Context) ([]*types.Broker, error) {
 	var brokerDTOs []Broker
-	err := list(ctx, bs.db, brokerTable, map[string]string{}, &brokerDTOs)
+	err := list(ctx, bs.db, brokerTable, map[string][]string{}, &brokerDTOs)
 	if err != nil || len(brokerDTOs) == 0 {
 		return []*types.Broker{}, err
 	}

@@ -42,7 +42,7 @@ func (ps *platformStorage) Get(ctx context.Context, id string) (*types.Platform,
 
 func (ps *platformStorage) List(ctx context.Context) ([]*types.Platform, error) {
 	var platforms []Platform
-	err := list(ctx, ps.db, platformTable, map[string]string{}, &platforms)
+	err := list(ctx, ps.db, platformTable, map[string][]string{}, &platforms)
 	if err != nil || len(platforms) == 0 {
 		return []*types.Platform{}, err
 	}

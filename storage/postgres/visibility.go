@@ -42,20 +42,20 @@ func (vs *visibilityStorage) Get(ctx context.Context, id string) (*types.Visibil
 
 func (vs *visibilityStorage) List(ctx context.Context) ([]*types.Visibility, error) {
 	var visibilities []Visibility
-	err := list(ctx, vs.db, visibilityTable, map[string]string{}, &visibilities)
+	err := list(ctx, vs.db, visibilityTable, map[string][]string{}, &visibilities)
 	if err != nil || len(visibilities) == 0 {
 		return []*types.Visibility{}, err
 	}
 	var visibilityDTOs = make([]*types.Visibility, 0, len(visibilities))
-	for _, Visibility := range visibilities {
-		visibilityDTOs = append(visibilityDTOs, Visibility.ToDTO())
+	for _, visibility := range visibilities {
+		visibilityDTOs = append(visibilityDTOs, visibility.ToDTO())
 	}
 	return visibilityDTOs, nil
 }
 
 func (vs *visibilityStorage) ListByPlatformID(ctx context.Context, platformID string) ([]*types.Visibility, error) {
 	var visibilities []Visibility
-	err := list(ctx, vs.db, visibilityTable, map[string]string{"platform_id": platformID}, &visibilities)
+	err := list(ctx, vs.db, visibilityTable, map[string][]string{"platform_id": {platformID, ""}}, &visibilities)
 	if err != nil || len(visibilities) == 0 {
 		return nil, err
 	}

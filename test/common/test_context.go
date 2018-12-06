@@ -23,6 +23,8 @@ import (
 	"path"
 	"runtime"
 
+	"github.com/Peripli/service-manager/pkg/types"
+
 	"github.com/gofrs/uuid"
 	"github.com/spf13/pflag"
 
@@ -143,23 +145,24 @@ func NewTestContext(params *ContextParams) *TestContext {
 	})
 
 	return &TestContext{
-		SM:          SM,
-		SMWithOAuth: SMWithOAuth,
-		SMWithBasic: SMWithBasic,
-		brokers:     make(map[string]*BrokerServer),
-		smServer:    smServer,
-		OAuthServer: oauthServer,
+		SM:           SM,
+		SMWithOAuth:  SMWithOAuth,
+		SMWithBasic:  SMWithBasic,
+		TestPlatform: platform,
+		smServer:     smServer,
+		OAuthServer:  oauthServer,
+		brokers:      make(map[string]*BrokerServer),
 	}
 }
 
 type TestContext struct {
-	SM          *httpexpect.Expect
-	SMWithOAuth *httpexpect.Expect
-	SMWithBasic *httpexpect.Expect
-
-	smServer    *httptest.Server
-	OAuthServer *OAuthServer
-	brokers     map[string]*BrokerServer
+	SM           *httpexpect.Expect
+	SMWithOAuth  *httpexpect.Expect
+	SMWithBasic  *httpexpect.Expect
+	TestPlatform *types.Platform
+	smServer     *httptest.Server
+	OAuthServer  *OAuthServer
+	brokers      map[string]*BrokerServer
 }
 
 func (ctx *TestContext) RegisterBroker() (string, *BrokerServer) {
@@ -184,6 +187,19 @@ func (ctx *TestContext) RegisterBroker() (string, *BrokerServer) {
 	brokerServer.ResetCallHistory()
 	ctx.brokers[brokerID] = brokerServer
 	return brokerID, brokerServer
+}
+
+func (ctx *TestContext) RegisterPlatform() *types.Platform {
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+	platformJSON := Object{
+		"name":        UUID.String(),
+		"type":        "testType",
+		"description": "testDescrption",
+	}
+	return RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth)
 }
 
 func (ctx *TestContext) CleanupBroker(id string) {

@@ -44,7 +44,7 @@ func (sos *serviceOfferingStorage) Get(ctx context.Context, id string) (*types.S
 
 func (sos *serviceOfferingStorage) List(ctx context.Context) ([]*types.ServiceOffering, error) {
 	var serviceOfferings []ServiceOffering
-	err := list(ctx, sos.db, serviceOfferingTable, map[string]string{}, &serviceOfferings)
+	err := list(ctx, sos.db, serviceOfferingTable, map[string][]string{}, &serviceOfferings)
 	if err != nil || len(serviceOfferings) == 0 {
 		return []*types.ServiceOffering{}, err
 	}
@@ -57,7 +57,7 @@ func (sos *serviceOfferingStorage) List(ctx context.Context) ([]*types.ServiceOf
 
 func (sos *serviceOfferingStorage) ListByCatalogName(ctx context.Context, name string) ([]*types.ServiceOffering, error) {
 	var serviceOfferings []ServiceOffering
-	err := list(ctx, sos.db, serviceOfferingTable, map[string]string{"catalog_name": name}, &serviceOfferings)
+	err := list(ctx, sos.db, serviceOfferingTable, map[string][]string{"catalog_name": {name}}, &serviceOfferings)
 	if err != nil || len(serviceOfferings) == 0 {
 		return []*types.ServiceOffering{}, err
 	}

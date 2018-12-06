@@ -114,11 +114,11 @@ type ServicePlan struct {
 }
 
 type Visibility struct {
-	ID            string    `db:"id"`
-	PlatformID    string    `db:"platform_id"`
-	ServicePlanID string    `db:"service_plan_id"`
-	CreatedAt     time.Time `db:"created_at"`
-	UpdatedAt     time.Time `db:"updated_at"`
+	ID            string         `db:"id"`
+	PlatformID    sql.NullString `db:"platform_id"`
+	ServicePlanID string         `db:"service_plan_id"`
+	CreatedAt     time.Time      `db:"created_at"`
+	UpdatedAt     time.Time      `db:"updated_at"`
 }
 
 func (b *Broker) ToDTO() *types.Broker {
@@ -273,7 +273,7 @@ func (sp *ServicePlan) FromDTO(plan *types.ServicePlan) {
 func (v *Visibility) ToDTO() *types.Visibility {
 	return &types.Visibility{
 		ID:            v.ID,
-		PlatformID:    v.PlatformID,
+		PlatformID:    v.PlatformID.String,
 		ServicePlanID: v.ServicePlanID,
 		CreatedAt:     v.CreatedAt,
 		UpdatedAt:     v.UpdatedAt,
@@ -283,9 +283,13 @@ func (v *Visibility) ToDTO() *types.Visibility {
 func (v *Visibility) FromDTO(visibility *types.Visibility) {
 	*v = Visibility{
 		ID:            visibility.ID,
-		PlatformID:    visibility.PlatformID,
+		PlatformID:    sql.NullString{String: visibility.PlatformID},
 		ServicePlanID: visibility.ServicePlanID,
 		CreatedAt:     visibility.CreatedAt,
 		UpdatedAt:     visibility.UpdatedAt,
+	}
+	// API cannot send nulls right now and storage cannot store empty string for this column as it is FK
+	if visibility.PlatformID != "" {
+		v.PlatformID.Valid = true
 	}
 }

@@ -42,9 +42,6 @@ type Visibility struct {
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
 func (v *Visibility) Validate() error {
-	if v.PlatformID == "" {
-		return errors.New("missing visibility platform id")
-	}
 	if v.ServicePlanID == "" {
 		return errors.New("missing visibility service plan id")
 	}

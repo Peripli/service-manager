@@ -98,14 +98,23 @@ func get(ctx context.Context, db getterContext, id string, table string, dto int
 	return checkSQLNoRows(err)
 }
 
-func list(ctx context.Context, db selecterContext, table string, filter map[string]string, dtos interface{}) error {
+func list(ctx context.Context, db selecterContext, table string, filter map[string][]string, dtos interface{}) error {
 	query := "SELECT * FROM " + table
 	if len(filter) != 0 {
-		pairs := make([]string, 0)
-		for key, value := range filter {
-			pairs = append(pairs, fmt.Sprintf("%s='%s'", key, value))
+		andPairs := make([]string, 0)
+		for key, values := range filter {
+			orPairs := make([]string, 0)
+			for _, value := range values {
+				if value != "" {
+					orPairs = append(orPairs, fmt.Sprintf("%s='%s'", key, value))
+				} else {
+					orPairs = append(orPairs, fmt.Sprintf("%s IS NULL", key))
+				}
+			}
+			orPair := " (" + strings.Join(orPairs, " OR ") + ") "
+			andPairs = append(andPairs, orPair)
 		}
-		query += " WHERE " + strings.Join(pairs, " AND ")
+		query += " WHERE " + strings.Join(andPairs, " AND ")
 	}
 	log.C(ctx).Debugf("Executing query %s", query)
 	return db.SelectContext(ctx, dtos, query)

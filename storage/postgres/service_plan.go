@@ -42,7 +42,7 @@ func (sps *servicePlanStorage) Get(ctx context.Context, id string) (*types.Servi
 
 func (sps *servicePlanStorage) List(ctx context.Context) ([]*types.ServicePlan, error) {
 	var plans []ServicePlan
-	err := list(ctx, sps.db, servicePlanTable, map[string]string{}, &plans)
+	err := list(ctx, sps.db, servicePlanTable, map[string][]string{}, &plans)
 	if err != nil || len(plans) == 0 {
 		return []*types.ServicePlan{}, err
 	}
@@ -55,7 +55,7 @@ func (sps *servicePlanStorage) List(ctx context.Context) ([]*types.ServicePlan, 
 
 func (sps *servicePlanStorage) ListByCatalogName(ctx context.Context, name string) ([]*types.ServicePlan, error) {
 	var plans []ServicePlan
-	err := list(ctx, sps.db, servicePlanTable, map[string]string{"catalog_name": name}, &plans)
+	err := list(ctx, sps.db, servicePlanTable, map[string][]string{"catalog_name": {name}}, &plans)
 	if err != nil || len(plans) == 0 {
 		return []*types.ServicePlan{}, err
 	}
