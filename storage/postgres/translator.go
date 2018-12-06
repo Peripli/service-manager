@@ -41,7 +41,11 @@ func buildListQueryWithParams(query string, baseTableName string, labelsTableNam
 			queries = append(queries, fmt.Sprintf("%[1]s.key = ? AND %[1]s.val %[2]s %s", labelsTableName, sqlOperation, rightOpBindVar))
 			queryParams = append(queryParams, option.LeftOp)
 		} else {
-			queries = append(queries, fmt.Sprintf("%s.%s %s %s", baseTableName, option.LeftOp, sqlOperation, rightOpBindVar))
+			clause := fmt.Sprintf("%s.%s %s %s", baseTableName, option.LeftOp, sqlOperation, rightOpBindVar)
+			if option.Operator.IsNullable() {
+				clause = fmt.Sprintf("(%s OR %s.%s IS NULL)", clause, baseTableName, option.LeftOp)
+			}
+			queries = append(queries, clause)
 		}
 		queryParams = append(queryParams, rightOpQueryValue)
 	}
@@ -84,6 +88,8 @@ func translateOperationToSQLEquivalent(operator selection.Operator) string {
 		return ">"
 	case selection.NotInOperator:
 		return "NOT IN"
+	case selection.EqualsOrNilOperator:
+		return "="
 	default:
 		return string(operator)
 	}

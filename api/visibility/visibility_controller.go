@@ -93,7 +93,7 @@ func (c *Controller) listVisibilities(r *web.Request) (*web.Response, error) {
 			Type:     selection.FieldQuery,
 			LeftOp:   "platform_id",
 			RightOp:  []string{p.ID},
-			Operator: selection.EqualsOperator, // EqualsOrNilOperator
+			Operator: selection.EqualsOrNilOperator,
 		}
 		criteria = append(criteria, platformIdCriterion)
 	}

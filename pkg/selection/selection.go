@@ -30,16 +30,21 @@ const (
 	NotEqualsOperator   Operator = "!="
 	GreaterThanOperator Operator = "gt"
 	LessThanOperator    Operator = "lt"
-	InOperator          Operator = "IN"
-	NotInOperator       Operator = "NOTIN"
+	InOperator          Operator = "in"
+	NotInOperator       Operator = "notin"
+	EqualsOrNilOperator Operator = "eqornil"
 )
 
 func (op Operator) IsMultiVariate() bool {
 	return op == InOperator || op == NotInOperator
 }
 
+func (op Operator) IsNullable() bool {
+	return op == EqualsOrNilOperator
+}
+
 var operators = []Operator{EqualsOperator, NotEqualsOperator, InOperator,
-	NotInOperator, GreaterThanOperator, LessThanOperator}
+	NotInOperator, GreaterThanOperator, LessThanOperator, EqualsOrNilOperator}
 
 type CriterionType string
 
