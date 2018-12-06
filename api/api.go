@@ -106,7 +106,7 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 				ServicePlanStorage: repository.ServicePlan(),
 			},
 			&visibility.Controller{
-				VisibilityStorage: repository.Visibility(),
+				Repository: repository,
 			},
 			&info.Controller{
 				TokenIssuer: settings.TokenIssuerURL,

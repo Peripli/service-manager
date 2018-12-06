@@ -33,11 +33,17 @@ type Visibilities struct {
 
 // Visibility struct
 type Visibility struct {
-	ID            string    `json:"id"`
-	PlatformID    string    `json:"platform_id"`
-	ServicePlanID string    `json:"service_plan_id"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID            string             `json:"id"`
+	PlatformID    string             `json:"platform_id"`
+	ServicePlanID string             `json:"service_plan_id"`
+	CreatedAt     time.Time          `json:"created_at"`
+	UpdatedAt     time.Time          `json:"updated_at"`
+	Labels        []*VisibilityLabel `json:"labels"`
+}
+
+type VisibilityLabel struct {
+	Label
+	ServiceVisibilityID string `json:"-"`
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

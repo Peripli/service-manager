@@ -40,6 +40,9 @@ const (
 
 	// visibilityTable db table for visibilities
 	visibilityTable = "visibilities"
+
+	// visibilityLabelsTable db table for visibilities table
+	visibilityLabelsTable = "visibility_labels"
 )
 
 // Safe represents a secret entity
@@ -119,6 +122,19 @@ type Visibility struct {
 	ServicePlanID string    `db:"service_plan_id"`
 	CreatedAt     time.Time `db:"created_at"`
 	UpdatedAt     time.Time `db:"updated_at"`
+}
+
+type Label struct {
+	ID        string    `db:"id"`
+	Key       string    `db:"key"`
+	Val       string    `db:"val"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
+}
+
+type VisibilityLabel struct {
+	Label
+	ServiceVisibilityID string `db:"visibility_id"`
 }
 
 func (b *Broker) ToDTO() *types.Broker {
@@ -287,5 +303,31 @@ func (v *Visibility) FromDTO(visibility *types.Visibility) {
 		ServicePlanID: visibility.ServicePlanID,
 		CreatedAt:     visibility.CreatedAt,
 		UpdatedAt:     visibility.UpdatedAt,
+	}
+}
+
+func (vl *VisibilityLabel) ToDTO() *types.VisibilityLabel {
+	return &types.VisibilityLabel{
+		Label: types.Label{
+			ID:        vl.ID,
+			Key:       vl.Key,
+			Val:       vl.Val,
+			CreatedAt: vl.CreatedAt,
+			UpdatedAt: vl.UpdatedAt,
+		},
+		ServiceVisibilityID: vl.ServiceVisibilityID,
+	}
+}
+
+func (vl *VisibilityLabel) FromDTO(label *types.VisibilityLabel) {
+	*vl = VisibilityLabel{
+		Label: Label{
+			ID:        label.ID,
+			Key:       label.Key,
+			Val:       label.Val,
+			CreatedAt: label.CreatedAt,
+			UpdatedAt: label.UpdatedAt,
+		},
+		ServiceVisibilityID: label.ServiceVisibilityID,
 	}
 }

@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
-package web
+package selection
 
 import (
 	"fmt"
 	"strings"
+
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
 type Operator string
@@ -26,8 +28,8 @@ type Operator string
 const (
 	EqualsOperator    Operator = "="
 	NotEqualsOperator Operator = "!="
-	InOperator        Operator = "in"
-	NotInOperator     Operator = "notin"
+	InOperator        Operator = "IN"
+	NotInOperator     Operator = "NOTIN"
 )
 
 func (op Operator) IsMultiVariate() bool {
@@ -36,31 +38,39 @@ func (op Operator) IsMultiVariate() bool {
 
 var operators = []Operator{EqualsOperator, NotEqualsOperator, InOperator, NotInOperator}
 
-var supportedQueryMatchers = []string{"fieldQuery", "labelQuery"}
+type CriteriaType string
+
+const (
+	FieldQuery CriteriaType = "fieldQuery"
+	LabelQuery CriteriaType = "labelQuery"
+)
+
+var supportedQueryTypes = []CriteriaType{FieldQuery, LabelQuery}
 var allowedSeparators = []rune{';'}
 
-type QuerySegment struct {
+type Criteria struct {
 	LeftOp   string
 	Operator Operator
 	RightOp  []string
+	Type     CriteriaType
 }
 
-func newQuerySegment(leftOp string, operator Operator, rightOp []string) QuerySegment {
-	return QuerySegment{LeftOp: leftOp, Operator: operator, RightOp: rightOp}
+func newCriteria(leftOp string, operator Operator, rightOp []string, criteriaType CriteriaType) Criteria {
+	return Criteria{LeftOp: leftOp, Operator: operator, RightOp: rightOp, Type: criteriaType}
 }
 
-func (qs QuerySegment) Validate() error {
+func (qs Criteria) Validate() error {
 	if len(qs.RightOp) > 1 && !qs.Operator.IsMultiVariate() {
 		return fmt.Errorf("multiple values received for single value operation")
 	}
 	return nil
 }
 
-func BuildFilterSegmentsForRequest(request *Request) ([]QuerySegment, error) {
-	var result []QuerySegment
-	for _, queryMatcher := range supportedQueryMatchers {
-		queryValues := request.URL.Query()[queryMatcher]
-		querySegments, err := process(queryValues)
+func BuildQuerySegmentsForRequest(request *web.Request) ([]Criteria, error) {
+	var result []Criteria
+	for _, queryType := range supportedQueryTypes {
+		queryValues := request.URL.Query().Get(string(queryType))
+		querySegments, err := process(queryValues, queryType)
 		if err != nil {
 			return nil, err
 		}
@@ -69,23 +79,23 @@ func BuildFilterSegmentsForRequest(request *Request) ([]QuerySegment, error) {
 	return result, nil
 }
 
-func process(values []string) ([]QuerySegment, error) {
-	querySegments := make([]QuerySegment, 0)
-	for _, input := range values {
-		rawFilterStatements := strings.FieldsFunc(input, split)
-		for _, rawStatement := range rawFilterStatements {
-			op, err := getRawOperation(rawStatement)
-			if err != nil {
-				return nil, err
-			}
-
-			querySegment := convertRawStatementToFilterStatement(rawStatement, op)
-			if err := querySegment.Validate(); err != nil {
-				return nil, err
-			}
-			querySegments = append(querySegments, querySegment)
+func process(input string, criteriaType CriteriaType) ([]Criteria, error) {
+	querySegments := make([]Criteria, 0)
+	//for _, input := range values {
+	rawFilterStatements := strings.FieldsFunc(input, split)
+	for _, rawStatement := range rawFilterStatements {
+		op, err := getRawOperation(rawStatement)
+		if err != nil {
+			return nil, err
 		}
+
+		querySegment := convertRawStatementToFilterStatement(rawStatement, op, criteriaType)
+		if err := querySegment.Validate(); err != nil {
+			return nil, err
+		}
+		querySegments = append(querySegments, querySegment)
 	}
+	//}
 	return querySegments, nil
 }
 
@@ -110,14 +120,13 @@ func getRawOperation(rawStatement string) (Operator, error) {
 	return "", fmt.Errorf("label query operator is missing")
 }
 
-func convertRawStatementToFilterStatement(rawStatement string, op Operator) QuerySegment {
+func convertRawStatementToFilterStatement(rawStatement string, op Operator, criteriaType CriteriaType) Criteria {
 	opIdx := strings.Index(rawStatement, string(op))
 	rightOp := strings.Split(rawStatement[opIdx+len(op):], ",")
 
 	if op.IsMultiVariate() {
-		rightOp[0] = strings.Trim(rightOp[0], "[")
-		rightOp[len(rightOp)-1] = strings.Trim(rightOp[len(rightOp)-1], "]")
+		rightOp[0] = strings.TrimPrefix(strings.TrimSpace(rightOp[0]), "[")
+		rightOp[len(rightOp)-1] = strings.TrimSuffix(strings.TrimSpace(rightOp[len(rightOp)-1]), "]")
 	}
-
-	return newQuerySegment(rawStatement[:opIdx], op, rightOp)
+	return newCriteria(rawStatement[:opIdx], op, rightOp, criteriaType)
 }

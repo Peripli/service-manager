@@ -23,7 +23,7 @@ import (
 	"path"
 	"runtime"
 
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/pkg/selection"
 
 	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -219,7 +219,7 @@ type Visibility interface {
 	ListByPlatformID(ctx context.Context, platformID string) ([]*types.Visibility, error)
 
 	// List retrieves all visibilities from SM DB
-	List(ctx context.Context) ([]*types.Visibility, error)
+	List(ctx context.Context, options ...selection.Criteria) ([]*types.Visibility, error)
 
 	// Delete deletes a visibility from SM DB
 	Delete(ctx context.Context, id string) error
@@ -249,8 +249,4 @@ type Security interface {
 
 	// Setter provides means to change the encryption  key
 	Setter() security.KeySetter
-}
-
-type Translator interface {
-	Translate(querySegments []web.QuerySegment) (string, error)
 }

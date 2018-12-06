@@ -20,18 +20,16 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/pkg/selection"
 )
 
-type LabelTranslator struct{}
-
-func (l *LabelTranslator) Translate(segments []web.QuerySegment) (string, error) {
-	sqlConditions := l.convertFilterStatementsToSQLConditions(segments)
+func Translate(segments []selection.Criteria) (string, map[string][]string) {
+	sqlConditions := convertFilterStatementsToSQLConditions(segments)
 	resultClause := strings.Join(sqlConditions, " AND ")
 	return resultClause, nil
 }
 
-func (l *LabelTranslator) convertFilterStatementsToSQLConditions(filterStatements []web.QuerySegment) []string {
+func convertFilterStatementsToSQLConditions(filterStatements []selection.Criteria) []string {
 	conditions := make([]string, 0)
 	for _, statement := range filterStatements {
 		var value string
