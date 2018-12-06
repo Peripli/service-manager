@@ -17,44 +17,126 @@
 package postgres
 
 import (
+	"fmt"
+
+	"github.com/Peripli/service-manager/pkg/selection"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Postgres Translator", func() {
 
-	Describe("translate", func() {
+	Describe("translate list", func() {
 
-		var translator = NewLabelTranslator()
+		baseQuery, baseTableName, labelsTableName := "", "testTable", "testLabelTable"
+		var criteria []selection.Criterion
 
-		Context("Called with valid input", func() {
-			It("Should return proper result", func() {
-				result, err := translator.Translate("subAccountIN[s1,s2,s3];clusterIdIN[c1,c2];globalAccountId=5")
+		Context("No query", func() {
+			It("Should return base query", func() {
+				actualQuery, actualQueryParams, err := buildListQueryWithParams(baseQuery, baseTableName, labelsTableName, criteria)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(result).To(Equal("(key='subAccount' AND value IN (s1,s2,s3)) AND (key='clusterId' AND value IN (c1,c2)) AND (key='globalAccountId' AND value = 5)"))
+				Expect(actualQuery).To(Equal(baseQuery))
+				Expect(actualQueryParams).To(BeEmpty())
 			})
 		})
 
-		Context("Called with multivalue operator and single value", func() {
-			It("Should return proper result surrounded in brackets", func() {
-				result, err := translator.Translate("subAccountIN[s1]")
-				Expect(err).ToNot(HaveOccurred())
-				Expect(result).To(Equal("(key='subAccount' AND value IN (s1))"))
+		Context("Label query", func() {
+			Context("Called with valid input", func() {
+				It("Should return proper result", func() {
+					criteria = []selection.Criterion{
+						{
+							LeftOp:   "orgId",
+							Operator: selection.InOperator,
+							RightOp:  []string{"o1", "o2", "o3"},
+							Type:     selection.LabelQuery,
+						},
+						{
+							LeftOp:   "clusterId",
+							Operator: selection.InOperator,
+							RightOp:  []string{"c1", "c2"},
+							Type:     selection.LabelQuery,
+						},
+					}
+					actualQuery, actualQueryParams, err := buildListQueryWithParams(baseQuery, baseTableName, labelsTableName, criteria)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(actualQuery).To(Equal(fmt.Sprintf(" WHERE %[1]s.key = ? AND %[1]s.val IN (?, ?, ?) AND %[1]s.key = ? AND %[1]s.val IN (?, ?);", labelsTableName)))
+
+					expectedQueryParams := buildExpectedQueryParams(criteria)
+					Expect(actualQueryParams).To(Equal(expectedQueryParams))
+				})
+			})
+
+			Context("Called with multivalue operator and single value", func() {
+				It("Should return proper result surrounded in brackets", func() {
+					criteria = []selection.Criterion{
+						{
+							LeftOp:   "orgId",
+							Operator: selection.InOperator,
+							RightOp:  []string{"o1"},
+							Type:     selection.LabelQuery,
+						},
+					}
+					actualQuery, actualQueryParams, err := buildListQueryWithParams(baseQuery, baseTableName, labelsTableName, criteria)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(actualQuery).To(Equal(fmt.Sprintf(" WHERE %[1]s.key = ? AND %[1]s.val IN (?);", labelsTableName)))
+
+					expectedQueryParams := buildExpectedQueryParams(criteria)
+					Expect(actualQueryParams).To(Equal(expectedQueryParams))
+				})
 			})
 		})
+		Context("Field query", func() {
+			Context("Called with valid input", func() {
+				It("Should return proper result", func() {
+					criteria = []selection.Criterion{
+						{
+							LeftOp:   "platformId",
+							Operator: selection.EqualsOperator,
+							RightOp:  []string{"5"},
+							Type:     selection.FieldQuery,
+						},
+					}
+					actualQuery, actualQueryParams, err := buildListQueryWithParams(baseQuery, baseTableName, labelsTableName, criteria)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(actualQuery).To(Equal(fmt.Sprintf(" WHERE %s.%s %s ?;", baseTableName, criteria[0].LeftOp, criteria[0].Operator)))
 
-		Context("Called with missing operator", func() {
-			It("Should return error", func() {
-				_, err := translator.Translate("subAccount[s1];clusterIdIN[c1,c2];globalAccountId=5")
-				Expect(err).To(MatchError("label query operator is missing"))
+					expectedQueryParams := buildExpectedQueryParams(criteria)
+					Expect(actualQueryParams).To(Equal(expectedQueryParams))
+				})
 			})
-		})
 
-		Context("Called with multiple values for single value operator", func() {
-			It("Should return error", func() {
-				_, err := translator.Translate("subAccount=[s1,s2,s3];clusterIdIN[c1,c2];globalAccountId=5")
-				Expect(err).To(MatchError("multiple values received for single value operation"))
+			Context("Called with multivalue operator and single value", func() {
+				It("Should return proper result surrounded in brackets", func() {
+					criteria = []selection.Criterion{
+						{
+							LeftOp:   "platformId",
+							Operator: selection.InOperator,
+							RightOp:  []string{"1"},
+							Type:     selection.FieldQuery,
+						},
+					}
+					actualQuery, actualQueryParams, err := buildListQueryWithParams(baseQuery, baseTableName, labelsTableName, criteria)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(actualQuery).To(Equal(fmt.Sprintf(" WHERE %s.%s %s (?);", baseTableName, criteria[0].LeftOp, criteria[0].Operator)))
+
+					expectedQueryParams := buildExpectedQueryParams(criteria)
+					Expect(actualQueryParams).To(Equal(expectedQueryParams))
+				})
 			})
+
 		})
 	})
 })
+
+func buildExpectedQueryParams(criteria []selection.Criterion) interface{} {
+	var expectedQueryParams []interface{}
+	for _, criterion := range criteria {
+		if criterion.Type == selection.LabelQuery {
+			expectedQueryParams = append(expectedQueryParams, criterion.LeftOp)
+		}
+		for _, param := range criterion.RightOp {
+			expectedQueryParams = append(expectedQueryParams, param)
+		}
+	}
+	return expectedQueryParams
+}
