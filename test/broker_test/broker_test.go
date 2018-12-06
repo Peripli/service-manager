@@ -837,7 +837,7 @@ var _ = Describe("Service Manager Broker API", func() {
 				})
 			}
 
-			Context("when a new service offering is added", func() {
+			FContext("when a new service offering is added", func() {
 				var anotherServiceID string
 
 				BeforeEach(func() {
