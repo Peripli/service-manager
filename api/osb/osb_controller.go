@@ -73,19 +73,19 @@ func NewController(brokerFetcher BrokerFetcher, catalogFetcher CatalogFetcher, _
 }
 
 func (c *controller) proxyHandler(r *web.Request) (*web.Response, error) {
-	return c.handler(r, c.proxy)(r)
+	return c.handler(c.proxy)(r)
 }
 
 func (c *controller) catalogHandler(r *web.Request) (*web.Response, error) {
-	return c.handler(r, c.catalog)(r)
+	return c.handler(c.catalog)(r)
 }
 
-func (c *controller) handler(r *web.Request, f func(r *web.Request, logger *logrus.Entry, id string) (*web.Response, error)) func(request *web.Request) (*web.Response, error) {
+func (c *controller) handler(f func(r *web.Request, logger *logrus.Entry, id string) (*web.Response, error)) func(request *web.Request) (*web.Response, error) {
 	return func(request *web.Request) (*web.Response, error) {
-		ctx := r.Context()
+		ctx := request.Context()
 		logger := log.C(ctx)
-		logger.Debug("Executing OSB operation: ", r.URL.Path)
-		brokerID, ok := r.PathParams[BrokerIDPathParam]
+		logger.Debug("Executing OSB operation: ", request.URL.Path)
+		brokerID, ok := request.PathParams[BrokerIDPathParam]
 		if !ok {
 			logger.Debugf("error creating OSB client: brokerID path parameter not found")
 			return nil, &util.HTTPError{
@@ -96,7 +96,7 @@ func (c *controller) handler(r *web.Request, f func(r *web.Request, logger *logr
 		}
 		logger.Debugf("Obtained path parameter [brokerID = %s] from path params", brokerID)
 
-		return f(r, logger, brokerID)
+		return f(request, logger, brokerID)
 	}
 }
 
