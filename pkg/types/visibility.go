@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fatih/structs"
+
 	"errors"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -38,12 +40,12 @@ type Visibility struct {
 	ServicePlanID string             `json:"service_plan_id"`
 	CreatedAt     time.Time          `json:"created_at"`
 	UpdatedAt     time.Time          `json:"updated_at"`
-	Labels        []*VisibilityLabel `json:"labels"`
+	Labels        []*VisibilityLabel `json:"labels,omitempty"`
 }
 
 type VisibilityLabel struct {
 	Label
-	ServiceVisibilityID string `json:"-"`
+	ServiceVisibilityID *string `json:"-"`
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
@@ -77,6 +79,17 @@ func (v *Visibility) MarshalJSON() ([]byte, error) {
 	if !v.UpdatedAt.IsZero() {
 		str := util.ToRFCFormat(v.UpdatedAt)
 		toMarshal.UpdatedAt = &str
+	}
+
+	hasNoLabels := true
+	for _, label := range v.Labels {
+		if !structs.IsZero(label) {
+			hasNoLabels = false
+			break
+		}
+	}
+	if hasNoLabels {
+		toMarshal.Labels = nil
 	}
 
 	return json.Marshal(toMarshal)

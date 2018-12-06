@@ -19,9 +19,9 @@ package types
 import "time"
 
 type Label struct {
-	ID        string    `json:"id"`
-	Key       string    `json:"key"`
-	Val       string    `json:"val"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        *string    `json:"-"`
+	Key       *string    `json:"key,omitempty"`
+	Val       *string    `json:"val,omitempty"`
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+	UpdatedAt *time.Time `json:"updated_at,omitempty"`
 }

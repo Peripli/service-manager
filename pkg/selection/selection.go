@@ -26,77 +26,78 @@ import (
 type Operator string
 
 const (
-	EqualsOperator    Operator = "="
-	NotEqualsOperator Operator = "!="
-	InOperator        Operator = "IN"
-	NotInOperator     Operator = "NOTIN"
+	EqualsOperator      Operator = "="
+	NotEqualsOperator   Operator = "!="
+	GreaterThanOperator Operator = "gt"
+	LessThanOperator    Operator = "lt"
+	InOperator          Operator = "IN"
+	NotInOperator       Operator = "NOTIN"
 )
 
 func (op Operator) IsMultiVariate() bool {
 	return op == InOperator || op == NotInOperator
 }
 
-var operators = []Operator{EqualsOperator, NotEqualsOperator, InOperator, NotInOperator}
+var operators = []Operator{EqualsOperator, NotEqualsOperator, InOperator,
+	NotInOperator, GreaterThanOperator, LessThanOperator}
 
-type CriteriaType string
+type CriterionType string
 
 const (
-	FieldQuery CriteriaType = "fieldQuery"
-	LabelQuery CriteriaType = "labelQuery"
+	FieldQuery CriterionType = "fieldQuery"
+	LabelQuery CriterionType = "labelQuery"
 )
 
-var supportedQueryTypes = []CriteriaType{FieldQuery, LabelQuery}
+var supportedQueryTypes = []CriterionType{FieldQuery, LabelQuery}
 var allowedSeparators = []rune{';'}
 
-type Criteria struct {
+type Criterion struct {
 	LeftOp   string
 	Operator Operator
 	RightOp  []string
-	Type     CriteriaType
+	Type     CriterionType
 }
 
-func newCriteria(leftOp string, operator Operator, rightOp []string, criteriaType CriteriaType) Criteria {
-	return Criteria{LeftOp: leftOp, Operator: operator, RightOp: rightOp, Type: criteriaType}
+func newCriterion(leftOp string, operator Operator, rightOp []string, criteriaType CriterionType) Criterion {
+	return Criterion{LeftOp: leftOp, Operator: operator, RightOp: rightOp, Type: criteriaType}
 }
 
-func (qs Criteria) Validate() error {
-	if len(qs.RightOp) > 1 && !qs.Operator.IsMultiVariate() {
+func (c Criterion) Validate() error {
+	if len(c.RightOp) > 1 && !c.Operator.IsMultiVariate() {
 		return fmt.Errorf("multiple values received for single value operation")
 	}
 	return nil
 }
 
-func BuildQuerySegmentsForRequest(request *web.Request) ([]Criteria, error) {
-	var result []Criteria
+func BuildCriteriaFromRequest(request *web.Request) ([]Criterion, error) {
+	var criteria []Criterion
 	for _, queryType := range supportedQueryTypes {
 		queryValues := request.URL.Query().Get(string(queryType))
 		querySegments, err := process(queryValues, queryType)
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, querySegments...)
+		criteria = append(criteria, querySegments...)
 	}
-	return result, nil
+	return criteria, nil
 }
 
-func process(input string, criteriaType CriteriaType) ([]Criteria, error) {
-	querySegments := make([]Criteria, 0)
-	//for _, input := range values {
-	rawFilterStatements := strings.FieldsFunc(input, split)
-	for _, rawStatement := range rawFilterStatements {
-		op, err := getRawOperation(rawStatement)
+func process(input string, criteriaType CriterionType) ([]Criterion, error) {
+	criteria := make([]Criterion, 0)
+	rawCriteria := strings.FieldsFunc(input, split)
+	for _, rawCriterion := range rawCriteria {
+		operator, err := getOperator(rawCriterion)
 		if err != nil {
 			return nil, err
 		}
 
-		querySegment := convertRawStatementToFilterStatement(rawStatement, op, criteriaType)
-		if err := querySegment.Validate(); err != nil {
+		criterion := convertRawStatementToCriterion(rawCriterion, operator, criteriaType)
+		if err := criterion.Validate(); err != nil {
 			return nil, err
 		}
-		querySegments = append(querySegments, querySegment)
+		criteria = append(criteria, criterion)
 	}
-	//}
-	return querySegments, nil
+	return criteria, nil
 }
 
 func split(r rune) bool {
@@ -108,25 +109,30 @@ func split(r rune) bool {
 	return false
 }
 
-func getRawOperation(rawStatement string) (Operator, error) {
+func getOperator(rawStatement string) (Operator, error) {
 	opIdx := -1
 	for _, op := range operators {
-		//TODO: look for Operand"+Operation+"Operands
-		opIdx = strings.Index(rawStatement, string(op))
+		opIdx = strings.Index(rawStatement, fmt.Sprintf(" %s ", string(op)))
 		if opIdx != -1 {
 			return op, nil
 		}
 	}
-	return "", fmt.Errorf("label query operator is missing")
+	return "", fmt.Errorf("query operator is missing")
 }
 
-func convertRawStatementToFilterStatement(rawStatement string, op Operator, criteriaType CriteriaType) Criteria {
-	opIdx := strings.Index(rawStatement, string(op))
-	rightOp := strings.Split(rawStatement[opIdx+len(op):], ",")
+func convertRawStatementToCriterion(rawStatement string, operator Operator, criterionType CriterionType) Criterion {
+	rawStatement = strings.TrimSpace(rawStatement)
 
-	if op.IsMultiVariate() {
-		rightOp[0] = strings.TrimPrefix(strings.TrimSpace(rightOp[0]), "[")
-		rightOp[len(rightOp)-1] = strings.TrimSuffix(strings.TrimSpace(rightOp[len(rightOp)-1]), "]")
+	opIdx := strings.Index(rawStatement, string(operator))
+	rightOp := strings.Split(rawStatement[opIdx+len(operator):], ",")
+
+	for i := range rightOp {
+		rightOp[i] = strings.TrimSpace(rightOp[i])
 	}
-	return newCriteria(rawStatement[:opIdx], op, rightOp, criteriaType)
+
+	if operator.IsMultiVariate() {
+		rightOp[0] = strings.TrimPrefix(rightOp[0], "[")
+		rightOp[len(rightOp)-1] = strings.TrimSuffix(rightOp[len(rightOp)-1], "]")
+	}
+	return newCriterion(strings.TrimSpace(rawStatement[:opIdx]), operator, rightOp, criterionType)
 }

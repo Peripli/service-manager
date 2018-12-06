@@ -19,11 +19,8 @@ package postgres
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/Peripli/service-manager/pkg/log"
-
-	"github.com/jmoiron/sqlx"
 
 	"github.com/Peripli/service-manager/pkg/selection"
 
@@ -48,7 +45,7 @@ func (vs *visibilityStorage) Get(ctx context.Context, id string) (*types.Visibil
 	return visibility.ToDTO(), nil
 }
 
-func (vs *visibilityStorage) List(ctx context.Context, options ...selection.Criteria) ([]*types.Visibility, error) {
+func (vs *visibilityStorage) List(ctx context.Context, criteria ...selection.Criterion) ([]*types.Visibility, error) {
 	query := fmt.Sprintf(`SELECT 
 		%[1]s.*,
 		%[2]s.id "%[2]s.id",
@@ -56,53 +53,18 @@ func (vs *visibilityStorage) List(ctx context.Context, options ...selection.Crit
 		%[2]s.val "%[2]s.val",
 		%[2]s.created_at "%[2]s.created_at",
 		%[2]s.updated_at "%[2]s.updated_at",
-		%[2]s.visibility_id "%[2]s.visibility_id",
+		%[2]s.visibility_id "%[2]s.visibility_id"
 	FROM %[1]s 
-	JOIN %[2]s ON %[1]s.id = %[2]s.visibility_id`, visibilityTable, visibilityLabelsTable)
+	LEFT JOIN %[2]s ON %[1]s.id = %[2]s.visibility_id`, visibilityTable, visibilityLabelsTable)
 
-	if len(options) > 0 {
-		query += " WHERE "
+	query, queryParams, err := buildListQueryWithParams(query, visibilityTable, visibilityLabelsTable, criteria)
+	if err != nil {
+		return []*types.Visibility{}, err
 	}
-
-	hasInOperator := false
-	var queries []string
-	var queryParams []interface{}
-	j := 0
-	for _, option := range options {
-		// handle operations that need
-		preRightOperand := ""
-		postRightOperand := ""
-		if option.Operator.IsMultiVariate() {
-			hasInOperator = true
-			preRightOperand = "("
-			postRightOperand = ")"
-		}
-		if option.Type == selection.LabelQuery {
-			//... visibility_labels.key <operator> (<value>) where ( and ) are optional
-			queries = append(queries, fmt.Sprintf("%[1]s.key = $%[2]d AND %[1]s.val %[3]s %[4]s$%[5]d%[6]s", visibilityLabelsTable, j, option.Operator, preRightOperand, j+1, postRightOperand))
-			queryParams = append(queryParams, option.LeftOp)
-			queryParams = append(queryParams, option.RightOp)
-			j += 2
-		} else {
-			//... visibilities.<column> <operator> (<value>) where ( and ) are optional
-			queries = append(queries, fmt.Sprintf("%s.%s %s %s$%d%s", visibilityTable, option.LeftOp, option.Operator, preRightOperand, j, postRightOperand))
-			queryParams = append(queryParams, option.RightOp)
-			j++
-		}
-	}
-
-	query += strings.Join(queries, " AND ")
-	query += ";"
-	if hasInOperator {
-		var err error
-		if query, queryParams, err = sqlx.In(query, queryParams); err != nil {
-			return []*types.Visibility{}, err
-		}
-		query = vs.db.Rebind(query)
-	}
+	query = vs.db.Rebind(query)
 
 	log.C(ctx).Debugf("Executing query %s", query)
-	rows, err := vs.db.QueryxContext(ctx, query, queryParams)
+	rows, err := vs.db.QueryxContext(ctx, query, queryParams...)
 	defer func() {
 		if err := rows.Close(); err != nil {
 			log.C(ctx).Errorf("Could not release connection when checking database s. Error: %s", err)

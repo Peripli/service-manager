@@ -219,7 +219,7 @@ type Visibility interface {
 	ListByPlatformID(ctx context.Context, platformID string) ([]*types.Visibility, error)
 
 	// List retrieves all visibilities from SM DB
-	List(ctx context.Context, options ...selection.Criteria) ([]*types.Visibility, error)
+	List(ctx context.Context, criteria ...selection.Criterion) ([]*types.Visibility, error)
 
 	// Delete deletes a visibility from SM DB
 	Delete(ctx context.Context, id string) error

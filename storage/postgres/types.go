@@ -125,16 +125,16 @@ type Visibility struct {
 }
 
 type Label struct {
-	ID        string    `db:"id"`
-	Key       string    `db:"key"`
-	Val       string    `db:"val"`
-	CreatedAt time.Time `db:"created_at"`
-	UpdatedAt time.Time `db:"updated_at"`
+	ID        *string    `db:"id"`
+	Key       *string    `db:"key"`
+	Val       *string    `db:"val"`
+	CreatedAt *time.Time `db:"created_at"`
+	UpdatedAt *time.Time `db:"updated_at"`
 }
 
 type VisibilityLabel struct {
 	Label
-	ServiceVisibilityID string `db:"visibility_id"`
+	ServiceVisibilityID *string `db:"visibility_id"`
 }
 
 func (b *Broker) ToDTO() *types.Broker {

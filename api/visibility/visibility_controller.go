@@ -7,8 +7,6 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/selection"
 
-	"github.com/pkg/errors"
-
 	"github.com/Peripli/service-manager/storage"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -73,26 +71,28 @@ func (c *Controller) listVisibilities(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debug("Getting all visibilities")
 
-	user, ok := web.UserFromContext(ctx)
-	if !ok {
-		return nil, errors.New("user details not found in request context")
-	}
+	//user, ok := web.UserFromContext(ctx)
+	//if !ok {
+	//	return nil, errors.New("user details not found in request context")
+	//}
 
 	p := &types.Platform{}
 
-	if err := user.Data.Data(p); err != nil {
-		return nil, err
-	}
+	//if err := user.Data.Data(p); err != nil {
+	//	return nil, err
+	//}
 	if p.ID != "" {
 		visibilities, err = c.Repository.Visibility().ListByPlatformID(ctx, p.ID)
 	} else {
-		querySegments, err := selection.BuildQuerySegmentsForRequest(r)
+		criteria, err := selection.BuildCriteriaFromRequest(r)
 		if err != nil {
+			log.C(ctx).Error(err)
 			return nil, err
 		}
-		visibilities, err = c.Repository.Visibility().List(ctx, querySegments...)
+		visibilities, err = c.Repository.Visibility().List(ctx, criteria...)
 	}
 	if err != nil {
+		log.C(ctx).Error(err)
 		return nil, err
 	}
 	return util.NewJSONResponse(http.StatusOK, types.Visibilities{

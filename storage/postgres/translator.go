@@ -20,28 +20,71 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jmoiron/sqlx"
+
 	"github.com/Peripli/service-manager/pkg/selection"
 )
 
-func Translate(segments []selection.Criteria) (string, map[string][]string) {
-	sqlConditions := convertFilterStatementsToSQLConditions(segments)
-	resultClause := strings.Join(sqlConditions, " AND ")
-	return resultClause, nil
-}
-
-func convertFilterStatementsToSQLConditions(filterStatements []selection.Criteria) []string {
-	conditions := make([]string, 0)
-	for _, statement := range filterStatements {
-		var value string
-		if statement.Operator.IsMultiVariate() {
-			value = fmt.Sprintf("value %s (%s)", statement.Operator, strings.Join(statement.RightOp, ","))
-		} else {
-			value = fmt.Sprintf("value %s %s", statement.Operator, statement.RightOp[0])
-		}
-
-		condition := fmt.Sprintf("(key='%s' AND %s)", statement.LeftOp, value)
-		conditions = append(conditions, condition)
+func buildListQueryWithParams(query string, baseTableName string, labelsTableName string, criteria []selection.Criterion) (string, []interface{}, error) {
+	if criteria == nil || len(criteria) == 0 {
+		return query, nil, nil
 	}
 
-	return conditions
+	var queryParams []interface{}
+	var queries []string
+
+	query += " WHERE "
+	for _, option := range criteria {
+		rightOpBindVar, rightOpQueryValue := buildRightOp(option)
+		sqlOperation := translateOperationToSQLEquivalent(option.Operator)
+		if option.Type == selection.LabelQuery {
+			queries = append(queries, fmt.Sprintf("%[1]s.key = ? AND %[1]s.val %[2]s %s", labelsTableName, sqlOperation, rightOpBindVar))
+			queryParams = append(queryParams, option.LeftOp)
+		} else {
+			queries = append(queries, fmt.Sprintf("%s.%s %s %s", baseTableName, option.LeftOp, sqlOperation, rightOpBindVar))
+		}
+		queryParams = append(queryParams, rightOpQueryValue)
+	}
+	query += strings.Join(queries, " AND ") + ";"
+
+	if hasMultiVariateOp(criteria) {
+		var err error
+		// sqlx.In requires question marks(?) instead of positional arguments (the ones pgsql uses) in order to map the list argument to the IN operation
+		if query, queryParams, err = sqlx.In(query, queryParams...); err != nil {
+			return "", nil, err
+		}
+	}
+	return query, queryParams, nil
+}
+
+func buildRightOp(criterion selection.Criterion) (string, interface{}) {
+	rightOpBindVar := "?"
+	var rhs interface{} = criterion.RightOp[0]
+	if criterion.Operator.IsMultiVariate() {
+		rightOpBindVar = "(?)"
+		rhs = criterion.RightOp
+	}
+	return rightOpBindVar, rhs
+}
+
+func hasMultiVariateOp(criteria []selection.Criterion) bool {
+	for _, opt := range criteria {
+		if opt.Operator.IsMultiVariate() {
+			return true
+		}
+	}
+	return false
+}
+
+func translateOperationToSQLEquivalent(operator selection.Operator) string {
+	switch operator {
+	case selection.LessThanOperator:
+		return "<"
+	case selection.GreaterThanOperator:
+		return ">"
+	case selection.NotInOperator:
+		return "NOT IN"
+	default:
+		return string(operator)
+	}
 }
