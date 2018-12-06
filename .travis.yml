@@ -13,10 +13,8 @@ services:
   - postgresql
 
 script:
-  - dep ensure --vendor-only -v
-  - go test -v -p 1 github.com/Peripli/service-manager/test/broker_test
-  # - make precommit
-  # - goveralls -coverprofile profile.cov -service=travis-ci
+  - make precommit
+  - goveralls -coverprofile profile.cov -service=travis-ci
 
 
 notifications:
