@@ -31,7 +31,7 @@ type visibilityStorage struct {
 	db pgDB
 }
 
-func (vs *visibilityStorage) Create(ctx context.Context, visibility *types.Visibility) error {
+func (vs *visibilityStorage) Create(ctx context.Context, visibility *types.Visibility) (string, error) {
 	v := &Visibility{}
 	v.FromDTO(visibility)
 	return create(ctx, vs.db, visibilityTable, v)

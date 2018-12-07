@@ -129,7 +129,7 @@ type Storage interface {
 // Broker interface for Broker db operations
 type Broker interface {
 	// Create stores a broker in SM DB
-	Create(ctx context.Context, broker *types.Broker) error
+	Create(ctx context.Context, broker *types.Broker) (string, error)
 
 	// Get retrieves a broker using the provided id from SM DB
 	Get(ctx context.Context, id string) (*types.Broker, error)
@@ -147,7 +147,7 @@ type Broker interface {
 // Platform interface for Platform DB operations
 type Platform interface {
 	// Create stores a platform in SM DB
-	Create(ctx context.Context, platform *types.Platform) error
+	Create(ctx context.Context, platform *types.Platform) (string, error)
 
 	// Get retrieves a platform using the provided id from SM DB
 	Get(ctx context.Context, id string) (*types.Platform, error)
@@ -163,9 +163,10 @@ type Platform interface {
 }
 
 // ServiceOffering instance for Service Offerings DB operations
+//go:generate counterfeiter . ServiceOffering
 type ServiceOffering interface {
 	// Create stores a service offering in SM DB
-	Create(ctx context.Context, serviceOffering *types.ServiceOffering) error
+	Create(ctx context.Context, serviceOffering *types.ServiceOffering) (string, error)
 
 	// Get retrieves a service offering using the provided id from SM DB
 	Get(ctx context.Context, id string) (*types.ServiceOffering, error)
@@ -189,7 +190,7 @@ type ServiceOffering interface {
 // ServiceOffering instance for Service Plan DB operations
 type ServicePlan interface {
 	// Create stores a service plan in SM DB
-	Create(ctx context.Context, servicePlan *types.ServicePlan) error
+	Create(ctx context.Context, servicePlan *types.ServicePlan) (string, error)
 
 	// Get retrieves a service plan using the provided id from SM DB
 	Get(ctx context.Context, id string) (*types.ServicePlan, error)
@@ -210,7 +211,7 @@ type ServicePlan interface {
 // Visibility interface for Visibility db operations
 type Visibility interface {
 	// Create stores a visibility in SM DB
-	Create(ctx context.Context, servicePlan *types.Visibility) error
+	Create(ctx context.Context, servicePlan *types.Visibility) (string, error)
 
 	// Get retrieves a visibility using the provided id from SM DB
 	Get(ctx context.Context, id string) (*types.Visibility, error)

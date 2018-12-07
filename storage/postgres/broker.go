@@ -26,7 +26,7 @@ type brokerStorage struct {
 	db pgDB
 }
 
-func (bs *brokerStorage) Create(ctx context.Context, broker *types.Broker) error {
+func (bs *brokerStorage) Create(ctx context.Context, broker *types.Broker) (string, error) {
 	b := &Broker{}
 	b.FromDTO(broker)
 	return create(ctx, bs.db, brokerTable, b)

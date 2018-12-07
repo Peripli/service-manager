@@ -77,7 +77,7 @@ func (c *Controller) createPlatform(r *web.Request) (*web.Response, error) {
 	credentials.Basic.Password = string(transformedPassword)
 	platform.Credentials = credentials
 
-	if err := c.PlatformStorage.Create(ctx, platform); err != nil {
+	if _, err := c.PlatformStorage.Create(ctx, platform); err != nil {
 		return nil, util.HandleStorageError(err, "platform", platform.ID)
 	}
 	platform.Credentials.Basic.Password = plainPassword

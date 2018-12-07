@@ -85,7 +85,8 @@ func (c *Controller) createBroker(r *web.Request) (*web.Response, error) {
 	}
 
 	if err := c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
-		if err := storage.Broker().Create(ctx, broker); err != nil {
+		var brokerID string
+		if brokerID, err = storage.Broker().Create(ctx, broker); err != nil {
 			return util.HandleStorageError(err, "broker", broker.ID)
 		}
 		for _, service := range catalog.Services {
@@ -101,14 +102,17 @@ func (c *Controller) createBroker(r *web.Request) (*web.Response, error) {
 			serviceOffering.ID = serviceUUID.String()
 			serviceOffering.CreatedAt = broker.CreatedAt
 			serviceOffering.UpdatedAt = broker.UpdatedAt
-			serviceOffering.BrokerID = broker.ID
+			serviceOffering.BrokerID = brokerID
 
 			if err := serviceOffering.Validate(); err != nil {
 				return fmt.Errorf("service offering constructed during catalog insertion for broker %s is invalid: %s", broker.ID, err)
 			}
-			if err := storage.ServiceOffering().Create(ctx, serviceOffering); err != nil {
+
+			var serviceID string
+			if serviceID, err = storage.ServiceOffering().Create(ctx, serviceOffering); err != nil {
 				return util.HandleStorageError(err, "service_offering", service.ID)
 			}
+			serviceOffering.ID = serviceID
 			for planIndex := range service.Plans {
 				servicePlan := &types.ServicePlan{}
 				err := osbcCatalogPlanToServicePlan(servicePlan, &catalogPlanWithServiceOfferingID{
@@ -130,7 +134,7 @@ func (c *Controller) createBroker(r *web.Request) (*web.Response, error) {
 					return fmt.Errorf("service plan constructed during catalog insertion for broker %s is invalid: %s", broker.ID, err)
 				}
 
-				if err := storage.ServicePlan().Create(ctx, servicePlan); err != nil {
+				if _, err := storage.ServicePlan().Create(ctx, servicePlan); err != nil {
 					return util.HandleStorageError(err, "service_plan", service.Plans[planIndex].ID)
 				}
 			}
@@ -411,21 +415,24 @@ func (c *Controller) resyncBrokerAndCatalog(ctx context.Context, broker *types.B
 				if err != nil {
 					return fmt.Errorf("could not generate GUID for service_plan: %s", err)
 				}
-				serviceOffering := &types.ServiceOffering{}
-				if err := osbcCatalogServiceToServiceOffering(serviceOffering, catalogService); err != nil {
+				existingServiceOffering = &types.ServiceOffering{}
+				if err := osbcCatalogServiceToServiceOffering(existingServiceOffering, catalogService); err != nil {
 					return err
 				}
-				serviceOffering.ID = serviceUUID.String()
-				serviceOffering.CreatedAt = time.Now().UTC()
-				serviceOffering.UpdatedAt = time.Now().UTC()
-				serviceOffering.BrokerID = broker.ID
+				existingServiceOffering.ID = serviceUUID.String()
+				existingServiceOffering.CreatedAt = time.Now().UTC()
+				existingServiceOffering.UpdatedAt = time.Now().UTC()
+				existingServiceOffering.BrokerID = broker.ID
 
-				if err := serviceOffering.Validate(); err != nil {
+				if err := existingServiceOffering.Validate(); err != nil {
 					return fmt.Errorf("service offering constructed during catalog update for broker %s is invalid: %s", broker.ID, err)
 				}
-				if err := c.Repository.ServiceOffering().Create(ctx, serviceOffering); err != nil {
+
+				var dbServiceID string
+				if dbServiceID, err = c.Repository.ServiceOffering().Create(ctx, existingServiceOffering); err != nil {
 					return util.HandleStorageError(err, "service_offering", existingServiceOffering.ID)
 				}
+				existingServiceOffering.ID = dbServiceID
 			}
 
 			catalogPlansForService := catalogPlansMap[catalogService.ID]
@@ -476,8 +483,8 @@ func (c *Controller) resyncBrokerAndCatalog(ctx context.Context, broker *types.B
 				if err := servicePlan.Validate(); err != nil {
 					return fmt.Errorf("service plan constructed during catalog update for broker %s is invalid: %s", broker.ID, err)
 				}
-				if err := c.Repository.ServicePlan().Create(ctx, servicePlan); err != nil {
-					return util.HandleStorageError(err, "service_plan", existingServicePlan.ID)
+				if _, err := c.Repository.ServicePlan().Create(ctx, servicePlan); err != nil {
+					return util.HandleStorageError(err, "service_plan", servicePlan.ID)
 				}
 			}
 		}

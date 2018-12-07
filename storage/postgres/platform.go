@@ -26,7 +26,7 @@ type platformStorage struct {
 	db pgDB
 }
 
-func (ps *platformStorage) Create(ctx context.Context, platform *types.Platform) error {
+func (ps *platformStorage) Create(ctx context.Context, platform *types.Platform) (string, error) {
 	p := &Platform{}
 	p.FromDTO(platform)
 	return create(ctx, ps.db, platformTable, p)

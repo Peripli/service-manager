@@ -85,9 +85,9 @@ var (
 
 	// ErrAlreadyExistsInStorage error returned from storage when entity has conflicting fields
 	ErrAlreadyExistsInStorage = errors.New("unique constraint violation")
-
-	ErrIntegrityCheckViolation = errors.New("integrity check violation")
 )
+
+type ErrBadRequestStorage error
 
 // HandleStorageError handles storage errors by converting them to relevant HTTPErrors
 func HandleStorageError(err error, entityName, entityID string) error {
@@ -107,11 +107,15 @@ func HandleStorageError(err error, entityName, entityID string) error {
 			Description: fmt.Sprintf("could not find %s with id %s", entityName, entityID),
 			StatusCode:  http.StatusNotFound,
 		}
-	case ErrIntegrityCheckViolation:
-		return &HTTPError{
-			ErrorType:   "BadRequest",
-			Description: fmt.Sprintf("storage contraints violation: %s", err),
-			StatusCode:  http.StatusBadRequest,
+	default:
+		// in case we did not replace the pg.Error in the DB layer, propagate it as response message to give the caller relevant info
+		storageErr, ok := err.(ErrBadRequestStorage)
+		if ok {
+			return &HTTPError{
+				ErrorType:   "BadRequest",
+				Description: fmt.Sprintf("storage err: %s", storageErr.Error()),
+				StatusCode:  http.StatusBadRequest,
+			}
 		}
 	}
 	return fmt.Errorf("unknown error type returned from storage layer: %s", err)
