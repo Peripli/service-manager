@@ -46,12 +46,10 @@ func (c *Controller) createVisibility(r *web.Request) (*web.Response, error) {
 	visibility.CreatedAt = currentTime
 	visibility.UpdatedAt = currentTime
 
-	id, err := c.VisibilityStorage.Create(ctx, visibility)
-	if err != nil {
+	if _, err := c.VisibilityStorage.Create(ctx, visibility); err != nil {
 		return nil, util.HandleStorageError(err, "visibility", visibility.ID)
 	}
 
-	logger.Errorf("id is %s", id)
 	return util.NewJSONResponse(http.StatusCreated, visibility)
 }
 
