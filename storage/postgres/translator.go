@@ -91,6 +91,6 @@ func translateOperationToSQLEquivalent(operator selection.Operator) string {
 	case selection.EqualsOrNilOperator:
 		return "="
 	default:
-		return string(operator)
+		return strings.ToUpper(string(operator))
 	}
 }

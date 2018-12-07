@@ -18,6 +18,7 @@ package postgres
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Peripli/service-manager/pkg/selection"
 	. "github.com/onsi/ginkgo"
@@ -98,7 +99,7 @@ var _ = Describe("Postgres Translator", func() {
 					}
 					actualQuery, actualQueryParams, err := buildListQueryWithParams(baseQuery, baseTableName, labelsTableName, criteria)
 					Expect(err).ToNot(HaveOccurred())
-					Expect(actualQuery).To(Equal(fmt.Sprintf(" WHERE %s.%s %s ?;", baseTableName, criteria[0].LeftOp, criteria[0].Operator)))
+					Expect(actualQuery).To(Equal(fmt.Sprintf(" WHERE %s.%s %s ?;", baseTableName, criteria[0].LeftOp, strings.ToUpper(string(criteria[0].Operator)))))
 
 					expectedQueryParams := buildExpectedQueryParams(criteria)
 					Expect(actualQueryParams).To(Equal(expectedQueryParams))
@@ -117,7 +118,7 @@ var _ = Describe("Postgres Translator", func() {
 					}
 					actualQuery, actualQueryParams, err := buildListQueryWithParams(baseQuery, baseTableName, labelsTableName, criteria)
 					Expect(err).ToNot(HaveOccurred())
-					Expect(actualQuery).To(Equal(fmt.Sprintf(" WHERE %s.%s %s (?);", baseTableName, criteria[0].LeftOp, criteria[0].Operator)))
+					Expect(actualQuery).To(Equal(fmt.Sprintf(" WHERE %s.%s %s (?);", baseTableName, criteria[0].LeftOp, strings.ToUpper(string(criteria[0].Operator)))))
 
 					expectedQueryParams := buildExpectedQueryParams(criteria)
 					Expect(actualQueryParams).To(Equal(expectedQueryParams))
