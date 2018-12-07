@@ -10,18 +10,18 @@ import (
 )
 
 type FakeAuthenticator struct {
-	AuthenticateStub        func(*http.Request) (*web.User, security.Decision, error)
+	AuthenticateStub        func(*http.Request) (*web.UserContext, security.Decision, error)
 	authenticateMutex       sync.RWMutex
 	authenticateArgsForCall []struct {
 		arg1 *http.Request
 	}
 	authenticateReturns struct {
-		result1 *web.User
+		result1 *web.UserContext
 		result2 security.Decision
 		result3 error
 	}
 	authenticateReturnsOnCall map[int]struct {
-		result1 *web.User
+		result1 *web.UserContext
 		result2 security.Decision
 		result3 error
 	}
@@ -29,7 +29,7 @@ type FakeAuthenticator struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeAuthenticator) Authenticate(arg1 *http.Request) (*web.User, security.Decision, error) {
+func (fake *FakeAuthenticator) Authenticate(arg1 *http.Request) (*web.UserContext, security.Decision, error) {
 	fake.authenticateMutex.Lock()
 	ret, specificReturn := fake.authenticateReturnsOnCall[len(fake.authenticateArgsForCall)]
 	fake.authenticateArgsForCall = append(fake.authenticateArgsForCall, struct {
@@ -53,7 +53,7 @@ func (fake *FakeAuthenticator) AuthenticateCallCount() int {
 	return len(fake.authenticateArgsForCall)
 }
 
-func (fake *FakeAuthenticator) AuthenticateCalls(stub func(*http.Request) (*web.User, security.Decision, error)) {
+func (fake *FakeAuthenticator) AuthenticateCalls(stub func(*http.Request) (*web.UserContext, security.Decision, error)) {
 	fake.authenticateMutex.Lock()
 	defer fake.authenticateMutex.Unlock()
 	fake.AuthenticateStub = stub
@@ -66,30 +66,30 @@ func (fake *FakeAuthenticator) AuthenticateArgsForCall(i int) *http.Request {
 	return argsForCall.arg1
 }
 
-func (fake *FakeAuthenticator) AuthenticateReturns(result1 *web.User, result2 security.Decision, result3 error) {
+func (fake *FakeAuthenticator) AuthenticateReturns(result1 *web.UserContext, result2 security.Decision, result3 error) {
 	fake.authenticateMutex.Lock()
 	defer fake.authenticateMutex.Unlock()
 	fake.AuthenticateStub = nil
 	fake.authenticateReturns = struct {
-		result1 *web.User
+		result1 *web.UserContext
 		result2 security.Decision
 		result3 error
 	}{result1, result2, result3}
 }
 
-func (fake *FakeAuthenticator) AuthenticateReturnsOnCall(i int, result1 *web.User, result2 security.Decision, result3 error) {
+func (fake *FakeAuthenticator) AuthenticateReturnsOnCall(i int, result1 *web.UserContext, result2 security.Decision, result3 error) {
 	fake.authenticateMutex.Lock()
 	defer fake.authenticateMutex.Unlock()
 	fake.AuthenticateStub = nil
 	if fake.authenticateReturnsOnCall == nil {
 		fake.authenticateReturnsOnCall = make(map[int]struct {
-			result1 *web.User
+			result1 *web.UserContext
 			result2 security.Decision
 			result3 error
 		})
 	}
 	fake.authenticateReturnsOnCall[i] = struct {
-		result1 *web.User
+		result1 *web.UserContext
 		result2 security.Decision
 		result3 error
 	}{result1, result2, result3}

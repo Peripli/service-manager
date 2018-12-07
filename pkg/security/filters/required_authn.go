@@ -56,6 +56,7 @@ func (raf *requiredAuthnFilter) FilterMatchers() []web.FilterMatcher {
 					web.OSBURL+"/**",
 					web.ServiceOfferingsURL+"/**",
 					web.ServicePlansURL+"/**",
+					web.VisibilitiesURL+"/**",
 				),
 			},
 		},

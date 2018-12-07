@@ -165,7 +165,7 @@ func initializeSecureStorage(ctx context.Context, secureStorage storage.Security
 		logger.Debug("No encryption key is present. Generating new one...")
 		newEncryptionKey := make([]byte, 32)
 		if _, err := rand.Read(newEncryptionKey); err != nil {
-			return fmt.Errorf("Could not generate encryption key: %v", err)
+			return fmt.Errorf("could not generate encryption key: %v", err)
 		}
 		keySetter := secureStorage.Setter()
 		if err := keySetter.SetEncryptionKey(ctx, newEncryptionKey); err != nil {

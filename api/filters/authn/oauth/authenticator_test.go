@@ -30,7 +30,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/security/securityfakes"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/pkg/web/webfakes"
 	"github.com/Peripli/service-manager/test/testutil"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -253,7 +252,7 @@ var _ = Describe("OIDC Authenticator", func() {
 			request *http.Request
 			err     error
 		)
-		validateAuthenticationReturns := func(expectedUser *web.User, expectedDecision security.Decision, expectedErr error) {
+		validateAuthenticationReturns := func(expectedUser *web.UserContext, expectedDecision security.Decision, expectedErr error) {
 			authenticator, _ := newAuthenticator(ctx, oauthOptions)
 
 			user, decision, err := authenticator.Authenticate(request)
@@ -343,12 +342,12 @@ var _ = Describe("OIDC Authenticator", func() {
 					})
 
 					Context("when returned token cannot extract claims", func() {
-						var fakeToken *webfakes.FakeTokenData
+						var fakeToken *securityfakes.FakeTokenData
 
 						BeforeEach(func() {
 							expectedError = fmt.Errorf("Claims extraction error")
 
-							fakeToken = &webfakes.FakeTokenData{}
+							fakeToken = &securityfakes.FakeTokenData{}
 							fakeToken.ClaimsReturns(expectedError)
 
 							verifier.VerifyReturns(fakeToken, nil)
@@ -369,7 +368,7 @@ var _ = Describe("OIDC Authenticator", func() {
 
 						BeforeEach(func() {
 							tokenJSON := fmt.Sprintf(`{"user_name": "%s", "abc": "xyz"}`, expectedUserName)
-							token := &webfakes.FakeTokenData{}
+							token := &securityfakes.FakeTokenData{}
 							token.ClaimsStub = func(v interface{}) error {
 								return json.Unmarshal([]byte(tokenJSON), v)
 							}
@@ -387,7 +386,8 @@ var _ = Describe("OIDC Authenticator", func() {
 							claims := struct {
 								Abc string
 							}{}
-							err = user.Claims(&claims)
+
+							err = user.Data.Data(&claims)
 
 							_, token := verifier.VerifyArgsForCall(0)
 							Expect(token).To(Equal("token"))

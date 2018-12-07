@@ -41,6 +41,7 @@ func (ba *bearerAuthnFilter) FilterMatchers() []web.FilterMatcher {
 					web.PlatformsURL+"/**",
 					web.ServiceOfferingsURL+"/**",
 					web.ServicePlansURL+"/**",
+					web.VisibilitiesURL+"/**",
 				),
 			},
 		},
