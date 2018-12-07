@@ -1,6 +1,7 @@
 package visibility
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -74,16 +75,16 @@ func (c *Controller) listVisibilities(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debug("Getting all visibilities")
 
-	//user, ok := web.UserFromContext(ctx)
-	//if !ok {
-	//	return nil, errors.New("user details not found in request context")
-	//}
+	user, ok := web.UserFromContext(ctx)
+	if !ok {
+		return nil, errors.New("user details not found in request context")
+	}
 
 	p := &types.Platform{}
 
-	//if err := user.Data.Data(p); err != nil {
-	//	return nil, err
-	//}
+	if err := user.Data.Data(p); err != nil {
+		return nil, err
+	}
 	criteria, err := selection.BuildCriteriaFromRequest(r)
 	if err != nil {
 		log.C(ctx).Error(err)
@@ -96,7 +97,9 @@ func (c *Controller) listVisibilities(r *web.Request) (*web.Response, error) {
 			RightOp:  []string{p.ID},
 			Operator: selection.EqualsOrNilOperator,
 		}
-		criteria = append(criteria, platformIdCriterion)
+		if err := criteria.Add(platformIdCriterion); err != nil {
+			return nil, util.HandleListQueryError(err)
+		}
 	}
 	visibilities, err = c.VisibilityStorage.List(ctx, criteria...)
 	if err != nil {

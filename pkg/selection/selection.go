@@ -85,15 +85,35 @@ func (c Criterion) Validate() error {
 	return nil
 }
 
-func BuildCriteriaFromRequest(request *web.Request) ([]Criterion, error) {
-	var criteria []Criterion
+type Criteria []Criterion
+
+func (c *Criteria) Add(criteria ...Criterion) error {
+	fieldQueryLeftOperands := make(map[string]bool)
+	for _, criterion := range *c {
+		if criterion.Type == FieldQuery {
+			fieldQueryLeftOperands[criterion.LeftOp] = true
+		}
+	}
+	for _, newCriterion := range criteria {
+		if _, ok := fieldQueryLeftOperands[newCriterion.LeftOp]; ok && newCriterion.Type == FieldQuery {
+			return &UnsupportedQuery{Message: fmt.Sprintf("duplicate query key: %s", newCriterion.LeftOp)}
+		}
+		*c = append(*c, newCriterion)
+	}
+	return nil
+}
+
+func BuildCriteriaFromRequest(request *web.Request) (Criteria, error) {
+	var criteria Criteria
 	for _, queryType := range supportedQueryTypes {
 		queryValues := request.URL.Query().Get(string(queryType))
 		querySegments, err := process(queryValues, queryType)
 		if err != nil {
 			return nil, err
 		}
-		criteria = append(criteria, querySegments...)
+		if err := criteria.Add(querySegments...); err != nil {
+			return nil, err
+		}
 	}
 	return criteria, nil
 }
