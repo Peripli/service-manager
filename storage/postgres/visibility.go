@@ -18,6 +18,9 @@ package postgres
 
 import (
 	"context"
+	"time"
+
+	"github.com/gofrs/uuid"
 
 	"github.com/Peripli/service-manager/pkg/log"
 
@@ -28,6 +31,26 @@ import (
 
 type visibilityStorage struct {
 	db pgDB
+}
+
+func (vs *visibilityStorage) CreateLabels(ctx context.Context, visibilityID string, labels []*types.VisibilityLabel) error {
+	for _, label := range labels {
+		label.ServiceVisibilityID = visibilityID
+		uuids, err := uuid.NewV4()
+		if err != nil {
+			return err
+		}
+		now := time.Now()
+		label.ID = uuids.String()
+		label.CreatedAt = now
+		label.UpdatedAt = now
+		v := &VisibilityLabel{}
+		v.FromDTO(label)
+		if _, err := create(ctx, vs.db, visibilityLabelsTable, v); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (vs *visibilityStorage) Create(ctx context.Context, visibility *types.Visibility) (string, error) {

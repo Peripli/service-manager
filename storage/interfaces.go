@@ -224,6 +224,8 @@ type Visibility interface {
 
 	// Update updates a visibility from SM DB
 	Update(ctx context.Context, servicePlan *types.Visibility) error
+
+	CreateLabels(ctx context.Context, visibilityID string, labels []*types.VisibilityLabel) error
 }
 
 // Credentials interface for Credentials db operations

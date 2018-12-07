@@ -1,6 +1,7 @@
 package visibility
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -22,7 +23,7 @@ const (
 )
 
 type Controller struct {
-	VisibilityStorage storage.Visibility
+	Repository storage.Repository
 }
 
 var _ web.Controller = &Controller{}
@@ -48,7 +49,14 @@ func (c *Controller) createVisibility(r *web.Request) (*web.Response, error) {
 	visibility.CreatedAt = currentTime
 	visibility.UpdatedAt = currentTime
 
-	id, err := c.VisibilityStorage.Create(ctx, visibility)
+	var id string
+	err = c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
+		id, err = storage.Visibility().Create(ctx, visibility)
+		if err != nil {
+			return err
+		}
+		return storage.Visibility().CreateLabels(ctx, id, visibility.Labels)
+	})
 	if err != nil {
 		return nil, util.HandleStorageError(err, "visibility", visibility.ID)
 	}
@@ -62,7 +70,7 @@ func (c *Controller) getVisibility(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Getting visibility with id %s", visibilityID)
 
-	visibility, err := c.VisibilityStorage.Get(ctx, visibilityID)
+	visibility, err := c.Repository.Visibility().Get(ctx, visibilityID)
 	if err = util.HandleStorageError(err, "visibility", visibilityID); err != nil {
 		return nil, err
 	}
@@ -101,7 +109,7 @@ func (c *Controller) listVisibilities(r *web.Request) (*web.Response, error) {
 			return nil, util.HandleListQueryError(err)
 		}
 	}
-	visibilities, err = c.VisibilityStorage.List(ctx, criteria...)
+	visibilities, err = c.Repository.Visibility().List(ctx, criteria...)
 	if err != nil {
 		return nil, util.HandleListQueryError(err)
 	}
@@ -115,7 +123,7 @@ func (c *Controller) deleteVisibility(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting visibility with id %s", visibilityID)
 
-	if err := c.VisibilityStorage.Delete(ctx, visibilityID); err != nil {
+	if err := c.Repository.Visibility().Delete(ctx, visibilityID); err != nil {
 		return nil, util.HandleStorageError(err, "visibility", visibilityID)
 	}
 
@@ -127,7 +135,7 @@ func (c *Controller) patchVisibility(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Updating visibility  with id %s", visibilityID)
 
-	visibility, err := c.VisibilityStorage.Get(ctx, visibilityID)
+	visibility, err := c.Repository.Visibility().Get(ctx, visibilityID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, "visibility", visibilityID)
 	}
@@ -142,7 +150,7 @@ func (c *Controller) patchVisibility(r *web.Request) (*web.Response, error) {
 	visibility.CreatedAt = createdAt
 	visibility.UpdatedAt = time.Now().UTC()
 
-	if err := c.VisibilityStorage.Update(ctx, visibility); err != nil {
+	if err := c.Repository.Visibility().Update(ctx, visibility); err != nil {
 		return nil, util.HandleStorageError(err, "visibility", visibilityID)
 	}
 

@@ -124,16 +124,12 @@ type Visibility struct {
 	UpdatedAt     time.Time      `db:"updated_at"`
 }
 
-type Label struct {
-	ID        sql.NullString `db:"id"`
-	Key       sql.NullString `db:"key"`
-	Val       sql.NullString `db:"val"`
-	CreatedAt *time.Time     `db:"created_at"`
-	UpdatedAt *time.Time     `db:"updated_at"`
-}
-
 type VisibilityLabel struct {
-	Label
+	ID                  sql.NullString `db:"id"`
+	Key                 sql.NullString `db:"key"`
+	Val                 sql.NullString `db:"val"`
+	CreatedAt           *time.Time     `db:"created_at"`
+	UpdatedAt           *time.Time     `db:"updated_at"`
 	ServiceVisibilityID sql.NullString `db:"visibility_id" references:"id"`
 }
 
@@ -330,13 +326,11 @@ func (vl *VisibilityLabel) ToDTO() *types.VisibilityLabel {
 
 func (vl *VisibilityLabel) FromDTO(label *types.VisibilityLabel) {
 	*vl = VisibilityLabel{
-		Label: Label{
-			ID:        sql.NullString{String: label.ID, Valid: label.ID != ""},
-			Key:       sql.NullString{String: label.Key, Valid: label.Key != ""},
-			Val:       sql.NullString{String: label.Val, Valid: label.Val != ""},
-			CreatedAt: &label.CreatedAt,
-			UpdatedAt: &label.UpdatedAt,
-		},
+		ID:                  sql.NullString{String: label.ID, Valid: label.ID != ""},
+		Key:                 sql.NullString{String: label.Key, Valid: label.Key != ""},
+		Val:                 sql.NullString{String: label.Val, Valid: label.Val != ""},
+		CreatedAt:           &label.CreatedAt,
+		UpdatedAt:           &label.UpdatedAt,
 		ServiceVisibilityID: sql.NullString{String: label.ServiceVisibilityID, Valid: label.ServiceVisibilityID != ""},
 	}
 }
