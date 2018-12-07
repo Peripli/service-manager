@@ -69,7 +69,6 @@ func create(ctx context.Context, db namedExecerContext, table string, dto interf
 		strings.Join(set, ", :"),
 	)
 	log.C(ctx).Debugf("Executing query %s", query)
-	log.C(ctx).Debugf(">>>>>>VALUES: %v", dto)
 	_, err := db.NamedExecContext(ctx, query, dto)
 
 	return checkUniqueViolation(ctx, err)
