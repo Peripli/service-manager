@@ -87,7 +87,7 @@ func (c *Controller) listVisibilities(r *web.Request) (*web.Response, error) {
 	criteria, err := selection.BuildCriteriaFromRequest(r)
 	if err != nil {
 		log.C(ctx).Error(err)
-		return nil, err
+		return nil, util.HandleListQueryError(err)
 	}
 	if p.ID != "" {
 		platformIdCriterion := selection.Criterion{
@@ -100,7 +100,7 @@ func (c *Controller) listVisibilities(r *web.Request) (*web.Response, error) {
 	}
 	visibilities, err = c.VisibilityStorage.List(ctx, criteria...)
 	if err != nil {
-		return nil, err
+		return nil, util.HandleListQueryError(err)
 	}
 	return util.NewJSONResponse(http.StatusOK, types.Visibilities{
 		Visibilities: visibilities,

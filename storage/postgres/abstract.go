@@ -23,6 +23,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/Peripli/service-manager/pkg/selection"
+
 	"github.com/jmoiron/sqlx"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -96,6 +98,63 @@ func get(ctx context.Context, db getterContext, id string, table string, dto int
 	log.C(ctx).Debugf("Executing query %s", query)
 	err := db.GetContext(ctx, dto, query, &id)
 	return checkSQLNoRows(err)
+}
+
+func listWithLabelsAndCriteria(ctx context.Context, db pgDB, baseEntity, labelsEntity interface{}, baseTableName string, labelsTableName string, criteria []selection.Criterion) (*sqlx.Rows, error) {
+	if err := validateFieldQueryParams(baseEntity, criteria); err != nil {
+		return nil, err
+	}
+	baseQuery := constructBaseQueryForLabeledEntity(labelsEntity, baseTableName, labelsTableName)
+	query, queryParams, err := buildListQueryWithParams(baseQuery, baseTableName, labelsTableName, criteria)
+	if err != nil {
+		return nil, err
+	}
+	query = db.Rebind(query)
+
+	log.C(ctx).Debugf("Executing query %s", query)
+	return db.QueryxContext(ctx, query, queryParams...)
+}
+
+func validateFieldQueryParams(baseEntity interface{}, criteria []selection.Criterion) error {
+	availableColumns := make(map[string]bool)
+	baseEntityStruct := structs.New(baseEntity)
+	for _, field := range baseEntityStruct.Fields() {
+		// TOOD: corner case for embedded structs
+		dbTag := field.Tag("db")
+		availableColumns[dbTag] = true
+	}
+	for _, criterion := range criteria {
+		if !availableColumns[criterion.LeftOp] {
+			return &selection.UnsupportedQuery{Message: fmt.Sprintf("unsupported field query key: %s", criterion.LeftOp)}
+		}
+	}
+	return nil
+}
+
+func constructBaseQueryForLabeledEntity(labelsEntity interface{}, baseTableName string, labelsTableName string) string {
+	labelStruct := structs.New(labelsEntity)
+	baseQuery := `SELECT %[1]s.*,`
+	var primaryKeyColumn string
+	var referenceKeyColumn string
+	for _, field := range labelStruct.Fields() {
+		if field.IsEmbedded() {
+			for _, embeddedField := range field.Fields() {
+				dbTag := embeddedField.Tag("db")
+				baseQuery += " %[2]s." + dbTag + " " + "\"%[2]s." + dbTag + "\"" + ","
+			}
+		} else {
+			dbTag := field.Tag("db")
+			baseQuery += " %[2]s." + dbTag + " " + "\"%[2]s." + dbTag + "\"" + ","
+			if field.Tag("references") != "" {
+				primaryKeyColumn = field.Tag("references")
+				referenceKeyColumn = dbTag
+			}
+		}
+	}
+	baseQuery = baseQuery[:len(baseQuery)-1] //remove last comma
+	baseQuery += " FROM %[1]s LEFT JOIN %[2]s ON %[1]s." + primaryKeyColumn + " = %[2]s." + referenceKeyColumn
+	query := fmt.Sprintf(baseQuery, baseTableName, labelsTableName)
+	return query
 }
 
 func list(ctx context.Context, db selecterContext, table string, filter map[string][]string, dtos interface{}) error {

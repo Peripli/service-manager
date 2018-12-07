@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/Peripli/service-manager/pkg/selection"
+
 	"github.com/Peripli/service-manager/pkg/log"
 )
 
@@ -119,4 +121,19 @@ func HandleStorageError(err error, entityName, entityID string) error {
 		}
 	}
 	return fmt.Errorf("unknown error type returned from storage layer: %s", err)
+}
+
+func HandleListQueryError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	if _, ok := err.(*selection.UnsupportedQuery); ok {
+		return &HTTPError{
+			Description: err.Error(),
+			ErrorType:   "BadRequest",
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+	return err
 }

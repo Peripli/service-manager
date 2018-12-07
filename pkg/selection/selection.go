@@ -56,6 +56,14 @@ const (
 var supportedQueryTypes = []CriterionType{FieldQuery, LabelQuery}
 var allowedSeparators = []rune{';'}
 
+type UnsupportedQuery struct {
+	Message string
+}
+
+func (uq *UnsupportedQuery) Error() string {
+	return uq.Message
+}
+
 type Criterion struct {
 	LeftOp   string
 	Operator Operator
@@ -70,6 +78,9 @@ func newCriterion(leftOp string, operator Operator, rightOp []string, criteriaTy
 func (c Criterion) Validate() error {
 	if len(c.RightOp) > 1 && !c.Operator.IsMultiVariate() {
 		return fmt.Errorf("multiple values received for single value operation")
+	}
+	if c.Operator.IsNullable() && c.Type != FieldQuery {
+		return &UnsupportedQuery{"nullable operations are supported only for field queries"}
 	}
 	return nil
 }

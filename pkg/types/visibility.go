@@ -45,7 +45,7 @@ type Visibility struct {
 
 type VisibilityLabel struct {
 	Label
-	ServiceVisibilityID *string `json:"-"`
+	ServiceVisibilityID string `json:"-"`
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

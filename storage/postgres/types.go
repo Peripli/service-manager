@@ -125,16 +125,16 @@ type Visibility struct {
 }
 
 type Label struct {
-	ID        *string    `db:"id"`
-	Key       *string    `db:"key"`
-	Val       *string    `db:"val"`
-	CreatedAt *time.Time `db:"created_at"`
-	UpdatedAt *time.Time `db:"updated_at"`
+	ID        sql.NullString `db:"id"`
+	Key       sql.NullString `db:"key"`
+	Val       sql.NullString `db:"val"`
+	CreatedAt *time.Time     `db:"created_at"`
+	UpdatedAt *time.Time     `db:"updated_at"`
 }
 
 type VisibilityLabel struct {
 	Label
-	ServiceVisibilityID *string `db:"visibility_id"`
+	ServiceVisibilityID sql.NullString `db:"visibility_id" references:"id"`
 }
 
 func (b *Broker) ToDTO() *types.Broker {
@@ -298,40 +298,45 @@ func (v *Visibility) ToDTO() *types.Visibility {
 
 func (v *Visibility) FromDTO(visibility *types.Visibility) {
 	*v = Visibility{
-		ID:            visibility.ID,
-		PlatformID:    sql.NullString{String: visibility.PlatformID},
+		ID: visibility.ID,
+		// API cannot send nulls right now and storage cannot store empty string for this column as it is FK
+		PlatformID:    sql.NullString{String: visibility.PlatformID, Valid: visibility.PlatformID != ""},
 		ServicePlanID: visibility.ServicePlanID,
 		CreatedAt:     visibility.CreatedAt,
 		UpdatedAt:     visibility.UpdatedAt,
 	}
-	// API cannot send nulls right now and storage cannot store empty string for this column as it is FK
-	if visibility.PlatformID != "" {
-		v.PlatformID.Valid = true
-	}
 }
 
 func (vl *VisibilityLabel) ToDTO() *types.VisibilityLabel {
+	var createdAt time.Time
+	var updatedAt time.Time
+	if vl.CreatedAt != nil {
+		createdAt = *vl.CreatedAt
+	}
+	if vl.UpdatedAt != nil {
+		updatedAt = *vl.UpdatedAt
+	}
 	return &types.VisibilityLabel{
 		Label: types.Label{
-			ID:        vl.ID,
-			Key:       vl.Key,
-			Val:       vl.Val,
-			CreatedAt: vl.CreatedAt,
-			UpdatedAt: vl.UpdatedAt,
+			ID:        vl.ID.String,
+			Key:       vl.Key.String,
+			Val:       vl.Val.String,
+			CreatedAt: createdAt,
+			UpdatedAt: updatedAt,
 		},
-		ServiceVisibilityID: vl.ServiceVisibilityID,
+		ServiceVisibilityID: vl.ServiceVisibilityID.String,
 	}
 }
 
 func (vl *VisibilityLabel) FromDTO(label *types.VisibilityLabel) {
 	*vl = VisibilityLabel{
 		Label: Label{
-			ID:        label.ID,
-			Key:       label.Key,
-			Val:       label.Val,
-			CreatedAt: label.CreatedAt,
-			UpdatedAt: label.UpdatedAt,
+			ID:        sql.NullString{String: label.ID, Valid: label.ID != ""},
+			Key:       sql.NullString{String: label.Key, Valid: label.Key != ""},
+			Val:       sql.NullString{String: label.Val, Valid: label.Val != ""},
+			CreatedAt: &label.CreatedAt,
+			UpdatedAt: &label.UpdatedAt,
 		},
-		ServiceVisibilityID: label.ServiceVisibilityID,
+		ServiceVisibilityID: sql.NullString{String: label.ServiceVisibilityID, Valid: label.ServiceVisibilityID != ""},
 	}
 }
