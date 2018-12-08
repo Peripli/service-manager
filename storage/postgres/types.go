@@ -32,9 +32,14 @@ const (
 	// brokerTable db table name for brokers
 	brokerTable = "brokers"
 
+	// serviceOfferingTable db table for service offerings
 	serviceOfferingTable = "service_offerings"
 
+	// servicePlanTable db table for service plans
 	servicePlanTable = "service_plans"
+
+	// visibilityTable db table for visibilities
+	visibilityTable = "visibilities"
 )
 
 // Safe represents a secret entity
@@ -106,6 +111,14 @@ type ServicePlan struct {
 	Schemas  sqlxtypes.JSONText `db:"schemas"`
 
 	ServiceOfferingID string `db:"service_offering_id"`
+}
+
+type Visibility struct {
+	ID            string         `db:"id"`
+	PlatformID    sql.NullString `db:"platform_id"`
+	ServicePlanID string         `db:"service_plan_id"`
+	CreatedAt     time.Time      `db:"created_at"`
+	UpdatedAt     time.Time      `db:"updated_at"`
 }
 
 func (b *Broker) ToDTO() *types.Broker {
@@ -254,5 +267,29 @@ func (sp *ServicePlan) FromDTO(plan *types.ServicePlan) {
 		Metadata:          sqlxtypes.JSONText(plan.Metadata),
 		Schemas:           sqlxtypes.JSONText(plan.Schemas),
 		ServiceOfferingID: plan.ServiceOfferingID,
+	}
+}
+
+func (v *Visibility) ToDTO() *types.Visibility {
+	return &types.Visibility{
+		ID:            v.ID,
+		PlatformID:    v.PlatformID.String,
+		ServicePlanID: v.ServicePlanID,
+		CreatedAt:     v.CreatedAt,
+		UpdatedAt:     v.UpdatedAt,
+	}
+}
+
+func (v *Visibility) FromDTO(visibility *types.Visibility) {
+	*v = Visibility{
+		ID:            visibility.ID,
+		PlatformID:    sql.NullString{String: visibility.PlatformID},
+		ServicePlanID: visibility.ServicePlanID,
+		CreatedAt:     visibility.CreatedAt,
+		UpdatedAt:     visibility.UpdatedAt,
+	}
+	// API cannot send nulls right now and storage cannot store empty string for this column as it is FK
+	if visibility.PlatformID != "" {
+		v.PlatformID.Valid = true
 	}
 }

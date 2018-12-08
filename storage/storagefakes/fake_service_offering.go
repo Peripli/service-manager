@@ -10,17 +10,19 @@ import (
 )
 
 type FakeServiceOffering struct {
-	CreateStub        func(context.Context, *types.ServiceOffering) error
+	CreateStub        func(context.Context, *types.ServiceOffering) (string, error)
 	createMutex       sync.RWMutex
 	createArgsForCall []struct {
 		arg1 context.Context
 		arg2 *types.ServiceOffering
 	}
 	createReturns struct {
-		result1 error
+		result1 string
+		result2 error
 	}
 	createReturnsOnCall map[int]struct {
-		result1 error
+		result1 string
+		result2 error
 	}
 	DeleteStub        func(context.Context, string) error
 	deleteMutex       sync.RWMutex
@@ -105,7 +107,7 @@ type FakeServiceOffering struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeServiceOffering) Create(arg1 context.Context, arg2 *types.ServiceOffering) error {
+func (fake *FakeServiceOffering) Create(arg1 context.Context, arg2 *types.ServiceOffering) (string, error) {
 	fake.createMutex.Lock()
 	ret, specificReturn := fake.createReturnsOnCall[len(fake.createArgsForCall)]
 	fake.createArgsForCall = append(fake.createArgsForCall, struct {
@@ -118,10 +120,10 @@ func (fake *FakeServiceOffering) Create(arg1 context.Context, arg2 *types.Servic
 		return fake.CreateStub(arg1, arg2)
 	}
 	if specificReturn {
-		return ret.result1
+		return ret.result1, ret.result2
 	}
 	fakeReturns := fake.createReturns
-	return fakeReturns.result1
+	return fakeReturns.result1, fakeReturns.result2
 }
 
 func (fake *FakeServiceOffering) CreateCallCount() int {
@@ -130,7 +132,7 @@ func (fake *FakeServiceOffering) CreateCallCount() int {
 	return len(fake.createArgsForCall)
 }
 
-func (fake *FakeServiceOffering) CreateCalls(stub func(context.Context, *types.ServiceOffering) error) {
+func (fake *FakeServiceOffering) CreateCalls(stub func(context.Context, *types.ServiceOffering) (string, error)) {
 	fake.createMutex.Lock()
 	defer fake.createMutex.Unlock()
 	fake.CreateStub = stub
@@ -143,27 +145,30 @@ func (fake *FakeServiceOffering) CreateArgsForCall(i int) (context.Context, *typ
 	return argsForCall.arg1, argsForCall.arg2
 }
 
-func (fake *FakeServiceOffering) CreateReturns(result1 error) {
+func (fake *FakeServiceOffering) CreateReturns(result1 string, result2 error) {
 	fake.createMutex.Lock()
 	defer fake.createMutex.Unlock()
 	fake.CreateStub = nil
 	fake.createReturns = struct {
-		result1 error
-	}{result1}
+		result1 string
+		result2 error
+	}{result1, result2}
 }
 
-func (fake *FakeServiceOffering) CreateReturnsOnCall(i int, result1 error) {
+func (fake *FakeServiceOffering) CreateReturnsOnCall(i int, result1 string, result2 error) {
 	fake.createMutex.Lock()
 	defer fake.createMutex.Unlock()
 	fake.CreateStub = nil
 	if fake.createReturnsOnCall == nil {
 		fake.createReturnsOnCall = make(map[int]struct {
-			result1 error
+			result1 string
+			result2 error
 		})
 	}
 	fake.createReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
+		result1 string
+		result2 error
+	}{result1, result2}
 }
 
 func (fake *FakeServiceOffering) Delete(arg1 context.Context, arg2 string) error {

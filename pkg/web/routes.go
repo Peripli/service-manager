@@ -12,6 +12,9 @@ const (
 	// ServicePlansURL is the URL path to manage service plans
 	ServicePlansURL = "/" + apiVersion + "/service_plans"
 
+	// VisibilitiesURL is the URL path to manage visibilities
+	VisibilitiesURL = "/" + apiVersion + "/visibilities"
+
 	// PlatformsURL is the URL path to manage platforms
 	PlatformsURL = "/" + apiVersion + "/platforms"
 

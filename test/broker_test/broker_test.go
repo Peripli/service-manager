@@ -680,6 +680,69 @@ var _ = Describe("Service Manager Broker API", func() {
 		})
 
 		Context("when the broker catalog is modified", func() {
+			Context("when a new service offering with new plans is added", func() {
+				var anotherServiceID string
+				var anotherPlanID string
+
+				BeforeEach(func() {
+					anotherPlan := common.JSONToMap(common.AnotherPlan)
+					anotherPlanID = anotherPlan["id"].(string)
+					anotherServiceWithAnotherPlan, err := sjson.Set(common.AnotherService, "plans.-1", anotherPlan)
+					Expect(err).ShouldNot(HaveOccurred())
+
+					anotherService := common.JSONToMap(anotherServiceWithAnotherPlan)
+					anotherServiceID = anotherService["id"].(string)
+					Expect(anotherServiceID).ToNot(BeEmpty())
+
+					catalog, err := sjson.Set(common.Catalog, "services.-1", anotherService)
+
+					Expect(err).ShouldNot(HaveOccurred())
+					brokerServer.Catalog = common.JSONToMap(catalog)
+				})
+
+				It("is returned from the Services API associated with the correct broker", func() {
+					ctx.SMWithOAuth.GET("/v1/service_offerings").
+						Expect().
+						Status(http.StatusOK).
+						JSON().
+						Path("$.service_offerings[*].catalog_id").Array().NotContains(anotherServiceID)
+					ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
+						WithJSON(common.Object{}).
+						Expect().
+						Status(http.StatusOK)
+					servicesJsonResp := ctx.SMWithOAuth.GET("/v1/service_offerings").
+						Expect().
+						Status(http.StatusOK).
+						JSON()
+					servicesJsonResp.Path("$.service_offerings[*].catalog_id").Array().Contains(anotherServiceID)
+					servicesJsonResp.Path("$.service_offerings[*].broker_id").Array().Contains(brokerID)
+
+					var soID string
+					for _, so := range servicesJsonResp.Object().Value("service_offerings").Array().Iter() {
+						sbID := so.Object().Value("broker_id").String().Raw()
+						Expect(sbID).ToNot(BeEmpty())
+
+						catalogID := so.Object().Value("catalog_id").String().Raw()
+						Expect(catalogID).ToNot(BeEmpty())
+
+						if catalogID == anotherServiceID && sbID == brokerID {
+							soID = so.Object().Value("id").String().Raw()
+							Expect(soID).ToNot(BeEmpty())
+							break
+						}
+					}
+
+					plansJsonResp := ctx.SMWithOAuth.GET("/v1/service_plans").
+						Expect().
+						Status(http.StatusOK).
+						JSON()
+					plansJsonResp.Path("$.service_plans[*].catalog_id").Array().Contains(anotherPlanID)
+					plansJsonResp.Path("$.service_plans[*].service_offering_id").Array().Contains(soID)
+
+					assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+				})
+			})
+
 			Context("when an existing service offering is removed", func() {
 				var serviceOfferingID string
 
@@ -764,7 +827,7 @@ var _ = Describe("Service Manager Broker API", func() {
 
 					for _, so := range serviceOfferings {
 						sbID := so.Object().Value("broker_id").String().Raw()
-						Expect(catalogServiceID).ToNot(BeEmpty())
+						Expect(sbID).ToNot(BeEmpty())
 
 						catalogID := so.Object().Value("catalog_id").String().Raw()
 						Expect(catalogServiceID).ToNot(BeEmpty())

@@ -18,6 +18,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -29,20 +30,25 @@ type credentialStorage struct {
 }
 
 func (cs *credentialStorage) Get(ctx context.Context, username string) (*types.Credentials, error) {
-	platformCredentials := &Platform{}
-	query := fmt.Sprintf("SELECT username, password FROM %s WHERE username=$1", platformTable)
+	platform := &Platform{}
+	query := fmt.Sprintf("SELECT * FROM %s WHERE username=$1", platformTable)
 	log.C(ctx).Debugf("Executing query %s", query)
 
-	err := cs.db.GetContext(ctx, platformCredentials, query, username)
+	err := cs.db.GetContext(ctx, platform, query, username)
 
 	if err != nil {
 		return nil, checkSQLNoRows(err)
 	}
 
+	bytes, err := json.Marshal(platform.ToDTO())
+	if err != nil {
+		return nil, err
+	}
 	return &types.Credentials{
 		Basic: &types.Basic{
-			Username: platformCredentials.Username,
-			Password: platformCredentials.Password,
+			Username: platform.Username,
+			Password: platform.Password,
 		},
+		Details: bytes,
 	}, nil
 }

@@ -209,22 +209,24 @@ var AnotherPlan = `
 type BrokerServer struct {
 	*httptest.Server
 
-	CatalogHandler               http.HandlerFunc // /v2/catalog
-	ServiceInstanceHandler       http.HandlerFunc // /v2/service_instances/{instance_id}
-	ServiceInstanceLastOpHandler http.HandlerFunc // /v2/service_instances/{instance_id}/last_operation
-	BindingHandler               http.HandlerFunc // /v2/service_instances/{instance_id}/service_bindings/{binding_id}
-	BindingLastOpHandler         http.HandlerFunc // /v2/service_instances/{instance_id}/service_bindings/{binding_id}/last_operation
+	CatalogHandler                 http.HandlerFunc // /v2/catalog
+	ServiceInstanceHandler         http.HandlerFunc // /v2/service_instances/{instance_id}
+	ServiceInstanceLastOpHandler   http.HandlerFunc // /v2/service_instances/{instance_id}/last_operation
+	BindingHandler                 http.HandlerFunc // /v2/service_instances/{instance_id}/service_bindings/{binding_id}
+	BindingLastOpHandler           http.HandlerFunc // /v2/service_instances/{instance_id}/service_bindings/{binding_id}/last_operation
+	BindingAdaptCredentialsHandler http.HandlerFunc // /v2/service_instances/{instance_id}/service_bindings/{binding_id}/adapt_credentials
 
 	Username, Password string
 	Catalog            interface{}
 	LastRequestBody    []byte
 	LastRequest        *http.Request
 
-	CatalogEndpointRequests               []*http.Request
-	ServiceInstanceEndpointRequests       []*http.Request
-	ServiceInstanceLastOpEndpointRequests []*http.Request
-	BindingEndpointRequests               []*http.Request
-	BindingLastOpEndpointRequests         []*http.Request
+	CatalogEndpointRequests                 []*http.Request
+	ServiceInstanceEndpointRequests         []*http.Request
+	ServiceInstanceLastOpEndpointRequests   []*http.Request
+	BindingEndpointRequests                 []*http.Request
+	BindingLastOpEndpointRequests           []*http.Request
+	BindingAdaptCredentialsEndpointRequests []*http.Request
 
 	router *mux.Router
 }
@@ -271,6 +273,7 @@ func (b *BrokerServer) ResetHandlers() {
 	b.ServiceInstanceLastOpHandler = b.defaultServiceInstanceLastOpHandler
 	b.BindingHandler = b.defaultBindingHandler
 	b.BindingLastOpHandler = b.defaultBindingLastOpHandler
+	b.BindingAdaptCredentialsHandler = b.defaultBindingAdaptCredentialsHandler
 }
 
 func (b *BrokerServer) ResetCallHistory() {
@@ -307,6 +310,11 @@ func (b *BrokerServer) initRouter() {
 		b.BindingLastOpEndpointRequests = append(b.BindingLastOpEndpointRequests, req)
 		b.BindingLastOpHandler(rw, req)
 	}).Methods(http.MethodGet)
+
+	router.HandleFunc("/v2/service_instances/{instance_id}/service_bindings/{binding_id}/adapt_credentials", func(rw http.ResponseWriter, req *http.Request) {
+		b.BindingAdaptCredentialsEndpointRequests = append(b.BindingAdaptCredentialsEndpointRequests, req)
+		b.BindingAdaptCredentialsHandler(rw, req)
+	}).Methods(http.MethodPost)
 
 	router.Use(b.authenticationMiddleware)
 	router.Use(b.saveRequestMiddleware)
@@ -388,6 +396,15 @@ func (b *BrokerServer) defaultBindingHandler(rw http.ResponseWriter, req *http.R
 func (b *BrokerServer) defaultBindingLastOpHandler(rw http.ResponseWriter, req *http.Request) {
 	SetResponse(rw, http.StatusOK, Object{
 		"state": "succeeded",
+	})
+}
+
+func (b *BrokerServer) defaultBindingAdaptCredentialsHandler(rw http.ResponseWriter, req *http.Request) {
+	SetResponse(rw, http.StatusOK, Object{
+		"credentials": Object{
+			"instance_id": mux.Vars(req)["instance_id"],
+			"binding_id":  mux.Vars(req)["binding_id"],
+		},
 	})
 }
 

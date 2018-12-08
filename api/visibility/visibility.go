@@ -14,8 +14,8 @@
  *    limitations under the License.
  */
 
-// Package platform contains logic for the Service Manager Platform Management API
-package platform
+// Package visibility contains logic for building the Service Manager visibilities API
+package visibility
 
 import (
 	"net/http"
@@ -23,43 +23,43 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-// Routes returns slice of routes which handle platform operations
+// Routes returns slice of routes which handle broker operations
 func (c *Controller) Routes() []web.Route {
 	return []web.Route{
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodPost,
-				Path:   web.PlatformsURL,
+				Path:   web.VisibilitiesURL,
 			},
-			Handler: c.createPlatform,
+			Handler: c.createVisibility,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   web.PlatformsURL + "/{platform_id}",
+				Path:   web.VisibilitiesURL + "/{visibility_id}",
 			},
-			Handler: c.getPlatform,
+			Handler: c.getVisibility,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   web.PlatformsURL,
+				Path:   web.VisibilitiesURL,
 			},
-			Handler: c.listPlatforms,
+			Handler: c.listVisibilities,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodDelete,
-				Path:   web.PlatformsURL + "/{platform_id}",
+				Path:   web.VisibilitiesURL + "/{visibility_id}",
 			},
-			Handler: c.deletePlatform,
+			Handler: c.deleteVisibility,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodPatch,
-				Path:   web.PlatformsURL + "/{platform_id}",
+				Path:   web.VisibilitiesURL + "/{visibility_id}",
 			},
-			Handler: c.patchPlatform,
+			Handler: c.patchVisibility,
 		},
 	}
 }

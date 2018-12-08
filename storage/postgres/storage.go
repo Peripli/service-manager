@@ -58,6 +58,11 @@ func (ts *transactionalWarehouse) ServicePlan() storage.ServicePlan {
 	return &servicePlanStorage{db: ts.tx}
 }
 
+func (ts *transactionalWarehouse) Visibility() storage.Visibility {
+	ts.checkOpen()
+	return &visibilityStorage{db: ts.tx}
+}
+
 func (ts *transactionalWarehouse) Security() storage.Security {
 	ts.checkOpen()
 	return &securityStorage{db: ts.tx}
@@ -139,6 +144,10 @@ func (ps *postgresStorage) ServiceOffering() storage.ServiceOffering {
 
 func (ps *postgresStorage) ServicePlan() storage.ServicePlan {
 	return &servicePlanStorage{ps.db}
+}
+
+func (ps *postgresStorage) Visibility() storage.Visibility {
+	return &visibilityStorage{ps.db}
 }
 
 func (ps *postgresStorage) Security() storage.Security {
