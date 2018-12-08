@@ -18,6 +18,7 @@ package selection
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -41,6 +42,10 @@ func (op Operator) IsMultiVariate() bool {
 
 func (op Operator) IsNullable() bool {
 	return op == EqualsOrNilOperator
+}
+
+func (op Operator) IsNumeric() bool {
+	return op == LessThanOperator || op == GreaterThanOperator
 }
 
 var operators = []Operator{EqualsOperator, NotEqualsOperator, InOperator,
@@ -81,6 +86,9 @@ func (c Criterion) Validate() error {
 	}
 	if c.Operator.IsNullable() && c.Type != FieldQuery {
 		return &UnsupportedQuery{"nullable operations are supported only for field queries"}
+	}
+	if c.Operator.IsNumeric() && !isNumeric(c.RightOp[0]) {
+		return &UnsupportedQuery{Message: fmt.Sprintf("%s is numeric operator, but the right operand is not numeric", c.Operator)}
 	}
 	return nil
 }
@@ -171,4 +179,13 @@ func convertRawStatementToCriterion(rawStatement string, operator Operator, crit
 		rightOp[len(rightOp)-1] = strings.TrimSuffix(rightOp[len(rightOp)-1], "]")
 	}
 	return newCriterion(strings.TrimSpace(rawStatement[:opIdx]), operator, rightOp, criterionType)
+}
+
+func isNumeric(str string) bool {
+	_, err := strconv.Atoi(str)
+	if err == nil {
+		return true
+	}
+	_, err = strconv.ParseFloat(str, 64)
+	return err == nil
 }
