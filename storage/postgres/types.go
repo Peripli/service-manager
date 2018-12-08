@@ -21,6 +21,8 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/fatih/structs"
+
 	"github.com/Peripli/service-manager/pkg/types"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
 )
@@ -333,4 +335,14 @@ func (vl *VisibilityLabel) FromDTO(label *types.VisibilityLabel) {
 		UpdatedAt:           &label.UpdatedAt,
 		ServiceVisibilityID: sql.NullString{String: label.ServiceVisibilityID, Valid: label.ServiceVisibilityID != ""},
 	}
+}
+
+func (vl *VisibilityLabel) ToMap() map[string]interface{} {
+	result := make(map[string]interface{})
+	labelStruct := structs.New(vl)
+	for _, field := range labelStruct.Fields() {
+		columnName := field.Tag("db")
+		result[columnName] = field.Value()
+	}
+	return result
 }

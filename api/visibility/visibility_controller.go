@@ -49,19 +49,26 @@ func (c *Controller) createVisibility(r *web.Request) (*web.Response, error) {
 	visibility.CreatedAt = currentTime
 	visibility.UpdatedAt = currentTime
 
-	var id string
+	for _, label := range visibility.Labels {
+		label.ID = UUID.String()
+		label.CreatedAt = currentTime
+		label.UpdatedAt = currentTime
+	}
+
+	var visibilityID string
 	err = c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
-		id, err = storage.Visibility().Create(ctx, visibility)
+		logger.Debugf("Creating visibility and labels...")
+		visibilityID, err = storage.Visibility().Create(ctx, visibility)
 		if err != nil {
 			return err
 		}
-		return storage.Visibility().CreateLabels(ctx, id, visibility.Labels)
+		return storage.Visibility().CreateLabels(ctx, visibilityID, visibility.Labels)
 	})
 	if err != nil {
 		return nil, util.HandleStorageError(err, "visibility", visibility.ID)
 	}
 
-	logger.Errorf("id is %s", id)
+	logger.Errorf("new service visibility id is %s", visibilityID)
 	return util.NewJSONResponse(http.StatusCreated, visibility)
 }
 
@@ -96,7 +103,7 @@ func (c *Controller) listVisibilities(r *web.Request) (*web.Response, error) {
 	criteria, err := selection.BuildCriteriaFromRequest(r)
 	if err != nil {
 		log.C(ctx).Error(err)
-		return nil, util.HandleListQueryError(err)
+		return nil, util.HandleSelectionError(err)
 	}
 	if p.ID != "" {
 		platformIdCriterion := selection.Criterion{
@@ -106,12 +113,12 @@ func (c *Controller) listVisibilities(r *web.Request) (*web.Response, error) {
 			Operator: selection.EqualsOrNilOperator,
 		}
 		if err := criteria.Add(platformIdCriterion); err != nil {
-			return nil, util.HandleListQueryError(err)
+			return nil, util.HandleSelectionError(err)
 		}
 	}
 	visibilities, err = c.Repository.Visibility().List(ctx, criteria...)
 	if err != nil {
-		return nil, util.HandleListQueryError(err)
+		return nil, util.HandleSelectionError(err)
 	}
 	return util.NewJSONResponse(http.StatusOK, types.Visibilities{
 		Visibilities: visibilities,

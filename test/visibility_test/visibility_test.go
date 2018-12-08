@@ -37,7 +37,9 @@ var _ = Describe("Service Manager Platform API", func() {
 		existingBrokerID   string
 		existingPlanIDs    []interface{}
 
-		postVisibilityRequest common.Object
+		labels                          common.Array
+		postVisibilityRequestNoLabels   common.Object
+		postVisibilityRequestWithLabels common.Object
 	)
 
 	BeforeSuite(func() {
@@ -59,9 +61,25 @@ var _ = Describe("Service Manager Platform API", func() {
 		length := len(existingPlanIDs)
 		Expect(length).Should(BeNumerically(">=", 2))
 
-		postVisibilityRequest = common.Object{
+		postVisibilityRequestNoLabels = common.Object{
 			"platform_id":     existingPlatformID,
 			"service_plan_id": existingPlanIDs[0],
+		}
+
+		labels = common.Array{
+			common.Object{
+				"key":   "org_id",
+				"value": "org_id_value",
+			},
+			common.Object{
+				"key":   "cluster_id",
+				"value": "cluster_id_value",
+			},
+		}
+		postVisibilityRequestWithLabels = common.Object{
+			"platform_id":     existingPlatformID,
+			"service_plan_id": existingPlanIDs[0],
+			"labels":          labels,
 		}
 
 		common.RemoveAllVisibilities(ctx.SMWithOAuth)
@@ -87,8 +105,8 @@ var _ = Describe("Service Manager Platform API", func() {
 
 			BeforeEach(func() {
 				visibilityID = ctx.SMWithOAuth.POST("/v1/visibilities").
-					WithJSON(postVisibilityRequest).
-					Expect().Status(http.StatusCreated).JSON().Object().ContainsMap(postVisibilityRequest).
+					WithJSON(postVisibilityRequestNoLabels).
+					Expect().Status(http.StatusCreated).JSON().Object().ContainsMap(postVisibilityRequestNoLabels).
 					Value("id").String().Raw()
 
 			})
@@ -97,7 +115,7 @@ var _ = Describe("Service Manager Platform API", func() {
 				ctx.SMWithOAuth.GET("/v1/visibilities/" + visibilityID).
 					Expect().
 					Status(http.StatusOK).
-					JSON().Object().ContainsMap(postVisibilityRequest)
+					JSON().Object().ContainsMap(postVisibilityRequestNoLabels)
 			})
 		})
 	})
@@ -122,13 +140,13 @@ var _ = Describe("Service Manager Platform API", func() {
 			BeforeEach(func() {
 				// register a visibility for the existing platform
 				json := ctx.SMWithOAuth.POST("/v1/visibilities").
-					WithJSON(postVisibilityRequest).
+					WithJSON(postVisibilityRequestNoLabels).
 					Expect().Status(http.StatusCreated).JSON().Object()
 
 				visibilityID := json.Value("id").String().Raw()
-				postVisibilityRequest["id"] = visibilityID
+				postVisibilityRequestNoLabels["id"] = visibilityID
 
-				json.ContainsMap(postVisibilityRequest)
+				json.ContainsMap(postVisibilityRequestNoLabels)
 
 				// register another platform
 				anotherPlatform := ctx.RegisterPlatform()
@@ -167,7 +185,7 @@ var _ = Describe("Service Manager Platform API", func() {
 
 			Context("when authentication is oauth", func() {
 				BeforeEach(func() {
-					expectedVisibilities = common.Array{postVisibilityRequest, postVisibilityRequestForAnotherPlatform, postVisibilityForAllPlatforms}
+					expectedVisibilities = common.Array{postVisibilityRequestNoLabels, postVisibilityRequestForAnotherPlatform, postVisibilityForAllPlatforms}
 				})
 
 				It("returns all the visibilities if authn is oauth", func() {
@@ -185,7 +203,7 @@ var _ = Describe("Service Manager Platform API", func() {
 
 			Context("when authentication is basic", func() {
 				BeforeEach(func() {
-					expectedVisibilities = common.Array{postVisibilityRequest, postVisibilityForAllPlatforms}
+					expectedVisibilities = common.Array{postVisibilityRequestNoLabels, postVisibilityForAllPlatforms}
 				})
 
 				It("returns the visibilities with the credentials' platform id and the visibilities with null platform id if authn is basic", func() {
@@ -226,14 +244,14 @@ var _ = Describe("Service Manager Platform API", func() {
 		Context("With missing mandatory fields", func() {
 			It("returns 400", func() {
 				ctx.SMWithOAuth.POST("/v1/visibilities").
-					WithJSON(postVisibilityRequest).
+					WithJSON(postVisibilityRequestNoLabels).
 					Expect().Status(http.StatusCreated)
 
 				for _, prop := range []string{"service_plan_id"} {
-					delete(postVisibilityRequest, prop)
+					delete(postVisibilityRequestNoLabels, prop)
 
 					ctx.SMWithOAuth.POST("/v1/visibilities").
-						WithJSON(postVisibilityRequest).
+						WithJSON(postVisibilityRequestNoLabels).
 						Expect().Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
 				}
 			})
@@ -243,7 +261,7 @@ var _ = Describe("Service Manager Platform API", func() {
 			It("returns 400", func() {
 				platformId := "not-existing"
 				ctx.SMWithOAuth.GET("/v1/platforms/"+platformId).
-					WithJSON(postVisibilityRequest).
+					WithJSON(postVisibilityRequestNoLabels).
 					Expect().Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
 
 				ctx.SMWithOAuth.POST("/v1/visibilities").
@@ -292,7 +310,7 @@ var _ = Describe("Service Manager Platform API", func() {
 			It("returns 400", func() {
 				planID := "not-existing"
 				ctx.SMWithOAuth.GET("/v1/service_plans/"+planID).
-					WithJSON(postVisibilityRequest).
+					WithJSON(postVisibilityRequestNoLabels).
 					Expect().Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
 
 				ctx.SMWithOAuth.POST("/v1/visibilities").
@@ -318,11 +336,11 @@ var _ = Describe("Service Manager Platform API", func() {
 			Context("when a record with the same platform id and service plan id already exists", func() {
 				It("returns 409", func() {
 					ctx.SMWithOAuth.POST("/v1/visibilities").
-						WithJSON(postVisibilityRequest).
+						WithJSON(postVisibilityRequestNoLabels).
 						Expect().Status(http.StatusCreated)
 
 					ctx.SMWithOAuth.POST("/v1/visibilities").
-						WithJSON(postVisibilityRequest).
+						WithJSON(postVisibilityRequestNoLabels).
 						Expect().Status(http.StatusConflict).JSON().Object().Keys().Contains("error", "description")
 				})
 			})
@@ -348,8 +366,18 @@ var _ = Describe("Service Manager Platform API", func() {
 			Context("when a record with the same or null platform id does not exist", func() {
 				It("returns 201", func() {
 					ctx.SMWithOAuth.POST("/v1/visibilities").
-						WithJSON(postVisibilityRequest).
-						Expect().Status(http.StatusCreated).JSON().Object().ContainsMap(postVisibilityRequest).Keys().Contains("id")
+						WithJSON(postVisibilityRequestNoLabels).
+						Expect().Status(http.StatusCreated).JSON().Object().ContainsMap(postVisibilityRequestNoLabels).Keys().Contains("id")
+				})
+			})
+		})
+
+		Context("With labels", func() {
+			Context("When labels are valid", func() {
+				It("should return 201", func() {
+					ctx.SMWithOAuth.POST("/v1/visibilities").
+						WithJSON(postVisibilityRequestWithLabels).
+						Expect().Status(http.StatusCreated).JSON().Object().Keys().Contains("id", "labels")
 				})
 			})
 		})
@@ -507,7 +535,7 @@ var _ = Describe("Service Manager Platform API", func() {
 		Context("Existing visibility", func() {
 			It("returns 200", func() {
 				id := ctx.SMWithOAuth.POST("/v1/visibilities").
-					WithJSON(postVisibilityRequest).
+					WithJSON(postVisibilityRequestNoLabels).
 					Expect().Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
 
 				ctx.SMWithOAuth.GET("/v1/visibilities/" + id).

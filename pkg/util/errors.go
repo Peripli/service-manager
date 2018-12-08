@@ -123,7 +123,7 @@ func HandleStorageError(err error, entityName, entityID string) error {
 	return fmt.Errorf("unknown error type returned from storage layer: %s", err)
 }
 
-func HandleListQueryError(err error) error {
+func HandleSelectionError(err error) error {
 	if err == nil {
 		return nil
 	}

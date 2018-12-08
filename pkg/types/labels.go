@@ -21,7 +21,7 @@ import "time"
 type Label struct {
 	ID        string    `json:"id"`
 	Key       string    `json:"key,omitempty"`
-	Val       string    `json:"val,omitempty"`
+	Val       string    `json:"value,omitempty"`
 	CreatedAt time.Time `json:"-"`
 	UpdatedAt time.Time `json:"-"`
 }
