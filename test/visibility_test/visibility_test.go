@@ -374,7 +374,7 @@ var _ = Describe("Service Manager Platform API", func() {
 
 		Context("With labels", func() {
 			Context("When labels are valid", func() {
-				FIt("should return 201", func() {
+				It("should return 201", func() {
 					ctx.SMWithOAuth.POST("/v1/visibilities").
 						WithJSON(postVisibilityRequestWithLabels).
 						Expect().Status(http.StatusCreated).JSON().Object().Keys().Contains("id", "labels")
