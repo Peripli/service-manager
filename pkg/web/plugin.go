@@ -93,3 +93,9 @@ type BindingPoller interface {
 
 	PollBinding(request *Request, next Handler) (*Response, error)
 }
+
+type CredentialsAdapter interface {
+	Plugin
+
+	AdaptCredentials(request *Request, next Handler) (*Response, error)
+}
