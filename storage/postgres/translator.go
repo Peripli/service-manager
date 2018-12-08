@@ -26,7 +26,7 @@ import (
 )
 
 func buildListQueryWithParams(query string, baseTableName string, labelsTableName string, criteria []selection.Criterion) (string, []interface{}, error) {
-	if criteria == nil || len(criteria) == 0 {
+	if len(criteria) == 0 {
 		return query, nil, nil
 	}
 

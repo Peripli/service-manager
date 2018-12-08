@@ -154,7 +154,7 @@ func split(r rune) bool {
 }
 
 func getOperator(rawStatement string) (Operator, error) {
-	opIdx := -1
+	var opIdx int
 	for _, op := range operators {
 		opIdx = strings.Index(rawStatement, fmt.Sprintf(" %s ", string(op)))
 		if opIdx != -1 {

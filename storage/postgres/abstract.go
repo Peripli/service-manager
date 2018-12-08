@@ -119,7 +119,7 @@ func validateFieldQueryParams(baseEntity interface{}, criteria []selection.Crite
 	availableColumns := make(map[string]bool)
 	baseEntityStruct := structs.New(baseEntity)
 	for _, field := range baseEntityStruct.Fields() {
-		// TOOD: corner case for embedded structs
+		// TODO: corner case for embedded structs
 		dbTag := field.Tag("db")
 		availableColumns[dbTag] = true
 	}
