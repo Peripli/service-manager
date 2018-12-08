@@ -59,10 +59,7 @@ func (c *Controller) createVisibility(r *web.Request) (*web.Response, error) {
 	err = c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
 		logger.Debugf("Creating visibility and labels...")
 		visibilityID, err = storage.Visibility().Create(ctx, visibility)
-		if err != nil {
-			return err
-		}
-		return storage.Visibility().CreateLabels(ctx, visibilityID, visibility.Labels)
+		return err
 	})
 	if err != nil {
 		return nil, util.HandleStorageError(err, "visibility", visibility.ID)

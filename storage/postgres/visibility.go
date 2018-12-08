@@ -30,7 +30,17 @@ type visibilityStorage struct {
 	db pgDB
 }
 
-func (vs *visibilityStorage) CreateLabels(ctx context.Context, visibilityID string, labels []*types.VisibilityLabel) error {
+func (vs *visibilityStorage) Create(ctx context.Context, visibility *types.Visibility) (string, error) {
+	v := &Visibility{}
+	v.FromDTO(visibility)
+	id, err := create(ctx, vs.db, visibilityTable, v)
+	if err != nil {
+		return "", err
+	}
+	return id, vs.createLabels(ctx, id, visibility.Labels)
+}
+
+func (vs *visibilityStorage) createLabels(ctx context.Context, visibilityID string, labels []*types.VisibilityLabel) error {
 	for _, label := range labels {
 		label.ServiceVisibilityID = visibilityID
 		v := &VisibilityLabel{}
@@ -40,12 +50,6 @@ func (vs *visibilityStorage) CreateLabels(ctx context.Context, visibilityID stri
 		}
 	}
 	return nil
-}
-
-func (vs *visibilityStorage) Create(ctx context.Context, visibility *types.Visibility) (string, error) {
-	v := &Visibility{}
-	v.FromDTO(visibility)
-	return create(ctx, vs.db, visibilityTable, v)
 }
 
 func (vs *visibilityStorage) Get(ctx context.Context, id string) (*types.Visibility, error) {

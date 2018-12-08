@@ -16,17 +16,16 @@
 package broker_test
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
-	"fmt"
+
 	"github.com/tidwall/gjson"
 
 	"github.com/tidwall/sjson"
 
 	"github.com/Peripli/service-manager/test/common"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	"github.com/spf13/cast"
 )
 
@@ -689,7 +688,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					anotherPlanID = anotherPlan["id"].(string)
 					fmt.Println(anotherPlanID)
 					anotherServiceWithAnotherPlan, err := sjson.Set(common.AnotherService, "plans.-1", anotherPlan)
-                                         
+
 					Expect(err).ShouldNot(HaveOccurred())
 					anotherService := common.JSONToMap(anotherServiceWithAnotherPlan)
 					anotherServiceID = anotherService["id"].(string)
@@ -697,9 +696,9 @@ var _ = Describe("Service Manager Broker API", func() {
 
 					catalog, err := sjson.Set(common.Catalog, "services.-1", anotherService)
 					Expect(err).ShouldNot(HaveOccurred())
-					
+
 					brokerServer.Catalog = common.JSONToMap(catalog)
-					
+
 				})
 
 				It("is returned from the Services API associated with the correct broker", func() {
