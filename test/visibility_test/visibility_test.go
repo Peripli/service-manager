@@ -370,185 +370,219 @@ var _ = Describe("Service Manager Platform API", func() {
 						Expect().Status(http.StatusCreated).JSON().Object().ContainsMap(postVisibilityRequestNoLabels).Keys().Contains("id")
 				})
 			})
-		})
 
-		Context("With labels", func() {
-			Context("When labels are valid", func() {
-				It("should return 201", func() {
-					ctx.SMWithOAuth.POST("/v1/visibilities").
-						WithJSON(postVisibilityRequestWithLabels).
-						Expect().Status(http.StatusCreated).JSON().Object().Keys().Contains("id", "labels")
+			Context("With labels", func() {
+				Context("When labels are valid", func() {
+					It("should return 201", func() {
+						ctx.SMWithOAuth.POST("/v1/visibilities").
+							WithJSON(postVisibilityRequestWithLabels).
+							Expect().Status(http.StatusCreated).JSON().Object().Keys().Contains("id", "labels")
+					})
 				})
 			})
 		})
-	})
 
-	Describe("PATCH", func() {
-		var existingVisibilityID string
-		var anotherExistingPlatformID string
+		Describe("PATCH", func() {
+			var existingVisibilityID string
+			var existingVisibilityReqBody common.Object
+			var updatedVisibilityReqBody common.Object
+			var expectedUpdatedVisibilityRespBody common.Object
+			var anotherExistingPlatformID string
 
-		BeforeEach(func() {
-			existingVisibilityID = ctx.SMWithOAuth.POST("/v1/visibilities").
-				WithJSON(common.Object{
+			BeforeEach(func() {
+				anotherPlatform := ctx.RegisterPlatform()
+				anotherExistingPlatformID = anotherPlatform.ID
+
+				existingVisibilityReqBody = common.Object{
 					"platform_id":     existingPlatformID,
 					"service_plan_id": existingPlanIDs[0],
-				}).
-				Expect().Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
+				}
 
-			anotherPlatform := ctx.RegisterPlatform()
-			anotherExistingPlatformID = anotherPlatform.ID
-		})
-
-		Context("when updating properties with valid values", func() {
-			It("returns 200", func() {
-				ctx.SMWithOAuth.PATCH("/v1/visibilities/" + existingVisibilityID).
-					WithJSON(common.Object{
-						"platform_id":     anotherExistingPlatformID,
-						"service_plan_id": existingPlanIDs[1],
-					}).
-					Expect().
-					Status(http.StatusOK).JSON().Object().ContainsMap(common.Object{
-					"id":              existingVisibilityID,
+				updatedVisibilityReqBody = common.Object{
 					"platform_id":     anotherExistingPlatformID,
 					"service_plan_id": existingPlanIDs[1],
-				})
+				}
 
-				ctx.SMWithOAuth.GET("/v1/visibilities/" + existingVisibilityID).
-					Expect().
-					Status(http.StatusOK).JSON().Object().ContainsMap(common.Object{
-					"id":              existingVisibilityID,
-					"platform_id":     anotherExistingPlatformID,
-					"service_plan_id": existingPlanIDs[1],
-				})
-			})
-		})
-
-		Context("when created_at is in the body", func() {
-			It("should not update created_at", func() {
-				createdAt := "2015-01-01T00:00:00Z"
-
-				ctx.SMWithOAuth.PATCH("/v1/visibilities/"+existingVisibilityID).
-					WithJSON(common.Object{
-						"created_at": createdAt,
-					}).
-					Expect().
-					Status(http.StatusOK).JSON().Object().
-					ContainsKey("created_at").
-					ValueNotEqual("created_at", createdAt)
-
-				ctx.SMWithOAuth.GET("/v1/visibilities/"+existingVisibilityID).
-					Expect().
-					Status(http.StatusOK).JSON().Object().
-					ContainsKey("created_at").
-					ValueNotEqual("created_at", createdAt)
-			})
-		})
-
-		Context("when updated_at is in the body", func() {
-			It("should not update created_at", func() {
-				updatedAt := "2015-01-01T00:00:00Z"
-
-				ctx.SMWithOAuth.PATCH("/v1/visibilities/"+existingVisibilityID).
-					WithJSON(common.Object{
-						"updated_at": updatedAt,
-					}).
-					Expect().
-					Status(http.StatusOK).JSON().Object().
-					ContainsKey("updated_at").
-					ValueNotEqual("updated_at", updatedAt)
-
-				ctx.SMWithOAuth.GET("/v1/visibilities/"+existingVisibilityID).
-					Expect().
-					Status(http.StatusOK).JSON().Object().
-					ContainsKey("updated_at").
-					ValueNotEqual("updated_at", updatedAt)
-			})
-		})
-
-		Context("when id is in the body", func() {
-			It("should not update the id", func() {
-				id := "123"
-				ctx.SMWithOAuth.PATCH("/v1/visibilities/" + existingVisibilityID).
-					WithJSON(common.Object{
-						"id": id,
-					}).
-					Expect().Status(http.StatusOK)
-
-				ctx.SMWithOAuth.GET("/v1/visibilities/"+id).
-					Expect().Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
-			})
-		})
-
-		Context("when related service plan does not exist", func() {
-			It("returns 400", func() {
-				planID := "does-not-exist"
-				ctx.SMWithOAuth.GET("/v1/service_plans/"+planID).
-					Expect().Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
-
-				ctx.SMWithOAuth.PATCH("/v1/visibilities/"+existingVisibilityID).
-					WithJSON(common.Object{
-						"platform_id":     existingPlatformID,
-						"service_plan_id": planID,
-					}).
-					Expect().Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
-			})
-		})
-
-		Context("when related platform does not exist", func() {
-			It("returns 400", func() {
-				platformID := "does-not-exist"
-				ctx.SMWithOAuth.GET("/v1/platforms/"+platformID).
-					Expect().Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
-
-				ctx.SMWithOAuth.PATCH("/v1/visibilities/"+existingVisibilityID).
-					WithJSON(common.Object{
-						"platform_id":     platformID,
-						"service_plan_id": existingPlanIDs[0],
-					}).
-					Expect().Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
-			})
-		})
-
-		Context("when visibility does not exist", func() {
-			It("returns 404", func() {
-				id := "does-not-exist"
-				ctx.SMWithOAuth.GET("/v1/visibilities/"+id).
-					Expect().Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
-
-				ctx.SMWithOAuth.PATCH("/v1/visibilities/"+id).
-					WithJSON(common.Object{}).
-					Expect().
-					Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
-			})
-		})
-	})
-
-	Describe("DELETE", func() {
-		Context("Non existing visibility", func() {
-			It("returns 404", func() {
-				ctx.SMWithOAuth.DELETE("/v1/visibilities/999").
-					Expect().
-					Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
-			})
-		})
-
-		Context("Existing visibility", func() {
-			It("returns 200", func() {
-				id := ctx.SMWithOAuth.POST("/v1/visibilities").
-					WithJSON(postVisibilityRequestNoLabels).
+				existingVisibilityID = ctx.SMWithOAuth.POST("/v1/visibilities").
+					WithJSON(existingVisibilityReqBody).
 					Expect().Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
 
-				ctx.SMWithOAuth.GET("/v1/visibilities/" + id).
-					Expect().
-					Status(http.StatusOK)
+			})
 
-				ctx.SMWithOAuth.DELETE("/v1/visibilities/" + id).
-					Expect().
-					Status(http.StatusOK).JSON().Object().Empty()
+			Context("when updating properties with valid values", func() {
+				BeforeEach(func() {
+					expectedUpdatedVisibilityRespBody = common.Object{
+						"id":              existingVisibilityID,
+						"platform_id":     anotherExistingPlatformID,
+						"service_plan_id": existingPlanIDs[1],
+					}
+				})
 
-				ctx.SMWithOAuth.GET("/v1/visibilities/"+id).
-					Expect().
-					Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
+				It("returns 200", func() {
+					ctx.SMWithOAuth.PATCH("/v1/visibilities/" + existingVisibilityID).
+						WithJSON(updatedVisibilityReqBody).
+						Expect().
+						Status(http.StatusOK).JSON().Object().ContainsMap(expectedUpdatedVisibilityRespBody)
+
+					ctx.SMWithOAuth.GET("/v1/visibilities/" + existingVisibilityID).
+						Expect().
+						Status(http.StatusOK).JSON().Object().ContainsMap(expectedUpdatedVisibilityRespBody)
+				})
+			})
+
+			Context("when update is partial", func() {
+				BeforeEach(func() {
+					expectedUpdatedVisibilityRespBody = common.Object{
+						"id":              existingVisibilityID,
+						"platform_id":     existingPlatformID,
+						"service_plan_id": existingPlanIDs[0],
+					}
+				})
+
+				It("returns 200 and patches the resource, keeping current values and overriding only provided values", func() {
+					for prop, val := range updatedVisibilityReqBody {
+						update := common.Object{}
+						update[prop] = val
+						expectedUpdatedVisibilityRespBody[prop] = val
+						ctx.SMWithOAuth.PATCH("/v1/visibilities/" + existingVisibilityID).
+							WithJSON(update).
+							Expect().
+							Status(http.StatusOK).JSON().Object().ContainsMap(expectedUpdatedVisibilityRespBody)
+
+						ctx.SMWithOAuth.GET("/v1/visibilities/" + existingVisibilityID).
+							Expect().
+							Status(http.StatusOK).JSON().Object().ContainsMap(expectedUpdatedVisibilityRespBody)
+					}
+				})
+			})
+
+			Context("when created_at is in the body", func() {
+				It("should not update created_at", func() {
+					createdAt := "2015-01-01T00:00:00Z"
+
+					ctx.SMWithOAuth.PATCH("/v1/visibilities/"+existingVisibilityID).
+						WithJSON(common.Object{
+							"created_at": createdAt,
+						}).
+						Expect().
+						Status(http.StatusOK).JSON().Object().
+						ContainsKey("created_at").
+						ValueNotEqual("created_at", createdAt)
+
+					ctx.SMWithOAuth.GET("/v1/visibilities/"+existingVisibilityID).
+						Expect().
+						Status(http.StatusOK).JSON().Object().
+						ContainsKey("created_at").
+						ValueNotEqual("created_at", createdAt)
+				})
+			})
+
+			Context("when updated_at is in the body", func() {
+				It("should not update updated_at", func() {
+					updatedAt := "2015-01-01T00:00:00Z"
+
+					ctx.SMWithOAuth.PATCH("/v1/visibilities/"+existingVisibilityID).
+						WithJSON(common.Object{
+							"updated_at": updatedAt,
+						}).
+						Expect().
+						Status(http.StatusOK).JSON().Object().
+						ContainsKey("updated_at").
+						ValueNotEqual("updated_at", updatedAt)
+
+					ctx.SMWithOAuth.GET("/v1/visibilities/"+existingVisibilityID).
+						Expect().
+						Status(http.StatusOK).JSON().Object().
+						ContainsKey("updated_at").
+						ValueNotEqual("updated_at", updatedAt)
+				})
+			})
+
+			Context("when id is in the body", func() {
+				It("should not update the id", func() {
+					id := "123"
+					ctx.SMWithOAuth.PATCH("/v1/visibilities/" + existingVisibilityID).
+						WithJSON(common.Object{
+							"id": id,
+						}).
+						Expect().Status(http.StatusOK)
+
+					ctx.SMWithOAuth.GET("/v1/visibilities/"+id).
+						Expect().Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
+				})
+			})
+
+			Context("when related service plan does not exist", func() {
+				It("returns 400", func() {
+					planID := "does-not-exist"
+					ctx.SMWithOAuth.GET("/v1/service_plans/"+planID).
+						Expect().Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
+
+					ctx.SMWithOAuth.PATCH("/v1/visibilities/"+existingVisibilityID).
+						WithJSON(common.Object{
+							"platform_id":     existingPlatformID,
+							"service_plan_id": planID,
+						}).
+						Expect().Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+				})
+			})
+
+			Context("when related platform does not exist", func() {
+				It("returns 400", func() {
+					platformID := "does-not-exist"
+					ctx.SMWithOAuth.GET("/v1/platforms/"+platformID).
+						Expect().Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
+
+					ctx.SMWithOAuth.PATCH("/v1/visibilities/"+existingVisibilityID).
+						WithJSON(common.Object{
+							"platform_id":     platformID,
+							"service_plan_id": existingPlanIDs[0],
+						}).
+						Expect().Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+				})
+			})
+
+			Context("when visibility does not exist", func() {
+				It("returns 404", func() {
+					id := "does-not-exist"
+					ctx.SMWithOAuth.GET("/v1/visibilities/"+id).
+						Expect().Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
+
+					ctx.SMWithOAuth.PATCH("/v1/visibilities/"+id).
+						WithJSON(common.Object{}).
+						Expect().
+						Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
+				})
+			})
+		})
+
+		Describe("DELETE", func() {
+			Context("Non existing visibility", func() {
+				It("returns 404", func() {
+					ctx.SMWithOAuth.DELETE("/v1/visibilities/999").
+						Expect().
+						Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
+				})
+			})
+
+			Context("Existing visibility", func() {
+				It("returns 200", func() {
+					id := ctx.SMWithOAuth.POST("/v1/visibilities").
+						WithJSON(postVisibilityRequestNoLabels).
+						Expect().Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
+
+					ctx.SMWithOAuth.GET("/v1/visibilities/" + id).
+						Expect().
+						Status(http.StatusOK)
+
+					ctx.SMWithOAuth.DELETE("/v1/visibilities/" + id).
+						Expect().
+						Status(http.StatusOK).JSON().Object().Empty()
+
+					ctx.SMWithOAuth.GET("/v1/visibilities/"+id).
+						Expect().
+						Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
+				})
 			})
 		})
 	})

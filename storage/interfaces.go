@@ -211,7 +211,7 @@ type ServicePlan interface {
 // Visibility interface for Visibility db operations
 type Visibility interface {
 	// Create stores a visibility in SM DB
-	Create(ctx context.Context, servicePlan *types.Visibility) (string, error)
+	Create(ctx context.Context, visibility *types.Visibility) (string, error)
 
 	// Get retrieves a visibility using the provided id from SM DB
 	Get(ctx context.Context, id string) (*types.Visibility, error)
@@ -223,7 +223,7 @@ type Visibility interface {
 	Delete(ctx context.Context, id string) error
 
 	// Update updates a visibility from SM DB
-	Update(ctx context.Context, servicePlan *types.Visibility) error
+	Update(ctx context.Context, visibility *types.Visibility) error
 }
 
 // Credentials interface for Credentials db operations
