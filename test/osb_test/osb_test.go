@@ -458,7 +458,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to broken service broker", func() {
 			It("should fail", func() {
 				assertBrokenBrokerError(
-					ctx.SMWithBasic.POST(brokerBrokerURL+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader("X-Broker-API-Version", "oidc_authn.13").WithJSON(&object{}))
+					ctx.SMWithBasic.POST(failingBrokerURL+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader("X-Broker-API-Version", "oidc_authn.13").WithJSON(&object{}))
 
 			})
 		})
