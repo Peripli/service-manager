@@ -101,11 +101,7 @@ func (c *Controller) listVisibilities(r *web.Request) (*web.Response, error) {
 	if err := user.Data.Data(p); err != nil {
 		return nil, err
 	}
-	criteria, err := selection.BuildCriteriaFromRequest(r)
-	if err != nil {
-		log.C(ctx).Error(err)
-		return nil, util.HandleSelectionError(err)
-	}
+
 	if p.ID != "" {
 		platformIdCriterion := selection.Criterion{
 			Type:     selection.FieldQuery,
@@ -113,11 +109,12 @@ func (c *Controller) listVisibilities(r *web.Request) (*web.Response, error) {
 			RightOp:  []string{p.ID},
 			Operator: selection.EqualsOrNilOperator,
 		}
-		if err := criteria.Add(platformIdCriterion); err != nil {
+		if ctx, err = selection.AddCriteria(ctx, platformIdCriterion); err != nil {
 			return nil, util.HandleSelectionError(err)
 		}
+		r.Request = r.WithContext(ctx)
 	}
-	visibilities, err = c.Repository.Visibility().List(ctx, criteria...)
+	visibilities, err = c.Repository.Visibility().List(ctx, selection.CriteriaForContext(ctx)...)
 	if err != nil {
 		return nil, util.HandleSelectionError(err)
 	}

@@ -17,6 +17,7 @@
 package selection
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -93,9 +94,9 @@ func (c Criterion) Validate() error {
 	return nil
 }
 
-type Criteria []Criterion
+type criteria []Criterion
 
-func (c *Criteria) Add(criteria ...Criterion) error {
+func (c *criteria) Add(criteria ...Criterion) error {
 	fieldQueryLeftOperands := make(map[string]bool)
 	for _, criterion := range *c {
 		if criterion.Type == FieldQuery {
@@ -111,8 +112,28 @@ func (c *Criteria) Add(criteria ...Criterion) error {
 	return nil
 }
 
-func BuildCriteriaFromRequest(request *web.Request) (Criteria, error) {
-	var criteria Criteria
+type criteriaCtxKey struct{}
+
+func AddCriteria(ctx context.Context, criterion ...Criterion) (context.Context, error) {
+	var currentCriteria criteria = CriteriaForContext(ctx)
+	for _, c := range criterion {
+		if err := currentCriteria.Add(c); err != nil {
+			return nil, err
+		}
+	}
+	return context.WithValue(ctx, criteriaCtxKey{}, currentCriteria), nil
+}
+
+func CriteriaForContext(ctx context.Context) []Criterion {
+	currentCriteria := ctx.Value(criteriaCtxKey{})
+	if currentCriteria == nil {
+		return []Criterion{}
+	}
+	return currentCriteria.([]Criterion)
+}
+
+func BuildCriteriaFromRequest(request *web.Request) ([]Criterion, error) {
+	var criteria criteria
 	for _, queryType := range supportedQueryTypes {
 		queryValues := request.URL.Query().Get(string(queryType))
 		querySegments, err := process(queryValues, queryType)
