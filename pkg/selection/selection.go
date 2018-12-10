@@ -129,7 +129,7 @@ func CriteriaForContext(ctx context.Context) []Criterion {
 	if currentCriteria == nil {
 		return []Criterion{}
 	}
-	return currentCriteria.([]Criterion)
+	return currentCriteria.(criteria)
 }
 
 func BuildCriteriaFromRequest(request *web.Request) ([]Criterion, error) {

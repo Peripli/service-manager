@@ -18,6 +18,7 @@ package filters
 
 import (
 	"github.com/Peripli/service-manager/pkg/selection"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
@@ -40,11 +41,11 @@ func (l *SelectionCriteria) Run(req *web.Request, next web.Handler) (*web.Respon
 	ctx := req.Context()
 	criteria, err := selection.BuildCriteriaFromRequest(req)
 	if err != nil {
-		return nil, err
+		return nil, util.HandleSelectionError(err)
 	}
 	ctx, err = selection.AddCriteria(ctx, criteria...)
 	if err != nil {
-		return nil, err
+		return nil, util.HandleSelectionError(err)
 	}
 	req.Request = req.WithContext(ctx)
 	return next.Handle(req)
