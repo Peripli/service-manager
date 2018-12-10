@@ -173,8 +173,7 @@ const AnotherService = `
       "displayName": "another Fake Service Broker"	
     },	
     "plan_updateable": true,	
-    "plans": []	
-  }
+    "plans": []
 }
 `
 
