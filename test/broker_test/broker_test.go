@@ -20,8 +20,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tidwall/gjson"
+	"github.com/gavv/httpexpect"
 
+	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 
 	"github.com/Peripli/service-manager/test/common"
@@ -58,6 +59,8 @@ var _ = Describe("Service Manager Broker API", func() {
 	})
 
 	BeforeEach(func() {
+		brokerServer = common.NewBrokerServer()
+		ctx = common.NewTestContext(nil)
 		brokerServer.Reset()
 		brokerName := "brokerName"
 		brokerDescription := "description"
@@ -262,7 +265,122 @@ var _ = Describe("Service Manager Broker API", func() {
 			Context("when description field is missing", func() {
 				assertPOSTReturns201WhenFieldIsMissing("description")
 			})
+		})
 
+		Context("when obtaining the broker catalog fails because the broker is not reachable", func() {
+			BeforeEach(func() {
+				brokerServerJSON["broker_url"] = "http://localhost:12345"
+			})
+
+			It("returns 400", func() {
+				ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(brokerServerJSON).
+					Expect().
+					Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+			})
+		})
+
+		Context("when the broker catalog is incomplete", func() {
+			verifyPOSTWhenCatalogFieldIsMissing := func(responseVerifier func(r *httpexpect.Response), fieldPath string) {
+				BeforeEach(func() {
+					catalog, err := sjson.Delete(common.Catalog, fieldPath)
+					Expect(err).ToNot(HaveOccurred())
+
+					brokerServer.Catalog = common.JSONToMap(catalog)
+				})
+
+				It("returns correct response", func() {
+					responseVerifier(ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(brokerServerJSON).Expect())
+
+					assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+
+				})
+			}
+
+			verifyPOSTWhenCatalogFieldHasValue := func(responseVerifier func(r *httpexpect.Response), fieldPath string, fieldValue interface{}) {
+				BeforeEach(func() {
+					catalog, err := sjson.Set(common.Catalog, fieldPath, fieldValue)
+					Expect(err).ToNot(HaveOccurred())
+
+					brokerServer.Catalog = common.JSONToMap(catalog)
+				})
+
+				It("returns correct response", func() {
+					responseVerifier(ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(brokerServerJSON).Expect())
+
+					assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+
+				})
+			}
+
+			Context("when the broker catalog contains an incomplete service", func() {
+				Context("that has an empty catalog id", func() {
+					verifyPOSTWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
+						r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+					}, "services.0.id")
+				})
+
+				Context("that has an empty catalog name", func() {
+					verifyPOSTWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
+						r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+					}, "services.0.name")
+				})
+
+				Context("that has an empty description", func() {
+					verifyPOSTWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
+						r.Status(http.StatusCreated).JSON().Object().Keys().NotContains("services", "credentials")
+					}, "services.0.description")
+				})
+
+				Context("that has invalid tags", func() {
+					verifyPOSTWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
+						r.Status(http.StatusBadRequest).JSON().Object().Keys().NotContains("services", "credentials")
+					}, "services.0.tags", "{invalid")
+				})
+
+				Context("that has invalid requires", func() {
+					verifyPOSTWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
+						r.Status(http.StatusBadRequest).JSON().Object().Keys().NotContains("services", "credentials")
+					}, "services.0.requires", "{invalid")
+				})
+
+				Context("that has invalid metadata", func() {
+					verifyPOSTWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
+						r.Status(http.StatusBadRequest).JSON().Object().Keys().NotContains("services", "credentials")
+					}, "services.0.metadata", "{invalid")
+				})
+			})
+
+			Context("when broker catalog contains an incomplete plan", func() {
+				Context("that has an empty catalog id", func() {
+					verifyPOSTWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
+						r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+					}, "services.0.plans.0.id")
+				})
+
+				Context("that has an empty catalog name", func() {
+					verifyPOSTWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
+						r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+					}, "services.0.plans.0.name")
+				})
+
+				Context("that has an empty description", func() {
+					verifyPOSTWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
+						r.Status(http.StatusCreated).JSON().Object().Keys().NotContains("services", "credentials")
+					}, "services.0.plans.0.description")
+				})
+
+				Context("that has invalid metadata", func() {
+					verifyPOSTWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
+						r.Status(http.StatusBadRequest).JSON().Object().Keys().NotContains("services", "credentials")
+					}, "services.0.plans.0.metadata", "{invalid")
+				})
+
+				Context("that has invalid schemas", func() {
+					verifyPOSTWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
+						r.Status(http.StatusBadRequest).JSON().Object().Keys().NotContains("services", "credentials")
+					}, "services.0.plans.0.schemas", "{invalid")
+				})
+			})
 		})
 
 		Context("when fetching catalog fails", func() {
@@ -272,10 +390,10 @@ var _ = Describe("Service Manager Broker API", func() {
 				}
 			})
 
-			It("returns an error", func() {
+			It("returns 400", func() {
 				ctx.SMWithOAuth.POST("/v1/service_brokers").
 					WithJSON(brokerServerJSON).
-					Expect().Status(http.StatusInternalServerError).
+					Expect().Status(http.StatusBadRequest).
 					JSON().Object().
 					Keys().Contains("error", "description")
 
@@ -585,14 +703,14 @@ var _ = Describe("Service Manager Broker API", func() {
 			})
 
 			Context("when broker_url is changed but the credentials are wrong", func() {
-				It("returns 500", func() {
+				It("returns 400", func() {
 					updatedBrokerJSON := common.Object{
 						"broker_url": updatedBrokerServer.URL,
 					}
-					ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
+					ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+brokerID).
 						WithJSON(updatedBrokerJSON).
 						Expect().
-						Status(http.StatusInternalServerError)
+						Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
 
 					assertInvocationCount(brokerServer.CatalogEndpointRequests, 0)
 
@@ -679,6 +797,18 @@ var _ = Describe("Service Manager Broker API", func() {
 			})
 		})
 
+		Context("when obtaining the broker catalog fails because the broker is not reachable", func() {
+			BeforeEach(func() {
+				brokerServerJSON["broker_url"] = "http://localhost:12345"
+			})
+
+			It("returns 400", func() {
+				ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+brokerID).WithJSON(brokerServerJSON).
+					Expect().
+					Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+			})
+		})
+
 		Context("when the broker catalog is modified", func() {
 			Context("when a new service offering with new plans is added", func() {
 				var anotherServiceID string
@@ -743,6 +873,74 @@ var _ = Describe("Service Manager Broker API", func() {
 				})
 			})
 
+			verifyPATCHWhenCatalogFieldIsMissing := func(responseVerifier func(r *httpexpect.Response), fieldPath string) {
+				BeforeEach(func() {
+					catalog, err := sjson.Delete(common.Catalog, fieldPath)
+					Expect(err).ToNot(HaveOccurred())
+
+					brokerServer.Catalog = common.JSONToMap(catalog)
+				})
+
+				It("returns correct response", func() {
+					responseVerifier(ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).WithJSON(brokerServerJSON).Expect())
+
+					assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+
+				})
+			}
+
+			verifyPATCHWhenCatalogFieldHasValue := func(responseVerifier func(r *httpexpect.Response), fieldPath string, fieldValue interface{}) {
+				BeforeEach(func() {
+					catalog, err := sjson.Set(common.Catalog, fieldPath, fieldValue)
+					Expect(err).ToNot(HaveOccurred())
+
+					brokerServer.Catalog = common.JSONToMap(catalog)
+				})
+
+				It("returns correct response", func() {
+					responseVerifier(ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).WithJSON(brokerServerJSON).Expect())
+
+					assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+
+				})
+			}
+
+			Context("when a new service offering is added", func() {
+				var anotherServiceID string
+
+				BeforeEach(func() {
+					anotherService := common.JSONToMap(common.AnotherService)
+					anotherServiceID = anotherService["id"].(string)
+					Expect(anotherServiceID).ToNot(BeEmpty())
+
+					currServices := common.JSONToMap(common.Catalog)["services"].([]interface{})
+					currServices = append(currServices, anotherService)
+
+					brokerServer.Catalog = map[string]interface{}{"services": currServices}
+				})
+
+				It("is returned from the Services API associated with the correct broker", func() {
+					ctx.SMWithOAuth.GET("/v1/service_offerings").
+						Expect().
+						Status(http.StatusOK).
+						JSON().
+						Path("$.service_offerings[*].catalog_id").Array().NotContains(anotherServiceID)
+
+					ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
+						WithJSON(common.Object{}).
+						Expect().
+						Status(http.StatusOK)
+
+					jsonResp := ctx.SMWithOAuth.GET("/v1/service_offerings").
+						Expect().
+						Status(http.StatusOK).
+						JSON()
+					jsonResp.Path("$.service_offerings[*].catalog_id").Array().Contains(anotherServiceID)
+					jsonResp.Path("$.service_offerings[*].broker_id").Array().Contains(brokerID)
+
+					assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+				})
+			})
 			Context("when an existing service offering is removed", func() {
 				var serviceOfferingID string
 
@@ -809,6 +1007,44 @@ var _ = Describe("Service Manager Broker API", func() {
 				})
 			})
 
+			Context("when an existing service offering is modified", func() {
+				Context("when catalog service id is removed", func() {
+					verifyPATCHWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
+						r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+					}, "services.0.id")
+				})
+
+				Context("when catalog service name is removed", func() {
+					verifyPATCHWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
+						r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+					}, "services.0.name")
+				})
+
+				Context("when catalog service description is removed", func() {
+					verifyPATCHWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
+						r.Status(http.StatusOK)
+					}, "services.0.description")
+				})
+
+				Context("when tags are invalid json", func() {
+					verifyPATCHWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
+						r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+					}, "services.0.tags", "{invalid")
+				})
+
+				Context("when requires is invalid json", func() {
+					verifyPATCHWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
+						r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+					}, "services.0.requires", "{invalid")
+				})
+
+				Context("when metadata is invalid json", func() {
+					verifyPATCHWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
+						r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+					}, "services.0.metadata", "{invalid")
+				})
+			})
+
 			Context("when a new service plan is added", func() {
 				var anotherPlanID string
 				var serviceOfferingID string
@@ -830,7 +1066,7 @@ var _ = Describe("Service Manager Broker API", func() {
 						Expect(sbID).ToNot(BeEmpty())
 
 						catalogID := so.Object().Value("catalog_id").String().Raw()
-						Expect(catalogServiceID).ToNot(BeEmpty())
+						Expect(catalogID).ToNot(BeEmpty())
 
 						if catalogID == catalogServiceID && sbID == brokerID {
 							serviceOfferingID = so.Object().Value("id").String().Raw()
@@ -894,6 +1130,38 @@ var _ = Describe("Service Manager Broker API", func() {
 						JSON().Path("$.service_plans[*].catalog_id").Array().NotContains(removedPlanCatalogID)
 
 					assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+				})
+			})
+
+			Context("when an existing service plan is modified", func() {
+				Context("when catalog plan id is removed", func() {
+					verifyPATCHWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
+						r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+					}, "services.0.plans.0.id")
+				})
+
+				Context("when catalog plan name is removed", func() {
+					verifyPATCHWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
+						r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+					}, "services.0.plans.0.name")
+				})
+
+				Context("when catalog plan description is removed", func() {
+					verifyPATCHWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
+						r.Status(http.StatusOK)
+					}, "services.0.plans.0.description")
+				})
+
+				Context("when schemas is invalid json", func() {
+					verifyPATCHWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
+						r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+					}, "services.0.plans.0.schemas", "{invalid")
+				})
+
+				Context("when metadata is invalid json", func() {
+					verifyPATCHWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
+						r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+					}, "services.0.plans.0.metadata", "{invalid")
 				})
 			})
 		})
