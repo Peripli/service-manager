@@ -6,29 +6,28 @@ import (
 	sync "sync"
 
 	security "github.com/Peripli/service-manager/pkg/security"
-	web "github.com/Peripli/service-manager/pkg/web"
 )
 
 type FakeTokenVerifier struct {
-	VerifyStub        func(context.Context, string) (web.TokenData, error)
+	VerifyStub        func(context.Context, string) (security.TokenData, error)
 	verifyMutex       sync.RWMutex
 	verifyArgsForCall []struct {
 		arg1 context.Context
 		arg2 string
 	}
 	verifyReturns struct {
-		result1 web.TokenData
+		result1 security.TokenData
 		result2 error
 	}
 	verifyReturnsOnCall map[int]struct {
-		result1 web.TokenData
+		result1 security.TokenData
 		result2 error
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeTokenVerifier) Verify(arg1 context.Context, arg2 string) (web.TokenData, error) {
+func (fake *FakeTokenVerifier) Verify(arg1 context.Context, arg2 string) (security.TokenData, error) {
 	fake.verifyMutex.Lock()
 	ret, specificReturn := fake.verifyReturnsOnCall[len(fake.verifyArgsForCall)]
 	fake.verifyArgsForCall = append(fake.verifyArgsForCall, struct {
@@ -53,7 +52,7 @@ func (fake *FakeTokenVerifier) VerifyCallCount() int {
 	return len(fake.verifyArgsForCall)
 }
 
-func (fake *FakeTokenVerifier) VerifyCalls(stub func(context.Context, string) (web.TokenData, error)) {
+func (fake *FakeTokenVerifier) VerifyCalls(stub func(context.Context, string) (security.TokenData, error)) {
 	fake.verifyMutex.Lock()
 	defer fake.verifyMutex.Unlock()
 	fake.VerifyStub = stub
@@ -66,28 +65,28 @@ func (fake *FakeTokenVerifier) VerifyArgsForCall(i int) (context.Context, string
 	return argsForCall.arg1, argsForCall.arg2
 }
 
-func (fake *FakeTokenVerifier) VerifyReturns(result1 web.TokenData, result2 error) {
+func (fake *FakeTokenVerifier) VerifyReturns(result1 security.TokenData, result2 error) {
 	fake.verifyMutex.Lock()
 	defer fake.verifyMutex.Unlock()
 	fake.VerifyStub = nil
 	fake.verifyReturns = struct {
-		result1 web.TokenData
+		result1 security.TokenData
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *FakeTokenVerifier) VerifyReturnsOnCall(i int, result1 web.TokenData, result2 error) {
+func (fake *FakeTokenVerifier) VerifyReturnsOnCall(i int, result1 security.TokenData, result2 error) {
 	fake.verifyMutex.Lock()
 	defer fake.verifyMutex.Unlock()
 	fake.VerifyStub = nil
 	if fake.verifyReturnsOnCall == nil {
 		fake.verifyReturnsOnCall = make(map[int]struct {
-			result1 web.TokenData
+			result1 security.TokenData
 			result2 error
 		})
 	}
 	fake.verifyReturnsOnCall[i] = struct {
-		result1 web.TokenData
+		result1 security.TokenData
 		result2 error
 	}{result1, result2}
 }

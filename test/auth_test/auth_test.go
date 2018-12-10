@@ -165,6 +165,32 @@ var _ = Describe("Service Manager Authentication", func() {
 			{"Invalid basic credentials", "GET", "/v1/service_plans", "Basic abc"},
 			{"Missing token in authorization header", "GET", "/v1/service_plans", "Bearer "},
 			{"Invalid token in authorization header", "GET", "/v1/service_plans", "Bearer abc"},
+
+			// VISIBILITIES
+			{"Missing authorization header", "GET", "/v1/visibilities/999", ""},
+			{"Invalid authorization schema", "GET", "/v1/visibilities/999", "Basic abc"},
+			{"Missing token in authorization header", "GET", "/v1/visibilities/999", "Bearer "},
+			{"Invalid token in authorization header", "GET", "/v1/visibilities/999", "Bearer abc"},
+
+			{"Missing authorization header", "GET", "/v1/visibilities", ""},
+			{"Invalid authorization schema", "GET", "/v1/visibilities", "Basic abc"},
+			{"Missing token in authorization header", "GET", "/v1/visibilities", "Bearer "},
+			{"Invalid token in authorization header", "GET", "/v1/visibilities", "Bearer abc"},
+
+			{"Missing authorization header", "POST", "/v1/visibilities", ""},
+			{"Invalid authorization schema", "POST", "/v1/visibilities", "Basic abc"},
+			{"Missing token in authorization header", "POST", "/v1/visibilities", "Bearer "},
+			{"Invalid token in authorization header", "POST", "/v1/visibilities", "Bearer abc"},
+
+			{"Missing authorization header", "PATCH", "/v1/visibilities/999", ""},
+			{"Invalid authorization schema", "PATCH", "/v1/visibilities/999", "Basic abc"},
+			{"Missing token in authorization header", "PATCH", "/v1/visibilities/999", "Bearer "},
+			{"Invalid token in authorization header", "PATCH", "/v1/visibilities/999", "Bearer abc"},
+
+			{"Missing authorization header", "DELETE", "/v1/visibilities/999", ""},
+			{"Invalid authorization schema", "DELETE", "/v1/visibilities/999", "Basic abc"},
+			{"Missing token in authorization header", "DELETE", "/v1/visibilities/999", "Bearer "},
+			{"Invalid token in authorization header", "DELETE", "/v1/visibilities/999", "Bearer abc"},
 		}
 
 		for _, request := range authRequests {

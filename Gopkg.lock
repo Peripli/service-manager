@@ -539,7 +539,7 @@
     "ssh/terminal",
   ]
   pruneopts = "UT"
-  revision = "eb0de9b17e854e9b1ccd9963efafc79862359959"
+  revision = "505ab145d0a99da450461ae2c1a9f6cd10d1f447"
 
 [[projects]]
   branch = "master"
@@ -555,29 +555,29 @@
     "publicsuffix",
   ]
   pruneopts = "UT"
-  revision = "fae4c4e3ad76c295c3d6d259f898136b4bf833a8"
+  revision = "351d144fa1fc0bd934e2408202be0c29f25e35a0"
 
 [[projects]]
   branch = "master"
-  digest = "1:7bea7ba08178336c2c82ba215c8e101fe23fd2dc809dd38d4141640442149c2d"
+  digest = "1:5276e08fe6a1dfdb65b4f46a2e5d5c9e00be6e499105e441049c3c04a0c83b36"
   name = "golang.org/x/oauth2"
   packages = [
     ".",
     "internal",
   ]
   pruneopts = "UT"
-  revision = "28207608b83849a028d4f12e46533a6b6894ecaf"
+  revision = "d668ce993890a79bda886613ee587a69dd5da7a6"
 
 [[projects]]
   branch = "master"
-  digest = "1:0c7cb58af944f9690af91474a75371eecfe54c1ce3771a8dc08924430ee785d3"
+  digest = "1:b9dceb1408ba5105803d5859193bc7d89ac3199b611cf8681dbaa0aa09c10d9c"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "UT"
-  revision = "4ed8d59d0b35e1e29334a206d1b3f38b1e5dfb31"
+  revision = "a5c9d58dba9a56f97aaa86f55e638b718c5a6c42"
 
 [[projects]]
   digest = "1:436b24586f8fee329e0dd65fd67c817681420cda1d7f934345c13fe78c212a73"
@@ -640,7 +640,7 @@
   version = "v1.4.7"
 
 [[projects]]
-  digest = "1:26a278a34e30cc8fbd09d5f7474488ac4cbad325c2b592b30e76e5d7d2fc1f10"
+  digest = "1:8ec0885250270ae1af5b12b3b31e5716569dd80282ad738fdb0cdaf8f3251beb"
   name = "gopkg.in/square/go-jose.v2"
   packages = [
     ".",
@@ -648,8 +648,8 @@
     "json",
   ]
   pruneopts = "UT"
-  revision = "ef984e69dd356202fd4e4910d4d9c24468bdf0b8"
-  version = "v2.1.9"
+  revision = "f61ac651e23224d43848a8dc387dee016d7eacf9"
+  version = "v2.2.0"
 
 [[projects]]
   branch = "v1"

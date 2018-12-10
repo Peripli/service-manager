@@ -26,7 +26,7 @@ type platformStorage struct {
 	db pgDB
 }
 
-func (ps *platformStorage) Create(ctx context.Context, platform *types.Platform) error {
+func (ps *platformStorage) Create(ctx context.Context, platform *types.Platform) (string, error) {
 	p := &Platform{}
 	p.FromDTO(platform)
 	return create(ctx, ps.db, platformTable, p)
@@ -42,7 +42,7 @@ func (ps *platformStorage) Get(ctx context.Context, id string) (*types.Platform,
 
 func (ps *platformStorage) List(ctx context.Context) ([]*types.Platform, error) {
 	var platforms []Platform
-	err := list(ctx, ps.db, platformTable, map[string]string{}, &platforms)
+	err := list(ctx, ps.db, platformTable, map[string][]string{}, &platforms)
 	if err != nil || len(platforms) == 0 {
 		return []*types.Platform{}, err
 	}
@@ -54,7 +54,7 @@ func (ps *platformStorage) List(ctx context.Context) ([]*types.Platform, error) 
 }
 
 func (ps *platformStorage) Delete(ctx context.Context, id string) error {
-	return delete(ctx, ps.db, id, platformTable)
+	return remove(ctx, ps.db, id, platformTable)
 }
 
 func (ps *platformStorage) Update(ctx context.Context, platform *types.Platform) error {

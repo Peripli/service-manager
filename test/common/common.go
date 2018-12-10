@@ -61,6 +61,10 @@ func RemoveAllPlatforms(SM *httpexpect.Expect) {
 	removeAll(SM, "platforms", "/v1/platforms")
 }
 
+func RemoveAllVisibilities(SM *httpexpect.Expect) {
+	removeAll(SM, "visibilities", "/v1/visibilities")
+}
+
 func removeAll(SM *httpexpect.Expect, entity, rootURLPath string) {
 	By("removing all " + entity)
 	resp := SM.GET(rootURLPath).
