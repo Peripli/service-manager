@@ -155,7 +155,26 @@ const AnotherService = `
 {
     "name": "another-fake-service",
     "id": "another7c-XXXX-XXXX-XXXX-feb140a59a66",
-    "description": "another description"
+    "description": "another description",
+    "requires": ["another-route_forwarding"],
+    "tags": ["another-no-sql", "another-relational"],
+    "bindable": true,	
+    "instances_retrievable": true,	
+    "bindings_retrievable": true,	
+    "metadata": {	
+      "provider": {	
+        "name": "another name"	
+      },	
+      "listing": {	
+        "imageUrl": "http://example.com/cat.gif",	
+        "blurb": "another blurb here",	
+        "longDescription": "A long time ago, in a another galaxy far far away..."	
+      },	
+      "displayName": "another Fake Service Broker"	
+    },	
+    "plan_updateable": true,	
+    "plans": []	
+  }
 }
 `
 
