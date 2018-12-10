@@ -46,7 +46,12 @@ var _ = Describe("Service Manager Broker API", func() {
 		expectedBrokerResponse common.Object
 	)
 
-	AfterEach(func() {
+	BeforeSuite(func() {
+		brokerServer = common.NewBrokerServer()
+		ctx = common.NewTestContext(nil)
+	})
+
+	AfterSuite(func() {
 		ctx.Cleanup()
 		if brokerServer != nil {
 			brokerServer.Close()
@@ -1058,10 +1063,10 @@ var _ = Describe("Service Manager Broker API", func() {
 
 					for _, so := range serviceOfferings {
 						sbID := so.Object().Value("broker_id").String().Raw()
-						Expect(catalogServiceID).ToNot(BeEmpty())
+						Expect(sbID).ToNot(BeEmpty())
 
 						catalogID := so.Object().Value("catalog_id").String().Raw()
-						Expect(catalogServiceID).ToNot(BeEmpty())
+						Expect(catalogID).ToNot(BeEmpty())
 
 						if catalogID == catalogServiceID && sbID == brokerID {
 							serviceOfferingID = so.Object().Value("id").String().Raw()
