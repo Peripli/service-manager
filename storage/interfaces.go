@@ -217,6 +217,9 @@ type Visibility interface {
 	// ListByPlatformID retrieves all visibilities from SM DB that match the specified platform id
 	ListByPlatformID(ctx context.Context, platformID string) ([]*types.Visibility, error)
 
+	// ListByServicePlanID retrieves all visibilities from SM DB that match the specified service plan id
+	ListByServicePlanID(ctx context.Context, servicePlanID string) ([]*types.Visibility, error)
+
 	// List retrieves all visibilities from SM DB
 	List(ctx context.Context) ([]*types.Visibility, error)
 

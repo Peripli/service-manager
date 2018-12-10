@@ -36,7 +36,7 @@ import (
 )
 
 const (
-	reqBrokerID  = "broker_id"
+	ReqBrokerID  = "broker_id"
 	catalogParam = "catalog"
 )
 
@@ -149,7 +149,7 @@ func (c *Controller) createBroker(r *web.Request) (*web.Response, error) {
 }
 
 func (c *Controller) getBroker(r *web.Request) (*web.Response, error) {
-	brokerID := r.PathParams[reqBrokerID]
+	brokerID := r.PathParams[ReqBrokerID]
 	ctx := r.Context()
 	log.C(ctx).Debugf("Getting broker with id %s", brokerID)
 
@@ -194,7 +194,7 @@ func (c *Controller) listBrokers(r *web.Request) (*web.Response, error) {
 }
 
 func (c *Controller) deleteBroker(r *web.Request) (*web.Response, error) {
-	brokerID := r.PathParams[reqBrokerID]
+	brokerID := r.PathParams[ReqBrokerID]
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting broker with id %s", brokerID)
 
@@ -205,7 +205,7 @@ func (c *Controller) deleteBroker(r *web.Request) (*web.Response, error) {
 }
 
 func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
-	brokerID := r.PathParams[reqBrokerID]
+	brokerID := r.PathParams[ReqBrokerID]
 	ctx := r.Context()
 	log.C(ctx).Debugf("Updating updateBroker with id %s", brokerID)
 
