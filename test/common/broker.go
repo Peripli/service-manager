@@ -244,12 +244,16 @@ func DefaultCatalog() map[string]interface{} {
 }
 
 func NewBrokerServer() *BrokerServer {
+	return NewBrokerServerWithCatalog(Catalog)
+}
+func NewBrokerServerWithCatalog(catalog string) *BrokerServer {
 	brokerServer := &BrokerServer{}
 	brokerServer.initRouter()
 	brokerServer.Reset()
-
+	if catalog != "" {
+		brokerServer.Catalog = JSONToMap(catalog)
+	}
 	brokerServer.Server = httptest.NewServer(brokerServer.router)
-
 	return brokerServer
 }
 

@@ -45,12 +45,12 @@ var _ = Describe("Service Manager Broker API", func() {
 		expectedBrokerResponse common.Object
 	)
 
-	BeforeSuite(func() {
+	BeforeEach(func() {
 		brokerServer = common.NewBrokerServer()
 		ctx = common.NewTestContext(nil)
 	})
 
-	AfterSuite(func() {
+	AfterEach(func() {
 		ctx.Cleanup()
 		if brokerServer != nil {
 			brokerServer.Close()
