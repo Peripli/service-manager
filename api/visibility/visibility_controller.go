@@ -100,7 +100,6 @@ func (c *Controller) deleteVisibility(r *web.Request) (*web.Response, error) {
 	log.C(ctx).Debugf("Deleting visibility with id %s", visibilityID)
 
 	if err := c.VisibilityStorage.Delete(ctx, visibilityID); err != nil {
-		return nil, util.HandleStorageError(err, "visibility", visibilityID)
 	}
 
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})

@@ -22,6 +22,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/tidwall/gjson"
+
 	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/pkg/types"
@@ -29,7 +31,6 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/log"
 
-	"github.com/Peripli/service-manager/api/broker"
 	"github.com/Peripli/service-manager/storage"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -51,11 +52,11 @@ func (fsp *FreeServicePlansFilter) Run(req *web.Request, next web.Handler) (*web
 		return nil, err
 	}
 	ctx := req.Context()
-	brokerID := req.PathParams[broker.ReqBrokerID]
+	brokerID := gjson.GetBytes(response.Body, "id").String()
 	log.C(ctx).Debugf("Reconciling free plans for broker with id: %s", brokerID)
 	if err := fsp.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
-		soRepository := fsp.Repository.ServiceOffering()
-		vRepository := fsp.Repository.Visibility()
+		soRepository := storage.ServiceOffering()
+		vRepository := storage.Visibility()
 
 		catalog, err := soRepository.ListWithServicePlansByBrokerID(ctx, brokerID)
 		if err != nil {
@@ -125,7 +126,7 @@ func (fsp *FreeServicePlansFilter) FilterMatchers() []web.FilterMatcher {
 		{
 			Matchers: []web.Matcher{
 				web.Path(web.BrokersURL + "/**"),
-				web.Methods(http.MethodPost, http.MethodPut),
+				web.Methods(http.MethodPost, http.MethodPatch),
 			},
 		},
 	}
