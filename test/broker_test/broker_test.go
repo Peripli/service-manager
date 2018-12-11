@@ -725,9 +725,9 @@ var _ = Describe("Service Manager Broker API", func() {
 
 		})
 
-		for _, prop := range []string{"name", "description"} {
-			Context("when only '"+prop+"' is updated", func() {
-				It("returns 200", func() {
+		Context("when fields are updated one by one", func() {
+			It("returns 200", func() {
+				for _, prop := range []string{"name", "description"} {
 					updatedBrokerJSON := common.Object{}
 					updatedBrokerJSON[prop] = "updated"
 					ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+brokerID).
@@ -745,10 +745,10 @@ var _ = Describe("Service Manager Broker API", func() {
 						ContainsMap(updatedBrokerJSON).
 						Keys().NotContains("services", "credentials")
 
-					assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
-				})
+				}
+				assertInvocationCount(brokerServer.CatalogEndpointRequests, 2)
 			})
-		}
+		})
 
 		Context("when not updatable fields are provided in the request body", func() {
 			Context("when broker id is provided in request body", func() {
