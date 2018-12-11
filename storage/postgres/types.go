@@ -19,9 +19,10 @@ package postgres
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"time"
 
-	"github.com/fatih/structs"
+	"github.com/gofrs/uuid"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
@@ -124,6 +125,30 @@ type Visibility struct {
 	ServicePlanID string         `db:"service_plan_id"`
 	CreatedAt     time.Time      `db:"created_at"`
 	UpdatedAt     time.Time      `db:"updated_at"`
+}
+
+type visibilityLabels []*VisibilityLabel
+
+func (vls *visibilityLabels) FromDTO(labels []*types.VisibilityLabel) error {
+	for _, label := range labels {
+		for _, labelValue := range label.Value {
+			UUID, err := uuid.NewV4()
+			if err != nil {
+				return fmt.Errorf("could not generate GUID for visibility label: %s", err)
+			}
+			label.ID = UUID.String()
+			visLabel := &VisibilityLabel{
+				ID:                  sql.NullString{String: label.ID, Valid: label.ID != ""},
+				Key:                 sql.NullString{String: label.Key, Valid: label.Key != ""},
+				Val:                 sql.NullString{String: labelValue, Valid: labelValue != ""},
+				CreatedAt:           &label.CreatedAt,
+				UpdatedAt:           &label.UpdatedAt,
+				ServiceVisibilityID: sql.NullString{String: label.ServiceVisibilityID, Valid: label.ServiceVisibilityID != ""},
+			}
+			*vls = append(*vls, visLabel)
+		}
+	}
+	return nil
 }
 
 type VisibilityLabel struct {
@@ -318,31 +343,10 @@ func (vl *VisibilityLabel) ToDTO() *types.VisibilityLabel {
 		Label: types.Label{
 			ID:        vl.ID.String,
 			Key:       vl.Key.String,
-			Val:       vl.Val.String,
+			Value:     []string{vl.Val.String},
 			CreatedAt: createdAt,
 			UpdatedAt: updatedAt,
 		},
 		ServiceVisibilityID: vl.ServiceVisibilityID.String,
 	}
-}
-
-func (vl *VisibilityLabel) FromDTO(label *types.VisibilityLabel) {
-	*vl = VisibilityLabel{
-		ID:                  sql.NullString{String: label.ID, Valid: label.ID != ""},
-		Key:                 sql.NullString{String: label.Key, Valid: label.Key != ""},
-		Val:                 sql.NullString{String: label.Val, Valid: label.Val != ""},
-		CreatedAt:           &label.CreatedAt,
-		UpdatedAt:           &label.UpdatedAt,
-		ServiceVisibilityID: sql.NullString{String: label.ServiceVisibilityID, Valid: label.ServiceVisibilityID != ""},
-	}
-}
-
-func (vl *VisibilityLabel) ToMap() map[string]interface{} {
-	result := make(map[string]interface{})
-	labelStruct := structs.New(vl)
-	for _, field := range labelStruct.Fields() {
-		columnName := field.Tag("db")
-		result[columnName] = field.Value()
-	}
-	return result
 }

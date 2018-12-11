@@ -43,9 +43,13 @@ func (vs *visibilityStorage) Create(ctx context.Context, visibility *types.Visib
 func (vs *visibilityStorage) createLabels(ctx context.Context, visibilityID string, labels []*types.VisibilityLabel) error {
 	for _, label := range labels {
 		label.ServiceVisibilityID = visibilityID
-		v := &VisibilityLabel{}
-		v.FromDTO(label)
-		if _, err := create(ctx, vs.db, visibilityLabelsTable, v); err != nil {
+	}
+	vls := visibilityLabels{}
+	if err := vls.FromDTO(labels); err != nil {
+		return err
+	}
+	for _, label := range vls {
+		if _, err := create(ctx, vs.db, visibilityLabelsTable, label); err != nil {
 			return err
 		}
 	}
@@ -92,9 +96,21 @@ func (vs *visibilityStorage) List(ctx context.Context, criteria ...selection.Cri
 			visibilities[row.Visibility.ID] = visibility
 			result = append(result, visibility)
 		} else {
-			visibility.Labels = append(visibility.Labels, row.VisibilityLabel.ToDTO())
+			hasMatchingLabelKey := false
+			labelDTO := row.VisibilityLabel.ToDTO()
+			for _, label := range visibility.Labels {
+				if label.Key == labelDTO.Key {
+					hasMatchingLabelKey = true
+					label.Value = append(label.Value, labelDTO.Value...)
+					break
+				}
+			}
+			if !hasMatchingLabelKey {
+				visibility.Labels = append(visibility.Labels, labelDTO)
+			}
 		}
 	}
+
 	return result, nil
 }
 

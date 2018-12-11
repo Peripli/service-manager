@@ -50,11 +50,6 @@ func (c *Controller) createVisibility(r *web.Request) (*web.Response, error) {
 	visibility.UpdatedAt = currentTime
 
 	for _, label := range visibility.Labels {
-		UUID, err := uuid.NewV4()
-		if err != nil {
-			return nil, fmt.Errorf("could not generate GUID for visibility label: %s", err)
-		}
-		label.ID = UUID.String()
 		label.CreatedAt = currentTime
 		label.UpdatedAt = currentTime
 	}
