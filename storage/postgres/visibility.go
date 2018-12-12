@@ -19,7 +19,6 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -130,8 +129,14 @@ func (vs *visibilityStorage) Update(ctx context.Context, visibility *types.Visib
 	if err := vs.updateLabels(ctx, v.ID, labelChanges); err != nil {
 		return err
 	}
+	criterion := query.Criterion{
+		Operator: query.InOperator,
+		LeftOp:   "visibility_id",
+		RightOp:  []string{v.ID},
+		Type:     query.FieldQuery,
+	}
 	var labels []*VisibilityLabel
-	if err := vs.db.SelectContext(ctx, &labels, fmt.Sprintf(`SELECT * FROM %s WHERE visibility_id = $1`, visibilityLabelsTable), v.ID); err != nil {
+	if err := listByFieldCriteria(ctx, vs.db, visibilityLabelsTable, &labels, criterion); err != nil {
 		return err
 	}
 	visibilityLabels := visibilityLabels(labels)

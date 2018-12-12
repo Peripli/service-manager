@@ -115,6 +115,16 @@ func listWithLabelsAndCriteria(ctx context.Context, db pgDB, baseEntity interfac
 	return db.QueryxContext(ctx, sqlQuery, queryParams...)
 }
 
+func listByFieldCriteria(ctx context.Context, db pgDB, table string, entity interface{}, criteria ...query.Criterion) error {
+	baseQuery := fmt.Sprintf(`SELECT * FROM %s`, table)
+	sqlQuery, queryParams, err := buildListQueryWithParams(baseQuery, table, "", criteria)
+	if err != nil {
+		return err
+	}
+	sqlQuery = db.Rebind(sqlQuery)
+	return db.SelectContext(ctx, entity, sqlQuery, queryParams...)
+}
+
 func validateFieldQueryParams(baseEntity interface{}, criteria []query.Criterion) error {
 	availableColumns := make(map[string]bool)
 	baseEntityStruct := structs.New(baseEntity)

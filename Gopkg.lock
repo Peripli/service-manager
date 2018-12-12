@@ -39,6 +39,14 @@
   version = "v1.1.1"
 
 [[projects]]
+  digest = "1:f1f2bd73c025d24c3b93abf6364bccb802cf2fdedaa44360804c67800e8fab8d"
+  name = "github.com/evanphx/json-patch"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "72bf35d0ff611848c1dc9df0f976c81192392fa5"
+  version = "v4.1.0"
+
+[[projects]]
   digest = "1:ca82a3b99694824c627573c2a76d0e49719b4a9c02d1d85a2ac91f1c1f52ab9b"
   name = "github.com/fatih/structs"
   packages = ["."]
@@ -674,6 +682,7 @@
     "github.com/DATA-DOG/go-sqlmock",
     "github.com/cloudfoundry-community/go-cfenv",
     "github.com/coreos/go-oidc",
+    "github.com/evanphx/json-patch",
     "github.com/fatih/structs",
     "github.com/gavv/httpexpect",
     "github.com/gbrlsnchs/jwt",
