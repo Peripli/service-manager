@@ -151,7 +151,7 @@ func (vs *visibilityStorage) updateLabels(ctx context.Context, visibilityID stri
 		case query.RemoveLabelOperation:
 			fallthrough
 		case query.RemoveLabelValuesOperation:
-			if err := removeLabel(ctx, vs.db, visibilityLabelsTable, action.Key, action.Values...); err != nil {
+			if err := removeLabel(ctx, vs.db, visibilityLabelsTable, "visibility_id", visibilityID, action.Key, action.Values...); err != nil {
 				return err
 			}
 		}

@@ -42,19 +42,19 @@ func addLabel(ctx context.Context, f func(labelID string, labelKey string, label
 	return nil
 }
 
-func removeLabel(ctx context.Context, execer sqlx.ExecerContext, labelsTableName string, labelKey string, labelValues ...string) error {
-	baseQuery := fmt.Sprintf("DELETE FROM %s WHERE key=$1", labelsTableName)
+func removeLabel(ctx context.Context, execer sqlx.ExecerContext, labelsTableName, referenceColumnName, referenceID, labelKey string, labelValues ...string) error {
+	baseQuery := fmt.Sprintf("DELETE FROM %s WHERE key=$1 AND %s=$2", labelsTableName, referenceColumnName)
 	if len(labelValues) == 0 {
-		return removeAllLabelsWithKey(ctx, execer, baseQuery, labelKey)
+		return removeAllLabelsWithKey(ctx, execer, baseQuery, referenceID, labelKey)
 	}
-	baseQuery += " AND val=$2"
-	return removeLabelValues(ctx, execer, baseQuery, labelKey, labelValues)
+	baseQuery += " AND val=$3"
+	return removeLabelValues(ctx, execer, baseQuery, referenceID, labelKey, labelValues)
 }
 
-func removeLabelValues(ctx context.Context, execerContext sqlx.ExecerContext, query string, labelKey string, labelValues []string) error {
+func removeLabelValues(ctx context.Context, execerContext sqlx.ExecerContext, query, referenceID, labelKey string, labelValues []string) error {
 	for _, labelValue := range labelValues {
 		if err := execute(ctx, query, func() (sql.Result, error) {
-			return execerContext.ExecContext(ctx, query, labelKey, labelValue)
+			return execerContext.ExecContext(ctx, query, labelKey, referenceID, labelValue)
 		}); err != nil {
 			return err
 		}
@@ -62,9 +62,9 @@ func removeLabelValues(ctx context.Context, execerContext sqlx.ExecerContext, qu
 	return nil
 }
 
-func removeAllLabelsWithKey(ctx context.Context, execerContext sqlx.ExecerContext, query string, key string) error {
+func removeAllLabelsWithKey(ctx context.Context, execerContext sqlx.ExecerContext, query, referenceID, key string) error {
 	return execute(ctx, query, func() (sql.Result, error) {
-		return execerContext.ExecContext(ctx, query, key)
+		return execerContext.ExecContext(ctx, query, key, referenceID)
 	})
 }
 
