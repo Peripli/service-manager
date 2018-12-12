@@ -119,11 +119,11 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
 			&filters.Logging{},
-			&filters.SelectionCriteria{},
-			&filters.LabelChange{},
 			basic.NewFilter(repository.Credentials(), encrypter),
 			bearerAuthnFilter,
 			secfilters.NewRequiredAuthnFilter(),
+			&filters.SelectionCriteria{},
+			&filters.LabelChange{},
 		},
 		Registry: health.NewDefaultRegistry(),
 	}, nil

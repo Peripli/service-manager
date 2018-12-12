@@ -70,7 +70,7 @@ func create(ctx context.Context, db pgDB, table string, dto interface{}) (string
 		return lastInsertId, fmt.Errorf("%s insert: No fields to insert", table)
 	}
 
-	query := fmt.Sprintf(
+	sqlQuery := fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES(:%s)",
 		table,
 		strings.Join(set, ", "),
@@ -79,7 +79,7 @@ func create(ctx context.Context, db pgDB, table string, dto interface{}) (string
 
 	id, ok := structs.New(dto).FieldOk("ID")
 	if ok {
-		queryReturningID := fmt.Sprintf("%s Returning %s", query, id.Tag("db"))
+		queryReturningID := fmt.Sprintf("%s Returning %s", sqlQuery, id.Tag("db"))
 		log.C(ctx).Debugf("Executing query %s", queryReturningID)
 		stmt, err := db.PrepareNamedContext(ctx, queryReturningID)
 		if err != nil {
@@ -88,15 +88,15 @@ func create(ctx context.Context, db pgDB, table string, dto interface{}) (string
 		err = stmt.GetContext(ctx, &lastInsertId, dto)
 		return lastInsertId, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
 	}
-	log.C(ctx).Debugf("Executing query %s", query)
-	_, err := db.NamedExecContext(ctx, query, dto)
+	log.C(ctx).Debugf("Executing query %s", sqlQuery)
+	_, err := db.NamedExecContext(ctx, sqlQuery, dto)
 	return lastInsertId, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
 }
 
 func get(ctx context.Context, db getterContext, id string, table string, dto interface{}) error {
-	query := "SELECT * FROM " + table + " WHERE id=$1"
-	log.C(ctx).Debugf("Executing query %s", query)
-	err := db.GetContext(ctx, dto, query, &id)
+	sqlQuery := "SELECT * FROM " + table + " WHERE id=$1"
+	log.C(ctx).Debugf("Executing query %s", sqlQuery)
+	err := db.GetContext(ctx, dto, sqlQuery, &id)
 	return checkSQLNoRows(err)
 }
 
@@ -105,14 +105,14 @@ func listWithLabelsAndCriteria(ctx context.Context, db pgDB, baseEntity, labelsE
 		return nil, err
 	}
 	baseQuery := constructBaseQueryForLabeledEntity(labelsEntity, baseTableName, labelsTableName)
-	query, queryParams, err := buildListQueryWithParams(baseQuery, baseTableName, labelsTableName, criteria)
+	sqlQuery, queryParams, err := buildListQueryWithParams(baseQuery, baseTableName, labelsTableName, criteria)
 	if err != nil {
 		return nil, err
 	}
-	query = db.Rebind(query)
+	sqlQuery = db.Rebind(sqlQuery)
 
-	log.C(ctx).Debugf("Executing query %s", query)
-	return db.QueryxContext(ctx, query, queryParams...)
+	log.C(ctx).Debugf("Executing query %s", sqlQuery)
+	return db.QueryxContext(ctx, sqlQuery, queryParams...)
 }
 
 func validateFieldQueryParams(baseEntity interface{}, criteria []query.Criterion) error {
@@ -153,12 +153,12 @@ func constructBaseQueryForLabeledEntity(labelsEntity interface{}, baseTableName 
 	}
 	baseQuery = baseQuery[:len(baseQuery)-1] //remove last comma
 	baseQuery += " FROM %[1]s LEFT JOIN %[2]s ON %[1]s." + primaryKeyColumn + " = %[2]s." + referenceKeyColumn
-	query := fmt.Sprintf(baseQuery, baseTableName, labelsTableName)
-	return query
+	sqlQuery := fmt.Sprintf(baseQuery, baseTableName, labelsTableName)
+	return sqlQuery
 }
 
 func list(ctx context.Context, db selecterContext, table string, filter map[string][]string, dtos interface{}) error {
-	query := "SELECT * FROM " + table
+	sqlQuery := "SELECT * FROM " + table
 	if len(filter) != 0 {
 		andPairs := make([]string, 0)
 		for key, values := range filter {
@@ -173,16 +173,16 @@ func list(ctx context.Context, db selecterContext, table string, filter map[stri
 			orPair := " (" + strings.Join(orPairs, " OR ") + ") "
 			andPairs = append(andPairs, orPair)
 		}
-		query += " WHERE " + strings.Join(andPairs, " AND ")
+		sqlQuery += " WHERE " + strings.Join(andPairs, " AND ")
 	}
-	log.C(ctx).Debugf("Executing query %s", query)
-	return db.SelectContext(ctx, dtos, query)
+	log.C(ctx).Debugf("Executing query %s", sqlQuery)
+	return db.SelectContext(ctx, dtos, sqlQuery)
 }
 
 func remove(ctx context.Context, db sqlx.ExecerContext, id string, table string) error {
-	query := "DELETE FROM " + table + " WHERE id=$1"
-	log.C(ctx).Debugf("Executing query %s", query)
-	result, err := db.ExecContext(ctx, query, id)
+	sqlQuery := "DELETE FROM " + table + " WHERE id=$1"
+	log.C(ctx).Debugf("Executing query %s", sqlQuery)
+	result, err := db.ExecContext(ctx, sqlQuery, id)
 	if err != nil {
 		return err
 	}
