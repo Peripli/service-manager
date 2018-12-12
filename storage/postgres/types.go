@@ -22,8 +22,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fatih/structs"
-
 	"github.com/gofrs/uuid"
 
 	"github.com/Peripli/service-manager/pkg/types"
@@ -130,7 +128,7 @@ type Visibility struct {
 }
 
 type Labelable interface {
-	Label() (string, string, string)
+	Label() (labelTableName string, referenceColumnName string, primaryColumnName string)
 }
 
 type visibilityLabels []*VisibilityLabel
@@ -157,6 +155,23 @@ func (vls *visibilityLabels) FromDTO(labels []*types.VisibilityLabel) error {
 	return nil
 }
 
+func (vls *visibilityLabels) ToDTO() []*types.VisibilityLabel {
+	labelValues := make(map[string][]string)
+	for _, label := range *vls {
+		values, exists := labelValues[label.Key.String]
+		if exists {
+			labelValues[label.Key.String] = append(values, label.Val.String)
+		} else {
+			labelValues[label.Key.String] = []string{label.Val.String}
+		}
+	}
+	var result []*types.VisibilityLabel
+	for labelKey, labelVal := range labelValues {
+		result = append(result, &types.VisibilityLabel{Label: types.Label{Key: labelKey, Value: labelVal}})
+	}
+	return result
+}
+
 type VisibilityLabel struct {
 	ID                  sql.NullString `db:"id"`
 	Key                 sql.NullString `db:"key"`
@@ -166,18 +181,9 @@ type VisibilityLabel struct {
 	ServiceVisibilityID sql.NullString `db:"visibility_id"`
 }
 
-func (l VisibilityLabel) Label() (string, string, string) {
-	i := structs.New(l)
-	fieldName := "ServiceVisibilityID"
-	field, ok := i.FieldOk(fieldName)
-	if !ok {
-		return visibilityLabelsTable, "", ""
-	}
-	dbTag := field.Tag("db")
-	if dbTag == "" {
-		dbTag = fieldName
-	}
-	return visibilityLabelsTable, dbTag, "id"
+func (vl *VisibilityLabel) Label() (labelTableName string, referenceColumnName string, primaryColumnName string) {
+	labelTableName, referenceColumnName, primaryColumnName = visibilityLabelsTable, "visibility_id", "id"
+	return
 }
 
 func (b *Broker) ToDTO() *types.Broker {

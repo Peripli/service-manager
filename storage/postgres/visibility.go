@@ -19,6 +19,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -67,7 +68,7 @@ func (vs *visibilityStorage) Get(ctx context.Context, id string) (*types.Visibil
 }
 
 func (vs *visibilityStorage) List(ctx context.Context, criteria ...query.Criterion) ([]*types.Visibility, error) {
-	rows, err := listWithLabelsAndCriteria(ctx, vs.db, Visibility{}, VisibilityLabel{}, visibilityTable, visibilityLabelsTable, criteria)
+	rows, err := listWithLabelsAndCriteria(ctx, vs.db, Visibility{}, &VisibilityLabel{}, visibilityTable, visibilityLabelsTable, criteria)
 	defer func() {
 		if rows == nil {
 			return
@@ -126,7 +127,17 @@ func (vs *visibilityStorage) Update(ctx context.Context, visibility *types.Visib
 	if err := update(ctx, vs.db, visibilityTable, v); err != nil {
 		return err
 	}
-	return vs.updateLabels(ctx, v.ID, labelChanges)
+	if err := vs.updateLabels(ctx, v.ID, labelChanges); err != nil {
+		return err
+	}
+	var labels []*VisibilityLabel
+	if err := vs.db.SelectContext(ctx, &labels, fmt.Sprintf(`SELECT * FROM %s WHERE visibility_id = $1`, visibilityLabelsTable), v.ID); err != nil {
+		return err
+	}
+	visibilityLabels := visibilityLabels(labels)
+	visibilityLabelsDTO := visibilityLabels.ToDTO()
+	visibility.Labels = visibilityLabelsDTO
+	return nil
 }
 
 func (vs *visibilityStorage) updateLabels(ctx context.Context, visibilityID string, updateActions []query.LabelChange) error {
