@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fatih/structs"
+
 	"github.com/gofrs/uuid"
 
 	"github.com/Peripli/service-manager/pkg/types"
@@ -127,6 +129,10 @@ type Visibility struct {
 	UpdatedAt     time.Time      `db:"updated_at"`
 }
 
+type Labelable interface {
+	Label() (string, string, string)
+}
+
 type visibilityLabels []*VisibilityLabel
 
 func (vls *visibilityLabels) FromDTO(labels []*types.VisibilityLabel) error {
@@ -157,7 +163,21 @@ type VisibilityLabel struct {
 	Val                 sql.NullString `db:"val"`
 	CreatedAt           *time.Time     `db:"created_at"`
 	UpdatedAt           *time.Time     `db:"updated_at"`
-	ServiceVisibilityID sql.NullString `db:"visibility_id" references:"id"`
+	ServiceVisibilityID sql.NullString `db:"visibility_id"`
+}
+
+func (l VisibilityLabel) Label() (string, string, string) {
+	i := structs.New(l)
+	fieldName := "ServiceVisibilityID"
+	field, ok := i.FieldOk(fieldName)
+	if !ok {
+		return visibilityLabelsTable, "", ""
+	}
+	dbTag := field.Tag("db")
+	if dbTag == "" {
+		dbTag = fieldName
+	}
+	return visibilityLabelsTable, dbTag, "id"
 }
 
 func (b *Broker) ToDTO() *types.Broker {

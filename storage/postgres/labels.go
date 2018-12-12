@@ -30,19 +30,20 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func updateLabels(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) interface{}, pgDB pgDB, labelsTableName, referenceColumnName, referenceID string, updateActions []query.LabelChange) error {
+func updateLabels(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) Labelable, pgDB pgDB, referenceID string, updateActions []query.LabelChange) error {
 	for _, action := range updateActions {
 		switch action.Operation {
 		case query.AddLabelOperation:
 			fallthrough
 		case query.AddLabelValuesOperation:
-			if err := addLabel(ctx, newLabelFunc, pgDB, labelsTableName, action.Key, action.Values...); err != nil {
+			if err := addLabel(ctx, newLabelFunc, pgDB, action.Key, action.Values...); err != nil {
 				return err
 			}
 		case query.RemoveLabelOperation:
 			fallthrough
 		case query.RemoveLabelValuesOperation:
-			if err := removeLabel(ctx, pgDB, labelsTableName, referenceColumnName, referenceID, action.Key, action.Values...); err != nil {
+			pgLabel := newLabelFunc("", "", "")
+			if err := removeLabel(ctx, pgDB, pgLabel, referenceID, action.Key, action.Values...); err != nil {
 				return err
 			}
 		}
@@ -50,23 +51,25 @@ func updateLabels(ctx context.Context, newLabelFunc func(labelID string, labelKe
 	return nil
 }
 
-func addLabel(ctx context.Context, f func(labelID string, labelKey string, labelValue string) interface{}, db pgDB, labelsTable string, key string, values ...string) error {
+func addLabel(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) Labelable, db pgDB, key string, values ...string) error {
 	for _, labelValue := range values {
 		uuids, err := uuid.NewV4()
 		if err != nil {
 			return fmt.Errorf("could not generate id for new label: %v", err)
 		}
 		labelID := uuids.String()
-		newLabel := f(labelID, key, labelValue)
-		if _, err := create(ctx, db, labelsTable, newLabel); err != nil {
+		newLabel := newLabelFunc(labelID, key, labelValue)
+		labelTable, _, _ := newLabel.Label()
+		if _, err := create(ctx, db, labelTable, newLabel); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func removeLabel(ctx context.Context, execer sqlx.ExecerContext, labelsTableName, referenceColumnName, referenceID, labelKey string, labelValues ...string) error {
-	baseQuery := fmt.Sprintf("DELETE FROM %s WHERE key=$1 AND %s=$2", labelsTableName, referenceColumnName)
+func removeLabel(ctx context.Context, execer sqlx.ExecerContext, labelable Labelable, referenceID, labelKey string, labelValues ...string) error {
+	labelTableName, referenceColumnName, _ := labelable.Label()
+	baseQuery := fmt.Sprintf("DELETE FROM %s WHERE key=$1 AND %s=$2", labelTableName, referenceColumnName)
 	labelValuesCount := len(labelValues)
 	// remove all labels with this key
 	if labelValuesCount == 0 {

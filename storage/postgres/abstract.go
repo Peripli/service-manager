@@ -100,7 +100,7 @@ func get(ctx context.Context, db getterContext, id string, table string, dto int
 	return checkSQLNoRows(err)
 }
 
-func listWithLabelsAndCriteria(ctx context.Context, db pgDB, baseEntity, labelsEntity interface{}, baseTableName string, labelsTableName string, criteria []query.Criterion) (*sqlx.Rows, error) {
+func listWithLabelsAndCriteria(ctx context.Context, db pgDB, baseEntity interface{}, labelsEntity Labelable, baseTableName string, labelsTableName string, criteria []query.Criterion) (*sqlx.Rows, error) {
 	if err := validateFieldQueryParams(baseEntity, criteria); err != nil {
 		return nil, err
 	}
@@ -131,7 +131,7 @@ func validateFieldQueryParams(baseEntity interface{}, criteria []query.Criterion
 	return nil
 }
 
-func constructBaseQueryForLabeledEntity(labelsEntity interface{}, baseTableName string, labelsTableName string) string {
+func constructBaseQueryForLabeledEntity(labelsEntity Labelable, baseTableName string, labelsTableName string) string {
 	labelStruct := structs.New(labelsEntity)
 	baseQuery := `SELECT %[1]s.*,`
 	var primaryKeyColumn string
@@ -145,10 +145,7 @@ func constructBaseQueryForLabeledEntity(labelsEntity interface{}, baseTableName 
 		} else {
 			dbTag := field.Tag("db")
 			baseQuery += " %[2]s." + dbTag + " " + "\"%[2]s." + dbTag + "\"" + ","
-			if field.Tag("references") != "" {
-				primaryKeyColumn = field.Tag("references")
-				referenceKeyColumn = dbTag
-			}
+			_, referenceKeyColumn, primaryKeyColumn = labelsEntity.Label()
 		}
 	}
 	baseQuery = baseQuery[:len(baseQuery)-1] //remove last comma

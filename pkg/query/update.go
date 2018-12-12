@@ -17,7 +17,6 @@
 package query
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/tidwall/gjson"
@@ -42,7 +41,7 @@ func (lc LabelChange) Validate() error {
 	return nil
 }
 
-func BuildLabelChangeForRequestBody(requestBody []byte) ([]LabelChange, error) {
+func LabelChangesForRequestBody(requestBody []byte) ([]LabelChange, error) {
 	var labelChanges []LabelChange
 	labelChangesBytes := gjson.GetBytes(requestBody, "labels").String()
 	if err := json.Unmarshal([]byte(labelChangesBytes), &labelChanges); err != nil {
@@ -54,20 +53,4 @@ func BuildLabelChangeForRequestBody(requestBody []byte) ([]LabelChange, error) {
 		}
 	}
 	return labelChanges, nil
-}
-
-type labelChangeCtxKey struct{}
-
-func AddLabelChanges(ctx context.Context, changes ...LabelChange) (context.Context, error) {
-	labelChanges := LabelChangesForContext(ctx)
-	labelChanges = append(labelChanges, changes...)
-	return context.WithValue(ctx, labelChangeCtxKey{}, labelChanges), nil
-}
-
-func LabelChangesForContext(ctx context.Context) []LabelChange {
-	currentCriteria := ctx.Value(labelChangeCtxKey{})
-	if currentCriteria == nil {
-		return []LabelChange{}
-	}
-	return currentCriteria.([]LabelChange)
 }

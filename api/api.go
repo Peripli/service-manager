@@ -123,7 +123,6 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 			bearerAuthnFilter,
 			secfilters.NewRequiredAuthnFilter(),
 			&filters.SelectionCriteria{},
-			&filters.LabelChange{},
 		},
 		Registry: health.NewDefaultRegistry(),
 	}, nil

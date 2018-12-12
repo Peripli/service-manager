@@ -131,7 +131,7 @@ func (vs *visibilityStorage) Update(ctx context.Context, visibility *types.Visib
 
 func (vs *visibilityStorage) updateLabels(ctx context.Context, visibilityID string, updateActions []query.LabelChange) error {
 	now := time.Now()
-	return updateLabels(ctx, func(labelID string, labelKey string, labelValue string) interface{} {
+	newLabelFunc := func(labelID string, labelKey string, labelValue string) Labelable {
 		return &VisibilityLabel{
 			ID:                  sql.NullString{String: labelID, Valid: labelID != ""},
 			Key:                 sql.NullString{String: labelKey, Valid: labelKey != ""},
@@ -140,5 +140,6 @@ func (vs *visibilityStorage) updateLabels(ctx context.Context, visibilityID stri
 			CreatedAt:           &now,
 			UpdatedAt:           &now,
 		}
-	}, vs.db, visibilityLabelsTable, "visibility_id", visibilityID, updateActions)
+	}
+	return updateLabels(ctx, newLabelFunc, vs.db, visibilityID, updateActions)
 }

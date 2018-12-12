@@ -17,6 +17,8 @@
 package filters
 
 import (
+	"net/http"
+
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -57,6 +59,7 @@ func (*SelectionCriteria) FilterMatchers() []web.FilterMatcher {
 		{
 			Matchers: []web.Matcher{
 				web.Path("/**"),
+				web.Methods(http.MethodGet),
 			},
 		},
 	}

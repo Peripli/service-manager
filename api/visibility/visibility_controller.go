@@ -150,11 +150,17 @@ func (c *Controller) patchVisibility(r *web.Request) (*web.Response, error) {
 	visibility.CreatedAt = createdAt
 	visibility.UpdatedAt = time.Now().UTC()
 
+	changes, err := query.LabelChangesForRequestBody(r.Body)
+	if err != nil {
+		// TODO: handle
+		return nil, err
+	}
 	err = c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
-		return storage.Visibility().Update(ctx, visibility, query.LabelChangesForContext(ctx)...)
+		return storage.Visibility().Update(ctx, visibility, changes...)
 	})
 
 	if err != nil {
+		// TODO: handle if duplicate label [key,value] pair
 		return nil, util.HandleStorageError(err, "visibility", visibilityID)
 	}
 
