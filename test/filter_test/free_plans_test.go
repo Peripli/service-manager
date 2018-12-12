@@ -326,6 +326,12 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 		Expect(len(visibilities)).To(Equal(0))
 	})
 
+	Context("when no modifications to the plans occurs", func() {
+		It("does not change the state of the visibilities for the existing plans", func() {
+
+		})
+	})
+
 	Context("when a new free plan is added", func() {
 		BeforeEach(func() {
 			s, err := sjson.Set(testCatalog, "services.0.plans.-1", common.JSONToMap(newFreePlan))
@@ -427,6 +433,10 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			existingBrokerServer.Catalog = common.JSONToMap(catalog)
+		})
+
+		It("deletes all non-public visibilities that were associated with the plan", func() {
+
 		})
 
 		It("creates a public visibility associated with the plan", func() {
