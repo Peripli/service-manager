@@ -23,7 +23,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/Peripli/service-manager/pkg/selection"
+	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/jmoiron/sqlx"
 
@@ -100,7 +100,7 @@ func get(ctx context.Context, db getterContext, id string, table string, dto int
 	return checkSQLNoRows(err)
 }
 
-func listWithLabelsAndCriteria(ctx context.Context, db pgDB, baseEntity, labelsEntity interface{}, baseTableName string, labelsTableName string, criteria []selection.Criterion) (*sqlx.Rows, error) {
+func listWithLabelsAndCriteria(ctx context.Context, db pgDB, baseEntity, labelsEntity interface{}, baseTableName string, labelsTableName string, criteria []query.Criterion) (*sqlx.Rows, error) {
 	if err := validateFieldQueryParams(baseEntity, criteria); err != nil {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func listWithLabelsAndCriteria(ctx context.Context, db pgDB, baseEntity, labelsE
 	return db.QueryxContext(ctx, query, queryParams...)
 }
 
-func validateFieldQueryParams(baseEntity interface{}, criteria []selection.Criterion) error {
+func validateFieldQueryParams(baseEntity interface{}, criteria []query.Criterion) error {
 	availableColumns := make(map[string]bool)
 	baseEntityStruct := structs.New(baseEntity)
 	for _, field := range baseEntityStruct.Fields() {
@@ -125,7 +125,7 @@ func validateFieldQueryParams(baseEntity interface{}, criteria []selection.Crite
 	}
 	for _, criterion := range criteria {
 		if !availableColumns[criterion.LeftOp] {
-			return &selection.UnsupportedQuery{Message: fmt.Sprintf("unsupported field query key: %s", criterion.LeftOp)}
+			return &query.UnsupportedQuery{Message: fmt.Sprintf("unsupported field query key: %s", criterion.LeftOp)}
 		}
 	}
 	return nil

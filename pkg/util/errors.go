@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/selection"
+	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/pkg/log"
 )
@@ -128,7 +128,7 @@ func HandleSelectionError(err error) error {
 		return nil
 	}
 
-	if _, ok := err.(*selection.UnsupportedQuery); ok {
+	if _, ok := err.(*query.UnsupportedQuery); ok {
 		return &HTTPError{
 			Description: err.Error(),
 			ErrorType:   "BadRequest",

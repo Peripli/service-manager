@@ -18,10 +18,12 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/log"
 
-	"github.com/Peripli/service-manager/pkg/selection"
+	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/pkg/types"
 )
@@ -64,7 +66,7 @@ func (vs *visibilityStorage) Get(ctx context.Context, id string) (*types.Visibil
 	return visibility.ToDTO(), nil
 }
 
-func (vs *visibilityStorage) List(ctx context.Context, criteria ...selection.Criterion) ([]*types.Visibility, error) {
+func (vs *visibilityStorage) List(ctx context.Context, criteria ...query.Criterion) ([]*types.Visibility, error) {
 	rows, err := listWithLabelsAndCriteria(ctx, vs.db, Visibility{}, VisibilityLabel{}, visibilityTable, visibilityLabelsTable, criteria)
 	defer func() {
 		if rows == nil {
@@ -118,8 +120,41 @@ func (vs *visibilityStorage) Delete(ctx context.Context, id string) error {
 	return remove(ctx, vs.db, id, visibilityTable)
 }
 
-func (vs *visibilityStorage) Update(ctx context.Context, visibility *types.Visibility) error {
+func (vs *visibilityStorage) Update(ctx context.Context, visibility *types.Visibility, labelChanges ...query.LabelChange) error {
 	v := &Visibility{}
 	v.FromDTO(visibility)
-	return update(ctx, vs.db, visibilityTable, v)
+	if err := update(ctx, vs.db, visibilityTable, v); err != nil {
+		return err
+	}
+	return vs.updateLabels(ctx, v.ID, labelChanges)
+}
+
+func (vs *visibilityStorage) updateLabels(ctx context.Context, visibilityID string, updateActions []query.LabelChange) error {
+	now := time.Now()
+	for _, action := range updateActions {
+		switch action.Operation {
+		case query.AddLabelOperation:
+			fallthrough
+		case query.AddLabelValuesOperation:
+			if err := addLabel(ctx, func(labelID string, labelKey string, labelValue string) interface{} {
+				return &VisibilityLabel{
+					ID:                  sql.NullString{String: labelID, Valid: labelID != ""},
+					Key:                 sql.NullString{String: action.Key, Valid: action.Key != ""},
+					Val:                 sql.NullString{String: labelValue, Valid: labelValue != ""},
+					ServiceVisibilityID: sql.NullString{String: visibilityID, Valid: visibilityID != ""},
+					CreatedAt:           &now,
+					UpdatedAt:           &now,
+				}
+			}, vs.db, visibilityLabelsTable, action.Key, action.Values...); err != nil {
+				return err
+			}
+		case query.RemoveLabelOperation:
+			fallthrough
+		case query.RemoveLabelValuesOperation:
+			if err := removeLabel(ctx, vs.db, visibilityLabelsTable, action.Key, action.Values...); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

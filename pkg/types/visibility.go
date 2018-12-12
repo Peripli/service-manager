@@ -35,15 +35,13 @@ type Visibilities struct {
 
 // Visibility struct
 type Visibility struct {
-	ID            string             `json:"-"`
+	ID            string             `json:"id"`
 	PlatformID    string             `json:"platform_id"`
 	ServicePlanID string             `json:"service_plan_id"`
 	CreatedAt     time.Time          `json:"created_at"`
 	UpdatedAt     time.Time          `json:"updated_at"`
 	Labels        []*VisibilityLabel `json:"labels,omitempty"`
 }
-
-//type VisibilityLabels []*VisibilityLabel
 
 type VisibilityLabel struct {
 	Label

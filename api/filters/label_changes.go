@@ -17,33 +17,35 @@
 package filters
 
 import (
+	"net/http"
+
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
 const (
-	// CriteriaFilterName is the name of the criteria filter
-	CriteriaFilterName = "CriteriaFilter"
+	// CriteriaFilterName is the name of the label changes filter
+	LabelChangesFilterName = "LabelChangeFilter"
 )
 
-// SelectionCriteria is filter that configures selection criteria per request.
-type SelectionCriteria struct {
+// LabelChange is filter that configures label changes per request.
+type LabelChange struct {
 }
 
 // Name implements the web.Filter interface and returns the identifier of the filter.
-func (*SelectionCriteria) Name() string {
-	return CriteriaFilterName
+func (*LabelChange) Name() string {
+	return LabelChangesFilterName
 }
 
 // Run represents the selection criteria middleware function that processes the request and configures the request-scoped selection criteria.
-func (l *SelectionCriteria) Run(req *web.Request, next web.Handler) (*web.Response, error) {
+func (l *LabelChange) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
-	criteria, err := query.BuildCriteriaFromRequest(req)
+	labelChanges, err := query.BuildLabelChangeForRequestBody(req.Body)
 	if err != nil {
 		return nil, util.HandleSelectionError(err)
 	}
-	ctx, err = query.AddCriteria(ctx, criteria...)
+	ctx, err = query.AddLabelChanges(ctx, labelChanges...)
 	if err != nil {
 		return nil, util.HandleSelectionError(err)
 	}
@@ -52,11 +54,12 @@ func (l *SelectionCriteria) Run(req *web.Request, next web.Handler) (*web.Respon
 }
 
 // FilterMatchers implements the web.Filter interface and returns the conditions on which the filter should be executed.
-func (*SelectionCriteria) FilterMatchers() []web.FilterMatcher {
+func (*LabelChange) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
 				web.Path("/**"),
+				web.Methods(http.MethodPatch),
 			},
 		},
 	}

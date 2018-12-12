@@ -22,10 +22,10 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/Peripli/service-manager/pkg/selection"
+	"github.com/Peripli/service-manager/pkg/query"
 )
 
-func buildListQueryWithParams(query string, baseTableName string, labelsTableName string, criteria []selection.Criterion) (string, []interface{}, error) {
+func buildListQueryWithParams(query string, baseTableName string, labelsTableName string, criteria []query.Criterion) (string, []interface{}, error) {
 	if len(criteria) == 0 {
 		return query, nil, nil
 	}
@@ -37,7 +37,7 @@ func buildListQueryWithParams(query string, baseTableName string, labelsTableNam
 	for _, option := range criteria {
 		rightOpBindVar, rightOpQueryValue := buildRightOp(option)
 		sqlOperation := translateOperationToSQLEquivalent(option.Operator)
-		if option.Type == selection.LabelQuery {
+		if option.Type == query.LabelQuery {
 			queries = append(queries, fmt.Sprintf("%[1]s.key = ? AND %[1]s.val %[2]s %s", labelsTableName, sqlOperation, rightOpBindVar))
 			queryParams = append(queryParams, option.LeftOp)
 		} else {
@@ -61,7 +61,7 @@ func buildListQueryWithParams(query string, baseTableName string, labelsTableNam
 	return query, queryParams, nil
 }
 
-func buildRightOp(criterion selection.Criterion) (string, interface{}) {
+func buildRightOp(criterion query.Criterion) (string, interface{}) {
 	rightOpBindVar := "?"
 	var rhs interface{} = criterion.RightOp[0]
 	if criterion.Operator.IsMultiVariate() {
@@ -71,7 +71,7 @@ func buildRightOp(criterion selection.Criterion) (string, interface{}) {
 	return rightOpBindVar, rhs
 }
 
-func hasMultiVariateOp(criteria []selection.Criterion) bool {
+func hasMultiVariateOp(criteria []query.Criterion) bool {
 	for _, opt := range criteria {
 		if opt.Operator.IsMultiVariate() {
 			return true
@@ -80,15 +80,15 @@ func hasMultiVariateOp(criteria []selection.Criterion) bool {
 	return false
 }
 
-func translateOperationToSQLEquivalent(operator selection.Operator) string {
+func translateOperationToSQLEquivalent(operator query.Operator) string {
 	switch operator {
-	case selection.LessThanOperator:
+	case query.LessThanOperator:
 		return "<"
-	case selection.GreaterThanOperator:
+	case query.GreaterThanOperator:
 		return ">"
-	case selection.NotInOperator:
+	case query.NotInOperator:
 		return "NOT IN"
-	case selection.EqualsOrNilOperator:
+	case query.EqualsOrNilOperator:
 		return "="
 	default:
 		return strings.ToUpper(string(operator))

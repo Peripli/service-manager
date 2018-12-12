@@ -120,6 +120,7 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 		Filters: []web.Filter{
 			&filters.Logging{},
 			&filters.SelectionCriteria{},
+			&filters.LabelChange{},
 			basic.NewFilter(repository.Credentials(), encrypter),
 			bearerAuthnFilter,
 			secfilters.NewRequiredAuthnFilter(),

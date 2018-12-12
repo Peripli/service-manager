@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Peripli/service-manager/pkg/selection"
+	"github.com/Peripli/service-manager/pkg/query"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -30,7 +30,7 @@ var _ = Describe("Postgres Translator", func() {
 	Describe("translate list", func() {
 
 		baseQuery, baseTableName, labelsTableName := "", "testTable", "testLabelTable"
-		var criteria []selection.Criterion
+		var criteria []query.Criterion
 
 		Context("No query", func() {
 			It("Should return base query", func() {
@@ -44,18 +44,18 @@ var _ = Describe("Postgres Translator", func() {
 		Context("Label query", func() {
 			Context("Called with valid input", func() {
 				It("Should return proper result", func() {
-					criteria = []selection.Criterion{
+					criteria = []query.Criterion{
 						{
 							LeftOp:   "orgId",
-							Operator: selection.InOperator,
+							Operator: query.InOperator,
 							RightOp:  []string{"o1", "o2", "o3"},
-							Type:     selection.LabelQuery,
+							Type:     query.LabelQuery,
 						},
 						{
 							LeftOp:   "clusterId",
-							Operator: selection.InOperator,
+							Operator: query.InOperator,
 							RightOp:  []string{"c1", "c2"},
-							Type:     selection.LabelQuery,
+							Type:     query.LabelQuery,
 						},
 					}
 					actualQuery, actualQueryParams, err := buildListQueryWithParams(baseQuery, baseTableName, labelsTableName, criteria)
@@ -69,12 +69,12 @@ var _ = Describe("Postgres Translator", func() {
 
 			Context("Called with multivalue operator and single value", func() {
 				It("Should return proper result surrounded in brackets", func() {
-					criteria = []selection.Criterion{
+					criteria = []query.Criterion{
 						{
 							LeftOp:   "orgId",
-							Operator: selection.InOperator,
+							Operator: query.InOperator,
 							RightOp:  []string{"o1"},
-							Type:     selection.LabelQuery,
+							Type:     query.LabelQuery,
 						},
 					}
 					actualQuery, actualQueryParams, err := buildListQueryWithParams(baseQuery, baseTableName, labelsTableName, criteria)
@@ -89,12 +89,12 @@ var _ = Describe("Postgres Translator", func() {
 		Context("Field query", func() {
 			Context("Called with valid input", func() {
 				It("Should return proper result", func() {
-					criteria = []selection.Criterion{
+					criteria = []query.Criterion{
 						{
 							LeftOp:   "platformId",
-							Operator: selection.EqualsOperator,
+							Operator: query.EqualsOperator,
 							RightOp:  []string{"5"},
-							Type:     selection.FieldQuery,
+							Type:     query.FieldQuery,
 						},
 					}
 					actualQuery, actualQueryParams, err := buildListQueryWithParams(baseQuery, baseTableName, labelsTableName, criteria)
@@ -108,12 +108,12 @@ var _ = Describe("Postgres Translator", func() {
 
 			Context("Called with multivalue operator and single value", func() {
 				It("Should return proper result surrounded in brackets", func() {
-					criteria = []selection.Criterion{
+					criteria = []query.Criterion{
 						{
 							LeftOp:   "platformId",
-							Operator: selection.InOperator,
+							Operator: query.InOperator,
 							RightOp:  []string{"1"},
-							Type:     selection.FieldQuery,
+							Type:     query.FieldQuery,
 						},
 					}
 					actualQuery, actualQueryParams, err := buildListQueryWithParams(baseQuery, baseTableName, labelsTableName, criteria)
@@ -129,10 +129,10 @@ var _ = Describe("Postgres Translator", func() {
 	})
 })
 
-func buildExpectedQueryParams(criteria []selection.Criterion) interface{} {
+func buildExpectedQueryParams(criteria []query.Criterion) interface{} {
 	var expectedQueryParams []interface{}
 	for _, criterion := range criteria {
-		if criterion.Type == selection.LabelQuery {
+		if criterion.Type == query.LabelQuery {
 			expectedQueryParams = append(expectedQueryParams, criterion.LeftOp)
 		}
 		for _, param := range criterion.RightOp {

@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/selection"
+	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/storage"
 
@@ -98,18 +98,18 @@ func (c *Controller) listVisibilities(r *web.Request) (*web.Response, error) {
 	}
 
 	if p.ID != "" {
-		platformIdCriterion := selection.Criterion{
-			Type:     selection.FieldQuery,
+		platformIdCriterion := query.Criterion{
+			Type:     query.FieldQuery,
 			LeftOp:   "platform_id",
 			RightOp:  []string{p.ID},
-			Operator: selection.EqualsOrNilOperator,
+			Operator: query.EqualsOrNilOperator,
 		}
-		if ctx, err = selection.AddCriteria(ctx, platformIdCriterion); err != nil {
+		if ctx, err = query.AddCriteria(ctx, platformIdCriterion); err != nil {
 			return nil, util.HandleSelectionError(err)
 		}
 		r.Request = r.WithContext(ctx)
 	}
-	visibilities, err = c.Repository.Visibility().List(ctx, selection.CriteriaForContext(ctx)...)
+	visibilities, err = c.Repository.Visibility().List(ctx, query.CriteriaForContext(ctx)...)
 	if err != nil {
 		return nil, util.HandleSelectionError(err)
 	}
@@ -150,12 +150,12 @@ func (c *Controller) patchVisibility(r *web.Request) (*web.Response, error) {
 	visibility.CreatedAt = createdAt
 	visibility.UpdatedAt = time.Now().UTC()
 
-	if err := c.Repository.Visibility().Update(ctx, visibility); err != nil {
-		return nil, util.HandleStorageError(err, "visibility", visibilityID)
-	}
+	err = c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
+		return storage.Visibility().Update(ctx, visibility, query.LabelChangesForContext(ctx)...)
+	})
 
 	if err != nil {
-		return nil, err
+		return nil, util.HandleStorageError(err, "visibility", visibilityID)
 	}
 
 	return util.NewJSONResponse(http.StatusOK, visibility)
