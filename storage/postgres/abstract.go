@@ -88,6 +88,7 @@ func create(ctx context.Context, db pgDB, table string, dto interface{}) (string
 	}
 	log.C(ctx).Debugf("Executing query %s", query)
 	_, err := db.NamedExecContext(ctx, query, dto)
+
 	return lastInsertId, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
 }
 
