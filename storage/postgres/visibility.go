@@ -131,30 +131,14 @@ func (vs *visibilityStorage) Update(ctx context.Context, visibility *types.Visib
 
 func (vs *visibilityStorage) updateLabels(ctx context.Context, visibilityID string, updateActions []query.LabelChange) error {
 	now := time.Now()
-	for _, action := range updateActions {
-		switch action.Operation {
-		case query.AddLabelOperation:
-			fallthrough
-		case query.AddLabelValuesOperation:
-			if err := addLabel(ctx, func(labelID string, labelKey string, labelValue string) interface{} {
-				return &VisibilityLabel{
-					ID:                  sql.NullString{String: labelID, Valid: labelID != ""},
-					Key:                 sql.NullString{String: action.Key, Valid: action.Key != ""},
-					Val:                 sql.NullString{String: labelValue, Valid: labelValue != ""},
-					ServiceVisibilityID: sql.NullString{String: visibilityID, Valid: visibilityID != ""},
-					CreatedAt:           &now,
-					UpdatedAt:           &now,
-				}
-			}, vs.db, visibilityLabelsTable, action.Key, action.Values...); err != nil {
-				return err
-			}
-		case query.RemoveLabelOperation:
-			fallthrough
-		case query.RemoveLabelValuesOperation:
-			if err := removeLabel(ctx, vs.db, visibilityLabelsTable, "visibility_id", visibilityID, action.Key, action.Values...); err != nil {
-				return err
-			}
+	return updateLabels(ctx, func(labelID string, labelKey string, labelValue string) interface{} {
+		return &VisibilityLabel{
+			ID:                  sql.NullString{String: labelID, Valid: labelID != ""},
+			Key:                 sql.NullString{String: labelKey, Valid: labelKey != ""},
+			Val:                 sql.NullString{String: labelValue, Valid: labelValue != ""},
+			ServiceVisibilityID: sql.NullString{String: visibilityID, Valid: visibilityID != ""},
+			CreatedAt:           &now,
+			UpdatedAt:           &now,
 		}
-	}
-	return nil
+	}, vs.db, visibilityLabelsTable, "visibility_id", visibilityID, updateActions)
 }

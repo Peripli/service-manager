@@ -21,11 +21,33 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/gofrs/uuid"
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/jmoiron/sqlx"
 )
+
+func updateLabels(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) interface{}, pgDB pgDB, labelsTableName, referenceColumnName, referenceID string, updateActions []query.LabelChange) error {
+	for _, action := range updateActions {
+		switch action.Operation {
+		case query.AddLabelOperation:
+			fallthrough
+		case query.AddLabelValuesOperation:
+			if err := addLabel(ctx, newLabelFunc, pgDB, labelsTableName, action.Key, action.Values...); err != nil {
+				return err
+			}
+		case query.RemoveLabelOperation:
+			fallthrough
+		case query.RemoveLabelValuesOperation:
+			if err := removeLabel(ctx, pgDB, labelsTableName, referenceColumnName, referenceID, action.Key, action.Values...); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
 
 func addLabel(ctx context.Context, f func(labelID string, labelKey string, labelValue string) interface{}, db pgDB, labelsTable string, key string, values ...string) error {
 	for _, labelValue := range values {
