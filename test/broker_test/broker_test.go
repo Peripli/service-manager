@@ -47,12 +47,18 @@ var _ = Describe("Service Manager Broker API", func() {
 	)
 
 	BeforeSuite(func() {
-		brokerServer = common.NewBrokerServer()
 		ctx = common.NewTestContext(nil)
 	})
 
 	AfterSuite(func() {
 		ctx.Cleanup()
+	})
+
+	BeforeEach(func() {
+		brokerServer = common.NewBrokerServer()
+	})
+
+	AfterEach(func() {
 		if brokerServer != nil {
 			brokerServer.Close()
 		}
@@ -1008,6 +1014,24 @@ var _ = Describe("Service Manager Broker API", func() {
 			})
 
 			Context("when an existing service offering is modified", func() {
+				Context("when catalog service id is modified but the catalog name is not", func() {
+					BeforeEach(func() {
+						catalog, err := sjson.Set(common.Catalog, "services.0.id", "new-id")
+						Expect(err).ToNot(HaveOccurred())
+
+						brokerServer.Catalog = common.JSONToMap(catalog)
+					})
+
+					It("returns 409", func() {
+						ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+brokerID).WithJSON(brokerServerJSON).
+							Expect().
+							Status(http.StatusConflict).JSON().Object().Keys().Contains("error", "description")
+
+						assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+
+					})
+				})
+
 				Context("when catalog service id is removed", func() {
 					verifyPATCHWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
 						r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
@@ -1134,6 +1158,24 @@ var _ = Describe("Service Manager Broker API", func() {
 			})
 
 			Context("when an existing service plan is modified", func() {
+				Context("when catalog service plan id is modified but the catalog name is not", func() {
+					BeforeEach(func() {
+						catalog, err := sjson.Set(common.Catalog, "services.0.plans.0.id", "new-id")
+						Expect(err).ToNot(HaveOccurred())
+
+						brokerServer.Catalog = common.JSONToMap(catalog)
+					})
+
+					It("returns 409", func() {
+						ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+brokerID).WithJSON(brokerServerJSON).
+							Expect().
+							Status(http.StatusConflict).JSON().Object().Keys().Contains("error", "description")
+
+						assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+
+					})
+				})
+
 				Context("when catalog plan id is removed", func() {
 					verifyPATCHWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
 						r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")

@@ -517,7 +517,7 @@ func (c *Controller) resyncBrokerAndCatalog(ctx context.Context, broker *types.B
 				}
 
 				if _, err := txStorage.ServicePlan().Create(ctx, servicePlan); err != nil {
-					return util.HandleStorageError(err, "service_plan", existingServicePlan.ID)
+					return util.HandleStorageError(err, "service_plan", servicePlan.ID)
 				}
 			}
 		}
