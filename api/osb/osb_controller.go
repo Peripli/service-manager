@@ -47,14 +47,6 @@ type CatalogFetcher interface {
 	FetchCatalog(ctx context.Context, brokerID string) (*types.ServiceOfferings, error)
 }
 
-// CatalogFetcherFunc allows functions to implement CatalogFetcher
-type CatalogFetcherFunc func(ctx context.Context, brokerID string) (*types.ServiceOfferings, error)
-
-// FetchCatalog implements osb.CatalogFetcher and uses the provided function to fetch the catalog for the specified broker
-func (rhf CatalogFetcherFunc) FetchCatalog(ctx context.Context, brokerID string) (*types.ServiceOfferings, error) {
-	return rhf(ctx, brokerID)
-}
-
 // controller implements api.Controller by providing OSB API logic
 type controller struct {
 	brokerFetcher  BrokerFetcher
@@ -96,7 +88,16 @@ func (c *controller) handler(f func(r *web.Request, logger *logrus.Entry, id str
 		}
 		logger.Debugf("Obtained path parameter [brokerID = %s] from path params", brokerID)
 
-		return f(request, logger, brokerID)
+		response, err := f(request, logger, brokerID)
+		if err != nil {
+			logger.WithError(err).Errorf("error proxying call to service broker with id %s", brokerID)
+			return nil, &util.HTTPError{
+				ErrorType:   "ServiceBrokerErr",
+				Description: fmt.Sprintf("could not reach service broker with id %s", brokerID),
+				StatusCode:  http.StatusBadGateway,
+			}
+		}
+		return response, nil
 	}
 }
 
@@ -109,19 +110,15 @@ func (c *controller) catalog(r *web.Request, logger *logrus.Entry, brokerID stri
 	logger.Debugf("Fetching catalog for broker with id %s from SM DB", brokerID)
 	catalog, err := c.catalogFetcher.FetchCatalog(ctx, brokerID)
 	if err != nil {
-		if err == util.ErrNotFoundInStorage {
-			logger.Debugf("Could not find any service offerings for broker with id %s. Checking if broker actually exists...", brokerID)
-			_, err := c.brokerFetcher.FetchBroker(ctx, brokerID)
-			if err != nil {
-				return nil, err
-			}
-			catalog = &types.ServiceOfferings{
-				ServiceOfferings: []*types.ServiceOffering{},
-			}
-		} else {
+		return nil, err
+	}
+	if len(catalog.ServiceOfferings) == 0 {
+		logger.Debugf("Could not find any service offerings for broker with id %s. Checking if broker actually exists...", brokerID)
+		if _, err := c.brokerFetcher.FetchBroker(ctx, brokerID); err != nil {
 			return nil, err
 		}
 	}
+
 	return util.NewJSONResponse(http.StatusOK, catalog)
 }
 

@@ -1,14 +1,13 @@
 package web
 
-// TokenData represents the authentication token
-//go:generate counterfeiter . TokenData
-type TokenData interface {
-	// Claims reads the claims from the token into the specified struct
-	Claims(v interface{}) error
+// UserContext holds the information for the current user
+type UserContext struct {
+	Data
+
+	Name string
 }
 
-// User holds the information for the current user
-type User struct {
-	Name string `json:"name"`
-	TokenData
+type Data interface {
+	// Data reads the additional data from the context into the specified struct
+	Data(v interface{}) error
 }

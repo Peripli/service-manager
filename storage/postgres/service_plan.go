@@ -26,7 +26,7 @@ type servicePlanStorage struct {
 	db pgDB
 }
 
-func (sps *servicePlanStorage) Create(ctx context.Context, servicePlan *types.ServicePlan) error {
+func (sps *servicePlanStorage) Create(ctx context.Context, servicePlan *types.ServicePlan) (string, error) {
 	plan := &ServicePlan{}
 	plan.FromDTO(servicePlan)
 	return create(ctx, sps.db, servicePlanTable, plan)
@@ -42,7 +42,7 @@ func (sps *servicePlanStorage) Get(ctx context.Context, id string) (*types.Servi
 
 func (sps *servicePlanStorage) List(ctx context.Context) ([]*types.ServicePlan, error) {
 	var plans []ServicePlan
-	err := list(ctx, sps.db, servicePlanTable, map[string]string{}, &plans)
+	err := list(ctx, sps.db, servicePlanTable, map[string][]string{}, &plans)
 	if err != nil || len(plans) == 0 {
 		return []*types.ServicePlan{}, err
 	}
@@ -55,7 +55,7 @@ func (sps *servicePlanStorage) List(ctx context.Context) ([]*types.ServicePlan, 
 
 func (sps *servicePlanStorage) ListByCatalogName(ctx context.Context, name string) ([]*types.ServicePlan, error) {
 	var plans []ServicePlan
-	err := list(ctx, sps.db, servicePlanTable, map[string]string{"catalog_name": name}, &plans)
+	err := list(ctx, sps.db, servicePlanTable, map[string][]string{"catalog_name": {name}}, &plans)
 	if err != nil || len(plans) == 0 {
 		return []*types.ServicePlan{}, err
 	}
@@ -67,7 +67,7 @@ func (sps *servicePlanStorage) ListByCatalogName(ctx context.Context, name strin
 }
 
 func (sps *servicePlanStorage) Delete(ctx context.Context, id string) error {
-	return delete(ctx, sps.db, id, servicePlanTable)
+	return remove(ctx, sps.db, id, servicePlanTable)
 }
 
 func (sps *servicePlanStorage) Update(ctx context.Context, servicePlan *types.ServicePlan) error {

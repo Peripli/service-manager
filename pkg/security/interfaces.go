@@ -51,7 +51,7 @@ func (a Decision) String() string {
 type Authenticator interface {
 	// Authenticate returns information about the user if security is successful, a bool specifying
 	// whether the authenticator ran or not and an error if one occurs
-	Authenticate(req *http.Request) (*web.User, Decision, error)
+	Authenticate(req *http.Request) (*web.UserContext, Decision, error)
 }
 
 // Authorizer extracts the information from the authenticated user and
@@ -63,11 +63,18 @@ type Authorizer interface {
 	Authorize(req *http.Request) (Decision, error)
 }
 
+// TokenData represents the authentication token
+//go:generate counterfeiter . TokenData
+type TokenData interface {
+	// Claims reads the claims from the token into the specified struct
+	Claims(v interface{}) error
+}
+
 // TokenVerifier attempts to verify a token and returns it or an error if the verification was not successful
 //go:generate counterfeiter . TokenVerifier
 type TokenVerifier interface {
 	// Verify verifies that the token is valid and returns a token if so, otherwise returns an error
-	Verify(ctx context.Context, token string) (web.TokenData, error)
+	Verify(ctx context.Context, token string) (TokenData, error)
 }
 
 // Encrypter provides functionality to encrypt and decrypt data

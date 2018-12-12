@@ -74,6 +74,7 @@ var _ = Describe("Service Manager Platform API", func() {
 			})
 		})
 	})
+
 	Describe("List", func() {
 		Context("With no platforms", func() {
 			It("returns empty array", func() {

@@ -181,6 +181,7 @@ var _ = Describe("Service Manager Plugins", func() {
 			{"fetchBinding", "GET", "/v2/service_instances/1234/service_bindings/111", []string{""}, http.StatusOK},
 			{"pollInstance", "GET", "/v2/service_instances/1234/last_operation", []string{"", "service_id=serviceId", "plan_id=planId", "operation=provision", "service_id=serviceId&plan_id=planId&operation=provision"}, http.StatusOK},
 			{"pollBinding", "GET", "/v2/service_instances/1234/service_bindings/111/last_operation", []string{"", "service_id=serviceId", "plan_id=planId", "operation=provision", "service_id=serviceId&plan_id=planId&operation=provision"}, http.StatusOK},
+			{"adaptCredentials", "POST", "/v2/service_instances/1234/service_bindings/111/adapt_credentials", []string{""}, http.StatusOK},
 		}
 
 		for _, op := range osbOperations {
@@ -256,6 +257,10 @@ func (p TestPlugin) PollInstance(request *web.Request, next web.Handler) (*web.R
 
 func (p TestPlugin) PollBinding(request *web.Request, next web.Handler) (*web.Response, error) {
 	return p.call(p["pollBinding"], request, next)
+}
+
+func (p TestPlugin) AdaptCredentials(request *web.Request, next web.Handler) (*web.Response, error) {
+	return p.call(p["adaptCredentials"], request, next)
 }
 
 type PartialPlugin struct{}

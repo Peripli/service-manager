@@ -26,6 +26,8 @@ import (
 
 	"fmt"
 
+	"github.com/coreos/go-oidc"
+
 	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -54,6 +56,23 @@ type options struct {
 
 	// ReadConfigurationFunc is the function used to call the token issuer. If one is not provided, http.DefaultClient.Do will be used
 	ReadConfigurationFunc util.DoRequestFunc
+}
+
+type oidcVerifier struct {
+	*oidc.IDTokenVerifier
+}
+
+// Verify implements security.TokenVerifier and delegates to oidc.IDTokenVerifier
+func (v *oidcVerifier) Verify(ctx context.Context, idToken string) (security.TokenData, error) {
+	return v.IDTokenVerifier.Verify(ctx, idToken)
+}
+
+type oidcData struct {
+	security.TokenData
+}
+
+func (td *oidcData) Data(v interface{}) error {
+	return td.TokenData.Claims(v)
 }
 
 // oauthAuthenticator is the OpenID implementation of security.Authenticator
@@ -94,7 +113,7 @@ func newOIDCConfig(options *options) *goidc.Config {
 }
 
 // Authenticate returns information about the user by obtaining it from the bearer token, or an error if security is unsuccessful
-func (a *oauthAuthenticator) Authenticate(request *http.Request) (*web.User, security.Decision, error) {
+func (a *oauthAuthenticator) Authenticate(request *http.Request) (*web.UserContext, security.Decision, error) {
 	authorizationHeader := request.Header.Get("Authorization")
 	if authorizationHeader == "" || !strings.HasPrefix(strings.ToLower(authorizationHeader), "bearer ") {
 		return nil, security.Abstain, nil
@@ -114,9 +133,9 @@ func (a *oauthAuthenticator) Authenticate(request *http.Request) (*web.User, sec
 	if err := idToken.Claims(claims); err != nil {
 		return nil, security.Deny, err
 	}
-	return &web.User{
-		Name:      claims.Username,
-		TokenData: idToken,
+	return &web.UserContext{
+		Name: claims.Username,
+		Data: &oidcData{TokenData: idToken},
 	}, security.Allow, nil
 }
 

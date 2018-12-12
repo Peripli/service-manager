@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-// Package service_offering contains logic for building the Service Manager service plans API
+// Package service_plan contains logic for building the Service Manager service plans API
 package service_plan
 
 import (

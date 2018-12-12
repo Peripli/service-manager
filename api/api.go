@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/Peripli/service-manager/api/visibility"
+
 	"github.com/Peripli/service-manager/api/broker"
 	"github.com/Peripli/service-manager/api/platform"
 
@@ -89,6 +91,9 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 			&service_plan.Controller{
 				ServicePlanStorage: repository.ServicePlan(),
 			},
+			&visibility.Controller{
+				VisibilityStorage: repository.Visibility(),
+			},
 			&info.Controller{
 				TokenIssuer: settings.TokenIssuerURL,
 			},
@@ -107,6 +112,9 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 			basic.NewFilter(repository.Credentials(), encrypter),
 			bearerAuthnFilter,
 			secfilters.NewRequiredAuthnFilter(),
+			&filters.FreeServicePlansFilter{
+				Repository: repository,
+			},
 		},
 		Registry: health.NewDefaultRegistry(),
 	}, nil
