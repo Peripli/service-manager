@@ -19,10 +19,6 @@ package filter_test
 import (
 	"net/http"
 
-	"github.com/mitchellh/mapstructure"
-
-	"github.com/Peripli/service-manager/pkg/types"
-
 	"github.com/tidwall/gjson"
 
 	"github.com/tidwall/sjson"
@@ -235,21 +231,28 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 	var serviceCatalogID string
 	var serviceCatalogName string
 
-	findVisibilityForServicePlanID := func(servicePlanID string) []*types.Visibility {
-		result := make([]*types.Visibility, 0, 0)
+	findVisibilityForServicePlanID := func(servicePlanID string) []map[string]interface{} {
+		result := []map[string]interface{}{}
 		visibilities := ctx.SMWithOAuth.GET("/v1/visibilities").
 			Expect().
 			Status(http.StatusOK).JSON().Object().Value("visibilities").Array().Iter()
 
-		for _, visibility := range visibilities {
-			if visibility.Object().Value("service_plan_id").String().Raw() == servicePlanID {
-				v := &types.Visibility{}
-				err := mapstructure.Decode(visibility.Object().Raw(), v)
-				Expect(err).ToNot(HaveOccurred())
-				result = append(result, v)
+		for index := range visibilities {
+			vis := visibilities[index].Object()
+			if vis.Value("service_plan_id").String().Raw() == servicePlanID {
+				result = append(result, vis.Raw())
 			}
 		}
 		return result
+	}
+
+	findDatabaseIDForServicePlanByCatalogName := func(catalogServicePlanName string) string {
+		planID := ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("catalog_name", catalogServicePlanName).
+			Expect().
+			Status(http.StatusOK).JSON().Object().Value("service_plans").Array().First().Object().Value("id").String().Raw()
+
+		Expect(planID).ToNot(BeEmpty())
+		return planID
 	}
 
 	BeforeSuite(func() {
@@ -298,7 +301,8 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 		newPaidPlanCatalogName = gjson.Get(newPaidPlan, "name").Str
 		Expect(newPaidPlanCatalogName).ToNot(BeEmpty())
 
-		existingBrokerServer.Reset()
+		existingBrokerServer.Catalog = common.JSONToMap(testCatalog)
+
 	})
 
 	AfterEach(func() {
@@ -306,15 +310,11 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 	})
 
 	Specify("plans and visibilities for the registered brokers are known to SM", func() {
-		freePlanID := ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("catalog_name", oldFreePlanCatalogName).
-			Expect().
-			Status(http.StatusOK).JSON().Object().Value("service_plans").Array().First().Object().Value("id").String().Raw()
-
-		Expect(freePlanID).ToNot(BeEmpty())
+		freePlanID := findDatabaseIDForServicePlanByCatalogName(oldFreePlanCatalogName)
 
 		visibilities := findVisibilityForServicePlanID(freePlanID)
 		Expect(len(visibilities)).To(Equal(1))
-		Expect(visibilities[0].PlatformID).To(Equal(""))
+		Expect(visibilities[0]["platform_id"]).To(Equal(""))
 
 		paidPlanID := ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("catalog_name", oldPaidPlanCatalogName).
 			Expect().
@@ -328,7 +328,26 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 
 	Context("when no modifications to the plans occurs", func() {
 		It("does not change the state of the visibilities for the existing plans", func() {
+			oldFreePlanDatabaseID := findDatabaseIDForServicePlanByCatalogName(oldFreePlanCatalogName)
+			visibilitiesForFreePlan := findVisibilityForServicePlanID(oldFreePlanDatabaseID)
+			Expect(len(visibilitiesForFreePlan)).To(Equal(1))
+			Expect(visibilitiesForFreePlan[0]["platform_id"]).To(Equal(""))
 
+			oldPaidPlanDatabaseID := findDatabaseIDForServicePlanByCatalogName(oldPaidPlanCatalogName)
+			visibilitiesForPaidPlan := findVisibilityForServicePlanID(oldPaidPlanDatabaseID)
+			Expect(len(visibilitiesForPaidPlan)).To(Equal(0))
+
+			ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + existingBrokerID).
+				WithJSON(common.Object{}).
+				Expect().
+				Status(http.StatusOK)
+
+			visibilitiesForFreePlan = findVisibilityForServicePlanID(oldFreePlanDatabaseID)
+			Expect(len(visibilitiesForFreePlan)).To(Equal(1))
+			Expect(visibilitiesForFreePlan[0]["platform_id"]).To(Equal(""))
+
+			visibilitiesForPaidPlan = findVisibilityForServicePlanID(oldPaidPlanDatabaseID)
+			Expect(len(visibilitiesForPaidPlan)).To(Equal(0))
 		})
 	})
 
@@ -357,7 +376,7 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 
 			visibilities := findVisibilityForServicePlanID(planID)
 			Expect(len(visibilities)).To(Equal(1))
-			Expect(visibilities[0].PlatformID).To(Equal(""))
+			Expect(visibilities[0]["platform_id"]).To(Equal(""))
 		})
 	})
 
@@ -378,11 +397,7 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 				Expect().
 				Status(http.StatusOK)
 
-			planID := ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("catalog_name", newPaidPlanCatalogName).
-				Expect().
-				Status(http.StatusOK).JSON().Object().Value("service_plans").Array().First().Object().Value("id").String().Raw()
-
-			Expect(planID).ToNot(BeEmpty())
+			planID := findDatabaseIDForServicePlanByCatalogName(newPaidPlanCatalogName)
 
 			visibilities := findVisibilityForServicePlanID(planID)
 			Expect(len(visibilities)).To(Equal(0))
@@ -412,7 +427,7 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 
 			visibilities := findVisibilityForServicePlanID(planID)
 			Expect(len(visibilities)).To(Equal(1))
-			Expect(visibilities[0].PlatformID).To(Equal(""))
+			Expect(visibilities[0]["platform_id"]).To(Equal(""))
 
 			ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + existingBrokerID).
 				WithJSON(common.Object{}).
@@ -425,6 +440,9 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 	})
 
 	Context("when an existing paid plan is made free", func() {
+		var planID string
+		var platformID string
+
 		BeforeEach(func() {
 			tempCatalog, err := sjson.Set(testCatalog, "services.0.plans.0.free", true)
 			Expect(err).ToNot(HaveOccurred())
@@ -433,33 +451,54 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			existingBrokerServer.Catalog = common.JSONToMap(catalog)
-		})
+			planID = findDatabaseIDForServicePlanByCatalogName(oldPaidPlanCatalogName)
 
-		It("deletes all non-public visibilities that were associated with the plan", func() {
+			platform := ctx.RegisterPlatform()
+			platformID = platform.ID
 
-		})
+			// register a non-public visiblity for the paid plan
+			ctx.SMWithOAuth.POST("/v1/visibilities").
+				WithJSON(common.Object{
+					"service_plan_id": planID,
+					"platform_id":     platformID,
+				}).
+				Expect().Status(http.StatusCreated).JSON().Object().ContainsMap(common.Object{
+				"service_plan_id": planID,
+				"platform_id":     platformID,
+			})
 
-		It("creates a public visibility associated with the plan", func() {
 			plan := ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("catalog_name", oldPaidPlanCatalogName).
 				Expect().
 				Status(http.StatusOK).JSON()
 
 			plan.Path("$.service_plans[*].free").Array().Contains(false)
 			plan.Object().Value("service_plans").Array().Length().Equal(1)
-			planID := plan.Object().Value("service_plans").Array().First().Object().Value("id").String().Raw()
-			Expect(planID).ToNot(BeEmpty())
 
 			visibilities := findVisibilityForServicePlanID(planID)
-			Expect(len(visibilities)).To(Equal(0))
+			Expect(len(visibilities)).To(Equal(1))
+			Expect(visibilities[0]["platform_id"]).To(Equal(platformID))
+		})
 
+		It("deletes all non-public visibilities that were associated with the plan", func() {
 			ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + existingBrokerID).
 				WithJSON(common.Object{}).
 				Expect().
 				Status(http.StatusOK)
 
-			visibilities = findVisibilityForServicePlanID(planID)
+			visibilities := findVisibilityForServicePlanID(planID)
 			Expect(len(visibilities)).To(Equal(1))
-			Expect(visibilities[0].PlatformID).To(Equal(""))
+			Expect(visibilities[0]["platform_id"]).To(Equal(""))
+		})
+
+		It("creates a public visibility associated with the plan", func() {
+			ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + existingBrokerID).
+				WithJSON(common.Object{}).
+				Expect().
+				Status(http.StatusOK)
+
+			visibilities := findVisibilityForServicePlanID(planID)
+			Expect(len(visibilities)).To(Equal(1))
+			Expect(visibilities[0]["platform_id"]).To(Equal(""))
 		})
 	})
 })
