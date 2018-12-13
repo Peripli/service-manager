@@ -104,7 +104,7 @@ func (c Criterion) Validate() error {
 
 type criteria []Criterion
 
-func (c *criteria) Add(criteria ...Criterion) error {
+func (c *criteria) add(criteria ...Criterion) error {
 	fieldQueryLeftOperands := make(map[string]bool)
 	for _, criterion := range *c {
 		if criterion.Type == FieldQuery {
@@ -114,6 +114,9 @@ func (c *criteria) Add(criteria ...Criterion) error {
 	for _, newCriterion := range criteria {
 		if _, ok := fieldQueryLeftOperands[newCriterion.LeftOp]; ok && newCriterion.Type == FieldQuery {
 			return &UnsupportedQuery{Message: fmt.Sprintf("duplicate query key: %s", newCriterion.LeftOp)}
+		}
+		if err := newCriterion.Validate(); err != nil {
+			return err
 		}
 		*c = append(*c, newCriterion)
 	}
@@ -125,7 +128,7 @@ type criteriaCtxKey struct{}
 func AddCriteria(ctx context.Context, criterion ...Criterion) (context.Context, error) {
 	var currentCriteria criteria = CriteriaForContext(ctx)
 	for _, c := range criterion {
-		if err := currentCriteria.Add(c); err != nil {
+		if err := currentCriteria.add(c); err != nil {
 			return nil, err
 		}
 	}
@@ -148,7 +151,7 @@ func BuildCriteriaFromRequest(request *web.Request) ([]Criterion, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := criteria.Add(querySegments...); err != nil {
+		if err := criteria.add(querySegments...); err != nil {
 			return nil, err
 		}
 	}
@@ -156,7 +159,7 @@ func BuildCriteriaFromRequest(request *web.Request) ([]Criterion, error) {
 }
 
 func process(input string, criteriaType CriterionType) ([]Criterion, error) {
-	criteria := make([]Criterion, 0)
+	c := criteria{}
 	rawCriteria := strings.FieldsFunc(input, split)
 	for _, rawCriterion := range rawCriteria {
 		operator, err := getOperator(rawCriterion)
@@ -165,12 +168,11 @@ func process(input string, criteriaType CriterionType) ([]Criterion, error) {
 		}
 
 		criterion := convertRawStatementToCriterion(rawCriterion, operator, criteriaType)
-		if err := criterion.Validate(); err != nil {
+		if err := c.add(criterion); err != nil {
 			return nil, err
 		}
-		criteria = append(criteria, criterion)
 	}
-	return criteria, nil
+	return c, nil
 }
 
 func split(r rune) bool {
