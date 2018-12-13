@@ -27,6 +27,8 @@ import (
 	"net/url"
 	"regexp"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -35,42 +37,94 @@ import (
 
 var osbPathPattern = regexp.MustCompile("^" + web.OSBURL + "/[^/]+(/.*)$")
 
-// BrokerFetcher is implemented by OSB handler providers
+// BrokerFetcher is implemented by OSB proxy providers
 type BrokerFetcher interface {
 	FetchBroker(ctx context.Context, brokerID string) (*types.Broker, error)
 }
 
+// CatalogFetcher is implemented by OSB catalog providers
+type CatalogFetcher interface {
+	FetchCatalog(ctx context.Context, brokerID string) (*types.ServiceOfferings, error)
+}
+
 // controller implements api.Controller by providing OSB API logic
 type controller struct {
-	fetcher BrokerFetcher
+	brokerFetcher  BrokerFetcher
+	catalogFetcher CatalogFetcher
 }
 
 var _ web.Controller = &controller{}
 
 // NewController returns new OSB controller
-func NewController(fetcher BrokerFetcher, _ http.RoundTripper) web.Controller {
-	return &controller{
-		fetcher: fetcher,
+func NewController(brokerFetcher BrokerFetcher, catalogFetcher CatalogFetcher, _ http.RoundTripper) web.Controller {
+	controller := &controller{
+		brokerFetcher:  brokerFetcher,
+		catalogFetcher: catalogFetcher,
+	}
+	return controller
+}
+
+func (c *controller) proxyHandler(r *web.Request) (*web.Response, error) {
+	return c.handler(c.proxy)(r)
+}
+
+func (c *controller) catalogHandler(r *web.Request) (*web.Response, error) {
+	return c.handler(c.catalog)(r)
+}
+
+func (c *controller) handler(f func(r *web.Request, logger *logrus.Entry, id string) (*web.Response, error)) func(request *web.Request) (*web.Response, error) {
+	return func(request *web.Request) (*web.Response, error) {
+		ctx := request.Context()
+		logger := log.C(ctx)
+		logger.Debug("Executing OSB operation: ", request.URL.Path)
+		brokerID, ok := request.PathParams[BrokerIDPathParam]
+		if !ok {
+			logger.Debugf("error creating OSB client: brokerID path parameter not found")
+			return nil, &util.HTTPError{
+				ErrorType:   "BadRequest",
+				Description: "invalid broker id path parameter",
+				StatusCode:  http.StatusBadRequest,
+			}
+		}
+		logger.Debugf("Obtained path parameter [brokerID = %s] from path params", brokerID)
+
+		response, err := f(request, logger, brokerID)
+		if err != nil {
+			logger.WithError(err).Errorf("error proxying call to service broker with id %s", brokerID)
+			return nil, &util.HTTPError{
+				ErrorType:   "ServiceBrokerErr",
+				Description: fmt.Sprintf("could not reach service broker with id %s", brokerID),
+				StatusCode:  http.StatusBadGateway,
+			}
+		}
+		return response, nil
 	}
 }
 
-func (c *controller) handler(r *web.Request) (*web.Response, error) {
+func (c *controller) catalog(r *web.Request, logger *logrus.Entry, brokerID string) (*web.Response, error) {
 	ctx := r.Context()
-	logger := log.C(ctx)
-	logger.Debug("Executing OSB operation: ", r.URL.Path)
-
-	brokerID, ok := r.PathParams[BrokerIDPathParam]
-	if !ok {
-		logger.Debugf("error creating OSB client: brokerID path parameter not found")
-		return nil, &util.HTTPError{
-			ErrorType:   "BadRequest",
-			Description: "invalid broker id path parameter",
-			StatusCode:  http.StatusBadRequest,
+	if c.catalogFetcher == nil {
+		logger.Debugf("No catalog fetcher was specified. Fetching catalog for broker with id %s from service broker catalog endpoint", brokerID)
+		return c.proxy(r, logger, brokerID)
+	}
+	logger.Debugf("Fetching catalog for broker with id %s from SM DB", brokerID)
+	catalog, err := c.catalogFetcher.FetchCatalog(ctx, brokerID)
+	if err != nil {
+		return nil, err
+	}
+	if len(catalog.ServiceOfferings) == 0 {
+		logger.Debugf("Could not find any service offerings for broker with id %s. Checking if broker actually exists...", brokerID)
+		if _, err := c.brokerFetcher.FetchBroker(ctx, brokerID); err != nil {
+			return nil, err
 		}
 	}
-	logger.Debugf("Obtained path parameter [brokerID = %s] from path params", brokerID)
 
-	broker, err := c.fetcher.FetchBroker(ctx, brokerID)
+	return util.NewJSONResponse(http.StatusOK, catalog)
+}
+
+func (c *controller) proxy(r *web.Request, logger *logrus.Entry, brokerID string) (*web.Response, error) {
+	ctx := r.Context()
+	broker, err := c.brokerFetcher.FetchBroker(ctx, brokerID)
 	if err != nil {
 		return nil, err
 	}
@@ -93,8 +147,27 @@ func (c *controller) handler(r *web.Request) (*web.Response, error) {
 	// This sets the host header to point to the service broker that the request will be proxied to
 	modifiedRequest.Host = targetBrokerURL.Host
 
-	proxy := httputil.NewSingleHostReverseProxy(targetBrokerURL)
+	proxy := buildProxy(targetBrokerURL, logger, broker)
 
+	recorder := httptest.NewRecorder()
+
+	proxy.ServeHTTP(recorder, modifiedRequest)
+
+	respBody, err := ioutil.ReadAll(recorder.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &web.Response{
+		StatusCode: recorder.Code,
+		Header:     recorder.Header(),
+		Body:       respBody,
+	}
+	return resp, nil
+}
+
+func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.Broker) *httputil.ReverseProxy {
+	proxy := httputil.NewSingleHostReverseProxy(targetBrokerURL)
 	director := proxy.Director
 	proxy.Director = func(request *http.Request) {
 		director(request)
@@ -112,20 +185,5 @@ func (c *controller) handler(r *web.Request) (*web.Response, error) {
 			StatusCode:  http.StatusBadGateway,
 		}, writer)
 	}
-
-	recorder := httptest.NewRecorder()
-
-	proxy.ServeHTTP(recorder, modifiedRequest)
-
-	respBody, err := ioutil.ReadAll(recorder.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	resp := &web.Response{
-		StatusCode: recorder.Code,
-		Header:     recorder.Header(),
-		Body:       respBody,
-	}
-	return resp, nil
+	return proxy
 }

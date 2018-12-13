@@ -326,6 +326,22 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 		Expect(len(visibilities)).To(Equal(0))
 	})
 
+	Context("when the catalog is empty", func() {
+		var id string
+
+		BeforeEach(func() {
+			id, _ = ctx.RegisterBrokerWithCatalog(common.EmptyCatalog)
+			Expect(id).ToNot(BeEmpty())
+		})
+
+		Specify("request succeeds", func() {
+			ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+				WithJSON(common.Object{}).
+				Expect().
+				Status(http.StatusOK)
+		})
+	})
+
 	Context("when no modifications to the plans occurs", func() {
 		It("does not change the state of the visibilities for the existing plans", func() {
 			oldFreePlanDatabaseID := findDatabaseIDForServicePlanByCatalogName(oldFreePlanCatalogName)
