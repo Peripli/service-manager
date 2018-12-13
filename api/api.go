@@ -122,6 +122,9 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 			basic.NewFilter(repository.Credentials(), encrypter),
 			bearerAuthnFilter,
 			secfilters.NewRequiredAuthnFilter(),
+			&filters.FreeServicePlansFilter{
+				Repository: repository,
+			},
 		},
 		Registry: health.NewDefaultRegistry(),
 	}, nil
