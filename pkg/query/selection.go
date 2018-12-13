@@ -60,7 +60,6 @@ const (
 )
 
 var supportedQueryTypes = []CriterionType{FieldQuery, LabelQuery}
-var allowedSeparators = []rune{';'}
 
 type UnsupportedQuery struct {
 	Message string
