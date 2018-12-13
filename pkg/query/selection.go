@@ -159,29 +159,16 @@ func BuildCriteriaFromRequest(request *web.Request) ([]Criterion, error) {
 }
 
 func process(input string, criteriaType CriterionType) ([]Criterion, error) {
-	c := criteria{}
-	rawCriteria := strings.FieldsFunc(input, split)
-	for _, rawCriterion := range rawCriteria {
-		operator, err := getOperator(rawCriterion)
+	var c []Criterion
+	if input != "" {
+		operator, err := getOperator(input)
 		if err != nil {
 			return nil, err
 		}
-
-		criterion := convertRawStatementToCriterion(rawCriterion, operator, criteriaType)
-		if err := c.add(criterion); err != nil {
-			return nil, err
-		}
+		criterion := convertRawStatementToCriterion(input, operator, criteriaType)
+		c = append(c, criterion)
 	}
 	return c, nil
-}
-
-func split(r rune) bool {
-	for _, sep := range allowedSeparators {
-		if r == sep {
-			return true
-		}
-	}
-	return false
 }
 
 func getOperator(rawStatement string) (Operator, error) {
