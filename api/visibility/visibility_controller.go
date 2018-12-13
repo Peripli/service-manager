@@ -118,6 +118,16 @@ func (c *Controller) listVisibilities(r *web.Request) (*web.Response, error) {
 	})
 }
 
+func (c *Controller) deleteAllVisibilities(r *web.Request) (*web.Response, error) {
+	ctx := r.Context()
+	log.C(ctx).Debugf("Deleting visibilities...")
+
+	if err := c.Repository.Visibility().DeleteAll(ctx, query.CriteriaForContext(ctx)...); err != nil {
+		return nil, err
+	}
+	return util.NewJSONResponse(http.StatusOK, map[string]string{})
+}
+
 func (c *Controller) deleteVisibility(r *web.Request) (*web.Response, error) {
 	visibilityID := r.PathParams[reqVisibilityID]
 	ctx := r.Context()

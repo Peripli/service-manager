@@ -105,24 +105,42 @@ func listWithLabelsAndCriteria(ctx context.Context, db pgDB, baseEntity interfac
 		return nil, err
 	}
 	baseQuery := constructBaseQueryForLabeledEntity(labelsEntity, baseTableName, labelsTableName)
-	sqlQuery, queryParams, err := buildListQueryWithParams(baseQuery, baseTableName, labelsTableName, criteria)
+	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, baseTableName, labelsTableName, criteria)
 	if err != nil {
 		return nil, err
 	}
-	sqlQuery = db.Rebind(sqlQuery)
-
 	log.C(ctx).Debugf("Executing query %s", sqlQuery)
 	return db.QueryxContext(ctx, sqlQuery, queryParams...)
 }
 
 func listByFieldCriteria(ctx context.Context, db pgDB, table string, entity interface{}, criteria ...query.Criterion) error {
 	baseQuery := fmt.Sprintf(`SELECT * FROM %s`, table)
-	sqlQuery, queryParams, err := buildListQueryWithParams(baseQuery, table, "", criteria)
+	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, table, "", criteria)
 	if err != nil {
 		return err
 	}
-	sqlQuery = db.Rebind(sqlQuery)
 	return db.SelectContext(ctx, entity, sqlQuery, queryParams...)
+}
+
+func deleteAllByFieldCriteria(ctx context.Context, extContext sqlx.ExtContext, table string, dto interface{}, criteria ...query.Criterion) error {
+	for _, criterion := range criteria {
+		if criterion.Type != query.FieldQuery {
+			return fmt.Errorf("conditional delete is only supported for field queries")
+		}
+	}
+	if err := validateFieldQueryParams(dto, criteria); err != nil {
+		return err
+	}
+	baseQuery := fmt.Sprintf("DELETE FROM %s", table)
+	sqlQuery, queryParams, err := buildQueryWithParams(extContext, baseQuery, table, "", criteria)
+	if err != nil {
+		return err
+	}
+	result, err := extContext.ExecContext(ctx, sqlQuery, queryParams...)
+	if err != nil {
+		return err
+	}
+	return checkRowsAffected(result)
 }
 
 func validateFieldQueryParams(baseEntity interface{}, criteria []query.Criterion) error {

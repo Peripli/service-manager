@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jmoiron/sqlx"
+
 	"github.com/Peripli/service-manager/pkg/query"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -34,7 +36,7 @@ var _ = Describe("Postgres Translator", func() {
 
 		Context("No query", func() {
 			It("Should return base query", func() {
-				actualQuery, actualQueryParams, err := buildListQueryWithParams(baseQuery, baseTableName, labelsTableName, criteria)
+				actualQuery, actualQueryParams, err := buildQueryWithParams(&sqlx.DB{}, baseQuery, baseTableName, labelsTableName, criteria)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(actualQuery).To(Equal(baseQuery))
 				Expect(actualQueryParams).To(BeEmpty())
@@ -58,7 +60,7 @@ var _ = Describe("Postgres Translator", func() {
 							Type:     query.LabelQuery,
 						},
 					}
-					actualQuery, actualQueryParams, err := buildListQueryWithParams(baseQuery, baseTableName, labelsTableName, criteria)
+					actualQuery, actualQueryParams, err := buildQueryWithParams(&sqlx.DB{}, baseQuery, baseTableName, labelsTableName, criteria)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(actualQuery).To(Equal(fmt.Sprintf(" WHERE %[1]s.key = ? AND %[1]s.val IN (?, ?, ?) AND %[1]s.key = ? AND %[1]s.val IN (?, ?);", labelsTableName)))
 
@@ -77,7 +79,7 @@ var _ = Describe("Postgres Translator", func() {
 							Type:     query.LabelQuery,
 						},
 					}
-					actualQuery, actualQueryParams, err := buildListQueryWithParams(baseQuery, baseTableName, labelsTableName, criteria)
+					actualQuery, actualQueryParams, err := buildQueryWithParams(&sqlx.DB{}, baseQuery, baseTableName, labelsTableName, criteria)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(actualQuery).To(Equal(fmt.Sprintf(" WHERE %[1]s.key = ? AND %[1]s.val IN (?);", labelsTableName)))
 
@@ -97,7 +99,7 @@ var _ = Describe("Postgres Translator", func() {
 							Type:     query.FieldQuery,
 						},
 					}
-					actualQuery, actualQueryParams, err := buildListQueryWithParams(baseQuery, baseTableName, labelsTableName, criteria)
+					actualQuery, actualQueryParams, err := buildQueryWithParams(&sqlx.DB{}, baseQuery, baseTableName, labelsTableName, criteria)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(actualQuery).To(Equal(fmt.Sprintf(" WHERE %s.%s %s ?;", baseTableName, criteria[0].LeftOp, strings.ToUpper(string(criteria[0].Operator)))))
 
@@ -116,7 +118,7 @@ var _ = Describe("Postgres Translator", func() {
 							Type:     query.FieldQuery,
 						},
 					}
-					actualQuery, actualQueryParams, err := buildListQueryWithParams(baseQuery, baseTableName, labelsTableName, criteria)
+					actualQuery, actualQueryParams, err := buildQueryWithParams(&sqlx.DB{}, baseQuery, baseTableName, labelsTableName, criteria)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(actualQuery).To(Equal(fmt.Sprintf(" WHERE %s.%s %s (?);", baseTableName, criteria[0].LeftOp, strings.ToUpper(string(criteria[0].Operator)))))
 

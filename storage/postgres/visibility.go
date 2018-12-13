@@ -117,7 +117,17 @@ func (vs *visibilityStorage) List(ctx context.Context, criteria ...query.Criteri
 }
 
 func (vs *visibilityStorage) Delete(ctx context.Context, id string) error {
-	return remove(ctx, vs.db, id, visibilityTable)
+	criterion := query.Criterion{
+		Type:     query.FieldQuery,
+		RightOp:  []string{id},
+		LeftOp:   "id",
+		Operator: query.EqualsOperator,
+	}
+	return vs.DeleteAll(ctx, criterion)
+}
+
+func (vs *visibilityStorage) DeleteAll(ctx context.Context, criteria ...query.Criterion) error {
+	return deleteAllByFieldCriteria(ctx, vs.db, visibilityTable, Visibility{}, criteria...)
 }
 
 func (vs *visibilityStorage) Update(ctx context.Context, visibility *types.Visibility, labelChanges ...query.LabelChange) error {
@@ -130,7 +140,7 @@ func (vs *visibilityStorage) Update(ctx context.Context, visibility *types.Visib
 		return err
 	}
 	criterion := query.Criterion{
-		Operator: query.InOperator,
+		Operator: query.EqualsOperator,
 		LeftOp:   "visibility_id",
 		RightOp:  []string{v.ID},
 		Type:     query.FieldQuery,
@@ -157,5 +167,5 @@ func (vs *visibilityStorage) updateLabels(ctx context.Context, visibilityID stri
 			UpdatedAt:           &now,
 		}
 	}
-	return updateLabels(ctx, newLabelFunc, vs.db, visibilityID, updateActions)
+	return updateLabelsAbstract(ctx, newLabelFunc, vs.db, visibilityID, updateActions)
 }

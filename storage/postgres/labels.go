@@ -30,7 +30,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func updateLabels(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) Labelable, pgDB pgDB, referenceID string, updateActions []query.LabelChange) error {
+func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) Labelable, pgDB pgDB, referenceID string, updateActions []query.LabelChange) error {
 	for _, action := range updateActions {
 		switch action.Operation {
 		case query.AddLabelOperation:
@@ -88,7 +88,7 @@ func removeLabel(ctx context.Context, execer sqlx.ExecerContext, labelable Label
 	})
 }
 
-func buildListQueryWithParams(sqlQuery string, baseTableName string, labelsTableName string, criteria []query.Criterion) (string, []interface{}, error) {
+func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTableName string, labelsTableName string, criteria []query.Criterion) (string, []interface{}, error) {
 	if len(criteria) == 0 {
 		return sqlQuery, nil, nil
 	}
@@ -121,6 +121,7 @@ func buildListQueryWithParams(sqlQuery string, baseTableName string, labelsTable
 			return "", nil, err
 		}
 	}
+	sqlQuery = extContext.Rebind(sqlQuery)
 	return sqlQuery, queryParams, nil
 }
 
