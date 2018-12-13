@@ -28,6 +28,12 @@ import (
 	"github.com/gorilla/mux"
 )
 
+const EmptyCatalog = `
+{
+  "services": []
+}
+`
+
 const Catalog = `
 {
   "services": [{

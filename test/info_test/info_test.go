@@ -25,7 +25,7 @@ import (
 	. "github.com/onsi/ginkgo"
 )
 
-func Test(t *testing.T) {
+func TestInfo(t *testing.T) {
 	RunSpecs(t, "Info Suite")
 }
 
