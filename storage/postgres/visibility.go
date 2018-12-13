@@ -116,6 +116,19 @@ func (vs *visibilityStorage) List(ctx context.Context, criteria ...query.Criteri
 	return result, nil
 }
 
+func (vs *visibilityStorage) ListByServicePlanID(ctx context.Context, servicePlanID string) ([]*types.Visibility, error) {
+	var visibilities []Visibility
+	err := list(ctx, vs.db, visibilityTable, map[string][]string{"service_plan_id": {servicePlanID}}, &visibilities)
+	if err != nil || len(visibilities) == 0 {
+		return nil, err
+	}
+	visibilityDTOs := make([]*types.Visibility, 0, len(visibilities))
+	for _, v := range visibilities {
+		visibilityDTOs = append(visibilityDTOs, v.ToDTO())
+	}
+	return visibilityDTOs, nil
+}
+
 func (vs *visibilityStorage) Delete(ctx context.Context, id string) error {
 	criterion := query.Criterion{
 		Type:     query.FieldQuery,
