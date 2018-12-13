@@ -120,7 +120,7 @@ var _ = Describe("Service Manager Plugins", func() {
 		})
 
 		It("Plugin modifies the request & response headers", func() {
-			testPlugin["fetchCatalog"] = web.MiddlewareFunc(func(req *web.Request, next web.Handler) (*web.Response, error) {
+			testPlugin["provision"] = web.MiddlewareFunc(func(req *web.Request, next web.Handler) (*web.Response, error) {
 				h := req.Header.Get("extra")
 				req.Header.Set("extra", h+"-request")
 
@@ -133,8 +133,8 @@ var _ = Describe("Service Manager Plugins", func() {
 				return res, nil
 			})
 
-			ctx.SMWithBasic.GET(osbURL+"/v2/catalog").WithHeader("extra", "value").
-				Expect().Status(http.StatusOK).Header("extra").Equal("value-response")
+			ctx.SMWithBasic.PUT(osbURL+"/v2/service_instances/123").WithHeader("extra", "value").WithJSON(object{}).
+				Expect().Status(http.StatusCreated).Header("extra").Equal("value-response")
 
 			Expect(brokerServer.LastRequest.Header.Get("extra")).To(Equal("value-request"))
 		})

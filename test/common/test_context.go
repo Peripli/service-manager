@@ -188,7 +188,6 @@ func (ctx *TestContext) RegisterBrokerWithCatalog(catalog string) (string, *Brok
 	ctx.brokers[brokerID] = brokerServer
 	return brokerID, brokerServer
 }
-
 func (ctx *TestContext) RegisterBroker() (string, *BrokerServer) {
 	return ctx.RegisterBrokerWithCatalog(Catalog)
 }

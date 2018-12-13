@@ -25,7 +25,7 @@ import (
 	. "github.com/onsi/ginkgo"
 )
 
-func Test(t *testing.T) {
+func TestHealth(t *testing.T) {
 	RunSpecs(t, "Healthcheck Suite")
 }
 
