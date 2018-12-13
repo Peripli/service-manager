@@ -98,13 +98,8 @@ func (c *Controller) listVisibilities(r *web.Request) (*web.Response, error) {
 	}
 
 	if p.ID != "" {
-		platformIdCriterion := query.Criterion{
-			Type:     query.FieldQuery,
-			LeftOp:   "platform_id",
-			RightOp:  []string{p.ID},
-			Operator: query.EqualsOrNilOperator,
-		}
-		if ctx, err = query.AddCriteria(ctx, platformIdCriterion); err != nil {
+		byPlatformID := query.ByField(query.EqualsOrNilOperator, "platform_id", p.ID)
+		if ctx, err = query.AddCriteria(ctx, byPlatformID); err != nil {
 			return nil, util.HandleSelectionError(err)
 		}
 		r.Request = r.WithContext(ctx)
@@ -122,8 +117,8 @@ func (c *Controller) deleteAllVisibilities(r *web.Request) (*web.Response, error
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting visibilities...")
 
-	if err := c.Repository.Visibility().DeleteAll(ctx, query.CriteriaForContext(ctx)...); err != nil {
-		return nil, err
+	if err := c.Repository.Visibility().Delete(ctx, query.CriteriaForContext(ctx)...); err != nil {
+		return nil, util.HandleSelectionError(err)
 	}
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
 }
@@ -133,7 +128,8 @@ func (c *Controller) deleteVisibility(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting visibility with id %s", visibilityID)
 
-	if err := c.Repository.Visibility().Delete(ctx, visibilityID); err != nil {
+	byIDQuery := query.ByField(query.EqualsOperator, "id", visibilityID)
+	if err := c.Repository.Visibility().Delete(ctx, byIDQuery); err != nil {
 		return nil, util.HandleStorageError(err, "visibility", visibilityID)
 	}
 

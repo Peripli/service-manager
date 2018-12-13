@@ -220,9 +220,7 @@ type Visibility interface {
 	List(ctx context.Context, criteria ...query.Criterion) ([]*types.Visibility, error)
 
 	// Delete deletes a visibility from SM DB
-	Delete(ctx context.Context, id string) error
-
-	DeleteAll(ctx context.Context, criteria ...query.Criterion) error
+	Delete(ctx context.Context, criteria ...query.Criterion) error
 
 	// Update updates a visibility from SM DB
 	Update(ctx context.Context, visibility *types.Visibility, labelChanges ...query.LabelChange) error

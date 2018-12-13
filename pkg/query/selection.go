@@ -77,6 +77,14 @@ type Criterion struct {
 	Type     CriterionType
 }
 
+func ByField(operator Operator, leftOp string, rightOp ...string) Criterion {
+	return newCriterion(leftOp, operator, rightOp, FieldQuery)
+}
+
+func ByLabel(operator Operator, leftOp string, rightOp ...string) Criterion {
+	return newCriterion(leftOp, operator, rightOp, LabelQuery)
+}
+
 func newCriterion(leftOp string, operator Operator, rightOp []string, criteriaType CriterionType) Criterion {
 	return Criterion{LeftOp: leftOp, Operator: operator, RightOp: rightOp, Type: criteriaType}
 }

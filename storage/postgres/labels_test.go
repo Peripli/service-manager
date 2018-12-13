@@ -47,18 +47,8 @@ var _ = Describe("Postgres Translator", func() {
 			Context("Called with valid input", func() {
 				It("Should return proper result", func() {
 					criteria = []query.Criterion{
-						{
-							LeftOp:   "orgId",
-							Operator: query.InOperator,
-							RightOp:  []string{"o1", "o2", "o3"},
-							Type:     query.LabelQuery,
-						},
-						{
-							LeftOp:   "clusterId",
-							Operator: query.InOperator,
-							RightOp:  []string{"c1", "c2"},
-							Type:     query.LabelQuery,
-						},
+						query.ByLabel(query.InOperator, "orgId", "o1", "o2", "o3"),
+						query.ByLabel(query.InOperator, "clusterId", "c1", "c2"),
 					}
 					actualQuery, actualQueryParams, err := buildQueryWithParams(&sqlx.DB{}, baseQuery, baseTableName, labelsTableName, criteria)
 					Expect(err).ToNot(HaveOccurred())
@@ -72,12 +62,7 @@ var _ = Describe("Postgres Translator", func() {
 			Context("Called with multivalue operator and single value", func() {
 				It("Should return proper result surrounded in brackets", func() {
 					criteria = []query.Criterion{
-						{
-							LeftOp:   "orgId",
-							Operator: query.InOperator,
-							RightOp:  []string{"o1"},
-							Type:     query.LabelQuery,
-						},
+						query.ByLabel(query.InOperator, "orgId", "o1"),
 					}
 					actualQuery, actualQueryParams, err := buildQueryWithParams(&sqlx.DB{}, baseQuery, baseTableName, labelsTableName, criteria)
 					Expect(err).ToNot(HaveOccurred())
@@ -92,12 +77,7 @@ var _ = Describe("Postgres Translator", func() {
 			Context("Called with valid input", func() {
 				It("Should return proper result", func() {
 					criteria = []query.Criterion{
-						{
-							LeftOp:   "platformId",
-							Operator: query.EqualsOperator,
-							RightOp:  []string{"5"},
-							Type:     query.FieldQuery,
-						},
+						query.ByField(query.EqualsOperator, "platformId", "5"),
 					}
 					actualQuery, actualQueryParams, err := buildQueryWithParams(&sqlx.DB{}, baseQuery, baseTableName, labelsTableName, criteria)
 					Expect(err).ToNot(HaveOccurred())
@@ -111,12 +91,7 @@ var _ = Describe("Postgres Translator", func() {
 			Context("Called with multivalue operator and single value", func() {
 				It("Should return proper result surrounded in brackets", func() {
 					criteria = []query.Criterion{
-						{
-							LeftOp:   "platformId",
-							Operator: query.InOperator,
-							RightOp:  []string{"1"},
-							Type:     query.FieldQuery,
-						},
+						query.ByField(query.InOperator, "platformId", "1"),
 					}
 					actualQuery, actualQueryParams, err := buildQueryWithParams(&sqlx.DB{}, baseQuery, baseTableName, labelsTableName, criteria)
 					Expect(err).ToNot(HaveOccurred())

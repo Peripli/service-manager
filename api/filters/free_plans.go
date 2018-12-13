@@ -69,29 +69,25 @@ func (fsp *FreeServicePlansFilter) Run(req *web.Request, next web.Handler) (*web
 				planID := servicePlan.ID
 				isFree := servicePlan.Free
 				hasPublicVisibility := false
-				criterion := query.Criterion{
-					Operator: query.EqualsOperator,
-					LeftOp:   "service_plan_id",
-					RightOp:  []string{planID},
-					Type:     query.FieldQuery,
-				}
-				visibilitiesForPlan, err := vRepository.List(ctx, criterion)
+				byServicePlanID := query.ByField(query.EqualsOperator, "service_plan_id", planID)
+				visibilitiesForPlan, err := vRepository.List(ctx, byServicePlanID)
 				if err != nil {
 					return err
 				}
 				for _, visibility := range visibilitiesForPlan {
+					byVisibilityID := query.ByField(query.EqualsOperator, "id", visibility.ID)
 					if isFree {
 						if visibility.PlatformID == "" {
 							hasPublicVisibility = true
 							continue
 						} else {
-							if err := vRepository.Delete(ctx, visibility.ID); err != nil {
+							if err := vRepository.Delete(ctx, byVisibilityID); err != nil {
 								return err
 							}
 						}
 					} else {
 						if visibility.PlatformID == "" {
-							if err := vRepository.Delete(ctx, visibility.ID); err != nil {
+							if err := vRepository.Delete(ctx, byVisibilityID); err != nil {
 								return err
 							}
 						} else {
