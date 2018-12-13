@@ -18,6 +18,7 @@ package query
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/tidwall/gjson"
 )
@@ -31,6 +32,10 @@ const (
 	RemoveLabelValuesOperation Operation = "remove_values"
 )
 
+func (o Operation) RequiresValues() bool {
+	return o != RemoveLabelOperation
+}
+
 type LabelChange struct {
 	Operation Operation `json:"op"`
 	Key       string    `json:"key"`
@@ -38,6 +43,9 @@ type LabelChange struct {
 }
 
 func (lc LabelChange) Validate() error {
+	if lc.Operation.RequiresValues() && len(lc.Values) == 0 {
+		return fmt.Errorf("operation %s requires values to be provided", lc.Operation)
+	}
 	return nil
 }
 

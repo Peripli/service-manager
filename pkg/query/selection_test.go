@@ -78,12 +78,16 @@ var _ = Describe("Selection", func() {
 			request = &web.Request{}
 		})
 
+		buildCriteria := func(url string) (criteria, error) {
+			newRequest, err := http.NewRequest(http.MethodGet, url, nil)
+			Expect(err).ToNot(HaveOccurred())
+			request = &web.Request{Request: newRequest}
+			return BuildCriteriaFromRequest(request)
+		}
+
 		Context("When build from request with no query parameters", func() {
 			It("Should return empty criteria", func() {
-				newRequest, err := http.NewRequest(http.MethodGet, "http://localhost:8080", nil)
-				Expect(err).ToNot(HaveOccurred())
-				request = &web.Request{Request: newRequest}
-				criteriaFromRequest, err := BuildCriteriaFromRequest(request)
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(len(criteriaFromRequest)).To(Equal(0))
 			})
@@ -91,10 +95,7 @@ var _ = Describe("Selection", func() {
 
 		Context("With missing query operator", func() {
 			It("Should return an error", func() {
-				newRequest, err := http.NewRequest(http.MethodGet, "http://localhost:8080/v1/visibilities?fieldQuery=leftop_rightop", nil)
-				Expect(err).ToNot(HaveOccurred())
-				request = &web.Request{Request: newRequest}
-				criteriaFromRequest, err := BuildCriteriaFromRequest(request)
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop_rightop")
 				Expect(err).To(HaveOccurred())
 				Expect(criteriaFromRequest).To(BeNil())
 			})
@@ -102,10 +103,7 @@ var _ = Describe("Selection", func() {
 
 		Context("When there is an invalid field query", func() {
 			It("Should return an error", func() {
-				newRequest, err := http.NewRequest(http.MethodGet, "http://localhost:8080/v1/visibilities?fieldQuery=leftop+lt+rightop", nil)
-				Expect(err).ToNot(HaveOccurred())
-				request = &web.Request{Request: newRequest}
-				criteriaFromRequest, err := BuildCriteriaFromRequest(request)
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop+lt+rightop")
 				Expect(err).To(HaveOccurred())
 				Expect(criteriaFromRequest).To(BeNil())
 			})
@@ -113,12 +111,25 @@ var _ = Describe("Selection", func() {
 
 		Context("When passing multivariate query", func() {
 			It("Should be ok", func() {
-				newRequest, err := http.NewRequest(http.MethodGet, "http://localhost:8080/v1/visibilities?fieldQuery=leftop+in+[rightop,rightop2]", nil)
-				Expect(err).ToNot(HaveOccurred())
-				request = &web.Request{Request: newRequest}
-				criteriaFromRequest, err := BuildCriteriaFromRequest(request)
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop+in+[rightop,rightop2]")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(criteriaFromRequest).To(ConsistOf(ByField(InOperator, "leftop", "rightop", "rightop2")))
+			})
+		})
+
+		Context("When passing label query", func() {
+			It("Should be ok", func() {
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?labelQuery=leftop+in+[rightop,rightop2]")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(criteriaFromRequest).To(ConsistOf(ByLabel(InOperator, "leftop", "rightop", "rightop2")))
+			})
+		})
+
+		Context("When passing label and field query", func() {
+			It("Should be ok", func() {
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop+in+[rightop,rightop2]&labelQuery=leftop+in+[rightop,rightop2]")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(criteriaFromRequest).To(ConsistOf(ByField(InOperator, "leftop", "rightop", "rightop2"), ByLabel(InOperator, "leftop", "rightop", "rightop2")))
 			})
 		})
 	})
