@@ -44,6 +44,9 @@ func (lc LabelChange) Validate() error {
 func LabelChangesForRequestBody(requestBody []byte) ([]LabelChange, error) {
 	var labelChanges []LabelChange
 	labelChangesBytes := gjson.GetBytes(requestBody, "labels").String()
+	if len(labelChangesBytes) <= 0 {
+		return []LabelChange{}, nil
+	}
 	if err := json.Unmarshal([]byte(labelChangesBytes), &labelChanges); err != nil {
 		return nil, err
 	}

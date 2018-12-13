@@ -21,8 +21,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fatih/structs"
-
 	"errors"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -80,7 +78,7 @@ func (v *Visibility) MarshalJSON() ([]byte, error) {
 
 	hasNoLabels := true
 	for _, label := range v.Labels {
-		if !structs.IsZero(label) {
+		if label.Key != "" && label.ID != "" && len(label.Value) != 0 {
 			hasNoLabels = false
 			break
 		}

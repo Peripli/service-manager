@@ -69,11 +69,11 @@ var _ = Describe("Service Manager Platform API", func() {
 		labels = common.Array{
 			common.Object{
 				"key":   "org_id",
-				"value": "org_id_value",
+				"value": common.Array{"org_id_value"},
 			},
 			common.Object{
 				"key":   "cluster_id",
-				"value": "cluster_id_value",
+				"value": common.Array{"cluster_id_value"},
 			},
 		}
 		postVisibilityRequestWithLabels = common.Object{
