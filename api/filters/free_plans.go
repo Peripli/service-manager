@@ -22,6 +22,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/tidwall/gjson"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -67,7 +69,13 @@ func (fsp *FreeServicePlansFilter) Run(req *web.Request, next web.Handler) (*web
 				planID := servicePlan.ID
 				isFree := servicePlan.Free
 				hasPublicVisibility := false
-				visibilitiesForPlan, err := vRepository.ListByServicePlanID(ctx, planID)
+				criterion := query.Criterion{
+					Operator: query.EqualsOperator,
+					LeftOp:   "service_plan_id",
+					RightOp:  []string{planID},
+					Type:     query.FieldQuery,
+				}
+				visibilitiesForPlan, err := vRepository.List(ctx, criterion)
 				if err != nil {
 					return err
 				}

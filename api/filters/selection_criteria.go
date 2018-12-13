@@ -59,7 +59,7 @@ func (*SelectionCriteria) FilterMatchers() []web.FilterMatcher {
 		{
 			Matchers: []web.Matcher{
 				web.Path("/**"),
-				web.Methods(http.MethodGet),
+				web.Methods(http.MethodGet, http.MethodDelete),
 			},
 		},
 	}
