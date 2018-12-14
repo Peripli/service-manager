@@ -20,8 +20,6 @@ import (
 	"os"
 	"testing"
 
-	"io/ioutil"
-
 	"github.com/Peripli/service-manager/pkg/env"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -65,14 +63,6 @@ var _ = Describe("CF Env", func() {
 		environment env.Environment
 		err         error
 	)
-
-	BeforeSuite(func() {
-		Expect(ioutil.WriteFile("application.yml", []byte{}, 0640)).ShouldNot(HaveOccurred())
-	})
-
-	AfterSuite(func() {
-		Expect(os.Remove("application.yml")).ShouldNot(HaveOccurred())
-	})
 
 	BeforeEach(func() {
 		Expect(os.Setenv("VCAP_APPLICATION", "{}")).ShouldNot(HaveOccurred())

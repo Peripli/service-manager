@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-// Package oauth contains logic for setting up an Open ID Connect authenticator
-package oauth
+// Package authenticators contains logic for setting up an Open ID Connect authenticator
+package authenticators
 
 import (
 	"context"
@@ -46,8 +46,8 @@ type providerJSON struct {
 	JWKSURL string `json:"jwks_uri"`
 }
 
-// options is the configuration used to construct a new OIDC authenticator
-type options struct {
+// OIDCOptions is the configuration used to construct a new OIDC authenticator
+type OIDCOptions struct {
 	// IssuerURL is the base URL of the token issuer
 	IssuerURL string
 
@@ -75,37 +75,37 @@ func (td *oidcData) Data(v interface{}) error {
 	return td.TokenData.Claims(v)
 }
 
-// oauthAuthenticator is the OpenID implementation of security.Authenticator
-type oauthAuthenticator struct {
+// OauthAuthenticator is the OpenID implementation of security.Authenticator
+type OauthAuthenticator struct {
 	Verifier security.TokenVerifier
 }
 
-// newAuthenticator returns a new OpenID authenticator or an error if one couldn't be configured
-func newAuthenticator(ctx context.Context, options *options) (security.Authenticator, error) {
+// NewOIDCAuthenticator returns a new OpenID authenticator or an error if one couldn't be configured
+func NewOIDCAuthenticator(ctx context.Context, options *OIDCOptions) (security.Authenticator, string, error) {
 	if options.IssuerURL == "" {
-		return nil, errors.New("missing issuer URL")
+		return nil, "", errors.New("missing issuer URL")
 	}
 	resp, err := getOpenIDConfig(ctx, options)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, util.HandleResponseError(resp)
+		return nil, "", util.HandleResponseError(resp)
 	}
 
 	var p providerJSON
 	if err = util.BodyToObject(resp.Body, &p); err != nil {
-		return nil, fmt.Errorf("error decoding body of response with status %s: %s", resp.Status, err.Error())
+		return nil, "", fmt.Errorf("error decoding body of response with status %s: %s", resp.Status, err.Error())
 	}
 
 	keySet := goidc.NewRemoteKeySet(ctx, p.JWKSURL)
-	return &oauthAuthenticator{Verifier: &oidcVerifier{
+	return &OauthAuthenticator{Verifier: &oidcVerifier{
 		IDTokenVerifier: goidc.NewVerifier(p.Issuer, keySet, newOIDCConfig(options)),
-	}}, nil
+	}}, p.Issuer, nil
 }
 
-func newOIDCConfig(options *options) *goidc.Config {
+func newOIDCConfig(options *OIDCOptions) *goidc.Config {
 	return &goidc.Config{
 		ClientID:          options.ClientID,
 		SkipClientIDCheck: options.ClientID == "",
@@ -113,7 +113,7 @@ func newOIDCConfig(options *options) *goidc.Config {
 }
 
 // Authenticate returns information about the user by obtaining it from the bearer token, or an error if security is unsuccessful
-func (a *oauthAuthenticator) Authenticate(request *http.Request) (*web.UserContext, security.Decision, error) {
+func (a *OauthAuthenticator) Authenticate(request *http.Request) (*web.UserContext, security.Decision, error) {
 	authorizationHeader := request.Header.Get("Authorization")
 	if authorizationHeader == "" || !strings.HasPrefix(strings.ToLower(authorizationHeader), "bearer ") {
 		return nil, security.Abstain, nil
@@ -139,7 +139,7 @@ func (a *oauthAuthenticator) Authenticate(request *http.Request) (*web.UserConte
 	}, security.Allow, nil
 }
 
-func getOpenIDConfig(ctx context.Context, options *options) (*http.Response, error) {
+func getOpenIDConfig(ctx context.Context, options *OIDCOptions) (*http.Response, error) {
 	// Work around for UAA until https://github.com/cloudfoundry/uaa/issues/805 is fixed
 	// Then goidc.NewProvider(ctx, options.IssuerURL) should be used
 	if _, err := url.ParseRequestURI(options.IssuerURL); err != nil {
