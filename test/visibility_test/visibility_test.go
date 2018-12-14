@@ -17,8 +17,11 @@
 package visibility_test
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
+
+	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
@@ -606,14 +609,68 @@ var _ = Describe("Service Manager Platform API", func() {
 		})
 
 		Describe("DELETE", func() {
+			Context("When field query uses missing field", func() {
+				It("Should return 400", func() {
+					description := ctx.SMWithOAuth.DELETE("/v1/visibilities").
+						WithQuery(string(query.FieldQuery), "missing_field = some_value").
+						Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").Raw().(string)
+					Expect(description).To(ContainSubstring("unsupported"))
+				})
+			})
+
+			Context("When query operator is missing", func() {
+				It("Should return 400", func() {
+					description := ctx.SMWithOAuth.DELETE("/v1/visibilities").
+						WithQuery(string(query.FieldQuery), "missing_fieldsome_value").
+						Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").Raw().(string)
+					Expect(description).To(ContainSubstring("missing"))
+				})
+			})
+
+			Context("When deleting by label query", func() {
+				It("Should return 400", func() {
+					description := ctx.SMWithOAuth.DELETE("/v1/visibilities").
+						WithQuery(string(query.LabelQuery), "platform_id = some_value").
+						Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").Raw().(string)
+					Expect(description).To(ContainSubstring("conditional delete "))
+				})
+			})
+
+			Context("When deleting by field for which no records exist", func() {
+				It("Should return 404", func() {
+					ctx.SMWithOAuth.DELETE("/v1/visibilities").
+						WithQuery(string(query.FieldQuery), "platform_id = missing_value").
+						Expect().Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
+				})
+			})
+
+			Context("When deleting by field for which a record exists", func() {
+				FIt("Should return 200", func() {
+					id := ctx.SMWithOAuth.POST("/v1/visibilities").
+						WithJSON(postVisibilityRequestNoLabels).
+						Expect().Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
+
+					ctx.SMWithOAuth.GET("/v1/visibilities/" + id).
+						Expect().
+						Status(http.StatusOK)
+
+					ctx.SMWithOAuth.DELETE("/v1/visibilities").
+						WithQuery(string(query.FieldQuery), fmt.Sprintf("platform_id = %s", postVisibilityRequestNoLabels["platform_id"])).
+						Expect().
+						Status(http.StatusOK).JSON().Object().Empty()
+
+					ctx.SMWithOAuth.GET("/v1/visibilities/"+id).
+						Expect().
+						Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
+				})
+			})
+		})
+
+		Describe("LIST", func() {
 
 		})
 
 		Describe("PATCH", func() {
-
-		})
-
-		Describe("LIST", func() {
 
 		})
 	})

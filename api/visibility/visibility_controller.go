@@ -61,7 +61,7 @@ func (c *Controller) createVisibility(r *web.Request) (*web.Response, error) {
 		return err
 	})
 	if err != nil {
-		return nil, util.HandleStorageError(err, "visibility", visibility.ID)
+		return nil, util.HandleStorageError(err, "visibility")
 	}
 
 	logger.Errorf("new service visibility id is %s", visibilityID)
@@ -74,7 +74,7 @@ func (c *Controller) getVisibility(r *web.Request) (*web.Response, error) {
 	log.C(ctx).Debugf("Getting visibility with id %s", visibilityID)
 
 	visibility, err := c.Repository.Visibility().Get(ctx, visibilityID)
-	if err = util.HandleStorageError(err, "visibility", visibilityID); err != nil {
+	if err = util.HandleStorageError(err, "visibility"); err != nil {
 		return nil, err
 	}
 	return util.NewJSONResponse(http.StatusOK, visibility)
@@ -118,7 +118,7 @@ func (c *Controller) deleteAllVisibilities(r *web.Request) (*web.Response, error
 	log.C(ctx).Debugf("Deleting visibilities...")
 
 	if err := c.Repository.Visibility().Delete(ctx, query.CriteriaForContext(ctx)...); err != nil {
-		return nil, util.HandleSelectionError(err)
+		return nil, util.HandleSelectionError(err, "visibility")
 	}
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
 }
@@ -130,7 +130,7 @@ func (c *Controller) deleteVisibility(r *web.Request) (*web.Response, error) {
 
 	byIDQuery := query.ByField(query.EqualsOperator, "id", visibilityID)
 	if err := c.Repository.Visibility().Delete(ctx, byIDQuery); err != nil {
-		return nil, util.HandleStorageError(err, "visibility", visibilityID)
+		return nil, util.HandleStorageError(err, "visibility")
 	}
 
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
@@ -143,7 +143,7 @@ func (c *Controller) patchVisibility(r *web.Request) (*web.Response, error) {
 
 	visibility, err := c.Repository.Visibility().Get(ctx, visibilityID)
 	if err != nil {
-		return nil, util.HandleStorageError(err, "visibility", visibilityID)
+		return nil, util.HandleStorageError(err, "visibility")
 	}
 
 	createdAt := visibility.CreatedAt
@@ -158,8 +158,7 @@ func (c *Controller) patchVisibility(r *web.Request) (*web.Response, error) {
 
 	changes, err := query.LabelChangesForRequestBody(r.Body)
 	if err != nil {
-		// TODO: handle
-		return nil, err
+		return nil, util.HandleLabelChangeError(err)
 	}
 	err = c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
 		return storage.Visibility().Update(ctx, visibility, changes...)
@@ -167,7 +166,7 @@ func (c *Controller) patchVisibility(r *web.Request) (*web.Response, error) {
 
 	if err != nil {
 		// TODO: handle if duplicate label [key,value] pair
-		return nil, util.HandleStorageError(err, "visibility", visibilityID)
+		return nil, util.HandleStorageError(err, "visibility")
 	}
 
 	return util.NewJSONResponse(http.StatusOK, visibility)

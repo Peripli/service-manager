@@ -36,6 +36,14 @@ func (o Operation) RequiresValues() bool {
 	return o != RemoveLabelOperation
 }
 
+type LabelChangeError struct {
+	Message string
+}
+
+func (l LabelChangeError) Error() string {
+	return l.Message
+}
+
 type LabelChange struct {
 	Operation Operation `json:"op"`
 	Key       string    `json:"key"`
@@ -44,7 +52,7 @@ type LabelChange struct {
 
 func (lc LabelChange) Validate() error {
 	if lc.Operation.RequiresValues() && len(lc.Values) == 0 {
-		return fmt.Errorf("operation %s requires values to be provided", lc.Operation)
+		return &LabelChangeError{fmt.Sprintf("operation %s requires values to be provided", lc.Operation)}
 	}
 	return nil
 }

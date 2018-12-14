@@ -92,9 +92,12 @@ var (
 type ErrBadRequestStorage error
 
 // HandleStorageError handles storage errors by converting them to relevant HTTPErrors
-func HandleStorageError(err error, entityName, entityID string) error {
+func HandleStorageError(err error, entityName string) error {
 	if err == nil {
 		return nil
+	}
+	if entityName == "" {
+		entityName = "entity"
 	}
 	switch err {
 	case ErrAlreadyExistsInStorage:
@@ -106,7 +109,7 @@ func HandleStorageError(err error, entityName, entityID string) error {
 	case ErrNotFoundInStorage:
 		return &HTTPError{
 			ErrorType:   "NotFound",
-			Description: fmt.Sprintf("could not find %s with id %s", entityName, entityID),
+			Description: fmt.Sprintf("could not find such %s", entityName),
 			StatusCode:  http.StatusNotFound,
 		}
 	default:
@@ -123,7 +126,7 @@ func HandleStorageError(err error, entityName, entityID string) error {
 	return fmt.Errorf("unknown error type returned from storage layer: %s", err)
 }
 
-func HandleSelectionError(err error) error {
+func HandleSelectionError(err error, entityName ...string) error {
 	if err == nil {
 		return nil
 	}
@@ -135,5 +138,23 @@ func HandleSelectionError(err error) error {
 			StatusCode:  http.StatusBadRequest,
 		}
 	}
-	return err
+	if len(entityName) == 0 {
+		entityName = []string{"entity"}
+	}
+	return HandleStorageError(err, entityName[0])
+}
+
+func HandleLabelChangeError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	if _, ok := err.(*query.LabelChangeError); ok {
+		return &HTTPError{
+			Description: err.Error(),
+			ErrorType:   "BadRequest",
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+	return HandleStorageError(err, "")
 }

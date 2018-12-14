@@ -178,7 +178,7 @@ func getOperator(rawStatement string) (Operator, error) {
 			return op, nil
 		}
 	}
-	return "", fmt.Errorf("query operator is missing")
+	return "", &UnsupportedQuery{"query operator is missing"}
 }
 
 func convertRawStatementToCriterion(rawStatement string, operator Operator, criterionType CriterionType) Criterion {

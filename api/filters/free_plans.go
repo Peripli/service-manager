@@ -110,7 +110,7 @@ func (fsp *FreeServicePlansFilter) Run(req *web.Request, next web.Handler) (*web
 						UpdatedAt:     currentTime,
 					})
 					if err != nil {
-						return util.HandleStorageError(err, "visibility", UUID.String())
+						return util.HandleStorageError(err, "visibility")
 					}
 
 					log.C(ctx).Debugf("Created new public visibility for broker with id %s and plan with id %s", brokerID, planID)

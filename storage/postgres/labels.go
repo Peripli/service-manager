@@ -165,5 +165,5 @@ func execute(ctx context.Context, query string, f func() (sql.Result, error)) er
 	if err != nil {
 		return err
 	}
-	return checkRowsAffected(result)
+	return checkRowsAffected(ctx, result)
 }

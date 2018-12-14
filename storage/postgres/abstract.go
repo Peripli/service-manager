@@ -126,7 +126,7 @@ func listByFieldCriteria(ctx context.Context, db pgDB, table string, entity inte
 func deleteAllByFieldCriteria(ctx context.Context, extContext sqlx.ExtContext, table string, dto interface{}, criteria ...query.Criterion) error {
 	for _, criterion := range criteria {
 		if criterion.Type != query.FieldQuery {
-			return fmt.Errorf("conditional delete is only supported for field queries")
+			return &query.UnsupportedQuery{Message: "conditional delete is only supported for field queries"}
 		}
 	}
 	if err := validateFieldQueryParams(dto, criteria); err != nil {
@@ -141,7 +141,7 @@ func deleteAllByFieldCriteria(ctx context.Context, extContext sqlx.ExtContext, t
 	if err != nil {
 		return err
 	}
-	return checkRowsAffected(result)
+	return checkRowsAffected(ctx, result)
 }
 
 func validateFieldQueryParams(baseEntity interface{}, criteria []query.Criterion) error {
@@ -201,7 +201,7 @@ func remove(ctx context.Context, db sqlx.ExecerContext, id string, table string)
 	if err != nil {
 		return err
 	}
-	return checkRowsAffected(result)
+	return checkRowsAffected(ctx, result)
 }
 
 func update(ctx context.Context, db namedExecerContext, table string, dto interface{}) error {
@@ -215,7 +215,7 @@ func update(ctx context.Context, db namedExecerContext, table string, dto interf
 	if err = checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err)); err != nil {
 		return err
 	}
-	return checkRowsAffected(result)
+	return checkRowsAffected(ctx, result)
 }
 
 func getDBTags(structure interface{}) []string {
@@ -276,7 +276,7 @@ func checkIntegrityViolation(ctx context.Context, err error) error {
 	return err
 }
 
-func checkRowsAffected(result sql.Result) error {
+func checkRowsAffected(ctx context.Context, result sql.Result) error {
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return err
@@ -284,6 +284,7 @@ func checkRowsAffected(result sql.Result) error {
 	if rowsAffected < 1 {
 		return util.ErrNotFoundInStorage
 	}
+	log.C(ctx).Debugf("Operation affected %d rows", rowsAffected)
 	return nil
 }
 

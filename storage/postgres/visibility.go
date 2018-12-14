@@ -81,7 +81,6 @@ func (vs *visibilityStorage) List(ctx context.Context, criteria ...query.Criteri
 	}()
 	if err != nil {
 		return nil, checkIntegrityViolation(ctx, err)
-		//return nil, checkSQLNoRows(err)
 	}
 
 	visibilities := make(map[string]*types.Visibility)
