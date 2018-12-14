@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Peripli/service-manager/storage/postgres/postgresfakes"
+
 	"github.com/jmoiron/sqlx"
 
 	"github.com/Peripli/service-manager/pkg/query"
@@ -29,6 +31,15 @@ import (
 
 var _ = Describe("Postgres Translator", func() {
 
+	var extContext sqlx.ExtContext
+	BeforeEach(func() {
+		fakePgDB := &postgresfakes.FakePgDB{}
+		fakePgDB.RebindStub = func(s string) string {
+			return s
+		}
+		extContext = fakePgDB
+	})
+
 	Describe("translate list", func() {
 
 		baseQuery, baseTableName, labelsTableName := "", "testTable", "testLabelTable"
@@ -36,9 +47,9 @@ var _ = Describe("Postgres Translator", func() {
 
 		Context("No query", func() {
 			It("Should return base query", func() {
-				actualQuery, actualQueryParams, err := buildQueryWithParams(&sqlx.DB{}, baseQuery, baseTableName, labelsTableName, criteria)
+				actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelsTableName, criteria)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(actualQuery).To(Equal(baseQuery))
+				Expect(actualQuery).To(Equal(baseQuery + ";"))
 				Expect(actualQueryParams).To(BeEmpty())
 			})
 		})
@@ -50,7 +61,7 @@ var _ = Describe("Postgres Translator", func() {
 						query.ByLabel(query.InOperator, "orgId", "o1", "o2", "o3"),
 						query.ByLabel(query.InOperator, "clusterId", "c1", "c2"),
 					}
-					actualQuery, actualQueryParams, err := buildQueryWithParams(&sqlx.DB{}, baseQuery, baseTableName, labelsTableName, criteria)
+					actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelsTableName, criteria)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(actualQuery).To(Equal(fmt.Sprintf(" WHERE %[1]s.key = ? AND %[1]s.val IN (?, ?, ?) AND %[1]s.key = ? AND %[1]s.val IN (?, ?);", labelsTableName)))
 
@@ -64,7 +75,7 @@ var _ = Describe("Postgres Translator", func() {
 					criteria = []query.Criterion{
 						query.ByLabel(query.InOperator, "orgId", "o1"),
 					}
-					actualQuery, actualQueryParams, err := buildQueryWithParams(&sqlx.DB{}, baseQuery, baseTableName, labelsTableName, criteria)
+					actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelsTableName, criteria)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(actualQuery).To(Equal(fmt.Sprintf(" WHERE %[1]s.key = ? AND %[1]s.val IN (?);", labelsTableName)))
 
@@ -79,7 +90,7 @@ var _ = Describe("Postgres Translator", func() {
 					criteria = []query.Criterion{
 						query.ByField(query.EqualsOperator, "platformId", "5"),
 					}
-					actualQuery, actualQueryParams, err := buildQueryWithParams(&sqlx.DB{}, baseQuery, baseTableName, labelsTableName, criteria)
+					actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelsTableName, criteria)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(actualQuery).To(Equal(fmt.Sprintf(" WHERE %s.%s %s ?;", baseTableName, criteria[0].LeftOp, strings.ToUpper(string(criteria[0].Operator)))))
 
@@ -93,7 +104,7 @@ var _ = Describe("Postgres Translator", func() {
 					criteria = []query.Criterion{
 						query.ByField(query.InOperator, "platformId", "1"),
 					}
-					actualQuery, actualQueryParams, err := buildQueryWithParams(&sqlx.DB{}, baseQuery, baseTableName, labelsTableName, criteria)
+					actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelsTableName, criteria)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(actualQuery).To(Equal(fmt.Sprintf(" WHERE %s.%s %s (?);", baseTableName, criteria[0].LeftOp, strings.ToUpper(string(criteria[0].Operator)))))
 

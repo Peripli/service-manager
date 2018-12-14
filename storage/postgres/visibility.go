@@ -50,6 +50,9 @@ func (vs *visibilityStorage) createLabels(ctx context.Context, visibilityID stri
 	if err := vls.FromDTO(labels); err != nil {
 		return err
 	}
+	if err := vls.Validate(); err != nil {
+		return err
+	}
 	for _, label := range vls {
 		if _, err := create(ctx, vs.db, visibilityLabelsTable, label); err != nil {
 			return err

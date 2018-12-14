@@ -133,6 +133,18 @@ type Labelable interface {
 
 type visibilityLabels []*VisibilityLabel
 
+func (vls visibilityLabels) Validate() error {
+	pairs := make(map[string]string)
+	for _, vl := range vls {
+		val, exists := pairs[vl.Key.String]
+		if exists && val == vl.Val.String {
+			return fmt.Errorf("duplicate label with key %s and value %s", vl.Key.String, val)
+		}
+		pairs[vl.Key.String] = vl.Val.String
+	}
+	return nil
+}
+
 func (vls *visibilityLabels) FromDTO(labels []*types.VisibilityLabel) error {
 	for _, label := range labels {
 		for _, labelValue := range label.Value {

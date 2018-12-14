@@ -90,7 +90,7 @@ func removeLabel(ctx context.Context, execer sqlx.ExecerContext, labelable Label
 
 func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTableName string, labelsTableName string, criteria []query.Criterion) (string, []interface{}, error) {
 	if len(criteria) == 0 {
-		return sqlQuery, nil, nil
+		return sqlQuery + ";", nil, nil
 	}
 
 	var queryParams []interface{}

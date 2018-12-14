@@ -53,6 +53,7 @@ type getterContext interface {
 	GetContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error
 }
 
+//go:generate counterfeiter . pgDB
 type pgDB interface {
 	prepareNamedContext
 	namedExecerContext
@@ -104,7 +105,7 @@ func listWithLabelsAndCriteria(ctx context.Context, db pgDB, baseEntity interfac
 	if err := validateFieldQueryParams(baseEntity, criteria); err != nil {
 		return nil, err
 	}
-	baseQuery := constructBaseQueryForLabeledEntity(labelsEntity, baseTableName, labelsTableName)
+	baseQuery := constructBaseQueryForLabelable(labelsEntity, baseTableName, labelsTableName)
 	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, baseTableName, labelsTableName, criteria)
 	if err != nil {
 		return nil, err
@@ -147,39 +148,28 @@ func validateFieldQueryParams(baseEntity interface{}, criteria []query.Criterion
 	availableColumns := make(map[string]bool)
 	baseEntityStruct := structs.New(baseEntity)
 	for _, field := range baseEntityStruct.Fields() {
-		// TODO: corner case for embedded structs
 		dbTag := field.Tag("db")
 		availableColumns[dbTag] = true
 	}
 	for _, criterion := range criteria {
-		if !availableColumns[criterion.LeftOp] {
+		if criterion.Type == query.FieldQuery && !availableColumns[criterion.LeftOp] {
 			return &query.UnsupportedQuery{Message: fmt.Sprintf("unsupported field query key: %s", criterion.LeftOp)}
 		}
 	}
 	return nil
 }
 
-func constructBaseQueryForLabeledEntity(labelsEntity Labelable, baseTableName string, labelsTableName string) string {
+func constructBaseQueryForLabelable(labelsEntity Labelable, baseTableName string, labelsTableName string) string {
 	labelStruct := structs.New(labelsEntity)
 	baseQuery := `SELECT %[1]s.*,`
-	var primaryKeyColumn string
-	var referenceKeyColumn string
 	for _, field := range labelStruct.Fields() {
-		if field.IsEmbedded() {
-			for _, embeddedField := range field.Fields() {
-				dbTag := embeddedField.Tag("db")
-				baseQuery += " %[2]s." + dbTag + " " + "\"%[2]s." + dbTag + "\"" + ","
-			}
-		} else {
-			dbTag := field.Tag("db")
-			baseQuery += " %[2]s." + dbTag + " " + "\"%[2]s." + dbTag + "\"" + ","
-			_, referenceKeyColumn, primaryKeyColumn = labelsEntity.Label()
-		}
+		dbTag := field.Tag("db")
+		baseQuery += " %[2]s." + dbTag + " " + "\"%[2]s." + dbTag + "\"" + ","
 	}
 	baseQuery = baseQuery[:len(baseQuery)-1] //remove last comma
+	_, referenceKeyColumn, primaryKeyColumn := labelsEntity.Label()
 	baseQuery += " FROM %[1]s LEFT JOIN %[2]s ON %[1]s." + primaryKeyColumn + " = %[2]s." + referenceKeyColumn
-	sqlQuery := fmt.Sprintf(baseQuery, baseTableName, labelsTableName)
-	return sqlQuery
+	return fmt.Sprintf(baseQuery, baseTableName, labelsTableName)
 }
 
 func list(ctx context.Context, db selecterContext, table string, filter map[string][]string, dtos interface{}) error {

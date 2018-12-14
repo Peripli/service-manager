@@ -30,6 +30,12 @@ func TestVisibilities(t *testing.T) {
 	RunSpecs(t, "Platform API Tests Suite")
 }
 
+type labeledVisibility common.Object
+
+func (vis labeledVisibility) AddLabel(label common.Object) {
+	vis["labels"] = append(vis["labels"].(common.Array), label)
+}
+
 var _ = Describe("Service Manager Platform API", func() {
 	var (
 		ctx                *common.TestContext
@@ -39,7 +45,7 @@ var _ = Describe("Service Manager Platform API", func() {
 
 		labels                          common.Array
 		postVisibilityRequestNoLabels   common.Object
-		postVisibilityRequestWithLabels common.Object
+		postVisibilityRequestWithLabels labeledVisibility
 	)
 
 	BeforeSuite(func() {
@@ -370,16 +376,6 @@ var _ = Describe("Service Manager Platform API", func() {
 						Expect().Status(http.StatusCreated).JSON().Object().ContainsMap(postVisibilityRequestNoLabels).Keys().Contains("id")
 				})
 			})
-
-			Context("With labels", func() {
-				Context("When labels are valid", func() {
-					It("should return 201", func() {
-						ctx.SMWithOAuth.POST("/v1/visibilities").
-							WithJSON(postVisibilityRequestWithLabels).
-							Expect().Status(http.StatusCreated).JSON().Object().Keys().Contains("id", "labels")
-					})
-				})
-			})
 		})
 
 		Describe("PATCH", func() {
@@ -584,6 +580,41 @@ var _ = Describe("Service Manager Platform API", func() {
 						Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
 				})
 			})
+		})
+	})
+
+	Describe("Labelled", func() {
+		Describe("POST", func() {
+			Context("When labels are valid", func() {
+				It("should return 201", func() {
+					ctx.SMWithOAuth.POST("/v1/visibilities").
+						WithJSON(postVisibilityRequestWithLabels).
+						Expect().Status(http.StatusCreated).JSON().Object().Keys().Contains("id", "labels")
+				})
+			})
+
+			Context("When labels have duplicates", func() {
+				It("should return 400", func() {
+					visibility := postVisibilityRequestWithLabels
+					visibility.AddLabel(labels[0].(common.Object))
+					description := ctx.SMWithOAuth.POST("/v1/visibilities").
+						WithJSON(visibility).
+						Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").Raw().(string)
+					Expect(description).To(ContainSubstring("duplicate"))
+				})
+			})
+		})
+
+		Describe("DELETE", func() {
+
+		})
+
+		Describe("PATCH", func() {
+
+		})
+
+		Describe("LIST", func() {
+
 		})
 	})
 })
