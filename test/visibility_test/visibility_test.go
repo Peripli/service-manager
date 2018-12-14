@@ -85,9 +85,11 @@ var _ = Describe("Service Manager Platform API", func() {
 				"value": common.Array{"cluster_id_value"},
 			},
 		}
+
+		registerPlatform := ctx.RegisterPlatform()
 		postVisibilityRequestWithLabels = common.Object{
-			"platform_id":     existingPlatformID,
-			"service_plan_id": existingPlanIDs[0],
+			"platform_id":     registerPlatform.ID,
+			"service_plan_id": existingPlanIDs[1],
 			"labels":          labels,
 		}
 
@@ -606,6 +608,19 @@ var _ = Describe("Service Manager Platform API", func() {
 					Expect(description).To(ContainSubstring("duplicate"))
 				})
 			})
+
+			Context("When creating scoped visibility for which a public one exists", func() {
+				It("Should return 409", func() {
+					ctx.SMWithOAuth.POST("/v1/visibilities").
+						WithJSON(postVisibilityRequestNoLabels).
+						Expect().Status(http.StatusCreated)
+
+					ctx.SMWithOAuth.POST("/v1/visibilities").
+						WithJSON(postVisibilityRequestWithLabels).
+						Expect().Status(http.StatusConflict)
+
+				})
+			})
 		})
 
 		Describe("DELETE", func() {
@@ -645,7 +660,7 @@ var _ = Describe("Service Manager Platform API", func() {
 			})
 
 			Context("When deleting by field for which a record exists", func() {
-				FIt("Should return 200", func() {
+				It("Should return 200", func() {
 					id := ctx.SMWithOAuth.POST("/v1/visibilities").
 						WithJSON(postVisibilityRequestNoLabels).
 						Expect().Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
@@ -667,7 +682,106 @@ var _ = Describe("Service Manager Platform API", func() {
 		})
 
 		Describe("LIST", func() {
+			var id string
+			var platformID string
+			BeforeEach(func() {
+				id = ctx.SMWithOAuth.POST("/v1/visibilities").
+					WithJSON(postVisibilityRequestWithLabels).
+					Expect().Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
+				platformID = postVisibilityRequestWithLabels["platform_id"].(string)
+			})
+			Context("With id field query", func() {
+				It("Should return the same result as get by id", func() {
+					visibilityJSON := ctx.SMWithOAuth.GET("/v1/visibilities/" + id).
+						Expect().
+						Status(http.StatusOK).JSON().Raw()
 
+					ctx.SMWithOAuth.GET("/v1/visibilities").
+						WithQuery(string(query.FieldQuery), fmt.Sprintf("id = %s", id)).
+						Expect().
+						Status(http.StatusOK).JSON().Object().Value("visibilities").Array().Element(0).Equal(visibilityJSON)
+				})
+			})
+
+			Context("With field query for which no entries exist", func() {
+				It("Should return 200 with empty array", func() {
+					ctx.SMWithOAuth.GET("/v1/visibilities").
+						WithQuery(string(query.FieldQuery), "platform_id = non-existing-platform-id").
+						Expect().
+						Status(http.StatusOK).JSON().Object().Value("visibilities").Array().Empty()
+				})
+			})
+
+			Context("With label query for which no entries exist", func() {
+				It("Should return 200 with empty array", func() {
+					ctx.SMWithOAuth.GET("/v1/visibilities").
+						WithQuery(string(query.LabelQuery), "some_key = some_value").
+						Expect().
+						Status(http.StatusOK).JSON().Object().Value("visibilities").Array().Empty()
+				})
+			})
+
+			Context("With field query for entries exist, but label query for which one does not", func() {
+				It("Should return 200 with empty array", func() {
+					ctx.SMWithOAuth.GET("/v1/visibilities").
+						WithQuery(string(query.FieldQuery), fmt.Sprintf("platform_id = %s", platformID)).
+						WithQuery(string(query.LabelQuery), "some_key = some_value").
+						Expect().
+						Status(http.StatusOK).JSON().Object().Value("visibilities").Array().Empty()
+				})
+			})
+
+			Context("With label query for entries exist, but field query for which one does not", func() {
+				It("Should return 200 with empty array", func() {
+					labelKey := labels[0].(common.Object)["key"].(string)
+					labelValue := labels[0].(common.Object)["value"].([]interface{})[0].(string)
+
+					ctx.SMWithOAuth.GET("/v1/visibilities").
+						WithQuery(string(query.LabelQuery), fmt.Sprintf("%s = %s", labelKey, labelValue)).
+						WithQuery(string(query.FieldQuery), "platform_id = non-existing-platform-id").
+						Expect().
+						Status(http.StatusOK).JSON().Object().Value("visibilities").Array().Empty()
+				})
+			})
+
+			Context("With only field query for which entries exists", func() {
+				It("Should return 200 with all entries", func() {
+					newVisibilityID := ctx.SMWithOAuth.POST("/v1/visibilities").
+						WithJSON(postVisibilityRequestNoLabels).
+						Expect().Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
+
+					oldVisibilityJSON := ctx.SMWithOAuth.GET("/v1/visibilities/" + id).
+						Expect().
+						Status(http.StatusOK).JSON().Raw()
+
+					newVisibilityJSON := ctx.SMWithOAuth.GET("/v1/visibilities/" + newVisibilityID).
+						Expect().
+						Status(http.StatusOK).JSON().Raw()
+
+					ctx.SMWithOAuth.GET("/v1/visibilities").
+						WithQuery(string(query.FieldQuery), fmt.Sprintf("platform_id in [%s,%s]", existingPlatformID, platformID)).
+						Expect().
+						Status(http.StatusOK).JSON().Object().Value("visibilities").Array().ContainsOnly(oldVisibilityJSON, newVisibilityJSON)
+				})
+			})
+
+			Context("With only label query for which entry exists", func() {
+				It("Should return 200 with this entry", func() {
+					// TODO: list by label query does not return all labels for each visibility, but currently it returns only the label that matched from the query
+					Skip("TODO: SQL needs rework")
+					labelKey := labels[0].(common.Object)["key"].(string)
+					labelValue := labels[0].(common.Object)["value"].([]interface{})[0].(string)
+
+					visibilityJSON := ctx.SMWithOAuth.GET("/v1/visibilities/" + id).
+						Expect().
+						Status(http.StatusOK).JSON().Raw()
+
+					ctx.SMWithOAuth.GET("/v1/visibilities").
+						WithQuery(string(query.LabelQuery), fmt.Sprintf("%s = %s", labelKey, labelValue)).
+						Expect().
+						Status(http.StatusOK).JSON().Object().Value("visibilities").Array().ContainsOnly(visibilityJSON)
+				})
+			})
 		})
 
 		Describe("PATCH", func() {

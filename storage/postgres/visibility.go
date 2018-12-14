@@ -21,6 +21,8 @@ import (
 	"database/sql"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/util"
+
 	"github.com/Peripli/service-manager/pkg/log"
 
 	"github.com/Peripli/service-manager/pkg/query"
@@ -62,11 +64,15 @@ func (vs *visibilityStorage) createLabels(ctx context.Context, visibilityID stri
 }
 
 func (vs *visibilityStorage) Get(ctx context.Context, id string) (*types.Visibility, error) {
-	visibility := &Visibility{}
-	if err := get(ctx, vs.db, id, visibilityTable, visibility); err != nil {
+	byID := query.ByField(query.EqualsOperator, "id", id)
+	visibilities, err := vs.List(ctx, byID)
+	if err != nil {
 		return nil, err
 	}
-	return visibility.ToDTO(), nil
+	if len(visibilities) == 0 {
+		return nil, util.ErrNotFoundInStorage
+	}
+	return visibilities[0], nil
 }
 
 func (vs *visibilityStorage) List(ctx context.Context, criteria ...query.Criterion) ([]*types.Visibility, error) {
