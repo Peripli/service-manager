@@ -45,7 +45,7 @@ var _ = Describe("Update", func() {
 			It("Should be ok", func() {
 				changes, err := LabelChangesForRequestBody(body)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(changes).To(ConsistOf(LabelChange{Operation: AddLabelOperation, Key: "key1", Values: []string{"val1", "val2"}}))
+				Expect(changes).To(ConsistOf(&LabelChange{Operation: AddLabelOperation, Key: "key1", Values: []string{"val1", "val2"}}))
 			})
 		})
 
