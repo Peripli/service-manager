@@ -609,14 +609,16 @@ var _ = Describe("Service Manager Platform API", func() {
 				})
 			})
 
-			Context("When creating scoped visibility for which a public one exists", func() {
+			Context("When creating labeled visibility for which a public one exists", func() {
 				It("Should return 409", func() {
 					ctx.SMWithOAuth.POST("/v1/visibilities").
 						WithJSON(postVisibilityRequestNoLabels).
 						Expect().Status(http.StatusCreated)
 
+					oldVisibility := postVisibilityRequestNoLabels
+					oldVisibility["labels"] = labels
 					ctx.SMWithOAuth.POST("/v1/visibilities").
-						WithJSON(postVisibilityRequestWithLabels).
+						WithJSON(oldVisibility).
 						Expect().Status(http.StatusConflict)
 
 				})
