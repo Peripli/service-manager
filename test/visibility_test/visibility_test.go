@@ -814,12 +814,6 @@ var _ = Describe("Service Manager Platform API", func() {
 			newLabelKey := "label_key"
 			newLabelValues := []string{"label_value1", "label_value2"}
 			operation := query.AddLabelOperation
-			BeforeEach(func() {
-				id = ctx.SMWithOAuth.POST("/v1/visibilities").
-					WithJSON(postVisibilityRequestWithLabels).
-					Expect().Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
-			})
-
 			JustBeforeEach(func() {
 				patchLabelsBody = make(map[string]interface{})
 				patchLabels := []query.LabelChange{
@@ -830,9 +824,13 @@ var _ = Describe("Service Manager Platform API", func() {
 					},
 				}
 				patchLabelsBody["labels"] = patchLabels
+
+				id = ctx.SMWithOAuth.POST("/v1/visibilities").
+					WithJSON(postVisibilityRequestWithLabels).
+					Expect().Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
 			})
 
-			Context("When adding new label", func() {
+			Context("Add new label", func() {
 				It("Should return 200", func() {
 					label := types.Label{Key: newLabelKey, Value: newLabelValues}
 					ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
@@ -842,51 +840,79 @@ var _ = Describe("Service Manager Platform API", func() {
 				})
 			})
 
-			Context("When adding new label value", func() {
+			Context("Add new label value", func() {
 				BeforeEach(func() {
 					operation = query.AddLabelValuesOperation
 					newLabelKey = labels[0].(common.Object)["key"].(string)
+					newLabelValues = []string{"new-label-value"}
 				})
 				It("Should return 200", func() {
 					var labelValuesObj []interface{}
 					for _, val := range newLabelValues {
 						labelValuesObj = append(labelValuesObj, val)
 					}
-					addLabelValueResp := ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+					ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
 						WithJSON(patchLabelsBody).
 						Expect().
-						Status(http.StatusOK).JSON()
-					addLabelValueResp.Path("$.labels[*].value[*]").Array().Contains(labelValuesObj...)
+						Status(http.StatusOK).JSON().
+						Path("$.labels[*].value[*]").Array().Contains(labelValuesObj...)
 				})
 			})
 
-			Context("When removing a label", func() {
+			Context("Remove a label", func() {
 				BeforeEach(func() {
 					operation = query.RemoveLabelOperation
 					newLabelKey = labels[0].(common.Object)["key"].(string)
 				})
 				It("Should return 200", func() {
-					removeLabelResp := ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+					ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
 						WithJSON(patchLabelsBody).
 						Expect().
-						Status(http.StatusOK).JSON()
-					removeLabelResp.Path("$.labels[*].key").Array().NotContains(labels[0].(common.Object)["key"].(string))
+						Status(http.StatusOK).JSON().
+						Path("$.labels[*].key").Array().NotContains(labels[0].(common.Object)["key"].(string))
 				})
 			})
 
-			Context("When removing a label value", func() {
+			Context("Remove a label and providing no key", func() {
+				BeforeEach(func() {
+					operation = query.RemoveLabelValuesOperation
+					newLabelKey = ""
+				})
+				It("Should return 400", func() {
+					ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+						WithJSON(patchLabelsBody).
+						Expect().
+						Status(http.StatusBadRequest)
+				})
+			})
+
+			Context("Remove label values and providing a value", func() {
 				var valueToRemove string
 				BeforeEach(func() {
 					operation = query.RemoveLabelValuesOperation
+					newLabelKey = labels[0].(common.Object)["key"].(string)
 					valueToRemove = labels[0].(common.Object)["value"].([]interface{})[0].(string)
 					newLabelValues = []string{valueToRemove}
 				})
 				It("Should return 200", func() {
-					removeLabelValueResp := ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+					ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
 						WithJSON(patchLabelsBody).
 						Expect().
-						Status(http.StatusOK).JSON()
-					removeLabelValueResp.Path("$.labels[*].value[*]").Array().NotContains(valueToRemove)
+						Status(http.StatusOK).JSON().
+						Path("$.labels[*].value[*]").Array().NotContains(valueToRemove)
+				})
+			})
+
+			Context("Remove label values and not providing value to remove", func() {
+				BeforeEach(func() {
+					operation = query.RemoveLabelValuesOperation
+					newLabelValues = []string{}
+				})
+				It("Should return 400", func() {
+					ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+						WithJSON(patchLabelsBody).
+						Expect().
+						Status(http.StatusBadRequest)
 				})
 			})
 		})
