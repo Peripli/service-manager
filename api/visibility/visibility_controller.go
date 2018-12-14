@@ -7,6 +7,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/tidwall/gjson"
+
+	"github.com/tidwall/sjson"
+
 	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/storage"
@@ -148,6 +152,16 @@ func (c *Controller) patchVisibility(r *web.Request) (*web.Response, error) {
 
 	createdAt := visibility.CreatedAt
 
+	changes, err := query.LabelChangesForRequestBody(r.Body)
+	if err != nil {
+		return nil, util.HandleLabelChangeError(err)
+	}
+	bytes := gjson.GetBytes(r.Body, "labels").Raw
+	fmt.Println(bytes)
+	if r.Body, err = sjson.DeleteBytes(r.Body, "labels"); err != nil {
+		return nil, err
+	}
+
 	if err := util.BytesToObject(r.Body, visibility); err != nil {
 		return nil, err
 	}
@@ -156,10 +170,6 @@ func (c *Controller) patchVisibility(r *web.Request) (*web.Response, error) {
 	visibility.CreatedAt = createdAt
 	visibility.UpdatedAt = time.Now().UTC()
 
-	changes, err := query.LabelChangesForRequestBody(r.Body)
-	if err != nil {
-		return nil, util.HandleLabelChangeError(err)
-	}
 	err = c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
 		return storage.Visibility().Update(ctx, visibility, changes...)
 	})
@@ -169,5 +179,5 @@ func (c *Controller) patchVisibility(r *web.Request) (*web.Response, error) {
 		return nil, util.HandleStorageError(err, "visibility")
 	}
 
-	return util.NewJSONResponse(http.StatusOK, visibility)
+	return util.NewJSONResponse(http.StatusOK, *visibility)
 }

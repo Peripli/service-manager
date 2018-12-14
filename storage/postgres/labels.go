@@ -30,7 +30,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) Labelable, pgDB pgDB, referenceID string, updateActions []query.LabelChange) error {
+func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) Labelable, pgDB pgDB, referenceID string, updateActions []*query.LabelChange) error {
 	for _, action := range updateActions {
 		switch action.Operation {
 		case query.AddLabelOperation:
@@ -77,14 +77,18 @@ func removeLabel(ctx context.Context, execer sqlx.ExecerContext, labelable Label
 			return execer.ExecContext(ctx, baseQuery, labelKey, referenceID)
 		})
 	}
+	args := []interface{}{labelKey, referenceID}
+	for _, val := range labelValues {
+		args = append(args, val)
+	}
 	// remove labels with a specific key and a value which is in the provided list
-	baseQuery += " AND val IN $3"
-	sqlQuery, queryParams, err := sqlx.In(baseQuery, referenceID, labelKey, labelValues)
+	baseQuery += " AND val IN ($3)"
+	sqlQuery, queryParams, err := sqlx.In(baseQuery, args...)
 	if err != nil {
 		return err
 	}
 	return execute(ctx, sqlQuery, func() (sql.Result, error) {
-		return execer.ExecContext(ctx, sqlQuery, queryParams)
+		return execer.ExecContext(ctx, sqlQuery, queryParams...)
 	})
 }
 

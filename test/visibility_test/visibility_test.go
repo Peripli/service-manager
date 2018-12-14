@@ -21,6 +21,8 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/Peripli/service-manager/pkg/types"
+
 	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/test/common"
@@ -784,10 +786,109 @@ var _ = Describe("Service Manager Platform API", func() {
 						Status(http.StatusOK).JSON().Object().Value("visibilities").Array().ContainsOnly(visibilityJSON)
 				})
 			})
+
+			Context("With both label and field query", func() {
+				It("Should return 200", func() {
+					// TODO: list by label query does not return all labels for each visibility, but currently it returns only the label that matched from the query
+					Skip("TODO: SQL needs rework")
+
+					labelKey := labels[0].(common.Object)["key"].(string)
+					labelValue := labels[0].(common.Object)["value"].([]interface{})[0].(string)
+
+					visibilityJSON := ctx.SMWithOAuth.GET("/v1/visibilities/" + id).
+						Expect().
+						Status(http.StatusOK).JSON().Raw()
+
+					ctx.SMWithOAuth.GET("/v1/visibilities").
+						WithQuery(string(query.LabelQuery), fmt.Sprintf("%s = %s", labelKey, labelValue)).
+						WithQuery(string(query.FieldQuery), fmt.Sprintf("platform_id = %s", platformID)).
+						Expect().
+						Status(http.StatusOK).JSON().Object().Value("visibilities").Array().ContainsOnly(visibilityJSON)
+				})
+			})
 		})
 
 		Describe("PATCH", func() {
+			var id string
+			var patchLabelsBody map[string]interface{}
+			newLabelKey := "label_key"
+			newLabelValues := []string{"label_value1", "label_value2"}
+			operation := query.AddLabelOperation
+			BeforeEach(func() {
+				id = ctx.SMWithOAuth.POST("/v1/visibilities").
+					WithJSON(postVisibilityRequestWithLabels).
+					Expect().Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
+			})
 
+			JustBeforeEach(func() {
+				patchLabelsBody = make(map[string]interface{})
+				patchLabels := []query.LabelChange{
+					{
+						Operation: operation,
+						Key:       newLabelKey,
+						Values:    newLabelValues,
+					},
+				}
+				patchLabelsBody["labels"] = patchLabels
+			})
+
+			Context("When adding new label", func() {
+				It("Should return 200", func() {
+					label := types.Label{Key: newLabelKey, Value: newLabelValues}
+					ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+						WithJSON(patchLabelsBody).
+						Expect().
+						Status(http.StatusOK).JSON().Object().Value("labels").Array().Contains(label)
+				})
+			})
+
+			Context("When adding new label value", func() {
+				BeforeEach(func() {
+					operation = query.AddLabelValuesOperation
+					newLabelKey = labels[0].(common.Object)["key"].(string)
+				})
+				It("Should return 200", func() {
+					var labelValuesObj []interface{}
+					for _, val := range newLabelValues {
+						labelValuesObj = append(labelValuesObj, val)
+					}
+					addLabelValueResp := ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+						WithJSON(patchLabelsBody).
+						Expect().
+						Status(http.StatusOK).JSON()
+					addLabelValueResp.Path("$.labels[*].value[*]").Array().Contains(labelValuesObj...)
+				})
+			})
+
+			Context("When removing a label", func() {
+				BeforeEach(func() {
+					operation = query.RemoveLabelOperation
+					newLabelKey = labels[0].(common.Object)["key"].(string)
+				})
+				It("Should return 200", func() {
+					removeLabelResp := ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+						WithJSON(patchLabelsBody).
+						Expect().
+						Status(http.StatusOK).JSON()
+					removeLabelResp.Path("$.labels[*].key").Array().NotContains(labels[0].(common.Object)["key"].(string))
+				})
+			})
+
+			Context("When removing a label value", func() {
+				var valueToRemove string
+				BeforeEach(func() {
+					operation = query.RemoveLabelValuesOperation
+					valueToRemove = labels[0].(common.Object)["value"].([]interface{})[0].(string)
+					newLabelValues = []string{valueToRemove}
+				})
+				It("Should return 200", func() {
+					removeLabelValueResp := ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+						WithJSON(patchLabelsBody).
+						Expect().
+						Status(http.StatusOK).JSON()
+					removeLabelValueResp.Path("$.labels[*].value[*]").Array().NotContains(valueToRemove)
+				})
+			})
 		})
 	})
 })

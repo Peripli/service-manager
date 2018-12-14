@@ -57,14 +57,19 @@ func (lc LabelChange) Validate() error {
 	return nil
 }
 
-func LabelChangesForRequestBody(requestBody []byte) ([]LabelChange, error) {
-	var labelChanges []LabelChange
+func LabelChangesForRequestBody(requestBody []byte) ([]*LabelChange, error) {
+	var labelChanges []*LabelChange
 	labelChangesBytes := gjson.GetBytes(requestBody, "labels").String()
 	if len(labelChangesBytes) <= 0 {
-		return []LabelChange{}, nil
+		return []*LabelChange{}, nil
 	}
 	if err := json.Unmarshal([]byte(labelChangesBytes), &labelChanges); err != nil {
 		return nil, err
+	}
+	for _, v := range labelChanges {
+		if v.Operation == RemoveLabelOperation {
+			v.Values = nil
+		}
 	}
 	for _, change := range labelChanges {
 		if err := change.Validate(); err != nil {
