@@ -54,6 +54,9 @@ func (lc LabelChange) Validate() error {
 	if lc.Operation.RequiresValues() && len(lc.Values) == 0 {
 		return &LabelChangeError{fmt.Sprintf("operation %s requires values to be provided", lc.Operation)}
 	}
+	if lc.Key == "" || lc.Operation == "" {
+		return &LabelChangeError{Message: "both key and operation are required for label change"}
+	}
 	return nil
 }
 
