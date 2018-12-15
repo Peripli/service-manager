@@ -84,9 +84,15 @@ func (os *OAuthServer) getToken(w http.ResponseWriter, r *http.Request) {
 }
 
 func (os *OAuthServer) CreateToken(payload map[string]interface{}) string {
+	var issuerURL string
+	if iss, ok := payload["iss"]; ok {
+		issuerURL = iss.(string)
+	} else {
+		issuerURL = os.URL + "/oauth/token"
+	}
 	nextYear := time.Now().Add(365 * 24 * time.Hour)
 	token, err := jwt.Sign(os.signer, &jwt.Options{
-		Issuer:         os.URL + "/oauth/token",
+		Issuer:         issuerURL,
 		KeyID:          os.keyID,
 		Audience:       "sm",
 		ExpirationTime: nextYear,
