@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/util/slice"
+
 	"github.com/gofrs/uuid"
 
 	"github.com/Peripli/service-manager/pkg/types"
@@ -134,13 +136,15 @@ type Labelable interface {
 type visibilityLabels []*VisibilityLabel
 
 func (vls visibilityLabels) Validate() error {
-	pairs := make(map[string]string)
+	pairs := make(map[string][]string)
 	for _, vl := range vls {
-		val, exists := pairs[vl.Key.String]
-		if exists && val == vl.Val.String {
-			return fmt.Errorf("duplicate label with key %s and value %s", vl.Key.String, val)
+		newKey := vl.Key.String
+		newValue := vl.Val.String
+		val, exists := pairs[newKey]
+		if exists && slice.StringsAnyEquals(val, newValue) {
+			return fmt.Errorf("duplicate label with key %s and value %s", newKey, newValue)
 		}
-		pairs[vl.Key.String] = vl.Val.String
+		pairs[newKey] = append(pairs[newKey], newValue)
 	}
 	return nil
 }

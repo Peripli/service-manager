@@ -18,9 +18,10 @@ package postgres
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
+
+	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/pkg/query"
 
@@ -61,35 +62,36 @@ func addLabel(ctx context.Context, newLabelFunc func(labelID string, labelKey st
 		newLabel := newLabelFunc(labelID, key, labelValue)
 		labelTable, _, _ := newLabel.Label()
 		if _, err := create(ctx, db, labelTable, newLabel); err != nil {
+			if err == util.ErrAlreadyExistsInStorage {
+				return &query.LabelChangeError{Message: fmt.Sprintf("label with key %s and value %s already exists for this entity", key, labelValue)}
+			}
 			return err
 		}
 	}
 	return nil
 }
 
-func removeLabel(ctx context.Context, execer sqlx.ExecerContext, labelable Labelable, referenceID, labelKey string, labelValues ...string) error {
+func removeLabel(ctx context.Context, execer sqlx.ExtContext, labelable Labelable, referenceID, labelKey string, labelValues ...string) error {
 	labelTableName, referenceColumnName, _ := labelable.Label()
-	baseQuery := fmt.Sprintf("DELETE FROM %s WHERE key=$1 AND %s=$2", labelTableName, referenceColumnName)
+	baseQuery := fmt.Sprintf("DELETE FROM %s WHERE key=? AND %s=?", labelTableName, referenceColumnName)
 	labelValuesCount := len(labelValues)
 	// remove all labels with this key
 	if labelValuesCount == 0 {
-		return execute(ctx, baseQuery, func() (sql.Result, error) {
-			return execer.ExecContext(ctx, baseQuery, labelKey, referenceID)
-		})
+		return executeNew(ctx, execer, baseQuery, []interface{}{labelKey, referenceID})
 	}
 	args := []interface{}{labelKey, referenceID}
-	for _, val := range labelValues {
-		args = append(args, val)
+	if labelValuesCount == 1 {
+		args = append(args, labelValues[0])
+	} else {
+		args = append(args, labelValues)
 	}
 	// remove labels with a specific key and a value which is in the provided list
-	baseQuery += " AND val IN ($3)"
+	baseQuery += " AND val IN (?)"
 	sqlQuery, queryParams, err := sqlx.In(baseQuery, args...)
 	if err != nil {
 		return err
 	}
-	return execute(ctx, sqlQuery, func() (sql.Result, error) {
-		return execer.ExecContext(ctx, sqlQuery, queryParams...)
-	})
+	return executeNew(ctx, execer, sqlQuery, queryParams)
 }
 
 func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTableName string, labelsTableName string, criteria []query.Criterion) (string, []interface{}, error) {
@@ -163,9 +165,10 @@ func translateOperationToSQLEquivalent(operator query.Operator) string {
 	}
 }
 
-func execute(ctx context.Context, query string, f func() (sql.Result, error)) error {
+func executeNew(ctx context.Context, extContext sqlx.ExtContext, query string, args []interface{}) error {
+	query = extContext.Rebind(query)
 	log.C(ctx).Debugf("Executing query %s", query)
-	result, err := f()
+	result, err := extContext.ExecContext(ctx, query, args...)
 	if err != nil {
 		return err
 	}

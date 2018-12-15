@@ -22,6 +22,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Peripli/service-manager/pkg/util/slice"
+
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
@@ -51,6 +53,11 @@ func (op Operator) IsNumeric() bool {
 
 var operators = []Operator{EqualsOperator, NotEqualsOperator, InOperator,
 	NotInOperator, GreaterThanOperator, LessThanOperator, EqualsOrNilOperator}
+
+const (
+	OpenBracket  string = "["
+	CloseBracket string = "]"
+)
 
 type CriterionType string
 
@@ -97,6 +104,9 @@ func (c Criterion) Validate() error {
 	}
 	if c.Operator.IsNumeric() && !isNumeric(c.RightOp[0]) {
 		return &UnsupportedQuery{Message: fmt.Sprintf("%s is numeric operator, but the right operand is not numeric", c.Operator)}
+	}
+	if slice.StringsAnyEquals(c.RightOp, "") {
+		return &UnsupportedQuery{Message: "right operand must have value"}
 	}
 	return nil
 }
@@ -192,8 +202,8 @@ func convertRawStatementToCriterion(rawStatement string, operator Operator, crit
 	}
 
 	if operator.IsMultiVariate() {
-		rightOp[0] = strings.TrimPrefix(rightOp[0], "[")
-		rightOp[len(rightOp)-1] = strings.TrimSuffix(rightOp[len(rightOp)-1], "]")
+		rightOp[0] = strings.TrimPrefix(rightOp[0], OpenBracket)
+		rightOp[len(rightOp)-1] = strings.TrimSuffix(rightOp[len(rightOp)-1], CloseBracket)
 	}
 	return newCriterion(strings.TrimSpace(rawStatement[:opIdx]), operator, rightOp, criterionType)
 }
