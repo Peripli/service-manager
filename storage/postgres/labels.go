@@ -45,6 +45,9 @@ func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string,
 		case query.RemoveLabelValuesOperation:
 			pgLabel := newLabelFunc("", "", "")
 			if err := removeLabel(ctx, pgDB, pgLabel, referenceID, action.Key, action.Values...); err != nil {
+				if err == util.ErrNotFoundInStorage {
+					return &query.LabelChangeError{Message: fmt.Sprintf("label with key %s cannot be modified as it does not exist", action.Key)}
+				}
 				return err
 			}
 		}

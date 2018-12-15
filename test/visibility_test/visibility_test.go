@@ -839,7 +839,7 @@ var _ = Describe("Service Manager Platform API", func() {
 			var id string
 			var patchLabels []query.LabelChange
 			var patchLabelsBody map[string]interface{}
-			newLabelKey := "label_key"
+			changedLabelKey := "label_key"
 			changedLabelValues := []string{"label_value1", "label_value2"}
 			operation := query.AddLabelOperation
 			BeforeEach(func() {
@@ -849,7 +849,7 @@ var _ = Describe("Service Manager Platform API", func() {
 				patchLabelsBody = make(map[string]interface{})
 				patchLabels = append(patchLabels, query.LabelChange{
 					Operation: operation,
-					Key:       newLabelKey,
+					Key:       changedLabelKey,
 					Values:    changedLabelValues,
 				})
 				patchLabelsBody["labels"] = patchLabels
@@ -861,7 +861,7 @@ var _ = Describe("Service Manager Platform API", func() {
 
 			Context("Add new label", func() {
 				It("Should return 200", func() {
-					label := types.Label{Key: newLabelKey, Value: changedLabelValues}
+					label := types.Label{Key: changedLabelKey, Value: changedLabelValues}
 					ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
 						WithJSON(patchLabelsBody).
 						Expect().
@@ -886,7 +886,7 @@ var _ = Describe("Service Manager Platform API", func() {
 			Context("Add new label value", func() {
 				BeforeEach(func() {
 					operation = query.AddLabelValuesOperation
-					newLabelKey = labels[0].(common.Object)["key"].(string)
+					changedLabelKey = labels[0].(common.Object)["key"].(string)
 					changedLabelValues = []string{"new-label-value"}
 				})
 				It("Should return 200", func() {
@@ -905,7 +905,7 @@ var _ = Describe("Service Manager Platform API", func() {
 			Context("Remove a label", func() {
 				BeforeEach(func() {
 					operation = query.RemoveLabelOperation
-					newLabelKey = labels[0].(common.Object)["key"].(string)
+					changedLabelKey = labels[0].(common.Object)["key"].(string)
 				})
 				It("Should return 200", func() {
 					ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
@@ -918,8 +918,21 @@ var _ = Describe("Service Manager Platform API", func() {
 
 			Context("Remove a label and providing no key", func() {
 				BeforeEach(func() {
-					operation = query.RemoveLabelValuesOperation
-					newLabelKey = ""
+					operation = query.RemoveLabelOperation
+					changedLabelKey = ""
+				})
+				It("Should return 400", func() {
+					ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+						WithJSON(patchLabelsBody).
+						Expect().
+						Status(http.StatusBadRequest)
+				})
+			})
+
+			Context("Remove a label key which does not exist", func() {
+				BeforeEach(func() {
+					operation = query.RemoveLabelOperation
+					changedLabelKey = "non-existing-ey"
 				})
 				It("Should return 400", func() {
 					ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
@@ -933,7 +946,7 @@ var _ = Describe("Service Manager Platform API", func() {
 				var valueToRemove string
 				BeforeEach(func() {
 					operation = query.RemoveLabelValuesOperation
-					newLabelKey = labels[0].(common.Object)["key"].(string)
+					changedLabelKey = labels[0].(common.Object)["key"].(string)
 					valueToRemove = labels[0].(common.Object)["value"].([]interface{})[0].(string)
 					changedLabelValues = []string{valueToRemove}
 				})
@@ -950,7 +963,7 @@ var _ = Describe("Service Manager Platform API", func() {
 				var valuesToRemove []string
 				BeforeEach(func() {
 					operation = query.RemoveLabelValuesOperation
-					newLabelKey = labels[0].(common.Object)["key"].(string)
+					changedLabelKey = labels[0].(common.Object)["key"].(string)
 					val1 := labels[0].(common.Object)["value"].([]interface{})[0].(string)
 					val2 := labels[0].(common.Object)["value"].([]interface{})[1].(string)
 					valuesToRemove = []string{val1, val2}
@@ -969,7 +982,7 @@ var _ = Describe("Service Manager Platform API", func() {
 				var valuesToRemove []string
 				BeforeEach(func() {
 					operation = query.RemoveLabelValuesOperation
-					newLabelKey = labels[0].(common.Object)["key"].(string)
+					changedLabelKey = labels[0].(common.Object)["key"].(string)
 					labelValues := labels[0].(common.Object)["value"].([]interface{})
 					for _, val := range labelValues {
 						valuesToRemove = append(valuesToRemove, val.(string))
@@ -981,7 +994,7 @@ var _ = Describe("Service Manager Platform API", func() {
 						WithJSON(patchLabelsBody).
 						Expect().
 						Status(http.StatusOK).JSON().
-						Path("$.labels[*].key[*]").Array().NotContains(newLabelKey)
+						Path("$.labels[*].key[*]").Array().NotContains(changedLabelKey)
 				})
 			})
 
@@ -991,6 +1004,20 @@ var _ = Describe("Service Manager Platform API", func() {
 					changedLabelValues = []string{}
 				})
 				It("Should return 400", func() {
+					ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+						WithJSON(patchLabelsBody).
+						Expect().
+						Status(http.StatusBadRequest)
+				})
+			})
+
+			Context("Remove label value which does not exist", func() {
+				BeforeEach(func() {
+					operation = query.RemoveLabelValuesOperation
+					changedLabelKey = labels[0].(common.Object)["key"].(string)
+					changedLabelValues = []string{"non-existing-value"}
+				})
+				FIt("Should return 400", func() {
 					ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
 						WithJSON(patchLabelsBody).
 						Expect().
