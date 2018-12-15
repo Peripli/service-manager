@@ -43,7 +43,7 @@ var _ = Describe("Update", func() {
 
 		Context("When label has values", func() {
 			It("Should be ok", func() {
-				changes, err := LabelChangesForRequestBody(body)
+				changes, err := LabelChangesFromJSON(body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(changes).To(ConsistOf(&LabelChange{Operation: AddLabelOperation, Key: "key1", Values: []string{"val1", "val2"}}))
 			})
@@ -53,7 +53,7 @@ var _ = Describe("Update", func() {
 			It("Should return error", func() {
 				body, err := sjson.DeleteBytes(body, "labels.0.values")
 				Expect(err).ToNot(HaveOccurred())
-				changes, err := LabelChangesForRequestBody(body)
+				changes, err := LabelChangesFromJSON(body)
 				Expect(err).To(HaveOccurred())
 				Expect(changes).To(BeNil())
 			})
@@ -63,7 +63,7 @@ var _ = Describe("Update", func() {
 			It("Should return no label changes", func() {
 				body, err := sjson.DeleteBytes(body, "labels")
 				Expect(err).ToNot(HaveOccurred())
-				changes, err := LabelChangesForRequestBody(body)
+				changes, err := LabelChangesFromJSON(body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(changes).To(BeEmpty())
 			})
@@ -73,7 +73,7 @@ var _ = Describe("Update", func() {
 			It("Should return error", func() {
 				body, err := sjson.SetBytes(body, "labels.0.values", "not-array")
 				Expect(err).ToNot(HaveOccurred())
-				changes, err := LabelChangesForRequestBody(body)
+				changes, err := LabelChangesFromJSON(body)
 				Expect(err).To(HaveOccurred())
 				Expect(changes).To(BeNil())
 			})

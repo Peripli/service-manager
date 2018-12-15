@@ -152,7 +152,7 @@ func (c *Controller) patchVisibility(r *web.Request) (*web.Response, error) {
 
 	createdAt := visibility.CreatedAt
 
-	changes, err := query.LabelChangesForRequestBody(r.Body)
+	changes, err := query.LabelChangesFromJSON(r.Body)
 	if err != nil {
 		return nil, util.HandleLabelChangeError(err)
 	}
@@ -175,7 +175,6 @@ func (c *Controller) patchVisibility(r *web.Request) (*web.Response, error) {
 	})
 
 	if err != nil {
-		// TODO: handle if duplicate label [key,value] pair
 		return nil, util.HandleStorageError(err, "visibility")
 	}
 

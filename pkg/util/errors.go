@@ -131,7 +131,7 @@ func HandleSelectionError(err error, entityName ...string) error {
 		return nil
 	}
 
-	if _, ok := err.(*query.UnsupportedQuery); ok {
+	if _, ok := err.(*query.UnsupportedQueryError); ok {
 		return &HTTPError{
 			Description: err.Error(),
 			ErrorType:   "BadRequest",

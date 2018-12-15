@@ -1017,7 +1017,7 @@ var _ = Describe("Service Manager Platform API", func() {
 					changedLabelKey = labels[0].(common.Object)["key"].(string)
 					changedLabelValues = []string{"non-existing-value"}
 				})
-				FIt("Should return 400", func() {
+				It("Should return 400", func() {
 					ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
 						WithJSON(patchLabelsBody).
 						Expect().
