@@ -19,6 +19,8 @@ package service_offering
 import (
 	"net/http"
 
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 
@@ -52,21 +54,12 @@ func (c *Controller) listServiceOfferings(r *web.Request) (*web.Response, error)
 	ctx := r.Context()
 	log.C(ctx).Debug("Listing service offerings")
 
-	query := r.URL.Query()
-	catalogName := query.Get("catalog_name")
-	if catalogName != "" {
-		log.C(ctx).Debugf("Filtering list by catalog_name=%s", catalogName)
-		serviceOfferings, err = c.ServiceOfferingStorage.ListByCatalogName(ctx, catalogName)
-	} else {
-		serviceOfferings, err = c.ServiceOfferingStorage.List(ctx)
-	}
+	serviceOfferings, err = c.ServiceOfferingStorage.List(ctx, query.CriteriaForContext(ctx)...)
 	if err != nil {
-		return nil, err
+		return nil, util.HandleSelectionError(err)
 	}
 
-	return util.NewJSONResponse(http.StatusOK, struct {
-		ServiceOfferings []*types.ServiceOffering `json:"service_offerings"`
-	}{
+	return util.NewJSONResponse(http.StatusOK, &types.ServiceOfferings{
 		ServiceOfferings: serviceOfferings,
 	})
 }

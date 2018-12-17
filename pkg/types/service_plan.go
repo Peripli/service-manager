@@ -24,6 +24,11 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
+// ServicePlans struct
+type ServicePlans struct {
+	ServicePlans []*ServicePlan `json:"service_plans"`
+}
+
 // Service Plan struct
 type ServicePlan struct {
 	ID          string    `json:"id"`
