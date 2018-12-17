@@ -129,14 +129,29 @@ var _ = Describe("Postgres Storage Abstract", func() {
 			})
 		})
 
+		Context("When passing field query and not passing labeled entity ", func() {
+			It("Should construct correct SQL query", func() {
+				fieldName := "platform_id"
+				queryValue := "value"
+				expectedQuery := fmt.Sprintf(`SELECT * FROM %[1]s WHERE (%[1]s.%[2]s = ? OR %[1]s.%[2]s IS NULL);`, baseTable, fieldName)
+
+				criteria := []query.Criterion{query.ByField(query.EqualsOrNilOperator, fieldName, queryValue)}
+				rows, err := listWithLabelsAndCriteria(ctx, db, Visibility{}, nil, baseTable, criteria)
+				Expect(rows).ToNot(BeNil())
+				Expect(err).ToNot(HaveOccurred())
+				Expect(executedQuery).To(Equal(expectedQuery))
+				Expect(queryArgs).To(ConsistOf(queryValue))
+			})
+		})
+
 		Context("When querying with equals or nil field query", func() {
 			It("Should construct correct SQL query", func() {
 				fieldName := "platform_id"
 				queryValue := "value"
 				expectedQuery := fmt.Sprintf(`SELECT %[1]s.*, %[2]s.id "%[2]s.id", %[2]s.key "%[2]s.key", %[2]s.val "%[2]s.val", %[2]s.created_at "%[2]s.created_at", %[2]s.updated_at "%[2]s.updated_at", %[2]s.visibility_id "%[2]s.visibility_id" FROM %[1]s LEFT JOIN %[2]s ON %[1]s.id = %[2]s.visibility_id WHERE (%[1]s.%[3]s = ? OR %[1]s.%[3]s IS NULL);`, baseTable, labelTableName, fieldName)
 
-				invalidCriterion := []query.Criterion{query.ByField(query.EqualsOrNilOperator, fieldName, queryValue)}
-				rows, err := listWithLabelsAndCriteria(ctx, db, Visibility{}, &VisibilityLabel{}, baseTable, invalidCriterion)
+				criteria := []query.Criterion{query.ByField(query.EqualsOrNilOperator, fieldName, queryValue)}
+				rows, err := listWithLabelsAndCriteria(ctx, db, Visibility{}, &VisibilityLabel{}, baseTable, criteria)
 				Expect(rows).ToNot(BeNil())
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).To(Equal(expectedQuery))

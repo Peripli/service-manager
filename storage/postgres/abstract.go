@@ -105,7 +105,12 @@ func listWithLabelsAndCriteria(ctx context.Context, db pgDB, baseEntity interfac
 	if err := validateFieldQueryParams(baseEntity, criteria); err != nil {
 		return nil, err
 	}
-	baseQuery := constructBaseQueryForLabelable(labelsEntity, baseTableName)
+	var baseQuery string
+	if labelsEntity == nil {
+		baseQuery = constructBaseQueryForEntity(baseTableName)
+	} else {
+		baseQuery = constructBaseQueryForLabelable(labelsEntity, baseTableName)
+	}
 	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, baseTableName, labelsEntity, criteria)
 	if err != nil {
 		return nil, err
@@ -157,6 +162,10 @@ func validateFieldQueryParams(baseEntity interface{}, criteria []query.Criterion
 		}
 	}
 	return nil
+}
+
+func constructBaseQueryForEntity(tableName string) string {
+	return fmt.Sprintf("SELECT * FROM %s", tableName)
 }
 
 func constructBaseQueryForLabelable(labelsEntity Labelable, baseTableName string) string {
