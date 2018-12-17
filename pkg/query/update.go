@@ -23,19 +23,26 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-type Operation string
+// LabelOperation is an operation to be performed on labels
+type LabelOperation string
 
 const (
-	AddLabelOperation          Operation = "add"
-	AddLabelValuesOperation    Operation = "add_values"
-	RemoveLabelOperation       Operation = "remove"
-	RemoveLabelValuesOperation Operation = "remove_values"
+	// AddLabelOperation takes a label and adds it to the entity's labels
+	AddLabelOperation LabelOperation = "add"
+	// AddLabelValuesOperation takes a key and values and adds the values to the label with this key
+	AddLabelValuesOperation LabelOperation = "add_values"
+	// RemoveLabelOperation takes a key and removes the label with this key
+	RemoveLabelOperation LabelOperation = "remove"
+	// RemoveLabelValuesOperation takes a key and values and removes the values from the label with this key
+	RemoveLabelValuesOperation LabelOperation = "remove_values"
 )
 
-func (o Operation) RequiresValues() bool {
+// RequiresValues returns true if the operation requires values to be provided
+func (o LabelOperation) RequiresValues() bool {
 	return o != RemoveLabelOperation
 }
 
+// LabelChangeError is an error that shows that the constructed label change cannot be executed
 type LabelChangeError struct {
 	Message string
 }
@@ -44,27 +51,37 @@ func (l LabelChangeError) Error() string {
 	return l.Message
 }
 
+// LabelChange represents the changes that should be performed to a label
 type LabelChange struct {
-	Operation Operation `json:"op"`
-	Key       string    `json:"key"`
-	Values    []string  `json:"values"`
+	Operation LabelOperation `json:"op"`
+	Key       string         `json:"key"`
+	Values    []string       `json:"values"`
 }
 
 func (lc LabelChange) Validate() error {
 	if lc.Operation.RequiresValues() && len(lc.Values) == 0 {
 		return &LabelChangeError{fmt.Sprintf("operation %s requires values to be provided", lc.Operation)}
 	}
+	if lc.Key == "" || lc.Operation == "" {
+		return &LabelChangeError{Message: "both key and operation are required for label change"}
+	}
 	return nil
 }
 
-func LabelChangesForRequestBody(requestBody []byte) ([]LabelChange, error) {
-	var labelChanges []LabelChange
-	labelChangesBytes := gjson.GetBytes(requestBody, "labels").String()
+// LabelChangesFromJSON returns the label changes from the json byte array and an error if the changes are not valid
+func LabelChangesFromJSON(jsonBytes []byte) ([]*LabelChange, error) {
+	var labelChanges []*LabelChange
+	labelChangesBytes := gjson.GetBytes(jsonBytes, "labels").String()
 	if len(labelChangesBytes) <= 0 {
-		return []LabelChange{}, nil
+		return []*LabelChange{}, nil
 	}
 	if err := json.Unmarshal([]byte(labelChangesBytes), &labelChanges); err != nil {
 		return nil, err
+	}
+	for _, v := range labelChanges {
+		if v.Operation == RemoveLabelOperation {
+			v.Values = nil
+		}
 	}
 	for _, change := range labelChanges {
 		if err := change.Validate(); err != nil {

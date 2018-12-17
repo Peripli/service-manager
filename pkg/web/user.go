@@ -7,6 +7,7 @@ type UserContext struct {
 	Name string
 }
 
+//go:generate counterfeiter . Data
 type Data interface {
 	// Data reads the additional data from the context into the specified struct
 	Data(v interface{}) error

@@ -76,7 +76,7 @@ func (vs *visibilityStorage) Get(ctx context.Context, id string) (*types.Visibil
 }
 
 func (vs *visibilityStorage) List(ctx context.Context, criteria ...query.Criterion) ([]*types.Visibility, error) {
-	rows, err := listWithLabelsAndCriteria(ctx, vs.db, Visibility{}, &VisibilityLabel{}, visibilityTable, visibilityLabelsTable, criteria)
+	rows, err := listWithLabelsAndCriteria(ctx, vs.db, Visibility{}, &VisibilityLabel{}, visibilityTable, criteria)
 	defer func() {
 		if rows == nil {
 			return
@@ -128,7 +128,7 @@ func (vs *visibilityStorage) Delete(ctx context.Context, criteria ...query.Crite
 	return deleteAllByFieldCriteria(ctx, vs.db, visibilityTable, Visibility{}, criteria...)
 }
 
-func (vs *visibilityStorage) Update(ctx context.Context, visibility *types.Visibility, labelChanges ...query.LabelChange) error {
+func (vs *visibilityStorage) Update(ctx context.Context, visibility *types.Visibility, labelChanges ...*query.LabelChange) error {
 	v := &Visibility{}
 	v.FromDTO(visibility)
 	if err := update(ctx, vs.db, visibilityTable, v); err != nil {
@@ -148,7 +148,7 @@ func (vs *visibilityStorage) Update(ctx context.Context, visibility *types.Visib
 	return nil
 }
 
-func (vs *visibilityStorage) updateLabels(ctx context.Context, visibilityID string, updateActions []query.LabelChange) error {
+func (vs *visibilityStorage) updateLabels(ctx context.Context, visibilityID string, updateActions []*query.LabelChange) error {
 	now := time.Now()
 	newLabelFunc := func(labelID string, labelKey string, labelValue string) Labelable {
 		return &VisibilityLabel{

@@ -22,29 +22,42 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Peripli/service-manager/pkg/util/slice"
+
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
+// Operator is a query operator
 type Operator string
 
 const (
-	EqualsOperator      Operator = "="
-	NotEqualsOperator   Operator = "!="
+	// EqualsOperator takes two operands and tests if they are equal
+	EqualsOperator Operator = "="
+	// NotEqualsOperator takes two operands and tests if they are not equal
+	NotEqualsOperator Operator = "!="
+	// GreaterThanOperator takes two operands and tests if the left is greater than the right
 	GreaterThanOperator Operator = "gt"
-	LessThanOperator    Operator = "lt"
-	InOperator          Operator = "in"
-	NotInOperator       Operator = "notin"
+	// LessThanOperator takes two operands and tests if the left is lesser than the right
+	LessThanOperator Operator = "lt"
+	// InOperator takes two operands and tests if the left is contained in the right
+	InOperator Operator = "in"
+	// NotInOperator takes two operands and tests if the left is not contained in the right
+	NotInOperator Operator = "notin"
+	// EqualsOrNilOperator takes two operands and tests if the left is equal to the right, or if the left is nil
 	EqualsOrNilOperator Operator = "eqornil"
 )
 
+// IsMultiVariate returns true if the operator requires right operand with multiple values
 func (op Operator) IsMultiVariate() bool {
 	return op == InOperator || op == NotInOperator
 }
 
+// IsNullable returns true if the operator can check if the left operand is nil
 func (op Operator) IsNullable() bool {
 	return op == EqualsOrNilOperator
 }
 
+// IsNumeric returns true if the operator works only with numeric operands
 func (op Operator) IsNumeric() bool {
 	return op == LessThanOperator || op == GreaterThanOperator
 }
@@ -52,34 +65,52 @@ func (op Operator) IsNumeric() bool {
 var operators = []Operator{EqualsOperator, NotEqualsOperator, InOperator,
 	NotInOperator, GreaterThanOperator, LessThanOperator, EqualsOrNilOperator}
 
+const (
+	// OpenBracket is the token that denotes the beginning of a multivariate operand
+	OpenBracket string = "["
+	// OpenBracket is the token that denotes the end of a multivariate operand
+	CloseBracket string = "]"
+)
+
+// CriterionType is a type of criteria to be applied when querying
 type CriterionType string
 
 const (
+	// FieldQuery denotes that the query should be executed on the entity's fields
 	FieldQuery CriterionType = "fieldQuery"
+	// LabelQuery denotes that the query should be executed on the entity's labels
 	LabelQuery CriterionType = "labelQuery"
 )
 
 var supportedQueryTypes = []CriterionType{FieldQuery, LabelQuery}
 
-type UnsupportedQuery struct {
+// UnsupportedQueryError is an error to show that the provided query cannot be executed
+type UnsupportedQueryError struct {
 	Message string
 }
 
-func (uq *UnsupportedQuery) Error() string {
+func (uq *UnsupportedQueryError) Error() string {
 	return uq.Message
 }
 
+// Criterion is a single part of a query criteria
 type Criterion struct {
-	LeftOp   string
+	// LeftOp is the left operand in the query
+	LeftOp string
+	// Operator is the query operator
 	Operator Operator
-	RightOp  []string
-	Type     CriterionType
+	// RightOp is the right operand in the query which can be multivariate
+	RightOp []string
+	// Type is the type of the query
+	Type CriterionType
 }
 
+// ByField constructs a new criterion for field querying
 func ByField(operator Operator, leftOp string, rightOp ...string) Criterion {
 	return newCriterion(leftOp, operator, rightOp, FieldQuery)
 }
 
+// ByLabel constructs a new criterion for label querying
 func ByLabel(operator Operator, leftOp string, rightOp ...string) Criterion {
 	return newCriterion(leftOp, operator, rightOp, LabelQuery)
 }
@@ -93,10 +124,13 @@ func (c Criterion) Validate() error {
 		return fmt.Errorf("multiple values received for single value operation")
 	}
 	if c.Operator.IsNullable() && c.Type != FieldQuery {
-		return &UnsupportedQuery{"nullable operations are supported only for field queries"}
+		return &UnsupportedQueryError{"nullable operations are supported only for field queries"}
 	}
 	if c.Operator.IsNumeric() && !isNumeric(c.RightOp[0]) {
-		return &UnsupportedQuery{Message: fmt.Sprintf("%s is numeric operator, but the right operand is not numeric", c.Operator)}
+		return &UnsupportedQueryError{Message: fmt.Sprintf("%s is numeric operator, but the right operand is not numeric", c.Operator)}
+	}
+	if slice.StringsAnyEquals(c.RightOp, "") {
+		return &UnsupportedQueryError{Message: "right operand must have value"}
 	}
 	return nil
 }
@@ -112,7 +146,7 @@ func (c *criteria) add(criteria ...Criterion) error {
 	}
 	for _, newCriterion := range criteria {
 		if _, ok := fieldQueryLeftOperands[newCriterion.LeftOp]; ok && newCriterion.Type == FieldQuery {
-			return &UnsupportedQuery{Message: fmt.Sprintf("duplicate query key: %s", newCriterion.LeftOp)}
+			return &UnsupportedQueryError{Message: fmt.Sprintf("duplicate query key: %s", newCriterion.LeftOp)}
 		}
 		if err := newCriterion.Validate(); err != nil {
 			return err
@@ -124,6 +158,7 @@ func (c *criteria) add(criteria ...Criterion) error {
 
 type criteriaCtxKey struct{}
 
+// AddCriteria adds the given criteria to the context and returns an error if any of the criteria is not valid
 func AddCriteria(ctx context.Context, criterion ...Criterion) (context.Context, error) {
 	var currentCriteria criteria = CriteriaForContext(ctx)
 	for _, c := range criterion {
@@ -134,6 +169,7 @@ func AddCriteria(ctx context.Context, criterion ...Criterion) (context.Context, 
 	return context.WithValue(ctx, criteriaCtxKey{}, currentCriteria), nil
 }
 
+// CriteriaForContext returns the criteria for the given context
 func CriteriaForContext(ctx context.Context) []Criterion {
 	currentCriteria := ctx.Value(criteriaCtxKey{})
 	if currentCriteria == nil {
@@ -142,6 +178,7 @@ func CriteriaForContext(ctx context.Context) []Criterion {
 	return currentCriteria.(criteria)
 }
 
+// BuildCriteriaFromRequest builds criteria for the given request's query params and returns an error if the query is not valid
 func BuildCriteriaFromRequest(request *web.Request) ([]Criterion, error) {
 	var criteria criteria
 	for _, queryType := range supportedQueryTypes {
@@ -178,7 +215,7 @@ func getOperator(rawStatement string) (Operator, error) {
 			return op, nil
 		}
 	}
-	return "", &UnsupportedQuery{"query operator is missing"}
+	return "", &UnsupportedQueryError{"query operator is missing"}
 }
 
 func convertRawStatementToCriterion(rawStatement string, operator Operator, criterionType CriterionType) Criterion {
@@ -192,8 +229,8 @@ func convertRawStatementToCriterion(rawStatement string, operator Operator, crit
 	}
 
 	if operator.IsMultiVariate() {
-		rightOp[0] = strings.TrimPrefix(rightOp[0], "[")
-		rightOp[len(rightOp)-1] = strings.TrimSuffix(rightOp[len(rightOp)-1], "]")
+		rightOp[0] = strings.TrimPrefix(rightOp[0], OpenBracket)
+		rightOp[len(rightOp)-1] = strings.TrimSuffix(rightOp[len(rightOp)-1], CloseBracket)
 	}
 	return newCriterion(strings.TrimSpace(rawStatement[:opIdx]), operator, rightOp, criterionType)
 }

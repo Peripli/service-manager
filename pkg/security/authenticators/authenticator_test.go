@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package oauth
+package authenticators
 
 import (
 	"bytes"
@@ -76,7 +76,7 @@ var _ = Describe("OIDC Authenticator", func() {
 	var openIDResponseBodyBytes []byte
 
 	var readConfigFunc util.DoRequestFunc
-	var oauthOptions *options
+	var oauthOptions *OIDCOptions
 
 	issuerPath := "/oauth/token"
 	jwksPath := "/public_keys"
@@ -102,7 +102,7 @@ var _ = Describe("OIDC Authenticator", func() {
 	})
 
 	JustBeforeEach(func() {
-		oauthOptions = &options{
+		oauthOptions = &OIDCOptions{
 			ReadConfigurationFunc: readConfigFunc,
 			IssuerURL:             openIDServer.URL(),
 			ClientID:              "client-id",
@@ -113,12 +113,13 @@ var _ = Describe("OIDC Authenticator", func() {
 		openIDServer.Close()
 	})
 
-	Context("newAuthenticator", func() {
+	Context("NewOIDCAuthenticator", func() {
 		Context("When no Issuer URL is present", func() {
 			It("Should return an error", func() {
 				oauthOptions.IssuerURL = ""
-				authenticator, err := newAuthenticator(ctx, oauthOptions)
+				authenticator, issuer, err := NewOIDCAuthenticator(ctx, oauthOptions)
 				Expect(authenticator).To(BeNil())
+				Expect(issuer).To(BeEmpty())
 				Expect(err).To(Not(BeNil()))
 			})
 		})
@@ -146,7 +147,7 @@ var _ = Describe("OIDC Authenticator", func() {
 					readError = fmt.Errorf("could not read config")
 				})
 				It("Should return an error", func() {
-					_, err := newAuthenticator(ctx, oauthOptions)
+					_, _, err := NewOIDCAuthenticator(ctx, oauthOptions)
 					Expect(err).To(Not(BeNil()))
 				})
 			})
@@ -158,7 +159,7 @@ var _ = Describe("OIDC Authenticator", func() {
 					body = ioutil.NopCloser(&mockReader{buff: "{}", err: expectedErr})
 				})
 				It("Should return an error", func() {
-					_, err := newAuthenticator(ctx, oauthOptions)
+					_, _, err := NewOIDCAuthenticator(ctx, oauthOptions)
 					Expect(err).To(Not(BeNil()))
 					Expect(err.Error()).To(ContainSubstring(expectedErr.Error()))
 				})
@@ -170,7 +171,7 @@ var _ = Describe("OIDC Authenticator", func() {
 					body = ioutil.NopCloser(&mockReader{buff: "{invalidJson", err: nil})
 				})
 				It("Should return an error", func() {
-					_, err := newAuthenticator(ctx, oauthOptions)
+					_, _, err := NewOIDCAuthenticator(ctx, oauthOptions)
 					Expect(err).To(Not(BeNil()))
 				})
 			})
@@ -187,7 +188,7 @@ var _ = Describe("OIDC Authenticator", func() {
 				})
 
 				It("Should log an error", func() {
-					newAuthenticator(ctx, oauthOptions)
+					NewOIDCAuthenticator(ctx, oauthOptions)
 					Expect(loggingInterceptor).To(ContainSubstring(expectedError.Error()))
 				})
 			})
@@ -196,8 +197,9 @@ var _ = Describe("OIDC Authenticator", func() {
 					openIDResponseCode = http.StatusOK
 				})
 				It("Should return an authenticator", func() {
-					authenticator, err := newAuthenticator(ctx, oauthOptions)
+					authenticator, issuer, err := NewOIDCAuthenticator(ctx, oauthOptions)
 					Expect(err).To(BeNil())
+					Expect(issuer).To(Not(BeEmpty()))
 					Expect(authenticator).To(Not(BeNil()))
 				})
 			})
@@ -215,7 +217,7 @@ var _ = Describe("OIDC Authenticator", func() {
 				})
 
 				It("Should return error", func() {
-					_, err := newAuthenticator(ctx, oauthOptions)
+					_, _, err := NewOIDCAuthenticator(ctx, oauthOptions)
 
 					Expect(err).To(Not(BeNil()))
 				})
@@ -227,20 +229,21 @@ var _ = Describe("OIDC Authenticator", func() {
 				})
 
 				It("Should return an authenticator", func() {
-					authenticator, err := newAuthenticator(ctx, oauthOptions)
+					authenticator, issuer, err := NewOIDCAuthenticator(ctx, oauthOptions)
 					Expect(err).To(BeNil())
+					Expect(issuer).To(Not(BeEmpty()))
 					Expect(authenticator).To(Not(BeNil()))
 				})
 			})
 
 			Context("newOIDCConfig", func() {
 				It("Should not skip client id check when client id is not empty", func() {
-					config := newOIDCConfig(&options{ClientID: "client1"})
+					config := newOIDCConfig(&OIDCOptions{ClientID: "client1"})
 					Expect(config.SkipClientIDCheck).To(BeFalse())
 				})
 
 				It("Should skip client id check when client id is empty", func() {
-					config := newOIDCConfig(&options{ClientID: ""})
+					config := newOIDCConfig(&OIDCOptions{ClientID: ""})
 					Expect(config.SkipClientIDCheck).To(BeTrue())
 				})
 			})
@@ -253,7 +256,7 @@ var _ = Describe("OIDC Authenticator", func() {
 			err     error
 		)
 		validateAuthenticationReturns := func(expectedUser *web.UserContext, expectedDecision security.Decision, expectedErr error) {
-			authenticator, _ := newAuthenticator(ctx, oauthOptions)
+			authenticator, _, _ := NewOIDCAuthenticator(ctx, oauthOptions)
 
 			user, decision, err := authenticator.Authenticate(request)
 
@@ -400,7 +403,7 @@ var _ = Describe("OIDC Authenticator", func() {
 				Context("when Bearer starts with uppercase", func() {
 					BeforeEach(func() {
 						verifier = &securityfakes.FakeTokenVerifier{}
-						authenticator = &oauthAuthenticator{Verifier: verifier}
+						authenticator = &OauthAuthenticator{Verifier: verifier}
 
 						request.Header.Set("Authorization", "Bearer token")
 					})
@@ -411,7 +414,7 @@ var _ = Describe("OIDC Authenticator", func() {
 				Context("when bearer starts with lowercase", func() {
 					BeforeEach(func() {
 						verifier = &securityfakes.FakeTokenVerifier{}
-						authenticator = &oauthAuthenticator{Verifier: verifier}
+						authenticator = &OauthAuthenticator{Verifier: verifier}
 
 						request.Header.Set("Authorization", "bearer token")
 					})

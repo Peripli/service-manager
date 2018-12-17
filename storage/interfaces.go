@@ -223,7 +223,7 @@ type Visibility interface {
 	Delete(ctx context.Context, criteria ...query.Criterion) error
 
 	// Update updates a visibility from SM DB
-	Update(ctx context.Context, visibility *types.Visibility, labelChanges ...query.LabelChange) error
+	Update(ctx context.Context, visibility *types.Visibility, labelChanges ...*query.LabelChange) error
 }
 
 // Credentials interface for Credentials db operations
