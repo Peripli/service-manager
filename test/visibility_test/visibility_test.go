@@ -771,27 +771,25 @@ var _ = Describe("Service Manager Platform API", func() {
 
 			Context("With only label query for which entry exists", func() {
 				It("Should return 200 with this entry", func() {
-					// TODO: list by label query does not return all labels for each visibility, but currently it returns only the label that matched from the query
-					Skip("TODO: SQL needs rework")
 					labelKey := labels[0].(common.Object)["key"].(string)
 					labelValue := labels[0].(common.Object)["value"].([]interface{})[0].(string)
 
-					visibilityJSON := ctx.SMWithOAuth.GET("/v1/visibilities/" + id).
-						Expect().
-						Status(http.StatusOK).JSON().Raw()
+					var expectedKeys []interface{}
+					for _, label := range labels {
+						expectedKeys = append(expectedKeys, label.(common.Object)["key"].(string))
+					}
 
-					ctx.SMWithOAuth.GET("/v1/visibilities").
+					visibilitiesResp := ctx.SMWithOAuth.GET("/v1/visibilities").
 						WithQuery(string(query.LabelQuery), fmt.Sprintf("%s = %s", labelKey, labelValue)).
 						Expect().
-						Status(http.StatusOK).JSON().Object().Value("visibilities").Array().ContainsOnly(visibilityJSON)
+						Status(http.StatusOK).JSON().Object().Value("visibilities")
+					visibilitiesResp.Array().Length().Equal(1)
+					visibilitiesResp.Array().Element(0).Path("$.labels[*].key").Array().ContainsOnly(expectedKeys...)
 				})
 			})
 
 			Context("With both label and field query", func() {
 				It("Should return 200", func() {
-					// TODO: list by label query does not return all labels for each visibility, but currently it returns only the label that matched from the query
-					Skip("TODO: SQL needs rework")
-
 					labelKey := labels[0].(common.Object)["key"].(string)
 					labelValue := labels[0].(common.Object)["value"].([]interface{})[0].(string)
 

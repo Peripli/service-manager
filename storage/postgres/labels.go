@@ -97,31 +97,47 @@ func removeLabel(ctx context.Context, execer sqlx.ExtContext, labelable Labelabl
 	return executeNew(ctx, execer, sqlQuery, queryParams)
 }
 
-func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTableName string, labelsTableName string, criteria []query.Criterion) (string, []interface{}, error) {
+func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTableName string, labelable Labelable, criteria []query.Criterion) (string, []interface{}, error) {
 	if len(criteria) == 0 {
 		return sqlQuery + ";", nil, nil
 	}
 
 	var queryParams []interface{}
-	var queries []string
+	var fieldQueries []string
+	var labelQueries []string
 
-	sqlQuery += " WHERE "
-	for _, option := range criteria {
-		rightOpBindVar, rightOpQueryValue := buildRightOp(option)
-		sqlOperation := translateOperationToSQLEquivalent(option.Operator)
-		if option.Type == query.LabelQuery {
-			queries = append(queries, fmt.Sprintf("%[1]s.key = ? AND %[1]s.val %[2]s %s", labelsTableName, sqlOperation, rightOpBindVar))
-			queryParams = append(queryParams, option.LeftOp)
-		} else {
+	labelCriteria, fieldCriteria := splitCriteriaByType(criteria)
+
+	if len(labelCriteria) > 0 {
+		labelTableName, referenceColumnName, _ := labelable.Label()
+		labelSubQuery := fmt.Sprintf("(SELECT * FROM %[1]s WHERE %[2]s IN (SELECT %[2]s FROM %[1]s WHERE ", labelTableName, referenceColumnName)
+		for _, option := range labelCriteria {
+			rightOpBindVar, rightOpQueryValue := buildRightOp(option)
+			sqlOperation := translateOperationToSQLEquivalent(option.Operator)
+			labelQueries = append(labelQueries, fmt.Sprintf("%[1]s.key = ? AND %[1]s.val %[2]s %s", labelTableName, sqlOperation, rightOpBindVar))
+			queryParams = append(queryParams, option.LeftOp, rightOpQueryValue)
+		}
+		labelSubQuery += strings.Join(labelQueries, " AND ")
+		labelSubQuery += "))"
+
+		sqlQuery = strings.Replace(sqlQuery, "LEFT JOIN", "JOIN "+labelSubQuery, 1)
+	}
+
+	if len(fieldCriteria) > 0 {
+		sqlQuery += " WHERE "
+		for _, option := range fieldCriteria {
+			rightOpBindVar, rightOpQueryValue := buildRightOp(option)
+			sqlOperation := translateOperationToSQLEquivalent(option.Operator)
 			clause := fmt.Sprintf("%s.%s %s %s", baseTableName, option.LeftOp, sqlOperation, rightOpBindVar)
 			if option.Operator.IsNullable() {
 				clause = fmt.Sprintf("(%s OR %s.%s IS NULL)", clause, baseTableName, option.LeftOp)
 			}
-			queries = append(queries, clause)
+			fieldQueries = append(fieldQueries, clause)
+			queryParams = append(queryParams, rightOpQueryValue)
 		}
-		queryParams = append(queryParams, rightOpQueryValue)
+		sqlQuery += strings.Join(fieldQueries, " AND ")
 	}
-	sqlQuery += strings.Join(queries, " AND ") + ";"
+	sqlQuery += ";"
 
 	if hasMultiVariateOp(criteria) {
 		var err error
@@ -132,6 +148,21 @@ func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTable
 	}
 	sqlQuery = extContext.Rebind(sqlQuery)
 	return sqlQuery, queryParams, nil
+}
+
+func splitCriteriaByType(criteria []query.Criterion) ([]query.Criterion, []query.Criterion) {
+	var labelQueries []query.Criterion
+	var fieldQueries []query.Criterion
+
+	for _, criterion := range criteria {
+		if criterion.Type == query.FieldQuery {
+			fieldQueries = append(fieldQueries, criterion)
+		} else {
+			labelQueries = append(labelQueries, criterion)
+		}
+	}
+
+	return labelQueries, fieldQueries
 }
 
 func buildRightOp(criterion query.Criterion) (string, interface{}) {

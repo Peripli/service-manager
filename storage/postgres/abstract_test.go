@@ -35,7 +35,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 
 	var ctx context.Context
 	var baseTable string
-	var labelsTable string
+	var labelTableName string
 	var executedQuery string
 	var queryArgs []interface{}
 
@@ -63,7 +63,8 @@ var _ = Describe("Postgres Storage Abstract", func() {
 		ctx = context.TODO()
 		executedQuery = ""
 		baseTable = "table_name"
-		labelsTable = "labels_table_name"
+		labelEntity := &VisibilityLabel{}
+		labelTableName, _, _ = labelEntity.Label()
 		queryArgs = []interface{}{}
 	})
 
@@ -122,7 +123,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 		Context("When criteria uses a missing entity field", func() {
 			It("Should return an error", func() {
 				invalidCriterion := []query.Criterion{query.ByField(query.EqualsOperator, "non-existing-field", "value")}
-				rows, err := listWithLabelsAndCriteria(ctx, db, Visibility{}, &VisibilityLabel{}, baseTable, labelsTable, invalidCriterion)
+				rows, err := listWithLabelsAndCriteria(ctx, db, Visibility{}, &VisibilityLabel{}, baseTable, invalidCriterion)
 				Expect(rows).To(BeNil())
 				Expect(err).To(HaveOccurred())
 			})
@@ -132,10 +133,10 @@ var _ = Describe("Postgres Storage Abstract", func() {
 			It("Should construct correct SQL query", func() {
 				fieldName := "platform_id"
 				queryValue := "value"
-				expectedQuery := fmt.Sprintf(`SELECT %[1]s.*, %[2]s.id "%[2]s.id", %[2]s.key "%[2]s.key", %[2]s.val "%[2]s.val", %[2]s.created_at "%[2]s.created_at", %[2]s.updated_at "%[2]s.updated_at", %[2]s.visibility_id "%[2]s.visibility_id" FROM %[1]s LEFT JOIN %[2]s ON %[1]s.id = %[2]s.visibility_id WHERE (%[1]s.%[3]s = ? OR %[1]s.%[3]s IS NULL);`, baseTable, labelsTable, fieldName)
+				expectedQuery := fmt.Sprintf(`SELECT %[1]s.*, %[2]s.id "%[2]s.id", %[2]s.key "%[2]s.key", %[2]s.val "%[2]s.val", %[2]s.created_at "%[2]s.created_at", %[2]s.updated_at "%[2]s.updated_at", %[2]s.visibility_id "%[2]s.visibility_id" FROM %[1]s LEFT JOIN %[2]s ON %[1]s.id = %[2]s.visibility_id WHERE (%[1]s.%[3]s = ? OR %[1]s.%[3]s IS NULL);`, baseTable, labelTableName, fieldName)
 
 				invalidCriterion := []query.Criterion{query.ByField(query.EqualsOrNilOperator, fieldName, queryValue)}
-				rows, err := listWithLabelsAndCriteria(ctx, db, Visibility{}, &VisibilityLabel{}, baseTable, labelsTable, invalidCriterion)
+				rows, err := listWithLabelsAndCriteria(ctx, db, Visibility{}, &VisibilityLabel{}, baseTable, invalidCriterion)
 				Expect(rows).ToNot(BeNil())
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).To(Equal(expectedQuery))
@@ -149,14 +150,15 @@ var _ = Describe("Postgres Storage Abstract", func() {
 				queryValue := "value"
 				labelKey := "label_key"
 				labelValue := "labelValue"
-				expectedQuery := fmt.Sprintf(`SELECT %[1]s.*, %[2]s.id "%[2]s.id", %[2]s.key "%[2]s.key", %[2]s.val "%[2]s.val", %[2]s.created_at "%[2]s.created_at", %[2]s.updated_at "%[2]s.updated_at", %[2]s.visibility_id "%[2]s.visibility_id" FROM %[1]s LEFT JOIN %[2]s ON %[1]s.id = %[2]s.visibility_id WHERE %[1]s.%[3]s = ? AND %[2]s.key = ? AND %[2]s.val = ?;`, baseTable, labelsTable, fieldName)
-
+				labelEntity := &VisibilityLabel{}
+				_, referenceColumnName, primaryColumnName := labelEntity.Label()
+				expectedQuery := fmt.Sprintf(`SELECT %[1]s.*, %[2]s.id "%[2]s.id", %[2]s.key "%[2]s.key", %[2]s.val "%[2]s.val", %[2]s.created_at "%[2]s.created_at", %[2]s.updated_at "%[2]s.updated_at", %[2]s.%[4]s "%[2]s.%[4]s" FROM table_name JOIN (SELECT * FROM %[2]s WHERE %[4]s IN (SELECT %[4]s FROM %[2]s WHERE %[2]s.key = ? AND %[2]s.val = ?)) %[2]s ON %[1]s.%[5]s = %[2]s.%[4]s WHERE %[1]s.%[3]s = ?;`, baseTable, labelTableName, fieldName, referenceColumnName, primaryColumnName)
 				criteria := []query.Criterion{
 					query.ByField(query.EqualsOperator, fieldName, queryValue),
 					query.ByLabel(query.EqualsOperator, labelKey, labelValue),
 				}
 
-				rows, err := listWithLabelsAndCriteria(ctx, db, Visibility{}, &VisibilityLabel{}, baseTable, labelsTable, criteria)
+				rows, err := listWithLabelsAndCriteria(ctx, db, Visibility{}, &VisibilityLabel{}, baseTable, criteria)
 				Expect(rows).ToNot(BeNil())
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).To(Equal(expectedQuery))

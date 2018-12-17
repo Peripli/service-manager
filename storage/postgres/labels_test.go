@@ -29,6 +29,13 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+type dummyLabelableEntity struct {
+}
+
+func (dummyLabelableEntity) Label() (labelTableName string, referenceColumnName string, primaryColumnName string) {
+	return "testLabelTable", "base_table_id", "id"
+}
+
 var _ = Describe("Postgres Translator", func() {
 
 	var extContext sqlx.ExtContext
@@ -42,12 +49,15 @@ var _ = Describe("Postgres Translator", func() {
 
 	Describe("translate list", func() {
 
-		baseQuery, baseTableName, labelsTableName := "", "testTable", "testLabelTable"
+		labelableEntity := dummyLabelableEntity{}
+		baseTableName := "testTable"
+		labelsTableName, _, _ := labelableEntity.Label()
+		baseQuery := constructBaseQueryForLabelable(labelableEntity, baseTableName)
 		var criteria []query.Criterion
 
 		Context("No query", func() {
 			It("Should return base query", func() {
-				actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelsTableName, criteria)
+				actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelableEntity, criteria)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(actualQuery).To(Equal(baseQuery + ";"))
 				Expect(actualQueryParams).To(BeEmpty())
@@ -61,9 +71,9 @@ var _ = Describe("Postgres Translator", func() {
 						query.ByLabel(query.InOperator, "orgId", "o1", "o2", "o3"),
 						query.ByLabel(query.InOperator, "clusterId", "c1", "c2"),
 					}
-					actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelsTableName, criteria)
+					actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelableEntity, criteria)
 					Expect(err).ToNot(HaveOccurred())
-					Expect(actualQuery).To(Equal(fmt.Sprintf(" WHERE %[1]s.key = ? AND %[1]s.val IN (?, ?, ?) AND %[1]s.key = ? AND %[1]s.val IN (?, ?);", labelsTableName)))
+					Expect(actualQuery).To(ContainSubstring(fmt.Sprintf(" WHERE %[1]s.key = ? AND %[1]s.val IN (?, ?, ?) AND %[1]s.key = ? AND %[1]s.val IN (?, ?)", labelsTableName)))
 
 					expectedQueryParams := buildExpectedQueryParams(criteria)
 					Expect(actualQueryParams).To(Equal(expectedQueryParams))
@@ -75,9 +85,9 @@ var _ = Describe("Postgres Translator", func() {
 					criteria = []query.Criterion{
 						query.ByLabel(query.InOperator, "orgId", "o1"),
 					}
-					actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelsTableName, criteria)
+					actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelableEntity, criteria)
 					Expect(err).ToNot(HaveOccurred())
-					Expect(actualQuery).To(Equal(fmt.Sprintf(" WHERE %[1]s.key = ? AND %[1]s.val IN (?);", labelsTableName)))
+					Expect(actualQuery).To(ContainSubstring(fmt.Sprintf(" WHERE %[1]s.key = ? AND %[1]s.val IN (?)", labelsTableName)))
 
 					expectedQueryParams := buildExpectedQueryParams(criteria)
 					Expect(actualQueryParams).To(Equal(expectedQueryParams))
@@ -90,9 +100,9 @@ var _ = Describe("Postgres Translator", func() {
 					criteria = []query.Criterion{
 						query.ByField(query.EqualsOperator, "platformId", "5"),
 					}
-					actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelsTableName, criteria)
+					actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelableEntity, criteria)
 					Expect(err).ToNot(HaveOccurred())
-					Expect(actualQuery).To(Equal(fmt.Sprintf(" WHERE %s.%s %s ?;", baseTableName, criteria[0].LeftOp, strings.ToUpper(string(criteria[0].Operator)))))
+					Expect(actualQuery).To(ContainSubstring(fmt.Sprintf("WHERE %s.%s %s ?;", baseTableName, criteria[0].LeftOp, strings.ToUpper(string(criteria[0].Operator)))))
 
 					expectedQueryParams := buildExpectedQueryParams(criteria)
 					Expect(actualQueryParams).To(Equal(expectedQueryParams))
@@ -104,9 +114,9 @@ var _ = Describe("Postgres Translator", func() {
 					criteria = []query.Criterion{
 						query.ByField(query.InOperator, "platformId", "1"),
 					}
-					actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelsTableName, criteria)
+					actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelableEntity, criteria)
 					Expect(err).ToNot(HaveOccurred())
-					Expect(actualQuery).To(Equal(fmt.Sprintf(" WHERE %s.%s %s (?);", baseTableName, criteria[0].LeftOp, strings.ToUpper(string(criteria[0].Operator)))))
+					Expect(actualQuery).To(ContainSubstring(fmt.Sprintf(" WHERE %s.%s %s (?);", baseTableName, criteria[0].LeftOp, strings.ToUpper(string(criteria[0].Operator)))))
 
 					expectedQueryParams := buildExpectedQueryParams(criteria)
 					Expect(actualQueryParams).To(Equal(expectedQueryParams))

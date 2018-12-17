@@ -76,7 +76,7 @@ func (vs *visibilityStorage) Get(ctx context.Context, id string) (*types.Visibil
 }
 
 func (vs *visibilityStorage) List(ctx context.Context, criteria ...query.Criterion) ([]*types.Visibility, error) {
-	rows, err := listWithLabelsAndCriteria(ctx, vs.db, Visibility{}, &VisibilityLabel{}, visibilityTable, visibilityLabelsTable, criteria)
+	rows, err := listWithLabelsAndCriteria(ctx, vs.db, Visibility{}, &VisibilityLabel{}, visibilityTable, criteria)
 	defer func() {
 		if rows == nil {
 			return
