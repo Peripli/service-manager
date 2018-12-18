@@ -31,6 +31,13 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+type actionType int
+
+const (
+	listAction actionType = iota
+	deleteAction
+)
+
 func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) Labelable, pgDB pgDB, referenceID string, updateActions []*query.LabelChange) error {
 	for _, action := range updateActions {
 		switch action.Operation {
@@ -97,7 +104,7 @@ func removeLabel(ctx context.Context, execer sqlx.ExtContext, labelable Labelabl
 	return executeNew(ctx, execer, sqlQuery, queryParams)
 }
 
-func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTableName string, labelable Labelable, criteria []query.Criterion) (string, []interface{}, error) {
+func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTableName string, labelable Labelable, action actionType, criteria []query.Criterion) (string, []interface{}, error) {
 	if len(criteria) == 0 {
 		return sqlQuery + ";", nil, nil
 	}
@@ -108,9 +115,18 @@ func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTable
 
 	labelCriteria, fieldCriteria := splitCriteriaByType(criteria)
 
+	if action == deleteAction {
+		sqlQuery += " WHERE "
+	}
 	if len(labelCriteria) > 0 {
-		labelTableName, referenceColumnName, _ := labelable.Label()
-		labelSubQuery := fmt.Sprintf("(SELECT * FROM %[1]s WHERE %[2]s IN (SELECT %[2]s FROM %[1]s WHERE ", labelTableName, referenceColumnName)
+		labelTableName, referenceColumnName, primaryColumnName := labelable.Label()
+		labelSubQuery := fmt.Sprintf("(SELECT %s FROM %s WHERE ", referenceColumnName, labelTableName)
+		if action == deleteAction {
+			sqlQuery += fmt.Sprintf("%s.%s IN ", baseTableName, primaryColumnName)
+		} else {
+			labelSubQuery = fmt.Sprintf("(SELECT * FROM %[1]s WHERE %[2]s IN %[3]s", labelTableName, referenceColumnName, labelSubQuery)
+		}
+
 		for _, option := range labelCriteria {
 			rightOpBindVar, rightOpQueryValue := buildRightOp(option)
 			sqlOperation := translateOperationToSQLEquivalent(option.Operator)
@@ -118,24 +134,22 @@ func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTable
 			queryParams = append(queryParams, option.LeftOp, rightOpQueryValue)
 		}
 		labelSubQuery += strings.Join(labelQueries, " AND ")
-		labelSubQuery += "))"
-
-		sqlQuery = strings.Replace(sqlQuery, "LEFT JOIN", "JOIN "+labelSubQuery, 1)
+		labelSubQuery += ")"
+		if action == deleteAction {
+			sqlQuery += labelSubQuery
+		} else {
+			labelSubQuery += ")"
+			sqlQuery = strings.Replace(sqlQuery, "LEFT JOIN", "JOIN "+labelSubQuery, 1)
+		}
 	}
 
 	if len(fieldCriteria) > 0 {
-		sqlQuery += " WHERE "
-		for _, option := range fieldCriteria {
-			rightOpBindVar, rightOpQueryValue := buildRightOp(option)
-			sqlOperation := translateOperationToSQLEquivalent(option.Operator)
-			clause := fmt.Sprintf("%s.%s %s %s", baseTableName, option.LeftOp, sqlOperation, rightOpBindVar)
-			if option.Operator.IsNullable() {
-				clause = fmt.Sprintf("(%s OR %s.%s IS NULL)", clause, baseTableName, option.LeftOp)
-			}
-			fieldQueries = append(fieldQueries, clause)
-			queryParams = append(queryParams, rightOpQueryValue)
+		if action == listAction {
+			sqlQuery += " WHERE "
+		} else if len(labelCriteria) > 0 {
+			sqlQuery += " AND "
 		}
-		sqlQuery += strings.Join(fieldQueries, " AND ")
+		queryParams, sqlQuery = buildFieldQuery(fieldCriteria, baseTableName, fieldQueries, queryParams, sqlQuery)
 	}
 	sqlQuery += ";"
 
@@ -148,6 +162,21 @@ func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTable
 	}
 	sqlQuery = extContext.Rebind(sqlQuery)
 	return sqlQuery, queryParams, nil
+}
+
+func buildFieldQuery(fieldCriteria []query.Criterion, baseTableName string, fieldQueries []string, queryParams []interface{}, sqlQuery string) ([]interface{}, string) {
+	for _, option := range fieldCriteria {
+		rightOpBindVar, rightOpQueryValue := buildRightOp(option)
+		sqlOperation := translateOperationToSQLEquivalent(option.Operator)
+		clause := fmt.Sprintf("%s.%s %s %s", baseTableName, option.LeftOp, sqlOperation, rightOpBindVar)
+		if option.Operator.IsNullable() {
+			clause = fmt.Sprintf("(%s OR %s.%s IS NULL)", clause, baseTableName, option.LeftOp)
+		}
+		fieldQueries = append(fieldQueries, clause)
+		queryParams = append(queryParams, rightOpQueryValue)
+	}
+	sqlQuery += strings.Join(fieldQueries, " AND ")
+	return queryParams, sqlQuery
 }
 
 func splitCriteriaByType(criteria []query.Criterion) ([]query.Criterion, []query.Criterion) {

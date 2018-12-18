@@ -628,59 +628,144 @@ var _ = Describe("Service Manager Platform API", func() {
 		})
 
 		Describe("DELETE", func() {
-			Context("When field query uses missing field", func() {
-				It("Should return 400", func() {
-					description := ctx.SMWithOAuth.DELETE("/v1/visibilities").
-						WithQuery(string(query.FieldQuery), "missing_field = some_value").
-						Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").Raw().(string)
-					Expect(description).To(ContainSubstring("unsupported"))
+			Context("By field query", func() {
+				Context("When field query uses missing field", func() {
+					It("Should return 400", func() {
+						description := ctx.SMWithOAuth.DELETE("/v1/visibilities").
+							WithQuery(string(query.FieldQuery), "missing_field = some_value").
+							Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").Raw().(string)
+						Expect(description).To(ContainSubstring("unsupported"))
+					})
+				})
+
+				Context("When query operator is missing", func() {
+					It("Should return 400", func() {
+						description := ctx.SMWithOAuth.DELETE("/v1/visibilities").
+							WithQuery(string(query.FieldQuery), "missing_fieldsome_value").
+							Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").Raw().(string)
+						Expect(description).To(ContainSubstring("missing"))
+					})
+				})
+
+				Context("When no records exist", func() {
+					It("Should return 404", func() {
+						ctx.SMWithOAuth.DELETE("/v1/visibilities").
+							WithQuery(string(query.FieldQuery), "platform_id = missing_value").
+							Expect().Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
+					})
+				})
+
+				Context("When a record exists", func() {
+					It("Should return 200", func() {
+						id := ctx.SMWithOAuth.POST("/v1/visibilities").
+							WithJSON(postVisibilityRequestNoLabels).
+							Expect().Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
+
+						ctx.SMWithOAuth.GET("/v1/visibilities/" + id).
+							Expect().
+							Status(http.StatusOK)
+
+						ctx.SMWithOAuth.DELETE("/v1/visibilities").
+							WithQuery(string(query.FieldQuery), fmt.Sprintf("platform_id = %s", postVisibilityRequestNoLabels["platform_id"])).
+							Expect().
+							Status(http.StatusOK).JSON().Object().Empty()
+
+						ctx.SMWithOAuth.GET("/v1/visibilities/"+id).
+							Expect().
+							Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
+					})
 				})
 			})
 
-			Context("When query operator is missing", func() {
-				It("Should return 400", func() {
-					description := ctx.SMWithOAuth.DELETE("/v1/visibilities").
-						WithQuery(string(query.FieldQuery), "missing_fieldsome_value").
-						Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").Raw().(string)
-					Expect(description).To(ContainSubstring("missing"))
+			Context("By label query", func() {
+				var labelKey, labelValue string
+				BeforeEach(func() {
+					labelKey = labels[0].(common.Object)["key"].(string)
+					labelValue = labels[0].(common.Object)["value"].([]interface{})[0].(string)
+				})
+				Context("When record exists", func() {
+					It("Should return 200", func() {
+						ctx.SMWithOAuth.POST("/v1/visibilities").
+							WithJSON(postVisibilityRequestWithLabels).
+							Expect().Status(http.StatusCreated)
+
+						ctx.SMWithOAuth.DELETE("/v1/visibilities").
+							WithQuery(string(query.LabelQuery), fmt.Sprintf("%s = %s", labelKey, labelValue)).
+							Expect().Status(http.StatusOK)
+					})
+				})
+
+				Context("When no visibility with such label exists", func() {
+					It("Should return 404", func() {
+						ctx.SMWithOAuth.DELETE("/v1/visibilities").
+							WithQuery(string(query.LabelQuery), fmt.Sprintf("%s = %s", labelKey, labelValue)).
+							Expect().Status(http.StatusNotFound)
+					})
+				})
+
+				Context("When query operator is missing", func() {
+					It("Should return 400", func() {
+						description := ctx.SMWithOAuth.DELETE("/v1/visibilities").
+							WithQuery(string(query.LabelQuery), "keyvalue").
+							Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").Raw().(string)
+						Expect(description).To(ContainSubstring("missing"))
+					})
 				})
 			})
 
-			Context("When deleting by label query", func() {
-				It("Should return 400", func() {
-					description := ctx.SMWithOAuth.DELETE("/v1/visibilities").
-						WithQuery(string(query.LabelQuery), "platform_id = some_value").
-						Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").Raw().(string)
-					Expect(description).To(ContainSubstring("conditional delete "))
+			Context("By both label and field query", func() {
+				var labelKey, labelValue string
+				BeforeEach(func() {
+					labelKey = labels[0].(common.Object)["key"].(string)
+					labelValue = labels[0].(common.Object)["value"].([]interface{})[0].(string)
 				})
-			})
 
-			Context("When deleting by field for which no records exist", func() {
-				It("Should return 404", func() {
-					ctx.SMWithOAuth.DELETE("/v1/visibilities").
-						WithQuery(string(query.FieldQuery), "platform_id = missing_value").
-						Expect().Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
+				Context("When record matched for both queries", func() {
+					It("Should return 200", func() {
+						ctx.SMWithOAuth.POST("/v1/visibilities").
+							WithJSON(postVisibilityRequestWithLabels).
+							Expect().Status(http.StatusCreated)
+
+						ctx.SMWithOAuth.DELETE("/v1/visibilities").
+							WithQuery(string(query.FieldQuery), fmt.Sprintf("platform_id = %s", postVisibilityRequestWithLabels["platform_id"])).
+							WithQuery(string(query.LabelQuery), fmt.Sprintf("%s = %s", labelKey, labelValue)).
+							Expect().Status(http.StatusOK)
+					})
 				})
-			})
 
-			Context("When deleting by field for which a record exists", func() {
-				It("Should return 200", func() {
-					id := ctx.SMWithOAuth.POST("/v1/visibilities").
-						WithJSON(postVisibilityRequestNoLabels).
-						Expect().Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
+				Context("When record exists only for label query, but not for field query", func() {
+					It("Should return 404", func() {
+						ctx.SMWithOAuth.POST("/v1/visibilities").
+							WithJSON(postVisibilityRequestWithLabels).
+							Expect().Status(http.StatusCreated)
 
-					ctx.SMWithOAuth.GET("/v1/visibilities/" + id).
-						Expect().
-						Status(http.StatusOK)
+						ctx.SMWithOAuth.DELETE("/v1/visibilities").
+							WithQuery(string(query.FieldQuery), fmt.Sprintf("platform_id = %s", "other-platform-id")).
+							WithQuery(string(query.LabelQuery), fmt.Sprintf("%s = %s", labelKey, labelValue)).
+							Expect().Status(http.StatusNotFound)
+					})
+				})
 
-					ctx.SMWithOAuth.DELETE("/v1/visibilities").
-						WithQuery(string(query.FieldQuery), fmt.Sprintf("platform_id = %s", postVisibilityRequestNoLabels["platform_id"])).
-						Expect().
-						Status(http.StatusOK).JSON().Object().Empty()
+				Context("When record exists only for field query, but not for label query", func() {
+					It("Should return 404", func() {
+						ctx.SMWithOAuth.POST("/v1/visibilities").
+							WithJSON(postVisibilityRequestWithLabels).
+							Expect().Status(http.StatusCreated)
 
-					ctx.SMWithOAuth.GET("/v1/visibilities/"+id).
-						Expect().
-						Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
+						ctx.SMWithOAuth.DELETE("/v1/visibilities").
+							WithQuery(string(query.FieldQuery), fmt.Sprintf("platform_id = %s", postVisibilityRequestWithLabels["platform_id"])).
+							WithQuery(string(query.LabelQuery), fmt.Sprintf("%s = %s", labelKey, "other-label-value")).
+							Expect().Status(http.StatusNotFound)
+					})
+				})
+
+				Context("When record does not exist either for field or for label query", func() {
+					It("Should return 404", func() {
+						ctx.SMWithOAuth.DELETE("/v1/visibilities").
+							WithQuery(string(query.FieldQuery), fmt.Sprintf("platform_id = %s", "other-platform-id")).
+							WithQuery(string(query.LabelQuery), fmt.Sprintf("%s = %s", labelKey, "other-label-value")).
+							Expect().Status(http.StatusNotFound)
+					})
 				})
 			})
 		})

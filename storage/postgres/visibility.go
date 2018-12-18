@@ -122,7 +122,7 @@ func (vs *visibilityStorage) List(ctx context.Context, criteria ...query.Criteri
 }
 
 func (vs *visibilityStorage) Delete(ctx context.Context, criteria ...query.Criterion) error {
-	return deleteAllByFieldCriteria(ctx, vs.db, visibilityTable, Visibility{}, criteria)
+	return deleteAllByCriteria(ctx, vs.db, visibilityTable, Visibility{}, &VisibilityLabel{}, criteria)
 }
 
 func (vs *visibilityStorage) Update(ctx context.Context, visibility *types.Visibility, labelChanges ...*query.LabelChange) error {

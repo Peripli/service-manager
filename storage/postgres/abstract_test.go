@@ -144,6 +144,14 @@ var _ = Describe("Postgres Storage Abstract", func() {
 			})
 		})
 
+		Context("Delete by label query", func() {
+			It("Should be ok", func() {
+				criteria := []query.Criterion{query.ByLabel(query.EqualsOperator, "org_id", "my_org_id")}
+				err := deleteAllByCriteria(ctx, db, baseTable, Visibility{}, &VisibilityLabel{}, criteria)
+				Expect(err).ToNot(HaveOccurred())
+			})
+		})
+
 		Context("When querying with equals or nil field query", func() {
 			It("Should construct correct SQL query", func() {
 				fieldName := "platform_id"
@@ -208,19 +216,18 @@ var _ = Describe("Postgres Storage Abstract", func() {
 	})
 
 	Describe("Delete all by criteria", func() {
-
 		Context("When deleting by label", func() {
-			It("Should return an error", func() {
+			It("Should return be ok", func() {
 				criteria := []query.Criterion{query.ByLabel(query.EqualsOperator, "left", "right")}
-				err := deleteAllByFieldCriteria(ctx, db, baseTable, Visibility{}, criteria)
-				Expect(err).To(HaveOccurred())
+				err := deleteAllByCriteria(ctx, db, baseTable, Visibility{}, &VisibilityLabel{}, criteria)
+				Expect(err).ToNot(HaveOccurred())
 			})
 		})
 
 		Context("When no criteria is passed", func() {
 			It("Should construct query to delete all entries", func() {
 				expectedQuery := fmt.Sprintf("DELETE FROM %s;", baseTable)
-				err := deleteAllByFieldCriteria(ctx, db, baseTable, Visibility{}, nil)
+				err := deleteAllByCriteria(ctx, db, baseTable, Visibility{}, &VisibilityLabel{}, nil)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).To(Equal(expectedQuery))
 			})
@@ -229,7 +236,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 		Context("When criteria uses missing field", func() {
 			It("Should return error", func() {
 				criteria := []query.Criterion{query.ByField(query.EqualsOperator, "non-existing-field", "value")}
-				err := deleteAllByFieldCriteria(ctx, db, baseTable, Visibility{}, criteria)
+				err := deleteAllByCriteria(ctx, db, baseTable, Visibility{}, &VisibilityLabel{}, criteria)
 				Expect(err).To(HaveOccurred())
 			})
 		})

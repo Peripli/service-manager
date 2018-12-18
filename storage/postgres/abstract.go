@@ -107,11 +107,11 @@ func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface
 	}
 	var baseQuery string
 	if labelsEntity == nil {
-		baseQuery = constructBaseQueryForEntity(baseTableName)
+		baseQuery = constructBaseListQueryForEntity(baseTableName)
 	} else {
-		baseQuery = constructBaseQueryForLabelable(labelsEntity, baseTableName)
+		baseQuery = constructBaseListQueryForLabelable(labelsEntity, baseTableName)
 	}
-	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, baseTableName, labelsEntity, criteria)
+	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, baseTableName, labelsEntity, listAction, criteria)
 	if err != nil {
 		return nil, err
 	}
@@ -121,27 +121,23 @@ func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface
 
 func listByFieldCriteria(ctx context.Context, db pgDB, table string, entity interface{}, criteria []query.Criterion) error {
 	baseQuery := fmt.Sprintf(`SELECT * FROM %s`, table)
-	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, table, nil, criteria)
+	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, table, nil, listAction, criteria)
 	if err != nil {
 		return err
 	}
 	return db.SelectContext(ctx, entity, sqlQuery, queryParams...)
 }
 
-func deleteAllByFieldCriteria(ctx context.Context, extContext sqlx.ExtContext, table string, dto interface{}, criteria []query.Criterion) error {
-	for _, criterion := range criteria {
-		if criterion.Type != query.FieldQuery {
-			return &query.UnsupportedQueryError{Message: "conditional delete is only supported for field queries"}
-		}
-	}
+func deleteAllByCriteria(ctx context.Context, extContext sqlx.ExtContext, table string, dto interface{}, labelable Labelable, criteria []query.Criterion) error {
 	if err := validateFieldQueryParams(dto, criteria); err != nil {
 		return err
 	}
 	baseQuery := fmt.Sprintf("DELETE FROM %s", table)
-	sqlQuery, queryParams, err := buildQueryWithParams(extContext, baseQuery, table, nil, criteria)
+	sqlQuery, queryParams, err := buildQueryWithParams(extContext, baseQuery, table, labelable, deleteAction, criteria)
 	if err != nil {
 		return err
 	}
+	fmt.Println(queryParams...)
 	result, err := extContext.ExecContext(ctx, sqlQuery, queryParams...)
 	if err != nil {
 		return err
@@ -164,11 +160,11 @@ func validateFieldQueryParams(baseEntity interface{}, criteria []query.Criterion
 	return nil
 }
 
-func constructBaseQueryForEntity(tableName string) string {
+func constructBaseListQueryForEntity(tableName string) string {
 	return fmt.Sprintf("SELECT * FROM %s", tableName)
 }
 
-func constructBaseQueryForLabelable(labelsEntity Labelable, baseTableName string) string {
+func constructBaseListQueryForLabelable(labelsEntity Labelable, baseTableName string) string {
 	labelStruct := structs.New(labelsEntity)
 	baseQuery := `SELECT %[1]s.*,`
 	for _, field := range labelStruct.Fields() {
