@@ -123,7 +123,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 		Context("When criteria uses a missing entity field", func() {
 			It("Should return an error", func() {
 				invalidCriterion := []query.Criterion{query.ByField(query.EqualsOperator, "non-existing-field", "value")}
-				rows, err := listWithLabelsAndCriteria(ctx, db, Visibility{}, &VisibilityLabel{}, baseTable, invalidCriterion)
+				rows, err := listWithLabelsByCriteria(ctx, db, Visibility{}, &VisibilityLabel{}, baseTable, invalidCriterion)
 				Expect(rows).To(BeNil())
 				Expect(err).To(HaveOccurred())
 			})
@@ -136,7 +136,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 				expectedQuery := fmt.Sprintf(`SELECT * FROM %[1]s WHERE (%[1]s.%[2]s = ? OR %[1]s.%[2]s IS NULL);`, baseTable, fieldName)
 
 				criteria := []query.Criterion{query.ByField(query.EqualsOrNilOperator, fieldName, queryValue)}
-				rows, err := listWithLabelsAndCriteria(ctx, db, Visibility{}, nil, baseTable, criteria)
+				rows, err := listWithLabelsByCriteria(ctx, db, Visibility{}, nil, baseTable, criteria)
 				Expect(rows).ToNot(BeNil())
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).To(Equal(expectedQuery))
@@ -151,7 +151,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 				expectedQuery := fmt.Sprintf(`SELECT %[1]s.*, %[2]s.id "%[2]s.id", %[2]s.key "%[2]s.key", %[2]s.val "%[2]s.val", %[2]s.created_at "%[2]s.created_at", %[2]s.updated_at "%[2]s.updated_at", %[2]s.visibility_id "%[2]s.visibility_id" FROM %[1]s LEFT JOIN %[2]s ON %[1]s.id = %[2]s.visibility_id WHERE (%[1]s.%[3]s = ? OR %[1]s.%[3]s IS NULL);`, baseTable, labelTableName, fieldName)
 
 				criteria := []query.Criterion{query.ByField(query.EqualsOrNilOperator, fieldName, queryValue)}
-				rows, err := listWithLabelsAndCriteria(ctx, db, Visibility{}, &VisibilityLabel{}, baseTable, criteria)
+				rows, err := listWithLabelsByCriteria(ctx, db, Visibility{}, &VisibilityLabel{}, baseTable, criteria)
 				Expect(rows).ToNot(BeNil())
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).To(Equal(expectedQuery))
@@ -173,7 +173,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 					query.ByLabel(query.EqualsOperator, labelKey, labelValue),
 				}
 
-				rows, err := listWithLabelsAndCriteria(ctx, db, Visibility{}, &VisibilityLabel{}, baseTable, criteria)
+				rows, err := listWithLabelsByCriteria(ctx, db, Visibility{}, &VisibilityLabel{}, baseTable, criteria)
 				Expect(rows).ToNot(BeNil())
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).To(Equal(expectedQuery))
@@ -184,7 +184,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 	Describe("List by field criteria", func() {
 		Context("When passing no criteria", func() {
 			It("Should construct base SQL query", func() {
-				err := listByFieldCriteria(ctx, db, baseTable, Visibility{})
+				err := listByFieldCriteria(ctx, db, baseTable, Visibility{}, nil)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).To(Equal(fmt.Sprintf("SELECT * FROM %s;", baseTable)))
 			})
@@ -199,7 +199,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 					query.ByField(query.EqualsOperator, fieldName, queryValue),
 				}
 
-				err := listByFieldCriteria(ctx, db, baseTable, Visibility{}, criteria...)
+				err := listByFieldCriteria(ctx, db, baseTable, Visibility{}, criteria)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).To(Equal(expectedQuery))
 				Expect(queryArgs).To(ConsistOf(queryValue))
@@ -211,7 +211,8 @@ var _ = Describe("Postgres Storage Abstract", func() {
 
 		Context("When deleting by label", func() {
 			It("Should return an error", func() {
-				err := deleteAllByFieldCriteria(ctx, db, baseTable, Visibility{}, query.ByLabel(query.EqualsOperator, "left", "right"))
+				criteria := []query.Criterion{query.ByLabel(query.EqualsOperator, "left", "right")}
+				err := deleteAllByFieldCriteria(ctx, db, baseTable, Visibility{}, criteria)
 				Expect(err).To(HaveOccurred())
 			})
 		})
@@ -219,7 +220,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 		Context("When no criteria is passed", func() {
 			It("Should construct query to delete all entries", func() {
 				expectedQuery := fmt.Sprintf("DELETE FROM %s;", baseTable)
-				err := deleteAllByFieldCriteria(ctx, db, baseTable, Visibility{})
+				err := deleteAllByFieldCriteria(ctx, db, baseTable, Visibility{}, nil)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).To(Equal(expectedQuery))
 			})
@@ -227,7 +228,8 @@ var _ = Describe("Postgres Storage Abstract", func() {
 
 		Context("When criteria uses missing field", func() {
 			It("Should return error", func() {
-				err := deleteAllByFieldCriteria(ctx, db, baseTable, Visibility{}, query.ByField(query.EqualsOperator, "non-existing-field", "value"))
+				criteria := []query.Criterion{query.ByField(query.EqualsOperator, "non-existing-field", "value")}
+				err := deleteAllByFieldCriteria(ctx, db, baseTable, Visibility{}, criteria)
 				Expect(err).To(HaveOccurred())
 			})
 		})

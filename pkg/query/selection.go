@@ -135,38 +135,37 @@ func (c Criterion) Validate() error {
 	return nil
 }
 
-type criteria []Criterion
-
-func (c *criteria) add(criteria ...Criterion) error {
+func mergeCriteria(c1 []Criterion, c2 []Criterion) ([]Criterion, error) {
+	result := c1
 	fieldQueryLeftOperands := make(map[string]bool)
-	for _, criterion := range *c {
+	for _, criterion := range c1 {
 		if criterion.Type == FieldQuery {
 			fieldQueryLeftOperands[criterion.LeftOp] = true
 		}
 	}
-	for _, newCriterion := range criteria {
+
+	for _, newCriterion := range c2 {
 		if _, ok := fieldQueryLeftOperands[newCriterion.LeftOp]; ok && newCriterion.Type == FieldQuery {
-			return &UnsupportedQueryError{Message: fmt.Sprintf("duplicate query key: %s", newCriterion.LeftOp)}
+			return nil, &UnsupportedQueryError{Message: fmt.Sprintf("duplicate query key: %s", newCriterion.LeftOp)}
 		}
 		if err := newCriterion.Validate(); err != nil {
-			return err
+			return nil, err
 		}
-		*c = append(*c, newCriterion)
 	}
-	return nil
+	result = append(result, c2...)
+	return result, nil
 }
 
 type criteriaCtxKey struct{}
 
 // AddCriteria adds the given criteria to the context and returns an error if any of the criteria is not valid
-func AddCriteria(ctx context.Context, criterion ...Criterion) (context.Context, error) {
-	var currentCriteria criteria = CriteriaForContext(ctx)
-	for _, c := range criterion {
-		if err := currentCriteria.add(c); err != nil {
-			return nil, err
-		}
+func AddCriteria(ctx context.Context, newCriteria ...Criterion) (context.Context, error) {
+	currentCriteria := CriteriaForContext(ctx)
+	criteria, err := mergeCriteria(currentCriteria, newCriteria)
+	if err != nil {
+		return nil, err
 	}
-	return context.WithValue(ctx, criteriaCtxKey{}, currentCriteria), nil
+	return context.WithValue(ctx, criteriaCtxKey{}, criteria), nil
 }
 
 // CriteriaForContext returns the criteria for the given context
@@ -175,19 +174,19 @@ func CriteriaForContext(ctx context.Context) []Criterion {
 	if currentCriteria == nil {
 		return []Criterion{}
 	}
-	return currentCriteria.(criteria)
+	return currentCriteria.([]Criterion)
 }
 
 // BuildCriteriaFromRequest builds criteria for the given request's query params and returns an error if the query is not valid
 func BuildCriteriaFromRequest(request *web.Request) ([]Criterion, error) {
-	var criteria criteria
+	var criteria []Criterion
 	for _, queryType := range supportedQueryTypes {
 		queryValues := request.URL.Query().Get(string(queryType))
 		querySegments, err := process(queryValues, queryType)
 		if err != nil {
 			return nil, err
 		}
-		if err := criteria.add(querySegments...); err != nil {
+		if criteria, err = mergeCriteria(criteria, querySegments); err != nil {
 			return nil, err
 		}
 	}

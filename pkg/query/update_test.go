@@ -19,6 +19,8 @@ package query
 import (
 	"fmt"
 
+	"github.com/tidwall/gjson"
+
 	"github.com/tidwall/sjson"
 
 	. "github.com/onsi/gomega"
@@ -29,16 +31,21 @@ import (
 var _ = Describe("Update", func() {
 
 	var body []byte
+	var operation LabelOperation
 
 	Describe("Label changes for body", func() {
 		BeforeEach(func() {
+			operation = AddLabelOperation
+		})
+
+		JustBeforeEach(func() {
 			body = []byte(fmt.Sprintf(`{"labels":[
 	{
 		"op": "%s",
 		"key": "key1",
 		"values": ["val1", "val2"]
 	}
-]}`, AddLabelOperation))
+]}`, operation))
 		})
 
 		Context("When label has values", func() {
@@ -56,6 +63,40 @@ var _ = Describe("Update", func() {
 				changes, err := LabelChangesFromJSON(body)
 				Expect(err).To(HaveOccurred())
 				Expect(changes).To(BeNil())
+			})
+		})
+
+		Context("When key is empty", func() {
+			It("Should return error", func() {
+				body, err := sjson.SetBytes(body, "labels.0.key", "")
+				Expect(err).ToNot(HaveOccurred())
+				changes, err := LabelChangesFromJSON(body)
+				Expect(err).To(HaveOccurred())
+				Expect(changes).To(BeNil())
+			})
+		})
+
+		Context("When operator is missing", func() {
+			It("Should return error", func() {
+				body, err := sjson.SetBytes(body, "labels.0.op", "")
+				Expect(err).ToNot(HaveOccurred())
+				changes, err := LabelChangesFromJSON(body)
+				Expect(err).To(HaveOccurred())
+				Expect(changes).To(BeNil())
+			})
+		})
+
+		Context("When operation is remove label and body has values", func() {
+			BeforeEach(func() {
+				operation = RemoveLabelOperation
+			})
+			It("Should remove them", func() {
+				values := gjson.GetBytes(body, "labels.0.values").String()
+				Expect(values).ToNot(BeEmpty())
+				changes, err := LabelChangesFromJSON(body)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(changes).ToNot(BeNil())
+				Expect(changes[0].Values).To(BeEmpty())
 			})
 		})
 
@@ -78,5 +119,6 @@ var _ = Describe("Update", func() {
 				Expect(changes).To(BeNil())
 			})
 		})
+
 	})
 })
