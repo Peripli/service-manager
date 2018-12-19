@@ -56,6 +56,7 @@ func (c *Controller) createVisibility(r *web.Request) (*web.Response, error) {
 	for _, label := range visibility.Labels {
 		label.CreatedAt = currentTime
 		label.UpdatedAt = currentTime
+		label.ServiceVisibilityID = visibility.ID
 	}
 
 	var visibilityID string

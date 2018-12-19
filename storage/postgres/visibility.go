@@ -45,9 +45,6 @@ func (vs *visibilityStorage) Create(ctx context.Context, visibility *types.Visib
 }
 
 func (vs *visibilityStorage) createLabels(ctx context.Context, visibilityID string, labels []*types.VisibilityLabel) error {
-	for _, label := range labels {
-		label.ServiceVisibilityID = visibilityID
-	}
 	vls := visibilityLabels{}
 	if err := vls.FromDTO(labels); err != nil {
 		return err
@@ -76,7 +73,7 @@ func (vs *visibilityStorage) Get(ctx context.Context, id string) (*types.Visibil
 }
 
 func (vs *visibilityStorage) List(ctx context.Context, criteria ...query.Criterion) ([]*types.Visibility, error) {
-	rows, err := listWithLabelsAndCriteria(ctx, vs.db, Visibility{}, &VisibilityLabel{}, visibilityTable, criteria)
+	rows, err := listWithLabelsByCriteria(ctx, vs.db, Visibility{}, &VisibilityLabel{}, visibilityTable, criteria)
 	defer func() {
 		if rows == nil {
 			return
@@ -86,7 +83,7 @@ func (vs *visibilityStorage) List(ctx context.Context, criteria ...query.Criteri
 		}
 	}()
 	if err != nil {
-		return nil, checkIntegrityViolation(ctx, err)
+		return nil, err
 	}
 
 	visibilities := make(map[string]*types.Visibility)
@@ -125,7 +122,7 @@ func (vs *visibilityStorage) List(ctx context.Context, criteria ...query.Criteri
 }
 
 func (vs *visibilityStorage) Delete(ctx context.Context, criteria ...query.Criterion) error {
-	return deleteAllByFieldCriteria(ctx, vs.db, visibilityTable, Visibility{}, criteria...)
+	return deleteAllByFieldCriteria(ctx, vs.db, visibilityTable, Visibility{}, criteria)
 }
 
 func (vs *visibilityStorage) Update(ctx context.Context, visibility *types.Visibility, labelChanges ...*query.LabelChange) error {
@@ -139,7 +136,7 @@ func (vs *visibilityStorage) Update(ctx context.Context, visibility *types.Visib
 	}
 	byVisibilityID := query.ByField(query.EqualsOperator, "visibility_id", v.ID)
 	var labels []*VisibilityLabel
-	if err := listByFieldCriteria(ctx, vs.db, visibilityLabelsTable, &labels, byVisibilityID); err != nil {
+	if err := listByFieldCriteria(ctx, vs.db, visibilityLabelsTable, &labels, []query.Criterion{byVisibilityID}); err != nil {
 		return err
 	}
 	visibilityLabels := visibilityLabels(labels)

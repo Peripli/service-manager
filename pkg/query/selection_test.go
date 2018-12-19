@@ -37,26 +37,29 @@ var _ = Describe("Selection", func() {
 	})
 
 	Describe("Add criteria to context", func() {
+		addInvalidCriterion := func(criterion Criterion) {
+			ctx, err := AddCriteria(ctx, criterion)
+			Expect(err).To(HaveOccurred())
+			Expect(ctx).To(BeNil())
+		}
 		Context("Invalid", func() {
 			Specify("Univariate operator with multiple right operands", func() {
-				_, err := AddCriteria(ctx, ByField(EqualsOperator, "leftOp", "1", "2"))
-				Expect(err).To(HaveOccurred())
+				addInvalidCriterion(ByField(EqualsOperator, "leftOp", "1", "2"))
 			})
 			Specify("Nullable operator applied to label query", func() {
-				_, err := AddCriteria(ctx, ByLabel(EqualsOrNilOperator, "leftOp", "1"))
-				Expect(err).To(HaveOccurred())
+				addInvalidCriterion(ByLabel(EqualsOrNilOperator, "leftOp", "1"))
 			})
 			Specify("Numeric operator to non-numeric right operand", func() {
-				_, err := AddCriteria(ctx, ByField(GreaterThanOperator, "leftOp", "non-numeric"))
-				Expect(err).To(HaveOccurred())
+				addInvalidCriterion(ByField(GreaterThanOperator, "leftOp", "non-numeric"))
 			})
 			Specify("Field query with duplicate key", func() {
-				ctx, err := AddCriteria(ctx, validCriterion)
+				var err error
+				ctx, err = AddCriteria(ctx, validCriterion)
 				Expect(err).ToNot(HaveOccurred())
-				duplicateKeyCriterion := ByField(EqualsOrNilOperator, validCriterion.LeftOp, "right op")
-				_, err = AddCriteria(ctx, duplicateKeyCriterion)
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("duplicate"))
+				addInvalidCriterion(ByField(EqualsOrNilOperator, validCriterion.LeftOp, "right op"))
+			})
+			Specify("Right operand is empty", func() {
+				addInvalidCriterion(ByField(EqualsOperator, "leftOp", ""))
 			})
 		})
 
@@ -78,7 +81,7 @@ var _ = Describe("Selection", func() {
 			request = &web.Request{}
 		})
 
-		buildCriteria := func(url string) (criteria, error) {
+		buildCriteria := func(url string) ([]Criterion, error) {
 			newRequest, err := http.NewRequest(http.MethodGet, url, nil)
 			Expect(err).ToNot(HaveOccurred())
 			request = &web.Request{Request: newRequest}
@@ -130,6 +133,22 @@ var _ = Describe("Selection", func() {
 				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop+in+[rightop,rightop2]&labelQuery=leftop+in+[rightop,rightop2]")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(criteriaFromRequest).To(ConsistOf(ByField(InOperator, "leftop", "rightop", "rightop2"), ByLabel(InOperator, "leftop", "rightop", "rightop2")))
+			})
+		})
+
+		Context("When passing multiple field queries", func() {
+			It("Should build criteria", func() {
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop1+in+[rightop,rightop2],leftop2+=+rightop3")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(criteriaFromRequest).To(ConsistOf(ByField(InOperator, "leftop1", "rightop", "rightop2"), ByField(EqualsOperator, "leftop2", "rightop3")))
+			})
+		})
+
+		Context("Operator is unsupported", func() {
+			It("Should return error", func() {
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop1+@+[rightop,rightop2]")
+				Expect(err).To(HaveOccurred())
+				Expect(criteriaFromRequest).To(BeNil())
 			})
 		})
 	})
