@@ -205,7 +205,7 @@ func process(input string, criteriaType CriterionType) ([]Criterion, error) {
 	var buffer strings.Builder
 	var newCriterion Criterion
 	for _, ch := range input {
-		if ch == '+' {
+		if ch == ' ' || ch == '+' {
 			if len(leftOp) > 0 {
 				// we've read the left op, this must be the second + (after the operator)
 				op, err := getOperator(buffer.String())
