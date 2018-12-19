@@ -135,5 +135,13 @@ var _ = Describe("Selection", func() {
 				Expect(criteriaFromRequest).To(ConsistOf(ByField(InOperator, "leftop", "rightop", "rightop2"), ByLabel(InOperator, "leftop", "rightop", "rightop2")))
 			})
 		})
+
+		Context("When passing multiple field queries", func() {
+			It("Should build criteria", func() {
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop1+in+[rightop,rightop2],leftop2+=+rightop3")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(criteriaFromRequest).To(ConsistOf(ByField(InOperator, "leftop1", "rightop", "rightop2"), ByField(EqualsOperator, "leftop2", "rightop3")))
+			})
+		})
 	})
 })

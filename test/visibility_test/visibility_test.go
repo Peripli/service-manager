@@ -674,7 +674,7 @@ var _ = Describe("Service Manager Platform API", func() {
 						Status(http.StatusOK)
 
 					ctx.SMWithOAuth.DELETE("/v1/visibilities").
-						WithQuery(string(query.FieldQuery), fmt.Sprintf("platform_id = %s", postVisibilityRequestNoLabels["platform_id"])).
+						WithQuery(string(query.FieldQuery), fmt.Sprintf("platform_id+=+%s", postVisibilityRequestNoLabels["platform_id"])).
 						Expect().
 						Status(http.StatusOK).JSON().Object().Empty()
 
@@ -701,7 +701,7 @@ var _ = Describe("Service Manager Platform API", func() {
 						Status(http.StatusOK).JSON().Raw()
 
 					ctx.SMWithOAuth.GET("/v1/visibilities").
-						WithQuery(string(query.FieldQuery), fmt.Sprintf("id = %s", id)).
+						WithQuery(string(query.FieldQuery), fmt.Sprintf("id+=+%s", id)).
 						Expect().
 						Status(http.StatusOK).JSON().Object().Value("visibilities").Array().Element(0).Equal(visibilityJSON)
 				})
@@ -728,8 +728,8 @@ var _ = Describe("Service Manager Platform API", func() {
 			Context("With field query for entries exist, but label query for which one does not", func() {
 				It("Should return 200 with empty array", func() {
 					ctx.SMWithOAuth.GET("/v1/visibilities").
-						WithQuery(string(query.FieldQuery), fmt.Sprintf("platform_id = %s", platformID)).
-						WithQuery(string(query.LabelQuery), "some_key = some_value").
+						WithQuery(string(query.FieldQuery), fmt.Sprintf("platform_id+=+%s", platformID)).
+						WithQuery(string(query.LabelQuery), "some_key+=+some_value").
 						Expect().
 						Status(http.StatusOK).JSON().Object().Value("visibilities").Array().Empty()
 				})
@@ -741,8 +741,8 @@ var _ = Describe("Service Manager Platform API", func() {
 					labelValue := labels[0].(common.Object)["value"].([]interface{})[0].(string)
 
 					ctx.SMWithOAuth.GET("/v1/visibilities").
-						WithQuery(string(query.LabelQuery), fmt.Sprintf("%s = %s", labelKey, labelValue)).
-						WithQuery(string(query.FieldQuery), "platform_id = non-existing-platform-id").
+						WithQuery(string(query.LabelQuery), fmt.Sprintf("%s+=+%s", labelKey, labelValue)).
+						WithQuery(string(query.FieldQuery), "platform_id+=+non-existing-platform-id").
 						Expect().
 						Status(http.StatusOK).JSON().Object().Value("visibilities").Array().Empty()
 				})
@@ -763,7 +763,7 @@ var _ = Describe("Service Manager Platform API", func() {
 						Status(http.StatusOK).JSON().Raw()
 
 					ctx.SMWithOAuth.GET("/v1/visibilities").
-						WithQuery(string(query.FieldQuery), fmt.Sprintf("platform_id in [%s,%s]", existingPlatformID, platformID)).
+						WithQuery(string(query.FieldQuery), fmt.Sprintf("platform_id+in+[%s,%s]", existingPlatformID, platformID)).
 						Expect().
 						Status(http.StatusOK).JSON().Object().Value("visibilities").Array().ContainsOnly(oldVisibilityJSON, newVisibilityJSON)
 				})
@@ -780,11 +780,24 @@ var _ = Describe("Service Manager Platform API", func() {
 					}
 
 					visibilitiesResp := ctx.SMWithOAuth.GET("/v1/visibilities").
-						WithQuery(string(query.LabelQuery), fmt.Sprintf("%s = %s", labelKey, labelValue)).
+						WithQuery(string(query.LabelQuery), fmt.Sprintf("%s+=+%s", labelKey, labelValue)).
 						Expect().
 						Status(http.StatusOK).JSON().Object().Value("visibilities")
 					visibilitiesResp.Array().Length().Equal(1)
 					visibilitiesResp.Array().Element(0).Path("$.labels[*].key").Array().ContainsOnly(expectedKeys...)
+				})
+			})
+
+			Context("With multiple field queries", func() {
+				It("Should return 200", func() {
+					visibilityJSON := ctx.SMWithOAuth.GET("/v1/visibilities/" + id).
+						Expect().
+						Status(http.StatusOK).JSON().Raw()
+
+					ctx.SMWithOAuth.GET("/v1/visibilities").
+						WithQuery(string(query.FieldQuery), fmt.Sprintf("platform_id+=+%s,service_plan_id+=+%s", platformID, postVisibilityRequestWithLabels["service_plan_id"].(string))).
+						Expect().
+						Status(http.StatusOK).JSON().Object().Value("visibilities").Array().ContainsOnly(visibilityJSON)
 				})
 			})
 
@@ -798,8 +811,8 @@ var _ = Describe("Service Manager Platform API", func() {
 						Status(http.StatusOK).JSON().Raw()
 
 					ctx.SMWithOAuth.GET("/v1/visibilities").
-						WithQuery(string(query.LabelQuery), fmt.Sprintf("%s = %s", labelKey, labelValue)).
-						WithQuery(string(query.FieldQuery), fmt.Sprintf("platform_id = %s", platformID)).
+						WithQuery(string(query.LabelQuery), fmt.Sprintf("%s+=+%s", labelKey, labelValue)).
+						WithQuery(string(query.FieldQuery), fmt.Sprintf("platform_id+=+%s", platformID)).
 						Expect().
 						Status(http.StatusOK).JSON().Object().Value("visibilities").Array().ContainsOnly(visibilityJSON)
 				})
@@ -808,7 +821,7 @@ var _ = Describe("Service Manager Platform API", func() {
 			Context("With numeric operator applied to non-numeric operands", func() {
 				It("Should return 400", func() {
 					ctx.SMWithOAuth.GET("/v1/visibilities").
-						WithQuery(string(query.FieldQuery), fmt.Sprintf("platform_id lt %s", platformID)).
+						WithQuery(string(query.FieldQuery), fmt.Sprintf("platform_id+lt+%s", platformID)).
 						Expect().
 						Status(http.StatusBadRequest)
 				})
@@ -817,7 +830,7 @@ var _ = Describe("Service Manager Platform API", func() {
 			Context("With multivariate operator applied to empty right operand", func() {
 				It("Should return 400", func() {
 					ctx.SMWithOAuth.GET("/v1/visibilities").
-						WithQuery(string(query.FieldQuery), "platform_id notin []").
+						WithQuery(string(query.FieldQuery), "platform_id+notin+[]").
 						Expect().
 						Status(http.StatusBadRequest)
 				})

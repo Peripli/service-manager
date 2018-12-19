@@ -70,6 +70,8 @@ const (
 	OpenBracket string = "["
 	// OpenBracket is the token that denotes the end of a multivariate operand
 	CloseBracket string = "]"
+	// Separator is the separator between field and label queries
+	Separator rune = ','
 )
 
 // CriterionType is a type of criteria to be applied when querying
@@ -195,43 +197,86 @@ func BuildCriteriaFromRequest(request *web.Request) ([]Criterion, error) {
 
 func process(input string, criteriaType CriterionType) ([]Criterion, error) {
 	var c []Criterion
-	if input != "" {
-		operator, err := getOperator(input)
-		if err != nil {
+	if input == "" {
+		return c, nil
+	}
+	var leftOp string
+	var operator Operator
+	var buffer strings.Builder
+	var newCriterion Criterion
+	for _, ch := range input {
+		if ch == '+' {
+			if len(leftOp) > 0 {
+				// we've read the left op, this must be the second + (after the operator)
+				op, err := getOperator(buffer.String())
+				if err != nil {
+					return nil, err
+				}
+				operator = op
+				buffer.Reset()
+			} else {
+				leftOp = buffer.String()
+				buffer.Reset()
+			}
+			continue
+		}
+		if ch == Separator {
+			var err error
+			bufferContent := buffer.String()
+			var isCriterionCandidate bool
+			if operator.IsMultiVariate() {
+				if strings.HasPrefix(bufferContent, OpenBracket) && strings.HasSuffix(bufferContent, CloseBracket) {
+					isCriterionCandidate = true
+				}
+			} else {
+				isCriterionCandidate = true
+			}
+			if isCriterionCandidate {
+				newCriterion, err = convertToCriterion(leftOp, operator, bufferContent, criteriaType)
+				if err != nil {
+					return nil, err
+				}
+				leftOp = ""
+				buffer.Reset()
+				c = append(c, newCriterion)
+				continue
+			}
+		}
+		if _, err := buffer.WriteRune(ch); err != nil {
 			return nil, err
 		}
-		criterion := convertRawStatementToCriterion(input, operator, criteriaType)
-		c = append(c, criterion)
 	}
+	newCriterion, err := convertToCriterion(leftOp, operator, buffer.String(), criteriaType)
+	if err != nil {
+		return nil, err
+	}
+	c = append(c, newCriterion)
 	return c, nil
 }
 
-func getOperator(rawStatement string) (Operator, error) {
-	var opIdx int
+func convertToCriterion(leftOp string, operator Operator, rightOp string, criterionType CriterionType) (Criterion, error) {
+	parsedRightOp := parseRightOp(rightOp)
+	if operator == "" {
+		return Criterion{}, &UnsupportedQueryError{"missing query operator"}
+	}
+	return newCriterion(leftOp, operator, parsedRightOp, criterionType), nil
+}
+
+func parseRightOp(rightOp string) []string {
+	if strings.HasPrefix(rightOp, OpenBracket) && strings.HasSuffix(rightOp, CloseBracket) {
+		rightOp = rightOp[1 : len(rightOp)-1]
+		return strings.Split(rightOp, ",")
+	}
+	return []string{rightOp}
+}
+
+func getOperator(rawOperator string) (Operator, error) {
 	for _, op := range operators {
-		opIdx = strings.Index(rawStatement, fmt.Sprintf(" %s ", string(op)))
-		if opIdx != -1 {
+		if string(op) == rawOperator {
 			return op, nil
 		}
 	}
-	return "", &UnsupportedQueryError{"query operator is missing"}
-}
-
-func convertRawStatementToCriterion(rawStatement string, operator Operator, criterionType CriterionType) Criterion {
-	rawStatement = strings.TrimSpace(rawStatement)
-
-	opIdx := strings.Index(rawStatement, string(operator))
-	rightOp := strings.Split(rawStatement[opIdx+len(operator):], ",")
-
-	for i := range rightOp {
-		rightOp[i] = strings.TrimSpace(rightOp[i])
-	}
-
-	if operator.IsMultiVariate() {
-		rightOp[0] = strings.TrimPrefix(rightOp[0], OpenBracket)
-		rightOp[len(rightOp)-1] = strings.TrimSuffix(rightOp[len(rightOp)-1], CloseBracket)
-	}
-	return newCriterion(strings.TrimSpace(rawStatement[:opIdx]), operator, rightOp, criterionType)
+	return "", &UnsupportedQueryError{fmt.Sprintf("unsupported or missing query operator: %s", rawOperator)}
 }
 
 func isNumeric(str string) bool {
