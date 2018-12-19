@@ -39,7 +39,7 @@ type ServicePlan struct {
 	PlanUpdatable bool   `json:"plan_updateable"`
 
 	Metadata json.RawMessage `json:"metadata,omitempty"`
-	Schemas  json.RawMessage `json:"schemas"`
+	Schemas  json.RawMessage `json:"schemas,omitempty"`
 
 	ServiceOfferingID string `json:"service_offering_id"`
 }
