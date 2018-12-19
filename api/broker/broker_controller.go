@@ -24,6 +24,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/security"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
@@ -177,7 +179,7 @@ func (c *Controller) listBrokers(r *web.Request) (*web.Response, error) {
 	log.C(ctx).Debug("Getting all brokers")
 	includeCatalog := strings.ToLower(r.FormValue(catalogParam)) == "true"
 
-	brokers, err = c.Repository.Broker().List(ctx)
+	brokers, err = c.Repository.Broker().List(ctx, query.CriteriaForContext(ctx)...)
 	if err != nil {
 		return nil, err
 	}
@@ -201,12 +203,23 @@ func (c *Controller) listBrokers(r *web.Request) (*web.Response, error) {
 	})
 }
 
+func (c *Controller) deleteBrokers(r *web.Request) (*web.Response, error) {
+	ctx := r.Context()
+	log.C(ctx).Debugf("Deleting visibilities...")
+
+	if err := c.Repository.Broker().Delete(ctx, query.CriteriaForContext(ctx)...); err != nil {
+		return nil, util.HandleSelectionError(err, "broker")
+	}
+	return util.NewJSONResponse(http.StatusOK, map[string]string{})
+}
+
 func (c *Controller) deleteBroker(r *web.Request) (*web.Response, error) {
 	brokerID := r.PathParams[reqBrokerID]
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting broker with id %s", brokerID)
 
-	if err := c.Repository.Broker().Delete(ctx, brokerID); err != nil {
+	byID := query.ByField(query.EqualsOperator, "id", brokerID)
+	if err := c.Repository.Broker().Delete(ctx, byID); err != nil {
 		return nil, util.HandleStorageError(err, "broker")
 	}
 	return util.NewJSONResponse(http.StatusOK, map[string]int{})
@@ -470,7 +483,8 @@ func (c *Controller) resyncBrokerAndCatalog(ctx context.Context, broker *types.B
 		}
 
 		for _, existingServiceOffering := range existingServicesOfferingsMap {
-			if err := txStorage.ServiceOffering().Delete(ctx, existingServiceOffering.ID); err != nil {
+			byID := query.ByField(query.EqualsOperator, "id", existingServiceOffering.ID)
+			if err := txStorage.ServiceOffering().Delete(ctx, byID); err != nil {
 				return util.HandleStorageError(err, "service_offering")
 			}
 		}
@@ -524,7 +538,8 @@ func (c *Controller) resyncBrokerAndCatalog(ctx context.Context, broker *types.B
 		}
 
 		for _, existingServicePlan := range existingServicePlansMap {
-			if err := txStorage.ServicePlan().Delete(ctx, existingServicePlan.ID); err != nil {
+			byID := query.ByField(query.EqualsOperator, "id", existingServicePlan.ID)
+			if err := txStorage.ServicePlan().Delete(ctx, byID); err != nil {
 				if err == util.ErrNotFoundInStorage {
 					// If the service for the plan was deleted, plan would already be gone
 					continue

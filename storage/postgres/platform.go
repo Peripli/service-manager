@@ -19,6 +19,8 @@ package postgres
 import (
 	"context"
 
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
@@ -40,9 +42,9 @@ func (ps *platformStorage) Get(ctx context.Context, id string) (*types.Platform,
 	return platform.ToDTO(), nil
 }
 
-func (ps *platformStorage) List(ctx context.Context) ([]*types.Platform, error) {
+func (ps *platformStorage) List(ctx context.Context, criteria ...query.Criterion) ([]*types.Platform, error) {
 	var platforms []Platform
-	err := list(ctx, ps.db, platformTable, map[string][]string{}, &platforms)
+	err := listByFieldCriteria(ctx, ps.db, platformTable, &platforms, criteria...)
 	if err != nil || len(platforms) == 0 {
 		return []*types.Platform{}, err
 	}
@@ -53,8 +55,8 @@ func (ps *platformStorage) List(ctx context.Context) ([]*types.Platform, error) 
 	return platformDTOs, nil
 }
 
-func (ps *platformStorage) Delete(ctx context.Context, id string) error {
-	return remove(ctx, ps.db, id, platformTable)
+func (ps *platformStorage) Delete(ctx context.Context, criteria ...query.Criterion) error {
+	return deleteAllByFieldCriteria(ctx, ps.db, platformTable, Platform{}, criteria...)
 }
 
 func (ps *platformStorage) Update(ctx context.Context, platform *types.Platform) error {

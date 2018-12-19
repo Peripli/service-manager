@@ -17,15 +17,16 @@
 package platform_test
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 	"testing"
+
+	"github.com/Peripli/service-manager/pkg/types"
 
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 )
-
-type object = common.Object
-type array = common.Array
 
 // TestPlatforms tests for platform API
 func TestPlatforms(t *testing.T) {
@@ -76,7 +77,7 @@ var _ = Describe("Service Manager Platform API", func() {
 	})
 
 	Describe("List", func() {
-		Context("With no platforms", func() {
+		Context("With no existing platforms", func() {
 			It("returns empty array", func() {
 				ctx.SMWithOAuth.GET("/v1/platforms").
 					Expect().
@@ -85,30 +86,183 @@ var _ = Describe("Service Manager Platform API", func() {
 			})
 		})
 
-		Context("With some platforms", func() {
-			It("returns all the platforms", func() {
-				platforms := array{}
+		Context("With some existing platforms", func() {
+			platformObjects := []common.Object{common.MakeRandomizedPlatform(), common.MakeRandomizedPlatform(), common.MakeRandomizedPlatformWithNoDescription()}
 
-				addPlatform := func(id string, name string, atype string, description string) {
-					platform := common.MakePlatform(id, name, atype, description)
-					ctx.SMWithOAuth.POST("/v1/platforms").WithJSON(platform).
-						Expect().Status(http.StatusCreated)
-					platforms = append(platforms, platform)
+			BeforeEach(func() {
+				for _, platform := range platformObjects {
+					_ = common.RegisterPlatformInSM(platform, ctx.SMWithOAuth)
+				}
+			})
 
-					replyArray := ctx.SMWithOAuth.GET("/v1/platforms").
+			Context("with no field query", func() {
+				It("returns all the platforms", func() {
+					reply := ctx.SMWithOAuth.GET("/v1/platforms").
 						Expect().
 						Status(http.StatusOK).
 						JSON().Object().Value("platforms").Array()
-					for _, v := range replyArray.Iter() {
+
+					for _, v := range reply.Iter() {
 						obj := v.Object().Raw()
 						delete(obj, "created_at")
 						delete(obj, "updated_at")
 					}
-					replyArray.ContainsOnly(platforms...)
-				}
+					reply.Contains(platformObjects[0], platformObjects[1], platformObjects[2])
 
-				addPlatform("id1", "platform1", "cf", "platform one")
-				addPlatform("id2", "platform2", "k8s", "platform two")
+				})
+			})
+
+			type testCase struct {
+				fieldQueryTemplate        string
+				expectedResourceObjects   []interface{}
+				unexpectedResourceObjects []interface{}
+				expectedStatusCode        int
+			}
+
+			tests := []testCase{
+				{
+					fieldQueryTemplate:        "%s+=+%s",
+					expectedResourceObjects:   []interface{}{platformObjects[0]},
+					unexpectedResourceObjects: []interface{}{platformObjects[1]},
+					expectedStatusCode:        http.StatusOK,
+				},
+				//{
+				//	fieldQueryTemplate:        "%s+!=+%s",
+				//	expectedResourceObjects:   []interface{}{platformObjects[1]},
+				//	unexpectedResourceObjects: []interface{}{platformObjects[0], platformObjects[2]},
+				//	expectedStatusCode:        http.StatusOK,
+				//},
+				//{
+				//	fieldQueryTemplate:        "%s+in+[%s,123,456]",
+				//	expectedResourceObjects:   []interface{}{platformObjects[0]},
+				//	unexpectedResourceObjects: []interface{}{platformObjects[1], platformObjects[2]},
+				//	expectedStatusCode:        http.StatusOK,
+				//},
+				//{
+				//	fieldQueryTemplate:        "%s+notin+[%s,123,456]",
+				//	expectedResourceObjects:   []interface{}{platformObjects[1]},
+				//	unexpectedResourceObjects: []interface{}{platformObjects[0]},
+				//	expectedStatusCode:        http.StatusOK,
+				//},
+				//{
+				//	fieldQueryTemplate: "%s+>+%s",
+				//	expectedStatusCode: http.StatusBadRequest,
+				//},
+				//{
+				//	fieldQueryTemplate: "%s+<+%s",
+				//	expectedStatusCode: http.StatusBadRequest,
+				//},
+				//{
+				//	fieldQueryTemplate:        "%s+eqornil+%s",
+				//	expectedResourceObjects:   []interface{}{},
+				//	unexpectedResourceObjects: []interface{}{platformObjects[0], platformObjects[1], platformObjects[2]},
+				//	expectedStatusCode:        http.StatusOK,
+				//},
+			}
+
+			Context("with field query", func() {
+				for _, testArgs := range tests {
+					t := testArgs
+					Context("when multiple field queries are provided", func() {
+						FIt("returns the expected platforms", func() {
+							var queries []string
+
+							for key, value := range platformObjects[0] {
+								queries = append(queries, fmt.Sprintf(t.fieldQueryTemplate, key, value))
+							}
+
+							req := ctx.SMWithOAuth.GET("/v1/platforms")
+
+							if len(queries) != 0 {
+								req = req.WithQuery("fieldQuery", strings.Join(queries, ","))
+							}
+
+							reply := req.
+								Expect().
+								Status(t.expectedStatusCode)
+
+							if t.expectedStatusCode == http.StatusOK {
+								array := reply.JSON().Object().Value("platforms").Array()
+
+								for _, v := range array.Iter() {
+									obj := v.Object().Raw()
+									delete(obj, "created_at")
+									delete(obj, "updated_at")
+								}
+
+								if len(t.expectedResourceObjects) != 0 {
+									array.Contains(t.expectedResourceObjects...)
+								}
+
+								if len(t.unexpectedResourceObjects) != 0 {
+									array.NotContains(t.unexpectedResourceObjects...)
+								}
+							} else {
+								reply.JSON().Object().Keys().Contains("error", "description")
+							}
+						})
+					})
+
+					for k, v := range platformObjects[0] {
+						key, value := k, v
+						t.fieldQueryTemplate = fmt.Sprintf(t.fieldQueryTemplate, key, value)
+
+						Context(fmt.Sprintf("when field query is [%s] and has matching values", t.fieldQueryTemplate), func() {
+							It("returns the correct platforms", func() {
+								req := ctx.SMWithOAuth.GET("/v1/platforms")
+								req = req.WithQuery("fieldQuery", t.fieldQueryTemplate)
+
+								reply := req.
+									Expect().
+									Status(t.expectedStatusCode)
+								if t.expectedStatusCode != http.StatusOK {
+
+									array := reply.JSON().Object().Value("platforms").Array()
+
+									for _, v := range array.Iter() {
+										obj := v.Object().Raw()
+										delete(obj, "created_at")
+										delete(obj, "updated_at")
+									}
+
+									if len(t.expectedResourceObjects) != 0 {
+										array.Contains(t.expectedResourceObjects...)
+									}
+
+									if len(t.unexpectedResourceObjects) != 0 {
+										array.NotContains(t.unexpectedResourceObjects...)
+									}
+								} else {
+									reply.JSON().Object().Keys().Contains("error", "description")
+								}
+							})
+						})
+
+						Context(fmt.Sprintf("when field query is [%s] and has a key with no matching values", t.fieldQueryTemplate), func() {
+							It("returns 200 with empty platforms", func() {
+								reply := ctx.SMWithOAuth.GET("/v1/platforms").WithQuery("fieldQuery", t.fieldQueryTemplate).
+									Expect().
+									Status(t.expectedStatusCode).JSON().Object()
+
+								if t.expectedStatusCode != http.StatusOK {
+									reply.Value("platforms").Array().Empty()
+								} else {
+									reply.Keys().Contains("error", "description")
+								}
+
+							})
+						})
+					}
+
+					Context(fmt.Sprintf("when field query %s has a key that is non existing", fmt.Sprintf(t.fieldQueryTemplate, "non-existing-key", "non-existing-value")), func() {
+						It("returns 400", func() {
+							ctx.SMWithOAuth.GET("/v1/platforms").WithQuery("fieldQuery", fmt.Sprintf(t.fieldQueryTemplate, "non-existing-key", "random-value")).
+								Expect().
+								Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+						})
+					})
+
+				}
 			})
 		})
 	})
@@ -133,7 +287,7 @@ var _ = Describe("Service Manager Platform API", func() {
 
 		Context("With missing mandatory fields", func() {
 			It("returns 400", func() {
-				newplatform := func() object {
+				newplatform := func() common.Object {
 					return common.MakePlatform("platform1", "cf-10", "cf", "descr")
 				}
 				ctx.SMWithOAuth.POST("/v1/platforms").
@@ -223,7 +377,7 @@ var _ = Describe("Service Manager Platform API", func() {
 	})
 
 	Describe("PATCH", func() {
-		var platform object
+		var platform common.Object
 		const id = "p1"
 
 		BeforeEach(func() {
@@ -292,7 +446,7 @@ var _ = Describe("Service Manager Platform API", func() {
 				delete(updatedPlatform, "id")
 
 				for prop, val := range updatedPlatform {
-					update := object{}
+					update := common.Object{}
 					update[prop] = val
 					reply := ctx.SMWithOAuth.PATCH("/v1/platforms/" + id).
 						WithJSON(update).
@@ -314,7 +468,7 @@ var _ = Describe("Service Manager Platform API", func() {
 		Context("With provided id", func() {
 			It("should not update platform id", func() {
 				ctx.SMWithOAuth.PATCH("/v1/platforms/" + id).
-					WithJSON(object{"id": "123"}).
+					WithJSON(common.Object{"id": "123"}).
 					Expect().
 					Status(http.StatusOK)
 
@@ -327,7 +481,7 @@ var _ = Describe("Service Manager Platform API", func() {
 		Context("On missing platform", func() {
 			It("returns 404", func() {
 				ctx.SMWithOAuth.PATCH("/v1/platforms/123").
-					WithJSON(object{"name": "123"}).
+					WithJSON(common.Object{"name": "123"}).
 					Expect().
 					Status(http.StatusNotFound)
 			})
@@ -358,23 +512,94 @@ var _ = Describe("Service Manager Platform API", func() {
 		})
 
 		Context("Existing platform", func() {
-			It("succeeds", func() {
-				platform := common.MakePlatform("p1", "cf-10", "cf", "descr")
-				ctx.SMWithOAuth.POST("/v1/platforms").
-					WithJSON(platform).
-					Expect().Status(http.StatusCreated)
+			var platform *types.Platform
+			platformObject := common.MakeRandomizedPlatform()
 
-				ctx.SMWithOAuth.GET("/v1/platforms/p1").
-					Expect().
-					Status(http.StatusOK)
+			BeforeEach(func() {
+				platform = common.RegisterPlatformInSM(platformObject, ctx.SMWithOAuth)
+			})
 
-				ctx.SMWithOAuth.DELETE("/v1/platforms/p1").
-					Expect().
-					Status(http.StatusOK).JSON().Object().Empty()
+			Context("with field query", func() {
+				// loop over testcase that has platformobject, leftop, operator, rightops
+				for k, v := range platformObject {
+					key, value := k, v
+					Context("when the field query matches some platforms", func() {
+						It("returns the expected platforms", func() {
+							ctx.SMWithOAuth.GET("/v1/platforms/" + platform.ID).
+								Expect().
+								Status(http.StatusOK)
 
-				ctx.SMWithOAuth.GET("/v1/platforms/p1").
-					Expect().
-					Status(http.StatusNotFound)
+							ctx.SMWithOAuth.DELETE("/v1/platforms").WithQuery("fieldQuery", fmt.Sprintf("%s%s%s", key, " = ", value)).
+								Expect().
+								Status(http.StatusOK)
+
+							ctx.SMWithOAuth.GET("/v1/platforms/" + platform.ID).
+								Expect().
+								Status(http.StatusNotFound)
+						})
+					})
+
+					Context("when the field query value does not match any platforms values", func() {
+						It("returns 404", func() {
+							ctx.SMWithOAuth.DELETE("/v1/platforms").WithQuery("fieldQuery", fmt.Sprintf("%s%s%s", key, " = ", "non-existing-val")).
+								Expect().
+								Status(http.StatusNotFound)
+						})
+					})
+				}
+
+				Context("when multiple field queries are provided", func() {
+					It("returns the expected platforms", func() {
+						ctx.SMWithOAuth.GET("/v1/platforms/" + platform.ID).
+							Expect().
+							Status(http.StatusOK)
+
+						req := ctx.SMWithOAuth.DELETE("/v1/platforms")
+						for key, value := range platformObject {
+							req = req.WithQuery("fieldQuery", fmt.Sprintf("%s%s%s", key, " = ", value))
+						}
+						req.
+							Expect().
+							Status(http.StatusOK)
+
+						ctx.SMWithOAuth.GET("/v1/platforms/" + platform.ID).
+							Expect().
+							Status(http.StatusNotFound)
+					})
+				})
+
+				Context("when the field query key does not exist", func() {
+					It("returns 400", func() {
+						ctx.SMWithOAuth.GET("/v1/platforms/" + platform.ID).
+							Expect().
+							Status(http.StatusOK)
+
+						ctx.SMWithOAuth.DELETE("/v1/platforms").WithQuery("fieldQuery", fmt.Sprintf("%s%s%s", "non-existing-key", " = ", "non-existing-val")).
+							Expect().
+							Status(http.StatusBadRequest).
+							JSON().Object().Keys().Contains("error", "description")
+
+						ctx.SMWithOAuth.GET("/v1/platforms/" + platform.ID).
+							Expect().
+							Status(http.StatusOK)
+					})
+				})
+			})
+
+			Context("with no field query", func() {
+				It("succeeds", func() {
+					ctx.SMWithOAuth.GET("/v1/platforms/" + platform.ID).
+						Expect().
+						Status(http.StatusOK)
+
+					ctx.SMWithOAuth.DELETE("/v1/platforms/" + platform.ID).
+						Expect().
+						Status(http.StatusOK).JSON().Object().Empty()
+
+					ctx.SMWithOAuth.GET("/v1/platforms/" + platform.ID).
+						Expect().
+						Status(http.StatusNotFound)
+				})
 			})
 		})
 	})

@@ -19,6 +19,8 @@ package postgres
 import (
 	"context"
 
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
@@ -40,7 +42,7 @@ func (bs *brokerStorage) Get(ctx context.Context, id string) (*types.Broker, err
 	return broker.ToDTO(), nil
 }
 
-func (bs *brokerStorage) List(ctx context.Context) ([]*types.Broker, error) {
+func (bs *brokerStorage) List(ctx context.Context, criteria ...query.Criterion) ([]*types.Broker, error) {
 	var brokerDTOs []Broker
 	err := list(ctx, bs.db, brokerTable, map[string][]string{}, &brokerDTOs)
 	if err != nil || len(brokerDTOs) == 0 {
@@ -53,8 +55,9 @@ func (bs *brokerStorage) List(ctx context.Context) ([]*types.Broker, error) {
 	return brokers, nil
 }
 
-func (bs *brokerStorage) Delete(ctx context.Context, id string) error {
-	return remove(ctx, bs.db, id, brokerTable)
+func (bs *brokerStorage) Delete(ctx context.Context, criteria ...query.Criterion) error {
+	return deleteAllByFieldCriteria(ctx, bs.db, brokerTable, Broker{}, criteria...)
+
 }
 
 func (bs *brokerStorage) Update(ctx context.Context, broker *types.Broker) error {

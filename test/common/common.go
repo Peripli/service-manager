@@ -24,6 +24,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/gofrs/uuid"
+
 	"strings"
 
 	"bytes"
@@ -133,6 +135,32 @@ func MakePlatform(id string, name string, atype string, description string) Obje
 		"type":        atype,
 		"description": description,
 	}
+}
+
+func MakeRandomizedPlatformWithNoDescription() Object {
+	o := Object{}
+	for _, key := range []string{"id", "name", "type"} {
+		UUID, err := uuid.NewV4()
+		if err != nil {
+			panic(err)
+		}
+		o[key] = UUID.String()
+
+	}
+	o["description"] = ""
+	return o
+}
+func MakeRandomizedPlatform() Object {
+	o := Object{}
+	for _, key := range []string{"id", "name", "type", "description"} {
+		UUID, err := uuid.NewV4()
+		if err != nil {
+			panic(err)
+		}
+		o[key] = UUID.String()
+
+	}
+	return o
 }
 
 type HTTPReaction struct {

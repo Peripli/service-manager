@@ -20,6 +20,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -102,9 +104,9 @@ func (c *Controller) getPlatform(r *web.Request) (*web.Response, error) {
 func (c *Controller) listPlatforms(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debug("Getting all platforms")
-	platforms, err := c.PlatformStorage.List(ctx)
+	platforms, err := c.PlatformStorage.List(ctx, query.CriteriaForContext(ctx)...)
 	if err != nil {
-		return nil, err
+		return nil, util.HandleSelectionError(err)
 	}
 
 	for _, platform := range platforms {
@@ -118,13 +120,24 @@ func (c *Controller) listPlatforms(r *web.Request) (*web.Response, error) {
 	})
 }
 
+func (c *Controller) deletePlatforms(r *web.Request) (*web.Response, error) {
+	ctx := r.Context()
+	log.C(ctx).Debugf("Deleting visibilities...")
+
+	if err := c.PlatformStorage.Delete(ctx, query.CriteriaForContext(ctx)...); err != nil {
+		return nil, util.HandleSelectionError(err, "platform")
+	}
+	return util.NewJSONResponse(http.StatusOK, map[string]string{})
+}
+
 // deletePlatform handler for DELETE /v1/platforms/:platform_id
 func (c *Controller) deletePlatform(r *web.Request) (*web.Response, error) {
 	platformID := r.PathParams[reqPlatformID]
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting platform with id %s", platformID)
 
-	if err := c.PlatformStorage.Delete(ctx, platformID); err != nil {
+	byIDQuery := query.ByField(query.EqualsOperator, "id", platformID)
+	if err := c.PlatformStorage.Delete(ctx, byIDQuery); err != nil {
 		return nil, util.HandleStorageError(err, "platform")
 	}
 

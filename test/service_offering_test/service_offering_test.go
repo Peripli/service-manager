@@ -17,6 +17,7 @@
 package service_test
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -139,7 +140,7 @@ var _ = Describe("Service Manager Service Offerings API", func() {
 					serviceCatalogName := common.DefaultCatalog()["services"].([]interface{})[0].(map[string]interface{})["name"]
 					Expect(serviceCatalogName).ToNot(BeEmpty())
 
-					ctx.SMWithOAuth.GET("/v1/service_offerings").WithQuery("catalog_name", serviceCatalogName).
+					ctx.SMWithOAuth.GET("/v1/service_offerings").WithQuery("fieldQuery", fmt.Sprintf("catalog_name=%s", serviceCatalogName)).
 						Expect().
 						Status(http.StatusOK).
 						JSON().Object().Value("service_offerings").Array().Length().Equal(1)

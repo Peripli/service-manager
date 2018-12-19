@@ -17,7 +17,6 @@
 package slice
 
 import (
-	"regexp"
 	"strings"
 )
 
@@ -75,19 +74,4 @@ func StringsAnySuffix(stringSlice []string, suffix string) bool {
 		}
 	}
 	return false
-}
-
-// StringsMatchingRegex returns a subset of the provided strings matching the specified regex
-func StringsMatchingRegex(stringSlice []string, regex string) []string {
-	result := make([]string, 0)
-	r, err := regexp.Compile(regex)
-	if err != nil {
-		return nil
-	}
-	for _, v := range stringSlice {
-		if r.MatchString(v) {
-			result = append(result, v)
-		}
-	}
-	return result
 }
