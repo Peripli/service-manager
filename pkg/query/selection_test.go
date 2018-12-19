@@ -143,5 +143,13 @@ var _ = Describe("Selection", func() {
 				Expect(criteriaFromRequest).To(ConsistOf(ByField(InOperator, "leftop1", "rightop", "rightop2"), ByField(EqualsOperator, "leftop2", "rightop3")))
 			})
 		})
+
+		Context("Operator is unsupported", func() {
+			It("Should return error", func() {
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop1+@+[rightop,rightop2]")
+				Expect(err).To(HaveOccurred())
+				Expect(criteriaFromRequest).To(BeNil())
+			})
+		})
 	})
 })
