@@ -51,8 +51,8 @@ const (
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	Level  string
-	Format string
+	Level  string `description:"minimum level for log messages"`
+	Format string `description:"format of log messages. Allowed values - text, json"`
 }
 
 // DefaultSettings returns default values for Log settings
