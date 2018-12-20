@@ -151,5 +151,15 @@ var _ = Describe("Selection", func() {
 				Expect(criteriaFromRequest).To(BeNil())
 			})
 		})
+
+		Context("Operand has encoded value", func() {
+			It("Should be ok", func() {
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop1+in+[%2Frightop,rightop2]")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(criteriaFromRequest).ToNot(BeNil())
+				expectedQuery := ByField(InOperator, "leftop1", "%2Frightop", "rightop2")
+				Expect(criteriaFromRequest).To(ConsistOf(expectedQuery))
+			})
+		})
 	})
 })

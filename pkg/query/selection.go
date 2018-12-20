@@ -19,6 +19,7 @@ package query
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -71,7 +72,8 @@ const (
 	// OpenBracket is the token that denotes the end of a multivariate operand
 	CloseBracket string = "]"
 	// Separator is the separator between field and label queries
-	Separator rune = ','
+	Separator        rune   = ','
+	OperandSeparator string = "+"
 )
 
 // CriterionType is a type of criteria to be applied when querying
@@ -195,16 +197,26 @@ func BuildCriteriaFromRequest(request *web.Request) ([]Criterion, error) {
 	return criteria, nil
 }
 
+var (
+	escapedOpenBracket      = url.QueryEscape(OpenBracket)
+	escapedCloseBracket     = url.QueryEscape(CloseBracket)
+	escapedSeparator        = url.QueryEscape(string(Separator))
+	escapedOperandSeparator = url.QueryEscape(OperandSeparator)
+	escapeReplacer          = strings.NewReplacer(escapedOpenBracket, OpenBracket, escapedCloseBracket, CloseBracket, escapedSeparator, string(Separator), escapedOperandSeparator, OperandSeparator, "%3D", "=")
+)
+
 func process(input string, criteriaType CriterionType) ([]Criterion, error) {
 	var c []Criterion
 	if input == "" {
 		return c, nil
 	}
+	escapedInput := url.QueryEscape(input)
+	escapedInput = escapeReplacer.Replace(escapedInput)
 	var leftOp string
 	var operator Operator
 	var buffer strings.Builder
 	var newCriterion Criterion
-	for _, ch := range input {
+	for _, ch := range escapedInput {
 		if ch == ' ' || ch == '+' {
 			if len(leftOp) > 0 {
 				// we've read the left op, this must be the second + (after the operator)
