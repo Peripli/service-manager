@@ -23,8 +23,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Peripli/service-manager/pkg/util/slice"
-
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
@@ -133,9 +131,9 @@ func (c Criterion) Validate() error {
 	if c.Operator.IsNumeric() && !isNumeric(c.RightOp[0]) {
 		return &UnsupportedQueryError{Message: fmt.Sprintf("%s is numeric operator, but the right operand is not numeric", c.Operator)}
 	}
-	if slice.StringsAnyEquals(c.RightOp, "") {
-		return &UnsupportedQueryError{Message: "right operand must have value"}
-	}
+	//if slice.StringsAnyEquals(c.RightOp, "") {
+	//	return &UnsupportedQueryError{Message: "right operand must have value"}
+	//}
 	return nil
 }
 

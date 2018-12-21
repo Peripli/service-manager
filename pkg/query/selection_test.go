@@ -58,9 +58,6 @@ var _ = Describe("Selection", func() {
 				Expect(err).ToNot(HaveOccurred())
 				addInvalidCriterion(ByField(EqualsOrNilOperator, validCriterion.LeftOp, "right op"))
 			})
-			Specify("Right operand is empty", func() {
-				addInvalidCriterion(ByField(EqualsOperator, "leftOp", ""))
-			})
 		})
 
 		Context("Valid", func() {
@@ -158,6 +155,15 @@ var _ = Describe("Selection", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(criteriaFromRequest).ToNot(BeNil())
 				expectedQuery := ByField(InOperator, "leftop1", "%2Frightop", "rightop2")
+				Expect(criteriaFromRequest).To(ConsistOf(expectedQuery))
+			})
+		})
+		Context("Right operand is empty", func() {
+			It("Should be ok", func() {
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop1+in+")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(criteriaFromRequest).ToNot(BeNil())
+				expectedQuery := ByField(InOperator, "leftop1", "")
 				Expect(criteriaFromRequest).To(ConsistOf(expectedQuery))
 			})
 		})

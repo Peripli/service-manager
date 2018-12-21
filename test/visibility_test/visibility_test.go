@@ -769,6 +769,24 @@ var _ = Describe("Service Manager Platform API", func() {
 				})
 			})
 
+			Context("With univariate operator applied to empty right operand", func() {
+				It("Should return 200", func() {
+					ctx.SMWithOAuth.GET("/v1/visibilities").
+						WithQuery(string(query.FieldQuery), fmt.Sprintf("platform_id+=+")).
+						Expect().
+						Status(http.StatusOK)
+				})
+			})
+
+			Context("With multivariate operator applied to empty right operand", func() {
+				It("Should return 200", func() {
+					ctx.SMWithOAuth.GET("/v1/visibilities").
+						WithQuery(string(query.FieldQuery), "platform_id+notin+[]").
+						Expect().
+						Status(http.StatusOK)
+				})
+			})
+
 			Context("With only label query for which entry exists", func() {
 				It("Should return 200 with this entry", func() {
 					labelKey := labels[0].(common.Object)["key"].(string)
@@ -822,15 +840,6 @@ var _ = Describe("Service Manager Platform API", func() {
 				It("Should return 400", func() {
 					ctx.SMWithOAuth.GET("/v1/visibilities").
 						WithQuery(string(query.FieldQuery), fmt.Sprintf("platform_id+lt+%s", platformID)).
-						Expect().
-						Status(http.StatusBadRequest)
-				})
-			})
-
-			Context("With multivariate operator applied to empty right operand", func() {
-				It("Should return 400", func() {
-					ctx.SMWithOAuth.GET("/v1/visibilities").
-						WithQuery(string(query.FieldQuery), "platform_id+notin+[]").
 						Expect().
 						Status(http.StatusBadRequest)
 				})
