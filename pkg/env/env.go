@@ -24,8 +24,6 @@ import (
 
 	"github.com/spf13/cast"
 
-	"github.com/fatih/structs"
-
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -76,18 +74,6 @@ func EmptyFlagSet() *pflag.FlagSet {
 // CreatePFlags Creates pflags for the value structure and adds them in the provided set
 func CreatePFlags(set *pflag.FlagSet, value interface{}) {
 	parameters, descriptions := buildParametersAndDescriptions(value)
-
-	descriptionsCount := len(descriptions)
-	parametersCount := len(parameters)
-	if descriptionsCount != parametersCount {
-		log.D().Warnf("Unexpected number of descriptions found for %s: %d. "+
-			"Expected the same number as the configuration parameters: %d. Using default descriptions...",
-			structs.New(value).Names(), descriptionsCount, parametersCount)
-		descriptions = make([]string, 0, len(parameters))
-		for _, binding := range parameters {
-			descriptions = append(descriptions, fmt.Sprintf("commandline argument for %s", binding.Name))
-		}
-	}
 
 	for i, parameter := range parameters {
 		if set.Lookup(parameter.Name) == nil {

@@ -74,6 +74,9 @@ func buildDescriptionPaths(root *descriptionTree, path []*descriptionTree) []str
 		for _, node := range path {
 			res += node.Value
 		}
+		if res == "" {
+			res = "external configuration or no description provided"
+		}
 		if res != "" {
 			result = append(result, res)
 		}
@@ -97,7 +100,8 @@ func buildDescriptionTreeWithParameters(value interface{}, tree *descriptionTree
 		return
 	}
 	s := structs.New(value)
-	for i, field := range s.Fields() {
+	k := 0
+	for _, field := range s.Fields() {
 		if isValidField(field) {
 			var name string
 			if field.Tag("mapstructure") != "" {
@@ -113,7 +117,8 @@ func buildDescriptionTreeWithParameters(value interface{}, tree *descriptionTree
 			baseTree := newDescriptionTree(description)
 			tree.AddNode(baseTree)
 			buffer += name + "."
-			buildDescriptionTreeWithParameters(field.Value(), tree.Children[i], buffer, result)
+			buildDescriptionTreeWithParameters(field.Value(), tree.Children[k], buffer, result)
+			k++
 			buffer = buffer[0:strings.LastIndex(buffer, name)]
 		}
 	}
