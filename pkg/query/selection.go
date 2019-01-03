@@ -207,63 +207,23 @@ func process(input string, criteriaType CriterionType) ([]Criterion, error) {
 	}
 	var leftOp string
 	var operator Operator
-	var rightOp []string
 	j := 0
 	for i := 0; i < len(input); i++ {
 		if leftOp != "" && operator != "" {
-			rightOpBuffer := strings.Builder{}
 			remaining := input[i+len(operator)+1:]
-			k := 0
-			for _, ch := range remaining {
-				if ch == Separator {
-					if remaining[k-1] != '\\' { // delimiter is not escaped - treat as separator
-						arg := rightOpBuffer.String()
-						rightOp = append(rightOp, arg)
-						rightOpBuffer.Reset()
-						if rune(arg[len(arg)-1]) == CloseBracket || !operator.IsMultiVariate() {
-							break
-						}
-					} else { // remove escaping symbol
-						tmp := rightOpBuffer.String()[:k-1]
-						rightOpBuffer.Reset()
-						rightOpBuffer.WriteString(tmp)
-						rightOpBuffer.WriteRune(ch)
-					}
-				} else {
-					rightOpBuffer.WriteRune(ch)
-				}
-				k++
-			}
-			if rightOpBuffer.Len() > 0 {
-				rightOp = append(rightOp, rightOpBuffer.String())
-			}
-			if len(rightOp) > 0 && operator.IsMultiVariate() {
-				firstElement := rightOp[0]
-				if strings.IndexRune(firstElement, OpenBracket) == 0 {
-					rightOp[0] = firstElement[1:]
-				} else {
-					return nil, fmt.Errorf("operator %s for %s %s requires right operand to be surrounded in %c%c", operator, criteriaType, leftOp, OpenBracket, CloseBracket)
-				}
-				lastElement := rightOp[len(rightOp)-1]
-				if rune(lastElement[len(lastElement)-1]) == CloseBracket {
-					rightOp[len(rightOp)-1] = lastElement[:len(lastElement)-1]
-				} else {
-					return nil, fmt.Errorf("operator %s for %s %s requires right operand to be surrounded in %c%c", operator, criteriaType, leftOp, OpenBracket, CloseBracket)
-				}
-			}
-			if len(rightOp) == 0 {
-				rightOp = append(rightOp, "")
+			rightOp, offset, err := findRightOp(remaining, leftOp, operator, criteriaType)
+			if err != nil {
+				return nil, err
 			}
 			criterion := newCriterion(leftOp, operator, rightOp, criteriaType)
 			if err := criterion.Validate(); err != nil {
 				return nil, err
 			}
 			c = append(c, criterion)
-			i += k + len(operator) + len(string(Separator))
+			i += offset + len(operator) + len(string(Separator))
 			j = i + 1
 			leftOp = ""
 			operator = ""
-			rightOp = []string{}
 		} else {
 			remaining := input[i:]
 			for _, op := range operators {
@@ -279,6 +239,51 @@ func process(input string, criteriaType CriterionType) ([]Criterion, error) {
 		return nil, fmt.Errorf("%s is not a valid %s", input, criteriaType)
 	}
 	return c, nil
+}
+
+func findRightOp(remaining string, leftOp string, operator Operator, criteriaType CriterionType) (rightOp []string, offset int, err error) {
+	rightOpBuffer := strings.Builder{}
+	for _, ch := range remaining {
+		if ch == Separator {
+			if remaining[offset-1] != '\\' { // delimiter is not escaped - treat as separator
+				arg := rightOpBuffer.String()
+				rightOp = append(rightOp, arg)
+				rightOpBuffer.Reset()
+				if rune(arg[len(arg)-1]) == CloseBracket || !operator.IsMultiVariate() {
+					break
+				}
+			} else { // remove escaping symbol
+				tmp := rightOpBuffer.String()[:offset-1]
+				rightOpBuffer.Reset()
+				rightOpBuffer.WriteString(tmp)
+				rightOpBuffer.WriteRune(ch)
+			}
+		} else {
+			rightOpBuffer.WriteRune(ch)
+		}
+		offset++
+	}
+	if rightOpBuffer.Len() > 0 {
+		rightOp = append(rightOp, rightOpBuffer.String())
+	}
+	if len(rightOp) > 0 && operator.IsMultiVariate() {
+		firstElement := rightOp[0]
+		if strings.IndexRune(firstElement, OpenBracket) == 0 {
+			rightOp[0] = firstElement[1:]
+		} else {
+			return nil, -1, fmt.Errorf("operator %s for %s %s requires right operand to be surrounded in %c%c", operator, criteriaType, leftOp, OpenBracket, CloseBracket)
+		}
+		lastElement := rightOp[len(rightOp)-1]
+		if rune(lastElement[len(lastElement)-1]) == CloseBracket {
+			rightOp[len(rightOp)-1] = lastElement[:len(lastElement)-1]
+		} else {
+			return nil, -1, fmt.Errorf("operator %s for %s %s requires right operand to be surrounded in %c%c", operator, criteriaType, leftOp, OpenBracket, CloseBracket)
+		}
+	}
+	if len(rightOp) == 0 {
+		rightOp = append(rightOp, "")
+	}
+	return
 }
 
 func isNumeric(str string) bool {
