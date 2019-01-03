@@ -19,7 +19,6 @@ package query
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"strconv"
 	"strings"
 
@@ -66,12 +65,13 @@ var operators = []Operator{EqualsOperator, NotEqualsOperator, InOperator,
 
 const (
 	// OpenBracket is the token that denotes the beginning of a multivariate operand
-	OpenBracket string = "["
+	OpenBracket rune = '['
 	// OpenBracket is the token that denotes the end of a multivariate operand
-	CloseBracket string = "]"
+	CloseBracket rune = ']'
 	// Separator is the separator between field and label queries
-	Separator        rune   = ','
-	OperandSeparator string = "+"
+	Separator rune = '|'
+	// OperandSeparator is the separator between the operator and the operands
+	OperandSeparator rune = ' '
 )
 
 // CriterionType is a type of criteria to be applied when querying
@@ -131,9 +131,13 @@ func (c Criterion) Validate() error {
 	if c.Operator.IsNumeric() && !isNumeric(c.RightOp[0]) {
 		return &UnsupportedQueryError{Message: fmt.Sprintf("%s is numeric operator, but the right operand is not numeric", c.Operator)}
 	}
-	//if slice.StringsAnyEquals(c.RightOp, "") {
-	//	return &UnsupportedQueryError{Message: "right operand must have value"}
-	//}
+	if strings.ContainsRune(c.LeftOp, Separator) {
+		parts := strings.FieldsFunc(c.LeftOp, func(r rune) bool {
+			return r == Separator
+		})
+		possibleKey := parts[len(parts)-1]
+		return &UnsupportedQueryError{Message: fmt.Sprintf("separator %c is not allowed in %s with left operand \"%s\". Maybe you meant \"%s\"? Make sure if the separator is present in any right operand, that it is escaped with a backslash (\\)", Separator, c.Type, c.LeftOp, possibleKey)}
+	}
 	return nil
 }
 
@@ -153,6 +157,7 @@ func mergeCriteria(c1 []Criterion, c2 []Criterion) ([]Criterion, error) {
 		if err := newCriterion.Validate(); err != nil {
 			return nil, err
 		}
+		fieldQueryLeftOperands[newCriterion.LeftOp] = true
 	}
 	result = append(result, c2...)
 	return result, nil
@@ -195,98 +200,85 @@ func BuildCriteriaFromRequest(request *web.Request) ([]Criterion, error) {
 	return criteria, nil
 }
 
-var (
-	escapedOpenBracket      = url.QueryEscape(OpenBracket)
-	escapedCloseBracket     = url.QueryEscape(CloseBracket)
-	escapedSeparator        = url.QueryEscape(string(Separator))
-	escapedOperandSeparator = url.QueryEscape(OperandSeparator)
-	escapeReplacer          = strings.NewReplacer(escapedOpenBracket, OpenBracket, escapedCloseBracket, CloseBracket, escapedSeparator, string(Separator), escapedOperandSeparator, OperandSeparator, "%3D", "=")
-)
-
 func process(input string, criteriaType CriterionType) ([]Criterion, error) {
 	var c []Criterion
 	if input == "" {
 		return c, nil
 	}
-	escapedInput := url.QueryEscape(input)
-	escapedInput = escapeReplacer.Replace(escapedInput)
 	var leftOp string
 	var operator Operator
-	var buffer strings.Builder
-	var newCriterion Criterion
-	for _, ch := range escapedInput {
-		if ch == ' ' || ch == '+' {
-			if len(leftOp) > 0 {
-				// we've read the left op, this must be the second + (after the operator)
-				op, err := getOperator(buffer.String())
-				if err != nil {
-					return nil, err
+	var rightOp []string
+	j := 0
+	for i := 0; i < len(input); i++ {
+		if leftOp != "" && operator != "" {
+			rightOpBuffer := strings.Builder{}
+			remaining := input[i+len(operator)+1:]
+			k := 0
+			for _, ch := range remaining {
+				if ch == Separator {
+					if remaining[k-1] != '\\' { // delimiter is not escaped - treat as separator
+						arg := rightOpBuffer.String()
+						rightOp = append(rightOp, arg)
+						rightOpBuffer.Reset()
+						if rune(arg[len(arg)-1]) == CloseBracket || !operator.IsMultiVariate() {
+							break
+						}
+					} else { // remove escaping symbol
+						tmp := rightOpBuffer.String()[:k-1]
+						rightOpBuffer.Reset()
+						rightOpBuffer.WriteString(tmp)
+						rightOpBuffer.WriteRune(ch)
+					}
+				} else {
+					rightOpBuffer.WriteRune(ch)
 				}
-				operator = op
-				buffer.Reset()
-			} else {
-				leftOp = buffer.String()
-				buffer.Reset()
+				k++
 			}
-			continue
-		}
-		if ch == Separator {
-			var err error
-			bufferContent := buffer.String()
-			var isCriterionCandidate bool
-			if operator.IsMultiVariate() {
-				if strings.HasPrefix(bufferContent, OpenBracket) && strings.HasSuffix(bufferContent, CloseBracket) {
-					isCriterionCandidate = true
+			if rightOpBuffer.Len() > 0 {
+				rightOp = append(rightOp, rightOpBuffer.String())
+			}
+			if len(rightOp) > 0 && operator.IsMultiVariate() {
+				firstElement := rightOp[0]
+				if strings.IndexRune(firstElement, OpenBracket) == 0 {
+					rightOp[0] = firstElement[1:]
+				} else {
+					return nil, fmt.Errorf("operator %s for %s %s requires right operand to be surrounded in %c%c", operator, criteriaType, leftOp, OpenBracket, CloseBracket)
 				}
-			} else {
-				isCriterionCandidate = true
-			}
-			if isCriterionCandidate {
-				newCriterion, err = convertToCriterion(leftOp, operator, bufferContent, criteriaType)
-				if err != nil {
-					return nil, err
+				lastElement := rightOp[len(rightOp)-1]
+				if rune(lastElement[len(lastElement)-1]) == CloseBracket {
+					rightOp[len(rightOp)-1] = lastElement[:len(lastElement)-1]
+				} else {
+					return nil, fmt.Errorf("operator %s for %s %s requires right operand to be surrounded in %c%c", operator, criteriaType, leftOp, OpenBracket, CloseBracket)
 				}
-				leftOp = ""
-				buffer.Reset()
-				c = append(c, newCriterion)
-				continue
 			}
-		}
-		if _, err := buffer.WriteRune(ch); err != nil {
-			return nil, err
+			if len(rightOp) == 0 {
+				rightOp = append(rightOp, "")
+			}
+			criterion := newCriterion(leftOp, operator, rightOp, criteriaType)
+			if err := criterion.Validate(); err != nil {
+				return nil, err
+			}
+			c = append(c, criterion)
+			i += k + len(operator) + len(string(Separator))
+			j = i + 1
+			leftOp = ""
+			operator = ""
+			rightOp = []string{}
+		} else {
+			remaining := input[i:]
+			for _, op := range operators {
+				if strings.HasPrefix(remaining, fmt.Sprintf("%c%s%c", OperandSeparator, op, OperandSeparator)) {
+					leftOp = input[j:i]
+					operator = op
+					break
+				}
+			}
 		}
 	}
-	newCriterion, err := convertToCriterion(leftOp, operator, buffer.String(), criteriaType)
-	if err != nil {
-		return nil, err
+	if len(c) == 0 {
+		return nil, fmt.Errorf("%s is not a valid %s", input, criteriaType)
 	}
-	c = append(c, newCriterion)
 	return c, nil
-}
-
-func convertToCriterion(leftOp string, operator Operator, rightOp string, criterionType CriterionType) (Criterion, error) {
-	parsedRightOp := parseRightOp(rightOp)
-	if operator == "" {
-		return Criterion{}, &UnsupportedQueryError{"missing query operator"}
-	}
-	return newCriterion(leftOp, operator, parsedRightOp, criterionType), nil
-}
-
-func parseRightOp(rightOp string) []string {
-	if strings.HasPrefix(rightOp, OpenBracket) && strings.HasSuffix(rightOp, CloseBracket) {
-		rightOp = rightOp[1 : len(rightOp)-1]
-		return strings.Split(rightOp, ",")
-	}
-	return []string{rightOp}
-}
-
-func getOperator(rawOperator string) (Operator, error) {
-	for _, op := range operators {
-		if string(op) == rawOperator {
-			return op, nil
-		}
-	}
-	return "", &UnsupportedQueryError{fmt.Sprintf("unsupported or missing query operator: %s", rawOperator)}
 }
 
 func isNumeric(str string) bool {

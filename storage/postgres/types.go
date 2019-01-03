@@ -129,6 +129,7 @@ type Visibility struct {
 	UpdatedAt     time.Time      `db:"updated_at"`
 }
 
+// Labelable is an interface that entities that support can be labelled should implement
 type Labelable interface {
 	Label() (labelTableName string, referenceColumnName string, primaryColumnName string)
 }
