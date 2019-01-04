@@ -189,7 +189,6 @@ var _ = Describe("Service Manager OSB API", func() {
 		queryParameterVerificationServer.ServiceInstanceLastOpHandler = queryParameterVerificationHandler(headerKey, headerValue)
 		queryParameterVerificationServer.BindingLastOpHandler = queryParameterVerificationHandler(headerKey, headerValue)
 		smUrlToQueryVerificationBroker = queryParameterVerificationServer.URL + "/v1/osb/" + queryParameterVerificationServerID
-
 	})
 
 	AfterSuite(func() {

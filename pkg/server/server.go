@@ -129,7 +129,7 @@ func (s *Server) Run(ctx context.Context) {
 func startServer(ctx context.Context, server *http.Server, shutdownTimeout time.Duration) {
 	go gracefulShutdown(ctx, server, shutdownTimeout)
 
-	log.C(ctx).Infof("Listening on %s", server.Addr)
+	log.C(ctx).Infof("Server listening on %s...", server.Addr)
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.C(ctx).Fatal(err)
