@@ -23,8 +23,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Peripli/service-manager/pkg/util/slice"
-
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
@@ -68,12 +66,13 @@ var operators = []Operator{EqualsOperator, NotEqualsOperator, InOperator,
 
 const (
 	// OpenBracket is the token that denotes the beginning of a multivariate operand
-	OpenBracket string = "["
+	OpenBracket rune = '['
 	// OpenBracket is the token that denotes the end of a multivariate operand
-	CloseBracket string = "]"
+	CloseBracket rune = ']'
 	// Separator is the separator between field and label queries
-	Separator        rune   = ','
-	OperandSeparator string = "+"
+	Separator rune = '|'
+	// OperandSeparator is the separator between the operator and the operands
+	OperandSeparator rune = ' '
 )
 
 // CriterionType is a type of criteria to be applied when querying
@@ -133,8 +132,12 @@ func (c Criterion) Validate() error {
 	if c.Operator.IsNumeric() && !isNumeric(c.RightOp[0]) {
 		return &UnsupportedQueryError{Message: fmt.Sprintf("%s is numeric operator, but the right operand is not numeric", c.Operator)}
 	}
-	if slice.StringsAnyEquals(c.RightOp, "") {
-		return &UnsupportedQueryError{Message: "right operand must have value"}
+	if strings.ContainsRune(c.LeftOp, Separator) {
+		parts := strings.FieldsFunc(c.LeftOp, func(r rune) bool {
+			return r == Separator
+		})
+		possibleKey := parts[len(parts)-1]
+		return &UnsupportedQueryError{Message: fmt.Sprintf("separator %c is not allowed in %s with left operand \"%s\". Maybe you meant \"%s\"? Make sure if the separator is present in any right operand, that it is escaped with a backslash (\\)", Separator, c.Type, c.LeftOp, possibleKey)}
 	}
 	return nil
 }
@@ -155,6 +158,7 @@ func mergeCriteria(c1 []Criterion, c2 []Criterion) ([]Criterion, error) {
 		if err := newCriterion.Validate(); err != nil {
 			return nil, err
 		}
+		fieldQueryLeftOperands[newCriterion.LeftOp] = true
 	}
 	result = append(result, c2...)
 	return result, nil
@@ -197,127 +201,90 @@ func BuildCriteriaFromRequest(request *web.Request) ([]Criterion, error) {
 	return criteria, nil
 }
 
-var (
-	escapedOpenBracket      = url.QueryEscape(OpenBracket)
-	escapedCloseBracket     = url.QueryEscape(CloseBracket)
-	escapedSeparator        = url.QueryEscape(string(Separator))
-	escapedOperandSeparator = url.QueryEscape(OperandSeparator)
-	escapeReplacer          = strings.NewReplacer(escapedOpenBracket, OpenBracket, escapedCloseBracket, CloseBracket, escapedSeparator, string(Separator), escapedOperandSeparator, OperandSeparator, "%3D", "=")
-)
-
-// reencoding does not seem to solve any issue apart from whitespace in rightop which can be simpler solved by identifying when you';ve found both leftoperand and op
-// scan symbol by symbol
-
-// write in a buffer until you identify a known operator surrounded with +/spaces, set operator=op
-// if the operator is identified, set the leftop to equal the buffer and reset the buffer
-// continue reading symbols and enter an if that checks if both leftop and operator are set
-// now since this is the case swich over the operator type and in the prev if (left >0 op >0) place a if separator
-// 	in it if its multivalue op, read until the buffer starts bracket and ends with bracket and a separator, now set rightop, create cirterion and reset leftop,operator,rightop,buffer buffers (allows brackets and special symbols in rightop)
-//  if singlevalue create criteria and reset buffers
-
-// limitations so far:
-// leftoperands cannot contain +operator+ or spaceoperatorspace for any operator
-// rightoperands cannot contain ,
-// but everything else would be possible - ex leftop containing + or space or , or ,, or a bracket
-// also right op can contain a bracket + or space
-
-// now in order to allow , in the right part and operators in the left part, we can introduce escaping and unescaping
-// similar to this https://github.com/kubernetes/apimachinery/blob/9c4c366543346abeca2a5cd2c40cf1a30d19a2ec/pkg/fields/selector.go#L283:6
-// leveraging the slash escaping , parsing the query can be simplified by first splitting by , like https://github.com/kubernetes/apimachinery/blob/9c4c366543346abeca2a5cd2c40cf1a30d19a2ec/pkg/fields/selector.go#L377:6
-// and now in the parse method it wont be necessary to look for , and you would be parsing a single leftop-op-rightop criterion in a loop
-
 func process(input string, criteriaType CriterionType) ([]Criterion, error) {
 	var c []Criterion
 	if input == "" {
 		return c, nil
 	}
-	//TODO how to test corner cases
-	// this breaks some queries such as ! in query
-	//escapedInput := url.QueryEscape(input)
-	//escapedInput = escapeReplacer.Replace(escapedInput)
 	var leftOp string
 	var operator Operator
-	var buffer strings.Builder
-	var newCriterion Criterion
-	for _, ch := range input {
-		// if leftop and operator are both calcualted maybe leave the rest  until a separator for rightop? what if right op has a separator though
-		// the test with !
-		if ch == ' ' || ch == '+' {
-			if len(leftOp) > 0 {
-				// we've read the left op, this must be the second + (after the operator)
-				op, err := getOperator(buffer.String())
-				if err != nil {
-					return nil, err
-				}
-				operator = op
-				buffer.Reset()
-			} else {
-				leftOp = buffer.String()
-				buffer.Reset()
+	j := 0
+	for i := 0; i < len(input); i++ {
+		if leftOp != "" && operator != "" {
+			remaining := input[i+len(operator)+1:]
+			rightOp, offset, err := findRightOp(remaining, leftOp, operator, criteriaType)
+			if err != nil {
+				return nil, err
 			}
-			continue
-		}
-		// what if separator is in leftoperand
-		if ch == Separator {
-			var err error
-			bufferContent := buffer.String()
-			var isCriterionCandidate bool
-			if operator.IsMultiVariate() {
-				if strings.HasPrefix(bufferContent, OpenBracket) && strings.HasSuffix(bufferContent, CloseBracket) {
-					isCriterionCandidate = true
-				}
-			} else {
-				isCriterionCandidate = true
+			criterion := newCriterion(leftOp, operator, rightOp, criteriaType)
+			if err := criterion.Validate(); err != nil {
+				return nil, err
 			}
-			if isCriterionCandidate {
-				newCriterion, err = convertToCriterion(leftOp, operator, bufferContent, criteriaType)
-				if err != nil {
-					return nil, err
+			c = append(c, criterion)
+			i += offset + len(operator) + len(string(Separator))
+			j = i + 1
+			leftOp = ""
+			operator = ""
+		} else {
+			remaining := input[i:]
+			for _, op := range operators {
+				if strings.HasPrefix(remaining, fmt.Sprintf("%c%s%c", OperandSeparator, op, OperandSeparator)) {
+					leftOp = input[j:i]
+					operator = op
+					break
 				}
-				leftOp = ""
-				buffer.Reset()
-				c = append(c, newCriterion)
-				continue
 			}
-		}
-		if _, err := buffer.WriteRune(ch); err != nil {
-			return nil, err
 		}
 	}
-	newCriterion, err := convertToCriterion(leftOp, operator, buffer.String(), criteriaType)
-	if err != nil {
-		return nil, err
+	if len(c) == 0 {
+		return nil, fmt.Errorf("%s is not a valid %s", input, criteriaType)
 	}
-	c = append(c, newCriterion)
 	return c, nil
 }
 
-// add some tests with more fancy leftop , rightops that contain special symbols (such as !@{) and also some containing
-// a more complex mixed input (like rightop= this is a mixed, input example. It contains symbols + words ! -h@ppy p@rs|ng
-// also how about a test with rightop json?
-func convertToCriterion(leftOp string, operator Operator, rightOp string, criterionType CriterionType) (Criterion, error) {
-	parsedRightOp := parseRightOp(rightOp)
-	if operator == "" {
-		return Criterion{}, &UnsupportedQueryError{"missing query operator"}
+func findRightOp(remaining string, leftOp string, operator Operator, criteriaType CriterionType) (rightOp []string, offset int, err error) {
+	rightOpBuffer := strings.Builder{}
+	for _, ch := range remaining {
+		if ch == Separator {
+			if remaining[offset-1] != '\\' { // delimiter is not escaped - treat as separator
+				arg := rightOpBuffer.String()
+				rightOp = append(rightOp, arg)
+				rightOpBuffer.Reset()
+				if rune(arg[len(arg)-1]) == CloseBracket || !operator.IsMultiVariate() {
+					break
+				}
+			} else { // remove escaping symbol
+				tmp := rightOpBuffer.String()[:offset-1]
+				rightOpBuffer.Reset()
+				rightOpBuffer.WriteString(tmp)
+				rightOpBuffer.WriteRune(ch)
+			}
+		} else {
+			rightOpBuffer.WriteRune(ch)
+		}
+		offset++
 	}
-	return newCriterion(leftOp, operator, parsedRightOp, criterionType), nil
-}
-
-func parseRightOp(rightOp string) []string {
-	if strings.HasPrefix(rightOp, OpenBracket) && strings.HasSuffix(rightOp, CloseBracket) {
-		rightOp = rightOp[1 : len(rightOp)-1]
-		return strings.Split(rightOp, ",")
+	if rightOpBuffer.Len() > 0 {
+		rightOp = append(rightOp, rightOpBuffer.String())
 	}
-	return []string{rightOp}
-}
-
-func getOperator(rawOperator string) (Operator, error) {
-	for _, op := range operators {
-		if string(op) == rawOperator {
-			return op, nil
+	if len(rightOp) > 0 && operator.IsMultiVariate() {
+		firstElement := rightOp[0]
+		if strings.IndexRune(firstElement, OpenBracket) == 0 {
+			rightOp[0] = firstElement[1:]
+		} else {
+			return nil, -1, fmt.Errorf("operator %s for %s %s requires right operand to be surrounded in %c%c", operator, criteriaType, leftOp, OpenBracket, CloseBracket)
+		}
+		lastElement := rightOp[len(rightOp)-1]
+		if rune(lastElement[len(lastElement)-1]) == CloseBracket {
+			rightOp[len(rightOp)-1] = lastElement[:len(lastElement)-1]
+		} else {
+			return nil, -1, fmt.Errorf("operator %s for %s %s requires right operand to be surrounded in %c%c", operator, criteriaType, leftOp, OpenBracket, CloseBracket)
 		}
 	}
-	return "", &UnsupportedQueryError{fmt.Sprintf("unsupported or missing query operator: %s", rawOperator)}
+	if len(rightOp) == 0 {
+		rightOp = append(rightOp, "")
+	}
+	return
 }
 
 func isNumeric(str string) bool {

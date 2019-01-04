@@ -77,18 +77,13 @@ func addLabel(ctx context.Context, newLabelFunc func(labelID string, labelKey st
 func removeLabel(ctx context.Context, execer sqlx.ExtContext, labelable Labelable, referenceID, labelKey string, labelValues ...string) error {
 	labelTableName, referenceColumnName, _ := labelable.Label()
 	baseQuery := fmt.Sprintf("DELETE FROM %s WHERE key=? AND %s=?", labelTableName, referenceColumnName)
-	labelValuesCount := len(labelValues)
-	// remove all labels with this key
-	if labelValuesCount == 0 {
-		return executeNew(ctx, execer, baseQuery, []interface{}{labelKey, referenceID})
-	}
 	args := []interface{}{labelKey, referenceID}
-	if labelValuesCount == 1 {
-		args = append(args, labelValues[0])
-	} else {
-		args = append(args, labelValues)
+	// remove all labels with this key
+	if len(labelValues) == 0 {
+		return executeNew(ctx, execer, baseQuery, args)
 	}
 	// remove labels with a specific key and a value which is in the provided list
+	args = append(args, labelValues)
 	baseQuery += " AND val IN (?)"
 	sqlQuery, queryParams, err := sqlx.In(baseQuery, args...)
 	if err != nil {
