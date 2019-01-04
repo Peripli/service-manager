@@ -28,190 +28,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-const EmptyCatalog = `
-{
-  "services": []
-}
-`
-
-const Catalog = `
-{
-  "services": [{
-    "name": "fake-service",
-    "id": "acb56d7c-XXXX-XXXX-XXXX-feb140a59a66",
-    "description": "A fake service.",
-    "tags": ["no-sql", "relational"],
-    "requires": ["route_forwarding"],
-    "bindable": true,
-    "instances_retrievable": true,
-    "bindings_retrievable": true,
-    "metadata": {
-      "provider": {
-        "name": "The name"
-      },
-      "listing": {
-        "imageUrl": "http://example.com/cat.gif",
-        "blurb": "Add a blurb here",
-        "longDescription": "A long time ago, in a galaxy far far away..."
-      },
-      "displayName": "The Fake Service Broker"
-    },
-    "plan_updateable": true,
-    "plans": [{
-      "name": "fake-plan-1",
-      "id": "d3031751-XXXX-XXXX-XXXX-a42377d3320e",
-      "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections.",
-      "free": false,
-      "metadata": {
-        "max_storage_tb": 5,
-        "costs":[
-            {
-               "amount":{
-                  "usd":99.0
-               },
-               "unit":"MONTHLY"
-            },
-            {
-               "amount":{
-                  "usd":0.99
-               },
-               "unit":"1GB of messages over 20GB"
-            }
-         ],
-        "bullets": [
-          "Shared fake server",
-          "5 TB storage",
-          "40 concurrent connections"
-        ]
-      },
-      "schemas": {
-        "service_instance": {
-          "create": {
-            "parameters": {
-              "$schema": "http://json-schema.org/draft-04/schema#",
-              "type": "object",
-              "properties": {
-                "billing-account": {
-                  "description": "Billing account number used to charge use of shared fake server.",
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "update": {
-            "parameters": {
-              "$schema": "http://json-schema.org/draft-04/schema#",
-              "type": "object",
-              "properties": {
-                "billing-account": {
-                  "description": "Billing account number used to charge use of shared fake server.",
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "service_binding": {
-          "create": {
-            "parameters": {
-              "$schema": "http://json-schema.org/draft-04/schema#",
-              "type": "object",
-              "properties": {
-                "billing-account": {
-                  "description": "Billing account number used to charge use of shared fake server.",
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
-    }, 
-	{
-      "name": "fake-plan-2",
-      "id": "0f4008b5-XXXX-XXXX-XXXX-dace631cd648",
-      "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections. 100 async.",
-      "free": false,
-      "metadata": {
-        "max_storage_tb": 5,
-        "costs":[
-            {
-               "amount":{
-                  "usd":199.0
-               },
-               "unit":"MONTHLY"
-            },
-            {
-               "amount":{
-                  "usd":0.99
-               },
-               "unit":"1GB of messages over 20GB"
-            }
-         ],
-        "bullets": [
-          "40 concurrent connections"
-        ]
-      }
-    }]
-  }]
-}
-`
-
-const AnotherService = `
-{
-    "name": "another-fake-service",
-    "id": "another7c-XXXX-XXXX-XXXX-feb140a59a66",
-    "description": "another description",
-    "requires": ["another-route_forwarding"],
-    "tags": ["another-no-sql", "another-relational"],
-    "bindable": true,	
-    "instances_retrievable": true,	
-    "bindings_retrievable": true,	
-    "metadata": {	
-      "provider": {	
-        "name": "another name"	
-      },	
-      "listing": {	
-        "imageUrl": "http://example.com/cat.gif",	
-        "blurb": "another blurb here",	
-        "longDescription": "A long time ago, in a another galaxy far far away..."	
-      },	
-      "displayName": "another Fake Service Broker"	
-    },	
-    "plan_updateable": true,	
-    "plans": []
-}
-`
-
-const AnotherPlan = `
-	{
-      "name": "another-fake-plan",
-      "id": "123008b5-XXXX-XXXX-XXXX-dace631cd648",
-      "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections. 100 async.",
-      "free": false,
-      "metadata": {
-        "max_storage_tb": 5,
-        "costs":[
-            {
-               "amount":{
-                  "usd":199.0
-               },
-               "unit":"MONTHLY"
-            },
-            {
-               "amount":{
-                  "usd":0.99
-               },
-               "unit":"1GB of messages over 20GB"
-            }
-         ],
-        "bullets": [
-          "40 concurrent connections"
-        ]
-      }
-    }
-`
-
 type BrokerServer struct {
 	*httptest.Server
 
@@ -223,7 +39,7 @@ type BrokerServer struct {
 	BindingAdaptCredentialsHandler http.HandlerFunc // /v2/service_instances/{instance_id}/service_bindings/{binding_id}/adapt_credentials
 
 	Username, Password string
-	Catalog            interface{}
+	Catalog            map[string]interface{}
 	LastRequestBody    []byte
 	LastRequest        *http.Request
 
@@ -245,20 +61,14 @@ func JSONToMap(j string) map[string]interface{} {
 	return jsonMap
 }
 
-func DefaultCatalog() map[string]interface{} {
-	return JSONToMap(Catalog)
-}
-
 func NewBrokerServer() *BrokerServer {
-	return NewBrokerServerWithCatalog(Catalog)
+	return NewBrokerServerWithCatalog(NewRandomSBCatalog())
 }
-func NewBrokerServerWithCatalog(catalog string) *BrokerServer {
+func NewBrokerServerWithCatalog(catalog *SBCatalog) *BrokerServer {
 	brokerServer := &BrokerServer{}
 	brokerServer.initRouter()
 	brokerServer.Reset()
-	if catalog != "" {
-		brokerServer.Catalog = JSONToMap(catalog)
-	}
+	brokerServer.Catalog = JSONToMap(string(*catalog))
 	brokerServer.Server = httptest.NewServer(brokerServer.router)
 	return brokerServer
 }
@@ -272,7 +82,8 @@ func (b *BrokerServer) Reset() {
 func (b *BrokerServer) ResetProperties() {
 	b.Username = "buser"
 	b.Password = "bpassword"
-	b.Catalog = DefaultCatalog()
+	c := NewRandomSBCatalog()
+	b.Catalog = JSONToMap(string(*c))
 	b.LastRequestBody = []byte{}
 	b.LastRequest = nil
 }

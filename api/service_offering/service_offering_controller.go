@@ -59,7 +59,9 @@ func (c *Controller) listServiceOfferings(r *web.Request) (*web.Response, error)
 		return nil, util.HandleSelectionError(err)
 	}
 
-	return util.NewJSONResponse(http.StatusOK, &types.ServiceOfferings{
+	return util.NewJSONResponse(http.StatusOK, struct {
+		ServiceOfferings []*types.ServiceOffering `json:"service_offerings"`
+	}{
 		ServiceOfferings: serviceOfferings,
 	})
 }

@@ -43,7 +43,7 @@ func (sps *servicePlanStorage) Get(ctx context.Context, id string) (*types.Servi
 
 func (sps *servicePlanStorage) List(ctx context.Context, criteria ...query.Criterion) ([]*types.ServicePlan, error) {
 	var plans []ServicePlan
-	err := listByFieldCriteria(ctx, sps.db, servicePlanTable, &plans, criteria...)
+	err := listByFieldCriteria(ctx, sps.db, servicePlanTable, &plans, criteria)
 	if err != nil || len(plans) == 0 {
 		return []*types.ServicePlan{}, err
 	}
@@ -54,9 +54,8 @@ func (sps *servicePlanStorage) List(ctx context.Context, criteria ...query.Crite
 	return servicePlans, nil
 }
 
-//TODO byIDQuery := query.ByField(query.EqualsOperator, "id", entityID)
 func (sps *servicePlanStorage) Delete(ctx context.Context, criteria ...query.Criterion) error {
-	return deleteAllByFieldCriteria(ctx, sps.db, servicePlanTable, ServicePlan{}, criteria...)
+	return deleteAllByFieldCriteria(ctx, sps.db, servicePlanTable, ServicePlan{}, criteria)
 }
 
 func (sps *servicePlanStorage) Update(ctx context.Context, servicePlan *types.ServicePlan) error {

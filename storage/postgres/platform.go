@@ -44,7 +44,7 @@ func (ps *platformStorage) Get(ctx context.Context, id string) (*types.Platform,
 
 func (ps *platformStorage) List(ctx context.Context, criteria ...query.Criterion) ([]*types.Platform, error) {
 	var platforms []Platform
-	err := listByFieldCriteria(ctx, ps.db, platformTable, &platforms, criteria...)
+	err := listByFieldCriteria(ctx, ps.db, platformTable, &platforms, criteria)
 	if err != nil || len(platforms) == 0 {
 		return []*types.Platform{}, err
 	}
@@ -56,7 +56,7 @@ func (ps *platformStorage) List(ctx context.Context, criteria ...query.Criterion
 }
 
 func (ps *platformStorage) Delete(ctx context.Context, criteria ...query.Criterion) error {
-	return deleteAllByFieldCriteria(ctx, ps.db, platformTable, Platform{}, criteria...)
+	return deleteAllByFieldCriteria(ctx, ps.db, platformTable, Platform{}, criteria)
 }
 
 func (ps *platformStorage) Update(ctx context.Context, platform *types.Platform) error {

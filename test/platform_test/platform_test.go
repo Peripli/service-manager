@@ -22,8 +22,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Peripli/service-manager/pkg/types"
-
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 )
@@ -77,194 +75,299 @@ var _ = Describe("Service Manager Platform API", func() {
 	})
 
 	Describe("List", func() {
-		Context("With no existing platforms", func() {
-			It("returns empty array", func() {
-				ctx.SMWithOAuth.GET("/v1/platforms").
-					Expect().
-					Status(http.StatusOK).
-					JSON().Object().Value("platforms").Array().Empty()
-			})
-		})
+		platform1 := common.GenerateRandomPlatform()
+		platform2 := common.GenerateRandomPlatform()
 
-		Context("With some existing platforms", func() {
-			platformObjects := []common.Object{common.MakeRandomizedPlatform(), common.MakeRandomizedPlatform(), common.MakeRandomizedPlatformWithNoDescription()}
+		platformWithNilDescription := common.MakeRandomizedPlatformWithNoDescription()
+		platformWithUnknownKeys := common.Object{
+			"unknownkey": "unknownvalue",
+		}
 
-			BeforeEach(func() {
-				for _, platform := range platformObjects {
-					_ = common.RegisterPlatformInSM(platform, ctx.SMWithOAuth)
-				}
-			})
+		nonExistingPlatform := common.GenerateRandomPlatform()
 
-			Context("with no field query", func() {
-				It("returns all the platforms", func() {
-					reply := ctx.SMWithOAuth.GET("/v1/platforms").
+		type testCase struct {
+			expectedPlatformsBeforeOp []interface{}
+			fieldQueryTemplate        string
+			fieldQueryArgs            common.Object
+
+			expectedPlatformsAfterOp   []interface{}
+			unexpectedPlatformsAfterOp []interface{}
+			expectedStatusCode         int
+		}
+
+		testCases := []testCase{
+			// no field query and some created resources
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platform1, platform2},
+				fieldQueryTemplate:         "",
+				fieldQueryArgs:             common.Object{},
+				expectedPlatformsAfterOp:   []interface{}{platform1, platform2},
+				unexpectedPlatformsAfterOp: []interface{}{},
+				expectedStatusCode:         http.StatusOK,
+			},
+
+			// no field query and no created resources
+			{
+				expectedPlatformsBeforeOp:  []interface{}{},
+				fieldQueryTemplate:         "",
+				fieldQueryArgs:             common.Object{},
+				expectedPlatformsAfterOp:   []interface{}{},
+				unexpectedPlatformsAfterOp: []interface{}{platform1, platform2},
+				expectedStatusCode:         http.StatusOK,
+			},
+
+			// invalid operator
+			{
+				expectedPlatformsBeforeOp: []interface{}{platform1, platform2},
+				fieldQueryTemplate:        "%s+@@@+%s",
+				fieldQueryArgs:            common.Object{},
+				expectedStatusCode:        http.StatusBadRequest,
+			},
+
+			// missing operator
+			{
+				expectedPlatformsBeforeOp: []interface{}{platform1, platform2},
+				fieldQueryTemplate:        "%s++%s",
+				fieldQueryArgs:            common.Object{},
+				expectedStatusCode:        http.StatusBadRequest,
+			},
+
+			// some created resources, valid operators and field query right operands that match some resources
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platform1, platform2},
+				fieldQueryTemplate:         "%s+=+%s",
+				fieldQueryArgs:             platform1,
+				expectedPlatformsAfterOp:   []interface{}{platform1},
+				unexpectedPlatformsAfterOp: []interface{}{platform2},
+				expectedStatusCode:         http.StatusOK,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platform1, platform2},
+				fieldQueryTemplate:         "%s+!=+%s",
+				fieldQueryArgs:             platform1,
+				expectedPlatformsAfterOp:   []interface{}{platform2},
+				unexpectedPlatformsAfterOp: []interface{}{platform1},
+				expectedStatusCode:         http.StatusOK,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platform1, platform2},
+				fieldQueryTemplate:         "%s+in+[%s,123,456]",
+				fieldQueryArgs:             platform1,
+				expectedPlatformsAfterOp:   []interface{}{platform1},
+				unexpectedPlatformsAfterOp: []interface{}{platform2},
+				expectedStatusCode:         http.StatusOK,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platform1, platform2},
+				fieldQueryTemplate:         "%s+notin+[%s,123,456]",
+				fieldQueryArgs:             platform1,
+				expectedPlatformsAfterOp:   []interface{}{platform2},
+				unexpectedPlatformsAfterOp: []interface{}{platform1},
+				expectedStatusCode:         http.StatusOK,
+			},
+			{
+				expectedPlatformsBeforeOp: []interface{}{platform1, platform2},
+				fieldQueryTemplate:        "%s+>+%s",
+				fieldQueryArgs:            platform1,
+				expectedStatusCode:        http.StatusBadRequest,
+			},
+			{
+				expectedPlatformsBeforeOp: []interface{}{platform1, platform2},
+				fieldQueryTemplate:        "%s+<+%s",
+				fieldQueryArgs:            platform1,
+				expectedStatusCode:        http.StatusBadRequest,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platform1, platform2},
+				fieldQueryTemplate:         "%s+eqornil+%s",
+				fieldQueryArgs:             platform1,
+				expectedPlatformsAfterOp:   []interface{}{platform1},
+				unexpectedPlatformsAfterOp: []interface{}{platform2},
+				expectedStatusCode:         http.StatusOK,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platform1, platformWithNilDescription},
+				fieldQueryTemplate:         "%s+eqornil+%s",
+				fieldQueryArgs:             common.Object{"description": platform1["description"]},
+				expectedPlatformsAfterOp:   []interface{}{platform1, platformWithNilDescription},
+				unexpectedPlatformsAfterOp: []interface{}{platform2},
+				expectedStatusCode:         http.StatusOK,
+			},
+
+			// some created platforms, valid operators and field query right operands that do not match any resources
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platform1, platform2},
+				fieldQueryTemplate:         "%s+=+%s",
+				fieldQueryArgs:             nonExistingPlatform,
+				expectedPlatformsAfterOp:   []interface{}{},
+				unexpectedPlatformsAfterOp: []interface{}{platform1, platform2},
+				expectedStatusCode:         http.StatusOK,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platform1, platform2},
+				fieldQueryTemplate:         "%s+!=+%s",
+				fieldQueryArgs:             nonExistingPlatform,
+				expectedPlatformsAfterOp:   []interface{}{platform1, platform2},
+				unexpectedPlatformsAfterOp: []interface{}{},
+				expectedStatusCode:         http.StatusOK,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platform1, platform2},
+				fieldQueryTemplate:         "%s+in+[%s,123,456]",
+				fieldQueryArgs:             nonExistingPlatform,
+				expectedPlatformsAfterOp:   []interface{}{},
+				unexpectedPlatformsAfterOp: []interface{}{platform1, platform2},
+				expectedStatusCode:         http.StatusOK,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platform1, platform2},
+				fieldQueryTemplate:         "%s+notin+[%s,123,456]",
+				fieldQueryArgs:             nonExistingPlatform,
+				expectedPlatformsAfterOp:   []interface{}{platform1, platform2},
+				unexpectedPlatformsAfterOp: []interface{}{},
+				expectedStatusCode:         http.StatusOK,
+			},
+			{
+				expectedPlatformsBeforeOp: []interface{}{platform1, platform2},
+				fieldQueryTemplate:        "%s+>+%s",
+				fieldQueryArgs:            nonExistingPlatform,
+				expectedStatusCode:        http.StatusBadRequest,
+			},
+			{
+				expectedPlatformsBeforeOp: []interface{}{platform1, platform2},
+				fieldQueryTemplate:        "%s+<+%s",
+				fieldQueryArgs:            nonExistingPlatform,
+				expectedStatusCode:        http.StatusBadRequest,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platform1, platform2},
+				fieldQueryTemplate:         "%s+eqornil+%s",
+				fieldQueryArgs:             nonExistingPlatform,
+				expectedPlatformsAfterOp:   []interface{}{},
+				unexpectedPlatformsAfterOp: []interface{}{platform1, platform2},
+				expectedStatusCode:         http.StatusOK,
+			},
+
+			// invalid field query left/right operand
+
+			{
+				expectedPlatformsBeforeOp: []interface{}{platform1, platform2},
+				fieldQueryTemplate:        "%s+=+%s",
+				fieldQueryArgs:            platformWithUnknownKeys,
+				expectedStatusCode:        http.StatusBadRequest,
+			},
+			{
+				expectedPlatformsBeforeOp: []interface{}{platform1, platform2},
+				fieldQueryTemplate:        "%s+!=+%s",
+				fieldQueryArgs:            platformWithUnknownKeys,
+				expectedStatusCode:        http.StatusBadRequest,
+			},
+			{
+				expectedPlatformsBeforeOp: []interface{}{platform1, platform2},
+				fieldQueryTemplate:        "%s+in+[%s,123,456]",
+				fieldQueryArgs:            platformWithUnknownKeys,
+				expectedStatusCode:        http.StatusBadRequest,
+			},
+			{
+				expectedPlatformsBeforeOp: []interface{}{platform1, platform2},
+				fieldQueryTemplate:        "%s+notin+[%s,123,456]",
+				fieldQueryArgs:            platformWithUnknownKeys,
+				expectedStatusCode:        http.StatusBadRequest,
+			},
+			{
+				expectedPlatformsBeforeOp: []interface{}{platform1, platform2},
+				fieldQueryTemplate:        "%s+>+%s",
+				fieldQueryArgs:            platformWithUnknownKeys,
+				expectedStatusCode:        http.StatusBadRequest,
+			},
+			{
+				expectedPlatformsBeforeOp: []interface{}{platform1, platform2},
+				fieldQueryTemplate:        "%s+<+%s",
+				fieldQueryArgs:            platformWithUnknownKeys,
+				expectedStatusCode:        http.StatusBadRequest,
+			},
+			{
+				expectedPlatformsBeforeOp: []interface{}{platform1, platform2},
+				fieldQueryTemplate:        "%s+eqornil+%s",
+				fieldQueryArgs:            platformWithUnknownKeys,
+				expectedStatusCode:        http.StatusBadRequest,
+			},
+		}
+
+		verifyListOp := func(t *testCase, query string) func() {
+			return func() {
+				beforeOpIDs := common.ExtractResourceIDs(t.expectedPlatformsBeforeOp)
+				expectedAfterOpIDs := common.ExtractResourceIDs(t.expectedPlatformsAfterOp)
+				unexpectedAfterOpIDs := common.ExtractResourceIDs(t.unexpectedPlatformsAfterOp)
+
+				BeforeEach(func() {
+					q := fmt.Sprintf("id+in+[%s]", strings.Join(beforeOpIDs, ","))
+					ctx.SMWithOAuth.DELETE("/v1/platforms").WithQuery("fieldQuery", q).
+						Expect()
+
+					for _, p := range t.expectedPlatformsBeforeOp {
+						ctx.SMWithOAuth.POST("/v1/platforms").WithJSON(p).
+							Expect().Status(http.StatusCreated)
+					}
+				})
+
+				It(fmt.Sprintf("before op are found: %s; after op are expected %s; after op are unexpected: %s", beforeOpIDs, expectedAfterOpIDs, unexpectedAfterOpIDs), func() {
+					beforeOpArray := ctx.SMWithOAuth.GET("/v1/platforms").
 						Expect().
-						Status(http.StatusOK).
-						JSON().Object().Value("platforms").Array()
+						Status(http.StatusOK).JSON().Object().Value("platforms").Array()
 
-					for _, v := range reply.Iter() {
+					for _, v := range beforeOpArray.Iter() {
 						obj := v.Object().Raw()
 						delete(obj, "created_at")
 						delete(obj, "updated_at")
 					}
-					reply.Contains(platformObjects[0], platformObjects[1], platformObjects[2])
 
-				})
-			})
+					beforeOpArray.Contains(t.expectedPlatformsBeforeOp...)
 
-			type testCase struct {
-				fieldQueryTemplate        string
-				expectedResourceObjects   []interface{}
-				unexpectedResourceObjects []interface{}
-				expectedStatusCode        int
-			}
+					req := ctx.SMWithOAuth.GET("/v1/platforms")
+					if query != "" {
+						req = req.WithQuery("fieldQuery", query)
+					}
+					resp := req.
+						Expect().
+						Status(t.expectedStatusCode)
 
-			tests := []testCase{
-				{
-					fieldQueryTemplate:        "%s+=+%s",
-					expectedResourceObjects:   []interface{}{platformObjects[0]},
-					unexpectedResourceObjects: []interface{}{platformObjects[1]},
-					expectedStatusCode:        http.StatusOK,
-				},
-				//{
-				//	fieldQueryTemplate:        "%s+!=+%s",
-				//	expectedResourceObjects:   []interface{}{platformObjects[1]},
-				//	unexpectedResourceObjects: []interface{}{platformObjects[0], platformObjects[2]},
-				//	expectedStatusCode:        http.StatusOK,
-				//},
-				//{
-				//	fieldQueryTemplate:        "%s+in+[%s,123,456]",
-				//	expectedResourceObjects:   []interface{}{platformObjects[0]},
-				//	unexpectedResourceObjects: []interface{}{platformObjects[1], platformObjects[2]},
-				//	expectedStatusCode:        http.StatusOK,
-				//},
-				//{
-				//	fieldQueryTemplate:        "%s+notin+[%s,123,456]",
-				//	expectedResourceObjects:   []interface{}{platformObjects[1]},
-				//	unexpectedResourceObjects: []interface{}{platformObjects[0]},
-				//	expectedStatusCode:        http.StatusOK,
-				//},
-				//{
-				//	fieldQueryTemplate: "%s+>+%s",
-				//	expectedStatusCode: http.StatusBadRequest,
-				//},
-				//{
-				//	fieldQueryTemplate: "%s+<+%s",
-				//	expectedStatusCode: http.StatusBadRequest,
-				//},
-				//{
-				//	fieldQueryTemplate:        "%s+eqornil+%s",
-				//	expectedResourceObjects:   []interface{}{},
-				//	unexpectedResourceObjects: []interface{}{platformObjects[0], platformObjects[1], platformObjects[2]},
-				//	expectedStatusCode:        http.StatusOK,
-				//},
-			}
-
-			Context("with field query", func() {
-				for _, testArgs := range tests {
-					t := testArgs
-					Context("when multiple field queries are provided", func() {
-						FIt("returns the expected platforms", func() {
-							var queries []string
-
-							for key, value := range platformObjects[0] {
-								queries = append(queries, fmt.Sprintf(t.fieldQueryTemplate, key, value))
-							}
-
-							req := ctx.SMWithOAuth.GET("/v1/platforms")
-
-							if len(queries) != 0 {
-								req = req.WithQuery("fieldQuery", strings.Join(queries, ","))
-							}
-
-							reply := req.
-								Expect().
-								Status(t.expectedStatusCode)
-
-							if t.expectedStatusCode == http.StatusOK {
-								array := reply.JSON().Object().Value("platforms").Array()
-
-								for _, v := range array.Iter() {
-									obj := v.Object().Raw()
-									delete(obj, "created_at")
-									delete(obj, "updated_at")
-								}
-
-								if len(t.expectedResourceObjects) != 0 {
-									array.Contains(t.expectedResourceObjects...)
-								}
-
-								if len(t.unexpectedResourceObjects) != 0 {
-									array.NotContains(t.unexpectedResourceObjects...)
-								}
-							} else {
-								reply.JSON().Object().Keys().Contains("error", "description")
-							}
-						})
-					})
-
-					for k, v := range platformObjects[0] {
-						key, value := k, v
-						t.fieldQueryTemplate = fmt.Sprintf(t.fieldQueryTemplate, key, value)
-
-						Context(fmt.Sprintf("when field query is [%s] and has matching values", t.fieldQueryTemplate), func() {
-							It("returns the correct platforms", func() {
-								req := ctx.SMWithOAuth.GET("/v1/platforms")
-								req = req.WithQuery("fieldQuery", t.fieldQueryTemplate)
-
-								reply := req.
-									Expect().
-									Status(t.expectedStatusCode)
-								if t.expectedStatusCode != http.StatusOK {
-
-									array := reply.JSON().Object().Value("platforms").Array()
-
-									for _, v := range array.Iter() {
-										obj := v.Object().Raw()
-										delete(obj, "created_at")
-										delete(obj, "updated_at")
-									}
-
-									if len(t.expectedResourceObjects) != 0 {
-										array.Contains(t.expectedResourceObjects...)
-									}
-
-									if len(t.unexpectedResourceObjects) != 0 {
-										array.NotContains(t.unexpectedResourceObjects...)
-									}
-								} else {
-									reply.JSON().Object().Keys().Contains("error", "description")
-								}
-							})
-						})
-
-						Context(fmt.Sprintf("when field query is [%s] and has a key with no matching values", t.fieldQueryTemplate), func() {
-							It("returns 200 with empty platforms", func() {
-								reply := ctx.SMWithOAuth.GET("/v1/platforms").WithQuery("fieldQuery", t.fieldQueryTemplate).
-									Expect().
-									Status(t.expectedStatusCode).JSON().Object()
-
-								if t.expectedStatusCode != http.StatusOK {
-									reply.Value("platforms").Array().Empty()
-								} else {
-									reply.Keys().Contains("error", "description")
-								}
-
-							})
-						})
+					if t.expectedStatusCode == http.StatusOK {
+						array := resp.JSON().Object().Value("platforms").Array()
+						for _, v := range array.Iter() {
+							obj := v.Object().Raw()
+							delete(obj, "created_at")
+							delete(obj, "updated_at")
+						}
+						array.Contains(t.expectedPlatformsAfterOp...)
+						array.NotContains(t.unexpectedPlatformsAfterOp...)
+					} else {
+						resp.JSON().Object().Keys().Contains("error", "description")
 					}
 
-					Context(fmt.Sprintf("when field query %s has a key that is non existing", fmt.Sprintf(t.fieldQueryTemplate, "non-existing-key", "non-existing-value")), func() {
-						It("returns 400", func() {
-							ctx.SMWithOAuth.GET("/v1/platforms").WithQuery("fieldQuery", fmt.Sprintf(t.fieldQueryTemplate, "non-existing-key", "random-value")).
-								Expect().
-								Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
-						})
-					})
+				})
+			}
+		}
 
-				}
-			})
-		})
+		for _, t := range testCases {
+			t := t
+			if len(t.fieldQueryArgs) == 0 && t.fieldQueryTemplate != "" {
+				panic("Invalid test input")
+			}
+
+			var queries []string
+			for key, value := range t.fieldQueryArgs {
+				queries = append(queries, fmt.Sprintf(t.fieldQueryTemplate, key, value))
+			}
+			query := strings.Join(queries, ",")
+
+			Context(fmt.Sprintf("with multi field query=%s", query), verifyListOp(&t, query))
+
+			for _, query := range queries {
+				query := query
+				Context(fmt.Sprintf("with field query=%s", query), verifyListOp(&t, query))
+			}
+		}
 	})
 
 	Describe("POST", func() {
@@ -502,106 +605,337 @@ var _ = Describe("Service Manager Platform API", func() {
 		})
 	})
 
-	Describe("DELETE", func() {
-		Context("Non existing platform", func() {
-			It("returns 404", func() {
-				ctx.SMWithOAuth.DELETE("/v1/platforms/999").
-					Expect().
-					Status(http.StatusNotFound)
-			})
-		})
+	Describe("DELETE Multiple", func() {
+		platformObject := common.GenerateRandomPlatform()
+		anotherPlatformObject := common.GenerateRandomPlatform()
+		platformWithUnknownKeys := common.Object{
+			"unknownkey": "unknownvalue",
+		}
 
-		Context("Existing platform", func() {
-			var platform *types.Platform
-			platformObject := common.MakeRandomizedPlatform()
+		nonExistingPlatform := common.GenerateRandomPlatform()
+		platformWithNilDescription := common.MakeRandomizedPlatformWithNoDescription()
 
-			BeforeEach(func() {
-				platform = common.RegisterPlatformInSM(platformObject, ctx.SMWithOAuth)
-			})
+		type testCase struct {
+			expectedPlatformsBeforeOp []interface{}
+			fieldQueryTemplate        string
+			fieldQueryArgs            common.Object
 
-			Context("with field query", func() {
-				// loop over testcase that has platformobject, leftop, operator, rightops
-				for k, v := range platformObject {
-					key, value := k, v
-					Context("when the field query matches some platforms", func() {
-						It("returns the expected platforms", func() {
-							ctx.SMWithOAuth.GET("/v1/platforms/" + platform.ID).
-								Expect().
-								Status(http.StatusOK)
+			expectedPlatformsAfterOp   []interface{}
+			unexpectedPlatformsAfterOp []interface{}
+			expectedStatusCode         int
+		}
 
-							ctx.SMWithOAuth.DELETE("/v1/platforms").WithQuery("fieldQuery", fmt.Sprintf("%s%s%s", key, " = ", value)).
-								Expect().
-								Status(http.StatusOK)
+		testCases := []testCase{
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platformObject, anotherPlatformObject},
+				fieldQueryTemplate:         "",
+				fieldQueryArgs:             common.Object{},
+				expectedPlatformsAfterOp:   []interface{}{},
+				unexpectedPlatformsAfterOp: []interface{}{platformObject, anotherPlatformObject},
+				expectedStatusCode:         http.StatusOK,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{},
+				fieldQueryTemplate:         "",
+				fieldQueryArgs:             common.Object{},
+				expectedPlatformsAfterOp:   []interface{}{},
+				unexpectedPlatformsAfterOp: []interface{}{platformObject, anotherPlatformObject},
+				expectedStatusCode:         http.StatusNotFound,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{},
+				fieldQueryTemplate:         "%s+=+%s",
+				fieldQueryArgs:             platformObject,
+				expectedPlatformsAfterOp:   []interface{}{},
+				unexpectedPlatformsAfterOp: []interface{}{platformObject, anotherPlatformObject},
+				expectedStatusCode:         http.StatusNotFound,
+			},
+			// known existing valid platform for the field query
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platformObject, anotherPlatformObject},
+				fieldQueryTemplate:         "%s+=+%s",
+				fieldQueryArgs:             platformObject,
+				expectedPlatformsAfterOp:   []interface{}{anotherPlatformObject},
+				unexpectedPlatformsAfterOp: []interface{}{platformObject},
+				expectedStatusCode:         http.StatusOK,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platformObject, anotherPlatformObject},
+				fieldQueryTemplate:         "%s+!=+%s",
+				fieldQueryArgs:             platformObject,
+				expectedPlatformsAfterOp:   []interface{}{platformObject},
+				unexpectedPlatformsAfterOp: []interface{}{anotherPlatformObject},
+				expectedStatusCode:         http.StatusOK,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platformObject, anotherPlatformObject},
+				fieldQueryTemplate:         "%s+in+[%s,123,456]",
+				fieldQueryArgs:             platformObject,
+				expectedPlatformsAfterOp:   []interface{}{anotherPlatformObject},
+				unexpectedPlatformsAfterOp: []interface{}{platformObject},
+				expectedStatusCode:         http.StatusOK,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platformObject, anotherPlatformObject},
+				fieldQueryTemplate:         "%s+notin+[%s,123,456]",
+				fieldQueryArgs:             platformObject,
+				expectedPlatformsAfterOp:   []interface{}{platformObject},
+				unexpectedPlatformsAfterOp: []interface{}{anotherPlatformObject},
+				expectedStatusCode:         http.StatusOK,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platformObject, anotherPlatformObject},
+				fieldQueryTemplate:         "%s+>+%s",
+				fieldQueryArgs:             platformObject,
+				expectedPlatformsAfterOp:   []interface{}{platformObject, anotherPlatformObject},
+				unexpectedPlatformsAfterOp: []interface{}{},
+				expectedStatusCode:         http.StatusBadRequest,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platformObject, anotherPlatformObject},
+				fieldQueryTemplate:         "%s+<+%s",
+				fieldQueryArgs:             platformObject,
+				expectedPlatformsAfterOp:   []interface{}{platformObject, anotherPlatformObject},
+				unexpectedPlatformsAfterOp: []interface{}{},
+				expectedStatusCode:         http.StatusBadRequest,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platformObject, anotherPlatformObject},
+				fieldQueryTemplate:         "%s+eqornil+%s",
+				fieldQueryArgs:             platformObject,
+				expectedPlatformsAfterOp:   []interface{}{anotherPlatformObject},
+				unexpectedPlatformsAfterOp: []interface{}{platformObject},
+				expectedStatusCode:         http.StatusOK,
+			},
 
-							ctx.SMWithOAuth.GET("/v1/platforms/" + platform.ID).
-								Expect().
-								Status(http.StatusNotFound)
-						})
-					})
+			// with non existing valid platform for field query
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platformObject, anotherPlatformObject},
+				fieldQueryTemplate:         "%s+=+%s",
+				fieldQueryArgs:             nonExistingPlatform,
+				expectedPlatformsAfterOp:   []interface{}{platformObject, anotherPlatformObject},
+				unexpectedPlatformsAfterOp: []interface{}{},
+				expectedStatusCode:         http.StatusNotFound,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platformObject, anotherPlatformObject},
+				fieldQueryTemplate:         "%s+!=+%s",
+				fieldQueryArgs:             nonExistingPlatform,
+				expectedPlatformsAfterOp:   []interface{}{},
+				unexpectedPlatformsAfterOp: []interface{}{platformObject, anotherPlatformObject},
+				expectedStatusCode:         http.StatusOK,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platformObject, anotherPlatformObject},
+				fieldQueryTemplate:         "%s+in+[%s,123,456]",
+				fieldQueryArgs:             nonExistingPlatform,
+				expectedPlatformsAfterOp:   []interface{}{platformObject, anotherPlatformObject},
+				unexpectedPlatformsAfterOp: []interface{}{},
+				expectedStatusCode:         http.StatusNotFound,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platformObject, anotherPlatformObject},
+				fieldQueryTemplate:         "%s+notin+[%s,123,456]",
+				fieldQueryArgs:             nonExistingPlatform,
+				expectedPlatformsAfterOp:   []interface{}{},
+				unexpectedPlatformsAfterOp: []interface{}{platformObject, anotherPlatformObject},
+				expectedStatusCode:         http.StatusOK,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platformObject, anotherPlatformObject},
+				fieldQueryTemplate:         "%s+>+%s",
+				fieldQueryArgs:             nonExistingPlatform,
+				expectedPlatformsAfterOp:   []interface{}{platformObject, anotherPlatformObject},
+				unexpectedPlatformsAfterOp: []interface{}{},
+				expectedStatusCode:         http.StatusBadRequest,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platformObject, anotherPlatformObject},
+				fieldQueryTemplate:         "%s+<+%s",
+				fieldQueryArgs:             nonExistingPlatform,
+				expectedPlatformsAfterOp:   []interface{}{platformObject, anotherPlatformObject},
+				unexpectedPlatformsAfterOp: []interface{}{},
+				expectedStatusCode:         http.StatusBadRequest,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platformObject, anotherPlatformObject},
+				fieldQueryTemplate:         "%s+eqornil+%s",
+				fieldQueryArgs:             nonExistingPlatform,
+				expectedPlatformsAfterOp:   []interface{}{platformObject, anotherPlatformObject},
+				unexpectedPlatformsAfterOp: []interface{}{},
+				expectedStatusCode:         http.StatusNotFound,
+			},
 
-					Context("when the field query value does not match any platforms values", func() {
-						It("returns 404", func() {
-							ctx.SMWithOAuth.DELETE("/v1/platforms").WithQuery("fieldQuery", fmt.Sprintf("%s%s%s", key, " = ", "non-existing-val")).
-								Expect().
-								Status(http.StatusNotFound)
-						})
-					})
-				}
+			// with invalid platform for field query
 
-				Context("when multiple field queries are provided", func() {
-					It("returns the expected platforms", func() {
-						ctx.SMWithOAuth.GET("/v1/platforms/" + platform.ID).
-							Expect().
-							Status(http.StatusOK)
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platformObject, anotherPlatformObject},
+				fieldQueryTemplate:         "%s+=+%s",
+				fieldQueryArgs:             platformWithUnknownKeys,
+				expectedPlatformsAfterOp:   []interface{}{platformObject, anotherPlatformObject},
+				unexpectedPlatformsAfterOp: []interface{}{},
+				expectedStatusCode:         http.StatusBadRequest,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platformObject, anotherPlatformObject},
+				fieldQueryTemplate:         "%s+!=+%s",
+				fieldQueryArgs:             platformWithUnknownKeys,
+				expectedPlatformsAfterOp:   []interface{}{platformObject, anotherPlatformObject},
+				unexpectedPlatformsAfterOp: []interface{}{},
+				expectedStatusCode:         http.StatusBadRequest,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platformObject, anotherPlatformObject},
+				fieldQueryTemplate:         "%s+in+[%s,123,456]",
+				fieldQueryArgs:             platformWithUnknownKeys,
+				expectedPlatformsAfterOp:   []interface{}{platformObject, anotherPlatformObject},
+				unexpectedPlatformsAfterOp: []interface{}{},
+				expectedStatusCode:         http.StatusBadRequest,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platformObject, anotherPlatformObject},
+				fieldQueryTemplate:         "%s+notin+[%s,123,456]",
+				fieldQueryArgs:             platformWithUnknownKeys,
+				expectedPlatformsAfterOp:   []interface{}{platformObject, anotherPlatformObject},
+				unexpectedPlatformsAfterOp: []interface{}{},
+				expectedStatusCode:         http.StatusBadRequest,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platformObject, anotherPlatformObject},
+				fieldQueryTemplate:         "%s+>+%s",
+				fieldQueryArgs:             platformWithUnknownKeys,
+				expectedPlatformsAfterOp:   []interface{}{platformObject, anotherPlatformObject},
+				unexpectedPlatformsAfterOp: []interface{}{},
+				expectedStatusCode:         http.StatusBadRequest,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platformObject, anotherPlatformObject},
+				fieldQueryTemplate:         "%s+<+%s",
+				fieldQueryArgs:             platformWithUnknownKeys,
+				expectedPlatformsAfterOp:   []interface{}{platformObject, anotherPlatformObject},
+				unexpectedPlatformsAfterOp: []interface{}{},
+				expectedStatusCode:         http.StatusBadRequest,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platformObject, anotherPlatformObject},
+				fieldQueryTemplate:         "%s+eqornil+%s",
+				fieldQueryArgs:             platformWithUnknownKeys,
+				expectedPlatformsAfterOp:   []interface{}{platformObject, anotherPlatformObject},
+				unexpectedPlatformsAfterOp: []interface{}{},
+				expectedStatusCode:         http.StatusBadRequest,
+			},
+			{
+				expectedPlatformsBeforeOp:  []interface{}{platformObject, anotherPlatformObject, platformWithNilDescription},
+				fieldQueryTemplate:         "%s+eqornil+%s",
+				fieldQueryArgs:             common.Object{"description": platformObject["description"]},
+				expectedPlatformsAfterOp:   []interface{}{anotherPlatformObject},
+				unexpectedPlatformsAfterOp: []interface{}{platformObject, platformWithNilDescription},
+				expectedStatusCode:         http.StatusOK,
+			},
+		}
 
-						req := ctx.SMWithOAuth.DELETE("/v1/platforms")
-						for key, value := range platformObject {
-							req = req.WithQuery("fieldQuery", fmt.Sprintf("%s%s%s", key, " = ", value))
-						}
-						req.
-							Expect().
-							Status(http.StatusOK)
+		verifyDeleteOp := func(t *testCase, query string) func() {
+			return func() {
+				beforeOpIDs := common.ExtractResourceIDs(t.expectedPlatformsBeforeOp)
+				expectedAfterOpIDs := common.ExtractResourceIDs(t.expectedPlatformsAfterOp)
+				unexpectedAfterOpIDs := common.ExtractResourceIDs(t.unexpectedPlatformsAfterOp)
 
-						ctx.SMWithOAuth.GET("/v1/platforms/" + platform.ID).
-							Expect().
-							Status(http.StatusNotFound)
-					})
+				BeforeEach(func() {
+					q := fmt.Sprintf("id+in+[%s]", strings.Join(beforeOpIDs, ","))
+					ctx.SMWithOAuth.DELETE("/v1/platforms").WithQuery("fieldQuery", q).
+						Expect()
+
+					for _, p := range t.expectedPlatformsBeforeOp {
+						ctx.SMWithOAuth.POST("/v1/platforms").WithJSON(p).
+							Expect().Status(http.StatusCreated)
+					}
 				})
 
-				Context("when the field query key does not exist", func() {
-					It("returns 400", func() {
-						ctx.SMWithOAuth.GET("/v1/platforms/" + platform.ID).
-							Expect().
-							Status(http.StatusOK)
+				It(fmt.Sprintf("before op are found: %s; after op are expected %s; after op are unexpected: %s", beforeOpIDs, expectedAfterOpIDs, unexpectedAfterOpIDs), func() {
+					beforeOpArray := ctx.SMWithOAuth.GET("/v1/platforms/").
+						Expect().
+						Status(http.StatusOK).JSON().Object().Value("platforms").Array()
 
-						ctx.SMWithOAuth.DELETE("/v1/platforms").WithQuery("fieldQuery", fmt.Sprintf("%s%s%s", "non-existing-key", " = ", "non-existing-val")).
-							Expect().
-							Status(http.StatusBadRequest).
-							JSON().Object().Keys().Contains("error", "description")
+					for _, v := range beforeOpArray.Iter() {
+						obj := v.Object().Raw()
+						delete(obj, "created_at")
+						delete(obj, "updated_at")
+					}
 
-						ctx.SMWithOAuth.GET("/v1/platforms/" + platform.ID).
-							Expect().
-							Status(http.StatusOK)
-					})
+					beforeOpArray.Contains(t.expectedPlatformsBeforeOp...)
+
+					req := ctx.SMWithOAuth.DELETE("/v1/platforms")
+					if query != "" {
+						req.WithQuery("fieldQuery", query)
+					}
+					req.
+						Expect().
+						Status(t.expectedStatusCode)
+
+					afterOpArray := ctx.SMWithOAuth.GET("/v1/platforms/").
+						Expect().
+						Status(http.StatusOK).JSON().Object().Value("platforms").Array()
+
+					for _, v := range afterOpArray.Iter() {
+						obj := v.Object().Raw()
+						delete(obj, "created_at")
+						delete(obj, "updated_at")
+					}
+
+					afterOpArray.Contains(t.expectedPlatformsAfterOp...)
+					afterOpArray.NotContains(t.unexpectedPlatformsAfterOp...)
+				})
+
+			}
+
+		}
+
+		for _, t := range testCases {
+			t := t
+			if len(t.fieldQueryArgs) == 0 && t.fieldQueryTemplate != "" {
+				panic("Invalid test input")
+			}
+
+			var queries []string
+			for key, value := range t.fieldQueryArgs {
+				queries = append(queries, fmt.Sprintf(t.fieldQueryTemplate, key, value))
+			}
+			query := strings.Join(queries, ",")
+
+			Context(fmt.Sprintf("with multi field query=%s", query), verifyDeleteOp(&t, query))
+
+			for _, query := range queries {
+				query := query
+				Context(fmt.Sprintf("with field query=%s", query), verifyDeleteOp(&t, query))
+			}
+		}
+
+		Describe("Delete Single", func() {
+			Context("when non existing", func() {
+				It("returns 404 when non existing", func() {
+					ctx.SMWithOAuth.DELETE("/v1/platforms/999").
+						Expect().
+						Status(http.StatusNotFound)
 				})
 			})
 
-			Context("with no field query", func() {
-				It("succeeds", func() {
-					ctx.SMWithOAuth.GET("/v1/platforms/" + platform.ID).
+			Context("when existing", func() {
+				It("succeeds when existing", func() {
+					common.RegisterPlatformInSM(platformObject, ctx.SMWithOAuth)
+
+					ctx.SMWithOAuth.GET("/v1/platforms/" + platformObject["id"].(string)).
 						Expect().
 						Status(http.StatusOK)
 
-					ctx.SMWithOAuth.DELETE("/v1/platforms/" + platform.ID).
+					ctx.SMWithOAuth.DELETE("/v1/platforms/" + platformObject["id"].(string)).
 						Expect().
-						Status(http.StatusOK).JSON().Object().Empty()
+						Status(http.StatusOK)
 
-					ctx.SMWithOAuth.GET("/v1/platforms/" + platform.ID).
+					ctx.SMWithOAuth.GET("/v1/platforms/" + platformObject["id"].(string)).
 						Expect().
 						Status(http.StatusNotFound)
 				})
 			})
 		})
 	})
-
 })

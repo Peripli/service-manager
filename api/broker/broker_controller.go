@@ -399,6 +399,7 @@ func boolPointerToBool(value *bool, defaultValue bool) bool {
 	return *value
 }
 
+//todo delay creation, delete first and attempt creating after , add test - simulates the changing id case
 func (c *Controller) resyncBrokerAndCatalog(ctx context.Context, broker *types.Broker, catalog *osbc.CatalogResponse) error {
 	log.C(ctx).Debugf("Updating catalog storage for broker with id %s", broker.ID)
 	if err := c.Repository.InTransaction(ctx, func(ctx context.Context, txStorage storage.Warehouse) error {

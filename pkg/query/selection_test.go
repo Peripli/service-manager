@@ -105,9 +105,10 @@ var _ = Describe("Selection", func() {
 		})
 
 		Context("When there is an invalid field query", func() {
-			It("Should return an error", func() {
+			FIt("Should return an error", func() {
 				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop+lt+rightop")
 				Expect(err).To(HaveOccurred())
+
 				Expect(criteriaFromRequest).To(BeNil())
 			})
 		})
@@ -138,9 +139,9 @@ var _ = Describe("Selection", func() {
 
 		Context("When passing multiple field queries", func() {
 			It("Should build criteria", func() {
-				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop1+in+[rightop,rightop2],leftop2+=+rightop3")
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop1+in+[rightop!,rightop2],leftop2+=+rightop3")
 				Expect(err).ToNot(HaveOccurred())
-				Expect(criteriaFromRequest).To(ConsistOf(ByField(InOperator, "leftop1", "rightop", "rightop2"), ByField(EqualsOperator, "leftop2", "rightop3")))
+				Expect(criteriaFromRequest).To(ConsistOf(ByField(InOperator, "leftop1", "rightop!", "rightop2"), ByField(EqualsOperator, "leftop2", "rightop3")))
 			})
 		})
 

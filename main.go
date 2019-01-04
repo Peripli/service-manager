@@ -17,19 +17,15 @@
 package main
 
 import (
-	"context"
-
-	"github.com/Peripli/service-manager/pkg/sm"
-	"github.com/Peripli/service-manager/version"
+	"encoding/json"
+	"fmt"
 )
 
 func main() {
-	version.Log()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	env := sm.DefaultEnv()
-	serviceManager := sm.New(ctx, cancel, env).Build()
-	serviceManager.Run()
+	b := true
+	bytes, e := json.Marshal(b)
+	if e != nil {
+		panic(e)
+	}
+	fmt.Printf("aaaa %v %s", bytes, bytes)
 }

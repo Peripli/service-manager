@@ -17,7 +17,9 @@
 package service_test
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/Peripli/service-manager/test/common"
@@ -141,17 +143,180 @@ var _ = Describe("Service Manager Service Plans API", func() {
 				})
 			})
 
-			Context("when catalog_name query parameter is provided", func() {
-				It("returns the service plan with the specified catalog_name", func() {
-					serviceCatalogName := common.DefaultCatalog()["services"].([]interface{})[0].(map[string]interface{})["plans"].([]interface{})[0].(map[string]interface{})["name"]
-					Expect(serviceCatalogName).ToNot(BeEmpty())
-
-					ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("catalog_name", serviceCatalogName).
-						Expect().
-						Status(http.StatusOK).
-						JSON().Object().Value("service_plans").Array().Length().Equal(1)
-				})
-			})
+			//Context("when catalog_name query parameter is provided", func() {
+			//	It("returns the service plan with the specified catalog_name", func() {
+			//		serviceCatalogName := common.DefaultCatalog()["services"].([]interface{})[0].(map[string]interface{})["plans"].([]interface{})[0].(map[string]interface{})["name"]
+			//		Expect(serviceCatalogName).ToNot(BeEmpty())
+			//
+			//		ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("catalog_name", serviceCatalogName).
+			//			Expect().
+			//			Status(http.StatusOK).
+			//			JSON().Object().Value("service_plans").Array().Length().Equal(1)
+			//	})
+			//})
 		})
+	})
+
+	Describe("List", func() {
+
+		//platformWithNilDescription := common.MakeRandomizedPlatformWithNoDescription()
+		//platformWithUnknownKeys := common.Object{
+		//	"unknownkey": "unknownvalue",
+		//}
+
+		//nonExistingPlatform := common.GenerateRandomPlatform()
+
+		var r map[string][]common.Object
+
+		type testCase struct {
+			createResourcesBeforeOp   map[string][]interface{}
+			expectedResourcesBeforeOp map[string][]interface{}
+			OpFieldQueryTemplate      string
+			OpFieldQueryArgs          common.Object
+
+			expectedResourcesAfterOp   map[string][]interface{}
+			unexpectedResourcesAfterOp map[string][]interface{}
+			expectedStatusCode         int
+		}
+
+		testCases := []testCase{
+			{
+				createResourcesBeforeOp: map[string][]interface{}{
+					"service_brokers": {r["service_brokers"][0], r["service_brokers"][1]},
+				},
+				expectedResourcesBeforeOp: map[string][]interface{}{
+					"service_brokers":   {r["service_brokers"][0], r["service_brokers"][1]},
+					"service_offerings": {r["service_offerings"][0], r["service_offerings"][1]},
+					"service_plans":     {r["service_plans"][0], r["service_plans"][1], r["service_plans"][2], r["service_plans"][3]},
+				},
+				OpFieldQueryTemplate: "%s+=+%s",
+				OpFieldQueryArgs:     r["service_plans"][0],
+				expectedResourcesAfterOp: map[string][]interface{}{
+					"service_plans": {r["service_plans"][0]},
+				},
+				unexpectedResourcesAfterOp: map[string][]interface{}{
+					"service_plans": {r["service_plans"][1], r["service_plans"][2], r["service_plans"][3]},
+				},
+				expectedStatusCode: http.StatusOK,
+			},
+		}
+
+		verifyListOp := func(t *testCase, query string) func() {
+			return func() {
+				expectedAfterOpIDs := common.ExtractResourceIDs(t.expectedResourcesAfterOp)
+				unexpectedAfterOpIDs := common.ExtractResourceIDs(t.unexpectedResourcesAfterOp)
+
+				BeforeEach(func() {
+					for key := range t.createResourcesBeforeOp {
+						beforeOpIDs := common.ExtractResourceIDs(t.createResourcesBeforeOp)
+						q := fmt.Sprintf("id+in+[%s]", strings.Join(beforeOpIDs[key], ","))
+
+						By(fmt.Sprintf("[SETUP]: Cleaning up [%s] with fieldquery [%s]", key, q))
+
+						ctx.SMWithOAuth.DELETE("/v1/"+key).WithQuery("fieldQuery", q).
+							Expect()
+
+						for _, entity := range t.createResourcesBeforeOp[key] {
+							By(fmt.Sprintf("[SETUP]: Creating entity in [/v1/%s] with body [%s]", key, entity))
+
+							ctx.SMWithOAuth.POST("/v1/" + key).WithJSON(entity).
+								Expect().Status(http.StatusCreated)
+						}
+
+					}
+
+					for key, entities := range t.expectedResourcesBeforeOp {
+						By(fmt.Sprintf("[SETUP]: Verifying expected [%s] before operation after present", key))
+
+						beforeOpArray := ctx.SMWithOAuth.GET("/v1/" + key).
+							Expect().
+							Status(http.StatusOK).JSON().Object().Value(key).Array()
+
+						for _, v := range beforeOpArray.Iter() {
+							obj := v.Object().Raw()
+							delete(obj, "created_at")
+							delete(obj, "updated_at")
+							if _, ok := t.createResourcesBeforeOp[key]; !ok {
+								delete(obj, "id")
+							}
+						}
+						beforeOpArray.Contains(entities...)
+					}
+				})
+
+				//TODO next level parameterization of api type
+				It(fmt.Sprintf("returns status %d and service_plans with ids %s and NOT with ids %s", t.expectedStatusCode, expectedAfterOpIDs, unexpectedAfterOpIDs), func() {
+
+					By("[TEST]: ======= Expectations Summary =======")
+
+					By(fmt.Sprintf("[TEST]: Listing service_plans with fieldquery [%s]", query))
+					By(fmt.Sprintf("[TEST]: Currently present service_plans ids: [%s]", t.expectedResourcesBeforeOp))
+					By(fmt.Sprintf("[TEST]: Expected service_plans ids after operations: [%s]", expectedAfterOpIDs))
+					By(fmt.Sprintf("[TEST]: Unexpected service_plans ids after operation: [%s]", unexpectedAfterOpIDs))
+
+					By("[TEST]: ====================================")
+
+					req := ctx.SMWithOAuth.GET("/v1/service_plans")
+					if query != "" {
+						req = req.WithQuery("fieldQuery", query)
+					}
+					resp := req.
+						Expect().
+						Status(t.expectedStatusCode)
+
+					if t.expectedStatusCode != http.StatusOK {
+						By(fmt.Sprintf("[TEST]: Verifying error and description fields are returned after list operation"))
+
+						resp.JSON().Object().Keys().Contains("error", "description")
+					} else {
+						for key, entities := range t.expectedResourcesAfterOp {
+							By(fmt.Sprintf("[TEST]: Verifying expected r are returned after list operation"))
+
+							array := resp.JSON().Object().Value(key).Array()
+							for _, v := range array.Iter() {
+								obj := v.Object().Raw()
+								delete(obj, "created_at")
+								delete(obj, "updated_at")
+							}
+							array.Contains(entities...)
+
+						}
+
+						for key, entities := range t.unexpectedResourcesAfterOp {
+							By(fmt.Sprintf("[TEST]: Verifying expected r are returned after list operation"))
+
+							array := resp.JSON().Object().Value(key).Array()
+							for _, v := range array.Iter() {
+								obj := v.Object().Raw()
+								delete(obj, "created_at")
+								delete(obj, "updated_at")
+							}
+							array.NotContains(entities...)
+
+						}
+					}
+				})
+			}
+		}
+
+		for _, t := range testCases {
+			t := t
+			if len(t.OpFieldQueryArgs) == 0 && t.OpFieldQueryTemplate != "" {
+				panic("Invalid test input")
+			}
+
+			var queries []string
+			for key, value := range t.OpFieldQueryArgs {
+				queries = append(queries, fmt.Sprintf(t.OpFieldQueryTemplate, key, value))
+			}
+			query := strings.Join(queries, ",")
+
+			Context(fmt.Sprintf("with multi field query=%s", query), verifyListOp(&t, query))
+
+			for _, query := range queries {
+				query := query
+				Context(fmt.Sprintf("with field query=%s", query), verifyListOp(&t, query))
+			}
+		}
 	})
 })

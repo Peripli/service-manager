@@ -126,6 +126,11 @@ func (vs *visibilityStorage) Delete(ctx context.Context, criteria ...query.Crite
 }
 
 func (vs *visibilityStorage) Update(ctx context.Context, visibility *types.Visibility, labelChanges ...*query.LabelChange) error {
+	for _, change := range labelChanges {
+		if err := change.Validate(); err != nil {
+			return err
+		}
+	}
 	v := &Visibility{}
 	v.FromDTO(visibility)
 	if err := update(ctx, vs.db, visibilityTable, v); err != nil {

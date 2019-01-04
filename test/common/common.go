@@ -17,12 +17,17 @@
 package common
 
 import (
+	"github.com/onsi/ginkgo"
+
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
+	mathrand "math/rand"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/gofrs/uuid"
 
@@ -40,6 +45,44 @@ import (
 
 type Object = map[string]interface{}
 type Array = []interface{}
+
+func RmNonNumbericFieldNames(obj Object) Object {
+	for k, v := range obj {
+		if _, err := strconv.Atoi(fmt.Sprintf("%v", v)); err == nil {
+			continue
+		}
+		if _, err := strconv.ParseFloat(fmt.Sprintf("%v", v), 64); err != nil {
+			delete(obj, k)
+		}
+	}
+	return obj
+}
+
+func RmNumbericFieldNames(obj Object) Object {
+	for k, v := range obj {
+		if _, err := strconv.Atoi(fmt.Sprintf("%v", v)); err == nil {
+			delete(obj, k)
+		}
+		if _, err := strconv.ParseFloat(fmt.Sprintf("%v", v), 64); err == nil {
+			delete(obj, k)
+		}
+	}
+	return obj
+}
+
+// TODO this can be used to leave out only the string fields and test corner cases with | in key and value, space and plus in the value and key, operator in the key
+func RmNotStringFieldNames(obj Object) Object {
+	panic("implement me")
+}
+
+//TODO more values of a type for multi right args case
+func CopyObject(obj Object) Object {
+	o := Object{}
+	for k, v := range obj {
+		o[k] = v
+	}
+	return o
+}
 
 func MapContains(actual Object, expected Object) {
 	for k, v := range expected {
@@ -98,6 +141,20 @@ func generatePrivateKey() *rsa.PrivateKey {
 	return privateKey
 }
 
+func ExtractResourceIDs(entities []Object) []string {
+	result := make([]string, 0, 0)
+	if entities == nil {
+		return result
+	}
+	for _, value := range entities {
+		if _, ok := value["id"]; !ok {
+			panic(fmt.Sprintf("No id found for test resource %v", value))
+		}
+		result = append(result, value["id"].(string))
+	}
+	return result
+}
+
 type jwkResponse struct {
 	KeyType   string `json:"kty"`
 	Use       string `json:"sig"`
@@ -150,7 +207,7 @@ func MakeRandomizedPlatformWithNoDescription() Object {
 	o["description"] = ""
 	return o
 }
-func MakeRandomizedPlatform() Object {
+func GenerateRandomPlatform() Object {
 	o := Object{}
 	for _, key := range []string{"id", "name", "type", "description"} {
 		UUID, err := uuid.NewV4()
@@ -161,6 +218,27 @@ func MakeRandomizedPlatform() Object {
 
 	}
 	return o
+}
+
+//TODO this instead of By?
+// prefix test logs somehow so they be differenciated from SM logs? SM to log only errors?
+func Print(message string, args ...interface{}) {
+	if len(args) == 0 {
+		fmt.Fprint(ginkgo.GinkgoWriter, "\n"+message+"\n")
+	} else {
+		fmt.Fprintf(ginkgo.GinkgoWriter, "\n"+message+"\n", args)
+	}
+}
+
+var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+func RandomName(prefix string) string {
+	mathrand.Seed(time.Now().UnixNano())
+	b := make([]rune, 15)
+	for i := range b {
+		b[i] = letterRunes[mathrand.Intn(len(letterRunes))]
+	}
+	return prefix + "-" + string(b)
 }
 
 type HTTPReaction struct {
@@ -227,3 +305,10 @@ func DoHTTP(reaction *HTTPReaction, checks *HTTPExpectations) func(*http.Request
 		}, reaction.Err
 	}
 }
+
+// e2e testovete
+// definirame si custom describe DescribeWithExpectations i si definirame custom closure ot tipa na aftereach Expectations
+
+// moje li po nqkakuv na4in da injectnem closure ot tipa na after each (AdditionalExpectations) prez e2e test suite-to
+
+// moje v suite-to da ima expectations pool globalen i kogato se importne vsqko DescribeWithExpectations da tursi tam AdditionaleXPECTATIONS sus key stringa v desribe-a

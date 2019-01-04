@@ -56,7 +56,7 @@ func (bs *brokerStorage) List(ctx context.Context, criteria ...query.Criterion) 
 }
 
 func (bs *brokerStorage) Delete(ctx context.Context, criteria ...query.Criterion) error {
-	return deleteAllByFieldCriteria(ctx, bs.db, brokerTable, Broker{}, criteria...)
+	return deleteAllByFieldCriteria(ctx, bs.db, brokerTable, Broker{}, criteria)
 
 }
 

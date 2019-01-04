@@ -19,6 +19,7 @@ package query
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -71,7 +72,8 @@ const (
 	// OpenBracket is the token that denotes the end of a multivariate operand
 	CloseBracket string = "]"
 	// Separator is the separator between field and label queries
-	Separator rune = ','
+	Separator        rune   = ','
+	OperandSeparator string = "+"
 )
 
 // CriterionType is a type of criteria to be applied when querying
@@ -195,16 +197,51 @@ func BuildCriteriaFromRequest(request *web.Request) ([]Criterion, error) {
 	return criteria, nil
 }
 
+var (
+	escapedOpenBracket      = url.QueryEscape(OpenBracket)
+	escapedCloseBracket     = url.QueryEscape(CloseBracket)
+	escapedSeparator        = url.QueryEscape(string(Separator))
+	escapedOperandSeparator = url.QueryEscape(OperandSeparator)
+	escapeReplacer          = strings.NewReplacer(escapedOpenBracket, OpenBracket, escapedCloseBracket, CloseBracket, escapedSeparator, string(Separator), escapedOperandSeparator, OperandSeparator, "%3D", "=")
+)
+
+// reencoding does not seem to solve any issue apart from whitespace in rightop which can be simpler solved by identifying when you';ve found both leftoperand and op
+// scan symbol by symbol
+
+// write in a buffer until you identify a known operator surrounded with +/spaces, set operator=op
+// if the operator is identified, set the leftop to equal the buffer and reset the buffer
+// continue reading symbols and enter an if that checks if both leftop and operator are set
+// now since this is the case swich over the operator type and in the prev if (left >0 op >0) place a if separator
+// 	in it if its multivalue op, read until the buffer starts bracket and ends with bracket and a separator, now set rightop, create cirterion and reset leftop,operator,rightop,buffer buffers (allows brackets and special symbols in rightop)
+//  if singlevalue create criteria and reset buffers
+
+// limitations so far:
+// leftoperands cannot contain +operator+ or spaceoperatorspace for any operator
+// rightoperands cannot contain ,
+// but everything else would be possible - ex leftop containing + or space or , or ,, or a bracket
+// also right op can contain a bracket + or space
+
+// now in order to allow , in the right part and operators in the left part, we can introduce escaping and unescaping
+// similar to this https://github.com/kubernetes/apimachinery/blob/9c4c366543346abeca2a5cd2c40cf1a30d19a2ec/pkg/fields/selector.go#L283:6
+// leveraging the slash escaping , parsing the query can be simplified by first splitting by , like https://github.com/kubernetes/apimachinery/blob/9c4c366543346abeca2a5cd2c40cf1a30d19a2ec/pkg/fields/selector.go#L377:6
+// and now in the parse method it wont be necessary to look for , and you would be parsing a single leftop-op-rightop criterion in a loop
+
 func process(input string, criteriaType CriterionType) ([]Criterion, error) {
 	var c []Criterion
 	if input == "" {
 		return c, nil
 	}
+	//TODO how to test corner cases
+	// this breaks some queries such as ! in query
+	//escapedInput := url.QueryEscape(input)
+	//escapedInput = escapeReplacer.Replace(escapedInput)
 	var leftOp string
 	var operator Operator
 	var buffer strings.Builder
 	var newCriterion Criterion
 	for _, ch := range input {
+		// if leftop and operator are both calcualted maybe leave the rest  until a separator for rightop? what if right op has a separator though
+		// the test with !
 		if ch == ' ' || ch == '+' {
 			if len(leftOp) > 0 {
 				// we've read the left op, this must be the second + (after the operator)
@@ -220,6 +257,7 @@ func process(input string, criteriaType CriterionType) ([]Criterion, error) {
 			}
 			continue
 		}
+		// what if separator is in leftoperand
 		if ch == Separator {
 			var err error
 			bufferContent := buffer.String()
@@ -254,6 +292,9 @@ func process(input string, criteriaType CriterionType) ([]Criterion, error) {
 	return c, nil
 }
 
+// add some tests with more fancy leftop , rightops that contain special symbols (such as !@{) and also some containing
+// a more complex mixed input (like rightop= this is a mixed, input example. It contains symbols + words ! -h@ppy p@rs|ng
+// also how about a test with rightop json?
 func convertToCriterion(leftOp string, operator Operator, rightOp string, criterionType CriterionType) (Criterion, error) {
 	parsedRightOp := parseRightOp(rightOp)
 	if operator == "" {
