@@ -626,7 +626,7 @@ var _ = Describe("Service Manager Platform API", func() {
 			})
 
 			Context("When creating labeled visibility with key containing forbidden character", func() {
-				FIt("Should return 400", func() {
+				It("Should return 400", func() {
 					visibility := postVisibilityRequestWithLabels
 					newLabel := labels[0].(common.Object)
 					newLabel["key"] = fmt.Sprintf("containing%cseparator", query.Separator)
