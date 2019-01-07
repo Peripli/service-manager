@@ -10,11 +10,11 @@ import (
 )
 
 func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase) bool {
-	return Describe("DELETE", func() {
+	return Describe(fmt.Sprintf("DELETE %s", t.API), func() {
 		var testResource common.Object
 		var testResourceID string
 
-		Context(fmt.Sprintf("Existing resource of type %s", t.API), func() {
+		Context("Existing resource", func() {
 			BeforeEach(func() {
 				createFunc := t.DELETE.ResourceCreationBlueprint
 
@@ -53,7 +53,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase) bool {
 			})
 		})
 
-		Context(fmt.Sprintf("Not existing resource of type %s", t.API), func() {
+		Context("Not existing resource", func() {
 			BeforeEach(func() {
 				testResourceID = "non-existing-id"
 			})

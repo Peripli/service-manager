@@ -125,6 +125,35 @@ func DescribeTestsFor(t TestCase) bool {
 			gen := t.GET.ResourceCreationBlueprint(ctx)
 			delete(gen, "created_at")
 			delete(gen, "updated_at")
+			if t.SupportsLabels {
+
+				//BeforeEach(func() {
+				//	patchLabels = []query.LabelChange{}
+				//})
+				//JustBeforeEach(func() {
+				//	patchLabelsBody = make(map[string]interface{})
+				//	patchLabels = append(patchLabels, query.LabelChange{
+				//		Operation: operation,
+				//		Key:       changedLabelKey,
+				//		Values:    changedLabelValues,
+				//	})
+				//	patchLabelsBody["labels"] = patchLabels
+				//
+				//	id = ctx.SMWithOAuth.POST("/v1/visibilities").
+				//		WithJSON(postVisibilityRequestWithLabels).
+				//		Expect().Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
+				//})
+				//
+				//Context("Add new label", func() {
+				//	It("Should return 200", func() {
+				//		label := types.Label{Key: changedLabelKey, Value: changedLabelValues}
+				//		ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+				//			WithJSON(patchLabelsBody).
+				//			Expect().
+				//			Status(http.StatusOK).JSON().Object().Value("labels").Array().Contains(label)
+				//	})
+				//})
+			}
 			r = append(r, gen)
 		}
 

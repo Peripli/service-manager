@@ -1,8 +1,11 @@
 package test
 
 import (
+	"fmt"
+
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
 )
 
 //Context("With invalid content type", func() {
@@ -39,18 +42,72 @@ import (
 // when broker is missing
 // when broker is failing
 // when broker is working
-	//with invalid catalog
-		// when services/plans  with same id exist in catalog
-		// when services/plans with same name exist in catalog
-		// when a service/plan is incomplete / missing mandatory fields
-	// with valid catalog
-		// when service/plan is incomplete/ missing optional fields
-		--// when catalog is complete
-		// when broker url ends with trailing slash
-		// when broker url does not end with trailing slash
+//with invalid catalog
+// when services/plans  with same id exist in catalog
+// when services/plans with same name exist in catalog
+// when a service/plan is incomplete / missing mandatory fields
+// with valid catalog
+// when service/plan is incomplete/ missing optional fields
+// when catalog is complete
+// when broker url ends with trailing slash
+// when broker url does not end with trailing slash
 
 func DescribePostTestsFor(ctx *common.TestContext, t TestCase) bool {
-	return Describe("POST", func() {
+	return Describe(fmt.Sprintf("POST %s", t.API), func() {
+		//var testResource common.Object
+		//var testResourceID string
 
+		Context("when content type is invalid", func() {
+			It("returns 415", func() {
+
+			})
+		})
+
+		Context("when JSON request body is invalid", func() {
+			It("returns 400", func() {
+
+			})
+		})
+
+		Context("when request body is missing", func() {
+			It("returns 400", func() {
+
+			})
+		})
+
+		Context("when resource already exists", func() {
+			It("returns 409", func() {
+
+			})
+		})
+
+		Context("without provided id", func() {
+
+		})
+
+		Context("with provided invalid id", func() {
+
+		})
+
+		DescribeTable("with missing mandatory fields", func() {
+
+		}, []TableEntry{
+			Entry("returns 400", &tc{}),
+			Entry("returns 400", &tc{}),
+		}...)
+
+		DescribeTable("with missing optional fields", func() {
+
+		}, []TableEntry{
+			Entry("returns 201", &tc{}),
+			Entry("returns 201", &tc{}),
+		}...)
+
+		DescribeTable("with missing prerequisite resource", func() {
+
+		}, []TableEntry{
+			Entry("returns 201 when no related %s is present", &tc{}),
+			Entry("returns 201", &tc{}),
+		}...)
 	})
 }

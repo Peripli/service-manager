@@ -274,15 +274,16 @@ var _ = Describe("Service Manager Platform API", func() {
 			It("returns 400", func() {
 				platformId := "not-existing"
 				ctx.SMWithOAuth.GET("/v1/platforms/"+platformId).
-					WithJSON(postVisibilityRequestNoLabels).
-					Expect().Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
+					Expect().
+					Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
 
 				ctx.SMWithOAuth.POST("/v1/visibilities").
 					WithJSON(common.Object{
 						"service_plan_id": existingPlanIDs[0],
 						"platform_id":     platformId,
 					}).
-					Expect().Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+					Expect().
+					Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
 			})
 		})
 

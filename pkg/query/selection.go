@@ -19,7 +19,6 @@ package query
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"strconv"
 	"strings"
 

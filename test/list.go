@@ -34,8 +34,6 @@ type listOpEntry struct {
 //todo this entries wont work if (esp > < bad request if the fieldqueryargs object has key: 5
 
 func DescribeListTestsFor(ctx *common.TestContext, t TestCase, r []common.Object) bool {
-	logrus.Errorf("=========================%s", r[0])
-
 	entries := []TableEntry{
 		// invalid operator
 		Entry("returns 400 when field query operator is invalid",
@@ -60,7 +58,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, r []common.Object
 		// some created resources, valid operators and field query right operands that match some resources
 
 		// one time validate that spaces instead of + works
-		Entry("returns 200",
+		Entry("returns 200 when spaces are used instead of tabs",
 			listOpEntry{
 				expectedResourcesBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
 				OpFieldQueryTemplate:      "%s = %s",
@@ -71,6 +69,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, r []common.Object
 		),
 
 		//TODO arrays for field template and field op args
+
 		// one time duplicated query
 		//Entry("returns 400",
 		//	listOpEntry{
@@ -83,18 +82,25 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, r []common.Object
 		//	},
 		//),
 
+		// one time duplicated query
+		Entry("returns 400 when field query is duplicated", listOpEntry{
+			expectedResourcesBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
+			OpFieldQueryTemplate:      "%[1]s+=+%[2]s|%[1]s+=+%[2]s",
+			OpFieldQueryArgs:          r[0],
+			expectedStatusCode:        http.StatusBadRequest,
+		}),
 		// one time single value operator with multiple right values
-		Entry("returns 400",
+		Entry("returns 400 when single value operator is used with multiple right value arguments",
 			listOpEntry{
 				expectedResourcesBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
-				OpFieldQueryTemplate:      "%[1]s+=+[%[2]s,%[2]s,%[2]s]",
+				OpFieldQueryTemplate:      "%[1]s+=+[%[2]s|%[2]s|%[2]s]",
 				OpFieldQueryArgs:          r[0],
 				expectedStatusCode:        http.StatusBadRequest,
 			},
 		),
 
 		// one time invalid +
-		Entry("returns 400",
+		Entry("returns 400 when operator is not properly separated with + from operands",
 			listOpEntry{
 				expectedResourcesBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
 				OpFieldQueryTemplate:      "%s+=%s",
@@ -104,7 +110,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, r []common.Object
 		),
 
 		// one time invalid spacing
-		Entry("returns 400",
+		Entry("returns 400 when operator is not properly separated with space from operands",
 			listOpEntry{
 				expectedResourcesBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
 				OpFieldQueryTemplate:      "%s =%s",
@@ -137,7 +143,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, r []common.Object
 		Entry("returns 200",
 			listOpEntry{
 				expectedResourcesBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
-				OpFieldQueryTemplate:      "%[1]s+in+[%[2]s,%[2]s,%[2]s]",
+				OpFieldQueryTemplate:      "%[1]s+in+[%[2]s|%[2]s|%[2]s]",
 				OpFieldQueryArgs:          r[0],
 				expectedResourcesAfterOp:  []common.Object{r[0]},
 				expectedStatusCode:        http.StatusOK,
@@ -170,7 +176,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, r []common.Object
 		Entry("returns 200",
 			listOpEntry{
 				expectedResourcesBeforeOp:  []common.Object{r[0], r[1], r[2], r[3]},
-				OpFieldQueryTemplate:       "%[1]s+notin+[%[2]s,%[2]s,%[2]s]",
+				OpFieldQueryTemplate:       "%[1]s+notin+[%[2]s|%[2]s|%[2]s]",
 				OpFieldQueryArgs:           r[0],
 				unexpectedResourcesAfterOp: []common.Object{r[0]},
 				expectedStatusCode:         http.StatusOK,
@@ -200,7 +206,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, r []common.Object
 		//	},
 		//),
 
-		Entry("returns 400",
+		Entry("returns 400 when numeric operator is used with non-numeric operands",
 			listOpEntry{
 				expectedResourcesBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
 				OpFieldQueryTemplate:      "%s+>+%s",
@@ -251,7 +257,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, r []common.Object
 		//),
 
 		// invalid field query left/right operand
-		Entry("returns 400",
+		Entry("returns 400 when left/right operands are unknown",
 			listOpEntry{
 				expectedResourcesBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
 				OpFieldQueryTemplate:      "%s+=+%s",
@@ -259,7 +265,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, r []common.Object
 				expectedStatusCode:        http.StatusBadRequest,
 			},
 		),
-		Entry("returns 400",
+		Entry("returns 400 when left/right operands are unknown",
 			listOpEntry{
 				expectedResourcesBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
 				OpFieldQueryTemplate:      "%s+!=+%s",
@@ -267,15 +273,15 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, r []common.Object
 				expectedStatusCode:        http.StatusBadRequest,
 			},
 		),
-		Entry("returns 400",
+		Entry("returns 400 when left/right operands are unknown",
 			listOpEntry{
 				expectedResourcesBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
-				OpFieldQueryTemplate:      "%[1]s+in+[%[2]s,%[2]s,%[2]s]",
+				OpFieldQueryTemplate:      "%[1]s+in+[%[2]s|%[2]s|%[2]s]",
 				OpFieldQueryArgs:          common.Object{"unknownkey": "unknownvalue"},
 				expectedStatusCode:        http.StatusBadRequest,
 			},
 		),
-		Entry("returns 400",
+		Entry("returns 400 when left/right operands are unknown",
 			listOpEntry{
 				expectedResourcesBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
 				OpFieldQueryTemplate:      "%s+in+[%s]",
@@ -283,7 +289,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, r []common.Object
 				expectedStatusCode:        http.StatusBadRequest,
 			},
 		),
-		Entry("returns 400",
+		Entry("returns 400 when left/right operands are unknown",
 			listOpEntry{
 				expectedResourcesBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
 				OpFieldQueryTemplate:      "%[1]s+notin+[%[2]s,%[2]s,%[2]s]",
@@ -291,7 +297,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, r []common.Object
 				expectedStatusCode:        http.StatusBadRequest,
 			},
 		),
-		Entry("returns 400",
+		Entry("returns 400 when left/right operands are unknown",
 			listOpEntry{
 				expectedResourcesBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
 				OpFieldQueryTemplate:      "%s+notin+[%s]",
@@ -299,7 +305,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, r []common.Object
 				expectedStatusCode:        http.StatusBadRequest,
 			},
 		),
-		Entry("returns 400",
+		Entry("returns 400 when left/right operands are unknown",
 			listOpEntry{
 				expectedResourcesBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
 				OpFieldQueryTemplate:      "%s+>+%s",
@@ -307,7 +313,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, r []common.Object
 				expectedStatusCode:        http.StatusBadRequest,
 			},
 		),
-		Entry("returns 400",
+		Entry("returns 400 when left/right operands are unknown",
 			listOpEntry{
 				expectedResourcesBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
 				OpFieldQueryTemplate:      "%s+<+%s",
@@ -315,7 +321,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, r []common.Object
 				expectedStatusCode:        http.StatusBadRequest,
 			},
 		),
-		Entry("returns 400",
+		Entry("returns 400 when left/right operands are unknown",
 			listOpEntry{
 				expectedResourcesBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
 				OpFieldQueryTemplate:      "%s+eqornil+%s",
@@ -524,5 +530,3 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, r []common.Object
 		})
 	})
 }
-
-//TODO debuging separate tests?
