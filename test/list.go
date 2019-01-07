@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sirupsen/logrus"
-
 	. "github.com/onsi/ginkgo/extensions/table"
 
 	"net/http"
@@ -487,9 +485,6 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, r []common.Object
 				// create tests: multiply each testEntry by the number of fields in OpFieldQueryArgs
 				queryForEntry := make([]string, 0, 0)
 				for key, value := range params.OpFieldQueryArgs {
-					if key == "plans" {
-						logrus.Error("break")
-					}
 					key, value := key, value
 					//TODO remove when json rightval works
 					if _, ok := value.(map[string]interface{}); ok {

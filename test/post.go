@@ -5,7 +5,7 @@ import (
 
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/ginkgo/extensions/table"
+	//. "github.com/onsi/ginkgo/extensions/table"
 )
 
 //Context("With invalid content type", func() {
@@ -89,25 +89,25 @@ func DescribePostTestsFor(ctx *common.TestContext, t TestCase) bool {
 
 		})
 
-		DescribeTable("with missing mandatory fields", func() {
-
-		}, []TableEntry{
-			Entry("returns 400", &tc{}),
-			Entry("returns 400", &tc{}),
-		}...)
-
-		DescribeTable("with missing optional fields", func() {
-
-		}, []TableEntry{
-			Entry("returns 201", &tc{}),
-			Entry("returns 201", &tc{}),
-		}...)
-
-		DescribeTable("with missing prerequisite resource", func() {
-
-		}, []TableEntry{
-			Entry("returns 201 when no related %s is present", &tc{}),
-			Entry("returns 201", &tc{}),
-		}...)
+		//DescribeTable("with missing mandatory fields", func() {
+		//
+		//}, []TableEntry{
+		//	Entry("returns 400", &tc{}),
+		//	Entry("returns 400", &tc{}),
+		//}...)
+		//
+		//DescribeTable("with missing optional fields", func() {
+		//
+		//}, []TableEntry{
+		//	Entry("returns 201", &tc{}),
+		//	Entry("returns 201", &tc{}),
+		//}...)
+		//
+		//DescribeTable("with missing prerequisite resource", func() {
+		//
+		//}, []TableEntry{
+		//	Entry("returns 201 when no related %s is present", &tc{}),
+		//	Entry("returns 201", &tc{}),
+		//}...)
 	})
 }
