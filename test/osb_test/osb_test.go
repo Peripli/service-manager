@@ -34,6 +34,22 @@ import (
 type object = common.Object
 type array = common.Array
 
+const simpleCatalog = `
+{
+  "services": [{
+    "name": "no-tags-no-metadata",
+    "id": "acb56d7c-XXXX-XXXX-XXXX-feb140a59a67",
+    "description": "A fake service.",
+    "plans": [{
+      "name": "fake-plan-1",
+      "id": "d3031751-XXXX-XXXX-XXXX-a42377d33202",
+      "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections.",
+      "free": false
+    }]
+  }]
+}
+`
+
 // TestOSB tests for OSB API
 func TestOSB(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -118,7 +134,8 @@ var _ = Describe("Service Manager OSB API", func() {
 		emptyCatalogBrokerID         string
 		smUrlToEmptyCatalogBroker    string
 
-		smUrlToMissingBroker string
+		smUrlToMissingBroker             string
+		smUrlToSimpleBrokerCatalogBroker string
 
 		stoppedBrokerServer  *common.BrokerServer
 		stoppedBrokerID      string
@@ -140,6 +157,9 @@ var _ = Describe("Service Manager OSB API", func() {
 
 		emptyCatalogBrokerID, brokerServerWithEmptyCatalog = ctx.RegisterBrokerWithCatalog(common.EmptyCatalog)
 		smUrlToEmptyCatalogBroker = brokerServerWithEmptyCatalog.URL + "/v1/osb/" + emptyCatalogBrokerID
+
+		simpleBrokerCatalogID, brokerServerWithSimpleCatalog := ctx.RegisterBrokerWithCatalog(simpleCatalog)
+		smUrlToSimpleBrokerCatalogBroker = brokerServerWithSimpleCatalog.URL + "/v1/osb/" + simpleBrokerCatalogID
 
 		failingBrokerID, failingBrokerServer = ctx.RegisterBroker()
 		smUrlToFailingBroker = failingBrokerServer.URL + "/v1/osb/" + failingBrokerID
@@ -169,7 +189,6 @@ var _ = Describe("Service Manager OSB API", func() {
 		queryParameterVerificationServer.ServiceInstanceLastOpHandler = queryParameterVerificationHandler(headerKey, headerValue)
 		queryParameterVerificationServer.BindingLastOpHandler = queryParameterVerificationHandler(headerKey, headerValue)
 		smUrlToQueryVerificationBroker = queryParameterVerificationServer.URL + "/v1/osb/" + queryParameterVerificationServerID
-
 	})
 
 	AfterSuite(func() {
@@ -187,6 +206,17 @@ var _ = Describe("Service Manager OSB API", func() {
 					ctx.SMWithBasic.GET(smUrlToWorkingBroker+"/v2/catalog").WithHeader("X-Broker-API-Version", "oidc_authn.13").Expect(),
 					http.StatusOK, "services")
 
+			})
+
+			It("should return valid catalog if it's missing some properties", func() {
+				req := ctx.SMWithBasic.GET(smUrlToSimpleBrokerCatalogBroker+"/v2/catalog").WithHeader("X-Broker-API-Version", "oidc_authn.13").Expect()
+				req.Status(http.StatusOK)
+
+				service := req.JSON().Object().Value("services").Array().First().Object()
+				service.Keys().NotContains("tags", "metadata", "requires")
+
+				plan := service.Value("plans").Array().First().Object()
+				plan.Keys().NotContains("metadata", "schemas")
 			})
 
 			It("should not reach service broker", func() {

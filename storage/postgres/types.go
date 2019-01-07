@@ -289,9 +289,9 @@ func (so *ServiceOffering) ToDTO() *types.ServiceOffering {
 		PlanUpdatable:        so.PlanUpdatable,
 		CatalogID:            so.CatalogID,
 		CatalogName:          so.CatalogName,
-		Tags:                 json.RawMessage(so.Tags),
-		Requires:             json.RawMessage(so.Requires),
-		Metadata:             json.RawMessage(so.Metadata),
+		Tags:                 getJSONRawMessage(so.Tags),
+		Requires:             getJSONRawMessage(so.Requires),
+		Metadata:             getJSONRawMessage(so.Metadata),
 		BrokerID:             so.BrokerID,
 	}
 }
@@ -309,9 +309,9 @@ func (so *ServiceOffering) FromDTO(offering *types.ServiceOffering) {
 		PlanUpdatable:        offering.PlanUpdatable,
 		CatalogID:            offering.CatalogID,
 		CatalogName:          offering.CatalogName,
-		Tags:                 sqlxtypes.JSONText(offering.Tags),
-		Requires:             sqlxtypes.JSONText(offering.Requires),
-		Metadata:             sqlxtypes.JSONText(offering.Metadata),
+		Tags:                 getJSONText(offering.Tags),
+		Requires:             getJSONText(offering.Requires),
+		Metadata:             getJSONText(offering.Metadata),
 		BrokerID:             offering.BrokerID,
 	}
 }
@@ -328,8 +328,8 @@ func (sp *ServicePlan) ToDTO() *types.ServicePlan {
 		Free:              sp.Free,
 		Bindable:          sp.Bindable,
 		PlanUpdatable:     sp.PlanUpdatable,
-		Metadata:          json.RawMessage(sp.Metadata),
-		Schemas:           json.RawMessage(sp.Schemas),
+		Metadata:          getJSONRawMessage(sp.Metadata),
+		Schemas:           getJSONRawMessage(sp.Schemas),
 		ServiceOfferingID: sp.ServiceOfferingID,
 	}
 }
@@ -346,8 +346,8 @@ func (sp *ServicePlan) FromDTO(plan *types.ServicePlan) {
 		PlanUpdatable:     plan.PlanUpdatable,
 		CatalogID:         plan.CatalogID,
 		CatalogName:       plan.CatalogName,
-		Metadata:          sqlxtypes.JSONText(plan.Metadata),
-		Schemas:           sqlxtypes.JSONText(plan.Schemas),
+		Metadata:          getJSONText(plan.Metadata),
+		Schemas:           getJSONText(plan.Schemas),
 		ServiceOfferingID: plan.ServiceOfferingID,
 	}
 }
@@ -392,4 +392,21 @@ func (vl *VisibilityLabel) ToDTO() *types.VisibilityLabel {
 		},
 		ServiceVisibilityID: vl.ServiceVisibilityID.String,
 	}
+}
+
+func getJSONText(item json.RawMessage) sqlxtypes.JSONText {
+	if len(item) == len("null") && string(item) == "null" {
+		return sqlxtypes.JSONText("{}")
+	}
+	return sqlxtypes.JSONText(item)
+}
+
+func getJSONRawMessage(item sqlxtypes.JSONText) json.RawMessage {
+	if len(item) <= len("null") {
+		itemStr := string(item)
+		if itemStr == "{}" || itemStr == "null" {
+			return nil
+		}
+	}
+	return json.RawMessage(item)
 }
