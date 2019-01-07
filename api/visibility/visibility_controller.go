@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/tidwall/gjson"
-
 	"github.com/tidwall/sjson"
 
 	"github.com/Peripli/service-manager/pkg/query"
@@ -157,8 +155,6 @@ func (c *Controller) patchVisibility(r *web.Request) (*web.Response, error) {
 	if err != nil {
 		return nil, util.HandleLabelChangeError(err)
 	}
-	bytes := gjson.GetBytes(r.Body, "labels").Raw
-	fmt.Println(bytes)
 	if r.Body, err = sjson.DeleteBytes(r.Body, "labels"); err != nil {
 		return nil, err
 	}

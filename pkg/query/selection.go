@@ -19,6 +19,7 @@ package query
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -138,6 +139,11 @@ func (c Criterion) Validate() error {
 		possibleKey := parts[len(parts)-1]
 		return &UnsupportedQueryError{Message: fmt.Sprintf("separator %c is not allowed in %s with left operand \"%s\". Maybe you meant \"%s\"? Make sure if the separator is present in any right operand, that it is escaped with a backslash (\\)", Separator, c.Type, c.LeftOp, possibleKey)}
 	}
+	for _, op := range c.RightOp {
+		if strings.ContainsRune(op, '\n') {
+			return fmt.Errorf("%s with key \"%s\" has value \"%s\" contaning forbidden new line character", c.Type, c.LeftOp, op)
+		}
+	}
 	return nil
 }
 
@@ -197,7 +203,22 @@ func BuildCriteriaFromRequest(request *web.Request) ([]Criterion, error) {
 			return nil, err
 		}
 	}
+	sort.Sort(ByLeftOp(criteria))
 	return criteria, nil
+}
+
+type ByLeftOp []Criterion
+
+func (c ByLeftOp) Len() int {
+	return len(c)
+}
+
+func (c ByLeftOp) Less(i, j int) bool {
+	return c[i].LeftOp < c[j].LeftOp
+}
+
+func (c ByLeftOp) Swap(i, j int) {
+	c[i], c[j] = c[j], c[i]
 }
 
 func process(input string, criteriaType CriterionType) ([]Criterion, error) {

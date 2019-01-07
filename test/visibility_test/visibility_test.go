@@ -79,12 +79,12 @@ var _ = Describe("Service Manager Platform API", func() {
 
 		labels = common.Array{
 			common.Object{
-				"key":   "org_id",
-				"value": common.Array{"org_id_value1", "org_id_value2", "org_id_value3"},
-			},
-			common.Object{
 				"key":   "cluster_id",
 				"value": common.Array{"cluster_id_value"},
+			},
+			common.Object{
+				"key":   "org_id",
+				"value": common.Array{"org_id_value1", "org_id_value2", "org_id_value3"},
 			},
 		}
 
@@ -636,6 +636,21 @@ var _ = Describe("Service Manager Platform API", func() {
 						Expect().Status(http.StatusBadRequest)
 				})
 			})
+
+			Context("When label value has new line", func() {
+				It("Should return 400", func() {
+					visibility := postVisibilityRequestWithLabels
+					newLabel := labels[0].(common.Object)
+					newLabel["value"] = `{
+"key": "k1",
+"val": "val1"
+}`
+					visibility.AddLabel(newLabel)
+					ctx.SMWithOAuth.POST("/v1/visibilities").
+						WithJSON(visibility).
+						Expect().Status(http.StatusBadRequest)
+				})
+			})
 		})
 
 		Describe("DELETE", func() {
@@ -864,6 +879,41 @@ var _ = Describe("Service Manager Platform API", func() {
 						Status(http.StatusBadRequest)
 				})
 			})
+
+			Context("When right operand is json", func() {
+				It("Should return 200", func() {
+					newVisibility := postVisibilityRequestNoLabels
+					jsonLabelValue := `{"key1": "val1", "key2": "val2"}`
+					newVisibility["labels"] = common.Array{common.Object{
+						"key":   "cluster_id",
+						"value": common.Array{jsonLabelValue},
+					}}
+					newVisibilityID := ctx.SMWithOAuth.POST("/v1/visibilities").
+						WithJSON(newVisibility).
+						Expect().Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
+
+					visibilityJSON := ctx.SMWithOAuth.GET("/v1/visibilities/" + newVisibilityID).
+						Expect().
+						Status(http.StatusOK).JSON().Raw()
+
+					ctx.SMWithOAuth.GET("/v1/visibilities").
+						WithQuery(string(query.LabelQuery), fmt.Sprintf("%s = %s", "cluster_id", jsonLabelValue)).
+						Expect().Status(http.StatusOK).
+						JSON().Object().Value("visibilities").Array().ContainsOnly(visibilityJSON)
+				})
+			})
+
+			Context("When right operand has new lines", func() {
+				It("Should return 400", func() {
+					jsonLabelValueWithNewLines := `{
+"key1": "val1",
+"key2": "val2"
+}`
+					ctx.SMWithOAuth.GET("/v1/visibilities").
+						WithQuery(string(query.LabelQuery), fmt.Sprintf("%s = %s", "cluster_id", jsonLabelValueWithNewLines)).
+						Expect().Status(http.StatusBadRequest)
+				})
+			})
 		})
 
 		Describe("PATCH", func() {
@@ -994,9 +1044,9 @@ var _ = Describe("Service Manager Platform API", func() {
 				var valuesToRemove []string
 				BeforeEach(func() {
 					operation = query.RemoveLabelValuesOperation
-					changedLabelKey = labels[0].(common.Object)["key"].(string)
-					val1 := labels[0].(common.Object)["value"].([]interface{})[0].(string)
-					val2 := labels[0].(common.Object)["value"].([]interface{})[1].(string)
+					changedLabelKey = labels[1].(common.Object)["key"].(string)
+					val1 := labels[1].(common.Object)["value"].([]interface{})[0].(string)
+					val2 := labels[1].(common.Object)["value"].([]interface{})[1].(string)
 					valuesToRemove = []string{val1, val2}
 					changedLabelValues = valuesToRemove
 				})
