@@ -19,10 +19,7 @@ package types
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
-
-	"github.com/Peripli/service-manager/pkg/query"
 
 	"errors"
 
@@ -57,9 +54,9 @@ func (v *Visibility) Validate() error {
 	if util.HasRFC3986ReservedSymbols(v.ID) {
 		return fmt.Errorf("%s contains invalid character(s)", v.ID)
 	}
-	for _, label := range v.Labels {
-		if strings.ContainsRune(label.Key, query.Separator) {
-			return fmt.Errorf("label key \"%s\" cannot contain special symbol %c", label.Key, query.Separator)
+	for _, l := range v.Labels {
+		if err := l.Label.Validate(); err != nil {
+			return err
 		}
 	}
 	return nil

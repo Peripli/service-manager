@@ -16,7 +16,13 @@
 
 package types
 
-import "time"
+import (
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/Peripli/service-manager/pkg/query"
+)
 
 type Label struct {
 	ID        string    `json:"-"`
@@ -24,4 +30,16 @@ type Label struct {
 	Value     []string  `json:"value,omitempty"`
 	CreatedAt time.Time `json:"-"`
 	UpdatedAt time.Time `json:"-"`
+}
+
+func (l Label) Validate() error {
+	if strings.ContainsRune(l.Key, query.Separator) {
+		return fmt.Errorf("label key \"%s\" cannot contain whitespaces and special symbol %c", l.Key, query.Separator)
+	}
+	for _, val := range l.Value {
+		if strings.ContainsRune(val, '\n') {
+			return fmt.Errorf("label with key \"%s\" has value \"%s\" contaning forbidden new line character", l.Key, val)
+		}
+	}
+	return nil
 }
