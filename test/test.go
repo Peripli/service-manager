@@ -75,8 +75,13 @@ type GET struct {
 type PATCH struct {
 }
 
+type Field struct {
+	Name      string
+	Mandatory bool
+}
 type LIST struct {
 	ResourceCreationBlueprint func(ctx *common.TestContext) common.Object
+	NullableFields            []string
 }
 
 type CascadeDeletion struct {
@@ -111,21 +116,30 @@ type TestCase struct {
 
 func DescribeTestsFor(t TestCase) bool {
 	return Describe(t.API, func() {
-		//TODO any common stuff for all operations of should we just use the separate describes and not the merged one
-
-		//TODO can we somehow suite these and not leave them hanging around?
 		var ctx *common.TestContext
-		ctx = common.NewTestContext(nil)
 		var r []common.Object
+		var rWithMandatoryFields common.Object
 
-		for i := 0; i < 4; i++ {
-			//TODO move in get and list
+		func() {
+			defer GinkgoRecover()
+			e := recover()
+			if e != nil {
+				panic(e)
+			}
+			ctx = common.NewTestContext(nil)
 
-			gen := t.GET.ResourceCreationBlueprint(ctx)
-			delete(gen, "created_at")
-			delete(gen, "updated_at")
-			r = append(r, gen)
-		}
+			for i := 0; i < 4; i++ {
+				gen := t.GET.ResourceCreationBlueprint(ctx)
+				delete(gen, "created_at")
+				delete(gen, "updated_at")
+				r = append(r, gen)
+			}
+
+			rWithMandatoryFields = t.GET.ResourceCreationBlueprint(ctx)
+			for _, f := range t.LIST.NullableFields {
+				delete(rWithMandatoryFields, f)
+			}
+		}()
 
 		AfterSuite(func() {
 			ctx.Cleanup()
@@ -139,7 +153,7 @@ func DescribeTestsFor(t TestCase) bool {
 			DescribeGetTestsfor(ctx, t, r)
 		}
 		if t.LIST != nil {
-			DescribeListTestsFor(ctx, t, r)
+			DescribeListTestsFor(ctx, t, r, rWithMandatoryFields)
 		}
 		if t.PATCH != nil {
 
