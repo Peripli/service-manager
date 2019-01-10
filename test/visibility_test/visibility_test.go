@@ -613,7 +613,17 @@ var _ = Describe("Service Manager Platform API", func() {
 					labels[fmt.Sprintf("containing%cseparator", query.Separator)] = common.Array{"val"}
 					ctx.SMWithOAuth.POST("/v1/visibilities").
 						WithJSON(postVisibilityRequestWithLabels).
-						Expect().Status(http.StatusBadRequest)
+						Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains("cannot contain whitespaces and special symbol")
+				})
+			})
+
+			Context("When label key has new line", func() {
+				It("Should return 400", func() {
+					labels[`key with 
+new line`] = common.Array{"label-value"}
+					ctx.SMWithOAuth.POST("/v1/visibilities").
+						WithJSON(postVisibilityRequestWithLabels).
+						Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains("cannot contain whitespaces and special symbol")
 				})
 			})
 
