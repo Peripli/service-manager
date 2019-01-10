@@ -70,7 +70,24 @@ func RmNumbericFieldNames(obj Object) Object {
 	return obj
 }
 
-// TODO this can be used to leave out only the string fields and test corner cases with | in key and value, space and plus in the value and key, operator in the key
+func RmNonJSONFieldNames(obj Object) Object {
+	o := CopyObject(obj)
+
+	for k, v := range o {
+		isJSON := false
+		if _, ok := v.(map[string]interface{}); ok {
+			isJSON = true
+		}
+		if _, ok := v.([]interface{}); ok {
+			isJSON = true
+		}
+		if !isJSON {
+			delete(o, k)
+		}
+	}
+	return o
+}
+
 func RmNotNullableFieldNames(obj Object, optionalFields []string) Object {
 	o := CopyObject(obj)
 	for objField := range o {

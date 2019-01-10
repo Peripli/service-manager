@@ -32,34 +32,14 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 	LIST: &test.LIST{
 		ResourceCreationBlueprint: resourceCreationBlueprint,
-		NullableFields:            []string{},
+		NullableFields:            []string{"platform_id"},
 	},
 	PATCH:      &test.PATCH{},
 	DELETE:     &test.DELETE{},
 	DELETELIST: &test.DELETELIST{},
 })
 
-var resourceFieldsDescriptor = []test.Field{
-	{
-		Name:      "id",
-		Mandatory: true,
-	},
-	{
-		Name:      "visibility_id",
-		Mandatory: true,
-	},
-	{
-		Name:      "platform_id",
-		Mandatory: false,
-	},
-	{
-		Name:      "service_plan_id",
-		Mandatory: true,
-	},
-}
-
 func resourceCreationBlueprint(ctx *common.TestContext) common.Object {
-
 	_, cPaidPlan, _ := common.GeneratePaidTestPlan()
 	_, cService, _ := common.GenerateTestServiceWithPlans(cPaidPlan)
 	catalog := common.NewEmptySBCatalog()

@@ -1,19 +1,3 @@
-// api - "service_plans"
-// ops - (list, initializerFunc() map[string][]common.object), get post, put, delete
-
-// generatorFunc() common.Object
-//createResourcesBeforeOp: map[string][]interface{}{
-//"service_brokers": {r["service_brokers"][0], r["service_brokers"][1]},
-//},
-//expectedResourcesBeforeOp: map[string][]interface{}{
-//"service_brokers":   {r["service_brokers"][0], r["service_brokers"][1]},
-//"service_offerings": {r["service_offerings"][0], r["service_offerings"][1]},
-//"service_plans":     {r["service_plans"][0], r["service_plans"][1], r["service_plans"][2], r["service_plans"][3]},
-//},
-
-// optionalFields []string
-// auth contexts - ctx.withbasic, ctx.withoauth
-
 /*
  * Copyright 2018 The Service Manager Authors
  *
@@ -119,27 +103,19 @@ func DescribeTestsFor(t TestCase) bool {
 		var ctx *common.TestContext
 		var r []common.Object
 		var rWithMandatoryFields common.Object
+		ctx = common.NewTestContext(nil)
 
-		func() {
-			defer GinkgoRecover()
-			e := recover()
-			if e != nil {
-				panic(e)
-			}
-			ctx = common.NewTestContext(nil)
+		rWithMandatoryFields = t.LIST.ResourceCreationBlueprint(ctx)
+		for _, f := range t.LIST.NullableFields {
+			delete(rWithMandatoryFields, f)
+		}
 
-			for i := 0; i < 4; i++ {
-				gen := t.GET.ResourceCreationBlueprint(ctx)
-				delete(gen, "created_at")
-				delete(gen, "updated_at")
-				r = append(r, gen)
-			}
-
-			rWithMandatoryFields = t.GET.ResourceCreationBlueprint(ctx)
-			for _, f := range t.LIST.NullableFields {
-				delete(rWithMandatoryFields, f)
-			}
-		}()
+		for i := 0; i < 4; i++ {
+			gen := t.LIST.ResourceCreationBlueprint(ctx)
+			delete(gen, "created_at")
+			delete(gen, "updated_at")
+			r = append(r, gen)
+		}
 
 		AfterSuite(func() {
 			ctx.Cleanup()

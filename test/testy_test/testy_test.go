@@ -48,13 +48,14 @@ func resourceCreationBlueprint(ctx *common.TestContext) common.Object {
 
 var _ = Describe("Bar", func() {
 	Describe("d1", func() {
-		ctx := common.NewTestContext(nil)
+		var ctx *common.TestContext
 		func() {
 			defer GinkgoRecover()
-			e := recover()
-			if e != nil {
-				panic(e)
-			}
+			ctx = common.NewTestContext(nil)
+			//e := recover()
+			//if e != nil {
+			//	panic(e)
+			//}
 			resourceCreationBlueprint(ctx)
 
 		}()
