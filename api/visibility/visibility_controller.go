@@ -51,12 +51,6 @@ func (c *Controller) createVisibility(r *web.Request) (*web.Response, error) {
 	visibility.CreatedAt = currentTime
 	visibility.UpdatedAt = currentTime
 
-	for _, label := range visibility.Labels {
-		label.CreatedAt = currentTime
-		label.UpdatedAt = currentTime
-		label.ServiceVisibilityID = visibility.ID
-	}
-
 	var visibilityID string
 	err = c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
 		logger.Debugf("Creating visibility and labels...")

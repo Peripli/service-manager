@@ -48,7 +48,7 @@ var _ = Describe("Service Manager Platform API", func() {
 		existingBrokerID   string
 		existingPlanIDs    []interface{}
 
-		labels                          common.Array
+		labels                          common.Object
 		postVisibilityRequestNoLabels   common.Object
 		postVisibilityRequestWithLabels labeledVisibility
 	)
@@ -77,15 +77,9 @@ var _ = Describe("Service Manager Platform API", func() {
 			"service_plan_id": existingPlanIDs[0],
 		}
 
-		labels = common.Array{
-			common.Object{
-				"key":   "cluster_id",
-				"value": common.Array{"cluster_id_value"},
-			},
-			common.Object{
-				"key":   "org_id",
-				"value": common.Array{"org_id_value1", "org_id_value2", "org_id_value3"},
-			},
+		labels = common.Object{
+			"cluster_id": common.Array{"cluster_id_value"},
+			"org_id":     common.Array{"org_id_value1", "org_id_value2", "org_id_value3"},
 		}
 
 		registerPlatform := ctx.RegisterPlatform()
@@ -600,17 +594,6 @@ var _ = Describe("Service Manager Platform API", func() {
 				})
 			})
 
-			Context("When labels have duplicates", func() {
-				It("should return 400", func() {
-					visibility := postVisibilityRequestWithLabels
-					visibility.AddLabel(labels[0].(common.Object))
-					description := ctx.SMWithOAuth.POST("/v1/visibilities").
-						WithJSON(visibility).
-						Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").Raw().(string)
-					Expect(description).To(ContainSubstring("duplicate"))
-				})
-			})
-
 			Context("When creating labeled visibility for which a public one exists", func() {
 				It("Should return 409", func() {
 					ctx.SMWithOAuth.POST("/v1/visibilities").
@@ -627,27 +610,21 @@ var _ = Describe("Service Manager Platform API", func() {
 
 			Context("When creating labeled visibility with key containing forbidden character", func() {
 				It("Should return 400", func() {
-					visibility := postVisibilityRequestWithLabels
-					newLabel := labels[0].(common.Object)
-					newLabel["key"] = fmt.Sprintf("containing%cseparator", query.Separator)
-					visibility.AddLabel(newLabel)
+					labels[fmt.Sprintf("containing%cseparator", query.Separator)] = "val"
 					ctx.SMWithOAuth.POST("/v1/visibilities").
-						WithJSON(visibility).
+						WithJSON(postVisibilityRequestWithLabels).
 						Expect().Status(http.StatusBadRequest)
 				})
 			})
 
 			Context("When label value has new line", func() {
 				It("Should return 400", func() {
-					visibility := postVisibilityRequestWithLabels
-					newLabel := labels[0].(common.Object)
-					newLabel["value"] = `{
+					labels["cluster_id"] = `{
 "key": "k1",
 "val": "val1"
 }`
-					visibility.AddLabel(newLabel)
 					ctx.SMWithOAuth.POST("/v1/visibilities").
-						WithJSON(visibility).
+						WithJSON(postVisibilityRequestWithLabels).
 						Expect().Status(http.StatusBadRequest)
 				})
 			})
@@ -763,8 +740,8 @@ var _ = Describe("Service Manager Platform API", func() {
 
 			Context("With label query for entries exist, but field query for which one does not", func() {
 				It("Should return 200 with empty array", func() {
-					labelKey := labels[0].(common.Object)["key"].(string)
-					labelValue := labels[0].(common.Object)["value"].([]interface{})[0].(string)
+					labelKey := "cluster_id"
+					labelValue := labels[labelKey].([]interface{})[0].(string)
 
 					ctx.SMWithOAuth.GET("/v1/visibilities").
 						WithQuery(string(query.LabelQuery), fmt.Sprintf("%s = %s", labelKey, labelValue)).
@@ -815,12 +792,12 @@ var _ = Describe("Service Manager Platform API", func() {
 
 			Context("With only label query for which entry exists", func() {
 				It("Should return 200 with this entry", func() {
-					labelKey := labels[0].(common.Object)["key"].(string)
-					labelValue := labels[0].(common.Object)["value"].([]interface{})[0].(string)
+					labelKey := "cluster_id"
+					labelValue := labels[labelKey].([]interface{})[0].(string)
 
 					var expectedKeys []interface{}
-					for _, label := range labels {
-						expectedKeys = append(expectedKeys, label.(common.Object)["key"].(string))
+					for key := range labels {
+						expectedKeys = append(expectedKeys, key)
 					}
 
 					visibilitiesResp := ctx.SMWithOAuth.GET("/v1/visibilities").
@@ -828,7 +805,7 @@ var _ = Describe("Service Manager Platform API", func() {
 						Expect().
 						Status(http.StatusOK).JSON().Object().Value("visibilities")
 					visibilitiesResp.Array().Length().Equal(1)
-					visibilitiesResp.Array().Element(0).Path("$.labels[*].key").Array().ContainsOnly(expectedKeys...)
+					visibilitiesResp.Array().Element(0).Path("$.labels").Object().Keys().ContainsOnly(expectedKeys...)
 				})
 			})
 
@@ -847,8 +824,8 @@ var _ = Describe("Service Manager Platform API", func() {
 
 			Context("With both label and field query", func() {
 				It("Should return 200", func() {
-					labelKey := labels[0].(common.Object)["key"].(string)
-					labelValue := labels[0].(common.Object)["value"].([]interface{})[0].(string)
+					labelKey := "cluster_id"
+					labelValue := labels[labelKey].([]interface{})[0].(string)
 
 					visibilityJSON := ctx.SMWithOAuth.GET("/v1/visibilities/" + id).
 						Expect().
@@ -884,10 +861,9 @@ var _ = Describe("Service Manager Platform API", func() {
 				It("Should return 200", func() {
 					newVisibility := postVisibilityRequestNoLabels
 					jsonLabelValue := `{"key1": "val1", "key2": "val2"}`
-					newVisibility["labels"] = common.Array{common.Object{
-						"key":   "cluster_id",
-						"value": common.Array{jsonLabelValue},
-					}}
+					newVisibility["labels"] = common.Object{
+						"cluster_id": common.Array{jsonLabelValue},
+					}
 					newVisibilityID := ctx.SMWithOAuth.POST("/v1/visibilities").
 						WithJSON(newVisibility).
 						Expect().Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
@@ -942,11 +918,11 @@ var _ = Describe("Service Manager Platform API", func() {
 
 			Context("Add new label", func() {
 				It("Should return 200", func() {
-					label := types.Label{Key: changedLabelKey, Value: changedLabelValues}
+					label := types.Labels{changedLabelKey: changedLabelValues}
 					ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
 						WithJSON(patchLabelsBody).
 						Expect().
-						Status(http.StatusOK).JSON().Object().Value("labels").Array().Contains(label)
+						Status(http.StatusOK).JSON().Object().Value("labels").Object().ContainsMap(label)
 				})
 			})
 
@@ -967,7 +943,7 @@ var _ = Describe("Service Manager Platform API", func() {
 			Context("Add new label value", func() {
 				BeforeEach(func() {
 					operation = query.AddLabelValuesOperation
-					changedLabelKey = labels[0].(common.Object)["key"].(string)
+					changedLabelKey = "cluster_id"
 					changedLabelValues = []string{"new-label-value"}
 				})
 				It("Should return 200", func() {
@@ -979,14 +955,14 @@ var _ = Describe("Service Manager Platform API", func() {
 						WithJSON(patchLabelsBody).
 						Expect().
 						Status(http.StatusOK).JSON().
-						Path("$.labels[*].value[*]").Array().Contains(labelValuesObj...)
+						Path("$.labels").Object().Values().Path("$[*][*]").Array().Contains(labelValuesObj...)
 				})
 			})
 
 			Context("Add new label value to a non-existing label", func() {
 				BeforeEach(func() {
 					operation = query.AddLabelValuesOperation
-					changedLabelKey = labels[0].(common.Object)["key"].(string) + "new"
+					changedLabelKey = "cluster_id_new"
 					changedLabelValues = []string{"new-label-value"}
 				})
 				It("Should return 200", func() {
@@ -999,15 +975,15 @@ var _ = Describe("Service Manager Platform API", func() {
 						WithJSON(patchLabelsBody).
 						Expect().
 						Status(http.StatusOK).JSON().
-						Path("$.labels[*].value[*]").Array().Contains(labelValuesObj...)
+						Path("$.labels").Object().Values().Path("$[*][*]").Array().Contains(labelValuesObj...)
 				})
 			})
 
 			Context("Add duplicate label value", func() {
 				BeforeEach(func() {
 					operation = query.AddLabelValuesOperation
-					changedLabelKey = labels[0].(common.Object)["key"].(string)
-					values := labels[0].(common.Object)["value"].([]interface{})
+					changedLabelKey = "cluster_id"
+					values := labels["cluster_id"].([]interface{})
 					changedLabelValues = []string{values[0].(string)}
 				})
 				It("Should return 400", func() {
@@ -1022,14 +998,14 @@ var _ = Describe("Service Manager Platform API", func() {
 			Context("Remove a label", func() {
 				BeforeEach(func() {
 					operation = query.RemoveLabelOperation
-					changedLabelKey = labels[0].(common.Object)["key"].(string)
+					changedLabelKey = "cluster_id"
 				})
 				It("Should return 200", func() {
 					ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
 						WithJSON(patchLabelsBody).
 						Expect().
 						Status(http.StatusOK).JSON().
-						Path("$.labels[*].key").Array().NotContains(labels[0].(common.Object)["key"].(string))
+						Path("$.labels").Object().Keys().NotContains(changedLabelKey)
 				})
 			})
 
@@ -1063,8 +1039,8 @@ var _ = Describe("Service Manager Platform API", func() {
 				var valueToRemove string
 				BeforeEach(func() {
 					operation = query.RemoveLabelValuesOperation
-					changedLabelKey = labels[0].(common.Object)["key"].(string)
-					valueToRemove = labels[0].(common.Object)["value"].([]interface{})[0].(string)
+					changedLabelKey = "cluster_id"
+					valueToRemove = labels[changedLabelKey].([]interface{})[0].(string)
 					changedLabelValues = []string{valueToRemove}
 				})
 				It("Should return 200", func() {
@@ -1080,9 +1056,9 @@ var _ = Describe("Service Manager Platform API", func() {
 				var valuesToRemove []string
 				BeforeEach(func() {
 					operation = query.RemoveLabelValuesOperation
-					changedLabelKey = labels[1].(common.Object)["key"].(string)
-					val1 := labels[1].(common.Object)["value"].([]interface{})[0].(string)
-					val2 := labels[1].(common.Object)["value"].([]interface{})[1].(string)
+					changedLabelKey = "org_id"
+					val1 := labels[changedLabelKey].([]interface{})[0].(string)
+					val2 := labels[changedLabelKey].([]interface{})[1].(string)
 					valuesToRemove = []string{val1, val2}
 					changedLabelValues = valuesToRemove
 				})
@@ -1099,8 +1075,8 @@ var _ = Describe("Service Manager Platform API", func() {
 				var valuesToRemove []string
 				BeforeEach(func() {
 					operation = query.RemoveLabelValuesOperation
-					changedLabelKey = labels[0].(common.Object)["key"].(string)
-					labelValues := labels[0].(common.Object)["value"].([]interface{})
+					changedLabelKey = "cluster_id"
+					labelValues := labels[changedLabelKey].([]interface{})
 					for _, val := range labelValues {
 						valuesToRemove = append(valuesToRemove, val.(string))
 					}
@@ -1131,7 +1107,7 @@ var _ = Describe("Service Manager Platform API", func() {
 			Context("Remove label value which does not exist", func() {
 				BeforeEach(func() {
 					operation = query.RemoveLabelValuesOperation
-					changedLabelKey = labels[0].(common.Object)["key"].(string)
+					changedLabelKey = "cluster_id"
 					changedLabelValues = []string{"non-existing-value"}
 				})
 				It("Should return 400", func() {

@@ -150,21 +150,22 @@ func (vls visibilityLabels) Validate() error {
 	return nil
 }
 
-func (vls *visibilityLabels) FromDTO(labels []*types.VisibilityLabel) error {
-	for _, label := range labels {
-		for _, labelValue := range label.Value {
+func (vls *visibilityLabels) FromDTO(visibilityID string, labels types.Labels) error {
+	now := time.Now()
+	for key, values := range labels {
+		for _, labelValue := range values {
 			UUID, err := uuid.NewV4()
 			if err != nil {
 				return fmt.Errorf("could not generate GUID for visibility label: %s", err)
 			}
-			label.ID = UUID.String()
+			id := UUID.String()
 			visLabel := &VisibilityLabel{
-				ID:                  sql.NullString{String: label.ID, Valid: label.ID != ""},
-				Key:                 sql.NullString{String: label.Key, Valid: label.Key != ""},
+				ID:                  sql.NullString{String: id, Valid: id != ""},
+				Key:                 sql.NullString{String: key, Valid: key != ""},
 				Val:                 sql.NullString{String: labelValue, Valid: labelValue != ""},
-				CreatedAt:           &label.CreatedAt,
-				UpdatedAt:           &label.UpdatedAt,
-				ServiceVisibilityID: sql.NullString{String: label.ServiceVisibilityID, Valid: label.ServiceVisibilityID != ""},
+				CreatedAt:           &now,
+				UpdatedAt:           &now,
+				ServiceVisibilityID: sql.NullString{String: visibilityID, Valid: visibilityID != ""},
 			}
 			*vls = append(*vls, visLabel)
 		}
@@ -172,7 +173,7 @@ func (vls *visibilityLabels) FromDTO(labels []*types.VisibilityLabel) error {
 	return nil
 }
 
-func (vls *visibilityLabels) ToDTO() []*types.VisibilityLabel {
+func (vls *visibilityLabels) ToDTO() types.Labels {
 	labelValues := make(map[string][]string)
 	for _, label := range *vls {
 		values, exists := labelValues[label.Key.String]
@@ -182,11 +183,7 @@ func (vls *visibilityLabels) ToDTO() []*types.VisibilityLabel {
 			labelValues[label.Key.String] = []string{label.Val.String}
 		}
 	}
-	var result []*types.VisibilityLabel
-	for labelKey, labelVal := range labelValues {
-		result = append(result, &types.VisibilityLabel{Label: types.Label{Key: labelKey, Value: labelVal}})
-	}
-	return result
+	return labelValues
 }
 
 type VisibilityLabel struct {
@@ -359,6 +356,7 @@ func (v *Visibility) ToDTO() *types.Visibility {
 		ServicePlanID: v.ServicePlanID,
 		CreatedAt:     v.CreatedAt,
 		UpdatedAt:     v.UpdatedAt,
+		Labels:        make(map[string][]string),
 	}
 }
 
@@ -370,26 +368,5 @@ func (v *Visibility) FromDTO(visibility *types.Visibility) {
 		ServicePlanID: visibility.ServicePlanID,
 		CreatedAt:     visibility.CreatedAt,
 		UpdatedAt:     visibility.UpdatedAt,
-	}
-}
-
-func (vl *VisibilityLabel) ToDTO() *types.VisibilityLabel {
-	var createdAt time.Time
-	var updatedAt time.Time
-	if vl.CreatedAt != nil {
-		createdAt = *vl.CreatedAt
-	}
-	if vl.UpdatedAt != nil {
-		updatedAt = *vl.UpdatedAt
-	}
-	return &types.VisibilityLabel{
-		Label: types.Label{
-			ID:        vl.ID.String,
-			Key:       vl.Key.String,
-			Value:     []string{vl.Val.String},
-			CreatedAt: createdAt,
-			UpdatedAt: updatedAt,
-		},
-		ServiceVisibilityID: vl.ServiceVisibilityID.String,
 	}
 }
