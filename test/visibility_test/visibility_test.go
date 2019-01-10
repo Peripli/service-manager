@@ -609,8 +609,8 @@ var _ = Describe("Service Manager Platform API", func() {
 			})
 
 			Context("When creating labeled visibility with key containing forbidden character", func() {
-				It("Should return 400", func() {
-					labels[fmt.Sprintf("containing%cseparator", query.Separator)] = "val"
+				FIt("Should return 400", func() {
+					labels[fmt.Sprintf("containing%cseparator", query.Separator)] = common.Array{"val"}
 					ctx.SMWithOAuth.POST("/v1/visibilities").
 						WithJSON(postVisibilityRequestWithLabels).
 						Expect().Status(http.StatusBadRequest)
@@ -619,10 +619,10 @@ var _ = Describe("Service Manager Platform API", func() {
 
 			Context("When label value has new line", func() {
 				It("Should return 400", func() {
-					labels["cluster_id"] = `{
+					labels["cluster_id"] = common.Array{`{
 "key": "k1",
 "val": "val1"
-}`
+}`}
 					ctx.SMWithOAuth.POST("/v1/visibilities").
 						WithJSON(postVisibilityRequestWithLabels).
 						Expect().Status(http.StatusBadRequest)
