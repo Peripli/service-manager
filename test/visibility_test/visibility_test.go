@@ -609,7 +609,7 @@ var _ = Describe("Service Manager Platform API", func() {
 			})
 
 			Context("When creating labeled visibility with key containing forbidden character", func() {
-				FIt("Should return 400", func() {
+				It("Should return 400", func() {
 					labels[fmt.Sprintf("containing%cseparator", query.Separator)] = common.Array{"val"}
 					ctx.SMWithOAuth.POST("/v1/visibilities").
 						WithJSON(postVisibilityRequestWithLabels).
