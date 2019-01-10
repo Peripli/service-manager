@@ -983,6 +983,42 @@ var _ = Describe("Service Manager Platform API", func() {
 				})
 			})
 
+			Context("Add new label value to a non-existing label", func() {
+				BeforeEach(func() {
+					operation = query.AddLabelValuesOperation
+					changedLabelKey = labels[0].(common.Object)["key"].(string) + "new"
+					changedLabelValues = []string{"new-label-value"}
+				})
+				It("Should return 200", func() {
+					var labelValuesObj []interface{}
+					for _, val := range changedLabelValues {
+						labelValuesObj = append(labelValuesObj, val)
+					}
+
+					ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+						WithJSON(patchLabelsBody).
+						Expect().
+						Status(http.StatusOK).JSON().
+						Path("$.labels[*].value[*]").Array().Contains(labelValuesObj...)
+				})
+			})
+
+			Context("Add duplicate label value", func() {
+				BeforeEach(func() {
+					operation = query.AddLabelValuesOperation
+					changedLabelKey = labels[0].(common.Object)["key"].(string)
+					values := labels[0].(common.Object)["value"].([]interface{})
+					changedLabelValues = []string{values[0].(string)}
+				})
+				It("Should return 400", func() {
+					ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+						WithJSON(patchLabelsBody).
+						Expect().
+						Status(http.StatusBadRequest).JSON().Object().
+						Value("description").String().Contains("already exists")
+				})
+			})
+
 			Context("Remove a label", func() {
 				BeforeEach(func() {
 					operation = query.RemoveLabelOperation
