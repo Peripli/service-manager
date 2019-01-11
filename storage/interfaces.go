@@ -23,6 +23,8 @@ import (
 	"path"
 	"runtime"
 
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/types"
 )
@@ -214,20 +216,14 @@ type Visibility interface {
 	// Get retrieves a visibility using the provided id from SM DB
 	Get(ctx context.Context, id string) (*types.Visibility, error)
 
-	// ListByPlatformID retrieves all visibilities from SM DB that match the specified platform id
-	ListByPlatformID(ctx context.Context, platformID string) ([]*types.Visibility, error)
-
-	// ListByServicePlanID retrieves all visibilities from SM DB that match the specified service plan id
-	ListByServicePlanID(ctx context.Context, servicePlanID string) ([]*types.Visibility, error)
-
 	// List retrieves all visibilities from SM DB
-	List(ctx context.Context) ([]*types.Visibility, error)
+	List(ctx context.Context, criteria ...query.Criterion) ([]*types.Visibility, error)
 
 	// Delete deletes a visibility from SM DB
-	Delete(ctx context.Context, id string) error
+	Delete(ctx context.Context, criteria ...query.Criterion) error
 
 	// Update updates a visibility from SM DB
-	Update(ctx context.Context, visibility *types.Visibility) error
+	Update(ctx context.Context, visibility *types.Visibility, labelChanges ...*query.LabelChange) error
 }
 
 // Credentials interface for Credentials db operations

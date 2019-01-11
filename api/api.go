@@ -92,7 +92,7 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 				ServicePlanStorage: repository.ServicePlan(),
 			},
 			&visibility.Controller{
-				VisibilityStorage: repository.Visibility(),
+				Repository: repository,
 			},
 			&info.Controller{
 				TokenIssuer: settings.TokenIssuerURL,
@@ -112,6 +112,7 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 			basic.NewFilter(repository.Credentials(), encrypter),
 			bearerAuthnFilter,
 			secfilters.NewRequiredAuthnFilter(),
+			&filters.SelectionCriteria{},
 			&filters.FreeServicePlansFilter{
 				Repository: repository,
 			},

@@ -40,7 +40,7 @@ func (c *Controller) getServiceOffering(r *web.Request) (*web.Response, error) {
 	log.C(ctx).Debugf("Getting service offering with id %s", serviceOfferingID)
 
 	serviceOffering, err := c.ServiceOfferingStorage.Get(ctx, serviceOfferingID)
-	if err = util.HandleStorageError(err, "service_offering", serviceOfferingID); err != nil {
+	if err = util.HandleStorageError(err, "service_offering"); err != nil {
 		return nil, err
 	}
 	return util.NewJSONResponse(http.StatusOK, serviceOffering)

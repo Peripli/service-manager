@@ -19,7 +19,12 @@ package postgres
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"time"
+
+	"github.com/Peripli/service-manager/pkg/util/slice"
+
+	"github.com/gofrs/uuid"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
@@ -40,6 +45,9 @@ const (
 
 	// visibilityTable db table for visibilities
 	visibilityTable = "visibilities"
+
+	// visibilityLabelsTable db table for visibilities table
+	visibilityLabelsTable = "visibility_labels"
 )
 
 // Safe represents a secret entity
@@ -119,6 +127,77 @@ type Visibility struct {
 	ServicePlanID string         `db:"service_plan_id"`
 	CreatedAt     time.Time      `db:"created_at"`
 	UpdatedAt     time.Time      `db:"updated_at"`
+}
+
+// Labelable is an interface that entities that support can be labelled should implement
+type Labelable interface {
+	Label() (labelTableName string, referenceColumnName string, primaryColumnName string)
+}
+
+type visibilityLabels []*VisibilityLabel
+
+func (vls visibilityLabels) Validate() error {
+	pairs := make(map[string][]string)
+	for _, vl := range vls {
+		newKey := vl.Key.String
+		newValue := vl.Val.String
+		val, exists := pairs[newKey]
+		if exists && slice.StringsAnyEquals(val, newValue) {
+			return fmt.Errorf("duplicate label with key %s and value %s", newKey, newValue)
+		}
+		pairs[newKey] = append(pairs[newKey], newValue)
+	}
+	return nil
+}
+
+func (vls *visibilityLabels) FromDTO(visibilityID string, labels types.Labels) error {
+	now := time.Now()
+	for key, values := range labels {
+		for _, labelValue := range values {
+			UUID, err := uuid.NewV4()
+			if err != nil {
+				return fmt.Errorf("could not generate GUID for visibility label: %s", err)
+			}
+			id := UUID.String()
+			visLabel := &VisibilityLabel{
+				ID:                  sql.NullString{String: id, Valid: id != ""},
+				Key:                 sql.NullString{String: key, Valid: key != ""},
+				Val:                 sql.NullString{String: labelValue, Valid: labelValue != ""},
+				CreatedAt:           &now,
+				UpdatedAt:           &now,
+				ServiceVisibilityID: sql.NullString{String: visibilityID, Valid: visibilityID != ""},
+			}
+			*vls = append(*vls, visLabel)
+		}
+	}
+	return nil
+}
+
+func (vls *visibilityLabels) ToDTO() types.Labels {
+	labelValues := make(map[string][]string)
+	for _, label := range *vls {
+		values, exists := labelValues[label.Key.String]
+		if exists {
+			labelValues[label.Key.String] = append(values, label.Val.String)
+		} else {
+			labelValues[label.Key.String] = []string{label.Val.String}
+		}
+	}
+	return labelValues
+}
+
+type VisibilityLabel struct {
+	ID                  sql.NullString `db:"id"`
+	Key                 sql.NullString `db:"key"`
+	Val                 sql.NullString `db:"val"`
+	CreatedAt           *time.Time     `db:"created_at"`
+	UpdatedAt           *time.Time     `db:"updated_at"`
+	ServiceVisibilityID sql.NullString `db:"visibility_id"`
+}
+
+func (vl *VisibilityLabel) Label() (labelTableName string, referenceColumnName string, primaryColumnName string) {
+	labelTableName, referenceColumnName, primaryColumnName = visibilityLabelsTable, "visibility_id", "id"
+	return
 }
 
 func (b *Broker) ToDTO() *types.Broker {
@@ -277,20 +356,18 @@ func (v *Visibility) ToDTO() *types.Visibility {
 		ServicePlanID: v.ServicePlanID,
 		CreatedAt:     v.CreatedAt,
 		UpdatedAt:     v.UpdatedAt,
+		Labels:        make(map[string][]string),
 	}
 }
 
 func (v *Visibility) FromDTO(visibility *types.Visibility) {
 	*v = Visibility{
-		ID:            visibility.ID,
-		PlatformID:    sql.NullString{String: visibility.PlatformID},
+		ID: visibility.ID,
+		// API cannot send nulls right now and storage cannot store empty string for this column as it is FK
+		PlatformID:    sql.NullString{String: visibility.PlatformID, Valid: visibility.PlatformID != ""},
 		ServicePlanID: visibility.ServicePlanID,
 		CreatedAt:     visibility.CreatedAt,
 		UpdatedAt:     visibility.UpdatedAt,
-	}
-	// API cannot send nulls right now and storage cannot store empty string for this column as it is FK
-	if visibility.PlatformID != "" {
-		v.PlatformID.Valid = true
 	}
 }
 

@@ -50,6 +50,13 @@ func (c *Controller) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodDelete,
+				Path:   web.VisibilitiesURL,
+			},
+			Handler: c.deleteAllVisibilities,
+		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodDelete,
 				Path:   web.VisibilitiesURL + "/{visibility_id}",
 			},
 			Handler: c.deleteVisibility,

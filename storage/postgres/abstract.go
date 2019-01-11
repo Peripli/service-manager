@@ -23,6 +23,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/jmoiron/sqlx"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -51,6 +53,7 @@ type getterContext interface {
 	GetContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error
 }
 
+//go:generate counterfeiter . pgDB
 type pgDB interface {
 	prepareNamedContext
 	namedExecerContext
@@ -68,7 +71,7 @@ func create(ctx context.Context, db pgDB, table string, dto interface{}) (string
 		return lastInsertId, fmt.Errorf("%s insert: No fields to insert", table)
 	}
 
-	query := fmt.Sprintf(
+	sqlQuery := fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES(:%s)",
 		table,
 		strings.Join(set, ", "),
@@ -77,7 +80,7 @@ func create(ctx context.Context, db pgDB, table string, dto interface{}) (string
 
 	id, ok := structs.New(dto).FieldOk("ID")
 	if ok {
-		queryReturningID := fmt.Sprintf("%s Returning %s", query, id.Tag("db"))
+		queryReturningID := fmt.Sprintf("%s Returning %s", sqlQuery, id.Tag("db"))
 		log.C(ctx).Debugf("Executing query %s", queryReturningID)
 		stmt, err := db.PrepareNamedContext(ctx, queryReturningID)
 		if err != nil {
@@ -86,21 +89,100 @@ func create(ctx context.Context, db pgDB, table string, dto interface{}) (string
 		err = stmt.GetContext(ctx, &lastInsertId, dto)
 		return lastInsertId, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
 	}
-	log.C(ctx).Debugf("Executing query %s", query)
-	_, err := db.NamedExecContext(ctx, query, dto)
-
+	log.C(ctx).Debugf("Executing query %s", sqlQuery)
+	_, err := db.NamedExecContext(ctx, sqlQuery, dto)
 	return lastInsertId, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
 }
 
 func get(ctx context.Context, db getterContext, id string, table string, dto interface{}) error {
-	query := "SELECT * FROM " + table + " WHERE id=$1"
-	log.C(ctx).Debugf("Executing query %s", query)
-	err := db.GetContext(ctx, dto, query, &id)
+	sqlQuery := "SELECT * FROM " + table + " WHERE id=$1"
+	log.C(ctx).Debugf("Executing query %s", sqlQuery)
+	err := db.GetContext(ctx, dto, sqlQuery, &id)
 	return checkSQLNoRows(err)
 }
 
+func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface{}, labelsEntity Labelable, baseTableName string, criteria []query.Criterion) (*sqlx.Rows, error) {
+	if err := validateFieldQueryParams(baseEntity, criteria); err != nil {
+		return nil, err
+	}
+	var baseQuery string
+	if labelsEntity == nil {
+		baseQuery = constructBaseQueryForEntity(baseTableName)
+	} else {
+		baseQuery = constructBaseQueryForLabelable(labelsEntity, baseTableName)
+	}
+	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, baseTableName, labelsEntity, criteria)
+	if err != nil {
+		return nil, err
+	}
+	log.C(ctx).Debugf("Executing query %s", sqlQuery)
+	return db.QueryxContext(ctx, sqlQuery, queryParams...)
+}
+
+func listByFieldCriteria(ctx context.Context, db pgDB, table string, entity interface{}, criteria []query.Criterion) error {
+	baseQuery := fmt.Sprintf(`SELECT * FROM %s`, table)
+	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, table, nil, criteria)
+	if err != nil {
+		return err
+	}
+	return db.SelectContext(ctx, entity, sqlQuery, queryParams...)
+}
+
+func deleteAllByFieldCriteria(ctx context.Context, extContext sqlx.ExtContext, table string, dto interface{}, criteria []query.Criterion) error {
+	for _, criterion := range criteria {
+		if criterion.Type != query.FieldQuery {
+			return &query.UnsupportedQueryError{Message: "conditional delete is only supported for field queries"}
+		}
+	}
+	if err := validateFieldQueryParams(dto, criteria); err != nil {
+		return err
+	}
+	baseQuery := fmt.Sprintf("DELETE FROM %s", table)
+	sqlQuery, queryParams, err := buildQueryWithParams(extContext, baseQuery, table, nil, criteria)
+	if err != nil {
+		return err
+	}
+	result, err := extContext.ExecContext(ctx, sqlQuery, queryParams...)
+	if err != nil {
+		return err
+	}
+	return checkRowsAffected(ctx, result)
+}
+
+func validateFieldQueryParams(baseEntity interface{}, criteria []query.Criterion) error {
+	availableColumns := make(map[string]bool)
+	baseEntityStruct := structs.New(baseEntity)
+	for _, field := range baseEntityStruct.Fields() {
+		dbTag := field.Tag("db")
+		availableColumns[dbTag] = true
+	}
+	for _, criterion := range criteria {
+		if criterion.Type == query.FieldQuery && !availableColumns[criterion.LeftOp] {
+			return &query.UnsupportedQueryError{Message: fmt.Sprintf("unsupported field query key: %s", criterion.LeftOp)}
+		}
+	}
+	return nil
+}
+
+func constructBaseQueryForEntity(tableName string) string {
+	return fmt.Sprintf("SELECT * FROM %s", tableName)
+}
+
+func constructBaseQueryForLabelable(labelsEntity Labelable, baseTableName string) string {
+	labelStruct := structs.New(labelsEntity)
+	baseQuery := `SELECT %[1]s.*,`
+	for _, field := range labelStruct.Fields() {
+		dbTag := field.Tag("db")
+		baseQuery += " %[2]s." + dbTag + " " + "\"%[2]s." + dbTag + "\"" + ","
+	}
+	baseQuery = baseQuery[:len(baseQuery)-1] //remove last comma
+	labelsTableName, referenceKeyColumn, primaryKeyColumn := labelsEntity.Label()
+	baseQuery += " FROM %[1]s LEFT JOIN %[2]s ON %[1]s." + primaryKeyColumn + " = %[2]s." + referenceKeyColumn
+	return fmt.Sprintf(baseQuery, baseTableName, labelsTableName)
+}
+
 func list(ctx context.Context, db selecterContext, table string, filter map[string][]string, dtos interface{}) error {
-	query := "SELECT * FROM " + table
+	sqlQuery := "SELECT * FROM " + table
 	if len(filter) != 0 {
 		andPairs := make([]string, 0)
 		for key, values := range filter {
@@ -115,20 +197,20 @@ func list(ctx context.Context, db selecterContext, table string, filter map[stri
 			orPair := " (" + strings.Join(orPairs, " OR ") + ") "
 			andPairs = append(andPairs, orPair)
 		}
-		query += " WHERE " + strings.Join(andPairs, " AND ")
+		sqlQuery += " WHERE " + strings.Join(andPairs, " AND ")
 	}
-	log.C(ctx).Debugf("Executing query %s", query)
-	return db.SelectContext(ctx, dtos, query)
+	log.C(ctx).Debugf("Executing query %s", sqlQuery)
+	return db.SelectContext(ctx, dtos, sqlQuery)
 }
 
 func remove(ctx context.Context, db sqlx.ExecerContext, id string, table string) error {
-	query := "DELETE FROM " + table + " WHERE id=$1"
-	log.C(ctx).Debugf("Executing query %s", query)
-	result, err := db.ExecContext(ctx, query, id)
+	sqlQuery := "DELETE FROM " + table + " WHERE id=$1"
+	log.C(ctx).Debugf("Executing query %s", sqlQuery)
+	result, err := db.ExecContext(ctx, sqlQuery, id)
 	if err != nil {
 		return err
 	}
-	return checkRowsAffected(result)
+	return checkRowsAffected(ctx, result)
 }
 
 func update(ctx context.Context, db namedExecerContext, table string, dto interface{}) error {
@@ -142,7 +224,7 @@ func update(ctx context.Context, db namedExecerContext, table string, dto interf
 	if err = checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err)); err != nil {
 		return err
 	}
-	return checkRowsAffected(result)
+	return checkRowsAffected(ctx, result)
 }
 
 func getDBTags(structure interface{}) []string {
@@ -203,7 +285,7 @@ func checkIntegrityViolation(ctx context.Context, err error) error {
 	return err
 }
 
-func checkRowsAffected(result sql.Result) error {
+func checkRowsAffected(ctx context.Context, result sql.Result) error {
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return err
@@ -211,6 +293,7 @@ func checkRowsAffected(result sql.Result) error {
 	if rowsAffected < 1 {
 		return util.ErrNotFoundInStorage
 	}
+	log.C(ctx).Debugf("Operation affected %d rows", rowsAffected)
 	return nil
 }
 

@@ -2,18 +2,18 @@
 package securityfakes
 
 import (
-	context "context"
-	sync "sync"
+	"context"
+	"sync"
 
-	security "github.com/Peripli/service-manager/pkg/security"
+	"github.com/Peripli/service-manager/pkg/security"
 )
 
 type FakeKeySetter struct {
-	SetEncryptionKeyStub        func(context.Context, []byte) error
+	SetEncryptionKeyStub        func(ctx context.Context, key []byte) error
 	setEncryptionKeyMutex       sync.RWMutex
 	setEncryptionKeyArgsForCall []struct {
-		arg1 context.Context
-		arg2 []byte
+		ctx context.Context
+		key []byte
 	}
 	setEncryptionKeyReturns struct {
 		result1 error
@@ -25,28 +25,27 @@ type FakeKeySetter struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeKeySetter) SetEncryptionKey(arg1 context.Context, arg2 []byte) error {
-	var arg2Copy []byte
-	if arg2 != nil {
-		arg2Copy = make([]byte, len(arg2))
-		copy(arg2Copy, arg2)
+func (fake *FakeKeySetter) SetEncryptionKey(ctx context.Context, key []byte) error {
+	var keyCopy []byte
+	if key != nil {
+		keyCopy = make([]byte, len(key))
+		copy(keyCopy, key)
 	}
 	fake.setEncryptionKeyMutex.Lock()
 	ret, specificReturn := fake.setEncryptionKeyReturnsOnCall[len(fake.setEncryptionKeyArgsForCall)]
 	fake.setEncryptionKeyArgsForCall = append(fake.setEncryptionKeyArgsForCall, struct {
-		arg1 context.Context
-		arg2 []byte
-	}{arg1, arg2Copy})
-	fake.recordInvocation("SetEncryptionKey", []interface{}{arg1, arg2Copy})
+		ctx context.Context
+		key []byte
+	}{ctx, keyCopy})
+	fake.recordInvocation("SetEncryptionKey", []interface{}{ctx, keyCopy})
 	fake.setEncryptionKeyMutex.Unlock()
 	if fake.SetEncryptionKeyStub != nil {
-		return fake.SetEncryptionKeyStub(arg1, arg2)
+		return fake.SetEncryptionKeyStub(ctx, key)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.setEncryptionKeyReturns
-	return fakeReturns.result1
+	return fake.setEncryptionKeyReturns.result1
 }
 
 func (fake *FakeKeySetter) SetEncryptionKeyCallCount() int {
@@ -55,22 +54,13 @@ func (fake *FakeKeySetter) SetEncryptionKeyCallCount() int {
 	return len(fake.setEncryptionKeyArgsForCall)
 }
 
-func (fake *FakeKeySetter) SetEncryptionKeyCalls(stub func(context.Context, []byte) error) {
-	fake.setEncryptionKeyMutex.Lock()
-	defer fake.setEncryptionKeyMutex.Unlock()
-	fake.SetEncryptionKeyStub = stub
-}
-
 func (fake *FakeKeySetter) SetEncryptionKeyArgsForCall(i int) (context.Context, []byte) {
 	fake.setEncryptionKeyMutex.RLock()
 	defer fake.setEncryptionKeyMutex.RUnlock()
-	argsForCall := fake.setEncryptionKeyArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
+	return fake.setEncryptionKeyArgsForCall[i].ctx, fake.setEncryptionKeyArgsForCall[i].key
 }
 
 func (fake *FakeKeySetter) SetEncryptionKeyReturns(result1 error) {
-	fake.setEncryptionKeyMutex.Lock()
-	defer fake.setEncryptionKeyMutex.Unlock()
 	fake.SetEncryptionKeyStub = nil
 	fake.setEncryptionKeyReturns = struct {
 		result1 error
@@ -78,8 +68,6 @@ func (fake *FakeKeySetter) SetEncryptionKeyReturns(result1 error) {
 }
 
 func (fake *FakeKeySetter) SetEncryptionKeyReturnsOnCall(i int, result1 error) {
-	fake.setEncryptionKeyMutex.Lock()
-	defer fake.setEncryptionKeyMutex.Unlock()
 	fake.SetEncryptionKeyStub = nil
 	if fake.setEncryptionKeyReturnsOnCall == nil {
 		fake.setEncryptionKeyReturnsOnCall = make(map[int]struct {
