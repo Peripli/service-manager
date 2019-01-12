@@ -40,6 +40,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 })
 
 func resourceCreationBlueprint(ctx *common.TestContext) common.Object {
+	defer GinkgoRecover()
 	_, cPaidPlan, _ := common.GeneratePaidTestPlan()
 	_, cService, _ := common.GenerateTestServiceWithPlans(cPaidPlan)
 	catalog := common.NewEmptySBCatalog()
