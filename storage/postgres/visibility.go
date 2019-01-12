@@ -44,9 +44,9 @@ func (vs *visibilityStorage) Create(ctx context.Context, visibility *types.Visib
 	return id, vs.createLabels(ctx, id, visibility.Labels)
 }
 
-func (vs *visibilityStorage) createLabels(ctx context.Context, visibilityID string, labels []*types.VisibilityLabel) error {
+func (vs *visibilityStorage) createLabels(ctx context.Context, visibilityID string, labels types.Labels) error {
 	vls := visibilityLabels{}
-	if err := vls.FromDTO(labels); err != nil {
+	if err := vls.FromDTO(visibilityID, labels); err != nil {
 		return err
 	}
 	if err := vls.Validate(); err != nil {
@@ -87,6 +87,7 @@ func (vs *visibilityStorage) List(ctx context.Context, criteria ...query.Criteri
 	}
 
 	visibilities := make(map[string]*types.Visibility)
+	labels := make(map[string]map[string][]string)
 	result := make([]*types.Visibility, 0)
 	for rows.Next() {
 		row := struct {
@@ -96,26 +97,20 @@ func (vs *visibilityStorage) List(ctx context.Context, criteria ...query.Criteri
 		if err := rows.StructScan(&row); err != nil {
 			return nil, err
 		}
-		if visibility, ok := visibilities[row.Visibility.ID]; !ok {
+		visibility, ok := visibilities[row.Visibility.ID]
+		if !ok {
 			visibility = row.Visibility.ToDTO()
-			visibility.Labels = append(visibility.Labels, row.VisibilityLabel.ToDTO())
-
 			visibilities[row.Visibility.ID] = visibility
 			result = append(result, visibility)
-		} else {
-			hasMatchingLabelKey := false
-			labelDTO := row.VisibilityLabel.ToDTO()
-			for _, label := range visibility.Labels {
-				if label.Key == labelDTO.Key {
-					hasMatchingLabelKey = true
-					label.Value = append(label.Value, labelDTO.Value...)
-					break
-				}
-			}
-			if !hasMatchingLabelKey {
-				visibility.Labels = append(visibility.Labels, labelDTO)
-			}
 		}
+		if labels[visibility.ID] == nil {
+			labels[visibility.ID] = make(map[string][]string)
+		}
+		labels[visibility.ID][row.VisibilityLabel.Key.String] = append(labels[visibility.ID][row.VisibilityLabel.Key.String], row.VisibilityLabel.Val.String)
+	}
+
+	for _, vis := range result {
+		vis.Labels = labels[vis.ID]
 	}
 
 	return result, nil
@@ -126,11 +121,6 @@ func (vs *visibilityStorage) Delete(ctx context.Context, criteria ...query.Crite
 }
 
 func (vs *visibilityStorage) Update(ctx context.Context, visibility *types.Visibility, labelChanges ...*query.LabelChange) error {
-	for _, change := range labelChanges {
-		if err := change.Validate(); err != nil {
-			return err
-		}
-	}
 	v := &Visibility{}
 	v.FromDTO(visibility)
 	if err := update(ctx, vs.db, visibilityTable, v); err != nil {
@@ -145,8 +135,7 @@ func (vs *visibilityStorage) Update(ctx context.Context, visibility *types.Visib
 		return err
 	}
 	visibilityLabels := visibilityLabels(labels)
-	visibilityLabelsDTO := visibilityLabels.ToDTO()
-	visibility.Labels = visibilityLabelsDTO
+	visibility.Labels = visibilityLabels.ToDTO()
 	return nil
 }
 

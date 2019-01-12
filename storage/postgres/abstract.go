@@ -203,6 +203,16 @@ func list(ctx context.Context, db selecterContext, table string, filter map[stri
 	return db.SelectContext(ctx, dtos, sqlQuery)
 }
 
+func remove(ctx context.Context, db sqlx.ExecerContext, id string, table string) error {
+	sqlQuery := "DELETE FROM " + table + " WHERE id=$1"
+	log.C(ctx).Debugf("Executing query %s", sqlQuery)
+	result, err := db.ExecContext(ctx, sqlQuery, id)
+	if err != nil {
+		return err
+	}
+	return checkRowsAffected(ctx, result)
+}
+
 func update(ctx context.Context, db namedExecerContext, table string, dto interface{}) error {
 	updateQueryString := updateQuery(table, dto)
 	if updateQueryString == "" {

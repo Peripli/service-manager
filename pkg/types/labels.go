@@ -19,26 +19,22 @@ package types
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/Peripli/service-manager/pkg/query"
 )
 
-type Label struct {
-	ID        string    `json:"-"`
-	Key       string    `json:"key,omitempty"`
-	Value     []string  `json:"value,omitempty"`
-	CreatedAt time.Time `json:"-"`
-	UpdatedAt time.Time `json:"-"`
-}
+// Labels represents key values pairs associated with resources
+type Labels map[string][]string
 
-func (l Label) Validate() error {
-	if strings.ContainsRune(l.Key, query.Separator) {
-		return fmt.Errorf("label key \"%s\" cannot contain whitespaces and special symbol %c", l.Key, query.Separator)
-	}
-	for _, val := range l.Value {
-		if strings.ContainsRune(val, '\n') {
-			return fmt.Errorf("label with key \"%s\" has value \"%s\" contaning forbidden new line character", l.Key, val)
+func (l Labels) Validate() error {
+	for key, values := range l {
+		if strings.ContainsRune(key, query.Separator) || strings.ContainsRune(key, '\n') {
+			return fmt.Errorf("label key \"%s\" cannot contain whitespaces and special symbol %c", key, query.Separator)
+		}
+		for _, val := range values {
+			if strings.ContainsRune(val, '\n') {
+				return fmt.Errorf("label with key \"%s\" has value \"%s\" contaning forbidden new line character", key, val)
+			}
 		}
 	}
 	return nil

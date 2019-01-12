@@ -61,7 +61,7 @@ func (op Operator) IsNumeric() bool {
 	return op == LessThanOperator || op == GreaterThanOperator
 }
 
-var Operators = []Operator{EqualsOperator, NotEqualsOperator, InOperator,
+var operators = []Operator{EqualsOperator, NotEqualsOperator, InOperator,
 	NotInOperator, GreaterThanOperator, LessThanOperator, EqualsOrNilOperator}
 
 const (
@@ -247,7 +247,7 @@ func process(input string, criteriaType CriterionType) ([]Criterion, error) {
 			operator = ""
 		} else {
 			remaining := input[i:]
-			for _, op := range Operators {
+			for _, op := range operators {
 				if strings.HasPrefix(remaining, fmt.Sprintf("%c%s%c", OperandSeparator, op, OperandSeparator)) {
 					leftOp = input[j:i]
 					operator = op

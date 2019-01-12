@@ -33,17 +33,12 @@ type Visibilities struct {
 
 // Visibility struct
 type Visibility struct {
-	ID            string             `json:"id"`
-	PlatformID    string             `json:"platform_id"`
-	ServicePlanID string             `json:"service_plan_id"`
-	CreatedAt     time.Time          `json:"created_at"`
-	UpdatedAt     time.Time          `json:"updated_at"`
-	Labels        []*VisibilityLabel `json:"labels,omitempty"`
-}
-
-type VisibilityLabel struct {
-	Label
-	ServiceVisibilityID string `json:"-"`
+	ID            string    `json:"id"`
+	PlatformID    string    `json:"platform_id"`
+	ServicePlanID string    `json:"service_plan_id"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+	Labels        Labels    `json:"labels,omitempty"`
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
@@ -54,10 +49,8 @@ func (v *Visibility) Validate() error {
 	if util.HasRFC3986ReservedSymbols(v.ID) {
 		return fmt.Errorf("%s contains invalid character(s)", v.ID)
 	}
-	for _, l := range v.Labels {
-		if err := l.Label.Validate(); err != nil {
-			return err
-		}
+	if err := v.Labels.Validate(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -82,8 +75,8 @@ func (v *Visibility) MarshalJSON() ([]byte, error) {
 	}
 
 	hasNoLabels := true
-	for _, label := range v.Labels {
-		if label.Key != "" && label.ID != "" && len(label.Value) != 0 {
+	for key, values := range v.Labels {
+		if key != "" && len(values) != 0 {
 			hasNoLabels = false
 			break
 		}
