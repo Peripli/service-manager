@@ -128,7 +128,7 @@ var _ = Describe("Selection", func() {
 
 		Context("When passing label query", func() {
 			It("Should be ok", func() {
-				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?labelQuery=leftop in [rightop|rightop2]")
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?labelQuery=leftop in [rightop||rightop2]")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(criteriaFromRequest).To(ConsistOf(ByLabel(InOperator, "leftop", "rightop", "rightop2")))
 			})
@@ -152,7 +152,7 @@ var _ = Describe("Selection", func() {
 
 		Context("When passing multiple label queries", func() {
 			It("Should build criteria", func() {
-				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?labelQuery=leftop1 in [rightop|rightop2]|leftop2 = rightop3")
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?labelQuery=leftop1 in [rightop||rightop2]|leftop2 = rightop3")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(criteriaFromRequest).To(ConsistOf(ByLabel(InOperator, "leftop1", "rightop", "rightop2"), ByLabel(EqualsOperator, "leftop2", "rightop3")))
 			})
