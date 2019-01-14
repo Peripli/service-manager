@@ -19,7 +19,6 @@ package query
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -150,36 +149,31 @@ func (c Criterion) Validate() error {
 
 func mergeCriteria(c1 []Criterion, c2 []Criterion) ([]Criterion, error) {
 	result := c1
-	fieldQueryLeftOperands := make(map[string]bool)
-	for _, criterion := range c1 {
+	fieldQueryLeftOperands := make(map[string]int)
+	labelQueryLeftOperands := make(map[string]int)
+
+	for _, criterion := range append(c1, c2...) {
 		if criterion.Type == FieldQuery {
-			fieldQueryLeftOperands[criterion.LeftOp] = true
+			fieldQueryLeftOperands[criterion.LeftOp]++
+		}
+		if criterion.Type == LabelQuery {
+			labelQueryLeftOperands[criterion.LeftOp]++
 		}
 	}
 
 	for _, newCriterion := range c2 {
-
+		leftOp := newCriterion.LeftOp
 		// disallow duplicate label queries
-		if newCriterion.Type == LabelQuery {
-			counter := 0
-			for _, c := range c2 {
-				if reflect.DeepEqual(c, newCriterion) {
-					counter++
-				}
-				if counter > 1 {
-					return nil, &UnsupportedQueryError{Message: fmt.Sprintf("duplicate label query: %s%s%s", newCriterion.LeftOp, newCriterion.Operator, newCriterion.RightOp)}
-				}
-			}
+		if count, ok := labelQueryLeftOperands[leftOp]; ok && count > 1 && newCriterion.Type == LabelQuery {
+			return nil, &UnsupportedQueryError{Message: fmt.Sprintf("duplicate label query key: %s", newCriterion.LeftOp)}
 		}
-
 		// disallow duplicate field query keys
-		if _, ok := fieldQueryLeftOperands[newCriterion.LeftOp]; ok && newCriterion.Type == FieldQuery {
+		if count, ok := fieldQueryLeftOperands[leftOp]; ok && count > 1 && newCriterion.Type == FieldQuery {
 			return nil, &UnsupportedQueryError{Message: fmt.Sprintf("duplicate field query key: %s", newCriterion.LeftOp)}
 		}
 		if err := newCriterion.Validate(); err != nil {
 			return nil, err
 		}
-		fieldQueryLeftOperands[newCriterion.LeftOp] = true
 	}
 	result = append(result, c2...)
 	return result, nil
