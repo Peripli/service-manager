@@ -112,7 +112,6 @@ func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTable
 			labelQueries = append(labelQueries, fmt.Sprintf("(%[1]s.key = ? AND %[1]s.val %[2]s %s)", labelTableName, sqlOperation, rightOpBindVar))
 			queryParams = append(queryParams, option.LeftOp, rightOpQueryValue)
 		}
-		//todo MOVE in separate pr and thee brackets above
 		labelSubQuery += strings.Join(labelQueries, " OR ")
 		labelSubQuery += "))"
 

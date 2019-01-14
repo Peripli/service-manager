@@ -832,7 +832,6 @@ new line`] = common.Array{"label-value"}
 				})
 			})
 
-			//todo MOVE IN separate pr
 			Context("With multiple label queries", func() {
 				It("Should return 200", func() {
 					labelKey1 := "cluster_id"
