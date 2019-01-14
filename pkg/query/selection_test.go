@@ -72,9 +72,19 @@ var _ = Describe("Selection", func() {
 				_, err := AddCriteria(ctx, ByField(LessThanOperator, "leftOp", "5"))
 				Expect(err).ToNot(HaveOccurred())
 			})
-			for _, op := range operators {
+			for i := range operators {
+				op := operators[i]
 				Specify("With valid operator parameters", func() {
-					_, err := AddCriteria(ctx, ByField(op, "leftOp", "rightop"))
+					criteriaType := FieldQuery
+					rightOp := []string{"rightOp"}
+					if op.IsNumeric() {
+						rightOp = []string{"5"}
+					}
+					if op.IsUnary() {
+						rightOp = nil
+						criteriaType = LabelQuery
+					}
+					_, err := AddCriteria(ctx, newCriterion("leftOp", op, rightOp, criteriaType))
 					Expect(err).ToNot(HaveOccurred())
 				})
 			}
@@ -113,6 +123,22 @@ var _ = Describe("Selection", func() {
 		Context("When there is an invalid field query", func() {
 			It("Should return an error", func() {
 				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop lt rightop")
+				Expect(err).To(HaveOccurred())
+				Expect(criteriaFromRequest).To(BeNil())
+			})
+		})
+
+		Context("When passing single key label query", func() {
+			It("Should result in exists criterion", func() {
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?labelQuery=leftop1 exists|leftop2 exists")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(criteriaFromRequest).To(ConsistOf(ByLabel(ExistsOperator, "leftop1"), ByLabel(ExistsOperator, "leftop2")))
+			})
+		})
+
+		Context("When passing single key field query", func() {
+			It("Should return an error", func() {
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop1 exists")
 				Expect(err).To(HaveOccurred())
 				Expect(criteriaFromRequest).To(BeNil())
 			})
@@ -228,25 +254,40 @@ var _ = Describe("Selection", func() {
 		})
 
 		Context("With different operators and query type combinations", func() {
-			for _, op := range operators {
-				for _, queryType := range []CriterionType{FieldQuery, LabelQuery} {
+			for i := range operators {
+				op := operators[i]
+				for j := range []CriterionType{FieldQuery, LabelQuery} {
+					queryType := []CriterionType{FieldQuery, LabelQuery}[j]
 					It("Should behave as expected", func() {
 						rightOp := []string{"rightOp"}
-						stringParam := rightOp[0]
+						if op.IsNumeric() {
+							rightOp = []string{"5"}
+						}
+						stringParam := " " + rightOp[0]
 						if op.IsMultiVariate() {
 							rightOp = []string{"rightOp1", "rightOp2"}
-							stringParam = fmt.Sprintf("[%s]", strings.Join(rightOp, "|"))
+							stringParam = fmt.Sprintf(" [%s]", strings.Join(rightOp, "|"))
 						}
-						criteriaFromRequest, err := buildCriteria(fmt.Sprintf("http://localhost:8080/v1/visibilities?%s=leftop %s %s", queryType, op, stringParam))
+						if op.IsUnary() {
+							rightOp = nil
+							stringParam = ""
+						}
+
+						criteriaFromRequest, err := buildCriteria(fmt.Sprintf("http://localhost:8080/v1/visibilities?%s=leftop %s%s", queryType, op, stringParam))
 						if op.IsNullable() && queryType == LabelQuery {
 							Expect(err).To(HaveOccurred())
 							Expect(criteriaFromRequest).To(BeNil())
-						} else {
-							Expect(err).ToNot(HaveOccurred())
-							Expect(criteriaFromRequest).ToNot(BeNil())
-							expectedQuery := newCriterion("leftop1", op, rightOp, queryType)
-							Expect(criteriaFromRequest).To(ConsistOf(expectedQuery))
+							return
 						}
+						if op.IsUnary() && queryType == FieldQuery {
+							Expect(err).To(HaveOccurred())
+							Expect(criteriaFromRequest).To(BeNil())
+							return
+						}
+						Expect(err).ToNot(HaveOccurred())
+						Expect(criteriaFromRequest).ToNot(BeNil())
+						expectedQuery := newCriterion("leftop", op, rightOp, queryType)
+						Expect(criteriaFromRequest).To(ConsistOf(expectedQuery))
 					})
 				}
 			}

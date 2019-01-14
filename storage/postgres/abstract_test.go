@@ -159,6 +159,24 @@ var _ = Describe("Postgres Storage Abstract", func() {
 			})
 		})
 
+		Context("When querying with exists label key", func() {
+			FIt("Should construct correct SQL query", func() {
+				labelKey := "label_key"
+				labelEntity := &VisibilityLabel{}
+				_, referenceColumnName, primaryColumnName := labelEntity.Label()
+				expectedQuery := fmt.Sprintf(`SELECT %[1]s.*, %[2]s.id "%[2]s.id", %[2]s.key "%[2]s.key", %[2]s.val "%[2]s.val", %[2]s.created_at "%[2]s.created_at", %[2]s.updated_at "%[2]s.updated_at", %[2]s.visibility_id "%[2]s.visibility_id" FROM %[1]s JOIN (SELECT * FROM %[2]s WHERE %[4]s IN (SELECT %[4]s FROM %[2]s WHERE (%[2]s.key = ?))) %[2]s ON %[1]s.%[5]s = %[2]s.%[4]s;`, baseTable, labelTableName, labelKey, referenceColumnName, primaryColumnName)
+
+				criteria := []query.Criterion{query.ByLabel(query.ExistsOperator, labelKey)}
+				rows, err := listWithLabelsByCriteria(ctx, db, Visibility{}, &VisibilityLabel{}, baseTable, criteria)
+				fmt.Println(executedQuery)
+
+				Expect(rows).ToNot(BeNil())
+				Expect(err).ToNot(HaveOccurred())
+				Expect(executedQuery).To(Equal(expectedQuery))
+				Expect(queryArgs).To(ConsistOf(labelKey))
+			})
+		})
+
 		Context("When querying with field and label query", func() {
 			It("Should construct correct SQL query", func() {
 				fieldName := "platform_id"
@@ -174,6 +192,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 				}
 
 				rows, err := listWithLabelsByCriteria(ctx, db, Visibility{}, &VisibilityLabel{}, baseTable, criteria)
+				fmt.Println(executedQuery)
 				Expect(rows).ToNot(BeNil())
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).To(Equal(expectedQuery))

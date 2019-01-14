@@ -44,11 +44,16 @@ const (
 	NotInOperator Operator = "notin"
 	// EqualsOrNilOperator takes two operands and tests if the left is equal to the right, or if the left is nil
 	EqualsOrNilOperator Operator = "eqornil"
+	ExistsOperator      Operator = "exists"
 )
 
 // IsMultiVariate returns true if the operator requires right operand with multiple values
 func (op Operator) IsMultiVariate() bool {
 	return op == InOperator || op == NotInOperator
+}
+
+func (op Operator) IsUnary() bool {
+	return op == ExistsOperator
 }
 
 // IsNullable returns true if the operator can check if the left operand is nil
@@ -62,7 +67,7 @@ func (op Operator) IsNumeric() bool {
 }
 
 var operators = []Operator{EqualsOperator, NotEqualsOperator, InOperator,
-	NotInOperator, GreaterThanOperator, LessThanOperator, EqualsOrNilOperator}
+	NotInOperator, GreaterThanOperator, LessThanOperator, EqualsOrNilOperator, ExistsOperator}
 
 const (
 	// OpenBracket is the token that denotes the beginning of a multivariate operand
@@ -138,6 +143,12 @@ func (c Criterion) Validate() error {
 		})
 		possibleKey := parts[len(parts)-1]
 		return &UnsupportedQueryError{Message: fmt.Sprintf("separator %c is not allowed in %s with left operand \"%s\". Maybe you meant \"%s\"? Make sure if the separator is present in any right operand, that it is escaped with a backslash (\\)", Separator, c.Type, c.LeftOp, possibleKey)}
+	}
+	if strings.ContainsRune(c.LeftOp, OperandSeparator) {
+		return &UnsupportedQueryError{Message: fmt.Sprintf("whitespace is not allowed in %s with left operand \"%s\"", c.Type, c.LeftOp)}
+	}
+	if c.Operator.IsUnary() && c.Type != LabelQuery {
+		return &UnsupportedQueryError{Message: fmt.Sprintf("operator %s is only applicable for label queries", c.Operator)}
 	}
 	for _, op := range c.RightOp {
 		if strings.ContainsRune(op, '\n') {
@@ -230,25 +241,45 @@ func process(input string, criteriaType CriterionType) ([]Criterion, error) {
 	var operator Operator
 	j := 0
 	for i := 0; i < len(input); i++ {
+		//if criteriaType == LabelQuery && rune(input[i]) == Separator && leftOp == "" && operator == "" {
+		//	criterion := newCriterion(input[:i], ExistsOperator, nil, criteriaType)
+		//	if err := criterion.Validate(); err != nil {
+		//		return nil, err
+		//	}
+		//	c = append(c, criterion)
+		//	i += 1
+		//	j = i
+		//	leftOp = ""
+		//	operator = ""
+		//}
 		if leftOp != "" && operator != "" {
-			remaining := input[i+len(operator)+1:]
-			rightOp, offset, err := findRightOp(remaining, leftOp, operator, criteriaType)
-			if err != nil {
-				return nil, err
+			if operator.IsUnary() {
+				criterion := newCriterion(input[j:i-1], operator, nil, criteriaType)
+				if err := criterion.Validate(); err != nil {
+					return nil, err
+				}
+				c = append(c, criterion)
+				i += len(operator)
+			} else {
+				remaining := input[i+len(operator)+1:]
+				rightOp, offset, err := findRightOp(remaining, leftOp, operator, criteriaType)
+				if err != nil {
+					return nil, err
+				}
+				criterion := newCriterion(leftOp, operator, rightOp, criteriaType)
+				if err := criterion.Validate(); err != nil {
+					return nil, err
+				}
+				c = append(c, criterion)
+				i += offset + len(operator) + len(string(Separator))
 			}
-			criterion := newCriterion(leftOp, operator, rightOp, criteriaType)
-			if err := criterion.Validate(); err != nil {
-				return nil, err
-			}
-			c = append(c, criterion)
-			i += offset + len(operator) + len(string(Separator))
 			j = i + 1
 			leftOp = ""
 			operator = ""
 		} else {
 			remaining := input[i:]
 			for _, op := range operators {
-				if strings.HasPrefix(remaining, fmt.Sprintf("%c%s%c", OperandSeparator, op, OperandSeparator)) {
+				if strings.HasPrefix(remaining, fmt.Sprintf("%c%s", OperandSeparator, op)) {
 					leftOp = input[j:i]
 					operator = op
 					break
