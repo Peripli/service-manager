@@ -20,6 +20,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Peripli/service-manager/test"
+	"github.com/gofrs/uuid"
+
 	"github.com/gavv/httpexpect"
 
 	"github.com/tidwall/gjson"
@@ -36,8 +39,51 @@ func TestBrokers(t *testing.T) {
 	RunSpecs(t, "Broker API Tests Suite")
 }
 
-var _ = Describe("Service Manager Broker API", func() {
+var _ = test.DescribeTestsFor(test.TestCase{
+	API:            "/v1/service_brokers",
+	SupportsLabels: false,
+	SupportedOps: []test.Op{
+		test.Get, test.List, test.Delete, test.DeleteList,
+	},
+	RndResourceBlueprint:                      blueprint(true),
+	RndResourceWithoutNullableFieldsBlueprint: blueprint(false),
+})
 
+func blueprint(withNullableFields bool) func(ctx *common.TestContext) common.Object {
+	return func(ctx *common.TestContext) common.Object {
+		brokerServer := common.NewBrokerServer()
+		UUID, err := uuid.NewV4()
+		if err != nil {
+			panic(err)
+		}
+		UUID2, err := uuid.NewV4()
+		if err != nil {
+			panic(err)
+		}
+		brokerJSON := common.Object{
+			"name":        UUID.String(),
+			"broker_url":  brokerServer.URL,
+			"description": UUID2.String(),
+			"credentials": common.Object{
+				"basic": common.Object{
+					"username": brokerServer.Username,
+					"password": brokerServer.Password,
+				},
+			},
+		}
+
+		if !withNullableFields {
+			delete(brokerJSON, "description")
+		}
+		obj := ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(brokerJSON).
+			Expect().
+			Status(http.StatusCreated).JSON().Object().Raw()
+		delete(obj, "credentials")
+		return obj
+	}
+}
+
+var _ = Describe("Service Manager Broker API", func() {
 	var (
 		ctx          *common.TestContext
 		brokerServer *common.BrokerServer
@@ -88,109 +134,6 @@ var _ = Describe("Service Manager Broker API", func() {
 			"description": brokerDescription,
 		}
 		common.RemoveAllBrokers(ctx.SMWithOAuth)
-	})
-
-	Describe("GET", func() {
-		var id string
-
-		AfterEach(func() {
-			assertInvocationCount(brokerServer.CatalogEndpointRequests, 0)
-		})
-
-		Context("when the broker does not exist", func() {
-			It("returns 404", func() {
-				ctx.SMWithOAuth.GET("/v1/service_brokers/12345").
-					Expect().
-					Status(http.StatusNotFound).
-					JSON().Object().
-					Keys().Contains("error", "description")
-			})
-		})
-
-		Context("when the broker exists", func() {
-			BeforeEach(func() {
-				reply := ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(brokerServerJSON).
-					Expect().
-					Status(http.StatusCreated).
-					JSON().Object().
-					ContainsMap(expectedBrokerResponse)
-
-				id = reply.Value("id").String().Raw()
-
-				assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
-				brokerServer.ResetCallHistory()
-			})
-
-			It("returns the broker with given id", func() {
-				ctx.SMWithOAuth.GET("/v1/service_brokers/"+id).
-					Expect().
-					Status(http.StatusOK).
-					JSON().Object().
-					ContainsMap(expectedBrokerResponse).
-					Keys().NotContains("credentials", "services")
-			})
-		})
-	})
-
-	Describe("List", func() {
-		AfterEach(func() {
-			assertInvocationCount(brokerServer.CatalogEndpointRequests, 0)
-		})
-
-		Context("when no brokers exist", func() {
-			It("returns empty array", func() {
-				ctx.SMWithOAuth.GET("/v1/service_brokers").
-					Expect().
-					Status(http.StatusOK).
-					JSON().Object().Value("service_brokers").Array().
-					Empty()
-			})
-		})
-
-		Context("when brokers exist", func() {
-			BeforeEach(func() {
-				ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(brokerServerJSON).
-					Expect().
-					Status(http.StatusCreated).
-					JSON().Object().
-					ContainsMap(expectedBrokerResponse).
-					Keys().
-					NotContains("credentials", "services")
-
-				assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
-				brokerServer.ResetCallHistory()
-			})
-
-			It("returns all without catalog if no query parameter is provided", func() {
-				ctx.SMWithOAuth.GET("/v1/service_brokers").
-					Expect().
-					Status(http.StatusOK).
-					JSON().Object().Value("service_brokers").Array().First().Object().
-					ContainsMap(expectedBrokerResponse).
-					Keys().
-					NotContains("credentials", "services")
-			})
-
-			It("returns all with catalog if query parameter is provided", func() {
-				ctx.SMWithOAuth.GET("/v1/service_brokers").WithQuery("catalog", true).
-					Expect().
-					Status(http.StatusOK).
-					JSON().Object().Value("service_brokers").Array().First().Object().
-					ContainsMap(expectedBrokerResponse).
-					ContainsKey("services").
-					NotContainsKey("credentials")
-			})
-
-			It("is accessible with basic authentication", func() {
-				ctx.SMWithBasic.GET("/v1/service_brokers").WithQuery("catalog", true).
-					Expect().
-					Status(http.StatusOK).
-					JSON().Object().Value("service_brokers").Array().First().Object().
-					ContainsMap(expectedBrokerResponse).
-					ContainsKey("services").
-					NotContainsKey("credentials")
-			})
-		})
 	})
 
 	Describe("POST", func() {
@@ -288,7 +231,7 @@ var _ = Describe("Service Manager Broker API", func() {
 		Context("when the broker catalog is incomplete", func() {
 			verifyPOSTWhenCatalogFieldIsMissing := func(responseVerifier func(r *httpexpect.Response), fieldPath string) {
 				BeforeEach(func() {
-					catalog, err := sjson.Delete(common.Catalog, fieldPath)
+					catalog, err := sjson.Delete(string(*common.NewRandomSBCatalog()), fieldPath)
 					Expect(err).ToNot(HaveOccurred())
 
 					brokerServer.Catalog = common.JSONToMap(catalog)
@@ -304,7 +247,7 @@ var _ = Describe("Service Manager Broker API", func() {
 
 			verifyPOSTWhenCatalogFieldHasValue := func(responseVerifier func(r *httpexpect.Response), fieldPath string, fieldValue interface{}) {
 				BeforeEach(func() {
-					catalog, err := sjson.Set(common.Catalog, fieldPath, fieldValue)
+					catalog, err := sjson.Set(string(*common.NewRandomSBCatalog()), fieldPath, fieldValue)
 					Expect(err).ToNot(HaveOccurred())
 
 					brokerServer.Catalog = common.JSONToMap(catalog)
@@ -839,16 +782,16 @@ var _ = Describe("Service Manager Broker API", func() {
 				var anotherPlanID string
 
 				BeforeEach(func() {
-					anotherPlan := common.JSONToMap(common.AnotherPlan)
+					anotherPlan := common.JSONToMap(common.GeneratePaidTestPlan())
 					anotherPlanID = anotherPlan["id"].(string)
-					anotherServiceWithAnotherPlan, err := sjson.Set(common.AnotherService, "plans.-1", anotherPlan)
+					anotherServiceWithAnotherPlan, err := sjson.Set(common.GenerateTestServiceWithPlans(), "plans.-1", anotherPlan)
 					Expect(err).ShouldNot(HaveOccurred())
 
 					anotherService := common.JSONToMap(anotherServiceWithAnotherPlan)
 					anotherServiceID = anotherService["id"].(string)
 					Expect(anotherServiceID).ToNot(BeEmpty())
 
-					catalog, err := sjson.Set(common.Catalog, "services.-1", anotherService)
+					catalog, err := sjson.Set(string(*common.NewRandomSBCatalog()), "services.-1", anotherService)
 
 					Expect(err).ShouldNot(HaveOccurred())
 					brokerServer.Catalog = common.JSONToMap(catalog)
@@ -899,7 +842,7 @@ var _ = Describe("Service Manager Broker API", func() {
 
 			verifyPATCHWhenCatalogFieldIsMissing := func(responseVerifier func(r *httpexpect.Response), fieldPath string) {
 				BeforeEach(func() {
-					catalog, err := sjson.Delete(common.Catalog, fieldPath)
+					catalog, err := sjson.Delete(string(*common.NewRandomSBCatalog()), fieldPath)
 					Expect(err).ToNot(HaveOccurred())
 
 					brokerServer.Catalog = common.JSONToMap(catalog)
@@ -915,7 +858,7 @@ var _ = Describe("Service Manager Broker API", func() {
 
 			verifyPATCHWhenCatalogFieldHasValue := func(responseVerifier func(r *httpexpect.Response), fieldPath string, fieldValue interface{}) {
 				BeforeEach(func() {
-					catalog, err := sjson.Set(common.Catalog, fieldPath, fieldValue)
+					catalog, err := sjson.Set(string(*common.NewRandomSBCatalog()), fieldPath, fieldValue)
 					Expect(err).ToNot(HaveOccurred())
 
 					brokerServer.Catalog = common.JSONToMap(catalog)
@@ -933,11 +876,11 @@ var _ = Describe("Service Manager Broker API", func() {
 				var anotherServiceID string
 
 				BeforeEach(func() {
-					anotherService := common.JSONToMap(common.AnotherService)
+					anotherService := common.JSONToMap(common.GenerateTestServiceWithPlans())
 					anotherServiceID = anotherService["id"].(string)
 					Expect(anotherServiceID).ToNot(BeEmpty())
 
-					currServices := common.JSONToMap(common.Catalog)["services"].([]interface{})
+					currServices := common.JSONToMap(string(*common.NewRandomSBCatalog()))["services"].([]interface{})
 					currServices = append(currServices, anotherService)
 
 					brokerServer.Catalog = map[string]interface{}{"services": currServices}
@@ -969,7 +912,7 @@ var _ = Describe("Service Manager Broker API", func() {
 				var serviceOfferingID string
 
 				BeforeEach(func() {
-					catalogServiceID := gjson.Get(common.Catalog, "services.0.id").Str
+					catalogServiceID := gjson.Get(string(*common.NewRandomSBCatalog()), "services.0.id").Str
 					Expect(catalogServiceID).ToNot(BeEmpty())
 
 					serviceOfferings := ctx.SMWithOAuth.GET("/v1/service_offerings").
@@ -990,7 +933,7 @@ var _ = Describe("Service Manager Broker API", func() {
 							break
 						}
 					}
-					s, err := sjson.Delete(common.Catalog, "services.0")
+					s, err := sjson.Delete(string(*common.NewRandomSBCatalog()), "services.0")
 					Expect(err).ShouldNot(HaveOccurred())
 					brokerServer.Catalog = common.JSONToMap(s)
 				})
@@ -1034,7 +977,7 @@ var _ = Describe("Service Manager Broker API", func() {
 			Context("when an existing service offering is modified", func() {
 				Context("when catalog service id is modified but the catalog name is not", func() {
 					BeforeEach(func() {
-						catalog, err := sjson.Set(common.Catalog, "services.0.id", "new-id")
+						catalog, err := sjson.Set(string(*common.NewRandomSBCatalog()), "services.0.id", "new-id")
 						Expect(err).ToNot(HaveOccurred())
 
 						brokerServer.Catalog = common.JSONToMap(catalog)
@@ -1092,10 +1035,10 @@ var _ = Describe("Service Manager Broker API", func() {
 				var serviceOfferingID string
 
 				BeforeEach(func() {
-					anotherPlan := common.JSONToMap(common.AnotherPlan)
+					anotherPlan := common.JSONToMap(common.GeneratePaidTestPlan())
 					anotherPlanID = anotherPlan["id"].(string)
 					Expect(anotherPlan).ToNot(BeEmpty())
-					catalogServiceID := gjson.Get(common.Catalog, "services.0.id").Str
+					catalogServiceID := gjson.Get(string(*common.NewRandomSBCatalog()), "services.0.id").Str
 					Expect(catalogServiceID).ToNot(BeEmpty())
 
 					serviceOfferings := ctx.SMWithOAuth.GET("/v1/service_offerings").
@@ -1116,7 +1059,7 @@ var _ = Describe("Service Manager Broker API", func() {
 							break
 						}
 					}
-					s, err := sjson.Set(common.Catalog, "services.0.plans.2", anotherPlan)
+					s, err := sjson.Set(string(*common.NewRandomSBCatalog()), "services.0.plans.2", anotherPlan)
 					Expect(err).ShouldNot(HaveOccurred())
 					brokerServer.Catalog = common.JSONToMap(s)
 				})
@@ -1148,9 +1091,9 @@ var _ = Describe("Service Manager Broker API", func() {
 				var removedPlanCatalogID string
 
 				BeforeEach(func() {
-					removedPlanCatalogID = gjson.Get(common.Catalog, "services.0.plans.0.id").Str
+					removedPlanCatalogID = gjson.Get(string(*common.NewRandomSBCatalog()), "services.0.plans.0.id").Str
 					Expect(removedPlanCatalogID).ToNot(BeEmpty())
-					s, err := sjson.Delete(common.Catalog, "services.0.plans.0")
+					s, err := sjson.Delete(string(*common.NewRandomSBCatalog()), "services.0.plans.0")
 					Expect(err).ShouldNot(HaveOccurred())
 					brokerServer.Catalog = common.JSONToMap(s)
 				})
@@ -1178,7 +1121,7 @@ var _ = Describe("Service Manager Broker API", func() {
 			Context("when an existing service plan is modified", func() {
 				Context("when catalog service plan id is modified but the catalog name is not", func() {
 					BeforeEach(func() {
-						catalog, err := sjson.Set(common.Catalog, "services.0.plans.0.id", "new-id")
+						catalog, err := sjson.Set(string(*common.NewRandomSBCatalog()), "services.0.plans.0.id", "new-id")
 						Expect(err).ToNot(HaveOccurred())
 
 						brokerServer.Catalog = common.JSONToMap(catalog)
@@ -1223,118 +1166,6 @@ var _ = Describe("Service Manager Broker API", func() {
 						r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
 					}, "services.0.plans.0.metadata", "{invalid")
 				})
-			})
-		})
-	})
-
-	Describe("DELETE", func() {
-		AfterEach(func() {
-			assertInvocationCount(brokerServer.CatalogEndpointRequests, 0)
-		})
-
-		Context("when broker does not exist", func() {
-			It("returns 404", func() {
-				ctx.SMWithOAuth.DELETE("/v1/service_brokers/999").
-					Expect().
-					Status(http.StatusNotFound).
-					JSON().Object().
-					Keys().Contains("error", "description")
-			})
-		})
-
-		Context("when broker exists", func() {
-			var id string
-
-			BeforeEach(func() {
-				reply := ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(brokerServerJSON).
-					Expect().
-					Status(http.StatusCreated).
-					JSON().Object().
-					ContainsMap(expectedBrokerResponse)
-
-				id = reply.Value("id").String().Raw()
-
-				assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
-				brokerServer.ResetCallHistory()
-			})
-
-			It("returns 200", func() {
-				ctx.SMWithOAuth.GET("/v1/service_brokers/" + id).
-					Expect().
-					Status(http.StatusOK)
-
-				ctx.SMWithOAuth.DELETE("/v1/service_brokers/" + id).
-					Expect().
-					Status(http.StatusOK).JSON().Object().Empty()
-
-				ctx.SMWithOAuth.GET("/v1/service_brokers/" + id).
-					Expect().
-					Status(http.StatusNotFound)
-			})
-
-			It("deletes the related service offerings", func() {
-				ctx.SMWithOAuth.GET("/v1/service_brokers/" + id).
-					Expect().
-					Status(http.StatusOK)
-
-				ctx.SMWithOAuth.DELETE("/v1/service_brokers/" + id).
-					Expect().
-					Status(http.StatusOK).JSON().Object().Empty()
-
-				ctx.SMWithOAuth.GET("/v1/service_offerings").
-					Expect().
-					Status(http.StatusOK).
-					JSON().
-					Path("$.service_offerings[*].broker_id").Array().NotContains(id)
-			})
-
-			It("deletes the related service plans", func() {
-				ctx.SMWithOAuth.GET("/v1/service_brokers/" + id).
-					Expect().
-					Status(http.StatusOK)
-
-				serviceOfferings := ctx.SMWithOAuth.GET("/v1/service_offerings").
-					Expect().
-					Status(http.StatusOK).
-					JSON().Object().Value("service_offerings").Array().Iter()
-
-				serviceIDsForBroker := make([]interface{}, 0)
-				for _, so := range serviceOfferings {
-					brokerID := so.Object().Value("broker_id").String().Raw()
-					Expect(brokerID).ToNot(BeEmpty())
-					if brokerID == id {
-						id := so.Object().Value("id").Raw()
-						Expect(id).ToNot(BeEmpty())
-						serviceIDsForBroker = append(serviceIDsForBroker, id)
-					}
-				}
-
-				plans := ctx.SMWithOAuth.GET("/v1/service_plans").
-					Expect().
-					Status(http.StatusOK).
-					JSON().Object().Value("service_plans").Array().Iter()
-
-				planIDsForBroker := make([]interface{}, 0)
-				for _, plan := range plans {
-					serviceIDForPlan := plan.Object().Value("service_offering_id").String().Raw()
-					Expect(serviceIDForPlan).ToNot(BeEmpty())
-					for _, serviceIDForBroker := range serviceIDsForBroker {
-						if serviceIDForPlan == serviceIDForBroker {
-							planID := plan.Object().Value("id").String().Raw()
-							Expect(planID).ToNot(BeEmpty())
-							planIDsForBroker = append(planIDsForBroker, planID)
-						}
-					}
-				}
-
-				ctx.SMWithOAuth.DELETE("/v1/service_brokers/" + id).
-					Expect().
-					Status(http.StatusOK).JSON().Object().Empty()
-
-				ctx.SMWithOAuth.GET("/v1/service_plans").
-					Expect().
-					Status(http.StatusOK).
-					JSON().Path("$.service_plans[*].id").Array().NotContains(planIDsForBroker)
 			})
 		})
 	})

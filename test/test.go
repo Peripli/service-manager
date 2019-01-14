@@ -17,65 +17,34 @@
 package test
 
 import (
+	"fmt"
+
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 )
 
-type Prerequisite struct {
-	FieldName string
-	Required  func() bool
-}
+type Op string
 
-type POST struct {
-	Prerequisites []Prerequisite
-	AcceptsID     bool
-
-	PostRequestBlueprint func() (requestBody common.Object, expectedResponse common.Object)
-}
-
-type GET struct {
-	ResourceBlueprint func(ctx *common.TestContext) common.Object
-}
-
-type PATCH struct {
-}
-
-type LIST struct {
-	ResourceBlueprint                      func(ctx *common.TestContext) common.Object
-	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext) common.Object
-}
-
-type CascadeDeletion struct {
-	Child          string
-	ChildReference string
-}
-
-type DELETE struct {
-	ResourceCreationBlueprint func(ctx *common.TestContext) common.Object
-
-	CascadeDeletions []CascadeDeletion
-}
-
-type DELETELIST struct {
-	ResourceBlueprint                      func(ctx *common.TestContext) common.Object
-	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext) common.Object
-}
+const (
+	Get        Op = "get"
+	List       Op = "list"
+	Delete     Op = "delete"
+	DeleteList Op = "deletelist"
+)
 
 type TestCase struct {
 	API            string
 	SupportsLabels bool
+	SupportedOps   []Op
 
-	POST       *POST
-	GET        *GET
-	LIST       *LIST
-	PATCH      *PATCH
-	DELETE     *DELETE
-	DELETELIST *DELETELIST
+	RndResourceBlueprint                      func(ctx *common.TestContext) common.Object
+	RndResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext) common.Object
 }
 
 func DescribeTestsFor(t TestCase) bool {
 	return Describe(t.API, func() {
 		var ctx *common.TestContext
+
 		func() {
 			defer GinkgoRecover()
 			ctx = common.NewTestContext(nil)
@@ -85,23 +54,19 @@ func DescribeTestsFor(t TestCase) bool {
 			ctx.Cleanup()
 		})
 
-		if t.POST != nil {
-
-		}
-		if t.GET != nil {
-			DescribeGetTestsfor(ctx, t)
-		}
-		if t.LIST != nil {
-			DescribeListTestsFor(ctx, t)
-		}
-		if t.PATCH != nil {
-
-		}
-		if t.DELETE != nil {
-			DescribeDeleteTestsfor(ctx, t)
-		}
-		if t.DELETELIST != nil {
-			DescribeDeleteListFor(ctx, t)
+		for _, op := range t.SupportedOps {
+			switch op {
+			case Get:
+				DescribeGetTestsfor(ctx, t)
+			case List:
+				DescribeListTestsFor(ctx, t)
+			case Delete:
+				DescribeDeleteTestsfor(ctx, t)
+			case DeleteList:
+				DescribeDeleteListFor(ctx, t)
+			default:
+				Fail(fmt.Sprintf("Generic test cases for op %s are not implemented", op))
+			}
 		}
 	})
 }

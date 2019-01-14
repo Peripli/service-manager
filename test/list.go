@@ -1,3 +1,19 @@
+/*
+ * Copyright 2018 The Service Manager Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package test
 
 import (
@@ -54,11 +70,11 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 			}
 			patchLabelsBody["labels"] = patchLabels
 
-			ctx.SMWithOAuth.PATCH("/v1/" + t.API + "/" + obj["id"].(string)).WithJSON(patchLabelsBody).
+			ctx.SMWithOAuth.PATCH(t.API + "/" + obj["id"].(string)).WithJSON(patchLabelsBody).
 				Expect().
 				Status(http.StatusOK)
 
-			result := ctx.SMWithOAuth.GET("/v1/" + t.API + "/" + obj["id"].(string)).
+			result := ctx.SMWithOAuth.GET(t.API + "/" + obj["id"].(string)).
 				Expect().
 				Status(http.StatusOK).JSON().Object()
 			result.ContainsKey("labels")
@@ -67,9 +83,9 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		}
 
 		ctx = common.NewTestContext(nil)
-		rWithMandatoryFields = t.LIST.ResourceWithoutNullableFieldsBlueprint(ctx)
+		rWithMandatoryFields = t.RndResourceWithoutNullableFieldsBlueprint(ctx)
 		for i := 0; i < 4; i++ {
-			gen := t.DELETELIST.ResourceBlueprint(ctx)
+			gen := t.RndResourceBlueprint(ctx)
 			if t.SupportsLabels {
 				gen = attachLabel(gen)
 			}
@@ -261,9 +277,9 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		unexpectedAfterOpIDs = common.ExtractResourceIDs(listOpEntry.unexpectedResourcesAfterOp)
 
 		By(fmt.Sprintf("[TEST]: Verifying expected %s before operation after present", t.API))
-		beforeOpArray := ctx.SMWithOAuth.GET("/v1/" + t.API).
+		beforeOpArray := ctx.SMWithOAuth.GET(t.API).
 			Expect().
-			Status(http.StatusOK).JSON().Object().Value(t.API).Array()
+			Status(http.StatusOK).JSON().Object().Value(strings.Replace(t.API, "/v1/", "", 1)).Array()
 
 		for _, v := range beforeOpArray.Iter() {
 			obj := v.Object().Raw()
@@ -287,7 +303,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 
 		By("[TEST]: ====================================")
 
-		req := ctx.SMWithOAuth.GET("/v1/" + t.API)
+		req := ctx.SMWithOAuth.GET(t.API)
 		if query != "" {
 			req = req.WithQueryString(query)
 		}
@@ -302,7 +318,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 
 			resp.JSON().Object().Keys().Contains("error", "description")
 		} else {
-			array := resp.JSON().Object().Value(t.API).Array()
+			array := resp.JSON().Object().Value(strings.Replace(t.API, "/v1/", "", 1)).Array()
 			for _, v := range array.Iter() {
 				obj := v.Object().Raw()
 				delete(obj, "created_at")
@@ -333,7 +349,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 	return Describe("List", func() {
 		Context("with basic auth", func() {
 			It("returns 200", func() {
-				ctx.SMWithBasic.GET("/v1/" + t.API).
+				ctx.SMWithBasic.GET(t.API).
 					Expect().
 					Status(http.StatusOK)
 			})

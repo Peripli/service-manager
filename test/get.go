@@ -1,3 +1,19 @@
+/*
+ * Copyright 2018 The Service Manager Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package test
 
 import (
@@ -16,7 +32,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase) bool {
 
 		Context(fmt.Sprintf("Existing resource of type %s", t.API), func() {
 			BeforeEach(func() {
-				testResource = t.GET.ResourceBlueprint(ctx)
+				testResource = t.RndResourceBlueprint(ctx)
 				By(fmt.Sprintf("[SETUP]: Verifying that test resource %v is not empty", testResource))
 				Expect(testResource).ToNot(BeEmpty())
 
@@ -26,7 +42,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase) bool {
 			})
 
 			It("returns 200", func() {
-				ctx.SMWithOAuth.GET(fmt.Sprintf("/v1/%s/%s", t.API, testResourceID)).
+				ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
 					Expect().
 					Status(http.StatusOK).JSON().Object().ContainsMap(testResource)
 			})
@@ -38,7 +54,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase) bool {
 			})
 
 			It("returns 404", func() {
-				ctx.SMWithOAuth.GET(fmt.Sprintf("/v1/%s/%s", t.API, testResourceID)).
+				ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
 					Expect().
 					Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
 			})
