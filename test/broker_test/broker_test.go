@@ -177,7 +177,6 @@ var _ = Describe("Service Manager Broker API", func() {
 					Status(http.StatusOK).
 					JSON().Object().Value("brokers").Array().First().Object().
 					ContainsMap(expectedBrokerResponse).
-					ContainsKey("services").
 					NotContainsKey("credentials")
 			})
 		})
