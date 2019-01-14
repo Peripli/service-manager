@@ -39,7 +39,7 @@ func (sbf *StorageBrokerFetcher) FetchBroker(ctx context.Context, brokerID strin
 	broker, err := sbf.BrokerStorage.Get(ctx, brokerID)
 	if err != nil {
 		log.C(ctx).Debugf("FetchBroker with id %s not found in storage", brokerID)
-		return nil, util.HandleStorageError(err, "broker", brokerID)
+		return nil, util.HandleStorageError(err, "broker")
 	}
 
 	password := broker.Credentials.Basic.Password

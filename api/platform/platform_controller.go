@@ -78,7 +78,7 @@ func (c *Controller) createPlatform(r *web.Request) (*web.Response, error) {
 	platform.Credentials = credentials
 
 	if _, err := c.PlatformStorage.Create(ctx, platform); err != nil {
-		return nil, util.HandleStorageError(err, "platform", platform.ID)
+		return nil, util.HandleStorageError(err, "platform")
 	}
 	platform.Credentials.Basic.Password = plainPassword
 	return util.NewJSONResponse(http.StatusCreated, platform)
@@ -91,7 +91,7 @@ func (c *Controller) getPlatform(r *web.Request) (*web.Response, error) {
 	log.C(ctx).Debugf("Getting platform with id %s", platformID)
 
 	platform, err := c.PlatformStorage.Get(ctx, platformID)
-	if err = util.HandleStorageError(err, "platform", platformID); err != nil {
+	if err = util.HandleStorageError(err, "platform"); err != nil {
 		return nil, err
 	}
 	platform.Credentials = nil
@@ -125,7 +125,7 @@ func (c *Controller) deletePlatform(r *web.Request) (*web.Response, error) {
 	log.C(ctx).Debugf("Deleting platform with id %s", platformID)
 
 	if err := c.PlatformStorage.Delete(ctx, platformID); err != nil {
-		return nil, util.HandleStorageError(err, "platform", platformID)
+		return nil, util.HandleStorageError(err, "platform")
 	}
 
 	// map[string]string{} will result in empty JSON
@@ -140,7 +140,7 @@ func (c *Controller) patchPlatform(r *web.Request) (*web.Response, error) {
 
 	platform, err := c.PlatformStorage.Get(ctx, platformID)
 	if err != nil {
-		return nil, util.HandleStorageError(err, "platform", platformID)
+		return nil, util.HandleStorageError(err, "platform")
 	}
 
 	createdAt := platform.CreatedAt
@@ -154,7 +154,7 @@ func (c *Controller) patchPlatform(r *web.Request) (*web.Response, error) {
 	platform.UpdatedAt = time.Now().UTC()
 
 	if err := c.PlatformStorage.Update(ctx, platform); err != nil {
-		return nil, util.HandleStorageError(err, "platform", platformID)
+		return nil, util.HandleStorageError(err, "platform")
 	}
 
 	if err != nil {

@@ -39,12 +39,12 @@ const (
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	Host            string        `mapstructure:"host" description:"host of the server"`
-	Port            int           `mapstructure:"port" description:"port of the server"`
-	RequestTimeout  time.Duration `mapstructure:"request_timeout" description:"read and write timeout duration for requests"`
-	ShutdownTimeout time.Duration `mapstructure:"shutdown_timeout" description:"time to wait for the server to shutdown"`
-	MaxBodyBytes    int           `mapstructure:"max_body_bytes" description:"maximum bytes size of incoming body"`
-	MaxHeaderBytes  int           `mapstructure:"max_header_bytes" description:"the maximum number of bytes the server will read parsing the request header"`
+	Host            string        `mapstructure:"host"`
+	Port            int           `mapstructure:"port"`
+	RequestTimeout  time.Duration `mapstructure:"request_timeout"`
+	ShutdownTimeout time.Duration `mapstructure:"shutdown_timeout"`
+	MaxBodyBytes    int           `mapstructure:"max_body_bytes"`
+	MaxHeaderBytes  int           `mapstructure:"max_header_bytes"`
 }
 
 // DefaultSettings returns the default values for configuring the Service Manager
@@ -129,7 +129,7 @@ func (s *Server) Run(ctx context.Context) {
 func startServer(ctx context.Context, server *http.Server, shutdownTimeout time.Duration) {
 	go gracefulShutdown(ctx, server, shutdownTimeout)
 
-	log.C(ctx).Infof("Listening on %s", server.Addr)
+	log.C(ctx).Infof("Server listening on %s...", server.Addr)
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.C(ctx).Fatal(err)

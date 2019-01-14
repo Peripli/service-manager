@@ -22,6 +22,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/tidwall/gjson"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -67,23 +69,25 @@ func (fsp *FreeServicePlansFilter) Run(req *web.Request, next web.Handler) (*web
 				planID := servicePlan.ID
 				isFree := servicePlan.Free
 				hasPublicVisibility := false
-				visibilitiesForPlan, err := vRepository.ListByServicePlanID(ctx, planID)
+				byServicePlanID := query.ByField(query.EqualsOperator, "service_plan_id", planID)
+				visibilitiesForPlan, err := vRepository.List(ctx, byServicePlanID)
 				if err != nil {
 					return err
 				}
 				for _, visibility := range visibilitiesForPlan {
+					byVisibilityID := query.ByField(query.EqualsOperator, "id", visibility.ID)
 					if isFree {
 						if visibility.PlatformID == "" {
 							hasPublicVisibility = true
 							continue
 						} else {
-							if err := vRepository.Delete(ctx, visibility.ID); err != nil {
+							if err := vRepository.Delete(ctx, byVisibilityID); err != nil {
 								return err
 							}
 						}
 					} else {
 						if visibility.PlatformID == "" {
-							if err := vRepository.Delete(ctx, visibility.ID); err != nil {
+							if err := vRepository.Delete(ctx, byVisibilityID); err != nil {
 								return err
 							}
 						} else {
@@ -106,7 +110,7 @@ func (fsp *FreeServicePlansFilter) Run(req *web.Request, next web.Handler) (*web
 						UpdatedAt:     currentTime,
 					})
 					if err != nil {
-						return util.HandleStorageError(err, "visibility", UUID.String())
+						return util.HandleStorageError(err, "visibility")
 					}
 
 					log.C(ctx).Debugf("Created new public visibility for broker with id %s and plan with id %s", brokerID, planID)

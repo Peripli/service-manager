@@ -23,9 +23,12 @@ import (
 	"path"
 	"runtime"
 
-	"github.com/Peripli/service-manager/pkg/types"
-
 	"github.com/gofrs/uuid"
+
+	"github.com/Peripli/service-manager/pkg/log"
+
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/onsi/ginkgo"
 	"github.com/spf13/pflag"
 
 	"github.com/Peripli/service-manager/pkg/env"
@@ -62,19 +65,17 @@ func SetTestFileLocation(set *pflag.FlagSet) {
 }
 
 func TestEnv(additionalFlagFuncs ...func(set *pflag.FlagSet)) env.Environment {
+	// copies all sm pflags to flag so that those can be set via go test
 	f := func(set *pflag.FlagSet) {
 		if set == nil {
 			return
 		}
 
 		set.VisitAll(func(pflag *pflag.Flag) {
-			if flag.Lookup(pflag.Name) != nil {
-				return
+			if flag.Lookup(pflag.Name) == nil {
+				// marker so that if the flag is passed to go test it is recognized
+				flag.String(pflag.Name, "", pflag.Usage)
 			}
-
-			flag.Var(FlagValue{
-				pflagValue: pflag.Value,
-			}, pflag.Name, pflag.Usage)
 		})
 	}
 
@@ -100,16 +101,29 @@ func NewSMServer(params *ContextParams, issuerURL string) *httptest.Server {
 		smEnv = e
 	}
 
+	smEnv.Set("api.token_issuer_url", issuerURL)
+
 	flag.VisitAll(func(flag *flag.Flag) {
 		if flag.Value.String() != "" {
+			// if any of the go test flags have been set, propagate the value in sm env with highest prio
+			// when env exposes the pflagset it would be better to instead override the pflag value instead
 			smEnv.Set(flag.Name, flag.Value.String())
 		}
 	})
-	if flag.Lookup("api.token_issuer_url") != nil && flag.Lookup("api.token_issuer_url").Value.String() == "" {
-		smEnv.Set("api.token_issuer_url", issuerURL)
-	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+	s := struct {
+		Log *log.Settings
+	}{
+		Log: &log.Settings{
+			Output: ginkgo.GinkgoWriter,
+		},
+	}
+	err := smEnv.Unmarshal(&s)
+	if err != nil {
+		panic(err)
+	}
+	ctx = log.Configure(ctx, s.Log)
 	smanagerBuilder := sm.New(ctx, cancel, smEnv)
 	if params.RegisterExtensions != nil {
 		params.RegisterExtensions(smanagerBuilder.API)
