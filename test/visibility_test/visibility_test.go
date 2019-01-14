@@ -832,6 +832,28 @@ new line`] = common.Array{"label-value"}
 				})
 			})
 
+			Context("With multiple label queries", func() {
+				It("Should return 200", func() {
+					labelKey1 := "cluster_id"
+					labelValue1 := labels[labelKey1].([]interface{})[0].(string)
+
+					labelKey2 := "org_id"
+					labelValue2 := labels[labelKey2].([]interface{})[0].(string)
+
+					var expectedKeys []interface{}
+					for key := range labels {
+						expectedKeys = append(expectedKeys, key)
+					}
+
+					visibilitiesResp := ctx.SMWithOAuth.GET("/v1/visibilities").
+						WithQuery(string(query.LabelQuery), fmt.Sprintf("%s = %s|%s = %s", labelKey1, labelValue1, labelKey2, labelValue2)).
+						Expect().
+						Status(http.StatusOK).JSON().Object().Value("visibilities")
+					visibilitiesResp.Array().Length().Equal(1)
+					visibilitiesResp.Array().Element(0).Path("$.labels").Object().Keys().ContainsOnly(expectedKeys...)
+				})
+			})
+
 			Context("With both label and field query", func() {
 				It("Should return 200", func() {
 					labelKey := "cluster_id"
