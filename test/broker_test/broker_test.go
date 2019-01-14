@@ -161,7 +161,7 @@ var _ = Describe("Service Manager Broker API", func() {
 				brokerServer.ResetCallHistory()
 			})
 
-			It("returns all without catalog if no query parameter is provided", func() {
+			It("returns all if no query parameter is provided", func() {
 				ctx.SMWithOAuth.GET("/v1/service_brokers").
 					Expect().
 					Status(http.StatusOK).
@@ -169,16 +169,6 @@ var _ = Describe("Service Manager Broker API", func() {
 					ContainsMap(expectedBrokerResponse).
 					Keys().
 					NotContains("credentials", "services")
-			})
-
-			It("returns all with catalog if query parameter is provided", func() {
-				ctx.SMWithOAuth.GET("/v1/service_brokers").WithQuery("catalog", true).
-					Expect().
-					Status(http.StatusOK).
-					JSON().Object().Value("brokers").Array().First().Object().
-					ContainsMap(expectedBrokerResponse).
-					ContainsKey("services").
-					NotContainsKey("credentials")
 			})
 
 			It("is accessible with basic authentication", func() {
