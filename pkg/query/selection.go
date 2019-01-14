@@ -124,13 +124,13 @@ func newCriterion(leftOp string, operator Operator, rightOp []string, criteriaTy
 
 func (c Criterion) Validate() error {
 	if len(c.RightOp) > 1 && !c.Operator.IsMultiVariate() {
-		return fmt.Errorf("multiple values received for single value operation")
+		return fmt.Errorf("multiple values %s received for single value operation %s", c.RightOp, c.Operator)
 	}
 	if c.Operator.IsNullable() && c.Type != FieldQuery {
 		return &UnsupportedQueryError{"nullable operations are supported only for field queries"}
 	}
 	if c.Operator.IsNumeric() && !isNumeric(c.RightOp[0]) {
-		return &UnsupportedQueryError{Message: fmt.Sprintf("%s is numeric operator, but the right operand is not numeric", c.Operator)}
+		return &UnsupportedQueryError{Message: fmt.Sprintf("%s is numeric operator, but the right operand %s is not numeric", c.Operator, c.RightOp[0])}
 	}
 	if strings.ContainsRune(c.LeftOp, Separator) {
 		parts := strings.FieldsFunc(c.LeftOp, func(r rune) bool {
@@ -149,21 +149,31 @@ func (c Criterion) Validate() error {
 
 func mergeCriteria(c1 []Criterion, c2 []Criterion) ([]Criterion, error) {
 	result := c1
-	fieldQueryLeftOperands := make(map[string]bool)
-	for _, criterion := range c1 {
+	fieldQueryLeftOperands := make(map[string]int)
+	labelQueryLeftOperands := make(map[string]int)
+
+	for _, criterion := range append(c1, c2...) {
 		if criterion.Type == FieldQuery {
-			fieldQueryLeftOperands[criterion.LeftOp] = true
+			fieldQueryLeftOperands[criterion.LeftOp]++
+		}
+		if criterion.Type == LabelQuery {
+			labelQueryLeftOperands[criterion.LeftOp]++
 		}
 	}
 
 	for _, newCriterion := range c2 {
-		if _, ok := fieldQueryLeftOperands[newCriterion.LeftOp]; ok && newCriterion.Type == FieldQuery {
-			return nil, &UnsupportedQueryError{Message: fmt.Sprintf("duplicate query key: %s", newCriterion.LeftOp)}
+		leftOp := newCriterion.LeftOp
+		// disallow duplicate label queries
+		if count, ok := labelQueryLeftOperands[leftOp]; ok && count > 1 && newCriterion.Type == LabelQuery {
+			return nil, &UnsupportedQueryError{Message: fmt.Sprintf("duplicate label query key: %s", newCriterion.LeftOp)}
+		}
+		// disallow duplicate field query keys
+		if count, ok := fieldQueryLeftOperands[leftOp]; ok && count > 1 && newCriterion.Type == FieldQuery {
+			return nil, &UnsupportedQueryError{Message: fmt.Sprintf("duplicate field query key: %s", newCriterion.LeftOp)}
 		}
 		if err := newCriterion.Validate(); err != nil {
 			return nil, err
 		}
-		fieldQueryLeftOperands[newCriterion.LeftOp] = true
 	}
 	result = append(result, c2...)
 	return result, nil
