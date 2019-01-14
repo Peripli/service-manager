@@ -22,16 +22,16 @@ func TestVisibilities(t *testing.T) {
 var _ = test.DescribeTestsFor(test.TestCase{
 	API:            "visibilities",
 	SupportsLabels: true,
-	//GET: &test.GET{
-	//	ResourceBlueprint: blueprint(true),
-	//},
-	//LIST: &test.LIST{
-	//	ResourceBlueprint:                      blueprint(true),
-	//	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
-	//},
-	//DELETE: &test.DELETE{
-	//	ResourceCreationBlueprint: blueprint(true),
-	//},
+	GET: &test.GET{
+		ResourceBlueprint: blueprint(true),
+	},
+	LIST: &test.LIST{
+		ResourceBlueprint:                      blueprint(true),
+		ResourceWithoutNullableFieldsBlueprint: blueprint(false),
+	},
+	DELETE: &test.DELETE{
+		ResourceCreationBlueprint: blueprint(true),
+	},
 	DELETELIST: &test.DELETELIST{
 		ResourceBlueprint:                      blueprint(true),
 		ResourceWithoutNullableFieldsBlueprint: blueprint(false),

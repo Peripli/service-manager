@@ -31,7 +31,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	DELETE: &test.DELETE{
 		ResourceCreationBlueprint: blueprint(true),
 	},
-	DELETELIST: &test.DELETELIST{},
+	DELETELIST: &test.DELETELIST{
+		ResourceBlueprint:                      blueprint(true),
+		ResourceWithoutNullableFieldsBlueprint: blueprint(false),
+	},
 },
 )
 

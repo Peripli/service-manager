@@ -9,14 +9,14 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, r []common.Object) bool {
+func DescribeGetTestsfor(ctx *common.TestContext, t TestCase) bool {
 	return Describe("GET", func() {
 		var testResource common.Object
 		var testResourceID string
 
 		Context(fmt.Sprintf("Existing resource of type %s", t.API), func() {
 			BeforeEach(func() {
-				testResource = r[0]
+				testResource = t.GET.ResourceBlueprint(ctx)
 				By(fmt.Sprintf("[SETUP]: Verifying that test resource %v is not empty", testResource))
 				Expect(testResource).ToNot(BeEmpty())
 

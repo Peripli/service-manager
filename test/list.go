@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Peripli/service-manager/pkg/query"
+
 	. "github.com/onsi/ginkgo/extensions/table"
 
 	"net/http"
@@ -24,7 +26,61 @@ type listOpEntry struct {
 	expectedStatusCode         int
 }
 
-func DescribeListTestsFor(ctx *common.TestContext, t TestCase, r []common.Object, rWithMandatoryFields common.Object) bool {
+func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
+	var r []common.Object
+	var rWithMandatoryFields common.Object
+
+	func() {
+		By("==== Preparation for SM tests... ====")
+		defer GinkgoRecover()
+		attachLabel := func(obj common.Object) common.Object {
+			patchLabelsBody := make(map[string]interface{})
+			patchLabels := []query.LabelChange{
+				{
+					Operation: query.AddLabelOperation,
+					Key:       "labelKey1",
+					Values:    []string{"1"},
+				},
+				{
+					Operation: query.AddLabelOperation,
+					Key:       "labelKey2",
+					Values:    []string{"str"},
+				},
+				{
+					Operation: query.AddLabelOperation,
+					Key:       "labelKey3",
+					Values:    []string{`{"key1": "val1", "key2": "val2"}`},
+				},
+			}
+			patchLabelsBody["labels"] = patchLabels
+
+			ctx.SMWithOAuth.PATCH("/v1/" + t.API + "/" + obj["id"].(string)).WithJSON(patchLabelsBody).
+				Expect().
+				Status(http.StatusOK)
+
+			result := ctx.SMWithOAuth.GET("/v1/" + t.API + "/" + obj["id"].(string)).
+				Expect().
+				Status(http.StatusOK).JSON().Object()
+			result.ContainsKey("labels")
+			r := result.Raw()
+			return r
+		}
+
+		ctx = common.NewTestContext(nil)
+		rWithMandatoryFields = t.LIST.ResourceWithoutNullableFieldsBlueprint(ctx)
+		for i := 0; i < 4; i++ {
+			gen := t.DELETELIST.ResourceBlueprint(ctx)
+			if t.SupportsLabels {
+				gen = attachLabel(gen)
+			}
+			delete(gen, "created_at")
+			delete(gen, "updated_at")
+			r = append(r, gen)
+		}
+
+		By("==== Successfully finished preparation for SM tests. Running API tests suite... ====")
+	}()
+
 	entries := []TableEntry{
 		Entry("returns 200",
 			listOpEntry{
