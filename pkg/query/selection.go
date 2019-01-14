@@ -19,6 +19,7 @@ package query
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -124,13 +125,13 @@ func newCriterion(leftOp string, operator Operator, rightOp []string, criteriaTy
 
 func (c Criterion) Validate() error {
 	if len(c.RightOp) > 1 && !c.Operator.IsMultiVariate() {
-		return fmt.Errorf("multiple values received for single value operation")
+		return fmt.Errorf("multiple values %s received for single value operation %s", c.RightOp, c.Operator)
 	}
 	if c.Operator.IsNullable() && c.Type != FieldQuery {
 		return &UnsupportedQueryError{"nullable operations are supported only for field queries"}
 	}
 	if c.Operator.IsNumeric() && !isNumeric(c.RightOp[0]) {
-		return &UnsupportedQueryError{Message: fmt.Sprintf("%s is numeric operator, but the right operand is not numeric", c.Operator)}
+		return &UnsupportedQueryError{Message: fmt.Sprintf("%s is numeric operator, but the right operand %s is not numeric", c.Operator, c.RightOp[0])}
 	}
 	if strings.ContainsRune(c.LeftOp, Separator) {
 		parts := strings.FieldsFunc(c.LeftOp, func(r rune) bool {
@@ -157,8 +158,23 @@ func mergeCriteria(c1 []Criterion, c2 []Criterion) ([]Criterion, error) {
 	}
 
 	for _, newCriterion := range c2 {
+
+		// disallow duplicate label queries
+		if newCriterion.Type == LabelQuery {
+			counter := 0
+			for _, c := range c2 {
+				if reflect.DeepEqual(c, newCriterion) {
+					counter++
+				}
+				if counter > 1 {
+					return nil, &UnsupportedQueryError{Message: fmt.Sprintf("duplicate label query: %s%s%s", newCriterion.LeftOp, newCriterion.Operator, newCriterion.RightOp)}
+				}
+			}
+		}
+
+		// disallow duplicate field query keys
 		if _, ok := fieldQueryLeftOperands[newCriterion.LeftOp]; ok && newCriterion.Type == FieldQuery {
-			return nil, &UnsupportedQueryError{Message: fmt.Sprintf("duplicate query key: %s", newCriterion.LeftOp)}
+			return nil, &UnsupportedQueryError{Message: fmt.Sprintf("duplicate field query key: %s", newCriterion.LeftOp)}
 		}
 		if err := newCriterion.Validate(); err != nil {
 			return nil, err

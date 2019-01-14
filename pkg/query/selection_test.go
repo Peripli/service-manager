@@ -211,9 +211,17 @@ var _ = Describe("Selection", func() {
 			})
 		})
 
-		Context("Duplicate query key", func() {
+		Context("Duplicate field query key", func() {
 			It("Should return error", func() {
 				criteriaFromRequest, err := buildCriteria(`http://localhost:8080/v1/visibilities?fieldQuery=leftop1 = rightop|leftop1 = rightop2`)
+				Expect(err).To(HaveOccurred())
+				Expect(criteriaFromRequest).To(BeNil())
+			})
+		})
+
+		Context("Duplicate label query", func() {
+			It("Should return error", func() {
+				criteriaFromRequest, err := buildCriteria(`http://localhost:8080/v1/visibilities?labelQuery=leftop1 = rightop|leftop1 = rightop`)
 				Expect(err).To(HaveOccurred())
 				Expect(criteriaFromRequest).To(BeNil())
 			})
