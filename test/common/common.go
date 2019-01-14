@@ -23,11 +23,10 @@ import (
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
-	mathrand "math/rand"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gofrs/uuid"
 
@@ -46,74 +45,135 @@ import (
 type Object = map[string]interface{}
 type Array = []interface{}
 
-func RmNonNumbericFieldNames(obj Object) Object {
-	for k, v := range obj {
-		if _, err := strconv.Atoi(fmt.Sprintf("%v", v)); err == nil {
-			continue
-		}
-		if _, err := strconv.ParseFloat(fmt.Sprintf("%v", v), 64); err != nil {
-			delete(obj, k)
-		}
-	}
-	return obj
-}
-
-func RmNumbericFieldNames(obj Object) Object {
-	for k, v := range obj {
-		if _, err := strconv.Atoi(fmt.Sprintf("%v", v)); err == nil {
-			delete(obj, k)
-		}
-		if _, err := strconv.ParseFloat(fmt.Sprintf("%v", v), 64); err == nil {
-			delete(obj, k)
-		}
-	}
-	return obj
-}
-
-func RmNonJSONFieldNames(obj Object) Object {
+func RmNonNumericArgs(obj Object) Object {
 	o := CopyObject(obj)
 
 	for k, v := range o {
-		isJSON := false
-		if _, ok := v.(map[string]interface{}); ok {
-			isJSON = true
-		}
-		if _, ok := v.([]interface{}); ok {
-			isJSON = true
-		}
-		if !isJSON {
+		if k == "labels" {
+			labels := v.(map[string]interface{})
+			for lKey, lValues := range labels {
+				lVals := lValues.([]interface{})
+				for index, lValue := range lVals {
+					if !isNumeric(lValue) {
+						labels[lKey] = append(lVals[:index], lVals[index+1:]...)
+					}
+				}
+				if len(lVals) == 0 {
+					delete(labels, lKey)
+				}
+			}
+		} else if !isNumeric(v) {
 			delete(o, k)
 		}
 	}
 	return o
 }
 
-func RmNotNullableFieldNames(obj Object, optionalFields []string) Object {
+func RmNumericArgs(obj Object) Object {
 	o := CopyObject(obj)
-	for objField := range o {
-		found := false
-		for _, field := range optionalFields {
-			if field == objField {
-				found = true
+
+	for k, v := range o {
+		if k == "labels" {
+			labels := v.(map[string]interface{})
+			for lKey, lValues := range labels {
+				lVals := lValues.([]interface{})
+				for index, lValue := range lVals {
+					if isNumeric(lValue) {
+						labels[lKey] = append(lVals[:index], lVals[index+1:]...)
+					}
+				}
+				if len(lVals) == 0 {
+					delete(labels, lKey)
+				}
 			}
-		}
-		if !found {
-			delete(o, objField)
+		} else if isNumeric(v) {
+			delete(o, k)
 		}
 	}
 	return o
 }
 
-// TODO this can be used to leave out only the string fields and test corner cases with | in key and value, space and plus in the value and key, operator in the key
-func RmNotStringFieldNames(obj Object) Object {
-	panic("implement me")
+func isJson(arg interface{}) bool {
+	if str, ok := arg.(string); ok {
+		var jsonStr map[string]interface{}
+		err := json.Unmarshal([]byte(str), &jsonStr)
+		return err == nil
+	}
+	if _, ok := arg.(map[string]interface{}); ok {
+		return true
+	}
+	if _, ok := arg.([]interface{}); ok {
+		return true
+	}
+	return false
 }
 
-//TODO more values of a type for multi right args case
+func isNumeric(arg interface{}) bool {
+	if _, err := strconv.Atoi(fmt.Sprintf("%v", arg)); err == nil {
+		return true
+	}
+	if _, err := strconv.ParseFloat(fmt.Sprintf("%v", arg), 64); err == nil {
+		return true
+	}
+	return false
+}
+
+func RmNonJSONArgs(obj Object) Object {
+	o := CopyObject(obj)
+
+	for k, v := range o {
+		if k == "labels" {
+			labels := v.(map[string]interface{})
+			for lKey, lValues := range labels {
+				lVals := lValues.([]interface{})
+				for index, lValue := range lVals {
+					if !isJson(lValue) {
+						if len(lVals) == index {
+							index--
+						}
+						labels[lKey] = append(lVals[:index], lVals[index+1:]...)
+					}
+				}
+				if len(lVals) == 0 {
+					delete(labels, lKey)
+				}
+			}
+		} else if !isJson(v) {
+			delete(o, k)
+		}
+	}
+	return o
+}
+
+func RmNotNullableFieldAndLabels(obj Object, objithMandatoryFields Object) Object {
+	o := CopyObject(obj)
+	for objField, objVal := range objithMandatoryFields {
+		if str, ok := objVal.(string); ok && len(str) == 0 {
+			//currently api returns empty string for nullable values
+			continue
+		}
+		delete(o, objField)
+	}
+
+	delete(o, "labels")
+	return o
+}
+
 func CopyObject(obj Object) Object {
 	o := Object{}
 	for k, v := range obj {
-		o[k] = v
+		if k == "labels" {
+			l := map[string]interface{}{}
+			for lKey, lValues := range v.(map[string]interface{}) {
+				temp := []interface{}{}
+				for _, v := range lValues.([]interface{}) {
+					l[lKey] = append(temp, v)
+				}
+			}
+			o[k] = l
+		} else {
+			o[k] = v
+		}
 	}
 	return o
 }
@@ -133,7 +193,7 @@ func MapContains(actual Object, expected Object) {
 }
 
 func RemoveAllBrokers(SM *httpexpect.Expect) {
-	removeAll(SM, "brokers", "/v1/service_brokers")
+	removeAll(SM, "service_brokers", "/v1/service_brokers")
 }
 
 func RemoveAllPlatforms(SM *httpexpect.Expect) {
@@ -254,25 +314,24 @@ func GenerateRandomPlatform() Object {
 	return o
 }
 
-//TODO this instead of By?
-// prefix test logs somehow so they be differenciated from SM logs? SM to log only errors?
+func GenerateRandomBroker() Object {
+	o := Object{}
+	for _, key := range []string{"name", "description"} {
+		UUID, err := uuid.NewV4()
+		if err != nil {
+			panic(err)
+		}
+		o[key] = UUID.String()
+
+	}
+	return o
+}
 func Print(message string, args ...interface{}) {
 	if len(args) == 0 {
 		fmt.Fprint(ginkgo.GinkgoWriter, "\n"+message+"\n")
 	} else {
 		fmt.Fprintf(ginkgo.GinkgoWriter, "\n"+message+"\n", args)
 	}
-}
-
-var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
-func RandomName(prefix string) string {
-	mathrand.Seed(time.Now().UnixNano())
-	b := make([]rune, 15)
-	for i := range b {
-		b[i] = letterRunes[mathrand.Intn(len(letterRunes))]
-	}
-	return prefix + "-" + string(b)
 }
 
 type HTTPReaction struct {

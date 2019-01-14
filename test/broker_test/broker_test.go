@@ -142,7 +142,7 @@ var _ = Describe("Service Manager Broker API", func() {
 				ctx.SMWithOAuth.GET("/v1/service_brokers").
 					Expect().
 					Status(http.StatusOK).
-					JSON().Object().Value("brokers").Array().
+					JSON().Object().Value("service_brokers").Array().
 					Empty()
 			})
 		})
@@ -165,7 +165,7 @@ var _ = Describe("Service Manager Broker API", func() {
 				ctx.SMWithOAuth.GET("/v1/service_brokers").
 					Expect().
 					Status(http.StatusOK).
-					JSON().Object().Value("brokers").Array().First().Object().
+					JSON().Object().Value("service_brokers").Array().First().Object().
 					ContainsMap(expectedBrokerResponse).
 					Keys().
 					NotContains("credentials", "services")
@@ -175,7 +175,7 @@ var _ = Describe("Service Manager Broker API", func() {
 				ctx.SMWithOAuth.GET("/v1/service_brokers").WithQuery("catalog", true).
 					Expect().
 					Status(http.StatusOK).
-					JSON().Object().Value("brokers").Array().First().Object().
+					JSON().Object().Value("service_brokers").Array().First().Object().
 					ContainsMap(expectedBrokerResponse).
 					ContainsKey("services").
 					NotContainsKey("credentials")
@@ -185,7 +185,7 @@ var _ = Describe("Service Manager Broker API", func() {
 				ctx.SMWithBasic.GET("/v1/service_brokers").WithQuery("catalog", true).
 					Expect().
 					Status(http.StatusOK).
-					JSON().Object().Value("brokers").Array().First().Object().
+					JSON().Object().Value("service_brokers").Array().First().Object().
 					ContainsMap(expectedBrokerResponse).
 					ContainsKey("services").
 					NotContainsKey("credentials")
@@ -795,7 +795,7 @@ var _ = Describe("Service Manager Broker API", func() {
 					ctx.SMWithOAuth.GET("/v1/service_brokers").
 						Expect().
 						Status(http.StatusOK).
-						JSON().Object().Value("brokers").Array().First().Object().
+						JSON().Object().Value("service_brokers").Array().First().Object().
 						ContainsMap(expectedBrokerResponse)
 
 					assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)

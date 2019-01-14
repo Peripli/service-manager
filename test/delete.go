@@ -43,7 +43,6 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase) bool {
 					Expect().
 					Status(http.StatusNotFound)
 
-				//TODO we need to create cascade resources though
 				By("[TEST]: Verify resources marked for cascade deletion are deleted")
 				for _, resource := range t.DELETE.CascadeDeletions {
 					ctx.SMWithOAuth.GET("/v1/" + resource.Child).WithQueryString("fieldQuery=" + resource.ChildReference + "+=+" + testResourceID).

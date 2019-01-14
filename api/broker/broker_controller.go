@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/query"
@@ -177,23 +176,12 @@ func (c *Controller) listBrokers(r *web.Request) (*web.Response, error) {
 	var err error
 	ctx := r.Context()
 	log.C(ctx).Debug("Getting all brokers")
-	includeCatalog := strings.ToLower(r.FormValue(catalogParam)) == "true"
 
 	brokers, err = c.Repository.Broker().List(ctx, query.CriteriaForContext(ctx)...)
 	if err != nil {
-		return nil, err
+		return nil, util.HandleSelectionError(err)
 	}
-	if includeCatalog {
-		for _, broker := range brokers {
-			offerings, err := c.Repository.ServiceOffering().ListWithServicePlansByBrokerID(ctx, broker.ID)
-			if err != nil {
-				return nil, fmt.Errorf("error getting catalog for broker with id %s from SM DB: %s", broker.ID, err)
-			}
-			broker.Services = offerings
-
-		}
-	}
-
+	// TODO separate pr
 	for _, broker := range brokers {
 		broker.Credentials = nil
 	}

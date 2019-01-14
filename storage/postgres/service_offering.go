@@ -46,6 +46,9 @@ func (sos *serviceOfferingStorage) Get(ctx context.Context, id string) (*types.S
 
 func (sos *serviceOfferingStorage) List(ctx context.Context, criteria ...query.Criterion) ([]*types.ServiceOffering, error) {
 	var serviceOfferings []ServiceOffering
+	if err := validateFieldQueryParams(ServiceOffering{}, criteria); err != nil {
+		return nil, err
+	}
 	err := listByFieldCriteria(ctx, sos.db, serviceOfferingTable, &serviceOfferings, criteria)
 	if err != nil || len(serviceOfferings) == 0 {
 		return []*types.ServiceOffering{}, err

@@ -43,6 +43,9 @@ func (sps *servicePlanStorage) Get(ctx context.Context, id string) (*types.Servi
 
 func (sps *servicePlanStorage) List(ctx context.Context, criteria ...query.Criterion) ([]*types.ServicePlan, error) {
 	var plans []ServicePlan
+	if err := validateFieldQueryParams(ServicePlan{}, criteria); err != nil {
+		return nil, err
+	}
 	err := listByFieldCriteria(ctx, sps.db, servicePlanTable, &plans, criteria)
 	if err != nil || len(plans) == 0 {
 		return []*types.ServicePlan{}, err

@@ -19,6 +19,7 @@ package query
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -124,7 +125,7 @@ func newCriterion(leftOp string, operator Operator, rightOp []string, criteriaTy
 
 func (c Criterion) Validate() error {
 	if len(c.RightOp) > 1 && !c.Operator.IsMultiVariate() {
-		return fmt.Errorf("multiple values received for single value operation")
+		return fmt.Errorf("multiple values %s received for single value operation %s", c.RightOp, c.Operator)
 	}
 	if c.Operator.IsNullable() && c.Type != FieldQuery {
 		return &UnsupportedQueryError{"nullable operations are supported only for field queries"}
@@ -150,6 +151,7 @@ func (c Criterion) Validate() error {
 func mergeCriteria(c1 []Criterion, c2 []Criterion) ([]Criterion, error) {
 	result := c1
 	fieldQueryLeftOperands := make(map[string]bool)
+
 	for _, criterion := range c1 {
 		if criterion.Type == FieldQuery {
 			fieldQueryLeftOperands[criterion.LeftOp] = true
@@ -159,6 +161,18 @@ func mergeCriteria(c1 []Criterion, c2 []Criterion) ([]Criterion, error) {
 	for _, newCriterion := range c2 {
 		if _, ok := fieldQueryLeftOperands[newCriterion.LeftOp]; ok && newCriterion.Type == FieldQuery {
 			return nil, &UnsupportedQueryError{Message: fmt.Sprintf("duplicate query key: %s", newCriterion.LeftOp)}
+		}
+		//TODo move is separate pr
+		if newCriterion.Type == LabelQuery {
+			counter := 0
+			for _, c := range c2 {
+				if reflect.DeepEqual(c, newCriterion) {
+					counter++
+				}
+				if counter > 1 {
+					return nil, &UnsupportedQueryError{Message: fmt.Sprintf("duplicate label query: %s%s%s", newCriterion.LeftOp, newCriterion.Operator, newCriterion.RightOp)}
+				}
+			}
 		}
 		if err := newCriterion.Validate(); err != nil {
 			return nil, err
@@ -266,18 +280,27 @@ func findRightOp(remaining string, leftOp string, operator Operator, criteriaTyp
 	rightOpBuffer := strings.Builder{}
 	for _, ch := range remaining {
 		if ch == Separator {
-			if remaining[offset-1] != '\\' { // delimiter is not escaped - treat as separator
+			if offset+1 < len(remaining) && rune(remaining[offset+1]) == Separator && remaining[offset-1] != '\\' {
 				arg := rightOpBuffer.String()
 				rightOp = append(rightOp, arg)
 				rightOpBuffer.Reset()
-				if rune(arg[len(arg)-1]) == CloseBracket || !operator.IsMultiVariate() {
+			} else if rune(remaining[offset-1]) == Separator {
+				offset++
+				continue
+			} else {
+				if remaining[offset-1] != '\\' { // delimiter is not escaped - treat as separator
+					arg := rightOpBuffer.String()
+					rightOp = append(rightOp, arg)
+					rightOpBuffer.Reset()
+					//if !operator.IsMultiVariate() || endsWithMatchingNumberClosingBrackets(arg) {
 					break
+					//}
+				} else { // remove escaping symbol
+					tmp := rightOpBuffer.String()[:offset-1]
+					rightOpBuffer.Reset()
+					rightOpBuffer.WriteString(tmp)
+					rightOpBuffer.WriteRune(ch)
 				}
-			} else { // remove escaping symbol
-				tmp := rightOpBuffer.String()[:offset-1]
-				rightOpBuffer.Reset()
-				rightOpBuffer.WriteString(tmp)
-				rightOpBuffer.WriteRune(ch)
 			}
 		} else {
 			rightOpBuffer.WriteRune(ch)
@@ -305,6 +328,29 @@ func findRightOp(remaining string, leftOp string, operator Operator, criteriaTyp
 		rightOp = append(rightOp, "")
 	}
 	return
+}
+
+func endsWithMatchingNumberClosingBrackets(arg string) bool {
+	if !strings.HasSuffix(arg, string(CloseBracket)) {
+
+	}
+
+	// do separator sme i iskame da vidim dali tova otlqvo e cqloto ili part
+	// za da e cqloto trqbva da zavurshva na closing bracket koqto zatvarq purviq bracket
+
+	open := 0
+	for _, c := range arg {
+		switch c {
+		case '[':
+			open++
+		case ']':
+			if open == 0 {
+				return false
+			}
+			open--
+		}
+	}
+	return open == 0
 }
 
 func isNumeric(str string) bool {

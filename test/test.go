@@ -17,6 +17,9 @@
 package test
 
 import (
+	"net/http"
+
+	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 )
@@ -38,7 +41,12 @@ import (
 //
 //})
 
-//TODO reporters? pretty output? decent logs? separate sm logs from test logs?
+type Query struct {
+	Type     string
+	Template string
+	Args     interface{}
+}
+
 type Prerequisite struct {
 	FieldName string
 	Required  func() bool
@@ -53,19 +61,15 @@ type POST struct {
 }
 
 type GET struct {
-	ResourceCreationBlueprint func(ctx *common.TestContext) common.Object
+	ResourceBlueprint func(ctx *common.TestContext) common.Object
 }
 
 type PATCH struct {
 }
 
-type Field struct {
-	Name      string
-	Mandatory bool
-}
 type LIST struct {
-	ResourceCreationBlueprint func(ctx *common.TestContext) common.Object
-	NullableFields            []string
+	ResourceBlueprint                      func(ctx *common.TestContext) common.Object
+	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext) common.Object
 }
 
 type CascadeDeletion struct {
@@ -80,6 +84,8 @@ type DELETE struct {
 }
 
 type DELETELIST struct {
+	ResourceBlueprint                      func(ctx *common.TestContext) common.Object
+	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext) common.Object
 }
 
 // plan needs service and service needs broker
@@ -103,42 +109,79 @@ func DescribeTestsFor(t TestCase) bool {
 		var ctx *common.TestContext
 		var r []common.Object
 		var rWithMandatoryFields common.Object
-		ctx = common.NewTestContext(nil)
-
-		rWithMandatoryFields = t.LIST.ResourceCreationBlueprint(ctx)
-		for _, f := range t.LIST.NullableFields {
-			delete(rWithMandatoryFields, f)
-		}
-
-		for i := 0; i < 4; i++ {
-			gen := t.LIST.ResourceCreationBlueprint(ctx)
-			delete(gen, "created_at")
-			delete(gen, "updated_at")
-			r = append(r, gen)
-		}
 
 		AfterSuite(func() {
 			ctx.Cleanup()
 		})
 
-		//TODO can we make these describes focusable and skippable and more ginkgo like
-		if t.POST != nil {
+		func() {
+			By("==== Preparation for SM component tests... ====")
+			defer GinkgoRecover()
+			attachLabel := func(obj common.Object) common.Object {
+				patchLabelsBody := make(map[string]interface{})
+				patchLabels := []query.LabelChange{
+					{
+						Operation: query.AddLabelOperation,
+						Key:       "labelKey1",
+						Values:    []string{"1"},
+					},
+					{
+						Operation: query.AddLabelOperation,
+						Key:       "labelKey2",
+						Values:    []string{"str"},
+					},
+					{
+						Operation: query.AddLabelOperation,
+						Key:       "labelKey3",
+						Values:    []string{`{"key1": "val1", "key2": "val2"}`},
+					},
+				}
+				patchLabelsBody["labels"] = patchLabels
 
-		}
-		if t.GET != nil {
-			DescribeGetTestsfor(ctx, t, r)
-		}
-		if t.LIST != nil {
-			DescribeListTestsFor(ctx, t, r, rWithMandatoryFields)
-		}
-		if t.PATCH != nil {
+				ctx.SMWithOAuth.PATCH("/v1/" + t.API + "/" + obj["id"].(string)).WithJSON(patchLabelsBody).
+					Expect().
+					Status(http.StatusOK)
 
-		}
-		if t.DELETE != nil {
-			DescribeDeleteTestsfor(ctx, t)
-		}
-		if t.DELETELIST != nil {
-			DescribeDeleteListFor(ctx, t)
-		}
+				result := ctx.SMWithOAuth.GET("/v1/" + t.API + "/" + obj["id"].(string)).
+					Expect().
+					Status(http.StatusOK).JSON().Object()
+				result.ContainsKey("labels")
+				r := result.Raw()
+				return r
+			}
+
+			ctx = common.NewTestContext(nil)
+			rWithMandatoryFields = t.DELETELIST.ResourceWithoutNullableFieldsBlueprint(ctx)
+			for i := 0; i < 4; i++ {
+				gen := t.DELETELIST.ResourceBlueprint(ctx)
+				if t.SupportsLabels {
+					gen = attachLabel(gen)
+				}
+				delete(gen, "created_at")
+				delete(gen, "updated_at")
+				r = append(r, gen)
+			}
+
+			if t.POST != nil {
+				DescribePostTestsFor(ctx, t)
+			}
+			if t.GET != nil {
+				DescribeGetTestsfor(ctx, t, r)
+			}
+			if t.LIST != nil {
+				DescribeListTestsFor(ctx, t, r, rWithMandatoryFields)
+			}
+			if t.PATCH != nil {
+
+			}
+			if t.DELETE != nil {
+				DescribeDeleteTestsfor(ctx, t)
+			}
+			if t.DELETELIST != nil {
+				DescribeDeleteListFor(ctx, t)
+			}
+			By("==== Successfully finished preparation for SM component tests. Running API tests suites... ====")
+
+		}()
 	})
 }

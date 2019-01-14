@@ -147,7 +147,6 @@ func NewTestContext(params *ContextParams) *TestContext {
 	SMWithOAuth := SM.Builder(func(req *httpexpect.Request) {
 		req.WithHeader("Authorization", "Bearer "+accessToken)
 	})
-
 	RemoveAllBrokers(SMWithOAuth)
 	RemoveAllPlatforms(SMWithOAuth)
 
@@ -185,10 +184,14 @@ func (ctx *TestContext) RegisterBrokerWithCatalog(catalog *SBCatalog) (string, O
 	if err != nil {
 		panic(err)
 	}
+	UUID2, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
 	brokerJSON := Object{
 		"name":        UUID.String(),
 		"broker_url":  brokerServer.URL,
-		"description": "",
+		"description": UUID2.String(),
 		"credentials": Object{
 			"basic": Object{
 				"username": brokerServer.Username,
