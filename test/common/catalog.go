@@ -200,21 +200,6 @@ func GenerateTestServiceWithPlans(plans ...string) string {
 		panic("catalog_name cannot be empty")
 	}
 
-	//s1, err := sjson.Set(catalogService, "catalog_id", catalogID)
-	//if err != nil {
-	//	panic(err)
-	//}
-
-	//s2, err := sjson.Set(s1, "catalog_name", catalogName)
-	//if err != nil {
-	//	panic(err)
-	//}
-
-	//smService, err := sjson.Delete(s2, "id")
-	//if err != nil {
-	//	panic(err)
-	//}
-
 	return catalogService
 }
 
@@ -231,30 +216,5 @@ func GenerateTestPlan(planTemplate string) string {
 	if err != nil {
 		panic(err)
 	}
-
-	catalogPlan := fmt.Sprintf(planTemplate, UUID.String())
-
-	//catalogID := gjson.Get(catalogPlan, "id").Str
-	//if catalogID == "" {
-	//	panic("catalog_id cannot be empty")
-	//}
-	//catalogName := gjson.Get(catalogPlan, "name").Str
-	//if catalogName == "" {
-	//	panic("catalog_name cannot be empty")
-	//}
-	//p1, err := sjson.Set(catalogPlan, "catalog_id", catalogID)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//p2, err := sjson.Set(p1, "catalog_name", catalogName)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//smPlan, err := sjson.Delete(p2, "id")
-	//if err != nil {
-	//	panic(err)
-	//}
-	return catalogPlan
+	return fmt.Sprintf(planTemplate, UUID.String())
 }
