@@ -30,7 +30,7 @@ var _ = Describe("Service Manager Filters", func() {
 				api.RegisterFilters(testFilters...)
 			},
 		})
-		brokerID, _ := ctx.RegisterBroker()
+		brokerID, _, _ := ctx.RegisterBroker()
 		osbURL = "/v1/osb/" + brokerID
 		order = ""
 	})

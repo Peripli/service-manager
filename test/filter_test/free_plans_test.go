@@ -30,187 +30,6 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-const testCatalog = `
-{
-  "services": [{
-    "name": "fake-service",
-    "id": "acb56d7c-XXXX-XXXX-XXXX-feb140a59a66",
-    "description": "A fake service.",
-    "tags": ["no-sql", "relational"],
-    "requires": ["route_forwarding"],
-    "bindable": true,
-    "instances_retrievable": true,
-    "bindings_retrievable": true,
-    "metadata": {
-      "provider": {
-        "name": "The name"
-      },
-      "listing": {
-        "imageUrl": "http://example.com/cat.gif",
-        "blurb": "Add a blurb here",
-        "longDescription": "A long time ago, in a galaxy far far away..."
-      },
-      "displayName": "The Fake Service Broker"
-    },
-    "plan_updateable": true,
-    "plans": [{
-      "name": "paid-plan",
-      "id": "11131751-XXXX-XXXX-XXXX-a42377d3320e",
-      "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections.",
-      "free": false,
-      "metadata": {
-        "max_storage_tb": 5,
-        "costs":[
-            {
-               "amount":{
-                  "usd":99.0
-               },
-               "unit":"MONTHLY"
-            },
-            {
-               "amount":{
-                  "usd":0.99
-               },
-               "unit":"1GB of messages over 20GB"
-            }
-         ],
-        "bullets": [
-          "Shared fake server",
-          "5 TB storage",
-          "40 concurrent connections"
-        ]
-      },
-      "schemas": {
-        "service_instance": {
-          "create": {
-            "parameters": {
-              "$schema": "http://json-schema.org/draft-04/schema#",
-              "type": "object",
-              "properties": {
-                "billing-account": {
-                  "description": "Billing account number used to charge use of shared fake server.",
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "update": {
-            "parameters": {
-              "$schema": "http://json-schema.org/draft-04/schema#",
-              "type": "object",
-              "properties": {
-                "billing-account": {
-                  "description": "Billing account number used to charge use of shared fake server.",
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "service_binding": {
-          "create": {
-            "parameters": {
-              "$schema": "http://json-schema.org/draft-04/schema#",
-              "type": "object",
-              "properties": {
-                "billing-account": {
-                  "description": "Billing account number used to charge use of shared fake server.",
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
-    }, 
-	{
-      "name": "free-plan",
-      "id": "1c4008b5-XXXX-XXXX-XXXX-dace631cd648",
-      "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections. 100 async.",
-      "free": true,
-      "metadata": {
-        "max_storage_tb": 5,
-        "costs":[
-            {
-               "amount":{
-                  "usd":199.0
-               },
-               "unit":"MONTHLY"
-            },
-            {
-               "amount":{
-                  "usd":0.99
-               },
-               "unit":"1GB of messages over 20GB"
-            }
-         ],
-        "bullets": [
-          "40 concurrent connections"
-        ]
-      }
-    }]
-  }]
-}
-`
-
-const newFreePlan = `
-	{
-      "name": "new-free-plan",
-      "id": "456008b5-XXXX-XXXX-XXXX-dace631cd648",
-      "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections. 100 async.",
-      "free": true,
-      "metadata": {
-        "max_storage_tb": 5,
-        "costs":[
-            {
-               "amount":{
-                  "usd":199.0
-               },
-               "unit":"MONTHLY"
-            },
-            {
-               "amount":{
-                  "usd":0.99
-               },
-               "unit":"1GB of messages over 20GB"
-            }
-         ],
-        "bullets": [
-          "40 concurrent connections"
-        ]
-      }
-    }
-`
-
-const newPaidPlan = `
-	{
-      "name": "new-paid-plan",
-      "id": "789008b5-XXXX-XXXX-XXXX-dace631cd648",
-      "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections. 100 async.",
-      "free": false,
-      "metadata": {
-        "max_storage_tb": 5,
-        "costs":[
-            {
-               "amount":{
-                  "usd":199.0
-               },
-               "unit":"MONTHLY"
-            },
-            {
-               "amount":{
-                  "usd":0.99
-               },
-               "unit":"1GB of messages over 20GB"
-            }
-         ],
-        "bullets": [
-          "40 concurrent connections"
-        ]
-      }
-    }
-`
-
 var _ = Describe("Service Manager Free Plans Filter", func() {
 	var ctx *common.TestContext
 	var existingBrokerID string
@@ -231,23 +50,29 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 	var serviceCatalogID string
 	var serviceCatalogName string
 
-	findVisibilityForServicePlanID := func(servicePlanID string) []map[string]interface{} {
-		result := []map[string]interface{}{}
-		visibilities := ctx.SMWithOAuth.GET("/v1/visibilities").
-			Expect().
-			Status(http.StatusOK).JSON().Object().Value("visibilities").Array().Iter()
+	var testCatalog string
+	var newPaidPlan string
+	var newFreePlan string
 
-		for index := range visibilities {
-			vis := visibilities[index].Object()
-			if vis.Value("service_plan_id").String().Raw() == servicePlanID {
-				result = append(result, vis.Raw())
-			}
-		}
-		return result
+	findOneVisibilityForServicePlanID := func(servicePlanID string) map[string]interface{} {
+		vs := ctx.SMWithOAuth.GET("/v1/visibilities").WithQuery("fieldQuery", "service_plan_id = "+servicePlanID).
+			Expect().
+			Status(http.StatusOK).JSON().Object().Value("visibilities").Array()
+
+		vs.Length().Equal(1)
+		return vs.First().Object().Raw()
+	}
+
+	verifyZeroVisibilityForServicePlanID := func(servicePlanID string) {
+		vs := ctx.SMWithOAuth.GET("/v1/visibilities").WithQuery("fieldQuery", "service_plan_id = "+servicePlanID).
+			Expect().
+			Status(http.StatusOK).JSON().Object().Value("visibilities").Array()
+
+		vs.Length().Equal(0)
 	}
 
 	findDatabaseIDForServicePlanByCatalogName := func(catalogServicePlanName string) string {
-		planID := ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("catalog_name", catalogServicePlanName).
+		planID := ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("fieldQuery", "catalog_name = "+catalogServicePlanName).
 			Expect().
 			Status(http.StatusOK).JSON().Object().Value("service_plans").Array().First().Object().Value("id").String().Raw()
 
@@ -267,26 +92,36 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 		ctx.SMWithOAuth.GET("/v1/service_plans").
 			Expect().
 			Status(http.StatusOK).JSON().Path("$.service_plans[*].catalog_id").Array().NotContains(newFreePlanCatalogID, newPaidPlanCatalogID)
+		c := common.NewEmptySBCatalog()
 
-		existingBrokerID, existingBrokerServer = ctx.RegisterBrokerWithCatalog(testCatalog)
+		oldFreePlan := common.GenerateFreeTestPlan()
+		oldPaidPlan := common.GeneratePaidTestPlan()
+		newFreePlan = common.GenerateFreeTestPlan()
+		newPaidPlan = common.GeneratePaidTestPlan()
+		oldService := common.GenerateTestServiceWithPlans(oldFreePlan, oldPaidPlan)
+		c.AddService(oldService)
+
+		testCatalog = string(c)
+
+		existingBrokerID, _, existingBrokerServer = ctx.RegisterBrokerWithCatalog(c)
 		Expect(existingBrokerID).ToNot(BeEmpty())
 
-		serviceCatalogID = gjson.Get(testCatalog, "services.0.id").Str
+		serviceCatalogID = gjson.Get(oldService, "id").Str
 		Expect(serviceCatalogID).ToNot(BeEmpty())
 
-		serviceCatalogName = gjson.Get(testCatalog, "services.0.name").Str
+		serviceCatalogName = gjson.Get(oldService, "name").Str
 		Expect(serviceCatalogName).ToNot(BeEmpty())
 
-		oldFreePlanCatalogID = gjson.Get(testCatalog, "services.0.plans.1.id").Str
+		oldFreePlanCatalogID = gjson.Get(oldFreePlan, "id").Str
 		Expect(oldFreePlanCatalogID).ToNot(BeEmpty())
 
-		oldFreePlanCatalogName = gjson.Get(testCatalog, "services.0.plans.1.name").Str
+		oldFreePlanCatalogName = gjson.Get(oldFreePlan, "name").Str
 		Expect(oldFreePlanCatalogName).ToNot(BeEmpty())
 
-		oldPaidPlanCatalogID = gjson.Get(testCatalog, "services.0.plans.0.id").Str
+		oldPaidPlanCatalogID = gjson.Get(oldPaidPlan, "id").Str
 		Expect(oldPaidPlanCatalogID).ToNot(BeEmpty())
 
-		oldPaidPlanCatalogName = gjson.Get(testCatalog, "services.0.plans.0.name").Str
+		oldPaidPlanCatalogName = gjson.Get(oldPaidPlan, "name").Str
 		Expect(oldPaidPlanCatalogName).ToNot(BeEmpty())
 
 		newFreePlanCatalogID = gjson.Get(newFreePlan, "id").Str
@@ -301,7 +136,7 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 		newPaidPlanCatalogName = gjson.Get(newPaidPlan, "name").Str
 		Expect(newPaidPlanCatalogName).ToNot(BeEmpty())
 
-		existingBrokerServer.Catalog = common.JSONToMap(testCatalog)
+		existingBrokerServer.Catalog = common.SBCatalog(testCatalog)
 
 	})
 
@@ -312,25 +147,20 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 	Specify("plans and visibilities for the registered brokers are known to SM", func() {
 		freePlanID := findDatabaseIDForServicePlanByCatalogName(oldFreePlanCatalogName)
 
-		visibilities := findVisibilityForServicePlanID(freePlanID)
-		Expect(len(visibilities)).To(Equal(1))
-		Expect(visibilities[0]["platform_id"]).To(Equal(""))
+		visibility := findOneVisibilityForServicePlanID(freePlanID)
+		Expect(visibility["platform_id"]).To(Equal(""))
 
-		paidPlanID := ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("catalog_name", oldPaidPlanCatalogName).
-			Expect().
-			Status(http.StatusOK).JSON().Object().Value("service_plans").Array().First().Object().Value("id").String().Raw()
-
+		paidPlanID := findDatabaseIDForServicePlanByCatalogName(oldPaidPlanCatalogName)
 		Expect(paidPlanID).ToNot(BeEmpty())
 
-		visibilities = findVisibilityForServicePlanID(paidPlanID)
-		Expect(len(visibilities)).To(Equal(0))
+		verifyZeroVisibilityForServicePlanID(paidPlanID)
 	})
 
 	Context("when the catalog is empty", func() {
 		var id string
 
 		BeforeEach(func() {
-			id, _ = ctx.RegisterBrokerWithCatalog(common.EmptyCatalog)
+			id, _, _ = ctx.RegisterBrokerWithCatalog(common.NewEmptySBCatalog())
 			Expect(id).ToNot(BeEmpty())
 		})
 
@@ -345,25 +175,21 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 	Context("when no modifications to the plans occurs", func() {
 		It("does not change the state of the visibilities for the existing plans", func() {
 			oldFreePlanDatabaseID := findDatabaseIDForServicePlanByCatalogName(oldFreePlanCatalogName)
-			visibilitiesForFreePlan := findVisibilityForServicePlanID(oldFreePlanDatabaseID)
-			Expect(len(visibilitiesForFreePlan)).To(Equal(1))
-			Expect(visibilitiesForFreePlan[0]["platform_id"]).To(Equal(""))
+			visibilitiesForFreePlan := findOneVisibilityForServicePlanID(oldFreePlanDatabaseID)
+			Expect(visibilitiesForFreePlan["platform_id"]).To(Equal(""))
 
 			oldPaidPlanDatabaseID := findDatabaseIDForServicePlanByCatalogName(oldPaidPlanCatalogName)
-			visibilitiesForPaidPlan := findVisibilityForServicePlanID(oldPaidPlanDatabaseID)
-			Expect(len(visibilitiesForPaidPlan)).To(Equal(0))
+			verifyZeroVisibilityForServicePlanID(oldPaidPlanDatabaseID)
 
 			ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + existingBrokerID).
 				WithJSON(common.Object{}).
 				Expect().
 				Status(http.StatusOK)
 
-			visibilitiesForFreePlan = findVisibilityForServicePlanID(oldFreePlanDatabaseID)
-			Expect(len(visibilitiesForFreePlan)).To(Equal(1))
-			Expect(visibilitiesForFreePlan[0]["platform_id"]).To(Equal(""))
+			visibilitiesForFreePlan = findOneVisibilityForServicePlanID(oldFreePlanDatabaseID)
+			Expect(visibilitiesForFreePlan["platform_id"]).To(Equal(""))
 
-			visibilitiesForPaidPlan = findVisibilityForServicePlanID(oldPaidPlanDatabaseID)
-			Expect(len(visibilitiesForPaidPlan)).To(Equal(0))
+			verifyZeroVisibilityForServicePlanID(oldPaidPlanDatabaseID)
 		})
 	})
 
@@ -371,7 +197,7 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 		BeforeEach(func() {
 			s, err := sjson.Set(testCatalog, "services.0.plans.-1", common.JSONToMap(newFreePlan))
 			Expect(err).ShouldNot(HaveOccurred())
-			existingBrokerServer.Catalog = common.JSONToMap(s)
+			existingBrokerServer.Catalog = common.SBCatalog(s)
 		})
 
 		It("creates the plan and creates a public visibility for it", func() {
@@ -384,15 +210,11 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 				Expect().
 				Status(http.StatusOK)
 
-			planID := ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("catalog_name", newFreePlanCatalogName).
-				Expect().
-				Status(http.StatusOK).JSON().Object().Value("service_plans").Array().First().Object().Value("id").String().Raw()
-
+			planID := findDatabaseIDForServicePlanByCatalogName(newFreePlanCatalogName)
 			Expect(planID).ToNot(BeEmpty())
 
-			visibilities := findVisibilityForServicePlanID(planID)
-			Expect(len(visibilities)).To(Equal(1))
-			Expect(visibilities[0]["platform_id"]).To(Equal(""))
+			visibilities := findOneVisibilityForServicePlanID(planID)
+			Expect(visibilities["platform_id"]).To(Equal(""))
 		})
 	})
 
@@ -400,7 +222,7 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 		BeforeEach(func() {
 			s, err := sjson.Set(testCatalog, "services.0.plans.-1", common.JSONToMap(newPaidPlan))
 			Expect(err).ShouldNot(HaveOccurred())
-			existingBrokerServer.Catalog = common.JSONToMap(s)
+			existingBrokerServer.Catalog = common.SBCatalog(s)
 		})
 
 		It("creates the plan and does not create a new public visibility for it", func() {
@@ -415,8 +237,7 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 
 			planID := findDatabaseIDForServicePlanByCatalogName(newPaidPlanCatalogName)
 
-			visibilities := findVisibilityForServicePlanID(planID)
-			Expect(len(visibilities)).To(Equal(0))
+			verifyZeroVisibilityForServicePlanID(planID)
 		})
 	})
 
@@ -428,11 +249,11 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 			catalog, err := sjson.Set(tempCatalog, "services.0.plans.1.free", false)
 			Expect(err).ToNot(HaveOccurred())
 
-			existingBrokerServer.Catalog = common.JSONToMap(catalog)
+			existingBrokerServer.Catalog = common.SBCatalog(catalog)
 		})
 
 		It("deletes the public visibility associated with the plan", func() {
-			plan := ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("catalog_name", oldFreePlanCatalogName).
+			plan := ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("fieldQuery", "catalog_name = "+oldFreePlanCatalogName).
 				Expect().
 				Status(http.StatusOK).JSON()
 
@@ -441,17 +262,15 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 			planID := plan.Object().Value("service_plans").Array().First().Object().Value("id").String().Raw()
 			Expect(planID).ToNot(BeEmpty())
 
-			visibilities := findVisibilityForServicePlanID(planID)
-			Expect(len(visibilities)).To(Equal(1))
-			Expect(visibilities[0]["platform_id"]).To(Equal(""))
+			visibilities := findOneVisibilityForServicePlanID(planID)
+			Expect(visibilities["platform_id"]).To(Equal(""))
 
 			ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + existingBrokerID).
 				WithJSON(common.Object{}).
 				Expect().
 				Status(http.StatusOK)
 
-			visibilities = findVisibilityForServicePlanID(planID)
-			Expect(len(visibilities)).To(Equal(0))
+			verifyZeroVisibilityForServicePlanID(planID)
 		})
 	})
 
@@ -466,7 +285,7 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 			catalog, err := sjson.Set(tempCatalog, "services.0.plans.1.free", true)
 			Expect(err).ToNot(HaveOccurred())
 
-			existingBrokerServer.Catalog = common.JSONToMap(catalog)
+			existingBrokerServer.Catalog = common.SBCatalog(catalog)
 			planID = findDatabaseIDForServicePlanByCatalogName(oldPaidPlanCatalogName)
 
 			platform := ctx.RegisterPlatform()
@@ -483,16 +302,15 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 				"platform_id":     platformID,
 			})
 
-			plan := ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("catalog_name", oldPaidPlanCatalogName).
+			plan := ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("fieldQuery", "catalog_name = "+oldPaidPlanCatalogName).
 				Expect().
 				Status(http.StatusOK).JSON()
 
 			plan.Path("$.service_plans[*].free").Array().Contains(false)
 			plan.Object().Value("service_plans").Array().Length().Equal(1)
 
-			visibilities := findVisibilityForServicePlanID(planID)
-			Expect(len(visibilities)).To(Equal(1))
-			Expect(visibilities[0]["platform_id"]).To(Equal(platformID))
+			visibilities := findOneVisibilityForServicePlanID(planID)
+			Expect(visibilities["platform_id"]).To(Equal(platformID))
 		})
 
 		It("deletes all non-public visibilities that were associated with the plan", func() {
@@ -501,9 +319,8 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 				Expect().
 				Status(http.StatusOK)
 
-			visibilities := findVisibilityForServicePlanID(planID)
-			Expect(len(visibilities)).To(Equal(1))
-			Expect(visibilities[0]["platform_id"]).To(Equal(""))
+			visibilities := findOneVisibilityForServicePlanID(planID)
+			Expect(visibilities["platform_id"]).To(Equal(""))
 		})
 
 		It("creates a public visibility associated with the plan", func() {
@@ -512,9 +329,8 @@ var _ = Describe("Service Manager Free Plans Filter", func() {
 				Expect().
 				Status(http.StatusOK)
 
-			visibilities := findVisibilityForServicePlanID(planID)
-			Expect(len(visibilities)).To(Equal(1))
-			Expect(visibilities[0]["platform_id"]).To(Equal(""))
+			visibilities := findOneVisibilityForServicePlanID(planID)
+			Expect(visibilities["platform_id"]).To(Equal(""))
 		})
 	})
 })

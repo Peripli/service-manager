@@ -39,7 +39,7 @@ type BrokerServer struct {
 	BindingAdaptCredentialsHandler http.HandlerFunc // /v2/service_instances/{instance_id}/service_bindings/{binding_id}/adapt_credentials
 
 	Username, Password string
-	Catalog            map[string]interface{}
+	Catalog            SBCatalog
 	LastRequestBody    []byte
 	LastRequest        *http.Request
 
@@ -64,11 +64,11 @@ func JSONToMap(j string) map[string]interface{} {
 func NewBrokerServer() *BrokerServer {
 	return NewBrokerServerWithCatalog(NewRandomSBCatalog())
 }
-func NewBrokerServerWithCatalog(catalog *SBCatalog) *BrokerServer {
+func NewBrokerServerWithCatalog(catalog SBCatalog) *BrokerServer {
 	brokerServer := &BrokerServer{}
 	brokerServer.initRouter()
 	brokerServer.Reset()
-	brokerServer.Catalog = JSONToMap(string(*catalog))
+	brokerServer.Catalog = catalog
 	brokerServer.Server = httptest.NewServer(brokerServer.router)
 	return brokerServer
 }
@@ -83,7 +83,7 @@ func (b *BrokerServer) ResetProperties() {
 	b.Username = "buser"
 	b.Password = "bpassword"
 	c := NewRandomSBCatalog()
-	b.Catalog = JSONToMap(string(*c))
+	b.Catalog = c
 	b.LastRequestBody = []byte{}
 	b.LastRequest = nil
 }
@@ -184,7 +184,7 @@ func (b *BrokerServer) saveRequestMiddleware(next http.Handler) http.Handler {
 }
 
 func (b *BrokerServer) defaultCatalogHandler(rw http.ResponseWriter, req *http.Request) {
-	SetResponse(rw, http.StatusOK, b.Catalog)
+	SetResponse(rw, http.StatusOK, JSONToMap(string(b.Catalog)))
 }
 
 func (b *BrokerServer) defaultServiceInstanceHandler(rw http.ResponseWriter, req *http.Request) {

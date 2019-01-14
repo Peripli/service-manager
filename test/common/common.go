@@ -288,19 +288,6 @@ func MakePlatform(id string, name string, atype string, description string) Obje
 	}
 }
 
-func MakeRandomizedPlatformWithNoDescription() Object {
-	o := Object{}
-	for _, key := range []string{"id", "name", "type"} {
-		UUID, err := uuid.NewV4()
-		if err != nil {
-			panic(err)
-		}
-		o[key] = UUID.String()
-
-	}
-	o["description"] = ""
-	return o
-}
 func GenerateRandomPlatform() Object {
 	o := Object{}
 	for _, key := range []string{"id", "name", "type", "description"} {
@@ -316,16 +303,30 @@ func GenerateRandomPlatform() Object {
 
 func GenerateRandomBroker() Object {
 	o := Object{}
-	for _, key := range []string{"name", "description"} {
-		UUID, err := uuid.NewV4()
-		if err != nil {
-			panic(err)
-		}
-		o[key] = UUID.String()
 
+	brokerServer := NewBrokerServer()
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+	UUID2, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+	o = Object{
+		"name":        UUID.String(),
+		"broker_url":  brokerServer.URL,
+		"description": UUID2.String(),
+		"credentials": Object{
+			"basic": Object{
+				"username": brokerServer.Username,
+				"password": brokerServer.Password,
+			},
+		},
 	}
 	return o
 }
+
 func Print(message string, args ...interface{}) {
 	if len(args) == 0 {
 		fmt.Fprint(ginkgo.GinkgoWriter, "\n"+message+"\n")
@@ -398,10 +399,3 @@ func DoHTTP(reaction *HTTPReaction, checks *HTTPExpectations) func(*http.Request
 		}, reaction.Err
 	}
 }
-
-// e2e testovete
-// definirame si custom describe DescribeWithExpectations i si definirame custom closure ot tipa na aftereach Expectations
-
-// moje li po nqkakuv na4in da injectnem closure ot tipa na after each (AdditionalExpectations) prez e2e test suite-to
-
-// moje v suite-to da ima expectations pool globalen i kogato se importne vsqko DescribeWithExpectations da tursi tam AdditionaleXPECTATIONS sus key stringa v desribe-a

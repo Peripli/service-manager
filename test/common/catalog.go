@@ -1,3 +1,19 @@
+/*
+ * Copyright 2018 The Service Manager Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package common
 
 import (
@@ -144,9 +160,9 @@ func (sbc *SBCatalog) RemovePlan(serviceIndex, planIndex int) (string, string) {
 }
 
 // NewRandomSBCatalog returns a service broker catalog containg one random service with one free and one paid random plans
-func NewRandomSBCatalog() *SBCatalog {
-	plan1 := GenerateFreeTestPlan()
-	plan2 := GeneratePaidTestPlan()
+func NewRandomSBCatalog() SBCatalog {
+	plan1 := GeneratePaidTestPlan()
+	plan2 := GenerateFreeTestPlan()
 	service1 := GenerateTestServiceWithPlans(plan1, plan2)
 
 	catalog := NewEmptySBCatalog()
@@ -156,9 +172,9 @@ func NewRandomSBCatalog() *SBCatalog {
 }
 
 // NewEmptySBCatalog returns an empty service broker catalog tha contains no services and no plans
-func NewEmptySBCatalog() *SBCatalog {
+func NewEmptySBCatalog() SBCatalog {
 	catalog := SBCatalog(emptyCatalog)
-	return &catalog
+	return catalog
 }
 
 func GenerateTestServiceWithPlans(plans ...string) string {

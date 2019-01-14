@@ -178,7 +178,7 @@ type TestContext struct {
 	brokers      map[string]*BrokerServer
 }
 
-func (ctx *TestContext) RegisterBrokerWithCatalog(catalog *SBCatalog) (string, Object, *BrokerServer) {
+func (ctx *TestContext) RegisterBrokerWithCatalog(catalog SBCatalog) (string, Object, *BrokerServer) {
 	brokerServer := NewBrokerServerWithCatalog(catalog)
 	UUID, err := uuid.NewV4()
 	if err != nil {
@@ -251,5 +251,15 @@ func (ctx *TestContext) Cleanup() {
 	if ctx.smServer != nil {
 		ctx.smServer.Close()
 	}
-	ctx.OAuthServer.Close()
+
+	if ctx.OAuthServer != nil {
+		ctx.OAuthServer.Close()
+	}
+}
+
+func (ctx *TestContext) CleanupAdditionalResources() {
+	ctx.SMWithOAuth.DELETE("/v1/service_brokers").
+		Expect()
+	ctx.SMWithOAuth.DELETE("/v1/platforms").WithQuery("fieldQuery", "id != "+ctx.TestPlatform.ID).
+		Expect()
 }

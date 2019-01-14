@@ -67,7 +67,7 @@ func (fsp *FreeServicePlansFilter) Run(req *web.Request, next web.Handler) (*web
 		for _, serviceOffering := range catalog {
 			for _, servicePlan := range serviceOffering.Plans {
 				planID := servicePlan.ID
-				isFree := gjson.GetBytes(servicePlan.Metadata, "complementary").Bool()
+				isFree := servicePlan.Free
 				hasPublicVisibility := false
 				byServicePlanID := query.ByField(query.EqualsOperator, "service_plan_id", planID)
 				visibilitiesForPlan, err := vRepository.List(ctx, byServicePlanID)

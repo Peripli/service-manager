@@ -19,6 +19,8 @@ package test
 import (
 	"fmt"
 
+	. "github.com/onsi/gomega"
+
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 )
@@ -39,34 +41,53 @@ type TestCase struct {
 
 	RndResourceBlueprint                      func(ctx *common.TestContext) common.Object
 	RndResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext) common.Object
+	AdditionalTests                           func(ctx *common.TestContext)
 }
 
 func DescribeTestsFor(t TestCase) bool {
 	return Describe(t.API, func() {
 		var ctx *common.TestContext
 
-		func() {
-			defer GinkgoRecover()
-			ctx = common.NewTestContext(nil)
-		}()
-
 		AfterSuite(func() {
 			ctx.Cleanup()
 		})
 
-		for _, op := range t.SupportedOps {
-			switch op {
-			case Get:
-				DescribeGetTestsfor(ctx, t)
-			case List:
-				DescribeListTestsFor(ctx, t)
-			case Delete:
-				DescribeDeleteTestsfor(ctx, t)
-			case DeleteList:
-				DescribeDeleteListFor(ctx, t)
-			default:
-				Fail(fmt.Sprintf("Generic test cases for op %s are not implemented", op))
+		func() {
+			By("==== Preparation for SM tests... ====")
+
+			defer GinkgoRecover()
+			ctx = common.NewTestContext(nil)
+
+			// A panic outside of Ginkgo's primitives (during test setup) would be recovered
+			// by the deferred GinkgoRecover() and the error will be associated with the first
+			// It to be ran in the suite. There, we add a dummy It to reduce confusion.
+			It("sets up all test prerequisites that are ran outside of Ginkgo primitives properly", func() {
+				Expect(true).To(BeTrue())
+			})
+
+			for _, op := range t.SupportedOps {
+				switch op {
+				case Get:
+					DescribeGetTestsfor(ctx, t)
+				case List:
+					DescribeListTestsFor(ctx, t)
+				case Delete:
+					DescribeDeleteTestsfor(ctx, t)
+				case DeleteList:
+					DescribeDeleteListFor(ctx, t)
+				default:
+					_, err := fmt.Fprintf(GinkgoWriter, "Generic test cases for op %s are not implemented\n", op)
+					if err != nil {
+						panic(err)
+					}
+				}
 			}
-		}
+
+			if t.AdditionalTests != nil {
+				t.AdditionalTests(ctx)
+			}
+
+			By("==== Successfully finished preparation for SM tests. Running API tests suite... ====")
+		}()
 	})
 }

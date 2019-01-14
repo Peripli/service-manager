@@ -267,7 +267,6 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		By(fmt.Sprintf("[BEFOREEACH]: Preparing and creating test resources"))
 
 		r = make([]common.Object, 0, 0)
-		ctx = common.NewTestContext(nil)
 		rWithMandatoryFields = t.RndResourceWithoutNullableFieldsBlueprint(ctx)
 		for i := 0; i < 2; i++ {
 			gen := t.RndResourceBlueprint(ctx)
@@ -280,7 +279,8 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 
 	afterEachHelper := func() {
 		By(fmt.Sprintf("[AFTEREACH]: Cleaning up test resources"))
-		ctx.Cleanup()
+		ctx.CleanupAdditionalResources()
+
 		By(fmt.Sprintf("[AFTEREACH]: Sucessfully finished cleaning up test resources"))
 	}
 
@@ -369,11 +369,11 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 	}
 
 	verifyDeleteListOp := func(entry deleteOpEntry) {
+		beforeEachHelper()
 		if len(entry.queryTemplate) == 0 {
 			Fail("Query template missing")
 		}
 
-		beforeEachHelper()
 		queryKeys := extractQueryKeys(entry.queryArgs)
 		if len(queryKeys) > 1 {
 			fquery := "fieldQuery=" + expandMultiFieldQuery(entry.queryTemplate, entry.queryArgs)
@@ -436,6 +436,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				})
 			})
 		})
+
 		DescribeTable("with non-empty query", verifyDeleteListOp, entries...)
 	})
 }

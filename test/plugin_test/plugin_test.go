@@ -42,7 +42,7 @@ var _ = Describe("Service Manager Plugins", func() {
 				},
 			})
 			var brokerID string
-			brokerID, brokerServer = ctx.RegisterBroker()
+			brokerID, _, brokerServer = ctx.RegisterBroker()
 			osbURL = "/v1/osb/" + brokerID
 		})
 
@@ -71,7 +71,7 @@ var _ = Describe("Service Manager Plugins", func() {
 				},
 			})
 			var brokerID string
-			brokerID, brokerServer = ctx.RegisterBroker()
+			brokerID, _, brokerServer = ctx.RegisterBroker()
 			osbURL = "/v1/osb/" + brokerID
 		})
 

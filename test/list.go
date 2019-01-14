@@ -46,56 +46,53 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 	var r []common.Object
 	var rWithMandatoryFields common.Object
 
-	func() {
-		By("==== Preparation for SM tests... ====")
-		defer GinkgoRecover()
-		attachLabel := func(obj common.Object) common.Object {
-			patchLabelsBody := make(map[string]interface{})
-			patchLabels := []query.LabelChange{
-				{
-					Operation: query.AddLabelOperation,
-					Key:       "labelKey1",
-					Values:    []string{"1"},
-				},
-				{
-					Operation: query.AddLabelOperation,
-					Key:       "labelKey2",
-					Values:    []string{"str"},
-				},
-				{
-					Operation: query.AddLabelOperation,
-					Key:       "labelKey3",
-					Values:    []string{`{"key1": "val1", "key2": "val2"}`},
-				},
-			}
-			patchLabelsBody["labels"] = patchLabels
-
-			ctx.SMWithOAuth.PATCH(t.API + "/" + obj["id"].(string)).WithJSON(patchLabelsBody).
-				Expect().
-				Status(http.StatusOK)
-
-			result := ctx.SMWithOAuth.GET(t.API + "/" + obj["id"].(string)).
-				Expect().
-				Status(http.StatusOK).JSON().Object()
-			result.ContainsKey("labels")
-			r := result.Raw()
-			return r
+	attachLabel := func(obj common.Object) common.Object {
+		patchLabelsBody := make(map[string]interface{})
+		patchLabels := []query.LabelChange{
+			{
+				Operation: query.AddLabelOperation,
+				Key:       "labelKey1",
+				Values:    []string{"1"},
+			},
+			{
+				Operation: query.AddLabelOperation,
+				Key:       "labelKey2",
+				Values:    []string{"str"},
+			},
+			{
+				Operation: query.AddLabelOperation,
+				Key:       "labelKey3",
+				Values:    []string{`{"key1": "val1", "key2": "val2"}`},
+			},
 		}
+		patchLabelsBody["labels"] = patchLabels
 
-		ctx = common.NewTestContext(nil)
-		rWithMandatoryFields = t.RndResourceWithoutNullableFieldsBlueprint(ctx)
-		for i := 0; i < 4; i++ {
-			gen := t.RndResourceBlueprint(ctx)
-			if t.SupportsLabels {
-				gen = attachLabel(gen)
-			}
-			delete(gen, "created_at")
-			delete(gen, "updated_at")
-			r = append(r, gen)
+		By(fmt.Sprintf("Attempting to patch resource of %s with labels as labels are declared supported", t.API))
+		ctx.SMWithOAuth.PATCH(t.API + "/" + obj["id"].(string)).WithJSON(patchLabelsBody).
+			Expect().
+			Status(http.StatusOK)
+
+		result := ctx.SMWithOAuth.GET(t.API + "/" + obj["id"].(string)).
+			Expect().
+			Status(http.StatusOK).JSON().Object()
+		result.ContainsKey("labels")
+		r := result.Raw()
+		return r
+	}
+
+	By(fmt.Sprintf("Attempting to create a random resource of %s with mandatory fields only", t.API))
+	rWithMandatoryFields = t.RndResourceWithoutNullableFieldsBlueprint(ctx)
+	for i := 0; i < 4; i++ {
+		By(fmt.Sprintf("Attempting to create a random resource of %s", t.API))
+
+		gen := t.RndResourceBlueprint(ctx)
+		if t.SupportsLabels {
+			gen = attachLabel(gen)
 		}
-
-		By("==== Successfully finished preparation for SM tests. Running API tests suite... ====")
-	}()
+		delete(gen, "created_at")
+		delete(gen, "updated_at")
+		r = append(r, gen)
+	}
 
 	entries := []TableEntry{
 		Entry("returns 200",

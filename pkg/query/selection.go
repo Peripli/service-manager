@@ -288,9 +288,7 @@ func findRightOp(remaining string, leftOp string, operator Operator, criteriaTyp
 					arg := rightOpBuffer.String()
 					rightOp = append(rightOp, arg)
 					rightOpBuffer.Reset()
-					//if !operator.IsMultiVariate() || endsWithMatchingNumberClosingBrackets(arg) {
 					break
-					//}
 				} else { // remove escaping symbol
 					tmp := rightOpBuffer.String()[:offset-1]
 					rightOpBuffer.Reset()
