@@ -16,9 +16,14 @@
 package broker_test
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/Peripli/service-manager/pkg/types"
+
+	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/test"
 	"github.com/gavv/httpexpect"
@@ -39,7 +44,7 @@ func TestBrokers(t *testing.T) {
 
 var _ = test.DescribeTestsFor(test.TestCase{
 	API:            "/v1/service_brokers",
-	SupportsLabels: false,
+	SupportsLabels: true,
 	SupportedOps: []test.Op{
 		test.Get, test.List, test.Delete, test.DeleteList,
 	},
@@ -48,35 +53,43 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	AdditionalTests: func(ctx *common.TestContext) {
 		Context("additional non-generic tests", func() {
 			var (
-				ctx          *common.TestContext
-				brokerServer *common.BrokerServer
+				ctx                    *common.TestContext
+				brokerServer           *common.BrokerServer
+				brokerWithLabelsServer *common.BrokerServer
 
-				brokerServerJSON       common.Object
-				expectedBrokerResponse common.Object
+				postBrokerRequestWithNoLabels common.Object
+				expectedBrokerResponse        common.Object
+
+				labels                      common.Object
+				postBrokerRequestWithLabels labeledBroker
 			)
 
 			assertInvocationCount := func(requests []*http.Request, invocationCount int) {
 				Expect(len(requests)).To(Equal(invocationCount))
 			}
 
-			BeforeEach(func() {
-				brokerServer = common.NewBrokerServer()
-			})
-
 			AfterEach(func() {
 				if brokerServer != nil {
 					brokerServer.Close()
+				}
+
+				if brokerWithLabelsServer != nil {
+					brokerWithLabelsServer.Close()
 				}
 			})
 
 			BeforeEach(func() {
 				brokerServer = common.NewBrokerServer()
+				brokerWithLabelsServer = common.NewBrokerServer()
 				ctx = common.NewTestContext(nil)
 				brokerServer.Reset()
+				brokerWithLabelsServer.Reset()
 				brokerName := "brokerName"
+				brokerWithLabelsName := "brokerWithLabelsName"
 				brokerDescription := "description"
+				brokerWithLabelsDescription := "descriptionWithLabels"
 
-				brokerServerJSON = common.Object{
+				postBrokerRequestWithNoLabels = common.Object{
 					"name":        brokerName,
 					"broker_url":  brokerServer.URL,
 					"description": brokerDescription,
@@ -91,6 +104,24 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					"name":        brokerName,
 					"broker_url":  brokerServer.URL,
 					"description": brokerDescription,
+				}
+
+				labels = common.Object{
+					"cluster_id": common.Array{"cluster_id_value"},
+					"org_id":     common.Array{"org_id_value1", "org_id_value2", "org_id_value3"},
+				}
+
+				postBrokerRequestWithLabels = common.Object{
+					"name":        brokerWithLabelsName,
+					"broker_url":  brokerWithLabelsServer.URL,
+					"description": brokerWithLabelsDescription,
+					"credentials": common.Object{
+						"basic": common.Object{
+							"username": brokerWithLabelsServer.Username,
+							"password": brokerWithLabelsServer.Password,
+						},
+					},
+					"labels": labels,
 				}
 				common.RemoveAllBrokers(ctx.SMWithOAuth)
 			})
@@ -125,12 +156,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("when a request body field is missing", func() {
 					assertPOSTReturns400WhenFieldIsMissing := func(field string) {
 						BeforeEach(func() {
-							delete(brokerServerJSON, field)
+							delete(postBrokerRequestWithNoLabels, field)
 							delete(expectedBrokerResponse, field)
 						})
 
 						It("returns 400", func() {
-							ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(brokerServerJSON).
+							ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(postBrokerRequestWithNoLabels).
 								Expect().
 								Status(http.StatusBadRequest).
 								JSON().Object().
@@ -142,12 +173,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					assertPOSTReturns201WhenFieldIsMissing := func(field string) {
 						BeforeEach(func() {
-							delete(brokerServerJSON, field)
+							delete(postBrokerRequestWithNoLabels, field)
 							delete(expectedBrokerResponse, field)
 						})
 
 						It("returns 201", func() {
-							ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(brokerServerJSON).
+							ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(postBrokerRequestWithNoLabels).
 								Expect().
 								Status(http.StatusCreated).
 								JSON().Object().
@@ -177,11 +208,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("when obtaining the broker catalog fails because the broker is not reachable", func() {
 					BeforeEach(func() {
-						brokerServerJSON["broker_url"] = "http://localhost:12345"
+						postBrokerRequestWithNoLabels["broker_url"] = "http://localhost:12345"
 					})
 
 					It("returns 400", func() {
-						ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(brokerServerJSON).
+						ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(postBrokerRequestWithNoLabels).
 							Expect().
 							Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
 					})
@@ -197,7 +228,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 
 						It("returns correct response", func() {
-							responseVerifier(ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(brokerServerJSON).Expect())
+							responseVerifier(ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(postBrokerRequestWithNoLabels).Expect())
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 
@@ -213,7 +244,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 
 						It("returns correct response", func() {
-							responseVerifier(ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(brokerServerJSON).Expect())
+							responseVerifier(ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(postBrokerRequestWithNoLabels).Expect())
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 
@@ -300,7 +331,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					It("returns 400", func() {
 						ctx.SMWithOAuth.POST("/v1/service_brokers").
-							WithJSON(brokerServerJSON).
+							WithJSON(postBrokerRequestWithNoLabels).
 							Expect().Status(http.StatusBadRequest).
 							JSON().Object().
 							Keys().Contains("error", "description")
@@ -312,7 +343,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("when request is successful", func() {
 					assertPOSTReturns201 := func() {
 						It("returns 201", func() {
-							ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(brokerServerJSON).
+							ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(postBrokerRequestWithNoLabels).
 								Expect().
 								Status(http.StatusCreated).
 								JSON().Object().
@@ -325,7 +356,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("when broker URL does not end with trailing slash", func() {
 						BeforeEach(func() {
-							brokerServerJSON["broker_url"] = strings.TrimRight(cast.ToString(brokerServerJSON["broker_url"]), "/")
+							postBrokerRequestWithNoLabels["broker_url"] = strings.TrimRight(cast.ToString(postBrokerRequestWithNoLabels["broker_url"]), "/")
 							expectedBrokerResponse["broker_url"] = strings.TrimRight(cast.ToString(expectedBrokerResponse["broker_url"]), "/")
 						})
 
@@ -334,7 +365,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("when broker URL ends with trailing slash", func() {
 						BeforeEach(func() {
-							brokerServerJSON["broker_url"] = cast.ToString(brokerServerJSON["broker_url"]) + "/"
+							postBrokerRequestWithNoLabels["broker_url"] = cast.ToString(postBrokerRequestWithNoLabels["broker_url"]) + "/"
 							expectedBrokerResponse["broker_url"] = cast.ToString(expectedBrokerResponse["broker_url"]) + "/"
 						})
 
@@ -344,11 +375,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("when broker with name already exists", func() {
 					It("returns 409", func() {
-						ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(brokerServerJSON).
+						ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(postBrokerRequestWithNoLabels).
 							Expect().
 							Status(http.StatusCreated)
 
-						ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(brokerServerJSON).
+						ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(postBrokerRequestWithNoLabels).
 							Expect().
 							Status(http.StatusConflict).
 							JSON().Object().
@@ -357,13 +388,54 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						assertInvocationCount(brokerServer.CatalogEndpointRequests, 2)
 					})
 				})
+
+				Context("Labelled", func() {
+					Context("When labels are valid", func() {
+						It("should return 201", func() {
+							ctx.SMWithOAuth.POST("/v1/service_brokers").
+								WithJSON(postBrokerRequestWithLabels).
+								Expect().Status(http.StatusCreated).JSON().Object().Keys().Contains("id", "labels")
+						})
+					})
+
+					Context("When creating labeled broker with key containing forbidden character", func() {
+						It("Should return 400", func() {
+							labels[fmt.Sprintf("containing%cseparator", query.Separator)] = common.Array{"val"}
+							ctx.SMWithOAuth.POST("/v1/service_brokers").
+								WithJSON(postBrokerRequestWithLabels).
+								Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains("cannot contain whitespaces and special symbol")
+						})
+					})
+
+					Context("When label key has new line", func() {
+						It("Should return 400", func() {
+							labels[`key with
+	new line`] = common.Array{"label-value"}
+							ctx.SMWithOAuth.POST("/v1/service_brokers").
+								WithJSON(postBrokerRequestWithLabels).
+								Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains("cannot contain whitespaces and special symbol")
+						})
+					})
+
+					Context("When label value has new line", func() {
+						It("Should return 400", func() {
+							labels["cluster_id"] = common.Array{`{
+	"key": "k1",
+	"val": "val1"
+	}`}
+							ctx.SMWithOAuth.POST("/v1/service_brokers").
+								WithJSON(postBrokerRequestWithLabels).
+								Expect().Status(http.StatusBadRequest)
+						})
+					})
+				})
 			})
 
 			Describe("PATCH", func() {
 				var brokerID string
 
 				BeforeEach(func() {
-					reply := ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(brokerServerJSON).
+					reply := ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(postBrokerRequestWithNoLabels).
 						Expect().
 						Status(http.StatusCreated).
 						JSON().Object().
@@ -390,7 +462,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("when broker is missing", func() {
 					It("returns 404", func() {
 						ctx.SMWithOAuth.PATCH("/v1/service_brokers/no_such_id").
-							WithJSON(brokerServerJSON).
+							WithJSON(postBrokerRequestWithNoLabels).
 							Expect().Status(http.StatusNotFound).
 							JSON().Object().
 							Keys().Contains("error", "description")
@@ -661,13 +733,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("when not updatable fields are provided in the request body", func() {
 					Context("when broker id is provided in request body", func() {
 						It("should not create the broker", func() {
-							brokerServerJSON = common.Object{"id": "123"}
+							postBrokerRequestWithNoLabels = common.Object{"id": "123"}
 							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
-								WithJSON(brokerServerJSON).
+								WithJSON(postBrokerRequestWithNoLabels).
 								Expect().
 								Status(http.StatusOK).
 								JSON().Object().
-								NotContainsMap(brokerServerJSON)
+								NotContainsMap(postBrokerRequestWithNoLabels)
 
 							ctx.SMWithOAuth.GET("/v1/service_brokers/123").
 								Expect().
@@ -679,7 +751,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("when unmodifiable fields are provided in the request body", func() {
 						BeforeEach(func() {
-							brokerServerJSON = common.Object{
+							postBrokerRequestWithNoLabels = common.Object{
 								"created_at": "2016-06-08T16:41:26Z",
 								"updated_at": "2016-06-08T16:41:26Z",
 								"services":   common.Array{common.Object{"name": "serviceName"}},
@@ -688,11 +760,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						It("should not change them", func() {
 							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
-								WithJSON(brokerServerJSON).
+								WithJSON(postBrokerRequestWithNoLabels).
 								Expect().
 								Status(http.StatusOK).
 								JSON().Object().
-								NotContainsMap(brokerServerJSON)
+								NotContainsMap(postBrokerRequestWithNoLabels)
 
 							ctx.SMWithOAuth.GET("/v1/service_brokers").
 								Expect().
@@ -707,11 +779,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("when obtaining the broker catalog fails because the broker is not reachable", func() {
 					BeforeEach(func() {
-						brokerServerJSON["broker_url"] = "http://localhost:12345"
+						postBrokerRequestWithNoLabels["broker_url"] = "http://localhost:12345"
 					})
 
 					It("returns 400", func() {
-						ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+brokerID).WithJSON(brokerServerJSON).
+						ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+brokerID).WithJSON(postBrokerRequestWithNoLabels).
 							Expect().
 							Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
 					})
@@ -726,7 +798,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					It("returns an error", func() {
 						ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+brokerID).
-							WithJSON(brokerServerJSON).
+							WithJSON(postBrokerRequestWithNoLabels).
 							Expect().Status(http.StatusBadRequest).
 							JSON().Object().
 							Keys().Contains("error", "description")
@@ -808,7 +880,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 
 						It("returns correct response", func() {
-							responseVerifier(ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).WithJSON(brokerServerJSON).Expect())
+							responseVerifier(ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).WithJSON(postBrokerRequestWithNoLabels).Expect())
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 
@@ -824,7 +896,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 
 						It("returns correct response", func() {
-							responseVerifier(ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).WithJSON(brokerServerJSON).Expect())
+							responseVerifier(ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).WithJSON(postBrokerRequestWithNoLabels).Expect())
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 
@@ -943,7 +1015,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							})
 
 							It("returns 409", func() {
-								ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+brokerID).WithJSON(brokerServerJSON).
+								ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+brokerID).WithJSON(postBrokerRequestWithNoLabels).
 									Expect().
 									Status(http.StatusConflict).JSON().Object().Keys().Contains("error", "description")
 
@@ -1089,7 +1161,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							})
 
 							It("returns 409", func() {
-								ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+brokerID).WithJSON(brokerServerJSON).
+								ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+brokerID).WithJSON(postBrokerRequestWithNoLabels).
 									Expect().
 									Status(http.StatusConflict).JSON().Object().Keys().Contains("error", "description")
 
@@ -1129,6 +1201,233 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 					})
 				})
+
+				Describe("Labelled", func() {
+					var id string
+					var patchLabels []query.LabelChange
+					var patchLabelsBody map[string]interface{}
+					changedLabelKey := "label_key"
+					changedLabelValues := []string{"label_value1", "label_value2"}
+					operation := query.AddLabelOperation
+					BeforeEach(func() {
+						patchLabels = []query.LabelChange{}
+					})
+					JustBeforeEach(func() {
+						patchLabelsBody = make(map[string]interface{})
+						patchLabels = append(patchLabels, query.LabelChange{
+							Operation: operation,
+							Key:       changedLabelKey,
+							Values:    changedLabelValues,
+						})
+						patchLabelsBody["labels"] = patchLabels
+
+						id = ctx.SMWithOAuth.POST("/v1/service_brokers").
+							WithJSON(postBrokerRequestWithLabels).
+							Expect().Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
+					})
+
+					Context("Add new label", func() {
+						It("Should return 200", func() {
+							label := types.Labels{changedLabelKey: changedLabelValues}
+							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+								WithJSON(patchLabelsBody).
+								Expect().
+								Status(http.StatusOK).JSON().Object().Value("labels").Object().ContainsMap(label)
+						})
+					})
+
+					Context("Add label with existing key and value", func() {
+						It("Should return 400", func() {
+							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+								WithJSON(patchLabelsBody).
+								Expect().
+								Status(http.StatusOK)
+
+							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+								WithJSON(patchLabelsBody).
+								Expect().
+								Status(http.StatusBadRequest)
+						})
+					})
+
+					Context("Add new label value", func() {
+						BeforeEach(func() {
+							operation = query.AddLabelValuesOperation
+							changedLabelKey = "cluster_id"
+							changedLabelValues = []string{"new-label-value"}
+						})
+						It("Should return 200", func() {
+							var labelValuesObj []interface{}
+							for _, val := range changedLabelValues {
+								labelValuesObj = append(labelValuesObj, val)
+							}
+							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+								WithJSON(patchLabelsBody).
+								Expect().
+								Status(http.StatusOK).JSON().
+								Path("$.labels").Object().Values().Path("$[*][*]").Array().Contains(labelValuesObj...)
+						})
+					})
+
+					Context("Add new label value to a non-existing label", func() {
+						BeforeEach(func() {
+							operation = query.AddLabelValuesOperation
+							changedLabelKey = "cluster_id_new"
+							changedLabelValues = []string{"new-label-value"}
+						})
+						It("Should return 200", func() {
+							var labelValuesObj []interface{}
+							for _, val := range changedLabelValues {
+								labelValuesObj = append(labelValuesObj, val)
+							}
+
+							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+								WithJSON(patchLabelsBody).
+								Expect().
+								Status(http.StatusOK).JSON().
+								Path("$.labels").Object().Values().Path("$[*][*]").Array().Contains(labelValuesObj...)
+						})
+					})
+
+					Context("Add duplicate label value", func() {
+						BeforeEach(func() {
+							operation = query.AddLabelValuesOperation
+							changedLabelKey = "cluster_id"
+							values := labels["cluster_id"].([]interface{})
+							changedLabelValues = []string{values[0].(string)}
+						})
+						It("Should return 400", func() {
+							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+								WithJSON(patchLabelsBody).
+								Expect().
+								Status(http.StatusBadRequest).JSON().Object().
+								Value("description").String().Contains("already exists")
+						})
+					})
+
+					Context("Remove a label", func() {
+						BeforeEach(func() {
+							operation = query.RemoveLabelOperation
+							changedLabelKey = "cluster_id"
+						})
+						It("Should return 200", func() {
+							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+								WithJSON(patchLabelsBody).
+								Expect().
+								Status(http.StatusOK).JSON().
+								Path("$.labels").Object().Keys().NotContains(changedLabelKey)
+						})
+					})
+
+					Context("Remove a label and providing no key", func() {
+						BeforeEach(func() {
+							operation = query.RemoveLabelOperation
+							changedLabelKey = ""
+						})
+						It("Should return 400", func() {
+							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+								WithJSON(patchLabelsBody).
+								Expect().
+								Status(http.StatusBadRequest)
+						})
+					})
+
+					Context("Remove a label key which does not exist", func() {
+						BeforeEach(func() {
+							operation = query.RemoveLabelOperation
+							changedLabelKey = "non-existing-ey"
+						})
+						It("Should return 400", func() {
+							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+								WithJSON(patchLabelsBody).
+								Expect().
+								Status(http.StatusBadRequest)
+						})
+					})
+
+					Context("Remove label values and providing a single value", func() {
+						var valueToRemove string
+						BeforeEach(func() {
+							operation = query.RemoveLabelValuesOperation
+							changedLabelKey = "cluster_id"
+							valueToRemove = labels[changedLabelKey].([]interface{})[0].(string)
+							changedLabelValues = []string{valueToRemove}
+						})
+						It("Should return 200", func() {
+							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+								WithJSON(patchLabelsBody).
+								Expect().
+								Status(http.StatusOK).JSON().
+								Path("$.labels[*].value[*]").Array().NotContains(valueToRemove)
+						})
+					})
+
+					Context("Remove label values and providing multiple values", func() {
+						var valuesToRemove []string
+						BeforeEach(func() {
+							operation = query.RemoveLabelValuesOperation
+							changedLabelKey = "org_id"
+							val1 := labels[changedLabelKey].([]interface{})[0].(string)
+							val2 := labels[changedLabelKey].([]interface{})[1].(string)
+							valuesToRemove = []string{val1, val2}
+							changedLabelValues = valuesToRemove
+						})
+						It("Should return 200", func() {
+							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+								WithJSON(patchLabelsBody).
+								Expect().
+								Status(http.StatusOK).JSON().
+								Path("$.labels[*].value[*]").Array().NotContains(valuesToRemove)
+						})
+					})
+
+					Context("Remove all label values for a key", func() {
+						var valuesToRemove []string
+						BeforeEach(func() {
+							operation = query.RemoveLabelValuesOperation
+							changedLabelKey = "cluster_id"
+							labelValues := labels[changedLabelKey].([]interface{})
+							for _, val := range labelValues {
+								valuesToRemove = append(valuesToRemove, val.(string))
+							}
+							changedLabelValues = valuesToRemove
+						})
+						It("Should return 200 with this key gone", func() {
+							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+								WithJSON(patchLabelsBody).
+								Expect().
+								Status(http.StatusOK).JSON().
+								Path("$.labels[*].key[*]").Array().NotContains(changedLabelKey)
+						})
+					})
+
+					Context("Remove label values and not providing value to remove", func() {
+						BeforeEach(func() {
+							operation = query.RemoveLabelValuesOperation
+							changedLabelValues = []string{}
+						})
+						It("Should return 400", func() {
+							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+								WithJSON(patchLabelsBody).
+								Expect().
+								Status(http.StatusBadRequest)
+						})
+					})
+
+					Context("Remove label value which does not exist", func() {
+						BeforeEach(func() {
+							operation = query.RemoveLabelValuesOperation
+							changedLabelKey = "cluster_id"
+							changedLabelValues = []string{"non-existing-value"}
+						})
+						It("Should return 400", func() {
+							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+								WithJSON(patchLabelsBody).
+								Expect().
+								Status(http.StatusBadRequest)
+						})
+					})
+				})
 			})
 		})
 	},
@@ -1147,4 +1446,10 @@ func blueprint(withNullableFields bool) func(ctx *common.TestContext) common.Obj
 		delete(obj, "credentials")
 		return obj
 	}
+}
+
+type labeledBroker common.Object
+
+func (b labeledBroker) AddLabel(label common.Object) {
+	b["labels"] = append(b["labels"].(common.Array), label)
 }

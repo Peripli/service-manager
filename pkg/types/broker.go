@@ -42,6 +42,8 @@ type Broker struct {
 	Credentials *Credentials `json:"credentials,omitempty" structs:"-"`
 
 	Services []*ServiceOffering `json:"services,omitempty" structs:"-"`
+
+	Labels Labels `json:"labels,omitempty"`
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
@@ -52,10 +54,16 @@ func (b *Broker) Validate() error {
 	if b.BrokerURL == "" {
 		return errors.New("missing broker url")
 	}
+
+	if err := b.Labels.Validate(); err != nil {
+		return err
+	}
+
 	if b.Credentials == nil {
 		return errors.New("missing credentials")
 	}
 	return b.Credentials.Validate()
+
 }
 
 // MarshalJSON override json serialization for http response
@@ -75,6 +83,17 @@ func (b *Broker) MarshalJSON() ([]byte, error) {
 	if !b.UpdatedAt.IsZero() {
 		str := util.ToRFCFormat(b.UpdatedAt)
 		toMarshal.UpdatedAt = &str
+	}
+
+	hasNoLabels := true
+	for key, values := range b.Labels {
+		if key != "" && len(values) != 0 {
+			hasNoLabels = false
+			break
+		}
+	}
+	if hasNoLabels {
+		toMarshal.Labels = nil
 	}
 
 	return json.Marshal(toMarshal)

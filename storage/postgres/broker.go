@@ -18,6 +18,12 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
+	"time"
+
+	"github.com/Peripli/service-manager/pkg/log"
+
+	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/pkg/query"
 
@@ -31,31 +37,84 @@ type brokerStorage struct {
 func (bs *brokerStorage) Create(ctx context.Context, broker *types.Broker) (string, error) {
 	b := &Broker{}
 	b.FromDTO(broker)
-	return create(ctx, bs.db, brokerTable, b)
+	id, err := create(ctx, bs.db, brokerTable, b)
+	if err != nil {
+		return "", err
+	}
+	return id, bs.createLabels(ctx, id, broker.Labels)
+}
+
+func (bs *brokerStorage) createLabels(ctx context.Context, brokerID string, labels types.Labels) error {
+	vls := brokerLabels{}
+	if err := vls.FromDTO(brokerID, labels); err != nil {
+		return err
+	}
+	if err := vls.Validate(); err != nil {
+		return err
+	}
+	for _, label := range vls {
+		if _, err := create(ctx, bs.db, brokerLabelsTable, label); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (bs *brokerStorage) Get(ctx context.Context, id string) (*types.Broker, error) {
-	broker := &Broker{}
-	if err := get(ctx, bs.db, id, brokerTable, broker); err != nil {
+	byID := query.ByField(query.EqualsOperator, "id", id)
+
+	brokers, err := bs.List(ctx, byID)
+	if err != nil {
 		return nil, err
 	}
-	return broker.ToDTO(), nil
+	if len(brokers) == 0 {
+		return nil, util.ErrNotFoundInStorage
+	}
+	return brokers[0], nil
 }
 
 func (bs *brokerStorage) List(ctx context.Context, criteria ...query.Criterion) ([]*types.Broker, error) {
-	var brokerDTOs []Broker
-	if err := validateFieldQueryParams(Broker{}, criteria); err != nil {
+	rows, err := listWithLabelsByCriteria(ctx, bs.db, Broker{}, &BrokerLabel{}, brokerTable, criteria)
+	defer func() {
+		if rows == nil {
+			return
+		}
+		if err := rows.Close(); err != nil {
+			log.C(ctx).Errorf("Could not release connection when checking database s. Error: %s", err)
+		}
+	}()
+	if err != nil {
 		return nil, err
 	}
-	err := listByFieldCriteria(ctx, bs.db, brokerTable, &brokerDTOs, criteria)
-	if err != nil || len(brokerDTOs) == 0 {
-		return []*types.Broker{}, err
+
+	brokers := make(map[string]*types.Broker)
+	labels := make(map[string]map[string][]string)
+	result := make([]*types.Broker, 0)
+	for rows.Next() {
+		row := struct {
+			*Broker
+			*BrokerLabel `db:"broker_labels"`
+		}{}
+		if err := rows.StructScan(&row); err != nil {
+			return nil, err
+		}
+		broker, ok := brokers[row.Broker.ID]
+		if !ok {
+			broker = row.Broker.ToDTO()
+			brokers[row.Broker.ID] = broker
+			result = append(result, broker)
+		}
+		if labels[broker.ID] == nil {
+			labels[broker.ID] = make(map[string][]string)
+		}
+		labels[broker.ID][row.BrokerLabel.Key.String] = append(labels[broker.ID][row.BrokerLabel.Key.String], row.BrokerLabel.Val.String)
 	}
-	brokers := make([]*types.Broker, 0, len(brokerDTOs))
-	for _, broker := range brokerDTOs {
-		brokers = append(brokers, broker.ToDTO())
+
+	for _, b := range result {
+		b.Labels = labels[b.ID]
 	}
-	return brokers, nil
+
+	return result, nil
 }
 
 func (bs *brokerStorage) Delete(ctx context.Context, criteria ...query.Criterion) error {
@@ -63,8 +122,36 @@ func (bs *brokerStorage) Delete(ctx context.Context, criteria ...query.Criterion
 
 }
 
-func (bs *brokerStorage) Update(ctx context.Context, broker *types.Broker) error {
+func (bs *brokerStorage) Update(ctx context.Context, broker *types.Broker, labelChanges ...*query.LabelChange) error {
 	b := &Broker{}
 	b.FromDTO(broker)
-	return update(ctx, bs.db, brokerTable, b)
+	if err := update(ctx, bs.db, brokerTable, b); err != nil {
+		return err
+	}
+	if err := bs.updateLabels(ctx, b.ID, labelChanges); err != nil {
+		return err
+	}
+	byBrokerID := query.ByField(query.EqualsOperator, "broker_id", b.ID)
+	var labels []*BrokerLabel
+	if err := listByFieldCriteria(ctx, bs.db, brokerLabelsTable, &labels, []query.Criterion{byBrokerID}); err != nil {
+		return err
+	}
+	brokerLabels := brokerLabels(labels)
+	broker.Labels = brokerLabels.ToDTO()
+	return nil
+}
+
+func (bs *brokerStorage) updateLabels(ctx context.Context, brokerID string, updateActions []*query.LabelChange) error {
+	now := time.Now()
+	newLabelFunc := func(labelID string, labelKey string, labelValue string) Labelable {
+		return &BrokerLabel{
+			ID:        sql.NullString{String: labelID, Valid: labelID != ""},
+			Key:       sql.NullString{String: labelKey, Valid: labelKey != ""},
+			Val:       sql.NullString{String: labelValue, Valid: labelValue != ""},
+			BrokerID:  sql.NullString{String: brokerID, Valid: brokerID != ""},
+			CreatedAt: &now,
+			UpdatedAt: &now,
+		}
+	}
+	return updateLabelsAbstract(ctx, newLabelFunc, bs.db, brokerID, updateActions)
 }

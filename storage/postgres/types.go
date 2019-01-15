@@ -37,6 +37,9 @@ const (
 	// brokerTable db table name for brokers
 	brokerTable = "brokers"
 
+	// brokerLabelsTable db table for brokers table
+	brokerLabelsTable = "broker_labels"
+
 	// serviceOfferingTable db table for service offerings
 	serviceOfferingTable = "service_offerings"
 
@@ -134,6 +137,72 @@ type Labelable interface {
 	Label() (labelTableName string, referenceColumnName string, primaryColumnName string)
 }
 
+type brokerLabels []*BrokerLabel
+
+func (bls brokerLabels) Validate() error {
+	pairs := make(map[string][]string)
+	for _, bl := range bls {
+		newKey := bl.Key.String
+		newValue := bl.Val.String
+		val, exists := pairs[newKey]
+		if exists && slice.StringsAnyEquals(val, newValue) {
+			return fmt.Errorf("duplicate label with key %s and value %s", newKey, newValue)
+		}
+		pairs[newKey] = append(pairs[newKey], newValue)
+	}
+	return nil
+}
+
+func (bls *brokerLabels) FromDTO(brokerID string, labels types.Labels) error {
+	now := time.Now()
+	for key, values := range labels {
+		for _, labelValue := range values {
+			UUID, err := uuid.NewV4()
+			if err != nil {
+				return fmt.Errorf("could not generate GUID for broker label: %s", err)
+			}
+			id := UUID.String()
+			bLabel := &BrokerLabel{
+				ID:        sql.NullString{String: id, Valid: id != ""},
+				Key:       sql.NullString{String: key, Valid: key != ""},
+				Val:       sql.NullString{String: labelValue, Valid: labelValue != ""},
+				CreatedAt: &now,
+				UpdatedAt: &now,
+				BrokerID:  sql.NullString{String: brokerID, Valid: brokerID != ""},
+			}
+			*bls = append(*bls, bLabel)
+		}
+	}
+	return nil
+}
+
+func (bls *brokerLabels) ToDTO() types.Labels {
+	labelValues := make(map[string][]string)
+	for _, label := range *bls {
+		values, exists := labelValues[label.Key.String]
+		if exists {
+			labelValues[label.Key.String] = append(values, label.Val.String)
+		} else {
+			labelValues[label.Key.String] = []string{label.Val.String}
+		}
+	}
+	return labelValues
+}
+
+type BrokerLabel struct {
+	ID        sql.NullString `db:"id"`
+	Key       sql.NullString `db:"key"`
+	Val       sql.NullString `db:"val"`
+	CreatedAt *time.Time     `db:"created_at"`
+	UpdatedAt *time.Time     `db:"updated_at"`
+	BrokerID  sql.NullString `db:"broker_id"`
+}
+
+func (bl *BrokerLabel) Label() (labelTableName string, referenceColumnName string, primaryColumnName string) {
+	labelTableName, referenceColumnName, primaryColumnName = brokerLabelsTable, "broker_id", "id"
+	return
+}
+
 type visibilityLabels []*VisibilityLabel
 
 func (vls visibilityLabels) Validate() error {
@@ -214,6 +283,7 @@ func (b *Broker) ToDTO() *types.Broker {
 				Password: b.Password,
 			},
 		},
+		Labels: make(map[string][]string),
 	}
 	return broker
 }

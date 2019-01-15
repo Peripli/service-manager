@@ -141,7 +141,7 @@ type Broker interface {
 	Delete(ctx context.Context, criteria ...query.Criterion) error
 
 	// Update updates a broker from SM DB
-	Update(ctx context.Context, broker *types.Broker) error
+	Update(ctx context.Context, broker *types.Broker, labelChanges ...*query.LabelChange) error
 }
 
 // Platform interface for Platform DB operations
