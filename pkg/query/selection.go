@@ -44,7 +44,10 @@ const (
 	NotInOperator Operator = "notin"
 	// EqualsOrNilOperator takes two operands and tests if the left is equal to the right, or if the left is nil
 	EqualsOrNilOperator Operator = "eqornil"
-	ExistsOperator      Operator = "exists"
+	// ExistsOperator takes one operand and tests if any value for this operand exists
+	ExistsOperator Operator = "exists"
+	// NotExistsOperator takes one operand and tests if no value for this operand exists
+	NotExistsOperator Operator = "notexists"
 )
 
 // IsMultiVariate returns true if the operator requires right operand with multiple values
@@ -53,7 +56,7 @@ func (op Operator) IsMultiVariate() bool {
 }
 
 func (op Operator) IsUnary() bool {
-	return op == ExistsOperator
+	return op == ExistsOperator || op == NotExistsOperator
 }
 
 // IsNullable returns true if the operator can check if the left operand is nil
@@ -67,7 +70,7 @@ func (op Operator) IsNumeric() bool {
 }
 
 var operators = []Operator{EqualsOperator, NotEqualsOperator, InOperator,
-	NotInOperator, GreaterThanOperator, LessThanOperator, EqualsOrNilOperator, ExistsOperator}
+	NotInOperator, GreaterThanOperator, LessThanOperator, EqualsOrNilOperator, ExistsOperator, NotExistsOperator}
 
 const (
 	// OpenBracket is the token that denotes the beginning of a multivariate operand
@@ -148,7 +151,7 @@ func (c Criterion) Validate() error {
 		return &UnsupportedQueryError{Message: fmt.Sprintf("whitespace is not allowed in %s with left operand \"%s\"", c.Type, c.LeftOp)}
 	}
 	if c.Operator.IsUnary() && c.Type != LabelQuery {
-		return &UnsupportedQueryError{Message: fmt.Sprintf("operator %s is only applicable for label queries", c.Operator)}
+		return &UnsupportedQueryError{Message: fmt.Sprintf("unary operator %s is only applicable for label queries", c.Operator)}
 	}
 	for _, op := range c.RightOp {
 		if strings.ContainsRune(op, '\n') {

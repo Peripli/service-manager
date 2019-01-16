@@ -128,7 +128,7 @@ var _ = Describe("Selection", func() {
 			})
 		})
 
-		Context("When passing single key label query", func() {
+		Context("When passing exists label query", func() {
 			It("Should result in exists criterion", func() {
 				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?labelQuery=leftop1 exists|leftop2 exists")
 				Expect(err).ToNot(HaveOccurred())
@@ -136,9 +136,25 @@ var _ = Describe("Selection", func() {
 			})
 		})
 
-		Context("When passing single key field query", func() {
+		Context("When passing exists field query", func() {
 			It("Should return an error", func() {
 				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop1 exists")
+				Expect(err).To(HaveOccurred())
+				Expect(criteriaFromRequest).To(BeNil())
+			})
+		})
+
+		Context("When passing notexists label query", func() {
+			It("Should result in notexists criterion", func() {
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?labelQuery=leftop1 notexists|leftop2 notexists")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(criteriaFromRequest).To(ConsistOf(ByLabel(NotExistsOperator, "leftop1"), ByLabel(NotExistsOperator, "leftop2")))
+			})
+		})
+
+		Context("When passing notexists field query", func() {
+			It("Should return an error", func() {
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop1 notexists")
 				Expect(err).To(HaveOccurred())
 				Expect(criteriaFromRequest).To(BeNil())
 			})

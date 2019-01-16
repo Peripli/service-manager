@@ -160,7 +160,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 		})
 
 		Context("When querying with exists label key", func() {
-			FIt("Should construct correct SQL query", func() {
+			It("Should construct correct SQL query", func() {
 				labelKey := "label_key"
 				labelEntity := &VisibilityLabel{}
 				_, referenceColumnName, primaryColumnName := labelEntity.Label()

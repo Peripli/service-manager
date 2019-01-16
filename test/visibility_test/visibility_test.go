@@ -922,6 +922,48 @@ new line`] = common.Array{"label-value"}
 						Expect().Status(http.StatusBadRequest)
 				})
 			})
+
+			Context("When requesting visibility with label key", func() {
+				It("Should return it", func() {
+					labelKey := "cluster_id"
+
+					visibilityJSON := ctx.SMWithOAuth.GET("/v1/visibilities/" + id).
+						Expect().
+						Status(http.StatusOK).JSON().Raw()
+
+					ctx.SMWithOAuth.GET("/v1/visibilities").
+						WithQuery(string(query.LabelQuery), fmt.Sprintf("%s exists", labelKey)).
+						Expect().
+						Status(http.StatusOK).JSON().Object().Value("visibilities").Array().ContainsOnly(visibilityJSON)
+				})
+			})
+
+			Context("When requesting visibility with not existing label key", func() {
+				It("Should return all without this key", func() {
+					labelKey := "new_key"
+					newVisibility := postVisibilityRequestNoLabels
+					newVisibility["labels"] = common.Object{
+						labelKey: common.Array{"some-value"},
+					}
+					newVisibilityID := ctx.SMWithOAuth.POST("/v1/visibilities").
+						WithJSON(newVisibility).
+						Expect().Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
+
+					newVisibilityJSON := ctx.SMWithOAuth.GET("/v1/visibilities/" + newVisibilityID).
+						Expect().
+						Status(http.StatusOK).JSON().Raw()
+
+					oldVisibilityJSON := ctx.SMWithOAuth.GET("/v1/visibilities/" + id).
+						Expect().
+						Status(http.StatusOK).JSON().Raw()
+
+					ctx.SMWithOAuth.GET("/v1/visibilities").
+						WithQuery(string(query.LabelQuery), "new_key notexists|cluster_id exists").
+						Expect().
+						Status(http.StatusOK).JSON().Object().Value("visibilities").
+						Array().NotContains(newVisibilityJSON).Contains(oldVisibilityJSON)
+				})
+			})
 		})
 
 		Describe("PATCH", func() {

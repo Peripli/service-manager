@@ -105,22 +105,42 @@ func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTable
 
 	if len(labelCriteria) > 0 {
 		labelTableName, referenceColumnName, _ := labelable.Label()
-		labelSubQuery := fmt.Sprintf("(SELECT * FROM %[1]s WHERE %[2]s IN (SELECT %[2]s FROM %[1]s WHERE ", labelTableName, referenceColumnName)
-		for _, option := range labelCriteria {
-			if option.Operator.IsUnary() {
-				unaryOperator := translateUnaryOperator(option.Operator)
-				labelQueries = append(labelQueries, fmt.Sprintf("(%[1]s.key %[2]s ?)", labelTableName, unaryOperator))
+		notExistsLabelCriteria, otherLabelCriteria := splitLabelCriteriaByNotExists(labelCriteria)
+		inclusionOperator := "IN"
+		var labelSubQuery string
+		if len(notExistsLabelCriteria) > 0 {
+			inclusionOperator = "NOT IN"
+			labelSubQuery = fmt.Sprintf("(SELECT * FROM %[1]s WHERE %[2]s %[3]s (SELECT %[2]s FROM %[1]s WHERE ", labelTableName, referenceColumnName, inclusionOperator)
+			for _, option := range notExistsLabelCriteria {
+				labelQueries = append(labelQueries, fmt.Sprintf("(%[1]s.key = ?)", labelTableName))
 				queryParams = append(queryParams, option.LeftOp)
-			} else {
-				sqlOperation := translateOperationToSQLEquivalent(option.Operator)
-				rightOpBindVar, rightOpQueryValue := buildRightOp(option)
-				labelQueries = append(labelQueries, fmt.Sprintf("(%[1]s.key = ? AND %[1]s.val %[2]s %s)", labelTableName, sqlOperation, rightOpBindVar))
-				queryParams = append(queryParams, option.LeftOp, rightOpQueryValue)
 			}
+			labelSubQuery += strings.Join(labelQueries, " OR ")
+			labelQueries = []string{}
+			labelSubQuery += ")"
 		}
-		labelSubQuery += strings.Join(labelQueries, " OR ")
-		labelSubQuery += "))"
-
+		if len(otherLabelCriteria) > 0 {
+			labelSubQuery2 := fmt.Sprintf("(SELECT * FROM %[1]s WHERE %[2]s IN (SELECT %[2]s FROM %[1]s WHERE ", labelTableName, referenceColumnName)
+			if inclusionOperator == "NOT IN" {
+				labelSubQuery += " AND "
+				labelSubQuery2 = fmt.Sprintf("%[2]s IN (SELECT %[2]s FROM %[1]s WHERE ", labelTableName, referenceColumnName)
+			}
+			for _, option := range otherLabelCriteria {
+				var valQuery string
+				keyQuery := fmt.Sprintf("%[1]s.key = ?", labelTableName)
+				queryParams = append(queryParams, option.LeftOp)
+				if option.Operator != query.ExistsOperator {
+					sqlOperation := translateOperationToSQLEquivalent(option.Operator)
+					rightOpBindVar, rightOpQueryValue := buildRightOp(option)
+					valQuery = fmt.Sprintf(" AND %[1]s.val %[2]s %s", labelTableName, sqlOperation, rightOpBindVar)
+					queryParams = append(queryParams, rightOpQueryValue)
+				}
+				labelQueries = append(labelQueries, fmt.Sprintf("(%s%s)", keyQuery, valQuery))
+			}
+			labelSubQuery2 += strings.Join(labelQueries, " OR ")
+			labelSubQuery2 += "))"
+			labelSubQuery += labelSubQuery2
+		}
 		sqlQuery = strings.Replace(sqlQuery, "LEFT JOIN", "JOIN "+labelSubQuery, 1)
 	}
 
@@ -149,6 +169,17 @@ func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTable
 	}
 	sqlQuery = extContext.Rebind(sqlQuery)
 	return sqlQuery, queryParams, nil
+}
+
+func splitLabelCriteriaByNotExists(criteria []query.Criterion) (notExistsLabelCriteria []query.Criterion, otherLabelCriteria []query.Criterion) {
+	for _, c := range criteria {
+		if c.Operator == query.NotExistsOperator {
+			notExistsLabelCriteria = append(notExistsLabelCriteria, c)
+		} else {
+			otherLabelCriteria = append(otherLabelCriteria, c)
+		}
+	}
+	return
 }
 
 func splitCriteriaByType(criteria []query.Criterion) ([]query.Criterion, []query.Criterion) {
@@ -194,15 +225,6 @@ func translateOperationToSQLEquivalent(operator query.Operator) string {
 	case query.NotInOperator:
 		return "NOT IN"
 	case query.EqualsOrNilOperator:
-		return "="
-	default:
-		return strings.ToUpper(string(operator))
-	}
-}
-
-func translateUnaryOperator(operator query.Operator) string {
-	switch operator {
-	case query.ExistsOperator:
 		return "="
 	default:
 		return strings.ToUpper(string(operator))
