@@ -60,7 +60,7 @@ type Settings struct {
 // DefaultSettings returns default values for Log settings
 func DefaultSettings() *Settings {
 	return &Settings{
-		Level:  "debug",
+		Level:  "error",
 		Format: "text",
 		Output: os.Stdout,
 	}

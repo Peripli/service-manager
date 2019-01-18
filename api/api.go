@@ -113,9 +113,10 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 			bearerAuthnFilter,
 			secfilters.NewRequiredAuthnFilter(),
 			&filters.SelectionCriteria{},
-			&filters.FreeServicePlansFilter{
-				Repository: repository,
-			},
+			// disable until next phase
+			//&filters.FreeServicePlansFilter{
+			//	Repository: repository,
+			//},
 		},
 		Registry: health.NewDefaultRegistry(),
 	}, nil

@@ -109,10 +109,10 @@ func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTable
 		for _, option := range labelCriteria {
 			rightOpBindVar, rightOpQueryValue := buildRightOp(option)
 			sqlOperation := translateOperationToSQLEquivalent(option.Operator)
-			labelQueries = append(labelQueries, fmt.Sprintf("%[1]s.key = ? AND %[1]s.val %[2]s %s", labelTableName, sqlOperation, rightOpBindVar))
+			labelQueries = append(labelQueries, fmt.Sprintf("(%[1]s.key = ? AND %[1]s.val %[2]s %s)", labelTableName, sqlOperation, rightOpBindVar))
 			queryParams = append(queryParams, option.LeftOp, rightOpQueryValue)
 		}
-		labelSubQuery += strings.Join(labelQueries, " AND ")
+		labelSubQuery += strings.Join(labelQueries, " OR ")
 		labelSubQuery += "))"
 
 		sqlQuery = strings.Replace(sqlQuery, "LEFT JOIN", "JOIN "+labelSubQuery, 1)
@@ -123,7 +123,7 @@ func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTable
 		for _, option := range fieldCriteria {
 			rightOpBindVar, rightOpQueryValue := buildRightOp(option)
 			sqlOperation := translateOperationToSQLEquivalent(option.Operator)
-			clause := fmt.Sprintf("%s.%s %s %s", baseTableName, option.LeftOp, sqlOperation, rightOpBindVar)
+			clause := fmt.Sprintf("%s.%s::text %s %s", baseTableName, option.LeftOp, sqlOperation, rightOpBindVar)
 			if option.Operator.IsNullable() {
 				clause = fmt.Sprintf("(%s OR %s.%s IS NULL)", clause, baseTableName, option.LeftOp)
 			}

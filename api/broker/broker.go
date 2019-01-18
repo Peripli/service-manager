@@ -50,6 +50,13 @@ func (c *Controller) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodDelete,
+				Path:   web.BrokersURL,
+			},
+			Handler: c.deleteBrokers,
+		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodDelete,
 				Path:   web.BrokersURL + "/{broker_id}",
 			},
 			Handler: c.deleteBroker,

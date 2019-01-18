@@ -135,13 +135,13 @@ type Broker interface {
 	Get(ctx context.Context, id string) (*types.Broker, error)
 
 	// List retrieves all brokers from SM DB
-	List(ctx context.Context) ([]*types.Broker, error)
+	List(ctx context.Context, criteria ...query.Criterion) ([]*types.Broker, error)
 
 	// Delete deletes a broker from SM DB
-	Delete(ctx context.Context, id string) error
+	Delete(ctx context.Context, criteria ...query.Criterion) error
 
 	// Update updates a broker from SM DB
-	Update(ctx context.Context, broker *types.Broker) error
+	Update(ctx context.Context, broker *types.Broker, labelChanges ...*query.LabelChange) error
 }
 
 // Platform interface for Platform DB operations
@@ -153,10 +153,10 @@ type Platform interface {
 	Get(ctx context.Context, id string) (*types.Platform, error)
 
 	// List retrieves all platforms from SM DB
-	List(ctx context.Context) ([]*types.Platform, error)
+	List(ctx context.Context, criteria ...query.Criterion) ([]*types.Platform, error)
 
 	// Delete deletes a platform from SM DB
-	Delete(ctx context.Context, id string) error
+	Delete(ctx context.Context, criteria ...query.Criterion) error
 
 	// Update updates a platform from SM DB
 	Update(ctx context.Context, platform *types.Platform) error
@@ -171,17 +171,14 @@ type ServiceOffering interface {
 	// Get retrieves a service offering using the provided id from SM DB
 	Get(ctx context.Context, id string) (*types.ServiceOffering, error)
 
-	// ListByCatalogName retrieves all service offerings from SM DB that match the specified catalog name
-	ListByCatalogName(ctx context.Context, name string) ([]*types.ServiceOffering, error)
+	// List retrieves all service offerings from SM DB
+	List(ctx context.Context, criteria ...query.Criterion) ([]*types.ServiceOffering, error)
 
 	// ListWithServicePlansByBrokerID retrieves all service offerings with their service plans from SM DB that match the specified broker ID
 	ListWithServicePlansByBrokerID(ctx context.Context, brokerID string) ([]*types.ServiceOffering, error)
 
-	// List retrieves all service offerings from SM DB
-	List(ctx context.Context) ([]*types.ServiceOffering, error)
-
 	// Delete deletes a service offering from SM DB
-	Delete(ctx context.Context, id string) error
+	Delete(ctx context.Context, criteria ...query.Criterion) error
 
 	// Update updates a service offering from SM DB
 	Update(ctx context.Context, serviceOffering *types.ServiceOffering) error
@@ -195,14 +192,11 @@ type ServicePlan interface {
 	// Get retrieves a service plan using the provided id from SM DB
 	Get(ctx context.Context, id string) (*types.ServicePlan, error)
 
-	// ListByCatalogName retrieves all service plans from SM DB that match the specified catalog name
-	ListByCatalogName(ctx context.Context, name string) ([]*types.ServicePlan, error)
-
 	// List retrieves all service plans from SM DB
-	List(ctx context.Context) ([]*types.ServicePlan, error)
+	List(ctx context.Context, criteria ...query.Criterion) ([]*types.ServicePlan, error)
 
 	// Delete deletes a  service plan from SM DB
-	Delete(ctx context.Context, id string) error
+	Delete(ctx context.Context, criteria ...query.Criterion) error
 
 	// Update updates a service plan from SM DB
 	Update(ctx context.Context, servicePlan *types.ServicePlan) error
