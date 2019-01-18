@@ -177,7 +177,7 @@ type TestContext struct {
 	brokers      map[string]*BrokerServer
 }
 
-func (ctx *TestContext) RegisterBrokerWithCatalog(catalog SBCatalog) (string, Object, *BrokerServer) {
+func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, labels Object) (string, Object, *BrokerServer) {
 	brokerServer := NewBrokerServerWithCatalog(catalog)
 	UUID, err := uuid.NewV4()
 	if err != nil {
@@ -199,12 +199,21 @@ func (ctx *TestContext) RegisterBrokerWithCatalog(catalog SBCatalog) (string, Ob
 		},
 	}
 
+	if len(labels) != 0 {
+		brokerJSON["labels"] = labels
+	}
+
 	brokerID := RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth)
 	brokerServer.ResetCallHistory()
 	ctx.brokers[brokerID] = brokerServer
 	brokerJSON["id"] = brokerID
 	return brokerID, brokerJSON, brokerServer
 }
+
+func (ctx *TestContext) RegisterBrokerWithCatalog(catalog SBCatalog) (string, Object, *BrokerServer) {
+	return ctx.RegisterBrokerWithCatalogAndLabels(catalog, Object{})
+}
+
 func (ctx *TestContext) RegisterBroker() (string, Object, *BrokerServer) {
 	return ctx.RegisterBrokerWithCatalog(NewRandomSBCatalog())
 }
