@@ -40,8 +40,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	SupportedOps: []test.Op{
 		test.Get, test.List,
 	},
-	RndResourceBlueprint:                      blueprint,
-	RndResourceWithoutNullableFieldsBlueprint: blueprint,
+	ResourceBlueprint:                      blueprint,
+	ResourceWithoutNullableFieldsBlueprint: blueprint,
 })
 
 func blueprint(ctx *common.TestContext) common.Object {

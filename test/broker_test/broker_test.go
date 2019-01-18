@@ -48,8 +48,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	SupportedOps: []test.Op{
 		test.Get, test.List, test.Delete, test.DeleteList,
 	},
-	RndResourceBlueprint:                      blueprint(true),
-	RndResourceWithoutNullableFieldsBlueprint: blueprint(false),
+	ResourceBlueprint:                      blueprint(true),
+	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
 	AdditionalTests: func(ctx *common.TestContext) {
 		Context("additional non-generic tests", func() {
 			var (
@@ -769,7 +769,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							ctx.SMWithOAuth.GET("/v1/service_brokers").
 								Expect().
 								Status(http.StatusOK).
-								JSON().Object().Value("service_brokers").Array().First().Object().
+								JSON().Object().Value("brokers").Array().First().Object().
 								ContainsMap(expectedBrokerResponse)
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
@@ -1433,11 +1433,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func blueprint(withNullableFields bool) func(ctx *common.TestContext) common.Object {
+func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext) common.Object {
 	return func(ctx *common.TestContext) common.Object {
 		brokerJSON := common.GenerateRandomBroker()
 
-		if !withNullableFields {
+		if !setNullFieldsValues {
 			delete(brokerJSON, "description")
 		}
 		obj := ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(brokerJSON).

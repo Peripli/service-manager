@@ -40,8 +40,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	SupportedOps: []test.Op{
 		test.Get, test.List, test.Delete, test.DeleteList,
 	},
-	RndResourceBlueprint:                      blueprint(true),
-	RndResourceWithoutNullableFieldsBlueprint: blueprint(false),
+	ResourceBlueprint:                      blueprint(true),
+	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
 	AdditionalTests: func(ctx *common.TestContext) {
 		Context("non-generic tests", func() {
 			BeforeEach(func() {
@@ -286,10 +286,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func blueprint(withNullableFields bool) func(ctx *common.TestContext) common.Object {
+func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext) common.Object {
 	return func(ctx *common.TestContext) common.Object {
 		randomPlatform := common.GenerateRandomPlatform()
-		if !withNullableFields {
+		if !setNullFieldsValues {
 			delete(randomPlatform, "description")
 		}
 		platform := ctx.SMWithOAuth.POST("/v1/platforms").WithJSON(randomPlatform).

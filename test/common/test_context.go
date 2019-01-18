@@ -33,7 +33,6 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/sm"
-	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 )
@@ -88,7 +87,7 @@ func TestEnv(additionalFlagFuncs ...func(set *pflag.FlagSet)) env.Environment {
 }
 
 type ContextParams struct {
-	RegisterExtensions func(api *web.API)
+	RegisterExtensions func(smb *sm.ServiceManagerBuilder)
 	DefaultTokenClaims map[string]interface{}
 	Env                env.Environment
 }
@@ -126,7 +125,7 @@ func NewSMServer(params *ContextParams, issuerURL string) *httptest.Server {
 	ctx = log.Configure(ctx, s.Log)
 	smanagerBuilder := sm.New(ctx, cancel, smEnv)
 	if params.RegisterExtensions != nil {
-		params.RegisterExtensions(smanagerBuilder.API)
+		params.RegisterExtensions(smanagerBuilder)
 	}
 	serviceManager := smanagerBuilder.Build()
 	return httptest.NewServer(serviceManager.Server.Router)

@@ -45,31 +45,19 @@ import (
 type Object = map[string]interface{}
 type Array = []interface{}
 
-func RmNonNumericArgs(obj Object) Object {
-	o := CopyObject(obj)
-
-	for k, v := range o {
-		if k == "labels" {
-			labels := v.(map[string]interface{})
-			for lKey, lValues := range labels {
-				lVals := lValues.([]interface{})
-				for index, lValue := range lVals {
-					if !isNumeric(lValue) {
-						labels[lKey] = append(lVals[:index], lVals[index+1:]...)
-					}
-				}
-				if len(lVals) == 0 {
-					delete(labels, lKey)
-				}
-			}
-		} else if !isNumeric(v) {
-			delete(o, k)
-		}
-	}
-	return o
+func RemoveNonNumericArgs(obj Object) Object {
+	return removeOnCondition(isNotNumeric, obj)
 }
 
-func RmNumericArgs(obj Object) Object {
+func RemoveNumericArgs(obj Object) Object {
+	return removeOnCondition(isNumeric, obj)
+}
+
+func RemoveNonJSONArgs(obj Object) Object {
+	return removeOnCondition(isNotJSON, obj)
+}
+
+func removeOnCondition(condition func(arg interface{}) bool, obj Object) Object {
 	o := CopyObject(obj)
 
 	for k, v := range o {
@@ -78,7 +66,7 @@ func RmNumericArgs(obj Object) Object {
 			for lKey, lValues := range labels {
 				lVals := lValues.([]interface{})
 				for index, lValue := range lVals {
-					if isNumeric(lValue) {
+					if condition(lValue) {
 						labels[lKey] = append(lVals[:index], lVals[index+1:]...)
 					}
 				}
@@ -86,7 +74,7 @@ func RmNumericArgs(obj Object) Object {
 					delete(labels, lKey)
 				}
 			}
-		} else if isNumeric(v) {
+		} else if condition(v) {
 			delete(o, k)
 		}
 	}
@@ -108,6 +96,10 @@ func isJson(arg interface{}) bool {
 	return false
 }
 
+func isNotJSON(arg interface{}) bool {
+	return !isJson(arg)
+}
+
 func isNumeric(arg interface{}) bool {
 	if _, err := strconv.Atoi(fmt.Sprintf("%v", arg)); err == nil {
 		return true
@@ -118,34 +110,11 @@ func isNumeric(arg interface{}) bool {
 	return false
 }
 
-func RmNonJSONArgs(obj Object) Object {
-	o := CopyObject(obj)
-
-	for k, v := range o {
-		if k == "labels" {
-			labels := v.(map[string]interface{})
-			for lKey, lValues := range labels {
-				lVals := lValues.([]interface{})
-				for index, lValue := range lVals {
-					if !isJson(lValue) {
-						if len(lVals) == index {
-							index--
-						}
-						labels[lKey] = append(lVals[:index], lVals[index+1:]...)
-					}
-				}
-				if len(lVals) == 0 {
-					delete(labels, lKey)
-				}
-			}
-		} else if !isJson(v) {
-			delete(o, k)
-		}
-	}
-	return o
+func isNotNumeric(arg interface{}) bool {
+	return !isNumeric(arg)
 }
 
-func RmNotNullableFieldAndLabels(obj Object, objithMandatoryFields Object) Object {
+func RemoveNotNullableFieldAndLabels(obj Object, objithMandatoryFields Object) Object {
 	o := CopyObject(obj)
 	for objField, objVal := range objithMandatoryFields {
 		if str, ok := objVal.(string); ok && len(str) == 0 {
@@ -193,7 +162,7 @@ func MapContains(actual Object, expected Object) {
 }
 
 func RemoveAllBrokers(SM *httpexpect.Expect) {
-	removeAll(SM, "service_brokers", "/v1/service_brokers")
+	removeAll(SM, "brokers", "/v1/service_brokers")
 }
 
 func RemoveAllPlatforms(SM *httpexpect.Expect) {

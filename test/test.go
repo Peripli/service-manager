@@ -39,9 +39,9 @@ type TestCase struct {
 	SupportsLabels bool
 	SupportedOps   []Op
 
-	RndResourceBlueprint                      func(ctx *common.TestContext) common.Object
-	RndResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext) common.Object
-	AdditionalTests                           func(ctx *common.TestContext)
+	ResourceBlueprint                      func(ctx *common.TestContext) common.Object
+	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext) common.Object
+	AdditionalTests                        func(ctx *common.TestContext)
 }
 
 func DescribeTestsFor(t TestCase) bool {
