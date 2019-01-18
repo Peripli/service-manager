@@ -203,15 +203,19 @@ func GenerateTestServiceWithPlans(plans ...string) string {
 	return catalogService
 }
 
+func GenerateTestPlan() string {
+	return GenerateTestPlanFromTemplate(testPaidPlan)
+}
+
 func GenerateFreeTestPlan() string {
-	return GenerateTestPlan(testFreePlan)
+	return GenerateTestPlanFromTemplate(testFreePlan)
 }
 
 func GeneratePaidTestPlan() string {
-	return GenerateTestPlan(testPaidPlan)
+	return GenerateTestPlanFromTemplate(testPaidPlan)
 }
 
-func GenerateTestPlan(planTemplate string) string {
+func GenerateTestPlanFromTemplate(planTemplate string) string {
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		panic(err)

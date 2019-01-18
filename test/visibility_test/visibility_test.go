@@ -42,8 +42,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	SupportedOps: []test.Op{
 		test.Get, test.List, test.Delete, test.DeleteList,
 	},
-	RndResourceBlueprint:                      blueprint(true),
-	RndResourceWithoutNullableFieldsBlueprint: blueprint(false),
+	ResourceBlueprint:                      blueprint(true),
+	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
 	AdditionalTests: func(ctx *common.TestContext) {
 		Context("non-generic tests", func() {
 			var (
@@ -700,7 +700,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func blueprint(withNullableFields bool) func(ctx *common.TestContext) common.Object {
+func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext) common.Object {
 	return func(ctx *common.TestContext) common.Object {
 		visReqBody := make(common.Object, 0)
 		cPaidPlan := common.GeneratePaidTestPlan()
@@ -718,7 +718,7 @@ func blueprint(withNullableFields bool) func(ctx *common.TestContext) common.Obj
 			Expect().
 			Status(http.StatusOK).JSON().Object().Value("service_plans").Array().First().Object().Value("id").String().Raw()
 		visReqBody["service_plan_id"] = servicePlanID
-		if withNullableFields {
+		if setNullFieldsValues {
 			platformID := ctx.SMWithOAuth.POST("/v1/platforms").WithJSON(common.GenerateRandomPlatform()).
 				Expect().
 				Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()

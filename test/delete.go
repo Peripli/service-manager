@@ -32,7 +32,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase) bool {
 
 		Context("Existing resource", func() {
 			BeforeEach(func() {
-				createFunc := t.RndResourceBlueprint
+				createFunc := t.ResourceBlueprint
 
 				By(fmt.Sprintf("[SETUP]: Creating test resource of type %s", t.API))
 				testResource = createFunc(ctx)
@@ -58,13 +58,6 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase) bool {
 				ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
 					Expect().
 					Status(http.StatusNotFound)
-
-				//By("[TEST]: Verify resources marked for cascade deletion are deleted")
-				//for _, resource := range t.DELETE.CascadeDeletions {
-				//	ctx.SMWithOAuth.GET("/v1/" + resource.Child).WithQueryString("fieldQuery=" + resource.ChildReference + "+=+" + testResourceID).
-				//		Expect().
-				//		Status(http.StatusOK).JSON().Object().Value(resource.Child).Array().Empty()
-				//}
 			})
 		})
 
