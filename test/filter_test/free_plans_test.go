@@ -30,7 +30,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Service Manager Free Plans Filter", func() {
+var _ = XDescribe("Service Manager Free Plans Filter", func() {
 	var ctx *common.TestContext
 	var existingBrokerID string
 	var existingBrokerServer *common.BrokerServer
