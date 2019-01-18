@@ -17,12 +17,18 @@
 package common
 
 import (
+	"github.com/onsi/ginkgo"
+
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
+
+	"github.com/gofrs/uuid"
 
 	"strings"
 
@@ -38,6 +44,108 @@ import (
 
 type Object = map[string]interface{}
 type Array = []interface{}
+
+func RemoveNonNumericArgs(obj Object) Object {
+	return removeOnCondition(isNotNumeric, obj)
+}
+
+func RemoveNumericArgs(obj Object) Object {
+	return removeOnCondition(isNumeric, obj)
+}
+
+func RemoveNonJSONArgs(obj Object) Object {
+	return removeOnCondition(isNotJSON, obj)
+}
+
+func removeOnCondition(condition func(arg interface{}) bool, obj Object) Object {
+	o := CopyObject(obj)
+
+	for k, v := range o {
+		if k == "labels" {
+			labels := v.(map[string]interface{})
+			for lKey, lValues := range labels {
+				lVals := lValues.([]interface{})
+				for index, lValue := range lVals {
+					if condition(lValue) {
+						labels[lKey] = append(lVals[:index], lVals[index+1:]...)
+					}
+				}
+				if len(lVals) == 0 {
+					delete(labels, lKey)
+				}
+			}
+		} else if condition(v) {
+			delete(o, k)
+		}
+	}
+	return o
+}
+
+func isJson(arg interface{}) bool {
+	if str, ok := arg.(string); ok {
+		var jsonStr map[string]interface{}
+		err := json.Unmarshal([]byte(str), &jsonStr)
+		return err == nil
+	}
+	if _, ok := arg.(map[string]interface{}); ok {
+		return true
+	}
+	if _, ok := arg.([]interface{}); ok {
+		return true
+	}
+	return false
+}
+
+func isNotJSON(arg interface{}) bool {
+	return !isJson(arg)
+}
+
+func isNumeric(arg interface{}) bool {
+	if _, err := strconv.Atoi(fmt.Sprintf("%v", arg)); err == nil {
+		return true
+	}
+	if _, err := strconv.ParseFloat(fmt.Sprintf("%v", arg), 64); err == nil {
+		return true
+	}
+	return false
+}
+
+func isNotNumeric(arg interface{}) bool {
+	return !isNumeric(arg)
+}
+
+func RemoveNotNullableFieldAndLabels(obj Object, objithMandatoryFields Object) Object {
+	o := CopyObject(obj)
+	for objField, objVal := range objithMandatoryFields {
+		if str, ok := objVal.(string); ok && len(str) == 0 {
+			//currently api returns empty string for nullable values
+			continue
+		}
+		delete(o, objField)
+	}
+
+	delete(o, "labels")
+	return o
+}
+
+func CopyObject(obj Object) Object {
+	o := Object{}
+	for k, v := range obj {
+		if k == "labels" {
+			l := map[string]interface{}{}
+			for lKey, lValues := range v.(map[string]interface{}) {
+				temp := []interface{}{}
+				for _, v := range lValues.([]interface{}) {
+					l[lKey] = append(temp, v)
+				}
+			}
+			o[k] = l
+		} else {
+			o[k] = v
+		}
+	}
+	return o
+}
 
 func MapContains(actual Object, expected Object) {
 	for k, v := range expected {
@@ -96,6 +204,20 @@ func generatePrivateKey() *rsa.PrivateKey {
 	return privateKey
 }
 
+func ExtractResourceIDs(entities []Object) []string {
+	result := make([]string, 0, 0)
+	if entities == nil {
+		return result
+	}
+	for _, value := range entities {
+		if _, ok := value["id"]; !ok {
+			panic(fmt.Sprintf("No id found for test resource %v", value))
+		}
+		result = append(result, value["id"].(string))
+	}
+	return result
+}
+
 type jwkResponse struct {
 	KeyType   string `json:"kty"`
 	Use       string `json:"sig"`
@@ -132,6 +254,53 @@ func MakePlatform(id string, name string, atype string, description string) Obje
 		"name":        name,
 		"type":        atype,
 		"description": description,
+	}
+}
+
+func GenerateRandomPlatform() Object {
+	o := Object{}
+	for _, key := range []string{"id", "name", "type", "description"} {
+		UUID, err := uuid.NewV4()
+		if err != nil {
+			panic(err)
+		}
+		o[key] = UUID.String()
+
+	}
+	return o
+}
+
+func GenerateRandomBroker() Object {
+	o := Object{}
+
+	brokerServer := NewBrokerServer()
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+	UUID2, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+	o = Object{
+		"name":        UUID.String(),
+		"broker_url":  brokerServer.URL,
+		"description": UUID2.String(),
+		"credentials": Object{
+			"basic": Object{
+				"username": brokerServer.Username,
+				"password": brokerServer.Password,
+			},
+		},
+	}
+	return o
+}
+
+func Print(message string, args ...interface{}) {
+	if len(args) == 0 {
+		fmt.Fprint(ginkgo.GinkgoWriter, "\n"+message+"\n")
+	} else {
+		fmt.Fprintf(ginkgo.GinkgoWriter, "\n"+message+"\n", args)
 	}
 }
 

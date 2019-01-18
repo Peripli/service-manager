@@ -33,7 +33,6 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/sm"
-	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 )
@@ -88,7 +87,7 @@ func TestEnv(additionalFlagFuncs ...func(set *pflag.FlagSet)) env.Environment {
 }
 
 type ContextParams struct {
-	RegisterExtensions func(api *web.API)
+	RegisterExtensions func(smb *sm.ServiceManagerBuilder)
 	DefaultTokenClaims map[string]interface{}
 	Env                env.Environment
 }
@@ -126,7 +125,7 @@ func NewSMServer(params *ContextParams, issuerURL string) *httptest.Server {
 	ctx = log.Configure(ctx, s.Log)
 	smanagerBuilder := sm.New(ctx, cancel, smEnv)
 	if params.RegisterExtensions != nil {
-		params.RegisterExtensions(smanagerBuilder.API)
+		params.RegisterExtensions(smanagerBuilder)
 	}
 	serviceManager := smanagerBuilder.Build()
 	return httptest.NewServer(serviceManager.Server.Router)
@@ -147,7 +146,6 @@ func NewTestContext(params *ContextParams) *TestContext {
 	SMWithOAuth := SM.Builder(func(req *httpexpect.Request) {
 		req.WithHeader("Authorization", "Bearer "+accessToken)
 	})
-
 	RemoveAllBrokers(SMWithOAuth)
 	RemoveAllPlatforms(SMWithOAuth)
 
@@ -179,16 +177,20 @@ type TestContext struct {
 	brokers      map[string]*BrokerServer
 }
 
-func (ctx *TestContext) RegisterBrokerWithCatalog(catalog string) (string, *BrokerServer) {
+func (ctx *TestContext) RegisterBrokerWithCatalog(catalog SBCatalog) (string, Object, *BrokerServer) {
 	brokerServer := NewBrokerServerWithCatalog(catalog)
 	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+	UUID2, err := uuid.NewV4()
 	if err != nil {
 		panic(err)
 	}
 	brokerJSON := Object{
 		"name":        UUID.String(),
 		"broker_url":  brokerServer.URL,
-		"description": "",
+		"description": UUID2.String(),
 		"credentials": Object{
 			"basic": Object{
 				"username": brokerServer.Username,
@@ -200,10 +202,11 @@ func (ctx *TestContext) RegisterBrokerWithCatalog(catalog string) (string, *Brok
 	brokerID := RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth)
 	brokerServer.ResetCallHistory()
 	ctx.brokers[brokerID] = brokerServer
-	return brokerID, brokerServer
+	brokerJSON["id"] = brokerID
+	return brokerID, brokerJSON, brokerServer
 }
-func (ctx *TestContext) RegisterBroker() (string, *BrokerServer) {
-	return ctx.RegisterBrokerWithCatalog(Catalog)
+func (ctx *TestContext) RegisterBroker() (string, Object, *BrokerServer) {
+	return ctx.RegisterBrokerWithCatalog(NewRandomSBCatalog())
 }
 
 func (ctx *TestContext) RegisterPlatform() *types.Platform {
@@ -247,5 +250,15 @@ func (ctx *TestContext) Cleanup() {
 	if ctx.smServer != nil {
 		ctx.smServer.Close()
 	}
-	ctx.OAuthServer.Close()
+
+	if ctx.OAuthServer != nil {
+		ctx.OAuthServer.Close()
+	}
+}
+
+func (ctx *TestContext) CleanupAdditionalResources() {
+	ctx.SMWithOAuth.DELETE("/v1/service_brokers").
+		Expect()
+	ctx.SMWithOAuth.DELETE("/v1/platforms").WithQuery("fieldQuery", "id != "+ctx.TestPlatform.ID).
+		Expect()
 }

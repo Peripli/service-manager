@@ -50,6 +50,13 @@ func (c *Controller) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodDelete,
+				Path:   web.PlatformsURL,
+			},
+			Handler: c.deletePlatforms,
+		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodDelete,
 				Path:   web.PlatformsURL + "/{platform_id}",
 			},
 			Handler: c.deletePlatform,

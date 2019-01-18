@@ -39,7 +39,19 @@ func (ba *basicAuthnFilter) FilterMatchers() []web.FilterMatcher {
 		{
 			Matchers: []web.Matcher{
 				web.Methods(http.MethodGet),
+				web.Path(web.PlatformsURL + "/**"),
+			},
+		},
+		{
+			Matchers: []web.Matcher{
+				web.Methods(http.MethodGet),
 				web.Path(web.BrokersURL + "/**"),
+			},
+		},
+		{
+			Matchers: []web.Matcher{
+				web.Methods(http.MethodGet),
+				web.Path(web.ServiceOfferingsURL + "/**"),
 			},
 		},
 		{

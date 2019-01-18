@@ -181,38 +181,6 @@ func constructBaseQueryForLabelable(labelsEntity Labelable, baseTableName string
 	return fmt.Sprintf(baseQuery, baseTableName, labelsTableName)
 }
 
-func list(ctx context.Context, db selecterContext, table string, filter map[string][]string, dtos interface{}) error {
-	sqlQuery := "SELECT * FROM " + table
-	if len(filter) != 0 {
-		andPairs := make([]string, 0)
-		for key, values := range filter {
-			orPairs := make([]string, 0)
-			for _, value := range values {
-				if value != "" {
-					orPairs = append(orPairs, fmt.Sprintf("%s='%s'", key, value))
-				} else {
-					orPairs = append(orPairs, fmt.Sprintf("%s IS NULL", key))
-				}
-			}
-			orPair := " (" + strings.Join(orPairs, " OR ") + ") "
-			andPairs = append(andPairs, orPair)
-		}
-		sqlQuery += " WHERE " + strings.Join(andPairs, " AND ")
-	}
-	log.C(ctx).Debugf("Executing query %s", sqlQuery)
-	return db.SelectContext(ctx, dtos, sqlQuery)
-}
-
-func remove(ctx context.Context, db sqlx.ExecerContext, id string, table string) error {
-	sqlQuery := "DELETE FROM " + table + " WHERE id=$1"
-	log.C(ctx).Debugf("Executing query %s", sqlQuery)
-	result, err := db.ExecContext(ctx, sqlQuery, id)
-	if err != nil {
-		return err
-	}
-	return checkRowsAffected(ctx, result)
-}
-
 func update(ctx context.Context, db namedExecerContext, table string, dto interface{}) error {
 	updateQueryString := updateQuery(table, dto)
 	if updateQueryString == "" {

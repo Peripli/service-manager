@@ -276,18 +276,25 @@ func findRightOp(remaining string, leftOp string, operator Operator, criteriaTyp
 	rightOpBuffer := strings.Builder{}
 	for _, ch := range remaining {
 		if ch == Separator {
-			if remaining[offset-1] != '\\' { // delimiter is not escaped - treat as separator
+			if offset+1 < len(remaining) && rune(remaining[offset+1]) == Separator && remaining[offset-1] != '\\' {
 				arg := rightOpBuffer.String()
 				rightOp = append(rightOp, arg)
 				rightOpBuffer.Reset()
-				if rune(arg[len(arg)-1]) == CloseBracket || !operator.IsMultiVariate() {
+			} else if rune(remaining[offset-1]) == Separator {
+				offset++
+				continue
+			} else {
+				if remaining[offset-1] != '\\' { // delimiter is not escaped - treat as separator
+					arg := rightOpBuffer.String()
+					rightOp = append(rightOp, arg)
+					rightOpBuffer.Reset()
 					break
+				} else { // remove escaping symbol
+					tmp := rightOpBuffer.String()[:offset-1]
+					rightOpBuffer.Reset()
+					rightOpBuffer.WriteString(tmp)
+					rightOpBuffer.WriteRune(ch)
 				}
-			} else { // remove escaping symbol
-				tmp := rightOpBuffer.String()[:offset-1]
-				rightOpBuffer.Reset()
-				rightOpBuffer.WriteString(tmp)
-				rightOpBuffer.WriteRune(ch)
 			}
 		} else {
 			rightOpBuffer.WriteRune(ch)
