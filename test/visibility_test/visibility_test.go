@@ -239,7 +239,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 					})
 				})
-				Context("Labeled", func() {
+				Context("Labelled", func() {
 					Context("When labels are valid", func() {
 						It("should return 201", func() {
 							ctx.SMWithOAuth.POST("/v1/visibilities").

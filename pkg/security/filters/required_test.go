@@ -49,10 +49,16 @@ var _ = Describe("Filters tests", func() {
 	})
 
 	Describe("Authz required filter", func() {
+		var requiredAuthzFilter web.Filter
+		var matchers []web.FilterMatcher
+
+		BeforeEach(func() {
+			matchers = []web.FilterMatcher{}
+			requiredAuthzFilter = NewRequiredAuthzFilter(matchers)
+		})
 
 		Describe("when Filter.Run is invoked with no authorization confirmation", func() {
 			It("should return 403", func() {
-				requiredAuthzFilter := NewRequiredAuthzFilter()
 				resp, err := requiredAuthzFilter.Run(req, handler)
 				Expect(resp).To(BeNil())
 				httpErr, ok := err.(*util.HTTPError)
@@ -63,7 +69,6 @@ var _ = Describe("Filters tests", func() {
 
 		Describe("when Filter.Run is invoked with authorization confirmation", func() {
 			It("should continue", func() {
-				requiredAuthzFilter := NewRequiredAuthzFilter()
 				req.Request = req.WithContext(web.ContextWithAuthorization(req.Context()))
 				_, err := requiredAuthzFilter.Run(req, handler)
 				Expect(err).ToNot(HaveOccurred())
@@ -72,8 +77,8 @@ var _ = Describe("Filters tests", func() {
 		})
 
 		Describe("when Filter.FilterMatchers is invoked", func() {
-			It("should return a non-empty array", func() {
-				Expect(NewRequiredAuthzFilter().FilterMatchers()).To(HaveLen(1))
+			It("should return the matchers passed to the c-tor", func() {
+				Expect(requiredAuthzFilter.FilterMatchers()).To(Equal(matchers))
 			})
 		})
 

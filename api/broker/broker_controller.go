@@ -23,6 +23,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/tidwall/sjson"
+
 	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -227,6 +229,15 @@ func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
 	}
 
 	createdAt := broker.CreatedAt
+
+	changes, err := query.LabelChangesFromJSON(r.Body)
+	if err != nil {
+		return nil, util.HandleLabelChangeError(err)
+	}
+	if r.Body, err = sjson.DeleteBytes(r.Body, "labels"); err != nil {
+		return nil, err
+	}
+
 	if err := util.BytesToObject(r.Body, broker); err != nil {
 		return nil, err
 	}
@@ -244,7 +255,7 @@ func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	if err := c.resyncBrokerAndCatalog(ctx, broker, catalog); err != nil {
+	if err := c.resyncBrokerAndCatalog(ctx, broker, catalog, changes); err != nil {
 		return nil, err
 	}
 
@@ -386,10 +397,10 @@ func boolPointerToBool(value *bool, defaultValue bool) bool {
 	return *value
 }
 
-func (c *Controller) resyncBrokerAndCatalog(ctx context.Context, broker *types.Broker, catalog *osbc.CatalogResponse) error {
+func (c *Controller) resyncBrokerAndCatalog(ctx context.Context, broker *types.Broker, catalog *osbc.CatalogResponse, changes []*query.LabelChange) error {
 	log.C(ctx).Debugf("Updating catalog storage for broker with id %s", broker.ID)
 	if err := c.Repository.InTransaction(ctx, func(ctx context.Context, txStorage storage.Warehouse) error {
-		if err := txStorage.Broker().Update(ctx, broker); err != nil {
+		if err := txStorage.Broker().Update(ctx, broker, changes...); err != nil {
 			return util.HandleStorageError(err, "broker")
 		}
 

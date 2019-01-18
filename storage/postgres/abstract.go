@@ -271,3 +271,7 @@ func checkSQLNoRows(err error) error {
 	}
 	return err
 }
+
+func toNullString(s string) sql.NullString {
+	return sql.NullString{String: s, Valid: s != ""}
+}
