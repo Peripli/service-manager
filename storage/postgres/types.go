@@ -37,7 +37,7 @@ const (
 	// brokerTable db table name for brokers
 	brokerTable = "brokers"
 
-	// brokerLabelsTable db table for brokers table
+	// brokerLabelsTable db table for broker labels
 	brokerLabelsTable = "broker_labels"
 
 	// serviceOfferingTable db table for service offerings
@@ -163,12 +163,12 @@ func (bls *brokerLabels) FromDTO(brokerID string, labels types.Labels) error {
 			}
 			id := UUID.String()
 			bLabel := &BrokerLabel{
-				ID:        sql.NullString{String: id, Valid: id != ""},
-				Key:       sql.NullString{String: key, Valid: key != ""},
-				Val:       sql.NullString{String: labelValue, Valid: labelValue != ""},
+				ID:        toNullString(id),
+				Key:       toNullString(key),
+				Val:       toNullString(labelValue),
 				CreatedAt: &now,
 				UpdatedAt: &now,
-				BrokerID:  sql.NullString{String: brokerID, Valid: brokerID != ""},
+				BrokerID:  toNullString(brokerID),
 			}
 			*bls = append(*bls, bLabel)
 		}
@@ -229,12 +229,12 @@ func (vls *visibilityLabels) FromDTO(visibilityID string, labels types.Labels) e
 			}
 			id := UUID.String()
 			visLabel := &VisibilityLabel{
-				ID:                  sql.NullString{String: id, Valid: id != ""},
-				Key:                 sql.NullString{String: key, Valid: key != ""},
-				Val:                 sql.NullString{String: labelValue, Valid: labelValue != ""},
+				ID:                  toNullString(id),
+				Key:                 toNullString(key),
+				Val:                 toNullString(labelValue),
 				CreatedAt:           &now,
 				UpdatedAt:           &now,
-				ServiceVisibilityID: sql.NullString{String: visibilityID, Valid: visibilityID != ""},
+				ServiceVisibilityID: toNullString(visibilityID),
 			}
 			*vls = append(*vls, visLabel)
 		}
@@ -291,7 +291,7 @@ func (b *Broker) ToDTO() *types.Broker {
 func (b *Broker) FromDTO(broker *types.Broker) {
 	*b = Broker{
 		ID:          broker.ID,
-		Description: sql.NullString{String: broker.Description},
+		Description: toNullString(broker.Description),
 		Name:        broker.Name,
 		BrokerURL:   broker.BrokerURL,
 		CreatedAt:   broker.CreatedAt,
@@ -330,7 +330,7 @@ func (p *Platform) FromDTO(platform *types.Platform) {
 		Type:        platform.Type,
 		Name:        platform.Name,
 		CreatedAt:   platform.CreatedAt,
-		Description: sql.NullString{String: platform.Description},
+		Description: toNullString(platform.Description),
 		UpdatedAt:   platform.UpdatedAt,
 	}
 
@@ -434,7 +434,7 @@ func (v *Visibility) FromDTO(visibility *types.Visibility) {
 	*v = Visibility{
 		ID: visibility.ID,
 		// API cannot send nulls right now and storage cannot store empty string for this column as it is FK
-		PlatformID:    sql.NullString{String: visibility.PlatformID, Valid: visibility.PlatformID != ""},
+		PlatformID:    toNullString(visibility.PlatformID),
 		ServicePlanID: visibility.ServicePlanID,
 		CreatedAt:     visibility.CreatedAt,
 		UpdatedAt:     visibility.UpdatedAt,

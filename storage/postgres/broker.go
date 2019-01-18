@@ -18,7 +18,6 @@ package postgres
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -80,7 +79,7 @@ func (bs *brokerStorage) List(ctx context.Context, criteria ...query.Criterion) 
 			return
 		}
 		if err := rows.Close(); err != nil {
-			log.C(ctx).Errorf("Could not release connection when checking database s. Error: %s", err)
+			log.C(ctx).Errorf("Could not release connection when checking database. Error: %s", err)
 		}
 	}()
 	if err != nil {
@@ -145,10 +144,10 @@ func (bs *brokerStorage) updateLabels(ctx context.Context, brokerID string, upda
 	now := time.Now()
 	newLabelFunc := func(labelID string, labelKey string, labelValue string) Labelable {
 		return &BrokerLabel{
-			ID:        sql.NullString{String: labelID, Valid: labelID != ""},
-			Key:       sql.NullString{String: labelKey, Valid: labelKey != ""},
-			Val:       sql.NullString{String: labelValue, Valid: labelValue != ""},
-			BrokerID:  sql.NullString{String: brokerID, Valid: brokerID != ""},
+			ID:        toNullString(labelID),
+			Key:       toNullString(labelKey),
+			Val:       toNullString(labelValue),
+			BrokerID:  toNullString(brokerID),
 			CreatedAt: &now,
 			UpdatedAt: &now,
 		}
