@@ -2,19 +2,20 @@
 package storagefakes
 
 import (
-	context "context"
-	sync "sync"
+	"context"
+	"sync"
 
-	types "github.com/Peripli/service-manager/pkg/types"
-	storage "github.com/Peripli/service-manager/storage"
+	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
 )
 
 type FakeServiceOffering struct {
-	CreateStub        func(context.Context, *types.ServiceOffering) (string, error)
+	CreateStub        func(ctx context.Context, serviceOffering *types.ServiceOffering) (string, error)
 	createMutex       sync.RWMutex
 	createArgsForCall []struct {
-		arg1 context.Context
-		arg2 *types.ServiceOffering
+		ctx             context.Context
+		serviceOffering *types.ServiceOffering
 	}
 	createReturns struct {
 		result1 string
@@ -24,23 +25,11 @@ type FakeServiceOffering struct {
 		result1 string
 		result2 error
 	}
-	DeleteStub        func(context.Context, string) error
-	deleteMutex       sync.RWMutex
-	deleteArgsForCall []struct {
-		arg1 context.Context
-		arg2 string
-	}
-	deleteReturns struct {
-		result1 error
-	}
-	deleteReturnsOnCall map[int]struct {
-		result1 error
-	}
-	GetStub        func(context.Context, string) (*types.ServiceOffering, error)
+	GetStub        func(ctx context.Context, id string) (*types.ServiceOffering, error)
 	getMutex       sync.RWMutex
 	getArgsForCall []struct {
-		arg1 context.Context
-		arg2 string
+		ctx context.Context
+		id  string
 	}
 	getReturns struct {
 		result1 *types.ServiceOffering
@@ -50,10 +39,11 @@ type FakeServiceOffering struct {
 		result1 *types.ServiceOffering
 		result2 error
 	}
-	ListStub        func(context.Context) ([]*types.ServiceOffering, error)
+	ListStub        func(ctx context.Context, criteria ...query.Criterion) ([]*types.ServiceOffering, error)
 	listMutex       sync.RWMutex
 	listArgsForCall []struct {
-		arg1 context.Context
+		ctx      context.Context
+		criteria []query.Criterion
 	}
 	listReturns struct {
 		result1 []*types.ServiceOffering
@@ -63,25 +53,11 @@ type FakeServiceOffering struct {
 		result1 []*types.ServiceOffering
 		result2 error
 	}
-	ListByCatalogNameStub        func(context.Context, string) ([]*types.ServiceOffering, error)
-	listByCatalogNameMutex       sync.RWMutex
-	listByCatalogNameArgsForCall []struct {
-		arg1 context.Context
-		arg2 string
-	}
-	listByCatalogNameReturns struct {
-		result1 []*types.ServiceOffering
-		result2 error
-	}
-	listByCatalogNameReturnsOnCall map[int]struct {
-		result1 []*types.ServiceOffering
-		result2 error
-	}
-	ListWithServicePlansByBrokerIDStub        func(context.Context, string) ([]*types.ServiceOffering, error)
+	ListWithServicePlansByBrokerIDStub        func(ctx context.Context, brokerID string) ([]*types.ServiceOffering, error)
 	listWithServicePlansByBrokerIDMutex       sync.RWMutex
 	listWithServicePlansByBrokerIDArgsForCall []struct {
-		arg1 context.Context
-		arg2 string
+		ctx      context.Context
+		brokerID string
 	}
 	listWithServicePlansByBrokerIDReturns struct {
 		result1 []*types.ServiceOffering
@@ -91,11 +67,23 @@ type FakeServiceOffering struct {
 		result1 []*types.ServiceOffering
 		result2 error
 	}
-	UpdateStub        func(context.Context, *types.ServiceOffering) error
+	DeleteStub        func(ctx context.Context, criteria ...query.Criterion) error
+	deleteMutex       sync.RWMutex
+	deleteArgsForCall []struct {
+		ctx      context.Context
+		criteria []query.Criterion
+	}
+	deleteReturns struct {
+		result1 error
+	}
+	deleteReturnsOnCall map[int]struct {
+		result1 error
+	}
+	UpdateStub        func(ctx context.Context, serviceOffering *types.ServiceOffering) error
 	updateMutex       sync.RWMutex
 	updateArgsForCall []struct {
-		arg1 context.Context
-		arg2 *types.ServiceOffering
+		ctx             context.Context
+		serviceOffering *types.ServiceOffering
 	}
 	updateReturns struct {
 		result1 error
@@ -107,23 +95,22 @@ type FakeServiceOffering struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeServiceOffering) Create(arg1 context.Context, arg2 *types.ServiceOffering) (string, error) {
+func (fake *FakeServiceOffering) Create(ctx context.Context, serviceOffering *types.ServiceOffering) (string, error) {
 	fake.createMutex.Lock()
 	ret, specificReturn := fake.createReturnsOnCall[len(fake.createArgsForCall)]
 	fake.createArgsForCall = append(fake.createArgsForCall, struct {
-		arg1 context.Context
-		arg2 *types.ServiceOffering
-	}{arg1, arg2})
-	fake.recordInvocation("Create", []interface{}{arg1, arg2})
+		ctx             context.Context
+		serviceOffering *types.ServiceOffering
+	}{ctx, serviceOffering})
+	fake.recordInvocation("Create", []interface{}{ctx, serviceOffering})
 	fake.createMutex.Unlock()
 	if fake.CreateStub != nil {
-		return fake.CreateStub(arg1, arg2)
+		return fake.CreateStub(ctx, serviceOffering)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.createReturns
-	return fakeReturns.result1, fakeReturns.result2
+	return fake.createReturns.result1, fake.createReturns.result2
 }
 
 func (fake *FakeServiceOffering) CreateCallCount() int {
@@ -132,22 +119,13 @@ func (fake *FakeServiceOffering) CreateCallCount() int {
 	return len(fake.createArgsForCall)
 }
 
-func (fake *FakeServiceOffering) CreateCalls(stub func(context.Context, *types.ServiceOffering) (string, error)) {
-	fake.createMutex.Lock()
-	defer fake.createMutex.Unlock()
-	fake.CreateStub = stub
-}
-
 func (fake *FakeServiceOffering) CreateArgsForCall(i int) (context.Context, *types.ServiceOffering) {
 	fake.createMutex.RLock()
 	defer fake.createMutex.RUnlock()
-	argsForCall := fake.createArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
+	return fake.createArgsForCall[i].ctx, fake.createArgsForCall[i].serviceOffering
 }
 
 func (fake *FakeServiceOffering) CreateReturns(result1 string, result2 error) {
-	fake.createMutex.Lock()
-	defer fake.createMutex.Unlock()
 	fake.CreateStub = nil
 	fake.createReturns = struct {
 		result1 string
@@ -156,8 +134,6 @@ func (fake *FakeServiceOffering) CreateReturns(result1 string, result2 error) {
 }
 
 func (fake *FakeServiceOffering) CreateReturnsOnCall(i int, result1 string, result2 error) {
-	fake.createMutex.Lock()
-	defer fake.createMutex.Unlock()
 	fake.CreateStub = nil
 	if fake.createReturnsOnCall == nil {
 		fake.createReturnsOnCall = make(map[int]struct {
@@ -171,84 +147,22 @@ func (fake *FakeServiceOffering) CreateReturnsOnCall(i int, result1 string, resu
 	}{result1, result2}
 }
 
-func (fake *FakeServiceOffering) Delete(arg1 context.Context, arg2 string) error {
-	fake.deleteMutex.Lock()
-	ret, specificReturn := fake.deleteReturnsOnCall[len(fake.deleteArgsForCall)]
-	fake.deleteArgsForCall = append(fake.deleteArgsForCall, struct {
-		arg1 context.Context
-		arg2 string
-	}{arg1, arg2})
-	fake.recordInvocation("Delete", []interface{}{arg1, arg2})
-	fake.deleteMutex.Unlock()
-	if fake.DeleteStub != nil {
-		return fake.DeleteStub(arg1, arg2)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	fakeReturns := fake.deleteReturns
-	return fakeReturns.result1
-}
-
-func (fake *FakeServiceOffering) DeleteCallCount() int {
-	fake.deleteMutex.RLock()
-	defer fake.deleteMutex.RUnlock()
-	return len(fake.deleteArgsForCall)
-}
-
-func (fake *FakeServiceOffering) DeleteCalls(stub func(context.Context, string) error) {
-	fake.deleteMutex.Lock()
-	defer fake.deleteMutex.Unlock()
-	fake.DeleteStub = stub
-}
-
-func (fake *FakeServiceOffering) DeleteArgsForCall(i int) (context.Context, string) {
-	fake.deleteMutex.RLock()
-	defer fake.deleteMutex.RUnlock()
-	argsForCall := fake.deleteArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
-}
-
-func (fake *FakeServiceOffering) DeleteReturns(result1 error) {
-	fake.deleteMutex.Lock()
-	defer fake.deleteMutex.Unlock()
-	fake.DeleteStub = nil
-	fake.deleteReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeServiceOffering) DeleteReturnsOnCall(i int, result1 error) {
-	fake.deleteMutex.Lock()
-	defer fake.deleteMutex.Unlock()
-	fake.DeleteStub = nil
-	if fake.deleteReturnsOnCall == nil {
-		fake.deleteReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.deleteReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeServiceOffering) Get(arg1 context.Context, arg2 string) (*types.ServiceOffering, error) {
+func (fake *FakeServiceOffering) Get(ctx context.Context, id string) (*types.ServiceOffering, error) {
 	fake.getMutex.Lock()
 	ret, specificReturn := fake.getReturnsOnCall[len(fake.getArgsForCall)]
 	fake.getArgsForCall = append(fake.getArgsForCall, struct {
-		arg1 context.Context
-		arg2 string
-	}{arg1, arg2})
-	fake.recordInvocation("Get", []interface{}{arg1, arg2})
+		ctx context.Context
+		id  string
+	}{ctx, id})
+	fake.recordInvocation("Get", []interface{}{ctx, id})
 	fake.getMutex.Unlock()
 	if fake.GetStub != nil {
-		return fake.GetStub(arg1, arg2)
+		return fake.GetStub(ctx, id)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.getReturns
-	return fakeReturns.result1, fakeReturns.result2
+	return fake.getReturns.result1, fake.getReturns.result2
 }
 
 func (fake *FakeServiceOffering) GetCallCount() int {
@@ -257,22 +171,13 @@ func (fake *FakeServiceOffering) GetCallCount() int {
 	return len(fake.getArgsForCall)
 }
 
-func (fake *FakeServiceOffering) GetCalls(stub func(context.Context, string) (*types.ServiceOffering, error)) {
-	fake.getMutex.Lock()
-	defer fake.getMutex.Unlock()
-	fake.GetStub = stub
-}
-
 func (fake *FakeServiceOffering) GetArgsForCall(i int) (context.Context, string) {
 	fake.getMutex.RLock()
 	defer fake.getMutex.RUnlock()
-	argsForCall := fake.getArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
+	return fake.getArgsForCall[i].ctx, fake.getArgsForCall[i].id
 }
 
 func (fake *FakeServiceOffering) GetReturns(result1 *types.ServiceOffering, result2 error) {
-	fake.getMutex.Lock()
-	defer fake.getMutex.Unlock()
 	fake.GetStub = nil
 	fake.getReturns = struct {
 		result1 *types.ServiceOffering
@@ -281,8 +186,6 @@ func (fake *FakeServiceOffering) GetReturns(result1 *types.ServiceOffering, resu
 }
 
 func (fake *FakeServiceOffering) GetReturnsOnCall(i int, result1 *types.ServiceOffering, result2 error) {
-	fake.getMutex.Lock()
-	defer fake.getMutex.Unlock()
 	fake.GetStub = nil
 	if fake.getReturnsOnCall == nil {
 		fake.getReturnsOnCall = make(map[int]struct {
@@ -296,22 +199,22 @@ func (fake *FakeServiceOffering) GetReturnsOnCall(i int, result1 *types.ServiceO
 	}{result1, result2}
 }
 
-func (fake *FakeServiceOffering) List(arg1 context.Context) ([]*types.ServiceOffering, error) {
+func (fake *FakeServiceOffering) List(ctx context.Context, criteria ...query.Criterion) ([]*types.ServiceOffering, error) {
 	fake.listMutex.Lock()
 	ret, specificReturn := fake.listReturnsOnCall[len(fake.listArgsForCall)]
 	fake.listArgsForCall = append(fake.listArgsForCall, struct {
-		arg1 context.Context
-	}{arg1})
-	fake.recordInvocation("List", []interface{}{arg1})
+		ctx      context.Context
+		criteria []query.Criterion
+	}{ctx, criteria})
+	fake.recordInvocation("List", []interface{}{ctx, criteria})
 	fake.listMutex.Unlock()
 	if fake.ListStub != nil {
-		return fake.ListStub(arg1)
+		return fake.ListStub(ctx, criteria...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.listReturns
-	return fakeReturns.result1, fakeReturns.result2
+	return fake.listReturns.result1, fake.listReturns.result2
 }
 
 func (fake *FakeServiceOffering) ListCallCount() int {
@@ -320,22 +223,13 @@ func (fake *FakeServiceOffering) ListCallCount() int {
 	return len(fake.listArgsForCall)
 }
 
-func (fake *FakeServiceOffering) ListCalls(stub func(context.Context) ([]*types.ServiceOffering, error)) {
-	fake.listMutex.Lock()
-	defer fake.listMutex.Unlock()
-	fake.ListStub = stub
-}
-
-func (fake *FakeServiceOffering) ListArgsForCall(i int) context.Context {
+func (fake *FakeServiceOffering) ListArgsForCall(i int) (context.Context, []query.Criterion) {
 	fake.listMutex.RLock()
 	defer fake.listMutex.RUnlock()
-	argsForCall := fake.listArgsForCall[i]
-	return argsForCall.arg1
+	return fake.listArgsForCall[i].ctx, fake.listArgsForCall[i].criteria
 }
 
 func (fake *FakeServiceOffering) ListReturns(result1 []*types.ServiceOffering, result2 error) {
-	fake.listMutex.Lock()
-	defer fake.listMutex.Unlock()
 	fake.ListStub = nil
 	fake.listReturns = struct {
 		result1 []*types.ServiceOffering
@@ -344,8 +238,6 @@ func (fake *FakeServiceOffering) ListReturns(result1 []*types.ServiceOffering, r
 }
 
 func (fake *FakeServiceOffering) ListReturnsOnCall(i int, result1 []*types.ServiceOffering, result2 error) {
-	fake.listMutex.Lock()
-	defer fake.listMutex.Unlock()
 	fake.ListStub = nil
 	if fake.listReturnsOnCall == nil {
 		fake.listReturnsOnCall = make(map[int]struct {
@@ -359,87 +251,22 @@ func (fake *FakeServiceOffering) ListReturnsOnCall(i int, result1 []*types.Servi
 	}{result1, result2}
 }
 
-func (fake *FakeServiceOffering) ListByCatalogName(arg1 context.Context, arg2 string) ([]*types.ServiceOffering, error) {
-	fake.listByCatalogNameMutex.Lock()
-	ret, specificReturn := fake.listByCatalogNameReturnsOnCall[len(fake.listByCatalogNameArgsForCall)]
-	fake.listByCatalogNameArgsForCall = append(fake.listByCatalogNameArgsForCall, struct {
-		arg1 context.Context
-		arg2 string
-	}{arg1, arg2})
-	fake.recordInvocation("ListByCatalogName", []interface{}{arg1, arg2})
-	fake.listByCatalogNameMutex.Unlock()
-	if fake.ListByCatalogNameStub != nil {
-		return fake.ListByCatalogNameStub(arg1, arg2)
-	}
-	if specificReturn {
-		return ret.result1, ret.result2
-	}
-	fakeReturns := fake.listByCatalogNameReturns
-	return fakeReturns.result1, fakeReturns.result2
-}
-
-func (fake *FakeServiceOffering) ListByCatalogNameCallCount() int {
-	fake.listByCatalogNameMutex.RLock()
-	defer fake.listByCatalogNameMutex.RUnlock()
-	return len(fake.listByCatalogNameArgsForCall)
-}
-
-func (fake *FakeServiceOffering) ListByCatalogNameCalls(stub func(context.Context, string) ([]*types.ServiceOffering, error)) {
-	fake.listByCatalogNameMutex.Lock()
-	defer fake.listByCatalogNameMutex.Unlock()
-	fake.ListByCatalogNameStub = stub
-}
-
-func (fake *FakeServiceOffering) ListByCatalogNameArgsForCall(i int) (context.Context, string) {
-	fake.listByCatalogNameMutex.RLock()
-	defer fake.listByCatalogNameMutex.RUnlock()
-	argsForCall := fake.listByCatalogNameArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
-}
-
-func (fake *FakeServiceOffering) ListByCatalogNameReturns(result1 []*types.ServiceOffering, result2 error) {
-	fake.listByCatalogNameMutex.Lock()
-	defer fake.listByCatalogNameMutex.Unlock()
-	fake.ListByCatalogNameStub = nil
-	fake.listByCatalogNameReturns = struct {
-		result1 []*types.ServiceOffering
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *FakeServiceOffering) ListByCatalogNameReturnsOnCall(i int, result1 []*types.ServiceOffering, result2 error) {
-	fake.listByCatalogNameMutex.Lock()
-	defer fake.listByCatalogNameMutex.Unlock()
-	fake.ListByCatalogNameStub = nil
-	if fake.listByCatalogNameReturnsOnCall == nil {
-		fake.listByCatalogNameReturnsOnCall = make(map[int]struct {
-			result1 []*types.ServiceOffering
-			result2 error
-		})
-	}
-	fake.listByCatalogNameReturnsOnCall[i] = struct {
-		result1 []*types.ServiceOffering
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *FakeServiceOffering) ListWithServicePlansByBrokerID(arg1 context.Context, arg2 string) ([]*types.ServiceOffering, error) {
+func (fake *FakeServiceOffering) ListWithServicePlansByBrokerID(ctx context.Context, brokerID string) ([]*types.ServiceOffering, error) {
 	fake.listWithServicePlansByBrokerIDMutex.Lock()
 	ret, specificReturn := fake.listWithServicePlansByBrokerIDReturnsOnCall[len(fake.listWithServicePlansByBrokerIDArgsForCall)]
 	fake.listWithServicePlansByBrokerIDArgsForCall = append(fake.listWithServicePlansByBrokerIDArgsForCall, struct {
-		arg1 context.Context
-		arg2 string
-	}{arg1, arg2})
-	fake.recordInvocation("ListWithServicePlansByBrokerID", []interface{}{arg1, arg2})
+		ctx      context.Context
+		brokerID string
+	}{ctx, brokerID})
+	fake.recordInvocation("ListWithServicePlansByBrokerID", []interface{}{ctx, brokerID})
 	fake.listWithServicePlansByBrokerIDMutex.Unlock()
 	if fake.ListWithServicePlansByBrokerIDStub != nil {
-		return fake.ListWithServicePlansByBrokerIDStub(arg1, arg2)
+		return fake.ListWithServicePlansByBrokerIDStub(ctx, brokerID)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.listWithServicePlansByBrokerIDReturns
-	return fakeReturns.result1, fakeReturns.result2
+	return fake.listWithServicePlansByBrokerIDReturns.result1, fake.listWithServicePlansByBrokerIDReturns.result2
 }
 
 func (fake *FakeServiceOffering) ListWithServicePlansByBrokerIDCallCount() int {
@@ -448,22 +275,13 @@ func (fake *FakeServiceOffering) ListWithServicePlansByBrokerIDCallCount() int {
 	return len(fake.listWithServicePlansByBrokerIDArgsForCall)
 }
 
-func (fake *FakeServiceOffering) ListWithServicePlansByBrokerIDCalls(stub func(context.Context, string) ([]*types.ServiceOffering, error)) {
-	fake.listWithServicePlansByBrokerIDMutex.Lock()
-	defer fake.listWithServicePlansByBrokerIDMutex.Unlock()
-	fake.ListWithServicePlansByBrokerIDStub = stub
-}
-
 func (fake *FakeServiceOffering) ListWithServicePlansByBrokerIDArgsForCall(i int) (context.Context, string) {
 	fake.listWithServicePlansByBrokerIDMutex.RLock()
 	defer fake.listWithServicePlansByBrokerIDMutex.RUnlock()
-	argsForCall := fake.listWithServicePlansByBrokerIDArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
+	return fake.listWithServicePlansByBrokerIDArgsForCall[i].ctx, fake.listWithServicePlansByBrokerIDArgsForCall[i].brokerID
 }
 
 func (fake *FakeServiceOffering) ListWithServicePlansByBrokerIDReturns(result1 []*types.ServiceOffering, result2 error) {
-	fake.listWithServicePlansByBrokerIDMutex.Lock()
-	defer fake.listWithServicePlansByBrokerIDMutex.Unlock()
 	fake.ListWithServicePlansByBrokerIDStub = nil
 	fake.listWithServicePlansByBrokerIDReturns = struct {
 		result1 []*types.ServiceOffering
@@ -472,8 +290,6 @@ func (fake *FakeServiceOffering) ListWithServicePlansByBrokerIDReturns(result1 [
 }
 
 func (fake *FakeServiceOffering) ListWithServicePlansByBrokerIDReturnsOnCall(i int, result1 []*types.ServiceOffering, result2 error) {
-	fake.listWithServicePlansByBrokerIDMutex.Lock()
-	defer fake.listWithServicePlansByBrokerIDMutex.Unlock()
 	fake.ListWithServicePlansByBrokerIDStub = nil
 	if fake.listWithServicePlansByBrokerIDReturnsOnCall == nil {
 		fake.listWithServicePlansByBrokerIDReturnsOnCall = make(map[int]struct {
@@ -487,23 +303,71 @@ func (fake *FakeServiceOffering) ListWithServicePlansByBrokerIDReturnsOnCall(i i
 	}{result1, result2}
 }
 
-func (fake *FakeServiceOffering) Update(arg1 context.Context, arg2 *types.ServiceOffering) error {
-	fake.updateMutex.Lock()
-	ret, specificReturn := fake.updateReturnsOnCall[len(fake.updateArgsForCall)]
-	fake.updateArgsForCall = append(fake.updateArgsForCall, struct {
-		arg1 context.Context
-		arg2 *types.ServiceOffering
-	}{arg1, arg2})
-	fake.recordInvocation("Update", []interface{}{arg1, arg2})
-	fake.updateMutex.Unlock()
-	if fake.UpdateStub != nil {
-		return fake.UpdateStub(arg1, arg2)
+func (fake *FakeServiceOffering) Delete(ctx context.Context, criteria ...query.Criterion) error {
+	fake.deleteMutex.Lock()
+	ret, specificReturn := fake.deleteReturnsOnCall[len(fake.deleteArgsForCall)]
+	fake.deleteArgsForCall = append(fake.deleteArgsForCall, struct {
+		ctx      context.Context
+		criteria []query.Criterion
+	}{ctx, criteria})
+	fake.recordInvocation("Delete", []interface{}{ctx, criteria})
+	fake.deleteMutex.Unlock()
+	if fake.DeleteStub != nil {
+		return fake.DeleteStub(ctx, criteria...)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.updateReturns
-	return fakeReturns.result1
+	return fake.deleteReturns.result1
+}
+
+func (fake *FakeServiceOffering) DeleteCallCount() int {
+	fake.deleteMutex.RLock()
+	defer fake.deleteMutex.RUnlock()
+	return len(fake.deleteArgsForCall)
+}
+
+func (fake *FakeServiceOffering) DeleteArgsForCall(i int) (context.Context, []query.Criterion) {
+	fake.deleteMutex.RLock()
+	defer fake.deleteMutex.RUnlock()
+	return fake.deleteArgsForCall[i].ctx, fake.deleteArgsForCall[i].criteria
+}
+
+func (fake *FakeServiceOffering) DeleteReturns(result1 error) {
+	fake.DeleteStub = nil
+	fake.deleteReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeServiceOffering) DeleteReturnsOnCall(i int, result1 error) {
+	fake.DeleteStub = nil
+	if fake.deleteReturnsOnCall == nil {
+		fake.deleteReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.deleteReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeServiceOffering) Update(ctx context.Context, serviceOffering *types.ServiceOffering) error {
+	fake.updateMutex.Lock()
+	ret, specificReturn := fake.updateReturnsOnCall[len(fake.updateArgsForCall)]
+	fake.updateArgsForCall = append(fake.updateArgsForCall, struct {
+		ctx             context.Context
+		serviceOffering *types.ServiceOffering
+	}{ctx, serviceOffering})
+	fake.recordInvocation("Update", []interface{}{ctx, serviceOffering})
+	fake.updateMutex.Unlock()
+	if fake.UpdateStub != nil {
+		return fake.UpdateStub(ctx, serviceOffering)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fake.updateReturns.result1
 }
 
 func (fake *FakeServiceOffering) UpdateCallCount() int {
@@ -512,22 +376,13 @@ func (fake *FakeServiceOffering) UpdateCallCount() int {
 	return len(fake.updateArgsForCall)
 }
 
-func (fake *FakeServiceOffering) UpdateCalls(stub func(context.Context, *types.ServiceOffering) error) {
-	fake.updateMutex.Lock()
-	defer fake.updateMutex.Unlock()
-	fake.UpdateStub = stub
-}
-
 func (fake *FakeServiceOffering) UpdateArgsForCall(i int) (context.Context, *types.ServiceOffering) {
 	fake.updateMutex.RLock()
 	defer fake.updateMutex.RUnlock()
-	argsForCall := fake.updateArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
+	return fake.updateArgsForCall[i].ctx, fake.updateArgsForCall[i].serviceOffering
 }
 
 func (fake *FakeServiceOffering) UpdateReturns(result1 error) {
-	fake.updateMutex.Lock()
-	defer fake.updateMutex.Unlock()
 	fake.UpdateStub = nil
 	fake.updateReturns = struct {
 		result1 error
@@ -535,8 +390,6 @@ func (fake *FakeServiceOffering) UpdateReturns(result1 error) {
 }
 
 func (fake *FakeServiceOffering) UpdateReturnsOnCall(i int, result1 error) {
-	fake.updateMutex.Lock()
-	defer fake.updateMutex.Unlock()
 	fake.UpdateStub = nil
 	if fake.updateReturnsOnCall == nil {
 		fake.updateReturnsOnCall = make(map[int]struct {
@@ -553,16 +406,14 @@ func (fake *FakeServiceOffering) Invocations() map[string][][]interface{} {
 	defer fake.invocationsMutex.RUnlock()
 	fake.createMutex.RLock()
 	defer fake.createMutex.RUnlock()
-	fake.deleteMutex.RLock()
-	defer fake.deleteMutex.RUnlock()
 	fake.getMutex.RLock()
 	defer fake.getMutex.RUnlock()
 	fake.listMutex.RLock()
 	defer fake.listMutex.RUnlock()
-	fake.listByCatalogNameMutex.RLock()
-	defer fake.listByCatalogNameMutex.RUnlock()
 	fake.listWithServicePlansByBrokerIDMutex.RLock()
 	defer fake.listWithServicePlansByBrokerIDMutex.RUnlock()
+	fake.deleteMutex.RLock()
+	defer fake.deleteMutex.RUnlock()
 	fake.updateMutex.RLock()
 	defer fake.updateMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}

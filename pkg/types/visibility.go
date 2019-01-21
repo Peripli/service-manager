@@ -38,6 +38,7 @@ type Visibility struct {
 	ServicePlanID string    `json:"service_plan_id"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
+	Labels        Labels    `json:"labels,omitempty"`
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
@@ -47,6 +48,9 @@ func (v *Visibility) Validate() error {
 	}
 	if util.HasRFC3986ReservedSymbols(v.ID) {
 		return fmt.Errorf("%s contains invalid character(s)", v.ID)
+	}
+	if err := v.Labels.Validate(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -68,6 +72,17 @@ func (v *Visibility) MarshalJSON() ([]byte, error) {
 	if !v.UpdatedAt.IsZero() {
 		str := util.ToRFCFormat(v.UpdatedAt)
 		toMarshal.UpdatedAt = &str
+	}
+
+	hasNoLabels := true
+	for key, values := range v.Labels {
+		if key != "" && len(values) != 0 {
+			hasNoLabels = false
+			break
+		}
+	}
+	if hasNoLabels {
+		toMarshal.Labels = nil
 	}
 
 	return json.Marshal(toMarshal)

@@ -19,6 +19,8 @@ package service_offering
 import (
 	"net/http"
 
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 
@@ -40,7 +42,7 @@ func (c *Controller) getServiceOffering(r *web.Request) (*web.Response, error) {
 	log.C(ctx).Debugf("Getting service offering with id %s", serviceOfferingID)
 
 	serviceOffering, err := c.ServiceOfferingStorage.Get(ctx, serviceOfferingID)
-	if err = util.HandleStorageError(err, "service_offering", serviceOfferingID); err != nil {
+	if err = util.HandleStorageError(err, "service_offering"); err != nil {
 		return nil, err
 	}
 	return util.NewJSONResponse(http.StatusOK, serviceOffering)
@@ -52,16 +54,9 @@ func (c *Controller) listServiceOfferings(r *web.Request) (*web.Response, error)
 	ctx := r.Context()
 	log.C(ctx).Debug("Listing service offerings")
 
-	query := r.URL.Query()
-	catalogName := query.Get("catalog_name")
-	if catalogName != "" {
-		log.C(ctx).Debugf("Filtering list by catalog_name=%s", catalogName)
-		serviceOfferings, err = c.ServiceOfferingStorage.ListByCatalogName(ctx, catalogName)
-	} else {
-		serviceOfferings, err = c.ServiceOfferingStorage.List(ctx)
-	}
+	serviceOfferings, err = c.ServiceOfferingStorage.List(ctx, query.CriteriaForContext(ctx)...)
 	if err != nil {
-		return nil, err
+		return nil, util.HandleSelectionError(err)
 	}
 
 	return util.NewJSONResponse(http.StatusOK, struct {

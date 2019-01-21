@@ -2,93 +2,38 @@
 package healthfakes
 
 import (
-	sync "sync"
+	"sync"
 
-	health "github.com/Peripli/service-manager/pkg/health"
+	"github.com/Peripli/service-manager/pkg/health"
 )
 
 type FakeIndicator struct {
-	HealthStub        func() *health.Health
-	healthMutex       sync.RWMutex
-	healthArgsForCall []struct {
-	}
-	healthReturns struct {
-		result1 *health.Health
-	}
-	healthReturnsOnCall map[int]struct {
-		result1 *health.Health
-	}
 	NameStub        func() string
 	nameMutex       sync.RWMutex
-	nameArgsForCall []struct {
-	}
-	nameReturns struct {
+	nameArgsForCall []struct{}
+	nameReturns     struct {
 		result1 string
 	}
 	nameReturnsOnCall map[int]struct {
 		result1 string
 	}
+	HealthStub        func() *health.Health
+	healthMutex       sync.RWMutex
+	healthArgsForCall []struct{}
+	healthReturns     struct {
+		result1 *health.Health
+	}
+	healthReturnsOnCall map[int]struct {
+		result1 *health.Health
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
-}
-
-func (fake *FakeIndicator) Health() *health.Health {
-	fake.healthMutex.Lock()
-	ret, specificReturn := fake.healthReturnsOnCall[len(fake.healthArgsForCall)]
-	fake.healthArgsForCall = append(fake.healthArgsForCall, struct {
-	}{})
-	fake.recordInvocation("Health", []interface{}{})
-	fake.healthMutex.Unlock()
-	if fake.HealthStub != nil {
-		return fake.HealthStub()
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	fakeReturns := fake.healthReturns
-	return fakeReturns.result1
-}
-
-func (fake *FakeIndicator) HealthCallCount() int {
-	fake.healthMutex.RLock()
-	defer fake.healthMutex.RUnlock()
-	return len(fake.healthArgsForCall)
-}
-
-func (fake *FakeIndicator) HealthCalls(stub func() *health.Health) {
-	fake.healthMutex.Lock()
-	defer fake.healthMutex.Unlock()
-	fake.HealthStub = stub
-}
-
-func (fake *FakeIndicator) HealthReturns(result1 *health.Health) {
-	fake.healthMutex.Lock()
-	defer fake.healthMutex.Unlock()
-	fake.HealthStub = nil
-	fake.healthReturns = struct {
-		result1 *health.Health
-	}{result1}
-}
-
-func (fake *FakeIndicator) HealthReturnsOnCall(i int, result1 *health.Health) {
-	fake.healthMutex.Lock()
-	defer fake.healthMutex.Unlock()
-	fake.HealthStub = nil
-	if fake.healthReturnsOnCall == nil {
-		fake.healthReturnsOnCall = make(map[int]struct {
-			result1 *health.Health
-		})
-	}
-	fake.healthReturnsOnCall[i] = struct {
-		result1 *health.Health
-	}{result1}
 }
 
 func (fake *FakeIndicator) Name() string {
 	fake.nameMutex.Lock()
 	ret, specificReturn := fake.nameReturnsOnCall[len(fake.nameArgsForCall)]
-	fake.nameArgsForCall = append(fake.nameArgsForCall, struct {
-	}{})
+	fake.nameArgsForCall = append(fake.nameArgsForCall, struct{}{})
 	fake.recordInvocation("Name", []interface{}{})
 	fake.nameMutex.Unlock()
 	if fake.NameStub != nil {
@@ -97,8 +42,7 @@ func (fake *FakeIndicator) Name() string {
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.nameReturns
-	return fakeReturns.result1
+	return fake.nameReturns.result1
 }
 
 func (fake *FakeIndicator) NameCallCount() int {
@@ -107,15 +51,7 @@ func (fake *FakeIndicator) NameCallCount() int {
 	return len(fake.nameArgsForCall)
 }
 
-func (fake *FakeIndicator) NameCalls(stub func() string) {
-	fake.nameMutex.Lock()
-	defer fake.nameMutex.Unlock()
-	fake.NameStub = stub
-}
-
 func (fake *FakeIndicator) NameReturns(result1 string) {
-	fake.nameMutex.Lock()
-	defer fake.nameMutex.Unlock()
 	fake.NameStub = nil
 	fake.nameReturns = struct {
 		result1 string
@@ -123,8 +59,6 @@ func (fake *FakeIndicator) NameReturns(result1 string) {
 }
 
 func (fake *FakeIndicator) NameReturnsOnCall(i int, result1 string) {
-	fake.nameMutex.Lock()
-	defer fake.nameMutex.Unlock()
 	fake.NameStub = nil
 	if fake.nameReturnsOnCall == nil {
 		fake.nameReturnsOnCall = make(map[int]struct {
@@ -136,13 +70,53 @@ func (fake *FakeIndicator) NameReturnsOnCall(i int, result1 string) {
 	}{result1}
 }
 
+func (fake *FakeIndicator) Health() *health.Health {
+	fake.healthMutex.Lock()
+	ret, specificReturn := fake.healthReturnsOnCall[len(fake.healthArgsForCall)]
+	fake.healthArgsForCall = append(fake.healthArgsForCall, struct{}{})
+	fake.recordInvocation("Health", []interface{}{})
+	fake.healthMutex.Unlock()
+	if fake.HealthStub != nil {
+		return fake.HealthStub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fake.healthReturns.result1
+}
+
+func (fake *FakeIndicator) HealthCallCount() int {
+	fake.healthMutex.RLock()
+	defer fake.healthMutex.RUnlock()
+	return len(fake.healthArgsForCall)
+}
+
+func (fake *FakeIndicator) HealthReturns(result1 *health.Health) {
+	fake.HealthStub = nil
+	fake.healthReturns = struct {
+		result1 *health.Health
+	}{result1}
+}
+
+func (fake *FakeIndicator) HealthReturnsOnCall(i int, result1 *health.Health) {
+	fake.HealthStub = nil
+	if fake.healthReturnsOnCall == nil {
+		fake.healthReturnsOnCall = make(map[int]struct {
+			result1 *health.Health
+		})
+	}
+	fake.healthReturnsOnCall[i] = struct {
+		result1 *health.Health
+	}{result1}
+}
+
 func (fake *FakeIndicator) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.healthMutex.RLock()
-	defer fake.healthMutex.RUnlock()
 	fake.nameMutex.RLock()
 	defer fake.nameMutex.RUnlock()
+	fake.healthMutex.RLock()
+	defer fake.healthMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

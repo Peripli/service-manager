@@ -19,6 +19,7 @@ package postgres
 import (
 	"context"
 
+	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
@@ -40,9 +41,12 @@ func (sps *servicePlanStorage) Get(ctx context.Context, id string) (*types.Servi
 	return plan.ToDTO(), nil
 }
 
-func (sps *servicePlanStorage) List(ctx context.Context) ([]*types.ServicePlan, error) {
+func (sps *servicePlanStorage) List(ctx context.Context, criteria ...query.Criterion) ([]*types.ServicePlan, error) {
 	var plans []ServicePlan
-	err := list(ctx, sps.db, servicePlanTable, map[string][]string{}, &plans)
+	if err := validateFieldQueryParams(ServicePlan{}, criteria); err != nil {
+		return nil, err
+	}
+	err := listByFieldCriteria(ctx, sps.db, servicePlanTable, &plans, criteria)
 	if err != nil || len(plans) == 0 {
 		return []*types.ServicePlan{}, err
 	}
@@ -53,21 +57,8 @@ func (sps *servicePlanStorage) List(ctx context.Context) ([]*types.ServicePlan, 
 	return servicePlans, nil
 }
 
-func (sps *servicePlanStorage) ListByCatalogName(ctx context.Context, name string) ([]*types.ServicePlan, error) {
-	var plans []ServicePlan
-	err := list(ctx, sps.db, servicePlanTable, map[string][]string{"catalog_name": {name}}, &plans)
-	if err != nil || len(plans) == 0 {
-		return []*types.ServicePlan{}, err
-	}
-	servicePlans := make([]*types.ServicePlan, 0, len(plans))
-	for _, plan := range plans {
-		servicePlans = append(servicePlans, plan.ToDTO())
-	}
-	return servicePlans, nil
-}
-
-func (sps *servicePlanStorage) Delete(ctx context.Context, id string) error {
-	return remove(ctx, sps.db, id, servicePlanTable)
+func (sps *servicePlanStorage) Delete(ctx context.Context, criteria ...query.Criterion) error {
+	return deleteAllByFieldCriteria(ctx, sps.db, servicePlanTable, ServicePlan{}, criteria)
 }
 
 func (sps *servicePlanStorage) Update(ctx context.Context, servicePlan *types.ServicePlan) error {

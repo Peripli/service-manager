@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/Peripli/service-manager/pkg/sm"
+
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
@@ -26,11 +28,11 @@ var _ = Describe("Service Manager Filters", func() {
 
 	JustBeforeEach(func() {
 		ctx = common.NewTestContext(&common.ContextParams{
-			RegisterExtensions: func(api *web.API) {
-				api.RegisterFilters(testFilters...)
+			RegisterExtensions: func(smb *sm.ServiceManagerBuilder) {
+				smb.API.RegisterFilters(testFilters...)
 			},
 		})
-		brokerID, _ := ctx.RegisterBroker()
+		brokerID, _, _ := ctx.RegisterBroker()
 		osbURL = "/v1/osb/" + brokerID
 		order = ""
 	})

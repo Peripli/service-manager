@@ -20,6 +20,7 @@ import (
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -39,7 +40,7 @@ func (c *Controller) getServicePlan(r *web.Request) (*web.Response, error) {
 	log.C(ctx).Debugf("Getting service plan with id %s", servicePlanID)
 
 	servicePlan, err := c.ServicePlanStorage.Get(ctx, servicePlanID)
-	if err = util.HandleStorageError(err, "service_plan", servicePlanID); err != nil {
+	if err = util.HandleStorageError(err, "service_plan"); err != nil {
 		return nil, err
 	}
 	return util.NewJSONResponse(http.StatusOK, servicePlan)
@@ -51,21 +52,12 @@ func (c *Controller) ListServicePlans(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debug("Listing service plans")
 
-	query := r.URL.Query()
-	catalogName := query.Get("catalog_name")
-	if catalogName != "" {
-		log.C(ctx).Debugf("Filtering list by catalog_name=%s", catalogName)
-		servicePlans, err = c.ServicePlanStorage.ListByCatalogName(ctx, catalogName)
-	} else {
-		servicePlans, err = c.ServicePlanStorage.List(ctx)
-	}
+	servicePlans, err = c.ServicePlanStorage.List(ctx, query.CriteriaForContext(ctx)...)
 	if err != nil {
-		return nil, err
+		return nil, util.HandleSelectionError(err)
 	}
 
-	return util.NewJSONResponse(http.StatusOK, struct {
-		ServicePlans []*types.ServicePlan `json:"service_plans"`
-	}{
+	return util.NewJSONResponse(http.StatusOK, &types.ServicePlans{
 		ServicePlans: servicePlans,
 	})
 }

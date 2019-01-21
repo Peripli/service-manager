@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/Peripli/service-manager/pkg/sm"
+
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -37,12 +39,12 @@ var _ = Describe("Service Manager Plugins", func() {
 	Describe("Partial plugin", func() {
 		BeforeEach(func() {
 			ctx = common.NewTestContext(&common.ContextParams{
-				RegisterExtensions: func(api *web.API) {
-					api.RegisterPlugins(&PartialPlugin{})
+				RegisterExtensions: func(smb *sm.ServiceManagerBuilder) {
+					smb.API.RegisterPlugins(&PartialPlugin{})
 				},
 			})
 			var brokerID string
-			brokerID, brokerServer = ctx.RegisterBroker()
+			brokerID, _, brokerServer = ctx.RegisterBroker()
 			osbURL = "/v1/osb/" + brokerID
 		})
 
@@ -66,12 +68,12 @@ var _ = Describe("Service Manager Plugins", func() {
 			testPlugin = TestPlugin{}
 
 			ctx = common.NewTestContext(&common.ContextParams{
-				RegisterExtensions: func(api *web.API) {
-					api.RegisterPlugins(testPlugin)
+				RegisterExtensions: func(smb *sm.ServiceManagerBuilder) {
+					smb.API.RegisterPlugins(testPlugin)
 				},
 			})
 			var brokerID string
-			brokerID, brokerServer = ctx.RegisterBroker()
+			brokerID, _, brokerServer = ctx.RegisterBroker()
 			osbURL = "/v1/osb/" + brokerID
 		})
 

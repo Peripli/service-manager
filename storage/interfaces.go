@@ -23,6 +23,8 @@ import (
 	"path"
 	"runtime"
 
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/types"
 )
@@ -133,13 +135,13 @@ type Broker interface {
 	Get(ctx context.Context, id string) (*types.Broker, error)
 
 	// List retrieves all brokers from SM DB
-	List(ctx context.Context) ([]*types.Broker, error)
+	List(ctx context.Context, criteria ...query.Criterion) ([]*types.Broker, error)
 
 	// Delete deletes a broker from SM DB
-	Delete(ctx context.Context, id string) error
+	Delete(ctx context.Context, criteria ...query.Criterion) error
 
 	// Update updates a broker from SM DB
-	Update(ctx context.Context, broker *types.Broker) error
+	Update(ctx context.Context, broker *types.Broker, labelChanges ...*query.LabelChange) error
 }
 
 // Platform interface for Platform DB operations
@@ -151,10 +153,10 @@ type Platform interface {
 	Get(ctx context.Context, id string) (*types.Platform, error)
 
 	// List retrieves all platforms from SM DB
-	List(ctx context.Context) ([]*types.Platform, error)
+	List(ctx context.Context, criteria ...query.Criterion) ([]*types.Platform, error)
 
 	// Delete deletes a platform from SM DB
-	Delete(ctx context.Context, id string) error
+	Delete(ctx context.Context, criteria ...query.Criterion) error
 
 	// Update updates a platform from SM DB
 	Update(ctx context.Context, platform *types.Platform) error
@@ -169,17 +171,14 @@ type ServiceOffering interface {
 	// Get retrieves a service offering using the provided id from SM DB
 	Get(ctx context.Context, id string) (*types.ServiceOffering, error)
 
-	// ListByCatalogName retrieves all service offerings from SM DB that match the specified catalog name
-	ListByCatalogName(ctx context.Context, name string) ([]*types.ServiceOffering, error)
+	// List retrieves all service offerings from SM DB
+	List(ctx context.Context, criteria ...query.Criterion) ([]*types.ServiceOffering, error)
 
 	// ListWithServicePlansByBrokerID retrieves all service offerings with their service plans from SM DB that match the specified broker ID
 	ListWithServicePlansByBrokerID(ctx context.Context, brokerID string) ([]*types.ServiceOffering, error)
 
-	// List retrieves all service offerings from SM DB
-	List(ctx context.Context) ([]*types.ServiceOffering, error)
-
 	// Delete deletes a service offering from SM DB
-	Delete(ctx context.Context, id string) error
+	Delete(ctx context.Context, criteria ...query.Criterion) error
 
 	// Update updates a service offering from SM DB
 	Update(ctx context.Context, serviceOffering *types.ServiceOffering) error
@@ -193,14 +192,11 @@ type ServicePlan interface {
 	// Get retrieves a service plan using the provided id from SM DB
 	Get(ctx context.Context, id string) (*types.ServicePlan, error)
 
-	// ListByCatalogName retrieves all service plans from SM DB that match the specified catalog name
-	ListByCatalogName(ctx context.Context, name string) ([]*types.ServicePlan, error)
-
 	// List retrieves all service plans from SM DB
-	List(ctx context.Context) ([]*types.ServicePlan, error)
+	List(ctx context.Context, criteria ...query.Criterion) ([]*types.ServicePlan, error)
 
 	// Delete deletes a  service plan from SM DB
-	Delete(ctx context.Context, id string) error
+	Delete(ctx context.Context, criteria ...query.Criterion) error
 
 	// Update updates a service plan from SM DB
 	Update(ctx context.Context, servicePlan *types.ServicePlan) error
@@ -214,20 +210,14 @@ type Visibility interface {
 	// Get retrieves a visibility using the provided id from SM DB
 	Get(ctx context.Context, id string) (*types.Visibility, error)
 
-	// ListByPlatformID retrieves all visibilities from SM DB that match the specified platform id
-	ListByPlatformID(ctx context.Context, platformID string) ([]*types.Visibility, error)
-
-	// ListByServicePlanID retrieves all visibilities from SM DB that match the specified service plan id
-	ListByServicePlanID(ctx context.Context, servicePlanID string) ([]*types.Visibility, error)
-
 	// List retrieves all visibilities from SM DB
-	List(ctx context.Context) ([]*types.Visibility, error)
+	List(ctx context.Context, criteria ...query.Criterion) ([]*types.Visibility, error)
 
 	// Delete deletes a visibility from SM DB
-	Delete(ctx context.Context, id string) error
+	Delete(ctx context.Context, criteria ...query.Criterion) error
 
 	// Update updates a visibility from SM DB
-	Update(ctx context.Context, visibility *types.Visibility) error
+	Update(ctx context.Context, visibility *types.Visibility, labelChanges ...*query.LabelChange) error
 }
 
 // Credentials interface for Credentials db operations

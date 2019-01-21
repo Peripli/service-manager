@@ -20,6 +20,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -78,7 +80,7 @@ func (c *Controller) createPlatform(r *web.Request) (*web.Response, error) {
 	platform.Credentials = credentials
 
 	if _, err := c.PlatformStorage.Create(ctx, platform); err != nil {
-		return nil, util.HandleStorageError(err, "platform", platform.ID)
+		return nil, util.HandleStorageError(err, "platform")
 	}
 	platform.Credentials.Basic.Password = plainPassword
 	return util.NewJSONResponse(http.StatusCreated, platform)
@@ -91,7 +93,7 @@ func (c *Controller) getPlatform(r *web.Request) (*web.Response, error) {
 	log.C(ctx).Debugf("Getting platform with id %s", platformID)
 
 	platform, err := c.PlatformStorage.Get(ctx, platformID)
-	if err = util.HandleStorageError(err, "platform", platformID); err != nil {
+	if err = util.HandleStorageError(err, "platform"); err != nil {
 		return nil, err
 	}
 	platform.Credentials = nil
@@ -102,9 +104,9 @@ func (c *Controller) getPlatform(r *web.Request) (*web.Response, error) {
 func (c *Controller) listPlatforms(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debug("Getting all platforms")
-	platforms, err := c.PlatformStorage.List(ctx)
+	platforms, err := c.PlatformStorage.List(ctx, query.CriteriaForContext(ctx)...)
 	if err != nil {
-		return nil, err
+		return nil, util.HandleSelectionError(err)
 	}
 
 	for _, platform := range platforms {
@@ -118,14 +120,25 @@ func (c *Controller) listPlatforms(r *web.Request) (*web.Response, error) {
 	})
 }
 
+func (c *Controller) deletePlatforms(r *web.Request) (*web.Response, error) {
+	ctx := r.Context()
+	log.C(ctx).Debugf("Deleting visibilities...")
+
+	if err := c.PlatformStorage.Delete(ctx, query.CriteriaForContext(ctx)...); err != nil {
+		return nil, util.HandleSelectionError(err, "platform")
+	}
+	return util.NewJSONResponse(http.StatusOK, map[string]string{})
+}
+
 // deletePlatform handler for DELETE /v1/platforms/:platform_id
 func (c *Controller) deletePlatform(r *web.Request) (*web.Response, error) {
 	platformID := r.PathParams[reqPlatformID]
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting platform with id %s", platformID)
 
-	if err := c.PlatformStorage.Delete(ctx, platformID); err != nil {
-		return nil, util.HandleStorageError(err, "platform", platformID)
+	byIDQuery := query.ByField(query.EqualsOperator, "id", platformID)
+	if err := c.PlatformStorage.Delete(ctx, byIDQuery); err != nil {
+		return nil, util.HandleStorageError(err, "platform")
 	}
 
 	// map[string]string{} will result in empty JSON
@@ -140,7 +153,7 @@ func (c *Controller) patchPlatform(r *web.Request) (*web.Response, error) {
 
 	platform, err := c.PlatformStorage.Get(ctx, platformID)
 	if err != nil {
-		return nil, util.HandleStorageError(err, "platform", platformID)
+		return nil, util.HandleStorageError(err, "platform")
 	}
 
 	createdAt := platform.CreatedAt
@@ -154,7 +167,7 @@ func (c *Controller) patchPlatform(r *web.Request) (*web.Response, error) {
 	platform.UpdatedAt = time.Now().UTC()
 
 	if err := c.PlatformStorage.Update(ctx, platform); err != nil {
-		return nil, util.HandleStorageError(err, "platform", platformID)
+		return nil, util.HandleStorageError(err, "platform")
 	}
 
 	if err != nil {

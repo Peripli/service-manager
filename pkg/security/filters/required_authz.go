@@ -26,11 +26,13 @@ import (
 const RequiredAuthorizationFilterName = "RequiredAuthorizationFilter"
 
 // requiredAuthzFilter type verifies that authorization has been performed for APIs that are secured
-type requiredAuthzFilter struct{}
+type requiredAuthzFilter struct {
+	filterMatchers []web.FilterMatcher
+}
 
 // NewRequiredAuthzFilter returns web.Filter which requires at least one authorization flows to be successful
-func NewRequiredAuthzFilter() web.Filter {
-	return &requiredAuthzFilter{}
+func NewRequiredAuthzFilter(matchers []web.FilterMatcher) web.Filter {
+	return &requiredAuthzFilter{matchers}
 }
 
 // Name implements the web.Filter interface and returns the identifier of the filter
@@ -51,18 +53,5 @@ func (raf *requiredAuthzFilter) Run(request *web.Request, next web.Handler) (*we
 
 // FilterMatchers implements the web.Filter interface and returns the conditions on which the filter should be executed
 func (raf *requiredAuthzFilter) FilterMatchers() []web.FilterMatcher {
-	return []web.FilterMatcher{
-		{
-			Matchers: []web.Matcher{
-				web.Path(
-					web.BrokersURL+"/**",
-					web.PlatformsURL+"/**",
-					web.OSBURL+"/**",
-					web.ServicePlansURL+"/**",
-					web.ServiceOfferingsURL+"/**",
-					web.VisibilitiesURL+"/**",
-				),
-			},
-		},
-	}
+	return raf.filterMatchers
 }
