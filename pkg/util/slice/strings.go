@@ -16,7 +16,9 @@
 
 package slice
 
-import "strings"
+import (
+	"strings"
+)
 
 // StringsIntersection returns the common elements in two string slices.
 func StringsIntersection(str1, str2 []string) []string {

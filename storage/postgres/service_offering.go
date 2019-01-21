@@ -20,6 +20,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
 )
@@ -42,22 +44,12 @@ func (sos *serviceOfferingStorage) Get(ctx context.Context, id string) (*types.S
 	return serviceOffering.ToDTO(), nil
 }
 
-func (sos *serviceOfferingStorage) List(ctx context.Context) ([]*types.ServiceOffering, error) {
+func (sos *serviceOfferingStorage) List(ctx context.Context, criteria ...query.Criterion) ([]*types.ServiceOffering, error) {
 	var serviceOfferings []ServiceOffering
-	err := list(ctx, sos.db, serviceOfferingTable, map[string][]string{}, &serviceOfferings)
-	if err != nil || len(serviceOfferings) == 0 {
-		return []*types.ServiceOffering{}, err
+	if err := validateFieldQueryParams(ServiceOffering{}, criteria); err != nil {
+		return nil, err
 	}
-	serviceOfferingDTOs := make([]*types.ServiceOffering, 0, len(serviceOfferings))
-	for _, so := range serviceOfferings {
-		serviceOfferingDTOs = append(serviceOfferingDTOs, so.ToDTO())
-	}
-	return serviceOfferingDTOs, nil
-}
-
-func (sos *serviceOfferingStorage) ListByCatalogName(ctx context.Context, name string) ([]*types.ServiceOffering, error) {
-	var serviceOfferings []ServiceOffering
-	err := list(ctx, sos.db, serviceOfferingTable, map[string][]string{"catalog_name": {name}}, &serviceOfferings)
+	err := listByFieldCriteria(ctx, sos.db, serviceOfferingTable, &serviceOfferings, criteria)
 	if err != nil || len(serviceOfferings) == 0 {
 		return []*types.ServiceOffering{}, err
 	}
@@ -127,8 +119,8 @@ func (sos *serviceOfferingStorage) ListWithServicePlansByBrokerID(ctx context.Co
 	return result, nil
 }
 
-func (sos *serviceOfferingStorage) Delete(ctx context.Context, id string) error {
-	return remove(ctx, sos.db, id, serviceOfferingTable)
+func (sos *serviceOfferingStorage) Delete(ctx context.Context, criteria ...query.Criterion) error {
+	return deleteAllByFieldCriteria(ctx, sos.db, serviceOfferingTable, ServiceOffering{}, criteria)
 }
 
 func (sos *serviceOfferingStorage) Update(ctx context.Context, serviceOffering *types.ServiceOffering) error {

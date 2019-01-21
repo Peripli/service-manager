@@ -120,7 +120,7 @@ var _ = Describe("Selection", func() {
 
 		Context("When passing multivariate query", func() {
 			It("Should be ok", func() {
-				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop in [rightop|rightop2]")
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop in [rightop||rightop2]")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(criteriaFromRequest).To(ConsistOf(ByField(InOperator, "leftop", "rightop", "rightop2")))
 			})
@@ -128,7 +128,7 @@ var _ = Describe("Selection", func() {
 
 		Context("When passing label query", func() {
 			It("Should be ok", func() {
-				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?labelQuery=leftop in [rightop|rightop2]")
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?labelQuery=leftop in [rightop||rightop2]")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(criteriaFromRequest).To(ConsistOf(ByLabel(InOperator, "leftop", "rightop", "rightop2")))
 			})
@@ -136,7 +136,7 @@ var _ = Describe("Selection", func() {
 
 		Context("When passing label and field query", func() {
 			It("Should be ok", func() {
-				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop in [rightop|rightop2]&labelQuery=leftop in [rightop|rightop2]")
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop in [rightop||rightop2]&labelQuery=leftop in [rightop||rightop2]")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(criteriaFromRequest).To(ConsistOf(ByField(InOperator, "leftop", "rightop", "rightop2"), ByLabel(InOperator, "leftop", "rightop", "rightop2")))
 			})
@@ -144,7 +144,7 @@ var _ = Describe("Selection", func() {
 
 		Context("When passing multiple field queries", func() {
 			It("Should build criteria", func() {
-				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop1 in [rightop|rightop2]|leftop2 = rightop3")
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop1 in [rightop||rightop2]|leftop2 = rightop3")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(criteriaFromRequest).To(ConsistOf(ByField(InOperator, "leftop1", "rightop", "rightop2"), ByField(EqualsOperator, "leftop2", "rightop3")))
 			})
@@ -152,7 +152,7 @@ var _ = Describe("Selection", func() {
 
 		Context("When passing multiple label queries", func() {
 			It("Should build criteria", func() {
-				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?labelQuery=leftop1 in [rightop|rightop2]|leftop2 = rightop3")
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?labelQuery=leftop1 in [rightop||rightop2]|leftop2 = rightop3")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(criteriaFromRequest).To(ConsistOf(ByLabel(InOperator, "leftop1", "rightop", "rightop2"), ByLabel(EqualsOperator, "leftop2", "rightop3")))
 			})
@@ -160,7 +160,7 @@ var _ = Describe("Selection", func() {
 
 		Context("Operator is unsupported", func() {
 			It("Should return error", func() {
-				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop1 @ [rightop|rightop2]")
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop1 @ [rightop||rightop2]")
 				Expect(err).To(HaveOccurred())
 				Expect(criteriaFromRequest).To(BeNil())
 			})
@@ -168,7 +168,7 @@ var _ = Describe("Selection", func() {
 
 		Context("Operand has encoded value", func() {
 			It("Should be ok", func() {
-				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop1 in [%2Frightop|rightop2]")
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop1 in [%2Frightop||rightop2]")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(criteriaFromRequest).ToNot(BeNil())
 				expectedQuery := ByField(InOperator, "leftop1", "/rightop", "rightop2")
@@ -186,14 +186,14 @@ var _ = Describe("Selection", func() {
 		})
 		Context("Multivariate operator with right operand without opening brace", func() {
 			It("Should return error", func() {
-				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop in rightop|rightop2]")
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop in rightop||rightop2]")
 				Expect(err).To(HaveOccurred())
 				Expect(criteriaFromRequest).To(BeNil())
 			})
 		})
 		Context("Multivariate operator with right operand without closing brace", func() {
 			It("Should return error", func() {
-				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop in [rightop|rightop2")
+				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop in [rightop||rightop2")
 				Expect(err).To(HaveOccurred())
 				Expect(criteriaFromRequest).To(BeNil())
 			})
@@ -243,7 +243,7 @@ var _ = Describe("Selection", func() {
 						stringParam := rightOp[0]
 						if op.IsMultiVariate() {
 							rightOp = []string{"rightOp1", "rightOp2"}
-							stringParam = fmt.Sprintf("[%s]", strings.Join(rightOp, "|"))
+							stringParam = fmt.Sprintf("[%s]", strings.Join(rightOp, "||"))
 						}
 						criteriaFromRequest, err := buildCriteria(fmt.Sprintf("http://localhost:8080/v1/visibilities?%s=leftop %s %s", queryType, op, stringParam))
 						if op.IsNullable() && queryType == LabelQuery {

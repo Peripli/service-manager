@@ -31,9 +31,6 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-type object = common.Object
-type array = common.Array
-
 const simpleCatalog = `
 {
   "services": [{
@@ -81,8 +78,8 @@ func assertWorkingBrokerResponse(req *httpexpect.Response, expectedStatusCode in
 	}
 }
 
-func getDummyService(idsToRemove ...string) *object {
-	result := &object{
+func getDummyService(idsToRemove ...string) *common.Object {
+	result := &common.Object{
 		"service_id":        "dummyId",
 		"plan_id":           "dummyplanId",
 		"organization_guid": "orgguid",
@@ -103,7 +100,7 @@ func generateRandomQueryParam() (string, string) {
 }
 
 func failingHandler(rw http.ResponseWriter, _ *http.Request) {
-	common.SetResponse(rw, http.StatusNotAcceptable, object{"description": "Failing service broker error", "error": "error"})
+	common.SetResponse(rw, http.StatusNotAcceptable, common.Object{"description": "Failing service broker error", "error": "error"})
 }
 
 func queryParameterVerificationHandler(key, value string) http.HandlerFunc {
@@ -117,7 +114,7 @@ func queryParameterVerificationHandler(key, value string) http.HandlerFunc {
 		} else {
 			status = http.StatusOK
 		}
-		common.SetResponse(writer, status, object{})
+		common.SetResponse(writer, status, common.Object{})
 		defer GinkgoRecover()
 	}
 }
@@ -152,16 +149,16 @@ var _ = Describe("Service Manager OSB API", func() {
 
 	BeforeSuite(func() {
 		ctx = common.NewTestContext(nil)
-		validBrokerID, validBrokerServer = ctx.RegisterBroker()
+		validBrokerID, _, validBrokerServer = ctx.RegisterBroker()
 		smUrlToWorkingBroker = validBrokerServer.URL + "/v1/osb/" + validBrokerID
 
-		emptyCatalogBrokerID, brokerServerWithEmptyCatalog = ctx.RegisterBrokerWithCatalog(common.EmptyCatalog)
+		emptyCatalogBrokerID, _, brokerServerWithEmptyCatalog = ctx.RegisterBrokerWithCatalog(common.NewEmptySBCatalog())
 		smUrlToEmptyCatalogBroker = brokerServerWithEmptyCatalog.URL + "/v1/osb/" + emptyCatalogBrokerID
 
-		simpleBrokerCatalogID, brokerServerWithSimpleCatalog := ctx.RegisterBrokerWithCatalog(simpleCatalog)
+		simpleBrokerCatalogID, _, brokerServerWithSimpleCatalog := ctx.RegisterBrokerWithCatalog(simpleCatalog)
 		smUrlToSimpleBrokerCatalogBroker = brokerServerWithSimpleCatalog.URL + "/v1/osb/" + simpleBrokerCatalogID
 
-		failingBrokerID, failingBrokerServer = ctx.RegisterBroker()
+		failingBrokerID, _, failingBrokerServer = ctx.RegisterBroker()
 		smUrlToFailingBroker = failingBrokerServer.URL + "/v1/osb/" + failingBrokerID
 		failingBrokerServer.ServiceInstanceHandler = failingHandler
 		failingBrokerServer.BindingHandler = failingHandler
@@ -176,13 +173,13 @@ var _ = Describe("Service Manager OSB API", func() {
 		}
 		smUrlToMissingBroker = "http://localhost:32123/v1/osb/" + UUID.String()
 
-		stoppedBrokerID, stoppedBrokerServer = ctx.RegisterBroker()
+		stoppedBrokerID, _, stoppedBrokerServer = ctx.RegisterBroker()
 		stoppedBrokerServer.Close()
 
 		smUrlToStoppedBroker = stoppedBrokerServer.URL + "/v1/osb/" + stoppedBrokerID
 
 		headerKey, headerValue = generateRandomQueryParam()
-		queryParameterVerificationServerID, queryParameterVerificationServer := ctx.RegisterBroker()
+		queryParameterVerificationServerID, _, queryParameterVerificationServer := ctx.RegisterBroker()
 		queryParameterVerificationServer.ServiceInstanceHandler = queryParameterVerificationHandler(headerKey, headerValue)
 		queryParameterVerificationServer.BindingHandler = queryParameterVerificationHandler(headerKey, headerValue)
 		queryParameterVerificationServer.CatalogHandler = queryParameterVerificationHandler(headerKey, headerValue)
@@ -519,7 +516,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to working service broker", func() {
 			It("should succeed", func() {
 				assertWorkingBrokerResponse(
-					ctx.SMWithBasic.POST(smUrlToWorkingBroker+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader("X-Broker-API-Version", "oidc_authn.13").WithJSON(&object{}).Expect(),
+					ctx.SMWithBasic.POST(smUrlToWorkingBroker+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader("X-Broker-API-Version", "oidc_authn.13").WithJSON(&common.Object{}).Expect(),
 					http.StatusOK, "credentials")
 			})
 		})
@@ -527,7 +524,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to broken service broker", func() {
 			It("should fail", func() {
 				assertFailingBrokerError(
-					ctx.SMWithBasic.POST(smUrlToFailingBroker+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader("X-Broker-API-Version", "oidc_authn.13").WithJSON(&object{}).Expect())
+					ctx.SMWithBasic.POST(smUrlToFailingBroker+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader("X-Broker-API-Version", "oidc_authn.13").WithJSON(&common.Object{}).Expect())
 
 			})
 		})
@@ -535,7 +532,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to missing service broker", func() {
 			It("should fail", func() {
 				assertMissingBrokerError(
-					ctx.SMWithBasic.POST(smUrlToMissingBroker+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader("X-Broker-API-Version", "oidc_authn.13").WithJSON(&object{}).Expect())
+					ctx.SMWithBasic.POST(smUrlToMissingBroker+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader("X-Broker-API-Version", "oidc_authn.13").WithJSON(&common.Object{}).Expect())
 
 			})
 		})
@@ -543,7 +540,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		Context("when call to stopped service broker", func() {
 			It("should fail", func() {
 				assertStoppedBrokerError(
-					ctx.SMWithBasic.POST(smUrlToStoppedBroker+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader("X-Broker-API-Version", "oidc_authn.13").WithJSON(&object{}).Expect())
+					ctx.SMWithBasic.POST(smUrlToStoppedBroker+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader("X-Broker-API-Version", "oidc_authn.13").WithJSON(&common.Object{}).Expect())
 
 			})
 		})
@@ -572,12 +569,12 @@ var _ = Describe("Service Manager OSB API", func() {
 				prefixedBrokerServer = httptest.NewServer(brokerHandler)
 				brokerURL := prefixedBrokerServer.URL + brokerPathPrefix
 
-				brokerJSON := object{
+				brokerJSON := common.Object{
 					"name":        "prefixed_broker",
 					"broker_url":  brokerURL,
 					"description": "",
-					"credentials": object{
-						"basic": object{
+					"credentials": common.Object{
+						"basic": common.Object{
 							"username": "buser",
 							"password": "bpass",
 						},
@@ -609,8 +606,8 @@ type prefixedBrokerHandler struct {
 
 func (pbh *prefixedBrokerHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if strings.HasPrefix(req.URL.Path, pbh.brokerPathPrefix) {
-		common.SetResponse(w, http.StatusOK, object{"services": array{}})
+		common.SetResponse(w, http.StatusOK, common.Object{"services": common.Array{}})
 	} else {
-		common.SetResponse(w, http.StatusNotFound, object{})
+		common.SetResponse(w, http.StatusNotFound, common.Object{})
 	}
 }

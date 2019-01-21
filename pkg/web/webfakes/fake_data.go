@@ -2,16 +2,16 @@
 package webfakes
 
 import (
-	sync "sync"
+	"sync"
 
-	web "github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
 type FakeData struct {
-	DataStub        func(interface{}) error
+	DataStub        func(v interface{}) error
 	dataMutex       sync.RWMutex
 	dataArgsForCall []struct {
-		arg1 interface{}
+		v interface{}
 	}
 	dataReturns struct {
 		result1 error
@@ -23,22 +23,21 @@ type FakeData struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeData) Data(arg1 interface{}) error {
+func (fake *FakeData) Data(v interface{}) error {
 	fake.dataMutex.Lock()
 	ret, specificReturn := fake.dataReturnsOnCall[len(fake.dataArgsForCall)]
 	fake.dataArgsForCall = append(fake.dataArgsForCall, struct {
-		arg1 interface{}
-	}{arg1})
-	fake.recordInvocation("Data", []interface{}{arg1})
+		v interface{}
+	}{v})
+	fake.recordInvocation("Data", []interface{}{v})
 	fake.dataMutex.Unlock()
 	if fake.DataStub != nil {
-		return fake.DataStub(arg1)
+		return fake.DataStub(v)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.dataReturns
-	return fakeReturns.result1
+	return fake.dataReturns.result1
 }
 
 func (fake *FakeData) DataCallCount() int {
@@ -47,22 +46,13 @@ func (fake *FakeData) DataCallCount() int {
 	return len(fake.dataArgsForCall)
 }
 
-func (fake *FakeData) DataCalls(stub func(interface{}) error) {
-	fake.dataMutex.Lock()
-	defer fake.dataMutex.Unlock()
-	fake.DataStub = stub
-}
-
 func (fake *FakeData) DataArgsForCall(i int) interface{} {
 	fake.dataMutex.RLock()
 	defer fake.dataMutex.RUnlock()
-	argsForCall := fake.dataArgsForCall[i]
-	return argsForCall.arg1
+	return fake.dataArgsForCall[i].v
 }
 
 func (fake *FakeData) DataReturns(result1 error) {
-	fake.dataMutex.Lock()
-	defer fake.dataMutex.Unlock()
 	fake.DataStub = nil
 	fake.dataReturns = struct {
 		result1 error
@@ -70,8 +60,6 @@ func (fake *FakeData) DataReturns(result1 error) {
 }
 
 func (fake *FakeData) DataReturnsOnCall(i int, result1 error) {
-	fake.dataMutex.Lock()
-	defer fake.dataMutex.Unlock()
 	fake.DataStub = nil
 	if fake.dataReturnsOnCall == nil {
 		fake.dataReturnsOnCall = make(map[int]struct {
