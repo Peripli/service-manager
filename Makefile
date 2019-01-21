@@ -186,7 +186,7 @@ format-check: ## Checks for style violation using gofmt
 lint-check: ## Runs some linters and static code checks
 	@echo Running linter checks...
 	@gometalinter --vendor --disable-all \
-		--enable=megacheck \
+		--enable=staticcheck \
 		--enable=deadcode \
 		--enable=ineffassign \
 		--enable=misspell \
