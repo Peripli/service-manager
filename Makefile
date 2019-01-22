@@ -63,7 +63,6 @@ endif
 ifeq ($(shell which gometalinter),)
 	@echo "Installing gometalinter..."
 	@go get -u github.com/alecthomas/gometalinter
-	@gometalinter --install
 endif
 ifeq ($(shell which cover),)
 	@echo "Installing cover tool..."
@@ -185,15 +184,7 @@ format-check: ## Checks for style violation using gofmt
 
 lint-check: ## Runs some linters and static code checks
 	@echo Running linter checks...
-	@gometalinter --vendor --disable-all \
-		--enable=megacheck \
-		--enable=deadcode \
-		--enable=ineffassign \
-		--enable=misspell \
-		--enable=errcheck \
-		--enable=vet \
-		--deadline=10m \
-		./...
+	@gometalinter --vendor ./...
 
 #-----------------------------------------------------------------------------
 # Useful utility targets
