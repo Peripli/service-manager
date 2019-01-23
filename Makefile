@@ -63,6 +63,7 @@ endif
 ifeq ($(shell which gometalinter),)
 	@echo "Installing gometalinter..."
 	@go get -u github.com/alecthomas/gometalinter
+	@gometalinter --install
 endif
 ifeq ($(shell which cover),)
 	@echo "Installing cover tool..."
