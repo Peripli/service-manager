@@ -8,9 +8,9 @@ Specific resources in the Service Manager can be labeled in order to be organize
     - [Syntax](#syntax)
     - [Management](#management)
   - [Querying](#querying)
-    - [Operators](#operator)
+    - [Operators](#operators)
     - [Query Types](#query-types)
-  - [Supported entities](#supported-entities)
+  - [Supported resources](#supported-resources)
   - [API](#api)
 
 # Labels
@@ -35,8 +35,8 @@ They can be attached to a resource at creation time and added or modified at any
 ## Syntax
 
 Valid labels consist of a key and one or more values.  
-Keys can contain all characteres **except** the query separator (**|**).  
-Values can contain all characters, but if any value contains the query separator (**|**), then this symbol must be escaped with a backslash (**\\**) - `This is a value with a \| separator`  
+Keys can contain all characters **except** the query separator (**|**) and the new-line character (**\n**).  
+Values can contain all characters **except** the new-line character (**\n**). If any value contains the query separator (**|**), then this symbol must be escaped with a backslash (**\\**) - `This is a value with a \| separator`  
 The length of both the key and each value must be between 1 and 255 characters.
 
 ## Management
@@ -48,7 +48,7 @@ Labels can be attached to or detached from a resource by `PATCH`-ing the resourc
 # Querying
 
 Querying can be performed both on labels and resource fields.
-A valid query consist one or more criteria and a criterion cosists of a left operand, an operator and a right operand.
+A valid query consist one or more criteria and a criterion consists of a left operand, an operator and a right operand.
 
 The syntax is described below (note that **|** is a query separator and **||** is a separator for multiple values): 
 ```
@@ -61,8 +61,9 @@ The syntax is described below (note that **|** is a query separator and **||** i
 <values>                    ::= VALUE OR VALUE "||" <values>
 <univariate-criterion>      ::= ["=" OR "!=" OR "eqornil" OR "lt" OR "gt"] VALUE
 
-KEY is a sequence of characters with length from 1 to 255 characters, not containing a query separator.
+KEY is a sequence of characters with length from 1 to 255 characters, not containing a query separator and new lines.
 VALUE is a sequence of characters with length from 1 to 255 characters.  
+The new line character (\n) must not be present.  
 The query separator character (|) must be escaped with a backslash (\) if it is present.
 For array values, the separator between the values in the array is ||.  
 Delimiter between the operator and its operands is exactly one whitespace: ' '
@@ -110,13 +111,11 @@ Example: You might label multiple visibilities with the label `test = true` sayi
 A mixed query is a query that is performed both on fields and labels.  
 Example: `Give me all non-test visibilities for platform with id 038001bc-80bd-4d67-bf3a-956e4d545e3c.` This would translate to `/visibilities?fieldQuery=platform_id = 038001bc-80bd-4d67-bf3a-956e4d545e3c&labelQuery=test eqornil false`
 
-# Supported entities
+# Supported resources
 
-Service Manager supports `field querying` for the following entities, where each entity might define which of its fields can be queried:
-* service broker
-* visibility
+Service Manager supports `field querying` for all, where each resource might define which of its fields can be queried.
 
-Service Manager supports `label querying` for the following entities:
+Service Manager supports `label querying` for the following resources:
 * service broker
 * visibility
 
