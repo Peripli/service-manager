@@ -21,8 +21,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/query"
-
 	"github.com/Peripli/service-manager/pkg/log"
 )
 
@@ -36,6 +34,15 @@ type HTTPError struct {
 // Error HTTPError should implement error
 func (e *HTTPError) Error() string {
 	return e.Description
+}
+
+// UnsupportedQueryError is an error to show that the provided query cannot be executed
+type UnsupportedQueryError struct {
+	Message string
+}
+
+func (uq *UnsupportedQueryError) Error() string {
+	return uq.Message
 }
 
 // WriteError sends a JSON containing the error to the response writer
@@ -131,7 +138,7 @@ func HandleSelectionError(err error, entityName ...string) error {
 		return nil
 	}
 
-	if _, ok := err.(*query.UnsupportedQueryError); ok {
+	if _, ok := err.(*UnsupportedQueryError); ok {
 		return &HTTPError{
 			Description: err.Error(),
 			ErrorType:   "BadRequest",
