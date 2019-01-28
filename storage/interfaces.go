@@ -86,6 +86,23 @@ func (mf PingFunc) Ping() error {
 	return mf()
 }
 
+type Repository interface {
+	// Create stores a broker in SM DB
+	Create(ctx context.Context, obj types.Object) (string, error)
+
+	// Get retrieves a broker using the provided id from SM DB
+	Get(ctx context.Context, id string, objectType types.ObjectType) (types.Object, error)
+
+	// List retrieves all brokers from SM DB
+	List(ctx context.Context, obj interface{}, criteria ...query.Criterion) error
+
+	// Delete deletes a broker from SM DB
+	Delete(ctx context.Context, criteria ...query.Criterion) error
+
+	// Update updates a broker from SM DB
+	Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) error
+}
+
 // Warehouse contains the Service Manager data access object providers
 type Warehouse interface {
 	// Broker provides access to service broker db operations

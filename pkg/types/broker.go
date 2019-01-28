@@ -46,6 +46,14 @@ type Broker struct {
 	Labels Labels `json:"labels,omitempty"`
 }
 
+func (b *Broker) GetType() ObjectType {
+	return BrokerType
+}
+
+func (b *Broker) GetLabels() Labels {
+	return b.Labels
+}
+
 // Validate implements InputValidator and verifies all mandatory fields are populated
 func (b *Broker) Validate() error {
 	if b.Name == "" {

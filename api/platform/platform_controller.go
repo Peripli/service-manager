@@ -66,6 +66,10 @@ func (c *Controller) createPlatform(r *web.Request) (*web.Response, error) {
 	platform.CreatedAt = currentTime
 	platform.UpdatedAt = currentTime
 
+	s := &Service{}
+	if err := s.Create(platform); err != nil {
+		return &web.Response{}, err
+	}
 	credentials, err := types.GenerateCredentials()
 	if err != nil {
 		logger.Error("Could not generate credentials for platform")

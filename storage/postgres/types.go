@@ -287,6 +287,25 @@ func (b *Broker) ToDTO() *types.Broker {
 	}
 	return broker
 }
+func (b *Broker) FromDTO1(obj types.Object) {
+	broker := obj.(*types.Broker)
+	*b = Broker{
+		ID:          broker.ID,
+		Description: toNullString(broker.Description),
+		Name:        broker.Name,
+		BrokerURL:   broker.BrokerURL,
+		CreatedAt:   broker.CreatedAt,
+		UpdatedAt:   broker.UpdatedAt,
+	}
+
+	if broker.Description != "" {
+		b.Description.Valid = true
+	}
+	if broker.Credentials != nil && broker.Credentials.Basic != nil {
+		b.Username = broker.Credentials.Basic.Username
+		b.Password = broker.Credentials.Basic.Password
+	}
+}
 
 func (b *Broker) FromDTO(broker *types.Broker) {
 	*b = Broker{

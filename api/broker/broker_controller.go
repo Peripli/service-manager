@@ -48,6 +48,7 @@ type Controller struct {
 
 	OSBClientCreateFunc osbc.CreateFunc
 	Encrypter           security.Encrypter
+	Repo                storage.Bucket
 }
 
 var _ web.Controller = &Controller{}
@@ -177,7 +178,7 @@ func (c *Controller) listBrokers(r *web.Request) (*web.Response, error) {
 	var err error
 	ctx := r.Context()
 	log.C(ctx).Debug("Getting all brokers")
-
+	c.Repo.List()
 	brokers, err = c.Repository.Broker().List(ctx, query.CriteriaForContext(ctx)...)
 	if err != nil {
 		return nil, util.HandleSelectionError(err)

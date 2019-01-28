@@ -29,12 +29,20 @@ import (
 // Platform platform struct
 type Platform struct {
 	ID          string       `json:"id"`
-	Type        string       `json:"type"`
+	Type        string       `json:"type" valid_string:"regex:[a-z]|len[1,255]"`
 	Name        string       `json:"name"`
 	Description string       `json:"description"`
 	CreatedAt   time.Time    `json:"created_at"`
 	UpdatedAt   time.Time    `json:"updated_at"`
 	Credentials *Credentials `json:"credentials,omitempty"`
+}
+
+func (p *Platform) GetType() ObjectType {
+	return PlatformType
+}
+
+func (p *Platform) GetLabels() Labels {
+	panic("implement me")
 }
 
 // MarshalJSON override json serialization for http response

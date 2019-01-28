@@ -33,37 +33,21 @@ type brokerStorage struct {
 	db pgDB
 }
 
-func (bs *brokerStorage) Create(ctx context.Context, broker *types.Broker) (string, error) {
+func (bs *brokerStorage) Create(ctx context.Context, obj types.Object) (string, error) {
 	b := &Broker{}
-	b.FromDTO(broker)
+	b.FromDTO1(obj)
 	id, err := create(ctx, bs.db, brokerTable, b)
 	if err != nil {
 		return "", err
 	}
-	return id, bs.createLabels(ctx, id, broker.Labels)
+	return id, bs.createLabels(ctx, id, obj.GetLabels())
 }
 
-func (bs *brokerStorage) createLabels(ctx context.Context, brokerID string, labels types.Labels) error {
-	vls := brokerLabels{}
-	if err := vls.FromDTO(brokerID, labels); err != nil {
-		return err
-	}
-	if err := vls.Validate(); err != nil {
-		return err
-	}
-	for _, label := range vls {
-		if _, err := create(ctx, bs.db, brokerLabelsTable, label); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (bs *brokerStorage) Get(ctx context.Context, id string) (*types.Broker, error) {
+func (bs *brokerStorage) Get(ctx context.Context, id string) (types.Object, error) {
 	byID := query.ByField(query.EqualsOperator, "id", id)
 
-	brokers, err := bs.List(ctx, byID)
-	if err != nil {
+	brokers := []*types.Broker{}
+	if err := bs.List(ctx, brokers, byID); err != nil {
 		return nil, err
 	}
 	if len(brokers) == 0 {
@@ -72,7 +56,7 @@ func (bs *brokerStorage) Get(ctx context.Context, id string) (*types.Broker, err
 	return brokers[0], nil
 }
 
-func (bs *brokerStorage) List(ctx context.Context, criteria ...query.Criterion) ([]*types.Broker, error) {
+func (bs *brokerStorage) List(ctx context.Context, obj interface{}, criteria ...query.Criterion) error {
 	rows, err := listWithLabelsByCriteria(ctx, bs.db, Broker{}, &BrokerLabel{}, brokerTable, criteria)
 	defer func() {
 		if rows == nil {
@@ -83,7 +67,7 @@ func (bs *brokerStorage) List(ctx context.Context, criteria ...query.Criterion) 
 		}
 	}()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	brokers := make(map[string]*types.Broker)
@@ -95,7 +79,7 @@ func (bs *brokerStorage) List(ctx context.Context, criteria ...query.Criterion) 
 			*BrokerLabel `db:"broker_labels"`
 		}{}
 		if err := rows.StructScan(&row); err != nil {
-			return nil, err
+			return err
 		}
 		broker, ok := brokers[row.Broker.ID]
 		if !ok {
@@ -112,16 +96,16 @@ func (bs *brokerStorage) List(ctx context.Context, criteria ...query.Criterion) 
 	for _, b := range result {
 		b.Labels = labels[b.ID]
 	}
-
-	return result, nil
+	obj = result
+	return nil
 }
 
 func (bs *brokerStorage) Delete(ctx context.Context, criteria ...query.Criterion) error {
 	return deleteAllByFieldCriteria(ctx, bs.db, brokerTable, Broker{}, criteria)
-
 }
 
-func (bs *brokerStorage) Update(ctx context.Context, broker *types.Broker, labelChanges ...*query.LabelChange) error {
+func (bs *brokerStorage) Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) error {
+	broker := obj.(*types.Broker)
 	b := &Broker{}
 	b.FromDTO(broker)
 	if err := update(ctx, bs.db, brokerTable, b); err != nil {
@@ -153,4 +137,24 @@ func (bs *brokerStorage) updateLabels(ctx context.Context, brokerID string, upda
 		}
 	}
 	return updateLabelsAbstract(ctx, newLabelFunc, bs.db, brokerID, updateActions)
+}
+
+func (bs *brokerStorage) Supports(obj types.Object) bool {
+	return obj.GetType() == types.BrokerType
+}
+
+func (bs *brokerStorage) createLabels(ctx context.Context, brokerID string, labels types.Labels) error {
+	vls := brokerLabels{}
+	if err := vls.FromDTO(brokerID, labels); err != nil {
+		return err
+	}
+	if err := vls.Validate(); err != nil {
+		return err
+	}
+	for _, label := range vls {
+		if _, err := create(ctx, bs.db, brokerLabelsTable, label); err != nil {
+			return err
+		}
+	}
+	return nil
 }
