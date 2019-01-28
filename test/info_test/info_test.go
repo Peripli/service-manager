@@ -25,28 +25,52 @@ import (
 	. "github.com/onsi/ginkgo"
 )
 
+type Object = common.Object
+
+var (
+	True  = true
+	False = false
+)
+
 func TestInfo(t *testing.T) {
 	RunSpecs(t, "Info Suite")
 }
 
 var _ = Describe("Info API", func() {
+	cases := []struct {
+		description     string
+		configBasicAuth *bool
+		expectBasicAuth bool
+	}{
+		{"Returns token_issuer_url and token_basic_auth: true by default", nil, true},
+		{"Returns token_issuer_url and token_basic_auth: true", &True, true},
+		{"Returns token_issuer_url and token_basic_auth: false", &False, false},
+	}
 
-	var ctx *common.TestContext
+	for _, tc := range cases {
+		tc := tc
+		var ctx *common.TestContext
 
-	BeforeSuite(func() {
-		ctx = common.NewTestContext(nil)
-	})
+		BeforeEach(func() {
+			env := common.TestEnv()
+			if tc.configBasicAuth != nil {
+				env.Set("api.token_basic_auth", *tc.configBasicAuth)
+			}
+			ctx = common.NewTestContext(&common.ContextParams{Env: env})
+		})
 
-	AfterSuite(func() {
-		ctx.Cleanup()
-	})
+		AfterEach(func() {
+			ctx.Cleanup()
+		})
 
-	Describe("Get info handler", func() {
-		It("Returns correct response", func() {
+		It(tc.description, func() {
 			ctx.SM.GET(info.URL).
 				Expect().
 				Status(http.StatusOK).
-				JSON().Object().Keys().Contains("token_issuer_url")
+				JSON().Object().Equal(Object{
+				"token_issuer_url": ctx.OAuthServer.URL,
+				"token_basic_auth": tc.expectBasicAuth,
+			})
 		})
-	})
+	}
 })

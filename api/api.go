@@ -48,6 +48,7 @@ type Settings struct {
 	TokenIssuerURL    string `mapstructure:"token_issuer_url"`
 	ClientID          string `mapstructure:"client_id"`
 	SkipSSLValidation bool   `mapstructure:"skip_ssl_validation"`
+	TokenBasicAuth    bool   `mapstructure:"token_basic_auth"`
 }
 
 // DefaultSettings returns default values for API settings
@@ -56,6 +57,7 @@ func DefaultSettings() *Settings {
 		TokenIssuerURL:    "",
 		ClientID:          "",
 		SkipSSLValidation: false,
+		TokenBasicAuth:    true, // RFC 6749 section 2.3.1
 	}
 }
 
@@ -95,7 +97,8 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 				Repository: repository,
 			},
 			&info.Controller{
-				TokenIssuer: settings.TokenIssuerURL,
+				TokenIssuer:    settings.TokenIssuerURL,
+				TokenBasicAuth: settings.TokenBasicAuth,
 			},
 			osb.NewController(&osb.StorageBrokerFetcher{
 				BrokerStorage: repository.Broker(),
