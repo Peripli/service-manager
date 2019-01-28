@@ -23,21 +23,17 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-// DetailsResponse describes the public information provided by the Service Manager and is returned as a
-// response from the info API.
-type DetailsResponse struct {
-	TokenIssuer string `json:"token_issuer_url"`
-}
-
 // Controller info controller
 type Controller struct {
-	TokenIssuer string
+	TokenIssuer string `json:"token_issuer_url"`
+
+	// TokenBasicAuth specifies if client credentials should be sent in the header
+	// as basic auth (true) or in the body (false)
+	TokenBasicAuth bool `json:"token_basic_auth"`
 }
 
 var _ web.Controller = &Controller{}
 
 func (c *Controller) getInfo(request *web.Request) (*web.Response, error) {
-	return util.NewJSONResponse(http.StatusOK, &DetailsResponse{
-		TokenIssuer: c.TokenIssuer,
-	})
+	return util.NewJSONResponse(http.StatusOK, c)
 }
