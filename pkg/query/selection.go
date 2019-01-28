@@ -120,7 +120,7 @@ func (c Criterion) Validate() error {
 		return fmt.Errorf("multiple values %s received for single value operation %s", c.RightOp, c.Operator)
 	}
 	if c.Operator.IsNullable() && c.Type != FieldQuery {
-		return &util.UnsupportedQueryError{"nullable operations are supported only for field queries"}
+		return &util.UnsupportedQueryError{Message: "nullable operations are supported only for field queries"}
 	}
 	if c.Operator.IsNumeric() && !isNumeric(c.RightOp[0]) {
 		return &util.UnsupportedQueryError{Message: fmt.Sprintf("%s is numeric operator, but the right operand %s is not numeric", c.Operator, c.RightOp[0])}
