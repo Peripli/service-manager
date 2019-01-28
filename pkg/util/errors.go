@@ -143,18 +143,3 @@ func HandleSelectionError(err error, entityName ...string) error {
 	}
 	return HandleStorageError(err, entityName[0])
 }
-
-func HandleLabelChangeError(err error) error {
-	if err == nil {
-		return nil
-	}
-
-	if _, ok := err.(*query.LabelChangeError); ok {
-		return &HTTPError{
-			Description: err.Error(),
-			ErrorType:   "BadRequest",
-			StatusCode:  http.StatusBadRequest,
-		}
-	}
-	return HandleStorageError(err, "")
-}

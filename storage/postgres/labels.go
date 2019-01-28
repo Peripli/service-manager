@@ -37,8 +37,13 @@ func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string,
 		case query.AddLabelOperation:
 			fallthrough
 		case query.AddLabelValuesOperation:
-			if err := addLabel(ctx, newLabelFunc, pgDB, action.Key, action.Values...); err != nil {
-				return err
+			for _, labelValue := range action.Values {
+				if err := addLabel(ctx, newLabelFunc, pgDB, action.Key, labelValue); err != nil {
+					if err == util.ErrAlreadyExistsInStorage {
+						log.C(ctx).Infof("label with key %s and value %s already exists for this entity", action.Key, labelValue)
+						return nil
+					}
+				}
 			}
 		case query.RemoveLabelOperation:
 			fallthrough
@@ -46,7 +51,8 @@ func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string,
 			pgLabel := newLabelFunc("", "", "")
 			if err := removeLabel(ctx, pgDB, pgLabel, referenceID, action.Key, action.Values...); err != nil {
 				if err == util.ErrNotFoundInStorage {
-					return &query.LabelChangeError{Message: fmt.Sprintf("label with key %s cannot be modified as it does not exist", action.Key)}
+					log.C(ctx).Infof("label with key %s cannot be modified or deleted as it does not exist", action.Key)
+					return nil
 				}
 				return err
 			}
@@ -55,21 +61,16 @@ func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string,
 	return nil
 }
 
-func addLabel(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) Labelable, db pgDB, key string, values ...string) error {
-	for _, labelValue := range values {
-		uuids, err := uuid.NewV4()
-		if err != nil {
-			return fmt.Errorf("could not generate id for new label: %v", err)
-		}
-		labelID := uuids.String()
-		newLabel := newLabelFunc(labelID, key, labelValue)
-		labelTable, _, _ := newLabel.Label()
-		if _, err := create(ctx, db, labelTable, newLabel); err != nil {
-			if err == util.ErrAlreadyExistsInStorage {
-				return &query.LabelChangeError{Message: fmt.Sprintf("label with key %s and value %s already exists for this entity", key, labelValue)}
-			}
-			return err
-		}
+func addLabel(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) Labelable, db pgDB, key string, value string) error {
+	uuids, err := uuid.NewV4()
+	if err != nil {
+		return fmt.Errorf("could not generate id for new label: %v", err)
+	}
+	labelID := uuids.String()
+	newLabel := newLabelFunc(labelID, key, value)
+	labelTable, _, _ := newLabel.Label()
+	if _, err := create(ctx, db, labelTable, newLabel); err != nil {
+		return err
 	}
 	return nil
 }

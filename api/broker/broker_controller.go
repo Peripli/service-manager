@@ -232,7 +232,7 @@ func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
 
 	changes, err := query.LabelChangesFromJSON(r.Body)
 	if err != nil {
-		return nil, util.HandleLabelChangeError(err)
+		return nil, err
 	}
 	if r.Body, err = sjson.DeleteBytes(r.Body, "labels"); err != nil {
 		return nil, err
