@@ -39,7 +39,7 @@ var _ = Describe("Update", func() {
 		})
 
 		JustBeforeEach(func() {
-			body = []byte(fmt.Sprintf(`{"labels":[
+			body = []byte(fmt.Sprintf(`{"labels": [
 	{
 		"op": "%s",
 		"key": "key1",

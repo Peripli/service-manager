@@ -72,13 +72,13 @@ func (lc *LabelChanges) Validate() error {
 
 // LabelChangesFromJSON returns the label changes from the json byte array and an error if the changes are not valid
 func LabelChangesFromJSON(jsonBytes []byte) ([]*LabelChange, error) {
-	var labelChanges LabelChanges
+	labelChanges := LabelChanges{}
 	labelChangesBytes := gjson.GetBytes(jsonBytes, "labels").String()
 	if len(labelChangesBytes) <= 0 {
 		return LabelChanges{}, nil
 	}
 
-	if err := util.BytesToObject(jsonBytes, &labelChanges); err != nil {
+	if err := util.BytesToObject([]byte(labelChangesBytes), &labelChanges); err != nil {
 		return nil, err
 	}
 
