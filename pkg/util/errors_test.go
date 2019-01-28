@@ -96,7 +96,7 @@ var _ = Describe("Errors", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 
 				err = util.HandleResponseError(response)
-				validateHTTPErrorOccured(err, response.StatusCode)
+				validateHTTPErrorOccurred(err, response.StatusCode)
 
 			})
 		})
@@ -140,7 +140,7 @@ var _ = Describe("Errors", func() {
 				It("returns proper HTTPError", func() {
 					err := util.HandleStorageError(util.ErrAlreadyExistsInStorage, "entityName")
 
-					validateHTTPErrorOccured(err, http.StatusConflict)
+					validateHTTPErrorOccurred(err, http.StatusConflict)
 				})
 			})
 
@@ -148,7 +148,7 @@ var _ = Describe("Errors", func() {
 				It("returns proper HTTPError", func() {
 					err := util.HandleStorageError(util.ErrNotFoundInStorage, "entityName")
 
-					validateHTTPErrorOccured(err, http.StatusNotFound)
+					validateHTTPErrorOccurred(err, http.StatusNotFound)
 				})
 			})
 
