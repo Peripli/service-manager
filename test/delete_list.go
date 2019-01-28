@@ -285,12 +285,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 	}
 
 	verifyDeleteListOpHelper := func(deleteListOpEntry deleteOpEntry, query string) {
-
-		// workaround for brokers api
 		jsonArrayKey := strings.Replace(t.API, "/v1/", "", 1)
-		if jsonArrayKey == "service_brokers" {
-			jsonArrayKey = "brokers"
-		}
 
 		expectedAfterOpIDs := make([]string, 0)
 		unexpectedAfterOpIDs := make([]string, 0)
