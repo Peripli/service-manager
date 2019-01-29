@@ -367,7 +367,7 @@ func DoHTTP(reaction *HTTPReaction, checks *HTTPExpectations) func(*http.Request
 	return func(request *http.Request) (*http.Response, error) {
 		if checks != nil {
 			if len(checks.URL) > 0 && !strings.Contains(checks.URL, request.URL.Host) {
-				Fail(fmt.Sprintf("unexpected BaseURL; expected %v, got %v", checks.URL, request.URL.Path))
+				Fail(fmt.Sprintf("unexpected URL; expected %v, got %v", checks.URL, request.URL.Path))
 			}
 
 			for k, v := range checks.Headers {

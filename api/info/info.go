@@ -23,7 +23,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-// BaseURL is the path of the info endpoint
+// URL is the path of the info endpoint
 const URL = web.InfoURL
 
 // Routes returns a slice of the routs that handle info operations

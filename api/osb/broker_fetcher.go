@@ -34,7 +34,7 @@ type StorageBrokerFetcher struct {
 
 var _ BrokerFetcher = &StorageBrokerFetcher{}
 
-// FetchBroker obtains the broker coordinates (auth and BaseURL)
+// FetchBroker obtains the broker coordinates (auth and URL)
 func (sbf *StorageBrokerFetcher) FetchBroker(ctx context.Context, brokerID string) (*types.Broker, error) {
 	broker, err := sbf.BrokerStorage.Get(ctx, brokerID)
 	if err != nil {

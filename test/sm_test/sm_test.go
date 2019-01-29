@@ -76,7 +76,7 @@ var _ = Describe("SM", func() {
 			It("should panic", func() {
 				Expect(func() {
 					env := sm.DefaultEnv(common.SetTestFileLocation)
-					env.Set("api.token_issuer_url", oauthServer.BaseURL)
+					env.Set("api.token_issuer_url", oauthServer.URL)
 					env.Set("log.level", "invalid")
 					sm.New(ctx, cancel, env)
 				}).To(Panic())
@@ -87,7 +87,7 @@ var _ = Describe("SM", func() {
 			It("should panic", func() {
 				Expect(func() {
 					env := sm.DefaultEnv(common.SetTestFileLocation)
-					env.Set("api.token_issuer_url", oauthServer.BaseURL)
+					env.Set("api.token_issuer_url", oauthServer.URL)
 					env.Set("storage.uri", "invalid")
 					sm.New(ctx, cancel, env)
 				}).To(Panic())
@@ -107,7 +107,7 @@ var _ = Describe("SM", func() {
 		Context("when no API extensions are registered", func() {
 			It("should return working service manager", func() {
 				env := sm.DefaultEnv(common.SetTestFileLocation)
-				env.Set("api.token_issuer_url", oauthServer.BaseURL)
+				env.Set("api.token_issuer_url", oauthServer.URL)
 				smanager := sm.New(ctx, cancel, env)
 
 				verifyServiceManagerStartsSuccessFully(httptest.NewServer(smanager.Build().Server.Router))
@@ -118,7 +118,7 @@ var _ = Describe("SM", func() {
 		Context("when additional filter is registered", func() {
 			It("should return working service manager with a new filter", func() {
 				env := sm.DefaultEnv(common.SetTestFileLocation)
-				env.Set("api.token_issuer_url", oauthServer.BaseURL)
+				env.Set("api.token_issuer_url", oauthServer.URL)
 				smanager := sm.New(ctx, cancel, env)
 				smanager.RegisterFilters(testFilter{})
 
@@ -133,7 +133,7 @@ var _ = Describe("SM", func() {
 		Context("when additional controller is registered", func() {
 			It("should return working service manager with additional controller", func() {
 				env := sm.DefaultEnv(common.SetTestFileLocation)
-				env.Set("api.token_issuer_url", oauthServer.BaseURL)
+				env.Set("api.token_issuer_url", oauthServer.URL)
 				smanager := sm.New(ctx, cancel, env)
 				smanager.RegisterControllers(testController{})
 

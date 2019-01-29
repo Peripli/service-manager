@@ -114,7 +114,7 @@ var _ = Describe("OIDC Authenticator", func() {
 	})
 
 	Context("NewOIDCAuthenticator", func() {
-		Context("When no Issuer BaseURL is present", func() {
+		Context("When no Issuer URL is present", func() {
 			It("Should return an error", func() {
 				oauthOptions.IssuerURL = ""
 				authenticator, issuer, err := NewOIDCAuthenticator(ctx, oauthOptions)

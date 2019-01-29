@@ -40,7 +40,6 @@ var _ = Describe("API", func() {
 
 	BeforeSuite(func() {
 		server = common.NewOAuthServer()
-		server.Start()
 	})
 
 	AfterSuite(func() {

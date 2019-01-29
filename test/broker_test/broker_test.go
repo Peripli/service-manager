@@ -354,7 +354,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 					}
 
-					Context("when broker BaseURL does not end with trailing slash", func() {
+					Context("when broker URL does not end with trailing slash", func() {
 						BeforeEach(func() {
 							postBrokerRequestWithNoLabels["broker_url"] = strings.TrimRight(cast.ToString(postBrokerRequestWithNoLabels["broker_url"]), "/")
 							expectedBrokerResponse["broker_url"] = strings.TrimRight(cast.ToString(expectedBrokerResponse["broker_url"]), "/")
@@ -363,7 +363,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						assertPOSTReturns201()
 					})
 
-					Context("when broker BaseURL ends with trailing slash", func() {
+					Context("when broker URL ends with trailing slash", func() {
 						BeforeEach(func() {
 							postBrokerRequestWithNoLabels["broker_url"] = cast.ToString(postBrokerRequestWithNoLabels["broker_url"]) + "/"
 							expectedBrokerResponse["broker_url"] = cast.ToString(expectedBrokerResponse["broker_url"]) + "/"

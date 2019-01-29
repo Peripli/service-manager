@@ -48,7 +48,7 @@ type providerJSON struct {
 
 // OIDCOptions is the configuration used to construct a new OIDC authenticator
 type OIDCOptions struct {
-	// IssuerURL is the base BaseURL of the token issuer
+	// IssuerURL is the base URL of the token issuer
 	IssuerURL string
 
 	// ClientID is the id of the oauth client used to verify the tokens
@@ -83,7 +83,7 @@ type OauthAuthenticator struct {
 // NewOIDCAuthenticator returns a new OpenID authenticator or an error if one couldn't be configured
 func NewOIDCAuthenticator(ctx context.Context, options *OIDCOptions) (security.Authenticator, string, error) {
 	if options.IssuerURL == "" {
-		return nil, "", errors.New("missing issuer BaseURL")
+		return nil, "", errors.New("missing issuer URL")
 	}
 	resp, err := getOpenIDConfig(ctx, options)
 	if err != nil {
