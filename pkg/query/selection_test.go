@@ -81,6 +81,29 @@ var _ = Describe("Selection", func() {
 		})
 	})
 
+	Describe("Context with criteria", func() {
+		Context("When there are no criteria in the context", func() {
+			It("Adds the new ones", func() {
+				newCriteria := []Criterion{ByField(EqualsOperator, "leftOp", "rightOp")}
+				newContext := ContextWithCriteria(ctx, newCriteria)
+				Expect(CriteriaForContext(newContext)).To(ConsistOf(newCriteria))
+			})
+		})
+
+		Context("When there are criteria already in the context", func() {
+			It("Overrides them", func() {
+				oldCriteria := []Criterion{ByField(EqualsOperator, "leftOp", "rightOp")}
+				oldContext := ContextWithCriteria(ctx, oldCriteria)
+
+				newCriteria := []Criterion{ByLabel(NotEqualsOperator, "leftOp1", "rightOp1")}
+				newContext := ContextWithCriteria(oldContext, newCriteria)
+				criteriaForNewContext := CriteriaForContext(newContext)
+				Expect(criteriaForNewContext).To(ConsistOf(newCriteria))
+				Expect(criteriaForNewContext).ToNot(ContainElement(oldCriteria[0]))
+			})
+		})
+	})
+
 	Describe("Build criteria from request", func() {
 		var request *web.Request
 		BeforeEach(func() {
