@@ -310,7 +310,7 @@ func GenerateRandomBroker() Object {
 	}
 	o = Object{
 		"name":        UUID.String(),
-		"broker_url":  brokerServer.URL,
+		"broker_url":  brokerServer.URL(),
 		"description": UUID2.String(),
 		"credentials": Object{
 			"basic": Object{

@@ -166,7 +166,7 @@ var _ = Describe("Service Manager Plugins", func() {
 			ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
 				Expect().Status(http.StatusOK)
 
-			Expect(brokerServer.Server.URL).To(ContainSubstring(brokerServer.LastRequest.Host))
+			Expect(brokerServer.URL()).To(ContainSubstring(brokerServer.LastRequest.Host))
 		})
 
 		osbOperations := []struct {
