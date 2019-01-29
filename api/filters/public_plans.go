@@ -38,28 +38,33 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-// FreeServicePlansFilter reconciles the state of the free plans offered by all service brokers registered in SM. The
+// PublicServicePlansFilter reconciles the state of the free plans offered by all service brokers registered in SM. The
 // filter makes sure that a public visibility exists for each free plan present in SM DB.
-type FreeServicePlansFilter struct {
-	Repository storage.Repository
+type PublicServicePlansFilter struct {
+	Repository              storage.Repository
+	IsCatalogPlanPublicFunc func(broker *types.Broker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (bool, error)
 }
 
-func (fsp *FreeServicePlansFilter) Name() string {
-	return "FreePlansFilter"
+func (pspf *PublicServicePlansFilter) Name() string {
+	return "PublicServicePlansFilter"
 }
 
-func (fsp *FreeServicePlansFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
+func (pspf *PublicServicePlansFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	response, err := next.Handle(req)
 	if err != nil {
 		return nil, err
 	}
 	ctx := req.Context()
 	brokerID := gjson.GetBytes(response.Body, "id").String()
-	log.C(ctx).Debugf("Reconciling free plans for broker with id: %s", brokerID)
-	if err := fsp.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
+	log.C(ctx).Debugf("Reconciling public plans for broker with id: %s", brokerID)
+	if err := pspf.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
 		soRepository := storage.ServiceOffering()
 		vRepository := storage.Visibility()
 
+		broker, err := pspf.Repository.Broker().Get(ctx, brokerID)
+		if err != nil {
+			return util.HandleStorageError(err, "broker")
+		}
 		catalog, err := soRepository.ListWithServicePlansByBrokerID(ctx, brokerID)
 		if err != nil {
 			return err
@@ -67,7 +72,11 @@ func (fsp *FreeServicePlansFilter) Run(req *web.Request, next web.Handler) (*web
 		for _, serviceOffering := range catalog {
 			for _, servicePlan := range serviceOffering.Plans {
 				planID := servicePlan.ID
-				isFree := servicePlan.Free
+				isPublic, err := pspf.IsCatalogPlanPublicFunc(broker, serviceOffering, servicePlan)
+				if err != nil {
+					return err
+				}
+
 				hasPublicVisibility := false
 				byServicePlanID := query.ByField(query.EqualsOperator, "service_plan_id", planID)
 				visibilitiesForPlan, err := vRepository.List(ctx, byServicePlanID)
@@ -76,7 +85,7 @@ func (fsp *FreeServicePlansFilter) Run(req *web.Request, next web.Handler) (*web
 				}
 				for _, visibility := range visibilitiesForPlan {
 					byVisibilityID := query.ByField(query.EqualsOperator, "id", visibility.ID)
-					if isFree {
+					if isPublic {
 						if visibility.PlatformID == "" {
 							hasPublicVisibility = true
 							continue
@@ -96,7 +105,7 @@ func (fsp *FreeServicePlansFilter) Run(req *web.Request, next web.Handler) (*web
 					}
 				}
 
-				if isFree && !hasPublicVisibility {
+				if isPublic && !hasPublicVisibility {
 					UUID, err := uuid.NewV4()
 					if err != nil {
 						return fmt.Errorf("could not generate GUID for visibility: %s", err)
@@ -121,11 +130,11 @@ func (fsp *FreeServicePlansFilter) Run(req *web.Request, next web.Handler) (*web
 	}); err != nil {
 		return nil, err
 	}
-	log.C(ctx).Debugf("Successfully finished reconciling free plans for broker with id %s", brokerID)
+	log.C(ctx).Debugf("Successfully finished reconciling public plans for broker with id %s", brokerID)
 	return response, nil
 }
 
-func (fsp *FreeServicePlansFilter) FilterMatchers() []web.FilterMatcher {
+func (pspf *PublicServicePlansFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
