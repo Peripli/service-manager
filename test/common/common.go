@@ -46,16 +46,8 @@ import (
 type Object = map[string]interface{}
 type Array = []interface{}
 
-type starter interface {
-	Start()
-}
-
 type closer interface {
 	Close()
-}
-
-type named interface {
-	Name() string
 }
 
 type urler interface {
@@ -63,8 +55,6 @@ type urler interface {
 }
 
 type FakeServer interface {
-	//named
-	//starter
 	closer
 	urler
 }
