@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -34,16 +35,19 @@ func TestUtil(t *testing.T) {
 	RunSpecs(t, "Util test suite")
 }
 
-func validateHTTPErrorOccured(err error, expectedStatusCode int) {
+func validateHTTPErrorOccurred(err error, code int) {
 	Expect(err).Should(HaveOccurred())
 
 	httpError, ok := err.(*util.HTTPError)
-	Expect(ok).To(BeTrue())
+	if ok {
+		Expect(httpError.ErrorType).To(Not(BeEmpty()))
+		Expect(httpError.Description).To(Not(BeEmpty()))
+		Expect(httpError.StatusCode).To(Equal(code))
 
-	Expect(httpError.StatusCode).To(Equal(expectedStatusCode))
+	} else {
+		Expect(err.Error()).To(ContainSubstring(strconv.Itoa(code)))
+	}
 
-	Expect(httpError.ErrorType).To(Not(BeEmpty()))
-	Expect(httpError.Description).To(Not(BeEmpty()))
 }
 
 var _ = Describe("Utils test", func() {
@@ -100,7 +104,7 @@ var _ = Describe("Utils test", func() {
 				req.Header.Add("Content-Type", "application/xml")
 				_, err := util.RequestBodyToBytes(req)
 
-				validateHTTPErrorOccured(err, http.StatusUnsupportedMediaType)
+				validateHTTPErrorOccurred(err, http.StatusUnsupportedMediaType)
 			})
 		})
 
@@ -120,7 +124,7 @@ var _ = Describe("Utils test", func() {
 				req.Header.Add("Content-Type", "application/json")
 				_, err := util.RequestBodyToBytes(req)
 
-				validateHTTPErrorOccured(err, http.StatusBadRequest)
+				validateHTTPErrorOccurred(err, http.StatusBadRequest)
 			})
 		})
 
@@ -157,7 +161,7 @@ var _ = Describe("Utils test", func() {
 			It("returns a proper HTTPError", func() {
 				err := util.BytesToObject([]byte(randomJSON), &testTypeValidation)
 
-				validateHTTPErrorOccured(err, http.StatusBadRequest)
+				validateHTTPErrorOccurred(err, http.StatusBadRequest)
 			})
 		})
 
@@ -165,7 +169,7 @@ var _ = Describe("Utils test", func() {
 			It("returns a proper HTTPError", func() {
 				err := util.BytesToObject([]byte(testTypeNotValid), &testTypeValidation)
 
-				validateHTTPErrorOccured(err, http.StatusBadRequest)
+				validateHTTPErrorOccurred(err, http.StatusBadRequest)
 			})
 		})
 
