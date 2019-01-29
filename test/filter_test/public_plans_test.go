@@ -17,7 +17,10 @@
 package filter_test
 
 import (
+	"context"
 	"net/http"
+
+	"github.com/Peripli/service-manager/pkg/env"
 
 	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/pkg/sm"
@@ -85,16 +88,15 @@ var _ = Describe("Service Manager Public Plans Filter", func() {
 	}
 
 	BeforeSuite(func() {
-		ctx = common.NewTestContext(&common.ContextParams{
-			RegisterExtensions: func(smb *sm.ServiceManagerBuilder) {
-				smb.RegisterFilters(&filters.PublicServicePlansFilter{
-					Repository: smb.Storage,
-					IsCatalogPlanPublicFunc: func(broker *types.Broker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
-						return catalogPlan.Free, nil
-					},
-				})
-			},
-		})
+		ctx = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+			smb.RegisterFilters(&filters.PublicServicePlansFilter{
+				Repository: smb.Storage,
+				IsCatalogPlanPublicFunc: func(broker *types.Broker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
+					return catalogPlan.Free, nil
+				},
+			})
+			return nil
+		}).Build()
 	})
 
 	AfterSuite(func() {
