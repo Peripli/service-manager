@@ -69,7 +69,11 @@ func HandleResponseError(response *http.Response) error {
 	}
 
 	err = fmt.Errorf("StatusCode: %d Body: %s", response.StatusCode, body)
-	log.C(response.Request.Context()).Errorf("Call to client failed with: %s", err)
+	if response.Request != nil {
+		log.C(response.Request.Context()).Errorf("Call to client failed with: %s", err)
+	} else {
+		log.D().Errorf("Call to client failed with: %s", err)
+	}
 	return err
 }
 

@@ -17,6 +17,7 @@
 package util_test
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -104,9 +105,11 @@ var _ = Describe("Errors", func() {
 		Context("when response contains standard error", func() {
 			It("returns an error containing information about the error handling failure", func() {
 				e := fmt.Errorf("test error")
+				r := http.Request{}
 				response := &http.Response{
 					StatusCode: http.StatusTeapot,
 					Body:       common.Closer(e.Error()),
+					Request:    r.WithContext(context.TODO()),
 				}
 
 				err := util.HandleResponseError(response)
@@ -117,9 +120,11 @@ var _ = Describe("Errors", func() {
 		Context("when response contains JSON error that has no description", func() {
 			It("returns an error containing the response body", func() {
 				e := `{"key":"value"}`
+				r := http.Request{}
 				response := &http.Response{
 					StatusCode: http.StatusTeapot,
 					Body:       common.Closer(e),
+					Request:    r.WithContext(context.TODO()),
 				}
 
 				err := util.HandleResponseError(response)
