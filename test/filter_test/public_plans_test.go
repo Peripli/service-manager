@@ -19,6 +19,10 @@ package filter_test
 import (
 	"net/http"
 
+	"github.com/Peripli/service-manager/api/filters"
+	"github.com/Peripli/service-manager/pkg/sm"
+	"github.com/Peripli/service-manager/pkg/types"
+
 	"github.com/tidwall/gjson"
 
 	"github.com/tidwall/sjson"
@@ -30,19 +34,19 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = XDescribe("Service Manager Free Plans Filter", func() {
+var _ = Describe("Service Manager Public Plans Filter", func() {
 	var ctx *common.TestContext
 	var existingBrokerID string
 	var existingBrokerServer *common.BrokerServer
 
-	var oldFreePlanCatalogID string
-	var oldFreePlanCatalogName string
+	var oldPublicPlanCatalogID string
+	var oldPublicPlanCatalogName string
 
 	var oldPaidPlanCatalogID string
 	var oldPaidPlanCatalogName string
 
-	var newFreePlanCatalogID string
-	var newFreePlanCatalogName string
+	var newPublicPlanCatalogID string
+	var newPublicPlanCatalogName string
 
 	var newPaidPlanCatalogID string
 	var newPaidPlanCatalogName string
@@ -52,7 +56,7 @@ var _ = XDescribe("Service Manager Free Plans Filter", func() {
 
 	var testCatalog string
 	var newPaidPlan string
-	var newFreePlan string
+	var newPublicPlan string
 
 	findOneVisibilityForServicePlanID := func(servicePlanID string) map[string]interface{} {
 		vs := ctx.SMWithOAuth.GET("/v1/visibilities").WithQuery("fieldQuery", "service_plan_id = "+servicePlanID).
@@ -81,7 +85,16 @@ var _ = XDescribe("Service Manager Free Plans Filter", func() {
 	}
 
 	BeforeSuite(func() {
-		ctx = common.NewTestContextBuilder().Build()
+		ctx = common.NewTestContext(&common.ContextParams{
+			RegisterExtensions: func(smb *sm.ServiceManagerBuilder) {
+				smb.RegisterFilters(&filters.PublicServicePlansFilter{
+					Repository: smb.Storage,
+					IsCatalogPlanPublicFunc: func(broker *types.Broker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
+						return catalogPlan.Free, nil
+					},
+				})
+			},
+		})
 	})
 
 	AfterSuite(func() {
@@ -91,14 +104,14 @@ var _ = XDescribe("Service Manager Free Plans Filter", func() {
 	BeforeEach(func() {
 		ctx.SMWithOAuth.GET("/v1/service_plans").
 			Expect().
-			Status(http.StatusOK).JSON().Path("$.service_plans[*].catalog_id").Array().NotContains(newFreePlanCatalogID, newPaidPlanCatalogID)
+			Status(http.StatusOK).JSON().Path("$.service_plans[*].catalog_id").Array().NotContains(newPublicPlanCatalogID, newPaidPlanCatalogID)
 		c := common.NewEmptySBCatalog()
 
-		oldFreePlan := common.GenerateFreeTestPlan()
+		oldPublicPlan := common.GenerateFreeTestPlan()
 		oldPaidPlan := common.GeneratePaidTestPlan()
-		newFreePlan = common.GenerateFreeTestPlan()
+		newPublicPlan = common.GenerateFreeTestPlan()
 		newPaidPlan = common.GeneratePaidTestPlan()
-		oldService := common.GenerateTestServiceWithPlans(oldFreePlan, oldPaidPlan)
+		oldService := common.GenerateTestServiceWithPlans(oldPublicPlan, oldPaidPlan)
 		c.AddService(oldService)
 
 		testCatalog = string(c)
@@ -112,11 +125,11 @@ var _ = XDescribe("Service Manager Free Plans Filter", func() {
 		serviceCatalogName = gjson.Get(oldService, "name").Str
 		Expect(serviceCatalogName).ToNot(BeEmpty())
 
-		oldFreePlanCatalogID = gjson.Get(oldFreePlan, "id").Str
-		Expect(oldFreePlanCatalogID).ToNot(BeEmpty())
+		oldPublicPlanCatalogID = gjson.Get(oldPublicPlan, "id").Str
+		Expect(oldPublicPlanCatalogID).ToNot(BeEmpty())
 
-		oldFreePlanCatalogName = gjson.Get(oldFreePlan, "name").Str
-		Expect(oldFreePlanCatalogName).ToNot(BeEmpty())
+		oldPublicPlanCatalogName = gjson.Get(oldPublicPlan, "name").Str
+		Expect(oldPublicPlanCatalogName).ToNot(BeEmpty())
 
 		oldPaidPlanCatalogID = gjson.Get(oldPaidPlan, "id").Str
 		Expect(oldPaidPlanCatalogID).ToNot(BeEmpty())
@@ -124,11 +137,11 @@ var _ = XDescribe("Service Manager Free Plans Filter", func() {
 		oldPaidPlanCatalogName = gjson.Get(oldPaidPlan, "name").Str
 		Expect(oldPaidPlanCatalogName).ToNot(BeEmpty())
 
-		newFreePlanCatalogID = gjson.Get(newFreePlan, "id").Str
-		Expect(newFreePlanCatalogID).ToNot(BeEmpty())
+		newPublicPlanCatalogID = gjson.Get(newPublicPlan, "id").Str
+		Expect(newPublicPlanCatalogID).ToNot(BeEmpty())
 
-		newFreePlanCatalogName = gjson.Get(newFreePlan, "name").Str
-		Expect(newFreePlanCatalogName).ToNot(BeEmpty())
+		newPublicPlanCatalogName = gjson.Get(newPublicPlan, "name").Str
+		Expect(newPublicPlanCatalogName).ToNot(BeEmpty())
 
 		newPaidPlanCatalogID = gjson.Get(newPaidPlan, "id").Str
 		Expect(newPaidPlanCatalogID).ToNot(BeEmpty())
@@ -145,9 +158,9 @@ var _ = XDescribe("Service Manager Free Plans Filter", func() {
 	})
 
 	Specify("plans and visibilities for the registered brokers are known to SM", func() {
-		freePlanID := findDatabaseIDForServicePlanByCatalogName(oldFreePlanCatalogName)
+		publicPlanID := findDatabaseIDForServicePlanByCatalogName(oldPublicPlanCatalogName)
 
-		visibility := findOneVisibilityForServicePlanID(freePlanID)
+		visibility := findOneVisibilityForServicePlanID(publicPlanID)
 		Expect(visibility["platform_id"]).To(Equal(""))
 
 		paidPlanID := findDatabaseIDForServicePlanByCatalogName(oldPaidPlanCatalogName)
@@ -174,9 +187,9 @@ var _ = XDescribe("Service Manager Free Plans Filter", func() {
 
 	Context("when no modifications to the plans occurs", func() {
 		It("does not change the state of the visibilities for the existing plans", func() {
-			oldFreePlanDatabaseID := findDatabaseIDForServicePlanByCatalogName(oldFreePlanCatalogName)
-			visibilitiesForFreePlan := findOneVisibilityForServicePlanID(oldFreePlanDatabaseID)
-			Expect(visibilitiesForFreePlan["platform_id"]).To(Equal(""))
+			oldPublicPlanDatabaseID := findDatabaseIDForServicePlanByCatalogName(oldPublicPlanCatalogName)
+			visibilitiesForPublicPlan := findOneVisibilityForServicePlanID(oldPublicPlanDatabaseID)
+			Expect(visibilitiesForPublicPlan["platform_id"]).To(Equal(""))
 
 			oldPaidPlanDatabaseID := findDatabaseIDForServicePlanByCatalogName(oldPaidPlanCatalogName)
 			verifyZeroVisibilityForServicePlanID(oldPaidPlanDatabaseID)
@@ -186,16 +199,16 @@ var _ = XDescribe("Service Manager Free Plans Filter", func() {
 				Expect().
 				Status(http.StatusOK)
 
-			visibilitiesForFreePlan = findOneVisibilityForServicePlanID(oldFreePlanDatabaseID)
-			Expect(visibilitiesForFreePlan["platform_id"]).To(Equal(""))
+			visibilitiesForPublicPlan = findOneVisibilityForServicePlanID(oldPublicPlanDatabaseID)
+			Expect(visibilitiesForPublicPlan["platform_id"]).To(Equal(""))
 
 			verifyZeroVisibilityForServicePlanID(oldPaidPlanDatabaseID)
 		})
 	})
 
-	Context("when a new free plan is added", func() {
+	Context("when a new public plan is added", func() {
 		BeforeEach(func() {
-			s, err := sjson.Set(testCatalog, "services.0.plans.-1", common.JSONToMap(newFreePlan))
+			s, err := sjson.Set(testCatalog, "services.0.plans.-1", common.JSONToMap(newPublicPlan))
 			Expect(err).ShouldNot(HaveOccurred())
 			existingBrokerServer.Catalog = common.SBCatalog(s)
 		})
@@ -203,14 +216,14 @@ var _ = XDescribe("Service Manager Free Plans Filter", func() {
 		It("creates the plan and creates a public visibility for it", func() {
 			ctx.SMWithOAuth.GET("/v1/service_plans").
 				Expect().
-				Status(http.StatusOK).JSON().Path("$.service_plans[*].catalog_id").Array().NotContains(newFreePlanCatalogID)
+				Status(http.StatusOK).JSON().Path("$.service_plans[*].catalog_id").Array().NotContains(newPublicPlanCatalogID)
 
 			ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + existingBrokerID).
 				WithJSON(common.Object{}).
 				Expect().
 				Status(http.StatusOK)
 
-			planID := findDatabaseIDForServicePlanByCatalogName(newFreePlanCatalogName)
+			planID := findDatabaseIDForServicePlanByCatalogName(newPublicPlanCatalogName)
 			Expect(planID).ToNot(BeEmpty())
 
 			visibilities := findOneVisibilityForServicePlanID(planID)
@@ -241,7 +254,7 @@ var _ = XDescribe("Service Manager Free Plans Filter", func() {
 		})
 	})
 
-	Context("when an existing free plan is made paid", func() {
+	Context("when an existing public plan is made paid", func() {
 		BeforeEach(func() {
 			tempCatalog, err := sjson.Set(testCatalog, "services.0.plans.0.free", false)
 			Expect(err).ToNot(HaveOccurred())
@@ -253,7 +266,7 @@ var _ = XDescribe("Service Manager Free Plans Filter", func() {
 		})
 
 		It("deletes the public visibility associated with the plan", func() {
-			plan := ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("fieldQuery", "catalog_name = "+oldFreePlanCatalogName).
+			plan := ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("fieldQuery", "catalog_name = "+oldPublicPlanCatalogName).
 				Expect().
 				Status(http.StatusOK).JSON()
 
@@ -274,7 +287,7 @@ var _ = XDescribe("Service Manager Free Plans Filter", func() {
 		})
 	})
 
-	Context("when an existing paid plan is made free", func() {
+	Context("when an existing paid plan is made public", func() {
 		var planID string
 		var platformID string
 
