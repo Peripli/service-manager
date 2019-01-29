@@ -81,7 +81,7 @@ var _ = XDescribe("Service Manager Free Plans Filter", func() {
 	}
 
 	BeforeSuite(func() {
-		ctx = common.NewTestContext(nil)
+		ctx = common.NewTestContextBuilder().Build()
 	})
 
 	AfterSuite(func() {

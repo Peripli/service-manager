@@ -134,7 +134,7 @@ func (c *controller) proxy(r *web.Request, logger *logrus.Entry, brokerID string
 
 	m := osbPathPattern.FindStringSubmatch(r.URL.Path)
 	if m == nil || len(m) < 2 {
-		return nil, fmt.Errorf("could not get OSB path from URL %s", r.URL)
+		return nil, fmt.Errorf("could not get OSB path from BaseURL %s", r.URL)
 	}
 
 	modifiedRequest := r.Request.WithContext(ctx)

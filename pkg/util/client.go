@@ -30,7 +30,7 @@ import (
 // DoRequestFunc is an alias for any function that takes an http request and returns a response and error
 type DoRequestFunc func(request *http.Request) (*http.Response, error)
 
-// SendRequest sends a request to the specified client and the provided URL with the specified parameters and body.
+// SendRequest sends a request to the specified client and the provided BaseURL with the specified parameters and body.
 func SendRequest(ctx context.Context, doRequest DoRequestFunc, method, url string, params map[string]string, body interface{}) (*http.Response, error) {
 	var bodyReader io.Reader
 

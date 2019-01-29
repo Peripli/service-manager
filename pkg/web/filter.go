@@ -29,7 +29,7 @@ type Request struct {
 	// Request is the original http.Request
 	*http.Request
 
-	// PathParams contains the URL path parameters
+	// PathParams contains the BaseURL path parameters
 	PathParams map[string]string
 
 	// Body is the loaded request body (usually JSON)

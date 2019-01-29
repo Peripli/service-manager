@@ -18,6 +18,7 @@ package common
 
 import (
 	"github.com/onsi/ginkgo"
+	"github.com/spf13/pflag"
 
 	"crypto/rand"
 	"crypto/rsa"
@@ -44,6 +45,41 @@ import (
 
 type Object = map[string]interface{}
 type Array = []interface{}
+
+type starter interface {
+	Start()
+}
+
+type closer interface {
+	Close()
+}
+
+type named interface {
+	Name() string
+}
+
+type urler interface {
+	URL() string
+}
+
+type FakeServer interface {
+	//named
+	//starter
+	closer
+	urler
+}
+
+type FlagValue struct {
+	pflagValue pflag.Value
+}
+
+func (f FlagValue) Set(s string) error {
+	return f.pflagValue.Set(s)
+}
+
+func (f FlagValue) String() string {
+	return f.pflagValue.String()
+}
 
 func RemoveNonNumericArgs(obj Object) Object {
 	return removeOnCondition(isNotNumeric, obj)
@@ -331,7 +367,7 @@ func DoHTTP(reaction *HTTPReaction, checks *HTTPExpectations) func(*http.Request
 	return func(request *http.Request) (*http.Response, error) {
 		if checks != nil {
 			if len(checks.URL) > 0 && !strings.Contains(checks.URL, request.URL.Host) {
-				Fail(fmt.Sprintf("unexpected URL; expected %v, got %v", checks.URL, request.URL.Path))
+				Fail(fmt.Sprintf("unexpected BaseURL; expected %v, got %v", checks.URL, request.URL.Path))
 			}
 
 			for k, v := range checks.Headers {

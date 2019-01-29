@@ -113,7 +113,7 @@ var _ = Describe("config", func() {
 			})
 		})
 
-		Context("when API token issuer URL is missing", func() {
+		Context("when API token issuer BaseURL is missing", func() {
 			It("returns an error", func() {
 				config.API.TokenIssuerURL = ""
 				assertErrorDuringValidate()

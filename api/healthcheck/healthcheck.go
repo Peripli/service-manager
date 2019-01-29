@@ -23,7 +23,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-// URL is the path of the healthcheck endpoint
+// BaseURL is the path of the healthcheck endpoint
 const URL = web.MonitorHealthURL
 
 // Routes returns slice of routes which handle healthcheck operation
