@@ -131,7 +131,7 @@ func listByFieldCriteria(ctx context.Context, db pgDB, table string, entity inte
 func deleteAllByFieldCriteria(ctx context.Context, extContext sqlx.ExtContext, table string, dto interface{}, criteria []query.Criterion) error {
 	for _, criterion := range criteria {
 		if criterion.Type != query.FieldQuery {
-			return &query.UnsupportedQueryError{Message: "conditional delete is only supported for field queries"}
+			return &util.UnsupportedQueryError{Message: "conditional delete is only supported for field queries"}
 		}
 	}
 	if err := validateFieldQueryParams(dto, criteria); err != nil {
@@ -158,7 +158,7 @@ func validateFieldQueryParams(baseEntity interface{}, criteria []query.Criterion
 	}
 	for _, criterion := range criteria {
 		if criterion.Type == query.FieldQuery && !availableColumns[criterion.LeftOp] {
-			return &query.UnsupportedQueryError{Message: fmt.Sprintf("unsupported field query key: %s", criterion.LeftOp)}
+			return &util.UnsupportedQueryError{Message: fmt.Sprintf("unsupported field query key: %s", criterion.LeftOp)}
 		}
 	}
 	return nil

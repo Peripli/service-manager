@@ -37,17 +37,16 @@ func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string,
 		case query.AddLabelOperation:
 			fallthrough
 		case query.AddLabelValuesOperation:
-			if err := addLabel(ctx, newLabelFunc, pgDB, action.Key, action.Values...); err != nil {
-				return err
+			for _, labelValue := range action.Values {
+				if err := addLabel(ctx, newLabelFunc, pgDB, action.Key, labelValue, referenceID); err != nil {
+					return err
+				}
 			}
 		case query.RemoveLabelOperation:
 			fallthrough
 		case query.RemoveLabelValuesOperation:
 			pgLabel := newLabelFunc("", "", "")
 			if err := removeLabel(ctx, pgDB, pgLabel, referenceID, action.Key, action.Values...); err != nil {
-				if err == util.ErrNotFoundInStorage {
-					return &query.LabelChangeError{Message: fmt.Sprintf("label with key %s cannot be modified as it does not exist", action.Key)}
-				}
 				return err
 			}
 		}
@@ -55,21 +54,25 @@ func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string,
 	return nil
 }
 
-func addLabel(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) Labelable, db pgDB, key string, values ...string) error {
-	for _, labelValue := range values {
-		uuids, err := uuid.NewV4()
-		if err != nil {
-			return fmt.Errorf("could not generate id for new label: %v", err)
-		}
-		labelID := uuids.String()
-		newLabel := newLabelFunc(labelID, key, labelValue)
-		labelTable, _, _ := newLabel.Label()
+func addLabel(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) Labelable, db pgDB, key string, value string, referenceID string) error {
+	uuids, err := uuid.NewV4()
+	if err != nil {
+		return fmt.Errorf("could not generate id for new label: %v", err)
+	}
+	labelID := uuids.String()
+	newLabel := newLabelFunc(labelID, key, value)
+	labelTable, referenceColumnName, _ := newLabel.Label()
+
+	query := fmt.Sprintf("SELECT * FROM %s WHERE key=$1 and val=$2 and %s=$3", labelTable, referenceColumnName)
+	log.C(ctx).Debugf("Executing query %s", query)
+
+	err = db.GetContext(ctx, newLabel, query, key, value, referenceID)
+	if checkSQLNoRows(err) == util.ErrNotFoundInStorage {
 		if _, err := create(ctx, db, labelTable, newLabel); err != nil {
-			if err == util.ErrAlreadyExistsInStorage {
-				return &query.LabelChangeError{Message: fmt.Sprintf("label with key %s and value %s already exists for this entity", key, labelValue)}
-			}
 			return err
 		}
+	} else {
+		log.C(ctx).Debugf("Nothing to create. Label with key=%s value=%s %s=%s already exists in table %s", key, value, referenceColumnName, referenceID, labelTable)
 	}
 	return nil
 }
@@ -80,7 +83,14 @@ func removeLabel(ctx context.Context, execer sqlx.ExtContext, labelable Labelabl
 	args := []interface{}{labelKey, referenceID}
 	// remove all labels with this key
 	if len(labelValues) == 0 {
-		return executeNew(ctx, execer, baseQuery, args)
+		if err := executeNew(ctx, execer, baseQuery, args); err != nil {
+			if err == util.ErrNotFoundInStorage {
+				log.C(ctx).Debugf("Nothing to delete. Label with key=%s %s=%s not found in table %s", labelKey, referenceColumnName, referenceID, labelTableName)
+				return nil
+			}
+			return err
+		}
+		return nil
 	}
 	// remove labels with a specific key and a value which is in the provided list
 	args = append(args, labelValues)
@@ -89,7 +99,15 @@ func removeLabel(ctx context.Context, execer sqlx.ExtContext, labelable Labelabl
 	if err != nil {
 		return err
 	}
-	return executeNew(ctx, execer, sqlQuery, queryParams)
+
+	if err := executeNew(ctx, execer, sqlQuery, queryParams); err != nil {
+		if err == util.ErrNotFoundInStorage {
+			log.C(ctx).Debugf("Nothing to delete. Label with key=%s values in %s %s=%s not found in table %s", labelKey, labelValues, referenceColumnName, referenceID, labelTableName)
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTableName string, labelable Labelable, criteria []query.Criterion) (string, []interface{}, error) {

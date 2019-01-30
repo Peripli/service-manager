@@ -1237,7 +1237,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 
 					Context("Add label with existing key and value", func() {
-						It("Should return 400", func() {
+						It("Should return 200", func() {
 							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
@@ -1246,7 +1246,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
-								Status(http.StatusBadRequest)
+								Status(http.StatusOK)
 						})
 					})
 
@@ -1296,12 +1296,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							values := labels["cluster_id"].([]interface{})
 							changedLabelValues = []string{values[0].(string)}
 						})
-						It("Should return 400", func() {
+						It("Should return 200", func() {
 							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
-								Status(http.StatusBadRequest).JSON().Object().
-								Value("description").String().Contains("already exists")
+								Status(http.StatusOK)
 						})
 					})
 
@@ -1337,11 +1336,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							operation = query.RemoveLabelOperation
 							changedLabelKey = "non-existing-ey"
 						})
-						It("Should return 400", func() {
+						It("Should return 200", func() {
 							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
-								Status(http.StatusBadRequest)
+								Status(http.StatusOK)
 						})
 					})
 
@@ -1420,11 +1419,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							changedLabelKey = "cluster_id"
 							changedLabelValues = []string{"non-existing-value"}
 						})
-						It("Should return 400", func() {
+						It("Should return 200", func() {
 							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
-								Status(http.StatusBadRequest)
+								Status(http.StatusOK)
 						})
 					})
 				})
