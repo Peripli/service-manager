@@ -193,6 +193,11 @@ func CriteriaForContext(ctx context.Context) []Criterion {
 	return currentCriteria.([]Criterion)
 }
 
+// ContextWithCriteria returns a new context with given criteria
+func ContextWithCriteria(ctx context.Context, criteria []Criterion) context.Context {
+	return context.WithValue(ctx, criteriaCtxKey{}, criteria)
+}
+
 // BuildCriteriaFromRequest builds criteria for the given request's query params and returns an error if the query is not valid
 func BuildCriteriaFromRequest(request *web.Request) ([]Criterion, error) {
 	var criteria []Criterion
