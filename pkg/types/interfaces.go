@@ -19,8 +19,10 @@ package types
 type ObjectType string
 
 const (
-	BrokerType   ObjectType = "broker"
-	PlatformType ObjectType = "platform"
+	BrokerType          ObjectType = "broker"
+	PlatformType        ObjectType = "platform"
+	ServiceOfferingType ObjectType = "service_offering"
+	ServicePlanType     ObjectType = "service_plan"
 )
 
 type Object interface {

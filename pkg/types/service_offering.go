@@ -53,6 +53,22 @@ type ServiceOffering struct {
 	Plans    []*ServicePlan `json:"plans"`
 }
 
+func (so *ServiceOffering) GetType() ObjectType {
+	panic("implement me")
+}
+
+func (so *ServiceOffering) GetLabels() Labels {
+	panic("implement me")
+}
+
+func (so *ServiceOffering) EmptyList() ObjectList {
+	panic("implement me")
+}
+
+func (so *ServiceOffering) WithLabels(labels Labels) Object {
+	panic("implement me")
+}
+
 // MarshalJSON override json serialization for http response
 func (so *ServiceOffering) MarshalJSON() ([]byte, error) {
 	type SO ServiceOffering

@@ -49,6 +49,22 @@ type ServicePlan struct {
 	ServiceOfferingID string `json:"service_offering_id"`
 }
 
+func (sp *ServicePlan) GetType() ObjectType {
+	panic("implement me")
+}
+
+func (sp *ServicePlan) GetLabels() Labels {
+	panic("implement me")
+}
+
+func (sp *ServicePlan) EmptyList() ObjectList {
+	panic("implement me")
+}
+
+func (sp *ServicePlan) WithLabels(labels Labels) Object {
+	panic("implement me")
+}
+
 // MarshalJSON override json serialization for http response
 func (sp *ServicePlan) MarshalJSON() ([]byte, error) {
 	type SP ServicePlan

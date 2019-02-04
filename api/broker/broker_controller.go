@@ -396,11 +396,13 @@ func boolPointerToBool(value *bool, defaultValue bool) bool {
 func (c *Controller) resyncBrokerAndCatalog(ctx context.Context, broker *types.Broker, catalog *osbc.CatalogResponse, changes []*query.LabelChange) error {
 	log.C(ctx).Debugf("Updating catalog storage for broker with id %s", broker.ID)
 	if err := c.Repository.InTransaction(ctx, func(ctx context.Context, txStorage storage.Warehouse) error {
-		if err := txStorage.Update(ctx, broker, changes...); err != nil {
+		updatedBroker, err := txStorage.Update(ctx, broker, changes...)
+		broker = updatedBroker.(*types.Broker)
+		if err != nil {
 			return util.HandleStorageError(err, "broker")
 		}
 
-		existingServiceOfferingsWithServicePlans, err := txStorage.ServiceOffering().ListWithServicePlansByBrokerID(ctx, broker.ID)
+		existingServiceOfferingsWithServicePlans, err := txStorage.ListWithServicePlansByBrokerID(ctx, broker.ID)
 		if err != nil {
 			return fmt.Errorf("error getting catalog for broker with id %s from SM DB: %s", broker.ID, err)
 
@@ -434,7 +436,7 @@ func (c *Controller) resyncBrokerAndCatalog(ctx context.Context, broker *types.B
 						StatusCode:  http.StatusBadRequest,
 					}
 				}
-				if err := txStorage.ServiceOffering().Update(ctx, existingServiceOffering); err != nil {
+				if _, err := txStorage.Update(ctx, existingServiceOffering); err != nil {
 					return util.HandleStorageError(err, "service_offering")
 				}
 			} else {
@@ -460,7 +462,7 @@ func (c *Controller) resyncBrokerAndCatalog(ctx context.Context, broker *types.B
 				}
 
 				var dbServiceID string
-				if dbServiceID, err = txStorage.ServiceOffering().Create(ctx, existingServiceOffering); err != nil {
+				if dbServiceID, err = txStorage.Create(ctx, existingServiceOffering); err != nil {
 					return util.HandleStorageError(err, "service_offering")
 				}
 				existingServiceOffering.ID = dbServiceID
@@ -478,7 +480,7 @@ func (c *Controller) resyncBrokerAndCatalog(ctx context.Context, broker *types.B
 
 		for _, existingServiceOffering := range existingServicesOfferingsMap {
 			byID := query.ByField(query.EqualsOperator, "id", existingServiceOffering.ID)
-			if err := txStorage.ServiceOffering().Delete(ctx, byID); err != nil {
+			if err := txStorage.Delete(ctx, types.ServiceOfferingType, byID); err != nil {
 				return util.HandleStorageError(err, "service_offering")
 			}
 		}
@@ -502,7 +504,7 @@ func (c *Controller) resyncBrokerAndCatalog(ctx context.Context, broker *types.B
 					}
 				}
 
-				if err := txStorage.ServicePlan().Update(ctx, existingServicePlan); err != nil {
+				if _, err := txStorage.Update(ctx, existingServicePlan); err != nil {
 					return util.HandleStorageError(err, "service_plan")
 				}
 			} else {
@@ -525,7 +527,7 @@ func (c *Controller) resyncBrokerAndCatalog(ctx context.Context, broker *types.B
 					}
 				}
 
-				if _, err := txStorage.ServicePlan().Create(ctx, servicePlan); err != nil {
+				if _, err := txStorage.Create(ctx, servicePlan); err != nil {
 					return util.HandleStorageError(err, "service_plan")
 				}
 			}
@@ -533,7 +535,7 @@ func (c *Controller) resyncBrokerAndCatalog(ctx context.Context, broker *types.B
 
 		for _, existingServicePlan := range existingServicePlansMap {
 			byID := query.ByField(query.EqualsOperator, "id", existingServicePlan.ID)
-			if err := txStorage.ServicePlan().Delete(ctx, byID); err != nil {
+			if err := txStorage.Delete(ctx, types.ServicePlanType, byID); err != nil {
 				if err == util.ErrNotFoundInStorage {
 					// If the service for the plan was deleted, plan would already be gone
 					continue
