@@ -53,6 +53,18 @@ const (
 	visibilityLabelsTable = "visibility_labels"
 )
 
+type DTOMapper interface {
+	ToDTO(entity Entity) types.Object
+	FromDTO(object types.Object) Entity
+}
+
+var dtos map[types.ObjectType]DTOMapper
+
+func init() {
+	dtos = make(map[types.ObjectType]DTOMapper)
+	dtos[types.BrokerType] = &Broker{}
+}
+
 // Safe represents a secret entity
 type Safe struct {
 	Secret    []byte    `db:"secret"`
@@ -82,6 +94,18 @@ type Broker struct {
 	BrokerURL   string         `db:"broker_url"`
 	Username    string         `db:"username"`
 	Password    string         `db:"password"`
+}
+
+func (Broker) PrimaryColumn() string {
+	return "id"
+}
+
+func (Broker) TableName() string {
+	return brokerTable
+}
+
+func (b Broker) GetID() string {
+	return b.ID
 }
 
 type ServiceOffering struct {
@@ -137,13 +161,26 @@ type Labelable interface {
 	Label() (labelTableName string, referenceColumnName string, primaryColumnName string)
 }
 
+type Label interface {
+	GetKey() string
+	GetValue() string
+}
+
 type brokerLabels []*BrokerLabel
 
-func (bls brokerLabels) Validate() error {
+func (bl brokerLabels) TableName() string {
+	return brokerLabelsTable
+}
+
+func (brokerLabels) ReferenceColumn() string {
+	return "broker_id"
+}
+
+func (bls brokerLabels) Validate(entities []Label) error {
 	pairs := make(map[string][]string)
-	for _, bl := range bls {
-		newKey := bl.Key.String
-		newValue := bl.Val.String
+	for _, bl := range entities {
+		newKey := bl.GetKey()
+		newValue := bl.GetValue()
 		val, exists := pairs[newKey]
 		if exists && slice.StringsAnyEquals(val, newValue) {
 			return fmt.Errorf("duplicate label with key %s and value %s", newKey, newValue)
@@ -153,13 +190,14 @@ func (bls brokerLabels) Validate() error {
 	return nil
 }
 
-func (bls *brokerLabels) FromDTO(brokerID string, labels types.Labels) error {
+func (bls brokerLabels) FromDTO(entityID string, labels types.Labels) ([]Label, error) {
+	var result []Label
 	now := time.Now()
 	for key, values := range labels {
 		for _, labelValue := range values {
 			UUID, err := uuid.NewV4()
 			if err != nil {
-				return fmt.Errorf("could not generate GUID for broker label: %s", err)
+				return nil, fmt.Errorf("could not generate GUID for broker label: %s", err)
 			}
 			id := UUID.String()
 			bLabel := &BrokerLabel{
@@ -168,17 +206,25 @@ func (bls *brokerLabels) FromDTO(brokerID string, labels types.Labels) error {
 				Val:       toNullString(labelValue),
 				CreatedAt: &now,
 				UpdatedAt: &now,
-				BrokerID:  toNullString(brokerID),
+				BrokerID:  toNullString(entityID),
 			}
-			*bls = append(*bls, bLabel)
+			result = append(result, bLabel)
 		}
 	}
-	return nil
+	return result, nil
 }
 
-func (bls *brokerLabels) ToDTO() types.Labels {
+type LabelingEntity interface {
+	Items() Labelable
+}
+
+type LabelDTOMapper interface {
+	FromDTO(entityID string, labels types.Labels) ([]Labelable, error)
+}
+
+func (bls brokerLabels) ToDTO() types.Labels {
 	labelValues := make(map[string][]string)
-	for _, label := range *bls {
+	for _, label := range bls {
 		values, exists := labelValues[label.Key.String]
 		if exists {
 			labelValues[label.Key.String] = append(values, label.Val.String)
@@ -196,6 +242,30 @@ type BrokerLabel struct {
 	CreatedAt *time.Time     `db:"created_at"`
 	UpdatedAt *time.Time     `db:"updated_at"`
 	BrokerID  sql.NullString `db:"broker_id"`
+}
+
+func (bl *BrokerLabel) GetKey() string {
+	return bl.Key.String
+}
+
+func (bl *BrokerLabel) GetValue() string {
+	return bl.Val.String
+}
+
+func (bl *BrokerLabel) TableName() string {
+	return brokerLabelsTable
+}
+
+func (bl *BrokerLabel) GetID() string {
+	return bl.ID.String
+}
+
+func (bl *BrokerLabel) ToDTO(entity Entity) types.Object {
+	panic("implement me")
+}
+
+func (bl *BrokerLabel) FromDTO(object types.Object) Entity {
+	panic("implement me")
 }
 
 func (bl *BrokerLabel) Label() (labelTableName string, referenceColumnName string, primaryColumnName string) {
@@ -269,7 +339,11 @@ func (vl *VisibilityLabel) Label() (labelTableName string, referenceColumnName s
 	return
 }
 
-func (b *Broker) ToDTO() *types.Broker {
+func (br *Broker) ToDTO(ba Entity) types.Object {
+	if ba == nil {
+		return &types.Broker{}
+	}
+	b := ba.(*Broker)
 	broker := &types.Broker{
 		ID:          b.ID,
 		Name:        b.Name,
@@ -287,9 +361,13 @@ func (b *Broker) ToDTO() *types.Broker {
 	}
 	return broker
 }
-func (b *Broker) FromDTO1(obj types.Object) {
+
+func (b *Broker) FromDTO(obj types.Object) Entity {
+	if obj == nil {
+		return &Broker{}
+	}
 	broker := obj.(*types.Broker)
-	*b = Broker{
+	res := Broker{
 		ID:          broker.ID,
 		Description: toNullString(broker.Description),
 		Name:        broker.Name,
@@ -305,25 +383,7 @@ func (b *Broker) FromDTO1(obj types.Object) {
 		b.Username = broker.Credentials.Basic.Username
 		b.Password = broker.Credentials.Basic.Password
 	}
-}
-
-func (b *Broker) FromDTO(broker *types.Broker) {
-	*b = Broker{
-		ID:          broker.ID,
-		Description: toNullString(broker.Description),
-		Name:        broker.Name,
-		BrokerURL:   broker.BrokerURL,
-		CreatedAt:   broker.CreatedAt,
-		UpdatedAt:   broker.UpdatedAt,
-	}
-
-	if broker.Description != "" {
-		b.Description.Valid = true
-	}
-	if broker.Credentials != nil && broker.Credentials.Basic != nil {
-		b.Username = broker.Credentials.Basic.Username
-		b.Password = broker.Credentials.Basic.Password
-	}
+	return res
 }
 
 func (p *Platform) ToDTO() *types.Platform {

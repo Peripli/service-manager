@@ -31,6 +31,19 @@ type Brokers struct {
 	Brokers []*Broker `json:"brokers"`
 }
 
+type ObjectList interface {
+	ItemAt(index int) Object
+	Len() int
+}
+
+func (b Brokers) Len() int {
+	return len(b.Brokers)
+}
+
+func (b Brokers) ItemAt(index int) Object {
+	return b.Brokers[index]
+}
+
 // Broker broker struct
 type Broker struct {
 	ID          string       `json:"id"`
@@ -46,12 +59,21 @@ type Broker struct {
 	Labels Labels `json:"labels,omitempty"`
 }
 
+func (b *Broker) WithLabels(labels Labels) Object {
+	b.Labels = labels
+	return b
+}
+
 func (b *Broker) GetType() ObjectType {
 	return BrokerType
 }
 
 func (b *Broker) GetLabels() Labels {
 	return b.Labels
+}
+
+func (b *Broker) EmptyList() ObjectList {
+	return Brokers{}
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

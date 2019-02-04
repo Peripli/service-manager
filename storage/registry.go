@@ -21,12 +21,15 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/Peripli/service-manager/pkg/types"
+
 	"github.com/Peripli/service-manager/pkg/log"
 )
 
 var (
-	mux      sync.RWMutex
-	storages = make(map[string]Storage)
+	mux          sync.RWMutex
+	storages     = make(map[string]Storage)
+	typeRegistry = make(map[types.ObjectType]interface{})
 )
 
 // Register adds a storage with the given name

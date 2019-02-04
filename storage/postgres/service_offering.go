@@ -98,7 +98,7 @@ func (sos *serviceOfferingStorage) ListWithServicePlansByBrokerID(ctx context.Co
 	for rows.Next() {
 		row := struct {
 			*ServiceOffering
-			*ServicePlan `db:"service_plans"`
+			*ServicePlan `pdDB:"service_plans"`
 		}{}
 
 		if err := rows.StructScan(&row); err != nil {

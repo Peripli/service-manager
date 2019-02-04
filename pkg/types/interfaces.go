@@ -26,4 +26,6 @@ const (
 type Object interface {
 	GetType() ObjectType
 	GetLabels() Labels
+	EmptyList() ObjectList
+	WithLabels(labels Labels) Object
 }

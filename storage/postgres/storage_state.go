@@ -17,16 +17,15 @@
 package postgres
 
 import (
+	"context"
 	"sync"
 	"time"
-
-	"github.com/jmoiron/sqlx"
 )
 
 type storageState struct {
 	lastCheckTime        time.Time
 	mutex                *sync.RWMutex
-	db                   *sqlx.DB
+	db                   pgDB
 	storageCheckInterval time.Duration
 }
 
@@ -39,5 +38,5 @@ func (s *storageState) Get() error {
 	}
 
 	m := new(int64)
-	return s.db.Get(m, "SELECT 1")
+	return s.db.GetContext(context.TODO(), m, "SELECT 1")
 }

@@ -27,7 +27,7 @@ var _ = Describe("Postgres Storage", func() {
 	pgStorage := &postgresStorage{}
 
 	Describe("Broker", func() {
-		Context("Called with uninitialized db", func() {
+		Context("Called with uninitialized pdDB", func() {
 			It("Should panic", func() {
 				Expect(func() { pgStorage.Broker() }).To(Panic())
 			})
@@ -35,7 +35,7 @@ var _ = Describe("Postgres Storage", func() {
 	})
 
 	Describe("Platform", func() {
-		Context("Called with uninitialized db", func() {
+		Context("Called with uninitialized pdDB", func() {
 			It("Should panic", func() {
 				Expect(func() { pgStorage.Platform() }).To(Panic())
 			})
@@ -43,7 +43,7 @@ var _ = Describe("Postgres Storage", func() {
 	})
 
 	Describe("Credentials", func() {
-		Context("Called with uninitialized db", func() {
+		Context("Called with uninitialized pdDB", func() {
 			It("Should panic", func() {
 				Expect(func() { pgStorage.Credentials() }).To(Panic())
 			})
@@ -51,7 +51,7 @@ var _ = Describe("Postgres Storage", func() {
 	})
 
 	Context("Security", func() {
-		Context("Called with uninitialized db", func() {
+		Context("Called with uninitialized pdDB", func() {
 			It("Should panic", func() {
 				Expect(func() { pgStorage.Security() }).To(Panic())
 			})
@@ -59,7 +59,7 @@ var _ = Describe("Postgres Storage", func() {
 	})
 
 	Describe("Ping", func() {
-		Context("Called with uninitialized db", func() {
+		Context("Called with uninitialized pdDB", func() {
 			It("Should panic", func() {
 				Expect(func() { pgStorage.Ping() }).To(Panic())
 			})
@@ -101,7 +101,7 @@ var _ = Describe("Postgres Storage", func() {
 	})
 
 	Describe("Close", func() {
-		Context("Called with uninitialized db", func() {
+		Context("Called with uninitialized pdDB", func() {
 			It("Should panic", func() {
 				Expect(func() { pgStorage.Close() }).To(Panic())
 			})

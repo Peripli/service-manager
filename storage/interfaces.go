@@ -86,7 +86,7 @@ func (mf PingFunc) Ping() error {
 	return mf()
 }
 
-type Repository interface {
+type Warehouse interface {
 	// Create stores a broker in SM DB
 	Create(ctx context.Context, obj types.Object) (string, error)
 
@@ -94,37 +94,13 @@ type Repository interface {
 	Get(ctx context.Context, id string, objectType types.ObjectType) (types.Object, error)
 
 	// List retrieves all brokers from SM DB
-	List(ctx context.Context, obj interface{}, criteria ...query.Criterion) error
+	List(ctx context.Context, obj types.ObjectList, criteria ...query.Criterion) error
 
 	// Delete deletes a broker from SM DB
-	Delete(ctx context.Context, criteria ...query.Criterion) error
+	Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) error
 
 	// Update updates a broker from SM DB
-	Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) error
-}
-
-// Warehouse contains the Service Manager data access object providers
-type Warehouse interface {
-	// Broker provides access to service broker db operations
-	Broker() Broker
-
-	// ServiceOffering provides access to service offering db operations
-	ServiceOffering() ServiceOffering
-
-	// ServicePlan provides access to service plan db operations
-	ServicePlan() ServicePlan
-
-	// Visibility provides access to visibilities db operations
-	Visibility() Visibility
-
-	// Platform provides access to platform db operations
-	Platform() Platform
-
-	// Credentials provides access to credentials db operations
-	Credentials() Credentials
-
-	// Security provides access to encryption key management
-	Security() Security
+	Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error)
 }
 
 // Repository is a storage warehouse that can initiate a transaction

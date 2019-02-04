@@ -44,11 +44,9 @@ const (
 
 // Controller broker controller
 type Controller struct {
-	Repository storage.Repository
-
 	OSBClientCreateFunc osbc.CreateFunc
 	Encrypter           security.Encrypter
-	Repo                storage.Bucket
+	Repository          storage.Repository
 }
 
 var _ web.Controller = &Controller{}
@@ -89,7 +87,7 @@ func (c *Controller) createBroker(r *web.Request) (*web.Response, error) {
 
 	if err := c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
 		var brokerID string
-		if brokerID, err = storage.Broker().Create(ctx, broker); err != nil {
+		if brokerID, err = storage.Create(ctx, broker); err != nil {
 			return util.HandleStorageError(err, "broker")
 		}
 		for _, service := range catalog.Services {
@@ -116,7 +114,7 @@ func (c *Controller) createBroker(r *web.Request) (*web.Response, error) {
 			}
 
 			var serviceID string
-			if serviceID, err = storage.ServiceOffering().Create(ctx, serviceOffering); err != nil {
+			if serviceID, err = storage.Create(ctx, serviceOffering); err != nil {
 				return util.HandleStorageError(err, "service_offering")
 			}
 			serviceOffering.ID = serviceID
@@ -145,7 +143,7 @@ func (c *Controller) createBroker(r *web.Request) (*web.Response, error) {
 					}
 				}
 
-				if _, err := storage.ServicePlan().Create(ctx, servicePlan); err != nil {
+				if _, err := storage.Create(ctx, servicePlan); err != nil {
 					return util.HandleStorageError(err, "service_plan")
 				}
 			}
@@ -164,32 +162,29 @@ func (c *Controller) getBroker(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Getting broker with id %s", brokerID)
 
-	broker, err := c.Repository.Broker().Get(ctx, brokerID)
+	broker, err := c.Repository.Get(ctx, brokerID, types.BrokerType)
 	if err != nil {
 		return nil, util.HandleStorageError(err, "broker")
 	}
 
-	broker.Credentials = nil
+	broker.(*types.Broker).Credentials = nil
 	return util.NewJSONResponse(http.StatusOK, broker)
 }
 
 func (c *Controller) listBrokers(r *web.Request) (*web.Response, error) {
-	var brokers []*types.Broker
-	var err error
+	var brokers types.Brokers
 	ctx := r.Context()
 	log.C(ctx).Debug("Getting all brokers")
-	c.Repo.List()
-	brokers, err = c.Repository.Broker().List(ctx, query.CriteriaForContext(ctx)...)
-	if err != nil {
+	if err := c.Repository.List(ctx, brokers, query.CriteriaForContext(ctx)...); err != nil {
 		return nil, util.HandleSelectionError(err)
 	}
 
-	for _, broker := range brokers {
+	for _, broker := range brokers.Brokers {
 		broker.Credentials = nil
 	}
 
 	return util.NewJSONResponse(http.StatusOK, &types.Brokers{
-		Brokers: brokers,
+		Brokers: brokers.Brokers,
 	})
 }
 
@@ -197,7 +192,7 @@ func (c *Controller) deleteBrokers(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting visibilities...")
 
-	if err := c.Repository.Broker().Delete(ctx, query.CriteriaForContext(ctx)...); err != nil {
+	if err := c.Repository.Delete(ctx, types.BrokerType, query.CriteriaForContext(ctx)...); err != nil {
 		return nil, util.HandleSelectionError(err, "broker")
 	}
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
@@ -209,7 +204,7 @@ func (c *Controller) deleteBroker(r *web.Request) (*web.Response, error) {
 	log.C(ctx).Debugf("Deleting broker with id %s", brokerID)
 
 	byID := query.ByField(query.EqualsOperator, "id", brokerID)
-	if err := c.Repository.Broker().Delete(ctx, byID); err != nil {
+	if err := c.Repository.Delete(ctx, types.BrokerType, byID); err != nil {
 		return nil, util.HandleStorageError(err, "broker")
 	}
 	return util.NewJSONResponse(http.StatusOK, map[string]int{})
@@ -220,15 +215,15 @@ func (c *Controller) patchBroker(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Updating updateBroker with id %s", brokerID)
 
-	broker, err := c.Repository.Broker().Get(ctx, brokerID)
+	result, err := c.Repository.Get(ctx, brokerID, types.BrokerType)
 	if err != nil {
 		return nil, util.HandleStorageError(err, "broker")
 	}
+	broker := result.(*types.Broker)
 
 	if err := transformBrokerCredentials(ctx, broker, c.Encrypter.Decrypt); err != nil {
 		return nil, err
 	}
-
 	createdAt := broker.CreatedAt
 
 	changes, err := query.LabelChangesFromJSON(r.Body)
@@ -401,7 +396,7 @@ func boolPointerToBool(value *bool, defaultValue bool) bool {
 func (c *Controller) resyncBrokerAndCatalog(ctx context.Context, broker *types.Broker, catalog *osbc.CatalogResponse, changes []*query.LabelChange) error {
 	log.C(ctx).Debugf("Updating catalog storage for broker with id %s", broker.ID)
 	if err := c.Repository.InTransaction(ctx, func(ctx context.Context, txStorage storage.Warehouse) error {
-		if err := txStorage.Broker().Update(ctx, broker, changes...); err != nil {
+		if err := txStorage.Update(ctx, broker, changes...); err != nil {
 			return util.HandleStorageError(err, "broker")
 		}
 

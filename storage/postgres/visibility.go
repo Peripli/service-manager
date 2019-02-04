@@ -91,7 +91,7 @@ func (vs *visibilityStorage) List(ctx context.Context, criteria ...query.Criteri
 	for rows.Next() {
 		row := struct {
 			*Visibility
-			*VisibilityLabel `db:"visibility_labels"`
+			*VisibilityLabel `pdDB:"visibility_labels"`
 		}{}
 		if err := rows.StructScan(&row); err != nil {
 			return nil, err

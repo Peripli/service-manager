@@ -76,7 +76,7 @@ func (bs *brokerStorage) List(ctx context.Context, obj interface{}, criteria ...
 	for rows.Next() {
 		row := struct {
 			*Broker
-			*BrokerLabel `db:"broker_labels"`
+			*BrokerLabel `pdDB:"broker_labels"`
 		}{}
 		if err := rows.StructScan(&row); err != nil {
 			return err
