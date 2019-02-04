@@ -20,16 +20,11 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/Peripli/service-manager/pkg/env"
+
 	"github.com/Peripli/service-manager/api/info"
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
-)
-
-type Object = common.Object
-
-var (
-	True  = true
-	False = false
 )
 
 func TestInfo(t *testing.T) {
@@ -39,12 +34,11 @@ func TestInfo(t *testing.T) {
 var _ = Describe("Info API", func() {
 	cases := []struct {
 		description     string
-		configBasicAuth *bool
+		configBasicAuth bool
 		expectBasicAuth bool
 	}{
-		{"Returns token_issuer_url and token_basic_auth: true by default", nil, true},
-		{"Returns token_issuer_url and token_basic_auth: true", &True, true},
-		{"Returns token_issuer_url and token_basic_auth: false", &False, false},
+		{"Returns token_issuer_url and token_basic_auth: true", true, true},
+		{"Returns token_issuer_url and token_basic_auth: false", false, false},
 	}
 
 	for _, tc := range cases {
@@ -52,11 +46,10 @@ var _ = Describe("Info API", func() {
 		var ctx *common.TestContext
 
 		BeforeEach(func() {
-			env := common.TestEnv()
-			if tc.configBasicAuth != nil {
-				env.Set("api.token_basic_auth", *tc.configBasicAuth)
+			postHook := func(e env.Environment, servers map[string]common.FakeServer) {
+				e.Set("api.token_basic_auth", tc.configBasicAuth)
 			}
-			ctx = common.NewTestContext(&common.ContextParams{Env: env})
+			ctx = common.NewTestContextBuilder().WithEnvPostExtensions(postHook).Build()
 		})
 
 		AfterEach(func() {
@@ -67,8 +60,8 @@ var _ = Describe("Info API", func() {
 			ctx.SM.GET(info.URL).
 				Expect().
 				Status(http.StatusOK).
-				JSON().Object().Equal(Object{
-				"token_issuer_url": ctx.OAuthServer.URL,
+				JSON().Object().Equal(common.Object{
+				"token_issuer_url": ctx.Servers[common.OauthServer].URL(),
 				"token_basic_auth": tc.expectBasicAuth,
 			})
 		})

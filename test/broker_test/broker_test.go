@@ -76,12 +76,14 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				if brokerWithLabelsServer != nil {
 					brokerWithLabelsServer.Close()
 				}
+
+				ctx.Cleanup()
 			})
 
 			BeforeEach(func() {
 				brokerServer = common.NewBrokerServer()
 				brokerWithLabelsServer = common.NewBrokerServer()
-				ctx = common.NewTestContext(nil)
+				ctx = common.DefaultTestContext()
 				brokerServer.Reset()
 				brokerWithLabelsServer.Reset()
 				brokerName := "brokerName"
@@ -91,7 +93,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				postBrokerRequestWithNoLabels = common.Object{
 					"name":        brokerName,
-					"broker_url":  brokerServer.URL,
+					"broker_url":  brokerServer.URL(),
 					"description": brokerDescription,
 					"credentials": common.Object{
 						"basic": common.Object{
@@ -102,7 +104,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				}
 				expectedBrokerResponse = common.Object{
 					"name":        brokerName,
-					"broker_url":  brokerServer.URL,
+					"broker_url":  brokerServer.URL(),
 					"description": brokerDescription,
 				}
 
@@ -113,7 +115,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				postBrokerRequestWithLabels = common.Object{
 					"name":        brokerWithLabelsName,
-					"broker_url":  brokerWithLabelsServer.URL,
+					"broker_url":  brokerWithLabelsServer.URL(),
 					"description": brokerWithLabelsDescription,
 					"credentials": common.Object{
 						"basic": common.Object{
@@ -513,7 +515,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						anotherBrokerServer.Password = "password"
 						anotherTestBroker = common.Object{
 							"name":        "another_name",
-							"broker_url":  anotherBrokerServer.URL,
+							"broker_url":  anotherBrokerServer.URL(),
 							"description": "another_description",
 							"credentials": common.Object{
 								"basic": common.Object{
@@ -611,7 +613,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						updatedBrokerJSON = common.Object{
 							"name":        "updated_name",
 							"description": "updated_description",
-							"broker_url":  updatedBrokerServer.URL,
+							"broker_url":  updatedBrokerServer.URL(),
 							"credentials": common.Object{
 								"basic": common.Object{
 									"username": updatedBrokerServer.Username,
@@ -657,7 +659,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("when broker_url is changed and the credentials are correct", func() {
 						It("returns 200", func() {
 							updatedBrokerJSON := common.Object{
-								"broker_url": updatedBrokerServer.URL,
+								"broker_url": updatedBrokerServer.URL(),
 							}
 							updatedBrokerServer.Username = brokerServer.Username
 							updatedBrokerServer.Password = brokerServer.Password
@@ -685,7 +687,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("when broker_url is changed but the credentials are wrong", func() {
 						It("returns 400", func() {
 							updatedBrokerJSON := common.Object{
-								"broker_url": updatedBrokerServer.URL,
+								"broker_url": updatedBrokerServer.URL(),
 							}
 							ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+brokerID).
 								WithJSON(updatedBrokerJSON).

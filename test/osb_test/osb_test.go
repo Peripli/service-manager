@@ -148,18 +148,18 @@ var _ = Describe("Service Manager OSB API", func() {
 	)
 
 	BeforeSuite(func() {
-		ctx = common.NewTestContext(nil)
+		ctx = common.DefaultTestContext()
 		validBrokerID, _, validBrokerServer = ctx.RegisterBroker()
-		smUrlToWorkingBroker = validBrokerServer.URL + "/v1/osb/" + validBrokerID
+		smUrlToWorkingBroker = validBrokerServer.URL() + "/v1/osb/" + validBrokerID
 
 		emptyCatalogBrokerID, _, brokerServerWithEmptyCatalog = ctx.RegisterBrokerWithCatalog(common.NewEmptySBCatalog())
-		smUrlToEmptyCatalogBroker = brokerServerWithEmptyCatalog.URL + "/v1/osb/" + emptyCatalogBrokerID
+		smUrlToEmptyCatalogBroker = brokerServerWithEmptyCatalog.URL() + "/v1/osb/" + emptyCatalogBrokerID
 
 		simpleBrokerCatalogID, _, brokerServerWithSimpleCatalog := ctx.RegisterBrokerWithCatalog(simpleCatalog)
-		smUrlToSimpleBrokerCatalogBroker = brokerServerWithSimpleCatalog.URL + "/v1/osb/" + simpleBrokerCatalogID
+		smUrlToSimpleBrokerCatalogBroker = brokerServerWithSimpleCatalog.URL() + "/v1/osb/" + simpleBrokerCatalogID
 
 		failingBrokerID, _, failingBrokerServer = ctx.RegisterBroker()
-		smUrlToFailingBroker = failingBrokerServer.URL + "/v1/osb/" + failingBrokerID
+		smUrlToFailingBroker = failingBrokerServer.URL() + "/v1/osb/" + failingBrokerID
 		failingBrokerServer.ServiceInstanceHandler = failingHandler
 		failingBrokerServer.BindingHandler = failingHandler
 		failingBrokerServer.CatalogHandler = failingHandler
@@ -176,7 +176,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		stoppedBrokerID, _, stoppedBrokerServer = ctx.RegisterBroker()
 		stoppedBrokerServer.Close()
 
-		smUrlToStoppedBroker = stoppedBrokerServer.URL + "/v1/osb/" + stoppedBrokerID
+		smUrlToStoppedBroker = stoppedBrokerServer.URL() + "/v1/osb/" + stoppedBrokerID
 
 		headerKey, headerValue = generateRandomQueryParam()
 		queryParameterVerificationServerID, _, queryParameterVerificationServer := ctx.RegisterBroker()
@@ -185,7 +185,7 @@ var _ = Describe("Service Manager OSB API", func() {
 		queryParameterVerificationServer.CatalogHandler = queryParameterVerificationHandler(headerKey, headerValue)
 		queryParameterVerificationServer.ServiceInstanceLastOpHandler = queryParameterVerificationHandler(headerKey, headerValue)
 		queryParameterVerificationServer.BindingLastOpHandler = queryParameterVerificationHandler(headerKey, headerValue)
-		smUrlToQueryVerificationBroker = queryParameterVerificationServer.URL + "/v1/osb/" + queryParameterVerificationServerID
+		smUrlToQueryVerificationBroker = queryParameterVerificationServer.URL() + "/v1/osb/" + queryParameterVerificationServerID
 	})
 
 	AfterSuite(func() {
@@ -559,15 +559,15 @@ var _ = Describe("Service Manager OSB API", func() {
 
 			const brokerPathPrefix = "/broker_prefix"
 			var (
-				prefixedBrokerServer *httptest.Server
-				osbURL               string
-				prefixedBrokerID     string
+				server           common.FakeServer
+				osbURL           string
+				prefixedBrokerID string
 			)
 
 			BeforeEach(func() {
 				brokerHandler := &prefixedBrokerHandler{brokerPathPrefix}
-				prefixedBrokerServer = httptest.NewServer(brokerHandler)
-				brokerURL := prefixedBrokerServer.URL + brokerPathPrefix
+				server = &prefixedBrokerServer{Server: httptest.NewServer(brokerHandler)}
+				brokerURL := server.URL() + brokerPathPrefix
 
 				brokerJSON := common.Object{
 					"name":        "prefixed_broker",
@@ -581,14 +581,12 @@ var _ = Describe("Service Manager OSB API", func() {
 					},
 				}
 				prefixedBrokerID = common.RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth)
+				ctx.Servers[common.BrokerServerPrefix+prefixedBrokerID] = server
 				osbURL = "/v1/osb/" + prefixedBrokerID
 			})
 
 			AfterEach(func() {
 				ctx.CleanupBroker(prefixedBrokerID)
-				if prefixedBrokerServer != nil {
-					prefixedBrokerServer.Close()
-				}
 			})
 
 			It("should get catalog", func() {
@@ -610,4 +608,12 @@ func (pbh *prefixedBrokerHandler) ServeHTTP(w http.ResponseWriter, req *http.Req
 	} else {
 		common.SetResponse(w, http.StatusNotFound, common.Object{})
 	}
+}
+
+type prefixedBrokerServer struct {
+	*httptest.Server
+}
+
+func (pbs *prefixedBrokerServer) URL() string {
+	return pbs.Server.URL
 }

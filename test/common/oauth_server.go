@@ -27,7 +27,7 @@ import (
 )
 
 type OAuthServer struct {
-	URL string
+	BaseURL string
 
 	server     *httptest.Server
 	mux        *http.ServeMux
@@ -48,6 +48,7 @@ func NewOAuthServer() *OAuthServer {
 	os.mux.HandleFunc("/.well-known/openid-configuration", os.getOpenIDConfig)
 	os.mux.HandleFunc("/oauth/token", os.getToken)
 	os.mux.HandleFunc("/token_keys", os.getTokenKeys)
+	os.Start()
 
 	return os
 }
@@ -57,7 +58,7 @@ func (os *OAuthServer) Start() {
 		panic("OAuth server already started")
 	}
 	os.server = httptest.NewServer(os.mux)
-	os.URL = os.server.URL
+	os.BaseURL = os.server.URL
 }
 
 func (os *OAuthServer) Close() {
@@ -67,11 +68,15 @@ func (os *OAuthServer) Close() {
 	}
 }
 
+func (os *OAuthServer) URL() string {
+	return os.BaseURL
+}
+
 func (os *OAuthServer) getOpenIDConfig(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{
-		"issuer": "` + os.URL + `/oauth/token",
-		"jwks_uri": "` + os.URL + `/token_keys"
+		"issuer": "` + os.BaseURL + `/oauth/token",
+		"jwks_uri": "` + os.BaseURL + `/token_keys"
 	}`))
 }
 
@@ -88,7 +93,7 @@ func (os *OAuthServer) CreateToken(payload map[string]interface{}) string {
 	if iss, ok := payload["iss"]; ok {
 		issuerURL = iss.(string)
 	} else {
-		issuerURL = os.URL + "/oauth/token"
+		issuerURL = os.BaseURL + "/oauth/token"
 	}
 	nextYear := time.Now().Add(365 * 24 * time.Hour)
 	token, err := jwt.Sign(os.signer, &jwt.Options{

@@ -53,6 +53,10 @@ type BrokerServer struct {
 	router *mux.Router
 }
 
+func (b *BrokerServer) URL() string {
+	return b.Server.URL
+}
+
 func JSONToMap(j string) map[string]interface{} {
 	jsonMap := make(map[string]interface{})
 	if err := json.Unmarshal([]byte(j), &jsonMap); err != nil {
