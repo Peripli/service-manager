@@ -127,7 +127,7 @@ func (sbc *SBCatalog) AddService(service string) {
 }
 
 func (sbc *SBCatalog) AddPlanToService(plan string, serviceIndex int) {
-	s, err := sjson.Set(string(*sbc), fmt.Sprintf("services.%d.-1", serviceIndex), JSONToMap(plan))
+	s, err := sjson.Set(string(*sbc), fmt.Sprintf("services.%d.plans.-1", serviceIndex), JSONToMap(plan))
 	if err != nil {
 		panic(err)
 	}
