@@ -28,7 +28,7 @@ import (
 
 // Brokers struct
 type Brokers struct {
-	Brokers []*Broker `json:"brokers"`
+	Brokers []*Broker `json:"service_brokers"`
 }
 
 // Broker broker struct

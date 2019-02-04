@@ -188,7 +188,7 @@ func MapContains(actual Object, expected Object) {
 }
 
 func RemoveAllBrokers(SM *httpexpect.Expect) {
-	removeAll(SM, "brokers", "/v1/service_brokers")
+	removeAll(SM, "service_brokers", "/v1/service_brokers")
 }
 
 func RemoveAllPlatforms(SM *httpexpect.Expect) {

@@ -771,7 +771,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							ctx.SMWithOAuth.GET("/v1/service_brokers").
 								Expect().
 								Status(http.StatusOK).
-								JSON().Object().Value("brokers").Array().First().Object().
+								JSON().Object().Value("service_brokers").Array().First().Object().
 								ContainsMap(expectedBrokerResponse)
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
