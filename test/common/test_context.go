@@ -54,6 +54,8 @@ type TestContextBuilder struct {
 	smExtensions       []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error
 	defaultTokenClaims map[string]interface{}
 
+	shouldSkipBasicAuthClient bool
+
 	Environment func(f ...func(set *pflag.FlagSet)) env.Environment
 	Servers     map[string]FakeServer
 }
@@ -73,6 +75,11 @@ type testSMServer struct {
 
 func (ts *testSMServer) URL() string {
 	return ts.Server.URL
+}
+
+// DefaultTestContext sets up a test context with default values
+func DefaultTestContext() *TestContext {
+	return NewTestContextBuilder().Build()
 }
 
 // NewTestContextBuilder sets up a builder with default values
@@ -128,6 +135,10 @@ func TestEnv(additionalFlagFuncs ...func(set *pflag.FlagSet)) env.Environment {
 	additionalFlagFuncs = append(additionalFlagFuncs, f)
 
 	return sm.DefaultEnv(additionalFlagFuncs...)
+}
+
+func (tcb *TestContextBuilder) SkipBasicAuthClientSetup(shouldSkip bool) *TestContextBuilder {
+	tcb.shouldSkipBasicAuthClient = shouldSkip
 }
 
 func (tcb *TestContextBuilder) WithDefaultEnv(envCreateFunc func(f ...func(set *pflag.FlagSet)) env.Environment) *TestContextBuilder {
@@ -191,20 +202,24 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 	RemoveAllBrokers(SMWithOAuth)
 	RemoveAllPlatforms(SMWithOAuth)
 
-	platformJSON := MakePlatform("tcb-platform-test", "tcb-platform-test", "platform-type", "test-platform")
-	platform := RegisterPlatformInSM(platformJSON, SMWithOAuth)
-	SMWithBasic := SM.Builder(func(req *httpexpect.Request) {
-		username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
-		req.WithBasicAuth(username, password)
-	})
-
-	return &TestContext{
-		SM:           SM,
-		SMWithOAuth:  SMWithOAuth,
-		SMWithBasic:  SMWithBasic,
-		TestPlatform: platform,
-		Servers:      tcb.Servers,
+	testContext := &TestContext{
+		SM:          SM,
+		SMWithOAuth: SMWithOAuth,
+		Servers:     tcb.Servers,
 	}
+
+	if !tcb.shouldSkipBasicAuthClient {
+		platformJSON := MakePlatform("tcb-platform-test", "tcb-platform-test", "platform-type", "test-platform")
+		platform := RegisterPlatformInSM(platformJSON, SMWithOAuth)
+		SMWithBasic := SM.Builder(func(req *httpexpect.Request) {
+			username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
+			req.WithBasicAuth(username, password)
+		})
+		testContext.SMWithBasic = SMWithBasic
+		testContext.TestPlatform = platform
+	}
+
+	return testContext
 
 }
 

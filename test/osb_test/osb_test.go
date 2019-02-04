@@ -148,7 +148,7 @@ var _ = Describe("Service Manager OSB API", func() {
 	)
 
 	BeforeSuite(func() {
-		ctx = common.NewTestContextBuilder().Build()
+		ctx = common.DefaultTestContext()
 		validBrokerID, _, validBrokerServer = ctx.RegisterBroker()
 		smUrlToWorkingBroker = validBrokerServer.URL() + "/v1/osb/" + validBrokerID
 

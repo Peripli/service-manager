@@ -34,7 +34,7 @@ var _ = Describe("Healthcheck API", func() {
 	var ctx *common.TestContext
 
 	BeforeSuite(func() {
-		ctx = common.NewTestContextBuilder().Build()
+		ctx = common.DefaultTestContext()
 	})
 
 	AfterSuite(func() {

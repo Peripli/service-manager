@@ -83,7 +83,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			BeforeEach(func() {
 				brokerServer = common.NewBrokerServer()
 				brokerWithLabelsServer = common.NewBrokerServer()
-				ctx = common.NewTestContextBuilder().Build()
+				ctx = common.DefaultTestContext()
 				brokerServer.Reset()
 				brokerWithLabelsServer.Reset()
 				brokerName := "brokerName"
