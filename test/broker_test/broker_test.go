@@ -830,7 +830,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							brokerServer.Catalog = common.SBCatalog(catalog)
 						})
 
-						FIt("is returned from the Services API associated with the correct broker", func() {
+						It("is returned from the Services API associated with the correct broker", func() {
 							ctx.SMWithOAuth.GET("/v1/service_offerings").
 								Expect().
 								Status(http.StatusOK).
