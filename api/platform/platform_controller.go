@@ -174,5 +174,6 @@ func (c *Controller) patchPlatform(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
+	platform.Credentials = nil
 	return util.NewJSONResponse(http.StatusOK, platform)
 }
