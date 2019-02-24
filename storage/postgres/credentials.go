@@ -40,7 +40,7 @@ func (cs *credentialStorage) Get(ctx context.Context, username string) (*types.C
 		return nil, checkSQLNoRows(err)
 	}
 
-	bytes, err := json.Marshal(platform.ToDTO())
+	bytes, err := json.Marshal(platform.ToObject())
 	if err != nil {
 		return nil, err
 	}

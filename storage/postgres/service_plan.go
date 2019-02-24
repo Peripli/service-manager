@@ -17,52 +17,102 @@
 package postgres
 
 import (
-	"context"
+	"time"
 
-	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/jmoiron/sqlx"
+
 	"github.com/Peripli/service-manager/pkg/types"
+	sqlxtypes "github.com/jmoiron/sqlx/types"
 )
 
-type servicePlanStorage struct {
-	db pgDB
+func init() {
+	RegisterEntity(types.ServicePlanType, &ServicePlan{})
 }
 
-func (sps *servicePlanStorage) Create(ctx context.Context, servicePlan *types.ServicePlan) (string, error) {
-	plan := &ServicePlan{}
-	plan.FromDTO(servicePlan)
-	return create(ctx, sps.db, servicePlanTable, plan)
+type ServicePlan struct {
+	ID          string    `db:"id"`
+	Name        string    `db:"name"`
+	Description string    `db:"description"`
+	CreatedAt   time.Time `db:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at"`
+
+	Free          bool   `db:"free"`
+	Bindable      bool   `db:"bindable"`
+	PlanUpdatable bool   `db:"plan_updateable"`
+	CatalogID     string `db:"catalog_id"`
+	CatalogName   string `db:"catalog_name"`
+
+	Metadata sqlxtypes.JSONText `db:"metadata"`
+	Schemas  sqlxtypes.JSONText `db:"schemas"`
+
+	ServiceOfferingID string `db:"service_offering_id"`
 }
 
-func (sps *servicePlanStorage) Get(ctx context.Context, id string) (*types.ServicePlan, error) {
-	plan := &ServicePlan{}
-	if err := get(ctx, sps.db, id, servicePlanTable, plan); err != nil {
-		return nil, err
+func (sp *ServicePlan) GetID() string {
+	return sp.ID
+}
+
+func (sp *ServicePlan) TableName() string {
+	return servicePlanTable
+}
+
+func (sp *ServicePlan) PrimaryColumn() string {
+	return "id"
+}
+
+func (sp *ServicePlan) Empty() Entity {
+	return &ServicePlan{}
+}
+
+func (sp *ServicePlan) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
+	result := &types.ServicePlans{}
+	for rows.Next() {
+		var item ServicePlan
+		if err := rows.StructScan(&item); err != nil {
+			return nil, err
+		}
+		result.Add(item.ToObject())
 	}
-	return plan.ToDTO(), nil
+	return result, nil
 }
 
-func (sps *servicePlanStorage) List(ctx context.Context, criteria ...query.Criterion) ([]*types.ServicePlan, error) {
-	var plans []ServicePlan
-	if err := validateFieldQueryParams(ServicePlan{}, criteria); err != nil {
-		return nil, err
-	}
-	err := listByFieldCriteria(ctx, sps.db, servicePlanTable, &plans, criteria)
-	if err != nil || len(plans) == 0 {
-		return []*types.ServicePlan{}, err
-	}
-	servicePlans := make([]*types.ServicePlan, 0, len(plans))
-	for _, plan := range plans {
-		servicePlans = append(servicePlans, plan.ToDTO())
-	}
-	return servicePlans, nil
+func (sp *ServicePlan) Labels() EntityLabels {
+	return nil
 }
 
-func (sps *servicePlanStorage) Delete(ctx context.Context, criteria ...query.Criterion) error {
-	return deleteAllByFieldCriteria(ctx, sps.db, servicePlanTable, ServicePlan{}, criteria)
+func (sp *ServicePlan) ToObject() types.Object {
+	return &types.ServicePlan{
+		ID:                sp.ID,
+		Name:              sp.Name,
+		Description:       sp.Description,
+		CreatedAt:         sp.CreatedAt,
+		UpdatedAt:         sp.UpdatedAt,
+		CatalogID:         sp.CatalogID,
+		CatalogName:       sp.CatalogName,
+		Free:              sp.Free,
+		Bindable:          sp.Bindable,
+		PlanUpdatable:     sp.PlanUpdatable,
+		Metadata:          getJSONRawMessage(sp.Metadata),
+		Schemas:           getJSONRawMessage(sp.Schemas),
+		ServiceOfferingID: sp.ServiceOfferingID,
+	}
 }
 
-func (sps *servicePlanStorage) Update(ctx context.Context, servicePlan *types.ServicePlan) error {
-	plan := &ServicePlan{}
-	plan.FromDTO(servicePlan)
-	return update(ctx, sps.db, servicePlanTable, plan)
+func (sp *ServicePlan) FromObject(object types.Object) Entity {
+	plan := object.(*types.ServicePlan)
+	return &ServicePlan{
+		ID:                plan.ID,
+		Name:              plan.Name,
+		Description:       plan.Description,
+		CreatedAt:         plan.CreatedAt,
+		UpdatedAt:         plan.UpdatedAt,
+		Free:              plan.Free,
+		Bindable:          plan.Bindable,
+		PlanUpdatable:     plan.PlanUpdatable,
+		CatalogID:         plan.CatalogID,
+		CatalogName:       plan.CatalogName,
+		Metadata:          getJSONText(plan.Metadata),
+		Schemas:           getJSONText(plan.Schemas),
+		ServiceOfferingID: plan.ServiceOfferingID,
+	}
 }

@@ -31,7 +31,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) Labelable, pgDB pgDB, referenceID string, updateActions []*query.LabelChange) error {
+func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) Label, pgDB pgDB, referenceID string, updateActions []*query.LabelChange) error {
 	for _, action := range updateActions {
 		switch action.Operation {
 		case query.AddLabelOperation:
@@ -55,7 +55,7 @@ func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string,
 	return nil
 }
 
-func addLabel(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) Labelable, db pgDB, key string, values ...string) error {
+func addLabel(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) Label, db pgDB, key string, values ...string) error {
 	for _, labelValue := range values {
 		uuids, err := uuid.NewV4()
 		if err != nil {
@@ -63,7 +63,7 @@ func addLabel(ctx context.Context, newLabelFunc func(labelID string, labelKey st
 		}
 		labelID := uuids.String()
 		newLabel := newLabelFunc(labelID, key, labelValue)
-		labelTable, _, _ := newLabel.Label()
+		labelTable := newLabel.TableName()
 		if _, err := create(ctx, db, labelTable, newLabel); err != nil {
 			if err == util.ErrAlreadyExistsInStorage {
 				return &query.LabelChangeError{Message: fmt.Sprintf("label with key %s and value %s already exists for this entity", key, labelValue)}
@@ -74,8 +74,9 @@ func addLabel(ctx context.Context, newLabelFunc func(labelID string, labelKey st
 	return nil
 }
 
-func removeLabel(ctx context.Context, execer sqlx.ExtContext, labelable Labelable, referenceID, labelKey string, labelValues ...string) error {
-	labelTableName, referenceColumnName, _ := labelable.Label()
+func removeLabel(ctx context.Context, execer sqlx.ExtContext, labelable Label, referenceID, labelKey string, labelValues ...string) error {
+	labelTableName := labelable.TableName()
+	referenceColumnName := labelable.ReferenceColumn()
 	baseQuery := fmt.Sprintf("DELETE FROM %s WHERE key=? AND %s=?", labelTableName, referenceColumnName)
 	args := []interface{}{labelKey, referenceID}
 	// remove all labels with this key
@@ -92,7 +93,7 @@ func removeLabel(ctx context.Context, execer sqlx.ExtContext, labelable Labelabl
 	return executeNew(ctx, execer, sqlQuery, queryParams)
 }
 
-func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTableName string, labelable Labelable, criteria []query.Criterion) (string, []interface{}, error) {
+func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTableName string, labelable Label, criteria []query.Criterion) (string, []interface{}, error) {
 	if len(criteria) == 0 {
 		return sqlQuery + ";", nil, nil
 	}
@@ -104,7 +105,8 @@ func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTable
 	labelCriteria, fieldCriteria := splitCriteriaByType(criteria)
 
 	if len(labelCriteria) > 0 {
-		labelTableName, referenceColumnName, _ := labelable.Label()
+		labelTableName := labelable.TableName()
+		referenceColumnName := labelable.ReferenceColumn()
 		labelSubQuery := fmt.Sprintf("(SELECT * FROM %[1]s WHERE %[2]s IN (SELECT %[2]s FROM %[1]s WHERE ", labelTableName, referenceColumnName)
 		for _, option := range labelCriteria {
 			rightOpBindVar, rightOpQueryValue := buildRightOp(option)

@@ -31,6 +31,18 @@ type Visibilities struct {
 	Visibilities []*Visibility `json:"visibilities"`
 }
 
+func (v *Visibilities) Add(object Object) {
+	v.Visibilities = append(v.Visibilities, object.(*Visibility))
+}
+
+func (v *Visibilities) ItemAt(index int) Object {
+	return v.Visibilities[index]
+}
+
+func (v *Visibilities) Len() int {
+	return len(v.Visibilities)
+}
+
 // Visibility struct
 type Visibility struct {
 	ID            string    `json:"id"`
@@ -39,6 +51,27 @@ type Visibility struct {
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 	Labels        Labels    `json:"labels,omitempty"`
+}
+
+func (v *Visibility) SupportsLabels() bool {
+	return true
+}
+
+func (v *Visibility) GetType() ObjectType {
+	return VisibilityType
+}
+
+func (v *Visibility) GetLabels() Labels {
+	return v.Labels
+}
+
+func (v *Visibility) EmptyList() ObjectList {
+	return &Visibilities{Visibilities: make([]*Visibility, 0)}
+}
+
+func (v *Visibility) WithLabels(labels Labels) Object {
+	v.Labels = labels
+	return v
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

@@ -37,8 +37,8 @@ const (
 
 // Controller platform controller
 type Controller struct {
-	PlatformStorage storage.Platform
-	Encrypter       security.Encrypter
+	Repository storage.Repository
+	Encrypter  security.Encrypter
 }
 
 var _ web.Controller = &Controller{}
@@ -66,10 +66,6 @@ func (c *Controller) createPlatform(r *web.Request) (*web.Response, error) {
 	platform.CreatedAt = currentTime
 	platform.UpdatedAt = currentTime
 
-	s := &Service{}
-	if err := s.Create(platform); err != nil {
-		return &web.Response{}, err
-	}
 	credentials, err := types.GenerateCredentials()
 	if err != nil {
 		logger.Error("Could not generate credentials for platform")
@@ -83,7 +79,7 @@ func (c *Controller) createPlatform(r *web.Request) (*web.Response, error) {
 	credentials.Basic.Password = string(transformedPassword)
 	platform.Credentials = credentials
 
-	if _, err := c.PlatformStorage.Create(ctx, platform); err != nil {
+	if _, err := c.Repository.Create(ctx, platform); err != nil {
 		return nil, util.HandleStorageError(err, "platform")
 	}
 	platform.Credentials.Basic.Password = plainPassword
@@ -96,11 +92,11 @@ func (c *Controller) getPlatform(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Getting platform with id %s", platformID)
 
-	platform, err := c.PlatformStorage.Get(ctx, platformID)
+	platform, err := c.Repository.Get(ctx, platformID, types.PlatformType)
 	if err = util.HandleStorageError(err, "platform"); err != nil {
 		return nil, err
 	}
-	platform.Credentials = nil
+	platform.(*types.Platform).Credentials = nil
 	return util.NewJSONResponse(http.StatusOK, platform)
 }
 
@@ -108,27 +104,24 @@ func (c *Controller) getPlatform(r *web.Request) (*web.Response, error) {
 func (c *Controller) listPlatforms(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debug("Getting all platforms")
-	platforms, err := c.PlatformStorage.List(ctx, query.CriteriaForContext(ctx)...)
+	platforms, err := c.Repository.List(ctx, types.PlatformType, query.CriteriaForContext(ctx)...)
 	if err != nil {
 		return nil, util.HandleSelectionError(err)
 	}
 
-	for _, platform := range platforms {
-		platform.Credentials = nil
+	for i := 0; i < platforms.Len(); i++ {
+		platform := platforms.ItemAt(i)
+		platform.(*types.Platform).Credentials = nil
 	}
 
-	return util.NewJSONResponse(http.StatusOK, struct {
-		Platforms []*types.Platform `json:"platforms"`
-	}{
-		Platforms: platforms,
-	})
+	return util.NewJSONResponse(http.StatusOK, platforms)
 }
 
 func (c *Controller) deletePlatforms(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting visibilities...")
 
-	if err := c.PlatformStorage.Delete(ctx, query.CriteriaForContext(ctx)...); err != nil {
+	if err := c.Repository.Delete(ctx, types.PlatformType, query.CriteriaForContext(ctx)...); err != nil {
 		return nil, util.HandleSelectionError(err, "platform")
 	}
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
@@ -141,7 +134,7 @@ func (c *Controller) deletePlatform(r *web.Request) (*web.Response, error) {
 	log.C(ctx).Debugf("Deleting platform with id %s", platformID)
 
 	byIDQuery := query.ByField(query.EqualsOperator, "id", platformID)
-	if err := c.PlatformStorage.Delete(ctx, byIDQuery); err != nil {
+	if err := c.Repository.Delete(ctx, types.PlatformType, byIDQuery); err != nil {
 		return nil, util.HandleStorageError(err, "platform")
 	}
 
@@ -155,22 +148,17 @@ func (c *Controller) patchPlatform(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Updating platform with id %s", platformID)
 
-	platform, err := c.PlatformStorage.Get(ctx, platformID)
+	platform, err := c.Repository.Get(ctx, platformID, types.PlatformType)
 	if err != nil {
 		return nil, util.HandleStorageError(err, "platform")
 	}
-
-	createdAt := platform.CreatedAt
 
 	if err := util.BytesToObject(r.Body, platform); err != nil {
 		return nil, err
 	}
 
-	platform.ID = platformID
-	platform.CreatedAt = createdAt
-	platform.UpdatedAt = time.Now().UTC()
-
-	if err := c.PlatformStorage.Update(ctx, platform); err != nil {
+	// TODO: defaulting
+	if platform, err = c.Repository.Update(ctx, platform); err != nil {
 		return nil, util.HandleStorageError(err, "platform")
 	}
 

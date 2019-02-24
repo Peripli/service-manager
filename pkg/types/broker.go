@@ -28,19 +28,18 @@ import (
 
 // Brokers struct
 type Brokers struct {
-	Brokers []*Broker `json:"brokers"`
+	Brokers []*Broker `json:"service_brokers"`
 }
 
-type ObjectList interface {
-	ItemAt(index int) Object
-	Len() int
+func (b *Brokers) Add(object Object) {
+	b.Brokers = append(b.Brokers, object.(*Broker))
 }
 
-func (b Brokers) Len() int {
+func (b *Brokers) Len() int {
 	return len(b.Brokers)
 }
 
-func (b Brokers) ItemAt(index int) Object {
+func (b *Brokers) ItemAt(index int) Object {
 	return b.Brokers[index]
 }
 
@@ -68,12 +67,16 @@ func (b *Broker) GetType() ObjectType {
 	return BrokerType
 }
 
+func (b *Broker) SupportsLabels() bool {
+	return true
+}
+
 func (b *Broker) GetLabels() Labels {
 	return b.Labels
 }
 
 func (b *Broker) EmptyList() ObjectList {
-	return Brokers{}
+	return &Brokers{Brokers: make([]*Broker, 0)}
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

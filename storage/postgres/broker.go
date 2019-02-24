@@ -17,75 +17,99 @@
 package postgres
 
 import (
-	"context"
+	"database/sql"
+	"fmt"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/log"
-
-	"github.com/Peripli/service-manager/pkg/util"
-
-	"github.com/Peripli/service-manager/pkg/query"
-
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/gofrs/uuid"
+	"github.com/jmoiron/sqlx"
 )
 
-type brokerStorage struct {
-	db pgDB
+func init() {
+	RegisterEntity(types.BrokerType, Broker{})
 }
 
-func (bs *brokerStorage) Create(ctx context.Context, obj types.Object) (string, error) {
-	b := &Broker{}
-	b.FromDTO1(obj)
-	id, err := create(ctx, bs.db, brokerTable, b)
-	if err != nil {
-		return "", err
-	}
-	return id, bs.createLabels(ctx, id, obj.GetLabels())
+// Broker entity
+type Broker struct {
+	ID          string         `db:"id"`
+	Name        string         `db:"name"`
+	Description sql.NullString `db:"description"`
+	CreatedAt   time.Time      `db:"created_at"`
+	UpdatedAt   time.Time      `db:"updated_at"`
+	BrokerURL   string         `db:"broker_url"`
+	Username    string         `db:"username"`
+	Password    string         `db:"password"`
 }
 
-func (bs *brokerStorage) Get(ctx context.Context, id string) (types.Object, error) {
-	byID := query.ByField(query.EqualsOperator, "id", id)
-
-	brokers := []*types.Broker{}
-	if err := bs.List(ctx, brokers, byID); err != nil {
-		return nil, err
-	}
-	if len(brokers) == 0 {
-		return nil, util.ErrNotFoundInStorage
-	}
-	return brokers[0], nil
+func (b Broker) Labels() EntityLabels {
+	return brokerLabels{}
 }
 
-func (bs *brokerStorage) List(ctx context.Context, obj interface{}, criteria ...query.Criterion) error {
-	rows, err := listWithLabelsByCriteria(ctx, bs.db, Broker{}, &BrokerLabel{}, brokerTable, criteria)
-	defer func() {
-		if rows == nil {
-			return
-		}
-		if err := rows.Close(); err != nil {
-			log.C(ctx).Errorf("Could not release connection when checking database. Error: %s", err)
-		}
-	}()
-	if err != nil {
-		return err
+func (br Broker) ToObject() types.Object {
+	broker := &types.Broker{
+		ID:          br.ID,
+		Name:        br.Name,
+		Description: br.Description.String,
+		CreatedAt:   br.CreatedAt,
+		UpdatedAt:   br.UpdatedAt,
+		BrokerURL:   br.BrokerURL,
+		Credentials: &types.Credentials{
+			Basic: &types.Basic{
+				Username: br.Username,
+				Password: br.Password,
+			},
+		},
+		Labels: make(map[string][]string),
+	}
+	return broker
+}
+
+func (b Broker) FromObject(obj types.Object) Entity {
+	if obj == nil {
+		return Broker{}
+	}
+	broker := obj.(*types.Broker)
+	res := Broker{
+		ID:          broker.ID,
+		Description: toNullString(broker.Description),
+		Name:        broker.Name,
+		BrokerURL:   broker.BrokerURL,
+		CreatedAt:   broker.CreatedAt,
+		UpdatedAt:   broker.UpdatedAt,
 	}
 
+	if broker.Description != "" {
+		b.Description.Valid = true
+	}
+	if broker.Credentials != nil && broker.Credentials.Basic != nil {
+		b.Username = broker.Credentials.Basic.Username
+		b.Password = broker.Credentials.Basic.Password
+	}
+	return res
+}
+
+func (Broker) Empty() Entity {
+	return Broker{}
+}
+
+func (b Broker) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
 	brokers := make(map[string]*types.Broker)
 	labels := make(map[string]map[string][]string)
-	result := make([]*types.Broker, 0)
+	result := &types.Brokers{}
 	for rows.Next() {
 		row := struct {
 			*Broker
-			*BrokerLabel `pdDB:"broker_labels"`
+			*BrokerLabel `db:"broker_labels"`
 		}{}
 		if err := rows.StructScan(&row); err != nil {
-			return err
+			return nil, err
 		}
 		broker, ok := brokers[row.Broker.ID]
 		if !ok {
-			broker = row.Broker.ToDTO()
+			broker = row.Broker.ToObject().(*types.Broker)
 			brokers[row.Broker.ID] = broker
-			result = append(result, broker)
+			result.Add(broker)
 		}
 		if labels[broker.ID] == nil {
 			labels[broker.ID] = make(map[string][]string)
@@ -93,68 +117,120 @@ func (bs *brokerStorage) List(ctx context.Context, obj interface{}, criteria ...
 		labels[broker.ID][row.BrokerLabel.Key.String] = append(labels[broker.ID][row.BrokerLabel.Key.String], row.BrokerLabel.Val.String)
 	}
 
-	for _, b := range result {
-		b.Labels = labels[b.ID]
+	for _, obj := range result.Brokers {
+		obj.Labels = labels[obj.ID]
 	}
-	obj = result
-	return nil
+	return result, nil
 }
 
-func (bs *brokerStorage) Delete(ctx context.Context, criteria ...query.Criterion) error {
-	return deleteAllByFieldCriteria(ctx, bs.db, brokerTable, Broker{}, criteria)
+func (Broker) PrimaryColumn() string {
+	return "id"
 }
 
-func (bs *brokerStorage) Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) error {
-	broker := obj.(*types.Broker)
-	b := &Broker{}
-	b.FromDTO(broker)
-	if err := update(ctx, bs.db, brokerTable, b); err != nil {
-		return err
-	}
-	if err := bs.updateLabels(ctx, b.ID, labelChanges); err != nil {
-		return err
-	}
-	byBrokerID := query.ByField(query.EqualsOperator, "broker_id", b.ID)
-	var labels []*BrokerLabel
-	if err := listByFieldCriteria(ctx, bs.db, brokerLabelsTable, &labels, []query.Criterion{byBrokerID}); err != nil {
-		return err
-	}
-	brokerLabels := brokerLabels(labels)
-	broker.Labels = brokerLabels.ToDTO()
-	return nil
+func (Broker) TableName() string {
+	return brokerTable
 }
 
-func (bs *brokerStorage) updateLabels(ctx context.Context, brokerID string, updateActions []*query.LabelChange) error {
+func (b Broker) GetID() string {
+	return b.ID
+}
+
+type BrokerLabel struct {
+	ID        sql.NullString `db:"id"`
+	Key       sql.NullString `db:"key"`
+	Val       sql.NullString `db:"val"`
+	CreatedAt *time.Time     `db:"created_at"`
+	UpdatedAt *time.Time     `db:"updated_at"`
+	BrokerID  sql.NullString `db:"broker_id"`
+}
+
+func (bl BrokerLabel) TableName() string {
+	return brokerLabelsTable
+}
+
+func (bl BrokerLabel) PrimaryColumn() string {
+	return "id"
+}
+
+func (bl BrokerLabel) ReferenceColumn() string {
+	return "broker_id"
+}
+
+func (bl BrokerLabel) Empty() Label {
+	return BrokerLabel{}
+}
+
+func (bl BrokerLabel) New(entityID, id, key, value string) Label {
 	now := time.Now()
-	newLabelFunc := func(labelID string, labelKey string, labelValue string) Labelable {
-		return &BrokerLabel{
-			ID:        toNullString(labelID),
-			Key:       toNullString(labelKey),
-			Val:       toNullString(labelValue),
-			BrokerID:  toNullString(brokerID),
-			CreatedAt: &now,
-			UpdatedAt: &now,
-		}
+	return BrokerLabel{
+		ID:        toNullString(id),
+		Key:       toNullString(key),
+		Val:       toNullString(value),
+		BrokerID:  toNullString(entityID),
+		CreatedAt: &now,
+		UpdatedAt: &now,
 	}
-	return updateLabelsAbstract(ctx, newLabelFunc, bs.db, brokerID, updateActions)
 }
 
-func (bs *brokerStorage) Supports(obj types.Object) bool {
-	return obj.GetType() == types.BrokerType
+func (bl BrokerLabel) GetKey() string {
+	return bl.Key.String
 }
 
-func (bs *brokerStorage) createLabels(ctx context.Context, brokerID string, labels types.Labels) error {
-	vls := brokerLabels{}
-	if err := vls.FromDTO(brokerID, labels); err != nil {
-		return err
-	}
-	if err := vls.Validate(); err != nil {
-		return err
-	}
-	for _, label := range vls {
-		if _, err := create(ctx, bs.db, brokerLabelsTable, label); err != nil {
-			return err
+func (bl BrokerLabel) GetValue() string {
+	return bl.Val.String
+}
+
+type brokerLabels []*BrokerLabel
+
+func (bl brokerLabels) Single() Label {
+	return &BrokerLabel{}
+}
+
+func (bl brokerLabels) PrimaryColumn() string {
+	return "id"
+}
+
+func (bl brokerLabels) TableName() string {
+	return brokerLabelsTable
+}
+
+func (brokerLabels) ReferenceColumn() string {
+	return "broker_id"
+}
+
+func (bls brokerLabels) FromDTO(entityID string, labels types.Labels) ([]Label, error) {
+	var result []Label
+	now := time.Now()
+	for key, values := range labels {
+		for _, labelValue := range values {
+			UUID, err := uuid.NewV4()
+			if err != nil {
+				return nil, fmt.Errorf("could not generate GUID for broker label: %s", err)
+			}
+			id := UUID.String()
+			bLabel := &BrokerLabel{
+				ID:        toNullString(id),
+				Key:       toNullString(key),
+				Val:       toNullString(labelValue),
+				CreatedAt: &now,
+				UpdatedAt: &now,
+				BrokerID:  toNullString(entityID),
+			}
+			result = append(result, bLabel)
 		}
 	}
-	return nil
+	return result, nil
+}
+
+func (bls brokerLabels) ToDTO() types.Labels {
+	labelValues := make(map[string][]string)
+	for _, label := range bls {
+		values, exists := labelValues[label.Key.String]
+		if exists {
+			labelValues[label.Key.String] = append(values, label.Val.String)
+		} else {
+			labelValues[label.Key.String] = []string{label.Val.String}
+		}
+	}
+	return labelValues
 }

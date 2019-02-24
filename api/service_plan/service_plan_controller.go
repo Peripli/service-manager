@@ -31,7 +31,7 @@ const reqServicePlanID = "service_plan_id"
 
 // Controller implements api.Controller by providing service plans API logic
 type Controller struct {
-	ServicePlanStorage storage.ServicePlan
+	ServicePlanStorage storage.Repository
 }
 
 func (c *Controller) getServicePlan(r *web.Request) (*web.Response, error) {
@@ -39,7 +39,7 @@ func (c *Controller) getServicePlan(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Getting service plan with id %s", servicePlanID)
 
-	servicePlan, err := c.ServicePlanStorage.Get(ctx, servicePlanID)
+	servicePlan, err := c.ServicePlanStorage.Get(ctx, servicePlanID, types.ServicePlanType)
 	if err = util.HandleStorageError(err, "service_plan"); err != nil {
 		return nil, err
 	}
@@ -47,17 +47,14 @@ func (c *Controller) getServicePlan(r *web.Request) (*web.Response, error) {
 }
 
 func (c *Controller) ListServicePlans(r *web.Request) (*web.Response, error) {
-	var servicePlans []*types.ServicePlan
 	var err error
 	ctx := r.Context()
 	log.C(ctx).Debug("Listing service plans")
 
-	servicePlans, err = c.ServicePlanStorage.List(ctx, query.CriteriaForContext(ctx)...)
+	servicePlans, err := c.ServicePlanStorage.List(ctx, types.ServicePlanType, query.CriteriaForContext(ctx)...)
 	if err != nil {
 		return nil, util.HandleSelectionError(err)
 	}
 
-	return util.NewJSONResponse(http.StatusOK, &types.ServicePlans{
-		ServicePlans: servicePlans,
-	})
+	return util.NewJSONResponse(http.StatusOK, servicePlans)
 }

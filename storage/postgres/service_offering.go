@@ -20,44 +20,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Peripli/service-manager/pkg/query"
-
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
 type serviceOfferingStorage struct {
 	db pgDB
-}
-
-func (sos *serviceOfferingStorage) Create(ctx context.Context, serviceOffering *types.ServiceOffering) (string, error) {
-	so := &ServiceOffering{}
-	so.FromDTO(serviceOffering)
-	return create(ctx, sos.db, serviceOfferingTable, so)
-}
-
-func (sos *serviceOfferingStorage) Get(ctx context.Context, id string) (*types.ServiceOffering, error) {
-	serviceOffering := &ServiceOffering{}
-	if err := get(ctx, sos.db, id, serviceOfferingTable, serviceOffering); err != nil {
-		return nil, err
-	}
-	return serviceOffering.ToDTO(), nil
-}
-
-func (sos *serviceOfferingStorage) List(ctx context.Context, criteria ...query.Criterion) ([]*types.ServiceOffering, error) {
-	var serviceOfferings []ServiceOffering
-	if err := validateFieldQueryParams(ServiceOffering{}, criteria); err != nil {
-		return nil, err
-	}
-	err := listByFieldCriteria(ctx, sos.db, serviceOfferingTable, &serviceOfferings, criteria)
-	if err != nil || len(serviceOfferings) == 0 {
-		return []*types.ServiceOffering{}, err
-	}
-	serviceOfferingDTOs := make([]*types.ServiceOffering, 0, len(serviceOfferings))
-	for _, so := range serviceOfferings {
-		serviceOfferingDTOs = append(serviceOfferingDTOs, so.ToDTO())
-	}
-	return serviceOfferingDTOs, nil
 }
 
 func (sos *serviceOfferingStorage) ListWithServicePlansByBrokerID(ctx context.Context, brokerID string) ([]*types.ServiceOffering, error) {
@@ -106,26 +74,15 @@ func (sos *serviceOfferingStorage) ListWithServicePlansByBrokerID(ctx context.Co
 		}
 
 		if serviceOffering, ok := services[row.ServiceOffering.ID]; !ok {
-			serviceOffering = row.ServiceOffering.ToDTO()
-			serviceOffering.Plans = append(serviceOffering.Plans, row.ServicePlan.ToDTO())
+			serviceOffering = row.ServiceOffering.ToObject().(*types.ServiceOffering)
+			serviceOffering.Plans = append(serviceOffering.Plans, row.ServicePlan.ToObject().(*types.ServicePlan))
 
 			services[row.ServiceOffering.ID] = serviceOffering
 			result = append(result, serviceOffering)
 		} else {
-			serviceOffering.Plans = append(serviceOffering.Plans, row.ServicePlan.ToDTO())
+			serviceOffering.Plans = append(serviceOffering.Plans, row.ServicePlan.ToObject().(*types.ServicePlan))
 		}
 	}
 
 	return result, nil
-}
-
-func (sos *serviceOfferingStorage) Delete(ctx context.Context, criteria ...query.Criterion) error {
-	return deleteAllByFieldCriteria(ctx, sos.db, serviceOfferingTable, ServiceOffering{}, criteria)
-}
-
-func (sos *serviceOfferingStorage) Update(ctx context.Context, serviceOffering *types.ServiceOffering) error {
-	so := &ServiceOffering{}
-	so.FromDTO(serviceOffering)
-	return update(ctx, sos.db, serviceOfferingTable, so)
-
 }

@@ -26,6 +26,22 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
+type PlatformsList struct {
+	Platforms []Object `json:"platforms"`
+}
+
+func (p *PlatformsList) Add(object Object) {
+	p.Platforms = append(p.Platforms, object)
+}
+
+func (p *PlatformsList) ItemAt(index int) Object {
+	return p.Platforms[index]
+}
+
+func (p *PlatformsList) Len() int {
+	return len(p.Platforms)
+}
+
 // Platform platform struct
 type Platform struct {
 	ID          string       `json:"id"`
@@ -37,12 +53,24 @@ type Platform struct {
 	Credentials *Credentials `json:"credentials,omitempty"`
 }
 
+func (p *Platform) SupportsLabels() bool {
+	return false
+}
+
+func (p *Platform) EmptyList() ObjectList {
+	return &PlatformsList{Platforms: make([]Object, 0)}
+}
+
+func (p *Platform) WithLabels(labels Labels) Object {
+	return p
+}
+
 func (p *Platform) GetType() ObjectType {
 	return PlatformType
 }
 
 func (p *Platform) GetLabels() Labels {
-	panic("implement me")
+	return Labels{}
 }
 
 // MarshalJSON override json serialization for http response

@@ -16,6 +16,8 @@
 
 package types
 
+import "fmt"
+
 type ObjectType string
 
 const (
@@ -23,11 +25,33 @@ const (
 	PlatformType        ObjectType = "platform"
 	ServiceOfferingType ObjectType = "service_offering"
 	ServicePlanType     ObjectType = "service_plan"
+	VisibilityType      ObjectType = "visibility"
 )
+
+var (
+	knownTypes []ObjectType
+)
+
+func RegisterType(objectType ObjectType) error {
+	for _, existing := range knownTypes {
+		if existing == objectType {
+			return fmt.Errorf("type %s is already registered", objectType)
+		}
+	}
+	knownTypes = append(knownTypes, objectType)
+	return nil
+}
 
 type Object interface {
 	GetType() ObjectType
+	SupportsLabels() bool
 	GetLabels() Labels
 	EmptyList() ObjectList
 	WithLabels(labels Labels) Object
+}
+
+type ObjectList interface {
+	Add(object Object)
+	ItemAt(index int) Object
+	Len() int
 }

@@ -26,7 +26,19 @@ import (
 
 // ServicePlans struct
 type ServicePlans struct {
-	ServicePlans []*ServicePlan `json:"service_plans"`
+	ServicePlans []Object `json:"service_plans"`
+}
+
+func (sps *ServicePlans) Add(object Object) {
+	sps.ServicePlans = append(sps.ServicePlans, object)
+}
+
+func (sps *ServicePlans) ItemAt(index int) Object {
+	return sps.ServicePlans[index]
+}
+
+func (sps *ServicePlans) Len() int {
+	return len(sps.ServicePlans)
 }
 
 // Service Plan struct
@@ -49,20 +61,24 @@ type ServicePlan struct {
 	ServiceOfferingID string `json:"service_offering_id"`
 }
 
+func (sp *ServicePlan) SupportsLabels() bool {
+	return false
+}
+
 func (sp *ServicePlan) GetType() ObjectType {
-	panic("implement me")
+	return ServicePlanType
 }
 
 func (sp *ServicePlan) GetLabels() Labels {
-	panic("implement me")
+	return Labels{}
 }
 
 func (sp *ServicePlan) EmptyList() ObjectList {
-	panic("implement me")
+	return &ServicePlans{ServicePlans: make([]Object, 0)}
 }
 
 func (sp *ServicePlan) WithLabels(labels Labels) Object {
-	panic("implement me")
+	return sp
 }
 
 // MarshalJSON override json serialization for http response

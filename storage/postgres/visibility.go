@@ -17,138 +17,187 @@
 package postgres
 
 import (
-	"context"
+	"database/sql"
+	"fmt"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/util"
-
-	"github.com/Peripli/service-manager/pkg/log"
-
-	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/jmoiron/sqlx"
 
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/gofrs/uuid"
 )
 
-type visibilityStorage struct {
-	db pgDB
+func init() {
+	RegisterEntity(types.VisibilityType, &Visibility{})
 }
 
-func (vs *visibilityStorage) Create(ctx context.Context, visibility *types.Visibility) (string, error) {
-	v := &Visibility{}
-	v.FromDTO(visibility)
-	id, err := create(ctx, vs.db, visibilityTable, v)
-	if err != nil {
-		return "", err
-	}
-	return id, vs.createLabels(ctx, id, visibility.Labels)
+type Visibility struct {
+	ID            string         `db:"id"`
+	PlatformID    sql.NullString `db:"platform_id"`
+	ServicePlanID string         `db:"service_plan_id"`
+	CreatedAt     time.Time      `db:"created_at"`
+	UpdatedAt     time.Time      `db:"updated_at"`
 }
 
-func (vs *visibilityStorage) createLabels(ctx context.Context, visibilityID string, labels types.Labels) error {
-	vls := visibilityLabels{}
-	if err := vls.FromDTO(visibilityID, labels); err != nil {
-		return err
-	}
-	if err := vls.Validate(); err != nil {
-		return err
-	}
-	for _, label := range vls {
-		if _, err := create(ctx, vs.db, visibilityLabelsTable, label); err != nil {
-			return err
-		}
-	}
-	return nil
+func (v *Visibility) GetID() string {
+	return v.ID
 }
 
-func (vs *visibilityStorage) Get(ctx context.Context, id string) (*types.Visibility, error) {
-	byID := query.ByField(query.EqualsOperator, "id", id)
-	visibilities, err := vs.List(ctx, byID)
-	if err != nil {
-		return nil, err
-	}
-	if len(visibilities) == 0 {
-		return nil, util.ErrNotFoundInStorage
-	}
-	return visibilities[0], nil
+func (v *Visibility) TableName() string {
+	return visibilityTable
 }
 
-func (vs *visibilityStorage) List(ctx context.Context, criteria ...query.Criterion) ([]*types.Visibility, error) {
-	rows, err := listWithLabelsByCriteria(ctx, vs.db, Visibility{}, &VisibilityLabel{}, visibilityTable, criteria)
-	defer func() {
-		if rows == nil {
-			return
-		}
-		if err := rows.Close(); err != nil {
-			log.C(ctx).Errorf("Could not release connection when checking database. Error: %s", err)
-		}
-	}()
-	if err != nil {
-		return nil, err
-	}
+func (v *Visibility) PrimaryColumn() string {
+	return "id"
+}
 
-	visibilities := make(map[string]*types.Visibility)
+func (v *Visibility) Empty() Entity {
+	return &Visibility{}
+}
+
+func (v *Visibility) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
+	entities := make(map[string]*types.Visibility)
 	labels := make(map[string]map[string][]string)
-	result := make([]*types.Visibility, 0)
+	result := &types.Visibilities{
+		Visibilities: make([]*types.Visibility, 0),
+	}
 	for rows.Next() {
 		row := struct {
 			*Visibility
-			*VisibilityLabel `pdDB:"visibility_labels"`
+			*VisibilityLabel `db:"visibility_labels"`
 		}{}
 		if err := rows.StructScan(&row); err != nil {
 			return nil, err
 		}
-		visibility, ok := visibilities[row.Visibility.ID]
+		entity, ok := entities[row.Visibility.ID]
 		if !ok {
-			visibility = row.Visibility.ToDTO()
-			visibilities[row.Visibility.ID] = visibility
-			result = append(result, visibility)
+			entity = row.Visibility.ToObject().(*types.Visibility)
+			entities[row.Visibility.ID] = entity
+			result.Visibilities = append(result.Visibilities, entity)
 		}
-		if labels[visibility.ID] == nil {
-			labels[visibility.ID] = make(map[string][]string)
+		if labels[entity.ID] == nil {
+			labels[entity.ID] = make(map[string][]string)
 		}
-		labels[visibility.ID][row.VisibilityLabel.Key.String] = append(labels[visibility.ID][row.VisibilityLabel.Key.String], row.VisibilityLabel.Val.String)
+		labels[entity.ID][row.VisibilityLabel.Key.String] = append(labels[entity.ID][row.VisibilityLabel.Key.String], row.VisibilityLabel.Val.String)
 	}
 
-	for _, vis := range result {
-		vis.Labels = labels[vis.ID]
+	for _, b := range result.Visibilities {
+		b.Labels = labels[b.ID]
 	}
-
 	return result, nil
 }
 
-func (vs *visibilityStorage) Delete(ctx context.Context, criteria ...query.Criterion) error {
-	return deleteAllByFieldCriteria(ctx, vs.db, visibilityTable, Visibility{}, criteria)
+func (v *Visibility) Labels() EntityLabels {
+	return &visibilityLabels{}
 }
 
-func (vs *visibilityStorage) Update(ctx context.Context, visibility *types.Visibility, labelChanges ...*query.LabelChange) error {
-	v := &Visibility{}
-	v.FromDTO(visibility)
-	if err := update(ctx, vs.db, visibilityTable, v); err != nil {
-		return err
+func (v *Visibility) ToObject() types.Object {
+	return &types.Visibility{
+		ID:            v.ID,
+		PlatformID:    v.PlatformID.String,
+		ServicePlanID: v.ServicePlanID,
+		CreatedAt:     v.CreatedAt,
+		UpdatedAt:     v.UpdatedAt,
+		Labels:        make(map[string][]string),
 	}
-	if err := vs.updateLabels(ctx, v.ID, labelChanges); err != nil {
-		return err
-	}
-	byVisibilityID := query.ByField(query.EqualsOperator, "visibility_id", v.ID)
-	var labels []*VisibilityLabel
-	if err := listByFieldCriteria(ctx, vs.db, visibilityLabelsTable, &labels, []query.Criterion{byVisibilityID}); err != nil {
-		return err
-	}
-	visibilityLabels := visibilityLabels(labels)
-	visibility.Labels = visibilityLabels.ToDTO()
-	return nil
 }
 
-func (vs *visibilityStorage) updateLabels(ctx context.Context, visibilityID string, updateActions []*query.LabelChange) error {
+func (v *Visibility) FromObject(visibility types.Object) Entity {
+	vis := visibility.(*types.Visibility)
+	return &Visibility{
+		ID: vis.ID,
+		// API cannot send nulls right now and storage cannot store empty string for this column as it is FK
+		PlatformID:    toNullString(vis.PlatformID),
+		ServicePlanID: vis.ServicePlanID,
+		CreatedAt:     vis.CreatedAt,
+		UpdatedAt:     vis.UpdatedAt,
+	}
+}
+
+type visibilityLabels []*VisibilityLabel
+
+func (vls *visibilityLabels) Single() Label {
+	return &VisibilityLabel{}
+}
+
+func (vls *visibilityLabels) FromDTO(entityID string, labels types.Labels) ([]Label, error) {
+	var result []Label
 	now := time.Now()
-	newLabelFunc := func(labelID string, labelKey string, labelValue string) Labelable {
-		return &VisibilityLabel{
-			ID:                  toNullString(labelID),
-			Key:                 toNullString(labelKey),
-			Val:                 toNullString(labelValue),
-			ServiceVisibilityID: toNullString(visibilityID),
-			CreatedAt:           &now,
-			UpdatedAt:           &now,
+	for key, values := range labels {
+		for _, labelValue := range values {
+			UUID, err := uuid.NewV4()
+			if err != nil {
+				return nil, fmt.Errorf("could not generate GUID for visibility label: %s", err)
+			}
+			id := UUID.String()
+			visLabel := &VisibilityLabel{
+				ID:                  toNullString(id),
+				Key:                 toNullString(key),
+				Val:                 toNullString(labelValue),
+				CreatedAt:           &now,
+				UpdatedAt:           &now,
+				ServiceVisibilityID: toNullString(entityID),
+			}
+			result = append(result, visLabel)
 		}
 	}
-	return updateLabelsAbstract(ctx, newLabelFunc, vs.db, visibilityID, updateActions)
+	return result, nil
+}
+
+func (vls *visibilityLabels) ToDTO() types.Labels {
+	labelValues := make(map[string][]string)
+	for _, label := range *vls {
+		values, exists := labelValues[label.Key.String]
+		if exists {
+			labelValues[label.Key.String] = append(values, label.Val.String)
+		} else {
+			labelValues[label.Key.String] = []string{label.Val.String}
+		}
+	}
+	return labelValues
+}
+
+type VisibilityLabel struct {
+	ID                  sql.NullString `db:"id"`
+	Key                 sql.NullString `db:"key"`
+	Val                 sql.NullString `db:"val"`
+	CreatedAt           *time.Time     `db:"created_at"`
+	UpdatedAt           *time.Time     `db:"updated_at"`
+	ServiceVisibilityID sql.NullString `db:"visibility_id"`
+}
+
+func (*VisibilityLabel) TableName() string {
+	return visibilityLabelsTable
+}
+
+func (*VisibilityLabel) PrimaryColumn() string {
+	return "id"
+}
+
+func (*VisibilityLabel) ReferenceColumn() string {
+	return "visibility_id"
+}
+
+func (*VisibilityLabel) Empty() Label {
+	return &VisibilityLabel{}
+}
+
+func (*VisibilityLabel) New(entityID, id, key, value string) Label {
+	now := time.Now()
+	return &VisibilityLabel{
+		ID:                  toNullString(id),
+		Key:                 toNullString(key),
+		Val:                 toNullString(value),
+		ServiceVisibilityID: toNullString(entityID),
+		CreatedAt:           &now,
+		UpdatedAt:           &now,
+	}
+}
+
+func (vl *VisibilityLabel) GetKey() string {
+	return vl.Key.String
+}
+
+func (vl *VisibilityLabel) GetValue() string {
+	return vl.Val.String
 }

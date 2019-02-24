@@ -30,6 +30,18 @@ type ServiceOfferings struct {
 	ServiceOfferings []*ServiceOffering `json:"services"`
 }
 
+func (sos *ServiceOfferings) Add(object Object) {
+	sos.ServiceOfferings = append(sos.ServiceOfferings, object.(*ServiceOffering))
+}
+
+func (sos *ServiceOfferings) ItemAt(index int) Object {
+	return sos.ServiceOfferings[index]
+}
+
+func (sos *ServiceOfferings) Len() int {
+	return len(sos.ServiceOfferings)
+}
+
 // Service Offering struct
 type ServiceOffering struct {
 	ID          string    `json:"id"`
@@ -53,20 +65,24 @@ type ServiceOffering struct {
 	Plans    []*ServicePlan `json:"plans"`
 }
 
+func (so *ServiceOffering) SupportsLabels() bool {
+	return false
+}
+
 func (so *ServiceOffering) GetType() ObjectType {
-	panic("implement me")
+	return ServiceOfferingType
 }
 
 func (so *ServiceOffering) GetLabels() Labels {
-	panic("implement me")
+	return Labels{}
 }
 
 func (so *ServiceOffering) EmptyList() ObjectList {
-	panic("implement me")
+	return &ServiceOfferings{ServiceOfferings: make([]*ServiceOffering, 0)}
 }
 
 func (so *ServiceOffering) WithLabels(labels Labels) Object {
-	panic("implement me")
+	return so
 }
 
 // MarshalJSON override json serialization for http response

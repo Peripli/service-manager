@@ -82,14 +82,14 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 				Encrypter:           encrypter,
 			},
 			&platform.Controller{
-				PlatformStorage: repository.Platform(),
-				Encrypter:       encrypter,
+				Repository: repository,
+				Encrypter:  encrypter,
 			},
 			&service_offering.Controller{
-				ServiceOfferingStorage: repository.ServiceOffering(),
+				ServiceOfferingStorage: repository,
 			},
 			&service_plan.Controller{
-				ServicePlanStorage: repository.ServicePlan(),
+				ServicePlanStorage: repository,
 			},
 			&visibility.Controller{
 				Repository: repository,
@@ -98,7 +98,7 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 				TokenIssuer: settings.TokenIssuerURL,
 			},
 			osb.NewController(&osb.StorageBrokerFetcher{
-				BrokerStorage: repository.Broker(),
+				BrokerStorage: repository,
 				Encrypter:     encrypter,
 			}, &osb.StorageCatalogFetcher{
 				CatalogStorage: repository.ServiceOffering(),

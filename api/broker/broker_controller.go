@@ -172,20 +172,19 @@ func (c *Controller) getBroker(r *web.Request) (*web.Response, error) {
 }
 
 func (c *Controller) listBrokers(r *web.Request) (*web.Response, error) {
-	var brokers types.Brokers
 	ctx := r.Context()
 	log.C(ctx).Debug("Getting all brokers")
-	if err := c.Repository.List(ctx, brokers, query.CriteriaForContext(ctx)...); err != nil {
+	brokers, err := c.Repository.List(ctx, types.BrokerType, query.CriteriaForContext(ctx)...)
+	if err != nil {
 		return nil, util.HandleSelectionError(err)
 	}
 
-	for _, broker := range brokers.Brokers {
-		broker.Credentials = nil
+	for i := 0; i < brokers.Len(); i++ {
+		broker := brokers.ItemAt(i)
+		broker.(*types.Broker).Credentials = nil
 	}
 
-	return util.NewJSONResponse(http.StatusOK, &types.Brokers{
-		Brokers: brokers.Brokers,
-	})
+	return util.NewJSONResponse(http.StatusOK, brokers)
 }
 
 func (c *Controller) deleteBrokers(r *web.Request) (*web.Response, error) {
@@ -402,7 +401,7 @@ func (c *Controller) resyncBrokerAndCatalog(ctx context.Context, broker *types.B
 			return util.HandleStorageError(err, "broker")
 		}
 
-		existingServiceOfferingsWithServicePlans, err := txStorage.ListWithServicePlansByBrokerID(ctx, broker.ID)
+		existingServiceOfferingsWithServicePlans, err := txStorage.ServiceOffering().ListWithServicePlansByBrokerID(ctx, broker.ID)
 		if err != nil {
 			return fmt.Errorf("error getting catalog for broker with id %s from SM DB: %s", broker.ID, err)
 

@@ -58,7 +58,6 @@ func (fsp *FreeServicePlansFilter) Run(req *web.Request, next web.Handler) (*web
 	log.C(ctx).Debugf("Reconciling free plans for broker with id: %s", brokerID)
 	if err := fsp.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
 		soRepository := storage.ServiceOffering()
-		vRepository := storage.Visibility()
 
 		catalog, err := soRepository.ListWithServicePlansByBrokerID(ctx, brokerID)
 		if err != nil {
@@ -70,24 +69,25 @@ func (fsp *FreeServicePlansFilter) Run(req *web.Request, next web.Handler) (*web
 				isFree := servicePlan.Free
 				hasPublicVisibility := false
 				byServicePlanID := query.ByField(query.EqualsOperator, "service_plan_id", planID)
-				visibilitiesForPlan, err := vRepository.List(ctx, byServicePlanID)
+				visibilitiesForPlan, err := storage.List(ctx, types.VisibilityType, byServicePlanID)
 				if err != nil {
 					return err
 				}
-				for _, visibility := range visibilitiesForPlan {
+				for i := 0; i < visibilitiesForPlan.Len(); i++ {
+					visibility := visibilitiesForPlan.ItemAt(i).(*types.Visibility)
 					byVisibilityID := query.ByField(query.EqualsOperator, "id", visibility.ID)
 					if isFree {
 						if visibility.PlatformID == "" {
 							hasPublicVisibility = true
 							continue
 						} else {
-							if err := vRepository.Delete(ctx, byVisibilityID); err != nil {
+							if err := storage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
 								return err
 							}
 						}
 					} else {
 						if visibility.PlatformID == "" {
-							if err := vRepository.Delete(ctx, byVisibilityID); err != nil {
+							if err := storage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
 								return err
 							}
 						} else {
@@ -103,7 +103,7 @@ func (fsp *FreeServicePlansFilter) Run(req *web.Request, next web.Handler) (*web
 					}
 
 					currentTime := time.Now().UTC()
-					planID, err := vRepository.Create(ctx, &types.Visibility{
+					planID, err := storage.Create(ctx, &types.Visibility{
 						ID:            UUID.String(),
 						ServicePlanID: servicePlan.ID,
 						CreatedAt:     currentTime,

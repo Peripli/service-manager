@@ -54,7 +54,7 @@ func (c *Controller) createVisibility(r *web.Request) (*web.Response, error) {
 	var visibilityID string
 	err = c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
 		logger.Debugf("Creating visibility and labels...")
-		visibilityID, err = storage.Visibility().Create(ctx, visibility)
+		visibilityID, err = storage.Create(ctx, visibility)
 		return err
 	})
 	if err != nil {
@@ -70,7 +70,7 @@ func (c *Controller) getVisibility(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Getting visibility with id %s", visibilityID)
 
-	visibility, err := c.Repository.Visibility().Get(ctx, visibilityID)
+	visibility, err := c.Repository.Get(ctx, visibilityID, types.VisibilityType)
 	if err = util.HandleStorageError(err, "visibility"); err != nil {
 		return nil, err
 	}
@@ -78,7 +78,6 @@ func (c *Controller) getVisibility(r *web.Request) (*web.Response, error) {
 }
 
 func (c *Controller) listVisibilities(r *web.Request) (*web.Response, error) {
-	var visibilities []*types.Visibility
 	var err error
 	ctx := r.Context()
 	log.C(ctx).Debug("Getting all visibilities")
@@ -101,20 +100,18 @@ func (c *Controller) listVisibilities(r *web.Request) (*web.Response, error) {
 		}
 		r.Request = r.WithContext(ctx)
 	}
-	visibilities, err = c.Repository.Visibility().List(ctx, query.CriteriaForContext(ctx)...)
+	visibilities, err := c.Repository.List(ctx, types.VisibilityType, query.CriteriaForContext(ctx)...)
 	if err != nil {
 		return nil, util.HandleSelectionError(err)
 	}
-	return util.NewJSONResponse(http.StatusOK, types.Visibilities{
-		Visibilities: visibilities,
-	})
+	return util.NewJSONResponse(http.StatusOK, visibilities)
 }
 
 func (c *Controller) deleteAllVisibilities(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting visibilities...")
 
-	if err := c.Repository.Visibility().Delete(ctx, query.CriteriaForContext(ctx)...); err != nil {
+	if err := c.Repository.Delete(ctx, types.VisibilityType, query.CriteriaForContext(ctx)...); err != nil {
 		return nil, util.HandleSelectionError(err, "visibility")
 	}
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
@@ -126,7 +123,7 @@ func (c *Controller) deleteVisibility(r *web.Request) (*web.Response, error) {
 	log.C(ctx).Debugf("Deleting visibility with id %s", visibilityID)
 
 	byIDQuery := query.ByField(query.EqualsOperator, "id", visibilityID)
-	if err := c.Repository.Visibility().Delete(ctx, byIDQuery); err != nil {
+	if err := c.Repository.Delete(ctx, types.VisibilityType, byIDQuery); err != nil {
 		return nil, util.HandleStorageError(err, "visibility")
 	}
 
@@ -138,12 +135,10 @@ func (c *Controller) patchVisibility(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Updating visibility  with id %s", visibilityID)
 
-	visibility, err := c.Repository.Visibility().Get(ctx, visibilityID)
+	visibility, err := c.Repository.Get(ctx, visibilityID, types.VisibilityType)
 	if err != nil {
 		return nil, util.HandleStorageError(err, "visibility")
 	}
-
-	createdAt := visibility.CreatedAt
 
 	changes, err := query.LabelChangesFromJSON(r.Body)
 	if err != nil {
@@ -157,17 +152,15 @@ func (c *Controller) patchVisibility(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	visibility.ID = visibilityID
-	visibility.CreatedAt = createdAt
-	visibility.UpdatedAt = time.Now().UTC()
-
+	// TODO: defaulting of fields removed
 	err = c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
-		return storage.Visibility().Update(ctx, visibility, changes...)
+		visibility, err = storage.Update(ctx, visibility, changes...)
+		return err
 	})
 
 	if err != nil {
 		return nil, util.HandleStorageError(err, "visibility")
 	}
 
-	return util.NewJSONResponse(http.StatusOK, *visibility)
+	return util.NewJSONResponse(http.StatusOK, visibility)
 }

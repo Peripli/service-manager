@@ -94,13 +94,17 @@ type Warehouse interface {
 	Get(ctx context.Context, id string, objectType types.ObjectType) (types.Object, error)
 
 	// List retrieves all brokers from SM DB
-	List(ctx context.Context, obj types.ObjectList, criteria ...query.Criterion) error
+	List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error)
 
 	// Delete deletes a broker from SM DB
 	Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) error
 
 	// Update updates a broker from SM DB
 	Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error)
+
+	ServiceOffering() ServiceOffering
+	Credentials() Credentials
+	Security() Security
 }
 
 // Repository is a storage warehouse that can initiate a transaction
@@ -119,98 +123,11 @@ type Storage interface {
 	Repository
 }
 
-// Broker interface for Broker db operations
-type Broker interface {
-	// Create stores a broker in SM DB
-	Create(ctx context.Context, broker *types.Broker) (string, error)
-
-	// Get retrieves a broker using the provided id from SM DB
-	Get(ctx context.Context, id string) (*types.Broker, error)
-
-	// List retrieves all brokers from SM DB
-	List(ctx context.Context, criteria ...query.Criterion) ([]*types.Broker, error)
-
-	// Delete deletes a broker from SM DB
-	Delete(ctx context.Context, criteria ...query.Criterion) error
-
-	// Update updates a broker from SM DB
-	Update(ctx context.Context, broker *types.Broker, labelChanges ...*query.LabelChange) error
-}
-
-// Platform interface for Platform DB operations
-type Platform interface {
-	// Create stores a platform in SM DB
-	Create(ctx context.Context, platform *types.Platform) (string, error)
-
-	// Get retrieves a platform using the provided id from SM DB
-	Get(ctx context.Context, id string) (*types.Platform, error)
-
-	// List retrieves all platforms from SM DB
-	List(ctx context.Context, criteria ...query.Criterion) ([]*types.Platform, error)
-
-	// Delete deletes a platform from SM DB
-	Delete(ctx context.Context, criteria ...query.Criterion) error
-
-	// Update updates a platform from SM DB
-	Update(ctx context.Context, platform *types.Platform) error
-}
-
 // ServiceOffering instance for Service Offerings DB operations
 //go:generate counterfeiter . ServiceOffering
 type ServiceOffering interface {
-	// Create stores a service offering in SM DB
-	Create(ctx context.Context, serviceOffering *types.ServiceOffering) (string, error)
-
-	// Get retrieves a service offering using the provided id from SM DB
-	Get(ctx context.Context, id string) (*types.ServiceOffering, error)
-
-	// List retrieves all service offerings from SM DB
-	List(ctx context.Context, criteria ...query.Criterion) ([]*types.ServiceOffering, error)
-
 	// ListWithServicePlansByBrokerID retrieves all service offerings with their service plans from SM DB that match the specified broker ID
 	ListWithServicePlansByBrokerID(ctx context.Context, brokerID string) ([]*types.ServiceOffering, error)
-
-	// Delete deletes a service offering from SM DB
-	Delete(ctx context.Context, criteria ...query.Criterion) error
-
-	// Update updates a service offering from SM DB
-	Update(ctx context.Context, serviceOffering *types.ServiceOffering) error
-}
-
-// ServiceOffering instance for Service Plan DB operations
-type ServicePlan interface {
-	// Create stores a service plan in SM DB
-	Create(ctx context.Context, servicePlan *types.ServicePlan) (string, error)
-
-	// Get retrieves a service plan using the provided id from SM DB
-	Get(ctx context.Context, id string) (*types.ServicePlan, error)
-
-	// List retrieves all service plans from SM DB
-	List(ctx context.Context, criteria ...query.Criterion) ([]*types.ServicePlan, error)
-
-	// Delete deletes a  service plan from SM DB
-	Delete(ctx context.Context, criteria ...query.Criterion) error
-
-	// Update updates a service plan from SM DB
-	Update(ctx context.Context, servicePlan *types.ServicePlan) error
-}
-
-// Visibility interface for Visibility db operations
-type Visibility interface {
-	// Create stores a visibility in SM DB
-	Create(ctx context.Context, visibility *types.Visibility) (string, error)
-
-	// Get retrieves a visibility using the provided id from SM DB
-	Get(ctx context.Context, id string) (*types.Visibility, error)
-
-	// List retrieves all visibilities from SM DB
-	List(ctx context.Context, criteria ...query.Criterion) ([]*types.Visibility, error)
-
-	// Delete deletes a visibility from SM DB
-	Delete(ctx context.Context, criteria ...query.Criterion) error
-
-	// Update updates a visibility from SM DB
-	Update(ctx context.Context, visibility *types.Visibility, labelChanges ...*query.LabelChange) error
 }
 
 // Credentials interface for Credentials db operations

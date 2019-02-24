@@ -101,7 +101,7 @@ func get(ctx context.Context, db getterContext, id string, table string, dto int
 	return checkSQLNoRows(err)
 }
 
-func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface{}, labelsEntity Labelable, baseTableName string, criteria []query.Criterion) (*sqlx.Rows, error) {
+func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface{}, labelsEntity EntityLabels, baseTableName string, criteria []query.Criterion) (*sqlx.Rows, error) {
 	if err := validateFieldQueryParams(baseEntity, criteria); err != nil {
 		return nil, err
 	}
@@ -109,9 +109,9 @@ func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface
 	if labelsEntity == nil {
 		baseQuery = constructBaseQueryForEntity(baseTableName)
 	} else {
-		baseQuery = constructBaseQueryForLabelable(labelsEntity, baseTableName)
+		baseQuery = constructBaseQueryForLabelable(labelsEntity.Single(), baseTableName)
 	}
-	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, baseTableName, labelsEntity, criteria)
+	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, baseTableName, labelsEntity.Single(), criteria)
 	if err != nil {
 		return nil, err
 	}
@@ -126,6 +126,15 @@ func listByFieldCriteria(ctx context.Context, db pgDB, table string, entity inte
 		return err
 	}
 	return db.SelectContext(ctx, entity, sqlQuery, queryParams...)
+}
+
+func listAll(ctx context.Context, db pgDB, table string, criteria []query.Criterion) (*sqlx.Rows, error) {
+	baseQuery := fmt.Sprintf(`SELECT * FROM %s`, table)
+	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, table, nil, criteria)
+	if err != nil {
+		return nil, err
+	}
+	return db.QueryxContext(ctx, sqlQuery, queryParams...)
 }
 
 func deleteAllByFieldCriteria(ctx context.Context, extContext sqlx.ExtContext, table string, dto interface{}, criteria []query.Criterion) error {
@@ -168,7 +177,7 @@ func constructBaseQueryForEntity(tableName string) string {
 	return fmt.Sprintf("SELECT * FROM %s", tableName)
 }
 
-func constructBaseQueryForLabelable(labelsEntity Labelable, baseTableName string) string {
+func constructBaseQueryForLabelable(labelsEntity Label, baseTableName string) string {
 	labelStruct := structs.New(labelsEntity)
 	baseQuery := `SELECT %[1]s.*,`
 	for _, field := range labelStruct.Fields() {
@@ -176,7 +185,9 @@ func constructBaseQueryForLabelable(labelsEntity Labelable, baseTableName string
 		baseQuery += " %[2]s." + dbTag + " " + "\"%[2]s." + dbTag + "\"" + ","
 	}
 	baseQuery = baseQuery[:len(baseQuery)-1] //remove last comma
-	labelsTableName, referenceKeyColumn, primaryKeyColumn := labelsEntity.Label()
+	labelsTableName := labelsEntity.TableName()
+	referenceKeyColumn := labelsEntity.ReferenceColumn()
+	primaryKeyColumn := labelsEntity.PrimaryColumn()
 	baseQuery += " FROM %[1]s LEFT JOIN %[2]s ON %[1]s." + primaryKeyColumn + " = %[2]s." + referenceKeyColumn
 	return fmt.Sprintf(baseQuery, baseTableName, labelsTableName)
 }

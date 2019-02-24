@@ -1,20 +1,19 @@
 /*
  * Copyright 2018 The Service Manager Authors
  *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *        http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
-// Package postgres implements the Service Manager storage interfaces for Postgresql Repository
 package postgres
 
 import (
@@ -24,6 +23,9 @@ import (
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/golang-migrate/migrate"
 	migratepg "github.com/golang-migrate/migrate/database/postgres"
@@ -31,131 +33,35 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// Storage defines the name of the PostgreSQL relational storage
 const Storage = "postgres"
 
 func init() {
-	storage.Register(Storage, &postgresStorage{})
+	storage.Register(Storage, &postgresStorage3{})
 }
 
-type postgresStorage struct {
+type postgresStorage3 struct {
+	pdDB          pgDB
 	db            *sqlx.DB
 	state         *storageState
 	encryptionKey []byte
 }
 
-type transactionalWarehouse struct {
-	tx *sqlx.Tx
-}
-
-func (ts *transactionalWarehouse) ServiceOffering() storage.ServiceOffering {
-	ts.checkOpen()
-	return &serviceOfferingStorage{db: ts.tx}
-}
-
-func (ts *transactionalWarehouse) ServicePlan() storage.ServicePlan {
-	ts.checkOpen()
-	return &servicePlanStorage{db: ts.tx}
-}
-
-func (ts *transactionalWarehouse) Visibility() storage.Visibility {
-	ts.checkOpen()
-	return &visibilityStorage{db: ts.tx}
-}
-
-func (ts *transactionalWarehouse) Security() storage.Security {
-	ts.checkOpen()
-	return &securityStorage{db: ts.tx}
-}
-
-func (ts *transactionalWarehouse) Broker() storage.Broker {
-	ts.checkOpen()
-	return &brokerStorage{db: ts.tx}
-}
-
-func (ts *transactionalWarehouse) Platform() storage.Platform {
-	ts.checkOpen()
-	return &platformStorage{db: ts.tx}
-}
-
-func (ts *transactionalWarehouse) Credentials() storage.Credentials {
-	ts.checkOpen()
-	return &credentialStorage{db: ts.tx}
-}
-
-func (ts *transactionalWarehouse) checkOpen() {
-	if ts.tx == nil {
-		log.D().Panicln("Storage transaction is not present for transactional warehouse")
-	}
-}
-
-func (ps *postgresStorage) InTransaction(ctx context.Context, f func(ctx context.Context, transactionalStorage storage.Warehouse) error) error {
-	ok := false
-	tx, err := ps.db.Beginx()
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if !ok {
-			if txError := tx.Rollback(); txError != nil {
-				log.C(ctx).Error("Could not rollback transaction", txError)
-			}
-		}
-	}()
-
-	transactionalStorage := &transactionalWarehouse{
-		tx: tx,
-	}
-
-	if err := f(ctx, transactionalStorage); err != nil {
-		return err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-	ok = true
-	return nil
-}
-
-func (ps *postgresStorage) Ping() error {
+func (ps *postgresStorage3) Credentials() storage.Credentials {
 	ps.checkOpen()
-	return ps.state.Get()
+	return &credentialStorage{db: ps.db}
 }
 
-func (ps *postgresStorage) Broker() storage.Broker {
-	ps.checkOpen()
-	return &brokerStorage{ps.db}
-}
-
-func (ps *postgresStorage) Platform() storage.Platform {
-	ps.checkOpen()
-	return &platformStorage{ps.db}
-}
-
-func (ps *postgresStorage) Credentials() storage.Credentials {
-	ps.checkOpen()
-	return &credentialStorage{ps.db}
-}
-
-func (ps *postgresStorage) ServiceOffering() storage.ServiceOffering {
-	return &serviceOfferingStorage{ps.db}
-}
-
-func (ps *postgresStorage) ServicePlan() storage.ServicePlan {
-	return &servicePlanStorage{ps.db}
-}
-
-func (ps *postgresStorage) Visibility() storage.Visibility {
-	return &visibilityStorage{ps.db}
-}
-
-func (ps *postgresStorage) Security() storage.Security {
+func (ps *postgresStorage3) Security() storage.Security {
 	ps.checkOpen()
 	return &securityStorage{ps.db, ps.encryptionKey, false, &sync.Mutex{}}
 }
 
-func (ps *postgresStorage) Open(options *storage.Settings) error {
+func (ps *postgresStorage3) ServiceOffering() storage.ServiceOffering {
+	ps.checkOpen()
+	return &serviceOfferingStorage{db: ps.db}
+}
+
+func (ps *postgresStorage3) Open(options *storage.Settings) error {
 	var err error
 	if err = options.Validate(); err != nil {
 		return err
@@ -187,12 +93,18 @@ func (ps *postgresStorage) Open(options *storage.Settings) error {
 	return err
 }
 
-func (ps *postgresStorage) Close() error {
+func (ps *postgresStorage3) Close() error {
 	ps.checkOpen()
 	return ps.db.Close()
 }
 
-func (ps *postgresStorage) updateSchema(migrationsURL string) error {
+func (ps *postgresStorage3) checkOpen() {
+	if ps.db == nil {
+		log.D().Panicln("Repository is not yet Open")
+	}
+}
+
+func (ps *postgresStorage3) updateSchema(migrationsURL string) error {
 	driver, err := migratepg.WithInstance(ps.db.DB, &migratepg.Config{})
 	if err != nil {
 		return err
@@ -209,8 +121,134 @@ func (ps *postgresStorage) updateSchema(migrationsURL string) error {
 	return err
 }
 
-func (ps *postgresStorage) checkOpen() {
-	if ps.db == nil {
-		log.D().Panicln("Repository is not yet Open")
+func (ps *postgresStorage3) Ping() error {
+	ps.checkOpen()
+	return ps.state.Get()
+}
+
+func (ps *postgresStorage3) Create(ctx context.Context, obj types.Object) (string, error) {
+	entity := knownEntities[obj.GetType()].FromObject(obj)
+	id, err := create(ctx, ps.pdDB, entity.TableName(), entity)
+	if err != nil {
+		return "", err
 	}
+	if obj.SupportsLabels() {
+		err = ps.createLabels(ctx, id, obj.GetType(), obj.GetLabels())
+	}
+	return id, err
+}
+
+func (ps *postgresStorage3) createLabels(ctx context.Context, entityID string, objectType types.ObjectType, labels types.Labels) error {
+	labelsForType := knownEntities[objectType].Labels()
+	entities, err := labelsForType.FromDTO(entityID, labels)
+	if err != nil {
+		return err
+	}
+	if err := validateLabels(entities); err != nil {
+		return err
+	}
+	for _, label := range entities {
+		if _, err := create(ctx, ps.db, label.TableName(), label); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (ps *postgresStorage3) Get(ctx context.Context, id string, objectType types.ObjectType) (types.Object, error) {
+	primaryColumn := knownEntities[objectType].PrimaryColumn()
+	byPrimaryColumn := query.ByField(query.EqualsOperator, primaryColumn, id)
+
+	result, err := ps.List(ctx, objectType, byPrimaryColumn)
+	if err != nil {
+		return nil, err
+	}
+	if result.Len() == 0 {
+		return nil, util.ErrNotFoundInStorage
+	}
+	return result.ItemAt(0), nil
+}
+
+func (ps *postgresStorage3) List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
+	entity := knownEntities[objectType].Empty()
+	var rows *sqlx.Rows
+	var err error
+	if !entity.ToObject().SupportsLabels() {
+		rows, err = listAll(ctx, ps.db, entity.TableName(), criteria)
+	} else {
+		entityLabels := entity.Labels()
+		rows, err = listWithLabelsByCriteria(ctx, ps.db, entity, entityLabels, entity.TableName(), criteria)
+	}
+	defer func() {
+		if rows == nil {
+			return
+		}
+		if err := rows.Close(); err != nil {
+			log.C(ctx).Errorf("Could not release connection when checking database. Error: %s", err)
+		}
+	}()
+	if err != nil {
+		return nil, err
+	}
+	return entity.RowsToList(rows)
+}
+
+func (ps *postgresStorage3) Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) error {
+	entityForType := knownEntities[objectType].Empty()
+	return deleteAllByFieldCriteria(ctx, ps.db, entityForType.TableName(), entityForType, criteria)
+}
+
+func (ps *postgresStorage3) Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+	entity := knownEntities[obj.GetType()].FromObject(obj)
+	if err := update(ctx, ps.db, entity.TableName(), entity); err != nil {
+		return nil, err
+	}
+	if err := ps.updateLabels(ctx, entity.GetID(), obj.GetType(), labelChanges); err != nil {
+		return nil, err
+	}
+	entityLabels := entity.Labels()
+	label := entityLabels.Single()
+	byEntityID := query.ByField(query.EqualsOperator, label.ReferenceColumn(), entity.GetID())
+	if err := listByFieldCriteria(ctx, ps.db, label.TableName(), entityLabels, []query.Criterion{byEntityID}); err != nil {
+		return nil, err
+	}
+	labels := entityLabels.ToDTO()
+	result := entity.ToObject()
+	return result.WithLabels(labels), nil
+}
+
+func (ps *postgresStorage3) updateLabels(ctx context.Context, entityID string, objType types.ObjectType, updateActions []*query.LabelChange) error {
+	newLabelFunc := func(labelID string, labelKey string, labelValue string) Label {
+		return knownEntities[objType].Labels().Single().New(labelID, labelKey, labelValue, entityID)
+	}
+	return updateLabelsAbstract(ctx, newLabelFunc, ps.db, entityID, updateActions)
+}
+
+func (ps *postgresStorage3) InTransaction(ctx context.Context, f func(ctx context.Context, storage storage.Warehouse) error) error {
+	ok := false
+	tx, err := ps.db.Beginx()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if !ok {
+			if txError := tx.Rollback(); txError != nil {
+				log.C(ctx).Error("Could not rollback transaction", txError)
+			}
+		}
+	}()
+
+	transactionalStorage := &postgresStorage3{
+		pdDB: tx,
+	}
+
+	if err := f(ctx, transactionalStorage); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	ok = true
+	return nil
 }

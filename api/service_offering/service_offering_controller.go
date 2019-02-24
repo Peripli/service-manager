@@ -33,7 +33,7 @@ const reqServiceOfferingID = "service_offering_id"
 
 // Controller implements api.Controller by providing service offerings API logic
 type Controller struct {
-	ServiceOfferingStorage storage.ServiceOffering
+	ServiceOfferingStorage storage.Repository
 }
 
 func (c *Controller) getServiceOffering(r *web.Request) (*web.Response, error) {
@@ -41,7 +41,7 @@ func (c *Controller) getServiceOffering(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Getting service offering with id %s", serviceOfferingID)
 
-	serviceOffering, err := c.ServiceOfferingStorage.Get(ctx, serviceOfferingID)
+	serviceOffering, err := c.ServiceOfferingStorage.Get(ctx, serviceOfferingID, types.ServiceOfferingType)
 	if err = util.HandleStorageError(err, "service_offering"); err != nil {
 		return nil, err
 	}
@@ -49,19 +49,14 @@ func (c *Controller) getServiceOffering(r *web.Request) (*web.Response, error) {
 }
 
 func (c *Controller) listServiceOfferings(r *web.Request) (*web.Response, error) {
-	var serviceOfferings []*types.ServiceOffering
 	var err error
 	ctx := r.Context()
 	log.C(ctx).Debug("Listing service offerings")
 
-	serviceOfferings, err = c.ServiceOfferingStorage.List(ctx, query.CriteriaForContext(ctx)...)
+	serviceOfferings, err := c.ServiceOfferingStorage.List(ctx, types.ServiceOfferingType, query.CriteriaForContext(ctx)...)
 	if err != nil {
 		return nil, util.HandleSelectionError(err)
 	}
 
-	return util.NewJSONResponse(http.StatusOK, struct {
-		ServiceOfferings []*types.ServiceOffering `json:"service_offerings"`
-	}{
-		ServiceOfferings: serviceOfferings,
-	})
+	return util.NewJSONResponse(http.StatusOK, serviceOfferings)
 }
