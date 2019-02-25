@@ -182,6 +182,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Expect().
 							Status(http.StatusOK).JSON().Object()
 
+						reply.NotContainsKey("credentials")
+
 						updatedPlatform["id"] = id
 						common.MapContains(reply.Raw(), updatedPlatform)
 
@@ -209,6 +211,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Expect().
 							Status(http.StatusOK).JSON().Object().
 							ContainsKey("created_at").
+							NotContainsKey("credentials").
 							ValueNotEqual("created_at", createdAt)
 
 						By("Update is persisted")
@@ -234,6 +237,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect().
 								Status(http.StatusOK).JSON().Object()
 
+							reply.NotContainsKey("credentials")
+
 							platform[prop] = val
 							common.MapContains(reply.Raw(), platform)
 
@@ -251,7 +256,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						ctx.SMWithOAuth.PATCH("/v1/platforms/" + id).
 							WithJSON(common.Object{"id": "123"}).
 							Expect().
-							Status(http.StatusOK)
+							Status(http.StatusOK).JSON().Object().
+							NotContainsKey("credentials")
 
 						ctx.SMWithOAuth.GET("/v1/platforms/123").
 							Expect().
