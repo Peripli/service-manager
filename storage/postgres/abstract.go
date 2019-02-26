@@ -137,25 +137,22 @@ func listAll(ctx context.Context, db pgDB, table string, criteria []query.Criter
 	return db.QueryxContext(ctx, sqlQuery, queryParams...)
 }
 
-func deleteAllByFieldCriteria(ctx context.Context, extContext sqlx.ExtContext, table string, dto interface{}, criteria []query.Criterion) error {
+func deleteAllByFieldCriteria(ctx context.Context, extContext sqlx.ExtContext, table string, dto interface{}, criteria []query.Criterion) (*sqlx.Rows, error) {
 	for _, criterion := range criteria {
 		if criterion.Type != query.FieldQuery {
-			return &query.UnsupportedQueryError{Message: "conditional delete is only supported for field queries"}
+			return nil, &query.UnsupportedQueryError{Message: "conditional delete is only supported for field queries"}
 		}
 	}
 	if err := validateFieldQueryParams(dto, criteria); err != nil {
-		return err
+		return nil, err
 	}
 	baseQuery := fmt.Sprintf("DELETE FROM %s", table)
 	sqlQuery, queryParams, err := buildQueryWithParams(extContext, baseQuery, table, nil, criteria)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	result, err := extContext.ExecContext(ctx, sqlQuery, queryParams...)
-	if err != nil {
-		return err
-	}
-	return checkRowsAffected(ctx, result)
+	sqlQuery = sqlQuery[:len(sqlQuery)-1] + " RETURNING *;"
+	return extContext.QueryxContext(ctx, sqlQuery, queryParams...)
 }
 
 func validateFieldQueryParams(baseEntity interface{}, criteria []query.Criterion) error {

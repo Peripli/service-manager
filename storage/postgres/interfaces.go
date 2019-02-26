@@ -29,6 +29,9 @@ var (
 )
 
 func RegisterEntity(objectType types.ObjectType, entity Entity) {
+	if _, exists := knownEntities[objectType]; exists {
+		panic(fmt.Sprintf("object type %s is already associated with a postgesql entity type", objectType))
+	}
 	knownEntities[objectType] = entity
 }
 
