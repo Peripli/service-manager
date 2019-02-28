@@ -20,15 +20,14 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/jmoiron/sqlx"
-
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
 func init() {
-	RegisterEntity(types.PlatformType, &Platform{})
+	RegisterEntity(types.PlatformType, Platform{})
 }
 
+//go:generate ./generate_entity.sh Platform _ platforms
 // Platform entity
 type Platform struct {
 	ID          string         `db:"id"`
@@ -41,33 +40,9 @@ type Platform struct {
 	Password    string         `db:"password"`
 }
 
-func (p *Platform) GetID() string {
-	return p.ID
-}
-
-func (p *Platform) TableName() string {
-	return platformTable
-}
-
-func (p *Platform) PrimaryColumn() string {
-	return "id"
-}
-
-func (p *Platform) Empty() Entity {
-	return &Platform{}
-}
-
-func (p *Platform) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
-	return nil, nil
-}
-
-func (p *Platform) Labels() EntityLabels {
-	return nil
-}
-
-func (p *Platform) FromObject(object types.Object) Entity {
+func (p Platform) FromObject(object types.Object) Entity {
 	platform := object.(*types.Platform)
-	result := &Platform{
+	result := Platform{
 		ID:          platform.ID,
 		Type:        platform.Type,
 		Name:        platform.Name,
@@ -86,7 +61,7 @@ func (p *Platform) FromObject(object types.Object) Entity {
 	return result
 }
 
-func (p *Platform) ToObject() types.Object {
+func (p Platform) ToObject() types.Object {
 	return &types.Platform{
 		ID:          p.ID,
 		Type:        p.Type,
