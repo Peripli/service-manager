@@ -186,7 +186,5 @@ func (e ${TYPE}) Labels() EntityLabels {
 func (e ${TYPE}) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
     ${ROWS_TO_LIST_BODY}
 }
-
 ${LABELS_FUNCS}
-
 EOL

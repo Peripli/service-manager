@@ -6,7 +6,6 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"github.com/Peripli/service-manager/pkg/types"
-	
 )
 
 func (Platform) Empty() Entity {
@@ -26,11 +25,11 @@ func (e Platform) GetID() string {
 }
 
 func (e Platform) Labels() EntityLabels {
-    return nil
+	return nil
 }
 
 func (e Platform) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
-    result := &types.Platforms{}
+	result := &types.Platforms{}
 	for rows.Next() {
 		var item Platform
 		if err := rows.StructScan(&item); err != nil {
@@ -40,6 +39,3 @@ func (e Platform) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
 	}
 	return result, nil
 }
-
-
-

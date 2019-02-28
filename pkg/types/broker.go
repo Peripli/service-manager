@@ -18,31 +18,12 @@
 package types
 
 import (
-	"encoding/json"
 	"time"
 
 	"errors"
-
-	"github.com/Peripli/service-manager/pkg/util"
 )
 
-// Brokers struct
-type Brokers struct {
-	Brokers []*Broker `json:"service_brokers"`
-}
-
-func (b *Brokers) Add(object Object) {
-	b.Brokers = append(b.Brokers, object.(*Broker))
-}
-
-func (b *Brokers) Len() int {
-	return len(b.Brokers)
-}
-
-func (b *Brokers) ItemAt(index int) Object {
-	return b.Brokers[index]
-}
-
+//go:generate ./generate_type.sh Broker Labels
 // Broker broker struct
 type Broker struct {
 	ID          string       `json:"id"`
@@ -56,27 +37,6 @@ type Broker struct {
 	Services []*ServiceOffering `json:"services,omitempty" structs:"-"`
 
 	Labels Labels `json:"labels,omitempty"`
-}
-
-func (b *Broker) WithLabels(labels Labels) Object {
-	b.Labels = labels
-	return b
-}
-
-func (b *Broker) GetType() ObjectType {
-	return BrokerType
-}
-
-func (b *Broker) SupportsLabels() bool {
-	return true
-}
-
-func (b *Broker) GetLabels() Labels {
-	return b.Labels
-}
-
-func (b *Broker) EmptyList() ObjectList {
-	return &Brokers{Brokers: make([]*Broker, 0)}
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
@@ -96,38 +56,4 @@ func (b *Broker) Validate() error {
 		return errors.New("missing credentials")
 	}
 	return b.Credentials.Validate()
-
-}
-
-// MarshalJSON override json serialization for http response
-func (b *Broker) MarshalJSON() ([]byte, error) {
-	type B Broker
-	toMarshal := struct {
-		*B
-		CreatedAt *string `json:"created_at,omitempty"`
-		UpdatedAt *string `json:"updated_at,omitempty"`
-	}{
-		B: (*B)(b),
-	}
-	if !b.CreatedAt.IsZero() {
-		str := util.ToRFCFormat(b.CreatedAt)
-		toMarshal.CreatedAt = &str
-	}
-	if !b.UpdatedAt.IsZero() {
-		str := util.ToRFCFormat(b.UpdatedAt)
-		toMarshal.UpdatedAt = &str
-	}
-
-	hasNoLabels := true
-	for key, values := range b.Labels {
-		if key != "" && len(values) != 0 {
-			hasNoLabels = false
-			break
-		}
-	}
-	if hasNoLabels {
-		toMarshal.Labels = nil
-	}
-
-	return json.Marshal(toMarshal)
 }
