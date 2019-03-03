@@ -27,7 +27,7 @@ func init() {
 	RegisterEntity(types.PlatformType, Platform{})
 }
 
-//go:generate ./generate_entity.sh Platform _ platforms
+//go:generate smgen storage platform none github.com/Peripli/service-manager/pkg/types
 // Platform entity
 type Platform struct {
 	ID          string         `db:"id"`

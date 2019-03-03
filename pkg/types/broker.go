@@ -23,7 +23,7 @@ import (
 	"errors"
 )
 
-//go:generate ./generate_type.sh Broker Labels
+//go:generate smgen api broker labels
 // Broker broker struct
 type Broker struct {
 	ID          string       `json:"id"`

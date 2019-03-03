@@ -4,6 +4,7 @@ package types
 
 import (
 	"encoding/json"
+
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
@@ -32,7 +33,7 @@ func (e *Platform) EmptyList() ObjectList {
 }
 
 func (e *Platform) WithLabels(labels Labels) Object {
-    return e
+	return e
 }
 
 func (e *Platform) GetType() ObjectType {
@@ -40,7 +41,7 @@ func (e *Platform) GetType() ObjectType {
 }
 
 func (e *Platform) GetLabels() Labels {
-    return Labels{}
+	return Labels{}
 }
 
 // MarshalJSON override json serialization for http response
@@ -53,7 +54,7 @@ func (e *Platform) MarshalJSON() ([]byte, error) {
 	}{
 		E: (*E)(e),
 	}
-    if !e.CreatedAt.IsZero() {
+	if !e.CreatedAt.IsZero() {
 		str := util.ToRFCFormat(e.CreatedAt)
 		toMarshal.CreatedAt = &str
 	}
@@ -63,4 +64,3 @@ func (e *Platform) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(toMarshal)
 }
-

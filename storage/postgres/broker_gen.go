@@ -3,12 +3,13 @@
 package postgres
 
 import (
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/jmoiron/sqlx"
+
 	"database/sql"
 	"fmt"
-	"github.com/jmoiron/sqlx"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/gofrs/uuid"
 )
 
@@ -21,7 +22,7 @@ func (Broker) PrimaryColumn() string {
 }
 
 func (Broker) TableName() string {
-	return brokerTable
+	return "brokers"
 }
 
 func (e Broker) GetID() string {
@@ -29,11 +30,11 @@ func (e Broker) GetID() string {
 }
 
 func (e Broker) Labels() EntityLabels {
-    return brokerLabels{}
+	return brokerLabels{}
 }
 
 func (e Broker) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
-    entities := make(map[string]*types.Broker)
+	entities := make(map[string]*types.Broker)
 	labels := make(map[string]map[string][]string)
 	result := &types.Brokers{
 		Brokers: make([]*types.Broker, 0),
@@ -41,7 +42,7 @@ func (e Broker) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
 	for rows.Next() {
 		row := struct {
 			*Broker
-			*BrokerLabel `db:broker_labels`
+			*BrokerLabel `db:"broker_labels"`
 		}{}
 		if err := rows.StructScan(&row); err != nil {
 			return nil, err
@@ -63,7 +64,6 @@ func (e Broker) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
 	}
 	return result, nil
 }
-
 
 type BrokerLabel struct {
 	ID        sql.NullString `db:"id"`
@@ -93,10 +93,10 @@ func (el BrokerLabel) Empty() Label {
 func (el BrokerLabel) New(entityID, id, key, value string) Label {
 	now := time.Now()
 	return BrokerLabel{
-		ID:        toNullString(id),
-		Key:       toNullString(key),
-		Val:       toNullString(value),
-		BrokerID:  toNullString(entityID),
+		ID:        sql.NullString{String: id, Valid: id != ""},
+		Key:       sql.NullString{String: key, Valid: key != ""},
+		Val:       sql.NullString{String: value, Valid: value != ""},
+		BrokerID:  sql.NullString{String: entityID, Valid: entityID != ""},
 		CreatedAt: &now,
 		UpdatedAt: &now,
 	}
@@ -127,12 +127,12 @@ func (el brokerLabels) FromDTO(entityID string, labels types.Labels) ([]Label, e
 			}
 			id := UUID.String()
 			bLabel := &BrokerLabel{
-				ID:        toNullString(id),
-				Key:       toNullString(key),
-				Val:       toNullString(labelValue),
+				ID:        sql.NullString{String: id, Valid: id != ""},
+				Key:       sql.NullString{String: key, Valid: key != ""},
+				Val:       sql.NullString{String: labelValue, Valid: labelValue != ""},
 				CreatedAt: &now,
 				UpdatedAt: &now,
-				BrokerID:  toNullString(entityID),
+				BrokerID:  sql.NullString{String: entityID, Valid: entityID != ""},
 			}
 			result = append(result, bLabel)
 		}
@@ -152,4 +152,3 @@ func (els brokerLabels) ToDTO() types.Labels {
 	}
 	return labelValues
 }
-

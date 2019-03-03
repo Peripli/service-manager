@@ -1,0 +1,100 @@
+/*
+ * Copyright 2018 The Service Manager Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package main
+
+const API_TYPE_TEMPLATE = `// GENERATED. DO NOT MODIFY!
+
+package {{.PackageName}}
+
+import (
+	"encoding/json"
+	"{{.TypesPackageImport}}"
+	"github.com/Peripli/service-manager/pkg/util"
+)
+
+const {{.Type}}Type {{.TypesPackage}}ObjectType = "{{.Type}}"
+
+type {{.TypePlural}} struct {
+	{{.TypePlural}} []*{{.Type}} ` + "`json:\"{{.TypePluralLowercase}}\"`" + `
+}
+
+func (e *{{.TypePlural}}) Add(object {{.TypesPackage}}Object) {
+	e.{{.TypePlural}} = append(e.{{.TypePlural}}, object.(*{{.Type}}))
+}
+
+func (e *{{.TypePlural}}) ItemAt(index int) {{.TypesPackage}}Object {
+	return e.{{.TypePlural}}[index]
+}
+
+func (e *{{.TypePlural}}) Len() int {
+	return len(e.{{.TypePlural}})
+}
+
+func (e *{{.Type}}) SupportsLabels() bool {
+	return {{.SupportsLabels}}
+}
+
+func (e *{{.Type}}) EmptyList() {{.TypesPackage}}ObjectList {
+	return &{{.TypePlural}}{ {{.TypePlural}}: make([]*{{.Type}}, 0) }
+}
+
+func (e *{{.Type}}) WithLabels(labels {{.TypesPackage}}Labels) {{.TypesPackage}}Object {
+	{{ if .SupportsLabels }}e.Labels = labels {{ end }} 
+	return e
+}
+
+func (e *{{.Type}}) GetType() {{.TypesPackage}}ObjectType {
+	return {{.Type}}Type
+}
+
+func (e *{{.Type}}) GetLabels() {{.TypesPackage}}Labels {
+    {{ if .SupportsLabels }} return e.Labels {{ else }} return Labels{} {{ end }}
+}
+
+// MarshalJSON override json serialization for http response
+func (e *{{.Type}}) MarshalJSON() ([]byte, error) {
+	type E {{.Type}}
+	toMarshal := struct {
+		*E
+		CreatedAt *string ` + "`json:\"created_at,omitempty\"`" + `
+		UpdatedAt *string ` + "`json:\"updated_at,omitempty\"`" + `
+	}{
+		E: (*E)(e),
+	}
+    if !e.CreatedAt.IsZero() {
+        str := util.ToRFCFormat(e.CreatedAt)
+        toMarshal.CreatedAt = &str
+    }
+    if !e.UpdatedAt.IsZero() {
+        str := util.ToRFCFormat(e.UpdatedAt)
+        toMarshal.UpdatedAt = &str
+    }
+    {{ if .SupportsLabels }}
+	hasNoLabels := true
+	for key, values := range e.Labels {
+		if key != "" && len(values) != 0 { 
+			hasNoLabels = false
+			break
+		}
+	}
+	if hasNoLabels {
+		toMarshal.Labels = nil
+	}
+	{{ end }}
+	return json.Marshal(toMarshal)
+}
+`

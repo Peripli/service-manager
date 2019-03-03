@@ -5,6 +5,7 @@ package types
 import (
 	"encoding/json"
 	"github.com/Peripli/service-manager/pkg/util"
+	
 )
 
 type Brokers struct {
@@ -28,11 +29,11 @@ func (e *Broker) SupportsLabels() bool {
 }
 
 func (e *Broker) EmptyList() ObjectList {
-	return &Brokers{Brokers: make([]*Broker, 0)}
+	return &Brokers{ Brokers: make([]*Broker, 0) }
 }
 
 func (e *Broker) WithLabels(labels Labels) Object {
-    e.Labels = labels
+	e.Labels = labels  
 	return e
 }
 
@@ -41,30 +42,31 @@ func (e *Broker) GetType() ObjectType {
 }
 
 func (e *Broker) GetLabels() Labels {
-    return e.Labels
+     return e.Labels 
 }
 
 // MarshalJSON override json serialization for http response
 func (e *Broker) MarshalJSON() ([]byte, error) {
-	type B Broker
+	type E Broker
 	toMarshal := struct {
-		*B
+		*E
 		CreatedAt *string `json:"created_at,omitempty"`
 		UpdatedAt *string `json:"updated_at,omitempty"`
 	}{
-		B: (*B)(e),
+		E: (*E)(e),
 	}
     if !e.CreatedAt.IsZero() {
-		str := util.ToRFCFormat(e.CreatedAt)
-		toMarshal.CreatedAt = &str
-	}
-	if !e.UpdatedAt.IsZero() {
-		str := util.ToRFCFormat(e.UpdatedAt)
-		toMarshal.UpdatedAt = &str
-	}
+        str := util.ToRFCFormat(e.CreatedAt)
+        toMarshal.CreatedAt = &str
+    }
+    if !e.UpdatedAt.IsZero() {
+        str := util.ToRFCFormat(e.UpdatedAt)
+        toMarshal.UpdatedAt = &str
+    }
+    
 	hasNoLabels := true
 	for key, values := range e.Labels {
-		if key != "" && len(values) != 0 {
+		if key != "" && len(values) != 0 { 
 			hasNoLabels = false
 			break
 		}
@@ -75,4 +77,3 @@ func (e *Broker) MarshalJSON() ([]byte, error) {
 	
 	return json.Marshal(toMarshal)
 }
-

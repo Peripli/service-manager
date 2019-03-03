@@ -3,9 +3,8 @@
 package postgres
 
 import (
-	"github.com/jmoiron/sqlx"
-
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/jmoiron/sqlx"
 )
 
 func (Platform) Empty() Entity {

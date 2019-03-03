@@ -27,7 +27,7 @@ func init() {
 	RegisterEntity(types.BrokerType, Broker{})
 }
 
-//go:generate ./generate_entity.sh Broker Labels
+//go:generate smgen storage broker labels github.com/Peripli/service-manager/pkg/types
 // Broker entity
 type Broker struct {
 	ID          string         `db:"id"`
