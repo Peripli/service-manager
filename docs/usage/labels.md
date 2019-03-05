@@ -90,10 +90,10 @@ x in [val1||val2]|y = 5|z eqornil value with \| separator
     - Example: `id lt 5`
 * In (**in**)
     - Checks whether the left operand's value is contained in the right operand. Works only for list values of the right operand contained in square braces.
-    - Example: `id in [5|6|7]`
+    - Example: `id in [5||6||7]`
 * Not in (**notin**)
     - Checks whether the left operand's value is NOT contained in the right operand. Works only for list values of the right operand contained in square braces.
-    - Example: `id notin [1|2|3]`
+    - Example: `id notin [1||2||3]`
 
 ## Query Types
 
