@@ -41,11 +41,18 @@ func (*SelectionCriteria) Name() string {
 // Run represents the selection criteria middleware function that processes the request and configures the request-scoped selection criteria.
 func (l *SelectionCriteria) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
-	criteria, err := query.BuildCriteriaFromRequest(req)
-	if err != nil {
-		return nil, util.HandleSelectionError(err)
+	var criteria []query.Criterion
+	for _, queryType := range query.SupportedQueryTypes {
+		queryValue := req.URL.Query().Get(string(queryType))
+		queryCriteria, err := query.Parse(queryType, queryValue)
+		if err != nil {
+			return nil, util.HandleSelectionError(err)
+		}
+		if criteria, err = query.MergeCriteria(criteria, queryCriteria); err != nil {
+			return nil, err
+		}
 	}
-	ctx, err = query.AddCriteria(ctx, criteria...)
+	ctx, err := query.AddCriteria(ctx, criteria...)
 	if err != nil {
 		return nil, util.HandleSelectionError(err)
 	}

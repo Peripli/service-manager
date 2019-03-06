@@ -23,9 +23,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Peripli/service-manager/pkg/util"
-
 	"github.com/Peripli/service-manager/pkg/web"
+
+	"github.com/Peripli/service-manager/pkg/query/parser"
+	"github.com/antlr/antlr4/runtime/Go/antlr"
+
+	"github.com/Peripli/service-manager/pkg/util"
 )
 
 // Operator is a query operator
@@ -33,9 +36,9 @@ type Operator string
 
 const (
 	// EqualsOperator takes two operands and tests if they are equal
-	EqualsOperator Operator = "="
+	EqualsOperator Operator = "eq"
 	// NotEqualsOperator takes two operands and tests if they are not equal
-	NotEqualsOperator Operator = "!="
+	NotEqualsOperator Operator = "neq"
 	// GreaterThanOperator takes two operands and tests if the left is greater than the right
 	GreaterThanOperator Operator = "gt"
 	// LessThanOperator takes two operands and tests if the left is lesser than the right
@@ -67,14 +70,8 @@ var operators = []Operator{EqualsOperator, NotEqualsOperator, InOperator,
 	NotInOperator, GreaterThanOperator, LessThanOperator, EqualsOrNilOperator}
 
 const (
-	// OpenBracket is the token that denotes the beginning of a multivariate operand
-	OpenBracket rune = '['
-	// OpenBracket is the token that denotes the end of a multivariate operand
-	CloseBracket rune = ']'
 	// Separator is the separator between field and label queries
 	Separator rune = '|'
-	// OperandSeparator is the separator between the operator and the operands
-	OperandSeparator rune = ' '
 )
 
 // CriterionType is a type of criteria to be applied when querying
@@ -87,7 +84,7 @@ const (
 	LabelQuery CriterionType = "labelQuery"
 )
 
-var supportedQueryTypes = []CriterionType{FieldQuery, LabelQuery}
+var SupportedQueryTypes = []CriterionType{FieldQuery, LabelQuery}
 
 // Criterion is a single part of a query criteria
 type Criterion struct {
@@ -140,7 +137,7 @@ func (c Criterion) Validate() error {
 	return nil
 }
 
-func mergeCriteria(c1 []Criterion, c2 []Criterion) ([]Criterion, error) {
+func MergeCriteria(c1 []Criterion, c2 []Criterion) ([]Criterion, error) {
 	result := c1
 	fieldQueryLeftOperands := make(map[string]int)
 	labelQueryLeftOperands := make(map[string]int)
@@ -177,7 +174,7 @@ type criteriaCtxKey struct{}
 // AddCriteria adds the given criteria to the context and returns an error if any of the criteria is not valid
 func AddCriteria(ctx context.Context, newCriteria ...Criterion) (context.Context, error) {
 	currentCriteria := CriteriaForContext(ctx)
-	criteria, err := mergeCriteria(currentCriteria, newCriteria)
+	criteria, err := MergeCriteria(currentCriteria, newCriteria)
 	if err != nil {
 		return nil, err
 	}
@@ -201,125 +198,47 @@ func ContextWithCriteria(ctx context.Context, criteria []Criterion) context.Cont
 // BuildCriteriaFromRequest builds criteria for the given request's query params and returns an error if the query is not valid
 func BuildCriteriaFromRequest(request *web.Request) ([]Criterion, error) {
 	var criteria []Criterion
-	for _, queryType := range supportedQueryTypes {
+	for _, queryType := range SupportedQueryTypes {
 		queryValues := request.URL.Query().Get(string(queryType))
-		querySegments, err := process(queryValues, queryType)
+		querySegments, err := Parse(queryType, queryValues)
 		if err != nil {
 			return nil, err
 		}
-		if criteria, err = mergeCriteria(criteria, querySegments); err != nil {
+		if criteria, err = MergeCriteria(criteria, querySegments); err != nil {
 			return nil, err
 		}
 	}
-	sort.Sort(ByLeftOp(criteria))
+	sort.Slice(criteria, func(i, j int) bool {
+		return criteria[i].LeftOp < criteria[j].LeftOp
+	})
 	return criteria, nil
 }
 
-type ByLeftOp []Criterion
+// Parse parses the query expression for and builds criteria for the provided type
+func Parse(criterionType CriterionType, expression string) ([]Criterion, error) {
+	if expression == "" {
+		return []Criterion{}, nil
+	}
+	parsingListener := &queryListener{criteriaType: criterionType}
 
-func (c ByLeftOp) Len() int {
-	return len(c)
-}
+	input := antlr.NewInputStream(expression)
+	lexer := parser.NewQueryLexer(input)
+	stream := antlr.NewCommonTokenStream(lexer, 0)
 
-func (c ByLeftOp) Less(i, j int) bool {
-	return c[i].LeftOp < c[j].LeftOp
-}
+	p := parser.NewQueryParser(stream)
+	p.RemoveErrorListeners()
+	p.AddErrorListener(parsingListener)
 
-func (c ByLeftOp) Swap(i, j int) {
-	c[i], c[j] = c[j], c[i]
-}
+	antlr.ParseTreeWalkerDefault.Walk(parsingListener, p.Expression())
+	if parsingListener.err != nil {
+		return nil, parsingListener.err
+	}
 
-func process(input string, criteriaType CriterionType) ([]Criterion, error) {
-	var c []Criterion
-	if input == "" {
-		return c, nil
-	}
-	var leftOp string
-	var operator Operator
-	j := 0
-	for i := 0; i < len(input); i++ {
-		if leftOp != "" && operator != "" {
-			remaining := input[i+len(operator)+1:]
-			rightOp, offset, err := findRightOp(remaining, leftOp, operator, criteriaType)
-			if err != nil {
-				return nil, err
-			}
-			criterion := newCriterion(leftOp, operator, rightOp, criteriaType)
-			if err := criterion.Validate(); err != nil {
-				return nil, err
-			}
-			c = append(c, criterion)
-			i += offset + len(operator) + len(string(Separator))
-			j = i + 1
-			leftOp = ""
-			operator = ""
-		} else {
-			remaining := input[i:]
-			for _, op := range operators {
-				if strings.HasPrefix(remaining, fmt.Sprintf("%c%s%c", OperandSeparator, op, OperandSeparator)) {
-					leftOp = input[j:i]
-					operator = op
-					break
-				}
-			}
-		}
-	}
-	if len(c) == 0 {
-		return nil, fmt.Errorf("%s is not a valid %s", input, criteriaType)
-	}
-	return c, nil
-}
-
-func findRightOp(remaining string, leftOp string, operator Operator, criteriaType CriterionType) (rightOp []string, offset int, err error) {
-	rightOpBuffer := strings.Builder{}
-	for _, ch := range remaining {
-		if ch == Separator {
-			if offset+1 < len(remaining) && rune(remaining[offset+1]) == Separator && remaining[offset-1] != '\\' {
-				arg := rightOpBuffer.String()
-				rightOp = append(rightOp, arg)
-				rightOpBuffer.Reset()
-			} else if rune(remaining[offset-1]) == Separator {
-				offset++
-				continue
-			} else {
-				if remaining[offset-1] != '\\' { // delimiter is not escaped - treat as separator
-					arg := rightOpBuffer.String()
-					rightOp = append(rightOp, arg)
-					rightOpBuffer.Reset()
-					break
-				} else { // remove escaping symbol
-					tmp := rightOpBuffer.String()[:offset-1]
-					rightOpBuffer.Reset()
-					rightOpBuffer.WriteString(tmp)
-					rightOpBuffer.WriteRune(ch)
-				}
-			}
-		} else {
-			rightOpBuffer.WriteRune(ch)
-		}
-		offset++
-	}
-	if rightOpBuffer.Len() > 0 {
-		rightOp = append(rightOp, rightOpBuffer.String())
-	}
-	if len(rightOp) > 0 && operator.IsMultiVariate() {
-		firstElement := rightOp[0]
-		if strings.IndexRune(firstElement, OpenBracket) == 0 {
-			rightOp[0] = firstElement[1:]
-		} else {
-			return nil, -1, fmt.Errorf("operator %s for %s %s requires right operand to be surrounded in %c%c", operator, criteriaType, leftOp, OpenBracket, CloseBracket)
-		}
-		lastElement := rightOp[len(rightOp)-1]
-		if rune(lastElement[len(lastElement)-1]) == CloseBracket {
-			rightOp[len(rightOp)-1] = lastElement[:len(lastElement)-1]
-		} else {
-			return nil, -1, fmt.Errorf("operator %s for %s %s requires right operand to be surrounded in %c%c", operator, criteriaType, leftOp, OpenBracket, CloseBracket)
-		}
-	}
-	if len(rightOp) == 0 {
-		rightOp = append(rightOp, "")
-	}
-	return
+	criteria := parsingListener.result
+	sort.Slice(criteria, func(i, j int) bool {
+		return criteria[i].LeftOp < criteria[j].LeftOp
+	})
+	return criteria, nil
 }
 
 func isNumeric(str string) bool {

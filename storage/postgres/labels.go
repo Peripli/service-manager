@@ -205,8 +205,12 @@ func translateOperationToSQLEquivalent(operator query.Operator) string {
 		return ">"
 	case query.NotInOperator:
 		return "NOT IN"
+	case query.EqualsOperator:
+		fallthrough
 	case query.EqualsOrNilOperator:
 		return "="
+	case query.NotEqualsOperator:
+		return "!="
 	default:
 		return strings.ToUpper(string(operator))
 	}

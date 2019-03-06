@@ -47,7 +47,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				resourcesToExpectBeforeOp: func() []common.Object {
 					return []common.Object{r[0]}
 				},
-				queryTemplate: "%s = %v",
+				queryTemplate: "%s eq '%v'",
 				queryArgs: func() common.Object {
 					return r[0]
 				},
@@ -62,7 +62,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				resourcesToExpectBeforeOp: func() []common.Object {
 					return []common.Object{r[0], r[1]}
 				},
-				queryTemplate: "%s != %v",
+				queryTemplate: "%s neq '%v'",
 				queryArgs: func() common.Object {
 					return r[0]
 				},
@@ -78,7 +78,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				resourcesToExpectBeforeOp: func() []common.Object {
 					return []common.Object{r[0], r[1]}
 				},
-				queryTemplate: "%[1]s in [%[2]v||%[2]v||%[2]v]",
+				queryTemplate: "%[1]s in ['%[2]v','%[2]v','%[2]v']",
 				queryArgs: func() common.Object {
 					return r[0]
 				},
@@ -94,7 +94,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				resourcesToExpectBeforeOp: func() []common.Object {
 					return []common.Object{r[0], r[1]}
 				},
-				queryTemplate: "%s in [%v]",
+				queryTemplate: "%s in ['%v']",
 				queryArgs: func() common.Object {
 					return r[0]
 				},
@@ -109,7 +109,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				resourcesToExpectBeforeOp: func() []common.Object {
 					return []common.Object{r[0], r[1]}
 				},
-				queryTemplate: "%[1]s notin [%[2]v||%[2]v||%[2]v]",
+				queryTemplate: "%[1]s notin ['%[2]v','%[2]v','%[2]v']",
 				queryArgs: func() common.Object {
 					return r[0]
 				},
@@ -124,7 +124,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				resourcesToExpectBeforeOp: func() []common.Object {
 					return []common.Object{r[0], r[1]}
 				},
-				queryTemplate: "%s notin [%v]",
+				queryTemplate: "%s notin ['%v']",
 				queryArgs: func() common.Object {
 					return r[0]
 				},
@@ -139,7 +139,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				resourcesToExpectBeforeOp: func() []common.Object {
 					return []common.Object{r[0], r[1]}
 				},
-				queryTemplate: "%s gt %v",
+				queryTemplate: "%s gt '%v'",
 				queryArgs: func() common.Object {
 					return common.RemoveNonNumericArgs(r[0])
 				},
@@ -154,7 +154,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				resourcesToExpectBeforeOp: func() []common.Object {
 					return []common.Object{r[0], r[1]}
 				},
-				queryTemplate: "%s lt %v",
+				queryTemplate: "%s lt '%v'",
 				queryArgs: func() common.Object {
 					return common.RemoveNonNumericArgs(r[0])
 				},
@@ -169,7 +169,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				resourcesToExpectBeforeOp: func() []common.Object {
 					return []common.Object{r[0], rWithMandatoryFields}
 				},
-				queryTemplate: "%s eqornil %v",
+				queryTemplate: "%s eqornil '%v'",
 				queryArgs: func() common.Object {
 					return common.RemoveNotNullableFieldAndLabels(r[0], rWithMandatoryFields)
 				},
@@ -184,7 +184,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				resourcesToExpectBeforeOp: func() []common.Object {
 					return []common.Object{r[0]}
 				},
-				queryTemplate: "%s = %v",
+				queryTemplate: "%s eq '%v'",
 				queryArgs: func() common.Object {
 					return common.RemoveNonJSONArgs(r[0])
 				},
@@ -197,7 +197,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 
 		Entry("returns 400 when query operator is invalid",
 			deleteOpEntry{
-				queryTemplate: "%s @@ %v",
+				queryTemplate: "%s @@ '%v'",
 				queryArgs: func() common.Object {
 					return r[0]
 				},
@@ -206,7 +206,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		),
 		Entry("returns 400 when query is duplicated",
 			deleteOpEntry{
-				queryTemplate: "%[1]s = %[2]v|%[1]s = %[2]v",
+				queryTemplate: "%[1]s = '%[2]v' and %[1]s = '%[2]v'",
 				queryArgs: func() common.Object {
 					return r[0]
 				},
@@ -215,7 +215,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		),
 		Entry("returns 400 when operator is not properly separated with right space from operands",
 			deleteOpEntry{
-				queryTemplate: "%s =%v",
+				queryTemplate: "%s ='%v'",
 				queryArgs: func() common.Object {
 					return r[0]
 				},
@@ -224,7 +224,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		),
 		Entry("returns 400 when operator is not properly separated with left space from operands",
 			deleteOpEntry{
-				queryTemplate: "%s= %v",
+				queryTemplate: "%seq '%v'",
 				queryArgs: func() common.Object {
 					return r[0]
 				},
@@ -234,7 +234,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 
 		Entry("returns 400 when field query left operands are unknown",
 			deleteOpEntry{
-				queryTemplate: "%[1]s in [%[2]v||%[2]v]",
+				queryTemplate: "%[1]s in ['%[2]v','%[2]v']",
 				queryArgs: func() common.Object {
 					return common.Object{"unknownkey": "unknownvalue"}
 				},
@@ -243,7 +243,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		),
 		Entry("returns 400 when single value operator is used with multiple right value arguments",
 			deleteOpEntry{
-				queryTemplate: "%[1]s != [%[2]v||%[2]v||%[2]v]",
+				queryTemplate: "%[1]s neq ['%[2]v','%[2]v','%[2]v']",
 				queryArgs: func() common.Object {
 					return r[0]
 				},
@@ -253,7 +253,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 
 		Entry("returns 400 when numeric operator is used with non-numeric operands",
 			deleteOpEntry{
-				queryTemplate: "%s < %v",
+				queryTemplate: "%s < '%v'",
 
 				queryArgs: func() common.Object {
 					return common.RemoveNumericArgs(r[0])
@@ -300,7 +300,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		By("[TEST]: ======= Expectations Summary =======")
 
 		By(fmt.Sprintf("[TEST]: Deleting %s at %s", t.API, query))
-		By(fmt.Sprintf("[TEST]: Currently present resources: %v", r))
+		By(fmt.Sprintf("[TEST]: Currently present resources: '%v'", r))
 		By(fmt.Sprintf("[TEST]: Expected %s ids after operations: %s", t.API, expectedAfterOpIDs))
 		By(fmt.Sprintf("[TEST]: Unexpected %s ids after operations: %s", t.API, unexpectedAfterOpIDs))
 		By(fmt.Sprintf("[TEST]: Expected status code %d", deleteListOpEntry.expectedStatusCode))
@@ -487,5 +487,5 @@ func expandMultiFieldQuery(queryTemplate string, queryArgsFunc func() common.Obj
 	for queryArgKey, queryArgValue := range queryArgs {
 		expandedMultiQuerySegments = append(expandedMultiQuerySegments, fmt.Sprintf(queryTemplate, queryArgKey, queryArgValue))
 	}
-	return strings.Join(expandedMultiQuerySegments, "|")
+	return strings.Join(expandedMultiQuerySegments, " and ")
 }
