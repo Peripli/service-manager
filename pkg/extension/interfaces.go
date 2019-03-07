@@ -24,15 +24,6 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
-//
-//type OperationType string
-//
-//const (
-//	CreateOperation OperationType = "CREATE"
-//	UpdateOperation OperationType = "UPDATE"
-//	DeleteOpration  OperationType = "DELETE"
-//)
-
 type CreateHookFunc func(objectType types.ObjectType) CreateHook
 type UpdateHookFunc func(objectType types.ObjectType) UpdateHook
 type DeleteHookFunc func(objectType types.ObjectType) DeleteHook

@@ -36,37 +36,32 @@ import (
 const Storage = "postgres"
 
 func init() {
-	storage.Register(Storage, &postgresStorage3{})
+	storage.Register(Storage, &postgresStorage{})
 }
 
-type listenerObjectPair struct {
-	listenerType storage.ListenerType
-	objectType   types.ObjectType
-}
-
-type postgresStorage3 struct {
+type postgresStorage struct {
 	pdDB          pgDB
 	db            *sqlx.DB
 	state         *storageState
 	encryptionKey []byte
 }
 
-func (ps *postgresStorage3) Credentials() storage.Credentials {
+func (ps *postgresStorage) Credentials() storage.Credentials {
 	ps.checkOpen()
 	return &credentialStorage{db: ps.db}
 }
 
-func (ps *postgresStorage3) Security() storage.Security {
+func (ps *postgresStorage) Security() storage.Security {
 	ps.checkOpen()
 	return &securityStorage{ps.db, ps.encryptionKey, false, &sync.Mutex{}}
 }
 
-func (ps *postgresStorage3) ServiceOffering() storage.ServiceOffering {
+func (ps *postgresStorage) ServiceOffering() storage.ServiceOffering {
 	ps.checkOpen()
 	return &serviceOfferingStorage{db: ps.db}
 }
 
-func (ps *postgresStorage3) Open(options *storage.Settings) error {
+func (ps *postgresStorage) Open(options *storage.Settings) error {
 	var err error
 	if err = options.Validate(); err != nil {
 		return err
@@ -98,18 +93,18 @@ func (ps *postgresStorage3) Open(options *storage.Settings) error {
 	return err
 }
 
-func (ps *postgresStorage3) Close() error {
+func (ps *postgresStorage) Close() error {
 	ps.checkOpen()
 	return ps.db.Close()
 }
 
-func (ps *postgresStorage3) checkOpen() {
+func (ps *postgresStorage) checkOpen() {
 	if ps.db == nil {
 		log.D().Panicln("Repository is not yet Open")
 	}
 }
 
-func (ps *postgresStorage3) updateSchema(migrationsURL string) error {
+func (ps *postgresStorage) updateSchema(migrationsURL string) error {
 	driver, err := migratepg.WithInstance(ps.db.DB, &migratepg.Config{})
 	if err != nil {
 		return err
@@ -126,12 +121,12 @@ func (ps *postgresStorage3) updateSchema(migrationsURL string) error {
 	return err
 }
 
-func (ps *postgresStorage3) Ping() error {
+func (ps *postgresStorage) Ping() error {
 	ps.checkOpen()
 	return ps.state.Get()
 }
 
-func (ps *postgresStorage3) Create(ctx context.Context, obj types.Object) (string, error) {
+func (ps *postgresStorage) Create(ctx context.Context, obj types.Object) (string, error) {
 	objectType := obj.GetType()
 	entity := knownEntities[objectType].FromObject(obj)
 	id, err := create(ctx, ps.pdDB, entity.TableName(), entity)
@@ -149,7 +144,7 @@ func (ps *postgresStorage3) Create(ctx context.Context, obj types.Object) (strin
 	return id, nil
 }
 
-func (ps *postgresStorage3) createLabels(ctx context.Context, entityID string, objectType types.ObjectType, labels types.Labels) error {
+func (ps *postgresStorage) createLabels(ctx context.Context, entityID string, objectType types.ObjectType, labels types.Labels) error {
 	labelsForType := knownEntities[objectType].Labels()
 	entities, err := labelsForType.FromDTO(entityID, labels)
 	if err != nil {
@@ -166,7 +161,7 @@ func (ps *postgresStorage3) createLabels(ctx context.Context, entityID string, o
 	return nil
 }
 
-func (ps *postgresStorage3) Get(ctx context.Context, id string, objectType types.ObjectType) (types.Object, error) {
+func (ps *postgresStorage) Get(ctx context.Context, id string, objectType types.ObjectType) (types.Object, error) {
 	primaryColumn := knownEntities[objectType].PrimaryColumn()
 	byPrimaryColumn := query.ByField(query.EqualsOperator, primaryColumn, id)
 
@@ -180,7 +175,7 @@ func (ps *postgresStorage3) Get(ctx context.Context, id string, objectType types
 	return result.ItemAt(0), nil
 }
 
-func (ps *postgresStorage3) List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
+func (ps *postgresStorage) List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	entity := knownEntities[objectType].Empty()
 	var rows *sqlx.Rows
 	var err error
@@ -204,7 +199,7 @@ func (ps *postgresStorage3) List(ctx context.Context, objectType types.ObjectTyp
 	return entity.RowsToList(rows)
 }
 
-func (ps *postgresStorage3) Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
+func (ps *postgresStorage) Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	entityForType := knownEntities[objectType].Empty()
 	rows, err := deleteAllByFieldCriteria(ctx, ps.db, entityForType.TableName(), entityForType, criteria)
 	if err != nil {
@@ -217,7 +212,7 @@ func (ps *postgresStorage3) Delete(ctx context.Context, objectType types.ObjectT
 	return deletedObjects, nil
 }
 
-func (ps *postgresStorage3) Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+func (ps *postgresStorage) Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 	entity := knownEntities[obj.GetType()].FromObject(obj)
 	if err := update(ctx, ps.db, entity.TableName(), entity); err != nil {
 		return nil, err
@@ -237,14 +232,14 @@ func (ps *postgresStorage3) Update(ctx context.Context, obj types.Object, labelC
 	return newObject, nil
 }
 
-func (ps *postgresStorage3) updateLabels(ctx context.Context, entityID string, objType types.ObjectType, updateActions []*query.LabelChange) error {
+func (ps *postgresStorage) updateLabels(ctx context.Context, entityID string, objType types.ObjectType, updateActions []*query.LabelChange) error {
 	newLabelFunc := func(labelID string, labelKey string, labelValue string) Label {
 		return knownEntities[objType].Labels().Single().New(labelID, labelKey, labelValue, entityID)
 	}
 	return updateLabelsAbstract(ctx, newLabelFunc, ps.db, entityID, updateActions)
 }
 
-func (ps *postgresStorage3) InTransaction(ctx context.Context, f func(ctx context.Context, storage storage.Warehouse) error) error {
+func (ps *postgresStorage) InTransaction(ctx context.Context, f func(ctx context.Context, storage storage.Warehouse) error) error {
 	ok := false
 	tx, err := ps.db.Beginx()
 	if err != nil {
@@ -258,7 +253,7 @@ func (ps *postgresStorage3) InTransaction(ctx context.Context, f func(ctx contex
 		}
 	}()
 
-	transactionalStorage := &postgresStorage3{
+	transactionalStorage := &postgresStorage{
 		pdDB: tx,
 	}
 

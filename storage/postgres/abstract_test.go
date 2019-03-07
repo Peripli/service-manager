@@ -70,7 +70,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 
 	Describe("updateQuery", func() {
 
-		Context("Called with structure with no pdDB tag", func() {
+		Context("Called with structure with no db tag", func() {
 			It("Should return proper query", func() {
 				type ts struct {
 					Field string
@@ -80,7 +80,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 			})
 		})
 
-		Context("Called with structure with pdDB tag", func() {
+		Context("Called with structure with db tag", func() {
 			It("Should return proper query", func() {
 				type ts struct {
 					Field string `pdDB:"taggedField"`

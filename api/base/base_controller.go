@@ -49,7 +49,8 @@ type Controller struct {
 func (c *Controller) CreateObject(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Creating new %s", c.ObjectType)
-	if err := util.BytesToObject(r.Body, c.ObjectBlueprint); err != nil {
+	result := c.ObjectBlueprint()
+	if err := util.BytesToObject(r.Body, result); err != nil {
 		return nil, err
 	}
 	UUID, err := uuid.NewV4()
@@ -57,7 +58,6 @@ func (c *Controller) CreateObject(r *web.Request) (*web.Response, error) {
 		return nil, fmt.Errorf("could not generate GUID for %s: %s", c.ObjectType, err)
 	}
 
-	result := c.ObjectBlueprint()
 	createHook := c.CreateHookFunc(c.ObjectType)
 	result, err = createHook.OnAPI(ctx, func() (types.Object, error) {
 		result.SetID(UUID.String())

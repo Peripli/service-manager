@@ -29,7 +29,7 @@ import (
 // Platform platform struct
 type Platform struct {
 	ID          string       `json:"id"`
-	Type        string       `json:"type" valid_string:"regex:[a-z]|len[1,255]"`
+	Type        string       `json:"type"`
 	Name        string       `json:"name"`
 	Description string       `json:"description"`
 	CreatedAt   time.Time    `json:"created_at"`
@@ -37,8 +37,28 @@ type Platform struct {
 	Credentials *Credentials `json:"credentials,omitempty"`
 }
 
+func (e *Platform) SetID(id string) {
+	e.ID = id
+}
+
+func (e *Platform) GetID() string {
+	return e.ID
+}
+
+func (e *Platform) SetCreatedAt(time time.Time) {
+	e.CreatedAt = time
+}
+
+func (e *Platform) GetCreatedAt() time.Time {
+	return e.CreatedAt
+}
+
+func (e *Platform) SetUpdatedAt(time time.Time) {
+	e.UpdatedAt = time
+}
+
 func (e *Platform) SetCredentials(credentials *Credentials) {
-	panic("implement me")
+	e.Credentials = credentials
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
