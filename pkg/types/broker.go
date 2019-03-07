@@ -39,6 +39,30 @@ type Broker struct {
 	Labels Labels `json:"labels,omitempty"`
 }
 
+func (e *Broker) GetCreatedAt() time.Time {
+	return e.CreatedAt
+}
+
+func (e *Broker) SetID(id string) {
+	e.ID = id
+}
+
+func (e *Broker) GetID() string {
+	return e.ID
+}
+
+func (e *Broker) SetCreatedAt(time time.Time) {
+	e.CreatedAt = time
+}
+
+func (e *Broker) SetUpdatedAt(time time.Time) {
+	e.UpdatedAt = time
+}
+
+func (e *Broker) SetCredentials(credentials *Credentials) {
+	e.Credentials = credentials
+}
+
 // Validate implements InputValidator and verifies all mandatory fields are populated
 func (b *Broker) Validate() error {
 	if b.Name == "" {

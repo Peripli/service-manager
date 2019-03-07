@@ -86,13 +86,6 @@ func (mf PingFunc) Ping() error {
 	return mf()
 }
 
-type ListenerType string
-
-const (
-	PreListener  ListenerType = "pre"
-	PostListener ListenerType = "post"
-)
-
 type Warehouse interface {
 	// Create stores a broker in SM DB
 	Create(ctx context.Context, obj types.Object) (string, error)
@@ -122,23 +115,12 @@ type Repository interface {
 	InTransaction(ctx context.Context, f func(ctx context.Context, storage Warehouse) error) error
 }
 
-type CreateListenerFunc func(ctx context.Context, object types.Object, storage Warehouse) error
-type UpdateListenerFunc func(ctx context.Context, oldObject types.Object, newObject types.Object, storage Warehouse) error
-type DeleteListenerFunc func(ctx context.Context, deletedObjects types.ObjectList, storage Warehouse) error
-
-type ListenHandler interface {
-	OnCreate(listenerType ListenerType, objectType types.ObjectType, listener CreateListenerFunc)
-	OnUpdate(listenerType ListenerType, objectType types.ObjectType, listener UpdateListenerFunc)
-	OnDelete(listenerType ListenerType, objectType types.ObjectType, listener DeleteListenerFunc)
-}
-
 // Storage interface provides entity-specific storages
 //go:generate counterfeiter . Storage
 type Storage interface {
 	OpenCloser
 	Pinger
 	Repository
-	ListenHandler
 }
 
 // ServiceOffering instance for Service Offerings DB operations

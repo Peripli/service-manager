@@ -61,6 +61,30 @@ type ServicePlan struct {
 	ServiceOfferingID string `json:"service_offering_id"`
 }
 
+func (sp *ServicePlan) GetCreatedAt() time.Time {
+	return sp.CreatedAt
+}
+
+func (sp *ServicePlan) SetID(id string) {
+	sp.ID = id
+}
+
+func (sp *ServicePlan) GetID() string {
+	return sp.ID
+}
+
+func (sp *ServicePlan) SetCreatedAt(time time.Time) {
+	sp.CreatedAt = time
+}
+
+func (sp *ServicePlan) SetUpdatedAt(time time.Time) {
+	sp.UpdatedAt = time
+}
+
+func (sp *ServicePlan) SetCredentials(credentials *Credentials) {
+	return
+}
+
 func (sp *ServicePlan) SupportsLabels() bool {
 	return false
 }
@@ -77,8 +101,8 @@ func (sp *ServicePlan) EmptyList() ObjectList {
 	return &ServicePlans{ServicePlans: make([]Object, 0)}
 }
 
-func (sp *ServicePlan) WithLabels(labels Labels) Object {
-	return sp
+func (sp *ServicePlan) SetLabels(labels Labels) {
+	return
 }
 
 // MarshalJSON override json serialization for http response

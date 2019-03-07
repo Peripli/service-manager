@@ -32,8 +32,8 @@ func (e *Platform) EmptyList() ObjectList {
 	return &Platforms{Platforms: make([]*Platform, 0)}
 }
 
-func (e *Platform) WithLabels(labels Labels) Object {
-	return e
+func (e *Platform) SetLabels(labels Labels) {
+	return
 }
 
 func (e *Platform) GetType() ObjectType {

@@ -37,6 +37,10 @@ type Platform struct {
 	Credentials *Credentials `json:"credentials,omitempty"`
 }
 
+func (e *Platform) SetCredentials(credentials *Credentials) {
+	panic("implement me")
+}
+
 // Validate implements InputValidator and verifies all mandatory fields are populated
 func (p *Platform) Validate() error {
 	if p.Type == "" {

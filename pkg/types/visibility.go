@@ -53,6 +53,10 @@ type Visibility struct {
 	Labels        Labels    `json:"labels,omitempty"`
 }
 
+func (v *Visibility) SetCredentials(credentials *Credentials) {
+
+}
+
 func (v *Visibility) SupportsLabels() bool {
 	return true
 }
@@ -69,9 +73,9 @@ func (v *Visibility) EmptyList() ObjectList {
 	return &Visibilities{Visibilities: make([]*Visibility, 0)}
 }
 
-func (v *Visibility) WithLabels(labels Labels) Object {
+func (v *Visibility) SetLabels(labels Labels) {
 	v.Labels = labels
-	return v
+	return
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

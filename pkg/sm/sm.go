@@ -24,6 +24,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/types"
+
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/api/healthcheck"
 	"github.com/Peripli/service-manager/config"
@@ -74,6 +76,23 @@ func DefaultEnv(additionalPFlags ...func(set *pflag.FlagSet)) env.Environment {
 		panic(fmt.Errorf("error setting CF environment values: %s", err))
 	}
 	return environment
+}
+
+type EntitlementsHook struct {
+	//result from  CIS
+	Entitlements []string
+}
+
+func (*EntitlementsHook) AroundStorage(ctx context.Context, object types.Object) error {
+	panic("implement me")
+}
+
+func (*EntitlementsHook) InStorage(ctx context.Context, newObject types.Object, storage storage.Warehouse, transactionFunc func() error) error {
+	panic("implement me")
+}
+
+func (*EntitlementsHook) Supports(objectType types.ObjectType) bool {
+	return objectType == types.BrokerType
 }
 
 // New returns service-manager Server with default setup. The function panics on bad configuration

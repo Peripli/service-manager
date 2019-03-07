@@ -16,10 +16,11 @@
 
 package types
 
+import "time"
+
 type ObjectType string
 
 const (
-	BrokerType          ObjectType = "broker"
 	PlatformType        ObjectType = "platform"
 	ServiceOfferingType ObjectType = "service_offering"
 	ServicePlanType     ObjectType = "service_plan"
@@ -27,11 +28,17 @@ const (
 )
 
 type Object interface {
+	SetID(id string)
+	GetID() string
 	GetType() ObjectType
 	SupportsLabels() bool
-	GetLabels() Labels
 	EmptyList() ObjectList
-	WithLabels(labels Labels) Object
+	GetLabels() Labels
+	SetLabels(labels Labels)
+	SetCredentials(credentials *Credentials)
+	SetCreatedAt(time time.Time)
+	GetCreatedAt() time.Time
+	SetUpdatedAt(time time.Time)
 }
 
 type ObjectList interface {

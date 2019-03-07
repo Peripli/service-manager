@@ -76,11 +76,7 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 	return &web.API{
 		// Default controllers - more filters can be registered using the relevant API methods
 		Controllers: []web.Controller{
-			&broker.Controller{
-				Repository:          repository,
-				OSBClientCreateFunc: newOSBClient(settings.SkipSSLValidation),
-				Encrypter:           encrypter,
-			},
+			broker.NewController(repository, encrypter, newOSBClient(settings.SkipSSLValidation)),
 			&platform.Controller{
 				Repository: repository,
 				Encrypter:  encrypter,

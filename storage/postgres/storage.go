@@ -45,28 +45,10 @@ type listenerObjectPair struct {
 }
 
 type postgresStorage3 struct {
-	pdDB            pgDB
-	db              *sqlx.DB
-	state           *storageState
-	encryptionKey   []byte
-	createListeners map[listenerObjectPair][]storage.CreateListenerFunc
-	updateListeners map[listenerObjectPair][]storage.UpdateListenerFunc
-	deleteListeners map[listenerObjectPair][]storage.DeleteListenerFunc
-}
-
-func (ps *postgresStorage3) OnCreate(listenerType storage.ListenerType, objectType types.ObjectType, listener storage.CreateListenerFunc) {
-	pair := listenerObjectPair{listenerType: listenerType, objectType: objectType}
-	ps.createListeners[pair] = append(ps.createListeners[pair], listener)
-}
-
-func (ps *postgresStorage3) OnUpdate(listenerType storage.ListenerType, objectType types.ObjectType, listener storage.UpdateListenerFunc) {
-	pair := listenerObjectPair{listenerType: listenerType, objectType: objectType}
-	ps.updateListeners[pair] = append(ps.updateListeners[pair], listener)
-}
-
-func (ps *postgresStorage3) OnDelete(listenerType storage.ListenerType, objectType types.ObjectType, listener storage.DeleteListenerFunc) {
-	pair := listenerObjectPair{listenerType: listenerType, objectType: objectType}
-	ps.deleteListeners[pair] = append(ps.deleteListeners[pair], listener)
+	pdDB          pgDB
+	db            *sqlx.DB
+	state         *storageState
+	encryptionKey []byte
 }
 
 func (ps *postgresStorage3) Credentials() storage.Credentials {
@@ -151,10 +133,6 @@ func (ps *postgresStorage3) Ping() error {
 
 func (ps *postgresStorage3) Create(ctx context.Context, obj types.Object) (string, error) {
 	objectType := obj.GetType()
-	log.C(ctx).Debugf("invoking pre-create listeners for object with type ", objectType)
-	if err := ps.onCreate(storage.PreListener, ctx, obj); err != nil {
-		return "", err
-	}
 	entity := knownEntities[objectType].FromObject(obj)
 	id, err := create(ctx, ps.pdDB, entity.TableName(), entity)
 	if err != nil {
@@ -168,20 +146,7 @@ func (ps *postgresStorage3) Create(ctx context.Context, obj types.Object) (strin
 		log.C(ctx).Debugf("invocation of post-create listeners for object with type %s will be skipped due to error", objectType)
 		return "", err
 	}
-	if err = ps.onCreate(storage.PostListener, ctx, obj); err != nil {
-		return "", err
-	}
 	return id, nil
-}
-
-func (ps *postgresStorage3) onCreate(listenerType storage.ListenerType, ctx context.Context, object types.Object) error {
-	pair := listenerObjectPair{listenerType: listenerType, objectType: object.GetType()}
-	for _, listener := range ps.createListeners[pair] {
-		if err := listener(ctx, object, ps); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (ps *postgresStorage3) createLabels(ctx context.Context, entityID string, objectType types.ObjectType, labels types.Labels) error {
@@ -249,28 +214,7 @@ func (ps *postgresStorage3) Delete(ctx context.Context, objectType types.ObjectT
 	if err != nil {
 		return nil, err
 	}
-	if err = ps.onDelete(ctx, storage.PostListener, objectType, deletedObjects); err != nil {
-		return nil, err
-	}
 	return deletedObjects, nil
-}
-
-func (ps *postgresStorage3) onDelete(ctx context.Context, listenerType storage.ListenerType, objectType types.ObjectType, list types.ObjectList) error {
-	for _, listener := range ps.deleteListeners[listenerObjectPair{listenerType: listenerType, objectType: objectType}] {
-		if err := listener(ctx, list, ps); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (ps *postgresStorage3) onUpdate(ctx context.Context, listenerType storage.ListenerType, objectType types.ObjectType, oldObject types.Object, newObject types.Object) error {
-	for _, listener := range ps.updateListeners[listenerObjectPair{listenerType: listenerType, objectType: objectType}] {
-		if err := listener(ctx, oldObject, newObject, ps); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (ps *postgresStorage3) Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
@@ -289,10 +233,7 @@ func (ps *postgresStorage3) Update(ctx context.Context, obj types.Object, labelC
 	}
 	labels := entityLabels.ToDTO()
 	result := entity.ToObject()
-	newObject := result.WithLabels(labels)
-	if err := ps.onUpdate(ctx, storage.PostListener, obj.GetType(), nil, newObject); err != nil {
-		return nil, err
-	}
+	result.SetLabels(labels)
 	return newObject, nil
 }
 

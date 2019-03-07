@@ -65,6 +65,30 @@ type ServiceOffering struct {
 	Plans    []*ServicePlan `json:"plans"`
 }
 
+func (so *ServiceOffering) GetCreatedAt() time.Time {
+	return so.CreatedAt
+}
+
+func (so *ServiceOffering) SetID(id string) {
+	so.ID = id
+}
+
+func (so *ServiceOffering) GetID() string {
+	return so.ID
+}
+
+func (so *ServiceOffering) SetCreatedAt(time time.Time) {
+	so.CreatedAt = time
+}
+
+func (so *ServiceOffering) SetUpdatedAt(time time.Time) {
+	so.UpdatedAt = time
+}
+
+func (so *ServiceOffering) SetCredentials(credentials *Credentials) {
+	return
+}
+
 func (so *ServiceOffering) SupportsLabels() bool {
 	return false
 }
@@ -81,8 +105,8 @@ func (so *ServiceOffering) EmptyList() ObjectList {
 	return &ServiceOfferings{ServiceOfferings: make([]*ServiceOffering, 0)}
 }
 
-func (so *ServiceOffering) WithLabels(labels Labels) Object {
-	return so
+func (so *ServiceOffering) SetLabels(labels Labels) {
+	return
 }
 
 // MarshalJSON override json serialization for http response
