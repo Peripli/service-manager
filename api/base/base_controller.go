@@ -36,11 +36,9 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-type Hookable interface {
-}
+const pathParamID = "id"
 
 type Controller struct {
-	PathParamID               string
 	ResourceBaseURL           string
 	ObjectType                types.ObjectType
 	Repository                storage.Repository
@@ -169,7 +167,7 @@ func (c *Controller) DeleteObjects(r *web.Request) (*web.Response, error) {
 }
 
 func (c *Controller) DeleteSingleObject(r *web.Request) (*web.Response, error) {
-	objectID := r.PathParams[c.PathParamID]
+	objectID := r.PathParams[pathParamID]
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting %s with id %s", c.ObjectType, objectID)
 
@@ -197,7 +195,7 @@ func (c *Controller) DeleteSingleObject(r *web.Request) (*web.Response, error) {
 }
 
 func (c *Controller) GetSingleObject(r *web.Request) (*web.Response, error) {
-	objectID := r.PathParams[c.PathParamID]
+	objectID := r.PathParams[pathParamID]
 	ctx := r.Context()
 	log.C(ctx).Debugf("Getting %s with id %s", c.ObjectType, objectID)
 
@@ -226,7 +224,7 @@ func (c *Controller) ListObjects(r *web.Request) (*web.Response, error) {
 }
 
 func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
-	objectID := r.PathParams[c.PathParamID]
+	objectID := r.PathParams[pathParamID]
 	ctx := r.Context()
 	log.C(ctx).Debugf("Updating %s with id %s", c.ObjectType, objectID)
 
