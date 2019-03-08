@@ -36,14 +36,65 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
+type Hookable interface {
+}
+
 type Controller struct {
-	PathParamID     string
-	ObjectType      types.ObjectType
-	Repository      storage.Repository
-	ObjectBlueprint func() types.Object
-	CreateHookFunc  extension.CreateHookFunc
-	UpdateHookFunc  extension.UpdateHookFunc
-	DeleteHookFunc  extension.DeleteHookFunc
+	PathParamID               string
+	ResourceBaseURL           string
+	ObjectType                types.ObjectType
+	Repository                storage.Repository
+	ObjectBlueprint           func() types.Object
+	CreateInterceptorProvider extension.CreateInterceptorProvider
+	UpdateInterceptorProvider extension.UpdateInterceptorProvider
+	DeleteInterceptorProvider extension.DeleteInterceptorProvider
+}
+
+func (c *Controller) Routes() []web.Route {
+	return []web.Route{
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodPost,
+				Path:   c.ResourceBaseURL,
+			},
+			Handler: c.CreateObject,
+		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodGet,
+				Path:   fmt.Sprintf("%s/{id}", c.ResourceBaseURL),
+			},
+			Handler: c.GetSingleObject,
+		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodGet,
+				Path:   c.ResourceBaseURL,
+			},
+			Handler: c.ListObjects,
+		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodDelete,
+				Path:   c.ResourceBaseURL,
+			},
+			Handler: c.DeleteObjects,
+		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodDelete,
+				Path:   fmt.Sprintf("%s/{id}", c.ResourceBaseURL),
+			},
+			Handler: c.DeleteSingleObject,
+		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodPatch,
+				Path:   fmt.Sprintf("%s/{id}", c.ResourceBaseURL),
+			},
+			Handler: c.PatchObject,
+		},
+	}
 }
 
 func (c *Controller) CreateObject(r *web.Request) (*web.Response, error) {
@@ -58,44 +109,60 @@ func (c *Controller) CreateObject(r *web.Request) (*web.Response, error) {
 		return nil, fmt.Errorf("could not generate GUID for %s: %s", c.ObjectType, err)
 	}
 
-	createHook := c.CreateHookFunc(c.ObjectType)
-	result, err = createHook.OnAPI(ctx, func() (types.Object, error) {
-		result.SetID(UUID.String())
-		currentTime := time.Now().UTC()
-		result.SetCreatedAt(currentTime)
-		result.SetUpdatedAt(currentTime)
-		return result, nil
+	createHook := c.CreateInterceptorProvider()
+	onAPI := createHook.OnAPI(func(ctx context.Context, obj types.Object) (object types.Object, e error) {
+		return obj, nil
 	})
-
-	err = c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
-		return createHook.OnTransaction(ctx, storage, func() (types.Object, error) {
-			if _, err = storage.Create(ctx, result); err != nil {
-				return nil, util.HandleStorageError(err, string(c.ObjectType))
-			}
-			return result, nil
-		})
-	})
+	result, err = onAPI(ctx, result)
 	if err != nil {
 		return nil, err
 	}
 
+	result.SetID(UUID.String())
+	currentTime := time.Now().UTC()
+	result.SetCreatedAt(currentTime)
+	result.SetUpdatedAt(currentTime)
+
+	onTransaction := createHook.OnTransaction(func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error {
+		id, err := txStorage.Create(ctx, newObject)
+		if err != nil {
+			return util.HandleStorageError(err, string(c.ObjectType))
+		}
+		newObject.SetID(id)
+		return nil
+	})
+
+	err = c.Repository.InTransaction(ctx, func(ctx context.Context, txStorage storage.Warehouse) error {
+		return onTransaction(ctx, txStorage, result)
+	})
+	if err != nil {
+		return nil, err
+	}
 	return util.NewJSONResponse(http.StatusCreated, result)
 }
 
 func (c *Controller) DeleteObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting %ss...", c.ObjectType)
-	deleteHook := c.DeleteHookFunc(c.ObjectType)
-	if err := deleteHook.OnAPI(ctx, func(ctx context.Context) error {
-		if err := c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
-			return deleteHook.OnStorage(ctx, storage, func() (types.ObjectList, error) {
-				return c.Repository.Delete(ctx, c.ObjectType, query.CriteriaForContext(ctx)...)
-			})
-		}); err != nil {
-			return util.HandleSelectionError(err, string(c.ObjectType))
-		}
+	deleteHook := c.DeleteInterceptorProvider()
+	onAPI := deleteHook.OnAPI(func(ctx context.Context, deleteionCriteria ...query.Criterion) error {
 		return nil
-	}); err != nil {
+	})
+	criteria := query.CriteriaForContext(ctx)
+	if err := onAPI(ctx, criteria...); err != nil {
+		return nil, err
+	}
+
+	transactionOperation := deleteHook.OnTransaction(func(ctx context.Context, txStorage storage.Warehouse, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
+		return c.Repository.Delete(ctx, c.ObjectType, deletionCriteria...)
+	})
+
+	err := c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
+		_, err := transactionOperation(ctx, storage, criteria...)
+		return util.HandleSelectionError(err, string(c.ObjectType))
+	})
+
+	if err != nil {
 		return nil, err
 	}
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
@@ -108,17 +175,20 @@ func (c *Controller) DeleteSingleObject(r *web.Request) (*web.Response, error) {
 
 	byID := query.ByField(query.EqualsOperator, "id", objectID)
 
-	deleteHook := c.DeleteHookFunc(c.ObjectType)
-	err := deleteHook.OnAPI(ctx, func(ctx context.Context) error {
-		if err := c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
-			return deleteHook.OnStorage(ctx, storage, func() (list types.ObjectList, e error) {
-				return c.Repository.Delete(ctx, c.ObjectType, byID)
-			})
-		}); err != nil {
-			return util.HandleStorageError(err, string(c.ObjectType))
-		}
+	deleteHook := c.DeleteInterceptorProvider()
+	apiCall := deleteHook.OnAPI(func(ctx context.Context, deletionCriteria ...query.Criterion) error {
 		return nil
-	}, byID)
+	})
+	if err := apiCall(ctx, byID); err != nil {
+		return &web.Response{}, err
+	}
+	transactionOperation := deleteHook.OnTransaction(func(ctx context.Context, txStorage storage.Warehouse, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
+		return c.Repository.Delete(ctx, c.ObjectType, deletionCriteria...)
+	})
+	err := c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
+		_, err := transactionOperation(ctx, storage, byID)
+		return util.HandleStorageError(err, string(c.ObjectType))
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -174,10 +244,8 @@ func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	updateHook := c.UpdateHookFunc(c.ObjectType)
-
-	result, err = updateHook.OnAPI(ctx, result, func(modifiedObject types.Object) (types.Object, error) {
-		// overwrite object with values from API
+	updateHook := c.UpdateInterceptorProvider()
+	apiCall := updateHook.OnAPI(func(ctx context.Context, modifiedObject types.Object) (object types.Object, e error) {
 		if err := util.BytesToObject(r.Body, modifiedObject); err != nil {
 			return nil, err
 		}
@@ -187,18 +255,25 @@ func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
 		modifiedObject.SetUpdatedAt(time.Now().UTC())
 
 		return modifiedObject, nil
-	}, changes...)
-
-	err = c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
-		return updateHook.OnTransaction(ctx, storage, func() (oldObject, newObject types.Object, err error) {
-			updatedObject, err := storage.Update(ctx, result, changes...)
-			return result, updatedObject, err
-		})
 	})
+
+	object, err := apiCall(ctx, result)
 	if err != nil {
 		return nil, err
 	}
 
-	result.SetCredentials(nil)
-	return util.NewJSONResponse(http.StatusOK, result)
+	transactionOp := updateHook.OnTransaction(func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object, changes ...*query.LabelChange) error {
+		var err error
+		object, err = txStorage.Update(ctx, newObject, changes...)
+		return err
+	})
+
+	if err = c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
+		return transactionOp(ctx, storage, object, changes...)
+	}); err != nil {
+		return nil, err
+	}
+
+	object.SetCredentials(nil)
+	return util.NewJSONResponse(http.StatusOK, object)
 }

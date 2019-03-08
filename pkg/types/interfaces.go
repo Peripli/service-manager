@@ -39,6 +39,7 @@ type Object interface {
 	SetCreatedAt(time time.Time)
 	GetCreatedAt() time.Time
 	SetUpdatedAt(time time.Time)
+	GetUpdatedAt() time.Time
 }
 
 type ObjectList interface {

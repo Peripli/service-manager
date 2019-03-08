@@ -61,6 +61,10 @@ type ServicePlan struct {
 	ServiceOfferingID string `json:"service_offering_id"`
 }
 
+func (sp *ServicePlan) GetUpdatedAt() time.Time {
+	return sp.UpdatedAt
+}
+
 func (sp *ServicePlan) GetCreatedAt() time.Time {
 	return sp.CreatedAt
 }

@@ -17,8 +17,6 @@
 package broker
 
 import (
-	"net/http"
-
 	"github.com/Peripli/service-manager/api/base"
 
 	"github.com/Peripli/service-manager/pkg/extension"
@@ -29,10 +27,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
-)
-
-const (
-	reqBrokerID = "broker_id"
 )
 
 var _ web.Controller = &Controller{}
@@ -48,67 +42,19 @@ func NewController(repository storage.Repository, encrypter security.Encrypter, 
 			Repository:      repository,
 			ObjectBlueprint: func() types.Object { return &types.Broker{} },
 			ObjectType:      types.BrokerType,
-			PathParamID:     reqBrokerID,
-			CreateHookFunc: func(objectType types.ObjectType) extension.CreateHook {
+			ResourceBaseURL: web.BrokersURL,
+			CreateInterceptorProvider: func() extension.CreateInterceptor {
 				return &CreateBrokerHook{
 					OSBClientCreateFunc: osbClientCreateFunc,
 					Encrypter:           encrypter,
 				}
 			},
-			UpdateHookFunc: func(objectType types.ObjectType) extension.UpdateHook {
+			UpdateInterceptorProvider: func() extension.UpdateInterceptor {
 				return &UpdateBrokerHook{
 					OSBClientCreateFunc: osbClientCreateFunc,
 					Encrypter:           encrypter,
 				}
 			},
-		},
-	}
-}
-
-// Routes returns slice of routes which handle broker operations
-func (c *Controller) Routes() []web.Route {
-	return []web.Route{
-		{
-			Endpoint: web.Endpoint{
-				Method: http.MethodPost,
-				Path:   web.BrokersURL,
-			},
-			Handler: c.CreateObject,
-		},
-		{
-			Endpoint: web.Endpoint{
-				Method: http.MethodGet,
-				Path:   web.BrokersURL + "/{broker_id}",
-			},
-			Handler: c.GetSingleObject,
-		},
-		{
-			Endpoint: web.Endpoint{
-				Method: http.MethodGet,
-				Path:   web.BrokersURL,
-			},
-			Handler: c.ListObjects,
-		},
-		{
-			Endpoint: web.Endpoint{
-				Method: http.MethodDelete,
-				Path:   web.BrokersURL,
-			},
-			Handler: c.DeleteObjects,
-		},
-		{
-			Endpoint: web.Endpoint{
-				Method: http.MethodDelete,
-				Path:   web.BrokersURL + "/{broker_id}",
-			},
-			Handler: c.DeleteSingleObject,
-		},
-		{
-			Endpoint: web.Endpoint{
-				Method: http.MethodPatch,
-				Path:   web.BrokersURL + "/{broker_id}",
-			},
-			Handler: c.PatchObject,
 		},
 	}
 }

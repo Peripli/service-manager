@@ -53,6 +53,30 @@ type Visibility struct {
 	Labels        Labels    `json:"labels,omitempty"`
 }
 
+func (v *Visibility) SetID(id string) {
+	panic("implement me")
+}
+
+func (v *Visibility) GetID() string {
+	panic("implement me")
+}
+
+func (v *Visibility) SetCreatedAt(time time.Time) {
+	panic("implement me")
+}
+
+func (v *Visibility) GetCreatedAt() time.Time {
+	panic("implement me")
+}
+
+func (v *Visibility) SetUpdatedAt(time time.Time) {
+	panic("implement me")
+}
+
+func (v *Visibility) GetUpdatedAt() time.Time {
+	panic("implement me")
+}
+
 func (v *Visibility) SetCredentials(credentials *Credentials) {
 
 }

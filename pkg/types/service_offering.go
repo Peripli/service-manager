@@ -65,6 +65,10 @@ type ServiceOffering struct {
 	Plans    []*ServicePlan `json:"plans"`
 }
 
+func (so *ServiceOffering) GetUpdatedAt() time.Time {
+	return so.UpdatedAt
+}
+
 func (so *ServiceOffering) GetCreatedAt() time.Time {
 	return so.CreatedAt
 }

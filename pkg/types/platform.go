@@ -37,6 +37,10 @@ type Platform struct {
 	Credentials *Credentials `json:"credentials,omitempty"`
 }
 
+func (e *Platform) GetUpdatedAt() time.Time {
+	panic("implement me")
+}
+
 func (e *Platform) SetID(id string) {
 	e.ID = id
 }

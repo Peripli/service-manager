@@ -39,6 +39,10 @@ type Broker struct {
 	Labels Labels `json:"labels,omitempty"`
 }
 
+func (e *Broker) GetUpdatedAt() time.Time {
+	return e.UpdatedAt
+}
+
 func (e *Broker) GetCreatedAt() time.Time {
 	return e.CreatedAt
 }

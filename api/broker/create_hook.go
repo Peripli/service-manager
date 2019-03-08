@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/Peripli/service-manager/pkg/extension"
+
 	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -35,89 +37,87 @@ type CreateBrokerHook struct {
 	catalog             *osbc.CatalogResponse
 }
 
-func (c *CreateBrokerHook) OnAPI(ctx context.Context, apiFunc func() (types.Object, error)) (types.Object, error) {
-	result, err := apiFunc()
-	if err != nil {
-		return nil, err
+func (c *CreateBrokerHook) OnAPI(h extension.InterceptCreateOnAPI) extension.InterceptCreateOnAPI {
+	return func(ctx context.Context, obj types.Object) (types.Object, error) {
+		object, err := h(ctx, obj)
+		if err != nil {
+			return nil, err
+		}
+		broker := object.(*types.Broker)
+		c.catalog, err = getBrokerCatalog(ctx, c.OSBClientCreateFunc, broker) // keep catalog to be stored later
+		if err != nil {
+			return nil, err
+		}
+		if err = transformBrokerCredentials(ctx, broker, c.Encrypter.Encrypt); err != nil {
+			return nil, err
+		}
+		return broker, nil
 	}
-	broker := result.(*types.Broker)
-	c.catalog, err = getBrokerCatalog(ctx, c.OSBClientCreateFunc, broker) // keep catalog to be stored later
-	if err != nil {
-		return nil, err
-	}
-	if err = transformBrokerCredentials(ctx, broker, c.Encrypter.Encrypt); err != nil {
-		return nil, err
-	}
-	return broker, nil
 }
 
-func (c *CreateBrokerHook) OnTransaction(ctx context.Context, storage storage.Warehouse, transactionFunc func() (types.Object, error)) error {
-	object, err := transactionFunc() // create broker first
-	if err != nil {
-		return err
-	}
-	broker := object.(*types.Broker)
-	for _, service := range c.catalog.Services {
-		serviceOffering := &types.ServiceOffering{}
-		err := osbcCatalogServiceToServiceOffering(serviceOffering, &service)
-		if err != nil {
+func (c *CreateBrokerHook) OnTransaction(f extension.InterceptCreateOnTransaction) extension.InterceptCreateOnTransaction {
+	return func(ctx context.Context, storage storage.Warehouse, broker types.Object) error {
+		if err := f(ctx, storage, broker); err != nil {
 			return err
 		}
-		serviceUUID, err := uuid.NewV4()
-		if err != nil {
-			return fmt.Errorf("could not generate GUID for service: %s", err)
-		}
-		serviceOffering.ID = serviceUUID.String()
-		serviceOffering.CreatedAt = broker.CreatedAt
-		serviceOffering.UpdatedAt = broker.UpdatedAt
-		serviceOffering.BrokerID = broker.ID
-
-		if err := serviceOffering.Validate(); err != nil {
-			return &util.HTTPError{
-				ErrorType:   "BadRequest",
-				Description: fmt.Sprintf("service offering constructed during catalog insertion for broker %s is invalid: %s", broker.ID, err),
-				StatusCode:  http.StatusBadRequest,
-			}
-		}
-
-		var serviceID string
-		if serviceID, err = storage.Create(ctx, serviceOffering); err != nil {
-			return util.HandleStorageError(err, "service_offering")
-		}
-		serviceOffering.ID = serviceID
-		for planIndex := range service.Plans {
-			servicePlan := &types.ServicePlan{}
-			err := osbcCatalogPlanToServicePlan(servicePlan, &catalogPlanWithServiceOfferingID{
-				Plan:            &service.Plans[planIndex],
-				ServiceOffering: serviceOffering,
-			})
+		for _, service := range c.catalog.Services {
+			serviceOffering := &types.ServiceOffering{}
+			err := osbcCatalogServiceToServiceOffering(serviceOffering, &service)
 			if err != nil {
 				return err
 			}
-			planUUID, err := uuid.NewV4()
+			serviceUUID, err := uuid.NewV4()
 			if err != nil {
-				return fmt.Errorf("could not generate GUID for service_plan: %s", err)
+				return fmt.Errorf("could not generate GUID for service: %s", err)
 			}
-			servicePlan.ID = planUUID.String()
-			servicePlan.CreatedAt = broker.CreatedAt
-			servicePlan.UpdatedAt = broker.UpdatedAt
+			serviceOffering.ID = serviceUUID.String()
+			serviceOffering.CreatedAt = broker.GetCreatedAt()
+			serviceOffering.UpdatedAt = broker.GetUpdatedAt()
+			serviceOffering.BrokerID = broker.GetID()
 
-			if err := servicePlan.Validate(); err != nil {
+			if err := serviceOffering.Validate(); err != nil {
 				return &util.HTTPError{
 					ErrorType:   "BadRequest",
-					Description: fmt.Sprintf("service plan constructed during catalog insertion for broker %s is invalid: %s", broker.ID, err),
+					Description: fmt.Sprintf("service offering constructed during catalog insertion for broker %s is invalid: %s", broker.GetID(), err),
 					StatusCode:  http.StatusBadRequest,
 				}
 			}
 
-			if _, err := storage.Create(ctx, servicePlan); err != nil {
-				return util.HandleStorageError(err, "service_plan")
+			var serviceID string
+			if serviceID, err = storage.Create(ctx, serviceOffering); err != nil {
+				return util.HandleStorageError(err, "service_offering")
+			}
+			serviceOffering.ID = serviceID
+			for planIndex := range service.Plans {
+				servicePlan := &types.ServicePlan{}
+				err := osbcCatalogPlanToServicePlan(servicePlan, &catalogPlanWithServiceOfferingID{
+					Plan:            &service.Plans[planIndex],
+					ServiceOffering: serviceOffering,
+				})
+				if err != nil {
+					return err
+				}
+				planUUID, err := uuid.NewV4()
+				if err != nil {
+					return fmt.Errorf("could not generate GUID for service_plan: %s", err)
+				}
+				servicePlan.ID = planUUID.String()
+				servicePlan.CreatedAt = broker.GetCreatedAt()
+				servicePlan.UpdatedAt = broker.GetUpdatedAt()
+
+				if err := servicePlan.Validate(); err != nil {
+					return &util.HTTPError{
+						ErrorType:   "BadRequest",
+						Description: fmt.Sprintf("service plan constructed during catalog insertion for broker %s is invalid: %s", broker.GetID(), err),
+						StatusCode:  http.StatusBadRequest,
+					}
+				}
+
+				if _, err := storage.Create(ctx, servicePlan); err != nil {
+					return util.HandleStorageError(err, "service_plan")
+				}
 			}
 		}
+		return nil
 	}
-	return nil
-}
-
-func (*CreateBrokerHook) Supports(objectType types.ObjectType) bool {
-	return objectType == types.BrokerType
 }
