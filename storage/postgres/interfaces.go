@@ -25,6 +25,9 @@ import (
 )
 
 var (
+	//TODO I think we can remove this if we move the translation to the api layer that anyway has to import the storage layer and
+	// if we leverage the fact that we have type specific controllers that in the end will provide the actual type.Object to the
+	// base controller and from their onwards we can rely on that
 	knownEntities = make(map[types.ObjectType]Entity)
 )
 

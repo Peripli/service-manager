@@ -39,9 +39,11 @@ import (
 const pathParamID = "id"
 
 type Controller struct {
-	ResourceBaseURL           string
-	ObjectType                types.ObjectType
-	Repository                storage.Repository
+	ResourceBaseURL string
+	//TODO Object interface here instead
+	ObjectType types.ObjectType
+	Repository storage.Repository
+	//TODO we should be able to do without this parameter
 	ObjectBlueprint           func() types.Object
 	CreateInterceptorProvider extension.CreateInterceptorProvider
 	UpdateInterceptorProvider extension.UpdateInterceptorProvider
@@ -122,6 +124,8 @@ func (c *Controller) CreateObject(r *web.Request) (*web.Response, error) {
 	result.SetUpdatedAt(currentTime)
 
 	onTransaction := createHook.OnTransaction(func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error {
+		//TODO the api layer already imports storage because it uses it so it would make more sense to do a .ToEntity here and then
+		// the storage layer can accept and return entities and won't need to import the api layer types
 		id, err := txStorage.Create(ctx, newObject)
 		if err != nil {
 			return util.HandleStorageError(err, string(c.ObjectType))

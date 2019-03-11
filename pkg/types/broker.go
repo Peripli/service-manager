@@ -23,6 +23,9 @@ import (
 	"errors"
 )
 
+// TODO this gogen (after applying the other TODOs) should be sufficient to generate a controller, a postgres.Entity and the whole storage layer
+// TODO last parameter of the gogen should not be needed - if whoever defined the struct put Labels in it, then it supports labels.
+// TODO you could also move out the fields that implement Object to a struct and have that embedded everywhere together with the methods
 //go:generate smgen api broker labels
 // Broker broker struct
 type Broker struct {

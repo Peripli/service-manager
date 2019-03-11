@@ -18,6 +18,7 @@ package types
 
 import "time"
 
+//TODO after applying the other TODOs i think this becomes unused
 type ObjectType string
 
 const (
@@ -30,11 +31,15 @@ const (
 type Object interface {
 	SetID(id string)
 	GetID() string
+	//TODO return object so that e don't need the map, rename it to EmptyObject or ObjectInstance
 	GetType() ObjectType
+	//TODO well probably since we are generating everything now we can move the Labels to a common.Object that will be embeded in all api types and say everything supports labels
 	SupportsLabels() bool
-	EmptyList() ObjectList
+	EmptyList() ObjectList //TODO (just naming) if you pick ObjectInstance above, this should be ListInstance and the interface should be just List
+	//TODO
 	GetLabels() Labels
 	SetLabels(labels Labels)
+	//TODO only two objects have that so it should probably not be here but i am not certain how to handle removing the credentials on get apis then
 	SetCredentials(credentials *Credentials)
 	SetCreatedAt(time time.Time)
 	GetCreatedAt() time.Time

@@ -31,6 +31,7 @@ func init() {
 	RegisterEntity(types.VisibilityType, &Visibility{})
 }
 
+//TODO extract a base.Object
 type Visibility struct {
 	ID            string         `db:"id"`
 	PlatformID    sql.NullString `db:"platform_id"`
@@ -91,6 +92,7 @@ func (v *Visibility) Labels() EntityLabels {
 	return &visibilityLabels{}
 }
 
+//TODO make these generated as well (everything is easy execept user,pass -> credentials
 func (v *Visibility) ToObject() types.Object {
 	return &types.Visibility{
 		ID:            v.ID,

@@ -45,6 +45,7 @@ func (c *createHookOnAPIHandler) OnTransaction(f InterceptCreateOnTransaction) I
 	return f
 }
 
+//TODO I Dont see much a of a point for the array to array-warpper thingy (union) - just put the array in the controller
 func UnionCreateInterceptor(providers ...CreateInterceptorProvider) CreateInterceptorProvider {
 	return func() CreateInterceptor {
 		c := &createHookOnAPIHandler{}
