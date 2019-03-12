@@ -94,6 +94,9 @@ func (s *Scheme) StorageLabelsToType(labels []Label) types.Labels {
 }
 
 func (s *Scheme) TypeLabelsToEntity(entityID string, objectType types.ObjectType, labels types.Labels) ([]Label, error) {
+	if len(labels) == 0 {
+		return []Label{}, nil
+	}
 	for _, c := range s.converters {
 		if l, ok, err := c.LabelsToStorage(entityID, objectType, labels); ok && err == nil {
 			return l, nil

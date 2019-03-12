@@ -92,6 +92,7 @@ func (ps *postgresStorage) Open(options *storage.Settings, scheme *storage.Schem
 		}
 		ps.scheme = scheme
 		InstallBroker(ps.scheme)
+		InstallServiceOffering(ps.scheme)
 	}
 	return err
 }
@@ -144,7 +145,7 @@ func (ps *postgresStorage) provide(objectType types.ObjectType) (Entity, error) 
 func (ps *postgresStorage) Create(ctx context.Context, obj types.Object) (string, error) {
 	e, ok := ps.scheme.ObjectToEntity(obj)
 	if !ok {
-		return "", fmt.Errorf("object of this type is not introduced to the storage")
+		return "", fmt.Errorf("object of type %s is not introduced to the storage", obj.GetType())
 	}
 	pgEntity := e.(Entity)
 	id, err := create(ctx, ps.pdDB, pgEntity.TableName(), pgEntity)

@@ -67,7 +67,7 @@ func (e Platform) LabelEntity() LabelEntity {
 //
 func (p Platform) ToObject() types.Object {
 	return &types.Platform{
-		Base: &types.Base{
+		Base: types.Base{
 			ID:        p.ID,
 			CreatedAt: p.CreatedAt,
 			UpdatedAt: p.UpdatedAt,

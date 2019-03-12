@@ -83,3 +83,14 @@ func rowsToList(rows *sqlx.Rows, row EntityLabelRow, result types.ObjectList) er
 	}
 	return nil
 }
+
+func rowsToListNoLabels(rows *sqlx.Rows, blueprint func() types.Object, result types.ObjectList) error {
+	for rows.Next() {
+		item := blueprint()
+		if err := rows.StructScan(&item); err != nil {
+			return err
+		}
+		result.Add(item)
+	}
+	return nil
+}

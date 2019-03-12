@@ -52,12 +52,11 @@ func (e *Base) SupportsLabels() bool {
 	return false
 }
 
-func (e *Base) SetLabels(labels Labels) {
-	return
-}
-
 func (e *Base) GetLabels() Labels {
 	return Labels{}
+}
+
+func (e *Base) SetLabels(labels Labels) {
 }
 
 type BaseLabelled struct {

@@ -26,7 +26,7 @@ import (
 //go:generate smgen api ServicePlan none
 // Service Plan struct
 type ServicePlan struct {
-	*Base
+	Base
 	Name        string `json:"name"`
 	Description string `json:"description"`
 

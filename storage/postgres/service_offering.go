@@ -20,12 +20,15 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Peripli/service-manager/storage"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
 type serviceOfferingStorage struct {
-	db pgDB
+	db     pgDB
+	scheme *storage.Scheme
 }
 
 func (sos *serviceOfferingStorage) ListWithServicePlansByBrokerID(ctx context.Context, brokerID string) ([]*types.ServiceOffering, error) {
@@ -74,7 +77,11 @@ func (sos *serviceOfferingStorage) ListWithServicePlansByBrokerID(ctx context.Co
 		}
 
 		if serviceOffering, ok := services[row.ServiceOffering.ID]; !ok {
-			serviceOffering = row.ServiceOffering.ToObject().(*types.ServiceOffering)
+			object, okk := sos.scheme.EntityToObject(row.ServiceOffering)
+			if !okk {
+				return nil, fmt.Errorf("could not convert SO entity to object")
+			}
+			serviceOffering = object.(*types.ServiceOffering)
 			serviceOffering.Plans = append(serviceOffering.Plans, row.ServicePlan.ToObject().(*types.ServicePlan))
 
 			services[row.ServiceOffering.ID] = serviceOffering

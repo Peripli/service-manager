@@ -52,10 +52,14 @@ func (b *BrokerTransformer) EntityFromStorage(entity storage.Entity) (types.Obje
 		return nil, false
 	}
 	broker := &types.Broker{
-		ID:          br.ID,
-		CreatedAt:   br.CreatedAt,
-		UpdatedAt:   br.UpdatedAt,
-		Labels:      map[string][]string{},
+		BaseLabelled: types.BaseLabelled{
+			Base: types.Base{
+				ID:        br.ID,
+				CreatedAt: br.CreatedAt,
+				UpdatedAt: br.UpdatedAt,
+			},
+			Labels: map[string][]string{},
+		},
 		Name:        br.Name,
 		Description: br.Description.String,
 		BrokerURL:   br.BrokerURL,

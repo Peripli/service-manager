@@ -20,6 +20,8 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/Peripli/service-manager/storage"
+
 	"github.com/jmoiron/sqlx"
 
 	"github.com/Peripli/service-manager/pkg/types"
@@ -60,8 +62,12 @@ type Safe struct {
 //	RegisterEntity(types.ServiceOfferingType, &ServiceOffering{})
 //}
 
+func InstallServiceOffering(scheme *storage.Scheme) {
+	scheme.Introduce(&types.ServiceOffering{}, &ServiceOffering{}, &ServiceOfferingConverter{})
+}
+
 type ServiceOffering struct {
-	*BaseEntity
+	BaseEntity
 	Name        string `db:"name"`
 	Description string `db:"description"`
 
@@ -83,26 +89,6 @@ func (so *ServiceOffering) LabelEntity() LabelEntity {
 	return nil
 }
 
-func (so *ServiceOffering) GetType() types.ObjectType {
-	panic("implement me")
-}
-
-func (so *ServiceOffering) SupportsLabels() bool {
-	panic("implement me")
-}
-
-func (so *ServiceOffering) GetLabels() types.Labels {
-	panic("implement me")
-}
-
-func (so *ServiceOffering) EmptyList() types.ObjectList {
-	panic("implement me")
-}
-
-func (so *ServiceOffering) WithLabels(labels types.Labels) types.Object {
-	panic("implement me")
-}
-
 func (so *ServiceOffering) GetID() string {
 	return so.ID
 }
@@ -119,26 +105,42 @@ func (so *ServiceOffering) Empty() Entity {
 	return &ServiceOffering{}
 }
 
-func (so *ServiceOffering) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
-	target := []*ServiceOffering{}
-	for rows.Next() {
-		var item ServiceOffering
-		if err := rows.StructScan(&item); err != nil {
-			return nil, err
-		}
-		target = append(target, &item)
-	}
-	result := &types.ServiceOfferings{}
-	for _, v := range target {
-		result.Add(v.ToObject())
-	}
-	return result, nil
+type ServiceOfferingConverter struct {
 }
 
-func (so *ServiceOffering) FromObject(object types.Object) Entity {
-	offering := object.(*types.ServiceOffering)
+func (*ServiceOfferingConverter) EntityFromStorage(entity storage.Entity) (types.Object, bool) {
+	so, ok := entity.(*ServiceOffering)
+	if !ok {
+		return nil, false
+	}
+	return &types.ServiceOffering{
+		Base: types.Base{
+			ID:        so.ID,
+			CreatedAt: so.CreatedAt,
+			UpdatedAt: so.UpdatedAt,
+		},
+		Name:                 so.Name,
+		Description:          so.Description,
+		Bindable:             so.Bindable,
+		InstancesRetrievable: so.InstancesRetrievable,
+		BindingsRetrievable:  so.BindingsRetrievable,
+		PlanUpdatable:        so.PlanUpdatable,
+		CatalogID:            so.CatalogID,
+		CatalogName:          so.CatalogName,
+		Tags:                 getJSONRawMessage(so.Tags),
+		Requires:             getJSONRawMessage(so.Requires),
+		Metadata:             getJSONRawMessage(so.Metadata),
+		BrokerID:             so.BrokerID,
+	}, true
+}
+
+func (*ServiceOfferingConverter) EntityToStorage(object types.Object) (storage.Entity, bool) {
+	offering, ok := object.(*types.ServiceOffering)
+	if !ok {
+		return nil, false
+	}
 	result := &ServiceOffering{
-		BaseEntity: &BaseEntity{
+		BaseEntity: BaseEntity{
 			ID:        offering.ID,
 			CreatedAt: offering.CreatedAt,
 			UpdatedAt: offering.UpdatedAt,
@@ -156,29 +158,17 @@ func (so *ServiceOffering) FromObject(object types.Object) Entity {
 		Metadata:             getJSONText(offering.Metadata),
 		BrokerID:             offering.BrokerID,
 	}
-	return result
+	return result, true
 }
 
-func (so *ServiceOffering) ToObject() types.Object {
-	return &types.ServiceOffering{
-		Base: &types.Base{
-			ID:        so.ID,
-			CreatedAt: so.CreatedAt,
-			UpdatedAt: so.UpdatedAt,
-		},
-		Name:                 so.Name,
-		Description:          so.Description,
-		Bindable:             so.Bindable,
-		InstancesRetrievable: so.InstancesRetrievable,
-		BindingsRetrievable:  so.BindingsRetrievable,
-		PlanUpdatable:        so.PlanUpdatable,
-		CatalogID:            so.CatalogID,
-		CatalogName:          so.CatalogName,
-		Tags:                 getJSONRawMessage(so.Tags),
-		Requires:             getJSONRawMessage(so.Requires),
-		Metadata:             getJSONRawMessage(so.Metadata),
-		BrokerID:             so.BrokerID,
-	}
+func (*ServiceOfferingConverter) LabelsToStorage(entityID string, objectType types.ObjectType, labels types.Labels) ([]storage.Label, bool, error) {
+	return []storage.Label{}, false, nil
+}
+
+func (so *ServiceOffering) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
+	result := &types.ServiceOfferings{}
+	err := rowsToListNoLabels(rows, func() types.Object { return &types.ServiceOffering{} }, result)
+	return result, err
 }
 
 func getJSONText(item json.RawMessage) sqlxtypes.JSONText {

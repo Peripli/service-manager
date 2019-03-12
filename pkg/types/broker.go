@@ -19,59 +19,18 @@ package types
 
 import (
 	"errors"
-	"time"
 )
 
 //go:generate smgen api broker labels
 // Broker broker struct
 type Broker struct {
 	Secured
-	ID          string       `json:"id"`
-	CreatedAt   time.Time    `json:"created_at"`
-	UpdatedAt   time.Time    `json:"updated_at"`
-	Name        string       `json:"name"`
-	Description string       `json:"description"`
-	BrokerURL   string       `json:"broker_url"`
-	Credentials *Credentials `json:"credentials,omitempty" structs:"-"`
-	Labels      Labels       `json:"labels,omitempty"`
-
-	Services []*ServiceOffering `json:"services,omitempty" structs:"-"`
-}
-
-func (e *Broker) SetID(id string) {
-	e.ID = id
-}
-
-func (e *Broker) GetID() string {
-	return e.ID
-}
-
-func (e *Broker) SupportsLabels() bool {
-	return true
-}
-
-func (e *Broker) GetLabels() Labels {
-	return e.Labels
-}
-
-func (e *Broker) SetLabels(labels Labels) {
-	e.Labels = labels
-}
-
-func (e *Broker) SetCreatedAt(time time.Time) {
-	e.CreatedAt = time
-}
-
-func (e *Broker) GetCreatedAt() time.Time {
-	return e.CreatedAt
-}
-
-func (e *Broker) SetUpdatedAt(time time.Time) {
-	e.UpdatedAt = time
-}
-
-func (e *Broker) GetUpdatedAt() time.Time {
-	return e.UpdatedAt
+	BaseLabelled
+	Name        string             `json:"name"`
+	Description string             `json:"description"`
+	BrokerURL   string             `json:"broker_url"`
+	Credentials *Credentials       `json:"credentials,omitempty" structs:"-"`
+	Services    []*ServiceOffering `json:"services,omitempty" structs:"-"`
 }
 
 func (e *Broker) SetCredentials(credentials *Credentials) {

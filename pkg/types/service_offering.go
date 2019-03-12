@@ -27,7 +27,7 @@ import (
 //go:generate smgen api ServiceOffering none
 // Service Offering struct
 type ServiceOffering struct {
-	*Base
+	Base
 	Name        string `json:"name"`
 	Description string `json:"description"`
 

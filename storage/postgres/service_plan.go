@@ -83,7 +83,7 @@ func (sp *ServicePlan) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
 
 func (sp *ServicePlan) ToObject() types.Object {
 	return &types.ServicePlan{
-		Base: &types.Base{
+		Base: types.Base{
 			ID:        sp.ID,
 			CreatedAt: sp.CreatedAt,
 			UpdatedAt: sp.UpdatedAt,

@@ -27,7 +27,7 @@ import (
 // Platform platform struct
 type Platform struct {
 	Secured
-	*Base
+	Base
 	Type        string       `json:"type"`
 	Name        string       `json:"name"`
 	Description string       `json:"description"`
