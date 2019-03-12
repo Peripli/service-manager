@@ -34,7 +34,7 @@ const (
 	brokerTable = "brokers"
 
 	// brokerLabelsTable db table for broker labels
-	brokerLabelsTable = "broker_labels"
+	brokerLabelsTable = "DeleteInterceptor"
 
 	// serviceOfferingTable db table for service offerings
 	serviceOfferingTable = "service_offerings"
@@ -56,16 +56,14 @@ type Safe struct {
 	UpdatedAt time.Time `db:"updated_at"`
 }
 
-func init() {
-	RegisterEntity(types.ServiceOfferingType, &ServiceOffering{})
-}
+//func init() {
+//	RegisterEntity(types.ServiceOfferingType, &ServiceOffering{})
+//}
 
 type ServiceOffering struct {
-	ID          string    `db:"id"`
-	Name        string    `db:"name"`
-	Description string    `db:"description"`
-	CreatedAt   time.Time `db:"created_at"`
-	UpdatedAt   time.Time `db:"updated_at"`
+	*BaseEntity
+	Name        string `db:"name"`
+	Description string `db:"description"`
 
 	Bindable             bool   `db:"bindable"`
 	InstancesRetrievable bool   `db:"instances_retrievable"`
@@ -79,6 +77,10 @@ type ServiceOffering struct {
 	Metadata sqlxtypes.JSONText `db:"metadata"`
 
 	BrokerID string `db:"broker_id"`
+}
+
+func (so *ServiceOffering) LabelEntity() LabelEntity {
+	return nil
 }
 
 func (so *ServiceOffering) GetType() types.ObjectType {
@@ -133,18 +135,16 @@ func (so *ServiceOffering) RowsToList(rows *sqlx.Rows) (types.ObjectList, error)
 	return result, nil
 }
 
-func (so *ServiceOffering) Labels() EntityLabels {
-	return nil
-}
-
 func (so *ServiceOffering) FromObject(object types.Object) Entity {
 	offering := object.(*types.ServiceOffering)
 	result := &ServiceOffering{
-		ID:                   offering.ID,
+		BaseEntity: &BaseEntity{
+			ID:        offering.ID,
+			CreatedAt: offering.CreatedAt,
+			UpdatedAt: offering.UpdatedAt,
+		},
 		Name:                 offering.Name,
 		Description:          offering.Description,
-		CreatedAt:            offering.CreatedAt,
-		UpdatedAt:            offering.UpdatedAt,
 		Bindable:             offering.Bindable,
 		InstancesRetrievable: offering.InstancesRetrievable,
 		BindingsRetrievable:  offering.BindingsRetrievable,
@@ -161,11 +161,13 @@ func (so *ServiceOffering) FromObject(object types.Object) Entity {
 
 func (so *ServiceOffering) ToObject() types.Object {
 	return &types.ServiceOffering{
-		ID:                   so.ID,
+		Base: &types.Base{
+			ID:        so.ID,
+			CreatedAt: so.CreatedAt,
+			UpdatedAt: so.UpdatedAt,
+		},
 		Name:                 so.Name,
 		Description:          so.Description,
-		CreatedAt:            so.CreatedAt,
-		UpdatedAt:            so.UpdatedAt,
 		Bindable:             so.Bindable,
 		InstancesRetrievable: so.InstancesRetrievable,
 		BindingsRetrievable:  so.BindingsRetrievable,

@@ -21,6 +21,7 @@ import (
 	"html/template"
 	"os"
 	"strings"
+	"unicode"
 )
 
 const APITypesDirectory = "github.com/Peripli/service-manager/pkg/types"
@@ -37,17 +38,27 @@ type ApiType struct {
 
 func GenerateApiTypeFile(apiTypeDir, packageName, typeName string, supportsLabels bool) error {
 	typeNamePlural := fmt.Sprintf("%ss", typeName)
+	if strings.HasSuffix(typeName, "y") {
+		typeNamePlural = fmt.Sprintf("%sies", typeName[:len(typeName)-1])
+	}
 	t := template.Must(template.New("generate-api-type").Parse(API_TYPE_TEMPLATE))
 	var typesPackageImport string
 	typesPackage := ""
 	if !strings.Contains(apiTypeDir, APITypesDirectory) {
 		typesPackage = "types."
-		typesPackageImport = APITypesDirectory
+		typesPackageImport = fmt.Sprintf(`"%s"`, APITypesDirectory)
+	}
+	builder := strings.Builder{}
+	for i, char := range typeNamePlural {
+		if unicode.IsUpper(char) && i > 0 {
+			builder.WriteRune('_')
+		}
+		builder.WriteRune(unicode.ToLower(char))
 	}
 	apiType := ApiType{
 		PackageName:         packageName,
 		TypePlural:          typeNamePlural,
-		TypePluralLowercase: strings.ToLower(typeNamePlural),
+		TypePluralLowercase: builder.String(),
 		SupportsLabels:      supportsLabels,
 		Type:                typeName,
 		TypesPackage:        typesPackage,

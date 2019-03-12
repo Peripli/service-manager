@@ -4,18 +4,20 @@ package postgres
 
 import (
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
 	"github.com/jmoiron/sqlx"
 
 	"database/sql"
-	"fmt"
 	"time"
-
-	"github.com/gofrs/uuid"
 )
 
-func (Broker) Empty() Entity {
-	return Broker{}
-}
+//func (e *Broker) SetID(id string) {
+//	e.ID = id
+//}
+//
+//func (e *Broker) GetID() string {
+//	return e.ID
+//}
 
 func (Broker) PrimaryColumn() string {
 	return "id"
@@ -25,44 +27,17 @@ func (Broker) TableName() string {
 	return "brokers"
 }
 
-func (e Broker) GetID() string {
-	return e.ID
-}
-
-func (e Broker) Labels() EntityLabels {
-	return brokerLabels{}
+func (e Broker) LabelEntity() LabelEntity {
+	return &BrokerLabel{}
 }
 
 func (e Broker) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
-	entities := make(map[string]*types.Broker)
-	labels := make(map[string]map[string][]string)
-	result := &types.Brokers{
-		Brokers: make([]*types.Broker, 0),
-	}
-	for rows.Next() {
-		row := struct {
-			*Broker
-			*BrokerLabel `db:"broker_labels"`
-		}{}
-		if err := rows.StructScan(&row); err != nil {
-			return nil, err
-		}
-		entity, ok := entities[row.Broker.ID]
-		if !ok {
-			entity = row.Broker.ToObject().(*types.Broker)
-			entities[row.Broker.ID] = entity
-			result.Brokers = append(result.Brokers, entity)
-		}
-		if labels[entity.ID] == nil {
-			labels[entity.ID] = make(map[string][]string)
-		}
-		labels[entity.ID][row.BrokerLabel.Key.String] = append(labels[entity.ID][row.BrokerLabel.Key.String], row.BrokerLabel.Val.String)
-	}
-
-	for _, b := range result.Brokers {
-		b.Labels = labels[b.ID]
-	}
-	return result, nil
+	row := struct {
+		*Broker
+		*BrokerLabel `db:"broker_labels"`
+	}{}
+	result := &types.Brokers{}
+	return result, rowsToList(rows, row, result)
 }
 
 type BrokerLabel struct {
@@ -74,81 +49,38 @@ type BrokerLabel struct {
 	BrokerID  sql.NullString `db:"broker_id"`
 }
 
-func (el BrokerLabel) TableName() string {
-	return "broker_labels"
-}
-
-func (el BrokerLabel) PrimaryColumn() string {
+func (el *BrokerLabel) LabelsPrimaryColumn() string {
 	return "id"
 }
 
-func (el BrokerLabel) ReferenceColumn() string {
+func (el *BrokerLabel) LabelsTableName() string {
+	return "broker_labels"
+}
+
+func (el *BrokerLabel) ReferenceColumn() string {
 	return "broker_id"
 }
 
-func (el BrokerLabel) Empty() Label {
-	return BrokerLabel{}
-}
-
-func (el BrokerLabel) New(entityID, id, key, value string) Label {
-	now := time.Now()
-	return BrokerLabel{
-		ID:        sql.NullString{String: id, Valid: id != ""},
-		Key:       sql.NullString{String: key, Valid: key != ""},
-		Val:       sql.NullString{String: value, Valid: value != ""},
-		BrokerID:  sql.NullString{String: entityID, Valid: entityID != ""},
-		CreatedAt: &now,
-		UpdatedAt: &now,
-	}
-}
-
-func (el BrokerLabel) GetKey() string {
-	return el.Key.String
-}
-
-func (el BrokerLabel) GetValue() string {
-	return el.Val.String
-}
-
-type brokerLabels []*BrokerLabel
-
-func (el brokerLabels) Single() Label {
+func (el *BrokerLabel) NewLabelInstance() storage.Label {
 	return &BrokerLabel{}
 }
 
-func (el brokerLabels) FromDTO(entityID string, labels types.Labels) ([]Label, error) {
-	var result []Label
+func (el *BrokerLabel) New(entityID, id, key, value string) storage.Label {
 	now := time.Now()
-	for key, values := range labels {
-		for _, labelValue := range values {
-			UUID, err := uuid.NewV4()
-			if err != nil {
-				return nil, fmt.Errorf("could not generate GUID for broker label: %s", err)
-			}
-			id := UUID.String()
-			bLabel := &BrokerLabel{
-				ID:        sql.NullString{String: id, Valid: id != ""},
-				Key:       sql.NullString{String: key, Valid: key != ""},
-				Val:       sql.NullString{String: labelValue, Valid: labelValue != ""},
-				CreatedAt: &now,
-				UpdatedAt: &now,
-				BrokerID:  sql.NullString{String: entityID, Valid: entityID != ""},
-			}
-			result = append(result, bLabel)
-		}
+	return &BrokerLabel{
+		ID:        sql.NullString{String: id, Valid: id != ""},
+		Key:       sql.NullString{String: key, Valid: key != ""},
+		Val:       sql.NullString{String: value, Valid: value != ""},
+		CreatedAt: &now,
+		UpdatedAt: &now,
+		BrokerID:  sql.NullString{String: entityID, Valid: entityID != ""},
 	}
-	return result, nil
 }
 
-func (els brokerLabels) ToDTO() types.Labels {
-	labelValues := make(map[string][]string)
-	for _, label := range els {
-		values, exists := labelValues[label.Key.String]
-		if exists {
-			labelValues[label.Key.String] = append(values, label.Val.String)
-		} else {
-			labelValues[label.Key.String] = []string{label.Val.String}
-		}
-	}
-	return labelValues
+func (el *BrokerLabel) GetKey() string {
+	return el.Key.String
+}
+
+func (el *BrokerLabel) GetValue() string {
+	return el.Val.String
 }

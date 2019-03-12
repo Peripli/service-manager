@@ -23,10 +23,6 @@ func (e Platform) GetID() string {
 	return e.ID
 }
 
-func (e Platform) Labels() EntityLabels {
-	return nil
-}
-
 func (e Platform) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
 	result := &types.Platforms{}
 	for rows.Next() {
@@ -34,7 +30,7 @@ func (e Platform) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
 		if err := rows.StructScan(&item); err != nil {
 			return nil, err
 		}
-		result.Add(item.ToObject())
+		//result.Add(item.ToObject())
 	}
 	return result, nil
 }

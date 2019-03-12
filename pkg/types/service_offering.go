@@ -20,35 +20,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
-// ServiceOfferings struct
-type ServiceOfferings struct {
-	ServiceOfferings []*ServiceOffering `json:"services"`
-}
-
-func (sos *ServiceOfferings) Add(object Object) {
-	sos.ServiceOfferings = append(sos.ServiceOfferings, object.(*ServiceOffering))
-}
-
-func (sos *ServiceOfferings) ItemAt(index int) Object {
-	return sos.ServiceOfferings[index]
-}
-
-func (sos *ServiceOfferings) Len() int {
-	return len(sos.ServiceOfferings)
-}
-
+//go:generate smgen api ServiceOffering none
 // Service Offering struct
 type ServiceOffering struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	*Base
+	Name        string `json:"name"`
+	Description string `json:"description"`
 
 	Bindable             bool   `json:"bindable"`
 	InstancesRetrievable bool   `json:"instances_retrievable"`
@@ -65,74 +46,8 @@ type ServiceOffering struct {
 	Plans    []*ServicePlan `json:"plans"`
 }
 
-func (so *ServiceOffering) GetUpdatedAt() time.Time {
-	return so.UpdatedAt
-}
-
-func (so *ServiceOffering) GetCreatedAt() time.Time {
-	return so.CreatedAt
-}
-
-func (so *ServiceOffering) SetID(id string) {
-	so.ID = id
-}
-
-func (so *ServiceOffering) GetID() string {
-	return so.ID
-}
-
-func (so *ServiceOffering) SetCreatedAt(time time.Time) {
-	so.CreatedAt = time
-}
-
-func (so *ServiceOffering) SetUpdatedAt(time time.Time) {
-	so.UpdatedAt = time
-}
-
 func (so *ServiceOffering) SetCredentials(credentials *Credentials) {
 	return
-}
-
-func (so *ServiceOffering) SupportsLabels() bool {
-	return false
-}
-
-func (so *ServiceOffering) GetType() ObjectType {
-	return ServiceOfferingType
-}
-
-func (so *ServiceOffering) GetLabels() Labels {
-	return Labels{}
-}
-
-func (so *ServiceOffering) EmptyList() ObjectList {
-	return &ServiceOfferings{ServiceOfferings: make([]*ServiceOffering, 0)}
-}
-
-func (so *ServiceOffering) SetLabels(labels Labels) {
-	return
-}
-
-// MarshalJSON override json serialization for http response
-func (so *ServiceOffering) MarshalJSON() ([]byte, error) {
-	type SO ServiceOffering
-	toMarshal := struct {
-		CreatedAt *string `json:"created_at,omitempty"`
-		UpdatedAt *string `json:"updated_at,omitempty"`
-		*SO
-	}{
-		SO: (*SO)(so),
-	}
-
-	if !so.CreatedAt.IsZero() {
-		str := util.ToRFCFormat(so.CreatedAt)
-		toMarshal.CreatedAt = &str
-	}
-	if !so.UpdatedAt.IsZero() {
-		str := util.ToRFCFormat(so.UpdatedAt)
-		toMarshal.UpdatedAt = &str
-	}
-	return json.Marshal(toMarshal)
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

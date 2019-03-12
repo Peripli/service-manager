@@ -121,7 +121,7 @@ func (c *Controller) deletePlatforms(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting visibilities...")
 
-	if err := c.Repository.Delete(ctx, types.PlatformType, query.CriteriaForContext(ctx)...); err != nil {
+	if _, err := c.Repository.Delete(ctx, types.PlatformType, query.CriteriaForContext(ctx)...); err != nil {
 		return nil, util.HandleSelectionError(err, "platform")
 	}
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
@@ -134,7 +134,7 @@ func (c *Controller) deletePlatform(r *web.Request) (*web.Response, error) {
 	log.C(ctx).Debugf("Deleting platform with id %s", platformID)
 
 	byIDQuery := query.ByField(query.EqualsOperator, "id", platformID)
-	if err := c.Repository.Delete(ctx, types.PlatformType, byIDQuery); err != nil {
+	if _, err := c.Repository.Delete(ctx, types.PlatformType, byIDQuery); err != nil {
 		return nil, util.HandleStorageError(err, "platform")
 	}
 

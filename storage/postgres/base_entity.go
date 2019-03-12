@@ -14,35 +14,22 @@
  * limitations under the License.
  */
 
-package types
+package postgres
 
 import (
 	"time"
 )
 
-type ObjectType string
-
-type Secured interface {
-	SetCredentials(credentials *Credentials)
-	GetCredentials() *Credentials
+type BaseEntity struct {
+	ID        string    `db:"id"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
 }
 
-type Object interface {
-	SetID(id string)
-	GetID() string
-	GetType() ObjectType
-	SupportsLabels() bool
-	EmptyList() ObjectList
-	GetLabels() Labels
-	SetLabels(labels Labels)
-	SetCreatedAt(time time.Time)
-	GetCreatedAt() time.Time
-	SetUpdatedAt(time time.Time)
-	GetUpdatedAt() time.Time
+func (e *BaseEntity) SetID(id string) {
+	e.ID = id
 }
 
-type ObjectList interface {
-	Add(object Object)
-	ItemAt(index int) Object
-	Len() int
+func (e *BaseEntity) GetID() string {
+	return e.ID
 }

@@ -23,10 +23,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
-func init() {
-	RegisterEntity(types.PlatformType, Platform{})
-}
-
 //go:generate smgen storage platform none github.com/Peripli/service-manager/pkg/types
 // Platform entity
 type Platform struct {
@@ -40,35 +36,45 @@ type Platform struct {
 	Password    string         `db:"password"`
 }
 
-func (p Platform) FromObject(object types.Object) Entity {
-	platform := object.(*types.Platform)
-	result := Platform{
-		ID:          platform.ID,
-		Type:        platform.Type,
-		Name:        platform.Name,
-		CreatedAt:   platform.CreatedAt,
-		Description: toNullString(platform.Description),
-		UpdatedAt:   platform.UpdatedAt,
-	}
-
-	if platform.Description != "" {
-		result.Description.Valid = true
-	}
-	if platform.Credentials != nil && platform.Credentials.Basic != nil {
-		result.Username = platform.Credentials.Basic.Username
-		result.Password = platform.Credentials.Basic.Password
-	}
-	return result
+func (e Platform) SetID(id string) {
+	e.ID = id
 }
 
+func (e Platform) LabelEntity() LabelEntity {
+	return nil
+}
+
+//func (p Platform) FromObject(object types.Object) Entity {
+//	platform := object.(*types.Platform)
+//	result := Platform{
+//		ID:          platform.ID,
+//		Type:        platform.Type,
+//		Name:        platform.Name,
+//		CreatedAt:   platform.CreatedAt,
+//		Description: toNullString(platform.Description),
+//		UpdatedAt:   platform.UpdatedAt,
+//	}
+//
+//	if platform.Description != "" {
+//		result.Description.Valid = true
+//	}
+//	if platform.Credentials != nil && platform.Credentials.Basic != nil {
+//		result.Username = platform.Credentials.Basic.Username
+//		result.Password = platform.Credentials.Basic.Password
+//	}
+//	return result
+//}
+//
 func (p Platform) ToObject() types.Object {
 	return &types.Platform{
-		ID:          p.ID,
+		Base: &types.Base{
+			ID:        p.ID,
+			CreatedAt: p.CreatedAt,
+			UpdatedAt: p.UpdatedAt,
+		},
 		Type:        p.Type,
 		Name:        p.Name,
 		Description: p.Description.String,
-		CreatedAt:   p.CreatedAt,
-		UpdatedAt:   p.UpdatedAt,
 		Credentials: &types.Credentials{
 			Basic: &types.Basic{
 				Username: p.Username,

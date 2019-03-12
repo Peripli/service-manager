@@ -44,6 +44,7 @@ type postgresStorage struct {
 	db            *sqlx.DB
 	state         *storageState
 	encryptionKey []byte
+	scheme        *storage.Scheme
 }
 
 func (ps *postgresStorage) Credentials() storage.Credentials {
@@ -61,7 +62,7 @@ func (ps *postgresStorage) ServiceOffering() storage.ServiceOffering {
 	return &serviceOfferingStorage{db: ps.db}
 }
 
-func (ps *postgresStorage) Open(options *storage.Settings) error {
+func (ps *postgresStorage) Open(options *storage.Settings, scheme *storage.Scheme) error {
 	var err error
 	if err = options.Validate(); err != nil {
 		return err
@@ -89,6 +90,8 @@ func (ps *postgresStorage) Open(options *storage.Settings) error {
 		if err := ps.updateSchema(options.MigrationsURL); err != nil {
 			log.D().Panicln("Could not update database schema:", err)
 		}
+		ps.scheme = scheme
+		InstallBroker(ps.scheme)
 	}
 	return err
 }
@@ -126,46 +129,60 @@ func (ps *postgresStorage) Ping() error {
 	return ps.state.Get()
 }
 
+func (ps *postgresStorage) provide(objectType types.ObjectType) (Entity, error) {
+	entity, ok := ps.scheme.Provide(objectType)
+	if !ok {
+		return nil, fmt.Errorf("object of type %s is not supported by the storage", objectType)
+	}
+	pgEntity, ok := entity.(Entity)
+	if !ok {
+		return nil, fmt.Errorf("registered storage entity for type %s is not compatible with postgres storage", objectType)
+	}
+	return pgEntity, nil
+}
+
 func (ps *postgresStorage) Create(ctx context.Context, obj types.Object) (string, error) {
-	objectType := obj.GetType()
-	entity := knownEntities[objectType].FromObject(obj)
-	id, err := create(ctx, ps.pdDB, entity.TableName(), entity)
+	e, ok := ps.scheme.ObjectToEntity(obj)
+	if !ok {
+		return "", fmt.Errorf("object of this type is not introduced to the storage")
+	}
+	pgEntity := e.(Entity)
+	id, err := create(ctx, ps.pdDB, pgEntity.TableName(), pgEntity)
 	if err != nil {
-		log.C(ctx).Debugf("invocation of post-create listeners for object with type %s will be skipped due to error", objectType)
 		return "", err
 	}
-	if obj.SupportsLabels() {
-		err = ps.createLabels(ctx, id, objectType, obj.GetLabels())
-	}
+	labels, err := ps.scheme.TypeLabelsToEntity(obj.GetID(), obj.GetType(), obj.GetLabels())
 	if err != nil {
-		log.C(ctx).Debugf("invocation of post-create listeners for object with type %s will be skipped due to error", objectType)
+		return "", err
+	}
+	if err = ps.createLabels(ctx, id, labels); err != nil {
 		return "", err
 	}
 	return id, nil
 }
 
-func (ps *postgresStorage) createLabels(ctx context.Context, entityID string, objectType types.ObjectType, labels types.Labels) error {
-	labelsForType := knownEntities[objectType].Labels()
-	entities, err := labelsForType.FromDTO(entityID, labels)
-	if err != nil {
+func (ps *postgresStorage) createLabels(ctx context.Context, entityID string, labels []storage.Label) error {
+	if err := validateLabels(labels); err != nil {
 		return err
 	}
-	if err = validateLabels(entities); err != nil {
-		return err
-	}
-	for _, label := range entities {
-		if _, err = create(ctx, ps.db, label.TableName(), label); err != nil {
+	for _, label := range labels {
+		pgLabel := label.(LabelEntity)
+		if _, err := create(ctx, ps.db, pgLabel.LabelsTableName(), pgLabel); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (ps *postgresStorage) Get(ctx context.Context, id string, objectType types.ObjectType) (types.Object, error) {
-	primaryColumn := knownEntities[objectType].PrimaryColumn()
+func (ps *postgresStorage) Get(ctx context.Context, id string, objType types.ObjectType) (types.Object, error) {
+	entity, err := ps.provide(objType)
+	if err != nil {
+		return nil, err
+	}
+	primaryColumn := entity.PrimaryColumn()
 	byPrimaryColumn := query.ByField(query.EqualsOperator, primaryColumn, id)
 
-	result, err := ps.List(ctx, objectType, byPrimaryColumn)
+	result, err := ps.List(ctx, objType, byPrimaryColumn)
 	if err != nil {
 		return nil, err
 	}
@@ -175,16 +192,14 @@ func (ps *postgresStorage) Get(ctx context.Context, id string, objectType types.
 	return result.ItemAt(0), nil
 }
 
-func (ps *postgresStorage) List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
-	entity := knownEntities[objectType].Empty()
-	var rows *sqlx.Rows
-	var err error
-	if !entity.ToObject().SupportsLabels() {
-		rows, err = listAll(ctx, ps.db, entity.TableName(), criteria)
-	} else {
-		entityLabels := entity.Labels()
-		rows, err = listWithLabelsByCriteria(ctx, ps.db, entity, entityLabels, entity.TableName(), criteria)
+func (ps *postgresStorage) List(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
+	entity, err := ps.provide(objType)
+	if err != nil {
+		return nil, err
 	}
+	var rows *sqlx.Rows
+	labelsInfo := entity.LabelEntity()
+	rows, err = listWithLabelsByCriteria(ctx, ps.db, entity, labelsInfo, entity.TableName(), criteria)
 	defer func() {
 		if rows == nil {
 			return
@@ -199,13 +214,16 @@ func (ps *postgresStorage) List(ctx context.Context, objectType types.ObjectType
 	return entity.RowsToList(rows)
 }
 
-func (ps *postgresStorage) Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
-	entityForType := knownEntities[objectType].Empty()
-	rows, err := deleteAllByFieldCriteria(ctx, ps.db, entityForType.TableName(), entityForType, criteria)
+func (ps *postgresStorage) Delete(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
+	entity, err := ps.provide(objType)
 	if err != nil {
 		return nil, err
 	}
-	deletedObjects, err := entityForType.RowsToList(rows)
+	rows, err := deleteAllByFieldCriteria(ctx, ps.db, entity.TableName(), entity, criteria)
+	if err != nil {
+		return nil, err
+	}
+	deletedObjects, err := entity.RowsToList(rows)
 	if err != nil {
 		return nil, err
 	}
@@ -213,28 +231,39 @@ func (ps *postgresStorage) Delete(ctx context.Context, objectType types.ObjectTy
 }
 
 func (ps *postgresStorage) Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
-	entity := knownEntities[obj.GetType()].FromObject(obj)
-	if err := update(ctx, ps.db, entity.TableName(), entity); err != nil {
+	e, ok := ps.scheme.ObjectToEntity(obj)
+	if !ok {
+		return nil, fmt.Errorf("not supported")
+	}
+	entity := e.(Entity)
+	var err error
+	if err = update(ctx, ps.db, entity.TableName(), entity); err != nil {
 		return nil, err
 	}
-	if err := ps.updateLabels(ctx, entity.GetID(), obj.GetType(), labelChanges); err != nil {
+	if err = ps.updateLabels(ctx, entity.GetID(), obj.GetType(), labelChanges); err != nil {
 		return nil, err
 	}
-	entityLabels := entity.Labels()
-	label := entityLabels.Single()
-	byEntityID := query.ByField(query.EqualsOperator, label.ReferenceColumn(), entity.GetID())
-	if err := listByFieldCriteria(ctx, ps.db, label.TableName(), entityLabels, []query.Criterion{byEntityID}); err != nil {
+	labelsInfo := entity.LabelEntity()
+	typesLabels := obj.GetLabels()
+	labels, err := ps.scheme.TypeLabelsToEntity(obj.GetID(), obj.GetType(), typesLabels)
+
+	byEntityID := query.ByField(query.EqualsOperator, labelsInfo.ReferenceColumn(), entity.GetID())
+	if err = listByFieldCriteria(ctx, ps.db, labelsInfo.LabelsTableName(), labels, []query.Criterion{byEntityID}); err != nil {
 		return nil, err
 	}
-	labels := entityLabels.ToDTO()
-	result := entity.ToObject()
-	result.SetLabels(labels)
-	return newObject, nil
+	typeLabels := ps.scheme.StorageLabelsToType(labels)
+	result, ok := ps.scheme.EntityToObject(entity)
+	result.SetLabels(typeLabels)
+	return result, nil
 }
 
 func (ps *postgresStorage) updateLabels(ctx context.Context, entityID string, objType types.ObjectType, updateActions []*query.LabelChange) error {
-	newLabelFunc := func(labelID string, labelKey string, labelValue string) Label {
-		return knownEntities[objType].Labels().Single().New(labelID, labelKey, labelValue, entityID)
+	entity, err := ps.provide(objType)
+	if err != nil {
+		return err
+	}
+	newLabelFunc := func(labelID string, labelKey string, labelValue string) LabelEntity {
+		return entity.LabelEntity().New(labelID, labelKey, labelValue, entityID).(LabelEntity)
 	}
 	return updateLabelsAbstract(ctx, newLabelFunc, ps.db, entityID, updateActions)
 }
@@ -254,7 +283,8 @@ func (ps *postgresStorage) InTransaction(ctx context.Context, f func(ctx context
 	}()
 
 	transactionalStorage := &postgresStorage{
-		pdDB: tx,
+		pdDB:   tx,
+		scheme: ps.scheme,
 	}
 
 	if err = f(ctx, transactionalStorage); err != nil {

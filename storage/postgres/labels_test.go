@@ -64,7 +64,7 @@ var _ = Describe("Postgres Translator", func() {
 			})
 		})
 
-		Context("Label query", func() {
+		Context("LabelEntity query", func() {
 			Context("Called with valid input", func() {
 				It("Should return proper result", func() {
 					criteria = []query.Criterion{

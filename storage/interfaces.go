@@ -29,6 +29,18 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
+type Entity interface {
+	GetID() string
+	SetID(id string)
+}
+
+type Label interface {
+	NewLabelInstance() Label
+	New(entityID, id, key, value string) Label
+	GetKey() string
+	GetValue() string
+}
+
 var (
 	_, b, _, _ = runtime.Caller(0)
 	basepath   = path.Dir(b)
@@ -66,7 +78,7 @@ func (s *Settings) Validate() error {
 // OpenCloser represents an openable and closeable storage
 type OpenCloser interface {
 	// Open initializes the storage, e.g. opens a connection to the underlying storage
-	Open(options *Settings) error
+	Open(options *Settings, scheme *Scheme) error
 
 	// Close clears resources associated with this storage, e.g. closes the connection the underlying storage
 	Close() error

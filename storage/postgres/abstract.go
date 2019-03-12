@@ -101,17 +101,17 @@ func get(ctx context.Context, db getterContext, id string, table string, dto int
 	return checkSQLNoRows(err)
 }
 
-func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface{}, labelsEntity EntityLabels, baseTableName string, criteria []query.Criterion) (*sqlx.Rows, error) {
+func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface{}, label LabelEntity, baseTableName string, criteria []query.Criterion) (*sqlx.Rows, error) {
 	if err := validateFieldQueryParams(baseEntity, criteria); err != nil {
 		return nil, err
 	}
 	var baseQuery string
-	if labelsEntity == nil {
+	if label == nil {
 		baseQuery = constructBaseQueryForEntity(baseTableName)
 	} else {
-		baseQuery = constructBaseQueryForLabelable(labelsEntity.Single(), baseTableName)
+		baseQuery = constructBaseQueryForLabelable(label, baseTableName)
 	}
-	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, baseTableName, labelsEntity.Single(), criteria)
+	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, baseTableName, label, criteria)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +174,7 @@ func constructBaseQueryForEntity(tableName string) string {
 	return fmt.Sprintf("SELECT * FROM %s", tableName)
 }
 
-func constructBaseQueryForLabelable(labelsEntity Label, baseTableName string) string {
+func constructBaseQueryForLabelable(labelsEntity LabelEntity, baseTableName string) string {
 	labelStruct := structs.New(labelsEntity)
 	baseQuery := `SELECT %[1]s.*,`
 	for _, field := range labelStruct.Fields() {
@@ -182,9 +182,9 @@ func constructBaseQueryForLabelable(labelsEntity Label, baseTableName string) st
 		baseQuery += " %[2]s." + dbTag + " " + "\"%[2]s." + dbTag + "\"" + ","
 	}
 	baseQuery = baseQuery[:len(baseQuery)-1] //remove last comma
-	labelsTableName := labelsEntity.TableName()
+	labelsTableName := labelsEntity.LabelsTableName()
 	referenceKeyColumn := labelsEntity.ReferenceColumn()
-	primaryKeyColumn := labelsEntity.PrimaryColumn()
+	primaryKeyColumn := labelsEntity.LabelsPrimaryColumn()
 	baseQuery += " FROM %[1]s LEFT JOIN %[2]s ON %[1]s." + primaryKeyColumn + " = %[2]s." + referenceKeyColumn
 	return fmt.Sprintf(baseQuery, baseTableName, labelsTableName)
 }
@@ -207,21 +207,30 @@ func getDBTags(structure interface{}) []string {
 	s := structs.New(structure)
 	fields := s.Fields()
 	set := make([]string, 0, len(fields))
-
-	for _, field := range fields {
-		if field.IsEmbedded() || (field.Kind() == reflect.Ptr && field.IsZero()) {
-			continue
-		}
-		dbTag := field.Tag("db")
-		if dbTag == "-" {
-			continue
-		}
-		if dbTag == "" {
-			dbTag = strings.ToLower(field.Name())
-		}
-		set = append(set, dbTag)
-	}
+	getTags(fields, &set)
 	return set
+}
+
+func getTags(fields []*structs.Field, set *[]string) {
+	for _, field := range fields {
+		if field.IsEmbedded() {
+			embedded := make([]string, 0)
+			getTags(field.Fields(), &embedded)
+			*set = append(*set, embedded...)
+		} else {
+			if field.Kind() == reflect.Ptr && field.IsZero() {
+				continue
+			}
+			dbTag := field.Tag("db")
+			if dbTag == "-" {
+				continue
+			}
+			if dbTag == "" {
+				dbTag = strings.ToLower(field.Name())
+			}
+			*set = append(*set, dbTag)
+		}
+	}
 }
 
 func updateQuery(tableName string, structure interface{}) string {

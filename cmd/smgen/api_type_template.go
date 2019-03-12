@@ -22,7 +22,7 @@ package {{.PackageName}}
 
 import (
 	"encoding/json"
-	"{{.TypesPackageImport}}"
+	{{.TypesPackageImport}}
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
@@ -44,25 +44,12 @@ func (e *{{.TypePlural}}) Len() int {
 	return len(e.{{.TypePlural}})
 }
 
-func (e *{{.Type}}) SupportsLabels() bool {
-	return {{.SupportsLabels}}
-}
-
 func (e *{{.Type}}) EmptyList() {{.TypesPackage}}ObjectList {
 	return &{{.TypePlural}}{ {{.TypePlural}}: make([]*{{.Type}}, 0) }
 }
 
-func (e *{{.Type}}) WithLabels(labels {{.TypesPackage}}Labels) {{.TypesPackage}}Object {
-	{{ if .SupportsLabels }}e.Labels = labels {{ end }} 
-	return e
-}
-
 func (e *{{.Type}}) GetType() {{.TypesPackage}}ObjectType {
 	return {{.Type}}Type
-}
-
-func (e *{{.Type}}) GetLabels() {{.TypesPackage}}Labels {
-    {{ if .SupportsLabels }} return e.Labels {{ else }} return Labels{} {{ end }}
 }
 
 // MarshalJSON override json serialization for http response

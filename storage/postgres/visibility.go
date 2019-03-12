@@ -21,27 +21,22 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Peripli/service-manager/storage"
+
 	"github.com/jmoiron/sqlx"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/gofrs/uuid"
 )
 
-func init() {
-	RegisterEntity(types.VisibilityType, &Visibility{})
-}
-
-//TODO extract a base.Object
 type Visibility struct {
-	ID            string         `db:"id"`
+	BaseEntity
 	PlatformID    sql.NullString `db:"platform_id"`
 	ServicePlanID string         `db:"service_plan_id"`
-	CreatedAt     time.Time      `db:"created_at"`
-	UpdatedAt     time.Time      `db:"updated_at"`
 }
 
-func (v *Visibility) GetID() string {
-	return v.ID
+func (v *Visibility) LabelEntity() LabelEntity {
+	return &VisibilityLabel{}
 }
 
 func (v *Visibility) TableName() string {
@@ -52,78 +47,50 @@ func (v *Visibility) PrimaryColumn() string {
 	return "id"
 }
 
-func (v *Visibility) Empty() Entity {
-	return &Visibility{}
-}
-
 func (v *Visibility) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
-	entities := make(map[string]*types.Visibility)
-	labels := make(map[string]map[string][]string)
-	result := &types.Visibilities{
-		Visibilities: make([]*types.Visibility, 0),
-	}
-	for rows.Next() {
-		row := struct {
-			*Visibility
-			*VisibilityLabel `db:"visibility_labels"`
-		}{}
-		if err := rows.StructScan(&row); err != nil {
-			return nil, err
-		}
-		entity, ok := entities[row.Visibility.ID]
-		if !ok {
-			entity = row.Visibility.ToObject().(*types.Visibility)
-			entities[row.Visibility.ID] = entity
-			result.Visibilities = append(result.Visibilities, entity)
-		}
-		if labels[entity.ID] == nil {
-			labels[entity.ID] = make(map[string][]string)
-		}
-		labels[entity.ID][row.VisibilityLabel.Key.String] = append(labels[entity.ID][row.VisibilityLabel.Key.String], row.VisibilityLabel.Val.String)
-	}
-
-	for _, b := range result.Visibilities {
-		b.Labels = labels[b.ID]
-	}
-	return result, nil
-}
-
-func (v *Visibility) Labels() EntityLabels {
-	return &visibilityLabels{}
+	row := struct {
+		*Visibility
+		*VisibilityLabel `db:"visibility_labels"`
+	}{}
+	result := &types.Visibilities{}
+	err := rowsToList(rows, row, result)
+	return result, err
 }
 
 //TODO make these generated as well (everything is easy execept user,pass -> credentials
 func (v *Visibility) ToObject() types.Object {
 	return &types.Visibility{
 		ID:            v.ID,
-		PlatformID:    v.PlatformID.String,
-		ServicePlanID: v.ServicePlanID,
 		CreatedAt:     v.CreatedAt,
 		UpdatedAt:     v.UpdatedAt,
 		Labels:        make(map[string][]string),
+		PlatformID:    v.PlatformID.String,
+		ServicePlanID: v.ServicePlanID,
 	}
 }
 
 func (v *Visibility) FromObject(visibility types.Object) Entity {
 	vis := visibility.(*types.Visibility)
 	return &Visibility{
-		ID: vis.ID,
+		BaseEntity: BaseEntity{
+			ID:        vis.ID,
+			CreatedAt: vis.CreatedAt,
+			UpdatedAt: vis.UpdatedAt,
+		},
 		// API cannot send nulls right now and storage cannot store empty string for this column as it is FK
 		PlatformID:    toNullString(vis.PlatformID),
 		ServicePlanID: vis.ServicePlanID,
-		CreatedAt:     vis.CreatedAt,
-		UpdatedAt:     vis.UpdatedAt,
 	}
 }
 
 type visibilityLabels []*VisibilityLabel
 
-func (vls *visibilityLabels) Single() Label {
+func (vls *visibilityLabels) Single() LabelEntity {
 	return &VisibilityLabel{}
 }
 
-func (vls *visibilityLabels) FromDTO(entityID string, labels types.Labels) ([]Label, error) {
-	var result []Label
+func (vls *visibilityLabels) FromDTO(entityID string, labels types.Labels) ([]LabelEntity, error) {
+	var result []LabelEntity
 	now := time.Now()
 	for key, values := range labels {
 		for _, labelValue := range values {
@@ -168,11 +135,15 @@ type VisibilityLabel struct {
 	ServiceVisibilityID sql.NullString `db:"visibility_id"`
 }
 
-func (*VisibilityLabel) TableName() string {
+func (vl *VisibilityLabel) NewLabelInstance() storage.Label {
+	return &VisibilityLabel{}
+}
+
+func (vl *VisibilityLabel) LabelsTableName() string {
 	return visibilityLabelsTable
 }
 
-func (*VisibilityLabel) PrimaryColumn() string {
+func (vl *VisibilityLabel) LabelsPrimaryColumn() string {
 	return "id"
 }
 
@@ -180,11 +151,11 @@ func (*VisibilityLabel) ReferenceColumn() string {
 	return "visibility_id"
 }
 
-func (*VisibilityLabel) Empty() Label {
+func (*VisibilityLabel) Empty() LabelEntity {
 	return &VisibilityLabel{}
 }
 
-func (*VisibilityLabel) New(entityID, id, key, value string) Label {
+func (*VisibilityLabel) New(entityID, id, key, value string) storage.Label {
 	now := time.Now()
 	return &VisibilityLabel{
 		ID:                  toNullString(id),

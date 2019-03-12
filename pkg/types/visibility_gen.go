@@ -8,35 +8,35 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
-const BrokerType ObjectType = "Broker"
+const VisibilityType ObjectType = "Visibility"
 
-type Brokers struct {
-	Brokers []*Broker `json:"brokers"`
+type Visibilities struct {
+	Visibilities []*Visibility `json:"visibilities"`
 }
 
-func (e *Brokers) Add(object Object) {
-	e.Brokers = append(e.Brokers, object.(*Broker))
+func (e *Visibilities) Add(object Object) {
+	e.Visibilities = append(e.Visibilities, object.(*Visibility))
 }
 
-func (e *Brokers) ItemAt(index int) Object {
-	return e.Brokers[index]
+func (e *Visibilities) ItemAt(index int) Object {
+	return e.Visibilities[index]
 }
 
-func (e *Brokers) Len() int {
-	return len(e.Brokers)
+func (e *Visibilities) Len() int {
+	return len(e.Visibilities)
 }
 
-func (e *Broker) EmptyList() ObjectList {
-	return &Brokers{ Brokers: make([]*Broker, 0) }
+func (e *Visibility) EmptyList() ObjectList {
+	return &Visibilities{ Visibilities: make([]*Visibility, 0) }
 }
 
-func (e *Broker) GetType() ObjectType {
-	return BrokerType
+func (e *Visibility) GetType() ObjectType {
+	return VisibilityType
 }
 
 // MarshalJSON override json serialization for http response
-func (e *Broker) MarshalJSON() ([]byte, error) {
-	type E Broker
+func (e *Visibility) MarshalJSON() ([]byte, error) {
+	type E Visibility
 	toMarshal := struct {
 		*E
 		CreatedAt *string `json:"created_at,omitempty"`

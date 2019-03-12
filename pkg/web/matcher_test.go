@@ -67,7 +67,7 @@ var _ = Describe("Filters", func() {
 				result      []string
 			}{
 				{
-					"Empty method matches should panic",
+					"NewInstance method matches should panic",
 					web.Endpoint{http.MethodGet, "/a/b/c"},
 					[]web.Filter{
 						fakeFilter("filter1", delegatingMiddleware, []web.FilterMatcher{
@@ -81,7 +81,7 @@ var _ = Describe("Filters", func() {
 					[]string{},
 				},
 				{
-					"Empty path pattern should panic",
+					"NewInstance path pattern should panic",
 					web.Endpoint{http.MethodGet, "/a/b/c"},
 					[]web.Filter{
 						fakeFilter("filter2", delegatingMiddleware, []web.FilterMatcher{

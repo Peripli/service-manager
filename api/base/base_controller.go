@@ -39,11 +39,9 @@ import (
 const pathParamID = "id"
 
 type Controller struct {
-	ResourceBaseURL string
-	//TODO Object interface here instead
-	ObjectType types.ObjectType
-	Repository storage.Repository
-	//TODO we should be able to do without this parameter
+	ResourceBaseURL           string
+	ObjectType                types.ObjectType
+	Repository                storage.Repository
 	ObjectBlueprint           func() types.Object
 	CreateInterceptorProvider extension.CreateInterceptorProvider
 	UpdateInterceptorProvider extension.UpdateInterceptorProvider
@@ -62,7 +60,7 @@ func (c *Controller) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   fmt.Sprintf("%s/{id}", c.ResourceBaseURL),
+				Path:   fmt.Sprintf("%s/{%s}", c.ResourceBaseURL, pathParamID),
 			},
 			Handler: c.GetSingleObject,
 		},
@@ -83,14 +81,14 @@ func (c *Controller) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodDelete,
-				Path:   fmt.Sprintf("%s/{id}", c.ResourceBaseURL),
+				Path:   fmt.Sprintf("%s/{%s}", c.ResourceBaseURL, pathParamID),
 			},
 			Handler: c.DeleteSingleObject,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodPatch,
-				Path:   fmt.Sprintf("%s/{id}", c.ResourceBaseURL),
+				Path:   fmt.Sprintf("%s/{%s}", c.ResourceBaseURL, pathParamID),
 			},
 			Handler: c.PatchObject,
 		},
@@ -124,8 +122,6 @@ func (c *Controller) CreateObject(r *web.Request) (*web.Response, error) {
 	result.SetUpdatedAt(currentTime)
 
 	onTransaction := createHook.OnTransaction(func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error {
-		//TODO the api layer already imports storage because it uses it so it would make more sense to do a .ToEntity here and then
-		// the storage layer can accept and return entities and won't need to import the api layer types
 		id, err := txStorage.Create(ctx, newObject)
 		if err != nil {
 			return util.HandleStorageError(err, string(c.ObjectType))
@@ -207,24 +203,31 @@ func (c *Controller) GetSingleObject(r *web.Request) (*web.Response, error) {
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.ObjectType))
 	}
-	object.SetCredentials(nil)
+	if secured, ok := object.(types.Secured); ok {
+		secured.SetCredentials(nil)
+	} else {
+		log.C(ctx).Debugf("Object of type %s with id %s is not secured, so no credentials are cleaned up on response", object.GetType(), object.GetID())
+	}
 	return util.NewJSONResponse(http.StatusOK, object)
 }
 
 func (c *Controller) ListObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Getting all %ss", c.ObjectType)
-	objects, err := c.Repository.List(ctx, c.ObjectType, query.CriteriaForContext(ctx)...)
+	objectList, err := c.Repository.List(ctx, c.ObjectType, query.CriteriaForContext(ctx)...)
 	if err != nil {
 		return nil, util.HandleSelectionError(err)
 	}
-
-	for i := 0; i < objects.Len(); i++ {
-		obj := objects.ItemAt(i)
-		obj.SetCredentials(nil)
+	for i := 0; i < objectList.Len(); i++ {
+		obj := objectList.ItemAt(i)
+		if secured, ok := obj.(types.Secured); ok {
+			secured.SetCredentials(nil)
+		} else {
+			log.C(ctx).Debugf("Object of type %s with id %s is not secured, so no credentials are cleaned up on response", obj.GetType(), obj.GetID())
+		}
 	}
 
-	return util.NewJSONResponse(http.StatusOK, objects)
+	return util.NewJSONResponse(http.StatusOK, objectList)
 }
 
 func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
@@ -276,6 +279,10 @@ func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	object.SetCredentials(nil)
+	if obj, ok := object.(types.Secured); ok {
+		obj.SetCredentials(nil)
+	} else {
+		log.C(ctx).Debugf("Object of type %s with id %s is not secured, so no credentials are cleaned up on response", object.GetType(), object.GetID())
+	}
 	return util.NewJSONResponse(http.StatusOK, object)
 }

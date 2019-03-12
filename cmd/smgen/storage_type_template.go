@@ -24,7 +24,7 @@ package {{.PackageName}}
 import (
 	"github.com/jmoiron/sqlx"
 	"github.com/Peripli/service-manager/pkg/types"
-	"{{.StoragePackageImport}}"
+	{{.StoragePackageImport}}
 	{{.ApiPackageImport}}{{if .SupportsLabels}}
 	"database/sql"
 	"fmt"
@@ -32,7 +32,7 @@ import (
 	"github.com/gofrs/uuid"{{end}}
 )
 
-func ({{.Type}}) Empty() {{.StoragePackage}}Entity {
+func ({{.Type}}) NewInstance() {{.StoragePackage}}Entity {
 	return {{.Type}}{}
 }
 
@@ -42,10 +42,6 @@ func ({{.Type}}) PrimaryColumn() string {
 
 func ({{.Type}}) TableName() string {
 	return "{{.TableName}}"
-}
-
-func (e {{.Type}}) GetID() string {
-	return e.ID
 }
 
 func (e {{.Type}}) Labels() {{.StoragePackage}}EntityLabels {
@@ -93,12 +89,8 @@ func (e {{.Type}}) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
 }
 {{if .SupportsLabels}}
 type {{.Type}}Label struct {
-	ID        sql.NullString ` + "`db:\"id\"`\n\t" +
-	"Key       sql.NullString `db:\"key\"`\n\t" +
-	"Val       sql.NullString `db:\"val\"`\n\t" +
-	"CreatedAt *time.Time     `db:\"created_at\"`\n\t" +
-	"UpdatedAt *time.Time     `db:\"updated_at\"`\n\t" +
-	"{{.Type}}ID  sql.NullString `db:\"{{.TypeLower}}_id\"`" + `
+	*BaseLabel
+	{{.Type}}ID  sql.NullString ` + "`db:\"{{.TypeLower}}_id\"`" + `
 }
 
 func (el {{.Type}}Label) TableName() string {
@@ -113,28 +105,22 @@ func (el {{.Type}}Label) ReferenceColumn() string {
 	return "{{.TypeLower}}_id"
 }
 
-func (el {{.Type}}Label) Empty() {{.StoragePackage}}Label {
+func (el {{.Type}}Label) NewInstance() {{.StoragePackage}}Label {
 	return {{.Type}}Label{}
 }
 
 func (el {{.Type}}Label) New(entityID, id, key, value string) {{.StoragePackage}}Label {
 	now := time.Now()
 	return {{.Type}}Label{
-		ID:        sql.NullString{String: id, Valid: id != ""},
-		Key:       sql.NullString{String: key, Valid: key != ""},
-		Val:       sql.NullString{String: value, Valid: value != ""},
+		BaseLabel: &BaseLabel{
+			ID:        sql.NullString{String: id, Valid: id != ""},
+			Key:       sql.NullString{String: key, Valid: key != ""},
+			Val:       sql.NullString{String: value, Valid: value != ""},
+			CreatedAt: &now,
+			UpdatedAt: &now,
+		},
 		{{.Type}}ID:  sql.NullString{String: entityID, Valid: entityID != ""},
-		CreatedAt: &now,
-		UpdatedAt: &now,
 	}
-}
-
-func (el {{.Type}}Label) GetKey() string {
-	return el.Key.String
-}
-
-func (el {{.Type}}Label) GetValue() string {
-	return el.Val.String
 }
 
 type {{.TypeLower}}Labels []*{{.Type}}Label
@@ -154,11 +140,13 @@ func (el {{.TypeLower}}Labels) FromDTO(entityID string, labels types.Labels) ([]
 			}
 			id := UUID.String()
 			bLabel := &{{.Type}}Label{
-				ID:        sql.NullString{String: id, Valid: id != ""},
-				Key:       sql.NullString{String: key, Valid: key != ""},
-				Val:       sql.NullString{String: labelValue, Valid: labelValue != ""},
-				CreatedAt: &now,
-				UpdatedAt: &now,
+				BaseLabel: &BaseLabel{
+					ID:        sql.NullString{String: id, Valid: id != ""},
+					Key:       sql.NullString{String: key, Valid: key != ""},
+					Val:       sql.NullString{String: labelValue, Valid: labelValue != ""},
+					CreatedAt: &now,
+					UpdatedAt: &now,
+				},
 				{{.Type}}ID:  sql.NullString{String: entityID, Valid: entityID != ""},
 			}
 			result = append(result, bLabel)

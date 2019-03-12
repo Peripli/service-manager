@@ -32,7 +32,7 @@ var _ web.Controller = &Controller{}
 
 // Controller broker controller
 type Controller struct {
-	base.Controller
+	*base.Controller
 }
 
 type AdditionalInterceptors struct {
@@ -65,7 +65,7 @@ func NewController(repository storage.Repository, encrypter security.Encrypter, 
 	updateInterceptorProvider := extension.UnionUpdateInterceptor(updateInterceptorProviders...)
 
 	return &Controller{
-		Controller: base.Controller{
+		Controller: &base.Controller{
 			Repository:                repository,
 			ObjectBlueprint:           func() types.Object { return &types.Broker{} },
 			ObjectType:                types.BrokerType,

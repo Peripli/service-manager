@@ -17,89 +17,23 @@
 package types
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
-
-	"errors"
 
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
-// Visibilities struct
-type Visibilities struct {
-	Visibilities []*Visibility `json:"visibilities"`
-}
-
-func (v *Visibilities) Add(object Object) {
-	v.Visibilities = append(v.Visibilities, object.(*Visibility))
-}
-
-func (v *Visibilities) ItemAt(index int) Object {
-	return v.Visibilities[index]
-}
-
-func (v *Visibilities) Len() int {
-	return len(v.Visibilities)
-}
-
+//go:generate smgen api Visibility labels
 // Visibility struct
 type Visibility struct {
-	ID            string    `json:"id"`
-	PlatformID    string    `json:"platform_id"`
-	ServicePlanID string    `json:"service_plan_id"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
-	Labels        Labels    `json:"labels,omitempty"`
-}
+	ID         string    `json:"id"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+	PlatformID string    `json:"platform_id"`
+	Labels     Labels    `json:"labels,omitempty"`
 
-func (v *Visibility) SetID(id string) {
-	panic("implement me")
-}
-
-func (v *Visibility) GetID() string {
-	panic("implement me")
-}
-
-func (v *Visibility) SetCreatedAt(time time.Time) {
-	panic("implement me")
-}
-
-func (v *Visibility) GetCreatedAt() time.Time {
-	panic("implement me")
-}
-
-func (v *Visibility) SetUpdatedAt(time time.Time) {
-	panic("implement me")
-}
-
-func (v *Visibility) GetUpdatedAt() time.Time {
-	panic("implement me")
-}
-
-func (v *Visibility) SetCredentials(credentials *Credentials) {
-
-}
-
-func (v *Visibility) SupportsLabels() bool {
-	return true
-}
-
-func (v *Visibility) GetType() ObjectType {
-	return VisibilityType
-}
-
-func (v *Visibility) GetLabels() Labels {
-	return v.Labels
-}
-
-func (v *Visibility) EmptyList() ObjectList {
-	return &Visibilities{Visibilities: make([]*Visibility, 0)}
-}
-
-func (v *Visibility) SetLabels(labels Labels) {
-	v.Labels = labels
-	return
+	ServicePlanID string `json:"service_plan_id"`
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
@@ -116,35 +50,39 @@ func (v *Visibility) Validate() error {
 	return nil
 }
 
-// MarshalJSON override json serialization for http response
-func (v *Visibility) MarshalJSON() ([]byte, error) {
-	type V Visibility
-	toMarshal := struct {
-		*V
-		CreatedAt *string `json:"created_at,omitempty"`
-		UpdatedAt *string `json:"updated_at,omitempty"`
-	}{
-		V: (*V)(v),
-	}
-	if !v.CreatedAt.IsZero() {
-		str := util.ToRFCFormat(v.CreatedAt)
-		toMarshal.CreatedAt = &str
-	}
-	if !v.UpdatedAt.IsZero() {
-		str := util.ToRFCFormat(v.UpdatedAt)
-		toMarshal.UpdatedAt = &str
-	}
+func (e *Visibility) SetLabels(labels Labels) {
+	e.Labels = labels
+	return
+}
 
-	hasNoLabels := true
-	for key, values := range v.Labels {
-		if key != "" && len(values) != 0 {
-			hasNoLabels = false
-			break
-		}
-	}
-	if hasNoLabels {
-		toMarshal.Labels = nil
-	}
+func (e *Visibility) GetLabels() Labels {
+	return e.Labels
+}
 
-	return json.Marshal(toMarshal)
+func (e *Visibility) SupportsLabels() bool {
+	return true
+}
+
+func (e *Visibility) SetID(id string) {
+	e.ID = id
+}
+
+func (e *Visibility) GetID() string {
+	return e.ID
+}
+
+func (e *Visibility) SetCreatedAt(time time.Time) {
+	e.CreatedAt = time
+}
+
+func (e *Visibility) GetCreatedAt() time.Time {
+	return e.CreatedAt
+}
+
+func (e *Visibility) SetUpdatedAt(time time.Time) {
+	e.UpdatedAt = time
+}
+
+func (e *Visibility) GetUpdatedAt() time.Time {
+	return e.UpdatedAt
 }

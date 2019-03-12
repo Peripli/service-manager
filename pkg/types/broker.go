@@ -18,36 +18,24 @@
 package types
 
 import (
-	"time"
-
 	"errors"
+	"time"
 )
 
-// TODO this gogen (after applying the other TODOs) should be sufficient to generate a controller, a postgres.Entity and the whole storage layer
-// TODO last parameter of the gogen should not be needed - if whoever defined the struct put Labels in it, then it supports labels.
-// TODO you could also move out the fields that implement Object to a struct and have that embedded everywhere together with the methods
 //go:generate smgen api broker labels
 // Broker broker struct
 type Broker struct {
+	Secured
 	ID          string       `json:"id"`
-	Name        string       `json:"name"`
-	Description string       `json:"description"`
 	CreatedAt   time.Time    `json:"created_at"`
 	UpdatedAt   time.Time    `json:"updated_at"`
+	Name        string       `json:"name"`
+	Description string       `json:"description"`
 	BrokerURL   string       `json:"broker_url"`
 	Credentials *Credentials `json:"credentials,omitempty" structs:"-"`
+	Labels      Labels       `json:"labels,omitempty"`
 
 	Services []*ServiceOffering `json:"services,omitempty" structs:"-"`
-
-	Labels Labels `json:"labels,omitempty"`
-}
-
-func (e *Broker) GetUpdatedAt() time.Time {
-	return e.UpdatedAt
-}
-
-func (e *Broker) GetCreatedAt() time.Time {
-	return e.CreatedAt
 }
 
 func (e *Broker) SetID(id string) {
@@ -58,16 +46,40 @@ func (e *Broker) GetID() string {
 	return e.ID
 }
 
+func (e *Broker) SupportsLabels() bool {
+	return true
+}
+
+func (e *Broker) GetLabels() Labels {
+	return e.Labels
+}
+
+func (e *Broker) SetLabels(labels Labels) {
+	e.Labels = labels
+}
+
 func (e *Broker) SetCreatedAt(time time.Time) {
 	e.CreatedAt = time
+}
+
+func (e *Broker) GetCreatedAt() time.Time {
+	return e.CreatedAt
 }
 
 func (e *Broker) SetUpdatedAt(time time.Time) {
 	e.UpdatedAt = time
 }
 
+func (e *Broker) GetUpdatedAt() time.Time {
+	return e.UpdatedAt
+}
+
 func (e *Broker) SetCredentials(credentials *Credentials) {
 	e.Credentials = credentials
+}
+
+func (e *Broker) GetCredentials() *Credentials {
+	return e.Credentials
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

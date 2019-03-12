@@ -8,6 +8,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
+const PlatformType ObjectType = "Platform"
+
 type Platforms struct {
 	Platforms []*Platform `json:"platforms"`
 }
@@ -24,24 +26,12 @@ func (e *Platforms) Len() int {
 	return len(e.Platforms)
 }
 
-func (e *Platform) SupportsLabels() bool {
-	return false
-}
-
 func (e *Platform) EmptyList() ObjectList {
 	return &Platforms{Platforms: make([]*Platform, 0)}
 }
 
-func (e *Platform) SetLabels(labels Labels) {
-	return
-}
-
 func (e *Platform) GetType() ObjectType {
 	return PlatformType
-}
-
-func (e *Platform) GetLabels() Labels {
-	return Labels{}
 }
 
 // MarshalJSON override json serialization for http response

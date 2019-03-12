@@ -18,35 +18,46 @@ package postgres
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
+
+	"github.com/gofrs/uuid"
+
+	"github.com/Peripli/service-manager/storage"
 
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
-func init() {
-	RegisterEntity(types.BrokerType, Broker{})
+func InstallBroker(scheme *storage.Scheme) {
+	scheme.Introduce(&types.Broker{}, &Broker{}, &BrokerTransformer{})
 }
 
 //go:generate smgen storage broker labels github.com/Peripli/service-manager/pkg/types
 // Broker entity
 type Broker struct {
-	ID          string         `db:"id"`
+	BaseEntity
 	Name        string         `db:"name"`
 	Description sql.NullString `db:"description"`
-	CreatedAt   time.Time      `db:"created_at"`
-	UpdatedAt   time.Time      `db:"updated_at"`
 	BrokerURL   string         `db:"broker_url"`
 	Username    string         `db:"username"`
 	Password    string         `db:"password"`
 }
 
-func (br Broker) ToObject() types.Object {
+type BrokerTransformer struct {
+}
+
+func (b *BrokerTransformer) EntityFromStorage(entity storage.Entity) (types.Object, bool) {
+	br, ok := entity.(*Broker)
+	if !ok {
+		return nil, false
+	}
 	broker := &types.Broker{
 		ID:          br.ID,
-		Name:        br.Name,
-		Description: br.Description.String,
 		CreatedAt:   br.CreatedAt,
 		UpdatedAt:   br.UpdatedAt,
+		Labels:      map[string][]string{},
+		Name:        br.Name,
+		Description: br.Description.String,
 		BrokerURL:   br.BrokerURL,
 		Credentials: &types.Credentials{
 			Basic: &types.Basic{
@@ -54,31 +65,55 @@ func (br Broker) ToObject() types.Object {
 				Password: br.Password,
 			},
 		},
-		Labels: make(map[string][]string),
 	}
-	return broker
+	return broker, true
 }
 
-func (b Broker) FromObject(obj types.Object) Entity {
-	if obj == nil {
-		return Broker{}
+func (*BrokerTransformer) EntityToStorage(object types.Object) (storage.Entity, bool) {
+	broker, ok := object.(*types.Broker)
+	if !ok {
+		return nil, false
 	}
-	broker := obj.(*types.Broker)
-	res := Broker{
-		ID:          broker.ID,
+	b := &Broker{
+		BaseEntity: BaseEntity{
+			ID:        broker.ID,
+			CreatedAt: broker.CreatedAt,
+			UpdatedAt: broker.UpdatedAt,
+		},
 		Description: toNullString(broker.Description),
 		Name:        broker.Name,
 		BrokerURL:   broker.BrokerURL,
-		CreatedAt:   broker.CreatedAt,
-		UpdatedAt:   broker.UpdatedAt,
-	}
-
-	if broker.Description != "" {
-		b.Description.Valid = true
 	}
 	if broker.Credentials != nil && broker.Credentials.Basic != nil {
 		b.Username = broker.Credentials.Basic.Username
 		b.Password = broker.Credentials.Basic.Password
 	}
-	return res
+	return b, true
+}
+
+func (*BrokerTransformer) LabelsToStorage(entityID string, objectType types.ObjectType, labels types.Labels) ([]storage.Label, bool, error) {
+	if objectType != types.BrokerType {
+		return nil, false, nil
+	}
+	var result []storage.Label
+	now := time.Now()
+	for key, values := range labels {
+		for _, labelValue := range values {
+			UUID, err := uuid.NewV4()
+			if err != nil {
+				return nil, false, fmt.Errorf("could not generate GUID for broker label: %s", err)
+			}
+			id := UUID.String()
+			bLabel := &BrokerLabel{
+				ID:        sql.NullString{String: id, Valid: id != ""},
+				Key:       sql.NullString{String: key, Valid: key != ""},
+				Val:       sql.NullString{String: labelValue, Valid: labelValue != ""},
+				CreatedAt: &now,
+				UpdatedAt: &now,
+				BrokerID:  sql.NullString{String: entityID, Valid: entityID != ""},
+			}
+			result = append(result, bLabel)
+		}
+	}
+	return result, true, nil
 }

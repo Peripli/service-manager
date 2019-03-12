@@ -54,7 +54,7 @@ func GenerateStorageEntityFile(storageTypeDir, typeName, packageName, apiPackage
 	storagePackage := ""
 	if !strings.Contains(storageTypeDir, StorageTypesDirectory) {
 		storagePackage = "postgres."
-		storagePackageImport = StorageTypesDirectory
+		storagePackageImport = fmt.Sprintf(`"%s"`, StorageTypesDirectory)
 	}
 	t := template.Must(template.New("generate-storage-type").Parse(STORAGE_TYPE_TEMPLATE))
 	entityTemplate := StorageType{

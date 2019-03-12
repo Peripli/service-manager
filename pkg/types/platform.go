@@ -17,10 +17,8 @@
 package types
 
 import (
-	"fmt"
-	"time"
-
 	"errors"
+	"fmt"
 
 	"github.com/Peripli/service-manager/pkg/util"
 )
@@ -28,41 +26,20 @@ import (
 //go:generate ./generate_type.sh Platform
 // Platform platform struct
 type Platform struct {
-	ID          string       `json:"id"`
+	Secured
+	*Base
 	Type        string       `json:"type"`
 	Name        string       `json:"name"`
 	Description string       `json:"description"`
-	CreatedAt   time.Time    `json:"created_at"`
-	UpdatedAt   time.Time    `json:"updated_at"`
 	Credentials *Credentials `json:"credentials,omitempty"`
-}
-
-func (e *Platform) GetUpdatedAt() time.Time {
-	panic("implement me")
-}
-
-func (e *Platform) SetID(id string) {
-	e.ID = id
-}
-
-func (e *Platform) GetID() string {
-	return e.ID
-}
-
-func (e *Platform) SetCreatedAt(time time.Time) {
-	e.CreatedAt = time
-}
-
-func (e *Platform) GetCreatedAt() time.Time {
-	return e.CreatedAt
-}
-
-func (e *Platform) SetUpdatedAt(time time.Time) {
-	e.UpdatedAt = time
 }
 
 func (e *Platform) SetCredentials(credentials *Credentials) {
 	e.Credentials = credentials
+}
+
+func (e *Platform) GetCredentials() *Credentials {
+	return e.Credentials
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

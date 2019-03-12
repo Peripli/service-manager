@@ -81,13 +81,13 @@ func (fsp *FreeServicePlansFilter) Run(req *web.Request, next web.Handler) (*web
 							hasPublicVisibility = true
 							continue
 						} else {
-							if err := storage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
+							if _, err := storage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
 								return err
 							}
 						}
 					} else {
 						if visibility.PlatformID == "" {
-							if err := storage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
+							if _, err := storage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
 								return err
 							}
 						} else {
@@ -105,9 +105,9 @@ func (fsp *FreeServicePlansFilter) Run(req *web.Request, next web.Handler) (*web
 					currentTime := time.Now().UTC()
 					planID, err := storage.Create(ctx, &types.Visibility{
 						ID:            UUID.String(),
-						ServicePlanID: servicePlan.ID,
-						CreatedAt:     currentTime,
 						UpdatedAt:     currentTime,
+						CreatedAt:     currentTime,
+						ServicePlanID: servicePlan.ID,
 					})
 					if err != nil {
 						return util.HandleStorageError(err, "visibility")

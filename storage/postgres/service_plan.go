@@ -25,9 +25,10 @@ import (
 	sqlxtypes "github.com/jmoiron/sqlx/types"
 )
 
-func init() {
-	RegisterEntity(types.ServicePlanType, &ServicePlan{})
-}
+//
+//func init() {
+//	RegisterEntity(types.ServicePlanType, &ServicePlan{})
+//}
 
 type ServicePlan struct {
 	ID          string    `db:"id"`
@@ -48,6 +49,14 @@ type ServicePlan struct {
 	ServiceOfferingID string `db:"service_offering_id"`
 }
 
+func (sp *ServicePlan) SetID(id string) {
+	sp.ID = id
+}
+
+func (sp *ServicePlan) LabelEntity() LabelEntity {
+	return nil
+}
+
 func (sp *ServicePlan) GetID() string {
 	return sp.ID
 }
@@ -58,10 +67,6 @@ func (sp *ServicePlan) TableName() string {
 
 func (sp *ServicePlan) PrimaryColumn() string {
 	return "id"
-}
-
-func (sp *ServicePlan) Empty() Entity {
-	return &ServicePlan{}
 }
 
 func (sp *ServicePlan) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
@@ -76,17 +81,15 @@ func (sp *ServicePlan) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
 	return result, nil
 }
 
-func (sp *ServicePlan) Labels() EntityLabels {
-	return nil
-}
-
 func (sp *ServicePlan) ToObject() types.Object {
 	return &types.ServicePlan{
-		ID:                sp.ID,
+		Base: &types.Base{
+			ID:        sp.ID,
+			CreatedAt: sp.CreatedAt,
+			UpdatedAt: sp.UpdatedAt,
+		},
 		Name:              sp.Name,
 		Description:       sp.Description,
-		CreatedAt:         sp.CreatedAt,
-		UpdatedAt:         sp.UpdatedAt,
 		CatalogID:         sp.CatalogID,
 		CatalogName:       sp.CatalogName,
 		Free:              sp.Free,

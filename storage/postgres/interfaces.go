@@ -19,26 +19,34 @@ package postgres
 import (
 	"fmt"
 
+	"github.com/Peripli/service-manager/storage"
+
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/jmoiron/sqlx"
 )
 
-var (
-	//TODO I think we can remove this if we move the translation to the api layer that anyway has to import the storage layer and
-	// if we leverage the fact that we have type specific controllers that in the end will provide the actual type.Object to the
-	// base controller and from their onwards we can rely on that
-	knownEntities = make(map[types.ObjectType]Entity)
-)
-
-func RegisterEntity(objectType types.ObjectType, entity Entity) {
-	if _, exists := knownEntities[objectType]; exists {
-		panic(fmt.Sprintf("object type %s is already associated with a postgesql entity type", objectType))
-	}
-	knownEntities[objectType] = entity
+type Entity interface {
+	storage.Entity
+	TableName() string
+	PrimaryColumn() string
+	RowsToList(rows *sqlx.Rows) (types.ObjectList, error)
+	LabelEntity() LabelEntity
 }
 
-func validateLabels(entities []Label) error {
+type LabelEntity interface {
+	storage.Label
+	LabelsTableName() string
+	LabelsPrimaryColumn() string
+	ReferenceColumn() string
+}
+
+type EntityLabelRow interface {
+	Entity
+	LabelEntity
+}
+
+func validateLabels(entities []storage.Label) error {
 	pairs := make(map[string][]string)
 	for _, bl := range entities {
 		newKey := bl.GetKey()
@@ -52,40 +60,26 @@ func validateLabels(entities []Label) error {
 	return nil
 }
 
-type Identifiable interface {
-	GetID() string
-}
-
-type PrimaryEntity interface {
-	TableName() string
-	PrimaryColumn() string
-}
-
-type SecondaryEntity interface {
-	PrimaryEntity
-	ReferenceColumn() string
-}
-
-type Entity interface {
-	Identifiable
-	PrimaryEntity
-	Empty() Entity
-	RowsToList(rows *sqlx.Rows) (types.ObjectList, error)
-	Labels() EntityLabels
-	ToObject() types.Object
-	FromObject(object types.Object) Entity
-}
-
-type Label interface {
-	SecondaryEntity
-	Empty() Label
-	New(entityID, id, key, value string) Label
-	GetKey() string
-	GetValue() string
-}
-
-type EntityLabels interface {
-	Single() Label
-	ToDTO() types.Labels
-	FromDTO(entityID string, labels types.Labels) ([]Label, error)
+func rowsToList(rows *sqlx.Rows, row EntityLabelRow, result types.ObjectList) error {
+	entities := make(map[string]types.Object)
+	labels := make(map[string]map[string][]string)
+	for rows.Next() {
+		if err := rows.StructScan(&row); err != nil {
+			return err
+		}
+		entity, ok := entities[row.GetID()]
+		if !ok {
+			entities[row.GetID()] = entity
+			result.Add(entity)
+		}
+		if labels[entity.GetID()] == nil {
+			labels[entity.GetID()] = make(map[string][]string)
+		}
+		labels[entity.GetID()][row.GetKey()] = append(labels[entity.GetID()][row.GetKey()], row.GetValue())
+	}
+	for i := 0; i < result.Len(); i++ {
+		b := result.ItemAt(i)
+		b.SetLabels(labels[b.GetID()])
+	}
+	return nil
 }

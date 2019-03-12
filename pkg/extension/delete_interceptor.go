@@ -19,9 +19,10 @@ package extension
 import (
 	"context"
 
+	"github.com/Peripli/service-manager/pkg/types"
+
 	"github.com/Peripli/service-manager/pkg/query"
 
-	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 )
 

@@ -111,7 +111,7 @@ func (c *Controller) deleteAllVisibilities(r *web.Request) (*web.Response, error
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting visibilities...")
 
-	if err := c.Repository.Delete(ctx, types.VisibilityType, query.CriteriaForContext(ctx)...); err != nil {
+	if _, err := c.Repository.Delete(ctx, types.VisibilityType, query.CriteriaForContext(ctx)...); err != nil {
 		return nil, util.HandleSelectionError(err, "visibility")
 	}
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
@@ -123,7 +123,7 @@ func (c *Controller) deleteVisibility(r *web.Request) (*web.Response, error) {
 	log.C(ctx).Debugf("Deleting visibility with id %s", visibilityID)
 
 	byIDQuery := query.ByField(query.EqualsOperator, "id", visibilityID)
-	if err := c.Repository.Delete(ctx, types.VisibilityType, byIDQuery); err != nil {
+	if _, err := c.Repository.Delete(ctx, types.VisibilityType, byIDQuery); err != nil {
 		return nil, util.HandleStorageError(err, "visibility")
 	}
 
