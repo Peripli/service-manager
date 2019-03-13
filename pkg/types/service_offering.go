@@ -46,10 +46,6 @@ type ServiceOffering struct {
 	Plans    []*ServicePlan `json:"plans"`
 }
 
-func (so *ServiceOffering) SetCredentials(credentials *Credentials) {
-	return
-}
-
 // Validate implements InputValidator and verifies all mandatory fields are populated
 func (so *ServiceOffering) Validate() error {
 	if util.HasRFC3986ReservedSymbols(so.ID) {

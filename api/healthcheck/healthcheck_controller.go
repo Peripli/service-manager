@@ -21,7 +21,6 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/health"
 	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
@@ -49,5 +48,5 @@ func (c *controller) healthCheck(r *web.Request) (*web.Response, error) {
 	} else {
 		status = http.StatusServiceUnavailable
 	}
-	return util.NewJSONResponse(status, healthResult)
+	return web.NewJSONResponse(status, healthResult)
 }

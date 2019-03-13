@@ -17,6 +17,7 @@
 package common
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -51,6 +52,10 @@ type BrokerServer struct {
 	BindingAdaptCredentialsEndpointRequests []*http.Request
 
 	router *mux.Router
+}
+
+func (b *BrokerServer) URL() string {
+	return b.Server.URL
 }
 
 func JSONToMap(j string) map[string]interface{} {
@@ -169,8 +174,16 @@ func (b *BrokerServer) authenticationMiddleware(next http.Handler) http.Handler 
 
 func (b *BrokerServer) saveRequestMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		defer func() {
+			err := req.Body.Close()
+			if err != nil {
+				panic(err)
+			}
+		}()
 		b.LastRequest = req
 		bodyBytes, err := ioutil.ReadAll(req.Body)
+		req.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+
 		if err != nil {
 			SetResponse(w, http.StatusInternalServerError, Object{
 				"description": "Could not read body",

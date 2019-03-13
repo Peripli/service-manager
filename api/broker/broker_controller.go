@@ -35,41 +35,27 @@ type Controller struct {
 	*base.Controller
 }
 
-type AdditionalInterceptors struct {
-	CreateProviders []extension.CreateInterceptorProvider
-	UpdateProviders []extension.UpdateInterceptorProvider
-	DeleteProviders []extension.DeleteInterceptorProvider
-}
-
-func NewController(repository storage.Repository, encrypter security.Encrypter, osbClientCreateFunc osbc.CreateFunc, interceptors *AdditionalInterceptors) *Controller {
+func NewController(repository storage.Repository, encrypter security.Encrypter, osbClientCreateFunc osbc.CreateFunc) *Controller {
 	defaultCreateInterceptor := func() extension.CreateInterceptor {
 		return &CreateBrokerHook{
 			OSBClientCreateFunc: osbClientCreateFunc,
 			Encrypter:           encrypter,
 		}
 	}
-	createInterceptorProviders := append(interceptors.CreateProviders, defaultCreateInterceptor)
-	createInterceptorProvider := extension.UnionCreateInterceptor(createInterceptorProviders...)
-
 	defaultUpdateInterceptor := func() extension.UpdateInterceptor {
 		return &UpdateBrokerHook{
 			OSBClientCreateFunc: osbClientCreateFunc,
 			Encrypter:           encrypter,
+			Repository:          repository,
 		}
 	}
-	updateInterceptorProviders := append(interceptors.UpdateProviders, defaultUpdateInterceptor)
-	updateInterceptorProvider := extension.UnionUpdateInterceptor(updateInterceptorProviders...)
 
-	c := &Controller{
-		Controller: &base.Controller{
-			Repository:                repository,
-			ObjectBlueprint:           func() types.Object { return &types.Broker{} },
-			ObjectType:                types.BrokerType,
-			ResourceBaseURL:           web.BrokersURL,
-			CreateInterceptorProvider: createInterceptorProvider,
-			UpdateInterceptorProvider: updateInterceptorProvider,
-			DeleteInterceptorProvider: extension.UnionDeleteInterceptor(interceptors.DeleteProviders...),
-		},
+	baseController := base.NewController(repository, web.BrokersURL, func() types.Object {
+		return &types.Broker{}
+	})
+	baseController.AddCreateInterceptorProviders(defaultCreateInterceptor)
+	baseController.AddUpdateInterceptorProviders(defaultUpdateInterceptor)
+	return &Controller{
+		Controller: baseController,
 	}
-	return c
 }

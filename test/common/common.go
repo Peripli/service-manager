@@ -18,6 +18,7 @@ package common
 
 import (
 	"github.com/onsi/ginkgo"
+	"github.com/spf13/pflag"
 
 	"crypto/rand"
 	"crypto/rsa"
@@ -44,6 +45,31 @@ import (
 
 type Object = map[string]interface{}
 type Array = []interface{}
+
+type closer interface {
+	Close()
+}
+
+type urler interface {
+	URL() string
+}
+
+type FakeServer interface {
+	closer
+	urler
+}
+
+type FlagValue struct {
+	pflagValue pflag.Value
+}
+
+func (f FlagValue) Set(s string) error {
+	return f.pflagValue.Set(s)
+}
+
+func (f FlagValue) String() string {
+	return f.pflagValue.String()
+}
 
 func RemoveNonNumericArgs(obj Object) Object {
 	return removeOnCondition(isNotNumeric, obj)
@@ -162,7 +188,7 @@ func MapContains(actual Object, expected Object) {
 }
 
 func RemoveAllBrokers(SM *httpexpect.Expect) {
-	removeAll(SM, "brokers", "/v1/service_brokers")
+	removeAll(SM, "service_brokers", "/v1/service_brokers")
 }
 
 func RemoveAllPlatforms(SM *httpexpect.Expect) {
@@ -284,7 +310,7 @@ func GenerateRandomBroker() Object {
 	}
 	o = Object{
 		"name":        UUID.String(),
-		"broker_url":  brokerServer.URL,
+		"broker_url":  brokerServer.URL(),
 		"description": UUID2.String(),
 		"credentials": Object{
 			"basic": Object{

@@ -48,7 +48,7 @@ func (c *deleteHookOnAPIHandler) OnTransaction(f InterceptDeleteOnTransaction) I
 	return f
 }
 
-func UnionDeleteInterceptor(providers ...DeleteInterceptorProvider) DeleteInterceptorProvider {
+func UnionDeleteInterceptor(providers []DeleteInterceptorProvider) DeleteInterceptorProvider {
 	return func() DeleteInterceptor {
 		c := &deleteHookOnAPIHandler{}
 		for _, h := range providers {

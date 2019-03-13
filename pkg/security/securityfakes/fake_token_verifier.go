@@ -5,29 +5,29 @@ import (
 	"context"
 	"sync"
 
-	"github.com/Peripli/service-manager/pkg/security"
+	"github.com/Peripli/service-manager/pkg/security/http"
 )
 
 type FakeTokenVerifier struct {
-	VerifyStub        func(ctx context.Context, token string) (security.TokenData, error)
+	VerifyStub        func(ctx context.Context, token string) (http.TokenData, error)
 	verifyMutex       sync.RWMutex
 	verifyArgsForCall []struct {
 		ctx   context.Context
 		token string
 	}
 	verifyReturns struct {
-		result1 security.TokenData
+		result1 http.TokenData
 		result2 error
 	}
 	verifyReturnsOnCall map[int]struct {
-		result1 security.TokenData
+		result1 http.TokenData
 		result2 error
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeTokenVerifier) Verify(ctx context.Context, token string) (security.TokenData, error) {
+func (fake *FakeTokenVerifier) Verify(ctx context.Context, token string) (http.TokenData, error) {
 	fake.verifyMutex.Lock()
 	ret, specificReturn := fake.verifyReturnsOnCall[len(fake.verifyArgsForCall)]
 	fake.verifyArgsForCall = append(fake.verifyArgsForCall, struct {
@@ -57,24 +57,24 @@ func (fake *FakeTokenVerifier) VerifyArgsForCall(i int) (context.Context, string
 	return fake.verifyArgsForCall[i].ctx, fake.verifyArgsForCall[i].token
 }
 
-func (fake *FakeTokenVerifier) VerifyReturns(result1 security.TokenData, result2 error) {
+func (fake *FakeTokenVerifier) VerifyReturns(result1 http.TokenData, result2 error) {
 	fake.VerifyStub = nil
 	fake.verifyReturns = struct {
-		result1 security.TokenData
+		result1 http.TokenData
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *FakeTokenVerifier) VerifyReturnsOnCall(i int, result1 security.TokenData, result2 error) {
+func (fake *FakeTokenVerifier) VerifyReturnsOnCall(i int, result1 http.TokenData, result2 error) {
 	fake.VerifyStub = nil
 	if fake.verifyReturnsOnCall == nil {
 		fake.verifyReturnsOnCall = make(map[int]struct {
-			result1 security.TokenData
+			result1 http.TokenData
 			result2 error
 		})
 	}
 	fake.verifyReturnsOnCall[i] = struct {
-		result1 security.TokenData
+		result1 http.TokenData
 		result2 error
 	}{result1, result2}
 }
@@ -103,4 +103,4 @@ func (fake *FakeTokenVerifier) recordInvocation(key string, args []interface{}) 
 	fake.invocations[key] = append(fake.invocations[key], args)
 }
 
-var _ security.TokenVerifier = new(FakeTokenVerifier)
+var _ http.TokenVerifier = new(FakeTokenVerifier)

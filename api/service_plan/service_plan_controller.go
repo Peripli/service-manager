@@ -17,44 +17,44 @@
 package service_plan
 
 import (
+	"fmt"
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/api/base"
+
 	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
 )
 
-const reqServicePlanID = "service_plan_id"
-
 // Controller implements api.Controller by providing service plans API logic
 type Controller struct {
-	ServicePlanStorage storage.Repository
+	*base.Controller
 }
 
-func (c *Controller) getServicePlan(r *web.Request) (*web.Response, error) {
-	servicePlanID := r.PathParams[reqServicePlanID]
-	ctx := r.Context()
-	log.C(ctx).Debugf("Getting service plan with id %s", servicePlanID)
-
-	servicePlan, err := c.ServicePlanStorage.Get(ctx, servicePlanID, types.ServicePlanType)
-	if err = util.HandleStorageError(err, "service_plan"); err != nil {
-		return nil, err
+func (c *Controller) Routes() []web.Route {
+	return []web.Route{
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodGet,
+				Path:   fmt.Sprintf("%s/{%s}", web.ServicePlansURL, base.PathParamID),
+			},
+			Handler: c.GetSingleObject,
+		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodGet,
+				Path:   web.ServicePlansURL,
+			},
+			Handler: c.ListObjects,
+		},
 	}
-	return util.NewJSONResponse(http.StatusOK, servicePlan)
 }
 
-func (c *Controller) ListServicePlans(r *web.Request) (*web.Response, error) {
-	var err error
-	ctx := r.Context()
-	log.C(ctx).Debug("Listing service plans")
-
-	servicePlans, err := c.ServicePlanStorage.List(ctx, types.ServicePlanType, query.CriteriaForContext(ctx)...)
-	if err != nil {
-		return nil, util.HandleSelectionError(err)
+func NewController(repository storage.Repository) *Controller {
+	return &Controller{
+		Controller: base.NewController(repository, web.ServicePlansURL, func() types.Object {
+			return &types.ServicePlan{}
+		}),
 	}
-
-	return util.NewJSONResponse(http.StatusOK, servicePlans)
 }

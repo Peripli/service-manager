@@ -24,11 +24,11 @@ import (
 
 	"github.com/tidwall/sjson"
 
-	"github.com/Peripli/service-manager/pkg/extension"
 	"github.com/gofrs/uuid"
 
 	"github.com/Peripli/service-manager/storage"
 
+	"github.com/Peripli/service-manager/pkg/extension"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -36,16 +36,54 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-const pathParamID = "id"
+const PathParamID = "id"
 
 type Controller struct {
-	ResourceBaseURL           string
-	ObjectType                types.ObjectType
-	Repository                storage.Repository
-	ObjectBlueprint           func() types.Object
+	resourceBaseURL           string
+	objectType                types.ObjectType
+	repository                storage.Repository
+	objectBlueprint           func() types.Object
 	CreateInterceptorProvider extension.CreateInterceptorProvider
 	UpdateInterceptorProvider extension.UpdateInterceptorProvider
 	DeleteInterceptorProvider extension.DeleteInterceptorProvider
+}
+
+func (c *Controller) InterceptsType() types.ObjectType {
+	return c.objectType
+}
+
+func (c *Controller) AddCreateInterceptorProviders(providers ...extension.CreateInterceptorProvider) {
+	if c.CreateInterceptorProvider == nil {
+		c.CreateInterceptorProvider = extension.UnionCreateInterceptor(providers)
+	} else {
+
+		c.CreateInterceptorProvider = extension.UnionCreateInterceptor(append([]extension.CreateInterceptorProvider{c.CreateInterceptorProvider}, providers...))
+	}
+}
+
+func (c *Controller) AddUpdateInterceptorProviders(providers ...extension.UpdateInterceptorProvider) {
+	if c.UpdateInterceptorProvider == nil {
+		c.UpdateInterceptorProvider = extension.UnionUpdateInterceptor(providers)
+	} else {
+		c.UpdateInterceptorProvider = extension.UnionUpdateInterceptor(append([]extension.UpdateInterceptorProvider{c.UpdateInterceptorProvider}, providers...))
+	}
+}
+
+func (c *Controller) AddDeleteInterceptorProviders(providers ...extension.DeleteInterceptorProvider) {
+	if c.DeleteInterceptorProvider == nil {
+		c.DeleteInterceptorProvider = extension.UnionDeleteInterceptor(providers)
+	} else {
+		c.DeleteInterceptorProvider = extension.UnionDeleteInterceptor(append([]extension.DeleteInterceptorProvider{c.DeleteInterceptorProvider}, providers...))
+	}
+}
+
+func NewController(repository storage.Repository, resourceBaseURL string, objectBlueprint func() types.Object) *Controller {
+	return &Controller{
+		repository:      repository,
+		resourceBaseURL: resourceBaseURL,
+		objectBlueprint: objectBlueprint,
+		objectType:      objectBlueprint().GetType(),
+	}
 }
 
 func (c *Controller) Routes() []web.Route {
@@ -53,42 +91,42 @@ func (c *Controller) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodPost,
-				Path:   c.ResourceBaseURL,
+				Path:   c.resourceBaseURL,
 			},
 			Handler: c.CreateObject,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   fmt.Sprintf("%s/{%s}", c.ResourceBaseURL, pathParamID),
+				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamID),
 			},
 			Handler: c.GetSingleObject,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   c.ResourceBaseURL,
+				Path:   c.resourceBaseURL,
 			},
 			Handler: c.ListObjects,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodDelete,
-				Path:   c.ResourceBaseURL,
+				Path:   c.resourceBaseURL,
 			},
 			Handler: c.DeleteObjects,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodDelete,
-				Path:   fmt.Sprintf("%s/{%s}", c.ResourceBaseURL, pathParamID),
+				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamID),
 			},
 			Handler: c.DeleteSingleObject,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodPatch,
-				Path:   fmt.Sprintf("%s/{%s}", c.ResourceBaseURL, pathParamID),
+				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamID),
 			},
 			Handler: c.PatchObject,
 		},
@@ -97,21 +135,21 @@ func (c *Controller) Routes() []web.Route {
 
 func (c *Controller) CreateObject(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
-	log.C(ctx).Debugf("Creating new %s", c.ObjectType)
-	result := c.ObjectBlueprint()
+	log.C(ctx).Debugf("Creating new %s", c.objectType)
+	result := c.objectBlueprint()
 	if err := util.BytesToObject(r.Body, result); err != nil {
 		return nil, err
 	}
 	UUID, err := uuid.NewV4()
 	if err != nil {
-		return nil, fmt.Errorf("could not generate GUID for %s: %s", c.ObjectType, err)
+		return nil, fmt.Errorf("could not generate GUID for %s: %s", c.objectType, err)
 	}
 	createHook := c.CreateInterceptorProvider()
 
 	onTransaction := func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error {
 		id, err := txStorage.Create(ctx, newObject)
 		if err != nil {
-			return util.HandleStorageError(err, string(c.ObjectType))
+			return util.HandleStorageError(err, string(c.objectType))
 		}
 		newObject.SetID(id)
 		return nil
@@ -121,7 +159,7 @@ func (c *Controller) CreateObject(r *web.Request) (*web.Response, error) {
 	}
 
 	onAPI := func(ctx context.Context, obj types.Object) (types.Object, error) {
-		if err = c.Repository.InTransaction(ctx, func(ctx context.Context, txStorage storage.Warehouse) error {
+		if err = c.repository.InTransaction(ctx, func(ctx context.Context, txStorage storage.Warehouse) error {
 			return onTransaction(ctx, txStorage, obj)
 		}); err != nil {
 			return nil, err
@@ -141,16 +179,16 @@ func (c *Controller) CreateObject(r *web.Request) (*web.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	return util.NewJSONResponse(http.StatusCreated, result)
+	return web.NewJSONResponse(http.StatusCreated, result)
 }
 
 func (c *Controller) DeleteObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
-	log.C(ctx).Debugf("Deleting %ss...", c.ObjectType)
+	log.C(ctx).Debugf("Deleting %ss...", c.objectType)
 	deleteHook := c.DeleteInterceptorProvider()
 
 	transactionOperation := func(ctx context.Context, txStorage storage.Warehouse, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
-		return c.Repository.Delete(ctx, c.ObjectType, deletionCriteria...)
+		return c.repository.Delete(ctx, c.objectType, deletionCriteria...)
 	}
 	if deleteHook != nil {
 		transactionOperation = deleteHook.OnTransaction(transactionOperation)
@@ -158,10 +196,10 @@ func (c *Controller) DeleteObjects(r *web.Request) (*web.Response, error) {
 
 	apiOperation := func(ctx context.Context, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
 		var result types.ObjectList
-		if err := c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
+		if err := c.repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
 			var err error
 			result, err = transactionOperation(ctx, storage, deletionCriteria...)
-			return util.HandleSelectionError(err, string(c.ObjectType))
+			return util.HandleSelectionError(err, string(c.objectType))
 		}); err != nil {
 			return nil, err
 		}
@@ -175,13 +213,13 @@ func (c *Controller) DeleteObjects(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	return util.NewJSONResponse(http.StatusOK, map[string]string{})
+	return web.NewJSONResponse(http.StatusOK, map[string]string{})
 }
 
 func (c *Controller) DeleteSingleObject(r *web.Request) (*web.Response, error) {
-	objectID := r.PathParams[pathParamID]
+	objectID := r.PathParams[PathParamID]
 	ctx := r.Context()
-	log.C(ctx).Debugf("Deleting %s with id %s", c.ObjectType, objectID)
+	log.C(ctx).Debugf("Deleting %s with id %s", c.objectType, objectID)
 
 	byID := query.ByField(query.EqualsOperator, "id", objectID)
 	ctx, err := query.AddCriteria(r.Context(), byID)
@@ -193,26 +231,26 @@ func (c *Controller) DeleteSingleObject(r *web.Request) (*web.Response, error) {
 }
 
 func (c *Controller) GetSingleObject(r *web.Request) (*web.Response, error) {
-	objectID := r.PathParams[pathParamID]
+	objectID := r.PathParams[PathParamID]
 	ctx := r.Context()
-	log.C(ctx).Debugf("Getting %s with id %s", c.ObjectType, objectID)
+	log.C(ctx).Debugf("Getting %s with id %s", c.objectType, objectID)
 
-	object, err := c.Repository.Get(ctx, objectID, c.ObjectType)
+	object, err := c.repository.Get(ctx, objectID, c.objectType)
 	if err != nil {
-		return nil, util.HandleStorageError(err, string(c.ObjectType))
+		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
 	if secured, ok := object.(types.Secured); ok {
 		secured.SetCredentials(nil)
 	} else {
 		log.C(ctx).Debugf("Object of type %s with id %s is not secured, so no credentials are cleaned up on response", object.GetType(), object.GetID())
 	}
-	return util.NewJSONResponse(http.StatusOK, object)
+	return web.NewJSONResponse(http.StatusOK, object)
 }
 
 func (c *Controller) ListObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
-	log.C(ctx).Debugf("Getting all %ss", c.ObjectType)
-	objectList, err := c.Repository.List(ctx, c.ObjectType, query.CriteriaForContext(ctx)...)
+	log.C(ctx).Debugf("Getting all %ss", c.objectType)
+	objectList, err := c.repository.List(ctx, c.objectType, query.CriteriaForContext(ctx)...)
 	if err != nil {
 		return nil, util.HandleSelectionError(err)
 	}
@@ -225,17 +263,17 @@ func (c *Controller) ListObjects(r *web.Request) (*web.Response, error) {
 		}
 	}
 
-	return util.NewJSONResponse(http.StatusOK, objectList)
+	return web.NewJSONResponse(http.StatusOK, objectList)
 }
 
 func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
-	objectID := r.PathParams[pathParamID]
+	objectID := r.PathParams[PathParamID]
 	ctx := r.Context()
-	log.C(ctx).Debugf("Updating %s with id %s", c.ObjectType, objectID)
+	log.C(ctx).Debugf("Updating %s with id %s", c.objectType, objectID)
 
 	labelChanges, err := query.LabelChangesFromJSON(r.Body)
 	if err != nil {
-		return nil, util.HandleLabelChangeError(err)
+		return nil, err
 	}
 	if r.Body, err = sjson.DeleteBytes(r.Body, "labels"); err != nil {
 		return nil, err
@@ -264,10 +302,10 @@ func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
 
 	apiOperation := func(ctx context.Context, updateChanges extension.UpdateContext) (types.Object, error) {
 		var result types.Object
-		if err = c.Repository.InTransaction(ctx, func(ctx context.Context, txStorage storage.Warehouse) error {
-			oldObject, err := txStorage.Get(ctx, objectID, c.ObjectType)
+		if err = c.repository.InTransaction(ctx, func(ctx context.Context, txStorage storage.Warehouse) error {
+			oldObject, err := txStorage.Get(ctx, objectID, c.objectType)
 			if err != nil {
-				return util.HandleStorageError(err, string(c.ObjectType))
+				return util.HandleStorageError(err, string(c.objectType))
 			}
 			result, err = transactionOp(ctx, txStorage, oldObject, updateChanges)
 			return err
@@ -289,5 +327,5 @@ func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
 	} else {
 		log.C(ctx).Debugf("Object of type %s with id %s is not secured, so no credentials are cleaned up on response", object.GetType(), object.GetID())
 	}
-	return util.NewJSONResponse(http.StatusOK, object)
+	return web.NewJSONResponse(http.StatusOK, object)
 }

@@ -22,7 +22,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/Peripli/service-manager/pkg/security"
+	http2 "github.com/Peripli/service-manager/pkg/security/http"
+
 	"github.com/Peripli/service-manager/pkg/security/securityfakes"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -48,7 +49,7 @@ var _ = Describe("Basic Authenticator", func() {
 		},
 	}
 	basicHeader := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", user, password)))
-	var authenticator security.Authenticator
+	var authenticator http2.Authenticator
 
 	JustBeforeEach(func() {
 		authenticator = &basicAuthenticator{CredentialStorage: credentialsStorage, Encrypter: encrypter}
@@ -67,7 +68,7 @@ var _ = Describe("Basic Authenticator", func() {
 				user, decision, err := authenticator.Authenticate(request)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(user).To(BeNil())
-				Expect(decision).To(Equal(security.Abstain))
+				Expect(decision).To(Equal(http2.Abstain))
 			})
 		})
 		Context("When user is not found", func() {
@@ -79,7 +80,7 @@ var _ = Describe("Basic Authenticator", func() {
 				user, decision, err := authenticator.Authenticate(request)
 				Expect(err).To(Equal(util.ErrNotFoundInStorage))
 				Expect(user).To(BeNil())
-				Expect(decision).To(Equal(security.Deny))
+				Expect(decision).To(Equal(http2.Deny))
 			})
 		})
 
@@ -93,7 +94,7 @@ var _ = Describe("Basic Authenticator", func() {
 				user, decision, err := authenticator.Authenticate(request)
 				Expect(err.Error()).To(ContainSubstring(expectedError.Error()))
 				Expect(user).To(BeNil())
-				Expect(decision).To(Equal(security.Abstain))
+				Expect(decision).To(Equal(http2.Abstain))
 			})
 		})
 
@@ -108,7 +109,7 @@ var _ = Describe("Basic Authenticator", func() {
 				user, decision, err := authenticator.Authenticate(request)
 				Expect(err.Error()).To(ContainSubstring(transformationError.Error()))
 				Expect(user).To(BeNil())
-				Expect(decision).To(Equal(security.Abstain))
+				Expect(decision).To(Equal(http2.Abstain))
 			})
 		})
 
@@ -122,7 +123,7 @@ var _ = Describe("Basic Authenticator", func() {
 				user, decision, err := authenticator.Authenticate(request)
 				Expect(err).To(BeNil())
 				Expect(user).To(BeNil())
-				Expect(decision).To(Equal(security.Deny))
+				Expect(decision).To(Equal(http2.Deny))
 			})
 		})
 
@@ -136,7 +137,7 @@ var _ = Describe("Basic Authenticator", func() {
 				user, decision, err := authenticator.Authenticate(request)
 				Expect(err).To(BeNil())
 				Expect(user).To(Not(BeNil()))
-				Expect(decision).To(Equal(security.Allow))
+				Expect(decision).To(Equal(http2.Allow))
 			})
 		})
 	})

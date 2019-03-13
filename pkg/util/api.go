@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/web"
 )
 
 var (
@@ -32,9 +31,6 @@ var (
 		":", "/", "?", "#", "[", "]", "@", "!", "$", "&", "'", "(", ")", "*", "+", ",", ";", "=",
 	}, "")
 )
-
-// EmptyResponseBody represents an empty response body value
-type EmptyResponseBody struct{}
 
 // InputValidator should be implemented by types that need input validation check. For a reference refer to pkg/types
 type InputValidator interface {
@@ -126,22 +122,4 @@ func WriteJSON(writer http.ResponseWriter, code int, value interface{}) error {
 
 	encoder := json.NewEncoder(writer)
 	return encoder.Encode(value)
-}
-
-// NewJSONResponse turns plain object into a byte array representing JSON value and wraps it in web.Response
-func NewJSONResponse(code int, value interface{}) (*web.Response, error) {
-	headers := http.Header{}
-	headers.Add("Content-Type", "application/json")
-
-	body := make([]byte, 0)
-	var err error
-	if _, ok := value.(EmptyResponseBody); !ok {
-		body, err = json.Marshal(value)
-	}
-
-	return &web.Response{
-		StatusCode: code,
-		Header:     headers,
-		Body:       body,
-	}, err
 }

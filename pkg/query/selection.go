@@ -19,11 +19,12 @@ package query
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/pkg/util"
 )
 
 // Operator is a query operator
@@ -87,15 +88,6 @@ const (
 
 var supportedQueryTypes = []CriterionType{FieldQuery, LabelQuery}
 
-// UnsupportedQueryError is an error to show that the provided query cannot be executed
-type UnsupportedQueryError struct {
-	Message string
-}
-
-func (uq *UnsupportedQueryError) Error() string {
-	return uq.Message
-}
-
 // Criterion is a single part of a query criteria
 type Criterion struct {
 	// LeftOp is the left operand in the query
@@ -127,17 +119,17 @@ func (c Criterion) Validate() error {
 		return fmt.Errorf("multiple values %s received for single value operation %s", c.RightOp, c.Operator)
 	}
 	if c.Operator.IsNullable() && c.Type != FieldQuery {
-		return &UnsupportedQueryError{"nullable operations are supported only for field queries"}
+		return &util.UnsupportedQueryError{Message: "nullable operations are supported only for field queries"}
 	}
 	if c.Operator.IsNumeric() && !isNumeric(c.RightOp[0]) {
-		return &UnsupportedQueryError{Message: fmt.Sprintf("%s is numeric operator, but the right operand %s is not numeric", c.Operator, c.RightOp[0])}
+		return &util.UnsupportedQueryError{Message: fmt.Sprintf("%s is numeric operator, but the right operand %s is not numeric", c.Operator, c.RightOp[0])}
 	}
 	if strings.ContainsRune(c.LeftOp, Separator) {
 		parts := strings.FieldsFunc(c.LeftOp, func(r rune) bool {
 			return r == Separator
 		})
 		possibleKey := parts[len(parts)-1]
-		return &UnsupportedQueryError{Message: fmt.Sprintf("separator %c is not allowed in %s with left operand \"%s\". Maybe you meant \"%s\"? Make sure if the separator is present in any right operand, that it is escaped with a backslash (\\)", Separator, c.Type, c.LeftOp, possibleKey)}
+		return &util.UnsupportedQueryError{Message: fmt.Sprintf("separator %c is not allowed in %s with left operand \"%s\". Maybe you meant \"%s\"? Make sure if the separator is present in any right operand, that it is escaped with a backslash (\\)", Separator, c.Type, c.LeftOp, possibleKey)}
 	}
 	for _, op := range c.RightOp {
 		if strings.ContainsRune(op, '\n') {
@@ -165,11 +157,11 @@ func mergeCriteria(c1 []Criterion, c2 []Criterion) ([]Criterion, error) {
 		leftOp := newCriterion.LeftOp
 		// disallow duplicate label queries
 		if count, ok := labelQueryLeftOperands[leftOp]; ok && count > 1 && newCriterion.Type == LabelQuery {
-			return nil, &UnsupportedQueryError{Message: fmt.Sprintf("duplicate label query key: %s", newCriterion.LeftOp)}
+			return nil, &util.UnsupportedQueryError{Message: fmt.Sprintf("duplicate label query key: %s", newCriterion.LeftOp)}
 		}
 		// disallow duplicate field query keys
 		if count, ok := fieldQueryLeftOperands[leftOp]; ok && count > 1 && newCriterion.Type == FieldQuery {
-			return nil, &UnsupportedQueryError{Message: fmt.Sprintf("duplicate field query key: %s", newCriterion.LeftOp)}
+			return nil, &util.UnsupportedQueryError{Message: fmt.Sprintf("duplicate field query key: %s", newCriterion.LeftOp)}
 		}
 		if err := newCriterion.Validate(); err != nil {
 			return nil, err
@@ -200,8 +192,13 @@ func CriteriaForContext(ctx context.Context) []Criterion {
 	return currentCriteria.([]Criterion)
 }
 
+// ContextWithCriteria returns a new context with given criteria
+func ContextWithCriteria(ctx context.Context, criteria []Criterion) context.Context {
+	return context.WithValue(ctx, criteriaCtxKey{}, criteria)
+}
+
 // BuildCriteriaFromRequest builds criteria for the given request's query params and returns an error if the query is not valid
-func BuildCriteriaFromRequest(request *web.Request) ([]Criterion, error) {
+func BuildCriteriaFromRequest(request *http.Request) ([]Criterion, error) {
 	var criteria []Criterion
 	for _, queryType := range supportedQueryTypes {
 		queryValues := request.URL.Query().Get(string(queryType))

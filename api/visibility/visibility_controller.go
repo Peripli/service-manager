@@ -62,7 +62,7 @@ func (c *Controller) createVisibility(r *web.Request) (*web.Response, error) {
 	}
 
 	logger.Errorf("new service visibility id is %s", visibilityID)
-	return util.NewJSONResponse(http.StatusCreated, visibility)
+	return web.NewJSONResponse(http.StatusCreated, visibility)
 }
 
 func (c *Controller) getVisibility(r *web.Request) (*web.Response, error) {
@@ -74,7 +74,7 @@ func (c *Controller) getVisibility(r *web.Request) (*web.Response, error) {
 	if err = util.HandleStorageError(err, "visibility"); err != nil {
 		return nil, err
 	}
-	return util.NewJSONResponse(http.StatusOK, visibility)
+	return web.NewJSONResponse(http.StatusOK, visibility)
 }
 
 func (c *Controller) listVisibilities(r *web.Request) (*web.Response, error) {
@@ -104,7 +104,7 @@ func (c *Controller) listVisibilities(r *web.Request) (*web.Response, error) {
 	if err != nil {
 		return nil, util.HandleSelectionError(err)
 	}
-	return util.NewJSONResponse(http.StatusOK, visibilities)
+	return web.NewJSONResponse(http.StatusOK, visibilities)
 }
 
 func (c *Controller) deleteAllVisibilities(r *web.Request) (*web.Response, error) {
@@ -114,7 +114,7 @@ func (c *Controller) deleteAllVisibilities(r *web.Request) (*web.Response, error
 	if _, err := c.Repository.Delete(ctx, types.VisibilityType, query.CriteriaForContext(ctx)...); err != nil {
 		return nil, util.HandleSelectionError(err, "visibility")
 	}
-	return util.NewJSONResponse(http.StatusOK, map[string]string{})
+	return web.NewJSONResponse(http.StatusOK, map[string]string{})
 }
 
 func (c *Controller) deleteVisibility(r *web.Request) (*web.Response, error) {
@@ -127,7 +127,7 @@ func (c *Controller) deleteVisibility(r *web.Request) (*web.Response, error) {
 		return nil, util.HandleStorageError(err, "visibility")
 	}
 
-	return util.NewJSONResponse(http.StatusOK, map[string]string{})
+	return web.NewJSONResponse(http.StatusOK, map[string]string{})
 }
 
 func (c *Controller) patchVisibility(r *web.Request) (*web.Response, error) {
@@ -142,7 +142,7 @@ func (c *Controller) patchVisibility(r *web.Request) (*web.Response, error) {
 
 	changes, err := query.LabelChangesFromJSON(r.Body)
 	if err != nil {
-		return nil, util.HandleLabelChangeError(err)
+		return nil, err
 	}
 	if r.Body, err = sjson.DeleteBytes(r.Body, "labels"); err != nil {
 		return nil, err
@@ -162,5 +162,5 @@ func (c *Controller) patchVisibility(r *web.Request) (*web.Response, error) {
 		return nil, util.HandleStorageError(err, "visibility")
 	}
 
-	return util.NewJSONResponse(http.StatusOK, visibility)
+	return web.NewJSONResponse(http.StatusOK, visibility)
 }

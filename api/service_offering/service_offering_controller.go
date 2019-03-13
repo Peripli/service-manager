@@ -17,46 +17,45 @@
 package service_offering
 
 import (
+	"fmt"
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/api/base"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 
-	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-const reqServiceOfferingID = "service_offering_id"
-
 // Controller implements api.Controller by providing service offerings API logic
 type Controller struct {
-	ServiceOfferingStorage storage.Repository
+	*base.Controller
 }
 
-func (c *Controller) getServiceOffering(r *web.Request) (*web.Response, error) {
-	serviceOfferingID := r.PathParams[reqServiceOfferingID]
-	ctx := r.Context()
-	log.C(ctx).Debugf("Getting service offering with id %s", serviceOfferingID)
-
-	serviceOffering, err := c.ServiceOfferingStorage.Get(ctx, serviceOfferingID, types.ServiceOfferingType)
-	if err = util.HandleStorageError(err, "service_offering"); err != nil {
-		return nil, err
+func (c *Controller) Routes() []web.Route {
+	return []web.Route{
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodGet,
+				Path:   fmt.Sprintf("%s/{%s}", web.ServiceOfferingsURL, base.PathParamID),
+			},
+			Handler: c.GetSingleObject,
+		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodGet,
+				Path:   web.ServiceOfferingsURL,
+			},
+			Handler: c.ListObjects,
+		},
 	}
-	return util.NewJSONResponse(http.StatusOK, serviceOffering)
 }
 
-func (c *Controller) listServiceOfferings(r *web.Request) (*web.Response, error) {
-	var err error
-	ctx := r.Context()
-	log.C(ctx).Debug("Listing service offerings")
-
-	serviceOfferings, err := c.ServiceOfferingStorage.List(ctx, types.ServiceOfferingType, query.CriteriaForContext(ctx)...)
-	if err != nil {
-		return nil, util.HandleSelectionError(err)
+func NewController(repository storage.Repository) *Controller {
+	return &Controller{
+		Controller: base.NewController(repository, web.ServiceOfferingsURL, func() types.Object {
+			return &types.ServiceOffering{}
+		}),
 	}
-
-	return util.NewJSONResponse(http.StatusOK, serviceOfferings)
 }

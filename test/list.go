@@ -273,11 +273,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		expectedAfterOpIDs = common.ExtractResourceIDs(listOpEntry.resourcesToExpectAfterOp)
 		unexpectedAfterOpIDs = common.ExtractResourceIDs(listOpEntry.resourcesNotToExpectAfterOp)
 
-		// workaround for brokers api
 		jsonArrayKey := strings.Replace(t.API, "/v1/", "", 1)
-		if jsonArrayKey == "service_brokers" {
-			jsonArrayKey = "brokers"
-		}
 
 		By(fmt.Sprintf("[TEST]: Verifying expected %s before operation after present", t.API))
 		beforeOpArray := ctx.SMWithOAuth.GET(t.API).

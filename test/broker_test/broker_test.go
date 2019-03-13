@@ -76,12 +76,14 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				if brokerWithLabelsServer != nil {
 					brokerWithLabelsServer.Close()
 				}
+
+				ctx.Cleanup()
 			})
 
 			BeforeEach(func() {
 				brokerServer = common.NewBrokerServer()
 				brokerWithLabelsServer = common.NewBrokerServer()
-				ctx = common.NewTestContext(nil)
+				ctx = common.DefaultTestContext()
 				brokerServer.Reset()
 				brokerWithLabelsServer.Reset()
 				brokerName := "brokerName"
@@ -91,7 +93,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				postBrokerRequestWithNoLabels = common.Object{
 					"name":        brokerName,
-					"broker_url":  brokerServer.URL,
+					"broker_url":  brokerServer.URL(),
 					"description": brokerDescription,
 					"credentials": common.Object{
 						"basic": common.Object{
@@ -102,7 +104,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				}
 				expectedBrokerResponse = common.Object{
 					"name":        brokerName,
-					"broker_url":  brokerServer.URL,
+					"broker_url":  brokerServer.URL(),
 					"description": brokerDescription,
 				}
 
@@ -113,7 +115,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				postBrokerRequestWithLabels = common.Object{
 					"name":        brokerWithLabelsName,
-					"broker_url":  brokerWithLabelsServer.URL,
+					"broker_url":  brokerWithLabelsServer.URL(),
 					"description": brokerWithLabelsDescription,
 					"credentials": common.Object{
 						"basic": common.Object{
@@ -513,7 +515,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						anotherBrokerServer.Password = "password"
 						anotherTestBroker = common.Object{
 							"name":        "another_name",
-							"broker_url":  anotherBrokerServer.URL,
+							"broker_url":  anotherBrokerServer.URL(),
 							"description": "another_description",
 							"credentials": common.Object{
 								"basic": common.Object{
@@ -611,7 +613,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						updatedBrokerJSON = common.Object{
 							"name":        "updated_name",
 							"description": "updated_description",
-							"broker_url":  updatedBrokerServer.URL,
+							"broker_url":  updatedBrokerServer.URL(),
 							"credentials": common.Object{
 								"basic": common.Object{
 									"username": updatedBrokerServer.Username,
@@ -657,7 +659,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("when broker_url is changed and the credentials are correct", func() {
 						It("returns 200", func() {
 							updatedBrokerJSON := common.Object{
-								"broker_url": updatedBrokerServer.URL,
+								"broker_url": updatedBrokerServer.URL(),
 							}
 							updatedBrokerServer.Username = brokerServer.Username
 							updatedBrokerServer.Password = brokerServer.Password
@@ -685,7 +687,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("when broker_url is changed but the credentials are wrong", func() {
 						It("returns 400", func() {
 							updatedBrokerJSON := common.Object{
-								"broker_url": updatedBrokerServer.URL,
+								"broker_url": updatedBrokerServer.URL(),
 							}
 							ctx.SMWithOAuth.PATCH("/v1/service_brokers/"+brokerID).
 								WithJSON(updatedBrokerJSON).
@@ -769,7 +771,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							ctx.SMWithOAuth.GET("/v1/service_brokers").
 								Expect().
 								Status(http.StatusOK).
-								JSON().Object().Value("brokers").Array().First().Object().
+								JSON().Object().Value("service_brokers").Array().First().Object().
 								ContainsMap(expectedBrokerResponse)
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
@@ -808,6 +810,68 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 
 				Context("when the broker catalog is modified", func() {
+					Context("when a new service offering with a plan existing for another service offering is added", func() {
+						var anotherServiceID string
+						var existingPlanID string
+
+						BeforeEach(func() {
+							existingServicePlan := gjson.Get(string(brokerServer.Catalog), "services.0.plans.0").String()
+							existingPlanID = gjson.Get(existingServicePlan, "id").String()
+							anotherServiceWithSamePlan, err := sjson.Set(common.GenerateTestServiceWithPlans(), "plans.-1", common.JSONToMap(existingServicePlan))
+							Expect(err).ShouldNot(HaveOccurred())
+
+							anotherService := common.JSONToMap(anotherServiceWithSamePlan)
+							anotherServiceID = anotherService["id"].(string)
+							Expect(anotherServiceID).ToNot(BeEmpty())
+
+							catalog, err := sjson.Set(string(brokerServer.Catalog), "services.-1", anotherService)
+							Expect(err).ShouldNot(HaveOccurred())
+
+							brokerServer.Catalog = common.SBCatalog(catalog)
+						})
+
+						It("is returned from the Services API associated with the correct broker", func() {
+							ctx.SMWithOAuth.GET("/v1/service_offerings").
+								Expect().
+								Status(http.StatusOK).
+								JSON().
+								Path("$.service_offerings[*].catalog_id").Array().NotContains(anotherServiceID)
+							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
+								WithJSON(common.Object{}).
+								Expect().
+								Status(http.StatusOK)
+							servicesJsonResp := ctx.SMWithOAuth.GET("/v1/service_offerings").
+								Expect().
+								Status(http.StatusOK).
+								JSON()
+							servicesJsonResp.Path("$.service_offerings[*].catalog_id").Array().Contains(anotherServiceID)
+							servicesJsonResp.Path("$.service_offerings[*].broker_id").Array().Contains(brokerID)
+
+							var soID string
+							for _, so := range servicesJsonResp.Object().Value("service_offerings").Array().Iter() {
+								sbID := so.Object().Value("broker_id").String().Raw()
+								Expect(sbID).ToNot(BeEmpty())
+
+								catalogID := so.Object().Value("catalog_id").String().Raw()
+								Expect(catalogID).ToNot(BeEmpty())
+
+								if catalogID == anotherServiceID && sbID == brokerID {
+									soID = so.Object().Value("id").String().Raw()
+									Expect(soID).ToNot(BeEmpty())
+									break
+								}
+							}
+
+							plansJsonResp := ctx.SMWithOAuth.GET("/v1/service_plans").
+								Expect().
+								Status(http.StatusOK).
+								JSON()
+							plansJsonResp.Path("$.service_plans[*].catalog_id").Array().Contains(existingPlanID)
+							plansJsonResp.Path("$.service_plans[*].service_offering_id").Array().Contains(soID)
+
+							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+						})
+					})
 					Context("when a new service offering with new plans is added", func() {
 						var anotherServiceID string
 						var anotherPlanID string
@@ -1237,7 +1301,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 
 					Context("Add label with existing key and value", func() {
-						It("Should return 400", func() {
+						It("Should return 200", func() {
 							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
@@ -1246,7 +1310,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
-								Status(http.StatusBadRequest)
+								Status(http.StatusOK)
 						})
 					})
 
@@ -1296,12 +1360,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							values := labels["cluster_id"].([]interface{})
 							changedLabelValues = []string{values[0].(string)}
 						})
-						It("Should return 400", func() {
+						It("Should return 200", func() {
 							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
-								Status(http.StatusBadRequest).JSON().Object().
-								Value("description").String().Contains("already exists")
+								Status(http.StatusOK)
 						})
 					})
 
@@ -1337,11 +1400,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							operation = query.RemoveLabelOperation
 							changedLabelKey = "non-existing-ey"
 						})
-						It("Should return 400", func() {
+						It("Should return 200", func() {
 							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
-								Status(http.StatusBadRequest)
+								Status(http.StatusOK)
 						})
 					})
 
@@ -1420,11 +1483,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							changedLabelKey = "cluster_id"
 							changedLabelValues = []string{"non-existing-value"}
 						})
-						It("Should return 400", func() {
+						It("Should return 200", func() {
 							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
-								Status(http.StatusBadRequest)
+								Status(http.StatusOK)
 						})
 					})
 				})

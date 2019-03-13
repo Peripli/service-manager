@@ -47,7 +47,7 @@ var _ = Describe("Service Manager Authentication", func() {
 	)
 
 	BeforeSuite(func() {
-		ctx = common.NewTestContext(nil)
+		ctx = common.DefaultTestContext()
 	})
 
 	AfterSuite(func() {

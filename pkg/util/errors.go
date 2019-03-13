@@ -21,12 +21,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/query"
-
 	"github.com/Peripli/service-manager/pkg/log"
 )
 
-// HTTPError is an error type that provides error details compliant with the Open Service Broker API conventions
+// HTTPError is an error type that provides error details that Service Manager error handlers would propagate to the client
 type HTTPError struct {
 	ErrorType   string `json:"error,omitempty"`
 	Description string `json:"description,omitempty"`
@@ -38,16 +36,25 @@ func (e *HTTPError) Error() string {
 	return e.Description
 }
 
+// UnsupportedQueryError is an error to show that the provided query cannot be executed
+type UnsupportedQueryError struct {
+	Message string
+}
+
+func (uq *UnsupportedQueryError) Error() string {
+	return uq.Message
+}
+
 // WriteError sends a JSON containing the error to the response writer
 func WriteError(err error, writer http.ResponseWriter) {
 	var respError *HTTPError
 	logger := log.D()
 	switch t := err.(type) {
 	case *HTTPError:
-		logger.Debug(err)
+		logger.Errorf("HTTPError: %s", err)
 		respError = t
 	default:
-		logger.Error(err)
+		logger.Errorf("Unexpected error: %s", err)
 		respError = &HTTPError{
 			ErrorType:   "InternalError",
 			Description: "Internal server error",
@@ -63,22 +70,18 @@ func WriteError(err error, writer http.ResponseWriter) {
 
 // HandleResponseError builds at HttpErrorResponse from the given response.
 func HandleResponseError(response *http.Response) error {
-	logger := log.D()
-	logger.Errorf("Handling failure response: returned status code %d", response.StatusCode)
-	httpErr := &HTTPError{
-		StatusCode: response.StatusCode,
-	}
-
 	body, err := BodyToBytes(response.Body)
 	if err != nil {
 		return fmt.Errorf("error processing response body of resp with status code %d: %s", response.StatusCode, err)
 	}
 
-	if err := BytesToObject(body, httpErr); err != nil || httpErr.Description == "" {
-		logger.Debugf("Failure response with status code %d is not an HTTPError. Error converting body: %v. Default err will be returned.", response.StatusCode, err)
-		return fmt.Errorf("StatusCode: %d Body: %s", response.StatusCode, body)
+	err = fmt.Errorf("StatusCode: %d Body: %s", response.StatusCode, body)
+	if response.Request != nil {
+		log.C(response.Request.Context()).Errorf("Call to client failed with: %s", err)
+	} else {
+		log.D().Errorf("Call to client failed with: %s", err)
 	}
-	return httpErr
+	return err
 }
 
 var (
@@ -131,7 +134,7 @@ func HandleSelectionError(err error, entityName ...string) error {
 		return nil
 	}
 
-	if _, ok := err.(*query.UnsupportedQueryError); ok {
+	if _, ok := err.(*UnsupportedQueryError); ok {
 		return &HTTPError{
 			Description: err.Error(),
 			ErrorType:   "BadRequest",
@@ -142,19 +145,4 @@ func HandleSelectionError(err error, entityName ...string) error {
 		entityName = []string{"entity"}
 	}
 	return HandleStorageError(err, entityName[0])
-}
-
-func HandleLabelChangeError(err error) error {
-	if err == nil {
-		return nil
-	}
-
-	if _, ok := err.(*query.LabelChangeError); ok {
-		return &HTTPError{
-			Description: err.Error(),
-			ErrorType:   "BadRequest",
-			StatusCode:  http.StatusBadRequest,
-		}
-	}
-	return HandleStorageError(err, "")
 }

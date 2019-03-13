@@ -39,11 +39,8 @@ type CreateBrokerHook struct {
 
 func (c *CreateBrokerHook) OnAPI(h extension.InterceptCreateOnAPI) extension.InterceptCreateOnAPI {
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
-		object, err := h(ctx, obj)
-		if err != nil {
-			return nil, err
-		}
-		broker := object.(*types.Broker)
+		broker := obj.(*types.Broker)
+		var err error
 		c.catalog, err = getBrokerCatalog(ctx, c.OSBClientCreateFunc, broker) // keep catalog to be stored later
 		if err != nil {
 			return nil, err
@@ -51,7 +48,7 @@ func (c *CreateBrokerHook) OnAPI(h extension.InterceptCreateOnAPI) extension.Int
 		if err = transformBrokerCredentials(ctx, broker, c.Encrypter.Encrypt); err != nil {
 			return nil, err
 		}
-		return broker, nil
+		return h(ctx, broker)
 	}
 }
 

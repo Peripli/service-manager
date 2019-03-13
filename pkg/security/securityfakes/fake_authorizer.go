@@ -5,28 +5,28 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/Peripli/service-manager/pkg/security"
+	http2 "github.com/Peripli/service-manager/pkg/security/http"
 )
 
 type FakeAuthorizer struct {
-	AuthorizeStub        func(req *http.Request) (security.Decision, error)
+	AuthorizeStub        func(req *http.Request) (http2.Decision, error)
 	authorizeMutex       sync.RWMutex
 	authorizeArgsForCall []struct {
 		req *http.Request
 	}
 	authorizeReturns struct {
-		result1 security.Decision
+		result1 http2.Decision
 		result2 error
 	}
 	authorizeReturnsOnCall map[int]struct {
-		result1 security.Decision
+		result1 http2.Decision
 		result2 error
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeAuthorizer) Authorize(req *http.Request) (security.Decision, error) {
+func (fake *FakeAuthorizer) Authorize(req *http.Request) (http2.Decision, error) {
 	fake.authorizeMutex.Lock()
 	ret, specificReturn := fake.authorizeReturnsOnCall[len(fake.authorizeArgsForCall)]
 	fake.authorizeArgsForCall = append(fake.authorizeArgsForCall, struct {
@@ -55,24 +55,24 @@ func (fake *FakeAuthorizer) AuthorizeArgsForCall(i int) *http.Request {
 	return fake.authorizeArgsForCall[i].req
 }
 
-func (fake *FakeAuthorizer) AuthorizeReturns(result1 security.Decision, result2 error) {
+func (fake *FakeAuthorizer) AuthorizeReturns(result1 http2.Decision, result2 error) {
 	fake.AuthorizeStub = nil
 	fake.authorizeReturns = struct {
-		result1 security.Decision
+		result1 http2.Decision
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *FakeAuthorizer) AuthorizeReturnsOnCall(i int, result1 security.Decision, result2 error) {
+func (fake *FakeAuthorizer) AuthorizeReturnsOnCall(i int, result1 http2.Decision, result2 error) {
 	fake.AuthorizeStub = nil
 	if fake.authorizeReturnsOnCall == nil {
 		fake.authorizeReturnsOnCall = make(map[int]struct {
-			result1 security.Decision
+			result1 http2.Decision
 			result2 error
 		})
 	}
 	fake.authorizeReturnsOnCall[i] = struct {
-		result1 security.Decision
+		result1 http2.Decision
 		result2 error
 	}{result1, result2}
 }
@@ -101,4 +101,4 @@ func (fake *FakeAuthorizer) recordInvocation(key string, args []interface{}) {
 	fake.invocations[key] = append(fake.invocations[key], args)
 }
 
-var _ security.Authorizer = new(FakeAuthorizer)
+var _ http2.Authorizer = new(FakeAuthorizer)

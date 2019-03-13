@@ -21,8 +21,10 @@ package web
 import (
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/health"
+	"github.com/Peripli/service-manager/pkg/extension"
+	"github.com/Peripli/service-manager/pkg/types"
 
+	"github.com/Peripli/service-manager/pkg/health"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/util/slice"
 )
@@ -140,6 +142,33 @@ func (api *API) RegisterPlugins(plugins ...Plugin) {
 		}
 		pluginSegments := api.decomposePluginOrDie(plugin)
 		api.Filters = append(api.Filters, pluginSegments...)
+	}
+}
+
+func (api *API) RegisterCreateInterceptorProviders(objectType types.ObjectType, providers ...extension.CreateInterceptorProvider) {
+	for _, c := range api.Controllers {
+		interceptable, ok := c.(extension.Interceptable)
+		if ok && objectType == interceptable.InterceptsType() {
+			interceptable.AddCreateInterceptorProviders(providers...)
+		}
+	}
+}
+
+func (api *API) RegisterUpdateInterceptorProviders(objectType types.ObjectType, providers ...extension.UpdateInterceptorProvider) {
+	for _, c := range api.Controllers {
+		interceptable, ok := c.(extension.Interceptable)
+		if ok && objectType == interceptable.InterceptsType() {
+			interceptable.AddUpdateInterceptorProviders(providers...)
+		}
+	}
+}
+
+func (api *API) RegisterDeleteInterceptorProviders(objectType types.ObjectType, providers ...extension.DeleteInterceptorProvider) {
+	for _, c := range api.Controllers {
+		interceptable, ok := c.(extension.Interceptable)
+		if ok && objectType == interceptable.InterceptsType() {
+			interceptable.AddDeleteInterceptorProviders(providers...)
+		}
 	}
 }
 

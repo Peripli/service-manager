@@ -1,8 +1,8 @@
 {
-    "Enable": ["deadcode", "golint", "vet", "gotype", "gocyclo", "maligned", "errcheck", "megacheck", "misspell", "unused", "staticcheck"],
+    "Enable": ["deadcode", "vet", "gotype", "maligned", "errcheck", "misspell", "staticcheck", "ineffassign"],
     "Exclude": ["test", "fake_*"],
     "Format": "[{{.Severity}}]: {{.Path}}: {{.Line}}:{{if .Col}}{{.Col}}{{end}}: {{.Message}} ({{.Linter}})",
-    "Deadline": "120s",
+    "Deadline": "10m",
     "Aggregate": true,
     "Sort": ["severity", "path", "line", "message"],
     "Checkstyle": false,

@@ -56,7 +56,7 @@ func DescribeTestsFor(t TestCase) bool {
 			By("==== Preparation for SM tests... ====")
 
 			defer GinkgoRecover()
-			ctx = common.NewTestContext(nil)
+			ctx = common.DefaultTestContext()
 
 			// A panic outside of Ginkgo's primitives (during test setup) would be recovered
 			// by the deferred GinkgoRecover() and the error will be associated with the first

@@ -1,11 +1,14 @@
 package plugin_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 	"testing"
+
+	"github.com/Peripli/service-manager/pkg/env"
 
 	"github.com/Peripli/service-manager/pkg/sm"
 
@@ -38,11 +41,11 @@ var _ = Describe("Service Manager Plugins", func() {
 
 	Describe("Partial plugin", func() {
 		BeforeEach(func() {
-			ctx = common.NewTestContext(&common.ContextParams{
-				RegisterExtensions: func(smb *sm.ServiceManagerBuilder) {
-					smb.API.RegisterPlugins(&PartialPlugin{})
-				},
-			})
+			ctx = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+				smb.API.RegisterPlugins(&PartialPlugin{})
+				return nil
+			}).Build()
+
 			var brokerID string
 			brokerID, _, brokerServer = ctx.RegisterBroker()
 			osbURL = "/v1/osb/" + brokerID
@@ -67,11 +70,11 @@ var _ = Describe("Service Manager Plugins", func() {
 		BeforeEach(func() {
 			testPlugin = TestPlugin{}
 
-			ctx = common.NewTestContext(&common.ContextParams{
-				RegisterExtensions: func(smb *sm.ServiceManagerBuilder) {
-					smb.API.RegisterPlugins(testPlugin)
-				},
-			})
+			ctx = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+				smb.API.RegisterPlugins(testPlugin)
+				return nil
+			}).Build()
+
 			var brokerID string
 			brokerID, _, brokerServer = ctx.RegisterBroker()
 			osbURL = "/v1/osb/" + brokerID
@@ -163,7 +166,7 @@ var _ = Describe("Service Manager Plugins", func() {
 			ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
 				Expect().Status(http.StatusOK)
 
-			Expect(brokerServer.Server.URL).To(ContainSubstring(brokerServer.LastRequest.Host))
+			Expect(brokerServer.URL()).To(ContainSubstring(brokerServer.LastRequest.Host))
 		})
 
 		osbOperations := []struct {

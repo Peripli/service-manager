@@ -40,7 +40,6 @@ var _ = Describe("API", func() {
 
 	BeforeSuite(func() {
 		server = common.NewOAuthServer()
-		server.Start()
 	})
 
 	AfterSuite(func() {
@@ -55,7 +54,7 @@ var _ = Describe("API", func() {
 
 		It("returns no error if creation is successful", func() {
 			_, err := api.New(context.TODO(), mockedStorage, &api.Settings{
-				TokenIssuerURL: server.URL,
+				TokenIssuerURL: server.BaseURL,
 				ClientID:       "sm",
 			}, nil)
 			Expect(err).ShouldNot(HaveOccurred())

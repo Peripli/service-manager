@@ -18,13 +18,14 @@ package middlewares
 
 import (
 	"github.com/Peripli/service-manager/pkg/security"
+	"github.com/Peripli/service-manager/pkg/security/http"
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
 // NewAuthzMiddleware returns web.Filter which uses the given security.Authorizer
 // to authorize the request. FilterMatchers should be extended to cover the desired
 // endpoints.
-func NewAuthzMiddleware(filterName string, authorizer security.Authorizer) web.Filter {
+func NewAuthzMiddleware(filterName string, authorizer http.Authorizer) web.Filter {
 	return &authzMiddleware{
 		middleware: &middleware{
 			FilterName: filterName,
@@ -36,7 +37,7 @@ func NewAuthzMiddleware(filterName string, authorizer security.Authorizer) web.F
 // authzMiddleware type represents an authorization middleware
 type authzMiddleware struct {
 	*middleware
-	Authorizer security.Authorizer
+	Authorizer http.Authorizer
 }
 
 // Run represents the authorization middleware function that delegates the authorization
@@ -44,19 +45,19 @@ type authzMiddleware struct {
 func (m *authzMiddleware) Run(request *web.Request, next web.Handler) (*web.Response, error) {
 	decision, err := m.Authorizer.Authorize(request.Request)
 	if err != nil {
-		if decision == security.Deny {
+		if decision == http.Deny {
 			return nil, security.ForbiddenHTTPError(err.Error())
 		}
 		return nil, err
 	}
 
 	switch decision {
-	case security.Allow:
+	case http.Allow:
 		ctx := request.Context()
 		if !web.IsAuthorized(ctx) {
 			request.Request = request.WithContext(web.ContextWithAuthorization(ctx))
 		}
-	case security.Deny:
+	case http.Deny:
 		return nil, security.ForbiddenHTTPError("authorization failed")
 	}
 

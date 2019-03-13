@@ -121,6 +121,7 @@ func (ps *postgresStorage) updateSchema(migrationsURL string) error {
 	if err != nil {
 		return err
 	}
+	m.Log = migrateLogger{}
 	err = m.Up()
 	if err == migrate.ErrNoChange {
 		log.D().Debug("Database schema already up to date")
@@ -313,4 +314,14 @@ func (ps *postgresStorage) InTransaction(ctx context.Context, f func(ctx context
 	}
 	ok = true
 	return nil
+}
+
+type migrateLogger struct{}
+
+func (migrateLogger) Printf(format string, v ...interface{}) {
+	log.D().Debugf(format, v...)
+}
+
+func (migrateLogger) Verbose() bool {
+	return true
 }

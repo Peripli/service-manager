@@ -4,7 +4,7 @@ package securityfakes
 import (
 	"sync"
 
-	"github.com/Peripli/service-manager/pkg/security"
+	"github.com/Peripli/service-manager/pkg/security/http"
 )
 
 type FakeTokenData struct {
@@ -95,4 +95,4 @@ func (fake *FakeTokenData) recordInvocation(key string, args []interface{}) {
 	fake.invocations[key] = append(fake.invocations[key], args)
 }
 
-var _ security.TokenData = new(FakeTokenData)
+var _ http.TokenData = new(FakeTokenData)

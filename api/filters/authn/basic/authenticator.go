@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"net/http"
 
+	http2 "github.com/Peripli/service-manager/pkg/security/http"
+
 	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -42,10 +44,10 @@ type basicAuthenticator struct {
 }
 
 // Authenticate authenticates by using the provided Basic credentials
-func (a *basicAuthenticator) Authenticate(request *http.Request) (*web.UserContext, security.Decision, error) {
+func (a *basicAuthenticator) Authenticate(request *http.Request) (*web.UserContext, http2.Decision, error) {
 	username, password, ok := request.BasicAuth()
 	if !ok {
-		return nil, security.Abstain, nil
+		return nil, http2.Abstain, nil
 	}
 
 	ctx := request.Context()
@@ -53,17 +55,17 @@ func (a *basicAuthenticator) Authenticate(request *http.Request) (*web.UserConte
 
 	if err != nil {
 		if err == util.ErrNotFoundInStorage {
-			return nil, security.Deny, err
+			return nil, http2.Deny, err
 		}
-		return nil, security.Abstain, fmt.Errorf("could not get credentials entity from storage: %s", err)
+		return nil, http2.Abstain, fmt.Errorf("could not get credentials entity from storage: %s", err)
 	}
 	passwordBytes, err := a.Encrypter.Decrypt(ctx, []byte(credentials.Basic.Password))
 	if err != nil {
-		return nil, security.Abstain, fmt.Errorf("could not reverse credentials from storage: %v", err)
+		return nil, http2.Abstain, fmt.Errorf("could not reverse credentials from storage: %v", err)
 	}
 
 	if string(passwordBytes) != password {
-		return nil, security.Deny, nil
+		return nil, http2.Deny, nil
 	}
 
 	return &web.UserContext{
@@ -71,5 +73,5 @@ func (a *basicAuthenticator) Authenticate(request *http.Request) (*web.UserConte
 			data: credentials.Details,
 		},
 		Name: username,
-	}, security.Allow, nil
+	}, http2.Allow, nil
 }

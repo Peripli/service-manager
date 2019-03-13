@@ -20,6 +20,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Peripli/service-manager/api/base"
+
 	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -31,17 +33,22 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-const (
-	reqPlatformID = "platform_id"
-)
-
 // Controller platform controller
 type Controller struct {
-	Repository storage.Repository
-	Encrypter  security.Encrypter
+	*base.Controller
 }
 
 var _ web.Controller = &Controller{}
+
+func NewController(repository storage.Repository, encrypter security.Encrypter) *Controller {
+	baseController := base.NewController(repository, web.PlatformsURL, func() types.Object {
+		return &types.Platform{}
+	})
+
+	return &Controller{
+		Controller: baseController,
+	}
+}
 
 // createPlatform handler for POST /v1/platforms
 func (c *Controller) createPlatform(r *web.Request) (*web.Response, error) {
@@ -83,7 +90,7 @@ func (c *Controller) createPlatform(r *web.Request) (*web.Response, error) {
 		return nil, util.HandleStorageError(err, "platform")
 	}
 	platform.Credentials.Basic.Password = plainPassword
-	return util.NewJSONResponse(http.StatusCreated, platform)
+	return web.NewJSONResponse(http.StatusCreated, platform)
 }
 
 // getPlatform handler for GET /v1/platforms/:platform_id
@@ -97,7 +104,7 @@ func (c *Controller) getPlatform(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 	platform.(*types.Platform).Credentials = nil
-	return util.NewJSONResponse(http.StatusOK, platform)
+	return web.NewJSONResponse(http.StatusOK, platform)
 }
 
 // listPlatforms handler for GET /v1/platforms
@@ -114,7 +121,7 @@ func (c *Controller) listPlatforms(r *web.Request) (*web.Response, error) {
 		platform.(*types.Platform).Credentials = nil
 	}
 
-	return util.NewJSONResponse(http.StatusOK, platforms)
+	return web.NewJSONResponse(http.StatusOK, platforms)
 }
 
 func (c *Controller) deletePlatforms(r *web.Request) (*web.Response, error) {
@@ -124,7 +131,7 @@ func (c *Controller) deletePlatforms(r *web.Request) (*web.Response, error) {
 	if _, err := c.Repository.Delete(ctx, types.PlatformType, query.CriteriaForContext(ctx)...); err != nil {
 		return nil, util.HandleSelectionError(err, "platform")
 	}
-	return util.NewJSONResponse(http.StatusOK, map[string]string{})
+	return web.NewJSONResponse(http.StatusOK, map[string]string{})
 }
 
 // deletePlatform handler for DELETE /v1/platforms/:platform_id
@@ -139,7 +146,7 @@ func (c *Controller) deletePlatform(r *web.Request) (*web.Response, error) {
 	}
 
 	// map[string]string{} will result in empty JSON
-	return util.NewJSONResponse(http.StatusOK, map[string]string{})
+	return web.NewJSONResponse(http.StatusOK, map[string]string{})
 }
 
 // updatePlatform handler for PATCH /v1/platforms/:platform_id
@@ -166,5 +173,6 @@ func (c *Controller) patchPlatform(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	return util.NewJSONResponse(http.StatusOK, platform)
+	platform.Credentials = nil
+	return web.NewJSONResponse(http.StatusOK, platform)
 }

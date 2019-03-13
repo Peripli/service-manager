@@ -47,7 +47,7 @@ func (c *updateHookOnAPIHandler) OnTransaction(f InterceptUpdateOnTransaction) I
 	return f
 }
 
-func UnionUpdateInterceptor(providers ...UpdateInterceptorProvider) UpdateInterceptorProvider {
+func UnionUpdateInterceptor(providers []UpdateInterceptorProvider) UpdateInterceptorProvider {
 	return func() UpdateInterceptor {
 		c := &updateHookOnAPIHandler{}
 		for _, h := range providers {

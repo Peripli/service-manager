@@ -17,8 +17,10 @@
 package query
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
+
+	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/tidwall/gjson"
 )
@@ -42,15 +44,6 @@ func (o LabelOperation) RequiresValues() bool {
 	return o != RemoveLabelOperation
 }
 
-// LabelChangeError is an error that shows that the constructed label change cannot be executed
-type LabelChangeError struct {
-	Message string
-}
-
-func (l LabelChangeError) Error() string {
-	return l.Message
-}
-
 // LabelChange represents the changes that should be performed to a label
 type LabelChange struct {
 	Operation LabelOperation `json:"op"`
@@ -58,34 +51,40 @@ type LabelChange struct {
 	Values    []string       `json:"values"`
 }
 
-func (lc LabelChange) Validate() error {
+func (lc *LabelChange) Validate() error {
 	if lc.Operation.RequiresValues() && len(lc.Values) == 0 {
-		return &LabelChangeError{fmt.Sprintf("operation %s requires values to be provided", lc.Operation)}
+		return fmt.Errorf("operation %s requires values to be provided", lc.Operation)
 	}
 	if lc.Key == "" || lc.Operation == "" {
-		return &LabelChangeError{Message: "both key and operation are required for label change"}
+		return errors.New("both key and operation are missing but are required for label change")
+	}
+	return nil
+}
+
+type LabelChanges []*LabelChange
+
+func (lc *LabelChanges) Validate() error {
+	for _, labelChange := range *lc {
+		return labelChange.Validate()
 	}
 	return nil
 }
 
 // LabelChangesFromJSON returns the label changes from the json byte array and an error if the changes are not valid
 func LabelChangesFromJSON(jsonBytes []byte) ([]*LabelChange, error) {
-	var labelChanges []*LabelChange
+	labelChanges := LabelChanges{}
 	labelChangesBytes := gjson.GetBytes(jsonBytes, "labels").String()
 	if len(labelChangesBytes) <= 0 {
-		return []*LabelChange{}, nil
+		return LabelChanges{}, nil
 	}
-	if err := json.Unmarshal([]byte(labelChangesBytes), &labelChanges); err != nil {
+
+	if err := util.BytesToObject([]byte(labelChangesBytes), &labelChanges); err != nil {
 		return nil, err
 	}
+
 	for _, v := range labelChanges {
 		if v.Operation == RemoveLabelOperation {
 			v.Values = nil
-		}
-	}
-	for _, change := range labelChanges {
-		if err := change.Validate(); err != nil {
-			return nil, err
 		}
 	}
 	return labelChanges, nil

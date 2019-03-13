@@ -19,6 +19,7 @@ package common
 import (
 	"context"
 	"flag"
+	"fmt"
 	"net/http/httptest"
 	"path"
 	"runtime"
@@ -37,29 +38,82 @@ import (
 	. "github.com/onsi/ginkgo"
 )
 
-var (
-	e          env.Environment
-	_, b, _, _ = runtime.Caller(0)
-	basePath   = path.Dir(b)
-)
-
-type FlagValue struct {
-	pflagValue pflag.Value
-}
-
-func (f FlagValue) Set(s string) error {
-	return f.pflagValue.Set(s)
-}
-
-func (f FlagValue) String() string {
-	return f.pflagValue.String()
-}
-
 func init() {
-	e = TestEnv()
+	// dummy env to put SM pflags to flags
+	TestEnv(SetTestFileLocation)
+}
+
+const SMServer = "sm-server"
+const OauthServer = "oauth-server"
+const BrokerServerPrefix = "broker-"
+
+type TestContextBuilder struct {
+	envPreHooks  []func(set *pflag.FlagSet)
+	envPostHooks []func(env env.Environment, servers map[string]FakeServer)
+
+	smExtensions       []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error
+	defaultTokenClaims map[string]interface{}
+
+	shouldSkipBasicAuthClient bool
+
+	Environment func(f ...func(set *pflag.FlagSet)) env.Environment
+	Servers     map[string]FakeServer
+}
+
+type TestContext struct {
+	SM           *httpexpect.Expect
+	SMWithOAuth  *httpexpect.Expect
+	SMWithBasic  *httpexpect.Expect
+	TestPlatform *types.Platform
+
+	Servers map[string]FakeServer
+}
+
+type testSMServer struct {
+	*httptest.Server
+}
+
+func (ts *testSMServer) URL() string {
+	return ts.Server.URL
+}
+
+// DefaultTestContext sets up a test context with default values
+func DefaultTestContext() *TestContext {
+	return NewTestContextBuilder().Build()
+}
+
+// NewTestContextBuilder sets up a builder with default values
+func NewTestContextBuilder() *TestContextBuilder {
+	return &TestContextBuilder{
+		envPreHooks: []func(set *pflag.FlagSet){
+			SetTestFileLocation,
+		},
+		Environment: TestEnv,
+		envPostHooks: []func(env env.Environment, servers map[string]FakeServer){
+			func(env env.Environment, servers map[string]FakeServer) {
+				env.Set("api.token_issuer_url", servers["oauth-server"].URL())
+			},
+			func(env env.Environment, servers map[string]FakeServer) {
+				flag.VisitAll(func(flag *flag.Flag) {
+					if flag.Value.String() != "" {
+						// if any of the go test flags have been set, propagate the value in sm env with highest prio
+						// when env exposes the pflagset it would be better to instead override the pflag value instead
+						env.Set(flag.Name, flag.Value.String())
+					}
+				})
+			},
+		},
+		smExtensions:       []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error{},
+		defaultTokenClaims: make(map[string]interface{}, 0),
+		Servers: map[string]FakeServer{
+			"oauth-server": NewOAuthServer(),
+		},
+	}
 }
 
 func SetTestFileLocation(set *pflag.FlagSet) {
+	_, b, _, _ := runtime.Caller(0)
+	basePath := path.Dir(b)
 	set.Set("file.location", basePath)
 }
 
@@ -80,36 +134,98 @@ func TestEnv(additionalFlagFuncs ...func(set *pflag.FlagSet)) env.Environment {
 
 	additionalFlagFuncs = append(additionalFlagFuncs, f)
 
-	// will be used as default value and overridden if --file.location={{location}} is passed to go test
-	additionalFlagFuncs = append(additionalFlagFuncs, SetTestFileLocation)
-
 	return sm.DefaultEnv(additionalFlagFuncs...)
 }
 
-type ContextParams struct {
-	RegisterExtensions func(smb *sm.ServiceManagerBuilder)
-	DefaultTokenClaims map[string]interface{}
-	Env                env.Environment
+func (tcb *TestContextBuilder) SkipBasicAuthClientSetup(shouldSkip bool) *TestContextBuilder {
+	tcb.shouldSkipBasicAuthClient = shouldSkip
+
+	return tcb
 }
 
-func NewSMServer(params *ContextParams, issuerURL string) *httptest.Server {
-	var smEnv env.Environment
-	if params.Env != nil {
-		smEnv = params.Env
-	} else {
-		smEnv = e
+func (tcb *TestContextBuilder) WithDefaultEnv(envCreateFunc func(f ...func(set *pflag.FlagSet)) env.Environment) *TestContextBuilder {
+	tcb.Environment = envCreateFunc
+
+	return tcb
+}
+
+func (tcb *TestContextBuilder) WithAdditionalFakeServers(additionalFakeServers map[string]FakeServer) *TestContextBuilder {
+	if tcb.Servers == nil {
+		tcb.Servers = make(map[string]FakeServer, 0)
 	}
 
-	smEnv.Set("api.token_issuer_url", issuerURL)
+	for name, server := range additionalFakeServers {
+		tcb.Servers[name] = server
+	}
 
-	flag.VisitAll(func(flag *flag.Flag) {
-		if flag.Value.String() != "" {
-			// if any of the go test flags have been set, propagate the value in sm env with highest prio
-			// when env exposes the pflagset it would be better to instead override the pflag value instead
-			smEnv.Set(flag.Name, flag.Value.String())
-		}
+	return tcb
+}
+
+func (tcb *TestContextBuilder) WithDefaultTokenClaims(defaultTokenClaims map[string]interface{}) *TestContextBuilder {
+	tcb.defaultTokenClaims = defaultTokenClaims
+
+	return tcb
+}
+
+func (tcb *TestContextBuilder) WithEnvPreExtensions(fs ...func(set *pflag.FlagSet)) *TestContextBuilder {
+	tcb.envPreHooks = append(tcb.envPreHooks, fs...)
+
+	return tcb
+}
+
+func (tcb *TestContextBuilder) WithEnvPostExtensions(fs ...func(e env.Environment, servers map[string]FakeServer)) *TestContextBuilder {
+	tcb.envPostHooks = append(tcb.envPostHooks, fs...)
+
+	return tcb
+}
+
+func (tcb *TestContextBuilder) WithSMExtensions(fs ...func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error) *TestContextBuilder {
+	tcb.smExtensions = append(tcb.smExtensions, fs...)
+
+	return tcb
+}
+
+func (tcb *TestContextBuilder) Build() *TestContext {
+	environment := tcb.Environment(tcb.envPreHooks...)
+
+	for _, envPostHook := range tcb.envPostHooks {
+		envPostHook(environment, tcb.Servers)
+	}
+
+	smServer := newSMServer(environment, tcb.smExtensions)
+	tcb.Servers[SMServer] = smServer
+
+	SM := httpexpect.New(GinkgoT(), smServer.URL())
+	oauthServer := tcb.Servers[OauthServer].(*OAuthServer)
+	accessToken := oauthServer.CreateToken(tcb.defaultTokenClaims)
+	SMWithOAuth := SM.Builder(func(req *httpexpect.Request) {
+		req.WithHeader("Authorization", "Bearer "+accessToken)
 	})
+	RemoveAllBrokers(SMWithOAuth)
+	RemoveAllPlatforms(SMWithOAuth)
 
+	testContext := &TestContext{
+		SM:          SM,
+		SMWithOAuth: SMWithOAuth,
+		Servers:     tcb.Servers,
+	}
+
+	if !tcb.shouldSkipBasicAuthClient {
+		platformJSON := MakePlatform("tcb-platform-test", "tcb-platform-test", "platform-type", "test-platform")
+		platform := RegisterPlatformInSM(platformJSON, SMWithOAuth)
+		SMWithBasic := SM.Builder(func(req *httpexpect.Request) {
+			username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
+			req.WithBasicAuth(username, password)
+		})
+		testContext.SMWithBasic = SMWithBasic
+		testContext.TestPlatform = platform
+	}
+
+	return testContext
+
+}
+
+func newSMServer(smEnv env.Environment, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error) *testSMServer {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := struct {
 		Log *log.Settings
@@ -123,58 +239,16 @@ func NewSMServer(params *ContextParams, issuerURL string) *httptest.Server {
 		panic(err)
 	}
 	ctx = log.Configure(ctx, s.Log)
-	smanagerBuilder := sm.New(ctx, cancel, smEnv)
-	if params.RegisterExtensions != nil {
-		params.RegisterExtensions(smanagerBuilder)
+	smb := sm.New(ctx, cancel, smEnv)
+	for _, registerExtensionsFunc := range fs {
+		if err := registerExtensionsFunc(ctx, smb, smEnv); err != nil {
+			panic(fmt.Sprintf("error creating test SM server: %s", err))
+		}
 	}
-	serviceManager := smanagerBuilder.Build()
-	return httptest.NewServer(serviceManager.Server.Router)
-}
-
-func NewTestContext(params *ContextParams) *TestContext {
-	if params == nil {
-		params = &ContextParams{}
+	serviceManager := smb.Build()
+	return &testSMServer{
+		Server: httptest.NewServer(serviceManager.Server.Router),
 	}
-
-	oauthServer := NewOAuthServer()
-	oauthServer.Start()
-
-	smServer := NewSMServer(params, oauthServer.URL)
-	SM := httpexpect.New(GinkgoT(), smServer.URL)
-
-	accessToken := oauthServer.CreateToken(params.DefaultTokenClaims)
-	SMWithOAuth := SM.Builder(func(req *httpexpect.Request) {
-		req.WithHeader("Authorization", "Bearer "+accessToken)
-	})
-	RemoveAllBrokers(SMWithOAuth)
-	RemoveAllPlatforms(SMWithOAuth)
-
-	platformJSON := MakePlatform("ctx-platform-test", "ctx-platform-test", "platform-type", "test-platform")
-	platform := RegisterPlatformInSM(platformJSON, SMWithOAuth)
-	SMWithBasic := SM.Builder(func(req *httpexpect.Request) {
-		username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
-		req.WithBasicAuth(username, password)
-	})
-
-	return &TestContext{
-		SM:           SM,
-		SMWithOAuth:  SMWithOAuth,
-		SMWithBasic:  SMWithBasic,
-		TestPlatform: platform,
-		smServer:     smServer,
-		OAuthServer:  oauthServer,
-		brokers:      make(map[string]*BrokerServer),
-	}
-}
-
-type TestContext struct {
-	SM           *httpexpect.Expect
-	SMWithOAuth  *httpexpect.Expect
-	SMWithBasic  *httpexpect.Expect
-	TestPlatform *types.Platform
-	smServer     *httptest.Server
-	OAuthServer  *OAuthServer
-	brokers      map[string]*BrokerServer
 }
 
 func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, labels Object) (string, Object, *BrokerServer) {
@@ -189,7 +263,7 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, la
 	}
 	brokerJSON := Object{
 		"name":        UUID.String(),
-		"broker_url":  brokerServer.URL,
+		"broker_url":  brokerServer.URL(),
 		"description": UUID2.String(),
 		"credentials": Object{
 			"basic": Object{
@@ -205,7 +279,7 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, la
 
 	brokerID := RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth)
 	brokerServer.ResetCallHistory()
-	ctx.brokers[brokerID] = brokerServer
+	ctx.Servers[BrokerServerPrefix+brokerID] = brokerServer
 	brokerJSON["id"] = brokerID
 	return brokerID, brokerJSON, brokerServer
 }
@@ -232,36 +306,18 @@ func (ctx *TestContext) RegisterPlatform() *types.Platform {
 }
 
 func (ctx *TestContext) CleanupBroker(id string) {
-	broker := ctx.brokers[id]
+	broker := ctx.Servers[BrokerServerPrefix+id]
 	ctx.SMWithOAuth.DELETE("/v1/service_brokers/" + id).Expect()
-	if broker != nil && broker.Server != nil {
-		broker.Server.Close()
-	}
-	delete(ctx.brokers, id)
+	broker.Close()
+	delete(ctx.Servers, BrokerServerPrefix+id)
 }
 
 func (ctx *TestContext) Cleanup() {
-	if ctx == nil {
-		return
-	}
+	RemoveAllBrokers(ctx.SMWithOAuth)
+	RemoveAllPlatforms(ctx.SMWithOAuth)
 
-	if ctx.SMWithOAuth != nil {
-		RemoveAllBrokers(ctx.SMWithOAuth)
-		RemoveAllPlatforms(ctx.SMWithOAuth)
-	}
-
-	for _, broker := range ctx.brokers {
-		if broker != nil && broker.Server != nil {
-			broker.Server.Close()
-		}
-	}
-
-	if ctx.smServer != nil {
-		ctx.smServer.Close()
-	}
-
-	if ctx.OAuthServer != nil {
-		ctx.OAuthServer.Close()
+	for _, server := range ctx.Servers {
+		server.Close()
 	}
 }
 

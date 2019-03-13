@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -34,16 +35,19 @@ func TestUtil(t *testing.T) {
 	RunSpecs(t, "Util test suite")
 }
 
-func validateHTTPErrorOccured(err error, expectedStatusCode int) {
+func validateHTTPErrorOccurred(err error, code int) {
 	Expect(err).Should(HaveOccurred())
 
 	httpError, ok := err.(*util.HTTPError)
-	Expect(ok).To(BeTrue())
+	if ok {
+		Expect(httpError.ErrorType).To(Not(BeEmpty()))
+		Expect(httpError.Description).To(Not(BeEmpty()))
+		Expect(httpError.StatusCode).To(Equal(code))
 
-	Expect(httpError.StatusCode).To(Equal(expectedStatusCode))
+	} else {
+		Expect(err.Error()).To(ContainSubstring(strconv.Itoa(code)))
+	}
 
-	Expect(httpError.ErrorType).To(Not(BeEmpty()))
-	Expect(httpError.Description).To(Not(BeEmpty()))
 }
 
 var _ = Describe("Utils test", func() {
@@ -100,7 +104,7 @@ var _ = Describe("Utils test", func() {
 				req.Header.Add("Content-Type", "application/xml")
 				_, err := util.RequestBodyToBytes(req)
 
-				validateHTTPErrorOccured(err, http.StatusUnsupportedMediaType)
+				validateHTTPErrorOccurred(err, http.StatusUnsupportedMediaType)
 			})
 		})
 
@@ -120,7 +124,7 @@ var _ = Describe("Utils test", func() {
 				req.Header.Add("Content-Type", "application/json")
 				_, err := util.RequestBodyToBytes(req)
 
-				validateHTTPErrorOccured(err, http.StatusBadRequest)
+				validateHTTPErrorOccurred(err, http.StatusBadRequest)
 			})
 		})
 
@@ -157,7 +161,7 @@ var _ = Describe("Utils test", func() {
 			It("returns a proper HTTPError", func() {
 				err := util.BytesToObject([]byte(randomJSON), &testTypeValidation)
 
-				validateHTTPErrorOccured(err, http.StatusBadRequest)
+				validateHTTPErrorOccurred(err, http.StatusBadRequest)
 			})
 		})
 
@@ -165,7 +169,7 @@ var _ = Describe("Utils test", func() {
 			It("returns a proper HTTPError", func() {
 				err := util.BytesToObject([]byte(testTypeNotValid), &testTypeValidation)
 
-				validateHTTPErrorOccured(err, http.StatusBadRequest)
+				validateHTTPErrorOccurred(err, http.StatusBadRequest)
 			})
 		})
 
@@ -206,52 +210,7 @@ var _ = Describe("Utils test", func() {
 
 		})
 	})
-
-	Describe("NewJSONResponse", func() {
-		const testTypeValid = `{"field1":"Value1", "field2":"Value2"}`
-
-		It("builds a web.Response containing the marshalled value with a Content-Type header", func() {
-			expectedCode := http.StatusOK
-			testValue := testTypeValidated{
-				Field1: "Value1",
-				Field2: "Value2",
-			}
-			response, err := util.NewJSONResponse(expectedCode, testValue)
-
-			Expect(err).ShouldNot(HaveOccurred())
-			Expect(response.StatusCode).To(Equal(expectedCode))
-			Expect(response.Body).Should(MatchJSON(testTypeValid))
-			Expect(response.Header.Get("Content-Type")).To(Equal("application/json"))
-		})
-
-		It("builds a web.Response containing an empty response value when return code is 204 No Content", func() {
-			testJSONResponse(http.StatusNoContent, util.EmptyResponseBody{}, []byte{})
-		})
-
-		It("builds a web.Response containing an empty response value when return code is 200 OK and EmptyResponseBody is provided", func() {
-			testJSONResponse(http.StatusOK, util.EmptyResponseBody{}, []byte{})
-		})
-
-		It("builds a web.Response containing a non-empty response value when instead of EmptyResponseBody an empty data structure is provided", func() {
-			response, err := util.NewJSONResponse(http.StatusOK, struct{}{})
-
-			Expect(err).ShouldNot(HaveOccurred())
-			Expect(response.StatusCode).To(Equal(http.StatusOK))
-			Expect(response.Body).ShouldNot(BeEmpty())
-			Expect(response.Body).ShouldNot(Equal(util.EmptyResponseBody{}))
-			Expect(response.Header.Get("Content-Type")).To(Equal("application/json"))
-		})
-	})
 })
-
-func testJSONResponse(expectedCode int, providedBody, expectedMarshalledBody interface{}) {
-	response, err := util.NewJSONResponse(expectedCode, providedBody)
-
-	Expect(err).ShouldNot(HaveOccurred())
-	Expect(response.StatusCode).To(Equal(expectedCode))
-	Expect(response.Body).Should(Equal(expectedMarshalledBody))
-	Expect(response.Header.Get("Content-Type")).To(Equal("application/json"))
-}
 
 type testTypeValidated struct {
 	Field1 string `json:"field1"`
