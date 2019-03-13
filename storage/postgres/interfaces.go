@@ -26,15 +26,14 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-type Entity interface {
+type PostgresEntity interface {
 	storage.Entity
 	TableName() string
-	PrimaryColumn() string
 	RowsToList(rows *sqlx.Rows) (types.ObjectList, error)
-	LabelEntity() LabelEntity
+	LabelEntity() PostgresLabel
 }
 
-type LabelEntity interface {
+type PostgresLabel interface {
 	storage.Label
 	LabelsTableName() string
 	LabelsPrimaryColumn() string
@@ -42,8 +41,8 @@ type LabelEntity interface {
 }
 
 type EntityLabelRow interface {
-	Entity
-	LabelEntity
+	PostgresEntity
+	PostgresLabel
 }
 
 func validateLabels(entities []storage.Label) error {

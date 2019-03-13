@@ -63,7 +63,7 @@ type Safe struct {
 //}
 
 func InstallServiceOffering(scheme *storage.Scheme) {
-	scheme.Introduce(&types.ServiceOffering{}, &ServiceOffering{}, &ServiceOfferingConverter{})
+	scheme.Introduce(&ServiceOffering{})
 }
 
 type ServiceOffering struct {
@@ -85,7 +85,7 @@ type ServiceOffering struct {
 	BrokerID string `db:"broker_id"`
 }
 
-func (so *ServiceOffering) LabelEntity() LabelEntity {
+func (so *ServiceOffering) LabelEntity() PostgresLabel {
 	return nil
 }
 
@@ -101,7 +101,7 @@ func (so *ServiceOffering) PrimaryColumn() string {
 	return "id"
 }
 
-func (so *ServiceOffering) Empty() Entity {
+func (so *ServiceOffering) Empty() PostgresEntity {
 	return &ServiceOffering{}
 }
 

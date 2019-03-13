@@ -31,7 +31,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) LabelEntity, pgDB pgDB, referenceID string, updateActions []*query.LabelChange) error {
+func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) (PostgresLabel, error), pgDB pgDB, referenceID string, updateActions []*query.LabelChange) error {
 	for _, action := range updateActions {
 		switch action.Operation {
 		case query.AddLabelOperation:
@@ -43,7 +43,10 @@ func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string,
 		case query.RemoveLabelOperation:
 			fallthrough
 		case query.RemoveLabelValuesOperation:
-			pgLabel := newLabelFunc("", "", "")
+			pgLabel, err := newLabelFunc("", "", "")
+			if err != nil {
+				return err
+			}
 			if err := removeLabel(ctx, pgDB, pgLabel, referenceID, action.Key, action.Values...); err != nil {
 				if err == util.ErrNotFoundInStorage {
 					return &query.LabelChangeError{Message: fmt.Sprintf("label with key %s cannot be modified as it does not exist", action.Key)}
@@ -55,14 +58,17 @@ func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string,
 	return nil
 }
 
-func addLabel(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) LabelEntity, db pgDB, key string, values ...string) error {
+func addLabel(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) (PostgresLabel, error), db pgDB, key string, values ...string) error {
 	for _, labelValue := range values {
 		uuids, err := uuid.NewV4()
 		if err != nil {
 			return fmt.Errorf("could not generate id for new label: %v", err)
 		}
 		labelID := uuids.String()
-		newLabel := newLabelFunc(labelID, key, labelValue)
+		newLabel, err := newLabelFunc(labelID, key, labelValue)
+		if err != nil {
+			return err
+		}
 		labelTable := newLabel.LabelsTableName()
 		if _, err := create(ctx, db, labelTable, newLabel); err != nil {
 			if err == util.ErrAlreadyExistsInStorage {
@@ -74,7 +80,7 @@ func addLabel(ctx context.Context, newLabelFunc func(labelID string, labelKey st
 	return nil
 }
 
-func removeLabel(ctx context.Context, execer sqlx.ExtContext, label LabelEntity, referenceID, labelKey string, labelValues ...string) error {
+func removeLabel(ctx context.Context, execer sqlx.ExtContext, label PostgresLabel, referenceID, labelKey string, labelValues ...string) error {
 	labelTableName := label.LabelsTableName()
 	referenceColumnName := label.ReferenceColumn()
 	baseQuery := fmt.Sprintf("DELETE FROM %s WHERE key=? AND %s=?", labelTableName, referenceColumnName)
@@ -93,7 +99,7 @@ func removeLabel(ctx context.Context, execer sqlx.ExtContext, label LabelEntity,
 	return executeNew(ctx, execer, sqlQuery, queryParams)
 }
 
-func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTableName string, labelEntity LabelEntity, criteria []query.Criterion) (string, []interface{}, error) {
+func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTableName string, labelEntity PostgresLabel, criteria []query.Criterion) (string, []interface{}, error) {
 	if len(criteria) == 0 {
 		return sqlQuery + ";", nil, nil
 	}

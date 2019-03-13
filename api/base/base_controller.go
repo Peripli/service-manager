@@ -106,14 +106,30 @@ func (c *Controller) CreateObject(r *web.Request) (*web.Response, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not generate GUID for %s: %s", c.ObjectType, err)
 	}
-
 	createHook := c.CreateInterceptorProvider()
-	onAPI := createHook.OnAPI(func(ctx context.Context, obj types.Object) (object types.Object, e error) {
+
+	onTransaction := func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error {
+		id, err := txStorage.Create(ctx, newObject)
+		if err != nil {
+			return util.HandleStorageError(err, string(c.ObjectType))
+		}
+		newObject.SetID(id)
+		return nil
+	}
+	if createHook != nil {
+		onTransaction = createHook.OnTransaction(onTransaction)
+	}
+
+	onAPI := func(ctx context.Context, obj types.Object) (types.Object, error) {
+		if err = c.Repository.InTransaction(ctx, func(ctx context.Context, txStorage storage.Warehouse) error {
+			return onTransaction(ctx, txStorage, obj)
+		}); err != nil {
+			return nil, err
+		}
 		return obj, nil
-	})
-	result, err = onAPI(ctx, result)
-	if err != nil {
-		return nil, err
+	}
+	if createHook != nil {
+		onAPI = createHook.OnAPI(onAPI)
 	}
 
 	result.SetID(UUID.String())
@@ -121,18 +137,7 @@ func (c *Controller) CreateObject(r *web.Request) (*web.Response, error) {
 	result.SetCreatedAt(currentTime)
 	result.SetUpdatedAt(currentTime)
 
-	onTransaction := createHook.OnTransaction(func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error {
-		id, err := txStorage.Create(ctx, newObject)
-		if err != nil {
-			return util.HandleStorageError(err, string(c.ObjectType))
-		}
-		newObject.SetID(id)
-		return nil
-	})
-
-	err = c.Repository.InTransaction(ctx, func(ctx context.Context, txStorage storage.Warehouse) error {
-		return onTransaction(ctx, txStorage, result)
-	})
+	result, err = onAPI(ctx, result)
 	if err != nil {
 		return nil, err
 	}
@@ -143,26 +148,33 @@ func (c *Controller) DeleteObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting %ss...", c.ObjectType)
 	deleteHook := c.DeleteInterceptorProvider()
-	onAPI := deleteHook.OnAPI(func(ctx context.Context, deleteionCriteria ...query.Criterion) error {
-		return nil
-	})
-	criteria := query.CriteriaForContext(ctx)
-	if err := onAPI(ctx, criteria...); err != nil {
-		return nil, err
-	}
 
-	transactionOperation := deleteHook.OnTransaction(func(ctx context.Context, txStorage storage.Warehouse, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
+	transactionOperation := func(ctx context.Context, txStorage storage.Warehouse, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
 		return c.Repository.Delete(ctx, c.ObjectType, deletionCriteria...)
-	})
+	}
+	if deleteHook != nil {
+		transactionOperation = deleteHook.OnTransaction(transactionOperation)
+	}
 
-	err := c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
-		_, err := transactionOperation(ctx, storage, criteria...)
-		return util.HandleSelectionError(err, string(c.ObjectType))
-	})
-
-	if err != nil {
+	apiOperation := func(ctx context.Context, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
+		var result types.ObjectList
+		if err := c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
+			var err error
+			result, err = transactionOperation(ctx, storage, deletionCriteria...)
+			return util.HandleSelectionError(err, string(c.ObjectType))
+		}); err != nil {
+			return nil, err
+		}
+		return result, nil
+	}
+	if deleteHook != nil {
+		apiOperation = deleteHook.OnAPI(apiOperation)
+	}
+	criteria := query.CriteriaForContext(ctx)
+	if _, err := apiOperation(ctx, criteria...); err != nil {
 		return nil, err
 	}
+
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
 }
 
@@ -172,26 +184,12 @@ func (c *Controller) DeleteSingleObject(r *web.Request) (*web.Response, error) {
 	log.C(ctx).Debugf("Deleting %s with id %s", c.ObjectType, objectID)
 
 	byID := query.ByField(query.EqualsOperator, "id", objectID)
-
-	deleteHook := c.DeleteInterceptorProvider()
-	apiCall := deleteHook.OnAPI(func(ctx context.Context, deletionCriteria ...query.Criterion) error {
-		return nil
-	})
-	if err := apiCall(ctx, byID); err != nil {
-		return &web.Response{}, err
-	}
-	transactionOperation := deleteHook.OnTransaction(func(ctx context.Context, txStorage storage.Warehouse, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
-		return c.Repository.Delete(ctx, c.ObjectType, deletionCriteria...)
-	})
-	err := c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
-		_, err := transactionOperation(ctx, storage, byID)
-		return util.HandleStorageError(err, string(c.ObjectType))
-	})
+	ctx, err := query.AddCriteria(r.Context(), byID)
 	if err != nil {
 		return nil, err
 	}
-
-	return util.NewJSONResponse(http.StatusOK, map[string]int{})
+	r.Request = r.WithContext(ctx)
+	return c.DeleteObjects(r)
 }
 
 func (c *Controller) GetSingleObject(r *web.Request) (*web.Response, error) {
@@ -235,13 +233,7 @@ func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Updating %s with id %s", c.ObjectType, objectID)
 
-	result, err := c.Repository.Get(ctx, objectID, c.ObjectType)
-	if err != nil {
-		return nil, util.HandleStorageError(err, string(c.ObjectType))
-	}
-	createdAt := result.GetCreatedAt()
-
-	changes, err := query.LabelChangesFromJSON(r.Body)
+	labelChanges, err := query.LabelChangesFromJSON(r.Body)
 	if err != nil {
 		return nil, util.HandleLabelChangeError(err)
 	}
@@ -249,36 +241,49 @@ func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
+	objectChanges := extension.UpdateContext{
+		LabelChanges:  labelChanges,
+		ObjectChanges: r.Body,
+		ObjectID:      objectID,
+	}
+
 	updateHook := c.UpdateInterceptorProvider()
-	apiCall := updateHook.OnAPI(func(ctx context.Context, modifiedObject types.Object) (object types.Object, e error) {
-		if err := util.BytesToObject(r.Body, modifiedObject); err != nil {
+	transactionOp := updateHook.OnTransaction(func(ctx context.Context, txStorage storage.Warehouse, obj types.Object, updateChanges extension.UpdateContext) (types.Object, error) {
+		createdAt := obj.GetCreatedAt()
+		if err := util.BytesToObject(updateChanges.ObjectChanges, obj); err != nil {
 			return nil, err
 		}
-		// do not allow overriding these values via the API
-		modifiedObject.SetID(objectID)
-		modifiedObject.SetCreatedAt(createdAt)
-		modifiedObject.SetUpdatedAt(time.Now().UTC())
-
-		return modifiedObject, nil
+		obj.SetID(objectID)
+		obj.SetCreatedAt(createdAt)
+		obj.SetUpdatedAt(time.Now().UTC())
+		return txStorage.Update(ctx, obj, updateChanges.LabelChanges...)
 	})
+	if updateHook != nil {
+		transactionOp = updateHook.OnTransaction(transactionOp)
+	}
 
-	object, err := apiCall(ctx, result)
+	apiOperation := func(ctx context.Context, updateChanges extension.UpdateContext) (types.Object, error) {
+		var result types.Object
+		if err = c.Repository.InTransaction(ctx, func(ctx context.Context, txStorage storage.Warehouse) error {
+			oldObject, err := txStorage.Get(ctx, objectID, c.ObjectType)
+			if err != nil {
+				return util.HandleStorageError(err, string(c.ObjectType))
+			}
+			result, err = transactionOp(ctx, txStorage, oldObject, updateChanges)
+			return err
+		}); err != nil {
+			return nil, err
+		}
+		return result, nil
+	}
+	if updateHook != nil {
+		apiOperation = updateHook.OnAPI(apiOperation)
+	}
+
+	object, err := apiOperation(ctx, objectChanges)
 	if err != nil {
 		return nil, err
 	}
-
-	transactionOp := updateHook.OnTransaction(func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object, changes ...*query.LabelChange) error {
-		var err error
-		object, err = txStorage.Update(ctx, newObject, changes...)
-		return err
-	})
-
-	if err = c.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
-		return transactionOp(ctx, storage, object, changes...)
-	}); err != nil {
-		return nil, err
-	}
-
 	if obj, ok := object.(types.Secured); ok {
 		obj.SetCredentials(nil)
 	} else {

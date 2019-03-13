@@ -40,7 +40,7 @@ func (e Platform) SetID(id string) {
 	e.ID = id
 }
 
-func (e Platform) LabelEntity() LabelEntity {
+func (e Platform) LabelEntity() PostgresLabel {
 	return nil
 }
 

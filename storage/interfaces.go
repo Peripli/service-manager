@@ -32,11 +32,13 @@ import (
 type Entity interface {
 	GetID() string
 	SetID(id string)
+	ToObject() types.Object
+	FromObject(object types.Object) (Entity, bool)
+	BuildLabels(labels types.Labels) ([]Label, error)
+	NewLabel(id, key, value string) Label
 }
 
 type Label interface {
-	NewLabelInstance() Label
-	New(entityID, id, key, value string) Label
 	GetKey() string
 	GetValue() string
 }
@@ -133,6 +135,7 @@ type Storage interface {
 	OpenCloser
 	Pinger
 	Repository
+	Introduce(entity Entity)
 }
 
 // ServiceOffering instance for Service Offerings DB operations

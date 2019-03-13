@@ -7,7 +7,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (Platform) Empty() Entity {
+func (Platform) Empty() PostgresEntity {
 	return Platform{}
 }
 

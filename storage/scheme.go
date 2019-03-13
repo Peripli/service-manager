@@ -17,55 +17,45 @@
 package storage
 
 import (
-	"fmt"
-
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
 type EntityProvider func(objectType types.ObjectType) (Entity, bool)
-
-type Converter interface {
-	EntityFromStorage(entity Entity) (types.Object, bool)
-	EntityToStorage(object types.Object) (Entity, bool)
-	LabelsToStorage(entityID string, objectType types.ObjectType, labels types.Labels) ([]Label, bool, error)
-}
+type ObjectConverter func(object types.Object) (Entity, bool)
 
 func NewScheme() *Scheme {
 	return &Scheme{
 		instanceProviders: make([]EntityProvider, 0),
-		converters:        make([]Converter, 0),
+		converters:        make([]ObjectConverter, 0),
 	}
 }
 
 type Scheme struct {
 	instanceProviders []EntityProvider
-	converters        []Converter
+	converters        []ObjectConverter
 }
 
-func (s *Scheme) Introduce(object types.Object, entity Entity, converter Converter) {
-	objType := object.GetType()
-	s.converters = append(s.converters, converter)
+func (s *Scheme) Introduce(entity Entity) {
+	obj := entity.ToObject()
+	objType := obj.GetType()
 	s.instanceProviders = append(s.instanceProviders, func(objectType types.ObjectType) (Entity, bool) {
 		if objType != objectType {
 			return nil, false
 		}
 		return entity, true
 	})
+	s.converters = append(s.converters, func(object types.Object) (Entity, bool) {
+		if object.GetType() != objType {
+			return nil, false
+		}
+		return entity.FromObject(object)
+	})
 }
 
 func (s *Scheme) ObjectToEntity(object types.Object) (Entity, bool) {
 	for _, c := range s.converters {
-		if entity, ok := c.EntityToStorage(object); ok {
+		if entity, ok := c(object); ok {
 			return entity, true
-		}
-	}
-	return nil, false
-}
-
-func (s *Scheme) EntityToObject(entity Entity) (types.Object, bool) {
-	for _, c := range s.converters {
-		if obj, ok := c.EntityFromStorage(entity); ok {
-			return obj, true
 		}
 	}
 	return nil, false
@@ -91,16 +81,4 @@ func (s *Scheme) StorageLabelsToType(labels []Label) types.Labels {
 		}
 	}
 	return labelValues
-}
-
-func (s *Scheme) TypeLabelsToEntity(entityID string, objectType types.ObjectType, labels types.Labels) ([]Label, error) {
-	if len(labels) == 0 {
-		return []Label{}, nil
-	}
-	for _, c := range s.converters {
-		if l, ok, err := c.LabelsToStorage(entityID, objectType, labels); ok && err == nil {
-			return l, nil
-		}
-	}
-	return nil, fmt.Errorf("no transformer that supports %s", objectType)
 }

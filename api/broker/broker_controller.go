@@ -41,11 +41,7 @@ type AdditionalInterceptors struct {
 	DeleteProviders []extension.DeleteInterceptorProvider
 }
 
-//TODO if we can figure out a way to move the extra parameters and the default hook out of here, this can be generated
-//TODO the end goal would be to define just the types.Broker and get a controller and database layer generated
 func NewController(repository storage.Repository, encrypter security.Encrypter, osbClientCreateFunc osbc.CreateFunc, interceptors *AdditionalInterceptors) *Controller {
-	//TODO not sure if passing the last argument is the best approach - probably .AttachHooks methods on the base.Controller that is embedded would be better
-	//TODO this way we can move out the default hooks too and this file can be generated
 	defaultCreateInterceptor := func() extension.CreateInterceptor {
 		return &CreateBrokerHook{
 			OSBClientCreateFunc: osbClientCreateFunc,
@@ -64,7 +60,7 @@ func NewController(repository storage.Repository, encrypter security.Encrypter, 
 	updateInterceptorProviders := append(interceptors.UpdateProviders, defaultUpdateInterceptor)
 	updateInterceptorProvider := extension.UnionUpdateInterceptor(updateInterceptorProviders...)
 
-	return &Controller{
+	c := &Controller{
 		Controller: &base.Controller{
 			Repository:                repository,
 			ObjectBlueprint:           func() types.Object { return &types.Broker{} },
@@ -75,4 +71,5 @@ func NewController(repository storage.Repository, encrypter security.Encrypter, 
 			DeleteInterceptorProvider: extension.UnionDeleteInterceptor(interceptors.DeleteProviders...),
 		},
 	}
+	return c
 }

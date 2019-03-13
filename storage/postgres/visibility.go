@@ -35,7 +35,7 @@ type Visibility struct {
 	ServicePlanID string         `db:"service_plan_id"`
 }
 
-func (v *Visibility) LabelEntity() LabelEntity {
+func (v *Visibility) LabelEntity() PostgresLabel {
 	return &VisibilityLabel{}
 }
 
@@ -69,7 +69,7 @@ func (v *Visibility) ToObject() types.Object {
 	}
 }
 
-func (v *Visibility) FromObject(visibility types.Object) Entity {
+func (v *Visibility) FromObject(visibility types.Object) PostgresEntity {
 	vis := visibility.(*types.Visibility)
 	return &Visibility{
 		BaseEntity: BaseEntity{
@@ -85,12 +85,12 @@ func (v *Visibility) FromObject(visibility types.Object) Entity {
 
 type visibilityLabels []*VisibilityLabel
 
-func (vls *visibilityLabels) Single() LabelEntity {
+func (vls *visibilityLabels) Single() PostgresLabel {
 	return &VisibilityLabel{}
 }
 
-func (vls *visibilityLabels) FromDTO(entityID string, labels types.Labels) ([]LabelEntity, error) {
-	var result []LabelEntity
+func (vls *visibilityLabels) FromDTO(entityID string, labels types.Labels) ([]PostgresLabel, error) {
+	var result []PostgresLabel
 	now := time.Now()
 	for key, values := range labels {
 		for _, labelValue := range values {
@@ -151,7 +151,7 @@ func (*VisibilityLabel) ReferenceColumn() string {
 	return "visibility_id"
 }
 
-func (*VisibilityLabel) Empty() LabelEntity {
+func (*VisibilityLabel) Empty() PostgresLabel {
 	return &VisibilityLabel{}
 }
 

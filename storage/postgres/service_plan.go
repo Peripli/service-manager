@@ -53,7 +53,7 @@ func (sp *ServicePlan) SetID(id string) {
 	sp.ID = id
 }
 
-func (sp *ServicePlan) LabelEntity() LabelEntity {
+func (sp *ServicePlan) LabelEntity() PostgresLabel {
 	return nil
 }
 
@@ -101,7 +101,7 @@ func (sp *ServicePlan) ToObject() types.Object {
 	}
 }
 
-func (sp *ServicePlan) FromObject(object types.Object) Entity {
+func (sp *ServicePlan) FromObject(object types.Object) PostgresEntity {
 	plan := object.(*types.ServicePlan)
 	return &ServicePlan{
 		ID:                plan.ID,

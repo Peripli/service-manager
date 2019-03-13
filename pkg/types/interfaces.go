@@ -31,7 +31,6 @@ type Object interface {
 	SetID(id string)
 	GetID() string
 	GetType() ObjectType
-	SupportsLabels() bool
 	EmptyList() ObjectList
 	GetLabels() Labels
 	SetLabels(labels Labels)

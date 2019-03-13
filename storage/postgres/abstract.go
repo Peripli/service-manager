@@ -101,7 +101,7 @@ func get(ctx context.Context, db getterContext, id string, table string, dto int
 	return checkSQLNoRows(err)
 }
 
-func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface{}, label LabelEntity, baseTableName string, criteria []query.Criterion) (*sqlx.Rows, error) {
+func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface{}, label PostgresLabel, baseTableName string, criteria []query.Criterion) (*sqlx.Rows, error) {
 	if err := validateFieldQueryParams(baseEntity, criteria); err != nil {
 		return nil, err
 	}
@@ -174,7 +174,7 @@ func constructBaseQueryForEntity(tableName string) string {
 	return fmt.Sprintf("SELECT * FROM %s", tableName)
 }
 
-func constructBaseQueryForLabelable(labelsEntity LabelEntity, baseTableName string) string {
+func constructBaseQueryForLabelable(labelsEntity PostgresLabel, baseTableName string) string {
 	labelStruct := structs.New(labelsEntity)
 	baseQuery := `SELECT %[1]s.*,`
 	for _, field := range labelStruct.Fields() {

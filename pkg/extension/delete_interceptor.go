@@ -62,7 +62,7 @@ func UnionDeleteInterceptor(providers ...DeleteInterceptorProvider) DeleteInterc
 
 type DeleteInterceptorProvider func() DeleteInterceptor
 
-type InterceptDeleteOnAPI func(ctx context.Context, deletionCriteria ...query.Criterion) error
+type InterceptDeleteOnAPI func(ctx context.Context, deletionCriteria ...query.Criterion) (types.ObjectList, error)
 type InterceptDeleteOnTransaction func(ctx context.Context, txStorage storage.Warehouse, deletionCriteria ...query.Criterion) (types.ObjectList, error)
 
 type DeleteInterceptor interface {
