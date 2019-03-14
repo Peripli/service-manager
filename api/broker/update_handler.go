@@ -41,7 +41,7 @@ type UpdateBrokerHook struct {
 	Repository          storage.Repository
 }
 
-func (c *UpdateBrokerHook) OnAPIDelete(h extension.InterceptUpdateOnAPI) extension.InterceptUpdateOnAPI {
+func (c *UpdateBrokerHook) OnAPIUpdate(h extension.InterceptUpdateOnAPI) extension.InterceptUpdateOnAPI {
 	return func(ctx context.Context, changes extension.UpdateContext) (types.Object, error) {
 		obj, err := c.Repository.Get(ctx, types.ServiceBrokerType, changes.ObjectID)
 		if err != nil {
@@ -63,7 +63,7 @@ func (c *UpdateBrokerHook) OnAPIDelete(h extension.InterceptUpdateOnAPI) extensi
 	}
 }
 
-func (c *UpdateBrokerHook) OnTransactionDelete(f extension.InterceptUpdateOnTransaction) extension.InterceptUpdateOnTransaction {
+func (c *UpdateBrokerHook) OnTransactionUpdate(f extension.InterceptUpdateOnTransaction) extension.InterceptUpdateOnTransaction {
 	return func(ctx context.Context, txStorage storage.Warehouse, ojb types.Object, changes extension.UpdateContext) (types.Object, error) {
 		newObject, err := f(ctx, txStorage, ojb, changes)
 		if err != nil {

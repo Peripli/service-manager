@@ -289,7 +289,7 @@ func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
 	}
 
 	updateHook := c.UpdateInterceptorProvider()
-	transactionOp := updateHook.OnTransactionDelete(func(ctx context.Context, txStorage storage.Warehouse, obj types.Object, updateChanges extension.UpdateContext) (types.Object, error) {
+	transactionOp := updateHook.OnTransactionUpdate(func(ctx context.Context, txStorage storage.Warehouse, obj types.Object, updateChanges extension.UpdateContext) (types.Object, error) {
 		createdAt := obj.GetCreatedAt()
 		if err := util.BytesToObject(updateChanges.ObjectChanges, obj); err != nil {
 			return nil, err
@@ -300,7 +300,7 @@ func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
 		return txStorage.Update(ctx, obj, updateChanges.LabelChanges...)
 	})
 	if updateHook != nil {
-		transactionOp = updateHook.OnTransactionDelete(transactionOp)
+		transactionOp = updateHook.OnTransactionUpdate(transactionOp)
 	}
 
 	apiOperation := func(ctx context.Context, updateChanges extension.UpdateContext) (types.Object, error) {
@@ -318,7 +318,7 @@ func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
 		return result, nil
 	}
 	if updateHook != nil {
-		apiOperation = updateHook.OnAPIDelete(apiOperation)
+		apiOperation = updateHook.OnAPIUpdate(apiOperation)
 	}
 
 	object, err := apiOperation(ctx, objectChanges)
