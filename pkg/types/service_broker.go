@@ -21,11 +21,11 @@ import (
 	"errors"
 )
 
-//go:generate smgen api broker labels
-// Broker broker struct
-type Broker struct {
+//go:generate smgen api ServiceBroker
+// ServiceBroker broker struct
+type ServiceBroker struct {
 	Secured
-	BaseLabelled
+	Base
 	Name        string             `json:"name"`
 	Description string             `json:"description"`
 	BrokerURL   string             `json:"broker_url"`
@@ -33,16 +33,16 @@ type Broker struct {
 	Services    []*ServiceOffering `json:"services,omitempty" structs:"-"`
 }
 
-func (e *Broker) SetCredentials(credentials *Credentials) {
+func (e *ServiceBroker) SetCredentials(credentials *Credentials) {
 	e.Credentials = credentials
 }
 
-func (e *Broker) GetCredentials() *Credentials {
+func (e *ServiceBroker) GetCredentials() *Credentials {
 	return e.Credentials
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
-func (b *Broker) Validate() error {
+func (b *ServiceBroker) Validate() error {
 	if b.Name == "" {
 		return errors.New("missing broker name")
 	}

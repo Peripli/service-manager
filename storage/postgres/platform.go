@@ -18,54 +18,50 @@ package postgres
 
 import (
 	"database/sql"
-	"time"
+
+	"github.com/Peripli/service-manager/storage"
 
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
-//go:generate smgen storage platform none github.com/Peripli/service-manager/pkg/types
+//go:generate smgen storage platform github.com/Peripli/service-manager/pkg/types
 // Platform entity
 type Platform struct {
-	ID          string         `db:"id"`
+	BaseEntity
 	Type        string         `db:"type"`
 	Name        string         `db:"name"`
 	Description sql.NullString `db:"description"`
-	CreatedAt   time.Time      `db:"created_at"`
-	UpdatedAt   time.Time      `db:"updated_at"`
 	Username    string         `db:"username"`
 	Password    string         `db:"password"`
 }
 
-func (e Platform) SetID(id string) {
-	e.ID = id
+func (p *Platform) FromObject(object types.Object) (storage.Entity, bool) {
+	platform, ok := object.(*types.Platform)
+	if !ok {
+		return nil, false
+	}
+	result := &Platform{
+		BaseEntity: BaseEntity{
+			ID:        platform.ID,
+			CreatedAt: platform.CreatedAt,
+			UpdatedAt: platform.UpdatedAt,
+		},
+		Type:        platform.Type,
+		Name:        platform.Name,
+		Description: toNullString(platform.Description),
+	}
+
+	if platform.Description != "" {
+		result.Description.Valid = true
+	}
+	if platform.Credentials != nil && platform.Credentials.Basic != nil {
+		result.Username = platform.Credentials.Basic.Username
+		result.Password = platform.Credentials.Basic.Password
+	}
+	return result, true
 }
 
-func (e Platform) LabelEntity() PostgresLabel {
-	return nil
-}
-
-//func (p Platform) FromObject(object types.Object) Entity {
-//	platform := object.(*types.Platform)
-//	result := Platform{
-//		ID:          platform.ID,
-//		Type:        platform.Type,
-//		Name:        platform.Name,
-//		CreatedAt:   platform.CreatedAt,
-//		Description: toNullString(platform.Description),
-//		UpdatedAt:   platform.UpdatedAt,
-//	}
-//
-//	if platform.Description != "" {
-//		result.Description.Valid = true
-//	}
-//	if platform.Credentials != nil && platform.Credentials.Basic != nil {
-//		result.Username = platform.Credentials.Basic.Username
-//		result.Password = platform.Credentials.Basic.Password
-//	}
-//	return result
-//}
-//
-func (p Platform) ToObject() types.Object {
+func (p *Platform) ToObject() types.Object {
 	return &types.Platform{
 		Base: types.Base{
 			ID:        p.ID,

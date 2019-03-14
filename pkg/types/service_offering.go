@@ -24,7 +24,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
-//go:generate smgen api ServiceOffering none
+//go:generate smgen api ServiceOffering
 // Service Offering struct
 type ServiceOffering struct {
 	Base

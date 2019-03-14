@@ -96,7 +96,10 @@ func (ps *postgresStorage) Open(options *storage.Settings, scheme *storage.Schem
 		}
 		ps.scheme = scheme
 		ps.scheme.Introduce(&Broker{})
-		//ps.scheme.Introduce(&ServiceOffering{})
+		ps.scheme.Introduce(&Platform{})
+		ps.scheme.Introduce(&ServiceOffering{})
+		ps.scheme.Introduce(&ServicePlan{})
+		ps.scheme.Introduce(&Visibility{})
 	}
 	return err
 }

@@ -63,11 +63,12 @@ func rowsToList(rows *sqlx.Rows, row EntityLabelRow, result types.ObjectList) er
 	entities := make(map[string]types.Object)
 	labels := make(map[string]map[string][]string)
 	for rows.Next() {
-		if err := rows.StructScan(&row); err != nil {
+		if err := rows.StructScan(row); err != nil {
 			return err
 		}
 		entity, ok := entities[row.GetID()]
 		if !ok {
+			entity = row.ToObject()
 			entities[row.GetID()] = entity
 			result.Add(entity)
 		}

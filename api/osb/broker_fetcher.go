@@ -35,14 +35,14 @@ type StorageBrokerFetcher struct {
 var _ BrokerFetcher = &StorageBrokerFetcher{}
 
 // FetchBroker obtains the broker coordinates (auth and URL)
-func (sbf *StorageBrokerFetcher) FetchBroker(ctx context.Context, brokerID string) (*types.Broker, error) {
-	br, err := sbf.BrokerStorage.Get(ctx, brokerID, types.BrokerType)
+func (sbf *StorageBrokerFetcher) FetchBroker(ctx context.Context, brokerID string) (*types.ServiceBroker, error) {
+	br, err := sbf.BrokerStorage.Get(ctx, brokerID, types.ServiceBrokerType)
 	if err != nil {
 		log.C(ctx).Debugf("FetchBroker with id %s not found in storage", brokerID)
 		return nil, util.HandleStorageError(err, "broker")
 	}
 
-	broker := br.(*types.Broker)
+	broker := br.(*types.ServiceBroker)
 	password := broker.Credentials.Basic.Password
 	plaintextPassword, err := sbf.Encrypter.Decrypt(ctx, []byte(password))
 	if err != nil {

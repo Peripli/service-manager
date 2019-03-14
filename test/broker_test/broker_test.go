@@ -39,7 +39,7 @@ import (
 
 func TestBrokers(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Broker API Tests Suite")
+	RunSpecs(t, "ServiceBroker API Tests Suite")
 }
 
 var _ = test.DescribeTestsFor(test.TestCase{

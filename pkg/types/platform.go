@@ -23,7 +23,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
-//go:generate ./generate_type.sh Platform
+//go:generate smgen api Platform
 // Platform platform struct
 type Platform struct {
 	Secured

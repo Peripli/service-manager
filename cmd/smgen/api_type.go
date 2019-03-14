@@ -30,13 +30,12 @@ type ApiType struct {
 	PackageName         string
 	TypePlural          string
 	TypePluralLowercase string
-	SupportsLabels      bool
 	Type                string
 	TypesPackageImport  string
 	TypesPackage        string
 }
 
-func GenerateApiTypeFile(apiTypeDir, packageName, typeName string, supportsLabels bool) error {
+func GenerateApiTypeFile(apiTypeDir, packageName, typeName string) error {
 	typeNamePlural := fmt.Sprintf("%ss", typeName)
 	if strings.HasSuffix(typeName, "y") {
 		typeNamePlural = fmt.Sprintf("%sies", typeName[:len(typeName)-1])
@@ -59,7 +58,6 @@ func GenerateApiTypeFile(apiTypeDir, packageName, typeName string, supportsLabel
 		PackageName:         packageName,
 		TypePlural:          typeNamePlural,
 		TypePluralLowercase: builder.String(),
-		SupportsLabels:      supportsLabels,
 		Type:                typeName,
 		TypesPackage:        typesPackage,
 		TypesPackageImport:  typesPackageImport,

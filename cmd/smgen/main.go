@@ -28,12 +28,9 @@ func main() {
 	flag.Parse()
 	args := flag.Args()
 	if len(args) < 2 {
-		panic("Usage is <api/storage> <type_name> <labels/none> <api_package/none> <table_name/none>")
+		panic("Usage is <api/storage> <type_name> <api_package/none> <table_name/none>")
 	}
 	generationTarget := args[0]
-	if generationTarget == "api" {
-
-	}
 	typeName := strings.Title(args[1])
 	dir, err := os.Getwd()
 	if err != nil {
@@ -46,21 +43,20 @@ func main() {
 	}
 	fmt.Println(dir)
 	fmt.Println(packageName)
-	supportsLabels := len(args) > 2 && strings.ToLower(args[2]) == "labels"
 	switch generationTarget {
 	case "api":
-		if err := GenerateApiTypeFile(dir, packageName, typeName, supportsLabels); err != nil {
+		if err := GenerateApiTypeFile(dir, packageName, typeName); err != nil {
 			panic(err)
 		}
 	case "storage":
 		var apiPackage, tableName string
+		if len(args) > 2 {
+			apiPackage = args[2]
+		}
 		if len(args) > 3 {
-			apiPackage = args[3]
+			tableName = args[3]
 		}
-		if len(args) > 4 {
-			tableName = args[4]
-		}
-		if err := GenerateStorageEntityFile(dir, typeName, packageName, apiPackage, tableName, supportsLabels); err != nil {
+		if err := GenerateStorageEntityFile(dir, typeName, packageName, apiPackage, tableName); err != nil {
 			panic(err)
 		}
 	default:

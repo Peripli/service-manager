@@ -166,10 +166,8 @@ func constructBaseQueryForEntity(tableName string) string {
 }
 
 func constructBaseQueryForLabelable(labelsEntity PostgresLabel, baseTableName string) string {
-	labelStruct := structs.New(labelsEntity)
 	baseQuery := `SELECT %[1]s.*,`
-	for _, field := range labelStruct.Fields() {
-		dbTag := field.Tag("db")
+	for _, dbTag := range getDBTags(labelsEntity) {
 		baseQuery += " %[2]s." + dbTag + " " + "\"%[2]s." + dbTag + "\"" + ","
 	}
 	baseQuery = baseQuery[:len(baseQuery)-1] //remove last comma

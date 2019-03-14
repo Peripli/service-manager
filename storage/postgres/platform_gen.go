@@ -1,36 +1,68 @@
+
 // GENERATED. DO NOT MODIFY!
 
 package postgres
 
 import (
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
 	"github.com/jmoiron/sqlx"
+	
+	
+	"database/sql"
+	"time"
 )
 
-func (Platform) Empty() PostgresEntity {
-	return Platform{}
+var _ PostgresEntity = &Platform{}
+
+const PlatformTable = "platforms"
+
+func (*Platform) LabelEntity() PostgresLabel {
+	return &PlatformLabel{}
 }
 
-func (Platform) PrimaryColumn() string {
-	return "id"
+func (*Platform) TableName() string {
+	return PlatformTable
 }
 
-func (Platform) TableName() string {
-	return "platforms"
+func (e *Platform) NewLabel(id, key, value string) storage.Label {
+	now := time.Now()
+	return &PlatformLabel{
+		BaseLabelEntity: BaseLabelEntity{
+			ID:        sql.NullString{String: id, Valid: id != ""},
+			Key:       sql.NullString{String: key, Valid: key != ""},
+			Val:       sql.NullString{String: value, Valid: value != ""},
+			CreatedAt: &now,
+			UpdatedAt: &now,
+		},
+		PlatformID:  sql.NullString{String: e.ID, Valid: e.ID != ""},
+	}
 }
 
-func (e Platform) GetID() string {
-	return e.ID
-}
-
-func (e Platform) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
-	result := &types.Platforms{}
-	for rows.Next() {
-		var item Platform
-		if err := rows.StructScan(&item); err != nil {
-			return nil, err
-		}
-		//result.Add(item.ToObject())
+func (e *Platform) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
+	row := struct {
+		*Platform
+		*PlatformLabel `db:"platform_labels"`
+	}{}
+	result := &types.Platforms{
+		Platforms: make([]*types.Platform, 0),
+	}		
+	err := rowsToList(rows, &row, result)
+	if err != nil {
+		return nil, err
 	}
 	return result, nil
+}
+
+type PlatformLabel struct {
+	BaseLabelEntity
+	PlatformID  sql.NullString `db:"platform_id"`
+}
+
+func (el *PlatformLabel) LabelsTableName() string {
+	return "platform_labels"
+}
+
+func (el *PlatformLabel) ReferenceColumn() string {
+	return "platform_id"
 }

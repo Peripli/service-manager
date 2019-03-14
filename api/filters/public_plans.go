@@ -42,7 +42,7 @@ import (
 // filter makes sure that a public visibility exists for each free plan present in SM DB.
 type PublicServicePlansFilter struct {
 	Repository              storage.Repository
-	IsCatalogPlanPublicFunc func(broker *types.Broker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (bool, error)
+	IsCatalogPlanPublicFunc func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (bool, error)
 }
 
 func (pspf *PublicServicePlansFilter) Name() string {
@@ -60,7 +60,7 @@ func (pspf *PublicServicePlansFilter) Run(req *web.Request, next web.Handler) (*
 	if err := pspf.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
 		soRepository := storage.ServiceOffering()
 
-		broker, err := pspf.Repository.Get(ctx, brokerID, types.BrokerType)
+		broker, err := pspf.Repository.Get(ctx, brokerID, types.ServiceBrokerType)
 		if err != nil {
 			return util.HandleStorageError(err, "broker")
 		}
@@ -71,7 +71,7 @@ func (pspf *PublicServicePlansFilter) Run(req *web.Request, next web.Handler) (*
 		for _, serviceOffering := range catalog {
 			for _, servicePlan := range serviceOffering.Plans {
 				planID := servicePlan.ID
-				isPublic, err := pspf.IsCatalogPlanPublicFunc(broker.(*types.Broker), serviceOffering, servicePlan)
+				isPublic, err := pspf.IsCatalogPlanPublicFunc(broker.(*types.ServiceBroker), serviceOffering, servicePlan)
 				if err != nil {
 					return err
 				}
@@ -113,9 +113,11 @@ func (pspf *PublicServicePlansFilter) Run(req *web.Request, next web.Handler) (*
 
 					currentTime := time.Now().UTC()
 					planID, err := storage.Create(ctx, &types.Visibility{
-						ID:            UUID.String(),
-						UpdatedAt:     currentTime,
-						CreatedAt:     currentTime,
+						Base: types.Base{
+							ID:        UUID.String(),
+							UpdatedAt: currentTime,
+							CreatedAt: currentTime,
+						},
 						ServicePlanID: servicePlan.ID,
 					})
 					if err != nil {

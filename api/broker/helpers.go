@@ -47,7 +47,7 @@ func convertExistingCatalogToMaps(serviceOfferings []*types.ServiceOffering) (ma
 	return serviceOfferingsMap, servicePlansMap
 }
 
-func getBrokerCatalog(ctx context.Context, osbClientCreateFunc osbc.CreateFunc, broker *types.Broker) (*osbc.CatalogResponse, error) {
+func getBrokerCatalog(ctx context.Context, osbClientCreateFunc osbc.CreateFunc, broker *types.ServiceBroker) (*osbc.CatalogResponse, error) {
 	osbClient, err := osbcClient(ctx, osbClientCreateFunc, broker)
 	if err != nil {
 		return nil, err
@@ -135,7 +135,7 @@ func osbcCatalogPlanToServicePlan(servicePlan *types.ServicePlan, plan *catalogP
 	return nil
 }
 
-func osbcClient(ctx context.Context, createFunc osbc.CreateFunc, broker *types.Broker) (osbc.Client, error) {
+func osbcClient(ctx context.Context, createFunc osbc.CreateFunc, broker *types.ServiceBroker) (osbc.Client, error) {
 	config := osbc.DefaultClientConfiguration()
 	config.Name = broker.Name
 	config.URL = broker.BrokerURL
@@ -149,7 +149,7 @@ func osbcClient(ctx context.Context, createFunc osbc.CreateFunc, broker *types.B
 	return createFunc(config)
 }
 
-func transformBrokerCredentials(ctx context.Context, broker *types.Broker, transformationFunc func(context.Context, []byte) ([]byte, error)) error {
+func transformBrokerCredentials(ctx context.Context, broker *types.ServiceBroker, transformationFunc func(context.Context, []byte) ([]byte, error)) error {
 	if broker.Credentials != nil {
 		transformedPassword, err := transformationFunc(ctx, []byte(broker.Credentials.Basic.Password))
 		if err != nil {

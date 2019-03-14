@@ -8,35 +8,35 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
-const BrokerType ObjectType = "Broker"
+const ServiceBrokerType ObjectType = "ServiceBroker"
 
-type Brokers struct {
-	Brokers []*Broker `json:"brokers"`
+type ServiceBrokers struct {
+	ServiceBrokers []*ServiceBroker `json:"service_brokers"`
 }
 
-func (e *Brokers) Add(object Object) {
-	e.Brokers = append(e.Brokers, object.(*Broker))
+func (e *ServiceBrokers) Add(object Object) {
+	e.ServiceBrokers = append(e.ServiceBrokers, object.(*ServiceBroker))
 }
 
-func (e *Brokers) ItemAt(index int) Object {
-	return e.Brokers[index]
+func (e *ServiceBrokers) ItemAt(index int) Object {
+	return e.ServiceBrokers[index]
 }
 
-func (e *Brokers) Len() int {
-	return len(e.Brokers)
+func (e *ServiceBrokers) Len() int {
+	return len(e.ServiceBrokers)
 }
 
-func (e *Broker) EmptyList() ObjectList {
-	return &Brokers{ Brokers: make([]*Broker, 0) }
+func (e *ServiceBroker) EmptyList() ObjectList {
+	return &ServiceBrokers{ ServiceBrokers: make([]*ServiceBroker, 0) }
 }
 
-func (e *Broker) GetType() ObjectType {
-	return BrokerType
+func (e *ServiceBroker) GetType() ObjectType {
+	return ServiceBrokerType
 }
 
 // MarshalJSON override json serialization for http response
-func (e *Broker) MarshalJSON() ([]byte, error) {
-	type E Broker
+func (e *ServiceBroker) MarshalJSON() ([]byte, error) {
+	type E ServiceBroker
 	toMarshal := struct {
 		*E
 		CreatedAt *string `json:"created_at,omitempty"`
@@ -52,7 +52,6 @@ func (e *Broker) MarshalJSON() ([]byte, error) {
         str := util.ToRFCFormat(e.UpdatedAt)
         toMarshal.UpdatedAt = &str
     }
-    
 	hasNoLabels := true
 	for key, values := range e.Labels {
 		if key != "" && len(values) != 0 { 
@@ -63,6 +62,5 @@ func (e *Broker) MarshalJSON() ([]byte, error) {
 	if hasNoLabels {
 		toMarshal.Labels = nil
 	}
-	
 	return json.Marshal(toMarshal)
 }

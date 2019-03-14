@@ -22,6 +22,7 @@ type Base struct {
 	ID        string    `json:"id"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+	Labels    Labels    `json:"labels,omitempty"`
 }
 
 func (e *Base) SetID(id string) {
@@ -48,31 +49,11 @@ func (e *Base) GetUpdatedAt() time.Time {
 	return e.UpdatedAt
 }
 
-func (e *Base) SupportsLabels() bool {
-	return false
-}
-
-func (e *Base) GetLabels() Labels {
-	return Labels{}
-}
-
 func (e *Base) SetLabels(labels Labels) {
-}
-
-type BaseLabelled struct {
-	Base
-	Labels Labels `json:"labels,omitempty"`
-}
-
-func (e *BaseLabelled) SetLabels(labels Labels) {
 	e.Labels = labels
 	return
 }
 
-func (e *BaseLabelled) GetLabels() Labels {
+func (e *Base) GetLabels() Labels {
 	return e.Labels
-}
-
-func (e *BaseLabelled) SupportsLabels() bool {
-	return true
 }

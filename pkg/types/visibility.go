@@ -19,19 +19,16 @@ package types
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
-//go:generate smgen api Visibility labels
+//go:generate smgen api Visibility
 // Visibility struct
 type Visibility struct {
-	ID         string    `json:"id"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
-	PlatformID string    `json:"platform_id"`
-	Labels     Labels    `json:"labels,omitempty"`
+	Base
+	PlatformID string `json:"platform_id"`
+	Labels     Labels `json:"labels,omitempty"`
 
 	ServicePlanID string `json:"service_plan_id"`
 }
@@ -48,41 +45,4 @@ func (v *Visibility) Validate() error {
 		return err
 	}
 	return nil
-}
-
-func (e *Visibility) SetLabels(labels Labels) {
-	e.Labels = labels
-	return
-}
-
-func (e *Visibility) GetLabels() Labels {
-	return e.Labels
-}
-
-func (e *Visibility) SupportsLabels() bool {
-	return true
-}
-
-func (e *Visibility) SetID(id string) {
-	e.ID = id
-}
-
-func (e *Visibility) GetID() string {
-	return e.ID
-}
-
-func (e *Visibility) SetCreatedAt(time time.Time) {
-	e.CreatedAt = time
-}
-
-func (e *Visibility) GetCreatedAt() time.Time {
-	return e.CreatedAt
-}
-
-func (e *Visibility) SetUpdatedAt(time time.Time) {
-	e.UpdatedAt = time
-}
-
-func (e *Visibility) GetUpdatedAt() time.Time {
-	return e.UpdatedAt
 }

@@ -22,150 +22,66 @@ const STORAGE_TYPE_TEMPLATE = `
 package {{.PackageName}}
 
 import (
-	"github.com/jmoiron/sqlx"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
+	"github.com/jmoiron/sqlx"
 	{{.StoragePackageImport}}
-	{{.ApiPackageImport}}{{if .SupportsLabels}}
+	{{.ApiPackageImport}}
 	"database/sql"
-	"fmt"
 	"time"
-	"github.com/gofrs/uuid"{{end}}
 )
 
-func ({{.Type}}) NewInstance() {{.StoragePackage}}Entity {
-	return {{.Type}}{}
+var _ {{.StoragePackage}}PostgresEntity = &{{.Type}}{}
+
+const {{.Type}}Table = "{{.TableName}}"
+
+func (*{{.Type}}) LabelEntity() {{.StoragePackage}}PostgresLabel {
+	return &{{.Type}}Label{}
 }
 
-func ({{.Type}}) PrimaryColumn() string {
-	return "id"
+func (*{{.Type}}) TableName() string {
+	return {{.Type}}Table
 }
 
-func ({{.Type}}) TableName() string {
-	return "{{.TableName}}"
-}
-
-func (e {{.Type}}) Labels() {{.StoragePackage}}EntityLabels {
-	{{ if .SupportsLabels }} return {{.TypeLower}}Labels{} {{ else }} return nil {{ end }} 
-}
-
-func (e {{.Type}}) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
-	{{ if .SupportsLabels }}entities := make(map[string]*{{.ApiPackage}}{{.Type}})
-	labels := make(map[string]map[string][]string)
-	result := &{{.ApiPackage}}{{.Type}}s{
-		{{.Type}}s: make([]*{{.ApiPackage}}{{.Type}}, 0),
-	}
-	for rows.Next() {
-		row := struct {
-			*{{.Type}}
-			*{{.Type}}Label ` + "`db:\"{{.TypeLower}}_labels\"`" + `
-		}{}
-		if err := rows.StructScan(&row); err != nil {
-			return nil, err
-		}
-		entity, ok := entities[row.{{.Type}}.ID]
-		if !ok {
-			entity = row.{{.Type}}.ToObject().(*{{.ApiPackage}}{{.Type}})
-			entities[row.{{.Type}}.ID] = entity
-			result.{{.Type}}s = append(result.{{.Type}}s, entity)
-		}
-		if labels[entity.ID] == nil {
-			labels[entity.ID] = make(map[string][]string)
-		}
-		labels[entity.ID][row.{{.Type}}Label.Key.String] = append(labels[entity.ID][row.{{.Type}}Label.Key.String], row.{{.Type}}Label.Val.String)
-	}
-
-	for _, b := range result.{{.Type}}s {
-		b.Labels = labels[b.ID]
-	}
-	return result, nil {{ else }}result := &{{.ApiPackage}}{{.Type}}s{}
-	for rows.Next() {
-		var item {{.Type}}
-		if err := rows.StructScan(&item); err != nil {
-			return nil, err
-		}
-		result.Add(item.ToObject())
-	}
-	return result, nil{{ end }}
-}
-{{if .SupportsLabels}}
-type {{.Type}}Label struct {
-	*BaseLabel
-	{{.Type}}ID  sql.NullString ` + "`db:\"{{.TypeLower}}_id\"`" + `
-}
-
-func (el {{.Type}}Label) TableName() string {
-	return "{{.TypeLower}}_labels"
-}
-
-func (el {{.Type}}Label) PrimaryColumn() string {
-	return "id"
-}
-
-func (el {{.Type}}Label) ReferenceColumn() string {
-	return "{{.TypeLower}}_id"
-}
-
-func (el {{.Type}}Label) NewInstance() {{.StoragePackage}}Label {
-	return {{.Type}}Label{}
-}
-
-func (el {{.Type}}Label) New(entityID, id, key, value string) {{.StoragePackage}}Label {
+func (e *{{.Type}}) NewLabel(id, key, value string) storage.Label {
 	now := time.Now()
-	return {{.Type}}Label{
-		BaseLabel: &BaseLabel{
+	return &{{.Type}}Label{
+		BaseLabelEntity: BaseLabelEntity{
 			ID:        sql.NullString{String: id, Valid: id != ""},
 			Key:       sql.NullString{String: key, Valid: key != ""},
 			Val:       sql.NullString{String: value, Valid: value != ""},
 			CreatedAt: &now,
 			UpdatedAt: &now,
 		},
-		{{.Type}}ID:  sql.NullString{String: entityID, Valid: entityID != ""},
+		{{.Type}}ID:  sql.NullString{String: e.ID, Valid: e.ID != ""},
 	}
 }
 
-type {{.TypeLower}}Labels []*{{.Type}}Label
-
-func (el {{.TypeLower}}Labels) Single() {{.StoragePackage}}Label {
-	return &{{.Type}}Label{}
-}
-
-func (el {{.TypeLower}}Labels) FromDTO(entityID string, labels types.Labels) ([]{{.StoragePackage}}Label, error) {
-	var result []{{.StoragePackage}}Label
-	now := time.Now()
-	for key, values := range labels {
-		for _, labelValue := range values {
-			UUID, err := uuid.NewV4()
-			if err != nil {
-				return nil, fmt.Errorf("could not generate GUID for broker label: %s", err)
-			}
-			id := UUID.String()
-			bLabel := &{{.Type}}Label{
-				BaseLabel: &BaseLabel{
-					ID:        sql.NullString{String: id, Valid: id != ""},
-					Key:       sql.NullString{String: key, Valid: key != ""},
-					Val:       sql.NullString{String: labelValue, Valid: labelValue != ""},
-					CreatedAt: &now,
-					UpdatedAt: &now,
-				},
-				{{.Type}}ID:  sql.NullString{String: entityID, Valid: entityID != ""},
-			}
-			result = append(result, bLabel)
-		}
+func (e *{{.Type}}) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
+	row := struct {
+		*{{.Type}}
+		*{{.Type}}Label ` + "`db:\"{{.TypeLowerSnakeCase}}_labels\"`" + `
+	}{}
+	result := &{{.ApiPackage}}{{.ApiTypePlural}}{
+		{{.ApiTypePlural}}: make([]*{{.ApiPackage}}{{.ApiType}}, 0),
+	}		
+	err := rowsToList(rows, &row, result)
+	if err != nil {
+		return nil, err
 	}
 	return result, nil
 }
 
-func (els {{.TypeLower}}Labels) ToDTO() types.Labels {
-	labelValues := make(map[string][]string)
-	for _, label := range els {
-		values, exists := labelValues[label.Key.String]
-		if exists {
-			labelValues[label.Key.String] = append(values, label.Val.String)
-		} else {
-			labelValues[label.Key.String] = []string{label.Val.String}
-		}
-	}
-	return labelValues
+type {{.Type}}Label struct {
+	BaseLabelEntity
+	{{.Type}}ID  sql.NullString ` + "`db:\"{{.TypeLowerSnakeCase}}_id\"`" + `
 }
-{{end}}
+
+func (el *{{.Type}}Label) LabelsTableName() string {
+	return "{{.TypeLowerSnakeCase}}_labels"
+}
+
+func (el *{{.Type}}Label) ReferenceColumn() string {
+	return "{{.TypeLowerSnakeCase}}_id"
+}
 `
