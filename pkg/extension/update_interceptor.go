@@ -33,14 +33,14 @@ type updateHookOnAPIHandler struct {
 	UpdateHookOnTransactionFuncs []UpdateHookOnTransactionConstructor
 }
 
-func (c *updateHookOnAPIHandler) OnAPI(f InterceptUpdateOnAPI) InterceptUpdateOnAPI {
+func (c *updateHookOnAPIHandler) OnAPIDelete(f InterceptUpdateOnAPI) InterceptUpdateOnAPI {
 	for i := range c.UpdateHookOnAPIFuncs {
 		f = c.UpdateHookOnAPIFuncs[len(c.UpdateHookOnAPIFuncs)-1-i](f)
 	}
 	return f
 }
 
-func (c *updateHookOnAPIHandler) OnTransaction(f InterceptUpdateOnTransaction) InterceptUpdateOnTransaction {
+func (c *updateHookOnAPIHandler) OnTransactionDelete(f InterceptUpdateOnTransaction) InterceptUpdateOnTransaction {
 	for i := range c.UpdateHookOnTransactionFuncs {
 		f = c.UpdateHookOnTransactionFuncs[len(c.UpdateHookOnTransactionFuncs)-1-i](f)
 	}
@@ -52,8 +52,8 @@ func UnionUpdateInterceptor(providers []UpdateInterceptorProvider) UpdateInterce
 		c := &updateHookOnAPIHandler{}
 		for _, h := range providers {
 			hook := h()
-			c.UpdateHookOnAPIFuncs = append(c.UpdateHookOnAPIFuncs, hook.OnAPI)
-			c.UpdateHookOnTransactionFuncs = append(c.UpdateHookOnTransactionFuncs, hook.OnTransaction)
+			c.UpdateHookOnAPIFuncs = append(c.UpdateHookOnAPIFuncs, hook.OnAPIDelete)
+			c.UpdateHookOnTransactionFuncs = append(c.UpdateHookOnTransactionFuncs, hook.OnTransactionDelete)
 		}
 		return c
 	}
@@ -71,6 +71,6 @@ type InterceptUpdateOnAPI func(ctx context.Context, changes UpdateContext) (type
 type InterceptUpdateOnTransaction func(ctx context.Context, txStorage storage.Warehouse, ojb types.Object, changes UpdateContext) (types.Object, error)
 
 type UpdateInterceptor interface {
-	OnAPI(h InterceptUpdateOnAPI) InterceptUpdateOnAPI
-	OnTransaction(f InterceptUpdateOnTransaction) InterceptUpdateOnTransaction
+	OnAPIDelete(h InterceptUpdateOnAPI) InterceptUpdateOnAPI
+	OnTransactionDelete(f InterceptUpdateOnTransaction) InterceptUpdateOnTransaction
 }

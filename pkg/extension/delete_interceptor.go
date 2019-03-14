@@ -34,14 +34,14 @@ type deleteHookOnAPIHandler struct {
 	DeleteHookOnTransactionFuncs []DeleteHookOnTransactionConstructor
 }
 
-func (c *deleteHookOnAPIHandler) OnAPI(f InterceptDeleteOnAPI) InterceptDeleteOnAPI {
+func (c *deleteHookOnAPIHandler) OnAPIDelete(f InterceptDeleteOnAPI) InterceptDeleteOnAPI {
 	for i := range c.DeleteHookOnAPIFuncs {
 		f = c.DeleteHookOnAPIFuncs[len(c.DeleteHookOnAPIFuncs)-1-i](f)
 	}
 	return f
 }
 
-func (c *deleteHookOnAPIHandler) OnTransaction(f InterceptDeleteOnTransaction) InterceptDeleteOnTransaction {
+func (c *deleteHookOnAPIHandler) OnTransactionDelete(f InterceptDeleteOnTransaction) InterceptDeleteOnTransaction {
 	for i := range c.DeleteHookOnTransactionFuncs {
 		f = c.DeleteHookOnTransactionFuncs[len(c.DeleteHookOnTransactionFuncs)-1-i](f)
 	}
@@ -53,8 +53,8 @@ func UnionDeleteInterceptor(providers []DeleteInterceptorProvider) DeleteInterce
 		c := &deleteHookOnAPIHandler{}
 		for _, h := range providers {
 			hook := h()
-			c.DeleteHookOnAPIFuncs = append(c.DeleteHookOnAPIFuncs, hook.OnAPI)
-			c.DeleteHookOnTransactionFuncs = append(c.DeleteHookOnTransactionFuncs, hook.OnTransaction)
+			c.DeleteHookOnAPIFuncs = append(c.DeleteHookOnAPIFuncs, hook.OnAPIDelete)
+			c.DeleteHookOnTransactionFuncs = append(c.DeleteHookOnTransactionFuncs, hook.OnTransactionDelete)
 		}
 		return c
 	}
@@ -66,6 +66,6 @@ type InterceptDeleteOnAPI func(ctx context.Context, deletionCriteria ...query.Cr
 type InterceptDeleteOnTransaction func(ctx context.Context, txStorage storage.Warehouse, deletionCriteria ...query.Criterion) (types.ObjectList, error)
 
 type DeleteInterceptor interface {
-	OnAPI(h InterceptDeleteOnAPI) InterceptDeleteOnAPI
-	OnTransaction(f InterceptDeleteOnTransaction) InterceptDeleteOnTransaction
+	OnAPIDelete(h InterceptDeleteOnAPI) InterceptDeleteOnAPI
+	OnTransactionDelete(f InterceptDeleteOnTransaction) InterceptDeleteOnTransaction
 }

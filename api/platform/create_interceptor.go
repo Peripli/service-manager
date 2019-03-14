@@ -30,7 +30,7 @@ type CreateInterceptor struct {
 	Encrypter security.Encrypter
 }
 
-func (c *CreateInterceptor) OnAPI(h extension.InterceptCreateOnAPI) extension.InterceptCreateOnAPI {
+func (c *CreateInterceptor) OnAPICreate(h extension.InterceptCreateOnAPI) extension.InterceptCreateOnAPI {
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		credentials, err := types.GenerateCredentials()
 		if err != nil {
@@ -57,6 +57,6 @@ func (c *CreateInterceptor) OnAPI(h extension.InterceptCreateOnAPI) extension.In
 
 }
 
-func (*CreateInterceptor) OnTransaction(f extension.InterceptCreateOnTransaction) extension.InterceptCreateOnTransaction {
+func (*CreateInterceptor) OnTransactionCreate(f extension.InterceptCreateOnTransaction) extension.InterceptCreateOnTransaction {
 	return f
 }

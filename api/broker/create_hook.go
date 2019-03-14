@@ -37,7 +37,7 @@ type CreateBrokerHook struct {
 	catalog             *osbc.CatalogResponse
 }
 
-func (c *CreateBrokerHook) OnAPI(h extension.InterceptCreateOnAPI) extension.InterceptCreateOnAPI {
+func (c *CreateBrokerHook) OnAPICreate(h extension.InterceptCreateOnAPI) extension.InterceptCreateOnAPI {
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		broker := obj.(*types.ServiceBroker)
 		var err error
@@ -52,7 +52,7 @@ func (c *CreateBrokerHook) OnAPI(h extension.InterceptCreateOnAPI) extension.Int
 	}
 }
 
-func (c *CreateBrokerHook) OnTransaction(f extension.InterceptCreateOnTransaction) extension.InterceptCreateOnTransaction {
+func (c *CreateBrokerHook) OnTransactionCreate(f extension.InterceptCreateOnTransaction) extension.InterceptCreateOnTransaction {
 	return func(ctx context.Context, storage storage.Warehouse, broker types.Object) error {
 		if err := f(ctx, storage, broker); err != nil {
 			return err

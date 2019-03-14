@@ -148,7 +148,7 @@ func (c *Controller) CreateObject(r *web.Request) (*web.Response, error) {
 		return nil
 	}
 	if createHook != nil {
-		onTransaction = createHook.OnTransaction(onTransaction)
+		onTransaction = createHook.OnTransactionCreate(onTransaction)
 	}
 
 	onAPI := func(ctx context.Context, obj types.Object) (types.Object, error) {
@@ -160,7 +160,7 @@ func (c *Controller) CreateObject(r *web.Request) (*web.Response, error) {
 		return obj, nil
 	}
 	if createHook != nil {
-		onAPI = createHook.OnAPI(onAPI)
+		onAPI = createHook.OnAPICreate(onAPI)
 	}
 	result := c.objectBlueprint()
 	if err := util.BytesToObject(r.Body, result); err != nil {
@@ -194,7 +194,7 @@ func (c *Controller) DeleteObjects(r *web.Request) (*web.Response, error) {
 		return c.repository.Delete(ctx, c.objectType, deletionCriteria...)
 	}
 	if deleteHook != nil {
-		transactionOperation = deleteHook.OnTransaction(transactionOperation)
+		transactionOperation = deleteHook.OnTransactionDelete(transactionOperation)
 	}
 
 	apiOperation := func(ctx context.Context, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
@@ -209,7 +209,7 @@ func (c *Controller) DeleteObjects(r *web.Request) (*web.Response, error) {
 		return result, nil
 	}
 	if deleteHook != nil {
-		apiOperation = deleteHook.OnAPI(apiOperation)
+		apiOperation = deleteHook.OnAPIDelete(apiOperation)
 	}
 	criteria := query.CriteriaForContext(ctx)
 	if _, err := apiOperation(ctx, criteria...); err != nil {
@@ -289,7 +289,7 @@ func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
 	}
 
 	updateHook := c.UpdateInterceptorProvider()
-	transactionOp := updateHook.OnTransaction(func(ctx context.Context, txStorage storage.Warehouse, obj types.Object, updateChanges extension.UpdateContext) (types.Object, error) {
+	transactionOp := updateHook.OnTransactionDelete(func(ctx context.Context, txStorage storage.Warehouse, obj types.Object, updateChanges extension.UpdateContext) (types.Object, error) {
 		createdAt := obj.GetCreatedAt()
 		if err := util.BytesToObject(updateChanges.ObjectChanges, obj); err != nil {
 			return nil, err
@@ -300,7 +300,7 @@ func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
 		return txStorage.Update(ctx, obj, updateChanges.LabelChanges...)
 	})
 	if updateHook != nil {
-		transactionOp = updateHook.OnTransaction(transactionOp)
+		transactionOp = updateHook.OnTransactionDelete(transactionOp)
 	}
 
 	apiOperation := func(ctx context.Context, updateChanges extension.UpdateContext) (types.Object, error) {
@@ -318,7 +318,7 @@ func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
 		return result, nil
 	}
 	if updateHook != nil {
-		apiOperation = updateHook.OnAPI(apiOperation)
+		apiOperation = updateHook.OnAPIDelete(apiOperation)
 	}
 
 	object, err := apiOperation(ctx, objectChanges)

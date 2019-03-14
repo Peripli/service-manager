@@ -31,14 +31,14 @@ type createHookOnAPIHandler struct {
 	CreateHookOnTransactionFuncs []CreateHookOnTransactionConstructor
 }
 
-func (c *createHookOnAPIHandler) OnAPI(f InterceptCreateOnAPI) InterceptCreateOnAPI {
+func (c *createHookOnAPIHandler) OnAPICreate(f InterceptCreateOnAPI) InterceptCreateOnAPI {
 	for i := range c.CreateHookOnAPIFuncs {
 		f = c.CreateHookOnAPIFuncs[len(c.CreateHookOnAPIFuncs)-1-i](f)
 	}
 	return f
 }
 
-func (c *createHookOnAPIHandler) OnTransaction(f InterceptCreateOnTransaction) InterceptCreateOnTransaction {
+func (c *createHookOnAPIHandler) OnTransactionCreate(f InterceptCreateOnTransaction) InterceptCreateOnTransaction {
 	for i := range c.CreateHookOnTransactionFuncs {
 		f = c.CreateHookOnTransactionFuncs[len(c.CreateHookOnTransactionFuncs)-1-i](f)
 	}
@@ -51,8 +51,8 @@ func UnionCreateInterceptor(providers []CreateInterceptorProvider) CreateInterce
 		c := &createHookOnAPIHandler{}
 		for _, h := range providers {
 			hook := h()
-			c.CreateHookOnAPIFuncs = append(c.CreateHookOnAPIFuncs, hook.OnAPI)
-			c.CreateHookOnTransactionFuncs = append(c.CreateHookOnTransactionFuncs, hook.OnTransaction)
+			c.CreateHookOnAPIFuncs = append(c.CreateHookOnAPIFuncs, hook.OnAPICreate)
+			c.CreateHookOnTransactionFuncs = append(c.CreateHookOnTransactionFuncs, hook.OnTransactionCreate)
 		}
 		return c
 	}
@@ -64,6 +64,6 @@ type InterceptCreateOnAPI func(ctx context.Context, obj types.Object) (types.Obj
 type InterceptCreateOnTransaction func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error
 
 type CreateInterceptor interface {
-	OnAPI(h InterceptCreateOnAPI) InterceptCreateOnAPI
-	OnTransaction(f InterceptCreateOnTransaction) InterceptCreateOnTransaction
+	OnAPICreate(h InterceptCreateOnAPI) InterceptCreateOnAPI
+	OnTransactionCreate(f InterceptCreateOnTransaction) InterceptCreateOnTransaction
 }
