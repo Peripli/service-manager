@@ -23,7 +23,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
-//go:generate smgen api ServicePlan none
+//go:generate smgen api ServicePlan
 // Service Plan struct
 type ServicePlan struct {
 	Base

@@ -24,8 +24,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
-//go:generate smgen storage broker labels github.com/Peripli/service-manager/pkg/types
-// Broker entity
+//go:generate smgen storage broker github.com/Peripli/service-manager/pkg/types:ServiceBroker
+// ServiceBroker entity
 type Broker struct {
 	BaseEntity
 	Name        string         `db:"name"`
@@ -36,14 +36,12 @@ type Broker struct {
 }
 
 func (e *Broker) ToObject() types.Object {
-	broker := &types.Broker{
-		BaseLabelled: types.BaseLabelled{
-			Base: types.Base{
-				ID:        e.ID,
-				CreatedAt: e.CreatedAt,
-				UpdatedAt: e.UpdatedAt,
-			},
-			Labels: map[string][]string{},
+	broker := &types.ServiceBroker{
+		Base: types.Base{
+			ID:        e.ID,
+			CreatedAt: e.CreatedAt,
+			UpdatedAt: e.UpdatedAt,
+			Labels:    map[string][]string{},
 		},
 		Name:        e.Name,
 		Description: e.Description.String,
@@ -59,7 +57,7 @@ func (e *Broker) ToObject() types.Object {
 }
 
 func (*Broker) FromObject(object types.Object) (storage.Entity, bool) {
-	broker, ok := object.(*types.Broker)
+	broker, ok := object.(*types.ServiceBroker)
 	if !ok {
 		return nil, false
 	}

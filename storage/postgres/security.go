@@ -30,6 +30,13 @@ import (
 
 const securityLockIndex = 111
 
+// Safe represents a secret entity
+type Safe struct {
+	Secret    []byte    `db:"secret"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
+}
+
 type securityStorage struct {
 	db            pgDB
 	encryptionKey []byte

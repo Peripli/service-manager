@@ -52,6 +52,15 @@ func (e *ServiceOffering) MarshalJSON() ([]byte, error) {
         str := util.ToRFCFormat(e.UpdatedAt)
         toMarshal.UpdatedAt = &str
     }
-    
+	hasNoLabels := true
+	for key, values := range e.Labels {
+		if key != "" && len(values) != 0 { 
+			hasNoLabels = false
+			break
+		}
+	}
+	if hasNoLabels {
+		toMarshal.Labels = nil
+	}
 	return json.Marshal(toMarshal)
 }

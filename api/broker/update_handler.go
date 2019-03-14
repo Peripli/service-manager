@@ -43,11 +43,11 @@ type UpdateBrokerHook struct {
 
 func (c *UpdateBrokerHook) OnAPI(h extension.InterceptUpdateOnAPI) extension.InterceptUpdateOnAPI {
 	return func(ctx context.Context, changes extension.UpdateContext) (types.Object, error) {
-		obj, err := c.Repository.Get(ctx, changes.ObjectID, types.BrokerType)
+		obj, err := c.Repository.Get(ctx, changes.ObjectID, types.ServiceBrokerType)
 		if err != nil {
 			return nil, err
 		}
-		broker := obj.(*types.Broker)
+		broker := obj.(*types.ServiceBroker)
 		err = util.BytesToObject(changes.ObjectChanges, broker)
 		if err != nil {
 			return nil, err

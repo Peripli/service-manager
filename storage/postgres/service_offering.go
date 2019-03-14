@@ -21,10 +21,80 @@ import (
 	"fmt"
 
 	"github.com/Peripli/service-manager/storage"
+	sqlxtypes "github.com/jmoiron/sqlx/types"
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
 )
+
+//go:generate smgen storage ServiceOffering github.com/Peripli/service-manager/pkg/types
+type ServiceOffering struct {
+	BaseEntity
+	Name        string `db:"name"`
+	Description string `db:"description"`
+
+	Bindable             bool   `db:"bindable"`
+	InstancesRetrievable bool   `db:"instances_retrievable"`
+	BindingsRetrievable  bool   `db:"bindings_retrievable"`
+	PlanUpdatable        bool   `db:"plan_updateable"`
+	CatalogID            string `db:"catalog_id"`
+	CatalogName          string `db:"catalog_name"`
+
+	Tags     sqlxtypes.JSONText `db:"tags"`
+	Requires sqlxtypes.JSONText `db:"requires"`
+	Metadata sqlxtypes.JSONText `db:"metadata"`
+
+	BrokerID string `db:"broker_id"`
+}
+
+func (so *ServiceOffering) ToObject() types.Object {
+	return &types.ServiceOffering{
+		Base: types.Base{
+			ID:        so.ID,
+			CreatedAt: so.CreatedAt,
+			UpdatedAt: so.UpdatedAt,
+		},
+		Name:                 so.Name,
+		Description:          so.Description,
+		Bindable:             so.Bindable,
+		InstancesRetrievable: so.InstancesRetrievable,
+		BindingsRetrievable:  so.BindingsRetrievable,
+		PlanUpdatable:        so.PlanUpdatable,
+		CatalogID:            so.CatalogID,
+		CatalogName:          so.CatalogName,
+		Tags:                 getJSONRawMessage(so.Tags),
+		Requires:             getJSONRawMessage(so.Requires),
+		Metadata:             getJSONRawMessage(so.Metadata),
+		BrokerID:             so.BrokerID,
+	}
+}
+
+func (*ServiceOffering) FromObject(object types.Object) (storage.Entity, bool) {
+	offering, ok := object.(*types.ServiceOffering)
+	if !ok {
+		return nil, false
+	}
+	result := &ServiceOffering{
+		BaseEntity: BaseEntity{
+			ID:        offering.ID,
+			CreatedAt: offering.CreatedAt,
+			UpdatedAt: offering.UpdatedAt,
+		},
+		Name:                 offering.Name,
+		Description:          offering.Description,
+		Bindable:             offering.Bindable,
+		InstancesRetrievable: offering.InstancesRetrievable,
+		BindingsRetrievable:  offering.BindingsRetrievable,
+		PlanUpdatable:        offering.PlanUpdatable,
+		CatalogID:            offering.CatalogID,
+		CatalogName:          offering.CatalogName,
+		Tags:                 getJSONText(offering.Tags),
+		Requires:             getJSONText(offering.Requires),
+		Metadata:             getJSONText(offering.Metadata),
+		BrokerID:             offering.BrokerID,
+	}
+	return result, true
+}
 
 type serviceOfferingStorage struct {
 	db     pgDB
@@ -49,7 +119,7 @@ func (sos *serviceOfferingStorage) ListWithServicePlansByBrokerID(ctx context.Co
 		%[2]s.service_offering_id "%[2]s.service_offering_id"
 	FROM %[1]s 
 	JOIN %[2]s ON %[1]s.id = %[2]s.service_offering_id
-	WHERE %[1]s.broker_id=$1;`, serviceOfferingTable, servicePlanTable)
+	WHERE %[1]s.broker_id=$1;`, ServiceOfferingTable, ServicePlanTable)
 
 	log.C(ctx).Debugf("Executing query %s", query)
 	rows, err := sos.db.QueryxContext(ctx, query, brokerID)
@@ -77,10 +147,7 @@ func (sos *serviceOfferingStorage) ListWithServicePlansByBrokerID(ctx context.Co
 		}
 
 		if serviceOffering, ok := services[row.ServiceOffering.ID]; !ok {
-			object, okk := sos.scheme.EntityToObject(row.ServiceOffering)
-			if !okk {
-				return nil, fmt.Errorf("could not convert SO entity to object")
-			}
+			object := row.ServiceOffering.ToObject()
 			serviceOffering = object.(*types.ServiceOffering)
 			serviceOffering.Plans = append(serviceOffering.Plans, row.ServicePlan.ToObject().(*types.ServicePlan))
 

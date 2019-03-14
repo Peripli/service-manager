@@ -17,7 +17,13 @@
 package postgres
 
 import (
+	"database/sql"
+	"fmt"
 	"time"
+
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
+	"github.com/gofrs/uuid"
 )
 
 type BaseEntity struct {
@@ -32,4 +38,42 @@ func (e *BaseEntity) SetID(id string) {
 
 func (e *BaseEntity) GetID() string {
 	return e.ID
+}
+
+func (e *BaseEntity) NewLabel(id, key, value string) storage.Label {
+	panic("override in concrete entity")
+}
+
+func (e *BaseEntity) BuildLabels(labels types.Labels) ([]storage.Label, error) {
+	var result []storage.Label
+	for key, values := range labels {
+		for _, labelValue := range values {
+			UUID, err := uuid.NewV4()
+			if err != nil {
+				return nil, fmt.Errorf("could not generate GUID for broker label: %s", err)
+			}
+			result = append(result, e.NewLabel(UUID.String(), key, labelValue))
+		}
+	}
+	return result, nil
+}
+
+type BaseLabelEntity struct {
+	ID        sql.NullString `db:"id"`
+	Key       sql.NullString `db:"key"`
+	Val       sql.NullString `db:"val"`
+	CreatedAt *time.Time     `db:"created_at"`
+	UpdatedAt *time.Time     `db:"updated_at"`
+}
+
+func (el *BaseLabelEntity) GetKey() string {
+	return el.Key.String
+}
+
+func (el *BaseLabelEntity) GetValue() string {
+	return el.Val.String
+}
+
+func (el *BaseLabelEntity) LabelsPrimaryColumn() string {
+	return "id"
 }

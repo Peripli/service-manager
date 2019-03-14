@@ -19,6 +19,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -26,6 +27,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/jmoiron/sqlx"
+	sqlxtypes "github.com/jmoiron/sqlx/types"
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -166,10 +168,8 @@ func constructBaseQueryForEntity(tableName string) string {
 }
 
 func constructBaseQueryForLabelable(labelsEntity PostgresLabel, baseTableName string) string {
-	labelStruct := structs.New(labelsEntity)
 	baseQuery := `SELECT %[1]s.*,`
-	for _, field := range labelStruct.Fields() {
-		dbTag := field.Tag("db")
+	for _, dbTag := range getDBTags(labelsEntity) {
 		baseQuery += " %[2]s." + dbTag + " " + "\"%[2]s." + dbTag + "\"" + ","
 	}
 	baseQuery = baseQuery[:len(baseQuery)-1] //remove last comma
@@ -282,4 +282,21 @@ func checkSQLNoRows(err error) error {
 
 func toNullString(s string) sql.NullString {
 	return sql.NullString{String: s, Valid: s != ""}
+}
+
+func getJSONText(item json.RawMessage) sqlxtypes.JSONText {
+	if len(item) == len("null") && string(item) == "null" {
+		return sqlxtypes.JSONText("{}")
+	}
+	return sqlxtypes.JSONText(item)
+}
+
+func getJSONRawMessage(item sqlxtypes.JSONText) json.RawMessage {
+	if len(item) <= len("null") {
+		itemStr := string(item)
+		if itemStr == "{}" || itemStr == "null" {
+			return nil
+		}
+	}
+	return json.RawMessage(item)
 }

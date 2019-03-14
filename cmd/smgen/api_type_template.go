@@ -70,7 +70,6 @@ func (e *{{.Type}}) MarshalJSON() ([]byte, error) {
         str := util.ToRFCFormat(e.UpdatedAt)
         toMarshal.UpdatedAt = &str
     }
-    {{ if .SupportsLabels }}
 	hasNoLabels := true
 	for key, values := range e.Labels {
 		if key != "" && len(values) != 0 { 
@@ -81,7 +80,6 @@ func (e *{{.Type}}) MarshalJSON() ([]byte, error) {
 	if hasNoLabels {
 		toMarshal.Labels = nil
 	}
-	{{ end }}
 	return json.Marshal(toMarshal)
 }
 `

@@ -78,20 +78,11 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 	return &web.API{
 		// Default controllers - more filters can be registered using the relevant API methods
 		Controllers: []web.Controller{
-			broker.NewController(repository, encrypter, newOSBClient(settings.SkipSSLValidation), &broker.AdditionalInterceptors{}),
-			&platform.Controller{
-				Repository: repository,
-				Encrypter:  encrypter,
-			},
-			&service_offering.Controller{
-				ServiceOfferingStorage: repository,
-			},
-			&service_plan.Controller{
-				ServicePlanStorage: repository,
-			},
-			&visibility.Controller{
-				Repository: repository,
-			},
+			broker.NewController(repository, encrypter, newOSBClient(settings.SkipSSLValidation)),
+			platform.NewController(repository, encrypter),
+			service_offering.NewController(repository),
+			service_plan.NewController(repository),
+			visibility.NewController(repository),
 			&info.Controller{
 				TokenIssuer:    settings.TokenIssuerURL,
 				TokenBasicAuth: settings.TokenBasicAuth,
@@ -112,6 +103,7 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 			bearerAuthnFilter,
 			secfilters.NewRequiredAuthnFilter(),
 			&filters.SelectionCriteria{},
+			&filters.VisibilityForPlatform{},
 		},
 		Registry: health.NewDefaultRegistry(),
 	}, nil

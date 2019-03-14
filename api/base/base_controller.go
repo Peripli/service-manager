@@ -136,14 +136,7 @@ func (c *Controller) Routes() []web.Route {
 func (c *Controller) CreateObject(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Creating new %s", c.objectType)
-	result := c.objectBlueprint()
-	if err := util.BytesToObject(r.Body, result); err != nil {
-		return nil, err
-	}
-	UUID, err := uuid.NewV4()
-	if err != nil {
-		return nil, fmt.Errorf("could not generate GUID for %s: %s", c.objectType, err)
-	}
+
 	createHook := c.CreateInterceptorProvider()
 
 	onTransaction := func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error {
@@ -159,7 +152,7 @@ func (c *Controller) CreateObject(r *web.Request) (*web.Response, error) {
 	}
 
 	onAPI := func(ctx context.Context, obj types.Object) (types.Object, error) {
-		if err = c.repository.InTransaction(ctx, func(ctx context.Context, txStorage storage.Warehouse) error {
+		if err := c.repository.InTransaction(ctx, func(ctx context.Context, txStorage storage.Warehouse) error {
 			return onTransaction(ctx, txStorage, obj)
 		}); err != nil {
 			return nil, err
@@ -169,13 +162,23 @@ func (c *Controller) CreateObject(r *web.Request) (*web.Response, error) {
 	if createHook != nil {
 		onAPI = createHook.OnAPI(onAPI)
 	}
+	result := c.objectBlueprint()
+	if err := util.BytesToObject(r.Body, result); err != nil {
+		return nil, err
+	}
 
-	result.SetID(UUID.String())
+	if result.GetID() == "" {
+		UUID, err := uuid.NewV4()
+		if err != nil {
+			return nil, fmt.Errorf("could not generate GUID for %s: %s", c.objectType, err)
+		}
+		result.SetID(UUID.String())
+	}
 	currentTime := time.Now().UTC()
 	result.SetCreatedAt(currentTime)
 	result.SetUpdatedAt(currentTime)
 
-	result, err = onAPI(ctx, result)
+	result, err := onAPI(ctx, result)
 	if err != nil {
 		return nil, err
 	}

@@ -91,7 +91,7 @@ var _ = Describe("Service Manager Public Plans Filter", func() {
 		ctx = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 			smb.RegisterFilters(&filters.PublicServicePlansFilter{
 				Repository: smb.Storage,
-				IsCatalogPlanPublicFunc: func(broker *types.Broker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
+				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return catalogPlan.Free, nil
 				},
 			})

@@ -17,25 +17,16 @@
 package postgres
 
 import (
-	"time"
-
-	"github.com/jmoiron/sqlx"
-
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
 )
 
-//
-//func init() {
-//	RegisterEntity(types.ServicePlanType, &ServicePlan{})
-//}
-
+//go:generate smgen storage ServicePlan github.com/Peripli/service-manager/pkg/types
 type ServicePlan struct {
-	ID          string    `db:"id"`
-	Name        string    `db:"name"`
-	Description string    `db:"description"`
-	CreatedAt   time.Time `db:"created_at"`
-	UpdatedAt   time.Time `db:"updated_at"`
+	BaseEntity
+	Name        string `db:"name"`
+	Description string `db:"description"`
 
 	Free          bool   `db:"free"`
 	Bindable      bool   `db:"bindable"`
@@ -47,38 +38,6 @@ type ServicePlan struct {
 	Schemas  sqlxtypes.JSONText `db:"schemas"`
 
 	ServiceOfferingID string `db:"service_offering_id"`
-}
-
-func (sp *ServicePlan) SetID(id string) {
-	sp.ID = id
-}
-
-func (sp *ServicePlan) LabelEntity() PostgresLabel {
-	return nil
-}
-
-func (sp *ServicePlan) GetID() string {
-	return sp.ID
-}
-
-func (sp *ServicePlan) TableName() string {
-	return servicePlanTable
-}
-
-func (sp *ServicePlan) PrimaryColumn() string {
-	return "id"
-}
-
-func (sp *ServicePlan) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
-	result := &types.ServicePlans{}
-	for rows.Next() {
-		var item ServicePlan
-		if err := rows.StructScan(&item); err != nil {
-			return nil, err
-		}
-		result.Add(item.ToObject())
-	}
-	return result, nil
 }
 
 func (sp *ServicePlan) ToObject() types.Object {
@@ -101,14 +60,19 @@ func (sp *ServicePlan) ToObject() types.Object {
 	}
 }
 
-func (sp *ServicePlan) FromObject(object types.Object) PostgresEntity {
-	plan := object.(*types.ServicePlan)
+func (sp *ServicePlan) FromObject(object types.Object) (storage.Entity, bool) {
+	plan, ok := object.(*types.ServicePlan)
+	if !ok {
+		return nil, false
+	}
 	return &ServicePlan{
-		ID:                plan.ID,
+		BaseEntity: BaseEntity{
+			ID:        plan.ID,
+			CreatedAt: plan.CreatedAt,
+			UpdatedAt: plan.UpdatedAt,
+		},
 		Name:              plan.Name,
 		Description:       plan.Description,
-		CreatedAt:         plan.CreatedAt,
-		UpdatedAt:         plan.UpdatedAt,
 		Free:              plan.Free,
 		Bindable:          plan.Bindable,
 		PlanUpdatable:     plan.PlanUpdatable,
@@ -117,5 +81,5 @@ func (sp *ServicePlan) FromObject(object types.Object) PostgresEntity {
 		Metadata:          getJSONText(plan.Metadata),
 		Schemas:           getJSONText(plan.Schemas),
 		ServiceOfferingID: plan.ServiceOfferingID,
-	}
+	}, true
 }
