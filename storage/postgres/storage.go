@@ -195,10 +195,10 @@ func (ps *postgresStorage) createLabels(ctx context.Context, entityID string, la
 	return nil
 }
 
-func (ps *postgresStorage) Get(ctx context.Context, id string, objType types.ObjectType) (types.Object, error) {
+func (ps *postgresStorage) Get(ctx context.Context, objectType types.ObjectType, id string) (types.Object, error) {
 	byPrimaryColumn := query.ByField(query.EqualsOperator, "id", id)
 
-	result, err := ps.List(ctx, objType, byPrimaryColumn)
+	result, err := ps.List(ctx, objectType, byPrimaryColumn)
 	if err != nil {
 		return nil, err
 	}

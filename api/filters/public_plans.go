@@ -60,7 +60,7 @@ func (pspf *PublicServicePlansFilter) Run(req *web.Request, next web.Handler) (*
 	if err := pspf.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
 		soRepository := storage.ServiceOffering()
 
-		broker, err := pspf.Repository.Get(ctx, brokerID, types.ServiceBrokerType)
+		broker, err := pspf.Repository.Get(ctx, types.ServiceBrokerType, brokerID)
 		if err != nil {
 			return util.HandleStorageError(err, "broker")
 		}

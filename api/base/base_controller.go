@@ -238,7 +238,7 @@ func (c *Controller) GetSingleObject(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Getting %s with id %s", c.objectType, objectID)
 
-	object, err := c.repository.Get(ctx, objectID, c.objectType)
+	object, err := c.repository.Get(ctx, c.objectType, objectID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
@@ -306,7 +306,7 @@ func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
 	apiOperation := func(ctx context.Context, updateChanges extension.UpdateContext) (types.Object, error) {
 		var result types.Object
 		if err = c.repository.InTransaction(ctx, func(ctx context.Context, txStorage storage.Warehouse) error {
-			oldObject, err := txStorage.Get(ctx, objectID, c.objectType)
+			oldObject, err := txStorage.Get(ctx, c.objectType, objectID)
 			if err != nil {
 				return util.HandleStorageError(err, string(c.objectType))
 			}

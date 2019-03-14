@@ -344,7 +344,7 @@ func (fake *FakeStorage) CreateReturnsOnCall(i int, result1 string, result2 erro
 	}{result1, result2}
 }
 
-func (fake *FakeStorage) Get(ctx context.Context, id string, objectType types.ObjectType) (types.Object, error) {
+func (fake *FakeStorage) Get(ctx context.Context, objectType types.ObjectType, id string) (types.Object, error) {
 	fake.getMutex.Lock()
 	ret, specificReturn := fake.getReturnsOnCall[len(fake.getArgsForCall)]
 	fake.getArgsForCall = append(fake.getArgsForCall, struct {

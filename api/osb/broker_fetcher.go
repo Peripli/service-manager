@@ -36,7 +36,7 @@ var _ BrokerFetcher = &StorageBrokerFetcher{}
 
 // FetchBroker obtains the broker coordinates (auth and URL)
 func (sbf *StorageBrokerFetcher) FetchBroker(ctx context.Context, brokerID string) (*types.ServiceBroker, error) {
-	br, err := sbf.BrokerStorage.Get(ctx, brokerID, types.ServiceBrokerType)
+	br, err := sbf.BrokerStorage.Get(ctx, types.ServiceBrokerType, brokerID)
 	if err != nil {
 		log.C(ctx).Debugf("FetchBroker with id %s not found in storage", brokerID)
 		return nil, util.HandleStorageError(err, "broker")

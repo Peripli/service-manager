@@ -105,7 +105,7 @@ type Warehouse interface {
 	Create(ctx context.Context, obj types.Object) (string, error)
 
 	// Get retrieves a broker using the provided id from SM DB
-	Get(ctx context.Context, id string, objectType types.ObjectType) (types.Object, error)
+	Get(ctx context.Context, objectType types.ObjectType, id string) (types.Object, error)
 
 	// List retrieves all brokers from SM DB
 	List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error)

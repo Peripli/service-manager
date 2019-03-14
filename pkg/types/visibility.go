@@ -27,9 +27,7 @@ import (
 // Visibility struct
 type Visibility struct {
 	Base
-	PlatformID string `json:"platform_id"`
-	Labels     Labels `json:"labels,omitempty"`
-
+	PlatformID    string `json:"platform_id"`
 	ServicePlanID string `json:"service_plan_id"`
 }
 
