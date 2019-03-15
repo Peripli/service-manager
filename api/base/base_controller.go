@@ -56,8 +56,7 @@ func (c *Controller) AddCreateInterceptorProviders(providers ...extension.Create
 	if c.CreateInterceptorProvider == nil {
 		c.CreateInterceptorProvider = extension.UnionCreateInterceptor(providers)
 	} else {
-
-		c.CreateInterceptorProvider = extension.UnionCreateInterceptor(append([]extension.CreateInterceptorProvider{c.CreateInterceptorProvider}, providers...))
+		c.CreateInterceptorProvider = extension.UnionCreateInterceptor(append(providers, c.CreateInterceptorProvider))
 	}
 }
 
@@ -65,7 +64,7 @@ func (c *Controller) AddUpdateInterceptorProviders(providers ...extension.Update
 	if c.UpdateInterceptorProvider == nil {
 		c.UpdateInterceptorProvider = extension.UnionUpdateInterceptor(providers)
 	} else {
-		c.UpdateInterceptorProvider = extension.UnionUpdateInterceptor(append([]extension.UpdateInterceptorProvider{c.UpdateInterceptorProvider}, providers...))
+		c.UpdateInterceptorProvider = extension.UnionUpdateInterceptor(append(providers, c.UpdateInterceptorProvider))
 	}
 }
 
@@ -73,7 +72,7 @@ func (c *Controller) AddDeleteInterceptorProviders(providers ...extension.Delete
 	if c.DeleteInterceptorProvider == nil {
 		c.DeleteInterceptorProvider = extension.UnionDeleteInterceptor(providers)
 	} else {
-		c.DeleteInterceptorProvider = extension.UnionDeleteInterceptor(append([]extension.DeleteInterceptorProvider{c.DeleteInterceptorProvider}, providers...))
+		c.DeleteInterceptorProvider = extension.UnionDeleteInterceptor(append(providers, c.DeleteInterceptorProvider))
 	}
 }
 
