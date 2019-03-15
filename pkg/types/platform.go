@@ -26,8 +26,8 @@ import (
 //go:generate smgen api Platform
 // Platform platform struct
 type Platform struct {
-	Secured
 	Base
+	Secured     `json:"-"`
 	Type        string       `json:"type"`
 	Name        string       `json:"name"`
 	Description string       `json:"description"`

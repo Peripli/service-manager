@@ -24,8 +24,8 @@ import (
 //go:generate smgen api ServiceBroker
 // ServiceBroker broker struct
 type ServiceBroker struct {
-	Secured
 	Base
+	Secured     `json:"-"`
 	Name        string             `json:"name"`
 	Description string             `json:"description"`
 	BrokerURL   string             `json:"broker_url"`

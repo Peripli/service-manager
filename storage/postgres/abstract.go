@@ -203,14 +203,14 @@ func getDBTags(structure interface{}) []string {
 
 func getTags(fields []*structs.Field, set *[]string) {
 	for _, field := range fields {
+		if field.Kind() == reflect.Ptr && field.IsZero() {
+			continue
+		}
 		if field.IsEmbedded() {
 			embedded := make([]string, 0)
 			getTags(field.Fields(), &embedded)
 			*set = append(*set, embedded...)
 		} else {
-			if field.Kind() == reflect.Ptr && field.IsZero() {
-				continue
-			}
 			dbTag := field.Tag("db")
 			if dbTag == "-" {
 				continue

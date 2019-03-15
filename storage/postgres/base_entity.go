@@ -62,14 +62,14 @@ type BaseLabelEntity struct {
 	UpdatedAt *time.Time     `db:"updated_at"`
 }
 
-func (el *BaseLabelEntity) GetKey() string {
+func (el BaseLabelEntity) GetKey() string {
 	return el.Key.String
 }
 
-func (el *BaseLabelEntity) GetValue() string {
+func (el BaseLabelEntity) GetValue() string {
 	return el.Val.String
 }
 
-func (el *BaseLabelEntity) LabelsPrimaryColumn() string {
+func (el BaseLabelEntity) LabelsPrimaryColumn() string {
 	return "id"
 }

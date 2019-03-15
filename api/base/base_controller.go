@@ -138,7 +138,10 @@ func (c *Controller) CreateObject(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Creating new %s", c.objectType)
 
-	createHook := c.CreateInterceptorProvider()
+	var createInterceptor extension.CreateInterceptor
+	if c.CreateInterceptorProvider != nil {
+		createInterceptor = c.CreateInterceptorProvider()
+	}
 
 	onTransaction := func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error {
 		id, err := txStorage.Create(ctx, newObject)
@@ -148,8 +151,8 @@ func (c *Controller) CreateObject(r *web.Request) (*web.Response, error) {
 		newObject.SetID(id)
 		return nil
 	}
-	if createHook != nil {
-		onTransaction = createHook.OnTransactionCreate(onTransaction)
+	if createInterceptor != nil {
+		onTransaction = createInterceptor.OnTransactionCreate(onTransaction)
 	}
 
 	onAPI := func(ctx context.Context, obj types.Object) (types.Object, error) {
@@ -160,8 +163,8 @@ func (c *Controller) CreateObject(r *web.Request) (*web.Response, error) {
 		}
 		return obj, nil
 	}
-	if createHook != nil {
-		onAPI = createHook.OnAPICreate(onAPI)
+	if createInterceptor != nil {
+		onAPI = createInterceptor.OnAPICreate(onAPI)
 	}
 	result := c.objectBlueprint()
 	if err := util.BytesToObject(r.Body, result); err != nil {
@@ -189,13 +192,16 @@ func (c *Controller) CreateObject(r *web.Request) (*web.Response, error) {
 func (c *Controller) DeleteObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting %ss...", c.objectType)
-	deleteHook := c.DeleteInterceptorProvider()
+	var deleteInterceptor extension.DeleteInterceptor
+	if c.DeleteInterceptorProvider != nil {
+		deleteInterceptor = c.DeleteInterceptorProvider()
+	}
 
 	transactionOperation := func(ctx context.Context, txStorage storage.Warehouse, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
 		return c.repository.Delete(ctx, c.objectType, deletionCriteria...)
 	}
-	if deleteHook != nil {
-		transactionOperation = deleteHook.OnTransactionDelete(transactionOperation)
+	if deleteInterceptor != nil {
+		transactionOperation = deleteInterceptor.OnTransactionDelete(transactionOperation)
 	}
 
 	apiOperation := func(ctx context.Context, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
@@ -209,8 +215,8 @@ func (c *Controller) DeleteObjects(r *web.Request) (*web.Response, error) {
 		}
 		return result, nil
 	}
-	if deleteHook != nil {
-		apiOperation = deleteHook.OnAPIDelete(apiOperation)
+	if deleteInterceptor != nil {
+		apiOperation = deleteInterceptor.OnAPIDelete(apiOperation)
 	}
 	criteria := query.CriteriaForContext(ctx)
 	if _, err := apiOperation(ctx, criteria...); err != nil {
@@ -283,12 +289,15 @@ func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	updateHook := c.UpdateInterceptorProvider()
-	transactionOp := updateHook.OnTransactionUpdate(func(ctx context.Context, txStorage storage.Warehouse, oldObject types.Object, updateChanges *extension.UpdateContext) (types.Object, error) {
+	var updateInterceptor extension.UpdateInterceptor
+	if c.UpdateInterceptorProvider != nil {
+		updateInterceptor = c.UpdateInterceptorProvider()
+	}
+	transactionOp := func(ctx context.Context, txStorage storage.Warehouse, oldObject types.Object, updateChanges *extension.UpdateContext) (types.Object, error) {
 		return txStorage.Update(ctx, oldObject, updateChanges.LabelChanges...)
-	})
-	if updateHook != nil {
-		transactionOp = updateHook.OnTransactionUpdate(transactionOp)
+	}
+	if updateInterceptor != nil {
+		transactionOp = updateInterceptor.OnTransactionUpdate(transactionOp)
 	}
 
 	apiOperation := func(ctx context.Context, updateChanges *extension.UpdateContext) (types.Object, error) {
@@ -301,8 +310,8 @@ func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
 		}
 		return result, nil
 	}
-	if updateHook != nil {
-		apiOperation = updateHook.OnAPIUpdate(apiOperation)
+	if updateInterceptor != nil {
+		apiOperation = updateInterceptor.OnAPIUpdate(apiOperation)
 	}
 
 	obj := c.objectBlueprint()

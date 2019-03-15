@@ -60,7 +60,7 @@ func (e *{{.Type}}) NewLabel(id, key, value string) storage.Label {
 func (e *{{.Type}}) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
 	row := struct {
 		*{{.Type}}
-		*{{.Type}}Label ` + "`db:\"{{.TypeLowerSnakeCase}}_labels\"`" + `
+		{{.Type}}Label ` + "`db:\"{{.TypeLowerSnakeCase}}_labels\"`" + `
 	}{}
 	result := &{{.ApiPackage}}{{.ApiTypePlural}}{
 		{{.ApiTypePlural}}: make([]*{{.ApiPackage}}{{.ApiType}}, 0),
@@ -77,11 +77,11 @@ type {{.Type}}Label struct {
 	{{.Type}}ID  sql.NullString ` + "`db:\"{{.TypeLowerSnakeCase}}_id\"`" + `
 }
 
-func (el *{{.Type}}Label) LabelsTableName() string {
+func (el {{.Type}}Label) LabelsTableName() string {
 	return "{{.TypeLowerSnakeCase}}_labels"
 }
 
-func (el *{{.Type}}Label) ReferenceColumn() string {
+func (el {{.Type}}Label) ReferenceColumn() string {
 	return "{{.TypeLowerSnakeCase}}_id"
 }
 `
