@@ -37,13 +37,13 @@ import (
 type UpdateBrokerHook struct {
 	OSBClientCreateFunc osbc.CreateFunc
 	Encrypter           security.Encrypter
-	catalog             *osbc.CatalogResponse
 	Repository          storage.Repository
+	catalog             *osbc.CatalogResponse
 }
 
 func (c *UpdateBrokerHook) OnAPIUpdate(h extension.InterceptUpdateOnAPI) extension.InterceptUpdateOnAPI {
-	return func(ctx context.Context, changes extension.UpdateContext) (types.Object, error) {
-		obj, err := c.Repository.Get(ctx, types.ServiceBrokerType, changes.ObjectID)
+	return func(ctx context.Context, changes *extension.UpdateContext) (types.Object, error) {
+		obj, err := c.Repository.Get(ctx, types.ServiceBrokerType, changes.Object.GetID())
 		if err != nil {
 			return nil, err
 		}
@@ -59,13 +59,22 @@ func (c *UpdateBrokerHook) OnAPIUpdate(h extension.InterceptUpdateOnAPI) extensi
 		if err != nil {
 			return nil, err
 		}
+		serviceOfferings, err := osbCatalogToOfferings(c.catalog, broker)
+		broker.Services = serviceOfferings
+		if err = transformBrokerCredentials(ctx, broker, c.Encrypter.Encrypt); err != nil {
+			return nil, err
+		}
+		changes.Object = broker
+		if err != nil {
+			return nil, err
+		}
 		return h(ctx, changes)
 	}
 }
 
 func (c *UpdateBrokerHook) OnTransactionUpdate(f extension.InterceptUpdateOnTransaction) extension.InterceptUpdateOnTransaction {
-	return func(ctx context.Context, txStorage storage.Warehouse, ojb types.Object, changes extension.UpdateContext) (types.Object, error) {
-		newObject, err := f(ctx, txStorage, ojb, changes)
+	return func(ctx context.Context, txStorage storage.Warehouse, oldObject types.Object, changes *extension.UpdateContext) (types.Object, error) {
+		newObject, err := f(ctx, txStorage, oldObject, changes)
 		if err != nil {
 			return nil, err
 		}

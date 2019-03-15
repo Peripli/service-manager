@@ -44,63 +44,72 @@ func (c *CreateBrokerHook) OnAPICreate(h extension.InterceptCreateOnAPI) extensi
 		if err != nil {
 			return nil, err
 		}
-		for serviceIndex := range catalog.Services {
-			service := catalog.Services[serviceIndex]
-			serviceOffering := &types.ServiceOffering{}
-			err := osbcCatalogServiceToServiceOffering(serviceOffering, &service)
-			if err != nil {
-				return nil, err
-			}
-			serviceUUID, err := uuid.NewV4()
-			if err != nil {
-				return nil, fmt.Errorf("could not generate GUID for service: %s", err)
-			}
-			serviceOffering.ID = serviceUUID.String()
-			serviceOffering.CreatedAt = broker.GetCreatedAt()
-			serviceOffering.UpdatedAt = broker.GetUpdatedAt()
-			serviceOffering.BrokerID = broker.GetID()
-
-			if err := serviceOffering.Validate(); err != nil {
-				return nil, &util.HTTPError{
-					ErrorType:   "BadRequest",
-					Description: fmt.Sprintf("service offering constructed during catalog insertion for broker %s is invalid: %s", broker.GetID(), err),
-					StatusCode:  http.StatusBadRequest,
-				}
-			}
-
-			for planIndex := range service.Plans {
-				servicePlan := &types.ServicePlan{}
-				err := osbcCatalogPlanToServicePlan(servicePlan, &catalogPlanWithServiceOfferingID{
-					Plan:            &service.Plans[planIndex],
-					ServiceOffering: serviceOffering,
-				})
-				if err != nil {
-					return nil, err
-				}
-				planUUID, err := uuid.NewV4()
-				if err != nil {
-					return nil, fmt.Errorf("could not generate GUID for service_plan: %s", err)
-				}
-				servicePlan.ID = planUUID.String()
-				servicePlan.CreatedAt = broker.GetCreatedAt()
-				servicePlan.UpdatedAt = broker.GetUpdatedAt()
-
-				if err := servicePlan.Validate(); err != nil {
-					return nil, &util.HTTPError{
-						ErrorType:   "BadRequest",
-						Description: fmt.Sprintf("service plan constructed during catalog insertion for broker %s is invalid: %s", broker.GetID(), err),
-						StatusCode:  http.StatusBadRequest,
-					}
-				}
-				serviceOffering.Plans = append(serviceOffering.Plans, servicePlan)
-			}
-			c.serviceOfferings = append(c.serviceOfferings, serviceOffering)
+		c.serviceOfferings, err = osbCatalogToOfferings(catalog, broker)
+		if err != nil {
+			return nil, err
 		}
 		if err = transformBrokerCredentials(ctx, broker, c.Encrypter.Encrypt); err != nil {
 			return nil, err
 		}
 		return h(ctx, broker)
 	}
+}
+
+func osbCatalogToOfferings(catalog *osbc.CatalogResponse, broker types.Object) ([]*types.ServiceOffering, error) {
+	var result []*types.ServiceOffering
+	for serviceIndex := range catalog.Services {
+		service := catalog.Services[serviceIndex]
+		serviceOffering := &types.ServiceOffering{}
+		err := osbcCatalogServiceToServiceOffering(serviceOffering, &service)
+		if err != nil {
+			return nil, err
+		}
+		serviceUUID, err := uuid.NewV4()
+		if err != nil {
+			return nil, fmt.Errorf("could not generate GUID for service: %s", err)
+		}
+		serviceOffering.ID = serviceUUID.String()
+		serviceOffering.CreatedAt = broker.GetCreatedAt()
+		serviceOffering.UpdatedAt = broker.GetUpdatedAt()
+		serviceOffering.BrokerID = broker.GetID()
+
+		if err := serviceOffering.Validate(); err != nil {
+			return nil, &util.HTTPError{
+				ErrorType:   "BadRequest",
+				Description: fmt.Sprintf("service offering constructed during catalog insertion for broker %s is invalid: %s", broker.GetID(), err),
+				StatusCode:  http.StatusBadRequest,
+			}
+		}
+
+		for planIndex := range service.Plans {
+			servicePlan := &types.ServicePlan{}
+			err := osbcCatalogPlanToServicePlan(servicePlan, &catalogPlanWithServiceOfferingID{
+				Plan:            &service.Plans[planIndex],
+				ServiceOffering: serviceOffering,
+			})
+			if err != nil {
+				return nil, err
+			}
+			planUUID, err := uuid.NewV4()
+			if err != nil {
+				return nil, fmt.Errorf("could not generate GUID for service_plan: %s", err)
+			}
+			servicePlan.ID = planUUID.String()
+			servicePlan.CreatedAt = broker.GetCreatedAt()
+			servicePlan.UpdatedAt = broker.GetUpdatedAt()
+
+			if err := servicePlan.Validate(); err != nil {
+				return nil, &util.HTTPError{
+					ErrorType:   "BadRequest",
+					Description: fmt.Sprintf("service plan constructed during catalog insertion for broker %s is invalid: %s", broker.GetID(), err),
+					StatusCode:  http.StatusBadRequest,
+				}
+			}
+			serviceOffering.Plans = append(serviceOffering.Plans, servicePlan)
+		}
+		result = append(result, serviceOffering)
+	}
+	return result, nil
 }
 
 func (c *CreateBrokerHook) OnTransactionCreate(f extension.InterceptCreateOnTransaction) extension.InterceptCreateOnTransaction {

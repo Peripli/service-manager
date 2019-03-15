@@ -24,7 +24,6 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/query"
 
-	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/security"
 )
 
@@ -91,15 +90,18 @@ type keyFetcher struct {
 
 // GetEncryptionKey returns the encryption key used to encrypt the credentials for brokers
 func (s *keyFetcher) GetEncryptionKey(ctx context.Context) ([]byte, error) {
-	var safes []Safe
-	if err := listByFieldCriteria(ctx, s.db, "safe", &safes, []query.Criterion{}); err != nil {
+	safe := &Safe{}
+	rows, err := listByFieldCriteria(ctx, s.db, "safe", []query.Criterion{})
+	if err != nil {
 		return nil, err
 	}
-	if len(safes) != 1 {
-		log.C(ctx).Warnf("Unexpected number of keys found: %d", len(safes))
-		return []byte{}, nil
+	for rows.Next() {
+		if err := rows.StructScan(safe); err != nil {
+			return nil, err
+		}
+		break
 	}
-	encryptedKey := []byte(safes[0].Secret)
+	encryptedKey := []byte(safe.Secret)
 	return security.Decrypt(encryptedKey, s.encryptionKey)
 }
 
@@ -110,11 +112,11 @@ type keySetter struct {
 
 // Sets the encryption key by encrypting it beforehand with the encryption key in the environment
 func (k *keySetter) SetEncryptionKey(ctx context.Context, key []byte) error {
-	var safes []Safe
-	if err := listByFieldCriteria(ctx, k.db, "safe", &safes, []query.Criterion{}); err != nil {
+	rows, err := listByFieldCriteria(ctx, k.db, "safe", []query.Criterion{})
+	if err != nil {
 		return err
 	}
-	if len(safes) != 0 {
+	if rows.Next() {
 		return fmt.Errorf("encryption key is already set")
 	}
 	bytes, err := security.Encrypt(key, k.encryptionKey)

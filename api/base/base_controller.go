@@ -18,6 +18,7 @@ package base
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -282,35 +283,18 @@ func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	objectChanges := extension.UpdateContext{
-		LabelChanges:  labelChanges,
-		ObjectChanges: r.Body,
-		ObjectID:      objectID,
-	}
-
 	updateHook := c.UpdateInterceptorProvider()
-	transactionOp := updateHook.OnTransactionUpdate(func(ctx context.Context, txStorage storage.Warehouse, obj types.Object, updateChanges extension.UpdateContext) (types.Object, error) {
-		createdAt := obj.GetCreatedAt()
-		if err := util.BytesToObject(updateChanges.ObjectChanges, obj); err != nil {
-			return nil, err
-		}
-		obj.SetID(objectID)
-		obj.SetCreatedAt(createdAt)
-		obj.SetUpdatedAt(time.Now().UTC())
-		return txStorage.Update(ctx, obj, updateChanges.LabelChanges...)
+	transactionOp := updateHook.OnTransactionUpdate(func(ctx context.Context, txStorage storage.Warehouse, oldObject types.Object, updateChanges *extension.UpdateContext) (types.Object, error) {
+		return txStorage.Update(ctx, oldObject, updateChanges.LabelChanges...)
 	})
 	if updateHook != nil {
 		transactionOp = updateHook.OnTransactionUpdate(transactionOp)
 	}
 
-	apiOperation := func(ctx context.Context, updateChanges extension.UpdateContext) (types.Object, error) {
+	apiOperation := func(ctx context.Context, updateChanges *extension.UpdateContext) (types.Object, error) {
 		var result types.Object
 		if err = c.repository.InTransaction(ctx, func(ctx context.Context, txStorage storage.Warehouse) error {
-			oldObject, err := txStorage.Get(ctx, c.objectType, objectID)
-			if err != nil {
-				return util.HandleStorageError(err, string(c.objectType))
-			}
-			result, err = transactionOp(ctx, txStorage, oldObject, updateChanges)
+			result, err = transactionOp(ctx, txStorage, updateChanges.Object, updateChanges)
 			return err
 		}); err != nil {
 			return nil, err
@@ -321,6 +305,25 @@ func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
 		apiOperation = updateHook.OnAPIUpdate(apiOperation)
 	}
 
+	obj := c.objectBlueprint()
+	createdAt := obj.GetCreatedAt()
+	if err := json.Unmarshal(r.Body, obj); err != nil {
+		log.D().Error("Failed to decode request body: ", err)
+		return nil, &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: "Failed to decode request body",
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+	obj.SetID(objectID)
+	obj.SetCreatedAt(createdAt)
+	obj.SetUpdatedAt(time.Now().UTC())
+
+	objectChanges := &extension.UpdateContext{
+		LabelChanges:  labelChanges,
+		ObjectChanges: r.Body,
+		Object:        obj,
+	}
 	object, err := apiOperation(ctx, objectChanges)
 	if err != nil {
 		return nil, err

@@ -83,7 +83,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 		Context("Called with structure with db tag", func() {
 			It("Should return proper query", func() {
 				type ts struct {
-					Field string `pdDB:"taggedField"`
+					Field string `pgDB:"taggedField"`
 				}
 				query := updateQuery("n/a", ts{Field: "value"})
 				Expect(query).To(Equal("UPDATE n/a SET taggedField = :taggedField WHERE id = :id"))

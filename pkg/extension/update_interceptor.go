@@ -60,15 +60,15 @@ func UnionUpdateInterceptor(providers []UpdateInterceptorProvider) UpdateInterce
 }
 
 type UpdateContext struct {
-	ObjectID      string
+	Object        types.Object
 	ObjectChanges []byte
 	LabelChanges  []*query.LabelChange
 }
 
 type UpdateInterceptorProvider func() UpdateInterceptor
 
-type InterceptUpdateOnAPI func(ctx context.Context, changes UpdateContext) (types.Object, error)
-type InterceptUpdateOnTransaction func(ctx context.Context, txStorage storage.Warehouse, ojb types.Object, changes UpdateContext) (types.Object, error)
+type InterceptUpdateOnAPI func(ctx context.Context, changes *UpdateContext) (types.Object, error)
+type InterceptUpdateOnTransaction func(ctx context.Context, txStorage storage.Warehouse, oldObject types.Object, changes *UpdateContext) (types.Object, error)
 
 type UpdateInterceptor interface {
 	OnAPIUpdate(h InterceptUpdateOnAPI) InterceptUpdateOnAPI

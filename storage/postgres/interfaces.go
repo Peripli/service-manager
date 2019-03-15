@@ -83,3 +83,15 @@ func rowsToList(rows *sqlx.Rows, row EntityLabelRow, result types.ObjectList) er
 	}
 	return nil
 }
+
+func labelsRowsToList(rows *sqlx.Rows, labelBlueprint func() PostgresLabel) ([]storage.Label, error) {
+	var result []storage.Label
+	for rows.Next() {
+		row := labelBlueprint()
+		if err := rows.StructScan(row); err != nil {
+			return nil, err
+		}
+		result = append(result, row)
+	}
+	return result, nil
+}

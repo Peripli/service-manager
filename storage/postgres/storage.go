@@ -31,6 +31,7 @@ import (
 	migratepg "github.com/golang-migrate/migrate/database/postgres"
 	_ "github.com/golang-migrate/migrate/source/file"
 	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 )
 
 const Storage = "postgres"
@@ -40,7 +41,7 @@ func init() {
 }
 
 type postgresStorage struct {
-	pdDB          pgDB
+	pgDB          pgDB
 	db            *sqlx.DB
 	state         *storageState
 	encryptionKey []byte
@@ -53,17 +54,17 @@ func (ps *postgresStorage) Introduce(entity storage.Entity) {
 
 func (ps *postgresStorage) Credentials() storage.Credentials {
 	ps.checkOpen()
-	return &credentialStorage{db: ps.db}
+	return &credentialStorage{db: ps.pgDB}
 }
 
 func (ps *postgresStorage) Security() storage.Security {
 	ps.checkOpen()
-	return &securityStorage{ps.db, ps.encryptionKey, false, &sync.Mutex{}}
+	return &securityStorage{ps.pgDB, ps.encryptionKey, false, &sync.Mutex{}}
 }
 
 func (ps *postgresStorage) ServiceOffering() storage.ServiceOffering {
 	ps.checkOpen()
-	return &serviceOfferingStorage{db: ps.db}
+	return &serviceOfferingStorage{db: ps.pgDB}
 }
 
 func (ps *postgresStorage) Open(options *storage.Settings, scheme *storage.Scheme) error {
@@ -94,6 +95,7 @@ func (ps *postgresStorage) Open(options *storage.Settings, scheme *storage.Schem
 		if err := ps.updateSchema(options.MigrationsURL); err != nil {
 			log.D().Panicln("Could not update database schema:", err)
 		}
+		ps.pgDB = ps.db
 		ps.scheme = scheme
 		ps.scheme.Introduce(&Broker{})
 		ps.scheme.Introduce(&Platform{})
@@ -110,7 +112,7 @@ func (ps *postgresStorage) Close() error {
 }
 
 func (ps *postgresStorage) checkOpen() {
-	if ps.db == nil {
+	if ps.pgDB == nil {
 		log.D().Panicln("Repository is not yet Open")
 	}
 }
@@ -165,11 +167,11 @@ func toPgEntity(entity storage.Entity) (PostgresEntity, error) {
 func (ps *postgresStorage) Create(ctx context.Context, obj types.Object) (string, error) {
 	pgEntity, err := ps.convert(obj)
 
-	id, err := create(ctx, ps.pdDB, pgEntity.TableName(), pgEntity)
+	id, err := create(ctx, ps.pgDB, pgEntity.TableName(), pgEntity)
 	if err != nil {
 		return "", err
 	}
-	labels, err := pgEntity.BuildLabels(obj.GetLabels())
+	labels, err := pgEntity.BuildLabels(obj.GetLabels(), pgEntity.NewLabel)
 	if err != nil {
 		return "", err
 	}
@@ -188,7 +190,7 @@ func (ps *postgresStorage) createLabels(ctx context.Context, entityID string, la
 		if !ok {
 			return fmt.Errorf("postgres storage requires labels to implement postgres.LabelEntity, got %T", label)
 		}
-		if _, err := create(ctx, ps.db, pgLabel.LabelsTableName(), pgLabel); err != nil {
+		if _, err := create(ctx, ps.pgDB, pgLabel.LabelsTableName(), pgLabel); err != nil {
 			return err
 		}
 	}
@@ -213,7 +215,7 @@ func (ps *postgresStorage) List(ctx context.Context, objType types.ObjectType, c
 	if err != nil {
 		return nil, err
 	}
-	rows, err := listWithLabelsByCriteria(ctx, ps.db, entity, entity.LabelEntity(), entity.TableName(), criteria)
+	rows, err := listWithLabelsByCriteria(ctx, ps.pgDB, entity, entity.LabelEntity(), entity.TableName(), criteria)
 	defer func() {
 		if rows == nil {
 			return
@@ -237,7 +239,7 @@ func (ps *postgresStorage) Delete(ctx context.Context, objType types.ObjectType,
 	if err != nil {
 		return nil, err
 	}
-	rows, err := deleteAllByFieldCriteria(ctx, ps.db, entity.TableName(), entity, criteria)
+	rows, err := deleteAllByFieldCriteria(ctx, ps.pgDB, entity.TableName(), entity, criteria)
 	defer func() {
 		if rows == nil {
 			return
@@ -257,18 +259,20 @@ func (ps *postgresStorage) Update(ctx context.Context, obj types.Object, labelCh
 	if err != nil {
 		return nil, err
 	}
-	if err = update(ctx, ps.db, entity.TableName(), entity); err != nil {
+	if err = update(ctx, ps.pgDB, entity.TableName(), entity); err != nil {
 		return nil, err
 	}
 	if err = ps.updateLabels(ctx, entity.GetID(), entity, labelChanges); err != nil {
 		return nil, err
 	}
 	labelsInfo := entity.LabelEntity()
-	typesLabels := obj.GetLabels()
-	labels, err := entity.BuildLabels(typesLabels)
-
 	byEntityID := query.ByField(query.EqualsOperator, labelsInfo.ReferenceColumn(), entity.GetID())
-	if err = listByFieldCriteria(ctx, ps.db, labelsInfo.LabelsTableName(), labels, []query.Criterion{byEntityID}); err != nil {
+	rows, err := listByFieldCriteria(ctx, ps.pgDB, labelsInfo.LabelsTableName(), []query.Criterion{byEntityID})
+	if err != nil {
+		return nil, err
+	}
+	labels, err := labelsRowsToList(rows, func() PostgresLabel { return entity.LabelEntity() })
+	if err != nil {
 		return nil, err
 	}
 	typeLabels := ps.scheme.StorageLabelsToType(labels)
@@ -286,7 +290,7 @@ func (ps *postgresStorage) updateLabels(ctx context.Context, entityID string, en
 		}
 		return pgLabel, nil
 	}
-	return updateLabelsAbstract(ctx, newLabelFunc, ps.db, entityID, updateActions)
+	return updateLabelsAbstract(ctx, newLabelFunc, ps.pgDB, entityID, updateActions)
 }
 
 func (ps *postgresStorage) InTransaction(ctx context.Context, f func(ctx context.Context, storage storage.Warehouse) error) error {
@@ -304,7 +308,8 @@ func (ps *postgresStorage) InTransaction(ctx context.Context, f func(ctx context
 	}()
 
 	transactionalStorage := &postgresStorage{
-		pdDB:   tx,
+		pgDB:   tx,
+		db:     ps.db,
 		scheme: ps.scheme,
 	}
 

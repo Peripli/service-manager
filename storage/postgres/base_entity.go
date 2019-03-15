@@ -40,11 +40,7 @@ func (e *BaseEntity) GetID() string {
 	return e.ID
 }
 
-func (e *BaseEntity) NewLabel(id, key, value string) storage.Label {
-	panic("override in concrete entity")
-}
-
-func (e *BaseEntity) BuildLabels(labels types.Labels) ([]storage.Label, error) {
+func (e *BaseEntity) BuildLabels(labels types.Labels, newLabel func(id, key, value string) storage.Label) ([]storage.Label, error) {
 	var result []storage.Label
 	for key, values := range labels {
 		for _, labelValue := range values {
@@ -52,7 +48,7 @@ func (e *BaseEntity) BuildLabels(labels types.Labels) ([]storage.Label, error) {
 			if err != nil {
 				return nil, fmt.Errorf("could not generate GUID for broker label: %s", err)
 			}
-			result = append(result, e.NewLabel(UUID.String(), key, labelValue))
+			result = append(result, newLabel(UUID.String(), key, labelValue))
 		}
 	}
 	return result, nil

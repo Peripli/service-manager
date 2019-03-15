@@ -121,13 +121,13 @@ func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface
 	return db.QueryxContext(ctx, sqlQuery, queryParams...)
 }
 
-func listByFieldCriteria(ctx context.Context, db pgDB, table string, entity interface{}, criteria []query.Criterion) error {
+func listByFieldCriteria(ctx context.Context, db pgDB, table string, criteria []query.Criterion) (*sqlx.Rows, error) {
 	baseQuery := fmt.Sprintf(`SELECT * FROM %s`, table)
 	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, table, nil, criteria)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return db.SelectContext(ctx, entity, sqlQuery, queryParams...)
+	return db.QueryxContext(ctx, sqlQuery, queryParams...)
 }
 
 func deleteAllByFieldCriteria(ctx context.Context, extContext sqlx.ExtContext, table string, dto interface{}, criteria []query.Criterion) (*sqlx.Rows, error) {
@@ -150,9 +150,8 @@ func deleteAllByFieldCriteria(ctx context.Context, extContext sqlx.ExtContext, t
 
 func validateFieldQueryParams(baseEntity interface{}, criteria []query.Criterion) error {
 	availableColumns := make(map[string]bool)
-	baseEntityStruct := structs.New(baseEntity)
-	for _, field := range baseEntityStruct.Fields() {
-		dbTag := field.Tag("db")
+	tags := getDBTags(baseEntity)
+	for _, dbTag := range tags {
 		availableColumns[dbTag] = true
 	}
 	for _, criterion := range criteria {
