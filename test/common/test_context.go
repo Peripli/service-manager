@@ -251,7 +251,7 @@ func newSMServer(smEnv env.Environment, fs []func(ctx context.Context, smb *sm.S
 	}
 }
 
-func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, labels Object) (string, Object, *BrokerServer) {
+func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object) (string, Object, *BrokerServer) {
 	brokerServer := NewBrokerServerWithCatalog(catalog)
 	UUID, err := uuid.NewV4()
 	if err != nil {
@@ -273,15 +273,37 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, la
 		},
 	}
 
-	if len(labels) != 0 {
-		brokerJSON["labels"] = labels
-	}
+	MergeObjects(brokerJSON, brokerData)
 
 	brokerID := RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth)
 	brokerServer.ResetCallHistory()
 	ctx.Servers[BrokerServerPrefix+brokerID] = brokerServer
 	brokerJSON["id"] = brokerID
 	return brokerID, brokerJSON, brokerServer
+}
+
+func MergeObjects(target, source Object) {
+	for k, v := range source {
+		obj, ok := v.(Object)
+		if ok {
+			var tobj Object
+			tv, exists := target[k]
+			if exists {
+				tobj, ok = tv.(Object)
+				if !ok {
+					// incompatible types, just overwrite
+					target[k] = v
+					continue
+				}
+			} else {
+				tobj = Object{}
+				target[k] = tobj
+			}
+			MergeObjects(tobj, obj)
+		} else {
+			target[k] = v
+		}
+	}
 }
 
 func (ctx *TestContext) RegisterBrokerWithCatalog(catalog SBCatalog) (string, Object, *BrokerServer) {
@@ -313,6 +335,9 @@ func (ctx *TestContext) CleanupBroker(id string) {
 }
 
 func (ctx *TestContext) Cleanup() {
+	if ctx == nil {
+		return
+	}
 	RemoveAllBrokers(ctx.SMWithOAuth)
 	RemoveAllPlatforms(ctx.SMWithOAuth)
 
