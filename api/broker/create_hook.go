@@ -48,6 +48,7 @@ func (c *CreateBrokerHook) OnAPICreate(h extension.InterceptCreateOnAPI) extensi
 		if err != nil {
 			return nil, err
 		}
+		broker.Services = c.serviceOfferings
 		if err = transformBrokerCredentials(ctx, broker, c.Encrypter.Encrypt); err != nil {
 			return nil, err
 		}
