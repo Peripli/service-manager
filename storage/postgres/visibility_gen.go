@@ -42,7 +42,7 @@ func (e *Visibility) NewLabel(id, key, value string) storage.Label {
 func (e *Visibility) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
 	row := struct {
 		*Visibility
-		*VisibilityLabel `db:"visibility_labels"`
+		VisibilityLabel `db:"visibility_labels"`
 	}{}
 	result := &types.Visibilities{
 		Visibilities: make([]*types.Visibility, 0),
@@ -59,10 +59,10 @@ type VisibilityLabel struct {
 	VisibilityID  sql.NullString `db:"visibility_id"`
 }
 
-func (el *VisibilityLabel) LabelsTableName() string {
+func (el VisibilityLabel) LabelsTableName() string {
 	return "visibility_labels"
 }
 
-func (el *VisibilityLabel) ReferenceColumn() string {
+func (el VisibilityLabel) ReferenceColumn() string {
 	return "visibility_id"
 }

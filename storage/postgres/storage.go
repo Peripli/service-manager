@@ -230,10 +230,6 @@ func (ps *postgresStorage) List(ctx context.Context, objType types.ObjectType, c
 	return entity.RowsToList(rows)
 }
 
-func (ps *postgresStorage) executeRowsOperation(operation func() (*sqlx.Rows, error)) {
-
-}
-
 func (ps *postgresStorage) Delete(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	entity, err := ps.provide(objType)
 	if err != nil {
@@ -251,7 +247,14 @@ func (ps *postgresStorage) Delete(ctx context.Context, objType types.ObjectType,
 	if err != nil {
 		return nil, err
 	}
-	return entity.RowsToList(rows)
+	objectList, err := entity.RowsToList(rows)
+	if err != nil {
+		return nil, err
+	}
+	if objectList.Len() < 1 {
+		return nil, util.ErrNotFoundInStorage
+	}
+	return objectList, nil
 }
 
 func (ps *postgresStorage) Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {

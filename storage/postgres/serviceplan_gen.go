@@ -42,7 +42,7 @@ func (e *ServicePlan) NewLabel(id, key, value string) storage.Label {
 func (e *ServicePlan) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
 	row := struct {
 		*ServicePlan
-		*ServicePlanLabel `db:"service_plan_labels"`
+		ServicePlanLabel `db:"service_plan_labels"`
 	}{}
 	result := &types.ServicePlans{
 		ServicePlans: make([]*types.ServicePlan, 0),
@@ -59,10 +59,10 @@ type ServicePlanLabel struct {
 	ServicePlanID  sql.NullString `db:"service_plan_id"`
 }
 
-func (el *ServicePlanLabel) LabelsTableName() string {
+func (el ServicePlanLabel) LabelsTableName() string {
 	return "service_plan_labels"
 }
 
-func (el *ServicePlanLabel) ReferenceColumn() string {
+func (el ServicePlanLabel) ReferenceColumn() string {
 	return "service_plan_id"
 }

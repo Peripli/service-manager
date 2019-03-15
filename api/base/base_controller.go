@@ -18,7 +18,6 @@ package base
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -300,11 +299,23 @@ func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
 		transactionOp = updateInterceptor.OnTransactionUpdate(transactionOp)
 	}
 
+	objFromDB, err := c.repository.Get(ctx, c.objectType, objectID)
+	if err != nil {
+		return nil, err
+	}
+	createdAt := objFromDB.GetCreatedAt()
+
 	apiOperation := func(ctx context.Context, updateChanges *extension.UpdateContext) (types.Object, error) {
 		var result types.Object
+		if err := util.BytesToObject(updateChanges.ObjectChanges, updateChanges.Object); err != nil {
+			return nil, err
+		}
+		updateChanges.Object.SetID(objectID)
+		updateChanges.Object.SetCreatedAt(createdAt)
+		updateChanges.Object.SetUpdatedAt(time.Now().UTC())
 		if err = c.repository.InTransaction(ctx, func(ctx context.Context, txStorage storage.Warehouse) error {
 			result, err = transactionOp(ctx, txStorage, updateChanges.Object, updateChanges)
-			return err
+			return util.HandleStorageError(err, string(c.objectType))
 		}); err != nil {
 			return nil, err
 		}
@@ -314,24 +325,10 @@ func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
 		apiOperation = updateInterceptor.OnAPIUpdate(apiOperation)
 	}
 
-	obj := c.objectBlueprint()
-	createdAt := obj.GetCreatedAt()
-	if err := json.Unmarshal(r.Body, obj); err != nil {
-		log.D().Error("Failed to decode request body: ", err)
-		return nil, &util.HTTPError{
-			ErrorType:   "BadRequest",
-			Description: "Failed to decode request body",
-			StatusCode:  http.StatusBadRequest,
-		}
-	}
-	obj.SetID(objectID)
-	obj.SetCreatedAt(createdAt)
-	obj.SetUpdatedAt(time.Now().UTC())
-
 	objectChanges := &extension.UpdateContext{
 		LabelChanges:  labelChanges,
 		ObjectChanges: r.Body,
-		Object:        obj,
+		Object:        objFromDB,
 	}
 	object, err := apiOperation(ctx, objectChanges)
 	if err != nil {

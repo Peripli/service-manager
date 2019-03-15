@@ -96,13 +96,6 @@ func create(ctx context.Context, db pgDB, table string, dto interface{}) (string
 	return lastInsertId, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
 }
 
-func get(ctx context.Context, db getterContext, id string, table string, dto interface{}) error {
-	sqlQuery := "SELECT * FROM " + table + " WHERE id=$1"
-	log.C(ctx).Debugf("Executing query %s", sqlQuery)
-	err := db.GetContext(ctx, dto, sqlQuery, &id)
-	return checkSQLNoRows(err)
-}
-
 func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface{}, label PostgresLabel, baseTableName string, criteria []query.Criterion) (*sqlx.Rows, error) {
 	if err := validateFieldQueryParams(baseEntity, criteria); err != nil {
 		return nil, err

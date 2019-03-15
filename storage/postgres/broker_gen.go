@@ -1,3 +1,4 @@
+
 // GENERATED. DO NOT MODIFY!
 
 package postgres
@@ -6,7 +7,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/jmoiron/sqlx"
-
+	
+	
 	"database/sql"
 	"time"
 )
@@ -33,7 +35,7 @@ func (e *Broker) NewLabel(id, key, value string) storage.Label {
 			CreatedAt: &now,
 			UpdatedAt: &now,
 		},
-		BrokerID: sql.NullString{String: e.ID, Valid: e.ID != ""},
+		BrokerID:  sql.NullString{String: e.ID, Valid: e.ID != ""},
 	}
 }
 
@@ -44,7 +46,7 @@ func (e *Broker) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
 	}{}
 	result := &types.ServiceBrokers{
 		ServiceBrokers: make([]*types.ServiceBroker, 0),
-	}
+	}		
 	err := rowsToList(rows, &row, result)
 	if err != nil {
 		return nil, err
@@ -54,7 +56,7 @@ func (e *Broker) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
 
 type BrokerLabel struct {
 	BaseLabelEntity
-	BrokerID sql.NullString `db:"broker_id"`
+	BrokerID  sql.NullString `db:"broker_id"`
 }
 
 func (el BrokerLabel) LabelsTableName() string {

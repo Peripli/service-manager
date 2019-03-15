@@ -42,7 +42,7 @@ func (e *Platform) NewLabel(id, key, value string) storage.Label {
 func (e *Platform) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
 	row := struct {
 		*Platform
-		*PlatformLabel `db:"platform_labels"`
+		PlatformLabel `db:"platform_labels"`
 	}{}
 	result := &types.Platforms{
 		Platforms: make([]*types.Platform, 0),
@@ -59,10 +59,10 @@ type PlatformLabel struct {
 	PlatformID  sql.NullString `db:"platform_id"`
 }
 
-func (el *PlatformLabel) LabelsTableName() string {
+func (el PlatformLabel) LabelsTableName() string {
 	return "platform_labels"
 }
 
-func (el *PlatformLabel) ReferenceColumn() string {
+func (el PlatformLabel) ReferenceColumn() string {
 	return "platform_id"
 }
