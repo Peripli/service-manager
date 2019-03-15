@@ -48,15 +48,13 @@ func (c *UpdateBrokerHook) OnAPIUpdate(h extension.InterceptUpdateOnAPI) extensi
 			return nil, err
 		}
 		broker := obj.(*types.ServiceBroker)
-		err = util.BytesToObject(changes.ObjectChanges, broker)
-		if err != nil {
-			return nil, err
-		}
 		if err = transformBrokerCredentials(ctx, broker, c.Encrypter.Decrypt); err != nil {
 			return nil, err
 		}
-		c.catalog, err = getBrokerCatalog(ctx, c.OSBClientCreateFunc, broker)
-		if err != nil {
+		if err = util.BytesToObject(changes.ObjectChanges, broker); err != nil {
+			return nil, err
+		}
+		if c.catalog, err = getBrokerCatalog(ctx, c.OSBClientCreateFunc, broker); err != nil {
 			return nil, err
 		}
 		serviceOfferings, err := osbCatalogToOfferings(c.catalog, broker)
@@ -65,10 +63,14 @@ func (c *UpdateBrokerHook) OnAPIUpdate(h extension.InterceptUpdateOnAPI) extensi
 			return nil, err
 		}
 		changes.Object = broker
+		result, err := h(ctx, changes)
 		if err != nil {
 			return nil, err
 		}
-		return h(ctx, changes)
+		if secured, ok := result.(types.Secured); ok {
+			secured.SetCredentials(nil)
+		}
+		return result, nil
 	}
 }
 
@@ -82,7 +84,6 @@ func (c *UpdateBrokerHook) OnTransactionUpdate(f extension.InterceptUpdateOnTran
 		existingServiceOfferingsWithServicePlans, err := txStorage.ServiceOffering().ListWithServicePlansByBrokerID(ctx, brokerID)
 		if err != nil {
 			return nil, fmt.Errorf("error getting catalog for broker with id %s from SM DB: %s", brokerID, err)
-
 		}
 
 		existingServicesOfferingsMap, existingServicePlansMap := convertExistingCatalogToMaps(existingServiceOfferingsWithServicePlans)

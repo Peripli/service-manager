@@ -39,7 +39,6 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/gavv/httpexpect"
-	"github.com/mitchellh/mapstructure"
 	. "github.com/onsi/ginkgo"
 )
 
@@ -220,8 +219,20 @@ func RegisterPlatformInSM(platformJSON Object, SM *httpexpect.Expect) *types.Pla
 	reply := SM.POST("/v1/platforms").
 		WithJSON(platformJSON).
 		Expect().Status(http.StatusCreated).JSON().Object().Raw()
-	platform := &types.Platform{}
-	mapstructure.Decode(reply, platform)
+	platform := &types.Platform{
+		Base: types.Base{
+			ID: reply["id"].(string),
+		},
+		Credentials: &types.Credentials{
+			Basic: &types.Basic{
+				Username: reply["credentials"].(map[string]interface{})["basic"].(map[string]interface{})["username"].(string),
+				Password: reply["credentials"].(map[string]interface{})["basic"].(map[string]interface{})["password"].(string),
+			},
+		},
+		Type:        reply["type"].(string),
+		Description: reply["description"].(string),
+		Name:        reply["name"].(string),
+	}
 	return platform
 }
 

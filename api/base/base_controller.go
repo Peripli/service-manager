@@ -300,7 +300,7 @@ func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
 
 	objFromDB, err := c.repository.Get(ctx, c.objectType, objectID)
 	if err != nil {
-		return nil, err
+		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
 	createdAt := objFromDB.GetCreatedAt()
 

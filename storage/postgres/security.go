@@ -101,6 +101,9 @@ func (s *keyFetcher) GetEncryptionKey(ctx context.Context) ([]byte, error) {
 		}
 		break
 	}
+	if len(safe.Secret) == 0 {
+		return []byte{}, nil
+	}
 	encryptedKey := []byte(safe.Secret)
 	return security.Decrypt(encryptedKey, s.encryptionKey)
 }
@@ -116,8 +119,14 @@ func (k *keySetter) SetEncryptionKey(ctx context.Context, key []byte) error {
 	if err != nil {
 		return err
 	}
+	existingKey := &Safe{}
 	if rows.Next() {
-		return fmt.Errorf("encryption key is already set")
+		if err := rows.StructScan(existingKey); err != nil {
+			return err
+		}
+		if existingKey.Secret != nil && len(existingKey.Secret) > 0 {
+			return fmt.Errorf("encryption key is already set")
+		}
 	}
 	bytes, err := security.Encrypt(key, k.encryptionKey)
 	if err != nil {

@@ -30,7 +30,7 @@ type ServiceBroker struct {
 	Description string             `json:"description"`
 	BrokerURL   string             `json:"broker_url"`
 	Credentials *Credentials       `json:"credentials,omitempty" structs:"-"`
-	Services    []*ServiceOffering `json:"services,omitempty" structs:"-"`
+	Services    []*ServiceOffering `json:"-" structs:"-"`
 }
 
 func (e *ServiceBroker) SetCredentials(credentials *Credentials) {

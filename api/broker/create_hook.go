@@ -44,15 +44,21 @@ func (c *CreateBrokerHook) OnAPICreate(h extension.InterceptCreateOnAPI) extensi
 		if err != nil {
 			return nil, err
 		}
-		c.serviceOfferings, err = osbCatalogToOfferings(catalog, broker)
-		if err != nil {
+		if c.serviceOfferings, err = osbCatalogToOfferings(catalog, broker); err != nil {
 			return nil, err
 		}
 		broker.Services = c.serviceOfferings
 		if err = transformBrokerCredentials(ctx, broker, c.Encrypter.Encrypt); err != nil {
 			return nil, err
 		}
-		return h(ctx, broker)
+		result, err := h(ctx, broker)
+		if err != nil {
+			return nil, err
+		}
+		if secured, ok := result.(types.Secured); ok {
+			secured.SetCredentials(nil)
+		}
+		return result, nil
 	}
 }
 
