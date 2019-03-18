@@ -55,12 +55,12 @@ type FakeStorage struct {
 		result1 string
 		result2 error
 	}
-	GetStub        func(ctx context.Context, id string, objectType types.ObjectType) (types.Object, error)
+	GetStub        func(ctx context.Context, objectType types.ObjectType, id string) (types.Object, error)
 	getMutex       sync.RWMutex
 	getArgsForCall []struct {
 		ctx        context.Context
-		id         string
 		objectType types.ObjectType
+		id         string
 	}
 	getReturns struct {
 		result1 types.Object
@@ -349,13 +349,13 @@ func (fake *FakeStorage) Get(ctx context.Context, objectType types.ObjectType, i
 	ret, specificReturn := fake.getReturnsOnCall[len(fake.getArgsForCall)]
 	fake.getArgsForCall = append(fake.getArgsForCall, struct {
 		ctx        context.Context
-		id         string
 		objectType types.ObjectType
-	}{ctx, id, objectType})
-	fake.recordInvocation("Get", []interface{}{ctx, id, objectType})
+		id         string
+	}{ctx, objectType, id})
+	fake.recordInvocation("Get", []interface{}{ctx, objectType, id})
 	fake.getMutex.Unlock()
 	if fake.GetStub != nil {
-		return fake.GetStub(ctx, id, objectType)
+		return fake.GetStub(ctx, objectType, id)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -369,10 +369,10 @@ func (fake *FakeStorage) GetCallCount() int {
 	return len(fake.getArgsForCall)
 }
 
-func (fake *FakeStorage) GetArgsForCall(i int) (context.Context, string, types.ObjectType) {
+func (fake *FakeStorage) GetArgsForCall(i int) (context.Context, types.ObjectType, string) {
 	fake.getMutex.RLock()
 	defer fake.getMutex.RUnlock()
-	return fake.getArgsForCall[i].ctx, fake.getArgsForCall[i].id, fake.getArgsForCall[i].objectType
+	return fake.getArgsForCall[i].ctx, fake.getArgsForCall[i].objectType, fake.getArgsForCall[i].id
 }
 
 func (fake *FakeStorage) GetReturns(result1 types.Object, result2 error) {

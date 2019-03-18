@@ -68,6 +68,7 @@ func (interceptor *logInterceptor) VerifyData(emptyData bool) {
 var _ = Describe("Registry", func() {
 	var testStorage *storagefakes.FakeStorage
 	var testSettings *storage.Settings
+	var storageScheme *storage.Scheme
 
 	BeforeEach(func() {
 		testStorage = &storagefakes.FakeStorage{}
@@ -78,6 +79,7 @@ var _ = Describe("Registry", func() {
 			MigrationsURL: "",
 			EncryptionKey: "",
 		}
+		storageScheme = storage.NewScheme()
 	})
 
 	Describe("Storage registration", func() {
@@ -118,7 +120,7 @@ var _ = Describe("Registry", func() {
 					URI:           "uri",
 					MigrationsURL: "",
 					EncryptionKey: "",
-				})
+				}, storageScheme)
 				Expect(returnedStorage).To(BeNil())
 				Expect(err).To(Not(BeNil()))
 			})
@@ -128,7 +130,7 @@ var _ = Describe("Registry", func() {
 			It("Should return an error", func() {
 				testStorage.OpenReturns(fmt.Errorf("Error"))
 				storage.Register("openFailingStorage", testStorage)
-				_, err := storage.Use(context.TODO(), "openFailingStorage", testSettings)
+				_, err := storage.Use(context.TODO(), "openFailingStorage", testSettings, storageScheme)
 				Expect(err).To(Not(BeNil()))
 			})
 		})
@@ -137,7 +139,7 @@ var _ = Describe("Registry", func() {
 			It("Should return storage", func() {
 				testStorage.OpenReturns(nil)
 				storage.Register("openOkStorage", testStorage)
-				configuredStorage, err := storage.Use(context.TODO(), "openOkStorage", testSettings)
+				configuredStorage, err := storage.Use(context.TODO(), "openOkStorage", testSettings, storageScheme)
 				Expect(configuredStorage).To(Not(BeNil()))
 				Expect(err).To(BeNil())
 			})
@@ -157,7 +159,7 @@ var _ = Describe("Registry", func() {
 				testStorage.CloseReturns(fmt.Errorf("Error"))
 				storage.Register("closeFailingStorage", testStorage)
 				ctx, cancel := context.WithCancel(context.TODO())
-				storage.Use(ctx, "closeFailingStorage", testSettings)
+				storage.Use(ctx, "closeFailingStorage", testSettings, storageScheme)
 				cancel()
 				time.Sleep(time.Millisecond * 100)
 				interceptor.VerifyData(false)
@@ -169,7 +171,7 @@ var _ = Describe("Registry", func() {
 				testStorage.CloseReturns(nil)
 				storage.Register("closeOkStorage", testStorage)
 				ctx, cancel := context.WithCancel(context.TODO())
-				storage.Use(ctx, "closeOkStorage", testSettings)
+				storage.Use(ctx, "closeOkStorage", testSettings, storageScheme)
 				cancel()
 				time.Sleep(time.Millisecond * 100)
 				interceptor.VerifyData(true)

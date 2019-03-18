@@ -23,8 +23,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/Peripli/service-manager/pkg/web"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -105,16 +103,10 @@ var _ = Describe("Selection", func() {
 	})
 
 	Describe("Build criteria from request", func() {
-		var request *web.Request
-		BeforeEach(func() {
-			request = &web.Request{}
-		})
-
 		buildCriteria := func(url string) ([]Criterion, error) {
 			newRequest, err := http.NewRequest(http.MethodGet, url, nil)
 			Expect(err).ToNot(HaveOccurred())
-			request = &web.Request{Request: newRequest}
-			return BuildCriteriaFromRequest(request)
+			return BuildCriteriaFromRequest(newRequest)
 		}
 
 		Context("When build from request with no query parameters", func() {

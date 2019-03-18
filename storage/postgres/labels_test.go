@@ -20,20 +20,34 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Peripli/service-manager/storage/postgres/postgresfakes"
-
 	"github.com/jmoiron/sqlx"
 
 	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/storage/postgres/postgresfakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-type dummyLabelableEntity struct {
+type dummyLabel struct{}
+
+func (d *dummyLabel) GetKey() string {
+	return "key"
 }
 
-func (dummyLabelableEntity) Label() (labelTableName string, referenceColumnName string, primaryColumnName string) {
-	return "testLabelTable", "base_table_id", "id"
+func (d *dummyLabel) GetValue() string {
+	return "value"
+}
+
+func (d *dummyLabel) LabelsTableName() string {
+	return "testLabelTable"
+}
+
+func (d *dummyLabel) ReferenceColumn() string {
+	return "base_table_id"
+}
+
+func (d *dummyLabel) LabelsPrimaryColumn() string {
+	return "id"
 }
 
 var _ = Describe("Postgres Translator", func() {
@@ -48,10 +62,10 @@ var _ = Describe("Postgres Translator", func() {
 	})
 
 	Describe("translate list", func() {
+		labelableEntity := &dummyLabel{}
 
-		labelableEntity := dummyLabelableEntity{}
 		baseTableName := "testTable"
-		labelsTableName, _, _ := labelableEntity.Label()
+		labelsTableName := labelableEntity.LabelsTableName()
 		baseQuery := constructBaseQueryForLabelable(labelableEntity, baseTableName)
 		var criteria []query.Criterion
 

@@ -119,7 +119,13 @@ func (c *controller) catalog(r *web.Request, logger *logrus.Entry, brokerID stri
 		}
 	}
 
-	return web.NewJSONResponse(http.StatusOK, catalog)
+	// OSB spec requires object containing key "services"
+	result := struct {
+		Services []*types.ServiceOffering `json:"services"`
+	}{
+		Services: catalog.ServiceOfferings,
+	}
+	return web.NewJSONResponse(http.StatusOK, result)
 }
 
 func (c *controller) proxy(r *web.Request, logger *logrus.Entry, brokerID string) (*web.Response, error) {

@@ -25,6 +25,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 	{{.StoragePackageImport}}
 	{{.ApiPackageImport}}
 	"database/sql"
@@ -44,14 +45,15 @@ func (*{{.Type}}) TableName() string {
 }
 
 func (e *{{.Type}}) NewLabel(id, key, value string) storage.Label {
-	now := time.Now()
+	now := pq.NullTime{}
+	now.Scan(time.Now())
 	return &{{.Type}}Label{
 		BaseLabelEntity: BaseLabelEntity{
 			ID:        sql.NullString{String: id, Valid: id != ""},
 			Key:       sql.NullString{String: key, Valid: key != ""},
 			Val:       sql.NullString{String: value, Valid: value != ""},
-			CreatedAt: &now,
-			UpdatedAt: &now,
+			CreatedAt: now,
+			UpdatedAt: now,
 		},
 		{{.Type}}ID:  sql.NullString{String: e.ID, Valid: e.ID != ""},
 	}

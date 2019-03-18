@@ -24,6 +24,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/gofrs/uuid"
+	"github.com/lib/pq"
 )
 
 type BaseEntity struct {
@@ -51,6 +52,7 @@ func (e *BaseEntity) BuildLabels(labels types.Labels, newLabel func(id, key, val
 			result = append(result, newLabel(UUID.String(), key, labelValue))
 		}
 	}
+
 	return result, nil
 }
 
@@ -58,8 +60,8 @@ type BaseLabelEntity struct {
 	ID        sql.NullString `db:"id"`
 	Key       sql.NullString `db:"key"`
 	Val       sql.NullString `db:"val"`
-	CreatedAt *time.Time     `db:"created_at"`
-	UpdatedAt *time.Time     `db:"updated_at"`
+	CreatedAt pq.NullTime    `db:"created_at"`
+	UpdatedAt pq.NullTime    `db:"updated_at"`
 }
 
 func (el BaseLabelEntity) GetKey() string {

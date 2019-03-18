@@ -66,11 +66,11 @@ type pgDB interface {
 }
 
 func create(ctx context.Context, db pgDB, table string, dto interface{}) (string, error) {
-	var lastInsertId string
+	var lastInsertID string
 	set := getDBTags(dto)
 
 	if len(set) == 0 {
-		return lastInsertId, fmt.Errorf("%s insert: No fields to insert", table)
+		return lastInsertID, fmt.Errorf("%s insert: No fields to insert", table)
 	}
 
 	sqlQuery := fmt.Sprintf(
@@ -88,12 +88,12 @@ func create(ctx context.Context, db pgDB, table string, dto interface{}) (string
 		if err != nil {
 			return "", err
 		}
-		err = stmt.GetContext(ctx, &lastInsertId, dto)
-		return lastInsertId, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
+		err = stmt.GetContext(ctx, &lastInsertID, dto)
+		return lastInsertID, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
 	}
 	log.C(ctx).Debugf("Executing query %s", sqlQuery)
 	_, err := db.NamedExecContext(ctx, sqlQuery, dto)
-	return lastInsertId, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
+	return lastInsertID, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
 }
 
 func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface{}, label PostgresLabel, baseTableName string, criteria []query.Criterion) (*sqlx.Rows, error) {
