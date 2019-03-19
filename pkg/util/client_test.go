@@ -107,6 +107,27 @@ var _ = Describe("Client Utils", func() {
 		})
 	})
 
+	Context("When sending a request with a header", func() {
+		BeforeEach(func() {
+			expectations.URL = "http://example.com"
+
+			reaction.Err = nil
+			reaction.Status = http.StatusOK
+		})
+
+		It("should attach it as header", func() {
+			ctx := context.TODO()
+			resp, err := util.SendRequestWithHeaders(ctx, requestFunc, "GET", "http://example.com", nil, nil, map[string]string{
+				"header": "header",
+			})
+
+			header := resp.Request.Header.Get("header")
+			Expect(header).To(Equal("header"))
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(resp.StatusCode).To(Equal(http.StatusOK))
+		})
+	})
+
 	Describe("BodyToObject", func() {
 		var resp *http.Response
 		var err error
