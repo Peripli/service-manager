@@ -53,7 +53,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	AdditionalTests: func(ctx *common.TestContext) {
 		Context("additional non-generic tests", func() {
 			var (
-				ctx                    *common.TestContext
 				brokerServer           *common.BrokerServer
 				brokerWithLabelsServer *common.BrokerServer
 
@@ -76,14 +75,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				if brokerWithLabelsServer != nil {
 					brokerWithLabelsServer.Close()
 				}
-
-				ctx.Cleanup()
 			})
 
 			BeforeEach(func() {
 				brokerServer = common.NewBrokerServer()
 				brokerWithLabelsServer = common.NewBrokerServer()
-				ctx = common.DefaultTestContext()
 				brokerServer.Reset()
 				brokerWithLabelsServer.Reset()
 				brokerName := "brokerName"

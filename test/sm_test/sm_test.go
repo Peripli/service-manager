@@ -48,14 +48,13 @@ var _ = Describe("SM", func() {
 		oauthServer *common.OAuthServer
 	)
 
-	BeforeSuite(func() {
-		// TODO: storage must be refactored and so that context be in BeforeEach
+	BeforeEach(func() {
 		ctx, cancel = context.WithCancel(context.Background())
 
 		oauthServer = common.NewOAuthServer()
 	})
 
-	AfterSuite(func() {
+	AfterEach(func() {
 		defer cancel()
 		oauthServer.Close()
 	})
@@ -111,7 +110,6 @@ var _ = Describe("SM", func() {
 				smanager := sm.New(ctx, cancel, env)
 
 				verifyServiceManagerStartsSuccessFully(httptest.NewServer(smanager.Build().Server.Router))
-
 			})
 		})
 

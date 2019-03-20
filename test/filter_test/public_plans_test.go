@@ -87,7 +87,7 @@ var _ = Describe("Service Manager Public Plans Filter", func() {
 		return planID
 	}
 
-	BeforeSuite(func() {
+	BeforeEach(func() {
 		ctx = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 			smb.RegisterFilters(&filters.PublicServicePlansFilter{
 				Repository: smb.Storage,
@@ -97,13 +97,7 @@ var _ = Describe("Service Manager Public Plans Filter", func() {
 			})
 			return nil
 		}).Build()
-	})
 
-	AfterSuite(func() {
-		ctx.Cleanup()
-	})
-
-	BeforeEach(func() {
 		ctx.SMWithOAuth.GET("/v1/service_plans").
 			Expect().
 			Status(http.StatusOK).JSON().Path("$.service_plans[*].catalog_id").Array().NotContains(newPublicPlanCatalogID, newPaidPlanCatalogID)
@@ -157,6 +151,7 @@ var _ = Describe("Service Manager Public Plans Filter", func() {
 
 	AfterEach(func() {
 		ctx.CleanupBroker(existingBrokerID)
+		ctx.Cleanup()
 	})
 
 	Specify("plans and visibilities for the registered brokers are known to SM", func() {

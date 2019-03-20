@@ -24,7 +24,7 @@ import (
 )
 
 var _ = Describe("Postgres Storage", func() {
-	pgStorage := &postgresStorage{}
+	pgStorage := &PostgresStorage{}
 	scheme := storage.NewScheme()
 
 	Describe("Credentials", func() {

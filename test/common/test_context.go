@@ -70,11 +70,17 @@ type TestContext struct {
 }
 
 type testSMServer struct {
+	cancel context.CancelFunc
 	*httptest.Server
 }
 
 func (ts *testSMServer) URL() string {
 	return ts.Server.URL
+}
+
+func (ts *testSMServer) Close() {
+	ts.Server.Close()
+	ts.cancel()
 }
 
 // DefaultTestContext sets up a test context with default values
@@ -247,6 +253,7 @@ func newSMServer(smEnv env.Environment, fs []func(ctx context.Context, smb *sm.S
 	}
 	serviceManager := smb.Build()
 	return &testSMServer{
+		cancel: cancel,
 		Server: httptest.NewServer(serviceManager.Server.Router),
 	}
 }

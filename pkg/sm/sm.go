@@ -76,8 +76,16 @@ func DefaultEnv(additionalPFlags ...func(set *pflag.FlagSet)) env.Environment {
 	return environment
 }
 
+func registerDefaultStorage() {
+	if !storage.HasStorage(postgres.Storage) {
+		storage.Register(postgres.Storage, &postgres.PostgresStorage{})
+	}
+}
+
 // New returns service-manager Server with default setup. The function panics on bad configuration
 func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *ServiceManagerBuilder {
+	registerDefaultStorage()
+
 	// setup config from env
 	cfg, err := config.New(env)
 	if err != nil {
@@ -152,7 +160,16 @@ func (smb *ServiceManagerBuilder) installHealth() {
 // Run starts the Service Manager
 func (sm *ServiceManager) Run() {
 	log.C(sm.ctx).Info("Running Service Manager...")
+	go func() {
+		<-sm.ctx.Done()
+		sm.close()
+	}()
 	sm.Server.Run(sm.ctx)
+}
+
+func (sm *ServiceManager) close() {
+	log.C(sm.ctx).Info("Closing Service Manager...")
+	storage.Deregister(postgres.Storage)
 }
 
 func initializeSecureStorage(ctx context.Context, secureStorage storage.Security) error {
