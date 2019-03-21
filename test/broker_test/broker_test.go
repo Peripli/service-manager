@@ -836,6 +836,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								WithJSON(common.Object{}).
 								Expect().
 								Status(http.StatusOK)
+
+							By("updating broker again with 2 services with identical plans, should succeed")
+							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
+								WithJSON(common.Object{}).
+								Expect().
+								Status(http.StatusOK)
+
 							servicesJsonResp := ctx.SMWithOAuth.GET("/v1/service_offerings").
 								Expect().
 								Status(http.StatusOK).
@@ -865,7 +872,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							plansJsonResp.Path("$.service_plans[*].catalog_id").Array().Contains(existingPlanID)
 							plansJsonResp.Path("$.service_plans[*].service_offering_id").Array().Contains(soID)
 
-							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+							assertInvocationCount(brokerServer.CatalogEndpointRequests, 2)
 						})
 					})
 					Context("when a new service offering with new plans is added", func() {
