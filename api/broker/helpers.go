@@ -33,14 +33,14 @@ type catalogPlanWithServiceOfferingID struct {
 	ServiceOffering *types.ServiceOffering
 }
 
-func convertExistingCatalogToMaps(serviceOfferings []*types.ServiceOffering) (map[string]*types.ServiceOffering, map[string]*types.ServicePlan) {
+func convertExistingServiceOfferringsToMaps(serviceOfferings []*types.ServiceOffering) (map[string]*types.ServiceOffering, map[string][]*types.ServicePlan) {
 	serviceOfferingsMap := make(map[string]*types.ServiceOffering)
-	servicePlansMap := make(map[string]*types.ServicePlan)
+	servicePlansMap := make(map[string][]*types.ServicePlan)
 
 	for serviceOfferingIndex := range serviceOfferings {
 		serviceOfferingsMap[serviceOfferings[serviceOfferingIndex].CatalogID] = serviceOfferings[serviceOfferingIndex]
 		for servicePlanIndex := range serviceOfferings[serviceOfferingIndex].Plans {
-			servicePlansMap[serviceOfferings[serviceOfferingIndex].Plans[servicePlanIndex].CatalogID] = serviceOfferings[serviceOfferingIndex].Plans[servicePlanIndex]
+			servicePlansMap[serviceOfferings[serviceOfferingIndex].CatalogID] = append(servicePlansMap[serviceOfferings[serviceOfferingIndex].CatalogID], serviceOfferings[serviceOfferingIndex].Plans[servicePlanIndex])
 		}
 	}
 

@@ -86,8 +86,8 @@ func (c *UpdateBrokerHook) OnTransactionUpdate(f extension.InterceptUpdateOnTran
 			return nil, fmt.Errorf("error getting catalog for broker with id %s from SM DB: %s", brokerID, err)
 		}
 
-		existingServicesOfferingsMap, existingServicePlansMap := convertExistingCatalogToMaps(existingServiceOfferingsWithServicePlans)
-		log.C(ctx).Debugf("Found %d services and %d plans currently known for broker", len(existingServicesOfferingsMap), len(existingServicePlansMap))
+		existingServicesOfferingsMap, existingServicePlansPerOfferringMap := convertExistingServiceOfferringsToMaps(existingServiceOfferingsWithServicePlans)
+		log.C(ctx).Debugf("Found %d services currently known for broker", len(existingServicesOfferingsMap))
 
 		catalogServices, catalogPlansMap, err := getBrokerCatalogServicesAndPlans(c.catalog)
 		if err != nil {
@@ -166,62 +166,87 @@ func (c *UpdateBrokerHook) OnTransactionUpdate(f extension.InterceptUpdateOnTran
 
 		log.C(ctx).Debugf("Resyncing service plans for broker with id %s", brokerID)
 		for _, catalogPlan := range catalogPlans {
-			existingServicePlan, ok := existingServicePlansMap[catalogPlan.ID]
-			delete(existingServicePlansMap, catalogPlan.ID)
+			existingServicePlans, ok := existingServicePlansPerOfferringMap[catalogPlan.ServiceOffering.CatalogID]
 			if ok {
-				if err := osbcCatalogPlanToServicePlan(existingServicePlan, catalogPlan); err != nil {
-					return nil, err
-				}
-				existingServicePlan.UpdatedAt = time.Now().UTC()
-
-				if err := existingServicePlan.Validate(); err != nil {
-					return nil, &util.HTTPError{
-						ErrorType:   "BadRequest",
-						Description: fmt.Sprintf("service plan constructed during catalog update for broker %s is invalid: %s", brokerID, err),
-						StatusCode:  http.StatusBadRequest,
+				var existingPlan *types.ServicePlan
+				var newPlansMapping []*types.ServicePlan
+				for _, existingServicePlan := range existingServicePlans {
+					if existingServicePlan.CatalogID == catalogPlan.ID {
+						existingPlan = existingServicePlan
+					} else {
+						newPlansMapping = append(newPlansMapping, existingServicePlan)
 					}
 				}
+				if existingPlan != nil {
+					if err := osbcCatalogPlanToServicePlan(existingPlan, catalogPlan); err != nil {
+						return nil, err
+					}
+					existingPlan.UpdatedAt = time.Now().UTC()
 
-				if _, err := txStorage.Update(ctx, existingServicePlan); err != nil {
-					return nil, util.HandleStorageError(err, "service_plan")
+					if err := existingPlan.Validate(); err != nil {
+						return nil, &util.HTTPError{
+							ErrorType:   "BadRequest",
+							Description: fmt.Sprintf("service plan constructed during catalog update for broker %s is invalid: %s", brokerID, err),
+							StatusCode:  http.StatusBadRequest,
+						}
+					}
+
+					if _, err := txStorage.Update(ctx, existingPlan); err != nil {
+						return nil, util.HandleStorageError(err, "service_plan")
+					}
+					existingServicePlansPerOfferringMap[catalogPlan.ServiceOffering.CatalogID] = newPlansMapping
+				} else {
+					if err := createPlan(ctx, txStorage, catalogPlan, brokerID); err != nil {
+						return nil, err
+					}
 				}
 			} else {
-				planUUID, err := uuid.NewV4()
-				if err != nil {
-					return nil, fmt.Errorf("could not generate GUID for service_plan: %s", err)
-				}
-				servicePlan := &types.ServicePlan{}
-				if err := osbcCatalogPlanToServicePlan(servicePlan, catalogPlan); err != nil {
+				if err := createPlan(ctx, txStorage, catalogPlan, brokerID); err != nil {
 					return nil, err
 				}
-				servicePlan.ID = planUUID.String()
-				servicePlan.CreatedAt = time.Now().UTC()
-				servicePlan.UpdatedAt = time.Now().UTC()
-				if err := servicePlan.Validate(); err != nil {
-					return nil, &util.HTTPError{
-						ErrorType:   "BadRequest",
-						Description: fmt.Sprintf("service plan constructed during catalog update for broker %s is invalid: %s", brokerID, err),
-						StatusCode:  http.StatusBadRequest,
-					}
-				}
+			}
+		}
 
-				if _, err := txStorage.Create(ctx, servicePlan); err != nil {
+		for _, existingServicePlansForOffering := range existingServicePlansPerOfferringMap {
+			for _, existingServicePlan := range existingServicePlansForOffering {
+				byID := query.ByField(query.EqualsOperator, "id", existingServicePlan.ID)
+				if _, err := txStorage.Delete(ctx, types.ServicePlanType, byID); err != nil {
+					if err == util.ErrNotFoundInStorage {
+						// If the service for the plan was deleted, plan would already be gone
+						continue
+					}
 					return nil, util.HandleStorageError(err, "service_plan")
 				}
 			}
 		}
 
-		for _, existingServicePlan := range existingServicePlansMap {
-			byID := query.ByField(query.EqualsOperator, "id", existingServicePlan.ID)
-			if _, err := txStorage.Delete(ctx, types.ServicePlanType, byID); err != nil {
-				if err == util.ErrNotFoundInStorage {
-					// If the service for the plan was deleted, plan would already be gone
-					continue
-				}
-				return nil, util.HandleStorageError(err, "service_plan")
-			}
-		}
 		log.C(ctx).Debugf("Successfully resynced service plans for broker with id %s", brokerID)
 		return newObject, nil
 	}
+}
+
+func createPlan(ctx context.Context, txStorage storage.Warehouse, catalogPlan *catalogPlanWithServiceOfferingID, brokerID string) error {
+	planUUID, err := uuid.NewV4()
+	if err != nil {
+		return fmt.Errorf("could not generate GUID for service_plan: %s", err)
+	}
+	servicePlan := &types.ServicePlan{}
+	if err := osbcCatalogPlanToServicePlan(servicePlan, catalogPlan); err != nil {
+		return err
+	}
+	servicePlan.ID = planUUID.String()
+	servicePlan.CreatedAt = time.Now().UTC()
+	servicePlan.UpdatedAt = time.Now().UTC()
+	if err := servicePlan.Validate(); err != nil {
+		return &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: fmt.Sprintf("service plan constructed during catalog update for broker %s is invalid: %s", brokerID, err),
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+
+	if _, err := txStorage.Create(ctx, servicePlan); err != nil {
+		return util.HandleStorageError(err, "service_plan")
+	}
+	return nil
 }
