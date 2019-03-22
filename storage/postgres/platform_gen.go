@@ -42,14 +42,16 @@ func (e *Platform) NewLabel(id, key, value string) storage.Label {
 }
 
 func (e *Platform) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
-	row := struct {
-		*Platform
-		PlatformLabel `db:"platform_labels"`
-	}{}
+	rowCreator := func() EntityLabelRow {
+		return &struct {
+			*Platform
+			PlatformLabel `db:"platform_labels"`
+		}{}
+	}
 	result := &types.Platforms{
 		Platforms: make([]*types.Platform, 0),
 	}		
-	err := rowsToList(rows, &row, result)
+	err := rowsToList(rows, rowCreator, result)
 	if err != nil {
 		return nil, err
 	}

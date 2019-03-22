@@ -40,6 +40,8 @@ type PostgresLabel interface {
 	ReferenceColumn() string
 }
 
+type EntityLabelRowCreator func() EntityLabelRow
+
 type EntityLabelRow interface {
 	PostgresEntity
 	PostgresLabel
@@ -59,10 +61,11 @@ func validateLabels(entities []storage.Label) error {
 	return nil
 }
 
-func rowsToList(rows *sqlx.Rows, row EntityLabelRow, result types.ObjectList) error {
+func rowsToList(rows *sqlx.Rows, rowCreator EntityLabelRowCreator, result types.ObjectList) error {
 	entities := make(map[string]types.Object)
 	labels := make(map[string]map[string][]string)
 	for rows.Next() {
+		row := rowCreator()
 		if err := rows.StructScan(row); err != nil {
 			return err
 		}

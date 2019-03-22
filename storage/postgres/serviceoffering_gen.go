@@ -42,14 +42,16 @@ func (e *ServiceOffering) NewLabel(id, key, value string) storage.Label {
 }
 
 func (e *ServiceOffering) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
-	row := struct {
-		*ServiceOffering
-		ServiceOfferingLabel `db:"service_offering_labels"`
-	}{}
+	rowCreator := func() EntityLabelRow {
+		return &struct {
+			*ServiceOffering
+			ServiceOfferingLabel `db:"service_offering_labels"`
+		}{}
+	}
 	result := &types.ServiceOfferings{
 		ServiceOfferings: make([]*types.ServiceOffering, 0),
 	}		
-	err := rowsToList(rows, &row, result)
+	err := rowsToList(rows, rowCreator, result)
 	if err != nil {
 		return nil, err
 	}

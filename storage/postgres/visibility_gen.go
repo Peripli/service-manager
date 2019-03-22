@@ -42,14 +42,16 @@ func (e *Visibility) NewLabel(id, key, value string) storage.Label {
 }
 
 func (e *Visibility) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
-	row := struct {
-		*Visibility
-		VisibilityLabel `db:"visibility_labels"`
-	}{}
+	rowCreator := func() EntityLabelRow {
+		return &struct {
+			*Visibility
+			VisibilityLabel `db:"visibility_labels"`
+		}{}
+	}
 	result := &types.Visibilities{
 		Visibilities: make([]*types.Visibility, 0),
 	}		
-	err := rowsToList(rows, &row, result)
+	err := rowsToList(rows, rowCreator, result)
 	if err != nil {
 		return nil, err
 	}

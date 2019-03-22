@@ -60,14 +60,16 @@ func (e *{{.Type}}) NewLabel(id, key, value string) storage.Label {
 }
 
 func (e *{{.Type}}) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
-	row := struct {
-		*{{.Type}}
-		{{.Type}}Label ` + "`db:\"{{.TypeLowerSnakeCase}}_labels\"`" + `
-	}{}
+	rowCreator := func() EntityLabelRow {
+		return &struct {
+			*{{.Type}}
+			{{.Type}}Label ` + "`db:\"{{.TypeLowerSnakeCase}}_labels\"`" + `
+		}{}
+	}
 	result := &{{.ApiPackage}}{{.ApiTypePlural}}{
 		{{.ApiTypePlural}}: make([]*{{.ApiPackage}}{{.ApiType}}, 0),
 	}		
-	err := rowsToList(rows, &row, result)
+	err := rowsToList(rows, rowCreator, result)
 	if err != nil {
 		return nil, err
 	}
