@@ -145,24 +145,6 @@ func (api *API) RegisterPlugins(plugins ...Plugin) {
 	}
 }
 
-func (api *API) RegisterCreateInterceptorProvidersBefore(providerName string, objectType types.ObjectType, providers ...extension.CreateInterceptorProvider) {
-	for _, c := range api.Controllers {
-		interceptable, ok := c.(extension.Interceptable)
-		if ok && objectType == interceptable.InterceptsType() {
-			interceptable.AddCreateInterceptorProvidersBefore(providerName, providers...)
-		}
-	}
-}
-
-func (api *API) RegisterCreateInterceptorProvidersAfter(providerName string, objectType types.ObjectType, providers ...extension.CreateInterceptorProvider) {
-	for _, c := range api.Controllers {
-		interceptable, ok := c.(extension.Interceptable)
-		if ok && objectType == interceptable.InterceptsType() {
-			interceptable.AddCreateInterceptorProvidersAfter(providerName, providers...)
-		}
-	}
-}
-
 func (api *API) RegisterCreateInterceptorProviders(objectType types.ObjectType, providers ...extension.CreateInterceptorProvider) {
 	for _, c := range api.Controllers {
 		interceptable, ok := c.(extension.Interceptable)
@@ -177,15 +159,6 @@ func (api *API) RegisterUpdateInterceptorProviders(objectType types.ObjectType, 
 		interceptable, ok := c.(extension.Interceptable)
 		if ok && objectType == interceptable.InterceptsType() {
 			interceptable.AddUpdateInterceptorProviders(providers...)
-		}
-	}
-}
-
-func (api *API) RegisterUpdateInterceptorProvidersAfter(providerName string, objectType types.ObjectType, providers ...extension.UpdateInterceptorProvider) {
-	for _, c := range api.Controllers {
-		interceptable, ok := c.(extension.Interceptable)
-		if ok && objectType == interceptable.InterceptsType() {
-			interceptable.AddUpdateInterceptorProvidersAfter(providerName, providers...)
 		}
 	}
 }

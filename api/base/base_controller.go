@@ -60,100 +60,14 @@ func (c *Controller) InterceptsType() types.ObjectType {
 	return c.objectType
 }
 
-func (c *Controller) findCreateProviderPosition(providerName string) int {
-	index := -1
-	for i, provider := range c.CreateInterceptorProviders {
-		if providerName == provider.Name() {
-			index = i
-			break
-		}
-	}
-	return index
-}
-
-func (c *Controller) AddCreateInterceptorProvidersBefore(providerName string, providers ...extension.CreateInterceptorProvider) {
-	for _, provider := range providers {
-		index := c.findCreateProviderPosition(providerName)
-		if index == -1 {
-			c.CreateInterceptorProviders = append(c.CreateInterceptorProviders, provider)
-		} else {
-			c.CreateInterceptorProviders = append(c.CreateInterceptorProviders, nil)
-			copy(c.CreateInterceptorProviders[index+1:], c.CreateInterceptorProviders[index:])
-			c.CreateInterceptorProviders[index] = provider
-		}
-	}
-	c.wrappedCreateInterceptorProvider = extension.UnionCreateInterceptor(c.CreateInterceptorProviders)
-}
-
-func (c *Controller) AddCreateInterceptorProvidersAfter(providerName string, providers ...extension.CreateInterceptorProvider) {
-	for _, provider := range providers {
-		index := c.findCreateProviderPosition(providerName)
-		if index == -1 {
-			c.CreateInterceptorProviders = append(c.CreateInterceptorProviders, provider)
-		} else {
-			index = index + 1
-			c.CreateInterceptorProviders = append(c.CreateInterceptorProviders, nil)
-			copy(c.CreateInterceptorProviders[index+1:], c.CreateInterceptorProviders[index:])
-			c.CreateInterceptorProviders[index] = provider
-		}
-	}
-	c.wrappedCreateInterceptorProvider = extension.UnionCreateInterceptor(c.CreateInterceptorProviders)
-}
-
 func (c *Controller) AddCreateInterceptorProviders(providers ...extension.CreateInterceptorProvider) {
-	// if c.CreateInterceptorProvider == nil {
-	// 	c.CreateInterceptorProvider = extension.UnionCreateInterceptor(providers)
-	// } else {
-	// 	c.CreateInterceptorProvider = extension.UnionCreateInterceptor(append(providers, c.CreateInterceptorProvider))
-	// }
-}
-
-func (c *Controller) findUpdateProviderPosition(providerName string) int {
-	index := -1
-	for i, provider := range c.UpdateInterceptorProviders {
-		if providerName == provider.Name() {
-			index = i
-			break
-		}
-	}
-	return index
-}
-
-func (c *Controller) AddUpdateInterceptorProvidersBefore(providerName string, providers ...extension.UpdateInterceptorProvider) {
-	for _, provider := range providers {
-		index := c.findUpdateProviderPosition(providerName)
-		if index == -1 {
-			c.UpdateInterceptorProviders = append(c.UpdateInterceptorProviders, provider)
-		} else {
-			c.UpdateInterceptorProviders = append(c.UpdateInterceptorProviders, nil)
-			copy(c.UpdateInterceptorProviders[index+1:], c.UpdateInterceptorProviders[index:])
-			c.UpdateInterceptorProviders[index] = provider
-		}
-	}
-	c.wrappedUpdateInterceptorProvider = extension.UnionUpdateInterceptor(c.UpdateInterceptorProviders)
-}
-
-func (c *Controller) AddUpdateInterceptorProvidersAfter(providerName string, providers ...extension.UpdateInterceptorProvider) {
-	for _, provider := range providers {
-		index := c.findUpdateProviderPosition(providerName)
-		if index == -1 {
-			c.UpdateInterceptorProviders = append(c.UpdateInterceptorProviders, provider)
-		} else {
-			index = index + 1
-			c.UpdateInterceptorProviders = append(c.UpdateInterceptorProviders, nil)
-			copy(c.UpdateInterceptorProviders[index+1:], c.UpdateInterceptorProviders[index:])
-			c.UpdateInterceptorProviders[index] = provider
-		}
-	}
-	c.wrappedUpdateInterceptorProvider = extension.UnionUpdateInterceptor(c.UpdateInterceptorProviders)
+	c.CreateInterceptorProviders = append(c.CreateInterceptorProviders, providers...)
+	c.wrappedCreateInterceptorProvider = extension.UnionCreateInterceptor(c.CreateInterceptorProviders)
 }
 
 func (c *Controller) AddUpdateInterceptorProviders(providers ...extension.UpdateInterceptorProvider) {
-	// 	if c.UpdateInterceptorProvider == nil {
-	// 		c.UpdateInterceptorProvider = extension.UnionUpdateInterceptor(providers)
-	// 	} else {
-	// 		c.UpdateInterceptorProvider = extension.UnionUpdateInterceptor(append(providers, c.UpdateInterceptorProvider))
-	// 	}
+	c.UpdateInterceptorProviders = append(c.UpdateInterceptorProviders, providers...)
+	c.wrappedUpdateInterceptorProvider = extension.UnionUpdateInterceptor(c.UpdateInterceptorProviders)
 }
 
 func (c *Controller) findDeleteProviderPosition(providerName string) int {

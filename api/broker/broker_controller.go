@@ -49,10 +49,9 @@ func NewController(repository storage.Repository, encrypter security.Encrypter, 
 	baseController := base.NewController(repository, web.BrokersURL, func() types.Object {
 		return &types.ServiceBroker{}
 	})
-	baseController.AddCreateInterceptorProvidersBefore("", defaultCreateInterceptor)
-	baseController.AddUpdateInterceptorProvidersBefore("", defaultUpdateInterceptor)
-	// baseController.AddCreateInterceptorProviders(defaultCreateInterceptor)
-	// baseController.AddUpdateInterceptorProviders(defaultUpdateInterceptor)
+	baseController.AddCreateInterceptorProviders(defaultCreateInterceptor)
+	baseController.AddUpdateInterceptorProviders(defaultUpdateInterceptor)
+
 	return &Controller{
 		Controller: baseController,
 	}

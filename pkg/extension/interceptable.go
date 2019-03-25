@@ -21,14 +21,21 @@ import "github.com/Peripli/service-manager/pkg/types"
 type Interceptable interface {
 	InterceptsType() types.ObjectType
 
-	AddCreateInterceptorProvidersBefore(providerName string, providers ...CreateInterceptorProvider)
-	AddCreateInterceptorProvidersAfter(providerName string, providers ...CreateInterceptorProvider)
 	AddCreateInterceptorProviders(providers ...CreateInterceptorProvider)
-
-	AddUpdateInterceptorProvidersAfter(providerName string, providers ...UpdateInterceptorProvider)
 	AddUpdateInterceptorProviders(providers ...UpdateInterceptorProvider)
-
 	AddDeleteInterceptorProviders(providers ...DeleteInterceptorProvider)
+}
+
+type PositionType string
+
+const (
+	PositionBefore PositionType = "before"
+	PositionAfter  PositionType = "after"
+)
+
+type Ordered interface {
+	PositionTransaction() (PositionType, string)
+	PositionAPI() (PositionType, string)
 }
 
 type Named interface {

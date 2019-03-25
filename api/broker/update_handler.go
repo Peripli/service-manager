@@ -99,7 +99,9 @@ func (c *UpdateBrokerHook) OnTransactionUpdate(f extension.InterceptUpdateOnTran
 		if err != nil {
 			return nil, err
 		}
-		brokerID := newObject.GetID()
+		broker := newObject.(*types.ServiceBroker)
+		brokerID := broker.GetID()
+
 		existingServiceOfferingsWithServicePlans, err := txStorage.ServiceOffering().ListWithServicePlansByBrokerID(ctx, brokerID)
 		if err != nil {
 			return nil, fmt.Errorf("error getting catalog for broker with id %s from SM DB: %s", brokerID, err)
@@ -239,8 +241,14 @@ func (c *UpdateBrokerHook) OnTransactionUpdate(f extension.InterceptUpdateOnTran
 			}
 		}
 
+		brokerServices, err := txStorage.ServiceOffering().ListWithServicePlansByBrokerID(ctx, brokerID)
+		if err != nil {
+			return nil, fmt.Errorf("error getting catalog for broker with id %s from SM DB: %s", brokerID, err)
+		}
+		broker.Services = brokerServices
+
 		log.C(ctx).Debugf("Successfully resynced service plans for broker with id %s", brokerID)
-		return newObject, nil
+		return broker, nil
 	}
 }
 

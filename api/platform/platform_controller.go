@@ -36,7 +36,7 @@ func NewController(repository storage.Repository, encrypter security.Encrypter) 
 		return &types.Platform{}
 	})
 
-	baseController.AddCreateInterceptorProvidersBefore("", &createInterceptorProvider{
+	baseController.AddCreateInterceptorProviders(&createInterceptorProvider{
 		encrypter: encrypter,
 	})
 
