@@ -18,7 +18,6 @@ package platform
 
 import (
 	"github.com/Peripli/service-manager/api/base"
-	"github.com/Peripli/service-manager/pkg/extension"
 
 	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -37,11 +36,10 @@ func NewController(repository storage.Repository, encrypter security.Encrypter) 
 		return &types.Platform{}
 	})
 
-	baseController.AddCreateInterceptorProviders(func() extension.CreateInterceptor {
-		return &CreateInterceptor{
-			Encrypter: encrypter,
-		}
+	baseController.AddCreateInterceptorProvidersBefore("", &createInterceptorProvider{
+		encrypter: encrypter,
 	})
+
 	return &Controller{
 		Controller: baseController,
 	}

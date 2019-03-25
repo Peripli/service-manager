@@ -18,7 +18,6 @@ package broker
 
 import (
 	"github.com/Peripli/service-manager/api/base"
-	"github.com/Peripli/service-manager/pkg/extension"
 
 	"github.com/Peripli/service-manager/pkg/security"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
@@ -36,25 +35,24 @@ type Controller struct {
 }
 
 func NewController(repository storage.Repository, encrypter security.Encrypter, osbClientCreateFunc osbc.CreateFunc) *Controller {
-	defaultCreateInterceptor := func() extension.CreateInterceptor {
-		return &CreateBrokerHook{
-			OSBClientCreateFunc: osbClientCreateFunc,
-			Encrypter:           encrypter,
-		}
+	defaultCreateInterceptor := &createInterceptorProvider{
+		osbClientCreateFunc: osbClientCreateFunc,
+		encrypter:           encrypter,
 	}
-	defaultUpdateInterceptor := func() extension.UpdateInterceptor {
-		return &UpdateBrokerHook{
-			OSBClientCreateFunc: osbClientCreateFunc,
-			Encrypter:           encrypter,
-			Repository:          repository,
-		}
+
+	defaultUpdateInterceptor := &updateInterceptorProvider{
+		osbClientCreateFunc: osbClientCreateFunc,
+		encrypter:           encrypter,
+		repository:          repository,
 	}
 
 	baseController := base.NewController(repository, web.BrokersURL, func() types.Object {
 		return &types.ServiceBroker{}
 	})
-	baseController.AddCreateInterceptorProviders(defaultCreateInterceptor)
-	baseController.AddUpdateInterceptorProviders(defaultUpdateInterceptor)
+	baseController.AddCreateInterceptorProvidersBefore("", defaultCreateInterceptor)
+	baseController.AddUpdateInterceptorProvidersBefore("", defaultUpdateInterceptor)
+	// baseController.AddCreateInterceptorProviders(defaultCreateInterceptor)
+	// baseController.AddUpdateInterceptorProviders(defaultUpdateInterceptor)
 	return &Controller{
 		Controller: baseController,
 	}

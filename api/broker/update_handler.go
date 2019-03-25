@@ -34,6 +34,25 @@ import (
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 )
 
+const UpdateBrokerInterceptor = "update-broker"
+
+type updateInterceptorProvider struct {
+	osbClientCreateFunc osbc.CreateFunc
+	encrypter           security.Encrypter
+	repository          storage.Repository
+}
+
+func (c *updateInterceptorProvider) Provide() extension.UpdateInterceptor {
+	return &UpdateBrokerHook{
+		OSBClientCreateFunc: c.osbClientCreateFunc,
+		Encrypter:           c.encrypter,
+		Repository:          c.repository,
+	}
+}
+func (c *updateInterceptorProvider) Name() string {
+	return UpdateBrokerInterceptor
+}
+
 type UpdateBrokerHook struct {
 	OSBClientCreateFunc osbc.CreateFunc
 	Encrypter           security.Encrypter

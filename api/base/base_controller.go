@@ -38,42 +38,155 @@ import (
 
 const PathParamID = "id"
 
+var _ extension.Interceptable = &Controller{}
+
 type Controller struct {
-	resourceBaseURL           string
-	objectType                types.ObjectType
-	repository                storage.Repository
-	objectBlueprint           func() types.Object
-	CreateInterceptorProvider extension.CreateInterceptorProvider
-	UpdateInterceptorProvider extension.UpdateInterceptorProvider
-	DeleteInterceptorProvider extension.DeleteInterceptorProvider
+	resourceBaseURL string
+	objectType      types.ObjectType
+	repository      storage.Repository
+	objectBlueprint func() types.Object
+
+	wrappedCreateInterceptorProvider extension.CreateInterceptorWrapper
+	CreateInterceptorProviders       []extension.CreateInterceptorProvider
+
+	wrappedUpdateInterceptorProvider extension.UpdateInterceptorWrapper
+	UpdateInterceptorProviders       []extension.UpdateInterceptorProvider
+
+	wrappedDeleteInterceptorProvider extension.DeleteInterceptorWrapper
+	DeleteInterceptorProviders       []extension.DeleteInterceptorProvider
 }
 
 func (c *Controller) InterceptsType() types.ObjectType {
 	return c.objectType
 }
 
-func (c *Controller) AddCreateInterceptorProviders(providers ...extension.CreateInterceptorProvider) {
-	if c.CreateInterceptorProvider == nil {
-		c.CreateInterceptorProvider = extension.UnionCreateInterceptor(providers)
-	} else {
-		c.CreateInterceptorProvider = extension.UnionCreateInterceptor(append(providers, c.CreateInterceptorProvider))
+func (c *Controller) findCreateProviderPosition(providerName string) int {
+	index := -1
+	for i, provider := range c.CreateInterceptorProviders {
+		if providerName == provider.Name() {
+			index = i
+			break
+		}
 	}
+	return index
+}
+
+func (c *Controller) AddCreateInterceptorProvidersBefore(providerName string, providers ...extension.CreateInterceptorProvider) {
+	for _, provider := range providers {
+		index := c.findCreateProviderPosition(providerName)
+		if index == -1 {
+			c.CreateInterceptorProviders = append(c.CreateInterceptorProviders, provider)
+		} else {
+			c.CreateInterceptorProviders = append(c.CreateInterceptorProviders, nil)
+			copy(c.CreateInterceptorProviders[index+1:], c.CreateInterceptorProviders[index:])
+			c.CreateInterceptorProviders[index] = provider
+		}
+	}
+	c.wrappedCreateInterceptorProvider = extension.UnionCreateInterceptor(c.CreateInterceptorProviders)
+}
+
+func (c *Controller) AddCreateInterceptorProvidersAfter(providerName string, providers ...extension.CreateInterceptorProvider) {
+	for _, provider := range providers {
+		index := c.findCreateProviderPosition(providerName)
+		if index == -1 {
+			c.CreateInterceptorProviders = append(c.CreateInterceptorProviders, provider)
+		} else {
+			index = index + 1
+			c.CreateInterceptorProviders = append(c.CreateInterceptorProviders, nil)
+			copy(c.CreateInterceptorProviders[index+1:], c.CreateInterceptorProviders[index:])
+			c.CreateInterceptorProviders[index] = provider
+		}
+	}
+	c.wrappedCreateInterceptorProvider = extension.UnionCreateInterceptor(c.CreateInterceptorProviders)
+}
+
+func (c *Controller) AddCreateInterceptorProviders(providers ...extension.CreateInterceptorProvider) {
+	// if c.CreateInterceptorProvider == nil {
+	// 	c.CreateInterceptorProvider = extension.UnionCreateInterceptor(providers)
+	// } else {
+	// 	c.CreateInterceptorProvider = extension.UnionCreateInterceptor(append(providers, c.CreateInterceptorProvider))
+	// }
+}
+
+func (c *Controller) findUpdateProviderPosition(providerName string) int {
+	index := -1
+	for i, provider := range c.UpdateInterceptorProviders {
+		if providerName == provider.Name() {
+			index = i
+			break
+		}
+	}
+	return index
+}
+
+func (c *Controller) AddUpdateInterceptorProvidersBefore(providerName string, providers ...extension.UpdateInterceptorProvider) {
+	for _, provider := range providers {
+		index := c.findUpdateProviderPosition(providerName)
+		if index == -1 {
+			c.UpdateInterceptorProviders = append(c.UpdateInterceptorProviders, provider)
+		} else {
+			c.UpdateInterceptorProviders = append(c.UpdateInterceptorProviders, nil)
+			copy(c.UpdateInterceptorProviders[index+1:], c.UpdateInterceptorProviders[index:])
+			c.UpdateInterceptorProviders[index] = provider
+		}
+	}
+	c.wrappedUpdateInterceptorProvider = extension.UnionUpdateInterceptor(c.UpdateInterceptorProviders)
+}
+
+func (c *Controller) AddUpdateInterceptorProvidersAfter(providerName string, providers ...extension.UpdateInterceptorProvider) {
+	for _, provider := range providers {
+		index := c.findUpdateProviderPosition(providerName)
+		if index == -1 {
+			c.UpdateInterceptorProviders = append(c.UpdateInterceptorProviders, provider)
+		} else {
+			index = index + 1
+			c.UpdateInterceptorProviders = append(c.UpdateInterceptorProviders, nil)
+			copy(c.UpdateInterceptorProviders[index+1:], c.UpdateInterceptorProviders[index:])
+			c.UpdateInterceptorProviders[index] = provider
+		}
+	}
+	c.wrappedUpdateInterceptorProvider = extension.UnionUpdateInterceptor(c.UpdateInterceptorProviders)
 }
 
 func (c *Controller) AddUpdateInterceptorProviders(providers ...extension.UpdateInterceptorProvider) {
-	if c.UpdateInterceptorProvider == nil {
-		c.UpdateInterceptorProvider = extension.UnionUpdateInterceptor(providers)
-	} else {
-		c.UpdateInterceptorProvider = extension.UnionUpdateInterceptor(append(providers, c.UpdateInterceptorProvider))
+	// 	if c.UpdateInterceptorProvider == nil {
+	// 		c.UpdateInterceptorProvider = extension.UnionUpdateInterceptor(providers)
+	// 	} else {
+	// 		c.UpdateInterceptorProvider = extension.UnionUpdateInterceptor(append(providers, c.UpdateInterceptorProvider))
+	// 	}
+}
+
+func (c *Controller) findDeleteProviderPosition(providerName string) int {
+	index := -1
+	for i, provider := range c.DeleteInterceptorProviders {
+		if providerName == provider.Name() {
+			index = i
+			break
+		}
 	}
+	return index
+}
+
+func (c *Controller) AddDeleteInterceptorProvidersBefore(providerName string, providers ...extension.DeleteInterceptorProvider) {
+	for _, provider := range providers {
+		index := c.findDeleteProviderPosition(providerName)
+		if index == -1 {
+			c.DeleteInterceptorProviders = append(c.DeleteInterceptorProviders, provider)
+		} else {
+			c.DeleteInterceptorProviders = append(c.DeleteInterceptorProviders, nil)
+			copy(c.DeleteInterceptorProviders[index+1:], c.DeleteInterceptorProviders[index:])
+			c.DeleteInterceptorProviders[index] = provider
+		}
+	}
+	c.wrappedDeleteInterceptorProvider = extension.UnionDeleteInterceptor(c.DeleteInterceptorProviders)
 }
 
 func (c *Controller) AddDeleteInterceptorProviders(providers ...extension.DeleteInterceptorProvider) {
-	if c.DeleteInterceptorProvider == nil {
-		c.DeleteInterceptorProvider = extension.UnionDeleteInterceptor(providers)
-	} else {
-		c.DeleteInterceptorProvider = extension.UnionDeleteInterceptor(append(providers, c.DeleteInterceptorProvider))
-	}
+	// 	if c.DeleteInterceptorProvider == nil {
+	// 		c.DeleteInterceptorProvider = extension.UnionDeleteInterceptor(providers)
+	// 	} else {
+	// 		c.DeleteInterceptorProvider = extension.UnionDeleteInterceptor(append(providers, c.DeleteInterceptorProvider))
+	// 	}
 }
 
 func NewController(repository storage.Repository, resourceBaseURL string, objectBlueprint func() types.Object) *Controller {
@@ -137,8 +250,9 @@ func (c *Controller) CreateObject(r *web.Request) (*web.Response, error) {
 	log.C(ctx).Debugf("Creating new %s", c.objectType)
 
 	var createInterceptor extension.CreateInterceptor
-	if c.CreateInterceptorProvider != nil {
-		createInterceptor = c.CreateInterceptorProvider()
+	// TODO: Lazy initialize wrapped providers on first request
+	if c.wrappedCreateInterceptorProvider != nil {
+		createInterceptor = c.wrappedCreateInterceptorProvider()
 	}
 
 	onTransaction := func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error {
@@ -191,8 +305,8 @@ func (c *Controller) DeleteObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting %ss...", c.objectType)
 	var deleteInterceptor extension.DeleteInterceptor
-	if c.DeleteInterceptorProvider != nil {
-		deleteInterceptor = c.DeleteInterceptorProvider()
+	if c.wrappedDeleteInterceptorProvider != nil {
+		deleteInterceptor = c.wrappedDeleteInterceptorProvider()
 	}
 
 	transactionOperation := func(ctx context.Context, txStorage storage.Warehouse, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
@@ -288,8 +402,8 @@ func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
 	}
 
 	var updateInterceptor extension.UpdateInterceptor
-	if c.UpdateInterceptorProvider != nil {
-		updateInterceptor = c.UpdateInterceptorProvider()
+	if c.wrappedUpdateInterceptorProvider != nil {
+		updateInterceptor = c.wrappedUpdateInterceptorProvider()
 	}
 	transactionOp := func(ctx context.Context, txStorage storage.Warehouse, oldObject types.Object, updateChanges *extension.UpdateContext) (types.Object, error) {
 		return txStorage.Update(ctx, oldObject, updateChanges.LabelChanges...)

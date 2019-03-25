@@ -46,11 +46,11 @@ func (c *createHookOnAPIHandler) OnTransactionCreate(f InterceptCreateOnTransact
 }
 
 //TODO I Dont see much a of a point for the array to array-warpper thingy (union) - just put the array in the controller
-func UnionCreateInterceptor(providers []CreateInterceptorProvider) CreateInterceptorProvider {
+func UnionCreateInterceptor(providers []CreateInterceptorProvider) CreateInterceptorWrapper {
 	return func() CreateInterceptor {
 		c := &createHookOnAPIHandler{}
 		for _, h := range providers {
-			hook := h()
+			hook := h.Provide()
 			c.CreateHookOnAPIFuncs = append(c.CreateHookOnAPIFuncs, hook.OnAPICreate)
 			c.CreateHookOnTransactionFuncs = append(c.CreateHookOnTransactionFuncs, hook.OnTransactionCreate)
 		}
@@ -58,7 +58,14 @@ func UnionCreateInterceptor(providers []CreateInterceptorProvider) CreateInterce
 	}
 }
 
-type CreateInterceptorProvider func() CreateInterceptor
+type CreateInterceptorWrapper func() CreateInterceptor
+
+type CreateInterceptorProvider interface {
+	Named
+	PositionTransaction([]Named) int
+	PositionAPI([]Named) int
+	Provide() CreateInterceptor
+}
 
 type InterceptCreateOnAPI func(ctx context.Context, obj types.Object) (types.Object, error)
 type InterceptCreateOnTransaction func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error

@@ -26,6 +26,23 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
+const (
+	platformCreateInterceptor = "create-platform"
+)
+
+type createInterceptorProvider struct {
+	encrypter security.Encrypter
+}
+
+func (c *createInterceptorProvider) Provide() extension.CreateInterceptor {
+	return &CreateInterceptor{
+		Encrypter: c.encrypter,
+	}
+}
+func (c *createInterceptorProvider) Name() string {
+	return platformCreateInterceptor
+}
+
 type CreateInterceptor struct {
 	Encrypter security.Encrypter
 }

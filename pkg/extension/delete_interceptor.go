@@ -48,11 +48,11 @@ func (c *deleteHookOnAPIHandler) OnTransactionDelete(f InterceptDeleteOnTransact
 	return f
 }
 
-func UnionDeleteInterceptor(providers []DeleteInterceptorProvider) DeleteInterceptorProvider {
+func UnionDeleteInterceptor(providers []DeleteInterceptorProvider) DeleteInterceptorWrapper {
 	return func() DeleteInterceptor {
 		c := &deleteHookOnAPIHandler{}
 		for _, h := range providers {
-			hook := h()
+			hook := h.Provide()
 			c.DeleteHookOnAPIFuncs = append(c.DeleteHookOnAPIFuncs, hook.OnAPIDelete)
 			c.DeleteHookOnTransactionFuncs = append(c.DeleteHookOnTransactionFuncs, hook.OnTransactionDelete)
 		}
@@ -60,7 +60,12 @@ func UnionDeleteInterceptor(providers []DeleteInterceptorProvider) DeleteInterce
 	}
 }
 
-type DeleteInterceptorProvider func() DeleteInterceptor
+type DeleteInterceptorWrapper func() DeleteInterceptor
+
+type DeleteInterceptorProvider interface {
+	Named
+	Provide() DeleteInterceptor
+}
 
 type InterceptDeleteOnAPI func(ctx context.Context, deletionCriteria ...query.Criterion) (types.ObjectList, error)
 type InterceptDeleteOnTransaction func(ctx context.Context, txStorage storage.Warehouse, deletionCriteria ...query.Criterion) (types.ObjectList, error)

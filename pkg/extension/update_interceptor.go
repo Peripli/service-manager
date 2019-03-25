@@ -47,11 +47,11 @@ func (c *updateHookOnAPIHandler) OnTransactionUpdate(f InterceptUpdateOnTransact
 	return f
 }
 
-func UnionUpdateInterceptor(providers []UpdateInterceptorProvider) UpdateInterceptorProvider {
+func UnionUpdateInterceptor(providers []UpdateInterceptorProvider) UpdateInterceptorWrapper {
 	return func() UpdateInterceptor {
 		c := &updateHookOnAPIHandler{}
 		for _, h := range providers {
-			hook := h()
+			hook := h.Provide()
 			c.UpdateHookOnAPIFuncs = append(c.UpdateHookOnAPIFuncs, hook.OnAPIUpdate)
 			c.UpdateHookOnTransactionFuncs = append(c.UpdateHookOnTransactionFuncs, hook.OnTransactionUpdate)
 		}
@@ -65,7 +65,12 @@ type UpdateContext struct {
 	LabelChanges  []*query.LabelChange
 }
 
-type UpdateInterceptorProvider func() UpdateInterceptor
+type UpdateInterceptorWrapper func() UpdateInterceptor
+
+type UpdateInterceptorProvider interface {
+	Named
+	Provide() UpdateInterceptor
+}
 
 type InterceptUpdateOnAPI func(ctx context.Context, changes *UpdateContext) (types.Object, error)
 type InterceptUpdateOnTransaction func(ctx context.Context, txStorage storage.Warehouse, oldObject types.Object, changes *UpdateContext) (types.Object, error)
