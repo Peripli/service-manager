@@ -18,6 +18,7 @@ package extension
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Peripli/service-manager/pkg/types"
 
@@ -29,38 +30,69 @@ import (
 type DeleteHookOnAPIConstructor func(InterceptDeleteOnAPI) InterceptDeleteOnAPI
 type DeleteHookOnTransactionConstructor func(InterceptDeleteOnTransaction) InterceptDeleteOnTransaction
 
+type namedDeleteAPIFunc struct {
+	Name string
+	Func DeleteHookOnAPIConstructor
+}
+
+type namedDeleteTxFunc struct {
+	Name string
+	Func DeleteHookOnTransactionConstructor
+}
+
 type deleteHookOnAPIHandler struct {
-	DeleteHookOnAPIFuncs         []DeleteHookOnAPIConstructor
-	DeleteHookOnTransactionFuncs []DeleteHookOnTransactionConstructor
+	DeleteHookOnAPIFuncs []*namedDeleteAPIFunc
+	DeleteHookOnTxFuncs  []*namedDeleteTxFunc
 }
 
 func (c *deleteHookOnAPIHandler) OnAPIDelete(f InterceptDeleteOnAPI) InterceptDeleteOnAPI {
 	for i := range c.DeleteHookOnAPIFuncs {
-		f = c.DeleteHookOnAPIFuncs[len(c.DeleteHookOnAPIFuncs)-1-i](f)
+		f = c.DeleteHookOnAPIFuncs[len(c.DeleteHookOnAPIFuncs)-1-i].Func(f)
 	}
 	return f
 }
 
 func (c *deleteHookOnAPIHandler) OnTransactionDelete(f InterceptDeleteOnTransaction) InterceptDeleteOnTransaction {
-	for i := range c.DeleteHookOnTransactionFuncs {
-		f = c.DeleteHookOnTransactionFuncs[len(c.DeleteHookOnTransactionFuncs)-1-i](f)
+	for i := range c.DeleteHookOnTxFuncs {
+		f = c.DeleteHookOnTxFuncs[len(c.DeleteHookOnTxFuncs)-1-i].Func(f)
 	}
 	return f
 }
 
-func UnionDeleteInterceptor(providers []DeleteInterceptorProvider) DeleteInterceptorWrapper {
+func UnionDeleteInterceptor(providers []DeleteInterceptorProvider) func() DeleteInterceptor {
 	return func() DeleteInterceptor {
 		c := &deleteHookOnAPIHandler{}
-		for _, h := range providers {
-			hook := h.Provide()
-			c.DeleteHookOnAPIFuncs = append(c.DeleteHookOnAPIFuncs, hook.OnAPIDelete)
-			c.DeleteHookOnTransactionFuncs = append(c.DeleteHookOnTransactionFuncs, hook.OnTransactionDelete)
+		c.DeleteHookOnAPIFuncs = make([]*namedDeleteAPIFunc, 0, len(providers))
+		c.DeleteHookOnTxFuncs = make([]*namedDeleteTxFunc, 0, len(providers))
+
+		for _, p := range providers {
+			hook := p.Provide()
+			if orderedProvider, isOrdered := p.(Ordered); isOrdered {
+				positionAPIType, nameAPI := orderedProvider.PositionAPI()
+				c.insertAPIFunc(positionAPIType, nameAPI, &namedDeleteAPIFunc{
+					Name: p.Name(),
+					Func: hook.OnAPIDelete,
+				})
+
+				positionTxType, nameTx := orderedProvider.PositionTransaction()
+				c.insertTxFunc(positionTxType, nameTx, &namedDeleteTxFunc{
+					Name: p.Name(),
+					Func: hook.OnTransactionDelete,
+				})
+			} else {
+				c.DeleteHookOnAPIFuncs = append(c.DeleteHookOnAPIFuncs, &namedDeleteAPIFunc{
+					Name: p.Name(),
+					Func: hook.OnAPIDelete,
+				})
+				c.DeleteHookOnTxFuncs = append(c.DeleteHookOnTxFuncs, &namedDeleteTxFunc{
+					Name: p.Name(),
+					Func: hook.OnTransactionDelete,
+				})
+			}
 		}
 		return c
 	}
 }
-
-type DeleteInterceptorWrapper func() DeleteInterceptor
 
 type DeleteInterceptorProvider interface {
 	Named
@@ -73,4 +105,52 @@ type InterceptDeleteOnTransaction func(ctx context.Context, txStorage storage.Wa
 type DeleteInterceptor interface {
 	OnAPIDelete(h InterceptDeleteOnAPI) InterceptDeleteOnAPI
 	OnTransactionDelete(f InterceptDeleteOnTransaction) InterceptDeleteOnTransaction
+}
+
+func (c *deleteHookOnAPIHandler) insertAPIFunc(positionType PositionType, name string, h *namedDeleteAPIFunc) {
+	pos := c.findAPIFuncPosition(c.DeleteHookOnAPIFuncs, name)
+	if pos == -1 {
+		// TODO: Must validate on bootstrap
+		panic(fmt.Errorf("could not find delete API hook with name %s", name))
+	}
+	c.DeleteHookOnAPIFuncs = append(c.DeleteHookOnAPIFuncs, nil)
+	if positionType == PositionAfter {
+		pos = pos + 1
+	}
+	copy(c.DeleteHookOnAPIFuncs[pos+1:], c.DeleteHookOnAPIFuncs[pos:])
+	c.DeleteHookOnAPIFuncs[pos] = h
+}
+
+func (c *deleteHookOnAPIHandler) insertTxFunc(positionType PositionType, name string, h *namedDeleteTxFunc) {
+	pos := c.findTxFuncPosition(c.DeleteHookOnTxFuncs, name)
+	if pos == -1 {
+		// TODO: Must validate on bootstrap
+		panic(fmt.Errorf("could not find delete transaction hook with name %s", name))
+	}
+	c.DeleteHookOnTxFuncs = append(c.DeleteHookOnTxFuncs, nil)
+	if positionType == PositionAfter {
+		pos = pos + 1
+	}
+	copy(c.DeleteHookOnTxFuncs[pos+1:], c.DeleteHookOnTxFuncs[pos:])
+	c.DeleteHookOnTxFuncs[pos] = h
+}
+
+func (c *deleteHookOnAPIHandler) findAPIFuncPosition(funcs []*namedDeleteAPIFunc, name string) int {
+	for i, f := range funcs {
+		if f.Name == name {
+			return i
+		}
+	}
+
+	return -1
+}
+
+func (c *deleteHookOnAPIHandler) findTxFuncPosition(funcs []*namedDeleteTxFunc, name string) int {
+	for i, f := range funcs {
+		if f.Name == name {
+			return i
+		}
+	}
+
+	return -1
 }

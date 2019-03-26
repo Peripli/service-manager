@@ -145,30 +145,43 @@ func (api *API) RegisterPlugins(plugins ...Plugin) {
 	}
 }
 
-func (api *API) RegisterCreateInterceptorProviders(objectType types.ObjectType, providers ...extension.CreateInterceptorProvider) {
+func (api *API) interceptables() []extension.Interceptable {
+	result := make([]extension.Interceptable, 0, len(api.Controllers))
 	for _, c := range api.Controllers {
-		interceptable, ok := c.(extension.Interceptable)
-		if ok && objectType == interceptable.InterceptsType() {
-			interceptable.AddCreateInterceptorProviders(providers...)
+		if intr, ok := c.(extension.Interceptable); ok {
+			result = append(result, intr)
 		}
+	}
+	return result
+}
+
+func (api *API) RegisterCreateInterceptorProvider(objectType types.ObjectType, provider extension.CreateInterceptorProvider) *interceptorBuilder {
+	return &interceptorBuilder{
+		interceptables:  api.interceptables(),
+		interceptorType: objectType,
+		concrete: &createInterceptorBuilder{
+			provider: provider,
+		},
 	}
 }
 
-func (api *API) RegisterUpdateInterceptorProviders(objectType types.ObjectType, providers ...extension.UpdateInterceptorProvider) {
-	for _, c := range api.Controllers {
-		interceptable, ok := c.(extension.Interceptable)
-		if ok && objectType == interceptable.InterceptsType() {
-			interceptable.AddUpdateInterceptorProviders(providers...)
-		}
+func (api *API) RegisterUpdateInterceptorProvider(objectType types.ObjectType, provider extension.UpdateInterceptorProvider) *interceptorBuilder {
+	return &interceptorBuilder{
+		interceptables:  api.interceptables(),
+		interceptorType: objectType,
+		concrete: &updateInterceptorBuilder{
+			provider: provider,
+		},
 	}
 }
 
-func (api *API) RegisterDeleteInterceptorProviders(objectType types.ObjectType, providers ...extension.DeleteInterceptorProvider) {
-	for _, c := range api.Controllers {
-		interceptable, ok := c.(extension.Interceptable)
-		if ok && objectType == interceptable.InterceptsType() {
-			interceptable.AddDeleteInterceptorProviders(providers...)
-		}
+func (api *API) RegisterDeleteInterceptorProvider(objectType types.ObjectType, provider extension.DeleteInterceptorProvider) *interceptorBuilder {
+	return &interceptorBuilder{
+		interceptables:  api.interceptables(),
+		interceptorType: objectType,
+		concrete: &deleteInterceptorBuilder{
+			provider: provider,
+		},
 	}
 }
 

@@ -56,11 +56,59 @@ func (c *createHookOnAPIHandler) OnTransactionCreate(f InterceptCreateOnTransact
 	return f
 }
 
+func UnionCreateInterceptor(providers []CreateInterceptorProvider) func() CreateInterceptor {
+	return func() CreateInterceptor {
+		c := &createHookOnAPIHandler{}
+		c.CreateHookOnAPIFuncs = make([]*namedCreateAPIFunc, 0, len(providers))
+		c.CreateHookOnTransactionFuncs = make([]*namedCreateTxFunc, 0, len(providers))
+
+		for _, p := range providers {
+			hook := p.Provide()
+			if orderedProvider, isOrdered := p.(Ordered); isOrdered {
+				positionAPIType, nameAPI := orderedProvider.PositionAPI()
+				c.insertAPIFunc(positionAPIType, nameAPI, &namedCreateAPIFunc{
+					Name: p.Name(),
+					Func: hook.OnAPICreate,
+				})
+
+				positionTxType, nameTx := orderedProvider.PositionTransaction()
+				c.insertTxFunc(positionTxType, nameTx, &namedCreateTxFunc{
+					Name: p.Name(),
+					Func: hook.OnTransactionCreate,
+				})
+			} else {
+				c.CreateHookOnAPIFuncs = append(c.CreateHookOnAPIFuncs, &namedCreateAPIFunc{
+					Name: p.Name(),
+					Func: hook.OnAPICreate,
+				})
+				c.CreateHookOnTransactionFuncs = append(c.CreateHookOnTransactionFuncs, &namedCreateTxFunc{
+					Name: p.Name(),
+					Func: hook.OnTransactionCreate,
+				})
+			}
+		}
+		return c
+	}
+}
+
+type CreateInterceptorProvider interface {
+	Named
+	Provide() CreateInterceptor
+}
+
+type InterceptCreateOnAPI func(ctx context.Context, obj types.Object) (types.Object, error)
+type InterceptCreateOnTransaction func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error
+
+type CreateInterceptor interface {
+	OnAPICreate(h InterceptCreateOnAPI) InterceptCreateOnAPI
+	OnTransactionCreate(f InterceptCreateOnTransaction) InterceptCreateOnTransaction
+}
+
 func (c *createHookOnAPIHandler) insertAPIFunc(positionType PositionType, name string, h *namedCreateAPIFunc) {
 	pos := c.findAPIFuncPosition(c.CreateHookOnAPIFuncs, name)
 	if pos == -1 {
 		// TODO: Must validate on bootstrap
-		panic(fmt.Errorf("could not find hook with name %s", name))
+		panic(fmt.Errorf("could not find create API hook with name %s", name))
 	}
 	c.CreateHookOnAPIFuncs = append(c.CreateHookOnAPIFuncs, nil)
 	if positionType == PositionAfter {
@@ -74,7 +122,7 @@ func (c *createHookOnAPIHandler) insertTxFunc(positionType PositionType, name st
 	pos := c.findTxFuncPosition(c.CreateHookOnTransactionFuncs, name)
 	if pos == -1 {
 		// TODO: Must validate on bootstrap
-		panic(fmt.Errorf("could not find hook with name %s", name))
+		panic(fmt.Errorf("could not find create transaction hook with name %s", name))
 	}
 	c.CreateHookOnTransactionFuncs = append(c.CreateHookOnTransactionFuncs, nil)
 	if positionType == PositionAfter {
@@ -102,60 +150,4 @@ func (c *createHookOnAPIHandler) findTxFuncPosition(funcs []*namedCreateTxFunc, 
 	}
 
 	return -1
-}
-
-func UnionCreateInterceptor(providers []CreateInterceptorProvider) CreateInterceptorWrapper {
-	return func() CreateInterceptor {
-		c := &createHookOnAPIHandler{}
-		c.CreateHookOnAPIFuncs = make([]*namedCreateAPIFunc, 0, len(providers))
-		c.CreateHookOnTransactionFuncs = make([]*namedCreateTxFunc, 0, len(providers))
-
-		for _, p := range providers {
-			if orderedProvider, isOrdered := p.(OrderedCreateInterceptorProvider); isOrdered {
-				positionAPIType, nameAPI := orderedProvider.PositionAPI()
-				hook := orderedProvider.Provide()
-				c.insertAPIFunc(positionAPIType, nameAPI, &namedCreateAPIFunc{
-					Name: p.Name(),
-					Func: hook.OnAPICreate,
-				})
-
-				positionTxType, nameTx := orderedProvider.PositionTransaction()
-				c.insertTxFunc(positionTxType, nameTx, &namedCreateTxFunc{
-					Name: p.Name(),
-					Func: hook.OnTransactionCreate,
-				})
-			} else {
-				hook := p.Provide()
-				c.CreateHookOnAPIFuncs = append(c.CreateHookOnAPIFuncs, &namedCreateAPIFunc{
-					Name: p.Name(),
-					Func: hook.OnAPICreate,
-				})
-				c.CreateHookOnTransactionFuncs = append(c.CreateHookOnTransactionFuncs, &namedCreateTxFunc{
-					Name: p.Name(),
-					Func: hook.OnTransactionCreate,
-				})
-			}
-		}
-		return c
-	}
-}
-
-type CreateInterceptorWrapper func() CreateInterceptor
-
-type CreateInterceptorProvider interface {
-	Named
-	Provide() CreateInterceptor
-}
-
-type OrderedCreateInterceptorProvider interface {
-	CreateInterceptorProvider
-	Ordered
-}
-
-type InterceptCreateOnAPI func(ctx context.Context, obj types.Object) (types.Object, error)
-type InterceptCreateOnTransaction func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error
-
-type CreateInterceptor interface {
-	OnAPICreate(h InterceptCreateOnAPI) InterceptCreateOnAPI
-	OnTransactionCreate(f InterceptCreateOnTransaction) InterceptCreateOnTransaction
 }

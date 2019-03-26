@@ -58,16 +58,16 @@ func (c *updateHookOnAPIHandler) OnTransactionUpdate(f InterceptUpdateOnTransact
 	return f
 }
 
-func UnionUpdateInterceptor(providers []UpdateInterceptorProvider) UpdateInterceptorWrapper {
+func UnionUpdateInterceptor(providers []UpdateInterceptorProvider) func() UpdateInterceptor {
 	return func() UpdateInterceptor {
 		c := &updateHookOnAPIHandler{}
 		c.UpdateHookOnAPIFuncs = make([]*namedUpdateAPIFunc, 0, len(providers))
 		c.UpdateHookOnTransactionFuncs = make([]*namedUpdateTxFunc, 0, len(providers))
-		// TODO: Resize update hook funcs with providers length
+
 		for _, p := range providers {
-			if orderedProvider, isOrdered := p.(OrderedUpdateInterceptorProvider); isOrdered {
+			hook := p.Provide()
+			if orderedProvider, isOrdered := p.(Ordered); isOrdered {
 				positionAPIType, nameAPI := orderedProvider.PositionAPI()
-				hook := orderedProvider.Provide()
 				c.insertAPIFunc(positionAPIType, nameAPI, &namedUpdateAPIFunc{
 					Name: p.Name(),
 					Func: hook.OnAPIUpdate,
@@ -79,7 +79,6 @@ func UnionUpdateInterceptor(providers []UpdateInterceptorProvider) UpdateInterce
 					Func: hook.OnTransactionUpdate,
 				})
 			} else {
-				hook := p.Provide()
 				c.UpdateHookOnAPIFuncs = append(c.UpdateHookOnAPIFuncs, &namedUpdateAPIFunc{
 					Name: p.Name(),
 					Func: hook.OnAPIUpdate,
@@ -94,11 +93,30 @@ func UnionUpdateInterceptor(providers []UpdateInterceptorProvider) UpdateInterce
 	}
 }
 
+type UpdateContext struct {
+	Object        types.Object
+	ObjectChanges []byte
+	LabelChanges  []*query.LabelChange
+}
+
+type UpdateInterceptorProvider interface {
+	Named
+	Provide() UpdateInterceptor
+}
+
+type InterceptUpdateOnAPI func(ctx context.Context, changes *UpdateContext) (types.Object, error)
+type InterceptUpdateOnTransaction func(ctx context.Context, txStorage storage.Warehouse, oldObject types.Object, changes *UpdateContext) (types.Object, error)
+
+type UpdateInterceptor interface {
+	OnAPIUpdate(h InterceptUpdateOnAPI) InterceptUpdateOnAPI
+	OnTransactionUpdate(f InterceptUpdateOnTransaction) InterceptUpdateOnTransaction
+}
+
 func (c *updateHookOnAPIHandler) insertAPIFunc(positionType PositionType, name string, h *namedUpdateAPIFunc) {
 	pos := c.findAPIFuncPosition(c.UpdateHookOnAPIFuncs, name)
 	if pos == -1 {
 		// TODO: Must validate on bootstrap
-		panic(fmt.Errorf("could not find hook with name %s", name))
+		panic(fmt.Errorf("could not find update API hook with name %s", name))
 	}
 	c.UpdateHookOnAPIFuncs = append(c.UpdateHookOnAPIFuncs, nil)
 	if positionType == PositionAfter {
@@ -112,7 +130,7 @@ func (c *updateHookOnAPIHandler) insertTxFunc(positionType PositionType, name st
 	pos := c.findTxFuncPosition(c.UpdateHookOnTransactionFuncs, name)
 	if pos == -1 {
 		// TODO: Must validate on bootstrap
-		panic(fmt.Errorf("could not find hook with name %s", name))
+		panic(fmt.Errorf("could not find update transaction hook with name %s", name))
 	}
 	c.UpdateHookOnTransactionFuncs = append(c.UpdateHookOnTransactionFuncs, nil)
 	if positionType == PositionAfter {
@@ -140,30 +158,4 @@ func (c *updateHookOnAPIHandler) findTxFuncPosition(funcs []*namedUpdateTxFunc, 
 	}
 
 	return -1
-}
-
-type UpdateContext struct {
-	Object        types.Object
-	ObjectChanges []byte
-	LabelChanges  []*query.LabelChange
-}
-
-type UpdateInterceptorWrapper func() UpdateInterceptor
-
-type UpdateInterceptorProvider interface {
-	Named
-	Provide() UpdateInterceptor
-}
-
-type OrderedUpdateInterceptorProvider interface {
-	Ordered
-	UpdateInterceptorProvider
-}
-
-type InterceptUpdateOnAPI func(ctx context.Context, changes *UpdateContext) (types.Object, error)
-type InterceptUpdateOnTransaction func(ctx context.Context, txStorage storage.Warehouse, oldObject types.Object, changes *UpdateContext) (types.Object, error)
-
-type UpdateInterceptor interface {
-	OnAPIUpdate(h InterceptUpdateOnAPI) InterceptUpdateOnAPI
-	OnTransactionUpdate(f InterceptUpdateOnTransaction) InterceptUpdateOnTransaction
 }

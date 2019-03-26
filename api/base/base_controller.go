@@ -46,14 +46,9 @@ type Controller struct {
 	repository      storage.Repository
 	objectBlueprint func() types.Object
 
-	wrappedCreateInterceptorProvider extension.CreateInterceptorWrapper
-	CreateInterceptorProviders       []extension.CreateInterceptorProvider
-
-	wrappedUpdateInterceptorProvider extension.UpdateInterceptorWrapper
-	UpdateInterceptorProviders       []extension.UpdateInterceptorProvider
-
-	wrappedDeleteInterceptorProvider extension.DeleteInterceptorWrapper
-	DeleteInterceptorProviders       []extension.DeleteInterceptorProvider
+	CreateInterceptorProviders []extension.CreateInterceptorProvider
+	UpdateInterceptorProviders []extension.UpdateInterceptorProvider
+	DeleteInterceptorProviders []extension.DeleteInterceptorProvider
 }
 
 func (c *Controller) InterceptsType() types.ObjectType {
@@ -62,45 +57,14 @@ func (c *Controller) InterceptsType() types.ObjectType {
 
 func (c *Controller) AddCreateInterceptorProviders(providers ...extension.CreateInterceptorProvider) {
 	c.CreateInterceptorProviders = append(c.CreateInterceptorProviders, providers...)
-	c.wrappedCreateInterceptorProvider = extension.UnionCreateInterceptor(c.CreateInterceptorProviders)
 }
 
 func (c *Controller) AddUpdateInterceptorProviders(providers ...extension.UpdateInterceptorProvider) {
 	c.UpdateInterceptorProviders = append(c.UpdateInterceptorProviders, providers...)
-	c.wrappedUpdateInterceptorProvider = extension.UnionUpdateInterceptor(c.UpdateInterceptorProviders)
-}
-
-func (c *Controller) findDeleteProviderPosition(providerName string) int {
-	index := -1
-	for i, provider := range c.DeleteInterceptorProviders {
-		if providerName == provider.Name() {
-			index = i
-			break
-		}
-	}
-	return index
-}
-
-func (c *Controller) AddDeleteInterceptorProvidersBefore(providerName string, providers ...extension.DeleteInterceptorProvider) {
-	for _, provider := range providers {
-		index := c.findDeleteProviderPosition(providerName)
-		if index == -1 {
-			c.DeleteInterceptorProviders = append(c.DeleteInterceptorProviders, provider)
-		} else {
-			c.DeleteInterceptorProviders = append(c.DeleteInterceptorProviders, nil)
-			copy(c.DeleteInterceptorProviders[index+1:], c.DeleteInterceptorProviders[index:])
-			c.DeleteInterceptorProviders[index] = provider
-		}
-	}
-	c.wrappedDeleteInterceptorProvider = extension.UnionDeleteInterceptor(c.DeleteInterceptorProviders)
 }
 
 func (c *Controller) AddDeleteInterceptorProviders(providers ...extension.DeleteInterceptorProvider) {
-	// 	if c.DeleteInterceptorProvider == nil {
-	// 		c.DeleteInterceptorProvider = extension.UnionDeleteInterceptor(providers)
-	// 	} else {
-	// 		c.DeleteInterceptorProvider = extension.UnionDeleteInterceptor(append(providers, c.DeleteInterceptorProvider))
-	// 	}
+	c.DeleteInterceptorProviders = append(c.DeleteInterceptorProviders, providers...)
 }
 
 func NewController(repository storage.Repository, resourceBaseURL string, objectBlueprint func() types.Object) *Controller {
@@ -164,9 +128,8 @@ func (c *Controller) CreateObject(r *web.Request) (*web.Response, error) {
 	log.C(ctx).Debugf("Creating new %s", c.objectType)
 
 	var createInterceptor extension.CreateInterceptor
-	// TODO: Lazy initialize wrapped providers on first request
-	if c.wrappedCreateInterceptorProvider != nil {
-		createInterceptor = c.wrappedCreateInterceptorProvider()
+	if len(c.CreateInterceptorProviders) > 0 {
+		createInterceptor = extension.UnionCreateInterceptor(c.CreateInterceptorProviders)()
 	}
 
 	onTransaction := func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error {
@@ -219,8 +182,8 @@ func (c *Controller) DeleteObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting %ss...", c.objectType)
 	var deleteInterceptor extension.DeleteInterceptor
-	if c.wrappedDeleteInterceptorProvider != nil {
-		deleteInterceptor = c.wrappedDeleteInterceptorProvider()
+	if len(c.DeleteInterceptorProviders) > 0 {
+		deleteInterceptor = extension.UnionDeleteInterceptor(c.DeleteInterceptorProviders)()
 	}
 
 	transactionOperation := func(ctx context.Context, txStorage storage.Warehouse, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
@@ -316,8 +279,8 @@ func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
 	}
 
 	var updateInterceptor extension.UpdateInterceptor
-	if c.wrappedUpdateInterceptorProvider != nil {
-		updateInterceptor = c.wrappedUpdateInterceptorProvider()
+	if len(c.UpdateInterceptorProviders) > 0 {
+		updateInterceptor = extension.UnionUpdateInterceptor(c.UpdateInterceptorProviders)()
 	}
 	transactionOp := func(ctx context.Context, txStorage storage.Warehouse, oldObject types.Object, updateChanges *extension.UpdateContext) (types.Object, error) {
 		return txStorage.Update(ctx, oldObject, updateChanges.LabelChanges...)

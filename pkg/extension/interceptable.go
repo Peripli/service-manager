@@ -33,6 +33,21 @@ const (
 	PositionAfter  PositionType = "after"
 )
 
+type OrderedProviderImpl struct {
+	PositionTypeTx  PositionType
+	PositionTypeAPI PositionType
+	NameTx          string
+	NameAPI         string
+}
+
+func (opi *OrderedProviderImpl) PositionTransaction() (PositionType, string) {
+	return opi.PositionTypeTx, opi.NameTx
+}
+
+func (opi *OrderedProviderImpl) PositionAPI() (PositionType, string) {
+	return opi.PositionTypeAPI, opi.NameAPI
+}
+
 type Ordered interface {
 	PositionTransaction() (PositionType, string)
 	PositionAPI() (PositionType, string)
