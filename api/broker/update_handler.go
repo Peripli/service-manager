@@ -22,6 +22,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Peripli/service-manager/storage/catalog"
+
 	"github.com/Peripli/service-manager/pkg/extension"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -101,13 +103,12 @@ func (c *UpdateBrokerHook) OnTransactionUpdate(f extension.InterceptUpdateOnTran
 		}
 		broker := newObject.(*types.ServiceBroker)
 		brokerID := broker.GetID()
-
-		existingServiceOfferingsWithServicePlans, err := txStorage.ServiceOffering().ListWithServicePlansByBrokerID(ctx, brokerID)
+		existingServiceOfferingsWithServicePlans, err := catalog.Load(ctx, brokerID, txStorage)
 		if err != nil {
 			return nil, fmt.Errorf("error getting catalog for broker with id %s from SM DB: %s", brokerID, err)
 		}
 
-		existingServicesOfferingsMap, existingServicePlansPerOfferringMap := convertExistingServiceOfferringsToMaps(existingServiceOfferingsWithServicePlans)
+		existingServicesOfferingsMap, existingServicePlansPerOfferringMap := convertExistingServiceOfferringsToMaps(existingServiceOfferingsWithServicePlans.ServiceOfferings)
 		log.C(ctx).Debugf("Found %d services currently known for broker", len(existingServicesOfferingsMap))
 
 		catalogServices, catalogPlansMap, err := getBrokerCatalogServicesAndPlans(c.catalog)
@@ -241,11 +242,11 @@ func (c *UpdateBrokerHook) OnTransactionUpdate(f extension.InterceptUpdateOnTran
 			}
 		}
 
-		brokerServices, err := txStorage.ServiceOffering().ListWithServicePlansByBrokerID(ctx, brokerID)
+		brokerServices, err := catalog.Load(ctx, brokerID, txStorage)
 		if err != nil {
 			return nil, fmt.Errorf("error getting catalog for broker with id %s from SM DB: %s", brokerID, err)
 		}
-		broker.Services = brokerServices
+		broker.Services = brokerServices.ServiceOfferings
 
 		log.C(ctx).Debugf("Successfully resynced service plans for broker with id %s", brokerID)
 		return broker, nil

@@ -116,7 +116,6 @@ type Warehouse interface {
 	// Update updates a broker from SM DB
 	Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error)
 
-	ServiceOffering() ServiceOffering
 	Credentials() Credentials
 	Security() Security
 }
@@ -136,13 +135,6 @@ type Storage interface {
 	Pinger
 	Repository
 	Introduce(entity Entity)
-}
-
-// ServiceOffering instance for Service Offerings DB operations
-//go:generate counterfeiter . ServiceOffering
-type ServiceOffering interface {
-	// ListWithServicePlansByBrokerID retrieves all service offerings with their service plans from SM DB that match the specified broker ID
-	ListWithServicePlansByBrokerID(ctx context.Context, brokerID string) ([]*types.ServiceOffering, error)
 }
 
 // Credentials interface for Credentials db operations
