@@ -41,6 +41,8 @@ type API struct {
 	health.Registry
 
 	createInterceptorProviders []extension.CreateInterceptorProvider
+	updateInterceptorProviders []extension.UpdateInterceptorProvider
+	deleteInterceptorProviders []extension.DeleteInterceptorProvider
 }
 
 // pluginSegment represents one piece of a web.Plugin. Each web.Plugin is decomposed into as many plugin segments as
@@ -157,19 +159,9 @@ func (api *API) interceptables() []extension.Interceptable {
 	return result
 }
 
-func (api *API) validateCreateInterceptorProviders(newProvider extension.Named) {
-	for _, p := range api.createInterceptorProviders {
-		if n, ok := p.(extension.Named); ok {
-			if n.Name() == newProvider.Name() {
-				log.D().Panicf("%s interceptor provider is already registered", n.Name())
-			}
-		}
-	}
-}
-
 func (api *API) RegisterCreateInterceptorProvider(objectType types.ObjectType, provider extension.CreateInterceptorProvider) *interceptorBuilder {
-	api.createInterceptorProviders = append(api.createInterceptorProviders, provider)
 	api.validateCreateInterceptorProviders(provider)
+	api.createInterceptorProviders = append(api.createInterceptorProviders, provider)
 
 	return &interceptorBuilder{
 		interceptables:  api.interceptables(),
@@ -180,7 +172,20 @@ func (api *API) RegisterCreateInterceptorProvider(objectType types.ObjectType, p
 	}
 }
 
+func (api *API) validateCreateInterceptorProviders(newProvider extension.CreateInterceptorProvider) {
+	for _, p := range api.createInterceptorProviders {
+		if n, ok := p.(extension.Named); ok {
+			if n.Name() == newProvider.Name() {
+				log.D().Panicf("%s create interceptor provider is already registered", n.Name())
+			}
+		}
+	}
+}
+
 func (api *API) RegisterUpdateInterceptorProvider(objectType types.ObjectType, provider extension.UpdateInterceptorProvider) *interceptorBuilder {
+	api.validateUpdateInterceptorProviders(provider)
+	api.updateInterceptorProviders = append(api.updateInterceptorProviders, provider)
+
 	return &interceptorBuilder{
 		interceptables:  api.interceptables(),
 		interceptorType: objectType,
@@ -190,13 +195,36 @@ func (api *API) RegisterUpdateInterceptorProvider(objectType types.ObjectType, p
 	}
 }
 
+func (api *API) validateUpdateInterceptorProviders(newProvider extension.UpdateInterceptorProvider) {
+	for _, p := range api.updateInterceptorProviders {
+		if n, ok := p.(extension.Named); ok {
+			if n.Name() == newProvider.Name() {
+				log.D().Panicf("%s update interceptor provider is already registered", n.Name())
+			}
+		}
+	}
+}
+
 func (api *API) RegisterDeleteInterceptorProvider(objectType types.ObjectType, provider extension.DeleteInterceptorProvider) *interceptorBuilder {
+	api.validateDeleteInterceptorProviders(provider)
+	api.deleteInterceptorProviders = append(api.deleteInterceptorProviders, provider)
+
 	return &interceptorBuilder{
 		interceptables:  api.interceptables(),
 		interceptorType: objectType,
 		concreteBuilder: &deleteInterceptorBuilder{
 			provider: provider,
 		},
+	}
+}
+
+func (api *API) validateDeleteInterceptorProviders(newProvider extension.DeleteInterceptorProvider) {
+	for _, p := range api.deleteInterceptorProviders {
+		if n, ok := p.(extension.Named); ok {
+			if n.Name() == newProvider.Name() {
+				log.D().Panicf("%s delete interceptor provider is already registered", n.Name())
+			}
+		}
 	}
 }
 
