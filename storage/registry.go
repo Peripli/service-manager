@@ -43,13 +43,6 @@ func Register(name string, storage Storage) {
 	storages[name] = storage
 }
 
-// Deregister removes a storage with the given name
-func Deregister(name string) {
-	mux.Lock()
-	defer mux.Unlock()
-	delete(storages, name)
-}
-
 // HasStorage check whether storage with the given name is registered
 func HasStorage(name string) bool {
 	mux.RLock()

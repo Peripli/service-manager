@@ -160,16 +160,7 @@ func (smb *ServiceManagerBuilder) installHealth() {
 // Run starts the Service Manager
 func (sm *ServiceManager) Run() {
 	log.C(sm.ctx).Info("Running Service Manager...")
-	go func() {
-		<-sm.ctx.Done()
-		sm.close()
-	}()
 	sm.Server.Run(sm.ctx)
-}
-
-func (sm *ServiceManager) close() {
-	log.C(sm.ctx).Info("Closing Service Manager...")
-	storage.Deregister(postgres.Storage)
 }
 
 func initializeSecureStorage(ctx context.Context, secureStorage storage.Security) error {

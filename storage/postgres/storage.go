@@ -42,6 +42,8 @@ type PostgresStorage struct {
 	state         *storageState
 	encryptionKey []byte
 	scheme        *storage.Scheme
+
+	mutex sync.Mutex
 }
 
 func (ps *PostgresStorage) Introduce(entity storage.Entity) {
@@ -66,6 +68,8 @@ func (ps *PostgresStorage) Open(options *storage.Settings, scheme *storage.Schem
 	if len(options.MigrationsURL) == 0 {
 		return fmt.Errorf("validate Settings: StorageMigrationsURL missing")
 	}
+	ps.mutex.Lock()
+	defer ps.mutex.Unlock()
 	if ps.db == nil {
 		sslModeParam := ""
 		if options.SkipSSLValidation {
@@ -99,6 +103,8 @@ func (ps *PostgresStorage) Open(options *storage.Settings, scheme *storage.Schem
 
 func (ps *PostgresStorage) Close() error {
 	ps.checkOpen()
+	ps.mutex.Lock()
+	defer ps.mutex.Unlock()
 	defer func() {
 		ps.db = nil
 	}()
