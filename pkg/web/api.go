@@ -39,6 +39,8 @@ type API struct {
 
 	// Registry is the health indicators registry for this API
 	health.Registry
+
+	createInterceptorProviders []extension.CreateInterceptorProvider
 }
 
 // pluginSegment represents one piece of a web.Plugin. Each web.Plugin is decomposed into as many plugin segments as
@@ -155,11 +157,24 @@ func (api *API) interceptables() []extension.Interceptable {
 	return result
 }
 
+func (api *API) validateCreateInterceptorProviders(newProvider extension.Named) {
+	for _, p := range api.createInterceptorProviders {
+		if n, ok := p.(extension.Named); ok {
+			if n.Name() == newProvider.Name() {
+				log.D().Panicf("%s interceptor provider is already registered", n.Name())
+			}
+		}
+	}
+}
+
 func (api *API) RegisterCreateInterceptorProvider(objectType types.ObjectType, provider extension.CreateInterceptorProvider) *interceptorBuilder {
+	api.createInterceptorProviders = append(api.createInterceptorProviders, provider)
+	api.validateCreateInterceptorProviders(provider)
+
 	return &interceptorBuilder{
 		interceptables:  api.interceptables(),
 		interceptorType: objectType,
-		concrete: &createInterceptorBuilder{
+		concreteBuilder: &createInterceptorBuilder{
 			provider: provider,
 		},
 	}
@@ -169,7 +184,7 @@ func (api *API) RegisterUpdateInterceptorProvider(objectType types.ObjectType, p
 	return &interceptorBuilder{
 		interceptables:  api.interceptables(),
 		interceptorType: objectType,
-		concrete: &updateInterceptorBuilder{
+		concreteBuilder: &updateInterceptorBuilder{
 			provider: provider,
 		},
 	}
@@ -179,7 +194,7 @@ func (api *API) RegisterDeleteInterceptorProvider(objectType types.ObjectType, p
 	return &interceptorBuilder{
 		interceptables:  api.interceptables(),
 		interceptorType: objectType,
-		concrete: &deleteInterceptorBuilder{
+		concreteBuilder: &deleteInterceptorBuilder{
 			provider: provider,
 		},
 	}
