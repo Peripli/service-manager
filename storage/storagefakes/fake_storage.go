@@ -115,15 +115,6 @@ type FakeStorage struct {
 		result1 types.Object
 		result2 error
 	}
-	ServiceOfferingStub        func() storage.ServiceOffering
-	serviceOfferingMutex       sync.RWMutex
-	serviceOfferingArgsForCall []struct{}
-	serviceOfferingReturns     struct {
-		result1 storage.ServiceOffering
-	}
-	serviceOfferingReturnsOnCall map[int]struct {
-		result1 storage.ServiceOffering
-	}
 	CredentialsStub        func() storage.Credentials
 	credentialsMutex       sync.RWMutex
 	credentialsArgsForCall []struct{}
@@ -556,46 +547,6 @@ func (fake *FakeStorage) UpdateReturnsOnCall(i int, result1 types.Object, result
 	}{result1, result2}
 }
 
-func (fake *FakeStorage) ServiceOffering() storage.ServiceOffering {
-	fake.serviceOfferingMutex.Lock()
-	ret, specificReturn := fake.serviceOfferingReturnsOnCall[len(fake.serviceOfferingArgsForCall)]
-	fake.serviceOfferingArgsForCall = append(fake.serviceOfferingArgsForCall, struct{}{})
-	fake.recordInvocation("ServiceOffering", []interface{}{})
-	fake.serviceOfferingMutex.Unlock()
-	if fake.ServiceOfferingStub != nil {
-		return fake.ServiceOfferingStub()
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.serviceOfferingReturns.result1
-}
-
-func (fake *FakeStorage) ServiceOfferingCallCount() int {
-	fake.serviceOfferingMutex.RLock()
-	defer fake.serviceOfferingMutex.RUnlock()
-	return len(fake.serviceOfferingArgsForCall)
-}
-
-func (fake *FakeStorage) ServiceOfferingReturns(result1 storage.ServiceOffering) {
-	fake.ServiceOfferingStub = nil
-	fake.serviceOfferingReturns = struct {
-		result1 storage.ServiceOffering
-	}{result1}
-}
-
-func (fake *FakeStorage) ServiceOfferingReturnsOnCall(i int, result1 storage.ServiceOffering) {
-	fake.ServiceOfferingStub = nil
-	if fake.serviceOfferingReturnsOnCall == nil {
-		fake.serviceOfferingReturnsOnCall = make(map[int]struct {
-			result1 storage.ServiceOffering
-		})
-	}
-	fake.serviceOfferingReturnsOnCall[i] = struct {
-		result1 storage.ServiceOffering
-	}{result1}
-}
-
 func (fake *FakeStorage) Credentials() storage.Credentials {
 	fake.credentialsMutex.Lock()
 	ret, specificReturn := fake.credentialsReturnsOnCall[len(fake.credentialsArgsForCall)]
@@ -768,8 +719,6 @@ func (fake *FakeStorage) Invocations() map[string][][]interface{} {
 	defer fake.deleteMutex.RUnlock()
 	fake.updateMutex.RLock()
 	defer fake.updateMutex.RUnlock()
-	fake.serviceOfferingMutex.RLock()
-	defer fake.serviceOfferingMutex.RUnlock()
 	fake.credentialsMutex.RLock()
 	defer fake.credentialsMutex.RUnlock()
 	fake.securityMutex.RLock()

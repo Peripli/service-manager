@@ -91,7 +91,7 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 				BrokerStorage: repository,
 				Encrypter:     encrypter,
 			}, &osb.StorageCatalogFetcher{
-				CatalogStorage: repository.ServiceOffering(),
+				Repository: repository,
 			},
 				http.DefaultTransport,
 			),

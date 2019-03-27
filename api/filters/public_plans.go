@@ -22,6 +22,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Peripli/service-manager/storage/catalog"
+
 	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/tidwall/gjson"
@@ -57,18 +59,16 @@ func (pspf *PublicServicePlansFilter) Run(req *web.Request, next web.Handler) (*
 	ctx := req.Context()
 	brokerID := gjson.GetBytes(response.Body, "id").String()
 	log.C(ctx).Debugf("Reconciling public plans for broker with id: %s", brokerID)
-	if err := pspf.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Warehouse) error {
-		soRepository := storage.ServiceOffering()
-
-		broker, err := pspf.Repository.Get(ctx, types.ServiceBrokerType, brokerID)
+	if err := pspf.Repository.InTransaction(ctx, func(ctx context.Context, txStorage storage.Warehouse) error {
+		broker, err := txStorage.Get(ctx, types.ServiceBrokerType, brokerID)
 		if err != nil {
 			return util.HandleStorageError(err, "broker")
 		}
-		catalog, err := soRepository.ListWithServicePlansByBrokerID(ctx, brokerID)
+		result, err := catalog.Load(ctx, brokerID, txStorage)
 		if err != nil {
 			return err
 		}
-		for _, serviceOffering := range catalog {
+		for _, serviceOffering := range result.ServiceOfferings {
 			for _, servicePlan := range serviceOffering.Plans {
 				planID := servicePlan.ID
 				isPublic, err := pspf.IsCatalogPlanPublicFunc(broker.(*types.ServiceBroker), serviceOffering, servicePlan)
@@ -78,7 +78,7 @@ func (pspf *PublicServicePlansFilter) Run(req *web.Request, next web.Handler) (*
 
 				hasPublicVisibility := false
 				byServicePlanID := query.ByField(query.EqualsOperator, "service_plan_id", planID)
-				visibilitiesForPlan, err := storage.List(ctx, types.VisibilityType, byServicePlanID)
+				visibilitiesForPlan, err := txStorage.List(ctx, types.VisibilityType, byServicePlanID)
 				if err != nil {
 					return err
 				}
@@ -90,13 +90,13 @@ func (pspf *PublicServicePlansFilter) Run(req *web.Request, next web.Handler) (*
 							hasPublicVisibility = true
 							continue
 						} else {
-							if _, err := storage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
+							if _, err := txStorage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
 								return err
 							}
 						}
 					} else {
 						if visibility.PlatformID == "" {
-							if _, err := storage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
+							if _, err := txStorage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
 								return err
 							}
 						} else {
@@ -112,7 +112,7 @@ func (pspf *PublicServicePlansFilter) Run(req *web.Request, next web.Handler) (*
 					}
 
 					currentTime := time.Now().UTC()
-					planID, err := storage.Create(ctx, &types.Visibility{
+					planID, err := txStorage.Create(ctx, &types.Visibility{
 						Base: types.Base{
 							ID:        UUID.String(),
 							UpdatedAt: currentTime,
