@@ -58,11 +58,6 @@ func (ps *PostgresStorage) Security() storage.Security {
 	return &securityStorage{ps.pgDB, ps.encryptionKey, false, &sync.Mutex{}}
 }
 
-func (ps *PostgresStorage) ServiceOffering() storage.ServiceOffering {
-	ps.checkOpen()
-	return &serviceOfferingStorage{db: ps.pgDB}
-}
-
 func (ps *PostgresStorage) Open(options *storage.Settings, scheme *storage.Scheme) error {
 	var err error
 	if err = options.Validate(); err != nil {
