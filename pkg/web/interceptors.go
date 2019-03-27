@@ -8,7 +8,7 @@ import (
 )
 
 type concreteBuilder interface {
-	Apply(interceptables []extension.Interceptable, interceptorType types.ObjectType, orderer extension.Ordered)
+	Apply(interceptables []extension.Interceptable, interceptorType types.ObjectType, orderer *extension.OrderedProviderImpl)
 }
 
 type interceptorBuilder struct {
@@ -81,7 +81,7 @@ type orderedUpdateInterceptorProvider struct {
 	extension.UpdateInterceptorProvider
 }
 
-func (creator *updateInterceptorBuilder) Apply(interceptables []extension.Interceptable, interceptorType types.ObjectType, orderer extension.Ordered) {
+func (creator *updateInterceptorBuilder) Apply(interceptables []extension.Interceptable, interceptorType types.ObjectType, orderer *extension.OrderedProviderImpl) {
 	for _, interceptable := range interceptables {
 		if interceptorType == interceptable.InterceptsType() {
 			if orderer == nil {
@@ -105,7 +105,7 @@ type createInterceptorBuilder struct {
 	provider extension.CreateInterceptorProvider
 }
 
-func (builder *createInterceptorBuilder) Apply(interceptables []extension.Interceptable, interceptorType types.ObjectType, orderer extension.Ordered) {
+func (builder *createInterceptorBuilder) Apply(interceptables []extension.Interceptable, interceptorType types.ObjectType, orderer *extension.OrderedProviderImpl) {
 	for _, interceptable := range interceptables {
 		if interceptorType == interceptable.InterceptsType() {
 			if orderer == nil {
@@ -129,7 +129,7 @@ type orderedDeleteInterceptorProvider struct {
 	extension.DeleteInterceptorProvider
 }
 
-func (creator *deleteInterceptorBuilder) Apply(interceptables []extension.Interceptable, interceptorType types.ObjectType, orderer extension.Ordered) {
+func (creator *deleteInterceptorBuilder) Apply(interceptables []extension.Interceptable, interceptorType types.ObjectType, orderer *extension.OrderedProviderImpl) {
 	for _, interceptable := range interceptables {
 		if interceptorType == interceptable.InterceptsType() {
 			if orderer == nil {
