@@ -29,10 +29,26 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// TestServiceManager tests servermanager package
+//TestServiceManager tests servermanager package
 func TestLog(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Log Suite")
+}
+
+// TestMultipleGoroutinesDefaultLog validates that no race conditions occur when two go routines log using the default log
+func TestMultipleGoroutinesDefaultLog(t *testing.T) {
+	Configure(context.TODO(), DefaultSettings())
+	log := func() { D().Debug("message") }
+	go log()
+	go log()
+}
+
+// TestMultipleGoroutinesContextLog validates that no race conditions occur when two go routines log using the context log
+func TestMultipleGoroutinesContextLog(t *testing.T) {
+	ctx := Configure(context.TODO(), DefaultSettings())
+	log := func() { C(ctx).Debug("message") }
+	go log()
+	go log()
 }
 
 var _ = Describe("log", func() {
