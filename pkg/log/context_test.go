@@ -35,6 +35,27 @@ func TestLog(t *testing.T) {
 	RunSpecs(t, "Log Suite")
 }
 
+// TestMultipleGoroutinesDefaultLog validates that no race conditions occur when two go routines log using the default log
+func TestMultipleGoroutinesDefaultLog(t *testing.T) {
+	Configure(context.TODO(), DefaultSettings())
+	go func() { D().Debug("message") }()
+	go func() { D().Debug("message") }()
+}
+
+// TestMultipleGoroutinesContextLog validates that no race conditions occur when two go routines log using the context log
+func TestMultipleGoroutinesContextLog(t *testing.T) {
+	ctx := Configure(context.Background(), DefaultSettings())
+	go func() { C(ctx).Debug("message") }()
+	go func() { C(ctx).Debug("message") }()
+}
+
+// TestMultipleGoroutinesMixedLog validates that no race conditions occur when two go routines log using both context and default log
+func TestMultipleGoroutinesMixedLog(t *testing.T) {
+	ctx := Configure(context.TODO(), DefaultSettings())
+	go func() { C(ctx).Debug("message") }()
+	go func() { D().Debug("message") }()
+}
+
 var _ = Describe("log", func() {
 	Describe("SetupLogging", func() {
 
