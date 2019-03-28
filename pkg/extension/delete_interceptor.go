@@ -67,28 +67,24 @@ func UnionDeleteInterceptor(providers []DeleteInterceptorProvider) func() Delete
 
 		for _, p := range providers {
 			hook := p.Provide()
-			if orderedProvider, isOrdered := p.(Ordered); isOrdered {
-				positionAPIType, nameAPI := orderedProvider.PositionAPI()
-				c.insertAPIFunc(positionAPIType, nameAPI, &namedDeleteAPIFunc{
-					Name: p.Name(),
-					Func: hook.OnAPIDelete,
-				})
+			positionAPIType := PositionNone
+			positionTxType := PositionNone
+			nameAPI := ""
+			nameTx := ""
 
-				positionTxType, nameTx := orderedProvider.PositionTransaction()
-				c.insertTxFunc(positionTxType, nameTx, &namedDeleteTxFunc{
-					Name: p.Name(),
-					Func: hook.OnTransactionDelete,
-				})
-			} else {
-				c.DeleteHookOnAPIFuncs = append(c.DeleteHookOnAPIFuncs, &namedDeleteAPIFunc{
-					Name: p.Name(),
-					Func: hook.OnAPIDelete,
-				})
-				c.DeleteHookOnTxFuncs = append(c.DeleteHookOnTxFuncs, &namedDeleteTxFunc{
-					Name: p.Name(),
-					Func: hook.OnTransactionDelete,
-				})
+			if orderedProvider, isOrdered := p.(Ordered); isOrdered {
+				positionAPIType, nameAPI = orderedProvider.PositionAPI()
+				positionTxType, nameTx = orderedProvider.PositionTransaction()
 			}
+
+			c.insertAPIFunc(positionAPIType, nameAPI, &namedDeleteAPIFunc{
+				Name: p.Name(),
+				Func: hook.OnAPIDelete,
+			})
+			c.insertTxFunc(positionTxType, nameTx, &namedDeleteTxFunc{
+				Name: p.Name(),
+				Func: hook.OnTransactionDelete,
+			})
 		}
 		return c
 	}
@@ -108,6 +104,10 @@ type DeleteInterceptor interface {
 }
 
 func (c *deleteHookOnAPIHandler) insertAPIFunc(positionType PositionType, name string, h *namedDeleteAPIFunc) {
+	if positionType == PositionNone {
+		c.DeleteHookOnAPIFuncs = append(c.DeleteHookOnAPIFuncs, h)
+		return
+	}
 	pos := c.findAPIFuncPosition(c.DeleteHookOnAPIFuncs, name)
 	if pos == -1 {
 		// TODO: Must validate on bootstrap
@@ -122,6 +122,10 @@ func (c *deleteHookOnAPIHandler) insertAPIFunc(positionType PositionType, name s
 }
 
 func (c *deleteHookOnAPIHandler) insertTxFunc(positionType PositionType, name string, h *namedDeleteTxFunc) {
+	if positionType == PositionNone {
+		c.DeleteHookOnTxFuncs = append(c.DeleteHookOnTxFuncs, h)
+		return
+	}
 	pos := c.findTxFuncPosition(c.DeleteHookOnTxFuncs, name)
 	if pos == -1 {
 		// TODO: Must validate on bootstrap

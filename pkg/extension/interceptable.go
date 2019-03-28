@@ -29,6 +29,7 @@ type Interceptable interface {
 type PositionType string
 
 const (
+	PositionNone   PositionType = "none"
 	PositionBefore PositionType = "before"
 	PositionAfter  PositionType = "after"
 )
@@ -41,10 +42,16 @@ type OrderedProviderImpl struct {
 }
 
 func (opi *OrderedProviderImpl) PositionTransaction() (PositionType, string) {
+	if opi.NameTx == "" {
+		return PositionNone, ""
+	}
 	return opi.PositionTypeTx, opi.NameTx
 }
 
 func (opi *OrderedProviderImpl) PositionAPI() (PositionType, string) {
+	if opi.NameAPI == "" {
+		return PositionNone, ""
+	}
 	return opi.PositionTypeAPI, opi.NameAPI
 }
 

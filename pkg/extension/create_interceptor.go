@@ -64,28 +64,24 @@ func UnionCreateInterceptor(providers []CreateInterceptorProvider) func() Create
 
 		for _, p := range providers {
 			hook := p.Provide()
-			if orderedProvider, isOrdered := p.(Ordered); isOrdered {
-				positionAPIType, nameAPI := orderedProvider.PositionAPI()
-				c.insertAPIFunc(positionAPIType, nameAPI, &namedCreateAPIFunc{
-					Name: p.Name(),
-					Func: hook.OnAPICreate,
-				})
+			positionAPIType := PositionNone
+			positionTxType := PositionNone
+			nameAPI := ""
+			nameTx := ""
 
-				positionTxType, nameTx := orderedProvider.PositionTransaction()
-				c.insertTxFunc(positionTxType, nameTx, &namedCreateTxFunc{
-					Name: p.Name(),
-					Func: hook.OnTransactionCreate,
-				})
-			} else {
-				c.CreateHookOnAPIFuncs = append(c.CreateHookOnAPIFuncs, &namedCreateAPIFunc{
-					Name: p.Name(),
-					Func: hook.OnAPICreate,
-				})
-				c.CreateHookOnTransactionFuncs = append(c.CreateHookOnTransactionFuncs, &namedCreateTxFunc{
-					Name: p.Name(),
-					Func: hook.OnTransactionCreate,
-				})
+			if orderedProvider, isOrdered := p.(Ordered); isOrdered {
+				positionAPIType, nameAPI = orderedProvider.PositionAPI()
+				positionTxType, nameTx = orderedProvider.PositionTransaction()
 			}
+
+			c.insertAPIFunc(positionAPIType, nameAPI, &namedCreateAPIFunc{
+				Name: p.Name(),
+				Func: hook.OnAPICreate,
+			})
+			c.insertTxFunc(positionTxType, nameTx, &namedCreateTxFunc{
+				Name: p.Name(),
+				Func: hook.OnTransactionCreate,
+			})
 		}
 		return c
 	}
@@ -105,6 +101,10 @@ type CreateInterceptor interface {
 }
 
 func (c *createHookOnAPIHandler) insertAPIFunc(positionType PositionType, name string, h *namedCreateAPIFunc) {
+	if positionType == PositionNone {
+		c.CreateHookOnAPIFuncs = append(c.CreateHookOnAPIFuncs, h)
+		return
+	}
 	pos := c.findAPIFuncPosition(c.CreateHookOnAPIFuncs, name)
 	if pos == -1 {
 		// TODO: Must validate on bootstrap
@@ -119,6 +119,10 @@ func (c *createHookOnAPIHandler) insertAPIFunc(positionType PositionType, name s
 }
 
 func (c *createHookOnAPIHandler) insertTxFunc(positionType PositionType, name string, h *namedCreateTxFunc) {
+	if positionType == PositionNone {
+		c.CreateHookOnTransactionFuncs = append(c.CreateHookOnTransactionFuncs, h)
+		return
+	}
 	pos := c.findTxFuncPosition(c.CreateHookOnTransactionFuncs, name)
 	if pos == -1 {
 		// TODO: Must validate on bootstrap

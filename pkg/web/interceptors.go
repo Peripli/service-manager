@@ -1,14 +1,12 @@
 package web
 
 import (
-	"fmt"
-
 	"github.com/Peripli/service-manager/pkg/extension"
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
 type concreteBuilder interface {
-	Apply(interceptables []extension.Interceptable, interceptorType types.ObjectType, orderer *extension.OrderedProviderImpl)
+	Apply(interceptables []extension.Interceptable, interceptorType types.ObjectType, orderer extension.Ordered)
 }
 
 type interceptorBuilder struct {
@@ -20,10 +18,8 @@ type interceptorBuilder struct {
 }
 
 func (creator *interceptorBuilder) Apply() {
-	if creator.orderer != nil {
-		if creator.orderer.NameAPI == "" || creator.orderer.NameTx == "" {
-			panic(fmt.Errorf("interceptor positional names are not provided"))
-		}
+	if creator.orderer == nil {
+		creator.orderer = &extension.OrderedProviderImpl{}
 	}
 	creator.concreteBuilder.Apply(creator.interceptables, creator.interceptorType, creator.orderer)
 }
@@ -81,17 +77,13 @@ type orderedUpdateInterceptorProvider struct {
 	extension.UpdateInterceptorProvider
 }
 
-func (creator *updateInterceptorBuilder) Apply(interceptables []extension.Interceptable, interceptorType types.ObjectType, orderer *extension.OrderedProviderImpl) {
+func (creator *updateInterceptorBuilder) Apply(interceptables []extension.Interceptable, interceptorType types.ObjectType, orderer extension.Ordered) {
 	for _, interceptable := range interceptables {
 		if interceptorType == interceptable.InterceptsType() {
-			if orderer == nil {
-				interceptable.AddUpdateInterceptorProviders(creator.provider)
-			} else {
-				interceptable.AddUpdateInterceptorProviders(&orderedUpdateInterceptorProvider{
-					UpdateInterceptorProvider: creator.provider,
-					Ordered:                   orderer,
-				})
-			}
+			interceptable.AddUpdateInterceptorProviders(&orderedUpdateInterceptorProvider{
+				UpdateInterceptorProvider: creator.provider,
+				Ordered:                   orderer,
+			})
 		}
 	}
 }
@@ -105,17 +97,13 @@ type createInterceptorBuilder struct {
 	provider extension.CreateInterceptorProvider
 }
 
-func (builder *createInterceptorBuilder) Apply(interceptables []extension.Interceptable, interceptorType types.ObjectType, orderer *extension.OrderedProviderImpl) {
+func (builder *createInterceptorBuilder) Apply(interceptables []extension.Interceptable, interceptorType types.ObjectType, orderer extension.Ordered) {
 	for _, interceptable := range interceptables {
 		if interceptorType == interceptable.InterceptsType() {
-			if orderer == nil {
-				interceptable.AddCreateInterceptorProviders(builder.provider)
-			} else {
-				interceptable.AddCreateInterceptorProviders(&orderedCreateInterceptorProvider{
-					CreateInterceptorProvider: builder.provider,
-					Ordered:                   orderer,
-				})
-			}
+			interceptable.AddCreateInterceptorProviders(&orderedCreateInterceptorProvider{
+				CreateInterceptorProvider: builder.provider,
+				Ordered:                   orderer,
+			})
 		}
 	}
 }
@@ -129,17 +117,13 @@ type orderedDeleteInterceptorProvider struct {
 	extension.DeleteInterceptorProvider
 }
 
-func (creator *deleteInterceptorBuilder) Apply(interceptables []extension.Interceptable, interceptorType types.ObjectType, orderer *extension.OrderedProviderImpl) {
+func (creator *deleteInterceptorBuilder) Apply(interceptables []extension.Interceptable, interceptorType types.ObjectType, orderer extension.Ordered) {
 	for _, interceptable := range interceptables {
 		if interceptorType == interceptable.InterceptsType() {
-			if orderer == nil {
-				interceptable.AddDeleteInterceptorProviders(creator.provider)
-			} else {
-				interceptable.AddDeleteInterceptorProviders(&orderedDeleteInterceptorProvider{
-					DeleteInterceptorProvider: creator.provider,
-					Ordered:                   orderer,
-				})
-			}
+			interceptable.AddDeleteInterceptorProviders(&orderedDeleteInterceptorProvider{
+				DeleteInterceptorProvider: creator.provider,
+				Ordered:                   orderer,
+			})
 		}
 	}
 }
