@@ -133,7 +133,7 @@ build-gen-binary:
 # Tests and coverage
 #-----------------------------------------------------------------------------
 
-generate: $(GENERATE_PREREQ_FILES) ## Recreates gen files if any of the files containing go:generate directives have changed
+generate: build-gen-binary $(GENERATE_PREREQ_FILES) ## Recreates gen files if any of the files containing go:generate directives have changed
 	$(GO) list ./... | xargs $(GO) generate
 	@touch $@
 

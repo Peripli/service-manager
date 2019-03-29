@@ -25,9 +25,11 @@ import (
 	"github.com/Peripli/service-manager/api/info"
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
 func TestInfo(t *testing.T) {
+	RegisterFailHandler(Fail)
 	RunSpecs(t, "Info Suite")
 }
 

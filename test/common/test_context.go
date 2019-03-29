@@ -120,7 +120,10 @@ func NewTestContextBuilder() *TestContextBuilder {
 func SetTestFileLocation(set *pflag.FlagSet) {
 	_, b, _, _ := runtime.Caller(0)
 	basePath := path.Dir(b)
-	set.Set("file.location", basePath)
+	err := set.Set("file.location", basePath)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func TestEnv(additionalFlagFuncs ...func(set *pflag.FlagSet)) env.Environment {
@@ -320,12 +323,11 @@ func (ctx *TestContext) CleanupBroker(id string) {
 }
 
 func (ctx *TestContext) Cleanup() {
-	RemoveAllBrokers(ctx.SMWithOAuth)
-	RemoveAllPlatforms(ctx.SMWithOAuth)
-
+	ctx.CleanupAdditionalResources()
 	for _, server := range ctx.Servers {
 		server.Close()
 	}
+	ctx.Servers = map[string]FakeServer{}
 }
 
 func (ctx *TestContext) CleanupAdditionalResources() {
@@ -333,4 +335,13 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 		Expect()
 	ctx.SMWithOAuth.DELETE("/v1/platforms").WithQuery("fieldQuery", "id != "+ctx.TestPlatform.ID).
 		Expect()
+	var smServer FakeServer
+	for serverName, server := range ctx.Servers {
+		if serverName == SMServer {
+			smServer = server
+		} else {
+			server.Close()
+		}
+	}
+	ctx.Servers = map[string]FakeServer{SMServer: smServer}
 }

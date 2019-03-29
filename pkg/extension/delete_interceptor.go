@@ -27,17 +27,14 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
-type DeleteHookOnAPIConstructor func(InterceptDeleteOnAPI) InterceptDeleteOnAPI
-type DeleteHookOnTransactionConstructor func(InterceptDeleteOnTransaction) InterceptDeleteOnTransaction
-
 type namedDeleteAPIFunc struct {
 	Name string
-	Func DeleteHookOnAPIConstructor
+	Func func(InterceptDeleteOnAPI) InterceptDeleteOnAPI
 }
 
 type namedDeleteTxFunc struct {
 	Name string
-	Func DeleteHookOnTransactionConstructor
+	Func func(InterceptDeleteOnTransaction) InterceptDeleteOnTransaction
 }
 
 type deleteHookOnAPIHandler struct {
@@ -59,6 +56,7 @@ func (c *deleteHookOnAPIHandler) OnTransactionDelete(f InterceptDeleteOnTransact
 	return f
 }
 
+// UnionDeleteInterceptor returns a function which spawns all delete interceptors, sorts them and wraps them into one.
 func UnionDeleteInterceptor(providers []DeleteInterceptorProvider) func() DeleteInterceptor {
 	return func() DeleteInterceptor {
 		c := &deleteHookOnAPIHandler{}
@@ -90,14 +88,21 @@ func UnionDeleteInterceptor(providers []DeleteInterceptorProvider) func() Delete
 	}
 }
 
+// DeleteInterceptorProvider provides DeleteInterceptors for each request
+//go:generate counterfeiter . DeleteInterceptorProvider
 type DeleteInterceptorProvider interface {
 	Named
 	Provide() DeleteInterceptor
 }
 
+// InterceptDeleteOnAPI hook for entity deletion outside of transaction
 type InterceptDeleteOnAPI func(ctx context.Context, deletionCriteria ...query.Criterion) (types.ObjectList, error)
+
+// InterceptDeleteOnTransaction hook for entity deletion in transaction
 type InterceptDeleteOnTransaction func(ctx context.Context, txStorage storage.Warehouse, deletionCriteria ...query.Criterion) (types.ObjectList, error)
 
+// DeleteInterceptor provides hooks on entity deletion
+//go:generate counterfeiter . DeleteInterceptor
 type DeleteInterceptor interface {
 	OnAPIDelete(h InterceptDeleteOnAPI) InterceptDeleteOnAPI
 	OnTransactionDelete(f InterceptDeleteOnTransaction) InterceptDeleteOnTransaction
