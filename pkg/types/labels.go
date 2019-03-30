@@ -28,8 +28,8 @@ type Labels map[string][]string
 
 func (l Labels) Validate() error {
 	for key, values := range l {
-		if strings.ContainsRune(key, query.Separator) || strings.ContainsRune(key, '\n') {
-			return fmt.Errorf("label key \"%s\" cannot contain whitespaces and special symbol %c", key, query.Separator)
+		if strings.Contains(key, query.Separator) || strings.ContainsRune(key, '\n') {
+			return fmt.Errorf("label key \"%s\" cannot contain whitespaces and query separator %s", key, query.Separator)
 		}
 		for _, val := range values {
 			if strings.ContainsRune(val, '\n') {

@@ -264,7 +264,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("When creating labeled visibility with key containing forbidden character", func() {
 						It("Should return 400", func() {
-							labels[fmt.Sprintf("containing%cseparator", query.Separator)] = common.Array{"val"}
+							labels[fmt.Sprintf("containing %s separator", query.Separator)] = common.Array{"val"}
 							ctx.SMWithOAuth.POST("/v1/visibilities").
 								WithJSON(postVisibilityRequestWithLabels).
 								Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains("cannot contain whitespaces and special symbol")

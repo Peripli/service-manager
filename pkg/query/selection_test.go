@@ -19,11 +19,7 @@ package query
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"net/url"
 	"strings"
-
-	"github.com/Peripli/service-manager/pkg/web"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -54,6 +50,13 @@ var _ = Describe("Selection", func() {
 			})
 			Specify("Numeric operator to non-numeric right operand", func() {
 				addInvalidCriterion(ByField(GreaterThanOperator, "leftOp", "non-numeric"))
+			})
+			Specify("Right operand containing new line", func() {
+				addInvalidCriterion(ByField(EqualsOperator, "leftOp", `value with 
+new line`))
+			})
+			Specify("Left operand with query separator", func() {
+				addInvalidCriterion(ByField(EqualsOperator, "leftop and more", "value"))
 			})
 			Specify("Field query with duplicate key", func() {
 				var err error
@@ -104,206 +107,152 @@ var _ = Describe("Selection", func() {
 		})
 	})
 
-	Describe("Build criteria from request", func() {
-		var request *web.Request
-		BeforeEach(func() {
-			request = &web.Request{}
-		})
+	Describe("Parse query", func() {
+		for _, queryType := range SupportedQueryTypes {
+			Context("With no query", func() {
+				It("Should return empty criteria", func() {
+					criteria, err := Parse(queryType, "")
+					Expect(err).ToNot(HaveOccurred())
+					Expect(len(criteria)).To(Equal(0))
+				})
+			})
 
-		buildCriteria := func(url string) ([]Criterion, error) {
-			newRequest, err := http.NewRequest(http.MethodGet, url, nil)
-			Expect(err).ToNot(HaveOccurred())
-			request = &web.Request{Request: newRequest}
-			return BuildCriteriaFromRequest(request)
+			Context("With missing query operator", func() {
+				It("Should return an error", func() {
+					criteriaFromRequest, err := Parse(queryType, "leftop_rightop")
+					Expect(err).To(HaveOccurred())
+					Expect(criteriaFromRequest).To(BeNil())
+				})
+			})
+
+			Context("When there is an invalid field query", func() {
+				It("Should return an error", func() {
+					criteriaFromRequest, err := Parse(queryType, "leftop lt 'rightop'")
+					Expect(err).To(HaveOccurred())
+					Expect(criteriaFromRequest).To(BeNil())
+				})
+			})
+
+			Context("When passing multivariate query", func() {
+				It("Should be ok", func() {
+					criteriaFromRequest, err := Parse(queryType, "leftop in ['rightop', 'rightop2']")
+					Expect(err).ToNot(HaveOccurred())
+					Expect(criteriaFromRequest).To(ConsistOf(newCriterion("leftop", InOperator, []string{"rightop2", "rightop"}, queryType)))
+				})
+			})
+
+			Context("When passing multiple queries", func() {
+				It("Should build criteria", func() {
+					criteriaFromRequest, err := Parse(queryType, "leftop1 in ['rightop','rightop2'] and leftop2 eq 'rightop3'")
+					Expect(err).ToNot(HaveOccurred())
+					Expect(criteriaFromRequest).To(ConsistOf(newCriterion("leftop1", InOperator, []string{"rightop2", "rightop"}, queryType), newCriterion("leftop2", EqualsOperator, []string{"rightop3"}, queryType)))
+				})
+			})
+
+			Context("Operator is unsupported", func() {
+				It("Should return error", func() {
+					criteriaFromRequest, err := Parse(queryType, "leftop1 @ ['rightop', 'rightop2']")
+					Expect(err).To(HaveOccurred())
+					Expect(criteriaFromRequest).To(BeNil())
+				})
+			})
+
+			Context("Right operand is empty", func() {
+				It("Should be ok", func() {
+					criteriaFromRequest, err := Parse(queryType, "leftop1 in []")
+					Expect(err).ToNot(HaveOccurred())
+					Expect(criteriaFromRequest).ToNot(BeNil())
+					Expect(criteriaFromRequest).To(ConsistOf(newCriterion("leftop1", InOperator, []string{""}, queryType)))
+				})
+			})
+			Context("Multivariate operator with right operand without opening brace", func() {
+				It("Should return error", func() {
+					criteriaFromRequest, err := Parse(queryType, "leftop in 'rightop','rightop2']")
+					Expect(err).To(HaveOccurred())
+					Expect(criteriaFromRequest).To(BeNil())
+				})
+			})
+			Context("Multivariate operator with right operand without closing brace", func() {
+				It("Should return error", func() {
+					criteriaFromRequest, err := Parse(queryType, "leftop in ['rightop','rightop2'")
+					Expect(err).To(HaveOccurred())
+					Expect(criteriaFromRequest).To(BeNil())
+				})
+			})
+			Context("Right operand with escaped quote", func() {
+				It("Should be okay", func() {
+					criteriaFromRequest, err := Parse(queryType, "leftop1 eq 'right''op'")
+					Expect(err).ToNot(HaveOccurred())
+					Expect(criteriaFromRequest).ToNot(BeNil())
+					Expect(criteriaFromRequest).To(ConsistOf(newCriterion("leftop1", EqualsOperator, []string{"right'op"}, queryType)))
+				})
+			})
+			Context("Complex right operand", func() {
+				It("Should be okay", func() {
+					rightOp := "this is a mixed, input example. It contains symbols   words ! -h@ppy p@rs'ng"
+					escaped := strings.Replace(rightOp, "'", "''", -1)
+					criteriaFromRequest, err := Parse(queryType, `leftop1 eq `+fmt.Sprintf("'%s'", escaped))
+					Expect(err).ToNot(HaveOccurred())
+					Expect(criteriaFromRequest).ToNot(BeNil())
+					Expect(criteriaFromRequest).To(ConsistOf(newCriterion("leftop1", EqualsOperator, []string{rightOp}, queryType)))
+				})
+			})
+
+			Context("Duplicate query key", func() {
+				It("Should return error", func() {
+					criteriaFromRequest, err := Parse(queryType, "leftop1 eq 'rightop' and leftop1 eq 'rightop2'")
+					Expect(err).To(HaveOccurred())
+					Expect(criteriaFromRequest).To(BeNil())
+				})
+			})
+
+			//Context("With different operators and query type combinations", func() {
+			//	for _, op := range operators {
+			//		for _, queryType := range []CriterionType{FieldQuery, LabelQuery} {
+			//			It("Should behave as expected", func() {
+			//				rightOp := []string{"rightOp"}
+			//				stringParam := rightOp[0]
+			//				if op.IsMultiVariate() {
+			//					rightOp = []string{"rightOp1", "rightOp2"}
+			//					stringParam = fmt.Sprintf("[%s]", strings.Join(rightOp, "||"))
+			//				}
+			//				criteriaFromRequest, err := buildCriteria(fmt.Sprintf("http://localhost:8080/v1/visibilities?%s=leftop %s '%s'", queryType, op, stringParam))
+			//				if op.IsNullable() && queryType == LabelQuery {
+			//					Expect(err).To(HaveOccurred())
+			//					Expect(criteriaFromRequest).To(BeNil())
+			//				} else {
+			//					Expect(err).ToNot(HaveOccurred())
+			//					Expect(criteriaFromRequest).ToNot(BeNil())
+			//					expectedQuery := newCriterion("leftop1", op, rightOp, queryType)
+			//					Expect(criteriaFromRequest).To(ConsistOf(expectedQuery))
+			//				}
+			//			})
+			//		}
+			//	}
+			//})
+
+			Context("When separator is not properly escaped in first query value", func() {
+				It("Should return error", func() {
+					criteriaFromRequest, err := Parse(queryType, `leftop1 eq 'not'escaped' and leftOp2 eq 'rightOp'`)
+					Expect(err).To(HaveOccurred())
+					Expect(criteriaFromRequest).To(BeNil())
+				})
+			})
+
+			Context("When separator is not escaped in value", func() {
+				It("Trims the value to the separator", func() {
+					criteriaFromRequest, err := Parse(queryType, `leftop1 eq 'not'escaped'`)
+					Expect(err).To(HaveOccurred())
+					Expect(criteriaFromRequest).To(BeNil())
+				})
+
+				It("Should fail", func() {
+					criteriaFromRequest, err := Parse(queryType, `leftop1eq 'notescaped'`)
+					Expect(err).To(HaveOccurred())
+					fmt.Println(err)
+					Expect(criteriaFromRequest).To(BeNil())
+				})
+			})
 		}
-
-		Context("When build from request with no query parameters", func() {
-			It("Should return empty criteria", func() {
-				criteriaFromRequest, err := buildCriteria("http://localhost:8080")
-				Expect(err).ToNot(HaveOccurred())
-				Expect(len(criteriaFromRequest)).To(Equal(0))
-			})
-		})
-
-		Context("With missing query operator", func() {
-			It("Should return an error", func() {
-				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop_rightop")
-				Expect(err).To(HaveOccurred())
-				Expect(criteriaFromRequest).To(BeNil())
-			})
-		})
-
-		Context("When there is an invalid field query", func() {
-			It("Should return an error", func() {
-				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop lt 'rightop'")
-				Expect(err).To(HaveOccurred())
-				Expect(criteriaFromRequest).To(BeNil())
-			})
-		})
-
-		Context("When passing multivariate query", func() {
-			It("Should be ok", func() {
-				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop in ['rightop', 'rightop2']")
-				Expect(err).ToNot(HaveOccurred())
-				Expect(criteriaFromRequest).To(ConsistOf(ByField(InOperator, "leftop", "rightop2", "rightop")))
-			})
-		})
-
-		Context("When passing label query", func() {
-			It("Should be ok", func() {
-				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?labelQuery=leftop in ['rightop', 'rightop2']")
-				Expect(err).ToNot(HaveOccurred())
-				Expect(criteriaFromRequest).To(ConsistOf(ByLabel(InOperator, "leftop", "rightop2", "rightop")))
-			})
-		})
-
-		Context("When passing label and field query", func() {
-			It("Should be ok", func() {
-				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop in ['rightop', 'rightop2']&labelQuery=leftop in ['rightop', 'rightop2']")
-				Expect(err).ToNot(HaveOccurred())
-				Expect(criteriaFromRequest).To(ConsistOf(ByField(InOperator, "leftop", "rightop2", "rightop"), ByLabel(InOperator, "leftop", "rightop2", "rightop")))
-			})
-		})
-
-		Context("When passing multiple field queries", func() {
-			It("Should build criteria", func() {
-				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop1 in ['rightop','rightop2'] and leftop2 eq 'rightop3'")
-				Expect(err).ToNot(HaveOccurred())
-				Expect(criteriaFromRequest).To(ConsistOf(ByField(InOperator, "leftop1", "rightop2", "rightop"), ByField(EqualsOperator, "leftop2", "rightop3")))
-			})
-		})
-
-		Context("When passing multiple label queries", func() {
-			It("Should build criteria", func() {
-				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?labelQuery=leftop1 in ['rightop', 'rightop2'] and leftop2 eq 'rightop3'")
-				Expect(err).ToNot(HaveOccurred())
-				Expect(criteriaFromRequest).To(ConsistOf(ByLabel(InOperator, "leftop1", "rightop2", "rightop"), ByLabel(EqualsOperator, "leftop2", "rightop3")))
-			})
-		})
-
-		Context("Operator is unsupported", func() {
-			It("Should return error", func() {
-				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop1 @ ['rightop', 'rightop2']")
-				Expect(err).To(HaveOccurred())
-				Expect(criteriaFromRequest).To(BeNil())
-			})
-		})
-
-		Context("Operand has encoded value", func() {
-			It("Should be ok", func() {
-				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop1 in ['%2Frightop', 'rightop2']")
-				Expect(err).ToNot(HaveOccurred())
-				Expect(criteriaFromRequest).ToNot(BeNil())
-				expectedQuery := ByField(InOperator, "leftop1", "rightop2", "/rightop")
-				Expect(criteriaFromRequest).To(ConsistOf(expectedQuery))
-			})
-		})
-		Context("Right operand is empty", func() {
-			It("Should be ok", func() {
-				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop1 in []")
-				Expect(err).ToNot(HaveOccurred())
-				Expect(criteriaFromRequest).ToNot(BeNil())
-				expectedQuery := ByField(InOperator, "leftop1", "")
-				Expect(criteriaFromRequest).To(ConsistOf(expectedQuery))
-			})
-		})
-		Context("Multivariate operator with right operand without opening brace", func() {
-			It("Should return error", func() {
-				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop in 'rightop','rightop2']")
-				Expect(err).To(HaveOccurred())
-				Expect(criteriaFromRequest).To(BeNil())
-			})
-		})
-		Context("Multivariate operator with right operand without closing brace", func() {
-			It("Should return error", func() {
-				criteriaFromRequest, err := buildCriteria("http://localhost:8080/v1/visibilities?fieldQuery=leftop in ['rightop','rightop2'")
-				Expect(err).To(HaveOccurred())
-				Expect(criteriaFromRequest).To(BeNil())
-			})
-		})
-		Context("Right operand with escaped quote", func() {
-			It("Should be okay", func() {
-				criteriaFromRequest, err := buildCriteria(`http://localhost:8080/v1/visibilities?fieldQuery=leftop1 eq 'right''op'`)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(criteriaFromRequest).ToNot(BeNil())
-				expectedQuery := ByField(EqualsOperator, "leftop1", "right'op")
-				Expect(criteriaFromRequest).To(ConsistOf(expectedQuery))
-			})
-		})
-		Context("Complex right operand", func() {
-			It("Should be okay", func() {
-				rightOp := "this is a mixed, input example. It contains symbols   words ! -h@ppy p@rs'ng"
-				escaped := url.QueryEscape(strings.Replace(rightOp, "'", "''", -1))
-				criteriaFromRequest, err := buildCriteria(`http://localhost:8080/v1/visibilities?fieldQuery=leftop1 eq ` + fmt.Sprintf("'%s'", escaped))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(criteriaFromRequest).ToNot(BeNil())
-				expectedQuery := ByField(EqualsOperator, "leftop1", rightOp)
-				Expect(criteriaFromRequest).To(ConsistOf(expectedQuery))
-			})
-		})
-
-		Context("Duplicate field query key", func() {
-			It("Should return error", func() {
-				criteriaFromRequest, err := buildCriteria(`http://localhost:8080/v1/visibilities?fieldQuery=leftop1 eq 'rightop' and leftop1 eq 'rightop2'`)
-				Expect(err).To(HaveOccurred())
-				Expect(criteriaFromRequest).To(BeNil())
-			})
-		})
-
-		Context("Duplicate label query key", func() {
-			It("Should return error", func() {
-				criteriaFromRequest, err := buildCriteria(`http://localhost:8080/v1/visibilities?labelQuery=leftop1 eq 'rightop' and leftop1 eq 'rightop2'`)
-				Expect(err).To(HaveOccurred())
-				Expect(criteriaFromRequest).To(BeNil())
-			})
-		})
-
-		Context("With different operators and query type combinations", func() {
-			for _, op := range operators {
-				for _, queryType := range []CriterionType{FieldQuery, LabelQuery} {
-					It("Should behave as expected", func() {
-						rightOp := []string{"rightOp"}
-						stringParam := rightOp[0]
-						if op.IsMultiVariate() {
-							rightOp = []string{"rightOp1", "rightOp2"}
-							stringParam = fmt.Sprintf("[%s]", strings.Join(rightOp, "||"))
-						}
-						criteriaFromRequest, err := buildCriteria(fmt.Sprintf("http://localhost:8080/v1/visibilities?%s=leftop %s '%s'", queryType, op, stringParam))
-						if op.IsNullable() && queryType == LabelQuery {
-							Expect(err).To(HaveOccurred())
-							Expect(criteriaFromRequest).To(BeNil())
-						} else {
-							Expect(err).ToNot(HaveOccurred())
-							Expect(criteriaFromRequest).ToNot(BeNil())
-							expectedQuery := newCriterion("leftop1", op, rightOp, queryType)
-							Expect(criteriaFromRequest).To(ConsistOf(expectedQuery))
-						}
-					})
-				}
-			}
-		})
-
-		Context("When separator is not properly escaped in first query value", func() {
-			It("Should return error", func() {
-				criteriaFromRequest, err := buildCriteria(`http://localhost:8080/v1/visibilities?fieldQuery=leftop1 eq 'not'escaped' and leftOp2 eq 'rightOp'`)
-				Expect(err).To(HaveOccurred())
-				Expect(criteriaFromRequest).To(BeNil())
-			})
-		})
-
-		Context("When separator is not escaped in value", func() {
-			It("Trims the value to the separator", func() {
-				criteriaFromRequest, err := buildCriteria(`http://localhost:8080/v1/visibilities?fieldQuery=leftop1 eq 'not'escaped'`)
-				Expect(err).To(HaveOccurred())
-				Expect(criteriaFromRequest).To(BeNil())
-			})
-
-			FIt("Should fail", func() {
-				criteriaFromRequest, err := buildCriteria(`http://localhost:8080/v1/visibilities?fieldQuery=leftop1eq 'notescaped'`)
-				Expect(err).To(HaveOccurred())
-				fmt.Println(err)
-				Expect(criteriaFromRequest).To(BeNil())
-			})
-		})
 	})
 })

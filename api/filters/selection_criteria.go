@@ -48,9 +48,7 @@ func (l *SelectionCriteria) Run(req *web.Request, next web.Handler) (*web.Respon
 		if err != nil {
 			return nil, util.HandleSelectionError(err)
 		}
-		if criteria, err = query.MergeCriteria(criteria, queryCriteria); err != nil {
-			return nil, err
-		}
+		criteria = append(criteria, queryCriteria...)
 	}
 	ctx, err := query.AddCriteria(ctx, criteria...)
 	if err != nil {

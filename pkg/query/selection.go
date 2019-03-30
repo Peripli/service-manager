@@ -23,8 +23,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Peripli/service-manager/pkg/web"
-
 	"github.com/Peripli/service-manager/pkg/query/parser"
 	"github.com/antlr/antlr4/runtime/Go/antlr"
 
@@ -71,7 +69,7 @@ var operators = []Operator{EqualsOperator, NotEqualsOperator, InOperator,
 
 const (
 	// Separator is the separator between field and label queries
-	Separator rune = '|'
+	Separator string = "and"
 )
 
 // CriterionType is a type of criteria to be applied when querying
@@ -122,12 +120,8 @@ func (c Criterion) Validate() error {
 	if c.Operator.IsNumeric() && !isNumeric(c.RightOp[0]) {
 		return &util.UnsupportedQueryError{Message: fmt.Sprintf("%s is numeric operator, but the right operand %s is not numeric", c.Operator, c.RightOp[0])}
 	}
-	if strings.ContainsRune(c.LeftOp, Separator) {
-		parts := strings.FieldsFunc(c.LeftOp, func(r rune) bool {
-			return r == Separator
-		})
-		possibleKey := parts[len(parts)-1]
-		return &util.UnsupportedQueryError{Message: fmt.Sprintf("separator %c is not allowed in %s with left operand \"%s\". Maybe you meant \"%s\"? Make sure if the separator is present in any right operand, that it is escaped with a backslash (\\)", Separator, c.Type, c.LeftOp, possibleKey)}
+	if strings.Contains(c.LeftOp, Separator) {
+		return &util.UnsupportedQueryError{Message: fmt.Sprintf("separator %s is not allowed in %s with left operand \"%s\".", Separator, c.Type, c.LeftOp)}
 	}
 	for _, op := range c.RightOp {
 		if strings.ContainsRune(op, '\n') {
@@ -137,12 +131,11 @@ func (c Criterion) Validate() error {
 	return nil
 }
 
-func MergeCriteria(c1 []Criterion, c2 []Criterion) ([]Criterion, error) {
-	result := c1
+func validateCriteria(c []Criterion) error {
 	fieldQueryLeftOperands := make(map[string]int)
 	labelQueryLeftOperands := make(map[string]int)
 
-	for _, criterion := range append(c1, c2...) {
+	for _, criterion := range c {
 		if criterion.Type == FieldQuery {
 			fieldQueryLeftOperands[criterion.LeftOp]++
 		}
@@ -151,22 +144,21 @@ func MergeCriteria(c1 []Criterion, c2 []Criterion) ([]Criterion, error) {
 		}
 	}
 
-	for _, newCriterion := range c2 {
+	for _, newCriterion := range c {
 		leftOp := newCriterion.LeftOp
 		// disallow duplicate label queries
 		if count, ok := labelQueryLeftOperands[leftOp]; ok && count > 1 && newCriterion.Type == LabelQuery {
-			return nil, &util.UnsupportedQueryError{Message: fmt.Sprintf("duplicate label query key: %s", newCriterion.LeftOp)}
+			return &util.UnsupportedQueryError{Message: fmt.Sprintf("duplicate label query key: %s", newCriterion.LeftOp)}
 		}
 		// disallow duplicate field query keys
 		if count, ok := fieldQueryLeftOperands[leftOp]; ok && count > 1 && newCriterion.Type == FieldQuery {
-			return nil, &util.UnsupportedQueryError{Message: fmt.Sprintf("duplicate field query key: %s", newCriterion.LeftOp)}
+			return &util.UnsupportedQueryError{Message: fmt.Sprintf("duplicate field query key: %s", newCriterion.LeftOp)}
 		}
 		if err := newCriterion.Validate(); err != nil {
-			return nil, err
+			return err
 		}
 	}
-	result = append(result, c2...)
-	return result, nil
+	return nil
 }
 
 type criteriaCtxKey struct{}
@@ -174,8 +166,8 @@ type criteriaCtxKey struct{}
 // AddCriteria adds the given criteria to the context and returns an error if any of the criteria is not valid
 func AddCriteria(ctx context.Context, newCriteria ...Criterion) (context.Context, error) {
 	currentCriteria := CriteriaForContext(ctx)
-	criteria, err := MergeCriteria(currentCriteria, newCriteria)
-	if err != nil {
+	criteria := append(currentCriteria, newCriteria...)
+	if err := validateCriteria(criteria); err != nil {
 		return nil, err
 	}
 	return context.WithValue(ctx, criteriaCtxKey{}, criteria), nil
@@ -193,25 +185,6 @@ func CriteriaForContext(ctx context.Context) []Criterion {
 // ContextWithCriteria returns a new context with given criteria
 func ContextWithCriteria(ctx context.Context, criteria []Criterion) context.Context {
 	return context.WithValue(ctx, criteriaCtxKey{}, criteria)
-}
-
-// BuildCriteriaFromRequest builds criteria for the given request's query params and returns an error if the query is not valid
-func BuildCriteriaFromRequest(request *web.Request) ([]Criterion, error) {
-	var criteria []Criterion
-	for _, queryType := range SupportedQueryTypes {
-		queryValues := request.URL.Query().Get(string(queryType))
-		querySegments, err := Parse(queryType, queryValues)
-		if err != nil {
-			return nil, err
-		}
-		if criteria, err = MergeCriteria(criteria, querySegments); err != nil {
-			return nil, err
-		}
-	}
-	sort.Slice(criteria, func(i, j int) bool {
-		return criteria[i].LeftOp < criteria[j].LeftOp
-	})
-	return criteria, nil
 }
 
 // Parse parses the query expression for and builds criteria for the provided type
@@ -235,6 +208,9 @@ func Parse(criterionType CriterionType, expression string) ([]Criterion, error) 
 	}
 
 	criteria := parsingListener.result
+	if err := validateCriteria(criteria); err != nil {
+		return nil, err
+	}
 	sort.Slice(criteria, func(i, j int) bool {
 		return criteria[i].LeftOp < criteria[j].LeftOp
 	})
