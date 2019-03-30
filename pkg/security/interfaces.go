@@ -60,7 +60,7 @@ type Authenticator interface {
 type Authorizer interface {
 	// Authorize returns decision specifying
 	// whether the authorizer ran or not and an error if one occurs
-	Authorize(req *http.Request) (Decision, error)
+	Authorize(req *web.Request) (Decision, error)
 }
 
 // TokenData represents the authentication token

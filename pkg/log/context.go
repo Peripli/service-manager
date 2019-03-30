@@ -147,17 +147,11 @@ func copyEntry(entry *logrus.Entry) *logrus.Entry {
 	for k, v := range entry.Data {
 		entryData[k] = v
 	}
-	return &logrus.Entry{
-		Logger: &logrus.Logger{
-			Level:     entry.Logger.Level,
-			Formatter: entry.Logger.Formatter,
-			Hooks:     entry.Logger.Hooks,
-			Out:       entry.Logger.Out,
-		},
-		Level:   entry.Level,
-		Data:    entryData,
-		Time:    entry.Time,
-		Message: entry.Message,
-		Buffer:  entry.Buffer,
-	}
+	newEntry := logrus.NewEntry(entry.Logger)
+	newEntry.Level = entry.Level
+	newEntry.Data = entryData
+	newEntry.Time = entry.Time
+	newEntry.Message = entry.Message
+	newEntry.Buffer = entry.Buffer
+	return newEntry
 }
