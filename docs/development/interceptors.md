@@ -97,7 +97,7 @@ func (c *createInterceptorProvider) Provide() extension.CreateInterceptor {
 	return &CreateInterceptor{}
 }
 func (c *createInterceptorProvider) Name() string {
-	return "CreateBrokerInterceptorProvider"
+	return "CreateInterceptorProvider"
 }
 
 type CreateInterceptor struct {
