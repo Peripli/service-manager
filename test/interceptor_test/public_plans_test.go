@@ -14,15 +14,19 @@
  * limitations under the License.
  */
 
-package filter_test
+package interceptor_test
 
 import (
 	"context"
 	"net/http"
+	"testing"
+
+	"github.com/Peripli/service-manager/api/broker"
+
+	"github.com/Peripli/service-manager/api/interceptors"
 
 	"github.com/Peripli/service-manager/pkg/env"
 
-	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/pkg/sm"
 	"github.com/Peripli/service-manager/pkg/types"
 
@@ -37,7 +41,12 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Service Manager Public Plans Filter", func() {
+func TestInterceptors(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Interceptor Tests Suite")
+}
+
+var _ = Describe("Service Manager Public Plans Interceptor", func() {
 	var ctx *common.TestContext
 	var existingBrokerID string
 	var existingBrokerServer *common.BrokerServer
@@ -89,12 +98,17 @@ var _ = Describe("Service Manager Public Plans Filter", func() {
 
 	BeforeEach(func() {
 		ctx = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
-			smb.RegisterFilters(&filters.PublicServicePlansFilter{
-				Repository: smb.Storage,
+			smb.RegisterCreateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanCreateInterceptorProvider{
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return catalogPlan.Free, nil
 				},
-			})
+			}).TxBefore(broker.CreateBrokerInterceptor).Apply()
+
+			smb.RegisterUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanUpdateInterceptorProvider{
+				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
+					return catalogPlan.Free, nil
+				},
+			}).TxBefore(broker.UpdateBrokerInterceptor).Apply()
 			return nil
 		}).Build()
 
