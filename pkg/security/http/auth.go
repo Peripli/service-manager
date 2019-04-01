@@ -23,13 +23,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-// TokenVerifier attempts to verify a token and returns it or an error if the verification was not successful
-//go:generate counterfeiter . TokenVerifier
-type TokenVerifier interface {
-	// Verify verifies that the token is valid and returns a token if so, otherwise returns an error
-	Verify(ctx context.Context, token string) (TokenData, error)
-}
-
 // Decision represents a decision to allow or deny further
 // processing or to abstain from taking a decision
 type Decision int
@@ -67,7 +60,7 @@ type Authenticator interface {
 type Authorizer interface {
 	// Authorize returns decision specifying
 	// whether the authorizer ran or not and an error if one occurs
-	Authorize(req *http.Request) (Decision, error)
+	Authorize(req *web.Request) (Decision, error)
 }
 
 // TokenData represents the authentication token
@@ -75,4 +68,11 @@ type Authorizer interface {
 type TokenData interface {
 	// Claims reads the claims from the token into the specified struct
 	Claims(v interface{}) error
+}
+
+// TokenVerifier attempts to verify a token and returns it or an error if the verification was not successful
+//go:generate counterfeiter . TokenVerifier
+type TokenVerifier interface {
+	// Verify verifies that the token is valid and returns a token if so, otherwise returns an error
+	Verify(ctx context.Context, token string) (TokenData, error)
 }

@@ -24,7 +24,7 @@ import (
 	"net/url"
 	"strings"
 
-	http2 "github.com/Peripli/service-manager/pkg/security/http"
+	httpsec "github.com/Peripli/service-manager/pkg/security/http"
 
 	"fmt"
 
@@ -64,12 +64,12 @@ type oidcVerifier struct {
 }
 
 // Verify implements security.TokenVerifier and delegates to oidc.IDTokenVerifier
-func (v *oidcVerifier) Verify(ctx context.Context, idToken string) (http2.TokenData, error) {
+func (v *oidcVerifier) Verify(ctx context.Context, idToken string) (httpsec.TokenData, error) {
 	return v.IDTokenVerifier.Verify(ctx, idToken)
 }
 
 type oidcData struct {
-	http2.TokenData
+	httpsec.TokenData
 }
 
 func (td *oidcData) Data(v interface{}) error {
@@ -78,11 +78,11 @@ func (td *oidcData) Data(v interface{}) error {
 
 // OauthAuthenticator is the OpenID implementation of security.Authenticator
 type OauthAuthenticator struct {
-	Verifier http2.TokenVerifier
+	Verifier httpsec.TokenVerifier
 }
 
 // NewOIDCAuthenticator returns a new OpenID authenticator or an error if one couldn't be configured
-func NewOIDCAuthenticator(ctx context.Context, options *OIDCOptions) (http2.Authenticator, string, error) {
+func NewOIDCAuthenticator(ctx context.Context, options *OIDCOptions) (httpsec.Authenticator, string, error) {
 	if options.IssuerURL == "" {
 		return nil, "", errors.New("missing issuer URL")
 	}
@@ -114,30 +114,30 @@ func newOIDCConfig(options *OIDCOptions) *goidc.Config {
 }
 
 // Authenticate returns information about the user by obtaining it from the bearer token, or an error if security is unsuccessful
-func (a *OauthAuthenticator) Authenticate(request *http.Request) (*web.UserContext, http2.Decision, error) {
+func (a *OauthAuthenticator) Authenticate(request *http.Request) (*web.UserContext, httpsec.Decision, error) {
 	authorizationHeader := request.Header.Get("Authorization")
 	if authorizationHeader == "" || !strings.HasPrefix(strings.ToLower(authorizationHeader), "bearer ") {
-		return nil, http2.Abstain, nil
+		return nil, httpsec.Abstain, nil
 	}
 	if a.Verifier == nil {
-		return nil, http2.Abstain, errors.New("authenticator is not configured")
+		return nil, httpsec.Abstain, errors.New("authenticator is not configured")
 	}
 	token := strings.TrimSpace(authorizationHeader[len("Bearer "):])
 	if token == "" {
-		return nil, http2.Deny, nil
+		return nil, httpsec.Deny, nil
 	}
 	idToken, err := a.Verifier.Verify(request.Context(), token)
 	if err != nil {
-		return nil, http2.Deny, err
+		return nil, httpsec.Deny, err
 	}
 	claims := &claims{}
 	if err := idToken.Claims(claims); err != nil {
-		return nil, http2.Deny, err
+		return nil, httpsec.Deny, err
 	}
 	return &web.UserContext{
 		Name: claims.Username,
 		Data: &oidcData{TokenData: idToken},
-	}, http2.Allow, nil
+	}, httpsec.Allow, nil
 }
 
 func getOpenIDConfig(ctx context.Context, options *OIDCOptions) (*http.Response, error) {

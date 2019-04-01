@@ -22,7 +22,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	http2 "github.com/Peripli/service-manager/pkg/security/http"
+	httpsec "github.com/Peripli/service-manager/pkg/security/http"
 
 	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/security/http/httpfakes"
@@ -79,7 +79,7 @@ var _ = Describe("Middlewares tests", func() {
 			Context("when authorizer returns decision", func() {
 				Context("Deny", func() {
 					It("should return error", func() {
-						authorizer.AuthorizeReturns(http2.Deny, nil)
+						authorizer.AuthorizeReturns(httpsec.Deny, nil)
 						authzFilter := NewAuthzMiddleware(filterName, authorizer)
 						_, err := authzFilter.Run(req, handler)
 						httpErr, ok := err.(*util.HTTPError)
@@ -89,7 +89,7 @@ var _ = Describe("Middlewares tests", func() {
 				})
 				Context("Abstain", func() {
 					It("should continue with calling handler", func() {
-						authorizer.AuthorizeReturns(http2.Abstain, nil)
+						authorizer.AuthorizeReturns(httpsec.Abstain, nil)
 						handler.HandleReturns(nil, errors.New(expectedErrorMessage))
 						authzFilter := NewAuthzMiddleware(filterName, authorizer)
 						_, err := authzFilter.Run(req, handler)
@@ -99,7 +99,7 @@ var _ = Describe("Middlewares tests", func() {
 				})
 				Context("Allow", func() {
 					It("should add authorization flag in request context", func() {
-						authorizer.AuthorizeReturns(http2.Allow, nil)
+						authorizer.AuthorizeReturns(httpsec.Allow, nil)
 						handler.HandleReturns(nil, errors.New(expectedErrorMessage))
 						authzFilter := NewAuthzMiddleware(filterName, authorizer)
 						_, err := authzFilter.Run(req, handler)
@@ -112,7 +112,7 @@ var _ = Describe("Middlewares tests", func() {
 			Context("when authorizer returns error", func() {
 				Context("and decision Abstain", func() {
 					It("should return error", func() {
-						authorizer.AuthorizeReturns(http2.Abstain, errors.New(expectedErrorMessage))
+						authorizer.AuthorizeReturns(httpsec.Abstain, errors.New(expectedErrorMessage))
 						authzFilter := NewAuthzMiddleware(filterName, authorizer)
 						_, err := authzFilter.Run(req, handler)
 						checkExpectedErrorMessage(expectedErrorMessage, err)
@@ -121,7 +121,7 @@ var _ = Describe("Middlewares tests", func() {
 
 				Context("and decision Deny", func() {
 					It("should return http error 403", func() {
-						authorizer.AuthorizeReturns(http2.Deny, errors.New(expectedErrorMessage))
+						authorizer.AuthorizeReturns(httpsec.Deny, errors.New(expectedErrorMessage))
 						authzFilter := NewAuthzMiddleware(filterName, authorizer)
 						_, err := authzFilter.Run(req, handler)
 						checkExpectedErrorMessage(expectedErrorMessage, err)
@@ -178,7 +178,7 @@ var _ = Describe("Middlewares tests", func() {
 			Context("when authenticator returns decision", func() {
 				Context("Deny", func() {
 					It("should return error", func() {
-						authenticator.AuthenticateReturns(nil, http2.Deny, nil)
+						authenticator.AuthenticateReturns(nil, httpsec.Deny, nil)
 						authzFilter := NewAuthnMiddleware(filterName, authenticator)
 						_, err := authzFilter.Run(req, handler)
 						httpErr, ok := err.(*util.HTTPError)
@@ -188,7 +188,7 @@ var _ = Describe("Middlewares tests", func() {
 				})
 				Context("Abstain", func() {
 					It("should continue with calling handler", func() {
-						authenticator.AuthenticateReturns(nil, http2.Abstain, nil)
+						authenticator.AuthenticateReturns(nil, httpsec.Abstain, nil)
 						handler.HandleReturns(nil, errors.New(expectedErrorMessage))
 						authzFilter := NewAuthnMiddleware(filterName, authenticator)
 						_, err := authzFilter.Run(req, handler)
@@ -200,7 +200,7 @@ var _ = Describe("Middlewares tests", func() {
 				Context("Allow", func() {
 					Context("with user", func() {
 						It("should add user in request context", func() {
-							authenticator.AuthenticateReturns(&web.UserContext{}, http2.Allow, nil)
+							authenticator.AuthenticateReturns(&web.UserContext{}, httpsec.Allow, nil)
 							handler.HandleReturns(nil, errors.New(expectedErrorMessage))
 							authzFilter := NewAuthnMiddleware(filterName, authenticator)
 							_, err := authzFilter.Run(req, handler)
@@ -212,7 +212,7 @@ var _ = Describe("Middlewares tests", func() {
 					})
 					Context("without user", func() {
 						It("should return error", func() {
-							authenticator.AuthenticateReturns(nil, http2.Allow, nil)
+							authenticator.AuthenticateReturns(nil, httpsec.Allow, nil)
 							handler.HandleReturns(nil, errors.New(expectedErrorMessage))
 							authzFilter := NewAuthnMiddleware(filterName, authenticator)
 							_, err := authzFilter.Run(req, handler)
@@ -225,7 +225,7 @@ var _ = Describe("Middlewares tests", func() {
 			Context("when authenticator returns error", func() {
 				Context("and decision Abstain", func() {
 					It("should return error", func() {
-						authenticator.AuthenticateReturns(nil, http2.Abstain, errors.New(expectedErrorMessage))
+						authenticator.AuthenticateReturns(nil, httpsec.Abstain, errors.New(expectedErrorMessage))
 						authzFilter := NewAuthnMiddleware(filterName, authenticator)
 						_, err := authzFilter.Run(req, handler)
 						checkExpectedErrorMessage(expectedErrorMessage, err)
@@ -234,7 +234,7 @@ var _ = Describe("Middlewares tests", func() {
 
 				Context("and decision Deny", func() {
 					It("should return http error 403", func() {
-						authenticator.AuthenticateReturns(nil, http2.Deny, errors.New(expectedErrorMessage))
+						authenticator.AuthenticateReturns(nil, httpsec.Deny, errors.New(expectedErrorMessage))
 						authzFilter := NewAuthnMiddleware(filterName, authenticator)
 						_, err := authzFilter.Run(req, handler)
 						checkExpectedErrorMessage(expectedErrorMessage, err)

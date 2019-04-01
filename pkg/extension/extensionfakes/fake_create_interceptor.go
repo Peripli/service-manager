@@ -19,15 +19,15 @@ type FakeCreateInterceptor struct {
 	onAPICreateReturnsOnCall map[int]struct {
 		result1 extension.InterceptCreateOnAPI
 	}
-	OnTransactionCreateStub        func(f extension.InterceptCreateOnTx) extension.InterceptCreateOnTx
-	onTransactionCreateMutex       sync.RWMutex
-	onTransactionCreateArgsForCall []struct {
+	OnTxCreateStub        func(f extension.InterceptCreateOnTx) extension.InterceptCreateOnTx
+	onTxCreateMutex       sync.RWMutex
+	onTxCreateArgsForCall []struct {
 		f extension.InterceptCreateOnTx
 	}
-	onTransactionCreateReturns struct {
+	onTxCreateReturns struct {
 		result1 extension.InterceptCreateOnTx
 	}
-	onTransactionCreateReturnsOnCall map[int]struct {
+	onTxCreateReturnsOnCall map[int]struct {
 		result1 extension.InterceptCreateOnTx
 	}
 	invocations      map[string][][]interface{}
@@ -83,49 +83,49 @@ func (fake *FakeCreateInterceptor) OnAPICreateReturnsOnCall(i int, result1 exten
 }
 
 func (fake *FakeCreateInterceptor) OnTxCreate(f extension.InterceptCreateOnTx) extension.InterceptCreateOnTx {
-	fake.onTransactionCreateMutex.Lock()
-	ret, specificReturn := fake.onTransactionCreateReturnsOnCall[len(fake.onTransactionCreateArgsForCall)]
-	fake.onTransactionCreateArgsForCall = append(fake.onTransactionCreateArgsForCall, struct {
+	fake.onTxCreateMutex.Lock()
+	ret, specificReturn := fake.onTxCreateReturnsOnCall[len(fake.onTxCreateArgsForCall)]
+	fake.onTxCreateArgsForCall = append(fake.onTxCreateArgsForCall, struct {
 		f extension.InterceptCreateOnTx
 	}{f})
-	fake.recordInvocation("OnTransactionCreate", []interface{}{f})
-	fake.onTransactionCreateMutex.Unlock()
-	if fake.OnTransactionCreateStub != nil {
-		return fake.OnTransactionCreateStub(f)
+	fake.recordInvocation("OnTxCreate", []interface{}{f})
+	fake.onTxCreateMutex.Unlock()
+	if fake.OnTxCreateStub != nil {
+		return fake.OnTxCreateStub(f)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.onTransactionCreateReturns.result1
+	return fake.onTxCreateReturns.result1
 }
 
-func (fake *FakeCreateInterceptor) OnTransactionCreateCallCount() int {
-	fake.onTransactionCreateMutex.RLock()
-	defer fake.onTransactionCreateMutex.RUnlock()
-	return len(fake.onTransactionCreateArgsForCall)
+func (fake *FakeCreateInterceptor) OnTxCreateCallCount() int {
+	fake.onTxCreateMutex.RLock()
+	defer fake.onTxCreateMutex.RUnlock()
+	return len(fake.onTxCreateArgsForCall)
 }
 
-func (fake *FakeCreateInterceptor) OnTransactionCreateArgsForCall(i int) extension.InterceptCreateOnTx {
-	fake.onTransactionCreateMutex.RLock()
-	defer fake.onTransactionCreateMutex.RUnlock()
-	return fake.onTransactionCreateArgsForCall[i].f
+func (fake *FakeCreateInterceptor) OnTxCreateArgsForCall(i int) extension.InterceptCreateOnTx {
+	fake.onTxCreateMutex.RLock()
+	defer fake.onTxCreateMutex.RUnlock()
+	return fake.onTxCreateArgsForCall[i].f
 }
 
-func (fake *FakeCreateInterceptor) OnTransactionCreateReturns(result1 extension.InterceptCreateOnTx) {
-	fake.OnTransactionCreateStub = nil
-	fake.onTransactionCreateReturns = struct {
+func (fake *FakeCreateInterceptor) OnTxCreateReturns(result1 extension.InterceptCreateOnTx) {
+	fake.OnTxCreateStub = nil
+	fake.onTxCreateReturns = struct {
 		result1 extension.InterceptCreateOnTx
 	}{result1}
 }
 
-func (fake *FakeCreateInterceptor) OnTransactionCreateReturnsOnCall(i int, result1 extension.InterceptCreateOnTx) {
-	fake.OnTransactionCreateStub = nil
-	if fake.onTransactionCreateReturnsOnCall == nil {
-		fake.onTransactionCreateReturnsOnCall = make(map[int]struct {
+func (fake *FakeCreateInterceptor) OnTxCreateReturnsOnCall(i int, result1 extension.InterceptCreateOnTx) {
+	fake.OnTxCreateStub = nil
+	if fake.onTxCreateReturnsOnCall == nil {
+		fake.onTxCreateReturnsOnCall = make(map[int]struct {
 			result1 extension.InterceptCreateOnTx
 		})
 	}
-	fake.onTransactionCreateReturnsOnCall[i] = struct {
+	fake.onTxCreateReturnsOnCall[i] = struct {
 		result1 extension.InterceptCreateOnTx
 	}{result1}
 }
@@ -135,8 +135,8 @@ func (fake *FakeCreateInterceptor) Invocations() map[string][][]interface{} {
 	defer fake.invocationsMutex.RUnlock()
 	fake.onAPICreateMutex.RLock()
 	defer fake.onAPICreateMutex.RUnlock()
-	fake.onTransactionCreateMutex.RLock()
-	defer fake.onTransactionCreateMutex.RUnlock()
+	fake.onTxCreateMutex.RLock()
+	defer fake.onTxCreateMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

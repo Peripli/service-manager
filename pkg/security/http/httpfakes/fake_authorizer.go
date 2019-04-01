@@ -2,17 +2,17 @@
 package httpfakes
 
 import (
-	httpnet "net/http"
 	"sync"
 
 	"github.com/Peripli/service-manager/pkg/security/http"
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
 type FakeAuthorizer struct {
-	AuthorizeStub        func(req *httpnet.Request) (http.Decision, error)
+	AuthorizeStub        func(req *web.Request) (http.Decision, error)
 	authorizeMutex       sync.RWMutex
 	authorizeArgsForCall []struct {
-		req *httpnet.Request
+		req *web.Request
 	}
 	authorizeReturns struct {
 		result1 http.Decision
@@ -26,11 +26,11 @@ type FakeAuthorizer struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeAuthorizer) Authorize(req *httpnet.Request) (http.Decision, error) {
+func (fake *FakeAuthorizer) Authorize(req *web.Request) (http.Decision, error) {
 	fake.authorizeMutex.Lock()
 	ret, specificReturn := fake.authorizeReturnsOnCall[len(fake.authorizeArgsForCall)]
 	fake.authorizeArgsForCall = append(fake.authorizeArgsForCall, struct {
-		req *httpnet.Request
+		req *web.Request
 	}{req})
 	fake.recordInvocation("Authorize", []interface{}{req})
 	fake.authorizeMutex.Unlock()
@@ -49,7 +49,7 @@ func (fake *FakeAuthorizer) AuthorizeCallCount() int {
 	return len(fake.authorizeArgsForCall)
 }
 
-func (fake *FakeAuthorizer) AuthorizeArgsForCall(i int) *httpnet.Request {
+func (fake *FakeAuthorizer) AuthorizeArgsForCall(i int) *web.Request {
 	fake.authorizeMutex.RLock()
 	defer fake.authorizeMutex.RUnlock()
 	return fake.authorizeArgsForCall[i].req
