@@ -102,13 +102,13 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return catalogPlan.Free, nil
 				},
-			}).TxBefore(broker.CreateBrokerInterceptor).Apply()
+			}).TxBefore(broker.CreateBrokerInterceptorProviderName).Apply()
 
 			smb.RegisterUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanUpdateInterceptorProvider{
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return catalogPlan.Free, nil
 				},
-			}).TxBefore(broker.UpdateBrokerInterceptor).Apply()
+			}).TxBefore(broker.UpdateBrokerInterceptorProviderName).Apply()
 			return nil
 		}).Build()
 

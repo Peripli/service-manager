@@ -31,8 +31,8 @@ import (
 )
 
 const (
-	PublicPlanCreateInterceptorName = "public-plan-create"
-	PublicPlanUpdateInterceptorName = "public-plan-update"
+	PublicPlanCreateInterceptorProviderName = "public-plan-create"
+	PublicPlanUpdateInterceptorProviderName = "public-plan-update"
 )
 
 type publicPlanProcessor func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (bool, error)
@@ -42,7 +42,7 @@ type PublicPlanCreateInterceptorProvider struct {
 }
 
 func (p *PublicPlanCreateInterceptorProvider) Name() string {
-	return PublicPlanCreateInterceptorName
+	return PublicPlanCreateInterceptorProviderName
 }
 
 func (p *PublicPlanCreateInterceptorProvider) Provide() extension.CreateInterceptor {
@@ -56,7 +56,7 @@ type PublicPlanUpdateInterceptorProvider struct {
 }
 
 func (p *PublicPlanUpdateInterceptorProvider) Name() string {
-	return PublicPlanUpdateInterceptorName
+	return PublicPlanUpdateInterceptorProviderName
 }
 
 func (p *PublicPlanUpdateInterceptorProvider) Provide() extension.UpdateInterceptor {
@@ -73,7 +73,7 @@ func (p *publicPlanCreateInterceptor) OnAPICreate(h extension.InterceptCreateOnA
 	return h
 }
 
-func (p *publicPlanCreateInterceptor) OnTransactionCreate(f extension.InterceptCreateOnTransaction) extension.InterceptCreateOnTransaction {
+func (p *publicPlanCreateInterceptor) OnTxCreate(f extension.InterceptCreateOnTx) extension.InterceptCreateOnTx {
 	return func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error {
 		if err := f(ctx, txStorage, newObject); err != nil {
 			return err
@@ -90,7 +90,7 @@ func (p *publicPlanUpdateInterceptor) OnAPIUpdate(h extension.InterceptUpdateOnA
 	return h
 }
 
-func (p *publicPlanUpdateInterceptor) OnTransactionUpdate(f extension.InterceptUpdateOnTransaction) extension.InterceptUpdateOnTransaction {
+func (p *publicPlanUpdateInterceptor) OnTxUpdate(f extension.InterceptUpdateOnTx) extension.InterceptUpdateOnTx {
 	return func(ctx context.Context, txStorage storage.Warehouse, oldObject types.Object, changes *extension.UpdateContext) (types.Object, error) {
 		result, err := f(ctx, txStorage, oldObject, changes)
 		if err != nil {

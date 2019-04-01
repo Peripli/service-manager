@@ -31,7 +31,7 @@ import (
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 )
 
-const CreateBrokerInterceptor = "create-broker"
+const CreateBrokerInterceptorProviderName = "create-broker"
 
 type createInterceptorProvider struct {
 	osbClientCreateFunc osbc.CreateFunc
@@ -39,22 +39,22 @@ type createInterceptorProvider struct {
 }
 
 func (c *createInterceptorProvider) Provide() extension.CreateInterceptor {
-	return &CreateBrokerHook{
+	return &CreateBrokerInterceptor{
 		OSBClientCreateFunc: c.osbClientCreateFunc,
 		Encrypter:           c.encrypter,
 	}
 }
 func (c *createInterceptorProvider) Name() string {
-	return CreateBrokerInterceptor
+	return CreateBrokerInterceptorProviderName
 }
 
-type CreateBrokerHook struct {
+type CreateBrokerInterceptor struct {
 	OSBClientCreateFunc osbc.CreateFunc
 	Encrypter           security.Encrypter
 	serviceOfferings    []*types.ServiceOffering
 }
 
-func (c *CreateBrokerHook) OnAPICreate(h extension.InterceptCreateOnAPI) extension.InterceptCreateOnAPI {
+func (c *CreateBrokerInterceptor) OnAPICreate(h extension.InterceptCreateOnAPI) extension.InterceptCreateOnAPI {
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		broker := obj.(*types.ServiceBroker)
 		catalog, err := getBrokerCatalog(ctx, c.OSBClientCreateFunc, broker) // keep catalog to be stored later
@@ -136,7 +136,7 @@ func osbCatalogToOfferings(catalog *osbc.CatalogResponse, broker types.Object) (
 	return result, nil
 }
 
-func (c *CreateBrokerHook) OnTransactionCreate(f extension.InterceptCreateOnTransaction) extension.InterceptCreateOnTransaction {
+func (c *CreateBrokerInterceptor) OnTxCreate(f extension.InterceptCreateOnTx) extension.InterceptCreateOnTx {
 	return func(ctx context.Context, storage storage.Warehouse, broker types.Object) error {
 		if err := f(ctx, storage, broker); err != nil {
 			return err

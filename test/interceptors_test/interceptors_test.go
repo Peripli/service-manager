@@ -63,19 +63,19 @@ var _ = Describe("Interceptors", func() {
 		createModificationInterceptor.OnAPICreateStub = func(h extension.InterceptCreateOnAPI) extension.InterceptCreateOnAPI {
 			return h
 		}
-		createModificationInterceptor.OnTransactionCreateStub = func(f extension.InterceptCreateOnTransaction) extension.InterceptCreateOnTransaction {
+		createModificationInterceptor.OnTransactionCreateStub = func(f extension.InterceptCreateOnTx) extension.InterceptCreateOnTx {
 			return f
 		}
 		updateModificationInterceptor.OnAPIUpdateStub = func(h extension.InterceptUpdateOnAPI) extension.InterceptUpdateOnAPI {
 			return h
 		}
-		updateModificationInterceptor.OnTransactionUpdateStub = func(f extension.InterceptUpdateOnTransaction) extension.InterceptUpdateOnTransaction {
+		updateModificationInterceptor.OnTransactionUpdateStub = func(f extension.InterceptUpdateOnTx) extension.InterceptUpdateOnTx {
 			return f
 		}
 		deleteModificationInterceptor.OnAPIDeleteStub = func(h extension.InterceptDeleteOnAPI) extension.InterceptDeleteOnAPI {
 			return h
 		}
-		deleteModificationInterceptor.OnTransactionDeleteStub = func(f extension.InterceptDeleteOnTransaction) extension.InterceptDeleteOnTransaction {
+		deleteModificationInterceptor.OnTransactionDeleteStub = func(f extension.InterceptDeleteOnTx) extension.InterceptDeleteOnTx {
 			return f
 		}
 	}
@@ -320,7 +320,7 @@ var _ = Describe("Interceptors", func() {
 							return obj, e
 						}
 					}
-					createModificationInterceptor.OnTransactionCreateStub = func(f extension.InterceptCreateOnTransaction) extension.InterceptCreateOnTransaction {
+					createModificationInterceptor.OnTransactionCreateStub = func(f extension.InterceptCreateOnTx) extension.InterceptCreateOnTx {
 						return func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error {
 							labels := newObject.GetLabels()
 							labels[newLabelKey] = append(labels[newLabelKey], newLabelValue[1])
@@ -348,7 +348,7 @@ var _ = Describe("Interceptors", func() {
 							return h(ctx, changes)
 						}
 					}
-					updateModificationInterceptor.OnTransactionUpdateStub = func(f extension.InterceptUpdateOnTransaction) extension.InterceptUpdateOnTransaction {
+					updateModificationInterceptor.OnTransactionUpdateStub = func(f extension.InterceptUpdateOnTx) extension.InterceptUpdateOnTx {
 						return func(ctx context.Context, txStorage storage.Warehouse, oldObject types.Object, changes *extension.UpdateContext) (object types.Object, e error) {
 							changes.LabelChanges = append(changes.LabelChanges, &query.LabelChange{
 								Key:       newLabelKey,
@@ -375,7 +375,7 @@ var _ = Describe("Interceptors", func() {
 					}
 					ctx.SMWithOAuth.DELETE(e.url).Expect().Status(http.StatusNotFound)
 					resetModificationInterceptors()
-					deleteModificationInterceptor.OnTransactionDeleteStub = func(f extension.InterceptDeleteOnTransaction) extension.InterceptDeleteOnTransaction {
+					deleteModificationInterceptor.OnTransactionDeleteStub = func(f extension.InterceptDeleteOnTx) extension.InterceptDeleteOnTx {
 						return func(ctx context.Context, txStorage storage.Warehouse, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
 							deletionCriteria = append(deletionCriteria, query.ByField(query.InOperator, "id", "invalid"))
 							return f(ctx, txStorage, deletionCriteria...)
@@ -417,7 +417,7 @@ func createInterceptorProvider(nameSuffix string, stack *callStack) *extensionfa
 			return obj, err
 		}
 	}
-	fakeCreateInterceptor.OnTransactionCreateStub = func(h extension.InterceptCreateOnTransaction) extension.InterceptCreateOnTransaction {
+	fakeCreateInterceptor.OnTransactionCreateStub = func(h extension.InterceptCreateOnTx) extension.InterceptCreateOnTx {
 		return func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error {
 			stack.Add(name + "TXpre")
 			err := h(ctx, txStorage, newObject)
@@ -444,7 +444,7 @@ func updateInterceptorProvider(nameSuffix string, stack *callStack) *extensionfa
 			return obj, err
 		}
 	}
-	fakeUpdateInterceptor.OnTransactionUpdateStub = func(h extension.InterceptUpdateOnTransaction) extension.InterceptUpdateOnTransaction {
+	fakeUpdateInterceptor.OnTransactionUpdateStub = func(h extension.InterceptUpdateOnTx) extension.InterceptUpdateOnTx {
 		return func(ctx context.Context, txStorage storage.Warehouse, oldObject types.Object, changes *extension.UpdateContext) (types.Object, error) {
 			stack.Add(name + "TXpre")
 			obj, err := h(ctx, txStorage, oldObject, changes)
@@ -471,7 +471,7 @@ func deleteInterceptorProvider(nameSuffix string, stack *callStack) *extensionfa
 			return obj, err
 		}
 	}
-	fakeDeleteInterceptor.OnTransactionDeleteStub = func(h extension.InterceptDeleteOnTransaction) extension.InterceptDeleteOnTransaction {
+	fakeDeleteInterceptor.OnTransactionDeleteStub = func(h extension.InterceptDeleteOnTx) extension.InterceptDeleteOnTx {
 		return func(ctx context.Context, txStorage storage.Warehouse, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
 			stack.Add(name + "TXpre")
 			obj, err := h(ctx, txStorage, deletionCriteria...)

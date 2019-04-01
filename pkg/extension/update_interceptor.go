@@ -33,7 +33,7 @@ type namedUpdateAPIFunc struct {
 
 type namedUpdateTxFunc struct {
 	Name string
-	Func func(InterceptUpdateOnTransaction) InterceptUpdateOnTransaction
+	Func func(InterceptUpdateOnTx) InterceptUpdateOnTx
 }
 
 type updateHookOnAPIHandler struct {
@@ -48,7 +48,7 @@ func (c *updateHookOnAPIHandler) OnAPIUpdate(f InterceptUpdateOnAPI) InterceptUp
 	return f
 }
 
-func (c *updateHookOnAPIHandler) OnTransactionUpdate(f InterceptUpdateOnTransaction) InterceptUpdateOnTransaction {
+func (c *updateHookOnAPIHandler) OnTxUpdate(f InterceptUpdateOnTx) InterceptUpdateOnTx {
 	for i := range c.UpdateHookOnTransactionFuncs {
 		f = c.UpdateHookOnTransactionFuncs[len(c.UpdateHookOnTransactionFuncs)-1-i].Func(f)
 	}
@@ -71,7 +71,7 @@ func UnionUpdateInterceptor(providers []UpdateInterceptorProvider) func() Update
 
 			if orderedProvider, isOrdered := p.(Ordered); isOrdered {
 				positionAPIType, nameAPI = orderedProvider.PositionAPI()
-				positionTxType, nameTx = orderedProvider.PositionTransaction()
+				positionTxType, nameTx = orderedProvider.PositionTx()
 			}
 
 			c.insertAPIFunc(positionAPIType, nameAPI, &namedUpdateAPIFunc{
@@ -80,7 +80,7 @@ func UnionUpdateInterceptor(providers []UpdateInterceptorProvider) func() Update
 			})
 			c.insertTxFunc(positionTxType, nameTx, &namedUpdateTxFunc{
 				Name: p.Name(),
-				Func: hook.OnTransactionUpdate,
+				Func: hook.OnTxUpdate,
 			})
 		}
 		return c
@@ -104,14 +104,14 @@ type UpdateInterceptorProvider interface {
 // InterceptUpdateOnAPI hook for entity update outside of transaction
 type InterceptUpdateOnAPI func(ctx context.Context, changes *UpdateContext) (types.Object, error)
 
-// InterceptUpdateOnTransaction hook for entity update in transaction
-type InterceptUpdateOnTransaction func(ctx context.Context, txStorage storage.Warehouse, oldObject types.Object, changes *UpdateContext) (types.Object, error)
+// InterceptUpdateOnTx hook for entity update in transaction
+type InterceptUpdateOnTx func(ctx context.Context, txStorage storage.Warehouse, oldObject types.Object, changes *UpdateContext) (types.Object, error)
 
 // UpdateInterceptor provides hooks on entity update
 //go:generate counterfeiter . UpdateInterceptor
 type UpdateInterceptor interface {
 	OnAPIUpdate(h InterceptUpdateOnAPI) InterceptUpdateOnAPI
-	OnTransactionUpdate(f InterceptUpdateOnTransaction) InterceptUpdateOnTransaction
+	OnTxUpdate(f InterceptUpdateOnTx) InterceptUpdateOnTx
 }
 
 func (c *updateHookOnAPIHandler) insertAPIFunc(positionType PositionType, name string, h *namedUpdateAPIFunc) {

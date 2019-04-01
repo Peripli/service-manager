@@ -19,16 +19,16 @@ type FakeDeleteInterceptor struct {
 	onAPIDeleteReturnsOnCall map[int]struct {
 		result1 extension.InterceptDeleteOnAPI
 	}
-	OnTransactionDeleteStub        func(f extension.InterceptDeleteOnTransaction) extension.InterceptDeleteOnTransaction
+	OnTransactionDeleteStub        func(f extension.InterceptDeleteOnTx) extension.InterceptDeleteOnTx
 	onTransactionDeleteMutex       sync.RWMutex
 	onTransactionDeleteArgsForCall []struct {
-		f extension.InterceptDeleteOnTransaction
+		f extension.InterceptDeleteOnTx
 	}
 	onTransactionDeleteReturns struct {
-		result1 extension.InterceptDeleteOnTransaction
+		result1 extension.InterceptDeleteOnTx
 	}
 	onTransactionDeleteReturnsOnCall map[int]struct {
-		result1 extension.InterceptDeleteOnTransaction
+		result1 extension.InterceptDeleteOnTx
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
@@ -82,11 +82,11 @@ func (fake *FakeDeleteInterceptor) OnAPIDeleteReturnsOnCall(i int, result1 exten
 	}{result1}
 }
 
-func (fake *FakeDeleteInterceptor) OnTransactionDelete(f extension.InterceptDeleteOnTransaction) extension.InterceptDeleteOnTransaction {
+func (fake *FakeDeleteInterceptor) OnTxDelete(f extension.InterceptDeleteOnTx) extension.InterceptDeleteOnTx {
 	fake.onTransactionDeleteMutex.Lock()
 	ret, specificReturn := fake.onTransactionDeleteReturnsOnCall[len(fake.onTransactionDeleteArgsForCall)]
 	fake.onTransactionDeleteArgsForCall = append(fake.onTransactionDeleteArgsForCall, struct {
-		f extension.InterceptDeleteOnTransaction
+		f extension.InterceptDeleteOnTx
 	}{f})
 	fake.recordInvocation("OnTransactionDelete", []interface{}{f})
 	fake.onTransactionDeleteMutex.Unlock()
@@ -105,28 +105,28 @@ func (fake *FakeDeleteInterceptor) OnTransactionDeleteCallCount() int {
 	return len(fake.onTransactionDeleteArgsForCall)
 }
 
-func (fake *FakeDeleteInterceptor) OnTransactionDeleteArgsForCall(i int) extension.InterceptDeleteOnTransaction {
+func (fake *FakeDeleteInterceptor) OnTransactionDeleteArgsForCall(i int) extension.InterceptDeleteOnTx {
 	fake.onTransactionDeleteMutex.RLock()
 	defer fake.onTransactionDeleteMutex.RUnlock()
 	return fake.onTransactionDeleteArgsForCall[i].f
 }
 
-func (fake *FakeDeleteInterceptor) OnTransactionDeleteReturns(result1 extension.InterceptDeleteOnTransaction) {
+func (fake *FakeDeleteInterceptor) OnTransactionDeleteReturns(result1 extension.InterceptDeleteOnTx) {
 	fake.OnTransactionDeleteStub = nil
 	fake.onTransactionDeleteReturns = struct {
-		result1 extension.InterceptDeleteOnTransaction
+		result1 extension.InterceptDeleteOnTx
 	}{result1}
 }
 
-func (fake *FakeDeleteInterceptor) OnTransactionDeleteReturnsOnCall(i int, result1 extension.InterceptDeleteOnTransaction) {
+func (fake *FakeDeleteInterceptor) OnTransactionDeleteReturnsOnCall(i int, result1 extension.InterceptDeleteOnTx) {
 	fake.OnTransactionDeleteStub = nil
 	if fake.onTransactionDeleteReturnsOnCall == nil {
 		fake.onTransactionDeleteReturnsOnCall = make(map[int]struct {
-			result1 extension.InterceptDeleteOnTransaction
+			result1 extension.InterceptDeleteOnTx
 		})
 	}
 	fake.onTransactionDeleteReturnsOnCall[i] = struct {
-		result1 extension.InterceptDeleteOnTransaction
+		result1 extension.InterceptDeleteOnTx
 	}{result1}
 }
 

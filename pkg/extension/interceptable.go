@@ -49,8 +49,8 @@ type OrderedProviderImpl struct {
 	NameAPI         string
 }
 
-// PositionTransaction returns the position of the interceptor transaction hook
-func (opi *OrderedProviderImpl) PositionTransaction() (PositionType, string) {
+// PositionTx returns the position of the interceptor transaction hook
+func (opi *OrderedProviderImpl) PositionTx() (PositionType, string) {
 	if opi.NameTx == "" {
 		return PositionNone, ""
 	}
@@ -67,7 +67,7 @@ func (opi *OrderedProviderImpl) PositionAPI() (PositionType, string) {
 
 // Ordered interface for positioning interceptors
 type Ordered interface {
-	PositionTransaction() (PositionType, string)
+	PositionTx() (PositionType, string)
 	PositionAPI() (PositionType, string)
 }
 

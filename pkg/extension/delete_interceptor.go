@@ -34,7 +34,7 @@ type namedDeleteAPIFunc struct {
 
 type namedDeleteTxFunc struct {
 	Name string
-	Func func(InterceptDeleteOnTransaction) InterceptDeleteOnTransaction
+	Func func(InterceptDeleteOnTx) InterceptDeleteOnTx
 }
 
 type deleteHookOnAPIHandler struct {
@@ -49,7 +49,7 @@ func (c *deleteHookOnAPIHandler) OnAPIDelete(f InterceptDeleteOnAPI) InterceptDe
 	return f
 }
 
-func (c *deleteHookOnAPIHandler) OnTransactionDelete(f InterceptDeleteOnTransaction) InterceptDeleteOnTransaction {
+func (c *deleteHookOnAPIHandler) OnTxDelete(f InterceptDeleteOnTx) InterceptDeleteOnTx {
 	for i := range c.DeleteHookOnTxFuncs {
 		f = c.DeleteHookOnTxFuncs[len(c.DeleteHookOnTxFuncs)-1-i].Func(f)
 	}
@@ -72,7 +72,7 @@ func UnionDeleteInterceptor(providers []DeleteInterceptorProvider) func() Delete
 
 			if orderedProvider, isOrdered := p.(Ordered); isOrdered {
 				positionAPIType, nameAPI = orderedProvider.PositionAPI()
-				positionTxType, nameTx = orderedProvider.PositionTransaction()
+				positionTxType, nameTx = orderedProvider.PositionTx()
 			}
 
 			c.insertAPIFunc(positionAPIType, nameAPI, &namedDeleteAPIFunc{
@@ -81,7 +81,7 @@ func UnionDeleteInterceptor(providers []DeleteInterceptorProvider) func() Delete
 			})
 			c.insertTxFunc(positionTxType, nameTx, &namedDeleteTxFunc{
 				Name: p.Name(),
-				Func: hook.OnTransactionDelete,
+				Func: hook.OnTxDelete,
 			})
 		}
 		return c
@@ -98,14 +98,14 @@ type DeleteInterceptorProvider interface {
 // InterceptDeleteOnAPI hook for entity deletion outside of transaction
 type InterceptDeleteOnAPI func(ctx context.Context, deletionCriteria ...query.Criterion) (types.ObjectList, error)
 
-// InterceptDeleteOnTransaction hook for entity deletion in transaction
-type InterceptDeleteOnTransaction func(ctx context.Context, txStorage storage.Warehouse, deletionCriteria ...query.Criterion) (types.ObjectList, error)
+// InterceptDeleteOnTx hook for entity deletion in transaction
+type InterceptDeleteOnTx func(ctx context.Context, txStorage storage.Warehouse, deletionCriteria ...query.Criterion) (types.ObjectList, error)
 
 // DeleteInterceptor provides hooks on entity deletion
 //go:generate counterfeiter . DeleteInterceptor
 type DeleteInterceptor interface {
 	OnAPIDelete(h InterceptDeleteOnAPI) InterceptDeleteOnAPI
-	OnTransactionDelete(f InterceptDeleteOnTransaction) InterceptDeleteOnTransaction
+	OnTxDelete(f InterceptDeleteOnTx) InterceptDeleteOnTx
 }
 
 func (c *deleteHookOnAPIHandler) insertAPIFunc(positionType PositionType, name string, h *namedDeleteAPIFunc) {

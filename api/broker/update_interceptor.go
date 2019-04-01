@@ -36,7 +36,7 @@ import (
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 )
 
-const UpdateBrokerInterceptor = "update-broker"
+const UpdateBrokerInterceptorProviderName = "update-broker"
 
 type updateInterceptorProvider struct {
 	osbClientCreateFunc osbc.CreateFunc
@@ -45,24 +45,24 @@ type updateInterceptorProvider struct {
 }
 
 func (c *updateInterceptorProvider) Provide() extension.UpdateInterceptor {
-	return &UpdateBrokerHook{
+	return &UpdateBrokerInterceptor{
 		OSBClientCreateFunc: c.osbClientCreateFunc,
 		Encrypter:           c.encrypter,
 		Repository:          c.repository,
 	}
 }
 func (c *updateInterceptorProvider) Name() string {
-	return UpdateBrokerInterceptor
+	return UpdateBrokerInterceptorProviderName
 }
 
-type UpdateBrokerHook struct {
+type UpdateBrokerInterceptor struct {
 	OSBClientCreateFunc osbc.CreateFunc
 	Encrypter           security.Encrypter
 	Repository          storage.Repository
 	catalog             *osbc.CatalogResponse
 }
 
-func (c *UpdateBrokerHook) OnAPIUpdate(h extension.InterceptUpdateOnAPI) extension.InterceptUpdateOnAPI {
+func (c *UpdateBrokerInterceptor) OnAPIUpdate(h extension.InterceptUpdateOnAPI) extension.InterceptUpdateOnAPI {
 	return func(ctx context.Context, changes *extension.UpdateContext) (types.Object, error) {
 		obj, err := c.Repository.Get(ctx, types.ServiceBrokerType, changes.Object.GetID())
 		if err != nil {
@@ -95,7 +95,7 @@ func (c *UpdateBrokerHook) OnAPIUpdate(h extension.InterceptUpdateOnAPI) extensi
 	}
 }
 
-func (c *UpdateBrokerHook) OnTransactionUpdate(f extension.InterceptUpdateOnTransaction) extension.InterceptUpdateOnTransaction {
+func (c *UpdateBrokerInterceptor) OnTxUpdate(f extension.InterceptUpdateOnTx) extension.InterceptUpdateOnTx {
 	return func(ctx context.Context, txStorage storage.Warehouse, oldObject types.Object, changes *extension.UpdateContext) (types.Object, error) {
 		newObject, err := f(ctx, txStorage, oldObject, changes)
 		if err != nil {

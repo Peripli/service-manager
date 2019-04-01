@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	platformCreateInterceptor = "create-platform"
+	platformCreateInterceptorProviderName = "create-platform"
 )
 
 type createInterceptorProvider struct {
@@ -40,7 +40,7 @@ func (c *createInterceptorProvider) Provide() extension.CreateInterceptor {
 	}
 }
 func (c *createInterceptorProvider) Name() string {
-	return platformCreateInterceptor
+	return platformCreateInterceptorProviderName
 }
 
 type CreateInterceptor struct {
@@ -74,6 +74,6 @@ func (c *CreateInterceptor) OnAPICreate(h extension.InterceptCreateOnAPI) extens
 
 }
 
-func (*CreateInterceptor) OnTransactionCreate(f extension.InterceptCreateOnTransaction) extension.InterceptCreateOnTransaction {
+func (*CreateInterceptor) OnTxCreate(f extension.InterceptCreateOnTx) extension.InterceptCreateOnTx {
 	return f
 }

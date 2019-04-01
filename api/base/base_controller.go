@@ -141,7 +141,7 @@ func (c *Controller) CreateObject(r *web.Request) (*web.Response, error) {
 		return nil
 	}
 	if createInterceptor != nil {
-		onTransaction = createInterceptor.OnTransactionCreate(onTransaction)
+		onTransaction = createInterceptor.OnTxCreate(onTransaction)
 	}
 
 	onAPI := func(ctx context.Context, obj types.Object) (types.Object, error) {
@@ -190,7 +190,7 @@ func (c *Controller) DeleteObjects(r *web.Request) (*web.Response, error) {
 		return c.repository.Delete(ctx, c.objectType, deletionCriteria...)
 	}
 	if deleteInterceptor != nil {
-		transactionOperation = deleteInterceptor.OnTransactionDelete(transactionOperation)
+		transactionOperation = deleteInterceptor.OnTxDelete(transactionOperation)
 	}
 
 	apiOperation := func(ctx context.Context, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
@@ -286,7 +286,7 @@ func (c *Controller) PatchObject(r *web.Request) (*web.Response, error) {
 		return txStorage.Update(ctx, oldObject, updateChanges.LabelChanges...)
 	}
 	if updateInterceptor != nil {
-		transactionOp = updateInterceptor.OnTransactionUpdate(transactionOp)
+		transactionOp = updateInterceptor.OnTxUpdate(transactionOp)
 	}
 
 	objFromDB, err := c.repository.Get(ctx, c.objectType, objectID)

@@ -31,7 +31,7 @@ type namedCreateAPIFunc struct {
 
 type namedCreateTxFunc struct {
 	Name string
-	Func func(InterceptCreateOnTransaction) InterceptCreateOnTransaction
+	Func func(InterceptCreateOnTx) InterceptCreateOnTx
 }
 
 type createHookOnAPIHandler struct {
@@ -46,7 +46,7 @@ func (c *createHookOnAPIHandler) OnAPICreate(f InterceptCreateOnAPI) InterceptCr
 	return f
 }
 
-func (c *createHookOnAPIHandler) OnTransactionCreate(f InterceptCreateOnTransaction) InterceptCreateOnTransaction {
+func (c *createHookOnAPIHandler) OnTxCreate(f InterceptCreateOnTx) InterceptCreateOnTx {
 	for i := range c.CreateHookOnTransactionFuncs {
 		f = c.CreateHookOnTransactionFuncs[len(c.CreateHookOnTransactionFuncs)-1-i].Func(f)
 	}
@@ -69,7 +69,7 @@ func UnionCreateInterceptor(providers []CreateInterceptorProvider) func() Create
 
 			if orderedProvider, isOrdered := p.(Ordered); isOrdered {
 				positionAPIType, nameAPI = orderedProvider.PositionAPI()
-				positionTxType, nameTx = orderedProvider.PositionTransaction()
+				positionTxType, nameTx = orderedProvider.PositionTx()
 			}
 
 			c.insertAPIFunc(positionAPIType, nameAPI, &namedCreateAPIFunc{
@@ -78,7 +78,7 @@ func UnionCreateInterceptor(providers []CreateInterceptorProvider) func() Create
 			})
 			c.insertTxFunc(positionTxType, nameTx, &namedCreateTxFunc{
 				Name: p.Name(),
-				Func: hook.OnTransactionCreate,
+				Func: hook.OnTxCreate,
 			})
 		}
 		return c
@@ -95,14 +95,14 @@ type CreateInterceptorProvider interface {
 // InterceptCreateOnAPI hook for entity creation outside of transaction
 type InterceptCreateOnAPI func(ctx context.Context, obj types.Object) (types.Object, error)
 
-// InterceptCreateOnTransaction hook for entity creation in transaction
-type InterceptCreateOnTransaction func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error
+// InterceptCreateOnTx hook for entity creation in transaction
+type InterceptCreateOnTx func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error
 
 // CreateInterceptor provides hooks on entity creation
 //go:generate counterfeiter . CreateInterceptor
 type CreateInterceptor interface {
 	OnAPICreate(h InterceptCreateOnAPI) InterceptCreateOnAPI
-	OnTransactionCreate(f InterceptCreateOnTransaction) InterceptCreateOnTransaction
+	OnTxCreate(f InterceptCreateOnTx) InterceptCreateOnTx
 }
 
 func (c *createHookOnAPIHandler) insertAPIFunc(positionType PositionType, name string, h *namedCreateAPIFunc) {
