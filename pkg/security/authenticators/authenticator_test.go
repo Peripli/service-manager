@@ -28,7 +28,7 @@ import (
 
 	http2 "github.com/Peripli/service-manager/pkg/security/http"
 
-	"github.com/Peripli/service-manager/pkg/security/securityfakes"
+	"github.com/Peripli/service-manager/pkg/security/http/httpfakes"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/test/testutil"
@@ -323,7 +323,7 @@ var _ = Describe("OIDC Authenticator", func() {
 
 			Context("when token is present", func() {
 				var (
-					verifier      *securityfakes.FakeTokenVerifier
+					verifier      *httpfakes.FakeTokenVerifier
 					authenticator http2.Authenticator
 					expectedError error
 				)
@@ -346,12 +346,12 @@ var _ = Describe("OIDC Authenticator", func() {
 					})
 
 					Context("when returned token cannot extract claims", func() {
-						var fakeToken *securityfakes.FakeTokenData
+						var fakeToken *httpfakes.FakeTokenData
 
 						BeforeEach(func() {
 							expectedError = fmt.Errorf("Claims extraction error")
 
-							fakeToken = &securityfakes.FakeTokenData{}
+							fakeToken = &httpfakes.FakeTokenData{}
 							fakeToken.ClaimsReturns(expectedError)
 
 							verifier.VerifyReturns(fakeToken, nil)
@@ -372,7 +372,7 @@ var _ = Describe("OIDC Authenticator", func() {
 
 						BeforeEach(func() {
 							tokenJSON := fmt.Sprintf(`{"user_name": "%s", "abc": "xyz"}`, expectedUserName)
-							token := &securityfakes.FakeTokenData{}
+							token := &httpfakes.FakeTokenData{}
 							token.ClaimsStub = func(v interface{}) error {
 								return json.Unmarshal([]byte(tokenJSON), v)
 							}
@@ -403,7 +403,7 @@ var _ = Describe("OIDC Authenticator", func() {
 
 				Context("when Bearer starts with uppercase", func() {
 					BeforeEach(func() {
-						verifier = &securityfakes.FakeTokenVerifier{}
+						verifier = &httpfakes.FakeTokenVerifier{}
 						authenticator = &OauthAuthenticator{Verifier: verifier}
 
 						request.Header.Set("Authorization", "Bearer token")
@@ -414,7 +414,7 @@ var _ = Describe("OIDC Authenticator", func() {
 
 				Context("when bearer starts with lowercase", func() {
 					BeforeEach(func() {
-						verifier = &securityfakes.FakeTokenVerifier{}
+						verifier = &httpfakes.FakeTokenVerifier{}
 						authenticator = &OauthAuthenticator{Verifier: verifier}
 
 						request.Header.Set("Authorization", "bearer token")

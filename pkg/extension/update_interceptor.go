@@ -26,17 +26,14 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
-type UpdateHookOnAPIConstructor func(InterceptUpdateOnAPI) InterceptUpdateOnAPI
-type UpdateHookOnTransactionConstructor func(InterceptUpdateOnTransaction) InterceptUpdateOnTransaction
-
 type namedUpdateAPIFunc struct {
 	Name string
-	Func UpdateHookOnAPIConstructor
+	Func func(InterceptUpdateOnAPI) InterceptUpdateOnAPI
 }
 
 type namedUpdateTxFunc struct {
 	Name string
-	Func UpdateHookOnTransactionConstructor
+	Func func(InterceptUpdateOnTransaction) InterceptUpdateOnTransaction
 }
 
 type updateHookOnAPIHandler struct {
@@ -58,6 +55,7 @@ func (c *updateHookOnAPIHandler) OnTransactionUpdate(f InterceptUpdateOnTransact
 	return f
 }
 
+// UnionUpdateInterceptor returns a function which spawns all update interceptors, sorts them and wraps them into one.
 func UnionUpdateInterceptor(providers []UpdateInterceptorProvider) func() UpdateInterceptor {
 	return func() UpdateInterceptor {
 		c := &updateHookOnAPIHandler{}
@@ -89,20 +87,28 @@ func UnionUpdateInterceptor(providers []UpdateInterceptorProvider) func() Update
 	}
 }
 
+// UpdateContext provides changes done by the update operation
 type UpdateContext struct {
 	Object        types.Object
 	ObjectChanges []byte
 	LabelChanges  []*query.LabelChange
 }
 
+// UpdateInterceptorProvider provides UpdateInterceptors for each request
+//go:generate counterfeiter . UpdateInterceptorProvider
 type UpdateInterceptorProvider interface {
 	Named
 	Provide() UpdateInterceptor
 }
 
+// InterceptUpdateOnAPI hook for entity update outside of transaction
 type InterceptUpdateOnAPI func(ctx context.Context, changes *UpdateContext) (types.Object, error)
+
+// InterceptUpdateOnTransaction hook for entity update in transaction
 type InterceptUpdateOnTransaction func(ctx context.Context, txStorage storage.Warehouse, oldObject types.Object, changes *UpdateContext) (types.Object, error)
 
+// UpdateInterceptor provides hooks on entity update
+//go:generate counterfeiter . UpdateInterceptor
 type UpdateInterceptor interface {
 	OnAPIUpdate(h InterceptUpdateOnAPI) InterceptUpdateOnAPI
 	OnTransactionUpdate(f InterceptUpdateOnTransaction) InterceptUpdateOnTransaction

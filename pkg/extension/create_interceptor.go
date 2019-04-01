@@ -24,17 +24,14 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
-type CreateHookOnAPIConstructor func(InterceptCreateOnAPI) InterceptCreateOnAPI
-type CreateHookOnTransactionConstructor func(InterceptCreateOnTransaction) InterceptCreateOnTransaction
-
 type namedCreateAPIFunc struct {
 	Name string
-	Func CreateHookOnAPIConstructor
+	Func func(InterceptCreateOnAPI) InterceptCreateOnAPI
 }
 
 type namedCreateTxFunc struct {
 	Name string
-	Func CreateHookOnTransactionConstructor
+	Func func(InterceptCreateOnTransaction) InterceptCreateOnTransaction
 }
 
 type createHookOnAPIHandler struct {
@@ -56,6 +53,7 @@ func (c *createHookOnAPIHandler) OnTransactionCreate(f InterceptCreateOnTransact
 	return f
 }
 
+// UnionCreateInterceptor returns a function which spawns all create interceptors, sorts them and wraps them into one.
 func UnionCreateInterceptor(providers []CreateInterceptorProvider) func() CreateInterceptor {
 	return func() CreateInterceptor {
 		c := &createHookOnAPIHandler{}
@@ -87,14 +85,21 @@ func UnionCreateInterceptor(providers []CreateInterceptorProvider) func() Create
 	}
 }
 
+// CreateInterceptorProvider provides CreateInterceptors for each request
+//go:generate counterfeiter . CreateInterceptorProvider
 type CreateInterceptorProvider interface {
 	Named
 	Provide() CreateInterceptor
 }
 
+// InterceptCreateOnAPI hook for entity creation outside of transaction
 type InterceptCreateOnAPI func(ctx context.Context, obj types.Object) (types.Object, error)
+
+// InterceptCreateOnTransaction hook for entity creation in transaction
 type InterceptCreateOnTransaction func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error
 
+// CreateInterceptor provides hooks on entity creation
+//go:generate counterfeiter . CreateInterceptor
 type CreateInterceptor interface {
 	OnAPICreate(h InterceptCreateOnAPI) InterceptCreateOnAPI
 	OnTransactionCreate(f InterceptCreateOnTransaction) InterceptCreateOnTransaction

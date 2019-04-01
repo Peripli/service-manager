@@ -25,7 +25,7 @@ import (
 	http2 "github.com/Peripli/service-manager/pkg/security/http"
 
 	"github.com/Peripli/service-manager/pkg/security"
-	"github.com/Peripli/service-manager/pkg/security/securityfakes"
+	"github.com/Peripli/service-manager/pkg/security/http/httpfakes"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/pkg/web/webfakes"
@@ -48,13 +48,13 @@ var _ = Describe("Middlewares tests", func() {
 
 	Describe("Authz middleware", func() {
 		const filterName = "authzFilterName"
-		var authorizer *securityfakes.FakeAuthorizer
+		var authorizer *httpfakes.FakeAuthorizer
 
 		BeforeEach(func() {
 			req = &web.Request{
 				Request: httptest.NewRequest("GET", "/", nil),
 			}
-			authorizer = &securityfakes.FakeAuthorizer{}
+			authorizer = &httpfakes.FakeAuthorizer{}
 			handler = &webfakes.FakeHandler{}
 		})
 
@@ -138,13 +138,13 @@ var _ = Describe("Middlewares tests", func() {
 	Describe("Authn middleware", func() {
 		const filterName = "authnFilterName"
 
-		var authenticator *securityfakes.FakeAuthenticator
+		var authenticator *httpfakes.FakeAuthenticator
 
 		BeforeEach(func() {
 			req = &web.Request{
 				Request: httptest.NewRequest("GET", "/", nil),
 			}
-			authenticator = &securityfakes.FakeAuthenticator{}
+			authenticator = &httpfakes.FakeAuthenticator{}
 			handler = &webfakes.FakeHandler{}
 		})
 
