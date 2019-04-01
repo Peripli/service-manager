@@ -140,7 +140,7 @@ func (pspf *PublicServicePlansFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
-				web.Path(web.BrokersURL + "/**"),
+				web.Path(web.ServiceBrokersURL + "/**"),
 				web.Methods(http.MethodPost, http.MethodPatch),
 			},
 		},

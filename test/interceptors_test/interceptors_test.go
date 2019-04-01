@@ -44,9 +44,14 @@ func TestInfo(t *testing.T) {
 
 var _ = Describe("Interceptors", func() {
 	var ctx *common.TestContext
+
 	var createStack *callStack
 	var updateStack *callStack
 	var deleteStack *callStack
+
+	var createModificationInterceptor *extensionfakes.FakeCreateInterceptor
+	var updateModificationInterceptor *extensionfakes.FakeUpdateInterceptor
+	var deleteModificationInterceptor *extensionfakes.FakeDeleteInterceptor
 
 	clearStacks := func() {
 		createStack.Clear()
@@ -54,10 +59,36 @@ var _ = Describe("Interceptors", func() {
 		deleteStack.Clear()
 	}
 
+	resetModificationInterceptors := func() {
+		createModificationInterceptor.OnAPICreateStub = func(h extension.InterceptCreateOnAPI) extension.InterceptCreateOnAPI {
+			return h
+		}
+		createModificationInterceptor.OnTransactionCreateStub = func(f extension.InterceptCreateOnTransaction) extension.InterceptCreateOnTransaction {
+			return f
+		}
+		updateModificationInterceptor.OnAPIUpdateStub = func(h extension.InterceptUpdateOnAPI) extension.InterceptUpdateOnAPI {
+			return h
+		}
+		updateModificationInterceptor.OnTransactionUpdateStub = func(f extension.InterceptUpdateOnTransaction) extension.InterceptUpdateOnTransaction {
+			return f
+		}
+		deleteModificationInterceptor.OnAPIDeleteStub = func(h extension.InterceptDeleteOnAPI) extension.InterceptDeleteOnAPI {
+			return h
+		}
+		deleteModificationInterceptor.OnTransactionDeleteStub = func(f extension.InterceptDeleteOnTransaction) extension.InterceptDeleteOnTransaction {
+			return f
+		}
+	}
+
 	BeforeSuite(func() {
 		createStack = &callStack{}
 		updateStack = &callStack{}
 		deleteStack = &callStack{}
+
+		createModificationInterceptor = &extensionfakes.FakeCreateInterceptor{}
+		updateModificationInterceptor = &extensionfakes.FakeUpdateInterceptor{}
+		deleteModificationInterceptor = &extensionfakes.FakeDeleteInterceptor{}
+		resetModificationInterceptors()
 
 		contextBuilder := common.NewTestContextBuilder()
 		contextBuilder.WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
@@ -82,6 +113,18 @@ var _ = Describe("Interceptors", func() {
 				fakeDeleteInterceptorProvider2 := deleteInterceptorProvider(string(entityType)+"2", deleteStack)
 				fakeDeleteInterceptorProviderBA := deleteInterceptorProvider(string(entityType)+"APIBefore_TXAfter", deleteStack)
 				fakeDeleteInterceptorProviderAB := deleteInterceptorProvider(string(entityType)+"APIAfter_TXBefore", deleteStack)
+
+				modificationCreateInterceptorProvider := &extensionfakes.FakeCreateInterceptorProvider{}
+				modificationCreateInterceptorProvider.NameReturns(string(entityType) + "modificationCreate")
+				modificationCreateInterceptorProvider.ProvideReturns(createModificationInterceptor)
+
+				modificationUpdateInterceptorProvider := &extensionfakes.FakeUpdateInterceptorProvider{}
+				modificationUpdateInterceptorProvider.NameReturns(string(entityType) + "modificationUpdate")
+				modificationUpdateInterceptorProvider.ProvideReturns(updateModificationInterceptor)
+
+				modificationDeleteInterceptorProvider := &extensionfakes.FakeDeleteInterceptorProvider{}
+				modificationDeleteInterceptorProvider.NameReturns(string(entityType) + "modificationDelete")
+				modificationDeleteInterceptorProvider.ProvideReturns(deleteModificationInterceptor)
 
 				// Register create interceptors
 				smb.RegisterCreateInterceptorProvider(entityType, fakeCreateInterceptorProvider1).Apply()
@@ -125,6 +168,10 @@ var _ = Describe("Interceptors", func() {
 					APIAfter(fakeDeleteInterceptorProviderBA.Name()).
 					TxBefore(fakeDeleteInterceptorProviderBA.Name()).
 					Apply()
+
+				smb.RegisterCreateInterceptorProvider(entityType, modificationCreateInterceptorProvider).Apply()
+				smb.RegisterUpdateInterceptorProvider(entityType, modificationUpdateInterceptorProvider).Apply()
+				smb.RegisterDeleteInterceptorProvider(entityType, modificationDeleteInterceptorProvider).Apply()
 			}
 
 			return nil
@@ -140,6 +187,7 @@ var _ = Describe("Interceptors", func() {
 
 	BeforeEach(func() {
 		clearStacks()
+		resetModificationInterceptors()
 	})
 
 	AfterEach(func() {
@@ -148,7 +196,7 @@ var _ = Describe("Interceptors", func() {
 		}
 	})
 
-	Describe("Interceptor positioning", func() {
+	Describe("Positioning", func() {
 		checkCreateStack := func(objectType types.ObjectType) {
 			Expect(createStack.Items).To(Equal(getSequence("Create", objectType)))
 			Expect(updateStack.Items).To(HaveLen(0))
@@ -173,7 +221,7 @@ var _ = Describe("Interceptors", func() {
 				brokerID, _, _ := ctx.RegisterBrokerWithCatalog(common.NewRandomSBCatalog()) // Post /v1/service_brokers
 				checkCreateStack(types.ServiceBrokerType)
 
-				ctx.SMWithOAuth.PATCH(web.BrokersURL + "/" + brokerID).WithJSON(common.Object{}).Expect().Status(http.StatusOK)
+				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).WithJSON(common.Object{}).Expect().Status(http.StatusOK)
 				checkUpdateStack(types.ServiceBrokerType)
 
 				ctx.CleanupBroker(brokerID) // Delete /v1/service_brokers/<id>
@@ -217,6 +265,128 @@ var _ = Describe("Interceptors", func() {
 			})
 		})
 
+	})
+
+	Describe("Parameter modification", func() {
+		type entry struct {
+			createEntryFunc func() string
+			url             string
+			name            string
+		}
+		entries := []entry{
+			{
+				createEntryFunc: func() string {
+					brokerID, _, _ := ctx.RegisterBroker()
+					return brokerID
+				},
+				url:  web.ServiceBrokersURL,
+				name: string(types.ServiceBrokerType),
+			},
+			{
+				createEntryFunc: func() string {
+					platform := ctx.RegisterPlatform()
+					return platform.ID
+				},
+				url:  web.PlatformsURL,
+				name: string(types.PlatformType),
+			},
+			{
+				createEntryFunc: func() string {
+					platform := ctx.RegisterPlatform() // Post /v1/platforms
+					ctx.RegisterBroker()
+					plans := ctx.SMWithBasic.GET(web.ServicePlansURL).Expect().JSON().Object().Value("service_plans").Array()
+					planID := plans.First().Object().Value("id").String().Raw()
+					visibility := types.Visibility{
+						PlatformID:    platform.ID,
+						ServicePlanID: planID,
+					}
+					return ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(visibility).Expect().
+						Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
+				},
+				url:  web.VisibilitiesURL,
+				name: string(types.VisibilityType),
+			},
+		}
+		for _, e := range entries {
+			Context(e.name, func() {
+				It("Create", func() {
+					newLabelKey := "newLabelKey"
+					newLabelValue := []string{"newLabelValueAPI", "newLabelValueTX"}
+
+					createModificationInterceptor.OnAPICreateStub = func(h extension.InterceptCreateOnAPI) extension.InterceptCreateOnAPI {
+						return func(ctx context.Context, obj types.Object) (object types.Object, e error) {
+							obj.SetLabels(types.Labels{newLabelKey: []string{newLabelValue[0]}})
+							obj, e = h(ctx, obj)
+							return obj, e
+						}
+					}
+					createModificationInterceptor.OnTransactionCreateStub = func(f extension.InterceptCreateOnTransaction) extension.InterceptCreateOnTransaction {
+						return func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error {
+							labels := newObject.GetLabels()
+							labels[newLabelKey] = append(labels[newLabelKey], newLabelValue[1])
+							newObject.SetLabels(labels)
+							return f(ctx, txStorage, newObject)
+						}
+					}
+					entityID := e.createEntryFunc()
+					ctx.SMWithOAuth.GET(e.url + "/" + entityID).Expect().
+						JSON().Object().
+						Value("labels").Object().
+						Value(newLabelKey).Array().Equal(newLabelValue)
+				})
+
+				It("Update", func() {
+					newLabelKey := "newLabelKey"
+					newLabelValue := []string{"newLabelValueAPI", "newLabelValueTX"}
+					updateModificationInterceptor.OnAPIUpdateStub = func(h extension.InterceptUpdateOnAPI) extension.InterceptUpdateOnAPI {
+						return func(ctx context.Context, changes *extension.UpdateContext) (object types.Object, e error) {
+							changes.LabelChanges = append(changes.LabelChanges, &query.LabelChange{
+								Key:       newLabelKey,
+								Operation: query.AddLabelOperation,
+								Values:    []string{newLabelValue[0]},
+							})
+							return h(ctx, changes)
+						}
+					}
+					updateModificationInterceptor.OnTransactionUpdateStub = func(f extension.InterceptUpdateOnTransaction) extension.InterceptUpdateOnTransaction {
+						return func(ctx context.Context, txStorage storage.Warehouse, oldObject types.Object, changes *extension.UpdateContext) (object types.Object, e error) {
+							changes.LabelChanges = append(changes.LabelChanges, &query.LabelChange{
+								Key:       newLabelKey,
+								Operation: query.AddLabelOperation,
+								Values:    []string{newLabelValue[1]},
+							})
+							return f(ctx, txStorage, oldObject, changes)
+						}
+					}
+					entityID := e.createEntryFunc()
+					ctx.SMWithOAuth.PATCH(e.url + "/" + entityID).WithJSON(common.Object{}).
+						Expect().JSON().Object().
+						Value("labels").Object().
+						Value(newLabelKey).Array().Equal(newLabelValue)
+				})
+
+				It("Delete", func() {
+					_ = e.createEntryFunc()
+					deleteModificationInterceptor.OnAPIDeleteStub = func(h extension.InterceptDeleteOnAPI) extension.InterceptDeleteOnAPI {
+						return func(ctx context.Context, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
+							deletionCriteria = append(deletionCriteria, query.ByField(query.InOperator, "id", "invalid"))
+							return h(ctx, deletionCriteria...)
+						}
+					}
+					ctx.SMWithOAuth.DELETE(e.url).Expect().Status(http.StatusNotFound)
+					resetModificationInterceptors()
+					deleteModificationInterceptor.OnTransactionDeleteStub = func(f extension.InterceptDeleteOnTransaction) extension.InterceptDeleteOnTransaction {
+						return func(ctx context.Context, txStorage storage.Warehouse, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
+							deletionCriteria = append(deletionCriteria, query.ByField(query.InOperator, "id", "invalid"))
+							return f(ctx, txStorage, deletionCriteria...)
+						}
+					}
+					ctx.SMWithOAuth.DELETE(e.url).Expect().Status(http.StatusNotFound)
+					resetModificationInterceptors()
+					ctx.SMWithOAuth.DELETE(e.url).Expect().Status(http.StatusOK)
+				})
+			})
+		}
 	})
 
 })
