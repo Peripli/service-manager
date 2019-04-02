@@ -2,6 +2,7 @@ package web
 
 import (
 	"github.com/Peripli/service-manager/pkg/extension"
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
@@ -77,15 +78,26 @@ type orderedUpdateInterceptorProvider struct {
 	extension.UpdateInterceptorProvider
 }
 
-func (creator *updateInterceptorBuilder) Apply(interceptables []extension.Interceptable, interceptorType types.ObjectType, orderer extension.Ordered) {
+func apply(interceptables []extension.Interceptable, interceptsType types.ObjectType, f func(interceptable extension.Interceptable)) {
+	isApplied := false
 	for _, interceptable := range interceptables {
-		if interceptorType == interceptable.InterceptsType() {
-			interceptable.AddUpdateInterceptorProviders(&orderedUpdateInterceptorProvider{
-				UpdateInterceptorProvider: creator.provider,
-				Ordered:                   orderer,
-			})
+		if interceptsType == interceptable.InterceptsType() {
+			isApplied = true
+			f(interceptable)
 		}
 	}
+	if !isApplied {
+		log.D().Panicf("interceptor could not be applied to %s", string(interceptsType))
+	}
+}
+
+func (uib *updateInterceptorBuilder) Apply(interceptables []extension.Interceptable, interceptsType types.ObjectType, orderer extension.Ordered) {
+	apply(interceptables, interceptsType, func(interceptable extension.Interceptable) {
+		interceptable.AddUpdateInterceptorProviders(&orderedUpdateInterceptorProvider{
+			UpdateInterceptorProvider: uib.provider,
+			Ordered:                   orderer,
+		})
+	})
 }
 
 type orderedCreateInterceptorProvider struct {
@@ -97,15 +109,13 @@ type createInterceptorBuilder struct {
 	provider extension.CreateInterceptorProvider
 }
 
-func (builder *createInterceptorBuilder) Apply(interceptables []extension.Interceptable, interceptorType types.ObjectType, orderer extension.Ordered) {
-	for _, interceptable := range interceptables {
-		if interceptorType == interceptable.InterceptsType() {
-			interceptable.AddCreateInterceptorProviders(&orderedCreateInterceptorProvider{
-				CreateInterceptorProvider: builder.provider,
-				Ordered:                   orderer,
-			})
-		}
-	}
+func (cib *createInterceptorBuilder) Apply(interceptables []extension.Interceptable, interceptsType types.ObjectType, orderer extension.Ordered) {
+	apply(interceptables, interceptsType, func(interceptable extension.Interceptable) {
+		interceptable.AddCreateInterceptorProviders(&orderedCreateInterceptorProvider{
+			CreateInterceptorProvider: cib.provider,
+			Ordered:                   orderer,
+		})
+	})
 }
 
 type deleteInterceptorBuilder struct {
@@ -117,13 +127,11 @@ type orderedDeleteInterceptorProvider struct {
 	extension.DeleteInterceptorProvider
 }
 
-func (creator *deleteInterceptorBuilder) Apply(interceptables []extension.Interceptable, interceptorType types.ObjectType, orderer extension.Ordered) {
-	for _, interceptable := range interceptables {
-		if interceptorType == interceptable.InterceptsType() {
-			interceptable.AddDeleteInterceptorProviders(&orderedDeleteInterceptorProvider{
-				DeleteInterceptorProvider: creator.provider,
-				Ordered:                   orderer,
-			})
-		}
-	}
+func (dib *deleteInterceptorBuilder) Apply(interceptables []extension.Interceptable, interceptsType types.ObjectType, orderer extension.Ordered) {
+	apply(interceptables, interceptsType, func(interceptable extension.Interceptable) {
+		interceptable.AddDeleteInterceptorProviders(&orderedDeleteInterceptorProvider{
+			DeleteInterceptorProvider: dib.provider,
+			Ordered:                   orderer,
+		})
+	})
 }
