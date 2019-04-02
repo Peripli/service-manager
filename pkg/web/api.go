@@ -40,9 +40,9 @@ type API struct {
 	// Registry is the health indicators registry for this API
 	health.Registry
 
-	createInterceptorProviders []extension.CreateInterceptorProvider
-	updateInterceptorProviders []extension.UpdateInterceptorProvider
-	deleteInterceptorProviders []extension.DeleteInterceptorProvider
+	createInterceptorProviders []extension.Named
+	updateInterceptorProviders []extension.Named
+	deleteInterceptorProviders []extension.Named
 }
 
 // pluginSegment represents one piece of a web.Plugin. Each web.Plugin is decomposed into as many plugin segments as
@@ -164,8 +164,9 @@ func (api *API) RegisterCreateInterceptorProvider(objectType types.ObjectType, p
 	api.createInterceptorProviders = append(api.createInterceptorProviders, provider)
 
 	return &interceptorBuilder{
-		interceptables:  api.interceptables(),
-		interceptorType: objectType,
+		interceptorsNames: api.createInterceptorProviders,
+		interceptables:    api.interceptables(),
+		interceptorType:   objectType,
 		concreteBuilder: &createInterceptorBuilder{
 			provider: provider,
 		},
