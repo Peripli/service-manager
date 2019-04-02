@@ -45,8 +45,10 @@ func (*{{.Type}}) TableName() string {
 }
 
 func (e *{{.Type}}) NewLabel(id, key, value string) storage.Label {
-	now := pq.NullTime{}
-	now.Scan(time.Now())
+	now := pq.NullTime{
+		Time: time.Now(),
+		Valid: true,
+	}
 	return &{{.Type}}Label{
 		BaseLabelEntity: BaseLabelEntity{
 			ID:        sql.NullString{String: id, Valid: id != ""},
@@ -68,7 +70,7 @@ func (e *{{.Type}}) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
 	}
 	result := &{{.ApiPackage}}{{.ApiTypePlural}}{
 		{{.ApiTypePlural}}: make([]*{{.ApiPackage}}{{.ApiType}}, 0),
-	}		
+	}
 	err := rowsToList(rows, rowCreator, result)
 	if err != nil {
 		return nil, err

@@ -27,8 +27,10 @@ func (*ServiceOffering) TableName() string {
 }
 
 func (e *ServiceOffering) NewLabel(id, key, value string) storage.Label {
-	now := pq.NullTime{}
-	now.Scan(time.Now())
+	now := pq.NullTime{
+		Time: time.Now(),
+		Valid: true,
+	}
 	return &ServiceOfferingLabel{
 		BaseLabelEntity: BaseLabelEntity{
 			ID:        sql.NullString{String: id, Valid: id != ""},
@@ -50,7 +52,7 @@ func (e *ServiceOffering) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) 
 	}
 	result := &types.ServiceOfferings{
 		ServiceOfferings: make([]*types.ServiceOffering, 0),
-	}		
+	}
 	err := rowsToList(rows, rowCreator, result)
 	if err != nil {
 		return nil, err

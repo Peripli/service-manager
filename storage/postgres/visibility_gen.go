@@ -27,8 +27,10 @@ func (*Visibility) TableName() string {
 }
 
 func (e *Visibility) NewLabel(id, key, value string) storage.Label {
-	now := pq.NullTime{}
-	now.Scan(time.Now())
+	now := pq.NullTime{
+		Time: time.Now(),
+		Valid: true,
+	}
 	return &VisibilityLabel{
 		BaseLabelEntity: BaseLabelEntity{
 			ID:        sql.NullString{String: id, Valid: id != ""},
@@ -50,7 +52,7 @@ func (e *Visibility) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
 	}
 	result := &types.Visibilities{
 		Visibilities: make([]*types.Visibility, 0),
-	}		
+	}
 	err := rowsToList(rows, rowCreator, result)
 	if err != nil {
 		return nil, err

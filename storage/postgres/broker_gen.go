@@ -27,8 +27,10 @@ func (*Broker) TableName() string {
 }
 
 func (e *Broker) NewLabel(id, key, value string) storage.Label {
-	now := pq.NullTime{}
-	now.Scan(time.Now())
+	now := pq.NullTime{
+		Time: time.Now(),
+		Valid: true,
+	}
 	return &BrokerLabel{
 		BaseLabelEntity: BaseLabelEntity{
 			ID:        sql.NullString{String: id, Valid: id != ""},
@@ -50,7 +52,7 @@ func (e *Broker) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
 	}
 	result := &types.ServiceBrokers{
 		ServiceBrokers: make([]*types.ServiceBroker, 0),
-	}		
+	}
 	err := rowsToList(rows, rowCreator, result)
 	if err != nil {
 		return nil, err

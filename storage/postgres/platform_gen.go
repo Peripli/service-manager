@@ -27,8 +27,10 @@ func (*Platform) TableName() string {
 }
 
 func (e *Platform) NewLabel(id, key, value string) storage.Label {
-	now := pq.NullTime{}
-	now.Scan(time.Now())
+	now := pq.NullTime{
+		Time: time.Now(),
+		Valid: true,
+	}
 	return &PlatformLabel{
 		BaseLabelEntity: BaseLabelEntity{
 			ID:        sql.NullString{String: id, Valid: id != ""},
@@ -50,7 +52,7 @@ func (e *Platform) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
 	}
 	result := &types.Platforms{
 		Platforms: make([]*types.Platform, 0),
-	}		
+	}
 	err := rowsToList(rows, rowCreator, result)
 	if err != nil {
 		return nil, err

@@ -115,7 +115,6 @@ func (c *deleteHookOnAPIHandler) insertAPIFunc(positionType PositionType, name s
 	}
 	pos := c.findAPIFuncPosition(c.DeleteHookOnAPIFuncs, name)
 	if pos == -1 {
-		// TODO: Must validate on bootstrap
 		panic(fmt.Errorf("could not find delete API hook with name %s", name))
 	}
 	c.DeleteHookOnAPIFuncs = append(c.DeleteHookOnAPIFuncs, nil)
@@ -133,7 +132,6 @@ func (c *deleteHookOnAPIHandler) insertTxFunc(positionType PositionType, name st
 	}
 	pos := c.findTxFuncPosition(c.DeleteHookOnTxFuncs, name)
 	if pos == -1 {
-		// TODO: Must validate on bootstrap
 		panic(fmt.Errorf("could not find delete transaction hook with name %s", name))
 	}
 	c.DeleteHookOnTxFuncs = append(c.DeleteHookOnTxFuncs, nil)
