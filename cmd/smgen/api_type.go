@@ -40,7 +40,7 @@ func GenerateApiTypeFile(apiTypeDir, packageName, typeName string) error {
 	if strings.HasSuffix(typeName, "y") {
 		typeNamePlural = fmt.Sprintf("%sies", typeName[:len(typeName)-1])
 	}
-	t := template.Must(template.New("generate-api-type").Parse(API_TYPE_TEMPLATE))
+	t := template.Must(template.New("generate-api-type").Parse(ApiTypeTemplate))
 	var typesPackageImport string
 	typesPackage := ""
 	if !strings.Contains(apiTypeDir, APITypesDirectory) {

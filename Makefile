@@ -44,10 +44,10 @@ GO_BUILD 		= env CGO_ENABLED=0 GOOS=$(PLATFORM) GOARCH=$(ARCH) \
            		$(GO) build $(GO_FLAGS) -ldflags '-s -w $(BUILD_LDFLAGS) $(VERSION_FLAGS)'
 
 # TEST_FLAGS - extra "go test" flags to use
-GO_INT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test" | paste -sd "," -) \
+GO_INT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd" | paste -sd "," -) \
 				./test/... $(TEST_FLAGS) -coverprofile=$(INT_TEST_PROFILE)
 
-GO_UNIT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test" | paste -sd "," -) \
+GO_UNIT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd" | paste -sd "," -) \
 				$(shell go list ./... | egrep -v "test") -coverprofile=$(UNIT_TEST_PROFILE)
 
 #-----------------------------------------------------------------------------

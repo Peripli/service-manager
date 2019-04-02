@@ -1,4 +1,3 @@
-
 // GENERATED. DO NOT MODIFY!
 
 package postgres
@@ -8,8 +7,7 @@ import (
 	"github.com/Peripli/service-manager/storage"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
-	
-	
+
 	"database/sql"
 	"time"
 )
@@ -27,8 +25,10 @@ func (*ServiceOffering) TableName() string {
 }
 
 func (e *ServiceOffering) NewLabel(id, key, value string) storage.Label {
-	now := pq.NullTime{}
-	now.Scan(time.Now())
+	now := pq.NullTime{
+		Time:  time.Now(),
+		Valid: true,
+	}
 	return &ServiceOfferingLabel{
 		BaseLabelEntity: BaseLabelEntity{
 			ID:        sql.NullString{String: id, Valid: id != ""},
@@ -37,7 +37,7 @@ func (e *ServiceOffering) NewLabel(id, key, value string) storage.Label {
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
-		ServiceOfferingID:  sql.NullString{String: e.ID, Valid: e.ID != ""},
+		ServiceOfferingID: sql.NullString{String: e.ID, Valid: e.ID != ""},
 	}
 }
 
@@ -50,7 +50,7 @@ func (e *ServiceOffering) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) 
 	}
 	result := &types.ServiceOfferings{
 		ServiceOfferings: make([]*types.ServiceOffering, 0),
-	}		
+	}
 	err := rowsToList(rows, rowCreator, result)
 	if err != nil {
 		return nil, err
@@ -60,7 +60,7 @@ func (e *ServiceOffering) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) 
 
 type ServiceOfferingLabel struct {
 	BaseLabelEntity
-	ServiceOfferingID  sql.NullString `db:"service_offering_id"`
+	ServiceOfferingID sql.NullString `db:"service_offering_id"`
 }
 
 func (el ServiceOfferingLabel) LabelsTableName() string {

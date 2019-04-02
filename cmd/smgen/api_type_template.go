@@ -16,7 +16,7 @@
 
 package main
 
-const API_TYPE_TEMPLATE = `// GENERATED. DO NOT MODIFY!
+const ApiTypeTemplate = `// GENERATED. DO NOT MODIFY!
 
 package {{.PackageName}}
 

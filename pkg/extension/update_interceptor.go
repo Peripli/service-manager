@@ -121,7 +121,6 @@ func (c *updateHookOnAPIHandler) insertAPIFunc(positionType PositionType, name s
 	}
 	pos := c.findAPIFuncPosition(c.UpdateHookOnAPIFuncs, name)
 	if pos == -1 {
-		// TODO: Must validate on bootstrap
 		panic(fmt.Errorf("could not find update API hook with name %s", name))
 	}
 	c.UpdateHookOnAPIFuncs = append(c.UpdateHookOnAPIFuncs, nil)
@@ -139,7 +138,6 @@ func (c *updateHookOnAPIHandler) insertTxFunc(positionType PositionType, name st
 	}
 	pos := c.findTxFuncPosition(c.UpdateHookOnTransactionFuncs, name)
 	if pos == -1 {
-		// TODO: Must validate on bootstrap
 		panic(fmt.Errorf("could not find update transaction hook with name %s", name))
 	}
 	c.UpdateHookOnTransactionFuncs = append(c.UpdateHookOnTransactionFuncs, nil)
