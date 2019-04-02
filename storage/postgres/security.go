@@ -95,11 +95,10 @@ func (s *keyFetcher) GetEncryptionKey(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	for rows.Next() {
+	if rows.Next() {
 		if err := rows.StructScan(safe); err != nil {
 			return nil, err
 		}
-		break
 	}
 	if len(safe.Secret) == 0 {
 		return []byte{}, nil

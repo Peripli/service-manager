@@ -166,13 +166,15 @@ func toPgEntity(entity storage.Entity) (PostgresEntity, error) {
 
 func (ps *PostgresStorage) Create(ctx context.Context, obj types.Object) (string, error) {
 	pgEntity, err := ps.convert(obj)
-
-	id, err := create(ctx, ps.pgDB, pgEntity.TableName(), pgEntity)
 	if err != nil {
 		return "", err
 	}
-	labels, err := pgEntity.BuildLabels(obj.GetLabels(), pgEntity.NewLabel)
-	if err != nil {
+	var id string
+	if id, err = create(ctx, ps.pgDB, pgEntity.TableName(), pgEntity); err != nil {
+		return "", err
+	}
+	var labels []storage.Label
+	if labels, err = pgEntity.BuildLabels(obj.GetLabels(), pgEntity.NewLabel); err != nil {
 		return "", err
 	}
 	if err = ps.createLabels(ctx, id, labels); err != nil {

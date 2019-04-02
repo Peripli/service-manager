@@ -51,7 +51,6 @@ func (e *Base) GetUpdatedAt() time.Time {
 
 func (e *Base) SetLabels(labels Labels) {
 	e.Labels = labels
-	return
 }
 
 func (e *Base) GetLabels() Labels {

@@ -78,8 +78,10 @@ func (c *UpdateBrokerInterceptor) OnAPIUpdate(h extension.InterceptUpdateOnAPI) 
 		if c.catalog, err = getBrokerCatalog(ctx, c.OSBClientCreateFunc, broker); err != nil {
 			return nil, err
 		}
-		serviceOfferings, err := osbCatalogToOfferings(c.catalog, broker)
-		broker.Services = serviceOfferings
+		broker.Services, err = osbCatalogToOfferings(c.catalog, broker)
+		if err != nil {
+			return nil, err
+		}
 		if err = transformBrokerCredentials(ctx, broker, c.Encrypter.Encrypt); err != nil {
 			return nil, err
 		}

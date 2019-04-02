@@ -113,14 +113,3 @@ func toLowerSnakeCase(str string) string {
 	}
 	return builder.String()
 }
-
-func buildTableName(typeName string) string {
-	builder := strings.Builder{}
-	for i, char := range typeName {
-		if unicode.IsUpper(char) && i > 0 {
-			builder.WriteRune('_')
-		}
-		builder.WriteRune(unicode.ToLower(char))
-	}
-	return builder.String()
-}
