@@ -4,7 +4,7 @@ package types
 
 import (
 	"encoding/json"
-	
+
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
@@ -27,7 +27,9 @@ func (e *ServiceBrokers) Len() int {
 }
 
 func (e *ServiceBroker) EmptyList() ObjectList {
-	return &ServiceBrokers{ ServiceBrokers: make([]*ServiceBroker, 0) }
+	return &ServiceBrokers{
+		ServiceBrokers: make([]*ServiceBroker, 0),
+	}
 }
 
 func (e *ServiceBroker) GetType() ObjectType {
@@ -44,17 +46,17 @@ func (e *ServiceBroker) MarshalJSON() ([]byte, error) {
 	}{
 		E: (*E)(e),
 	}
-    if !e.CreatedAt.IsZero() {
-        str := util.ToRFCFormat(e.CreatedAt)
-        toMarshal.CreatedAt = &str
-    }
-    if !e.UpdatedAt.IsZero() {
-        str := util.ToRFCFormat(e.UpdatedAt)
-        toMarshal.UpdatedAt = &str
-    }
+	if !e.CreatedAt.IsZero() {
+		str := util.ToRFCFormat(e.CreatedAt)
+		toMarshal.CreatedAt = &str
+	}
+	if !e.UpdatedAt.IsZero() {
+		str := util.ToRFCFormat(e.UpdatedAt)
+		toMarshal.UpdatedAt = &str
+	}
 	hasNoLabels := true
 	for key, values := range e.Labels {
-		if key != "" && len(values) != 0 { 
+		if key != "" && len(values) != 0 {
 			hasNoLabels = false
 			break
 		}

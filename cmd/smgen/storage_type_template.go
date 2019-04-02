@@ -25,8 +25,9 @@ import (
 	"github.com/Peripli/service-manager/storage"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
-{{if or .StoragePackageImport .ApiPackageImport}}
+{{if .StoragePackageImport}}
 	{{.StoragePackageImport}}
+{{end}}{{if .ApiPackageImport}}
 	{{.ApiPackageImport}}
 {{end}}
 	"database/sql"

@@ -22,7 +22,9 @@ package {{.PackageName}}
 
 import (
 	"encoding/json"
+{{if .TypesPackageImport}}
 	{{.TypesPackageImport}}
+{{end}}
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
@@ -45,7 +47,9 @@ func (e *{{.TypePlural}}) Len() int {
 }
 
 func (e *{{.Type}}) EmptyList() {{.TypesPackage}}ObjectList {
-	return &{{.TypePlural}}{ {{.TypePlural}}: make([]*{{.Type}}, 0) }
+	return &{{.TypePlural}}{
+		{{.TypePlural}}: make([]*{{.Type}}, 0),
+	}
 }
 
 func (e *{{.Type}}) GetType() {{.TypesPackage}}ObjectType {
@@ -62,17 +66,17 @@ func (e *{{.Type}}) MarshalJSON() ([]byte, error) {
 	}{
 		E: (*E)(e),
 	}
-    if !e.CreatedAt.IsZero() {
-        str := util.ToRFCFormat(e.CreatedAt)
-        toMarshal.CreatedAt = &str
-    }
-    if !e.UpdatedAt.IsZero() {
-        str := util.ToRFCFormat(e.UpdatedAt)
-        toMarshal.UpdatedAt = &str
-    }
+	if !e.CreatedAt.IsZero() {
+		str := util.ToRFCFormat(e.CreatedAt)
+		toMarshal.CreatedAt = &str
+	}
+	if !e.UpdatedAt.IsZero() {
+		str := util.ToRFCFormat(e.UpdatedAt)
+		toMarshal.UpdatedAt = &str
+	}
 	hasNoLabels := true
 	for key, values := range e.Labels {
-		if key != "" && len(values) != 0 { 
+		if key != "" && len(values) != 0 {
 			hasNoLabels = false
 			break
 		}
