@@ -188,8 +188,9 @@ func (api *API) RegisterUpdateInterceptorProvider(objectType types.ObjectType, p
 	api.updateInterceptorProviders = append(api.updateInterceptorProviders, provider)
 
 	return &interceptorBuilder{
-		interceptables:  api.interceptables(),
-		interceptorType: objectType,
+		interceptorsNames: api.updateInterceptorProviders,
+		interceptables:    api.interceptables(),
+		interceptorType:   objectType,
 		concreteBuilder: &updateInterceptorBuilder{
 			provider: provider,
 		},
@@ -211,8 +212,9 @@ func (api *API) RegisterDeleteInterceptorProvider(objectType types.ObjectType, p
 	api.deleteInterceptorProviders = append(api.deleteInterceptorProviders, provider)
 
 	return &interceptorBuilder{
-		interceptables:  api.interceptables(),
-		interceptorType: objectType,
+		interceptorsNames: api.deleteInterceptorProviders,
+		interceptables:    api.interceptables(),
+		interceptorType:   objectType,
 		concreteBuilder: &deleteInterceptorBuilder{
 			provider: provider,
 		},
