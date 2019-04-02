@@ -1,4 +1,3 @@
-
 // GENERATED. DO NOT MODIFY!
 
 package postgres
@@ -8,8 +7,7 @@ import (
 	"github.com/Peripli/service-manager/storage"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
-	
-	
+
 	"database/sql"
 	"time"
 )
@@ -28,7 +26,7 @@ func (*Visibility) TableName() string {
 
 func (e *Visibility) NewLabel(id, key, value string) storage.Label {
 	now := pq.NullTime{
-		Time: time.Now(),
+		Time:  time.Now(),
 		Valid: true,
 	}
 	return &VisibilityLabel{
@@ -39,7 +37,7 @@ func (e *Visibility) NewLabel(id, key, value string) storage.Label {
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
-		VisibilityID:  sql.NullString{String: e.ID, Valid: e.ID != ""},
+		VisibilityID: sql.NullString{String: e.ID, Valid: e.ID != ""},
 	}
 }
 
@@ -62,7 +60,7 @@ func (e *Visibility) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
 
 type VisibilityLabel struct {
 	BaseLabelEntity
-	VisibilityID  sql.NullString `db:"visibility_id"`
+	VisibilityID sql.NullString `db:"visibility_id"`
 }
 
 func (el VisibilityLabel) LabelsTableName() string {

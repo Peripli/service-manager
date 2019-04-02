@@ -16,8 +16,7 @@
 
 package main
 
-const STORAGE_TYPE_TEMPLATE = `
-// GENERATED. DO NOT MODIFY!
+const StorageTypeTemplate = `// GENERATED. DO NOT MODIFY!
 
 package {{.PackageName}}
 
@@ -26,8 +25,10 @@ import (
 	"github.com/Peripli/service-manager/storage"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
+{{if or .StoragePackageImport .ApiPackageImport}}
 	{{.StoragePackageImport}}
 	{{.ApiPackageImport}}
+{{end}}
 	"database/sql"
 	"time"
 )
@@ -46,7 +47,7 @@ func (*{{.Type}}) TableName() string {
 
 func (e *{{.Type}}) NewLabel(id, key, value string) storage.Label {
 	now := pq.NullTime{
-		Time: time.Now(),
+		Time:  time.Now(),
 		Valid: true,
 	}
 	return &{{.Type}}Label{
@@ -57,7 +58,7 @@ func (e *{{.Type}}) NewLabel(id, key, value string) storage.Label {
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
-		{{.Type}}ID:  sql.NullString{String: e.ID, Valid: e.ID != ""},
+		{{.Type}}ID: sql.NullString{String: e.ID, Valid: e.ID != ""},
 	}
 }
 
@@ -80,7 +81,7 @@ func (e *{{.Type}}) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
 
 type {{.Type}}Label struct {
 	BaseLabelEntity
-	{{.Type}}ID  sql.NullString ` + "`db:\"{{.TypeLowerSnakeCase}}_id\"`" + `
+	{{.Type}}ID sql.NullString ` + "`db:\"{{.TypeLowerSnakeCase}}_id\"`" + `
 }
 
 func (el {{.Type}}Label) LabelsTableName() string {

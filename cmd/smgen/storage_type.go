@@ -71,7 +71,7 @@ func GenerateStorageEntityFile(storageTypeDir, typeName, packageName, apiPackage
 		storagePackageImport = fmt.Sprintf("\"%s\"", StorageTypesDirectory)
 	}
 
-	t := template.Must(template.New("generate-storage-type").Parse(STORAGE_TYPE_TEMPLATE))
+	t := template.Must(template.New("generate-storage-type").Parse(StorageTypeTemplate))
 	entityTemplate := StorageType{
 		Type:                 typeName,
 		TypeLowerSnakeCase:   toLowerSnakeCase(typeName),

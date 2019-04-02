@@ -1,4 +1,3 @@
-
 // GENERATED. DO NOT MODIFY!
 
 package postgres
@@ -8,8 +7,7 @@ import (
 	"github.com/Peripli/service-manager/storage"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
-	
-	
+
 	"database/sql"
 	"time"
 )
@@ -28,7 +26,7 @@ func (*ServicePlan) TableName() string {
 
 func (e *ServicePlan) NewLabel(id, key, value string) storage.Label {
 	now := pq.NullTime{
-		Time: time.Now(),
+		Time:  time.Now(),
 		Valid: true,
 	}
 	return &ServicePlanLabel{
@@ -39,7 +37,7 @@ func (e *ServicePlan) NewLabel(id, key, value string) storage.Label {
 			CreatedAt: now,
 			UpdatedAt: now,
 		},
-		ServicePlanID:  sql.NullString{String: e.ID, Valid: e.ID != ""},
+		ServicePlanID: sql.NullString{String: e.ID, Valid: e.ID != ""},
 	}
 }
 
@@ -62,7 +60,7 @@ func (e *ServicePlan) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
 
 type ServicePlanLabel struct {
 	BaseLabelEntity
-	ServicePlanID  sql.NullString `db:"service_plan_id"`
+	ServicePlanID sql.NullString `db:"service_plan_id"`
 }
 
 func (el ServicePlanLabel) LabelsTableName() string {
