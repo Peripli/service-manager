@@ -56,14 +56,17 @@ func (c *Controller) InterceptsType() types.ObjectType {
 }
 
 func (c *Controller) AddCreateInterceptorProviders(providers ...extension.CreateInterceptorProvider) {
+	c.validateCreateInterceptorProviders(providers)
 	c.CreateInterceptorProviders = append(c.CreateInterceptorProviders, providers...)
 }
 
 func (c *Controller) AddUpdateInterceptorProviders(providers ...extension.UpdateInterceptorProvider) {
+	c.validateUpdateInterceptorProviders(providers)
 	c.UpdateInterceptorProviders = append(c.UpdateInterceptorProviders, providers...)
 }
 
 func (c *Controller) AddDeleteInterceptorProviders(providers ...extension.DeleteInterceptorProvider) {
+	c.validateDeleteInterceptorProviders(providers)
 	c.DeleteInterceptorProviders = append(c.DeleteInterceptorProviders, providers...)
 }
 

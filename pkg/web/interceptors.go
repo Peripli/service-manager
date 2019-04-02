@@ -1,8 +1,6 @@
 package web
 
 import (
-	"log"
-
 	"github.com/Peripli/service-manager/pkg/extension"
 	"github.com/Peripli/service-manager/pkg/types"
 )
@@ -14,10 +12,9 @@ type concreteBuilder interface {
 type interceptorBuilder struct {
 	concreteBuilder
 
-	interceptorsNames []extension.Named
-	orderer           *extension.OrderedProviderImpl
-	interceptorType   types.ObjectType
-	interceptables    []extension.Interceptable
+	orderer         *extension.OrderedProviderImpl
+	interceptorType types.ObjectType
+	interceptables  []extension.Interceptable
 }
 
 func (creator *interceptorBuilder) Apply() {
@@ -36,7 +33,6 @@ func (creator *interceptorBuilder) After(name string) *interceptorBuilder {
 }
 
 func (creator *interceptorBuilder) TxBefore(name string) *interceptorBuilder {
-	creator.validateInterceptorsName(name)
 	if creator.orderer == nil {
 		creator.orderer = &extension.OrderedProviderImpl{}
 	}
@@ -46,7 +42,6 @@ func (creator *interceptorBuilder) TxBefore(name string) *interceptorBuilder {
 }
 
 func (creator *interceptorBuilder) APIBefore(name string) *interceptorBuilder {
-	creator.validateInterceptorsName(name)
 	if creator.orderer == nil {
 		creator.orderer = &extension.OrderedProviderImpl{}
 	}
@@ -56,7 +51,6 @@ func (creator *interceptorBuilder) APIBefore(name string) *interceptorBuilder {
 }
 
 func (creator *interceptorBuilder) APIAfter(name string) *interceptorBuilder {
-	creator.validateInterceptorsName(name)
 	if creator.orderer == nil {
 		creator.orderer = &extension.OrderedProviderImpl{}
 	}
@@ -66,26 +60,12 @@ func (creator *interceptorBuilder) APIAfter(name string) *interceptorBuilder {
 }
 
 func (creator *interceptorBuilder) TxAfter(name string) *interceptorBuilder {
-	creator.validateInterceptorsName(name)
 	if creator.orderer == nil {
 		creator.orderer = &extension.OrderedProviderImpl{}
 	}
 	creator.orderer.NameTx = name
 	creator.orderer.PositionTypeTx = extension.PositionAfter
 	return creator
-}
-
-func (creator *interceptorBuilder) validateInterceptorsName(name string) {
-	found := false
-	for _, i := range creator.interceptorsNames {
-		if i.Name() == name {
-			found = true
-			break
-		}
-	}
-	if !found {
-		log.Panicf("interceptor with name %s not found", name)
-	}
 }
 
 type updateInterceptorBuilder struct {
