@@ -24,6 +24,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage/interceptors"
+	osbc "github.com/pmorie/go-open-service-broker-client/v2"
+
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/api/healthcheck"
 	"github.com/Peripli/service-manager/config"
@@ -122,7 +126,10 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 
 	// setup core api
 	log.C(ctx).Info("Setting up Service Manager core API...")
-	API, err := api.New(ctx, smStorage, cfg.API, encrypter)
+	interceptableRepository := storage.NewInterceptableRepository(smStorage, encrypter)
+	setDefaultInterceptors(interceptableRepository, cfg)
+
+	API, err := api.New(ctx, interceptableRepository, cfg.API, encrypter)
 	if err != nil {
 		panic(fmt.Sprintf("error creating core api: %s", err))
 	}
@@ -135,6 +142,16 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 		API:     API,
 		Storage: smStorage,
 	}
+}
+
+func setDefaultInterceptors(interceptableRepository *storage.InterceptableRepository, cfg *config.Settings) {
+	interceptableRepository.AddCreateInterceptorProviders(types.ServiceBrokerType, &interceptors.BrokerCreateInterceptorProvider{
+		OsbClientCreateFunc: newOSBClient(cfg.API.SkipSSLValidation),
+	})
+	interceptableRepository.AddUpdateInterceptorProviders(types.ServiceBrokerType, &interceptors.BrokerUpdateInterceptorProvider{
+		OsbClientCreateFunc: newOSBClient(cfg.API.SkipSSLValidation),
+	})
+	interceptableRepository.AddCreateInterceptorProviders(types.PlatformType, &interceptors.PlatformCreateInterceptorProvider{})
 }
 
 // Build builds the Service Manager
@@ -189,3 +206,41 @@ func initializeSecureStorage(ctx context.Context, secureStorage storage.Security
 	}
 	return secureStorage.Unlock(ctx)
 }
+
+func newOSBClient(skipSsl bool) osbc.CreateFunc {
+	return func(configuration *osbc.ClientConfiguration) (osbc.Client, error) {
+		configuration.Insecure = skipSsl
+		return osbc.NewClient(configuration)
+	}
+}
+
+//
+//func (api *API) RegisterCreateInterceptorProvider(objectType types.ObjectType, provider storage.CreateInterceptorProvider) *interceptorBuilder {
+//	return &interceptorBuilder{
+//		interceptables:  api.interceptables(),
+//		interceptorType: objectType,
+//		concreteBuilder: &createInterceptorBuilder{
+//			provider: provider,
+//		},
+//	}
+//}
+//
+//func (api *API) RegisterUpdateInterceptorProvider(objectType types.ObjectType, provider storage.UpdateInterceptorProvider) *interceptorBuilder {
+//	return &interceptorBuilder{
+//		interceptables:  api.interceptables(),
+//		interceptorType: objectType,
+//		concreteBuilder: &updateInterceptorBuilder{
+//			provider: provider,
+//		},
+//	}
+//}
+//
+//func (api *API) RegisterDeleteInterceptorProvider(objectType types.ObjectType, provider storage.DeleteInterceptorProvider) *interceptorBuilder {
+//	return &interceptorBuilder{
+//		interceptables:  api.interceptables(),
+//		interceptorType: objectType,
+//		concreteBuilder: &deleteInterceptorBuilder{
+//			provider: provider,
+//		},
+//	}
+//}

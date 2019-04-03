@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
-package platform
+package interceptors
 
 import (
 	"context"
 
 	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/storage"
 
-	"github.com/Peripli/service-manager/pkg/extension"
-	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
@@ -30,50 +29,37 @@ const (
 	platformCreateInterceptorProviderName = "create-platform"
 )
 
-type createInterceptorProvider struct {
-	encrypter security.Encrypter
+type PlatformCreateInterceptorProvider struct {
 }
 
-func (c *createInterceptorProvider) Provide() extension.CreateInterceptor {
-	return &CreateInterceptor{
-		Encrypter: c.encrypter,
-	}
+func (c *PlatformCreateInterceptorProvider) Provide() storage.CreateInterceptor {
+	return &CreateInterceptor{}
 }
-func (c *createInterceptorProvider) Name() string {
+func (c *PlatformCreateInterceptorProvider) Name() string {
 	return platformCreateInterceptorProviderName
 }
 
-type CreateInterceptor struct {
-	Encrypter security.Encrypter
-}
+type CreateInterceptor struct{}
 
-func (c *CreateInterceptor) OnAPICreate(h extension.InterceptCreateOnAPI) extension.InterceptCreateOnAPI {
+func (c *CreateInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTx) storage.InterceptCreateAroundTx {
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		credentials, err := types.GenerateCredentials()
 		if err != nil {
 			log.C(ctx).Error("Could not generate credentials for platform")
 			return nil, err
 		}
-		plainPassword := credentials.Basic.Password
-		transformedPassword, err := c.Encrypter.Encrypt(ctx, []byte(plainPassword))
-		if err != nil {
-			return nil, err
-		}
-		credentials.Basic.Password = string(transformedPassword)
+		plaintextPassword := credentials.Basic.Password
 		(obj.(types.Secured)).SetCredentials(credentials)
-
 		object, err := h(ctx, obj)
 		if err != nil {
 			return nil, err
 		}
-
-		credentials.Basic.Password = plainPassword
+		credentials.Basic.Password = plaintextPassword
 		(object.(types.Secured)).SetCredentials(credentials)
 		return object, nil
 	}
-
 }
 
-func (*CreateInterceptor) OnTxCreate(f extension.InterceptCreateOnTx) extension.InterceptCreateOnTx {
+func (*CreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTx) storage.InterceptCreateOnTx {
 	return f
 }

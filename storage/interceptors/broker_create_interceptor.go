@@ -14,16 +14,13 @@
  * limitations under the License.
  */
 
-package broker
+package interceptors
 
 import (
 	"context"
 	"fmt"
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/extension"
-
-	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
@@ -33,28 +30,25 @@ import (
 
 const CreateBrokerInterceptorProviderName = "create-broker"
 
-type createInterceptorProvider struct {
-	osbClientCreateFunc osbc.CreateFunc
-	encrypter           security.Encrypter
+type BrokerCreateInterceptorProvider struct {
+	OsbClientCreateFunc osbc.CreateFunc
 }
 
-func (c *createInterceptorProvider) Provide() extension.CreateInterceptor {
+func (c *BrokerCreateInterceptorProvider) Provide() storage.CreateInterceptor {
 	return &CreateBrokerInterceptor{
-		OSBClientCreateFunc: c.osbClientCreateFunc,
-		Encrypter:           c.encrypter,
+		OSBClientCreateFunc: c.OsbClientCreateFunc,
 	}
 }
-func (c *createInterceptorProvider) Name() string {
+func (c *BrokerCreateInterceptorProvider) Name() string {
 	return CreateBrokerInterceptorProviderName
 }
 
 type CreateBrokerInterceptor struct {
 	OSBClientCreateFunc osbc.CreateFunc
-	Encrypter           security.Encrypter
 	serviceOfferings    []*types.ServiceOffering
 }
 
-func (c *CreateBrokerInterceptor) OnAPICreate(h extension.InterceptCreateOnAPI) extension.InterceptCreateOnAPI {
+func (c *CreateBrokerInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTx) storage.InterceptCreateAroundTx {
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		broker := obj.(*types.ServiceBroker)
 		catalog, err := getBrokerCatalog(ctx, c.OSBClientCreateFunc, broker) // keep catalog to be stored later
@@ -65,17 +59,7 @@ func (c *CreateBrokerInterceptor) OnAPICreate(h extension.InterceptCreateOnAPI) 
 			return nil, err
 		}
 		broker.Services = c.serviceOfferings
-		if err = transformBrokerCredentials(ctx, broker, c.Encrypter.Encrypt); err != nil {
-			return nil, err
-		}
-		result, err := h(ctx, broker)
-		if err != nil {
-			return nil, err
-		}
-		if secured, ok := result.(types.Secured); ok {
-			secured.SetCredentials(nil)
-		}
-		return result, nil
+		return h(ctx, broker)
 	}
 }
 
@@ -136,7 +120,7 @@ func osbCatalogToOfferings(catalog *osbc.CatalogResponse, broker types.Object) (
 	return result, nil
 }
 
-func (c *CreateBrokerInterceptor) OnTxCreate(f extension.InterceptCreateOnTx) extension.InterceptCreateOnTx {
+func (c *CreateBrokerInterceptor) OnTxCreate(f storage.InterceptCreateOnTx) storage.InterceptCreateOnTx {
 	return func(ctx context.Context, storage storage.Warehouse, broker types.Object) error {
 		if err := f(ctx, storage, broker); err != nil {
 			return err

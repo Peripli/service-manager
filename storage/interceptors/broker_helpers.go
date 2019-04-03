@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package broker
+package interceptors
 
 import (
 	"context"
@@ -147,17 +147,6 @@ func osbcClient(ctx context.Context, createFunc osbc.CreateFunc, broker *types.S
 	}
 	log.C(ctx).Debug("Building OSB client for service broker with name: ", config.Name, " accessible at: ", config.URL)
 	return createFunc(config)
-}
-
-func transformBrokerCredentials(ctx context.Context, broker *types.ServiceBroker, transformationFunc func(context.Context, []byte) ([]byte, error)) error {
-	if broker.Credentials != nil {
-		transformedPassword, err := transformationFunc(ctx, []byte(broker.Credentials.Basic.Password))
-		if err != nil {
-			return err
-		}
-		broker.Credentials.Basic.Password = string(transformedPassword)
-	}
-	return nil
 }
 
 func boolPointerToBool(value *bool, defaultValue bool) bool {

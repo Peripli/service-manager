@@ -21,14 +21,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/Peripli/service-manager/api/broker"
-
-	"github.com/Peripli/service-manager/api/interceptors"
-
 	"github.com/Peripli/service-manager/pkg/env"
 
 	"github.com/Peripli/service-manager/pkg/sm"
-	"github.com/Peripli/service-manager/pkg/types"
 
 	"github.com/tidwall/gjson"
 
@@ -98,17 +93,17 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 
 	BeforeEach(func() {
 		ctx = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
-			smb.RegisterCreateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanCreateInterceptorProvider{
-				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
-					return catalogPlan.Free, nil
-				},
-			}).TxBefore(broker.CreateBrokerInterceptorProviderName).Apply()
-
-			smb.RegisterUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanUpdateInterceptorProvider{
-				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
-					return catalogPlan.Free, nil
-				},
-			}).TxBefore(broker.UpdateBrokerInterceptorProviderName).Apply()
+			//smb.RegisterCreateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanCreateInterceptorProvider{
+			//	IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
+			//		return catalogPlan.Free, nil
+			//	},
+			//}).TxBefore(interceptors.CreateBrokerInterceptorProviderName).Apply()
+			//
+			//smb.RegisterUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanUpdateInterceptorProvider{
+			//	IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
+			//		return catalogPlan.Free, nil
+			//	},
+			//}).TxBefore(interceptors.UpdateBrokerInterceptorProviderName).Apply()
 			return nil
 		}).Build()
 

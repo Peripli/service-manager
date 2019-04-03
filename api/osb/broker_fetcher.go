@@ -20,7 +20,6 @@ import (
 	"context"
 
 	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
@@ -29,7 +28,6 @@ import (
 // StorageBrokerFetcher provides logic for fetching the broker coordinates from the storage
 type StorageBrokerFetcher struct {
 	BrokerStorage storage.Repository
-	Encrypter     security.Encrypter
 }
 
 var _ BrokerFetcher = &StorageBrokerFetcher{}
@@ -41,15 +39,5 @@ func (sbf *StorageBrokerFetcher) FetchBroker(ctx context.Context, brokerID strin
 		log.C(ctx).Debugf("FetchBroker with id %s not found in storage", brokerID)
 		return nil, util.HandleStorageError(err, "broker")
 	}
-
-	broker := br.(*types.ServiceBroker)
-	password := broker.Credentials.Basic.Password
-	plaintextPassword, err := sbf.Encrypter.Decrypt(ctx, []byte(password))
-	if err != nil {
-		return nil, err
-	}
-
-	broker.Credentials.Basic.Password = string(plaintextPassword)
-
-	return broker, nil
+	return br.(*types.ServiceBroker), nil
 }

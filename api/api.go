@@ -22,13 +22,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Peripli/service-manager/api/visibility"
-
-	"github.com/Peripli/service-manager/api/broker"
-	"github.com/Peripli/service-manager/api/platform"
-
-	"github.com/Peripli/service-manager/api/service_offering"
-	"github.com/Peripli/service-manager/api/service_plan"
+	"github.com/Peripli/service-manager/pkg/types"
 
 	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/api/filters/authn/basic"
@@ -40,7 +34,6 @@ import (
 	secfilters "github.com/Peripli/service-manager/pkg/security/filters"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
-	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 )
 
 // Settings type to be loaded from the environment
@@ -69,27 +62,33 @@ func (s *Settings) Validate() error {
 	return nil
 }
 
-// New returns the minimum set of REST APIs needed for the Service Manager
-func New(ctx context.Context, repository storage.Repository, settings *Settings, encrypter security.Encrypter) (*web.API, error) {
+// NewInterceptableRepository returns the minimum set of REST APIs needed for the Service Manager
+func New(ctx context.Context, repository *storage.InterceptableRepository, settings *Settings, encrypter security.Encrypter) (*web.API, error) {
 	bearerAuthnFilter, err := oauth.NewFilter(ctx, settings.TokenIssuerURL, settings.ClientID)
 	if err != nil {
 		return nil, err
 	}
+
 	return &web.API{
 		// Default controllers - more filters can be registered using the relevant API methods
 		Controllers: []web.Controller{
-			broker.NewController(repository, encrypter, newOSBClient(settings.SkipSSLValidation)),
-			platform.NewController(repository, encrypter),
-			service_offering.NewController(repository),
-			service_plan.NewController(repository),
-			visibility.NewController(repository),
+			NewController(repository, web.ServiceBrokersURL, func() types.Object {
+				return &types.ServiceBroker{}
+			}),
+			NewController(repository, web.PlatformsURL, func() types.Object {
+				return &types.Platform{}
+			}),
+			NewController(repository, web.VisibilitiesURL, func() types.Object {
+				return &types.Visibility{}
+			}),
+			NewServiceOfferingController(repository),
+			NewServicePlanController(repository),
 			&info.Controller{
 				TokenIssuer:    settings.TokenIssuerURL,
 				TokenBasicAuth: settings.TokenBasicAuth,
 			},
 			osb.NewController(&osb.StorageBrokerFetcher{
 				BrokerStorage: repository,
-				Encrypter:     encrypter,
 			}, &osb.StorageCatalogFetcher{
 				Repository: repository,
 			},
@@ -99,6 +98,7 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
 			&filters.Logging{},
+			// TODO: modify filter to use GetPlatformByUsername
 			basic.NewFilter(repository.Credentials(), encrypter),
 			bearerAuthnFilter,
 			secfilters.NewRequiredAuthnFilter(),
@@ -107,11 +107,4 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 		},
 		Registry: health.NewDefaultRegistry(),
 	}, nil
-}
-
-func newOSBClient(skipSsl bool) osbc.CreateFunc {
-	return func(configuration *osbc.ClientConfiguration) (osbc.Client, error) {
-		configuration.Insecure = skipSsl
-		return osbc.NewClient(configuration)
-	}
 }

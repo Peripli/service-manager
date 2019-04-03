@@ -21,9 +21,6 @@ package web
 import (
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/extension"
-	"github.com/Peripli/service-manager/pkg/types"
-
 	"github.com/Peripli/service-manager/pkg/health"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/util/slice"
@@ -142,46 +139,6 @@ func (api *API) RegisterPlugins(plugins ...Plugin) {
 		}
 		pluginSegments := api.decomposePluginOrDie(plugin)
 		api.Filters = append(api.Filters, pluginSegments...)
-	}
-}
-
-func (api *API) interceptables() []extension.Interceptable {
-	result := make([]extension.Interceptable, 0, len(api.Controllers))
-	for _, c := range api.Controllers {
-		if intr, ok := c.(extension.Interceptable); ok {
-			result = append(result, intr)
-		}
-	}
-	return result
-}
-
-func (api *API) RegisterCreateInterceptorProvider(objectType types.ObjectType, provider extension.CreateInterceptorProvider) *interceptorBuilder {
-	return &interceptorBuilder{
-		interceptables:  api.interceptables(),
-		interceptorType: objectType,
-		concreteBuilder: &createInterceptorBuilder{
-			provider: provider,
-		},
-	}
-}
-
-func (api *API) RegisterUpdateInterceptorProvider(objectType types.ObjectType, provider extension.UpdateInterceptorProvider) *interceptorBuilder {
-	return &interceptorBuilder{
-		interceptables:  api.interceptables(),
-		interceptorType: objectType,
-		concreteBuilder: &updateInterceptorBuilder{
-			provider: provider,
-		},
-	}
-}
-
-func (api *API) RegisterDeleteInterceptorProvider(objectType types.ObjectType, provider extension.DeleteInterceptorProvider) *interceptorBuilder {
-	return &interceptorBuilder{
-		interceptables:  api.interceptables(),
-		interceptorType: objectType,
-		concreteBuilder: &deleteInterceptorBuilder{
-			provider: provider,
-		},
 	}
 }
 

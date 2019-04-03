@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package broker
+package interceptors
 
 import (
 	"context"
@@ -24,11 +24,8 @@ import (
 
 	"github.com/Peripli/service-manager/storage/catalog"
 
-	"github.com/Peripli/service-manager/pkg/extension"
-
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
-	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
@@ -38,43 +35,28 @@ import (
 
 const UpdateBrokerInterceptorProviderName = "update-broker"
 
-type updateInterceptorProvider struct {
-	osbClientCreateFunc osbc.CreateFunc
-	encrypter           security.Encrypter
-	repository          storage.Repository
+type BrokerUpdateInterceptorProvider struct {
+	OsbClientCreateFunc osbc.CreateFunc
 }
 
-func (c *updateInterceptorProvider) Provide() extension.UpdateInterceptor {
+func (c *BrokerUpdateInterceptorProvider) Provide() storage.UpdateInterceptor {
 	return &UpdateBrokerInterceptor{
-		OSBClientCreateFunc: c.osbClientCreateFunc,
-		Encrypter:           c.encrypter,
-		Repository:          c.repository,
+		OSBClientCreateFunc: c.OsbClientCreateFunc,
 	}
 }
-func (c *updateInterceptorProvider) Name() string {
+func (c *BrokerUpdateInterceptorProvider) Name() string {
 	return UpdateBrokerInterceptorProviderName
 }
 
 type UpdateBrokerInterceptor struct {
 	OSBClientCreateFunc osbc.CreateFunc
-	Encrypter           security.Encrypter
-	Repository          storage.Repository
 	catalog             *osbc.CatalogResponse
 }
 
-func (c *UpdateBrokerInterceptor) OnAPIUpdate(h extension.InterceptUpdateOnAPI) extension.InterceptUpdateOnAPI {
-	return func(ctx context.Context, changes *extension.UpdateContext) (types.Object, error) {
-		obj, err := c.Repository.Get(ctx, types.ServiceBrokerType, changes.Object.GetID())
-		if err != nil {
-			return nil, err
-		}
+func (c *UpdateBrokerInterceptor) OnAPIUpdate(h storage.InterceptUpdateOnAPI) storage.InterceptUpdateOnAPI {
+	return func(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 		broker := obj.(*types.ServiceBroker)
-		if err = transformBrokerCredentials(ctx, broker, c.Encrypter.Decrypt); err != nil {
-			return nil, err
-		}
-		if err = util.BytesToObject(changes.ObjectChanges, broker); err != nil {
-			return nil, err
-		}
+		var err error
 		if c.catalog, err = getBrokerCatalog(ctx, c.OSBClientCreateFunc, broker); err != nil {
 			return nil, err
 		}
@@ -82,24 +64,13 @@ func (c *UpdateBrokerInterceptor) OnAPIUpdate(h extension.InterceptUpdateOnAPI) 
 		if err != nil {
 			return nil, err
 		}
-		if err = transformBrokerCredentials(ctx, broker, c.Encrypter.Encrypt); err != nil {
-			return nil, err
-		}
-		changes.Object = broker
-		result, err := h(ctx, changes)
-		if err != nil {
-			return nil, err
-		}
-		if secured, ok := result.(types.Secured); ok {
-			secured.SetCredentials(nil)
-		}
-		return result, nil
+		return h(ctx, broker, labelChanges...)
 	}
 }
 
-func (c *UpdateBrokerInterceptor) OnTxUpdate(f extension.InterceptUpdateOnTx) extension.InterceptUpdateOnTx {
-	return func(ctx context.Context, txStorage storage.Warehouse, oldObject types.Object, changes *extension.UpdateContext) (types.Object, error) {
-		newObject, err := f(ctx, txStorage, oldObject, changes)
+func (c *UpdateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTx) storage.InterceptUpdateOnTx {
+	return func(ctx context.Context, txStorage storage.Warehouse, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+		newObject, err := f(ctx, txStorage, obj, labelChanges...)
 		if err != nil {
 			return nil, err
 		}
