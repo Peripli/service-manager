@@ -50,7 +50,7 @@ import (
 type ServiceManagerBuilder struct {
 	*web.API
 
-	Storage storage.Storage
+	Storage *storage.InterceptableRepository
 	ctx     context.Context
 	cfg     *server.Settings
 }
@@ -140,7 +140,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 		ctx:     ctx,
 		cfg:     cfg.Server,
 		API:     API,
-		Storage: smStorage,
+		Storage: interceptableRepository,
 	}
 }
 
@@ -214,33 +214,32 @@ func newOSBClient(skipSsl bool) osbc.CreateFunc {
 	}
 }
 
-//
-//func (api *API) RegisterCreateInterceptorProvider(objectType types.ObjectType, provider storage.CreateInterceptorProvider) *interceptorBuilder {
-//	return &interceptorBuilder{
-//		interceptables:  api.interceptables(),
-//		interceptorType: objectType,
-//		concreteBuilder: &createInterceptorBuilder{
-//			provider: provider,
-//		},
-//	}
-//}
-//
-//func (api *API) RegisterUpdateInterceptorProvider(objectType types.ObjectType, provider storage.UpdateInterceptorProvider) *interceptorBuilder {
-//	return &interceptorBuilder{
-//		interceptables:  api.interceptables(),
-//		interceptorType: objectType,
-//		concreteBuilder: &updateInterceptorBuilder{
-//			provider: provider,
-//		},
-//	}
-//}
-//
-//func (api *API) RegisterDeleteInterceptorProvider(objectType types.ObjectType, provider storage.DeleteInterceptorProvider) *interceptorBuilder {
-//	return &interceptorBuilder{
-//		interceptables:  api.interceptables(),
-//		interceptorType: objectType,
-//		concreteBuilder: &deleteInterceptorBuilder{
-//			provider: provider,
-//		},
-//	}
-//}
+func (smb *ServiceManagerBuilder) RegisterCreateInterceptorProvider(objectType types.ObjectType, provider storage.CreateInterceptorProvider) *interceptorBuilder {
+	return &interceptorBuilder{
+		repository:      smb.Storage,
+		interceptorType: objectType,
+		concreteBuilder: &createInterceptorBuilder{
+			provider: provider,
+		},
+	}
+}
+
+func (smb *ServiceManagerBuilder) RegisterUpdateInterceptorProvider(objectType types.ObjectType, provider storage.UpdateInterceptorProvider) *interceptorBuilder {
+	return &interceptorBuilder{
+		repository:      smb.Storage,
+		interceptorType: objectType,
+		concreteBuilder: &updateInterceptorBuilder{
+			provider: provider,
+		},
+	}
+}
+
+func (smb *ServiceManagerBuilder) RegisterDeleteInterceptorProvider(objectType types.ObjectType, provider storage.DeleteInterceptorProvider) *interceptorBuilder {
+	return &interceptorBuilder{
+		repository:      smb.Storage,
+		interceptorType: objectType,
+		concreteBuilder: &deleteInterceptorBuilder{
+			provider: provider,
+		},
+	}
+}
