@@ -59,38 +59,56 @@ func (ir *InterceptableRepository) AddDeleteInterceptorProviders(objectType type
 	ir.deleteProviders[objectType] = append(ir.deleteProviders[objectType], providers...)
 }
 
-func (ir *InterceptableRepository) Create(ctx context.Context, obj types.Object) (string, error) {
-	objectType := obj.GetType()
-	createInterceptor := UnionCreateInterceptor(ir.createProviders[objectType])()
+type finalCreateObjectInterceptor struct {
+	encrypter  security.Encrypter
+	repository Repository
+	objectType types.ObjectType
+	txChain    func(InterceptCreateOnTxFunc) InterceptCreateOnTxFunc
+}
 
-	txOp := createInterceptor.OnTxCreate(func(ctx context.Context, txStorage Warehouse, newObject types.Object) error {
-		id, err := txStorage.Create(ctx, newObject)
-		if err != nil {
-			return util.HandleStorageError(err, string(objectType))
-		}
-		newObject.SetID(id)
-		return nil
-	})
+func (final *finalCreateObjectInterceptor) InterceptCreateOnTx(ctx context.Context, txStorage Warehouse, newObject types.Object) error {
+	id, err := txStorage.Create(ctx, newObject)
+	if err != nil {
+		return err
+	}
+	newObject.SetID(id)
+	return nil
+}
 
-	apiOp := createInterceptor.AroundTxCreate(func(ctx context.Context, obj types.Object) (types.Object, error) {
-		if err := transformCredentials(ctx, obj, ir.encrypter.Encrypt); err != nil {
-			return nil, err
-		}
-		if err := ir.delegate.InTransaction(ctx, func(ctx context.Context, txStorage Warehouse) error {
-			return txOp(ctx, txStorage, obj)
-		}); err != nil {
-			return nil, err
+func (final *finalCreateObjectInterceptor) InterceptCreateAroundTx(ctx context.Context, obj types.Object) (types.Object, error) {
+	if err := transformCredentials(ctx, obj, final.encrypter.Encrypt); err != nil {
+		return nil, err
+	}
+	if err := final.repository.InTransaction(ctx, func(ctx context.Context, storage Warehouse) error {
+		if err := final.txChain(final.InterceptCreateOnTx)(ctx, storage, obj); err != nil {
+			return util.HandleSelectionError(err, string(final.objectType))
 		}
 		if securedObj, isSecured := obj.(types.Secured); isSecured {
 			securedObj.SetCredentials(nil)
 		}
-		return obj, nil
-	})
-	object, err := apiOp(ctx, obj)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return obj, nil
+}
+
+func (ir *InterceptableRepository) Create(ctx context.Context, obj types.Object) (string, error) {
+	objectType := obj.GetType()
+	interceptorsChain := NewCreateInterceptorChain(ir.createProviders[objectType])
+
+	finalInterceptor := &finalCreateObjectInterceptor{
+		encrypter:  ir.encrypter,
+		objectType: objectType,
+		repository: ir.delegate,
+		txChain:    interceptorsChain.OnTxCreate,
+	}
+
+	obj, err := interceptorsChain.AroundTxCreate(finalInterceptor.InterceptCreateAroundTx)(ctx, obj)
 	if err != nil {
 		return "", err
 	}
-	return object.GetID(), nil
+	return obj.GetID(), nil
 }
 
 func (ir *InterceptableRepository) Get(ctx context.Context, objectType types.ObjectType, id string) (types.Object, error) {
@@ -118,68 +136,81 @@ func (ir *InterceptableRepository) List(ctx context.Context, objectType types.Ob
 	return objectList, nil
 }
 
-func (ir *InterceptableRepository) Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
-	deleteInterceptor := UnionDeleteInterceptor(ir.deleteProviders[objectType])()
-
-	txOp := deleteInterceptor.OnTxDelete(func(ctx context.Context, txStorage Warehouse, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
-		return txStorage.Delete(ctx, objectType, deletionCriteria...)
-	})
-
-	apiOp := deleteInterceptor.OnAPIDelete(func(ctx context.Context, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
-		var result types.ObjectList
-		if err := ir.delegate.InTransaction(ctx, func(ctx context.Context, storage Warehouse) error {
-			var err error
-			result, err = txOp(ctx, storage, deletionCriteria...)
-			return util.HandleSelectionError(err, string(objectType))
-		}); err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-
-	return apiOp(ctx, criteria...)
+type finalDeleteObjectInterceptor struct {
+	repository Repository
+	objectType types.ObjectType
+	txChain    func(InterceptDeleteOnTxFunc) InterceptDeleteOnTxFunc
 }
 
-func transformCredentials(ctx context.Context, obj types.Object, transformationFunc func(context.Context, []byte) ([]byte, error)) error {
-	securedObj, isSecured := obj.(types.Secured)
-	if isSecured {
-		credentials := securedObj.GetCredentials()
-		if credentials != nil {
-			transformedPassword, err := transformationFunc(ctx, []byte(credentials.Basic.Password))
-			if err != nil {
-				return err
-			}
-			credentials.Basic.Password = string(transformedPassword)
-			securedObj.SetCredentials(credentials)
+func (final *finalDeleteObjectInterceptor) InterceptDeleteOnTx(ctx context.Context, txStorage Warehouse, criteria ...query.Criterion) (types.ObjectList, error) {
+	return txStorage.Delete(ctx, final.objectType, criteria...)
+}
+
+func (final *finalDeleteObjectInterceptor) InterceptDeleteAroundTx(ctx context.Context, criteria ...query.Criterion) (types.ObjectList, error) {
+	var result types.ObjectList
+	if err := final.repository.InTransaction(ctx, func(ctx context.Context, txStorage Warehouse) error {
+		var err error
+		result, err = final.txChain(final.InterceptDeleteOnTx)(ctx, txStorage, criteria...)
+		if err != nil {
+			return util.HandleSelectionError(err, string(final.objectType))
 		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
-	return nil
+	return result, nil
+}
+
+func (ir *InterceptableRepository) Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
+	interceptorsChain := NewDeleteInterceptorChain(ir.deleteProviders[objectType])
+
+	finalInterceptor := &finalDeleteObjectInterceptor{
+		repository: ir.delegate,
+		objectType: objectType,
+		txChain:    interceptorsChain.OnTxDelete,
+	}
+	// TODO the chain itself is also a DeleteInterceptor - not sure if we can somehow leverage this. Ideas?
+	return interceptorsChain.AroundTxDelete(finalInterceptor.InterceptDeleteAroundTx)(ctx, criteria...)
+}
+
+type finalUpdateObjectInterceptor struct {
+	encrypter  security.Encrypter
+	repository Repository
+	objectType types.ObjectType
+	txChain    func(InterceptUpdateOnTxFunc) InterceptUpdateOnTxFunc
+}
+
+func (final *finalUpdateObjectInterceptor) InterceptUpdateOnTxFunc(ctx context.Context, txStorage Warehouse, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+	return txStorage.Update(ctx, obj, labelChanges...)
+}
+
+func (final *finalUpdateObjectInterceptor) InterceptUpdateAroundTxInterceptUpdateAroundTx(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+	if err := transformCredentials(ctx, obj, final.encrypter.Encrypt); err != nil {
+		return nil, err
+	}
+	var result types.Object
+	if err := final.repository.InTransaction(ctx, func(ctx context.Context, txStorage Warehouse) error {
+		var err error
+		result, err = final.txChain(final.InterceptUpdateOnTxFunc)(ctx, txStorage, obj, labelChanges...)
+		return util.HandleStorageError(err, string(final.objectType))
+	}); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func (ir *InterceptableRepository) Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 	objectType := obj.GetType()
-	updateInterceptor := UnionUpdateInterceptor(ir.updateProviders[objectType])()
+	interceptorsChain := NewUpdateInterceptorChain(ir.updateProviders[objectType])
 
-	txOp := updateInterceptor.OnTxUpdate(func(ctx context.Context, txStorage Warehouse, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
-		return txStorage.Update(ctx, obj, labelChanges...)
-	})
+	finalInterceptor := &finalUpdateObjectInterceptor{
+		encrypter:  ir.encrypter,
+		objectType: objectType,
+		repository: ir.delegate,
+		txChain:    interceptorsChain.OnTxUpdate,
+	}
 
-	apiOp := updateInterceptor.OnAPIUpdate(func(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
-		if err := transformCredentials(ctx, obj, ir.encrypter.Encrypt); err != nil {
-			return nil, err
-		}
-		var result types.Object
-		if err := ir.InTransaction(ctx, func(ctx context.Context, txStorage Warehouse) error {
-			var err error
-			result, err = txOp(ctx, txStorage, obj, labelChanges...)
-			return util.HandleStorageError(err, string(objectType))
-		}); err != nil {
-			return nil, err
-		}
-		return result, nil
-	})
-
-	object, err := apiOp(ctx, obj, labelChanges...)
+	object, err := interceptorsChain.AroundTxUpdate(finalInterceptor.InterceptUpdateAroundTxInterceptUpdateAroundTx)(ctx, obj, labelChanges...)
 	if err != nil {
 		return nil, err
 	}
@@ -201,10 +232,11 @@ func (ir *InterceptableRepository) InTransaction(ctx context.Context, f func(ctx
 	return ir.delegate.InTransaction(ctx, f)
 }
 
-func (ir *InterceptableRepository) validatecreateProvidersNames(objectType types.ObjectType, name string) {
+func (ir *InterceptableRepository) validateCreateProvidersNames(objectType types.ObjectType, name string) {
 	found := false
 	for _, p := range ir.createProviders[objectType] {
-		if p.Name() == name {
+		interceptor := p.Provide()
+		if interceptor.Name() == name {
 			found = true
 			break
 		}
@@ -216,19 +248,20 @@ func (ir *InterceptableRepository) validatecreateProvidersNames(objectType types
 
 func (ir *InterceptableRepository) validateCreateProviders(objectType types.ObjectType, newProviders []CreateInterceptorProvider) {
 	for _, newProvider := range newProviders {
+		interceptor := newProvider.Provide()
 		if ordered, ok := newProvider.(Ordered); ok {
 			positionAPI, nameAPI := ordered.PositionAPI()
 			positionTx, nameTx := ordered.PositionTx()
 			if positionAPI != PositionNone {
-				ir.validatecreateProvidersNames(objectType, nameAPI)
+				ir.validateCreateProvidersNames(objectType, nameAPI)
 			}
 			if positionTx != PositionNone {
-				ir.validatecreateProvidersNames(objectType, nameTx)
+				ir.validateCreateProvidersNames(objectType, nameTx)
 			}
 		}
 		for _, p := range ir.createProviders[objectType] {
 			if n, ok := p.(Named); ok {
-				if n.Name() == newProvider.Name() {
+				if n.Name() == interceptor.Name() {
 					log.D().Panicf("%s create interceptor provider is already registered", n.Name())
 				}
 			}
@@ -239,7 +272,7 @@ func (ir *InterceptableRepository) validateCreateProviders(objectType types.Obje
 func (ir *InterceptableRepository) validateUpdateProvidersNames(objectType types.ObjectType, name string) {
 	found := false
 	for _, p := range ir.updateProviders[objectType] {
-		if p.Name() == name {
+		if p.Provide().Name() == name {
 			found = true
 			break
 		}
@@ -251,6 +284,7 @@ func (ir *InterceptableRepository) validateUpdateProvidersNames(objectType types
 
 func (ir *InterceptableRepository) validateUpdateProviders(objectType types.ObjectType, newProviders []UpdateInterceptorProvider) {
 	for _, newProvider := range newProviders {
+		interceptor := newProvider.Provide()
 		if ordered, ok := newProvider.(Ordered); ok {
 			positionAPI, nameAPI := ordered.PositionAPI()
 			positionTx, nameTx := ordered.PositionTx()
@@ -263,7 +297,7 @@ func (ir *InterceptableRepository) validateUpdateProviders(objectType types.Obje
 		}
 		for _, p := range ir.updateProviders[objectType] {
 			if n, ok := p.(Named); ok {
-				if n.Name() == newProvider.Name() {
+				if n.Name() == interceptor.Name() {
 					log.D().Panicf("%s update interceptor provider is already registered", n.Name())
 				}
 			}
@@ -274,7 +308,7 @@ func (ir *InterceptableRepository) validateUpdateProviders(objectType types.Obje
 func (ir *InterceptableRepository) validateDeleteProvidersNames(objectType types.ObjectType, name string) {
 	found := false
 	for _, p := range ir.deleteProviders[objectType] {
-		if p.Name() == name {
+		if p.Provide().Name() == name {
 			found = true
 			break
 		}
@@ -298,10 +332,26 @@ func (ir *InterceptableRepository) validateDeleteProviders(objectType types.Obje
 		}
 		for _, p := range ir.deleteProviders[objectType] {
 			if n, ok := p.(Named); ok {
-				if n.Name() == newProvider.Name() {
+				if n.Name() == newProvider.Provide().Name() {
 					log.D().Panicf("%s delete interceptor provider is already registered", n.Name())
 				}
 			}
 		}
 	}
+}
+
+func transformCredentials(ctx context.Context, obj types.Object, transformationFunc func(context.Context, []byte) ([]byte, error)) error {
+	securedObj, isSecured := obj.(types.Secured)
+	if isSecured {
+		credentials := securedObj.GetCredentials()
+		if credentials != nil {
+			transformedPassword, err := transformationFunc(ctx, []byte(credentials.Basic.Password))
+			if err != nil {
+				return err
+			}
+			credentials.Basic.Password = string(transformedPassword)
+			securedObj.SetCredentials(credentials)
+		}
+	}
+	return nil
 }

@@ -21,34 +21,34 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
-type concreteBuilder interface {
+type registrator interface {
 	Apply(repository *storage.InterceptableRepository, interceptorType types.ObjectType, orderer storage.Ordered)
 }
 
-type interceptorBuilder struct {
-	concreteBuilder
+type interceptorRegistrationBuilder struct {
+	registrator
 
 	orderer         *storage.OrderedProviderImpl
 	interceptorType types.ObjectType
 	repository      *storage.InterceptableRepository
 }
 
-func (creator *interceptorBuilder) Apply() {
+func (creator *interceptorRegistrationBuilder) Apply() {
 	if creator.orderer == nil {
 		creator.orderer = &storage.OrderedProviderImpl{}
 	}
-	creator.concreteBuilder.Apply(creator.repository, creator.interceptorType, creator.orderer)
+	creator.registrator.Apply(creator.repository, creator.interceptorType, creator.orderer)
 }
 
-func (creator *interceptorBuilder) Before(name string) *interceptorBuilder {
+func (creator *interceptorRegistrationBuilder) Before(name string) *interceptorRegistrationBuilder {
 	return creator.TxBefore(name).APIBefore(name)
 }
 
-func (creator *interceptorBuilder) After(name string) *interceptorBuilder {
+func (creator *interceptorRegistrationBuilder) After(name string) *interceptorRegistrationBuilder {
 	return creator.TxAfter(name).APIAfter(name)
 }
 
-func (creator *interceptorBuilder) TxBefore(name string) *interceptorBuilder {
+func (creator *interceptorRegistrationBuilder) TxBefore(name string) *interceptorRegistrationBuilder {
 	if creator.orderer == nil {
 		creator.orderer = &storage.OrderedProviderImpl{}
 	}
@@ -57,7 +57,7 @@ func (creator *interceptorBuilder) TxBefore(name string) *interceptorBuilder {
 	return creator
 }
 
-func (creator *interceptorBuilder) APIBefore(name string) *interceptorBuilder {
+func (creator *interceptorRegistrationBuilder) APIBefore(name string) *interceptorRegistrationBuilder {
 	if creator.orderer == nil {
 		creator.orderer = &storage.OrderedProviderImpl{}
 	}
@@ -66,7 +66,7 @@ func (creator *interceptorBuilder) APIBefore(name string) *interceptorBuilder {
 	return creator
 }
 
-func (creator *interceptorBuilder) APIAfter(name string) *interceptorBuilder {
+func (creator *interceptorRegistrationBuilder) APIAfter(name string) *interceptorRegistrationBuilder {
 	if creator.orderer == nil {
 		creator.orderer = &storage.OrderedProviderImpl{}
 	}
@@ -75,7 +75,7 @@ func (creator *interceptorBuilder) APIAfter(name string) *interceptorBuilder {
 	return creator
 }
 
-func (creator *interceptorBuilder) TxAfter(name string) *interceptorBuilder {
+func (creator *interceptorRegistrationBuilder) TxAfter(name string) *interceptorRegistrationBuilder {
 	if creator.orderer == nil {
 		creator.orderer = &storage.OrderedProviderImpl{}
 	}
@@ -89,18 +89,18 @@ type orderedCreateInterceptorProvider struct {
 	storage.Ordered
 }
 
-type createInterceptorBuilder struct {
+type createInterceptorRegistration struct {
 	provider storage.CreateInterceptorProvider
 }
 
-func (cib *createInterceptorBuilder) Apply(repository *storage.InterceptableRepository, interceptsType types.ObjectType, orderer storage.Ordered) {
+func (cib *createInterceptorRegistration) Apply(repository *storage.InterceptableRepository, interceptsType types.ObjectType, orderer storage.Ordered) {
 	repository.AddCreateInterceptorProviders(interceptsType, &orderedCreateInterceptorProvider{
 		CreateInterceptorProvider: cib.provider,
 		Ordered:                   orderer,
 	})
 }
 
-type updateInterceptorBuilder struct {
+type updateInterceptorRegistration struct {
 	provider storage.UpdateInterceptorProvider
 }
 
@@ -109,14 +109,14 @@ type orderedUpdateInterceptorProvider struct {
 	storage.UpdateInterceptorProvider
 }
 
-func (uib *updateInterceptorBuilder) Apply(repository *storage.InterceptableRepository, interceptsType types.ObjectType, orderer storage.Ordered) {
+func (uib *updateInterceptorRegistration) Apply(repository *storage.InterceptableRepository, interceptsType types.ObjectType, orderer storage.Ordered) {
 	repository.AddUpdateInterceptorProviders(interceptsType, &orderedUpdateInterceptorProvider{
 		UpdateInterceptorProvider: uib.provider,
 		Ordered:                   orderer,
 	})
 }
 
-type deleteInterceptorBuilder struct {
+type deleteInterceptorRegistration struct {
 	provider storage.DeleteInterceptorProvider
 }
 
@@ -125,7 +125,7 @@ type orderedDeleteInterceptorProvider struct {
 	storage.DeleteInterceptorProvider
 }
 
-func (dib *deleteInterceptorBuilder) Apply(repository *storage.InterceptableRepository, interceptsType types.ObjectType, orderer storage.Ordered) {
+func (dib *deleteInterceptorRegistration) Apply(repository *storage.InterceptableRepository, interceptsType types.ObjectType, orderer storage.Ordered) {
 	repository.AddDeleteInterceptorProviders(interceptsType, &orderedDeleteInterceptorProvider{
 		DeleteInterceptorProvider: dib.provider,
 		Ordered:                   orderer,

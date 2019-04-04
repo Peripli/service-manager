@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	platformCreateInterceptorProviderName = "create-platform"
+	platformCreateInterceptorName = "create-platform"
 )
 
 type PlatformCreateInterceptorProvider struct {
@@ -35,13 +35,14 @@ type PlatformCreateInterceptorProvider struct {
 func (c *PlatformCreateInterceptorProvider) Provide() storage.CreateInterceptor {
 	return &CreateInterceptor{}
 }
-func (c *PlatformCreateInterceptorProvider) Name() string {
-	return platformCreateInterceptorProviderName
-}
 
 type CreateInterceptor struct{}
 
-func (c *CreateInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTx) storage.InterceptCreateAroundTx {
+func (c *CreateInterceptor) Name() string {
+	return platformCreateInterceptorName
+}
+
+func (c *CreateInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		credentials, err := types.GenerateCredentials()
 		if err != nil {
@@ -60,6 +61,6 @@ func (c *CreateInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTx) st
 	}
 }
 
-func (*CreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTx) storage.InterceptCreateOnTx {
+func (*CreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 	return f
 }

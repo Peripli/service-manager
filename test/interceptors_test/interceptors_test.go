@@ -57,22 +57,22 @@ var _ = Describe("Interceptors", func() {
 	}
 
 	resetModificationInterceptors := func() {
-		createModificationInterceptor.AroundTxCreateStub = func(h storage.InterceptCreateAroundTx) storage.InterceptCreateAroundTx {
+		createModificationInterceptor.AroundTxCreateStub = func(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
 			return h
 		}
-		createModificationInterceptor.OnTxCreateStub = func(f storage.InterceptCreateOnTx) storage.InterceptCreateOnTx {
+		createModificationInterceptor.OnTxCreateStub = func(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 			return f
 		}
-		updateModificationInterceptor.OnAPIUpdateStub = func(h storage.InterceptUpdateOnAPI) storage.InterceptUpdateOnAPI {
+		updateModificationInterceptor.AroundTxUpdateStub = func(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
 			return h
 		}
-		updateModificationInterceptor.OnTxUpdateStub = func(f storage.InterceptUpdateOnTx) storage.InterceptUpdateOnTx {
+		updateModificationInterceptor.OnTxUpdateStub = func(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
 			return f
 		}
-		deleteModificationInterceptor.OnAPIDeleteStub = func(h storage.InterceptDeleteOnAPI) storage.InterceptDeleteOnAPI {
+		deleteModificationInterceptor.AroundTxDeleteStub = func(h storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
 			return h
 		}
-		deleteModificationInterceptor.OnTxDeleteStub = func(f storage.InterceptDeleteOnTx) storage.InterceptDeleteOnTx {
+		deleteModificationInterceptor.OnTxDeleteStub = func(f storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
 			return f
 		}
 	}
@@ -112,58 +112,58 @@ var _ = Describe("Interceptors", func() {
 				fakeDeleteInterceptorProviderAB := deleteInterceptorProvider(string(entityType)+"APIAfter_TXBefore", deleteStack)
 
 				modificationCreateInterceptorProvider := &storagefakes.FakeCreateInterceptorProvider{}
-				modificationCreateInterceptorProvider.NameReturns(string(entityType) + "modificationCreate")
+				createModificationInterceptor.NameReturns(string(entityType) + "modificationCreate")
 				modificationCreateInterceptorProvider.ProvideReturns(createModificationInterceptor)
 
 				modificationUpdateInterceptorProvider := &storagefakes.FakeUpdateInterceptorProvider{}
-				modificationUpdateInterceptorProvider.NameReturns(string(entityType) + "modificationUpdate")
+				updateModificationInterceptor.NameReturns(string(entityType) + "modificationUpdate")
 				modificationUpdateInterceptorProvider.ProvideReturns(updateModificationInterceptor)
 
 				modificationDeleteInterceptorProvider := &storagefakes.FakeDeleteInterceptorProvider{}
-				modificationDeleteInterceptorProvider.NameReturns(string(entityType) + "modificationDelete")
+				deleteModificationInterceptor.NameReturns(string(entityType) + "modificationDelete")
 				modificationDeleteInterceptorProvider.ProvideReturns(deleteModificationInterceptor)
 
 				// Register create interceptors
 				smb.RegisterCreateInterceptorProvider(entityType, fakeCreateInterceptorProvider1).Apply()
 				smb.RegisterCreateInterceptorProvider(entityType, fakeCreateInterceptorProvider2).
-					After(fakeCreateInterceptorProvider1.Name()).Apply()
+					After(fakeCreateInterceptorProvider1.Provide().Name()).Apply()
 				smb.RegisterCreateInterceptorProvider(entityType, fakeCreateInterceptorProvider0).
-					Before(fakeCreateInterceptorProvider1.Name()).Apply()
+					Before(fakeCreateInterceptorProvider1.Provide().Name()).Apply()
 				smb.RegisterCreateInterceptorProvider(entityType, fakeCreateInterceptorProviderBA).
-					APIBefore(fakeCreateInterceptorProvider0.Name()).
-					TxAfter(fakeCreateInterceptorProvider2.Name()).
+					APIBefore(fakeCreateInterceptorProvider0.Provide().Name()).
+					TxAfter(fakeCreateInterceptorProvider2.Provide().Name()).
 					Apply()
 				smb.RegisterCreateInterceptorProvider(entityType, fakeCreateInterceptorProviderAB).
-					APIAfter(fakeCreateInterceptorProviderBA.Name()).
-					TxBefore(fakeCreateInterceptorProviderBA.Name()).
+					APIAfter(fakeCreateInterceptorProviderBA.Provide().Name()).
+					TxBefore(fakeCreateInterceptorProviderBA.Provide().Name()).
 					Apply()
 				// Register update interceptors
 				smb.RegisterUpdateInterceptorProvider(entityType, fakeUpdateInterceptorProvider1).Apply()
 				smb.RegisterUpdateInterceptorProvider(entityType, fakeUpdateInterceptorProvider2).
-					After(fakeUpdateInterceptorProvider1.Name()).Apply()
+					After(fakeUpdateInterceptorProvider1.Provide().Name()).Apply()
 				smb.RegisterUpdateInterceptorProvider(entityType, fakeUpdateInterceptorProvider0).
-					Before(fakeUpdateInterceptorProvider1.Name()).Apply()
+					Before(fakeUpdateInterceptorProvider1.Provide().Name()).Apply()
 				smb.RegisterUpdateInterceptorProvider(entityType, fakeUpdateInterceptorProviderBA).
-					APIBefore(fakeUpdateInterceptorProvider0.Name()).
-					TxAfter(fakeUpdateInterceptorProvider2.Name()).
+					APIBefore(fakeUpdateInterceptorProvider0.Provide().Name()).
+					TxAfter(fakeUpdateInterceptorProvider2.Provide().Name()).
 					Apply()
 				smb.RegisterUpdateInterceptorProvider(entityType, fakeUpdateInterceptorProviderAB).
-					APIAfter(fakeUpdateInterceptorProviderBA.Name()).
-					TxBefore(fakeUpdateInterceptorProviderBA.Name()).
+					APIAfter(fakeUpdateInterceptorProviderBA.Provide().Name()).
+					TxBefore(fakeUpdateInterceptorProviderBA.Provide().Name()).
 					Apply()
 				// Register delete interceptors
 				smb.RegisterDeleteInterceptorProvider(entityType, fakeDeleteInterceptorProvider1).Apply()
 				smb.RegisterDeleteInterceptorProvider(entityType, fakeDeleteInterceptorProvider2).
-					After(fakeDeleteInterceptorProvider1.Name()).Apply()
+					After(fakeDeleteInterceptorProvider1.Provide().Name()).Apply()
 				smb.RegisterDeleteInterceptorProvider(entityType, fakeDeleteInterceptorProvider0).
-					Before(fakeDeleteInterceptorProvider1.Name()).Apply()
+					Before(fakeDeleteInterceptorProvider1.Provide().Name()).Apply()
 				smb.RegisterDeleteInterceptorProvider(entityType, fakeDeleteInterceptorProviderBA).
-					APIBefore(fakeDeleteInterceptorProvider0.Name()).
-					TxAfter(fakeDeleteInterceptorProvider2.Name()).
+					APIBefore(fakeDeleteInterceptorProvider0.Provide().Name()).
+					TxAfter(fakeDeleteInterceptorProvider2.Provide().Name()).
 					Apply()
 				smb.RegisterDeleteInterceptorProvider(entityType, fakeDeleteInterceptorProviderAB).
-					APIAfter(fakeDeleteInterceptorProviderBA.Name()).
-					TxBefore(fakeDeleteInterceptorProviderBA.Name()).
+					APIAfter(fakeDeleteInterceptorProviderBA.Provide().Name()).
+					TxBefore(fakeDeleteInterceptorProviderBA.Provide().Name()).
 					Apply()
 
 				smb.RegisterCreateInterceptorProvider(entityType, modificationCreateInterceptorProvider).Apply()
@@ -310,14 +310,14 @@ var _ = Describe("Interceptors", func() {
 					newLabelKey := "newLabelKey"
 					newLabelValue := []string{"newLabelValueAPI", "newLabelValueTX"}
 
-					createModificationInterceptor.AroundTxCreateStub = func(h storage.InterceptCreateAroundTx) storage.InterceptCreateAroundTx {
+					createModificationInterceptor.AroundTxCreateStub = func(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
 						return func(ctx context.Context, obj types.Object) (object types.Object, e error) {
 							obj.SetLabels(types.Labels{newLabelKey: []string{newLabelValue[0]}})
 							obj, e = h(ctx, obj)
 							return obj, e
 						}
 					}
-					createModificationInterceptor.OnTxCreateStub = func(f storage.InterceptCreateOnTx) storage.InterceptCreateOnTx {
+					createModificationInterceptor.OnTxCreateStub = func(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 						return func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error {
 							labels := newObject.GetLabels()
 							labels[newLabelKey] = append(labels[newLabelKey], newLabelValue[1])
@@ -335,7 +335,7 @@ var _ = Describe("Interceptors", func() {
 				It("Update", func() {
 					newLabelKey := "newLabelKey"
 					newLabelValue := []string{"newLabelValueAPI", "newLabelValueTX"}
-					updateModificationInterceptor.OnAPIUpdateStub = func(h storage.InterceptUpdateOnAPI) storage.InterceptUpdateOnAPI {
+					updateModificationInterceptor.AroundTxUpdateStub = func(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
 						return func(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
 							labelChanges = append(labelChanges, &query.LabelChange{
 								Key:       newLabelKey,
@@ -345,7 +345,7 @@ var _ = Describe("Interceptors", func() {
 							return h(ctx, obj, labelChanges...)
 						}
 					}
-					updateModificationInterceptor.OnTxUpdateStub = func(f storage.InterceptUpdateOnTx) storage.InterceptUpdateOnTx {
+					updateModificationInterceptor.OnTxUpdateStub = func(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
 						return func(ctx context.Context, txStorage storage.Warehouse, obj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
 							labelChanges = append(labelChanges, &query.LabelChange{
 								Key:       newLabelKey,
@@ -364,7 +364,7 @@ var _ = Describe("Interceptors", func() {
 
 				It("Delete", func() {
 					_ = e.createEntryFunc()
-					deleteModificationInterceptor.OnAPIDeleteStub = func(h storage.InterceptDeleteOnAPI) storage.InterceptDeleteOnAPI {
+					deleteModificationInterceptor.AroundTxDeleteStub = func(h storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
 						return func(ctx context.Context, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
 							deletionCriteria = append(deletionCriteria, query.ByField(query.InOperator, "id", "invalid"))
 							return h(ctx, deletionCriteria...)
@@ -372,7 +372,7 @@ var _ = Describe("Interceptors", func() {
 					}
 					ctx.SMWithOAuth.DELETE(e.url).Expect().Status(http.StatusNotFound)
 					resetModificationInterceptors()
-					deleteModificationInterceptor.OnTxDeleteStub = func(f storage.InterceptDeleteOnTx) storage.InterceptDeleteOnTx {
+					deleteModificationInterceptor.OnTxDeleteStub = func(f storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
 						return func(ctx context.Context, txStorage storage.Warehouse, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
 							deletionCriteria = append(deletionCriteria, query.ByField(query.InOperator, "id", "invalid"))
 							return f(ctx, txStorage, deletionCriteria...)
@@ -403,10 +403,10 @@ func (s *callStack) Clear() {
 func createInterceptorProvider(nameSuffix string, stack *callStack) *storagefakes.FakeCreateInterceptorProvider {
 	name := "Create" + nameSuffix
 	fakeCreateInterceptorProvider := &storagefakes.FakeCreateInterceptorProvider{}
-	fakeCreateInterceptorProvider.NameReturns(name)
 
 	fakeCreateInterceptor := &storagefakes.FakeCreateInterceptor{}
-	fakeCreateInterceptor.AroundTxCreateStub = func(h storage.InterceptCreateAroundTx) storage.InterceptCreateAroundTx {
+	fakeCreateInterceptor.NameReturns(name)
+	fakeCreateInterceptor.AroundTxCreateStub = func(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
 		return func(ctx context.Context, obj types.Object) (types.Object, error) {
 			stack.Add(name + "APIpre")
 			obj, err := h(ctx, obj)
@@ -414,7 +414,7 @@ func createInterceptorProvider(nameSuffix string, stack *callStack) *storagefake
 			return obj, err
 		}
 	}
-	fakeCreateInterceptor.OnTxCreateStub = func(h storage.InterceptCreateOnTx) storage.InterceptCreateOnTx {
+	fakeCreateInterceptor.OnTxCreateStub = func(h storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 		return func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error {
 			stack.Add(name + "TXpre")
 			err := h(ctx, txStorage, newObject)
@@ -430,10 +430,9 @@ func updateInterceptorProvider(nameSuffix string, stack *callStack) *storagefake
 	name := "Update" + nameSuffix
 
 	fakeUpdateInterceptorProvider := &storagefakes.FakeUpdateInterceptorProvider{}
-	fakeUpdateInterceptorProvider.NameReturns(name)
-
 	fakeUpdateInterceptor := &storagefakes.FakeUpdateInterceptor{}
-	fakeUpdateInterceptor.OnAPIUpdateStub = func(h storage.InterceptUpdateOnAPI) storage.InterceptUpdateOnAPI {
+	fakeUpdateInterceptor.NameReturns(name)
+	fakeUpdateInterceptor.AroundTxUpdateStub = func(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
 		return func(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 			stack.Add(name + "APIpre")
 			obj, err := h(ctx, obj, labelChanges...)
@@ -441,7 +440,7 @@ func updateInterceptorProvider(nameSuffix string, stack *callStack) *storagefake
 			return obj, err
 		}
 	}
-	fakeUpdateInterceptor.OnTxUpdateStub = func(h storage.InterceptUpdateOnTx) storage.InterceptUpdateOnTx {
+	fakeUpdateInterceptor.OnTxUpdateStub = func(h storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
 		return func(ctx context.Context, txStorage storage.Warehouse, object types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 			stack.Add(name + "TXpre")
 			obj, err := h(ctx, txStorage, object, labelChanges...)
@@ -457,10 +456,9 @@ func deleteInterceptorProvider(nameSuffix string, stack *callStack) *storagefake
 	name := "Delete" + nameSuffix
 
 	fakeDeleteInterceptorProvider := &storagefakes.FakeDeleteInterceptorProvider{}
-	fakeDeleteInterceptorProvider.NameReturns(name)
-
 	fakeDeleteInterceptor := &storagefakes.FakeDeleteInterceptor{}
-	fakeDeleteInterceptor.OnAPIDeleteStub = func(h storage.InterceptDeleteOnAPI) storage.InterceptDeleteOnAPI {
+	fakeDeleteInterceptor.NameReturns(name)
+	fakeDeleteInterceptor.AroundTxDeleteStub = func(h storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
 		return func(ctx context.Context, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
 			stack.Add(name + "APIpre")
 			obj, err := h(ctx, deletionCriteria...)
@@ -468,7 +466,7 @@ func deleteInterceptorProvider(nameSuffix string, stack *callStack) *storagefake
 			return obj, err
 		}
 	}
-	fakeDeleteInterceptor.OnTxDeleteStub = func(h storage.InterceptDeleteOnTx) storage.InterceptDeleteOnTx {
+	fakeDeleteInterceptor.OnTxDeleteStub = func(h storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
 		return func(ctx context.Context, txStorage storage.Warehouse, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
 			stack.Add(name + "TXpre")
 			obj, err := h(ctx, txStorage, deletionCriteria...)

@@ -43,12 +43,12 @@ type BaseController struct {
 	objectBlueprint func() types.Object
 }
 
-func NewController(repository storage.Repository, resourceBaseURL string, objectBlueprint func() types.Object) *BaseController {
+func NewController(repository storage.Repository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object) *BaseController {
 	return &BaseController{
 		repository:      repository,
 		resourceBaseURL: resourceBaseURL,
 		objectBlueprint: objectBlueprint,
-		objectType:      objectBlueprint().GetType(),
+		objectType:      objectType,
 	}
 }
 

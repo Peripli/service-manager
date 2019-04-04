@@ -39,16 +39,17 @@ func (c *BrokerCreateInterceptorProvider) Provide() storage.CreateInterceptor {
 		OSBClientCreateFunc: c.OsbClientCreateFunc,
 	}
 }
-func (c *BrokerCreateInterceptorProvider) Name() string {
-	return CreateBrokerInterceptorProviderName
-}
 
 type CreateBrokerInterceptor struct {
 	OSBClientCreateFunc osbc.CreateFunc
 	serviceOfferings    []*types.ServiceOffering
 }
 
-func (c *CreateBrokerInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTx) storage.InterceptCreateAroundTx {
+func (c *CreateBrokerInterceptor) Name() string {
+	return CreateBrokerInterceptorProviderName
+}
+
+func (c *CreateBrokerInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		broker := obj.(*types.ServiceBroker)
 		catalog, err := getBrokerCatalog(ctx, c.OSBClientCreateFunc, broker) // keep catalog to be stored later
@@ -120,7 +121,7 @@ func osbCatalogToOfferings(catalog *osbc.CatalogResponse, broker types.Object) (
 	return result, nil
 }
 
-func (c *CreateBrokerInterceptor) OnTxCreate(f storage.InterceptCreateOnTx) storage.InterceptCreateOnTx {
+func (c *CreateBrokerInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 	return func(ctx context.Context, storage storage.Warehouse, broker types.Object) error {
 		if err := f(ctx, storage, broker); err != nil {
 			return err

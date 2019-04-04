@@ -72,13 +72,13 @@ func New(ctx context.Context, repository *storage.InterceptableRepository, setti
 	return &web.API{
 		// Default controllers - more filters can be registered using the relevant API methods
 		Controllers: []web.Controller{
-			NewController(repository, web.ServiceBrokersURL, func() types.Object {
+			NewController(repository, web.ServiceBrokersURL, types.ServiceBrokerType, func() types.Object {
 				return &types.ServiceBroker{}
 			}),
-			NewController(repository, web.PlatformsURL, func() types.Object {
+			NewController(repository, web.PlatformsURL, types.PlatformType, func() types.Object {
 				return &types.Platform{}
 			}),
-			NewController(repository, web.VisibilitiesURL, func() types.Object {
+			NewController(repository, web.VisibilitiesURL, types.VisibilityType, func() types.Object {
 				return &types.Visibility{}
 			}),
 			NewServiceOfferingController(repository),

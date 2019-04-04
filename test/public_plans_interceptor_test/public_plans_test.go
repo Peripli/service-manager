@@ -105,7 +105,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return catalogPlan.Free, nil
 				},
-			}).TxBefore(interceptors.UpdateBrokerInterceptorProviderName).Apply()
+			}).TxBefore(interceptors.UpdateBrokerInterceptorName).Apply()
 			return nil
 		}).Build()
 

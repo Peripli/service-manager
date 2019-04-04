@@ -2,101 +2,176 @@
 package storagefakes
 
 import (
-	"sync"
+	sync "sync"
 
-	"github.com/Peripli/service-manager/storage"
+	storage "github.com/Peripli/service-manager/storage"
 )
 
 type FakeDeleteInterceptor struct {
-	OnAPIDeleteStub        func(h storage.InterceptDeleteOnAPI) storage.InterceptDeleteOnAPI
-	onAPIDeleteMutex       sync.RWMutex
-	onAPIDeleteArgsForCall []struct {
-		h storage.InterceptDeleteOnAPI
+	AroundTxDeleteStub        func(storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc
+	aroundTxDeleteMutex       sync.RWMutex
+	aroundTxDeleteArgsForCall []struct {
+		arg1 storage.InterceptDeleteAroundTxFunc
 	}
-	onAPIDeleteReturns struct {
-		result1 storage.InterceptDeleteOnAPI
+	aroundTxDeleteReturns struct {
+		result1 storage.InterceptDeleteAroundTxFunc
 	}
-	onAPIDeleteReturnsOnCall map[int]struct {
-		result1 storage.InterceptDeleteOnAPI
+	aroundTxDeleteReturnsOnCall map[int]struct {
+		result1 storage.InterceptDeleteAroundTxFunc
 	}
-	OnTxDeleteStub        func(f storage.InterceptDeleteOnTx) storage.InterceptDeleteOnTx
+	NameStub        func() string
+	nameMutex       sync.RWMutex
+	nameArgsForCall []struct {
+	}
+	nameReturns struct {
+		result1 string
+	}
+	nameReturnsOnCall map[int]struct {
+		result1 string
+	}
+	OnTxDeleteStub        func(storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc
 	onTxDeleteMutex       sync.RWMutex
 	onTxDeleteArgsForCall []struct {
-		f storage.InterceptDeleteOnTx
+		arg1 storage.InterceptDeleteOnTxFunc
 	}
 	onTxDeleteReturns struct {
-		result1 storage.InterceptDeleteOnTx
+		result1 storage.InterceptDeleteOnTxFunc
 	}
 	onTxDeleteReturnsOnCall map[int]struct {
-		result1 storage.InterceptDeleteOnTx
+		result1 storage.InterceptDeleteOnTxFunc
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeDeleteInterceptor) OnAPIDelete(h storage.InterceptDeleteOnAPI) storage.InterceptDeleteOnAPI {
-	fake.onAPIDeleteMutex.Lock()
-	ret, specificReturn := fake.onAPIDeleteReturnsOnCall[len(fake.onAPIDeleteArgsForCall)]
-	fake.onAPIDeleteArgsForCall = append(fake.onAPIDeleteArgsForCall, struct {
-		h storage.InterceptDeleteOnAPI
-	}{h})
-	fake.recordInvocation("OnAPIDelete", []interface{}{h})
-	fake.onAPIDeleteMutex.Unlock()
-	if fake.OnAPIDeleteStub != nil {
-		return fake.OnAPIDeleteStub(h)
+func (fake *FakeDeleteInterceptor) AroundTxDelete(arg1 storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
+	fake.aroundTxDeleteMutex.Lock()
+	ret, specificReturn := fake.aroundTxDeleteReturnsOnCall[len(fake.aroundTxDeleteArgsForCall)]
+	fake.aroundTxDeleteArgsForCall = append(fake.aroundTxDeleteArgsForCall, struct {
+		arg1 storage.InterceptDeleteAroundTxFunc
+	}{arg1})
+	fake.recordInvocation("AroundTxDelete", []interface{}{arg1})
+	fake.aroundTxDeleteMutex.Unlock()
+	if fake.AroundTxDeleteStub != nil {
+		return fake.AroundTxDeleteStub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.onAPIDeleteReturns.result1
+	fakeReturns := fake.aroundTxDeleteReturns
+	return fakeReturns.result1
 }
 
-func (fake *FakeDeleteInterceptor) OnAPIDeleteCallCount() int {
-	fake.onAPIDeleteMutex.RLock()
-	defer fake.onAPIDeleteMutex.RUnlock()
-	return len(fake.onAPIDeleteArgsForCall)
+func (fake *FakeDeleteInterceptor) AroundTxDeleteCallCount() int {
+	fake.aroundTxDeleteMutex.RLock()
+	defer fake.aroundTxDeleteMutex.RUnlock()
+	return len(fake.aroundTxDeleteArgsForCall)
 }
 
-func (fake *FakeDeleteInterceptor) OnAPIDeleteArgsForCall(i int) storage.InterceptDeleteOnAPI {
-	fake.onAPIDeleteMutex.RLock()
-	defer fake.onAPIDeleteMutex.RUnlock()
-	return fake.onAPIDeleteArgsForCall[i].h
+func (fake *FakeDeleteInterceptor) AroundTxDeleteCalls(stub func(storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc) {
+	fake.aroundTxDeleteMutex.Lock()
+	defer fake.aroundTxDeleteMutex.Unlock()
+	fake.AroundTxDeleteStub = stub
 }
 
-func (fake *FakeDeleteInterceptor) OnAPIDeleteReturns(result1 storage.InterceptDeleteOnAPI) {
-	fake.OnAPIDeleteStub = nil
-	fake.onAPIDeleteReturns = struct {
-		result1 storage.InterceptDeleteOnAPI
+func (fake *FakeDeleteInterceptor) AroundTxDeleteArgsForCall(i int) storage.InterceptDeleteAroundTxFunc {
+	fake.aroundTxDeleteMutex.RLock()
+	defer fake.aroundTxDeleteMutex.RUnlock()
+	argsForCall := fake.aroundTxDeleteArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeDeleteInterceptor) AroundTxDeleteReturns(result1 storage.InterceptDeleteAroundTxFunc) {
+	fake.aroundTxDeleteMutex.Lock()
+	defer fake.aroundTxDeleteMutex.Unlock()
+	fake.AroundTxDeleteStub = nil
+	fake.aroundTxDeleteReturns = struct {
+		result1 storage.InterceptDeleteAroundTxFunc
 	}{result1}
 }
 
-func (fake *FakeDeleteInterceptor) OnAPIDeleteReturnsOnCall(i int, result1 storage.InterceptDeleteOnAPI) {
-	fake.OnAPIDeleteStub = nil
-	if fake.onAPIDeleteReturnsOnCall == nil {
-		fake.onAPIDeleteReturnsOnCall = make(map[int]struct {
-			result1 storage.InterceptDeleteOnAPI
+func (fake *FakeDeleteInterceptor) AroundTxDeleteReturnsOnCall(i int, result1 storage.InterceptDeleteAroundTxFunc) {
+	fake.aroundTxDeleteMutex.Lock()
+	defer fake.aroundTxDeleteMutex.Unlock()
+	fake.AroundTxDeleteStub = nil
+	if fake.aroundTxDeleteReturnsOnCall == nil {
+		fake.aroundTxDeleteReturnsOnCall = make(map[int]struct {
+			result1 storage.InterceptDeleteAroundTxFunc
 		})
 	}
-	fake.onAPIDeleteReturnsOnCall[i] = struct {
-		result1 storage.InterceptDeleteOnAPI
+	fake.aroundTxDeleteReturnsOnCall[i] = struct {
+		result1 storage.InterceptDeleteAroundTxFunc
 	}{result1}
 }
 
-func (fake *FakeDeleteInterceptor) OnTxDelete(f storage.InterceptDeleteOnTx) storage.InterceptDeleteOnTx {
+func (fake *FakeDeleteInterceptor) Name() string {
+	fake.nameMutex.Lock()
+	ret, specificReturn := fake.nameReturnsOnCall[len(fake.nameArgsForCall)]
+	fake.nameArgsForCall = append(fake.nameArgsForCall, struct {
+	}{})
+	fake.recordInvocation("Name", []interface{}{})
+	fake.nameMutex.Unlock()
+	if fake.NameStub != nil {
+		return fake.NameStub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.nameReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeDeleteInterceptor) NameCallCount() int {
+	fake.nameMutex.RLock()
+	defer fake.nameMutex.RUnlock()
+	return len(fake.nameArgsForCall)
+}
+
+func (fake *FakeDeleteInterceptor) NameCalls(stub func() string) {
+	fake.nameMutex.Lock()
+	defer fake.nameMutex.Unlock()
+	fake.NameStub = stub
+}
+
+func (fake *FakeDeleteInterceptor) NameReturns(result1 string) {
+	fake.nameMutex.Lock()
+	defer fake.nameMutex.Unlock()
+	fake.NameStub = nil
+	fake.nameReturns = struct {
+		result1 string
+	}{result1}
+}
+
+func (fake *FakeDeleteInterceptor) NameReturnsOnCall(i int, result1 string) {
+	fake.nameMutex.Lock()
+	defer fake.nameMutex.Unlock()
+	fake.NameStub = nil
+	if fake.nameReturnsOnCall == nil {
+		fake.nameReturnsOnCall = make(map[int]struct {
+			result1 string
+		})
+	}
+	fake.nameReturnsOnCall[i] = struct {
+		result1 string
+	}{result1}
+}
+
+func (fake *FakeDeleteInterceptor) OnTxDelete(arg1 storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
 	fake.onTxDeleteMutex.Lock()
 	ret, specificReturn := fake.onTxDeleteReturnsOnCall[len(fake.onTxDeleteArgsForCall)]
 	fake.onTxDeleteArgsForCall = append(fake.onTxDeleteArgsForCall, struct {
-		f storage.InterceptDeleteOnTx
-	}{f})
-	fake.recordInvocation("OnTxDelete", []interface{}{f})
+		arg1 storage.InterceptDeleteOnTxFunc
+	}{arg1})
+	fake.recordInvocation("OnTxDelete", []interface{}{arg1})
 	fake.onTxDeleteMutex.Unlock()
 	if fake.OnTxDeleteStub != nil {
-		return fake.OnTxDeleteStub(f)
+		return fake.OnTxDeleteStub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.onTxDeleteReturns.result1
+	fakeReturns := fake.onTxDeleteReturns
+	return fakeReturns.result1
 }
 
 func (fake *FakeDeleteInterceptor) OnTxDeleteCallCount() int {
@@ -105,36 +180,49 @@ func (fake *FakeDeleteInterceptor) OnTxDeleteCallCount() int {
 	return len(fake.onTxDeleteArgsForCall)
 }
 
-func (fake *FakeDeleteInterceptor) OnTxDeleteArgsForCall(i int) storage.InterceptDeleteOnTx {
-	fake.onTxDeleteMutex.RLock()
-	defer fake.onTxDeleteMutex.RUnlock()
-	return fake.onTxDeleteArgsForCall[i].f
+func (fake *FakeDeleteInterceptor) OnTxDeleteCalls(stub func(storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc) {
+	fake.onTxDeleteMutex.Lock()
+	defer fake.onTxDeleteMutex.Unlock()
+	fake.OnTxDeleteStub = stub
 }
 
-func (fake *FakeDeleteInterceptor) OnTxDeleteReturns(result1 storage.InterceptDeleteOnTx) {
+func (fake *FakeDeleteInterceptor) OnTxDeleteArgsForCall(i int) storage.InterceptDeleteOnTxFunc {
+	fake.onTxDeleteMutex.RLock()
+	defer fake.onTxDeleteMutex.RUnlock()
+	argsForCall := fake.onTxDeleteArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeDeleteInterceptor) OnTxDeleteReturns(result1 storage.InterceptDeleteOnTxFunc) {
+	fake.onTxDeleteMutex.Lock()
+	defer fake.onTxDeleteMutex.Unlock()
 	fake.OnTxDeleteStub = nil
 	fake.onTxDeleteReturns = struct {
-		result1 storage.InterceptDeleteOnTx
+		result1 storage.InterceptDeleteOnTxFunc
 	}{result1}
 }
 
-func (fake *FakeDeleteInterceptor) OnTxDeleteReturnsOnCall(i int, result1 storage.InterceptDeleteOnTx) {
+func (fake *FakeDeleteInterceptor) OnTxDeleteReturnsOnCall(i int, result1 storage.InterceptDeleteOnTxFunc) {
+	fake.onTxDeleteMutex.Lock()
+	defer fake.onTxDeleteMutex.Unlock()
 	fake.OnTxDeleteStub = nil
 	if fake.onTxDeleteReturnsOnCall == nil {
 		fake.onTxDeleteReturnsOnCall = make(map[int]struct {
-			result1 storage.InterceptDeleteOnTx
+			result1 storage.InterceptDeleteOnTxFunc
 		})
 	}
 	fake.onTxDeleteReturnsOnCall[i] = struct {
-		result1 storage.InterceptDeleteOnTx
+		result1 storage.InterceptDeleteOnTxFunc
 	}{result1}
 }
 
 func (fake *FakeDeleteInterceptor) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.onAPIDeleteMutex.RLock()
-	defer fake.onAPIDeleteMutex.RUnlock()
+	fake.aroundTxDeleteMutex.RLock()
+	defer fake.aroundTxDeleteMutex.RUnlock()
+	fake.nameMutex.RLock()
+	defer fake.nameMutex.RUnlock()
 	fake.onTxDeleteMutex.RLock()
 	defer fake.onTxDeleteMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}

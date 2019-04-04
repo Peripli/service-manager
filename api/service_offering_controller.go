@@ -33,7 +33,7 @@ type ServiceOfferingController struct {
 
 func NewServiceOfferingController(repository storage.Repository) *ServiceOfferingController {
 	return &ServiceOfferingController{
-		BaseController: NewController(repository, web.ServiceOfferingsURL, func() types.Object {
+		BaseController: NewController(repository, web.ServiceOfferingsURL, types.ServiceOfferingType, func() types.Object {
 			return &types.ServiceOffering{}
 		}),
 	}

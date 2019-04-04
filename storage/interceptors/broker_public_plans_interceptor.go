@@ -30,18 +30,14 @@ import (
 )
 
 const (
-	PublicPlanCreateInterceptorProviderName = "public-plan-create"
-	PublicPlanUpdateInterceptorProviderName = "public-plan-update"
+	PublicPlanCreateInterceptorName = "public-plan-create"
+	PublicPlanUpdateInterceptorName = "public-plan-update"
 )
 
 type publicPlanProcessor func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (bool, error)
 
 type PublicPlanCreateInterceptorProvider struct {
 	IsCatalogPlanPublicFunc publicPlanProcessor
-}
-
-func (p *PublicPlanCreateInterceptorProvider) Name() string {
-	return PublicPlanCreateInterceptorProviderName
 }
 
 func (p *PublicPlanCreateInterceptorProvider) Provide() storage.CreateInterceptor {
@@ -54,10 +50,6 @@ type PublicPlanUpdateInterceptorProvider struct {
 	IsCatalogPlanPublicFunc publicPlanProcessor
 }
 
-func (p *PublicPlanUpdateInterceptorProvider) Name() string {
-	return PublicPlanUpdateInterceptorProviderName
-}
-
 func (p *PublicPlanUpdateInterceptorProvider) Provide() storage.UpdateInterceptor {
 	return &publicPlanUpdateInterceptor{
 		isCatalogPlanPublicFunc: p.IsCatalogPlanPublicFunc,
@@ -68,11 +60,15 @@ type publicPlanCreateInterceptor struct {
 	isCatalogPlanPublicFunc publicPlanProcessor
 }
 
-func (p *publicPlanCreateInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTx) storage.InterceptCreateAroundTx {
+func (p *publicPlanCreateInterceptor) Name() string {
+	return PublicPlanCreateInterceptorName
+}
+
+func (p *publicPlanCreateInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
 	return h
 }
 
-func (p *publicPlanCreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTx) storage.InterceptCreateOnTx {
+func (p *publicPlanCreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 	return func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error {
 		if err := f(ctx, txStorage, newObject); err != nil {
 			return err
@@ -85,11 +81,15 @@ type publicPlanUpdateInterceptor struct {
 	isCatalogPlanPublicFunc publicPlanProcessor
 }
 
-func (p *publicPlanUpdateInterceptor) OnAPIUpdate(h storage.InterceptUpdateOnAPI) storage.InterceptUpdateOnAPI {
+func (p *publicPlanUpdateInterceptor) Name() string {
+	return PublicPlanUpdateInterceptorName
+}
+
+func (p *publicPlanUpdateInterceptor) AroundTxUpdate(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
 	return h
 }
 
-func (p *publicPlanUpdateInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTx) storage.InterceptUpdateOnTx {
+func (p *publicPlanUpdateInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
 	return func(ctx context.Context, txStorage storage.Warehouse, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 		result, err := f(ctx, txStorage, obj, labelChanges...)
 		if err != nil {

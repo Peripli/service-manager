@@ -2,25 +2,17 @@
 package storagefakes
 
 import (
-	"sync"
+	sync "sync"
 
-	"github.com/Peripli/service-manager/storage"
+	storage "github.com/Peripli/service-manager/storage"
 )
 
 type FakeCreateInterceptorProvider struct {
-	NameStub        func() string
-	nameMutex       sync.RWMutex
-	nameArgsForCall []struct{}
-	nameReturns     struct {
-		result1 string
-	}
-	nameReturnsOnCall map[int]struct {
-		result1 string
-	}
 	ProvideStub        func() storage.CreateInterceptor
 	provideMutex       sync.RWMutex
-	provideArgsForCall []struct{}
-	provideReturns     struct {
+	provideArgsForCall []struct {
+	}
+	provideReturns struct {
 		result1 storage.CreateInterceptor
 	}
 	provideReturnsOnCall map[int]struct {
@@ -30,50 +22,11 @@ type FakeCreateInterceptorProvider struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeCreateInterceptorProvider) Name() string {
-	fake.nameMutex.Lock()
-	ret, specificReturn := fake.nameReturnsOnCall[len(fake.nameArgsForCall)]
-	fake.nameArgsForCall = append(fake.nameArgsForCall, struct{}{})
-	fake.recordInvocation("Name", []interface{}{})
-	fake.nameMutex.Unlock()
-	if fake.NameStub != nil {
-		return fake.NameStub()
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.nameReturns.result1
-}
-
-func (fake *FakeCreateInterceptorProvider) NameCallCount() int {
-	fake.nameMutex.RLock()
-	defer fake.nameMutex.RUnlock()
-	return len(fake.nameArgsForCall)
-}
-
-func (fake *FakeCreateInterceptorProvider) NameReturns(result1 string) {
-	fake.NameStub = nil
-	fake.nameReturns = struct {
-		result1 string
-	}{result1}
-}
-
-func (fake *FakeCreateInterceptorProvider) NameReturnsOnCall(i int, result1 string) {
-	fake.NameStub = nil
-	if fake.nameReturnsOnCall == nil {
-		fake.nameReturnsOnCall = make(map[int]struct {
-			result1 string
-		})
-	}
-	fake.nameReturnsOnCall[i] = struct {
-		result1 string
-	}{result1}
-}
-
 func (fake *FakeCreateInterceptorProvider) Provide() storage.CreateInterceptor {
 	fake.provideMutex.Lock()
 	ret, specificReturn := fake.provideReturnsOnCall[len(fake.provideArgsForCall)]
-	fake.provideArgsForCall = append(fake.provideArgsForCall, struct{}{})
+	fake.provideArgsForCall = append(fake.provideArgsForCall, struct {
+	}{})
 	fake.recordInvocation("Provide", []interface{}{})
 	fake.provideMutex.Unlock()
 	if fake.ProvideStub != nil {
@@ -82,7 +35,8 @@ func (fake *FakeCreateInterceptorProvider) Provide() storage.CreateInterceptor {
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.provideReturns.result1
+	fakeReturns := fake.provideReturns
+	return fakeReturns.result1
 }
 
 func (fake *FakeCreateInterceptorProvider) ProvideCallCount() int {
@@ -91,7 +45,15 @@ func (fake *FakeCreateInterceptorProvider) ProvideCallCount() int {
 	return len(fake.provideArgsForCall)
 }
 
+func (fake *FakeCreateInterceptorProvider) ProvideCalls(stub func() storage.CreateInterceptor) {
+	fake.provideMutex.Lock()
+	defer fake.provideMutex.Unlock()
+	fake.ProvideStub = stub
+}
+
 func (fake *FakeCreateInterceptorProvider) ProvideReturns(result1 storage.CreateInterceptor) {
+	fake.provideMutex.Lock()
+	defer fake.provideMutex.Unlock()
 	fake.ProvideStub = nil
 	fake.provideReturns = struct {
 		result1 storage.CreateInterceptor
@@ -99,6 +61,8 @@ func (fake *FakeCreateInterceptorProvider) ProvideReturns(result1 storage.Create
 }
 
 func (fake *FakeCreateInterceptorProvider) ProvideReturnsOnCall(i int, result1 storage.CreateInterceptor) {
+	fake.provideMutex.Lock()
+	defer fake.provideMutex.Unlock()
 	fake.ProvideStub = nil
 	if fake.provideReturnsOnCall == nil {
 		fake.provideReturnsOnCall = make(map[int]struct {
@@ -113,8 +77,6 @@ func (fake *FakeCreateInterceptorProvider) ProvideReturnsOnCall(i int, result1 s
 func (fake *FakeCreateInterceptorProvider) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.nameMutex.RLock()
-	defer fake.nameMutex.RUnlock()
 	fake.provideMutex.RLock()
 	defer fake.provideMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}

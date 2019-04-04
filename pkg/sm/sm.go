@@ -82,6 +82,7 @@ func DefaultEnv(additionalPFlags ...func(set *pflag.FlagSet)) env.Environment {
 
 func registerDefaultStorage() {
 	if !storage.HasStorage(postgres.Storage) {
+		log.D().Infof("Registering default storage %s", postgres.Storage)
 		storage.Register(postgres.Storage, &postgres.PostgresStorage{})
 	}
 }
@@ -214,31 +215,31 @@ func newOSBClient(skipSsl bool) osbc.CreateFunc {
 	}
 }
 
-func (smb *ServiceManagerBuilder) RegisterCreateInterceptorProvider(objectType types.ObjectType, provider storage.CreateInterceptorProvider) *interceptorBuilder {
-	return &interceptorBuilder{
+func (smb *ServiceManagerBuilder) RegisterCreateInterceptorProvider(objectType types.ObjectType, provider storage.CreateInterceptorProvider) *interceptorRegistrationBuilder {
+	return &interceptorRegistrationBuilder{
 		repository:      smb.Storage,
 		interceptorType: objectType,
-		concreteBuilder: &createInterceptorBuilder{
+		registrator: &createInterceptorRegistration{
 			provider: provider,
 		},
 	}
 }
 
-func (smb *ServiceManagerBuilder) RegisterUpdateInterceptorProvider(objectType types.ObjectType, provider storage.UpdateInterceptorProvider) *interceptorBuilder {
-	return &interceptorBuilder{
+func (smb *ServiceManagerBuilder) RegisterUpdateInterceptorProvider(objectType types.ObjectType, provider storage.UpdateInterceptorProvider) *interceptorRegistrationBuilder {
+	return &interceptorRegistrationBuilder{
 		repository:      smb.Storage,
 		interceptorType: objectType,
-		concreteBuilder: &updateInterceptorBuilder{
+		registrator: &updateInterceptorRegistration{
 			provider: provider,
 		},
 	}
 }
 
-func (smb *ServiceManagerBuilder) RegisterDeleteInterceptorProvider(objectType types.ObjectType, provider storage.DeleteInterceptorProvider) *interceptorBuilder {
-	return &interceptorBuilder{
+func (smb *ServiceManagerBuilder) RegisterDeleteInterceptorProvider(objectType types.ObjectType, provider storage.DeleteInterceptorProvider) *interceptorRegistrationBuilder {
+	return &interceptorRegistrationBuilder{
 		repository:      smb.Storage,
 		interceptorType: objectType,
-		concreteBuilder: &deleteInterceptorBuilder{
+		registrator: &deleteInterceptorRegistration{
 			provider: provider,
 		},
 	}

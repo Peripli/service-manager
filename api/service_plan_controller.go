@@ -32,9 +32,9 @@ type ServicePlanController struct {
 
 func NewServicePlanController(repository storage.Repository) *ServicePlanController {
 	return &ServicePlanController{
-		BaseController: NewController(repository, web.ServicePlansURL, func() types.Object {
+		BaseController: NewController(repository, web.ServicePlansURL, types.ServicePlanType, func() types.Object {
 			return &types.ServicePlan{}
-		}),
+		}), 
 	}
 }
 

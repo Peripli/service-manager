@@ -33,7 +33,7 @@ import (
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 )
 
-const UpdateBrokerInterceptorProviderName = "update-broker"
+const UpdateBrokerInterceptorName = "update-broker"
 
 type BrokerUpdateInterceptorProvider struct {
 	OsbClientCreateFunc osbc.CreateFunc
@@ -44,16 +44,17 @@ func (c *BrokerUpdateInterceptorProvider) Provide() storage.UpdateInterceptor {
 		OSBClientCreateFunc: c.OsbClientCreateFunc,
 	}
 }
-func (c *BrokerUpdateInterceptorProvider) Name() string {
-	return UpdateBrokerInterceptorProviderName
-}
 
 type UpdateBrokerInterceptor struct {
 	OSBClientCreateFunc osbc.CreateFunc
 	catalog             *osbc.CatalogResponse
 }
 
-func (c *UpdateBrokerInterceptor) OnAPIUpdate(h storage.InterceptUpdateOnAPI) storage.InterceptUpdateOnAPI {
+func (c *UpdateBrokerInterceptor) Name() string {
+	return UpdateBrokerInterceptorName
+}
+
+func (c *UpdateBrokerInterceptor) AroundTxUpdate(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
 	return func(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 		broker := obj.(*types.ServiceBroker)
 		var err error
@@ -68,7 +69,7 @@ func (c *UpdateBrokerInterceptor) OnAPIUpdate(h storage.InterceptUpdateOnAPI) st
 	}
 }
 
-func (c *UpdateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTx) storage.InterceptUpdateOnTx {
+func (c *UpdateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
 	return func(ctx context.Context, txStorage storage.Warehouse, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 		newObject, err := f(ctx, txStorage, obj, labelChanges...)
 		if err != nil {

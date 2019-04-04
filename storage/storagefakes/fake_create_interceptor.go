@@ -2,53 +2,64 @@
 package storagefakes
 
 import (
-	"sync"
+	sync "sync"
 
-	"github.com/Peripli/service-manager/storage"
+	storage "github.com/Peripli/service-manager/storage"
 )
 
 type FakeCreateInterceptor struct {
-	AroundTxCreateStub        func(h storage.InterceptCreateAroundTx) storage.InterceptCreateAroundTx
+	AroundTxCreateStub        func(storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc
 	aroundTxCreateMutex       sync.RWMutex
 	aroundTxCreateArgsForCall []struct {
-		h storage.InterceptCreateAroundTx
+		arg1 storage.InterceptCreateAroundTxFunc
 	}
 	aroundTxCreateReturns struct {
-		result1 storage.InterceptCreateAroundTx
+		result1 storage.InterceptCreateAroundTxFunc
 	}
 	aroundTxCreateReturnsOnCall map[int]struct {
-		result1 storage.InterceptCreateAroundTx
+		result1 storage.InterceptCreateAroundTxFunc
 	}
-	OnTxCreateStub        func(f storage.InterceptCreateOnTx) storage.InterceptCreateOnTx
+	NameStub        func() string
+	nameMutex       sync.RWMutex
+	nameArgsForCall []struct {
+	}
+	nameReturns struct {
+		result1 string
+	}
+	nameReturnsOnCall map[int]struct {
+		result1 string
+	}
+	OnTxCreateStub        func(storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc
 	onTxCreateMutex       sync.RWMutex
 	onTxCreateArgsForCall []struct {
-		f storage.InterceptCreateOnTx
+		arg1 storage.InterceptCreateOnTxFunc
 	}
 	onTxCreateReturns struct {
-		result1 storage.InterceptCreateOnTx
+		result1 storage.InterceptCreateOnTxFunc
 	}
 	onTxCreateReturnsOnCall map[int]struct {
-		result1 storage.InterceptCreateOnTx
+		result1 storage.InterceptCreateOnTxFunc
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeCreateInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTx) storage.InterceptCreateAroundTx {
+func (fake *FakeCreateInterceptor) AroundTxCreate(arg1 storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
 	fake.aroundTxCreateMutex.Lock()
 	ret, specificReturn := fake.aroundTxCreateReturnsOnCall[len(fake.aroundTxCreateArgsForCall)]
 	fake.aroundTxCreateArgsForCall = append(fake.aroundTxCreateArgsForCall, struct {
-		h storage.InterceptCreateAroundTx
-	}{h})
-	fake.recordInvocation("AroundTxCreate", []interface{}{h})
+		arg1 storage.InterceptCreateAroundTxFunc
+	}{arg1})
+	fake.recordInvocation("AroundTxCreate", []interface{}{arg1})
 	fake.aroundTxCreateMutex.Unlock()
 	if fake.AroundTxCreateStub != nil {
-		return fake.AroundTxCreateStub(h)
+		return fake.AroundTxCreateStub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.aroundTxCreateReturns.result1
+	fakeReturns := fake.aroundTxCreateReturns
+	return fakeReturns.result1
 }
 
 func (fake *FakeCreateInterceptor) AroundTxCreateCallCount() int {
@@ -57,46 +68,110 @@ func (fake *FakeCreateInterceptor) AroundTxCreateCallCount() int {
 	return len(fake.aroundTxCreateArgsForCall)
 }
 
-func (fake *FakeCreateInterceptor) AroundTxCreateArgsForCall(i int) storage.InterceptCreateAroundTx {
-	fake.aroundTxCreateMutex.RLock()
-	defer fake.aroundTxCreateMutex.RUnlock()
-	return fake.aroundTxCreateArgsForCall[i].h
+func (fake *FakeCreateInterceptor) AroundTxCreateCalls(stub func(storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc) {
+	fake.aroundTxCreateMutex.Lock()
+	defer fake.aroundTxCreateMutex.Unlock()
+	fake.AroundTxCreateStub = stub
 }
 
-func (fake *FakeCreateInterceptor) AroundTxCreateReturns(result1 storage.InterceptCreateAroundTx) {
+func (fake *FakeCreateInterceptor) AroundTxCreateArgsForCall(i int) storage.InterceptCreateAroundTxFunc {
+	fake.aroundTxCreateMutex.RLock()
+	defer fake.aroundTxCreateMutex.RUnlock()
+	argsForCall := fake.aroundTxCreateArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeCreateInterceptor) AroundTxCreateReturns(result1 storage.InterceptCreateAroundTxFunc) {
+	fake.aroundTxCreateMutex.Lock()
+	defer fake.aroundTxCreateMutex.Unlock()
 	fake.AroundTxCreateStub = nil
 	fake.aroundTxCreateReturns = struct {
-		result1 storage.InterceptCreateAroundTx
+		result1 storage.InterceptCreateAroundTxFunc
 	}{result1}
 }
 
-func (fake *FakeCreateInterceptor) AroundTxCreateReturnsOnCall(i int, result1 storage.InterceptCreateAroundTx) {
+func (fake *FakeCreateInterceptor) AroundTxCreateReturnsOnCall(i int, result1 storage.InterceptCreateAroundTxFunc) {
+	fake.aroundTxCreateMutex.Lock()
+	defer fake.aroundTxCreateMutex.Unlock()
 	fake.AroundTxCreateStub = nil
 	if fake.aroundTxCreateReturnsOnCall == nil {
 		fake.aroundTxCreateReturnsOnCall = make(map[int]struct {
-			result1 storage.InterceptCreateAroundTx
+			result1 storage.InterceptCreateAroundTxFunc
 		})
 	}
 	fake.aroundTxCreateReturnsOnCall[i] = struct {
-		result1 storage.InterceptCreateAroundTx
+		result1 storage.InterceptCreateAroundTxFunc
 	}{result1}
 }
 
-func (fake *FakeCreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTx) storage.InterceptCreateOnTx {
-	fake.onTxCreateMutex.Lock()
-	ret, specificReturn := fake.onTxCreateReturnsOnCall[len(fake.onTxCreateArgsForCall)]
-	fake.onTxCreateArgsForCall = append(fake.onTxCreateArgsForCall, struct {
-		f storage.InterceptCreateOnTx
-	}{f})
-	fake.recordInvocation("OnTxCreate", []interface{}{f})
-	fake.onTxCreateMutex.Unlock()
-	if fake.OnTxCreateStub != nil {
-		return fake.OnTxCreateStub(f)
+func (fake *FakeCreateInterceptor) Name() string {
+	fake.nameMutex.Lock()
+	ret, specificReturn := fake.nameReturnsOnCall[len(fake.nameArgsForCall)]
+	fake.nameArgsForCall = append(fake.nameArgsForCall, struct {
+	}{})
+	fake.recordInvocation("Name", []interface{}{})
+	fake.nameMutex.Unlock()
+	if fake.NameStub != nil {
+		return fake.NameStub()
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.onTxCreateReturns.result1
+	fakeReturns := fake.nameReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeCreateInterceptor) NameCallCount() int {
+	fake.nameMutex.RLock()
+	defer fake.nameMutex.RUnlock()
+	return len(fake.nameArgsForCall)
+}
+
+func (fake *FakeCreateInterceptor) NameCalls(stub func() string) {
+	fake.nameMutex.Lock()
+	defer fake.nameMutex.Unlock()
+	fake.NameStub = stub
+}
+
+func (fake *FakeCreateInterceptor) NameReturns(result1 string) {
+	fake.nameMutex.Lock()
+	defer fake.nameMutex.Unlock()
+	fake.NameStub = nil
+	fake.nameReturns = struct {
+		result1 string
+	}{result1}
+}
+
+func (fake *FakeCreateInterceptor) NameReturnsOnCall(i int, result1 string) {
+	fake.nameMutex.Lock()
+	defer fake.nameMutex.Unlock()
+	fake.NameStub = nil
+	if fake.nameReturnsOnCall == nil {
+		fake.nameReturnsOnCall = make(map[int]struct {
+			result1 string
+		})
+	}
+	fake.nameReturnsOnCall[i] = struct {
+		result1 string
+	}{result1}
+}
+
+func (fake *FakeCreateInterceptor) OnTxCreate(arg1 storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
+	fake.onTxCreateMutex.Lock()
+	ret, specificReturn := fake.onTxCreateReturnsOnCall[len(fake.onTxCreateArgsForCall)]
+	fake.onTxCreateArgsForCall = append(fake.onTxCreateArgsForCall, struct {
+		arg1 storage.InterceptCreateOnTxFunc
+	}{arg1})
+	fake.recordInvocation("OnTxCreate", []interface{}{arg1})
+	fake.onTxCreateMutex.Unlock()
+	if fake.OnTxCreateStub != nil {
+		return fake.OnTxCreateStub(arg1)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.onTxCreateReturns
+	return fakeReturns.result1
 }
 
 func (fake *FakeCreateInterceptor) OnTxCreateCallCount() int {
@@ -105,28 +180,39 @@ func (fake *FakeCreateInterceptor) OnTxCreateCallCount() int {
 	return len(fake.onTxCreateArgsForCall)
 }
 
-func (fake *FakeCreateInterceptor) OnTxCreateArgsForCall(i int) storage.InterceptCreateOnTx {
-	fake.onTxCreateMutex.RLock()
-	defer fake.onTxCreateMutex.RUnlock()
-	return fake.onTxCreateArgsForCall[i].f
+func (fake *FakeCreateInterceptor) OnTxCreateCalls(stub func(storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc) {
+	fake.onTxCreateMutex.Lock()
+	defer fake.onTxCreateMutex.Unlock()
+	fake.OnTxCreateStub = stub
 }
 
-func (fake *FakeCreateInterceptor) OnTxCreateReturns(result1 storage.InterceptCreateOnTx) {
+func (fake *FakeCreateInterceptor) OnTxCreateArgsForCall(i int) storage.InterceptCreateOnTxFunc {
+	fake.onTxCreateMutex.RLock()
+	defer fake.onTxCreateMutex.RUnlock()
+	argsForCall := fake.onTxCreateArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeCreateInterceptor) OnTxCreateReturns(result1 storage.InterceptCreateOnTxFunc) {
+	fake.onTxCreateMutex.Lock()
+	defer fake.onTxCreateMutex.Unlock()
 	fake.OnTxCreateStub = nil
 	fake.onTxCreateReturns = struct {
-		result1 storage.InterceptCreateOnTx
+		result1 storage.InterceptCreateOnTxFunc
 	}{result1}
 }
 
-func (fake *FakeCreateInterceptor) OnTxCreateReturnsOnCall(i int, result1 storage.InterceptCreateOnTx) {
+func (fake *FakeCreateInterceptor) OnTxCreateReturnsOnCall(i int, result1 storage.InterceptCreateOnTxFunc) {
+	fake.onTxCreateMutex.Lock()
+	defer fake.onTxCreateMutex.Unlock()
 	fake.OnTxCreateStub = nil
 	if fake.onTxCreateReturnsOnCall == nil {
 		fake.onTxCreateReturnsOnCall = make(map[int]struct {
-			result1 storage.InterceptCreateOnTx
+			result1 storage.InterceptCreateOnTxFunc
 		})
 	}
 	fake.onTxCreateReturnsOnCall[i] = struct {
-		result1 storage.InterceptCreateOnTx
+		result1 storage.InterceptCreateOnTxFunc
 	}{result1}
 }
 
@@ -135,6 +221,8 @@ func (fake *FakeCreateInterceptor) Invocations() map[string][][]interface{} {
 	defer fake.invocationsMutex.RUnlock()
 	fake.aroundTxCreateMutex.RLock()
 	defer fake.aroundTxCreateMutex.RUnlock()
+	fake.nameMutex.RLock()
+	defer fake.nameMutex.RUnlock()
 	fake.onTxCreateMutex.RLock()
 	defer fake.onTxCreateMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
