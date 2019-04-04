@@ -28,7 +28,7 @@ import (
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 )
 
-const CreateBrokerInterceptorProviderName = "create-broker"
+const CreateBrokerInterceptorName = "create-broker"
 
 type BrokerCreateInterceptorProvider struct {
 	OsbClientCreateFunc osbc.CreateFunc
@@ -46,7 +46,7 @@ type CreateBrokerInterceptor struct {
 }
 
 func (c *CreateBrokerInterceptor) Name() string {
-	return CreateBrokerInterceptorProviderName
+	return CreateBrokerInterceptorName
 }
 
 func (c *CreateBrokerInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
