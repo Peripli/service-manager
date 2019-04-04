@@ -215,7 +215,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	objFromDB.SetUpdatedAt(time.Now().UTC())
 	object, err := c.repository.Update(ctx, objFromDB, labelChanges...)
 	if err != nil {
-		return nil, util.HandleStorageError(err, string(c.objectType))
+		return nil, err
 	}
 	if obj, ok := object.(types.Secured); ok {
 		obj.SetCredentials(nil)

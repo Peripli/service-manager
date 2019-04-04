@@ -127,12 +127,17 @@ func (ir *InterceptableRepository) List(ctx context.Context, objectType types.Ob
 	if err != nil {
 		return nil, err
 	}
-	for i := 0; i < objectList.Len(); i++ {
-		obj := objectList.ItemAt(i)
-		if err = transformCredentials(ctx, obj, ir.encrypter.Decrypt); err != nil {
-			return nil, err
-		}
-	}
+	// TODO: There is no usecase for decrypting credentials on List operation,
+	// 		 because of the decrypter Postgres runs out of connections as each decrypt operations
+	// 		 calls the db to get the decryption key
+
+	// for i := 0; i < objectList.Len(); i++ {
+	// 	obj := objectList.ItemAt(i)
+	// 	if err = transformCredentials(ctx, obj, ir.encrypter.Decrypt); err != nil {
+	// 		return err
+	// 	}
+	// }
+
 	return objectList, nil
 }
 
