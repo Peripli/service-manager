@@ -130,11 +130,11 @@ var _ = Describe("Interceptors", func() {
 				smb.RegisterCreateInterceptorProvider(entityType, fakeCreateInterceptorProvider0).
 					Before(fakeCreateInterceptorProvider1.Provide().Name()).Apply()
 				smb.RegisterCreateInterceptorProvider(entityType, fakeCreateInterceptorProviderBA).
-					APIBefore(fakeCreateInterceptorProvider0.Provide().Name()).
+					AroundTxBefore(fakeCreateInterceptorProvider0.Provide().Name()).
 					TxAfter(fakeCreateInterceptorProvider2.Provide().Name()).
 					Apply()
 				smb.RegisterCreateInterceptorProvider(entityType, fakeCreateInterceptorProviderAB).
-					APIAfter(fakeCreateInterceptorProviderBA.Provide().Name()).
+					AroundTxAfter(fakeCreateInterceptorProviderBA.Provide().Name()).
 					TxBefore(fakeCreateInterceptorProviderBA.Provide().Name()).
 					Apply()
 				// Register update interceptors
@@ -144,11 +144,11 @@ var _ = Describe("Interceptors", func() {
 				smb.RegisterUpdateInterceptorProvider(entityType, fakeUpdateInterceptorProvider0).
 					Before(fakeUpdateInterceptorProvider1.Provide().Name()).Apply()
 				smb.RegisterUpdateInterceptorProvider(entityType, fakeUpdateInterceptorProviderBA).
-					APIBefore(fakeUpdateInterceptorProvider0.Provide().Name()).
+					AroundTxBefore(fakeUpdateInterceptorProvider0.Provide().Name()).
 					TxAfter(fakeUpdateInterceptorProvider2.Provide().Name()).
 					Apply()
 				smb.RegisterUpdateInterceptorProvider(entityType, fakeUpdateInterceptorProviderAB).
-					APIAfter(fakeUpdateInterceptorProviderBA.Provide().Name()).
+					AroundTxAfter(fakeUpdateInterceptorProviderBA.Provide().Name()).
 					TxBefore(fakeUpdateInterceptorProviderBA.Provide().Name()).
 					Apply()
 				// Register delete interceptors
@@ -158,11 +158,11 @@ var _ = Describe("Interceptors", func() {
 				smb.RegisterDeleteInterceptorProvider(entityType, fakeDeleteInterceptorProvider0).
 					Before(fakeDeleteInterceptorProvider1.Provide().Name()).Apply()
 				smb.RegisterDeleteInterceptorProvider(entityType, fakeDeleteInterceptorProviderBA).
-					APIBefore(fakeDeleteInterceptorProvider0.Provide().Name()).
+					AroundTxBefore(fakeDeleteInterceptorProvider0.Provide().Name()).
 					TxAfter(fakeDeleteInterceptorProvider2.Provide().Name()).
 					Apply()
 				smb.RegisterDeleteInterceptorProvider(entityType, fakeDeleteInterceptorProviderAB).
-					APIAfter(fakeDeleteInterceptorProviderBA.Provide().Name()).
+					AroundTxAfter(fakeDeleteInterceptorProviderBA.Provide().Name()).
 					TxBefore(fakeDeleteInterceptorProviderBA.Provide().Name()).
 					Apply()
 

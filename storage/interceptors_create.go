@@ -55,18 +55,18 @@ func NewCreateInterceptorChain(providers []CreateInterceptorProvider) *CreateInt
 
 	for _, p := range providers {
 		interceptor := p.Provide()
-		positionAPIType := PositionNone
+		positionAroundTxType := PositionNone
 		positionTxType := PositionNone
 		nameAPI := ""
 		nameTx := ""
 
 		if orderedProvider, isOrdered := p.(Ordered); isOrdered {
-			positionAPIType, nameAPI = orderedProvider.PositionAPI()
+			positionAroundTxType, nameAPI = orderedProvider.PositionAroundTx()
 			positionTxType, nameTx = orderedProvider.PositionTx()
 		}
 
 		chain.aroundTxFuncs[interceptor.Name()] = interceptor.AroundTxCreate
-		chain.aroundTxNames = insertName(chain.aroundTxNames, positionAPIType, nameAPI, interceptor.Name())
+		chain.aroundTxNames = insertName(chain.aroundTxNames, positionAroundTxType, nameAPI, interceptor.Name())
 
 		chain.onTxFuncs[interceptor.Name()] = interceptor.OnTxCreate
 		chain.onTxNames = insertName(chain.onTxNames, positionTxType, nameTx, interceptor.Name())
@@ -154,10 +154,10 @@ const (
 
 // OrderedByName is an implementation of Ordered interface used for ordering interceptors
 type OrderedByName struct {
-	PositionTypeTx  PositionType
-	PositionTypeAPI PositionType
-	NameTx          string
-	NameAPI         string
+	PositionTxType       PositionType
+	PositionAroundTxType PositionType
+	NameTx               string
+	NameAroundTx         string
 }
 
 // PositionTx returns the position of the interceptor transaction hook
@@ -165,21 +165,21 @@ func (opi *OrderedByName) PositionTx() (PositionType, string) {
 	if opi.NameTx == "" {
 		return PositionNone, ""
 	}
-	return opi.PositionTypeTx, opi.NameTx
+	return opi.PositionTxType, opi.NameTx
 }
 
-// PositionAPI returns the position of the interceptor out of transaction hook
-func (opi *OrderedByName) PositionAPI() (PositionType, string) {
-	if opi.NameAPI == "" {
+// PositionAroundTx returns the position of the interceptor out of transaction hook
+func (opi *OrderedByName) PositionAroundTx() (PositionType, string) {
+	if opi.NameAroundTx == "" {
 		return PositionNone, ""
 	}
-	return opi.PositionTypeAPI, opi.NameAPI
+	return opi.PositionAroundTxType, opi.NameAroundTx
 }
 
 // Ordered interface for positioning interceptors
 type Ordered interface {
 	PositionTx() (PositionType, string)
-	PositionAPI() (PositionType, string)
+	PositionAroundTx() (PositionType, string)
 }
 
 // Named interface for named entities

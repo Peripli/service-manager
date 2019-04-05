@@ -56,6 +56,7 @@ func (ir *InterceptableRepository) AddUpdateInterceptorProviders(objectType type
 }
 
 func (ir *InterceptableRepository) AddDeleteInterceptorProviders(objectType types.ObjectType, providers ...DeleteInterceptorProvider) {
+	ir.validateDeleteProviders(objectType, providers)
 	ir.deleteProviders[objectType] = append(ir.deleteProviders[objectType], providers...)
 }
 
@@ -127,16 +128,6 @@ func (ir *InterceptableRepository) List(ctx context.Context, objectType types.Ob
 	if err != nil {
 		return nil, err
 	}
-	// TODO: There is no usecase for decrypting credentials on List operation,
-	// 		 because of the decrypter Postgres runs out of connections as each decrypt operations
-	// 		 calls the db to get the decryption key
-
-	// for i := 0; i < objectList.Len(); i++ {
-	// 	obj := objectList.ItemAt(i)
-	// 	if err = transformCredentials(ctx, obj, ir.encrypter.Decrypt); err != nil {
-	// 		return err
-	// 	}
-	// }
 
 	return objectList, nil
 }
@@ -255,9 +246,9 @@ func (ir *InterceptableRepository) validateCreateProviders(objectType types.Obje
 	for _, newProvider := range newProviders {
 		interceptor := newProvider.Provide()
 		if ordered, ok := newProvider.(Ordered); ok {
-			positionAPI, nameAPI := ordered.PositionAPI()
+			positionAroundTx, nameAPI := ordered.PositionAroundTx()
 			positionTx, nameTx := ordered.PositionTx()
-			if positionAPI != PositionNone {
+			if positionAroundTx != PositionNone {
 				ir.validateCreateProvidersNames(objectType, nameAPI)
 			}
 			if positionTx != PositionNone {
@@ -265,7 +256,8 @@ func (ir *InterceptableRepository) validateCreateProviders(objectType types.Obje
 			}
 		}
 		for _, p := range ir.createProviders[objectType] {
-			if n, ok := p.(Named); ok {
+			currentInterceptor := p.Provide()
+			if n, ok := currentInterceptor.(Named); ok {
 				if n.Name() == interceptor.Name() {
 					log.D().Panicf("%s create interceptor provider is already registered", n.Name())
 				}
@@ -291,9 +283,9 @@ func (ir *InterceptableRepository) validateUpdateProviders(objectType types.Obje
 	for _, newProvider := range newProviders {
 		interceptor := newProvider.Provide()
 		if ordered, ok := newProvider.(Ordered); ok {
-			positionAPI, nameAPI := ordered.PositionAPI()
+			positionAroundTx, nameAPI := ordered.PositionAroundTx()
 			positionTx, nameTx := ordered.PositionTx()
-			if positionAPI != PositionNone {
+			if positionAroundTx != PositionNone {
 				ir.validateUpdateProvidersNames(objectType, nameAPI)
 			}
 			if positionTx != PositionNone {
@@ -301,7 +293,8 @@ func (ir *InterceptableRepository) validateUpdateProviders(objectType types.Obje
 			}
 		}
 		for _, p := range ir.updateProviders[objectType] {
-			if n, ok := p.(Named); ok {
+			currentInterceptor := p.Provide()
+			if n, ok := currentInterceptor.(Named); ok {
 				if n.Name() == interceptor.Name() {
 					log.D().Panicf("%s update interceptor provider is already registered", n.Name())
 				}
@@ -326,9 +319,9 @@ func (ir *InterceptableRepository) validateDeleteProvidersNames(objectType types
 func (ir *InterceptableRepository) validateDeleteProviders(objectType types.ObjectType, newProviders []DeleteInterceptorProvider) {
 	for _, newProvider := range newProviders {
 		if ordered, ok := newProvider.(Ordered); ok {
-			positionAPI, nameAPI := ordered.PositionAPI()
+			positionAroundTx, nameAPI := ordered.PositionAroundTx()
 			positionTx, nameTx := ordered.PositionTx()
-			if positionAPI != PositionNone {
+			if positionAroundTx != PositionNone {
 				ir.validateDeleteProvidersNames(objectType, nameAPI)
 			}
 			if positionTx != PositionNone {
@@ -336,7 +329,8 @@ func (ir *InterceptableRepository) validateDeleteProviders(objectType types.Obje
 			}
 		}
 		for _, p := range ir.deleteProviders[objectType] {
-			if n, ok := p.(Named); ok {
+			currentInterceptor := p.Provide()
+			if n, ok := currentInterceptor.(Named); ok {
 				if n.Name() == newProvider.Provide().Name() {
 					log.D().Panicf("%s delete interceptor provider is already registered", n.Name())
 				}

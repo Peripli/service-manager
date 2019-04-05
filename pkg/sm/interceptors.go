@@ -41,11 +41,11 @@ func (creator *interceptorRegistrationBuilder) Apply() {
 }
 
 func (creator *interceptorRegistrationBuilder) Before(name string) *interceptorRegistrationBuilder {
-	return creator.TxBefore(name).APIBefore(name)
+	return creator.TxBefore(name).AroundTxBefore(name)
 }
 
 func (creator *interceptorRegistrationBuilder) After(name string) *interceptorRegistrationBuilder {
-	return creator.TxAfter(name).APIAfter(name)
+	return creator.TxAfter(name).AroundTxAfter(name)
 }
 
 func (creator *interceptorRegistrationBuilder) TxBefore(name string) *interceptorRegistrationBuilder {
@@ -53,25 +53,25 @@ func (creator *interceptorRegistrationBuilder) TxBefore(name string) *intercepto
 		creator.orderer = &storage.OrderedByName{}
 	}
 	creator.orderer.NameTx = name
-	creator.orderer.PositionTypeTx = storage.PositionBefore
+	creator.orderer.PositionTxType = storage.PositionBefore
 	return creator
 }
 
-func (creator *interceptorRegistrationBuilder) APIBefore(name string) *interceptorRegistrationBuilder {
+func (creator *interceptorRegistrationBuilder) AroundTxBefore(name string) *interceptorRegistrationBuilder {
 	if creator.orderer == nil {
 		creator.orderer = &storage.OrderedByName{}
 	}
-	creator.orderer.NameAPI = name
-	creator.orderer.PositionTypeAPI = storage.PositionBefore
+	creator.orderer.NameAroundTx = name
+	creator.orderer.PositionAroundTxType = storage.PositionBefore
 	return creator
 }
 
-func (creator *interceptorRegistrationBuilder) APIAfter(name string) *interceptorRegistrationBuilder {
+func (creator *interceptorRegistrationBuilder) AroundTxAfter(name string) *interceptorRegistrationBuilder {
 	if creator.orderer == nil {
 		creator.orderer = &storage.OrderedByName{}
 	}
-	creator.orderer.NameAPI = name
-	creator.orderer.PositionTypeAPI = storage.PositionAfter
+	creator.orderer.NameAroundTx = name
+	creator.orderer.PositionAroundTxType = storage.PositionAfter
 	return creator
 }
 
@@ -80,7 +80,7 @@ func (creator *interceptorRegistrationBuilder) TxAfter(name string) *interceptor
 		creator.orderer = &storage.OrderedByName{}
 	}
 	creator.orderer.NameTx = name
-	creator.orderer.PositionTypeTx = storage.PositionAfter
+	creator.orderer.PositionTxType = storage.PositionAfter
 	return creator
 }
 

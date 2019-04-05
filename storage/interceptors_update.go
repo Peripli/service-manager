@@ -56,18 +56,18 @@ func NewUpdateInterceptorChain(providers []UpdateInterceptorProvider) *UpdateInt
 
 	for _, p := range providers {
 		interceptor := p.Provide()
-		positionAPIType := PositionNone
+		positionAroundTxType := PositionNone
 		positionTxType := PositionNone
 		nameAPI := ""
 		nameTx := ""
 
 		if orderedProvider, isOrdered := p.(Ordered); isOrdered {
-			positionAPIType, nameAPI = orderedProvider.PositionAPI()
+			positionAroundTxType, nameAPI = orderedProvider.PositionAroundTx()
 			positionTxType, nameTx = orderedProvider.PositionTx()
 		}
 
 		chain.aroundTxFuncs[interceptor.Name()] = interceptor.AroundTxUpdate
-		chain.aroundTxNames = insertName(chain.aroundTxNames, positionAPIType, nameAPI, interceptor.Name())
+		chain.aroundTxNames = insertName(chain.aroundTxNames, positionAroundTxType, nameAPI, interceptor.Name())
 
 		chain.onTxFuncs[interceptor.Name()] = interceptor.OnTxUpdate
 		chain.onTxNames = insertName(chain.onTxNames, positionTxType, nameTx, interceptor.Name())

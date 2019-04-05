@@ -41,18 +41,18 @@ func NewDeleteInterceptorChain(providers []DeleteInterceptorProvider) *DeleteInt
 
 	for _, p := range providers {
 		interceptor := p.Provide()
-		positionAPIType := PositionNone
+		positionAroundTxType := PositionNone
 		positionTxType := PositionNone
 		nameAPI := ""
 		nameTx := ""
 
 		if orderedInterceptor, isOrdered := p.(Ordered); isOrdered {
-			positionAPIType, nameAPI = orderedInterceptor.PositionAPI()
+			positionAroundTxType, nameAPI = orderedInterceptor.PositionAroundTx()
 			positionTxType, nameTx = orderedInterceptor.PositionTx()
 		}
 
 		chain.aroundTxFuncs[interceptor.Name()] = interceptor.AroundTxDelete
-		chain.aroundTxNames = insertName(chain.aroundTxNames, positionAPIType, nameAPI, interceptor.Name())
+		chain.aroundTxNames = insertName(chain.aroundTxNames, positionAroundTxType, nameAPI, interceptor.Name())
 
 		chain.onTxFuncs[interceptor.Name()] = interceptor.OnTxDelete
 		chain.onTxNames = insertName(chain.onTxNames, positionTxType, nameTx, interceptor.Name())
