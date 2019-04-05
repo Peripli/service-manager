@@ -2,49 +2,42 @@ package storage
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/Peripli/service-manager/pkg/types"
 
 	"github.com/Peripli/service-manager/pkg/query"
 )
 
-type namedDeleteAPIFunc struct {
-	Name string
-	Func func(InterceptDeleteAroundTxFunc) InterceptDeleteAroundTxFunc
-}
-
-type namedDeleteTxFunc struct {
-	Name string
-	Func func(InterceptDeleteOnTxFunc) InterceptDeleteOnTxFunc
-}
-
-// TODO this has ONAPI in the name and has an array of TX Funcs that are structs. Naming / abstraction needs improvements
 type DeleteInterceptorChain struct {
-	DeleteHookOnAPIFuncs []*namedDeleteAPIFunc
-	DeleteHookOnTxFuncs  []*namedDeleteTxFunc
+	aroundTxNames []string
+	aroundTxFuncs map[string]func(InterceptDeleteAroundTxFunc) InterceptDeleteAroundTxFunc
+
+	onTxNames []string
+	onTxFuncs map[string]func(InterceptDeleteOnTxFunc) InterceptDeleteOnTxFunc
 }
 
-func (c *DeleteInterceptorChain) AroundTxDelete(f InterceptDeleteAroundTxFunc) InterceptDeleteAroundTxFunc {
-	for i := range c.DeleteHookOnAPIFuncs {
-		f = c.DeleteHookOnAPIFuncs[len(c.DeleteHookOnAPIFuncs)-1-i].Func(f)
+func (d *DeleteInterceptorChain) AroundTxDelete(f InterceptDeleteAroundTxFunc) InterceptDeleteAroundTxFunc {
+	for i := range d.aroundTxNames {
+		f = d.aroundTxFuncs[d.aroundTxNames[len(d.aroundTxNames)-1-i]](f)
 	}
 	return f
 }
 
-func (c *DeleteInterceptorChain) OnTxDelete(f InterceptDeleteOnTxFunc) InterceptDeleteOnTxFunc {
-	for i := range c.DeleteHookOnTxFuncs {
-		f = c.DeleteHookOnTxFuncs[len(c.DeleteHookOnTxFuncs)-1-i].Func(f)
+func (d *DeleteInterceptorChain) OnTxDelete(f InterceptDeleteOnTxFunc) InterceptDeleteOnTxFunc {
+	for i := range d.onTxNames {
+		f = d.onTxFuncs[d.onTxNames[len(d.onTxNames)-1-i]](f)
 	}
 	return f
 }
 
 // NewDeleteInterceptorChain returns a function which chains all delete interceptors, sorts them and wraps them into one.
-//TODO this doesnt need to return a func
 func NewDeleteInterceptorChain(providers []DeleteInterceptorProvider) *DeleteInterceptorChain {
-	c := &DeleteInterceptorChain{}
-	c.DeleteHookOnAPIFuncs = make([]*namedDeleteAPIFunc, 0, len(providers))
-	c.DeleteHookOnTxFuncs = make([]*namedDeleteTxFunc, 0, len(providers))
+	chain := &DeleteInterceptorChain{}
+
+	chain.aroundTxFuncs = make(map[string]func(InterceptDeleteAroundTxFunc) InterceptDeleteAroundTxFunc)
+	chain.aroundTxNames = make([]string, 0, len(providers))
+	chain.onTxFuncs = make(map[string]func(InterceptDeleteOnTxFunc) InterceptDeleteOnTxFunc)
+	chain.onTxNames = make([]string, 0, len(providers))
 
 	for _, p := range providers {
 		interceptor := p.Provide()
@@ -58,17 +51,14 @@ func NewDeleteInterceptorChain(providers []DeleteInterceptorProvider) *DeleteInt
 			positionTxType, nameTx = orderedInterceptor.PositionTx()
 		}
 
-		c.insertAPIFunc(positionAPIType, nameAPI, &namedDeleteAPIFunc{
-			Name: interceptor.Name(),
-			Func: interceptor.AroundTxDelete,
-		})
-		c.insertTxFunc(positionTxType, nameTx, &namedDeleteTxFunc{
-			Name: interceptor.Name(),
-			Func: interceptor.OnTxDelete,
-		})
+		chain.aroundTxFuncs[interceptor.Name()] = interceptor.AroundTxDelete
+		chain.aroundTxNames = insertName(chain.aroundTxNames, positionAPIType, nameAPI, interceptor.Name())
+
+		chain.onTxFuncs[interceptor.Name()] = interceptor.OnTxDelete
+		chain.onTxNames = insertName(chain.onTxNames, positionTxType, nameTx, interceptor.Name())
 	}
 
-	return c
+	return chain
 }
 
 // DeleteInterceptorProvider provides DeleteInterceptorChain for each request
@@ -104,59 +94,4 @@ type DeleteInterceptor interface {
 	Named
 	AroundTxDelete(h InterceptDeleteAroundTxFunc) InterceptDeleteAroundTxFunc
 	OnTxDelete(f InterceptDeleteOnTxFunc) InterceptDeleteOnTxFunc
-}
-
-//TODO fix reciever names
-func (c *DeleteInterceptorChain) insertAPIFunc(positionType PositionType, name string, h *namedDeleteAPIFunc) {
-	if positionType == PositionNone {
-		c.DeleteHookOnAPIFuncs = append(c.DeleteHookOnAPIFuncs, h)
-		return
-	}
-	pos := c.findAPIFuncPosition(c.DeleteHookOnAPIFuncs, name)
-	if pos == -1 {
-		panic(fmt.Errorf("could not find delete API hook with name %s", name))
-	}
-	c.DeleteHookOnAPIFuncs = append(c.DeleteHookOnAPIFuncs, nil)
-	if positionType == PositionAfter {
-		pos = pos + 1
-	}
-	copy(c.DeleteHookOnAPIFuncs[pos+1:], c.DeleteHookOnAPIFuncs[pos:])
-	c.DeleteHookOnAPIFuncs[pos] = h
-}
-
-func (c *DeleteInterceptorChain) insertTxFunc(positionType PositionType, name string, h *namedDeleteTxFunc) {
-	if positionType == PositionNone {
-		c.DeleteHookOnTxFuncs = append(c.DeleteHookOnTxFuncs, h)
-		return
-	}
-	pos := c.findTxFuncPosition(c.DeleteHookOnTxFuncs, name)
-	if pos == -1 {
-		panic(fmt.Errorf("could not find delete transaction hook with name %s", name))
-	}
-	c.DeleteHookOnTxFuncs = append(c.DeleteHookOnTxFuncs, nil)
-	if positionType == PositionAfter {
-		pos = pos + 1
-	}
-	copy(c.DeleteHookOnTxFuncs[pos+1:], c.DeleteHookOnTxFuncs[pos:])
-	c.DeleteHookOnTxFuncs[pos] = h
-}
-
-func (c *DeleteInterceptorChain) findAPIFuncPosition(funcs []*namedDeleteAPIFunc, name string) int {
-	for i, f := range funcs {
-		if f.Name == name {
-			return i
-		}
-	}
-
-	return -1
-}
-
-func (c *DeleteInterceptorChain) findTxFuncPosition(funcs []*namedDeleteTxFunc, name string) int {
-	for i, f := range funcs {
-		if f.Name == name {
-			return i
-		}
-	}
-
-	return -1
 }

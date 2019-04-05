@@ -28,14 +28,14 @@ type registrator interface {
 type interceptorRegistrationBuilder struct {
 	registrator
 
-	orderer         *storage.OrderedProviderImpl
+	orderer         *storage.OrderedByName
 	interceptorType types.ObjectType
 	repository      *storage.InterceptableRepository
 }
 
 func (creator *interceptorRegistrationBuilder) Apply() {
 	if creator.orderer == nil {
-		creator.orderer = &storage.OrderedProviderImpl{}
+		creator.orderer = &storage.OrderedByName{}
 	}
 	creator.registrator.Apply(creator.repository, creator.interceptorType, creator.orderer)
 }
@@ -50,7 +50,7 @@ func (creator *interceptorRegistrationBuilder) After(name string) *interceptorRe
 
 func (creator *interceptorRegistrationBuilder) TxBefore(name string) *interceptorRegistrationBuilder {
 	if creator.orderer == nil {
-		creator.orderer = &storage.OrderedProviderImpl{}
+		creator.orderer = &storage.OrderedByName{}
 	}
 	creator.orderer.NameTx = name
 	creator.orderer.PositionTypeTx = storage.PositionBefore
@@ -59,7 +59,7 @@ func (creator *interceptorRegistrationBuilder) TxBefore(name string) *intercepto
 
 func (creator *interceptorRegistrationBuilder) APIBefore(name string) *interceptorRegistrationBuilder {
 	if creator.orderer == nil {
-		creator.orderer = &storage.OrderedProviderImpl{}
+		creator.orderer = &storage.OrderedByName{}
 	}
 	creator.orderer.NameAPI = name
 	creator.orderer.PositionTypeAPI = storage.PositionBefore
@@ -68,7 +68,7 @@ func (creator *interceptorRegistrationBuilder) APIBefore(name string) *intercept
 
 func (creator *interceptorRegistrationBuilder) APIAfter(name string) *interceptorRegistrationBuilder {
 	if creator.orderer == nil {
-		creator.orderer = &storage.OrderedProviderImpl{}
+		creator.orderer = &storage.OrderedByName{}
 	}
 	creator.orderer.NameAPI = name
 	creator.orderer.PositionTypeAPI = storage.PositionAfter
@@ -77,7 +77,7 @@ func (creator *interceptorRegistrationBuilder) APIAfter(name string) *intercepto
 
 func (creator *interceptorRegistrationBuilder) TxAfter(name string) *interceptorRegistrationBuilder {
 	if creator.orderer == nil {
-		creator.orderer = &storage.OrderedProviderImpl{}
+		creator.orderer = &storage.OrderedByName{}
 	}
 	creator.orderer.NameTx = name
 	creator.orderer.PositionTypeTx = storage.PositionAfter

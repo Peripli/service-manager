@@ -23,40 +23,35 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
-type namedCreateAPIFunc struct {
-	Name string
-	Func func(InterceptCreateAroundTxFunc) InterceptCreateAroundTxFunc
-}
-
-type namedCreateTxFunc struct {
-	Name string
-	Func func(InterceptCreateOnTxFunc) InterceptCreateOnTxFunc
-}
-
 type CreateInterceptorChain struct {
-	CreateHookOnAPIFuncs         []*namedCreateAPIFunc
-	CreateHookOnTransactionFuncs []*namedCreateTxFunc
+	aroundTxNames []string
+	aroundTxFuncs map[string]func(InterceptCreateAroundTxFunc) InterceptCreateAroundTxFunc
+
+	onTxNames []string
+	onTxFuncs map[string]func(InterceptCreateOnTxFunc) InterceptCreateOnTxFunc
 }
 
 func (c *CreateInterceptorChain) AroundTxCreate(f InterceptCreateAroundTxFunc) InterceptCreateAroundTxFunc {
-	for i := range c.CreateHookOnAPIFuncs {
-		f = c.CreateHookOnAPIFuncs[len(c.CreateHookOnAPIFuncs)-1-i].Func(f)
+	for i := range c.aroundTxNames {
+		f = c.aroundTxFuncs[c.aroundTxNames[len(c.aroundTxNames)-1-i]](f)
 	}
 	return f
 }
 
 func (c *CreateInterceptorChain) OnTxCreate(f InterceptCreateOnTxFunc) InterceptCreateOnTxFunc {
-	for i := range c.CreateHookOnTransactionFuncs {
-		f = c.CreateHookOnTransactionFuncs[len(c.CreateHookOnTransactionFuncs)-1-i].Func(f)
+	for i := range c.onTxNames {
+		f = c.onTxFuncs[c.onTxNames[len(c.onTxNames)-1-i]](f)
 	}
 	return f
 }
 
 // NewCreateInterceptorChain returns a function which spawns all create interceptors, sorts them and wraps them into one.
 func NewCreateInterceptorChain(providers []CreateInterceptorProvider) *CreateInterceptorChain {
-	c := &CreateInterceptorChain{}
-	c.CreateHookOnAPIFuncs = make([]*namedCreateAPIFunc, 0, len(providers))
-	c.CreateHookOnTransactionFuncs = make([]*namedCreateTxFunc, 0, len(providers))
+	chain := &CreateInterceptorChain{}
+	chain.aroundTxFuncs = make(map[string]func(InterceptCreateAroundTxFunc) InterceptCreateAroundTxFunc)
+	chain.aroundTxNames = make([]string, 0, len(providers))
+	chain.onTxFuncs = make(map[string]func(InterceptCreateOnTxFunc) InterceptCreateOnTxFunc)
+	chain.onTxNames = make([]string, 0, len(providers))
 
 	for _, p := range providers {
 		interceptor := p.Provide()
@@ -70,16 +65,13 @@ func NewCreateInterceptorChain(providers []CreateInterceptorProvider) *CreateInt
 			positionTxType, nameTx = orderedProvider.PositionTx()
 		}
 
-		c.insertAPIFunc(positionAPIType, nameAPI, &namedCreateAPIFunc{
-			Name: interceptor.Name(),
-			Func: interceptor.AroundTxCreate,
-		})
-		c.insertTxFunc(positionTxType, nameTx, &namedCreateTxFunc{
-			Name: interceptor.Name(),
-			Func: interceptor.OnTxCreate,
-		})
+		chain.aroundTxFuncs[interceptor.Name()] = interceptor.AroundTxCreate
+		chain.aroundTxNames = insertName(chain.aroundTxNames, positionAPIType, nameAPI, interceptor.Name())
+
+		chain.onTxFuncs[interceptor.Name()] = interceptor.OnTxCreate
+		chain.onTxNames = insertName(chain.onTxNames, positionTxType, nameTx, interceptor.Name())
 	}
-	return c
+	return chain
 }
 
 // CreateInterceptorProvider provides CreateInterceptors for each request
@@ -118,53 +110,27 @@ type CreateInterceptor interface {
 	OnTxCreate(f InterceptCreateOnTxFunc) InterceptCreateOnTxFunc
 }
 
-func (c *CreateInterceptorChain) insertAPIFunc(positionType PositionType, name string, h *namedCreateAPIFunc) {
+func insertName(names []string, positionType PositionType, name, newInterceptorName string) []string {
 	if positionType == PositionNone {
-		c.CreateHookOnAPIFuncs = append(c.CreateHookOnAPIFuncs, h)
-		return
+		names = append(names, newInterceptorName)
+		return names
 	}
-	pos := c.findAPIFuncPosition(c.CreateHookOnAPIFuncs, name)
+	pos := findName(names, name)
 	if pos == -1 {
 		panic(fmt.Errorf("could not find create API hook with name %s", name))
 	}
-	c.CreateHookOnAPIFuncs = append(c.CreateHookOnAPIFuncs, nil)
+	names = append(names, "")
 	if positionType == PositionAfter {
 		pos = pos + 1
 	}
-	copy(c.CreateHookOnAPIFuncs[pos+1:], c.CreateHookOnAPIFuncs[pos:])
-	c.CreateHookOnAPIFuncs[pos] = h
+	copy(names[pos+1:], names[pos:])
+	names[pos] = newInterceptorName
+	return names
 }
 
-func (c *CreateInterceptorChain) insertTxFunc(positionType PositionType, name string, h *namedCreateTxFunc) {
-	if positionType == PositionNone {
-		c.CreateHookOnTransactionFuncs = append(c.CreateHookOnTransactionFuncs, h)
-		return
-	}
-	pos := c.findTxFuncPosition(c.CreateHookOnTransactionFuncs, name)
-	if pos == -1 {
-		panic(fmt.Errorf("could not find create transaction hook with name %s", name))
-	}
-	c.CreateHookOnTransactionFuncs = append(c.CreateHookOnTransactionFuncs, nil)
-	if positionType == PositionAfter {
-		pos = pos + 1
-	}
-	copy(c.CreateHookOnTransactionFuncs[pos+1:], c.CreateHookOnTransactionFuncs[pos:])
-	c.CreateHookOnTransactionFuncs[pos] = h
-}
-
-func (c *CreateInterceptorChain) findAPIFuncPosition(funcs []*namedCreateAPIFunc, name string) int {
-	for i, f := range funcs {
-		if f.Name == name {
-			return i
-		}
-	}
-
-	return -1
-}
-
-func (c *CreateInterceptorChain) findTxFuncPosition(funcs []*namedCreateTxFunc, name string) int {
-	for i, f := range funcs {
-		if f.Name == name {
+func findName(names []string, existingInterceptorName string) int {
+	for i, name := range names {
+		if name == existingInterceptorName {
 			return i
 		}
 	}
@@ -186,8 +152,8 @@ const (
 	PositionAfter PositionType = "after"
 )
 
-// OrderedProviderImpl is an implementation of Ordered interface used for ordering interceptors
-type OrderedProviderImpl struct {
+// OrderedByName is an implementation of Ordered interface used for ordering interceptors
+type OrderedByName struct {
 	PositionTypeTx  PositionType
 	PositionTypeAPI PositionType
 	NameTx          string
@@ -195,7 +161,7 @@ type OrderedProviderImpl struct {
 }
 
 // PositionTx returns the position of the interceptor transaction hook
-func (opi *OrderedProviderImpl) PositionTx() (PositionType, string) {
+func (opi *OrderedByName) PositionTx() (PositionType, string) {
 	if opi.NameTx == "" {
 		return PositionNone, ""
 	}
@@ -203,7 +169,7 @@ func (opi *OrderedProviderImpl) PositionTx() (PositionType, string) {
 }
 
 // PositionAPI returns the position of the interceptor out of transaction hook
-func (opi *OrderedProviderImpl) PositionAPI() (PositionType, string) {
+func (opi *OrderedByName) PositionAPI() (PositionType, string) {
 	if opi.NameAPI == "" {
 		return PositionNone, ""
 	}
