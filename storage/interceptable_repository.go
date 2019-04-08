@@ -78,7 +78,7 @@ func (ir *interceptableRepository) Create(ctx context.Context, obj types.Object)
 	}
 
 	createObjectFunc := func(ctx context.Context, _ Repository, newObject types.Object) error {
-		id, err := ir.repositoryInTransaction.Create(ctx, obj)
+		id, err := ir.repositoryInTransaction.Create(ctx, newObject)
 		if err != nil {
 			return util.HandleStorageError(err, string(objectType))
 		}
@@ -127,7 +127,7 @@ func (ir *interceptableRepository) List(ctx context.Context, objectType types.Ob
 
 func (ir *interceptableRepository) Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	deleteObjectFunc := func(ctx context.Context, _ Repository, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
-		objectList, err := ir.repositoryInTransaction.Delete(ctx, objectType, criteria...)
+		objectList, err := ir.repositoryInTransaction.Delete(ctx, objectType, deletionCriteria...)
 		if err != nil {
 			return nil, util.HandleSelectionError(err, string(objectType))
 		}
