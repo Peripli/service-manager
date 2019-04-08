@@ -37,7 +37,7 @@ import (
 const Storage = "postgres"
 
 type PostgresStorage struct {
-	pgDB          pgDB
+	pgDB          PGDB
 	db            *sqlx.DB
 	state         *storageState
 	encryptionKey []byte

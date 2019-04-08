@@ -31,7 +31,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) (PostgresLabel, error), pgDB pgDB, referenceID string, updateActions []*query.LabelChange) error {
+func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) (PostgresLabel, error), pgDB PGDB, referenceID string, updateActions []*query.LabelChange) error {
 	for _, action := range updateActions {
 		switch action.Operation {
 		case query.AddLabelOperation:
@@ -56,7 +56,7 @@ func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string,
 	}
 	return nil
 }
-func addLabel(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) (PostgresLabel, error), db pgDB, key string, value string, referenceID string) error {
+func addLabel(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) (PostgresLabel, error), db PGDB, key string, value string, referenceID string) error {
 	uuids, err := uuid.NewV4()
 	if err != nil {
 		return fmt.Errorf("could not generate id for new label: %v", err)

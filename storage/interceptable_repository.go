@@ -80,7 +80,7 @@ func (ir *interceptableRepository) Create(ctx context.Context, obj types.Object)
 	createObjectFunc := func(ctx context.Context, _ Repository, newObject types.Object) error {
 		id, err := ir.repositoryInTransaction.Create(ctx, newObject)
 		if err != nil {
-			return util.HandleStorageError(err, string(objectType))
+			return err
 		}
 		obj.SetID(id)
 
@@ -129,7 +129,7 @@ func (ir *interceptableRepository) Delete(ctx context.Context, objectType types.
 	deleteObjectFunc := func(ctx context.Context, _ Repository, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
 		objectList, err := ir.repositoryInTransaction.Delete(ctx, objectType, deletionCriteria...)
 		if err != nil {
-			return nil, util.HandleSelectionError(err, string(objectType))
+			return nil, err
 		}
 
 		return objectList, nil
@@ -160,7 +160,7 @@ func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object,
 	updateObjFunc := func(ctx context.Context, _ Repository, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 		object, err := ir.repositoryInTransaction.Update(ctx, obj, labelChanges...)
 		if err != nil {
-			return nil, util.HandleStorageError(err, string(objectType))
+			return nil, err
 		}
 
 		return object, nil
@@ -231,7 +231,7 @@ func (final *finalCreateObjectInterceptor) InterceptCreateAroundTx(ctx context.C
 		interceptableRepository := newInterceptableRepository(txStorage, final.encrypter, final.providedCreateInterceptors, final.providedUpdateInterceptors, final.providedDeleteInterceptors)
 		id, err = interceptableRepository.Create(ctx, obj)
 		if err != nil {
-			return err
+			return util.HandleStorageError(err, string(final.objectType))
 		}
 		if securedObj, isSecured := obj.(types.Secured); isSecured {
 			securedObj.SetCredentials(nil)

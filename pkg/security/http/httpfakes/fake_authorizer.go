@@ -2,17 +2,17 @@
 package httpfakes
 
 import (
-	"sync"
+	sync "sync"
 
-	"github.com/Peripli/service-manager/pkg/security/http"
-	"github.com/Peripli/service-manager/pkg/web"
+	http "github.com/Peripli/service-manager/pkg/security/http"
+	web "github.com/Peripli/service-manager/pkg/web"
 )
 
 type FakeAuthorizer struct {
-	AuthorizeStub        func(req *web.Request) (http.Decision, error)
+	AuthorizeStub        func(*web.Request) (http.Decision, error)
 	authorizeMutex       sync.RWMutex
 	authorizeArgsForCall []struct {
-		req *web.Request
+		arg1 *web.Request
 	}
 	authorizeReturns struct {
 		result1 http.Decision
@@ -26,21 +26,22 @@ type FakeAuthorizer struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeAuthorizer) Authorize(req *web.Request) (http.Decision, error) {
+func (fake *FakeAuthorizer) Authorize(arg1 *web.Request) (http.Decision, error) {
 	fake.authorizeMutex.Lock()
 	ret, specificReturn := fake.authorizeReturnsOnCall[len(fake.authorizeArgsForCall)]
 	fake.authorizeArgsForCall = append(fake.authorizeArgsForCall, struct {
-		req *web.Request
-	}{req})
-	fake.recordInvocation("Authorize", []interface{}{req})
+		arg1 *web.Request
+	}{arg1})
+	fake.recordInvocation("Authorize", []interface{}{arg1})
 	fake.authorizeMutex.Unlock()
 	if fake.AuthorizeStub != nil {
-		return fake.AuthorizeStub(req)
+		return fake.AuthorizeStub(arg1)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	return fake.authorizeReturns.result1, fake.authorizeReturns.result2
+	fakeReturns := fake.authorizeReturns
+	return fakeReturns.result1, fakeReturns.result2
 }
 
 func (fake *FakeAuthorizer) AuthorizeCallCount() int {
@@ -49,13 +50,22 @@ func (fake *FakeAuthorizer) AuthorizeCallCount() int {
 	return len(fake.authorizeArgsForCall)
 }
 
+func (fake *FakeAuthorizer) AuthorizeCalls(stub func(*web.Request) (http.Decision, error)) {
+	fake.authorizeMutex.Lock()
+	defer fake.authorizeMutex.Unlock()
+	fake.AuthorizeStub = stub
+}
+
 func (fake *FakeAuthorizer) AuthorizeArgsForCall(i int) *web.Request {
 	fake.authorizeMutex.RLock()
 	defer fake.authorizeMutex.RUnlock()
-	return fake.authorizeArgsForCall[i].req
+	argsForCall := fake.authorizeArgsForCall[i]
+	return argsForCall.arg1
 }
 
 func (fake *FakeAuthorizer) AuthorizeReturns(result1 http.Decision, result2 error) {
+	fake.authorizeMutex.Lock()
+	defer fake.authorizeMutex.Unlock()
 	fake.AuthorizeStub = nil
 	fake.authorizeReturns = struct {
 		result1 http.Decision
@@ -64,6 +74,8 @@ func (fake *FakeAuthorizer) AuthorizeReturns(result1 http.Decision, result2 erro
 }
 
 func (fake *FakeAuthorizer) AuthorizeReturnsOnCall(i int, result1 http.Decision, result2 error) {
+	fake.authorizeMutex.Lock()
+	defer fake.authorizeMutex.Unlock()
 	fake.AuthorizeStub = nil
 	if fake.authorizeReturnsOnCall == nil {
 		fake.authorizeReturnsOnCall = make(map[int]struct {
