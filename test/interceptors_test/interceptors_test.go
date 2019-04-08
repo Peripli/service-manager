@@ -297,14 +297,14 @@ var _ = Describe("Interceptors", func() {
 			name            string
 		}
 		entries := []entry{
-			//{
-			//	createEntryFunc: func() string {
-			//		brokerID, _, _ := ctx.RegisterBroker()
-			//		return brokerID
-			//	},
-			//	url:  web.ServiceBrokersURL,
-			//	name: string(types.ServiceBrokerType),
-			//},
+			{
+				createEntryFunc: func() string {
+					brokerID, _, _ := ctx.RegisterBroker()
+					return brokerID
+				},
+				url:  web.ServiceBrokersURL,
+				name: string(types.ServiceBrokerType),
+			},
 			{
 				createEntryFunc: func() string {
 					platform := ctx.RegisterPlatform()
@@ -313,22 +313,22 @@ var _ = Describe("Interceptors", func() {
 				url:  web.PlatformsURL,
 				name: string(types.PlatformType),
 			},
-			//{
-			//	createEntryFunc: func() string {
-			//		platform := ctx.RegisterPlatform() // Post /v1/platforms
-			//		ctx.RegisterBroker()
-			//		plans := ctx.SMWithBasic.GET(web.ServicePlansURL).Expect().JSON().Object().Value("service_plans").Array()
-			//		planID := plans.First().Object().Value("id").String().Raw()
-			//		visibility := types.Visibility{
-			//			PlatformID:    platform.ID,
-			//			ServicePlanID: planID,
-			//		}
-			//		return ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(visibility).Expect().
-			//			Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
-			//	},
-			//	url:  web.VisibilitiesURL,
-			//	name: string(types.VisibilityType),
-			//},
+			{
+				createEntryFunc: func() string {
+					platform := ctx.RegisterPlatform() // Post /v1/platforms
+					ctx.RegisterBroker()
+					plans := ctx.SMWithBasic.GET(web.ServicePlansURL).Expect().JSON().Object().Value("service_plans").Array()
+					planID := plans.First().Object().Value("id").String().Raw()
+					visibility := types.Visibility{
+						PlatformID:    platform.ID,
+						ServicePlanID: planID,
+					}
+					return ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(visibility).Expect().
+						Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
+				},
+				url:  web.VisibilitiesURL,
+				name: string(types.VisibilityType),
+			},
 		}
 		for _, e := range entries {
 			Context(e.name, func() {
