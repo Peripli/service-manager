@@ -59,35 +59,39 @@ var _ = Describe("Interceptors", func() {
 	resetModificationInterceptors := func() {
 
 		for _, interceptor := range createModificationInterceptors {
-			interceptor.AroundTxCreateStub = func(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
+			interceptor.AroundTxCreateCalls(func(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
 				return h
-			}
+			})
 
-			interceptor.OnTxCreateStub = func(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
+			interceptor.OnTxCreateCalls(func(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 				return f
-			}
+			})
 		}
 
 		for _, interceptor := range updateModificationInterceptors {
-			interceptor.AroundTxUpdateStub = func(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
+			interceptor.AroundTxUpdateCalls(func(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
 				return h
-			}
-			interceptor.OnTxUpdateStub = func(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
+			})
+			interceptor.OnTxUpdateCalls(func(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
 				return f
-			}
+			})
 		}
 
 		for _, interceptor := range deleteModificationInterceptors {
-			interceptor.AroundTxDeleteStub = func(h storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
+			interceptor.AroundTxDeleteCalls(func(h storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
 				return h
-			}
-			interceptor.OnTxDeleteStub = func(f storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
+			})
+			interceptor.OnTxDeleteCalls(func(f storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
 				return f
-			}
+			})
 		}
 	}
 
 	BeforeSuite(func() {
+		createModificationInterceptors = make(map[types.ObjectType]*storagefakes.FakeCreateInterceptor)
+		updateModificationInterceptors = make(map[types.ObjectType]*storagefakes.FakeUpdateInterceptor)
+		deleteModificationInterceptors = make(map[types.ObjectType]*storagefakes.FakeDeleteInterceptor)
+
 		createStack = &callStack{}
 		updateStack = &callStack{}
 		deleteStack = &callStack{}
@@ -141,6 +145,8 @@ var _ = Describe("Interceptors", func() {
 
 				deleteModificationInterceptors[entityType] = deleteModificationInterceptor
 
+				resetModificationInterceptors()
+
 				// Register create interceptors
 				smb.RegisterCreateInterceptorProvider(entityType, fakeCreateInterceptorProvider1).Apply()
 				smb.RegisterCreateInterceptorProvider(entityType, fakeCreateInterceptorProvider2).
@@ -188,11 +194,11 @@ var _ = Describe("Interceptors", func() {
 				smb.RegisterUpdateInterceptorProvider(entityType, modificationUpdateInterceptorProvider).Apply()
 				smb.RegisterDeleteInterceptorProvider(entityType, modificationDeleteInterceptorProvider).Apply()
 
-				resetModificationInterceptors()
 			}
 
 			return nil
 		})
+
 		ctx = contextBuilder.Build()
 	})
 
@@ -382,7 +388,7 @@ var _ = Describe("Interceptors", func() {
 						Value(newLabelKey).Array().Equal(newLabelValue)
 				})
 
-				FIt("Delete", func() {
+				It("Delete", func() {
 					_ = e.createEntryFunc()
 					deleteModificationInterceptors[types.ObjectType(e.name)].AroundTxDeleteStub = func(h storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
 						return func(ctx context.Context, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
