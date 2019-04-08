@@ -32,14 +32,14 @@ type Visibility struct {
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
-func (v *Visibility) Validate() error {
-	if v.ServicePlanID == "" {
+func (e *Visibility) Validate() error {
+	if e.ServicePlanID == "" {
 		return errors.New("missing visibility service plan id")
 	}
-	if util.HasRFC3986ReservedSymbols(v.ID) {
-		return fmt.Errorf("%s contains invalid character(s)", v.ID)
+	if util.HasRFC3986ReservedSymbols(e.ID) {
+		return fmt.Errorf("%s contains invalid character(s)", e.ID)
 	}
-	if err := v.Labels.Validate(); err != nil {
+	if err := e.Labels.Validate(); err != nil {
 		return err
 	}
 	return nil

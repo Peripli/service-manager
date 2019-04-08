@@ -42,6 +42,7 @@ func (c *CreateInterceptor) Name() string {
 	return platformCreateInterceptorName
 }
 
+// AroundTxCreate manipulates the credentials of the platform by generating new ones and returning them as plaintext on the way back
 func (c *CreateInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		credentials, err := types.GenerateCredentials()
@@ -61,6 +62,7 @@ func (c *CreateInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTxFunc
 	}
 }
 
+// OnTxCreate invokes the next interceptor in the chain
 func (*CreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 	return f
 }

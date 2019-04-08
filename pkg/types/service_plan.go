@@ -43,20 +43,20 @@ type ServicePlan struct {
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
-func (sp *ServicePlan) Validate() error {
-	if util.HasRFC3986ReservedSymbols(sp.ID) {
-		return fmt.Errorf("%s contains invalid character(s)", sp.ID)
+func (e *ServicePlan) Validate() error {
+	if util.HasRFC3986ReservedSymbols(e.ID) {
+		return fmt.Errorf("%s contains invalid character(s)", e.ID)
 	}
-	if sp.Name == "" {
+	if e.Name == "" {
 		return fmt.Errorf("service plan name missing")
 	}
-	if sp.CatalogID == "" {
+	if e.CatalogID == "" {
 		return fmt.Errorf("service plan catalog id missing")
 	}
-	if sp.CatalogName == "" {
+	if e.CatalogName == "" {
 		return fmt.Errorf("service plan catalog name missing")
 	}
-	if sp.ServiceOfferingID == "" {
+	if e.ServiceOfferingID == "" {
 		return fmt.Errorf("service plan service offering id missing")
 	}
 	return nil

@@ -43,15 +43,15 @@ func (e *Platform) GetCredentials() *Credentials {
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
-func (p *Platform) Validate() error {
-	if p.Type == "" {
+func (e *Platform) Validate() error {
+	if e.Type == "" {
 		return errors.New("missing platform type")
 	}
-	if p.Name == "" {
+	if e.Name == "" {
 		return errors.New("missing platform name")
 	}
-	if util.HasRFC3986ReservedSymbols(p.ID) {
-		return fmt.Errorf("%s contains invalid character(s)", p.ID)
+	if util.HasRFC3986ReservedSymbols(e.ID) {
+		return fmt.Errorf("%s contains invalid character(s)", e.ID)
 	}
 	return nil
 }

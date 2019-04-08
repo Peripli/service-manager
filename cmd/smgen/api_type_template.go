@@ -46,12 +46,6 @@ func (e *{{.TypePlural}}) Len() int {
 	return len(e.{{.TypePlural}})
 }
 
-func (e *{{.Type}}) EmptyList() {{.TypesPackage}}ObjectList {
-	return &{{.TypePlural}}{
-		{{.TypePlural}}: make([]*{{.Type}}, 0),
-	}
-}
-
 func (e *{{.Type}}) GetType() {{.TypesPackage}}ObjectType {
 	return {{.Type}}Type
 }

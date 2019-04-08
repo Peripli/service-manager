@@ -26,12 +26,6 @@ func (e *ServiceOfferings) Len() int {
 	return len(e.ServiceOfferings)
 }
 
-func (e *ServiceOffering) EmptyList() ObjectList {
-	return &ServiceOfferings{
-		ServiceOfferings: make([]*ServiceOffering, 0),
-	}
-}
-
 func (e *ServiceOffering) GetType() ObjectType {
 	return ServiceOfferingType
 }

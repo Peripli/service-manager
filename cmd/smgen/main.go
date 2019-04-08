@@ -23,12 +23,11 @@ import (
 	"strings"
 )
 
-// generate <api/storage> <name> <labels/none>
 func main() {
 	flag.Parse()
 	args := flag.Args()
 	if len(args) < 2 {
-		panic("Usage is <api/storage> <type_name> <api_package/none> <table_name/none>")
+		panic("Usage is <api/storage> <type_name>")
 	}
 	generationTarget := args[0]
 	typeName := strings.Title(args[1])

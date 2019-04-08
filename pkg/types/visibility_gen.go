@@ -26,12 +26,6 @@ func (e *Visibilities) Len() int {
 	return len(e.Visibilities)
 }
 
-func (e *Visibility) EmptyList() ObjectList {
-	return &Visibilities{
-		Visibilities: make([]*Visibility, 0),
-	}
-}
-
 func (e *Visibility) GetType() ObjectType {
 	return VisibilityType
 }

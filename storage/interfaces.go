@@ -80,7 +80,7 @@ func (s *Settings) Validate() error {
 // OpenCloser represents an openable and closeable storage
 type OpenCloser interface {
 	// Open initializes the storage, e.g. opens a connection to the underlying storage
-	Open(options *Settings, scheme *Scheme) error
+	Open(options *Settings) error
 
 	// Close clears resources associated with this storage, e.g. closes the connection the underlying storage
 	Close() error

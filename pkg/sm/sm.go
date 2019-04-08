@@ -110,8 +110,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 
 	// setup smStorage
 	log.C(ctx).Info("Setting up Service Manager storage...")
-	scheme := storage.NewScheme()
-	smStorage, err := storage.Use(ctx, postgres.Storage, cfg.Storage, scheme)
+	smStorage, err := storage.Use(ctx, postgres.Storage, cfg.Storage)
 	if err != nil {
 		panic(fmt.Sprintf("error using smStorage: %s", err))
 	}

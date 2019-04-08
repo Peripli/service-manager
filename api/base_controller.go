@@ -36,6 +36,7 @@ import (
 
 const PathParamID = "id"
 
+// BaseController provides common CRUD handlers for all object types in the service manager
 type BaseController struct {
 	resourceBaseURL string
 	objectType      types.ObjectType
@@ -43,6 +44,7 @@ type BaseController struct {
 	objectBlueprint func() types.Object
 }
 
+// NewController returns a new base controller
 func NewController(repository storage.Repository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object) *BaseController {
 	return &BaseController{
 		repository:      repository,
@@ -52,6 +54,7 @@ func NewController(repository storage.Repository, resourceBaseURL string, object
 	}
 }
 
+// Routes returns the common set of routes for all objects
 func (c *BaseController) Routes() []web.Route {
 	return []web.Route{
 		{
@@ -99,6 +102,7 @@ func (c *BaseController) Routes() []web.Route {
 	}
 }
 
+// CreateObject handles the creation of a new object
 func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Creating new %s", c.objectType)
@@ -127,6 +131,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	return web.NewJSONResponse(http.StatusCreated, result)
 }
 
+// DeleteObjects handles the deletion of the objects specified in the request
 func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting %ss...", c.objectType)
@@ -139,6 +144,7 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 	return web.NewJSONResponse(http.StatusOK, map[string]string{})
 }
 
+// DeleteSingleObject handles the deletion of the object with the id specified in the request
 func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, error) {
 	objectID := r.PathParams[PathParamID]
 	ctx := r.Context()
@@ -153,6 +159,7 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 	return c.DeleteObjects(r)
 }
 
+// GetSingleObject handles the fetching of a single object with the id specified in the request
 func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) {
 	objectID := r.PathParams[PathParamID]
 	ctx := r.Context()
@@ -170,6 +177,7 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 	return web.NewJSONResponse(http.StatusOK, object)
 }
 
+// ListObjects handles the fetching of all objects
 func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Getting all %ss", c.objectType)
@@ -189,6 +197,7 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	return web.NewJSONResponse(http.StatusOK, objectList)
 }
 
+// PatchObject handles the update of the object with the id specified in the request
 func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	objectID := r.PathParams[PathParamID]
 	ctx := r.Context()

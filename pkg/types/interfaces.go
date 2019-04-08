@@ -20,18 +20,20 @@ import (
 	"time"
 )
 
+// ObjectType is the type of the object in the Service Manager
 type ObjectType string
 
+// Secured interface indicates that an object requires credentials to access it
 type Secured interface {
 	SetCredentials(credentials *Credentials)
 	GetCredentials() *Credentials
 }
 
+// Object is the common interface that all resources in the Service Manager must implement
 type Object interface {
 	SetID(id string)
 	GetID() string
 	GetType() ObjectType
-	EmptyList() ObjectList
 	GetLabels() Labels
 	SetLabels(labels Labels)
 	SetCreatedAt(time time.Time)
@@ -40,6 +42,7 @@ type Object interface {
 	GetUpdatedAt() time.Time
 }
 
+// ObjectList is the interface that lists of objects must implement
 type ObjectList interface {
 	Add(object Object)
 	ItemAt(index int) Object

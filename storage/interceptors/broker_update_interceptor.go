@@ -35,26 +35,28 @@ import (
 
 const UpdateBrokerInterceptorName = "update-broker"
 
+// BrokerUpdateInterceptorProvider provides a broker interceptor for update operations
 type BrokerUpdateInterceptorProvider struct {
 	OsbClientCreateFunc osbc.CreateFunc
 }
 
 func (c *BrokerUpdateInterceptorProvider) Provide() storage.UpdateInterceptor {
-	return &UpdateBrokerInterceptor{
+	return &updateBrokerInterceptor{
 		OSBClientCreateFunc: c.OsbClientCreateFunc,
 	}
 }
 
-type UpdateBrokerInterceptor struct {
+type updateBrokerInterceptor struct {
 	OSBClientCreateFunc osbc.CreateFunc
 	catalog             *osbc.CatalogResponse
 }
 
-func (c *UpdateBrokerInterceptor) Name() string {
+func (c *updateBrokerInterceptor) Name() string {
 	return UpdateBrokerInterceptorName
 }
 
-func (c *UpdateBrokerInterceptor) AroundTxUpdate(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
+// AroundTxUpdate fetches the broker catalog before the transaction, so it can be stored later on in the transaction
+func (c *updateBrokerInterceptor) AroundTxUpdate(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
 	return func(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 		broker := obj.(*types.ServiceBroker)
 		var err error
@@ -69,7 +71,8 @@ func (c *UpdateBrokerInterceptor) AroundTxUpdate(h storage.InterceptUpdateAround
 	}
 }
 
-func (c *UpdateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
+// OnTxUpdate stores the previously fetched broker catalog, in the transaction in which the broker is being updated
+func (c *updateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
 	return func(ctx context.Context, txStorage storage.Repository, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 		newObject, err := f(ctx, txStorage, obj, labelChanges...)
 		if err != nil {

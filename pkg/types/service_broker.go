@@ -42,20 +42,20 @@ func (e *ServiceBroker) GetCredentials() *Credentials {
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
-func (b *ServiceBroker) Validate() error {
-	if b.Name == "" {
+func (e *ServiceBroker) Validate() error {
+	if e.Name == "" {
 		return errors.New("missing broker name")
 	}
-	if b.BrokerURL == "" {
+	if e.BrokerURL == "" {
 		return errors.New("missing broker url")
 	}
 
-	if err := b.Labels.Validate(); err != nil {
+	if err := e.Labels.Validate(); err != nil {
 		return err
 	}
 
-	if b.Credentials == nil {
+	if e.Credentials == nil {
 		return errors.New("missing credentials")
 	}
-	return b.Credentials.Validate()
+	return e.Credentials.Validate()
 }

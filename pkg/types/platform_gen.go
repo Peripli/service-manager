@@ -26,12 +26,6 @@ func (e *Platforms) Len() int {
 	return len(e.Platforms)
 }
 
-func (e *Platform) EmptyList() ObjectList {
-	return &Platforms{
-		Platforms: make([]*Platform, 0),
-	}
-}
-
 func (e *Platform) GetType() ObjectType {
 	return PlatformType
 }

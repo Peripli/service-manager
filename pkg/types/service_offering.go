@@ -47,20 +47,20 @@ type ServiceOffering struct {
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
-func (so *ServiceOffering) Validate() error {
-	if util.HasRFC3986ReservedSymbols(so.ID) {
-		return fmt.Errorf("%s contains invalid character(s)", so.ID)
+func (e *ServiceOffering) Validate() error {
+	if util.HasRFC3986ReservedSymbols(e.ID) {
+		return fmt.Errorf("%s contains invalid character(s)", e.ID)
 	}
-	if so.Name == "" {
+	if e.Name == "" {
 		return errors.New("service offering catalog name missing")
 	}
-	if so.CatalogID == "" {
+	if e.CatalogID == "" {
 		return errors.New("service offering catalog id missing")
 	}
-	if so.CatalogName == "" {
+	if e.CatalogName == "" {
 		return errors.New("service offering catalog name missing")
 	}
-	if so.BrokerID == "" {
+	if e.BrokerID == "" {
 		return errors.New("service offering broker id missing")
 	}
 	return nil

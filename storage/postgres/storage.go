@@ -41,7 +41,7 @@ type PostgresStorage struct {
 	db            *sqlx.DB
 	state         *storageState
 	encryptionKey []byte
-	scheme        *storage.Scheme
+	scheme        *scheme
 
 	mutex sync.Mutex
 }
@@ -60,7 +60,7 @@ func (ps *PostgresStorage) Security() storage.Security {
 	return &securityStorage{ps.pgDB, ps.encryptionKey, false, &sync.Mutex{}}
 }
 
-func (ps *PostgresStorage) Open(options *storage.Settings, scheme *storage.Scheme) error {
+func (ps *PostgresStorage) Open(options *storage.Settings) error {
 	var err error
 	if err = options.Validate(); err != nil {
 		return err
@@ -91,7 +91,7 @@ func (ps *PostgresStorage) Open(options *storage.Settings, scheme *storage.Schem
 			log.D().Panicln("Could not update database schema:", err)
 		}
 		ps.pgDB = ps.db
-		ps.scheme = scheme
+		ps.scheme = newScheme()
 		ps.scheme.Introduce(&Broker{})
 		ps.scheme.Introduce(&Platform{})
 		ps.scheme.Introduce(&ServiceOffering{})
@@ -280,7 +280,7 @@ func (ps *PostgresStorage) Update(ctx context.Context, obj types.Object, labelCh
 	if err != nil {
 		return nil, err
 	}
-	typeLabels := ps.scheme.StorageLabelsToType(labels)
+	typeLabels := storageLabelsToType(labels)
 	result := entity.ToObject()
 	result.SetLabels(typeLabels)
 	return result, nil
@@ -337,4 +337,17 @@ func (migrateLogger) Printf(format string, v ...interface{}) {
 
 func (migrateLogger) Verbose() bool {
 	return true
+}
+
+func storageLabelsToType(labels []storage.Label) types.Labels {
+	labelValues := make(map[string][]string)
+	for _, label := range labels {
+		values, exists := labelValues[label.GetKey()]
+		if exists {
+			labelValues[label.GetKey()] = append(values, label.GetValue())
+		} else {
+			labelValues[label.GetKey()] = []string{label.GetValue()}
+		}
+	}
+	return labelValues
 }

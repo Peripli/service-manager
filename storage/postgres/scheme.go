@@ -14,37 +14,38 @@
  * limitations under the License.
  */
 
-package storage
+package postgres
 
 import (
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
 )
 
-type EntityProvider func(objectType types.ObjectType) (Entity, bool)
-type ObjectConverter func(object types.Object) (Entity, bool)
+type entityProvider func(objectType types.ObjectType) (storage.Entity, bool)
+type objectConverter func(object types.Object) (storage.Entity, bool)
 
-func NewScheme() *Scheme {
-	return &Scheme{
-		instanceProviders: make([]EntityProvider, 0),
-		converters:        make([]ObjectConverter, 0),
+func newScheme() *scheme {
+	return &scheme{
+		instanceProviders: make([]entityProvider, 0),
+		converters:        make([]objectConverter, 0),
 	}
 }
 
-type Scheme struct {
-	instanceProviders []EntityProvider
-	converters        []ObjectConverter
+type scheme struct {
+	instanceProviders []entityProvider
+	converters        []objectConverter
 }
 
-func (s *Scheme) Introduce(entity Entity) {
+func (s *scheme) Introduce(entity storage.Entity) {
 	obj := entity.ToObject()
 	objType := obj.GetType()
-	s.instanceProviders = append(s.instanceProviders, func(objectType types.ObjectType) (Entity, bool) {
+	s.instanceProviders = append(s.instanceProviders, func(objectType types.ObjectType) (storage.Entity, bool) {
 		if objType != objectType {
 			return nil, false
 		}
 		return entity, true
 	})
-	s.converters = append(s.converters, func(object types.Object) (Entity, bool) {
+	s.converters = append(s.converters, func(object types.Object) (storage.Entity, bool) {
 		if object.GetType() != objType {
 			return nil, false
 		}
@@ -52,7 +53,7 @@ func (s *Scheme) Introduce(entity Entity) {
 	})
 }
 
-func (s *Scheme) ObjectToEntity(object types.Object) (Entity, bool) {
+func (s *scheme) ObjectToEntity(object types.Object) (storage.Entity, bool) {
 	for _, c := range s.converters {
 		if entity, ok := c(object); ok {
 			return entity, true
@@ -61,24 +62,11 @@ func (s *Scheme) ObjectToEntity(object types.Object) (Entity, bool) {
 	return nil, false
 }
 
-func (s *Scheme) Provide(objectType types.ObjectType) (Entity, bool) {
+func (s *scheme) Provide(objectType types.ObjectType) (storage.Entity, bool) {
 	for _, v := range s.instanceProviders {
 		if entity, ok := v(objectType); ok {
 			return entity, true
 		}
 	}
 	return nil, false
-}
-
-func (s *Scheme) StorageLabelsToType(labels []Label) types.Labels {
-	labelValues := make(map[string][]string)
-	for _, label := range labels {
-		values, exists := labelValues[label.GetKey()]
-		if exists {
-			labelValues[label.GetKey()] = append(values, label.GetValue())
-		} else {
-			labelValues[label.GetKey()] = []string{label.GetValue()}
-		}
-	}
-	return labelValues
 }
