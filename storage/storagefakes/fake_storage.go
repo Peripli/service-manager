@@ -133,11 +133,11 @@ type FakeStorage struct {
 	securityReturnsOnCall map[int]struct {
 		result1 storage.Security
 	}
-	InTransactionStub        func(ctx context.Context, f func(ctx context.Context, storage storage.Warehouse) error) error
+	InTransactionStub        func(ctx context.Context, f func(ctx context.Context, storage storage.Repository) error) error
 	inTransactionMutex       sync.RWMutex
 	inTransactionArgsForCall []struct {
 		ctx context.Context
-		f   func(ctx context.Context, storage storage.Warehouse) error
+		f   func(ctx context.Context, storage storage.Repository) error
 	}
 	inTransactionReturns struct {
 		result1 error
@@ -627,12 +627,12 @@ func (fake *FakeStorage) SecurityReturnsOnCall(i int, result1 storage.Security) 
 	}{result1}
 }
 
-func (fake *FakeStorage) InTransaction(ctx context.Context, f func(ctx context.Context, storage storage.Warehouse) error) error {
+func (fake *FakeStorage) InTransaction(ctx context.Context, f func(ctx context.Context, storage storage.Repository) error) error {
 	fake.inTransactionMutex.Lock()
 	ret, specificReturn := fake.inTransactionReturnsOnCall[len(fake.inTransactionArgsForCall)]
 	fake.inTransactionArgsForCall = append(fake.inTransactionArgsForCall, struct {
 		ctx context.Context
-		f   func(ctx context.Context, storage storage.Warehouse) error
+		f   func(ctx context.Context, storage storage.Repository) error
 	}{ctx, f})
 	fake.recordInvocation("InTransaction", []interface{}{ctx, f})
 	fake.inTransactionMutex.Unlock()
@@ -651,7 +651,7 @@ func (fake *FakeStorage) InTransactionCallCount() int {
 	return len(fake.inTransactionArgsForCall)
 }
 
-func (fake *FakeStorage) InTransactionArgsForCall(i int) (context.Context, func(ctx context.Context, storage storage.Warehouse) error) {
+func (fake *FakeStorage) InTransactionArgsForCall(i int) (context.Context, func(ctx context.Context, storage storage.Repository) error) {
 	fake.inTransactionMutex.RLock()
 	defer fake.inTransactionMutex.RUnlock()
 	return fake.inTransactionArgsForCall[i].ctx, fake.inTransactionArgsForCall[i].f

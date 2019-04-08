@@ -33,7 +33,7 @@ func (i *HealthIndicator) Health() *health.Health {
 	err := i.Pinger.Ping()
 	healthz := health.New()
 	if err != nil {
-		return healthz.WithError(err).WithDetail("message", "Repository ping failed")
+		return healthz.WithError(err).WithDetail("message", "TransactionalRepository ping failed")
 	}
 	return healthz.Up()
 }

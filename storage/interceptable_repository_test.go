@@ -6,12 +6,12 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Interceptable Repository", func() {
+var _ = Describe("Interceptable TransactionalRepository", func() {
 	Describe("Register interceptor", func() {
-		var interceptableRepository *InterceptableRepository
+		var interceptableRepository *InterceptableTransactionalRepository
 
 		BeforeEach(func() {
-			interceptableRepository = NewInterceptableRepository(nil, nil)
+			interceptableRepository = NewInterceptableTransactionalRepository(nil, nil)
 		})
 
 		Context("Create interceptor", func() {

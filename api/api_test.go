@@ -36,7 +36,7 @@ func TestAPI(t *testing.T) {
 
 var _ = Describe("API", func() {
 	var (
-		mockedStorage *storage.InterceptableRepository
+		mockedStorage *storage.InterceptableTransactionalRepository
 		server        *common.OAuthServer
 	)
 
@@ -49,7 +49,7 @@ var _ = Describe("API", func() {
 	})
 
 	BeforeEach(func() {
-		mockedStorage = storage.NewInterceptableRepository(&storagefakes.FakeStorage{}, nil)
+		mockedStorage = storage.NewInterceptableTransactionalRepository(&storagefakes.FakeStorage{}, nil)
 	})
 
 	Describe("New", func() {

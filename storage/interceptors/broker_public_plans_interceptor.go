@@ -69,7 +69,7 @@ func (p *publicPlanCreateInterceptor) AroundTxCreate(h storage.InterceptCreateAr
 }
 
 func (p *publicPlanCreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
-	return func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error {
+	return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) error {
 		if err := f(ctx, txStorage, newObject); err != nil {
 			return err
 		}
@@ -90,7 +90,7 @@ func (p *publicPlanUpdateInterceptor) AroundTxUpdate(h storage.InterceptUpdateAr
 }
 
 func (p *publicPlanUpdateInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
-	return func(ctx context.Context, txStorage storage.Warehouse, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+	return func(ctx context.Context, txStorage storage.Repository, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 		result, err := f(ctx, txStorage, obj, labelChanges...)
 		if err != nil {
 			return nil, err
@@ -99,7 +99,7 @@ func (p *publicPlanUpdateInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFu
 	}
 }
 
-func resync(ctx context.Context, broker *types.ServiceBroker, txStorage storage.Warehouse, isCatalogPlanPublicFunc publicPlanProcessor) error {
+func resync(ctx context.Context, broker *types.ServiceBroker, txStorage storage.Repository, isCatalogPlanPublicFunc publicPlanProcessor) error {
 	for _, serviceOffering := range broker.Services {
 		for _, servicePlan := range serviceOffering.Plans {
 			planID := servicePlan.ID

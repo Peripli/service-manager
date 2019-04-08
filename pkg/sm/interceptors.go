@@ -22,7 +22,7 @@ import (
 )
 
 type registrator interface {
-	Apply(repository *storage.InterceptableRepository, interceptorType types.ObjectType, orderer storage.Ordered)
+	Apply(repository *storage.InterceptableTransactionalRepository, interceptorType types.ObjectType, orderer storage.Ordered)
 }
 
 type interceptorRegistrationBuilder struct {
@@ -30,7 +30,7 @@ type interceptorRegistrationBuilder struct {
 
 	orderer         *storage.OrderedByName
 	interceptorType types.ObjectType
-	repository      *storage.InterceptableRepository
+	repository      *storage.InterceptableTransactionalRepository
 }
 
 func (creator *interceptorRegistrationBuilder) Apply() {
@@ -93,7 +93,7 @@ type createInterceptorRegistration struct {
 	provider storage.CreateInterceptorProvider
 }
 
-func (cib *createInterceptorRegistration) Apply(repository *storage.InterceptableRepository, interceptsType types.ObjectType, orderer storage.Ordered) {
+func (cib *createInterceptorRegistration) Apply(repository *storage.InterceptableTransactionalRepository, interceptsType types.ObjectType, orderer storage.Ordered) {
 	repository.AddCreateInterceptorProviders(interceptsType, &orderedCreateInterceptorProvider{
 		CreateInterceptorProvider: cib.provider,
 		Ordered:                   orderer,
@@ -109,7 +109,7 @@ type orderedUpdateInterceptorProvider struct {
 	storage.UpdateInterceptorProvider
 }
 
-func (uib *updateInterceptorRegistration) Apply(repository *storage.InterceptableRepository, interceptsType types.ObjectType, orderer storage.Ordered) {
+func (uib *updateInterceptorRegistration) Apply(repository *storage.InterceptableTransactionalRepository, interceptsType types.ObjectType, orderer storage.Ordered) {
 	repository.AddUpdateInterceptorProviders(interceptsType, &orderedUpdateInterceptorProvider{
 		UpdateInterceptorProvider: uib.provider,
 		Ordered:                   orderer,
@@ -125,7 +125,7 @@ type orderedDeleteInterceptorProvider struct {
 	storage.DeleteInterceptorProvider
 }
 
-func (dib *deleteInterceptorRegistration) Apply(repository *storage.InterceptableRepository, interceptsType types.ObjectType, orderer storage.Ordered) {
+func (dib *deleteInterceptorRegistration) Apply(repository *storage.InterceptableTransactionalRepository, interceptsType types.ObjectType, orderer storage.Ordered) {
 	repository.AddDeleteInterceptorProviders(interceptsType, &orderedDeleteInterceptorProvider{
 		DeleteInterceptorProvider: dib.provider,
 		Ordered:                   orderer,

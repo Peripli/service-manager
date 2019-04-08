@@ -113,7 +113,7 @@ func (ps *PostgresStorage) Close() error {
 
 func (ps *PostgresStorage) checkOpen() {
 	if ps.pgDB == nil {
-		log.D().Panicln("Repository is not yet Open")
+		log.D().Panicln("TransactionalRepository is not yet Open")
 	}
 }
 
@@ -298,7 +298,7 @@ func (ps *PostgresStorage) updateLabels(ctx context.Context, entityID string, en
 	return updateLabelsAbstract(ctx, newLabelFunc, ps.pgDB, entityID, updateActions)
 }
 
-func (ps *PostgresStorage) InTransaction(ctx context.Context, f func(ctx context.Context, storage storage.Warehouse) error) error {
+func (ps *PostgresStorage) InTransaction(ctx context.Context, f func(ctx context.Context, storage storage.Repository) error) error {
 	ok := false
 	tx, err := ps.db.Beginx()
 	if err != nil {

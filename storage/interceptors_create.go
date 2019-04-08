@@ -31,6 +31,10 @@ type CreateInterceptorChain struct {
 	onTxFuncs map[string]func(InterceptCreateOnTxFunc) InterceptCreateOnTxFunc
 }
 
+func (c *CreateInterceptorChain) Name() string {
+	return "CreateInterceptorChain"
+}
+
 func (c *CreateInterceptorChain) AroundTxCreate(f InterceptCreateAroundTxFunc) InterceptCreateAroundTxFunc {
 	for i := range c.aroundTxNames {
 		f = c.aroundTxFuncs[c.aroundTxNames[len(c.aroundTxNames)-1-i]](f)
@@ -92,13 +96,13 @@ func (ica InterceptCreateAroundTxFunc) InterceptCreateAroundTx(ctx context.Conte
 }
 
 type InterceptCreateOnTx interface {
-	InterceptCreateOnTx(ctx context.Context, txStorage Warehouse, newObject types.Object) error
+	InterceptCreateOnTx(ctx context.Context, txStorage Repository, newObject types.Object) error
 }
 
 // InterceptCreateOnTxFunc hook for entity creation in transaction
-type InterceptCreateOnTxFunc func(ctx context.Context, txStorage Warehouse, newObject types.Object) error
+type InterceptCreateOnTxFunc func(ctx context.Context, txStorage Repository, newObject types.Object) error
 
-func (ico InterceptCreateOnTxFunc) InterceptCreateOnTx(ctx context.Context, txStorage Warehouse, newObject types.Object) error {
+func (ico InterceptCreateOnTxFunc) InterceptCreateOnTx(ctx context.Context, txStorage Repository, newObject types.Object) error {
 	return ico(ctx, txStorage, newObject)
 }
 

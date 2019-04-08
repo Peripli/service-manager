@@ -122,7 +122,7 @@ func osbCatalogToOfferings(catalog *osbc.CatalogResponse, broker types.Object) (
 }
 
 func (c *CreateBrokerInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
-	return func(ctx context.Context, storage storage.Warehouse, broker types.Object) error {
+	return func(ctx context.Context, storage storage.Repository, broker types.Object) error {
 		if err := f(ctx, storage, broker); err != nil {
 			return err
 		}

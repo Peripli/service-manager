@@ -70,7 +70,7 @@ func (c *UpdateBrokerInterceptor) AroundTxUpdate(h storage.InterceptUpdateAround
 }
 
 func (c *UpdateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
-	return func(ctx context.Context, txStorage storage.Warehouse, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+	return func(ctx context.Context, txStorage storage.Repository, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 		newObject, err := f(ctx, txStorage, obj, labelChanges...)
 		if err != nil {
 			return nil, err
@@ -227,7 +227,7 @@ func (c *UpdateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) 
 	}
 }
 
-func createPlan(ctx context.Context, txStorage storage.Warehouse, catalogPlan *catalogPlanWithServiceOfferingID, brokerID string) error {
+func createPlan(ctx context.Context, txStorage storage.Repository, catalogPlan *catalogPlanWithServiceOfferingID, brokerID string) error {
 	planUUID, err := uuid.NewV4()
 	if err != nil {
 		return fmt.Errorf("could not generate GUID for service_plan: %s", err)

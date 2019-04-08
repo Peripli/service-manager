@@ -34,7 +34,7 @@ func NewServicePlanController(repository storage.Repository) *ServicePlanControl
 	return &ServicePlanController{
 		BaseController: NewController(repository, web.ServicePlansURL, types.ServicePlanType, func() types.Object {
 			return &types.ServicePlan{}
-		}), 
+		}),
 	}
 }
 

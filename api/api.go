@@ -62,8 +62,8 @@ func (s *Settings) Validate() error {
 	return nil
 }
 
-// NewInterceptableRepository returns the minimum set of REST APIs needed for the Service Manager
-func New(ctx context.Context, repository *storage.InterceptableRepository, settings *Settings, encrypter security.Encrypter) (*web.API, error) {
+// NewInterceptableTransactionalRepository returns the minimum set of REST APIs needed for the Service Manager
+func New(ctx context.Context, repository storage.Repository, settings *Settings, encrypter security.Encrypter) (*web.API, error) {
 	bearerAuthnFilter, err := oauth.NewFilter(ctx, settings.TokenIssuerURL, settings.ClientID)
 	if err != nil {
 		return nil, err

@@ -318,7 +318,7 @@ var _ = Describe("Interceptors", func() {
 						}
 					}
 					createModificationInterceptor.OnTxCreateStub = func(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
-						return func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error {
+						return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) error {
 							labels := newObject.GetLabels()
 							labels[newLabelKey] = append(labels[newLabelKey], newLabelValue[1])
 							newObject.SetLabels(labels)
@@ -346,7 +346,7 @@ var _ = Describe("Interceptors", func() {
 						}
 					}
 					updateModificationInterceptor.OnTxUpdateStub = func(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
-						return func(ctx context.Context, txStorage storage.Warehouse, obj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
+						return func(ctx context.Context, txStorage storage.Repository, obj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
 							labelChanges = append(labelChanges, &query.LabelChange{
 								Key:       newLabelKey,
 								Operation: query.AddLabelOperation,
@@ -373,7 +373,7 @@ var _ = Describe("Interceptors", func() {
 					ctx.SMWithOAuth.DELETE(e.url).Expect().Status(http.StatusNotFound)
 					resetModificationInterceptors()
 					deleteModificationInterceptor.OnTxDeleteStub = func(f storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
-						return func(ctx context.Context, txStorage storage.Warehouse, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
+						return func(ctx context.Context, txStorage storage.Repository, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
 							deletionCriteria = append(deletionCriteria, query.ByField(query.InOperator, "id", "invalid"))
 							return f(ctx, txStorage, deletionCriteria...)
 						}
@@ -415,7 +415,7 @@ func createInterceptorProvider(nameSuffix string, stack *callStack) *storagefake
 		}
 	}
 	fakeCreateInterceptor.OnTxCreateStub = func(h storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
-		return func(ctx context.Context, txStorage storage.Warehouse, newObject types.Object) error {
+		return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) error {
 			stack.Add(name + "TXpre")
 			err := h(ctx, txStorage, newObject)
 			stack.Add(name + "TXpost")
@@ -441,7 +441,7 @@ func updateInterceptorProvider(nameSuffix string, stack *callStack) *storagefake
 		}
 	}
 	fakeUpdateInterceptor.OnTxUpdateStub = func(h storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
-		return func(ctx context.Context, txStorage storage.Warehouse, object types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+		return func(ctx context.Context, txStorage storage.Repository, object types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 			stack.Add(name + "TXpre")
 			obj, err := h(ctx, txStorage, object, labelChanges...)
 			stack.Add(name + "TXpost")
@@ -467,7 +467,7 @@ func deleteInterceptorProvider(nameSuffix string, stack *callStack) *storagefake
 		}
 	}
 	fakeDeleteInterceptor.OnTxDeleteStub = func(h storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
-		return func(ctx context.Context, txStorage storage.Warehouse, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
+		return func(ctx context.Context, txStorage storage.Repository, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
 			stack.Add(name + "TXpre")
 			obj, err := h(ctx, txStorage, deletionCriteria...)
 			stack.Add(name + "TXpost")

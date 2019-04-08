@@ -32,6 +32,10 @@ type UpdateInterceptorChain struct {
 	onTxFuncs map[string]func(InterceptUpdateOnTxFunc) InterceptUpdateOnTxFunc
 }
 
+func (u *UpdateInterceptorChain) Name() string {
+	return "UpdateInterceptorChain"
+}
+
 func (u *UpdateInterceptorChain) AroundTxUpdate(f InterceptUpdateAroundTxFunc) InterceptUpdateAroundTxFunc {
 	for i := range u.aroundTxNames {
 		f = u.aroundTxFuncs[u.aroundTxNames[len(u.aroundTxNames)-1-i]](f)
@@ -101,13 +105,13 @@ func (iuat InterceptUpdateAroundTxFunc) InterceptUpdateAroundTx(ctx context.Cont
 }
 
 type InterceptUpdateOnTx interface {
-	InterceptUpdateOnTx(ctx context.Context, txStorage Warehouse, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error)
+	InterceptUpdateOnTx(ctx context.Context, txStorage Repository, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error)
 }
 
 // InterceptUpdateOnTxFunc hook for entity update in transaction
-type InterceptUpdateOnTxFunc func(ctx context.Context, txStorage Warehouse, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error)
+type InterceptUpdateOnTxFunc func(ctx context.Context, txStorage Repository, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error)
 
-func (iutf InterceptUpdateOnTxFunc) InterceptUpdateOnTx(ctx context.Context, txStorage Warehouse, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+func (iutf InterceptUpdateOnTxFunc) InterceptUpdateOnTx(ctx context.Context, txStorage Repository, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 	return iutf(ctx, txStorage, obj, labelChanges...)
 }
 

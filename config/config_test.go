@@ -99,14 +99,14 @@ var _ = Describe("config", func() {
 			})
 		})
 
-		Context("when Repository URI is missing", func() {
+		Context("when TransactionalRepository URI is missing", func() {
 			It("returns an error", func() {
 				config.Storage.URI = ""
 				assertErrorDuringValidate()
 			})
 		})
 
-		Context("when Repository Encryption key is missing", func() {
+		Context("when TransactionalRepository Encryption key is missing", func() {
 			It("returns an error", func() {
 				config.Storage.EncryptionKey = ""
 				assertErrorDuringValidate()

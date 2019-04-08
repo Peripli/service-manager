@@ -16,6 +16,10 @@ type DeleteInterceptorChain struct {
 	onTxFuncs map[string]func(InterceptDeleteOnTxFunc) InterceptDeleteOnTxFunc
 }
 
+func (d *DeleteInterceptorChain) Name() string {
+	return "DeleteInterceptorChain"
+}
+
 func (d *DeleteInterceptorChain) AroundTxDelete(f InterceptDeleteAroundTxFunc) InterceptDeleteAroundTxFunc {
 	for i := range d.aroundTxNames {
 		f = d.aroundTxFuncs[d.aroundTxNames[len(d.aroundTxNames)-1-i]](f)
@@ -67,12 +71,9 @@ type DeleteInterceptorProvider interface {
 	Provide() DeleteInterceptor
 }
 
-//TODO this needs a better name
 type InterceptDeleteAroundTx interface {
 	InterceptDeleteAroundTx(context.Context, ...query.Criterion) (types.ObjectList, error)
 }
-
-//TODO this needs a better name
 
 // InterceptDeleteAroundTxFunc hook for entity deletion outside of transaction
 type InterceptDeleteAroundTxFunc func(ctx context.Context, deletionCriteria ...query.Criterion) (types.ObjectList, error)
@@ -82,11 +83,11 @@ func (idf InterceptDeleteAroundTxFunc) InterceptDeleteAroundTx(ctx context.Conte
 }
 
 type InterceptDeleteOnTx interface {
-	InterceptDeleteOnTx(context.Context, Warehouse, ...query.Criterion) (types.ObjectList, error)
+	InterceptDeleteOnTx(context.Context, Repository, ...query.Criterion) (types.ObjectList, error)
 }
 
 // InterceptDeleteOnTxFunc hook for entity deletion in transaction
-type InterceptDeleteOnTxFunc func(ctx context.Context, txStorage Warehouse, deletionCriteria ...query.Criterion) (types.ObjectList, error)
+type InterceptDeleteOnTxFunc func(ctx context.Context, txStorage Repository, deletionCriteria ...query.Criterion) (types.ObjectList, error)
 
 // DeleteInterceptor provides hooks on entity deletion
 //go:generate counterfeiter . DeleteInterceptor

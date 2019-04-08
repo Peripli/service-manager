@@ -100,7 +100,7 @@ func (mf PingFunc) Ping() error {
 	return mf()
 }
 
-type Warehouse interface {
+type Repository interface {
 	// Create stores a broker in SM DB
 	Create(ctx context.Context, obj types.Object) (string, error)
 
@@ -120,12 +120,12 @@ type Warehouse interface {
 	Security() Security
 }
 
-// Repository is a storage warehouse that can initiate a transaction
-type Repository interface {
-	Warehouse
+// repository is a storage repository that can initiate a transaction
+type transactionalRepository interface {
+	Repository
 
 	// InTransaction initiates a transaction and allows passing a function to be executed within the transaction
-	InTransaction(ctx context.Context, f func(ctx context.Context, storage Warehouse) error) error
+	InTransaction(ctx context.Context, f func(ctx context.Context, storage Repository) error) error
 }
 
 // Storage interface provides entity-specific storages
@@ -133,7 +133,8 @@ type Repository interface {
 type Storage interface {
 	OpenCloser
 	Pinger
-	Repository
+	transactionalRepository
+
 	Introduce(entity Entity)
 }
 

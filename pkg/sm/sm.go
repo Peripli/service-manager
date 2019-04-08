@@ -50,7 +50,7 @@ import (
 type ServiceManagerBuilder struct {
 	*web.API
 
-	Storage *storage.InterceptableRepository
+	Storage *storage.InterceptableTransactionalRepository
 	ctx     context.Context
 	cfg     *server.Settings
 }
@@ -127,7 +127,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 
 	// setup core api
 	log.C(ctx).Info("Setting up Service Manager core API...")
-	interceptableRepository := storage.NewInterceptableRepository(smStorage, encrypter)
+	interceptableRepository := storage.NewInterceptableTransactionalRepository(smStorage, encrypter)
 	setDefaultInterceptors(interceptableRepository, cfg)
 
 	API, err := api.New(ctx, interceptableRepository, cfg.API, encrypter)
@@ -145,7 +145,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	}
 }
 
-func setDefaultInterceptors(interceptableRepository *storage.InterceptableRepository, cfg *config.Settings) {
+func setDefaultInterceptors(interceptableRepository *storage.InterceptableTransactionalRepository, cfg *config.Settings) {
 	interceptableRepository.AddCreateInterceptorProviders(types.ServiceBrokerType, &interceptors.BrokerCreateInterceptorProvider{
 		OsbClientCreateFunc: newOSBClient(cfg.API.SkipSSLValidation),
 	})
