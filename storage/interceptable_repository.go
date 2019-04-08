@@ -231,7 +231,7 @@ func (final *finalCreateObjectInterceptor) InterceptCreateAroundTx(ctx context.C
 		interceptableRepository := newInterceptableRepository(txStorage, final.encrypter, final.providedCreateInterceptors, final.providedUpdateInterceptors, final.providedDeleteInterceptors)
 		id, err = interceptableRepository.Create(ctx, obj)
 		if err != nil {
-			return err
+			return util.HandleStorageError(err, string(final.objectType))
 		}
 		if securedObj, isSecured := obj.(types.Secured); isSecured {
 			securedObj.SetCredentials(nil)
