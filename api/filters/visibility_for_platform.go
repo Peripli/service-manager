@@ -26,14 +26,14 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-type VisibilityForPlatform struct {
+type PlatformAwareVisibilityFilter struct {
 }
 
-func (*VisibilityForPlatform) Name() string {
+func (*PlatformAwareVisibilityFilter) Name() string {
 	return "VisibilityForPlatformFilter"
 }
 
-func (*VisibilityForPlatform) Run(req *web.Request, next web.Handler) (*web.Response, error) {
+func (*PlatformAwareVisibilityFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 	user, ok := web.UserFromContext(ctx)
 	if !ok {
@@ -56,7 +56,7 @@ func (*VisibilityForPlatform) Run(req *web.Request, next web.Handler) (*web.Resp
 	return next.Handle(req)
 }
 
-func (*VisibilityForPlatform) FilterMatchers() []web.FilterMatcher {
+func (*PlatformAwareVisibilityFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{

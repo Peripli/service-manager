@@ -98,12 +98,11 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
 			&filters.Logging{},
-			// TODO: modify filter to use GetPlatformByUsername
 			basic.NewFilter(repository.Credentials(), encrypter),
 			bearerAuthnFilter,
 			secfilters.NewRequiredAuthnFilter(),
 			&filters.SelectionCriteria{},
-			&filters.VisibilityForPlatform{},
+			&filters.PlatformAwareVisibilityFilter{},
 		},
 		Registry: health.NewDefaultRegistry(),
 	}, nil

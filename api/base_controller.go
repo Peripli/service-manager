@@ -17,6 +17,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -151,7 +152,7 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 	log.C(ctx).Debugf("Deleting %s with id %s", c.objectType, objectID)
 
 	byID := query.ByField(query.EqualsOperator, "id", objectID)
-	ctx, err := query.AddCriteria(r.Context(), byID)
+	ctx, err := query.AddCriteria(ctx, byID)
 	if err != nil {
 		return nil, err
 	}
@@ -169,11 +170,7 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
-	if secured, ok := object.(types.Secured); ok {
-		secured.SetCredentials(nil)
-	} else {
-		log.C(ctx).Debugf("Object of type %s with id %s is not secured, so no credentials are cleaned up on response", object.GetType(), object.GetID())
-	}
+	stripCredentials(ctx, object)
 	return web.NewJSONResponse(http.StatusOK, object)
 }
 
@@ -185,14 +182,9 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	if err != nil {
 		return nil, util.HandleSelectionError(err)
 	}
-	// TODO: may be extracted in a list interceptor
 	for i := 0; i < objectList.Len(); i++ {
 		obj := objectList.ItemAt(i)
-		if secured, ok := obj.(types.Secured); ok {
-			secured.SetCredentials(nil)
-		} else {
-			log.C(ctx).Debugf("Object of type %s with id %s is not secured, so no credentials are cleaned up on response", obj.GetType(), obj.GetID())
-		}
+		stripCredentials(ctx, obj)
 	}
 	return web.NewJSONResponse(http.StatusOK, objectList)
 }
@@ -226,10 +218,14 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	if obj, ok := object.(types.Secured); ok {
-		obj.SetCredentials(nil)
+	stripCredentials(ctx, object)
+	return web.NewJSONResponse(http.StatusOK, object)
+}
+
+func stripCredentials(ctx context.Context, object types.Object) {
+	if secured, ok := object.(types.Secured); ok {
+		secured.SetCredentials(nil)
 	} else {
 		log.C(ctx).Debugf("Object of type %s with id %s is not secured, so no credentials are cleaned up on response", object.GetType(), object.GetID())
 	}
-	return web.NewJSONResponse(http.StatusOK, object)
 }
