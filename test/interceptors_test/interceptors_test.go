@@ -34,7 +34,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestInfo(t *testing.T) {
+func TestInterceptors(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Interceptor Suite")
 }
@@ -46,9 +46,9 @@ var _ = Describe("Interceptors", func() {
 	var updateStack *callStack
 	var deleteStack *callStack
 
-	var createModificationInterceptor *storagefakes.FakeCreateInterceptor
-	var updateModificationInterceptor *storagefakes.FakeUpdateInterceptor
-	var deleteModificationInterceptor *storagefakes.FakeDeleteInterceptor
+	var createModificationInterceptors map[types.ObjectType]*storagefakes.FakeCreateInterceptor
+	var updateModificationInterceptors map[types.ObjectType]*storagefakes.FakeUpdateInterceptor
+	var deleteModificationInterceptors map[types.ObjectType]*storagefakes.FakeDeleteInterceptor
 
 	clearStacks := func() {
 		createStack.Clear()
@@ -57,23 +57,33 @@ var _ = Describe("Interceptors", func() {
 	}
 
 	resetModificationInterceptors := func() {
-		createModificationInterceptor.AroundTxCreateStub = func(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
-			return h
+
+		for _, interceptor := range createModificationInterceptors {
+			interceptor.AroundTxCreateStub = func(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
+				return h
+			}
+
+			interceptor.OnTxCreateStub = func(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
+				return f
+			}
 		}
-		createModificationInterceptor.OnTxCreateStub = func(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
-			return f
+
+		for _, interceptor := range updateModificationInterceptors {
+			interceptor.AroundTxUpdateStub = func(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
+				return h
+			}
+			interceptor.OnTxUpdateStub = func(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
+				return f
+			}
 		}
-		updateModificationInterceptor.AroundTxUpdateStub = func(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
-			return h
-		}
-		updateModificationInterceptor.OnTxUpdateStub = func(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
-			return f
-		}
-		deleteModificationInterceptor.AroundTxDeleteStub = func(h storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
-			return h
-		}
-		deleteModificationInterceptor.OnTxDeleteStub = func(f storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
-			return f
+
+		for _, interceptor := range deleteModificationInterceptors {
+			interceptor.AroundTxDeleteStub = func(h storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
+				return h
+			}
+			interceptor.OnTxDeleteStub = func(f storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
+				return f
+			}
 		}
 	}
 
@@ -82,13 +92,9 @@ var _ = Describe("Interceptors", func() {
 		updateStack = &callStack{}
 		deleteStack = &callStack{}
 
-		createModificationInterceptor = &storagefakes.FakeCreateInterceptor{}
-		updateModificationInterceptor = &storagefakes.FakeUpdateInterceptor{}
-		deleteModificationInterceptor = &storagefakes.FakeDeleteInterceptor{}
-		resetModificationInterceptors()
-
 		contextBuilder := common.NewTestContextBuilder()
 		contextBuilder.WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+
 			for _, entityType := range []types.ObjectType{types.ServiceBrokerType, types.PlatformType, types.VisibilityType} {
 				// Create entity interceptors
 				fakeCreateInterceptorProvider0 := createInterceptorProvider(string(entityType)+"0", createStack)
@@ -111,17 +117,29 @@ var _ = Describe("Interceptors", func() {
 				fakeDeleteInterceptorProviderBA := deleteInterceptorProvider(string(entityType)+"APIBefore_TXAfter", deleteStack)
 				fakeDeleteInterceptorProviderAB := deleteInterceptorProvider(string(entityType)+"APIAfter_TXBefore", deleteStack)
 
+				createModificationInterceptor := &storagefakes.FakeCreateInterceptor{}
+
 				modificationCreateInterceptorProvider := &storagefakes.FakeCreateInterceptorProvider{}
 				createModificationInterceptor.NameReturns(string(entityType) + "modificationCreate")
 				modificationCreateInterceptorProvider.ProvideReturns(createModificationInterceptor)
+
+				createModificationInterceptors[entityType] = createModificationInterceptor
+
+				updateModificationInterceptor := &storagefakes.FakeUpdateInterceptor{}
 
 				modificationUpdateInterceptorProvider := &storagefakes.FakeUpdateInterceptorProvider{}
 				updateModificationInterceptor.NameReturns(string(entityType) + "modificationUpdate")
 				modificationUpdateInterceptorProvider.ProvideReturns(updateModificationInterceptor)
 
+				updateModificationInterceptors[entityType] = updateModificationInterceptor
+
+				deleteModificationInterceptor := &storagefakes.FakeDeleteInterceptor{}
+
 				modificationDeleteInterceptorProvider := &storagefakes.FakeDeleteInterceptorProvider{}
 				deleteModificationInterceptor.NameReturns(string(entityType) + "modificationDelete")
 				modificationDeleteInterceptorProvider.ProvideReturns(deleteModificationInterceptor)
+
+				deleteModificationInterceptors[entityType] = deleteModificationInterceptor
 
 				// Register create interceptors
 				smb.RegisterCreateInterceptorProvider(entityType, fakeCreateInterceptorProvider1).Apply()
@@ -169,6 +187,8 @@ var _ = Describe("Interceptors", func() {
 				smb.RegisterCreateInterceptorProvider(entityType, modificationCreateInterceptorProvider).Apply()
 				smb.RegisterUpdateInterceptorProvider(entityType, modificationUpdateInterceptorProvider).Apply()
 				smb.RegisterDeleteInterceptorProvider(entityType, modificationDeleteInterceptorProvider).Apply()
+
+				resetModificationInterceptors()
 			}
 
 			return nil
@@ -271,14 +291,14 @@ var _ = Describe("Interceptors", func() {
 			name            string
 		}
 		entries := []entry{
-			{
-				createEntryFunc: func() string {
-					brokerID, _, _ := ctx.RegisterBroker()
-					return brokerID
-				},
-				url:  web.ServiceBrokersURL,
-				name: string(types.ServiceBrokerType),
-			},
+			//{
+			//	createEntryFunc: func() string {
+			//		brokerID, _, _ := ctx.RegisterBroker()
+			//		return brokerID
+			//	},
+			//	url:  web.ServiceBrokersURL,
+			//	name: string(types.ServiceBrokerType),
+			//},
 			{
 				createEntryFunc: func() string {
 					platform := ctx.RegisterPlatform()
@@ -287,22 +307,22 @@ var _ = Describe("Interceptors", func() {
 				url:  web.PlatformsURL,
 				name: string(types.PlatformType),
 			},
-			{
-				createEntryFunc: func() string {
-					platform := ctx.RegisterPlatform() // Post /v1/platforms
-					ctx.RegisterBroker()
-					plans := ctx.SMWithBasic.GET(web.ServicePlansURL).Expect().JSON().Object().Value("service_plans").Array()
-					planID := plans.First().Object().Value("id").String().Raw()
-					visibility := types.Visibility{
-						PlatformID:    platform.ID,
-						ServicePlanID: planID,
-					}
-					return ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(visibility).Expect().
-						Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
-				},
-				url:  web.VisibilitiesURL,
-				name: string(types.VisibilityType),
-			},
+			//{
+			//	createEntryFunc: func() string {
+			//		platform := ctx.RegisterPlatform() // Post /v1/platforms
+			//		ctx.RegisterBroker()
+			//		plans := ctx.SMWithBasic.GET(web.ServicePlansURL).Expect().JSON().Object().Value("service_plans").Array()
+			//		planID := plans.First().Object().Value("id").String().Raw()
+			//		visibility := types.Visibility{
+			//			PlatformID:    platform.ID,
+			//			ServicePlanID: planID,
+			//		}
+			//		return ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(visibility).Expect().
+			//			Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
+			//	},
+			//	url:  web.VisibilitiesURL,
+			//	name: string(types.VisibilityType),
+			//},
 		}
 		for _, e := range entries {
 			Context(e.name, func() {
@@ -310,14 +330,14 @@ var _ = Describe("Interceptors", func() {
 					newLabelKey := "newLabelKey"
 					newLabelValue := []string{"newLabelValueAPI", "newLabelValueTX"}
 
-					createModificationInterceptor.AroundTxCreateStub = func(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
+					createModificationInterceptors[types.ObjectType(e.name)].AroundTxCreateStub = func(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
 						return func(ctx context.Context, obj types.Object) (object types.Object, e error) {
 							obj.SetLabels(types.Labels{newLabelKey: []string{newLabelValue[0]}})
 							obj, e = h(ctx, obj)
 							return obj, e
 						}
 					}
-					createModificationInterceptor.OnTxCreateStub = func(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
+					createModificationInterceptors[types.ObjectType(e.name)].OnTxCreateStub = func(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 						return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) error {
 							labels := newObject.GetLabels()
 							labels[newLabelKey] = append(labels[newLabelKey], newLabelValue[1])
@@ -335,7 +355,7 @@ var _ = Describe("Interceptors", func() {
 				It("Update", func() {
 					newLabelKey := "newLabelKey"
 					newLabelValue := []string{"newLabelValueAPI", "newLabelValueTX"}
-					updateModificationInterceptor.AroundTxUpdateStub = func(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
+					updateModificationInterceptors[types.ObjectType(e.name)].AroundTxUpdateStub = func(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
 						return func(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
 							labelChanges = append(labelChanges, &query.LabelChange{
 								Key:       newLabelKey,
@@ -345,7 +365,7 @@ var _ = Describe("Interceptors", func() {
 							return h(ctx, obj, labelChanges...)
 						}
 					}
-					updateModificationInterceptor.OnTxUpdateStub = func(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
+					updateModificationInterceptors[types.ObjectType(e.name)].OnTxUpdateStub = func(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
 						return func(ctx context.Context, txStorage storage.Repository, obj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
 							labelChanges = append(labelChanges, &query.LabelChange{
 								Key:       newLabelKey,
@@ -362,9 +382,9 @@ var _ = Describe("Interceptors", func() {
 						Value(newLabelKey).Array().Equal(newLabelValue)
 				})
 
-				It("Delete", func() {
+				FIt("Delete", func() {
 					_ = e.createEntryFunc()
-					deleteModificationInterceptor.AroundTxDeleteStub = func(h storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
+					deleteModificationInterceptors[types.ObjectType(e.name)].AroundTxDeleteStub = func(h storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
 						return func(ctx context.Context, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
 							deletionCriteria = append(deletionCriteria, query.ByField(query.InOperator, "id", "invalid"))
 							return h(ctx, deletionCriteria...)
@@ -372,7 +392,7 @@ var _ = Describe("Interceptors", func() {
 					}
 					ctx.SMWithOAuth.DELETE(e.url).Expect().Status(http.StatusNotFound)
 					resetModificationInterceptors()
-					deleteModificationInterceptor.OnTxDeleteStub = func(f storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
+					deleteModificationInterceptors[types.ObjectType(e.name)].OnTxDeleteStub = func(f storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
 						return func(ctx context.Context, txStorage storage.Repository, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
 							deletionCriteria = append(deletionCriteria, query.ByField(query.InOperator, "id", "invalid"))
 							return f(ctx, txStorage, deletionCriteria...)

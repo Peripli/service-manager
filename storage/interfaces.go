@@ -120,8 +120,8 @@ type Repository interface {
 	Security() Security
 }
 
-// repository is a storage repository that can initiate a transaction
-type transactionalRepository interface {
+// TransactionalRepository is a storage repository that can initiate a transaction
+type TransactionalRepository interface {
 	Repository
 
 	// InTransaction initiates a transaction and allows passing a function to be executed within the transaction
@@ -133,7 +133,7 @@ type transactionalRepository interface {
 type Storage interface {
 	OpenCloser
 	Pinger
-	transactionalRepository
+	TransactionalRepository
 
 	Introduce(entity Entity)
 }

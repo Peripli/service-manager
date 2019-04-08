@@ -38,9 +38,9 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestInterceptors(t *testing.T) {
+func TestPublicPlansInterceptor(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Interceptor Tests Suite")
+	RunSpecs(t, "Public plans Interceptor Tests Suite")
 }
 
 var _ = Describe("Service Manager Public Plans Interceptor", func() {

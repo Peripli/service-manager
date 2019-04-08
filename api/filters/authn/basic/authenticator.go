@@ -59,6 +59,7 @@ func (a *basicAuthenticator) Authenticate(request *http.Request) (*web.UserConte
 		}
 		return nil, httpsec.Abstain, fmt.Errorf("could not get credentials entity from storage: %s", err)
 	}
+
 	passwordBytes, err := a.Encrypter.Decrypt(ctx, []byte(credentials.Basic.Password))
 	if err != nil {
 		return nil, httpsec.Abstain, fmt.Errorf("could not reverse credentials from storage: %v", err)
