@@ -2,46 +2,18 @@
 package envfakes
 
 import (
-	"sync"
+	sync "sync"
 
-	"github.com/Peripli/service-manager/pkg/env"
-	"github.com/spf13/pflag"
+	env "github.com/Peripli/service-manager/pkg/env"
+	pflag "github.com/spf13/pflag"
 )
 
 type FakeEnvironment struct {
-	GetStub        func(key string) interface{}
-	getMutex       sync.RWMutex
-	getArgsForCall []struct {
-		key string
-	}
-	getReturns struct {
-		result1 interface{}
-	}
-	getReturnsOnCall map[int]struct {
-		result1 interface{}
-	}
-	SetStub        func(key string, value interface{})
-	setMutex       sync.RWMutex
-	setArgsForCall []struct {
-		key   string
-		value interface{}
-	}
-	UnmarshalStub        func(value interface{}) error
-	unmarshalMutex       sync.RWMutex
-	unmarshalArgsForCall []struct {
-		value interface{}
-	}
-	unmarshalReturns struct {
-		result1 error
-	}
-	unmarshalReturnsOnCall map[int]struct {
-		result1 error
-	}
-	BindPFlagStub        func(key string, flag *pflag.Flag) error
+	BindPFlagStub        func(string, *pflag.Flag) error
 	bindPFlagMutex       sync.RWMutex
 	bindPFlagArgsForCall []struct {
-		key  string
-		flag *pflag.Flag
+		arg1 string
+		arg2 *pflag.Flag
 	}
 	bindPFlagReturns struct {
 		result1 error
@@ -49,147 +21,55 @@ type FakeEnvironment struct {
 	bindPFlagReturnsOnCall map[int]struct {
 		result1 error
 	}
+	GetStub        func(string) interface{}
+	getMutex       sync.RWMutex
+	getArgsForCall []struct {
+		arg1 string
+	}
+	getReturns struct {
+		result1 interface{}
+	}
+	getReturnsOnCall map[int]struct {
+		result1 interface{}
+	}
+	SetStub        func(string, interface{})
+	setMutex       sync.RWMutex
+	setArgsForCall []struct {
+		arg1 string
+		arg2 interface{}
+	}
+	UnmarshalStub        func(interface{}) error
+	unmarshalMutex       sync.RWMutex
+	unmarshalArgsForCall []struct {
+		arg1 interface{}
+	}
+	unmarshalReturns struct {
+		result1 error
+	}
+	unmarshalReturnsOnCall map[int]struct {
+		result1 error
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeEnvironment) Get(key string) interface{} {
-	fake.getMutex.Lock()
-	ret, specificReturn := fake.getReturnsOnCall[len(fake.getArgsForCall)]
-	fake.getArgsForCall = append(fake.getArgsForCall, struct {
-		key string
-	}{key})
-	fake.recordInvocation("Get", []interface{}{key})
-	fake.getMutex.Unlock()
-	if fake.GetStub != nil {
-		return fake.GetStub(key)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.getReturns.result1
-}
-
-func (fake *FakeEnvironment) GetCallCount() int {
-	fake.getMutex.RLock()
-	defer fake.getMutex.RUnlock()
-	return len(fake.getArgsForCall)
-}
-
-func (fake *FakeEnvironment) GetArgsForCall(i int) string {
-	fake.getMutex.RLock()
-	defer fake.getMutex.RUnlock()
-	return fake.getArgsForCall[i].key
-}
-
-func (fake *FakeEnvironment) GetReturns(result1 interface{}) {
-	fake.GetStub = nil
-	fake.getReturns = struct {
-		result1 interface{}
-	}{result1}
-}
-
-func (fake *FakeEnvironment) GetReturnsOnCall(i int, result1 interface{}) {
-	fake.GetStub = nil
-	if fake.getReturnsOnCall == nil {
-		fake.getReturnsOnCall = make(map[int]struct {
-			result1 interface{}
-		})
-	}
-	fake.getReturnsOnCall[i] = struct {
-		result1 interface{}
-	}{result1}
-}
-
-func (fake *FakeEnvironment) Set(key string, value interface{}) {
-	fake.setMutex.Lock()
-	fake.setArgsForCall = append(fake.setArgsForCall, struct {
-		key   string
-		value interface{}
-	}{key, value})
-	fake.recordInvocation("Set", []interface{}{key, value})
-	fake.setMutex.Unlock()
-	if fake.SetStub != nil {
-		fake.SetStub(key, value)
-	}
-}
-
-func (fake *FakeEnvironment) SetCallCount() int {
-	fake.setMutex.RLock()
-	defer fake.setMutex.RUnlock()
-	return len(fake.setArgsForCall)
-}
-
-func (fake *FakeEnvironment) SetArgsForCall(i int) (string, interface{}) {
-	fake.setMutex.RLock()
-	defer fake.setMutex.RUnlock()
-	return fake.setArgsForCall[i].key, fake.setArgsForCall[i].value
-}
-
-func (fake *FakeEnvironment) Unmarshal(value interface{}) error {
-	fake.unmarshalMutex.Lock()
-	ret, specificReturn := fake.unmarshalReturnsOnCall[len(fake.unmarshalArgsForCall)]
-	fake.unmarshalArgsForCall = append(fake.unmarshalArgsForCall, struct {
-		value interface{}
-	}{value})
-	fake.recordInvocation("Unmarshal", []interface{}{value})
-	fake.unmarshalMutex.Unlock()
-	if fake.UnmarshalStub != nil {
-		return fake.UnmarshalStub(value)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.unmarshalReturns.result1
-}
-
-func (fake *FakeEnvironment) UnmarshalCallCount() int {
-	fake.unmarshalMutex.RLock()
-	defer fake.unmarshalMutex.RUnlock()
-	return len(fake.unmarshalArgsForCall)
-}
-
-func (fake *FakeEnvironment) UnmarshalArgsForCall(i int) interface{} {
-	fake.unmarshalMutex.RLock()
-	defer fake.unmarshalMutex.RUnlock()
-	return fake.unmarshalArgsForCall[i].value
-}
-
-func (fake *FakeEnvironment) UnmarshalReturns(result1 error) {
-	fake.UnmarshalStub = nil
-	fake.unmarshalReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeEnvironment) UnmarshalReturnsOnCall(i int, result1 error) {
-	fake.UnmarshalStub = nil
-	if fake.unmarshalReturnsOnCall == nil {
-		fake.unmarshalReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.unmarshalReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeEnvironment) BindPFlag(key string, flag *pflag.Flag) error {
+func (fake *FakeEnvironment) BindPFlag(arg1 string, arg2 *pflag.Flag) error {
 	fake.bindPFlagMutex.Lock()
 	ret, specificReturn := fake.bindPFlagReturnsOnCall[len(fake.bindPFlagArgsForCall)]
 	fake.bindPFlagArgsForCall = append(fake.bindPFlagArgsForCall, struct {
-		key  string
-		flag *pflag.Flag
-	}{key, flag})
-	fake.recordInvocation("BindPFlag", []interface{}{key, flag})
+		arg1 string
+		arg2 *pflag.Flag
+	}{arg1, arg2})
+	fake.recordInvocation("BindPFlag", []interface{}{arg1, arg2})
 	fake.bindPFlagMutex.Unlock()
 	if fake.BindPFlagStub != nil {
-		return fake.BindPFlagStub(key, flag)
+		return fake.BindPFlagStub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.bindPFlagReturns.result1
+	fakeReturns := fake.bindPFlagReturns
+	return fakeReturns.result1
 }
 
 func (fake *FakeEnvironment) BindPFlagCallCount() int {
@@ -198,13 +78,22 @@ func (fake *FakeEnvironment) BindPFlagCallCount() int {
 	return len(fake.bindPFlagArgsForCall)
 }
 
+func (fake *FakeEnvironment) BindPFlagCalls(stub func(string, *pflag.Flag) error) {
+	fake.bindPFlagMutex.Lock()
+	defer fake.bindPFlagMutex.Unlock()
+	fake.BindPFlagStub = stub
+}
+
 func (fake *FakeEnvironment) BindPFlagArgsForCall(i int) (string, *pflag.Flag) {
 	fake.bindPFlagMutex.RLock()
 	defer fake.bindPFlagMutex.RUnlock()
-	return fake.bindPFlagArgsForCall[i].key, fake.bindPFlagArgsForCall[i].flag
+	argsForCall := fake.bindPFlagArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeEnvironment) BindPFlagReturns(result1 error) {
+	fake.bindPFlagMutex.Lock()
+	defer fake.bindPFlagMutex.Unlock()
 	fake.BindPFlagStub = nil
 	fake.bindPFlagReturns = struct {
 		result1 error
@@ -212,6 +101,8 @@ func (fake *FakeEnvironment) BindPFlagReturns(result1 error) {
 }
 
 func (fake *FakeEnvironment) BindPFlagReturnsOnCall(i int, result1 error) {
+	fake.bindPFlagMutex.Lock()
+	defer fake.bindPFlagMutex.Unlock()
 	fake.BindPFlagStub = nil
 	if fake.bindPFlagReturnsOnCall == nil {
 		fake.bindPFlagReturnsOnCall = make(map[int]struct {
@@ -223,17 +114,169 @@ func (fake *FakeEnvironment) BindPFlagReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
+func (fake *FakeEnvironment) Get(arg1 string) interface{} {
+	fake.getMutex.Lock()
+	ret, specificReturn := fake.getReturnsOnCall[len(fake.getArgsForCall)]
+	fake.getArgsForCall = append(fake.getArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	fake.recordInvocation("Get", []interface{}{arg1})
+	fake.getMutex.Unlock()
+	if fake.GetStub != nil {
+		return fake.GetStub(arg1)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.getReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeEnvironment) GetCallCount() int {
+	fake.getMutex.RLock()
+	defer fake.getMutex.RUnlock()
+	return len(fake.getArgsForCall)
+}
+
+func (fake *FakeEnvironment) GetCalls(stub func(string) interface{}) {
+	fake.getMutex.Lock()
+	defer fake.getMutex.Unlock()
+	fake.GetStub = stub
+}
+
+func (fake *FakeEnvironment) GetArgsForCall(i int) string {
+	fake.getMutex.RLock()
+	defer fake.getMutex.RUnlock()
+	argsForCall := fake.getArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeEnvironment) GetReturns(result1 interface{}) {
+	fake.getMutex.Lock()
+	defer fake.getMutex.Unlock()
+	fake.GetStub = nil
+	fake.getReturns = struct {
+		result1 interface{}
+	}{result1}
+}
+
+func (fake *FakeEnvironment) GetReturnsOnCall(i int, result1 interface{}) {
+	fake.getMutex.Lock()
+	defer fake.getMutex.Unlock()
+	fake.GetStub = nil
+	if fake.getReturnsOnCall == nil {
+		fake.getReturnsOnCall = make(map[int]struct {
+			result1 interface{}
+		})
+	}
+	fake.getReturnsOnCall[i] = struct {
+		result1 interface{}
+	}{result1}
+}
+
+func (fake *FakeEnvironment) Set(arg1 string, arg2 interface{}) {
+	fake.setMutex.Lock()
+	fake.setArgsForCall = append(fake.setArgsForCall, struct {
+		arg1 string
+		arg2 interface{}
+	}{arg1, arg2})
+	fake.recordInvocation("Set", []interface{}{arg1, arg2})
+	fake.setMutex.Unlock()
+	if fake.SetStub != nil {
+		fake.SetStub(arg1, arg2)
+	}
+}
+
+func (fake *FakeEnvironment) SetCallCount() int {
+	fake.setMutex.RLock()
+	defer fake.setMutex.RUnlock()
+	return len(fake.setArgsForCall)
+}
+
+func (fake *FakeEnvironment) SetCalls(stub func(string, interface{})) {
+	fake.setMutex.Lock()
+	defer fake.setMutex.Unlock()
+	fake.SetStub = stub
+}
+
+func (fake *FakeEnvironment) SetArgsForCall(i int) (string, interface{}) {
+	fake.setMutex.RLock()
+	defer fake.setMutex.RUnlock()
+	argsForCall := fake.setArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeEnvironment) Unmarshal(arg1 interface{}) error {
+	fake.unmarshalMutex.Lock()
+	ret, specificReturn := fake.unmarshalReturnsOnCall[len(fake.unmarshalArgsForCall)]
+	fake.unmarshalArgsForCall = append(fake.unmarshalArgsForCall, struct {
+		arg1 interface{}
+	}{arg1})
+	fake.recordInvocation("Unmarshal", []interface{}{arg1})
+	fake.unmarshalMutex.Unlock()
+	if fake.UnmarshalStub != nil {
+		return fake.UnmarshalStub(arg1)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.unmarshalReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeEnvironment) UnmarshalCallCount() int {
+	fake.unmarshalMutex.RLock()
+	defer fake.unmarshalMutex.RUnlock()
+	return len(fake.unmarshalArgsForCall)
+}
+
+func (fake *FakeEnvironment) UnmarshalCalls(stub func(interface{}) error) {
+	fake.unmarshalMutex.Lock()
+	defer fake.unmarshalMutex.Unlock()
+	fake.UnmarshalStub = stub
+}
+
+func (fake *FakeEnvironment) UnmarshalArgsForCall(i int) interface{} {
+	fake.unmarshalMutex.RLock()
+	defer fake.unmarshalMutex.RUnlock()
+	argsForCall := fake.unmarshalArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeEnvironment) UnmarshalReturns(result1 error) {
+	fake.unmarshalMutex.Lock()
+	defer fake.unmarshalMutex.Unlock()
+	fake.UnmarshalStub = nil
+	fake.unmarshalReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeEnvironment) UnmarshalReturnsOnCall(i int, result1 error) {
+	fake.unmarshalMutex.Lock()
+	defer fake.unmarshalMutex.Unlock()
+	fake.UnmarshalStub = nil
+	if fake.unmarshalReturnsOnCall == nil {
+		fake.unmarshalReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.unmarshalReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeEnvironment) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
+	fake.bindPFlagMutex.RLock()
+	defer fake.bindPFlagMutex.RUnlock()
 	fake.getMutex.RLock()
 	defer fake.getMutex.RUnlock()
 	fake.setMutex.RLock()
 	defer fake.setMutex.RUnlock()
 	fake.unmarshalMutex.RLock()
 	defer fake.unmarshalMutex.RUnlock()
-	fake.bindPFlagMutex.RLock()
-	defer fake.bindPFlagMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

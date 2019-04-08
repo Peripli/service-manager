@@ -2,16 +2,16 @@
 package healthfakes
 
 import (
-	"sync"
+	sync "sync"
 
-	"github.com/Peripli/service-manager/pkg/health"
+	health "github.com/Peripli/service-manager/pkg/health"
 )
 
 type FakeAggregationPolicy struct {
-	ApplyStub        func(healths map[string]*health.Health) *health.Health
+	ApplyStub        func(map[string]*health.Health) *health.Health
 	applyMutex       sync.RWMutex
 	applyArgsForCall []struct {
-		healths map[string]*health.Health
+		arg1 map[string]*health.Health
 	}
 	applyReturns struct {
 		result1 *health.Health
@@ -23,21 +23,22 @@ type FakeAggregationPolicy struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeAggregationPolicy) Apply(healths map[string]*health.Health) *health.Health {
+func (fake *FakeAggregationPolicy) Apply(arg1 map[string]*health.Health) *health.Health {
 	fake.applyMutex.Lock()
 	ret, specificReturn := fake.applyReturnsOnCall[len(fake.applyArgsForCall)]
 	fake.applyArgsForCall = append(fake.applyArgsForCall, struct {
-		healths map[string]*health.Health
-	}{healths})
-	fake.recordInvocation("Apply", []interface{}{healths})
+		arg1 map[string]*health.Health
+	}{arg1})
+	fake.recordInvocation("Apply", []interface{}{arg1})
 	fake.applyMutex.Unlock()
 	if fake.ApplyStub != nil {
-		return fake.ApplyStub(healths)
+		return fake.ApplyStub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.applyReturns.result1
+	fakeReturns := fake.applyReturns
+	return fakeReturns.result1
 }
 
 func (fake *FakeAggregationPolicy) ApplyCallCount() int {
@@ -46,13 +47,22 @@ func (fake *FakeAggregationPolicy) ApplyCallCount() int {
 	return len(fake.applyArgsForCall)
 }
 
+func (fake *FakeAggregationPolicy) ApplyCalls(stub func(map[string]*health.Health) *health.Health) {
+	fake.applyMutex.Lock()
+	defer fake.applyMutex.Unlock()
+	fake.ApplyStub = stub
+}
+
 func (fake *FakeAggregationPolicy) ApplyArgsForCall(i int) map[string]*health.Health {
 	fake.applyMutex.RLock()
 	defer fake.applyMutex.RUnlock()
-	return fake.applyArgsForCall[i].healths
+	argsForCall := fake.applyArgsForCall[i]
+	return argsForCall.arg1
 }
 
 func (fake *FakeAggregationPolicy) ApplyReturns(result1 *health.Health) {
+	fake.applyMutex.Lock()
+	defer fake.applyMutex.Unlock()
 	fake.ApplyStub = nil
 	fake.applyReturns = struct {
 		result1 *health.Health
@@ -60,6 +70,8 @@ func (fake *FakeAggregationPolicy) ApplyReturns(result1 *health.Health) {
 }
 
 func (fake *FakeAggregationPolicy) ApplyReturnsOnCall(i int, result1 *health.Health) {
+	fake.applyMutex.Lock()
+	defer fake.applyMutex.Unlock()
 	fake.ApplyStub = nil
 	if fake.applyReturnsOnCall == nil {
 		fake.applyReturnsOnCall = make(map[int]struct {
