@@ -87,8 +87,14 @@ func (ir *interceptableRepository) Create(ctx context.Context, obj types.Object)
 		return nil
 	}
 
-	if err := ir.createInterceptor[objectType].OnTxCreate(createObjectFunc)(ctx, ir.repositoryInTransaction, obj); err != nil {
-		return "", err
+	if _, found := ir.createInterceptor[objectType]; found {
+		if err := ir.createInterceptor[objectType].OnTxCreate(createObjectFunc)(ctx, ir, obj); err != nil {
+			return "", err
+		}
+	} else {
+		if err := createObjectFunc(ctx, ir.repositoryInTransaction, obj); err != nil {
+			return "", err
+		}
 	}
 
 	if securedObj, isSecured := obj.(types.Secured); isSecured {
@@ -123,12 +129,21 @@ func (ir *interceptableRepository) Delete(ctx context.Context, objectType types.
 		return txStorage.Delete(ctx, objectType, criteria...)
 	}
 
-	result, err := ir.deleteInterceptor[objectType].OnTxDelete(deleteObjectFunc)(ctx, ir.repositoryInTransaction, criteria...)
+	var objectList types.ObjectList
+	var err error
+
+	if _, found := ir.deleteInterceptor[objectType]; found {
+		objectList, err = ir.deleteInterceptor[objectType].OnTxDelete(deleteObjectFunc)(ctx, ir, criteria...)
+	} else {
+
+		objectList, err = deleteObjectFunc(ctx, ir.repositoryInTransaction, criteria...)
+	}
+
 	if err != nil {
 		return nil, util.HandleSelectionError(err, string(objectType))
 	}
 
-	return result, nil
+	return objectList, nil
 }
 
 func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
@@ -141,16 +156,24 @@ func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object,
 		return txStorage.Update(ctx, obj, labelChanges...)
 	}
 
-	object, err := ir.updateInterceptor[objectType].OnTxUpdate(updateObjFunc)(ctx, ir.repositoryInTransaction, obj, labelChanges...)
+	var updatedObj types.Object
+	var err error
+
+	if _, found := ir.updateInterceptor[objectType]; found {
+		updatedObj, err = ir.updateInterceptor[objectType].OnTxUpdate(updateObjFunc)(ctx, ir, obj, labelChanges...)
+	} else {
+		updatedObj, err = updateObjFunc(ctx, ir.repositoryInTransaction, obj, labelChanges...)
+	}
+
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(objectType))
 	}
 
-	if securedObj, isSecured := obj.(types.Secured); isSecured {
+	if securedObj, isSecured := updatedObj.(types.Secured); isSecured {
 		securedObj.SetCredentials(nil)
 	}
 
-	return object, nil
+	return updatedObj, nil
 }
 
 func (itr *InterceptableTransactionalRepository) InTransaction(ctx context.Context, f func(ctx context.Context, storage Repository) error) error {
@@ -195,10 +218,14 @@ func (final *finalCreateObjectInterceptor) InterceptCreateAroundTx(ctx context.C
 		return nil, err
 	}
 
+	var id string
+	var err error
+
 	if err := final.repository.InTransaction(ctx, func(ctx context.Context, storage Repository) error {
 		interceptableRepository := newInterceptableRepository(storage, final.encrypter, final.providedCreateInterceptors, final.providedUpdateInterceptors, final.providedDeleteInterceptors)
-		if err := final.providedCreateInterceptors[final.objectType].OnTxCreate(final.InterceptCreateOnTx)(ctx, interceptableRepository, obj); err != nil {
-			return util.HandleSelectionError(err, string(final.objectType))
+		id, err = interceptableRepository.Create(ctx, obj)
+		if err != nil {
+			return err
 		}
 		if securedObj, isSecured := obj.(types.Secured); isSecured {
 			securedObj.SetCredentials(nil)
@@ -207,6 +234,7 @@ func (final *finalCreateObjectInterceptor) InterceptCreateAroundTx(ctx context.C
 	}); err != nil {
 		return nil, err
 	}
+	obj.SetID(id)
 	return obj, nil
 }
 
@@ -280,10 +308,11 @@ func (final *finalDeleteObjectInterceptor) InterceptDeleteOnTx(ctx context.Conte
 
 func (final *finalDeleteObjectInterceptor) InterceptDeleteAroundTx(ctx context.Context, criteria ...query.Criterion) (types.ObjectList, error) {
 	var result types.ObjectList
+	var err error
+
 	if err := final.repository.InTransaction(ctx, func(ctx context.Context, txStorage Repository) error {
 		interceptableRepository := newInterceptableRepository(txStorage, final.encrypter, final.providedCreateInterceptors, final.providedUpdateInterceptors, final.providedDeleteInterceptors)
-		var err error
-		result, err = final.providedDeleteInterceptors[final.objectType].OnTxDelete(final.InterceptDeleteOnTx)(ctx, interceptableRepository, criteria...)
+		result, err = interceptableRepository.Delete(ctx, final.objectType, criteria...)
 		if err != nil {
 			return util.HandleSelectionError(err, string(final.objectType))
 		}
@@ -334,20 +363,27 @@ func (final *finalUpdateObjectInterceptor) InterceptUpdateOnTxFunc(ctx context.C
 	return txStorage.Update(ctx, obj, labelChanges...)
 }
 
-func (final *finalUpdateObjectInterceptor) InterceptUpdateAroundTxInterceptUpdateAroundTx(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
-	if err := transformCredentials(ctx, obj, final.encrypter.Encrypt); err != nil {
+func (final *finalUpdateObjectInterceptor) InterceptUpdateAroundTxFunc(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+	var err error
+	var result types.Object
+
+	if err = transformCredentials(ctx, obj, final.encrypter.Encrypt); err != nil {
 		return nil, err
 	}
-	var result types.Object
-	if err := final.repository.InTransaction(ctx, func(ctx context.Context, txStorage Repository) error {
+
+	if err = final.repository.InTransaction(ctx, func(ctx context.Context, txStorage Repository) error {
 		interceptableRepository := newInterceptableRepository(txStorage, final.encrypter, final.providedCreateInterceptors, final.providedUpdateInterceptors, final.providedDeleteInterceptors)
 
-		var err error
-		result, err = final.providedUpdateInterceptors[final.objectType].OnTxUpdate(final.InterceptUpdateOnTxFunc)(ctx, interceptableRepository, obj, labelChanges...)
-		return util.HandleStorageError(err, string(final.objectType))
+		result, err = interceptableRepository.Update(ctx, obj, labelChanges...)
+		if err != nil {
+			return util.HandleStorageError(err, string(final.objectType))
+		}
+
+		return nil
 	}); err != nil {
 		return nil, err
 	}
+
 	return result, nil
 }
 
@@ -378,7 +414,7 @@ func (itr *InterceptableTransactionalRepository) Update(ctx context.Context, obj
 		providedDeleteInterceptors: providedDeleteInterceptors,
 	}
 
-	object, err := providedUpdateInterceptors[objectType].AroundTxUpdate(finalInterceptor.InterceptUpdateAroundTxInterceptUpdateAroundTx)(ctx, obj, labelChanges...)
+	object, err := providedUpdateInterceptors[objectType].AroundTxUpdate(finalInterceptor.InterceptUpdateAroundTxFunc)(ctx, obj, labelChanges...)
 	if err != nil {
 		return nil, err
 	}
