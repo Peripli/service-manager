@@ -31,7 +31,6 @@ import (
 
 type Entity interface {
 	GetID() string
-	SetID(id string)
 	ToObject() types.Object
 	FromObject(object types.Object) (Entity, bool)
 	BuildLabels(labels types.Labels, newLabel func(id, key, value string) Label) ([]Label, error)

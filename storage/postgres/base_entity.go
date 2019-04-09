@@ -33,10 +33,6 @@ type BaseEntity struct {
 	UpdatedAt time.Time `db:"updated_at"`
 }
 
-func (e *BaseEntity) SetID(id string) {
-	e.ID = id
-}
-
 func (e *BaseEntity) GetID() string {
 	return e.ID
 }
