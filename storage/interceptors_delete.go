@@ -71,20 +71,8 @@ type DeleteInterceptorProvider interface {
 	Provide() DeleteInterceptor
 }
 
-type InterceptDeleteAroundTx interface {
-	InterceptDeleteAroundTx(context.Context, ...query.Criterion) (types.ObjectList, error)
-}
-
 // InterceptDeleteAroundTxFunc hook for entity deletion outside of transaction
 type InterceptDeleteAroundTxFunc func(ctx context.Context, deletionCriteria ...query.Criterion) (types.ObjectList, error)
-
-func (idf InterceptDeleteAroundTxFunc) InterceptDeleteAroundTx(ctx context.Context, criteria ...query.Criterion) (types.ObjectList, error) {
-	return idf(ctx, criteria...)
-}
-
-type InterceptDeleteOnTx interface {
-	InterceptDeleteOnTx(context.Context, Repository, ...query.Criterion) (types.ObjectList, error)
-}
 
 // InterceptDeleteOnTxFunc hook for entity deletion in transaction
 type InterceptDeleteOnTxFunc func(ctx context.Context, txStorage Repository, deletionCriteria ...query.Criterion) (types.ObjectList, error)

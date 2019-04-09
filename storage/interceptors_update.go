@@ -92,28 +92,11 @@ type UpdateInterceptorProvider interface {
 	Provide() UpdateInterceptor
 }
 
-type InterceptUpdateAroundTx interface {
-	InterceptUpdateAroundTx(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error)
-}
-
 // InterceptUpdateAroundTxFunc hook for entity update outside of transaction
 type InterceptUpdateAroundTxFunc func(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error)
 
-func (iuat InterceptUpdateAroundTxFunc) InterceptUpdateAroundTx(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
-	return iuat(ctx, obj, labelChanges...)
-
-}
-
-type InterceptUpdateOnTx interface {
-	InterceptUpdateOnTx(ctx context.Context, txStorage Repository, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error)
-}
-
 // InterceptUpdateOnTxFunc hook for entity update in transaction
 type InterceptUpdateOnTxFunc func(ctx context.Context, txStorage Repository, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error)
-
-func (iutf InterceptUpdateOnTxFunc) InterceptUpdateOnTx(ctx context.Context, txStorage Repository, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
-	return iutf(ctx, txStorage, obj, labelChanges...)
-}
 
 // UpdateInterceptor provides hooks on entity update
 //go:generate counterfeiter . UpdateInterceptor

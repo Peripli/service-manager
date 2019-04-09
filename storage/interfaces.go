@@ -87,6 +87,7 @@ type OpenCloser interface {
 }
 
 // Pinger allows pinging the storage to check liveliness
+//go:generate counterfeiter . Pinger
 type Pinger interface {
 	// Ping verifies a connection to the database is still alive, establishing a connection if necessary.
 	Ping() error

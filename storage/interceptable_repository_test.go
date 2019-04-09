@@ -1,17 +1,18 @@
-package storage
+package storage_test
 
 import (
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Interceptable TransactionalRepository", func() {
 	Describe("Register interceptor", func() {
-		var interceptableRepository *InterceptableTransactionalRepository
+		var interceptableRepository *storage.InterceptableTransactionalRepository
 
 		BeforeEach(func() {
-			interceptableRepository = NewInterceptableTransactionalRepository(nil, nil)
+			interceptableRepository = storage.NewInterceptableTransactionalRepository(nil, nil)
 		})
 
 		Context("Create interceptor", func() {
@@ -56,7 +57,7 @@ type createProviderMock struct {
 	name string
 }
 
-func (p *createProviderMock) Provide() CreateInterceptor {
+func (p *createProviderMock) Provide() storage.CreateInterceptor {
 	return &createInterceptorMock{p.name}
 }
 
@@ -68,11 +69,11 @@ func (t *createInterceptorMock) Name() string {
 	return t.name
 }
 
-func (t *createInterceptorMock) AroundTxCreate(h InterceptCreateAroundTxFunc) InterceptCreateAroundTxFunc {
+func (t *createInterceptorMock) AroundTxCreate(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
 	return h
 }
 
-func (t *createInterceptorMock) OnTxCreate(f InterceptCreateOnTxFunc) InterceptCreateOnTxFunc {
+func (t *createInterceptorMock) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 	return f
 }
 
@@ -80,7 +81,7 @@ type updateProviderMock struct {
 	name string
 }
 
-func (p *updateProviderMock) Provide() UpdateInterceptor {
+func (p *updateProviderMock) Provide() storage.UpdateInterceptor {
 	return &updateInterceptorMock{p.name}
 }
 
@@ -92,11 +93,11 @@ func (u *updateInterceptorMock) Name() string {
 	return u.name
 }
 
-func (u *updateInterceptorMock) AroundTxUpdate(h InterceptUpdateAroundTxFunc) InterceptUpdateAroundTxFunc {
+func (u *updateInterceptorMock) AroundTxUpdate(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
 	return h
 }
 
-func (u *updateInterceptorMock) OnTxUpdate(f InterceptUpdateOnTxFunc) InterceptUpdateOnTxFunc {
+func (u *updateInterceptorMock) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
 	return f
 }
 
@@ -104,7 +105,7 @@ type deleteProviderMock struct {
 	name string
 }
 
-func (p *deleteProviderMock) Provide() DeleteInterceptor {
+func (p *deleteProviderMock) Provide() storage.DeleteInterceptor {
 	return &deleteInterceptorMock{p.name}
 }
 
@@ -116,10 +117,10 @@ func (u *deleteInterceptorMock) Name() string {
 	return u.name
 }
 
-func (u *deleteInterceptorMock) AroundTxDelete(h InterceptDeleteAroundTxFunc) InterceptDeleteAroundTxFunc {
+func (u *deleteInterceptorMock) AroundTxDelete(h storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
 	return h
 }
 
-func (u *deleteInterceptorMock) OnTxDelete(f InterceptDeleteOnTxFunc) InterceptDeleteOnTxFunc {
+func (u *deleteInterceptorMock) OnTxDelete(f storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
 	return f
 }
