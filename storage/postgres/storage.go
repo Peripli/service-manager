@@ -47,7 +47,7 @@ type PostgresStorage struct {
 }
 
 func (ps *PostgresStorage) Introduce(entity storage.Entity) {
-	ps.scheme.Introduce(entity)
+	ps.scheme.introduce(entity)
 }
 
 func (ps *PostgresStorage) Credentials() storage.Credentials {
@@ -92,11 +92,11 @@ func (ps *PostgresStorage) Open(options *storage.Settings) error {
 		}
 		ps.pgDB = ps.db
 		ps.scheme = newScheme()
-		ps.scheme.Introduce(&Broker{})
-		ps.scheme.Introduce(&Platform{})
-		ps.scheme.Introduce(&ServiceOffering{})
-		ps.scheme.Introduce(&ServicePlan{})
-		ps.scheme.Introduce(&Visibility{})
+		ps.scheme.introduce(&Broker{})
+		ps.scheme.introduce(&Platform{})
+		ps.scheme.introduce(&ServiceOffering{})
+		ps.scheme.introduce(&ServicePlan{})
+		ps.scheme.introduce(&Visibility{})
 	}
 	return err
 }
@@ -140,32 +140,8 @@ func (ps *PostgresStorage) Ping() error {
 	return ps.state.Get()
 }
 
-func (ps *PostgresStorage) provide(objectType types.ObjectType) (PostgresEntity, error) {
-	entity, ok := ps.scheme.Provide(objectType)
-	if !ok {
-		return nil, fmt.Errorf("object of type %s is not supported by the storage", objectType)
-	}
-	return toPgEntity(entity)
-}
-
-func (ps *PostgresStorage) convert(object types.Object) (PostgresEntity, error) {
-	entity, ok := ps.scheme.ObjectToEntity(object)
-	if !ok {
-		return nil, fmt.Errorf("object of type %s is not introduced to the storage", object.GetType())
-	}
-	return toPgEntity(entity)
-}
-
-func toPgEntity(entity storage.Entity) (PostgresEntity, error) {
-	pgEntity, ok := entity.(PostgresEntity)
-	if !ok {
-		return nil, fmt.Errorf("postgres storage requires entities to implement postgres.Entity, got %T", entity)
-	}
-	return pgEntity, nil
-}
-
 func (ps *PostgresStorage) Create(ctx context.Context, obj types.Object) (string, error) {
-	pgEntity, err := ps.convert(obj)
+	pgEntity, err := ps.scheme.convert(obj)
 	if err != nil {
 		return "", err
 	}
@@ -213,7 +189,7 @@ func (ps *PostgresStorage) Get(ctx context.Context, objectType types.ObjectType,
 }
 
 func (ps *PostgresStorage) List(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
-	entity, err := ps.provide(objType)
+	entity, err := ps.scheme.provide(objType)
 	if err != nil {
 		return nil, err
 	}
@@ -233,7 +209,7 @@ func (ps *PostgresStorage) List(ctx context.Context, objType types.ObjectType, c
 }
 
 func (ps *PostgresStorage) Delete(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
-	entity, err := ps.provide(objType)
+	entity, err := ps.scheme.provide(objType)
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +236,7 @@ func (ps *PostgresStorage) Delete(ctx context.Context, objType types.ObjectType,
 }
 
 func (ps *PostgresStorage) Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
-	entity, err := ps.convert(obj)
+	entity, err := ps.scheme.convert(obj)
 	if err != nil {
 		return nil, err
 	}
