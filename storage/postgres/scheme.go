@@ -17,12 +17,14 @@
 package postgres
 
 import (
+	"fmt"
+
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 )
 
-type entityProvider func(objectType types.ObjectType) (storage.Entity, bool)
-type objectConverter func(object types.Object) (storage.Entity, bool)
+type entityProvider func(objectType types.ObjectType) (PostgresEntity, bool, error)
+type objectConverter func(object types.Object) (PostgresEntity, bool, error)
 
 func newScheme() *scheme {
 	return &scheme{
@@ -36,37 +38,58 @@ type scheme struct {
 	converters        []objectConverter
 }
 
-func (s *scheme) Introduce(entity storage.Entity) {
+func (s *scheme) introduce(entity storage.Entity) {
 	obj := entity.ToObject()
 	objType := obj.GetType()
-	s.instanceProviders = append(s.instanceProviders, func(objectType types.ObjectType) (storage.Entity, bool) {
+	s.instanceProviders = append(s.instanceProviders, func(objectType types.ObjectType) (PostgresEntity, bool, error) {
 		if objType != objectType {
-			return nil, false
+			return nil, false, nil
 		}
-		return entity, true
+		pgEntity, ok := entity.(PostgresEntity)
+		if !ok {
+			return nil, false, fmt.Errorf("no postgres entity is introduced for object of type %s", objectType)
+		}
+		return pgEntity, true, nil
 	})
-	s.converters = append(s.converters, func(object types.Object) (storage.Entity, bool) {
-		if object.GetType() != objType {
-			return nil, false
+	s.converters = append(s.converters, func(object types.Object) (PostgresEntity, bool, error) {
+		objectType := object.GetType()
+		if objectType != objType {
+			return nil, false, nil
 		}
-		return entity.FromObject(object)
+		entityFromObject, ok := entity.FromObject(object)
+		if !ok {
+			return nil, false, nil
+		}
+		pgEntity, ok := entityFromObject.(PostgresEntity)
+		if !ok {
+			return nil, false, fmt.Errorf("no postgres entity is introduced for object of type %s", objectType)
+		}
+		return pgEntity, true, nil
 	})
 }
 
-func (s *scheme) ObjectToEntity(object types.Object) (storage.Entity, bool) {
+func (s *scheme) convert(object types.Object) (PostgresEntity, error) {
 	for _, c := range s.converters {
-		if entity, ok := c(object); ok {
-			return entity, true
+		entity, ok, err := c(object)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			return entity, nil
 		}
 	}
-	return nil, false
+	return nil, fmt.Errorf("no postgres entity is introduced for object of type %s", object.GetType())
 }
 
-func (s *scheme) Provide(objectType types.ObjectType) (storage.Entity, bool) {
+func (s *scheme) provide(objectType types.ObjectType) (PostgresEntity, error) {
 	for _, v := range s.instanceProviders {
-		if entity, ok := v(objectType); ok {
-			return entity, true
+		entity, ok, err := v(objectType)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			return entity, nil
 		}
 	}
-	return nil, false
+	return nil, fmt.Errorf("no postgres entity is introduced for object of type %s", objectType)
 }
