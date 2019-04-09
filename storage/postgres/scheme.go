@@ -18,78 +18,73 @@ package postgres
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 )
 
-type entityProvider func(objectType types.ObjectType) (PostgresEntity, bool, error)
-type objectConverter func(object types.Object) (PostgresEntity, bool, error)
+type entityProvider func() (PostgresEntity, error)
+type objectConverter func(object types.Object) (PostgresEntity, error)
 
 func newScheme() *scheme {
 	return &scheme{
-		instanceProviders: make([]entityProvider, 0),
-		converters:        make([]objectConverter, 0),
+		instanceProviders: make(map[types.ObjectType]entityProvider),
+		converters:        make(map[types.ObjectType]objectConverter),
 	}
 }
 
 type scheme struct {
-	instanceProviders []entityProvider
-	converters        []objectConverter
+	instanceProviders map[types.ObjectType]entityProvider
+	converters        map[types.ObjectType]objectConverter
 }
 
 func (s *scheme) introduce(entity storage.Entity) {
+	t := reflect.TypeOf(entity)
+	if t.Kind() != reflect.Ptr {
+		panic("All entities must be pointers to structs.")
+	}
 	obj := entity.ToObject()
 	objType := obj.GetType()
-	s.instanceProviders = append(s.instanceProviders, func(objectType types.ObjectType) (PostgresEntity, bool, error) {
-		if objType != objectType {
-			return nil, false, nil
-		}
+
+	_, providerAlreadyExists := s.instanceProviders[objType]
+	_, converterAlreadyExists := s.converters[objType]
+	if providerAlreadyExists || converterAlreadyExists {
+		panic(fmt.Sprintf("Entity for object with type %s has already been introduced", objType))
+	}
+	s.instanceProviders[objType] = func() (PostgresEntity, error) {
 		pgEntity, ok := entity.(PostgresEntity)
 		if !ok {
-			return nil, false, fmt.Errorf("no postgres entity is introduced for object of type %s", objectType)
+			return nil, fmt.Errorf("no postgres entity is introduced for object of type %s", objType)
 		}
-		return pgEntity, true, nil
-	})
-	s.converters = append(s.converters, func(object types.Object) (PostgresEntity, bool, error) {
-		objectType := object.GetType()
-		if objectType != objType {
-			return nil, false, nil
-		}
+		return pgEntity, nil
+	}
+	s.converters[objType] = func(object types.Object) (PostgresEntity, error) {
 		entityFromObject, ok := entity.FromObject(object)
 		if !ok {
-			return nil, false, nil
+			return nil, fmt.Errorf("regsitered entity cannot convert object from type %s", object.GetType())
 		}
 		pgEntity, ok := entityFromObject.(PostgresEntity)
 		if !ok {
-			return nil, false, fmt.Errorf("no postgres entity is introduced for object of type %s", objectType)
+			return nil, fmt.Errorf("no postgres entity is introduced for object of type %s", object.GetType())
 		}
-		return pgEntity, true, nil
-	})
+		return pgEntity, nil
+	}
 }
 
 func (s *scheme) convert(object types.Object) (PostgresEntity, error) {
-	for _, c := range s.converters {
-		entity, ok, err := c(object)
-		if err != nil {
-			return nil, err
-		}
-		if ok {
-			return entity, nil
-		}
+	objectType := object.GetType()
+	converter, exists := s.converters[objectType]
+	if !exists {
+		return nil, fmt.Errorf("no postgres entity is introduced for object of type %s", objectType)
 	}
-	return nil, fmt.Errorf("no postgres entity is introduced for object of type %s", object.GetType())
+	return converter(object)
 }
 
 func (s *scheme) provide(objectType types.ObjectType) (PostgresEntity, error) {
-	for _, v := range s.instanceProviders {
-		entity, ok, err := v(objectType)
-		if err != nil {
-			return nil, err
-		}
-		if ok {
-			return entity, nil
-		}
+	provider, exists := s.instanceProviders[objectType]
+	if !exists {
+		return nil, fmt.Errorf("no postgres entity is introduced for object of type %s", objectType)
 	}
-	return nil, fmt.Errorf("no postgres entity is introduced for object of type %s", objectType)
+	return provider()
 }
