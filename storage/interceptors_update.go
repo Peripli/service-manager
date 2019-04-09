@@ -60,19 +60,12 @@ func newUpdateInterceptorChain(providers []OrderedUpdateInterceptorProvider) *Up
 
 	for _, p := range providers {
 		interceptor := p.Provide()
-		positionAroundTxType := PositionNone
-		positionTxType := PositionNone
-		nameAPI := ""
-		nameTx := ""
-
-		positionAroundTxType, nameAPI = p.AroundTxPosition.PositionType, p.AroundTxPosition.Name
-		positionTxType, nameTx = p.OnTxPosition.PositionType, p.OnTxPosition.Name
 
 		chain.aroundTxFuncs[p.Name()] = interceptor.AroundTxUpdate
-		chain.aroundTxNames = insertName(chain.aroundTxNames, positionAroundTxType, nameAPI, p.Name())
+		chain.aroundTxNames = insertName(chain.aroundTxNames, p.AroundTxPosition.PositionType, p.AroundTxPosition.Name, p.Name())
 
 		chain.onTxFuncs[p.Name()] = interceptor.OnTxUpdate
-		chain.onTxNames = insertName(chain.onTxNames, positionTxType, nameTx, p.Name())
+		chain.onTxNames = insertName(chain.onTxNames, p.OnTxPosition.PositionType, p.OnTxPosition.Name, p.Name())
 	}
 	return chain
 }
