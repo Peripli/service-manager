@@ -127,7 +127,6 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	// setup core api
 	log.C(ctx).Info("Setting up Service Manager core API...")
 	interceptableRepository := storage.NewInterceptableTransactionalRepository(smStorage, encrypter)
-	setDefaultInterceptors(interceptableRepository, cfg)
 
 	API, err := api.New(ctx, interceptableRepository, cfg.API, encrypter)
 	if err != nil {
@@ -136,22 +135,22 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 
 	API.AddHealthIndicator(&storage.HealthIndicator{Pinger: storage.PingFunc(smStorage.Ping)})
 
-	return &ServiceManagerBuilder{
+	smb := &ServiceManagerBuilder{
 		ctx:     ctx,
 		cfg:     cfg.Server,
 		API:     API,
 		Storage: interceptableRepository,
 	}
-}
 
-func setDefaultInterceptors(interceptableRepository *storage.InterceptableTransactionalRepository, cfg *config.Settings) {
-	interceptableRepository.AddCreateInterceptorProviders(types.ServiceBrokerType, &interceptors.BrokerCreateInterceptorProvider{
+	smb.WithCreateInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerCreateInterceptorProvider{
 		OsbClientCreateFunc: newOSBClient(cfg.API.SkipSSLValidation),
-	})
-	interceptableRepository.AddUpdateInterceptorProviders(types.ServiceBrokerType, &interceptors.BrokerUpdateInterceptorProvider{
-		OsbClientCreateFunc: newOSBClient(cfg.API.SkipSSLValidation),
-	})
-	interceptableRepository.AddCreateInterceptorProviders(types.PlatformType, &interceptors.PlatformCreateInterceptorProvider{})
+	}).Register().
+		WithUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerUpdateInterceptorProvider{
+			OsbClientCreateFunc: newOSBClient(cfg.API.SkipSSLValidation),
+		}).Register().
+		WithCreateInterceptorProvider(types.PlatformType, &interceptors.PlatformCreateInterceptorProvider{}).Register()
+
+	return smb
 }
 
 // Build builds the Service Manager
@@ -214,32 +213,62 @@ func newOSBClient(skipSsl bool) osbc.CreateFunc {
 	}
 }
 
-func (smb *ServiceManagerBuilder) RegisterCreateInterceptorProvider(objectType types.ObjectType, provider storage.CreateInterceptorProvider) *interceptorRegistrationBuilder {
+func (smb *ServiceManagerBuilder) WithCreateInterceptorProvider(objectType types.ObjectType, provider storage.CreateInterceptorProvider) *interceptorRegistrationBuilder {
 	return &interceptorRegistrationBuilder{
-		repository:      smb.Storage,
-		interceptorType: objectType,
-		registrator: &createInterceptorRegistration{
-			provider: provider,
+		ocip: storage.InterceptorOrder{
+			OnTxPosition: storage.InterceptorPosition{
+				PositionType: storage.PositionNone,
+			},
+			AroundTxPosition: storage.InterceptorPosition{
+				PositionType: storage.PositionNone,
+			},
+		},
+		registrationFunc: func(order storage.InterceptorOrder) *ServiceManagerBuilder {
+			smb.Storage.AddCreateInterceptorProvider(objectType, storage.OrderedCreateInterceptorProvider{
+				CreateInterceptorProvider: provider,
+				InterceptorOrder:          order,
+			})
+			return smb
 		},
 	}
 }
 
-func (smb *ServiceManagerBuilder) RegisterUpdateInterceptorProvider(objectType types.ObjectType, provider storage.UpdateInterceptorProvider) *interceptorRegistrationBuilder {
+func (smb *ServiceManagerBuilder) WithUpdateInterceptorProvider(objectType types.ObjectType, provider storage.UpdateInterceptorProvider) *interceptorRegistrationBuilder {
 	return &interceptorRegistrationBuilder{
-		repository:      smb.Storage,
-		interceptorType: objectType,
-		registrator: &updateInterceptorRegistration{
-			provider: provider,
+		ocip: storage.InterceptorOrder{
+			OnTxPosition: storage.InterceptorPosition{
+				PositionType: storage.PositionNone,
+			},
+			AroundTxPosition: storage.InterceptorPosition{
+				PositionType: storage.PositionNone,
+			},
+		},
+		registrationFunc: func(order storage.InterceptorOrder) *ServiceManagerBuilder {
+			smb.Storage.AddUpdateInterceptorProvider(objectType, storage.OrderedUpdateInterceptorProvider{
+				UpdateInterceptorProvider: provider,
+				InterceptorOrder:          order,
+			})
+			return smb
 		},
 	}
 }
 
-func (smb *ServiceManagerBuilder) RegisterDeleteInterceptorProvider(objectType types.ObjectType, provider storage.DeleteInterceptorProvider) *interceptorRegistrationBuilder {
+func (smb *ServiceManagerBuilder) WithDeleteInterceptorProvider(objectType types.ObjectType, provider storage.DeleteInterceptorProvider) *interceptorRegistrationBuilder {
 	return &interceptorRegistrationBuilder{
-		repository:      smb.Storage,
-		interceptorType: objectType,
-		registrator: &deleteInterceptorRegistration{
-			provider: provider,
+		ocip: storage.InterceptorOrder{
+			OnTxPosition: storage.InterceptorPosition{
+				PositionType: storage.PositionNone,
+			},
+			AroundTxPosition: storage.InterceptorPosition{
+				PositionType: storage.PositionNone,
+			},
+		},
+		registrationFunc: func(order storage.InterceptorOrder) *ServiceManagerBuilder {
+			smb.Storage.AddDeleteInterceptorProvider(objectType, storage.OrderedDeleteInterceptorProvider{
+				DeleteInterceptorProvider: provider,
+				InterceptorOrder:          order,
+			})
+			return smb
 		},
 	}
 }

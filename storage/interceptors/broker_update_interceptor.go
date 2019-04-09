@@ -46,13 +46,13 @@ func (c *BrokerUpdateInterceptorProvider) Provide() storage.UpdateInterceptor {
 	}
 }
 
+func (c *BrokerUpdateInterceptorProvider) Name() string {
+	return UpdateBrokerInterceptorName
+}
+
 type updateBrokerInterceptor struct {
 	OSBClientCreateFunc osbc.CreateFunc
 	catalog             *osbc.CatalogResponse
-}
-
-func (c *updateBrokerInterceptor) Name() string {
-	return UpdateBrokerInterceptorName
 }
 
 // AroundTxUpdate fetches the broker catalog before the transaction, so it can be stored later on in the transaction

@@ -49,8 +49,8 @@ func (c *CreateInterceptorChain) OnTxCreate(f InterceptCreateOnTxFunc) Intercept
 	return f
 }
 
-// NewCreateInterceptorChain returns a function which spawns all create interceptors, sorts them and wraps them into one.
-func NewCreateInterceptorChain(providers []CreateInterceptorProvider) *CreateInterceptorChain {
+// newCreateInterceptorChain returns a function which spawns all create interceptors, sorts them and wraps them into one.
+func newCreateInterceptorChain(providers []OrderedCreateInterceptorProvider) *CreateInterceptorChain {
 	chain := &CreateInterceptorChain{}
 	chain.aroundTxFuncs = make(map[string]func(InterceptCreateAroundTxFunc) InterceptCreateAroundTxFunc)
 	chain.aroundTxNames = make([]string, 0, len(providers))
@@ -64,16 +64,14 @@ func NewCreateInterceptorChain(providers []CreateInterceptorProvider) *CreateInt
 		nameAPI := ""
 		nameTx := ""
 
-		if orderedProvider, isOrdered := p.(Ordered); isOrdered {
-			positionAroundTxType, nameAPI = orderedProvider.PositionAroundTx()
-			positionTxType, nameTx = orderedProvider.PositionTx()
-		}
+		positionAroundTxType, nameAPI = p.AroundTxPosition.PositionType, p.AroundTxPosition.Name
+		positionTxType, nameTx = p.OnTxPosition.PositionType, p.OnTxPosition.Name
 
-		chain.aroundTxFuncs[interceptor.Name()] = interceptor.AroundTxCreate
-		chain.aroundTxNames = insertName(chain.aroundTxNames, positionAroundTxType, nameAPI, interceptor.Name())
+		chain.aroundTxFuncs[p.Name()] = interceptor.AroundTxCreate
+		chain.aroundTxNames = insertName(chain.aroundTxNames, positionAroundTxType, nameAPI, p.Name())
 
-		chain.onTxFuncs[interceptor.Name()] = interceptor.OnTxCreate
-		chain.onTxNames = insertName(chain.onTxNames, positionTxType, nameTx, interceptor.Name())
+		chain.onTxFuncs[p.Name()] = interceptor.OnTxCreate
+		chain.onTxNames = insertName(chain.onTxNames, positionTxType, nameTx, p.Name())
 	}
 	return chain
 }
@@ -81,6 +79,7 @@ func NewCreateInterceptorChain(providers []CreateInterceptorProvider) *CreateInt
 // CreateInterceptorProvider provides CreateInterceptors for each request
 //go:generate counterfeiter . CreateInterceptorProvider
 type CreateInterceptorProvider interface {
+	Named
 	Provide() CreateInterceptor
 }
 
@@ -93,8 +92,6 @@ type InterceptCreateOnTxFunc func(ctx context.Context, txStorage Repository, new
 // CreateInterceptor provides hooks on entity creation
 //go:generate counterfeiter . CreateInterceptor
 type CreateInterceptor interface {
-	Named
-
 	AroundTxCreate(h InterceptCreateAroundTxFunc) InterceptCreateAroundTxFunc
 	OnTxCreate(f InterceptCreateOnTxFunc) InterceptCreateOnTxFunc
 }
@@ -140,36 +137,6 @@ const (
 	// PositionAfter states that a position should be calculated after another position
 	PositionAfter PositionType = "after"
 )
-
-// OrderedByName is an implementation of Ordered interface used for ordering interceptors
-type OrderedByName struct {
-	PositionTxType       PositionType
-	PositionAroundTxType PositionType
-	NameTx               string
-	NameAroundTx         string
-}
-
-// PositionTx returns the position of the interceptor transaction hook
-func (opi *OrderedByName) PositionTx() (PositionType, string) {
-	if opi.NameTx == "" {
-		return PositionNone, ""
-	}
-	return opi.PositionTxType, opi.NameTx
-}
-
-// PositionAroundTx returns the position of the interceptor out of transaction hook
-func (opi *OrderedByName) PositionAroundTx() (PositionType, string) {
-	if opi.NameAroundTx == "" {
-		return PositionNone, ""
-	}
-	return opi.PositionAroundTxType, opi.NameAroundTx
-}
-
-// Ordered interface for positioning interceptors
-type Ordered interface {
-	PositionTx() (PositionType, string)
-	PositionAroundTx() (PositionType, string)
-}
 
 // Named interface for named entities
 type Named interface {

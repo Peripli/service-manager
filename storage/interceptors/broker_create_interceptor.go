@@ -34,6 +34,10 @@ type BrokerCreateInterceptorProvider struct {
 	OsbClientCreateFunc osbc.CreateFunc
 }
 
+func (c *BrokerCreateInterceptorProvider) Name() string {
+	return CreateBrokerInterceptorName
+}
+
 func (c *BrokerCreateInterceptorProvider) Provide() storage.CreateInterceptor {
 	return &CreateBrokerInterceptor{
 		OSBClientCreateFunc: c.OsbClientCreateFunc,
@@ -43,10 +47,6 @@ func (c *BrokerCreateInterceptorProvider) Provide() storage.CreateInterceptor {
 type CreateBrokerInterceptor struct {
 	OSBClientCreateFunc osbc.CreateFunc
 	serviceOfferings    []*types.ServiceOffering
-}
-
-func (c *CreateBrokerInterceptor) Name() string {
-	return CreateBrokerInterceptorName
 }
 
 func (c *CreateBrokerInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {

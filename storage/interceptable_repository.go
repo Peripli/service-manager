@@ -31,9 +31,9 @@ func NewInterceptableTransactionalRepository(repository TransactionalRepository,
 	return &InterceptableTransactionalRepository{
 		encrypter:           encrypter,
 		smStorageRepository: repository,
-		createProviders:     make(map[types.ObjectType][]CreateInterceptorProvider),
-		updateProviders:     make(map[types.ObjectType][]UpdateInterceptorProvider),
-		deleteProviders:     make(map[types.ObjectType][]DeleteInterceptorProvider),
+		createProviders:     make(map[types.ObjectType][]OrderedCreateInterceptorProvider),
+		updateProviders:     make(map[types.ObjectType][]OrderedUpdateInterceptorProvider),
+		deleteProviders:     make(map[types.ObjectType][]OrderedDeleteInterceptorProvider),
 	}
 }
 
@@ -56,9 +56,9 @@ type InterceptableTransactionalRepository struct {
 
 	smStorageRepository TransactionalRepository
 
-	createProviders map[types.ObjectType][]CreateInterceptorProvider
-	updateProviders map[types.ObjectType][]UpdateInterceptorProvider
-	deleteProviders map[types.ObjectType][]DeleteInterceptorProvider
+	createProviders map[types.ObjectType][]OrderedCreateInterceptorProvider
+	updateProviders map[types.ObjectType][]OrderedUpdateInterceptorProvider
+	deleteProviders map[types.ObjectType][]OrderedDeleteInterceptorProvider
 }
 
 type interceptableRepository struct {
@@ -190,19 +190,19 @@ func (itr *InterceptableTransactionalRepository) InTransaction(ctx context.Conte
 	return itr.smStorageRepository.InTransaction(ctx, f)
 }
 
-func (itr *InterceptableTransactionalRepository) AddCreateInterceptorProviders(objectType types.ObjectType, providers ...CreateInterceptorProvider) {
-	itr.validateCreateProviders(objectType, providers)
-	itr.createProviders[objectType] = append(itr.createProviders[objectType], providers...)
+func (itr *InterceptableTransactionalRepository) AddCreateInterceptorProvider(objectType types.ObjectType, provider OrderedCreateInterceptorProvider) {
+	itr.validateCreateProviders(objectType, provider.Name(), provider.InterceptorOrder)
+	itr.createProviders[objectType] = append(itr.createProviders[objectType], provider)
 }
 
-func (itr *InterceptableTransactionalRepository) AddUpdateInterceptorProviders(objectType types.ObjectType, providers ...UpdateInterceptorProvider) {
-	itr.validateUpdateProviders(objectType, providers)
-	itr.updateProviders[objectType] = append(itr.updateProviders[objectType], providers...)
+func (itr *InterceptableTransactionalRepository) AddUpdateInterceptorProvider(objectType types.ObjectType, provider OrderedUpdateInterceptorProvider) {
+	itr.validateUpdateProviders(objectType, provider.Name(), provider.InterceptorOrder)
+	itr.updateProviders[objectType] = append(itr.updateProviders[objectType], provider)
 }
 
-func (itr *InterceptableTransactionalRepository) AddDeleteInterceptorProviders(objectType types.ObjectType, providers ...DeleteInterceptorProvider) {
-	itr.validateDeleteProviders(objectType, providers)
-	itr.deleteProviders[objectType] = append(itr.deleteProviders[objectType], providers...)
+func (itr *InterceptableTransactionalRepository) AddDeleteInterceptorProvider(objectType types.ObjectType, provider OrderedDeleteInterceptorProvider) {
+	itr.validateDeleteProviders(objectType, provider.Name(), provider.InterceptorOrder)
+	itr.deleteProviders[objectType] = append(itr.deleteProviders[objectType], provider)
 }
 
 type finalCreateObjectInterceptor struct {
@@ -446,130 +446,74 @@ func transformCredentials(ctx context.Context, obj types.Object, transformationF
 	return nil
 }
 
-func (itr *InterceptableTransactionalRepository) validateCreateProvidersNames(objectType types.ObjectType, name string) {
-	found := false
-	for _, p := range itr.createProviders[objectType] {
-		interceptor := p.Provide()
-		if interceptor.Name() == name {
-			found = true
-			break
-		}
+func (itr *InterceptableTransactionalRepository) validateCreateProviders(objectType types.ObjectType, providerName string, order InterceptorOrder) {
+	var existingProviderNames []string
+	for _, existingProvider := range itr.createProviders[objectType] {
+		existingProviderNames = append(existingProviderNames, existingProvider.Name())
 	}
-	if !found {
-		log.D().Panicf("could not find interceptor with name %s", name)
-	}
+
+	validateProviderOrder(order, existingProviderNames, providerName)
 }
 
-func (itr *InterceptableTransactionalRepository) validateCreateProviders(objectType types.ObjectType, newProviders []CreateInterceptorProvider) {
-	for _, newProvider := range newProviders {
-		interceptor := newProvider.Provide()
-		if ordered, ok := newProvider.(Ordered); ok {
-			positionAroundTx, nameAPI := ordered.PositionAroundTx()
-			positionTx, nameTx := ordered.PositionTx()
-			if positionAroundTx != PositionNone {
-				itr.validateCreateProvidersNames(objectType, nameAPI)
-			}
-			if positionTx != PositionNone {
-				itr.validateCreateProvidersNames(objectType, nameTx)
-			}
-		}
-		for _, p := range itr.createProviders[objectType] {
-			currentInterceptor := p.Provide()
-			if n, ok := currentInterceptor.(Named); ok {
-				if n.Name() == interceptor.Name() {
-					log.D().Panicf("%s create interceptor provider is already registered", n.Name())
-				}
-			}
-		}
+func (itr *InterceptableTransactionalRepository) validateUpdateProviders(objectType types.ObjectType, providerName string, order InterceptorOrder) {
+	var existingProviderNames []string
+	for _, existingProvider := range itr.updateProviders[objectType] {
+		existingProviderNames = append(existingProviderNames, existingProvider.Name())
 	}
+
+	validateProviderOrder(order, existingProviderNames, providerName)
 }
 
-func (itr *InterceptableTransactionalRepository) validateUpdateProvidersNames(objectType types.ObjectType, name string) {
-	found := false
-	for _, p := range itr.updateProviders[objectType] {
-		if p.Provide().Name() == name {
-			found = true
-			break
-		}
+func (itr *InterceptableTransactionalRepository) validateDeleteProviders(objectType types.ObjectType, providerName string, order InterceptorOrder) {
+	var existingProviderNames []string
+	for _, existingProvider := range itr.deleteProviders[objectType] {
+		existingProviderNames = append(existingProviderNames, existingProvider.Name())
 	}
-	if !found {
-		log.D().Panicf("could not find interceptor with name %s", name)
-	}
+
+	validateProviderOrder(order, existingProviderNames, providerName)
 }
 
-func (itr *InterceptableTransactionalRepository) validateUpdateProviders(objectType types.ObjectType, newProviders []UpdateInterceptorProvider) {
-	for _, newProvider := range newProviders {
-		interceptor := newProvider.Provide()
-		if ordered, ok := newProvider.(Ordered); ok {
-			positionAroundTx, nameAPI := ordered.PositionAroundTx()
-			positionTx, nameTx := ordered.PositionTx()
-			if positionAroundTx != PositionNone {
-				itr.validateUpdateProvidersNames(objectType, nameAPI)
-			}
-			if positionTx != PositionNone {
-				itr.validateUpdateProvidersNames(objectType, nameTx)
-			}
+func validateProviderOrder(order InterceptorOrder, existingProviderNames []string, providerName string) {
+	positionAroundTx, aroundTxName := order.AroundTxPosition.PositionType, order.AroundTxPosition.Name
+	positionTx, nameTx := order.OnTxPosition.PositionType, order.OnTxPosition.Name
+	if providerWithNameExists(existingProviderNames, providerName) {
+		log.D().Panicf("%s create interceptor provider is already registered", providerName)
+	}
+
+	if positionAroundTx != PositionNone {
+		if !providerWithNameExists(existingProviderNames, aroundTxName) {
+			log.D().Panicf("could not find interceptor with name %s", aroundTxName)
 		}
-		for _, p := range itr.updateProviders[objectType] {
-			currentInterceptor := p.Provide()
-			if n, ok := currentInterceptor.(Named); ok {
-				if n.Name() == interceptor.Name() {
-					log.D().Panicf("%s update interceptor provider is already registered", n.Name())
-				}
-			}
+	}
+	if positionTx != PositionNone {
+		if !providerWithNameExists(existingProviderNames, nameTx) {
+			log.D().Panicf("could not find interceptor with name %s", nameTx)
 		}
 	}
 }
 
-func (itr *InterceptableTransactionalRepository) validateDeleteProvidersNames(objectType types.ObjectType, name string) {
-	found := false
-	for _, p := range itr.deleteProviders[objectType] {
-		if p.Provide().Name() == name {
-			found = true
-			break
+func providerWithNameExists(existingNames []string, orderedRelativeTo string) bool {
+	for _, name := range existingNames {
+		if name == orderedRelativeTo {
+			return true
 		}
 	}
-	if !found {
-		log.D().Panicf("could not find interceptor with name %s", name)
-	}
-}
-
-func (itr *InterceptableTransactionalRepository) validateDeleteProviders(objectType types.ObjectType, newProviders []DeleteInterceptorProvider) {
-	for _, newProvider := range newProviders {
-		if ordered, ok := newProvider.(Ordered); ok {
-			positionAroundTx, nameAPI := ordered.PositionAroundTx()
-			positionTx, nameTx := ordered.PositionTx()
-			if positionAroundTx != PositionNone {
-				itr.validateDeleteProvidersNames(objectType, nameAPI)
-			}
-			if positionTx != PositionNone {
-				itr.validateDeleteProvidersNames(objectType, nameTx)
-			}
-		}
-		for _, p := range itr.deleteProviders[objectType] {
-			currentInterceptor := p.Provide()
-			if n, ok := currentInterceptor.(Named); ok {
-				if n.Name() == newProvider.Provide().Name() {
-					log.D().Panicf("%s delete interceptor provider is already registered", n.Name())
-				}
-			}
-		}
-	}
+	return false
 }
 
 func (itr *InterceptableTransactionalRepository) provideInterceptors() (map[types.ObjectType]CreateInterceptor, map[types.ObjectType]UpdateInterceptor, map[types.ObjectType]DeleteInterceptor) {
 	providedCreateInterceptors := make(map[types.ObjectType]CreateInterceptor)
 	for objectType, providers := range itr.createProviders {
-		providedCreateInterceptors[objectType] = NewCreateInterceptorChain(providers)
+		providedCreateInterceptors[objectType] = newCreateInterceptorChain(providers)
 	}
 	providedUpdateInterceptors := make(map[types.ObjectType]UpdateInterceptor)
 	for objectType, providers := range itr.updateProviders {
-		providedUpdateInterceptors[objectType] = NewUpdateInterceptorChain(providers)
+		providedUpdateInterceptors[objectType] = newUpdateInterceptorChain(providers)
 
 	}
 	providedDeleteInterceptors := make(map[types.ObjectType]DeleteInterceptor)
 	for objectType, providers := range itr.deleteProviders {
-		providedDeleteInterceptors[objectType] = NewDeleteInterceptorChain(providers)
+		providedDeleteInterceptors[objectType] = newDeleteInterceptorChain(providers)
 	}
 	return providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors
 }

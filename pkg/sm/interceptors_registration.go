@@ -17,27 +17,56 @@
 package sm
 
 import (
-	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 )
 
-type registrator interface {
-	Apply(repository *storage.InterceptableTransactionalRepository, interceptorType types.ObjectType, orderer storage.Ordered)
-}
-
 type interceptorRegistrationBuilder struct {
-	registrator
-
-	orderer         *storage.OrderedByName
-	interceptorType types.ObjectType
-	repository      *storage.InterceptableTransactionalRepository
+	ocip             storage.InterceptorOrder
+	registrationFunc func(storage.InterceptorOrder) *ServiceManagerBuilder
 }
 
-func (creator *interceptorRegistrationBuilder) Apply() {
-	if creator.orderer == nil {
-		creator.orderer = &storage.OrderedByName{}
+func (creator *interceptorRegistrationBuilder) AroundTxBefore(name string) *interceptorRegistrationBuilder {
+	if creator.ocip.AroundTxPosition.PositionType != storage.PositionNone {
+		panic("AroundTxPosition has already been specified")
 	}
-	creator.registrator.Apply(creator.repository, creator.interceptorType, creator.orderer)
+	creator.ocip.AroundTxPosition = storage.InterceptorPosition{
+		Name:         name,
+		PositionType: storage.PositionBefore,
+	}
+	return creator
+}
+
+func (creator *interceptorRegistrationBuilder) AroundTxAfter(name string) *interceptorRegistrationBuilder {
+	if creator.ocip.AroundTxPosition.PositionType != storage.PositionNone {
+		panic("AroundTxPosition has already been specified")
+	}
+	creator.ocip.AroundTxPosition = storage.InterceptorPosition{
+		Name:         name,
+		PositionType: storage.PositionAfter,
+	}
+	return creator
+}
+
+func (creator *interceptorRegistrationBuilder) TxBefore(name string) *interceptorRegistrationBuilder {
+	if creator.ocip.OnTxPosition.PositionType != storage.PositionNone {
+		panic("OnTxPosition has already been specified")
+	}
+	creator.ocip.OnTxPosition = storage.InterceptorPosition{
+		Name:         name,
+		PositionType: storage.PositionBefore,
+	}
+	return creator
+}
+
+func (creator *interceptorRegistrationBuilder) TxAfter(name string) *interceptorRegistrationBuilder {
+	if creator.ocip.OnTxPosition.PositionType != storage.PositionNone {
+		panic("OnTxPosition has already been specified")
+	}
+	creator.ocip.OnTxPosition = storage.InterceptorPosition{
+		Name:         name,
+		PositionType: storage.PositionAfter,
+	}
+	return creator
 }
 
 func (creator *interceptorRegistrationBuilder) Before(name string) *interceptorRegistrationBuilder {
@@ -48,86 +77,6 @@ func (creator *interceptorRegistrationBuilder) After(name string) *interceptorRe
 	return creator.TxAfter(name).AroundTxAfter(name)
 }
 
-func (creator *interceptorRegistrationBuilder) TxBefore(name string) *interceptorRegistrationBuilder {
-	if creator.orderer == nil {
-		creator.orderer = &storage.OrderedByName{}
-	}
-	creator.orderer.NameTx = name
-	creator.orderer.PositionTxType = storage.PositionBefore
-	return creator
-}
-
-func (creator *interceptorRegistrationBuilder) AroundTxBefore(name string) *interceptorRegistrationBuilder {
-	if creator.orderer == nil {
-		creator.orderer = &storage.OrderedByName{}
-	}
-	creator.orderer.NameAroundTx = name
-	creator.orderer.PositionAroundTxType = storage.PositionBefore
-	return creator
-}
-
-func (creator *interceptorRegistrationBuilder) AroundTxAfter(name string) *interceptorRegistrationBuilder {
-	if creator.orderer == nil {
-		creator.orderer = &storage.OrderedByName{}
-	}
-	creator.orderer.NameAroundTx = name
-	creator.orderer.PositionAroundTxType = storage.PositionAfter
-	return creator
-}
-
-func (creator *interceptorRegistrationBuilder) TxAfter(name string) *interceptorRegistrationBuilder {
-	if creator.orderer == nil {
-		creator.orderer = &storage.OrderedByName{}
-	}
-	creator.orderer.NameTx = name
-	creator.orderer.PositionTxType = storage.PositionAfter
-	return creator
-}
-
-type orderedCreateInterceptorProvider struct {
-	storage.CreateInterceptorProvider
-	storage.Ordered
-}
-
-type createInterceptorRegistration struct {
-	provider storage.CreateInterceptorProvider
-}
-
-func (cib *createInterceptorRegistration) Apply(repository *storage.InterceptableTransactionalRepository, interceptsType types.ObjectType, orderer storage.Ordered) {
-	repository.AddCreateInterceptorProviders(interceptsType, &orderedCreateInterceptorProvider{
-		CreateInterceptorProvider: cib.provider,
-		Ordered:                   orderer,
-	})
-}
-
-type updateInterceptorRegistration struct {
-	provider storage.UpdateInterceptorProvider
-}
-
-type orderedUpdateInterceptorProvider struct {
-	storage.Ordered
-	storage.UpdateInterceptorProvider
-}
-
-func (uib *updateInterceptorRegistration) Apply(repository *storage.InterceptableTransactionalRepository, interceptsType types.ObjectType, orderer storage.Ordered) {
-	repository.AddUpdateInterceptorProviders(interceptsType, &orderedUpdateInterceptorProvider{
-		UpdateInterceptorProvider: uib.provider,
-		Ordered:                   orderer,
-	})
-}
-
-type deleteInterceptorRegistration struct {
-	provider storage.DeleteInterceptorProvider
-}
-
-type orderedDeleteInterceptorProvider struct {
-	storage.Ordered
-	storage.DeleteInterceptorProvider
-}
-
-func (dib *deleteInterceptorRegistration) Apply(repository *storage.InterceptableTransactionalRepository, interceptsType types.ObjectType, orderer storage.Ordered) {
-	repository.AddDeleteInterceptorProviders(interceptsType, &orderedDeleteInterceptorProvider{
-		DeleteInterceptorProvider: dib.provider,
-		Ordered:                   orderer,
-	})
+func (creator *interceptorRegistrationBuilder) Register() *ServiceManagerBuilder {
+	return creator.registrationFunc(creator.ocip)
 }

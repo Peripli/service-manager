@@ -95,17 +95,17 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 
 	BeforeEach(func() {
 		ctx = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
-			smb.RegisterCreateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanCreateInterceptorProvider{
+			smb.WithCreateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanCreateInterceptorProvider{
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return catalogPlan.Free, nil
 				},
-			}).TxBefore(interceptors.CreateBrokerInterceptorName).Apply()
+			}).TxBefore(interceptors.CreateBrokerInterceptorName).Register()
 
-			smb.RegisterUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanUpdateInterceptorProvider{
+			smb.WithUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanUpdateInterceptorProvider{
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return catalogPlan.Free, nil
 				},
-			}).TxBefore(interceptors.UpdateBrokerInterceptorName).Apply()
+			}).TxBefore(interceptors.UpdateBrokerInterceptorName).Register()
 			return nil
 		}).Build()
 

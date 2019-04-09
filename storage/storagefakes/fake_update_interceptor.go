@@ -19,16 +19,6 @@ type FakeUpdateInterceptor struct {
 	aroundTxUpdateReturnsOnCall map[int]struct {
 		result1 storage.InterceptUpdateAroundTxFunc
 	}
-	NameStub        func() string
-	nameMutex       sync.RWMutex
-	nameArgsForCall []struct {
-	}
-	nameReturns struct {
-		result1 string
-	}
-	nameReturnsOnCall map[int]struct {
-		result1 string
-	}
 	OnTxUpdateStub        func(storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc
 	onTxUpdateMutex       sync.RWMutex
 	onTxUpdateArgsForCall []struct {
@@ -104,58 +94,6 @@ func (fake *FakeUpdateInterceptor) AroundTxUpdateReturnsOnCall(i int, result1 st
 	}{result1}
 }
 
-func (fake *FakeUpdateInterceptor) Name() string {
-	fake.nameMutex.Lock()
-	ret, specificReturn := fake.nameReturnsOnCall[len(fake.nameArgsForCall)]
-	fake.nameArgsForCall = append(fake.nameArgsForCall, struct {
-	}{})
-	fake.recordInvocation("Name", []interface{}{})
-	fake.nameMutex.Unlock()
-	if fake.NameStub != nil {
-		return fake.NameStub()
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	fakeReturns := fake.nameReturns
-	return fakeReturns.result1
-}
-
-func (fake *FakeUpdateInterceptor) NameCallCount() int {
-	fake.nameMutex.RLock()
-	defer fake.nameMutex.RUnlock()
-	return len(fake.nameArgsForCall)
-}
-
-func (fake *FakeUpdateInterceptor) NameCalls(stub func() string) {
-	fake.nameMutex.Lock()
-	defer fake.nameMutex.Unlock()
-	fake.NameStub = stub
-}
-
-func (fake *FakeUpdateInterceptor) NameReturns(result1 string) {
-	fake.nameMutex.Lock()
-	defer fake.nameMutex.Unlock()
-	fake.NameStub = nil
-	fake.nameReturns = struct {
-		result1 string
-	}{result1}
-}
-
-func (fake *FakeUpdateInterceptor) NameReturnsOnCall(i int, result1 string) {
-	fake.nameMutex.Lock()
-	defer fake.nameMutex.Unlock()
-	fake.NameStub = nil
-	if fake.nameReturnsOnCall == nil {
-		fake.nameReturnsOnCall = make(map[int]struct {
-			result1 string
-		})
-	}
-	fake.nameReturnsOnCall[i] = struct {
-		result1 string
-	}{result1}
-}
-
 func (fake *FakeUpdateInterceptor) OnTxUpdate(arg1 storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
 	fake.onTxUpdateMutex.Lock()
 	ret, specificReturn := fake.onTxUpdateReturnsOnCall[len(fake.onTxUpdateArgsForCall)]
@@ -221,8 +159,6 @@ func (fake *FakeUpdateInterceptor) Invocations() map[string][][]interface{} {
 	defer fake.invocationsMutex.RUnlock()
 	fake.aroundTxUpdateMutex.RLock()
 	defer fake.aroundTxUpdateMutex.RUnlock()
-	fake.nameMutex.RLock()
-	defer fake.nameMutex.RUnlock()
 	fake.onTxUpdateMutex.RLock()
 	defer fake.onTxUpdateMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}

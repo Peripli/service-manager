@@ -50,8 +50,8 @@ func (u *UpdateInterceptorChain) OnTxUpdate(f InterceptUpdateOnTxFunc) Intercept
 	return f
 }
 
-// NewUpdateInterceptorChain returns a function which spawns all update interceptors, sorts them and wraps them into one.
-func NewUpdateInterceptorChain(providers []UpdateInterceptorProvider) *UpdateInterceptorChain {
+// newUpdateInterceptorChain returns a function which spawns all update interceptors, sorts them and wraps them into one.
+func newUpdateInterceptorChain(providers []OrderedUpdateInterceptorProvider) *UpdateInterceptorChain {
 	chain := &UpdateInterceptorChain{}
 	chain.aroundTxFuncs = make(map[string]func(InterceptUpdateAroundTxFunc) InterceptUpdateAroundTxFunc)
 	chain.aroundTxNames = make([]string, 0, len(providers))
@@ -65,16 +65,14 @@ func NewUpdateInterceptorChain(providers []UpdateInterceptorProvider) *UpdateInt
 		nameAPI := ""
 		nameTx := ""
 
-		if orderedProvider, isOrdered := p.(Ordered); isOrdered {
-			positionAroundTxType, nameAPI = orderedProvider.PositionAroundTx()
-			positionTxType, nameTx = orderedProvider.PositionTx()
-		}
+		positionAroundTxType, nameAPI = p.AroundTxPosition.PositionType, p.AroundTxPosition.Name
+		positionTxType, nameTx = p.OnTxPosition.PositionType, p.OnTxPosition.Name
 
-		chain.aroundTxFuncs[interceptor.Name()] = interceptor.AroundTxUpdate
-		chain.aroundTxNames = insertName(chain.aroundTxNames, positionAroundTxType, nameAPI, interceptor.Name())
+		chain.aroundTxFuncs[p.Name()] = interceptor.AroundTxUpdate
+		chain.aroundTxNames = insertName(chain.aroundTxNames, positionAroundTxType, nameAPI, p.Name())
 
-		chain.onTxFuncs[interceptor.Name()] = interceptor.OnTxUpdate
-		chain.onTxNames = insertName(chain.onTxNames, positionTxType, nameTx, interceptor.Name())
+		chain.onTxFuncs[p.Name()] = interceptor.OnTxUpdate
+		chain.onTxNames = insertName(chain.onTxNames, positionTxType, nameTx, p.Name())
 	}
 	return chain
 }
@@ -89,6 +87,7 @@ type UpdateContext struct {
 // UpdateInterceptorProvider provides UpdateInterceptors for each request
 //go:generate counterfeiter . UpdateInterceptorProvider
 type UpdateInterceptorProvider interface {
+	Named
 	Provide() UpdateInterceptor
 }
 
@@ -101,7 +100,6 @@ type InterceptUpdateOnTxFunc func(ctx context.Context, txStorage Repository, obj
 // UpdateInterceptor provides hooks on entity update
 //go:generate counterfeiter . UpdateInterceptor
 type UpdateInterceptor interface {
-	Named
 	AroundTxUpdate(h InterceptUpdateAroundTxFunc) InterceptUpdateAroundTxFunc
 	OnTxUpdate(f InterceptUpdateOnTxFunc) InterceptUpdateOnTxFunc
 }

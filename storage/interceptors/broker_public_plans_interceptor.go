@@ -30,8 +30,7 @@ import (
 )
 
 const (
-	PublicPlanCreateInterceptorName = "public-plan-create"
-	PublicPlanUpdateInterceptorName = "public-plan-update"
+	PublicPlanInterceptorName = "public-plans"
 )
 
 type publicPlanProcessor func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (bool, error)
@@ -46,8 +45,16 @@ func (p *PublicPlanCreateInterceptorProvider) Provide() storage.CreateIntercepto
 	}
 }
 
+func (p *PublicPlanCreateInterceptorProvider) Name() string {
+	return PublicPlanInterceptorName
+}
+
 type PublicPlanUpdateInterceptorProvider struct {
 	IsCatalogPlanPublicFunc publicPlanProcessor
+}
+
+func (p *PublicPlanUpdateInterceptorProvider) Name() string {
+	return PublicPlanInterceptorName
 }
 
 func (p *PublicPlanUpdateInterceptorProvider) Provide() storage.UpdateInterceptor {
@@ -58,10 +65,6 @@ func (p *PublicPlanUpdateInterceptorProvider) Provide() storage.UpdateIntercepto
 
 type publicPlanCreateInterceptor struct {
 	isCatalogPlanPublicFunc publicPlanProcessor
-}
-
-func (p *publicPlanCreateInterceptor) Name() string {
-	return PublicPlanCreateInterceptorName
 }
 
 func (p *publicPlanCreateInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
@@ -79,10 +82,6 @@ func (p *publicPlanCreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFu
 
 type publicPlanUpdateInterceptor struct {
 	isCatalogPlanPublicFunc publicPlanProcessor
-}
-
-func (p *publicPlanUpdateInterceptor) Name() string {
-	return PublicPlanUpdateInterceptorName
 }
 
 func (p *publicPlanUpdateInterceptor) AroundTxUpdate(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {

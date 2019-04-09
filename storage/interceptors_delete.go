@@ -34,8 +34,8 @@ func (d *DeleteInterceptorChain) OnTxDelete(f InterceptDeleteOnTxFunc) Intercept
 	return f
 }
 
-// NewDeleteInterceptorChain returns a function which chains all delete interceptors, sorts them and wraps them into one.
-func NewDeleteInterceptorChain(providers []DeleteInterceptorProvider) *DeleteInterceptorChain {
+// newDeleteInterceptorChain returns a function which chains all delete interceptors, sorts them and wraps them into one.
+func newDeleteInterceptorChain(providers []OrderedDeleteInterceptorProvider) *DeleteInterceptorChain {
 	chain := &DeleteInterceptorChain{}
 
 	chain.aroundTxFuncs = make(map[string]func(InterceptDeleteAroundTxFunc) InterceptDeleteAroundTxFunc)
@@ -50,16 +50,14 @@ func NewDeleteInterceptorChain(providers []DeleteInterceptorProvider) *DeleteInt
 		nameAPI := ""
 		nameTx := ""
 
-		if orderedInterceptor, isOrdered := p.(Ordered); isOrdered {
-			positionAroundTxType, nameAPI = orderedInterceptor.PositionAroundTx()
-			positionTxType, nameTx = orderedInterceptor.PositionTx()
-		}
+		positionAroundTxType, nameAPI = p.AroundTxPosition.PositionType, p.AroundTxPosition.Name
+		positionTxType, nameTx = p.OnTxPosition.PositionType, p.OnTxPosition.Name
 
-		chain.aroundTxFuncs[interceptor.Name()] = interceptor.AroundTxDelete
-		chain.aroundTxNames = insertName(chain.aroundTxNames, positionAroundTxType, nameAPI, interceptor.Name())
+		chain.aroundTxFuncs[p.Name()] = interceptor.AroundTxDelete
+		chain.aroundTxNames = insertName(chain.aroundTxNames, positionAroundTxType, nameAPI, p.Name())
 
-		chain.onTxFuncs[interceptor.Name()] = interceptor.OnTxDelete
-		chain.onTxNames = insertName(chain.onTxNames, positionTxType, nameTx, interceptor.Name())
+		chain.onTxFuncs[p.Name()] = interceptor.OnTxDelete
+		chain.onTxNames = insertName(chain.onTxNames, positionTxType, nameTx, p.Name())
 	}
 
 	return chain
@@ -68,6 +66,7 @@ func NewDeleteInterceptorChain(providers []DeleteInterceptorProvider) *DeleteInt
 // DeleteInterceptorProvider provides DeleteInterceptorChain for each request
 //go:generate counterfeiter . DeleteInterceptorProvider
 type DeleteInterceptorProvider interface {
+	Named
 	Provide() DeleteInterceptor
 }
 
@@ -80,7 +79,6 @@ type InterceptDeleteOnTxFunc func(ctx context.Context, txStorage Repository, del
 // DeleteInterceptor provides hooks on entity deletion
 //go:generate counterfeiter . DeleteInterceptor
 type DeleteInterceptor interface {
-	Named
 	AroundTxDelete(h InterceptDeleteAroundTxFunc) InterceptDeleteAroundTxFunc
 	OnTxDelete(f InterceptDeleteOnTxFunc) InterceptDeleteOnTxFunc
 }

@@ -36,11 +36,11 @@ func (c *PlatformCreateInterceptorProvider) Provide() storage.CreateInterceptor 
 	return &CreateInterceptor{}
 }
 
-type CreateInterceptor struct{}
-
-func (c *CreateInterceptor) Name() string {
+func (c *PlatformCreateInterceptorProvider) Name() string {
 	return platformCreateInterceptorName
 }
+
+type CreateInterceptor struct{}
 
 // AroundTxCreate manipulates the credentials of the platform by generating new ones and returning them as plaintext on the way back
 func (c *CreateInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {

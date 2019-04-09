@@ -126,7 +126,7 @@ var _ = Describe("Interceptors", func() {
 				createModificationInterceptor := &storagefakes.FakeCreateInterceptor{}
 
 				modificationCreateInterceptorProvider := &storagefakes.FakeCreateInterceptorProvider{}
-				createModificationInterceptor.NameReturns(string(entityType) + "modificationCreate")
+				modificationCreateInterceptorProvider.NameReturns(string(entityType) + "modificationCreate")
 				modificationCreateInterceptorProvider.ProvideReturns(createModificationInterceptor)
 
 				createModificationInterceptors[entityType] = createModificationInterceptor
@@ -134,7 +134,7 @@ var _ = Describe("Interceptors", func() {
 				updateModificationInterceptor := &storagefakes.FakeUpdateInterceptor{}
 
 				modificationUpdateInterceptorProvider := &storagefakes.FakeUpdateInterceptorProvider{}
-				updateModificationInterceptor.NameReturns(string(entityType) + "modificationUpdate")
+				modificationUpdateInterceptorProvider.NameReturns(string(entityType) + "modificationUpdate")
 				modificationUpdateInterceptorProvider.ProvideReturns(updateModificationInterceptor)
 
 				updateModificationInterceptors[entityType] = updateModificationInterceptor
@@ -142,7 +142,7 @@ var _ = Describe("Interceptors", func() {
 				deleteModificationInterceptor := &storagefakes.FakeDeleteInterceptor{}
 
 				modificationDeleteInterceptorProvider := &storagefakes.FakeDeleteInterceptorProvider{}
-				deleteModificationInterceptor.NameReturns(string(entityType) + "modificationDelete")
+				modificationDeleteInterceptorProvider.NameReturns(string(entityType) + "modificationDelete")
 				modificationDeleteInterceptorProvider.ProvideReturns(deleteModificationInterceptor)
 
 				deleteModificationInterceptors[entityType] = deleteModificationInterceptor
@@ -150,51 +150,52 @@ var _ = Describe("Interceptors", func() {
 				resetModificationInterceptors()
 
 				// Register create interceptors
-				smb.RegisterCreateInterceptorProvider(entityType, fakeCreateInterceptorProvider1).Apply()
-				smb.RegisterCreateInterceptorProvider(entityType, fakeCreateInterceptorProvider2).
-					After(fakeCreateInterceptorProvider1.Provide().Name()).Apply()
-				smb.RegisterCreateInterceptorProvider(entityType, fakeCreateInterceptorProvider0).
-					Before(fakeCreateInterceptorProvider1.Provide().Name()).Apply()
-				smb.RegisterCreateInterceptorProvider(entityType, fakeCreateInterceptorProviderBA).
-					AroundTxBefore(fakeCreateInterceptorProvider0.Provide().Name()).
-					TxAfter(fakeCreateInterceptorProvider2.Provide().Name()).
-					Apply()
-				smb.RegisterCreateInterceptorProvider(entityType, fakeCreateInterceptorProviderAB).
-					AroundTxAfter(fakeCreateInterceptorProviderBA.Provide().Name()).
-					TxBefore(fakeCreateInterceptorProviderBA.Provide().Name()).
-					Apply()
-				// Register update interceptors
-				smb.RegisterUpdateInterceptorProvider(entityType, fakeUpdateInterceptorProvider1).Apply()
-				smb.RegisterUpdateInterceptorProvider(entityType, fakeUpdateInterceptorProvider2).
-					After(fakeUpdateInterceptorProvider1.Provide().Name()).Apply()
-				smb.RegisterUpdateInterceptorProvider(entityType, fakeUpdateInterceptorProvider0).
-					Before(fakeUpdateInterceptorProvider1.Provide().Name()).Apply()
-				smb.RegisterUpdateInterceptorProvider(entityType, fakeUpdateInterceptorProviderBA).
-					AroundTxBefore(fakeUpdateInterceptorProvider0.Provide().Name()).
-					TxAfter(fakeUpdateInterceptorProvider2.Provide().Name()).
-					Apply()
-				smb.RegisterUpdateInterceptorProvider(entityType, fakeUpdateInterceptorProviderAB).
-					AroundTxAfter(fakeUpdateInterceptorProviderBA.Provide().Name()).
-					TxBefore(fakeUpdateInterceptorProviderBA.Provide().Name()).
-					Apply()
-				// Register delete interceptors
-				smb.RegisterDeleteInterceptorProvider(entityType, fakeDeleteInterceptorProvider1).Apply()
-				smb.RegisterDeleteInterceptorProvider(entityType, fakeDeleteInterceptorProvider2).
-					After(fakeDeleteInterceptorProvider1.Provide().Name()).Apply()
-				smb.RegisterDeleteInterceptorProvider(entityType, fakeDeleteInterceptorProvider0).
-					Before(fakeDeleteInterceptorProvider1.Provide().Name()).Apply()
-				smb.RegisterDeleteInterceptorProvider(entityType, fakeDeleteInterceptorProviderBA).
-					AroundTxBefore(fakeDeleteInterceptorProvider0.Provide().Name()).
-					TxAfter(fakeDeleteInterceptorProvider2.Provide().Name()).
-					Apply()
-				smb.RegisterDeleteInterceptorProvider(entityType, fakeDeleteInterceptorProviderAB).
-					AroundTxAfter(fakeDeleteInterceptorProviderBA.Provide().Name()).
-					TxBefore(fakeDeleteInterceptorProviderBA.Provide().Name()).
-					Apply()
+				smb.WithCreateInterceptorProvider(entityType, fakeCreateInterceptorProvider1).Register()
+				smb.WithCreateInterceptorProvider(entityType, fakeCreateInterceptorProvider2).
+					After(fakeCreateInterceptorProvider1.Name()).Register()
 
-				smb.RegisterCreateInterceptorProvider(entityType, modificationCreateInterceptorProvider).Apply()
-				smb.RegisterUpdateInterceptorProvider(entityType, modificationUpdateInterceptorProvider).Apply()
-				smb.RegisterDeleteInterceptorProvider(entityType, modificationDeleteInterceptorProvider).Apply()
+				smb.WithCreateInterceptorProvider(entityType, fakeCreateInterceptorProvider0).
+					Before(fakeCreateInterceptorProvider1.Name()).Register()
+				smb.WithCreateInterceptorProvider(entityType, fakeCreateInterceptorProviderBA).
+					AroundTxBefore(fakeCreateInterceptorProvider0.Name()).
+					TxAfter(fakeCreateInterceptorProvider2.Name()).
+					Register()
+				smb.WithCreateInterceptorProvider(entityType, fakeCreateInterceptorProviderAB).
+					AroundTxAfter(fakeCreateInterceptorProviderBA.Name()).
+					TxBefore(fakeCreateInterceptorProviderBA.Name()).
+					Register()
+				// Register update interceptors
+				smb.WithUpdateInterceptorProvider(entityType, fakeUpdateInterceptorProvider1).Register()
+				smb.WithUpdateInterceptorProvider(entityType, fakeUpdateInterceptorProvider2).
+					After(fakeUpdateInterceptorProvider1.Name()).Register()
+				smb.WithUpdateInterceptorProvider(entityType, fakeUpdateInterceptorProvider0).
+					Before(fakeUpdateInterceptorProvider1.Name()).Register()
+				smb.WithUpdateInterceptorProvider(entityType, fakeUpdateInterceptorProviderBA).
+					AroundTxBefore(fakeUpdateInterceptorProvider0.Name()).
+					TxAfter(fakeUpdateInterceptorProvider2.Name()).
+					Register()
+				smb.WithUpdateInterceptorProvider(entityType, fakeUpdateInterceptorProviderAB).
+					AroundTxAfter(fakeUpdateInterceptorProviderBA.Name()).
+					TxBefore(fakeUpdateInterceptorProviderBA.Name()).
+					Register()
+				// Register delete interceptors
+				smb.WithDeleteInterceptorProvider(entityType, fakeDeleteInterceptorProvider1).Register()
+				smb.WithDeleteInterceptorProvider(entityType, fakeDeleteInterceptorProvider2).
+					After(fakeDeleteInterceptorProvider1.Name()).Register()
+				smb.WithDeleteInterceptorProvider(entityType, fakeDeleteInterceptorProvider0).
+					Before(fakeDeleteInterceptorProvider1.Name()).Register()
+				smb.WithDeleteInterceptorProvider(entityType, fakeDeleteInterceptorProviderBA).
+					AroundTxBefore(fakeDeleteInterceptorProvider0.Name()).
+					TxAfter(fakeDeleteInterceptorProvider2.Name()).
+					Register()
+				smb.WithDeleteInterceptorProvider(entityType, fakeDeleteInterceptorProviderAB).
+					AroundTxAfter(fakeDeleteInterceptorProviderBA.Name()).
+					TxBefore(fakeDeleteInterceptorProviderBA.Name()).
+					Register()
+
+				smb.WithCreateInterceptorProvider(entityType, modificationCreateInterceptorProvider).Register()
+				smb.WithUpdateInterceptorProvider(entityType, modificationUpdateInterceptorProvider).Register()
+				smb.WithDeleteInterceptorProvider(entityType, modificationDeleteInterceptorProvider).Register()
 
 			}
 
@@ -525,9 +526,9 @@ func (s *callStack) Clear() {
 func createInterceptorProvider(nameSuffix string, stack *callStack) *storagefakes.FakeCreateInterceptorProvider {
 	name := "Create" + nameSuffix
 	fakeCreateInterceptorProvider := &storagefakes.FakeCreateInterceptorProvider{}
+	fakeCreateInterceptorProvider.NameReturns(name)
 
 	fakeCreateInterceptor := &storagefakes.FakeCreateInterceptor{}
-	fakeCreateInterceptor.NameReturns(name)
 	fakeCreateInterceptor.AroundTxCreateStub = func(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
 		return func(ctx context.Context, obj types.Object) (types.Object, error) {
 			stack.Add(name + "APIpre")
@@ -552,8 +553,8 @@ func updateInterceptorProvider(nameSuffix string, stack *callStack) *storagefake
 	name := "Update" + nameSuffix
 
 	fakeUpdateInterceptorProvider := &storagefakes.FakeUpdateInterceptorProvider{}
+	fakeUpdateInterceptorProvider.NameReturns(name)
 	fakeUpdateInterceptor := &storagefakes.FakeUpdateInterceptor{}
-	fakeUpdateInterceptor.NameReturns(name)
 	fakeUpdateInterceptor.AroundTxUpdateStub = func(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
 		return func(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 			stack.Add(name + "APIpre")
@@ -578,8 +579,8 @@ func deleteInterceptorProvider(nameSuffix string, stack *callStack) *storagefake
 	name := "Delete" + nameSuffix
 
 	fakeDeleteInterceptorProvider := &storagefakes.FakeDeleteInterceptorProvider{}
+	fakeDeleteInterceptorProvider.NameReturns(name)
 	fakeDeleteInterceptor := &storagefakes.FakeDeleteInterceptor{}
-	fakeDeleteInterceptor.NameReturns(name)
 	fakeDeleteInterceptor.AroundTxDeleteStub = func(h storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
 		return func(ctx context.Context, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
 			stack.Add(name + "APIpre")

@@ -19,16 +19,6 @@ type FakeDeleteInterceptor struct {
 	aroundTxDeleteReturnsOnCall map[int]struct {
 		result1 storage.InterceptDeleteAroundTxFunc
 	}
-	NameStub        func() string
-	nameMutex       sync.RWMutex
-	nameArgsForCall []struct {
-	}
-	nameReturns struct {
-		result1 string
-	}
-	nameReturnsOnCall map[int]struct {
-		result1 string
-	}
 	OnTxDeleteStub        func(storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc
 	onTxDeleteMutex       sync.RWMutex
 	onTxDeleteArgsForCall []struct {
@@ -104,58 +94,6 @@ func (fake *FakeDeleteInterceptor) AroundTxDeleteReturnsOnCall(i int, result1 st
 	}{result1}
 }
 
-func (fake *FakeDeleteInterceptor) Name() string {
-	fake.nameMutex.Lock()
-	ret, specificReturn := fake.nameReturnsOnCall[len(fake.nameArgsForCall)]
-	fake.nameArgsForCall = append(fake.nameArgsForCall, struct {
-	}{})
-	fake.recordInvocation("Name", []interface{}{})
-	fake.nameMutex.Unlock()
-	if fake.NameStub != nil {
-		return fake.NameStub()
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	fakeReturns := fake.nameReturns
-	return fakeReturns.result1
-}
-
-func (fake *FakeDeleteInterceptor) NameCallCount() int {
-	fake.nameMutex.RLock()
-	defer fake.nameMutex.RUnlock()
-	return len(fake.nameArgsForCall)
-}
-
-func (fake *FakeDeleteInterceptor) NameCalls(stub func() string) {
-	fake.nameMutex.Lock()
-	defer fake.nameMutex.Unlock()
-	fake.NameStub = stub
-}
-
-func (fake *FakeDeleteInterceptor) NameReturns(result1 string) {
-	fake.nameMutex.Lock()
-	defer fake.nameMutex.Unlock()
-	fake.NameStub = nil
-	fake.nameReturns = struct {
-		result1 string
-	}{result1}
-}
-
-func (fake *FakeDeleteInterceptor) NameReturnsOnCall(i int, result1 string) {
-	fake.nameMutex.Lock()
-	defer fake.nameMutex.Unlock()
-	fake.NameStub = nil
-	if fake.nameReturnsOnCall == nil {
-		fake.nameReturnsOnCall = make(map[int]struct {
-			result1 string
-		})
-	}
-	fake.nameReturnsOnCall[i] = struct {
-		result1 string
-	}{result1}
-}
-
 func (fake *FakeDeleteInterceptor) OnTxDelete(arg1 storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
 	fake.onTxDeleteMutex.Lock()
 	ret, specificReturn := fake.onTxDeleteReturnsOnCall[len(fake.onTxDeleteArgsForCall)]
@@ -221,8 +159,6 @@ func (fake *FakeDeleteInterceptor) Invocations() map[string][][]interface{} {
 	defer fake.invocationsMutex.RUnlock()
 	fake.aroundTxDeleteMutex.RLock()
 	defer fake.aroundTxDeleteMutex.RUnlock()
-	fake.nameMutex.RLock()
-	defer fake.nameMutex.RUnlock()
 	fake.onTxDeleteMutex.RLock()
 	defer fake.onTxDeleteMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
