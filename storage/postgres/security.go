@@ -37,7 +37,7 @@ type Safe struct {
 }
 
 type securityStorage struct {
-	db            PGDB
+	db            pgDB
 	encryptionKey []byte
 	isLocked      bool
 	mutex         *sync.Mutex
@@ -84,7 +84,7 @@ func (s *securityStorage) Setter() security.KeySetter {
 }
 
 type keyFetcher struct {
-	db            PGDB
+	db            pgDB
 	encryptionKey []byte
 }
 
@@ -108,7 +108,7 @@ func (s *keyFetcher) GetEncryptionKey(ctx context.Context) ([]byte, error) {
 }
 
 type keySetter struct {
-	db            PGDB
+	db            pgDB
 	encryptionKey []byte
 }
 

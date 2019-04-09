@@ -2,10 +2,10 @@
 package httpfakes
 
 import (
-	context "context"
-	sync "sync"
+	"context"
+	"sync"
 
-	http "github.com/Peripli/service-manager/pkg/security/http"
+	"github.com/Peripli/service-manager/pkg/security/http"
 )
 
 type FakeTokenVerifier struct {

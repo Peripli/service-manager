@@ -2,10 +2,10 @@
 package httpfakes
 
 import (
-	sync "sync"
+	"sync"
 
-	http "github.com/Peripli/service-manager/pkg/security/http"
-	web "github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/pkg/security/http"
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
 type FakeAuthorizer struct {

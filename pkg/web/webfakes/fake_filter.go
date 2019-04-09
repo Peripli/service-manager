@@ -2,9 +2,9 @@
 package webfakes
 
 import (
-	sync "sync"
+	"sync"
 
-	web "github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
 type FakeFilter struct {

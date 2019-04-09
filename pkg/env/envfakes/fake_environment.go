@@ -2,10 +2,10 @@
 package envfakes
 
 import (
-	sync "sync"
+	"sync"
 
-	env "github.com/Peripli/service-manager/pkg/env"
-	pflag "github.com/spf13/pflag"
+	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/spf13/pflag"
 )
 
 type FakeEnvironment struct {

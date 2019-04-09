@@ -2,9 +2,9 @@
 package httpfakes
 
 import (
-	sync "sync"
+	"sync"
 
-	http "github.com/Peripli/service-manager/pkg/security/http"
+	"github.com/Peripli/service-manager/pkg/security/http"
 )
 
 type FakeTokenData struct {

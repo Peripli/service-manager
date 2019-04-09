@@ -3,10 +3,10 @@ package httpfakes
 
 import (
 	httpa "net/http"
-	sync "sync"
+	"sync"
 
-	http "github.com/Peripli/service-manager/pkg/security/http"
-	web "github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/pkg/security/http"
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
 type FakeAuthenticator struct {

@@ -55,9 +55,9 @@ type getterContext interface {
 	GetContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error
 }
 
-//go:generate counterfeiter . PGDB
-// PGDB represents a PG database API
-type PGDB interface {
+//go:generate counterfeiter . pgDB
+// pgDB represents a PG database API
+type pgDB interface {
 	prepareNamedContext
 	namedExecerContext
 	namedQuerierContext
@@ -66,7 +66,7 @@ type PGDB interface {
 	sqlx.ExtContext
 }
 
-func create(ctx context.Context, db PGDB, table string, dto interface{}) (string, error) {
+func create(ctx context.Context, db pgDB, table string, dto interface{}) (string, error) {
 	var lastInsertID string
 	set := getDBTags(dto)
 
@@ -97,7 +97,7 @@ func create(ctx context.Context, db PGDB, table string, dto interface{}) (string
 	return lastInsertID, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
 }
 
-func listWithLabelsByCriteria(ctx context.Context, db PGDB, baseEntity interface{}, label PostgresLabel, baseTableName string, criteria []query.Criterion) (*sqlx.Rows, error) {
+func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface{}, label PostgresLabel, baseTableName string, criteria []query.Criterion) (*sqlx.Rows, error) {
 	if err := validateFieldQueryParams(baseEntity, criteria); err != nil {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func listWithLabelsByCriteria(ctx context.Context, db PGDB, baseEntity interface
 	return db.QueryxContext(ctx, sqlQuery, queryParams...)
 }
 
-func listByFieldCriteria(ctx context.Context, db PGDB, table string, criteria []query.Criterion) (*sqlx.Rows, error) {
+func listByFieldCriteria(ctx context.Context, db pgDB, table string, criteria []query.Criterion) (*sqlx.Rows, error) {
 	baseQuery := fmt.Sprintf(`SELECT * FROM %s`, table)
 	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, table, nil, criteria)
 	if err != nil {

@@ -2,10 +2,10 @@
 package securityfakes
 
 import (
-	context "context"
-	sync "sync"
+	"context"
+	"sync"
 
-	security "github.com/Peripli/service-manager/pkg/security"
+	"github.com/Peripli/service-manager/pkg/security"
 )
 
 type FakeKeyFetcher struct {

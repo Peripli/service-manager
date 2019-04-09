@@ -2,9 +2,9 @@
 package healthfakes
 
 import (
-	sync "sync"
+	"sync"
 
-	health "github.com/Peripli/service-manager/pkg/health"
+	"github.com/Peripli/service-manager/pkg/health"
 )
 
 type FakeAggregationPolicy struct {

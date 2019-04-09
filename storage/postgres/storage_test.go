@@ -25,7 +25,6 @@ import (
 
 var _ = Describe("Postgres Storage", func() {
 	pgStorage := &PostgresStorage{}
-	scheme := storage.NewScheme()
 
 	Describe("Credentials", func() {
 		Context("Called with uninitialized db", func() {
@@ -57,7 +56,7 @@ var _ = Describe("Postgres Storage", func() {
 				err := pgStorage.Open(&storage.Settings{
 					URI:           "",
 					MigrationsURL: "file://migrations",
-				}, scheme)
+				})
 				Expect(err).To(HaveOccurred())
 			})
 		})
@@ -66,7 +65,7 @@ var _ = Describe("Postgres Storage", func() {
 			It("Should return error", func() {
 				err := pgStorage.Open(&storage.Settings{
 					MigrationsURL: "",
-				}, scheme)
+				})
 				Expect(err).To(HaveOccurred())
 			})
 		})
@@ -79,7 +78,7 @@ var _ = Describe("Postgres Storage", func() {
 						MigrationsURL:     "invalid",
 						EncryptionKey:     "ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8",
 						SkipSSLValidation: true,
-					}, scheme)
+					})
 				}).To(Panic())
 			})
 		})

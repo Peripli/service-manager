@@ -25,7 +25,7 @@ import (
 type storageState struct {
 	lastCheckTime        time.Time
 	mutex                *sync.RWMutex
-	db                   PGDB
+	db                   pgDB
 	storageCheckInterval time.Duration
 }
 

@@ -26,7 +26,7 @@ import (
 )
 
 type credentialStorage struct {
-	db PGDB
+	db pgDB
 }
 
 func (cs *credentialStorage) Get(ctx context.Context, username string) (*types.Credentials, error) {

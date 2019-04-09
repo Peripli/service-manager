@@ -2,12 +2,12 @@
 package storagefakes
 
 import (
-	context "context"
-	sync "sync"
+	"context"
+	"sync"
 
-	query "github.com/Peripli/service-manager/pkg/query"
-	types "github.com/Peripli/service-manager/pkg/types"
-	storage "github.com/Peripli/service-manager/storage"
+	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
 )
 
 type FakeStorage struct {
@@ -107,11 +107,10 @@ type FakeStorage struct {
 		result1 types.ObjectList
 		result2 error
 	}
-	OpenStub        func(*storage.Settings, *storage.Scheme) error
+	OpenStub        func(*storage.Settings) error
 	openMutex       sync.RWMutex
 	openArgsForCall []struct {
 		arg1 *storage.Settings
-		arg2 *storage.Scheme
 	}
 	openReturns struct {
 		result1 error
@@ -613,17 +612,16 @@ func (fake *FakeStorage) ListReturnsOnCall(i int, result1 types.ObjectList, resu
 	}{result1, result2}
 }
 
-func (fake *FakeStorage) Open(arg1 *storage.Settings, arg2 *storage.Scheme) error {
+func (fake *FakeStorage) Open(arg1 *storage.Settings) error {
 	fake.openMutex.Lock()
 	ret, specificReturn := fake.openReturnsOnCall[len(fake.openArgsForCall)]
 	fake.openArgsForCall = append(fake.openArgsForCall, struct {
 		arg1 *storage.Settings
-		arg2 *storage.Scheme
-	}{arg1, arg2})
-	fake.recordInvocation("Open", []interface{}{arg1, arg2})
+	}{arg1})
+	fake.recordInvocation("Open", []interface{}{arg1})
 	fake.openMutex.Unlock()
 	if fake.OpenStub != nil {
-		return fake.OpenStub(arg1, arg2)
+		return fake.OpenStub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
@@ -638,17 +636,17 @@ func (fake *FakeStorage) OpenCallCount() int {
 	return len(fake.openArgsForCall)
 }
 
-func (fake *FakeStorage) OpenCalls(stub func(*storage.Settings, *storage.Scheme) error) {
+func (fake *FakeStorage) OpenCalls(stub func(*storage.Settings) error) {
 	fake.openMutex.Lock()
 	defer fake.openMutex.Unlock()
 	fake.OpenStub = stub
 }
 
-func (fake *FakeStorage) OpenArgsForCall(i int) (*storage.Settings, *storage.Scheme) {
+func (fake *FakeStorage) OpenArgsForCall(i int) *storage.Settings {
 	fake.openMutex.RLock()
 	defer fake.openMutex.RUnlock()
 	argsForCall := fake.openArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
+	return argsForCall.arg1
 }
 
 func (fake *FakeStorage) OpenReturns(result1 error) {

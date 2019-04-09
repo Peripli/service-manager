@@ -2,11 +2,11 @@
 package storagefakes
 
 import (
-	context "context"
-	sync "sync"
+	"context"
+	"sync"
 
-	types "github.com/Peripli/service-manager/pkg/types"
-	storage "github.com/Peripli/service-manager/storage"
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
 )
 
 type FakeCredentials struct {

@@ -2,9 +2,9 @@
 package storagefakes
 
 import (
-	sync "sync"
+	"sync"
 
-	storage "github.com/Peripli/service-manager/storage"
+	"github.com/Peripli/service-manager/storage"
 )
 
 type FakeDeleteInterceptorProvider struct {
