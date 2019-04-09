@@ -68,6 +68,7 @@ var _ = Describe("CF Env", func() {
 		Expect(os.Setenv("VCAP_APPLICATION", "{}")).ShouldNot(HaveOccurred())
 		Expect(os.Setenv("VCAP_SERVICES", VCAP_SERVICES_VALUE)).ShouldNot(HaveOccurred())
 		Expect(os.Setenv("STORAGE_NAME", "smdb")).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv("STORAGE_URI")).ShouldNot(HaveOccurred())
 
 		environment, err = env.New(env.EmptyFlagSet())
 		Expect(err).ShouldNot(HaveOccurred())
