@@ -17,6 +17,7 @@
 package info
 
 import (
+	"github.com/Peripli/service-manager/pkg/util"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -34,5 +35,5 @@ type Controller struct {
 var _ web.Controller = &Controller{}
 
 func (c *Controller) getInfo(request *web.Request) (*web.Response, error) {
-	return web.NewJSONResponse(http.StatusOK, c)
+	return util.NewJSONResponse(http.StatusOK, c)
 }

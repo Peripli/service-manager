@@ -26,11 +26,13 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
+const PlatformAwareVisibilityFilterName = "PlatformAwareVisibilityFilter"
+
 type PlatformAwareVisibilityFilter struct {
 }
 
 func (*PlatformAwareVisibilityFilter) Name() string {
-	return "VisibilityForPlatformFilter"
+	return PlatformAwareVisibilityFilterName
 }
 
 func (*PlatformAwareVisibilityFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {

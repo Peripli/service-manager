@@ -94,6 +94,7 @@ type InterceptCreateOnTxFunc func(ctx context.Context, txStorage Repository, new
 //go:generate counterfeiter . CreateInterceptor
 type CreateInterceptor interface {
 	Named
+
 	AroundTxCreate(h InterceptCreateAroundTxFunc) InterceptCreateAroundTxFunc
 	OnTxCreate(f InterceptCreateOnTxFunc) InterceptCreateOnTxFunc
 }

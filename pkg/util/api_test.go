@@ -210,6 +210,42 @@ var _ = Describe("Utils test", func() {
 
 		})
 	})
+
+	Describe("NewJSONResponse", func() {
+		const testTypeValid = `{"field1":"Value1", "field2":"Value2"}`
+
+		It("builds a web.Response containing the marshalled value with a Content-Type header", func() {
+			expectedCode := http.StatusOK
+			testValue := testTypeValidated{
+				Field1: "Value1",
+				Field2: "Value2",
+			}
+			response, err := util.NewJSONResponse(expectedCode, testValue)
+
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(expectedCode))
+			Expect(response.Body).Should(MatchJSON(testTypeValid))
+			Expect(response.Header.Get("Content-Type")).To(Equal("application/json"))
+		})
+
+		It("builds a web.Response containing an empty response value when return code is 204 No Content", func() {
+			testJSONResponse(http.StatusNoContent, util.EmptyResponseBody{}, []byte{})
+		})
+
+		It("builds a web.Response containing an empty response value when return code is 200 OK and EmptyResponseBody is provided", func() {
+			testJSONResponse(http.StatusOK, util.EmptyResponseBody{}, []byte{})
+		})
+
+		It("builds a web.Response containing a non-empty response value when instead of EmptyResponseBody an empty data structure is provided", func() {
+			response, err := util.NewJSONResponse(http.StatusOK, struct{}{})
+
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusOK))
+			Expect(response.Body).ShouldNot(BeEmpty())
+			Expect(response.Body).ShouldNot(Equal(util.EmptyResponseBody{}))
+			Expect(response.Header.Get("Content-Type")).To(Equal("application/json"))
+		})
+	})
 })
 
 type testTypeValidated struct {
@@ -225,6 +261,15 @@ func (tt testTypeValidated) Validate() error {
 		return fmt.Errorf("empty field2")
 	}
 	return nil
+}
+
+func testJSONResponse(expectedCode int, providedBody, expectedMarshalledBody interface{}) {
+	response, err := util.NewJSONResponse(expectedCode, providedBody)
+
+	Expect(err).ShouldNot(HaveOccurred())
+	Expect(response.StatusCode).To(Equal(expectedCode))
+	Expect(response.Body).Should(Equal(expectedMarshalledBody))
+	Expect(response.Header.Get("Content-Type")).To(Equal("application/json"))
 }
 
 type testTypeNotValidated struct {
