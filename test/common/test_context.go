@@ -359,10 +359,12 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 	if ctx == nil {
 		return
 	}
-	ctx.SMWithOAuth.DELETE("/v1/service_brokers").
-		Expect()
-	ctx.SMWithOAuth.DELETE("/v1/platforms").WithQuery("fieldQuery", "id != "+ctx.TestPlatform.ID).
-		Expect()
+	ctx.SMWithOAuth.DELETE("/v1/service_brokers").Expect()
+	if ctx.TestPlatform != nil {
+		ctx.SMWithOAuth.DELETE("/v1/platforms").WithQuery("fieldQuery", "id != "+ctx.TestPlatform.ID).Expect()
+	} else {
+		ctx.SMWithOAuth.DELETE("/v1/platforms").Expect()
+	}
 	var smServer FakeServer
 	for serverName, server := range ctx.Servers {
 		if serverName == SMServer {
