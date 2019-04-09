@@ -18,6 +18,8 @@ package interceptors_test
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -210,13 +212,107 @@ var _ = Describe("Interceptors", func() {
 
 	BeforeEach(func() {
 		clearStacks()
-		resetModificationInterceptors()
 	})
 
 	AfterEach(func() {
+		resetModificationInterceptors()
 		if ctx != nil {
 			ctx.CleanupAdditionalResources()
 		}
+	})
+
+	Describe("Calling other intereceptors", func() {
+		Context("when interceptor fails", func() {
+			It("should cancel the transaction", func() {
+				platform1 := ctx.RegisterPlatform()
+
+				createModificationInterceptors[types.PlatformType].OnTxCreateStub = func(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
+					return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) error {
+						By("calling storage update, should call update interceptor")
+						_, err := txStorage.Update(ctx, platform1)
+						if err != nil {
+							return err
+						}
+						return f(ctx, txStorage, newObject)
+					}
+				}
+
+				updateModificationInterceptors[types.PlatformType].OnTxUpdateStub = func(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
+					return func(ctx context.Context, txStorage storage.Repository, obj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
+						return nil, errors.New("Expected update to fail")
+					}
+				}
+
+				platform2 := common.GenerateRandomPlatform()
+				ctx.SMWithOAuth.POST(web.PlatformsURL).WithJSON(platform2).Expect().Status(http.StatusBadRequest).
+					JSON().Object().Value("description").String().Contains("Expected update to fail")
+
+				ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", web.PlatformsURL, platform2["id"])).
+					Expect().Status(http.StatusNotFound)
+			})
+		})
+
+		Context("when creating platform", func() {
+			It("should call all interceptos", func() {
+				platform1 := ctx.RegisterPlatform()
+				platform2 := ctx.RegisterPlatform()
+
+				createModificationInterceptors[types.PlatformType].OnTxCreateStub = func(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
+					return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) error {
+						By("calling storage update, should call update interceptor")
+						_, err := txStorage.Update(ctx, platform1)
+						if err != nil {
+							return err
+						}
+						return f(ctx, txStorage, newObject)
+					}
+				}
+
+				updateModificationInterceptors[types.PlatformType].OnTxUpdateStub = func(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
+					return func(ctx context.Context, txStorage storage.Repository, obj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
+						deleteCriteria := query.ByField(query.EqualsOperator, "id", platform2.ID)
+						By("calling storage delete, should call delete interceptor")
+						_, err := txStorage.Delete(ctx, types.PlatformType, deleteCriteria)
+						if err != nil {
+							return nil, err
+						}
+						return f(ctx, txStorage, obj, labelChanges...)
+					}
+				}
+
+				deleteModificationInterceptors[types.PlatformType].OnTxDeleteStub = func(f storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
+					return func(ctx context.Context, txStorage storage.Repository, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
+						Expect(deletionCriteria).To(HaveLen(1))
+						Expect(deletionCriteria[0].LeftOp).To(Equal("id"))
+						Expect(deletionCriteria[0].RightOp[0]).To(Equal(platform2.ID))
+						return f(ctx, txStorage, deletionCriteria...)
+					}
+				}
+
+				txDeleteCallCount := deleteModificationInterceptors[types.PlatformType].OnTxDeleteCallCount()
+				ctx.RegisterPlatform()
+				Expect(deleteModificationInterceptors[types.PlatformType].OnTxDeleteCallCount()).To(Equal(txDeleteCallCount + 1))
+
+				deleteModificationInterceptors[types.PlatformType].OnTxDeleteStub = func(f storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
+					return func(ctx context.Context, txStorage storage.Repository, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
+						Expect(deletionCriteria).To(HaveLen(1))
+						Expect(deletionCriteria[0].LeftOp).To(Equal("id"))
+						Expect(deletionCriteria[0].RightOp[0]).To(Equal(platform1.ID))
+						return f(ctx, txStorage, deletionCriteria...)
+					}
+				}
+
+				By("deleting first platform, should call delete interceptor only")
+				ctx.SMWithOAuth.DELETE(fmt.Sprintf("%s/%s", web.PlatformsURL, platform1.ID)).Expect()
+				Expect(deleteModificationInterceptors[types.PlatformType].OnTxDeleteCallCount()).To(Equal(txDeleteCallCount + 2))
+
+				By("should be left with the created platform and the test one only")
+				ctx.SMWithOAuth.GET(web.PlatformsURL).
+					Expect().JSON().Object().
+					Value("platforms").Array().
+					Length().Equal(2)
+			})
+		})
 	})
 
 	Describe("Positioning", func() {
