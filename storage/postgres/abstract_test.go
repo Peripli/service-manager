@@ -32,7 +32,6 @@ import (
 )
 
 var _ = Describe("Postgres Storage Abstract", func() {
-
 	var ctx context.Context
 	var baseTable string
 	var labelTableName string

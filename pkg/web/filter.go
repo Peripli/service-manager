@@ -17,7 +17,6 @@
 package web
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -192,25 +191,4 @@ func (fs Filters) Matching(endpoint Endpoint) Filters {
 	}
 	log.D().Debugf("Filters for %s %s:%v", endpoint.Method, endpoint.Path, matchedNames)
 	return matchedFilters
-}
-
-// EmptyResponseBody represents an empty response body value
-type EmptyResponseBody struct{}
-
-// NewJSONResponse turns plain object into a byte array representing JSON value and wraps it in web.Response
-func NewJSONResponse(code int, value interface{}) (*Response, error) {
-	headers := http.Header{}
-	headers.Add("Content-Type", "application/json")
-
-	body := make([]byte, 0)
-	var err error
-	if _, ok := value.(EmptyResponseBody); !ok {
-		body, err = json.Marshal(value)
-	}
-
-	return &Response{
-		StatusCode: code,
-		Header:     headers,
-		Body:       body,
-	}, err
 }

@@ -110,6 +110,7 @@ func (ico InterceptCreateOnTxFunc) InterceptCreateOnTx(ctx context.Context, txSt
 //go:generate counterfeiter . CreateInterceptor
 type CreateInterceptor interface {
 	Named
+
 	AroundTxCreate(h InterceptCreateAroundTxFunc) InterceptCreateAroundTxFunc
 	OnTxCreate(f InterceptCreateOnTxFunc) InterceptCreateOnTxFunc
 }

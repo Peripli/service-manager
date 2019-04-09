@@ -129,7 +129,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 	result.SetID(id)
-	return web.NewJSONResponse(http.StatusCreated, result)
+	return util.NewJSONResponse(http.StatusCreated, result)
 }
 
 // DeleteObjects handles the deletion of the objects specified in the request
@@ -142,7 +142,7 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	return web.NewJSONResponse(http.StatusOK, map[string]string{})
+	return util.NewJSONResponse(http.StatusOK, map[string]string{})
 }
 
 // DeleteSingleObject handles the deletion of the object with the id specified in the request
@@ -171,7 +171,7 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
 	stripCredentials(ctx, object)
-	return web.NewJSONResponse(http.StatusOK, object)
+	return util.NewJSONResponse(http.StatusOK, object)
 }
 
 // ListObjects handles the fetching of all objects
@@ -186,7 +186,7 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 		obj := objectList.ItemAt(i)
 		stripCredentials(ctx, obj)
 	}
-	return web.NewJSONResponse(http.StatusOK, objectList)
+	return util.NewJSONResponse(http.StatusOK, objectList)
 }
 
 // PatchObject handles the update of the object with the id specified in the request
@@ -219,7 +219,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 	stripCredentials(ctx, object)
-	return web.NewJSONResponse(http.StatusOK, object)
+	return util.NewJSONResponse(http.StatusOK, object)
 }
 
 func stripCredentials(ctx context.Context, object types.Object) {
