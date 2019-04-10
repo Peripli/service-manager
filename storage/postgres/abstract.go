@@ -19,6 +19,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -26,6 +27,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/jmoiron/sqlx"
+	sqlxtypes "github.com/jmoiron/sqlx/types"
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -54,6 +56,7 @@ type getterContext interface {
 }
 
 //go:generate counterfeiter . pgDB
+// pgDB represents a PG database API
 type pgDB interface {
 	prepareNamedContext
 	namedExecerContext
@@ -64,11 +67,11 @@ type pgDB interface {
 }
 
 func create(ctx context.Context, db pgDB, table string, dto interface{}) (string, error) {
-	var lastInsertId string
+	var lastInsertID string
 	set := getDBTags(dto)
 
 	if len(set) == 0 {
-		return lastInsertId, fmt.Errorf("%s insert: No fields to insert", table)
+		return lastInsertID, fmt.Errorf("%s insert: No fields to insert", table)
 	}
 
 	sqlQuery := fmt.Sprintf(
@@ -86,32 +89,25 @@ func create(ctx context.Context, db pgDB, table string, dto interface{}) (string
 		if err != nil {
 			return "", err
 		}
-		err = stmt.GetContext(ctx, &lastInsertId, dto)
-		return lastInsertId, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
+		err = stmt.GetContext(ctx, &lastInsertID, dto)
+		return lastInsertID, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
 	}
 	log.C(ctx).Debugf("Executing query %s", sqlQuery)
 	_, err := db.NamedExecContext(ctx, sqlQuery, dto)
-	return lastInsertId, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
+	return lastInsertID, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
 }
 
-func get(ctx context.Context, db getterContext, id string, table string, dto interface{}) error {
-	sqlQuery := "SELECT * FROM " + table + " WHERE id=$1"
-	log.C(ctx).Debugf("Executing query %s", sqlQuery)
-	err := db.GetContext(ctx, dto, sqlQuery, &id)
-	return checkSQLNoRows(err)
-}
-
-func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface{}, labelsEntity Labelable, baseTableName string, criteria []query.Criterion) (*sqlx.Rows, error) {
+func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface{}, label PostgresLabel, baseTableName string, criteria []query.Criterion) (*sqlx.Rows, error) {
 	if err := validateFieldQueryParams(baseEntity, criteria); err != nil {
 		return nil, err
 	}
 	var baseQuery string
-	if labelsEntity == nil {
+	if label == nil {
 		baseQuery = constructBaseQueryForEntity(baseTableName)
 	} else {
-		baseQuery = constructBaseQueryForLabelable(labelsEntity, baseTableName)
+		baseQuery = constructBaseQueryForLabelable(label, baseTableName)
 	}
-	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, baseTableName, labelsEntity, criteria)
+	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, baseTableName, label, criteria)
 	if err != nil {
 		return nil, err
 	}
@@ -119,41 +115,37 @@ func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface
 	return db.QueryxContext(ctx, sqlQuery, queryParams...)
 }
 
-func listByFieldCriteria(ctx context.Context, db pgDB, table string, entity interface{}, criteria []query.Criterion) error {
+func listByFieldCriteria(ctx context.Context, db pgDB, table string, criteria []query.Criterion) (*sqlx.Rows, error) {
 	baseQuery := fmt.Sprintf(`SELECT * FROM %s`, table)
 	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, table, nil, criteria)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return db.SelectContext(ctx, entity, sqlQuery, queryParams...)
+	return db.QueryxContext(ctx, sqlQuery, queryParams...)
 }
 
-func deleteAllByFieldCriteria(ctx context.Context, extContext sqlx.ExtContext, table string, dto interface{}, criteria []query.Criterion) error {
+func deleteAllByFieldCriteria(ctx context.Context, extContext sqlx.ExtContext, table string, dto interface{}, criteria []query.Criterion) (*sqlx.Rows, error) {
 	for _, criterion := range criteria {
 		if criterion.Type != query.FieldQuery {
-			return &util.UnsupportedQueryError{Message: "conditional delete is only supported for field queries"}
+			return nil, &util.UnsupportedQueryError{Message: "conditional delete is only supported for field queries"}
 		}
 	}
 	if err := validateFieldQueryParams(dto, criteria); err != nil {
-		return err
+		return nil, err
 	}
 	baseQuery := fmt.Sprintf("DELETE FROM %s", table)
 	sqlQuery, queryParams, err := buildQueryWithParams(extContext, baseQuery, table, nil, criteria)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	result, err := extContext.ExecContext(ctx, sqlQuery, queryParams...)
-	if err != nil {
-		return err
-	}
-	return checkRowsAffected(ctx, result)
+	sqlQuery = sqlQuery[:len(sqlQuery)-1] + " RETURNING *;"
+	return extContext.QueryxContext(ctx, sqlQuery, queryParams...)
 }
 
 func validateFieldQueryParams(baseEntity interface{}, criteria []query.Criterion) error {
 	availableColumns := make(map[string]bool)
-	baseEntityStruct := structs.New(baseEntity)
-	for _, field := range baseEntityStruct.Fields() {
-		dbTag := field.Tag("db")
+	tags := getDBTags(baseEntity)
+	for _, dbTag := range tags {
 		availableColumns[dbTag] = true
 	}
 	for _, criterion := range criteria {
@@ -168,15 +160,15 @@ func constructBaseQueryForEntity(tableName string) string {
 	return fmt.Sprintf("SELECT * FROM %s", tableName)
 }
 
-func constructBaseQueryForLabelable(labelsEntity Labelable, baseTableName string) string {
-	labelStruct := structs.New(labelsEntity)
+func constructBaseQueryForLabelable(labelsEntity PostgresLabel, baseTableName string) string {
 	baseQuery := `SELECT %[1]s.*,`
-	for _, field := range labelStruct.Fields() {
-		dbTag := field.Tag("db")
+	for _, dbTag := range getDBTags(labelsEntity) {
 		baseQuery += " %[2]s." + dbTag + " " + "\"%[2]s." + dbTag + "\"" + ","
 	}
 	baseQuery = baseQuery[:len(baseQuery)-1] //remove last comma
-	labelsTableName, referenceKeyColumn, primaryKeyColumn := labelsEntity.Label()
+	labelsTableName := labelsEntity.LabelsTableName()
+	referenceKeyColumn := labelsEntity.ReferenceColumn()
+	primaryKeyColumn := labelsEntity.LabelsPrimaryColumn()
 	baseQuery += " FROM %[1]s LEFT JOIN %[2]s ON %[1]s." + primaryKeyColumn + " = %[2]s." + referenceKeyColumn
 	return fmt.Sprintf(baseQuery, baseTableName, labelsTableName)
 }
@@ -199,21 +191,30 @@ func getDBTags(structure interface{}) []string {
 	s := structs.New(structure)
 	fields := s.Fields()
 	set := make([]string, 0, len(fields))
-
-	for _, field := range fields {
-		if field.IsEmbedded() || (field.Kind() == reflect.Ptr && field.IsZero()) {
-			continue
-		}
-		dbTag := field.Tag("db")
-		if dbTag == "-" {
-			continue
-		}
-		if dbTag == "" {
-			dbTag = strings.ToLower(field.Name())
-		}
-		set = append(set, dbTag)
-	}
+	getTags(fields, &set)
 	return set
+}
+
+func getTags(fields []*structs.Field, set *[]string) {
+	for _, field := range fields {
+		if field.Kind() == reflect.Ptr && field.IsZero() {
+			continue
+		}
+		if field.IsEmbedded() {
+			embedded := make([]string, 0)
+			getTags(field.Fields(), &embedded)
+			*set = append(*set, embedded...)
+		} else {
+			dbTag := field.Tag("db")
+			if dbTag == "-" {
+				continue
+			}
+			if dbTag == "" {
+				dbTag = strings.ToLower(field.Name())
+			}
+			*set = append(*set, dbTag)
+		}
+	}
 }
 
 func updateQuery(tableName string, structure interface{}) string {
@@ -274,4 +275,21 @@ func checkSQLNoRows(err error) error {
 
 func toNullString(s string) sql.NullString {
 	return sql.NullString{String: s, Valid: s != ""}
+}
+
+func getJSONText(item json.RawMessage) sqlxtypes.JSONText {
+	if len(item) == len("null") && string(item) == "null" {
+		return sqlxtypes.JSONText("{}")
+	}
+	return sqlxtypes.JSONText(item)
+}
+
+func getJSONRawMessage(item sqlxtypes.JSONText) json.RawMessage {
+	if len(item) <= len("null") {
+		itemStr := string(item)
+		if itemStr == "{}" || itemStr == "null" {
+			return nil
+		}
+	}
+	return json.RawMessage(item)
 }

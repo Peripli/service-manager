@@ -99,6 +99,10 @@ func HandleStorageError(err error, entityName string) error {
 	if err == nil {
 		return nil
 	}
+	if _, ok := err.(*HTTPError); ok {
+		return err
+	}
+
 	if entityName == "" {
 		entityName = "entity"
 	}

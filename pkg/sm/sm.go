@@ -24,6 +24,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage/interceptors"
+	osbc "github.com/pmorie/go-open-service-broker-client/v2"
+
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/api/healthcheck"
 	"github.com/Peripli/service-manager/config"
@@ -46,7 +50,7 @@ import (
 type ServiceManagerBuilder struct {
 	*web.API
 
-	Storage storage.Storage
+	Storage *storage.InterceptableTransactionalRepository
 	ctx     context.Context
 	cfg     *server.Settings
 }
@@ -76,8 +80,17 @@ func DefaultEnv(additionalPFlags ...func(set *pflag.FlagSet)) env.Environment {
 	return environment
 }
 
+func registerDefaultStorage() {
+	if !storage.HasStorage(postgres.Storage) {
+		log.D().Infof("Registering default storage %s", postgres.Storage)
+		storage.Register(postgres.Storage, &postgres.PostgresStorage{})
+	}
+}
+
 // New returns service-manager Server with default setup. The function panics on bad configuration
 func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *ServiceManagerBuilder {
+	registerDefaultStorage()
+
 	// setup config from env
 	cfg, err := config.New(env)
 	if err != nil {
@@ -113,19 +126,31 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 
 	// setup core api
 	log.C(ctx).Info("Setting up Service Manager core API...")
-	API, err := api.New(ctx, smStorage, cfg.API, encrypter)
+	interceptableRepository := storage.NewInterceptableTransactionalRepository(smStorage, encrypter)
+
+	API, err := api.New(ctx, interceptableRepository, cfg.API, encrypter)
 	if err != nil {
 		panic(fmt.Sprintf("error creating core api: %s", err))
 	}
 
 	API.AddHealthIndicator(&storage.HealthIndicator{Pinger: storage.PingFunc(smStorage.Ping)})
 
-	return &ServiceManagerBuilder{
+	smb := &ServiceManagerBuilder{
 		ctx:     ctx,
 		cfg:     cfg.Server,
 		API:     API,
-		Storage: smStorage,
+		Storage: interceptableRepository,
 	}
+
+	smb.WithCreateInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerCreateInterceptorProvider{
+		OsbClientCreateFunc: newOSBClient(cfg.API.SkipSSLValidation),
+	}).Register().
+		WithUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerUpdateInterceptorProvider{
+			OsbClientCreateFunc: newOSBClient(cfg.API.SkipSSLValidation),
+		}).Register().
+		WithCreateInterceptorProvider(types.PlatformType, &interceptors.PlatformCreateInterceptorProvider{}).Register()
+
+	return smb
 }
 
 // Build builds the Service Manager
@@ -179,4 +204,71 @@ func initializeSecureStorage(ctx context.Context, secureStorage storage.Security
 		logger.Info("Successfully generated new encryption key")
 	}
 	return secureStorage.Unlock(ctx)
+}
+
+func newOSBClient(skipSsl bool) osbc.CreateFunc {
+	return func(configuration *osbc.ClientConfiguration) (osbc.Client, error) {
+		configuration.Insecure = skipSsl
+		return osbc.NewClient(configuration)
+	}
+}
+
+func (smb *ServiceManagerBuilder) WithCreateInterceptorProvider(objectType types.ObjectType, provider storage.CreateInterceptorProvider) *interceptorRegistrationBuilder {
+	return &interceptorRegistrationBuilder{
+		order: storage.InterceptorOrder{
+			OnTxPosition: storage.InterceptorPosition{
+				PositionType: storage.PositionNone,
+			},
+			AroundTxPosition: storage.InterceptorPosition{
+				PositionType: storage.PositionNone,
+			},
+		},
+		registrationFunc: func(order storage.InterceptorOrder) *ServiceManagerBuilder {
+			smb.Storage.AddCreateInterceptorProvider(objectType, storage.OrderedCreateInterceptorProvider{
+				CreateInterceptorProvider: provider,
+				InterceptorOrder:          order,
+			})
+			return smb
+		},
+	}
+}
+
+func (smb *ServiceManagerBuilder) WithUpdateInterceptorProvider(objectType types.ObjectType, provider storage.UpdateInterceptorProvider) *interceptorRegistrationBuilder {
+	return &interceptorRegistrationBuilder{
+		order: storage.InterceptorOrder{
+			OnTxPosition: storage.InterceptorPosition{
+				PositionType: storage.PositionNone,
+			},
+			AroundTxPosition: storage.InterceptorPosition{
+				PositionType: storage.PositionNone,
+			},
+		},
+		registrationFunc: func(order storage.InterceptorOrder) *ServiceManagerBuilder {
+			smb.Storage.AddUpdateInterceptorProvider(objectType, storage.OrderedUpdateInterceptorProvider{
+				UpdateInterceptorProvider: provider,
+				InterceptorOrder:          order,
+			})
+			return smb
+		},
+	}
+}
+
+func (smb *ServiceManagerBuilder) WithDeleteInterceptorProvider(objectType types.ObjectType, provider storage.DeleteInterceptorProvider) *interceptorRegistrationBuilder {
+	return &interceptorRegistrationBuilder{
+		order: storage.InterceptorOrder{
+			OnTxPosition: storage.InterceptorPosition{
+				PositionType: storage.PositionNone,
+			},
+			AroundTxPosition: storage.InterceptorPosition{
+				PositionType: storage.PositionNone,
+			},
+		},
+		registrationFunc: func(order storage.InterceptorOrder) *ServiceManagerBuilder {
+			smb.Storage.AddDeleteInterceptorProvider(objectType, storage.OrderedDeleteInterceptorProvider{
+				DeleteInterceptorProvider: provider,
+				InterceptorOrder:          order,
+			})
+			return smb
+		},
+	}
 }

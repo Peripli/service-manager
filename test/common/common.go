@@ -39,7 +39,6 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/gavv/httpexpect"
-	"github.com/mitchellh/mapstructure"
 	. "github.com/onsi/ginkgo"
 )
 
@@ -201,12 +200,7 @@ func RemoveAllVisibilities(SM *httpexpect.Expect) {
 
 func removeAll(SM *httpexpect.Expect, entity, rootURLPath string) {
 	By("removing all " + entity)
-	resp := SM.GET(rootURLPath).
-		Expect().JSON().Object()
-	for _, val := range resp.Value(entity).Array().Iter() {
-		id := val.Object().Value("id").String().Raw()
-		SM.DELETE(rootURLPath + "/" + id).Expect()
-	}
+	SM.DELETE(rootURLPath).Expect()
 }
 
 func RegisterBrokerInSM(brokerJSON Object, SM *httpexpect.Expect) string {
@@ -220,8 +214,20 @@ func RegisterPlatformInSM(platformJSON Object, SM *httpexpect.Expect) *types.Pla
 	reply := SM.POST("/v1/platforms").
 		WithJSON(platformJSON).
 		Expect().Status(http.StatusCreated).JSON().Object().Raw()
-	platform := &types.Platform{}
-	mapstructure.Decode(reply, platform)
+	platform := &types.Platform{
+		Base: types.Base{
+			ID: reply["id"].(string),
+		},
+		Credentials: &types.Credentials{
+			Basic: &types.Basic{
+				Username: reply["credentials"].(map[string]interface{})["basic"].(map[string]interface{})["username"].(string),
+				Password: reply["credentials"].(map[string]interface{})["basic"].(map[string]interface{})["password"].(string),
+			},
+		},
+		Type:        reply["type"].(string),
+		Description: reply["description"].(string),
+		Name:        reply["name"].(string),
+	}
 	return platform
 }
 
@@ -258,10 +264,10 @@ type jwkResponse struct {
 func newJwkResponse(keyID string, publicKey rsa.PublicKey) *jwkResponse {
 	modulus := base64.RawURLEncoding.EncodeToString(publicKey.N.Bytes())
 
-	bytes := make([]byte, 4)
-	binary.LittleEndian.PutUint32(bytes, uint32(publicKey.E))
-	bytes = bytes[:3]
-	exponent := base64.RawURLEncoding.EncodeToString(bytes)
+	data := make([]byte, 4)
+	binary.LittleEndian.PutUint32(data, uint32(publicKey.E))
+	data = data[:3]
+	exponent := base64.RawURLEncoding.EncodeToString(data)
 
 	return &jwkResponse{
 		KeyType:           "RSA",
@@ -323,10 +329,14 @@ func GenerateRandomBroker() Object {
 }
 
 func Print(message string, args ...interface{}) {
+	var err error
 	if len(args) == 0 {
-		fmt.Fprint(ginkgo.GinkgoWriter, "\n"+message+"\n")
+		_, err = fmt.Fprint(ginkgo.GinkgoWriter, "\n"+message+"\n")
 	} else {
-		fmt.Fprintf(ginkgo.GinkgoWriter, "\n"+message+"\n", args)
+		_, err = fmt.Fprintf(ginkgo.GinkgoWriter, "\n"+message+"\n", args)
+	}
+	if err != nil {
+		panic(err)
 	}
 }
 

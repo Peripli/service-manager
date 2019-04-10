@@ -19,13 +19,12 @@ package query
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/Peripli/service-manager/pkg/util"
-
-	"github.com/Peripli/service-manager/pkg/web"
 )
 
 // Operator is a query operator
@@ -69,7 +68,7 @@ var operators = []Operator{EqualsOperator, NotEqualsOperator, InOperator,
 const (
 	// OpenBracket is the token that denotes the beginning of a multivariate operand
 	OpenBracket rune = '['
-	// OpenBracket is the token that denotes the end of a multivariate operand
+	// CloseBracket is the token that denotes the end of a multivariate operand
 	CloseBracket rune = ']'
 	// Separator is the separator between field and label queries
 	Separator rune = '|'
@@ -115,6 +114,7 @@ func newCriterion(leftOp string, operator Operator, rightOp []string, criteriaTy
 	return Criterion{LeftOp: leftOp, Operator: operator, RightOp: rightOp, Type: criteriaType}
 }
 
+// Validate the criterion fields
 func (c Criterion) Validate() error {
 	if len(c.RightOp) > 1 && !c.Operator.IsMultiVariate() {
 		return fmt.Errorf("multiple values %s received for single value operation %s", c.RightOp, c.Operator)
@@ -199,7 +199,7 @@ func ContextWithCriteria(ctx context.Context, criteria []Criterion) context.Cont
 }
 
 // BuildCriteriaFromRequest builds criteria for the given request's query params and returns an error if the query is not valid
-func BuildCriteriaFromRequest(request *web.Request) ([]Criterion, error) {
+func BuildCriteriaFromRequest(request *http.Request) ([]Criterion, error) {
 	var criteria []Criterion
 	for _, queryType := range supportedQueryTypes {
 		queryValues := request.URL.Query().Get(string(queryType))

@@ -70,11 +70,17 @@ type TestContext struct {
 }
 
 type testSMServer struct {
+	cancel context.CancelFunc
 	*httptest.Server
 }
 
 func (ts *testSMServer) URL() string {
 	return ts.Server.URL
+}
+
+func (ts *testSMServer) Close() {
+	ts.Server.Close()
+	ts.cancel()
 }
 
 // DefaultTestContext sets up a test context with default values
@@ -114,7 +120,10 @@ func NewTestContextBuilder() *TestContextBuilder {
 func SetTestFileLocation(set *pflag.FlagSet) {
 	_, b, _, _ := runtime.Caller(0)
 	basePath := path.Dir(b)
-	set.Set("file.location", basePath)
+	err := set.Set("file.location", basePath)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func TestEnv(additionalFlagFuncs ...func(set *pflag.FlagSet)) env.Environment {
@@ -247,6 +256,7 @@ func newSMServer(smEnv env.Environment, fs []func(ctx context.Context, smb *sm.S
 	}
 	serviceManager := smb.Build()
 	return &testSMServer{
+		cancel: cancel,
 		Server: httptest.NewServer(serviceManager.Server.Router),
 	}
 }
@@ -338,17 +348,30 @@ func (ctx *TestContext) Cleanup() {
 	if ctx == nil {
 		return
 	}
-	RemoveAllBrokers(ctx.SMWithOAuth)
-	RemoveAllPlatforms(ctx.SMWithOAuth)
-
+	ctx.CleanupAdditionalResources()
 	for _, server := range ctx.Servers {
 		server.Close()
 	}
+	ctx.Servers = map[string]FakeServer{}
 }
 
 func (ctx *TestContext) CleanupAdditionalResources() {
-	ctx.SMWithOAuth.DELETE("/v1/service_brokers").
-		Expect()
-	ctx.SMWithOAuth.DELETE("/v1/platforms").WithQuery("fieldQuery", "id != "+ctx.TestPlatform.ID).
-		Expect()
+	if ctx == nil {
+		return
+	}
+	ctx.SMWithOAuth.DELETE("/v1/service_brokers").Expect()
+	if ctx.TestPlatform != nil {
+		ctx.SMWithOAuth.DELETE("/v1/platforms").WithQuery("fieldQuery", "id != "+ctx.TestPlatform.ID).Expect()
+	} else {
+		ctx.SMWithOAuth.DELETE("/v1/platforms").Expect()
+	}
+	var smServer FakeServer
+	for serverName, server := range ctx.Servers {
+		if serverName == SMServer {
+			smServer = server
+		} else {
+			server.Close()
+		}
+	}
+	ctx.Servers = map[string]FakeServer{SMServer: smServer}
 }

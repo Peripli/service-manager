@@ -32,7 +32,6 @@ import (
 )
 
 var _ = Describe("Postgres Storage Abstract", func() {
-
 	var ctx context.Context
 	var baseTable string
 	var labelTableName string
@@ -64,7 +63,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 		executedQuery = ""
 		baseTable = "table_name"
 		labelEntity := &VisibilityLabel{}
-		labelTableName, _, _ = labelEntity.Label()
+		labelTableName = labelEntity.LabelsTableName()
 		queryArgs = []interface{}{}
 	})
 
@@ -166,7 +165,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 				labelKey := "label_key"
 				labelValue := "labelValue"
 				labelEntity := &VisibilityLabel{}
-				_, referenceColumnName, primaryColumnName := labelEntity.Label()
+				referenceColumnName, primaryColumnName := labelEntity.ReferenceColumn(), labelEntity.LabelsPrimaryColumn()
 				expectedQuery := fmt.Sprintf(`SELECT %[1]s.*, %[2]s.id "%[2]s.id", %[2]s.key "%[2]s.key", %[2]s.val "%[2]s.val", %[2]s.created_at "%[2]s.created_at", %[2]s.updated_at "%[2]s.updated_at", %[2]s.%[4]s "%[2]s.%[4]s" FROM table_name JOIN (SELECT * FROM %[2]s WHERE %[4]s IN (SELECT %[4]s FROM %[2]s WHERE (%[2]s.key = ? AND %[2]s.val = ?))) %[2]s ON %[1]s.%[5]s = %[2]s.%[4]s WHERE %[1]s.%[3]s::text = ?;`, baseTable, labelTableName, fieldName, referenceColumnName, primaryColumnName)
 				criteria := []query.Criterion{
 					query.ByField(query.EqualsOperator, fieldName, queryValue),
@@ -184,7 +183,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 	Describe("List by field criteria", func() {
 		Context("When passing no criteria", func() {
 			It("Should construct base SQL query", func() {
-				err := listByFieldCriteria(ctx, db, baseTable, Visibility{}, nil)
+				_, err := listByFieldCriteria(ctx, db, baseTable, nil)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).To(Equal(fmt.Sprintf("SELECT * FROM %s;", baseTable)))
 			})
@@ -199,7 +198,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 					query.ByField(query.EqualsOperator, fieldName, queryValue),
 				}
 
-				err := listByFieldCriteria(ctx, db, baseTable, Visibility{}, criteria)
+				_, err := listByFieldCriteria(ctx, db, baseTable, criteria)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).To(Equal(expectedQuery))
 				Expect(queryArgs).To(ConsistOf(queryValue))
@@ -212,15 +211,15 @@ var _ = Describe("Postgres Storage Abstract", func() {
 		Context("When deleting by label", func() {
 			It("Should return an error", func() {
 				criteria := []query.Criterion{query.ByLabel(query.EqualsOperator, "left", "right")}
-				err := deleteAllByFieldCriteria(ctx, db, baseTable, Visibility{}, criteria)
+				_, err := deleteAllByFieldCriteria(ctx, db, baseTable, Visibility{}, criteria)
 				Expect(err).To(HaveOccurred())
 			})
 		})
 
 		Context("When no criteria is passed", func() {
 			It("Should construct query to delete all entries", func() {
-				expectedQuery := fmt.Sprintf("DELETE FROM %s;", baseTable)
-				err := deleteAllByFieldCriteria(ctx, db, baseTable, Visibility{}, nil)
+				expectedQuery := fmt.Sprintf("DELETE FROM %s RETURNING *;", baseTable)
+				_, err := deleteAllByFieldCriteria(ctx, db, baseTable, Visibility{}, nil)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).To(Equal(expectedQuery))
 			})
@@ -229,7 +228,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 		Context("When criteria uses missing field", func() {
 			It("Should return error", func() {
 				criteria := []query.Criterion{query.ByField(query.EqualsOperator, "non-existing-field", "value")}
-				err := deleteAllByFieldCriteria(ctx, db, baseTable, Visibility{}, criteria)
+				_, err := deleteAllByFieldCriteria(ctx, db, baseTable, Visibility{}, criteria)
 				Expect(err).To(HaveOccurred())
 			})
 		})

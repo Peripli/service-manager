@@ -8,10 +8,10 @@ import (
 )
 
 type FakeData struct {
-	DataStub        func(v interface{}) error
+	DataStub        func(interface{}) error
 	dataMutex       sync.RWMutex
 	dataArgsForCall []struct {
-		v interface{}
+		arg1 interface{}
 	}
 	dataReturns struct {
 		result1 error
@@ -23,21 +23,22 @@ type FakeData struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeData) Data(v interface{}) error {
+func (fake *FakeData) Data(arg1 interface{}) error {
 	fake.dataMutex.Lock()
 	ret, specificReturn := fake.dataReturnsOnCall[len(fake.dataArgsForCall)]
 	fake.dataArgsForCall = append(fake.dataArgsForCall, struct {
-		v interface{}
-	}{v})
-	fake.recordInvocation("Data", []interface{}{v})
+		arg1 interface{}
+	}{arg1})
+	fake.recordInvocation("Data", []interface{}{arg1})
 	fake.dataMutex.Unlock()
 	if fake.DataStub != nil {
-		return fake.DataStub(v)
+		return fake.DataStub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.dataReturns.result1
+	fakeReturns := fake.dataReturns
+	return fakeReturns.result1
 }
 
 func (fake *FakeData) DataCallCount() int {
@@ -46,13 +47,22 @@ func (fake *FakeData) DataCallCount() int {
 	return len(fake.dataArgsForCall)
 }
 
+func (fake *FakeData) DataCalls(stub func(interface{}) error) {
+	fake.dataMutex.Lock()
+	defer fake.dataMutex.Unlock()
+	fake.DataStub = stub
+}
+
 func (fake *FakeData) DataArgsForCall(i int) interface{} {
 	fake.dataMutex.RLock()
 	defer fake.dataMutex.RUnlock()
-	return fake.dataArgsForCall[i].v
+	argsForCall := fake.dataArgsForCall[i]
+	return argsForCall.arg1
 }
 
 func (fake *FakeData) DataReturns(result1 error) {
+	fake.dataMutex.Lock()
+	defer fake.dataMutex.Unlock()
 	fake.DataStub = nil
 	fake.dataReturns = struct {
 		result1 error
@@ -60,6 +70,8 @@ func (fake *FakeData) DataReturns(result1 error) {
 }
 
 func (fake *FakeData) DataReturnsOnCall(i int, result1 error) {
+	fake.dataMutex.Lock()
+	defer fake.dataMutex.Unlock()
 	fake.DataStub = nil
 	if fake.dataReturnsOnCall == nil {
 		fake.dataReturnsOnCall = make(map[int]struct {

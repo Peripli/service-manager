@@ -17,58 +17,41 @@
 package types
 
 import (
-	"encoding/json"
-	"fmt"
-	"time"
-
 	"errors"
+	"fmt"
 
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
+//go:generate smgen api Platform
 // Platform platform struct
 type Platform struct {
-	ID          string       `json:"id"`
+	Base
+	Secured     `json:"-"`
 	Type        string       `json:"type"`
 	Name        string       `json:"name"`
 	Description string       `json:"description"`
-	CreatedAt   time.Time    `json:"created_at"`
-	UpdatedAt   time.Time    `json:"updated_at"`
 	Credentials *Credentials `json:"credentials,omitempty"`
 }
 
-// MarshalJSON override json serialization for http response
-func (p *Platform) MarshalJSON() ([]byte, error) {
-	type P Platform
-	toMarshal := struct {
-		CreatedAt *string `json:"created_at,omitempty"`
-		UpdatedAt *string `json:"updated_at,omitempty"`
-		*P
-	}{
-		P: (*P)(p),
-	}
+func (e *Platform) SetCredentials(credentials *Credentials) {
+	e.Credentials = credentials
+}
 
-	if !p.CreatedAt.IsZero() {
-		str := util.ToRFCFormat(p.CreatedAt)
-		toMarshal.CreatedAt = &str
-	}
-	if !p.UpdatedAt.IsZero() {
-		str := util.ToRFCFormat(p.UpdatedAt)
-		toMarshal.UpdatedAt = &str
-	}
-	return json.Marshal(toMarshal)
+func (e *Platform) GetCredentials() *Credentials {
+	return e.Credentials
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
-func (p *Platform) Validate() error {
-	if p.Type == "" {
+func (e *Platform) Validate() error {
+	if e.Type == "" {
 		return errors.New("missing platform type")
 	}
-	if p.Name == "" {
+	if e.Name == "" {
 		return errors.New("missing platform name")
 	}
-	if util.HasRFC3986ReservedSymbols(p.ID) {
-		return fmt.Errorf("%s contains invalid character(s)", p.ID)
+	if util.HasRFC3986ReservedSymbols(e.ID) {
+		return fmt.Errorf("%s contains invalid character(s)", e.ID)
 	}
 	return nil
 }

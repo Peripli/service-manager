@@ -44,17 +44,17 @@ GO_BUILD 		= env CGO_ENABLED=0 GOOS=$(PLATFORM) GOARCH=$(ARCH) \
            		$(GO) build $(GO_FLAGS) -ldflags '-s -w $(BUILD_LDFLAGS) $(VERSION_FLAGS)'
 
 # TEST_FLAGS - extra "go test" flags to use
-GO_INT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test" | paste -sd "," -) \
+GO_INT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd" | paste -sd "," -) \
 				./test/... $(TEST_FLAGS) -coverprofile=$(INT_TEST_PROFILE)
 
-GO_UNIT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test" | paste -sd "," -) \
+GO_UNIT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd" | paste -sd "," -) \
 				$(shell go list ./... | egrep -v "test") -coverprofile=$(UNIT_TEST_PROFILE)
 
 #-----------------------------------------------------------------------------
 # Prepare environment to be able to run other make targets
 #-----------------------------------------------------------------------------
 
-prepare: ## Installs some tools (dep, gometalinter, cover, goveralls)
+prepare: build-gen-binary ## Installs some tools (dep, gometalinter, cover, goveralls)
 ifeq ($(shell which dep),)
 	@echo "Installing dep..."
 	@go get -u github.com/golang/dep/cmd/dep
@@ -126,11 +126,14 @@ clean-vendor: ## Cleans up the vendor folder and prints out the Gopkg.lock
 	@rm -rf vendor
 	@echo > Gopkg.lock
 
+build-gen-binary:
+	@go install github.com/Peripli/service-manager/cmd/smgen
+
 #-----------------------------------------------------------------------------
 # Tests and coverage
 #-----------------------------------------------------------------------------
 
-generate: $(GENERATE_PREREQ_FILES) ## Recreates gen files if any of the files containing go:generate directives have changed
+generate: build-gen-binary $(GENERATE_PREREQ_FILES) ## Recreates gen files if any of the files containing go:generate directives have changed
 	$(GO) list ./... | xargs $(GO) generate
 	@touch $@
 

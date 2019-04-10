@@ -20,6 +20,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/Peripli/service-manager/storage"
+
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/storage/storagefakes"
 	"github.com/Peripli/service-manager/test/common"
@@ -34,7 +36,7 @@ func TestAPI(t *testing.T) {
 
 var _ = Describe("API", func() {
 	var (
-		mockedStorage *storagefakes.FakeStorage
+		mockedStorage *storage.InterceptableTransactionalRepository
 		server        *common.OAuthServer
 	)
 
@@ -47,7 +49,7 @@ var _ = Describe("API", func() {
 	})
 
 	BeforeEach(func() {
-		mockedStorage = &storagefakes.FakeStorage{}
+		mockedStorage = storage.NewInterceptableTransactionalRepository(&storagefakes.FakeStorage{}, nil)
 	})
 
 	Describe("New", func() {

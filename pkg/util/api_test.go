@@ -248,15 +248,6 @@ var _ = Describe("Utils test", func() {
 	})
 })
 
-func testJSONResponse(expectedCode int, providedBody, expectedMarshalledBody interface{}) {
-	response, err := util.NewJSONResponse(expectedCode, providedBody)
-
-	Expect(err).ShouldNot(HaveOccurred())
-	Expect(response.StatusCode).To(Equal(expectedCode))
-	Expect(response.Body).Should(Equal(expectedMarshalledBody))
-	Expect(response.Header.Get("Content-Type")).To(Equal("application/json"))
-}
-
 type testTypeValidated struct {
 	Field1 string `json:"field1"`
 	Field2 string `json:"field2"`
@@ -270,6 +261,15 @@ func (tt testTypeValidated) Validate() error {
 		return fmt.Errorf("empty field2")
 	}
 	return nil
+}
+
+func testJSONResponse(expectedCode int, providedBody, expectedMarshalledBody interface{}) {
+	response, err := util.NewJSONResponse(expectedCode, providedBody)
+
+	Expect(err).ShouldNot(HaveOccurred())
+	Expect(response.StatusCode).To(Equal(expectedCode))
+	Expect(response.Body).Should(Equal(expectedMarshalledBody))
+	Expect(response.Header.Get("Content-Type")).To(Equal("application/json"))
 }
 
 type testTypeNotValidated struct {

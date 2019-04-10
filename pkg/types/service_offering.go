@@ -20,23 +20,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
-// ServiceOfferings struct
-type ServiceOfferings struct {
-	ServiceOfferings []*ServiceOffering `json:"services"`
-}
-
+//go:generate smgen api ServiceOffering
 // Service Offering struct
 type ServiceOffering struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	Base
+	Name        string `json:"name"`
+	Description string `json:"description"`
 
 	Bindable             bool   `json:"bindable"`
 	InstancesRetrievable bool   `json:"instances_retrievable"`
@@ -53,43 +46,21 @@ type ServiceOffering struct {
 	Plans    []*ServicePlan `json:"plans"`
 }
 
-// MarshalJSON override json serialization for http response
-func (so *ServiceOffering) MarshalJSON() ([]byte, error) {
-	type SO ServiceOffering
-	toMarshal := struct {
-		CreatedAt *string `json:"created_at,omitempty"`
-		UpdatedAt *string `json:"updated_at,omitempty"`
-		*SO
-	}{
-		SO: (*SO)(so),
-	}
-
-	if !so.CreatedAt.IsZero() {
-		str := util.ToRFCFormat(so.CreatedAt)
-		toMarshal.CreatedAt = &str
-	}
-	if !so.UpdatedAt.IsZero() {
-		str := util.ToRFCFormat(so.UpdatedAt)
-		toMarshal.UpdatedAt = &str
-	}
-	return json.Marshal(toMarshal)
-}
-
 // Validate implements InputValidator and verifies all mandatory fields are populated
-func (so *ServiceOffering) Validate() error {
-	if util.HasRFC3986ReservedSymbols(so.ID) {
-		return fmt.Errorf("%s contains invalid character(s)", so.ID)
+func (e *ServiceOffering) Validate() error {
+	if util.HasRFC3986ReservedSymbols(e.ID) {
+		return fmt.Errorf("%s contains invalid character(s)", e.ID)
 	}
-	if so.Name == "" {
+	if e.Name == "" {
 		return errors.New("service offering catalog name missing")
 	}
-	if so.CatalogID == "" {
+	if e.CatalogID == "" {
 		return errors.New("service offering catalog id missing")
 	}
-	if so.CatalogName == "" {
+	if e.CatalogName == "" {
 		return errors.New("service offering catalog name missing")
 	}
-	if so.BrokerID == "" {
+	if e.BrokerID == "" {
 		return errors.New("service offering broker id missing")
 	}
 	return nil

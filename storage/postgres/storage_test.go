@@ -24,23 +24,7 @@ import (
 )
 
 var _ = Describe("Postgres Storage", func() {
-	pgStorage := &postgresStorage{}
-
-	Describe("Broker", func() {
-		Context("Called with uninitialized db", func() {
-			It("Should panic", func() {
-				Expect(func() { pgStorage.Broker() }).To(Panic())
-			})
-		})
-	})
-
-	Describe("Platform", func() {
-		Context("Called with uninitialized db", func() {
-			It("Should panic", func() {
-				Expect(func() { pgStorage.Platform() }).To(Panic())
-			})
-		})
-	})
+	pgStorage := &PostgresStorage{}
 
 	Describe("Credentials", func() {
 		Context("Called with uninitialized db", func() {

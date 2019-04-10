@@ -17,73 +17,30 @@
 package types
 
 import (
-	"encoding/json"
-	"fmt"
-	"time"
-
 	"errors"
+	"fmt"
 
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
-// Visibilities struct
-type Visibilities struct {
-	Visibilities []*Visibility `json:"visibilities"`
-}
-
+//go:generate smgen api Visibility
 // Visibility struct
 type Visibility struct {
-	ID            string    `json:"id"`
-	PlatformID    string    `json:"platform_id"`
-	ServicePlanID string    `json:"service_plan_id"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
-	Labels        Labels    `json:"labels,omitempty"`
+	Base
+	PlatformID    string `json:"platform_id"`
+	ServicePlanID string `json:"service_plan_id"`
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
-func (v *Visibility) Validate() error {
-	if v.ServicePlanID == "" {
+func (e *Visibility) Validate() error {
+	if e.ServicePlanID == "" {
 		return errors.New("missing visibility service plan id")
 	}
-	if util.HasRFC3986ReservedSymbols(v.ID) {
-		return fmt.Errorf("%s contains invalid character(s)", v.ID)
+	if util.HasRFC3986ReservedSymbols(e.ID) {
+		return fmt.Errorf("%s contains invalid character(s)", e.ID)
 	}
-	if err := v.Labels.Validate(); err != nil {
+	if err := e.Labels.Validate(); err != nil {
 		return err
 	}
 	return nil
-}
-
-// MarshalJSON override json serialization for http response
-func (v *Visibility) MarshalJSON() ([]byte, error) {
-	type V Visibility
-	toMarshal := struct {
-		*V
-		CreatedAt *string `json:"created_at,omitempty"`
-		UpdatedAt *string `json:"updated_at,omitempty"`
-	}{
-		V: (*V)(v),
-	}
-	if !v.CreatedAt.IsZero() {
-		str := util.ToRFCFormat(v.CreatedAt)
-		toMarshal.CreatedAt = &str
-	}
-	if !v.UpdatedAt.IsZero() {
-		str := util.ToRFCFormat(v.UpdatedAt)
-		toMarshal.UpdatedAt = &str
-	}
-
-	hasNoLabels := true
-	for key, values := range v.Labels {
-		if key != "" && len(values) != 0 {
-			hasNoLabels = false
-			break
-		}
-	}
-	if hasNoLabels {
-		toMarshal.Labels = nil
-	}
-
-	return json.Marshal(toMarshal)
 }
