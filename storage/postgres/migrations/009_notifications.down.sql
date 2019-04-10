@@ -5,6 +5,5 @@ DROP FUNCTION IF EXISTS notify_sm();
 DROP TABLE IF EXISTS notification_labels;
 DROP TABLE IF EXISTS notifications;
 DROP TYPE IF EXISTS notification_type;
-DROP TYPE IF EXISTS resource_type;
 
 COMMIT;

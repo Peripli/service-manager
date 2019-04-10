@@ -2,12 +2,10 @@ BEGIN;
 
 CREATE TYPE notification_type AS ENUM ('CREATED', 'DELETED', 'MODIFIED');
 
-CREATE TYPE resource_type AS ENUM ('/v1/service_broker', '/v1/visibility');
-
 CREATE TABLE notifications
 (
   id            varchar(100) PRIMARY KEY,
-  resource      resource_type NOT NULL,
+  resource      varchar(100) NOT NULL,
   type          notification_type NOT NULL,
   platform_id   varchar(100) REFERENCES platforms (id) ON DELETE CASCADE, -- value is platform_id from platforms table or null
   revision      bigserial    NOT NULL,
@@ -46,11 +44,8 @@ CREATE OR REPLACE FUNCTION notify_sm() RETURNS TRIGGER AS $$
   END;
 $$ LANGUAGE plpgsql;
 
--- **********************
-
 CREATE TRIGGER notifications_broadcast
   AFTER INSERT ON notifications
   FOR EACH ROW EXECUTE PROCEDURE notify_sm();
-
 
 COMMIT;

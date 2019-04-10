@@ -57,6 +57,7 @@ func (raf *requiredAuthnFilter) FilterMatchers() []web.FilterMatcher {
 					web.ServiceOfferingsURL+"/**",
 					web.ServicePlansURL+"/**",
 					web.VisibilitiesURL+"/**",
+					web.NotificationsURL+"/**",
 				),
 			},
 		},
