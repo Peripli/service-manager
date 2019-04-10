@@ -97,6 +97,7 @@ func (ps *PostgresStorage) Open(options *storage.Settings) error {
 		ps.scheme.introduce(&ServiceOffering{})
 		ps.scheme.introduce(&ServicePlan{})
 		ps.scheme.introduce(&Visibility{})
+		ps.scheme.introduce(&Notification{})
 	}
 	return err
 }
