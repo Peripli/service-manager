@@ -2,7 +2,7 @@
 
 The main extension points of the service manager are filters, plugins, controllers and interceptors. The
 interfaces that need to be implemented in order to provide an extension point can be found
-in the `pkg/web` and `pkg/extension` packages.
+in `pkg/web`, `storage/interceptors_create.go`, `storage/interceptors_update.go` and `storage/interceptors_update.go`.
 
 In addition, for your components you can provide your own health metrics by adding a simple health indicator.
 You can also configure how all the provided health metrics be displayed by registering your aggregation policy
@@ -33,8 +33,8 @@ func main() {
     serviceManager.RegisterFilters(&myfilter.MyFilter{})
     serviceManager.RegisterController(&mycontroller.MyController{})
     serviceManager.
-    	RegisterCreateInterceptorProvider(types.PlatformType, &myinterceptor.MyInterceptorProvider{}).
-    	Apply()
+    	WithCreateInterceptorProvider(types.PlatformType, &myinterceptor.MyInterceptorProvider{}).
+    	Register()
 
     sm := serviceManager.Build()
     sm.Run()
