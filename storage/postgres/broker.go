@@ -28,14 +28,19 @@ import (
 //go:generate smgen storage broker github.com/Peripli/service-manager/pkg/types:ServiceBroker
 type Broker struct {
 	BaseEntity
-	Name        string         `db:"name"`
-	Description sql.NullString `db:"description"`
-	BrokerURL   string         `db:"broker_url"`
-	Username    string         `db:"username"`
-	Password    string         `db:"password"`
+	Name        string             `db:"name"`
+	Description sql.NullString     `db:"description"`
+	BrokerURL   string             `db:"broker_url"`
+	Username    string             `db:"username"`
+	Password    string             `db:"password"`
+	Services    []*ServiceOffering `db:"-"`
 }
 
 func (e *Broker) ToObject() types.Object {
+	var services []*types.ServiceOffering
+	for _, service := range e.Services {
+		services = append(services, service.ToObject().(*types.ServiceOffering))
+	}
 	broker := &types.ServiceBroker{
 		Base: types.Base{
 			ID:        e.ID,
@@ -52,6 +57,7 @@ func (e *Broker) ToObject() types.Object {
 				Password: e.Password,
 			},
 		},
+		Services: services,
 	}
 	return broker
 }
@@ -60,6 +66,13 @@ func (*Broker) FromObject(object types.Object) (storage.Entity, bool) {
 	broker, ok := object.(*types.ServiceBroker)
 	if !ok {
 		return nil, false
+	}
+	serviceOfferingDTO := &ServiceOffering{}
+	var services []*ServiceOffering
+	for _, service := range broker.Services {
+		if entity, isServiceOffering := serviceOfferingDTO.FromObject(service); isServiceOffering {
+			services = append(services, entity.(*ServiceOffering))
+		}
 	}
 	b := &Broker{
 		BaseEntity: BaseEntity{
@@ -70,6 +83,7 @@ func (*Broker) FromObject(object types.Object) (storage.Entity, bool) {
 		Description: toNullString(broker.Description),
 		Name:        broker.Name,
 		BrokerURL:   broker.BrokerURL,
+		Services:    services,
 	}
 	if broker.Credentials != nil && broker.Credentials.Basic != nil {
 		b.Username = broker.Credentials.Basic.Username

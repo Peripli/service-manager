@@ -50,7 +50,6 @@ func (c *BrokerUpdateInterceptorProvider) Name() string {
 
 type updateBrokerInterceptor struct {
 	OSBClientCreateFunc osbc.CreateFunc
-	serviceOfferings    []*types.ServiceOffering
 }
 
 // AroundTxUpdate fetches the broker catalog before the transaction, so it can be stored later on in the transaction
@@ -61,10 +60,9 @@ func (c *updateBrokerInterceptor) AroundTxUpdate(h storage.InterceptUpdateAround
 		if err != nil {
 			return nil, err
 		}
-		if c.serviceOfferings, err = osbCatalogToOfferings(catalog, broker.ID); err != nil {
+		if broker.Services, err = osbCatalogToOfferings(catalog, broker.ID); err != nil {
 			return nil, err
 		}
-		broker.Services = c.serviceOfferings
 
 		return h(ctx, broker, labelChanges...)
 	}
@@ -79,10 +77,6 @@ func (c *updateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) 
 		}
 
 		broker := newObject.(*types.ServiceBroker)
-
-		//TODO workaround due to horizontal sharing not working to post-OnTx logic and broker.Services being empty despite being set in AroundTx
-		broker.Services = c.serviceOfferings
-		//TODO workaround ends
 
 		brokerID := broker.GetID()
 		existingServiceOfferingsWithServicePlans, err := catalog.Load(ctx, brokerID, txStorage)
@@ -208,12 +202,7 @@ func (c *updateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) 
 			}
 		}
 
-		//TODO ......workarouds...
-		brokerServices, err := catalog.Load(ctx, brokerID, txStorage)
-		if err != nil {
-			return nil, fmt.Errorf("error getting catalog for broker with id %s from SM DB: %s", brokerID, err)
-		}
-		broker.Services = brokerServices.ServiceOfferings
+		broker.Services = catalogServices
 
 		log.C(ctx).Debugf("Successfully resynced service plans for broker with id %s", brokerID)
 		return broker, nil

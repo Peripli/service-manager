@@ -40,28 +40,34 @@ type ServiceOffering struct {
 	Requires sqlxtypes.JSONText `db:"requires"`
 	Metadata sqlxtypes.JSONText `db:"metadata"`
 
-	BrokerID string `db:"broker_id"`
+	BrokerID string         `db:"broker_id"`
+	Plans    []*ServicePlan `db:"-"`
 }
 
-func (so *ServiceOffering) ToObject() types.Object {
+func (e *ServiceOffering) ToObject() types.Object {
+	var plans []*types.ServicePlan
+	for _, plan := range e.Plans {
+		plans = append(plans, plan.ToObject().(*types.ServicePlan))
+	}
 	return &types.ServiceOffering{
 		Base: types.Base{
-			ID:        so.ID,
-			CreatedAt: so.CreatedAt,
-			UpdatedAt: so.UpdatedAt,
+			ID:        e.ID,
+			CreatedAt: e.CreatedAt,
+			UpdatedAt: e.UpdatedAt,
 		},
-		Name:                 so.Name,
-		Description:          so.Description,
-		Bindable:             so.Bindable,
-		InstancesRetrievable: so.InstancesRetrievable,
-		BindingsRetrievable:  so.BindingsRetrievable,
-		PlanUpdatable:        so.PlanUpdatable,
-		CatalogID:            so.CatalogID,
-		CatalogName:          so.CatalogName,
-		Tags:                 getJSONRawMessage(so.Tags),
-		Requires:             getJSONRawMessage(so.Requires),
-		Metadata:             getJSONRawMessage(so.Metadata),
-		BrokerID:             so.BrokerID,
+		Name:                 e.Name,
+		Description:          e.Description,
+		Bindable:             e.Bindable,
+		InstancesRetrievable: e.InstancesRetrievable,
+		BindingsRetrievable:  e.BindingsRetrievable,
+		PlanUpdatable:        e.PlanUpdatable,
+		CatalogID:            e.CatalogID,
+		CatalogName:          e.CatalogName,
+		Tags:                 getJSONRawMessage(e.Tags),
+		Requires:             getJSONRawMessage(e.Requires),
+		Metadata:             getJSONRawMessage(e.Metadata),
+		BrokerID:             e.BrokerID,
+		Plans:                plans,
 	}
 }
 
@@ -69,6 +75,13 @@ func (*ServiceOffering) FromObject(object types.Object) (storage.Entity, bool) {
 	offering, ok := object.(*types.ServiceOffering)
 	if !ok {
 		return nil, false
+	}
+	servicePlanDTO := &ServicePlan{}
+	var plans []*ServicePlan
+	for _, plan := range offering.Plans {
+		if entity, isServicePlan := servicePlanDTO.FromObject(plan); isServicePlan {
+			plans = append(plans, entity.(*ServicePlan))
+		}
 	}
 	result := &ServiceOffering{
 		BaseEntity: BaseEntity{
@@ -88,6 +101,7 @@ func (*ServiceOffering) FromObject(object types.Object) (storage.Entity, bool) {
 		Requires:             getJSONText(offering.Requires),
 		Metadata:             getJSONText(offering.Metadata),
 		BrokerID:             offering.BrokerID,
+		Plans:                plans,
 	}
 	return result, true
 }

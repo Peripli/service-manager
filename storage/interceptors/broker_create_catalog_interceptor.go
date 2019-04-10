@@ -43,33 +43,32 @@ func (c *BrokerCreateInterceptorProvider) Provide() storage.CreateInterceptor {
 
 type CreateBrokerInterceptor struct {
 	OSBClientCreateFunc osbc.CreateFunc
-	serviceOfferings    []*types.ServiceOffering
 }
 
 func (c *CreateBrokerInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		broker := obj.(*types.ServiceBroker)
-		catalog, err := getBrokerCatalog(ctx, c.OSBClientCreateFunc, broker) // keep catalog to be stored later
+		catalog, err := getBrokerCatalog(ctx, c.OSBClientCreateFunc, broker)
 		if err != nil {
 			return nil, err
 		}
-		if c.serviceOfferings, err = osbCatalogToOfferings(catalog, broker.ID); err != nil {
+		if broker.Services, err = osbCatalogToOfferings(catalog, broker.ID); err != nil {
 			return nil, err
 		}
-		broker.Services = c.serviceOfferings
 
 		return h(ctx, broker)
 	}
 }
 
 func (c *CreateBrokerInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
-	return func(ctx context.Context, storage storage.Repository, broker types.Object) error {
-		if err := f(ctx, storage, broker); err != nil {
+	return func(ctx context.Context, storage storage.Repository, obj types.Object) error {
+		if err := f(ctx, storage, obj); err != nil {
 			return err
 		}
+		broker := obj.(*types.ServiceBroker)
 
-		for serviceIndex := range c.serviceOfferings {
-			service := c.serviceOfferings[serviceIndex]
+		for serviceIndex := range broker.Services {
+			service := broker.Services[serviceIndex]
 			if _, err := storage.Create(ctx, service); err != nil {
 				return util.HandleStorageError(err, "service_offering")
 			}
