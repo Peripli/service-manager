@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	platformCreateInterceptorName = "create-platform"
+	platformCreateInterceptorName = "CreatePlatformCredentialsInterceptor"
 )
 
 type PlatformCreateInterceptorProvider struct {

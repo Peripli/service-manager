@@ -18,17 +18,14 @@ package interceptors
 
 import (
 	"context"
-	"fmt"
-	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/gofrs/uuid"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 )
 
-const CreateBrokerInterceptorName = "create-broker"
+const CreateBrokerInterceptorName = "CreateBrokerCatalogInterceptor"
 
 type BrokerCreateInterceptorProvider struct {
 	OsbClientCreateFunc osbc.CreateFunc
@@ -56,69 +53,13 @@ func (c *CreateBrokerInterceptor) AroundTxCreate(h storage.InterceptCreateAround
 		if err != nil {
 			return nil, err
 		}
-		if c.serviceOfferings, err = osbCatalogToOfferings(catalog, broker); err != nil {
+		if c.serviceOfferings, err = osbCatalogToOfferings(catalog, broker.ID); err != nil {
 			return nil, err
 		}
 		broker.Services = c.serviceOfferings
+
 		return h(ctx, broker)
 	}
-}
-
-func osbCatalogToOfferings(catalog *osbc.CatalogResponse, broker types.Object) ([]*types.ServiceOffering, error) {
-	var result []*types.ServiceOffering
-	for serviceIndex := range catalog.Services {
-		service := catalog.Services[serviceIndex]
-		serviceOffering := &types.ServiceOffering{}
-		err := osbcCatalogServiceToServiceOffering(serviceOffering, &service)
-		if err != nil {
-			return nil, err
-		}
-		serviceUUID, err := uuid.NewV4()
-		if err != nil {
-			return nil, fmt.Errorf("could not generate GUID for service: %s", err)
-		}
-		serviceOffering.ID = serviceUUID.String()
-		serviceOffering.CreatedAt = broker.GetCreatedAt()
-		serviceOffering.UpdatedAt = broker.GetUpdatedAt()
-		serviceOffering.BrokerID = broker.GetID()
-
-		if err := serviceOffering.Validate(); err != nil {
-			return nil, &util.HTTPError{
-				ErrorType:   "BadRequest",
-				Description: fmt.Sprintf("service offering constructed during catalog insertion for broker %s is invalid: %s", broker.GetID(), err),
-				StatusCode:  http.StatusBadRequest,
-			}
-		}
-
-		for planIndex := range service.Plans {
-			servicePlan := &types.ServicePlan{}
-			err := osbcCatalogPlanToServicePlan(servicePlan, &catalogPlanWithServiceOfferingID{
-				Plan:            &service.Plans[planIndex],
-				ServiceOffering: serviceOffering,
-			})
-			if err != nil {
-				return nil, err
-			}
-			planUUID, err := uuid.NewV4()
-			if err != nil {
-				return nil, fmt.Errorf("could not generate GUID for service_plan: %s", err)
-			}
-			servicePlan.ID = planUUID.String()
-			servicePlan.CreatedAt = broker.GetCreatedAt()
-			servicePlan.UpdatedAt = broker.GetUpdatedAt()
-
-			if err := servicePlan.Validate(); err != nil {
-				return nil, &util.HTTPError{
-					ErrorType:   "BadRequest",
-					Description: fmt.Sprintf("service plan constructed during catalog insertion for broker %s is invalid: %s", broker.GetID(), err),
-					StatusCode:  http.StatusBadRequest,
-				}
-			}
-			serviceOffering.Plans = append(serviceOffering.Plans, servicePlan)
-		}
-		result = append(result, serviceOffering)
-	}
-	return result, nil
 }
 
 func (c *CreateBrokerInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
@@ -126,6 +67,7 @@ func (c *CreateBrokerInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) 
 		if err := f(ctx, storage, broker); err != nil {
 			return err
 		}
+
 		for serviceIndex := range c.serviceOfferings {
 			service := c.serviceOfferings[serviceIndex]
 			if _, err := storage.Create(ctx, service); err != nil {

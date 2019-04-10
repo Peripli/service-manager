@@ -215,7 +215,7 @@ func newOSBClient(skipSsl bool) osbc.CreateFunc {
 
 func (smb *ServiceManagerBuilder) WithCreateInterceptorProvider(objectType types.ObjectType, provider storage.CreateInterceptorProvider) *interceptorRegistrationBuilder {
 	return &interceptorRegistrationBuilder{
-		ocip: storage.InterceptorOrder{
+		order: storage.InterceptorOrder{
 			OnTxPosition: storage.InterceptorPosition{
 				PositionType: storage.PositionNone,
 			},
@@ -235,7 +235,7 @@ func (smb *ServiceManagerBuilder) WithCreateInterceptorProvider(objectType types
 
 func (smb *ServiceManagerBuilder) WithUpdateInterceptorProvider(objectType types.ObjectType, provider storage.UpdateInterceptorProvider) *interceptorRegistrationBuilder {
 	return &interceptorRegistrationBuilder{
-		ocip: storage.InterceptorOrder{
+		order: storage.InterceptorOrder{
 			OnTxPosition: storage.InterceptorPosition{
 				PositionType: storage.PositionNone,
 			},
@@ -255,7 +255,7 @@ func (smb *ServiceManagerBuilder) WithUpdateInterceptorProvider(objectType types
 
 func (smb *ServiceManagerBuilder) WithDeleteInterceptorProvider(objectType types.ObjectType, provider storage.DeleteInterceptorProvider) *interceptorRegistrationBuilder {
 	return &interceptorRegistrationBuilder{
-		ocip: storage.InterceptorOrder{
+		order: storage.InterceptorOrder{
 			OnTxPosition: storage.InterceptorPosition{
 				PositionType: storage.PositionNone,
 			},

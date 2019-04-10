@@ -21,17 +21,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
+
+	"github.com/gofrs/uuid"
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 )
-
-type catalogPlanWithServiceOfferingID struct {
-	*osbc.Plan
-	ServiceOffering *types.ServiceOffering
-}
 
 func convertExistingServiceOfferringsToMaps(serviceOfferings []*types.ServiceOffering) (map[string]*types.ServiceOffering, map[string][]*types.ServicePlan) {
 	serviceOfferingsMap := make(map[string]*types.ServiceOffering)
@@ -56,7 +54,7 @@ func getBrokerCatalog(ctx context.Context, osbClientCreateFunc osbc.CreateFunc, 
 	if err != nil {
 		return nil, &util.HTTPError{
 			ErrorType:   "BrokerError",
-			Description: fmt.Sprintf("error fetching catalog from broker %s: %v", broker.Name, err),
+			Description: fmt.Sprintf("error fetching actualBrokerCatalog from broker %s: %v", broker.Name, err),
 			StatusCode:  http.StatusBadRequest,
 		}
 	}
@@ -64,22 +62,76 @@ func getBrokerCatalog(ctx context.Context, osbClientCreateFunc osbc.CreateFunc, 
 	return catalog, nil
 }
 
-func getBrokerCatalogServicesAndPlans(catalog *osbc.CatalogResponse) ([]*osbc.Service, map[string][]*osbc.Plan, error) {
-	services := make([]*osbc.Service, 0, len(catalog.Services))
-	plans := make(map[string][]*osbc.Plan)
+func getBrokerCatalogServicesAndPlans(serviceOfferings []*types.ServiceOffering) ([]*types.ServiceOffering, map[string][]*types.ServicePlan, error) {
+	services := make([]*types.ServiceOffering, 0, len(serviceOfferings))
+	plans := make(map[string][]*types.ServicePlan)
 
-	for serviceIndex := range catalog.Services {
-		services = append(services, &catalog.Services[serviceIndex])
-		plansForService := make([]*osbc.Plan, 0)
-		for planIndex := range catalog.Services[serviceIndex].Plans {
-			plansForService = append(plansForService, &catalog.Services[serviceIndex].Plans[planIndex])
+	for serviceIndex := range serviceOfferings {
+		services = append(services, serviceOfferings[serviceIndex])
+		plansForService := make([]*types.ServicePlan, 0)
+		for planIndex := range serviceOfferings[serviceIndex].Plans {
+			plansForService = append(plansForService, serviceOfferings[serviceIndex].Plans[planIndex])
 		}
-		plans[catalog.Services[serviceIndex].ID] = plansForService
+		plans[serviceOfferings[serviceIndex].CatalogID] = plansForService
 	}
 	return services, plans, nil
 }
 
-func osbcCatalogServiceToServiceOffering(serviceOffering *types.ServiceOffering, service *osbc.Service) error {
+func osbcClient(ctx context.Context, createFunc osbc.CreateFunc, broker *types.ServiceBroker) (osbc.Client, error) {
+	config := osbc.DefaultClientConfiguration()
+	config.Name = broker.Name
+	config.URL = broker.BrokerURL
+	config.AuthConfig = &osbc.AuthConfig{
+		BasicAuthConfig: &osbc.BasicAuthConfig{
+			Username: broker.Credentials.Basic.Username,
+			Password: broker.Credentials.Basic.Password,
+		},
+	}
+	log.C(ctx).Debug("Building OSB client for service broker with name: ", config.Name, " accessible at: ", config.URL)
+	return createFunc(config)
+}
+
+// osbCatalogToOfferings converts a broker catalog to SM entities. The service offerings ids and service plans ids are auto generated.
+func osbCatalogToOfferings(catalog *osbc.CatalogResponse, brokerID string) ([]*types.ServiceOffering, error) {
+	var result []*types.ServiceOffering
+	for serviceIndex := range catalog.Services {
+		service := catalog.Services[serviceIndex]
+		serviceOffering := &types.ServiceOffering{}
+		err := osbcCatalogServiceToServiceOffering(serviceOffering, &service, brokerID)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := serviceOffering.Validate(); err != nil {
+			return nil, &util.HTTPError{
+				ErrorType:   "BadRequest",
+				Description: fmt.Sprintf("service offering constructed during catalog insertion for broker %s is invalid: %s", brokerID, err),
+				StatusCode:  http.StatusBadRequest,
+			}
+		}
+
+		for planIndex := range service.Plans {
+			servicePlan := &types.ServicePlan{}
+			err := osbcCatalogPlanToServicePlan(&service.Plans[planIndex], serviceOffering, servicePlan)
+			if err != nil {
+				return nil, err
+			}
+
+			if err := servicePlan.Validate(); err != nil {
+				return nil, &util.HTTPError{
+					ErrorType:   "BadRequest",
+					Description: fmt.Sprintf("service plan constructed during catalog insertion for broker %s is invalid: %s", brokerID, err),
+					StatusCode:  http.StatusBadRequest,
+				}
+			}
+			serviceOffering.Plans = append(serviceOffering.Plans, servicePlan)
+		}
+		result = append(result, serviceOffering)
+	}
+	return result, nil
+}
+
+func osbcCatalogServiceToServiceOffering(serviceOffering *types.ServiceOffering, service *osbc.Service, brokerID string) error {
 	serviceTagsBytes, err := json.Marshal(service.Tags)
 	if err != nil {
 		return fmt.Errorf("could not marshal service tags: %s", err)
@@ -93,6 +145,16 @@ func osbcCatalogServiceToServiceOffering(serviceOffering *types.ServiceOffering,
 		return fmt.Errorf("could not marshal service metadata: %s", err)
 	}
 
+	serviceUUID, err := uuid.NewV4()
+	if err != nil {
+		return fmt.Errorf("could not generate GUID for service: %s", err)
+	}
+	now := time.Now().UTC()
+
+	serviceOffering.ID = serviceUUID.String()
+	serviceOffering.BrokerID = brokerID
+	serviceOffering.CreatedAt = now
+	serviceOffering.UpdatedAt = now
 	serviceOffering.Name = service.Name
 	serviceOffering.Description = service.Description
 	serviceOffering.Bindable = service.Bindable
@@ -108,7 +170,7 @@ func osbcCatalogServiceToServiceOffering(serviceOffering *types.ServiceOffering,
 	return nil
 }
 
-func osbcCatalogPlanToServicePlan(servicePlan *types.ServicePlan, plan *catalogPlanWithServiceOfferingID) error {
+func osbcCatalogPlanToServicePlan(plan *osbc.Plan, serviceOffering *types.ServiceOffering, servicePlan *types.ServicePlan) error {
 	planMetadataBytes, err := json.Marshal(plan.Metadata)
 	if err != nil {
 		return fmt.Errorf("could not marshal plan metadata: %s", err)
@@ -121,32 +183,29 @@ func osbcCatalogPlanToServicePlan(servicePlan *types.ServicePlan, plan *catalogP
 		}
 	}
 
-	servicePlan.Name = plan.Plan.Name
-	servicePlan.Description = plan.Plan.Description
-	servicePlan.CatalogID = plan.Plan.ID
-	servicePlan.CatalogName = plan.Plan.Name
-	servicePlan.Free = boolPointerToBool(plan.Plan.Free, servicePlan.Free)
-	servicePlan.Bindable = boolPointerToBool(plan.Plan.Bindable, plan.ServiceOffering.Bindable)
-	servicePlan.PlanUpdatable = boolPointerToBool(&plan.ServiceOffering.PlanUpdatable, servicePlan.PlanUpdatable)
+	planUUID, err := uuid.NewV4()
+	if err != nil {
+		return fmt.Errorf("could not generate GUID for service_plan: %s", err)
+	}
+
+	now := time.Now().UTC()
+
+	servicePlan.ID = planUUID.String()
+	servicePlan.CreatedAt = now
+	servicePlan.UpdatedAt = now
+
+	servicePlan.Name = plan.Name
+	servicePlan.Description = plan.Description
+	servicePlan.CatalogID = plan.ID
+	servicePlan.CatalogName = plan.Name
+	servicePlan.Free = boolPointerToBool(plan.Free, servicePlan.Free)
+	servicePlan.Bindable = boolPointerToBool(plan.Bindable, serviceOffering.Bindable)
+	servicePlan.PlanUpdatable = boolPointerToBool(&serviceOffering.PlanUpdatable, servicePlan.PlanUpdatable)
 	servicePlan.Metadata = json.RawMessage(planMetadataBytes)
 	servicePlan.Schemas = schemasBytes
-	servicePlan.ServiceOfferingID = plan.ServiceOffering.ID
+	servicePlan.ServiceOfferingID = serviceOffering.ID
 
 	return nil
-}
-
-func osbcClient(ctx context.Context, createFunc osbc.CreateFunc, broker *types.ServiceBroker) (osbc.Client, error) {
-	config := osbc.DefaultClientConfiguration()
-	config.Name = broker.Name
-	config.URL = broker.BrokerURL
-	config.AuthConfig = &osbc.AuthConfig{
-		BasicAuthConfig: &osbc.BasicAuthConfig{
-			Username: broker.Credentials.Basic.Username,
-			Password: broker.Credentials.Basic.Password,
-		},
-	}
-	log.C(ctx).Debug("Building OSB client for service broker with name: ", config.Name, " accessible at: ", config.URL)
-	return createFunc(config)
 }
 
 func boolPointerToBool(value *bool, defaultValue bool) bool {

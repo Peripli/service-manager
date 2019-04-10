@@ -236,6 +236,7 @@ func (ps *PostgresStorage) Delete(ctx context.Context, objType types.ObjectType,
 }
 
 func (ps *PostgresStorage) Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+	//TODO obj comes as broker with catalog
 	entity, err := ps.scheme.convert(obj)
 	if err != nil {
 		return nil, err
@@ -257,6 +258,8 @@ func (ps *PostgresStorage) Update(ctx context.Context, obj types.Object, labelCh
 		return nil, err
 	}
 	typeLabels := storageLabelsToType(labels)
+
+	//TODO catalog is lost here and when returned from this it is no longer usable in the post logic of the OnTx interceptors (store catalog interceptor on update broker)
 	result := entity.ToObject()
 	result.SetLabels(typeLabels)
 	return result, nil

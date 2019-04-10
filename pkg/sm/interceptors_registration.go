@@ -21,62 +21,70 @@ import (
 )
 
 type interceptorRegistrationBuilder struct {
-	ocip             storage.InterceptorOrder
+	order            storage.InterceptorOrder
 	registrationFunc func(storage.InterceptorOrder) *ServiceManagerBuilder
 }
 
-func (creator *interceptorRegistrationBuilder) AroundTxBefore(name string) *interceptorRegistrationBuilder {
-	if creator.ocip.AroundTxPosition.PositionType != storage.PositionNone {
+func (irb *interceptorRegistrationBuilder) AroundTxBefore(name string) *interceptorRegistrationBuilder {
+	if irb.order.AroundTxPosition.PositionType != storage.PositionNone {
 		panic("AroundTxPosition has already been specified")
 	}
-	creator.ocip.AroundTxPosition = storage.InterceptorPosition{
+
+	irb.order.AroundTxPosition = storage.InterceptorPosition{
 		Name:         name,
 		PositionType: storage.PositionBefore,
 	}
-	return creator
+
+	return irb
 }
 
-func (creator *interceptorRegistrationBuilder) AroundTxAfter(name string) *interceptorRegistrationBuilder {
-	if creator.ocip.AroundTxPosition.PositionType != storage.PositionNone {
+func (irb *interceptorRegistrationBuilder) AroundTxAfter(name string) *interceptorRegistrationBuilder {
+	if irb.order.AroundTxPosition.PositionType != storage.PositionNone {
 		panic("AroundTxPosition has already been specified")
 	}
-	creator.ocip.AroundTxPosition = storage.InterceptorPosition{
+
+	irb.order.AroundTxPosition = storage.InterceptorPosition{
 		Name:         name,
 		PositionType: storage.PositionAfter,
 	}
-	return creator
+
+	return irb
 }
 
-func (creator *interceptorRegistrationBuilder) TxBefore(name string) *interceptorRegistrationBuilder {
-	if creator.ocip.OnTxPosition.PositionType != storage.PositionNone {
+func (irb *interceptorRegistrationBuilder) OnTxBefore(name string) *interceptorRegistrationBuilder {
+	if irb.order.OnTxPosition.PositionType != storage.PositionNone {
 		panic("OnTxPosition has already been specified")
 	}
-	creator.ocip.OnTxPosition = storage.InterceptorPosition{
+
+	irb.order.OnTxPosition = storage.InterceptorPosition{
 		Name:         name,
 		PositionType: storage.PositionBefore,
 	}
-	return creator
+
+	return irb
 }
 
-func (creator *interceptorRegistrationBuilder) TxAfter(name string) *interceptorRegistrationBuilder {
-	if creator.ocip.OnTxPosition.PositionType != storage.PositionNone {
+func (irb *interceptorRegistrationBuilder) OnTxAfter(name string) *interceptorRegistrationBuilder {
+	if irb.order.OnTxPosition.PositionType != storage.PositionNone {
 		panic("OnTxPosition has already been specified")
 	}
-	creator.ocip.OnTxPosition = storage.InterceptorPosition{
+
+	irb.order.OnTxPosition = storage.InterceptorPosition{
 		Name:         name,
 		PositionType: storage.PositionAfter,
 	}
-	return creator
+
+	return irb
 }
 
-func (creator *interceptorRegistrationBuilder) Before(name string) *interceptorRegistrationBuilder {
-	return creator.TxBefore(name).AroundTxBefore(name)
+func (irb *interceptorRegistrationBuilder) Before(name string) *interceptorRegistrationBuilder {
+	return irb.OnTxBefore(name).AroundTxBefore(name)
 }
 
-func (creator *interceptorRegistrationBuilder) After(name string) *interceptorRegistrationBuilder {
-	return creator.TxAfter(name).AroundTxAfter(name)
+func (irb *interceptorRegistrationBuilder) After(name string) *interceptorRegistrationBuilder {
+	return irb.OnTxAfter(name).AroundTxAfter(name)
 }
 
-func (creator *interceptorRegistrationBuilder) Register() *ServiceManagerBuilder {
-	return creator.registrationFunc(creator.ocip)
+func (irb *interceptorRegistrationBuilder) Register() *ServiceManagerBuilder {
+	return irb.registrationFunc(irb.order)
 }

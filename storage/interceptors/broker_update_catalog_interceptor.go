@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/Peripli/service-manager/storage/catalog"
 
@@ -29,11 +28,10 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/gofrs/uuid"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 )
 
-const UpdateBrokerInterceptorName = "update-broker"
+const UpdateBrokerInterceptorName = "UpdateBrokerCatalogInterceptor"
 
 // BrokerUpdateInterceptorProvider provides a broker interceptor for update operations
 type BrokerUpdateInterceptorProvider struct {
@@ -52,21 +50,22 @@ func (c *BrokerUpdateInterceptorProvider) Name() string {
 
 type updateBrokerInterceptor struct {
 	OSBClientCreateFunc osbc.CreateFunc
-	catalog             *osbc.CatalogResponse
+	serviceOfferings    []*types.ServiceOffering
 }
 
 // AroundTxUpdate fetches the broker catalog before the transaction, so it can be stored later on in the transaction
 func (c *updateBrokerInterceptor) AroundTxUpdate(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
 	return func(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 		broker := obj.(*types.ServiceBroker)
-		var err error
-		if c.catalog, err = getBrokerCatalog(ctx, c.OSBClientCreateFunc, broker); err != nil {
-			return nil, err
-		}
-		broker.Services, err = osbCatalogToOfferings(c.catalog, broker)
+		catalog, err := getBrokerCatalog(ctx, c.OSBClientCreateFunc, broker) // keep catalog to be stored later
 		if err != nil {
 			return nil, err
 		}
+		if c.serviceOfferings, err = osbCatalogToOfferings(catalog, broker.ID); err != nil {
+			return nil, err
+		}
+		broker.Services = c.serviceOfferings
+
 		return h(ctx, broker, labelChanges...)
 	}
 }
@@ -78,59 +77,47 @@ func (c *updateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) 
 		if err != nil {
 			return nil, err
 		}
+
 		broker := newObject.(*types.ServiceBroker)
+
+		//TODO workaround due to horizontal sharing not working to post-OnTx logic and broker.Services being empty despite being set in AroundTx
+		broker.Services = c.serviceOfferings
+		//TODO workaround ends
+
 		brokerID := broker.GetID()
 		existingServiceOfferingsWithServicePlans, err := catalog.Load(ctx, brokerID, txStorage)
 		if err != nil {
 			return nil, fmt.Errorf("error getting catalog for broker with id %s from SM DB: %s", brokerID, err)
 		}
 
-		existingServicesOfferingsMap, existingServicePlansPerOfferringMap := convertExistingServiceOfferringsToMaps(existingServiceOfferingsWithServicePlans.ServiceOfferings)
+		existingServicesOfferingsMap, existingServicePlansPerOfferingMap := convertExistingServiceOfferringsToMaps(existingServiceOfferingsWithServicePlans.ServiceOfferings)
 		log.C(ctx).Debugf("Found %d services currently known for broker", len(existingServicesOfferingsMap))
 
-		catalogServices, catalogPlansMap, err := getBrokerCatalogServicesAndPlans(c.catalog)
+		catalogServices, catalogPlansMap, err := getBrokerCatalogServicesAndPlans(broker.Services)
 		if err != nil {
 			return nil, err
 		}
 		log.C(ctx).Debugf("Found %d services and %d plans in catalog for broker with id %s", len(catalogServices), len(catalogPlansMap), brokerID)
 
-		catalogPlans := make([]*catalogPlanWithServiceOfferingID, 0)
-
 		log.C(ctx).Debugf("Resyncing service offerings for broker with id %s...", brokerID)
 		for _, catalogService := range catalogServices {
-			existingServiceOffering, ok := existingServicesOfferingsMap[catalogService.ID]
-			delete(existingServicesOfferingsMap, catalogService.ID)
+			existingServiceOffering, ok := existingServicesOfferingsMap[catalogService.CatalogID]
 			if ok {
-				if err := osbcCatalogServiceToServiceOffering(existingServiceOffering, catalogService); err != nil {
-					return nil, err
-				}
-				existingServiceOffering.UpdatedAt = time.Now().UTC()
+				delete(existingServicesOfferingsMap, catalogService.CatalogID)
+				catalogService.ID = existingServiceOffering.ID
 
-				if err := existingServiceOffering.Validate(); err != nil {
+				if err := catalogService.Validate(); err != nil {
 					return nil, &util.HTTPError{
 						ErrorType:   "BadRequest",
 						Description: fmt.Sprintf("service offering constructed during catalog update for broker %s is invalid: %s", brokerID, err),
 						StatusCode:  http.StatusBadRequest,
 					}
 				}
-				if _, err := txStorage.Update(ctx, existingServiceOffering); err != nil {
+				if _, err := txStorage.Update(ctx, catalogService); err != nil {
 					return nil, util.HandleStorageError(err, "service_offering")
 				}
 			} else {
-				serviceUUID, err := uuid.NewV4()
-				if err != nil {
-					return nil, fmt.Errorf("could not generate GUID for service_plan: %s", err)
-				}
-				existingServiceOffering = &types.ServiceOffering{}
-				if err := osbcCatalogServiceToServiceOffering(existingServiceOffering, catalogService); err != nil {
-					return nil, err
-				}
-				existingServiceOffering.ID = serviceUUID.String()
-				existingServiceOffering.CreatedAt = time.Now().UTC()
-				existingServiceOffering.UpdatedAt = time.Now().UTC()
-				existingServiceOffering.BrokerID = brokerID
-
-				if err := existingServiceOffering.Validate(); err != nil {
+				if err := catalogService.Validate(); err != nil {
 					return nil, &util.HTTPError{
 						ErrorType:   "BadRequest",
 						Description: fmt.Sprintf("service offering constructed during catalog update for broker %s is invalid: %s", brokerID, err),
@@ -139,19 +126,15 @@ func (c *updateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) 
 				}
 
 				var dbServiceID string
-				if dbServiceID, err = txStorage.Create(ctx, existingServiceOffering); err != nil {
+				if dbServiceID, err = txStorage.Create(ctx, catalogService); err != nil {
 					return nil, util.HandleStorageError(err, "service_offering")
 				}
-				existingServiceOffering.ID = dbServiceID
+				catalogService.ID = dbServiceID
 			}
 
-			catalogPlansForService := catalogPlansMap[catalogService.ID]
+			catalogPlansForService := catalogPlansMap[catalogService.CatalogID]
 			for catalogPlanOfCatalogServiceIndex := range catalogPlansForService {
-				catalogPlan := &catalogPlanWithServiceOfferingID{
-					Plan:            catalogPlansForService[catalogPlanOfCatalogServiceIndex],
-					ServiceOffering: existingServiceOffering,
-				}
-				catalogPlans = append(catalogPlans, catalogPlan)
+				catalogPlansForService[catalogPlanOfCatalogServiceIndex].ServiceOfferingID = catalogService.ID
 			}
 		}
 
@@ -164,49 +147,55 @@ func (c *updateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) 
 		log.C(ctx).Debugf("Successfully resynced service offerings for broker with id %s", brokerID)
 
 		log.C(ctx).Debugf("Resyncing service plans for broker with id %s", brokerID)
-		for _, catalogPlan := range catalogPlans {
-			existingServicePlans, ok := existingServicePlansPerOfferringMap[catalogPlan.ServiceOffering.CatalogID]
-			if ok {
-				var existingPlan *types.ServicePlan
-				var newPlansMapping []*types.ServicePlan
-				for _, existingServicePlan := range existingServicePlans {
-					if existingServicePlan.CatalogID == catalogPlan.ID {
-						existingPlan = existingServicePlan
-					} else {
-						newPlansMapping = append(newPlansMapping, existingServicePlan)
-					}
-				}
-				if existingPlan != nil {
-					if err := osbcCatalogPlanToServicePlan(existingPlan, catalogPlan); err != nil {
-						return nil, err
-					}
-					existingPlan.UpdatedAt = time.Now().UTC()
-
-					if err := existingPlan.Validate(); err != nil {
-						return nil, &util.HTTPError{
-							ErrorType:   "BadRequest",
-							Description: fmt.Sprintf("service plan constructed during catalog update for broker %s is invalid: %s", brokerID, err),
-							StatusCode:  http.StatusBadRequest,
+		for serviceOfferingCatalogID, catalogPlans := range catalogPlansMap {
+			var newPlansMapping []*types.ServicePlan
+			// for each catalog plan of this service
+			for _, catalogPlan := range catalogPlans {
+				// after each iteration take the existing plans for the service again as if a previous match was found,
+				// the existing plans will be reduced by one
+				existingServicePlans, ok := existingServicePlansPerOfferingMap[serviceOfferingCatalogID]
+				if ok {
+					var existingPlanUpdated *types.ServicePlan
+					// for each plan in SMDB for this service
+					for _, existingServicePlan := range existingServicePlans {
+						if existingServicePlan.CatalogID == catalogPlan.CatalogID {
+							// found a match means an update should happen
+							existingPlanUpdated = catalogPlan
+							existingPlanUpdated.ID = existingServicePlan.ID
+						} else {
+							newPlansMapping = append(newPlansMapping, existingServicePlan)
 						}
 					}
+					if existingPlanUpdated != nil {
+						if err := existingPlanUpdated.Validate(); err != nil {
+							return nil, &util.HTTPError{
+								ErrorType:   "BadRequest",
+								Description: fmt.Sprintf("service plan constructed during catalog update for broker %s is invalid: %s", brokerID, err),
+								StatusCode:  http.StatusBadRequest,
+							}
+						}
 
-					if _, err := txStorage.Update(ctx, existingPlan); err != nil {
-						return nil, util.HandleStorageError(err, "service_plan")
+						if _, err := txStorage.Update(ctx, existingPlanUpdated); err != nil {
+							return nil, util.HandleStorageError(err, "service_plan")
+						}
+
+						// we found a match for an existing plan so we remove it from the ones that will be deleted at the end
+						existingServicePlansPerOfferingMap[serviceOfferingCatalogID] = newPlansMapping
+					} else {
+						if err := createPlan(ctx, txStorage, catalogPlan, brokerID); err != nil {
+							return nil, err
+						}
 					}
-					existingServicePlansPerOfferringMap[catalogPlan.ServiceOffering.CatalogID] = newPlansMapping
 				} else {
+					// for this one we didnt even find an existing service in the initially loaded list, so create it
 					if err := createPlan(ctx, txStorage, catalogPlan, brokerID); err != nil {
 						return nil, err
 					}
 				}
-			} else {
-				if err := createPlan(ctx, txStorage, catalogPlan, brokerID); err != nil {
-					return nil, err
-				}
 			}
 		}
 
-		for _, existingServicePlansForOffering := range existingServicePlansPerOfferringMap {
+		for _, existingServicePlansForOffering := range existingServicePlansPerOfferingMap {
 			for _, existingServicePlan := range existingServicePlansForOffering {
 				byID := query.ByField(query.EqualsOperator, "id", existingServicePlan.ID)
 				if _, err := txStorage.Delete(ctx, types.ServicePlanType, byID); err != nil {
@@ -219,6 +208,7 @@ func (c *updateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) 
 			}
 		}
 
+		//TODO ......workarouds...
 		brokerServices, err := catalog.Load(ctx, brokerID, txStorage)
 		if err != nil {
 			return nil, fmt.Errorf("error getting catalog for broker with id %s from SM DB: %s", brokerID, err)
@@ -230,18 +220,7 @@ func (c *updateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) 
 	}
 }
 
-func createPlan(ctx context.Context, txStorage storage.Repository, catalogPlan *catalogPlanWithServiceOfferingID, brokerID string) error {
-	planUUID, err := uuid.NewV4()
-	if err != nil {
-		return fmt.Errorf("could not generate GUID for service_plan: %s", err)
-	}
-	servicePlan := &types.ServicePlan{}
-	if err := osbcCatalogPlanToServicePlan(servicePlan, catalogPlan); err != nil {
-		return err
-	}
-	servicePlan.ID = planUUID.String()
-	servicePlan.CreatedAt = time.Now().UTC()
-	servicePlan.UpdatedAt = time.Now().UTC()
+func createPlan(ctx context.Context, txStorage storage.Repository, servicePlan *types.ServicePlan, brokerID string) error {
 	if err := servicePlan.Validate(); err != nil {
 		return &util.HTTPError{
 			ErrorType:   "BadRequest",

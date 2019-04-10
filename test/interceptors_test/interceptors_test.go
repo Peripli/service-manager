@@ -158,11 +158,11 @@ var _ = Describe("Interceptors", func() {
 					Before(fakeCreateInterceptorProvider1.Name()).Register()
 				smb.WithCreateInterceptorProvider(entityType, fakeCreateInterceptorProviderBA).
 					AroundTxBefore(fakeCreateInterceptorProvider0.Name()).
-					TxAfter(fakeCreateInterceptorProvider2.Name()).
+					OnTxAfter(fakeCreateInterceptorProvider2.Name()).
 					Register()
 				smb.WithCreateInterceptorProvider(entityType, fakeCreateInterceptorProviderAB).
 					AroundTxAfter(fakeCreateInterceptorProviderBA.Name()).
-					TxBefore(fakeCreateInterceptorProviderBA.Name()).
+					OnTxBefore(fakeCreateInterceptorProviderBA.Name()).
 					Register()
 				// Register update interceptors
 				smb.WithUpdateInterceptorProvider(entityType, fakeUpdateInterceptorProvider1).Register()
@@ -172,11 +172,11 @@ var _ = Describe("Interceptors", func() {
 					Before(fakeUpdateInterceptorProvider1.Name()).Register()
 				smb.WithUpdateInterceptorProvider(entityType, fakeUpdateInterceptorProviderBA).
 					AroundTxBefore(fakeUpdateInterceptorProvider0.Name()).
-					TxAfter(fakeUpdateInterceptorProvider2.Name()).
+					OnTxAfter(fakeUpdateInterceptorProvider2.Name()).
 					Register()
 				smb.WithUpdateInterceptorProvider(entityType, fakeUpdateInterceptorProviderAB).
 					AroundTxAfter(fakeUpdateInterceptorProviderBA.Name()).
-					TxBefore(fakeUpdateInterceptorProviderBA.Name()).
+					OnTxBefore(fakeUpdateInterceptorProviderBA.Name()).
 					Register()
 				// Register delete interceptors
 				smb.WithDeleteInterceptorProvider(entityType, fakeDeleteInterceptorProvider1).Register()
@@ -186,11 +186,11 @@ var _ = Describe("Interceptors", func() {
 					Before(fakeDeleteInterceptorProvider1.Name()).Register()
 				smb.WithDeleteInterceptorProvider(entityType, fakeDeleteInterceptorProviderBA).
 					AroundTxBefore(fakeDeleteInterceptorProvider0.Name()).
-					TxAfter(fakeDeleteInterceptorProvider2.Name()).
+					OnTxAfter(fakeDeleteInterceptorProvider2.Name()).
 					Register()
 				smb.WithDeleteInterceptorProvider(entityType, fakeDeleteInterceptorProviderAB).
 					AroundTxAfter(fakeDeleteInterceptorProviderBA.Name()).
-					TxBefore(fakeDeleteInterceptorProviderBA.Name()).
+					OnTxBefore(fakeDeleteInterceptorProviderBA.Name()).
 					Register()
 
 				smb.WithCreateInterceptorProvider(entityType, modificationCreateInterceptorProvider).Register()

@@ -30,7 +30,8 @@ import (
 )
 
 const (
-	PublicPlanInterceptorName = "public-plans"
+	CreateBrokerPublicPlanInterceptorName = "CreateBrokerPublicPlansInterceptor"
+	UpdateBrokerPublicPlanInterceptorName = "UpdateBrokerPublicPlansInterceptor"
 )
 
 type publicPlanProcessor func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (bool, error)
@@ -46,7 +47,7 @@ func (p *PublicPlanCreateInterceptorProvider) Provide() storage.CreateIntercepto
 }
 
 func (p *PublicPlanCreateInterceptorProvider) Name() string {
-	return PublicPlanInterceptorName
+	return CreateBrokerPublicPlanInterceptorName
 }
 
 type PublicPlanUpdateInterceptorProvider struct {
@@ -54,7 +55,7 @@ type PublicPlanUpdateInterceptorProvider struct {
 }
 
 func (p *PublicPlanUpdateInterceptorProvider) Name() string {
-	return PublicPlanInterceptorName
+	return UpdateBrokerPublicPlanInterceptorName
 }
 
 func (p *PublicPlanUpdateInterceptorProvider) Provide() storage.UpdateInterceptor {
