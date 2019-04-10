@@ -142,9 +142,9 @@ func (c *updateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) 
 
 		log.C(ctx).Debugf("Resyncing service plans for broker with id %s", brokerID)
 		for serviceOfferingCatalogID, catalogPlans := range catalogPlansMap {
-			var newPlansMapping []*types.ServicePlan
 			// for each catalog plan of this service
 			for _, catalogPlan := range catalogPlans {
+				var newPlansMapping []*types.ServicePlan
 				// after each iteration take the existing plans for the service again as if a previous match was found,
 				// the existing plans will be reduced by one
 				existingServicePlans, ok := existingServicePlansPerOfferingMap[serviceOfferingCatalogID]
