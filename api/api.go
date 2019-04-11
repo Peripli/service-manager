@@ -81,6 +81,7 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 			NewController(repository, web.VisibilitiesURL, types.VisibilityType, func() types.Object {
 				return &types.Visibility{}
 			}),
+			NewNotificationController(),
 			NewServiceOfferingController(repository),
 			NewServicePlanController(repository),
 			&info.Controller{

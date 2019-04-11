@@ -15,6 +15,9 @@ const (
 	// VisibilitiesURL is the URL path to manage visibilities
 	VisibilitiesURL = "/" + apiVersion + "/visibilities"
 
+	// NotificationsURL is the URL path to manage notifications
+	NotificationsURL = "/" + apiVersion + "/notifications"
+
 	// PlatformsURL is the URL path to manage platforms
 	PlatformsURL = "/" + apiVersion + "/platforms"
 
