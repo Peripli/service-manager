@@ -27,13 +27,11 @@ import (
 // Notification struct
 type Notification struct {
 	Base
-	Resource     string          `json:"resource"`
-	Type         string          `json:"type"`
-	PlatformID   string          `json:"platform_id,omitempty"`
-	Revision     int64           `json:"revision"`
-	New          json.RawMessage `json:"new,omitempty"`
-	Old          json.RawMessage `json:"old,omitempty"`
-	LabelChanges json.RawMessage `json:"label_changes,omitempty"`
+	Resource   string          `json:"resource"`
+	Type       string          `json:"type"`
+	PlatformID string          `json:"platform_id,omitempty"`
+	Revision   int64           `json:"revision"`
+	Payload    json.RawMessage `json:"payload"`
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

@@ -26,13 +26,11 @@ import (
 //go:generate smgen storage notification github.com/Peripli/service-manager/pkg/types:Notification
 type Notification struct {
 	BaseEntity
-	Resource     string             `db:"resource"`
-	Type         string             `db:"type"`
-	PlatformID   string             `db:"platform_id"`
-	Revision     int64              `db:"revision,auto-increment"`
-	New          sqlxtypes.JSONText `db:"new"`
-	Old          sqlxtypes.JSONText `db:"old"`
-	LabelChanges sqlxtypes.JSONText `db:"label_changes"`
+	Resource   string             `db:"resource"`
+	Type       string             `db:"type"`
+	PlatformID string             `db:"platform_id"`
+	Revision   int64              `db:"revision,auto_increment"`
+	Payload    sqlxtypes.JSONText `db:"payload"`
 }
 
 func (n *Notification) ToObject() types.Object {
@@ -43,13 +41,11 @@ func (n *Notification) ToObject() types.Object {
 			UpdatedAt: n.UpdatedAt,
 			Labels:    map[string][]string{},
 		},
-		Resource:     n.Resource,
-		Type:         n.Type,
-		PlatformID:   n.PlatformID,
-		Revision:     n.Revision,
-		New:          getJSONRawMessage(n.New),
-		Old:          getJSONRawMessage(n.Old),
-		LabelChanges: getJSONRawMessage(n.LabelChanges),
+		Resource:   n.Resource,
+		Type:       n.Type,
+		PlatformID: n.PlatformID,
+		Revision:   n.Revision,
+		Payload:    getJSONRawMessage(n.Payload),
 	}
 }
 
@@ -65,13 +61,11 @@ func (*Notification) FromObject(object types.Object) (storage.Entity, bool) {
 			CreatedAt: notification.CreatedAt,
 			UpdatedAt: notification.UpdatedAt,
 		},
-		Resource:     notification.Resource,
-		Type:         notification.Type,
-		PlatformID:   notification.PlatformID,
-		Revision:     -1, // will be set by db
-		New:          getJSONText(notification.New),
-		Old:          getJSONText(notification.Old),
-		LabelChanges: getJSONText(notification.LabelChanges),
+		Resource:   notification.Resource,
+		Type:       notification.Type,
+		PlatformID: notification.PlatformID,
+		Revision:   notification.Revision, // when creating new Notification, Revision will be set by DB
+		Payload:    getJSONText(notification.Payload),
 	}
 	return n, true
 }

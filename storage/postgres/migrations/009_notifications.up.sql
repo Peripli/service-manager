@@ -11,9 +11,7 @@ CREATE TABLE notifications
   revision      bigserial    NOT NULL,
   created_at    timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at    timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  new           json, -- json with the new value of the object and additional properties
-  old           json, -- json with the old value of the object and additional properties
-  label_changes json  -- json with the label changes provided on PATCH operation
+  payload       json         NOT NULL -- json with the notification payload
 );
 
 CREATE TABLE notification_labels

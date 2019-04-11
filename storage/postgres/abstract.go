@@ -206,7 +206,7 @@ func getTags(fields []*structs.Field, set *[]string) {
 			*set = append(*set, embedded...)
 		} else {
 			dbTag := field.Tag("db")
-			if dbTag == "-" || strings.Contains(dbTag, "auto-increment") {
+			if dbTag == "-" || strings.Contains(dbTag, "auto_increment") { // auto_increment states that the value will be calculated in the DB
 				continue
 			}
 			if dbTag == "" {
