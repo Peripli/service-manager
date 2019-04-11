@@ -50,6 +50,8 @@ GO_INT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v 
 GO_UNIT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd" | paste -sd "," -) \
 				$(shell go list ./... | egrep -v "test") -coverprofile=$(UNIT_TEST_PROFILE)
 
+COUNTERFEITER   ?= "v6.0.2"
+
 #-----------------------------------------------------------------------------
 # Prepare environment to be able to run other make targets
 #-----------------------------------------------------------------------------
@@ -74,8 +76,10 @@ ifeq ($(shell which goveralls),)
 	@go get github.com/mattn/goveralls
 endif
 ifeq ($(shell which counterfeiter),)
-	@echo "Installing counterfeither..."
+	@echo "Installing counterfeither $(COUNTERFEITER)..."
 	@go get github.com/maxbrunsfeld/counterfeiter
+	@cd ${GOPATH}/src/github.com/maxbrunsfeld/counterfeiter && git checkout tags/$(COUNTERFEITER) && go install
+	@chmod a+x ${GOPATH}/bin/counterfeiter
 endif
 ifeq ($(shell which golint),)
 	@echo "Installing golint... "
