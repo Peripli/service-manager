@@ -214,14 +214,7 @@ func (ps *PostgresStorage) Delete(ctx context.Context, objType types.ObjectType,
 		return nil, err
 	}
 	rows, err := deleteAllByFieldCriteria(ctx, ps.pgDB, entity.TableName(), entity, criteria)
-	defer func() {
-		if rows == nil {
-			return
-		}
-		if err := rows.Close(); err != nil {
-			log.C(ctx).Errorf("Could not release connection when checking database. Error: %s", err)
-		}
-	}()
+	defer closeRows(ctx, rows)
 	if err != nil {
 		return nil, err
 	}
@@ -252,6 +245,7 @@ func (ps *PostgresStorage) Update(ctx context.Context, obj types.Object, labelCh
 	if err != nil {
 		return nil, err
 	}
+	defer closeRows(ctx, rows)
 	labels, err := labelsRowsToList(rows, func() PostgresLabel { return entity.LabelEntity() })
 	if err != nil {
 		return nil, err
@@ -290,9 +284,10 @@ func (ps *PostgresStorage) InTransaction(ctx context.Context, f func(ctx context
 	}()
 
 	transactionalStorage := &PostgresStorage{
-		pgDB:   tx,
-		db:     ps.db,
-		scheme: ps.scheme,
+		pgDB:          tx,
+		db:            ps.db,
+		scheme:        ps.scheme,
+		encryptionKey: ps.encryptionKey,
 	}
 
 	if err = f(ctx, transactionalStorage); err != nil {
