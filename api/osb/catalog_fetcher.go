@@ -28,7 +28,6 @@ func (scf *StorageCatalogFetcher) FetchCatalog(ctx context.Context, brokerID str
 			plan.ID = plan.CatalogID
 			plan.Name = plan.CatalogName
 		}
-		result.Add(service)
 	}
 	return result, nil
 }
