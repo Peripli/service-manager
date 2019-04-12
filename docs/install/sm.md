@@ -30,7 +30,7 @@ Clone the [service-manager](https://github.com/Peripli/service-manager) reposito
 cf create-service <postgres_service_name> <plan_name> <postgre_instance_name>
 ```
 
-Alternatively, you can use external PostgreSQL as described in the [installation prerequisites page](./../development/install-prerequisites.md#postgres-database). In this case you need to have a PostgreSQL URI and substitute it in the the `STORAG_URI` in `manifest.yml` as outlined below.
+Alternatively, you can use external PostgreSQL as described in the [installation prerequisites page](./../development/install-prerequisites.md#postgres-database). In this case you need to have a PostgreSQL URI and substitute it in the the `STORAGE_URI` in `manifest.yml` as outlined below.
 
 ### Update manifest.yml file
 
