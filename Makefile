@@ -56,7 +56,15 @@ COUNTERFEITER   ?= "v6.0.2"
 # Prepare environment to be able to run other make targets
 #-----------------------------------------------------------------------------
 
-prepare: build-gen-binary ## Installs some tools (dep, gometalinter, cover, goveralls)
+prepare-counterfeiter:
+ifeq ($(shell which counterfeiter),)
+	@echo "Installing counterfeiter $(COUNTERFEITER)..."
+	@go get github.com/maxbrunsfeld/counterfeiter
+	@cd ${GOPATH}/src/github.com/maxbrunsfeld/counterfeiter && git checkout tags/$(COUNTERFEITER) && go install
+	@chmod a+x ${GOPATH}/bin/counterfeiter
+endif
+
+prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (dep, gometalinter, cover, goveralls)
 ifeq ($(shell which dep),)
 	@echo "Installing dep..."
 	@go get -u github.com/golang/dep/cmd/dep
@@ -74,12 +82,6 @@ endif
 ifeq ($(shell which goveralls),)
 	@echo "Installing goveralls..."
 	@go get github.com/mattn/goveralls
-endif
-ifeq ($(shell which counterfeiter),)
-	@echo "Installing counterfeither $(COUNTERFEITER)..."
-	@go get github.com/maxbrunsfeld/counterfeiter
-	@cd ${GOPATH}/src/github.com/maxbrunsfeld/counterfeiter && git checkout tags/$(COUNTERFEITER) && go install
-	@chmod a+x ${GOPATH}/bin/counterfeiter
 endif
 ifeq ($(shell which golint),)
 	@echo "Installing golint... "
@@ -137,7 +139,7 @@ build-gen-binary:
 # Tests and coverage
 #-----------------------------------------------------------------------------
 
-generate: build-gen-binary $(GENERATE_PREREQ_FILES) ## Recreates gen files if any of the files containing go:generate directives have changed
+generate: prepare-counterfeiter build-gen-binary $(GENERATE_PREREQ_FILES) ## Recreates gen files if any of the files containing go:generate directives have changed
 	$(GO) list ./... | xargs $(GO) generate
 	@touch $@
 
