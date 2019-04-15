@@ -53,7 +53,7 @@ type Settings struct {
 	MigrationsURL      string `mapstructure:"migrations_url" description:"location of a directory containing sql migrations scripts"`
 	EncryptionKey      string `mapstructure:"encryption_key" description:"key to use for encrypting database entries"`
 	SkipSSLValidation  bool   `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when connecting to the storage"`
-	MaxIdleConnections int    `mapstructure:"max_idle_connections"`
+	MaxIdleConnections int    `mapstructure:"max_idle_connections" description:"sets the maximum number of connections in the idle connection pool"`
 }
 
 // DefaultSettings returns default values for storage settings
