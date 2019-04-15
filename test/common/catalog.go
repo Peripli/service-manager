@@ -26,94 +26,124 @@ import (
 )
 
 var emptyCatalog = `
-{
-  "services": []
-}
-`
+ {
+   "services": []
+ }
+ `
 
 var testFreePlan = `
-	{
-      "name": "another-free-plan-name-%[1]s",
-      "id": "%[1]s",
-      "description": "test-description",
-      "free": true,
-      "metadata": {
-        "max_storage_tb": 5,
-        "costs":[
-            {
-               "amount":{
-                  "usd":199.0
-               },
-               "unit":"MONTHLY"
-            },
-            {
-               "amount":{
-                  "usd":0.99
-               },
-               "unit":"1GB of messages over 20GB"
-            }
-         ],
-        "bullets": [
-          "40 concurrent connections"
-        ]
-      }
-    }
-`
+   {
+       "name": "another-free-plan-name-%[1]s",
+       "id": "%[1]s",
+       "description": "test-description",
+       "free": true,
+       "metadata": {
+         "max_storage_tb": 5,
+         "costs":[
+             {
+                "amount":{
+                   "usd":199.0
+                },
+                "unit":"MONTHLY"
+             },
+             {
+                "amount":{
+                   "usd":0.99
+                },
+                "unit":"1GB of messages over 20GB"
+             }
+          ],
+         "bullets": [
+           "40 concurrent connections"
+         ]
+       }
+     }
+ `
+
+var testFreePlanWithSupportedPlatform = `
+   {
+       "name": "another-free-plan-name-%[1]s",
+       "id": "%[1]s",
+       "description": "test-description",
+       "free": true,
+       "metadata": {
+         "supportedPlatforms": ["%[2]s"],
+         "max_storage_tb": 5,
+         "costs":[
+             {
+                "amount":{
+                   "usd":199.0
+                },
+                "unit":"MONTHLY"
+             },
+             {
+                "amount":{
+                   "usd":0.99
+                },
+                "unit":"1GB of messages over 20GB"
+             }
+          ],
+         "bullets": [
+           "40 concurrent connections"
+         ]
+       }
+     }
+ `
 
 var testPaidPlan = `
-	{
-      "name": "another-paid-plan-name-%[1]s",
-      "id": "%[1]s",
-      "description": "test-description",
-      "free": false,
-      "metadata": {
-        "max_storage_tb": 5,
-        "costs":[
-            {
-               "amount":{
-                  "usd":199.0
-               },
-               "unit":"MONTHLY"
-            },
-            {
-               "amount":{
-                  "usd":0.99
-               },
-               "unit":"1GB of messages over 20GB"
-            }
-         ],
-        "bullets": [
-          "40 concurrent connections"
-        ]
-      }
-    }
-`
+   {
+       "name": "another-paid-plan-name-%[1]s",
+       "id": "%[1]s",
+       "description": "test-description",
+       "free": false,
+       "metadata": {
+         "max_storage_tb": 5,
+         "costs":[
+             {
+                "amount":{
+                   "usd":199.0
+                },
+                "unit":"MONTHLY"
+             },
+             {
+                "amount":{
+                   "usd":0.99
+                },
+                "unit":"1GB of messages over 20GB"
+             }
+          ],
+         "bullets": [
+           "40 concurrent connections"
+         ]
+       }
+     }
+ `
 
 var testService = `
-{
-    "name": "another-fake-service-%[1]s",
-    "id": "%[1]s",
-    "description": "test-description",
-    "requires": ["another-route_forwarding"],
-    "tags": ["another-no-sql", "another-relational"],
-    "bindable": true,	
-    "instances_retrievable": true,	
-    "bindings_retrievable": true,	
-    "metadata": {	
-      "provider": {	
-        "name": "another name"	
-      },	
-      "listing": {	
-        "imageUrl": "http://example.com/cat.gif",	
-        "blurb": "another blurb here",	
-        "longDescription": "A long time ago, in a another galaxy far far away..."	
-      },	
-      "displayName": "another Fake Service Broker"	
-    },	
-    "plan_updateable": true,	
-    "plans": []
-}
-`
+ {
+     "name": "another-fake-service-%[1]s",
+     "id": "%[1]s",
+     "description": "test-description",
+     "requires": ["another-route_forwarding"],
+     "tags": ["another-no-sql", "another-relational"],
+     "bindable": true,	
+     "instances_retrievable": true,	
+     "bindings_retrievable": true,	
+     "metadata": {	
+       "provider": {	
+         "name": "another name"	
+       },	
+       "listing": {	
+         "imageUrl": "http://example.com/cat.gif",	
+         "blurb": "another blurb here",	
+         "longDescription": "A long time ago, in a another galaxy far far away..."	
+       },	
+       "displayName": "another Fake Service Broker"	
+     },	
+     "plan_updateable": true,	
+     "plans": []
+ }
+ `
 
 type SBCatalog string
 
@@ -215,10 +245,19 @@ func GeneratePaidTestPlan() string {
 	return GenerateTestPlanFromTemplate(testPaidPlan)
 }
 
-func GenerateTestPlanFromTemplate(planTemplate string) string {
+func GeneratePlanWithSupportedPlatform(platformType string) string {
+	return GenerateTestPlanFromTemplate(testFreePlanWithSupportedPlatform, platformType)
+}
+
+func GenerateTestPlanFromTemplate(planTemplate string, args ...interface{}) string {
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		panic(err)
 	}
-	return fmt.Sprintf(planTemplate, UUID.String())
+	params := make([]interface{}, 0)
+	params = append(params, UUID)
+	if len(args) > 0 {
+		params = append(params, args...)
+	}
+	return fmt.Sprintf(planTemplate, params...)
 }
