@@ -187,7 +187,14 @@ func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object,
 }
 
 func (itr *InterceptableTransactionalRepository) InTransaction(ctx context.Context, f func(ctx context.Context, storage Repository) error) error {
-	return itr.smStorageRepository.InTransaction(ctx, f)
+	createInterceptors, updateInterceptors, deleteInterceptors := itr.provideInterceptors()
+
+	fWrapper := func(ctx context.Context, storage Repository) error {
+		wrappedStorage := newInterceptableRepository(storage, itr.encrypter, createInterceptors, updateInterceptors, deleteInterceptors)
+		return f(ctx, wrappedStorage)
+	}
+
+	return itr.smStorageRepository.InTransaction(ctx, fWrapper)
 }
 
 func (itr *InterceptableTransactionalRepository) AddCreateInterceptorProvider(objectType types.ObjectType, provider OrderedCreateInterceptorProvider) {

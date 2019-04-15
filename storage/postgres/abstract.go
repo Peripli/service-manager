@@ -254,6 +254,15 @@ func checkIntegrityViolation(ctx context.Context, err error) error {
 	return err
 }
 
+func closeRows(ctx context.Context, rows *sqlx.Rows) {
+	if rows == nil {
+		return
+	}
+	if err := rows.Close(); err != nil {
+		log.C(ctx).WithError(err).Errorf("Could not release connection")
+	}
+}
+
 func checkRowsAffected(ctx context.Context, result sql.Result) error {
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
