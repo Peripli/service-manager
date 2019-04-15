@@ -59,10 +59,11 @@ type Settings struct {
 // DefaultSettings returns default values for storage settings
 func DefaultSettings() *Settings {
 	return &Settings{
-		URI:               "",
-		MigrationsURL:     fmt.Sprintf("file://%s/postgres/migrations", basepath),
-		EncryptionKey:     "",
-		SkipSSLValidation: false,
+		URI:                "",
+		MigrationsURL:      fmt.Sprintf("file://%s/postgres/migrations", basepath),
+		EncryptionKey:      "",
+		SkipSSLValidation:  false,
+		MaxIdleConnections: 5,
 	}
 }
 
