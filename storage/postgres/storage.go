@@ -90,6 +90,7 @@ func (ps *PostgresStorage) Open(options *storage.Settings) error {
 		if err := ps.updateSchema(options.MigrationsURL); err != nil {
 			log.D().Panicln("Could not update database schema:", err)
 		}
+		ps.db.SetMaxIdleConns(options.MaxIdleConnections)
 		ps.pgDB = ps.db
 		ps.scheme = newScheme()
 		ps.scheme.introduce(&Broker{})
