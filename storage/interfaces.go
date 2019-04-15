@@ -49,19 +49,21 @@ var (
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	URI               string
-	MigrationsURL     string `mapstructure:"migrations_url"`
-	EncryptionKey     string `mapstructure:"encryption_key"`
-	SkipSSLValidation bool   `mapstructure:"skip_ssl_validation"`
+	URI                string
+	MigrationsURL      string `mapstructure:"migrations_url"`
+	EncryptionKey      string `mapstructure:"encryption_key"`
+	SkipSSLValidation  bool   `mapstructure:"skip_ssl_validation"`
+	MaxIdleConnections int    `mapstructure:"max_idle_connections"`
 }
 
 // DefaultSettings returns default values for storage settings
 func DefaultSettings() *Settings {
 	return &Settings{
-		URI:               "",
-		MigrationsURL:     fmt.Sprintf("file://%s/postgres/migrations", basepath),
-		EncryptionKey:     "",
-		SkipSSLValidation: false,
+		URI:                "",
+		MigrationsURL:      fmt.Sprintf("file://%s/postgres/migrations", basepath),
+		EncryptionKey:      "",
+		SkipSSLValidation:  false,
+		MaxIdleConnections: 5,
 	}
 }
 

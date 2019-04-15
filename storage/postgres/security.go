@@ -92,6 +92,7 @@ type keyFetcher struct {
 func (s *keyFetcher) GetEncryptionKey(ctx context.Context) ([]byte, error) {
 	safe := &Safe{}
 	rows, err := listByFieldCriteria(ctx, s.db, "safe", []query.Criterion{})
+	defer closeRows(ctx, rows)
 	if err != nil {
 		return nil, err
 	}
@@ -115,6 +116,7 @@ type keySetter struct {
 // Sets the encryption key by encrypting it beforehand with the encryption key in the environment
 func (k *keySetter) SetEncryptionKey(ctx context.Context, key []byte) error {
 	rows, err := listByFieldCriteria(ctx, k.db, "safe", []query.Criterion{})
+	defer closeRows(ctx, rows)
 	if err != nil {
 		return err
 	}
