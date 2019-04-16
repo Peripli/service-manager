@@ -52,17 +52,23 @@ GO_UNIT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v
 
 COUNTERFEITER   ?= "v6.0.2"
 
+GIT_BRANCH=$(shell git branch | sed -n -e 's/^\* \(.*\)/\1/p')
+
 #-----------------------------------------------------------------------------
 # Prepare environment to be able to run other make targets
 #-----------------------------------------------------------------------------
 
 prepare-counterfeiter:
-ifeq ($(shell which counterfeiter),)
 	@echo "Installing counterfeiter $(COUNTERFEITER)..."
 	@go get github.com/maxbrunsfeld/counterfeiter
-	@cd ${GOPATH}/src/github.com/maxbrunsfeld/counterfeiter && git checkout tags/$(COUNTERFEITER) && go install
+	@cd ${GOPATH}/src/github.com/maxbrunsfeld/counterfeiter;\
+		counterfeiterBranch=$(shell cd ${GOPATH}/src/github.com/maxbrunsfeld/counterfeiter && git branch | sed -n -e 's/^\* \(.*\)/\1/p');\
+		git checkout tags/$(COUNTERFEITER) >/dev/null 2>&1;\
+		go install;\
+		echo "Revert to last known branch: $$counterfeiterBranch";\
+		git checkout $$counterfeiterBranch >/dev/null 2>&1
+
 	@chmod a+x ${GOPATH}/bin/counterfeiter
-endif
 
 prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (dep, gometalinter, cover, goveralls)
 ifeq ($(shell which dep),)
