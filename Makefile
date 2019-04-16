@@ -52,8 +52,6 @@ GO_UNIT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v
 
 COUNTERFEITER   ?= "v6.0.2"
 
-GIT_BRANCH=$(shell git branch | sed -n -e 's/^\* \(.*\)/\1/p')
-
 #-----------------------------------------------------------------------------
 # Prepare environment to be able to run other make targets
 #-----------------------------------------------------------------------------
