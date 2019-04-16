@@ -60,7 +60,7 @@ prepare-counterfeiter:
 	@echo "Installing counterfeiter $(COUNTERFEITER)..."
 	@go get github.com/maxbrunsfeld/counterfeiter
 	@cd ${GOPATH}/src/github.com/maxbrunsfeld/counterfeiter;\
-		counterfeiterBranch=$(shell cd ${GOPATH}/src/github.com/maxbrunsfeld/counterfeiter && git branch | sed -n -e 's/^\* \(.*\)/\1/p');\
+		counterfeiterBranch=$(shell cd ${GOPATH}/src/github.com/maxbrunsfeld/counterfeiter && git symbolic-ref --short HEAD);\
 		git checkout tags/$(COUNTERFEITER) >/dev/null 2>&1;\
 		go install;\
 		echo "Revert to last known branch: $$counterfeiterBranch";\
