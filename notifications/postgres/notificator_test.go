@@ -275,7 +275,7 @@ var _ = Describe("Notificator", func() {
 		BeforeEach(func() {
 			Expect(testNotificator.Start(ctx)).ToNot(HaveOccurred())
 			runningFunc(true, nil)
-			expectRegisterConsumerSuccess()
+			queue = expectRegisterConsumerSuccess()
 		})
 
 		Context("When notification is sent", func() {
@@ -315,8 +315,8 @@ var _ = Describe("Notificator", func() {
 
 		Context("When notification is sent with empty platform ID", func() {
 			It("Should be received in the queue", func() {
-				q, _, err := testNotificator.RegisterConsumer(userContext)
-				Expect(err).ToNot(HaveOccurred())
+				q := expectRegisterConsumerSuccess()
+
 				notification := createNotification("")
 				fakeStorage.GetReturns(notification, nil)
 				notificationChannel <- &pq.Notification{
@@ -365,17 +365,29 @@ var _ = Describe("Notificator", func() {
 		})
 
 		Context("When notification is sent to full queue", func() {
+
+			var notificationChannel chan *pq.Notification
+
+			BeforeEach(func() {
+				runningFunc = nil
+				var err error
+				testNotificator, err = postgres.NewNotificator(fakeStorage, 0)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(testNotificator.Start(ctx)).ToNot(HaveOccurred())
+				Expect(runningFunc).ToNot(BeNil())
+				notificationChannel = make(chan *pq.Notification, 2)
+				fakeNotificationConnection.NotificationChannelReturns(notificationChannel)
+				runningFunc(true, nil)
+			})
+
 			It("Should close notification queue", func() {
-				testNotificator, err := postgres.NewNotificator(fakeStorage, 0)
-				Expect(err).ToNot(HaveOccurred())
-				q, _, err := testNotificator.RegisterConsumer(userContext)
-				Expect(err).ToNot(HaveOccurred())
+				q := expectRegisterConsumerSuccess()
 				notification := createNotification(defaultPlatformID)
 				fakeStorage.GetReturns(notification, nil)
 				notificationChannel <- &pq.Notification{
 					Extra: createNotificationPayload(defaultPlatformID),
 				}
-				_, err = q.Next()
+				_, err := q.Next()
 				Expect(err).To(Equal(notifications.ErrQueueClosed))
 			})
 		})

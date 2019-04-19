@@ -18,14 +18,21 @@ package notifications
 
 import (
 	"context"
+	"errors"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-// NotificationQueue is used for processing
+// ErrQueueClosed error stating that the queue is closed
+var ErrQueueClosed = errors.New("queue closed")
+
+// ErrQueueFull error stating that the queue is full
+var ErrQueueFull = errors.New("queue is full")
+
+// NotificationQueue is used for receiving notifications
 type NotificationQueue interface {
-	// New enqueues new notification for processing. If queue is full - error is returned.
+	// Enqueue adds a new notification for processing. If queue is full ErrQueueFull is returned.
 	// It should not block or execute heavy operations.
 	Enqueue(notification *types.Notification) error
 
@@ -34,7 +41,9 @@ type NotificationQueue interface {
 	// If error is returned this means that the NotificationQueue is no longer valid.
 	Next() (*types.Notification, error)
 
-	// Close closes the queue
+	// Close closes the queue.
+	// Any subsequent calls to Next or Enqueue will return ErrQueueClosed.
+	// Any subsequent calls to Close does nothing.
 	Close()
 
 	// ID returns unique queue identifier
@@ -46,8 +55,8 @@ type Notificator interface {
 	// Start starts the Notificator
 	Start(ctx context.Context) error
 
-	// RegisterConsumer returns queue with received notifications from Postgres.
-	// Returns notification queue, last_known_revision and error if any
+	// RegisterConsumer returns notification queue, last_known_revision and error if any.
+	// When consumer wants to stop listening for notifications it must unregister the notification queue.
 	RegisterConsumer(userContext web.UserContext) (NotificationQueue, int64, error)
 
 	// UnregisterConsumer must be called to stop receiving notifications in the queue

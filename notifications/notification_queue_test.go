@@ -39,9 +39,15 @@ var _ = Describe("NotificationQueue", func() {
 		}
 	})
 
+	newQueue := func(size int) NotificationQueue {
+		queue, err := NewNotificationQueue(size)
+		Expect(err).ToNot(HaveOccurred())
+		return queue
+	}
+
 	Context("When queue is not full", func() {
 		It("should add a notification", func() {
-			notificationQueue := NewNotificationQueue(1)
+			notificationQueue := newQueue(1)
 			err := notificationQueue.Enqueue(notification)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(notificationQueue.Next()).To(Equal(notification))
@@ -50,16 +56,16 @@ var _ = Describe("NotificationQueue", func() {
 
 	Context("When queue is full", func() {
 		It("enqueue should return error", func() {
-			notificationQueue := NewNotificationQueue(0)
+			notificationQueue := newQueue(0)
 			err := notificationQueue.Enqueue(notification)
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(Equal("notification queue is full"))
+			Expect(err.Error()).To(Equal("queue is full"))
 		})
 	})
 
 	Context("When queue is closed", func() {
 		It("next should return error", func() {
-			notificationQueue := NewNotificationQueue(0)
+			notificationQueue := newQueue(0)
 			notificationQueue.Close()
 			_, err := notificationQueue.Next()
 			Expect(err).To(Equal(ErrQueueClosed))
@@ -68,10 +74,20 @@ var _ = Describe("NotificationQueue", func() {
 
 	Context("When queue is closed", func() {
 		It("enqueue should return error", func() {
-			notificationQueue := NewNotificationQueue(1)
+			notificationQueue := newQueue(1)
 			notificationQueue.Close()
 			err := notificationQueue.Enqueue(nil)
 			Expect(err).To(Equal(ErrQueueClosed))
+		})
+	})
+
+	Context("When ID is called", func() {
+		It("should return unique queue ID", func() {
+			notificationQueue1ID := newQueue(1).ID()
+			Expect(notificationQueue1ID).ToNot(BeEmpty())
+			notificationQueue2ID := newQueue(1).ID()
+			Expect(notificationQueue2ID).ToNot(BeEmpty())
+			Expect(notificationQueue1ID).ToNot(Equal(notificationQueue2ID))
 		})
 	})
 })

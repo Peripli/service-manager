@@ -73,8 +73,6 @@ func NewNotificator(ns NotificationStorage, queueSize int) (notifications.Notifi
 	}, nil
 }
 
-// Start opens a connection to the database.
-// Canceling the context stops the notificator
 func (n *notificator) Start(ctx context.Context) error {
 	if n.ctx != nil {
 		return errors.New("notificator already started")
@@ -87,9 +85,6 @@ func (n *notificator) Start(ctx context.Context) error {
 	return nil
 }
 
-// RegisterConsumer registers new user to receive notifications in the queue
-// id of the registration, last known revision and error if any is returned
-// The caller must Unregister itself with the received id
 func (n *notificator) RegisterConsumer(userContext web.UserContext) (notifications.NotificationQueue, int64, error) {
 	queue, err := notifications.NewNotificationQueue(n.queueSize)
 	if err != nil {
@@ -118,8 +113,6 @@ func (n *notificator) RegisterConsumer(userContext web.UserContext) (notificatio
 	return queue, n.lastKnownRevision, nil
 }
 
-// UnregisterConsumer unregisters consumer by given id received from RegisterConsumer
-// This will close the queue passed to RegisterConsumer
 func (n *notificator) UnregisterConsumer(queue notifications.NotificationQueue) error {
 	n.consumersMutex.Lock()
 	defer n.consumersMutex.Unlock()
