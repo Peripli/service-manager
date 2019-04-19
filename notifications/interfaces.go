@@ -36,6 +36,9 @@ type NotificationQueue interface {
 
 	// Close closes the queue
 	Close()
+
+	// ID returns unique queue identifier
+	ID() string
 }
 
 // Notificator is used for receiving notifications for SM events
@@ -43,10 +46,10 @@ type Notificator interface {
 	// Start starts the Notificator
 	Start(ctx context.Context) error
 
-	// RegisterConsumer starts populating queue with received notifications from Postgres.
-	// Returns id of consumer, last_known_revision and error if any
-	RegisterConsumer(userContext web.UserContext, queue NotificationQueue) (string, int64, error)
+	// RegisterConsumer returns queue with received notifications from Postgres.
+	// Returns notification queue, last_known_revision and error if any
+	RegisterConsumer(userContext web.UserContext) (NotificationQueue, int64, error)
 
-	// UnregisterConsumer must be called to stop receiving notifications
-	UnregisterConsumer(id string) error
+	// UnregisterConsumer must be called to stop receiving notifications in the queue
+	UnregisterConsumer(queue NotificationQueue) error
 }

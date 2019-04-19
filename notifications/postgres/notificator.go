@@ -27,8 +27,6 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/types"
 
-	"github.com/gofrs/uuid"
-
 	"github.com/Peripli/service-manager/pkg/log"
 
 	"github.com/Peripli/service-manager/notifications"
@@ -40,16 +38,13 @@ const (
 	invalidRevisionNumber int64 = -1
 )
 
-type consumer struct {
-	id                string
-	notificationQueue notifications.NotificationQueue
-}
+type consumers map[string][]notifications.NotificationQueue
 
 type notificator struct {
 	ctx context.Context
 
 	storage        NotificationStorage
-	consumers      map[string][]*consumer
+	consumers      consumers
 	consumersMutex *sync.RWMutex
 
 	connectionMutex *sync.Mutex
@@ -61,17 +56,20 @@ type notificator struct {
 
 	isRunning      bool
 	isRunningMutex *sync.RWMutex
+
+	queueSize int
 }
 
-// NewNotificator returns new notificator based on a given NotificatorStorage
-func NewNotificator(ns NotificationStorage) (notifications.Notificator, error) {
+// NewNotificator returns new notificator based on a given NotificatorStorage and desired queue size
+func NewNotificator(ns NotificationStorage, queueSize int) (notifications.Notificator, error) {
 	return &notificator{
 		storage:         ns,
-		consumers:       make(map[string][]*consumer),
+		consumers:       make(consumers),
 		consumersMutex:  &sync.RWMutex{},
 		connectionMutex: &sync.Mutex{},
 		revisionMutex:   &sync.RWMutex{},
 		isRunningMutex:  &sync.RWMutex{},
+		queueSize:       queueSize,
 	}, nil
 }
 
@@ -92,48 +90,47 @@ func (n *notificator) Start(ctx context.Context) error {
 // RegisterConsumer registers new user to receive notifications in the queue
 // id of the registration, last known revision and error if any is returned
 // The caller must Unregister itself with the received id
-func (n *notificator) RegisterConsumer(userContext web.UserContext, queue notifications.NotificationQueue) (string, int64, error) {
-	idBytes, err := uuid.NewV4()
+func (n *notificator) RegisterConsumer(userContext web.UserContext) (notifications.NotificationQueue, int64, error) {
+	queue, err := notifications.NewNotificationQueue(n.queueSize)
 	if err != nil {
-		return "", invalidRevisionNumber, fmt.Errorf("could not generate uuid %v", err)
+		return nil, invalidRevisionNumber, err
 	}
-	id := idBytes.String()
-
 	platform := &types.Platform{}
 	err = userContext.Data.Data(platform)
 	if err != nil {
-		return "", invalidRevisionNumber, fmt.Errorf("could not get platform from user context %v", err)
+		return nil, invalidRevisionNumber, fmt.Errorf("could not get platform from user context %v", err)
 	}
 	if platform.ID == "" {
-		return "", invalidRevisionNumber, errors.New("platform ID not found in user context")
+		return nil, invalidRevisionNumber, errors.New("platform ID not found in user context")
 	}
 	n.isRunningMutex.RLock()
 	defer n.isRunningMutex.RUnlock()
 	if !n.isRunning {
-		return "", invalidRevisionNumber, errors.New("cannot register consumer - notificator is not running")
+		return nil, invalidRevisionNumber, errors.New("cannot register consumer - notificator is not running")
 	}
 	if err := n.startListening(); err != nil {
-		return "", invalidRevisionNumber, fmt.Errorf("listen to %s channel failed %v", postgresChannel, err)
+		return nil, invalidRevisionNumber, fmt.Errorf("listen to %s channel failed %v", postgresChannel, err)
 	}
 
 	n.revisionMutex.RLock()
 	defer n.revisionMutex.RUnlock()
-	n.addConsumer(platform.ID, &consumer{id: id, notificationQueue: queue})
-	return id, n.lastKnownRevision, nil
+	n.addConsumer(platform.ID, queue)
+	return queue, n.lastKnownRevision, nil
 }
 
 // UnregisterConsumer unregisters consumer by given id received from RegisterConsumer
 // This will close the queue passed to RegisterConsumer
-func (n *notificator) UnregisterConsumer(id string) error {
+func (n *notificator) UnregisterConsumer(queue notifications.NotificationQueue) error {
 	n.consumersMutex.Lock()
 	defer n.consumersMutex.Unlock()
 
-	consumerIndex, platformIDToDelete := n.findConsumer(id)
+	consumerIndex, platformIDToDelete := n.findConsumer(queue.ID())
 	if consumerIndex == -1 {
-		return fmt.Errorf("consumer %s was not found", id)
+		return fmt.Errorf("consumer %s was not found", queue.ID())
 	}
 	platformConsumers := n.consumers[platformIDToDelete]
 	n.consumers[platformIDToDelete] = append(platformConsumers[:consumerIndex], platformConsumers[consumerIndex+1:]...)
+	queue.Close()
 
 	if len(n.consumers[platformIDToDelete]) == 0 {
 		delete(n.consumers, platformIDToDelete)
@@ -144,11 +141,11 @@ func (n *notificator) UnregisterConsumer(id string) error {
 	return nil
 }
 
-func (n *notificator) addConsumer(platformID string, c *consumer) {
+func (n *notificator) addConsumer(platformID string, queue notifications.NotificationQueue) {
 	n.consumersMutex.Lock()
 	defer n.consumersMutex.Unlock()
 
-	n.consumers[platformID] = append(n.consumers[platformID], c)
+	n.consumers[platformID] = append(n.consumers[platformID], queue)
 }
 
 func (n *notificator) findConsumer(id string) (int, string) {
@@ -156,8 +153,7 @@ func (n *notificator) findConsumer(id string) (int, string) {
 	consumerIndex := -1
 	for platformID, platformConsumers := range n.consumers {
 		for index, consumer := range platformConsumers {
-			if consumer.id == id {
-				consumer.notificationQueue.Close()
+			if consumer.ID() == id {
 				consumerIndex = index
 				break
 			}
@@ -176,7 +172,7 @@ func (n *notificator) closeAllConsumers() {
 
 	for _, consumers := range n.consumers {
 		for _, consumer := range consumers {
-			consumer.notificationQueue.Close()
+			consumer.Close()
 		}
 	}
 }
@@ -260,7 +256,7 @@ func (n *notificator) processNotificationPayload(payload *notifyEventPayload) {
 	}
 }
 
-func (n *notificator) getRecipients(platformID string) map[string][]*consumer {
+func (n *notificator) getRecipients(platformID string) consumers {
 	n.consumersMutex.RLock()
 	defer n.consumersMutex.RUnlock()
 	if platformID == "" {
@@ -270,7 +266,7 @@ func (n *notificator) getRecipients(platformID string) map[string][]*consumer {
 	if !found {
 		return nil
 	}
-	return map[string][]*consumer{
+	return consumers{
 		platformID: platformConsumers,
 	}
 }
@@ -283,11 +279,11 @@ func (n *notificator) getNotification(notificationID string) (*types.Notificatio
 	return notificationObj.(*types.Notification), nil
 }
 
-func (n *notificator) sendNotificationToPlatformConsumers(platformConsumers []*consumer, notification *types.Notification) {
+func (n *notificator) sendNotificationToPlatformConsumers(platformConsumers []notifications.NotificationQueue, notification *types.Notification) {
 	for _, consumer := range platformConsumers {
-		if err := consumer.notificationQueue.Enqueue(notification); err != nil {
-			log.C(n.ctx).WithError(err).Infof("consumer %s notification queue returned error %v", consumer.id, err)
-			consumer.notificationQueue.Close()
+		if err := consumer.Enqueue(notification); err != nil {
+			log.C(n.ctx).WithError(err).Infof("consumer %s notification queue returned error %v", consumer.ID(), err)
+			consumer.Close()
 		}
 	}
 }

@@ -18,6 +18,9 @@ package notifications
 
 import (
 	"errors"
+	"fmt"
+
+	"github.com/gofrs/uuid"
 
 	"github.com/Peripli/service-manager/pkg/types"
 )
@@ -28,18 +31,24 @@ var _ NotificationQueue = &notificationQueue{}
 var ErrQueueClosed = errors.New("queue closed")
 
 // NewNotificationQueue returns new NotificationQueue with specific size
-func NewNotificationQueue(size int) NotificationQueue {
+func NewNotificationQueue(size int) (NotificationQueue, error) {
+	idBytes, err := uuid.NewV4()
+	if err != nil {
+		return nil, fmt.Errorf("could not generate uuid %v", err)
+	}
 	return &notificationQueue{
 		isClosed:             false,
 		size:                 size,
 		notificationsChannel: make(chan *types.Notification, size),
-	}
+		id:                   idBytes.String(),
+	}, nil
 }
 
 type notificationQueue struct {
 	isClosed             bool
 	size                 int
 	notificationsChannel chan *types.Notification
+	id                   string
 }
 
 // Enqueue enqueues new notification for processing. If queue is full - error is returned.
@@ -72,4 +81,9 @@ func (nq *notificationQueue) Next() (*types.Notification, error) {
 func (nq *notificationQueue) Close() {
 	nq.isClosed = true
 	close(nq.notificationsChannel)
+}
+
+// ID returns unique queue identifier
+func (nq *notificationQueue) ID() string {
+	return nq.id
 }

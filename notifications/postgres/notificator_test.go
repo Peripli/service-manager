@@ -68,19 +68,19 @@ var _ = Describe("Notificator", func() {
 	expectedError := errors.New("*Expected*")
 
 	expectRegisterConsumerFail := func(errorMessage string) {
-		id, revision, err := testNotificator.RegisterConsumer(userContext, queue)
-		Expect(id).To(BeEmpty())
+		q, revision, err := testNotificator.RegisterConsumer(userContext)
+		Expect(q).To(BeNil())
 		Expect(revision).To(Equal(invalidRevision))
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring(errorMessage))
 	}
 
-	expectRegisterConsumerSuccess := func() string {
-		id, revision, err := testNotificator.RegisterConsumer(userContext, queue)
+	expectRegisterConsumerSuccess := func() notifications.NotificationQueue {
+		q, revision, err := testNotificator.RegisterConsumer(userContext)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(id).ToNot(BeEmpty())
 		Expect(revision).To(Equal(defaultLastRevision))
-		return id
+		Expect(q).ToNot(BeNil())
+		return q
 	}
 
 	expectReceivedNotification := func(expectedNotification *types.Notification, q notifications.NotificationQueue) {
@@ -105,7 +105,7 @@ var _ = Describe("Notificator", func() {
 			return fakeNotificationConnection
 		}
 		var err error
-		testNotificator, err = postgres.NewNotificator(fakeStorage)
+		testNotificator, err = postgres.NewNotificator(fakeStorage, 1)
 		Expect(err).ToNot(HaveOccurred())
 		fakeData = &webfakes.FakeData{}
 		fakeData.DataStub = func(i interface{}) error {
@@ -114,7 +114,6 @@ var _ = Describe("Notificator", func() {
 			return nil
 		}
 		userContext.Data = fakeData
-		queue = notifications.NewNotificationQueue(1)
 	})
 
 	AfterEach(func() {
@@ -149,38 +148,43 @@ var _ = Describe("Notificator", func() {
 	})
 
 	Describe("UnregisterConsumer", func() {
-		var id string
-
 		BeforeEach(func() {
 			Expect(testNotificator.Start(ctx)).ToNot(HaveOccurred())
 			Expect(runningFunc).ToNot(BeNil())
 			runningFunc(true, nil)
-			id = expectRegisterConsumerSuccess()
+			queue = expectRegisterConsumerSuccess()
 		})
+
+		newQueue := func(size int) notifications.NotificationQueue {
+			q, err := notifications.NewNotificationQueue(size)
+			Expect(err).ToNot(HaveOccurred())
+			return q
+		}
 
 		Context("When id is not found", func() {
 			It("Should return error", func() {
-				err := testNotificator.UnregisterConsumer("some_id")
+				q := newQueue(1)
+				err := testNotificator.UnregisterConsumer(q)
 				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("consumer some_id was not found"))
+				Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("consumer %s was not found", q.ID())))
 			})
 		})
 
 		Context("When id is found", func() {
 			It("Should unregister consumer", func() {
-				err := testNotificator.UnregisterConsumer(id)
+				err := testNotificator.UnregisterConsumer(queue)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(fakeNotificationConnection.UnlistenCallCount()).To(Equal(1))
-				err = testNotificator.UnregisterConsumer(id)
+				err = testNotificator.UnregisterConsumer(queue)
 				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("consumer %s was not found", id)))
+				Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("consumer %s was not found", queue.ID())))
 			})
 		})
 
 		Context("When more than one consumer is registered", func() {
 			It("Should not unlisten", func() {
 				expectRegisterConsumerSuccess()
-				err := testNotificator.UnregisterConsumer(id)
+				err := testNotificator.UnregisterConsumer(queue)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(fakeNotificationConnection.UnlistenCallCount()).To(Equal(0))
 			})
@@ -189,7 +193,7 @@ var _ = Describe("Notificator", func() {
 		Context("When unlisten returns error", func() {
 			It("Should unregister consumer", func() {
 				fakeNotificationConnection.UnlistenReturns(expectedError)
-				err := testNotificator.UnregisterConsumer(id)
+				err := testNotificator.UnregisterConsumer(queue)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring(expectedError.Error()))
 			})
@@ -311,8 +315,7 @@ var _ = Describe("Notificator", func() {
 
 		Context("When notification is sent with empty platform ID", func() {
 			It("Should be received in the queue", func() {
-				q := notifications.NewNotificationQueue(2)
-				_, _, err := testNotificator.RegisterConsumer(userContext, q)
+				q, _, err := testNotificator.RegisterConsumer(userContext)
 				Expect(err).ToNot(HaveOccurred())
 				notification := createNotification("")
 				fakeStorage.GetReturns(notification, nil)
@@ -363,8 +366,10 @@ var _ = Describe("Notificator", func() {
 
 		Context("When notification is sent to full queue", func() {
 			It("Should close notification queue", func() {
-				q := notifications.NewNotificationQueue(0)
-				_, _, err := testNotificator.RegisterConsumer(userContext, q)
+				testNotificator, err := postgres.NewNotificator(fakeStorage, 0)
+				Expect(err).ToNot(HaveOccurred())
+				q, _, err := testNotificator.RegisterConsumer(userContext)
+				Expect(err).ToNot(HaveOccurred())
 				notification := createNotification(defaultPlatformID)
 				fakeStorage.GetReturns(notification, nil)
 				notificationChannel <- &pq.Notification{
