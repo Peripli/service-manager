@@ -17,6 +17,8 @@
 package postgres
 
 import (
+	"database/sql"
+
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
@@ -28,7 +30,7 @@ type Notification struct {
 	BaseEntity
 	Resource   string             `db:"resource"`
 	Type       string             `db:"type"`
-	PlatformID string             `db:"platform_id"`
+	PlatformID sql.NullString     `db:"platform_id"`
 	Revision   int64              `db:"revision,auto_increment"`
 	Payload    sqlxtypes.JSONText `db:"payload"`
 }
@@ -43,7 +45,7 @@ func (n *Notification) ToObject() types.Object {
 		},
 		Resource:   n.Resource,
 		Type:       n.Type,
-		PlatformID: n.PlatformID,
+		PlatformID: n.PlatformID.String,
 		Revision:   n.Revision,
 		Payload:    getJSONRawMessage(n.Payload),
 	}
@@ -55,6 +57,11 @@ func (*Notification) FromObject(object types.Object) (storage.Entity, bool) {
 		return nil, false
 	}
 
+	platformID := sql.NullString{
+		String: notification.PlatformID,
+		Valid:  notification.PlatformID != "",
+	}
+
 	n := &Notification{
 		BaseEntity: BaseEntity{
 			ID:        notification.ID,
@@ -63,7 +70,7 @@ func (*Notification) FromObject(object types.Object) (storage.Entity, bool) {
 		},
 		Resource:   notification.Resource,
 		Type:       notification.Type,
-		PlatformID: notification.PlatformID,
+		PlatformID: platformID,
 		Revision:   notification.Revision, // when creating new Notification, Revision will be set by DB
 		Payload:    getJSONText(notification.Payload),
 	}
