@@ -33,7 +33,3 @@ type NotificationConnection interface {
 	// NotificationChannel returns channel for receiving notifications
 	NotificationChannel() <-chan *pq.Notification
 }
-
-type notificationConnection struct {
-	*pq.Listener
-}

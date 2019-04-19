@@ -41,35 +41,35 @@ const (
 type consumers map[string][]notifications.NotificationQueue
 
 type notificator struct {
-	ctx context.Context
+	isRunning   bool
+	isListening bool
 
-	storage        NotificationStorage
-	consumers      consumers
-	consumersMutex *sync.RWMutex
+	queueSize int
 
+	isRunningMutex  *sync.RWMutex
 	connectionMutex *sync.Mutex
 	connection      NotificationConnection
-	isListening     bool
+
+	consumersMutex *sync.RWMutex
+	consumers      consumers
+	storage        NotificationStorage
+
+	ctx context.Context
 
 	lastKnownRevision int64
 	revisionMutex     *sync.RWMutex
-
-	isRunning      bool
-	isRunningMutex *sync.RWMutex
-
-	queueSize int
 }
 
 // NewNotificator returns new notificator based on a given NotificatorStorage and desired queue size
 func NewNotificator(ns NotificationStorage, queueSize int) (notifications.Notificator, error) {
 	return &notificator{
-		storage:         ns,
-		consumers:       make(consumers),
-		consumersMutex:  &sync.RWMutex{},
-		connectionMutex: &sync.Mutex{},
-		revisionMutex:   &sync.RWMutex{},
-		isRunningMutex:  &sync.RWMutex{},
 		queueSize:       queueSize,
+		isRunningMutex:  &sync.RWMutex{},
+		connectionMutex: &sync.Mutex{},
+		consumersMutex:  &sync.RWMutex{},
+		consumers:       make(consumers),
+		storage:         ns,
+		revisionMutex:   &sync.RWMutex{},
 	}, nil
 }
 

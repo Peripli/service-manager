@@ -68,12 +68,12 @@ func (ns *notificationStorage) GetLastRevision(ctx context.Context) (int64, erro
 }
 
 func (ns *notificationStorage) NewConnection(eventCallback func(isRunning bool, err error)) NotificationConnection {
-	return &notificationConnection{pq.NewListener(ns.settings.URI, ns.settings.MinReconnectInterval, ns.settings.MaxReconnectInterval, func(event pq.ListenerEventType, err error) {
+	return pq.NewListener(ns.settings.URI, ns.settings.MinReconnectInterval, ns.settings.MaxReconnectInterval, func(event pq.ListenerEventType, err error) {
 		switch event {
 		case pq.ListenerEventConnected, pq.ListenerEventReconnected:
 			eventCallback(true, err)
 		case pq.ListenerEventDisconnected, pq.ListenerEventConnectionAttemptFailed:
 			eventCallback(false, err)
 		}
-	})}
+	})
 }
