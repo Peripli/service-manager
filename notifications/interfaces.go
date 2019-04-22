@@ -19,6 +19,7 @@ package notifications
 import (
 	"context"
 	"errors"
+	"sync"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -52,7 +53,7 @@ type NotificationQueue interface {
 // Notificator is used for receiving notifications for SM events
 type Notificator interface {
 	// Start starts the Notificator
-	Start(ctx context.Context) error
+	Start(ctx context.Context, group *sync.WaitGroup) error
 
 	// RegisterConsumer returns notification queue, last_known_revision and error if any.
 	// When consumer wants to stop listening for notifications it must unregister the notification queue.

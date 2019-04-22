@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/Peripli/service-manager/pkg/types"
@@ -55,6 +56,7 @@ var _ = Describe("Notificator", func() {
 	var (
 		ctx                        context.Context
 		cancel                     context.CancelFunc
+		wg                         *sync.WaitGroup
 		fakeStorage                *postgresfakes.FakeNotificationStorage
 		testNotificator            notifications.Notificator
 		fakeNotificationConnection *postgresfakes.FakeNotificationConnection
@@ -91,6 +93,7 @@ var _ = Describe("Notificator", func() {
 
 	BeforeEach(func() {
 		ctx, cancel = context.WithCancel(context.Background())
+		wg = &sync.WaitGroup{}
 		fakeStorage = &postgresfakes.FakeNotificationStorage{}
 		fakeStorage.GetLastRevisionReturns(defaultLastRevision, nil)
 		fakeNotificationConnection = &postgresfakes.FakeNotificationConnection{}
@@ -118,17 +121,18 @@ var _ = Describe("Notificator", func() {
 
 	AfterEach(func() {
 		cancel()
+		wg.Wait()
 	})
 
 	Describe("Start", func() {
 
 		Context("When already started", func() {
 			BeforeEach(func() {
-				Expect(testNotificator.Start(ctx)).ToNot(HaveOccurred())
+				Expect(testNotificator.Start(ctx, wg)).ToNot(HaveOccurred())
 			})
 
 			It("Should return error", func() {
-				err := testNotificator.Start(ctx)
+				err := testNotificator.Start(ctx, wg)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("notificator already started"))
 			})
@@ -140,7 +144,7 @@ var _ = Describe("Notificator", func() {
 			})
 
 			It("Should return error", func() {
-				err := testNotificator.Start(ctx)
+				err := testNotificator.Start(ctx, wg)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("could not open connection to database " + expectedError.Error()))
 			})
@@ -149,7 +153,7 @@ var _ = Describe("Notificator", func() {
 
 	Describe("UnregisterConsumer", func() {
 		BeforeEach(func() {
-			Expect(testNotificator.Start(ctx)).ToNot(HaveOccurred())
+			Expect(testNotificator.Start(ctx, wg)).ToNot(HaveOccurred())
 			Expect(runningFunc).ToNot(BeNil())
 			runningFunc(true, nil)
 			queue = expectRegisterConsumerSuccess()
@@ -203,7 +207,7 @@ var _ = Describe("Notificator", func() {
 	Describe("RegisterConsumer", func() {
 
 		BeforeEach(func() {
-			Expect(testNotificator.Start(ctx)).ToNot(HaveOccurred())
+			Expect(testNotificator.Start(ctx, wg)).ToNot(HaveOccurred())
 			runningFunc(true, nil)
 		})
 
@@ -273,7 +277,7 @@ var _ = Describe("Notificator", func() {
 		}
 
 		BeforeEach(func() {
-			Expect(testNotificator.Start(ctx)).ToNot(HaveOccurred())
+			Expect(testNotificator.Start(ctx, wg)).ToNot(HaveOccurred())
 			runningFunc(true, nil)
 			queue = expectRegisterConsumerSuccess()
 		})
@@ -376,7 +380,7 @@ var _ = Describe("Notificator", func() {
 				var err error
 				testNotificator, err = postgres.NewNotificator(fakeStorage, 0)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(testNotificator.Start(ctx)).ToNot(HaveOccurred())
+				Expect(testNotificator.Start(ctx, wg)).ToNot(HaveOccurred())
 				Expect(runningFunc).ToNot(BeNil())
 				notificationChannel = make(chan *pq.Notification, 2)
 				fakeNotificationConnection.NotificationChannelReturns(notificationChannel)

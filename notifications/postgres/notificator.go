@@ -54,7 +54,8 @@ type notificator struct {
 	consumers      consumers
 	storage        NotificationStorage
 
-	ctx context.Context
+	ctx   context.Context
+	group *sync.WaitGroup
 
 	lastKnownRevision int64
 	revisionMutex     *sync.RWMutex
@@ -73,7 +74,7 @@ func NewNotificator(ns NotificationStorage, queueSize int) (notifications.Notifi
 	}, nil
 }
 
-func (n *notificator) Start(ctx context.Context) error {
+func (n *notificator) Start(ctx context.Context, group *sync.WaitGroup) error {
 	if n.ctx != nil {
 		return errors.New("notificator already started")
 	}
@@ -81,6 +82,8 @@ func (n *notificator) Start(ctx context.Context) error {
 	if err := n.openConnection(); err != nil {
 		return fmt.Errorf("could not open connection to database %v", err)
 	}
+	n.group = group
+	group.Add(1)
 	go n.awaitTermination()
 	return nil
 }
@@ -287,6 +290,7 @@ func (n *notificator) awaitTermination() {
 	logger.Info("context cancelled, stopping notificator...")
 	n.isRunning = false
 	n.stopConnection()
+	n.group.Done()
 }
 
 func (n *notificator) stopConnection() {
