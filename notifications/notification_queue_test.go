@@ -50,12 +50,14 @@ var _ = Describe("NotificationQueue", func() {
 			notificationQueue := newQueue(1)
 			err := notificationQueue.Enqueue(notification)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(notificationQueue.Next()).To(Equal(notification))
+			ch, err := notificationQueue.Channel()
+			Expect(err).ToNot(HaveOccurred())
+			Expect(<-ch).To(Equal(notification))
 		})
 	})
 
 	Context("When queue is full", func() {
-		It("enqueue should return error", func() {
+		It("Enqueue should return error", func() {
 			notificationQueue := newQueue(0)
 			err := notificationQueue.Enqueue(notification)
 			Expect(err).To(HaveOccurred())
@@ -64,16 +66,16 @@ var _ = Describe("NotificationQueue", func() {
 	})
 
 	Context("When queue is closed", func() {
-		It("next should return error", func() {
+		It("Channel should return error", func() {
 			notificationQueue := newQueue(0)
 			notificationQueue.Close()
-			_, err := notificationQueue.Next()
+			_, err := notificationQueue.Channel()
 			Expect(err).To(Equal(ErrQueueClosed))
 		})
 	})
 
 	Context("When queue is closed", func() {
-		It("enqueue should return error", func() {
+		It("Enqueue should return error", func() {
 			notificationQueue := newQueue(1)
 			notificationQueue.Close()
 			err := notificationQueue.Enqueue(nil)

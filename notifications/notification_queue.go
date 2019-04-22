@@ -58,12 +58,11 @@ func (nq *notificationQueue) Enqueue(notification *types.Notification) error {
 	return nil
 }
 
-func (nq *notificationQueue) Next() (*types.Notification, error) {
-	notification, ok := <-nq.notificationsChannel
-	if !ok {
+func (nq *notificationQueue) Channel() (<-chan *types.Notification, error) {
+	if nq.isClosed {
 		return nil, ErrQueueClosed
 	}
-	return notification, nil
+	return nq.notificationsChannel, nil
 }
 
 func (nq *notificationQueue) Close() {

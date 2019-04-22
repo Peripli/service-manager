@@ -36,10 +36,9 @@ type NotificationQueue interface {
 	// It should not block or execute heavy operations.
 	Enqueue(notification *types.Notification) error
 
-	// Next returns the next notification which has to be processed.
-	// If there are no new notifications the call will block.
+	// Channel returns the go channel with received notifications which has to be processed.
 	// If error is returned this means that the NotificationQueue is no longer valid.
-	Next() (*types.Notification, error)
+	Channel() (<-chan *types.Notification, error)
 
 	// Close closes the queue.
 	// Any subsequent calls to Next or Enqueue will return ErrQueueClosed.
