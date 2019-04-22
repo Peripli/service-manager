@@ -84,9 +84,9 @@ var _ = Describe("Notificator", func() {
 	}
 
 	expectReceivedNotification := func(expectedNotification *types.Notification, q notifications.NotificationQueue) {
-		receivedNotification, err := q.Next()
+		receivedNotificationChan, err := q.Channel()
 		Expect(err).ToNot(HaveOccurred())
-		Expect(receivedNotification).To(Equal(expectedNotification))
+		Expect(<-receivedNotificationChan).To(Equal(expectedNotification))
 	}
 
 	BeforeEach(func() {
@@ -292,12 +292,13 @@ var _ = Describe("Notificator", func() {
 		Context("When notification cannot be fetched from db", func() {
 			fetchNotificationFromDBFail := func(platformID string) {
 				fakeStorage.GetReturns(nil, expectedError)
+				ch, err := queue.Channel()
+				Expect(err).ToNot(HaveOccurred())
 				notificationChannel <- &pq.Notification{
 					Extra: createNotificationPayload(platformID),
 				}
-				_, err := queue.Next()
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(Equal("queue closed"))
+				_, ok := <-ch
+				Expect(ok).To(BeFalse())
 			}
 
 			Context("When notification has registered platform ID", func() {
@@ -344,11 +345,13 @@ var _ = Describe("Notificator", func() {
 
 		Context("When notification is sent from db with invalid payload", func() {
 			It("Should close notification queue", func() {
+				ch, err := queue.Channel()
+				Expect(err).ToNot(HaveOccurred())
 				notificationChannel <- &pq.Notification{
 					Extra: "not_json",
 				}
-				_, err := queue.Next()
-				Expect(err).To(Equal(notifications.ErrQueueClosed))
+				_, ok := <-ch
+				Expect(ok).To(BeFalse())
 			})
 		})
 
@@ -384,11 +387,13 @@ var _ = Describe("Notificator", func() {
 				q := expectRegisterConsumerSuccess()
 				notification := createNotification(defaultPlatformID)
 				fakeStorage.GetReturns(notification, nil)
+				ch, err := q.Channel()
+				Expect(err).ToNot(HaveOccurred())
 				notificationChannel <- &pq.Notification{
 					Extra: createNotificationPayload(defaultPlatformID),
 				}
-				_, err := q.Next()
-				Expect(err).To(Equal(notifications.ErrQueueClosed))
+				_, ok := <-ch
+				Expect(ok).To(BeFalse())
 			})
 		})
 	})
