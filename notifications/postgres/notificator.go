@@ -64,13 +64,14 @@ type notificator struct {
 // NewNotificator returns new notificator based on a given NotificatorStorage and desired queue size
 func NewNotificator(ns NotificationStorage, queueSize int) (notifications.Notificator, error) {
 	return &notificator{
-		queueSize:       queueSize,
-		isRunningMutex:  &sync.RWMutex{},
-		connectionMutex: &sync.Mutex{},
-		consumersMutex:  &sync.RWMutex{},
-		consumers:       make(consumers),
-		storage:         ns,
-		revisionMutex:   &sync.RWMutex{},
+		queueSize:         queueSize,
+		isRunningMutex:    &sync.RWMutex{},
+		connectionMutex:   &sync.Mutex{},
+		consumersMutex:    &sync.RWMutex{},
+		consumers:         make(consumers),
+		storage:           ns,
+		lastKnownRevision: invalidRevisionNumber,
+		revisionMutex:     &sync.RWMutex{},
 	}, nil
 }
 
@@ -88,7 +89,7 @@ func (n *notificator) Start(ctx context.Context, group *sync.WaitGroup) error {
 	return nil
 }
 
-func (n *notificator) RegisterConsumer(userContext web.UserContext) (notifications.NotificationQueue, int64, error) {
+func (n *notificator) RegisterConsumer(userContext *web.UserContext) (notifications.NotificationQueue, int64, error) {
 	queue, err := notifications.NewNotificationQueue(n.queueSize)
 	if err != nil {
 		return nil, invalidRevisionNumber, err
@@ -180,11 +181,6 @@ func (n *notificator) setConnection(conn NotificationConnection) {
 }
 
 func (n *notificator) openConnection() error {
-	lastKnownRevision, err := n.storage.GetLastRevision(n.ctx)
-	if err != nil {
-		return err
-	}
-	n.updateLastKnownRevision(lastKnownRevision)
 	connection := n.storage.NewConnection(func(isRunning bool, err error) {
 		n.isRunningMutex.Lock()
 		defer n.isRunningMutex.Unlock()
@@ -312,6 +308,7 @@ func (n *notificator) stopListening() error {
 	if !n.isListening {
 		return nil
 	}
+	n.updateLastKnownRevision(invalidRevisionNumber)
 	err := n.connection.Unlisten(postgresChannel)
 	if err == nil {
 		n.isListening = false
@@ -325,7 +322,13 @@ func (n *notificator) startListening() error {
 	if n.isListening {
 		return nil
 	}
-	err := n.connection.Listen(postgresChannel)
+	lastKnownRevision, err := n.storage.GetLastRevision(n.ctx)
+	if err != nil {
+		return err
+	}
+	n.updateLastKnownRevision(lastKnownRevision)
+
+	err = n.connection.Listen(postgresChannel)
 	if err == nil {
 		n.isListening = true
 		go n.processNotifications(n.connection.NotificationChannel())

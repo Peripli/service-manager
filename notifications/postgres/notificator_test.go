@@ -62,7 +62,7 @@ var _ = Describe("Notificator", func() {
 		fakeNotificationConnection *postgresfakes.FakeNotificationConnection
 		notificationChannel        chan *pq.Notification
 		runningFunc                func(isRunning bool, err error)
-		userContext                web.UserContext
+		userContext                *web.UserContext
 		fakeData                   *webfakes.FakeData
 		queue                      notifications.NotificationQueue
 	)
@@ -86,8 +86,7 @@ var _ = Describe("Notificator", func() {
 	}
 
 	expectReceivedNotification := func(expectedNotification *types.Notification, q notifications.NotificationQueue) {
-		receivedNotificationChan, err := q.Channel()
-		Expect(err).ToNot(HaveOccurred())
+		receivedNotificationChan := q.Channel()
 		Expect(<-receivedNotificationChan).To(Equal(expectedNotification))
 	}
 
@@ -116,6 +115,7 @@ var _ = Describe("Notificator", func() {
 			platform.ID = defaultPlatformID
 			return nil
 		}
+		userContext = &web.UserContext{}
 		userContext.Data = fakeData
 	})
 
@@ -135,18 +135,6 @@ var _ = Describe("Notificator", func() {
 				err := testNotificator.Start(ctx, wg)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("notificator already started"))
-			})
-		})
-
-		Context("When storage GetLastRevision fails", func() {
-			BeforeEach(func() {
-				fakeStorage.GetLastRevisionReturns(invalidRevision, expectedError)
-			})
-
-			It("Should return error", func() {
-				err := testNotificator.Start(ctx, wg)
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("could not open connection to database " + expectedError.Error()))
 			})
 		})
 	})
@@ -209,6 +197,16 @@ var _ = Describe("Notificator", func() {
 		BeforeEach(func() {
 			Expect(testNotificator.Start(ctx, wg)).ToNot(HaveOccurred())
 			runningFunc(true, nil)
+		})
+
+		Context("When storage GetLastRevision fails", func() {
+			BeforeEach(func() {
+				fakeStorage.GetLastRevisionReturns(invalidRevision, expectedError)
+			})
+
+			It("Should return error", func() {
+				expectRegisterConsumerFail("listen to notifications channel failed " + expectedError.Error())
+			})
 		})
 
 		Context("When user is not valid", func() {
@@ -296,8 +294,7 @@ var _ = Describe("Notificator", func() {
 		Context("When notification cannot be fetched from db", func() {
 			fetchNotificationFromDBFail := func(platformID string) {
 				fakeStorage.GetReturns(nil, expectedError)
-				ch, err := queue.Channel()
-				Expect(err).ToNot(HaveOccurred())
+				ch := queue.Channel()
 				notificationChannel <- &pq.Notification{
 					Extra: createNotificationPayload(platformID),
 				}
@@ -349,8 +346,7 @@ var _ = Describe("Notificator", func() {
 
 		Context("When notification is sent from db with invalid payload", func() {
 			It("Should close notification queue", func() {
-				ch, err := queue.Channel()
-				Expect(err).ToNot(HaveOccurred())
+				ch := queue.Channel()
 				notificationChannel <- &pq.Notification{
 					Extra: "not_json",
 				}
@@ -391,8 +387,7 @@ var _ = Describe("Notificator", func() {
 				q := expectRegisterConsumerSuccess()
 				notification := createNotification(defaultPlatformID)
 				fakeStorage.GetReturns(notification, nil)
-				ch, err := q.Channel()
-				Expect(err).ToNot(HaveOccurred())
+				ch := q.Channel()
 				notificationChannel <- &pq.Notification{
 					Extra: createNotificationPayload(defaultPlatformID),
 				}

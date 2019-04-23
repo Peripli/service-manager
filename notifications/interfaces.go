@@ -33,17 +33,13 @@ var ErrQueueFull = errors.New("queue is full")
 
 // NotificationQueue is used for receiving notifications
 type NotificationQueue interface {
-	// Enqueue adds a new notification for processing. If queue is full ErrQueueFull is returned.
-	// It should not block or execute heavy operations.
+	// Enqueue adds a new notification for processing.
 	Enqueue(notification *types.Notification) error
 
 	// Channel returns the go channel with received notifications which has to be processed.
-	// If error is returned this means that the NotificationQueue is no longer valid.
-	Channel() (<-chan *types.Notification, error)
+	Channel() <-chan *types.Notification
 
 	// Close closes the queue.
-	// Any subsequent calls to Next or Enqueue will return ErrQueueClosed.
-	// Any subsequent calls to Close does nothing.
 	Close()
 
 	// ID returns unique queue identifier
@@ -57,7 +53,7 @@ type Notificator interface {
 
 	// RegisterConsumer returns notification queue, last_known_revision and error if any.
 	// When consumer wants to stop listening for notifications it must unregister the notification queue.
-	RegisterConsumer(userContext web.UserContext) (NotificationQueue, int64, error)
+	RegisterConsumer(userContext *web.UserContext) (NotificationQueue, int64, error)
 
 	// UnregisterConsumer must be called to stop receiving notifications in the queue
 	UnregisterConsumer(queue NotificationQueue) error

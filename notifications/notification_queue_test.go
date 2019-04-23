@@ -50,8 +50,7 @@ var _ = Describe("NotificationQueue", func() {
 			notificationQueue := newQueue(1)
 			err := notificationQueue.Enqueue(notification)
 			Expect(err).ToNot(HaveOccurred())
-			ch, err := notificationQueue.Channel()
-			Expect(err).ToNot(HaveOccurred())
+			ch := notificationQueue.Channel()
 			Expect(<-ch).To(Equal(notification))
 		})
 	})
@@ -66,11 +65,12 @@ var _ = Describe("NotificationQueue", func() {
 	})
 
 	Context("When queue is closed", func() {
-		It("Channel should return error", func() {
+		It("Channel should return closed channel", func() {
 			notificationQueue := newQueue(0)
 			notificationQueue.Close()
-			_, err := notificationQueue.Channel()
-			Expect(err).To(Equal(ErrQueueClosed))
+			ch := notificationQueue.Channel()
+			_, ok := <-ch
+			Expect(ok).To(BeFalse())
 		})
 	})
 

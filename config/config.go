@@ -18,6 +18,7 @@ package config
 
 import (
 	"github.com/Peripli/service-manager/api"
+	"github.com/Peripli/service-manager/notifications/postgres"
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/server"
@@ -27,10 +28,11 @@ import (
 
 // Settings is used to setup the Service Manager
 type Settings struct {
-	Server  *server.Settings
-	Storage *storage.Settings
-	Log     *log.Settings
-	API     *api.Settings
+	Server        *server.Settings
+	Storage       *storage.Settings
+	Log           *log.Settings
+	API           *api.Settings
+	Notifications *postgres.Settings
 }
 
 // AddPFlags adds the SM config flags to the provided flag set
@@ -42,10 +44,11 @@ func AddPFlags(set *pflag.FlagSet) {
 // DefaultSettings returns the default values for configuring the Service Manager
 func DefaultSettings() *Settings {
 	config := &Settings{
-		Server:  server.DefaultSettings(),
-		Storage: storage.DefaultSettings(),
-		Log:     log.DefaultSettings(),
-		API:     api.DefaultSettings(),
+		Server:        server.DefaultSettings(),
+		Storage:       storage.DefaultSettings(),
+		Log:           log.DefaultSettings(),
+		API:           api.DefaultSettings(),
+		Notifications: postgres.DefaultSettings(),
 	}
 	return config
 }
@@ -64,7 +67,7 @@ func New(env env.Environment) (*Settings, error) {
 func (c *Settings) Validate() error {
 	validatable := []interface {
 		Validate() error
-	}{c.Server, c.Storage, c.Log, c.API}
+	}{c.Server, c.Storage, c.Log, c.API, c.Notifications}
 
 	for _, item := range validatable {
 		if err := item.Validate(); err != nil {

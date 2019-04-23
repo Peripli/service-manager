@@ -55,6 +55,7 @@ var _ = Describe("config", func() {
 			config.API.ClientID = "sm"
 			config.API.SkipSSLValidation = true
 			config.Storage.EncryptionKey = "ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8"
+			config.Notifications.URI = "postgres://postgres:postgres@localhost:5555/postgres?sslmode=disable"
 		})
 
 		Context("when config is valid", func() {
@@ -109,6 +110,13 @@ var _ = Describe("config", func() {
 		Context("when TransactionalRepository Encryption key is missing", func() {
 			It("returns an error", func() {
 				config.Storage.EncryptionKey = ""
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("when Notification URI is missing", func() {
+			It("returns an error", func() {
+				config.Notifications.URI = ""
 				assertErrorDuringValidate()
 			})
 		})
