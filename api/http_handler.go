@@ -55,7 +55,7 @@ func (h *HTTPHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 func (h *HTTPHandler) serve(res http.ResponseWriter, req *http.Request) error {
 	req.Body = http.MaxBytesReader(res, req.Body, int64(h.requestBodyMaxSize))
 
-	request, err := convertToWebRequest(req)
+	request, err := convertToWebRequest(req, res)
 	if err != nil {
 		return err
 	}
@@ -63,6 +63,9 @@ func (h *HTTPHandler) serve(res http.ResponseWriter, req *http.Request) error {
 	response, err := h.Handler.Handle(request)
 	if err != nil {
 		return err
+	}
+	if request.IsResponseWriterHijacked() {
+		return nil
 	}
 
 	// copy response headers
@@ -82,7 +85,7 @@ func (h *HTTPHandler) serve(res http.ResponseWriter, req *http.Request) error {
 	return nil
 }
 
-func convertToWebRequest(request *http.Request) (*web.Request, error) {
+func convertToWebRequest(request *http.Request, rw http.ResponseWriter) (*web.Request, error) {
 	pathParams := mux.Vars(request)
 
 	var body []byte
@@ -92,11 +95,13 @@ func convertToWebRequest(request *http.Request) (*web.Request, error) {
 		err = isPayloadTooLargeErr(request.Context(), err)
 	}
 
-	return &web.Request{
+	webReq := &web.Request{
 		Request:    request,
 		PathParams: pathParams,
 		Body:       body,
-	}, err
+	}
+	webReq.SetResponseWriter(rw)
+	return webReq, err
 }
 
 func isPayloadTooLargeErr(ctx context.Context, err error) error {

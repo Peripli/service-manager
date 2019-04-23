@@ -51,7 +51,8 @@ func (ps *PostgresStorage) Introduce(entity storage.Entity) {
 }
 
 func (ps *PostgresStorage) SelectContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
-	return ps.pgDB.SelectContext(ctx, dest, query, args...) // TODO add test
+	ps.checkOpen()
+	return ps.pgDB.SelectContext(ctx, dest, query, args...)
 }
 
 func (ps *PostgresStorage) Credentials() storage.Credentials {
