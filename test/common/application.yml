@@ -6,7 +6,8 @@ log:
   level: debug
   format: text
 notifications:
-  uri: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+  storage:
+    uri: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
 storage:
   uri: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
   encryption_key: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8

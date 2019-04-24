@@ -8,7 +8,8 @@ log:
   level: error
   format: text
 notifications:
-  uri: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+  storage:
+    uri: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
 storage:
   #  name: sm-postgres
   uri: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable

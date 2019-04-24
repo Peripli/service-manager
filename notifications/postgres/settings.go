@@ -17,30 +17,24 @@
 package postgres
 
 import (
-	"fmt"
-	"time"
+	"github.com/Peripli/service-manager/notifications/postgres/storage"
 )
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	URI                  string        `mapstructure:"uri"`
-	MinReconnectInterval time.Duration `mapstructure:"min_reconnect_interval"`
-	MaxReconnectInterval time.Duration `mapstructure:"max_reconnect_interval"`
+	NotificationQueuesSize int               `mapstructure:"notification_queues_size"`
+	StorageSettings        *storage.Settings `mapstructure:"storage"`
 }
 
 // DefaultSettings returns default values for notificator settings
 func DefaultSettings() *Settings {
 	return &Settings{
-		URI:                  "",
-		MinReconnectInterval: time.Millisecond * 200,
-		MaxReconnectInterval: time.Second * 20,
+		NotificationQueuesSize: 100,
+		StorageSettings:        storage.DefaultSettings(),
 	}
 }
 
 // Validate validates the notificator settings
 func (s *Settings) Validate() error {
-	if len(s.URI) == 0 {
-		return fmt.Errorf("validate Settings: notifications URI missing")
-	}
-	return nil
+	return s.StorageSettings.Validate()
 }

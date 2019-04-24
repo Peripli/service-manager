@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package postgres
+package storage
 
 import "github.com/lib/pq"
 

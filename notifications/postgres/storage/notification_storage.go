@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package postgres
+package storage
 
 import (
 	"context"
@@ -24,6 +24,7 @@ import (
 
 	"github.com/lib/pq"
 
+	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/storage/postgres"
 )
@@ -31,7 +32,7 @@ import (
 // NotificationStorage storage for getting and listening for notifications
 //go:generate counterfeiter . NotificationStorage
 type NotificationStorage interface {
-	storage.Storage
+	GetNotification(ctx context.Context, id string) (*types.Notification, error)
 
 	// GetLastRevision returns the last received notification revision
 	GetLastRevision(ctx context.Context) (int64, error)
@@ -41,30 +42,38 @@ type NotificationStorage interface {
 }
 
 // NewNotificationStorage returns storage for notifications
-func NewNotificationStorage(st storage.Storage, settings Settings) (NotificationStorage, error) {
+func NewNotificationStorage(st storage.Storage, settings *Settings) (NotificationStorage, error) {
 	pgStorage, ok := st.(*postgres.PostgresStorage)
 	if !ok {
 		return nil, errors.New("expected notification storage to be Postgres")
 	}
 	return &notificationStorage{
-		PostgresStorage: pgStorage,
-		settings:        settings,
+		storage:  pgStorage,
+		settings: settings,
 	}, nil
 }
 
 type notificationStorage struct {
-	*postgres.PostgresStorage
-	settings Settings
+	storage  *postgres.PostgresStorage
+	settings *Settings
 }
 
 func (ns *notificationStorage) GetLastRevision(ctx context.Context) (int64, error) {
 	notification := &postgres.Notification{}
 	sqlString := fmt.Sprintf("SELECT revision FROM %s ORDER BY DESC LIMIT 1", postgres.NotificationTable)
-	err := ns.SelectContext(ctx, notification, sqlString)
+	err := ns.storage.SelectContext(ctx, notification, sqlString)
 	if err != nil && err != sql.ErrNoRows {
 		return 0, fmt.Errorf("could not get last notification revision from db %v", err)
 	}
 	return notification.Revision, nil
+}
+
+func (ns *notificationStorage) GetNotification(ctx context.Context, id string) (*types.Notification, error) {
+	notificationObj, err := ns.storage.Get(ctx, types.NotificationType, id)
+	if err != nil {
+		return nil, err
+	}
+	return notificationObj.(*types.Notification), nil
 }
 
 func (ns *notificationStorage) NewConnection(eventCallback func(isRunning bool, err error)) NotificationConnection {

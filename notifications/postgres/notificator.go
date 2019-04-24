@@ -23,6 +23,9 @@ import (
 	"fmt"
 	"sync"
 
+	notificationStorage "github.com/Peripli/service-manager/notifications/postgres/storage"
+	"github.com/Peripli/service-manager/storage"
+
 	"github.com/lib/pq"
 
 	"github.com/Peripli/service-manager/pkg/types"
@@ -48,11 +51,11 @@ type notificator struct {
 
 	isRunningMutex  *sync.RWMutex
 	connectionMutex *sync.Mutex
-	connection      NotificationConnection
+	connection      notificationStorage.NotificationConnection
 
 	consumersMutex *sync.RWMutex
 	consumers      consumers
-	storage        NotificationStorage
+	storage        notificationStorage.NotificationStorage
 
 	ctx   context.Context
 	group *sync.WaitGroup
@@ -62,9 +65,13 @@ type notificator struct {
 }
 
 // NewNotificator returns new notificator based on a given NotificatorStorage and desired queue size
-func NewNotificator(ns NotificationStorage, queueSize int) (notifications.Notificator, error) {
+func NewNotificator(st storage.Storage, settings *Settings) (*notificator, error) {
+	ns, err := notificationStorage.NewNotificationStorage(st, settings.StorageSettings)
+	if err != nil {
+		return nil, err
+	}
 	return &notificator{
-		queueSize:         queueSize,
+		queueSize:         settings.NotificationQueuesSize,
 		isRunningMutex:    &sync.RWMutex{},
 		connectionMutex:   &sync.Mutex{},
 		consumersMutex:    &sync.RWMutex{},
@@ -174,7 +181,7 @@ func (n *notificator) closeAllConsumers() {
 	}
 }
 
-func (n *notificator) setConnection(conn NotificationConnection) {
+func (n *notificator) setConnection(conn notificationStorage.NotificationConnection) {
 	n.connectionMutex.Lock()
 	defer n.connectionMutex.Unlock()
 	n.connection = conn
@@ -237,7 +244,7 @@ func (n *notificator) processNotificationPayload(payload *notifyEventPayload) {
 	if len(recipients) == 0 {
 		return
 	}
-	notification, err := n.getNotification(notificationID)
+	notification, err := n.storage.GetNotification(n.ctx, notificationID)
 	if err != nil {
 		log.C(n.ctx).WithError(err).Errorf("notification %s could not be retrieved from the DB, closing consumers", notificationID)
 		n.closeAllConsumers()
@@ -261,14 +268,6 @@ func (n *notificator) getRecipients(platformID string) consumers {
 	return consumers{
 		platformID: platformConsumers,
 	}
-}
-
-func (n *notificator) getNotification(notificationID string) (*types.Notification, error) {
-	notificationObj, err := n.storage.Get(n.ctx, types.NotificationType, notificationID)
-	if err != nil {
-		return nil, err
-	}
-	return notificationObj.(*types.Notification), nil
 }
 
 func (n *notificator) sendNotificationToPlatformConsumers(platformConsumers []notifications.NotificationQueue, notification *types.Notification) {
