@@ -149,7 +149,11 @@ func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTable
 		for _, option := range fieldCriteria {
 			rightOpBindVar, rightOpQueryValue := buildRightOp(option)
 			sqlOperation := translateOperationToSQLEquivalent(option.Operator)
-			clause := fmt.Sprintf("%s.%s::text %s %s", baseTableName, option.LeftOp, sqlOperation, rightOpBindVar)
+			dbCast := "::text"
+			if option.Operator.IsNumeric() {
+				dbCast = ""
+			}
+			clause := fmt.Sprintf("%s.%s%s %s %s", baseTableName, option.LeftOp, dbCast, sqlOperation, rightOpBindVar)
 			if option.Operator.IsNullable() {
 				clause = fmt.Sprintf("(%s OR %s.%s IS NULL)", clause, baseTableName, option.LeftOp)
 			}

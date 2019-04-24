@@ -68,7 +68,7 @@ type pgDB interface {
 
 func create(ctx context.Context, db pgDB, table string, dto interface{}) (string, error) {
 	var lastInsertID string
-	set := getDBTags(dto)
+	set := getDBTags(dto, autoIncrementPredicate)
 
 	if len(set) == 0 {
 		return lastInsertID, fmt.Errorf("%s insert: No fields to insert", table)
@@ -144,9 +144,10 @@ func deleteAllByFieldCriteria(ctx context.Context, extContext sqlx.ExtContext, t
 
 func validateFieldQueryParams(baseEntity interface{}, criteria []query.Criterion) error {
 	availableColumns := make(map[string]bool)
-	tags := getDBTags(baseEntity)
+	tags := getDBTags(baseEntity, nil)
 	for _, dbTag := range tags {
-		availableColumns[dbTag] = true
+		tagValues := strings.Split(dbTag, ",")
+		availableColumns[tagValues[0]] = true
 	}
 	for _, criterion := range criteria {
 		if criterion.Type == query.FieldQuery && !availableColumns[criterion.LeftOp] {
@@ -162,7 +163,7 @@ func constructBaseQueryForEntity(tableName string) string {
 
 func constructBaseQueryForLabelable(labelsEntity PostgresLabel, baseTableName string) string {
 	baseQuery := `SELECT %[1]s.*,`
-	for _, dbTag := range getDBTags(labelsEntity) {
+	for _, dbTag := range getDBTags(labelsEntity, autoIncrementPredicate) {
 		baseQuery += " %[2]s." + dbTag + " " + "\"%[2]s." + dbTag + "\"" + ","
 	}
 	baseQuery = baseQuery[:len(baseQuery)-1] //remove last comma
@@ -187,26 +188,34 @@ func update(ctx context.Context, db namedExecerContext, table string, dto interf
 	return checkRowsAffected(ctx, result)
 }
 
-func getDBTags(structure interface{}) []string {
+func autoIncrementPredicate(tagValue string) bool {
+	// auto_increment states that the value will be calculated in the DB
+	return !strings.Contains(tagValue, "auto_increment")
+}
+
+func getDBTags(structure interface{}, predicate func(string) bool) []string {
 	s := structs.New(structure)
 	fields := s.Fields()
 	set := make([]string, 0, len(fields))
-	getTags(fields, &set)
+	if predicate == nil {
+		predicate = func(string) bool { return true }
+	}
+	getTags(fields, &set, predicate)
 	return set
 }
 
-func getTags(fields []*structs.Field, set *[]string) {
+func getTags(fields []*structs.Field, set *[]string, predicate func(string) bool) {
 	for _, field := range fields {
 		if field.Kind() == reflect.Ptr && field.IsZero() {
 			continue
 		}
 		if field.IsEmbedded() {
 			embedded := make([]string, 0)
-			getTags(field.Fields(), &embedded)
+			getTags(field.Fields(), &embedded, predicate)
 			*set = append(*set, embedded...)
 		} else {
 			dbTag := field.Tag("db")
-			if dbTag == "-" || strings.Contains(dbTag, "auto_increment") { // auto_increment states that the value will be calculated in the DB
+			if dbTag == "-" || !predicate(dbTag) {
 				continue
 			}
 			if dbTag == "" {
@@ -218,7 +227,7 @@ func getTags(fields []*structs.Field, set *[]string) {
 }
 
 func updateQuery(tableName string, structure interface{}) string {
-	dbTags := getDBTags(structure)
+	dbTags := getDBTags(structure, autoIncrementPredicate)
 	set := make([]string, 0, len(dbTags))
 	for _, dbTag := range dbTags {
 		set = append(set, fmt.Sprintf("%s = :%s", dbTag, dbTag))
