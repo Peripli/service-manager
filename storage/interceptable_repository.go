@@ -88,8 +88,11 @@ func (ir *interceptableRepository) Create(ctx context.Context, obj types.Object)
 	}
 
 	var err error
-	if _, found := ir.createInterceptor[objectType]; found {
-		err = ir.createInterceptor[objectType].OnTxCreate(createObjectFunc)(ctx, ir, obj)
+	if createInterceptorChain, found := ir.createInterceptor[objectType]; found {
+		// remove the create interceptor chain so that if one of the interceptors in the chain tries
+		// to create another resource of the same type we don't get into infinite recursion
+		delete(ir.createInterceptor, objectType)
+		err = createInterceptorChain.OnTxCreate(createObjectFunc)(ctx, ir, obj)
 	} else {
 		err = createObjectFunc(ctx, ir.repositoryInTransaction, obj)
 	}
@@ -138,8 +141,9 @@ func (ir *interceptableRepository) Delete(ctx context.Context, objectType types.
 	var objectList types.ObjectList
 	var err error
 
-	if _, found := ir.deleteInterceptor[objectType]; found {
-		objectList, err = ir.deleteInterceptor[objectType].OnTxDelete(deleteObjectFunc)(ctx, ir, criteria...)
+	if deleteInterceptorChain, found := ir.deleteInterceptor[objectType]; found {
+		delete(ir.deleteInterceptor, objectType)
+		objectList, err = deleteInterceptorChain.OnTxDelete(deleteObjectFunc)(ctx, ir, criteria...)
 	} else {
 		objectList, err = deleteObjectFunc(ctx, ir.repositoryInTransaction, criteria...)
 	}
@@ -169,8 +173,9 @@ func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object,
 	var updatedObj types.Object
 	var err error
 
-	if _, found := ir.updateInterceptor[objectType]; found {
-		updatedObj, err = ir.updateInterceptor[objectType].OnTxUpdate(updateObjFunc)(ctx, ir, obj, labelChanges...)
+	if updateInterceptorChain, found := ir.updateInterceptor[objectType]; found {
+		delete(ir.updateInterceptor, objectType)
+		updatedObj, err = updateInterceptorChain.OnTxUpdate(updateObjFunc)(ctx, ir, obj, labelChanges...)
 	} else {
 		updatedObj, err = updateObjFunc(ctx, ir, obj, labelChanges...)
 	}
