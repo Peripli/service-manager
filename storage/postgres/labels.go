@@ -117,7 +117,7 @@ func removeLabel(ctx context.Context, execer sqlx.ExtContext, label PostgresLabe
 	return nil
 }
 
-func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTableName string, labelEntity PostgresLabel, criteria []query.Criterion) (string, []interface{}, error) {
+func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTableName string, labelEntity PostgresLabel, criteria []query.Criterion, dbTags []tagType) (string, []interface{}, error) {
 	if len(criteria) == 0 {
 		return sqlQuery + ";", nil, nil
 	}
@@ -147,12 +147,14 @@ func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTable
 	if len(fieldCriteria) > 0 {
 		sqlQuery += " WHERE "
 		for _, option := range fieldCriteria {
+			ttype := ""
+			if dbTags != nil {
+				ttype = findTagType(dbTags, option.LeftOp)
+			}
 			rightOpBindVar, rightOpQueryValue := buildRightOp(option)
 			sqlOperation := translateOperationToSQLEquivalent(option.Operator)
-			dbCast := "::text"
-			if option.Operator.IsNumeric() {
-				dbCast = ""
-			}
+
+			dbCast := determineCastByTypeAndOperator(ttype, option.Operator)
 			clause := fmt.Sprintf("%s.%s%s %s %s", baseTableName, option.LeftOp, dbCast, sqlOperation, rightOpBindVar)
 			if option.Operator.IsNullable() {
 				clause = fmt.Sprintf("(%s OR %s.%s IS NULL)", clause, baseTableName, option.LeftOp)
@@ -173,6 +175,38 @@ func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTable
 	}
 	sqlQuery = extContext.Rebind(sqlQuery)
 	return sqlQuery, queryParams, nil
+}
+
+func findTagType(tags []tagType, tagName string) string {
+	for _, tag := range tags {
+		if tag.Tag == tagName {
+			return tag.Type
+		}
+	}
+	return ""
+}
+
+func determineCastByTypeAndOperator(tagType string, operator query.Operator) string {
+	dbCast := ""
+	switch tagType {
+	case "string":
+		fallthrough
+	case "sqlxtypes.JSONText":
+		fallthrough
+	case "sql.NullString":
+		dbCast = "::text"
+
+	case "int":
+		fallthrough
+	case "int64":
+		fallthrough
+	case "time.Time":
+		dbCast = ""
+
+	default:
+		dbCast = "::text"
+	}
+	return dbCast
 }
 
 func splitCriteriaByType(criteria []query.Criterion) ([]query.Criterion, []query.Criterion) {
