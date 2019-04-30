@@ -154,7 +154,7 @@ func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTable
 			rightOpBindVar, rightOpQueryValue := buildRightOp(option)
 			sqlOperation := translateOperationToSQLEquivalent(option.Operator)
 
-			dbCast := determineCastByTypeAndOperator(ttype, option.Operator)
+			dbCast := determineCastByType(ttype)
 			clause := fmt.Sprintf("%s.%s%s %s %s", baseTableName, option.LeftOp, dbCast, sqlOperation, rightOpBindVar)
 			if option.Operator.IsNullable() {
 				clause = fmt.Sprintf("(%s OR %s.%s IS NULL)", clause, baseTableName, option.LeftOp)
@@ -186,7 +186,7 @@ func findTagType(tags []tagType, tagName string) string {
 	return ""
 }
 
-func determineCastByTypeAndOperator(tagType string, operator query.Operator) string {
+func determineCastByType(tagType string) string {
 	dbCast := ""
 	switch tagType {
 	case "string":
