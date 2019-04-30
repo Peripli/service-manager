@@ -48,40 +48,48 @@ var _ = Describe("Service Manager Query", func() {
 		}
 	})
 
-	Context("when search with greater than operator", func() {
-		It("notifications with less than value should not be found", func() {
-			now := time.Now()
-			id1 := createNotification(repository, now)
-			id2 := createNotification(repository, now.Add(-30*time.Minute))
+	Context("with 2 notification created at different times", func() {
+		var now time.Time
+		var id1, id2 string
+		BeforeEach(func() {
+			now = time.Now()
 
+			id1 = createNotification(repository, now)
+			id2 = createNotification(repository, now.Add(-30*time.Minute))
+		})
+
+		It("notifications older than the provided time should not be found", func() {
 			operand := now.Add(-time.Hour).Format(time.RFC3339)
 			criteria := query.ByField(query.LessThanOperator, "created_at", operand)
 			list := queryNotification(repository, criteria)
 			expectNotifications(list)
+		})
 
-			operand = now.Add(-20 * time.Minute).Format(time.RFC3339)
-			criteria = query.ByField(query.LessThanOperator, "created_at", operand)
-			list = queryNotification(repository, criteria)
+		It("only 1 should be older than the provided time", func() {
+			operand := now.Add(-20 * time.Minute).Format(time.RFC3339)
+			criteria := query.ByField(query.LessThanOperator, "created_at", operand)
+			list := queryNotification(repository, criteria)
 			expectNotifications(list, id2)
+		})
 
-			operand = now.Add(-time.Hour).Format(time.RFC3339)
-			criteria = query.ByField(query.GreaterThanOperator, "created_at", operand)
-			list = queryNotification(repository, criteria)
+		It("2 notifications should be found newer than the provided time", func() {
+			operand := now.Add(-time.Hour).Format(time.RFC3339)
+			criteria := query.ByField(query.GreaterThanOperator, "created_at", operand)
+			list := queryNotification(repository, criteria)
 			expectNotifications(list, id1, id2)
+		})
 
-			operand = now.Add(-2 * time.Hour).Format(time.RFC3339)
-			criteria = query.ByField(query.GreaterThanOperator, "created_at", operand)
-			list = queryNotification(repository, criteria)
-			expectNotifications(list, id1, id2)
-
-			operand = now.Add(-10 * time.Minute).Format(time.RFC3339)
-			criteria = query.ByField(query.GreaterThanOperator, "created_at", operand)
-			list = queryNotification(repository, criteria)
+		It("only 1 notifications should be found newer than the provided time", func() {
+			operand := now.Add(-10 * time.Minute).Format(time.RFC3339)
+			criteria := query.ByField(query.GreaterThanOperator, "created_at", operand)
+			list := queryNotification(repository, criteria)
 			expectNotifications(list, id1)
+		})
 
-			operand = now.Add(10 * time.Minute).Format(time.RFC3339)
-			criteria = query.ByField(query.GreaterThanOperator, "created_at", operand)
-			list = queryNotification(repository, criteria)
+		It("no notifications should be found newer than the last one created", func() {
+			operand := now.Add(10 * time.Minute).Format(time.RFC3339)
+			criteria := query.ByField(query.GreaterThanOperator, "created_at", operand)
+			list := queryNotification(repository, criteria)
 			expectNotifications(list)
 		})
 	})
