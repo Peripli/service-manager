@@ -83,6 +83,14 @@ var _ = Describe("NotificationQueue", func() {
 		})
 	})
 
+	Context("When queue.Close is called twice", func() {
+		It("Should not panic", func() {
+			notificationQueue := newQueue(1)
+			notificationQueue.Close()
+			Expect(notificationQueue.Close).ToNot(Panic())
+		})
+	})
+
 	Context("When ID is called", func() {
 		It("should return unique queue ID", func() {
 			notificationQueue1ID := newQueue(1).ID()

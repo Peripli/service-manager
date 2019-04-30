@@ -82,6 +82,7 @@ func NewNotificator(st storage.Storage, settings *Settings) (*notificator, error
 	}, nil
 }
 
+// Start starts the notificator. It must not be called concurrently.
 func (n *notificator) Start(ctx context.Context, group *sync.WaitGroup) error {
 	if n.ctx != nil {
 		return errors.New("notificator already started")
@@ -90,19 +91,13 @@ func (n *notificator) Start(ctx context.Context, group *sync.WaitGroup) error {
 	if err := n.openConnection(); err != nil {
 		return fmt.Errorf("could not open connection to database %v", err)
 	}
-	n.group = group
-	group.Add(1)
-	go n.awaitTermination()
+	startInWaitGroup(n.awaitTermination, group)
 	return nil
 }
 
 func (n *notificator) RegisterConsumer(userContext *web.UserContext) (notifications.NotificationQueue, int64, error) {
-	queue, err := notifications.NewNotificationQueue(n.queueSize)
-	if err != nil {
-		return nil, invalidRevisionNumber, err
-	}
 	platform := &types.Platform{}
-	err = userContext.Data.Data(platform)
+	err := userContext.Data.Data(platform)
 	if err != nil {
 		return nil, invalidRevisionNumber, fmt.Errorf("could not get platform from user context %v", err)
 	}
@@ -114,12 +109,15 @@ func (n *notificator) RegisterConsumer(userContext *web.UserContext) (notificati
 	if !n.isRunning {
 		return nil, invalidRevisionNumber, errors.New("cannot register consumer - notificator is not running")
 	}
-	if err := n.startListening(); err != nil {
+	if err = n.startListening(); err != nil {
 		return nil, invalidRevisionNumber, fmt.Errorf("listen to %s channel failed %v", postgresChannel, err)
 	}
-
 	n.revisionMutex.RLock()
 	defer n.revisionMutex.RUnlock()
+	queue, err := notifications.NewNotificationQueue(n.queueSize)
+	if err != nil {
+		return nil, invalidRevisionNumber, err
+	}
 	n.addConsumer(platform.ID, queue)
 	return queue, n.lastKnownRevision, nil
 }
@@ -218,18 +216,21 @@ func (n *notificator) processNotifications(notificationChannel <-chan *pq.Notifi
 		if pqNotification == nil {
 			continue
 		}
-		payload, err := n.getPayload(pqNotification.Extra)
+		payload, err := getPayload(pqNotification.Extra)
 		if err != nil {
 			log.C(n.ctx).WithError(err).Error("could not unmarshal notification payload")
 			n.closeAllConsumers() // Ensures no notifications are lost
 		} else {
 			n.updateLastKnownRevision(payload.Revision)
-			n.processNotificationPayload(payload)
+			if err = n.processNotificationPayload(payload); err != nil {
+				log.C(n.ctx).WithError(err).Error("closing consumers")
+				n.closeAllConsumers() // Ensures no notifications are lost
+			}
 		}
 	}
 }
 
-func (n *notificator) getPayload(data string) (*notifyEventPayload, error) {
+func getPayload(data string) (*notifyEventPayload, error) {
 	payload := &notifyEventPayload{}
 	if err := json.Unmarshal([]byte(data), payload); err != nil {
 		return nil, err
@@ -237,27 +238,27 @@ func (n *notificator) getPayload(data string) (*notifyEventPayload, error) {
 	return payload, nil
 }
 
-func (n *notificator) processNotificationPayload(payload *notifyEventPayload) {
+func (n *notificator) processNotificationPayload(payload *notifyEventPayload) error {
 	notificationPlatformID := payload.PlatformID
 	notificationID := payload.NotificationID
+
+	n.consumersMutex.RLock()
+	defer n.consumersMutex.RUnlock()
 	recipients := n.getRecipients(notificationPlatformID)
 	if len(recipients) == 0 {
-		return
+		return nil
 	}
 	notification, err := n.storage.GetNotification(n.ctx, notificationID)
 	if err != nil {
-		log.C(n.ctx).WithError(err).Errorf("notification %s could not be retrieved from the DB, closing consumers", notificationID)
-		n.closeAllConsumers()
-		return
+		return fmt.Errorf("notification %s could not be retrieved from the DB: %v", notificationID, err.Error())
 	}
 	for _, platformConsumers := range recipients {
 		n.sendNotificationToPlatformConsumers(platformConsumers, notification)
 	}
+	return nil
 }
 
 func (n *notificator) getRecipients(platformID string) consumers {
-	n.consumersMutex.RLock()
-	defer n.consumersMutex.RUnlock()
 	if platformID == "" {
 		return n.consumers
 	}
@@ -279,13 +280,19 @@ func (n *notificator) sendNotificationToPlatformConsumers(platformConsumers []no
 	}
 }
 
+func startInWaitGroup(f func(), group *sync.WaitGroup) {
+	group.Add(1)
+	go func() {
+		defer group.Done()
+		f()
+	}()
+}
+
 func (n *notificator) awaitTermination() {
 	<-n.ctx.Done()
 	logger := log.C(n.ctx)
 	logger.Info("context cancelled, stopping notificator...")
-	n.isRunning = false
 	n.stopConnection()
-	n.group.Done()
 }
 
 func (n *notificator) stopConnection() {

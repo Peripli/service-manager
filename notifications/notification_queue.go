@@ -77,6 +77,9 @@ func (nq *notificationQueue) Channel() <-chan *types.Notification {
 func (nq *notificationQueue) Close() {
 	nq.mutex.Lock()
 	defer nq.mutex.Unlock()
+	if nq.isClosed {
+		return
+	}
 	nq.isClosed = true
 	close(nq.notificationsChannel)
 }
