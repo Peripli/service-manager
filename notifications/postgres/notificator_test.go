@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"sync"
 	"testing"
 
@@ -164,11 +163,10 @@ var _ = Describe("Notificator", func() {
 		}
 
 		Context("When id is not found", func() {
-			It("Should return error", func() {
+			It("Should return nil", func() {
 				q := newQueue(1)
 				err := testNotificator.UnregisterConsumer(q)
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("consumer %s was not found", q.ID())))
+				Expect(err).ToNot(HaveOccurred())
 			})
 		})
 
@@ -177,9 +175,6 @@ var _ = Describe("Notificator", func() {
 				err := testNotificator.UnregisterConsumer(queue)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(fakeNotificationConnection.UnlistenCallCount()).To(Equal(1))
-				err = testNotificator.UnregisterConsumer(queue)
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("consumer %s was not found", queue.ID())))
 			})
 		})
 

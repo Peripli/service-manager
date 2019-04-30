@@ -128,7 +128,7 @@ func (n *notificator) UnregisterConsumer(queue notifications.NotificationQueue) 
 
 	consumerIndex, platformIDToDelete := n.findConsumer(queue.ID())
 	if consumerIndex == -1 {
-		return fmt.Errorf("consumer %s was not found", queue.ID())
+		return nil
 	}
 	platformConsumers := n.consumers[platformIDToDelete]
 	n.consumers[platformIDToDelete] = append(platformConsumers[:consumerIndex], platformConsumers[consumerIndex+1:]...)
@@ -169,11 +169,13 @@ func (n *notificator) findConsumer(id string) (int, string) {
 }
 
 func (n *notificator) closeAllConsumers() {
-	n.consumersMutex.RLock()
-	defer n.consumersMutex.RUnlock()
+	n.consumersMutex.Lock()
+	defer n.consumersMutex.Unlock()
 
-	for _, consumers := range n.consumers {
-		for _, consumer := range consumers {
+	allConsumers := n.consumers
+	n.consumers = make(consumers)
+	for _, platformConsumers := range allConsumers {
+		for _, consumer := range platformConsumers {
 			consumer.Close()
 		}
 	}
@@ -212,6 +214,9 @@ func (n *notificator) updateLastKnownRevision(revision int64) {
 }
 
 func (n *notificator) processNotifications(notificationChannel <-chan *pq.Notification) {
+	defer func() {
+		n.isListening = false
+	}()
 	for pqNotification := range notificationChannel {
 		if pqNotification == nil {
 			continue
@@ -315,11 +320,7 @@ func (n *notificator) stopListening() error {
 		return nil
 	}
 	n.updateLastKnownRevision(invalidRevisionNumber)
-	err := n.connection.Unlisten(postgresChannel)
-	if err == nil {
-		n.isListening = false
-	}
-	return err
+	return n.connection.Unlisten(postgresChannel)
 }
 
 func (n *notificator) startListening() error {
