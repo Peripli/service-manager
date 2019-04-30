@@ -57,8 +57,7 @@ type notificator struct {
 	consumers      consumers
 	storage        notificationStorage.NotificationStorage
 
-	ctx   context.Context
-	group *sync.WaitGroup
+	ctx context.Context
 
 	lastKnownRevision int64
 	revisionMutex     *sync.RWMutex
