@@ -83,7 +83,7 @@ func NewNotificator(st storage.Storage, storageSettings *storage.Settings, setti
 // Start starts the Notificator. It must not be called concurrently.
 func (n *Notificator) Start(ctx context.Context, group *sync.WaitGroup) error {
 	if n.ctx != nil {
-		return errors.New("Notificator already started")
+		return errors.New("notificator already started")
 	}
 	n.ctx = ctx
 	if err := n.openConnection(); err != nil {
