@@ -89,15 +89,13 @@ var _ = Describe("Notificator", func() {
 	}
 
 	newNotificator := func(queueSize int) notifications.Notificator {
-		return &notificator{
+		return &Notificator{
 			queueSize:         queueSize,
-			isRunningMutex:    &sync.RWMutex{},
 			connectionMutex:   &sync.Mutex{},
-			consumersMutex:    &sync.RWMutex{},
+			consumersMutex:    &sync.Mutex{},
 			consumers:         make(consumers),
 			storage:           fakeStorage,
 			lastKnownRevision: invalidRevisionNumber,
-			revisionMutex:     &sync.RWMutex{},
 		}
 	}
 
@@ -143,7 +141,7 @@ var _ = Describe("Notificator", func() {
 			It("Should return error", func() {
 				err := testNotificator.Start(ctx, wg)
 				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("notificator already started"))
+				Expect(err.Error()).To(ContainSubstring("Notificator already started"))
 			})
 		})
 	})
@@ -230,18 +228,18 @@ var _ = Describe("Notificator", func() {
 			})
 		})
 
-		Context("When notificator is running", func() {
+		Context("When Notificator is running", func() {
 			It("Should not return error", func() {
 				expectRegisterConsumerSuccess()
 				Expect(fakeNotificationConnection.ListenCallCount()).To(Equal(1))
 			})
 		})
 
-		Context("When notificator stops", func() {
+		Context("When Notificator stops", func() {
 			It("Should return error", func() {
 				expectRegisterConsumerSuccess()
 				runningFunc(false, nil)
-				expectRegisterConsumerFail("cannot register consumer - notificator is not running")
+				expectRegisterConsumerFail("cannot register consumer - Notificator is not running")
 			})
 		})
 

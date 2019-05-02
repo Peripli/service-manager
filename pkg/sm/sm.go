@@ -22,7 +22,10 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
+
+	"github.com/Peripli/service-manager/notifications"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage/interceptors"
@@ -31,6 +34,7 @@ import (
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/api/healthcheck"
 	"github.com/Peripli/service-manager/config"
+	postgresNotificator "github.com/Peripli/service-manager/notifications/postgres"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/server"
@@ -50,15 +54,17 @@ import (
 type ServiceManagerBuilder struct {
 	*web.API
 
-	Storage *storage.InterceptableTransactionalRepository
-	ctx     context.Context
-	cfg     *server.Settings
+	Storage     *storage.InterceptableTransactionalRepository
+	Notificator notifications.Notificator
+	ctx         context.Context
+	cfg         *server.Settings
 }
 
 // ServiceManager  struct
 type ServiceManager struct {
-	ctx    context.Context
-	Server *server.Server
+	ctx         context.Context
+	Server      *server.Server
+	Notificator notifications.Notificator
 }
 
 // DefaultEnv creates a default environment that can be used to boot up a Service Manager
@@ -96,7 +102,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	if err != nil {
 		panic(fmt.Errorf("error loading configuration: %s", err))
 	}
-	if err := cfg.Validate(); err != nil {
+	if err = cfg.Validate(); err != nil {
 		panic(fmt.Sprintf("error validating configuration: %s", err))
 	}
 
@@ -116,7 +122,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	}
 
 	securityStorage := smStorage.Security()
-	if err := initializeSecureStorage(ctx, securityStorage); err != nil {
+	if err = initializeSecureStorage(ctx, securityStorage); err != nil {
 		panic(fmt.Sprintf("error initialzing secure storage: %v", err))
 	}
 
@@ -134,12 +140,17 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	}
 
 	API.AddHealthIndicator(&storage.HealthIndicator{Pinger: storage.PingFunc(smStorage.Ping)})
+	pgNotificator, err := postgresNotificator.NewNotificator(smStorage, cfg.Storage, cfg.Notifications)
+	if err != nil {
+		panic(fmt.Sprintf("could not create notificator: %v", err))
+	}
 
 	smb := &ServiceManagerBuilder{
-		ctx:     ctx,
-		cfg:     cfg.Server,
-		API:     API,
-		Storage: interceptableRepository,
+		ctx:         ctx,
+		cfg:         cfg.Server,
+		API:         API,
+		Storage:     interceptableRepository,
+		Notificator: pgNotificator,
 	}
 
 	smb.WithCreateInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerCreateInterceptorProvider{
@@ -162,8 +173,9 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	srv.Use(filters.NewRecoveryMiddleware())
 
 	return &ServiceManager{
-		ctx:    smb.ctx,
-		Server: srv,
+		ctx:         smb.ctx,
+		Server:      srv,
+		Notificator: smb.Notificator,
 	}
 }
 
@@ -176,7 +188,12 @@ func (smb *ServiceManagerBuilder) installHealth() {
 // Run starts the Service Manager
 func (sm *ServiceManager) Run() {
 	log.C(sm.ctx).Info("Running Service Manager...")
+	wg := &sync.WaitGroup{}
+	if err := sm.Notificator.Start(sm.ctx, wg); err != nil {
+		log.C(sm.ctx).WithError(err).Panic("could not start SM notificator")
+	}
 	sm.Server.Run(sm.ctx)
+	wg.Wait()
 }
 
 func initializeSecureStorage(ctx context.Context, secureStorage storage.Security) error {

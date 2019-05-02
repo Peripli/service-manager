@@ -17,24 +17,34 @@
 package postgres
 
 import (
-	"github.com/Peripli/service-manager/notifications/postgres/storage"
+	"fmt"
+	"time"
 )
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	NotificationQueuesSize int               `mapstructure:"notification_queues_size"`
-	StorageSettings        *storage.Settings `mapstructure:"storage"`
+	NotificationQueuesSize int           `mapstructure:"notification_queues_size"`
+	MinReconnectInterval   time.Duration `mapstructure:"min_reconnect_interval"`
+	MaxReconnectInterval   time.Duration `mapstructure:"max_reconnect_interval"`
 }
 
-// DefaultSettings returns default values for notificator settings
+// DefaultSettings returns default values for Notificator settings
 func DefaultSettings() *Settings {
 	return &Settings{
 		NotificationQueuesSize: 100,
-		StorageSettings:        storage.DefaultSettings(),
+		MinReconnectInterval:   time.Millisecond * 200,
+		MaxReconnectInterval:   time.Second * 20,
 	}
 }
 
-// Validate validates the notificator settings
+// Validate validates the Notificator settings
 func (s *Settings) Validate() error {
-	return s.StorageSettings.Validate()
+	if s.NotificationQueuesSize < 1 {
+		return fmt.Errorf("notification queues size (%d) should be at lest 1", s.NotificationQueuesSize)
+	}
+	if s.MinReconnectInterval > s.MaxReconnectInterval {
+		return fmt.Errorf("min reconnect interval (%s) should not be greater than max reconnect interval (%s)",
+			s.MinReconnectInterval, s.MaxReconnectInterval)
+	}
+	return nil
 }

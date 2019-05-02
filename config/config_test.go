@@ -19,6 +19,7 @@ package config_test
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/Peripli/service-manager/api"
 	cfg "github.com/Peripli/service-manager/config"
@@ -55,7 +56,6 @@ var _ = Describe("config", func() {
 			config.API.ClientID = "sm"
 			config.API.SkipSSLValidation = true
 			config.Storage.EncryptionKey = "ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8"
-			config.Notifications.StorageSettings.URI = "postgres://postgres:postgres@localhost:5555/postgres?sslmode=disable"
 		})
 
 		Context("when config is valid", func() {
@@ -114,16 +114,24 @@ var _ = Describe("config", func() {
 			})
 		})
 
-		Context("when Notification URI is missing", func() {
+		Context("when API token issuer URL is missing", func() {
 			It("returns an error", func() {
-				config.Notifications.StorageSettings.URI = ""
+				config.API.TokenIssuerURL = ""
 				assertErrorDuringValidate()
 			})
 		})
 
-		Context("when API token issuer URL is missing", func() {
+		Context("when notifications queues size is 0", func() {
 			It("returns an error", func() {
-				config.API.TokenIssuerURL = ""
+				config.Notifications.NotificationQueuesSize = 0
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("when min reconnect interval is greater than max reconnect interval", func() {
+			It("returns an error", func() {
+				config.Notifications.MinReconnectInterval = 100 * time.Millisecond
+				config.Notifications.MaxReconnectInterval = 50 * time.Millisecond
 				assertErrorDuringValidate()
 			})
 		})

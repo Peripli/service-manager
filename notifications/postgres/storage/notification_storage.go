@@ -18,9 +18,9 @@ package storage
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/lib/pq"
 
@@ -41,31 +41,37 @@ type NotificationStorage interface {
 	NewConnection(eventCallback func(isRunning bool, err error)) NotificationConnection
 }
 
-// NewNotificationStorage returns storage for notifications
-func NewNotificationStorage(st storage.Storage, settings *Settings) (NotificationStorage, error) {
+func NewNotificationStorage(st storage.Storage, storageURI string, minReconnectInterval time.Duration, maxReconnectInterval time.Duration) (NotificationStorage, error) {
 	pgStorage, ok := st.(*postgres.PostgresStorage)
 	if !ok {
 		return nil, errors.New("expected notification storage to be Postgres")
 	}
 	return &notificationStorage{
-		storage:  pgStorage,
-		settings: settings,
+		storage:              pgStorage,
+		storageURI:           storageURI,
+		minReconnectInterval: minReconnectInterval,
+		maxReconnectInterval: maxReconnectInterval,
 	}, nil
 }
 
 type notificationStorage struct {
-	storage  *postgres.PostgresStorage
-	settings *Settings
+	storage              *postgres.PostgresStorage
+	storageURI           string
+	minReconnectInterval time.Duration
+	maxReconnectInterval time.Duration
 }
 
 func (ns *notificationStorage) GetLastRevision(ctx context.Context) (int64, error) {
-	notification := &postgres.Notification{}
-	sqlString := fmt.Sprintf("SELECT revision FROM %s ORDER BY DESC LIMIT 1", postgres.NotificationTable)
-	err := ns.storage.SelectContext(ctx, notification, sqlString)
-	if err != nil && err != sql.ErrNoRows {
+	result := make([]*postgres.Notification, 0, 1)
+	sqlString := fmt.Sprintf("SELECT revision FROM %s ORDER BY revision DESC LIMIT 1", postgres.NotificationTable)
+	err := ns.storage.SelectContext(ctx, &result, sqlString)
+	if err != nil {
 		return 0, fmt.Errorf("could not get last notification revision from db %v", err)
 	}
-	return notification.Revision, nil
+	if len(result) == 0 {
+		return 0, nil
+	}
+	return result[0].Revision, nil
 }
 
 func (ns *notificationStorage) GetNotification(ctx context.Context, id string) (*types.Notification, error) {
@@ -77,7 +83,7 @@ func (ns *notificationStorage) GetNotification(ctx context.Context, id string) (
 }
 
 func (ns *notificationStorage) NewConnection(eventCallback func(isRunning bool, err error)) NotificationConnection {
-	return pq.NewListener(ns.settings.URI, ns.settings.MinReconnectInterval, ns.settings.MaxReconnectInterval, func(event pq.ListenerEventType, err error) {
+	return pq.NewListener(ns.storageURI, ns.minReconnectInterval, ns.maxReconnectInterval, func(event pq.ListenerEventType, err error) {
 		switch event {
 		case pq.ListenerEventConnected, pq.ListenerEventReconnected:
 			eventCallback(true, err)
