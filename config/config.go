@@ -18,20 +18,21 @@ package config
 
 import (
 	"github.com/Peripli/service-manager/api"
-	"github.com/Peripli/service-manager/notifications/postgres"
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/server"
 	"github.com/Peripli/service-manager/storage"
+	"github.com/Peripli/service-manager/storage/postgres"
 	"github.com/spf13/pflag"
 )
 
 // Settings is used to setup the Service Manager
 type Settings struct {
-	Server        *server.Settings
-	Storage       *storage.Settings
-	Log           *log.Settings
-	API           *api.Settings
+	Server  *server.Settings
+	Storage *storage.Settings
+	Log     *log.Settings
+	API     *api.Settings
+	//TODO should not be postgres specific
 	Notifications *postgres.Settings
 }
 

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package storage
+package notification_connection
 
 import "github.com/lib/pq"
 

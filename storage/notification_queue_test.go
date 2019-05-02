@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package notifications
+package storage
 
 import (
 	"testing"

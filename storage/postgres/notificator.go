@@ -24,16 +24,14 @@ import (
 	"sync"
 	"sync/atomic"
 
-	notificationStorage "github.com/Peripli/service-manager/notifications/postgres/storage"
 	"github.com/Peripli/service-manager/storage"
-
 	"github.com/lib/pq"
 
 	"github.com/Peripli/service-manager/pkg/types"
 
 	"github.com/Peripli/service-manager/pkg/log"
+	notificationConnection "github.com/Peripli/service-manager/storage/postgres/notification_connection"
 
-	"github.com/Peripli/service-manager/notifications"
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
@@ -44,7 +42,7 @@ const (
 	aFalse                int32 = 0
 )
 
-type consumers map[string][]notifications.NotificationQueue
+type consumers map[string][]storage.NotificationQueue
 
 type Notificator struct {
 	isConnected int32
@@ -53,11 +51,12 @@ type Notificator struct {
 	queueSize int
 
 	connectionMutex *sync.Mutex
-	connection      notificationStorage.NotificationConnection
+	connection      notificationConnection.NotificationConnection
 
-	consumersMutex *sync.Mutex
-	consumers      consumers
-	storage        notificationStorage.NotificationStorage
+	consumersMutex    *sync.Mutex
+	consumers         consumers
+	storage           notificationStorage
+	connectionCreator notificationConnectionCreator
 
 	ctx context.Context
 
@@ -66,7 +65,12 @@ type Notificator struct {
 
 // NewNotificator returns new Notificator based on a given NotificatorStorage and desired queue size
 func NewNotificator(st storage.Storage, storageSettings *storage.Settings, settings *Settings) (*Notificator, error) {
-	ns, err := notificationStorage.NewNotificationStorage(st, storageSettings.URI, settings.MinReconnectInterval, settings.MaxReconnectInterval)
+	ns, err := NewNotificationStorage(st)
+	connectionCreator := &notificationConnectionCreatorImpl{
+		storageURI:           storageSettings.URI,
+		minReconnectInterval: settings.MinReconnectInterval,
+		maxReconnectInterval: settings.MaxReconnectInterval,
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -76,6 +80,7 @@ func NewNotificator(st storage.Storage, storageSettings *storage.Settings, setti
 		consumersMutex:    &sync.Mutex{},
 		consumers:         make(consumers),
 		storage:           ns,
+		connectionCreator: connectionCreator,
 		lastKnownRevision: invalidRevisionNumber,
 	}, nil
 }
@@ -93,7 +98,7 @@ func (n *Notificator) Start(ctx context.Context, group *sync.WaitGroup) error {
 	return nil
 }
 
-func (n *Notificator) RegisterConsumer(userContext *web.UserContext) (notifications.NotificationQueue, int64, error) {
+func (n *Notificator) RegisterConsumer(userContext *web.UserContext) (storage.NotificationQueue, int64, error) {
 	platform := &types.Platform{}
 	err := userContext.Data.Data(platform)
 	if err != nil {
@@ -108,7 +113,7 @@ func (n *Notificator) RegisterConsumer(userContext *web.UserContext) (notificati
 	if err = n.startListening(); err != nil {
 		return nil, invalidRevisionNumber, fmt.Errorf("listen to %s channel failed %v", postgresChannel, err)
 	}
-	queue, err := notifications.NewNotificationQueue(n.queueSize)
+	queue, err := storage.NewNotificationQueue(n.queueSize)
 	if err != nil {
 		return nil, invalidRevisionNumber, err
 	}
@@ -119,7 +124,7 @@ func (n *Notificator) RegisterConsumer(userContext *web.UserContext) (notificati
 	return queue, n.lastKnownRevision, nil
 }
 
-func (n *Notificator) UnregisterConsumer(queue notifications.NotificationQueue) error {
+func (n *Notificator) UnregisterConsumer(queue storage.NotificationQueue) error {
 	n.consumersMutex.Lock()
 	defer n.consumersMutex.Unlock()
 
@@ -164,14 +169,14 @@ func (n *Notificator) closeAllConsumers() {
 	}
 }
 
-func (n *Notificator) setConnection(conn notificationStorage.NotificationConnection) {
+func (n *Notificator) setConnection(conn notificationConnection.NotificationConnection) {
 	n.connectionMutex.Lock()
 	defer n.connectionMutex.Unlock()
 	n.connection = conn
 }
 
 func (n *Notificator) openConnection() error {
-	connection := n.storage.NewConnection(func(isConnected bool, err error) {
+	connection := n.connectionCreator.NewConnection(func(isConnected bool, err error) {
 		if isConnected {
 			atomic.StoreInt32(&n.isConnected, aTrue)
 		} else {
@@ -254,7 +259,7 @@ func (n *Notificator) getRecipients(platformID string) consumers {
 	}
 }
 
-func (n *Notificator) sendNotificationToPlatformConsumers(platformConsumers []notifications.NotificationQueue, notification *types.Notification) {
+func (n *Notificator) sendNotificationToPlatformConsumers(platformConsumers []storage.NotificationQueue, notification *types.Notification) {
 	for _, consumer := range platformConsumers {
 		if err := consumer.Enqueue(notification); err != nil {
 			log.C(n.ctx).WithError(err).Infof("consumer %s notification queue returned error %v", consumer.ID(), err)

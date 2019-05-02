@@ -25,8 +25,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Peripli/service-manager/notifications"
-
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage/interceptors"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
@@ -34,7 +32,6 @@ import (
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/api/healthcheck"
 	"github.com/Peripli/service-manager/config"
-	postgresNotificator "github.com/Peripli/service-manager/notifications/postgres"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/server"
@@ -55,7 +52,7 @@ type ServiceManagerBuilder struct {
 	*web.API
 
 	Storage     *storage.InterceptableTransactionalRepository
-	Notificator notifications.Notificator
+	Notificator storage.Notificator
 	ctx         context.Context
 	cfg         *server.Settings
 }
@@ -64,7 +61,7 @@ type ServiceManagerBuilder struct {
 type ServiceManager struct {
 	ctx         context.Context
 	Server      *server.Server
-	Notificator notifications.Notificator
+	Notificator storage.Notificator
 }
 
 // DefaultEnv creates a default environment that can be used to boot up a Service Manager
@@ -140,7 +137,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	}
 
 	API.AddHealthIndicator(&storage.HealthIndicator{Pinger: storage.PingFunc(smStorage.Ping)})
-	pgNotificator, err := postgresNotificator.NewNotificator(smStorage, cfg.Storage, cfg.Notifications)
+	pgNotificator, err := postgres.NewNotificator(smStorage, cfg.Storage, cfg.Notifications)
 	if err != nil {
 		panic(fmt.Sprintf("could not create notificator: %v", err))
 	}

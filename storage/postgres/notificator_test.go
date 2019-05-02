@@ -23,14 +23,16 @@ import (
 	"sync"
 	"testing"
 
-	notificationStorage "github.com/Peripli/service-manager/notifications/postgres/storage"
-	"github.com/Peripli/service-manager/notifications/postgres/storage/storagefakes"
+	notificationConnection "github.com/Peripli/service-manager/storage/postgres/notification_connection"
+	notificationConnectionFakes "github.com/Peripli/service-manager/storage/postgres/notification_connection/notification_connectionfakes"
+
+	"github.com/Peripli/service-manager/storage/postgres/postgresfakes"
+
+	"github.com/Peripli/service-manager/storage"
 
 	"github.com/Peripli/service-manager/pkg/types"
 
 	"github.com/lib/pq"
-
-	"github.com/Peripli/service-manager/notifications"
 
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/pkg/web/webfakes"
@@ -55,14 +57,15 @@ var _ = Describe("Notificator", func() {
 		ctx                        context.Context
 		cancel                     context.CancelFunc
 		wg                         *sync.WaitGroup
-		fakeStorage                *storagefakes.FakeNotificationStorage
-		testNotificator            notifications.Notificator
-		fakeNotificationConnection *storagefakes.FakeNotificationConnection
+		fakeStorage                *postgresfakes.FakeNotificationStorage
+		fakeConnectionCreator      *postgresfakes.FakeNotificationConnectionCreator
+		testNotificator            storage.Notificator
+		fakeNotificationConnection *notificationConnectionFakes.FakeNotificationConnection
 		notificationChannel        chan *pq.Notification
 		runningFunc                func(isRunning bool, err error)
 		userContext                *web.UserContext
 		fakeData                   *webfakes.FakeData
-		queue                      notifications.NotificationQueue
+		queue                      storage.NotificationQueue
 	)
 
 	expectedError := errors.New("*Expected*")
@@ -75,7 +78,7 @@ var _ = Describe("Notificator", func() {
 		Expect(err.Error()).To(ContainSubstring(errorMessage))
 	}
 
-	expectRegisterConsumerSuccess := func() notifications.NotificationQueue {
+	expectRegisterConsumerSuccess := func() storage.NotificationQueue {
 		q, revision, err := testNotificator.RegisterConsumer(userContext)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(revision).To(Equal(defaultLastRevision))
@@ -83,18 +86,19 @@ var _ = Describe("Notificator", func() {
 		return q
 	}
 
-	expectReceivedNotification := func(expectedNotification *types.Notification, q notifications.NotificationQueue) {
+	expectReceivedNotification := func(expectedNotification *types.Notification, q storage.NotificationQueue) {
 		receivedNotificationChan := q.Channel()
 		Expect(<-receivedNotificationChan).To(Equal(expectedNotification))
 	}
 
-	newNotificator := func(queueSize int) notifications.Notificator {
+	newNotificator := func(queueSize int) storage.Notificator {
 		return &Notificator{
 			queueSize:         queueSize,
 			connectionMutex:   &sync.Mutex{},
 			consumersMutex:    &sync.Mutex{},
 			consumers:         make(consumers),
 			storage:           fakeStorage,
+			connectionCreator: fakeConnectionCreator,
 			lastKnownRevision: invalidRevisionNumber,
 		}
 	}
@@ -102,16 +106,17 @@ var _ = Describe("Notificator", func() {
 	BeforeEach(func() {
 		ctx, cancel = context.WithCancel(context.Background())
 		wg = &sync.WaitGroup{}
-		fakeStorage = &storagefakes.FakeNotificationStorage{}
+		fakeStorage = &postgresfakes.FakeNotificationStorage{}
 		fakeStorage.GetLastRevisionReturns(defaultLastRevision, nil)
-		fakeNotificationConnection = &storagefakes.FakeNotificationConnection{}
+		fakeNotificationConnection = &notificationConnectionFakes.FakeNotificationConnection{}
 		fakeNotificationConnection.ListenReturns(nil)
 		fakeNotificationConnection.UnlistenReturns(nil)
 		fakeNotificationConnection.CloseReturns(nil)
 		notificationChannel = make(chan *pq.Notification, 2)
 		fakeNotificationConnection.NotificationChannelReturns(notificationChannel)
 		runningFunc = nil
-		fakeStorage.NewConnectionStub = func(f func(isRunning bool, err error)) notificationStorage.NotificationConnection {
+		fakeConnectionCreator = &postgresfakes.FakeNotificationConnectionCreator{}
+		fakeConnectionCreator.NewConnectionStub = func(f func(isRunning bool, err error)) notificationConnection.NotificationConnection {
 			runningFunc = f
 			return fakeNotificationConnection
 		}
@@ -141,7 +146,7 @@ var _ = Describe("Notificator", func() {
 			It("Should return error", func() {
 				err := testNotificator.Start(ctx, wg)
 				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("Notificator already started"))
+				Expect(err.Error()).To(ContainSubstring("notificator already started"))
 			})
 		})
 	})
@@ -154,8 +159,8 @@ var _ = Describe("Notificator", func() {
 			queue = expectRegisterConsumerSuccess()
 		})
 
-		newQueue := func(size int) notifications.NotificationQueue {
-			q, err := notifications.NewNotificationQueue(size)
+		newQueue := func(size int) storage.NotificationQueue {
+			q, err := storage.NewNotificationQueue(size)
 			Expect(err).ToNot(HaveOccurred())
 			return q
 		}

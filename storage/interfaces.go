@@ -19,9 +19,13 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path"
 	"runtime"
+	"sync"
+
+	"github.com/Peripli/service-manager/pkg/web"
 
 	"github.com/Peripli/service-manager/pkg/query"
 
@@ -161,4 +165,38 @@ type Security interface {
 
 	// Setter provides means to change the encryption  key
 	Setter() security.KeySetter
+}
+
+// ErrQueueClosed error stating that the queue is closed
+var ErrQueueClosed = errors.New("queue closed")
+
+// ErrQueueFull error stating that the queue is full
+var ErrQueueFull = errors.New("queue is full")
+
+// NotificationQueue is used for receiving notifications
+type NotificationQueue interface {
+	// Enqueue adds a new notification for processing.
+	Enqueue(notification *types.Notification) error
+
+	// Channel returns the go channel with received notifications which has to be processed.
+	Channel() <-chan *types.Notification
+
+	// Close closes the queue.
+	Close()
+
+	// ID returns unique queue identifier
+	ID() string
+}
+
+// Notificator is used for receiving notifications for SM events
+type Notificator interface {
+	// Start starts the Notificator
+	Start(ctx context.Context, group *sync.WaitGroup) error
+
+	// RegisterConsumer returns notification queue, last_known_revision and error if any.
+	// When consumer wants to stop listening for notifications it must unregister the notification queue.
+	RegisterConsumer(userContext *web.UserContext) (NotificationQueue, int64, error)
+
+	// UnregisterConsumer must be called to stop receiving notifications in the queue
+	UnregisterConsumer(queue NotificationQueue) error
 }
