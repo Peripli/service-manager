@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"sync"
-	"testing"
 
 	notificationConnection "github.com/Peripli/service-manager/storage/postgres/notification_connection"
 	notificationConnectionFakes "github.com/Peripli/service-manager/storage/postgres/notification_connection/notification_connectionfakes"
@@ -40,11 +39,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
-
-func TestNotificator(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Postgres Notifications Suite")
-}
 
 var _ = Describe("Notificator", func() {
 	const (

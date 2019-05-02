@@ -24,6 +24,7 @@ import (
 	"path"
 	"runtime"
 	"sync"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/web"
 
@@ -53,11 +54,12 @@ var (
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	URI                string
-	MigrationsURL      string `mapstructure:"migrations_url"`
-	EncryptionKey      string `mapstructure:"encryption_key"`
-	SkipSSLValidation  bool   `mapstructure:"skip_ssl_validation"`
-	MaxIdleConnections int    `mapstructure:"max_idle_connections"`
+	URI                string                `mapstructure:"uri"`
+	MigrationsURL      string                `mapstructure:"migrations_url"`
+	EncryptionKey      string                `mapstructure:"encryption_key"`
+	SkipSSLValidation  bool                  `mapstructure:"skip_ssl_validation"`
+	MaxIdleConnections int                   `mapstructure:"max_idle_connections"`
+	Notification       *NotificationSettings `mapstructure:"notification"`
 }
 
 // DefaultSettings returns default values for storage settings
@@ -68,6 +70,7 @@ func DefaultSettings() *Settings {
 		EncryptionKey:      "",
 		SkipSSLValidation:  false,
 		MaxIdleConnections: 5,
+		Notification:       DefaultNotificationSettings(),
 	}
 }
 
@@ -78,6 +81,34 @@ func (s *Settings) Validate() error {
 	}
 	if len(s.EncryptionKey) != 32 {
 		return fmt.Errorf("validate Settings: StorageEncryptionKey must be exactly 32 symbols long but was %d symbols long", len(s.EncryptionKey))
+	}
+	return s.Notification.Validate()
+}
+
+// NotificationSettings type to be loaded from the environment
+type NotificationSettings struct {
+	QueuesSize           int           `mapstructure:"queues_size"`
+	MinReconnectInterval time.Duration `mapstructure:"min_reconnect_interval"`
+	MaxReconnectInterval time.Duration `mapstructure:"max_reconnect_interval"`
+}
+
+// DefaultNotificationSettings returns default values for Notificator settings
+func DefaultNotificationSettings() *NotificationSettings {
+	return &NotificationSettings{
+		QueuesSize:           100,
+		MinReconnectInterval: time.Millisecond * 200,
+		MaxReconnectInterval: time.Second * 20,
+	}
+}
+
+// Validate validates the Notification settings
+func (s *NotificationSettings) Validate() error {
+	if s.QueuesSize < 1 {
+		return fmt.Errorf("notification queues size (%d) should be at lest 1", s.QueuesSize)
+	}
+	if s.MinReconnectInterval > s.MaxReconnectInterval {
+		return fmt.Errorf("min reconnect interval (%s) should not be greater than max reconnect interval (%s)",
+			s.MinReconnectInterval, s.MaxReconnectInterval)
 	}
 	return nil
 }

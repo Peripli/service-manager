@@ -17,18 +17,11 @@
 package storage
 
 import (
-	"testing"
-
 	"github.com/Peripli/service-manager/pkg/types"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
-
-func TestNotifications(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Notifications Suite")
-}
 
 var _ = Describe("NotificationQueue", func() {
 	var notification *types.Notification

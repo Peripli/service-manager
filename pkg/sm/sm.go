@@ -137,7 +137,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	}
 
 	API.AddHealthIndicator(&storage.HealthIndicator{Pinger: storage.PingFunc(smStorage.Ping)})
-	pgNotificator, err := postgres.NewNotificator(smStorage, cfg.Storage, cfg.Notifications)
+	pgNotificator, err := postgres.NewNotificator(smStorage, cfg.Storage)
 	if err != nil {
 		panic(fmt.Sprintf("could not create notificator: %v", err))
 	}

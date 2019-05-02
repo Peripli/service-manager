@@ -64,18 +64,18 @@ type Notificator struct {
 }
 
 // NewNotificator returns new Notificator based on a given NotificatorStorage and desired queue size
-func NewNotificator(st storage.Storage, storageSettings *storage.Settings, settings *Settings) (*Notificator, error) {
+func NewNotificator(st storage.Storage, settings *storage.Settings) (*Notificator, error) {
 	ns, err := NewNotificationStorage(st)
 	connectionCreator := &notificationConnectionCreatorImpl{
-		storageURI:           storageSettings.URI,
-		minReconnectInterval: settings.MinReconnectInterval,
-		maxReconnectInterval: settings.MaxReconnectInterval,
+		storageURI:           settings.URI,
+		minReconnectInterval: settings.Notification.MinReconnectInterval,
+		maxReconnectInterval: settings.Notification.MaxReconnectInterval,
 	}
 	if err != nil {
 		return nil, err
 	}
 	return &Notificator{
-		queueSize:         settings.NotificationQueuesSize,
+		queueSize:         settings.Notification.QueuesSize,
 		connectionMutex:   &sync.Mutex{},
 		consumersMutex:    &sync.Mutex{},
 		consumers:         make(consumers),

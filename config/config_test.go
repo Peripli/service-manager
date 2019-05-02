@@ -121,17 +121,17 @@ var _ = Describe("config", func() {
 			})
 		})
 
-		Context("when notifications queues size is 0", func() {
+		Context("when notification queues size is 0", func() {
 			It("returns an error", func() {
-				config.Notifications.NotificationQueuesSize = 0
+				config.Storage.Notification.QueuesSize = 0
 				assertErrorDuringValidate()
 			})
 		})
 
 		Context("when min reconnect interval is greater than max reconnect interval", func() {
 			It("returns an error", func() {
-				config.Notifications.MinReconnectInterval = 100 * time.Millisecond
-				config.Notifications.MaxReconnectInterval = 50 * time.Millisecond
+				config.Storage.Notification.MinReconnectInterval = 100 * time.Millisecond
+				config.Storage.Notification.MaxReconnectInterval = 50 * time.Millisecond
 				assertErrorDuringValidate()
 			})
 		})
