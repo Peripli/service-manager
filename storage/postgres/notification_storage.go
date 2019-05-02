@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
@@ -35,7 +34,7 @@ type notificationStorage interface {
 	GetLastRevision(ctx context.Context) (int64, error)
 }
 
-func NewNotificationStorage(st storage.Storage) (notificationStorage, error) {
+func NewNotificationStorage(st storage.Storage) (*notificationStorageImpl, error) {
 	pgStorage, ok := st.(*PostgresStorage)
 	if !ok {
 		return nil, errors.New("expected notification storage to be Postgres")
@@ -46,10 +45,7 @@ func NewNotificationStorage(st storage.Storage) (notificationStorage, error) {
 }
 
 type notificationStorageImpl struct {
-	storage              *PostgresStorage
-	storageURI           string
-	minReconnectInterval time.Duration
-	maxReconnectInterval time.Duration
+	storage *PostgresStorage
 }
 
 func (ns *notificationStorageImpl) GetLastRevision(ctx context.Context) (int64, error) {
