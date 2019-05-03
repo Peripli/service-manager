@@ -25,7 +25,7 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
-// NotificationStorage storage for getting and listening for notifications
+// notificationStorage storage for getting notifications and last revision
 //go:generate counterfeiter . notificationStorage
 type notificationStorage interface {
 	GetNotification(ctx context.Context, id string) (*types.Notification, error)
@@ -34,6 +34,7 @@ type notificationStorage interface {
 	GetLastRevision(ctx context.Context) (int64, error)
 }
 
+// NewNotificationStorage returns new notification storage
 func NewNotificationStorage(st storage.Storage) (*notificationStorageImpl, error) {
 	pgStorage, ok := st.(*PostgresStorage)
 	if !ok {
