@@ -13,6 +13,10 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const (
+	maxPingIntervalHeader = "max_ping_interval"
+)
+
 type Settings struct {
 	PingTimeout  time.Duration `mapstructure:"ping_timeout"`
 	WriteTimeout time.Duration `mapstructure:"write_timeout"`
@@ -73,7 +77,7 @@ func (u *Server) Upgrade(rw http.ResponseWriter, req *http.Request, header http.
 	if header == nil {
 		header = http.Header{}
 	}
-	header.Add("max_ping_interval", u.Options.PingTimeout.String())
+	header.Add(maxPingIntervalHeader, u.Options.PingTimeout.String())
 
 	upgrader := &websocket.Upgrader{}
 	conn, err := upgrader.Upgrade(rw, req, header)

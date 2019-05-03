@@ -19,6 +19,11 @@ import (
 	"github.com/Peripli/service-manager/pkg/ws"
 )
 
+const (
+	lastKnownRevisionHeader     = "last_known_revision"
+	lastKnownRevisionQueryParam = "last_known_revision"
+)
+
 func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	user, _ := web.UserFromContext(req.Context())
 	notificationQueue, lastKnownRevision, err := c.notificator.RegisterConsumer(user)
@@ -27,7 +32,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	}
 
 	revisionKnownToProxy := 0
-	revisionKnownToProxyStr := req.URL.Query().Get("last_known_revision")
+	revisionKnownToProxyStr := req.URL.Query().Get(lastKnownRevisionQueryParam)
 	if revisionKnownToProxyStr != "" {
 		revisionKnownToProxy, err = strconv.Atoi(revisionKnownToProxyStr)
 		if err != nil {
@@ -36,7 +41,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 			log.C(req.Context()).Errorf("could not convert string to number: %v", err)
 			return nil, &util.HTTPError{
 				StatusCode:  http.StatusBadRequest,
-				Description: fmt.Sprintf("invalid last_known_revision query parameter"),
+				Description: fmt.Sprintf("invalid %s query parameter", lastKnownRevisionQueryParam),
 				ErrorType:   "BadRequest",
 			}
 		}
@@ -54,7 +59,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 
 	done := make(chan struct{}, 1)
 	conn, err := c.wsServer.Upgrade(rw, req.Request, http.Header{
-		"last_known_revision": []string{strconv.FormatInt(lastKnownRevision, 10)},
+		lastKnownRevisionHeader: []string{strconv.FormatInt(lastKnownRevision, 10)},
 	}, done)
 	if err != nil {
 		c.unregisterConsumer(notificationQueue)
