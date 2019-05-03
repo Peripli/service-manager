@@ -19,7 +19,9 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/util"
 
@@ -147,9 +149,13 @@ func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTable
 	if len(fieldCriteria) > 0 {
 		sqlQuery += " WHERE "
 		for _, option := range fieldCriteria {
-			ttype := ""
+			var ttype reflect.Type
 			if dbTags != nil {
-				ttype = findTagType(dbTags, option.LeftOp)
+				var err error
+				ttype, err = findTagType(dbTags, option.LeftOp)
+				if err != nil {
+					return "", nil, err
+				}
 			}
 			rightOpBindVar, rightOpQueryValue := buildRightOp(option)
 			sqlOperation := translateOperationToSQLEquivalent(option.Operator)
@@ -177,30 +183,29 @@ func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTable
 	return sqlQuery, queryParams, nil
 }
 
-func findTagType(tags []tagType, tagName string) string {
+func findTagType(tags []tagType, tagName string) (reflect.Type, error) {
 	for _, tag := range tags {
 		if tag.Tag == tagName {
-			return tag.Type
+			return tag.Type, nil
 		}
 	}
-	return ""
+	return nil, fmt.Errorf("could not find tag name: %s", tagName)
 }
 
-func determineCastByType(tagType string) string {
+var (
+	intType   = reflect.TypeOf(int(1))
+	int64Type = reflect.TypeOf(int64(1))
+	timeType  = reflect.TypeOf(time.Time{})
+)
+
+func determineCastByType(tagType reflect.Type) string {
 	dbCast := ""
 	switch tagType {
-	case "string":
+	case intType:
 		fallthrough
-	case "sqlxtypes.JSONText":
+	case int64Type:
 		fallthrough
-	case "sql.NullString":
-		dbCast = "::text"
-
-	case "int":
-		fallthrough
-	case "int64":
-		fallthrough
-	case "time.Time":
+	case timeType:
 		dbCast = ""
 
 	default:
