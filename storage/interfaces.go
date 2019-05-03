@@ -90,6 +90,8 @@ type NotificationSettings struct {
 	QueuesSize           int           `mapstructure:"queues_size"`
 	MinReconnectInterval time.Duration `mapstructure:"min_reconnect_interval"`
 	MaxReconnectInterval time.Duration `mapstructure:"max_reconnect_interval"`
+	CleanInterval        time.Duration `mapstructure:"clean_interval"`
+	OlderThan            time.Duration `mapstructure:"older_than"`
 }
 
 // DefaultNotificationSettings returns default values for Notificator settings
@@ -98,6 +100,8 @@ func DefaultNotificationSettings() *NotificationSettings {
 		QueuesSize:           100,
 		MinReconnectInterval: time.Millisecond * 200,
 		MaxReconnectInterval: time.Second * 20,
+		CleanInterval:        time.Hour,
+		OlderThan:            time.Hour * 12,
 	}
 }
 

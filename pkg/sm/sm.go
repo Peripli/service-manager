@@ -51,17 +51,19 @@ import (
 type ServiceManagerBuilder struct {
 	*web.API
 
-	Storage     *storage.InterceptableTransactionalRepository
-	Notificator storage.Notificator
-	ctx         context.Context
-	cfg         *server.Settings
+	Storage             *storage.InterceptableTransactionalRepository
+	Notificator         storage.Notificator
+	NotificationCleaner *storage.NotificationCleaner
+	ctx                 context.Context
+	cfg                 *server.Settings
 }
 
 // ServiceManager  struct
 type ServiceManager struct {
-	ctx         context.Context
-	Server      *server.Server
-	Notificator storage.Notificator
+	ctx                 context.Context
+	Server              *server.Server
+	Notificator         storage.Notificator
+	NotificationCleaner *storage.NotificationCleaner
 }
 
 // DefaultEnv creates a default environment that can be used to boot up a Service Manager
@@ -142,12 +144,18 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 		panic(fmt.Sprintf("could not create notificator: %v", err))
 	}
 
+	notificationCleaner := &storage.NotificationCleaner{
+		Storage:  interceptableRepository,
+		Settings: cfg.Storage,
+	}
+
 	smb := &ServiceManagerBuilder{
-		ctx:         ctx,
-		cfg:         cfg.Server,
-		API:         API,
-		Storage:     interceptableRepository,
-		Notificator: pgNotificator,
+		ctx:                 ctx,
+		cfg:                 cfg.Server,
+		API:                 API,
+		Storage:             interceptableRepository,
+		Notificator:         pgNotificator,
+		NotificationCleaner: notificationCleaner,
 	}
 
 	smb.WithCreateInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerCreateInterceptorProvider{
@@ -170,9 +178,10 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	srv.Use(filters.NewRecoveryMiddleware())
 
 	return &ServiceManager{
-		ctx:         smb.ctx,
-		Server:      srv,
-		Notificator: smb.Notificator,
+		ctx:                 smb.ctx,
+		Server:              srv,
+		Notificator:         smb.Notificator,
+		NotificationCleaner: smb.NotificationCleaner,
 	}
 }
 
@@ -186,11 +195,22 @@ func (smb *ServiceManagerBuilder) installHealth() {
 func (sm *ServiceManager) Run() {
 	log.C(sm.ctx).Info("Running Service Manager...")
 	wg := &sync.WaitGroup{}
-	if err := sm.Notificator.Start(sm.ctx, wg); err != nil {
-		log.C(sm.ctx).WithError(err).Panic("could not start SM notificator")
-	}
+
+	start(sm.Notificator, "notificator", sm.ctx, wg)
+	start(sm.NotificationCleaner, "notification cleaner", sm.ctx, wg)
+
 	sm.Server.Run(sm.ctx)
 	wg.Wait()
+}
+
+type startable interface {
+	Start(ctx context.Context, group *sync.WaitGroup) error
+}
+
+func start(component startable, componentName string, ctx context.Context, group *sync.WaitGroup) {
+	if err := component.Start(ctx, group); err != nil {
+		log.C(ctx).WithError(err).Panicf("could not start Service Manager %s", componentName)
+	}
 }
 
 func initializeSecureStorage(ctx context.Context, secureStorage storage.Security) error {
@@ -208,11 +228,11 @@ func initializeSecureStorage(ctx context.Context, secureStorage storage.Security
 		logger := log.C(ctx)
 		logger.Info("No encryption key is present. Generating new one...")
 		newEncryptionKey := make([]byte, 32)
-		if _, err := rand.Read(newEncryptionKey); err != nil {
+		if _, err = rand.Read(newEncryptionKey); err != nil {
 			return fmt.Errorf("could not generate encryption key: %v", err)
 		}
 		keySetter := secureStorage.Setter()
-		if err := keySetter.SetEncryptionKey(ctx, newEncryptionKey); err != nil {
+		if err = keySetter.SetEncryptionKey(ctx, newEncryptionKey); err != nil {
 			return err
 		}
 		logger.Info("Successfully generated new encryption key")
