@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/ws"
 	"github.com/Peripli/service-manager/storage/interceptors"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 
@@ -53,6 +54,7 @@ type ServiceManagerBuilder struct {
 
 	Storage     *storage.InterceptableTransactionalRepository
 	Notificator storage.Notificator
+	WsServer    *ws.Server
 	ctx         context.Context
 	cfg         *server.Settings
 }
@@ -62,6 +64,7 @@ type ServiceManager struct {
 	ctx         context.Context
 	Server      *server.Server
 	Notificator storage.Notificator
+	WsServer    *ws.Server
 }
 
 // DefaultEnv creates a default environment that can be used to boot up a Service Manager
@@ -131,16 +134,19 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	log.C(ctx).Info("Setting up Service Manager core API...")
 	interceptableRepository := storage.NewInterceptableTransactionalRepository(smStorage, encrypter)
 
-	API, err := api.New(ctx, interceptableRepository, cfg.API, encrypter)
+	wsServer := ws.NewServer(cfg.WsServer)
+
+	pgNotificator, err := postgres.NewNotificator(smStorage, cfg.Storage)
+	if err != nil {
+		panic(fmt.Sprintf("could not create notificator: %v", err))
+	}
+
+	API, err := api.New(ctx, interceptableRepository, cfg.API, encrypter, wsServer, pgNotificator)
 	if err != nil {
 		panic(fmt.Sprintf("error creating core api: %s", err))
 	}
 
 	API.AddHealthIndicator(&storage.HealthIndicator{Pinger: storage.PingFunc(smStorage.Ping)})
-	pgNotificator, err := postgres.NewNotificator(smStorage, cfg.Storage)
-	if err != nil {
-		panic(fmt.Sprintf("could not create notificator: %v", err))
-	}
 
 	smb := &ServiceManagerBuilder{
 		ctx:         ctx,
@@ -148,6 +154,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 		API:         API,
 		Storage:     interceptableRepository,
 		Notificator: pgNotificator,
+		WsServer:    wsServer,
 	}
 
 	smb.WithCreateInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerCreateInterceptorProvider{
@@ -173,6 +180,7 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 		ctx:         smb.ctx,
 		Server:      srv,
 		Notificator: smb.Notificator,
+		WsServer:    smb.WsServer,
 	}
 }
 
@@ -189,7 +197,8 @@ func (sm *ServiceManager) Run() {
 	if err := sm.Notificator.Start(sm.ctx, wg); err != nil {
 		log.C(sm.ctx).WithError(err).Panic("could not start SM notificator")
 	}
-	sm.Server.Run(sm.ctx)
+	sm.WsServer.Start(sm.ctx, wg)
+	sm.Server.Run(sm.ctx, wg)
 	wg.Wait()
 }
 

@@ -23,6 +23,9 @@ import (
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/ws"
+
+	apiNotifications "github.com/Peripli/service-manager/api/notifications"
 
 	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/api/filters/authn/basic"
@@ -62,8 +65,8 @@ func (s *Settings) Validate() error {
 	return nil
 }
 
-// NewInterceptableTransactionalRepository returns the minimum set of REST APIs needed for the Service Manager
-func New(ctx context.Context, repository storage.Repository, settings *Settings, encrypter security.Encrypter) (*web.API, error) {
+// New returns the minimum set of REST APIs needed for the Service Manager
+func New(ctx context.Context, repository storage.Repository, settings *Settings, encrypter security.Encrypter, wsServer *ws.Server, notificator storage.Notificator) (*web.API, error) {
 	bearerAuthnFilter, err := oauth.NewFilter(ctx, settings.TokenIssuerURL, settings.ClientID)
 	if err != nil {
 		return nil, err
@@ -81,7 +84,7 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 			NewController(repository, web.VisibilitiesURL, types.VisibilityType, func() types.Object {
 				return &types.Visibility{}
 			}),
-			NewNotificationController(),
+			apiNotifications.NewController(repository, wsServer, notificator),
 			NewServiceOfferingController(repository),
 			NewServicePlanController(repository),
 			&info.Controller{

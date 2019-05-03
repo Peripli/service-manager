@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/Peripli/service-manager/api"
@@ -112,7 +113,7 @@ func registerControllers(API *web.API, router *mux.Router, config *Settings) {
 }
 
 // Run starts the server awaiting for incoming requests
-func (s *Server) Run(ctx context.Context) {
+func (s *Server) Run(ctx context.Context, wg *sync.WaitGroup) {
 	if err := s.Config.Validate(); err != nil {
 		panic(fmt.Sprintf("invalid server config: %s", err))
 	}
@@ -123,11 +124,12 @@ func (s *Server) Run(ctx context.Context) {
 		ReadTimeout:    s.Config.RequestTimeout,
 		MaxHeaderBytes: s.Config.MaxHeaderBytes,
 	}
-	startServer(ctx, handler, s.Config.ShutdownTimeout)
+	startServer(ctx, handler, s.Config.ShutdownTimeout, wg)
 }
 
-func startServer(ctx context.Context, server *http.Server, shutdownTimeout time.Duration) {
-	go gracefulShutdown(ctx, server, shutdownTimeout)
+func startServer(ctx context.Context, server *http.Server, shutdownTimeout time.Duration, wg *sync.WaitGroup) {
+	wg.Add(1)
+	go gracefulShutdown(ctx, server, shutdownTimeout, wg)
 
 	log.C(ctx).Infof("Server listening on %s...", server.Addr)
 
@@ -136,8 +138,9 @@ func startServer(ctx context.Context, server *http.Server, shutdownTimeout time.
 	}
 }
 
-func gracefulShutdown(ctx context.Context, server *http.Server, shutdownTimeout time.Duration) {
+func gracefulShutdown(ctx context.Context, server *http.Server, shutdownTimeout time.Duration, wg *sync.WaitGroup) {
 	<-ctx.Done()
+	defer wg.Done()
 
 	c, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
