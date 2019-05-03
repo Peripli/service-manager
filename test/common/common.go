@@ -289,6 +289,26 @@ func MakePlatform(id string, name string, atype string, description string) Obje
 	}
 }
 
+func GenerateRandomNotification() *types.Notification {
+	uid, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+	uid2, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+
+	return &types.Notification{
+		Base: types.Base{
+			ID: uid.String(),
+		},
+		PlatformID: uid2.String(),
+		Resource:   "notification",
+		Type:       "CREATED",
+	}
+}
+
 func GenerateRandomPlatform() Object {
 	o := Object{}
 	for _, key := range []string{"id", "name", "type", "description"} {

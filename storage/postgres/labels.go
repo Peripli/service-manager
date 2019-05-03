@@ -185,7 +185,7 @@ func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTable
 
 func findTagType(tags []tagType, tagName string) (reflect.Type, error) {
 	for _, tag := range tags {
-		if tag.Tag == tagName {
+		if strings.Split(tag.Tag, ",")[0] == tagName {
 			return tag.Type, nil
 		}
 	}

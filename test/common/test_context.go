@@ -23,6 +23,7 @@ import (
 	"net/http/httptest"
 	"path"
 	"runtime"
+	"sync"
 
 	"github.com/gofrs/uuid"
 
@@ -61,6 +62,7 @@ type TestContextBuilder struct {
 }
 
 type TestContext struct {
+	wg           *sync.WaitGroup
 	SM           *httpexpect.Expect
 	SMWithOAuth  *httpexpect.Expect
 	SMWithBasic  *httpexpect.Expect
@@ -201,7 +203,8 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 		envPostHook(environment, tcb.Servers)
 	}
 
-	smServer := newSMServer(environment, tcb.smExtensions)
+	wg := &sync.WaitGroup{}
+	smServer := newSMServer(environment, tcb.smExtensions, wg)
 	tcb.Servers[SMServer] = smServer
 
 	SM := httpexpect.New(GinkgoT(), smServer.URL())
@@ -214,6 +217,7 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 	RemoveAllPlatforms(SMWithOAuth)
 
 	testContext := &TestContext{
+		wg:          wg,
 		SM:          SM,
 		SMWithOAuth: SMWithOAuth,
 		Servers:     tcb.Servers,
@@ -234,7 +238,7 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 
 }
 
-func newSMServer(smEnv env.Environment, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error) *testSMServer {
+func newSMServer(smEnv env.Environment, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error, wg *sync.WaitGroup) *testSMServer {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := struct {
 		Log *log.Settings
@@ -255,6 +259,12 @@ func newSMServer(smEnv env.Environment, fs []func(ctx context.Context, smb *sm.S
 		}
 	}
 	serviceManager := smb.Build()
+	err = serviceManager.Notificator.Start(ctx, wg)
+	if err != nil {
+		panic(fmt.Errorf("could not start notificator: %v", err))
+	}
+	serviceManager.WsServer.Start(ctx, wg)
+
 	return &testSMServer{
 		cancel: cancel,
 		Server: httptest.NewServer(serviceManager.Server.Router),
@@ -353,6 +363,7 @@ func (ctx *TestContext) Cleanup() {
 		server.Close()
 	}
 	ctx.Servers = map[string]FakeServer{}
+	ctx.wg.Wait()
 }
 
 func (ctx *TestContext) CleanupAdditionalResources() {

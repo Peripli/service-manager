@@ -1,6 +1,8 @@
 package notifications
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -47,11 +49,15 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		}
 	}
 
-	listQuery1 := query.ByField(query.GreaterThanOperator, "revision", strconv.Itoa(revisionKnownToProxy))
-	listQuery2 := query.ByField(query.LessThanOperator, "revision", strconv.FormatInt(lastKnownRevision, 10))
-	notificationsList, err := c.repository.List(req.Context(), types.NotificationType, listQuery1, listQuery2)
+	if revisionKnownToProxy > 0 {
+		resp, err := c.isRevisionFound(req.Context(), revisionKnownToProxyStr)
+		if resp != nil || err != nil {
+			return resp, err
+		}
+	}
+
+	notificationsList, err := c.getNotificationList(req.Context(), user, revisionKnownToProxy, lastKnownRevision)
 	if err != nil {
-		// TODO: Wrap err
 		return nil, err
 	}
 
@@ -150,4 +156,47 @@ func (c *Controller) unregisterConsumer(q storage.NotificationQueue) {
 	if unregErr := c.notificator.UnregisterConsumer(q); unregErr != nil {
 		log.D().Errorf("Could not unregister notification consumer: %v", unregErr)
 	}
+}
+
+func (c *Controller) getNotificationList(ctx context.Context, user *web.UserContext, revisionKnownToProxy int, lastKnownRevision int64) (types.ObjectList, error) {
+	listQuery1 := query.ByField(query.GreaterThanOperator, "revision", strconv.Itoa(revisionKnownToProxy))
+	// TODO: is this +1 ok or we should add less than or equal operator
+	listQuery2 := query.ByField(query.LessThanOperator, "revision", strconv.FormatInt(lastKnownRevision+1, 10))
+
+	platform, err := extractPlatformFromContext(user)
+	if err != nil {
+		return nil, err
+	}
+	filterByPlatform := query.ByField(query.EqualsOperator, "platform_id", platform.ID, "")
+	notificationsList, err := c.repository.List(ctx, types.NotificationType, listQuery1, listQuery2, filterByPlatform)
+	if err != nil {
+		// TODO: Wrap err
+		return nil, err
+	}
+	return notificationsList, nil
+}
+
+func (c *Controller) isRevisionFound(ctx context.Context, revisionKnownToProxyStr string) (*web.Response, error) {
+	listQuery := query.ByField(query.EqualsOperator, "revision", revisionKnownToProxyStr)
+	notificationsList, err := c.repository.List(ctx, types.NotificationType, listQuery)
+	if err != nil {
+		return nil, err
+	}
+	if notificationsList.Len() != 1 {
+		log.C(ctx).Errorf("expected 1 notification, but found: %d", notificationsList.Len())
+		return util.NewJSONResponse(http.StatusGone, nil)
+	}
+	return nil, nil
+}
+
+func extractPlatformFromContext(userContext *web.UserContext) (*types.Platform, error) {
+	platform := &types.Platform{}
+	err := userContext.Data.Data(platform)
+	if err != nil {
+		return nil, fmt.Errorf("could not get platform from user context %v", err)
+	}
+	if platform.ID == "" {
+		return nil, errors.New("platform ID not found in user context")
+	}
+	return platform, nil
 }

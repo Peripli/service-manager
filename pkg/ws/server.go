@@ -118,10 +118,10 @@ func (u *Server) shutdown(ctx context.Context, work *sync.WaitGroup) {
 	u.isShutDown = true
 	u.shutdownMutex.Unlock()
 
+	u.connMutex.Lock()
 	for _, conn := range u.conns {
 		close(conn.Shutdown)
 	}
-	u.connMutex.Lock()
 	u.conns = nil
 	u.connMutex.Unlock()
 

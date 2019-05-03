@@ -18,18 +18,24 @@ package ws_test
 
 import (
 	"context"
+	"encoding/base64"
 	"net/http"
 	"net/url"
-	"sync"
+	"strconv"
 	"testing"
-	"time"
+
+	"github.com/Peripli/service-manager/pkg/util"
+
+	"github.com/Peripli/service-manager/pkg/types"
+
+	"github.com/Peripli/service-manager/pkg/web"
+
+	"github.com/Peripli/service-manager/storage"
 
 	"github.com/gorilla/websocket"
 
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/sm"
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/pkg/ws"
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -40,271 +46,181 @@ func TestWsConn(t *testing.T) {
 	RunSpecs(t, "Websocket test suite")
 }
 
-func wsconnect(ctx *common.TestContext, path string) (*websocket.Conn, *http.Response, error) {
-	smURL := ctx.Servers[common.SMServer].URL()
-	smEndpoint, _ := url.Parse(smURL)
-	return websocket.DefaultDialer.Dial("ws://"+smEndpoint.Host+path, nil)
-}
-
 var _ = Describe("WS", func() {
 	var ctx *common.TestContext
 	var wsconn *websocket.Conn
+	queryParams := map[string]string{}
 	var resp *http.Response
-	var testWsHandler *wsHandler
-	var testWsHandlers []*wsHandler
-	var upgrader ws.Upgrader
-	var work sync.WaitGroup
+	var repository storage.Repository
+	var platform *types.Platform
 
-	wsPingTimeout := time.Second * 20
+	BeforeEach(func() {
+		queryParams = map[string]string{}
 
-	JustBeforeEach(func() {
-		testWsHandler = newWsHandler()
-		testWsHandlers = append([]*wsHandler{testWsHandler}, testWsHandlers...)
-		work = sync.WaitGroup{}
-		work.Add(1)
-		upgrader = ws.NewUpgrader(context.Background(), &work, &ws.UpgraderOptions{PingTimeout: wsPingTimeout})
 		ctx = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
-			smb.RegisterControllers(&wsController{
-				wsUpgrader: upgrader,
-				wsHandlers: testWsHandlers,
-			})
+			repository = smb.Storage
 			return nil
 		}).Build()
+		Expect(repository).ToNot(BeNil())
 
+		platform = common.RegisterPlatformInSM(common.GenerateRandomPlatform(), ctx.SMWithOAuth)
+	})
+
+	JustBeforeEach(func() {
 		var err error
-		wsconn, resp, err = wsconnect(ctx, "/v1/testws")
+		wsconn, resp, err = wsconnect(ctx, platform, web.NotificationsURL, queryParams)
 		Expect(err).ShouldNot(HaveOccurred())
+	})
+
+	AfterEach(func() {
+		if repository != nil {
+			_, err := repository.Delete(context.Background(), types.NotificationType)
+			if err != nil {
+				// TODO: Storage returns *util.HTTPError???
+				httpErr := err.(*util.HTTPError)
+				Expect(httpErr.StatusCode).Should(Equal(http.StatusNotFound))
+			}
+		}
+		ctx.Cleanup()
 	})
 
 	JustAfterEach(func() {
 		if wsconn != nil {
 			wsconn.Close()
 		}
-		testWsHandlers = nil
-		ctx.Cleanup()
 	})
 
 	Describe("establish websocket connection", func() {
-		Context("when response headers are set", func() {
-			It("should receive response header", func() {
-				Expect(resp.Header.Get("test-header")).To(Equal("test"))
+		Context("when no notifications are present", func() {
+			It("should receive last known revision response header 0", func() {
+				Expect(resp.Header.Get("last_known_revision")).To(Equal("0"))
 			})
 		})
 
-		Context("when service manager sends data over ws connection", func() {
-			It("client should receive messages", func() {
-				message := "from server"
-				testWsHandler.doSend <- message
-				assertMessage(wsconn, message)
-			})
-		})
-
-		Context("when client sends data over ws connection", func() {
-			It("service manager should receive the message", func() {
-				message := "from client"
-				err := wsconn.WriteMessage(websocket.TextMessage, []byte(message))
+		Context("when notifications are created prior to connection", func() {
+			var notification *types.Notification
+			var notificationRevision int
+			BeforeEach(func() {
+				notification = common.GenerateRandomNotification()
+				notification.PlatformID = platform.ID
+				id, err := repository.Create(context.Background(), notification)
 				Expect(err).ShouldNot(HaveOccurred())
 
-				var expectedMessage string
-				Eventually(testWsHandler.receivedMessages).Should(Receive(&expectedMessage))
-				Expect(expectedMessage).To(Equal(message))
-			})
-		})
-
-		Context("when connection timeout is reached", func() {
-			BeforeEach(func() {
-				wsPingTimeout = time.Millisecond
+				createdNotification, err := repository.Get(context.Background(), types.NotificationType, id)
+				Expect(err).ShouldNot(HaveOccurred())
+				notificationRevision = int((createdNotification.(*types.Notification)).Revision)
 			})
 
-			It("client should receive close message", func() {
-				var expectedError string
-				Eventually(testWsHandler.receivedErrors).Should(Receive(&expectedError))
-				Expect(expectedError).To(ContainSubstring("timeout"))
-			})
-		})
-
-		Context("when ping is sent before connection timeout is reached", func() {
-			var pongCh chan struct{}
-
-			BeforeEach(func() {
-				wsPingTimeout = time.Second * 2
+			It("should receive last known revision response header greater than 0", func() {
+				lastKnownRevision, err := strconv.Atoi(resp.Header.Get("last_known_revision"))
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(lastKnownRevision).To(BeNumerically(">", 1))
 			})
 
-			JustBeforeEach(func() {
-				pongCh = make(chan struct{})
-				wsconn.SetReadDeadline(time.Time{})
-				wsconn.SetPongHandler(func(data string) error {
-					Expect(data).To(Equal("pingping"))
-					close(pongCh)
-					return nil
+			It("should receive them", func() {
+				var r map[string]interface{}
+				err := wsconn.ReadJSON(&r)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(r["id"]).To(Equal(notification.ID))
+				Expect(r["platform_id"]).To(Equal(notification.PlatformID))
+			})
+
+			Context("and proxy knowns some notification revision", func() {
+				var notification2 *types.Notification
+				BeforeEach(func() {
+					notification2 = common.GenerateRandomNotification()
+					notification2.PlatformID = platform.ID
+					_, err := repository.Create(context.Background(), notification2)
+					Expect(err).ShouldNot(HaveOccurred())
+					queryParams["last_known_revision"] = strconv.Itoa(notificationRevision)
 				})
-				go func() {
-					_, _, err := wsconn.ReadMessage()
+
+				It("should receive only these after the revision that it knowns", func() {
+					var r map[string]interface{}
+					err := wsconn.ReadJSON(&r)
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(r["id"]).To(Equal(notification2.ID))
+					Expect(r["platform_id"]).To(Equal(notification2.PlatformID))
+				})
+			})
+
+			Context("and revision known to proxy is not known to sm anymore", func() {
+				It("should receive 410 Gone", func() {
+					queryParams["last_known_revision"] = strconv.Itoa(notificationRevision - 1)
+					_, resp, err := wsconnect(ctx, platform, web.NotificationsURL, queryParams)
+					Expect(resp.StatusCode).To(Equal(http.StatusGone))
 					Expect(err).Should(HaveOccurred())
-				}()
+				})
 			})
 
-			It("connection should receive pong", func(done Done) {
-				err := wsconn.WriteMessage(websocket.PingMessage, []byte("pingping"))
-				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(pongCh, 5).ShouldNot(Receive())
-				close(done)
-			}, 3)
+			Context("when multiple connections are opened", func() {
+				It("all other should not receive prior notifications, but only newly created", func() {
+					wsconns := make([]*websocket.Conn, 0)
+					pls := make([]*types.Platform, 0)
+					for i := 0; i < 5; i++ {
+						pl := common.RegisterPlatformInSM(common.GenerateRandomPlatform(), ctx.SMWithOAuth)
+						pls = append(pls, pl)
+						conn, _, err := wsconnect(ctx, pl, web.NotificationsURL, nil)
+						Expect(err).ShouldNot(HaveOccurred())
+						wsconns = append(wsconns, conn)
 
-			It("connection timeout should be refreshed", func(done Done) {
-				time.Sleep(time.Second)
-				err := wsconn.WriteMessage(websocket.PingMessage, []byte("pingping"))
-				Expect(err).ShouldNot(HaveOccurred())
-				time.Sleep(time.Second + time.Millisecond*500)
+						notification := common.GenerateRandomNotification()
+						notification.PlatformID = pl.ID
+						_, err = repository.Create(context.Background(), notification)
+						Expect(err).ShouldNot(HaveOccurred())
+					}
 
-				message := "from client"
-				err = wsconn.WriteMessage(websocket.TextMessage, []byte(message))
-				Expect(err).ShouldNot(HaveOccurred())
-
-				var expectedMessage string
-				Eventually(testWsHandler.receivedMessages).Should(Receive(&expectedMessage))
-				Expect(expectedMessage).To(Equal(message))
-
-				close(done)
-			}, 4)
-		})
-
-		Context("when 2 websocket connections are opened", func() {
-			var wsconn2 *websocket.Conn
-			testWsHandler2 := newWsHandler()
-
-			BeforeEach(func() {
-				testWsHandlers = append(testWsHandlers, testWsHandler2)
-			})
-
-			JustBeforeEach(func() {
-				var err error
-				wsconn2, _, err = wsconnect(ctx, "/v1/testws")
-				Expect(err).ShouldNot(HaveOccurred())
-			})
-
-			It("should be able to send data over both", func() {
-				testWsHandler.doSend <- "msg1"
-				testWsHandler2.doSend <- "msg2"
-				assertMessage(wsconn, "msg1")
-				assertMessage(wsconn2, "msg2")
-			})
-
-			It("should be able to send data over one of them even if the other is closed", func() {
-				err := wsconn2.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Time{})
-				Expect(err).ShouldNot(HaveOccurred())
-				var receivedError string
-				Eventually(testWsHandler2.receivedErrors).Should(Receive(&receivedError))
-				Expect(receivedError).To(ContainSubstring("websocket: close"))
-				testWsHandler.doSend <- "msg"
-				assertMessage(wsconn, "msg")
+					for i, conn := range wsconns {
+						var r map[string]interface{}
+						err := conn.ReadJSON(&r)
+						Expect(err).ShouldNot(HaveOccurred())
+						Expect(r["platform_id"]).To(Equal(pls[i].ID))
+					}
+				})
 			})
 		})
 
-		Context("when upgrader is shutdown", func() {
-			It("should close all connections", func() {
-				err := upgrader.Shutdown()
-				work.Wait()
+		Context("when revision known to proxy is invalid number", func() {
+			It("should fail", func() {
+				queryParams["last_known_revision"] = "not_a_number"
+				_, resp, err := wsconnect(ctx, platform, web.NotificationsURL, queryParams)
+				Expect(resp.StatusCode).To(Equal(http.StatusBadRequest))
+				Expect(err).Should(HaveOccurred())
+			})
+		})
+
+		Context("when notification are created after ws conn is created", func() {
+			It("should receive new notifications", func() {
+				notification := common.GenerateRandomNotification()
+				notification.PlatformID = platform.ID
+				_, err := repository.Create(context.Background(), notification)
 				Expect(err).ShouldNot(HaveOccurred())
+
+				var r map[string]interface{}
+				err = wsconn.ReadJSON(&r)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(r["id"]).To(Equal(notification.ID))
+				Expect(r["platform_id"]).To(Equal(notification.PlatformID))
 			})
 		})
 	})
 })
 
-func assertMessage(c *websocket.Conn, expectedMsg string) {
-	_, msg, err := c.ReadMessage()
-	Expect(err).ShouldNot(HaveOccurred())
-	Expect(string(msg)).To(Equal(expectedMsg))
-}
-
-type wsController struct {
-	wsUpgrader ws.Upgrader
-	wsHandlers []*wsHandler
-}
-
-func (wsc *wsController) Routes() []web.Route {
-	return []web.Route{
-		{
-			Endpoint: web.Endpoint{
-				Method: http.MethodGet,
-				Path:   "/v1/testws",
-			},
-			Handler: wsc.handle,
-		},
+func wsconnect(ctx *common.TestContext, platform *types.Platform, path string, queryParams map[string]string) (*websocket.Conn, *http.Response, error) {
+	smURL := ctx.Servers[common.SMServer].URL()
+	smEndpoint, _ := url.Parse(smURL)
+	smEndpoint.Scheme = "ws"
+	smEndpoint.Path = path
+	q := smEndpoint.Query()
+	for k, v := range queryParams {
+		q.Add(k, v)
 	}
-}
+	smEndpoint.RawQuery = q.Encode()
 
-func (wsc *wsController) handle(req *web.Request) (*web.Response, error) {
-	rw := req.HijackResponseWriter()
-	header := http.Header{
-		"test-header": []string{"test"},
-	}
-	wsConn, err := wsc.wsUpgrader.Upgrade(rw, req.Request, header)
-	if err != nil {
-		return nil, err
-	}
+	headers := http.Header{}
+	encodedPlatform := base64.StdEncoding.EncodeToString([]byte(platform.Credentials.Basic.Username + ":" + platform.Credentials.Basic.Password))
+	headers.Add("Authorization", "Basic "+encodedPlatform)
 
-	if wsc.wsHandlers == nil {
-		panic("should not panic")
-	}
-
-	handler := wsc.wsHandlers[0]
-	if len(wsc.wsHandlers) > 1 {
-		wsc.wsHandlers = wsc.wsHandlers[1:]
-	} else {
-		wsc.wsHandlers = nil
-	}
-
-	go handler.Write(wsConn)
-	go handler.Read(wsConn)
-
-	return &web.Response{}, nil
-}
-
-type wsHandler struct {
-	doSend chan string
-
-	receivedMessages chan string
-	receivedErrors   chan string
-}
-
-func newWsHandler() *wsHandler {
-	return &wsHandler{
-		doSend:           make(chan string),
-		receivedMessages: make(chan string),
-		receivedErrors:   make(chan string),
-	}
-}
-
-func (h *wsHandler) Write(c *ws.Conn) {
-	for {
-		select {
-		case <-c.Shutdown:
-			c.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Time{})
-			c.Close()
-			return
-		case msg := <-h.doSend:
-			err := c.WriteMessage(websocket.TextMessage, []byte(msg))
-			if err != nil {
-				return
-			}
-		default:
-		}
-	}
-}
-
-func (h *wsHandler) Read(c *ws.Conn) {
-	defer func() {
-		close(c.Done)
-		c.Close()
-	}()
-
-	for {
-		_, received, err := c.ReadMessage()
-		if err == nil {
-			h.receivedMessages <- string(received)
-		} else {
-			h.receivedErrors <- err.Error()
-		}
-	}
+	wsEndpoint := smEndpoint.String()
+	return websocket.DefaultDialer.Dial(wsEndpoint, headers)
 }

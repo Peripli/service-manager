@@ -111,7 +111,7 @@ func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface
 	} else {
 		baseQuery = constructBaseQueryForLabelable(label, baseTableName)
 	}
-	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, baseTableName, label, criteria, getDBTags(baseEntity, isAutoIncrementable))
+	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, baseTableName, label, criteria, getDBTags(baseEntity, nil))
 	if err != nil {
 		return nil, err
 	}
