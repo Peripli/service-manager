@@ -28,6 +28,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
+// NotificationCleaner schedules a go routine which cleans old notifications
 type NotificationCleaner struct {
 	started        bool
 
