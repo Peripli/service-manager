@@ -19,9 +19,10 @@ package storage
 import (
 	"context"
 	"errors"
-	"github.com/Peripli/service-manager/pkg/util"
 	"sync"
 	"time"
+
+	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -30,7 +31,7 @@ import (
 
 // NotificationCleaner schedules a go routine which cleans old notifications
 type NotificationCleaner struct {
-	started        bool
+	started bool
 
 	Storage  Repository
 	Settings *Settings
