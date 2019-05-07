@@ -146,8 +146,8 @@ func (c *Controller) sendWsMessage(conn *ws.Conn, msg interface{}) bool {
 }
 
 func (c *Controller) sendWsClose(conn *ws.Conn) {
-	// TODO: Timeout?
-	if err := conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseGoingAway, ""), time.Time{}); err != nil {
+	writeDeadline := time.Now().Add(c.wsServer.Options.WriteTimeout)
+	if err := conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseGoingAway, ""), writeDeadline); err != nil {
 		log.D().Errorf("Could not send close message: %v", err)
 	}
 }
