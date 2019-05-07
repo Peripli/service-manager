@@ -17,6 +17,8 @@
 package common
 
 import (
+	"time"
+
 	"github.com/onsi/ginkgo"
 	"github.com/spf13/pflag"
 
@@ -203,20 +205,30 @@ func removeAll(SM *httpexpect.Expect, entity, rootURLPath string) {
 	SM.DELETE(rootURLPath).Expect()
 }
 
-func RegisterBrokerInSM(brokerJSON Object, SM *httpexpect.Expect) string {
-	reply := SM.POST("/v1/service_brokers").
-		WithJSON(brokerJSON).
-		Expect().Status(http.StatusCreated).JSON().Object()
-	return reply.Value("id").String().Raw()
+func RegisterBrokerInSM(brokerJSON Object, SM *httpexpect.Expect) Object {
+	return SM.POST("/v1/service_brokers").
+		WithJSON(brokerJSON).Expect().Status(http.StatusCreated).JSON().Object().Raw()
 }
 
 func RegisterPlatformInSM(platformJSON Object, SM *httpexpect.Expect) *types.Platform {
 	reply := SM.POST("/v1/platforms").
 		WithJSON(platformJSON).
 		Expect().Status(http.StatusCreated).JSON().Object().Raw()
+	createdAtString := reply["created_at"].(string)
+	updatedAtString := reply["updated_at"].(string)
+	createdAt, err := time.Parse(time.RFC3339, createdAtString)
+	if err != nil {
+		panic(err)
+	}
+	updatedAt, err := time.Parse(time.RFC3339, updatedAtString)
+	if err != nil {
+		panic(err)
+	}
 	platform := &types.Platform{
 		Base: types.Base{
-			ID: reply["id"].(string),
+			ID:        reply["id"].(string),
+			CreatedAt: createdAt,
+			UpdatedAt: updatedAt,
 		},
 		Credentials: &types.Credentials{
 			Basic: &types.Basic{
