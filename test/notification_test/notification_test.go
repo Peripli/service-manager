@@ -111,7 +111,7 @@ var _ = Describe("WS", func() {
 			It("should receive last known revision response header greater than 0", func() {
 				lastKnownRevision, err := strconv.Atoi(resp.Header.Get("last_known_revision"))
 				Expect(err).ShouldNot(HaveOccurred())
-				Expect(lastKnownRevision).To(BeNumerically(">", 1))
+				Expect(lastKnownRevision).To(BeNumerically(">", 0))
 			})
 
 			It("should receive them", func() {
