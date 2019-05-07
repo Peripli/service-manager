@@ -43,7 +43,7 @@ import (
 
 func TestWsConn(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Websocket test suite")
+	RunSpecs(t, "Notification test suite")
 }
 
 var _ = Describe("WS", func() {
