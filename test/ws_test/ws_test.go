@@ -115,11 +115,9 @@ var _ = Describe("WS", func() {
 			})
 
 			It("should receive them", func() {
-				var r map[string]interface{}
-				err := wsconn.ReadJSON(&r)
-				Expect(err).ShouldNot(HaveOccurred())
-				Expect(r["id"]).To(Equal(notification.ID))
-				Expect(r["platform_id"]).To(Equal(notification.PlatformID))
+				notificationMessage := readNotification(wsconn)
+				Expect(notificationMessage["id"]).To(Equal(notification.ID))
+				Expect(notificationMessage["platform_id"]).To(Equal(notification.PlatformID))
 			})
 
 			Context("and proxy knowns some notification revision", func() {
@@ -130,11 +128,9 @@ var _ = Describe("WS", func() {
 				})
 
 				It("should receive only these after the revision that it knowns", func() {
-					var r map[string]interface{}
-					err := wsconn.ReadJSON(&r)
-					Expect(err).ShouldNot(HaveOccurred())
-					Expect(r["id"]).To(Equal(notification2.ID))
-					Expect(r["platform_id"]).To(Equal(notification2.PlatformID))
+					notificationMessage := readNotification(wsconn)
+					Expect(notificationMessage["id"]).To(Equal(notification2.ID))
+					Expect(notificationMessage["platform_id"]).To(Equal(notification2.PlatformID))
 				})
 			})
 
@@ -162,10 +158,8 @@ var _ = Describe("WS", func() {
 					}
 
 					for i, conn := range wsconns {
-						var r map[string]interface{}
-						err := conn.ReadJSON(&r)
-						Expect(err).ShouldNot(HaveOccurred())
-						Expect(r["platform_id"]).To(Equal(pls[i].ID))
+						notificationMessage := readNotification(conn)
+						Expect(notificationMessage["platform_id"]).To(Equal(pls[i].ID))
 					}
 				})
 			})
@@ -184,11 +178,9 @@ var _ = Describe("WS", func() {
 			It("should receive new notifications", func() {
 				notification, _ := createNotification(repository, platform.ID)
 
-				var r map[string]interface{}
-				err := wsconn.ReadJSON(&r)
-				Expect(err).ShouldNot(HaveOccurred())
-				Expect(r["id"]).To(Equal(notification.ID))
-				Expect(r["platform_id"]).To(Equal(notification.PlatformID))
+				notificationMessage := readNotification(wsconn)
+				Expect(notificationMessage["id"]).To(Equal(notification.ID))
+				Expect(notificationMessage["platform_id"]).To(Equal(notification.PlatformID))
 			})
 		})
 
