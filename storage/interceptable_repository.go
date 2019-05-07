@@ -143,10 +143,11 @@ func (ir *interceptableRepository) Delete(ctx context.Context, objectType types.
 	}
 
 	var objectList types.ObjectList
+	var objects types.ObjectList
 	var err error
 
 	if _, found := ir.deleteInterceptor[objectType]; found {
-		objects, err := ir.List(ctx, objectType, criteria...)
+		objects, err = ir.List(ctx, objectType, criteria...)
 		if err != nil {
 			return nil, err
 		}

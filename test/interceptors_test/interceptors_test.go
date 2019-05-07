@@ -239,7 +239,7 @@ var _ = Describe("Interceptors", func() {
 				}
 
 				updateModificationInterceptors[types.PlatformType].OnTxUpdateStub = func(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
-					return func(ctx context.Context, txStorage storage.Repository, obj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
+					return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
 						return nil, errors.New("Expected update to fail")
 					}
 				}
@@ -270,23 +270,23 @@ var _ = Describe("Interceptors", func() {
 				}
 
 				updateModificationInterceptors[types.PlatformType].OnTxUpdateStub = func(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
-					return func(ctx context.Context, txStorage storage.Repository, obj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
+					return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
 						deleteCriteria := query.ByField(query.EqualsOperator, "id", platform2.ID)
 						By("calling storage delete, should call delete interceptor")
 						_, err := txStorage.Delete(ctx, types.PlatformType, deleteCriteria)
 						if err != nil {
 							return nil, err
 						}
-						return f(ctx, txStorage, obj, labelChanges...)
+						return f(ctx, txStorage, oldObj, newObj, labelChanges...)
 					}
 				}
 
 				deleteModificationInterceptors[types.PlatformType].OnTxDeleteStub = func(f storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
-					return func(ctx context.Context, txStorage storage.Repository, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
+					return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
 						Expect(deletionCriteria).To(HaveLen(1))
 						Expect(deletionCriteria[0].LeftOp).To(Equal("id"))
 						Expect(deletionCriteria[0].RightOp[0]).To(Equal(platform2.ID))
-						return f(ctx, txStorage, deletionCriteria...)
+						return f(ctx, txStorage, objects, deletionCriteria...)
 					}
 				}
 
@@ -295,11 +295,11 @@ var _ = Describe("Interceptors", func() {
 				Expect(deleteModificationInterceptors[types.PlatformType].OnTxDeleteCallCount()).To(Equal(txDeleteCallCount + 1))
 
 				deleteModificationInterceptors[types.PlatformType].OnTxDeleteStub = func(f storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
-					return func(ctx context.Context, txStorage storage.Repository, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
+					return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
 						Expect(deletionCriteria).To(HaveLen(1))
 						Expect(deletionCriteria[0].LeftOp).To(Equal("id"))
 						Expect(deletionCriteria[0].RightOp[0]).To(Equal(platform1.ID))
-						return f(ctx, txStorage, deletionCriteria...)
+						return f(ctx, txStorage, objects, deletionCriteria...)
 					}
 				}
 
@@ -469,13 +469,13 @@ var _ = Describe("Interceptors", func() {
 						}
 					}
 					updateModificationInterceptors[types.ObjectType(e.name)].OnTxUpdateStub = func(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
-						return func(ctx context.Context, txStorage storage.Repository, obj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
+						return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
 							labelChanges = append(labelChanges, &query.LabelChange{
 								Key:       newLabelKey,
 								Operation: query.AddLabelOperation,
 								Values:    []string{newLabelValue[1]},
 							})
-							return f(ctx, txStorage, obj, labelChanges...)
+							return f(ctx, txStorage, oldObj, newObj, labelChanges...)
 						}
 					}
 					entityID := e.createEntryFunc()
@@ -496,9 +496,9 @@ var _ = Describe("Interceptors", func() {
 					ctx.SMWithOAuth.DELETE(e.url).Expect().Status(http.StatusNotFound)
 					resetModificationInterceptors()
 					deleteModificationInterceptors[types.ObjectType(e.name)].OnTxDeleteStub = func(f storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
-						return func(ctx context.Context, txStorage storage.Repository, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
+						return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
 							deletionCriteria = append(deletionCriteria, query.ByField(query.InOperator, "id", "invalid"))
-							return f(ctx, txStorage, deletionCriteria...)
+							return f(ctx, txStorage, objects, deletionCriteria...)
 						}
 					}
 					ctx.SMWithOAuth.DELETE(e.url).Expect().Status(http.StatusNotFound)
@@ -564,9 +564,9 @@ func updateInterceptorProvider(nameSuffix string, stack *callStack) *storagefake
 		}
 	}
 	fakeUpdateInterceptor.OnTxUpdateStub = func(h storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
-		return func(ctx context.Context, txStorage storage.Repository, object types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+		return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 			stack.Add(name + "TXpre")
-			obj, err := h(ctx, txStorage, object, labelChanges...)
+			obj, err := h(ctx, txStorage, oldObj, newObj, labelChanges...)
 			stack.Add(name + "TXpost")
 			return obj, err
 		}
@@ -590,9 +590,9 @@ func deleteInterceptorProvider(nameSuffix string, stack *callStack) *storagefake
 		}
 	}
 	fakeDeleteInterceptor.OnTxDeleteStub = func(h storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
-		return func(ctx context.Context, txStorage storage.Repository, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
+		return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
 			stack.Add(name + "TXpre")
-			obj, err := h(ctx, txStorage, deletionCriteria...)
+			obj, err := h(ctx, txStorage, objects, deletionCriteria...)
 			stack.Add(name + "TXpost")
 			return obj, err
 		}

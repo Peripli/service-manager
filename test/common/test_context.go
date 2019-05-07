@@ -20,9 +20,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/http"
 	"net/http/httptest"
 	"path"
 	"runtime"
+
+	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/storage"
 
@@ -367,10 +370,17 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 	}
 
 	_, err := ctx.SMRepository.Delete(context.TODO(), types.NotificationType)
-	ctx.SMWithOAuth.DELETE("/v1/service_brokers").Expect()
 	if err != nil {
-		panic(err)
+		if e, ok := err.(*util.HTTPError); ok {
+			if e.StatusCode != http.StatusNotFound {
+				panic(err)
+			}
+		} else {
+			panic(err)
+		}
 	}
+	ctx.SMWithOAuth.DELETE("/v1/service_brokers").Expect()
+
 	if ctx.TestPlatform != nil {
 		ctx.SMWithOAuth.DELETE("/v1/platforms").WithQuery("fieldQuery", "id != "+ctx.TestPlatform.ID).Expect()
 	} else {

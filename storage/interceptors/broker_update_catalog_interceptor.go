@@ -103,6 +103,8 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 			if ok {
 				delete(existingServicesOfferingsMap, catalogService.CatalogID)
 				catalogService.ID = existingServiceOffering.ID
+				catalogService.CreatedAt = existingServiceOffering.CreatedAt
+				catalogService.UpdatedAt = existingServiceOffering.UpdatedAt
 
 				if err := catalogService.Validate(); err != nil {
 					return nil, &util.HTTPError{
@@ -160,6 +162,8 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 							// found a match means an update should happen
 							existingPlanUpdated = catalogPlan
 							existingPlanUpdated.ID = existingServicePlan.ID
+							existingPlanUpdated.CreatedAt = existingServicePlan.CreatedAt
+							existingPlanUpdated.UpdatedAt = existingServicePlan.UpdatedAt
 						} else {
 							newPlansMapping = append(newPlansMapping, existingServicePlan)
 						}
