@@ -143,6 +143,15 @@ var _ = Describe("WS", func() {
 				})
 			})
 
+			Context("and proxy known revision is greater than sm known revision", func() {
+				It("should receive 410 Gone", func() {
+					queryParams["last_known_revision"] = strconv.FormatInt(notificationRevision+1, 10)
+					_, resp, err := wsconnect(ctx, platform, web.NotificationsURL, queryParams)
+					Expect(resp.StatusCode).To(Equal(http.StatusGone))
+					Expect(err).Should(HaveOccurred())
+				})
+			})
+
 			Context("when multiple connections are opened", func() {
 				It("all other should not receive prior notifications, but only newly created", func() {
 					wsconns := make([]*websocket.Conn, 0)

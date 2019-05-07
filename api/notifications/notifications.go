@@ -187,6 +187,7 @@ func (c *Controller) getNotificationList(ctx context.Context, user *web.UserCont
 		return nil, err
 	}
 	notificationsList := objectList.(*types.Notifications)
+	// TODO: Should be done in the database with order by
 	sort.Slice(notificationsList.Notifications, func(i, j int) bool {
 		return notificationsList.Notifications[i].Revision < notificationsList.Notifications[j].Revision
 	})
