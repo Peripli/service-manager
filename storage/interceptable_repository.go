@@ -90,8 +90,11 @@ func (ir *interceptableRepository) Create(ctx context.Context, obj types.Object)
 	}
 
 	var err error
-	if _, found := ir.createInterceptor[objectType]; found {
-		err = ir.createInterceptor[objectType].OnTxCreate(createObjectFunc)(ctx, ir, obj)
+	if createInterceptorChain, found := ir.createInterceptor[objectType]; found {
+		// remove the create interceptor chain so that if one of the interceptors in the chain tries
+		// to create another resource of the same type we don't get into infinite recursion
+		delete(ir.createInterceptor, objectType)
+		err = createInterceptorChain.OnTxCreate(createObjectFunc)(ctx, ir, obj)
 	} else {
 		err = createObjectFunc(ctx, ir.repositoryInTransaction, obj)
 	}
@@ -141,13 +144,14 @@ func (ir *interceptableRepository) Delete(ctx context.Context, objectType types.
 	var objects types.ObjectList
 	var err error
 
-	if _, found := ir.deleteInterceptor[objectType]; found {
+	if deleteInterceptorChain, found := ir.deleteInterceptor[objectType]; found {
 		objects, err = ir.List(ctx, objectType, criteria...)
 		if err != nil {
 			return nil, err
 		}
 
-		objectList, err = ir.deleteInterceptor[objectType].OnTxDelete(deleteObjectFunc)(ctx, ir, objects, criteria...)
+		delete(ir.deleteInterceptor, objectType)
+		objectList, err = deleteInterceptorChain.OnTxDelete(deleteObjectFunc)(ctx, ir, objects, criteria...)
 	} else {
 		objectList, err = deleteObjectFunc(ctx, nil, nil, criteria...)
 	}
@@ -195,8 +199,10 @@ func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object,
 		return nil, util.ErrConcurrentResourceModification
 	}
 
-	if _, found := ir.updateInterceptor[objectType]; found {
-		updatedObj, err = ir.updateInterceptor[objectType].OnTxUpdate(updateObjFunc)(ctx, ir, oldObj, obj, labelChanges...)
+	if updateInterceptorChain, found := ir.updateInterceptor[objectType]; found {
+		delete(ir.updateInterceptor, objectType)
+
+		updatedObj, err = updateInterceptorChain.OnTxUpdate(updateObjFunc)(ctx, ir, oldObj, obj, labelChanges...)
 	} else {
 		updatedObj, err = updateObjFunc(ctx, ir, oldObj, obj, labelChanges...)
 	}
