@@ -134,7 +134,8 @@ func (u *Server) shutdown(ctx context.Context, work *sync.WaitGroup) {
 func (u *Server) setCloseHandler(c *Conn) {
 	c.SetCloseHandler(func(code int, text string) error {
 		u.removeConn(c.ID)
-		c.Close()
+		message := websocket.FormatCloseMessage(code, "")
+		c.WriteControl(websocket.CloseMessage, message, time.Now().Add(u.Options.WriteTimeout))
 		return nil
 	})
 }

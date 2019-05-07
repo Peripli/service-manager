@@ -56,7 +56,11 @@ var _ = Describe("WS", func() {
 	var wsServer *ws.Server
 	var work sync.WaitGroup
 
-	wsPingTimeout := time.Second * 20
+	var wsPingTimeout time.Duration
+
+	BeforeEach(func() {
+		wsPingTimeout = time.Second * 20
+	})
 
 	JustBeforeEach(func() {
 		testWsHandler = newWsHandler()
