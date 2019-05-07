@@ -214,7 +214,7 @@ type NotificationQueue interface {
 	Channel() <-chan *types.Notification
 
 	// Close closes the queue.
-	Close()	
+	Close()
 
 	// ID returns unique queue identifier
 	ID() string
