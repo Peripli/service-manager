@@ -103,7 +103,7 @@ var (
 type ErrBadRequestStorage error
 
 // HandleStorageError handles storage errors by converting them to relevant HTTPErrors
-func HandleStorageError(err error, entityNames ...string) error {
+func HandleStorageError(err error, entityName string) error {
 	if err == nil {
 		return nil
 	}
@@ -112,11 +112,9 @@ func HandleStorageError(err error, entityNames ...string) error {
 		return err
 	}
 
-	if len(entityNames) == 0 {
-		entityNames = []string{"entity"}
+	if len(entityName) == 0 {
+		entityName = "entity"
 	}
-
-	entityName := entityNames[0]
 
 	switch err {
 	case ErrAlreadyExistsInStorage:
