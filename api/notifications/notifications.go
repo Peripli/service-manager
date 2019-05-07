@@ -32,6 +32,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	if !ok {
 		return nil, errors.New("user details not found in request context")
 	}
+	ctx := req.Context()
 
 	notificationQueue, lastKnownRevision, err := c.notificator.RegisterConsumer(user)
 	if err != nil {
@@ -43,9 +44,9 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	if revisionKnownToProxyStr != "" {
 		revisionKnownToProxy, err = strconv.ParseInt(revisionKnownToProxyStr, 10, 64)
 		if err != nil {
-			c.unregisterConsumer(notificationQueue)
+			c.unregisterConsumer(ctx, notificationQueue)
 
-			log.C(req.Context()).Errorf("could not convert string to number: %v", err)
+			log.C(ctx).Errorf("could not convert string to number: %v", err)
 			return nil, &util.HTTPError{
 				StatusCode:  http.StatusBadRequest,
 				Description: fmt.Sprintf("invalid %s query parameter", lastKnownRevisionQueryParam),
@@ -55,11 +56,11 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	}
 
 	if lastKnownRevision < revisionKnownToProxy {
-		log.C(req.Context()).Infof("Notification revision known to proxy %d is less greater than revision known to SM %d", revisionKnownToProxy, lastKnownRevision)
+		log.C(ctx).Infof("Notification revision known to proxy %d is less greater than revision known to SM %d", revisionKnownToProxy, lastKnownRevision)
 		return util.NewJSONResponse(http.StatusGone, nil)
 	}
 
-	notificationsList, err := c.getNotificationList(req.Context(), user, revisionKnownToProxy, lastKnownRevision)
+	notificationsList, err := c.getNotificationList(ctx, user, revisionKnownToProxy, lastKnownRevision)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +69,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		// TODO: we expect that notificationsList is ordered by revision
 		notification := notificationsList.ItemAt(0).(*types.Notification)
 		if notification.Revision != revisionKnownToProxy {
-			log.C(req.Context()).Infof("Notification with revision %d known to proxy not found", revisionKnownToProxy)
+			log.C(ctx).Infof("Notification with revision %d known to proxy not found", revisionKnownToProxy)
 			return util.NewJSONResponse(http.StatusGone, nil)
 		}
 		notificationsList.Notifications = notificationsList.Notifications[1:]
@@ -81,18 +82,18 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		lastKnownRevisionHeader: []string{strconv.FormatInt(lastKnownRevision, 10)},
 	}, done)
 	if err != nil {
-		c.unregisterConsumer(notificationQueue)
+		c.unregisterConsumer(ctx, notificationQueue)
 		return nil, err
 	}
 
-	go c.writeLoop(conn, notificationsList, notificationQueue, done)
-	go c.readLoop(conn, done)
+	go c.writeLoop(ctx, conn, notificationsList, notificationQueue, done)
+	go c.readLoop(ctx, conn, done)
 
 	return &web.Response{}, nil
 }
 
-func (c *Controller) writeLoop(conn *ws.Conn, notificationsList *types.Notifications, q storage.NotificationQueue, done chan<- struct{}) {
-	defer c.unregisterConsumer(q)
+func (c *Controller) writeLoop(ctx context.Context, conn *ws.Conn, notificationsList *types.Notifications, q storage.NotificationQueue, done chan<- struct{}) {
+	defer c.unregisterConsumer(ctx, q)
 	defer func() {
 		done <- struct{}{}
 		conn.Close()
@@ -102,12 +103,12 @@ func (c *Controller) writeLoop(conn *ws.Conn, notificationsList *types.Notificat
 		notification := (notificationsList.ItemAt(i)).(*types.Notification)
 		select {
 		case <-conn.Shutdown:
-			c.sendWsClose(conn)
+			c.sendWsClose(ctx, conn)
 			return
 		default:
 		}
 
-		if !c.sendWsMessage(conn, notification) {
+		if !c.sendWsMessage(ctx, conn, notification) {
 			return
 		}
 	}
@@ -117,22 +118,22 @@ func (c *Controller) writeLoop(conn *ws.Conn, notificationsList *types.Notificat
 	for {
 		select {
 		case <-conn.Shutdown:
-			c.sendWsClose(conn)
+			c.sendWsClose(ctx, conn)
 			return
 		case notification, ok := <-notificationChannel:
 			if !ok {
-				c.sendWsClose(conn)
+				c.sendWsClose(ctx, conn)
 				return
 			}
 
-			if !c.sendWsMessage(conn, notification) {
+			if !c.sendWsMessage(ctx, conn, notification) {
 				return
 			}
 		}
 	}
 }
 
-func (c *Controller) readLoop(conn *ws.Conn, done chan<- struct{}) {
+func (c *Controller) readLoop(ctx context.Context, conn *ws.Conn, done chan<- struct{}) {
 	defer func() {
 		done <- struct{}{}
 		conn.Close()
@@ -143,31 +144,31 @@ func (c *Controller) readLoop(conn *ws.Conn, done chan<- struct{}) {
 		// currently we don't expect to receive something else from the proxies
 		_, _, err := conn.ReadMessage()
 		if err != nil {
-			log.D().Errorf("ws: could not read: %v", err)
+			log.C(ctx).Errorf("ws: could not read: %v", err)
 			return
 		}
 	}
 }
 
-func (c *Controller) sendWsMessage(conn *ws.Conn, msg interface{}) bool {
+func (c *Controller) sendWsMessage(ctx context.Context, conn *ws.Conn, msg interface{}) bool {
 	conn.SetWriteDeadline(time.Now().Add(c.wsServer.Options.WriteTimeout))
 	if err := conn.WriteJSON(msg); err != nil {
-		log.D().Errorf("ws: could not write: %v", err)
+		log.C(ctx).Errorf("ws: could not write: %v", err)
 		return false
 	}
 	return true
 }
 
-func (c *Controller) sendWsClose(conn *ws.Conn) {
+func (c *Controller) sendWsClose(ctx context.Context, conn *ws.Conn) {
 	writeDeadline := time.Now().Add(c.wsServer.Options.WriteTimeout)
 	if err := conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseGoingAway, ""), writeDeadline); err != nil {
-		log.D().Errorf("Could not send close message: %v", err)
+		log.C(ctx).Errorf("Could not send close message: %v", err)
 	}
 }
 
-func (c *Controller) unregisterConsumer(q storage.NotificationQueue) {
+func (c *Controller) unregisterConsumer(ctx context.Context, q storage.NotificationQueue) {
 	if unregErr := c.notificator.UnregisterConsumer(q); unregErr != nil {
-		log.D().Errorf("Could not unregister notification consumer: %v", unregErr)
+		log.C(ctx).Errorf("Could not unregister notification consumer: %v", unregErr)
 	}
 }
 
