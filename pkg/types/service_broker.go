@@ -33,18 +33,6 @@ type ServiceBroker struct {
 	Services    []*ServiceOffering `json:"-" structs:"-"`
 }
 
-func (sb *ServiceBroker) DeepCopyInto(out *ServiceBroker) {
-	*out = *sb
-}
-
-func (sb *ServiceBroker) DeepCopy() *ServiceBroker {
-	return sb
-}
-
-func (sb *ServiceBroker) DeepCopyObject() Object {
-	return sb
-}
-
 func (e *ServiceBroker) SetCredentials(credentials *Credentials) {
 	e.Credentials = credentials
 }

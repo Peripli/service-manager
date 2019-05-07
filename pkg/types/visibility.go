@@ -31,18 +31,6 @@ type Visibility struct {
 	ServicePlanID string `json:"service_plan_id"`
 }
 
-func (sb *Visibility) DeepCopyInto(out *Visibility) {
-	*out = *sb
-}
-
-func (sb *Visibility) DeepCopy() *Visibility {
-	return sb
-}
-
-func (sb *Visibility) DeepCopyObject() Object {
-	return sb
-}
-
 // Validate implements InputValidator and verifies all mandatory fields are populated
 func (e *Visibility) Validate() error {
 	if e.ServicePlanID == "" {
