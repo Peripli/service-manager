@@ -24,6 +24,8 @@ import (
 	"path"
 	"runtime"
 
+	"github.com/Peripli/service-manager/storage"
+
 	"github.com/gofrs/uuid"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -64,6 +66,8 @@ type TestContext struct {
 	SM           *httpexpect.Expect
 	SMWithOAuth  *httpexpect.Expect
 	SMWithBasic  *httpexpect.Expect
+	SMRepository storage.Repository
+
 	TestPlatform *types.Platform
 
 	Servers map[string]FakeServer
@@ -201,7 +205,7 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 		envPostHook(environment, tcb.Servers)
 	}
 
-	smServer := newSMServer(environment, tcb.smExtensions)
+	smServer, smRepository := newSMServer(environment, tcb.smExtensions)
 	tcb.Servers[SMServer] = smServer
 
 	SM := httpexpect.New(GinkgoT(), smServer.URL())
@@ -214,9 +218,10 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 	RemoveAllPlatforms(SMWithOAuth)
 
 	testContext := &TestContext{
-		SM:          SM,
-		SMWithOAuth: SMWithOAuth,
-		Servers:     tcb.Servers,
+		SM:           SM,
+		SMWithOAuth:  SMWithOAuth,
+		Servers:      tcb.Servers,
+		SMRepository: smRepository,
 	}
 
 	if !tcb.shouldSkipBasicAuthClient {
@@ -234,7 +239,7 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 
 }
 
-func newSMServer(smEnv env.Environment, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error) *testSMServer {
+func newSMServer(smEnv env.Environment, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error) (*testSMServer, storage.Repository) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := struct {
 		Log *log.Settings
@@ -258,7 +263,7 @@ func newSMServer(smEnv env.Environment, fs []func(ctx context.Context, smb *sm.S
 	return &testSMServer{
 		cancel: cancel,
 		Server: httptest.NewServer(serviceManager.Server.Router),
-	}
+	}, smb.Storage
 }
 
 func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object) (string, Object, *BrokerServer) {
@@ -285,11 +290,12 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, br
 
 	MergeObjects(brokerJSON, brokerData)
 
-	brokerID := RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth)
+	broker := RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth)
+	brokerID := broker["id"].(string)
 	brokerServer.ResetCallHistory()
 	ctx.Servers[BrokerServerPrefix+brokerID] = brokerServer
 	brokerJSON["id"] = brokerID
-	return brokerID, brokerJSON, brokerServer
+	return brokerID, broker, brokerServer
 }
 
 func MergeObjects(target, source Object) {
@@ -359,7 +365,12 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 	if ctx == nil {
 		return
 	}
+
+	_, err := ctx.SMRepository.Delete(context.TODO(), types.NotificationType)
 	ctx.SMWithOAuth.DELETE("/v1/service_brokers").Expect()
+	if err != nil {
+		panic(err)
+	}
 	if ctx.TestPlatform != nil {
 		ctx.SMWithOAuth.DELETE("/v1/platforms").WithQuery("fieldQuery", "id != "+ctx.TestPlatform.ID).Expect()
 	} else {

@@ -8,7 +8,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
-const NotificationType ObjectType = "Notification"
+const NotificationType ObjectType = "types.Notification"
 
 type Notifications struct {
 	Notifications []*Notification `json:"notifications"`

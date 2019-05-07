@@ -180,7 +180,7 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	log.C(ctx).Debugf("Getting all %ss", c.objectType)
 	objectList, err := c.repository.List(ctx, c.objectType, query.CriteriaForContext(ctx)...)
 	if err != nil {
-		return nil, util.HandleSelectionError(err)
+		return nil, util.HandleStorageError(err)
 	}
 	for i := 0; i < objectList.Len(); i++ {
 		obj := objectList.ItemAt(i)
@@ -202,6 +202,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	if r.Body, err = sjson.DeleteBytes(r.Body, "labels"); err != nil {
 		return nil, err
 	}
+
 	objFromDB, err := c.repository.Get(ctx, c.objectType, objectID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))

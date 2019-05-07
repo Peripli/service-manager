@@ -1,0 +1,85 @@
+package interceptors
+
+import (
+	"context"
+	"encoding/json"
+
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
+)
+
+func NewVisibilityNotificationsInterceptor() *NotificationsInterceptor {
+	return &NotificationsInterceptor{
+		PlatformIdSetterFunc: func(ctx context.Context, obj types.Object) string {
+			return obj.(*types.Visibility).PlatformID
+		},
+		AdditionalDetailsFunc: func(ctx context.Context, obj types.Object, repository storage.Repository) (json.Marshaler, error) {
+			visibility := obj.(*types.Visibility)
+
+			plan, err := repository.Get(ctx, types.ServicePlanType, visibility.ServicePlanID)
+			if err != nil {
+				return nil, err
+			}
+			servicePlan := plan.(*types.ServicePlan)
+
+			service, err := repository.Get(ctx, types.ServiceOfferingType, servicePlan.ServiceOfferingID)
+			if err != nil {
+				return nil, err
+			}
+			serviceOffering := service.(*types.ServiceOffering)
+
+			return &VisibilityAdditional{
+				BrokerID:    serviceOffering.BrokerID,
+				ServicePlan: plan.(*types.ServicePlan),
+			}, nil
+		},
+	}
+}
+
+type VisibilityAdditional struct {
+	BrokerID    string             `json:"broker_id"`
+	ServicePlan *types.ServicePlan `json:"service_plan,omitempty"`
+}
+
+func (va *VisibilityAdditional) MarshalJSON() ([]byte, error) {
+	type E VisibilityAdditional
+	toMarshal := struct {
+		*E
+	}{
+		E: (*E)(va),
+	}
+	return json.Marshal(toMarshal)
+}
+
+type VisibilityCreateNotificationsInterceptorProvider struct {
+}
+
+func (*VisibilityCreateNotificationsInterceptorProvider) Name() string {
+	return "VisibilityCreateNotificationsInterceptorProvider"
+}
+
+func (*VisibilityCreateNotificationsInterceptorProvider) Provide() storage.CreateInterceptor {
+	return NewVisibilityNotificationsInterceptor()
+}
+
+type VisibilityUpdateNotificationsInterceptorProvider struct {
+}
+
+func (*VisibilityUpdateNotificationsInterceptorProvider) Name() string {
+	return "VisibilityUpdateNotificationsInterceptorProvider"
+}
+
+func (*VisibilityUpdateNotificationsInterceptorProvider) Provide() storage.UpdateInterceptor {
+	return NewVisibilityNotificationsInterceptor()
+}
+
+type VisibilityDeleteNotificationsInterceptorProvider struct {
+}
+
+func (*VisibilityDeleteNotificationsInterceptorProvider) Name() string {
+	return "VisibilityDeleteNotificationsInterceptorProvider"
+}
+
+func (*VisibilityDeleteNotificationsInterceptorProvider) Provide() storage.DeleteInterceptor {
+	return NewVisibilityNotificationsInterceptor()
+}

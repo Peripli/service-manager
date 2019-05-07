@@ -67,7 +67,7 @@ type DeleteInterceptorProvider interface {
 type InterceptDeleteAroundTxFunc func(ctx context.Context, deletionCriteria ...query.Criterion) (types.ObjectList, error)
 
 // InterceptDeleteOnTxFunc hook for entity deletion in transaction
-type InterceptDeleteOnTxFunc func(ctx context.Context, txStorage Repository, deletionCriteria ...query.Criterion) (types.ObjectList, error)
+type InterceptDeleteOnTxFunc func(ctx context.Context, txStorage Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) (types.ObjectList, error)
 
 // DeleteInterceptor provides hooks on entity deletion
 //go:generate counterfeiter . DeleteInterceptor

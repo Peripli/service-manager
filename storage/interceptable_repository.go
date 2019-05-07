@@ -73,16 +73,22 @@ type interceptableRepository struct {
 
 func (ir *interceptableRepository) Create(ctx context.Context, obj types.Object) (string, error) {
 	objectType := obj.GetType()
-	if err := transformCredentials(ctx, obj, ir.encrypter.Encrypt); err != nil {
-		return "", err
-	}
 
 	createObjectFunc := func(ctx context.Context, _ Repository, newObject types.Object) error {
+		if err := transformCredentials(ctx, newObject, ir.encrypter.Encrypt); err != nil {
+			return err
+		}
+
 		id, err := ir.repositoryInTransaction.Create(ctx, newObject)
 		if err != nil {
 			return err
 		}
-		obj.SetID(id)
+
+		if err := transformCredentials(ctx, newObject, ir.encrypter.Decrypt); err != nil {
+			return err
+		}
+
+		newObject.SetID(id)
 
 		return nil
 	}
@@ -95,7 +101,7 @@ func (ir *interceptableRepository) Create(ctx context.Context, obj types.Object)
 	}
 
 	if err != nil {
-		return "", err
+		return "", util.HandleStorageError(err, string(objectType))
 	}
 
 	if securedObj, isSecured := obj.(types.Secured); isSecured {
@@ -126,7 +132,7 @@ func (ir *interceptableRepository) List(ctx context.Context, objectType types.Ob
 }
 
 func (ir *interceptableRepository) Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
-	deleteObjectFunc := func(ctx context.Context, _ Repository, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
+	deleteObjectFunc := func(ctx context.Context, _ Repository, _ types.ObjectList, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
 		objectList, err := ir.repositoryInTransaction.Delete(ctx, objectType, deletionCriteria...)
 		if err != nil {
 			return nil, err
@@ -139,13 +145,18 @@ func (ir *interceptableRepository) Delete(ctx context.Context, objectType types.
 	var err error
 
 	if _, found := ir.deleteInterceptor[objectType]; found {
-		objectList, err = ir.deleteInterceptor[objectType].OnTxDelete(deleteObjectFunc)(ctx, ir, criteria...)
+		objects, err := ir.List(ctx, objectType, criteria...)
+		if err != nil {
+			return nil, err
+		}
+
+		objectList, err = ir.deleteInterceptor[objectType].OnTxDelete(deleteObjectFunc)(ctx, ir, objects, criteria...)
 	} else {
-		objectList, err = deleteObjectFunc(ctx, ir.repositoryInTransaction, criteria...)
+		objectList, err = deleteObjectFunc(ctx, nil, nil, criteria...)
 	}
 
 	if err != nil {
-		return nil, err
+		return nil, util.HandleStorageError(err, string(objectType))
 	}
 
 	return objectList, nil
@@ -153,13 +164,18 @@ func (ir *interceptableRepository) Delete(ctx context.Context, objectType types.
 
 func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 	objectType := obj.GetType()
-	if err := transformCredentials(ctx, obj, ir.encrypter.Encrypt); err != nil {
-		return nil, err
-	}
 
-	updateObjFunc := func(ctx context.Context, _ Repository, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
-		object, err := ir.repositoryInTransaction.Update(ctx, obj, labelChanges...)
+	updateObjFunc := func(ctx context.Context, _ Repository, _, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+		if err := transformCredentials(ctx, newObj, ir.encrypter.Encrypt); err != nil {
+			return nil, err
+		}
+
+		object, err := ir.repositoryInTransaction.Update(ctx, newObj, labelChanges...)
 		if err != nil {
+			return nil, err
+		}
+
+		if err := transformCredentials(ctx, newObj, ir.encrypter.Decrypt); err != nil {
 			return nil, err
 		}
 
@@ -169,14 +185,26 @@ func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object,
 	var updatedObj types.Object
 	var err error
 
+	// postgres storage implementation also locks the retrieved row for update
+	oldObj, err := ir.Get(ctx, objectType, obj.GetID())
+	if err != nil {
+		return nil, err
+	}
+
 	if _, found := ir.updateInterceptor[objectType]; found {
-		updatedObj, err = ir.updateInterceptor[objectType].OnTxUpdate(updateObjFunc)(ctx, ir, obj, labelChanges...)
+		updatedObj, err = ir.updateInterceptor[objectType].OnTxUpdate(updateObjFunc)(ctx, ir, oldObj, obj, labelChanges...)
 	} else {
-		updatedObj, err = updateObjFunc(ctx, ir, obj, labelChanges...)
+		updatedObj, err = updateObjFunc(ctx, ir, oldObj, obj, labelChanges...)
 	}
 
 	if err != nil {
-		return nil, err
+		return nil, util.HandleStorageError(err, string(objectType))
+	}
+
+	// while the AroundTx hooks were being executed the stored resource actually changed - another concurrent update
+	// happened and finished concurrently and before this one so fail the request
+	if updatedObj.GetUpdatedAt() != obj.GetUpdatedAt() {
+		return nil, util.ErrConcurrentResourceModification
 	}
 
 	if securedObj, isSecured := updatedObj.(types.Secured); isSecured {
@@ -238,7 +266,7 @@ func (final *finalCreateObjectInterceptor) InterceptCreateAroundTx(ctx context.C
 		interceptableRepository := newInterceptableRepository(txStorage, final.encrypter, final.providedCreateInterceptors, final.providedUpdateInterceptors, final.providedDeleteInterceptors)
 		id, err = interceptableRepository.Create(ctx, obj)
 		if err != nil {
-			return util.HandleStorageError(err, string(final.objectType))
+			return err
 		}
 		if securedObj, isSecured := obj.(types.Secured); isSecured {
 			securedObj.SetCredentials(nil)
@@ -320,7 +348,7 @@ func (final *finalDeleteObjectInterceptor) InterceptDeleteAroundTx(ctx context.C
 		interceptableRepository := newInterceptableRepository(txStorage, final.encrypter, final.providedCreateInterceptors, final.providedUpdateInterceptors, final.providedDeleteInterceptors)
 		result, err = interceptableRepository.Delete(ctx, final.objectType, criteria...)
 		if err != nil {
-			return util.HandleSelectionError(err, string(final.objectType))
+			return err
 		}
 		return nil
 	}); err != nil {
@@ -379,7 +407,7 @@ func (final *finalUpdateObjectInterceptor) InterceptUpdateAroundTxFunc(ctx conte
 
 		result, err = interceptableRepository.Update(ctx, obj, labelChanges...)
 		if err != nil {
-			return util.HandleStorageError(err, string(final.objectType))
+			return err
 		}
 
 		return nil

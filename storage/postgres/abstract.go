@@ -97,7 +97,7 @@ func create(ctx context.Context, db pgDB, table string, dto interface{}) (string
 	return lastInsertID, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
 }
 
-func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface{}, label PostgresLabel, baseTableName string, criteria []query.Criterion) (*sqlx.Rows, error) {
+func listWithLabelsByCriteria(ctx context.Context, postgresDB pgDB, baseEntity interface{}, label PostgresLabel, baseTableName string, criteria []query.Criterion) (*sqlx.Rows, error) {
 	if err := validateFieldQueryParams(baseEntity, criteria); err != nil {
 		return nil, err
 	}
@@ -107,17 +107,26 @@ func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface
 	} else {
 		baseQuery = constructBaseQueryForLabelable(label, baseTableName)
 	}
-	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, baseTableName, label, criteria)
+	sqlQuery, queryParams, err := buildQueryWithParams(postgresDB, baseQuery, baseTableName, label, criteria, " ORDER BY created_at")
 	if err != nil {
 		return nil, err
 	}
+
+	// Lock the rows if we are in transaction so that update operations on those rows can rely on unchanged data
+	// This allows us to handle concurrent updates on the same rows by executing them sequentially as
+	// before updating we have to anyway select the rows and can therefore lock them
+	if _, ok := postgresDB.(*sqlx.Tx); ok {
+		sqlQuery = sqlQuery[:len(sqlQuery)-1]
+		sqlQuery += fmt.Sprintf(" FOR SHARE of %s;", baseTableName)
+	}
+
 	log.C(ctx).Debugf("Executing query %s", sqlQuery)
-	return db.QueryxContext(ctx, sqlQuery, queryParams...)
+	return postgresDB.QueryxContext(ctx, sqlQuery, queryParams...)
 }
 
 func listByFieldCriteria(ctx context.Context, db pgDB, table string, criteria []query.Criterion) (*sqlx.Rows, error) {
-	baseQuery := fmt.Sprintf(`SELECT * FROM %s`, table)
-	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, table, nil, criteria)
+	baseQuery := constructBaseQueryForEntity(table)
+	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, table, nil, criteria, " ORDER BY created_at")
 	if err != nil {
 		return nil, err
 	}

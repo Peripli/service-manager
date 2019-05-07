@@ -117,9 +117,9 @@ func removeLabel(ctx context.Context, execer sqlx.ExtContext, label PostgresLabe
 	return nil
 }
 
-func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTableName string, labelEntity PostgresLabel, criteria []query.Criterion) (string, []interface{}, error) {
+func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTableName string, labelEntity PostgresLabel, criteria []query.Criterion, querySuffixes ...string) (string, []interface{}, error) {
 	if len(criteria) == 0 {
-		return sqlQuery + ";", nil, nil
+		return sqlQuery + strings.Join(querySuffixes, " ") + ";", nil, nil
 	}
 
 	var queryParams []interface{}
@@ -158,7 +158,7 @@ func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTable
 		}
 		sqlQuery += strings.Join(fieldQueries, " AND ")
 	}
-	sqlQuery += ";"
+	sqlQuery += strings.Join(querySuffixes, " ") + ";"
 
 	if hasMultiVariateOp(criteria) {
 		var err error

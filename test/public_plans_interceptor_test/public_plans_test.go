@@ -99,13 +99,13 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return catalogPlan.Free, nil
 				},
-			}).OnTxBefore(interceptors.CreateBrokerInterceptorName).Register()
+			}).OnTxBefore(interceptors.BrokerCreateCatalogInterceptorName).Register()
 
 			smb.WithUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanUpdateInterceptorProvider{
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return catalogPlan.Free, nil
 				},
-			}).OnTxBefore(interceptors.UpdateBrokerInterceptorName).Register()
+			}).OnTxBefore(interceptors.BrokerUpdateCatalogInterceptorName).Register()
 			return nil
 		}).Build()
 
@@ -120,7 +120,6 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 		newPaidPlan = common.GeneratePaidTestPlan()
 		oldService := common.GenerateTestServiceWithPlans(oldPublicPlan, oldPaidPlan)
 		c.AddService(oldService)
-
 		testCatalog = string(c)
 
 		existingBrokerID, _, existingBrokerServer = ctx.RegisterBrokerWithCatalog(c)
