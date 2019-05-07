@@ -18,6 +18,7 @@ package storage
 
 import (
 	"context"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/security"
@@ -82,17 +83,15 @@ func (ir *interceptableRepository) Create(ctx context.Context, obj types.Object)
 		if err != nil {
 			return err
 		}
-		obj.SetID(id)
+
+		newObject.SetID(id)
 
 		return nil
 	}
 
 	var err error
-	if createInterceptorChain, found := ir.createInterceptor[objectType]; found {
-		// remove the create interceptor chain so that if one of the interceptors in the chain tries
-		// to create another resource of the same type we don't get into infinite recursion
-		delete(ir.createInterceptor, objectType)
-		err = createInterceptorChain.OnTxCreate(createObjectFunc)(ctx, ir, obj)
+	if _, found := ir.createInterceptor[objectType]; found {
+		err = ir.createInterceptor[objectType].OnTxCreate(createObjectFunc)(ctx, ir, obj)
 	} else {
 		err = createObjectFunc(ctx, ir.repositoryInTransaction, obj)
 	}
@@ -129,7 +128,7 @@ func (ir *interceptableRepository) List(ctx context.Context, objectType types.Ob
 }
 
 func (ir *interceptableRepository) Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
-	deleteObjectFunc := func(ctx context.Context, _ Repository, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
+	deleteObjectFunc := func(ctx context.Context, _ Repository, _ types.ObjectList, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
 		objectList, err := ir.repositoryInTransaction.Delete(ctx, objectType, deletionCriteria...)
 		if err != nil {
 			return nil, err
@@ -139,13 +138,18 @@ func (ir *interceptableRepository) Delete(ctx context.Context, objectType types.
 	}
 
 	var objectList types.ObjectList
+	var objects types.ObjectList
 	var err error
 
-	if deleteInterceptorChain, found := ir.deleteInterceptor[objectType]; found {
-		delete(ir.deleteInterceptor, objectType)
-		objectList, err = deleteInterceptorChain.OnTxDelete(deleteObjectFunc)(ctx, ir, criteria...)
+	if _, found := ir.deleteInterceptor[objectType]; found {
+		objects, err = ir.List(ctx, objectType, criteria...)
+		if err != nil {
+			return nil, err
+		}
+
+		objectList, err = ir.deleteInterceptor[objectType].OnTxDelete(deleteObjectFunc)(ctx, ir, objects, criteria...)
 	} else {
-		objectList, err = deleteObjectFunc(ctx, ir.repositoryInTransaction, criteria...)
+		objectList, err = deleteObjectFunc(ctx, nil, nil, criteria...)
 	}
 
 	if err != nil {
@@ -161,9 +165,15 @@ func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object,
 		return nil, err
 	}
 
-	updateObjFunc := func(ctx context.Context, _ Repository, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
-		object, err := ir.repositoryInTransaction.Update(ctx, obj, labelChanges...)
+	updateObjFunc := func(ctx context.Context, _ Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+		newObj.SetUpdatedAt(time.Now().UTC())
+
+		object, err := ir.repositoryInTransaction.Update(ctx, newObj, labelChanges...)
 		if err != nil {
+			return nil, err
+		}
+
+		if err := transformCredentials(ctx, newObj, ir.encrypter.Decrypt); err != nil {
 			return nil, err
 		}
 
@@ -173,11 +183,22 @@ func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object,
 	var updatedObj types.Object
 	var err error
 
-	if updateInterceptorChain, found := ir.updateInterceptor[objectType]; found {
-		delete(ir.updateInterceptor, objectType)
-		updatedObj, err = updateInterceptorChain.OnTxUpdate(updateObjFunc)(ctx, ir, obj, labelChanges...)
+	// postgres storage implementation also locks the retrieved row for update
+	oldObj, err := ir.Get(ctx, objectType, obj.GetID())
+	if err != nil {
+		return nil, err
+	}
+
+	// while the AroundTx hooks were being executed the stored resource actually changed - another concurrent update
+	// happened and finished concurrently and before this one so fail the request
+	if util.ToRFCFormat(oldObj.GetUpdatedAt()) != util.ToRFCFormat(obj.GetUpdatedAt()) {
+		return nil, util.ErrConcurrentResourceModification
+	}
+
+	if _, found := ir.updateInterceptor[objectType]; found {
+		updatedObj, err = ir.updateInterceptor[objectType].OnTxUpdate(updateObjFunc)(ctx, ir, oldObj, obj, labelChanges...)
 	} else {
-		updatedObj, err = updateObjFunc(ctx, ir, obj, labelChanges...)
+		updatedObj, err = updateObjFunc(ctx, ir, oldObj, obj, labelChanges...)
 	}
 
 	if err != nil {
@@ -244,6 +265,7 @@ func (final *finalCreateObjectInterceptor) InterceptCreateAroundTx(ctx context.C
 		id, err = interceptableRepository.Create(ctx, obj)
 		if err != nil {
 			return util.HandleStorageError(err, string(final.objectType))
+
 		}
 		if securedObj, isSecured := obj.(types.Secured); isSecured {
 			securedObj.SetCredentials(nil)
