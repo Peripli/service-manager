@@ -110,6 +110,10 @@ func HandleStorageError(err error, entityNames ...string) error {
 		return nil
 	}
 
+	if _, ok := err.(*HTTPError); ok {
+		return err
+	}
+
 	if len(entityNames) == 0 {
 		entityNames = []string{"entity"}
 	}

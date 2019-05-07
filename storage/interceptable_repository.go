@@ -102,7 +102,7 @@ func (ir *interceptableRepository) Create(ctx context.Context, obj types.Object)
 	}
 
 	if err != nil {
-		return "", util.HandleStorageError(err, string(objectType))
+		return "", err
 	}
 
 	if securedObj, isSecured := obj.(types.Secured); isSecured {
@@ -158,7 +158,7 @@ func (ir *interceptableRepository) Delete(ctx context.Context, objectType types.
 	}
 
 	if err != nil {
-		return nil, util.HandleStorageError(err, string(objectType))
+		return nil, err
 	}
 
 	return objectList, nil
@@ -208,7 +208,7 @@ func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object,
 	}
 
 	if err != nil {
-		return nil, util.HandleStorageError(err, string(objectType))
+		return nil, err
 	}
 
 	if securedObj, isSecured := updatedObj.(types.Secured); isSecured {

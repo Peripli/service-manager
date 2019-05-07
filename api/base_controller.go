@@ -126,7 +126,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 
 	id, err := c.repository.Create(ctx, result)
 	if err != nil {
-		return nil, err
+		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
 	result.SetID(id)
 	return util.NewJSONResponse(http.StatusCreated, result)
@@ -139,7 +139,7 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 
 	criteria := query.CriteriaForContext(ctx)
 	if _, err := c.repository.Delete(ctx, c.objectType, criteria...); err != nil {
-		return nil, err
+		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
 
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
@@ -219,7 +219,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	objFromDB.SetUpdatedAt(updatedAt)
 	object, err := c.repository.Update(ctx, objFromDB, labelChanges...)
 	if err != nil {
-		return nil, err
+		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
 	stripCredentials(ctx, object)
 	return util.NewJSONResponse(http.StatusOK, object)

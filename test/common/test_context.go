@@ -20,7 +20,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net/http"
 	"net/http/httptest"
 	"path"
 	"runtime"
@@ -370,15 +369,10 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 	}
 
 	_, err := ctx.SMRepository.Delete(context.TODO(), types.NotificationType)
-	if err != nil {
-		if e, ok := err.(*util.HTTPError); ok {
-			if e.StatusCode != http.StatusNotFound {
-				panic(err)
-			}
-		} else {
-			panic(err)
-		}
+	if err != nil && err != util.ErrNotFoundInStorage {
+		panic(err)
 	}
+
 	ctx.SMWithOAuth.DELETE("/v1/service_brokers").Expect()
 
 	if ctx.TestPlatform != nil {
