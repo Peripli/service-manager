@@ -33,10 +33,10 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		return nil, fmt.Errorf("could not register notification consumer: %v", err)
 	}
 
-	revisionKnownToProxy := 0
+	revisionKnownToProxy := int64(0)
 	revisionKnownToProxyStr := req.URL.Query().Get(lastKnownRevisionQueryParam)
 	if revisionKnownToProxyStr != "" {
-		revisionKnownToProxy, err = strconv.Atoi(revisionKnownToProxyStr)
+		revisionKnownToProxy, err = strconv.ParseInt(revisionKnownToProxyStr, 10, 64)
 		if err != nil {
 			c.unregisterConsumer(notificationQueue)
 
@@ -49,16 +49,24 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		}
 	}
 
-	if revisionKnownToProxy > 0 {
-		resp, err := c.isRevisionFound(req.Context(), revisionKnownToProxyStr)
-		if resp != nil || err != nil {
-			return resp, err
-		}
+	if lastKnownRevision < revisionKnownToProxy {
+		log.C(req.Context()).Infof("Notification revision known to proxy %d is less greater than revision known to SM %d", revisionKnownToProxy, lastKnownRevision)
+		return util.NewJSONResponse(http.StatusGone, nil)
 	}
 
 	notificationsList, err := c.getNotificationList(req.Context(), user, revisionKnownToProxy, lastKnownRevision)
 	if err != nil {
 		return nil, err
+	}
+
+	if notificationsList.Len() > 0 && revisionKnownToProxy > 0 {
+		// TODO: we expect that notificationsList is ordered by revision
+		notification := notificationsList.ItemAt(0).(*types.Notification)
+		if notification.Revision != revisionKnownToProxy {
+			log.C(req.Context()).Infof("Notification with revision %d known to proxy not found", revisionKnownToProxy)
+			return util.NewJSONResponse(http.StatusGone, nil)
+		}
+		notificationsList.Notifications = notificationsList.Notifications[1:]
 	}
 
 	rw := req.HijackResponseWriter()
@@ -78,7 +86,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	return &web.Response{}, nil
 }
 
-func (c *Controller) writeLoop(conn *ws.Conn, notificationsList types.ObjectList, q storage.NotificationQueue, done chan<- struct{}) {
+func (c *Controller) writeLoop(conn *ws.Conn, notificationsList *types.Notifications, q storage.NotificationQueue, done chan<- struct{}) {
 	defer c.unregisterConsumer(q)
 	defer func() {
 		done <- struct{}{}
@@ -158,9 +166,9 @@ func (c *Controller) unregisterConsumer(q storage.NotificationQueue) {
 	}
 }
 
-func (c *Controller) getNotificationList(ctx context.Context, user *web.UserContext, revisionKnownToProxy int, lastKnownRevision int64) (types.ObjectList, error) {
-	listQuery1 := query.ByField(query.GreaterThanOperator, "revision", strconv.Itoa(revisionKnownToProxy))
-	// TODO: is this +1 ok or we should add less than or equal operator
+func (c *Controller) getNotificationList(ctx context.Context, user *web.UserContext, revisionKnownToProxy, lastKnownRevision int64) (*types.Notifications, error) {
+	// TODO: is this +1/-1 ok or we should add less than or equal operator
+	listQuery1 := query.ByField(query.GreaterThanOperator, "revision", strconv.FormatInt(revisionKnownToProxy-1, 10))
 	listQuery2 := query.ByField(query.LessThanOperator, "revision", strconv.FormatInt(lastKnownRevision+1, 10))
 
 	platform, err := extractPlatformFromContext(user)
@@ -173,20 +181,7 @@ func (c *Controller) getNotificationList(ctx context.Context, user *web.UserCont
 		// TODO: Wrap err
 		return nil, err
 	}
-	return notificationsList, nil
-}
-
-func (c *Controller) isRevisionFound(ctx context.Context, revisionKnownToProxyStr string) (*web.Response, error) {
-	listQuery := query.ByField(query.EqualsOperator, "revision", revisionKnownToProxyStr)
-	notificationsList, err := c.repository.List(ctx, types.NotificationType, listQuery)
-	if err != nil {
-		return nil, err
-	}
-	if notificationsList.Len() != 1 {
-		log.C(ctx).Errorf("expected 1 notification, but found: %d", notificationsList.Len())
-		return util.NewJSONResponse(http.StatusGone, nil)
-	}
-	return nil, nil
+	return notificationsList.(*types.Notifications), nil
 }
 
 func extractPlatformFromContext(userContext *web.UserContext) (*types.Platform, error) {
