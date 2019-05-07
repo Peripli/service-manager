@@ -197,7 +197,7 @@ func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object,
 
 	// while the AroundTx hooks were being executed the stored resource actually changed - another concurrent update
 	// happened and finished concurrently and before this one so fail the request
-	if oldObj.GetUpdatedAt() != obj.GetUpdatedAt() {
+	if util.ToRFCFormat(oldObj.GetUpdatedAt()) != util.ToRFCFormat(obj.GetUpdatedAt()) {
 		return nil, util.ErrConcurrentResourceModification
 	}
 
