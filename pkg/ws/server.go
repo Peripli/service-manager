@@ -100,14 +100,11 @@ func (u *Server) Upgrade(rw http.ResponseWriter, req *http.Request, header http.
 func (u *Server) handleConn(c *Conn, done <-chan struct{}) {
 	defer u.connWorkers.Done()
 	<-done
-	for {
-		select {
-		case <-done:
-			u.removeConn(c.ID)
-			return
-		default:
-		}
-	}
+
+	message := websocket.FormatCloseMessage(websocket.CloseGoingAway, "")
+	c.WriteControl(websocket.CloseMessage, message, time.Now().Add(u.Options.WriteTimeout))
+	c.Close()
+	u.removeConn(c.ID)
 }
 
 func (u *Server) shutdown(ctx context.Context, work *sync.WaitGroup) {

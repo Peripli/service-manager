@@ -76,7 +76,6 @@ func (c *Controller) writeLoop(ctx context.Context, conn *ws.Conn, notifications
 	defer c.unregisterConsumer(ctx, q)
 	defer func() {
 		done <- struct{}{}
-		conn.Close()
 	}()
 
 	for i := 0; i < notificationsList.Len(); i++ {
@@ -116,7 +115,6 @@ func (c *Controller) writeLoop(ctx context.Context, conn *ws.Conn, notifications
 func (c *Controller) readLoop(ctx context.Context, conn *ws.Conn, done chan<- struct{}) {
 	defer func() {
 		done <- struct{}{}
-		conn.Close()
 	}()
 
 	for {
