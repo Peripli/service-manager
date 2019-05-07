@@ -103,16 +103,9 @@ var _ = Describe("WS", func() {
 
 		Context("when notifications are created prior to connection", func() {
 			var notification *types.Notification
-			var notificationRevision int
+			var notificationRevision int64
 			BeforeEach(func() {
-				notification = common.GenerateRandomNotification()
-				notification.PlatformID = platform.ID
-				id, err := repository.Create(context.Background(), notification)
-				Expect(err).ShouldNot(HaveOccurred())
-
-				createdNotification, err := repository.Get(context.Background(), types.NotificationType, id)
-				Expect(err).ShouldNot(HaveOccurred())
-				notificationRevision = int((createdNotification.(*types.Notification)).Revision)
+				notification, notificationRevision = createNotification(repository, platform.ID)
 			})
 
 			It("should receive last known revision response header greater than 0", func() {
@@ -132,11 +125,8 @@ var _ = Describe("WS", func() {
 			Context("and proxy knowns some notification revision", func() {
 				var notification2 *types.Notification
 				BeforeEach(func() {
-					notification2 = common.GenerateRandomNotification()
-					notification2.PlatformID = platform.ID
-					_, err := repository.Create(context.Background(), notification2)
-					Expect(err).ShouldNot(HaveOccurred())
-					queryParams["last_known_revision"] = strconv.Itoa(notificationRevision)
+					notification2, _ = createNotification(repository, platform.ID)
+					queryParams["last_known_revision"] = strconv.FormatInt(notificationRevision, 10)
 				})
 
 				It("should receive only these after the revision that it knowns", func() {
@@ -150,7 +140,7 @@ var _ = Describe("WS", func() {
 
 			Context("and revision known to proxy is not known to sm anymore", func() {
 				It("should receive 410 Gone", func() {
-					queryParams["last_known_revision"] = strconv.Itoa(notificationRevision - 1)
+					queryParams["last_known_revision"] = strconv.FormatInt(notificationRevision-1, 10)
 					_, resp, err := wsconnect(ctx, platform, web.NotificationsURL, queryParams)
 					Expect(resp.StatusCode).To(Equal(http.StatusGone))
 					Expect(err).Should(HaveOccurred())
@@ -162,16 +152,13 @@ var _ = Describe("WS", func() {
 					wsconns := make([]*websocket.Conn, 0)
 					pls := make([]*types.Platform, 0)
 					for i := 0; i < 5; i++ {
-						pl := common.RegisterPlatformInSM(common.GenerateRandomPlatform(), ctx.SMWithOAuth)
+						pl, conn, _, err := wsconnectWithPlatform(ctx)
 						pls = append(pls, pl)
-						conn, _, err := wsconnect(ctx, pl, web.NotificationsURL, nil)
+
 						Expect(err).ShouldNot(HaveOccurred())
 						wsconns = append(wsconns, conn)
 
-						notification := common.GenerateRandomNotification()
-						notification.PlatformID = pl.ID
-						_, err = repository.Create(context.Background(), notification)
-						Expect(err).ShouldNot(HaveOccurred())
+						createNotification(repository, pl.ID)
 					}
 
 					for i, conn := range wsconns {
@@ -195,20 +182,48 @@ var _ = Describe("WS", func() {
 
 		Context("when notification are created after ws conn is created", func() {
 			It("should receive new notifications", func() {
-				notification := common.GenerateRandomNotification()
-				notification.PlatformID = platform.ID
-				_, err := repository.Create(context.Background(), notification)
-				Expect(err).ShouldNot(HaveOccurred())
+				notification, _ := createNotification(repository, platform.ID)
 
 				var r map[string]interface{}
-				err = wsconn.ReadJSON(&r)
+				err := wsconn.ReadJSON(&r)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(r["id"]).To(Equal(notification.ID))
 				Expect(r["platform_id"]).To(Equal(notification.PlatformID))
 			})
 		})
+
+		Context("when one notification with empty platform and one notification with platform are created", func() {
+			var notificationEmptyPlatform, notification *types.Notification
+			BeforeEach(func() {
+				notification, _ = createNotification(repository, platform.ID)
+				notificationEmptyPlatform, _ = createNotification(repository, "")
+			})
+
+			It("one connection should receive both, but other only the one with empty platform", func() {
+				notificationMessage := readNotification(wsconn)
+				Expect(notificationMessage["id"]).To(Equal(notification.ID))
+				Expect(notificationMessage["platform_id"]).To(Equal(notification.PlatformID))
+
+				notificationMessage = readNotification(wsconn)
+				Expect(notificationMessage["id"]).To(Equal(notificationEmptyPlatform.ID))
+				Expect(notificationMessage["platform_id"]).To(BeNil())
+
+				By("creating new connection")
+				_, newWsConn, _, err := wsconnectWithPlatform(ctx)
+				Expect(err).ShouldNot(HaveOccurred())
+				notificationMessage = readNotification(newWsConn)
+				Expect(notificationMessage["id"]).To(Equal(notificationEmptyPlatform.ID))
+				Expect(notificationMessage["platform_id"]).To(BeNil())
+			})
+		})
 	})
 })
+
+func wsconnectWithPlatform(ctx *common.TestContext) (*types.Platform, *websocket.Conn, *http.Response, error) {
+	platform := common.RegisterPlatformInSM(common.GenerateRandomPlatform(), ctx.SMWithOAuth)
+	conn, resp, err := wsconnect(ctx, platform, web.NotificationsURL, nil)
+	return platform, conn, resp, err
+}
 
 func wsconnect(ctx *common.TestContext, platform *types.Platform, path string, queryParams map[string]string) (*websocket.Conn, *http.Response, error) {
 	smURL := ctx.Servers[common.SMServer].URL()
@@ -227,4 +242,24 @@ func wsconnect(ctx *common.TestContext, platform *types.Platform, path string, q
 
 	wsEndpoint := smEndpoint.String()
 	return websocket.DefaultDialer.Dial(wsEndpoint, headers)
+}
+
+func createNotification(repository storage.Repository, platformID string) (*types.Notification, int64) {
+	notification := common.GenerateRandomNotification()
+	notification.PlatformID = platformID
+	id, err := repository.Create(context.Background(), notification)
+	Expect(err).ShouldNot(HaveOccurred())
+
+	createdNotification, err := repository.Get(context.Background(), types.NotificationType, id)
+	Expect(err).ShouldNot(HaveOccurred())
+	notificationRevision := (createdNotification.(*types.Notification)).Revision
+
+	return notification, notificationRevision
+}
+
+func readNotification(wsconn *websocket.Conn) map[string]interface{} {
+	var r map[string]interface{}
+	err := wsconn.ReadJSON(&r)
+	Expect(err).ShouldNot(HaveOccurred())
+	return r
 }

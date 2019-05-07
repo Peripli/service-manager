@@ -175,7 +175,7 @@ func (c *Controller) getNotificationList(ctx context.Context, user *web.UserCont
 	if err != nil {
 		return nil, err
 	}
-	filterByPlatform := query.ByField(query.EqualsOperator, "platform_id", platform.ID, "")
+	filterByPlatform := query.ByField(query.EqualsOrNilOperator, "platform_id", platform.ID)
 	notificationsList, err := c.repository.List(ctx, types.NotificationType, listQuery1, listQuery2, filterByPlatform)
 	if err != nil {
 		// TODO: Wrap err

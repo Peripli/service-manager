@@ -294,16 +294,12 @@ func GenerateRandomNotification() *types.Notification {
 	if err != nil {
 		panic(err)
 	}
-	uid2, err := uuid.NewV4()
-	if err != nil {
-		panic(err)
-	}
 
 	return &types.Notification{
 		Base: types.Base{
 			ID: uid.String(),
 		},
-		PlatformID: uid2.String(),
+		PlatformID: "",
 		Resource:   "notification",
 		Type:       "CREATED",
 	}
