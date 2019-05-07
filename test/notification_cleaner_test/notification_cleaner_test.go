@@ -83,7 +83,7 @@ var _ = Describe("Notification cleaner", func() {
 				case <-continueDelete:
 					break
 				case <-ctx.Done():
-					break
+					return nil, nil
 				}
 				defer func() {
 					select {
@@ -121,7 +121,7 @@ var _ = Describe("Notification cleaner", func() {
 			Expect(idNew).ToNot(BeEmpty())
 
 			oldNotification := randomNotification()
-			oldNotification.CreatedAt = time.Now().Add(-defaultOlderThan - time.Second)
+			oldNotification.CreatedAt = time.Now().Add(-defaultOlderThan - time.Hour)
 			idOld, err := repository.Create(ctx, oldNotification)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(idOld).ToNot(BeNil())
