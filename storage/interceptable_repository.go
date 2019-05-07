@@ -18,6 +18,7 @@ package storage
 
 import (
 	"context"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/security"
@@ -165,10 +166,12 @@ func (ir *interceptableRepository) Delete(ctx context.Context, objectType types.
 func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 	objectType := obj.GetType()
 
-	updateObjFunc := func(ctx context.Context, _ Repository, _, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+	updateObjFunc := func(ctx context.Context, _ Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 		if err := transformCredentials(ctx, newObj, ir.encrypter.Encrypt); err != nil {
 			return nil, err
 		}
+
+		newObj.SetUpdatedAt(time.Now().UTC())
 
 		object, err := ir.repositoryInTransaction.Update(ctx, newObj, labelChanges...)
 		if err != nil {
@@ -191,6 +194,12 @@ func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object,
 		return nil, err
 	}
 
+	// while the AroundTx hooks were being executed the stored resource actually changed - another concurrent update
+	// happened and finished concurrently and before this one so fail the request
+	if oldObj.GetUpdatedAt() != obj.GetUpdatedAt() {
+		return nil, util.ErrConcurrentResourceModification
+	}
+
 	if _, found := ir.updateInterceptor[objectType]; found {
 		updatedObj, err = ir.updateInterceptor[objectType].OnTxUpdate(updateObjFunc)(ctx, ir, oldObj, obj, labelChanges...)
 	} else {
@@ -199,12 +208,6 @@ func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object,
 
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(objectType))
-	}
-
-	// while the AroundTx hooks were being executed the stored resource actually changed - another concurrent update
-	// happened and finished concurrently and before this one so fail the request
-	if updatedObj.GetUpdatedAt() != obj.GetUpdatedAt() {
-		return nil, util.ErrConcurrentResourceModification
 	}
 
 	if securedObj, isSecured := updatedObj.(types.Secured); isSecured {

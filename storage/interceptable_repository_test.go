@@ -96,6 +96,10 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 				return f(context, fakeStorage)
 			})
 
+			fakeStorage.UpdateCalls(func(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+				return obj, nil
+			})
+
 			fakeStorage.GetReturns(&types.ServiceBroker{
 				Base: types.Base{
 					UpdatedAt: updateTime,

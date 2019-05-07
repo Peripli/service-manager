@@ -208,13 +208,12 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
 
-	createdAt := objFromDB.GetCreatedAt()
 	if err := util.BytesToObject(r.Body, objFromDB); err != nil {
 		return nil, err
 	}
 	objFromDB.SetID(objectID)
-	objFromDB.SetCreatedAt(createdAt)
-	objFromDB.SetUpdatedAt(time.Now().UTC())
+	objFromDB.SetCreatedAt(objFromDB.GetCreatedAt())
+	objFromDB.SetUpdatedAt(objFromDB.GetUpdatedAt())
 	object, err := c.repository.Update(ctx, objFromDB, labelChanges...)
 	if err != nil {
 		return nil, err
