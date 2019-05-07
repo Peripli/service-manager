@@ -106,7 +106,7 @@ var (
 type ErrBadRequestStorage error
 
 // HandleStorageError handles storage errors by converting them to relevant HTTPErrors
-func HandleStorageError(err error, entityNames ...string) error {
+func HandleStorageError(err error, entityName string) error {
 	if err == nil {
 		return nil
 	}
@@ -115,11 +115,9 @@ func HandleStorageError(err error, entityNames ...string) error {
 		return err
 	}
 
-	if len(entityNames) == 0 {
-		entityNames = []string{"entity"}
+	if len(entityName) == 0 {
+		entityName = "entity"
 	}
-
-	entityName := entityNames[0]
 
 	switch err {
 	case ErrAlreadyExistsInStorage:
@@ -133,12 +131,6 @@ func HandleStorageError(err error, entityNames ...string) error {
 			ErrorType:   "NotFound",
 			Description: fmt.Sprintf("could not find such %s", entityName),
 			StatusCode:  http.StatusNotFound,
-		}
-	case ErrConcurrentResourceModification:
-		return &HTTPError{
-			ErrorType:   "ConcurrentResourceUpdate",
-			Description: "Another concurrent resource update occurred. Please reattempt the update operation",
-			StatusCode:  http.StatusPreconditionFailed,
 		}
 	default:
 		// in case we did not replace the pg.Error in the DB layer, propagate it as response message to give the caller relevant info

@@ -180,7 +180,7 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	log.C(ctx).Debugf("Getting all %ss", c.objectType)
 	objectList, err := c.repository.List(ctx, c.objectType, query.CriteriaForContext(ctx)...)
 	if err != nil {
-		return nil, util.HandleStorageError(err)
+		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
 	for i := 0; i < objectList.Len(); i++ {
 		obj := objectList.ItemAt(i)
