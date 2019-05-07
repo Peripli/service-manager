@@ -128,10 +128,31 @@ var _ = Describe("config", func() {
 			})
 		})
 
-		Context("when min reconnect interval is greater than max reconnect interval", func() {
+		Context("when notification min reconnect interval is greater than max reconnect interval", func() {
 			It("returns an error", func() {
 				config.Storage.Notification.MinReconnectInterval = 100 * time.Millisecond
 				config.Storage.Notification.MaxReconnectInterval = 50 * time.Millisecond
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("when notification keep for is < 0", func() {
+			It("returns an error", func() {
+				config.Storage.Notification.KeepFor = -time.Second
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("when notification Clean interval is < 0", func() {
+			It("returns an error", func() {
+				config.Storage.Notification.CleanInterval = -time.Second
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("when notification min reconnect interval is < 0", func() {
+			It("returns an error", func() {
+				config.Storage.Notification.MinReconnectInterval = -time.Second
 				assertErrorDuringValidate()
 			})
 		})

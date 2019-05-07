@@ -91,7 +91,7 @@ type NotificationSettings struct {
 	MinReconnectInterval time.Duration `mapstructure:"min_reconnect_interval"`
 	MaxReconnectInterval time.Duration `mapstructure:"max_reconnect_interval"`
 	CleanInterval        time.Duration `mapstructure:"clean_interval"`
-	OlderThan            time.Duration `mapstructure:"older_than"`
+	KeepFor              time.Duration `mapstructure:"keep_for"`
 }
 
 // DefaultNotificationSettings returns default values for Notificator settings
@@ -101,7 +101,7 @@ func DefaultNotificationSettings() *NotificationSettings {
 		MinReconnectInterval: time.Millisecond * 200,
 		MaxReconnectInterval: time.Second * 20,
 		CleanInterval:        time.Hour,
-		OlderThan:            time.Hour * 12,
+		KeepFor:              time.Hour * 12,
 	}
 }
 
@@ -113,6 +113,15 @@ func (s *NotificationSettings) Validate() error {
 	if s.MinReconnectInterval > s.MaxReconnectInterval {
 		return fmt.Errorf("min reconnect interval (%s) should not be greater than max reconnect interval (%s)",
 			s.MinReconnectInterval, s.MaxReconnectInterval)
+	}
+	if s.MinReconnectInterval < 0 {
+		return fmt.Errorf("notification minimum reconnect interval (%d) should be grater or equal to 0", s.MinReconnectInterval)
+	}
+	if s.KeepFor < 0 {
+		return fmt.Errorf("notification keep for (%d) should be grater or equal to 0", s.KeepFor)
+	}
+	if s.CleanInterval < 0 {
+		return fmt.Errorf("notification clean interval (%d) should be grater or equal to 0", s.CleanInterval)
 	}
 	return nil
 }

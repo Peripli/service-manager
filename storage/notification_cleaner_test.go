@@ -19,7 +19,10 @@ package storage_test
 import (
 	"context"
 	"errors"
+	"github.com/Peripli/service-manager/pkg/util"
+	"net/http"
 	"sync"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -34,12 +37,11 @@ import (
 
 var _ = Describe("Notification cleaner", func() {
 	var (
-		ctx           context.Context
-		cancel        context.CancelFunc
-		wg            *sync.WaitGroup
-		fakeStorage   *storagefakes.FakeStorage
-		nc            *storage.NotificationCleaner
-		expectedError = errors.New("*Expected*")
+		ctx         context.Context
+		cancel      context.CancelFunc
+		wg          *sync.WaitGroup
+		fakeStorage *storagefakes.FakeStorage
+		nc          *storage.NotificationCleaner
 	)
 
 	BeforeEach(func() {
@@ -48,7 +50,7 @@ var _ = Describe("Notification cleaner", func() {
 		wg = &sync.WaitGroup{}
 		nc = &storage.NotificationCleaner{
 			Storage:  fakeStorage,
-			Settings: storage.DefaultSettings(),
+			Settings: *storage.DefaultSettings(),
 		}
 	})
 
@@ -83,33 +85,47 @@ var _ = Describe("Notification cleaner", func() {
 					objType = objectType
 					criteria = criterion
 					cancel() // stop notification cleaner
-					return nil, nil
+					return &types.Notifications{}, nil
 				}
 				err := nc.Start(ctx, wg)
 				Expect(err).ToNot(HaveOccurred())
 				wg.Wait()
 				Expect(objType).To(Equal(types.NotificationType))
 				Expect(criteria).To(HaveLen(1))
+				Expect(criteria[0].LeftOp).To(Equal("created_at"))
+				timeString := criteria[0].RightOp[0]
+				timeQueryParameter, err := time.Parse(time.RFC3339, timeString)
+				Expect(timeQueryParameter).To(BeTemporally("<", time.Now()))
 			})
 		})
 
-		Context("When storage returns error", func() {
-			It("Should not stop", func() {
-				nc.Settings.Notification.CleanInterval = 0
-				called := false
-				fakeStorage.DeleteStub = func(ctx context.Context, objectType types.ObjectType, criterion ...query.Criterion) (types.ObjectList, error) {
-					if !called {
-						called = true
-						return nil, expectedError
-					} else {
-						cancel()
-						return nil, nil
-					}
+		checkCleanerNotStopped := func(storageError error) {
+			nc.Settings.Notification.CleanInterval = 0
+			called := false
+			fakeStorage.DeleteStub = func(ctx context.Context, objectType types.ObjectType, criterion ...query.Criterion) (types.ObjectList, error) {
+				if !called {
+					called = true
+					return nil, storageError
+				} else {
+					cancel()
+					return &types.Notifications{}, nil
 				}
-				err := nc.Start(ctx, wg)
-				Expect(err).ToNot(HaveOccurred())
-				wg.Wait()
-				Expect(called).To(BeTrue())
+			}
+			err := nc.Start(ctx, wg)
+			Expect(err).ToNot(HaveOccurred())
+			wg.Wait()
+			Expect(called).To(BeTrue())
+		}
+
+		Context("When repository returns http 404 error", func() {
+			It("Should not stop", func() {
+				checkCleanerNotStopped(&util.HTTPError{StatusCode: http.StatusNotFound})
+			})
+		})
+
+		Context("When repository returns error", func() {
+			It("Should not stop", func() {
+				checkCleanerNotStopped(errors.New("*Expected*"))
 			})
 		})
 	})

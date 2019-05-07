@@ -146,7 +146,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 
 	notificationCleaner := &storage.NotificationCleaner{
 		Storage:  interceptableRepository,
-		Settings: cfg.Storage,
+		Settings: *cfg.Storage,
 	}
 
 	smb := &ServiceManagerBuilder{
@@ -196,21 +196,15 @@ func (sm *ServiceManager) Run() {
 	log.C(sm.ctx).Info("Running Service Manager...")
 	wg := &sync.WaitGroup{}
 
-	start(sm.Notificator, "notificator", sm.ctx, wg)
-	start(sm.NotificationCleaner, "notification cleaner", sm.ctx, wg)
+	if err := sm.Notificator.Start(sm.ctx, wg); err != nil {
+		log.C(sm.ctx).WithError(err).Panicf("could not start Service Manager notificator")
+	}
+	if err := sm.NotificationCleaner.Start(sm.ctx, wg); err != nil {
+		log.C(sm.ctx).WithError(err).Panicf("could not start Service Manager notification cleaner")
+	}
 
 	sm.Server.Run(sm.ctx)
 	wg.Wait()
-}
-
-type startable interface {
-	Start(ctx context.Context, group *sync.WaitGroup) error
-}
-
-func start(component startable, componentName string, ctx context.Context, group *sync.WaitGroup) {
-	if err := component.Start(ctx, group); err != nil {
-		log.C(ctx).WithError(err).Panicf("could not start Service Manager %s", componentName)
-	}
 }
 
 func initializeSecureStorage(ctx context.Context, secureStorage storage.Security) error {

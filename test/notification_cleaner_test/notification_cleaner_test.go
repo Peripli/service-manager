@@ -20,13 +20,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/log"
+
+	"github.com/Peripli/service-manager/test/testutil"
+
 	"github.com/Peripli/service-manager/pkg/env"
-	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/sm"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/Peripli/service-manager/storage/storagefakes"
 	"github.com/Peripli/service-manager/test/common"
 	"github.com/gofrs/uuid"
 	. "github.com/onsi/ginkgo"
@@ -40,14 +42,16 @@ func TestNotificationCleaner(t *testing.T) {
 }
 
 var _ = Describe("Notification cleaner", func() {
-	var testContext *common.TestContext
-	var repository storage.Repository
-	var defaultOlderThan time.Duration
-	var ctx context.Context
-	var deleteInterceptor *storagefakes.FakeDeleteInterceptor
-	var deleteInterceptorProvider *storagefakes.FakeDeleteInterceptorProvider
-	var continueDelete chan struct{}
-	var deleteFinished chan struct{}
+	const (
+		defaultKeepFor    = time.Hour * 6
+		eventuallyTimeout = time.Second * 20
+	)
+	var (
+		testContext    *common.TestContext
+		repository     storage.Repository
+		ctx            context.Context
+		logInterceptor *testutil.LogInterceptor
+	)
 
 	randomNotification := func() *types.Notification {
 		idBytes, err := uuid.NewV4()
@@ -58,54 +62,23 @@ var _ = Describe("Notification cleaner", func() {
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			},
-			Resource: "resource",
-			Type:     "CREATED",
+			Resource:   "resource",
+			Type:       "CREATED",
+			PlatformID: testContext.TestPlatform.ID,
 		}
-	}
-
-	getNotification := func(id string) {
-		obj, err := repository.Get(ctx, types.NotificationType, id)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(obj.GetID()).To(Equal(id))
 	}
 
 	BeforeSuite(func() {
+		logInterceptor = &testutil.LogInterceptor{}
 		ctx = context.Background()
-		deleteInterceptor = &storagefakes.FakeDeleteInterceptor{}
-		deleteInterceptor.OnTxDeleteStub = func(h storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
-			return h
-		}
-		continueDelete = make(chan struct{})
-		deleteFinished = make(chan struct{})
-		deleteInterceptor.AroundTxDeleteStub = func(h storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
-			return func(ctx context.Context, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
-				select {
-				case <-continueDelete:
-					break
-				case <-ctx.Done():
-					return nil, nil
-				}
-				defer func() {
-					select {
-					case deleteFinished <- struct{}{}:
-						break
-					case <-ctx.Done():
-						break
-					}
-				}()
-				return h(ctx, deletionCriteria...)
-			}
-		}
-		deleteInterceptorProvider = &storagefakes.FakeDeleteInterceptorProvider{}
-		deleteInterceptorProvider.NameReturns("tetInterceptor")
-		deleteInterceptorProvider.ProvideReturns(deleteInterceptor)
-		defaultOlderThan = storage.DefaultSettings().Notification.OlderThan
+
 		testContext = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 			repository = smb.Storage
-			smb.WithDeleteInterceptorProvider(types.NotificationType, deleteInterceptorProvider).Register()
 			return nil
 		}).WithEnvPreExtensions(func(set *pflag.FlagSet) {
-			err := set.Set("storage.notification.clean_interval", "0")
+			err := set.Set("storage.notification.clean_interval", "10ms")
+			Expect(err).ToNot(HaveOccurred())
+			err = set.Set("storage.notification.keep_for", defaultKeepFor.String())
 			Expect(err).ToNot(HaveOccurred())
 		}).Build()
 	})
@@ -121,19 +94,22 @@ var _ = Describe("Notification cleaner", func() {
 			Expect(idNew).ToNot(BeEmpty())
 
 			oldNotification := randomNotification()
-			oldNotification.CreatedAt = time.Now().Add(-defaultOlderThan - time.Hour)
+			oldNotification.CreatedAt = time.Now().Add(-(defaultKeepFor + time.Hour))
+
+			log.AddHook(logInterceptor)
 			idOld, err := repository.Create(ctx, oldNotification)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(idOld).ToNot(BeNil())
 
-			getNotification(idOld)
-			getNotification(idNew)
+			Eventually(func() error {
+				_, err = repository.Get(ctx, types.NotificationType, idOld)
+				return err
+			}, eventuallyTimeout).Should(Equal(util.ErrNotFoundInStorage))
+			Expect(logInterceptor.String()).To(ContainSubstring("successfully deleted 1 old notifications"))
 
-			continueDelete <- struct{}{}
-			<-deleteFinished
-			_, err = repository.Get(ctx, types.NotificationType, idOld)
-			Expect(err).To(Equal(util.ErrNotFoundInStorage))
-			getNotification(idNew)
+			obj, err := repository.Get(ctx, types.NotificationType, idNew)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(obj.GetID()).To(Equal(idNew))
 		})
 	})
 })

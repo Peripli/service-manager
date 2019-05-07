@@ -20,14 +20,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/gofrs/uuid"
 	"net/http/httptest"
 	"path"
 	"runtime"
 	"sync"
-
-	"github.com/gofrs/uuid"
-
-	"github.com/Peripli/service-manager/pkg/log"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/onsi/ginkgo"
@@ -96,6 +94,7 @@ func NewTestContextBuilder() *TestContextBuilder {
 	return &TestContextBuilder{
 		envPreHooks: []func(set *pflag.FlagSet){
 			SetTestFileLocation,
+			SetNotificationsCleanerSettings,
 		},
 		Environment: TestEnv,
 		envPostHooks: []func(env env.Environment, servers map[string]FakeServer){
@@ -124,6 +123,17 @@ func SetTestFileLocation(set *pflag.FlagSet) {
 	_, b, _, _ := runtime.Caller(0)
 	basePath := path.Dir(b)
 	err := set.Set("file.location", basePath)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func SetNotificationsCleanerSettings(set *pflag.FlagSet) {
+	err := set.Set("storage.notification.clean_interval", "24h")
+	if err != nil {
+		panic(err)
+	}
+	err = set.Set("storage.notification.keep_for", "24h")
 	if err != nil {
 		panic(err)
 	}

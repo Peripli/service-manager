@@ -19,6 +19,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"net/http"
 	"sync"
 	"time"
 
@@ -34,7 +35,7 @@ type NotificationCleaner struct {
 	started bool
 
 	Storage  Repository
-	Settings *Settings
+	Settings Settings
 }
 
 // Start schedules the cleaner. It cannot be used concurrently.
@@ -64,12 +65,25 @@ func (nc *NotificationCleaner) Start(ctx context.Context, group *sync.WaitGroup)
 }
 
 func (nc *NotificationCleaner) clean(ctx context.Context) {
-	cleanTimestamp := time.Now().Add(-nc.Settings.Notification.OlderThan).Format(time.RFC3339)
+	cleanTimestamp := time.Now().Add(-nc.Settings.Notification.KeepFor).Format(time.RFC3339)
 	log.C(ctx).Infof("Deleting notifications created before %s", cleanTimestamp)
 
 	q := query.ByField(query.LessThanOperator, "created_at", cleanTimestamp)
-	_, err := nc.Storage.Delete(ctx, types.NotificationType, q)
-	if err != nil && err != util.ErrNotFoundInStorage {
+	deletedNotifications, err := nc.Storage.Delete(ctx, types.NotificationType, q)
+
+	if isNotFoundError(err) {
+		log.C(ctx).Debug("no old notifications to delete")
+	} else if err != nil {
 		log.C(ctx).WithError(err).Error("could not delete old notifications")
+	} else {
+		log.C(ctx).Infof("successfully deleted %d old notifications", deletedNotifications.Len())
 	}
+}
+
+func isNotFoundError(err error) bool {
+	httpErr, ok := err.(*util.HTTPError)
+	if ok {
+		return httpErr.StatusCode == http.StatusNotFound
+	}
+	return false
 }
