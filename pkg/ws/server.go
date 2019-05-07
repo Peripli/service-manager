@@ -59,7 +59,7 @@ type Server struct {
 	connWorkers *sync.WaitGroup
 
 	isShutDown    bool
-	shutdownMutex sync.Mutex
+	shutdownMutex sync.RWMutex
 }
 
 func (u *Server) Start(baseCtx context.Context, work *sync.WaitGroup) {
@@ -68,8 +68,8 @@ func (u *Server) Start(baseCtx context.Context, work *sync.WaitGroup) {
 }
 
 func (u *Server) Upgrade(rw http.ResponseWriter, req *http.Request, header http.Header, done <-chan struct{}) (*Conn, error) {
-	u.shutdownMutex.Lock()
-	defer u.shutdownMutex.Unlock()
+	u.shutdownMutex.RLock()
+	defer u.shutdownMutex.RUnlock()
 	if u.isShutDown {
 		return nil, fmt.Errorf("upgrader is going to shutdown and does not accept new connections")
 	}
@@ -118,12 +118,15 @@ func (u *Server) shutdown(ctx context.Context, work *sync.WaitGroup) {
 	u.isShutDown = true
 	u.shutdownMutex.Unlock()
 
-	u.connMutex.Lock()
-	for _, conn := range u.conns {
-		close(conn.Shutdown)
-	}
-	u.conns = nil
-	u.connMutex.Unlock()
+	func() {
+		u.connMutex.Lock()
+		defer u.connMutex.Unlock()
+
+		for _, conn := range u.conns {
+			close(conn.Shutdown)
+		}
+		u.conns = nil
+	}()
 
 	u.connWorkers.Wait()
 }
