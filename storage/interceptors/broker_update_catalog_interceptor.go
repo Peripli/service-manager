@@ -74,6 +74,10 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 		oldBroker := oldObj.(*types.ServiceBroker)
 
 		existingServiceOfferingsWithServicePlans, err := catalog.Load(ctx, oldBroker.GetID(), txStorage)
+		if err != nil {
+			return nil, err
+		}
+
 		oldBroker.Services = existingServiceOfferingsWithServicePlans.ServiceOfferings
 
 		updatedObject, err := f(ctx, txStorage, oldObj, newObj, labelChanges...)

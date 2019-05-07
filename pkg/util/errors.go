@@ -102,6 +102,7 @@ var (
 	ErrConcurrentResourceModification = errors.New("another resource update happened concurrently. Please reattempt the update")
 )
 
+// ErrBadRequestStorage represents a storage error that should be translated to http.StatusBadRequest
 type ErrBadRequestStorage error
 
 // HandleStorageError handles storage errors by converting them to relevant HTTPErrors
