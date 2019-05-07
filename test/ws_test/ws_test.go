@@ -95,6 +95,10 @@ var _ = Describe("WS", func() {
 			It("should receive last known revision response header 0", func() {
 				Expect(resp.Header.Get("last_known_revision")).To(Equal("0"))
 			})
+
+			It("should receive max ping timeout response header", func() {
+				Expect(resp.Header.Get("max_ping_interval")).ToNot(BeEmpty())
+			})
 		})
 
 		Context("when notifications are created prior to connection", func() {
