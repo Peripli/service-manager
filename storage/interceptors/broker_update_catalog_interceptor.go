@@ -108,7 +108,7 @@ func (c *updateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) 
 					}
 				}
 				if _, err := txStorage.Update(ctx, catalogService); err != nil {
-					return nil, util.HandleStorageError(err, "service_offering")
+					return nil, err
 				}
 			} else {
 				if err := catalogService.Validate(); err != nil {
@@ -121,7 +121,7 @@ func (c *updateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) 
 
 				var dbServiceID string
 				if dbServiceID, err = txStorage.Create(ctx, catalogService); err != nil {
-					return nil, util.HandleStorageError(err, "service_offering")
+					return nil, err
 				}
 				catalogService.ID = dbServiceID
 			}
@@ -135,7 +135,7 @@ func (c *updateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) 
 		for _, existingServiceOffering := range existingServicesOfferingsMap {
 			byID := query.ByField(query.EqualsOperator, "id", existingServiceOffering.ID)
 			if _, err := txStorage.Delete(ctx, types.ServiceOfferingType, byID); err != nil {
-				return nil, util.HandleStorageError(err, "service_offering")
+				return nil, err
 			}
 		}
 		log.C(ctx).Debugf("Successfully resynced service offerings for broker with id %s", brokerID)
@@ -170,7 +170,7 @@ func (c *updateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) 
 						}
 
 						if _, err := txStorage.Update(ctx, existingPlanUpdated); err != nil {
-							return nil, util.HandleStorageError(err, "service_plan")
+							return nil, err
 						}
 
 						// we found a match for an existing plan so we remove it from the ones that will be deleted at the end
@@ -197,7 +197,7 @@ func (c *updateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) 
 						// If the service for the plan was deleted, plan would already be gone
 						continue
 					}
-					return nil, util.HandleStorageError(err, "service_plan")
+					return nil, err
 				}
 			}
 		}
@@ -219,7 +219,7 @@ func createPlan(ctx context.Context, txStorage storage.Repository, servicePlan *
 	}
 
 	if _, err := txStorage.Create(ctx, servicePlan); err != nil {
-		return util.HandleStorageError(err, "service_plan")
+		return err
 	}
 	return nil
 }
