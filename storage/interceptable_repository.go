@@ -85,10 +85,6 @@ func (ir *interceptableRepository) Create(ctx context.Context, obj types.Object)
 			return err
 		}
 
-		if err := transformCredentials(ctx, newObject, ir.encrypter.Decrypt); err != nil {
-			return err
-		}
-
 		newObject.SetID(id)
 
 		return nil
@@ -176,10 +172,6 @@ func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object,
 
 		object, err := ir.repositoryInTransaction.Update(ctx, newObj, labelChanges...)
 		if err != nil {
-			return nil, err
-		}
-
-		if err := transformCredentials(ctx, newObj, ir.encrypter.Decrypt); err != nil {
 			return nil, err
 		}
 
