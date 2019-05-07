@@ -150,7 +150,7 @@ var _ = Describe("WS", func() {
 			It("connection should receive pong", func(done Done) {
 				err := wsconn.WriteMessage(websocket.PingMessage, []byte("pingping"))
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(pongCh, 5).ShouldNot(Receive())
+				Eventually(pongCh, 5).Should(BeClosed())
 				close(done)
 			}, 3)
 
