@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 
@@ -27,7 +28,11 @@ const (
 )
 
 func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
-	user, _ := web.UserFromContext(req.Context())
+	user, ok := web.UserFromContext(req.Context())
+	if !ok {
+		return nil, errors.New("user details not found in request context")
+	}
+
 	notificationQueue, lastKnownRevision, err := c.notificator.RegisterConsumer(user)
 	if err != nil {
 		return nil, fmt.Errorf("could not register notification consumer: %v", err)
@@ -176,12 +181,16 @@ func (c *Controller) getNotificationList(ctx context.Context, user *web.UserCont
 		return nil, err
 	}
 	filterByPlatform := query.ByField(query.EqualsOrNilOperator, "platform_id", platform.ID)
-	notificationsList, err := c.repository.List(ctx, types.NotificationType, listQuery1, listQuery2, filterByPlatform)
+	objectList, err := c.repository.List(ctx, types.NotificationType, listQuery1, listQuery2, filterByPlatform)
 	if err != nil {
-		// TODO: Wrap err
 		return nil, err
 	}
-	return notificationsList.(*types.Notifications), nil
+	notificationsList := objectList.(*types.Notifications)
+	sort.Slice(notificationsList.Notifications, func(i, j int) bool {
+		return notificationsList.Notifications[i].Revision < notificationsList.Notifications[j].Revision
+	})
+
+	return notificationsList, nil
 }
 
 func extractPlatformFromContext(userContext *web.UserContext) (*types.Platform, error) {
