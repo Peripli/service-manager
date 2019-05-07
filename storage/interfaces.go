@@ -19,9 +19,14 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path"
 	"runtime"
+	"sync"
+	"time"
+
+	"github.com/Peripli/service-manager/pkg/web"
 
 	"github.com/Peripli/service-manager/pkg/query"
 
@@ -49,11 +54,12 @@ var (
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	URI                string
-	MigrationsURL      string `mapstructure:"migrations_url"`
-	EncryptionKey      string `mapstructure:"encryption_key"`
-	SkipSSLValidation  bool   `mapstructure:"skip_ssl_validation"`
-	MaxIdleConnections int    `mapstructure:"max_idle_connections"`
+	URI                string                `mapstructure:"uri"`
+	MigrationsURL      string                `mapstructure:"migrations_url"`
+	EncryptionKey      string                `mapstructure:"encryption_key"`
+	SkipSSLValidation  bool                  `mapstructure:"skip_ssl_validation"`
+	MaxIdleConnections int                   `mapstructure:"max_idle_connections"`
+	Notification       *NotificationSettings `mapstructure:"notification"`
 }
 
 // DefaultSettings returns default values for storage settings
@@ -64,6 +70,7 @@ func DefaultSettings() *Settings {
 		EncryptionKey:      "",
 		SkipSSLValidation:  false,
 		MaxIdleConnections: 5,
+		Notification:       DefaultNotificationSettings(),
 	}
 }
 
@@ -74,6 +81,34 @@ func (s *Settings) Validate() error {
 	}
 	if len(s.EncryptionKey) != 32 {
 		return fmt.Errorf("validate Settings: StorageEncryptionKey must be exactly 32 symbols long but was %d symbols long", len(s.EncryptionKey))
+	}
+	return s.Notification.Validate()
+}
+
+// NotificationSettings type to be loaded from the environment
+type NotificationSettings struct {
+	QueuesSize           int           `mapstructure:"queues_size"`
+	MinReconnectInterval time.Duration `mapstructure:"min_reconnect_interval"`
+	MaxReconnectInterval time.Duration `mapstructure:"max_reconnect_interval"`
+}
+
+// DefaultNotificationSettings returns default values for Notificator settings
+func DefaultNotificationSettings() *NotificationSettings {
+	return &NotificationSettings{
+		QueuesSize:           100,
+		MinReconnectInterval: time.Millisecond * 200,
+		MaxReconnectInterval: time.Second * 20,
+	}
+}
+
+// Validate validates the Notification settings
+func (s *NotificationSettings) Validate() error {
+	if s.QueuesSize < 1 {
+		return fmt.Errorf("notification queues size (%d) should be at lest 1", s.QueuesSize)
+	}
+	if s.MinReconnectInterval > s.MaxReconnectInterval {
+		return fmt.Errorf("min reconnect interval (%s) should not be greater than max reconnect interval (%s)",
+			s.MinReconnectInterval, s.MaxReconnectInterval)
 	}
 	return nil
 }
@@ -161,4 +196,38 @@ type Security interface {
 
 	// Setter provides means to change the encryption  key
 	Setter() security.KeySetter
+}
+
+// ErrQueueClosed error stating that the queue is closed
+var ErrQueueClosed = errors.New("queue closed")
+
+// ErrQueueFull error stating that the queue is full
+var ErrQueueFull = errors.New("queue is full")
+
+// NotificationQueue is used for receiving notifications
+type NotificationQueue interface {
+	// Enqueue adds a new notification for processing.
+	Enqueue(notification *types.Notification) error
+
+	// Channel returns the go channel with received notifications which has to be processed.
+	Channel() <-chan *types.Notification
+
+	// Close closes the queue.
+	Close()
+
+	// ID returns unique queue identifier
+	ID() string
+}
+
+// Notificator is used for receiving notifications for SM events
+type Notificator interface {
+	// Start starts the Notificator
+	Start(ctx context.Context, group *sync.WaitGroup) error
+
+	// RegisterConsumer returns notification queue, last_known_revision and error if any.
+	// When consumer wants to stop listening for notifications it must unregister the notification queue.
+	RegisterConsumer(userContext *web.UserContext) (NotificationQueue, int64, error)
+
+	// UnregisterConsumer must be called to stop receiving notifications in the queue
+	UnregisterConsumer(queue NotificationQueue) error
 }

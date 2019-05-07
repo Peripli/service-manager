@@ -19,7 +19,9 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/util"
 
@@ -117,7 +119,7 @@ func removeLabel(ctx context.Context, execer sqlx.ExtContext, label PostgresLabe
 	return nil
 }
 
-func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTableName string, labelEntity PostgresLabel, criteria []query.Criterion, querySuffixes ...string) (string, []interface{}, error) {
+func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTableName string, labelEntity PostgresLabel, criteria []query.Criterion, dbTags []tagType, querySuffixes ...string) (string, []interface{}, error) {
 	if len(criteria) == 0 {
 		return sqlQuery + strings.Join(querySuffixes, " ") + ";", nil, nil
 	}
@@ -147,9 +149,19 @@ func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTable
 	if len(fieldCriteria) > 0 {
 		sqlQuery += " WHERE "
 		for _, option := range fieldCriteria {
+			var ttype reflect.Type
+			if dbTags != nil {
+				var err error
+				ttype, err = findTagType(dbTags, option.LeftOp)
+				if err != nil {
+					return "", nil, err
+				}
+			}
 			rightOpBindVar, rightOpQueryValue := buildRightOp(option)
 			sqlOperation := translateOperationToSQLEquivalent(option.Operator)
-			clause := fmt.Sprintf("%s.%s::text %s %s", baseTableName, option.LeftOp, sqlOperation, rightOpBindVar)
+
+			dbCast := determineCastByType(ttype)
+			clause := fmt.Sprintf("%s.%s%s %s %s", baseTableName, option.LeftOp, dbCast, sqlOperation, rightOpBindVar)
 			if option.Operator.IsNullable() {
 				clause = fmt.Sprintf("(%s OR %s.%s IS NULL)", clause, baseTableName, option.LeftOp)
 			}
@@ -169,6 +181,37 @@ func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTable
 	}
 	sqlQuery = extContext.Rebind(sqlQuery)
 	return sqlQuery, queryParams, nil
+}
+
+func findTagType(tags []tagType, tagName string) (reflect.Type, error) {
+	for _, tag := range tags {
+		if tag.Tag == tagName {
+			return tag.Type, nil
+		}
+	}
+	return nil, fmt.Errorf("could not find tag name: %s", tagName)
+}
+
+var (
+	intType   = reflect.TypeOf(int(1))
+	int64Type = reflect.TypeOf(int64(1))
+	timeType  = reflect.TypeOf(time.Time{})
+)
+
+func determineCastByType(tagType reflect.Type) string {
+	dbCast := ""
+	switch tagType {
+	case intType:
+		fallthrough
+	case int64Type:
+		fallthrough
+	case timeType:
+		dbCast = ""
+
+	default:
+		dbCast = "::text"
+	}
+	return dbCast
 }
 
 func splitCriteriaByType(criteria []query.Criterion) ([]query.Criterion, []query.Criterion) {

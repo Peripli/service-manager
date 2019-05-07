@@ -19,6 +19,7 @@ package config_test
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/Peripli/service-manager/api"
 	cfg "github.com/Peripli/service-manager/config"
@@ -116,6 +117,21 @@ var _ = Describe("config", func() {
 		Context("when API token issuer URL is missing", func() {
 			It("returns an error", func() {
 				config.API.TokenIssuerURL = ""
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("when notification queues size is 0", func() {
+			It("returns an error", func() {
+				config.Storage.Notification.QueuesSize = 0
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("when min reconnect interval is greater than max reconnect interval", func() {
+			It("returns an error", func() {
+				config.Storage.Notification.MinReconnectInterval = 100 * time.Millisecond
+				config.Storage.Notification.MaxReconnectInterval = 50 * time.Millisecond
 				assertErrorDuringValidate()
 			})
 		})

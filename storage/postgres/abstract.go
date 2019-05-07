@@ -68,17 +68,21 @@ type pgDB interface {
 
 func create(ctx context.Context, db pgDB, table string, dto interface{}) (string, error) {
 	var lastInsertID string
-	set := getDBTags(dto)
+	setTagType := getDBTags(dto, isAutoIncrementable)
+	dbTags := make([]string, 0, len(setTagType))
+	for _, tagType := range setTagType {
+		dbTags = append(dbTags, tagType.Tag)
+	}
 
-	if len(set) == 0 {
+	if len(dbTags) == 0 {
 		return lastInsertID, fmt.Errorf("%s insert: No fields to insert", table)
 	}
 
 	sqlQuery := fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES(:%s)",
 		table,
-		strings.Join(set, ", "),
-		strings.Join(set, ", :"),
+		strings.Join(dbTags, ", "),
+		strings.Join(dbTags, ", :"),
 	)
 
 	id, ok := structs.New(dto).FieldOk("ID")
@@ -98,7 +102,7 @@ func create(ctx context.Context, db pgDB, table string, dto interface{}) (string
 }
 
 func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface{}, label PostgresLabel, baseTableName string, criteria []query.Criterion) (*sqlx.Rows, error) {
-	if err := validateFieldQueryParams(baseEntity, criteria); err != nil {
+	if err := validateFieldQueryParams(getDBTags(baseEntity, nil), criteria); err != nil {
 		return nil, err
 	}
 	var baseQuery string
@@ -107,7 +111,7 @@ func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface
 	} else {
 		baseQuery = constructBaseQueryForLabelable(label, baseTableName)
 	}
-	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, baseTableName, label, criteria, " ORDER BY created_at")
+	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, baseTableName, label, criteria, getDBTags(baseEntity, isAutoIncrementable), " ORDER BY created_at")
 	if err != nil {
 		return nil, err
 	}
@@ -139,11 +143,11 @@ func deleteAllByFieldCriteria(ctx context.Context, extContext sqlx.ExtContext, t
 			return nil, &util.UnsupportedQueryError{Message: "conditional delete is only supported for field queries"}
 		}
 	}
-	if err := validateFieldQueryParams(dto, criteria); err != nil {
+	if err := validateFieldQueryParams(getDBTags(dto, nil), criteria); err != nil {
 		return nil, err
 	}
 	baseQuery := fmt.Sprintf("DELETE FROM %s", table)
-	sqlQuery, queryParams, err := buildQueryWithParams(extContext, baseQuery, table, nil, criteria)
+	sqlQuery, queryParams, err := buildQueryWithParams(extContext, baseQuery, table, nil, criteria, getDBTags(dto, isAutoIncrementable))
 	if err != nil {
 		return nil, err
 	}
@@ -151,11 +155,11 @@ func deleteAllByFieldCriteria(ctx context.Context, extContext sqlx.ExtContext, t
 	return extContext.QueryxContext(ctx, sqlQuery, queryParams...)
 }
 
-func validateFieldQueryParams(baseEntity interface{}, criteria []query.Criterion) error {
+func validateFieldQueryParams(tags []tagType, criteria []query.Criterion) error {
 	availableColumns := make(map[string]bool)
-	tags := getDBTags(baseEntity)
 	for _, dbTag := range tags {
-		availableColumns[dbTag] = true
+		tagValues := strings.Split(dbTag.Tag, ",")
+		availableColumns[tagValues[0]] = true
 	}
 	for _, criterion := range criteria {
 		if criterion.Type == query.FieldQuery && !availableColumns[criterion.LeftOp] {
@@ -171,8 +175,8 @@ func constructBaseQueryForEntity(tableName string) string {
 
 func constructBaseQueryForLabelable(labelsEntity PostgresLabel, baseTableName string) string {
 	baseQuery := `SELECT %[1]s.*,`
-	for _, dbTag := range getDBTags(labelsEntity) {
-		baseQuery += " %[2]s." + dbTag + " " + "\"%[2]s." + dbTag + "\"" + ","
+	for _, dbTag := range getDBTags(labelsEntity, isAutoIncrementable) {
+		baseQuery += " %[2]s." + dbTag.Tag + " " + "\"%[2]s." + dbTag.Tag + "\"" + ","
 	}
 	baseQuery = baseQuery[:len(baseQuery)-1] //remove last comma
 	labelsTableName := labelsEntity.LabelsTableName()
@@ -196,41 +200,58 @@ func update(ctx context.Context, db namedExecerContext, table string, dto interf
 	return checkRowsAffected(ctx, result)
 }
 
-func getDBTags(structure interface{}) []string {
+func isAutoIncrementable(tagValue string) bool {
+	// auto_increment states that the value will be calculated in the DB
+	return strings.Contains(tagValue, "auto_increment")
+}
+
+type tagType struct {
+	Tag  string
+	Type reflect.Type
+}
+
+func getDBTags(structure interface{}, predicate func(string) bool) []tagType {
 	s := structs.New(structure)
 	fields := s.Fields()
-	set := make([]string, 0, len(fields))
-	getTags(fields, &set)
+	set := make([]tagType, 0, len(fields))
+	if predicate == nil {
+		predicate = func(string) bool { return false }
+	}
+	getTags(fields, &set, predicate)
 	return set
 }
 
-func getTags(fields []*structs.Field, set *[]string) {
+func getTags(fields []*structs.Field, set *[]tagType, predicate func(string) bool) {
 	for _, field := range fields {
 		if field.Kind() == reflect.Ptr && field.IsZero() {
 			continue
 		}
 		if field.IsEmbedded() {
-			embedded := make([]string, 0)
-			getTags(field.Fields(), &embedded)
+			embedded := make([]tagType, 0)
+			getTags(field.Fields(), &embedded, predicate)
 			*set = append(*set, embedded...)
 		} else {
 			dbTag := field.Tag("db")
-			if dbTag == "-" || strings.Contains(dbTag, "auto_increment") { // auto_increment states that the value will be calculated in the DB
+			if dbTag == "-" || predicate(dbTag) {
 				continue
 			}
 			if dbTag == "" {
 				dbTag = strings.ToLower(field.Name())
 			}
-			*set = append(*set, dbTag)
+			ttype := reflect.ValueOf(field.Value()).Type()
+			*set = append(*set, tagType{
+				Tag:  dbTag,
+				Type: ttype,
+			})
 		}
 	}
 }
 
 func updateQuery(tableName string, structure interface{}) string {
-	dbTags := getDBTags(structure)
+	dbTags := getDBTags(structure, isAutoIncrementable)
 	set := make([]string, 0, len(dbTags))
 	for _, dbTag := range dbTags {
-		set = append(set, fmt.Sprintf("%s = :%s", dbTag, dbTag))
+		set = append(set, fmt.Sprintf("%s = :%s", dbTag.Tag, dbTag.Tag))
 	}
 	if len(set) == 0 {
 		return ""
