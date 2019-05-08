@@ -50,6 +50,13 @@ func WriteError(err error, writer http.ResponseWriter) {
 	var respError *HTTPError
 	logger := log.D()
 	switch t := err.(type) {
+	case *UnsupportedQueryError:
+		logger.Errorf("UnsupportedQueryError: %s", err)
+		respError = &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: err.Error(),
+			StatusCode:  http.StatusBadRequest,
+		}
 	case *HTTPError:
 		logger.Errorf("HTTPError: %s", err)
 		respError = t
@@ -92,6 +99,7 @@ var (
 	ErrAlreadyExistsInStorage = errors.New("unique constraint violation")
 )
 
+// ErrBadRequestStorage represents a storage error that should be translated to http.StatusBadRequest
 type ErrBadRequestStorage error
 
 // HandleStorageError handles storage errors by converting them to relevant HTTPErrors
@@ -99,13 +107,15 @@ func HandleStorageError(err error, entityName string) error {
 	if err == nil {
 		return nil
 	}
+
 	if _, ok := err.(*HTTPError); ok {
 		return err
 	}
 
-	if entityName == "" {
+	if len(entityName) == 0 {
 		entityName = "entity"
 	}
+
 	switch err {
 	case ErrAlreadyExistsInStorage:
 		return &HTTPError{
@@ -121,32 +131,15 @@ func HandleStorageError(err error, entityName string) error {
 		}
 	default:
 		// in case we did not replace the pg.Error in the DB layer, propagate it as response message to give the caller relevant info
-		storageErr, ok := err.(ErrBadRequestStorage)
-		if ok {
+		switch e := err.(type) {
+		case ErrBadRequestStorage:
 			return &HTTPError{
 				ErrorType:   "BadRequest",
-				Description: fmt.Sprintf("storage err: %s", storageErr.Error()),
+				Description: fmt.Sprintf("storage err: %s", e.Error()),
 				StatusCode:  http.StatusBadRequest,
 			}
+		default:
+			return err
 		}
 	}
-	return fmt.Errorf("unknown error type returned from storage layer: %s", err)
-}
-
-func HandleSelectionError(err error, entityName ...string) error {
-	if err == nil {
-		return nil
-	}
-
-	if _, ok := err.(*UnsupportedQueryError); ok {
-		return &HTTPError{
-			Description: err.Error(),
-			ErrorType:   "BadRequest",
-			StatusCode:  http.StatusBadRequest,
-		}
-	}
-	if len(entityName) == 0 {
-		entityName = []string{"entity"}
-	}
-	return HandleStorageError(err, entityName[0])
 }

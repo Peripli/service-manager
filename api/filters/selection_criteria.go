@@ -20,7 +20,6 @@ import (
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/query"
-	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
@@ -43,11 +42,11 @@ func (l *SelectionCriteria) Run(req *web.Request, next web.Handler) (*web.Respon
 	ctx := req.Context()
 	criteria, err := query.BuildCriteriaFromRequest(req.Request)
 	if err != nil {
-		return nil, util.HandleSelectionError(err)
+		return nil, err
 	}
 	ctx, err = query.AddCriteria(ctx, criteria...)
 	if err != nil {
-		return nil, util.HandleSelectionError(err)
+		return nil, err
 	}
 	req.Request = req.WithContext(ctx)
 	return next.Handle(req)

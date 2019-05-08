@@ -24,7 +24,6 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/pkg/util"
 )
 
 func NewInterceptableTransactionalRepository(repository TransactionalRepository, encrypter security.Encrypter) *InterceptableTransactionalRepository {
@@ -243,7 +242,7 @@ func (final *finalCreateObjectInterceptor) InterceptCreateAroundTx(ctx context.C
 		interceptableRepository := newInterceptableRepository(txStorage, final.encrypter, final.providedCreateInterceptors, final.providedUpdateInterceptors, final.providedDeleteInterceptors)
 		id, err = interceptableRepository.Create(ctx, obj)
 		if err != nil {
-			return util.HandleStorageError(err, string(final.objectType))
+			return err
 		}
 		if securedObj, isSecured := obj.(types.Secured); isSecured {
 			securedObj.SetCredentials(nil)
@@ -325,7 +324,7 @@ func (final *finalDeleteObjectInterceptor) InterceptDeleteAroundTx(ctx context.C
 		interceptableRepository := newInterceptableRepository(txStorage, final.encrypter, final.providedCreateInterceptors, final.providedUpdateInterceptors, final.providedDeleteInterceptors)
 		result, err = interceptableRepository.Delete(ctx, final.objectType, criteria...)
 		if err != nil {
-			return util.HandleSelectionError(err, string(final.objectType))
+			return err
 		}
 		return nil
 	}); err != nil {
@@ -384,7 +383,7 @@ func (final *finalUpdateObjectInterceptor) InterceptUpdateAroundTxFunc(ctx conte
 
 		result, err = interceptableRepository.Update(ctx, obj, labelChanges...)
 		if err != nil {
-			return util.HandleStorageError(err, string(final.objectType))
+			return err
 		}
 
 		return nil
