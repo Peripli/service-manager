@@ -252,10 +252,6 @@ func (wsc *wsController) handle(req *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	if wsc.wsHandlers == nil {
-		panic("should not panic")
-	}
-
 	handler := wsc.wsHandlers[0]
 	if len(wsc.wsHandlers) > 1 {
 		wsc.wsHandlers = wsc.wsHandlers[1:]
