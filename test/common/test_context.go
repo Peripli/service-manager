@@ -26,9 +26,6 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/util"
 
-	"github.com/Peripli/service-manager/storage"
-
-	"github.com/gofrs/uuid"
 	"sync"
 
 	"github.com/Peripli/service-manager/pkg/log"
