@@ -48,6 +48,10 @@ func (va VisibilityAdditional) Validate() error {
 		return fmt.Errorf("broker id cannot be empty")
 	}
 
+	if va.ServicePlan == nil {
+		return fmt.Errorf("visibility details service plan cannot be empty")
+	}
+
 	return va.ServicePlan.Validate()
 }
 
