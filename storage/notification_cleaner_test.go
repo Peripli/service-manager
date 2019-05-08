@@ -19,10 +19,10 @@ package storage_test
 import (
 	"context"
 	"errors"
-	"github.com/Peripli/service-manager/pkg/util"
-	"net/http"
 	"sync"
 	"time"
+
+	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -117,9 +117,9 @@ var _ = Describe("Notification cleaner", func() {
 			Expect(called).To(BeTrue())
 		}
 
-		Context("When repository returns http 404 error", func() {
+		Context("When repository returns not found error", func() {
 			It("Should not stop", func() {
-				checkCleanerNotStopped(&util.HTTPError{StatusCode: http.StatusNotFound})
+				checkCleanerNotStopped(util.ErrNotFoundInStorage)
 			})
 		})
 

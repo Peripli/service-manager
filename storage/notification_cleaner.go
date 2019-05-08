@@ -19,7 +19,6 @@ package storage
 import (
 	"context"
 	"errors"
-	"net/http"
 	"sync"
 	"time"
 
@@ -71,19 +70,11 @@ func (nc *NotificationCleaner) clean(ctx context.Context) {
 	q := query.ByField(query.LessThanOperator, "created_at", cleanTimestamp)
 	deletedNotifications, err := nc.Storage.Delete(ctx, types.NotificationType, q)
 
-	if isNotFoundError(err) {
+	if err == util.ErrNotFoundInStorage {
 		log.C(ctx).Debug("no old notifications to delete")
 	} else if err != nil {
 		log.C(ctx).WithError(err).Error("could not delete old notifications")
 	} else {
 		log.C(ctx).Infof("successfully deleted %d old notifications", deletedNotifications.Len())
 	}
-}
-
-func isNotFoundError(err error) bool {
-	httpErr, ok := err.(*util.HTTPError)
-	if ok {
-		return httpErr.StatusCode == http.StatusNotFound
-	}
-	return false
 }

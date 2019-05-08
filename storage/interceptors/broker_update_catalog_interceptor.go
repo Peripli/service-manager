@@ -70,16 +70,23 @@ func (c *updateBrokerInterceptor) AroundTxUpdate(h storage.InterceptUpdateAround
 
 // OnTxUpdate stores the previously fetched broker catalog, in the transaction in which the broker is being updated
 func (c *updateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
-	return func(ctx context.Context, txStorage storage.Repository, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
-		newObject, err := f(ctx, txStorage, obj, labelChanges...)
+	return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+		oldBroker := oldObj.(*types.ServiceBroker)
+		existingServiceOfferingsWithServicePlans, err := catalog.Load(ctx, oldBroker.GetID(), txStorage)
 		if err != nil {
 			return nil, err
 		}
 
-		broker := newObject.(*types.ServiceBroker)
+		oldBroker.Services = existingServiceOfferingsWithServicePlans.ServiceOfferings
 
-		brokerID := broker.GetID()
-		existingServiceOfferingsWithServicePlans, err := catalog.Load(ctx, brokerID, txStorage)
+		updatedObject, err := f(ctx, txStorage, oldObj, newObj, labelChanges...)
+		if err != nil {
+			return nil, err
+		}
+
+		updatedBroker := updatedObject.(*types.ServiceBroker)
+		brokerID := updatedBroker.GetID()
+
 		if err != nil {
 			return nil, fmt.Errorf("error getting catalog for broker with id %s from SM DB: %s", brokerID, err)
 		}
@@ -87,7 +94,7 @@ func (c *updateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) 
 		existingServicesOfferingsMap, existingServicePlansPerOfferingMap := convertExistingServiceOfferringsToMaps(existingServiceOfferingsWithServicePlans.ServiceOfferings)
 		log.C(ctx).Debugf("Found %d services currently known for broker", len(existingServicesOfferingsMap))
 
-		catalogServices, catalogPlansMap, err := getBrokerCatalogServicesAndPlans(broker.Services)
+		catalogServices, catalogPlansMap, err := getBrokerCatalogServicesAndPlans(updatedBroker.Services)
 		if err != nil {
 			return nil, err
 		}
@@ -99,6 +106,8 @@ func (c *updateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) 
 			if ok {
 				delete(existingServicesOfferingsMap, catalogService.CatalogID)
 				catalogService.ID = existingServiceOffering.ID
+				catalogService.CreatedAt = existingServiceOffering.CreatedAt
+				catalogService.UpdatedAt = existingServiceOffering.UpdatedAt
 
 				if err := catalogService.Validate(); err != nil {
 					return nil, &util.HTTPError{
@@ -108,7 +117,7 @@ func (c *updateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) 
 					}
 				}
 				if _, err := txStorage.Update(ctx, catalogService); err != nil {
-					return nil, util.HandleStorageError(err, "service_offering")
+					return nil, err
 				}
 			} else {
 				if err := catalogService.Validate(); err != nil {
@@ -121,7 +130,7 @@ func (c *updateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) 
 
 				var dbServiceID string
 				if dbServiceID, err = txStorage.Create(ctx, catalogService); err != nil {
-					return nil, util.HandleStorageError(err, "service_offering")
+					return nil, err
 				}
 				catalogService.ID = dbServiceID
 			}
@@ -135,7 +144,7 @@ func (c *updateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) 
 		for _, existingServiceOffering := range existingServicesOfferingsMap {
 			byID := query.ByField(query.EqualsOperator, "id", existingServiceOffering.ID)
 			if _, err := txStorage.Delete(ctx, types.ServiceOfferingType, byID); err != nil {
-				return nil, util.HandleStorageError(err, "service_offering")
+				return nil, err
 			}
 		}
 		log.C(ctx).Debugf("Successfully resynced service offerings for broker with id %s", brokerID)
@@ -156,6 +165,8 @@ func (c *updateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) 
 							// found a match means an update should happen
 							existingPlanUpdated = catalogPlan
 							existingPlanUpdated.ID = existingServicePlan.ID
+							existingPlanUpdated.CreatedAt = existingServicePlan.CreatedAt
+							existingPlanUpdated.UpdatedAt = existingServicePlan.UpdatedAt
 						} else {
 							newPlansMapping = append(newPlansMapping, existingServicePlan)
 						}
@@ -170,7 +181,7 @@ func (c *updateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) 
 						}
 
 						if _, err := txStorage.Update(ctx, existingPlanUpdated); err != nil {
-							return nil, util.HandleStorageError(err, "service_plan")
+							return nil, err
 						}
 
 						// we found a match for an existing plan so we remove it from the ones that will be deleted at the end
@@ -197,15 +208,15 @@ func (c *updateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) 
 						// If the service for the plan was deleted, plan would already be gone
 						continue
 					}
-					return nil, util.HandleStorageError(err, "service_plan")
+					return nil, err
 				}
 			}
 		}
 
-		broker.Services = catalogServices
+		updatedBroker.Services = catalogServices
 
 		log.C(ctx).Debugf("Successfully resynced service plans for broker with id %s", brokerID)
-		return broker, nil
+		return updatedBroker, nil
 	}
 }
 
@@ -219,7 +230,7 @@ func createPlan(ctx context.Context, txStorage storage.Repository, servicePlan *
 	}
 
 	if _, err := txStorage.Create(ctx, servicePlan); err != nil {
-		return util.HandleStorageError(err, "service_plan")
+		return err
 	}
 	return nil
 }

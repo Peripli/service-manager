@@ -54,11 +54,11 @@ var (
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	URI                string                `mapstructure:"uri"`
-	MigrationsURL      string                `mapstructure:"migrations_url"`
-	EncryptionKey      string                `mapstructure:"encryption_key"`
-	SkipSSLValidation  bool                  `mapstructure:"skip_ssl_validation"`
-	MaxIdleConnections int                   `mapstructure:"max_idle_connections"`
+	URI                string                `mapstructure:"uri" description:"URI of the storage"`
+	MigrationsURL      string                `mapstructure:"migrations_url" description:"location of a directory containing sql migrations scripts"`
+	EncryptionKey      string                `mapstructure:"encryption_key" description:"key to use for encrypting database entries"`
+	SkipSSLValidation  bool                  `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when connecting to the storage"`
+	MaxIdleConnections int                   `mapstructure:"max_idle_connections" description:"sets the maximum number of connections in the idle connection pool"`
 	Notification       *NotificationSettings `mapstructure:"notification"`
 }
 
@@ -87,11 +87,11 @@ func (s *Settings) Validate() error {
 
 // NotificationSettings type to be loaded from the environment
 type NotificationSettings struct {
-	QueuesSize           int           `mapstructure:"queues_size"`
-	MinReconnectInterval time.Duration `mapstructure:"min_reconnect_interval"`
-	MaxReconnectInterval time.Duration `mapstructure:"max_reconnect_interval"`
-	CleanInterval        time.Duration `mapstructure:"clean_interval"`
-	KeepFor              time.Duration `mapstructure:"keep_for"`
+	QueuesSize           int           `mapstructure:"queues_size" description:"maximum number of notifications queued for sending to a client"`
+	MinReconnectInterval time.Duration `mapstructure:"min_reconnect_interval" description:"minimum timeout between storage listen reconnects"`
+	MaxReconnectInterval time.Duration `mapstructure:"max_reconnect_interval" description:"maximum timeout between storage listen reconnects"`
+	CleanInterval        time.Duration `mapstructure:"clean_interval" description:"time between notification clean-up"`
+	KeepFor              time.Duration `mapstructure:"keep_for" description:"the time to keep a notification in the storage"`
 }
 
 // DefaultNotificationSettings returns default values for Notificator settings

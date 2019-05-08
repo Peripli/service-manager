@@ -20,12 +20,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/gofrs/uuid"
 	"net/http/httptest"
 	"path"
 	"runtime"
 	"sync"
+
+	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/storage"
+	"github.com/gofrs/uuid"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/onsi/ginkgo"
@@ -65,6 +67,8 @@ type TestContext struct {
 	SM           *httpexpect.Expect
 	SMWithOAuth  *httpexpect.Expect
 	SMWithBasic  *httpexpect.Expect
+	SMRepository storage.Repository
+
 	TestPlatform *types.Platform
 
 	Servers map[string]FakeServer
@@ -215,7 +219,7 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 	}
 	wg := &sync.WaitGroup{}
 
-	smServer := newSMServer(environment, wg, tcb.smExtensions)
+	smServer, smRepository := newSMServer(environment, wg, tcb.smExtensions)
 	tcb.Servers[SMServer] = smServer
 
 	SM := httpexpect.New(GinkgoT(), smServer.URL())
@@ -228,10 +232,11 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 	RemoveAllPlatforms(SMWithOAuth)
 
 	testContext := &TestContext{
-		wg:          wg,
-		SM:          SM,
-		SMWithOAuth: SMWithOAuth,
-		Servers:     tcb.Servers,
+		wg:           wg,
+		SM:           SM,
+		SMWithOAuth:  SMWithOAuth,
+		Servers:      tcb.Servers,
+		SMRepository: smRepository,
 	}
 
 	if !tcb.shouldSkipBasicAuthClient {
@@ -246,10 +251,9 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 	}
 
 	return testContext
-
 }
 
-func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error) *testSMServer {
+func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error) (*testSMServer, storage.Repository) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := struct {
 		Log *log.Settings
@@ -281,7 +285,7 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 	return &testSMServer{
 		cancel: cancel,
 		Server: httptest.NewServer(serviceManager.Server.Router),
-	}
+	}, smb.Storage
 }
 
 func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object) (string, Object, *BrokerServer) {
@@ -308,11 +312,12 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, br
 
 	MergeObjects(brokerJSON, brokerData)
 
-	brokerID := RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth)
+	broker := RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth)
+	brokerID := broker["id"].(string)
 	brokerServer.ResetCallHistory()
 	ctx.Servers[BrokerServerPrefix+brokerID] = brokerServer
 	brokerJSON["id"] = brokerID
-	return brokerID, brokerJSON, brokerServer
+	return brokerID, broker, brokerServer
 }
 
 func MergeObjects(target, source Object) {

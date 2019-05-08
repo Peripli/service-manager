@@ -24,7 +24,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/gofrs/uuid"
 )
@@ -90,8 +89,8 @@ func (p *publicPlanUpdateInterceptor) AroundTxUpdate(h storage.InterceptUpdateAr
 }
 
 func (p *publicPlanUpdateInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
-	return func(ctx context.Context, txStorage storage.Repository, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
-		result, err := f(ctx, txStorage, obj, labelChanges...)
+	return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+		result, err := f(ctx, txStorage, oldObj, newObj, labelChanges...)
 		if err != nil {
 			return nil, err
 		}
@@ -153,7 +152,7 @@ func resync(ctx context.Context, broker *types.ServiceBroker, txStorage storage.
 					ServicePlanID: servicePlan.ID,
 				})
 				if err != nil {
-					return util.HandleStorageError(err, "visibility")
+					return err
 				}
 
 				log.C(ctx).Debugf("Created new public visibility for broker with id %s and plan with id %s", broker.ID, planID)

@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"strings"
+	"sync"
 
 	"github.com/sirupsen/logrus"
 )
@@ -9,6 +10,7 @@ import (
 // LogInterceptor implements logrus.Hook to capture log messages
 type LogInterceptor struct {
 	strings.Builder
+	bufferMutex sync.Mutex
 }
 
 // Levels defines which log levels to capture
@@ -17,8 +19,19 @@ func (*LogInterceptor) Levels() []logrus.Level {
 }
 
 // Fire is called for each log entry
-func (hook *LogInterceptor) Fire(entry *logrus.Entry) error {
-	str, _ := entry.String()
-	hook.WriteString(str)
-	return nil
+func (li *LogInterceptor) Fire(entry *logrus.Entry) error {
+	str, err := entry.String()
+	if err != nil {
+		return err
+	}
+	li.bufferMutex.Lock()
+	defer li.bufferMutex.Unlock()
+	_, err = li.WriteString(str)
+	return err
+}
+
+func (li *LogInterceptor) String() string {
+	li.bufferMutex.Lock()
+	defer li.bufferMutex.Unlock()
+	return li.Builder.String()
 }
