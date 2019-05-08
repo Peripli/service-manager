@@ -75,7 +75,7 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 
 		existingServiceOfferingsWithServicePlans, err := catalog.Load(ctx, oldBroker.GetID(), txStorage)
 		if err != nil {
-			return nil, fmt.Errorf("error getting catalog for broker with id %s from SM DB: %s", brokerID, err)
+			return nil, fmt.Errorf("error getting catalog for broker with id %s from SM DB: %s", oldBroker.GetID(), err)
 		}
 
 		oldBroker.Services = existingServiceOfferingsWithServicePlans.ServiceOfferings
