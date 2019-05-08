@@ -9,8 +9,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gorilla/websocket"
-
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -82,7 +80,7 @@ func (c *Controller) writeLoop(ctx context.Context, conn *ws.Conn, notifications
 		notification := (notificationsList.ItemAt(i)).(*types.Notification)
 		select {
 		case <-conn.Shutdown:
-			c.sendWsClose(ctx, conn)
+			log.C(ctx).Infof("Websocket connection shutting down")
 			return
 		default:
 		}
@@ -97,11 +95,11 @@ func (c *Controller) writeLoop(ctx context.Context, conn *ws.Conn, notifications
 	for {
 		select {
 		case <-conn.Shutdown:
-			c.sendWsClose(ctx, conn)
+			log.C(ctx).Infof("Websocket connection shutting down")
 			return
 		case notification, ok := <-notificationChannel:
 			if !ok {
-				c.sendWsClose(ctx, conn)
+				log.C(ctx).Infof("Notifications channel is closed. Closing websocket connection...")
 				return
 			}
 
@@ -129,19 +127,15 @@ func (c *Controller) readLoop(ctx context.Context, conn *ws.Conn, done chan<- st
 }
 
 func (c *Controller) sendWsMessage(ctx context.Context, conn *ws.Conn, msg interface{}) bool {
-	conn.SetWriteDeadline(time.Now().Add(c.wsServer.Options.WriteTimeout))
+	if err := conn.SetWriteDeadline(time.Now().Add(c.wsServer.Options.WriteTimeout)); err != nil {
+		log.C(ctx).Errorf("Could not set write deadline: %v", err)
+	}
+
 	if err := conn.WriteJSON(msg); err != nil {
 		log.C(ctx).Errorf("ws: could not write: %v", err)
 		return false
 	}
 	return true
-}
-
-func (c *Controller) sendWsClose(ctx context.Context, conn *ws.Conn) {
-	writeDeadline := time.Now().Add(c.wsServer.Options.WriteTimeout)
-	if err := conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseGoingAway, ""), writeDeadline); err != nil {
-		log.C(ctx).Errorf("Could not send close message: %v", err)
-	}
 }
 
 func (c *Controller) registerConsumer(ctx context.Context, revisionKnownToProxy int64, user *web.UserContext) (storage.NotificationQueue, int64, *types.Notifications, error) {

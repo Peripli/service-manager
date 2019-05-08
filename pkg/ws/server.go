@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/log"
+
 	"github.com/gofrs/uuid"
 
 	"github.com/gorilla/websocket"
@@ -43,6 +45,7 @@ func (s *Settings) Validate() error {
 	return nil
 }
 
+// NewServer create new websocket server
 func NewServer(options *Settings) *Server {
 	return &Server{
 		conns:       make(map[string]*Conn),
@@ -51,6 +54,7 @@ func NewServer(options *Settings) *Server {
 	}
 }
 
+// Server is a web socket server which handles connections
 type Server struct {
 	Options *Settings
 
@@ -62,11 +66,15 @@ type Server struct {
 	shutdownMutex sync.RWMutex
 }
 
+// Start allows server to accept connections and handles shutdown logic
 func (u *Server) Start(baseCtx context.Context, work *sync.WaitGroup) {
 	work.Add(1)
 	go u.shutdown(baseCtx, work)
 }
 
+// Upgrade creates the actual web socket connection and handles close events and ping/pong messages.
+// Writing to done channel closes the connection.
+// If the server context is done, the server will not accept new connections
 func (u *Server) Upgrade(rw http.ResponseWriter, req *http.Request, header http.Header, done <-chan struct{}) (*Conn, error) {
 	u.shutdownMutex.RLock()
 	defer u.shutdownMutex.RUnlock()
@@ -101,9 +109,14 @@ func (u *Server) handleConn(c *Conn, done <-chan struct{}) {
 	defer u.connWorkers.Done()
 	<-done
 
-	message := websocket.FormatCloseMessage(websocket.CloseGoingAway, "")
-	c.WriteControl(websocket.CloseMessage, message, time.Now().Add(u.Options.WriteTimeout))
-	c.Close()
+	if err := u.sendClose(c, websocket.CloseGoingAway); err != nil {
+		log.D().Errorf("Could not send close: %v", err)
+	}
+
+	if err := c.Close(); err != nil {
+		log.D().Errorf("Could not close websocket connection: %v", err)
+	}
+
 	u.removeConn(c.ID)
 }
 
@@ -122,7 +135,6 @@ func (u *Server) shutdown(ctx context.Context, work *sync.WaitGroup) {
 		for _, conn := range u.conns {
 			close(conn.Shutdown)
 		}
-		u.conns = nil
 	}()
 
 	u.connWorkers.Wait()
@@ -130,18 +142,30 @@ func (u *Server) shutdown(ctx context.Context, work *sync.WaitGroup) {
 
 func (u *Server) setCloseHandler(c *Conn) {
 	c.SetCloseHandler(func(code int, text string) error {
-		u.removeConn(c.ID)
-		message := websocket.FormatCloseMessage(code, "")
-		c.WriteControl(websocket.CloseMessage, message, time.Now().Add(u.Options.WriteTimeout))
-		return nil
+		log.D().Infof("Websocket received close: %s", text)
+		return u.sendClose(c, code)
 	})
 }
 
+func (u *Server) sendClose(c *Conn, closeCode int) error {
+	message := websocket.FormatCloseMessage(closeCode, "")
+	err := c.WriteControl(websocket.CloseMessage, message, time.Now().Add(u.Options.WriteTimeout))
+	if err != nil && err != websocket.ErrCloseSent {
+		log.D().Errorf("Could not write websocket close message: %v", err)
+		return err
+	}
+	return nil
+}
+
 func (u *Server) setConnTimeout(c *Conn) {
-	c.SetReadDeadline(time.Now().Add(u.Options.PingTimeout))
+	if err := c.SetReadDeadline(time.Now().Add(u.Options.PingTimeout)); err != nil {
+		log.D().Errorf("Could not set read deadline: %v", err)
+	}
 
 	c.SetPingHandler(func(message string) error {
-		c.SetReadDeadline(time.Now().Add(u.Options.PingTimeout))
+		if err := c.SetReadDeadline(time.Now().Add(u.Options.PingTimeout)); err != nil {
+			return err
+		}
 
 		err := c.WriteControl(websocket.PongMessage, []byte(message), time.Now().Add(u.Options.WriteTimeout))
 		if err == websocket.ErrCloseSent {
