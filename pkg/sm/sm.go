@@ -136,7 +136,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	log.C(ctx).Info("Setting up Service Manager core API...")
 	interceptableRepository := storage.NewInterceptableTransactionalRepository(smStorage, encrypter)
 
-	wsServer := ws.NewServer(cfg.WsServer)
+	wsServer := ws.NewServer(ctx, cfg.WsServer)
 
 	pgNotificator, err := postgres.NewNotificator(smStorage, cfg.Storage)
 	if err != nil {

@@ -10,7 +10,7 @@ type Conn struct {
 	*websocket.Conn
 	ID string
 
-	Shutdown chan struct{}
+	Shutdown <-chan struct{}
 
 	work *sync.WaitGroup
 }

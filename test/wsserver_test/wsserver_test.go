@@ -67,7 +67,7 @@ var _ = Describe("WS", func() {
 		testWsHandlers = append([]*wsHandler{testWsHandler}, testWsHandlers...)
 		wsSettings := ws.DefaultSettings()
 		wsSettings.PingTimeout = wsPingTimeout
-		wsServer = ws.NewServer(wsSettings)
+		wsServer = ws.NewServer(context.Background(), wsSettings)
 		work = sync.WaitGroup{}
 		wsServer.Start(ctx, &work)
 		testContext = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
