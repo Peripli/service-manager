@@ -2,7 +2,9 @@ package interceptors
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
+
+	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
@@ -13,7 +15,7 @@ func NewVisibilityNotificationsInterceptor() *NotificationsInterceptor {
 		PlatformIdSetterFunc: func(ctx context.Context, obj types.Object) string {
 			return obj.(*types.Visibility).PlatformID
 		},
-		AdditionalDetailsFunc: func(ctx context.Context, obj types.Object, repository storage.Repository) (json.Marshaler, error) {
+		AdditionalDetailsFunc: func(ctx context.Context, obj types.Object, repository storage.Repository) (util.InputValidator, error) {
 			visibility := obj.(*types.Visibility)
 
 			plan, err := repository.Get(ctx, types.ServicePlanType, visibility.ServicePlanID)
@@ -41,14 +43,12 @@ type VisibilityAdditional struct {
 	ServicePlan *types.ServicePlan `json:"service_plan,omitempty"`
 }
 
-func (va *VisibilityAdditional) MarshalJSON() ([]byte, error) {
-	type E VisibilityAdditional
-	toMarshal := struct {
-		*E
-	}{
-		E: (*E)(va),
+func (va VisibilityAdditional) Validate() error {
+	if va.BrokerID == "" {
+		return fmt.Errorf("broker id cannot be empty")
 	}
-	return json.Marshal(toMarshal)
+
+	return va.ServicePlan.Validate()
 }
 
 type VisibilityCreateNotificationsInterceptorProvider struct {

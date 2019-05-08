@@ -2,7 +2,9 @@ package interceptors
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
+
+	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
@@ -13,7 +15,7 @@ func NewBrokerNotificationsInterceptor() *NotificationsInterceptor {
 		PlatformIdSetterFunc: func(ctx context.Context, obj types.Object) string {
 			return ""
 		},
-		AdditionalDetailsFunc: func(ctx context.Context, obj types.Object, repository storage.Repository) (json.Marshaler, error) {
+		AdditionalDetailsFunc: func(ctx context.Context, obj types.Object, repository storage.Repository) (util.InputValidator, error) {
 			broker := obj.(*types.ServiceBroker)
 
 			return &BrokerAdditional{
@@ -27,14 +29,12 @@ type BrokerAdditional struct {
 	Services []*types.ServiceOffering `json:"services,omitempty"`
 }
 
-func (ba *BrokerAdditional) MarshalJSON() ([]byte, error) {
-	type E BrokerAdditional
-	toMarshal := struct {
-		*E
-	}{
-		E: (*E)(ba),
+func (ba BrokerAdditional) Validate() error {
+	if len(ba.Services) == 0 {
+		return fmt.Errorf("broker details services cannot be empty")
 	}
-	return json.Marshal(toMarshal)
+
+	return nil
 }
 
 type BrokerNotificationsCreateInterceptorProvider struct {

@@ -20,8 +20,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/Peripli/service-manager/pkg/query"
-
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
@@ -48,17 +46,6 @@ type Notification struct {
 	PlatformID string          `json:"platform_id,omitempty"`
 	Revision   int64           `json:"revision"`
 	Payload    json.RawMessage `json:"payload"`
-}
-
-type Payload struct {
-	New          *ObjectPayload     `json:"new,omitempty"`
-	Old          *ObjectPayload     `json:"old,omitempty"`
-	LabelChanges query.LabelChanges `json:"label_changes,omitempty"`
-}
-
-type ObjectPayload struct {
-	Resource   Object         `json:"resource,omitempty"`
-	Additional json.Marshaler `json:"additional,omitempty"`
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
