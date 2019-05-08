@@ -212,12 +212,14 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	}
 
 	createdAt := objFromDB.GetCreatedAt()
+	updatedAt := objFromDB.GetUpdatedAt()
+
 	if err := util.BytesToObject(r.Body, objFromDB); err != nil {
 		return nil, err
 	}
 	objFromDB.SetID(objectID)
 	objFromDB.SetCreatedAt(createdAt)
-	objFromDB.SetUpdatedAt(time.Now().UTC())
+	objFromDB.SetUpdatedAt(updatedAt)
 	object, err := c.repository.Update(ctx, objFromDB, labelChanges...)
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
