@@ -285,7 +285,7 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, br
 
 	MergeObjects(brokerJSON, brokerData)
 
-	brokerID := RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth)
+	brokerID := RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth, map[string]string{})
 	brokerServer.ResetCallHistory()
 	ctx.Servers[BrokerServerPrefix+brokerID] = brokerServer
 	brokerJSON["id"] = brokerID
