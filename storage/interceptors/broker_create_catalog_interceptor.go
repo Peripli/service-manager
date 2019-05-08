@@ -20,7 +20,6 @@ import (
 	"context"
 
 	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 )
@@ -70,12 +69,12 @@ func (c *CreateBrokerInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) 
 		for serviceIndex := range broker.Services {
 			service := broker.Services[serviceIndex]
 			if _, err := storage.Create(ctx, service); err != nil {
-				return util.HandleStorageError(err, "service_offering")
+				return err
 			}
 			for planIndex := range service.Plans {
 				servicePlan := service.Plans[planIndex]
 				if _, err := storage.Create(ctx, servicePlan); err != nil {
-					return util.HandleStorageError(err, "service_plan")
+					return err
 				}
 			}
 		}

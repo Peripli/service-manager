@@ -24,7 +24,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/gofrs/uuid"
 )
@@ -153,7 +152,7 @@ func resync(ctx context.Context, broker *types.ServiceBroker, txStorage storage.
 					ServicePlanID: servicePlan.ID,
 				})
 				if err != nil {
-					return util.HandleStorageError(err, "visibility")
+					return err
 				}
 
 				log.C(ctx).Debugf("Created new public visibility for broker with id %s and plan with id %s", broker.ID, planID)
