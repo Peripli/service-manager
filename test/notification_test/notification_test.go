@@ -76,9 +76,7 @@ var _ = Describe("WS", func() {
 		if repository != nil {
 			_, err := repository.Delete(context.Background(), types.NotificationType)
 			if err != nil {
-				// TODO: Storage returns *util.HTTPError???
-				httpErr := err.(*util.HTTPError)
-				Expect(httpErr.StatusCode).Should(Equal(http.StatusNotFound))
+				Expect(err).To(Equal(util.ErrNotFoundInStorage))
 			}
 		}
 		ctx.Cleanup()

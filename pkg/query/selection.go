@@ -117,7 +117,7 @@ func newCriterion(leftOp string, operator Operator, rightOp []string, criteriaTy
 // Validate the criterion fields
 func (c Criterion) Validate() error {
 	if len(c.RightOp) > 1 && !c.Operator.IsMultiVariate() {
-		return fmt.Errorf("multiple values %s received for single value operation %s", c.RightOp, c.Operator)
+		return &util.UnsupportedQueryError{Message: fmt.Sprintf("multiple values %s received for single value operation %s", c.RightOp, c.Operator)}
 	}
 	if c.Operator.IsNullable() && c.Type != FieldQuery {
 		return &util.UnsupportedQueryError{Message: "nullable operations are supported only for field queries"}
@@ -134,7 +134,7 @@ func (c Criterion) Validate() error {
 	}
 	for _, op := range c.RightOp {
 		if strings.ContainsRune(op, '\n') {
-			return fmt.Errorf("%s with key \"%s\" has value \"%s\" contaning forbidden new line character", c.Type, c.LeftOp, op)
+			return &util.UnsupportedQueryError{Message: fmt.Sprintf("%s with key \"%s\" has value \"%s\" contaning forbidden new line character", c.Type, c.LeftOp, op)}
 		}
 	}
 	return nil
@@ -265,7 +265,9 @@ func process(input string, criteriaType CriterionType) ([]Criterion, error) {
 		}
 	}
 	if len(c) == 0 {
-		return nil, fmt.Errorf("%s is not a valid %s", input, criteriaType)
+		return nil, &util.UnsupportedQueryError{
+			Message: fmt.Sprintf("%s is not a valid %s", input, criteriaType),
+		}
 	}
 	return c, nil
 }
@@ -307,13 +309,13 @@ func findRightOp(remaining string, leftOp string, operator Operator, criteriaTyp
 		if strings.IndexRune(firstElement, OpenBracket) == 0 {
 			rightOp[0] = firstElement[1:]
 		} else {
-			return nil, -1, fmt.Errorf("operator %s for %s %s requires right operand to be surrounded in %c%c", operator, criteriaType, leftOp, OpenBracket, CloseBracket)
+			return nil, -1, &util.UnsupportedQueryError{Message: fmt.Sprintf("operator %s for %s %s requires right operand to be surrounded in %c%c", operator, criteriaType, leftOp, OpenBracket, CloseBracket)}
 		}
 		lastElement := rightOp[len(rightOp)-1]
 		if rune(lastElement[len(lastElement)-1]) == CloseBracket {
 			rightOp[len(rightOp)-1] = lastElement[:len(lastElement)-1]
 		} else {
-			return nil, -1, fmt.Errorf("operator %s for %s %s requires right operand to be surrounded in %c%c", operator, criteriaType, leftOp, OpenBracket, CloseBracket)
+			return nil, -1, &util.UnsupportedQueryError{Message: fmt.Sprintf("operator %s for %s %s requires right operand to be surrounded in %c%c", operator, criteriaType, leftOp, OpenBracket, CloseBracket)}
 		}
 	}
 	if len(rightOp) == 0 {

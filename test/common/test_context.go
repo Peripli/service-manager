@@ -28,6 +28,7 @@ import (
 	"github.com/gofrs/uuid"
 
 	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/storage"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/onsi/ginkgo"
@@ -62,10 +63,13 @@ type TestContextBuilder struct {
 }
 
 type TestContext struct {
-	wg           *sync.WaitGroup
+	wg *sync.WaitGroup
+
 	SM           *httpexpect.Expect
 	SMWithOAuth  *httpexpect.Expect
 	SMWithBasic  *httpexpect.Expect
+	SMRepository storage.Repository
+
 	TestPlatform *types.Platform
 
 	Servers map[string]FakeServer
@@ -95,6 +99,7 @@ func NewTestContextBuilder() *TestContextBuilder {
 	return &TestContextBuilder{
 		envPreHooks: []func(set *pflag.FlagSet){
 			SetTestFileLocation,
+			SetNotificationsCleanerSettings,
 		},
 		Environment: TestEnv,
 		envPostHooks: []func(env env.Environment, servers map[string]FakeServer){
@@ -123,6 +128,17 @@ func SetTestFileLocation(set *pflag.FlagSet) {
 	_, b, _, _ := runtime.Caller(0)
 	basePath := path.Dir(b)
 	err := set.Set("file.location", basePath)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func SetNotificationsCleanerSettings(set *pflag.FlagSet) {
+	err := set.Set("storage.notification.clean_interval", "24h")
+	if err != nil {
+		panic(err)
+	}
+	err = set.Set("storage.notification.keep_for", "24h")
 	if err != nil {
 		panic(err)
 	}
@@ -202,9 +218,9 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 	for _, envPostHook := range tcb.envPostHooks {
 		envPostHook(environment, tcb.Servers)
 	}
-
 	wg := &sync.WaitGroup{}
-	smServer := newSMServer(environment, tcb.smExtensions, wg)
+
+	smServer, smRepository := newSMServer(environment, wg, tcb.smExtensions)
 	tcb.Servers[SMServer] = smServer
 
 	SM := httpexpect.New(GinkgoT(), smServer.URL())
@@ -217,10 +233,11 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 	RemoveAllPlatforms(SMWithOAuth)
 
 	testContext := &TestContext{
-		wg:          wg,
-		SM:          SM,
-		SMWithOAuth: SMWithOAuth,
-		Servers:     tcb.Servers,
+		wg:           wg,
+		SM:           SM,
+		SMWithOAuth:  SMWithOAuth,
+		Servers:      tcb.Servers,
+		SMRepository: smRepository,
 	}
 
 	if !tcb.shouldSkipBasicAuthClient {
@@ -235,10 +252,9 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 	}
 
 	return testContext
-
 }
 
-func newSMServer(smEnv env.Environment, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error, wg *sync.WaitGroup) *testSMServer {
+func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error) (*testSMServer, storage.Repository) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := struct {
 		Log *log.Settings
@@ -259,16 +275,22 @@ func newSMServer(smEnv env.Environment, fs []func(ctx context.Context, smb *sm.S
 		}
 	}
 	serviceManager := smb.Build()
-	err = serviceManager.Notificator.Start(ctx, wg)
+
+	smb.WsServer.Start(ctx, wg)
+
+	err = smb.Notificator.Start(ctx, wg)
 	if err != nil {
-		panic(fmt.Errorf("could not start notificator: %v", err))
+		panic(err)
 	}
-	serviceManager.WsServer.Start(ctx, wg)
+	err = smb.NotificationCleaner.Start(ctx, wg)
+	if err != nil {
+		panic(err)
+	}
 
 	return &testSMServer{
 		cancel: cancel,
 		Server: httptest.NewServer(serviceManager.Server.Router),
-	}
+	}, smb.Storage
 }
 
 func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object) (string, Object, *BrokerServer) {
@@ -295,11 +317,12 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, br
 
 	MergeObjects(brokerJSON, brokerData)
 
-	brokerID := RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth)
+	broker := RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth)
+	brokerID := broker["id"].(string)
 	brokerServer.ResetCallHistory()
 	ctx.Servers[BrokerServerPrefix+brokerID] = brokerServer
 	brokerJSON["id"] = brokerID
-	return brokerID, brokerJSON, brokerServer
+	return brokerID, broker, brokerServer
 }
 
 func MergeObjects(target, source Object) {
