@@ -210,8 +210,9 @@ func RegisterBrokerInSM(brokerJSON Object, SM *httpexpect.Expect) string {
 	return reply.Value("id").String().Raw()
 }
 
-func RegisterPlatformInSM(platformJSON Object, SM *httpexpect.Expect) *types.Platform {
+func RegisterPlatformInSM(platformJSON Object, SM *httpexpect.Expect, headers map[string]string) *types.Platform {
 	reply := SM.POST("/v1/platforms").
+		WithHeaders(headers).
 		WithJSON(platformJSON).
 		Expect().Status(http.StatusCreated).JSON().Object().Raw()
 	platform := &types.Platform{
