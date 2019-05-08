@@ -23,61 +23,6 @@ type Payload struct {
 	LabelChanges query.LabelChanges `json:"label_changes,omitempty"`
 }
 
-func (p *Payload) Validate(op types.OperationType) error {
-	switch op {
-	case types.CREATED:
-		if p.New == nil || p.New.Resource == nil || p.New.Additional == nil {
-			return fmt.Errorf("new resource and non empty additional details are required for CREATED notifications")
-		}
-
-		if err := p.New.Resource.Validate(); err != nil {
-			return fmt.Errorf("invalid new resource in CREATED notification: %s", err)
-		}
-
-		if err := p.New.Additional.Validate(); err != nil {
-			return fmt.Errorf("invalid new resource additional details in CREATED notification: %s", err)
-		}
-	case types.MODIFIED:
-		if p.Old == nil || p.Old.Resource == nil || p.Old.Additional == nil {
-			return fmt.Errorf("new resource is required for MODIFIED notifications")
-		}
-
-		if err := p.Old.Resource.Validate(); err != nil {
-			return fmt.Errorf("invalid old resource in MODIFIED notification: %s", err)
-		}
-
-		if err := p.Old.Additional.Validate(); err != nil {
-			return fmt.Errorf("invalid old resource additional details in MODIFIED notification: %s", err)
-		}
-
-		if p.New == nil || p.New.Resource == nil || p.New.Additional == nil {
-			return fmt.Errorf("old resource is required for MODIFIED notifications")
-		}
-
-		if err := p.New.Resource.Validate(); err != nil {
-			return fmt.Errorf("invalid new resource in MODIFIED notification: %s", err)
-		}
-
-		if err := p.New.Additional.Validate(); err != nil {
-			return fmt.Errorf("invalid new resource additional details in MODIFIED notification: %s", err)
-		}
-	case types.DELETED:
-		if p.Old == nil || p.Old.Resource == nil || p.Old.Additional == nil {
-			return fmt.Errorf("old resource is required for DELETED notifications")
-		}
-
-		if err := p.Old.Resource.Validate(); err != nil {
-			return fmt.Errorf("invalid new resource in DELETED notification: %s", err)
-		}
-
-		if err := p.Old.Additional.Validate(); err != nil {
-			return fmt.Errorf("invalid old resource additional details in CREATED notification: %s", err)
-		}
-	}
-
-	return nil
-}
-
 type ObjectPayload struct {
 	Resource   types.Object        `json:"resource,omitempty"`
 	Additional util.InputValidator `json:"additional,omitempty"`
