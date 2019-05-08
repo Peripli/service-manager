@@ -20,12 +20,13 @@ import (
 	"context"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/util"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/security"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/pkg/util"
 )
 
 func NewInterceptableTransactionalRepository(repository TransactionalRepository, encrypter security.Encrypter) *InterceptableTransactionalRepository {

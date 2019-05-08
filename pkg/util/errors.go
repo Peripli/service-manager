@@ -132,6 +132,12 @@ func HandleStorageError(err error, entityName string) error {
 			Description: fmt.Sprintf("could not find such %s", entityName),
 			StatusCode:  http.StatusNotFound,
 		}
+	case ErrConcurrentResourceModification:
+		return &HTTPError{
+			ErrorType:   "ConcurrentResourceUpdate",
+			Description: "Another concurrent resource update occurred. Please reattempt the update operation",
+			StatusCode:  http.StatusPreconditionFailed,
+		}
 	default:
 		// in case we did not replace the pg.Error in the DB layer, propagate it as response message to give the caller relevant info
 		switch e := err.(type) {

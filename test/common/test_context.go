@@ -29,8 +29,11 @@ import (
 	"github.com/Peripli/service-manager/storage"
 
 	"github.com/gofrs/uuid"
+	"sync"
 
 	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/storage"
+	"github.com/gofrs/uuid"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/onsi/ginkgo"
@@ -65,6 +68,8 @@ type TestContextBuilder struct {
 }
 
 type TestContext struct {
+	wg *sync.WaitGroup
+
 	SM           *httpexpect.Expect
 	SMWithOAuth  *httpexpect.Expect
 	SMWithBasic  *httpexpect.Expect
@@ -99,6 +104,7 @@ func NewTestContextBuilder() *TestContextBuilder {
 	return &TestContextBuilder{
 		envPreHooks: []func(set *pflag.FlagSet){
 			SetTestFileLocation,
+			SetNotificationsCleanerSettings,
 		},
 		Environment: TestEnv,
 		envPostHooks: []func(env env.Environment, servers map[string]FakeServer){
@@ -127,6 +133,17 @@ func SetTestFileLocation(set *pflag.FlagSet) {
 	_, b, _, _ := runtime.Caller(0)
 	basePath := path.Dir(b)
 	err := set.Set("file.location", basePath)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func SetNotificationsCleanerSettings(set *pflag.FlagSet) {
+	err := set.Set("storage.notification.clean_interval", "24h")
+	if err != nil {
+		panic(err)
+	}
+	err = set.Set("storage.notification.keep_for", "24h")
 	if err != nil {
 		panic(err)
 	}
@@ -206,8 +223,9 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 	for _, envPostHook := range tcb.envPostHooks {
 		envPostHook(environment, tcb.Servers)
 	}
+	wg := &sync.WaitGroup{}
 
-	smServer, smRepository := newSMServer(environment, tcb.smExtensions)
+	smServer, smRepository := newSMServer(environment, wg, tcb.smExtensions)
 	tcb.Servers[SMServer] = smServer
 
 	SM := httpexpect.New(GinkgoT(), smServer.URL())
@@ -220,6 +238,7 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 	RemoveAllPlatforms(SMWithOAuth)
 
 	testContext := &TestContext{
+		wg:           wg,
 		SM:           SM,
 		SMWithOAuth:  SMWithOAuth,
 		Servers:      tcb.Servers,
@@ -238,10 +257,9 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 	}
 
 	return testContext
-
 }
 
-func newSMServer(smEnv env.Environment, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error) (*testSMServer, storage.Repository) {
+func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error) (*testSMServer, storage.Repository) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := struct {
 		Log *log.Settings
@@ -262,6 +280,14 @@ func newSMServer(smEnv env.Environment, fs []func(ctx context.Context, smb *sm.S
 		}
 	}
 	serviceManager := smb.Build()
+	err = smb.Notificator.Start(ctx, wg)
+	if err != nil {
+		panic(err)
+	}
+	err = smb.NotificationCleaner.Start(ctx, wg)
+	if err != nil {
+		panic(err)
+	}
 	return &testSMServer{
 		cancel: cancel,
 		Server: httptest.NewServer(serviceManager.Server.Router),
@@ -361,6 +387,7 @@ func (ctx *TestContext) Cleanup() {
 		server.Close()
 	}
 	ctx.Servers = map[string]FakeServer{}
+	ctx.wg.Wait()
 }
 
 func (ctx *TestContext) CleanupAdditionalResources() {

@@ -207,8 +207,7 @@ func removeAll(SM *httpexpect.Expect, entity, rootURLPath string) {
 
 func RegisterBrokerInSM(brokerJSON Object, SM *httpexpect.Expect) Object {
 	return SM.POST("/v1/service_brokers").
-		WithJSON(brokerJSON).
-		Expect().Status(http.StatusCreated).JSON().Object().Raw()
+		WithJSON(brokerJSON).Expect().Status(http.StatusCreated).JSON().Object().Raw()
 }
 
 func RegisterPlatformInSM(platformJSON Object, SM *httpexpect.Expect) *types.Platform {

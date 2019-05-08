@@ -14,10 +14,11 @@
  *    limitations under the License.
  */
 
-package storage
+package storage_test
 
 import (
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -32,8 +33,8 @@ var _ = Describe("NotificationQueue", func() {
 		}
 	})
 
-	newQueue := func(size int) NotificationQueue {
-		queue, err := NewNotificationQueue(size)
+	newQueue := func(size int) storage.NotificationQueue {
+		queue, err := storage.NewNotificationQueue(size)
 		Expect(err).ToNot(HaveOccurred())
 		return queue
 	}
@@ -72,7 +73,7 @@ var _ = Describe("NotificationQueue", func() {
 			notificationQueue := newQueue(1)
 			notificationQueue.Close()
 			err := notificationQueue.Enqueue(nil)
-			Expect(err).To(Equal(ErrQueueClosed))
+			Expect(err).To(Equal(storage.ErrQueueClosed))
 		})
 	})
 

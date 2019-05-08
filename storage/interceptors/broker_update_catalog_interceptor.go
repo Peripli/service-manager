@@ -75,7 +75,7 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 
 		existingServiceOfferingsWithServicePlans, err := catalog.Load(ctx, oldBroker.GetID(), txStorage)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error getting catalog for broker with id %s from SM DB: %s", brokerID, err)
 		}
 
 		oldBroker.Services = existingServiceOfferingsWithServicePlans.ServiceOfferings
@@ -86,11 +86,7 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 		}
 
 		updatedBroker := updatedObject.(*types.ServiceBroker)
-
 		brokerID := updatedBroker.GetID()
-		if err != nil {
-			return nil, fmt.Errorf("error getting catalog for broker with id %s from SM DB: %s", brokerID, err)
-		}
 
 		existingServicesOfferingsMap, existingServicePlansPerOfferingMap := convertExistingServiceOfferringsToMaps(existingServiceOfferingsWithServicePlans.ServiceOfferings)
 		log.C(ctx).Debugf("Found %d services currently known for broker", len(existingServicesOfferingsMap))

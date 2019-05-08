@@ -22,18 +22,18 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/fatih/structs"
 	"github.com/spf13/cast"
+
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
 // File describes the name, path and the format of the file to be used to load the configuration in the env
 type File struct {
-	Name     string
-	Location string
-	Format   string
+	Name     string `description:"name of the configuration file"`
+	Location string `description:"location of the configuration file"`
+	Format   string `description:"extension of the configuration file"`
 }
 
 // DefaultConfigFile holds the default SM config file properties
@@ -73,11 +73,11 @@ func EmptyFlagSet() *pflag.FlagSet {
 
 // CreatePFlags Creates pflags for the value structure and adds them in the provided set
 func CreatePFlags(set *pflag.FlagSet, value interface{}) {
-	properties := make(map[string]interface{})
-	traverseFields(value, "", properties)
-	for bindingName, defaultValue := range properties {
-		if set.Lookup(bindingName) == nil {
-			set.String(bindingName, cast.ToString(defaultValue), fmt.Sprintf("commandline argument for %s", bindingName))
+	parameters, descriptions := buildParametersAndDescriptions(value)
+
+	for i, parameter := range parameters {
+		if set.Lookup(parameter.Name) == nil {
+			set.Var(&flag{value: parameter.DefaultValue}, parameter.Name, descriptions[i])
 		}
 	}
 }
@@ -111,43 +111,14 @@ func New(set *pflag.FlagSet) (*ViperEnv, error) {
 // Unmarshal exposes viper's Unmarshal. Prior to unmarshaling it creates the necessary pflag and env var bindings
 // so that pflag / env var values are also used during the unmarshaling.
 func (v *ViperEnv) Unmarshal(value interface{}) error {
-	properties := make(map[string]interface{})
-	traverseFields(value, "", properties)
-	for flagName := range properties {
-		if err := v.Viper.BindEnv(flagName); err != nil {
+	parameters := buildParameters(value)
+	for _, parameter := range parameters {
+		if err := v.Viper.BindEnv(parameter.Name); err != nil {
 			return err
 		}
 	}
+
 	return v.Viper.Unmarshal(value)
-}
-
-// traverseFields traverses the provided structure and prepares a slice of strings that contains
-// the paths to the structure fields (nested paths in the provided structure use dot as a separator)
-func traverseFields(value interface{}, buffer string, result map[string]interface{}) {
-	if !structs.IsStruct(value) {
-		index := strings.LastIndex(buffer, ".")
-		if index == -1 {
-			index = 0
-		}
-		key := strings.ToLower(buffer[0:index])
-		result[key] = value
-		return
-	}
-
-	s := structs.New(value)
-	for _, field := range s.Fields() {
-		if field.IsExported() && field.Kind() != reflect.Interface && field.Kind() != reflect.Func {
-			var name string
-			if field.Tag("mapstructure") != "" {
-				name = field.Tag("mapstructure")
-			} else {
-				name = field.Name()
-			}
-			buffer += name + "."
-			traverseFields(field.Value(), buffer, result)
-			buffer = buffer[0:strings.LastIndex(buffer, name)]
-		}
-	}
 }
 
 func (v *ViperEnv) setupConfigFile() error {
@@ -168,4 +139,21 @@ func (v *ViperEnv) setupConfigFile() error {
 		return fmt.Errorf("could not read configuration cfg: %s", err)
 	}
 	return nil
+}
+
+type flag struct {
+	value interface{}
+}
+
+func (f *flag) String() string {
+	return cast.ToString(f.value)
+}
+
+func (f *flag) Set(s string) error {
+	f.value = s
+	return nil
+}
+
+func (f *flag) Type() string {
+	return reflect.TypeOf(f.value).Name()
 }

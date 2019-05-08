@@ -240,13 +240,13 @@ var _ = Describe("Interceptors", func() {
 
 				updateModificationInterceptors[types.PlatformType].OnTxUpdateStub = func(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
 					return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
-						return nil, errors.New("Expected update to fail")
+						return nil, errors.New("expected update to fail")
 					}
 				}
 
 				platform2 := common.GenerateRandomPlatform()
 				ctx.SMWithOAuth.POST(web.PlatformsURL).WithJSON(platform2).Expect().Status(http.StatusBadRequest).
-					JSON().Object().Value("description").String().Contains("Expected update to fail")
+					JSON().Object().Value("description").String().Contains("expected update to fail")
 
 				ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", web.PlatformsURL, platform2["id"])).
 					Expect().Status(http.StatusNotFound)
@@ -254,7 +254,7 @@ var _ = Describe("Interceptors", func() {
 		})
 
 		Context("when creating platform", func() {
-			It("should call all interceptos", func() {
+			It("should call all interceptors", func() {
 				platform1 := ctx.RegisterPlatform()
 				platform2 := ctx.RegisterPlatform()
 

@@ -129,6 +129,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
 	result.SetID(id)
+
 	return util.NewJSONResponse(http.StatusCreated, result)
 }
 
@@ -157,6 +158,7 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 		return nil, err
 	}
 	r.Request = r.WithContext(ctx)
+
 	return c.DeleteObjects(r)
 }
 
@@ -171,6 +173,7 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
 	stripCredentials(ctx, object)
+
 	return util.NewJSONResponse(http.StatusOK, object)
 }
 
@@ -186,6 +189,7 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 		obj := objectList.ItemAt(i)
 		stripCredentials(ctx, obj)
 	}
+
 	return util.NewJSONResponse(http.StatusOK, objectList)
 }
 
@@ -222,6 +226,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
 	stripCredentials(ctx, object)
+
 	return util.NewJSONResponse(http.StatusOK, object)
 }
 
