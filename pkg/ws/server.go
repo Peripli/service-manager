@@ -94,7 +94,6 @@ func (s *Server) Upgrade(rw http.ResponseWriter, req *http.Request, header http.
 		return nil, err
 	}
 	s.setConnTimeout(wsConn)
-	s.setCloseHandler(wsConn)
 
 	s.connWorkers.Add(1)
 	go s.handleConn(wsConn, done)
@@ -122,13 +121,6 @@ func (s *Server) shutdown(ctx context.Context, work *sync.WaitGroup) {
 	defer work.Done()
 
 	s.connWorkers.Wait()
-}
-
-func (s *Server) setCloseHandler(c *Conn) {
-	c.SetCloseHandler(func(code int, text string) error {
-		log.D().Infof("Websocket received close: %s", text)
-		return s.sendClose(c, code)
-	})
 }
 
 func (s *Server) sendClose(c *Conn, closeCode int) error {
