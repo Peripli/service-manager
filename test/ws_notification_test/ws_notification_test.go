@@ -72,7 +72,7 @@ var _ = Describe("WS", func() {
 			}).Build()
 		Expect(repository).ToNot(BeNil())
 
-		platform = common.RegisterPlatformInSM(common.GenerateRandomPlatform(), ctx.SMWithOAuth)
+		platform = common.RegisterPlatformInSM(common.GenerateRandomPlatform(), ctx.SMWithOAuth, map[string]string{})
 	})
 
 	JustBeforeEach(func() {
@@ -273,7 +273,7 @@ var _ = Describe("WS", func() {
 })
 
 func wsconnectWithPlatform(ctx *common.TestContext) (*types.Platform, *websocket.Conn, *http.Response, error) {
-	platform := common.RegisterPlatformInSM(common.GenerateRandomPlatform(), ctx.SMWithOAuth)
+	platform := common.RegisterPlatformInSM(common.GenerateRandomPlatform(), ctx.SMWithOAuth, map[string]string{})
 	conn, resp, err := wsconnect(ctx, platform, web.NotificationsURL, nil)
 	return platform, conn, resp, err
 }
