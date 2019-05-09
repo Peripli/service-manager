@@ -225,8 +225,14 @@ var _ = Describe("Notifications Suite", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 				serviceOffering := service.(*types.ServiceOffering)
 
+				broker, err := repository.Get(c, types.ServiceBrokerType, serviceOffering.BrokerID)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				serviceBroker := broker.(*types.ServiceBroker)
+
 				bytes, err := json.Marshal(interceptors.VisibilityAdditional{
-					BrokerID:    serviceOffering.BrokerID,
+					BrokerID:    serviceBroker.ID,
+					BrokerName:  serviceBroker.Name,
 					ServicePlan: expectedServicePlan,
 				})
 				Expect(err).ShouldNot(HaveOccurred())
