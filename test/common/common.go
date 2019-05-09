@@ -205,13 +205,15 @@ func removeAll(SM *httpexpect.Expect, entity, rootURLPath string) {
 	SM.DELETE(rootURLPath).Expect()
 }
 
-func RegisterBrokerInSM(brokerJSON Object, SM *httpexpect.Expect) Object {
+func RegisterBrokerInSM(brokerJSON Object, SM *httpexpect.Expect, headers map[string]string) Object {
 	return SM.POST("/v1/service_brokers").
+		WithHeaders(headers).
 		WithJSON(brokerJSON).Expect().Status(http.StatusCreated).JSON().Object().Raw()
 }
 
-func RegisterPlatformInSM(platformJSON Object, SM *httpexpect.Expect) *types.Platform {
+func RegisterPlatformInSM(platformJSON Object, SM *httpexpect.Expect, headers map[string]string) *types.Platform {
 	reply := SM.POST("/v1/platforms").
+		WithHeaders(headers).
 		WithJSON(platformJSON).
 		Expect().Status(http.StatusCreated).JSON().Object().Raw()
 	createdAtString := reply["created_at"].(string)
