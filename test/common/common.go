@@ -205,7 +205,7 @@ func removeAll(SM *httpexpect.Expect, entity, rootURLPath string) {
 	SM.DELETE(rootURLPath).Expect()
 }
 
-func RegisterBrokerInSM(brokerJSON Object, SM *httpexpect.Expect,  headers map[string]string) Object {
+func RegisterBrokerInSM(brokerJSON Object, SM *httpexpect.Expect, headers map[string]string) Object {
 	return SM.POST("/v1/service_brokers").
 		WithHeaders(headers).
 		WithJSON(brokerJSON).Expect().Status(http.StatusCreated).JSON().Object().Raw()
