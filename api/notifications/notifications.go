@@ -40,7 +40,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		var err error
 		revisionKnownToProxy, err = strconv.ParseInt(revisionKnownToProxyStr, 10, 64)
 		if err != nil {
-			log.C(ctx).Errorf("could not convert string to number: %v", err)
+			log.C(ctx).Errorf("could not convert string %s to number: %v", revisionKnownToProxyStr, err)
 			return nil, &util.HTTPError{
 				StatusCode:  http.StatusBadRequest,
 				Description: fmt.Sprintf("invalid %s query parameter", lastKnownRevisionQueryParam),
