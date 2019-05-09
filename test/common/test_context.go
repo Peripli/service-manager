@@ -28,9 +28,10 @@ import (
 
 	"sync"
 
+	"github.com/gofrs/uuid"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/gofrs/uuid"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/onsi/ginkgo"
@@ -244,7 +245,7 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 
 	if !tcb.shouldSkipBasicAuthClient {
 		platformJSON := MakePlatform("tcb-platform-test", "tcb-platform-test", "platform-type", "test-platform")
-		platform := RegisterPlatformInSM(platformJSON, SMWithOAuth)
+		platform := RegisterPlatformInSM(platformJSON, SMWithOAuth, map[string]string{})
 		SMWithBasic := SM.Builder(func(req *httpexpect.Request) {
 			username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
 			req.WithBasicAuth(username, password)
@@ -277,6 +278,7 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 		}
 	}
 	serviceManager := smb.Build()
+
 	err = smb.Notificator.Start(ctx, wg)
 	if err != nil {
 		panic(err)
@@ -285,6 +287,7 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 	if err != nil {
 		panic(err)
 	}
+
 	return &testSMServer{
 		cancel: cancel,
 		Server: httptest.NewServer(serviceManager.Server.Router),
@@ -315,7 +318,7 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, br
 
 	MergeObjects(brokerJSON, brokerData)
 
-	broker := RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth)
+	broker := RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth, map[string]string{})
 	brokerID := broker["id"].(string)
 	brokerServer.ResetCallHistory()
 	ctx.Servers[BrokerServerPrefix+brokerID] = brokerServer
@@ -365,7 +368,7 @@ func (ctx *TestContext) RegisterPlatform() *types.Platform {
 		"type":        "testType",
 		"description": "testDescrption",
 	}
-	return RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth)
+	return RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
 }
 
 func (ctx *TestContext) CleanupBroker(id string) {

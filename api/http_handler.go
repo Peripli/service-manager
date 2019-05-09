@@ -61,11 +61,11 @@ func (h *HTTPHandler) serve(res http.ResponseWriter, req *http.Request) error {
 	}
 
 	response, err := h.Handler.Handle(request)
-	if err != nil {
-		return err
-	}
 	if request.IsResponseWriterHijacked() {
 		return nil
+	}
+	if err != nil {
+		return err
 	}
 
 	// copy response headers
