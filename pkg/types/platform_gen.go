@@ -8,7 +8,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
-const PlatformType ObjectType = "Platform"
+const PlatformType ObjectType = "types.Platform"
 
 type Platforms struct {
 	Platforms []*Platform `json:"platforms"`

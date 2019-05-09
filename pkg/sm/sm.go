@@ -166,13 +166,23 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 		NotificationCleaner: notificationCleaner,
 	}
 
-	smb.WithCreateInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerCreateInterceptorProvider{
-		OsbClientCreateFunc: newOSBClient(cfg.API.SkipSSLValidation),
-	}).Register().
-		WithUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerUpdateInterceptorProvider{
+	smb.
+		WithCreateInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerCreateCatalogInterceptorProvider{
 			OsbClientCreateFunc: newOSBClient(cfg.API.SkipSSLValidation),
 		}).Register().
-		WithCreateInterceptorProvider(types.PlatformType, &interceptors.PlatformCreateInterceptorProvider{}).Register()
+		WithUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerUpdateCatalogInterceptorProvider{
+			OsbClientCreateFunc: newOSBClient(cfg.API.SkipSSLValidation),
+		}).Register().
+		WithDeleteInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerDeleteCatalogInterceptorProvider{
+			OsbClientCreateFunc: newOSBClient(cfg.API.SkipSSLValidation),
+		}).Register().
+		WithCreateInterceptorProvider(types.PlatformType, &interceptors.PlatformCreateInterceptorProvider{}).Register().
+		WithCreateInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsCreateInterceptorProvider{}).Before(interceptors.BrokerCreateCatalogInterceptorName).Register().
+		WithUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsUpdateInterceptorProvider{}).Before(interceptors.BrokerUpdateCatalogInterceptorName).Register().
+		WithDeleteInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsDeleteInterceptorProvider{}).After(interceptors.BrokerDeleteCatalogInterceptorName).Register().
+		WithCreateInterceptorProvider(types.VisibilityType, &interceptors.VisibilityCreateNotificationsInterceptorProvider{}).Register().
+		WithUpdateInterceptorProvider(types.VisibilityType, &interceptors.VisibilityUpdateNotificationsInterceptorProvider{}).Register().
+		WithDeleteInterceptorProvider(types.VisibilityType, &interceptors.VisibilityDeleteNotificationsInterceptorProvider{}).Register()
 
 	return smb
 }

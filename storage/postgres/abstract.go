@@ -111,7 +111,7 @@ func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface
 	} else {
 		baseQuery = constructBaseQueryForLabelable(label, baseTableName)
 	}
-	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, baseTableName, label, criteria, getDBTags(baseEntity, nil))
+	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, baseTableName, label, criteria, getDBTags(baseEntity, nil), " ORDER BY created_at")
 	if err != nil {
 		return nil, err
 	}
@@ -130,8 +130,7 @@ func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface
 
 func listByFieldCriteria(ctx context.Context, db pgDB, table string, criteria []query.Criterion) (*sqlx.Rows, error) {
 	baseQuery := constructBaseQueryForEntity(table)
-	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, table, nil, criteria, nil)
-
+	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, table, nil, criteria, nil, " ORDER BY created_at")
 	if err != nil {
 		return nil, err
 	}

@@ -28,7 +28,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
-const {{.Type}}Type {{.TypesPackage}}ObjectType = "{{.Type}}"
+const {{.Type}}Type {{.TypesPackage}}ObjectType = "{{.PackageName}}.{{.Type}}"
 
 type {{.TypePlural}} struct {
 	{{.TypePlural}} []*{{.Type}} ` + "`json:\"{{.TypePluralLowercase}}\"`" + `

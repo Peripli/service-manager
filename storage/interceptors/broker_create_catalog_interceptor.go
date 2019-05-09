@@ -24,27 +24,27 @@ import (
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 )
 
-const CreateBrokerInterceptorName = "CreateBrokerCatalogInterceptor"
+const BrokerCreateCatalogInterceptorName = "BrokerCreateCatalogInterceptor"
 
-type BrokerCreateInterceptorProvider struct {
+type BrokerCreateCatalogInterceptorProvider struct {
 	OsbClientCreateFunc osbc.CreateFunc
 }
 
-func (c *BrokerCreateInterceptorProvider) Name() string {
-	return CreateBrokerInterceptorName
+func (c *BrokerCreateCatalogInterceptorProvider) Name() string {
+	return BrokerCreateCatalogInterceptorName
 }
 
-func (c *BrokerCreateInterceptorProvider) Provide() storage.CreateInterceptor {
-	return &CreateBrokerInterceptor{
+func (c *BrokerCreateCatalogInterceptorProvider) Provide() storage.CreateInterceptor {
+	return &brokerCreateCatalogInterceptor{
 		OSBClientCreateFunc: c.OsbClientCreateFunc,
 	}
 }
 
-type CreateBrokerInterceptor struct {
+type brokerCreateCatalogInterceptor struct {
 	OSBClientCreateFunc osbc.CreateFunc
 }
 
-func (c *CreateBrokerInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
+func (c *brokerCreateCatalogInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		broker := obj.(*types.ServiceBroker)
 		catalog, err := getBrokerCatalog(ctx, c.OSBClientCreateFunc, broker)
@@ -59,7 +59,7 @@ func (c *CreateBrokerInterceptor) AroundTxCreate(h storage.InterceptCreateAround
 	}
 }
 
-func (c *CreateBrokerInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
+func (c *brokerCreateCatalogInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 	return func(ctx context.Context, storage storage.Repository, obj types.Object) error {
 		if err := f(ctx, storage, obj); err != nil {
 			return err
@@ -78,6 +78,7 @@ func (c *CreateBrokerInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) 
 				}
 			}
 		}
+
 		return nil
 	}
 }

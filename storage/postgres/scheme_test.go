@@ -156,6 +156,10 @@ var _ = Describe("Postgres Storage", func() {
 type obj struct {
 }
 
+func (obj) Validate() error {
+	return nil
+}
+
 func (obj) GetCreatedAt() time.Time {
 	return time.Now()
 }

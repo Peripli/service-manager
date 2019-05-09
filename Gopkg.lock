@@ -17,6 +17,14 @@
   version = "v1.5.1"
 
 [[projects]]
+  branch = "master"
+  digest = "1:270034307d19ff986d62b52ae7b75c058d80642073b525328ba7b856720932ad"
+  name = "github.com/benjamintf1/unmarshalledmatchers"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "bb1c1f34eaeac620307d94a2371c514fbaf6ec7f"
+
+[[projects]]
   digest = "1:d5fa6328bd281ac91e7b5d3f45b49f8ac36c30b6a530f633d91c6eaef50cd137"
   name = "github.com/cloudfoundry-community/go-cfenv"
   packages = ["."]
@@ -688,6 +696,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/DATA-DOG/go-sqlmock",
+    "github.com/benjamintf1/unmarshalledmatchers",
     "github.com/cloudfoundry-community/go-cfenv",
     "github.com/coreos/go-oidc",
     "github.com/fatih/structs",

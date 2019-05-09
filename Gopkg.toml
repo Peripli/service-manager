@@ -30,6 +30,10 @@
   version = "=1.3.0"
 
 [[constraint]]
+  name = "github.com/benjamintf1/unmarshalledmatchers"
+  branch = "master"
+
+[[constraint]]
   name = "github.com/jmoiron/sqlx"
   branch = "master"
 

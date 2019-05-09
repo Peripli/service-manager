@@ -23,6 +23,9 @@ import (
 	"net/http/httptest"
 	"path"
 	"runtime"
+
+	"github.com/Peripli/service-manager/pkg/util"
+
 	"sync"
 
 	"github.com/gofrs/uuid"
@@ -391,7 +394,14 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 	if ctx == nil {
 		return
 	}
+
+	_, err := ctx.SMRepository.Delete(context.TODO(), types.NotificationType)
+	if err != nil && err != util.ErrNotFoundInStorage {
+		panic(err)
+	}
+
 	ctx.SMWithOAuth.DELETE("/v1/service_brokers").Expect()
+
 	if ctx.TestPlatform != nil {
 		ctx.SMWithOAuth.DELETE("/v1/platforms").WithQuery("fieldQuery", "id != "+ctx.TestPlatform.ID).Expect()
 	} else {
