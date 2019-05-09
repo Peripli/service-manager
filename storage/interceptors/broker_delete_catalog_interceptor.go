@@ -12,7 +12,7 @@ import (
 
 const BrokerDeleteCatalogInterceptorName = "BrokerDeleteCatalogInterceptor"
 
-// BrokerDeleteCatalogInterceptorProvider provides a broker interceptor for update operations
+// BrokerDeleteCatalogInterceptorProvider provides a broker interceptor for delete operations
 type BrokerDeleteCatalogInterceptorProvider struct {
 	OsbClientCreateFunc osbc.CreateFunc
 }
@@ -35,6 +35,7 @@ func (b *brokerDeleteCatalogInterceptor) AroundTxDelete(h storage.InterceptDelet
 	return h
 }
 
+// OnTxDelete loads the broker catalog. Currently the catalog is required so that the additional data to the delete broker notifications can be attached.
 func (b *brokerDeleteCatalogInterceptor) OnTxDelete(h storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
 	return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
 		brokers := objects.(*types.ServiceBrokers)

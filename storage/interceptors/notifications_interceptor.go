@@ -29,8 +29,8 @@ type ObjectPayload struct {
 }
 
 type NotificationsInterceptor struct {
-	PlatformIdSetterFunc  func(ctx context.Context, object types.Object) string
-	AdditionalDetailsFunc func(ctx context.Context, object types.Object, repository storage.Repository) (util.InputValidator, error)
+	PlatformIdProviderFunc func(ctx context.Context, object types.Object) string
+	AdditionalDetailsFunc  func(ctx context.Context, object types.Object, repository storage.Repository) (util.InputValidator, error)
 }
 
 func (ni *NotificationsInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
@@ -56,7 +56,7 @@ func (ni *NotificationsInterceptor) OnTxCreate(h storage.InterceptCreateOnTxFunc
 			return err
 		}
 
-		platformID := ni.PlatformIdSetterFunc(ctx, newObject)
+		platformID := ni.PlatformIdProviderFunc(ctx, newObject)
 
 		return createNotification(ctx, repository, types.CREATED, newObject.GetType(), platformID, &Payload{
 			New: &ObjectPayload{
@@ -79,9 +79,11 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 			return nil, err
 		}
 
-		oldPlatformID := ni.PlatformIdSetterFunc(ctx, oldObject)
-		newPlatformID := ni.PlatformIdSetterFunc(ctx, newObject)
+		oldPlatformID := ni.PlatformIdProviderFunc(ctx, oldObject)
+		newPlatformID := ni.PlatformIdProviderFunc(ctx, newObject)
 
+		// if the resource update contains change in the platform ID field this means that the notification would be processed by
+		// two platforms - one needs to perform a delete operation and the other needs to perform a create operation.
 		if oldPlatformID != newPlatformID {
 			if err := createNotification(ctx, repository, types.CREATED, updatedObject.GetType(), newPlatformID, &Payload{
 				New: &ObjectPayload{
@@ -142,7 +144,7 @@ func (ni *NotificationsInterceptor) OnTxDelete(h storage.InterceptDeleteOnTxFunc
 		for i := 0; i < deletedObjects.Len(); i++ {
 			oldObject := deletedObjects.ItemAt(i)
 
-			platformID := ni.PlatformIdSetterFunc(ctx, oldObject)
+			platformID := ni.PlatformIdProviderFunc(ctx, oldObject)
 
 			if err := createNotification(ctx, repository, types.DELETED, oldObject.GetType(), platformID, &Payload{
 				Old: &ObjectPayload{

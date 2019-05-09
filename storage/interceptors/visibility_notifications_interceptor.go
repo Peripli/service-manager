@@ -12,7 +12,7 @@ import (
 
 func NewVisibilityNotificationsInterceptor() *NotificationsInterceptor {
 	return &NotificationsInterceptor{
-		PlatformIdSetterFunc: func(ctx context.Context, obj types.Object) string {
+		PlatformIdProviderFunc: func(ctx context.Context, obj types.Object) string {
 			return obj.(*types.Visibility).PlatformID
 		},
 		AdditionalDetailsFunc: func(ctx context.Context, obj types.Object, repository storage.Repository) (util.InputValidator, error) {

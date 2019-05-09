@@ -89,8 +89,8 @@ func (p *publicPlanUpdateInterceptor) AroundTxUpdate(h storage.InterceptUpdateAr
 }
 
 func (p *publicPlanUpdateInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
-	return func(ctx context.Context, txStorage storage.Repository, oldObj, newobj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
-		result, err := f(ctx, txStorage, oldObj, newobj, labelChanges...)
+	return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+		result, err := f(ctx, txStorage, oldObj, newObj, labelChanges...)
 		if err != nil {
 			return nil, err
 		}
