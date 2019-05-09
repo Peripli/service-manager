@@ -89,7 +89,7 @@ func (s *Server) Upgrade(rw http.ResponseWriter, req *http.Request, header http.
 	if err != nil {
 		return nil, err
 	}
-	wsConn, err := s.addConn(s.baseCtx, conn, s.connWorkers)
+	wsConn, err := s.addConn(s.baseCtx, conn)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +153,7 @@ func (s *Server) setConnTimeout(c *Conn) {
 	})
 }
 
-func (s *Server) addConn(baseCtx context.Context, c *websocket.Conn, workGroup *sync.WaitGroup) (*Conn, error) {
+func (s *Server) addConn(baseCtx context.Context, c *websocket.Conn) (*Conn, error) {
 	uuid, err := uuid.NewV4()
 	if err != nil {
 		return nil, err
@@ -162,7 +162,6 @@ func (s *Server) addConn(baseCtx context.Context, c *websocket.Conn, workGroup *
 		Conn:     c,
 		ID:       uuid.String(),
 		Shutdown: baseCtx.Done(),
-		work:     workGroup,
 	}
 
 	s.connMutex.Lock()

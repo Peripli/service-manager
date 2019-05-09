@@ -1,8 +1,6 @@
 package ws
 
 import (
-	"sync"
-
 	"github.com/gorilla/websocket"
 )
 
@@ -11,6 +9,4 @@ type Conn struct {
 	ID string
 
 	Shutdown <-chan struct{}
-
-	work *sync.WaitGroup
 }
