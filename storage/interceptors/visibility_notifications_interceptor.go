@@ -30,8 +30,16 @@ func NewVisibilityNotificationsInterceptor() *NotificationsInterceptor {
 			}
 			serviceOffering := service.(*types.ServiceOffering)
 
+			broker, err := repository.Get(ctx, types.ServiceBrokerType, serviceOffering.BrokerID)
+			if err != nil {
+				return nil, err
+			}
+
+			serviceBroker := broker.(*types.ServiceBroker)
+
 			return &VisibilityAdditional{
-				BrokerID:    serviceOffering.BrokerID,
+				BrokerID:    serviceBroker.ID,
+				BrokerName:  serviceBroker.Name,
 				ServicePlan: plan.(*types.ServicePlan),
 			}, nil
 		},
@@ -40,6 +48,7 @@ func NewVisibilityNotificationsInterceptor() *NotificationsInterceptor {
 
 type VisibilityAdditional struct {
 	BrokerID    string             `json:"broker_id"`
+	BrokerName  string             `json:"broker_name"`
 	ServicePlan *types.ServicePlan `json:"service_plan,omitempty"`
 }
 
