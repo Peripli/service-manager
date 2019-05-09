@@ -2,6 +2,9 @@ server:
   request_timeout: 4000ms
   shutdown_timeout: 4000ms
   port: 1234
+websocket:
+  ping_timeout: 6000ms
+  write_timeout: 6000ms
 log:
   level: debug
   format: text

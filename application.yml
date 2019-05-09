@@ -4,6 +4,9 @@ server:
   port: 8085
   # max_body_bytes: 4000
   # max_header_bytes: 1000
+websocket:
+  ping_timeout: 6000ms
+  write_timeout: 6000ms
 log:
   level: error
   format: text

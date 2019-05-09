@@ -133,16 +133,24 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	log.C(ctx).Info("Setting up Service Manager core API...")
 	interceptableRepository := storage.NewInterceptableTransactionalRepository(smStorage, encrypter)
 
-	API, err := api.New(ctx, interceptableRepository, cfg.API, encrypter)
+	pgNotificator, err := postgres.NewNotificator(smStorage, cfg.Storage)
+	if err != nil {
+		panic(fmt.Sprintf("could not create notificator: %v", err))
+	}
+
+	apiOptions := &api.Options{
+		Repository:  interceptableRepository,
+		APISettings: cfg.API,
+		WSSettings:  cfg.WebSocket,
+		Encrypter:   encrypter,
+		Notificator: pgNotificator,
+	}
+	API, err := api.New(ctx, apiOptions)
 	if err != nil {
 		panic(fmt.Sprintf("error creating core api: %s", err))
 	}
 
 	API.AddHealthIndicator(&storage.HealthIndicator{Pinger: storage.PingFunc(smStorage.Ping)})
-	pgNotificator, err := postgres.NewNotificator(smStorage, cfg.Storage)
-	if err != nil {
-		panic(fmt.Sprintf("could not create notificator: %v", err))
-	}
 
 	notificationCleaner := &storage.NotificationCleaner{
 		Storage:  interceptableRepository,
@@ -213,7 +221,8 @@ func (sm *ServiceManager) Run() {
 		log.C(sm.ctx).WithError(err).Panicf("could not start Service Manager notification cleaner")
 	}
 
-	sm.Server.Run(sm.ctx)
+	sm.Server.Run(sm.ctx, wg)
+
 	wg.Wait()
 }
 

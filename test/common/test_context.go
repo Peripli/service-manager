@@ -28,9 +28,10 @@ import (
 
 	"sync"
 
+	"github.com/gofrs/uuid"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/gofrs/uuid"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/onsi/ginkgo"
@@ -277,6 +278,7 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 		}
 	}
 	serviceManager := smb.Build()
+
 	err = smb.Notificator.Start(ctx, wg)
 	if err != nil {
 		panic(err)
@@ -285,6 +287,7 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 	if err != nil {
 		panic(err)
 	}
+
 	return &testSMServer{
 		cancel: cancel,
 		Server: httptest.NewServer(serviceManager.Server.Router),
