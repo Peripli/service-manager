@@ -37,11 +37,17 @@ func (ba BrokerAdditional) Validate() error {
 	return nil
 }
 
+const (
+	BrokerCreateNotificationInterceptorName = "BrokerNotificationsCreateInterceptorProvider"
+	BrokerUpdateNotificationInterceptorName = "BrokerNotificationsUpdateInterceptorProvider"
+	BrokerDeleteNotificationInterceptorName = "BrokerNotificationsDeleteInterceptorProvider"
+)
+
 type BrokerNotificationsCreateInterceptorProvider struct {
 }
 
 func (*BrokerNotificationsCreateInterceptorProvider) Name() string {
-	return "BrokerNotificationsCreateInterceptorProvider"
+	return BrokerCreateNotificationInterceptorName
 }
 
 func (*BrokerNotificationsCreateInterceptorProvider) Provide() storage.CreateInterceptor {
@@ -52,7 +58,7 @@ type BrokerNotificationsUpdateInterceptorProvider struct {
 }
 
 func (*BrokerNotificationsUpdateInterceptorProvider) Name() string {
-	return "BrokerNotificationsUpdateInterceptorProvider"
+	return BrokerUpdateNotificationInterceptorName
 }
 
 func (*BrokerNotificationsUpdateInterceptorProvider) Provide() storage.UpdateInterceptor {
@@ -63,7 +69,7 @@ type BrokerNotificationsDeleteInterceptorProvider struct {
 }
 
 func (*BrokerNotificationsDeleteInterceptorProvider) Name() string {
-	return "BrokerNotificationsDeleteInterceptorProvider"
+	return BrokerDeleteNotificationInterceptorName
 }
 
 func (*BrokerNotificationsDeleteInterceptorProvider) Provide() storage.DeleteInterceptor {
