@@ -23,12 +23,26 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
+// OperationType is the notification type
+type OperationType string
+
+const (
+	// CREATED represents a notification type for creating a resource
+	CREATED OperationType = "CREATED"
+
+	// MODIFIED represents a notification type for modifying a resource
+	MODIFIED OperationType = "MODIFIED"
+
+	// DELETED represents a notification type for deleting a resource
+	DELETED OperationType = "DELETED"
+)
+
 //go:generate smgen api Notification
 // Notification struct
 type Notification struct {
 	Base
-	Resource   string          `json:"resource"`
-	Type       string          `json:"type"`
+	Resource   ObjectType      `json:"resource"`
+	Type       OperationType   `json:"type"`
 	PlatformID string          `json:"platform_id,omitempty"`
 	Revision   int64           `json:"revision"`
 	Payload    json.RawMessage `json:"payload"`
@@ -45,5 +59,6 @@ func (n *Notification) Validate() error {
 	if n.Type == "" {
 		return fmt.Errorf("notification type missing")
 	}
+
 	return nil
 }

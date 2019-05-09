@@ -8,7 +8,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
-const ServicePlanType ObjectType = "ServicePlan"
+const ServicePlanType ObjectType = "types.ServicePlan"
 
 type ServicePlans struct {
 	ServicePlans []*ServicePlan `json:"service_plans"`

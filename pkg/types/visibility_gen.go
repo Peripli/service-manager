@@ -8,7 +8,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
-const VisibilityType ObjectType = "Visibility"
+const VisibilityType ObjectType = "types.Visibility"
 
 type Visibilities struct {
 	Visibilities []*Visibility `json:"visibilities"`

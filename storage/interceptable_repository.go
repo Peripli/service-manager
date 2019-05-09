@@ -75,11 +75,12 @@ type interceptableRepository struct {
 
 func (ir *interceptableRepository) Create(ctx context.Context, obj types.Object) (string, error) {
 	objectType := obj.GetType()
-	if err := transformCredentials(ctx, obj, ir.encrypter.Encrypt); err != nil {
-		return "", err
-	}
 
 	createObjectFunc := func(ctx context.Context, _ Repository, newObject types.Object) error {
+		if err := transformCredentials(ctx, newObject, ir.encrypter.Encrypt); err != nil {
+			return err
+		}
+
 		id, err := ir.repositoryInTransaction.Create(ctx, newObject)
 		if err != nil {
 			return err
@@ -166,19 +167,16 @@ func (ir *interceptableRepository) Delete(ctx context.Context, objectType types.
 
 func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 	objectType := obj.GetType()
-	if err := transformCredentials(ctx, obj, ir.encrypter.Encrypt); err != nil {
-		return nil, err
-	}
 
 	updateObjFunc := func(ctx context.Context, _ Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+		if err := transformCredentials(ctx, newObj, ir.encrypter.Encrypt); err != nil {
+			return nil, err
+		}
+
 		newObj.SetUpdatedAt(time.Now().UTC())
 
 		object, err := ir.repositoryInTransaction.Update(ctx, newObj, labelChanges...)
 		if err != nil {
-			return nil, err
-		}
-
-		if err := transformCredentials(ctx, newObj, ir.encrypter.Decrypt); err != nil {
 			return nil, err
 		}
 
