@@ -167,7 +167,7 @@ func (c *Controller) registerConsumer(ctx context.Context, revisionKnownToProxy 
 
 	if notificationsList.Len() > 0 && revisionKnownToProxy > 0 {
 		// TODO: we expect that notificationsList is ordered by revision
-		notification := notificationsList.ItemAt(0).(*types.Notification)
+		notification := notificationsList.Notifications[0]
 		if notification.Revision != revisionKnownToProxy {
 			log.C(ctx).Infof("Notification with revision %d known to proxy not found", revisionKnownToProxy)
 			return nil, -1, nil, errRevisionNotFound

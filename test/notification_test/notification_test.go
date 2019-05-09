@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package ws_test
+package notification_test
 
 import (
 	"context"
