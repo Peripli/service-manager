@@ -22,7 +22,6 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
@@ -51,7 +50,7 @@ func (*PlatformAwareVisibilityFilter) Run(req *web.Request, next web.Handler) (*
 		byPlatformID := query.ByField(query.EqualsOrNilOperator, "platform_id", p.ID)
 		var err error
 		if ctx, err = query.AddCriteria(ctx, byPlatformID); err != nil {
-			return nil, util.HandleSelectionError(err)
+			return nil, err
 		}
 		req.Request = req.WithContext(ctx)
 	}

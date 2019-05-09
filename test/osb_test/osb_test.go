@@ -580,7 +580,8 @@ var _ = Describe("Service Manager OSB API", func() {
 						},
 					},
 				}
-				prefixedBrokerID = common.RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth, map[string]string{})
+
+				prefixedBrokerID = common.RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth, map[string]string{})["id"].(string)
 				ctx.Servers[common.BrokerServerPrefix+prefixedBrokerID] = server
 				osbURL = "/v1/osb/" + prefixedBrokerID
 			})
