@@ -43,7 +43,7 @@ type PostgresStorage struct {
 	encryptionKey []byte
 	scheme        *scheme
 
-	mutex sync.RWMutex
+	mutex sync.Mutex
 }
 
 func (ps *PostgresStorage) Introduce(entity storage.Entity) {
@@ -148,12 +148,6 @@ func (ps *PostgresStorage) Ping() error {
 }
 
 func (ps *PostgresStorage) Create(ctx context.Context, obj types.Object) (string, error) {
-	ps.mutex.RLock()
-	defer ps.mutex.RUnlock()
-	if ps.db == nil {
-		return "", storage.ErrStorageClosed
-	}
-
 	pgEntity, err := ps.scheme.convert(obj)
 	if err != nil {
 		return "", err
@@ -189,12 +183,6 @@ func (ps *PostgresStorage) createLabels(ctx context.Context, entityID string, la
 }
 
 func (ps *PostgresStorage) Get(ctx context.Context, objectType types.ObjectType, id string) (types.Object, error) {
-	ps.mutex.RLock()
-	defer ps.mutex.RUnlock()
-	if ps.db == nil {
-		return nil, storage.ErrStorageClosed
-	}
-
 	byPrimaryColumn := query.ByField(query.EqualsOperator, "id", id)
 
 	result, err := ps.List(ctx, objectType, byPrimaryColumn)
@@ -208,12 +196,6 @@ func (ps *PostgresStorage) Get(ctx context.Context, objectType types.ObjectType,
 }
 
 func (ps *PostgresStorage) List(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
-	ps.mutex.RLock()
-	defer ps.mutex.RUnlock()
-	if ps.db == nil {
-		return nil, storage.ErrStorageClosed
-	}
-
 	entity, err := ps.scheme.provide(objType)
 	if err != nil {
 		return nil, err
@@ -234,12 +216,6 @@ func (ps *PostgresStorage) List(ctx context.Context, objType types.ObjectType, c
 }
 
 func (ps *PostgresStorage) Delete(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
-	ps.mutex.RLock()
-	defer ps.mutex.RUnlock()
-	if ps.db == nil {
-		return nil, storage.ErrStorageClosed
-	}
-
 	entity, err := ps.scheme.provide(objType)
 	if err != nil {
 		return nil, err
@@ -260,12 +236,6 @@ func (ps *PostgresStorage) Delete(ctx context.Context, objType types.ObjectType,
 }
 
 func (ps *PostgresStorage) Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
-	ps.mutex.RLock()
-	defer ps.mutex.RUnlock()
-	if ps.db == nil {
-		return nil, storage.ErrStorageClosed
-	}
-
 	entity, err := ps.scheme.convert(obj)
 	if err != nil {
 		return nil, err
@@ -307,12 +277,6 @@ func (ps *PostgresStorage) updateLabels(ctx context.Context, entityID string, en
 }
 
 func (ps *PostgresStorage) InTransaction(ctx context.Context, f func(ctx context.Context, storage storage.Repository) error) error {
-	ps.mutex.RLock()
-	defer ps.mutex.RUnlock()
-	if ps.db == nil {
-		return storage.ErrStorageClosed
-	}
-
 	ok := false
 	tx, err := ps.db.Beginx()
 	if err != nil {

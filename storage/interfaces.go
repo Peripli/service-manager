@@ -34,8 +34,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
-var ErrStorageClosed = errors.New("postgres storage already closed")
-
 type Entity interface {
 	GetID() string
 	ToObject() types.Object
