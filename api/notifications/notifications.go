@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	lastKnownRevisionHeader     = "last_known_revision"
-	lastKnownRevisionQueryParam = "last_known_revision"
+	LastKnownRevisionHeader     = "last_notification_revision"
+	LastKnownRevisionQueryParam = "last_notification_revision"
 )
 
 var errRevisionNotFound error = errors.New("revision not found")
@@ -37,7 +37,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	}
 
 	revisionKnownToProxy := int64(0)
-	revisionKnownToProxyStr := req.URL.Query().Get(lastKnownRevisionQueryParam)
+	revisionKnownToProxyStr := req.URL.Query().Get(LastKnownRevisionQueryParam)
 	if revisionKnownToProxyStr != "" {
 		var err error
 		revisionKnownToProxy, err = strconv.ParseInt(revisionKnownToProxyStr, 10, 64)
@@ -45,7 +45,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 			logger.Errorf("could not convert string %s to number: %v", revisionKnownToProxyStr, err)
 			return nil, &util.HTTPError{
 				StatusCode:  http.StatusBadRequest,
-				Description: fmt.Sprintf("invalid %s query parameter", lastKnownRevisionQueryParam),
+				Description: fmt.Sprintf("invalid %s query parameter", LastKnownRevisionQueryParam),
 				ErrorType:   "BadRequest",
 			}
 		}
@@ -58,7 +58,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 
 	rw := req.HijackResponseWriter()
 	responseHeaders := http.Header{
-		lastKnownRevisionHeader: []string{strconv.FormatInt(lastKnownRevision, 10)},
+		LastKnownRevisionHeader: []string{strconv.FormatInt(lastKnownRevision, 10)},
 	}
 	conn, err := c.upgrade(rw, req.Request, responseHeaders)
 	if err != nil {
@@ -145,12 +145,12 @@ func (c *Controller) sendWsMessage(ctx context.Context, conn *websocket.Conn, ms
 
 func (c *Controller) registerConsumer(ctx context.Context, revisionKnownToProxy int64, user *web.UserContext) (storage.NotificationQueue, int64, *types.Notifications, error) {
 	var (
-		notificationQueue storage.NotificationQueue
-		notificationsList *types.Notifications
-		lastKnownRevision int64
-		err               error
+		notificationQueue       storage.NotificationQueue
+		notificationsList       *types.Notifications
+		LastKnownRevisionHeader int64
+		err                     error
 	)
-	notificationQueue, lastKnownRevision, err = c.notificator.RegisterConsumer(user)
+	notificationQueue, LastKnownRevisionHeader, err = c.notificator.RegisterConsumer(user)
 	if err != nil {
 		return nil, -1, nil, fmt.Errorf("could not register notification consumer: %v", err)
 	}
@@ -160,12 +160,12 @@ func (c *Controller) registerConsumer(ctx context.Context, revisionKnownToProxy 
 		}
 	}()
 
-	if lastKnownRevision < revisionKnownToProxy {
-		log.C(ctx).Infof("Notification revision known to proxy %d is greater than revision known to SM %d", revisionKnownToProxy, lastKnownRevision)
+	if LastKnownRevisionHeader < revisionKnownToProxy {
+		log.C(ctx).Infof("Notification revision known to proxy %d is greater than revision known to SM %d", revisionKnownToProxy, LastKnownRevisionHeader)
 		return nil, -1, nil, errRevisionNotFound
 	}
 
-	notificationsList, err = c.getNotificationList(ctx, user, revisionKnownToProxy, lastKnownRevision)
+	notificationsList, err = c.getNotificationList(ctx, user, revisionKnownToProxy, LastKnownRevisionHeader)
 	if err != nil {
 		return nil, -1, nil, err
 	}
@@ -182,7 +182,7 @@ func (c *Controller) registerConsumer(ctx context.Context, revisionKnownToProxy 
 			return nil, -1, nil, errRevisionNotFound
 		}
 	}
-	return notificationQueue, lastKnownRevision, notificationsList, err
+	return notificationQueue, LastKnownRevisionHeader, notificationsList, err
 }
 
 func (c *Controller) unregisterConsumer(ctx context.Context, q storage.NotificationQueue) {
@@ -191,10 +191,10 @@ func (c *Controller) unregisterConsumer(ctx context.Context, q storage.Notificat
 	}
 }
 
-func (c *Controller) getNotificationList(ctx context.Context, user *web.UserContext, revisionKnownToProxy, lastKnownRevision int64) (*types.Notifications, error) {
+func (c *Controller) getNotificationList(ctx context.Context, user *web.UserContext, revisionKnownToProxy, LastKnownRevisionHeader int64) (*types.Notifications, error) {
 	// TODO: is this +1/-1 ok or we should add less than or equal operator
 	listQuery1 := query.ByField(query.GreaterThanOperator, "revision", strconv.FormatInt(revisionKnownToProxy-1, 10))
-	listQuery2 := query.ByField(query.LessThanOperator, "revision", strconv.FormatInt(lastKnownRevision+1, 10))
+	listQuery2 := query.ByField(query.LessThanOperator, "revision", strconv.FormatInt(LastKnownRevisionHeader+1, 10))
 
 	platform, err := extractPlatformFromContext(user)
 	if err != nil {

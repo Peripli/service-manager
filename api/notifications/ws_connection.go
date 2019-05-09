@@ -13,14 +13,14 @@ import (
 )
 
 const (
-	maxPingIntervalHeader = "max_ping_interval"
+	MaxPingPeriodHeader = "max_ping_period"
 )
 
 func (c *Controller) upgrade(rw http.ResponseWriter, req *http.Request, header http.Header) (*websocket.Conn, error) {
 	if header == nil {
 		header = http.Header{}
 	}
-	header.Add(maxPingIntervalHeader, c.wsSettings.PingTimeout.String())
+	header.Add(MaxPingPeriodHeader, c.wsSettings.PingTimeout.String())
 
 	upgrader := &websocket.Upgrader{
 		Error: func(w http.ResponseWriter, r *http.Request, status int, reason error) {

@@ -25,6 +25,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Peripli/service-manager/api/notifications"
+
 	"github.com/spf13/pflag"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -145,11 +147,11 @@ var _ = Describe("WS", func() {
 
 		Context("when no notifications are present", func() {
 			It("should receive last known revision response header 0", func() {
-				Expect(resp.Header.Get("last_known_revision")).To(Equal("0"))
+				Expect(resp.Header.Get(notifications.LastKnownRevisionHeader)).To(Equal("0"))
 			})
 
 			It("should receive max ping timeout response header", func() {
-				Expect(resp.Header.Get("max_ping_interval")).ToNot(BeEmpty())
+				Expect(resp.Header.Get(notifications.MaxPingPeriodHeader)).ToNot(BeEmpty())
 			})
 		})
 
@@ -161,7 +163,7 @@ var _ = Describe("WS", func() {
 			})
 
 			It("should receive last known revision response header greater than 0", func() {
-				lastKnownRevision, err := strconv.Atoi(resp.Header.Get("last_known_revision"))
+				lastKnownRevision, err := strconv.Atoi(resp.Header.Get(notifications.LastKnownRevisionHeader))
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(lastKnownRevision).To(BeNumerically(">", 0))
 			})
@@ -176,7 +178,7 @@ var _ = Describe("WS", func() {
 				var notification2 *types.Notification
 				BeforeEach(func() {
 					notification2, _ = createNotification(repository, platform.ID)
-					queryParams["last_known_revision"] = strconv.FormatInt(notificationRevision, 10)
+					queryParams[notifications.LastKnownRevisionQueryParam] = strconv.FormatInt(notificationRevision, 10)
 				})
 
 				It("should receive only these after the revision that it knowns", func() {
@@ -188,7 +190,7 @@ var _ = Describe("WS", func() {
 
 			Context("and revision known to proxy is not known to sm anymore", func() {
 				It("should receive 410 Gone", func() {
-					queryParams["last_known_revision"] = strconv.FormatInt(notificationRevision-1, 10)
+					queryParams[notifications.LastKnownRevisionQueryParam] = strconv.FormatInt(notificationRevision-1, 10)
 					_, resp, err := wsconnect(ctx, platform, web.NotificationsURL, queryParams)
 					Expect(resp.StatusCode).To(Equal(http.StatusGone))
 					Expect(err).Should(HaveOccurred())
@@ -197,7 +199,7 @@ var _ = Describe("WS", func() {
 
 			Context("and proxy known revision is greater than sm known revision", func() {
 				It("should receive 410 Gone", func() {
-					queryParams["last_known_revision"] = strconv.FormatInt(notificationRevision+1, 10)
+					queryParams[notifications.LastKnownRevisionQueryParam] = strconv.FormatInt(notificationRevision+1, 10)
 					_, resp, err := wsconnect(ctx, platform, web.NotificationsURL, queryParams)
 					Expect(resp.StatusCode).To(Equal(http.StatusGone))
 					Expect(err).Should(HaveOccurred())
@@ -228,7 +230,7 @@ var _ = Describe("WS", func() {
 
 		Context("when revision known to proxy is invalid number", func() {
 			It("should fail", func() {
-				queryParams["last_known_revision"] = "not_a_number"
+				queryParams[notifications.LastKnownRevisionQueryParam] = "not_a_number"
 				_, resp, err := wsconnect(ctx, platform, web.NotificationsURL, queryParams)
 				Expect(resp.StatusCode).To(Equal(http.StatusBadRequest))
 				Expect(err).Should(HaveOccurred())
