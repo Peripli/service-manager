@@ -226,7 +226,7 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 
 	if !tcb.shouldSkipBasicAuthClient {
 		platformJSON := MakePlatform("tcb-platform-test", "tcb-platform-test", "platform-type", "test-platform")
-		platform := RegisterPlatformInSM(platformJSON, SMWithOAuth)
+		platform := RegisterPlatformInSM(platformJSON, SMWithOAuth, map[string]string{})
 		SMWithBasic := SM.Builder(func(req *httpexpect.Request) {
 			username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
 			req.WithBasicAuth(username, password)
@@ -290,7 +290,7 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, br
 
 	MergeObjects(brokerJSON, brokerData)
 
-	broker := RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth)
+	broker := RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth, map[string]string{})
 	brokerID := broker["id"].(string)
 	brokerServer.ResetCallHistory()
 	ctx.Servers[BrokerServerPrefix+brokerID] = brokerServer
@@ -340,7 +340,7 @@ func (ctx *TestContext) RegisterPlatform() *types.Platform {
 		"type":        "testType",
 		"description": "testDescrption",
 	}
-	return RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth)
+	return RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
 }
 
 func (ctx *TestContext) CleanupBroker(id string) {
