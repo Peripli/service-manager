@@ -13,11 +13,11 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
+	"github.com/gorilla/websocket"
 
 	"github.com/Peripli/service-manager/pkg/log"
 
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/pkg/ws"
 )
 
 const (
@@ -28,11 +28,13 @@ const (
 var errRevisionNotFound error = errors.New("revision not found")
 
 func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
+	ctx := req.Context()
+	logger := log.C(ctx)
+
 	user, ok := web.UserFromContext(req.Context())
 	if !ok {
 		return nil, errors.New("user details not found in request context")
 	}
-	ctx := req.Context()
 
 	revisionKnownToProxy := int64(0)
 	revisionKnownToProxyStr := req.URL.Query().Get(lastKnownRevisionQueryParam)
@@ -40,7 +42,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		var err error
 		revisionKnownToProxy, err = strconv.ParseInt(revisionKnownToProxyStr, 10, 64)
 		if err != nil {
-			log.C(ctx).Errorf("could not convert string %s to number: %v", revisionKnownToProxyStr, err)
+			logger.Errorf("could not convert string %s to number: %v", revisionKnownToProxyStr, err)
 			return nil, &util.HTTPError{
 				StatusCode:  http.StatusBadRequest,
 				Description: fmt.Sprintf("invalid %s query parameter", lastKnownRevisionQueryParam),
@@ -55,31 +57,34 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	}
 
 	rw := req.HijackResponseWriter()
-	done := make(chan struct{}, 1)
-	conn, err := c.wsServer.Upgrade(rw, req.Request, http.Header{
+	responseHeaders := http.Header{
 		lastKnownRevisionHeader: []string{strconv.FormatInt(lastKnownRevision, 10)},
-	}, done)
+	}
+	conn, err := c.upgrade(rw, req.Request, responseHeaders)
 	if err != nil {
 		c.unregisterConsumer(ctx, notificationQueue)
 		return nil, err
 	}
+	correlationID := logger.Data[log.FieldCorrelationID].(string)
+	childCtx := newContextWithCorrelationID(c.baseCtx, correlationID)
 
-	go c.writeLoop(ctx, conn, notificationsList, notificationQueue, done)
-	go c.readLoop(ctx, conn, done)
+	done := make(chan struct{}, 2)
+	go c.writeLoop(childCtx, conn, notificationsList, notificationQueue, done)
+	go c.readLoop(childCtx, conn, done)
+	go c.closeConn(childCtx, conn, done)
 
 	return &web.Response{}, nil
 }
 
-func (c *Controller) writeLoop(ctx context.Context, conn *ws.Conn, notificationsList *types.Notifications, q storage.NotificationQueue, done chan<- struct{}) {
+func (c *Controller) writeLoop(ctx context.Context, conn *websocket.Conn, notificationsList *types.Notifications, q storage.NotificationQueue, done chan<- struct{}) {
 	defer c.unregisterConsumer(ctx, q)
 	defer func() {
 		done <- struct{}{}
 	}()
 
-	for i := 0; i < notificationsList.Len(); i++ {
-		notification := (notificationsList.ItemAt(i)).(*types.Notification)
+	for _, notification := range notificationsList.Notifications {
 		select {
-		case <-conn.Shutdown:
+		case <-ctx.Done():
 			log.C(ctx).Infof("Websocket connection shutting down")
 			return
 		default:
@@ -94,7 +99,7 @@ func (c *Controller) writeLoop(ctx context.Context, conn *ws.Conn, notifications
 
 	for {
 		select {
-		case <-conn.Shutdown:
+		case <-ctx.Done():
 			log.C(ctx).Infof("Websocket connection shutting down")
 			return
 		case notification, ok := <-notificationChannel:
@@ -110,7 +115,7 @@ func (c *Controller) writeLoop(ctx context.Context, conn *ws.Conn, notifications
 	}
 }
 
-func (c *Controller) readLoop(ctx context.Context, conn *ws.Conn, done chan<- struct{}) {
+func (c *Controller) readLoop(ctx context.Context, conn *websocket.Conn, done chan<- struct{}) {
 	defer func() {
 		done <- struct{}{}
 	}()
@@ -126,8 +131,8 @@ func (c *Controller) readLoop(ctx context.Context, conn *ws.Conn, done chan<- st
 	}
 }
 
-func (c *Controller) sendWsMessage(ctx context.Context, conn *ws.Conn, msg interface{}) bool {
-	if err := conn.SetWriteDeadline(time.Now().Add(c.wsServer.Options.WriteTimeout)); err != nil {
+func (c *Controller) sendWsMessage(ctx context.Context, conn *websocket.Conn, msg interface{}) bool {
+	if err := conn.SetWriteDeadline(time.Now().Add(c.wsSettings.WriteTimeout)); err != nil {
 		log.C(ctx).Errorf("Could not set write deadline: %v", err)
 	}
 
@@ -165,14 +170,17 @@ func (c *Controller) registerConsumer(ctx context.Context, revisionKnownToProxy 
 		return nil, -1, nil, err
 	}
 
-	if notificationsList.Len() > 0 && revisionKnownToProxy > 0 {
-		// TODO: we expect that notificationsList is ordered by revision
-		notification := notificationsList.Notifications[0]
-		if notification.Revision != revisionKnownToProxy {
+	if revisionKnownToProxy > 0 {
+		var notification *types.Notification
+		if notificationsList.Len() > 0 {
+			notification = notificationsList.Notifications[0]
+			notificationsList.Notifications = notificationsList.Notifications[1:]
+		}
+
+		if notification == nil || notification.Revision != revisionKnownToProxy {
 			log.C(ctx).Infof("Notification with revision %d known to proxy not found", revisionKnownToProxy)
 			return nil, -1, nil, errRevisionNotFound
 		}
-		notificationsList.Notifications = notificationsList.Notifications[1:]
 	}
 	return notificationQueue, lastKnownRevision, notificationsList, err
 }
@@ -216,4 +224,9 @@ func extractPlatformFromContext(userContext *web.UserContext) (*types.Platform, 
 		return nil, errors.New("platform ID not found in user context")
 	}
 	return platform, nil
+}
+
+func newContextWithCorrelationID(baseCtx context.Context, correlationID string) context.Context {
+	entry := log.C(baseCtx).WithField(log.FieldCorrelationID, correlationID)
+	return log.ContextWithLogger(baseCtx, entry)
 }

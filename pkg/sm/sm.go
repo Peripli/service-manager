@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/pkg/ws"
 	"github.com/Peripli/service-manager/storage/interceptors"
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 
@@ -52,7 +51,6 @@ import (
 type ServiceManagerBuilder struct {
 	*web.API
 
-	WsServer            *ws.Server
 	Storage             *storage.InterceptableTransactionalRepository
 	Notificator         storage.Notificator
 	NotificationCleaner *storage.NotificationCleaner
@@ -62,7 +60,6 @@ type ServiceManagerBuilder struct {
 
 // ServiceManager  struct
 type ServiceManager struct {
-	WsServer            *ws.Server
 	ctx                 context.Context
 	Server              *server.Server
 	Notificator         storage.Notificator
@@ -136,14 +133,19 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	log.C(ctx).Info("Setting up Service Manager core API...")
 	interceptableRepository := storage.NewInterceptableTransactionalRepository(smStorage, encrypter)
 
-	wsServer := ws.NewServer(ctx, cfg.WsServer)
-
 	pgNotificator, err := postgres.NewNotificator(smStorage, cfg.Storage)
 	if err != nil {
 		panic(fmt.Sprintf("could not create notificator: %v", err))
 	}
 
-	API, err := api.New(ctx, interceptableRepository, cfg.API, encrypter, wsServer, pgNotificator)
+	apiOptions := &api.Options{
+		Repository:  interceptableRepository,
+		APISettings: cfg.API,
+		WSSettings:  cfg.WebSocket,
+		Encrypter:   encrypter,
+		Notificator: pgNotificator,
+	}
+	API, err := api.New(ctx, apiOptions)
 	if err != nil {
 		panic(fmt.Sprintf("error creating core api: %s", err))
 	}
@@ -160,7 +162,6 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 		cfg:                 cfg.Server,
 		API:                 API,
 		Storage:             interceptableRepository,
-		WsServer:            wsServer,
 		Notificator:         pgNotificator,
 		NotificationCleaner: notificationCleaner,
 	}
@@ -187,7 +188,6 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	return &ServiceManager{
 		ctx:                 smb.ctx,
 		Server:              srv,
-		WsServer:            smb.WsServer,
 		Notificator:         smb.Notificator,
 		NotificationCleaner: smb.NotificationCleaner,
 	}
@@ -203,8 +203,6 @@ func (smb *ServiceManagerBuilder) installHealth() {
 func (sm *ServiceManager) Run() {
 	log.C(sm.ctx).Info("Running Service Manager...")
 	wg := &sync.WaitGroup{}
-
-	sm.WsServer.Start(sm.ctx, wg)
 
 	if err := sm.Notificator.Start(sm.ctx, wg); err != nil {
 		log.C(sm.ctx).WithError(err).Panicf("could not start Service Manager notificator")

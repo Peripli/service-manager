@@ -276,8 +276,6 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 	}
 	serviceManager := smb.Build()
 
-	smb.WsServer.Start(ctx, wg)
-
 	err = smb.Notificator.Start(ctx, wg)
 	if err != nil {
 		panic(err)

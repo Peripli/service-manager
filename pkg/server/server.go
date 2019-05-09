@@ -80,6 +80,7 @@ func (s *Settings) Validate() error {
 	if s.ShutdownTimeout == 0 {
 		return fmt.Errorf("validate Settings: ShutdownTimeout missing")
 	}
+
 	return nil
 }
 

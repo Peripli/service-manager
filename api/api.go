@@ -65,9 +65,17 @@ func (s *Settings) Validate() error {
 	return nil
 }
 
+type Options struct {
+	Repository  storage.Repository
+	APISettings *Settings
+	WSSettings  *ws.Settings
+	Encrypter   security.Encrypter
+	Notificator storage.Notificator
+}
+
 // New returns the minimum set of REST APIs needed for the Service Manager
-func New(ctx context.Context, repository storage.Repository, settings *Settings, encrypter security.Encrypter, wsServer *ws.Server, notificator storage.Notificator) (*web.API, error) {
-	bearerAuthnFilter, err := oauth.NewFilter(ctx, settings.TokenIssuerURL, settings.ClientID)
+func New(ctx context.Context, options *Options) (*web.API, error) {
+	bearerAuthnFilter, err := oauth.NewFilter(ctx, options.APISettings.TokenIssuerURL, options.APISettings.ClientID)
 	if err != nil {
 		return nil, err
 	}
@@ -75,26 +83,26 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 	return &web.API{
 		// Default controllers - more filters can be registered using the relevant API methods
 		Controllers: []web.Controller{
-			NewController(repository, web.ServiceBrokersURL, types.ServiceBrokerType, func() types.Object {
+			NewController(options.Repository, web.ServiceBrokersURL, types.ServiceBrokerType, func() types.Object {
 				return &types.ServiceBroker{}
 			}),
-			NewController(repository, web.PlatformsURL, types.PlatformType, func() types.Object {
+			NewController(options.Repository, web.PlatformsURL, types.PlatformType, func() types.Object {
 				return &types.Platform{}
 			}),
-			NewController(repository, web.VisibilitiesURL, types.VisibilityType, func() types.Object {
+			NewController(options.Repository, web.VisibilitiesURL, types.VisibilityType, func() types.Object {
 				return &types.Visibility{}
 			}),
-			apiNotifications.NewController(repository, wsServer, notificator),
-			NewServiceOfferingController(repository),
-			NewServicePlanController(repository),
+			apiNotifications.NewController(ctx, options.Repository, options.WSSettings, options.Notificator),
+			NewServiceOfferingController(options.Repository),
+			NewServicePlanController(options.Repository),
 			&info.Controller{
-				TokenIssuer:    settings.TokenIssuerURL,
-				TokenBasicAuth: settings.TokenBasicAuth,
+				TokenIssuer:    options.APISettings.TokenIssuerURL,
+				TokenBasicAuth: options.APISettings.TokenBasicAuth,
 			},
 			osb.NewController(&osb.StorageBrokerFetcher{
-				BrokerStorage: repository,
+				BrokerStorage: options.Repository,
 			}, &osb.StorageCatalogFetcher{
-				Repository: repository,
+				Repository: options.Repository,
 			},
 				http.DefaultTransport,
 			),
@@ -102,7 +110,7 @@ func New(ctx context.Context, repository storage.Repository, settings *Settings,
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
 			&filters.Logging{},
-			basic.NewFilter(repository.Credentials(), encrypter),
+			basic.NewFilter(options.Repository.Credentials(), options.Encrypter),
 			bearerAuthnFilter,
 			secfilters.NewRequiredAuthnFilter(),
 			&filters.SelectionCriteria{},

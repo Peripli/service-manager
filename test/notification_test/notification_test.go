@@ -23,6 +23,9 @@ import (
 	"net/url"
 	"strconv"
 	"testing"
+	"time"
+
+	"github.com/spf13/pflag"
 
 	"github.com/Peripli/service-manager/pkg/util"
 
@@ -46,6 +49,8 @@ func TestWsConn(t *testing.T) {
 	RunSpecs(t, "Notification test suite")
 }
 
+var pingTimeout time.Duration = 1 * time.Second
+
 var _ = Describe("WS", func() {
 	var ctx *common.TestContext
 	var wsconn *websocket.Conn
@@ -57,10 +62,14 @@ var _ = Describe("WS", func() {
 	BeforeEach(func() {
 		queryParams = map[string]string{}
 
-		ctx = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
-			repository = smb.Storage
-			return nil
-		}).Build()
+		ctx = common.NewTestContextBuilder().
+			WithEnvPreExtensions(func(set *pflag.FlagSet) {
+				set.Set("websocket.ping_timeout", pingTimeout.String())
+			}).
+			WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+				repository = smb.Storage
+				return nil
+			}).Build()
 		Expect(repository).ToNot(BeNil())
 
 		platform = common.RegisterPlatformInSM(common.GenerateRandomPlatform(), ctx.SMWithOAuth)
@@ -89,6 +98,51 @@ var _ = Describe("WS", func() {
 	})
 
 	Describe("establish websocket connection", func() {
+		Context("with non websocket request", func() {
+			It("should be rejected", func() {
+				ctx.SMWithBasic.GET(web.NotificationsURL).Expect().
+					Status(http.StatusBadRequest).
+					JSON().Object().Value("error").Equal("WebsocketUpgradeError")
+			})
+		})
+
+		Context("when ping is received", func() {
+			var pongCh chan struct{}
+
+			JustBeforeEach(func() {
+				pongCh = make(chan struct{})
+				wsconn.SetReadDeadline(time.Time{})
+				wsconn.SetPongHandler(func(data string) error {
+					Expect(data).To(Equal("pingping"))
+					close(pongCh)
+					return nil
+				})
+				go func() {
+					_, _, err := wsconn.ReadMessage()
+					Expect(err).Should(HaveOccurred())
+				}()
+			})
+
+			It("should respond with pong", func(done Done) {
+				err := wsconn.WriteMessage(websocket.PingMessage, []byte("pingping"))
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(pongCh).Should(BeClosed())
+				close(done)
+			})
+		})
+
+		Context("when ping is not sent on time", func() {
+			It("should close the connection", func(done Done) {
+				wsconn.SetCloseHandler(func(code int, msg string) error {
+					close(done)
+					return nil
+				})
+				go func() {
+					wsconn.ReadMessage()
+				}()
+			}, pingTimeout.Seconds()+1)
+		})
+
 		Context("when no notifications are present", func() {
 			It("should receive last known revision response header 0", func() {
 				Expect(resp.Header.Get("last_known_revision")).To(Equal("0"))

@@ -17,6 +17,7 @@
 package notifications
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/Peripli/service-manager/storage"
@@ -28,8 +29,10 @@ import (
 
 // Controller implements api.Controller by providing service plans API logic
 type Controller struct {
-	repository  storage.Repository
-	wsServer    *ws.Server
+	baseCtx    context.Context
+	repository storage.Repository
+
+	wsSettings  *ws.Settings
 	notificator storage.Notificator
 }
 
@@ -46,11 +49,12 @@ func (c *Controller) Routes() []web.Route {
 	}
 }
 
-// TODO: create the actual websocket handling and disable CRUD and List operations
-func NewController(repository storage.Repository, wsServer *ws.Server, notificator storage.Notificator) *Controller {
+// NewController creates new notifications controller
+func NewController(baseCtx context.Context, repository storage.Repository, wsSettings *ws.Settings, notificator storage.Notificator) *Controller {
 	return &Controller{
+		baseCtx:     baseCtx,
 		repository:  repository,
-		wsServer:    wsServer,
+		wsSettings:  wsSettings,
 		notificator: notificator,
 	}
 }

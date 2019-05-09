@@ -28,11 +28,11 @@ import (
 
 // Settings is used to setup the Service Manager
 type Settings struct {
-	Server   *server.Settings
-	Storage  *storage.Settings
-	Log      *log.Settings
-	API      *api.Settings
-	WsServer *ws.Settings
+	Server    *server.Settings
+	Storage   *storage.Settings
+	Log       *log.Settings
+	API       *api.Settings
+	WebSocket *ws.Settings
 }
 
 // AddPFlags adds the SM config flags to the provided flag set
@@ -44,11 +44,11 @@ func AddPFlags(set *pflag.FlagSet) {
 // DefaultSettings returns the default values for configuring the Service Manager
 func DefaultSettings() *Settings {
 	config := &Settings{
-		Server:   server.DefaultSettings(),
-		Storage:  storage.DefaultSettings(),
-		Log:      log.DefaultSettings(),
-		API:      api.DefaultSettings(),
-		WsServer: ws.DefaultSettings(),
+		Server:    server.DefaultSettings(),
+		Storage:   storage.DefaultSettings(),
+		Log:       log.DefaultSettings(),
+		API:       api.DefaultSettings(),
+		WebSocket: ws.DefaultSettings(),
 	}
 	return config
 }
@@ -67,7 +67,7 @@ func New(env env.Environment) (*Settings, error) {
 func (c *Settings) Validate() error {
 	validatable := []interface {
 		Validate() error
-	}{c.Server, c.Storage, c.Log, c.API, c.WsServer}
+	}{c.Server, c.Storage, c.Log, c.API, c.WebSocket}
 
 	for _, item := range validatable {
 		if err := item.Validate(); err != nil {
