@@ -75,11 +75,12 @@ type interceptableRepository struct {
 
 func (ir *interceptableRepository) Create(ctx context.Context, obj types.Object) (string, error) {
 	objectType := obj.GetType()
-	if err := transformCredentials(ctx, obj, ir.encrypter.Encrypt); err != nil {
-		return "", err
-	}
 
 	createObjectFunc := func(ctx context.Context, _ Repository, newObject types.Object) error {
+		if err := transformCredentials(ctx, newObject, ir.encrypter.Encrypt); err != nil {
+			return err
+		}
+
 		id, err := ir.repositoryInTransaction.Create(ctx, newObject)
 		if err != nil {
 			return err
@@ -94,8 +95,14 @@ func (ir *interceptableRepository) Create(ctx context.Context, obj types.Object)
 	if createInterceptorChain, found := ir.createInterceptor[objectType]; found {
 		// remove the create interceptor chain so that if one of the interceptors in the chain tries
 		// to create another resource of the same type we don't get into infinite recursion
+
+		// clean up to avoid nested infinite chain
 		delete(ir.createInterceptor, objectType)
+
 		err = createInterceptorChain.OnTxCreate(createObjectFunc)(ctx, ir, obj)
+
+		// restore the chain
+		ir.createInterceptor[objectType] = createInterceptorChain
 	} else {
 		err = createObjectFunc(ctx, ir.repositoryInTransaction, obj)
 	}
@@ -152,7 +159,11 @@ func (ir *interceptableRepository) Delete(ctx context.Context, objectType types.
 		}
 
 		delete(ir.deleteInterceptor, objectType)
+
 		objectList, err = deleteInterceptorChain.OnTxDelete(deleteObjectFunc)(ctx, ir, objects, criteria...)
+
+		ir.deleteInterceptor[objectType] = deleteInterceptorChain
+
 	} else {
 		objectList, err = deleteObjectFunc(ctx, nil, nil, criteria...)
 	}
@@ -166,19 +177,16 @@ func (ir *interceptableRepository) Delete(ctx context.Context, objectType types.
 
 func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 	objectType := obj.GetType()
-	if err := transformCredentials(ctx, obj, ir.encrypter.Encrypt); err != nil {
-		return nil, err
-	}
 
 	updateObjFunc := func(ctx context.Context, _ Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+		if err := transformCredentials(ctx, newObj, ir.encrypter.Encrypt); err != nil {
+			return nil, err
+		}
+
 		newObj.SetUpdatedAt(time.Now().UTC())
 
 		object, err := ir.repositoryInTransaction.Update(ctx, newObj, labelChanges...)
 		if err != nil {
-			return nil, err
-		}
-
-		if err := transformCredentials(ctx, newObj, ir.encrypter.Decrypt); err != nil {
 			return nil, err
 		}
 
@@ -204,6 +212,9 @@ func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object,
 		delete(ir.updateInterceptor, objectType)
 
 		updatedObj, err = updateInterceptorChain.OnTxUpdate(updateObjFunc)(ctx, ir, oldObj, obj, labelChanges...)
+
+		ir.updateInterceptor[objectType] = updateInterceptorChain
+
 	} else {
 		updatedObj, err = updateObjFunc(ctx, ir, oldObj, obj, labelChanges...)
 	}

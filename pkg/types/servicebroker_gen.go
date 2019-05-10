@@ -8,7 +8,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
-const ServiceBrokerType ObjectType = "ServiceBroker"
+const ServiceBrokerType ObjectType = "types.ServiceBroker"
 
 type ServiceBrokers struct {
 	ServiceBrokers []*ServiceBroker `json:"service_brokers"`
@@ -37,8 +37,10 @@ func (e *ServiceBroker) MarshalJSON() ([]byte, error) {
 		*E
 		CreatedAt *string `json:"created_at,omitempty"`
 		UpdatedAt *string `json:"updated_at,omitempty"`
+		Labels    Labels  `json:"labels,omitempty"`
 	}{
-		E: (*E)(e),
+		E:      (*E)(e),
+		Labels: e.Labels,
 	}
 	if !e.CreatedAt.IsZero() {
 		str := util.ToRFCFormat(e.CreatedAt)

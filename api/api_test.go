@@ -55,18 +55,24 @@ var _ = Describe("API", func() {
 	Describe("New", func() {
 
 		It("returns no error if creation is successful", func() {
-			_, err := api.New(context.TODO(), mockedStorage, &api.Settings{
-				TokenIssuerURL: server.BaseURL,
-				ClientID:       "sm",
-			}, nil)
+			_, err := api.New(context.TODO(), &api.Options{
+				Repository: mockedStorage,
+				APISettings: &api.Settings{
+					TokenIssuerURL: server.BaseURL,
+					ClientID:       "sm",
+				},
+			})
 			Expect(err).ShouldNot(HaveOccurred())
 		})
 
 		It("returns an error if creation fails", func() {
-			_, err := api.New(context.TODO(), mockedStorage, &api.Settings{
-				TokenIssuerURL: "http://invalidurl.com",
-				ClientID:       "invalidclient",
-			}, nil)
+			_, err := api.New(context.TODO(), &api.Options{
+				Repository: mockedStorage,
+				APISettings: &api.Settings{
+					TokenIssuerURL: "http://invalidurl.com",
+					ClientID:       "invalidclient",
+				},
+			})
 			Expect(err).Should(HaveOccurred())
 		})
 	})

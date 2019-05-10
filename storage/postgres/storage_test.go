@@ -17,6 +17,8 @@
 package postgres
 
 import (
+	"context"
+
 	"github.com/Peripli/service-manager/storage"
 
 	. "github.com/onsi/ginkgo"
@@ -46,6 +48,14 @@ var _ = Describe("Postgres Storage", func() {
 		Context("Called with uninitialized db", func() {
 			It("Should panic", func() {
 				Expect(func() { pgStorage.Ping() }).To(Panic())
+			})
+		})
+	})
+
+	Describe("SelectContext", func() {
+		Context("Called with uninitialized db", func() {
+			It("Should panic", func() {
+				Expect(func() { pgStorage.SelectContext(context.Background(), nil, "") }).To(Panic())
 			})
 		})
 	})

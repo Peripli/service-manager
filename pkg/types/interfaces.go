@@ -18,6 +18,8 @@ package types
 
 import (
 	"time"
+
+	"github.com/Peripli/service-manager/pkg/util"
 )
 
 // ObjectType is the type of the object in the Service Manager
@@ -31,6 +33,8 @@ type Secured interface {
 
 // Object is the common interface that all resources in the Service Manager must implement
 type Object interface {
+	util.InputValidator
+
 	SetID(id string)
 	GetID() string
 	GetType() ObjectType

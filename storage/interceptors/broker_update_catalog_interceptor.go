@@ -31,29 +31,29 @@ import (
 	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 )
 
-const UpdateBrokerInterceptorName = "UpdateBrokerCatalogInterceptor"
+const BrokerUpdateCatalogInterceptorName = "BrokerUpdateCatalogInterceptor"
 
-// BrokerUpdateInterceptorProvider provides a broker interceptor for update operations
-type BrokerUpdateInterceptorProvider struct {
+// BrokerUpdateCatalogInterceptorProvider provides a broker interceptor for update operations
+type BrokerUpdateCatalogInterceptorProvider struct {
 	OsbClientCreateFunc osbc.CreateFunc
 }
 
-func (c *BrokerUpdateInterceptorProvider) Provide() storage.UpdateInterceptor {
-	return &updateBrokerInterceptor{
+func (c *BrokerUpdateCatalogInterceptorProvider) Provide() storage.UpdateInterceptor {
+	return &brokerUpdateCatalogInterceptor{
 		OSBClientCreateFunc: c.OsbClientCreateFunc,
 	}
 }
 
-func (c *BrokerUpdateInterceptorProvider) Name() string {
-	return UpdateBrokerInterceptorName
+func (c *BrokerUpdateCatalogInterceptorProvider) Name() string {
+	return BrokerUpdateCatalogInterceptorName
 }
 
-type updateBrokerInterceptor struct {
+type brokerUpdateCatalogInterceptor struct {
 	OSBClientCreateFunc osbc.CreateFunc
 }
 
 // AroundTxUpdate fetches the broker catalog before the transaction, so it can be stored later on in the transaction
-func (c *updateBrokerInterceptor) AroundTxUpdate(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
+func (c *brokerUpdateCatalogInterceptor) AroundTxUpdate(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
 	return func(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 		broker := obj.(*types.ServiceBroker)
 		catalog, err := getBrokerCatalog(ctx, c.OSBClientCreateFunc, broker) // keep catalog to be stored later
@@ -69,12 +69,13 @@ func (c *updateBrokerInterceptor) AroundTxUpdate(h storage.InterceptUpdateAround
 }
 
 // OnTxUpdate stores the previously fetched broker catalog, in the transaction in which the broker is being updated
-func (c *updateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
+func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
 	return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 		oldBroker := oldObj.(*types.ServiceBroker)
+
 		existingServiceOfferingsWithServicePlans, err := catalog.Load(ctx, oldBroker.GetID(), txStorage)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error getting catalog for broker with id %s from SM DB: %s", oldBroker.GetID(), err)
 		}
 
 		oldBroker.Services = existingServiceOfferingsWithServicePlans.ServiceOfferings
@@ -86,10 +87,6 @@ func (c *updateBrokerInterceptor) OnTxUpdate(f storage.InterceptUpdateOnTxFunc) 
 
 		updatedBroker := updatedObject.(*types.ServiceBroker)
 		brokerID := updatedBroker.GetID()
-
-		if err != nil {
-			return nil, fmt.Errorf("error getting catalog for broker with id %s from SM DB: %s", brokerID, err)
-		}
 
 		existingServicesOfferingsMap, existingServicePlansPerOfferingMap := convertExistingServiceOfferringsToMaps(existingServiceOfferingsWithServicePlans.ServiceOfferings)
 		log.C(ctx).Debugf("Found %d services currently known for broker", len(existingServicesOfferingsMap))

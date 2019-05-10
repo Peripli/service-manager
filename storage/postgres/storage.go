@@ -50,6 +50,11 @@ func (ps *PostgresStorage) Introduce(entity storage.Entity) {
 	ps.scheme.introduce(entity)
 }
 
+func (ps *PostgresStorage) SelectContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
+	ps.checkOpen()
+	return ps.pgDB.SelectContext(ctx, dest, query, args...)
+}
+
 func (ps *PostgresStorage) Credentials() storage.Credentials {
 	ps.checkOpen()
 	return &credentialStorage{db: ps.pgDB}
@@ -98,6 +103,7 @@ func (ps *PostgresStorage) Open(options *storage.Settings) error {
 		ps.scheme.introduce(&ServiceOffering{})
 		ps.scheme.introduce(&ServicePlan{})
 		ps.scheme.introduce(&Visibility{})
+		ps.scheme.introduce(&Notification{})
 	}
 	return err
 }

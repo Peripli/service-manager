@@ -103,7 +103,13 @@ var (
 )
 
 // ErrBadRequestStorage represents a storage error that should be translated to http.StatusBadRequest
-type ErrBadRequestStorage error
+type ErrBadRequestStorage struct {
+	Cause error
+}
+
+func (e *ErrBadRequestStorage) Error() string {
+	return e.Cause.Error()
+}
 
 // HandleStorageError handles storage errors by converting them to relevant HTTPErrors
 func HandleStorageError(err error, entityName string) error {
@@ -141,7 +147,7 @@ func HandleStorageError(err error, entityName string) error {
 	default:
 		// in case we did not replace the pg.Error in the DB layer, propagate it as response message to give the caller relevant info
 		switch e := err.(type) {
-		case ErrBadRequestStorage:
+		case *ErrBadRequestStorage:
 			return &HTTPError{
 				ErrorType:   "BadRequest",
 				Description: fmt.Sprintf("storage err: %s", e.Error()),

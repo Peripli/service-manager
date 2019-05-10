@@ -66,5 +66,11 @@ func (ba *basicAuthnFilter) FilterMatchers() []web.FilterMatcher {
 				web.Path(web.VisibilitiesURL + "/**"),
 			},
 		},
+		{
+			Matchers: []web.Matcher{
+				web.Methods(http.MethodGet),
+				web.Path(web.NotificationsURL + "/**"),
+			},
+		},
 	}
 }

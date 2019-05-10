@@ -85,7 +85,7 @@ type UpdateInterceptorProvider interface {
 }
 
 // InterceptUpdateAroundTxFunc hook for entity update outside of transaction
-type InterceptUpdateAroundTxFunc func(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error)
+type InterceptUpdateAroundTxFunc func(ctx context.Context, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error)
 
 // InterceptUpdateOnTxFunc hook for entity update in transaction
 type InterceptUpdateOnTxFunc func(ctx context.Context, txStorage Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error)

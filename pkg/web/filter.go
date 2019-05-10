@@ -34,6 +34,27 @@ type Request struct {
 
 	// Body is the loaded request body (usually JSON)
 	Body []byte
+
+	responseWriter http.ResponseWriter
+
+	isResponseWriterHijacked bool
+}
+
+func (r *Request) SetResponseWriter(rw http.ResponseWriter) {
+	r.responseWriter = rw
+}
+
+func (r *Request) IsResponseWriterHijacked() bool {
+	return r.isResponseWriterHijacked
+}
+
+func (r *Request) HijackResponseWriter() http.ResponseWriter {
+	if r.isResponseWriterHijacked {
+		log.C(r.Context()).Panic("response writer already hijacked.")
+	}
+
+	r.isResponseWriterHijacked = true
+	return r.responseWriter
 }
 
 // Response defines the attributes of the HTTP response that will be sent to the client

@@ -8,7 +8,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
-const PlatformType ObjectType = "Platform"
+const PlatformType ObjectType = "types.Platform"
 
 type Platforms struct {
 	Platforms []*Platform `json:"platforms"`
@@ -37,8 +37,10 @@ func (e *Platform) MarshalJSON() ([]byte, error) {
 		*E
 		CreatedAt *string `json:"created_at,omitempty"`
 		UpdatedAt *string `json:"updated_at,omitempty"`
+		Labels    Labels  `json:"labels,omitempty"`
 	}{
-		E: (*E)(e),
+		E:      (*E)(e),
+		Labels: e.Labels,
 	}
 	if !e.CreatedAt.IsZero() {
 		str := util.ToRFCFormat(e.CreatedAt)

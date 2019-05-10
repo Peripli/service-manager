@@ -132,7 +132,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 			It("Should construct correct SQL query", func() {
 				fieldName := "platform_id"
 				queryValue := "value"
-				expectedQuery := fmt.Sprintf(`SELECT * FROM %[1]s WHERE (%[1]s.%[2]s::text = ? OR %[1]s.%[2]s IS NULL);`, baseTable, fieldName)
+				expectedQuery := fmt.Sprintf(`SELECT * FROM %[1]s WHERE (%[1]s.%[2]s::text = ? OR %[1]s.%[2]s IS NULL) ORDER BY created_at;`, baseTable, fieldName)
 
 				criteria := []query.Criterion{query.ByField(query.EqualsOrNilOperator, fieldName, queryValue)}
 				rows, err := listWithLabelsByCriteria(ctx, db, Visibility{}, nil, baseTable, criteria)
@@ -147,7 +147,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 			It("Should construct correct SQL query", func() {
 				fieldName := "platform_id"
 				queryValue := "value"
-				expectedQuery := fmt.Sprintf(`SELECT %[1]s.*, %[2]s.id "%[2]s.id", %[2]s.key "%[2]s.key", %[2]s.val "%[2]s.val", %[2]s.created_at "%[2]s.created_at", %[2]s.updated_at "%[2]s.updated_at", %[2]s.visibility_id "%[2]s.visibility_id" FROM %[1]s LEFT JOIN %[2]s ON %[1]s.id = %[2]s.visibility_id WHERE (%[1]s.%[3]s::text = ? OR %[1]s.%[3]s IS NULL);`, baseTable, labelTableName, fieldName)
+				expectedQuery := fmt.Sprintf(`SELECT %[1]s.*, %[2]s.id "%[2]s.id", %[2]s.key "%[2]s.key", %[2]s.val "%[2]s.val", %[2]s.created_at "%[2]s.created_at", %[2]s.updated_at "%[2]s.updated_at", %[2]s.visibility_id "%[2]s.visibility_id" FROM %[1]s LEFT JOIN %[2]s ON %[1]s.id = %[2]s.visibility_id WHERE (%[1]s.%[3]s::text = ? OR %[1]s.%[3]s IS NULL) ORDER BY created_at;`, baseTable, labelTableName, fieldName)
 
 				criteria := []query.Criterion{query.ByField(query.EqualsOrNilOperator, fieldName, queryValue)}
 				rows, err := listWithLabelsByCriteria(ctx, db, Visibility{}, &VisibilityLabel{}, baseTable, criteria)
@@ -166,7 +166,7 @@ var _ = Describe("Postgres Storage Abstract", func() {
 				labelValue := "labelValue"
 				labelEntity := &VisibilityLabel{}
 				referenceColumnName, primaryColumnName := labelEntity.ReferenceColumn(), labelEntity.LabelsPrimaryColumn()
-				expectedQuery := fmt.Sprintf(`SELECT %[1]s.*, %[2]s.id "%[2]s.id", %[2]s.key "%[2]s.key", %[2]s.val "%[2]s.val", %[2]s.created_at "%[2]s.created_at", %[2]s.updated_at "%[2]s.updated_at", %[2]s.%[4]s "%[2]s.%[4]s" FROM table_name JOIN (SELECT * FROM %[2]s WHERE %[4]s IN (SELECT %[4]s FROM %[2]s WHERE (%[2]s.key = ? AND %[2]s.val = ?))) %[2]s ON %[1]s.%[5]s = %[2]s.%[4]s WHERE %[1]s.%[3]s::text = ?;`, baseTable, labelTableName, fieldName, referenceColumnName, primaryColumnName)
+				expectedQuery := fmt.Sprintf(`SELECT %[1]s.*, %[2]s.id "%[2]s.id", %[2]s.key "%[2]s.key", %[2]s.val "%[2]s.val", %[2]s.created_at "%[2]s.created_at", %[2]s.updated_at "%[2]s.updated_at", %[2]s.%[4]s "%[2]s.%[4]s" FROM table_name JOIN (SELECT * FROM %[2]s WHERE %[4]s IN (SELECT %[4]s FROM %[2]s WHERE (%[2]s.key = ? AND %[2]s.val = ?))) %[2]s ON %[1]s.%[5]s = %[2]s.%[4]s WHERE %[1]s.%[3]s::text = ? ORDER BY created_at;`, baseTable, labelTableName, fieldName, referenceColumnName, primaryColumnName)
 				criteria := []query.Criterion{
 					query.ByField(query.EqualsOperator, fieldName, queryValue),
 					query.ByLabel(query.EqualsOperator, labelKey, labelValue),
@@ -185,14 +185,14 @@ var _ = Describe("Postgres Storage Abstract", func() {
 			It("Should construct base SQL query", func() {
 				_, err := listByFieldCriteria(ctx, db, baseTable, nil)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(executedQuery).To(Equal(fmt.Sprintf("SELECT * FROM %s;", baseTable)))
+				Expect(executedQuery).To(Equal(fmt.Sprintf("SELECT * FROM %s ORDER BY created_at;", baseTable)))
 			})
 		})
 		Context("When passing correct criteria", func() {
 			It("Should construct correct SQL query", func() {
 				fieldName := "platform_id"
 				queryValue := "value"
-				expectedQuery := fmt.Sprintf(`SELECT * FROM %[1]s WHERE %[1]s.%[2]s::text = ?;`, baseTable, fieldName)
+				expectedQuery := fmt.Sprintf(`SELECT * FROM %[1]s WHERE %[1]s.%[2]s::text = ? ORDER BY created_at;`, baseTable, fieldName)
 
 				criteria := []query.Criterion{
 					query.ByField(query.EqualsOperator, fieldName, queryValue),

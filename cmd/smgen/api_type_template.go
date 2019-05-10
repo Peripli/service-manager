@@ -28,7 +28,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
-const {{.Type}}Type {{.TypesPackage}}ObjectType = "{{.Type}}"
+const {{.Type}}Type {{.TypesPackage}}ObjectType = "{{.PackageName}}.{{.Type}}"
 
 type {{.TypePlural}} struct {
 	{{.TypePlural}} []*{{.Type}} ` + "`json:\"{{.TypePluralLowercase}}\"`" + `
@@ -57,8 +57,10 @@ func (e *{{.Type}}) MarshalJSON() ([]byte, error) {
 		*E
 		CreatedAt *string ` + "`json:\"created_at,omitempty\"`" + `
 		UpdatedAt *string ` + "`json:\"updated_at,omitempty\"`" + `
+		Labels    Labels  ` + "`json:\"labels,omitempty\"`" + `
 	}{
-		E: (*E)(e),
+		E:      (*E)(e),
+		Labels: e.Labels,
 	}
 	if !e.CreatedAt.IsZero() {
 		str := util.ToRFCFormat(e.CreatedAt)
