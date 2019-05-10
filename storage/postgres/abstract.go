@@ -279,7 +279,7 @@ func checkIntegrityViolation(ctx context.Context, err error) error {
 	sqlErr, ok := err.(*pq.Error)
 	if ok && (sqlErr.Code.Class() == "42" || sqlErr.Code.Class() == "44" || sqlErr.Code.Class() == "23") {
 		log.C(ctx).Debug(sqlErr)
-		return &util.ErrBadRequestStorage{err}
+		return &util.ErrBadRequestStorage{Cause: err}
 	}
 	return err
 }

@@ -35,27 +35,33 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 
 		var fakeStorage *storagefakes.FakeStorage
 
+		var executionsCount int
+
 		OnTxStub := func(ctx context.Context, storage storage.Repository) error {
-			_, err := storage.Create(ctx, &types.ServiceBroker{})
-			Expect(err).ShouldNot(HaveOccurred())
+			for i := 0; i < executionsCount; i++ {
+				_, err := storage.Create(ctx, &types.ServiceBroker{})
+				Expect(err).ShouldNot(HaveOccurred())
 
-			_, err = storage.Update(ctx, &types.ServiceBroker{
-				Base: types.Base{
-					UpdatedAt: updateTime,
-				},
-			})
-			Expect(err).ShouldNot(HaveOccurred())
+				_, err = storage.Update(ctx, &types.ServiceBroker{
+					Base: types.Base{
+						UpdatedAt: updateTime,
+					},
+				})
+				Expect(err).ShouldNot(HaveOccurred())
 
-			byID := query.ByField(query.EqualsOperator, "id", "id")
-			_, err = storage.Delete(ctx, types.ServiceBrokerType, byID)
-			Expect(err).ShouldNot(HaveOccurred())
+				byID := query.ByField(query.EqualsOperator, "id", "id")
+				_, err = storage.Delete(ctx, types.ServiceBrokerType, byID)
+				Expect(err).ShouldNot(HaveOccurred())
 
+			}
 			return nil
 		}
 
 		BeforeEach(func() {
 			ctx = context.TODO()
 			updateTime = time.Now()
+
+			executionsCount = 1
 
 			fakeCreateInterceptor = &storagefakes.FakeCreateInterceptor{}
 			fakeCreateInterceptor.OnTxCreateCalls(func(next storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
@@ -191,22 +197,28 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 			})
 		})
 
-		It("triggers the interceptors OnTx logic", func() {
-			err := interceptableRepository.InTransaction(ctx, OnTxStub)
+		Context("when multiple resources of the same type are created in one transaction", func() {
+			BeforeEach(func() {
+				executionsCount = 2
+			})
 
-			Expect(err).ShouldNot(HaveOccurred())
+			It("triggers the interceptors OnTx logic for each resource create/update/delete", func() {
+				err := interceptableRepository.InTransaction(ctx, OnTxStub)
 
-			Expect(fakeCreateInterceptor.OnTxCreateCallCount()).To(Equal(1))
-			Expect(fakeUpdateIntercetptor.OnTxUpdateCallCount()).To(Equal(1))
-			Expect(fakeDeleteInterceptor.OnTxDeleteCallCount()).To(Equal(1))
+				Expect(err).ShouldNot(HaveOccurred())
 
-			Expect(fakeCreateInterceptor.AroundTxCreateCallCount()).To(Equal(0))
-			Expect(fakeUpdateIntercetptor.AroundTxUpdateCallCount()).To(Equal(0))
-			Expect(fakeDeleteInterceptor.AroundTxDeleteCallCount()).To(Equal(0))
+				Expect(fakeCreateInterceptor.OnTxCreateCallCount()).To(Equal(executionsCount))
+				Expect(fakeUpdateIntercetptor.OnTxUpdateCallCount()).To(Equal(executionsCount))
+				Expect(fakeDeleteInterceptor.OnTxDeleteCallCount()).To(Equal(executionsCount))
 
-			Expect(fakeStorage.CreateCallCount()).To(Equal(1))
-			Expect(fakeStorage.UpdateCallCount()).To(Equal(1))
-			Expect(fakeStorage.DeleteCallCount()).To(Equal(1))
+				Expect(fakeCreateInterceptor.AroundTxCreateCallCount()).To(Equal(0))
+				Expect(fakeUpdateIntercetptor.AroundTxUpdateCallCount()).To(Equal(0))
+				Expect(fakeDeleteInterceptor.AroundTxDeleteCallCount()).To(Equal(0))
+
+				Expect(fakeStorage.CreateCallCount()).To(Equal(executionsCount))
+				Expect(fakeStorage.UpdateCallCount()).To(Equal(executionsCount))
+				Expect(fakeStorage.DeleteCallCount()).To(Equal(executionsCount))
+			})
 		})
 
 		It("does not get into infinite recursion when an interceptor triggers the same db op for the same db type it intercepts", func() {
