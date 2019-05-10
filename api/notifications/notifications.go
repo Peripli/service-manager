@@ -192,9 +192,8 @@ func (c *Controller) unregisterConsumer(ctx context.Context, q storage.Notificat
 }
 
 func (c *Controller) getNotificationList(ctx context.Context, user *web.UserContext, revisionKnownToProxy, LastKnownRevisionHeader int64) (*types.Notifications, error) {
-	// TODO: is this +1/-1 ok or we should add less than or equal operator
-	listQuery1 := query.ByField(query.GreaterThanOperator, "revision", strconv.FormatInt(revisionKnownToProxy-1, 10))
-	listQuery2 := query.ByField(query.LessThanOperator, "revision", strconv.FormatInt(LastKnownRevisionHeader+1, 10))
+	listQuery1 := query.ByField(query.GreaterThanOrEqualOperator, "revision", strconv.FormatInt(revisionKnownToProxy, 10))
+	listQuery2 := query.ByField(query.LessThanOrEqualOperator, "revision", strconv.FormatInt(LastKnownRevisionHeader, 10))
 
 	platform, err := extractPlatformFromContext(user)
 	if err != nil {

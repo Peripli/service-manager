@@ -292,5 +292,23 @@ var _ = Describe("Selection", func() {
 				Expect(criteriaFromRequest).To(ConsistOf(expectedQuery))
 			})
 		})
+
+		Context("When using equals or operators", func() {
+			It("should build the right gte query", func() {
+				criteriaFromRequest, err := buildCriteria(`http://localhost:8080/v1/visibilities?fieldQuery=leftop gte rightop`)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(criteriaFromRequest).ToNot(BeNil())
+				expectedQuery := ByField(GreaterThanOrEqualOperator, "leftop", "rightop")
+				Expect(criteriaFromRequest).To(ConsistOf(expectedQuery))
+			})
+
+			It("should build the right lte query", func() {
+				criteriaFromRequest, err := buildCriteria(`http://localhost:8080/v1/visibilities?fieldQuery=leftop lte rightop`)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(criteriaFromRequest).ToNot(BeNil())
+				expectedQuery := ByField(LessThanOrEqualOperator, "leftop", "rightop")
+				Expect(criteriaFromRequest).To(ConsistOf(expectedQuery))
+			})
+		})
 	})
 })
