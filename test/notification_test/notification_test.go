@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Peripli/service-manager/pkg/log"
-
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/sm"
 	"github.com/Peripli/service-manager/storage/interceptors"
@@ -308,7 +306,6 @@ var _ = Describe("Notifications Suite", func() {
 	})
 
 	for _, entry := range entries {
-		log.Default().Error(fmt.Sprintf("%T %v", entry, entries))
 		entry := entry
 
 		getNotifications := func(ids ...string) (*types.Notifications, []string) {
