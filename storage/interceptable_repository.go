@@ -96,14 +96,13 @@ func (ir *interceptableRepository) Create(ctx context.Context, obj types.Object)
 		// remove the create interceptor chain so that if one of the interceptors in the chain tries
 		// to create another resource of the same type we don't get into infinite recursion
 
-		interceptorsToRestore, ok := ir.createInterceptor[objectType]
-
+		// clean up to avoid nested infinite chain
 		delete(ir.createInterceptor, objectType)
+
 		err = createInterceptorChain.OnTxCreate(createObjectFunc)(ctx, ir, obj)
 
-		if ok {
-			ir.createInterceptor[objectType] = interceptorsToRestore
-		}
+		// restore the chain
+		ir.createInterceptor[objectType] = createInterceptorChain
 	} else {
 		err = createObjectFunc(ctx, ir.repositoryInTransaction, obj)
 	}
@@ -160,7 +159,11 @@ func (ir *interceptableRepository) Delete(ctx context.Context, objectType types.
 		}
 
 		delete(ir.deleteInterceptor, objectType)
+
 		objectList, err = deleteInterceptorChain.OnTxDelete(deleteObjectFunc)(ctx, ir, objects, criteria...)
+
+		ir.deleteInterceptor[objectType] = deleteInterceptorChain
+
 	} else {
 		objectList, err = deleteObjectFunc(ctx, nil, nil, criteria...)
 	}
@@ -209,6 +212,9 @@ func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object,
 		delete(ir.updateInterceptor, objectType)
 
 		updatedObj, err = updateInterceptorChain.OnTxUpdate(updateObjFunc)(ctx, ir, oldObj, obj, labelChanges...)
+
+		ir.updateInterceptor[objectType] = updateInterceptorChain
+
 	} else {
 		updatedObj, err = updateObjFunc(ctx, ir, oldObj, obj, labelChanges...)
 	}
