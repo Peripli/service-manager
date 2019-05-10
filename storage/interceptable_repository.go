@@ -95,8 +95,15 @@ func (ir *interceptableRepository) Create(ctx context.Context, obj types.Object)
 	if createInterceptorChain, found := ir.createInterceptor[objectType]; found {
 		// remove the create interceptor chain so that if one of the interceptors in the chain tries
 		// to create another resource of the same type we don't get into infinite recursion
+
+		interceptorsToRestore, ok := ir.createInterceptor[objectType]
+
 		delete(ir.createInterceptor, objectType)
 		err = createInterceptorChain.OnTxCreate(createObjectFunc)(ctx, ir, obj)
+
+		if ok {
+			ir.createInterceptor[objectType] = interceptorsToRestore
+		}
 	} else {
 		err = createObjectFunc(ctx, ir.repositoryInTransaction, obj)
 	}
