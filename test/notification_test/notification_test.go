@@ -306,6 +306,8 @@ var _ = Describe("Notifications Suite", func() {
 	})
 
 	for _, entry := range entries {
+		entry := entry
+
 		getNotifications := func(ids ...string) (*types.Notifications, []string) {
 			filters := make([]query.Criterion, 0)
 			if len(ids) != 0 {
