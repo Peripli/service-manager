@@ -245,8 +245,7 @@ var _ = Describe("Interceptors", func() {
 				}
 
 				platform2 := common.GenerateRandomPlatform()
-				ctx.SMWithOAuth.POST(web.PlatformsURL).WithJSON(platform2).Expect().Status(http.StatusBadRequest).
-					JSON().Object().Value("description").String().Contains("expected update to fail")
+				ctx.SMWithOAuth.POST(web.PlatformsURL).WithJSON(platform2).Expect().Status(http.StatusInternalServerError)
 
 				ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", web.PlatformsURL, platform2["id"])).
 					Expect().Status(http.StatusNotFound)
