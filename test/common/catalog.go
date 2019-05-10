@@ -163,7 +163,8 @@ func (sbc *SBCatalog) RemovePlan(serviceIndex, planIndex int) (string, string) {
 func NewRandomSBCatalog() SBCatalog {
 	plan1 := GeneratePaidTestPlan()
 	plan2 := GenerateFreeTestPlan()
-	service1 := GenerateTestServiceWithPlans(plan1, plan2)
+	plan3 := GenerateFreeTestPlan()
+	service1 := GenerateTestServiceWithPlans(plan1, plan2, plan3)
 
 	catalog := NewEmptySBCatalog()
 	catalog.AddService(service1)

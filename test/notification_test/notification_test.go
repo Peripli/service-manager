@@ -8,9 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Peripli/service-manager/storage/catalog"
-
+	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/Peripli/service-manager/pkg/sm"
 	"github.com/Peripli/service-manager/storage/interceptors"
+
+	"github.com/Peripli/service-manager/storage/catalog"
 
 	. "github.com/benjamintf1/unmarshalledmatchers"
 
@@ -47,6 +49,8 @@ type notificationTypeEntry struct {
 	ExpectedPlatformIDFunc func(obj common.Object) string
 	// ExpectedAdditionalPayloadFunc calculates the expected additional payload for the given object
 	ExpectedAdditionalPayloadFunc func(expected common.Object, repository storage.Repository) []byte
+	// Verify additional stuff such as creation of notifications for dependant entities
+	AdditionalVerificationNotificationsFunc func(expected common.Object, repository storage.Repository, notificationsAfterOp *types.Notifications)
 }
 
 var _ = Describe("Notifications Suite", func() {
@@ -128,6 +132,33 @@ var _ = Describe("Notifications Suite", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 
 				return bytes
+			},
+			AdditionalVerificationNotificationsFunc: func(expected common.Object, repository storage.Repository, notificationsAfterOp *types.Notifications) {
+				serviceOfferings, err := catalog.Load(c, expected["id"].(string), ctx.SMRepository)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				for _, serviceOffering := range serviceOfferings.ServiceOfferings {
+					for _, servicePlan := range serviceOffering.Plans {
+						if servicePlan.Free {
+							found := false
+							for _, notification := range notificationsAfterOp.Notifications {
+								if notification.Resource == types.VisibilityType && notification.Type == types.CREATED {
+									catalogID := gjson.GetBytes(notification.Payload, "new.additional.service_plan.catalog_id").Str
+									Expect(catalogID).ToNot(BeEmpty())
+
+									if servicePlan.CatalogID == catalogID {
+										found = true
+										break
+									}
+								}
+							}
+							if !found {
+								Fail(fmt.Sprintf("Could not find notification for visibility of public plan with SM ID %s and catalog ID %s", servicePlan.ID, servicePlan.CatalogID))
+							}
+						}
+					}
+				}
+
 			},
 		},
 		{
@@ -239,11 +270,30 @@ var _ = Describe("Notifications Suite", func() {
 
 				return bytes
 			},
+			AdditionalVerificationNotificationsFunc: func(expected common.Object, repository storage.Repository, notificationsAfterOp *types.Notifications) {
+
+			},
 		},
 	}
 
 	BeforeSuite(func() {
-		ctx = common.DefaultTestContext()
+		// Register the public plans interceptor with default public plans function that uses the catalog plan free value
+		// so that we can verify that notifications for public plans are also created
+		ctx = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+			smb.WithCreateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanCreateInterceptorProvider{
+				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
+					return catalogPlan.Free, nil
+				},
+			}).OnTxBefore(interceptors.BrokerCreateNotificationInterceptorName).Register()
+
+			smb.WithUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanUpdateInterceptorProvider{
+				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
+					return catalogPlan.Free, nil
+				},
+			}).OnTxBefore(interceptors.BrokerUpdateNotificationInterceptorName).Register()
+
+			return nil
+		}).Build()
 	})
 
 	AfterSuite(func() {
@@ -256,9 +306,8 @@ var _ = Describe("Notifications Suite", func() {
 	})
 
 	for _, entry := range entries {
-		getNotifications := func(objectType types.ObjectType, ids ...string) (*types.Notifications, []string) {
+		getNotifications := func(ids ...string) (*types.Notifications, []string) {
 			filters := make([]query.Criterion, 0)
-			filters = append(filters, query.ByField(query.EqualsOperator, "resource", string(objectType)))
 			if len(ids) != 0 {
 				filters = append(filters, query.ByField(query.NotInOperator, "id", "["+strings.Join(ids, "||"+"]")))
 			}
@@ -394,11 +443,12 @@ var _ = Describe("Notifications Suite", func() {
 			})
 
 			It("also creates a CREATED notification", func() {
-				_, ids := getNotifications(entry.ResourceType)
+				_, ids := getNotifications()
 				objAfterOp = entry.ResourceCreateFunc()
-				notificationsAfterOp, _ := getNotifications(entry.ResourceType, ids...)
+				notificationsAfterOp, _ := getNotifications(ids...)
 
 				verifyCreationNotificationCreated(objAfterOp, notificationsAfterOp)
+				entry.AdditionalVerificationNotificationsFunc(objAfterOp, ctx.SMRepository, notificationsAfterOp)
 			})
 		})
 
@@ -408,11 +458,11 @@ var _ = Describe("Notifications Suite", func() {
 			})
 
 			It("also creates a DELETED notification", func() {
-				_, ids := getNotifications(entry.ResourceType)
+				_, ids := getNotifications()
 				oldPayload := entry.ExpectedAdditionalPayloadFunc(objAfterOp, ctx.SMRepository)
 
 				entry.ResourceDeleteFunc(objAfterOp)
-				notificationsAfterOp, _ := getNotifications(entry.ResourceType, ids...)
+				notificationsAfterOp, _ := getNotifications(ids...)
 
 				verifyDeletionNotificationCreated(objAfterOp, notificationsAfterOp, oldPayload)
 			})
@@ -440,10 +490,10 @@ var _ = Describe("Notifications Suite", func() {
 			}
 
 			DescribeTable("also creates one or more notifications", func(update func() common.Object) {
-				_, ids := getNotifications(entry.ResourceType)
+				_, ids := getNotifications()
 				updateBody := update()
 				objAfterOp = entry.ResourceUpdateFunc(createdObj, updateBody)
-				notificationsAfterOp, _ := getNotifications(entry.ResourceType, ids...)
+				notificationsAfterOp, _ := getNotifications(ids...)
 
 				verifyModificationNotificationsCreated(createdObj, objAfterOp, updateBody, notificationsAfterOp)
 
