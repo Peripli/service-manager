@@ -36,7 +36,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		return nil, errors.New("user details not found in request context")
 	}
 
-	revisionKnownToProxy := int64(0)
+	revisionKnownToProxy := int64(-1)
 	revisionKnownToProxyStr := req.URL.Query().Get(LastKnownRevisionQueryParam)
 	if revisionKnownToProxyStr != "" {
 		var err error
@@ -49,6 +49,10 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 				ErrorType:   "BadRequest",
 			}
 		}
+	}
+
+	if revisionKnownToProxy == 0 {
+		return util.NewJSONResponse(http.StatusGone, nil)
 	}
 
 	notificationQueue, lastKnownRevision, notificationsList, err := c.registerConsumer(ctx, revisionKnownToProxy, user)
@@ -145,12 +149,12 @@ func (c *Controller) sendWsMessage(ctx context.Context, conn *websocket.Conn, ms
 
 func (c *Controller) registerConsumer(ctx context.Context, revisionKnownToProxy int64, user *web.UserContext) (storage.NotificationQueue, int64, *types.Notifications, error) {
 	var (
-		notificationQueue       storage.NotificationQueue
-		notificationsList       *types.Notifications
-		LastKnownRevisionHeader int64
-		err                     error
+		notificationQueue storage.NotificationQueue
+		notificationsList *types.Notifications
+		lastKnownRevision int64
+		err               error
 	)
-	notificationQueue, LastKnownRevisionHeader, err = c.notificator.RegisterConsumer(user)
+	notificationQueue, lastKnownRevision, err = c.notificator.RegisterConsumer(user)
 	if err != nil {
 		return nil, -1, nil, fmt.Errorf("could not register notification consumer: %v", err)
 	}
@@ -160,12 +164,12 @@ func (c *Controller) registerConsumer(ctx context.Context, revisionKnownToProxy 
 		}
 	}()
 
-	if LastKnownRevisionHeader < revisionKnownToProxy {
-		log.C(ctx).Infof("Notification revision known to proxy %d is greater than revision known to SM %d", revisionKnownToProxy, LastKnownRevisionHeader)
+	if lastKnownRevision < revisionKnownToProxy {
+		log.C(ctx).Infof("Notification revision known to proxy %d is greater than revision known to SM %d", revisionKnownToProxy, lastKnownRevision)
 		return nil, -1, nil, errRevisionNotFound
 	}
 
-	notificationsList, err = c.getNotificationList(ctx, user, revisionKnownToProxy, LastKnownRevisionHeader)
+	notificationsList, err = c.getNotificationList(ctx, user, revisionKnownToProxy, lastKnownRevision)
 	if err != nil {
 		return nil, -1, nil, err
 	}
@@ -182,7 +186,7 @@ func (c *Controller) registerConsumer(ctx context.Context, revisionKnownToProxy 
 			return nil, -1, nil, errRevisionNotFound
 		}
 	}
-	return notificationQueue, LastKnownRevisionHeader, notificationsList, err
+	return notificationQueue, lastKnownRevision, notificationsList, err
 }
 
 func (c *Controller) unregisterConsumer(ctx context.Context, q storage.NotificationQueue) {
