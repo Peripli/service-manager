@@ -38,7 +38,7 @@ p-mysql      https://p-mysql.dev.cfdev.sh:443
 p.rabbitmq   http://10.144.0.146:8080
 redis-odb    http://10.144.0.147:12345
 ```
-Note: Service brokers provided by the service manager have a well known pattern which is `sm-proxy-<guid>`
+Note: Service brokers provided by the service manager have a well known pattern which is `sm-<broker-name>`
 
 ### Kubernetes
 ```console
@@ -73,7 +73,7 @@ name                                            url
 p-mysql                                         https://p-mysql.dev.cfdev.sh:443
 p.rabbitmq                                      http://10.144.0.146:8080
 redis-odb                                       http://10.144.0.147:12345
-sm-proxy-a0d0a401-3048-4db7-a6d5-c5098be84d6d   https://cfproxy.dev.cfdev.sh/v1/osb/a0d0a401-3048-4db7-a6d5-c5098be84d6d
+sm-ups-broker  https://cfproxy.dev.cfdev.sh/v1/osb/a0d0a401-3048-4db7-a6d5-c5098be84d6d
 ```
 
 ### Kubernetes
@@ -81,7 +81,7 @@ sm-proxy-a0d0a401-3048-4db7-a6d5-c5098be84d6d   https://cfproxy.dev.cfdev.sh/v1/
 $ svcat get brokers
                       NAME                        NAMESPACE                                                 URL                                                 STATUS
 +-----------------------------------------------+-----------+-------------------------------------------------------------------------------------------------+--------+
-  sm-proxy-a0d0a401-3048-4db7-a6d5-c5098be84d6d               http://service-broker-proxy.service-broker-proxy:80/v1/osb/a0d0a401-3048-4db7-a6d5-c5098be84d6d   Ready
+  sm-ups-broker              http://service-broker-proxy.service-broker-proxy:80/v1/osb/a0d0a401-3048-4db7-a6d5-c5098be84d6d   Ready
 ```
 
 ## Step 4 - Ensure the services are visible 
@@ -283,10 +283,10 @@ We can try and delete the service broker in the respective platform, but due to 
 ### CloudFoundry
 
 ```console
-$ cf delete-service-broker sm-proxy-a0d0a401-3048-4db7-a6d5-c5098be84d6d
+$ cf delete-service-broker sm-ups-broker
 
-Really delete the service-broker sm-proxy-a0d0a401-3048-4db7-a6d5-c5098be84d6d?> y
-Deleting service broker sm-proxy-a0d0a401-3048-4db7-a6d5-c5098be84d6d as admin...
+Really delete the service-broker sm-a0d0a401-3048-4db7-a6d5-c5098be84d6d?> y
+Deleting service broker sm-a0d0a401-3048-4db7-a6d5-c5098be84d6d as admin...
 OK
 ```
 
@@ -300,14 +300,14 @@ name                                            url
 p-mysql                                         https://p-mysql.dev.cfdev.sh:443
 p.rabbitmq                                      http://10.144.0.146:8080
 redis-odb                                       http://10.144.0.147:12345
-sm-proxy-a0d0a401-3048-4db7-a6d5-c5098be84d6d   https://cfproxy.dev.cfdev.sh/v1/osb/a0d0a401-3048-4db7-a6d5-c5098be84d6d
+sm-ups-broker   https://cfproxy.dev.cfdev.sh/v1/osb/a0d0a401-3048-4db7-a6d5-c5098be84d6d
 ```
 
 ### Kubernetes
 
 ```console
-$ kubectl delete clusterservicebrokers sm-proxy-a0d0a401-3048-4db7-a6d5-c5098be84d6d
-clusterservicebroker.servicecatalog.k8s.io "sm-proxy-a0d0a401-3048-4db7-a6d5-c5098be84d6d" deleted
+$ kubectl delete clusterservicebrokers sm-ups-broker
+clusterservicebroker.servicecatalog.k8s.io "sm-a0d0a401-3048-4db7-a6d5-c5098be84d6d" deleted
 ```
 
 And if we start watching for the ClusterServiceBroker resource we'll see that the service broker is registered again:
@@ -315,8 +315,8 @@ And if we start watching for the ClusterServiceBroker resource we'll see that th
 ```console
 $ kubectl get clusterservicebrokers -w
 NAME                                            AGE
-sm-proxy-a0d0a401-3048-4db7-a6d5-c5098be84d6d   0s
-sm-proxy-a0d0a401-3048-4db7-a6d5-c5098be84d6d   1s
+sm-a0d0a401-3048-4db7-a6d5-c5098be84d6d   0s
+sm-a0d0a401-3048-4db7-a6d5-c5098be84d6d   1s
 ```
 
 To delete the service broker, you need to remove its registration from the service manager itself:
