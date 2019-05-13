@@ -25,7 +25,7 @@ const (
 	LastKnownRevisionQueryParam = "last_notification_revision"
 )
 
-var errRevisionNotFound error = errors.New("revision not found")
+var errRevisionNotFound = errors.New("revision not found")
 
 func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	ctx := req.Context()
@@ -63,31 +63,46 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
+	correlationID := logger.Data[log.FieldCorrelationID].(string)
+	childCtx := newContextWithCorrelationID(c.baseCtx, correlationID)
+
+	defer func() {
+		if err := recover(); err != nil {
+			log.C(childCtx).Errorf("recovered from panic while establishing websocket connection: %s", err)
+		}
+	}()
+
 	rw := req.HijackResponseWriter()
 	responseHeaders := http.Header{
 		LastKnownRevisionHeader: []string{strconv.FormatInt(lastKnownRevision, 10)},
 	}
+
 	conn, err := c.upgrade(rw, req.Request, responseHeaders)
 	if err != nil {
 		c.unregisterConsumer(ctx, notificationQueue)
 		return nil, err
 	}
-	correlationID := logger.Data[log.FieldCorrelationID].(string)
-	childCtx := newContextWithCorrelationID(c.baseCtx, correlationID)
 
 	done := make(chan struct{}, 2)
+
+	go c.closeConn(childCtx, conn, done)
 	go c.writeLoop(childCtx, conn, notificationsList, notificationQueue, done)
 	go c.readLoop(childCtx, conn, done)
-	go c.closeConn(childCtx, conn, done)
 
 	return &web.Response{}, nil
 }
 
 func (c *Controller) writeLoop(ctx context.Context, conn *websocket.Conn, notificationsList *types.Notifications, q storage.NotificationQueue, done chan<- struct{}) {
-	defer c.unregisterConsumer(ctx, q)
+	defer func() {
+		if err := recover(); err != nil {
+			log.C(ctx).Errorf("recovered from panic while writing to websocket connection: %s", err)
+		}
+	}()
+
 	defer func() {
 		done <- struct{}{}
 	}()
+	defer c.unregisterConsumer(ctx, q)
 
 	for _, notification := range notificationsList.Notifications {
 		select {
@@ -123,6 +138,12 @@ func (c *Controller) writeLoop(ctx context.Context, conn *websocket.Conn, notifi
 }
 
 func (c *Controller) readLoop(ctx context.Context, conn *websocket.Conn, done chan<- struct{}) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.C(ctx).Errorf("recovered from panic while reading from websocket connection: %s", err)
+		}
+	}()
+
 	defer func() {
 		done <- struct{}{}
 	}()
