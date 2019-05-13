@@ -246,21 +246,8 @@ func (ps *PostgresStorage) Update(ctx context.Context, obj types.Object, labelCh
 	if err = ps.updateLabels(ctx, entity.GetID(), entity, labelChanges); err != nil {
 		return nil, err
 	}
-	labelsInfo := entity.LabelEntity()
-	byEntityID := query.ByField(query.EqualsOperator, labelsInfo.ReferenceColumn(), entity.GetID())
-	rows, err := listByFieldCriteria(ctx, ps.pgDB, labelsInfo.LabelsTableName(), []query.Criterion{byEntityID})
-	if err != nil {
-		return nil, err
-	}
-	defer closeRows(ctx, rows)
-	labels, err := labelsRowsToList(rows, func() PostgresLabel { return entity.LabelEntity() })
-	if err != nil {
-		return nil, err
-	}
-	typeLabels := storageLabelsToType(labels)
 
 	result := entity.ToObject()
-	result.SetLabels(typeLabels)
 	return result, nil
 }
 
@@ -316,17 +303,4 @@ func (migrateLogger) Printf(format string, v ...interface{}) {
 
 func (migrateLogger) Verbose() bool {
 	return true
-}
-
-func storageLabelsToType(labels []storage.Label) types.Labels {
-	labelValues := make(map[string][]string)
-	for _, label := range labels {
-		values, exists := labelValues[label.GetKey()]
-		if exists {
-			labelValues[label.GetKey()] = append(values, label.GetValue())
-		} else {
-			labelValues[label.GetKey()] = []string{label.GetValue()}
-		}
-	}
-	return labelValues
 }

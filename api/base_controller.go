@@ -218,13 +218,19 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	if err := util.BytesToObject(r.Body, objFromDB); err != nil {
 		return nil, err
 	}
+
 	objFromDB.SetID(objectID)
 	objFromDB.SetCreatedAt(createdAt)
 	objFromDB.SetUpdatedAt(updatedAt)
+
+	labels, _, _ := query.ApplyLabelChangesToLabels(labelChanges, objFromDB.GetLabels())
+	objFromDB.SetLabels(labels)
+
 	object, err := c.repository.Update(ctx, objFromDB, labelChanges...)
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
+
 	stripCredentials(ctx, object)
 
 	return util.NewJSONResponse(http.StatusOK, object)

@@ -20,6 +20,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/Peripli/service-manager/pkg/types"
+
 	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/tidwall/gjson"
@@ -88,4 +90,51 @@ func LabelChangesFromJSON(jsonBytes []byte) ([]*LabelChange, error) {
 		}
 	}
 	return labelChanges, nil
+}
+
+// ApplyLabelChangesToLabels applies the specified label changes to the specified labels
+func ApplyLabelChangesToLabels(changes LabelChanges, labels types.Labels) (types.Labels, types.Labels, types.Labels) {
+	mergedLabels, labelsToAdd, labelsToRemove := types.Labels{}, types.Labels{}, types.Labels{}
+	for k, v := range labels {
+		mergedLabels[k] = v
+	}
+
+	for _, change := range changes {
+		switch change.Operation {
+		case AddLabelOperation:
+			fallthrough
+		case AddLabelValuesOperation:
+			for _, value := range change.Values {
+				found := false
+				for _, currentValue := range mergedLabels[change.Key] {
+					if currentValue == value {
+						found = true
+						break
+					}
+				}
+				if !found {
+					labelsToAdd[change.Key] = append(labelsToAdd[change.Key], value)
+					mergedLabels[change.Key] = append(mergedLabels[change.Key], value)
+				}
+			}
+		case RemoveLabelOperation:
+			fallthrough
+		case RemoveLabelValuesOperation:
+			if len(change.Values) == 0 {
+				labelsToRemove[change.Key] = labels[change.Key]
+				delete(mergedLabels, change.Key)
+			} else {
+				labelsToRemove[change.Key] = append(labelsToRemove[change.Key], change.Values...)
+				for _, valueToRemove := range change.Values {
+					for i, value := range mergedLabels[change.Key] {
+						if value == valueToRemove {
+							mergedLabels[change.Key] = append(mergedLabels[change.Key][:i], mergedLabels[change.Key][i+1:]...)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return mergedLabels, labelsToAdd, labelsToRemove
 }

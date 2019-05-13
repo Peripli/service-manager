@@ -190,6 +190,9 @@ func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object,
 			return nil, err
 		}
 
+		labels, _, _ := query.ApplyLabelChangesToLabels(labelChanges, newObj.GetLabels())
+		object.SetLabels(labels)
+
 		return object, nil
 	}
 
