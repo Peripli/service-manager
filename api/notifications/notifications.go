@@ -23,6 +23,9 @@ import (
 const (
 	LastKnownRevisionHeader     = "last_notification_revision"
 	LastKnownRevisionQueryParam = "last_notification_revision"
+
+	unknownRevision int64 = -1
+	noRevision      int64 = 0
 )
 
 var errRevisionNotFound error = errors.New("revision not found")
@@ -36,7 +39,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		return nil, errors.New("user details not found in request context")
 	}
 
-	revisionKnownToProxy := int64(-1)
+	revisionKnownToProxy := unknownRevision
 	revisionKnownToProxyStr := req.URL.Query().Get(LastKnownRevisionQueryParam)
 	if revisionKnownToProxyStr != "" {
 		var err error
@@ -51,7 +54,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		}
 	}
 
-	if revisionKnownToProxy == 0 {
+	if revisionKnownToProxy == noRevision {
 		return util.NewJSONResponse(http.StatusGone, nil)
 	}
 
@@ -156,7 +159,7 @@ func (c *Controller) registerConsumer(ctx context.Context, revisionKnownToProxy 
 	)
 	notificationQueue, lastKnownRevision, err = c.notificator.RegisterConsumer(user)
 	if err != nil {
-		return nil, -1, nil, fmt.Errorf("could not register notification consumer: %v", err)
+		return nil, unknownRevision, nil, fmt.Errorf("could not register notification consumer: %v", err)
 	}
 	defer func() {
 		if err != nil {
@@ -166,15 +169,17 @@ func (c *Controller) registerConsumer(ctx context.Context, revisionKnownToProxy 
 
 	if lastKnownRevision < revisionKnownToProxy {
 		log.C(ctx).Infof("Notification revision known to proxy %d is greater than revision known to SM %d", revisionKnownToProxy, lastKnownRevision)
-		return nil, -1, nil, errRevisionNotFound
+		return nil, unknownRevision, nil, errRevisionNotFound
 	}
 
-	notificationsList, err = c.getNotificationList(ctx, user, revisionKnownToProxy, lastKnownRevision)
-	if err != nil {
-		return nil, -1, nil, err
-	}
+	if revisionKnownToProxy == unknownRevision {
+		notificationsList = &types.Notifications{}
+	} else {
+		notificationsList, err = c.getNotificationList(ctx, user, revisionKnownToProxy, lastKnownRevision)
+		if err != nil {
+			return nil, unknownRevision, nil, err
+		}
 
-	if revisionKnownToProxy > 0 {
 		var notification *types.Notification
 		if notificationsList.Len() > 0 {
 			notification = notificationsList.Notifications[0]
@@ -183,7 +188,7 @@ func (c *Controller) registerConsumer(ctx context.Context, revisionKnownToProxy 
 
 		if notification == nil || notification.Revision != revisionKnownToProxy {
 			log.C(ctx).Infof("Notification with revision %d known to proxy not found", revisionKnownToProxy)
-			return nil, -1, nil, errRevisionNotFound
+			return nil, unknownRevision, nil, errRevisionNotFound
 		}
 	}
 	return notificationQueue, lastKnownRevision, notificationsList, err

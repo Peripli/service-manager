@@ -85,9 +85,9 @@ var _ = Describe("WS", func() {
 		return conn, resp, err
 	}
 
-	wsconnectWithPlatform := func() (*types.Platform, *websocket.Conn, *http.Response, error) {
+	wsconnectWithPlatform := func(queryParams map[string]string) (*types.Platform, *websocket.Conn, *http.Response, error) {
 		platform := common.RegisterPlatformInSM(common.GenerateRandomPlatform(), ctx.SMWithOAuth, map[string]string{})
-		conn, resp, err := wsconnect(platform, nil)
+		conn, resp, err := wsconnect(platform, queryParams)
 		return platform, conn, resp, err
 	}
 
@@ -195,9 +195,8 @@ var _ = Describe("WS", func() {
 
 	Context("when notifications are created prior to connection", func() {
 		var notification *types.Notification
-		var notificationRevision int64
 		BeforeEach(func() {
-			notification, notificationRevision = createNotification(repository, platform.ID)
+			notification = createNotification(repository, platform.ID)
 		})
 
 		It("should receive last known revision response header greater than 0", func() {
@@ -206,8 +205,11 @@ var _ = Describe("WS", func() {
 			Expect(lastKnownRevision).To(BeNumerically(">", 0))
 		})
 
-		It("should receive them", func() {
-			expectNotification(wsconn, notification.ID, notification.PlatformID)
+		Context("and proxy connects without last_notification_revision query parameter", func() {
+			It("should send only new notifications without those already in the db", func() {
+				newNotification := createNotification(repository, platform.ID)
+				expectNotification(wsconn, newNotification.ID, newNotification.PlatformID)
+			})
 		})
 
 		Context("and revision known to proxy is 0", func() {
@@ -221,8 +223,8 @@ var _ = Describe("WS", func() {
 		Context("and proxy knowns some notification revision", func() {
 			var notification2 *types.Notification
 			BeforeEach(func() {
-				notification2, _ = createNotification(repository, platform.ID)
-				queryParams[notifications.LastKnownRevisionQueryParam] = strconv.FormatInt(notificationRevision, 10)
+				notification2 = createNotification(repository, platform.ID)
+				queryParams[notifications.LastKnownRevisionQueryParam] = strconv.FormatInt(notification.Revision, 10)
 			})
 
 			It("should receive only these after the revision that it knowns", func() {
@@ -232,7 +234,7 @@ var _ = Describe("WS", func() {
 
 		Context("and revision known to proxy is not known to sm anymore", func() {
 			It("should receive 410 Gone", func() {
-				queryParams[notifications.LastKnownRevisionQueryParam] = strconv.FormatInt(notificationRevision-1, 10)
+				queryParams[notifications.LastKnownRevisionQueryParam] = strconv.FormatInt(notification.Revision-1, 10)
 				_, resp, err := wsconnect(platform, queryParams)
 				Expect(resp.StatusCode).To(Equal(http.StatusGone))
 				Expect(err).Should(HaveOccurred())
@@ -241,7 +243,7 @@ var _ = Describe("WS", func() {
 
 		Context("and proxy known revision is greater than sm known revision", func() {
 			It("should receive 410 Gone", func() {
-				queryParams[notifications.LastKnownRevisionQueryParam] = strconv.FormatInt(notificationRevision+1, 10)
+				queryParams[notifications.LastKnownRevisionQueryParam] = strconv.FormatInt(notification.Revision+1, 10)
 				_, resp, err := wsconnect(platform, queryParams)
 				Expect(resp.StatusCode).To(Equal(http.StatusGone))
 				Expect(err).Should(HaveOccurred())
@@ -253,12 +255,12 @@ var _ = Describe("WS", func() {
 				wsconns := make([]*websocket.Conn, 0)
 				createdNotifications := make([]*types.Notification, 0)
 				for i := 0; i < 5; i++ {
-					pl, conn, _, err := wsconnectWithPlatform()
+					pl, conn, _, err := wsconnectWithPlatform(nil)
 
 					Expect(err).ShouldNot(HaveOccurred())
 					wsconns = append(wsconns, conn)
 
-					n, _ := createNotification(repository, pl.ID)
+					n := createNotification(repository, pl.ID)
 					createdNotifications = append(createdNotifications, n)
 				}
 
@@ -275,7 +277,7 @@ var _ = Describe("WS", func() {
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(conn).ShouldNot(BeNil())
 
-			notification, _ := createNotification(repository, platform.ID)
+			notification := createNotification(repository, platform.ID)
 			expectNotification(conn, notification.ID, platform.ID)
 			expectNotification(wsconn, notification.ID, platform.ID)
 		})
@@ -292,7 +294,7 @@ var _ = Describe("WS", func() {
 
 	Context("when notification are created after ws conn is created", func() {
 		It("should receive new notifications", func() {
-			notification, _ := createNotification(repository, platform.ID)
+			notification := createNotification(repository, platform.ID)
 			expectNotification(wsconn, notification.ID, notification.PlatformID)
 		})
 	})
@@ -300,8 +302,11 @@ var _ = Describe("WS", func() {
 	Context("when one notification with empty platform and one notification with platform are created", func() {
 		var notificationEmptyPlatform, notification *types.Notification
 		BeforeEach(func() {
-			notification, _ = createNotification(repository, platform.ID)
-			notificationEmptyPlatform, _ = createNotification(repository, "")
+			initialNotification := createNotification(repository, "")
+			queryParams[notifications.LastKnownRevisionQueryParam] = strconv.FormatInt(initialNotification.Revision, 10)
+
+			notification = createNotification(repository, platform.ID)
+			notificationEmptyPlatform = createNotification(repository, "")
 		})
 
 		It("one connection should receive both, but other only the one with empty platform", func() {
@@ -309,7 +314,7 @@ var _ = Describe("WS", func() {
 			expectNotification(wsconn, notificationEmptyPlatform.ID, "")
 
 			By("creating new connection")
-			_, newWsConn, _, err := wsconnectWithPlatform()
+			_, newWsConn, _, err := wsconnectWithPlatform(queryParams)
 			Expect(err).ShouldNot(HaveOccurred())
 			expectNotification(newWsConn, notificationEmptyPlatform.ID, "")
 		})
@@ -317,7 +322,7 @@ var _ = Describe("WS", func() {
 
 })
 
-func createNotification(repository storage.Repository, platformID string) (*types.Notification, int64) {
+func createNotification(repository storage.Repository, platformID string) *types.Notification {
 	notification := common.GenerateRandomNotification()
 	notification.PlatformID = platformID
 	id, err := repository.Create(context.Background(), notification)
@@ -325,9 +330,7 @@ func createNotification(repository storage.Repository, platformID string) (*type
 
 	createdNotification, err := repository.Get(context.Background(), types.NotificationType, id)
 	Expect(err).ShouldNot(HaveOccurred())
-	notificationRevision := (createdNotification.(*types.Notification)).Revision
-
-	return notification, notificationRevision
+	return createdNotification.(*types.Notification)
 }
 
 func expectNotification(wsconn *websocket.Conn, notificationID, platformID string) {
