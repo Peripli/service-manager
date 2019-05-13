@@ -100,8 +100,6 @@ func ApplyLabelChangesToLabels(changes LabelChanges, labels types.Labels) (types
 	}
 
 	for _, change := range changes {
-		change := change
-
 		switch change.Operation {
 		case AddLabelOperation:
 			fallthrough
