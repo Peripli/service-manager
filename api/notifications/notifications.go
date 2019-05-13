@@ -56,8 +56,11 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	}
 
 	notificationQueue, lastKnownRevision, notificationsList, err := c.registerConsumer(ctx, revisionKnownToProxy, user)
-	if err == errRevisionNotFound {
-		return util.NewJSONResponse(http.StatusGone, nil)
+	if err != nil {
+		if err == errRevisionNotFound {
+			return util.NewJSONResponse(http.StatusGone, nil)
+		}
+		return nil, err
 	}
 
 	rw := req.HijackResponseWriter()
