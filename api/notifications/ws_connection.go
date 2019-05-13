@@ -65,6 +65,12 @@ func (c *Controller) configureConn(ctx context.Context, conn *websocket.Conn) {
 }
 
 func (c *Controller) closeConn(ctx context.Context, conn *websocket.Conn, done <-chan struct{}) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.C(ctx).Errorf("recovered from panic while closing websocket connection: %s", err)
+		}
+	}()
+
 	// if base context is cancelled, write loop will quit and write to done
 	<-done
 
