@@ -109,7 +109,7 @@ func resync(ctx context.Context, broker *types.ServiceBroker, txStorage storage.
 
 			hasPublicVisibility := false
 			byServicePlanID := query.ByField(query.EqualsOperator, "service_plan_id", planID)
-			visibilitiesForPlan, err := txStorage.List(ctx, types.VisibilityType, byServicePlanID)
+			visibilitiesForPlan, err := txStorage.List(ctx, types.VisibilityType, nil, byServicePlanID)
 			if err != nil {
 				return err
 			}

@@ -185,7 +185,7 @@ func (ps *PostgresStorage) createLabels(ctx context.Context, entityID string, la
 func (ps *PostgresStorage) Get(ctx context.Context, objectType types.ObjectType, id string) (types.Object, error) {
 	byPrimaryColumn := query.ByField(query.EqualsOperator, "id", id)
 
-	result, err := ps.List(ctx, objectType, byPrimaryColumn)
+	result, err := ps.List(ctx, objectType, nil, byPrimaryColumn)
 	if err != nil {
 		return nil, err
 	}
@@ -195,12 +195,20 @@ func (ps *PostgresStorage) Get(ctx context.Context, objectType types.ObjectType,
 	return result.ItemAt(0), nil
 }
 
-func (ps *PostgresStorage) List(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
+func (ps *PostgresStorage) List(ctx context.Context, objType types.ObjectType, listCriterias []storage.ListCriteria, criteria ...query.Criterion) (types.ObjectList, error) {
 	entity, err := ps.scheme.provide(objType)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := listWithLabelsByCriteria(ctx, ps.pgDB, entity, entity.LabelEntity(), entity.TableName(), criteria)
+
+	qBuilder := newQueryBuilder(ps.pgDB)
+	sql, params, err := qBuilder.List(entity).WithCriteria(criteria...).WithLock().Build()
+	if err != nil {
+		return nil, err
+	}
+	rows, err := ps.pgDB.QueryxContext(ctx, sql, params...)
+
+	// rows, err := listWithLabelsByCriteria(ctx, ps.pgDB, entity, entity.LabelEntity(), entity.TableName(), listCriterias, criteria)
 	defer func() {
 		if rows == nil {
 			return

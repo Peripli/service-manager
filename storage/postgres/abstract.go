@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/storage"
 
 	"github.com/jmoiron/sqlx"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
@@ -101,7 +102,7 @@ func create(ctx context.Context, db pgDB, table string, dto interface{}) (string
 	return lastInsertID, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
 }
 
-func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface{}, label PostgresLabel, baseTableName string, criteria []query.Criterion) (*sqlx.Rows, error) {
+func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface{}, label PostgresLabel, baseTableName string, listCriterias []storage.ListCriteria, criteria []query.Criterion) (*sqlx.Rows, error) {
 	if err := validateFieldQueryParams(getDBTags(baseEntity, nil), criteria); err != nil {
 		return nil, err
 	}
