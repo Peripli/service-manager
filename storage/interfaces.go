@@ -26,8 +26,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/web"
-
 	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/pkg/security"
@@ -241,8 +239,14 @@ type Notificator interface {
 
 	// RegisterConsumer returns notification queue, last_known_revision and error if any.
 	// When consumer wants to stop listening for notifications it must unregister the notification queue.
-	RegisterConsumer(userContext *web.UserContext) (NotificationQueue, int64, error)
+	RegisterConsumer(platform *types.Platform) (NotificationQueue, int64, error)
 
 	// UnregisterConsumer must be called to stop receiving notifications in the queue
 	UnregisterConsumer(queue NotificationQueue) error
+
+	// RegisterFilter adds a new filter which decides if a platform should receive given notification
+	RegisterFilter(f NotificationFilterFunc)
 }
+
+// NotificationFilterFunc filters recipients for a given notifications
+type NotificationFilterFunc func(recipients []*types.Platform, notification *types.Notification) (filteredRecipients []*types.Platform)

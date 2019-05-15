@@ -34,11 +34,6 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	ctx := req.Context()
 	logger := log.C(ctx)
 
-	user, ok := web.UserFromContext(req.Context())
-	if !ok {
-		return nil, errors.New("user details not found in request context")
-	}
-
 	revisionKnownToProxy := unknownRevision
 	revisionKnownToProxyStr := req.URL.Query().Get(LastKnownRevisionQueryParam)
 	if revisionKnownToProxyStr != "" {
@@ -58,7 +53,16 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		return util.NewJSONResponse(http.StatusGone, nil)
 	}
 
-	notificationQueue, lastKnownRevision, notificationsList, err := c.registerConsumer(ctx, revisionKnownToProxy, user)
+	user, ok := web.UserFromContext(req.Context())
+	if !ok {
+		return nil, errors.New("user details not found in request context")
+	}
+
+	platform, err := extractPlatformFromContext(user)
+	if err != nil {
+		return nil, err
+	}
+	notificationQueue, lastKnownRevision, notificationsList, err := c.registerConsumer(ctx, revisionKnownToProxy, platform)
 	if err != nil {
 		if err == errRevisionNotFound {
 			return util.NewJSONResponse(http.StatusGone, nil)
@@ -174,14 +178,14 @@ func (c *Controller) sendWsMessage(ctx context.Context, conn *websocket.Conn, ms
 	return true
 }
 
-func (c *Controller) registerConsumer(ctx context.Context, revisionKnownToProxy int64, user *web.UserContext) (storage.NotificationQueue, int64, *types.Notifications, error) {
+func (c *Controller) registerConsumer(ctx context.Context, revisionKnownToProxy int64, platform *types.Platform) (storage.NotificationQueue, int64, *types.Notifications, error) {
 	var (
 		notificationQueue storage.NotificationQueue
 		notificationsList *types.Notifications
 		lastKnownRevision int64
 		err               error
 	)
-	notificationQueue, lastKnownRevision, err = c.notificator.RegisterConsumer(user)
+	notificationQueue, lastKnownRevision, err = c.notificator.RegisterConsumer(platform)
 	if err != nil {
 		return nil, unknownRevision, nil, fmt.Errorf("could not register notification consumer: %v", err)
 	}
@@ -199,7 +203,7 @@ func (c *Controller) registerConsumer(ctx context.Context, revisionKnownToProxy 
 	if revisionKnownToProxy == unknownRevision {
 		notificationsList = &types.Notifications{}
 	} else {
-		notificationsList, err = c.getNotificationList(ctx, user, revisionKnownToProxy, lastKnownRevision)
+		notificationsList, err = c.getNotificationList(ctx, platform, revisionKnownToProxy, lastKnownRevision)
 		if err != nil {
 			return nil, unknownRevision, nil, err
 		}
@@ -224,15 +228,11 @@ func (c *Controller) unregisterConsumer(ctx context.Context, q storage.Notificat
 	}
 }
 
-func (c *Controller) getNotificationList(ctx context.Context, user *web.UserContext, revisionKnownToProxy, LastKnownRevisionHeader int64) (*types.Notifications, error) {
+func (c *Controller) getNotificationList(ctx context.Context, platform *types.Platform, revisionKnownToProxy, LastKnownRevisionHeader int64) (*types.Notifications, error) {
 	// TODO: is this +1/-1 ok or we should add less than or equal operator
 	listQuery1 := query.ByField(query.GreaterThanOperator, "revision", strconv.FormatInt(revisionKnownToProxy-1, 10))
 	listQuery2 := query.ByField(query.LessThanOperator, "revision", strconv.FormatInt(LastKnownRevisionHeader+1, 10))
 
-	platform, err := extractPlatformFromContext(user)
-	if err != nil {
-		return nil, err
-	}
 	filterByPlatform := query.ByField(query.EqualsOrNilOperator, "platform_id", platform.ID)
 	objectList, err := c.repository.List(ctx, types.NotificationType, listQuery1, listQuery2, filterByPlatform)
 	if err != nil {

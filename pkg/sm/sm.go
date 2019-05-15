@@ -260,6 +260,10 @@ func newOSBClient(skipSsl bool) osbc.CreateFunc {
 	}
 }
 
+func (smb *ServiceManagerBuilder) RegisterNotificationFilter(filterFunc storage.NotificationFilterFunc) {
+	smb.Notificator.RegisterFilter(filterFunc)
+}
+
 func (smb *ServiceManagerBuilder) WithCreateInterceptorProvider(objectType types.ObjectType, provider storage.CreateInterceptorProvider) *interceptorRegistrationBuilder {
 	return &interceptorRegistrationBuilder{
 		order: storage.InterceptorOrder{
