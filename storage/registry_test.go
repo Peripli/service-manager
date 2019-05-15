@@ -88,6 +88,10 @@ var _ = Describe("Registry", func() {
 			Expect(registerStorage).To(Panic())
 		}
 
+		assertStorageRegistrationDoesNotPanics := func() {
+			Expect(registerStorage).ToNot(Panic())
+		}
+
 		Context("With nil storage", func() {
 			It("Should panic", func() {
 				name = "storage"
@@ -96,11 +100,11 @@ var _ = Describe("Registry", func() {
 		})
 
 		Context("With duplicate storage name", func() {
-			It("Should panic", func() {
+			It("Should not panic", func() {
 				name = "duplicate"
 				s = testStorage
 				registerStorage()
-				assertStorageRegistrationPanics()
+				assertStorageRegistrationDoesNotPanics()
 			})
 		})
 	})

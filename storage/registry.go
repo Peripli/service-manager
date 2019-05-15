@@ -37,9 +37,7 @@ func Register(name string, storage Storage) {
 	if storage == nil {
 		logger.Panicln("storage: Register storage is nil")
 	}
-	if _, dup := storages[name]; dup {
-		logger.Panicf("storage: Register called twice for storage with name %s", name)
-	}
+
 	storages[name] = storage
 }
 
@@ -65,15 +63,18 @@ func Use(ctx context.Context, name string, options *Settings) (Storage, error) {
 		return nil, fmt.Errorf("error opening storage: %s", err)
 	}
 	storages[name] = storage
-	go awaitTermination(ctx, storage)
+	go awaitTermination(ctx, name, storage)
 	return storage, nil
 }
 
-func awaitTermination(ctx context.Context, storage Storage) {
+func awaitTermination(ctx context.Context, name string, storage Storage) {
 	<-ctx.Done()
+	mux.Lock()
+	defer mux.Unlock()
 	logger := log.C(ctx)
 	logger.Debug("Context cancelled. Closing storage...")
 	if err := storage.Close(); err != nil {
 		logger.Error(err)
 	}
+	delete(storages, name)
 }
