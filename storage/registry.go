@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/Peripli/service-manager/pkg/util"
+
 	"github.com/Peripli/service-manager/pkg/log"
 )
 
@@ -29,8 +31,11 @@ func OpenWithSafeTermination(ctx context.Context, s Storage, options *Settings, 
 		return fmt.Errorf("storage and storage settings cannot be nil")
 	}
 
-	wg.Add(1)
-	go func() {
+	if err := s.Open(options); err != nil {
+		return fmt.Errorf("error opening storage: %s", err)
+	}
+
+	util.StartInWaitGroup(func() {
 		<-ctx.Done()
 		defer wg.Done()
 
@@ -38,11 +43,7 @@ func OpenWithSafeTermination(ctx context.Context, s Storage, options *Settings, 
 		if err := s.Close(); err != nil {
 			log.D().Error(err)
 		}
-	}()
-
-	if err := s.Open(options); err != nil {
-		return fmt.Errorf("error opening storage: %s", err)
-	}
+	}, wg)
 
 	return nil
 }
