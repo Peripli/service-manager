@@ -37,8 +37,6 @@ func OpenWithSafeTermination(ctx context.Context, s Storage, options *Settings, 
 
 	util.StartInWaitGroup(func() {
 		<-ctx.Done()
-		defer wg.Done()
-
 		log.D().Debug("Context cancelled. Closing storage...")
 		if err := s.Close(); err != nil {
 			log.D().Error(err)
