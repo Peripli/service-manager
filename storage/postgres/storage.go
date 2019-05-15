@@ -112,9 +112,7 @@ func (ps *PostgresStorage) Close() error {
 	ps.checkOpen()
 	ps.mutex.Lock()
 	defer ps.mutex.Unlock()
-	defer func() {
-		ps.db = nil
-	}()
+
 	return ps.db.Close()
 }
 
