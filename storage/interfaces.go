@@ -238,10 +238,10 @@ type Notificator interface {
 	Start(ctx context.Context, group *sync.WaitGroup) error
 
 	// RegisterConsumer returns notification queue, last_known_revision and error if any.
+	// Notifications after lastKnownRevision will be added to the queue.
+	// If lastKnownRevision is -1 no previous notifications will be sent.
 	// When consumer wants to stop listening for notifications it must unregister the notification queue.
-	RegisterConsumer(platform *types.Platform) (NotificationQueue, int64, error)
-
-	RegisterConsumer2(platform *types.Platform, lastKnownRevision int64) (NotificationQueue, int64, error)
+	RegisterConsumer(platform *types.Platform, lastKnownRevision int64) (NotificationQueue, int64, error)
 
 	// UnregisterConsumer must be called to stop receiving notifications in the queue
 	UnregisterConsumer(queue NotificationQueue) error

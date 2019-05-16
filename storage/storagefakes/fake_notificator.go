@@ -2,18 +2,19 @@
 package storagefakes
 
 import (
-	context "context"
-	sync "sync"
+	"context"
+	"sync"
 
-	types "github.com/Peripli/service-manager/pkg/types"
-	storage "github.com/Peripli/service-manager/storage"
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
 )
 
 type FakeNotificator struct {
-	RegisterConsumerStub        func(*types.Platform) (storage.NotificationQueue, int64, error)
+	RegisterConsumerStub        func(*types.Platform, int64) (storage.NotificationQueue, int64, error)
 	registerConsumerMutex       sync.RWMutex
 	registerConsumerArgsForCall []struct {
 		arg1 *types.Platform
+		arg2 int64
 	}
 	registerConsumerReturns struct {
 		result1 storage.NotificationQueue
@@ -21,22 +22,6 @@ type FakeNotificator struct {
 		result3 error
 	}
 	registerConsumerReturnsOnCall map[int]struct {
-		result1 storage.NotificationQueue
-		result2 int64
-		result3 error
-	}
-	RegisterConsumer2Stub        func(*types.Platform, int64) (storage.NotificationQueue, int64, error)
-	registerConsumer2Mutex       sync.RWMutex
-	registerConsumer2ArgsForCall []struct {
-		arg1 *types.Platform
-		arg2 int64
-	}
-	registerConsumer2Returns struct {
-		result1 storage.NotificationQueue
-		result2 int64
-		result3 error
-	}
-	registerConsumer2ReturnsOnCall map[int]struct {
 		result1 storage.NotificationQueue
 		result2 int64
 		result3 error
@@ -73,16 +58,17 @@ type FakeNotificator struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeNotificator) RegisterConsumer(arg1 *types.Platform) (storage.NotificationQueue, int64, error) {
+func (fake *FakeNotificator) RegisterConsumer(arg1 *types.Platform, arg2 int64) (storage.NotificationQueue, int64, error) {
 	fake.registerConsumerMutex.Lock()
 	ret, specificReturn := fake.registerConsumerReturnsOnCall[len(fake.registerConsumerArgsForCall)]
 	fake.registerConsumerArgsForCall = append(fake.registerConsumerArgsForCall, struct {
 		arg1 *types.Platform
-	}{arg1})
-	fake.recordInvocation("RegisterConsumer", []interface{}{arg1})
+		arg2 int64
+	}{arg1, arg2})
+	fake.recordInvocation("RegisterConsumer", []interface{}{arg1, arg2})
 	fake.registerConsumerMutex.Unlock()
 	if fake.RegisterConsumerStub != nil {
-		return fake.RegisterConsumerStub(arg1)
+		return fake.RegisterConsumerStub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2, ret.result3
@@ -97,17 +83,17 @@ func (fake *FakeNotificator) RegisterConsumerCallCount() int {
 	return len(fake.registerConsumerArgsForCall)
 }
 
-func (fake *FakeNotificator) RegisterConsumerCalls(stub func(*types.Platform) (storage.NotificationQueue, int64, error)) {
+func (fake *FakeNotificator) RegisterConsumerCalls(stub func(*types.Platform, int64) (storage.NotificationQueue, int64, error)) {
 	fake.registerConsumerMutex.Lock()
 	defer fake.registerConsumerMutex.Unlock()
 	fake.RegisterConsumerStub = stub
 }
 
-func (fake *FakeNotificator) RegisterConsumerArgsForCall(i int) *types.Platform {
+func (fake *FakeNotificator) RegisterConsumerArgsForCall(i int) (*types.Platform, int64) {
 	fake.registerConsumerMutex.RLock()
 	defer fake.registerConsumerMutex.RUnlock()
 	argsForCall := fake.registerConsumerArgsForCall[i]
-	return argsForCall.arg1
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeNotificator) RegisterConsumerReturns(result1 storage.NotificationQueue, result2 int64, result3 error) {
@@ -133,73 +119,6 @@ func (fake *FakeNotificator) RegisterConsumerReturnsOnCall(i int, result1 storag
 		})
 	}
 	fake.registerConsumerReturnsOnCall[i] = struct {
-		result1 storage.NotificationQueue
-		result2 int64
-		result3 error
-	}{result1, result2, result3}
-}
-
-func (fake *FakeNotificator) RegisterConsumer2(arg1 *types.Platform, arg2 int64) (storage.NotificationQueue, int64, error) {
-	fake.registerConsumer2Mutex.Lock()
-	ret, specificReturn := fake.registerConsumer2ReturnsOnCall[len(fake.registerConsumer2ArgsForCall)]
-	fake.registerConsumer2ArgsForCall = append(fake.registerConsumer2ArgsForCall, struct {
-		arg1 *types.Platform
-		arg2 int64
-	}{arg1, arg2})
-	fake.recordInvocation("RegisterConsumer2", []interface{}{arg1, arg2})
-	fake.registerConsumer2Mutex.Unlock()
-	if fake.RegisterConsumer2Stub != nil {
-		return fake.RegisterConsumer2Stub(arg1, arg2)
-	}
-	if specificReturn {
-		return ret.result1, ret.result2, ret.result3
-	}
-	fakeReturns := fake.registerConsumer2Returns
-	return fakeReturns.result1, fakeReturns.result2, fakeReturns.result3
-}
-
-func (fake *FakeNotificator) RegisterConsumer2CallCount() int {
-	fake.registerConsumer2Mutex.RLock()
-	defer fake.registerConsumer2Mutex.RUnlock()
-	return len(fake.registerConsumer2ArgsForCall)
-}
-
-func (fake *FakeNotificator) RegisterConsumer2Calls(stub func(*types.Platform, int64) (storage.NotificationQueue, int64, error)) {
-	fake.registerConsumer2Mutex.Lock()
-	defer fake.registerConsumer2Mutex.Unlock()
-	fake.RegisterConsumer2Stub = stub
-}
-
-func (fake *FakeNotificator) RegisterConsumer2ArgsForCall(i int) (*types.Platform, int64) {
-	fake.registerConsumer2Mutex.RLock()
-	defer fake.registerConsumer2Mutex.RUnlock()
-	argsForCall := fake.registerConsumer2ArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
-}
-
-func (fake *FakeNotificator) RegisterConsumer2Returns(result1 storage.NotificationQueue, result2 int64, result3 error) {
-	fake.registerConsumer2Mutex.Lock()
-	defer fake.registerConsumer2Mutex.Unlock()
-	fake.RegisterConsumer2Stub = nil
-	fake.registerConsumer2Returns = struct {
-		result1 storage.NotificationQueue
-		result2 int64
-		result3 error
-	}{result1, result2, result3}
-}
-
-func (fake *FakeNotificator) RegisterConsumer2ReturnsOnCall(i int, result1 storage.NotificationQueue, result2 int64, result3 error) {
-	fake.registerConsumer2Mutex.Lock()
-	defer fake.registerConsumer2Mutex.Unlock()
-	fake.RegisterConsumer2Stub = nil
-	if fake.registerConsumer2ReturnsOnCall == nil {
-		fake.registerConsumer2ReturnsOnCall = make(map[int]struct {
-			result1 storage.NotificationQueue
-			result2 int64
-			result3 error
-		})
-	}
-	fake.registerConsumer2ReturnsOnCall[i] = struct {
 		result1 storage.NotificationQueue
 		result2 int64
 		result3 error
@@ -363,8 +282,6 @@ func (fake *FakeNotificator) Invocations() map[string][][]interface{} {
 	defer fake.invocationsMutex.RUnlock()
 	fake.registerConsumerMutex.RLock()
 	defer fake.registerConsumerMutex.RUnlock()
-	fake.registerConsumer2Mutex.RLock()
-	defer fake.registerConsumer2Mutex.RUnlock()
 	fake.registerFilterMutex.RLock()
 	defer fake.registerFilterMutex.RUnlock()
 	fake.startMutex.RLock()

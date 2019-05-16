@@ -22,6 +22,8 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/Peripli/service-manager/pkg/util"
+
 	notificationConnection "github.com/Peripli/service-manager/storage/postgres/notification_connection"
 	notificationConnectionFakes "github.com/Peripli/service-manager/storage/postgres/notification_connection/notification_connectionfakes"
 
@@ -58,24 +60,24 @@ var _ = Describe("Notificator", func() {
 
 	expectedError := errors.New("*Expected*")
 
-	expectRegisterConsumerFail := func(errorMessage string) {
-		q, revision, err := testNotificator.RegisterConsumer(defaultPlatform)
+	expectRegisterConsumerFail := func(errorMessage string, revision int64) {
+		q, smRevision, err := testNotificator.RegisterConsumer(defaultPlatform, revision)
 		Expect(q).To(BeNil())
-		Expect(revision).To(Equal(types.INVALIDREVISION))
+		Expect(smRevision).To(Equal(types.INVALIDREVISION))
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring(errorMessage))
 	}
 
-	expectRegisterConsumerSuccess := func(platform *types.Platform) storage.NotificationQueue {
-		q, revision, err := testNotificator.RegisterConsumer(platform)
+	expectRegisterConsumerSuccess := func(platform *types.Platform, revision int64) storage.NotificationQueue {
+		q, smRevision, err := testNotificator.RegisterConsumer(platform, revision)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(revision).To(Equal(defaultLastRevision))
+		Expect(smRevision).To(Equal(defaultLastRevision))
 		Expect(q).ToNot(BeNil())
 		return q
 	}
 
 	registerDefaultPlatform := func() storage.NotificationQueue {
-		return expectRegisterConsumerSuccess(defaultPlatform)
+		return expectRegisterConsumerSuccess(defaultPlatform, types.INVALIDREVISION)
 	}
 
 	expectReceivedNotification := func(expectedNotification *types.Notification, q storage.NotificationQueue) {
@@ -181,7 +183,7 @@ var _ = Describe("Notificator", func() {
 			Expect(testNotificator.Start(ctx, wg)).ToNot(HaveOccurred())
 			runningFunc(true, nil)
 			queue = registerDefaultPlatform()
-			queue2 = expectRegisterConsumerSuccess(secondPlatform)
+			queue2 = expectRegisterConsumerSuccess(secondPlatform, types.INVALIDREVISION)
 			testNotificator.RegisterFilter(func(recipients []*types.Platform, notification *types.Notification) []*types.Platform {
 				Expect(recipients).To(HaveLen(2))
 				return []*types.Platform{recipients[1]}
@@ -263,7 +265,7 @@ var _ = Describe("Notificator", func() {
 			})
 
 			It("Should return error", func() {
-				expectRegisterConsumerFail("listen to notifications channel failed " + expectedError.Error())
+				expectRegisterConsumerFail("listen to notifications channel failed "+expectedError.Error(), types.INVALIDREVISION)
 			})
 		})
 
@@ -278,14 +280,20 @@ var _ = Describe("Notificator", func() {
 			It("Should return error", func() {
 				registerDefaultPlatform()
 				runningFunc(false, nil)
-				expectRegisterConsumerFail("cannot register consumer - Notificator is not running")
+				expectRegisterConsumerFail("cannot register consumer - Notificator is not running", types.INVALIDREVISION)
 			})
 		})
 
 		Context("When listen returns error", func() {
 			It("Should return error", func() {
 				fakeNotificationConnection.ListenReturns(expectedError)
-				expectRegisterConsumerFail(expectedError.Error())
+				expectRegisterConsumerFail(expectedError.Error(), types.INVALIDREVISION)
+			})
+		})
+
+		Context("When revision is not valid", func() {
+			It("Should return error", func() {
+				expectRegisterConsumerFail(util.ErrInvalidNotificationRevision.Error(), 987654321)
 			})
 		})
 

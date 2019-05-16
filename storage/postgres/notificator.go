@@ -108,7 +108,7 @@ func (n *Notificator) addConsumer(platform *types.Platform, queue storage.Notifi
 	return atomic.LoadInt64(&n.lastKnownRevision)
 }
 
-func (n *Notificator) RegisterConsumer2(platform *types.Platform, lastKnownRevision int64) (storage.NotificationQueue, int64, error) {
+func (n *Notificator) RegisterConsumer(platform *types.Platform, lastKnownRevision int64) (storage.NotificationQueue, int64, error) {
 	if atomic.LoadInt32(&n.isConnected) == aFalse {
 		return nil, types.INVALIDREVISION, errors.New("cannot register consumer - Notificator is not running")
 	}
@@ -198,24 +198,6 @@ func (n *Notificator) RegisterConsumer2(platform *types.Platform, lastKnownRevis
 			return queueWithMissedNotifications, lastKnownSMRevision, nil
 		}
 	}
-}
-
-func (n *Notificator) RegisterConsumer(platform *types.Platform) (storage.NotificationQueue, int64, error) {
-	if atomic.LoadInt32(&n.isConnected) == aFalse {
-		return nil, types.INVALIDREVISION, errors.New("cannot register consumer - Notificator is not running")
-	}
-	if err := n.startListening(); err != nil {
-		return nil, types.INVALIDREVISION, fmt.Errorf("listen to %s channel failed %v", postgresChannel, err)
-	}
-	queue, err := storage.NewNotificationQueue(n.queueSize)
-	if err != nil {
-		return nil, types.INVALIDREVISION, err
-	}
-
-	n.consumersMutex.Lock()
-	defer n.consumersMutex.Unlock()
-	n.consumers.Add(platform, queue)
-	return queue, atomic.LoadInt64(&n.lastKnownRevision), nil
 }
 
 func (n *Notificator) UnregisterConsumer(queue storage.NotificationQueue) error {

@@ -168,7 +168,7 @@ func (c *Controller) sendWsMessage(ctx context.Context, conn *websocket.Conn, ms
 }
 
 func (c *Controller) registerConsumer(ctx context.Context, revisionKnownToProxy int64, platform *types.Platform) (storage.NotificationQueue, int64, error) {
-	return c.notificator.RegisterConsumer2(platform, revisionKnownToProxy)
+	return c.notificator.RegisterConsumer(platform, revisionKnownToProxy)
 }
 
 func (c *Controller) unregisterConsumer(ctx context.Context, q storage.NotificationQueue) {
