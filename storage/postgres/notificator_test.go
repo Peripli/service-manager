@@ -40,7 +40,6 @@ import (
 var _ = Describe("Notificator", func() {
 	const (
 		defaultLastRevision int64 = 10
-		invalidRevision     int64 = -1
 	)
 
 	var (
@@ -62,7 +61,7 @@ var _ = Describe("Notificator", func() {
 	expectRegisterConsumerFail := func(errorMessage string) {
 		q, revision, err := testNotificator.RegisterConsumer(defaultPlatform)
 		Expect(q).To(BeNil())
-		Expect(revision).To(Equal(invalidRevision))
+		Expect(revision).To(Equal(types.INVALIDREVISION))
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring(errorMessage))
 	}
@@ -90,12 +89,12 @@ var _ = Describe("Notificator", func() {
 			connectionMutex: &sync.Mutex{},
 			consumersMutex:  &sync.Mutex{},
 			consumers: &consumers{
-				Queues:    make(map[string][]storage.NotificationQueue),
-				Platforms: make([]*types.Platform, 0),
+				queues:    make(map[string][]storage.NotificationQueue),
+				platforms: make([]*types.Platform, 0),
 			},
 			storage:           fakeStorage,
 			connectionCreator: fakeConnectionCreator,
-			lastKnownRevision: invalidRevisionNumber,
+			lastKnownRevision: types.INVALIDREVISION,
 		}
 	}
 
@@ -260,7 +259,7 @@ var _ = Describe("Notificator", func() {
 
 		Context("When storage GetLastRevision fails", func() {
 			BeforeEach(func() {
-				fakeStorage.GetLastRevisionReturns(invalidRevision, expectedError)
+				fakeStorage.GetLastRevisionReturns(types.INVALIDREVISION, expectedError)
 			})
 
 			It("Should return error", func() {

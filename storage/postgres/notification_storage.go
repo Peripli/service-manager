@@ -20,6 +20,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
+	"strconv"
+
+	"github.com/Peripli/service-manager/pkg/util"
+
+	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
@@ -29,6 +35,10 @@ import (
 //go:generate counterfeiter . notificationStorage
 type notificationStorage interface {
 	GetNotification(ctx context.Context, id string) (*types.Notification, error)
+
+	GetNotificationByRevision(ctx context.Context, revision int64) (*types.Notification, error)
+
+	ListNotifications(ctx context.Context, platformID string, from, to int64) ([]*types.Notification, error)
 
 	// GetLastRevision returns the last received notification revision
 	GetLastRevision(ctx context.Context) (int64, error)
@@ -68,4 +78,39 @@ func (ns *notificationStorageImpl) GetNotification(ctx context.Context, id strin
 		return nil, err
 	}
 	return notificationObj.(*types.Notification), nil
+}
+
+func (ns *notificationStorageImpl) ListNotifications(ctx context.Context, platformID string, from, to int64) ([]*types.Notification, error) {
+	// TODO: replace with less than or equal operator when available
+	listQuery1 := query.ByField(query.GreaterThanOperator, "revision", strconv.FormatInt(from, 10))
+	listQuery2 := query.ByField(query.LessThanOperator, "revision", strconv.FormatInt(to+1, 10))
+
+	filterByPlatform := query.ByField(query.EqualsOrNilOperator, "platform_id", platformID)
+	objectList, err := ns.storage.List(ctx, types.NotificationType, listQuery1, listQuery2, filterByPlatform)
+	if err != nil {
+		return nil, err
+	}
+	notificationsList := objectList.(*types.Notifications)
+	// TODO: Should be done in the database with order by
+	sort.Slice(notificationsList.Notifications, func(i, j int) bool {
+		return notificationsList.Notifications[i].Revision < notificationsList.Notifications[j].Revision
+	})
+
+	return notificationsList.Notifications, nil
+}
+
+func (ns *notificationStorageImpl) GetNotificationByRevision(ctx context.Context, revision int64) (*types.Notification, error) {
+	revisionQuery := query.ByField(query.EqualsOperator, "revision", strconv.FormatInt(revision, 10))
+	objectList, err := ns.storage.List(ctx, types.NotificationType, revisionQuery)
+	if err != nil {
+		return nil, err
+	}
+	if objectList.Len() == 0 {
+		return nil, util.ErrNotFoundInStorage
+	}
+	if objectList.Len() > 1 {
+		return nil, fmt.Errorf("expected one notification with revision %d got %d", revision, objectList.Len())
+	}
+	notificationsList := objectList.(*types.Notifications)
+	return notificationsList.Notifications[0], nil
 }

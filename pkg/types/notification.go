@@ -35,6 +35,9 @@ const (
 
 	// DELETED represents a notification type for deleting a resource
 	DELETED OperationType = "DELETED"
+
+	// INVALIDREVISION revision with invalid value
+	INVALIDREVISION int64 = -1
 )
 
 //go:generate smgen api Notification

@@ -24,6 +24,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/Peripli/service-manager/pkg/util"
+
 	"github.com/Peripli/service-manager/storage"
 	"github.com/lib/pq"
 
@@ -34,10 +36,9 @@ import (
 )
 
 const (
-	postgresChannel             = "notifications"
-	invalidRevisionNumber int64 = -1
-	aTrue                 int32 = 1
-	aFalse                int32 = 0
+	postgresChannel       = "notifications"
+	aTrue           int32 = 1
+	aFalse          int32 = 0
 )
 
 type Notificator struct {
@@ -78,12 +79,12 @@ func NewNotificator(st storage.Storage, settings *storage.Settings) (*Notificato
 		connectionMutex: &sync.Mutex{},
 		consumersMutex:  &sync.Mutex{},
 		consumers: &consumers{
-			Queues:    make(map[string][]storage.NotificationQueue),
-			Platforms: make([]*types.Platform, 0),
+			queues:    make(map[string][]storage.NotificationQueue),
+			platforms: make([]*types.Platform, 0),
 		},
 		storage:           ns,
 		connectionCreator: connectionCreator,
-		lastKnownRevision: invalidRevisionNumber,
+		lastKnownRevision: types.INVALIDREVISION,
 	}, nil
 }
 
@@ -100,22 +101,121 @@ func (n *Notificator) Start(ctx context.Context, group *sync.WaitGroup) error {
 	return nil
 }
 
-func (n *Notificator) RegisterConsumer(platform *types.Platform) (storage.NotificationQueue, int64, error) {
+func (n *Notificator) addConsumer(platform *types.Platform, queue storage.NotificationQueue) int64 {
+	n.consumersMutex.Lock()
+	defer n.consumersMutex.Unlock()
+	n.consumers.Add(platform, queue)
+	return atomic.LoadInt64(&n.lastKnownRevision)
+}
+
+func (n *Notificator) RegisterConsumer2(platform *types.Platform, lastKnownRevision int64) (storage.NotificationQueue, int64, error) {
 	if atomic.LoadInt32(&n.isConnected) == aFalse {
-		return nil, invalidRevisionNumber, errors.New("cannot register consumer - Notificator is not running")
-	}
-	if err := n.startListening(); err != nil {
-		return nil, invalidRevisionNumber, fmt.Errorf("listen to %s channel failed %v", postgresChannel, err)
+		return nil, types.INVALIDREVISION, errors.New("cannot register consumer - Notificator is not running")
 	}
 	queue, err := storage.NewNotificationQueue(n.queueSize)
 	if err != nil {
-		return nil, invalidRevisionNumber, err
+		return nil, types.INVALIDREVISION, err
+	}
+	if err = n.startListening(); err != nil {
+		return nil, types.INVALIDREVISION, fmt.Errorf("listen to %s channel failed %v", postgresChannel, err)
+	}
+	lastKnownSMRevision := n.addConsumer(platform, queue)
+	defer func() {
+		if err != nil {
+			if errUnregisterConsumer := n.UnregisterConsumer(queue); errUnregisterConsumer != nil {
+				log.C(n.ctx).WithError(errUnregisterConsumer).Errorf("Could not unregister notification consumer %s", queue.ID())
+			}
+		}
+	}()
+	if lastKnownRevision > lastKnownSMRevision {
+		log.C(n.ctx).Debug("lastKnownRevision is grater than the one SM knows")
+		return nil, types.INVALIDREVISION, util.ErrInvalidNotificationRevision
+	}
+	if lastKnownRevision == types.INVALIDREVISION {
+		return queue, lastKnownSMRevision, nil
+	}
+	if _, err := n.storage.GetNotificationByRevision(n.ctx, lastKnownRevision); err != nil {
+		if err == util.ErrNotFoundInStorage {
+			log.C(n.ctx).WithError(err).Debugf("notification with revision %d not found in storage", lastKnownRevision)
+			return nil, types.INVALIDREVISION, util.ErrInvalidNotificationRevision
+		}
+		return nil, types.INVALIDREVISION, err
+	}
+
+	missedNotifications, err := n.storage.ListNotifications(n.ctx, platform.ID, lastKnownRevision, lastKnownSMRevision)
+	if err != nil {
+		return nil, types.INVALIDREVISION, err
+	}
+	filteredMissedNotification := make([]*types.Notification, 0, len(missedNotifications))
+	var recipients []*types.Platform
+	for _, notification := range missedNotifications {
+		recipients = []*types.Platform{platform}
+		for _, filter := range n.notificationFilters {
+			recipients = filter(recipients, notification)
+			if len(recipients) == 0 {
+				break
+			}
+		}
+		if len(recipients) != 0 {
+			filteredMissedNotification = append(filteredMissedNotification, notification)
+		}
+	}
+
+	if n.queueSize < len(filteredMissedNotification) {
+		log.C(n.ctx).Debugf("too many missed notifications %d", len(filteredMissedNotification))
+		return nil, types.INVALIDREVISION, util.ErrInvalidNotificationRevision
+	}
+
+	queueWithMissedNotifications, err := storage.NewNotificationQueue(n.queueSize)
+	if err != nil {
+		return nil, types.INVALIDREVISION, err
+	}
+	for _, notification := range filteredMissedNotification {
+		err = queueWithMissedNotifications.Enqueue(notification)
+		if err != nil {
+			return nil, types.INVALIDREVISION, err
+		}
+	}
+
+	n.consumersMutex.Lock()
+	defer n.consumersMutex.Unlock()
+	for {
+		select {
+		case notification, ok := <-queue.Channel():
+			if !ok {
+				err = errors.New("")
+				return nil, types.INVALIDREVISION, err
+			}
+			err = queueWithMissedNotifications.Enqueue(notification)
+			if err != nil {
+				return nil, types.INVALIDREVISION, err
+			}
+		default:
+			err = n.consumers.ReplaceQueue(queue.ID(), queueWithMissedNotifications)
+			if err != nil {
+				return nil, types.INVALIDREVISION, err
+			}
+			return queueWithMissedNotifications, lastKnownSMRevision, nil
+		}
+	}
+}
+
+func (n *Notificator) RegisterConsumer(platform *types.Platform) (storage.NotificationQueue, int64, error) {
+	if atomic.LoadInt32(&n.isConnected) == aFalse {
+		return nil, types.INVALIDREVISION, errors.New("cannot register consumer - Notificator is not running")
+	}
+	if err := n.startListening(); err != nil {
+		return nil, types.INVALIDREVISION, fmt.Errorf("listen to %s channel failed %v", postgresChannel, err)
+	}
+	queue, err := storage.NewNotificationQueue(n.queueSize)
+	if err != nil {
+		return nil, types.INVALIDREVISION, err
 	}
 
 	n.consumersMutex.Lock()
 	defer n.consumersMutex.Unlock()
 	n.consumers.Add(platform, queue)
-	return queue, n.lastKnownRevision, nil
+	return queue, atomic.LoadInt64(&n.lastKnownRevision), nil
 }
 
 func (n *Notificator) UnregisterConsumer(queue storage.NotificationQueue) error {
@@ -207,7 +307,7 @@ func (n *Notificator) processNotificationPayload(payload *notifyEventPayload) er
 
 	n.consumersMutex.Lock()
 	defer n.consumersMutex.Unlock()
-	n.lastKnownRevision = payload.Revision
+	atomic.StoreInt64(&n.lastKnownRevision, payload.Revision)
 
 	recipients := n.getRecipients(notificationPlatformID)
 	if len(recipients) == 0 {
@@ -228,7 +328,7 @@ func (n *Notificator) processNotificationPayload(payload *notifyEventPayload) er
 
 func (n *Notificator) getRecipients(platformID string) []*types.Platform {
 	if platformID == "" {
-		return n.consumers.Platforms
+		return n.consumers.platforms
 	}
 	platform := n.consumers.GetPlatform(platformID)
 	if platform == nil {
@@ -300,19 +400,19 @@ func (n *Notificator) startListening() error {
 		}
 		return err
 	}
-	n.lastKnownRevision = lastKnownRevision
+	atomic.StoreInt64(&n.lastKnownRevision, lastKnownRevision)
 	atomic.StoreInt32(&n.isListening, aTrue)
 	go n.processNotifications(n.connection.NotificationChannel())
 	return nil
 }
 
 type consumers struct {
-	Queues    map[string][]storage.NotificationQueue
-	Platforms []*types.Platform
+	queues    map[string][]storage.NotificationQueue
+	platforms []*types.Platform
 }
 
 func (c *consumers) find(queueID string) (string, int) {
-	for platformID, notificationQueues := range c.Queues {
+	for platformID, notificationQueues := range c.queues {
 		for index, queue := range notificationQueues {
 			if queue.ID() == queueID {
 				return platformID, index
@@ -322,19 +422,28 @@ func (c *consumers) find(queueID string) (string, int) {
 	return "", -1
 }
 
+func (c *consumers) ReplaceQueue(queueID string, newQueue storage.NotificationQueue) error {
+	platformID, queueIndex := c.find(queueID)
+	if queueIndex == -1 {
+		return fmt.Errorf("could not find consumer with id %s", queueID)
+	}
+	c.queues[platformID][queueIndex] = newQueue
+	return nil
+}
+
 func (c *consumers) Delete(queue storage.NotificationQueue) {
-	platformIDToDelete, consumerIndex := c.find(queue.ID())
-	if consumerIndex == -1 {
+	platformIDToDelete, queueIndex := c.find(queue.ID())
+	if queueIndex == -1 {
 		return
 	}
-	platformConsumers := c.Queues[platformIDToDelete]
-	c.Queues[platformIDToDelete] = append(platformConsumers[:consumerIndex], platformConsumers[consumerIndex+1:]...)
+	platformConsumers := c.queues[platformIDToDelete]
+	c.queues[platformIDToDelete] = append(platformConsumers[:queueIndex], platformConsumers[queueIndex+1:]...)
 
-	if len(c.Queues[platformIDToDelete]) == 0 {
-		delete(c.Queues, platformIDToDelete)
-		for index, platform := range c.Platforms {
+	if len(c.queues[platformIDToDelete]) == 0 {
+		delete(c.queues, platformIDToDelete)
+		for index, platform := range c.platforms {
 			if platform.ID == platformIDToDelete {
-				c.Platforms = append(c.Platforms[:index], c.Platforms[index+1:]...)
+				c.platforms = append(c.platforms[:index], c.platforms[index+1:]...)
 				break
 			}
 		}
@@ -342,25 +451,25 @@ func (c *consumers) Delete(queue storage.NotificationQueue) {
 }
 
 func (c *consumers) Add(platform *types.Platform, queue storage.NotificationQueue) {
-	if len(c.Queues[platform.ID]) == 0 {
-		c.Platforms = append(c.Platforms, platform)
+	if len(c.queues[platform.ID]) == 0 {
+		c.platforms = append(c.platforms, platform)
 	}
-	c.Queues[platform.ID] = append(c.Queues[platform.ID], queue)
+	c.queues[platform.ID] = append(c.queues[platform.ID], queue)
 }
 
 func (c *consumers) Clear() map[string][]storage.NotificationQueue {
-	allQueues := c.Queues
-	c.Queues = make(map[string][]storage.NotificationQueue)
-	c.Platforms = make([]*types.Platform, 0)
+	allQueues := c.queues
+	c.queues = make(map[string][]storage.NotificationQueue)
+	c.platforms = make([]*types.Platform, 0)
 	return allQueues
 }
 
 func (c *consumers) Len() int {
-	return len(c.Queues)
+	return len(c.queues)
 }
 
 func (c *consumers) GetPlatform(platformID string) *types.Platform {
-	for _, platform := range c.Platforms {
+	for _, platform := range c.platforms {
 		if platform.ID == platformID {
 			return platform
 		}
@@ -369,5 +478,5 @@ func (c *consumers) GetPlatform(platformID string) *types.Platform {
 }
 
 func (c *consumers) GetQueuesForPlatform(platformID string) []storage.NotificationQueue {
-	return c.Queues[platformID]
+	return c.queues[platformID]
 }

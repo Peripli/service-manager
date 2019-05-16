@@ -241,6 +241,8 @@ type Notificator interface {
 	// When consumer wants to stop listening for notifications it must unregister the notification queue.
 	RegisterConsumer(platform *types.Platform) (NotificationQueue, int64, error)
 
+	RegisterConsumer2(platform *types.Platform, lastKnownRevision int64) (NotificationQueue, int64, error)
+
 	// UnregisterConsumer must be called to stop receiving notifications in the queue
 	UnregisterConsumer(queue NotificationQueue) error
 
