@@ -19,6 +19,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -26,6 +27,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/jmoiron/sqlx"
+	sqlxtypes "github.com/jmoiron/sqlx/types"
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -54,6 +56,7 @@ type getterContext interface {
 }
 
 //go:generate counterfeiter . pgDB
+// pgDB represents a PG database API
 type pgDB interface {
 	prepareNamedContext
 	namedExecerContext
@@ -64,18 +67,22 @@ type pgDB interface {
 }
 
 func create(ctx context.Context, db pgDB, table string, dto interface{}) (string, error) {
-	var lastInsertId string
-	set := getDBTags(dto)
+	var lastInsertID string
+	setTagType := getDBTags(dto, isAutoIncrementable)
+	dbTags := make([]string, 0, len(setTagType))
+	for _, tagType := range setTagType {
+		dbTags = append(dbTags, tagType.Tag)
+	}
 
-	if len(set) == 0 {
-		return lastInsertId, fmt.Errorf("%s insert: No fields to insert", table)
+	if len(dbTags) == 0 {
+		return lastInsertID, fmt.Errorf("%s insert: No fields to insert", table)
 	}
 
 	sqlQuery := fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES(:%s)",
 		table,
-		strings.Join(set, ", "),
-		strings.Join(set, ", :"),
+		strings.Join(dbTags, ", "),
+		strings.Join(dbTags, ", :"),
 	)
 
 	id, ok := structs.New(dto).FieldOk("ID")
@@ -86,75 +93,73 @@ func create(ctx context.Context, db pgDB, table string, dto interface{}) (string
 		if err != nil {
 			return "", err
 		}
-		err = stmt.GetContext(ctx, &lastInsertId, dto)
-		return lastInsertId, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
+		err = stmt.GetContext(ctx, &lastInsertID, dto)
+		return lastInsertID, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
 	}
 	log.C(ctx).Debugf("Executing query %s", sqlQuery)
 	_, err := db.NamedExecContext(ctx, sqlQuery, dto)
-	return lastInsertId, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
+	return lastInsertID, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
 }
 
-func get(ctx context.Context, db getterContext, id string, table string, dto interface{}) error {
-	sqlQuery := "SELECT * FROM " + table + " WHERE id=$1"
-	log.C(ctx).Debugf("Executing query %s", sqlQuery)
-	err := db.GetContext(ctx, dto, sqlQuery, &id)
-	return checkSQLNoRows(err)
-}
-
-func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface{}, labelsEntity Labelable, baseTableName string, criteria []query.Criterion) (*sqlx.Rows, error) {
-	if err := validateFieldQueryParams(baseEntity, criteria); err != nil {
+func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface{}, label PostgresLabel, baseTableName string, criteria []query.Criterion) (*sqlx.Rows, error) {
+	if err := validateFieldQueryParams(getDBTags(baseEntity, nil), criteria); err != nil {
 		return nil, err
 	}
 	var baseQuery string
-	if labelsEntity == nil {
+	if label == nil {
 		baseQuery = constructBaseQueryForEntity(baseTableName)
 	} else {
-		baseQuery = constructBaseQueryForLabelable(labelsEntity, baseTableName)
+		baseQuery = constructBaseQueryForLabelable(label, baseTableName)
 	}
-	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, baseTableName, labelsEntity, criteria)
+	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, baseTableName, label, criteria, getDBTags(baseEntity, nil), " ORDER BY created_at")
 	if err != nil {
 		return nil, err
 	}
+
+	// Lock the rows if we are in transaction so that update operations on those rows can rely on unchanged data
+	// This allows us to handle concurrent updates on the same rows by executing them sequentially as
+	// before updating we have to anyway select the rows and can therefore lock them
+	if _, ok := db.(*sqlx.Tx); ok {
+		sqlQuery = sqlQuery[:len(sqlQuery)-1]
+		sqlQuery += fmt.Sprintf(" FOR SHARE of %s;", baseTableName)
+	}
+
 	log.C(ctx).Debugf("Executing query %s", sqlQuery)
 	return db.QueryxContext(ctx, sqlQuery, queryParams...)
 }
 
-func listByFieldCriteria(ctx context.Context, db pgDB, table string, entity interface{}, criteria []query.Criterion) error {
-	baseQuery := fmt.Sprintf(`SELECT * FROM %s`, table)
-	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, table, nil, criteria)
+func listByFieldCriteria(ctx context.Context, db pgDB, table string, criteria []query.Criterion) (*sqlx.Rows, error) {
+	baseQuery := constructBaseQueryForEntity(table)
+	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, table, nil, criteria, nil, " ORDER BY created_at")
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return db.SelectContext(ctx, entity, sqlQuery, queryParams...)
+	return db.QueryxContext(ctx, sqlQuery, queryParams...)
 }
 
-func deleteAllByFieldCriteria(ctx context.Context, extContext sqlx.ExtContext, table string, dto interface{}, criteria []query.Criterion) error {
+func deleteAllByFieldCriteria(ctx context.Context, extContext sqlx.ExtContext, table string, dto interface{}, criteria []query.Criterion) (*sqlx.Rows, error) {
 	for _, criterion := range criteria {
 		if criterion.Type != query.FieldQuery {
-			return &util.UnsupportedQueryError{Message: "conditional delete is only supported for field queries"}
+			return nil, &util.UnsupportedQueryError{Message: "conditional delete is only supported for field queries"}
 		}
 	}
-	if err := validateFieldQueryParams(dto, criteria); err != nil {
-		return err
+	if err := validateFieldQueryParams(getDBTags(dto, nil), criteria); err != nil {
+		return nil, err
 	}
 	baseQuery := fmt.Sprintf("DELETE FROM %s", table)
-	sqlQuery, queryParams, err := buildQueryWithParams(extContext, baseQuery, table, nil, criteria)
+	sqlQuery, queryParams, err := buildQueryWithParams(extContext, baseQuery, table, nil, criteria, getDBTags(dto, isAutoIncrementable))
 	if err != nil {
-		return err
+		return nil, err
 	}
-	result, err := extContext.ExecContext(ctx, sqlQuery, queryParams...)
-	if err != nil {
-		return err
-	}
-	return checkRowsAffected(ctx, result)
+	sqlQuery = sqlQuery[:len(sqlQuery)-1] + " RETURNING *;"
+	return extContext.QueryxContext(ctx, sqlQuery, queryParams...)
 }
 
-func validateFieldQueryParams(baseEntity interface{}, criteria []query.Criterion) error {
+func validateFieldQueryParams(tags []tagType, criteria []query.Criterion) error {
 	availableColumns := make(map[string]bool)
-	baseEntityStruct := structs.New(baseEntity)
-	for _, field := range baseEntityStruct.Fields() {
-		dbTag := field.Tag("db")
-		availableColumns[dbTag] = true
+	for _, dbTag := range tags {
+		tagValues := strings.Split(dbTag.Tag, ",")
+		availableColumns[tagValues[0]] = true
 	}
 	for _, criterion := range criteria {
 		if criterion.Type == query.FieldQuery && !availableColumns[criterion.LeftOp] {
@@ -168,15 +173,15 @@ func constructBaseQueryForEntity(tableName string) string {
 	return fmt.Sprintf("SELECT * FROM %s", tableName)
 }
 
-func constructBaseQueryForLabelable(labelsEntity Labelable, baseTableName string) string {
-	labelStruct := structs.New(labelsEntity)
+func constructBaseQueryForLabelable(labelsEntity PostgresLabel, baseTableName string) string {
 	baseQuery := `SELECT %[1]s.*,`
-	for _, field := range labelStruct.Fields() {
-		dbTag := field.Tag("db")
-		baseQuery += " %[2]s." + dbTag + " " + "\"%[2]s." + dbTag + "\"" + ","
+	for _, dbTag := range getDBTags(labelsEntity, isAutoIncrementable) {
+		baseQuery += " %[2]s." + dbTag.Tag + " " + "\"%[2]s." + dbTag.Tag + "\"" + ","
 	}
 	baseQuery = baseQuery[:len(baseQuery)-1] //remove last comma
-	labelsTableName, referenceKeyColumn, primaryKeyColumn := labelsEntity.Label()
+	labelsTableName := labelsEntity.LabelsTableName()
+	referenceKeyColumn := labelsEntity.ReferenceColumn()
+	primaryKeyColumn := labelsEntity.LabelsPrimaryColumn()
 	baseQuery += " FROM %[1]s LEFT JOIN %[2]s ON %[1]s." + primaryKeyColumn + " = %[2]s." + referenceKeyColumn
 	return fmt.Sprintf(baseQuery, baseTableName, labelsTableName)
 }
@@ -195,32 +200,58 @@ func update(ctx context.Context, db namedExecerContext, table string, dto interf
 	return checkRowsAffected(ctx, result)
 }
 
-func getDBTags(structure interface{}) []string {
+func isAutoIncrementable(tagValue string) bool {
+	// auto_increment states that the value will be calculated in the DB
+	return strings.Contains(tagValue, "auto_increment")
+}
+
+type tagType struct {
+	Tag  string
+	Type reflect.Type
+}
+
+func getDBTags(structure interface{}, predicate func(string) bool) []tagType {
 	s := structs.New(structure)
 	fields := s.Fields()
-	set := make([]string, 0, len(fields))
-
-	for _, field := range fields {
-		if field.IsEmbedded() || (field.Kind() == reflect.Ptr && field.IsZero()) {
-			continue
-		}
-		dbTag := field.Tag("db")
-		if dbTag == "-" {
-			continue
-		}
-		if dbTag == "" {
-			dbTag = strings.ToLower(field.Name())
-		}
-		set = append(set, dbTag)
+	set := make([]tagType, 0, len(fields))
+	if predicate == nil {
+		predicate = func(string) bool { return false }
 	}
+	getTags(fields, &set, predicate)
 	return set
 }
 
+func getTags(fields []*structs.Field, set *[]tagType, predicate func(string) bool) {
+	for _, field := range fields {
+		if field.Kind() == reflect.Ptr && field.IsZero() {
+			continue
+		}
+		if field.IsEmbedded() {
+			embedded := make([]tagType, 0)
+			getTags(field.Fields(), &embedded, predicate)
+			*set = append(*set, embedded...)
+		} else {
+			dbTag := field.Tag("db")
+			if dbTag == "-" || predicate(dbTag) {
+				continue
+			}
+			if dbTag == "" {
+				dbTag = strings.ToLower(field.Name())
+			}
+			ttype := reflect.ValueOf(field.Value()).Type()
+			*set = append(*set, tagType{
+				Tag:  dbTag,
+				Type: ttype,
+			})
+		}
+	}
+}
+
 func updateQuery(tableName string, structure interface{}) string {
-	dbTags := getDBTags(structure)
+	dbTags := getDBTags(structure, isAutoIncrementable)
 	set := make([]string, 0, len(dbTags))
 	for _, dbTag := range dbTags {
-		set = append(set, fmt.Sprintf("%s = :%s", dbTag, dbTag))
+		set = append(set, fmt.Sprintf("%s = :%s", dbTag.Tag, dbTag.Tag))
 	}
 	if len(set) == 0 {
 		return ""
@@ -248,9 +279,18 @@ func checkIntegrityViolation(ctx context.Context, err error) error {
 	sqlErr, ok := err.(*pq.Error)
 	if ok && (sqlErr.Code.Class() == "42" || sqlErr.Code.Class() == "44" || sqlErr.Code.Class() == "23") {
 		log.C(ctx).Debug(sqlErr)
-		return util.ErrBadRequestStorage(err)
+		return &util.ErrBadRequestStorage{Cause: err}
 	}
 	return err
+}
+
+func closeRows(ctx context.Context, rows *sqlx.Rows) {
+	if rows == nil {
+		return
+	}
+	if err := rows.Close(); err != nil {
+		log.C(ctx).WithError(err).Errorf("Could not release connection")
+	}
 }
 
 func checkRowsAffected(ctx context.Context, result sql.Result) error {
@@ -274,4 +314,21 @@ func checkSQLNoRows(err error) error {
 
 func toNullString(s string) sql.NullString {
 	return sql.NullString{String: s, Valid: s != ""}
+}
+
+func getJSONText(item json.RawMessage) sqlxtypes.JSONText {
+	if len(item) == len("null") && string(item) == "null" {
+		return sqlxtypes.JSONText("{}")
+	}
+	return sqlxtypes.JSONText(item)
+}
+
+func getJSONRawMessage(item sqlxtypes.JSONText) json.RawMessage {
+	if len(item) <= len("null") {
+		itemStr := string(item)
+		if itemStr == "{}" || itemStr == "null" {
+			return nil
+		}
+	}
+	return json.RawMessage(item)
 }

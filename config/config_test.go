@@ -19,6 +19,7 @@ package config_test
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/Peripli/service-manager/api"
 	cfg "github.com/Peripli/service-manager/config"
@@ -99,14 +100,14 @@ var _ = Describe("config", func() {
 			})
 		})
 
-		Context("when Repository URI is missing", func() {
+		Context("when TransactionalRepository URI is missing", func() {
 			It("returns an error", func() {
 				config.Storage.URI = ""
 				assertErrorDuringValidate()
 			})
 		})
 
-		Context("when Repository Encryption key is missing", func() {
+		Context("when TransactionalRepository Encryption key is missing", func() {
 			It("returns an error", func() {
 				config.Storage.EncryptionKey = ""
 				assertErrorDuringValidate()
@@ -116,6 +117,42 @@ var _ = Describe("config", func() {
 		Context("when API token issuer URL is missing", func() {
 			It("returns an error", func() {
 				config.API.TokenIssuerURL = ""
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("when notification queues size is 0", func() {
+			It("returns an error", func() {
+				config.Storage.Notification.QueuesSize = 0
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("when notification min reconnect interval is greater than max reconnect interval", func() {
+			It("returns an error", func() {
+				config.Storage.Notification.MinReconnectInterval = 100 * time.Millisecond
+				config.Storage.Notification.MaxReconnectInterval = 50 * time.Millisecond
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("when notification keep for is < 0", func() {
+			It("returns an error", func() {
+				config.Storage.Notification.KeepFor = -time.Second
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("when notification Clean interval is < 0", func() {
+			It("returns an error", func() {
+				config.Storage.Notification.CleanInterval = -time.Second
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("when notification min reconnect interval is < 0", func() {
+			It("returns an error", func() {
+				config.Storage.Notification.MinReconnectInterval = -time.Second
 				assertErrorDuringValidate()
 			})
 		})

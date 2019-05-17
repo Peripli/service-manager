@@ -44,17 +44,31 @@ GO_BUILD 		= env CGO_ENABLED=0 GOOS=$(PLATFORM) GOARCH=$(ARCH) \
            		$(GO) build $(GO_FLAGS) -ldflags '-s -w $(BUILD_LDFLAGS) $(VERSION_FLAGS)'
 
 # TEST_FLAGS - extra "go test" flags to use
-GO_INT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test" | paste -sd "," -) \
+GO_INT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd" | paste -sd "," -) \
 				./test/... $(TEST_FLAGS) -coverprofile=$(INT_TEST_PROFILE)
 
-GO_UNIT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test" | paste -sd "," -) \
+GO_UNIT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd" | paste -sd "," -) \
 				$(shell go list ./... | egrep -v "test") -coverprofile=$(UNIT_TEST_PROFILE)
+
+COUNTERFEITER   ?= "v6.0.2"
 
 #-----------------------------------------------------------------------------
 # Prepare environment to be able to run other make targets
 #-----------------------------------------------------------------------------
 
-prepare: ## Installs some tools (dep, gometalinter, cover, goveralls)
+prepare-counterfeiter:
+	@echo "Installing counterfeiter $(COUNTERFEITER)..."
+	@go get github.com/maxbrunsfeld/counterfeiter
+	@cd ${GOPATH}/src/github.com/maxbrunsfeld/counterfeiter;\
+		counterfeiterBranch=$(shell cd ${GOPATH}/src/github.com/maxbrunsfeld/counterfeiter && git symbolic-ref --short HEAD);\
+		git checkout tags/$(COUNTERFEITER) >/dev/null 2>&1;\
+		go install;\
+		echo "Revert to last known branch: $$counterfeiterBranch";\
+		git checkout $$counterfeiterBranch >/dev/null 2>&1
+
+	@chmod a+x ${GOPATH}/bin/counterfeiter
+
+prepare: prepare-counterfeiter build-gen-binary ## Installs some tools (dep, gometalinter, cover, goveralls)
 ifeq ($(shell which dep),)
 	@echo "Installing dep..."
 	@go get -u github.com/golang/dep/cmd/dep
@@ -72,10 +86,6 @@ endif
 ifeq ($(shell which goveralls),)
 	@echo "Installing goveralls..."
 	@go get github.com/mattn/goveralls
-endif
-ifeq ($(shell which counterfeiter),)
-	@echo "Installing counterfeither..."
-	@go get github.com/maxbrunsfeld/counterfeiter
 endif
 ifeq ($(shell which golint),)
 	@echo "Installing golint... "
@@ -126,11 +136,14 @@ clean-vendor: ## Cleans up the vendor folder and prints out the Gopkg.lock
 	@rm -rf vendor
 	@echo > Gopkg.lock
 
+build-gen-binary:
+	@go install github.com/Peripli/service-manager/cmd/smgen
+
 #-----------------------------------------------------------------------------
 # Tests and coverage
 #-----------------------------------------------------------------------------
 
-generate: $(GENERATE_PREREQ_FILES) ## Recreates gen files if any of the files containing go:generate directives have changed
+generate: prepare-counterfeiter build-gen-binary $(GENERATE_PREREQ_FILES) ## Recreates gen files if any of the files containing go:generate directives have changed
 	$(GO) list ./... | xargs $(GO) generate
 	@touch $@
 

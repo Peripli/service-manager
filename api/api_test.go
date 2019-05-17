@@ -20,6 +20,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/Peripli/service-manager/storage"
+
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/storage/storagefakes"
 	"github.com/Peripli/service-manager/test/common"
@@ -34,7 +36,7 @@ func TestAPI(t *testing.T) {
 
 var _ = Describe("API", func() {
 	var (
-		mockedStorage *storagefakes.FakeStorage
+		mockedStorage *storage.InterceptableTransactionalRepository
 		server        *common.OAuthServer
 	)
 
@@ -47,24 +49,30 @@ var _ = Describe("API", func() {
 	})
 
 	BeforeEach(func() {
-		mockedStorage = &storagefakes.FakeStorage{}
+		mockedStorage = storage.NewInterceptableTransactionalRepository(&storagefakes.FakeStorage{}, nil)
 	})
 
 	Describe("New", func() {
 
 		It("returns no error if creation is successful", func() {
-			_, err := api.New(context.TODO(), mockedStorage, &api.Settings{
-				TokenIssuerURL: server.BaseURL,
-				ClientID:       "sm",
-			}, nil)
+			_, err := api.New(context.TODO(), &api.Options{
+				Repository: mockedStorage,
+				APISettings: &api.Settings{
+					TokenIssuerURL: server.BaseURL,
+					ClientID:       "sm",
+				},
+			})
 			Expect(err).ShouldNot(HaveOccurred())
 		})
 
 		It("returns an error if creation fails", func() {
-			_, err := api.New(context.TODO(), mockedStorage, &api.Settings{
-				TokenIssuerURL: "http://invalidurl.com",
-				ClientID:       "invalidclient",
-			}, nil)
+			_, err := api.New(context.TODO(), &api.Options{
+				Repository: mockedStorage,
+				APISettings: &api.Settings{
+					TokenIssuerURL: "http://invalidurl.com",
+					ClientID:       "invalidclient",
+				},
+			})
 			Expect(err).Should(HaveOccurred())
 		})
 	})

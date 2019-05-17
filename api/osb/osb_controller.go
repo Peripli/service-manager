@@ -39,7 +39,7 @@ var osbPathPattern = regexp.MustCompile("^" + web.OSBURL + "/[^/]+(/.*)$")
 
 // BrokerFetcher is implemented by OSB proxy providers
 type BrokerFetcher interface {
-	FetchBroker(ctx context.Context, brokerID string) (*types.Broker, error)
+	FetchBroker(ctx context.Context, brokerID string) (*types.ServiceBroker, error)
 }
 
 // CatalogFetcher is implemented by OSB catalog providers
@@ -119,7 +119,13 @@ func (c *controller) catalog(r *web.Request, logger *logrus.Entry, brokerID stri
 		}
 	}
 
-	return util.NewJSONResponse(http.StatusOK, catalog)
+	// OSB spec requires object containing key "services"
+	result := struct {
+		Services []*types.ServiceOffering `json:"services"`
+	}{
+		Services: catalog.ServiceOfferings,
+	}
+	return util.NewJSONResponse(http.StatusOK, result)
 }
 
 func (c *controller) proxy(r *web.Request, logger *logrus.Entry, brokerID string) (*web.Response, error) {
@@ -166,7 +172,7 @@ func (c *controller) proxy(r *web.Request, logger *logrus.Entry, brokerID string
 	return resp, nil
 }
 
-func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.Broker) *httputil.ReverseProxy {
+func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.ServiceBroker) *httputil.ReverseProxy {
 	proxy := httputil.NewSingleHostReverseProxy(targetBrokerURL)
 	director := proxy.Director
 	proxy.Director = func(request *http.Request) {

@@ -25,9 +25,11 @@ import (
 	"github.com/Peripli/service-manager/api/info"
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
 func TestInfo(t *testing.T) {
+	RegisterFailHandler(Fail)
 	RunSpecs(t, "Info Suite")
 }
 
@@ -43,20 +45,19 @@ var _ = Describe("Info API", func() {
 
 	for _, tc := range cases {
 		tc := tc
-		var ctx *common.TestContext
 
-		BeforeEach(func() {
+		It(tc.description, func() {
+			var ctx *common.TestContext
+
 			postHook := func(e env.Environment, servers map[string]common.FakeServer) {
 				e.Set("api.token_basic_auth", tc.configBasicAuth)
 			}
 			ctx = common.NewTestContextBuilder().WithEnvPostExtensions(postHook).Build()
-		})
 
-		AfterEach(func() {
-			ctx.Cleanup()
-		})
+			defer func() {
+				ctx.Cleanup()
+			}()
 
-		It(tc.description, func() {
 			ctx.SM.GET(info.URL).
 				Expect().
 				Status(http.StatusOK).

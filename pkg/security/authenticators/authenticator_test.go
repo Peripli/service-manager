@@ -26,8 +26,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/Peripli/service-manager/pkg/security"
-	"github.com/Peripli/service-manager/pkg/security/securityfakes"
+	httpsec "github.com/Peripli/service-manager/pkg/security/http"
+
+	"github.com/Peripli/service-manager/pkg/security/http/httpfakes"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/test/testutil"
@@ -255,7 +256,7 @@ var _ = Describe("OIDC Authenticator", func() {
 			request *http.Request
 			err     error
 		)
-		validateAuthenticationReturns := func(expectedUser *web.UserContext, expectedDecision security.Decision, expectedErr error) {
+		validateAuthenticationReturns := func(expectedUser *web.UserContext, expectedDecision httpsec.Decision, expectedErr error) {
 			authenticator, _, _ := NewOIDCAuthenticator(ctx, oauthOptions)
 
 			user, decision, err := authenticator.Authenticate(request)
@@ -291,7 +292,7 @@ var _ = Describe("OIDC Authenticator", func() {
 			It("should abstain authentication decision with no error", func() {
 				Expect(request.Header.Get("Authorization")).To(Equal(""))
 
-				validateAuthenticationReturns(nil, security.Abstain, nil)
+				validateAuthenticationReturns(nil, httpsec.Abstain, nil)
 			})
 		})
 
@@ -299,7 +300,7 @@ var _ = Describe("OIDC Authenticator", func() {
 			It("should abstain authentication decision with no error", func() {
 				request.Header.Set("Authorization", "")
 
-				validateAuthenticationReturns(nil, security.Abstain, nil)
+				validateAuthenticationReturns(nil, httpsec.Abstain, nil)
 			})
 		})
 
@@ -307,7 +308,7 @@ var _ = Describe("OIDC Authenticator", func() {
 			It("should abstain authentication decision with no error", func() {
 				request.Header.Set("Authorization", "Basic admin:admin")
 
-				validateAuthenticationReturns(nil, security.Abstain, nil)
+				validateAuthenticationReturns(nil, httpsec.Abstain, nil)
 			})
 		})
 
@@ -316,14 +317,14 @@ var _ = Describe("OIDC Authenticator", func() {
 				It("should deny authentication with no error", func() {
 					request.Header.Set("Authorization", "bearer ")
 
-					validateAuthenticationReturns(nil, security.Deny, nil)
+					validateAuthenticationReturns(nil, httpsec.Deny, nil)
 				})
 			})
 
 			Context("when token is present", func() {
 				var (
-					verifier      *securityfakes.FakeTokenVerifier
-					authenticator security.Authenticator
+					verifier      *httpfakes.FakeTokenVerifier
+					authenticator httpsec.Authenticator
 					expectedError error
 				)
 
@@ -339,18 +340,18 @@ var _ = Describe("OIDC Authenticator", func() {
 							user, decision, err := authenticator.Authenticate(request)
 
 							Expect(user).To(BeNil())
-							Expect(decision).To(Equal(security.Deny))
+							Expect(decision).To(Equal(httpsec.Deny))
 							Expect(err).To(Equal(expectedError))
 						})
 					})
 
 					Context("when returned token cannot extract claims", func() {
-						var fakeToken *securityfakes.FakeTokenData
+						var fakeToken *httpfakes.FakeTokenData
 
 						BeforeEach(func() {
 							expectedError = fmt.Errorf("Claims extraction error")
 
-							fakeToken = &securityfakes.FakeTokenData{}
+							fakeToken = &httpfakes.FakeTokenData{}
 							fakeToken.ClaimsReturns(expectedError)
 
 							verifier.VerifyReturns(fakeToken, nil)
@@ -361,7 +362,7 @@ var _ = Describe("OIDC Authenticator", func() {
 							user, decision, err := authenticator.Authenticate(request)
 
 							Expect(user).To(BeNil())
-							Expect(decision).To(Equal(security.Deny))
+							Expect(decision).To(Equal(httpsec.Deny))
 							Expect(err).To(Equal(expectedError))
 						})
 					})
@@ -371,7 +372,7 @@ var _ = Describe("OIDC Authenticator", func() {
 
 						BeforeEach(func() {
 							tokenJSON := fmt.Sprintf(`{"user_name": "%s", "abc": "xyz"}`, expectedUserName)
-							token := &securityfakes.FakeTokenData{}
+							token := &httpfakes.FakeTokenData{}
 							token.ClaimsStub = func(v interface{}) error {
 								return json.Unmarshal([]byte(tokenJSON), v)
 							}
@@ -383,7 +384,7 @@ var _ = Describe("OIDC Authenticator", func() {
 
 							Expect(user).To(Not(BeNil()))
 							Expect(user.Name).To(Equal(expectedUserName))
-							Expect(decision).To(Equal(security.Allow))
+							Expect(decision).To(Equal(httpsec.Allow))
 							Expect(err).To(BeNil())
 
 							claims := struct {
@@ -402,7 +403,7 @@ var _ = Describe("OIDC Authenticator", func() {
 
 				Context("when Bearer starts with uppercase", func() {
 					BeforeEach(func() {
-						verifier = &securityfakes.FakeTokenVerifier{}
+						verifier = &httpfakes.FakeTokenVerifier{}
 						authenticator = &OauthAuthenticator{Verifier: verifier}
 
 						request.Header.Set("Authorization", "Bearer token")
@@ -413,7 +414,7 @@ var _ = Describe("OIDC Authenticator", func() {
 
 				Context("when bearer starts with lowercase", func() {
 					BeforeEach(func() {
-						verifier = &securityfakes.FakeTokenVerifier{}
+						verifier = &httpfakes.FakeTokenVerifier{}
 						authenticator = &OauthAuthenticator{Verifier: verifier}
 
 						request.Header.Set("Authorization", "bearer token")

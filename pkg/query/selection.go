@@ -19,6 +19,7 @@ package query
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -68,6 +69,10 @@ var operators = []Operator{EqualsOperator, NotEqualsOperator, InOperator,
 	NotInOperator, GreaterThanOperator, LessThanOperator, EqualsOrNilOperator}
 
 const (
+	// OpenBracket is the token that denotes the beginning of a multivariate operand
+	OpenBracket rune = '['
+	// CloseBracket is the token that denotes the end of a multivariate operand
+	CloseBracket rune = ']'
 	// Separator is the separator between field and label queries
 	Separator string = "and"
 )
@@ -110,9 +115,10 @@ func newCriterion(leftOp string, operator Operator, rightOp []string, criteriaTy
 	return Criterion{LeftOp: leftOp, Operator: operator, RightOp: rightOp, Type: criteriaType}
 }
 
+// Validate the criterion fields
 func (c Criterion) Validate() error {
 	if len(c.RightOp) > 1 && !c.Operator.IsMultiVariate() {
-		return fmt.Errorf("multiple values %s received for single value operation %s", c.RightOp, c.Operator)
+		return &util.UnsupportedQueryError{Message: fmt.Sprintf("multiple values %s received for single value operation %s", c.RightOp, c.Operator)}
 	}
 	if c.Operator.IsNullable() && c.Type != FieldQuery {
 		return &util.UnsupportedQueryError{Message: "nullable operations are supported only for field queries"}
@@ -125,7 +131,7 @@ func (c Criterion) Validate() error {
 	}
 	for _, op := range c.RightOp {
 		if strings.ContainsRune(op, '\n') {
-			return fmt.Errorf("%s with key \"%s\" has value \"%s\" contaning forbidden new line character", c.Type, c.LeftOp, op)
+			return &util.UnsupportedQueryError{Message: fmt.Sprintf("%s with key \"%s\" has value \"%s\" contaning forbidden new line character", c.Type, c.LeftOp, op)}
 		}
 	}
 	return nil

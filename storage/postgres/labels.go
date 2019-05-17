@@ -19,7 +19,9 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/util"
 
@@ -31,7 +33,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) Labelable, pgDB pgDB, referenceID string, updateActions []*query.LabelChange) error {
+func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) (PostgresLabel, error), pgDB pgDB, referenceID string, updateActions []*query.LabelChange) error {
 	for _, action := range updateActions {
 		switch action.Operation {
 		case query.AddLabelOperation:
@@ -45,7 +47,10 @@ func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string,
 		case query.RemoveLabelOperation:
 			fallthrough
 		case query.RemoveLabelValuesOperation:
-			pgLabel := newLabelFunc("", "", "")
+			pgLabel, err := newLabelFunc("", "", "")
+			if err != nil {
+				return err
+			}
 			if err := removeLabel(ctx, pgDB, pgLabel, referenceID, action.Key, action.Values...); err != nil {
 				return err
 			}
@@ -53,15 +58,18 @@ func updateLabelsAbstract(ctx context.Context, newLabelFunc func(labelID string,
 	}
 	return nil
 }
-
-func addLabel(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) Labelable, db pgDB, key string, value string, referenceID string) error {
+func addLabel(ctx context.Context, newLabelFunc func(labelID string, labelKey string, labelValue string) (PostgresLabel, error), db pgDB, key string, value string, referenceID string) error {
 	uuids, err := uuid.NewV4()
 	if err != nil {
 		return fmt.Errorf("could not generate id for new label: %v", err)
 	}
 	labelID := uuids.String()
-	newLabel := newLabelFunc(labelID, key, value)
-	labelTable, referenceColumnName, _ := newLabel.Label()
+	newLabel, err := newLabelFunc(labelID, key, value)
+	if err != nil {
+		return err
+	}
+	labelTable := newLabel.LabelsTableName()
+	referenceColumnName := newLabel.ReferenceColumn()
 
 	query := fmt.Sprintf("SELECT * FROM %s WHERE key=$1 and val=$2 and %s=$3", labelTable, referenceColumnName)
 	log.C(ctx).Debugf("Executing query %s", query)
@@ -77,8 +85,9 @@ func addLabel(ctx context.Context, newLabelFunc func(labelID string, labelKey st
 	return nil
 }
 
-func removeLabel(ctx context.Context, execer sqlx.ExtContext, labelable Labelable, referenceID, labelKey string, labelValues ...string) error {
-	labelTableName, referenceColumnName, _ := labelable.Label()
+func removeLabel(ctx context.Context, execer sqlx.ExtContext, label PostgresLabel, referenceID, labelKey string, labelValues ...string) error {
+	labelTableName := label.LabelsTableName()
+	referenceColumnName := label.ReferenceColumn()
 	baseQuery := fmt.Sprintf("DELETE FROM %s WHERE key=? AND %s=?", labelTableName, referenceColumnName)
 	args := []interface{}{labelKey, referenceID}
 	// remove all labels with this key
@@ -110,9 +119,9 @@ func removeLabel(ctx context.Context, execer sqlx.ExtContext, labelable Labelabl
 	return nil
 }
 
-func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTableName string, labelable Labelable, criteria []query.Criterion) (string, []interface{}, error) {
+func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTableName string, labelEntity PostgresLabel, criteria []query.Criterion, dbTags []tagType, querySuffixes ...string) (string, []interface{}, error) {
 	if len(criteria) == 0 {
-		return sqlQuery + ";", nil, nil
+		return sqlQuery + strings.Join(querySuffixes, " ") + ";", nil, nil
 	}
 
 	var queryParams []interface{}
@@ -122,7 +131,8 @@ func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTable
 	labelCriteria, fieldCriteria := splitCriteriaByType(criteria)
 
 	if len(labelCriteria) > 0 {
-		labelTableName, referenceColumnName, _ := labelable.Label()
+		labelTableName := labelEntity.LabelsTableName()
+		referenceColumnName := labelEntity.ReferenceColumn()
 		labelSubQuery := fmt.Sprintf("(SELECT * FROM %[1]s WHERE %[2]s IN (SELECT %[2]s FROM %[1]s WHERE ", labelTableName, referenceColumnName)
 		for _, option := range labelCriteria {
 			rightOpBindVar, rightOpQueryValue := buildRightOp(option)
@@ -139,9 +149,19 @@ func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTable
 	if len(fieldCriteria) > 0 {
 		sqlQuery += " WHERE "
 		for _, option := range fieldCriteria {
+			var ttype reflect.Type
+			if dbTags != nil {
+				var err error
+				ttype, err = findTagType(dbTags, option.LeftOp)
+				if err != nil {
+					return "", nil, err
+				}
+			}
 			rightOpBindVar, rightOpQueryValue := buildRightOp(option)
 			sqlOperation := translateOperationToSQLEquivalent(option.Operator)
-			clause := fmt.Sprintf("%s.%s::text %s %s", baseTableName, option.LeftOp, sqlOperation, rightOpBindVar)
+
+			dbCast := determineCastByType(ttype)
+			clause := fmt.Sprintf("%s.%s%s %s %s", baseTableName, option.LeftOp, dbCast, sqlOperation, rightOpBindVar)
 			if option.Operator.IsNullable() {
 				clause = fmt.Sprintf("(%s OR %s.%s IS NULL)", clause, baseTableName, option.LeftOp)
 			}
@@ -150,7 +170,7 @@ func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTable
 		}
 		sqlQuery += strings.Join(fieldQueries, " AND ")
 	}
-	sqlQuery += ";"
+	sqlQuery += strings.Join(querySuffixes, " ") + ";"
 
 	if hasMultiVariateOp(criteria) {
 		var err error
@@ -161,6 +181,37 @@ func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTable
 	}
 	sqlQuery = extContext.Rebind(sqlQuery)
 	return sqlQuery, queryParams, nil
+}
+
+func findTagType(tags []tagType, tagName string) (reflect.Type, error) {
+	for _, tag := range tags {
+		if strings.Split(tag.Tag, ",")[0] == tagName {
+			return tag.Type, nil
+		}
+	}
+	return nil, fmt.Errorf("could not find tag name: %s", tagName)
+}
+
+var (
+	intType   = reflect.TypeOf(int(1))
+	int64Type = reflect.TypeOf(int64(1))
+	timeType  = reflect.TypeOf(time.Time{})
+)
+
+func determineCastByType(tagType reflect.Type) string {
+	dbCast := ""
+	switch tagType {
+	case intType:
+		fallthrough
+	case int64Type:
+		fallthrough
+	case timeType:
+		dbCast = ""
+
+	default:
+		dbCast = "::text"
+	}
+	return dbCast
 }
 
 func splitCriteriaByType(criteria []query.Criterion) ([]query.Criterion, []query.Criterion) {

@@ -3,8 +3,8 @@ package web
 const (
 	apiVersion = "v1"
 
-	// BrokersURL is the URL path to manage service brokers
-	BrokersURL = "/" + apiVersion + "/service_brokers"
+	// ServiceBrokersURL is the URL path to manage service brokers
+	ServiceBrokersURL = "/" + apiVersion + "/service_brokers"
 
 	// ServiceOfferingsURL is the URL path to manage service offerings
 	ServiceOfferingsURL = "/" + apiVersion + "/service_offerings"
@@ -14,6 +14,9 @@ const (
 
 	// VisibilitiesURL is the URL path to manage visibilities
 	VisibilitiesURL = "/" + apiVersion + "/visibilities"
+
+	// NotificationsURL is the URL path to manage notifications
+	NotificationsURL = "/" + apiVersion + "/notifications"
 
 	// PlatformsURL is the URL path to manage platforms
 	PlatformsURL = "/" + apiVersion + "/platforms"

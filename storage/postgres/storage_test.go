@@ -17,6 +17,8 @@
 package postgres
 
 import (
+	"context"
+
 	"github.com/Peripli/service-manager/storage"
 
 	. "github.com/onsi/ginkgo"
@@ -24,23 +26,7 @@ import (
 )
 
 var _ = Describe("Postgres Storage", func() {
-	pgStorage := &postgresStorage{}
-
-	Describe("Broker", func() {
-		Context("Called with uninitialized db", func() {
-			It("Should panic", func() {
-				Expect(func() { pgStorage.Broker() }).To(Panic())
-			})
-		})
-	})
-
-	Describe("Platform", func() {
-		Context("Called with uninitialized db", func() {
-			It("Should panic", func() {
-				Expect(func() { pgStorage.Platform() }).To(Panic())
-			})
-		})
-	})
+	pgStorage := &PostgresStorage{}
 
 	Describe("Credentials", func() {
 		Context("Called with uninitialized db", func() {
@@ -62,6 +48,14 @@ var _ = Describe("Postgres Storage", func() {
 		Context("Called with uninitialized db", func() {
 			It("Should panic", func() {
 				Expect(func() { pgStorage.Ping() }).To(Panic())
+			})
+		})
+	})
+
+	Describe("SelectContext", func() {
+		Context("Called with uninitialized db", func() {
+			It("Should panic", func() {
+				Expect(func() { pgStorage.SelectContext(context.Background(), nil, "") }).To(Panic())
 			})
 		})
 	})

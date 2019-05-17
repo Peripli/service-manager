@@ -18,13 +18,14 @@ package middlewares
 
 import (
 	"github.com/Peripli/service-manager/pkg/security"
+	"github.com/Peripli/service-manager/pkg/security/http"
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
 // NewAuthnMiddleware returns web.Filter which uses the given security.Authenticator
 // to authenticate the request. FilterMatchers should be extended to cover the desired
 // endpoints.
-func NewAuthnMiddleware(filterName string, authenticator security.Authenticator) web.Filter {
+func NewAuthnMiddleware(filterName string, authenticator http.Authenticator) web.Filter {
 	return &authnMiddleware{
 		middleware: &middleware{
 			FilterName: filterName,
@@ -36,7 +37,7 @@ func NewAuthnMiddleware(filterName string, authenticator security.Authenticator)
 // authnMiddleware type represents an authentication middleware
 type authnMiddleware struct {
 	*middleware
-	Authenticator security.Authenticator
+	Authenticator http.Authenticator
 }
 
 // Run represents the authentication middleware function that delegates the authentication
@@ -49,19 +50,19 @@ func (m *authnMiddleware) Run(request *web.Request, next web.Handler) (*web.Resp
 
 	user, decision, err := m.Authenticator.Authenticate(request.Request)
 	if err != nil {
-		if decision == security.Deny {
+		if decision == http.Deny {
 			return nil, security.UnauthorizedHTTPError(err.Error())
 		}
 		return nil, err
 	}
 
 	switch decision {
-	case security.Allow:
+	case http.Allow:
 		if user == nil {
 			return nil, security.ErrUserNotFound
 		}
 		request.Request = request.WithContext(web.ContextWithUser(ctx, user))
-	case security.Deny:
+	case http.Deny:
 		return nil, security.UnauthorizedHTTPError("authentication failed")
 	}
 

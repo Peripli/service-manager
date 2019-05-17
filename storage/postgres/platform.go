@@ -17,53 +17,65 @@
 package postgres
 
 import (
-	"context"
+	"database/sql"
 
-	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/storage"
 
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
-type platformStorage struct {
-	db pgDB
+//go:generate smgen storage platform github.com/Peripli/service-manager/pkg/types
+// Platform entity
+type Platform struct {
+	BaseEntity
+	Type        string         `db:"type"`
+	Name        string         `db:"name"`
+	Description sql.NullString `db:"description"`
+	Username    string         `db:"username"`
+	Password    string         `db:"password"`
 }
 
-func (ps *platformStorage) Create(ctx context.Context, platform *types.Platform) (string, error) {
-	p := &Platform{}
-	p.FromDTO(platform)
-	return create(ctx, ps.db, platformTable, p)
-}
-
-func (ps *platformStorage) Get(ctx context.Context, id string) (*types.Platform, error) {
-	platform := &Platform{}
-	if err := get(ctx, ps.db, id, platformTable, platform); err != nil {
-		return nil, err
+func (p *Platform) FromObject(object types.Object) (storage.Entity, bool) {
+	platform, ok := object.(*types.Platform)
+	if !ok {
+		return nil, false
 	}
-	return platform.ToDTO(), nil
+	result := &Platform{
+		BaseEntity: BaseEntity{
+			ID:        platform.ID,
+			CreatedAt: platform.CreatedAt,
+			UpdatedAt: platform.UpdatedAt,
+		},
+		Type:        platform.Type,
+		Name:        platform.Name,
+		Description: toNullString(platform.Description),
+	}
+
+	if platform.Description != "" {
+		result.Description.Valid = true
+	}
+	if platform.Credentials != nil && platform.Credentials.Basic != nil {
+		result.Username = platform.Credentials.Basic.Username
+		result.Password = platform.Credentials.Basic.Password
+	}
+	return result, true
 }
 
-func (ps *platformStorage) List(ctx context.Context, criteria ...query.Criterion) ([]*types.Platform, error) {
-	var platforms []Platform
-	if err := validateFieldQueryParams(Platform{}, criteria); err != nil {
-		return nil, err
+func (p *Platform) ToObject() types.Object {
+	return &types.Platform{
+		Base: types.Base{
+			ID:        p.ID,
+			CreatedAt: p.CreatedAt,
+			UpdatedAt: p.UpdatedAt,
+		},
+		Type:        p.Type,
+		Name:        p.Name,
+		Description: p.Description.String,
+		Credentials: &types.Credentials{
+			Basic: &types.Basic{
+				Username: p.Username,
+				Password: p.Password,
+			},
+		},
 	}
-	err := listByFieldCriteria(ctx, ps.db, platformTable, &platforms, criteria)
-	if err != nil || len(platforms) == 0 {
-		return []*types.Platform{}, err
-	}
-	var platformDTOs = make([]*types.Platform, 0, len(platforms))
-	for _, platform := range platforms {
-		platformDTOs = append(platformDTOs, platform.ToDTO())
-	}
-	return platformDTOs, nil
-}
-
-func (ps *platformStorage) Delete(ctx context.Context, criteria ...query.Criterion) error {
-	return deleteAllByFieldCriteria(ctx, ps.db, platformTable, Platform{}, criteria)
-}
-
-func (ps *platformStorage) Update(ctx context.Context, platform *types.Platform) error {
-	p := &Platform{}
-	p.FromDTO(platform)
-	return update(ctx, ps.db, platformTable, p)
 }

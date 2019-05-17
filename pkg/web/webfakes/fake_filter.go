@@ -8,20 +8,31 @@ import (
 )
 
 type FakeFilter struct {
+	FilterMatchersStub        func() []web.FilterMatcher
+	filterMatchersMutex       sync.RWMutex
+	filterMatchersArgsForCall []struct {
+	}
+	filterMatchersReturns struct {
+		result1 []web.FilterMatcher
+	}
+	filterMatchersReturnsOnCall map[int]struct {
+		result1 []web.FilterMatcher
+	}
 	NameStub        func() string
 	nameMutex       sync.RWMutex
-	nameArgsForCall []struct{}
-	nameReturns     struct {
+	nameArgsForCall []struct {
+	}
+	nameReturns struct {
 		result1 string
 	}
 	nameReturnsOnCall map[int]struct {
 		result1 string
 	}
-	RunStub        func(req *web.Request, next web.Handler) (*web.Response, error)
+	RunStub        func(*web.Request, web.Handler) (*web.Response, error)
 	runMutex       sync.RWMutex
 	runArgsForCall []struct {
-		req  *web.Request
-		next web.Handler
+		arg1 *web.Request
+		arg2 web.Handler
 	}
 	runReturns struct {
 		result1 *web.Response
@@ -31,23 +42,67 @@ type FakeFilter struct {
 		result1 *web.Response
 		result2 error
 	}
-	FilterMatchersStub        func() []web.FilterMatcher
-	filterMatchersMutex       sync.RWMutex
-	filterMatchersArgsForCall []struct{}
-	filterMatchersReturns     struct {
-		result1 []web.FilterMatcher
-	}
-	filterMatchersReturnsOnCall map[int]struct {
-		result1 []web.FilterMatcher
-	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
+}
+
+func (fake *FakeFilter) FilterMatchers() []web.FilterMatcher {
+	fake.filterMatchersMutex.Lock()
+	ret, specificReturn := fake.filterMatchersReturnsOnCall[len(fake.filterMatchersArgsForCall)]
+	fake.filterMatchersArgsForCall = append(fake.filterMatchersArgsForCall, struct {
+	}{})
+	fake.recordInvocation("FilterMatchers", []interface{}{})
+	fake.filterMatchersMutex.Unlock()
+	if fake.FilterMatchersStub != nil {
+		return fake.FilterMatchersStub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.filterMatchersReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeFilter) FilterMatchersCallCount() int {
+	fake.filterMatchersMutex.RLock()
+	defer fake.filterMatchersMutex.RUnlock()
+	return len(fake.filterMatchersArgsForCall)
+}
+
+func (fake *FakeFilter) FilterMatchersCalls(stub func() []web.FilterMatcher) {
+	fake.filterMatchersMutex.Lock()
+	defer fake.filterMatchersMutex.Unlock()
+	fake.FilterMatchersStub = stub
+}
+
+func (fake *FakeFilter) FilterMatchersReturns(result1 []web.FilterMatcher) {
+	fake.filterMatchersMutex.Lock()
+	defer fake.filterMatchersMutex.Unlock()
+	fake.FilterMatchersStub = nil
+	fake.filterMatchersReturns = struct {
+		result1 []web.FilterMatcher
+	}{result1}
+}
+
+func (fake *FakeFilter) FilterMatchersReturnsOnCall(i int, result1 []web.FilterMatcher) {
+	fake.filterMatchersMutex.Lock()
+	defer fake.filterMatchersMutex.Unlock()
+	fake.FilterMatchersStub = nil
+	if fake.filterMatchersReturnsOnCall == nil {
+		fake.filterMatchersReturnsOnCall = make(map[int]struct {
+			result1 []web.FilterMatcher
+		})
+	}
+	fake.filterMatchersReturnsOnCall[i] = struct {
+		result1 []web.FilterMatcher
+	}{result1}
 }
 
 func (fake *FakeFilter) Name() string {
 	fake.nameMutex.Lock()
 	ret, specificReturn := fake.nameReturnsOnCall[len(fake.nameArgsForCall)]
-	fake.nameArgsForCall = append(fake.nameArgsForCall, struct{}{})
+	fake.nameArgsForCall = append(fake.nameArgsForCall, struct {
+	}{})
 	fake.recordInvocation("Name", []interface{}{})
 	fake.nameMutex.Unlock()
 	if fake.NameStub != nil {
@@ -56,7 +111,8 @@ func (fake *FakeFilter) Name() string {
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.nameReturns.result1
+	fakeReturns := fake.nameReturns
+	return fakeReturns.result1
 }
 
 func (fake *FakeFilter) NameCallCount() int {
@@ -65,7 +121,15 @@ func (fake *FakeFilter) NameCallCount() int {
 	return len(fake.nameArgsForCall)
 }
 
+func (fake *FakeFilter) NameCalls(stub func() string) {
+	fake.nameMutex.Lock()
+	defer fake.nameMutex.Unlock()
+	fake.NameStub = stub
+}
+
 func (fake *FakeFilter) NameReturns(result1 string) {
+	fake.nameMutex.Lock()
+	defer fake.nameMutex.Unlock()
 	fake.NameStub = nil
 	fake.nameReturns = struct {
 		result1 string
@@ -73,6 +137,8 @@ func (fake *FakeFilter) NameReturns(result1 string) {
 }
 
 func (fake *FakeFilter) NameReturnsOnCall(i int, result1 string) {
+	fake.nameMutex.Lock()
+	defer fake.nameMutex.Unlock()
 	fake.NameStub = nil
 	if fake.nameReturnsOnCall == nil {
 		fake.nameReturnsOnCall = make(map[int]struct {
@@ -84,22 +150,23 @@ func (fake *FakeFilter) NameReturnsOnCall(i int, result1 string) {
 	}{result1}
 }
 
-func (fake *FakeFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
+func (fake *FakeFilter) Run(arg1 *web.Request, arg2 web.Handler) (*web.Response, error) {
 	fake.runMutex.Lock()
 	ret, specificReturn := fake.runReturnsOnCall[len(fake.runArgsForCall)]
 	fake.runArgsForCall = append(fake.runArgsForCall, struct {
-		req  *web.Request
-		next web.Handler
-	}{req, next})
-	fake.recordInvocation("Run", []interface{}{req, next})
+		arg1 *web.Request
+		arg2 web.Handler
+	}{arg1, arg2})
+	fake.recordInvocation("Run", []interface{}{arg1, arg2})
 	fake.runMutex.Unlock()
 	if fake.RunStub != nil {
-		return fake.RunStub(req, next)
+		return fake.RunStub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	return fake.runReturns.result1, fake.runReturns.result2
+	fakeReturns := fake.runReturns
+	return fakeReturns.result1, fakeReturns.result2
 }
 
 func (fake *FakeFilter) RunCallCount() int {
@@ -108,13 +175,22 @@ func (fake *FakeFilter) RunCallCount() int {
 	return len(fake.runArgsForCall)
 }
 
+func (fake *FakeFilter) RunCalls(stub func(*web.Request, web.Handler) (*web.Response, error)) {
+	fake.runMutex.Lock()
+	defer fake.runMutex.Unlock()
+	fake.RunStub = stub
+}
+
 func (fake *FakeFilter) RunArgsForCall(i int) (*web.Request, web.Handler) {
 	fake.runMutex.RLock()
 	defer fake.runMutex.RUnlock()
-	return fake.runArgsForCall[i].req, fake.runArgsForCall[i].next
+	argsForCall := fake.runArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeFilter) RunReturns(result1 *web.Response, result2 error) {
+	fake.runMutex.Lock()
+	defer fake.runMutex.Unlock()
 	fake.RunStub = nil
 	fake.runReturns = struct {
 		result1 *web.Response
@@ -123,6 +199,8 @@ func (fake *FakeFilter) RunReturns(result1 *web.Response, result2 error) {
 }
 
 func (fake *FakeFilter) RunReturnsOnCall(i int, result1 *web.Response, result2 error) {
+	fake.runMutex.Lock()
+	defer fake.runMutex.Unlock()
 	fake.RunStub = nil
 	if fake.runReturnsOnCall == nil {
 		fake.runReturnsOnCall = make(map[int]struct {
@@ -136,55 +214,15 @@ func (fake *FakeFilter) RunReturnsOnCall(i int, result1 *web.Response, result2 e
 	}{result1, result2}
 }
 
-func (fake *FakeFilter) FilterMatchers() []web.FilterMatcher {
-	fake.filterMatchersMutex.Lock()
-	ret, specificReturn := fake.filterMatchersReturnsOnCall[len(fake.filterMatchersArgsForCall)]
-	fake.filterMatchersArgsForCall = append(fake.filterMatchersArgsForCall, struct{}{})
-	fake.recordInvocation("FilterMatchers", []interface{}{})
-	fake.filterMatchersMutex.Unlock()
-	if fake.FilterMatchersStub != nil {
-		return fake.FilterMatchersStub()
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.filterMatchersReturns.result1
-}
-
-func (fake *FakeFilter) FilterMatchersCallCount() int {
-	fake.filterMatchersMutex.RLock()
-	defer fake.filterMatchersMutex.RUnlock()
-	return len(fake.filterMatchersArgsForCall)
-}
-
-func (fake *FakeFilter) FilterMatchersReturns(result1 []web.FilterMatcher) {
-	fake.FilterMatchersStub = nil
-	fake.filterMatchersReturns = struct {
-		result1 []web.FilterMatcher
-	}{result1}
-}
-
-func (fake *FakeFilter) FilterMatchersReturnsOnCall(i int, result1 []web.FilterMatcher) {
-	fake.FilterMatchersStub = nil
-	if fake.filterMatchersReturnsOnCall == nil {
-		fake.filterMatchersReturnsOnCall = make(map[int]struct {
-			result1 []web.FilterMatcher
-		})
-	}
-	fake.filterMatchersReturnsOnCall[i] = struct {
-		result1 []web.FilterMatcher
-	}{result1}
-}
-
 func (fake *FakeFilter) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
+	fake.filterMatchersMutex.RLock()
+	defer fake.filterMatchersMutex.RUnlock()
 	fake.nameMutex.RLock()
 	defer fake.nameMutex.RUnlock()
 	fake.runMutex.RLock()
 	defer fake.runMutex.RUnlock()
-	fake.filterMatchersMutex.RLock()
-	defer fake.filterMatchersMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

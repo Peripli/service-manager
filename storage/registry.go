@@ -43,6 +43,14 @@ func Register(name string, storage Storage) {
 	storages[name] = storage
 }
 
+// HasStorage check whether storage with the given name is registered
+func HasStorage(name string) bool {
+	mux.RLock()
+	defer mux.RUnlock()
+	_, found := storages[name]
+	return found
+}
+
 // Use specifies the storage for the given name
 // Returns the storage ready to be used and an error if one occurred during initialization
 // Upon context.Done signal the storage will be closed

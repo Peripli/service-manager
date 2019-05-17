@@ -17,52 +17,69 @@
 package postgres
 
 import (
-	"context"
-
-	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
+	sqlxtypes "github.com/jmoiron/sqlx/types"
 )
 
-type servicePlanStorage struct {
-	db pgDB
+//go:generate smgen storage ServicePlan github.com/Peripli/service-manager/pkg/types
+type ServicePlan struct {
+	BaseEntity
+	Name        string `db:"name"`
+	Description string `db:"description"`
+
+	Free          bool   `db:"free"`
+	Bindable      bool   `db:"bindable"`
+	PlanUpdatable bool   `db:"plan_updateable"`
+	CatalogID     string `db:"catalog_id"`
+	CatalogName   string `db:"catalog_name"`
+
+	Metadata sqlxtypes.JSONText `db:"metadata"`
+	Schemas  sqlxtypes.JSONText `db:"schemas"`
+
+	ServiceOfferingID string `db:"service_offering_id"`
 }
 
-func (sps *servicePlanStorage) Create(ctx context.Context, servicePlan *types.ServicePlan) (string, error) {
-	plan := &ServicePlan{}
-	plan.FromDTO(servicePlan)
-	return create(ctx, sps.db, servicePlanTable, plan)
-}
-
-func (sps *servicePlanStorage) Get(ctx context.Context, id string) (*types.ServicePlan, error) {
-	plan := &ServicePlan{}
-	if err := get(ctx, sps.db, id, servicePlanTable, plan); err != nil {
-		return nil, err
+func (sp *ServicePlan) ToObject() types.Object {
+	return &types.ServicePlan{
+		Base: types.Base{
+			ID:        sp.ID,
+			CreatedAt: sp.CreatedAt,
+			UpdatedAt: sp.UpdatedAt,
+		},
+		Name:              sp.Name,
+		Description:       sp.Description,
+		CatalogID:         sp.CatalogID,
+		CatalogName:       sp.CatalogName,
+		Free:              sp.Free,
+		Bindable:          sp.Bindable,
+		PlanUpdatable:     sp.PlanUpdatable,
+		Metadata:          getJSONRawMessage(sp.Metadata),
+		Schemas:           getJSONRawMessage(sp.Schemas),
+		ServiceOfferingID: sp.ServiceOfferingID,
 	}
-	return plan.ToDTO(), nil
 }
 
-func (sps *servicePlanStorage) List(ctx context.Context, criteria ...query.Criterion) ([]*types.ServicePlan, error) {
-	var plans []ServicePlan
-	if err := validateFieldQueryParams(ServicePlan{}, criteria); err != nil {
-		return nil, err
+func (sp *ServicePlan) FromObject(object types.Object) (storage.Entity, bool) {
+	plan, ok := object.(*types.ServicePlan)
+	if !ok {
+		return nil, false
 	}
-	err := listByFieldCriteria(ctx, sps.db, servicePlanTable, &plans, criteria)
-	if err != nil || len(plans) == 0 {
-		return []*types.ServicePlan{}, err
-	}
-	servicePlans := make([]*types.ServicePlan, 0, len(plans))
-	for _, plan := range plans {
-		servicePlans = append(servicePlans, plan.ToDTO())
-	}
-	return servicePlans, nil
-}
-
-func (sps *servicePlanStorage) Delete(ctx context.Context, criteria ...query.Criterion) error {
-	return deleteAllByFieldCriteria(ctx, sps.db, servicePlanTable, ServicePlan{}, criteria)
-}
-
-func (sps *servicePlanStorage) Update(ctx context.Context, servicePlan *types.ServicePlan) error {
-	plan := &ServicePlan{}
-	plan.FromDTO(servicePlan)
-	return update(ctx, sps.db, servicePlanTable, plan)
+	return &ServicePlan{
+		BaseEntity: BaseEntity{
+			ID:        plan.ID,
+			CreatedAt: plan.CreatedAt,
+			UpdatedAt: plan.UpdatedAt,
+		},
+		Name:              plan.Name,
+		Description:       plan.Description,
+		Free:              plan.Free,
+		Bindable:          plan.Bindable,
+		PlanUpdatable:     plan.PlanUpdatable,
+		CatalogID:         plan.CatalogID,
+		CatalogName:       plan.CatalogName,
+		Metadata:          getJSONText(plan.Metadata),
+		Schemas:           getJSONText(plan.Schemas),
+		ServiceOfferingID: plan.ServiceOfferingID,
+	}, true
 }

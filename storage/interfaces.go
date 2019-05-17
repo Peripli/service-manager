@@ -19,15 +19,33 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path"
 	"runtime"
+	"sync"
+	"time"
+
+	"github.com/Peripli/service-manager/pkg/web"
 
 	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/types"
 )
+
+type Entity interface {
+	GetID() string
+	ToObject() types.Object
+	FromObject(object types.Object) (Entity, bool)
+	BuildLabels(labels types.Labels, newLabel func(id, key, value string) Label) ([]Label, error)
+	NewLabel(id, key, value string) Label
+}
+
+type Label interface {
+	GetKey() string
+	GetValue() string
+}
 
 var (
 	_, b, _, _ = runtime.Caller(0)
@@ -36,19 +54,23 @@ var (
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	URI               string
-	MigrationsURL     string `mapstructure:"migrations_url"`
-	EncryptionKey     string `mapstructure:"encryption_key"`
-	SkipSSLValidation bool   `mapstructure:"skip_ssl_validation"`
+	URI                string                `mapstructure:"uri" description:"URI of the storage"`
+	MigrationsURL      string                `mapstructure:"migrations_url" description:"location of a directory containing sql migrations scripts"`
+	EncryptionKey      string                `mapstructure:"encryption_key" description:"key to use for encrypting database entries"`
+	SkipSSLValidation  bool                  `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when connecting to the storage"`
+	MaxIdleConnections int                   `mapstructure:"max_idle_connections" description:"sets the maximum number of connections in the idle connection pool"`
+	Notification       *NotificationSettings `mapstructure:"notification"`
 }
 
 // DefaultSettings returns default values for storage settings
 func DefaultSettings() *Settings {
 	return &Settings{
-		URI:               "",
-		MigrationsURL:     fmt.Sprintf("file://%s/postgres/migrations", basepath),
-		EncryptionKey:     "",
-		SkipSSLValidation: false,
+		URI:                "",
+		MigrationsURL:      fmt.Sprintf("file://%s/postgres/migrations", basepath),
+		EncryptionKey:      "",
+		SkipSSLValidation:  false,
+		MaxIdleConnections: 5,
+		Notification:       DefaultNotificationSettings(),
 	}
 }
 
@@ -59,6 +81,47 @@ func (s *Settings) Validate() error {
 	}
 	if len(s.EncryptionKey) != 32 {
 		return fmt.Errorf("validate Settings: StorageEncryptionKey must be exactly 32 symbols long but was %d symbols long", len(s.EncryptionKey))
+	}
+	return s.Notification.Validate()
+}
+
+// NotificationSettings type to be loaded from the environment
+type NotificationSettings struct {
+	QueuesSize           int           `mapstructure:"queues_size" description:"maximum number of notifications queued for sending to a client"`
+	MinReconnectInterval time.Duration `mapstructure:"min_reconnect_interval" description:"minimum timeout between storage listen reconnects"`
+	MaxReconnectInterval time.Duration `mapstructure:"max_reconnect_interval" description:"maximum timeout between storage listen reconnects"`
+	CleanInterval        time.Duration `mapstructure:"clean_interval" description:"time between notification clean-up"`
+	KeepFor              time.Duration `mapstructure:"keep_for" description:"the time to keep a notification in the storage"`
+}
+
+// DefaultNotificationSettings returns default values for Notificator settings
+func DefaultNotificationSettings() *NotificationSettings {
+	return &NotificationSettings{
+		QueuesSize:           100,
+		MinReconnectInterval: time.Millisecond * 200,
+		MaxReconnectInterval: time.Second * 20,
+		CleanInterval:        time.Hour,
+		KeepFor:              time.Hour * 12,
+	}
+}
+
+// Validate validates the Notification settings
+func (s *NotificationSettings) Validate() error {
+	if s.QueuesSize < 1 {
+		return fmt.Errorf("notification queues size (%d) should be at lest 1", s.QueuesSize)
+	}
+	if s.MinReconnectInterval > s.MaxReconnectInterval {
+		return fmt.Errorf("min reconnect interval (%s) should not be greater than max reconnect interval (%s)",
+			s.MinReconnectInterval, s.MaxReconnectInterval)
+	}
+	if s.MinReconnectInterval < 0 {
+		return fmt.Errorf("notification minimum reconnect interval (%d) should be grater or equal to 0", s.MinReconnectInterval)
+	}
+	if s.KeepFor < 0 {
+		return fmt.Errorf("notification keep for (%d) should be grater or equal to 0", s.KeepFor)
+	}
+	if s.CleanInterval < 0 {
+		return fmt.Errorf("notification clean interval (%d) should be grater or equal to 0", s.CleanInterval)
 	}
 	return nil
 }
@@ -73,6 +136,7 @@ type OpenCloser interface {
 }
 
 // Pinger allows pinging the storage to check liveliness
+//go:generate counterfeiter . Pinger
 type Pinger interface {
 	// Ping verifies a connection to the database is still alive, establishing a connection if necessary.
 	Ping() error
@@ -81,41 +145,37 @@ type Pinger interface {
 // PingFunc is an adapter that allows to use regular functions as Pinger
 type PingFunc func() error
 
-// Run allows PingFunc to act as a Pinger
+// Ping allows PingFunc to act as a Pinger
 func (mf PingFunc) Ping() error {
 	return mf()
 }
 
-// Warehouse contains the Service Manager data access object providers
-type Warehouse interface {
-	// Broker provides access to service broker db operations
-	Broker() Broker
+type Repository interface {
+	// Create stores a broker in SM DB
+	Create(ctx context.Context, obj types.Object) (string, error)
 
-	// ServiceOffering provides access to service offering db operations
-	ServiceOffering() ServiceOffering
+	// Get retrieves a broker using the provided id from SM DB
+	Get(ctx context.Context, objectType types.ObjectType, id string) (types.Object, error)
 
-	// ServicePlan provides access to service plan db operations
-	ServicePlan() ServicePlan
+	// List retrieves all brokers from SM DB
+	List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error)
 
-	// Visibility provides access to visibilities db operations
-	Visibility() Visibility
+	// Delete deletes a broker from SM DB
+	Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error)
 
-	// Platform provides access to platform db operations
-	Platform() Platform
+	// Update updates a broker from SM DB
+	Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error)
 
-	// Credentials provides access to credentials db operations
 	Credentials() Credentials
-
-	// Security provides access to encryption key management
 	Security() Security
 }
 
-// Repository is a storage warehouse that can initiate a transaction
-type Repository interface {
-	Warehouse
+// TransactionalRepository is a storage repository that can initiate a transaction
+type TransactionalRepository interface {
+	Repository
 
 	// InTransaction initiates a transaction and allows passing a function to be executed within the transaction
-	InTransaction(ctx context.Context, f func(ctx context.Context, storage Warehouse) error) error
+	InTransaction(ctx context.Context, f func(ctx context.Context, storage Repository) error) error
 }
 
 // Storage interface provides entity-specific storages
@@ -123,101 +183,9 @@ type Repository interface {
 type Storage interface {
 	OpenCloser
 	Pinger
-	Repository
-}
+	TransactionalRepository
 
-// Broker interface for Broker db operations
-type Broker interface {
-	// Create stores a broker in SM DB
-	Create(ctx context.Context, broker *types.Broker) (string, error)
-
-	// Get retrieves a broker using the provided id from SM DB
-	Get(ctx context.Context, id string) (*types.Broker, error)
-
-	// List retrieves all brokers from SM DB
-	List(ctx context.Context, criteria ...query.Criterion) ([]*types.Broker, error)
-
-	// Delete deletes a broker from SM DB
-	Delete(ctx context.Context, criteria ...query.Criterion) error
-
-	// Update updates a broker from SM DB
-	Update(ctx context.Context, broker *types.Broker, labelChanges ...*query.LabelChange) error
-}
-
-// Platform interface for Platform DB operations
-type Platform interface {
-	// Create stores a platform in SM DB
-	Create(ctx context.Context, platform *types.Platform) (string, error)
-
-	// Get retrieves a platform using the provided id from SM DB
-	Get(ctx context.Context, id string) (*types.Platform, error)
-
-	// List retrieves all platforms from SM DB
-	List(ctx context.Context, criteria ...query.Criterion) ([]*types.Platform, error)
-
-	// Delete deletes a platform from SM DB
-	Delete(ctx context.Context, criteria ...query.Criterion) error
-
-	// Update updates a platform from SM DB
-	Update(ctx context.Context, platform *types.Platform) error
-}
-
-// ServiceOffering instance for Service Offerings DB operations
-//go:generate counterfeiter . ServiceOffering
-type ServiceOffering interface {
-	// Create stores a service offering in SM DB
-	Create(ctx context.Context, serviceOffering *types.ServiceOffering) (string, error)
-
-	// Get retrieves a service offering using the provided id from SM DB
-	Get(ctx context.Context, id string) (*types.ServiceOffering, error)
-
-	// List retrieves all service offerings from SM DB
-	List(ctx context.Context, criteria ...query.Criterion) ([]*types.ServiceOffering, error)
-
-	// ListWithServicePlansByBrokerID retrieves all service offerings with their service plans from SM DB that match the specified broker ID
-	ListWithServicePlansByBrokerID(ctx context.Context, brokerID string) ([]*types.ServiceOffering, error)
-
-	// Delete deletes a service offering from SM DB
-	Delete(ctx context.Context, criteria ...query.Criterion) error
-
-	// Update updates a service offering from SM DB
-	Update(ctx context.Context, serviceOffering *types.ServiceOffering) error
-}
-
-// ServiceOffering instance for Service Plan DB operations
-type ServicePlan interface {
-	// Create stores a service plan in SM DB
-	Create(ctx context.Context, servicePlan *types.ServicePlan) (string, error)
-
-	// Get retrieves a service plan using the provided id from SM DB
-	Get(ctx context.Context, id string) (*types.ServicePlan, error)
-
-	// List retrieves all service plans from SM DB
-	List(ctx context.Context, criteria ...query.Criterion) ([]*types.ServicePlan, error)
-
-	// Delete deletes a  service plan from SM DB
-	Delete(ctx context.Context, criteria ...query.Criterion) error
-
-	// Update updates a service plan from SM DB
-	Update(ctx context.Context, servicePlan *types.ServicePlan) error
-}
-
-// Visibility interface for Visibility db operations
-type Visibility interface {
-	// Create stores a visibility in SM DB
-	Create(ctx context.Context, visibility *types.Visibility) (string, error)
-
-	// Get retrieves a visibility using the provided id from SM DB
-	Get(ctx context.Context, id string) (*types.Visibility, error)
-
-	// List retrieves all visibilities from SM DB
-	List(ctx context.Context, criteria ...query.Criterion) ([]*types.Visibility, error)
-
-	// Delete deletes a visibility from SM DB
-	Delete(ctx context.Context, criteria ...query.Criterion) error
-
-	// Update updates a visibility from SM DB
-	Update(ctx context.Context, visibility *types.Visibility, labelChanges ...*query.LabelChange) error
+	Introduce(entity Entity)
 }
 
 // Credentials interface for Credentials db operations
@@ -241,4 +209,40 @@ type Security interface {
 
 	// Setter provides means to change the encryption  key
 	Setter() security.KeySetter
+}
+
+// ErrQueueClosed error stating that the queue is closed
+var ErrQueueClosed = errors.New("queue closed")
+
+// ErrQueueFull error stating that the queue is full
+var ErrQueueFull = errors.New("queue is full")
+
+// NotificationQueue is used for receiving notifications
+//go:generate counterfeiter . NotificationQueue
+type NotificationQueue interface {
+	// Enqueue adds a new notification for processing.
+	Enqueue(notification *types.Notification) error
+
+	// Channel returns the go channel with received notifications which has to be processed.
+	Channel() <-chan *types.Notification
+
+	// Close closes the queue.
+	Close()
+
+	// ID returns unique queue identifier
+	ID() string
+}
+
+// Notificator is used for receiving notifications for SM events
+//go:generate counterfeiter . Notificator
+type Notificator interface {
+	// Start starts the Notificator
+	Start(ctx context.Context, group *sync.WaitGroup) error
+
+	// RegisterConsumer returns notification queue, last_known_revision and error if any.
+	// When consumer wants to stop listening for notifications it must unregister the notification queue.
+	RegisterConsumer(userContext *web.UserContext) (NotificationQueue, int64, error)
+
+	// UnregisterConsumer must be called to stop receiving notifications in the queue
+	UnregisterConsumer(queue NotificationQueue) error
 }

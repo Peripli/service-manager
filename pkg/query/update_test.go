@@ -19,6 +19,10 @@ package query
 import (
 	"fmt"
 
+	. "github.com/onsi/ginkgo/extensions/table"
+
+	"github.com/Peripli/service-manager/pkg/types"
+
 	"github.com/tidwall/gjson"
 
 	"github.com/tidwall/sjson"
@@ -120,5 +124,117 @@ var _ = Describe("Update", func() {
 			})
 		})
 
+	})
+
+	Describe("ApplyLabelChangesToLabels", func() {
+		Context("for changes with add and remove operations", func() {
+			type testEntry struct {
+				IntialLabels           types.Labels
+				Changes                LabelChanges
+				ExpectedMergedLabels   types.Labels
+				ExpectedLabelsToRemove types.Labels
+				ExpectedLabelsToAdd    types.Labels
+			}
+
+			entries := []TableEntry{
+				Entry("mixed",
+					testEntry{
+						IntialLabels: types.Labels{
+							"organization_guid": {
+								"org0",
+							},
+						},
+						Changes: LabelChanges{
+							&LabelChange{
+								Operation: AddLabelOperation,
+								Key:       "organization_guid",
+								Values: []string{
+									"org1",
+									"org2",
+								},
+							},
+							&LabelChange{
+								Operation: AddLabelValuesOperation,
+								Key:       "organization_guid",
+								Values: []string{
+									"org3",
+									"org4",
+								},
+							},
+							&LabelChange{
+								Operation: RemoveLabelValuesOperation,
+								Key:       "organization_guid",
+								Values: []string{
+									"org5",
+									"org6",
+								},
+							},
+							&LabelChange{
+								Operation: RemoveLabelOperation,
+								Key:       "organization_guid",
+								Values: []string{
+									"org7",
+									"org8",
+								},
+							},
+						},
+						ExpectedMergedLabels: types.Labels{
+							"organization_guid": {
+								"org0",
+								"org1",
+								"org2",
+								"org3",
+								"org4",
+							},
+						},
+						ExpectedLabelsToRemove: types.Labels{
+							"organization_guid": {
+								"org5",
+								"org6",
+								"org7",
+								"org8",
+							},
+						},
+						ExpectedLabelsToAdd: types.Labels{
+							"organization_guid": {
+								"org1",
+								"org2",
+								"org3",
+								"org4",
+							},
+						},
+					}),
+				Entry("remove key removes all values",
+					testEntry{
+						IntialLabels: types.Labels{
+							"organization_guid": {
+								"org0",
+							},
+						},
+						Changes: LabelChanges{
+							&LabelChange{
+								Operation: RemoveLabelOperation,
+								Key:       "organization_guid",
+								Values:    []string{},
+							},
+						},
+						ExpectedMergedLabels: types.Labels{},
+						ExpectedLabelsToRemove: types.Labels{
+							"organization_guid": {
+								"org0",
+							},
+						},
+						ExpectedLabelsToAdd: types.Labels{},
+					}),
+			}
+
+			DescribeTable("", func(t testEntry) {
+				mergedLabels, labelsToAdd, labelsToRemove := ApplyLabelChangesToLabels(t.Changes, t.IntialLabels)
+
+				Expect(mergedLabels).To(Equal(t.ExpectedMergedLabels))
+				Expect(labelsToAdd).To(Equal(t.ExpectedLabelsToAdd))
+				Expect(labelsToRemove).To(Equal(t.ExpectedLabelsToRemove))
+			}, entries...)
+		})
 	})
 })

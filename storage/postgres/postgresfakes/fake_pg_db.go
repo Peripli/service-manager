@@ -10,97 +10,6 @@ import (
 )
 
 type FakePgDB struct {
-	PrepareNamedContextStub        func(ctx context.Context, query string) (*sqlx.NamedStmt, error)
-	prepareNamedContextMutex       sync.RWMutex
-	prepareNamedContextArgsForCall []struct {
-		ctx   context.Context
-		query string
-	}
-	prepareNamedContextReturns struct {
-		result1 *sqlx.NamedStmt
-		result2 error
-	}
-	prepareNamedContextReturnsOnCall map[int]struct {
-		result1 *sqlx.NamedStmt
-		result2 error
-	}
-	NamedExecContextStub        func(ctx context.Context, query string, arg interface{}) (sql.Result, error)
-	namedExecContextMutex       sync.RWMutex
-	namedExecContextArgsForCall []struct {
-		ctx   context.Context
-		query string
-		arg   interface{}
-	}
-	namedExecContextReturns struct {
-		result1 sql.Result
-		result2 error
-	}
-	namedExecContextReturnsOnCall map[int]struct {
-		result1 sql.Result
-		result2 error
-	}
-	NamedQueryStub        func(query string, arg interface{}) (*sqlx.Rows, error)
-	namedQueryMutex       sync.RWMutex
-	namedQueryArgsForCall []struct {
-		query string
-		arg   interface{}
-	}
-	namedQueryReturns struct {
-		result1 *sqlx.Rows
-		result2 error
-	}
-	namedQueryReturnsOnCall map[int]struct {
-		result1 *sqlx.Rows
-		result2 error
-	}
-	SelectContextStub        func(ctx context.Context, dest interface{}, query string, args ...interface{}) error
-	selectContextMutex       sync.RWMutex
-	selectContextArgsForCall []struct {
-		ctx   context.Context
-		dest  interface{}
-		query string
-		args  []interface{}
-	}
-	selectContextReturns struct {
-		result1 error
-	}
-	selectContextReturnsOnCall map[int]struct {
-		result1 error
-	}
-	GetContextStub        func(ctx context.Context, dest interface{}, query string, args ...interface{}) error
-	getContextMutex       sync.RWMutex
-	getContextArgsForCall []struct {
-		ctx   context.Context
-		dest  interface{}
-		query string
-		args  []interface{}
-	}
-	getContextReturns struct {
-		result1 error
-	}
-	getContextReturnsOnCall map[int]struct {
-		result1 error
-	}
-	DriverNameStub        func() string
-	driverNameMutex       sync.RWMutex
-	driverNameArgsForCall []struct{}
-	driverNameReturns     struct {
-		result1 string
-	}
-	driverNameReturnsOnCall map[int]struct {
-		result1 string
-	}
-	RebindStub        func(string) string
-	rebindMutex       sync.RWMutex
-	rebindArgsForCall []struct {
-		arg1 string
-	}
-	rebindReturns struct {
-		result1 string
-	}
-	rebindReturnsOnCall map[int]struct {
-		result1 string
-	}
 	BindNamedStub        func(string, interface{}) (string, []interface{}, error)
 	bindNamedMutex       sync.RWMutex
 	bindNamedArgsForCall []struct {
@@ -117,55 +26,22 @@ type FakePgDB struct {
 		result2 []interface{}
 		result3 error
 	}
-	QueryContextStub        func(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
-	queryContextMutex       sync.RWMutex
-	queryContextArgsForCall []struct {
-		ctx   context.Context
-		query string
-		args  []interface{}
+	DriverNameStub        func() string
+	driverNameMutex       sync.RWMutex
+	driverNameArgsForCall []struct {
 	}
-	queryContextReturns struct {
-		result1 *sql.Rows
-		result2 error
+	driverNameReturns struct {
+		result1 string
 	}
-	queryContextReturnsOnCall map[int]struct {
-		result1 *sql.Rows
-		result2 error
+	driverNameReturnsOnCall map[int]struct {
+		result1 string
 	}
-	QueryxContextStub        func(ctx context.Context, query string, args ...interface{}) (*sqlx.Rows, error)
-	queryxContextMutex       sync.RWMutex
-	queryxContextArgsForCall []struct {
-		ctx   context.Context
-		query string
-		args  []interface{}
-	}
-	queryxContextReturns struct {
-		result1 *sqlx.Rows
-		result2 error
-	}
-	queryxContextReturnsOnCall map[int]struct {
-		result1 *sqlx.Rows
-		result2 error
-	}
-	QueryRowxContextStub        func(ctx context.Context, query string, args ...interface{}) *sqlx.Row
-	queryRowxContextMutex       sync.RWMutex
-	queryRowxContextArgsForCall []struct {
-		ctx   context.Context
-		query string
-		args  []interface{}
-	}
-	queryRowxContextReturns struct {
-		result1 *sqlx.Row
-	}
-	queryRowxContextReturnsOnCall map[int]struct {
-		result1 *sqlx.Row
-	}
-	ExecContextStub        func(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+	ExecContextStub        func(context.Context, string, ...interface{}) (sql.Result, error)
 	execContextMutex       sync.RWMutex
 	execContextArgsForCall []struct {
-		ctx   context.Context
-		query string
-		args  []interface{}
+		arg1 context.Context
+		arg2 string
+		arg3 []interface{}
 	}
 	execContextReturns struct {
 		result1 sql.Result
@@ -175,355 +51,133 @@ type FakePgDB struct {
 		result1 sql.Result
 		result2 error
 	}
+	GetContextStub        func(context.Context, interface{}, string, ...interface{}) error
+	getContextMutex       sync.RWMutex
+	getContextArgsForCall []struct {
+		arg1 context.Context
+		arg2 interface{}
+		arg3 string
+		arg4 []interface{}
+	}
+	getContextReturns struct {
+		result1 error
+	}
+	getContextReturnsOnCall map[int]struct {
+		result1 error
+	}
+	NamedExecContextStub        func(context.Context, string, interface{}) (sql.Result, error)
+	namedExecContextMutex       sync.RWMutex
+	namedExecContextArgsForCall []struct {
+		arg1 context.Context
+		arg2 string
+		arg3 interface{}
+	}
+	namedExecContextReturns struct {
+		result1 sql.Result
+		result2 error
+	}
+	namedExecContextReturnsOnCall map[int]struct {
+		result1 sql.Result
+		result2 error
+	}
+	NamedQueryStub        func(string, interface{}) (*sqlx.Rows, error)
+	namedQueryMutex       sync.RWMutex
+	namedQueryArgsForCall []struct {
+		arg1 string
+		arg2 interface{}
+	}
+	namedQueryReturns struct {
+		result1 *sqlx.Rows
+		result2 error
+	}
+	namedQueryReturnsOnCall map[int]struct {
+		result1 *sqlx.Rows
+		result2 error
+	}
+	PrepareNamedContextStub        func(context.Context, string) (*sqlx.NamedStmt, error)
+	prepareNamedContextMutex       sync.RWMutex
+	prepareNamedContextArgsForCall []struct {
+		arg1 context.Context
+		arg2 string
+	}
+	prepareNamedContextReturns struct {
+		result1 *sqlx.NamedStmt
+		result2 error
+	}
+	prepareNamedContextReturnsOnCall map[int]struct {
+		result1 *sqlx.NamedStmt
+		result2 error
+	}
+	QueryContextStub        func(context.Context, string, ...interface{}) (*sql.Rows, error)
+	queryContextMutex       sync.RWMutex
+	queryContextArgsForCall []struct {
+		arg1 context.Context
+		arg2 string
+		arg3 []interface{}
+	}
+	queryContextReturns struct {
+		result1 *sql.Rows
+		result2 error
+	}
+	queryContextReturnsOnCall map[int]struct {
+		result1 *sql.Rows
+		result2 error
+	}
+	QueryRowxContextStub        func(context.Context, string, ...interface{}) *sqlx.Row
+	queryRowxContextMutex       sync.RWMutex
+	queryRowxContextArgsForCall []struct {
+		arg1 context.Context
+		arg2 string
+		arg3 []interface{}
+	}
+	queryRowxContextReturns struct {
+		result1 *sqlx.Row
+	}
+	queryRowxContextReturnsOnCall map[int]struct {
+		result1 *sqlx.Row
+	}
+	QueryxContextStub        func(context.Context, string, ...interface{}) (*sqlx.Rows, error)
+	queryxContextMutex       sync.RWMutex
+	queryxContextArgsForCall []struct {
+		arg1 context.Context
+		arg2 string
+		arg3 []interface{}
+	}
+	queryxContextReturns struct {
+		result1 *sqlx.Rows
+		result2 error
+	}
+	queryxContextReturnsOnCall map[int]struct {
+		result1 *sqlx.Rows
+		result2 error
+	}
+	RebindStub        func(string) string
+	rebindMutex       sync.RWMutex
+	rebindArgsForCall []struct {
+		arg1 string
+	}
+	rebindReturns struct {
+		result1 string
+	}
+	rebindReturnsOnCall map[int]struct {
+		result1 string
+	}
+	SelectContextStub        func(context.Context, interface{}, string, ...interface{}) error
+	selectContextMutex       sync.RWMutex
+	selectContextArgsForCall []struct {
+		arg1 context.Context
+		arg2 interface{}
+		arg3 string
+		arg4 []interface{}
+	}
+	selectContextReturns struct {
+		result1 error
+	}
+	selectContextReturnsOnCall map[int]struct {
+		result1 error
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
-}
-
-func (fake *FakePgDB) PrepareNamedContext(ctx context.Context, query string) (*sqlx.NamedStmt, error) {
-	fake.prepareNamedContextMutex.Lock()
-	ret, specificReturn := fake.prepareNamedContextReturnsOnCall[len(fake.prepareNamedContextArgsForCall)]
-	fake.prepareNamedContextArgsForCall = append(fake.prepareNamedContextArgsForCall, struct {
-		ctx   context.Context
-		query string
-	}{ctx, query})
-	fake.recordInvocation("PrepareNamedContext", []interface{}{ctx, query})
-	fake.prepareNamedContextMutex.Unlock()
-	if fake.PrepareNamedContextStub != nil {
-		return fake.PrepareNamedContextStub(ctx, query)
-	}
-	if specificReturn {
-		return ret.result1, ret.result2
-	}
-	return fake.prepareNamedContextReturns.result1, fake.prepareNamedContextReturns.result2
-}
-
-func (fake *FakePgDB) PrepareNamedContextCallCount() int {
-	fake.prepareNamedContextMutex.RLock()
-	defer fake.prepareNamedContextMutex.RUnlock()
-	return len(fake.prepareNamedContextArgsForCall)
-}
-
-func (fake *FakePgDB) PrepareNamedContextArgsForCall(i int) (context.Context, string) {
-	fake.prepareNamedContextMutex.RLock()
-	defer fake.prepareNamedContextMutex.RUnlock()
-	return fake.prepareNamedContextArgsForCall[i].ctx, fake.prepareNamedContextArgsForCall[i].query
-}
-
-func (fake *FakePgDB) PrepareNamedContextReturns(result1 *sqlx.NamedStmt, result2 error) {
-	fake.PrepareNamedContextStub = nil
-	fake.prepareNamedContextReturns = struct {
-		result1 *sqlx.NamedStmt
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *FakePgDB) PrepareNamedContextReturnsOnCall(i int, result1 *sqlx.NamedStmt, result2 error) {
-	fake.PrepareNamedContextStub = nil
-	if fake.prepareNamedContextReturnsOnCall == nil {
-		fake.prepareNamedContextReturnsOnCall = make(map[int]struct {
-			result1 *sqlx.NamedStmt
-			result2 error
-		})
-	}
-	fake.prepareNamedContextReturnsOnCall[i] = struct {
-		result1 *sqlx.NamedStmt
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *FakePgDB) NamedExecContext(ctx context.Context, query string, arg interface{}) (sql.Result, error) {
-	fake.namedExecContextMutex.Lock()
-	ret, specificReturn := fake.namedExecContextReturnsOnCall[len(fake.namedExecContextArgsForCall)]
-	fake.namedExecContextArgsForCall = append(fake.namedExecContextArgsForCall, struct {
-		ctx   context.Context
-		query string
-		arg   interface{}
-	}{ctx, query, arg})
-	fake.recordInvocation("NamedExecContext", []interface{}{ctx, query, arg})
-	fake.namedExecContextMutex.Unlock()
-	if fake.NamedExecContextStub != nil {
-		return fake.NamedExecContextStub(ctx, query, arg)
-	}
-	if specificReturn {
-		return ret.result1, ret.result2
-	}
-	return fake.namedExecContextReturns.result1, fake.namedExecContextReturns.result2
-}
-
-func (fake *FakePgDB) NamedExecContextCallCount() int {
-	fake.namedExecContextMutex.RLock()
-	defer fake.namedExecContextMutex.RUnlock()
-	return len(fake.namedExecContextArgsForCall)
-}
-
-func (fake *FakePgDB) NamedExecContextArgsForCall(i int) (context.Context, string, interface{}) {
-	fake.namedExecContextMutex.RLock()
-	defer fake.namedExecContextMutex.RUnlock()
-	return fake.namedExecContextArgsForCall[i].ctx, fake.namedExecContextArgsForCall[i].query, fake.namedExecContextArgsForCall[i].arg
-}
-
-func (fake *FakePgDB) NamedExecContextReturns(result1 sql.Result, result2 error) {
-	fake.NamedExecContextStub = nil
-	fake.namedExecContextReturns = struct {
-		result1 sql.Result
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *FakePgDB) NamedExecContextReturnsOnCall(i int, result1 sql.Result, result2 error) {
-	fake.NamedExecContextStub = nil
-	if fake.namedExecContextReturnsOnCall == nil {
-		fake.namedExecContextReturnsOnCall = make(map[int]struct {
-			result1 sql.Result
-			result2 error
-		})
-	}
-	fake.namedExecContextReturnsOnCall[i] = struct {
-		result1 sql.Result
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *FakePgDB) NamedQuery(query string, arg interface{}) (*sqlx.Rows, error) {
-	fake.namedQueryMutex.Lock()
-	ret, specificReturn := fake.namedQueryReturnsOnCall[len(fake.namedQueryArgsForCall)]
-	fake.namedQueryArgsForCall = append(fake.namedQueryArgsForCall, struct {
-		query string
-		arg   interface{}
-	}{query, arg})
-	fake.recordInvocation("NamedQuery", []interface{}{query, arg})
-	fake.namedQueryMutex.Unlock()
-	if fake.NamedQueryStub != nil {
-		return fake.NamedQueryStub(query, arg)
-	}
-	if specificReturn {
-		return ret.result1, ret.result2
-	}
-	return fake.namedQueryReturns.result1, fake.namedQueryReturns.result2
-}
-
-func (fake *FakePgDB) NamedQueryCallCount() int {
-	fake.namedQueryMutex.RLock()
-	defer fake.namedQueryMutex.RUnlock()
-	return len(fake.namedQueryArgsForCall)
-}
-
-func (fake *FakePgDB) NamedQueryArgsForCall(i int) (string, interface{}) {
-	fake.namedQueryMutex.RLock()
-	defer fake.namedQueryMutex.RUnlock()
-	return fake.namedQueryArgsForCall[i].query, fake.namedQueryArgsForCall[i].arg
-}
-
-func (fake *FakePgDB) NamedQueryReturns(result1 *sqlx.Rows, result2 error) {
-	fake.NamedQueryStub = nil
-	fake.namedQueryReturns = struct {
-		result1 *sqlx.Rows
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *FakePgDB) NamedQueryReturnsOnCall(i int, result1 *sqlx.Rows, result2 error) {
-	fake.NamedQueryStub = nil
-	if fake.namedQueryReturnsOnCall == nil {
-		fake.namedQueryReturnsOnCall = make(map[int]struct {
-			result1 *sqlx.Rows
-			result2 error
-		})
-	}
-	fake.namedQueryReturnsOnCall[i] = struct {
-		result1 *sqlx.Rows
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *FakePgDB) SelectContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
-	fake.selectContextMutex.Lock()
-	ret, specificReturn := fake.selectContextReturnsOnCall[len(fake.selectContextArgsForCall)]
-	fake.selectContextArgsForCall = append(fake.selectContextArgsForCall, struct {
-		ctx   context.Context
-		dest  interface{}
-		query string
-		args  []interface{}
-	}{ctx, dest, query, args})
-	fake.recordInvocation("SelectContext", []interface{}{ctx, dest, query, args})
-	fake.selectContextMutex.Unlock()
-	if fake.SelectContextStub != nil {
-		return fake.SelectContextStub(ctx, dest, query, args...)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.selectContextReturns.result1
-}
-
-func (fake *FakePgDB) SelectContextCallCount() int {
-	fake.selectContextMutex.RLock()
-	defer fake.selectContextMutex.RUnlock()
-	return len(fake.selectContextArgsForCall)
-}
-
-func (fake *FakePgDB) SelectContextArgsForCall(i int) (context.Context, interface{}, string, []interface{}) {
-	fake.selectContextMutex.RLock()
-	defer fake.selectContextMutex.RUnlock()
-	return fake.selectContextArgsForCall[i].ctx, fake.selectContextArgsForCall[i].dest, fake.selectContextArgsForCall[i].query, fake.selectContextArgsForCall[i].args
-}
-
-func (fake *FakePgDB) SelectContextReturns(result1 error) {
-	fake.SelectContextStub = nil
-	fake.selectContextReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakePgDB) SelectContextReturnsOnCall(i int, result1 error) {
-	fake.SelectContextStub = nil
-	if fake.selectContextReturnsOnCall == nil {
-		fake.selectContextReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.selectContextReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakePgDB) GetContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
-	fake.getContextMutex.Lock()
-	ret, specificReturn := fake.getContextReturnsOnCall[len(fake.getContextArgsForCall)]
-	fake.getContextArgsForCall = append(fake.getContextArgsForCall, struct {
-		ctx   context.Context
-		dest  interface{}
-		query string
-		args  []interface{}
-	}{ctx, dest, query, args})
-	fake.recordInvocation("GetContext", []interface{}{ctx, dest, query, args})
-	fake.getContextMutex.Unlock()
-	if fake.GetContextStub != nil {
-		return fake.GetContextStub(ctx, dest, query, args...)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.getContextReturns.result1
-}
-
-func (fake *FakePgDB) GetContextCallCount() int {
-	fake.getContextMutex.RLock()
-	defer fake.getContextMutex.RUnlock()
-	return len(fake.getContextArgsForCall)
-}
-
-func (fake *FakePgDB) GetContextArgsForCall(i int) (context.Context, interface{}, string, []interface{}) {
-	fake.getContextMutex.RLock()
-	defer fake.getContextMutex.RUnlock()
-	return fake.getContextArgsForCall[i].ctx, fake.getContextArgsForCall[i].dest, fake.getContextArgsForCall[i].query, fake.getContextArgsForCall[i].args
-}
-
-func (fake *FakePgDB) GetContextReturns(result1 error) {
-	fake.GetContextStub = nil
-	fake.getContextReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakePgDB) GetContextReturnsOnCall(i int, result1 error) {
-	fake.GetContextStub = nil
-	if fake.getContextReturnsOnCall == nil {
-		fake.getContextReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.getContextReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakePgDB) DriverName() string {
-	fake.driverNameMutex.Lock()
-	ret, specificReturn := fake.driverNameReturnsOnCall[len(fake.driverNameArgsForCall)]
-	fake.driverNameArgsForCall = append(fake.driverNameArgsForCall, struct{}{})
-	fake.recordInvocation("DriverName", []interface{}{})
-	fake.driverNameMutex.Unlock()
-	if fake.DriverNameStub != nil {
-		return fake.DriverNameStub()
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.driverNameReturns.result1
-}
-
-func (fake *FakePgDB) DriverNameCallCount() int {
-	fake.driverNameMutex.RLock()
-	defer fake.driverNameMutex.RUnlock()
-	return len(fake.driverNameArgsForCall)
-}
-
-func (fake *FakePgDB) DriverNameReturns(result1 string) {
-	fake.DriverNameStub = nil
-	fake.driverNameReturns = struct {
-		result1 string
-	}{result1}
-}
-
-func (fake *FakePgDB) DriverNameReturnsOnCall(i int, result1 string) {
-	fake.DriverNameStub = nil
-	if fake.driverNameReturnsOnCall == nil {
-		fake.driverNameReturnsOnCall = make(map[int]struct {
-			result1 string
-		})
-	}
-	fake.driverNameReturnsOnCall[i] = struct {
-		result1 string
-	}{result1}
-}
-
-func (fake *FakePgDB) Rebind(arg1 string) string {
-	fake.rebindMutex.Lock()
-	ret, specificReturn := fake.rebindReturnsOnCall[len(fake.rebindArgsForCall)]
-	fake.rebindArgsForCall = append(fake.rebindArgsForCall, struct {
-		arg1 string
-	}{arg1})
-	fake.recordInvocation("Rebind", []interface{}{arg1})
-	fake.rebindMutex.Unlock()
-	if fake.RebindStub != nil {
-		return fake.RebindStub(arg1)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.rebindReturns.result1
-}
-
-func (fake *FakePgDB) RebindCallCount() int {
-	fake.rebindMutex.RLock()
-	defer fake.rebindMutex.RUnlock()
-	return len(fake.rebindArgsForCall)
-}
-
-func (fake *FakePgDB) RebindArgsForCall(i int) string {
-	fake.rebindMutex.RLock()
-	defer fake.rebindMutex.RUnlock()
-	return fake.rebindArgsForCall[i].arg1
-}
-
-func (fake *FakePgDB) RebindReturns(result1 string) {
-	fake.RebindStub = nil
-	fake.rebindReturns = struct {
-		result1 string
-	}{result1}
-}
-
-func (fake *FakePgDB) RebindReturnsOnCall(i int, result1 string) {
-	fake.RebindStub = nil
-	if fake.rebindReturnsOnCall == nil {
-		fake.rebindReturnsOnCall = make(map[int]struct {
-			result1 string
-		})
-	}
-	fake.rebindReturnsOnCall[i] = struct {
-		result1 string
-	}{result1}
 }
 
 func (fake *FakePgDB) BindNamed(arg1 string, arg2 interface{}) (string, []interface{}, error) {
@@ -541,7 +195,8 @@ func (fake *FakePgDB) BindNamed(arg1 string, arg2 interface{}) (string, []interf
 	if specificReturn {
 		return ret.result1, ret.result2, ret.result3
 	}
-	return fake.bindNamedReturns.result1, fake.bindNamedReturns.result2, fake.bindNamedReturns.result3
+	fakeReturns := fake.bindNamedReturns
+	return fakeReturns.result1, fakeReturns.result2, fakeReturns.result3
 }
 
 func (fake *FakePgDB) BindNamedCallCount() int {
@@ -550,13 +205,22 @@ func (fake *FakePgDB) BindNamedCallCount() int {
 	return len(fake.bindNamedArgsForCall)
 }
 
+func (fake *FakePgDB) BindNamedCalls(stub func(string, interface{}) (string, []interface{}, error)) {
+	fake.bindNamedMutex.Lock()
+	defer fake.bindNamedMutex.Unlock()
+	fake.BindNamedStub = stub
+}
+
 func (fake *FakePgDB) BindNamedArgsForCall(i int) (string, interface{}) {
 	fake.bindNamedMutex.RLock()
 	defer fake.bindNamedMutex.RUnlock()
-	return fake.bindNamedArgsForCall[i].arg1, fake.bindNamedArgsForCall[i].arg2
+	argsForCall := fake.bindNamedArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakePgDB) BindNamedReturns(result1 string, result2 []interface{}, result3 error) {
+	fake.bindNamedMutex.Lock()
+	defer fake.bindNamedMutex.Unlock()
 	fake.BindNamedStub = nil
 	fake.bindNamedReturns = struct {
 		result1 string
@@ -566,6 +230,8 @@ func (fake *FakePgDB) BindNamedReturns(result1 string, result2 []interface{}, re
 }
 
 func (fake *FakePgDB) BindNamedReturnsOnCall(i int, result1 string, result2 []interface{}, result3 error) {
+	fake.bindNamedMutex.Lock()
+	defer fake.bindNamedMutex.Unlock()
 	fake.BindNamedStub = nil
 	if fake.bindNamedReturnsOnCall == nil {
 		fake.bindNamedReturnsOnCall = make(map[int]struct {
@@ -581,179 +247,76 @@ func (fake *FakePgDB) BindNamedReturnsOnCall(i int, result1 string, result2 []in
 	}{result1, result2, result3}
 }
 
-func (fake *FakePgDB) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
-	fake.queryContextMutex.Lock()
-	ret, specificReturn := fake.queryContextReturnsOnCall[len(fake.queryContextArgsForCall)]
-	fake.queryContextArgsForCall = append(fake.queryContextArgsForCall, struct {
-		ctx   context.Context
-		query string
-		args  []interface{}
-	}{ctx, query, args})
-	fake.recordInvocation("QueryContext", []interface{}{ctx, query, args})
-	fake.queryContextMutex.Unlock()
-	if fake.QueryContextStub != nil {
-		return fake.QueryContextStub(ctx, query, args...)
-	}
-	if specificReturn {
-		return ret.result1, ret.result2
-	}
-	return fake.queryContextReturns.result1, fake.queryContextReturns.result2
-}
-
-func (fake *FakePgDB) QueryContextCallCount() int {
-	fake.queryContextMutex.RLock()
-	defer fake.queryContextMutex.RUnlock()
-	return len(fake.queryContextArgsForCall)
-}
-
-func (fake *FakePgDB) QueryContextArgsForCall(i int) (context.Context, string, []interface{}) {
-	fake.queryContextMutex.RLock()
-	defer fake.queryContextMutex.RUnlock()
-	return fake.queryContextArgsForCall[i].ctx, fake.queryContextArgsForCall[i].query, fake.queryContextArgsForCall[i].args
-}
-
-func (fake *FakePgDB) QueryContextReturns(result1 *sql.Rows, result2 error) {
-	fake.QueryContextStub = nil
-	fake.queryContextReturns = struct {
-		result1 *sql.Rows
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *FakePgDB) QueryContextReturnsOnCall(i int, result1 *sql.Rows, result2 error) {
-	fake.QueryContextStub = nil
-	if fake.queryContextReturnsOnCall == nil {
-		fake.queryContextReturnsOnCall = make(map[int]struct {
-			result1 *sql.Rows
-			result2 error
-		})
-	}
-	fake.queryContextReturnsOnCall[i] = struct {
-		result1 *sql.Rows
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *FakePgDB) QueryxContext(ctx context.Context, query string, args ...interface{}) (*sqlx.Rows, error) {
-	fake.queryxContextMutex.Lock()
-	ret, specificReturn := fake.queryxContextReturnsOnCall[len(fake.queryxContextArgsForCall)]
-	fake.queryxContextArgsForCall = append(fake.queryxContextArgsForCall, struct {
-		ctx   context.Context
-		query string
-		args  []interface{}
-	}{ctx, query, args})
-	fake.recordInvocation("QueryxContext", []interface{}{ctx, query, args})
-	fake.queryxContextMutex.Unlock()
-	if fake.QueryxContextStub != nil {
-		return fake.QueryxContextStub(ctx, query, args...)
-	}
-	if specificReturn {
-		return ret.result1, ret.result2
-	}
-	return fake.queryxContextReturns.result1, fake.queryxContextReturns.result2
-}
-
-func (fake *FakePgDB) QueryxContextCallCount() int {
-	fake.queryxContextMutex.RLock()
-	defer fake.queryxContextMutex.RUnlock()
-	return len(fake.queryxContextArgsForCall)
-}
-
-func (fake *FakePgDB) QueryxContextArgsForCall(i int) (context.Context, string, []interface{}) {
-	fake.queryxContextMutex.RLock()
-	defer fake.queryxContextMutex.RUnlock()
-	return fake.queryxContextArgsForCall[i].ctx, fake.queryxContextArgsForCall[i].query, fake.queryxContextArgsForCall[i].args
-}
-
-func (fake *FakePgDB) QueryxContextReturns(result1 *sqlx.Rows, result2 error) {
-	fake.QueryxContextStub = nil
-	fake.queryxContextReturns = struct {
-		result1 *sqlx.Rows
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *FakePgDB) QueryxContextReturnsOnCall(i int, result1 *sqlx.Rows, result2 error) {
-	fake.QueryxContextStub = nil
-	if fake.queryxContextReturnsOnCall == nil {
-		fake.queryxContextReturnsOnCall = make(map[int]struct {
-			result1 *sqlx.Rows
-			result2 error
-		})
-	}
-	fake.queryxContextReturnsOnCall[i] = struct {
-		result1 *sqlx.Rows
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *FakePgDB) QueryRowxContext(ctx context.Context, query string, args ...interface{}) *sqlx.Row {
-	fake.queryRowxContextMutex.Lock()
-	ret, specificReturn := fake.queryRowxContextReturnsOnCall[len(fake.queryRowxContextArgsForCall)]
-	fake.queryRowxContextArgsForCall = append(fake.queryRowxContextArgsForCall, struct {
-		ctx   context.Context
-		query string
-		args  []interface{}
-	}{ctx, query, args})
-	fake.recordInvocation("QueryRowxContext", []interface{}{ctx, query, args})
-	fake.queryRowxContextMutex.Unlock()
-	if fake.QueryRowxContextStub != nil {
-		return fake.QueryRowxContextStub(ctx, query, args...)
+func (fake *FakePgDB) DriverName() string {
+	fake.driverNameMutex.Lock()
+	ret, specificReturn := fake.driverNameReturnsOnCall[len(fake.driverNameArgsForCall)]
+	fake.driverNameArgsForCall = append(fake.driverNameArgsForCall, struct {
+	}{})
+	fake.recordInvocation("DriverName", []interface{}{})
+	fake.driverNameMutex.Unlock()
+	if fake.DriverNameStub != nil {
+		return fake.DriverNameStub()
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.queryRowxContextReturns.result1
+	fakeReturns := fake.driverNameReturns
+	return fakeReturns.result1
 }
 
-func (fake *FakePgDB) QueryRowxContextCallCount() int {
-	fake.queryRowxContextMutex.RLock()
-	defer fake.queryRowxContextMutex.RUnlock()
-	return len(fake.queryRowxContextArgsForCall)
+func (fake *FakePgDB) DriverNameCallCount() int {
+	fake.driverNameMutex.RLock()
+	defer fake.driverNameMutex.RUnlock()
+	return len(fake.driverNameArgsForCall)
 }
 
-func (fake *FakePgDB) QueryRowxContextArgsForCall(i int) (context.Context, string, []interface{}) {
-	fake.queryRowxContextMutex.RLock()
-	defer fake.queryRowxContextMutex.RUnlock()
-	return fake.queryRowxContextArgsForCall[i].ctx, fake.queryRowxContextArgsForCall[i].query, fake.queryRowxContextArgsForCall[i].args
+func (fake *FakePgDB) DriverNameCalls(stub func() string) {
+	fake.driverNameMutex.Lock()
+	defer fake.driverNameMutex.Unlock()
+	fake.DriverNameStub = stub
 }
 
-func (fake *FakePgDB) QueryRowxContextReturns(result1 *sqlx.Row) {
-	fake.QueryRowxContextStub = nil
-	fake.queryRowxContextReturns = struct {
-		result1 *sqlx.Row
+func (fake *FakePgDB) DriverNameReturns(result1 string) {
+	fake.driverNameMutex.Lock()
+	defer fake.driverNameMutex.Unlock()
+	fake.DriverNameStub = nil
+	fake.driverNameReturns = struct {
+		result1 string
 	}{result1}
 }
 
-func (fake *FakePgDB) QueryRowxContextReturnsOnCall(i int, result1 *sqlx.Row) {
-	fake.QueryRowxContextStub = nil
-	if fake.queryRowxContextReturnsOnCall == nil {
-		fake.queryRowxContextReturnsOnCall = make(map[int]struct {
-			result1 *sqlx.Row
+func (fake *FakePgDB) DriverNameReturnsOnCall(i int, result1 string) {
+	fake.driverNameMutex.Lock()
+	defer fake.driverNameMutex.Unlock()
+	fake.DriverNameStub = nil
+	if fake.driverNameReturnsOnCall == nil {
+		fake.driverNameReturnsOnCall = make(map[int]struct {
+			result1 string
 		})
 	}
-	fake.queryRowxContextReturnsOnCall[i] = struct {
-		result1 *sqlx.Row
+	fake.driverNameReturnsOnCall[i] = struct {
+		result1 string
 	}{result1}
 }
 
-func (fake *FakePgDB) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
+func (fake *FakePgDB) ExecContext(arg1 context.Context, arg2 string, arg3 ...interface{}) (sql.Result, error) {
 	fake.execContextMutex.Lock()
 	ret, specificReturn := fake.execContextReturnsOnCall[len(fake.execContextArgsForCall)]
 	fake.execContextArgsForCall = append(fake.execContextArgsForCall, struct {
-		ctx   context.Context
-		query string
-		args  []interface{}
-	}{ctx, query, args})
-	fake.recordInvocation("ExecContext", []interface{}{ctx, query, args})
+		arg1 context.Context
+		arg2 string
+		arg3 []interface{}
+	}{arg1, arg2, arg3})
+	fake.recordInvocation("ExecContext", []interface{}{arg1, arg2, arg3})
 	fake.execContextMutex.Unlock()
 	if fake.ExecContextStub != nil {
-		return fake.ExecContextStub(ctx, query, args...)
+		return fake.ExecContextStub(arg1, arg2, arg3...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	return fake.execContextReturns.result1, fake.execContextReturns.result2
+	fakeReturns := fake.execContextReturns
+	return fakeReturns.result1, fakeReturns.result2
 }
 
 func (fake *FakePgDB) ExecContextCallCount() int {
@@ -762,13 +325,22 @@ func (fake *FakePgDB) ExecContextCallCount() int {
 	return len(fake.execContextArgsForCall)
 }
 
+func (fake *FakePgDB) ExecContextCalls(stub func(context.Context, string, ...interface{}) (sql.Result, error)) {
+	fake.execContextMutex.Lock()
+	defer fake.execContextMutex.Unlock()
+	fake.ExecContextStub = stub
+}
+
 func (fake *FakePgDB) ExecContextArgsForCall(i int) (context.Context, string, []interface{}) {
 	fake.execContextMutex.RLock()
 	defer fake.execContextMutex.RUnlock()
-	return fake.execContextArgsForCall[i].ctx, fake.execContextArgsForCall[i].query, fake.execContextArgsForCall[i].args
+	argsForCall := fake.execContextArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
 func (fake *FakePgDB) ExecContextReturns(result1 sql.Result, result2 error) {
+	fake.execContextMutex.Lock()
+	defer fake.execContextMutex.Unlock()
 	fake.ExecContextStub = nil
 	fake.execContextReturns = struct {
 		result1 sql.Result
@@ -777,6 +349,8 @@ func (fake *FakePgDB) ExecContextReturns(result1 sql.Result, result2 error) {
 }
 
 func (fake *FakePgDB) ExecContextReturnsOnCall(i int, result1 sql.Result, result2 error) {
+	fake.execContextMutex.Lock()
+	defer fake.execContextMutex.Unlock()
 	fake.ExecContextStub = nil
 	if fake.execContextReturnsOnCall == nil {
 		fake.execContextReturnsOnCall = make(map[int]struct {
@@ -790,33 +364,604 @@ func (fake *FakePgDB) ExecContextReturnsOnCall(i int, result1 sql.Result, result
 	}{result1, result2}
 }
 
+func (fake *FakePgDB) GetContext(arg1 context.Context, arg2 interface{}, arg3 string, arg4 ...interface{}) error {
+	fake.getContextMutex.Lock()
+	ret, specificReturn := fake.getContextReturnsOnCall[len(fake.getContextArgsForCall)]
+	fake.getContextArgsForCall = append(fake.getContextArgsForCall, struct {
+		arg1 context.Context
+		arg2 interface{}
+		arg3 string
+		arg4 []interface{}
+	}{arg1, arg2, arg3, arg4})
+	fake.recordInvocation("GetContext", []interface{}{arg1, arg2, arg3, arg4})
+	fake.getContextMutex.Unlock()
+	if fake.GetContextStub != nil {
+		return fake.GetContextStub(arg1, arg2, arg3, arg4...)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.getContextReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakePgDB) GetContextCallCount() int {
+	fake.getContextMutex.RLock()
+	defer fake.getContextMutex.RUnlock()
+	return len(fake.getContextArgsForCall)
+}
+
+func (fake *FakePgDB) GetContextCalls(stub func(context.Context, interface{}, string, ...interface{}) error) {
+	fake.getContextMutex.Lock()
+	defer fake.getContextMutex.Unlock()
+	fake.GetContextStub = stub
+}
+
+func (fake *FakePgDB) GetContextArgsForCall(i int) (context.Context, interface{}, string, []interface{}) {
+	fake.getContextMutex.RLock()
+	defer fake.getContextMutex.RUnlock()
+	argsForCall := fake.getContextArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+}
+
+func (fake *FakePgDB) GetContextReturns(result1 error) {
+	fake.getContextMutex.Lock()
+	defer fake.getContextMutex.Unlock()
+	fake.GetContextStub = nil
+	fake.getContextReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakePgDB) GetContextReturnsOnCall(i int, result1 error) {
+	fake.getContextMutex.Lock()
+	defer fake.getContextMutex.Unlock()
+	fake.GetContextStub = nil
+	if fake.getContextReturnsOnCall == nil {
+		fake.getContextReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.getContextReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakePgDB) NamedExecContext(arg1 context.Context, arg2 string, arg3 interface{}) (sql.Result, error) {
+	fake.namedExecContextMutex.Lock()
+	ret, specificReturn := fake.namedExecContextReturnsOnCall[len(fake.namedExecContextArgsForCall)]
+	fake.namedExecContextArgsForCall = append(fake.namedExecContextArgsForCall, struct {
+		arg1 context.Context
+		arg2 string
+		arg3 interface{}
+	}{arg1, arg2, arg3})
+	fake.recordInvocation("NamedExecContext", []interface{}{arg1, arg2, arg3})
+	fake.namedExecContextMutex.Unlock()
+	if fake.NamedExecContextStub != nil {
+		return fake.NamedExecContextStub(arg1, arg2, arg3)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	fakeReturns := fake.namedExecContextReturns
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakePgDB) NamedExecContextCallCount() int {
+	fake.namedExecContextMutex.RLock()
+	defer fake.namedExecContextMutex.RUnlock()
+	return len(fake.namedExecContextArgsForCall)
+}
+
+func (fake *FakePgDB) NamedExecContextCalls(stub func(context.Context, string, interface{}) (sql.Result, error)) {
+	fake.namedExecContextMutex.Lock()
+	defer fake.namedExecContextMutex.Unlock()
+	fake.NamedExecContextStub = stub
+}
+
+func (fake *FakePgDB) NamedExecContextArgsForCall(i int) (context.Context, string, interface{}) {
+	fake.namedExecContextMutex.RLock()
+	defer fake.namedExecContextMutex.RUnlock()
+	argsForCall := fake.namedExecContextArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakePgDB) NamedExecContextReturns(result1 sql.Result, result2 error) {
+	fake.namedExecContextMutex.Lock()
+	defer fake.namedExecContextMutex.Unlock()
+	fake.NamedExecContextStub = nil
+	fake.namedExecContextReturns = struct {
+		result1 sql.Result
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakePgDB) NamedExecContextReturnsOnCall(i int, result1 sql.Result, result2 error) {
+	fake.namedExecContextMutex.Lock()
+	defer fake.namedExecContextMutex.Unlock()
+	fake.NamedExecContextStub = nil
+	if fake.namedExecContextReturnsOnCall == nil {
+		fake.namedExecContextReturnsOnCall = make(map[int]struct {
+			result1 sql.Result
+			result2 error
+		})
+	}
+	fake.namedExecContextReturnsOnCall[i] = struct {
+		result1 sql.Result
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakePgDB) NamedQuery(arg1 string, arg2 interface{}) (*sqlx.Rows, error) {
+	fake.namedQueryMutex.Lock()
+	ret, specificReturn := fake.namedQueryReturnsOnCall[len(fake.namedQueryArgsForCall)]
+	fake.namedQueryArgsForCall = append(fake.namedQueryArgsForCall, struct {
+		arg1 string
+		arg2 interface{}
+	}{arg1, arg2})
+	fake.recordInvocation("NamedQuery", []interface{}{arg1, arg2})
+	fake.namedQueryMutex.Unlock()
+	if fake.NamedQueryStub != nil {
+		return fake.NamedQueryStub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	fakeReturns := fake.namedQueryReturns
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakePgDB) NamedQueryCallCount() int {
+	fake.namedQueryMutex.RLock()
+	defer fake.namedQueryMutex.RUnlock()
+	return len(fake.namedQueryArgsForCall)
+}
+
+func (fake *FakePgDB) NamedQueryCalls(stub func(string, interface{}) (*sqlx.Rows, error)) {
+	fake.namedQueryMutex.Lock()
+	defer fake.namedQueryMutex.Unlock()
+	fake.NamedQueryStub = stub
+}
+
+func (fake *FakePgDB) NamedQueryArgsForCall(i int) (string, interface{}) {
+	fake.namedQueryMutex.RLock()
+	defer fake.namedQueryMutex.RUnlock()
+	argsForCall := fake.namedQueryArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakePgDB) NamedQueryReturns(result1 *sqlx.Rows, result2 error) {
+	fake.namedQueryMutex.Lock()
+	defer fake.namedQueryMutex.Unlock()
+	fake.NamedQueryStub = nil
+	fake.namedQueryReturns = struct {
+		result1 *sqlx.Rows
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakePgDB) NamedQueryReturnsOnCall(i int, result1 *sqlx.Rows, result2 error) {
+	fake.namedQueryMutex.Lock()
+	defer fake.namedQueryMutex.Unlock()
+	fake.NamedQueryStub = nil
+	if fake.namedQueryReturnsOnCall == nil {
+		fake.namedQueryReturnsOnCall = make(map[int]struct {
+			result1 *sqlx.Rows
+			result2 error
+		})
+	}
+	fake.namedQueryReturnsOnCall[i] = struct {
+		result1 *sqlx.Rows
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakePgDB) PrepareNamedContext(arg1 context.Context, arg2 string) (*sqlx.NamedStmt, error) {
+	fake.prepareNamedContextMutex.Lock()
+	ret, specificReturn := fake.prepareNamedContextReturnsOnCall[len(fake.prepareNamedContextArgsForCall)]
+	fake.prepareNamedContextArgsForCall = append(fake.prepareNamedContextArgsForCall, struct {
+		arg1 context.Context
+		arg2 string
+	}{arg1, arg2})
+	fake.recordInvocation("PrepareNamedContext", []interface{}{arg1, arg2})
+	fake.prepareNamedContextMutex.Unlock()
+	if fake.PrepareNamedContextStub != nil {
+		return fake.PrepareNamedContextStub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	fakeReturns := fake.prepareNamedContextReturns
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakePgDB) PrepareNamedContextCallCount() int {
+	fake.prepareNamedContextMutex.RLock()
+	defer fake.prepareNamedContextMutex.RUnlock()
+	return len(fake.prepareNamedContextArgsForCall)
+}
+
+func (fake *FakePgDB) PrepareNamedContextCalls(stub func(context.Context, string) (*sqlx.NamedStmt, error)) {
+	fake.prepareNamedContextMutex.Lock()
+	defer fake.prepareNamedContextMutex.Unlock()
+	fake.PrepareNamedContextStub = stub
+}
+
+func (fake *FakePgDB) PrepareNamedContextArgsForCall(i int) (context.Context, string) {
+	fake.prepareNamedContextMutex.RLock()
+	defer fake.prepareNamedContextMutex.RUnlock()
+	argsForCall := fake.prepareNamedContextArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakePgDB) PrepareNamedContextReturns(result1 *sqlx.NamedStmt, result2 error) {
+	fake.prepareNamedContextMutex.Lock()
+	defer fake.prepareNamedContextMutex.Unlock()
+	fake.PrepareNamedContextStub = nil
+	fake.prepareNamedContextReturns = struct {
+		result1 *sqlx.NamedStmt
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakePgDB) PrepareNamedContextReturnsOnCall(i int, result1 *sqlx.NamedStmt, result2 error) {
+	fake.prepareNamedContextMutex.Lock()
+	defer fake.prepareNamedContextMutex.Unlock()
+	fake.PrepareNamedContextStub = nil
+	if fake.prepareNamedContextReturnsOnCall == nil {
+		fake.prepareNamedContextReturnsOnCall = make(map[int]struct {
+			result1 *sqlx.NamedStmt
+			result2 error
+		})
+	}
+	fake.prepareNamedContextReturnsOnCall[i] = struct {
+		result1 *sqlx.NamedStmt
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakePgDB) QueryContext(arg1 context.Context, arg2 string, arg3 ...interface{}) (*sql.Rows, error) {
+	fake.queryContextMutex.Lock()
+	ret, specificReturn := fake.queryContextReturnsOnCall[len(fake.queryContextArgsForCall)]
+	fake.queryContextArgsForCall = append(fake.queryContextArgsForCall, struct {
+		arg1 context.Context
+		arg2 string
+		arg3 []interface{}
+	}{arg1, arg2, arg3})
+	fake.recordInvocation("QueryContext", []interface{}{arg1, arg2, arg3})
+	fake.queryContextMutex.Unlock()
+	if fake.QueryContextStub != nil {
+		return fake.QueryContextStub(arg1, arg2, arg3...)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	fakeReturns := fake.queryContextReturns
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakePgDB) QueryContextCallCount() int {
+	fake.queryContextMutex.RLock()
+	defer fake.queryContextMutex.RUnlock()
+	return len(fake.queryContextArgsForCall)
+}
+
+func (fake *FakePgDB) QueryContextCalls(stub func(context.Context, string, ...interface{}) (*sql.Rows, error)) {
+	fake.queryContextMutex.Lock()
+	defer fake.queryContextMutex.Unlock()
+	fake.QueryContextStub = stub
+}
+
+func (fake *FakePgDB) QueryContextArgsForCall(i int) (context.Context, string, []interface{}) {
+	fake.queryContextMutex.RLock()
+	defer fake.queryContextMutex.RUnlock()
+	argsForCall := fake.queryContextArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakePgDB) QueryContextReturns(result1 *sql.Rows, result2 error) {
+	fake.queryContextMutex.Lock()
+	defer fake.queryContextMutex.Unlock()
+	fake.QueryContextStub = nil
+	fake.queryContextReturns = struct {
+		result1 *sql.Rows
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakePgDB) QueryContextReturnsOnCall(i int, result1 *sql.Rows, result2 error) {
+	fake.queryContextMutex.Lock()
+	defer fake.queryContextMutex.Unlock()
+	fake.QueryContextStub = nil
+	if fake.queryContextReturnsOnCall == nil {
+		fake.queryContextReturnsOnCall = make(map[int]struct {
+			result1 *sql.Rows
+			result2 error
+		})
+	}
+	fake.queryContextReturnsOnCall[i] = struct {
+		result1 *sql.Rows
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakePgDB) QueryRowxContext(arg1 context.Context, arg2 string, arg3 ...interface{}) *sqlx.Row {
+	fake.queryRowxContextMutex.Lock()
+	ret, specificReturn := fake.queryRowxContextReturnsOnCall[len(fake.queryRowxContextArgsForCall)]
+	fake.queryRowxContextArgsForCall = append(fake.queryRowxContextArgsForCall, struct {
+		arg1 context.Context
+		arg2 string
+		arg3 []interface{}
+	}{arg1, arg2, arg3})
+	fake.recordInvocation("QueryRowxContext", []interface{}{arg1, arg2, arg3})
+	fake.queryRowxContextMutex.Unlock()
+	if fake.QueryRowxContextStub != nil {
+		return fake.QueryRowxContextStub(arg1, arg2, arg3...)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.queryRowxContextReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakePgDB) QueryRowxContextCallCount() int {
+	fake.queryRowxContextMutex.RLock()
+	defer fake.queryRowxContextMutex.RUnlock()
+	return len(fake.queryRowxContextArgsForCall)
+}
+
+func (fake *FakePgDB) QueryRowxContextCalls(stub func(context.Context, string, ...interface{}) *sqlx.Row) {
+	fake.queryRowxContextMutex.Lock()
+	defer fake.queryRowxContextMutex.Unlock()
+	fake.QueryRowxContextStub = stub
+}
+
+func (fake *FakePgDB) QueryRowxContextArgsForCall(i int) (context.Context, string, []interface{}) {
+	fake.queryRowxContextMutex.RLock()
+	defer fake.queryRowxContextMutex.RUnlock()
+	argsForCall := fake.queryRowxContextArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakePgDB) QueryRowxContextReturns(result1 *sqlx.Row) {
+	fake.queryRowxContextMutex.Lock()
+	defer fake.queryRowxContextMutex.Unlock()
+	fake.QueryRowxContextStub = nil
+	fake.queryRowxContextReturns = struct {
+		result1 *sqlx.Row
+	}{result1}
+}
+
+func (fake *FakePgDB) QueryRowxContextReturnsOnCall(i int, result1 *sqlx.Row) {
+	fake.queryRowxContextMutex.Lock()
+	defer fake.queryRowxContextMutex.Unlock()
+	fake.QueryRowxContextStub = nil
+	if fake.queryRowxContextReturnsOnCall == nil {
+		fake.queryRowxContextReturnsOnCall = make(map[int]struct {
+			result1 *sqlx.Row
+		})
+	}
+	fake.queryRowxContextReturnsOnCall[i] = struct {
+		result1 *sqlx.Row
+	}{result1}
+}
+
+func (fake *FakePgDB) QueryxContext(arg1 context.Context, arg2 string, arg3 ...interface{}) (*sqlx.Rows, error) {
+	fake.queryxContextMutex.Lock()
+	ret, specificReturn := fake.queryxContextReturnsOnCall[len(fake.queryxContextArgsForCall)]
+	fake.queryxContextArgsForCall = append(fake.queryxContextArgsForCall, struct {
+		arg1 context.Context
+		arg2 string
+		arg3 []interface{}
+	}{arg1, arg2, arg3})
+	fake.recordInvocation("QueryxContext", []interface{}{arg1, arg2, arg3})
+	fake.queryxContextMutex.Unlock()
+	if fake.QueryxContextStub != nil {
+		return fake.QueryxContextStub(arg1, arg2, arg3...)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	fakeReturns := fake.queryxContextReturns
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakePgDB) QueryxContextCallCount() int {
+	fake.queryxContextMutex.RLock()
+	defer fake.queryxContextMutex.RUnlock()
+	return len(fake.queryxContextArgsForCall)
+}
+
+func (fake *FakePgDB) QueryxContextCalls(stub func(context.Context, string, ...interface{}) (*sqlx.Rows, error)) {
+	fake.queryxContextMutex.Lock()
+	defer fake.queryxContextMutex.Unlock()
+	fake.QueryxContextStub = stub
+}
+
+func (fake *FakePgDB) QueryxContextArgsForCall(i int) (context.Context, string, []interface{}) {
+	fake.queryxContextMutex.RLock()
+	defer fake.queryxContextMutex.RUnlock()
+	argsForCall := fake.queryxContextArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakePgDB) QueryxContextReturns(result1 *sqlx.Rows, result2 error) {
+	fake.queryxContextMutex.Lock()
+	defer fake.queryxContextMutex.Unlock()
+	fake.QueryxContextStub = nil
+	fake.queryxContextReturns = struct {
+		result1 *sqlx.Rows
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakePgDB) QueryxContextReturnsOnCall(i int, result1 *sqlx.Rows, result2 error) {
+	fake.queryxContextMutex.Lock()
+	defer fake.queryxContextMutex.Unlock()
+	fake.QueryxContextStub = nil
+	if fake.queryxContextReturnsOnCall == nil {
+		fake.queryxContextReturnsOnCall = make(map[int]struct {
+			result1 *sqlx.Rows
+			result2 error
+		})
+	}
+	fake.queryxContextReturnsOnCall[i] = struct {
+		result1 *sqlx.Rows
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakePgDB) Rebind(arg1 string) string {
+	fake.rebindMutex.Lock()
+	ret, specificReturn := fake.rebindReturnsOnCall[len(fake.rebindArgsForCall)]
+	fake.rebindArgsForCall = append(fake.rebindArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	fake.recordInvocation("Rebind", []interface{}{arg1})
+	fake.rebindMutex.Unlock()
+	if fake.RebindStub != nil {
+		return fake.RebindStub(arg1)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.rebindReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakePgDB) RebindCallCount() int {
+	fake.rebindMutex.RLock()
+	defer fake.rebindMutex.RUnlock()
+	return len(fake.rebindArgsForCall)
+}
+
+func (fake *FakePgDB) RebindCalls(stub func(string) string) {
+	fake.rebindMutex.Lock()
+	defer fake.rebindMutex.Unlock()
+	fake.RebindStub = stub
+}
+
+func (fake *FakePgDB) RebindArgsForCall(i int) string {
+	fake.rebindMutex.RLock()
+	defer fake.rebindMutex.RUnlock()
+	argsForCall := fake.rebindArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakePgDB) RebindReturns(result1 string) {
+	fake.rebindMutex.Lock()
+	defer fake.rebindMutex.Unlock()
+	fake.RebindStub = nil
+	fake.rebindReturns = struct {
+		result1 string
+	}{result1}
+}
+
+func (fake *FakePgDB) RebindReturnsOnCall(i int, result1 string) {
+	fake.rebindMutex.Lock()
+	defer fake.rebindMutex.Unlock()
+	fake.RebindStub = nil
+	if fake.rebindReturnsOnCall == nil {
+		fake.rebindReturnsOnCall = make(map[int]struct {
+			result1 string
+		})
+	}
+	fake.rebindReturnsOnCall[i] = struct {
+		result1 string
+	}{result1}
+}
+
+func (fake *FakePgDB) SelectContext(arg1 context.Context, arg2 interface{}, arg3 string, arg4 ...interface{}) error {
+	fake.selectContextMutex.Lock()
+	ret, specificReturn := fake.selectContextReturnsOnCall[len(fake.selectContextArgsForCall)]
+	fake.selectContextArgsForCall = append(fake.selectContextArgsForCall, struct {
+		arg1 context.Context
+		arg2 interface{}
+		arg3 string
+		arg4 []interface{}
+	}{arg1, arg2, arg3, arg4})
+	fake.recordInvocation("SelectContext", []interface{}{arg1, arg2, arg3, arg4})
+	fake.selectContextMutex.Unlock()
+	if fake.SelectContextStub != nil {
+		return fake.SelectContextStub(arg1, arg2, arg3, arg4...)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.selectContextReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakePgDB) SelectContextCallCount() int {
+	fake.selectContextMutex.RLock()
+	defer fake.selectContextMutex.RUnlock()
+	return len(fake.selectContextArgsForCall)
+}
+
+func (fake *FakePgDB) SelectContextCalls(stub func(context.Context, interface{}, string, ...interface{}) error) {
+	fake.selectContextMutex.Lock()
+	defer fake.selectContextMutex.Unlock()
+	fake.SelectContextStub = stub
+}
+
+func (fake *FakePgDB) SelectContextArgsForCall(i int) (context.Context, interface{}, string, []interface{}) {
+	fake.selectContextMutex.RLock()
+	defer fake.selectContextMutex.RUnlock()
+	argsForCall := fake.selectContextArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+}
+
+func (fake *FakePgDB) SelectContextReturns(result1 error) {
+	fake.selectContextMutex.Lock()
+	defer fake.selectContextMutex.Unlock()
+	fake.SelectContextStub = nil
+	fake.selectContextReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakePgDB) SelectContextReturnsOnCall(i int, result1 error) {
+	fake.selectContextMutex.Lock()
+	defer fake.selectContextMutex.Unlock()
+	fake.SelectContextStub = nil
+	if fake.selectContextReturnsOnCall == nil {
+		fake.selectContextReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.selectContextReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakePgDB) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.prepareNamedContextMutex.RLock()
-	defer fake.prepareNamedContextMutex.RUnlock()
+	fake.bindNamedMutex.RLock()
+	defer fake.bindNamedMutex.RUnlock()
+	fake.driverNameMutex.RLock()
+	defer fake.driverNameMutex.RUnlock()
+	fake.execContextMutex.RLock()
+	defer fake.execContextMutex.RUnlock()
+	fake.getContextMutex.RLock()
+	defer fake.getContextMutex.RUnlock()
 	fake.namedExecContextMutex.RLock()
 	defer fake.namedExecContextMutex.RUnlock()
 	fake.namedQueryMutex.RLock()
 	defer fake.namedQueryMutex.RUnlock()
-	fake.selectContextMutex.RLock()
-	defer fake.selectContextMutex.RUnlock()
-	fake.getContextMutex.RLock()
-	defer fake.getContextMutex.RUnlock()
-	fake.driverNameMutex.RLock()
-	defer fake.driverNameMutex.RUnlock()
-	fake.rebindMutex.RLock()
-	defer fake.rebindMutex.RUnlock()
-	fake.bindNamedMutex.RLock()
-	defer fake.bindNamedMutex.RUnlock()
+	fake.prepareNamedContextMutex.RLock()
+	defer fake.prepareNamedContextMutex.RUnlock()
 	fake.queryContextMutex.RLock()
 	defer fake.queryContextMutex.RUnlock()
-	fake.queryxContextMutex.RLock()
-	defer fake.queryxContextMutex.RUnlock()
 	fake.queryRowxContextMutex.RLock()
 	defer fake.queryRowxContextMutex.RUnlock()
-	fake.execContextMutex.RLock()
-	defer fake.execContextMutex.RUnlock()
+	fake.queryxContextMutex.RLock()
+	defer fake.queryxContextMutex.RUnlock()
+	fake.rebindMutex.RLock()
+	defer fake.rebindMutex.RUnlock()
+	fake.selectContextMutex.RLock()
+	defer fake.selectContextMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

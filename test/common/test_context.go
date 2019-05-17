@@ -24,9 +24,14 @@ import (
 	"path"
 	"runtime"
 
+	"github.com/Peripli/service-manager/pkg/util"
+
+	"sync"
+
 	"github.com/gofrs/uuid"
 
 	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/storage"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/onsi/ginkgo"
@@ -61,20 +66,30 @@ type TestContextBuilder struct {
 }
 
 type TestContext struct {
+	wg *sync.WaitGroup
+
 	SM           *httpexpect.Expect
 	SMWithOAuth  *httpexpect.Expect
 	SMWithBasic  *httpexpect.Expect
+	SMRepository storage.Repository
+
 	TestPlatform *types.Platform
 
 	Servers map[string]FakeServer
 }
 
 type testSMServer struct {
+	cancel context.CancelFunc
 	*httptest.Server
 }
 
 func (ts *testSMServer) URL() string {
 	return ts.Server.URL
+}
+
+func (ts *testSMServer) Close() {
+	ts.Server.Close()
+	ts.cancel()
 }
 
 // DefaultTestContext sets up a test context with default values
@@ -87,6 +102,7 @@ func NewTestContextBuilder() *TestContextBuilder {
 	return &TestContextBuilder{
 		envPreHooks: []func(set *pflag.FlagSet){
 			SetTestFileLocation,
+			SetNotificationsCleanerSettings,
 		},
 		Environment: TestEnv,
 		envPostHooks: []func(env env.Environment, servers map[string]FakeServer){
@@ -114,7 +130,21 @@ func NewTestContextBuilder() *TestContextBuilder {
 func SetTestFileLocation(set *pflag.FlagSet) {
 	_, b, _, _ := runtime.Caller(0)
 	basePath := path.Dir(b)
-	set.Set("file.location", basePath)
+	err := set.Set("file.location", basePath)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func SetNotificationsCleanerSettings(set *pflag.FlagSet) {
+	err := set.Set("storage.notification.clean_interval", "24h")
+	if err != nil {
+		panic(err)
+	}
+	err = set.Set("storage.notification.keep_for", "24h")
+	if err != nil {
+		panic(err)
+	}
 }
 
 func TestEnv(additionalFlagFuncs ...func(set *pflag.FlagSet)) env.Environment {
@@ -191,8 +221,9 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 	for _, envPostHook := range tcb.envPostHooks {
 		envPostHook(environment, tcb.Servers)
 	}
+	wg := &sync.WaitGroup{}
 
-	smServer := newSMServer(environment, tcb.smExtensions)
+	smServer, smRepository := newSMServer(environment, wg, tcb.smExtensions)
 	tcb.Servers[SMServer] = smServer
 
 	SM := httpexpect.New(GinkgoT(), smServer.URL())
@@ -205,14 +236,16 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 	RemoveAllPlatforms(SMWithOAuth)
 
 	testContext := &TestContext{
-		SM:          SM,
-		SMWithOAuth: SMWithOAuth,
-		Servers:     tcb.Servers,
+		wg:           wg,
+		SM:           SM,
+		SMWithOAuth:  SMWithOAuth,
+		Servers:      tcb.Servers,
+		SMRepository: smRepository,
 	}
 
 	if !tcb.shouldSkipBasicAuthClient {
 		platformJSON := MakePlatform("tcb-platform-test", "tcb-platform-test", "platform-type", "test-platform")
-		platform := RegisterPlatformInSM(platformJSON, SMWithOAuth)
+		platform := RegisterPlatformInSM(platformJSON, SMWithOAuth, map[string]string{})
 		SMWithBasic := SM.Builder(func(req *httpexpect.Request) {
 			username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
 			req.WithBasicAuth(username, password)
@@ -222,10 +255,9 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 	}
 
 	return testContext
-
 }
 
-func newSMServer(smEnv env.Environment, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error) *testSMServer {
+func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error) (*testSMServer, storage.Repository) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := struct {
 		Log *log.Settings
@@ -246,9 +278,20 @@ func newSMServer(smEnv env.Environment, fs []func(ctx context.Context, smb *sm.S
 		}
 	}
 	serviceManager := smb.Build()
-	return &testSMServer{
-		Server: httptest.NewServer(serviceManager.Server.Router),
+
+	err = smb.Notificator.Start(ctx, wg)
+	if err != nil {
+		panic(err)
 	}
+	err = smb.NotificationCleaner.Start(ctx, wg)
+	if err != nil {
+		panic(err)
+	}
+
+	return &testSMServer{
+		cancel: cancel,
+		Server: httptest.NewServer(serviceManager.Server.Router),
+	}, smb.Storage
 }
 
 func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object) (string, Object, *BrokerServer) {
@@ -275,11 +318,12 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, br
 
 	MergeObjects(brokerJSON, brokerData)
 
-	brokerID := RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth)
+	broker := RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth, map[string]string{})
+	brokerID := broker["id"].(string)
 	brokerServer.ResetCallHistory()
 	ctx.Servers[BrokerServerPrefix+brokerID] = brokerServer
 	brokerJSON["id"] = brokerID
-	return brokerID, brokerJSON, brokerServer
+	return brokerID, broker, brokerServer
 }
 
 func MergeObjects(target, source Object) {
@@ -324,7 +368,7 @@ func (ctx *TestContext) RegisterPlatform() *types.Platform {
 		"type":        "testType",
 		"description": "testDescrption",
 	}
-	return RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth)
+	return RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
 }
 
 func (ctx *TestContext) CleanupBroker(id string) {
@@ -338,17 +382,38 @@ func (ctx *TestContext) Cleanup() {
 	if ctx == nil {
 		return
 	}
-	RemoveAllBrokers(ctx.SMWithOAuth)
-	RemoveAllPlatforms(ctx.SMWithOAuth)
-
+	ctx.CleanupAdditionalResources()
 	for _, server := range ctx.Servers {
 		server.Close()
 	}
+	ctx.Servers = map[string]FakeServer{}
+	ctx.wg.Wait()
 }
 
 func (ctx *TestContext) CleanupAdditionalResources() {
-	ctx.SMWithOAuth.DELETE("/v1/service_brokers").
-		Expect()
-	ctx.SMWithOAuth.DELETE("/v1/platforms").WithQuery("fieldQuery", "id != "+ctx.TestPlatform.ID).
-		Expect()
+	if ctx == nil {
+		return
+	}
+
+	_, err := ctx.SMRepository.Delete(context.TODO(), types.NotificationType)
+	if err != nil && err != util.ErrNotFoundInStorage {
+		panic(err)
+	}
+
+	ctx.SMWithOAuth.DELETE("/v1/service_brokers").Expect()
+
+	if ctx.TestPlatform != nil {
+		ctx.SMWithOAuth.DELETE("/v1/platforms").WithQuery("fieldQuery", "id != "+ctx.TestPlatform.ID).Expect()
+	} else {
+		ctx.SMWithOAuth.DELETE("/v1/platforms").Expect()
+	}
+	var smServer FakeServer
+	for serverName, server := range ctx.Servers {
+		if serverName == SMServer {
+			smServer = server
+		} else {
+			server.Close()
+		}
+	}
+	ctx.Servers = map[string]FakeServer{SMServer: smServer}
 }

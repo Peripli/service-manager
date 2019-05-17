@@ -50,6 +50,13 @@ func WriteError(err error, writer http.ResponseWriter) {
 	var respError *HTTPError
 	logger := log.D()
 	switch t := err.(type) {
+	case *UnsupportedQueryError:
+		logger.Errorf("UnsupportedQueryError: %s", err)
+		respError = &HTTPError{
+			ErrorType:   "BadRequest",
+			Description: err.Error(),
+			StatusCode:  http.StatusBadRequest,
+		}
 	case *HTTPError:
 		logger.Errorf("HTTPError: %s", err)
 		respError = t
@@ -90,18 +97,34 @@ var (
 
 	// ErrAlreadyExistsInStorage error returned from storage when entity has conflicting fields
 	ErrAlreadyExistsInStorage = errors.New("unique constraint violation")
+
+	// ErrConcurrentResourceModification error returned when concurrent resource updates are happening
+	ErrConcurrentResourceModification = errors.New("another resource update happened concurrently. Please reattempt the update")
 )
 
-type ErrBadRequestStorage error
+// ErrBadRequestStorage represents a storage error that should be translated to http.StatusBadRequest
+type ErrBadRequestStorage struct {
+	Cause error
+}
+
+func (e *ErrBadRequestStorage) Error() string {
+	return e.Cause.Error()
+}
 
 // HandleStorageError handles storage errors by converting them to relevant HTTPErrors
 func HandleStorageError(err error, entityName string) error {
 	if err == nil {
 		return nil
 	}
-	if entityName == "" {
+
+	if _, ok := err.(*HTTPError); ok {
+		return err
+	}
+
+	if len(entityName) == 0 {
 		entityName = "entity"
 	}
+
 	switch err {
 	case ErrAlreadyExistsInStorage:
 		return &HTTPError{
@@ -115,34 +138,23 @@ func HandleStorageError(err error, entityName string) error {
 			Description: fmt.Sprintf("could not find such %s", entityName),
 			StatusCode:  http.StatusNotFound,
 		}
+	case ErrConcurrentResourceModification:
+		return &HTTPError{
+			ErrorType:   "ConcurrentResourceUpdate",
+			Description: "Another concurrent resource update occurred. Please reattempt the update operation",
+			StatusCode:  http.StatusPreconditionFailed,
+		}
 	default:
 		// in case we did not replace the pg.Error in the DB layer, propagate it as response message to give the caller relevant info
-		storageErr, ok := err.(ErrBadRequestStorage)
-		if ok {
+		switch e := err.(type) {
+		case *ErrBadRequestStorage:
 			return &HTTPError{
 				ErrorType:   "BadRequest",
-				Description: fmt.Sprintf("storage err: %s", storageErr.Error()),
+				Description: fmt.Sprintf("storage err: %s", e.Error()),
 				StatusCode:  http.StatusBadRequest,
 			}
+		default:
+			return err
 		}
 	}
-	return fmt.Errorf("unknown error type returned from storage layer: %s", err)
-}
-
-func HandleSelectionError(err error, entityName ...string) error {
-	if err == nil {
-		return nil
-	}
-
-	if _, ok := err.(*UnsupportedQueryError); ok {
-		return &HTTPError{
-			Description: err.Error(),
-			ErrorType:   "BadRequest",
-			StatusCode:  http.StatusBadRequest,
-		}
-	}
-	if len(entityName) == 0 {
-		entityName = []string{"entity"}
-	}
-	return HandleStorageError(err, entityName[0])
 }

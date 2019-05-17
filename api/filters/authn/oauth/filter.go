@@ -38,7 +38,7 @@ func (ba *bearerAuthnFilter) FilterMatchers() []web.FilterMatcher {
 		{
 			Matchers: []web.Matcher{
 				web.Path(
-					web.BrokersURL+"/**",
+					web.ServiceBrokersURL+"/**",
 					web.PlatformsURL+"/**",
 					web.ServiceOfferingsURL+"/**",
 					web.ServicePlansURL+"/**",

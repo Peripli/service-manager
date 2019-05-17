@@ -4,6 +4,9 @@ server:
   port: 8085
   # max_body_bytes: 4000
   # max_header_bytes: 1000
+websocket:
+  ping_timeout: 6000ms
+  write_timeout: 6000ms
 log:
   level: error
   format: text
@@ -12,6 +15,7 @@ storage:
   uri: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
   encryption_key: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
   skip_ssl_validation: false
+  max_idle_connections: 5
 api:
   token_issuer_url: http://localhost:8080/uaa
   client_id: cf

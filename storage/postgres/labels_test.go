@@ -20,20 +20,34 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Peripli/service-manager/storage/postgres/postgresfakes"
-
 	"github.com/jmoiron/sqlx"
 
 	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/storage/postgres/postgresfakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-type dummyLabelableEntity struct {
+type dummyLabel struct{}
+
+func (d *dummyLabel) GetKey() string {
+	return "key"
 }
 
-func (dummyLabelableEntity) Label() (labelTableName string, referenceColumnName string, primaryColumnName string) {
-	return "testLabelTable", "base_table_id", "id"
+func (d *dummyLabel) GetValue() string {
+	return "value"
+}
+
+func (d *dummyLabel) LabelsTableName() string {
+	return "testLabelTable"
+}
+
+func (d *dummyLabel) ReferenceColumn() string {
+	return "base_table_id"
+}
+
+func (d *dummyLabel) LabelsPrimaryColumn() string {
+	return "id"
 }
 
 var _ = Describe("Postgres Translator", func() {
@@ -48,30 +62,30 @@ var _ = Describe("Postgres Translator", func() {
 	})
 
 	Describe("translate list", func() {
+		labelableEntity := &dummyLabel{}
 
-		labelableEntity := dummyLabelableEntity{}
 		baseTableName := "testTable"
-		labelsTableName, _, _ := labelableEntity.Label()
+		labelsTableName := labelableEntity.LabelsTableName()
 		baseQuery := constructBaseQueryForLabelable(labelableEntity, baseTableName)
 		var criteria []query.Criterion
 
 		Context("No query", func() {
 			It("Should return base query", func() {
-				actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelableEntity, criteria)
+				actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelableEntity, criteria, nil)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(actualQuery).To(Equal(baseQuery + ";"))
 				Expect(actualQueryParams).To(BeEmpty())
 			})
 		})
 
-		Context("Label query", func() {
+		Context("LabelEntity query", func() {
 			Context("Called with valid input", func() {
 				It("Should return proper result", func() {
 					criteria = []query.Criterion{
 						query.ByLabel(query.InOperator, "orgId", "o1", "o2", "o3"),
 						query.ByLabel(query.InOperator, "clusterId", "c1", "c2"),
 					}
-					actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelableEntity, criteria)
+					actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelableEntity, criteria, nil)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(actualQuery).To(ContainSubstring(fmt.Sprintf(" WHERE (%[1]s.key = ? AND %[1]s.val IN (?, ?, ?)) OR (%[1]s.key = ? AND %[1]s.val IN (?, ?))", labelsTableName)))
 
@@ -85,7 +99,7 @@ var _ = Describe("Postgres Translator", func() {
 					criteria = []query.Criterion{
 						query.ByLabel(query.InOperator, "orgId", "o1"),
 					}
-					actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelableEntity, criteria)
+					actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelableEntity, criteria, nil)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(actualQuery).To(ContainSubstring(fmt.Sprintf(" WHERE (%[1]s.key = ? AND %[1]s.val IN (?))", labelsTableName)))
 
@@ -100,7 +114,7 @@ var _ = Describe("Postgres Translator", func() {
 					criteria = []query.Criterion{
 						query.ByField(query.EqualsOperator, "platformId", "5"),
 					}
-					actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelableEntity, criteria)
+					actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelableEntity, criteria, nil)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(actualQuery).To(ContainSubstring(fmt.Sprintf("WHERE %s.%s::text = ?;", baseTableName, criteria[0].LeftOp)))
 
@@ -114,7 +128,7 @@ var _ = Describe("Postgres Translator", func() {
 					criteria = []query.Criterion{
 						query.ByField(query.InOperator, "platformId", "1"),
 					}
-					actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelableEntity, criteria)
+					actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelableEntity, criteria, nil)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(actualQuery).To(ContainSubstring(fmt.Sprintf(" WHERE %s.%s::text %s (?);", baseTableName, criteria[0].LeftOp, strings.ToUpper(string(criteria[0].Operator)))))
 

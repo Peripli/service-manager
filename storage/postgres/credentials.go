@@ -31,7 +31,7 @@ type credentialStorage struct {
 
 func (cs *credentialStorage) Get(ctx context.Context, username string) (*types.Credentials, error) {
 	platform := &Platform{}
-	query := fmt.Sprintf("SELECT * FROM %s WHERE username=$1", platformTable)
+	query := fmt.Sprintf("SELECT * FROM %s WHERE username=$1", PlatformTable)
 	log.C(ctx).Debugf("Executing query %s", query)
 
 	err := cs.db.GetContext(ctx, platform, query, username)
@@ -40,7 +40,7 @@ func (cs *credentialStorage) Get(ctx context.Context, username string) (*types.C
 		return nil, checkSQLNoRows(err)
 	}
 
-	bytes, err := json.Marshal(platform.ToDTO())
+	bytes, err := json.Marshal(platform.ToObject())
 	if err != nil {
 		return nil, err
 	}

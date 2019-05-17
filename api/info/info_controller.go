@@ -17,9 +17,9 @@
 package info
 
 import (
+	"github.com/Peripli/service-manager/pkg/util"
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 )
 

@@ -17,115 +17,91 @@
 package postgres
 
 import (
-	"context"
-	"fmt"
+	"github.com/Peripli/service-manager/storage"
+	sqlxtypes "github.com/jmoiron/sqlx/types"
 
-	"github.com/Peripli/service-manager/pkg/query"
-
-	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
-type serviceOfferingStorage struct {
-	db pgDB
+//go:generate smgen storage ServiceOffering github.com/Peripli/service-manager/pkg/types
+type ServiceOffering struct {
+	BaseEntity
+	Name        string `db:"name"`
+	Description string `db:"description"`
+
+	Bindable             bool   `db:"bindable"`
+	InstancesRetrievable bool   `db:"instances_retrievable"`
+	BindingsRetrievable  bool   `db:"bindings_retrievable"`
+	PlanUpdatable        bool   `db:"plan_updateable"`
+	CatalogID            string `db:"catalog_id"`
+	CatalogName          string `db:"catalog_name"`
+
+	Tags     sqlxtypes.JSONText `db:"tags"`
+	Requires sqlxtypes.JSONText `db:"requires"`
+	Metadata sqlxtypes.JSONText `db:"metadata"`
+
+	BrokerID string         `db:"broker_id"`
+	Plans    []*ServicePlan `db:"-"`
 }
 
-func (sos *serviceOfferingStorage) Create(ctx context.Context, serviceOffering *types.ServiceOffering) (string, error) {
-	so := &ServiceOffering{}
-	so.FromDTO(serviceOffering)
-	return create(ctx, sos.db, serviceOfferingTable, so)
+func (e *ServiceOffering) ToObject() types.Object {
+	var plans []*types.ServicePlan
+	for _, plan := range e.Plans {
+		plans = append(plans, plan.ToObject().(*types.ServicePlan))
+	}
+	return &types.ServiceOffering{
+		Base: types.Base{
+			ID:        e.ID,
+			CreatedAt: e.CreatedAt,
+			UpdatedAt: e.UpdatedAt,
+		},
+		Name:                 e.Name,
+		Description:          e.Description,
+		Bindable:             e.Bindable,
+		InstancesRetrievable: e.InstancesRetrievable,
+		BindingsRetrievable:  e.BindingsRetrievable,
+		PlanUpdatable:        e.PlanUpdatable,
+		CatalogID:            e.CatalogID,
+		CatalogName:          e.CatalogName,
+		Tags:                 getJSONRawMessage(e.Tags),
+		Requires:             getJSONRawMessage(e.Requires),
+		Metadata:             getJSONRawMessage(e.Metadata),
+		BrokerID:             e.BrokerID,
+		Plans:                plans,
+	}
 }
 
-func (sos *serviceOfferingStorage) Get(ctx context.Context, id string) (*types.ServiceOffering, error) {
-	serviceOffering := &ServiceOffering{}
-	if err := get(ctx, sos.db, id, serviceOfferingTable, serviceOffering); err != nil {
-		return nil, err
+func (*ServiceOffering) FromObject(object types.Object) (storage.Entity, bool) {
+	offering, ok := object.(*types.ServiceOffering)
+	if !ok {
+		return nil, false
 	}
-	return serviceOffering.ToDTO(), nil
-}
-
-func (sos *serviceOfferingStorage) List(ctx context.Context, criteria ...query.Criterion) ([]*types.ServiceOffering, error) {
-	var serviceOfferings []ServiceOffering
-	if err := validateFieldQueryParams(ServiceOffering{}, criteria); err != nil {
-		return nil, err
-	}
-	err := listByFieldCriteria(ctx, sos.db, serviceOfferingTable, &serviceOfferings, criteria)
-	if err != nil || len(serviceOfferings) == 0 {
-		return []*types.ServiceOffering{}, err
-	}
-	serviceOfferingDTOs := make([]*types.ServiceOffering, 0, len(serviceOfferings))
-	for _, so := range serviceOfferings {
-		serviceOfferingDTOs = append(serviceOfferingDTOs, so.ToDTO())
-	}
-	return serviceOfferingDTOs, nil
-}
-
-func (sos *serviceOfferingStorage) ListWithServicePlansByBrokerID(ctx context.Context, brokerID string) ([]*types.ServiceOffering, error) {
-	query := fmt.Sprintf(`SELECT 
-		%[1]s.*,
-		%[2]s.id "%[2]s.id",
-		%[2]s.name "%[2]s.name",
-		%[2]s.description "%[2]s.description",
-		%[2]s.created_at "%[2]s.created_at",
-		%[2]s.updated_at "%[2]s.updated_at",
-		%[2]s.free "%[2]s.free",
-		%[2]s.bindable "%[2]s.bindable",
-		%[2]s.plan_updateable "%[2]s.plan_updateable",
-		%[2]s.catalog_id "%[2]s.catalog_id",
-		%[2]s.catalog_name "%[2]s.catalog_name",
-		%[2]s.metadata "%[2]s.metadata",
-		%[2]s.schemas "%[2]s.schemas",
-		%[2]s.service_offering_id "%[2]s.service_offering_id"
-	FROM %[1]s 
-	JOIN %[2]s ON %[1]s.id = %[2]s.service_offering_id
-	WHERE %[1]s.broker_id=$1;`, serviceOfferingTable, servicePlanTable)
-
-	log.C(ctx).Debugf("Executing query %s", query)
-	rows, err := sos.db.QueryxContext(ctx, query, brokerID)
-
-	defer func() {
-		if err := rows.Close(); err != nil {
-			log.C(ctx).Errorf("Could not release connection when checking database s. Error: %s", err)
-		}
-	}()
-	if err != nil {
-		return nil, checkSQLNoRows(err)
-	}
-
-	services := make(map[string]*types.ServiceOffering)
-	result := make([]*types.ServiceOffering, 0)
-
-	for rows.Next() {
-		row := struct {
-			*ServiceOffering
-			*ServicePlan `db:"service_plans"`
-		}{}
-
-		if err := rows.StructScan(&row); err != nil {
-			return nil, err
-		}
-
-		if serviceOffering, ok := services[row.ServiceOffering.ID]; !ok {
-			serviceOffering = row.ServiceOffering.ToDTO()
-			serviceOffering.Plans = append(serviceOffering.Plans, row.ServicePlan.ToDTO())
-
-			services[row.ServiceOffering.ID] = serviceOffering
-			result = append(result, serviceOffering)
-		} else {
-			serviceOffering.Plans = append(serviceOffering.Plans, row.ServicePlan.ToDTO())
+	servicePlanDTO := &ServicePlan{}
+	var plans []*ServicePlan
+	for _, plan := range offering.Plans {
+		if entity, isServicePlan := servicePlanDTO.FromObject(plan); isServicePlan {
+			plans = append(plans, entity.(*ServicePlan))
 		}
 	}
-
-	return result, nil
-}
-
-func (sos *serviceOfferingStorage) Delete(ctx context.Context, criteria ...query.Criterion) error {
-	return deleteAllByFieldCriteria(ctx, sos.db, serviceOfferingTable, ServiceOffering{}, criteria)
-}
-
-func (sos *serviceOfferingStorage) Update(ctx context.Context, serviceOffering *types.ServiceOffering) error {
-	so := &ServiceOffering{}
-	so.FromDTO(serviceOffering)
-	return update(ctx, sos.db, serviceOfferingTable, so)
-
+	result := &ServiceOffering{
+		BaseEntity: BaseEntity{
+			ID:        offering.ID,
+			CreatedAt: offering.CreatedAt,
+			UpdatedAt: offering.UpdatedAt,
+		},
+		Name:                 offering.Name,
+		Description:          offering.Description,
+		Bindable:             offering.Bindable,
+		InstancesRetrievable: offering.InstancesRetrievable,
+		BindingsRetrievable:  offering.BindingsRetrievable,
+		PlanUpdatable:        offering.PlanUpdatable,
+		CatalogID:            offering.CatalogID,
+		CatalogName:          offering.CatalogName,
+		Tags:                 getJSONText(offering.Tags),
+		Requires:             getJSONText(offering.Requires),
+		Metadata:             getJSONText(offering.Metadata),
+		BrokerID:             offering.BrokerID,
+		Plans:                plans,
+	}
+	return result, true
 }

@@ -280,7 +280,6 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 	afterEachHelper := func() {
 		By(fmt.Sprintf("[AFTEREACH]: Cleaning up test resources"))
 		ctx.CleanupAdditionalResources()
-
 		By(fmt.Sprintf("[AFTEREACH]: Sucessfully finished cleaning up test resources"))
 	}
 

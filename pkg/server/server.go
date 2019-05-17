@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/Peripli/service-manager/api"
@@ -39,12 +40,12 @@ const (
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	Host            string        `mapstructure:"host"`
-	Port            int           `mapstructure:"port"`
-	RequestTimeout  time.Duration `mapstructure:"request_timeout"`
-	ShutdownTimeout time.Duration `mapstructure:"shutdown_timeout"`
-	MaxBodyBytes    int           `mapstructure:"max_body_bytes"`
-	MaxHeaderBytes  int           `mapstructure:"max_header_bytes"`
+	Host            string        `mapstructure:"host" description:"host of the server"`
+	Port            int           `mapstructure:"port" description:"port of the server"`
+	RequestTimeout  time.Duration `mapstructure:"request_timeout" description:"read and write timeout duration for requests"`
+	ShutdownTimeout time.Duration `mapstructure:"shutdown_timeout" description:"time to wait for the server to shutdown"`
+	MaxBodyBytes    int           `mapstructure:"max_body_bytes" description:"maximum bytes size of incoming body"`
+	MaxHeaderBytes  int           `mapstructure:"max_header_bytes" description:"the maximum number of bytes the server will read parsing the request header"`
 }
 
 // DefaultSettings returns the default values for configuring the Service Manager
@@ -79,6 +80,7 @@ func (s *Settings) Validate() error {
 	if s.ShutdownTimeout == 0 {
 		return fmt.Errorf("validate Settings: ShutdownTimeout missing")
 	}
+
 	return nil
 }
 
@@ -112,7 +114,7 @@ func registerControllers(API *web.API, router *mux.Router, config *Settings) {
 }
 
 // Run starts the server awaiting for incoming requests
-func (s *Server) Run(ctx context.Context) {
+func (s *Server) Run(ctx context.Context, wg *sync.WaitGroup) {
 	if err := s.Config.Validate(); err != nil {
 		panic(fmt.Sprintf("invalid server config: %s", err))
 	}
@@ -123,11 +125,12 @@ func (s *Server) Run(ctx context.Context) {
 		ReadTimeout:    s.Config.RequestTimeout,
 		MaxHeaderBytes: s.Config.MaxHeaderBytes,
 	}
-	startServer(ctx, handler, s.Config.ShutdownTimeout)
+	startServer(ctx, handler, s.Config.ShutdownTimeout, wg)
 }
 
-func startServer(ctx context.Context, server *http.Server, shutdownTimeout time.Duration) {
-	go gracefulShutdown(ctx, server, shutdownTimeout)
+func startServer(ctx context.Context, server *http.Server, shutdownTimeout time.Duration, wg *sync.WaitGroup) {
+	wg.Add(1)
+	go gracefulShutdown(ctx, server, shutdownTimeout, wg)
 
 	log.C(ctx).Infof("Server listening on %s...", server.Addr)
 
@@ -136,8 +139,9 @@ func startServer(ctx context.Context, server *http.Server, shutdownTimeout time.
 	}
 }
 
-func gracefulShutdown(ctx context.Context, server *http.Server, shutdownTimeout time.Duration) {
+func gracefulShutdown(ctx context.Context, server *http.Server, shutdownTimeout time.Duration, wg *sync.WaitGroup) {
 	<-ctx.Done()
+	defer wg.Done()
 
 	c, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
