@@ -25,8 +25,6 @@ const (
 	noRevision int64 = 0
 )
 
-var errRevisionNotFound = errors.New("revision not found")
-
 func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	ctx := req.Context()
 	logger := log.C(ctx)

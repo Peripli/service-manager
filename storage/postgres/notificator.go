@@ -24,15 +24,13 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/Peripli/service-manager/pkg/util"
-
-	"github.com/Peripli/service-manager/storage"
-	"github.com/lib/pq"
-
-	"github.com/Peripli/service-manager/pkg/types"
-
 	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/storage"
 	notificationConnection "github.com/Peripli/service-manager/storage/postgres/notification_connection"
+
+	"github.com/lib/pq"
 )
 
 const (
