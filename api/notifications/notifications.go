@@ -5,11 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"sort"
 	"strconv"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
@@ -61,7 +59,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	notificationQueue, lastKnownRevision, err := c.registerConsumer(ctx, revisionKnownToProxy, platform)
+	notificationQueue, lastKnownToSMRevision, err := c.notificator.RegisterConsumer(platform, revisionKnownToProxy)
 	if err != nil {
 		if err == util.ErrInvalidNotificationRevision {
 			return util.NewJSONResponse(http.StatusGone, nil)
@@ -79,11 +77,11 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	}()
 
 	rw := req.HijackResponseWriter()
-	if lastKnownRevision == types.INVALIDREVISION {
-		lastKnownRevision = noRevision
+	if lastKnownToSMRevision == types.INVALIDREVISION {
+		lastKnownToSMRevision = noRevision
 	}
 	responseHeaders := http.Header{
-		LastKnownRevisionHeader: []string{strconv.FormatInt(lastKnownRevision, 10)},
+		LastKnownRevisionHeader: []string{strconv.FormatInt(lastKnownToSMRevision, 10)},
 	}
 
 	conn, err := c.upgrade(rw, req.Request, responseHeaders)
@@ -167,33 +165,10 @@ func (c *Controller) sendWsMessage(ctx context.Context, conn *websocket.Conn, ms
 	return true
 }
 
-func (c *Controller) registerConsumer(ctx context.Context, revisionKnownToProxy int64, platform *types.Platform) (storage.NotificationQueue, int64, error) {
-	return c.notificator.RegisterConsumer(platform, revisionKnownToProxy)
-}
-
 func (c *Controller) unregisterConsumer(ctx context.Context, q storage.NotificationQueue) {
 	if unregErr := c.notificator.UnregisterConsumer(q); unregErr != nil {
 		log.C(ctx).Errorf("Could not unregister notification consumer: %v", unregErr)
 	}
-}
-
-func (c *Controller) getNotificationList(ctx context.Context, platform *types.Platform, revisionKnownToProxy, LastKnownRevisionHeader int64) (*types.Notifications, error) {
-	// TODO: is this +1/-1 ok or we should add less than or equal operator
-	listQuery1 := query.ByField(query.GreaterThanOperator, "revision", strconv.FormatInt(revisionKnownToProxy-1, 10))
-	listQuery2 := query.ByField(query.LessThanOperator, "revision", strconv.FormatInt(LastKnownRevisionHeader+1, 10))
-
-	filterByPlatform := query.ByField(query.EqualsOrNilOperator, "platform_id", platform.ID)
-	objectList, err := c.repository.List(ctx, types.NotificationType, listQuery1, listQuery2, filterByPlatform)
-	if err != nil {
-		return nil, err
-	}
-	notificationsList := objectList.(*types.Notifications)
-	// TODO: Should be done in the database with order by
-	sort.Slice(notificationsList.Notifications, func(i, j int) bool {
-		return notificationsList.Notifications[i].Revision < notificationsList.Notifications[j].Revision
-	})
-
-	return notificationsList, nil
 }
 
 func extractPlatformFromContext(userContext *web.UserContext) (*types.Platform, error) {

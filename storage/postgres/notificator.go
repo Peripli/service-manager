@@ -119,43 +119,51 @@ func (n *Notificator) RegisterConsumer(platform *types.Platform, lastKnownRevisi
 	if err = n.startListening(); err != nil {
 		return nil, types.INVALIDREVISION, fmt.Errorf("listen to %s channel failed %v", postgresChannel, err)
 	}
-	lastKnownSMRevision := n.addConsumer(platform, queue)
-	defer func() {
-		if err != nil {
-			if errUnregisterConsumer := n.UnregisterConsumer(queue); errUnregisterConsumer != nil {
-				log.C(n.ctx).WithError(errUnregisterConsumer).Errorf("Could not unregister notification consumer %s", queue.ID())
-			}
-		}
-	}()
-	if lastKnownRevision > lastKnownSMRevision {
-		log.C(n.ctx).Debug("lastKnownRevision is grater than the one SM knows")
-		return nil, types.INVALIDREVISION, util.ErrInvalidNotificationRevision
-	}
+	lastKnownRevisionToSM := n.addConsumer(platform, queue)
 	if lastKnownRevision == types.INVALIDREVISION {
-		return queue, lastKnownSMRevision, nil
+		return queue, lastKnownRevisionToSM, nil
+	}
+	queueWithMissedNotifications, err := n.replaceQueueWithMissingNotificationsQueue(queue, lastKnownRevision, lastKnownRevisionToSM, platform)
+	if err != nil {
+		if errUnregisterConsumer := n.UnregisterConsumer(queue); errUnregisterConsumer != nil {
+			log.C(n.ctx).WithError(errUnregisterConsumer).Errorf("Could not unregister notification consumer %s", queue.ID())
+		}
+		return nil, types.INVALIDREVISION, err
+	}
+	return queueWithMissedNotifications, lastKnownRevisionToSM, nil
+}
+
+func (n *Notificator) filterRecipients(recipients []*types.Platform, notification *types.Notification) []*types.Platform {
+	for _, filter := range n.notificationFilters {
+		recipients = filter(recipients, notification)
+		if len(recipients) == 0 {
+			return recipients
+		}
+	}
+	return recipients
+}
+
+func (n *Notificator) replaceQueueWithMissingNotificationsQueue(queue storage.NotificationQueue, lastKnownRevision, lastKnownRevisionToSM int64, platform *types.Platform) (storage.NotificationQueue, error) {
+	if lastKnownRevision > lastKnownRevisionToSM {
+		log.C(n.ctx).Debug("lastKnownRevision is grater than the one SM knows")
+		return nil, util.ErrInvalidNotificationRevision
 	}
 	if _, err := n.storage.GetNotificationByRevision(n.ctx, lastKnownRevision); err != nil {
 		if err == util.ErrNotFoundInStorage {
 			log.C(n.ctx).WithError(err).Debugf("notification with revision %d not found in storage", lastKnownRevision)
-			return nil, types.INVALIDREVISION, util.ErrInvalidNotificationRevision
+			return nil, util.ErrInvalidNotificationRevision
 		}
-		return nil, types.INVALIDREVISION, err
+		return nil, err
 	}
 
-	missedNotifications, err := n.storage.ListNotifications(n.ctx, platform.ID, lastKnownRevision, lastKnownSMRevision)
+	missedNotifications, err := n.storage.ListNotifications(n.ctx, platform.ID, lastKnownRevision, lastKnownRevisionToSM)
 	if err != nil {
-		return nil, types.INVALIDREVISION, err
+		return nil, err
 	}
 	filteredMissedNotification := make([]*types.Notification, 0, len(missedNotifications))
 	var recipients []*types.Platform
 	for _, notification := range missedNotifications {
-		recipients = []*types.Platform{platform}
-		for _, filter := range n.notificationFilters {
-			recipients = filter(recipients, notification)
-			if len(recipients) == 0 {
-				break
-			}
-		}
+		recipients = n.filterRecipients([]*types.Platform{platform}, notification)
 		if len(recipients) != 0 {
 			filteredMissedNotification = append(filteredMissedNotification, notification)
 		}
@@ -163,17 +171,16 @@ func (n *Notificator) RegisterConsumer(platform *types.Platform, lastKnownRevisi
 
 	if n.queueSize < len(filteredMissedNotification) {
 		log.C(n.ctx).Debugf("too many missed notifications %d", len(filteredMissedNotification))
-		return nil, types.INVALIDREVISION, util.ErrInvalidNotificationRevision
+		return nil, util.ErrInvalidNotificationRevision
 	}
 
 	queueWithMissedNotifications, err := storage.NewNotificationQueue(n.queueSize)
 	if err != nil {
-		return nil, types.INVALIDREVISION, err
+		return nil, err
 	}
 	for _, notification := range filteredMissedNotification {
-		err = queueWithMissedNotifications.Enqueue(notification)
-		if err != nil {
-			return nil, types.INVALIDREVISION, err
+		if err = queueWithMissedNotifications.Enqueue(notification); err != nil {
+			return nil, err
 		}
 	}
 
@@ -183,19 +190,16 @@ func (n *Notificator) RegisterConsumer(platform *types.Platform, lastKnownRevisi
 		select {
 		case notification, ok := <-queue.Channel():
 			if !ok {
-				err = errors.New("")
-				return nil, types.INVALIDREVISION, err
+				return nil, errors.New("notification queue has been closed")
 			}
-			err = queueWithMissedNotifications.Enqueue(notification)
-			if err != nil {
-				return nil, types.INVALIDREVISION, err
+			if err = queueWithMissedNotifications.Enqueue(notification); err != nil {
+				return nil, err
 			}
 		default:
-			err = n.consumers.ReplaceQueue(queue.ID(), queueWithMissedNotifications)
-			if err != nil {
-				return nil, types.INVALIDREVISION, err
+			if err = n.consumers.ReplaceQueue(queue.ID(), queueWithMissedNotifications); err != nil {
+				return nil, err
 			}
-			return queueWithMissedNotifications, lastKnownSMRevision, nil
+			return queueWithMissedNotifications, nil
 		}
 	}
 }
@@ -299,9 +303,7 @@ func (n *Notificator) processNotificationPayload(payload *notifyEventPayload) er
 	if err != nil {
 		return fmt.Errorf("notification %s could not be retrieved from the DB: %v", notificationID, err.Error())
 	}
-	for _, filter := range n.notificationFilters {
-		recipients = filter(recipients, notification)
-	}
+	recipients = n.filterRecipients(recipients, notification)
 	for _, platform := range recipients {
 		n.sendNotificationToPlatformConsumers(n.consumers.GetQueuesForPlatform(platform.ID), notification)
 	}
