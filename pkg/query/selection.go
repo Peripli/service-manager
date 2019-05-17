@@ -19,7 +19,6 @@ package query
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -69,10 +68,6 @@ var operators = []Operator{EqualsOperator, NotEqualsOperator, InOperator,
 	NotInOperator, GreaterThanOperator, LessThanOperator, EqualsOrNilOperator}
 
 const (
-	// OpenBracket is the token that denotes the beginning of a multivariate operand
-	OpenBracket rune = '['
-	// CloseBracket is the token that denotes the end of a multivariate operand
-	CloseBracket rune = ']'
 	// Separator is the separator between field and label queries
 	Separator string = "and"
 )
@@ -150,17 +145,17 @@ func validateCriteria(c []Criterion) error {
 		}
 	}
 
-	for _, newCriterion := range c {
-		leftOp := newCriterion.LeftOp
+	for _, cc := range c {
+		leftOp := cc.LeftOp
 		// disallow duplicate label queries
-		if count, ok := labelQueryLeftOperands[leftOp]; ok && count > 1 && newCriterion.Type == LabelQuery {
-			return &util.UnsupportedQueryError{Message: fmt.Sprintf("duplicate label query key: %s", newCriterion.LeftOp)}
+		if count, ok := labelQueryLeftOperands[leftOp]; ok && count > 1 && cc.Type == LabelQuery {
+			return &util.UnsupportedQueryError{Message: fmt.Sprintf("duplicate label query key: %s", leftOp)}
 		}
 		// disallow duplicate field query keys
-		if count, ok := fieldQueryLeftOperands[leftOp]; ok && count > 1 && newCriterion.Type == FieldQuery {
-			return &util.UnsupportedQueryError{Message: fmt.Sprintf("duplicate field query key: %s", newCriterion.LeftOp)}
+		if count, ok := fieldQueryLeftOperands[leftOp]; ok && count > 1 && cc.Type == FieldQuery {
+			return &util.UnsupportedQueryError{Message: fmt.Sprintf("duplicate field query key: %s", leftOp)}
 		}
-		if err := newCriterion.Validate(); err != nil {
+		if err := cc.Validate(); err != nil {
 			return err
 		}
 	}
