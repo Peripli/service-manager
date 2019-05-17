@@ -55,12 +55,14 @@ type ServiceManagerBuilder struct {
 	Notificator         storage.Notificator
 	NotificationCleaner *storage.NotificationCleaner
 	ctx                 context.Context
+	wg                  *sync.WaitGroup
 	cfg                 *server.Settings
 }
 
 // ServiceManager  struct
 type ServiceManager struct {
 	ctx                 context.Context
+	wg                  *sync.WaitGroup
 	Server              *server.Server
 	Notificator         storage.Notificator
 	NotificationCleaner *storage.NotificationCleaner
@@ -85,17 +87,8 @@ func DefaultEnv(additionalPFlags ...func(set *pflag.FlagSet)) env.Environment {
 	return environment
 }
 
-func registerDefaultStorage() {
-	if !storage.HasStorage(postgres.Storage) {
-		log.D().Infof("Registering default storage %s", postgres.Storage)
-		storage.Register(postgres.Storage, &postgres.PostgresStorage{})
-	}
-}
-
 // New returns service-manager Server with default setup. The function panics on bad configuration
 func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *ServiceManagerBuilder {
-	registerDefaultStorage()
-
 	// setup config from env
 	cfg, err := config.New(env)
 	if err != nil {
@@ -115,9 +108,11 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 
 	// setup smStorage
 	log.C(ctx).Info("Setting up Service Manager storage...")
-	smStorage, err := storage.Use(ctx, postgres.Storage, cfg.Storage)
-	if err != nil {
-		panic(fmt.Sprintf("error using smStorage: %s", err))
+
+	waitGroup := &sync.WaitGroup{}
+	smStorage := &postgres.PostgresStorage{}
+	if err := storage.OpenWithSafeTermination(ctx, smStorage, cfg.Storage, waitGroup); err != nil {
+		panic(fmt.Sprintf("error opening storage: %s", err))
 	}
 
 	securityStorage := smStorage.Security()
@@ -158,12 +153,13 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	}
 
 	smb := &ServiceManagerBuilder{
-		ctx:                 ctx,
-		cfg:                 cfg.Server,
 		API:                 API,
 		Storage:             interceptableRepository,
 		Notificator:         pgNotificator,
 		NotificationCleaner: notificationCleaner,
+		ctx:                 ctx,
+		wg:                  waitGroup,
+		cfg:                 cfg.Server,
 	}
 
 	smb.
@@ -197,6 +193,7 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 
 	return &ServiceManager{
 		ctx:                 smb.ctx,
+		wg:                  smb.wg,
 		Server:              srv,
 		Notificator:         smb.Notificator,
 		NotificationCleaner: smb.NotificationCleaner,
@@ -212,18 +209,17 @@ func (smb *ServiceManagerBuilder) installHealth() {
 // Run starts the Service Manager
 func (sm *ServiceManager) Run() {
 	log.C(sm.ctx).Info("Running Service Manager...")
-	wg := &sync.WaitGroup{}
 
-	if err := sm.Notificator.Start(sm.ctx, wg); err != nil {
+	if err := sm.Notificator.Start(sm.ctx, sm.wg); err != nil {
 		log.C(sm.ctx).WithError(err).Panicf("could not start Service Manager notificator")
 	}
-	if err := sm.NotificationCleaner.Start(sm.ctx, wg); err != nil {
+	if err := sm.NotificationCleaner.Start(sm.ctx, sm.wg); err != nil {
 		log.C(sm.ctx).WithError(err).Panicf("could not start Service Manager notification cleaner")
 	}
 
-	sm.Server.Run(sm.ctx, wg)
+	sm.Server.Run(sm.ctx, sm.wg)
 
-	wg.Wait()
+	sm.wg.Wait()
 }
 
 func initializeSecureStorage(ctx context.Context, secureStorage storage.Security) error {

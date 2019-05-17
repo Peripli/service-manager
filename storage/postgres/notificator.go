@@ -95,7 +95,11 @@ func (n *Notificator) Start(ctx context.Context, group *sync.WaitGroup) error {
 	if err := n.openConnection(); err != nil {
 		return fmt.Errorf("could not open connection to database %v", err)
 	}
-	startInWaitGroup(n.awaitTermination, group)
+	util.StartInWaitGroupWithContext(ctx, func(c context.Context) {
+		<-c.Done()
+		log.C(c).Info("context cancelled, stopping Notificator...")
+		n.stopConnection()
+	}, group)
 	return nil
 }
 
@@ -326,21 +330,6 @@ func (n *Notificator) sendNotificationToPlatformConsumers(platformConsumers []st
 			consumer.Close()
 		}
 	}
-}
-
-func startInWaitGroup(f func(), group *sync.WaitGroup) {
-	group.Add(1)
-	go func() {
-		defer group.Done()
-		f()
-	}()
-}
-
-func (n *Notificator) awaitTermination() {
-	<-n.ctx.Done()
-	logger := log.C(n.ctx)
-	logger.Info("context cancelled, stopping Notificator...")
-	n.stopConnection()
 }
 
 func (n *Notificator) stopConnection() {
