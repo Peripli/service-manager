@@ -31,17 +31,17 @@ func OpenWithSafeTermination(ctx context.Context, s Storage, options *Settings, 
 		return fmt.Errorf("storage and storage settings cannot be nil")
 	}
 
-	if err := s.Open(options); err != nil {
-		return fmt.Errorf("error opening storage: %s", err)
-	}
-
-	util.StartInWaitGroup(func() {
-		<-ctx.Done()
-		log.D().Debug("Context cancelled. Closing storage...")
+	util.StartInWaitGroupWithContext(ctx, func(c context.Context) {
+		<-c.Done()
+		log.C(c).Debug("Context cancelled. Closing storage...")
 		if err := s.Close(); err != nil {
 			log.D().Error(err)
 		}
 	}, wg)
+
+	if err := s.Open(options); err != nil {
+		return fmt.Errorf("error opening storage: %s", err)
+	}
 
 	return nil
 }

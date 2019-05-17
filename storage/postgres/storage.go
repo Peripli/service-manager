@@ -105,15 +105,18 @@ func (ps *PostgresStorage) Open(options *storage.Settings) error {
 		ps.scheme.introduce(&Visibility{})
 		ps.scheme.introduce(&Notification{})
 	}
+
 	return err
 }
 
 func (ps *PostgresStorage) Close() error {
-	ps.checkOpen()
 	ps.mutex.Lock()
 	defer ps.mutex.Unlock()
+	if ps.db != nil {
+		return ps.db.Close()
+	}
 
-	return ps.db.Close()
+	return nil
 }
 
 func (ps *PostgresStorage) checkOpen() {
