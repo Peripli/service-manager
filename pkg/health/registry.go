@@ -15,32 +15,3 @@
  */
 
 package health
-
-// NewDefaultRegistry returns a default health registry with a single ping indicator and a default aggregation policy
-func NewDefaultRegistry() Registry {
-	return &defaultRegistry{
-		indicators:        []Indicator{&pingIndicator{}},
-		aggregationPolicy: &DefaultAggregationPolicy{},
-	}
-}
-
-type defaultRegistry struct {
-	indicators        []Indicator
-	aggregationPolicy AggregationPolicy
-}
-
-func (p *defaultRegistry) RegisterHealthAggregationPolicy(aggregator AggregationPolicy) {
-	p.aggregationPolicy = aggregator
-}
-
-func (p *defaultRegistry) HealthAggregationPolicy() AggregationPolicy {
-	return p.aggregationPolicy
-}
-
-func (p *defaultRegistry) AddHealthIndicator(indicator Indicator) {
-	p.indicators = append(p.indicators, indicator)
-}
-
-func (p *defaultRegistry) HealthIndicators() []Indicator {
-	return p.indicators
-}

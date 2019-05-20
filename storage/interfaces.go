@@ -30,7 +30,6 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/query"
 
-	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
@@ -165,9 +164,6 @@ type Repository interface {
 
 	// Update updates a broker from SM DB
 	Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error)
-
-	Credentials() Credentials
-	Security() Security
 }
 
 // TransactionalRepository is a storage repository that can initiate a transaction
@@ -188,15 +184,8 @@ type Storage interface {
 	Introduce(entity Entity)
 }
 
-// Credentials interface for Credentials db operations
-//go:generate counterfeiter . Credentials
-type Credentials interface {
-	// Get retrieves credentials using the provided username from SM DB
-	Get(ctx context.Context, username string) (*types.Credentials, error)
-}
-
-// Security interface for encryption key operations
-type Security interface {
+// Secured interface for encryption key operations
+type Secured interface {
 	// Lock locks the storage so that only one process can manipulate the encryption key.
 	// Returns an error if the process has already acquired the lock
 	Lock(ctx context.Context) error
@@ -204,11 +193,9 @@ type Security interface {
 	// Unlock releases the acquired lock.
 	Unlock(ctx context.Context) error
 
-	// Fetcher provides means to obtain the encryption key
-	Fetcher() security.KeyFetcher
+	GetEncryptionKey(ctx context.Context) ([]byte, error)
 
-	// Setter provides means to change the encryption  key
-	Setter() security.KeySetter
+	SetEncryptionKey(ctx context.Context, key []byte) error
 }
 
 // ErrQueueClosed error stating that the queue is closed

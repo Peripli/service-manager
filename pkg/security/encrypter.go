@@ -22,12 +22,12 @@ import (
 
 // TwoLayerEncrypter is an encrypter that fetches the encryption key from a remote location
 type TwoLayerEncrypter struct {
-	Fetcher KeyFetcher
+	EncryptionKeyFetcherFunc func(ctx context.Context) ([]byte, error)
 }
 
 // Encrypt encrypts the plaintext with a key obtained from a remote location
 func (e *TwoLayerEncrypter) Encrypt(ctx context.Context, plaintext []byte) ([]byte, error) {
-	key, err := e.Fetcher.GetEncryptionKey(ctx)
+	key, err := e.EncryptionKeyFetcherFunc(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +36,7 @@ func (e *TwoLayerEncrypter) Encrypt(ctx context.Context, plaintext []byte) ([]by
 
 // Decrypt decrypts the cipher text with a key obtained from a remote location
 func (e *TwoLayerEncrypter) Decrypt(ctx context.Context, ciphertext []byte) ([]byte, error) {
-	key, err := e.Fetcher.GetEncryptionKey(ctx)
+	key, err := e.EncryptionKeyFetcherFunc(ctx)
 	if err != nil {
 		return nil, err
 	}

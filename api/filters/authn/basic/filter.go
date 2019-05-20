@@ -3,7 +3,6 @@ package basic
 import (
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/security/middlewares"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
@@ -14,11 +13,14 @@ const BasicAuthnFilterName string = "BasicAuthnFilter"
 
 // NewFilter returns a web.Filter for basic auth using the provided
 // credentials storage in order to validate the credentials
-func NewFilter(storage storage.Credentials, encrypter security.Encrypter) web.Filter {
+//TODO pass in crendentialsValidatorFunc
+func NewFilter(repository storage.Repository) web.Filter {
 	return &basicAuthnFilter{
 		Filter: middlewares.NewAuthnMiddleware(
 			BasicAuthnFilterName,
-			&basicAuthenticator{CredentialStorage: storage, Encrypter: encrypter},
+			&basicAuthenticator{
+				Repostiory: repository,
+			},
 		),
 	}
 }

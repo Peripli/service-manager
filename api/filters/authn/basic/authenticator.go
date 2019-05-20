@@ -21,10 +21,12 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/Peripli/service-manager/pkg/types"
+
+	"github.com/Peripli/service-manager/pkg/query"
+
 	httpsec "github.com/Peripli/service-manager/pkg/security/http"
 
-	"github.com/Peripli/service-manager/pkg/security"
-	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
 )
@@ -39,8 +41,7 @@ func (bad *basicAuthnData) Data(v interface{}) error {
 
 // basicAuthenticator for basic security
 type basicAuthenticator struct {
-	CredentialStorage storage.Credentials
-	Encrypter         security.Encrypter
+	Repostiory storage.Repository
 }
 
 // Authenticate authenticates by using the provided Basic credentials
@@ -51,27 +52,34 @@ func (a *basicAuthenticator) Authenticate(request *http.Request) (*web.UserConte
 	}
 
 	ctx := request.Context()
-	credentials, err := a.CredentialStorage.Get(ctx, username)
-
+	byUsername := query.ByField(query.EqualsOperator, "username", username)
+	objectList, err := a.Repostiory.List(ctx, types.PlatformType, byUsername)
 	if err != nil {
-		if err == util.ErrNotFoundInStorage {
-			return nil, httpsec.Deny, err
-		}
 		return nil, httpsec.Abstain, fmt.Errorf("could not get credentials entity from storage: %s", err)
 	}
 
-	passwordBytes, err := a.Encrypter.Decrypt(ctx, []byte(credentials.Basic.Password))
-	if err != nil {
-		return nil, httpsec.Abstain, fmt.Errorf("could not reverse credentials from storage: %v", err)
+	if objectList.Len() != 1 {
+		return nil, httpsec.Deny, fmt.Errorf("found %d platforms matching username %s. Expected 1", objectList.Len(), username)
 	}
 
-	if string(passwordBytes) != password {
-		return nil, httpsec.Deny, nil
+	obj := objectList.ItemAt(0)
+	securedObj, isSecured := obj.(types.Secured)
+	if !isSecured {
+		return nil, httpsec.Abstain, fmt.Errorf("object of type %s is used in authentication and must be secured", obj.GetType())
+	}
+
+	if securedObj.GetCredentials().Basic.Password != password {
+		return nil, httpsec.Deny, fmt.Errorf("provided credentials are invalid")
+	}
+
+	bytes, err := json.Marshal(obj)
+	if err != nil {
+		return nil, httpsec.Abstain, err
 	}
 
 	return &web.UserContext{
 		Data: &basicAuthnData{
-			data: credentials.Details,
+			data: bytes,
 		},
 		Name: username,
 	}, httpsec.Allow, nil

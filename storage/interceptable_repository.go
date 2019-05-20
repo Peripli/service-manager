@@ -29,9 +29,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
-func NewInterceptableTransactionalRepository(repository TransactionalRepository, encrypter security.Encrypter) *InterceptableTransactionalRepository {
+func NewInterceptableTransactionalRepository(repository TransactionalRepository) *InterceptableTransactionalRepository {
 	return &InterceptableTransactionalRepository{
-		encrypter:           encrypter,
 		smStorageRepository: repository,
 		createProviders:     make(map[types.ObjectType][]OrderedCreateInterceptorProvider),
 		updateProviders:     make(map[types.ObjectType][]OrderedUpdateInterceptorProvider),
@@ -40,10 +39,14 @@ func NewInterceptableTransactionalRepository(repository TransactionalRepository,
 }
 
 func newInterceptableRepository(repository Repository,
-	encrypter security.Encrypter,
 	providedCreateInterceptors map[types.ObjectType]CreateInterceptor,
 	providedUpdateInterceptors map[types.ObjectType]UpdateInterceptor,
 	providedDeleteInterceptors map[types.ObjectType]DeleteInterceptor) *interceptableRepository {
+
+	encrypter := &security.TwoLayerEncrypter{
+		Fetcher: securityStorage.Fetcher(),
+	}
+
 	return &interceptableRepository{
 		repositoryInTransaction: repository,
 		encrypter:               encrypter,
@@ -54,8 +57,6 @@ func newInterceptableRepository(repository Repository,
 }
 
 type InterceptableTransactionalRepository struct {
-	encrypter security.Encrypter
-
 	smStorageRepository TransactionalRepository
 
 	createProviders map[types.ObjectType][]OrderedCreateInterceptorProvider
@@ -133,6 +134,12 @@ func (ir *interceptableRepository) List(ctx context.Context, objectType types.Ob
 	objectList, err := ir.repositoryInTransaction.List(ctx, objectType, criteria...)
 	if err != nil {
 		return nil, err
+	}
+
+	for i := 0; i < objectList.Len(); i++ {
+		if err = transformCredentials(ctx, objectList.ItemAt(i), ir.encrypter.Decrypt); err != nil {
+			return nil, err
+		}
 	}
 
 	return objectList, nil
@@ -469,18 +476,7 @@ func (itr *InterceptableTransactionalRepository) Update(ctx context.Context, obj
 	return obj, nil
 }
 
-func (itr *InterceptableTransactionalRepository) Credentials() Credentials {
-	return itr.smStorageRepository.Credentials()
-}
-
-func (itr *InterceptableTransactionalRepository) Security() Security {
-	return itr.smStorageRepository.Security()
-}
-func (ir *interceptableRepository) Credentials() Credentials {
-	return ir.repositoryInTransaction.Credentials()
-}
-
-func (ir *interceptableRepository) Security() Security {
+func (ir *interceptableRepository) Security() Secured {
 	return ir.repositoryInTransaction.Security()
 }
 

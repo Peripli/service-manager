@@ -128,15 +128,15 @@ type FakeStorage struct {
 	pingReturnsOnCall map[int]struct {
 		result1 error
 	}
-	SecurityStub        func() storage.Security
+	SecurityStub        func() storage.Secured
 	securityMutex       sync.RWMutex
 	securityArgsForCall []struct {
 	}
 	securityReturns struct {
-		result1 storage.Security
+		result1 storage.Secured
 	}
 	securityReturnsOnCall map[int]struct {
-		result1 storage.Security
+		result1 storage.Secured
 	}
 	UpdateStub        func(context.Context, types.Object, ...*query.LabelChange) (types.Object, error)
 	updateMutex       sync.RWMutex
@@ -724,12 +724,12 @@ func (fake *FakeStorage) PingReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeStorage) Security() storage.Security {
+func (fake *FakeStorage) Security() storage.Secured {
 	fake.securityMutex.Lock()
 	ret, specificReturn := fake.securityReturnsOnCall[len(fake.securityArgsForCall)]
 	fake.securityArgsForCall = append(fake.securityArgsForCall, struct {
 	}{})
-	fake.recordInvocation("Security", []interface{}{})
+	fake.recordInvocation("Secured", []interface{}{})
 	fake.securityMutex.Unlock()
 	if fake.SecurityStub != nil {
 		return fake.SecurityStub()
@@ -747,32 +747,32 @@ func (fake *FakeStorage) SecurityCallCount() int {
 	return len(fake.securityArgsForCall)
 }
 
-func (fake *FakeStorage) SecurityCalls(stub func() storage.Security) {
+func (fake *FakeStorage) SecurityCalls(stub func() storage.Secured) {
 	fake.securityMutex.Lock()
 	defer fake.securityMutex.Unlock()
 	fake.SecurityStub = stub
 }
 
-func (fake *FakeStorage) SecurityReturns(result1 storage.Security) {
+func (fake *FakeStorage) SecurityReturns(result1 storage.Secured) {
 	fake.securityMutex.Lock()
 	defer fake.securityMutex.Unlock()
 	fake.SecurityStub = nil
 	fake.securityReturns = struct {
-		result1 storage.Security
+		result1 storage.Secured
 	}{result1}
 }
 
-func (fake *FakeStorage) SecurityReturnsOnCall(i int, result1 storage.Security) {
+func (fake *FakeStorage) SecurityReturnsOnCall(i int, result1 storage.Secured) {
 	fake.securityMutex.Lock()
 	defer fake.securityMutex.Unlock()
 	fake.SecurityStub = nil
 	if fake.securityReturnsOnCall == nil {
 		fake.securityReturnsOnCall = make(map[int]struct {
-			result1 storage.Security
+			result1 storage.Secured
 		})
 	}
 	fake.securityReturnsOnCall[i] = struct {
-		result1 storage.Security
+		result1 storage.Secured
 	}{result1}
 }
 

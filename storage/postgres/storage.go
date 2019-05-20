@@ -42,8 +42,8 @@ type PostgresStorage struct {
 	state         *storageState
 	encryptionKey []byte
 	scheme        *scheme
-
-	mutex sync.Mutex
+	isLocked      bool
+	mutex         sync.Mutex
 }
 
 func (ps *PostgresStorage) Introduce(entity storage.Entity) {
@@ -53,16 +53,6 @@ func (ps *PostgresStorage) Introduce(entity storage.Entity) {
 func (ps *PostgresStorage) SelectContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
 	ps.checkOpen()
 	return ps.pgDB.SelectContext(ctx, dest, query, args...)
-}
-
-func (ps *PostgresStorage) Credentials() storage.Credentials {
-	ps.checkOpen()
-	return &credentialStorage{db: ps.pgDB}
-}
-
-func (ps *PostgresStorage) Security() storage.Security {
-	ps.checkOpen()
-	return &securityStorage{ps.pgDB, ps.encryptionKey, false, &sync.Mutex{}}
 }
 
 func (ps *PostgresStorage) Open(options *storage.Settings) error {

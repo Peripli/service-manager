@@ -36,7 +36,7 @@ var _ = Describe("Postgres Storage", func() {
 		})
 	})
 
-	Context("Security", func() {
+	Context("Secured", func() {
 		Context("Called with uninitialized db", func() {
 			It("Should panic", func() {
 				Expect(func() { pgStorage.Security() }).To(Panic())
