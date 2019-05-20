@@ -178,30 +178,60 @@ var _ = Describe("Notificator", func() {
 
 		var queue2 storage.NotificationQueue
 		var secondPlatform *types.Platform
+		var registerWithRevision int64
+		var notification *types.Notification
 
-		BeforeEach(func() {
+		JustBeforeEach(func() {
 			secondPlatform = &types.Platform{
 				Base: types.Base{
 					ID: "platform2",
 				},
 			}
+			testNotificator.RegisterFilter(func(recipients []*types.Platform, notification *types.Notification) []*types.Platform {
+				switch len(recipients) {
+				case 1:
+					if recipients[0].ID == defaultPlatform.ID {
+						return nil
+					}
+					return recipients
+				case 2:
+					return []*types.Platform{recipients[1]} // filter the default platform
+				default:
+					Fail("The registered test filter was called with invalid recipients")
+					return nil
+				}
+			})
+			notification = createNotification("")
+			fakeStorage.GetNotificationByRevisionReturns(notification, nil)
+			fakeStorage.ListNotificationsReturns([]*types.Notification{notification}, nil)
+			fakeStorage.GetNotificationReturns(notification, nil)
+
 			Expect(testNotificator.Start(ctx, wg)).ToNot(HaveOccurred())
 			runningFunc(true, nil)
-			queue = registerDefaultPlatform()
-			queue2 = expectRegisterConsumerSuccess(secondPlatform, types.INVALIDREVISION)
-			testNotificator.RegisterFilter(func(recipients []*types.Platform, notification *types.Notification) []*types.Platform {
-				Expect(recipients).To(HaveLen(2))
-				return []*types.Platform{recipients[1]}
-			})
+			queue = expectRegisterConsumerSuccess(defaultPlatform, registerWithRevision)
+			queue2 = expectRegisterConsumerSuccess(secondPlatform, registerWithRevision)
 		})
 
 		Context("When notification is sent with empty platform ID", func() {
+			BeforeEach(func() {
+				registerWithRevision = types.INVALIDREVISION
+			})
+
 			It("Should be filtered in the second queue", func() {
-				notification := createNotification("")
-				fakeStorage.GetNotificationReturns(notification, nil)
 				notificationChannel <- &pq.Notification{
 					Extra: createNotificationPayload(notification.PlatformID, notification.ID),
 				}
+				expectReceivedNotification(notification, queue2)
+				Expect(queue.Channel()).To(HaveLen(0))
+			})
+		})
+
+		Context("When old notification is present", func() {
+			BeforeEach(func() {
+				registerWithRevision = defaultLastRevision - 1
+			})
+
+			It("Should be filtered in the second queue", func() {
 				expectReceivedNotification(notification, queue2)
 				Expect(queue.Channel()).To(HaveLen(0))
 			})
@@ -292,6 +322,16 @@ var _ = Describe("Notificator", func() {
 				It("Should return the error", func() {
 					fakeStorage.GetNotificationByRevisionReturns(nil, expectedError)
 					expectRegisterConsumerFail(expectedError.Error(), defaultLastRevision-1)
+					Expect(fakeNotificationConnection.UnlistenCallCount()).To(Equal(1))
+				})
+			})
+
+			Context("When storage returns error and unlisten returns error when getting notification with revision", func() {
+				It("Should return the storage error", func() {
+					fakeStorage.GetNotificationByRevisionReturns(nil, expectedError)
+					fakeNotificationConnection.UnlistenReturns(errors.New("unlisten error"))
+					expectRegisterConsumerFail(expectedError.Error(), defaultLastRevision-1)
+					Expect(fakeNotificationConnection.UnlistenCallCount()).To(Equal(1))
 				})
 			})
 

@@ -92,9 +92,15 @@ func (n *Notificator) Start(ctx context.Context, group *sync.WaitGroup) error {
 		return errors.New("notificator already started")
 	}
 	n.ctx = ctx
-	if err := n.openConnection(); err != nil {
-		return fmt.Errorf("could not open connection to database %v", err)
-	}
+	n.setConnection(n.connectionCreator.NewConnection(func(isConnected bool, err error) {
+		if isConnected {
+			atomic.StoreInt32(&n.isConnected, aTrue)
+		} else {
+			atomic.StoreInt32(&n.isConnected, aFalse)
+			log.C(n.ctx).WithError(err).Info("connection to db closed, closing all consumers")
+			n.closeAllConsumers()
+		}
+	}))
 	util.StartInWaitGroupWithContext(ctx, func(c context.Context) {
 		<-c.Done()
 		log.C(c).Info("context cancelled, stopping Notificator...")
@@ -238,20 +244,6 @@ func (n *Notificator) setConnection(conn notificationConnection.NotificationConn
 	n.connectionMutex.Lock()
 	defer n.connectionMutex.Unlock()
 	n.connection = conn
-}
-
-func (n *Notificator) openConnection() error {
-	connection := n.connectionCreator.NewConnection(func(isConnected bool, err error) {
-		if isConnected {
-			atomic.StoreInt32(&n.isConnected, aTrue)
-		} else {
-			atomic.StoreInt32(&n.isConnected, aFalse)
-			log.C(n.ctx).WithError(err).Info("connection to db closed, closing all consumers")
-			n.closeAllConsumers()
-		}
-	})
-	n.setConnection(connection)
-	return nil
 }
 
 type notifyEventPayload struct {
