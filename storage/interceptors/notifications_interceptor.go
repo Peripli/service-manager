@@ -58,7 +58,7 @@ func (ni *NotificationsInterceptor) OnTxCreate(h storage.InterceptCreateOnTxFunc
 
 		platformID := ni.PlatformIdProviderFunc(ctx, newObject)
 
-		return createNotification(ctx, repository, types.CREATED, newObject.GetType(), platformID, &Payload{
+		return CreateNotification(ctx, repository, types.CREATED, newObject.GetType(), platformID, &Payload{
 			New: &ObjectPayload{
 				Resource:   newObject,
 				Additional: additionalDetails,
@@ -85,7 +85,7 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 		// if the resource update contains change in the platform ID field this means that the notification would be processed by
 		// two platforms - one needs to perform a delete operation and the other needs to perform a create operation.
 		if oldPlatformID != newPlatformID {
-			if err := createNotification(ctx, repository, types.CREATED, updatedObject.GetType(), newPlatformID, &Payload{
+			if err := CreateNotification(ctx, repository, types.CREATED, updatedObject.GetType(), newPlatformID, &Payload{
 				New: &ObjectPayload{
 					Resource:   updatedObject,
 					Additional: additionalDetails,
@@ -94,7 +94,7 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 				return nil, err
 			}
 
-			if err := createNotification(ctx, repository, types.DELETED, updatedObject.GetType(), oldPlatformID, &Payload{
+			if err := CreateNotification(ctx, repository, types.DELETED, updatedObject.GetType(), oldPlatformID, &Payload{
 				Old: &ObjectPayload{
 					Resource:   oldObject,
 					Additional: additionalDetails,
@@ -104,7 +104,7 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 			}
 		}
 
-		if err := createNotification(ctx, repository, types.MODIFIED, updatedObject.GetType(), newPlatformID, &Payload{
+		if err := CreateNotification(ctx, repository, types.MODIFIED, updatedObject.GetType(), newPlatformID, &Payload{
 			New: &ObjectPayload{
 				Resource:   updatedObject,
 				Additional: additionalDetails,
@@ -146,7 +146,7 @@ func (ni *NotificationsInterceptor) OnTxDelete(h storage.InterceptDeleteOnTxFunc
 
 			platformID := ni.PlatformIdProviderFunc(ctx, oldObject)
 
-			if err := createNotification(ctx, repository, types.DELETED, oldObject.GetType(), platformID, &Payload{
+			if err := CreateNotification(ctx, repository, types.DELETED, oldObject.GetType(), platformID, &Payload{
 				Old: &ObjectPayload{
 					Resource:   oldObject,
 					Additional: additionalDetailsMap[oldObject.GetID()],
@@ -160,7 +160,7 @@ func (ni *NotificationsInterceptor) OnTxDelete(h storage.InterceptDeleteOnTxFunc
 	}
 }
 
-func createNotification(ctx context.Context, repository storage.Repository, op types.OperationType, resource types.ObjectType, platformID string, payload *Payload) error {
+func CreateNotification(ctx context.Context, repository storage.Repository, op types.OperationType, resource types.ObjectType, platformID string, payload *Payload) error {
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		return fmt.Errorf("could not generate GUID for notification of type %s for resource of type %s: %s", op, resource, err)

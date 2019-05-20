@@ -17,33 +17,36 @@ func NewVisibilityNotificationsInterceptor() *NotificationsInterceptor {
 		},
 		AdditionalDetailsFunc: func(ctx context.Context, obj types.Object, repository storage.Repository) (util.InputValidator, error) {
 			visibility := obj.(*types.Visibility)
-
-			plan, err := repository.Get(ctx, types.ServicePlanType, visibility.ServicePlanID)
-			if err != nil {
-				return nil, err
-			}
-			servicePlan := plan.(*types.ServicePlan)
-
-			service, err := repository.Get(ctx, types.ServiceOfferingType, servicePlan.ServiceOfferingID)
-			if err != nil {
-				return nil, err
-			}
-			serviceOffering := service.(*types.ServiceOffering)
-
-			broker, err := repository.Get(ctx, types.ServiceBrokerType, serviceOffering.BrokerID)
-			if err != nil {
-				return nil, err
-			}
-
-			serviceBroker := broker.(*types.ServiceBroker)
-
-			return &VisibilityAdditional{
-				BrokerID:    serviceBroker.ID,
-				BrokerName:  serviceBroker.Name,
-				ServicePlan: plan.(*types.ServicePlan),
-			}, nil
+			return FetchVisibilityAdditionalDetails(ctx, visibility, repository)
 		},
 	}
+}
+
+func FetchVisibilityAdditionalDetails(ctx context.Context, visibility *types.Visibility, repository storage.Repository) (*VisibilityAdditional, error) {
+	plan, err := repository.Get(ctx, types.ServicePlanType, visibility.ServicePlanID)
+	if err != nil {
+		return nil, err
+	}
+	servicePlan := plan.(*types.ServicePlan)
+
+	service, err := repository.Get(ctx, types.ServiceOfferingType, servicePlan.ServiceOfferingID)
+	if err != nil {
+		return nil, err
+	}
+	serviceOffering := service.(*types.ServiceOffering)
+
+	broker, err := repository.Get(ctx, types.ServiceBrokerType, serviceOffering.BrokerID)
+	if err != nil {
+		return nil, err
+	}
+
+	serviceBroker := broker.(*types.ServiceBroker)
+
+	return &VisibilityAdditional{
+		BrokerID:    serviceBroker.ID,
+		BrokerName:  serviceBroker.Name,
+		ServicePlan: plan.(*types.ServicePlan),
+	}, nil
 }
 
 type VisibilityAdditional struct {
