@@ -18,13 +18,18 @@ package common
 
 import (
 	"context"
+	"encoding/base64"
 	"flag"
 	"fmt"
+	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"path"
 	"runtime"
 
 	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/gorilla/websocket"
 
 	"sync"
 
@@ -66,7 +71,8 @@ type TestContextBuilder struct {
 }
 
 type TestContext struct {
-	wg *sync.WaitGroup
+	wg            *sync.WaitGroup
+	wsConnections []*websocket.Conn
 
 	SM           *httpexpect.Expect
 	SMWithOAuth  *httpexpect.Expect
@@ -382,11 +388,19 @@ func (ctx *TestContext) Cleanup() {
 	if ctx == nil {
 		return
 	}
+
 	ctx.CleanupAdditionalResources()
+
 	for _, server := range ctx.Servers {
 		server.Close()
 	}
 	ctx.Servers = map[string]FakeServer{}
+
+	for _, conn := range ctx.wsConnections {
+		conn.Close()
+	}
+	ctx.wsConnections = nil
+
 	ctx.wg.Wait()
 }
 
@@ -416,4 +430,27 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 		}
 	}
 	ctx.Servers = map[string]FakeServer{SMServer: smServer}
+}
+
+func (ctx *TestContext) ConnectWebSocket(platform *types.Platform, queryParams map[string]string) (*websocket.Conn, *http.Response, error) {
+	smURL := ctx.Servers[SMServer].URL()
+	smEndpoint, _ := url.Parse(smURL)
+	smEndpoint.Scheme = "ws"
+	smEndpoint.Path = web.NotificationsURL
+	q := smEndpoint.Query()
+	for k, v := range queryParams {
+		q.Add(k, v)
+	}
+	smEndpoint.RawQuery = q.Encode()
+
+	headers := http.Header{}
+	encodedPlatform := base64.StdEncoding.EncodeToString([]byte(platform.Credentials.Basic.Username + ":" + platform.Credentials.Basic.Password))
+	headers.Add("Authorization", "Basic "+encodedPlatform)
+
+	wsEndpoint := smEndpoint.String()
+	conn, resp, err := websocket.DefaultDialer.Dial(wsEndpoint, headers)
+	if conn != nil {
+		ctx.wsConnections = append(ctx.wsConnections, conn)
+	}
+	return conn, resp, err
 }
