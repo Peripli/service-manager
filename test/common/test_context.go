@@ -454,3 +454,16 @@ func (ctx *TestContext) ConnectWebSocket(platform *types.Platform, queryParams m
 	}
 	return conn, resp, err
 }
+
+func (ctx *TestContext) CloseWebSocket(conn *websocket.Conn) {
+	if conn == nil {
+		return
+	}
+	conn.Close()
+	for i, c := range ctx.wsConnections {
+		if c == conn {
+			ctx.wsConnections = append(ctx.wsConnections[:i], ctx.wsConnections[i+1:]...)
+			return
+		}
+	}
+}
