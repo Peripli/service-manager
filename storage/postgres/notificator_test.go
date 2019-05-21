@@ -66,7 +66,7 @@ var _ = Describe("Notificator", func() {
 	expectRegisterConsumerFail := func(errorMessage string, revision int64) {
 		q, smRevision, err := testNotificator.RegisterConsumer(defaultPlatform, revision)
 		Expect(q).To(BeNil())
-		Expect(smRevision).To(Equal(types.INVALIDREVISION))
+		Expect(smRevision).To(Equal(types.InvalidRevision))
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring(errorMessage))
 	}
@@ -80,7 +80,7 @@ var _ = Describe("Notificator", func() {
 	}
 
 	registerDefaultPlatform := func() storage.NotificationQueue {
-		return expectRegisterConsumerSuccess(defaultPlatform, types.INVALIDREVISION)
+		return expectRegisterConsumerSuccess(defaultPlatform, types.InvalidRevision)
 	}
 
 	expectReceivedNotification := func(expectedNotification *types.Notification, q storage.NotificationQueue) {
@@ -99,7 +99,7 @@ var _ = Describe("Notificator", func() {
 			},
 			storage:           fakeStorage,
 			connectionCreator: fakeConnectionCreator,
-			lastKnownRevision: types.INVALIDREVISION,
+			lastKnownRevision: types.InvalidRevision,
 		}
 	}
 
@@ -214,7 +214,7 @@ var _ = Describe("Notificator", func() {
 
 		Context("When notification is sent with empty platform ID", func() {
 			BeforeEach(func() {
-				registerWithRevision = types.INVALIDREVISION
+				registerWithRevision = types.InvalidRevision
 			})
 
 			It("Should be filtered in the second queue", func() {
@@ -296,11 +296,11 @@ var _ = Describe("Notificator", func() {
 
 		Context("When storage GetLastRevision fails", func() {
 			BeforeEach(func() {
-				fakeStorage.GetLastRevisionReturns(types.INVALIDREVISION, expectedError)
+				fakeStorage.GetLastRevisionReturns(types.InvalidRevision, expectedError)
 			})
 
 			It("Should return error", func() {
-				expectRegisterConsumerFail("listen to notifications channel failed "+expectedError.Error(), types.INVALIDREVISION)
+				expectRegisterConsumerFail("listen to notifications channel failed "+expectedError.Error(), types.InvalidRevision)
 			})
 		})
 
@@ -382,14 +382,14 @@ var _ = Describe("Notificator", func() {
 			It("Should return error", func() {
 				registerDefaultPlatform()
 				runningFunc(false, nil)
-				expectRegisterConsumerFail("cannot register consumer - Notificator is not running", types.INVALIDREVISION)
+				expectRegisterConsumerFail("cannot register consumer - Notificator is not running", types.InvalidRevision)
 			})
 		})
 
 		Context("When listen returns error", func() {
 			It("Should return error", func() {
 				fakeNotificationConnection.ListenReturns(expectedError)
-				expectRegisterConsumerFail(expectedError.Error(), types.INVALIDREVISION)
+				expectRegisterConsumerFail(expectedError.Error(), types.InvalidRevision)
 			})
 		})
 

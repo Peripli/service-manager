@@ -29,7 +29,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	ctx := req.Context()
 	logger := log.C(ctx)
 
-	revisionKnownToProxy := types.INVALIDREVISION
+	revisionKnownToProxy := types.InvalidRevision
 	revisionKnownToProxyStr := req.URL.Query().Get(LastKnownRevisionQueryParam)
 	if revisionKnownToProxyStr != "" {
 		var err error
@@ -75,7 +75,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	}()
 
 	rw := req.HijackResponseWriter()
-	if lastKnownToSMRevision == types.INVALIDREVISION {
+	if lastKnownToSMRevision == types.InvalidRevision {
 		lastKnownToSMRevision = noRevision
 	}
 	responseHeaders := http.Header{

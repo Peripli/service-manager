@@ -82,7 +82,7 @@ func NewNotificator(st storage.Storage, settings *storage.Settings) (*Notificato
 		},
 		storage:           ns,
 		connectionCreator: connectionCreator,
-		lastKnownRevision: types.INVALIDREVISION,
+		lastKnownRevision: types.InvalidRevision,
 	}, nil
 }
 
@@ -118,17 +118,17 @@ func (n *Notificator) addConsumer(platform *types.Platform, queue storage.Notifi
 
 func (n *Notificator) RegisterConsumer(platform *types.Platform, lastKnownRevision int64) (storage.NotificationQueue, int64, error) {
 	if atomic.LoadInt32(&n.isConnected) == aFalse {
-		return nil, types.INVALIDREVISION, errors.New("cannot register consumer - Notificator is not running")
+		return nil, types.InvalidRevision, errors.New("cannot register consumer - Notificator is not running")
 	}
 	queue, err := storage.NewNotificationQueue(n.queueSize)
 	if err != nil {
-		return nil, types.INVALIDREVISION, err
+		return nil, types.InvalidRevision, err
 	}
 	if err = n.startListening(); err != nil {
-		return nil, types.INVALIDREVISION, fmt.Errorf("listen to %s channel failed %v", postgresChannel, err)
+		return nil, types.InvalidRevision, fmt.Errorf("listen to %s channel failed %v", postgresChannel, err)
 	}
 	lastKnownRevisionToSM := n.addConsumer(platform, queue)
-	if lastKnownRevision == types.INVALIDREVISION {
+	if lastKnownRevision == types.InvalidRevision {
 		return queue, lastKnownRevisionToSM, nil
 	}
 	queueWithMissedNotifications, err := n.replaceQueueWithMissingNotificationsQueue(queue, lastKnownRevision, lastKnownRevisionToSM, platform)
@@ -136,7 +136,7 @@ func (n *Notificator) RegisterConsumer(platform *types.Platform, lastKnownRevisi
 		if errUnregisterConsumer := n.UnregisterConsumer(queue); errUnregisterConsumer != nil {
 			log.C(n.ctx).WithError(errUnregisterConsumer).Errorf("Could not unregister notification consumer %s", queue.ID())
 		}
-		return nil, types.INVALIDREVISION, err
+		return nil, types.InvalidRevision, err
 	}
 	return queueWithMissedNotifications, lastKnownRevisionToSM, nil
 }
