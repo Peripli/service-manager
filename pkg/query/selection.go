@@ -37,8 +37,12 @@ const (
 	NotEqualsOperator Operator = "!="
 	// GreaterThanOperator takes two operands and tests if the left is greater than the right
 	GreaterThanOperator Operator = "gt"
+	// GreaterThanOrEqualOperator takes two operands and tests if the left is greater than or equal the right
+	GreaterThanOrEqualOperator Operator = "gte"
 	// LessThanOperator takes two operands and tests if the left is lesser than the right
 	LessThanOperator Operator = "lt"
+	// LessThanOrEqualOperator takes two operands and tests if the left is lesser than or equal the right
+	LessThanOrEqualOperator Operator = "lte"
 	// InOperator takes two operands and tests if the left is contained in the right
 	InOperator Operator = "in"
 	// NotInOperator takes two operands and tests if the left is not contained in the right
@@ -59,11 +63,11 @@ func (op Operator) IsNullable() bool {
 
 // IsNumeric returns true if the operator works only with numeric operands
 func (op Operator) IsNumeric() bool {
-	return op == LessThanOperator || op == GreaterThanOperator
+	return op == LessThanOperator || op == GreaterThanOperator || op == LessThanOrEqualOperator || op == GreaterThanOrEqualOperator
 }
 
 var operators = []Operator{EqualsOperator, NotEqualsOperator, InOperator,
-	NotInOperator, GreaterThanOperator, LessThanOperator, EqualsOrNilOperator}
+	NotInOperator, GreaterThanOperator, GreaterThanOrEqualOperator, LessThanOperator, LessThanOrEqualOperator, EqualsOrNilOperator}
 
 const (
 	// OpenBracket is the token that denotes the beginning of a multivariate operand
