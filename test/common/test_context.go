@@ -396,11 +396,6 @@ func (ctx *TestContext) Cleanup() {
 	}
 	ctx.Servers = map[string]FakeServer{}
 
-	for _, conn := range ctx.wsConnections {
-		conn.Close()
-	}
-	ctx.wsConnections = nil
-
 	ctx.wg.Wait()
 }
 
@@ -430,6 +425,11 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 		}
 	}
 	ctx.Servers = map[string]FakeServer{SMServer: smServer}
+
+	for _, conn := range ctx.wsConnections {
+		conn.Close()
+	}
+	ctx.wsConnections = nil
 }
 
 func (ctx *TestContext) ConnectWebSocket(platform *types.Platform, queryParams map[string]string) (*websocket.Conn, *http.Response, error) {
