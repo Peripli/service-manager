@@ -92,12 +92,13 @@ type FakeStorage struct {
 	introduceArgsForCall []struct {
 		arg1 storage.Entity
 	}
-	ListStub        func(context.Context, types.ObjectType, ...query.Criterion) (types.ObjectList, error)
+	ListStub        func(context.Context, types.ObjectType, []storage.ListCriteria, ...query.Criterion) (types.ObjectList, error)
 	listMutex       sync.RWMutex
 	listArgsForCall []struct {
 		arg1 context.Context
 		arg2 types.ObjectType
-		arg3 []query.Criterion
+		arg3 []storage.ListCriteria
+		arg4 []query.Criterion
 	}
 	listReturns struct {
 		result1 types.ObjectList
@@ -547,18 +548,24 @@ func (fake *FakeStorage) IntroduceArgsForCall(i int) storage.Entity {
 	return argsForCall.arg1
 }
 
-func (fake *FakeStorage) List(arg1 context.Context, arg2 types.ObjectType, arg3 ...query.Criterion) (types.ObjectList, error) {
+func (fake *FakeStorage) List(arg1 context.Context, arg2 types.ObjectType, arg3 []storage.ListCriteria, arg4 ...query.Criterion) (types.ObjectList, error) {
+	var arg3Copy []storage.ListCriteria
+	if arg3 != nil {
+		arg3Copy = make([]storage.ListCriteria, len(arg3))
+		copy(arg3Copy, arg3)
+	}
 	fake.listMutex.Lock()
 	ret, specificReturn := fake.listReturnsOnCall[len(fake.listArgsForCall)]
 	fake.listArgsForCall = append(fake.listArgsForCall, struct {
 		arg1 context.Context
 		arg2 types.ObjectType
-		arg3 []query.Criterion
-	}{arg1, arg2, arg3})
-	fake.recordInvocation("List", []interface{}{arg1, arg2, arg3})
+		arg3 []storage.ListCriteria
+		arg4 []query.Criterion
+	}{arg1, arg2, arg3Copy, arg4})
+	fake.recordInvocation("List", []interface{}{arg1, arg2, arg3Copy, arg4})
 	fake.listMutex.Unlock()
 	if fake.ListStub != nil {
-		return fake.ListStub(arg1, arg2, arg3...)
+		return fake.ListStub(arg1, arg2, arg3, arg4...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -573,17 +580,17 @@ func (fake *FakeStorage) ListCallCount() int {
 	return len(fake.listArgsForCall)
 }
 
-func (fake *FakeStorage) ListCalls(stub func(context.Context, types.ObjectType, ...query.Criterion) (types.ObjectList, error)) {
+func (fake *FakeStorage) ListCalls(stub func(context.Context, types.ObjectType, []storage.ListCriteria, ...query.Criterion) (types.ObjectList, error)) {
 	fake.listMutex.Lock()
 	defer fake.listMutex.Unlock()
 	fake.ListStub = stub
 }
 
-func (fake *FakeStorage) ListArgsForCall(i int) (context.Context, types.ObjectType, []query.Criterion) {
+func (fake *FakeStorage) ListArgsForCall(i int) (context.Context, types.ObjectType, []storage.ListCriteria, []query.Criterion) {
 	fake.listMutex.RLock()
 	defer fake.listMutex.RUnlock()
 	argsForCall := fake.listArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
 }
 
 func (fake *FakeStorage) ListReturns(result1 types.ObjectList, result2 error) {

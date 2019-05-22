@@ -201,12 +201,11 @@ func (ps *PostgresStorage) List(ctx context.Context, objType types.ObjectType, l
 		return nil, err
 	}
 
-	qBuilder := newQueryBuilder(ps.pgDB)
-	sql, params, err := qBuilder.List(entity).WithCriteria(criteria...).WithLock().Build()
+	qBuilder := newQueryBuilder(ps.pgDB, entity)
+	rows, err := qBuilder.WithCriteria(criteria...).WithLock().OrderBy("created_at").List(ctx)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := ps.pgDB.QueryxContext(ctx, sql, params...)
 
 	// rows, err := listWithLabelsByCriteria(ctx, ps.pgDB, entity, entity.LabelEntity(), entity.TableName(), listCriterias, criteria)
 	defer func() {

@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strings"
@@ -21,25 +22,27 @@ type QueryBuilder struct {
 	SQL         string
 	queryParams []interface{}
 
-	operation QueryOperation
-	entity    PostgresEntity
-	criteria  []query.Criterion
+	entity                       PostgresEntity
+	labelCriteria, fieldCriteria []query.Criterion
+	orderBy                      []string
+	criteria                     []query.Criterion
+
+	hasLock bool
 
 	err error
 }
 
-func newQueryBuilder(db pgDB) *QueryBuilder {
+func newQueryBuilder(db pgDB, entity PostgresEntity) *QueryBuilder {
 	return &QueryBuilder{
-		db: db,
+		db:     db,
+		entity: entity,
 	}
 }
 
-func (qb *QueryBuilder) List(entity PostgresEntity) *QueryBuilder {
-	if qb.operation != "" {
-		panic(fmt.Errorf("operation already set (%s)", qb.operation))
+func (qb *QueryBuilder) List(ctx context.Context) (*sqlx.Rows, error) {
+	if qb.err != nil {
+		return nil, qb.err
 	}
-	qb.operation = ListOperation
-	qb.entity = entity
 
 	baseTableName := qb.entity.TableName()
 	var baseQuery string
@@ -50,7 +53,32 @@ func (qb *QueryBuilder) List(entity PostgresEntity) *QueryBuilder {
 		baseQuery = constructBaseQueryForLabelable(label, baseTableName)
 	}
 	qb.SQL = baseQuery
-	return qb
+
+	qb.withLabelCriteria(qb.labelCriteria).withFieldCriteria(qb.fieldCriteria)
+	if qb.err != nil {
+		return nil, qb.err
+	}
+
+	if hasMultiVariateOp(qb.criteria) {
+		var err error
+		// sqlx.In requires question marks(?) instead of positional arguments (the ones pgsql uses) in order to map the list argument to the IN operation
+		if qb.SQL, qb.queryParams, err = sqlx.In(qb.SQL, qb.queryParams...); err != nil {
+			qb.err = err
+			return nil, err
+		}
+	}
+	qb.SQL = qb.db.Rebind(qb.SQL)
+
+	if len(qb.orderBy) > 0 {
+		orderFields := strings.Join(qb.orderBy, ",")
+		qb.SQL += fmt.Sprintf(" ORDER BY %s", orderFields)
+	}
+
+	qb.addLock()
+
+	qb.SQL += ";"
+
+	return qb.db.QueryxContext(ctx, qb.SQL, qb.queryParams...)
 }
 
 func (qb *QueryBuilder) WithCriteria(criteria ...query.Criterion) *QueryBuilder {
@@ -61,32 +89,28 @@ func (qb *QueryBuilder) WithCriteria(criteria ...query.Criterion) *QueryBuilder 
 	if len(criteria) == 0 {
 		return qb
 	}
-	qb.criteria = criteria
 
-	if err := validateFieldQueryParams(getDBTags(qb.entity, nil), qb.criteria); err != nil {
-		// TODO: Fix error handling
-		qb.err = err
-		return qb
-		// panic(err)
+	if qb.criteria == nil {
+		qb.criteria = criteria
+	} else {
+		qb.criteria = append(qb.criteria, criteria...)
 	}
 
-	labelCriteria, fieldCriteria := splitCriteriaByType(criteria)
-	qb.withLabelCriteria(labelCriteria).withFieldCriteria(fieldCriteria)
+	if err := validateFieldQueryParams(getDBTags(qb.entity, nil), qb.criteria); err != nil {
+		qb.err = err
+		return qb
+	}
+
+	qb.labelCriteria, qb.fieldCriteria = splitCriteriaByType(criteria)
+
+	return qb
+}
+
+func (qb *QueryBuilder) OrderBy(fieldsNames ...string) *QueryBuilder {
 	if qb.err != nil {
 		return qb
 	}
-
-	if hasMultiVariateOp(criteria) {
-		var err error
-		// sqlx.In requires question marks(?) instead of positional arguments (the ones pgsql uses) in order to map the list argument to the IN operation
-		if qb.SQL, qb.queryParams, err = sqlx.In(qb.SQL, qb.queryParams...); err != nil {
-			qb.err = err
-			return qb
-		}
-	}
-
-	qb.SQL = qb.db.Rebind(qb.SQL)
-
+	qb.orderBy = append(qb.orderBy, fieldsNames...)
 	return qb
 }
 
@@ -94,13 +118,19 @@ func (qb *QueryBuilder) WithLock() *QueryBuilder {
 	if qb.err != nil {
 		return qb
 	}
-	// Lock the rows if we are in transaction so that update operations on those rows can rely on unchanged data
-	// This allows us to handle concurrent updates on the same rows by executing them sequentially as
-	// before updating we have to anyway select the rows and can therefore lock them
 	if _, ok := qb.db.(*sqlx.Tx); ok {
-		qb.SQL += fmt.Sprintf(" FOR SHARE of %s;", qb.entity.TableName())
+		qb.hasLock = true
 	}
 	return qb
+}
+
+func (qb *QueryBuilder) addLock() {
+	if qb.hasLock {
+		// Lock the rows if we are in transaction so that update operations on those rows can rely on unchanged data
+		// This allows us to handle concurrent updates on the same rows by executing them sequentially as
+		// before updating we have to anyway select the rows and can therefore lock them
+		qb.SQL += fmt.Sprintf(" FOR SHARE of %s", qb.entity.TableName())
+	}
 }
 
 func (qb *QueryBuilder) withLabelCriteria(criteria []query.Criterion) *QueryBuilder {
@@ -163,13 +193,4 @@ func (qb *QueryBuilder) withFieldCriteria(criteria []query.Criterion) *QueryBuil
 		qb.SQL += strings.Join(fieldQueries, " AND ")
 	}
 	return qb
-}
-
-func (qb *QueryBuilder) Build() (string, []interface{}, error) {
-	// qb.SQL += ";"
-	if qb.err != nil {
-		return "", nil, qb.err
-	}
-
-	return qb.SQL, qb.queryParams, nil
 }
