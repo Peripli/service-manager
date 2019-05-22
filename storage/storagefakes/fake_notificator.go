@@ -26,10 +26,10 @@ type FakeNotificator struct {
 		result2 int64
 		result3 error
 	}
-	RegisterFilterStub        func(storage.NotificationFilterFunc)
+	RegisterFilterStub        func(storage.ReceiversFilterFunc)
 	registerFilterMutex       sync.RWMutex
 	registerFilterArgsForCall []struct {
-		arg1 storage.NotificationFilterFunc
+		arg1 storage.ReceiversFilterFunc
 	}
 	StartStub        func(context.Context, *sync.WaitGroup) error
 	startMutex       sync.RWMutex
@@ -125,10 +125,10 @@ func (fake *FakeNotificator) RegisterConsumerReturnsOnCall(i int, result1 storag
 	}{result1, result2, result3}
 }
 
-func (fake *FakeNotificator) RegisterFilter(arg1 storage.NotificationFilterFunc) {
+func (fake *FakeNotificator) RegisterFilter(arg1 storage.ReceiversFilterFunc) {
 	fake.registerFilterMutex.Lock()
 	fake.registerFilterArgsForCall = append(fake.registerFilterArgsForCall, struct {
-		arg1 storage.NotificationFilterFunc
+		arg1 storage.ReceiversFilterFunc
 	}{arg1})
 	fake.recordInvocation("RegisterFilter", []interface{}{arg1})
 	fake.registerFilterMutex.Unlock()
@@ -143,13 +143,13 @@ func (fake *FakeNotificator) RegisterFilterCallCount() int {
 	return len(fake.registerFilterArgsForCall)
 }
 
-func (fake *FakeNotificator) RegisterFilterCalls(stub func(storage.NotificationFilterFunc)) {
+func (fake *FakeNotificator) RegisterFilterCalls(stub func(storage.ReceiversFilterFunc)) {
 	fake.registerFilterMutex.Lock()
 	defer fake.registerFilterMutex.Unlock()
 	fake.RegisterFilterStub = stub
 }
 
-func (fake *FakeNotificator) RegisterFilterArgsForCall(i int) storage.NotificationFilterFunc {
+func (fake *FakeNotificator) RegisterFilterArgsForCall(i int) storage.ReceiversFilterFunc {
 	fake.registerFilterMutex.RLock()
 	defer fake.registerFilterMutex.RUnlock()
 	argsForCall := fake.registerFilterArgsForCall[i]

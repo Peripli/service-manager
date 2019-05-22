@@ -241,14 +241,14 @@ type Notificator interface {
 	// Notifications after lastKnownRevision will be added to the queue.
 	// If lastKnownRevision is -1 no previous notifications will be sent.
 	// When consumer wants to stop listening for notifications it must unregister the notification queue.
-	RegisterConsumer(platform *types.Platform, lastKnownRevision int64) (NotificationQueue, int64, error)
+	RegisterConsumer(consumer *types.Platform, lastKnownRevision int64) (NotificationQueue, int64, error)
 
 	// UnregisterConsumer must be called to stop receiving notifications in the queue
 	UnregisterConsumer(queue NotificationQueue) error
 
 	// RegisterFilter adds a new filter which decides if a platform should receive given notification
-	RegisterFilter(f NotificationFilterFunc)
+	RegisterFilter(f ReceiversFilterFunc)
 }
 
-// NotificationFilterFunc filters recipients for a given notifications
-type NotificationFilterFunc func(recipients []*types.Platform, notification *types.Notification) (filteredRecipients []*types.Platform)
+// ReceiversFilterFunc filters recipients for a given notifications
+type ReceiversFilterFunc func(recipients []*types.Platform, notification *types.Notification) (filteredRecipients []*types.Platform)

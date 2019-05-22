@@ -256,7 +256,7 @@ func newOSBClient(skipSsl bool) osbc.CreateFunc {
 	}
 }
 
-func (smb *ServiceManagerBuilder) RegisterNotificationFilter(filterFunc storage.NotificationFilterFunc) {
+func (smb *ServiceManagerBuilder) RegisterNotificationReceiversFilter(filterFunc storage.ReceiversFilterFunc) {
 	smb.Notificator.RegisterFilter(filterFunc)
 }
 

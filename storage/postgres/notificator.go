@@ -53,7 +53,7 @@ type Notificator struct {
 	storage           notificationStorage
 	connectionCreator notificationConnectionCreator
 
-	notificationFilters []storage.NotificationFilterFunc
+	notificationFilters []storage.ReceiversFilterFunc
 
 	ctx context.Context
 
@@ -116,7 +116,7 @@ func (n *Notificator) addConsumer(platform *types.Platform, queue storage.Notifi
 	return atomic.LoadInt64(&n.lastKnownRevision)
 }
 
-func (n *Notificator) RegisterConsumer(platform *types.Platform, lastKnownRevision int64) (storage.NotificationQueue, int64, error) {
+func (n *Notificator) RegisterConsumer(consumer *types.Platform, lastKnownRevision int64) (storage.NotificationQueue, int64, error) {
 	if atomic.LoadInt32(&n.isConnected) == aFalse {
 		return nil, types.InvalidRevision, errors.New("cannot register consumer - Notificator is not running")
 	}
@@ -127,15 +127,25 @@ func (n *Notificator) RegisterConsumer(platform *types.Platform, lastKnownRevisi
 	if err = n.startListening(); err != nil {
 		return nil, types.InvalidRevision, fmt.Errorf("listen to %s channel failed %v", postgresChannel, err)
 	}
-	lastKnownRevisionToSM := n.addConsumer(platform, queue)
+	lastKnownRevisionToSM := n.addConsumer(consumer, queue)
 	if lastKnownRevision == types.InvalidRevision {
 		return queue, lastKnownRevisionToSM, nil
 	}
-	queueWithMissedNotifications, err := n.replaceQueueWithMissingNotificationsQueue(queue, lastKnownRevision, lastKnownRevisionToSM, platform)
-	if err != nil {
-		if errUnregisterConsumer := n.UnregisterConsumer(queue); errUnregisterConsumer != nil {
-			log.C(n.ctx).WithError(errUnregisterConsumer).Errorf("Could not unregister notification consumer %s", queue.ID())
+	defer func() {
+		if err != nil {
+			if errUnregisterConsumer := n.UnregisterConsumer(queue); errUnregisterConsumer != nil {
+				log.C(n.ctx).WithError(errUnregisterConsumer).Errorf("Could not unregister notification consumer %s", queue.ID())
+			}
 		}
+	}()
+	if lastKnownRevision > lastKnownRevisionToSM {
+		log.C(n.ctx).Debug("lastKnownRevision is grater than the one SM knows")
+		err = util.ErrInvalidNotificationRevision
+		return nil, types.InvalidRevision, err
+	}
+	var queueWithMissedNotifications storage.NotificationQueue
+	queueWithMissedNotifications, err = n.replaceQueueWithMissingNotificationsQueue(queue, lastKnownRevision, lastKnownRevisionToSM, consumer)
+	if err != nil {
 		return nil, types.InvalidRevision, err
 	}
 	return queueWithMissedNotifications, lastKnownRevisionToSM, nil
@@ -152,10 +162,6 @@ func (n *Notificator) filterRecipients(recipients []*types.Platform, notificatio
 }
 
 func (n *Notificator) replaceQueueWithMissingNotificationsQueue(queue storage.NotificationQueue, lastKnownRevision, lastKnownRevisionToSM int64, platform *types.Platform) (storage.NotificationQueue, error) {
-	if lastKnownRevision > lastKnownRevisionToSM {
-		log.C(n.ctx).Debug("lastKnownRevision is grater than the one SM knows")
-		return nil, util.ErrInvalidNotificationRevision
-	}
 	if _, err := n.storage.GetNotificationByRevision(n.ctx, lastKnownRevision); err != nil {
 		if err == util.ErrNotFoundInStorage {
 			log.C(n.ctx).WithError(err).Debugf("notification with revision %d not found in storage", lastKnownRevision)
@@ -169,9 +175,8 @@ func (n *Notificator) replaceQueueWithMissingNotificationsQueue(queue storage.No
 		return nil, err
 	}
 	filteredMissedNotification := make([]*types.Notification, 0, len(missedNotifications))
-	var recipients []*types.Platform
 	for _, notification := range missedNotifications {
-		recipients = n.filterRecipients([]*types.Platform{platform}, notification)
+		recipients := n.filterRecipients([]*types.Platform{platform}, notification)
 		if len(recipients) != 0 {
 			filteredMissedNotification = append(filteredMissedNotification, notification)
 		}
@@ -224,7 +229,7 @@ func (n *Notificator) UnregisterConsumer(queue storage.NotificationQueue) error 
 }
 
 // RegisterFilter adds new notification filter. It must not be called concurrently.
-func (n *Notificator) RegisterFilter(f storage.NotificationFilterFunc) {
+func (n *Notificator) RegisterFilter(f storage.ReceiversFilterFunc) {
 	n.notificationFilters = append(n.notificationFilters, f)
 }
 

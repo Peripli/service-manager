@@ -81,7 +81,6 @@ func (ns *notificationStorageImpl) GetNotification(ctx context.Context, id strin
 }
 
 func (ns *notificationStorageImpl) ListNotifications(ctx context.Context, platformID string, from, to int64) ([]*types.Notification, error) {
-	// TODO: replace with less than or equal operator when available
 	listQuery1 := query.ByField(query.GreaterThanOperator, "revision", strconv.FormatInt(from, 10))
 	listQuery2 := query.ByField(query.LessThanOperator, "revision", strconv.FormatInt(to+1, 10))
 
@@ -91,7 +90,6 @@ func (ns *notificationStorageImpl) ListNotifications(ctx context.Context, platfo
 		return nil, err
 	}
 	notificationsList := objectList.(*types.Notifications)
-	// TODO: Should be done in the database with order by
 	sort.Slice(notificationsList.Notifications, func(i, j int) bool {
 		return notificationsList.Notifications[i].Revision < notificationsList.Notifications[j].Revision
 	})
