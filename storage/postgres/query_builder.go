@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/Peripli/service-manager/storage"
+
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/jmoiron/sqlx"
 )
@@ -24,7 +26,8 @@ type QueryBuilder struct {
 
 	entity                       PostgresEntity
 	labelCriteria, fieldCriteria []query.Criterion
-	orderBy                      []string
+	orderByCriteria              storage.ListCriteria
+	limitCriteria                storage.ListCriteria
 	criteria                     []query.Criterion
 
 	hasLock bool
@@ -69,16 +72,27 @@ func (qb *QueryBuilder) List(ctx context.Context) (*sqlx.Rows, error) {
 	}
 	qb.SQL = qb.db.Rebind(qb.SQL)
 
-	if len(qb.orderBy) > 0 {
-		orderFields := strings.Join(qb.orderBy, ",")
-		qb.SQL += fmt.Sprintf(" ORDER BY %s", orderFields)
-	}
-
-	qb.addLock()
-
+	qb.buildOrderBy().addLock()
 	qb.SQL += ";"
 
 	return qb.db.QueryxContext(ctx, qb.SQL, qb.queryParams...)
+}
+
+func (qb *QueryBuilder) WithListCriteria(criteria ...storage.ListCriteria) *QueryBuilder {
+	if qb.err != nil {
+		return qb
+	}
+
+	for _, c := range criteria {
+		if c.Type == storage.OrderByCriteriaType {
+			qb.orderByCriteria = c
+		}
+		if c.Type == storage.LimitCriteriaType {
+			qb.limitCriteria = c
+		}
+	}
+
+	return qb
 }
 
 func (qb *QueryBuilder) WithCriteria(criteria ...query.Criterion) *QueryBuilder {
@@ -90,11 +104,7 @@ func (qb *QueryBuilder) WithCriteria(criteria ...query.Criterion) *QueryBuilder 
 		return qb
 	}
 
-	if qb.criteria == nil {
-		qb.criteria = criteria
-	} else {
-		qb.criteria = append(qb.criteria, criteria...)
-	}
+	qb.criteria = append(qb.criteria, criteria...)
 
 	if err := validateFieldQueryParams(getDBTags(qb.entity, nil), qb.criteria); err != nil {
 		qb.err = err
@@ -103,14 +113,6 @@ func (qb *QueryBuilder) WithCriteria(criteria ...query.Criterion) *QueryBuilder 
 
 	qb.labelCriteria, qb.fieldCriteria = splitCriteriaByType(criteria)
 
-	return qb
-}
-
-func (qb *QueryBuilder) OrderBy(fieldsNames ...string) *QueryBuilder {
-	if qb.err != nil {
-		return qb
-	}
-	qb.orderBy = append(qb.orderBy, fieldsNames...)
 	return qb
 }
 
@@ -124,13 +126,22 @@ func (qb *QueryBuilder) WithLock() *QueryBuilder {
 	return qb
 }
 
-func (qb *QueryBuilder) addLock() {
+func (qb *QueryBuilder) buildOrderBy() *QueryBuilder {
+	if len(qb.orderByCriteria.Parameters) > 0 {
+		orderFields := strings.Join(qb.orderByCriteria.Parameters, ",")
+		qb.SQL += fmt.Sprintf(" ORDER BY %s", orderFields)
+	}
+	return qb
+}
+
+func (qb *QueryBuilder) addLock() *QueryBuilder {
 	if qb.hasLock {
 		// Lock the rows if we are in transaction so that update operations on those rows can rely on unchanged data
 		// This allows us to handle concurrent updates on the same rows by executing them sequentially as
 		// before updating we have to anyway select the rows and can therefore lock them
 		qb.SQL += fmt.Sprintf(" FOR SHARE of %s", qb.entity.TableName())
 	}
+	return qb
 }
 
 func (qb *QueryBuilder) withLabelCriteria(criteria []query.Criterion) *QueryBuilder {

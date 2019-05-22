@@ -195,14 +195,24 @@ func (ps *PostgresStorage) Get(ctx context.Context, objectType types.ObjectType,
 	return result.ItemAt(0), nil
 }
 
+func defaultListCriterias() []storage.ListCriteria {
+	return []storage.ListCriteria{
+		storage.ListCriteria{
+			Type:       storage.OrderByCriteriaType,
+			Parameters: []string{"created_at"},
+		},
+	}
+}
+
 func (ps *PostgresStorage) List(ctx context.Context, objType types.ObjectType, listCriterias []storage.ListCriteria, criteria ...query.Criterion) (types.ObjectList, error) {
 	entity, err := ps.scheme.provide(objType)
 	if err != nil {
 		return nil, err
 	}
 
+	listCriterias = append(listCriterias, defaultListCriterias()...)
 	qBuilder := newQueryBuilder(ps.pgDB, entity)
-	rows, err := qBuilder.WithCriteria(criteria...).WithLock().OrderBy("created_at").List(ctx)
+	rows, err := qBuilder.WithCriteria(criteria...).WithLock().WithListCriteria(listCriterias...).List(ctx)
 	if err != nil {
 		return nil, err
 	}

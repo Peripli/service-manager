@@ -153,14 +153,13 @@ func (mf PingFunc) Ping() error {
 type ListCriteriaType string
 
 const (
-	OrderBy ListCriteriaType = "orderBy"
+	OrderByCriteriaType ListCriteriaType = "orderBy"
 
-	Limit ListCriteriaType = "limit"
+	LimitCriteriaType ListCriteriaType = "limit"
 )
 
 type ListCriteria struct {
-	PreParameters  []string
-	PostParameters []string
+	Parameters  []string
 	Type           ListCriteriaType
 }
 
