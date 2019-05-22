@@ -179,6 +179,28 @@ var _ = Describe("Postgres Storage Abstract", func() {
 				Expect(queryArgs).To(ConsistOf(queryValue, labelKey, labelValue))
 			})
 		})
+
+		Context("When using equals or operator", func() {
+			It("with number entity field should build query without db cast to text", func() {
+				fieldName := "revision"
+				queryValueMin := "1"
+				queryValueMax := "10"
+				labelEntity := &NotificationLabel{}
+				labelTableName = labelEntity.LabelsTableName()
+				referenceColumnName, primaryColumnName := labelEntity.ReferenceColumn(), labelEntity.LabelsPrimaryColumn()
+				expectedQuery := fmt.Sprintf(`SELECT %[1]s.*, %[2]s.id "%[2]s.id", %[2]s.key "%[2]s.key", %[2]s.val "%[2]s.val", %[2]s.created_at "%[2]s.created_at", %[2]s.updated_at "%[2]s.updated_at", %[2]s.%[4]s "%[2]s.%[4]s" FROM table_name LEFT JOIN %[2]s ON %[1]s.%[5]s = %[2]s.%[4]s WHERE %[1]s.%[3]s >= ? AND %[1]s.%[3]s <= ? ORDER BY created_at;`, baseTable, labelTableName, fieldName, referenceColumnName, primaryColumnName)
+				criteria := []query.Criterion{
+					query.ByField(query.GreaterThanOrEqualOperator, fieldName, queryValueMin),
+					query.ByField(query.LessThanOrEqualOperator, fieldName, queryValueMax),
+				}
+
+				rows, err := listWithLabelsByCriteria(ctx, db, Notification{}, &NotificationLabel{}, baseTable, criteria)
+				Expect(rows).ToNot(BeNil())
+				Expect(err).ToNot(HaveOccurred())
+				Expect(executedQuery).To(Equal(expectedQuery))
+				Expect(queryArgs).To(ConsistOf(queryValueMin, queryValueMax))
+			})
+		})
 	})
 	Describe("List by field criteria", func() {
 		Context("When passing no criteria", func() {

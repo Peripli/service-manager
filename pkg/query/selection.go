@@ -63,7 +63,7 @@ func (op Operator) IsNullable() bool {
 
 // IsNumeric returns true if the operator works only with numeric operands
 func (op Operator) IsNumeric() bool {
-	return op == LessThanOperator || op == GreaterThanOperator
+	return op == LessThanOperator || op == GreaterThanOperator || op == LessThanOrEqualOperator || op == GreaterThanOrEqualOperator
 }
 
 var operators = []Operator{EqualsOperator, NotEqualsOperator, InOperator,
