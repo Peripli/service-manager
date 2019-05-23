@@ -110,13 +110,11 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	log.C(ctx).Info("Setting up Service Manager storage...")
 
 	waitGroup := &sync.WaitGroup{}
-	encrypter := &security.AESEncrypter{}
 
 	smStorage := &postgres.Storage{
 		ConnectFunc: func(driver string, url string) (*sql.DB, error) {
 			return sql.Open(driver, url)
 		},
-		Encrypter: encrypter,
 	}
 
 	// Initialize the storage with graceful termination
@@ -125,7 +123,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	}
 
 	// Decorate the storage with credentials ecryption/decryption
-	encryptingRepository, err := storage.NewEncryptingRepository(ctx, smStorage, encrypter)
+	encryptingRepository, err := storage.NewEncryptingRepository(ctx, smStorage, &security.AESEncrypter{})
 	if err != nil {
 		panic(fmt.Sprintf("error setting up encrypting repository: %s", err))
 	}
