@@ -155,6 +155,7 @@ func (er *EncryptingRepository) setupEncryptionKey(ctx context.Context) error {
 			return fmt.Errorf("could not generate encryption key: %v", err)
 		}
 
+		encryptionKey = newEncryptionKey
 		if err = er.repository.SetEncryptionKey(ctx, newEncryptionKey, er.encrypter.Encrypt); err != nil {
 			return err
 		}
