@@ -28,8 +28,6 @@ import (
 	apiNotifications "github.com/Peripli/service-manager/api/notifications"
 
 	"github.com/Peripli/service-manager/api/filters"
-	"github.com/Peripli/service-manager/api/filters/authn/basic"
-	"github.com/Peripli/service-manager/api/filters/authn/oauth"
 	"github.com/Peripli/service-manager/api/info"
 	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/pkg/health"
@@ -73,7 +71,7 @@ type Options struct {
 
 // New returns the minimum set of REST APIs needed for the Service Manager
 func New(ctx context.Context, options *Options) (*web.API, error) {
-	bearerAuthnFilter, err := oauth.NewFilter(ctx, options.APISettings.TokenIssuerURL, options.APISettings.ClientID)
+	bearerAuthnFilter, err := filters.NewOIDCAuthnFilter(ctx, options.APISettings.TokenIssuerURL, options.APISettings.ClientID)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +106,7 @@ func New(ctx context.Context, options *Options) (*web.API, error) {
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
 			&filters.Logging{},
-			basic.NewFilter(options.Repository),
+			filters.NewBasicAuthnFilter(options.Repository),
 			bearerAuthnFilter,
 			secfilters.NewRequiredAuthnFilter(),
 			&filters.SelectionCriteria{},

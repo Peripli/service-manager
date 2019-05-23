@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
-package basic
+package filters
 
 import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/Peripli/service-manager/pkg/security/filters"
 
 	"github.com/Peripli/service-manager/pkg/types"
 
@@ -31,6 +33,14 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
+const BasicAuthnFilterName string = "BearerAuthnFilter"
+
+func NewBasicAuthnFilter(repository storage.Repository) *filters.AuthenticationFilter {
+	return filters.NewAuthenticationFilter(&basicAuthenticator{
+		Repository: repository,
+	}, BasicAuthnFilterName, basicAuthnMatchers())
+}
+
 type basicAuthnData struct {
 	data json.RawMessage
 }
@@ -41,7 +51,7 @@ func (bad *basicAuthnData) Data(v interface{}) error {
 
 // basicAuthenticator for basic security
 type basicAuthenticator struct {
-	Repostiory storage.Repository
+	Repository storage.Repository
 }
 
 // Authenticate authenticates by using the provided Basic credentials
@@ -53,13 +63,13 @@ func (a *basicAuthenticator) Authenticate(request *http.Request) (*web.UserConte
 
 	ctx := request.Context()
 	byUsername := query.ByField(query.EqualsOperator, "username", username)
-	objectList, err := a.Repostiory.List(ctx, types.PlatformType, byUsername)
+	objectList, err := a.Repository.List(ctx, types.PlatformType, byUsername)
 	if err != nil {
 		return nil, httpsec.Abstain, fmt.Errorf("could not get credentials entity from storage: %s", err)
 	}
 
 	if objectList.Len() != 1 {
-		return nil, httpsec.Deny, fmt.Errorf("found %d platforms matching username %s. Expected 1", objectList.Len(), username)
+		return nil, httpsec.Deny, fmt.Errorf("provided credentials are invalid")
 	}
 
 	obj := objectList.ItemAt(0)
@@ -83,4 +93,50 @@ func (a *basicAuthenticator) Authenticate(request *http.Request) (*web.UserConte
 		},
 		Name: username,
 	}, httpsec.Allow, nil
+}
+
+func basicAuthnMatchers() []web.FilterMatcher {
+	return []web.FilterMatcher{
+		{
+			Matchers: []web.Matcher{
+				web.Path(web.OSBURL + "/**"),
+			},
+		},
+		{
+			Matchers: []web.Matcher{
+				web.Methods(http.MethodGet),
+				web.Path(web.PlatformsURL + "/**"),
+			},
+		},
+		{
+			Matchers: []web.Matcher{
+				web.Methods(http.MethodGet),
+				web.Path(web.ServiceBrokersURL + "/**"),
+			},
+		},
+		{
+			Matchers: []web.Matcher{
+				web.Methods(http.MethodGet),
+				web.Path(web.ServiceOfferingsURL + "/**"),
+			},
+		},
+		{
+			Matchers: []web.Matcher{
+				web.Methods(http.MethodGet),
+				web.Path(web.ServicePlansURL + "/**"),
+			},
+		},
+		{
+			Matchers: []web.Matcher{
+				web.Methods(http.MethodGet),
+				web.Path(web.VisibilitiesURL + "/**"),
+			},
+		},
+		{
+			Matchers: []web.Matcher{
+				web.Methods(http.MethodGet),
+				web.Path(web.NotificationsURL + "/**"),
+			},
+		},
+	}
 }
