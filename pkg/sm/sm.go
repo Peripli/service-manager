@@ -19,9 +19,12 @@ package sm
 import (
 	"context"
 	"crypto/tls"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"sync"
+
+	"github.com/Peripli/service-manager/pkg/security"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage/interceptors"
@@ -107,16 +110,28 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	log.C(ctx).Info("Setting up Service Manager storage...")
 
 	waitGroup := &sync.WaitGroup{}
+	smStorage := &postgres.Storage{
+		ConnectFunc: func(driver string, url string) (*sql.DB, error) {
+			return sql.Open(driver, url)
+		},
+	}
 
-	var smStorage storage.Storage
-	smStorage = &postgres.PostgresStorage{}
+	// Initialize the storage with graceful termination
 	if err := storage.InitializeWithSafeTermination(ctx, smStorage, cfg.Storage, waitGroup); err != nil {
 		panic(fmt.Sprintf("error opening storage: %s", err))
 	}
 
+	// Decorate the storage with credentials ecryption/decryption
+	encryptingRepository, err := storage.NewEncryptingRepository(ctx, smStorage, &security.AESEncrypter{})
+	if err != nil {
+		panic(fmt.Sprintf("error setting up encrypting repository: %s", err))
+	}
+
+	// Decorate the storage with transactional interceptors
+	interceptableRepository := storage.NewInterceptableTransactionalRepository(encryptingRepository)
+
 	// setup core api
 	log.C(ctx).Info("Setting up Service Manager core API...")
-	interceptableRepository := storage.NewInterceptableTransactionalRepository(smStorage)
 
 	pgNotificator, err := postgres.NewNotificator(smStorage, cfg.Storage)
 	if err != nil {
@@ -161,7 +176,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 		WithDeleteInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerDeleteCatalogInterceptorProvider{
 			OsbClientCreateFunc: newOSBClient(cfg.API.SkipSSLValidation),
 		}).Register().
-		WithCreateInterceptorProvider(types.PlatformType, &interceptors.PlatformCreateInterceptorProvider{}).Register().
+		WithCreateInterceptorProvider(types.PlatformType, &interceptors.GenerateCredentialsInterceptorProvider{}).Register().
 		WithCreateInterceptorProvider(types.VisibilityType, &interceptors.VisibilityCreateNotificationsInterceptorProvider{}).Register().
 		WithUpdateInterceptorProvider(types.VisibilityType, &interceptors.VisibilityUpdateNotificationsInterceptorProvider{}).Register().
 		WithDeleteInterceptorProvider(types.VisibilityType, &interceptors.VisibilityDeleteNotificationsInterceptorProvider{}).Register().
@@ -190,8 +205,8 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 }
 
 func (smb *ServiceManagerBuilder) installHealth() {
-	if len(smb.HealthIndicators()) > 0 {
-		smb.RegisterControllers(healthcheck.NewController(smb.HealthIndicators(), smb.HealthAggregationPolicy()))
+	if len(smb.HealthIndicators) > 0 {
+		smb.RegisterControllers(healthcheck.NewController(smb.HealthIndicators, smb.HealthAggregationPolicy))
 	}
 }
 

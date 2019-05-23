@@ -22,8 +22,6 @@ import (
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/query"
-
-	"github.com/Peripli/service-manager/pkg/security"
 )
 
 const securityLockIndex = 111
@@ -37,7 +35,9 @@ type Safe struct {
 
 // Lock acquires a database lock so that only one process can manipulate the encryption key.
 // Returns an error if the process has already acquired the lock
-func (s *PostgresStorage) Lock(ctx context.Context) error {
+func (s *Storage) Lock(ctx context.Context) error {
+	s.checkOpen()
+
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	if s.isLocked {
@@ -47,11 +47,14 @@ func (s *PostgresStorage) Lock(ctx context.Context) error {
 		return err
 	}
 	s.isLocked = true
+
 	return nil
 }
 
 // Unlock releases the database lock.
-func (s *PostgresStorage) Unlock(ctx context.Context) error {
+func (s *Storage) Unlock(ctx context.Context) error {
+	s.checkOpen()
+
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	if !s.isLocked {
@@ -62,11 +65,14 @@ func (s *PostgresStorage) Unlock(ctx context.Context) error {
 		return err
 	}
 	s.isLocked = false
+
 	return nil
 }
 
 // GetEncryptionKey returns the encryption key used to encrypt the credentials for brokers
-func (s *PostgresStorage) GetEncryptionKey(ctx context.Context) ([]byte, error) {
+func (s *Storage) GetEncryptionKey(ctx context.Context, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) ([]byte, error) {
+	s.checkOpen()
+
 	safe := &Safe{}
 	rows, err := listByFieldCriteria(ctx, s.db, "safe", []query.Criterion{})
 	defer closeRows(ctx, rows)
@@ -82,12 +88,15 @@ func (s *PostgresStorage) GetEncryptionKey(ctx context.Context) ([]byte, error) 
 		return []byte{}, nil
 	}
 	encryptedKey := []byte(safe.Secret)
-	return security.Decrypt(encryptedKey, s.encryptionKey)
+
+	return transformationFunc(ctx, encryptedKey, s.layerOneEncryptionKey)
 }
 
 // SetEncryptionKey Sets the encryption key by encrypting it beforehand with the encryption key in the environment
-func (k *PostgresStorage) SetEncryptionKey(ctx context.Context, key []byte) error {
-	rows, err := listByFieldCriteria(ctx, k.db, "safe", []query.Criterion{})
+func (s *Storage) SetEncryptionKey(ctx context.Context, key []byte, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) error {
+	s.checkOpen()
+
+	rows, err := listByFieldCriteria(ctx, s.db, "safe", []query.Criterion{})
 	defer closeRows(ctx, rows)
 	if err != nil {
 		return err
@@ -101,15 +110,16 @@ func (k *PostgresStorage) SetEncryptionKey(ctx context.Context, key []byte) erro
 			return fmt.Errorf("encryption key is already set")
 		}
 	}
-	bytes, err := security.Encrypt(key, k.encryptionKey)
+	bytes, err := transformationFunc(ctx, key, s.layerOneEncryptionKey)
 	if err != nil {
 		return err
 	}
-	safe := Safe{
+
+	err = create(ctx, s.db, "safe", &Safe{}, Safe{
 		Secret:    bytes,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
-	}
-	_, err = create(ctx, k.db, "safe", safe)
+	})
+
 	return err
 }

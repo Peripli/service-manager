@@ -52,13 +52,6 @@ func (s *scheme) introduce(entity storage.Entity) {
 	if providerAlreadyExists || converterAlreadyExists {
 		panic(fmt.Sprintf("Entity for object with type %s has already been introduced", objType))
 	}
-	s.instanceProviders[objType] = func() (PostgresEntity, error) {
-		pgEntity, ok := entity.(PostgresEntity)
-		if !ok {
-			return nil, fmt.Errorf("no postgres entity is introduced for object of type %s", objType)
-		}
-		return pgEntity, nil
-	}
 	s.converters[objType] = func(object types.Object) (PostgresEntity, error) {
 		entityFromObject, ok := entity.FromObject(object)
 		if !ok {
@@ -69,6 +62,9 @@ func (s *scheme) introduce(entity storage.Entity) {
 			return nil, fmt.Errorf("no postgres entity is introduced for object of type %s", object.GetType())
 		}
 		return pgEntity, nil
+	}
+	s.instanceProviders[objType] = func() (PostgresEntity, error) {
+		return s.convert(entity.ToObject())
 	}
 }
 

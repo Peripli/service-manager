@@ -7,7 +7,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/pkg/query"
-	"github.com/Peripli/service-manager/pkg/security/securityfakes"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
@@ -30,8 +29,6 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 
 		var fakeDeleteInterceptorProvider *storagefakes.FakeDeleteInterceptorProvider
 		var fakeDeleteInterceptor *storagefakes.FakeDeleteInterceptor
-
-		var fakeEncrypter *securityfakes.FakeEncrypter
 
 		var fakeStorage *storagefakes.FakeStorage
 
@@ -65,7 +62,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 
 			fakeCreateInterceptor = &storagefakes.FakeCreateInterceptor{}
 			fakeCreateInterceptor.OnTxCreateCalls(func(next storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
-				return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) error {
+				return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) (types.Object, error) {
 					return next(ctx, txStorage, newObject)
 				}
 			})
@@ -112,8 +109,6 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 			fakeDeleteInterceptorProvider.NameReturns("fakeDeleteInterceptor")
 			fakeDeleteInterceptorProvider.ProvideReturns(fakeDeleteInterceptor)
 
-			fakeEncrypter = &securityfakes.FakeEncrypter{}
-
 			fakeStorage = &storagefakes.FakeStorage{}
 			fakeStorage.InTransactionCalls(func(context context.Context, f func(ctx context.Context, storage storage.Repository) error) error {
 				return f(context, fakeStorage)
@@ -129,7 +124,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 				},
 			}, nil)
 
-			interceptableRepository = storage.NewInterceptableTransactionalRepository(fakeStorage, fakeEncrypter)
+			interceptableRepository = storage.NewInterceptableTransactionalRepository(fakeStorage)
 
 			orderNone := storage.InterceptorOrder{
 				OnTxPosition: storage.InterceptorPosition{
@@ -197,7 +192,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 			})
 		})
 
-		Context("when multiple resources of the same type are created in one transaction", func() {
+		Context("when multiple resources of the same type are created/updated/deleted in one transaction", func() {
 			BeforeEach(func() {
 				executionsCount = 2
 			})
@@ -223,17 +218,17 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 
 		It("does not get into infinite recursion when an interceptor triggers the same db op for the same db type it intercepts", func() {
 			fakeCreateInterceptor.OnTxCreateCalls(func(next storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
-				return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) error {
+				return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) (types.Object, error) {
 					_, err := txStorage.Create(ctx, newObject)
 					Expect(err).ShouldNot(HaveOccurred())
 
-					err = next(ctx, txStorage, newObject)
+					newObj, err := next(ctx, txStorage, newObject)
 					Expect(err).ShouldNot(HaveOccurred())
 
 					_, err = txStorage.Create(ctx, newObject)
 					Expect(err).ShouldNot(HaveOccurred())
 
-					return nil
+					return newObj, nil
 				}
 			})
 
@@ -288,9 +283,8 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 	})
 
 	Describe("Register interceptor", func() {
-
 		BeforeEach(func() {
-			interceptableRepository = storage.NewInterceptableTransactionalRepository(nil, nil)
+			interceptableRepository = storage.NewInterceptableTransactionalRepository(nil)
 		})
 
 		Context("Create interceptor", func() {

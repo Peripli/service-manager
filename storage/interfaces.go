@@ -151,7 +151,7 @@ func (mf PingFunc) Ping() error {
 
 type Repository interface {
 	// Create stores a broker in SM DB
-	Create(ctx context.Context, obj types.Object) (string, error)
+	Create(ctx context.Context, obj types.Object) (types.Object, error)
 
 	// Get retrieves a broker using the provided id from SM DB
 	Get(ctx context.Context, objectType types.ObjectType, id string) (types.Object, error)
@@ -193,9 +193,16 @@ type Secured interface {
 	// Unlock releases the acquired lock.
 	Unlock(ctx context.Context) error
 
-	GetEncryptionKey(ctx context.Context) ([]byte, error)
+	GetEncryptionKey(ctx context.Context, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) ([]byte, error)
 
-	SetEncryptionKey(ctx context.Context, key []byte) error
+	SetEncryptionKey(ctx context.Context, key []byte, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) error
+}
+
+// SecuredTransactionalRepository is a transactional repository that allows securing data by encrypting it with an encryption key
+//go:generate counterfeiter . securedTransactionalRepository
+type securedTransactionalRepository interface {
+	Secured
+	TransactionalRepository
 }
 
 // ErrQueueClosed error stating that the queue is closed

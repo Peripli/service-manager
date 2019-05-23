@@ -18,10 +18,8 @@ package storage
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/Peripli/service-manager/pkg/util"
 
@@ -31,12 +29,6 @@ import (
 func InitializeWithSafeTermination(ctx context.Context, s Storage, options *Settings, wg *sync.WaitGroup) error {
 	if s == nil || options == nil {
 		return fmt.Errorf("storage and storage settings cannot be nil")
-	}
-
-	if securityStorage, isSecured := s.(Secured); isSecured {
-		if err := initializeSecureStorage(ctx, securityStorage); err != nil {
-			panic(fmt.Sprintf("error initialzing secure storage: %v", err))
-		}
 	}
 
 	util.StartInWaitGroupWithContext(ctx, func(c context.Context) {
@@ -52,31 +44,4 @@ func InitializeWithSafeTermination(ctx context.Context, s Storage, options *Sett
 	}
 
 	return nil
-}
-
-func initializeSecureStorage(ctx context.Context, secureStorage Secured) error {
-	ctx, cancelFunc := context.WithTimeout(ctx, 2*time.Second)
-	defer cancelFunc()
-	if err := secureStorage.Lock(ctx); err != nil {
-		return err
-	}
-
-	encryptionKey, err := secureStorage.GetEncryptionKey(ctx)
-	if err != nil {
-		return err
-	}
-	if len(encryptionKey) == 0 {
-		logger := log.C(ctx)
-		logger.Info("No encryption key is present. Generating new one...")
-		newEncryptionKey := make([]byte, 32)
-		if _, err = rand.Read(newEncryptionKey); err != nil {
-			return fmt.Errorf("could not generate encryption key: %v", err)
-		}
-
-		if err = secureStorage.SetEncryptionKey(ctx, newEncryptionKey); err != nil {
-			return err
-		}
-		logger.Info("Successfully generated new encryption key")
-	}
-	return secureStorage.Unlock(ctx)
 }

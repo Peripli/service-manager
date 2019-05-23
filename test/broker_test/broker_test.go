@@ -181,7 +181,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Status(http.StatusCreated).
 								JSON().Object().
 								ContainsMap(expectedBrokerResponse).
-								Keys().NotContains("services", "credentials")
+								Keys().NotContains("services").Contains("credentials")
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 						})
@@ -264,7 +264,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						Context("that has an empty description", func() {
 							verifyPOSTWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
-								r.Status(http.StatusCreated).JSON().Object().Keys().NotContains("services", "credentials")
+								r.Status(http.StatusCreated).JSON().Object().Keys().NotContains("services").Contains("credentials")
 							}, "services.0.description")
 						})
 
@@ -302,7 +302,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						Context("that has an empty description", func() {
 							verifyPOSTWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
-								r.Status(http.StatusCreated).JSON().Object().Keys().NotContains("services", "credentials")
+								r.Status(http.StatusCreated).JSON().Object().Keys().NotContains("services").Contains("credentials")
 							}, "services.0.plans.0.description")
 						})
 
@@ -346,7 +346,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Status(http.StatusCreated).
 								JSON().Object().
 								ContainsMap(expectedBrokerResponse).
-								Keys().NotContains("services", "credentials")
+								Keys().NotContains("services").Contains("credentials")
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 						})
