@@ -23,7 +23,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/security"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -60,8 +59,6 @@ type InterceptableTransactionalRepository struct {
 }
 
 type interceptableRepository struct {
-	encrypter security.Encrypter
-
 	repositoryInTransaction Repository
 
 	createInterceptor map[types.ObjectType]CreateInterceptor
@@ -238,7 +235,6 @@ func (itr *InterceptableTransactionalRepository) AddDeleteInterceptorProvider(ob
 }
 
 type finalCreateObjectInterceptor struct {
-	encrypter                  security.Encrypter
 	repository                 TransactionalRepository
 	objectType                 types.ObjectType
 	providedCreateInterceptors map[types.ObjectType]CreateInterceptor
@@ -320,7 +316,6 @@ func (itr *InterceptableTransactionalRepository) List(ctx context.Context, objec
 }
 
 type finalDeleteObjectInterceptor struct {
-	encrypter                  security.Encrypter
 	repository                 TransactionalRepository
 	objectType                 types.ObjectType
 	providedCreateInterceptors map[types.ObjectType]CreateInterceptor
@@ -377,7 +372,6 @@ func (itr *InterceptableTransactionalRepository) Delete(ctx context.Context, obj
 }
 
 type finalUpdateObjectInterceptor struct {
-	encrypter                  security.Encrypter
 	repository                 TransactionalRepository
 	objectType                 types.ObjectType
 	providedCreateInterceptors map[types.ObjectType]CreateInterceptor
