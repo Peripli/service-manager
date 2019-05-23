@@ -436,6 +436,14 @@ func (itr *InterceptableTransactionalRepository) Update(ctx context.Context, obj
 	return obj, nil
 }
 
+func (itr *InterceptableTransactionalRepository) Credentials() Credentials {
+	return itr.smStorageRepository.Credentials()
+}
+
+func (ir *interceptableRepository) Credentials() Credentials {
+	return ir.repositoryInTransaction.Credentials()
+}
+
 func (itr *InterceptableTransactionalRepository) validateCreateProviders(objectType types.ObjectType, providerName string, order InterceptorOrder) {
 	var existingProviderNames []string
 	for _, existingProvider := range itr.createProviders[objectType] {

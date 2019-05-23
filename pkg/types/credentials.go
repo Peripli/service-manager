@@ -31,7 +31,8 @@ type Basic struct {
 
 // Credentials credentials
 type Credentials struct {
-	Basic *Basic `json:"basic,omitempty"`
+	Basic   *Basic `json:"basic,omitempty"`
+	Details []byte `json:"-"`
 }
 
 func (c *Credentials) MarshalJSON() ([]byte, error) {

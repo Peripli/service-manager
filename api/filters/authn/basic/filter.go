@@ -13,14 +13,11 @@ const BasicAuthnFilterName string = "BasicAuthnFilter"
 
 // NewFilter returns a web.Filter for basic auth using the provided
 // credentials storage in order to validate the credentials
-//TODO pass in crendentialsValidatorFunc
-func NewFilter(repository storage.Repository) web.Filter {
+func NewFilter(storage storage.Credentials) web.Filter {
 	return &basicAuthnFilter{
 		Filter: middlewares.NewAuthnMiddleware(
 			BasicAuthnFilterName,
-			&basicAuthenticator{
-				Repostiory: repository,
-			},
+			&basicAuthenticator{CredentialStorage: storage},
 		),
 	}
 }

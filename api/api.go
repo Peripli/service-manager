@@ -108,7 +108,7 @@ func New(ctx context.Context, options *Options) (*web.API, error) {
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
 			&filters.Logging{},
-			basic.NewFilter(options.Repository),
+			basic.NewFilter(options.Repository.Credentials()),
 			bearerAuthnFilter,
 			secfilters.NewRequiredAuthnFilter(),
 			&filters.SelectionCriteria{},
