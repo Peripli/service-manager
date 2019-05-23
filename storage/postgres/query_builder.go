@@ -19,18 +19,17 @@ const (
 )
 
 type QueryBuilder struct {
-	db pgDB
+	db     pgDB
+	entity PostgresEntity
 
 	SQL         string
 	queryParams []interface{}
 
-	entity                       PostgresEntity
 	labelCriteria, fieldCriteria []query.Criterion
-	orderByCriteria              storage.ListCriteria
-	limitCriteria                storage.ListCriteria
+	orderByFields                []string
+	limit                        int
 	criteria                     []query.Criterion
-
-	hasLock bool
+	hasLock                      bool
 
 	err error
 }
@@ -72,7 +71,7 @@ func (qb *QueryBuilder) List(ctx context.Context) (*sqlx.Rows, error) {
 	}
 	qb.SQL = qb.db.Rebind(qb.SQL)
 
-	qb.buildOrderBy().addLock()
+	qb.buildOrderBy().addLimit().addLock()
 	qb.SQL += ";"
 
 	return qb.db.QueryxContext(ctx, qb.SQL, qb.queryParams...)
@@ -85,10 +84,14 @@ func (qb *QueryBuilder) WithListCriteria(criteria ...storage.ListCriteria) *Quer
 
 	for _, c := range criteria {
 		if c.Type == storage.OrderByCriteriaType {
-			qb.orderByCriteria = c
+			qb.orderByFields = append(qb.orderByFields, c.Parameter.(string))
 		}
 		if c.Type == storage.LimitCriteriaType {
-			qb.limitCriteria = c
+			limit := c.Parameter.(int)
+			if limit <= 0 {
+				qb.err = fmt.Errorf("limit (%d) should be greater than 0", limit)
+			}
+			qb.limit = limit
 		}
 	}
 
@@ -127,9 +130,16 @@ func (qb *QueryBuilder) WithLock() *QueryBuilder {
 }
 
 func (qb *QueryBuilder) buildOrderBy() *QueryBuilder {
-	if len(qb.orderByCriteria.Parameters) > 0 {
-		orderFields := strings.Join(qb.orderByCriteria.Parameters, ",")
+	if len(qb.orderByFields) > 0 {
+		orderFields := strings.Join(qb.orderByFields, ",")
 		qb.SQL += fmt.Sprintf(" ORDER BY %s", orderFields)
+	}
+	return qb
+}
+
+func (qb *QueryBuilder) addLimit() *QueryBuilder {
+	if qb.limit > 0 {
+		qb.SQL += fmt.Sprintf(" LIMIT %d", qb.limit)
 	}
 	return qb
 }

@@ -159,8 +159,8 @@ const (
 )
 
 type ListCriteria struct {
-	Parameters  []string
-	Type           ListCriteriaType
+	Parameter interface{}
+	Type      ListCriteriaType
 }
 
 type Repository interface {

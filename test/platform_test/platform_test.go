@@ -17,11 +17,14 @@
 package platform_test
 
 import (
+	"context"
 	"net/http"
 	"testing"
 
 	. "github.com/onsi/gomega"
 
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/test"
 
 	"github.com/Peripli/service-manager/test/common"
@@ -49,6 +52,46 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			})
 
 			Describe("POST", func() {
+				Context("With 2 platforms", func() {
+					var platform, platform2 *types.Platform
+					BeforeEach(func() {
+						platformJSON := common.GenerateRandomPlatform()
+						platformJSON["name"] = "k"
+						platform = common.RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, nil)
+
+						platformJSON2 := common.GenerateRandomPlatform()
+						platformJSON2["name"] = "a"
+						platform2 = common.RegisterPlatformInSM(platformJSON2, ctx.SMWithOAuth, nil)
+					})
+
+					It("should return them ordered by name", func() {
+						listCriteria := []storage.ListCriteria{
+							storage.ListCriteria{
+								Type:      storage.OrderByCriteriaType,
+								Parameter: "name",
+							},
+						}
+						result, err := ctx.SMRepository.List(context.Background(), types.PlatformType, listCriteria)
+						Expect(err).ShouldNot(HaveOccurred())
+						Expect(result.Len()).To(Equal(2))
+						Expect((result.ItemAt(0).(*types.Platform)).Name).To(Equal(platform2.Name))
+						Expect((result.ItemAt(1).(*types.Platform)).Name).To(Equal(platform.Name))
+					})
+
+					It("should limit result to only 1", func() {
+						listCriteria := []storage.ListCriteria{
+							storage.ListCriteria{
+								Type:      storage.LimitCriteriaType,
+								Parameter: 1,
+							},
+						}
+						result, err := ctx.SMRepository.List(context.Background(), types.PlatformType, listCriteria)
+						Expect(err).ShouldNot(HaveOccurred())
+						Expect(result.Len()).To(Equal(1))
+						Expect((result.ItemAt(0).(*types.Platform)).Name).To(Equal(platform.Name))
+					})
+				})
+
 				Context("With invalid content type", func() {
 					It("returns 415", func() {
 						ctx.SMWithOAuth.POST("/v1/platforms").

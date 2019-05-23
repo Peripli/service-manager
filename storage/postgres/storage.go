@@ -198,8 +198,8 @@ func (ps *PostgresStorage) Get(ctx context.Context, objectType types.ObjectType,
 func defaultListCriterias() []storage.ListCriteria {
 	return []storage.ListCriteria{
 		storage.ListCriteria{
-			Type:       storage.OrderByCriteriaType,
-			Parameters: []string{"created_at"},
+			Type:      storage.OrderByCriteriaType,
+			Parameter: "created_at",
 		},
 	}
 }
