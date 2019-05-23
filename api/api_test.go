@@ -49,7 +49,7 @@ var _ = Describe("API", func() {
 	})
 
 	BeforeEach(func() {
-		mockedStorage = storage.NewInterceptableTransactionalRepository(&storagefakes.FakeStorage{}, nil)
+		mockedStorage = storage.NewInterceptableTransactionalRepository(&storagefakes.FakeStorage{})
 	})
 
 	Describe("New", func() {
