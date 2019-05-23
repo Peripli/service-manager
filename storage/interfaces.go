@@ -164,8 +164,6 @@ type Repository interface {
 
 	// Update updates a broker from SM DB
 	Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error)
-
-	Credentials() Credentials
 }
 
 // TransactionalRepository is a storage repository that can initiate a transaction
@@ -184,13 +182,6 @@ type Storage interface {
 	TransactionalRepository
 
 	Introduce(entity Entity)
-}
-
-// Credentials interface for Credentials db operations
-//go:generate counterfeiter . Credentials
-type Credentials interface {
-	// Get retrieves credentials using the provided username from SM DB
-	Get(ctx context.Context, username string) (*types.Credentials, error)
 }
 
 // Secured interface for encryption key operations

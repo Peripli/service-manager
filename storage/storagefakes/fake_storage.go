@@ -35,16 +35,6 @@ type FakeStorage struct {
 		result1 types.Object
 		result2 error
 	}
-	CredentialsStub        func() storage.Credentials
-	credentialsMutex       sync.RWMutex
-	credentialsArgsForCall []struct {
-	}
-	credentialsReturns struct {
-		result1 storage.Credentials
-	}
-	credentialsReturnsOnCall map[int]struct {
-		result1 storage.Credentials
-	}
 	DeleteStub        func(context.Context, types.ObjectType, ...query.Criterion) (types.ObjectList, error)
 	deleteMutex       sync.RWMutex
 	deleteArgsForCall []struct {
@@ -261,58 +251,6 @@ func (fake *FakeStorage) CreateReturnsOnCall(i int, result1 types.Object, result
 		result1 types.Object
 		result2 error
 	}{result1, result2}
-}
-
-func (fake *FakeStorage) Credentials() storage.Credentials {
-	fake.credentialsMutex.Lock()
-	ret, specificReturn := fake.credentialsReturnsOnCall[len(fake.credentialsArgsForCall)]
-	fake.credentialsArgsForCall = append(fake.credentialsArgsForCall, struct {
-	}{})
-	fake.recordInvocation("Credentials", []interface{}{})
-	fake.credentialsMutex.Unlock()
-	if fake.CredentialsStub != nil {
-		return fake.CredentialsStub()
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	fakeReturns := fake.credentialsReturns
-	return fakeReturns.result1
-}
-
-func (fake *FakeStorage) CredentialsCallCount() int {
-	fake.credentialsMutex.RLock()
-	defer fake.credentialsMutex.RUnlock()
-	return len(fake.credentialsArgsForCall)
-}
-
-func (fake *FakeStorage) CredentialsCalls(stub func() storage.Credentials) {
-	fake.credentialsMutex.Lock()
-	defer fake.credentialsMutex.Unlock()
-	fake.CredentialsStub = stub
-}
-
-func (fake *FakeStorage) CredentialsReturns(result1 storage.Credentials) {
-	fake.credentialsMutex.Lock()
-	defer fake.credentialsMutex.Unlock()
-	fake.CredentialsStub = nil
-	fake.credentialsReturns = struct {
-		result1 storage.Credentials
-	}{result1}
-}
-
-func (fake *FakeStorage) CredentialsReturnsOnCall(i int, result1 storage.Credentials) {
-	fake.credentialsMutex.Lock()
-	defer fake.credentialsMutex.Unlock()
-	fake.CredentialsStub = nil
-	if fake.credentialsReturnsOnCall == nil {
-		fake.credentialsReturnsOnCall = make(map[int]struct {
-			result1 storage.Credentials
-		})
-	}
-	fake.credentialsReturnsOnCall[i] = struct {
-		result1 storage.Credentials
-	}{result1}
 }
 
 func (fake *FakeStorage) Delete(arg1 context.Context, arg2 types.ObjectType, arg3 ...query.Criterion) (types.ObjectList, error) {
@@ -786,8 +724,6 @@ func (fake *FakeStorage) Invocations() map[string][][]interface{} {
 	defer fake.closeMutex.RUnlock()
 	fake.createMutex.RLock()
 	defer fake.createMutex.RUnlock()
-	fake.credentialsMutex.RLock()
-	defer fake.credentialsMutex.RUnlock()
 	fake.deleteMutex.RLock()
 	defer fake.deleteMutex.RUnlock()
 	fake.getMutex.RLock()

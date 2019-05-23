@@ -58,11 +58,6 @@ func (ps *Storage) SelectContext(ctx context.Context, dest interface{}, query st
 	return ps.pgDB.SelectContext(ctx, dest, query, args...)
 }
 
-func (ps *Storage) Credentials() storage.Credentials {
-	ps.checkOpen()
-	return &credentialStorage{db: ps.pgDB}
-}
-
 func (ps *Storage) Open(options *storage.Settings) error {
 	var err error
 	if err = options.Validate(); err != nil {
