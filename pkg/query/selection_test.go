@@ -19,6 +19,8 @@ package query
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/url"
 	"strings"
 
 	. "github.com/onsi/ginkgo"
@@ -50,6 +52,9 @@ var _ = Describe("Selection", func() {
 			})
 			Specify("Numeric operator to non-numeric right operand", func() {
 				addInvalidCriterion(ByField(GreaterThanOperator, "leftOp", "non-numeric"))
+				addInvalidCriterion(ByField(GreaterThanOrEqualOperator, "leftOp", "non-numeric"))
+				addInvalidCriterion(ByField(LessThanOperator, "leftOp", "non-numeric"))
+				addInvalidCriterion(ByField(LessThanOrEqualOperator, "leftOp", "non-numeric"))
 			})
 			Specify("Right operand containing new line", func() {
 				addInvalidCriterion(ByField(EqualsOperator, "leftOp", `value with 
@@ -253,6 +258,24 @@ new line`))
 					Expect(criteriaFromRequest).To(BeNil())
 				})
 			})
-		}
+		})
+
+		Context("When using equals or operators", func() {
+			It("should build the right gte query", func() {
+				criteriaFromRequest, err := buildCriteria(`http://localhost:8080/v1/visibilities?fieldQuery=leftop gte 1`)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(criteriaFromRequest).ToNot(BeNil())
+				expectedQuery := ByField(GreaterThanOrEqualOperator, "leftop", "1")
+				Expect(criteriaFromRequest).To(ConsistOf(expectedQuery))
+			})
+
+			It("should build the right lte query", func() {
+				criteriaFromRequest, err := buildCriteria(`http://localhost:8080/v1/visibilities?fieldQuery=leftop lte 3`)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(criteriaFromRequest).ToNot(BeNil())
+				expectedQuery := ByField(LessThanOrEqualOperator, "leftop", "3")
+				Expect(criteriaFromRequest).To(ConsistOf(expectedQuery))
+			})
+		})
 	})
 })

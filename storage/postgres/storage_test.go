@@ -96,8 +96,8 @@ var _ = Describe("Postgres Storage", func() {
 
 	Describe("Close", func() {
 		Context("Called with uninitialized db", func() {
-			It("Should panic", func() {
-				Expect(func() { pgStorage.Close() }).To(Panic())
+			It("Should not panic", func() {
+				Expect(func() { pgStorage.Close() }).ToNot(Panic())
 			})
 		})
 	})

@@ -252,8 +252,12 @@ func translateOperationToSQLEquivalent(operator query.Operator) string {
 	switch operator {
 	case query.LessThanOperator:
 		return "<"
+	case query.LessThanOrEqualOperator:
+		return "<="
 	case query.GreaterThanOperator:
 		return ">"
+	case query.GreaterThanOrEqualOperator:
+		return ">="
 	case query.NotInOperator:
 		return "NOT IN"
 	case query.EqualsOperator:
