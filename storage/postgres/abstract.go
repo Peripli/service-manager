@@ -148,7 +148,7 @@ func deleteAllByFieldCriteria(ctx context.Context, extContext sqlx.ExtContext, t
 		return nil, err
 	}
 	baseQuery := fmt.Sprintf("DELETE FROM %s", table)
-	sqlQuery, queryParams, err := buildQueryWithParams(extContext, baseQuery, table, nil, criteria, getDBTags(dto, isAutoIncrementable))
+	sqlQuery, queryParams, err := buildQueryWithParams(extContext, baseQuery, table, nil, criteria, getDBTags(dto, nil))
 	if err != nil {
 		return nil, err
 	}
