@@ -208,8 +208,8 @@ type Secured interface {
 }
 
 // SecuredTransactionalRepository is a transactional repository that allows securing data by encrypting it with an encryption key
-//go:generate counterfeiter . securedTransactionalRepository
-type securedTransactionalRepository interface {
+//go:generate counterfeiter . SecuredTransactionalRepository
+type SecuredTransactionalRepository interface {
 	Secured
 	TransactionalRepository
 }
