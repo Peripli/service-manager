@@ -54,5 +54,12 @@ func (c *ServiceOfferingController) Routes() []web.Route {
 			},
 			Handler: c.ListObjects,
 		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodPatch,
+				Path:   fmt.Sprintf("%s/{%s}", web.ServiceOfferingsURL, PathParamID),
+			},
+			Handler: c.PatchLabelsOnly,
+		},
 	}
 }

@@ -237,6 +237,33 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	return util.NewJSONResponse(http.StatusOK, object)
 }
 
+// PatchObject handles the update of labels of the object with the id specified in the request
+func (c *BaseController) PatchLabelsOnly(r *web.Request) (*web.Response, error) {
+	objectID := r.PathParams[PathParamID]
+	ctx := r.Context()
+	log.C(ctx).Debugf("Updating labels of %s with id %s", c.objectType, objectID)
+
+	labelChanges, err := query.LabelChangesFromJSON(r.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	objFromDB, err := c.repository.Get(ctx, c.objectType, objectID)
+	if err != nil {
+		return nil, util.HandleStorageError(err, string(c.objectType))
+	}
+
+	labels, _, _ := query.ApplyLabelChangesToLabels(labelChanges, objFromDB.GetLabels())
+	objFromDB.SetLabels(labels)
+
+	object, err := c.repository.Update(ctx, objFromDB, labelChanges...)
+	if err != nil {
+		return nil, util.HandleStorageError(err, string(c.objectType))
+	}
+
+	return util.NewJSONResponse(http.StatusOK, object)
+}
+
 func stripCredentials(ctx context.Context, object types.Object) {
 	if secured, ok := object.(types.Secured); ok {
 		secured.SetCredentials(nil)
