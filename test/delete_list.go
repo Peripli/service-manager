@@ -78,7 +78,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				resourcesToExpectBeforeOp: func() []common.Object {
 					return []common.Object{r[0], r[1]}
 				},
-				queryTemplate: "%[1]s in ['%[2]v','%[2]v','%[2]v']",
+				queryTemplate: "%[1]s in ('%[2]v','%[2]v','%[2]v')",
 				queryArgs: func() common.Object {
 					return r[0]
 				},
@@ -94,7 +94,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				resourcesToExpectBeforeOp: func() []common.Object {
 					return []common.Object{r[0], r[1]}
 				},
-				queryTemplate: "%s in ['%v']",
+				queryTemplate: "%s in ('%v')",
 				queryArgs: func() common.Object {
 					return r[0]
 				},
@@ -109,7 +109,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				resourcesToExpectBeforeOp: func() []common.Object {
 					return []common.Object{r[0], r[1]}
 				},
-				queryTemplate: "%[1]s notin ['%[2]v','%[2]v','%[2]v']",
+				queryTemplate: "%[1]s notin ('%[2]v','%[2]v','%[2]v')",
 				queryArgs: func() common.Object {
 					return r[0]
 				},
@@ -124,7 +124,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				resourcesToExpectBeforeOp: func() []common.Object {
 					return []common.Object{r[0], r[1]}
 				},
-				queryTemplate: "%s notin ['%v']",
+				queryTemplate: "%s notin ('%v')",
 				queryArgs: func() common.Object {
 					return r[0]
 				},
@@ -234,7 +234,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 
 		Entry("returns 400 when field query left operands are unknown",
 			deleteOpEntry{
-				queryTemplate: "%[1]s in ['%[2]v','%[2]v']",
+				queryTemplate: "%[1]s in ('%[2]v','%[2]v')",
 				queryArgs: func() common.Object {
 					return common.Object{"unknownkey": "unknownvalue"}
 				},
@@ -243,7 +243,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		),
 		Entry("returns 400 when single value operator is used with multiple right value arguments",
 			deleteOpEntry{
-				queryTemplate: "%[1]s neq ['%[2]v','%[2]v','%[2]v']",
+				queryTemplate: "%[1]s neq ('%[2]v','%[2]v','%[2]v')",
 				queryArgs: func() common.Object {
 					return r[0]
 				},

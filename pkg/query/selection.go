@@ -29,50 +29,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
-// Operator is a query operator
-type Operator string
-
 const (
-	// EqualsOperator takes two operands and tests if they are equal
-	EqualsOperator Operator = "eq"
-	// NotEqualsOperator takes two operands and tests if they are not equal
-	NotEqualsOperator Operator = "neq"
-	// GreaterThanOperator takes two operands and tests if the left is greater than the right
-	GreaterThanOperator Operator = "gt"
-	// GreaterThanOrEqualOperator takes two operands and tests if the left is greater than or equal the right
-	GreaterThanOrEqualOperator Operator = "gte"
-	// LessThanOperator takes two operands and tests if the left is lesser than the right
-	LessThanOperator Operator = "lt"
-	// LessThanOrEqualOperator takes two operands and tests if the left is lesser than or equal the right
-	LessThanOrEqualOperator Operator = "lte"
-	// InOperator takes two operands and tests if the left is contained in the right
-	InOperator Operator = "in"
-	// NotInOperator takes two operands and tests if the left is not contained in the right
-	NotInOperator Operator = "notin"
-	// EqualsOrNilOperator takes two operands and tests if the left is equal to the right, or if the left is nil
-	EqualsOrNilOperator Operator = "eqornil"
-)
-
-// IsMultiVariate returns true if the operator requires right operand with multiple values
-func (op Operator) IsMultiVariate() bool {
-	return op == InOperator || op == NotInOperator
-}
-
-// IsNullable returns true if the operator can check if the left operand is nil
-func (op Operator) IsNullable() bool {
-	return op == EqualsOrNilOperator
-}
-
-// IsNumeric returns true if the operator works only with numeric operands
-func (op Operator) IsNumeric() bool {
-	return op == LessThanOperator || op == GreaterThanOperator || op == LessThanOrEqualOperator || op == GreaterThanOrEqualOperator
-}
-
-var operators = []Operator{EqualsOperator, NotEqualsOperator, InOperator,
-	NotInOperator, GreaterThanOperator, GreaterThanOrEqualOperator, LessThanOperator, LessThanOrEqualOperator, EqualsOrNilOperator}
-
-const (
-	// Separator is the separator between field and label queries
+	// Separator is the separator between queries of different type
 	Separator string = "and"
 )
 
@@ -86,7 +44,42 @@ const (
 	LabelQuery CriterionType = "labelQuery"
 )
 
-var SupportedQueryTypes = []CriterionType{FieldQuery, LabelQuery}
+type OperatorType string
+
+const (
+	// UnivariateOperator denotes that the operator expects exactly one variable on the right side
+	UnivariateOperator OperatorType = "univariate"
+	// MultivareateOperator denotes that the operator expects more than one variable on the right side
+	MultivareateOperator OperatorType = "multivariate"
+)
+
+// Operator is a query operator
+type Operator interface {
+	String() string
+	Type() OperatorType
+	IsNullable() bool
+	RequiresNumber() bool
+}
+
+var (
+	operators = []Operator{
+		EqualsOperator, NotEqualsOperator,
+		GreaterThanOperator, LessThanOperator,
+		GreaterThanOrEqualOperator, LessThanOrEqualOperator,
+		InOperator, NotInOperator, EqualsOrNilOperator,
+	}
+	criteriaTypes = []CriterionType{FieldQuery, LabelQuery}
+)
+
+// Operators returns the supported query operators
+func Operators() []Operator {
+	return operators
+}
+
+// CriteriaTypes returns the supported query criteria types
+func CriteriaTypes() []CriterionType {
+	return criteriaTypes
+}
 
 // Criterion is a single part of a query criteria
 type Criterion struct {
@@ -102,27 +95,27 @@ type Criterion struct {
 
 // ByField constructs a new criterion for field querying
 func ByField(operator Operator, leftOp string, rightOp ...string) Criterion {
-	return newCriterion(leftOp, operator, rightOp, FieldQuery)
+	return NewCriterion(leftOp, operator, rightOp, FieldQuery)
 }
 
 // ByLabel constructs a new criterion for label querying
 func ByLabel(operator Operator, leftOp string, rightOp ...string) Criterion {
-	return newCriterion(leftOp, operator, rightOp, LabelQuery)
+	return NewCriterion(leftOp, operator, rightOp, LabelQuery)
 }
 
-func newCriterion(leftOp string, operator Operator, rightOp []string, criteriaType CriterionType) Criterion {
+func NewCriterion(leftOp string, operator Operator, rightOp []string, criteriaType CriterionType) Criterion {
 	return Criterion{LeftOp: leftOp, Operator: operator, RightOp: rightOp, Type: criteriaType}
 }
 
 // Validate the criterion fields
 func (c Criterion) Validate() error {
-	if len(c.RightOp) > 1 && !c.Operator.IsMultiVariate() {
+	if len(c.RightOp) > 1 && c.Operator.Type() != MultivareateOperator {
 		return &util.UnsupportedQueryError{Message: fmt.Sprintf("multiple values %s received for single value operation %s", c.RightOp, c.Operator)}
 	}
 	if c.Operator.IsNullable() && c.Type != FieldQuery {
 		return &util.UnsupportedQueryError{Message: "nullable operations are supported only for field queries"}
 	}
-	if c.Operator.IsNumeric() && !isNumeric(c.RightOp[0]) {
+	if c.Operator.RequiresNumber() && !isNumeric(c.RightOp[0]) {
 		return &util.UnsupportedQueryError{Message: fmt.Sprintf("%s is numeric operator, but the right operand %s is not numeric", c.Operator, c.RightOp[0])}
 	}
 	if strings.Contains(c.LeftOp, Separator) {
@@ -201,6 +194,7 @@ func Parse(criterionType CriterionType, expression string) ([]Criterion, error) 
 
 	input := antlr.NewInputStream(expression)
 	lexer := parser.NewQueryLexer(input)
+	lexer.RemoveErrorListeners()
 	stream := antlr.NewCommonTokenStream(lexer, 0)
 
 	p := parser.NewQueryParser(stream)

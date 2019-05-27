@@ -17,6 +17,7 @@
 package service_test
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -50,7 +51,7 @@ func blueprint(ctx *common.TestContext) common.Object {
 	catalog.AddService(cService)
 	id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
 
-	so := ctx.SMWithOAuth.GET("/v1/service_offerings").WithQuery("fieldQuery", "broker_id = "+id).
+	so := ctx.SMWithOAuth.GET("/v1/service_offerings").WithQuery("fieldQuery", fmt.Sprintf("broker_id eq '%s'", id)).
 		Expect().
 		Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().First()
 

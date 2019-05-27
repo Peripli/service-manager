@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Peripli/service-manager/pkg/util"
+
 	"github.com/Peripli/service-manager/pkg/query/parser"
 	"github.com/antlr/antlr4/runtime/Go/antlr"
 )
@@ -60,7 +62,7 @@ func (s *queryListener) ExitMultivariate(ctx *parser.MultivariateContext) {
 	if s.err != nil {
 		return
 	}
-	if ctx.GetChildCount() != 3 {
+	if ctx.GetChildCount() != 5 {
 		s.err = fmt.Errorf("unexceted format of query. must be <left_op> <operator> <rig_op>")
 		return
 	}
@@ -78,7 +80,7 @@ func (s *queryListener) storeCriterion() error {
 	if err != nil {
 		return err
 	}
-	criterion := newCriterion(s.leftOp, operator, s.rightOp, s.criteriaType)
+	criterion := NewCriterion(s.leftOp, operator, s.rightOp, s.criteriaType)
 	if err = criterion.Validate(); err != nil {
 		return err
 	}
@@ -96,7 +98,7 @@ func (s *queryListener) ReportContextSensitivity(recognizer antlr.Parser, dfa *a
 }
 
 func (s *queryListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol interface{}, line, column int, msg string, e antlr.RecognitionException) {
-	s.err = fmt.Errorf("error while parsing %s at column %d: %s", s.criteriaType, column, msg)
+	s.err = &util.UnsupportedQueryError{Message: fmt.Sprintf("error while parsing %s at column %d: %s", s.criteriaType, column, msg)}
 }
 
 func getCriterionFields(key, op, rightOp antlr.TerminalNode) (string, string, string) {
@@ -108,9 +110,9 @@ func getCriterionFields(key, op, rightOp antlr.TerminalNode) (string, string, st
 
 func findOpByString(op string) (Operator, error) {
 	for _, operator := range operators {
-		if string(operator) == op {
+		if operator.String() == op {
 			return operator, nil
 		}
 	}
-	return "", fmt.Errorf("provided operator %s is not supported", op)
+	return nil, fmt.Errorf("provided operator %s is not supported", op)
 }

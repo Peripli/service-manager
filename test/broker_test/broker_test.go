@@ -401,7 +401,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							labels[fmt.Sprintf("containing %s separator", query.Separator)] = common.Array{"val"}
 							ctx.SMWithOAuth.POST("/v1/service_brokers").
 								WithJSON(postBrokerRequestWithLabels).
-								Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains("cannot contain whitespaces and special symbol")
+								Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains("cannot contain whitespaces")
 						})
 					})
 
@@ -411,7 +411,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	new line`] = common.Array{"label-value"}
 							ctx.SMWithOAuth.POST("/v1/service_brokers").
 								WithJSON(postBrokerRequestWithLabels).
-								Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains("cannot contain whitespaces and special symbol")
+								Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains("cannot contain whitespaces")
 						})
 					})
 

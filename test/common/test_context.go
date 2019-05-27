@@ -403,7 +403,7 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 	ctx.SMWithOAuth.DELETE("/v1/service_brokers").Expect()
 
 	if ctx.TestPlatform != nil {
-		ctx.SMWithOAuth.DELETE("/v1/platforms").WithQuery("fieldQuery", "id != "+ctx.TestPlatform.ID).Expect()
+		ctx.SMWithOAuth.DELETE("/v1/platforms").WithQuery("fieldQuery", fmt.Sprintf("id neq '%s'", ctx.TestPlatform.ID)).Expect()
 	} else {
 		ctx.SMWithOAuth.DELETE("/v1/platforms").Expect()
 	}

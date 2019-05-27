@@ -17,32 +17,36 @@ var _ = strconv.Itoa
 
 
 var parserATN = []uint16{
-	3, 24715, 42794, 33075, 47597, 16764, 15335, 30598, 22884, 3, 11, 45, 4, 
+	3, 24715, 42794, 33075, 47597, 16764, 15335, 30598, 22884, 3, 16, 51, 4, 
 	2, 9, 2, 4, 3, 9, 3, 4, 4, 9, 4, 4, 5, 9, 5, 4, 6, 9, 6, 4, 7, 9, 7, 3, 
-	2, 3, 2, 3, 2, 5, 2, 18, 10, 2, 3, 2, 3, 2, 3, 3, 3, 3, 5, 3, 24, 10, 3, 
-	3, 4, 3, 4, 3, 4, 3, 4, 3, 5, 3, 5, 3, 5, 3, 5, 3, 6, 3, 6, 5, 6, 36, 10, 
-	6, 3, 6, 3, 6, 3, 7, 3, 7, 3, 7, 5, 7, 43, 10, 7, 3, 7, 2, 2, 8, 2, 4, 
-	6, 8, 10, 12, 2, 2, 2, 42, 2, 14, 3, 2, 2, 2, 4, 23, 3, 2, 2, 2, 6, 25, 
-	3, 2, 2, 2, 8, 29, 3, 2, 2, 2, 10, 33, 3, 2, 2, 2, 12, 39, 3, 2, 2, 2, 
-	14, 17, 5, 4, 3, 2, 15, 16, 7, 3, 2, 2, 16, 18, 5, 2, 2, 2, 17, 15, 3, 
-	2, 2, 2, 17, 18, 3, 2, 2, 2, 18, 19, 3, 2, 2, 2, 19, 20, 7, 2, 2, 3, 20, 
-	3, 3, 2, 2, 2, 21, 24, 5, 6, 4, 2, 22, 24, 5, 8, 5, 2, 23, 21, 3, 2, 2, 
-	2, 23, 22, 3, 2, 2, 2, 24, 5, 3, 2, 2, 2, 25, 26, 7, 8, 2, 2, 26, 27, 7, 
-	6, 2, 2, 27, 28, 5, 10, 6, 2, 28, 7, 3, 2, 2, 2, 29, 30, 7, 8, 2, 2, 30, 
-	31, 7, 7, 2, 2, 31, 32, 7, 9, 2, 2, 32, 9, 3, 2, 2, 2, 33, 35, 7, 4, 2, 
-	2, 34, 36, 5, 12, 7, 2, 35, 34, 3, 2, 2, 2, 35, 36, 3, 2, 2, 2, 36, 37, 
-	3, 2, 2, 2, 37, 38, 7, 5, 2, 2, 38, 11, 3, 2, 2, 2, 39, 42, 7, 9, 2, 2, 
-	40, 41, 7, 10, 2, 2, 41, 43, 5, 12, 7, 2, 42, 40, 3, 2, 2, 2, 42, 43, 3, 
-	2, 2, 2, 43, 13, 3, 2, 2, 2, 6, 17, 23, 35, 42,
+	2, 3, 2, 3, 2, 3, 2, 3, 2, 5, 2, 20, 10, 2, 3, 2, 3, 2, 3, 3, 3, 3, 5, 
+	3, 26, 10, 3, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3, 5, 3, 5, 3, 5, 3, 
+	5, 3, 5, 3, 5, 3, 6, 3, 6, 5, 6, 42, 10, 6, 3, 6, 3, 6, 3, 7, 3, 7, 3, 
+	7, 5, 7, 49, 10, 7, 3, 7, 2, 2, 8, 2, 4, 6, 8, 10, 12, 2, 2, 2, 48, 2, 
+	14, 3, 2, 2, 2, 4, 25, 3, 2, 2, 2, 6, 27, 3, 2, 2, 2, 8, 33, 3, 2, 2, 2, 
+	10, 39, 3, 2, 2, 2, 12, 45, 3, 2, 2, 2, 14, 19, 5, 4, 3, 2, 15, 16, 7, 
+	15, 2, 2, 16, 17, 7, 3, 2, 2, 17, 18, 7, 15, 2, 2, 18, 20, 5, 2, 2, 2, 
+	19, 15, 3, 2, 2, 2, 19, 20, 3, 2, 2, 2, 20, 21, 3, 2, 2, 2, 21, 22, 7, 
+	2, 2, 3, 22, 3, 3, 2, 2, 2, 23, 26, 5, 6, 4, 2, 24, 26, 5, 8, 5, 2, 25, 
+	23, 3, 2, 2, 2, 25, 24, 3, 2, 2, 2, 26, 5, 3, 2, 2, 2, 27, 28, 7, 13, 2, 
+	2, 28, 29, 7, 15, 2, 2, 29, 30, 7, 6, 2, 2, 30, 31, 7, 15, 2, 2, 31, 32, 
+	5, 10, 6, 2, 32, 7, 3, 2, 2, 2, 33, 34, 7, 13, 2, 2, 34, 35, 7, 15, 2, 
+	2, 35, 36, 7, 7, 2, 2, 36, 37, 7, 15, 2, 2, 37, 38, 7, 8, 2, 2, 38, 9, 
+	3, 2, 2, 2, 39, 41, 7, 4, 2, 2, 40, 42, 5, 12, 7, 2, 41, 40, 3, 2, 2, 2, 
+	41, 42, 3, 2, 2, 2, 42, 43, 3, 2, 2, 2, 43, 44, 7, 5, 2, 2, 44, 11, 3, 
+	2, 2, 2, 45, 48, 7, 8, 2, 2, 46, 47, 7, 14, 2, 2, 47, 49, 5, 12, 7, 2, 
+	48, 46, 3, 2, 2, 2, 48, 49, 3, 2, 2, 2, 49, 13, 3, 2, 2, 2, 6, 19, 25, 
+	41, 48,
 }
 var deserializer = antlr.NewATNDeserializer(nil)
 var deserializedATN = deserializer.DeserializeFromUInt16(parserATN)
 
 var literalNames = []string{
-	"", "'and'", "'['", "']'",
+	"", "'and'", "'('", "')'", "", "", "", "", "", "", "", "", "", "' '",
 }
 var symbolicNames = []string{
-	"", "", "", "", "MultiOp", "UniOp", "Key", "Value", "ValueSeparator", "WS",
+	"", "", "", "", "MultiOp", "UniOp", "Value", "STRING", "BOOLEAN", "FLOAT", 
+	"SIGN", "Key", "ValueSeparator", "Whitespace", "WS",
 }
 
 var ruleNames = []string{
@@ -83,10 +87,15 @@ const (
 	QueryParserT__2 = 3
 	QueryParserMultiOp = 4
 	QueryParserUniOp = 5
-	QueryParserKey = 6
-	QueryParserValue = 7
-	QueryParserValueSeparator = 8
-	QueryParserWS = 9
+	QueryParserValue = 6
+	QueryParserSTRING = 7
+	QueryParserBOOLEAN = 8
+	QueryParserFLOAT = 9
+	QueryParserSIGN = 10
+	QueryParserKey = 11
+	QueryParserValueSeparator = 12
+	QueryParserWhitespace = 13
+	QueryParserWS = 14
 )
 
 // QueryParser rules.
@@ -151,6 +160,14 @@ func (s *ExpressionContext) EOF() antlr.TerminalNode {
 	return s.GetToken(QueryParserEOF, 0)
 }
 
+func (s *ExpressionContext) AllWhitespace() []antlr.TerminalNode {
+	return s.GetTokens(QueryParserWhitespace)
+}
+
+func (s *ExpressionContext) Whitespace(i int) antlr.TerminalNode {
+	return s.GetToken(QueryParserWhitespace, i)
+}
+
 func (s *ExpressionContext) Expression() IExpressionContext {
 	var t = s.GetTypedRuleContext(reflect.TypeOf((*IExpressionContext)(nil)).Elem(), 0)
 
@@ -212,24 +229,32 @@ func (p *QueryParser) Expression() (localctx IExpressionContext) {
 		p.SetState(12)
 		p.Criterion()
 	}
-	p.SetState(15)
+	p.SetState(17)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 
-	if _la == QueryParserT__0 {
+	if _la == QueryParserWhitespace {
 		{
 			p.SetState(13)
-			p.Match(QueryParserT__0)
+			p.Match(QueryParserWhitespace)
 		}
 		{
 			p.SetState(14)
+			p.Match(QueryParserT__0)
+		}
+		{
+			p.SetState(15)
+			p.Match(QueryParserWhitespace)
+		}
+		{
+			p.SetState(16)
 			p.Expression()
 		}
 
 	}
 	{
-		p.SetState(17)
+		p.SetState(19)
 		p.Match(QueryParserEOF)
 	}
 
@@ -341,13 +366,13 @@ func (p *QueryParser) Criterion() (localctx ICriterionContext) {
 		}
 	}()
 
-	p.SetState(21)
+	p.SetState(23)
 	p.GetErrorHandler().Sync(p)
 	switch p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 1, p.GetParserRuleContext()) {
 	case 1:
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(19)
+			p.SetState(21)
 			p.Multivariate()
 		}
 
@@ -355,7 +380,7 @@ func (p *QueryParser) Criterion() (localctx ICriterionContext) {
 	case 2:
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(20)
+			p.SetState(22)
 			p.Univariate()
 		}
 
@@ -406,6 +431,14 @@ func (s *MultivariateContext) GetParser() antlr.Parser { return s.parser }
 
 func (s *MultivariateContext) Key() antlr.TerminalNode {
 	return s.GetToken(QueryParserKey, 0)
+}
+
+func (s *MultivariateContext) AllWhitespace() []antlr.TerminalNode {
+	return s.GetTokens(QueryParserWhitespace)
+}
+
+func (s *MultivariateContext) Whitespace(i int) antlr.TerminalNode {
+	return s.GetToken(QueryParserWhitespace, i)
 }
 
 func (s *MultivariateContext) MultiOp() antlr.TerminalNode {
@@ -468,15 +501,23 @@ func (p *QueryParser) Multivariate() (localctx IMultivariateContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(23)
+		p.SetState(25)
 		p.Match(QueryParserKey)
 	}
 	{
-		p.SetState(24)
+		p.SetState(26)
+		p.Match(QueryParserWhitespace)
+	}
+	{
+		p.SetState(27)
 		p.Match(QueryParserMultiOp)
 	}
 	{
-		p.SetState(25)
+		p.SetState(28)
+		p.Match(QueryParserWhitespace)
+	}
+	{
+		p.SetState(29)
 		p.MultiValues()
 	}
 
@@ -526,6 +567,14 @@ func (s *UnivariateContext) GetParser() antlr.Parser { return s.parser }
 
 func (s *UnivariateContext) Key() antlr.TerminalNode {
 	return s.GetToken(QueryParserKey, 0)
+}
+
+func (s *UnivariateContext) AllWhitespace() []antlr.TerminalNode {
+	return s.GetTokens(QueryParserWhitespace)
+}
+
+func (s *UnivariateContext) Whitespace(i int) antlr.TerminalNode {
+	return s.GetToken(QueryParserWhitespace, i)
 }
 
 func (s *UnivariateContext) UniOp() antlr.TerminalNode {
@@ -582,15 +631,23 @@ func (p *QueryParser) Univariate() (localctx IUnivariateContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(27)
+		p.SetState(31)
 		p.Match(QueryParserKey)
 	}
 	{
-		p.SetState(28)
+		p.SetState(32)
+		p.Match(QueryParserWhitespace)
+	}
+	{
+		p.SetState(33)
 		p.Match(QueryParserUniOp)
 	}
 	{
-		p.SetState(29)
+		p.SetState(34)
+		p.Match(QueryParserWhitespace)
+	}
+	{
+		p.SetState(35)
 		p.Match(QueryParserValue)
 	}
 
@@ -696,23 +753,23 @@ func (p *QueryParser) MultiValues() (localctx IMultiValuesContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(31)
+		p.SetState(37)
 		p.Match(QueryParserT__1)
 	}
-	p.SetState(33)
+	p.SetState(39)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 
 	if _la == QueryParserValue {
 		{
-			p.SetState(32)
+			p.SetState(38)
 			p.ManyValues()
 		}
 
 	}
 	{
-		p.SetState(35)
+		p.SetState(41)
 		p.Match(QueryParserT__2)
 	}
 
@@ -826,21 +883,21 @@ func (p *QueryParser) ManyValues() (localctx IManyValuesContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(37)
+		p.SetState(43)
 		p.Match(QueryParserValue)
 	}
-	p.SetState(40)
+	p.SetState(46)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 
 	if _la == QueryParserValueSeparator {
 		{
-			p.SetState(38)
+			p.SetState(44)
 			p.Match(QueryParserValueSeparator)
 		}
 		{
-			p.SetState(39)
+			p.SetState(45)
 			p.ManyValues()
 		}
 

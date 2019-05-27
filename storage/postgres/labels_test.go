@@ -130,7 +130,7 @@ var _ = Describe("Postgres Translator", func() {
 					}
 					actualQuery, actualQueryParams, err := buildQueryWithParams(extContext, baseQuery, baseTableName, labelableEntity, criteria, nil)
 					Expect(err).ToNot(HaveOccurred())
-					Expect(actualQuery).To(ContainSubstring(fmt.Sprintf(" WHERE %s.%s::text %s (?);", baseTableName, criteria[0].LeftOp, strings.ToUpper(string(criteria[0].Operator)))))
+					Expect(actualQuery).To(ContainSubstring(fmt.Sprintf(" WHERE %s.%s::text %s (?);", baseTableName, criteria[0].LeftOp, strings.ToUpper(criteria[0].Operator.String()))))
 
 					expectedQueryParams := buildExpectedQueryParams(criteria)
 					Expect(actualQueryParams).To(Equal(expectedQueryParams))

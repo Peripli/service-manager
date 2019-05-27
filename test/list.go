@@ -117,7 +117,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		Entry("returns 200",
 			listOpEntry{
 				resourcesToExpectBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
-				queryTemplate:             "%[1]s in ['%[2]v'||'%[2]v'||'%[2]v']",
+				queryTemplate:             "%[1]s in ('%[2]v','%[2]v','%[2]v')",
 				queryArgs:                 r[0],
 				resourcesToExpectAfterOp:  []common.Object{r[0]},
 				expectedStatusCode:        http.StatusOK,
@@ -127,7 +127,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		Entry("returns 200",
 			listOpEntry{
 				resourcesToExpectBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
-				queryTemplate:             "%s in ['%v']",
+				queryTemplate:             "%s in ('%v')",
 				queryArgs:                 r[0],
 				resourcesToExpectAfterOp:  []common.Object{r[0]},
 				expectedStatusCode:        http.StatusOK,
@@ -136,7 +136,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		Entry("returns 200",
 			listOpEntry{
 				resourcesToExpectBeforeOp:   []common.Object{r[0], r[1], r[2], r[3]},
-				queryTemplate:               "%[1]s notin ['%[2]v','%[2]v','%[2]v']",
+				queryTemplate:               "%[1]s notin ('%[2]v','%[2]v','%[2]v')",
 				queryArgs:                   r[0],
 				resourcesNotToExpectAfterOp: []common.Object{r[0]},
 				expectedStatusCode:          http.StatusOK,
@@ -145,7 +145,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		Entry("returns 200",
 			listOpEntry{
 				resourcesToExpectBeforeOp:   []common.Object{r[0], r[1], r[2], r[3]},
-				queryTemplate:               "%s notin ['%v']",
+				queryTemplate:               "%s notin ('%v')",
 				queryArgs:                   r[0],
 				resourcesNotToExpectAfterOp: []common.Object{r[0]},
 				expectedStatusCode:          http.StatusOK,
@@ -229,7 +229,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		Entry("returns 200 for JSON fields with stripped new lines",
 			listOpEntry{
 				resourcesToExpectBeforeOp: []common.Object{r[0]},
-				queryTemplate:             "%s = '%v'",
+				queryTemplate:             "%s eq '%v'",
 				queryArgs:                 common.RemoveNonJSONArgs(r[0]),
 				resourcesToExpectAfterOp:  []common.Object{r[0]},
 				expectedStatusCode:        http.StatusOK,
@@ -267,7 +267,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 
 		Entry("returns 400 when field query left operands are unknown",
 			listOpEntry{
-				queryTemplate:      "%[1]s in ['%[2]v', '%[2]v']",
+				queryTemplate:      "%[1]s in ('%[2]v', '%[2]v')",
 				queryArgs:          common.Object{"unknownkey": "unknownvalue"},
 				expectedStatusCode: http.StatusBadRequest,
 			},
@@ -275,7 +275,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		Entry("returns 200 when label query left operands are unknown",
 			listOpEntry{
 				resourcesToExpectBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
-				queryTemplate:             "%[1]s in ['%[2]v','%[2]v']",
+				queryTemplate:             "%[1]s in ('%[2]v','%[2]v')",
 				queryArgs: common.Object{
 					"labels": map[string]interface{}{
 						"unknown": []interface{}{
@@ -288,7 +288,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		),
 		Entry("returns 400 when single value operator is used with multiple right value arguments",
 			listOpEntry{
-				queryTemplate:      "%[1]s neq ['%[2]v','%[2]v','%[2]v']",
+				queryTemplate:      "%[1]s neq ('%[2]v','%[2]v','%[2]v')",
 				queryArgs:          r[0],
 				expectedStatusCode: http.StatusBadRequest,
 			},
