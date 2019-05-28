@@ -17,7 +17,11 @@
 package filters
 
 import (
+	"fmt"
 	"net/http"
+	"net/url"
+
+	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -43,7 +47,15 @@ func (l *SelectionCriteria) Run(req *web.Request, next web.Handler) (*web.Respon
 	var criteria []query.Criterion
 	for _, queryType := range query.CriteriaTypes() {
 		queryValue := req.URL.Query().Get(string(queryType))
-		queryCriteria, err := query.Parse(queryType, queryValue)
+		unescaped, err := url.QueryUnescape(queryValue)
+		if err != nil {
+			return nil, &util.HTTPError{
+				ErrorType:   "BadRequest",
+				StatusCode:  http.StatusBadRequest,
+				Description: fmt.Sprintf("there is a symbol in the %s param that is not URL encoded: %v", queryType, err),
+			}
+		}
+		queryCriteria, err := query.Parse(queryType, unescaped)
 		if err != nil {
 			return nil, err
 		}

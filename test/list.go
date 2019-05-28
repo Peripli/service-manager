@@ -19,6 +19,7 @@ package test
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/Peripli/service-manager/pkg/query"
@@ -387,6 +388,50 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 				ctx.SMWithBasic.GET(t.API).
 					Expect().
 					Status(http.StatusOK)
+			})
+		})
+
+		Context("when query requires encoding", func() {
+			var obj common.Object
+			labelKey := "labelKey1"
+			labelValue := "symbols!that@are#url$encoded%when^making a*request("
+			if !t.SupportsLabels {
+				Skip("Entity does not support labels") // TODO: waits for another PR
+			}
+			BeforeEach(func() {
+				obj = t.ResourceBlueprint(ctx)
+				patchLabelsBody := make(map[string]interface{})
+				patchLabels := []query.LabelChange{
+					{
+						Operation: query.AddLabelOperation,
+						Key:       labelKey,
+						Values:    []string{labelValue},
+					},
+				}
+				patchLabelsBody["labels"] = patchLabels
+
+				ctx.SMWithOAuth.PATCH(t.API + "/" + obj["id"].(string)).WithJSON(patchLabelsBody).
+					Expect().
+					Status(http.StatusOK)
+			})
+
+			AfterEach(func() {
+				ctx.SMWithOAuth.DELETE(t.API + "/" + obj["id"].(string)).
+					Expect().
+					Status(http.StatusOK)
+			})
+
+			It("and is not encoded, returns 400", func() {
+				ctx.SMWithOAuth.GET(t.API).WithQuery("labelQuery", fmt.Sprintf("%s eq '%s'", labelKey, labelValue)).
+					Expect().Status(http.StatusBadRequest).Body().Contains("not URL encoded")
+			})
+
+			It("and is encoded, returns 200", func() {
+				escapedLabelValue := url.QueryEscape(labelValue)
+				jsonArrayKey := strings.Replace(t.API, "/v1/", "", 1)
+				ctx.SMWithOAuth.GET(t.API).WithQuery("labelQuery", fmt.Sprintf("%s eq '%s'", labelKey, escapedLabelValue)).
+					Expect().Status(http.StatusOK).JSON().Object().Value(jsonArrayKey).Array().
+					Element(0).Object().Value("id").Equal(obj["id"])
 			})
 		})
 
