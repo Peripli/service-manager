@@ -22,6 +22,10 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/gofrs/uuid"
+
+	"github.com/Peripli/service-manager/pkg/util"
+
 	notificationConnection "github.com/Peripli/service-manager/storage/postgres/notification_connection"
 	notificationConnectionFakes "github.com/Peripli/service-manager/storage/postgres/notification_connection/notification_connectionfakes"
 
@@ -33,9 +37,6 @@ import (
 
 	"github.com/lib/pq"
 
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/pkg/web/webfakes"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -43,8 +44,7 @@ import (
 var _ = Describe("Notificator", func() {
 	const (
 		defaultLastRevision int64 = 10
-		invalidRevision     int64 = -1
-		defaultPlatformID         = "platformID"
+		defaultQueueSize          = 1
 	)
 
 	var (
@@ -57,27 +57,30 @@ var _ = Describe("Notificator", func() {
 		fakeNotificationConnection *notificationConnectionFakes.FakeNotificationConnection
 		notificationChannel        chan *pq.Notification
 		runningFunc                func(isRunning bool, err error)
-		userContext                *web.UserContext
-		fakeData                   *webfakes.FakeData
 		queue                      storage.NotificationQueue
+		defaultPlatform            *types.Platform
 	)
 
 	expectedError := errors.New("*Expected*")
 
-	expectRegisterConsumerFail := func(errorMessage string) {
-		q, revision, err := testNotificator.RegisterConsumer(userContext)
+	expectRegisterConsumerFail := func(errorMessage string, revision int64) {
+		q, smRevision, err := testNotificator.RegisterConsumer(defaultPlatform, revision)
 		Expect(q).To(BeNil())
-		Expect(revision).To(Equal(invalidRevision))
+		Expect(smRevision).To(Equal(types.InvalidRevision))
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring(errorMessage))
 	}
 
-	expectRegisterConsumerSuccess := func() storage.NotificationQueue {
-		q, revision, err := testNotificator.RegisterConsumer(userContext)
+	expectRegisterConsumerSuccess := func(platform *types.Platform, revision int64) storage.NotificationQueue {
+		q, smRevision, err := testNotificator.RegisterConsumer(platform, revision)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(revision).To(Equal(defaultLastRevision))
+		Expect(smRevision).To(Equal(defaultLastRevision))
 		Expect(q).ToNot(BeNil())
 		return q
+	}
+
+	registerDefaultPlatform := func() storage.NotificationQueue {
+		return expectRegisterConsumerSuccess(defaultPlatform, types.InvalidRevision)
 	}
 
 	expectReceivedNotification := func(expectedNotification *types.Notification, q storage.NotificationQueue) {
@@ -87,19 +90,53 @@ var _ = Describe("Notificator", func() {
 
 	newNotificator := func(queueSize int) storage.Notificator {
 		return &Notificator{
-			queueSize:         queueSize,
-			connectionMutex:   &sync.Mutex{},
-			consumersMutex:    &sync.Mutex{},
-			consumers:         make(consumers),
+			queueSize:       queueSize,
+			connectionMutex: &sync.Mutex{},
+			consumersMutex:  &sync.Mutex{},
+			consumers: &consumers{
+				queues:    make(map[string][]storage.NotificationQueue),
+				platforms: make([]*types.Platform, 0),
+			},
 			storage:           fakeStorage,
 			connectionCreator: fakeConnectionCreator,
-			lastKnownRevision: invalidRevisionNumber,
+			lastKnownRevision: types.InvalidRevision,
 		}
+	}
+
+	createNotification := func(platformID string) *types.Notification {
+		id, err := uuid.NewV4()
+		Expect(err).ToNot(HaveOccurred())
+		return &types.Notification{
+			PlatformID: platformID,
+			Revision:   123,
+			Type:       "CREATED",
+			Resource:   "broker",
+			Payload:    json.RawMessage{},
+			Base: types.Base{
+				ID: id.String(),
+			},
+		}
+	}
+
+	createNotificationPayload := func(platformID, notificationID string) string {
+		notificationPayload := map[string]interface{}{
+			"platform_id":     platformID,
+			"notification_id": notificationID,
+			"revision":        defaultLastRevision + 1,
+		}
+		notificationPayloadJSON, err := json.Marshal(notificationPayload)
+		Expect(err).ToNot(HaveOccurred())
+		return string(notificationPayloadJSON)
 	}
 
 	BeforeEach(func() {
 		ctx, cancel = context.WithCancel(context.Background())
 		wg = &sync.WaitGroup{}
+		defaultPlatform = &types.Platform{
+			Base: types.Base{
+				ID: "platformID",
+			},
+		}
 		fakeStorage = &postgresfakes.FakeNotificationStorage{}
 		fakeStorage.GetLastRevisionReturns(defaultLastRevision, nil)
 		fakeNotificationConnection = &notificationConnectionFakes.FakeNotificationConnection{}
@@ -114,15 +151,7 @@ var _ = Describe("Notificator", func() {
 			runningFunc = f
 			return fakeNotificationConnection
 		}
-		testNotificator = newNotificator(1)
-		fakeData = &webfakes.FakeData{}
-		fakeData.DataStub = func(i interface{}) error {
-			platform := i.(*types.Platform)
-			platform.ID = defaultPlatformID
-			return nil
-		}
-		userContext = &web.UserContext{}
-		userContext.Data = fakeData
+		testNotificator = newNotificator(defaultQueueSize)
 	})
 
 	AfterEach(func() {
@@ -145,12 +174,76 @@ var _ = Describe("Notificator", func() {
 		})
 	})
 
+	Describe("RegisterFilter", func() {
+
+		var queue2 storage.NotificationQueue
+		var secondPlatform *types.Platform
+		var registerWithRevision int64
+		var notification *types.Notification
+
+		JustBeforeEach(func() {
+			secondPlatform = &types.Platform{
+				Base: types.Base{
+					ID: "platform2",
+				},
+			}
+			testNotificator.RegisterFilter(func(recipients []*types.Platform, notification *types.Notification) []*types.Platform {
+				switch len(recipients) {
+				case 1:
+					if recipients[0].ID == defaultPlatform.ID {
+						return nil
+					}
+					return recipients
+				case 2:
+					return []*types.Platform{recipients[1]} // filter the default platform
+				default:
+					Fail("The registered test filter was called with invalid recipients")
+					return nil
+				}
+			})
+			notification = createNotification("")
+			fakeStorage.GetNotificationByRevisionReturns(notification, nil)
+			fakeStorage.ListNotificationsReturns([]*types.Notification{notification}, nil)
+			fakeStorage.GetNotificationReturns(notification, nil)
+
+			Expect(testNotificator.Start(ctx, wg)).ToNot(HaveOccurred())
+			runningFunc(true, nil)
+			queue = expectRegisterConsumerSuccess(defaultPlatform, registerWithRevision)
+			queue2 = expectRegisterConsumerSuccess(secondPlatform, registerWithRevision)
+		})
+
+		Context("When notification is sent with empty platform ID", func() {
+			BeforeEach(func() {
+				registerWithRevision = types.InvalidRevision
+			})
+
+			It("Should be filtered in the second queue", func() {
+				notificationChannel <- &pq.Notification{
+					Extra: createNotificationPayload(notification.PlatformID, notification.ID),
+				}
+				expectReceivedNotification(notification, queue2)
+				Expect(queue.Channel()).To(HaveLen(0))
+			})
+		})
+
+		Context("When old notification is present", func() {
+			BeforeEach(func() {
+				registerWithRevision = defaultLastRevision - 1
+			})
+
+			It("Should be filtered in the second queue", func() {
+				expectReceivedNotification(notification, queue2)
+				Expect(queue.Channel()).To(HaveLen(0))
+			})
+		})
+	})
+
 	Describe("UnregisterConsumer", func() {
 		BeforeEach(func() {
 			Expect(testNotificator.Start(ctx, wg)).ToNot(HaveOccurred())
 			Expect(runningFunc).ToNot(BeNil())
 			runningFunc(true, nil)
-			queue = expectRegisterConsumerSuccess()
+			queue = registerDefaultPlatform()
 		})
 
 		newQueue := func(size int) storage.NotificationQueue {
@@ -177,7 +270,7 @@ var _ = Describe("Notificator", func() {
 
 		Context("When more than one consumer is registered", func() {
 			It("Should not unlisten", func() {
-				expectRegisterConsumerSuccess()
+				registerDefaultPlatform()
 				err := testNotificator.UnregisterConsumer(queue)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(fakeNotificationConnection.UnlistenCallCount()).To(Equal(0))
@@ -203,91 +296,125 @@ var _ = Describe("Notificator", func() {
 
 		Context("When storage GetLastRevision fails", func() {
 			BeforeEach(func() {
-				fakeStorage.GetLastRevisionReturns(invalidRevision, expectedError)
+				fakeStorage.GetLastRevisionReturns(types.InvalidRevision, expectedError)
 			})
 
 			It("Should return error", func() {
-				expectRegisterConsumerFail("listen to notifications channel failed " + expectedError.Error())
-			})
-		})
-
-		Context("When user is not valid", func() {
-			It("Should return error", func() {
-				fakeData.DataReturns(expectedError)
-				expectRegisterConsumerFail("could not get platform from user context " + expectedError.Error())
-			})
-		})
-
-		Context("When user is empty", func() {
-			It("Should return error", func() {
-				fakeData.DataStub = func(i interface{}) error {
-					return nil
-				}
-				expectRegisterConsumerFail("platform ID not found in user context")
+				expectRegisterConsumerFail("listen to notifications channel failed "+expectedError.Error(), types.InvalidRevision)
 			})
 		})
 
 		Context("When Notificator is running", func() {
 			It("Should not return error", func() {
-				expectRegisterConsumerSuccess()
+				registerDefaultPlatform()
 				Expect(fakeNotificationConnection.ListenCallCount()).To(Equal(1))
+			})
+		})
+
+		Context("When notification revision is grater than the the one SM knows", func() {
+			It("Should return error", func() {
+				expectRegisterConsumerFail(util.ErrInvalidNotificationRevision.Error(), defaultLastRevision+1)
+			})
+		})
+
+		Context("When registering with 0 < revision < sm_revision", func() {
+			Context("When storage returns error when getting notification with revision", func() {
+				It("Should return the error", func() {
+					fakeStorage.GetNotificationByRevisionReturns(nil, expectedError)
+					expectRegisterConsumerFail(expectedError.Error(), defaultLastRevision-1)
+					Expect(fakeNotificationConnection.UnlistenCallCount()).To(Equal(1))
+				})
+			})
+
+			Context("When storage returns error and unlisten returns error when getting notification with revision", func() {
+				It("Should return the storage error", func() {
+					fakeStorage.GetNotificationByRevisionReturns(nil, expectedError)
+					fakeNotificationConnection.UnlistenReturns(errors.New("unlisten error"))
+					expectRegisterConsumerFail(expectedError.Error(), defaultLastRevision-1)
+					Expect(fakeNotificationConnection.UnlistenCallCount()).To(Equal(1))
+				})
+			})
+
+			Context("When storage returns \"not found\" error when getting notification with revision", func() {
+				It("Should return ErrInvalidNotificationRevision", func() {
+					fakeStorage.GetNotificationByRevisionReturns(nil, util.ErrNotFoundInStorage)
+					expectRegisterConsumerFail(util.ErrInvalidNotificationRevision.Error(), defaultLastRevision-1)
+				})
+			})
+
+			Context("When storage returns error on notification list", func() {
+				It("Should return the error", func() {
+					fakeStorage.ListNotificationsReturns(nil, expectedError)
+					expectRegisterConsumerFail(expectedError.Error(), defaultLastRevision-1)
+				})
+			})
+
+			Context("When storage returns too many notifications a queue can handle", func() {
+				It("Should return ErrInvalidNotificationRevision", func() {
+					notificationsToReturn := make([]*types.Notification, 0, defaultQueueSize+1)
+					for i := 0; i < defaultQueueSize+1; i++ {
+						notificationsToReturn = append(notificationsToReturn, createNotification(""))
+					}
+					fakeStorage.ListNotificationsReturns(notificationsToReturn, nil)
+					expectRegisterConsumerFail(util.ErrInvalidNotificationRevision.Error(), defaultLastRevision-1)
+				})
+			})
+
+			Context("When storage returns a missed notification", func() {
+				It("Should be in the returned queue", func() {
+					n1 := createNotification("")
+					n2 := createNotification("")
+					fakeStorage.GetNotificationByRevisionReturns(n1, nil)
+					fakeStorage.ListNotificationsReturns([]*types.Notification{n1}, nil)
+					fakeStorage.GetNotificationReturns(n2, nil)
+					queue = expectRegisterConsumerSuccess(defaultPlatform, defaultLastRevision-1)
+					queueChannel := queue.Channel()
+					Expect(<-queueChannel).To(Equal(n1))
+					notificationChannel <- &pq.Notification{
+						Extra: createNotificationPayload("", n2.ID),
+					}
+					Expect(<-queueChannel).To(Equal(n2))
+				})
 			})
 		})
 
 		Context("When Notificator stops", func() {
 			It("Should return error", func() {
-				expectRegisterConsumerSuccess()
+				registerDefaultPlatform()
 				runningFunc(false, nil)
-				expectRegisterConsumerFail("cannot register consumer - Notificator is not running")
+				expectRegisterConsumerFail("cannot register consumer - Notificator is not running", types.InvalidRevision)
 			})
 		})
 
 		Context("When listen returns error", func() {
 			It("Should return error", func() {
 				fakeNotificationConnection.ListenReturns(expectedError)
-				expectRegisterConsumerFail(expectedError.Error())
+				expectRegisterConsumerFail(expectedError.Error(), types.InvalidRevision)
+			})
+		})
+
+		Context("When revision is not valid", func() {
+			It("Should return error", func() {
+				expectRegisterConsumerFail(util.ErrInvalidNotificationRevision.Error(), 987654321)
 			})
 		})
 
 	})
 
 	Describe("Process notifications", func() {
-		createNotification := func(platformID string) *types.Notification {
-			return &types.Notification{
-				PlatformID: platformID,
-				Revision:   123,
-				Type:       "CREATED",
-				Resource:   "broker",
-				Payload:    json.RawMessage{},
-				Base: types.Base{
-					ID: "id",
-				},
-			}
-		}
-
-		createNotificationPayload := func(platformID string) string {
-			notificationPayload := map[string]interface{}{
-				"platform_id":     platformID,
-				"notification_id": "notificationID",
-				"revision":        defaultLastRevision + 1,
-			}
-			notificationPayloadJSON, err := json.Marshal(notificationPayload)
-			Expect(err).ToNot(HaveOccurred())
-			return string(notificationPayloadJSON)
-		}
 
 		BeforeEach(func() {
 			Expect(testNotificator.Start(ctx, wg)).ToNot(HaveOccurred())
 			runningFunc(true, nil)
-			queue = expectRegisterConsumerSuccess()
+			queue = registerDefaultPlatform()
 		})
 
 		Context("When notification is sent", func() {
 			It("Should be received in the queue", func() {
-				notification := createNotification(defaultPlatformID)
+				notification := createNotification(defaultPlatform.ID)
 				fakeStorage.GetNotificationReturns(notification, nil)
 				notificationChannel <- &pq.Notification{
-					Extra: createNotificationPayload(defaultPlatformID),
+					Extra: createNotificationPayload(defaultPlatform.ID, notification.ID),
 				}
 				expectReceivedNotification(notification, queue)
 			})
@@ -298,7 +425,7 @@ var _ = Describe("Notificator", func() {
 				fakeStorage.GetNotificationReturns(nil, expectedError)
 				ch := queue.Channel()
 				notificationChannel <- &pq.Notification{
-					Extra: createNotificationPayload(platformID),
+					Extra: createNotificationPayload(platformID, "some_id"),
 				}
 				_, ok := <-ch
 				Expect(ok).To(BeFalse())
@@ -306,7 +433,7 @@ var _ = Describe("Notificator", func() {
 
 			Context("When notification has registered platform ID", func() {
 				It("queue should be closed", func() {
-					fetchNotificationFromDBFail(defaultPlatformID)
+					fetchNotificationFromDBFail(defaultPlatform.ID)
 				})
 			})
 
@@ -319,12 +446,12 @@ var _ = Describe("Notificator", func() {
 
 		Context("When notification is sent with empty platform ID", func() {
 			It("Should be received in the queue", func() {
-				q := expectRegisterConsumerSuccess()
+				q := registerDefaultPlatform()
 
 				notification := createNotification("")
 				fakeStorage.GetNotificationReturns(notification, nil)
 				notificationChannel <- &pq.Notification{
-					Extra: createNotificationPayload(""),
+					Extra: createNotificationPayload("", notification.ID),
 				}
 				expectReceivedNotification(notification, queue)
 				expectReceivedNotification(notification, q)
@@ -333,13 +460,13 @@ var _ = Describe("Notificator", func() {
 
 		Context("When notification is sent with unregistered platform ID", func() {
 			It("Should call storage once", func() {
-				notification := createNotification(defaultPlatformID)
+				notification := createNotification(defaultPlatform.ID)
 				fakeStorage.GetNotificationReturns(notification, nil)
 				notificationChannel <- &pq.Notification{
-					Extra: createNotificationPayload("not_registered"),
+					Extra: createNotificationPayload("not_registered", "some_id"),
 				}
 				notificationChannel <- &pq.Notification{
-					Extra: createNotificationPayload(defaultPlatformID),
+					Extra: createNotificationPayload(defaultPlatform.ID, notification.ID),
 				}
 				expectReceivedNotification(notification, queue)
 				Expect(fakeStorage.GetNotificationCallCount()).To(Equal(1))
@@ -359,19 +486,17 @@ var _ = Describe("Notificator", func() {
 
 		Context("When notification is null", func() {
 			It("Should not send notification", func() {
-				notification := createNotification(defaultPlatformID)
+				notification := createNotification(defaultPlatform.ID)
 				fakeStorage.GetNotificationReturns(notification, nil)
 				notificationChannel <- nil
 				notificationChannel <- &pq.Notification{
-					Extra: createNotificationPayload(defaultPlatformID),
+					Extra: createNotificationPayload(defaultPlatform.ID, notification.ID),
 				}
 				expectReceivedNotification(notification, queue)
 			})
 		})
 
 		Context("When notification is sent to full queue", func() {
-
-			var notificationChannel chan *pq.Notification
 
 			BeforeEach(func() {
 				runningFunc = nil
@@ -384,12 +509,12 @@ var _ = Describe("Notificator", func() {
 			})
 
 			It("Should close notification queue", func() {
-				q := expectRegisterConsumerSuccess()
-				notification := createNotification(defaultPlatformID)
+				q := registerDefaultPlatform()
+				notification := createNotification(defaultPlatform.ID)
 				fakeStorage.GetNotificationReturns(notification, nil)
 				ch := q.Channel()
 				notificationChannel <- &pq.Notification{
-					Extra: createNotificationPayload(defaultPlatformID),
+					Extra: createNotificationPayload(defaultPlatform.ID, notification.ID),
 				}
 				_, ok := <-ch
 				Expect(ok).To(BeFalse())

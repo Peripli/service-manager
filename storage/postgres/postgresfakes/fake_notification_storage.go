@@ -2,10 +2,10 @@
 package postgresfakes
 
 import (
-	"context"
-	"sync"
+	context "context"
+	sync "sync"
 
-	"github.com/Peripli/service-manager/pkg/types"
+	types "github.com/Peripli/service-manager/pkg/types"
 )
 
 type FakeNotificationStorage struct {
@@ -34,6 +34,36 @@ type FakeNotificationStorage struct {
 	}
 	getNotificationReturnsOnCall map[int]struct {
 		result1 *types.Notification
+		result2 error
+	}
+	GetNotificationByRevisionStub        func(context.Context, int64) (*types.Notification, error)
+	getNotificationByRevisionMutex       sync.RWMutex
+	getNotificationByRevisionArgsForCall []struct {
+		arg1 context.Context
+		arg2 int64
+	}
+	getNotificationByRevisionReturns struct {
+		result1 *types.Notification
+		result2 error
+	}
+	getNotificationByRevisionReturnsOnCall map[int]struct {
+		result1 *types.Notification
+		result2 error
+	}
+	ListNotificationsStub        func(context.Context, string, int64, int64) ([]*types.Notification, error)
+	listNotificationsMutex       sync.RWMutex
+	listNotificationsArgsForCall []struct {
+		arg1 context.Context
+		arg2 string
+		arg3 int64
+		arg4 int64
+	}
+	listNotificationsReturns struct {
+		result1 []*types.Notification
+		result2 error
+	}
+	listNotificationsReturnsOnCall map[int]struct {
+		result1 []*types.Notification
 		result2 error
 	}
 	invocations      map[string][][]interface{}
@@ -167,6 +197,136 @@ func (fake *FakeNotificationStorage) GetNotificationReturnsOnCall(i int, result1
 	}{result1, result2}
 }
 
+func (fake *FakeNotificationStorage) GetNotificationByRevision(arg1 context.Context, arg2 int64) (*types.Notification, error) {
+	fake.getNotificationByRevisionMutex.Lock()
+	ret, specificReturn := fake.getNotificationByRevisionReturnsOnCall[len(fake.getNotificationByRevisionArgsForCall)]
+	fake.getNotificationByRevisionArgsForCall = append(fake.getNotificationByRevisionArgsForCall, struct {
+		arg1 context.Context
+		arg2 int64
+	}{arg1, arg2})
+	fake.recordInvocation("GetNotificationByRevision", []interface{}{arg1, arg2})
+	fake.getNotificationByRevisionMutex.Unlock()
+	if fake.GetNotificationByRevisionStub != nil {
+		return fake.GetNotificationByRevisionStub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	fakeReturns := fake.getNotificationByRevisionReturns
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeNotificationStorage) GetNotificationByRevisionCallCount() int {
+	fake.getNotificationByRevisionMutex.RLock()
+	defer fake.getNotificationByRevisionMutex.RUnlock()
+	return len(fake.getNotificationByRevisionArgsForCall)
+}
+
+func (fake *FakeNotificationStorage) GetNotificationByRevisionCalls(stub func(context.Context, int64) (*types.Notification, error)) {
+	fake.getNotificationByRevisionMutex.Lock()
+	defer fake.getNotificationByRevisionMutex.Unlock()
+	fake.GetNotificationByRevisionStub = stub
+}
+
+func (fake *FakeNotificationStorage) GetNotificationByRevisionArgsForCall(i int) (context.Context, int64) {
+	fake.getNotificationByRevisionMutex.RLock()
+	defer fake.getNotificationByRevisionMutex.RUnlock()
+	argsForCall := fake.getNotificationByRevisionArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeNotificationStorage) GetNotificationByRevisionReturns(result1 *types.Notification, result2 error) {
+	fake.getNotificationByRevisionMutex.Lock()
+	defer fake.getNotificationByRevisionMutex.Unlock()
+	fake.GetNotificationByRevisionStub = nil
+	fake.getNotificationByRevisionReturns = struct {
+		result1 *types.Notification
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeNotificationStorage) GetNotificationByRevisionReturnsOnCall(i int, result1 *types.Notification, result2 error) {
+	fake.getNotificationByRevisionMutex.Lock()
+	defer fake.getNotificationByRevisionMutex.Unlock()
+	fake.GetNotificationByRevisionStub = nil
+	if fake.getNotificationByRevisionReturnsOnCall == nil {
+		fake.getNotificationByRevisionReturnsOnCall = make(map[int]struct {
+			result1 *types.Notification
+			result2 error
+		})
+	}
+	fake.getNotificationByRevisionReturnsOnCall[i] = struct {
+		result1 *types.Notification
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeNotificationStorage) ListNotifications(arg1 context.Context, arg2 string, arg3 int64, arg4 int64) ([]*types.Notification, error) {
+	fake.listNotificationsMutex.Lock()
+	ret, specificReturn := fake.listNotificationsReturnsOnCall[len(fake.listNotificationsArgsForCall)]
+	fake.listNotificationsArgsForCall = append(fake.listNotificationsArgsForCall, struct {
+		arg1 context.Context
+		arg2 string
+		arg3 int64
+		arg4 int64
+	}{arg1, arg2, arg3, arg4})
+	fake.recordInvocation("ListNotifications", []interface{}{arg1, arg2, arg3, arg4})
+	fake.listNotificationsMutex.Unlock()
+	if fake.ListNotificationsStub != nil {
+		return fake.ListNotificationsStub(arg1, arg2, arg3, arg4)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	fakeReturns := fake.listNotificationsReturns
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeNotificationStorage) ListNotificationsCallCount() int {
+	fake.listNotificationsMutex.RLock()
+	defer fake.listNotificationsMutex.RUnlock()
+	return len(fake.listNotificationsArgsForCall)
+}
+
+func (fake *FakeNotificationStorage) ListNotificationsCalls(stub func(context.Context, string, int64, int64) ([]*types.Notification, error)) {
+	fake.listNotificationsMutex.Lock()
+	defer fake.listNotificationsMutex.Unlock()
+	fake.ListNotificationsStub = stub
+}
+
+func (fake *FakeNotificationStorage) ListNotificationsArgsForCall(i int) (context.Context, string, int64, int64) {
+	fake.listNotificationsMutex.RLock()
+	defer fake.listNotificationsMutex.RUnlock()
+	argsForCall := fake.listNotificationsArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+}
+
+func (fake *FakeNotificationStorage) ListNotificationsReturns(result1 []*types.Notification, result2 error) {
+	fake.listNotificationsMutex.Lock()
+	defer fake.listNotificationsMutex.Unlock()
+	fake.ListNotificationsStub = nil
+	fake.listNotificationsReturns = struct {
+		result1 []*types.Notification
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeNotificationStorage) ListNotificationsReturnsOnCall(i int, result1 []*types.Notification, result2 error) {
+	fake.listNotificationsMutex.Lock()
+	defer fake.listNotificationsMutex.Unlock()
+	fake.ListNotificationsStub = nil
+	if fake.listNotificationsReturnsOnCall == nil {
+		fake.listNotificationsReturnsOnCall = make(map[int]struct {
+			result1 []*types.Notification
+			result2 error
+		})
+	}
+	fake.listNotificationsReturnsOnCall[i] = struct {
+		result1 []*types.Notification
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeNotificationStorage) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -174,6 +334,10 @@ func (fake *FakeNotificationStorage) Invocations() map[string][][]interface{} {
 	defer fake.getLastRevisionMutex.RUnlock()
 	fake.getNotificationMutex.RLock()
 	defer fake.getNotificationMutex.RUnlock()
+	fake.getNotificationByRevisionMutex.RLock()
+	defer fake.getNotificationByRevisionMutex.RUnlock()
+	fake.listNotificationsMutex.RLock()
+	defer fake.listNotificationsMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

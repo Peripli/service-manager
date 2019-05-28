@@ -100,6 +100,9 @@ var (
 
 	// ErrConcurrentResourceModification error returned when concurrent resource updates are happening
 	ErrConcurrentResourceModification = errors.New("another resource update happened concurrently. Please reattempt the update")
+
+	// ErrInvalidNotificationRevision provided notification revision is not valid, must return http status GONE
+	ErrInvalidNotificationRevision = errors.New("notification revision is not valid")
 )
 
 // ErrBadRequestStorage represents a storage error that should be translated to http.StatusBadRequest
