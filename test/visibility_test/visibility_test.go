@@ -747,7 +747,7 @@ func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext) common.Ob
 		catalog.AddService(cService)
 		id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
 
-		object := ctx.SMWithOAuth.GET(web.ServiceOfferingsURL).WithQuery("fieldQuery", "broker_id eq "+fmt.Sprintf(`'%s'`, id)).
+		object := ctx.SMWithOAuth.GET(web.ServiceOfferingsURL).WithQuery("fieldQuery", fmt.Sprintf("broker_id eq '%s'", id)).
 			Expect()
 
 		so := object.Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().First()

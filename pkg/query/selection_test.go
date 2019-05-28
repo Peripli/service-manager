@@ -195,7 +195,7 @@ new line`))
 				It("Should be okay", func() {
 					rightOp := "this is a mixed, input example. It contains symbols   words ! -h@ppy p@rs'ng"
 					escaped := strings.Replace(rightOp, "'", "''", -1)
-					criteria, err := Parse(queryType, `leftop1 eq `+fmt.Sprintf("'%s'", escaped))
+					criteria, err := Parse(queryType, fmt.Sprintf("leftop1 eq '%s'", escaped))
 					Expect(err).ToNot(HaveOccurred())
 					Expect(criteria).ToNot(BeNil())
 					Expect(criteria).To(ConsistOf(NewCriterion("leftop1", EqualsOperator, []string{rightOp}, queryType)))
@@ -237,7 +237,7 @@ new line`))
 
 			Context("When separator is not properly escaped in first query value", func() {
 				It("Should return error", func() {
-					criteria, err := Parse(queryType, `leftop1 eq 'not'escaped' and leftOp2 eq 'rightOp'`)
+					criteria, err := Parse(queryType, "leftop1 eq 'not'escaped' and leftOp2 eq 'rightOp'")
 					Expect(err).To(HaveOccurred())
 					Expect(criteria).To(BeNil())
 				})
@@ -245,13 +245,13 @@ new line`))
 
 			Context("When separator is not escaped in value", func() {
 				It("Trims the value to the separator", func() {
-					criteria, err := Parse(queryType, `leftop1 eq 'not'escaped'`)
+					criteria, err := Parse(queryType, "leftop1 eq 'not'escaped'")
 					Expect(err).To(HaveOccurred())
 					Expect(criteria).To(BeNil())
 				})
 
 				It("Should fail", func() {
-					criteria, err := Parse(queryType, `leftop1eq 'notescaped'`)
+					criteria, err := Parse(queryType, "leftop1eq 'notescaped'")
 					Expect(err).To(HaveOccurred())
 					Expect(criteria).To(BeNil())
 				})

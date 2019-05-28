@@ -299,7 +299,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		By("[TEST]: ======= Expectations Summary =======")
 
 		By(fmt.Sprintf("[TEST]: Deleting %s at %s", t.API, query))
-		By(fmt.Sprintf("[TEST]: Currently present resources: '%v'", r))
+		By(fmt.Sprintf("[TEST]: Currently present resources: %v", r))
 		By(fmt.Sprintf("[TEST]: Expected %s ids after operations: %s", t.API, expectedAfterOpIDs))
 		By(fmt.Sprintf("[TEST]: Unexpected %s ids after operations: %s", t.API, unexpectedAfterOpIDs))
 		By(fmt.Sprintf("[TEST]: Expected status code %d", deleteListOpEntry.expectedStatusCode))
