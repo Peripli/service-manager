@@ -67,6 +67,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 	var testCatalog string
 	var newPaidPlan string
 	var newPublicPlan string
+	var oldPaidPlan string
 
 	findOneVisibilityForServicePlanID := func(servicePlanID string) map[string]interface{} {
 		vs := ctx.SMWithOAuth.GET("/v1/visibilities").WithQuery("fieldQuery", fmt.Sprintf("service_plan_id eq '%s'", servicePlanID)).
@@ -116,7 +117,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 		c := common.NewEmptySBCatalog()
 
 		oldPublicPlan := common.GenerateFreeTestPlan()
-		oldPaidPlan := common.GeneratePaidTestPlan()
+		oldPaidPlan = common.GeneratePaidTestPlan()
 		newPublicPlan = common.GenerateFreeTestPlan()
 		newPaidPlan = common.GeneratePaidTestPlan()
 		oldService := common.GenerateTestServiceWithPlans(oldPublicPlan, oldPaidPlan)
@@ -292,6 +293,16 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 				Status(http.StatusOK)
 
 			verifyZeroVisibilityForServicePlanID(planID)
+		})
+	})
+
+	Context("when fetching with query parameter", func() {
+		It("returns correct result", func() {
+			isPlanFree := gjson.Get(oldPaidPlan, "free").Raw
+			ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("fieldQuery", fmt.Sprintf("free eq %s", isPlanFree)).
+				Expect().
+				Status(http.StatusOK).JSON().Object().Value("service_plans").Array().
+				Element(0).Object().Value("catalog_id").Equal(oldPaidPlanCatalogID)
 		})
 	})
 

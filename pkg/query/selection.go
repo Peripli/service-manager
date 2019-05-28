@@ -44,21 +44,26 @@ const (
 	LabelQuery CriterionType = "labelQuery"
 )
 
+// OperatorType represents the type of the query operator
 type OperatorType string
 
 const (
 	// UnivariateOperator denotes that the operator expects exactly one variable on the right side
 	UnivariateOperator OperatorType = "univariate"
-	// MultivareateOperator denotes that the operator expects more than one variable on the right side
-	MultivareateOperator OperatorType = "multivariate"
+	// MultivariateOperator denotes that the operator expects more than one variable on the right side
+	MultivariateOperator OperatorType = "multivariate"
 )
 
 // Operator is a query operator
 type Operator interface {
+	// String returns the text representation of the operator
 	String() string
+	// Type returns the type of the operator
 	Type() OperatorType
+	// IsNullable returns true if the operator allows results with null value in the RHS
 	IsNullable() bool
-	RequiresNumber() bool
+	// IsNumeric returns true if the operator works only with numbers
+	IsNumeric() bool
 }
 
 var (
@@ -109,13 +114,13 @@ func NewCriterion(leftOp string, operator Operator, rightOp []string, criteriaTy
 
 // Validate the criterion fields
 func (c Criterion) Validate() error {
-	if len(c.RightOp) > 1 && c.Operator.Type() != MultivareateOperator {
+	if len(c.RightOp) > 1 && c.Operator.Type() != MultivariateOperator {
 		return &util.UnsupportedQueryError{Message: fmt.Sprintf("multiple values %s received for single value operation %s", c.RightOp, c.Operator)}
 	}
 	if c.Operator.IsNullable() && c.Type != FieldQuery {
 		return &util.UnsupportedQueryError{Message: "nullable operations are supported only for field queries"}
 	}
-	if c.Operator.RequiresNumber() && !isNumeric(c.RightOp[0]) {
+	if c.Operator.IsNumeric() && !isNumeric(c.RightOp[0]) {
 		return &util.UnsupportedQueryError{Message: fmt.Sprintf("%s is numeric operator, but the right operand %s is not numeric", c.Operator, c.RightOp[0])}
 	}
 	if strings.Contains(c.LeftOp, Separator) {

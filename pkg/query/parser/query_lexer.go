@@ -97,13 +97,13 @@ var lexerLiteralNames = []string{
 }
 
 var lexerSymbolicNames = []string{
-	"", "", "", "", "MultiOp", "UniOp", "Value", "STRING", "BOOLEAN", "FLOAT", 
+	"", "", "", "", "MultiOp", "UniOp", "Value", "STRING", "BOOLEAN", "NUMBER", 
 	"SIGN", "Key", "ValueSeparator", "Whitespace", "WS",
 }
 
 var lexerRuleNames = []string{
 	"T__0", "T__1", "T__2", "MultiOp", "UniOp", "Value", "STRING", "BOOLEAN", 
-	"FLOAT", "SIGN", "Key", "ValueSeparator", "Whitespace", "WS",
+	"NUMBER", "SIGN", "Key", "ValueSeparator", "Whitespace", "WS",
 }
 
 type QueryLexer struct {
@@ -149,7 +149,7 @@ const (
 	QueryLexerValue = 6
 	QueryLexerSTRING = 7
 	QueryLexerBOOLEAN = 8
-	QueryLexerFLOAT = 9
+	QueryLexerNUMBER = 9
 	QueryLexerSIGN = 10
 	QueryLexerKey = 11
 	QueryLexerValueSeparator = 12

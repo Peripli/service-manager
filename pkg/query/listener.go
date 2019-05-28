@@ -62,10 +62,7 @@ func (s *queryListener) ExitMultivariate(ctx *parser.MultivariateContext) {
 	if s.err != nil {
 		return
 	}
-	if ctx.GetChildCount() != 5 {
-		s.err = fmt.Errorf("unexceted format of query. must be <left_op> <operator> <rig_op>")
-		return
-	}
+
 	leftOp, operator, _ := getCriterionFields(ctx.Key(), ctx.MultiOp(), nil)
 	s.leftOp = leftOp
 	s.op = operator
@@ -101,11 +98,19 @@ func (s *queryListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol
 	s.err = &util.UnsupportedQueryError{Message: fmt.Sprintf("error while parsing %s at column %d: %s", s.criteriaType, column, msg)}
 }
 
-func getCriterionFields(key, op, rightOp antlr.TerminalNode) (string, string, string) {
-	rightOpValue := fmt.Sprintf("%s", rightOp)
-	rightOpValue = strings.Replace(rightOpValue, "''", "'", -1)
-	rightOpValue = strings.Trim(rightOpValue, "'")
-	return fmt.Sprintf("%s", key), fmt.Sprintf("%s", op), rightOpValue
+func getCriterionFields(key, op, right antlr.TerminalNode) (leftOp string, operator string, rightOp string) {
+	if key != nil {
+		leftOp = key.GetText()
+	}
+	if right != nil {
+		rightOp = right.GetText()
+		rightOp = strings.Replace(rightOp, "''", "'", -1)
+		rightOp = strings.Trim(rightOp, "'")
+	}
+	if op != nil {
+		operator = op.GetText()
+	}
+	return
 }
 
 func findOpByString(op string) (Operator, error) {

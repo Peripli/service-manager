@@ -45,7 +45,7 @@ var literalNames = []string{
 	"", "'and'", "'('", "')'", "", "", "", "", "", "", "", "", "", "' '",
 }
 var symbolicNames = []string{
-	"", "", "", "", "MultiOp", "UniOp", "Value", "STRING", "BOOLEAN", "FLOAT", 
+	"", "", "", "", "MultiOp", "UniOp", "Value", "STRING", "BOOLEAN", "NUMBER", 
 	"SIGN", "Key", "ValueSeparator", "Whitespace", "WS",
 }
 
@@ -90,7 +90,7 @@ const (
 	QueryParserValue = 6
 	QueryParserSTRING = 7
 	QueryParserBOOLEAN = 8
-	QueryParserFLOAT = 9
+	QueryParserNUMBER = 9
 	QueryParserSIGN = 10
 	QueryParserKey = 11
 	QueryParserValueSeparator = 12

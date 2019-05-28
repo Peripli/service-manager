@@ -43,7 +43,7 @@ func (o eqOperator) String() string {
 	return string(o)
 }
 
-func (eqOperator) RequiresNumber() bool {
+func (eqOperator) IsNumeric() bool {
 	return false
 }
 
@@ -69,7 +69,7 @@ func (neqOperator) IsNullable() bool {
 	return false
 }
 
-func (neqOperator) RequiresNumber() bool {
+func (neqOperator) IsNumeric() bool {
 	return false
 }
 
@@ -87,7 +87,7 @@ func (gtOperator) IsNullable() bool {
 	return false
 }
 
-func (gtOperator) RequiresNumber() bool {
+func (gtOperator) IsNumeric() bool {
 	return true
 }
 
@@ -105,7 +105,7 @@ func (ltOperator) IsNullable() bool {
 	return false
 }
 
-func (ltOperator) RequiresNumber() bool {
+func (ltOperator) IsNumeric() bool {
 	return true
 }
 
@@ -116,14 +116,14 @@ func (o inOperator) String() string {
 }
 
 func (inOperator) Type() OperatorType {
-	return MultivareateOperator
+	return MultivariateOperator
 }
 
 func (inOperator) IsNullable() bool {
 	return false
 }
 
-func (inOperator) RequiresNumber() bool {
+func (inOperator) IsNumeric() bool {
 	return false
 }
 
@@ -134,14 +134,14 @@ func (o notInOperator) String() string {
 }
 
 func (notInOperator) Type() OperatorType {
-	return MultivareateOperator
+	return MultivariateOperator
 }
 
 func (notInOperator) IsNullable() bool {
 	return false
 }
 
-func (notInOperator) RequiresNumber() bool {
+func (notInOperator) IsNumeric() bool {
 	return false
 }
 
@@ -159,7 +159,7 @@ func (eqOrNilOperator) IsNullable() bool {
 	return true
 }
 
-func (eqOrNilOperator) RequiresNumber() bool {
+func (eqOrNilOperator) IsNumeric() bool {
 	return false
 }
 
@@ -177,7 +177,7 @@ func (gteOperator) IsNullable() bool {
 	return false
 }
 
-func (gteOperator) RequiresNumber() bool {
+func (gteOperator) IsNumeric() bool {
 	return true
 }
 
@@ -195,6 +195,6 @@ func (lteOperator) IsNullable() bool {
 	return false
 }
 
-func (lteOperator) RequiresNumber() bool {
+func (lteOperator) IsNumeric() bool {
 	return true
 }
