@@ -22,8 +22,6 @@ ingress:
 
 postgresql:
   install: true
-  postgresUser: pguser
-  postgresPassword: pgpassword
   persistence:
     size: 1Gi
 
