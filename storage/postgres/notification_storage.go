@@ -67,7 +67,7 @@ func (ns *notificationStorageImpl) GetLastRevision(ctx context.Context) (int64, 
 		return 0, fmt.Errorf("could not get last notification revision from db %v", err)
 	}
 	if len(result) == 0 {
-		return 0, nil
+		return types.InvalidRevision, nil
 	}
 	return result[0].Revision, nil
 }

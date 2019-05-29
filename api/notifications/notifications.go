@@ -21,8 +21,6 @@ import (
 const (
 	LastKnownRevisionHeader     = "last_notification_revision"
 	LastKnownRevisionQueryParam = "last_notification_revision"
-
-	noRevision int64 = 0
 )
 
 func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
@@ -42,10 +40,6 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 				ErrorType:   "BadRequest",
 			}
 		}
-	}
-
-	if revisionKnownToProxy == noRevision {
-		return util.NewJSONResponse(http.StatusGone, nil)
 	}
 
 	user, ok := web.UserFromContext(req.Context())
@@ -75,11 +69,9 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	}()
 
 	rw := req.HijackResponseWriter()
-	if lastKnownToSMRevision == types.InvalidRevision {
-		lastKnownToSMRevision = noRevision
-	}
-	responseHeaders := http.Header{
-		LastKnownRevisionHeader: []string{strconv.FormatInt(lastKnownToSMRevision, 10)},
+	responseHeaders := http.Header{}
+	if lastKnownToSMRevision != types.InvalidRevision {
+		responseHeaders.Add(LastKnownRevisionHeader, strconv.FormatInt(lastKnownToSMRevision, 10))
 	}
 
 	conn, err := c.upgrade(rw, req.Request, responseHeaders)
