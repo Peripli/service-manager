@@ -391,47 +391,61 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 			})
 		})
 
-		Context("when query requires encoding", func() {
-			var obj common.Object
-			labelKey := "labelKey1"
-			labelValue := "symbols!that@are#url$encoded%when^making a*request("
-			if !t.SupportsLabels {
-				Skip("Entity does not support labels") // TODO: waits for another PR
-			}
-			BeforeEach(func() {
-				obj = t.ResourceBlueprint(ctx)
-				patchLabelsBody := make(map[string]interface{})
-				patchLabels := []query.LabelChange{
-					{
-						Operation: query.AddLabelOperation,
-						Key:       labelKey,
-						Values:    []string{labelValue},
-					},
+		Context("querying", func() {
+			Context("by date", func() {
+				It("returns 200 when date is properly formatted", func() {
+					jsonArrayKey := strings.Replace(t.API, "/v1/", "", 1)
+					createdAtValue := ctx.SMWithOAuth.GET(t.API + "/" + r[0]["id"].(string)).Expect().Status(http.StatusOK).
+						JSON().Object().Value("created_at").String().Raw()
+					createdAtValue = createdAtValue[:12] + "6" + createdAtValue[13:]
+					escapedCreatedAtValue := url.QueryEscape(createdAtValue[:len(createdAtValue)-1] + "-02:00")
+					ctx.SMWithOAuth.GET(t.API).WithQuery("fieldQuery", fmt.Sprintf("%s eq %s", "created_at", escapedCreatedAtValue)).
+						Expect().Status(http.StatusOK).JSON().Object().Value(jsonArrayKey).Array().
+						Element(0).Object().Value("id").Equal(r[0]["id"])
+				})
+			})
+			Context("when query requires encoding", func() {
+				var obj common.Object
+				labelKey := "labelKey1"
+				labelValue := "symbols!that@are#url$encoded%when^making a*request("
+				if !t.SupportsLabels {
+					Skip("Entity does not support labels") // TODO: waits for another PR
 				}
-				patchLabelsBody["labels"] = patchLabels
+				BeforeEach(func() {
+					obj = t.ResourceBlueprint(ctx)
+					patchLabelsBody := make(map[string]interface{})
+					patchLabels := []query.LabelChange{
+						{
+							Operation: query.AddLabelOperation,
+							Key:       labelKey,
+							Values:    []string{labelValue},
+						},
+					}
+					patchLabelsBody["labels"] = patchLabels
 
-				ctx.SMWithOAuth.PATCH(t.API + "/" + obj["id"].(string)).WithJSON(patchLabelsBody).
-					Expect().
-					Status(http.StatusOK)
-			})
+					ctx.SMWithOAuth.PATCH(t.API + "/" + obj["id"].(string)).WithJSON(patchLabelsBody).
+						Expect().
+						Status(http.StatusOK)
+				})
 
-			AfterEach(func() {
-				ctx.SMWithOAuth.DELETE(t.API + "/" + obj["id"].(string)).
-					Expect().
-					Status(http.StatusOK)
-			})
+				AfterEach(func() {
+					ctx.SMWithOAuth.DELETE(t.API + "/" + obj["id"].(string)).
+						Expect().
+						Status(http.StatusOK)
+				})
 
-			It("and is not encoded, returns 400", func() {
-				ctx.SMWithOAuth.GET(t.API).WithQuery("labelQuery", fmt.Sprintf("%s eq '%s'", labelKey, labelValue)).
-					Expect().Status(http.StatusBadRequest).Body().Contains("not URL encoded")
-			})
+				It("and is not encoded, returns 400", func() {
+					ctx.SMWithOAuth.GET(t.API).WithQuery("labelQuery", fmt.Sprintf("%s eq '%s'", labelKey, labelValue)).
+						Expect().Status(http.StatusBadRequest).Body().Contains("not URL encoded")
+				})
 
-			It("and is encoded, returns 200", func() {
-				escapedLabelValue := url.QueryEscape(labelValue)
-				jsonArrayKey := strings.Replace(t.API, "/v1/", "", 1)
-				ctx.SMWithOAuth.GET(t.API).WithQuery("labelQuery", fmt.Sprintf("%s eq '%s'", labelKey, escapedLabelValue)).
-					Expect().Status(http.StatusOK).JSON().Object().Value(jsonArrayKey).Array().
-					Element(0).Object().Value("id").Equal(obj["id"])
+				It("and is encoded, returns 200", func() {
+					escapedLabelValue := url.QueryEscape(labelValue)
+					jsonArrayKey := strings.Replace(t.API, "/v1/", "", 1)
+					ctx.SMWithOAuth.GET(t.API).WithQuery("labelQuery", fmt.Sprintf("%s eq '%s'", labelKey, escapedLabelValue)).
+						Expect().Status(http.StatusOK).JSON().Object().Value(jsonArrayKey).Array().
+						Element(0).Object().Value("id").Equal(obj["id"])
+				})
 			})
 		})
 

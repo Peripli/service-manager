@@ -218,11 +218,11 @@ func RegisterPlatformInSM(platformJSON Object, SM *httpexpect.Expect, headers ma
 		Expect().Status(http.StatusCreated).JSON().Object().Raw()
 	createdAtString := reply["created_at"].(string)
 	updatedAtString := reply["updated_at"].(string)
-	createdAt, err := time.Parse(time.RFC3339, createdAtString)
+	createdAt, err := time.Parse(time.RFC3339Nano, createdAtString)
 	if err != nil {
 		panic(err)
 	}
-	updatedAt, err := time.Parse(time.RFC3339, updatedAtString)
+	updatedAt, err := time.Parse(time.RFC3339Nano, updatedAtString)
 	if err != nil {
 		panic(err)
 	}

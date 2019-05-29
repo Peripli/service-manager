@@ -123,11 +123,13 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 				return obj, nil
 			})
 
-			fakeStorage.GetReturns(&types.ServiceBroker{
-				Base: types.Base{
-					UpdatedAt: updateTime,
-				},
-			}, nil)
+			fakeStorage.GetCalls(func(ctx context.Context, objectType types.ObjectType, s string) (types.Object, error) {
+				return &types.ServiceBroker{
+					Base: types.Base{
+						UpdatedAt: updateTime,
+					},
+				}, nil
+			})
 
 			interceptableRepository = storage.NewInterceptableTransactionalRepository(fakeStorage, fakeEncrypter)
 
@@ -221,7 +223,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 			})
 		})
 
-		It("does not get into infinite recursion when an interceptor triggers the same db op for the same db type it intercepts", func() {
+		FIt("does not get into infinite recursion when an interceptor triggers the same db op for the same db type it intercepts", func() {
 			fakeCreateInterceptor.OnTxCreateCalls(func(next storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 				return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) error {
 					_, err := txStorage.Create(ctx, newObject)
@@ -241,12 +243,15 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 				return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 					o, err := txStorage.Update(ctx, newObj, labelChanges...)
 					Expect(err).ShouldNot(HaveOccurred())
+					updateTime = o.GetUpdatedAt()
 
 					o, err = next(ctx, txStorage, oldObj, newObj, labelChanges...)
 					Expect(err).ShouldNot(HaveOccurred())
+					updateTime = o.GetUpdatedAt()
 
 					o, err = txStorage.Update(ctx, newObj, labelChanges...)
 					Expect(err).ShouldNot(HaveOccurred())
+					updateTime = o.GetUpdatedAt()
 
 					return o, nil
 				}
