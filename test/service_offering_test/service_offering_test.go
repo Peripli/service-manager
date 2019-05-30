@@ -35,8 +35,7 @@ func TestServiceOfferings(t *testing.T) {
 }
 
 var _ = test.DescribeTestsFor(test.TestCase{
-	API:            "/v1/service_offerings",
-	SupportsLabels: true,
+	API: "/v1/service_offerings",
 	SupportedOps: []test.Op{
 		test.Get, test.List,
 	},

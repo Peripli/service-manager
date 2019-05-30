@@ -35,8 +35,7 @@ func TestPlatforms(t *testing.T) {
 }
 
 var _ = test.DescribeTestsFor(test.TestCase{
-	API:            "/v1/platforms",
-	SupportsLabels: true,
+	API: "/v1/platforms",
 	SupportedOps: []test.Op{
 		test.Get, test.List, test.Delete, test.DeleteList,
 	},

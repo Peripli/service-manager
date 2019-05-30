@@ -204,25 +204,27 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	if r.Body, err = sjson.DeleteBytes(r.Body, "labels"); err != nil {
-		return nil, err
-	}
 
 	objFromDB, err := c.repository.Get(ctx, c.objectType, objectID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
 
-	createdAt := objFromDB.GetCreatedAt()
-	updatedAt := objFromDB.GetUpdatedAt()
+	if c.objectType != types.ServiceOfferingType && c.objectType != types.ServicePlanType {
+		if r.Body, err = sjson.DeleteBytes(r.Body, "labels"); err != nil {
+			return nil, err
+		}
+		createdAt := objFromDB.GetCreatedAt()
+		updatedAt := objFromDB.GetUpdatedAt()
 
-	if err := util.BytesToObject(r.Body, objFromDB); err != nil {
-		return nil, err
+		if err := util.BytesToObject(r.Body, objFromDB); err != nil {
+			return nil, err
+		}
+
+		objFromDB.SetID(objectID)
+		objFromDB.SetCreatedAt(createdAt)
+		objFromDB.SetUpdatedAt(updatedAt)
 	}
-
-	objFromDB.SetID(objectID)
-	objFromDB.SetCreatedAt(createdAt)
-	objFromDB.SetUpdatedAt(updatedAt)
 
 	labels, _, _ := query.ApplyLabelChangesToLabels(labelChanges, objFromDB.GetLabels())
 	objFromDB.SetLabels(labels)
@@ -233,33 +235,6 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	}
 
 	stripCredentials(ctx, object)
-
-	return util.NewJSONResponse(http.StatusOK, object)
-}
-
-// PatchObject handles the update of labels of the object with the id specified in the request
-func (c *BaseController) PatchLabelsOnly(r *web.Request) (*web.Response, error) {
-	objectID := r.PathParams[PathParamID]
-	ctx := r.Context()
-	log.C(ctx).Debugf("Updating labels of %s with id %s", c.objectType, objectID)
-
-	labelChanges, err := query.LabelChangesFromJSON(r.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	objFromDB, err := c.repository.Get(ctx, c.objectType, objectID)
-	if err != nil {
-		return nil, util.HandleStorageError(err, string(c.objectType))
-	}
-
-	labels, _, _ := query.ApplyLabelChangesToLabels(labelChanges, objFromDB.GetLabels())
-	objFromDB.SetLabels(labels)
-
-	object, err := c.repository.Update(ctx, objFromDB, labelChanges...)
-	if err != nil {
-		return nil, util.HandleStorageError(err, string(c.objectType))
-	}
 
 	return util.NewJSONResponse(http.StatusOK, object)
 }

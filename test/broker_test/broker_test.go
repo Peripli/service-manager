@@ -43,8 +43,7 @@ func TestBrokers(t *testing.T) {
 }
 
 var _ = test.DescribeTestsFor(test.TestCase{
-	API:            "/v1/service_brokers",
-	SupportsLabels: true,
+	API: "/v1/service_brokers",
 	SupportedOps: []test.Op{
 		test.Get, test.List, test.Delete, test.DeleteList,
 	},
