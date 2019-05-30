@@ -58,24 +58,22 @@ func (ps *Storage) SelectContext(ctx context.Context, dest interface{}, query st
 	return ps.pgDB.SelectContext(ctx, dest, query, args...)
 }
 
-func (ps *Storage) Open(options *storage.Settings) error {
+func (ps *Storage) Open(settings *storage.Settings) error {
 	var err error
-	if err = options.Validate(); err != nil {
+	if err = settings.Validate(); err != nil {
 		return err
 	}
-	if len(options.MigrationsURL) == 0 {
-		return fmt.Errorf("validate Settings: StorageMigrationsURL missing")
-	}
+
 	ps.mutex.Lock()
 	defer ps.mutex.Unlock()
 	if ps.db == nil {
 		sslModeParam := ""
-		if options.SkipSSLValidation {
+		if settings.SkipSSLValidation {
 			sslModeParam = "?sslmode=disable"
 		}
-		db, err := ps.ConnectFunc(postgresDriverName, options.URI+sslModeParam)
+		db, err := ps.ConnectFunc(postgresDriverName, settings.URI+sslModeParam)
 		if err != nil {
-			log.D().Panicln("Could not connect to PostgreSQL:", err)
+			return fmt.Errorf("could not connect to PostgreSQL: %s", err)
 		}
 		ps.db = sqlx.NewDb(db, postgresDriverName)
 
@@ -85,13 +83,13 @@ func (ps *Storage) Open(options *storage.Settings) error {
 			db:                   ps.db,
 			storageCheckInterval: time.Second * 5,
 		}
-		ps.layerOneEncryptionKey = []byte(options.EncryptionKey)
-		ps.db.SetMaxIdleConns(options.MaxIdleConnections)
+		ps.layerOneEncryptionKey = []byte(settings.EncryptionKey)
+		ps.db.SetMaxIdleConns(settings.MaxIdleConnections)
 		ps.pgDB = ps.db
 
-		log.D().Debugf("Updating database schema using migrations from %s", options.MigrationsURL)
-		if err := ps.updateSchema(options.MigrationsURL, postgresDriverName); err != nil {
-			log.D().Panicln("Could not update database schema:", err)
+		log.D().Debugf("Updating database schema using migrations from %s", settings.MigrationsURL)
+		if err := ps.updateSchema(settings.MigrationsURL, postgresDriverName); err != nil {
+			return fmt.Errorf("could not update database schema: %s", err)
 		}
 		ps.scheme = newScheme()
 		ps.scheme.introduce(&Broker{})
@@ -102,7 +100,7 @@ func (ps *Storage) Open(options *storage.Settings) error {
 		ps.scheme.introduce(&Notification{})
 	}
 
-	return err
+	return nil
 }
 
 func (ps *Storage) Close() error {

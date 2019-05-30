@@ -17,6 +17,7 @@
 package config
 
 import (
+	"fmt"
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/log"
@@ -57,7 +58,7 @@ func DefaultSettings() *Settings {
 func New(env env.Environment) (*Settings, error) {
 	config := DefaultSettings()
 	if err := env.Unmarshal(config); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error loading configuration: %s", err)
 	}
 
 	return config, nil

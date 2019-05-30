@@ -18,6 +18,7 @@ package sm_test
 
 import (
 	"context"
+	"github.com/Peripli/service-manager/config"
 	"net/http/httptest"
 	"testing"
 
@@ -61,53 +62,71 @@ var _ = Describe("SM", func() {
 
 	Describe("New", func() {
 		Context("when setting up config fails", func() {
-			It("should panic", func() {
+			It("should return error", func() {
 				fakeEnv := &envfakes.FakeEnvironment{}
 				fakeEnv.UnmarshalReturns(errors.New("error"))
 
-				Expect(func() {
-					sm.New(ctx, cancel, fakeEnv)
-				}).To(Panic())
+				_, err := config.New(fakeEnv)
+				Expect(err).To(HaveOccurred())
 			})
 		})
 
 		Context("when validating config fails", func() {
 			It("should panic", func() {
+				env, err := sm.DefaultEnv(common.SetTestFileLocation)
+				Expect(err).ToNot(HaveOccurred())
+				env.Set("api.token_issuer_url", oauthServer.URL())
+				env.Set("log.level", "invalid")
+
+				cfg, err := config.New(env)
+				Expect(err).ToNot(HaveOccurred())
+
 				Expect(func() {
-					env := sm.DefaultEnv(common.SetTestFileLocation)
-					env.Set("api.token_issuer_url", oauthServer.URL())
-					env.Set("log.level", "invalid")
-					sm.New(ctx, cancel, env)
+					sm.New(ctx, cancel, cfg)
 				}).To(Panic())
 			})
 		})
 
 		Context("when setting up storage fails", func() {
 			It("should panic", func() {
-				Expect(func() {
-					env := sm.DefaultEnv(common.SetTestFileLocation)
-					env.Set("api.token_issuer_url", oauthServer.URL())
-					env.Set("storage.uri", "invalid")
-					sm.New(ctx, cancel, env)
-				}).To(Panic())
+				env, err := sm.DefaultEnv(common.SetTestFileLocation)
+				Expect(err).ToNot(HaveOccurred())
+				env.Set("api.token_issuer_url", oauthServer.URL())
+				env.Set("storage.uri", "invalid")
+
+				cfg, err := config.New(env)
+				Expect(err).ToNot(HaveOccurred())
+
+				_, err = sm.New(ctx, cancel, cfg)
+				Expect(err).To(HaveOccurred())
 			})
 		})
 
 		Context("when setting up API fails", func() {
-			It("should panic", func() {
-				Expect(func() {
-					env := sm.DefaultEnv(common.SetTestFileLocation)
-					env.Set("api.token_issuer_url", "")
-					sm.New(ctx, cancel, env)
-				}).To(Panic())
+			It("should return error", func() {
+				env, err := sm.DefaultEnv(common.SetTestFileLocation)
+				Expect(err).ToNot(HaveOccurred())
+				env.Set("api.token_issuer_url", "")
+
+				cfg, err := config.New(env)
+				Expect(err).ToNot(HaveOccurred())
+
+				_, err = sm.New(ctx, cancel, cfg)
+				Expect(err).To(HaveOccurred())
 			})
 		})
 
 		Context("when no API extensions are registered", func() {
 			It("should return working service manager", func() {
-				env := sm.DefaultEnv(common.SetTestFileLocation)
+				env, err := sm.DefaultEnv(common.SetTestFileLocation)
+				Expect(err).ToNot(HaveOccurred())
 				env.Set("api.token_issuer_url", oauthServer.URL())
-				smanager := sm.New(ctx, cancel, env)
+
+				cfg, err := config.New(env)
+				Expect(err).ToNot(HaveOccurred())
+
+				smanager, err := sm.New(ctx, cancel, cfg)
+				Expect(err).ToNot(HaveOccurred())
 
 				verifyServiceManagerStartsSuccessFully(httptest.NewServer(smanager.Build().Server.Router))
 			})
@@ -115,9 +134,16 @@ var _ = Describe("SM", func() {
 
 		Context("when additional filter is registered", func() {
 			It("should return working service manager with a new filter", func() {
-				env := sm.DefaultEnv(common.SetTestFileLocation)
+				env, err := sm.DefaultEnv(common.SetTestFileLocation)
+				Expect(err).ToNot(HaveOccurred())
 				env.Set("api.token_issuer_url", oauthServer.URL())
-				smanager := sm.New(ctx, cancel, env)
+
+				cfg, err := config.New(env)
+				Expect(err).ToNot(HaveOccurred())
+
+				smanager, err := sm.New(ctx, cancel, cfg)
+				Expect(err).ToNot(HaveOccurred())
+
 				smanager.RegisterFilters(testFilter{})
 
 				SM := verifyServiceManagerStartsSuccessFully(httptest.NewServer(smanager.Build().Server.Router))
@@ -130,9 +156,16 @@ var _ = Describe("SM", func() {
 
 		Context("when additional controller is registered", func() {
 			It("should return working service manager with additional controller", func() {
-				env := sm.DefaultEnv(common.SetTestFileLocation)
+				env, err := sm.DefaultEnv(common.SetTestFileLocation)
+				Expect(err).ToNot(HaveOccurred())
 				env.Set("api.token_issuer_url", oauthServer.URL())
-				smanager := sm.New(ctx, cancel, env)
+
+				cfg, err := config.New(env)
+				Expect(err).ToNot(HaveOccurred())
+
+				smanager, err := sm.New(ctx, cancel, cfg)
+				Expect(err).ToNot(HaveOccurred())
+
 				smanager.RegisterControllers(testController{})
 
 				SM := verifyServiceManagerStartsSuccessFully(httptest.NewServer(smanager.Build().Server.Router))

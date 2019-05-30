@@ -72,7 +72,7 @@ type ServiceManager struct {
 }
 
 // DefaultEnv creates a default environment that can be used to boot up a Service Manager
-func DefaultEnv(additionalPFlags ...func(set *pflag.FlagSet)) env.Environment {
+func DefaultEnv(additionalPFlags ...func(set *pflag.FlagSet)) (env.Environment, error) {
 	set := env.EmptyFlagSet()
 
 	config.AddPFlags(set)
@@ -82,23 +82,19 @@ func DefaultEnv(additionalPFlags ...func(set *pflag.FlagSet)) env.Environment {
 
 	environment, err := env.New(set)
 	if err != nil {
-		panic(fmt.Errorf("error loading environment: %s", err))
+		return nil, fmt.Errorf("error loading environment: %s", err)
 	}
 	if err := cf.SetCFOverrides(environment); err != nil {
-		panic(fmt.Errorf("error setting CF environment values: %s", err))
+		return nil, fmt.Errorf("error setting CF environment values: %s", err)
 	}
-	return environment
+	return environment, nil
 }
 
 // New returns service-manager Server with default setup. The function panics on bad configuration
-func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *ServiceManagerBuilder {
-	// Setup config from env
-	cfg, err := config.New(env)
-	if err != nil {
-		panic(fmt.Errorf("error loading configuration: %s", err))
-	}
+func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (*ServiceManagerBuilder, error) {
+	var err error
 	if err = cfg.Validate(); err != nil {
-		panic(fmt.Sprintf("error validating configuration: %s", err))
+		return nil, fmt.Errorf("error validating configuration: %s", err)
 	}
 
 	// Setup the default http client
@@ -126,7 +122,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	var transactionalRepository storage.TransactionalRepository
 	waitGroup := &sync.WaitGroup{}
 	if transactionalRepository, err = storage.InitializeWithSafeTermination(ctx, smStorage, cfg.Storage, waitGroup, encryptingDecorator); err != nil {
-		panic(fmt.Sprintf("error opening storage: %s", err))
+		return nil, fmt.Errorf("error opening storage: %s", err)
 	}
 
 	// Wrap the repository with logic that runs interceptors
@@ -137,7 +133,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 
 	pgNotificator, err := postgres.NewNotificator(smStorage, cfg.Storage)
 	if err != nil {
-		panic(fmt.Sprintf("could not create notificator: %v", err))
+		return nil, fmt.Errorf("could not create notificator: %v", err)
 	}
 
 	apiOptions := &api.Options{
@@ -148,7 +144,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	}
 	API, err := api.New(ctx, apiOptions)
 	if err != nil {
-		panic(fmt.Sprintf("error creating core api: %s", err))
+		return nil, fmt.Errorf("error creating core api: %s", err)
 	}
 
 	API.HealthIndicators = append(API.HealthIndicators, &storage.HealthIndicator{Pinger: storage.PingFunc(smStorage.Ping)})
@@ -188,7 +184,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 		WithUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsUpdateInterceptorProvider{}).Before(interceptors.BrokerUpdateCatalogInterceptorName).Register().
 		WithDeleteInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsDeleteInterceptorProvider{}).After(interceptors.BrokerDeleteCatalogInterceptorName).Register()
 
-	return smb
+	return smb, nil
 }
 
 // Build builds the Service Manager
