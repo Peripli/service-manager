@@ -44,14 +44,13 @@ func AddPFlags(set *pflag.FlagSet) {
 
 // DefaultSettings returns the default values for configuring the Service Manager
 func DefaultSettings() *Settings {
-	config := &Settings{
+	return &Settings{
 		Server:    server.DefaultSettings(),
 		Storage:   storage.DefaultSettings(),
 		Log:       log.DefaultSettings(),
 		API:       api.DefaultSettings(),
 		WebSocket: ws.DefaultSettings(),
 	}
-	return config
 }
 
 // New creates a configuration from the provided env
