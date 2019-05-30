@@ -19,6 +19,7 @@ package env
 import (
 	"reflect"
 	"strings"
+	"unicode"
 
 	"github.com/fatih/structs"
 )
@@ -94,7 +95,11 @@ func buildDescriptionTreeWithParameters(value interface{}, tree *descriptionTree
 		if index == -1 {
 			index = 0
 		}
-		key := strings.ToLower(buffer[0:index])
+		split := strings.Split(buffer[0:index], ".")
+		lastChild := split[len(split)-1]
+		split[len(split)-1] = underscoreSplit(lastChild)
+
+		key := strings.ToLower(strings.Join(split, "."))
 		*result = append(*result, configurationParameter{Name: key, DefaultValue: value})
 		tree.Children = nil
 		return
@@ -127,4 +132,50 @@ func buildDescriptionTreeWithParameters(value interface{}, tree *descriptionTree
 func isValidField(field *structs.Field) bool {
 	kind := field.Kind()
 	return field.IsExported() && kind != reflect.Slice && kind != reflect.Interface && kind != reflect.Func
+}
+
+func underscoreSplit(name string) string {
+	name = strings.TrimSpace(name)
+
+	runeName := []rune(name)
+	upperLetterIndices := make([]int, 0)
+	for i, rune := range runeName {
+		if unicode.IsUpper(rune) {
+			upperLetterIndices = append(upperLetterIndices, i)
+		}
+	}
+
+	if len(upperLetterIndices) == 1 {
+		if upperLetterIndices[0] != 0 {
+			runeName = append(runeName, ' ')
+			copy(runeName[upperLetterIndices[0]+1:], runeName[upperLetterIndices[0]:])
+			runeName[upperLetterIndices[0]] = '_'
+		}
+		return string(runeName)
+	}
+
+	underscoreIndices := make([]int, 0)
+	for i := 1; i < len(upperLetterIndices); i++ {
+		curIdxVal := upperLetterIndices[i]
+		prevIdxVal := upperLetterIndices[i-1]
+
+		if (curIdxVal != prevIdxVal+1) || ((i == len(upperLetterIndices)-1) && (curIdxVal != len(runeName)-1)) {
+			underscoreIndices = append(underscoreIndices, curIdxVal)
+		}
+	}
+
+	insertions := 0
+	for _, idx := range underscoreIndices {
+		if idx == 0 {
+			continue
+		}
+
+		runeName = append(runeName, ' ')
+		copy(runeName[idx+1+insertions:], runeName[idx+insertions:])
+		runeName[idx+insertions] = '_'
+
+		insertions++
+	}
+
+	return string(runeName)
 }
