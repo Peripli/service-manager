@@ -17,6 +17,7 @@ package broker_test
 
 import (
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/web"
 	"net/http"
 	"strings"
 	"testing"
@@ -43,7 +44,7 @@ func TestBrokers(t *testing.T) {
 }
 
 var _ = test.DescribeTestsFor(test.TestCase{
-	API: "/v1/service_brokers",
+	API: web.ServiceBrokersURL,
 	SupportedOps: []test.Op{
 		test.Get, test.List, test.Delete, test.DeleteList,
 	},
@@ -1505,7 +1506,7 @@ func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext) common.Ob
 		if !setNullFieldsValues {
 			delete(brokerJSON, "description")
 		}
-		obj := ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(brokerJSON).
+		obj := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(brokerJSON).
 			Expect().
 			Status(http.StatusCreated).JSON().Object().Raw()
 		delete(obj, "credentials")

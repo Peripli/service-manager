@@ -17,6 +17,7 @@
 package service_test
 
 import (
+	"github.com/Peripli/service-manager/pkg/web"
 	"net/http"
 	"testing"
 
@@ -35,7 +36,7 @@ func TestServiceOfferings(t *testing.T) {
 }
 
 var _ = test.DescribeTestsFor(test.TestCase{
-	API: "/v1/service_offerings",
+	API: web.ServiceOfferingsURL,
 	SupportedOps: []test.Op{
 		test.Get, test.List,
 	},
@@ -49,7 +50,7 @@ func blueprint(ctx *common.TestContext) common.Object {
 	catalog.AddService(cService)
 	id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
 
-	so := ctx.SMWithOAuth.GET("/v1/service_offerings").WithQuery("fieldQuery", "broker_id = "+id).
+	so := ctx.SMWithOAuth.GET(web.ServiceOfferingsURL).WithQuery("fieldQuery", "broker_id = "+id).
 		Expect().
 		Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().First()
 
