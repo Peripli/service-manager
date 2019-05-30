@@ -325,10 +325,10 @@ var _ = Describe("WS", func() {
 func createNotification(repository storage.Repository, platformID string) *types.Notification {
 	notification := common.GenerateRandomNotification()
 	notification.PlatformID = platformID
-	id, err := repository.Create(context.Background(), notification)
+	result, err := repository.Create(context.Background(), notification)
 	Expect(err).ShouldNot(HaveOccurred())
 
-	createdNotification, err := repository.Get(context.Background(), types.NotificationType, id)
+	createdNotification, err := repository.Get(context.Background(), types.NotificationType, result.GetID())
 	Expect(err).ShouldNot(HaveOccurred())
 	return createdNotification.(*types.Notification)
 }

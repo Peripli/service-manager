@@ -26,7 +26,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/log"
 )
 
-func OpenWithSafeTermination(ctx context.Context, s Storage, options *Settings, wg *sync.WaitGroup) error {
+func InitializeWithSafeTermination(ctx context.Context, s Storage, options *Settings, wg *sync.WaitGroup) error {
 	if s == nil || options == nil {
 		return fmt.Errorf("storage and storage settings cannot be nil")
 	}

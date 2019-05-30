@@ -23,15 +23,13 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/security"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
-func NewInterceptableTransactionalRepository(repository TransactionalRepository, encrypter security.Encrypter) *InterceptableTransactionalRepository {
+func NewInterceptableTransactionalRepository(repository TransactionalRepository) *InterceptableTransactionalRepository {
 	return &InterceptableTransactionalRepository{
-		encrypter:           encrypter,
 		smStorageRepository: repository,
 		createProviders:     make(map[types.ObjectType][]OrderedCreateInterceptorProvider),
 		updateProviders:     make(map[types.ObjectType][]OrderedUpdateInterceptorProvider),
@@ -40,13 +38,12 @@ func NewInterceptableTransactionalRepository(repository TransactionalRepository,
 }
 
 func newInterceptableRepository(repository Repository,
-	encrypter security.Encrypter,
 	providedCreateInterceptors map[types.ObjectType]CreateInterceptor,
 	providedUpdateInterceptors map[types.ObjectType]UpdateInterceptor,
 	providedDeleteInterceptors map[types.ObjectType]DeleteInterceptor) *interceptableRepository {
+
 	return &interceptableRepository{
 		repositoryInTransaction: repository,
-		encrypter:               encrypter,
 		createInterceptor:       providedCreateInterceptors,
 		updateInterceptor:       providedUpdateInterceptors,
 		deleteInterceptor:       providedDeleteInterceptors,
@@ -54,8 +51,6 @@ func newInterceptableRepository(repository Repository,
 }
 
 type InterceptableTransactionalRepository struct {
-	encrypter security.Encrypter
-
 	smStorageRepository TransactionalRepository
 
 	createProviders map[types.ObjectType][]OrderedCreateInterceptorProvider
@@ -64,8 +59,6 @@ type InterceptableTransactionalRepository struct {
 }
 
 type interceptableRepository struct {
-	encrypter security.Encrypter
-
 	repositoryInTransaction Repository
 
 	createInterceptor map[types.ObjectType]CreateInterceptor
@@ -73,24 +66,20 @@ type interceptableRepository struct {
 	deleteInterceptor map[types.ObjectType]DeleteInterceptor
 }
 
-func (ir *interceptableRepository) Create(ctx context.Context, obj types.Object) (string, error) {
+func (ir *interceptableRepository) Create(ctx context.Context, obj types.Object) (types.Object, error) {
 	objectType := obj.GetType()
 
-	createObjectFunc := func(ctx context.Context, _ Repository, newObject types.Object) error {
-		if err := transformCredentials(ctx, newObject, ir.encrypter.Encrypt); err != nil {
-			return err
-		}
+	createObjectFunc := func(ctx context.Context, _ Repository, newObject types.Object) (types.Object, error) {
 
-		id, err := ir.repositoryInTransaction.Create(ctx, newObject)
+		createdObj, err := ir.repositoryInTransaction.Create(ctx, newObject)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		newObject.SetID(id)
-
-		return nil
+		return createdObj, nil
 	}
 
+	var createdObj types.Object
 	var err error
 	if createInterceptorChain, found := ir.createInterceptor[objectType]; found {
 		// remove the create interceptor chain so that if one of the interceptors in the chain tries
@@ -99,23 +88,19 @@ func (ir *interceptableRepository) Create(ctx context.Context, obj types.Object)
 		// clean up to avoid nested infinite chain
 		delete(ir.createInterceptor, objectType)
 
-		err = createInterceptorChain.OnTxCreate(createObjectFunc)(ctx, ir, obj)
+		createdObj, err = createInterceptorChain.OnTxCreate(createObjectFunc)(ctx, ir, obj)
 
 		// restore the chain
 		ir.createInterceptor[objectType] = createInterceptorChain
 	} else {
-		err = createObjectFunc(ctx, ir.repositoryInTransaction, obj)
+		createdObj, err = createObjectFunc(ctx, ir.repositoryInTransaction, obj)
 	}
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	if securedObj, isSecured := obj.(types.Secured); isSecured {
-		securedObj.SetCredentials(nil)
-	}
-
-	return obj.GetID(), nil
+	return createdObj, nil
 }
 
 func (ir *interceptableRepository) Get(ctx context.Context, objectType types.ObjectType, id string) (types.Object, error) {
@@ -123,9 +108,7 @@ func (ir *interceptableRepository) Get(ctx context.Context, objectType types.Obj
 	if err != nil {
 		return nil, err
 	}
-	if err = transformCredentials(ctx, object, ir.encrypter.Decrypt); err != nil {
-		return nil, err
-	}
+
 	return object, nil
 }
 
@@ -179,10 +162,6 @@ func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object,
 	objectType := obj.GetType()
 
 	updateObjFunc := func(ctx context.Context, _ Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
-		if err := transformCredentials(ctx, newObj, ir.encrypter.Encrypt); err != nil {
-			return nil, err
-		}
-
 		newObj.SetUpdatedAt(time.Now().UTC())
 
 		object, err := ir.repositoryInTransaction.Update(ctx, newObj, labelChanges...)
@@ -226,10 +205,6 @@ func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object,
 		return nil, err
 	}
 
-	if securedObj, isSecured := updatedObj.(types.Secured); isSecured {
-		securedObj.SetCredentials(nil)
-	}
-
 	return updatedObj, nil
 }
 
@@ -237,7 +212,7 @@ func (itr *InterceptableTransactionalRepository) InTransaction(ctx context.Conte
 	createInterceptors, updateInterceptors, deleteInterceptors := itr.provideInterceptors()
 
 	fWrapper := func(ctx context.Context, storage Repository) error {
-		wrappedStorage := newInterceptableRepository(storage, itr.encrypter, createInterceptors, updateInterceptors, deleteInterceptors)
+		wrappedStorage := newInterceptableRepository(storage, createInterceptors, updateInterceptors, deleteInterceptors)
 		return f(ctx, wrappedStorage)
 	}
 
@@ -260,7 +235,6 @@ func (itr *InterceptableTransactionalRepository) AddDeleteInterceptorProvider(ob
 }
 
 type finalCreateObjectInterceptor struct {
-	encrypter                  security.Encrypter
 	repository                 TransactionalRepository
 	objectType                 types.ObjectType
 	providedCreateInterceptors map[types.ObjectType]CreateInterceptor
@@ -268,43 +242,40 @@ type finalCreateObjectInterceptor struct {
 	providedDeleteInterceptors map[types.ObjectType]DeleteInterceptor
 }
 
-func (final *finalCreateObjectInterceptor) InterceptCreateOnTx(ctx context.Context, txStorage Repository, newObject types.Object) error {
-	id, err := txStorage.Create(ctx, newObject)
+func (final *finalCreateObjectInterceptor) InterceptCreateOnTx(ctx context.Context, txStorage Repository, newObject types.Object) (types.Object, error) {
+	createdObj, err := txStorage.Create(ctx, newObject)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	newObject.SetID(id)
-	return nil
+
+	return createdObj, nil
 }
 
 func (final *finalCreateObjectInterceptor) InterceptCreateAroundTx(ctx context.Context, obj types.Object) (types.Object, error) {
-	var id string
+	var createdObj types.Object
 	var err error
 
 	if err := final.repository.InTransaction(ctx, func(ctx context.Context, txStorage Repository) error {
-		interceptableRepository := newInterceptableRepository(txStorage, final.encrypter, final.providedCreateInterceptors, final.providedUpdateInterceptors, final.providedDeleteInterceptors)
-		id, err = interceptableRepository.Create(ctx, obj)
+		interceptableRepository := newInterceptableRepository(txStorage, final.providedCreateInterceptors, final.providedUpdateInterceptors, final.providedDeleteInterceptors)
+		createdObj, err = interceptableRepository.Create(ctx, obj)
 		if err != nil {
 			return err
 		}
-		if securedObj, isSecured := obj.(types.Secured); isSecured {
-			securedObj.SetCredentials(nil)
-		}
+
 		return nil
 	}); err != nil {
 		return nil, err
 	}
-	obj.SetID(id)
-	return obj, nil
+
+	return createdObj, nil
 }
 
-func (itr *InterceptableTransactionalRepository) Create(ctx context.Context, obj types.Object) (string, error) {
+func (itr *InterceptableTransactionalRepository) Create(ctx context.Context, obj types.Object) (types.Object, error) {
 	providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors := itr.provideInterceptors()
 
 	objectType := obj.GetType()
 
 	finalInterceptor := &finalCreateObjectInterceptor{
-		encrypter:                  itr.encrypter,
 		repository:                 itr.smStorageRepository,
 		objectType:                 objectType,
 		providedCreateInterceptors: providedCreateInterceptors,
@@ -320,10 +291,10 @@ func (itr *InterceptableTransactionalRepository) Create(ctx context.Context, obj
 	}
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return obj.GetID(), nil
+	return obj, nil
 }
 
 func (itr *InterceptableTransactionalRepository) Get(ctx context.Context, objectType types.ObjectType, id string) (types.Object, error) {
@@ -331,9 +302,7 @@ func (itr *InterceptableTransactionalRepository) Get(ctx context.Context, object
 	if err != nil {
 		return nil, err
 	}
-	if err = transformCredentials(ctx, object, itr.encrypter.Decrypt); err != nil {
-		return nil, err
-	}
+
 	return object, nil
 }
 
@@ -347,7 +316,6 @@ func (itr *InterceptableTransactionalRepository) List(ctx context.Context, objec
 }
 
 type finalDeleteObjectInterceptor struct {
-	encrypter                  security.Encrypter
 	repository                 TransactionalRepository
 	objectType                 types.ObjectType
 	providedCreateInterceptors map[types.ObjectType]CreateInterceptor
@@ -364,7 +332,7 @@ func (final *finalDeleteObjectInterceptor) InterceptDeleteAroundTx(ctx context.C
 	var err error
 
 	if err := final.repository.InTransaction(ctx, func(ctx context.Context, txStorage Repository) error {
-		interceptableRepository := newInterceptableRepository(txStorage, final.encrypter, final.providedCreateInterceptors, final.providedUpdateInterceptors, final.providedDeleteInterceptors)
+		interceptableRepository := newInterceptableRepository(txStorage, final.providedCreateInterceptors, final.providedUpdateInterceptors, final.providedDeleteInterceptors)
 		result, err = interceptableRepository.Delete(ctx, final.objectType, criteria...)
 		if err != nil {
 			return err
@@ -380,7 +348,6 @@ func (itr *InterceptableTransactionalRepository) Delete(ctx context.Context, obj
 	providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors := itr.provideInterceptors()
 
 	finalInterceptor := &finalDeleteObjectInterceptor{
-		encrypter:                  itr.encrypter,
 		repository:                 itr.smStorageRepository,
 		objectType:                 objectType,
 		providedCreateInterceptors: providedCreateInterceptors,
@@ -405,7 +372,6 @@ func (itr *InterceptableTransactionalRepository) Delete(ctx context.Context, obj
 }
 
 type finalUpdateObjectInterceptor struct {
-	encrypter                  security.Encrypter
 	repository                 TransactionalRepository
 	objectType                 types.ObjectType
 	providedCreateInterceptors map[types.ObjectType]CreateInterceptor
@@ -422,7 +388,7 @@ func (final *finalUpdateObjectInterceptor) InterceptUpdateAroundTxFunc(ctx conte
 	var result types.Object
 
 	if err = final.repository.InTransaction(ctx, func(ctx context.Context, txStorage Repository) error {
-		interceptableRepository := newInterceptableRepository(txStorage, final.encrypter, final.providedCreateInterceptors, final.providedUpdateInterceptors, final.providedDeleteInterceptors)
+		interceptableRepository := newInterceptableRepository(txStorage, final.providedCreateInterceptors, final.providedUpdateInterceptors, final.providedDeleteInterceptors)
 
 		result, err = interceptableRepository.Update(ctx, obj, labelChanges...)
 		if err != nil {
@@ -443,7 +409,6 @@ func (itr *InterceptableTransactionalRepository) Update(ctx context.Context, obj
 	objectType := obj.GetType()
 
 	finalInterceptor := &finalUpdateObjectInterceptor{
-		encrypter:                  itr.encrypter,
 		repository:                 itr.smStorageRepository,
 		objectType:                 objectType,
 		providedCreateInterceptors: providedCreateInterceptors,
@@ -462,10 +427,6 @@ func (itr *InterceptableTransactionalRepository) Update(ctx context.Context, obj
 		return nil, err
 	}
 
-	if securedObj, isSecured := obj.(types.Secured); isSecured {
-		securedObj.SetCredentials(nil)
-	}
-
 	return obj, nil
 }
 
@@ -473,31 +434,8 @@ func (itr *InterceptableTransactionalRepository) Credentials() Credentials {
 	return itr.smStorageRepository.Credentials()
 }
 
-func (itr *InterceptableTransactionalRepository) Security() Security {
-	return itr.smStorageRepository.Security()
-}
 func (ir *interceptableRepository) Credentials() Credentials {
 	return ir.repositoryInTransaction.Credentials()
-}
-
-func (ir *interceptableRepository) Security() Security {
-	return ir.repositoryInTransaction.Security()
-}
-
-func transformCredentials(ctx context.Context, obj types.Object, transformationFunc func(context.Context, []byte) ([]byte, error)) error {
-	securedObj, isSecured := obj.(types.Secured)
-	if isSecured {
-		credentials := securedObj.GetCredentials()
-		if credentials != nil {
-			transformedPassword, err := transformationFunc(ctx, []byte(credentials.Basic.Password))
-			if err != nil {
-				return err
-			}
-			credentials.Basic.Password = string(transformedPassword)
-			securedObj.SetCredentials(credentials)
-		}
-	}
-	return nil
 }
 
 func (itr *InterceptableTransactionalRepository) validateCreateProviders(objectType types.ObjectType, providerName string, order InterceptorOrder) {

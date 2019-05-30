@@ -24,7 +24,6 @@ import (
 
 	httpsec "github.com/Peripli/service-manager/pkg/security/http"
 
-	"github.com/Peripli/service-manager/pkg/security/securityfakes"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage/storagefakes"
@@ -39,20 +38,20 @@ func TestApi(t *testing.T) {
 
 var _ = Describe("Basic Authenticator", func() {
 	credentialsStorage := &storagefakes.FakeCredentials{}
-	encrypter := &securityfakes.FakeEncrypter{}
 	user := "user"
 	password := "password"
-	credentials := &types.Credentials{
-		Basic: &types.Basic{
-			Username: user,
-			Password: password,
-		},
-	}
 	basicHeader := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", user, password)))
+	var credentials *types.Credentials
 	var authenticator httpsec.Authenticator
 
-	JustBeforeEach(func() {
-		authenticator = &basicAuthenticator{CredentialStorage: credentialsStorage, Encrypter: encrypter}
+	BeforeEach(func() {
+		credentials = &types.Credentials{
+			Basic: &types.Basic{
+				Username: user,
+				Password: password,
+			},
+		}
+		authenticator = &basicAuthenticator{CredentialStorage: credentialsStorage}
 	})
 
 	Describe("Authenticate", func() {
@@ -98,28 +97,13 @@ var _ = Describe("Basic Authenticator", func() {
 			})
 		})
 
-		Context("When credentials cannot be reversed", func() {
-			transformationError := fmt.Errorf("Credentials password cannot be reversed")
-			BeforeEach(func() {
-				credentialsStorage.GetReturns(credentials, nil)
-				encrypter.DecryptReturns(nil, transformationError)
-			})
-			It("Should abstain with error", func() {
-				request.Header.Add("Authorization", "Basic "+basicHeader)
-				user, decision, err := authenticator.Authenticate(request)
-				Expect(err.Error()).To(ContainSubstring(transformationError.Error()))
-				Expect(user).To(BeNil())
-				Expect(decision).To(Equal(httpsec.Abstain))
-			})
-		})
-
 		Context("When passwords do not match", func() {
 			BeforeEach(func() {
 				credentialsStorage.GetReturns(credentials, nil)
-				encrypter.DecryptReturns([]byte("not-password"), nil)
 			})
 			It("Should deny", func() {
 				request.Header.Add("Authorization", "Basic "+basicHeader)
+				credentials.Basic.Password = "not-matching"
 				user, decision, err := authenticator.Authenticate(request)
 				Expect(err).To(BeNil())
 				Expect(user).To(BeNil())
@@ -130,7 +114,6 @@ var _ = Describe("Basic Authenticator", func() {
 		Context("When passwords match", func() {
 			BeforeEach(func() {
 				credentialsStorage.GetReturns(credentials, nil)
-				encrypter.DecryptReturns([]byte(password), nil)
 			})
 			It("Should allow", func() {
 				request.Header.Add("Authorization", "Basic "+basicHeader)

@@ -28,7 +28,6 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/query"
 
-	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
@@ -150,7 +149,7 @@ func (mf PingFunc) Ping() error {
 
 type Repository interface {
 	// Create stores a broker in SM DB
-	Create(ctx context.Context, obj types.Object) (string, error)
+	Create(ctx context.Context, obj types.Object) (types.Object, error)
 
 	// Get retrieves a broker using the provided id from SM DB
 	Get(ctx context.Context, objectType types.ObjectType, id string) (types.Object, error)
@@ -165,7 +164,6 @@ type Repository interface {
 	Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error)
 
 	Credentials() Credentials
-	Security() Security
 }
 
 // TransactionalRepository is a storage repository that can initiate a transaction
@@ -193,8 +191,8 @@ type Credentials interface {
 	Get(ctx context.Context, username string) (*types.Credentials, error)
 }
 
-// Security interface for encryption key operations
-type Security interface {
+// Secured interface for encryption key operations
+type Secured interface {
 	// Lock locks the storage so that only one process can manipulate the encryption key.
 	// Returns an error if the process has already acquired the lock
 	Lock(ctx context.Context) error
@@ -202,11 +200,16 @@ type Security interface {
 	// Unlock releases the acquired lock.
 	Unlock(ctx context.Context) error
 
-	// Fetcher provides means to obtain the encryption key
-	Fetcher() security.KeyFetcher
+	GetEncryptionKey(ctx context.Context, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) ([]byte, error)
 
-	// Setter provides means to change the encryption  key
-	Setter() security.KeySetter
+	SetEncryptionKey(ctx context.Context, key []byte, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) error
+}
+
+// SecuredTransactionalRepository is a transactional repository that allows securing data by encrypting it with an encryption key
+//go:generate counterfeiter . SecuredTransactionalRepository
+type SecuredTransactionalRepository interface {
+	Secured
+	TransactionalRepository
 }
 
 // ErrQueueClosed error stating that the queue is closed

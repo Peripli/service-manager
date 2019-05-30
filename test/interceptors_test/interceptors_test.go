@@ -228,11 +228,11 @@ var _ = Describe("Interceptors", func() {
 				platform1 := ctx.RegisterPlatform()
 
 				createModificationInterceptors[types.PlatformType].OnTxCreateStub = func(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
-					return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) error {
+					return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) (types.Object, error) {
 						By("calling storage update, should call update interceptor")
 						_, err := txStorage.Update(ctx, platform1)
 						if err != nil {
-							return err
+							return nil, err
 						}
 						return f(ctx, txStorage, newObject)
 					}
@@ -258,11 +258,11 @@ var _ = Describe("Interceptors", func() {
 				platform2 := ctx.RegisterPlatform()
 
 				createModificationInterceptors[types.PlatformType].OnTxCreateStub = func(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
-					return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) error {
+					return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) (types.Object, error) {
 						By("calling storage update, should call update interceptor")
 						_, err := txStorage.Update(ctx, platform1)
 						if err != nil {
-							return err
+							return nil, err
 						}
 						return f(ctx, txStorage, newObject)
 					}
@@ -440,7 +440,7 @@ var _ = Describe("Interceptors", func() {
 						}
 					}
 					createModificationInterceptors[types.ObjectType(e.name)].OnTxCreateStub = func(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
-						return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) error {
+						return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) (types.Object, error) {
 							labels := newObject.GetLabels()
 							labels[newLabelKey] = append(labels[newLabelKey], newLabelValue[1])
 							newObject.SetLabels(labels)
@@ -537,11 +537,14 @@ func createInterceptorProvider(nameSuffix string, stack *callStack) *storagefake
 		}
 	}
 	fakeCreateInterceptor.OnTxCreateStub = func(h storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
-		return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) error {
+		return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) (types.Object, error) {
 			stack.Add(name + "TXpre")
-			err := h(ctx, txStorage, newObject)
+			result, err := h(ctx, txStorage, newObject)
+			if err != nil {
+				return nil, err
+			}
 			stack.Add(name + "TXpost")
-			return err
+			return result, nil
 		}
 	}
 	fakeCreateInterceptorProvider.ProvideReturns(fakeCreateInterceptor)

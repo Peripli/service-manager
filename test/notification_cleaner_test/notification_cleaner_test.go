@@ -89,27 +89,27 @@ var _ = Describe("Notification cleaner", func() {
 
 	Context("When two notifications are inserted", func() {
 		It("Should delete the old one", func() {
-			idNew, err := repository.Create(ctx, randomNotification())
+			new, err := repository.Create(ctx, randomNotification())
 			Expect(err).ToNot(HaveOccurred())
-			Expect(idNew).ToNot(BeEmpty())
+			Expect(new.GetID()).ToNot(BeEmpty())
 
 			oldNotification := randomNotification()
 			oldNotification.CreatedAt = time.Now().Add(-(defaultKeepFor + time.Hour))
 
 			log.AddHook(logInterceptor)
-			idOld, err := repository.Create(ctx, oldNotification)
+			old, err := repository.Create(ctx, oldNotification)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(idOld).ToNot(BeNil())
+			Expect(old.GetID()).ToNot(BeNil())
 
 			Eventually(func() error {
-				_, err = repository.Get(ctx, types.NotificationType, idOld)
+				_, err = repository.Get(ctx, types.NotificationType, old.GetID())
 				return err
 			}, eventuallyTimeout).Should(Equal(util.ErrNotFoundInStorage))
 			Expect(logInterceptor.String()).To(ContainSubstring("successfully deleted 1 old notifications"))
 
-			obj, err := repository.Get(ctx, types.NotificationType, idNew)
+			obj, err := repository.Get(ctx, types.NotificationType, new.GetID())
 			Expect(err).ToNot(HaveOccurred())
-			Expect(obj.GetID()).To(Equal(idNew))
+			Expect(obj.GetID()).To(Equal(new.GetID()))
 		})
 	})
 })

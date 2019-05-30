@@ -26,20 +26,44 @@ import (
 )
 
 var _ = Describe("Postgres Storage", func() {
-	pgStorage := &PostgresStorage{}
+	pgStorage := &Storage{}
 
-	Describe("Credentials", func() {
+	Describe("Lock", func() {
 		Context("Called with uninitialized db", func() {
 			It("Should panic", func() {
-				Expect(func() { pgStorage.Credentials() }).To(Panic())
+				Expect(func() { pgStorage.Lock(context.TODO()) }).To(Panic())
 			})
 		})
 	})
 
-	Context("Security", func() {
+	Context("Unlock", func() {
 		Context("Called with uninitialized db", func() {
 			It("Should panic", func() {
-				Expect(func() { pgStorage.Security() }).To(Panic())
+				Expect(func() { pgStorage.Unlock(context.TODO()) }).To(Panic())
+			})
+		})
+	})
+
+	Context("GetEncryptionKey", func() {
+		Context("Called with uninitialized db", func() {
+			It("Should panic", func() {
+				Expect(func() {
+					pgStorage.GetEncryptionKey(context.TODO(), func(i context.Context, bytes3 []byte, bytes2 []byte) (bytes []byte, e error) {
+						return []byte{}, nil
+					})
+				}).To(Panic())
+			})
+		})
+	})
+
+	Context("SetEncryptionKey", func() {
+		Context("Called with uninitialized db", func() {
+			It("Should panic", func() {
+				Expect(func() {
+					pgStorage.SetEncryptionKey(context.TODO(), []byte{}, func(i context.Context, bytes3 []byte, bytes2 []byte) (bytes []byte, e error) {
+						return []byte{}, nil
+					})
+				}).To(Panic())
 			})
 		})
 	})

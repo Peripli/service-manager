@@ -21,12 +21,16 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/Peripli/service-manager/pkg/security"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
 type credentialStorage struct {
-	db pgDB
+	db        pgDB
+	key       []byte
+	encrypter security.Encrypter
 }
 
 func (cs *credentialStorage) Get(ctx context.Context, username string) (*types.Credentials, error) {
@@ -44,10 +48,16 @@ func (cs *credentialStorage) Get(ctx context.Context, username string) (*types.C
 	if err != nil {
 		return nil, err
 	}
+
+	decryptedPassword, err := cs.encrypter.Decrypt(ctx, []byte(platform.Password), cs.key)
+	if err != nil {
+		return nil, err
+	}
+
 	return &types.Credentials{
 		Basic: &types.Basic{
 			Username: platform.Username,
-			Password: platform.Password,
+			Password: string(decryptedPassword),
 		},
 		Details: bytes,
 	}, nil

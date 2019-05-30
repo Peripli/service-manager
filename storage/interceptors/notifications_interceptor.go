@@ -46,21 +46,22 @@ func (ni *NotificationsInterceptor) AroundTxDelete(h storage.InterceptDeleteArou
 }
 
 func (ni *NotificationsInterceptor) OnTxCreate(h storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
-	return func(ctx context.Context, repository storage.Repository, newObject types.Object) error {
-		if err := h(ctx, repository, newObject); err != nil {
-			return err
-		}
-
-		additionalDetails, err := ni.AdditionalDetailsFunc(ctx, newObject, repository)
+	return func(ctx context.Context, repository storage.Repository, obj types.Object) (types.Object, error) {
+		newObj, err := h(ctx, repository, obj)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		platformID := ni.PlatformIdProviderFunc(ctx, newObject)
+		additionalDetails, err := ni.AdditionalDetailsFunc(ctx, obj, repository)
+		if err != nil {
+			return nil, err
+		}
 
-		return createNotification(ctx, repository, types.CREATED, newObject.GetType(), platformID, &Payload{
+		platformID := ni.PlatformIdProviderFunc(ctx, newObj)
+
+		return newObj, createNotification(ctx, repository, types.CREATED, newObj.GetType(), platformID, &Payload{
 			New: &ObjectPayload{
-				Resource:   newObject,
+				Resource:   newObj,
 				Additional: additionalDetails,
 			},
 		})
