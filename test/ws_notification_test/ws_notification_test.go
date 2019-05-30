@@ -51,7 +51,7 @@ func TestWsConn(t *testing.T) {
 	RunSpecs(t, "Notification test suite")
 }
 
-var pingTimeout time.Duration = 1 * time.Second
+var pingTimeout = 1 * time.Second
 
 var _ = Describe("WS", func() {
 	var ctx *common.TestContext
@@ -220,7 +220,7 @@ var _ = Describe("WS", func() {
 			})
 		})
 
-		Context("and proxy knowns some notification revision", func() {
+		Context("and proxy knows some notification revision", func() {
 			var notification2 *types.Notification
 			BeforeEach(func() {
 				notification2 = createNotification(repository, platform.ID)
