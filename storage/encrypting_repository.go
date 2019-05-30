@@ -14,7 +14,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
-func NewEncryptingRepository(ctx context.Context, repository securedTransactionalRepository, encrypter security.Encrypter) (*EncryptingRepository, error) {
+func NewEncryptingRepository(ctx context.Context, repository SecuredTransactionalRepository, encrypter security.Encrypter) (*EncryptingRepository, error) {
 	encryptingRepository := &EncryptingRepository{
 		repository: repository,
 		encrypter:  encrypter,
@@ -28,7 +28,7 @@ func NewEncryptingRepository(ctx context.Context, repository securedTransactiona
 }
 
 type EncryptingRepository struct {
-	repository securedTransactionalRepository
+	repository SecuredTransactionalRepository
 	encrypter  security.Encrypter
 
 	encryptionKey []byte
