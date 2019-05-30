@@ -827,3 +827,5 @@ func (fake *FakeSecuredTransactionalRepository) recordInvocation(key string, arg
 	}
 	fake.invocations[key] = append(fake.invocations[key], args)
 }
+
+var _ storage.SecuredTransactionalRepository = new(FakeSecuredTransactionalRepository)
