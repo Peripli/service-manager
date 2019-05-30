@@ -59,7 +59,7 @@ type ServiceManagerBuilder struct {
 	NotificationCleaner *storage.NotificationCleaner
 	ctx                 context.Context
 	wg                  *sync.WaitGroup
-	cfg                 *server.Settings
+	cfg                 *config.Settings
 }
 
 // ServiceManager  struct
@@ -165,7 +165,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 		NotificationCleaner: notificationCleaner,
 		ctx:                 ctx,
 		wg:                  waitGroup,
-		cfg:                 cfg.Server,
+		cfg:                 cfg,
 	}
 
 	// Register default interceptors that represent the core SM business logic
@@ -196,7 +196,7 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	// setup server and add relevant global middleware
 	smb.installHealth()
 
-	srv := server.New(smb.cfg, smb.API)
+	srv := server.New(smb.cfg.Server, smb.API)
 	srv.Use(filters.NewRecoveryMiddleware())
 
 	return &ServiceManager{
