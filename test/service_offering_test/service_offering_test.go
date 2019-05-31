@@ -46,6 +46,55 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
 	AdditionalTests: func(ctx *common.TestContext) {
 		Context("additional non-generic tests", func() {
+
+			Describe("PATCH", func() {
+				var id string
+
+				var patchLabels []query.LabelChange
+				var patchLabelsBody map[string]interface{}
+				changedLabelKey := "label_key"
+				changedLabelValues := []string{"label_value1", "label_value2"}
+				operation := query.AddLabelOperation
+
+				BeforeEach(func() {
+					patchLabelsBody = make(map[string]interface{})
+					patchLabels = append(patchLabels, query.LabelChange{
+						Operation: operation,
+						Key:       changedLabelKey,
+						Values:    changedLabelValues,
+					})
+					patchLabelsBody["labels"] = patchLabels
+
+					offering := blueprint(ctx)
+					id = offering["id"].(string)
+				})
+
+				Context("When not only labels updated", func() {
+					It("should return bad request", func() {
+						patchLabelsBody["description"] = "new-description"
+
+						ctx.SMWithOAuth.PATCH(web.ServiceOfferingsURL + "/" + id).
+							WithJSON(patchLabelsBody).
+							Expect().
+							Status(http.StatusBadRequest)
+
+					})
+				})
+
+				Context("When labels not updated", func() {
+					It("should return bad request", func() {
+						body := make(map[string]interface{})
+						body["description"] = "new-description"
+
+						ctx.SMWithOAuth.PATCH(web.ServiceOfferingsURL + "/" + id).
+							WithJSON(body).
+							Expect().
+							Status(http.StatusBadRequest)
+
+					})
+				})
+			})
+
 			Describe("Labelled", func() {
 				var id string
 

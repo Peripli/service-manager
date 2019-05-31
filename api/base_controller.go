@@ -19,6 +19,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"github.com/tidwall/gjson"
 	"net/http"
 	"time"
 
@@ -210,20 +211,55 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
 
-	if c.objectType != types.ServiceOfferingType && c.objectType != types.ServicePlanType {
-		if r.Body, err = sjson.DeleteBytes(r.Body, "labels"); err != nil {
-			return nil, err
-		}
-		createdAt := objFromDB.GetCreatedAt()
-		updatedAt := objFromDB.GetUpdatedAt()
+	if r.Body, err = sjson.DeleteBytes(r.Body, "labels"); err != nil {
+		return nil, err
+	}
+	createdAt := objFromDB.GetCreatedAt()
+	updatedAt := objFromDB.GetUpdatedAt()
 
-		if err := util.BytesToObject(r.Body, objFromDB); err != nil {
-			return nil, err
-		}
+	if err := util.BytesToObject(r.Body, objFromDB); err != nil {
+		return nil, err
+	}
 
-		objFromDB.SetID(objectID)
-		objFromDB.SetCreatedAt(createdAt)
-		objFromDB.SetUpdatedAt(updatedAt)
+	objFromDB.SetID(objectID)
+	objFromDB.SetCreatedAt(createdAt)
+	objFromDB.SetUpdatedAt(updatedAt)
+
+	labels, _, _ := query.ApplyLabelChangesToLabels(labelChanges, objFromDB.GetLabels())
+	objFromDB.SetLabels(labels)
+
+	object, err := c.repository.Update(ctx, objFromDB, labelChanges...)
+	if err != nil {
+		return nil, util.HandleStorageError(err, string(c.objectType))
+	}
+
+	stripCredentials(ctx, object)
+
+	return util.NewJSONResponse(http.StatusOK, object)
+}
+
+// PatchLabelsOnly handles the update of labels of the object with the if specified in request
+func (c *BaseController) PatchLabelsOnly(r *web.Request) (*web.Response, error) {
+	objectID := r.PathParams[PathParamID]
+	ctx := r.Context()
+	log.C(ctx).Debugf("Updating %s with id %s", c.objectType, objectID)
+
+	if !onlyLabelsRequest(r.Body) {
+		return nil, &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: fmt.Sprintf("Only labels can be patched for %s ", c.objectType),
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+
+	labelChanges, err := query.LabelChangesFromJSON(r.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	objFromDB, err := c.repository.Get(ctx, c.objectType, objectID)
+	if err != nil {
+		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
 
 	labels, _, _ := query.ApplyLabelChangesToLabels(labelChanges, objFromDB.GetLabels())
@@ -237,6 +273,12 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	stripCredentials(ctx, object)
 
 	return util.NewJSONResponse(http.StatusOK, object)
+}
+
+func onlyLabelsRequest(body []byte) bool {
+	jsonMap := gjson.ParseBytes(body).Map()
+	delete(jsonMap, "labels")
+	return len(jsonMap) == 0
 }
 
 func stripCredentials(ctx context.Context, object types.Object) {

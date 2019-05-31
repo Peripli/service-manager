@@ -59,7 +59,7 @@ func (c *ServiceOfferingController) Routes() []web.Route {
 				Method: http.MethodPatch,
 				Path:   fmt.Sprintf("%s/{%s}", web.ServiceOfferingsURL, PathParamID),
 			},
-			Handler: c.PatchObject,
+			Handler: c.PatchLabelsOnly,
 		},
 	}
 }
