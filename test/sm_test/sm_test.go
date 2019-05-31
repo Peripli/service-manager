@@ -28,10 +28,7 @@ import (
 
 	"net/http"
 
-	"errors"
-
 	"github.com/Peripli/service-manager/api/healthcheck"
-	"github.com/Peripli/service-manager/pkg/env/envfakes"
 	"github.com/Peripli/service-manager/pkg/sm"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/test/common"
@@ -61,18 +58,8 @@ var _ = Describe("SM", func() {
 	})
 
 	Describe("New", func() {
-		Context("when setting up config fails", func() {
-			It("should return error", func() {
-				fakeEnv := &envfakes.FakeEnvironment{}
-				fakeEnv.UnmarshalReturns(errors.New("error"))
-
-				_, err := config.New(fakeEnv)
-				Expect(err).To(HaveOccurred())
-			})
-		})
-
 		Context("when validating config fails", func() {
-			It("should panic", func() {
+			It("should return error", func() {
 				env, err := sm.DefaultEnv(common.SetTestFileLocation)
 				Expect(err).ToNot(HaveOccurred())
 				env.Set("api.token_issuer_url", oauthServer.URL())
@@ -81,14 +68,14 @@ var _ = Describe("SM", func() {
 				cfg, err := config.New(env)
 				Expect(err).ToNot(HaveOccurred())
 
-				Expect(func() {
-					sm.New(ctx, cancel, cfg)
-				}).To(Panic())
+				_, err = sm.New(ctx, cancel, cfg)
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("error validating configuration"))
 			})
 		})
 
-		Context("when setting up storage fails", func() {
-			It("should panic", func() {
+		Context("when setting up storage with invalid uri", func() {
+			It("should throw error during migrations setup", func() {
 				env, err := sm.DefaultEnv(common.SetTestFileLocation)
 				Expect(err).ToNot(HaveOccurred())
 				env.Set("api.token_issuer_url", oauthServer.URL())
@@ -99,6 +86,7 @@ var _ = Describe("SM", func() {
 
 				_, err = sm.New(ctx, cancel, cfg)
 				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("error opening storage"))
 			})
 		})
 

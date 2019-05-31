@@ -68,8 +68,8 @@ func DefaultSettings() *Settings {
 
 // Validate validates the logging settings
 func (s *Settings) Validate() error {
-	if len(s.Level) == 0 {
-		return fmt.Errorf("validate Settings: LogLevel missing")
+	if _, err := logrus.ParseLevel(s.Level); err != nil {
+		return fmt.Errorf("validate Settings: %s", err)
 	}
 	if len(s.Format) == 0 {
 		return fmt.Errorf("validate Settings: LogFormat missing")
