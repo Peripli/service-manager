@@ -59,17 +59,6 @@ func (e *ServicePlan) Validate() error {
 	if e.ServiceOfferingID == "" {
 		return fmt.Errorf("service plan service offering id missing")
 	}
-	var m json.RawMessage
-	if len(e.Schemas) != 0 {
-		if err := json.Unmarshal(e.Schemas, &m); err != nil {
-			return fmt.Errorf("service plan schemas is invalid JSON")
-		}
-	}
-	if len(e.Metadata) != 0 {
-		if err := json.Unmarshal(e.Metadata, &m); err != nil {
-			return fmt.Errorf("service plan metadata is invalid JSON")
-		}
-	}
 
 	return nil
 }
