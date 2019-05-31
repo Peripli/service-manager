@@ -14,27 +14,69 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
-func NewEncryptingRepository(ctx context.Context, repository SecuredTransactionalRepository, encrypter security.Encrypter) (*EncryptingRepository, error) {
-	encryptingRepository := &EncryptingRepository{
-		repository: repository,
-		encrypter:  encrypter,
-	}
+func EncryptingDecorator(ctx context.Context, encrypter security.Encrypter, keyStore KeyStore) RepositoryDecorator {
+	return func(next TransactionalRepository) (TransactionalRepository, error) {
+		ctx, cancelFunc := context.WithTimeout(ctx, 2*time.Second)
+		defer cancelFunc()
+		if err := keyStore.Lock(ctx); err != nil {
+			return nil, err
+		}
 
-	if err := encryptingRepository.setupEncryptionKey(ctx); err != nil {
-		return nil, err
+		encryptionKey, err := keyStore.GetEncryptionKey(ctx, encrypter.Decrypt)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(encryptionKey) == 0 {
+			logger := log.C(ctx)
+			logger.Info("No encryption key is present. Generating new one...")
+			newEncryptionKey := make([]byte, 32)
+			if _, err = rand.Read(newEncryptionKey); err != nil {
+				return nil, fmt.Errorf("could not generate encryption key: %v", err)
+			}
+
+			encryptionKey = newEncryptionKey
+			if err = keyStore.SetEncryptionKey(ctx, newEncryptionKey, encrypter.Encrypt); err != nil {
+				return nil, err
+			}
+			logger.Info("Successfully generated new encryption key")
+		}
+
+		if err := keyStore.Unlock(ctx); err != nil {
+			return nil, err
+		}
+
+		return NewEncryptingRepository(next, encrypter, encryptionKey)
+	}
+}
+
+func NewEncryptingRepository(repository TransactionalRepository, encrypter security.Encrypter, key []byte) (*TransactionalEncryptingRepository, error) {
+	encryptingRepository := &TransactionalEncryptingRepository{
+		encryptingRepository: &encryptingRepository{
+			repository:    repository,
+			encrypter:     encrypter,
+			encryptionKey: key,
+		},
+		repository: repository,
 	}
 
 	return encryptingRepository, nil
 }
 
-type EncryptingRepository struct {
-	repository SecuredTransactionalRepository
+type encryptingRepository struct {
+	repository Repository
 	encrypter  security.Encrypter
 
 	encryptionKey []byte
 }
 
-func (er *EncryptingRepository) Create(ctx context.Context, obj types.Object) (types.Object, error) {
+type TransactionalEncryptingRepository struct {
+	*encryptingRepository
+
+	repository TransactionalRepository
+}
+
+func (er *encryptingRepository) Create(ctx context.Context, obj types.Object) (types.Object, error) {
 	if err := er.transformCredentials(ctx, obj, er.encrypter.Encrypt); err != nil {
 		return nil, err
 	}
@@ -51,7 +93,7 @@ func (er *EncryptingRepository) Create(ctx context.Context, obj types.Object) (t
 	return newObj, nil
 }
 
-func (er *EncryptingRepository) Get(ctx context.Context, objectType types.ObjectType, id string) (types.Object, error) {
+func (er *encryptingRepository) Get(ctx context.Context, objectType types.ObjectType, id string) (types.Object, error) {
 	obj, err := er.repository.Get(ctx, objectType, id)
 	if err != nil {
 		return nil, err
@@ -64,7 +106,7 @@ func (er *EncryptingRepository) Get(ctx context.Context, objectType types.Object
 	return obj, nil
 }
 
-func (er *EncryptingRepository) List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
+func (er *encryptingRepository) List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	objList, err := er.repository.List(ctx, objectType, criteria...)
 	if err != nil {
 		return nil, err
@@ -79,7 +121,7 @@ func (er *EncryptingRepository) List(ctx context.Context, objectType types.Objec
 	return objList, nil
 }
 
-func (er *EncryptingRepository) Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+func (er *encryptingRepository) Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 	if err := er.transformCredentials(ctx, obj, er.encrypter.Encrypt); err != nil {
 		return nil, err
 	}
@@ -96,7 +138,7 @@ func (er *EncryptingRepository) Update(ctx context.Context, obj types.Object, la
 	return updatedObj, nil
 }
 
-func (er *EncryptingRepository) Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
+func (er *encryptingRepository) Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	objList, err := er.repository.Delete(ctx, objectType, criteria...)
 	if err != nil {
 		return nil, err
@@ -111,14 +153,7 @@ func (er *EncryptingRepository) Delete(ctx context.Context, objectType types.Obj
 	return objList, nil
 }
 
-// InTransaction wraps repository passed in the transaction to also encypt/decrypt credentials
-func (er *EncryptingRepository) InTransaction(ctx context.Context, f func(ctx context.Context, storage Repository) error) error {
-	return er.repository.InTransaction(ctx, func(ctx context.Context, storage Repository) error {
-		return f(ctx, er)
-	})
-}
-
-func (er *EncryptingRepository) transformCredentials(ctx context.Context, obj types.Object, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) error {
+func (er *encryptingRepository) transformCredentials(ctx context.Context, obj types.Object, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) error {
 	securedObj, isSecured := obj.(types.Secured)
 	if isSecured {
 		credentials := securedObj.GetCredentials()
@@ -135,34 +170,13 @@ func (er *EncryptingRepository) transformCredentials(ctx context.Context, obj ty
 	return nil
 }
 
-func (er *EncryptingRepository) setupEncryptionKey(ctx context.Context) error {
-	ctx, cancelFunc := context.WithTimeout(ctx, 2*time.Second)
-	defer cancelFunc()
-	if err := er.repository.Lock(ctx); err != nil {
-		return err
-	}
-
-	encryptionKey, err := er.repository.GetEncryptionKey(ctx, er.encrypter.Decrypt)
-	if err != nil {
-		return err
-	}
-
-	if len(encryptionKey) == 0 {
-		logger := log.C(ctx)
-		logger.Info("No encryption key is present. Generating new one...")
-		newEncryptionKey := make([]byte, 32)
-		if _, err = rand.Read(newEncryptionKey); err != nil {
-			return fmt.Errorf("could not generate encryption key: %v", err)
-		}
-
-		encryptionKey = newEncryptionKey
-		if err = er.repository.SetEncryptionKey(ctx, newEncryptionKey, er.encrypter.Encrypt); err != nil {
-			return err
-		}
-		logger.Info("Successfully generated new encryption key")
-	}
-
-	er.encryptionKey = encryptionKey
-
-	return er.repository.Unlock(ctx)
+// InTransaction wraps repository passed in the transaction to also encypt/decrypt credentials
+func (er *TransactionalEncryptingRepository) InTransaction(ctx context.Context, f func(ctx context.Context, storage Repository) error) error {
+	return er.repository.InTransaction(ctx, func(ctx context.Context, storage Repository) error {
+		return f(ctx, &encryptingRepository{
+			repository:    storage,
+			encrypter:     er.encrypter,
+			encryptionKey: er.encryptionKey,
+		})
+	})
 }

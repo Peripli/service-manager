@@ -35,7 +35,12 @@ func Fetcher(doRequestFunc util.DoRequestFunc) func(ctx context.Context, broker 
 		requestWithBasicAuth := util.BasicAuthDecorator(broker.Credentials.Basic.Username, broker.Credentials.Basic.Password, doRequestFunc)
 		response, err := util.SendRequest(ctx, requestWithBasicAuth, http.MethodGet, fmt.Sprintf(catalogURL, broker.BrokerURL), map[string]string{}, nil)
 		if err != nil {
-			return nil, err
+			log.C(ctx).WithError(err).Errorf("Error while forwarding request to service broker %s", broker.Name)
+			return nil, &util.HTTPError{
+				ErrorType:   "ServiceBrokerErr",
+				Description: fmt.Sprintf("could not reach service broker %s at %s", broker.Name, broker.BrokerURL),
+				StatusCode:  http.StatusBadGateway,
+			}
 		}
 
 		var responseBytes []byte
@@ -44,7 +49,12 @@ func Fetcher(doRequestFunc util.DoRequestFunc) func(ctx context.Context, broker 
 		}
 
 		if response.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("error fetching catalog for broker with name %s: %s", broker.Name, util.HandleResponseError(response))
+			log.C(ctx).WithError(err).Errorf("error fetching catalog for broker with name %s: %s", broker.Name, util.HandleResponseError(response))
+			return nil, &util.HTTPError{
+				ErrorType:   "ServiceBrokerErr",
+				Description: fmt.Sprintf("error fetching catalog for broker with name %s: broker responded with %s", broker.Name, response.Status),
+				StatusCode:  http.StatusBadRequest,
+			}
 		}
 		log.C(ctx).Debugf("Successfully fetched catalog from broker with name %s and URL %s", broker.Name, broker.BrokerURL)
 

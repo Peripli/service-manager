@@ -18,6 +18,8 @@ package interceptors
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -106,6 +108,13 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 			return err
 		}
 		service.ID = UUID.String()
+		if err := service.Validate(); err != nil {
+			return &util.HTTPError{
+				ErrorType:   "BadRequest",
+				Description: fmt.Sprintf("service offering constructed during catalog insertion for broker with name %s is invalid: %s", broker.Name, err),
+				StatusCode:  http.StatusBadRequest,
+			}
+		}
 		for _, servicePlan := range service.Plans {
 			servicePlan.CatalogID = servicePlan.ID
 			servicePlan.CatalogName = servicePlan.Name
@@ -117,6 +126,13 @@ func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fet
 				return err
 			}
 			servicePlan.ID = UUID.String()
+			if err := servicePlan.Validate(); err != nil {
+				return &util.HTTPError{
+					ErrorType:   "BadRequest",
+					Description: fmt.Sprintf("service plan constructed during catalog insertion for broker with name %s is invalid: %s", broker.Name, err),
+					StatusCode:  http.StatusBadRequest,
+				}
+			}
 		}
 	}
 	broker.Services = catalogResponse.Services

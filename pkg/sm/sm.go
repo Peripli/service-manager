@@ -90,7 +90,7 @@ func DefaultEnv(additionalPFlags ...func(set *pflag.FlagSet)) env.Environment {
 
 // New returns service-manager Server with default setup. The function panics on bad configuration
 func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *ServiceManagerBuilder {
-	// setup config from env
+	// Setup config from env
 	cfg, err := config.New(env)
 	if err != nil {
 		panic(fmt.Errorf("error loading configuration: %s", err))
@@ -99,42 +99,38 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 		panic(fmt.Sprintf("error validating configuration: %s", err))
 	}
 
+	// Setup the default http client
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: cfg.API.SkipSSLValidation}
 	http.DefaultClient.Transport = http.DefaultTransport
 	http.DefaultClient.Timeout = cfg.Server.RequestTimeout
 
-	// setup logging
+	// Setup logging
 	ctx = log.Configure(ctx, cfg.Log)
 
-	// goroutines that log must be started after the log has been configured
 	util.HandleInterrupts(ctx, cancel)
 
-	// setup smStorage
+	// Setup storage
 	log.C(ctx).Info("Setting up Service Manager storage...")
-
-	waitGroup := &sync.WaitGroup{}
-
 	smStorage := &postgres.Storage{
 		ConnectFunc: func(driver string, url string) (*sql.DB, error) {
 			return sql.Open(driver, url)
 		},
 	}
 
+	// Decorate the storage with credentials encryption/decryption
+	encryptingDecorator := storage.EncryptingDecorator(ctx, &security.AESEncrypter{}, smStorage)
+
 	// Initialize the storage with graceful termination
-	if err := storage.InitializeWithSafeTermination(ctx, smStorage, cfg.Storage, waitGroup); err != nil {
+	var transactionalRepository storage.TransactionalRepository
+	waitGroup := &sync.WaitGroup{}
+	if transactionalRepository, err = storage.InitializeWithSafeTermination(ctx, smStorage, cfg.Storage, waitGroup, encryptingDecorator); err != nil {
 		panic(fmt.Sprintf("error opening storage: %s", err))
 	}
 
-	// Decorate the storage with credentials ecryption/decryption
-	encryptingRepository, err := storage.NewEncryptingRepository(ctx, smStorage, &security.AESEncrypter{})
-	if err != nil {
-		panic(fmt.Sprintf("error setting up encrypting repository: %s", err))
-	}
+	// Wrap the repository with logic that runs interceptors
+	interceptableRepository := storage.NewInterceptableTransactionalRepository(transactionalRepository)
 
-	// Decorate the storage with transactional interceptors
-	interceptableRepository := storage.NewInterceptableTransactionalRepository(encryptingRepository)
-
-	// setup core api
+	// Setup core API
 	log.C(ctx).Info("Setting up Service Manager core API...")
 
 	pgNotificator, err := postgres.NewNotificator(smStorage, cfg.Storage)
@@ -170,6 +166,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 		cfg:                 cfg.Server,
 	}
 
+	// Register default interceptors that represent the core SM business logic
 	smb.
 		WithCreateInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerCreateCatalogInterceptorProvider{
 			CatalogFetcher: catalog.Fetcher(http.DefaultClient.Do),

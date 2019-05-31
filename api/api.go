@@ -96,7 +96,6 @@ func New(ctx context.Context, options *Options) (*web.API, error) {
 				TokenIssuer:    options.APISettings.TokenIssuerURL,
 				TokenBasicAuth: options.APISettings.TokenBasicAuth,
 			},
-			//TODO transport
 			&osb.Controller{
 				BrokerFetcher: func(ctx context.Context, brokerID string) (*types.ServiceBroker, error) {
 					br, err := options.Repository.Get(ctx, types.ServiceBrokerType, brokerID)

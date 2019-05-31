@@ -16,9 +16,9 @@ import (
 
 var _ = Describe("Encrypting Repository", func() {
 	var fakeEncrypter *securityfakes.FakeEncrypter
-	var fakeSecuredRepository *storagefakes.FakeSecuredTransactionalRepository
+	var fakeRepository *storagefakes.FakeStorage
 
-	var repository *storage.EncryptingRepository
+	var repository *storage.TransactionalEncryptingRepository
 	var err error
 
 	var ctx context.Context
@@ -69,27 +69,27 @@ var _ = Describe("Encrypting Repository", func() {
 			return []byte(decryptedText), nil
 		})
 
-		fakeSecuredRepository = &storagefakes.FakeSecuredTransactionalRepository{}
+		fakeRepository = &storagefakes.FakeStorage{}
 
-		fakeSecuredRepository.CreateReturns(objWithEncryptedPassword, nil)
+		fakeRepository.CreateReturns(objWithEncryptedPassword, nil)
 
-		fakeSecuredRepository.UpdateReturns(objWithEncryptedPassword, nil)
+		fakeRepository.UpdateReturns(objWithEncryptedPassword, nil)
 
-		fakeSecuredRepository.ListReturns(&types.ServiceBrokers{
+		fakeRepository.ListReturns(&types.ServiceBrokers{
 			ServiceBrokers: []*types.ServiceBroker{
 				objWithEncryptedPassword.(*types.ServiceBroker),
 			},
 		}, nil)
 
-		fakeSecuredRepository.GetReturns(objWithEncryptedPassword.(*types.ServiceBroker), nil)
+		fakeRepository.GetReturns(objWithEncryptedPassword.(*types.ServiceBroker), nil)
 
-		fakeSecuredRepository.DeleteReturns(&types.ServiceBrokers{
+		fakeRepository.DeleteReturns(&types.ServiceBrokers{
 			ServiceBrokers: []*types.ServiceBroker{
 				objWithEncryptedPassword.(*types.ServiceBroker),
 			},
 		}, nil)
 
-		repository, err = storage.NewEncryptingRepository(ctx, fakeSecuredRepository, fakeEncrypter)
+		repository, err = storage.NewEncryptingRepository(fakeRepository, fakeEncrypter, []byte{})
 		Expect(err).ToNot(HaveOccurred())
 
 		encryptCallsCountBeforeOp = fakeEncrypter.EncryptCallCount()
@@ -117,7 +117,7 @@ var _ = Describe("Encrypting Repository", func() {
 
 		Context("when delegate call fails", func() {
 			It("returns an error", func() {
-				fakeSecuredRepository.CreateReturns(nil, fmt.Errorf("error"))
+				fakeRepository.CreateReturns(nil, fmt.Errorf("error"))
 
 				_, err = repository.Create(ctx, objWithDecryptedPassword)
 				Expect(err).To(HaveOccurred())
@@ -130,7 +130,7 @@ var _ = Describe("Encrypting Repository", func() {
 			var delegateCreateCallsCountBeforeOp int
 
 			BeforeEach(func() {
-				delegateCreateCallsCountBeforeOp = fakeSecuredRepository.CreateCallCount()
+				delegateCreateCallsCountBeforeOp = fakeRepository.CreateCallCount()
 				returnedObj, err = repository.Create(ctx, objWithDecryptedPassword)
 				Expect(err).ToNot(HaveOccurred())
 			})
@@ -140,8 +140,8 @@ var _ = Describe("Encrypting Repository", func() {
 			})
 
 			It("invokes the delegate repository with object with encrypted credentials", func() {
-				Expect(fakeSecuredRepository.CreateCallCount() - delegateCreateCallsCountBeforeOp).To(Equal(1))
-				_, objectArg := fakeSecuredRepository.CreateArgsForCall(0)
+				Expect(fakeRepository.CreateCallCount() - delegateCreateCallsCountBeforeOp).To(Equal(1))
+				_, objectArg := fakeRepository.CreateArgsForCall(0)
 				isPassEncrypted := strings.HasPrefix(objectArg.(types.Secured).GetCredentials().Basic.Password, "encrypt")
 				Expect(isPassEncrypted).To(BeTrue())
 			})
@@ -169,7 +169,7 @@ var _ = Describe("Encrypting Repository", func() {
 
 		Context("when delegate call fails", func() {
 			It("returns an error", func() {
-				fakeSecuredRepository.ListReturns(nil, fmt.Errorf("error"))
+				fakeRepository.ListReturns(nil, fmt.Errorf("error"))
 
 				_, err = repository.List(ctx, types.ServiceBrokerType)
 				Expect(err).To(HaveOccurred())
@@ -214,7 +214,7 @@ var _ = Describe("Encrypting Repository", func() {
 
 		Context("when delegate call fails", func() {
 			It("returns an error", func() {
-				fakeSecuredRepository.GetReturns(nil, fmt.Errorf("error"))
+				fakeRepository.GetReturns(nil, fmt.Errorf("error"))
 
 				_, err = repository.Get(ctx, types.ServiceBrokerType, "id")
 				Expect(err).To(HaveOccurred())
@@ -266,7 +266,7 @@ var _ = Describe("Encrypting Repository", func() {
 
 		Context("when delegate call fails", func() {
 			It("returns an error", func() {
-				fakeSecuredRepository.UpdateReturns(nil, fmt.Errorf("error"))
+				fakeRepository.UpdateReturns(nil, fmt.Errorf("error"))
 
 				_, err = repository.Update(ctx, objWithDecryptedPassword)
 				Expect(err).To(HaveOccurred())
@@ -279,7 +279,7 @@ var _ = Describe("Encrypting Repository", func() {
 			var delegateUpdateCallsCountBeforeOp int
 
 			BeforeEach(func() {
-				delegateUpdateCallsCountBeforeOp = fakeSecuredRepository.UpdateCallCount()
+				delegateUpdateCallsCountBeforeOp = fakeRepository.UpdateCallCount()
 				returnedObj, err = repository.Update(ctx, objWithDecryptedPassword)
 				Expect(err).ToNot(HaveOccurred())
 			})
@@ -289,8 +289,8 @@ var _ = Describe("Encrypting Repository", func() {
 			})
 
 			It("invokes the delegate repository with object with encrypted credentials", func() {
-				Expect(fakeSecuredRepository.UpdateCallCount() - delegateUpdateCallsCountBeforeOp).To(Equal(1))
-				_, objectArg, _ := fakeSecuredRepository.UpdateArgsForCall(0)
+				Expect(fakeRepository.UpdateCallCount() - delegateUpdateCallsCountBeforeOp).To(Equal(1))
+				_, objectArg, _ := fakeRepository.UpdateArgsForCall(0)
 				isPassEncrypted := strings.HasPrefix(objectArg.(types.Secured).GetCredentials().Basic.Password, "encrypt")
 				Expect(isPassEncrypted).To(BeTrue())
 			})
@@ -318,7 +318,7 @@ var _ = Describe("Encrypting Repository", func() {
 
 		Context("when delegate call fails", func() {
 			It("returns an error", func() {
-				fakeSecuredRepository.DeleteReturns(nil, fmt.Errorf("error"))
+				fakeRepository.DeleteReturns(nil, fmt.Errorf("error"))
 
 				_, err = repository.Delete(ctx, types.ServiceBrokerType)
 				Expect(err).To(HaveOccurred())
@@ -356,45 +356,45 @@ var _ = Describe("Encrypting Repository", func() {
 			It("triggers encryption/decryption", func() {
 				err := repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
 					// verify create
-					delegateCreateCallsCountBeforeOp := fakeSecuredRepository.CreateCallCount()
+					delegateCreateCallsCountBeforeOp := fakeRepository.CreateCallCount()
 					returnedObj, err := repository.Create(ctx, objWithDecryptedPassword)
 					Expect(err).ToNot(HaveOccurred())
-					Expect(fakeSecuredRepository.CreateCallCount() - delegateCreateCallsCountBeforeOp).To(Equal(1))
+					Expect(fakeRepository.CreateCallCount() - delegateCreateCallsCountBeforeOp).To(Equal(1))
 					Expect(strings.HasPrefix(returnedObj.(types.Secured).GetCredentials().Basic.Password, "encrypt")).To(BeFalse())
-					_, objectArg := fakeSecuredRepository.CreateArgsForCall(0)
+					_, objectArg := fakeRepository.CreateArgsForCall(0)
 					Expect(strings.HasPrefix(objectArg.(types.Secured).GetCredentials().Basic.Password, "encrypt")).To(BeTrue())
 
 					// verify list
-					delegateListCallsCountBeforeOp := fakeSecuredRepository.ListCallCount()
+					delegateListCallsCountBeforeOp := fakeRepository.ListCallCount()
 					returnedObjList, err := repository.List(ctx, types.ServiceBrokerType)
 					Expect(err).To(HaveOccurred())
-					Expect(fakeSecuredRepository.ListCallCount() - delegateListCallsCountBeforeOp).To(Equal(1))
+					Expect(fakeRepository.ListCallCount() - delegateListCallsCountBeforeOp).To(Equal(1))
 					for i := 0; i < returnedObjList.Len(); i++ {
 						isPassEncrypted := strings.HasPrefix(returnedObjList.ItemAt(i).(types.Secured).GetCredentials().Basic.Password, "encrypt")
 						Expect(isPassEncrypted).To(BeFalse())
 					}
 
 					// verify update
-					delegateUpdateCallsCountBeforeOp := fakeSecuredRepository.UpdateCallCount()
+					delegateUpdateCallsCountBeforeOp := fakeRepository.UpdateCallCount()
 					returnedObj, err = repository.Update(ctx, objWithDecryptedPassword)
 					Expect(err).ToNot(HaveOccurred())
-					Expect(fakeSecuredRepository.UpdateCallCount() - delegateUpdateCallsCountBeforeOp).To(Equal(1))
-					_, objectArg, _ = fakeSecuredRepository.UpdateArgsForCall(0)
+					Expect(fakeRepository.UpdateCallCount() - delegateUpdateCallsCountBeforeOp).To(Equal(1))
+					_, objectArg, _ = fakeRepository.UpdateArgsForCall(0)
 					Expect(strings.HasPrefix(objectArg.(types.Secured).GetCredentials().Basic.Password, "encrypt")).To(BeTrue())
 					Expect(strings.HasPrefix(returnedObj.(types.Secured).GetCredentials().Basic.Password, "encrypt")).To(BeFalse())
 
 					// verify get
-					delegateGetCallsCountBeforeOp := fakeSecuredRepository.GetCallCount()
+					delegateGetCallsCountBeforeOp := fakeRepository.GetCallCount()
 					returnedObj, err = repository.Get(ctx, types.ServiceBrokerType, "id")
 					Expect(err).ToNot(HaveOccurred())
-					Expect(fakeSecuredRepository.GetCallCount() - delegateGetCallsCountBeforeOp).To(Equal(1))
+					Expect(fakeRepository.GetCallCount() - delegateGetCallsCountBeforeOp).To(Equal(1))
 					Expect(strings.HasPrefix(returnedObj.(types.Secured).GetCredentials().Basic.Password, "encrypt")).To(BeFalse())
 
 					// verify delete
-					delegateDeleteCallsCountBeforeOp := fakeSecuredRepository.DeleteCallCount()
+					delegateDeleteCallsCountBeforeOp := fakeRepository.DeleteCallCount()
 					returnedObjList, err = repository.Delete(ctx, types.ServiceBrokerType)
 					Expect(err).ToNot(HaveOccurred())
-					Expect(fakeSecuredRepository.DeleteCallCount() - delegateDeleteCallsCountBeforeOp).To(Equal(1))
+					Expect(fakeRepository.DeleteCallCount() - delegateDeleteCallsCountBeforeOp).To(Equal(1))
 					for i := 0; i < returnedObjList.Len(); i++ {
 						isPassEncrypted := strings.HasPrefix(returnedObjList.ItemAt(i).(types.Secured).GetCredentials().Basic.Password, "encrypt")
 						Expect(isPassEncrypted).To(BeFalse())

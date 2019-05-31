@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/Peripli/service-manager/pkg/util"
+
 	. "github.com/onsi/gomega"
 
 	"github.com/Peripli/service-manager/storage/catalog"
@@ -137,9 +139,14 @@ var _ = Describe("Catalog Fetcher", func() {
 				},
 			},
 			reaction: &common.HTTPReaction{
-				Err: fmt.Errorf("error sending request"),
+				Status: http.StatusBadGateway,
+				Err:    fmt.Errorf("error sending request"),
 			},
-			expectedErr: fmt.Errorf("error sending request"),
+			expectedErr: &util.HTTPError{
+				ErrorType:   "ServiceBrokerErr",
+				Description: fmt.Sprintf("could not reach service broker %s at %s", name, url),
+				StatusCode:  http.StatusBadGateway,
+			},
 		}),
 	}
 
