@@ -20,14 +20,15 @@ import (
 	"context"
 
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
-	osbc "github.com/pmorie/go-open-service-broker-client/v2"
+	"github.com/gofrs/uuid"
 )
 
 const BrokerCreateCatalogInterceptorName = "BrokerCreateCatalogInterceptor"
 
 type BrokerCreateCatalogInterceptorProvider struct {
-	OsbClientCreateFunc osbc.CreateFunc
+	CatalogFetcher func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error)
 }
 
 func (c *BrokerCreateCatalogInterceptorProvider) Name() string {
@@ -36,22 +37,19 @@ func (c *BrokerCreateCatalogInterceptorProvider) Name() string {
 
 func (c *BrokerCreateCatalogInterceptorProvider) Provide() storage.CreateInterceptor {
 	return &brokerCreateCatalogInterceptor{
-		OSBClientCreateFunc: c.OsbClientCreateFunc,
+		CatalogFetcher: c.CatalogFetcher,
 	}
+
 }
 
 type brokerCreateCatalogInterceptor struct {
-	OSBClientCreateFunc osbc.CreateFunc
+	CatalogFetcher func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error)
 }
 
 func (c *brokerCreateCatalogInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		broker := obj.(*types.ServiceBroker)
-		catalog, err := getBrokerCatalog(ctx, c.OSBClientCreateFunc, broker)
-		if err != nil {
-			return nil, err
-		}
-		if broker.Services, err = osbCatalogToOfferings(catalog, broker.ID); err != nil {
+		if err := brokerCatalogAroundTx(ctx, broker, c.CatalogFetcher); err != nil {
 			return nil, err
 		}
 
@@ -68,13 +66,11 @@ func (c *brokerCreateCatalogInterceptor) OnTxCreate(f storage.InterceptCreateOnT
 		}
 		broker := obj.(*types.ServiceBroker)
 
-		for serviceIndex := range broker.Services {
-			service := broker.Services[serviceIndex]
+		for _, service := range broker.Services {
 			if _, err := storage.Create(ctx, service); err != nil {
 				return nil, err
 			}
-			for planIndex := range service.Plans {
-				servicePlan := service.Plans[planIndex]
+			for _, servicePlan := range service.Plans {
 				if _, err := storage.Create(ctx, servicePlan); err != nil {
 					return nil, err
 				}
@@ -83,4 +79,47 @@ func (c *brokerCreateCatalogInterceptor) OnTxCreate(f storage.InterceptCreateOnT
 
 		return createdObj, nil
 	}
+}
+
+func brokerCatalogAroundTx(ctx context.Context, broker *types.ServiceBroker, fetcher func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error)) error {
+	catalogBytes, err := fetcher(ctx, broker)
+	if err != nil {
+		return err
+	}
+	broker.Catalog = catalogBytes
+
+	catalogResponse := struct {
+		Services []*types.ServiceOffering `json:"services"`
+	}{}
+	if err := util.BytesToObject(catalogBytes, &catalogResponse); err != nil {
+		return err
+	}
+
+	for _, service := range catalogResponse.Services {
+		service.CatalogID = service.ID
+		service.CatalogName = service.Name
+		service.BrokerID = broker.ID
+		service.CreatedAt = broker.UpdatedAt
+		service.UpdatedAt = broker.UpdatedAt
+		UUID, err := uuid.NewV4()
+		if err != nil {
+			return err
+		}
+		service.ID = UUID.String()
+		for _, servicePlan := range service.Plans {
+			servicePlan.CatalogID = servicePlan.ID
+			servicePlan.CatalogName = servicePlan.Name
+			servicePlan.ServiceOfferingID = service.ID
+			servicePlan.CreatedAt = broker.UpdatedAt
+			servicePlan.UpdatedAt = broker.UpdatedAt
+			UUID, err := uuid.NewV4()
+			if err != nil {
+				return err
+			}
+			servicePlan.ID = UUID.String()
+		}
+	}
+	broker.Services = catalogResponse.Services
+
+	return nil
 }

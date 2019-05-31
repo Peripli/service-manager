@@ -24,11 +24,12 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/Peripli/service-manager/storage/catalog"
+
 	"github.com/Peripli/service-manager/pkg/security"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage/interceptors"
-	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/api/healthcheck"
@@ -99,6 +100,8 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	}
 
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: cfg.API.SkipSSLValidation}
+	http.DefaultClient.Transport = http.DefaultTransport
+	http.DefaultClient.Timeout = cfg.Server.RequestTimeout
 
 	// setup logging
 	ctx = log.Configure(ctx, cfg.Log)
@@ -169,13 +172,14 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 
 	smb.
 		WithCreateInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerCreateCatalogInterceptorProvider{
-			OsbClientCreateFunc: newOSBClient(cfg.API.SkipSSLValidation),
+			CatalogFetcher: catalog.Fetcher(http.DefaultClient.Do),
 		}).Register().
 		WithUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerUpdateCatalogInterceptorProvider{
-			OsbClientCreateFunc: newOSBClient(cfg.API.SkipSSLValidation),
+			CatalogFetcher: catalog.Fetcher(http.DefaultClient.Do),
+			CatalogLoader:  catalog.Loader,
 		}).Register().
 		WithDeleteInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerDeleteCatalogInterceptorProvider{
-			OsbClientCreateFunc: newOSBClient(cfg.API.SkipSSLValidation),
+			CatalogLoader: catalog.Loader,
 		}).Register().
 		WithCreateInterceptorProvider(types.PlatformType, &interceptors.GenerateCredentialsInterceptorProvider{}).Register().
 		WithCreateInterceptorProvider(types.VisibilityType, &interceptors.VisibilityCreateNotificationsInterceptorProvider{}).Register().
@@ -225,13 +229,6 @@ func (sm *ServiceManager) Run() {
 	sm.Server.Run(sm.ctx, sm.wg)
 
 	sm.wg.Wait()
-}
-
-func newOSBClient(skipSsl bool) osbc.CreateFunc {
-	return func(configuration *osbc.ClientConfiguration) (osbc.Client, error) {
-		configuration.Insecure = skipSsl
-		return osbc.NewClient(configuration)
-	}
 }
 
 func (smb *ServiceManagerBuilder) RegisterNotificationReceiversFilter(filterFunc storage.ReceiversFilterFunc) {

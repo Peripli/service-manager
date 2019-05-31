@@ -18,7 +18,6 @@ package types
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -28,22 +27,23 @@ import (
 // Service Offering struct
 type ServiceOffering struct {
 	Base
-	Name        string `json:"name"`
-	Description string `json:"description"`
 
+	Name                 string `json:"name"`
+	Description          string `json:"description"`
 	Bindable             bool   `json:"bindable"`
 	InstancesRetrievable bool   `json:"instances_retrievable"`
 	BindingsRetrievable  bool   `json:"bindings_retrievable"`
 	PlanUpdatable        bool   `json:"plan_updateable"`
-	CatalogID            string `json:"catalog_id"`
-	CatalogName          string `json:"catalog_name"`
 
 	Tags     json.RawMessage `json:"tags,omitempty"`
 	Requires json.RawMessage `json:"requires,omitempty"`
 	Metadata json.RawMessage `json:"metadata,omitempty"`
 
-	BrokerID string         `json:"broker_id"`
-	Plans    []*ServicePlan `json:"plans"`
+	BrokerID    string `json:"broker_id"`
+	CatalogID   string `json:"catalog_id"`
+	CatalogName string `json:"catalog_name"`
+
+	Plans []*ServicePlan `json:"plans"`
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
@@ -52,16 +52,33 @@ func (e *ServiceOffering) Validate() error {
 		return fmt.Errorf("%s contains invalid character(s)", e.ID)
 	}
 	if e.Name == "" {
-		return errors.New("service offering catalog name missing")
+		return fmt.Errorf("service offering catalog name missing")
 	}
 	if e.CatalogID == "" {
-		return errors.New("service offering catalog id missing")
+		return fmt.Errorf("service offering catalog id missing")
 	}
 	if e.CatalogName == "" {
-		return errors.New("service offering catalog name missing")
+		return fmt.Errorf("service offering catalog name missing")
 	}
 	if e.BrokerID == "" {
-		return errors.New("service offering broker id missing")
+		return fmt.Errorf("service offering broker id missing")
 	}
+	//var m struct{}
+	//if len(e.Tags) != 0 {
+	//	if err := json.Unmarshal(e.Tags, &m); err != nil {
+	//		return fmt.Errorf("service offering tags is invalid JSON")
+	//	}
+	//}
+	//if len(e.Metadata) != 0 {
+	//	if err := json.Unmarshal(e.Metadata, &m); err != nil {
+	//		return fmt.Errorf("service offering metadata is invalid JSON")
+	//	}
+	//}
+	//if len(e.Requires) != 0 {
+	//	if err := json.Unmarshal(e.Requires, &m); err != nil {
+	//		return fmt.Errorf("service offering requires is invalid JSON")
+	//	}
+	//}
+
 	return nil
 }

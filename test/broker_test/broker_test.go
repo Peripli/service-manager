@@ -1112,7 +1112,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						Context("when tags are invalid json", func() {
 							verifyPATCHWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
 								r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
-							}, "services.0.tags", "{invalid")
+							}, "services.0.tags", "invalidddd")
 						})
 
 						Context("when requires is invalid json", func() {
@@ -1183,6 +1183,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 						})
+
+						It("is returned by the storage repository as part of the broker catalog", func() {
+
+						})
 					})
 
 					Context("when an existing service plan is removed", func() {
@@ -1213,6 +1217,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								JSON().Path("$.service_plans[*].catalog_id").Array().NotContains(removedPlanCatalogID)
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+						})
+
+						It("is is no longer returned by the storage repository as part of the broker catalog", func() {
+
 						})
 					})
 
@@ -1249,6 +1257,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							}, "services.0.plans.0.name")
 						})
 
+						//tODO add test in here too
 						Context("when catalog plan description is removed", func() {
 							verifyPATCHWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
 								r.Status(http.StatusOK)
@@ -1261,10 +1270,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							}, "services.0.plans.0.schemas", "{invalid")
 						})
 
-						Context("when metadata is invalid json", func() {
+						FContext("when metadata is invalid json", func() {
 							verifyPATCHWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
 								r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
-							}, "services.0.plans.0.metadata", "{invalid")
+							}, "services.0.plans.0.metadata", []byte(`{invalid`))
 						})
 					})
 				})

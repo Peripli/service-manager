@@ -20,7 +20,8 @@ package api
 import (
 	"context"
 	"fmt"
-	"net/http"
+
+	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/ws"
@@ -95,13 +96,16 @@ func New(ctx context.Context, options *Options) (*web.API, error) {
 				TokenIssuer:    options.APISettings.TokenIssuerURL,
 				TokenBasicAuth: options.APISettings.TokenBasicAuth,
 			},
-			osb.NewController(&osb.StorageBrokerFetcher{
-				BrokerStorage: options.Repository,
-			}, &osb.StorageCatalogFetcher{
-				Repository: options.Repository,
+			//TODO transport
+			&osb.Controller{
+				BrokerFetcher: func(ctx context.Context, brokerID string) (*types.ServiceBroker, error) {
+					br, err := options.Repository.Get(ctx, types.ServiceBrokerType, brokerID)
+					if err != nil {
+						return nil, util.HandleStorageError(err, "broker")
+					}
+					return br.(*types.ServiceBroker), nil
+				},
 			},
-				http.DefaultTransport,
-			),
 		},
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
