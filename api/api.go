@@ -113,6 +113,7 @@ func New(ctx context.Context, options *Options) (*web.API, error) {
 			secfilters.NewRequiredAuthnFilter(),
 			&filters.SelectionCriteria{},
 			&filters.PlatformAwareVisibilityFilter{},
+			&filters.PatchOnlyLabelsFilter{},
 		},
 		Registry: health.NewDefaultRegistry(),
 	}, nil
