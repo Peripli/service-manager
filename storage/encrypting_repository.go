@@ -118,10 +118,6 @@ func (er *EncryptingRepository) InTransaction(ctx context.Context, f func(ctx co
 	})
 }
 
-func (er *EncryptingRepository) Credentials() Credentials {
-	return er.repository.Credentials()
-}
-
 func (er *EncryptingRepository) transformCredentials(ctx context.Context, obj types.Object, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) error {
 	securedObj, isSecured := obj.(types.Secured)
 	if isSecured {

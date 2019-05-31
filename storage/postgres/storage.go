@@ -23,8 +23,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/security"
-
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -41,7 +39,6 @@ const postgresDriverName = "postgres"
 
 type Storage struct {
 	ConnectFunc func(driver string, url string) (*sql.DB, error)
-	Encrypter   security.Encrypter
 
 	pgDB                  pgDB
 	db                    *sqlx.DB
@@ -59,15 +56,6 @@ func (ps *Storage) Introduce(entity storage.Entity) {
 func (ps *Storage) SelectContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
 	ps.checkOpen()
 	return ps.pgDB.SelectContext(ctx, dest, query, args...)
-}
-
-func (ps *Storage) Credentials() storage.Credentials {
-	ps.checkOpen()
-	key, err := ps.GetEncryptionKey(context.TODO(), ps.Encrypter.Decrypt)
-	if err != nil {
-		panic(err)
-	}
-	return &credentialStorage{db: ps.pgDB, key: key, encrypter: ps.Encrypter}
 }
 
 func (ps *Storage) Open(options *storage.Settings) error {

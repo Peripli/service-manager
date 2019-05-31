@@ -22,27 +22,14 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-// NewAuthnMiddleware returns web.Filter which uses the given security.Authenticator
-// to authenticate the request. FilterMatchers should be extended to cover the desired
-// endpoints.
-func NewAuthnMiddleware(filterName string, authenticator http.Authenticator) web.Filter {
-	return &authnMiddleware{
-		middleware: &middleware{
-			FilterName: filterName,
-		},
-		Authenticator: authenticator,
-	}
-}
-
-// authnMiddleware type represents an authentication middleware
-type authnMiddleware struct {
-	*middleware
+// Authentication type represents an authentication middleware
+type Authentication struct {
 	Authenticator http.Authenticator
 }
 
 // Run represents the authentication middleware function that delegates the authentication
 // to the provided authenticator
-func (m *authnMiddleware) Run(request *web.Request, next web.Handler) (*web.Response, error) {
+func (m *Authentication) Run(request *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := request.Context()
 	if _, ok := web.UserFromContext(ctx); ok {
 		return next.Handle(request)
