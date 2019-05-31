@@ -63,22 +63,22 @@ func (e *ServiceOffering) Validate() error {
 	if e.BrokerID == "" {
 		return fmt.Errorf("service offering broker id missing")
 	}
-	//var m struct{}
-	//if len(e.Tags) != 0 {
-	//	if err := json.Unmarshal(e.Tags, &m); err != nil {
-	//		return fmt.Errorf("service offering tags is invalid JSON")
-	//	}
-	//}
-	//if len(e.Metadata) != 0 {
-	//	if err := json.Unmarshal(e.Metadata, &m); err != nil {
-	//		return fmt.Errorf("service offering metadata is invalid JSON")
-	//	}
-	//}
-	//if len(e.Requires) != 0 {
-	//	if err := json.Unmarshal(e.Requires, &m); err != nil {
-	//		return fmt.Errorf("service offering requires is invalid JSON")
-	//	}
-	//}
+	var m struct{}
+	if len(e.Tags) != 0 {
+		if err := json.Unmarshal(e.Tags, &m); err != nil {
+			return fmt.Errorf("service offering tags is invalid JSON")
+		}
+	}
+	if len(e.Metadata) != 0 {
+		if err := json.Unmarshal(e.Metadata, &m); err != nil {
+			return fmt.Errorf("service offering metadata is invalid JSON")
+		}
+	}
+	if len(e.Requires) != 0 {
+		if err := json.Unmarshal(e.Requires, &m); err != nil {
+			return fmt.Errorf("service offering requires is invalid JSON")
+		}
+	}
 
 	return nil
 }
