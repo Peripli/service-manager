@@ -33,7 +33,7 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
-const BasicAuthnFilterName string = "BearerAuthnFilter"
+const BasicAuthnFilterName string = "BasicAuthnFilter"
 
 func NewBasicAuthnFilter(repository storage.Repository) *filters.AuthenticationFilter {
 	return filters.NewAuthenticationFilter(&basicAuthenticator{
