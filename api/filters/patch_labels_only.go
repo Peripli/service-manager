@@ -34,7 +34,10 @@ func (*PatchOnlyLabelsFilter) Name() string {
 }
 
 func (*PatchOnlyLabelsFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	if !onlyLabelsRequest(req.Body) {
+	jsonMap := gjson.ParseBytes(req.Body).Map()
+	delete(jsonMap, "labels")
+
+	if len(jsonMap) > 0 {
 		return nil, &util.HTTPError{
 			ErrorType:   "BadRequest",
 			Description: "Only labels can be patched for service offerings and plans",
@@ -59,10 +62,4 @@ func (*PatchOnlyLabelsFilter) FilterMatchers() []web.FilterMatcher {
 			},
 		},
 	}
-}
-
-func onlyLabelsRequest(body []byte) bool {
-	jsonMap := gjson.ParseBytes(body).Map()
-	delete(jsonMap, "labels")
-	return len(jsonMap) == 0
 }
