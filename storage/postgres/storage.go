@@ -59,8 +59,7 @@ func (ps *Storage) SelectContext(ctx context.Context, dest interface{}, query st
 }
 
 func (ps *Storage) Open(settings *storage.Settings) error {
-	var err error
-	if err = settings.Validate(); err != nil {
+	if err := settings.Validate(); err != nil {
 		return err
 	}
 
