@@ -211,8 +211,8 @@ func (ps *PostgresStorage) List(ctx context.Context, objType types.ObjectType, l
 	}
 
 	listCriterias = append(listCriterias, defaultListCriterias()...)
-	qBuilder := NewQueryBuilder(ps.pgDB, entity)
-	rows, err := qBuilder.WithCriteria(criteria...).WithLock().WithListCriteria(listCriterias...).List(ctx)
+	qBuilder := NewQueryBuilder(ps.pgDB)
+	rows, err := qBuilder.WithCriteria(criteria...).WithLock().WithListCriteria(listCriterias...).List(ctx, entity)
 	if err != nil {
 		return nil, err
 	}
@@ -237,8 +237,8 @@ func (ps *PostgresStorage) Delete(ctx context.Context, objType types.ObjectType,
 		return nil, err
 	}
 
-	qBuilder := NewQueryBuilder(ps.pgDB, entity)
-	rows, err := qBuilder.WithCriteria(criteria...).Return("*").Delete(ctx)
+	qBuilder := NewQueryBuilder(ps.pgDB)
+	rows, err := qBuilder.WithCriteria(criteria...).Return("*").Delete(ctx, entity)
 	defer closeRows(ctx, rows)
 	if err != nil {
 		return nil, err

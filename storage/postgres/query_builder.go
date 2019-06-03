@@ -20,8 +20,7 @@ const (
 )
 
 type QueryBuilder struct {
-	db     pgDB
-	entity PostgresEntity
+	db pgDB
 
 	sql         string
 	queryParams []interface{}
@@ -36,21 +35,20 @@ type QueryBuilder struct {
 	err error
 }
 
-func NewQueryBuilder(db pgDB, entity PostgresEntity) *QueryBuilder {
+func NewQueryBuilder(db pgDB) *QueryBuilder {
 	return &QueryBuilder{
-		db:     db,
-		entity: entity,
+		db: db,
 	}
 }
 
-func (qb *QueryBuilder) List(ctx context.Context) (*sqlx.Rows, error) {
+func (qb *QueryBuilder) List(ctx context.Context, entity PostgresEntity) (*sqlx.Rows, error) {
 	if qb.err != nil {
 		return nil, qb.err
 	}
 
-	baseTableName := qb.entity.TableName()
+	baseTableName := entity.TableName()
 	var baseQuery string
-	label := qb.entity.LabelEntity()
+	label := entity.LabelEntity()
 	if label == nil {
 		baseQuery = constructBaseQueryForEntity(baseTableName)
 	} else {
@@ -58,35 +56,39 @@ func (qb *QueryBuilder) List(ctx context.Context) (*sqlx.Rows, error) {
 	}
 	qb.sql = baseQuery
 
-	if err := qb.finalizeSQL(); err != nil {
+	if err := qb.finalizeSQL(entity); err != nil {
 		return nil, err
 	}
 
 	return qb.db.QueryxContext(ctx, qb.sql, qb.queryParams...)
 }
 
-func (qb *QueryBuilder) Delete(ctx context.Context) (*sqlx.Rows, error) {
+func (qb *QueryBuilder) Delete(ctx context.Context, entity PostgresEntity) (*sqlx.Rows, error) {
 	if qb.err != nil {
 		return nil, qb.err
 	}
-	baseTableName := qb.entity.TableName()
+	baseTableName := entity.TableName()
 	qb.sql = fmt.Sprintf("DELETE FROM %s", baseTableName)
 	for len(qb.labelCriteria) > 0 {
 		return nil, &util.UnsupportedQueryError{Message: "conditional delete is only supported for field queries"}
 	}
 
-	if err := qb.finalizeSQL(); err != nil {
+	if err := qb.finalizeSQL(entity); err != nil {
 		return nil, err
 	}
 	return qb.db.QueryxContext(ctx, qb.sql, qb.queryParams...)
 }
 
-func (qb *QueryBuilder) finalizeSQL() error {
-	qb.withLabelCriteria(qb.labelCriteria).
-		withFieldCriteria(qb.fieldCriteria).
+func (qb *QueryBuilder) finalizeSQL(entity PostgresEntity) error {
+	if err := validateFieldQueryParams(getDBTags(entity, nil), qb.criteria); err != nil {
+		return err
+	}
+
+	qb.withLabelCriteria(entity, qb.labelCriteria).
+		withFieldCriteria(entity, qb.fieldCriteria).
 		buildOrderBy().
 		addLimit().
-		addLock().
+		addLock(entity.TableName()).
 		returningSQL().
 		expandMultivariateOp()
 
@@ -136,11 +138,6 @@ func (qb *QueryBuilder) WithCriteria(criteria ...query.Criterion) *QueryBuilder 
 
 	qb.criteria = append(qb.criteria, criteria...)
 
-	if err := validateFieldQueryParams(getDBTags(qb.entity, nil), qb.criteria); err != nil {
-		qb.err = err
-		return qb
-	}
-
 	qb.labelCriteria, qb.fieldCriteria = splitCriteriaByType(criteria)
 
 	return qb
@@ -180,23 +177,23 @@ func (qb *QueryBuilder) returningSQL() *QueryBuilder {
 	return qb
 }
 
-func (qb *QueryBuilder) addLock() *QueryBuilder {
+func (qb *QueryBuilder) addLock(tableName string) *QueryBuilder {
 	if qb.hasLock {
 		// Lock the rows if we are in transaction so that update operations on those rows can rely on unchanged data
 		// This allows us to handle concurrent updates on the same rows by executing them sequentially as
 		// before updating we have to anyway select the rows and can therefore lock them
-		qb.sql += fmt.Sprintf(" FOR SHARE of %s", qb.entity.TableName())
+		qb.sql += fmt.Sprintf(" FOR SHARE of %s", tableName)
 	}
 	return qb
 }
 
-func (qb *QueryBuilder) withLabelCriteria(criteria []query.Criterion) *QueryBuilder {
+func (qb *QueryBuilder) withLabelCriteria(entity PostgresEntity, criteria []query.Criterion) *QueryBuilder {
 	if qb.err != nil {
 		return qb
 	}
 	var labelQueries []string
 
-	labelEntity := qb.entity.LabelEntity()
+	labelEntity := entity.LabelEntity()
 	if len(criteria) > 0 {
 		labelTableName := labelEntity.LabelsTableName()
 		referenceColumnName := labelEntity.ReferenceColumn()
@@ -215,12 +212,12 @@ func (qb *QueryBuilder) withLabelCriteria(criteria []query.Criterion) *QueryBuil
 	return qb
 }
 
-func (qb *QueryBuilder) withFieldCriteria(criteria []query.Criterion) *QueryBuilder {
+func (qb *QueryBuilder) withFieldCriteria(entity PostgresEntity, criteria []query.Criterion) *QueryBuilder {
 	if qb.err != nil {
 		return qb
 	}
-	baseTableName := qb.entity.TableName()
-	dbTags := getDBTags(qb.entity, nil)
+	baseTableName := entity.TableName()
+	dbTags := getDBTags(entity, nil)
 
 	var fieldQueries []string
 

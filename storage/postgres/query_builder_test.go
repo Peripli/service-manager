@@ -17,8 +17,6 @@ import (
 )
 
 var _ = Describe("Postgres Storage Abstract", func() {
-	// var ctx context.Context
-	// var baseTable string
 	var executedQuery string
 	var queryArgs []interface{}
 
@@ -44,8 +42,8 @@ var _ = Describe("Postgres Storage Abstract", func() {
 
 	Context("when there are no criterias", func() {
 		It("should build simple query for labeable entity", func() {
-			qb := postgres.NewQueryBuilder(db, &postgres.Visibility{})
-			_, err := qb.List(context.Background())
+			qb := postgres.NewQueryBuilder(db)
+			_, err := qb.List(context.Background(), &postgres.Visibility{})
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(executedQuery).Should(MatchRegexp("SELECT.*FROM visibilities LEFT JOIN"))
 			Expect(queryArgs).To(HaveLen(0))
@@ -54,12 +52,12 @@ var _ = Describe("Postgres Storage Abstract", func() {
 
 	Context("when field criteria is used", func() {
 		It("should build right query", func() {
-			qb := postgres.NewQueryBuilder(db, &postgres.Visibility{})
+			qb := postgres.NewQueryBuilder(db)
 			_, err := qb.
 				WithCriteria(query.ByField(query.EqualsOperator, "id", "1")).
-				List(context.Background())
+				List(context.Background(), &postgres.Visibility{})
 			Expect(err).ShouldNot(HaveOccurred())
-			Expect(executedQuery).Should(MatchRegexp("SELECT.*FROM visibilities LEFT JOIN.*WHERE"))
+			Expect(executedQuery).Should(MatchRegexp("SELECT.*FROM visibilities LEFT JOIN .* WHERE"))
 			Expect(queryArgs).To(HaveLen(1))
 			Expect(queryArgs[0]).Should(Equal("1"))
 		})
@@ -67,10 +65,10 @@ var _ = Describe("Postgres Storage Abstract", func() {
 
 	Context("when label criteria is used", func() {
 		It("should build query with label criteria", func() {
-			qb := postgres.NewQueryBuilder(db, &postgres.Visibility{})
+			qb := postgres.NewQueryBuilder(db)
 			_, err := qb.
 				WithCriteria(query.ByLabel(query.EqualsOperator, "labelKey", "labelValue")).
-				List(context.Background())
+				List(context.Background(), &postgres.Visibility{})
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(executedQuery).Should(MatchRegexp("SELECT.*FROM visibilities JOIN \\(SELECT.*\\)"))
 			Expect(queryArgs).To(HaveLen(2))
