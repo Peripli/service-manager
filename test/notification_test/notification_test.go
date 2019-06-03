@@ -124,7 +124,7 @@ var _ = Describe("Notifications Suite", func() {
 				return ""
 			},
 			ExpectedAdditionalPayloadFunc: func(expected common.Object, repository storage.Repository) []byte {
-				serviceOfferings, err := catalog.Loader(c, expected["id"].(string), ctx.SMRepository)
+				serviceOfferings, err := catalog.Load(c, expected["id"].(string), ctx.SMRepository)
 				Expect(err).ShouldNot(HaveOccurred())
 
 				bytes, err := json.Marshal(struct {
@@ -135,7 +135,7 @@ var _ = Describe("Notifications Suite", func() {
 				return bytes
 			},
 			AdditionalVerificationNotificationsFunc: func(expected common.Object, repository storage.Repository, notificationsAfterOp *types.Notifications) {
-				serviceOfferings, err := catalog.Loader(c, expected["id"].(string), ctx.SMRepository)
+				serviceOfferings, err := catalog.Load(c, expected["id"].(string), ctx.SMRepository)
 				Expect(err).ShouldNot(HaveOccurred())
 
 				for _, serviceOffering := range serviceOfferings.ServiceOfferings {

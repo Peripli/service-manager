@@ -43,6 +43,7 @@ type Settings struct {
 	ClientID          string `mapstructure:"client_id" description:"id of the client from which the token must be issued"`
 	SkipSSLValidation bool   `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when making calls to external services"`
 	TokenBasicAuth    bool   `mapstructure:"token_basic_auth" description:"specifies if client credentials to the authorization server should be sent in the header as basic auth (true) or in the body (false)"`
+	OSBVersion        string `mapstructure:"osb_version" description:"specifies the OSB API version supported by the Service Manager"`
 }
 
 // DefaultSettings returns default values for API settings
@@ -52,6 +53,7 @@ func DefaultSettings() *Settings {
 		ClientID:          "",
 		SkipSSLValidation: false,
 		TokenBasicAuth:    true, // RFC 6749 section 2.3.1
+		OSBVersion:        "2.13",
 	}
 }
 

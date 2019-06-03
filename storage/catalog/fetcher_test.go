@@ -62,6 +62,7 @@ var _ = Describe("Catalog Fetcher", func() {
 		url      = "url"
 		username = "username"
 		password = "password"
+		version  = "2.13"
 	)
 
 	var testBroker *types.ServiceBroker
@@ -75,7 +76,7 @@ var _ = Describe("Catalog Fetcher", func() {
 	}
 
 	newFetcher := func(t testCase) func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error) {
-		return catalog.Fetcher(common.DoHTTP(t.reaction, t.expectations))
+		return catalog.Fetcher(common.DoHTTP(t.reaction, t.expectations), version)
 	}
 
 	basicAuth := func(username, password string) string {
@@ -105,7 +106,8 @@ var _ = Describe("Catalog Fetcher", func() {
 			expectations: &common.HTTPExpectations{
 				URL: url,
 				Headers: map[string]string{
-					"Authorization": "Basic " + basicAuth(username, password),
+					"Authorization":        "Basic " + basicAuth(username, password),
+					"X-Broker-API-Version": version,
 				},
 			},
 			reaction: &common.HTTPReaction{
@@ -120,7 +122,8 @@ var _ = Describe("Catalog Fetcher", func() {
 			expectations: &common.HTTPExpectations{
 				URL: url,
 				Headers: map[string]string{
-					"Authorization": "Basic " + basicAuth(username, password),
+					"Authorization":        "Basic " + basicAuth(username, password),
+					"X-Broker-API-Version": version,
 				},
 			},
 			reaction: &common.HTTPReaction{
@@ -135,7 +138,8 @@ var _ = Describe("Catalog Fetcher", func() {
 			expectations: &common.HTTPExpectations{
 				URL: url,
 				Headers: map[string]string{
-					"Authorization": "Basic " + basicAuth(username, password),
+					"Authorization":        "Basic " + basicAuth(username, password),
+					"X-Broker-API-Version": version,
 				},
 			},
 			reaction: &common.HTTPReaction{

@@ -25,8 +25,8 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
-// Loader fetches the catalog of the broker with the given ID from the storage
-func Loader(ctx context.Context, brokerID string, repository storage.Repository) (*types.ServiceOfferings, error) {
+// Load fetches the catalog of the broker with the given ID from the storage
+func Load(ctx context.Context, brokerID string, repository storage.Repository) (*types.ServiceOfferings, error) {
 	serviceOfferings, err := repository.List(ctx, types.ServiceOfferingType, query.ByField(query.EqualsOperator, "broker_id", brokerID))
 	if err != nil {
 		return nil, err

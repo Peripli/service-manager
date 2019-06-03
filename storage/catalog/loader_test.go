@@ -30,7 +30,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Catalog Loader", func() {
+var _ = Describe("Catalog Load", func() {
 	ctx := context.TODO()
 	brokerID := "brokerID"
 
@@ -46,7 +46,7 @@ var _ = Describe("Catalog Loader", func() {
 			repository.ListReturns(nil, expectedError)
 		})
 		It("Returns error", func() {
-			offerings, err := catalog.Loader(ctx, brokerID, repository)
+			offerings, err := catalog.Load(ctx, brokerID, repository)
 			Expect(offerings).To(BeNil())
 			Expect(err).To(Equal(expectedError))
 		})
@@ -67,7 +67,7 @@ var _ = Describe("Catalog Loader", func() {
 				repository.ListReturns(&types.ServiceOfferings{}, nil)
 			})
 			It("Returns empty list", func() {
-				offerings, err := catalog.Loader(ctx, brokerID, repository)
+				offerings, err := catalog.Load(ctx, brokerID, repository)
 				Expect(offerings).ToNot(BeNil())
 				Expect(err).To(BeNil())
 			})
@@ -83,7 +83,7 @@ var _ = Describe("Catalog Loader", func() {
 				}
 			})
 			It("Returns error", func() {
-				offerings, err := catalog.Loader(ctx, brokerID, repository)
+				offerings, err := catalog.Load(ctx, brokerID, repository)
 				Expect(offerings).To(BeNil())
 				Expect(err).To(Equal(expectedError))
 			})
@@ -107,7 +107,7 @@ var _ = Describe("Catalog Loader", func() {
 				}
 			})
 			It("Returns result", func() {
-				offerings, err := catalog.Loader(ctx, brokerID, repository)
+				offerings, err := catalog.Load(ctx, brokerID, repository)
 				expectedOffering := offeringsList.ServiceOfferings[0]
 				expectedOffering.Plans = []*types.ServicePlan{plansList.ServicePlans[0]}
 				Expect(offerings.ServiceOfferings).To(ConsistOf(expectedOffering))
