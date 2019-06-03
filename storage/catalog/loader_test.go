@@ -19,7 +19,6 @@ package catalog_test
 import (
 	"context"
 	"fmt"
-	"testing"
 
 	"github.com/Peripli/service-manager/storage"
 
@@ -31,12 +30,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestCatalogLoader(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Catalog Loader Suite")
-}
-
-var _ = Describe("Catalog Loader", func() {
+var _ = Describe("Catalog Load", func() {
 	ctx := context.TODO()
 	brokerID := "brokerID"
 

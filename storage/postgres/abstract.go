@@ -285,6 +285,7 @@ func getJSONText(item json.RawMessage) sqlxtypes.JSONText {
 	if len(item) == len("null") && string(item) == "null" {
 		return sqlxtypes.JSONText("{}")
 	}
+
 	return sqlxtypes.JSONText(item)
 }
 

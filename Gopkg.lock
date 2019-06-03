@@ -82,12 +82,6 @@
   version = "v3.5.1"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/golang/glog"
-  packages = ["."]
-  revision = "23def4e6c14b4da8ac2ed8007337bc5eb5007998"
-
-[[projects]]
   name = "github.com/golang/protobuf"
   packages = ["proto"]
   revision = "b5d812f8a3706043e23a9cd5babf2e5423744d30"
@@ -212,12 +206,6 @@
   packages = ["difflib"]
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
   version = "v1.0.0"
-
-[[projects]]
-  name = "github.com/pmorie/go-open-service-broker-client"
-  packages = ["v2"]
-  revision = "dca737037ce636eb282e84e3a1c7479c9692e884"
-  version = "0.0.10"
 
 [[projects]]
   branch = "master"
@@ -408,6 +396,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a13e7f11dec9f2dc6b3450508092036552c6f1982efe186c16de39e75c196bd1"
+  inputs-digest = "1540d4490d3b15d2ed7b0b3393591333d53c226d81f849b2bbbb58d9bd81c4ae"
   solver-name = "gps-cdcl"
   solver-version = 1

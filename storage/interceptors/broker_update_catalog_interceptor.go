@@ -21,26 +21,27 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Peripli/service-manager/storage/catalog"
+	"github.com/gofrs/uuid"
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
-	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 )
 
 const BrokerUpdateCatalogInterceptorName = "BrokerUpdateCatalogInterceptor"
 
 // BrokerUpdateCatalogInterceptorProvider provides a broker interceptor for update operations
 type BrokerUpdateCatalogInterceptorProvider struct {
-	OsbClientCreateFunc osbc.CreateFunc
+	CatalogFetcher func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error)
+	CatalogLoader  func(ctx context.Context, brokerID string, repository storage.Repository) (*types.ServiceOfferings, error)
 }
 
 func (c *BrokerUpdateCatalogInterceptorProvider) Provide() storage.UpdateInterceptor {
 	return &brokerUpdateCatalogInterceptor{
-		OSBClientCreateFunc: c.OsbClientCreateFunc,
+		CatalogFetcher: c.CatalogFetcher,
+		CatalogLoader:  c.CatalogLoader,
 	}
 }
 
@@ -49,18 +50,15 @@ func (c *BrokerUpdateCatalogInterceptorProvider) Name() string {
 }
 
 type brokerUpdateCatalogInterceptor struct {
-	OSBClientCreateFunc osbc.CreateFunc
+	CatalogFetcher func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error)
+	CatalogLoader  func(ctx context.Context, brokerID string, repository storage.Repository) (*types.ServiceOfferings, error)
 }
 
 // AroundTxUpdate fetches the broker catalog before the transaction, so it can be stored later on in the transaction
 func (c *brokerUpdateCatalogInterceptor) AroundTxUpdate(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
 	return func(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 		broker := obj.(*types.ServiceBroker)
-		catalog, err := getBrokerCatalog(ctx, c.OSBClientCreateFunc, broker) // keep catalog to be stored later
-		if err != nil {
-			return nil, err
-		}
-		if broker.Services, err = osbCatalogToOfferings(catalog, broker.ID); err != nil {
+		if err := brokerCatalogAroundTx(ctx, broker, c.CatalogFetcher); err != nil {
 			return nil, err
 		}
 
@@ -73,7 +71,7 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 	return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 		oldBroker := oldObj.(*types.ServiceBroker)
 
-		existingServiceOfferingsWithServicePlans, err := catalog.Load(ctx, oldBroker.GetID(), txStorage)
+		existingServiceOfferingsWithServicePlans, err := c.CatalogLoader(ctx, oldBroker.GetID(), txStorage)
 		if err != nil {
 			return nil, fmt.Errorf("error getting catalog for broker with id %s from SM DB: %s", oldBroker.GetID(), err)
 		}
@@ -117,6 +115,11 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 					return nil, err
 				}
 			} else {
+				UUID, err := uuid.NewV4()
+				if err != nil {
+					return nil, err
+				}
+				catalogService.ID = UUID.String()
 				if err := catalogService.Validate(); err != nil {
 					return nil, &util.HTTPError{
 						ErrorType:   "BadRequest",
@@ -125,11 +128,9 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 					}
 				}
 
-				var dbService types.Object
-				if dbService, err = txStorage.Create(ctx, catalogService); err != nil {
+				if _, err = txStorage.Create(ctx, catalogService); err != nil {
 					return nil, err
 				}
-				catalogService.ID = dbService.GetID()
 			}
 
 			catalogPlansForService := catalogPlansMap[catalogService.CatalogID]
@@ -218,6 +219,11 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 }
 
 func createPlan(ctx context.Context, txStorage storage.Repository, servicePlan *types.ServicePlan, brokerID string) error {
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		return err
+	}
+	servicePlan.ID = UUID.String()
 	if err := servicePlan.Validate(); err != nil {
 		return &util.HTTPError{
 			ErrorType:   "BadRequest",
@@ -230,4 +236,33 @@ func createPlan(ctx context.Context, txStorage storage.Repository, servicePlan *
 		return err
 	}
 	return nil
+}
+
+func convertExistingServiceOfferringsToMaps(serviceOfferings []*types.ServiceOffering) (map[string]*types.ServiceOffering, map[string][]*types.ServicePlan) {
+	serviceOfferingsMap := make(map[string]*types.ServiceOffering)
+	servicePlansMap := make(map[string][]*types.ServicePlan)
+
+	for serviceOfferingIndex := range serviceOfferings {
+		serviceOfferingsMap[serviceOfferings[serviceOfferingIndex].CatalogID] = serviceOfferings[serviceOfferingIndex]
+		for servicePlanIndex := range serviceOfferings[serviceOfferingIndex].Plans {
+			servicePlansMap[serviceOfferings[serviceOfferingIndex].CatalogID] = append(servicePlansMap[serviceOfferings[serviceOfferingIndex].CatalogID], serviceOfferings[serviceOfferingIndex].Plans[servicePlanIndex])
+		}
+	}
+
+	return serviceOfferingsMap, servicePlansMap
+}
+
+func getBrokerCatalogServicesAndPlans(serviceOfferings []*types.ServiceOffering) ([]*types.ServiceOffering, map[string][]*types.ServicePlan, error) {
+	services := make([]*types.ServiceOffering, 0, len(serviceOfferings))
+	plans := make(map[string][]*types.ServicePlan)
+
+	for serviceIndex := range serviceOfferings {
+		services = append(services, serviceOfferings[serviceIndex])
+		plansForService := make([]*types.ServicePlan, 0)
+		for planIndex := range serviceOfferings[serviceIndex].Plans {
+			plansForService = append(plansForService, serviceOfferings[serviceIndex].Plans[planIndex])
+		}
+		plans[serviceOfferings[serviceIndex].CatalogID] = plansForService
+	}
+	return services, plans, nil
 }

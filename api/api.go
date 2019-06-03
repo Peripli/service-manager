@@ -20,7 +20,8 @@ package api
 import (
 	"context"
 	"fmt"
-	"net/http"
+
+	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/ws"
@@ -36,12 +37,15 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
+const osbVersion = "2.13"
+
 // Settings type to be loaded from the environment
 type Settings struct {
 	TokenIssuerURL    string `mapstructure:"token_issuer_url" description:"url of the token issuer which to use for validating tokens"`
 	ClientID          string `mapstructure:"client_id" description:"id of the client from which the token must be issued"`
 	SkipSSLValidation bool   `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when making calls to external services"`
 	TokenBasicAuth    bool   `mapstructure:"token_basic_auth" description:"specifies if client credentials to the authorization server should be sent in the header as basic auth (true) or in the body (false)"`
+	OSBVersion        string `mapstructure:"-"`
 }
 
 // DefaultSettings returns default values for API settings
@@ -51,6 +55,7 @@ func DefaultSettings() *Settings {
 		ClientID:          "",
 		SkipSSLValidation: false,
 		TokenBasicAuth:    true, // RFC 6749 section 2.3.1
+		OSBVersion:        osbVersion,
 	}
 }
 
@@ -95,13 +100,15 @@ func New(ctx context.Context, options *Options) (*web.API, error) {
 				TokenIssuer:    options.APISettings.TokenIssuerURL,
 				TokenBasicAuth: options.APISettings.TokenBasicAuth,
 			},
-			osb.NewController(&osb.StorageBrokerFetcher{
-				BrokerStorage: options.Repository,
-			}, &osb.StorageCatalogFetcher{
-				Repository: options.Repository,
+			&osb.Controller{
+				BrokerFetcher: func(ctx context.Context, brokerID string) (*types.ServiceBroker, error) {
+					br, err := options.Repository.Get(ctx, types.ServiceBrokerType, brokerID)
+					if err != nil {
+						return nil, util.HandleStorageError(err, "broker")
+					}
+					return br.(*types.ServiceBroker), nil
+				},
 			},
-				http.DefaultTransport,
-			),
 		},
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
