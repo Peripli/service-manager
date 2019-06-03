@@ -237,7 +237,7 @@ func (ps *PostgresStorage) Delete(ctx context.Context, objType types.ObjectType,
 		return nil, err
 	}
 
-	qBuilder := newQueryBuilder(ps.pgDB, entity)
+	qBuilder := NewQueryBuilder(ps.pgDB, entity)
 	rows, err := qBuilder.WithCriteria(criteria...).Return("*").Delete(ctx)
 	defer closeRows(ctx, rows)
 	if err != nil {
