@@ -206,7 +206,7 @@ func (ps *Storage) Get(ctx context.Context, objectType types.ObjectType, id stri
 
 func defaultListCriterias() []storage.ListCriteria {
 	return []storage.ListCriteria{
-		storage.ListCriteria{
+		{
 			Type:      storage.OrderByCriteriaType,
 			Parameter: "created_at",
 		},

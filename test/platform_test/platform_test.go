@@ -67,7 +67,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					It("should return them ordered by name", func() {
 						listCriteria := []storage.ListCriteria{
-							storage.ListCriteria{
+							{
 								Type:      storage.OrderByCriteriaType,
 								Parameter: "name",
 							},
@@ -81,7 +81,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					It("should limit result to only 1", func() {
 						listCriteria := []storage.ListCriteria{
-							storage.ListCriteria{
+							{
 								Type:      storage.LimitCriteriaType,
 								Parameter: 1,
 							},
