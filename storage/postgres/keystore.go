@@ -33,9 +33,6 @@ type Safe struct {
 	UpdatedAt time.Time `db:"updated_at"`
 }
 
-type KeyStore struct {
-}
-
 // Lock acquires a database lock so that only one process can manipulate the encryption key.
 // Returns an error if the process has already acquired the lock
 func (s *Storage) Lock(ctx context.Context) error {
