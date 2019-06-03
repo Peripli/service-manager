@@ -18,12 +18,13 @@ package sm
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/tls"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"sync"
-	"time"
+
+	"github.com/Peripli/service-manager/pkg/security"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage/interceptors"
@@ -33,7 +34,6 @@ import (
 	"github.com/Peripli/service-manager/api/healthcheck"
 	"github.com/Peripli/service-manager/config"
 	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/server"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
@@ -55,12 +55,14 @@ type ServiceManagerBuilder struct {
 	Notificator         storage.Notificator
 	NotificationCleaner *storage.NotificationCleaner
 	ctx                 context.Context
+	wg                  *sync.WaitGroup
 	cfg                 *server.Settings
 }
 
 // ServiceManager  struct
 type ServiceManager struct {
 	ctx                 context.Context
+	wg                  *sync.WaitGroup
 	Server              *server.Server
 	Notificator         storage.Notificator
 	NotificationCleaner *storage.NotificationCleaner
@@ -85,17 +87,8 @@ func DefaultEnv(additionalPFlags ...func(set *pflag.FlagSet)) env.Environment {
 	return environment
 }
 
-func registerDefaultStorage() {
-	if !storage.HasStorage(postgres.Storage) {
-		log.D().Infof("Registering default storage %s", postgres.Storage)
-		storage.Register(postgres.Storage, &postgres.PostgresStorage{})
-	}
-}
-
 // New returns service-manager Server with default setup. The function panics on bad configuration
 func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *ServiceManagerBuilder {
-	registerDefaultStorage()
-
 	// setup config from env
 	cfg, err := config.New(env)
 	if err != nil {
@@ -115,23 +108,31 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 
 	// setup smStorage
 	log.C(ctx).Info("Setting up Service Manager storage...")
-	smStorage, err := storage.Use(ctx, postgres.Storage, cfg.Storage)
+
+	waitGroup := &sync.WaitGroup{}
+
+	smStorage := &postgres.Storage{
+		ConnectFunc: func(driver string, url string) (*sql.DB, error) {
+			return sql.Open(driver, url)
+		},
+	}
+
+	// Initialize the storage with graceful termination
+	if err := storage.InitializeWithSafeTermination(ctx, smStorage, cfg.Storage, waitGroup); err != nil {
+		panic(fmt.Sprintf("error opening storage: %s", err))
+	}
+
+	// Decorate the storage with credentials ecryption/decryption
+	encryptingRepository, err := storage.NewEncryptingRepository(ctx, smStorage, &security.AESEncrypter{})
 	if err != nil {
-		panic(fmt.Sprintf("error using smStorage: %s", err))
+		panic(fmt.Sprintf("error setting up encrypting repository: %s", err))
 	}
 
-	securityStorage := smStorage.Security()
-	if err = initializeSecureStorage(ctx, securityStorage); err != nil {
-		panic(fmt.Sprintf("error initialzing secure storage: %v", err))
-	}
-
-	encrypter := &security.TwoLayerEncrypter{
-		Fetcher: securityStorage.Fetcher(),
-	}
+	// Decorate the storage with transactional interceptors
+	interceptableRepository := storage.NewInterceptableTransactionalRepository(encryptingRepository)
 
 	// setup core api
 	log.C(ctx).Info("Setting up Service Manager core API...")
-	interceptableRepository := storage.NewInterceptableTransactionalRepository(smStorage, encrypter)
 
 	pgNotificator, err := postgres.NewNotificator(smStorage, cfg.Storage)
 	if err != nil {
@@ -142,7 +143,6 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 		Repository:  interceptableRepository,
 		APISettings: cfg.API,
 		WSSettings:  cfg.WebSocket,
-		Encrypter:   encrypter,
 		Notificator: pgNotificator,
 	}
 	API, err := api.New(ctx, apiOptions)
@@ -150,7 +150,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 		panic(fmt.Sprintf("error creating core api: %s", err))
 	}
 
-	API.AddHealthIndicator(&storage.HealthIndicator{Pinger: storage.PingFunc(smStorage.Ping)})
+	API.HealthIndicators = append(API.HealthIndicators, &storage.HealthIndicator{Pinger: storage.PingFunc(smStorage.Ping)})
 
 	notificationCleaner := &storage.NotificationCleaner{
 		Storage:  interceptableRepository,
@@ -158,12 +158,13 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	}
 
 	smb := &ServiceManagerBuilder{
-		ctx:                 ctx,
-		cfg:                 cfg.Server,
 		API:                 API,
 		Storage:             interceptableRepository,
 		Notificator:         pgNotificator,
 		NotificationCleaner: notificationCleaner,
+		ctx:                 ctx,
+		wg:                  waitGroup,
+		cfg:                 cfg.Server,
 	}
 
 	smb.
@@ -176,7 +177,7 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 		WithDeleteInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerDeleteCatalogInterceptorProvider{
 			OsbClientCreateFunc: newOSBClient(cfg.API.SkipSSLValidation),
 		}).Register().
-		WithCreateInterceptorProvider(types.PlatformType, &interceptors.PlatformCreateInterceptorProvider{}).Register().
+		WithCreateInterceptorProvider(types.PlatformType, &interceptors.GenerateCredentialsInterceptorProvider{}).Register().
 		WithCreateInterceptorProvider(types.VisibilityType, &interceptors.VisibilityCreateNotificationsInterceptorProvider{}).Register().
 		WithUpdateInterceptorProvider(types.VisibilityType, &interceptors.VisibilityUpdateNotificationsInterceptorProvider{}).Register().
 		WithDeleteInterceptorProvider(types.VisibilityType, &interceptors.VisibilityDeleteNotificationsInterceptorProvider{}).Register().
@@ -197,6 +198,7 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 
 	return &ServiceManager{
 		ctx:                 smb.ctx,
+		wg:                  smb.wg,
 		Server:              srv,
 		Notificator:         smb.Notificator,
 		NotificationCleaner: smb.NotificationCleaner,
@@ -204,53 +206,25 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 }
 
 func (smb *ServiceManagerBuilder) installHealth() {
-	if len(smb.HealthIndicators()) > 0 {
-		smb.RegisterControllers(healthcheck.NewController(smb.HealthIndicators(), smb.HealthAggregationPolicy()))
+	if len(smb.HealthIndicators) > 0 {
+		smb.RegisterControllers(healthcheck.NewController(smb.HealthIndicators, smb.HealthAggregationPolicy))
 	}
 }
 
 // Run starts the Service Manager
 func (sm *ServiceManager) Run() {
 	log.C(sm.ctx).Info("Running Service Manager...")
-	wg := &sync.WaitGroup{}
 
-	if err := sm.Notificator.Start(sm.ctx, wg); err != nil {
+	if err := sm.Notificator.Start(sm.ctx, sm.wg); err != nil {
 		log.C(sm.ctx).WithError(err).Panicf("could not start Service Manager notificator")
 	}
-	if err := sm.NotificationCleaner.Start(sm.ctx, wg); err != nil {
+	if err := sm.NotificationCleaner.Start(sm.ctx, sm.wg); err != nil {
 		log.C(sm.ctx).WithError(err).Panicf("could not start Service Manager notification cleaner")
 	}
 
-	sm.Server.Run(sm.ctx, wg)
+	sm.Server.Run(sm.ctx, sm.wg)
 
-	wg.Wait()
-}
-
-func initializeSecureStorage(ctx context.Context, secureStorage storage.Security) error {
-	ctx, cancelFunc := context.WithTimeout(ctx, 2*time.Second)
-	defer cancelFunc()
-	if err := secureStorage.Lock(ctx); err != nil {
-		return err
-	}
-	keyFetcher := secureStorage.Fetcher()
-	encryptionKey, err := keyFetcher.GetEncryptionKey(ctx)
-	if err != nil {
-		return err
-	}
-	if len(encryptionKey) == 0 {
-		logger := log.C(ctx)
-		logger.Info("No encryption key is present. Generating new one...")
-		newEncryptionKey := make([]byte, 32)
-		if _, err = rand.Read(newEncryptionKey); err != nil {
-			return fmt.Errorf("could not generate encryption key: %v", err)
-		}
-		keySetter := secureStorage.Setter()
-		if err = keySetter.SetEncryptionKey(ctx, newEncryptionKey); err != nil {
-			return err
-		}
-		logger.Info("Successfully generated new encryption key")
-	}
-	return secureStorage.Unlock(ctx)
+	sm.wg.Wait()
 }
 
 func newOSBClient(skipSsl bool) osbc.CreateFunc {
@@ -258,6 +232,10 @@ func newOSBClient(skipSsl bool) osbc.CreateFunc {
 		configuration.Insecure = skipSsl
 		return osbc.NewClient(configuration)
 	}
+}
+
+func (smb *ServiceManagerBuilder) RegisterNotificationReceiversFilter(filterFunc storage.ReceiversFilterFunc) {
+	smb.Notificator.RegisterFilter(filterFunc)
 }
 
 func (smb *ServiceManagerBuilder) WithCreateInterceptorProvider(objectType types.ObjectType, provider storage.CreateInterceptorProvider) *interceptorRegistrationBuilder {

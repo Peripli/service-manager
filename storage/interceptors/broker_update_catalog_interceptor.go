@@ -125,11 +125,11 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 					}
 				}
 
-				var dbServiceID string
-				if dbServiceID, err = txStorage.Create(ctx, catalogService); err != nil {
+				var dbService types.Object
+				if dbService, err = txStorage.Create(ctx, catalogService); err != nil {
 					return nil, err
 				}
-				catalogService.ID = dbServiceID
+				catalogService.ID = dbService.GetID()
 			}
 
 			catalogPlansForService := catalogPlansMap[catalogService.CatalogID]

@@ -1,17 +1,17 @@
 /*
- * Copyright 2018 The Service Manager Authors
- *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- *
- *        http://www.apache.org/licenses/LICENSE-2.0
- *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
+* Copyright 2018 The Service Manager Authors
+*
+*    Licensed under the Apache License, Version 2.0 (the "License");
+*    you may not use this file except in compliance with the License.
+*    You may obtain a copy of the License at
+*
+*        http://www.apache.org/licenses/LICENSE-2.0
+*
+*    Unless required by applicable law or agreed to in writing, software
+*    distributed under the License is distributed on an "AS IS" BASIS,
+*    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*    See the License for the specific language governing permissions and
+*    limitations under the License.
  */
 
 package storage_test
@@ -19,8 +19,6 @@ package storage_test
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"sync"
 
 	"github.com/Peripli/service-manager/storage"
@@ -62,111 +60,79 @@ func (interceptor *logInterceptor) VerifyData(emptyData bool) {
 var _ = Describe("Registry", func() {
 	var testStorage *storagefakes.FakeStorage
 	var testSettings *storage.Settings
+	var ctx context.Context
+	var cancelFunc func()
+	var wg *sync.WaitGroup
 
 	BeforeEach(func() {
 		testStorage = &storagefakes.FakeStorage{}
-		testStorage.OpenReturns(nil)
-		testStorage.CloseReturns(nil)
 		testSettings = &storage.Settings{
 			URI:           "uri",
-			MigrationsURL: "",
-			EncryptionKey: "",
+			MigrationsURL: "migrationuri",
+			EncryptionKey: "encryptionkey",
 		}
+
+		ctx, cancelFunc = context.WithCancel(context.TODO())
+		wg = &sync.WaitGroup{}
 	})
 
-	Describe("Storage registration", func() {
-		var (
-			name string
-			s    storage.Storage
-		)
+	Describe("InitializeWithSafeTermination", func() {
+		Context("when storage is nil", func() {
+			BeforeEach(func() {
+				testStorage = nil
+			})
 
-		registerStorage := func() {
-			storage.Register(name, s)
-		}
-
-		assertStorageRegistrationPanics := func() {
-			Expect(registerStorage).To(Panic())
-		}
-
-		Context("With nil storage", func() {
-			It("Should panic", func() {
-				name = "storage"
-				assertStorageRegistrationPanics()
+			It("panics", func() {
+				Expect(func() {
+					storage.InitializeWithSafeTermination(ctx, testStorage, testSettings, wg)
+				}).To(Panic())
 			})
 		})
 
-		Context("With duplicate storage name", func() {
-			It("Should panic", func() {
-				name = "duplicate"
-				s = testStorage
-				registerStorage()
-				assertStorageRegistrationPanics()
+		Context("when opening the storage returns an error", func() {
+			BeforeEach(func() {
+				testStorage.OpenReturns(fmt.Errorf("error"))
+			})
+
+			It("returns an error", func() {
+				err := storage.InitializeWithSafeTermination(ctx, testStorage, testSettings, wg)
+				Expect(err).To(HaveOccurred())
 			})
 		})
-	})
 
-	Describe("Use storage", func() {
-		Context("With non-registered", func() {
-			It("Should return an error", func() {
-				returnedStorage, err := storage.Use(context.TODO(), "non-existing-storage", &storage.Settings{
-					URI:           "uri",
-					MigrationsURL: "",
-					EncryptionKey: "",
+		Context("when context is cancelled", func() {
+			Context("when close succeeds", func() {
+				It("it closes the storage when the context is canceled", func() {
+					err := storage.InitializeWithSafeTermination(ctx, testStorage, testSettings, wg)
+					Expect(err).ToNot(HaveOccurred())
+
+					Expect(testStorage.CloseCallCount()).To(Equal(0))
+
+					cancelFunc()
+					wg.Wait()
+
+					Expect(testStorage.CloseCallCount()).To(Equal(1))
 				})
-				Expect(returnedStorage).To(BeNil())
-				Expect(err).To(Not(BeNil()))
 			})
-		})
 
-		Context("When opening fails", func() {
-			It("Should return an error", func() {
-				testStorage.OpenReturns(fmt.Errorf("Error"))
-				storage.Register("openFailingStorage", testStorage)
-				_, err := storage.Use(context.TODO(), "openFailingStorage", testSettings)
-				Expect(err).To(Not(BeNil()))
-			})
-		})
+			Context("when close returns an error", func() {
+				var logHook *logInterceptor
 
-		Context("When opening succeeds", func() {
-			It("Should return storage", func() {
-				testStorage.OpenReturns(nil)
-				storage.Register("openOkStorage", testStorage)
-				configuredStorage, err := storage.Use(context.TODO(), "openOkStorage", testSettings)
-				Expect(configuredStorage).To(Not(BeNil()))
-				Expect(err).To(BeNil())
-			})
-		})
-	})
+				BeforeEach(func() {
+					logHook = &logInterceptor{}
+					testStorage.CloseReturns(fmt.Errorf("error"))
+					logrus.AddHook(logHook)
+				})
 
-	Describe("Close storage", func() {
-		var interceptor *logInterceptor
+				It("logs the error", func() {
+					err := storage.InitializeWithSafeTermination(ctx, testStorage, testSettings, wg)
+					Expect(err).ToNot(HaveOccurred())
 
-		BeforeEach(func() {
-			interceptor = &logInterceptor{}
-			logrus.AddHook(interceptor)
-		})
+					cancelFunc()
+					wg.Wait()
 
-		Context("When close fails", func() {
-			It("Should panic", func() {
-				testStorage.CloseReturns(fmt.Errorf("Error"))
-				storage.Register("closeFailingStorage", testStorage)
-				ctx, cancel := context.WithCancel(context.TODO())
-				storage.Use(ctx, "closeFailingStorage", testSettings)
-				cancel()
-				time.Sleep(time.Millisecond * 100)
-				interceptor.VerifyData(false)
-			})
-		})
-
-		Context("When close succeeds", func() {
-			It("Should be ok", func() {
-				testStorage.CloseReturns(nil)
-				storage.Register("closeOkStorage", testStorage)
-				ctx, cancel := context.WithCancel(context.TODO())
-				storage.Use(ctx, "closeOkStorage", testSettings)
-				cancel()
-				time.Sleep(time.Millisecond * 100)
-				interceptor.VerifyData(true)
+					logHook.VerifyData(false)
+				})
 			})
 		})
 	})

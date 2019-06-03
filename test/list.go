@@ -86,9 +86,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		By(fmt.Sprintf("Attempting to create a random resource of %s", t.API))
 
 		gen := t.ResourceBlueprint(ctx)
-		if t.SupportsLabels {
-			gen = attachLabel(gen)
-		}
+		gen = attachLabel(gen)
 		delete(gen, "created_at")
 		delete(gen, "updated_at")
 		r = append(r, gen)
@@ -158,6 +156,42 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 				queryArgs:                   common.RemoveNonNumericArgs(r[0]),
 				resourcesNotToExpectAfterOp: []common.Object{r[0]},
 				expectedStatusCode:          http.StatusOK,
+			},
+		),
+		Entry("returns 200 for greater than or equal queries",
+			listOpEntry{
+				resourcesToExpectBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
+				queryTemplate:             "%s gte %v",
+				queryArgs:                 common.RemoveNonNumericArgs(r[0]),
+				resourcesToExpectAfterOp:  []common.Object{r[0], r[1], r[2], r[3]},
+				expectedStatusCode:        http.StatusOK,
+			},
+		),
+		Entry("returns 400 for greater than or equal queries when query args are non numeric",
+			listOpEntry{
+				resourcesToExpectBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
+				queryTemplate:             "%s gte %v",
+				queryArgs:                 common.RemoveNumericArgs(r[0]),
+				resourcesToExpectAfterOp:  []common.Object{r[0], r[1], r[2], r[3]},
+				expectedStatusCode:        http.StatusBadRequest,
+			},
+		),
+		Entry("returns 200 for less than or equal queries",
+			listOpEntry{
+				resourcesToExpectBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
+				queryTemplate:             "%s lte %v",
+				queryArgs:                 common.RemoveNonNumericArgs(r[0]),
+				resourcesToExpectAfterOp:  []common.Object{r[0], r[1], r[2], r[3]},
+				expectedStatusCode:        http.StatusOK,
+			},
+		),
+		Entry("returns 400 for less than or equal queries when query args are non numeric",
+			listOpEntry{
+				resourcesToExpectBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
+				queryTemplate:             "%s lte %v",
+				queryArgs:                 common.RemoveNumericArgs(r[0]),
+				resourcesToExpectAfterOp:  []common.Object{r[0], r[1], r[2], r[3]},
+				expectedStatusCode:        http.StatusBadRequest,
 			},
 		),
 		Entry("returns 200",
@@ -424,7 +458,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 				})
 
 				labels := params.queryArgs["labels"]
-				if t.SupportsLabels && labels != nil {
+				if labels != nil {
 
 					multiQueryValue, queryValues = expandLabelQuery(labels.(map[string]interface{}), params.queryTemplate)
 					lquery := "labelQuery" + "=" + multiQueryValue

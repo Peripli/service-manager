@@ -28,12 +28,9 @@ import (
 	apiNotifications "github.com/Peripli/service-manager/api/notifications"
 
 	"github.com/Peripli/service-manager/api/filters"
-	"github.com/Peripli/service-manager/api/filters/authn/basic"
-	"github.com/Peripli/service-manager/api/filters/authn/oauth"
 	"github.com/Peripli/service-manager/api/info"
 	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/pkg/health"
-	"github.com/Peripli/service-manager/pkg/security"
 	secfilters "github.com/Peripli/service-manager/pkg/security/filters"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
@@ -69,13 +66,12 @@ type Options struct {
 	Repository  storage.Repository
 	APISettings *Settings
 	WSSettings  *ws.Settings
-	Encrypter   security.Encrypter
 	Notificator storage.Notificator
 }
 
 // New returns the minimum set of REST APIs needed for the Service Manager
 func New(ctx context.Context, options *Options) (*web.API, error) {
-	bearerAuthnFilter, err := oauth.NewFilter(ctx, options.APISettings.TokenIssuerURL, options.APISettings.ClientID)
+	bearerAuthnFilter, err := filters.NewOIDCAuthnFilter(ctx, options.APISettings.TokenIssuerURL, options.APISettings.ClientID)
 	if err != nil {
 		return nil, err
 	}
@@ -110,11 +106,12 @@ func New(ctx context.Context, options *Options) (*web.API, error) {
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
 			&filters.Logging{},
-			basic.NewFilter(options.Repository.Credentials(), options.Encrypter),
+			filters.NewBasicAuthnFilter(options.Repository),
 			bearerAuthnFilter,
 			secfilters.NewRequiredAuthnFilter(),
 			&filters.SelectionCriteria{},
 			&filters.PlatformAwareVisibilityFilter{},
+			&filters.PatchOnlyLabelsFilter{},
 		},
 		Registry: health.NewDefaultRegistry(),
 	}, nil

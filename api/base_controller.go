@@ -124,13 +124,12 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	result.SetCreatedAt(currentTime)
 	result.SetUpdatedAt(currentTime)
 
-	id, err := c.repository.Create(ctx, result)
+	createdObj, err := c.repository.Create(ctx, result)
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
-	result.SetID(id)
 
-	return util.NewJSONResponse(http.StatusCreated, result)
+	return util.NewJSONResponse(http.StatusCreated, createdObj)
 }
 
 // DeleteObjects handles the deletion of the objects specified in the request
@@ -172,6 +171,7 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
+
 	stripCredentials(ctx, object)
 
 	return util.NewJSONResponse(http.StatusOK, object)
@@ -185,6 +185,7 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
+
 	for i := 0; i < objectList.Len(); i++ {
 		obj := objectList.ItemAt(i)
 		stripCredentials(ctx, obj)
@@ -203,15 +204,15 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	if r.Body, err = sjson.DeleteBytes(r.Body, "labels"); err != nil {
-		return nil, err
-	}
 
 	objFromDB, err := c.repository.Get(ctx, c.objectType, objectID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
 
+	if r.Body, err = sjson.DeleteBytes(r.Body, "labels"); err != nil {
+		return nil, err
+	}
 	createdAt := objFromDB.GetCreatedAt()
 	updatedAt := objFromDB.GetUpdatedAt()
 

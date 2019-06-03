@@ -60,25 +60,27 @@ func (c *brokerCreateCatalogInterceptor) AroundTxCreate(h storage.InterceptCreat
 }
 
 func (c *brokerCreateCatalogInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
-	return func(ctx context.Context, storage storage.Repository, obj types.Object) error {
-		if err := f(ctx, storage, obj); err != nil {
-			return err
+	return func(ctx context.Context, storage storage.Repository, obj types.Object) (types.Object, error) {
+		var createdObj types.Object
+		var err error
+		if createdObj, err = f(ctx, storage, obj); err != nil {
+			return nil, err
 		}
 		broker := obj.(*types.ServiceBroker)
 
 		for serviceIndex := range broker.Services {
 			service := broker.Services[serviceIndex]
 			if _, err := storage.Create(ctx, service); err != nil {
-				return err
+				return nil, err
 			}
 			for planIndex := range service.Plans {
 				servicePlan := service.Plans[planIndex]
 				if _, err := storage.Create(ctx, servicePlan); err != nil {
-					return err
+					return nil, err
 				}
 			}
 		}
 
-		return nil
+		return createdObj, nil
 	}
 }

@@ -18,7 +18,6 @@ package filters
 
 import (
 	"net/http"
-	"testing"
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -26,11 +25,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
-
-func TestHandler(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "API Filters Suite")
-}
 
 var _ = Describe("Logging Filter", func() {
 	loggingFilter := &Logging{}

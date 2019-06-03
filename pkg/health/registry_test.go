@@ -23,7 +23,7 @@ import (
 
 var _ = Describe("Healthcheck Registry", func() {
 
-	var registry Registry
+	var registry *Registry
 
 	BeforeEach(func() {
 		registry = NewDefaultRegistry()
@@ -31,32 +31,32 @@ var _ = Describe("Healthcheck Registry", func() {
 
 	When("Constructing default registry", func() {
 		It("Has ping indicator and default aggregation policy", func() {
-			indicators := registry.HealthIndicators()
+			indicators := registry.HealthIndicators
 			Expect(indicators).To(ConsistOf(&pingIndicator{}))
 
-			policy := registry.HealthAggregationPolicy()
+			policy := registry.HealthAggregationPolicy
 			Expect(policy).To(BeAssignableToTypeOf(&DefaultAggregationPolicy{}))
 		})
 	})
 
 	Context("Register aggregation policy", func() {
 		It("Overrides the previous", func() {
-			policy := registry.HealthAggregationPolicy()
+			policy := registry.HealthAggregationPolicy
 			Expect(policy).To(BeAssignableToTypeOf(&DefaultAggregationPolicy{}))
 
-			registry.RegisterHealthAggregationPolicy(&testAggregationPolicy{})
-			policy = registry.HealthAggregationPolicy()
+			registry.HealthAggregationPolicy = &testAggregationPolicy{}
+			policy = registry.HealthAggregationPolicy
 			Expect(policy).To(BeAssignableToTypeOf(&testAggregationPolicy{}))
 		})
 	})
 
 	Context("Register health indicator", func() {
 		It("Adds a new indicator", func() {
-			preAddIndicators := registry.HealthIndicators()
+			preAddIndicators := registry.HealthIndicators
 
 			newIndicator := &testIndicator{}
-			registry.AddHealthIndicator(newIndicator)
-			postAddIndicators := registry.HealthIndicators()
+			registry.HealthIndicators = append(registry.HealthIndicators, newIndicator)
+			postAddIndicators := registry.HealthIndicators
 			for _, indicator := range preAddIndicators {
 				Expect(postAddIndicators).To(ContainElement(indicator))
 			}

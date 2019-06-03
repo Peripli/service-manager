@@ -72,11 +72,12 @@ func (p *publicPlanCreateInterceptor) AroundTxCreate(h storage.InterceptCreateAr
 }
 
 func (p *publicPlanCreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
-	return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) error {
-		if err := f(ctx, txStorage, newObject); err != nil {
-			return err
+	return func(ctx context.Context, txStorage storage.Repository, obj types.Object) (types.Object, error) {
+		newObject, err := f(ctx, txStorage, obj)
+		if err != nil {
+			return nil, err
 		}
-		return resync(ctx, newObject.(*types.ServiceBroker), txStorage, p.isCatalogPlanPublicFunc)
+		return newObject, resync(ctx, obj.(*types.ServiceBroker), txStorage, p.isCatalogPlanPublicFunc)
 	}
 }
 

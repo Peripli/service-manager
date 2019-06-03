@@ -26,43 +26,37 @@ import (
 )
 
 const (
-	platformCreateInterceptorName = "CreatePlatformCredentialsInterceptor"
+	generateCredentialsInterceptorName = "CreateCredentialsInterceptor"
 )
 
-type PlatformCreateInterceptorProvider struct {
+type GenerateCredentialsInterceptorProvider struct {
 }
 
-func (c *PlatformCreateInterceptorProvider) Provide() storage.CreateInterceptor {
-	return &CreateInterceptor{}
+func (c *GenerateCredentialsInterceptorProvider) Provide() storage.CreateInterceptor {
+	return &generateCredentialsInterceptor{}
 }
 
-func (c *PlatformCreateInterceptorProvider) Name() string {
-	return platformCreateInterceptorName
+func (c *GenerateCredentialsInterceptorProvider) Name() string {
+	return generateCredentialsInterceptorName
 }
 
-type CreateInterceptor struct{}
+type generateCredentialsInterceptor struct{}
 
-// AroundTxCreate manipulates the credentials of the platform by generating new ones and returning them as plaintext on the way back
-func (c *CreateInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
+// AroundTxCreate generates new credentials for the secured object
+func (c *generateCredentialsInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		credentials, err := types.GenerateCredentials()
 		if err != nil {
 			log.C(ctx).Error("Could not generate credentials for platform")
 			return nil, err
 		}
-		plaintextPassword := credentials.Basic.Password
 		(obj.(types.Secured)).SetCredentials(credentials)
-		object, err := h(ctx, obj)
-		if err != nil {
-			return nil, err
-		}
-		credentials.Basic.Password = plaintextPassword
-		(object.(types.Secured)).SetCredentials(credentials)
-		return object, nil
+
+		return h(ctx, obj)
 	}
 }
 
 // OnTxCreate invokes the next interceptor in the chain
-func (*CreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
+func (*generateCredentialsInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 	return f
 }

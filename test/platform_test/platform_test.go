@@ -18,6 +18,7 @@ package platform_test
 
 import (
 	"context"
+	"github.com/Peripli/service-manager/pkg/web"
 	"net/http"
 	"testing"
 
@@ -37,9 +38,9 @@ func TestPlatforms(t *testing.T) {
 	RunSpecs(t, "Platform API Tests Suite")
 }
 
+
 var _ = test.DescribeTestsFor(test.TestCase{
-	API:            "/v1/platforms",
-	SupportsLabels: true,
+	API: web.PlatformsURL,
 	SupportedOps: []test.Op{
 		test.Get, test.List, test.Delete, test.DeleteList,
 	},
@@ -341,7 +342,7 @@ func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext) common.Ob
 		if !setNullFieldsValues {
 			delete(randomPlatform, "description")
 		}
-		platform := ctx.SMWithOAuth.POST("/v1/platforms").WithJSON(randomPlatform).
+		platform := ctx.SMWithOAuth.POST(web.PlatformsURL).WithJSON(randomPlatform).
 			Expect().
 			Status(http.StatusCreated).JSON().Object().Raw()
 		delete(platform, "credentials")

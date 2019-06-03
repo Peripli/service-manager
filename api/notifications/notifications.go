@@ -5,11 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"sort"
 	"strconv"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
@@ -24,22 +22,14 @@ const (
 	LastKnownRevisionHeader     = "last_notification_revision"
 	LastKnownRevisionQueryParam = "last_notification_revision"
 
-	unknownRevision int64 = -1
-	noRevision      int64 = 0
+	noRevision int64 = 0
 )
-
-var errRevisionNotFound = errors.New("revision not found")
 
 func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	ctx := req.Context()
 	logger := log.C(ctx)
 
-	user, ok := web.UserFromContext(req.Context())
-	if !ok {
-		return nil, errors.New("user details not found in request context")
-	}
-
-	revisionKnownToProxy := unknownRevision
+	revisionKnownToProxy := types.InvalidRevision
 	revisionKnownToProxyStr := req.URL.Query().Get(LastKnownRevisionQueryParam)
 	if revisionKnownToProxyStr != "" {
 		var err error
@@ -58,9 +48,18 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		return util.NewJSONResponse(http.StatusGone, nil)
 	}
 
-	notificationQueue, lastKnownRevision, notificationsList, err := c.registerConsumer(ctx, revisionKnownToProxy, user)
+	user, ok := web.UserFromContext(req.Context())
+	if !ok {
+		return nil, errors.New("user details not found in request context")
+	}
+
+	platform, err := extractPlatformFromContext(user)
 	if err != nil {
-		if err == errRevisionNotFound {
+		return nil, err
+	}
+	notificationQueue, lastKnownToSMRevision, err := c.notificator.RegisterConsumer(platform, revisionKnownToProxy)
+	if err != nil {
+		if err == util.ErrInvalidNotificationRevision {
 			return util.NewJSONResponse(http.StatusGone, nil)
 		}
 		return nil, err
@@ -76,8 +75,11 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	}()
 
 	rw := req.HijackResponseWriter()
+	if lastKnownToSMRevision == types.InvalidRevision {
+		lastKnownToSMRevision = noRevision
+	}
 	responseHeaders := http.Header{
-		LastKnownRevisionHeader: []string{strconv.FormatInt(lastKnownRevision, 10)},
+		LastKnownRevisionHeader: []string{strconv.FormatInt(lastKnownToSMRevision, 10)},
 	}
 
 	conn, err := c.upgrade(rw, req.Request, responseHeaders)
@@ -89,13 +91,13 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	done := make(chan struct{}, 2)
 
 	go c.closeConn(childCtx, conn, done)
-	go c.writeLoop(childCtx, conn, notificationsList, notificationQueue, done)
+	go c.writeLoop(childCtx, conn, notificationQueue, done)
 	go c.readLoop(childCtx, conn, done)
 
 	return &web.Response{}, nil
 }
 
-func (c *Controller) writeLoop(ctx context.Context, conn *websocket.Conn, notificationsList *types.Notifications, q storage.NotificationQueue, done chan<- struct{}) {
+func (c *Controller) writeLoop(ctx context.Context, conn *websocket.Conn, q storage.NotificationQueue, done chan<- struct{}) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.C(ctx).Errorf("recovered from panic while writing to websocket connection: %s", err)
@@ -106,19 +108,6 @@ func (c *Controller) writeLoop(ctx context.Context, conn *websocket.Conn, notifi
 		done <- struct{}{}
 	}()
 	defer c.unregisterConsumer(ctx, q)
-
-	for _, notification := range notificationsList.Notifications {
-		select {
-		case <-ctx.Done():
-			log.C(ctx).Infof("Websocket connection shutting down")
-			return
-		default:
-		}
-
-		if !c.sendWsMessage(ctx, conn, notification) {
-			return
-		}
-	}
 
 	notificationChannel := q.Channel()
 
@@ -174,77 +163,10 @@ func (c *Controller) sendWsMessage(ctx context.Context, conn *websocket.Conn, ms
 	return true
 }
 
-func (c *Controller) registerConsumer(ctx context.Context, revisionKnownToProxy int64, user *web.UserContext) (storage.NotificationQueue, int64, *types.Notifications, error) {
-	var (
-		notificationQueue storage.NotificationQueue
-		notificationsList *types.Notifications
-		lastKnownRevision int64
-		err               error
-	)
-	notificationQueue, lastKnownRevision, err = c.notificator.RegisterConsumer(user)
-	if err != nil {
-		return nil, unknownRevision, nil, fmt.Errorf("could not register notification consumer: %v", err)
-	}
-	defer func() {
-		if err != nil {
-			c.unregisterConsumer(ctx, notificationQueue)
-		}
-	}()
-
-	if lastKnownRevision < revisionKnownToProxy {
-		log.C(ctx).Infof("Notification revision known to proxy %d is greater than revision known to SM %d", revisionKnownToProxy, lastKnownRevision)
-		return nil, unknownRevision, nil, errRevisionNotFound
-	}
-
-	if revisionKnownToProxy == unknownRevision {
-		notificationsList = &types.Notifications{}
-	} else {
-		notificationsList, err = c.getNotificationList(ctx, user, revisionKnownToProxy, lastKnownRevision)
-		if err != nil {
-			return nil, unknownRevision, nil, err
-		}
-
-		var notification *types.Notification
-		if notificationsList.Len() > 0 {
-			notification = notificationsList.Notifications[0]
-			notificationsList.Notifications = notificationsList.Notifications[1:]
-		}
-
-		if notification == nil || notification.Revision != revisionKnownToProxy {
-			log.C(ctx).Infof("Notification with revision %d known to proxy not found", revisionKnownToProxy)
-			return nil, unknownRevision, nil, errRevisionNotFound
-		}
-	}
-	return notificationQueue, lastKnownRevision, notificationsList, err
-}
-
 func (c *Controller) unregisterConsumer(ctx context.Context, q storage.NotificationQueue) {
 	if unregErr := c.notificator.UnregisterConsumer(q); unregErr != nil {
 		log.C(ctx).Errorf("Could not unregister notification consumer: %v", unregErr)
 	}
-}
-
-func (c *Controller) getNotificationList(ctx context.Context, user *web.UserContext, revisionKnownToProxy, LastKnownRevisionHeader int64) (*types.Notifications, error) {
-	// TODO: is this +1/-1 ok or we should add less than or equal operator
-	listQuery1 := query.ByField(query.GreaterThanOperator, "revision", strconv.FormatInt(revisionKnownToProxy-1, 10))
-	listQuery2 := query.ByField(query.LessThanOperator, "revision", strconv.FormatInt(LastKnownRevisionHeader+1, 10))
-
-	platform, err := extractPlatformFromContext(user)
-	if err != nil {
-		return nil, err
-	}
-	filterByPlatform := query.ByField(query.EqualsOrNilOperator, "platform_id", platform.ID)
-	objectList, err := c.repository.List(ctx, types.NotificationType, nil, listQuery1, listQuery2, filterByPlatform)
-	if err != nil {
-		return nil, err
-	}
-	notificationsList := objectList.(*types.Notifications)
-	// TODO: Should be done in the database with order by
-	sort.Slice(notificationsList.Notifications, func(i, j int) bool {
-		return notificationsList.Notifications[i].Revision < notificationsList.Notifications[j].Revision
-	})
-
-	return notificationsList, nil
 }
 
 func extractPlatformFromContext(userContext *web.UserContext) (*types.Platform, error) {

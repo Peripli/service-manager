@@ -26,11 +26,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/web"
-
 	"github.com/Peripli/service-manager/pkg/query"
 
-	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
@@ -165,7 +162,7 @@ type ListCriteria struct {
 
 type Repository interface {
 	// Create stores a broker in SM DB
-	Create(ctx context.Context, obj types.Object) (string, error)
+	Create(ctx context.Context, obj types.Object) (types.Object, error)
 
 	// Get retrieves a broker using the provided id from SM DB
 	Get(ctx context.Context, objectType types.ObjectType, id string) (types.Object, error)
@@ -178,9 +175,6 @@ type Repository interface {
 
 	// Update updates a broker from SM DB
 	Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error)
-
-	Credentials() Credentials
-	Security() Security
 }
 
 // TransactionalRepository is a storage repository that can initiate a transaction
@@ -201,15 +195,8 @@ type Storage interface {
 	Introduce(entity Entity)
 }
 
-// Credentials interface for Credentials db operations
-//go:generate counterfeiter . Credentials
-type Credentials interface {
-	// Get retrieves credentials using the provided username from SM DB
-	Get(ctx context.Context, username string) (*types.Credentials, error)
-}
-
-// Security interface for encryption key operations
-type Security interface {
+// Secured interface for encryption key operations
+type Secured interface {
 	// Lock locks the storage so that only one process can manipulate the encryption key.
 	// Returns an error if the process has already acquired the lock
 	Lock(ctx context.Context) error
@@ -217,11 +204,16 @@ type Security interface {
 	// Unlock releases the acquired lock.
 	Unlock(ctx context.Context) error
 
-	// Fetcher provides means to obtain the encryption key
-	Fetcher() security.KeyFetcher
+	GetEncryptionKey(ctx context.Context, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) ([]byte, error)
 
-	// Setter provides means to change the encryption  key
-	Setter() security.KeySetter
+	SetEncryptionKey(ctx context.Context, key []byte, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) error
+}
+
+// SecuredTransactionalRepository is a transactional repository that allows securing data by encrypting it with an encryption key
+//go:generate counterfeiter . SecuredTransactionalRepository
+type SecuredTransactionalRepository interface {
+	Secured
+	TransactionalRepository
 }
 
 // ErrQueueClosed error stating that the queue is closed
@@ -253,9 +245,17 @@ type Notificator interface {
 	Start(ctx context.Context, group *sync.WaitGroup) error
 
 	// RegisterConsumer returns notification queue, last_known_revision and error if any.
+	// Notifications after lastKnownRevision will be added to the queue.
+	// If lastKnownRevision is -1 no previous notifications will be sent.
 	// When consumer wants to stop listening for notifications it must unregister the notification queue.
-	RegisterConsumer(userContext *web.UserContext) (NotificationQueue, int64, error)
+	RegisterConsumer(consumer *types.Platform, lastKnownRevision int64) (NotificationQueue, int64, error)
 
 	// UnregisterConsumer must be called to stop receiving notifications in the queue
 	UnregisterConsumer(queue NotificationQueue) error
+
+	// RegisterFilter adds a new filter which decides if a platform should receive given notification
+	RegisterFilter(f ReceiversFilterFunc)
 }
+
+// ReceiversFilterFunc filters recipients for a given notifications
+type ReceiversFilterFunc func(recipients []*types.Platform, notification *types.Notification) (filteredRecipients []*types.Platform)

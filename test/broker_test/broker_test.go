@@ -17,6 +17,7 @@ package broker_test
 
 import (
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/web"
 	"net/http"
 	"strings"
 	"testing"
@@ -43,8 +44,7 @@ func TestBrokers(t *testing.T) {
 }
 
 var _ = test.DescribeTestsFor(test.TestCase{
-	API:            "/v1/service_brokers",
-	SupportsLabels: true,
+	API: web.ServiceBrokersURL,
 	SupportedOps: []test.Op{
 		test.Get, test.List, test.Delete, test.DeleteList,
 	},
@@ -181,7 +181,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Status(http.StatusCreated).
 								JSON().Object().
 								ContainsMap(expectedBrokerResponse).
-								Keys().NotContains("services", "credentials")
+								Keys().NotContains("services").Contains("credentials")
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 						})
@@ -264,7 +264,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						Context("that has an empty description", func() {
 							verifyPOSTWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
-								r.Status(http.StatusCreated).JSON().Object().Keys().NotContains("services", "credentials")
+								r.Status(http.StatusCreated).JSON().Object().Keys().NotContains("services").Contains("credentials")
 							}, "services.0.description")
 						})
 
@@ -302,7 +302,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						Context("that has an empty description", func() {
 							verifyPOSTWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
-								r.Status(http.StatusCreated).JSON().Object().Keys().NotContains("services", "credentials")
+								r.Status(http.StatusCreated).JSON().Object().Keys().NotContains("services").Contains("credentials")
 							}, "services.0.plans.0.description")
 						})
 
@@ -346,7 +346,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Status(http.StatusCreated).
 								JSON().Object().
 								ContainsMap(expectedBrokerResponse).
-								Keys().NotContains("services", "credentials")
+								Keys().NotContains("services").Contains("credentials")
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 						})
@@ -1288,7 +1288,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 						patchLabelsBody["labels"] = patchLabels
 
-						id = ctx.SMWithOAuth.POST("/v1/service_brokers").
+						id = ctx.SMWithOAuth.POST(web.ServiceBrokersURL).
 							WithJSON(postBrokerRequestWithLabels).
 							Expect().Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
 					})
@@ -1296,7 +1296,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("Add new label", func() {
 						It("Should return 200", func() {
 							label := types.Labels{changedLabelKey: changedLabelValues}
-							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusOK).JSON().Object().Value("labels").Object().ContainsMap(label)
@@ -1305,12 +1305,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("Add label with existing key and value", func() {
 						It("Should return 200", func() {
-							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusOK)
 
-							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusOK)
@@ -1328,7 +1328,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							for _, val := range changedLabelValues {
 								labelValuesObj = append(labelValuesObj, val)
 							}
-							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusOK).JSON().
@@ -1348,7 +1348,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								labelValuesObj = append(labelValuesObj, val)
 							}
 
-							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusOK).JSON().
@@ -1364,7 +1364,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							changedLabelValues = []string{values[0].(string)}
 						})
 						It("Should return 200", func() {
-							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusOK)
@@ -1377,7 +1377,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							changedLabelKey = "cluster_id"
 						})
 						It("Should return 200", func() {
-							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusOK).JSON().
@@ -1391,7 +1391,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							changedLabelKey = ""
 						})
 						It("Should return 400", func() {
-							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusBadRequest)
@@ -1404,7 +1404,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							changedLabelKey = "non-existing-ey"
 						})
 						It("Should return 200", func() {
-							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusOK)
@@ -1420,11 +1420,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							changedLabelValues = []string{valueToRemove}
 						})
 						It("Should return 200", func() {
-							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusOK).JSON().
-								Path("$.labels[*].value[*]").Array().NotContains(valueToRemove)
+								Path("$.labels[*]").Array().NotContains(valueToRemove)
 						})
 					})
 
@@ -1439,11 +1439,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							changedLabelValues = valuesToRemove
 						})
 						It("Should return 200", func() {
-							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusOK).JSON().
-								Path("$.labels[*].value[*]").Array().NotContains(valuesToRemove)
+								Path("$.labels[*]").Array().NotContains(valuesToRemove)
 						})
 					})
 
@@ -1459,11 +1459,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							changedLabelValues = valuesToRemove
 						})
 						It("Should return 200 with this key gone", func() {
-							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusOK).JSON().
-								Path("$.labels[*].key[*]").Array().NotContains(changedLabelKey)
+								Path("$.labels").Object().Keys().NotContains(changedLabelKey)
 						})
 					})
 
@@ -1473,7 +1473,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							changedLabelValues = []string{}
 						})
 						It("Should return 400", func() {
-							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusBadRequest)
@@ -1487,7 +1487,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							changedLabelValues = []string{"non-existing-value"}
 						})
 						It("Should return 200", func() {
-							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + id).
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusOK)
@@ -1506,7 +1506,7 @@ func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext) common.Ob
 		if !setNullFieldsValues {
 			delete(brokerJSON, "description")
 		}
-		obj := ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(brokerJSON).
+		obj := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(brokerJSON).
 			Expect().
 			Status(http.StatusCreated).JSON().Object().Raw()
 		delete(obj, "credentials")

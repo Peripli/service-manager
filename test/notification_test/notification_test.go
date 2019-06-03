@@ -63,6 +63,7 @@ var _ = Describe("Notifications Suite", func() {
 			ResourceType: types.ServiceBrokerType,
 			ResourceCreateFunc: func() common.Object {
 				_, obj, _ := ctx.RegisterBroker()
+				delete(obj, "credentials")
 				return obj
 			},
 			ResourceUpdateFunc: func(obj common.Object, update common.Object) common.Object {
