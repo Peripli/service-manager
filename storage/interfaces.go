@@ -172,8 +172,8 @@ type TransactionalRepository interface {
 	InTransaction(ctx context.Context, f func(ctx context.Context, storage Repository) error) error
 }
 
-// RepositoryDecorator allows decorating a TransactionalRepository
-type RepositoryDecorator func(TransactionalRepository) (TransactionalRepository, error)
+// TransactionalRepositoryDecorator allows decorating a TransactionalRepository
+type TransactionalRepositoryDecorator func(TransactionalRepository) (TransactionalRepository, error)
 
 // Storage interface provides entity-specific storages
 //go:generate counterfeiter . Storage
@@ -183,22 +183,6 @@ type Storage interface {
 	TransactionalRepository
 
 	Introduce(entity Entity)
-}
-
-// KeyStore interface for encryption key operations
-//go:generate counterfeiter . KeyStore
-type KeyStore interface {
-	// Lock locks the storage so that only one process can manipulate the encryption key. Returns an error if the process has already acquired the lock
-	Lock(ctx context.Context) error
-
-	// Unlock releases the acquired lock.
-	Unlock(ctx context.Context) error
-
-	// GetEncryptionKey returns the encryption key from the storage after applying the specified transformation function
-	GetEncryptionKey(ctx context.Context, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) ([]byte, error)
-
-	// SetEncryptionKey sets the provided encryption key in the KeyStore after applying the specified transformation function
-	SetEncryptionKey(ctx context.Context, key []byte, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) error
 }
 
 // ErrQueueClosed error stating that the queue is closed

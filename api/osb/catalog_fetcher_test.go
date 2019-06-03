@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package catalog_test
+package osb_test
 
 import (
 	"context"
@@ -22,11 +22,11 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/Peripli/service-manager/api/osb"
+
 	"github.com/Peripli/service-manager/pkg/util"
 
 	. "github.com/onsi/gomega"
-
-	"github.com/Peripli/service-manager/storage/catalog"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/test/common"
@@ -34,7 +34,7 @@ import (
 	. "github.com/onsi/ginkgo/extensions/table"
 )
 
-var _ = Describe("Catalog Fetcher", func() {
+var _ = Describe("Catalog CatalogFetcher", func() {
 	const (
 		simpleCatalog = `
 		{
@@ -66,6 +66,7 @@ var _ = Describe("Catalog Fetcher", func() {
 	)
 
 	var testBroker *types.ServiceBroker
+	var expectedHeaders map[string]string
 
 	type testCase struct {
 		expectations *common.HTTPExpectations
@@ -76,7 +77,7 @@ var _ = Describe("Catalog Fetcher", func() {
 	}
 
 	newFetcher := func(t testCase) func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error) {
-		return catalog.Fetcher(common.DoHTTP(t.reaction, t.expectations), version)
+		return osb.CatalogFetcher(common.DoHTTP(t.reaction, t.expectations), version)
 	}
 
 	basicAuth := func(username, password string) string {
@@ -99,16 +100,18 @@ var _ = Describe("Catalog Fetcher", func() {
 				},
 			},
 		}
+
+		expectedHeaders = map[string]string{
+			"Authorization":        "Basic " + basicAuth(username, password),
+			"X-Broker-API-Version": version,
+		}
 	})
 
 	entries := []TableEntry{
 		Entry("successfully fetches the catalog bytes", testCase{
 			expectations: &common.HTTPExpectations{
-				URL: url,
-				Headers: map[string]string{
-					"Authorization":        "Basic " + basicAuth(username, password),
-					"X-Broker-API-Version": version,
-				},
+				URL:     url,
+				Headers: expectedHeaders,
 			},
 			reaction: &common.HTTPReaction{
 				Status: http.StatusOK,
@@ -120,11 +123,8 @@ var _ = Describe("Catalog Fetcher", func() {
 		}),
 		Entry("returns error if response code from broker is not 200", testCase{
 			expectations: &common.HTTPExpectations{
-				URL: url,
-				Headers: map[string]string{
-					"Authorization":        "Basic " + basicAuth(username, password),
-					"X-Broker-API-Version": version,
-				},
+				URL:     url,
+				Headers: expectedHeaders,
 			},
 			reaction: &common.HTTPReaction{
 				Status: http.StatusInternalServerError,
@@ -136,11 +136,8 @@ var _ = Describe("Catalog Fetcher", func() {
 		}),
 		Entry("returns error if sending request fails with error", testCase{
 			expectations: &common.HTTPExpectations{
-				URL: url,
-				Headers: map[string]string{
-					"Authorization":        "Basic " + basicAuth(username, password),
-					"X-Broker-API-Version": version,
-				},
+				URL:     url,
+				Headers: expectedHeaders,
 			},
 			reaction: &common.HTTPReaction{
 				Status: http.StatusBadGateway,

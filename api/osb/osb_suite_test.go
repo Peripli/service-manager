@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-package catalog_test
+package osb
 
 import "testing"
 import . "github.com/onsi/ginkgo"
 import . "github.com/onsi/gomega"
 
-func TestCatalog(t *testing.T) {
+func TestOSB(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Service Manager Catalog Suite")
+	RunSpecs(t, "Service Manager OSB Suite")
 }

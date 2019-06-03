@@ -24,6 +24,8 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/Peripli/service-manager/api/osb"
+
 	"github.com/Peripli/service-manager/storage/catalog"
 
 	"github.com/Peripli/service-manager/pkg/security"
@@ -169,10 +171,10 @@ func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) *S
 	// Register default interceptors that represent the core SM business logic
 	smb.
 		WithCreateInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerCreateCatalogInterceptorProvider{
-			CatalogFetcher: catalog.Fetcher(http.DefaultClient.Do, cfg.API.OSBVersion),
+			CatalogFetcher: osb.CatalogFetcher(http.DefaultClient.Do, cfg.API.OSBVersion),
 		}).Register().
 		WithUpdateInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerUpdateCatalogInterceptorProvider{
-			CatalogFetcher: catalog.Fetcher(http.DefaultClient.Do, cfg.API.OSBVersion),
+			CatalogFetcher: osb.CatalogFetcher(http.DefaultClient.Do, cfg.API.OSBVersion),
 			CatalogLoader:  catalog.Load,
 		}).Register().
 		WithDeleteInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerDeleteCatalogInterceptorProvider{

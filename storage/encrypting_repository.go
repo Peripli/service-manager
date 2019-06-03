@@ -14,13 +14,35 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
-func EncryptingDecorator(ctx context.Context, encrypter security.Encrypter, keyStore KeyStore) RepositoryDecorator {
+// KeyStore interface for encryption key operations
+type KeyStore interface {
+	// Lock locks the storage so that only one process can manipulate the encryption key. Returns an error if the process has already acquired the lock
+	Lock(ctx context.Context) error
+
+	// Unlock releases the acquired lock.
+	Unlock(ctx context.Context) error
+
+	// GetEncryptionKey returns the encryption key from the storage after applying the specified transformation function
+	GetEncryptionKey(ctx context.Context, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) ([]byte, error)
+
+	// SetEncryptionKey sets the provided encryption key in the KeyStore after applying the specified transformation function
+	SetEncryptionKey(ctx context.Context, key []byte, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) error
+}
+
+// EncryptingDecorator creates a TransactionalRepositoryDecorator that can be used to add encrypting/decrypting logic to a TransactionalRepository
+func EncryptingDecorator(ctx context.Context, encrypter security.Encrypter, keyStore KeyStore) TransactionalRepositoryDecorator {
 	return func(next TransactionalRepository) (TransactionalRepository, error) {
 		ctx, cancelFunc := context.WithTimeout(ctx, 2*time.Second)
 		defer cancelFunc()
+
 		if err := keyStore.Lock(ctx); err != nil {
 			return nil, err
 		}
+		defer func() {
+			if err := keyStore.Unlock(ctx); err != nil {
+				log.C(ctx).Errorf("error while unlocking keystore: %s", err)
+			}
+		}()
 
 		encryptionKey, err := keyStore.GetEncryptionKey(ctx, encrypter.Decrypt)
 		if err != nil {
@@ -42,14 +64,11 @@ func EncryptingDecorator(ctx context.Context, encrypter security.Encrypter, keyS
 			logger.Info("Successfully generated new encryption key")
 		}
 
-		if err := keyStore.Unlock(ctx); err != nil {
-			return nil, err
-		}
-
 		return NewEncryptingRepository(next, encrypter, encryptionKey)
 	}
 }
 
+//NewEncryptingRepository creates a new TransactionalEncryptingRepository using the specified encrypter and encryption key
 func NewEncryptingRepository(repository TransactionalRepository, encrypter security.Encrypter, key []byte) (*TransactionalEncryptingRepository, error) {
 	encryptingRepository := &TransactionalEncryptingRepository{
 		encryptingRepository: &encryptingRepository{
@@ -70,6 +89,8 @@ type encryptingRepository struct {
 	encryptionKey []byte
 }
 
+//TransactionalEncryptingRepository is a TransactionalRepository with that also encrypts credentials of Secured objects
+// before storing in the database them and decrypts credentials of Secured objects when reading them from the database
 type TransactionalEncryptingRepository struct {
 	*encryptingRepository
 

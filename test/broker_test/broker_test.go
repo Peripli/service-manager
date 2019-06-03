@@ -193,7 +193,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 						})
 
-						Specify("the catalog is returned from the repository in the brokers catalog field", func() {
+						Specify("the whole catalog is returned from the repository in the brokers catalog field", func() {
 							id := ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(postBrokerRequestWithNoLabels).
 								Expect().
 								Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
@@ -448,6 +448,17 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 			Describe("PATCH", func() {
 				var brokerID string
+
+				assertRepositoryReturnsExpectedCatalogAfterPatching := func(brokerID, expectedCatalog string) {
+					ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
+						WithJSON(common.Object{}).
+						Expect()
+
+					brokerFromDB, err := repository.Get(context.TODO(), types.ServiceBrokerType, brokerID)
+					Expect(err).ToNot(HaveOccurred())
+
+					Expect(string(brokerFromDB.(*types.ServiceBroker).Catalog)).To(MatchJSON(expectedCatalog))
+				}
 
 				BeforeEach(func() {
 					reply := ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(postBrokerRequestWithNoLabels).
@@ -892,16 +903,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 2)
 						})
 
-						It("is returned from the repository in the brokers catalog field", func() {
-							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
-								WithJSON(common.Object{}).
-								Expect().
-								Status(http.StatusOK)
-
-							brokerFromDB, err := repository.Get(context.TODO(), types.ServiceBrokerType, brokerID)
-							Expect(err).ToNot(HaveOccurred())
-
-							Expect(string(brokerFromDB.(*types.ServiceBroker).Catalog)).To(MatchJSON(string(brokerServer.Catalog)))
+						It("is returned from the repository as part of the brokers catalog field", func() {
+							assertRepositoryReturnsExpectedCatalogAfterPatching(brokerID, string(brokerServer.Catalog))
 						})
 					})
 
@@ -967,16 +970,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 						})
 
-						It("is returned from the repository in the brokers catalog field", func() {
-							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
-								WithJSON(common.Object{}).
-								Expect().
-								Status(http.StatusOK)
-
-							brokerFromDB, err := repository.Get(context.TODO(), types.ServiceBrokerType, brokerID)
-							Expect(err).ToNot(HaveOccurred())
-
-							Expect(string(brokerFromDB.(*types.ServiceBroker).Catalog)).To(MatchJSON(string(brokerServer.Catalog)))
+						It("is returned from the repository as part of the brokers catalog field", func() {
+							assertRepositoryReturnsExpectedCatalogAfterPatching(brokerID, string(brokerServer.Catalog))
 						})
 					})
 
@@ -1001,14 +996,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 
 						Specify("the catalog is correctly returned by the repository", func() {
-							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
-								WithJSON(common.Object{}).
-								Expect()
+							assertRepositoryReturnsExpectedCatalogAfterPatching(brokerID, expectedCatalog)
 
-							brokerFromDB, err := repository.Get(context.TODO(), types.ServiceBrokerType, brokerID)
-							Expect(err).ToNot(HaveOccurred())
-
-							Expect(string(brokerFromDB.(*types.ServiceBroker).Catalog)).To(MatchJSON(expectedCatalog))
 						})
 					}
 
@@ -1033,14 +1022,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 
 						Specify("the catalog is correctly returned by the repository", func() {
-							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
-								WithJSON(common.Object{}).
-								Expect()
-
-							brokerFromDB, err := repository.Get(context.TODO(), types.ServiceBrokerType, brokerID)
-							Expect(err).ToNot(HaveOccurred())
-
-							Expect(string(brokerFromDB.(*types.ServiceBroker).Catalog)).To(MatchJSON(expectedCatalog))
+							assertRepositoryReturnsExpectedCatalogAfterPatching(brokerID, expectedCatalog)
 						})
 					}
 
@@ -1080,16 +1062,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 						})
 
-						It("is returned from the repository in the brokers catalog field", func() {
-							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
-								WithJSON(common.Object{}).
-								Expect().
-								Status(http.StatusOK)
+						It("is returned from the repository as part of the brokers catalog field", func() {
+							assertRepositoryReturnsExpectedCatalogAfterPatching(brokerID, string(brokerServer.Catalog))
 
-							brokerFromDB, err := repository.Get(context.TODO(), types.ServiceBrokerType, brokerID)
-							Expect(err).ToNot(HaveOccurred())
-
-							Expect(string(brokerFromDB.(*types.ServiceBroker).Catalog)).To(MatchJSON(string(brokerServer.Catalog)))
 						})
 					})
 
@@ -1158,16 +1133,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 						})
 
-						It("is returned from the repository in the brokers catalog field", func() {
-							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
-								WithJSON(common.Object{}).
-								Expect().
-								Status(http.StatusOK)
-
-							brokerFromDB, err := repository.Get(context.TODO(), types.ServiceBrokerType, brokerID)
-							Expect(err).ToNot(HaveOccurred())
-
-							Expect(string(brokerFromDB.(*types.ServiceBroker).Catalog)).To(MatchJSON(string(brokerServer.Catalog)))
+						It("is not returned from the repository as part of the brokers catalog field", func() {
+							assertRepositoryReturnsExpectedCatalogAfterPatching(brokerID, string(brokerServer.Catalog))
 						})
 					})
 
@@ -1191,16 +1158,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 							})
 
-							It("is returned from the repository in the brokers catalog field", func() {
-								ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
-									WithJSON(common.Object{}).
-									Expect().
-									Status(http.StatusConflict)
+							Specify("the catalog before the modification is returned by the repository", func() {
+								assertRepositoryReturnsExpectedCatalogAfterPatching(brokerID, expectedCatalog)
 
-								brokerFromDB, err := repository.Get(context.TODO(), types.ServiceBrokerType, brokerID)
-								Expect(err).ToNot(HaveOccurred())
-
-								Expect(string(brokerFromDB.(*types.ServiceBroker).Catalog)).To(MatchJSON(expectedCatalog))
 							})
 						})
 
@@ -1297,16 +1257,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 						})
 
-						It("is returned from the repository in the brokers catalog field", func() {
-							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
-								WithJSON(common.Object{}).
-								Expect().
-								Status(http.StatusOK)
+						It("is returned from the repository as part of the brokers catalog field", func() {
+							assertRepositoryReturnsExpectedCatalogAfterPatching(brokerID, string(brokerServer.Catalog))
 
-							brokerFromDB, err := repository.Get(context.TODO(), types.ServiceBrokerType, brokerID)
-							Expect(err).ToNot(HaveOccurred())
-
-							Expect(string(brokerFromDB.(*types.ServiceBroker).Catalog)).To(MatchJSON(string(brokerServer.Catalog)))
 						})
 					})
 
@@ -1340,16 +1293,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 						})
 
-						It("is returned from the repository in the brokers catalog field", func() {
-							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
-								WithJSON(common.Object{}).
-								Expect().
-								Status(http.StatusOK)
-
-							brokerFromDB, err := repository.Get(context.TODO(), types.ServiceBrokerType, brokerID)
-							Expect(err).ToNot(HaveOccurred())
-
-							Expect(string(brokerFromDB.(*types.ServiceBroker).Catalog)).To(MatchJSON(string(brokerServer.Catalog)))
+						It("is not returned from the repository as part of the brokers catalog field", func() {
+							assertRepositoryReturnsExpectedCatalogAfterPatching(brokerID, string(brokerServer.Catalog))
 						})
 					})
 
@@ -1374,16 +1319,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 							})
 
-							It("is returned from the repository in the brokers catalog field", func() {
-								ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
-									WithJSON(common.Object{}).
-									Expect().
-									Status(http.StatusConflict)
+							Specify("the catalog before the modification is returned by the repository", func() {
+								assertRepositoryReturnsExpectedCatalogAfterPatching(brokerID, expectedCatalog)
 
-								brokerFromDB, err := repository.Get(context.TODO(), types.ServiceBrokerType, brokerID)
-								Expect(err).ToNot(HaveOccurred())
-
-								Expect(string(brokerFromDB.(*types.ServiceBroker).Catalog)).To(MatchJSON(expectedCatalog))
 							})
 						})
 

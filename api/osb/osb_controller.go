@@ -90,7 +90,7 @@ func (c *Controller) handler(request *web.Request, f func(r *web.Request, logger
 
 func (c *Controller) catalog(r *web.Request, logger *logrus.Entry, broker *types.ServiceBroker) (*web.Response, error) {
 	if len(broker.Catalog) == 0 {
-		logger.Debugf("No catalog fetcher was specified. Fetching catalog for broker with id %s from service broker catalog endpoint", broker.ID)
+		logger.Debugf("Fetching catalog for broker with id %s from service broker catalog endpoint", broker.ID)
 		return c.proxy(r, logger, broker)
 	}
 
