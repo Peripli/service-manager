@@ -211,7 +211,7 @@ func (ps *PostgresStorage) List(ctx context.Context, objType types.ObjectType, l
 	}
 
 	listCriterias = append(listCriterias, defaultListCriterias()...)
-	qBuilder := newQueryBuilder(ps.pgDB, entity)
+	qBuilder := NewQueryBuilder(ps.pgDB, entity)
 	rows, err := qBuilder.WithCriteria(criteria...).WithLock().WithListCriteria(listCriterias...).List(ctx)
 	if err != nil {
 		return nil, err

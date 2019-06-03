@@ -22,7 +22,7 @@ type QueryBuilder struct {
 	db     pgDB
 	entity PostgresEntity
 
-	SQL         string
+	sql         string
 	queryParams []interface{}
 
 	labelCriteria, fieldCriteria []query.Criterion
@@ -34,7 +34,7 @@ type QueryBuilder struct {
 	err error
 }
 
-func newQueryBuilder(db pgDB, entity PostgresEntity) *QueryBuilder {
+func NewQueryBuilder(db pgDB, entity PostgresEntity) *QueryBuilder {
 	return &QueryBuilder{
 		db:     db,
 		entity: entity,
@@ -54,7 +54,7 @@ func (qb *QueryBuilder) List(ctx context.Context) (*sqlx.Rows, error) {
 	} else {
 		baseQuery = constructBaseQueryForLabelable(label, baseTableName)
 	}
-	qb.SQL = baseQuery
+	qb.sql = baseQuery
 
 	qb.withLabelCriteria(qb.labelCriteria).withFieldCriteria(qb.fieldCriteria)
 	if qb.err != nil {
@@ -64,17 +64,17 @@ func (qb *QueryBuilder) List(ctx context.Context) (*sqlx.Rows, error) {
 	if hasMultiVariateOp(qb.criteria) {
 		var err error
 		// sqlx.In requires question marks(?) instead of positional arguments (the ones pgsql uses) in order to map the list argument to the IN operation
-		if qb.SQL, qb.queryParams, err = sqlx.In(qb.SQL, qb.queryParams...); err != nil {
+		if qb.sql, qb.queryParams, err = sqlx.In(qb.sql, qb.queryParams...); err != nil {
 			qb.err = err
 			return nil, err
 		}
 	}
-	qb.SQL = qb.db.Rebind(qb.SQL)
+	qb.sql = qb.db.Rebind(qb.sql)
 
 	qb.buildOrderBy().addLimit().addLock()
-	qb.SQL += ";"
+	qb.sql += ";"
 
-	return qb.db.QueryxContext(ctx, qb.SQL, qb.queryParams...)
+	return qb.db.QueryxContext(ctx, qb.sql, qb.queryParams...)
 }
 
 func (qb *QueryBuilder) WithListCriteria(criteria ...storage.ListCriteria) *QueryBuilder {
@@ -132,14 +132,14 @@ func (qb *QueryBuilder) WithLock() *QueryBuilder {
 func (qb *QueryBuilder) buildOrderBy() *QueryBuilder {
 	if len(qb.orderByFields) > 0 {
 		orderFields := strings.Join(qb.orderByFields, ",")
-		qb.SQL += fmt.Sprintf(" ORDER BY %s", orderFields)
+		qb.sql += fmt.Sprintf(" ORDER BY %s", orderFields)
 	}
 	return qb
 }
 
 func (qb *QueryBuilder) addLimit() *QueryBuilder {
 	if qb.limit > 0 {
-		qb.SQL += fmt.Sprintf(" LIMIT %d", qb.limit)
+		qb.sql += fmt.Sprintf(" LIMIT %d", qb.limit)
 	}
 	return qb
 }
@@ -149,7 +149,7 @@ func (qb *QueryBuilder) addLock() *QueryBuilder {
 		// Lock the rows if we are in transaction so that update operations on those rows can rely on unchanged data
 		// This allows us to handle concurrent updates on the same rows by executing them sequentially as
 		// before updating we have to anyway select the rows and can therefore lock them
-		qb.SQL += fmt.Sprintf(" FOR SHARE of %s", qb.entity.TableName())
+		qb.sql += fmt.Sprintf(" FOR SHARE of %s", qb.entity.TableName())
 	}
 	return qb
 }
@@ -174,7 +174,7 @@ func (qb *QueryBuilder) withLabelCriteria(criteria []query.Criterion) *QueryBuil
 		labelSubQuery += strings.Join(labelQueries, " OR ")
 		labelSubQuery += "))"
 
-		qb.SQL = strings.Replace(qb.SQL, "LEFT JOIN", "JOIN "+labelSubQuery, 1)
+		qb.sql = strings.Replace(qb.sql, "LEFT JOIN", "JOIN "+labelSubQuery, 1)
 	}
 	return qb
 }
@@ -189,7 +189,7 @@ func (qb *QueryBuilder) withFieldCriteria(criteria []query.Criterion) *QueryBuil
 	var fieldQueries []string
 
 	if len(criteria) > 0 {
-		qb.SQL += " WHERE "
+		qb.sql += " WHERE "
 		for _, option := range criteria {
 			var ttype reflect.Type
 			if dbTags != nil {
@@ -211,7 +211,7 @@ func (qb *QueryBuilder) withFieldCriteria(criteria []query.Criterion) *QueryBuil
 			fieldQueries = append(fieldQueries, clause)
 			qb.queryParams = append(qb.queryParams, rightOpQueryValue)
 		}
-		qb.SQL += strings.Join(fieldQueries, " AND ")
+		qb.sql += strings.Join(fieldQueries, " AND ")
 	}
 	return qb
 }

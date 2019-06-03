@@ -25,7 +25,6 @@ import (
 	"strings"
 
 	"github.com/Peripli/service-manager/pkg/query"
-	"github.com/Peripli/service-manager/storage"
 
 	"github.com/jmoiron/sqlx"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
@@ -100,33 +99,6 @@ func create(ctx context.Context, db pgDB, table string, dto interface{}) (string
 	log.C(ctx).Debugf("Executing query %s", sqlQuery)
 	_, err := db.NamedExecContext(ctx, sqlQuery, dto)
 	return lastInsertID, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
-}
-
-func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface{}, label PostgresLabel, baseTableName string, listCriterias []storage.ListCriteria, criteria []query.Criterion) (*sqlx.Rows, error) {
-	if err := validateFieldQueryParams(getDBTags(baseEntity, nil), criteria); err != nil {
-		return nil, err
-	}
-	var baseQuery string
-	if label == nil {
-		baseQuery = constructBaseQueryForEntity(baseTableName)
-	} else {
-		baseQuery = constructBaseQueryForLabelable(label, baseTableName)
-	}
-	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, baseTableName, label, criteria, getDBTags(baseEntity, nil), " ORDER BY created_at")
-	if err != nil {
-		return nil, err
-	}
-
-	// Lock the rows if we are in transaction so that update operations on those rows can rely on unchanged data
-	// This allows us to handle concurrent updates on the same rows by executing them sequentially as
-	// before updating we have to anyway select the rows and can therefore lock them
-	if _, ok := db.(*sqlx.Tx); ok {
-		sqlQuery = sqlQuery[:len(sqlQuery)-1]
-		sqlQuery += fmt.Sprintf(" FOR SHARE of %s;", baseTableName)
-	}
-
-	log.C(ctx).Debugf("Executing query %s", sqlQuery)
-	return db.QueryxContext(ctx, sqlQuery, queryParams...)
 }
 
 func listByFieldCriteria(ctx context.Context, db pgDB, table string, criteria []query.Criterion) (*sqlx.Rows, error) {
