@@ -81,13 +81,12 @@ type FakeSecuredTransactionalRepository struct {
 	inTransactionReturnsOnCall map[int]struct {
 		result1 error
 	}
-	ListStub        func(context.Context, types.ObjectType, []storage.ListCriteria, ...query.Criterion) (types.ObjectList, error)
+	ListStub        func(context.Context, types.ObjectType, ...storage.CriteriaContainer) (types.ObjectList, error)
 	listMutex       sync.RWMutex
 	listArgsForCall []struct {
 		arg1 context.Context
 		arg2 types.ObjectType
-		arg3 []storage.ListCriteria
-		arg4 []query.Criterion
+		arg3 []storage.CriteriaContainer
 	}
 	listReturns struct {
 		result1 types.ObjectList
@@ -470,24 +469,18 @@ func (fake *FakeSecuredTransactionalRepository) InTransactionReturnsOnCall(i int
 	}{result1}
 }
 
-func (fake *FakeSecuredTransactionalRepository) List(arg1 context.Context, arg2 types.ObjectType, arg3 []storage.ListCriteria, arg4 ...query.Criterion) (types.ObjectList, error) {
-	var arg3Copy []storage.ListCriteria
-	if arg3 != nil {
-		arg3Copy = make([]storage.ListCriteria, len(arg3))
-		copy(arg3Copy, arg3)
-	}
+func (fake *FakeSecuredTransactionalRepository) List(arg1 context.Context, arg2 types.ObjectType, arg3 ...storage.CriteriaContainer) (types.ObjectList, error) {
 	fake.listMutex.Lock()
 	ret, specificReturn := fake.listReturnsOnCall[len(fake.listArgsForCall)]
 	fake.listArgsForCall = append(fake.listArgsForCall, struct {
 		arg1 context.Context
 		arg2 types.ObjectType
-		arg3 []storage.ListCriteria
-		arg4 []query.Criterion
-	}{arg1, arg2, arg3Copy, arg4})
-	fake.recordInvocation("List", []interface{}{arg1, arg2, arg3Copy, arg4})
+		arg3 []storage.CriteriaContainer
+	}{arg1, arg2, arg3})
+	fake.recordInvocation("List", []interface{}{arg1, arg2, arg3})
 	fake.listMutex.Unlock()
 	if fake.ListStub != nil {
-		return fake.ListStub(arg1, arg2, arg3, arg4...)
+		return fake.ListStub(arg1, arg2, arg3...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -502,17 +495,17 @@ func (fake *FakeSecuredTransactionalRepository) ListCallCount() int {
 	return len(fake.listArgsForCall)
 }
 
-func (fake *FakeSecuredTransactionalRepository) ListCalls(stub func(context.Context, types.ObjectType, []storage.ListCriteria, ...query.Criterion) (types.ObjectList, error)) {
+func (fake *FakeSecuredTransactionalRepository) ListCalls(stub func(context.Context, types.ObjectType, ...storage.CriteriaContainer) (types.ObjectList, error)) {
 	fake.listMutex.Lock()
 	defer fake.listMutex.Unlock()
 	fake.ListStub = stub
 }
 
-func (fake *FakeSecuredTransactionalRepository) ListArgsForCall(i int) (context.Context, types.ObjectType, []storage.ListCriteria, []query.Criterion) {
+func (fake *FakeSecuredTransactionalRepository) ListArgsForCall(i int) (context.Context, types.ObjectType, []storage.CriteriaContainer) {
 	fake.listMutex.RLock()
 	defer fake.listMutex.RUnlock()
 	argsForCall := fake.listArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
 func (fake *FakeSecuredTransactionalRepository) ListReturns(result1 types.ObjectList, result2 error) {

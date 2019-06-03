@@ -122,7 +122,7 @@ func createNotification(repository storage.Repository, createdAt time.Time) stri
 }
 
 func queryNotification(repository storage.Repository, criterias ...query.Criterion) types.ObjectList {
-	list, err := repository.List(context.Background(), types.NotificationType, nil, criterias...)
+	list, err := repository.List(context.Background(), types.NotificationType, storage.ByCriteria(criterias))
 	Expect(err).ShouldNot(HaveOccurred())
 	return list
 }

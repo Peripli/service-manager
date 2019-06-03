@@ -168,7 +168,7 @@ type Repository interface {
 	Get(ctx context.Context, objectType types.ObjectType, id string) (types.Object, error)
 
 	// List retrieves all brokers from SM DB
-	List(ctx context.Context, objectType types.ObjectType, listCriterias []ListCriteria, criteria ...query.Criterion) (types.ObjectList, error)
+	List(ctx context.Context, objectType types.ObjectType, criteria ...CriteriaContainer) (types.ObjectList, error)
 
 	// Delete deletes a broker from SM DB
 	Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error)

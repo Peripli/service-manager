@@ -162,7 +162,7 @@ var _ = Describe("Encrypting Repository", func() {
 			It("returns an error", func() {
 				fakeEncrypter.DecryptReturns(nil, fmt.Errorf("error"))
 
-				_, err = repository.List(ctx, types.ServiceBrokerType, nil)
+				_, err = repository.List(ctx, types.ServiceBrokerType)
 				Expect(err).To(HaveOccurred())
 			})
 		})
@@ -171,7 +171,7 @@ var _ = Describe("Encrypting Repository", func() {
 			It("returns an error", func() {
 				fakeSecuredRepository.ListReturns(nil, fmt.Errorf("error"))
 
-				_, err = repository.List(ctx, types.ServiceBrokerType, nil)
+				_, err = repository.List(ctx, types.ServiceBrokerType)
 				Expect(err).To(HaveOccurred())
 			})
 		})
@@ -181,7 +181,7 @@ var _ = Describe("Encrypting Repository", func() {
 			var err error
 
 			BeforeEach(func() {
-				returnedObjList, err = repository.List(ctx, types.ServiceBrokerType, nil)
+				returnedObjList, err = repository.List(ctx, types.ServiceBrokerType)
 				Expect(err).ToNot(HaveOccurred())
 			})
 
@@ -366,7 +366,7 @@ var _ = Describe("Encrypting Repository", func() {
 
 					// verify list
 					delegateListCallsCountBeforeOp := fakeSecuredRepository.ListCallCount()
-					returnedObjList, err := repository.List(ctx, types.ServiceBrokerType, nil)
+					returnedObjList, err := repository.List(ctx, types.ServiceBrokerType)
 					Expect(err).To(HaveOccurred())
 					Expect(fakeSecuredRepository.ListCallCount() - delegateListCallsCountBeforeOp).To(Equal(1))
 					for i := 0; i < returnedObjList.Len(); i++ {

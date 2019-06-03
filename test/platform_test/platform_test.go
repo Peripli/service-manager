@@ -18,9 +18,10 @@ package platform_test
 
 import (
 	"context"
-	"github.com/Peripli/service-manager/pkg/web"
 	"net/http"
 	"testing"
+
+	"github.com/Peripli/service-manager/pkg/web"
 
 	. "github.com/onsi/gomega"
 
@@ -37,7 +38,6 @@ func TestPlatforms(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Platform API Tests Suite")
 }
-
 
 var _ = test.DescribeTestsFor(test.TestCase{
 	API: web.PlatformsURL,
@@ -72,7 +72,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Parameter: "name",
 							},
 						}
-						result, err := ctx.SMRepository.List(context.Background(), types.PlatformType, listCriteria)
+						result, err := ctx.SMRepository.List(context.Background(), types.PlatformType, storage.ByCriteria(listCriteria))
 						Expect(err).ShouldNot(HaveOccurred())
 						Expect(result.Len()).To(Equal(2))
 						Expect((result.ItemAt(0).(*types.Platform)).Name).To(Equal(platform2.Name))
@@ -86,7 +86,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Parameter: 1,
 							},
 						}
-						result, err := ctx.SMRepository.List(context.Background(), types.PlatformType, listCriteria)
+						result, err := ctx.SMRepository.List(context.Background(), types.PlatformType, storage.ByCriteria(listCriteria))
 						Expect(err).ShouldNot(HaveOccurred())
 						Expect(result.Len()).To(Equal(1))
 						Expect((result.ItemAt(0).(*types.Platform)).Name).To(Equal(platform.Name))
