@@ -9,6 +9,7 @@ import (
 	"github.com/Peripli/service-manager/storage"
 
 	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -30,6 +31,7 @@ type QueryBuilder struct {
 	limit                        int
 	criteria                     []query.Criterion
 	hasLock                      bool
+	returningFields              []string
 
 	err error
 }
@@ -56,25 +58,50 @@ func (qb *QueryBuilder) List(ctx context.Context) (*sqlx.Rows, error) {
 	}
 	qb.sql = baseQuery
 
-	qb.withLabelCriteria(qb.labelCriteria).withFieldCriteria(qb.fieldCriteria)
+	if err := qb.finalizeSQL(); err != nil {
+		return nil, err
+	}
+
+	return qb.db.QueryxContext(ctx, qb.sql, qb.queryParams...)
+}
+
+func (qb *QueryBuilder) Delete(ctx context.Context) (*sqlx.Rows, error) {
 	if qb.err != nil {
 		return nil, qb.err
 	}
-
-	if hasMultiVariateOp(qb.criteria) {
-		var err error
-		// sqlx.In requires question marks(?) instead of positional arguments (the ones pgsql uses) in order to map the list argument to the IN operation
-		if qb.sql, qb.queryParams, err = sqlx.In(qb.sql, qb.queryParams...); err != nil {
-			qb.err = err
-			return nil, err
-		}
+	baseTableName := qb.entity.TableName()
+	qb.sql = fmt.Sprintf("DELETE FROM %s", baseTableName)
+	for len(qb.labelCriteria) > 0 {
+		return nil, &util.UnsupportedQueryError{Message: "conditional delete is only supported for field queries"}
 	}
-	qb.sql = qb.db.Rebind(qb.sql)
 
-	qb.buildOrderBy().addLimit().addLock()
-	qb.sql += ";"
-
+	if err := qb.finalizeSQL(); err != nil {
+		return nil, err
+	}
 	return qb.db.QueryxContext(ctx, qb.sql, qb.queryParams...)
+}
+
+func (qb *QueryBuilder) finalizeSQL() error {
+	qb.withLabelCriteria(qb.labelCriteria).
+		withFieldCriteria(qb.fieldCriteria).
+		buildOrderBy().
+		addLimit().
+		addLock().
+		returningSQL().
+		expandMultivariateOp()
+
+	if qb.err != nil {
+		return qb.err
+	}
+
+	qb.sql = qb.db.Rebind(qb.sql)
+	qb.sql += ";"
+	return nil
+}
+
+func (qb *QueryBuilder) Return(fields ...string) *QueryBuilder {
+	qb.returningFields = append(qb.returningFields, fields...)
+	return qb
 }
 
 func (qb *QueryBuilder) WithListCriteria(criteria ...storage.ListCriteria) *QueryBuilder {
@@ -140,6 +167,15 @@ func (qb *QueryBuilder) buildOrderBy() *QueryBuilder {
 func (qb *QueryBuilder) addLimit() *QueryBuilder {
 	if qb.limit > 0 {
 		qb.sql += fmt.Sprintf(" LIMIT %d", qb.limit)
+	}
+	return qb
+}
+
+func (qb *QueryBuilder) returningSQL() *QueryBuilder {
+	if len(qb.returningFields) == 1 && qb.returningFields[0] == "*" {
+		qb.sql += " RETURNING *"
+	} else if len(qb.returningFields) > 0 {
+		qb.sql += " RETURNING " + strings.Join(qb.returningFields, ",")
 	}
 	return qb
 }
@@ -212,6 +248,17 @@ func (qb *QueryBuilder) withFieldCriteria(criteria []query.Criterion) *QueryBuil
 			qb.queryParams = append(qb.queryParams, rightOpQueryValue)
 		}
 		qb.sql += strings.Join(fieldQueries, " AND ")
+	}
+	return qb
+}
+
+func (qb *QueryBuilder) expandMultivariateOp() *QueryBuilder {
+	if hasMultiVariateOp(qb.criteria) {
+		var err error
+		// sqlx.In requires question marks(?) instead of positional arguments (the ones pgsql uses) in order to map the list argument to the IN operation
+		if qb.sql, qb.queryParams, err = sqlx.In(qb.sql, qb.queryParams...); err != nil {
+			qb.err = err
+		}
 	}
 	return qb
 }

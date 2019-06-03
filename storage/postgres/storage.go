@@ -217,7 +217,6 @@ func (ps *PostgresStorage) List(ctx context.Context, objType types.ObjectType, l
 		return nil, err
 	}
 
-	// rows, err := listWithLabelsByCriteria(ctx, ps.pgDB, entity, entity.LabelEntity(), entity.TableName(), listCriterias, criteria)
 	defer func() {
 		if rows == nil {
 			return
@@ -237,7 +236,9 @@ func (ps *PostgresStorage) Delete(ctx context.Context, objType types.ObjectType,
 	if err != nil {
 		return nil, err
 	}
-	rows, err := deleteAllByFieldCriteria(ctx, ps.pgDB, entity.TableName(), entity, criteria)
+
+	qBuilder := newQueryBuilder(ps.pgDB, entity)
+	rows, err := qBuilder.WithCriteria(criteria...).Return("*").Delete(ctx)
 	defer closeRows(ctx, rows)
 	if err != nil {
 		return nil, err
