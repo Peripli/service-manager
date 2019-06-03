@@ -140,32 +140,4 @@ var _ = Describe("Postgres Storage Abstract", func() {
 			})
 		})
 	})
-
-	Describe("Delete all by criteria", func() {
-
-		Context("When deleting by label", func() {
-			It("Should return an error", func() {
-				criteria := []query.Criterion{query.ByLabel(query.EqualsOperator, "left", "right")}
-				_, err := deleteAllByFieldCriteria(ctx, db, baseTable, Visibility{}, criteria)
-				Expect(err).To(HaveOccurred())
-			})
-		})
-
-		Context("When no criteria is passed", func() {
-			It("Should construct query to delete all entries", func() {
-				expectedQuery := fmt.Sprintf("DELETE FROM %s RETURNING *;", baseTable)
-				_, err := deleteAllByFieldCriteria(ctx, db, baseTable, Visibility{}, nil)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(executedQuery).To(Equal(expectedQuery))
-			})
-		})
-
-		Context("When criteria uses missing field", func() {
-			It("Should return error", func() {
-				criteria := []query.Criterion{query.ByField(query.EqualsOperator, "non-existing-field", "value")}
-				_, err := deleteAllByFieldCriteria(ctx, db, baseTable, Visibility{}, criteria)
-				Expect(err).To(HaveOccurred())
-			})
-		})
-	})
 })

@@ -112,10 +112,10 @@ func (qb *QueryBuilder) WithListCriteria(criteria ...storage.ListCriteria) *Quer
 	}
 
 	for _, c := range criteria {
-		if c.Type == storage.OrderByCriteriaType {
+		switch c.Type {
+		case storage.OrderByCriteriaType:
 			qb.orderByFields = append(qb.orderByFields, c.Parameter.(string))
-		}
-		if c.Type == storage.LimitCriteriaType {
+		case storage.LimitCriteriaType:
 			limit := c.Parameter.(int)
 			if limit <= 0 {
 				qb.err = fmt.Errorf("limit (%d) should be greater than 0", limit)

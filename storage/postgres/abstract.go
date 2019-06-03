@@ -102,24 +102,6 @@ func listByFieldCriteria(ctx context.Context, db pgDB, table string, criteria []
 	return db.QueryxContext(ctx, sqlQuery, queryParams...)
 }
 
-func deleteAllByFieldCriteria(ctx context.Context, extContext sqlx.ExtContext, table string, dto interface{}, criteria []query.Criterion) (*sqlx.Rows, error) {
-	for _, criterion := range criteria {
-		if criterion.Type != query.FieldQuery {
-			return nil, &util.UnsupportedQueryError{Message: "conditional delete is only supported for field queries"}
-		}
-	}
-	if err := validateFieldQueryParams(getDBTags(dto, nil), criteria); err != nil {
-		return nil, err
-	}
-	baseQuery := fmt.Sprintf("DELETE FROM %s", table)
-	sqlQuery, queryParams, err := buildQueryWithParams(extContext, baseQuery, table, nil, criteria, getDBTags(dto, nil))
-	if err != nil {
-		return nil, err
-	}
-	sqlQuery = sqlQuery[:len(sqlQuery)-1] + " RETURNING *;"
-	return extContext.QueryxContext(ctx, sqlQuery, queryParams...)
-}
-
 func validateFieldQueryParams(tags []tagType, criteria []query.Criterion) error {
 	availableColumns := make(map[string]bool)
 	for _, dbTag := range tags {
