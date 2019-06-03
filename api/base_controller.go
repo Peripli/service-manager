@@ -204,15 +204,15 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	if r.Body, err = sjson.DeleteBytes(r.Body, "labels"); err != nil {
-		return nil, err
-	}
 
 	objFromDB, err := c.repository.Get(ctx, c.objectType, objectID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
 
+	if r.Body, err = sjson.DeleteBytes(r.Body, "labels"); err != nil {
+		return nil, err
+	}
 	createdAt := objFromDB.GetCreatedAt()
 	updatedAt := objFromDB.GetUpdatedAt()
 
