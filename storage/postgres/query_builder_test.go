@@ -22,6 +22,7 @@ import (
 var _ = Describe("Postgres Storage Query builder", func() {
 	var executedQuery string
 	var queryArgs []interface{}
+	var qb *postgres.QueryBuilder
 
 	db := &postgresfakes.FakePgDB{}
 	db.QueryxContextStub = func(ctx context.Context, query string, args ...interface{}) (rows *sqlx.Rows, e error) {
@@ -43,10 +44,13 @@ var _ = Describe("Postgres Storage Query builder", func() {
 		return s
 	}
 
+	BeforeEach(func() {
+		qb = postgres.NewQueryBuilder(db)
+	})
+
 	Describe("List", func() {
 		Context("when there are no criterias", func() {
 			It("should build simple query for labeable entity", func() {
-				qb := postgres.NewQueryBuilder(db)
 				_, err := qb.List(context.Background(), &postgres.Visibility{})
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(MatchRegexp("SELECT.*FROM visibilities LEFT JOIN"))
@@ -56,7 +60,6 @@ var _ = Describe("Postgres Storage Query builder", func() {
 
 		Context("when field criteria is used", func() {
 			It("should build right query", func() {
-				qb := postgres.NewQueryBuilder(db)
 				_, err := qb.
 					WithCriteria(query.ByField(query.EqualsOperator, "id", "1")).
 					List(context.Background(), &postgres.Visibility{})
@@ -69,7 +72,6 @@ var _ = Describe("Postgres Storage Query builder", func() {
 
 		Context("when label criteria is used", func() {
 			It("should build query with label criteria", func() {
-				qb := postgres.NewQueryBuilder(db)
 				_, err := qb.
 					WithCriteria(query.ByLabel(query.EqualsOperator, "labelKey", "labelValue")).
 					List(context.Background(), &postgres.Visibility{})
@@ -83,7 +85,6 @@ var _ = Describe("Postgres Storage Query builder", func() {
 
 		Context("when list criteria is used", func() {
 			It("should build query with order by clause", func() {
-				qb := postgres.NewQueryBuilder(db)
 				_, err := qb.
 					WithListCriteria(storage.ListCriteria{
 						Type:      storage.OrderByCriteriaType,
@@ -95,8 +96,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 				Expect(queryArgs).To(HaveLen(0))
 			})
 
-			It("should build query with limit clause", func() {
-				qb := postgres.NewQueryBuilder(db)
+			It("should build query with list criteria limit clause", func() {
 				_, err := qb.
 					WithListCriteria(storage.ListCriteria{
 						Type:      storage.LimitCriteriaType,
@@ -108,16 +108,22 @@ var _ = Describe("Postgres Storage Query builder", func() {
 				Expect(queryArgs).To(HaveLen(0))
 			})
 
+			It("should build query with limit sugar", func() {
+				_, err := qb.
+					Limit(10).
+					List(context.Background(), &postgres.Visibility{})
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(executedQuery).Should(MatchRegexp("SELECT.*FROM visibilities .* LIMIT 10;"))
+				Expect(queryArgs).To(HaveLen(0))
+			})
+
 			It("should build query with order by and limit clause", func() {
-				qb := postgres.NewQueryBuilder(db)
 				_, err := qb.
 					WithListCriteria(storage.ListCriteria{
 						Type:      storage.LimitCriteriaType,
 						Parameter: 10,
-					}, storage.ListCriteria{
-						Type:      storage.OrderByCriteriaType,
-						Parameter: "id",
 					}).
+					OrderBy("id").
 					List(context.Background(), &postgres.Visibility{})
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(MatchRegexp("SELECT.*FROM visibilities .* ORDER BY id LIMIT 10;"))
@@ -129,7 +135,6 @@ var _ = Describe("Postgres Storage Query builder", func() {
 	Describe("Delete", func() {
 		Context("When deleting by label", func() {
 			It("Should return an error", func() {
-				qb := postgres.NewQueryBuilder(db)
 				criteria := query.ByLabel(query.EqualsOperator, "left", "right")
 				_, err := qb.WithCriteria(criteria).Delete(context.Background(), &postgres.Visibility{})
 				Expect(err).To(HaveOccurred())
@@ -138,7 +143,6 @@ var _ = Describe("Postgres Storage Query builder", func() {
 
 		Context("When no criteria is passed", func() {
 			It("Should construct query to delete all entries", func() {
-				qb := postgres.NewQueryBuilder(db)
 				_, err := qb.Return("*").Delete(context.Background(), &postgres.Visibility{})
 				expectedQuery := fmt.Sprintf("DELETE FROM visibilities RETURNING *;")
 				Expect(err).ToNot(HaveOccurred())
@@ -148,7 +152,6 @@ var _ = Describe("Postgres Storage Query builder", func() {
 
 		Context("When criteria uses missing field", func() {
 			It("Should return error", func() {
-				qb := postgres.NewQueryBuilder(db)
 				criteria := query.ByField(query.EqualsOperator, "non-existing-field", "value")
 				_, err := qb.WithCriteria(criteria).Delete(context.Background(), &postgres.Visibility{})
 				Expect(err).To(HaveOccurred())

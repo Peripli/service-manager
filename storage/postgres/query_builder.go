@@ -13,12 +13,6 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-type QueryOperation string
-
-const (
-	ListOperation QueryOperation = "list"
-)
-
 type QueryBuilder struct {
 	db pgDB
 
@@ -114,15 +108,36 @@ func (qb *QueryBuilder) WithListCriteria(criteria ...storage.ListCriteria) *Quer
 	for _, c := range criteria {
 		switch c.Type {
 		case storage.OrderByCriteriaType:
-			qb.orderByFields = append(qb.orderByFields, c.Parameter.(string))
+			qb.OrderBy(c.Parameter.(string))
 		case storage.LimitCriteriaType:
-			limit := c.Parameter.(int)
-			if limit <= 0 {
-				qb.err = fmt.Errorf("limit (%d) should be greater than 0", limit)
-			}
-			qb.limit = limit
+			qb.Limit(c.Parameter.(int))
 		}
 	}
+
+	return qb
+}
+
+func (qb *QueryBuilder) Limit(limit int) *QueryBuilder {
+	if qb.err != nil {
+		return qb
+	}
+
+	if limit <= 0 {
+		qb.err = fmt.Errorf("limit (%d) should be greater than 0", limit)
+		return qb
+	}
+
+	qb.limit = limit
+
+	return qb
+}
+
+func (qb *QueryBuilder) OrderBy(fields ...string) *QueryBuilder {
+	if qb.err != nil {
+		return qb
+	}
+
+	qb.orderByFields = append(qb.orderByFields, fields...)
 
 	return qb
 }
