@@ -90,7 +90,7 @@ func DefaultEnv(additionalPFlags ...func(set *pflag.FlagSet)) (env.Environment, 
 	return environment, nil
 }
 
-// New returns service-manager Server with default setup. The function panics on bad configuration
+// New returns service-manager Server with default setup
 func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (*ServiceManagerBuilder, error) {
 	var err error
 	if err = cfg.Validate(); err != nil {
