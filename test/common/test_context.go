@@ -165,7 +165,7 @@ func TestEnv(additionalFlagFuncs ...func(set *pflag.FlagSet)) env.Environment {
 
 	additionalFlagFuncs = append(additionalFlagFuncs, f)
 
-	env, _ := env.Default(config.AddPFlags, additionalFlagFuncs...)
+	env, _ := env.Default(append([]func(set *pflag.FlagSet){config.AddPFlags}, additionalFlagFuncs...)...)
 	return env
 }
 

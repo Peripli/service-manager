@@ -142,10 +142,9 @@ func (v *ViperEnv) setupConfigFile() error {
 }
 
 // Default creates a default environment that can be used to boot up a Service Manager
-func Default(defaultPFlags func(set *pflag.FlagSet), additionalPFlags ...func(set *pflag.FlagSet)) (Environment, error) {
+func Default(additionalPFlags ...func(set *pflag.FlagSet)) (Environment, error) {
 	set := EmptyFlagSet()
 
-	defaultPFlags(set)
 	for _, addFlags := range additionalPFlags {
 		addFlags(set)
 	}
