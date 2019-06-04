@@ -93,15 +93,6 @@ func create(ctx context.Context, db pgDB, table string, resultDto interface{}, a
 	return checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
 }
 
-func listByFieldCriteria(ctx context.Context, db pgDB, table string, criteria []query.Criterion) (*sqlx.Rows, error) {
-	baseQuery := constructBaseQueryForEntity(table)
-	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, table, nil, criteria, nil, " ORDER BY created_at")
-	if err != nil {
-		return nil, err
-	}
-	return db.QueryxContext(ctx, sqlQuery, queryParams...)
-}
-
 func validateFieldQueryParams(tags []tagType, criteria []query.Criterion) error {
 	availableColumns := make(map[string]bool)
 	for _, dbTag := range tags {

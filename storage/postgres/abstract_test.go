@@ -17,53 +17,11 @@
 package postgres
 
 import (
-	"context"
-	"database/sql"
-	"database/sql/driver"
-	"fmt"
-
-	"github.com/jmoiron/sqlx"
-
-	"github.com/Peripli/service-manager/pkg/query"
-
-	. "github.com/Peripli/service-manager/storage/postgres/postgresfakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Postgres Storage Abstract", func() {
-	var ctx context.Context
-	var baseTable string
-	var executedQuery string
-	var queryArgs []interface{}
-
-	db := &FakePgDB{}
-	db.QueryxContextStub = func(ctx context.Context, query string, args ...interface{}) (rows *sqlx.Rows, e error) {
-		executedQuery = query
-		queryArgs = args
-		return &sqlx.Rows{}, nil
-	}
-	db.SelectContextStub = func(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
-		executedQuery = query
-		queryArgs = args
-		return nil
-	}
-	db.ExecContextStub = func(ctx context.Context, query string, args ...interface{}) (result sql.Result, e error) {
-		executedQuery = query
-		queryArgs = args
-		return driver.RowsAffected(1), nil
-	}
-	db.RebindStub = func(s string) string {
-		return s
-	}
-
-	BeforeEach(func() {
-		ctx = context.TODO()
-		executedQuery = ""
-		baseTable = "table_name"
-		queryArgs = []interface{}{}
-	})
-
 	Describe("updateQuery", func() {
 
 		Context("Called with structure with no db tag", func() {
@@ -111,32 +69,6 @@ var _ = Describe("Postgres Storage Abstract", func() {
 				type ts struct{}
 				query := updateQuery("n/a", ts{})
 				Expect(query).To(Equal(""))
-			})
-		})
-	})
-
-	Describe("List by field criteria", func() {
-		Context("When passing no criteria", func() {
-			It("Should construct base SQL query", func() {
-				_, err := listByFieldCriteria(ctx, db, baseTable, nil)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(executedQuery).To(Equal(fmt.Sprintf("SELECT * FROM %s ORDER BY created_at;", baseTable)))
-			})
-		})
-		Context("When passing correct criteria", func() {
-			It("Should construct correct SQL query", func() {
-				fieldName := "platform_id"
-				queryValue := "value"
-				expectedQuery := fmt.Sprintf(`SELECT * FROM %[1]s WHERE %[1]s.%[2]s::text = ? ORDER BY created_at;`, baseTable, fieldName)
-
-				criteria := []query.Criterion{
-					query.ByField(query.EqualsOperator, fieldName, queryValue),
-				}
-
-				_, err := listByFieldCriteria(ctx, db, baseTable, criteria)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(executedQuery).To(Equal(expectedQuery))
-				Expect(queryArgs).To(ConsistOf(queryValue))
 			})
 		})
 	})
