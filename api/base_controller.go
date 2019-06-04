@@ -181,7 +181,7 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Getting all %ss", c.objectType)
-	objectList, err := c.repository.List(ctx, c.objectType, storage.ByCriteria(query.CriteriaForContext(ctx)))
+	objectList, err := c.repository.List(ctx, c.objectType, query.CriteriaForContext(ctx)...)
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}

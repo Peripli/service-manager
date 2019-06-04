@@ -49,6 +49,9 @@ const (
 	NotInOperator Operator = "notin"
 	// EqualsOrNilOperator takes two operands and tests if the left is equal to the right, or if the left is nil
 	EqualsOrNilOperator Operator = "eqornil"
+
+	// NoOperator signifies that this is not an operator
+	NoOperator Operator = "noop"
 )
 
 // IsMultiVariate returns true if the operator requires right operand with multiple values
@@ -88,6 +91,14 @@ const (
 	FieldQuery CriterionType = "fieldQuery"
 	// LabelQuery denotes that the query should be executed on the entity's labels
 	LabelQuery CriterionType = "labelQuery"
+	// ResultQuery is used to further process result
+	ResultQuery CriterionType = "resultQuery"
+)
+
+const (
+	OrderBy string = "orderBy"
+
+	Limit string = "limit"
 )
 
 var supportedQueryTypes = []CriterionType{FieldQuery, LabelQuery}
@@ -112,6 +123,14 @@ func ByField(operator Operator, leftOp string, rightOp ...string) Criterion {
 // ByLabel constructs a new criterion for label querying
 func ByLabel(operator Operator, leftOp string, rightOp ...string) Criterion {
 	return newCriterion(leftOp, operator, rightOp, LabelQuery)
+}
+
+func WithOrder(field string) Criterion {
+	return newCriterion(OrderBy, NoOperator, []string{field}, ResultQuery)
+}
+
+func WithLimit(limit string) Criterion {
+	return newCriterion(Limit, NoOperator, []string{limit}, ResultQuery)
 }
 
 func newCriterion(leftOp string, operator Operator, rightOp []string, criteriaType CriterionType) Criterion {

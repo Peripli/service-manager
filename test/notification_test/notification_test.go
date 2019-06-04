@@ -315,7 +315,7 @@ var _ = Describe("Notifications Suite", func() {
 				filters = append(filters, query.ByField(query.NotInOperator, "id", "["+strings.Join(ids, "||"+"]")))
 			}
 
-			objectList, err := ctx.SMRepository.List(c, types.NotificationType, storage.ByCriteria(filters))
+			objectList, err := ctx.SMRepository.List(c, types.NotificationType, filters...)
 			Expect(err).ShouldNot(HaveOccurred())
 
 			notifications := objectList.(*types.Notifications)

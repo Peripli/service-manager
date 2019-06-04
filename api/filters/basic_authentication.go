@@ -63,7 +63,7 @@ func (a *basicAuthenticator) Authenticate(request *http.Request) (*web.UserConte
 
 	ctx := request.Context()
 	byUsername := query.ByField(query.EqualsOperator, "username", username)
-	objectList, err := a.Repository.List(ctx, types.PlatformType, storage.ByCriteria(byUsername))
+	objectList, err := a.Repository.List(ctx, types.PlatformType, byUsername)
 	if err != nil {
 		return nil, httpsec.Abstain, fmt.Errorf("could not get credentials entity from storage: %s", err)
 	}

@@ -27,7 +27,7 @@ import (
 
 // Load fetches the catalog of the broker with the given ID from the storage
 func Load(ctx context.Context, brokerID string, repository storage.Repository) (*types.ServiceOfferings, error) {
-	serviceOfferings, err := repository.List(ctx, types.ServiceOfferingType, storage.ByCriteria(query.ByField(query.EqualsOperator, "broker_id", brokerID)))
+	serviceOfferings, err := repository.List(ctx, types.ServiceOfferingType, query.ByField(query.EqualsOperator, "broker_id", brokerID))
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func Load(ctx context.Context, brokerID string, repository storage.Repository) (
 	}
 	servicePlansForOffering := make(map[string][]*types.ServicePlan)
 	if len(serviceOfferingIDs) > 0 {
-		servicePlans, err := repository.List(ctx, types.ServicePlanType, storage.ByCriteria(query.ByField(query.InOperator, "service_offering_id", serviceOfferingIDs...)))
+		servicePlans, err := repository.List(ctx, types.ServicePlanType, query.ByField(query.InOperator, "service_offering_id", serviceOfferingIDs...))
 		if err != nil {
 			return nil, err
 		}

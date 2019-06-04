@@ -127,7 +127,7 @@ func (er *encryptingRepository) Get(ctx context.Context, objectType types.Object
 	return obj, nil
 }
 
-func (er *encryptingRepository) List(ctx context.Context, objectType types.ObjectType, criteria ...CriteriaContainer) (types.ObjectList, error) {
+func (er *encryptingRepository) List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	objList, err := er.repository.List(ctx, objectType, criteria...)
 	if err != nil {
 		return nil, err

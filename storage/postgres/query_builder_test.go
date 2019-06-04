@@ -6,8 +6,6 @@ import (
 	"database/sql/driver"
 	"fmt"
 
-	"github.com/Peripli/service-manager/storage"
-
 	"github.com/Peripli/service-manager/pkg/query"
 
 	. "github.com/onsi/gomega"
@@ -86,9 +84,10 @@ var _ = Describe("Postgres Storage Query builder", func() {
 		Context("when list criteria is used", func() {
 			It("should build query with order by clause", func() {
 				_, err := qb.
-					WithListCriteria(storage.ListCriteria{
-						Type:      storage.OrderByCriteriaType,
-						Parameter: "id",
+					WithCriteria(query.Criterion{
+						Type:    query.ResultQuery,
+						LeftOp:  query.OrderBy,
+						RightOp: []string{"id"},
 					}).
 					List(context.Background(), &postgres.Visibility{})
 				Expect(err).ShouldNot(HaveOccurred())
@@ -98,9 +97,10 @@ var _ = Describe("Postgres Storage Query builder", func() {
 
 			It("should build query with list criteria limit clause", func() {
 				_, err := qb.
-					WithListCriteria(storage.ListCriteria{
-						Type:      storage.LimitCriteriaType,
-						Parameter: 10,
+					WithCriteria(query.Criterion{
+						Type:    query.ResultQuery,
+						LeftOp:  query.Limit,
+						RightOp: []string{"10"},
 					}).
 					List(context.Background(), &postgres.Visibility{})
 				Expect(err).ShouldNot(HaveOccurred())
@@ -119,10 +119,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 
 			It("should build query with order by and limit clause", func() {
 				_, err := qb.
-					WithListCriteria(storage.ListCriteria{
-						Type:      storage.LimitCriteriaType,
-						Parameter: 10,
-					}).
+					Limit(10).
 					OrderBy("id").
 					List(context.Background(), &postgres.Visibility{})
 				Expect(err).ShouldNot(HaveOccurred())

@@ -4,9 +4,8 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
-
-	"github.com/Peripli/service-manager/storage"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -78,11 +77,11 @@ func (qb *QueryBuilder) finalizeSQL(entity PostgresEntity) error {
 		return err
 	}
 
-	qb.withLabelCriteria(entity, qb.labelCriteria).
-		withFieldCriteria(entity, qb.fieldCriteria).
-		buildOrderBy().
-		addLimit().
-		addLock(entity.TableName()).
+	qb.labelCriteriaSQL(entity, qb.labelCriteria).
+		fieldCriteriaSQL(entity, qb.fieldCriteria).
+		orderBySQL().
+		limitSQL().
+		lockSQL(entity.TableName()).
 		returningSQL().
 		expandMultivariateOp()
 
@@ -97,23 +96,6 @@ func (qb *QueryBuilder) finalizeSQL(entity PostgresEntity) error {
 
 func (qb *QueryBuilder) Return(fields ...string) *QueryBuilder {
 	qb.returningFields = append(qb.returningFields, fields...)
-	return qb
-}
-
-func (qb *QueryBuilder) WithListCriteria(criteria ...storage.ListCriteria) *QueryBuilder {
-	if qb.err != nil {
-		return qb
-	}
-
-	for _, c := range criteria {
-		switch c.Type {
-		case storage.OrderByCriteriaType:
-			qb.OrderBy(c.Parameter.(string))
-		case storage.LimitCriteriaType:
-			qb.Limit(c.Parameter.(int))
-		}
-	}
-
 	return qb
 }
 
@@ -152,8 +134,11 @@ func (qb *QueryBuilder) WithCriteria(criteria ...query.Criterion) *QueryBuilder 
 	}
 
 	qb.criteria = append(qb.criteria, criteria...)
+	labelCriteria, fieldCriteria, resultCriteria := splitCriteriaByType(criteria)
+	qb.labelCriteria = append(qb.labelCriteria, labelCriteria...)
+	qb.fieldCriteria = append(qb.fieldCriteria, fieldCriteria...)
 
-	qb.labelCriteria, qb.fieldCriteria = splitCriteriaByType(criteria)
+	qb.processResultCriteria(resultCriteria)
 
 	return qb
 }
@@ -168,7 +153,29 @@ func (qb *QueryBuilder) WithLock() *QueryBuilder {
 	return qb
 }
 
-func (qb *QueryBuilder) buildOrderBy() *QueryBuilder {
+func (qb *QueryBuilder) processResultCriteria(resultQuery []query.Criterion) *QueryBuilder {
+	for _, c := range resultQuery {
+		if c.Type != query.ResultQuery {
+			qb.err = fmt.Errorf("result query is expected, but %s is provided", c.Type)
+			return qb
+		}
+		switch c.LeftOp {
+		case query.OrderBy:
+			qb.OrderBy(c.RightOp...)
+		case query.Limit:
+			limit, err := strconv.Atoi(c.RightOp[0])
+			if err != nil {
+				qb.err = err
+				return qb
+			}
+			qb.Limit(limit)
+		}
+	}
+
+	return qb
+}
+
+func (qb *QueryBuilder) orderBySQL() *QueryBuilder {
 	if len(qb.orderByFields) > 0 {
 		orderFields := strings.Join(qb.orderByFields, ",")
 		qb.sql += fmt.Sprintf(" ORDER BY %s", orderFields)
@@ -176,7 +183,7 @@ func (qb *QueryBuilder) buildOrderBy() *QueryBuilder {
 	return qb
 }
 
-func (qb *QueryBuilder) addLimit() *QueryBuilder {
+func (qb *QueryBuilder) limitSQL() *QueryBuilder {
 	if qb.limit > 0 {
 		qb.sql += fmt.Sprintf(" LIMIT %d", qb.limit)
 	}
@@ -192,7 +199,7 @@ func (qb *QueryBuilder) returningSQL() *QueryBuilder {
 	return qb
 }
 
-func (qb *QueryBuilder) addLock(tableName string) *QueryBuilder {
+func (qb *QueryBuilder) lockSQL(tableName string) *QueryBuilder {
 	if qb.hasLock {
 		// Lock the rows if we are in transaction so that update operations on those rows can rely on unchanged data
 		// This allows us to handle concurrent updates on the same rows by executing them sequentially as
@@ -202,7 +209,7 @@ func (qb *QueryBuilder) addLock(tableName string) *QueryBuilder {
 	return qb
 }
 
-func (qb *QueryBuilder) withLabelCriteria(entity PostgresEntity, criteria []query.Criterion) *QueryBuilder {
+func (qb *QueryBuilder) labelCriteriaSQL(entity PostgresEntity, criteria []query.Criterion) *QueryBuilder {
 	if qb.err != nil {
 		return qb
 	}
@@ -227,7 +234,7 @@ func (qb *QueryBuilder) withLabelCriteria(entity PostgresEntity, criteria []quer
 	return qb
 }
 
-func (qb *QueryBuilder) withFieldCriteria(entity PostgresEntity, criteria []query.Criterion) *QueryBuilder {
+func (qb *QueryBuilder) fieldCriteriaSQL(entity PostgresEntity, criteria []query.Criterion) *QueryBuilder {
 	if qb.err != nil {
 		return qb
 	}

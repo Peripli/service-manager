@@ -82,12 +82,12 @@ type FakeStorage struct {
 	introduceArgsForCall []struct {
 		arg1 storage.Entity
 	}
-	ListStub        func(context.Context, types.ObjectType, ...storage.CriteriaContainer) (types.ObjectList, error)
+	ListStub        func(context.Context, types.ObjectType, ...query.Criterion) (types.ObjectList, error)
 	listMutex       sync.RWMutex
 	listArgsForCall []struct {
 		arg1 context.Context
 		arg2 types.ObjectType
-		arg3 []storage.CriteriaContainer
+		arg3 []query.Criterion
 	}
 	listReturns struct {
 		result1 types.ObjectList
@@ -475,13 +475,13 @@ func (fake *FakeStorage) IntroduceArgsForCall(i int) storage.Entity {
 	return argsForCall.arg1
 }
 
-func (fake *FakeStorage) List(arg1 context.Context, arg2 types.ObjectType, arg3 ...storage.CriteriaContainer) (types.ObjectList, error) {
+func (fake *FakeStorage) List(arg1 context.Context, arg2 types.ObjectType, arg3 ...query.Criterion) (types.ObjectList, error) {
 	fake.listMutex.Lock()
 	ret, specificReturn := fake.listReturnsOnCall[len(fake.listArgsForCall)]
 	fake.listArgsForCall = append(fake.listArgsForCall, struct {
 		arg1 context.Context
 		arg2 types.ObjectType
-		arg3 []storage.CriteriaContainer
+		arg3 []query.Criterion
 	}{arg1, arg2, arg3})
 	fake.recordInvocation("List", []interface{}{arg1, arg2, arg3})
 	fake.listMutex.Unlock()
@@ -501,13 +501,13 @@ func (fake *FakeStorage) ListCallCount() int {
 	return len(fake.listArgsForCall)
 }
 
-func (fake *FakeStorage) ListCalls(stub func(context.Context, types.ObjectType, ...storage.CriteriaContainer) (types.ObjectList, error)) {
+func (fake *FakeStorage) ListCalls(stub func(context.Context, types.ObjectType, ...query.Criterion) (types.ObjectList, error)) {
 	fake.listMutex.Lock()
 	defer fake.listMutex.Unlock()
 	fake.ListStub = stub
 }
 
-func (fake *FakeStorage) ListArgsForCall(i int) (context.Context, types.ObjectType, []storage.CriteriaContainer) {
+func (fake *FakeStorage) ListArgsForCall(i int) (context.Context, types.ObjectType, []query.Criterion) {
 	fake.listMutex.RLock()
 	defer fake.listMutex.RUnlock()
 	argsForCall := fake.listArgsForCall[i]

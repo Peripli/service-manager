@@ -147,19 +147,6 @@ func (mf PingFunc) Ping() error {
 	return mf()
 }
 
-type ListCriteriaType string
-
-const (
-	OrderByCriteriaType ListCriteriaType = "orderBy"
-
-	LimitCriteriaType ListCriteriaType = "limit"
-)
-
-type ListCriteria struct {
-	Parameter interface{}
-	Type      ListCriteriaType
-}
-
 type Repository interface {
 	// Create stores a broker in SM DB
 	Create(ctx context.Context, obj types.Object) (types.Object, error)
@@ -168,7 +155,7 @@ type Repository interface {
 	Get(ctx context.Context, objectType types.ObjectType, id string) (types.Object, error)
 
 	// List retrieves all brokers from SM DB
-	List(ctx context.Context, objectType types.ObjectType, criteria ...CriteriaContainer) (types.ObjectList, error)
+	List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error)
 
 	// Delete deletes a broker from SM DB
 	Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error)

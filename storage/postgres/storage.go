@@ -194,7 +194,7 @@ func (ps *Storage) createLabels(ctx context.Context, entityID string, labels []s
 func (ps *Storage) Get(ctx context.Context, objectType types.ObjectType, id string) (types.Object, error) {
 	byPrimaryColumn := query.ByField(query.EqualsOperator, "id", id)
 
-	result, err := ps.List(ctx, objectType, storage.ByCriteria(byPrimaryColumn))
+	result, err := ps.List(ctx, objectType, byPrimaryColumn)
 	if err != nil {
 		return nil, err
 	}
@@ -204,26 +204,14 @@ func (ps *Storage) Get(ctx context.Context, objectType types.ObjectType, id stri
 	return result.ItemAt(0), nil
 }
 
-func defaultListCriterias() []storage.ListCriteria {
-	return []storage.ListCriteria{
-		{
-			Type:      storage.OrderByCriteriaType,
-			Parameter: "created_at",
-		},
-	}
-}
-
-func (ps *Storage) List(ctx context.Context, objType types.ObjectType, criteria ...storage.CriteriaContainer) (types.ObjectList, error) {
+func (ps *Storage) List(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	entity, err := ps.scheme.provide(objType)
 	if err != nil {
 		return nil, err
 	}
 
-	criteria = append(criteria, storage.ByCriteria(defaultListCriterias()))
-	mergedCriteria := storage.MergeCriteriaContainers(criteria...)
-
 	qBuilder := NewQueryBuilder(ps.pgDB)
-	rows, err := qBuilder.WithCriteria(mergedCriteria.QueryCriteria...).WithLock().WithListCriteria(mergedCriteria.ListCriteria...).List(ctx, entity)
+	rows, err := qBuilder.WithCriteria(criteria...).OrderBy("created_at").WithLock().List(ctx, entity)
 	if err != nil {
 		return nil, err
 	}

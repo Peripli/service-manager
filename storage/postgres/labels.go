@@ -128,7 +128,7 @@ func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTable
 	var fieldQueries []string
 	var labelQueries []string
 
-	labelCriteria, fieldCriteria := splitCriteriaByType(criteria)
+	labelCriteria, fieldCriteria, _ := splitCriteriaByType(criteria)
 
 	if len(labelCriteria) > 0 {
 		labelTableName := labelEntity.LabelsTableName()
@@ -214,19 +214,23 @@ func determineCastByType(tagType reflect.Type) string {
 	return dbCast
 }
 
-func splitCriteriaByType(criteria []query.Criterion) ([]query.Criterion, []query.Criterion) {
+func splitCriteriaByType(criteria []query.Criterion) ([]query.Criterion, []query.Criterion, []query.Criterion) {
 	var labelQueries []query.Criterion
 	var fieldQueries []query.Criterion
+	var resultQueries []query.Criterion
 
 	for _, criterion := range criteria {
-		if criterion.Type == query.FieldQuery {
+		switch criterion.Type {
+		case query.FieldQuery:
 			fieldQueries = append(fieldQueries, criterion)
-		} else {
+		case query.LabelQuery:
 			labelQueries = append(labelQueries, criterion)
+		case query.ResultQuery:
+			resultQueries = append(resultQueries, criterion)
 		}
 	}
 
-	return labelQueries, fieldQueries
+	return labelQueries, fieldQueries, resultQueries
 }
 
 func buildRightOp(criterion query.Criterion) (string, interface{}) {

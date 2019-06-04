@@ -82,16 +82,9 @@ func (ns *notificationStorageImpl) GetNotification(ctx context.Context, id strin
 func (ns *notificationStorageImpl) ListNotifications(ctx context.Context, platformID string, from, to int64) ([]*types.Notification, error) {
 	listQuery1 := query.ByField(query.GreaterThanOperator, "revision", strconv.FormatInt(from, 10))
 	listQuery2 := query.ByField(query.LessThanOrEqualOperator, "revision", strconv.FormatInt(to, 10))
-
 	filterByPlatform := query.ByField(query.EqualsOrNilOperator, "platform_id", platformID)
-	criteria := storage.ByCriteria(
-		storage.ListCriteria{
-			Type:      storage.OrderByCriteriaType,
-			Parameter: "revision",
-		},
-		listQuery1, listQuery2, filterByPlatform,
-	)
-	objectList, err := ns.storage.List(ctx, types.NotificationType, criteria)
+	orderByRevision := query.WithOrder("revision")
+	objectList, err := ns.storage.List(ctx, types.NotificationType, orderByRevision, listQuery1, listQuery2, filterByPlatform)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +95,7 @@ func (ns *notificationStorageImpl) ListNotifications(ctx context.Context, platfo
 
 func (ns *notificationStorageImpl) GetNotificationByRevision(ctx context.Context, revision int64) (*types.Notification, error) {
 	revisionQuery := query.ByField(query.EqualsOperator, "revision", strconv.FormatInt(revision, 10))
-	objectList, err := ns.storage.List(ctx, types.NotificationType, storage.ByCriteria(revisionQuery))
+	objectList, err := ns.storage.List(ctx, types.NotificationType, revisionQuery)
 	if err != nil {
 		return nil, err
 	}

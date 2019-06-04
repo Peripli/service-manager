@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Peripli/service-manager/storage"
+	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/pkg/types"
 
@@ -75,7 +75,7 @@ var _ = Describe("Catalog Load", func() {
 		Context("When list service plans returns error", func() {
 			expectedError := fmt.Errorf("error loading service plans")
 			BeforeEach(func() {
-				repository.ListStub = func(ctx context.Context, objectType types.ObjectType, criterion ...storage.CriteriaContainer) (types.ObjectList, error) {
+				repository.ListStub = func(ctx context.Context, objectType types.ObjectType, criterion ...query.Criterion) (types.ObjectList, error) {
 					if objectType == types.ServiceOfferingType {
 						return offeringsList, nil
 					}
@@ -99,7 +99,7 @@ var _ = Describe("Catalog Load", func() {
 				},
 			}
 			BeforeEach(func() {
-				repository.ListStub = func(ctx context.Context, objectType types.ObjectType, criterion ...storage.CriteriaContainer) (types.ObjectList, error) {
+				repository.ListStub = func(ctx context.Context, objectType types.ObjectType, criterion ...query.Criterion) (types.ObjectList, error) {
 					if objectType == types.ServiceOfferingType {
 						return offeringsList, nil
 					}

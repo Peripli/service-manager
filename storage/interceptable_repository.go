@@ -112,7 +112,7 @@ func (ir *interceptableRepository) Get(ctx context.Context, objectType types.Obj
 	return object, nil
 }
 
-func (ir *interceptableRepository) List(ctx context.Context, objectType types.ObjectType, criteria ...CriteriaContainer) (types.ObjectList, error) {
+func (ir *interceptableRepository) List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	objectList, err := ir.repositoryInTransaction.List(ctx, objectType, criteria...)
 	if err != nil {
 		return nil, err
@@ -136,9 +136,7 @@ func (ir *interceptableRepository) Delete(ctx context.Context, objectType types.
 	var err error
 
 	if deleteInterceptorChain, found := ir.deleteInterceptor[objectType]; found {
-		objects, err = ir.List(ctx, objectType, CriteriaContainer{
-			QueryCriteria: criteria,
-		})
+		objects, err = ir.List(ctx, objectType, criteria...)
 		if err != nil {
 			return nil, err
 		}
@@ -308,7 +306,7 @@ func (itr *InterceptableTransactionalRepository) Get(ctx context.Context, object
 	return object, nil
 }
 
-func (itr *InterceptableTransactionalRepository) List(ctx context.Context, objectType types.ObjectType, criteria ...CriteriaContainer) (types.ObjectList, error) {
+func (itr *InterceptableTransactionalRepository) List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	objectList, err := itr.smStorageRepository.List(ctx, objectType, criteria...)
 	if err != nil {
 		return nil, err
