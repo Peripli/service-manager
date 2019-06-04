@@ -20,6 +20,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/Peripli/service-manager/config"
 	"net/http/httptest"
 	"path"
 	"runtime"
@@ -164,7 +165,8 @@ func TestEnv(additionalFlagFuncs ...func(set *pflag.FlagSet)) env.Environment {
 
 	additionalFlagFuncs = append(additionalFlagFuncs, f)
 
-	return sm.DefaultEnv(additionalFlagFuncs...)
+	env, _ := env.Default(append([]func(set *pflag.FlagSet){config.AddPFlags}, additionalFlagFuncs...)...)
+	return env
 }
 
 func (tcb *TestContextBuilder) SkipBasicAuthClientSetup(shouldSkip bool) *TestContextBuilder {
@@ -271,7 +273,17 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 		panic(err)
 	}
 	ctx = log.Configure(ctx, s.Log)
-	smb := sm.New(ctx, cancel, smEnv)
+
+	cfg, err := config.NewForEnv(smEnv)
+	if err != nil {
+		panic(err)
+	}
+
+	smb, err := sm.New(ctx, cancel, cfg)
+	if err != nil {
+		panic(err)
+	}
+
 	for _, registerExtensionsFunc := range fs {
 		if err := registerExtensionsFunc(ctx, smb, smEnv); err != nil {
 			panic(fmt.Sprintf("error creating test SM server: %s", err))
