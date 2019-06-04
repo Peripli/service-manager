@@ -165,7 +165,7 @@ func TestEnv(additionalFlagFuncs ...func(set *pflag.FlagSet)) env.Environment {
 
 	additionalFlagFuncs = append(additionalFlagFuncs, f)
 
-	env, _ := sm.DefaultEnv(additionalFlagFuncs...)
+	env, _ := env.Default(config.AddPFlags, additionalFlagFuncs...)
 	return env
 }
 
@@ -274,7 +274,7 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 	}
 	ctx = log.Configure(ctx, s.Log)
 
-	cfg, err := config.New(smEnv)
+	cfg, err := config.NewForEnv(smEnv)
 	if err != nil {
 		panic(err)
 	}

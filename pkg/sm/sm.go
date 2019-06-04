@@ -43,10 +43,7 @@ import (
 	"github.com/Peripli/service-manager/storage/postgres"
 
 	"github.com/Peripli/service-manager/api/filters"
-	"github.com/Peripli/service-manager/cf"
-	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/spf13/pflag"
 )
 
 // ServiceManagerBuilder type is an extension point that allows adding additional filters, plugins and
@@ -69,25 +66,6 @@ type ServiceManager struct {
 	Server              *server.Server
 	Notificator         storage.Notificator
 	NotificationCleaner *storage.NotificationCleaner
-}
-
-// DefaultEnv creates a default environment that can be used to boot up a Service Manager
-func DefaultEnv(additionalPFlags ...func(set *pflag.FlagSet)) (env.Environment, error) {
-	set := env.EmptyFlagSet()
-
-	config.AddPFlags(set)
-	for _, addFlags := range additionalPFlags {
-		addFlags(set)
-	}
-
-	environment, err := env.New(set)
-	if err != nil {
-		return nil, fmt.Errorf("error loading environment: %s", err)
-	}
-	if err := cf.SetCFOverrides(environment); err != nil {
-		return nil, fmt.Errorf("error setting CF environment values: %s", err)
-	}
-	return environment, nil
 }
 
 // New returns service-manager Server with default setup

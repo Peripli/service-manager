@@ -53,8 +53,18 @@ func DefaultSettings() *Settings {
 	}
 }
 
+// New creates a configuration from the default env
+func New() (*Settings, error) {
+	env, err := env.Default(AddPFlags)
+	if err != nil {
+		return nil, fmt.Errorf("error loading default env: %s", err)
+	}
+
+	return NewForEnv(env)
+}
+
 // New creates a configuration from the provided env
-func New(env env.Environment) (*Settings, error) {
+func NewForEnv(env env.Environment) (*Settings, error) {
 	config := DefaultSettings()
 	if err := env.Unmarshal(config); err != nil {
 		return nil, fmt.Errorf("error loading configuration: %s", err)

@@ -141,6 +141,25 @@ func (v *ViperEnv) setupConfigFile() error {
 	return nil
 }
 
+// Default creates a default environment that can be used to boot up a Service Manager
+func Default(defaultPFlags func(set *pflag.FlagSet), additionalPFlags ...func(set *pflag.FlagSet)) (Environment, error) {
+	set := EmptyFlagSet()
+
+	defaultPFlags(set)
+	for _, addFlags := range additionalPFlags {
+		addFlags(set)
+	}
+
+	environment, err := New(set)
+	if err != nil {
+		return nil, fmt.Errorf("error loading environment: %s", err)
+	}
+	if err := setCFOverrides(environment); err != nil {
+		return nil, fmt.Errorf("error setting CF environment values: %s", err)
+	}
+	return environment, nil
+}
+
 type flag struct {
 	value interface{}
 }

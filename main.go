@@ -30,12 +30,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	env, err := sm.DefaultEnv()
-	if err != nil {
-		panic(err)
-	}
-
-	cfg, err := config.New(env)
+	cfg, err := config.New()
 	if err != nil {
 		panic(err)
 	}
