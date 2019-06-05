@@ -125,8 +125,15 @@ func ByLabel(operator Operator, leftOp string, rightOp ...string) Criterion {
 	return newCriterion(leftOp, operator, rightOp, LabelQuery)
 }
 
-func WithOrder(field string) Criterion {
-	return newCriterion(OrderBy, NoOperator, []string{field}, ResultQuery)
+type OrderType string
+
+const (
+	AscOrder  OrderType = "ASC"
+	DescOrder OrderType = "DESC"
+)
+
+func WithOrder(field string, orderType OrderType) Criterion {
+	return newCriterion(OrderBy, NoOperator, []string{field, string(orderType)}, ResultQuery)
 }
 
 func WithLimit(limit string) Criterion {

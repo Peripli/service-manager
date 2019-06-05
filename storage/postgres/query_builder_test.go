@@ -84,14 +84,10 @@ var _ = Describe("Postgres Storage Query builder", func() {
 		Context("when list criteria is used", func() {
 			It("should build query with order by clause", func() {
 				_, err := qb.
-					WithCriteria(query.Criterion{
-						Type:    query.ResultQuery,
-						LeftOp:  query.OrderBy,
-						RightOp: []string{"id"},
-					}).
+					WithCriteria(query.WithOrder("id", query.DescOrder)).
 					List(context.Background(), &postgres.Visibility{})
 				Expect(err).ShouldNot(HaveOccurred())
-				Expect(executedQuery).Should(MatchRegexp("SELECT.*FROM visibilities .* ORDER BY id;"))
+				Expect(executedQuery).Should(MatchRegexp("SELECT.*FROM visibilities .* ORDER BY id DESC;"))
 				Expect(queryArgs).To(HaveLen(0))
 			})
 
@@ -120,10 +116,10 @@ var _ = Describe("Postgres Storage Query builder", func() {
 			It("should build query with order by and limit clause", func() {
 				_, err := qb.
 					Limit(10).
-					OrderBy("id").
+					OrderBy("id", query.AscOrder).
 					List(context.Background(), &postgres.Visibility{})
 				Expect(err).ShouldNot(HaveOccurred())
-				Expect(executedQuery).Should(MatchRegexp("SELECT.*FROM visibilities .* ORDER BY id LIMIT 10;"))
+				Expect(executedQuery).Should(MatchRegexp("SELECT.*FROM visibilities .* ORDER BY id ASC LIMIT 10;"))
 				Expect(queryArgs).To(HaveLen(0))
 			})
 		})

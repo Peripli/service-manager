@@ -83,7 +83,7 @@ func (ns *notificationStorageImpl) ListNotifications(ctx context.Context, platfo
 	listQuery1 := query.ByField(query.GreaterThanOperator, "revision", strconv.FormatInt(from, 10))
 	listQuery2 := query.ByField(query.LessThanOrEqualOperator, "revision", strconv.FormatInt(to, 10))
 	filterByPlatform := query.ByField(query.EqualsOrNilOperator, "platform_id", platformID)
-	orderByRevision := query.WithOrder("revision")
+	orderByRevision := query.WithOrder("revision", query.AscOrder)
 	objectList, err := ns.storage.List(ctx, types.NotificationType, orderByRevision, listQuery1, listQuery2, filterByPlatform)
 	if err != nil {
 		return nil, err
