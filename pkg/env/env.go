@@ -77,7 +77,12 @@ func CreatePFlags(set *pflag.FlagSet, value interface{}) {
 
 	for i, parameter := range parameters {
 		if set.Lookup(parameter.Name) == nil {
-			set.Var(&flag{value: parameter.DefaultValue}, parameter.Name, descriptions[i])
+			switch val := parameter.DefaultValue.(type) {
+			case []string:
+				set.StringSlice(parameter.Name, val, descriptions[i])
+			default:
+				set.Var(&flag{value: val}, parameter.Name, descriptions[i])
+			}
 		}
 	}
 }
