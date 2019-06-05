@@ -49,7 +49,7 @@ func TestWsConn(t *testing.T) {
 	RunSpecs(t, "Notification test suite")
 }
 
-var pingTimeout time.Duration = 1 * time.Second
+var pingTimeout = 1 * time.Second
 
 var _ = Describe("WS", func() {
 	var ctx *common.TestContext
@@ -187,7 +187,7 @@ var _ = Describe("WS", func() {
 			})
 		})
 
-		Context("and proxy knowns some notification revision", func() {
+		Context("and proxy knows some notification revision", func() {
 			var notification2 *types.Notification
 			BeforeEach(func() {
 				notification2 = createNotification(repository, platform.ID)
@@ -292,10 +292,10 @@ var _ = Describe("WS", func() {
 func createNotification(repository storage.Repository, platformID string) *types.Notification {
 	notification := common.GenerateRandomNotification()
 	notification.PlatformID = platformID
-	id, err := repository.Create(context.Background(), notification)
+	result, err := repository.Create(context.Background(), notification)
 	Expect(err).ShouldNot(HaveOccurred())
 
-	createdNotification, err := repository.Get(context.Background(), types.NotificationType, id)
+	createdNotification, err := repository.Get(context.Background(), types.NotificationType, result.GetID())
 	Expect(err).ShouldNot(HaveOccurred())
 	return createdNotification.(*types.Notification)
 }

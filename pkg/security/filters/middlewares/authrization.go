@@ -22,27 +22,14 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-// NewAuthzMiddleware returns web.Filter which uses the given security.Authorizer
-// to authorize the request. FilterMatchers should be extended to cover the desired
-// endpoints.
-func NewAuthzMiddleware(filterName string, authorizer http.Authorizer) web.Filter {
-	return &authzMiddleware{
-		middleware: &middleware{
-			FilterName: filterName,
-		},
-		Authorizer: authorizer,
-	}
-}
-
-// authzMiddleware type represents an authorization middleware
-type authzMiddleware struct {
-	*middleware
+// Authorization type represents an authorization middleware
+type Authorization struct {
 	Authorizer http.Authorizer
 }
 
 // Run represents the authorization middleware function that delegates the authorization
 // to the provided authorizer
-func (m *authzMiddleware) Run(request *web.Request, next web.Handler) (*web.Response, error) {
+func (m *Authorization) Run(request *web.Request, next web.Handler) (*web.Response, error) {
 	decision, err := m.Authorizer.Authorize(request)
 	if err != nil {
 		if decision == http.Deny {

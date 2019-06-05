@@ -80,7 +80,7 @@ type CreateInterceptorProvider interface {
 type InterceptCreateAroundTxFunc func(ctx context.Context, obj types.Object) (types.Object, error)
 
 // InterceptCreateOnTxFunc hook for entity creation in transaction
-type InterceptCreateOnTxFunc func(ctx context.Context, txStorage Repository, newObject types.Object) error
+type InterceptCreateOnTxFunc func(ctx context.Context, txStorage Repository, obj types.Object) (types.Object, error)
 
 // CreateInterceptor provides hooks on entity creation
 //go:generate counterfeiter . CreateInterceptor

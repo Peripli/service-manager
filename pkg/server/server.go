@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/Peripli/service-manager/api"
-	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gorilla/mux"
@@ -57,16 +56,6 @@ func DefaultSettings() *Settings {
 		MaxBodyBytes:    mb,
 		MaxHeaderBytes:  kb,
 	}
-}
-
-// NewSettings returns Server settings for the given enrivonment
-func NewSettings(env env.Environment) (*Settings, error) {
-	config := &Settings{}
-	if err := env.Unmarshal(config); err != nil {
-		return nil, err
-	}
-
-	return config, nil
 }
 
 // Validate validates the server settings

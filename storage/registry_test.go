@@ -76,7 +76,7 @@ var _ = Describe("Registry", func() {
 		wg = &sync.WaitGroup{}
 	})
 
-	Describe("OpenWithSafeTermination", func() {
+	Describe("InitializeWithSafeTermination", func() {
 		Context("when storage is nil", func() {
 			BeforeEach(func() {
 				testStorage = nil
@@ -84,7 +84,7 @@ var _ = Describe("Registry", func() {
 
 			It("panics", func() {
 				Expect(func() {
-					storage.OpenWithSafeTermination(ctx, testStorage, testSettings, wg)
+					storage.InitializeWithSafeTermination(ctx, testStorage, testSettings, wg)
 				}).To(Panic())
 			})
 		})
@@ -95,7 +95,7 @@ var _ = Describe("Registry", func() {
 			})
 
 			It("returns an error", func() {
-				err := storage.OpenWithSafeTermination(ctx, testStorage, testSettings, wg)
+				_, err := storage.InitializeWithSafeTermination(ctx, testStorage, testSettings, wg)
 				Expect(err).To(HaveOccurred())
 			})
 		})
@@ -103,7 +103,7 @@ var _ = Describe("Registry", func() {
 		Context("when context is cancelled", func() {
 			Context("when close succeeds", func() {
 				It("it closes the storage when the context is canceled", func() {
-					err := storage.OpenWithSafeTermination(ctx, testStorage, testSettings, wg)
+					_, err := storage.InitializeWithSafeTermination(ctx, testStorage, testSettings, wg)
 					Expect(err).ToNot(HaveOccurred())
 
 					Expect(testStorage.CloseCallCount()).To(Equal(0))
@@ -125,7 +125,7 @@ var _ = Describe("Registry", func() {
 				})
 
 				It("logs the error", func() {
-					err := storage.OpenWithSafeTermination(ctx, testStorage, testSettings, wg)
+					_, err := storage.InitializeWithSafeTermination(ctx, testStorage, testSettings, wg)
 					Expect(err).ToNot(HaveOccurred())
 
 					cancelFunc()
@@ -133,6 +133,26 @@ var _ = Describe("Registry", func() {
 
 					logHook.VerifyData(false)
 				})
+			})
+		})
+
+		Context("when no decorators are provided", func() {
+			It("returns the storage that was supplied as argument", func() {
+				s, err := storage.InitializeWithSafeTermination(ctx, testStorage, testSettings, wg)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(s).To(Equal(testStorage))
+			})
+		})
+
+		Context("when decorators are provided", func() {
+			It("wraps the specified storage in the decorators", func() {
+				invocations := 0
+				_, err := storage.InitializeWithSafeTermination(ctx, testStorage, testSettings, wg, func(transactionalRepository storage.TransactionalRepository) (storage.TransactionalRepository, error) {
+					invocations++
+					return transactionalRepository, nil
+				})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(invocations).To(Equal(1))
 			})
 		})
 	})

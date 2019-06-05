@@ -26,9 +26,9 @@ import (
 	"github.com/Peripli/service-manager/pkg/log"
 )
 
-func OpenWithSafeTermination(ctx context.Context, s Storage, options *Settings, wg *sync.WaitGroup) error {
-	if s == nil || options == nil {
-		return fmt.Errorf("storage and storage settings cannot be nil")
+func InitializeWithSafeTermination(ctx context.Context, s Storage, settings *Settings, wg *sync.WaitGroup, decorators ...TransactionalRepositoryDecorator) (TransactionalRepository, error) {
+	if s == nil || settings == nil {
+		return nil, fmt.Errorf("storage and storage settings cannot be nil")
 	}
 
 	util.StartInWaitGroupWithContext(ctx, func(c context.Context) {
@@ -39,9 +39,19 @@ func OpenWithSafeTermination(ctx context.Context, s Storage, options *Settings, 
 		}
 	}, wg)
 
-	if err := s.Open(options); err != nil {
-		return fmt.Errorf("error opening storage: %s", err)
+	if err := s.Open(settings); err != nil {
+		return nil, fmt.Errorf("error opening storage: %s", err)
 	}
 
-	return nil
+	var decoratedRepository TransactionalRepository
+	var err error
+	decoratedRepository = s
+	for i := range decorators {
+		decoratedRepository, err = decorators[len(decorators)-1-i](decoratedRepository)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return decoratedRepository, nil
 }

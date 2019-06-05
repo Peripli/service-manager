@@ -6,20 +6,18 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/Peripli/service-manager/storage/catalog"
-	osbc "github.com/pmorie/go-open-service-broker-client/v2"
 )
 
 const BrokerDeleteCatalogInterceptorName = "BrokerDeleteCatalogInterceptor"
 
 // BrokerDeleteCatalogInterceptorProvider provides a broker interceptor for delete operations
 type BrokerDeleteCatalogInterceptorProvider struct {
-	OsbClientCreateFunc osbc.CreateFunc
+	CatalogLoader func(ctx context.Context, brokerID string, repository storage.Repository) (*types.ServiceOfferings, error)
 }
 
 func (c *BrokerDeleteCatalogInterceptorProvider) Provide() storage.DeleteInterceptor {
 	return &brokerDeleteCatalogInterceptor{
-		OSBClientCreateFunc: c.OsbClientCreateFunc,
+		CatalogLoader: c.CatalogLoader,
 	}
 }
 
@@ -28,7 +26,7 @@ func (c *BrokerDeleteCatalogInterceptorProvider) Name() string {
 }
 
 type brokerDeleteCatalogInterceptor struct {
-	OSBClientCreateFunc osbc.CreateFunc
+	CatalogLoader func(ctx context.Context, brokerID string, repository storage.Repository) (*types.ServiceOfferings, error)
 }
 
 func (b *brokerDeleteCatalogInterceptor) AroundTxDelete(h storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
@@ -40,7 +38,7 @@ func (b *brokerDeleteCatalogInterceptor) OnTxDelete(h storage.InterceptDeleteOnT
 	return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
 		brokers := objects.(*types.ServiceBrokers)
 		for _, broker := range brokers.ServiceBrokers {
-			serviceOfferings, err := catalog.Load(ctx, broker.GetID(), txStorage)
+			serviceOfferings, err := b.CatalogLoader(ctx, broker.GetID(), txStorage)
 			if err != nil {
 				return nil, err
 			}

@@ -76,7 +76,7 @@ func addLabel(ctx context.Context, newLabelFunc func(labelID string, labelKey st
 
 	err = db.GetContext(ctx, newLabel, query, key, value, referenceID)
 	if checkSQLNoRows(err) == util.ErrNotFoundInStorage {
-		if _, err := create(ctx, db, labelTable, newLabel); err != nil {
+		if err := create(ctx, db, labelTable, newLabel, newLabel); err != nil {
 			return err
 		}
 	} else {
@@ -252,8 +252,12 @@ func translateOperationToSQLEquivalent(operator query.Operator) string {
 	switch operator {
 	case query.LessThanOperator:
 		return "<"
+	case query.LessThanOrEqualOperator:
+		return "<="
 	case query.GreaterThanOperator:
 		return ">"
+	case query.GreaterThanOrEqualOperator:
+		return ">="
 	case query.NotInOperator:
 		return "NOT IN"
 	case query.EqualsOrNilOperator:

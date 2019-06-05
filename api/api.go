@@ -20,7 +20,8 @@ package api
 import (
 	"context"
 	"fmt"
-	"net/http"
+
+	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/ws"
@@ -28,16 +29,15 @@ import (
 	apiNotifications "github.com/Peripli/service-manager/api/notifications"
 
 	"github.com/Peripli/service-manager/api/filters"
-	"github.com/Peripli/service-manager/api/filters/authn/basic"
-	"github.com/Peripli/service-manager/api/filters/authn/oauth"
 	"github.com/Peripli/service-manager/api/info"
 	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/pkg/health"
-	"github.com/Peripli/service-manager/pkg/security"
 	secfilters "github.com/Peripli/service-manager/pkg/security/filters"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
 )
+
+const osbVersion = "2.13"
 
 // Settings type to be loaded from the environment
 type Settings struct {
@@ -45,6 +45,7 @@ type Settings struct {
 	ClientID          string `mapstructure:"client_id" description:"id of the client from which the token must be issued"`
 	SkipSSLValidation bool   `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when making calls to external services"`
 	TokenBasicAuth    bool   `mapstructure:"token_basic_auth" description:"specifies if client credentials to the authorization server should be sent in the header as basic auth (true) or in the body (false)"`
+	OSBVersion        string `mapstructure:"-"`
 }
 
 // DefaultSettings returns default values for API settings
@@ -54,6 +55,7 @@ func DefaultSettings() *Settings {
 		ClientID:          "",
 		SkipSSLValidation: false,
 		TokenBasicAuth:    true, // RFC 6749 section 2.3.1
+		OSBVersion:        osbVersion,
 	}
 }
 
@@ -69,13 +71,12 @@ type Options struct {
 	Repository  storage.Repository
 	APISettings *Settings
 	WSSettings  *ws.Settings
-	Encrypter   security.Encrypter
 	Notificator storage.Notificator
 }
 
 // New returns the minimum set of REST APIs needed for the Service Manager
 func New(ctx context.Context, options *Options) (*web.API, error) {
-	bearerAuthnFilter, err := oauth.NewFilter(ctx, options.APISettings.TokenIssuerURL, options.APISettings.ClientID)
+	bearerAuthnFilter, err := filters.NewOIDCAuthnFilter(ctx, options.APISettings.TokenIssuerURL, options.APISettings.ClientID)
 	if err != nil {
 		return nil, err
 	}
@@ -99,22 +100,25 @@ func New(ctx context.Context, options *Options) (*web.API, error) {
 				TokenIssuer:    options.APISettings.TokenIssuerURL,
 				TokenBasicAuth: options.APISettings.TokenBasicAuth,
 			},
-			osb.NewController(&osb.StorageBrokerFetcher{
-				BrokerStorage: options.Repository,
-			}, &osb.StorageCatalogFetcher{
-				Repository: options.Repository,
+			&osb.Controller{
+				BrokerFetcher: func(ctx context.Context, brokerID string) (*types.ServiceBroker, error) {
+					br, err := options.Repository.Get(ctx, types.ServiceBrokerType, brokerID)
+					if err != nil {
+						return nil, util.HandleStorageError(err, "broker")
+					}
+					return br.(*types.ServiceBroker), nil
+				},
 			},
-				http.DefaultTransport,
-			),
 		},
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
 			&filters.Logging{},
-			basic.NewFilter(options.Repository.Credentials(), options.Encrypter),
+			filters.NewBasicAuthnFilter(options.Repository),
 			bearerAuthnFilter,
 			secfilters.NewRequiredAuthnFilter(),
 			&filters.SelectionCriteria{},
 			&filters.PlatformAwareVisibilityFilter{},
+			&filters.PatchOnlyLabelsFilter{},
 		},
 		Registry: health.NewDefaultRegistry(),
 	}, nil

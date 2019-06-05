@@ -35,9 +35,8 @@ const (
 )
 
 type TestCase struct {
-	API            string
-	SupportsLabels bool
-	SupportedOps   []Op
+	API          string
+	SupportedOps []Op
 
 	ResourceBlueprint                      func(ctx *common.TestContext) common.Object
 	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext) common.Object

@@ -5,15 +5,16 @@ import (
 	"context"
 	"sync"
 
-	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 )
 
 type FakeNotificator struct {
-	RegisterConsumerStub        func(*web.UserContext) (storage.NotificationQueue, int64, error)
+	RegisterConsumerStub        func(*types.Platform, int64) (storage.NotificationQueue, int64, error)
 	registerConsumerMutex       sync.RWMutex
 	registerConsumerArgsForCall []struct {
-		arg1 *web.UserContext
+		arg1 *types.Platform
+		arg2 int64
 	}
 	registerConsumerReturns struct {
 		result1 storage.NotificationQueue
@@ -24,6 +25,11 @@ type FakeNotificator struct {
 		result1 storage.NotificationQueue
 		result2 int64
 		result3 error
+	}
+	RegisterFilterStub        func(storage.ReceiversFilterFunc)
+	registerFilterMutex       sync.RWMutex
+	registerFilterArgsForCall []struct {
+		arg1 storage.ReceiversFilterFunc
 	}
 	StartStub        func(context.Context, *sync.WaitGroup) error
 	startMutex       sync.RWMutex
@@ -52,16 +58,17 @@ type FakeNotificator struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeNotificator) RegisterConsumer(arg1 *web.UserContext) (storage.NotificationQueue, int64, error) {
+func (fake *FakeNotificator) RegisterConsumer(arg1 *types.Platform, arg2 int64) (storage.NotificationQueue, int64, error) {
 	fake.registerConsumerMutex.Lock()
 	ret, specificReturn := fake.registerConsumerReturnsOnCall[len(fake.registerConsumerArgsForCall)]
 	fake.registerConsumerArgsForCall = append(fake.registerConsumerArgsForCall, struct {
-		arg1 *web.UserContext
-	}{arg1})
-	fake.recordInvocation("RegisterConsumer", []interface{}{arg1})
+		arg1 *types.Platform
+		arg2 int64
+	}{arg1, arg2})
+	fake.recordInvocation("RegisterConsumer", []interface{}{arg1, arg2})
 	fake.registerConsumerMutex.Unlock()
 	if fake.RegisterConsumerStub != nil {
-		return fake.RegisterConsumerStub(arg1)
+		return fake.RegisterConsumerStub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2, ret.result3
@@ -76,17 +83,17 @@ func (fake *FakeNotificator) RegisterConsumerCallCount() int {
 	return len(fake.registerConsumerArgsForCall)
 }
 
-func (fake *FakeNotificator) RegisterConsumerCalls(stub func(*web.UserContext) (storage.NotificationQueue, int64, error)) {
+func (fake *FakeNotificator) RegisterConsumerCalls(stub func(*types.Platform, int64) (storage.NotificationQueue, int64, error)) {
 	fake.registerConsumerMutex.Lock()
 	defer fake.registerConsumerMutex.Unlock()
 	fake.RegisterConsumerStub = stub
 }
 
-func (fake *FakeNotificator) RegisterConsumerArgsForCall(i int) *web.UserContext {
+func (fake *FakeNotificator) RegisterConsumerArgsForCall(i int) (*types.Platform, int64) {
 	fake.registerConsumerMutex.RLock()
 	defer fake.registerConsumerMutex.RUnlock()
 	argsForCall := fake.registerConsumerArgsForCall[i]
-	return argsForCall.arg1
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeNotificator) RegisterConsumerReturns(result1 storage.NotificationQueue, result2 int64, result3 error) {
@@ -116,6 +123,37 @@ func (fake *FakeNotificator) RegisterConsumerReturnsOnCall(i int, result1 storag
 		result2 int64
 		result3 error
 	}{result1, result2, result3}
+}
+
+func (fake *FakeNotificator) RegisterFilter(arg1 storage.ReceiversFilterFunc) {
+	fake.registerFilterMutex.Lock()
+	fake.registerFilterArgsForCall = append(fake.registerFilterArgsForCall, struct {
+		arg1 storage.ReceiversFilterFunc
+	}{arg1})
+	fake.recordInvocation("RegisterFilter", []interface{}{arg1})
+	fake.registerFilterMutex.Unlock()
+	if fake.RegisterFilterStub != nil {
+		fake.RegisterFilterStub(arg1)
+	}
+}
+
+func (fake *FakeNotificator) RegisterFilterCallCount() int {
+	fake.registerFilterMutex.RLock()
+	defer fake.registerFilterMutex.RUnlock()
+	return len(fake.registerFilterArgsForCall)
+}
+
+func (fake *FakeNotificator) RegisterFilterCalls(stub func(storage.ReceiversFilterFunc)) {
+	fake.registerFilterMutex.Lock()
+	defer fake.registerFilterMutex.Unlock()
+	fake.RegisterFilterStub = stub
+}
+
+func (fake *FakeNotificator) RegisterFilterArgsForCall(i int) storage.ReceiversFilterFunc {
+	fake.registerFilterMutex.RLock()
+	defer fake.registerFilterMutex.RUnlock()
+	argsForCall := fake.registerFilterArgsForCall[i]
+	return argsForCall.arg1
 }
 
 func (fake *FakeNotificator) Start(arg1 context.Context, arg2 *sync.WaitGroup) error {
@@ -244,6 +282,8 @@ func (fake *FakeNotificator) Invocations() map[string][][]interface{} {
 	defer fake.invocationsMutex.RUnlock()
 	fake.registerConsumerMutex.RLock()
 	defer fake.registerConsumerMutex.RUnlock()
+	fake.registerFilterMutex.RLock()
+	defer fake.registerFilterMutex.RUnlock()
 	fake.startMutex.RLock()
 	defer fake.startMutex.RUnlock()
 	fake.unregisterConsumerMutex.RLock()

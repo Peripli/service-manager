@@ -26,26 +26,22 @@ import (
 	"net/url"
 	"path"
 	"runtime"
-
-	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/gorilla/websocket"
-
 	"sync"
 
+	"github.com/gavv/httpexpect"
 	"github.com/gofrs/uuid"
-
-	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/storage"
-
-	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/gorilla/websocket"
 	"github.com/onsi/ginkgo"
 	"github.com/spf13/pflag"
 
+	"github.com/Peripli/service-manager/config"
 	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/sm"
-	"github.com/gavv/httpexpect"
-	. "github.com/onsi/ginkgo"
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/storage"
 )
 
 func init() {
@@ -170,7 +166,8 @@ func TestEnv(additionalFlagFuncs ...func(set *pflag.FlagSet)) env.Environment {
 
 	additionalFlagFuncs = append(additionalFlagFuncs, f)
 
-	return sm.DefaultEnv(additionalFlagFuncs...)
+	env, _ := env.Default(append([]func(set *pflag.FlagSet){config.AddPFlags}, additionalFlagFuncs...)...)
+	return env
 }
 
 func (tcb *TestContextBuilder) SkipBasicAuthClientSetup(shouldSkip bool) *TestContextBuilder {
@@ -232,7 +229,7 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 	smServer, smRepository := newSMServer(environment, wg, tcb.smExtensions)
 	tcb.Servers[SMServer] = smServer
 
-	SM := httpexpect.New(GinkgoT(), smServer.URL())
+	SM := httpexpect.New(ginkgo.GinkgoT(), smServer.URL())
 	oauthServer := tcb.Servers[OauthServer].(*OAuthServer)
 	accessToken := oauthServer.CreateToken(tcb.defaultTokenClaims)
 	SMWithOAuth := SM.Builder(func(req *httpexpect.Request) {
@@ -277,7 +274,17 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 		panic(err)
 	}
 	ctx = log.Configure(ctx, s.Log)
-	smb := sm.New(ctx, cancel, smEnv)
+
+	cfg, err := config.NewForEnv(smEnv)
+	if err != nil {
+		panic(err)
+	}
+
+	smb, err := sm.New(ctx, cancel, cfg)
+	if err != nil {
+		panic(err)
+	}
+
 	for _, registerExtensionsFunc := range fs {
 		if err := registerExtensionsFunc(ctx, smb, smEnv); err != nil {
 			panic(fmt.Sprintf("error creating test SM server: %s", err))

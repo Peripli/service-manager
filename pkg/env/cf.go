@@ -14,20 +14,19 @@
  * limitations under the License.
  */
 
-package cf
+package env
 
 import (
 	"fmt"
 	"os"
 
-	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/cloudfoundry-community/go-cfenv"
 	"github.com/spf13/cast"
 )
 
-// SetCFOverrides overrides some SM environment with values from CF's VCAP environment variables
-func SetCFOverrides(env env.Environment) error {
+// setCFOverrides overrides some SM environment with values from CF's VCAP environment variables
+func setCFOverrides(env Environment) error {
 	if _, exists := os.LookupEnv("VCAP_APPLICATION"); exists {
 		cfEnv, err := cfenv.Current()
 		if err != nil {

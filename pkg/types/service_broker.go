@@ -18,6 +18,7 @@
 package types
 
 import (
+	"encoding/json"
 	"errors"
 )
 
@@ -26,11 +27,13 @@ import (
 type ServiceBroker struct {
 	Base
 	Secured     `json:"-"`
-	Name        string             `json:"name"`
-	Description string             `json:"description"`
-	BrokerURL   string             `json:"broker_url"`
-	Credentials *Credentials       `json:"credentials,omitempty" structs:"-"`
-	Services    []*ServiceOffering `json:"-" structs:"-"`
+	Name        string       `json:"name"`
+	Description string       `json:"description"`
+	BrokerURL   string       `json:"broker_url"`
+	Credentials *Credentials `json:"credentials,omitempty" structs:"-"`
+
+	Catalog  json.RawMessage    `json:"-" structs:"-"`
+	Services []*ServiceOffering `json:"-" structs:"-"`
 }
 
 func (e *ServiceBroker) SetCredentials(credentials *Credentials) {

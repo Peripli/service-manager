@@ -21,6 +21,8 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/Peripli/service-manager/pkg/web"
+
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 
@@ -37,8 +39,7 @@ func TestVisibilities(t *testing.T) {
 }
 
 var _ = test.DescribeTestsFor(test.TestCase{
-	API:            "/v1/visibilities",
-	SupportsLabels: true,
+	API: web.VisibilitiesURL,
 	SupportedOps: []test.Op{
 		test.Get, test.List, test.Delete, test.DeleteList,
 	},
@@ -64,7 +65,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				existingPlatformID = platform.ID
 				Expect(existingPlatformID).ToNot(BeEmpty())
 
-				existingPlanIDs = ctx.SMWithOAuth.GET("/v1/service_plans").
+				existingPlanIDs = ctx.SMWithOAuth.GET(web.ServicePlansURL).
 					Expect().Status(http.StatusOK).
 					JSON().Path("$.service_plans[*].id").Array().Raw()
 				length := len(existingPlanIDs)
@@ -94,7 +95,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			Describe("POST", func() {
 				Context("With invalid content type", func() {
 					It("returns 415", func() {
-						ctx.SMWithOAuth.POST("/v1/visibilities").
+						ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 							WithText("text").
 							Expect().Status(http.StatusUnsupportedMediaType)
 					})
@@ -102,7 +103,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("With invalid content JSON", func() {
 					It("returns 400", func() {
-						ctx.SMWithOAuth.POST("/v1/visibilities").
+						ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 							WithText("invalid json").
 							WithHeader("content-type", "application/json").
 							Expect().Status(http.StatusBadRequest)
@@ -111,14 +112,14 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("With missing mandatory fields", func() {
 					It("returns 400", func() {
-						ctx.SMWithOAuth.POST("/v1/visibilities").
+						ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 							WithJSON(postVisibilityRequestNoLabels).
 							Expect().Status(http.StatusCreated)
 
 						for _, prop := range []string{"service_plan_id"} {
 							delete(postVisibilityRequestNoLabels, prop)
 
-							ctx.SMWithOAuth.POST("/v1/visibilities").
+							ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 								WithJSON(postVisibilityRequestNoLabels).
 								Expect().Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
 						}
@@ -128,11 +129,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("with not existing related platform", func() {
 					It("returns 400", func() {
 						platformId := "not-existing"
-						ctx.SMWithOAuth.GET("/v1/platforms/"+platformId).
+						ctx.SMWithOAuth.GET(web.PlatformsURL+"/"+platformId).
 							WithJSON(postVisibilityRequestNoLabels).
 							Expect().Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
 
-						ctx.SMWithOAuth.POST("/v1/visibilities").
+						ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 							WithJSON(common.Object{
 								"service_plan_id": existingPlanIDs[0],
 								"platform_id":     platformId,
@@ -143,10 +144,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("with missing platform id field", func() {
 					It("returns 201 if no visibilities for the plan exist", func() {
-						ctx.SMWithOAuth.GET("/v1/visibilities").
+						ctx.SMWithOAuth.GET(web.VisibilitiesURL).
 							Expect().Status(http.StatusOK).JSON().Path("$.visibilities[*].id").Array().NotContains(existingPlanIDs[1])
 
-						ctx.SMWithOAuth.POST("/v1/visibilities").
+						ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 							WithJSON(common.Object{
 								"service_plan_id": existingPlanIDs[1],
 							}).
@@ -156,17 +157,17 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 
 					It("returns 400 if visibilities for the plan exist", func() {
-						ctx.SMWithOAuth.POST("/v1/visibilities").
+						ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 							WithJSON(common.Object{
 								"service_plan_id": existingPlanIDs[0],
 								"platform_id":     existingPlatformID,
 							}).
 							Expect().Status(http.StatusCreated)
 
-						ctx.SMWithOAuth.GET("/v1/visibilities").
+						ctx.SMWithOAuth.GET(web.VisibilitiesURL).
 							Expect().Status(http.StatusOK).JSON().Path("$.visibilities[*].service_plan_id").Array().Contains(existingPlanIDs[0])
 
-						ctx.SMWithOAuth.POST("/v1/visibilities").
+						ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 							WithJSON(common.Object{
 								"service_plan_id": existingPlanIDs[0],
 							}).
@@ -177,11 +178,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("with not existing related service plan", func() {
 					It("returns 400", func() {
 						planID := "not-existing"
-						ctx.SMWithOAuth.GET("/v1/service_plans/"+planID).
+						ctx.SMWithOAuth.GET(web.ServicePlansURL+"/"+planID).
 							WithJSON(postVisibilityRequestNoLabels).
 							Expect().Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
 
-						ctx.SMWithOAuth.POST("/v1/visibilities").
+						ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 							WithJSON(common.Object{
 								"platform_id":     existingPlatformID,
 								"service_plan_id": planID,
@@ -192,7 +193,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("with missing related service plan", func() {
 					It("returns 400", func() {
-						ctx.SMWithOAuth.POST("/v1/visibilities").
+						ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 							WithJSON(common.Object{
 								"platform_id": existingPlatformID,
 							}).
@@ -203,11 +204,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("with valid existing platform id and service plan id", func() {
 					Context("when a record with the same platform id and service plan id already exists", func() {
 						It("returns 409", func() {
-							ctx.SMWithOAuth.POST("/v1/visibilities").
+							ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 								WithJSON(postVisibilityRequestNoLabels).
 								Expect().Status(http.StatusCreated)
 
-							ctx.SMWithOAuth.POST("/v1/visibilities").
+							ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 								WithJSON(postVisibilityRequestNoLabels).
 								Expect().Status(http.StatusConflict).JSON().Object().Keys().Contains("error", "description")
 						})
@@ -215,13 +216,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("when a record with null platform id and the same service plan id already exists", func() {
 						It("returns 400", func() {
-							ctx.SMWithOAuth.POST("/v1/visibilities").
+							ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 								WithJSON(common.Object{
 									"service_plan_id": existingPlanIDs[0],
 								}).
 								Expect().Status(http.StatusCreated)
 
-							ctx.SMWithOAuth.POST("/v1/visibilities").
+							ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 								WithJSON(common.Object{
 									"service_plan_id": existingPlanIDs[0],
 									"platform_id":     existingPlatformID,
@@ -233,7 +234,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("when a record with the same or null platform id does not exist", func() {
 						It("returns 201", func() {
-							ctx.SMWithOAuth.POST("/v1/visibilities").
+							ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 								WithJSON(postVisibilityRequestNoLabels).
 								Expect().Status(http.StatusCreated).JSON().Object().ContainsMap(postVisibilityRequestNoLabels).Keys().Contains("id")
 						})
@@ -242,7 +243,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("Labelled", func() {
 					Context("When labels are valid", func() {
 						It("should return 201", func() {
-							ctx.SMWithOAuth.POST("/v1/visibilities").
+							ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 								WithJSON(postVisibilityRequestWithLabels).
 								Expect().Status(http.StatusCreated).JSON().Object().Keys().Contains("id", "labels")
 						})
@@ -250,13 +251,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("When creating labeled visibility for which a public one exists", func() {
 						It("Should return 409", func() {
-							ctx.SMWithOAuth.POST("/v1/visibilities").
+							ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 								WithJSON(postVisibilityRequestNoLabels).
 								Expect().Status(http.StatusCreated)
 
 							oldVisibility := postVisibilityRequestNoLabels
 							oldVisibility["labels"] = labels
-							ctx.SMWithOAuth.POST("/v1/visibilities").
+							ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 								WithJSON(oldVisibility).
 								Expect().Status(http.StatusConflict)
 						})
@@ -265,7 +266,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("When creating labeled visibility with key containing forbidden character", func() {
 						It("Should return 400", func() {
 							labels[fmt.Sprintf("containing%cseparator", query.Separator)] = common.Array{"val"}
-							ctx.SMWithOAuth.POST("/v1/visibilities").
+							ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 								WithJSON(postVisibilityRequestWithLabels).
 								Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains("cannot contain whitespaces and special symbol")
 						})
@@ -275,7 +276,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						It("Should return 400", func() {
 							labels[`key with
 	new line`] = common.Array{"label-value"}
-							ctx.SMWithOAuth.POST("/v1/visibilities").
+							ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 								WithJSON(postVisibilityRequestWithLabels).
 								Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains("cannot contain whitespaces and special symbol")
 						})
@@ -287,7 +288,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	"key": "k1",
 	"val": "val1"
 	}`}
-							ctx.SMWithOAuth.POST("/v1/visibilities").
+							ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 								WithJSON(postVisibilityRequestWithLabels).
 								Expect().Status(http.StatusBadRequest)
 						})
@@ -316,7 +317,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						"service_plan_id": existingPlanIDs[1],
 					}
 
-					existingVisibilityID = ctx.SMWithOAuth.POST("/v1/visibilities").
+					existingVisibilityID = ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 						WithJSON(existingVisibilityReqBody).
 						Expect().Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
 
@@ -332,12 +333,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 
 					It("returns 200", func() {
-						ctx.SMWithOAuth.PATCH("/v1/visibilities/" + existingVisibilityID).
+						ctx.SMWithOAuth.PATCH(web.VisibilitiesURL + "/" + existingVisibilityID).
 							WithJSON(updatedVisibilityReqBody).
 							Expect().
 							Status(http.StatusOK).JSON().Object().ContainsMap(expectedUpdatedVisibilityRespBody)
 
-						ctx.SMWithOAuth.GET("/v1/visibilities/" + existingVisibilityID).
+						ctx.SMWithOAuth.GET(web.VisibilitiesURL + "/" + existingVisibilityID).
 							Expect().
 							Status(http.StatusOK).JSON().Object().ContainsMap(expectedUpdatedVisibilityRespBody)
 					})
@@ -357,15 +358,51 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							update := common.Object{}
 							update[prop] = val
 							expectedUpdatedVisibilityRespBody[prop] = val
-							ctx.SMWithOAuth.PATCH("/v1/visibilities/" + existingVisibilityID).
+							ctx.SMWithOAuth.PATCH(web.VisibilitiesURL + "/" + existingVisibilityID).
 								WithJSON(update).
 								Expect().
 								Status(http.StatusOK).JSON().Object().ContainsMap(expectedUpdatedVisibilityRespBody)
 
-							ctx.SMWithOAuth.GET("/v1/visibilities/" + existingVisibilityID).
+							ctx.SMWithOAuth.GET(web.VisibilitiesURL + "/" + existingVisibilityID).
 								Expect().
 								Status(http.StatusOK).JSON().Object().ContainsMap(expectedUpdatedVisibilityRespBody)
 						}
+					})
+				})
+
+				Context("when platform_id is empty", func() {
+					BeforeEach(func() {
+						expectedUpdatedVisibilityRespBody = common.Object{
+							"service_plan_id": existingPlanIDs[2],
+							"platform_id":     "",
+						}
+						existingVisibilityID = ctx.SMWithOAuth.POST(web.VisibilitiesURL).
+							WithJSON(expectedUpdatedVisibilityRespBody).
+							Expect().
+							Status(http.StatusCreated).JSON().Object().ContainsMap(expectedUpdatedVisibilityRespBody).Value("id").String().Raw()
+					})
+
+					It("returns 200 and add label", func() {
+						expectedUpdatedVisibilityRespBody["labels"] = types.Labels{
+							"key": []string{"value"},
+						}
+						ctx.SMWithOAuth.PATCH(web.VisibilitiesURL + "/" + existingVisibilityID).
+							WithJSON(common.Object{
+								"labels": common.Array{
+									query.LabelChange{
+										Operation: query.AddLabelOperation,
+										Key:       "key",
+										Values:    []string{"value"},
+									},
+								},
+							}).
+							Expect().
+							Status(http.StatusOK).JSON().Object().
+							ContainsMap(expectedUpdatedVisibilityRespBody)
+
+						ctx.SMWithOAuth.GET(web.VisibilitiesURL + "/" + existingVisibilityID).
+							Expect().
+							Status(http.StatusOK).JSON().Object().ContainsMap(expectedUpdatedVisibilityRespBody)
 					})
 				})
 
@@ -373,7 +410,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					It("should not update created_at", func() {
 						createdAt := "2015-01-01T00:00:00Z"
 
-						ctx.SMWithOAuth.PATCH("/v1/visibilities/"+existingVisibilityID).
+						ctx.SMWithOAuth.PATCH(web.VisibilitiesURL+"/"+existingVisibilityID).
 							WithJSON(common.Object{
 								"created_at": createdAt,
 							}).
@@ -382,7 +419,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							ContainsKey("created_at").
 							ValueNotEqual("created_at", createdAt)
 
-						ctx.SMWithOAuth.GET("/v1/visibilities/"+existingVisibilityID).
+						ctx.SMWithOAuth.GET(web.VisibilitiesURL+"/"+existingVisibilityID).
 							Expect().
 							Status(http.StatusOK).JSON().Object().
 							ContainsKey("created_at").
@@ -394,7 +431,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					It("should not update updated_at", func() {
 						updatedAt := "2015-01-01T00:00:00Z"
 
-						ctx.SMWithOAuth.PATCH("/v1/visibilities/"+existingVisibilityID).
+						ctx.SMWithOAuth.PATCH(web.VisibilitiesURL+"/"+existingVisibilityID).
 							WithJSON(common.Object{
 								"updated_at": updatedAt,
 							}).
@@ -403,7 +440,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							ContainsKey("updated_at").
 							ValueNotEqual("updated_at", updatedAt)
 
-						ctx.SMWithOAuth.GET("/v1/visibilities/"+existingVisibilityID).
+						ctx.SMWithOAuth.GET(web.VisibilitiesURL+"/"+existingVisibilityID).
 							Expect().
 							Status(http.StatusOK).JSON().Object().
 							ContainsKey("updated_at").
@@ -414,13 +451,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("when id is in the body", func() {
 					It("should not update the id", func() {
 						id := "123"
-						ctx.SMWithOAuth.PATCH("/v1/visibilities/" + existingVisibilityID).
+						ctx.SMWithOAuth.PATCH(web.VisibilitiesURL + "/" + existingVisibilityID).
 							WithJSON(common.Object{
 								"id": id,
 							}).
 							Expect().Status(http.StatusOK)
 
-						ctx.SMWithOAuth.GET("/v1/visibilities/"+id).
+						ctx.SMWithOAuth.GET(web.VisibilitiesURL+"/"+id).
 							Expect().Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
 					})
 				})
@@ -428,10 +465,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("when related service plan does not exist", func() {
 					It("returns 400", func() {
 						planID := "does-not-exist"
-						ctx.SMWithOAuth.GET("/v1/service_plans/"+planID).
+						ctx.SMWithOAuth.GET(web.ServicePlansURL+"/"+planID).
 							Expect().Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
 
-						ctx.SMWithOAuth.PATCH("/v1/visibilities/"+existingVisibilityID).
+						ctx.SMWithOAuth.PATCH(web.VisibilitiesURL+"/"+existingVisibilityID).
 							WithJSON(common.Object{
 								"platform_id":     existingPlatformID,
 								"service_plan_id": planID,
@@ -443,10 +480,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("when related platform does not exist", func() {
 					It("returns 400", func() {
 						platformID := "does-not-exist"
-						ctx.SMWithOAuth.GET("/v1/platforms/"+platformID).
+						ctx.SMWithOAuth.GET(web.PlatformsURL+"/"+platformID).
 							Expect().Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
 
-						ctx.SMWithOAuth.PATCH("/v1/visibilities/"+existingVisibilityID).
+						ctx.SMWithOAuth.PATCH(web.VisibilitiesURL+"/"+existingVisibilityID).
 							WithJSON(common.Object{
 								"platform_id":     platformID,
 								"service_plan_id": existingPlanIDs[0],
@@ -458,10 +495,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("when visibility does not exist", func() {
 					It("returns 404", func() {
 						id := "does-not-exist"
-						ctx.SMWithOAuth.GET("/v1/visibilities/"+id).
+						ctx.SMWithOAuth.GET(web.VisibilitiesURL+"/"+id).
 							Expect().Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
 
-						ctx.SMWithOAuth.PATCH("/v1/visibilities/"+id).
+						ctx.SMWithOAuth.PATCH(web.VisibilitiesURL+"/"+id).
 							WithJSON(common.Object{}).
 							Expect().
 							Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
@@ -487,7 +524,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 						patchLabelsBody["labels"] = patchLabels
 
-						id = ctx.SMWithOAuth.POST("/v1/visibilities").
+						id = ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 							WithJSON(postVisibilityRequestWithLabels).
 							Expect().Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
 					})
@@ -495,7 +532,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("Add new label", func() {
 						It("Should return 200", func() {
 							label := types.Labels{changedLabelKey: changedLabelValues}
-							ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+							ctx.SMWithOAuth.PATCH(web.VisibilitiesURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusOK).JSON().Object().Value("labels").Object().ContainsMap(label)
@@ -504,12 +541,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("Add label with existing key and value", func() {
 						It("Should return 200", func() {
-							ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+							ctx.SMWithOAuth.PATCH(web.VisibilitiesURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusOK)
 
-							ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+							ctx.SMWithOAuth.PATCH(web.VisibilitiesURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusOK)
@@ -527,7 +564,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							for _, val := range changedLabelValues {
 								labelValuesObj = append(labelValuesObj, val)
 							}
-							ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+							ctx.SMWithOAuth.PATCH(web.VisibilitiesURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusOK).JSON().
@@ -547,7 +584,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								labelValuesObj = append(labelValuesObj, val)
 							}
 
-							ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+							ctx.SMWithOAuth.PATCH(web.VisibilitiesURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusOK).JSON().
@@ -564,7 +601,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 
 						It("Should return 200", func() {
-							ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+							ctx.SMWithOAuth.PATCH(web.VisibilitiesURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusOK)
@@ -577,7 +614,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							changedLabelKey = "cluster_id"
 						})
 						It("Should return 200", func() {
-							ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+							ctx.SMWithOAuth.PATCH(web.VisibilitiesURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusOK).JSON().
@@ -591,7 +628,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							changedLabelKey = ""
 						})
 						It("Should return 400", func() {
-							ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+							ctx.SMWithOAuth.PATCH(web.VisibilitiesURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusBadRequest)
@@ -604,7 +641,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							changedLabelKey = "non-existing-ey"
 						})
 						It("Should return 200", func() {
-							ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+							ctx.SMWithOAuth.PATCH(web.VisibilitiesURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusOK)
@@ -620,7 +657,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							changedLabelValues = []string{valueToRemove}
 						})
 						It("Should return 200", func() {
-							ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+							ctx.SMWithOAuth.PATCH(web.VisibilitiesURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusOK).JSON().
@@ -639,7 +676,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							changedLabelValues = valuesToRemove
 						})
 						It("Should return 200", func() {
-							ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+							ctx.SMWithOAuth.PATCH(web.VisibilitiesURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusOK).JSON().
@@ -659,7 +696,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							changedLabelValues = valuesToRemove
 						})
 						It("Should return 200 with this key gone", func() {
-							ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+							ctx.SMWithOAuth.PATCH(web.VisibilitiesURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusOK).JSON().
@@ -673,7 +710,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							changedLabelValues = []string{}
 						})
 						It("Should return 400", func() {
-							ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+							ctx.SMWithOAuth.PATCH(web.VisibilitiesURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusBadRequest)
@@ -687,7 +724,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							changedLabelValues = []string{"non-existing-value"}
 						})
 						It("Should return 200", func() {
-							ctx.SMWithOAuth.PATCH("/v1/visibilities/" + id).
+							ctx.SMWithOAuth.PATCH(web.VisibilitiesURL + "/" + id).
 								WithJSON(patchLabelsBody).
 								Expect().
 								Status(http.StatusOK)
@@ -709,23 +746,23 @@ func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext) common.Ob
 		catalog.AddService(cService)
 		id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
 
-		object := ctx.SMWithOAuth.GET("/v1/service_offerings").WithQuery("fieldQuery", "broker_id = "+id).
+		object := ctx.SMWithOAuth.GET(web.ServiceOfferingsURL).WithQuery("fieldQuery", "broker_id = "+id).
 			Expect()
 
 		so := object.Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().First()
 
-		servicePlanID := ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("fieldQuery", fmt.Sprintf("service_offering_id = %s", so.Object().Value("id").String().Raw())).
+		servicePlanID := ctx.SMWithOAuth.GET(web.ServicePlansURL).WithQuery("fieldQuery", fmt.Sprintf("service_offering_id = %s", so.Object().Value("id").String().Raw())).
 			Expect().
 			Status(http.StatusOK).JSON().Object().Value("service_plans").Array().First().Object().Value("id").String().Raw()
 		visReqBody["service_plan_id"] = servicePlanID
 		if setNullFieldsValues {
-			platformID := ctx.SMWithOAuth.POST("/v1/platforms").WithJSON(common.GenerateRandomPlatform()).
+			platformID := ctx.SMWithOAuth.POST(web.PlatformsURL).WithJSON(common.GenerateRandomPlatform()).
 				Expect().
 				Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
 			visReqBody["platform_id"] = platformID
 		}
 
-		visibility := ctx.SMWithOAuth.POST("/v1/visibilities").WithJSON(visReqBody).Expect().
+		visibility := ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(visReqBody).Expect().
 			Status(http.StatusCreated).JSON().Object().Raw()
 		return visibility
 	}

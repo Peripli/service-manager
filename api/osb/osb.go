@@ -27,7 +27,7 @@ const (
 	// BrokerIDPathParam is a service broker ID path parameter
 	BrokerIDPathParam = "brokerID"
 
-	// baseURL is the OSB API controller path
+	// baseURL is the OSB API Controller path
 	baseURL = web.OSBURL + "/{" + BrokerIDPathParam + "}"
 
 	catalogURL                        = baseURL + "/v2/catalog"
@@ -39,7 +39,7 @@ const (
 )
 
 // Routes implements api.Controller.Routes by providing the routes for the OSB API
-func (c *controller) Routes() []web.Route {
+func (c *Controller) Routes() []web.Route {
 	return []web.Route{
 		{Endpoint: web.Endpoint{Method: http.MethodGet, Path: catalogURL}, Handler: c.catalogHandler},
 
