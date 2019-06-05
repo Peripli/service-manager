@@ -17,10 +17,21 @@ type orderRule struct {
 	orderType query.OrderType
 }
 
+type queryStringBuilder struct {
+	strings.Builder
+}
+
+func (qsb *queryStringBuilder) Replace(old, new string) {
+	current := qsb.String()
+	qsb.Reset()
+	current = strings.Replace(current, old, new, 1)
+	qsb.WriteString(current)
+}
+
 type QueryBuilder struct {
 	db pgDB
 
-	sql         string
+	sql         queryStringBuilder
 	queryParams []interface{}
 
 	labelCriteria, fieldCriteria []query.Criterion
@@ -52,13 +63,13 @@ func (qb *QueryBuilder) List(ctx context.Context, entity PostgresEntity) (*sqlx.
 	} else {
 		baseQuery = constructBaseQueryForLabelable(label, baseTableName)
 	}
-	qb.sql = baseQuery
+	qb.sql.WriteString(baseQuery)
 
 	if err := qb.finalizeSQL(entity); err != nil {
 		return nil, err
 	}
 
-	return qb.db.QueryxContext(ctx, qb.sql, qb.queryParams...)
+	return qb.db.QueryxContext(ctx, qb.sql.String(), qb.queryParams...)
 }
 
 func (qb *QueryBuilder) Delete(ctx context.Context, entity PostgresEntity) (*sqlx.Rows, error) {
@@ -66,7 +77,7 @@ func (qb *QueryBuilder) Delete(ctx context.Context, entity PostgresEntity) (*sql
 		return nil, qb.err
 	}
 	baseTableName := entity.TableName()
-	qb.sql = fmt.Sprintf("DELETE FROM %s", baseTableName)
+	qb.sql.WriteString(fmt.Sprintf("DELETE FROM %s", baseTableName))
 	for len(qb.labelCriteria) > 0 {
 		return nil, &util.UnsupportedQueryError{Message: "conditional delete is only supported for field queries"}
 	}
@@ -74,7 +85,7 @@ func (qb *QueryBuilder) Delete(ctx context.Context, entity PostgresEntity) (*sql
 	if err := qb.finalizeSQL(entity); err != nil {
 		return nil, err
 	}
-	return qb.db.QueryxContext(ctx, qb.sql, qb.queryParams...)
+	return qb.db.QueryxContext(ctx, qb.sql.String(), qb.queryParams...)
 }
 
 func (qb *QueryBuilder) Return(fields ...string) *QueryBuilder {
@@ -150,8 +161,10 @@ func (qb *QueryBuilder) finalizeSQL(entity PostgresEntity) error {
 		return qb.err
 	}
 
-	qb.sql = qb.db.Rebind(qb.sql)
-	qb.sql += ";"
+	sql := qb.sql.String()
+	qb.sql.Reset()
+	qb.sql.WriteString(qb.db.Rebind(sql))
+	qb.sql.WriteString(";")
 	return nil
 }
 
@@ -162,23 +175,23 @@ func (qb *QueryBuilder) orderBySQL() *QueryBuilder {
 			sql += fmt.Sprintf(" %s %s,", orderRule.field, qb.orderTypeToSQL(orderRule.orderType))
 		}
 		sql = sql[:len(sql)-1]
-		qb.sql += sql
+		qb.sql.WriteString(sql)
 	}
 	return qb
 }
 
 func (qb *QueryBuilder) limitSQL() *QueryBuilder {
 	if qb.limit > 0 {
-		qb.sql += fmt.Sprintf(" LIMIT %d", qb.limit)
+		qb.sql.WriteString(fmt.Sprintf(" LIMIT %d", qb.limit))
 	}
 	return qb
 }
 
 func (qb *QueryBuilder) returningSQL() *QueryBuilder {
 	if len(qb.returningFields) == 1 && qb.returningFields[0] == "*" {
-		qb.sql += " RETURNING *"
+		qb.sql.WriteString(" RETURNING *")
 	} else if len(qb.returningFields) > 0 {
-		qb.sql += " RETURNING " + strings.Join(qb.returningFields, ",")
+		qb.sql.WriteString(" RETURNING " + strings.Join(qb.returningFields, ","))
 	}
 	return qb
 }
@@ -188,7 +201,7 @@ func (qb *QueryBuilder) lockSQL(tableName string) *QueryBuilder {
 		// Lock the rows if we are in transaction so that update operations on those rows can rely on unchanged data
 		// This allows us to handle concurrent updates on the same rows by executing them sequentially as
 		// before updating we have to anyway select the rows and can therefore lock them
-		qb.sql += fmt.Sprintf(" FOR SHARE of %s", tableName)
+		qb.sql.WriteString(fmt.Sprintf(" FOR SHARE of %s", tableName))
 	}
 	return qb
 }
@@ -210,7 +223,7 @@ func (qb *QueryBuilder) labelCriteriaSQL(entity PostgresEntity, criteria []query
 		labelSubQuery += strings.Join(labelQueries, " OR ")
 		labelSubQuery += "))"
 
-		qb.sql = strings.Replace(qb.sql, "LEFT JOIN", "JOIN "+labelSubQuery, 1)
+		qb.sql.Replace("LEFT JOIN", "JOIN "+labelSubQuery)
 	}
 	return qb
 }
@@ -222,7 +235,7 @@ func (qb *QueryBuilder) fieldCriteriaSQL(entity PostgresEntity, criteria []query
 	var fieldQueries []string
 
 	if len(criteria) > 0 {
-		qb.sql += " WHERE "
+		qb.sql.WriteString(" WHERE ")
 		for _, option := range criteria {
 			var ttype reflect.Type
 			if dbTags != nil {
@@ -244,7 +257,7 @@ func (qb *QueryBuilder) fieldCriteriaSQL(entity PostgresEntity, criteria []query
 			fieldQueries = append(fieldQueries, clause)
 			qb.queryParams = append(qb.queryParams, rightOpQueryValue)
 		}
-		qb.sql += strings.Join(fieldQueries, " AND ")
+		qb.sql.WriteString(strings.Join(fieldQueries, " AND "))
 	}
 	return qb
 }
@@ -283,9 +296,13 @@ func (qb *QueryBuilder) expandMultivariateOp() *QueryBuilder {
 	if hasMultiVariateOp(qb.criteria) {
 		var err error
 		// sqlx.In requires question marks(?) instead of positional arguments (the ones pgsql uses) in order to map the list argument to the IN operation
-		if qb.sql, qb.queryParams, err = sqlx.In(qb.sql, qb.queryParams...); err != nil {
+		var sql string
+		if sql, qb.queryParams, err = sqlx.In(qb.sql.String(), qb.queryParams...); err != nil {
 			qb.err = err
+			return qb
 		}
+		qb.sql.Reset()
+		qb.sql.WriteString(sql)
 	}
 	return qb
 }
