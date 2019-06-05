@@ -21,10 +21,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"sync"
 	"sync/atomic"
 
 	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
@@ -50,7 +52,7 @@ type Notificator struct {
 
 	consumersMutex    *sync.Mutex
 	consumers         *consumers
-	storage           notificationStorage
+	storage           storage.Repository
 	connectionCreator notificationConnectionCreator
 
 	notificationFilters []storage.ReceiversFilterFunc
@@ -61,15 +63,11 @@ type Notificator struct {
 }
 
 // NewNotificator returns new Notificator based on a given NotificatorStorage and desired queue size
-func NewNotificator(st storage.Storage, settings *storage.Settings) (*Notificator, error) {
-	ns, err := NewNotificationStorage(st)
+func NewNotificator(st storage.Repository, settings *storage.Settings) (*Notificator, error) {
 	connectionCreator := &notificationConnectionCreatorImpl{
 		storageURI:           settings.URI,
 		minReconnectInterval: settings.Notification.MinReconnectInterval,
 		maxReconnectInterval: settings.Notification.MaxReconnectInterval,
-	}
-	if err != nil {
-		return nil, err
 	}
 
 	return &Notificator{
@@ -80,7 +78,7 @@ func NewNotificator(st storage.Storage, settings *storage.Settings) (*Notificato
 			queues:    make(map[string][]storage.NotificationQueue),
 			platforms: make([]*types.Platform, 0),
 		},
-		storage:           ns,
+		storage:           st,
 		connectionCreator: connectionCreator,
 		lastKnownRevision: types.InvalidRevision,
 	}, nil
@@ -161,8 +159,36 @@ func (n *Notificator) filterRecipients(recipients []*types.Platform, notificatio
 	return recipients
 }
 
+func (n *Notificator) getNotificationByRevision(revision int64) (*types.Notification, error) {
+	revisionQuery := query.ByField(query.EqualsOperator, "revision", strconv.FormatInt(revision, 10))
+	objectList, err := n.storage.List(n.ctx, types.NotificationType, revisionQuery)
+	if err != nil {
+		return nil, err
+	}
+	if objectList.Len() == 0 {
+		return nil, util.ErrNotFoundInStorage
+	}
+	if objectList.Len() > 1 {
+		return nil, fmt.Errorf("expected one notification with revision %d got %d", revision, objectList.Len())
+	}
+	notificationsList := objectList.(*types.Notifications)
+	return notificationsList.Notifications[0], nil
+}
+
+func (n *Notificator) listNotifications(lastKnownRevision, lastKnownRevisionToSM int64, platformID string) ([]*types.Notification, error) {
+	listQuery1 := query.ByField(query.GreaterThanOperator, "revision", strconv.FormatInt(lastKnownRevision, 10))
+	listQuery2 := query.ByField(query.LessThanOrEqualOperator, "revision", strconv.FormatInt(lastKnownRevisionToSM, 10))
+	filterByPlatform := query.ByField(query.EqualsOrNilOperator, "platform_id", platformID)
+	orderByRevision := query.WithOrder("revision", query.AscOrder)
+	list, err := n.storage.List(n.ctx, types.NotificationType, orderByRevision, listQuery1, listQuery2, filterByPlatform)
+	if err != nil {
+		return nil, err
+	}
+	return list.(*types.Notifications).Notifications, nil
+}
+
 func (n *Notificator) replaceQueueWithMissingNotificationsQueue(queue storage.NotificationQueue, lastKnownRevision, lastKnownRevisionToSM int64, platform *types.Platform) (storage.NotificationQueue, error) {
-	if _, err := n.storage.GetNotificationByRevision(n.ctx, lastKnownRevision); err != nil {
+	if _, err := n.getNotificationByRevision(lastKnownRevision); err != nil {
 		if err == util.ErrNotFoundInStorage {
 			log.C(n.ctx).WithError(err).Debugf("notification with revision %d not found in storage", lastKnownRevision)
 			return nil, util.ErrInvalidNotificationRevision
@@ -170,10 +196,11 @@ func (n *Notificator) replaceQueueWithMissingNotificationsQueue(queue storage.No
 		return nil, err
 	}
 
-	missedNotifications, err := n.storage.ListNotifications(n.ctx, platform.ID, lastKnownRevision, lastKnownRevisionToSM)
+	missedNotifications, err := n.listNotifications(lastKnownRevision, lastKnownRevisionToSM, platform.ID)
 	if err != nil {
 		return nil, err
 	}
+
 	filteredMissedNotification := make([]*types.Notification, 0, len(missedNotifications))
 	for _, notification := range missedNotifications {
 		recipients := n.filterRecipients([]*types.Platform{platform}, notification)
@@ -298,10 +325,11 @@ func (n *Notificator) processNotificationPayload(payload *notifyEventPayload) er
 	if len(recipients) == 0 {
 		return nil
 	}
-	notification, err := n.storage.GetNotification(n.ctx, notificationID)
+	obj, err := n.storage.Get(n.ctx, types.NotificationType, notificationID)
 	if err != nil {
 		return fmt.Errorf("notification %s could not be retrieved from the DB: %v", notificationID, err.Error())
 	}
+	notification := obj.(*types.Notification)
 	recipients = n.filterRecipients(recipients, notification)
 	for _, platform := range recipients {
 		n.sendNotificationToPlatformConsumers(n.consumers.GetQueuesForPlatform(platform.ID), notification)
@@ -351,6 +379,18 @@ func (n *Notificator) stopListening() error {
 	return n.connection.Unlisten(postgresChannel)
 }
 
+func (n *Notificator) getLastRevision() (int64, error) {
+	result, err := n.storage.List(n.ctx, types.NotificationType, query.WithLimit("1"), query.WithOrder("revision", query.DescOrder))
+	if err != nil {
+		return 0, fmt.Errorf("could not get last notification revision from db %v", err)
+	}
+	notification := result.(*types.Notifications).Notifications
+	if len(notification) == 0 {
+		return 0, nil
+	}
+	return notification[0].Revision, nil
+}
+
 func (n *Notificator) startListening() error {
 	n.connectionMutex.Lock()
 	defer n.connectionMutex.Unlock()
@@ -361,7 +401,8 @@ func (n *Notificator) startListening() error {
 	if err != nil {
 		return err
 	}
-	lastKnownRevision, err := n.storage.GetLastRevision(n.ctx)
+
+	lastKnownRevision, err := n.getLastRevision()
 	if err != nil {
 		if errUnlisten := n.connection.Unlisten(postgresChannel); errUnlisten != nil {
 			log.C(n.ctx).WithError(errUnlisten).Errorf("could not unlisten %s channel", postgresChannel)
