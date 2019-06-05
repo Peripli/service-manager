@@ -105,6 +105,32 @@ var _ = Describe("Postgres Storage Query builder", func() {
 				Expect(queryArgs).To(HaveLen(0))
 			})
 
+			When("order by criteria is invalid", func() {
+				It("should return error for missing order type", func() {
+					_, err := qb.
+						WithCriteria(query.Criterion{
+							Type:    query.ResultQuery,
+							LeftOp:  query.OrderBy,
+							RightOp: []string{"id"},
+						}).
+						List(ctx, entity)
+					Expect(err).Should(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("order by clause (id) expects order type, but has none"))
+				})
+
+				It("should return error for missing field and order type", func() {
+					_, err := qb.
+						WithCriteria(query.Criterion{
+							Type:    query.ResultQuery,
+							LeftOp:  query.OrderBy,
+							RightOp: []string{},
+						}).
+						List(ctx, entity)
+					Expect(err).Should(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("order by clause expects field and order type, but has none"))
+				})
+			})
+
 			It("should build query with limit sugar", func() {
 				_, err := qb.
 					Limit(10).
@@ -130,7 +156,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 				It("should return error", func() {
 					_, err := qb.OrderBy("unknown-field", query.AscOrder).List(ctx, entity)
 					Expect(err).Should(HaveOccurred())
-					Expect(err.Error()).To(ContainSubstring("unsupported field for order by: unknown-field"))
+					Expect(err.Error()).To(ContainSubstring("unsupported entity field: unknown-field"))
 				})
 			})
 
@@ -167,6 +193,23 @@ var _ = Describe("Postgres Storage Query builder", func() {
 				expectedQuery := fmt.Sprintf("DELETE FROM visibilities RETURNING *;")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).To(Equal(expectedQuery))
+			})
+		})
+
+		Context("when returning certain fields is defined", func() {
+			It("should construct query with returning fields", func() {
+				_, err := qb.Return("id", "service_plan_id").Delete(ctx, entity)
+				expectedQuery := fmt.Sprintf("DELETE FROM visibilities RETURNING id,service_plan_id;")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(executedQuery).To(Equal(expectedQuery))
+			})
+
+			When("unknown field is needed", func() {
+				It("should return error for unsupported field", func() {
+					_, err := qb.Return("unknown-field").Delete(ctx, entity)
+					Expect(err).Should(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("unsupported entity field: unknown-field"))
+				})
 			})
 		})
 

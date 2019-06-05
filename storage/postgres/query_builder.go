@@ -79,14 +79,11 @@ func (qb *QueryBuilder) Delete(ctx context.Context, entity PostgresEntity) (*sql
 
 func (qb *QueryBuilder) Return(fields ...string) *QueryBuilder {
 	qb.returningFields = append(qb.returningFields, fields...)
+
 	return qb
 }
 
 func (qb *QueryBuilder) Limit(limit int) *QueryBuilder {
-	if qb.err != nil {
-		return qb
-	}
-
 	if limit <= 0 {
 		qb.err = fmt.Errorf("limit (%d) should be greater than 0", limit)
 		return qb
@@ -98,10 +95,6 @@ func (qb *QueryBuilder) Limit(limit int) *QueryBuilder {
 }
 
 func (qb *QueryBuilder) OrderBy(field string, orderType query.OrderType) *QueryBuilder {
-	if qb.err != nil {
-		return qb
-	}
-
 	qb.orderByFields = append(qb.orderByFields, orderRule{
 		field:     field,
 		orderType: orderType,
@@ -111,10 +104,6 @@ func (qb *QueryBuilder) OrderBy(field string, orderType query.OrderType) *QueryB
 }
 
 func (qb *QueryBuilder) WithCriteria(criteria ...query.Criterion) *QueryBuilder {
-	if qb.err != nil {
-		return qb
-	}
-
 	if len(criteria) == 0 {
 		return qb
 	}
@@ -130,9 +119,6 @@ func (qb *QueryBuilder) WithCriteria(criteria ...query.Criterion) *QueryBuilder 
 }
 
 func (qb *QueryBuilder) WithLock() *QueryBuilder {
-	if qb.err != nil {
-		return qb
-	}
 	if _, ok := qb.db.(*sqlx.Tx); ok {
 		qb.hasLock = true
 	}
@@ -140,10 +126,15 @@ func (qb *QueryBuilder) WithLock() *QueryBuilder {
 }
 
 func (qb *QueryBuilder) finalizeSQL(entity PostgresEntity) error {
-	if err := validateFieldQueryParams(getDBTags(entity, nil), qb.criteria); err != nil {
+	entityTags := getDBTags(entity, nil)
+	columns := columnsByTags(entityTags)
+	if err := validateFieldQueryParams(columns, qb.criteria); err != nil {
 		return err
 	}
-	if err := validateOrderByField(getDBTags(entity, nil), qb.orderByFields...); err != nil {
+	if err := validateOrderFields(columns, qb.orderByFields...); err != nil {
+		return err
+	}
+	if err := validateReturningFields(columns, qb.returningFields...); err != nil {
 		return err
 	}
 
@@ -203,9 +194,6 @@ func (qb *QueryBuilder) lockSQL(tableName string) *QueryBuilder {
 }
 
 func (qb *QueryBuilder) labelCriteriaSQL(entity PostgresEntity, criteria []query.Criterion) *QueryBuilder {
-	if qb.err != nil {
-		return qb
-	}
 	var labelQueries []string
 
 	labelEntity := entity.LabelEntity()
@@ -228,9 +216,6 @@ func (qb *QueryBuilder) labelCriteriaSQL(entity PostgresEntity, criteria []query
 }
 
 func (qb *QueryBuilder) fieldCriteriaSQL(entity PostgresEntity, criteria []query.Criterion) *QueryBuilder {
-	if qb.err != nil {
-		return qb
-	}
 	baseTableName := entity.TableName()
 	dbTags := getDBTags(entity, nil)
 
@@ -272,8 +257,12 @@ func (qb *QueryBuilder) processResultCriteria(resultQuery []query.Criterion) *Qu
 		}
 		switch c.LeftOp {
 		case query.OrderBy:
+			if len(c.RightOp) < 1 {
+				qb.err = fmt.Errorf("order by clause expects field and order type, but has none")
+				return qb
+			}
 			if len(c.RightOp) < 2 {
-				qb.err = fmt.Errorf("order by clause expects ordering type, but has none")
+				qb.err = fmt.Errorf("order by clause (%s) expects order type, but has none", c.RightOp[0])
 				return qb
 			}
 			qb.OrderBy(c.RightOp[0], query.OrderType(c.RightOp[1]))
@@ -313,13 +302,29 @@ func (qb *QueryBuilder) orderTypeToSQL(orderType query.OrderType) string {
 	return ""
 }
 
-func validateOrderByField(tags []tagType, orderRules ...orderRule) error {
-	columns := columnsByTags(tags)
-	for _, field := range orderRules {
-		if !columns[field.field] {
-			return &util.UnsupportedQueryError{Message: fmt.Sprintf("unsupported field for order by: %s", field.field)}
+func validateOrderFields(columns map[string]bool, orderRules ...orderRule) error {
+	fields := make([]string, 0, len(orderRules))
+	for _, or := range orderRules {
+		fields = append(fields, or.field)
+	}
+	return validateFields(columns, fields...)
+}
+
+func validateReturningFields(columns map[string]bool, returningFields ...string) error {
+	if len(returningFields) > 0 {
+		if returningFields[0] == "*" {
+			return nil
+		}
+		return validateFields(columns, returningFields...)
+	}
+	return nil
+}
+
+func validateFields(columns map[string]bool, fields ...string) error {
+	for _, field := range fields {
+		if !columns[field] {
+			return &util.UnsupportedQueryError{Message: fmt.Sprintf("unsupported entity field: %s", field)}
 		}
 	}
 	return nil
-
 }
