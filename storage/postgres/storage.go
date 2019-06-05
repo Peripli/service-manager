@@ -211,7 +211,7 @@ func (ps *Storage) List(ctx context.Context, objType types.ObjectType, criteria 
 	}
 
 	qBuilder := NewQueryBuilder(ps.pgDB)
-	rows, err := qBuilder.WithCriteria(criteria...).OrderBy("created_at").WithLock().List(ctx, entity)
+	rows, err := qBuilder.WithCriteria(criteria...).OrderBy("created_at", query.AscOrder).WithLock().List(ctx, entity)
 	if err != nil {
 		return nil, err
 	}

@@ -12,6 +12,11 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+type orderRule struct {
+	field     string
+	orderType query.OrderType
+}
+
 type QueryBuilder struct {
 	db pgDB
 
@@ -19,7 +24,7 @@ type QueryBuilder struct {
 	queryParams []interface{}
 
 	labelCriteria, fieldCriteria []query.Criterion
-	orderByFields                []string
+	orderByFields                []orderRule
 	limit                        int
 	criteria                     []query.Criterion
 	hasLock                      bool
@@ -114,12 +119,15 @@ func (qb *QueryBuilder) Limit(limit int) *QueryBuilder {
 	return qb
 }
 
-func (qb *QueryBuilder) OrderBy(fields ...string) *QueryBuilder {
+func (qb *QueryBuilder) OrderBy(field string, orderType query.OrderType) *QueryBuilder {
 	if qb.err != nil {
 		return qb
 	}
 
-	qb.orderByFields = append(qb.orderByFields, fields...)
+	qb.orderByFields = append(qb.orderByFields, orderRule{
+		field:     field,
+		orderType: orderType,
+	})
 
 	return qb
 }
@@ -161,7 +169,11 @@ func (qb *QueryBuilder) processResultCriteria(resultQuery []query.Criterion) *Qu
 		}
 		switch c.LeftOp {
 		case query.OrderBy:
-			qb.OrderBy(c.RightOp...)
+			if len(c.RightOp) < 2 {
+				qb.err = fmt.Errorf("order by clause expects ordering type, but has none")
+				return qb
+			}
+			qb.OrderBy(c.RightOp[0], query.OrderType(c.RightOp[1]))
 		case query.Limit:
 			limit, err := strconv.Atoi(c.RightOp[0])
 			if err != nil {
@@ -177,8 +189,12 @@ func (qb *QueryBuilder) processResultCriteria(resultQuery []query.Criterion) *Qu
 
 func (qb *QueryBuilder) orderBySQL() *QueryBuilder {
 	if len(qb.orderByFields) > 0 {
-		orderFields := strings.Join(qb.orderByFields, ",")
-		qb.sql += fmt.Sprintf(" ORDER BY %s", orderFields)
+		sql := " ORDER BY"
+		for _, orderRule := range qb.orderByFields {
+			sql += fmt.Sprintf(" %s %s,", orderRule.field, orderTypeToSQL(orderRule.orderType))
+		}
+		sql = sql[:len(sql)-1]
+		qb.sql += sql
 	}
 	return qb
 }
@@ -280,4 +296,14 @@ func (qb *QueryBuilder) expandMultivariateOp() *QueryBuilder {
 		}
 	}
 	return qb
+}
+
+func orderTypeToSQL(orderType query.OrderType) string {
+	switch orderType {
+	case query.AscOrder:
+		return "ASC"
+	case query.DescOrder:
+		return "DESC"
+	}
+	return ""
 }
