@@ -18,30 +18,30 @@ package common
 
 import (
 	"context"
+	"encoding/base64"
 	"flag"
 	"fmt"
-	"github.com/Peripli/service-manager/config"
+	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"path"
 	"runtime"
-
-	"github.com/Peripli/service-manager/pkg/util"
-
 	"sync"
 
+	"github.com/gavv/httpexpect"
 	"github.com/gofrs/uuid"
-
-	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/storage"
-
-	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/gorilla/websocket"
 	"github.com/onsi/ginkgo"
 	"github.com/spf13/pflag"
 
+	"github.com/Peripli/service-manager/config"
 	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/sm"
-	"github.com/gavv/httpexpect"
-	. "github.com/onsi/ginkgo"
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/storage"
 )
 
 func init() {
@@ -67,7 +67,8 @@ type TestContextBuilder struct {
 }
 
 type TestContext struct {
-	wg *sync.WaitGroup
+	wg            *sync.WaitGroup
+	wsConnections []*websocket.Conn
 
 	SM           *httpexpect.Expect
 	SMWithOAuth  *httpexpect.Expect
@@ -228,7 +229,7 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 	smServer, smRepository := newSMServer(environment, wg, tcb.smExtensions)
 	tcb.Servers[SMServer] = smServer
 
-	SM := httpexpect.New(GinkgoT(), smServer.URL())
+	SM := httpexpect.New(ginkgo.GinkgoT(), smServer.URL())
 	oauthServer := tcb.Servers[OauthServer].(*OAuthServer)
 	accessToken := oauthServer.CreateToken(tcb.defaultTokenClaims)
 	SMWithOAuth := SM.Builder(func(req *httpexpect.Request) {
@@ -394,11 +395,14 @@ func (ctx *TestContext) Cleanup() {
 	if ctx == nil {
 		return
 	}
+
 	ctx.CleanupAdditionalResources()
+
 	for _, server := range ctx.Servers {
 		server.Close()
 	}
 	ctx.Servers = map[string]FakeServer{}
+
 	ctx.wg.Wait()
 }
 
@@ -428,4 +432,45 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 		}
 	}
 	ctx.Servers = map[string]FakeServer{SMServer: smServer}
+
+	for _, conn := range ctx.wsConnections {
+		conn.Close()
+	}
+	ctx.wsConnections = nil
+}
+
+func (ctx *TestContext) ConnectWebSocket(platform *types.Platform, queryParams map[string]string) (*websocket.Conn, *http.Response, error) {
+	smURL := ctx.Servers[SMServer].URL()
+	smEndpoint, _ := url.Parse(smURL)
+	smEndpoint.Scheme = "ws"
+	smEndpoint.Path = web.NotificationsURL
+	q := smEndpoint.Query()
+	for k, v := range queryParams {
+		q.Add(k, v)
+	}
+	smEndpoint.RawQuery = q.Encode()
+
+	headers := http.Header{}
+	encodedPlatform := base64.StdEncoding.EncodeToString([]byte(platform.Credentials.Basic.Username + ":" + platform.Credentials.Basic.Password))
+	headers.Add("Authorization", "Basic "+encodedPlatform)
+
+	wsEndpoint := smEndpoint.String()
+	conn, resp, err := websocket.DefaultDialer.Dial(wsEndpoint, headers)
+	if conn != nil {
+		ctx.wsConnections = append(ctx.wsConnections, conn)
+	}
+	return conn, resp, err
+}
+
+func (ctx *TestContext) CloseWebSocket(conn *websocket.Conn) {
+	if conn == nil {
+		return
+	}
+	conn.Close()
+	for i, c := range ctx.wsConnections {
+		if c == conn {
+			ctx.wsConnections = append(ctx.wsConnections[:i], ctx.wsConnections[i+1:]...)
+			return
+		}
+	}
 }
