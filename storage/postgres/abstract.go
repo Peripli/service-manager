@@ -93,12 +93,17 @@ func create(ctx context.Context, db pgDB, table string, resultDto interface{}, a
 	return checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
 }
 
-func validateFieldQueryParams(tags []tagType, criteria []query.Criterion) error {
+func columnsByTags(tags []tagType) map[string]bool {
 	availableColumns := make(map[string]bool)
 	for _, dbTag := range tags {
 		tagValues := strings.Split(dbTag.Tag, ",")
 		availableColumns[tagValues[0]] = true
 	}
+	return availableColumns
+}
+
+func validateFieldQueryParams(tags []tagType, criteria []query.Criterion) error {
+	availableColumns := columnsByTags(tags)
 	for _, criterion := range criteria {
 		if criterion.Type == query.FieldQuery && !availableColumns[criterion.LeftOp] {
 			return &util.UnsupportedQueryError{Message: fmt.Sprintf("unsupported field query key: %s", criterion.LeftOp)}

@@ -77,28 +77,6 @@ func (qb *QueryBuilder) Delete(ctx context.Context, entity PostgresEntity) (*sql
 	return qb.db.QueryxContext(ctx, qb.sql, qb.queryParams...)
 }
 
-func (qb *QueryBuilder) finalizeSQL(entity PostgresEntity) error {
-	if err := validateFieldQueryParams(getDBTags(entity, nil), qb.criteria); err != nil {
-		return err
-	}
-
-	qb.labelCriteriaSQL(entity, qb.labelCriteria).
-		fieldCriteriaSQL(entity, qb.fieldCriteria).
-		orderBySQL().
-		limitSQL().
-		lockSQL(entity.TableName()).
-		returningSQL().
-		expandMultivariateOp()
-
-	if qb.err != nil {
-		return qb.err
-	}
-
-	qb.sql = qb.db.Rebind(qb.sql)
-	qb.sql += ";"
-	return nil
-}
-
 func (qb *QueryBuilder) Return(fields ...string) *QueryBuilder {
 	qb.returningFields = append(qb.returningFields, fields...)
 	return qb
@@ -161,37 +139,36 @@ func (qb *QueryBuilder) WithLock() *QueryBuilder {
 	return qb
 }
 
-func (qb *QueryBuilder) processResultCriteria(resultQuery []query.Criterion) *QueryBuilder {
-	for _, c := range resultQuery {
-		if c.Type != query.ResultQuery {
-			qb.err = fmt.Errorf("result query is expected, but %s is provided", c.Type)
-			return qb
-		}
-		switch c.LeftOp {
-		case query.OrderBy:
-			if len(c.RightOp) < 2 {
-				qb.err = fmt.Errorf("order by clause expects ordering type, but has none")
-				return qb
-			}
-			qb.OrderBy(c.RightOp[0], query.OrderType(c.RightOp[1]))
-		case query.Limit:
-			limit, err := strconv.Atoi(c.RightOp[0])
-			if err != nil {
-				qb.err = err
-				return qb
-			}
-			qb.Limit(limit)
-		}
+func (qb *QueryBuilder) finalizeSQL(entity PostgresEntity) error {
+	if err := validateFieldQueryParams(getDBTags(entity, nil), qb.criteria); err != nil {
+		return err
+	}
+	if err := validateOrderByField(getDBTags(entity, nil), qb.orderByFields...); err != nil {
+		return err
 	}
 
-	return qb
+	qb.labelCriteriaSQL(entity, qb.labelCriteria).
+		fieldCriteriaSQL(entity, qb.fieldCriteria).
+		orderBySQL().
+		limitSQL().
+		lockSQL(entity.TableName()).
+		returningSQL().
+		expandMultivariateOp()
+
+	if qb.err != nil {
+		return qb.err
+	}
+
+	qb.sql = qb.db.Rebind(qb.sql)
+	qb.sql += ";"
+	return nil
 }
 
 func (qb *QueryBuilder) orderBySQL() *QueryBuilder {
 	if len(qb.orderByFields) > 0 {
 		sql := " ORDER BY"
 		for _, orderRule := range qb.orderByFields {
-			sql += fmt.Sprintf(" %s %s,", orderRule.field, orderTypeToSQL(orderRule.orderType))
+			sql += fmt.Sprintf(" %s %s,", orderRule.field, qb.orderTypeToSQL(orderRule.orderType))
 		}
 		sql = sql[:len(sql)-1]
 		qb.sql += sql
@@ -287,6 +264,32 @@ func (qb *QueryBuilder) fieldCriteriaSQL(entity PostgresEntity, criteria []query
 	return qb
 }
 
+func (qb *QueryBuilder) processResultCriteria(resultQuery []query.Criterion) *QueryBuilder {
+	for _, c := range resultQuery {
+		if c.Type != query.ResultQuery {
+			qb.err = fmt.Errorf("result query is expected, but %s is provided", c.Type)
+			return qb
+		}
+		switch c.LeftOp {
+		case query.OrderBy:
+			if len(c.RightOp) < 2 {
+				qb.err = fmt.Errorf("order by clause expects ordering type, but has none")
+				return qb
+			}
+			qb.OrderBy(c.RightOp[0], query.OrderType(c.RightOp[1]))
+		case query.Limit:
+			limit, err := strconv.Atoi(c.RightOp[0])
+			if err != nil {
+				qb.err = err
+				return qb
+			}
+			qb.Limit(limit)
+		}
+	}
+
+	return qb
+}
+
 func (qb *QueryBuilder) expandMultivariateOp() *QueryBuilder {
 	if hasMultiVariateOp(qb.criteria) {
 		var err error
@@ -298,12 +301,25 @@ func (qb *QueryBuilder) expandMultivariateOp() *QueryBuilder {
 	return qb
 }
 
-func orderTypeToSQL(orderType query.OrderType) string {
+func (qb *QueryBuilder) orderTypeToSQL(orderType query.OrderType) string {
 	switch orderType {
 	case query.AscOrder:
 		return "ASC"
 	case query.DescOrder:
 		return "DESC"
+	default:
+		qb.err = fmt.Errorf("unsupported order type: %s", string(orderType))
 	}
 	return ""
+}
+
+func validateOrderByField(tags []tagType, orderRules ...orderRule) error {
+	columns := columnsByTags(tags)
+	for _, field := range orderRules {
+		if !columns[field.field] {
+			return &util.UnsupportedQueryError{Message: fmt.Sprintf("unsupported field for order by: %s", field.field)}
+		}
+	}
+	return nil
+
 }

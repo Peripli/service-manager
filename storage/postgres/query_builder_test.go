@@ -20,6 +20,8 @@ import (
 var _ = Describe("Postgres Storage Query builder", func() {
 	var executedQuery string
 	var queryArgs []interface{}
+	var ctx = context.Background()
+	var entity *postgres.Visibility
 	var qb *postgres.QueryBuilder
 
 	db := &postgresfakes.FakePgDB{}
@@ -43,28 +45,17 @@ var _ = Describe("Postgres Storage Query builder", func() {
 	}
 
 	BeforeEach(func() {
+		entity = &postgres.Visibility{}
 		qb = postgres.NewQueryBuilder(db)
 	})
 
 	Describe("List", func() {
 		Context("when there are no criterias", func() {
 			It("should build simple query for labeable entity", func() {
-				_, err := qb.List(context.Background(), &postgres.Visibility{})
+				_, err := qb.List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(MatchRegexp("SELECT.*FROM visibilities LEFT JOIN"))
 				Expect(queryArgs).To(HaveLen(0))
-			})
-		})
-
-		Context("when field criteria is used", func() {
-			It("should build right query", func() {
-				_, err := qb.
-					WithCriteria(query.ByField(query.EqualsOperator, "id", "1")).
-					List(context.Background(), &postgres.Visibility{})
-				Expect(err).ShouldNot(HaveOccurred())
-				Expect(executedQuery).Should(MatchRegexp("SELECT.*FROM visibilities LEFT JOIN .* WHERE"))
-				Expect(queryArgs).To(HaveLen(1))
-				Expect(queryArgs[0]).Should(Equal("1"))
 			})
 		})
 
@@ -72,7 +63,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 			It("should build query with label criteria", func() {
 				_, err := qb.
 					WithCriteria(query.ByLabel(query.EqualsOperator, "labelKey", "labelValue")).
-					List(context.Background(), &postgres.Visibility{})
+					List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(MatchRegexp("SELECT.*FROM visibilities JOIN \\(SELECT.*\\)"))
 				Expect(queryArgs).To(HaveLen(2))
@@ -81,24 +72,34 @@ var _ = Describe("Postgres Storage Query builder", func() {
 			})
 		})
 
-		Context("when list criteria is used", func() {
+		Context("when criteria is used", func() {
+			It("should build right query", func() {
+				_, err := qb.
+					WithCriteria(query.ByField(query.EqualsOperator, "id", "1")).
+					List(ctx, entity)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(executedQuery).Should(MatchRegexp("SELECT.*FROM visibilities LEFT JOIN .* WHERE"))
+				Expect(queryArgs).To(HaveLen(1))
+				Expect(queryArgs[0]).Should(Equal("1"))
+			})
+
 			It("should build query with order by clause", func() {
 				_, err := qb.
 					WithCriteria(query.WithOrder("id", query.DescOrder)).
-					List(context.Background(), &postgres.Visibility{})
+					List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(MatchRegexp("SELECT.*FROM visibilities .* ORDER BY id DESC;"))
 				Expect(queryArgs).To(HaveLen(0))
 			})
 
-			It("should build query with list criteria limit clause", func() {
+			It("should build query with criteria limit clause", func() {
 				_, err := qb.
 					WithCriteria(query.Criterion{
 						Type:    query.ResultQuery,
 						LeftOp:  query.Limit,
 						RightOp: []string{"10"},
 					}).
-					List(context.Background(), &postgres.Visibility{})
+					List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(MatchRegexp("SELECT.*FROM visibilities .* LIMIT 10;"))
 				Expect(queryArgs).To(HaveLen(0))
@@ -107,7 +108,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 			It("should build query with limit sugar", func() {
 				_, err := qb.
 					Limit(10).
-					List(context.Background(), &postgres.Visibility{})
+					List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(MatchRegexp("SELECT.*FROM visibilities .* LIMIT 10;"))
 				Expect(queryArgs).To(HaveLen(0))
@@ -117,10 +118,36 @@ var _ = Describe("Postgres Storage Query builder", func() {
 				_, err := qb.
 					Limit(10).
 					OrderBy("id", query.AscOrder).
-					List(context.Background(), &postgres.Visibility{})
+					List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(MatchRegexp("SELECT.*FROM visibilities .* ORDER BY id ASC LIMIT 10;"))
 				Expect(queryArgs).To(HaveLen(0))
+			})
+		})
+
+		Context("when order by is used", func() {
+			Context("and field is uknown", func() {
+				It("should return error", func() {
+					_, err := qb.OrderBy("unknown-field", query.AscOrder).List(ctx, entity)
+					Expect(err).Should(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("unsupported field for order by: unknown-field"))
+				})
+			})
+
+			Context("and order type is unknown", func() {
+				It("should return error", func() {
+					_, err := qb.OrderBy("id", "unknown-order").List(ctx, entity)
+					Expect(err).Should(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("unsupported order type: unknown-order"))
+				})
+			})
+		})
+
+		Context("when limit is negative", func() {
+			It("should return error", func() {
+				_, err := qb.Limit(-1).List(ctx, entity)
+				Expect(err).Should(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("limit (-1) should be greater than 0"))
 			})
 		})
 	})
@@ -129,14 +156,14 @@ var _ = Describe("Postgres Storage Query builder", func() {
 		Context("When deleting by label", func() {
 			It("Should return an error", func() {
 				criteria := query.ByLabel(query.EqualsOperator, "left", "right")
-				_, err := qb.WithCriteria(criteria).Delete(context.Background(), &postgres.Visibility{})
+				_, err := qb.WithCriteria(criteria).Delete(ctx, entity)
 				Expect(err).To(HaveOccurred())
 			})
 		})
 
 		Context("When no criteria is passed", func() {
 			It("Should construct query to delete all entries", func() {
-				_, err := qb.Return("*").Delete(context.Background(), &postgres.Visibility{})
+				_, err := qb.Return("*").Delete(ctx, entity)
 				expectedQuery := fmt.Sprintf("DELETE FROM visibilities RETURNING *;")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).To(Equal(expectedQuery))
@@ -146,7 +173,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 		Context("When criteria uses missing field", func() {
 			It("Should return error", func() {
 				criteria := query.ByField(query.EqualsOperator, "non-existing-field", "value")
-				_, err := qb.WithCriteria(criteria).Delete(context.Background(), &postgres.Visibility{})
+				_, err := qb.WithCriteria(criteria).Delete(ctx, entity)
 				Expect(err).To(HaveOccurred())
 			})
 		})
