@@ -67,24 +67,16 @@ type Operator interface {
 }
 
 var (
-	operators = []Operator{
+	// Operators returns the supported query operators
+	Operators = []Operator{
 		EqualsOperator, NotEqualsOperator,
 		GreaterThanOperator, LessThanOperator,
 		GreaterThanOrEqualOperator, LessThanOrEqualOperator,
 		InOperator, NotInOperator, EqualsOrNilOperator,
 	}
-	criteriaTypes = []CriterionType{FieldQuery, LabelQuery}
+	// CriteriaTypes returns the supported query criteria types
+	CriteriaTypes = []CriterionType{FieldQuery, LabelQuery}
 )
-
-// Operators returns the supported query operators
-func Operators() []Operator {
-	return operators
-}
-
-// CriteriaTypes returns the supported query criteria types
-func CriteriaTypes() []CriterionType {
-	return criteriaTypes
-}
 
 // Criterion is a single part of a query criteria
 type Criterion struct {

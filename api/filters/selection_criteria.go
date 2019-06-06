@@ -45,7 +45,7 @@ func (*SelectionCriteria) Name() string {
 func (l *SelectionCriteria) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 	var criteria []query.Criterion
-	for _, queryType := range query.CriteriaTypes() {
+	for _, queryType := range query.CriteriaTypes {
 		queryValue := req.URL.Query().Get(string(queryType))
 		unescaped, err := url.QueryUnescape(queryValue)
 		if err != nil {

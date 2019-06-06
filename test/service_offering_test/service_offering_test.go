@@ -17,10 +17,10 @@
 package service_test
 
 import (
+	"fmt"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
-	"fmt"
 	"net/http"
 	"testing"
 

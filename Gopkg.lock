@@ -17,6 +17,14 @@
   version = "v1.5.1"
 
 [[projects]]
+  digest = "1:d04889482897652dedae6d8575b479c06fa3eb3c3abe248163b25d3df5fab43e"
+  name = "github.com/antlr/antlr4"
+  packages = ["runtime/Go/antlr"]
+  pruneopts = "UT"
+  revision = "be58ebffde8e29c154192c019608f0a5b8e6a064"
+  version = "4.7.2"
+
+[[projects]]
   branch = "master"
   digest = "1:270034307d19ff986d62b52ae7b75c058d80642073b525328ba7b856720932ad"
   name = "github.com/benjamintf1/unmarshalledmatchers"
@@ -680,6 +688,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/DATA-DOG/go-sqlmock",
+    "github.com/antlr/antlr4/runtime/Go/antlr",
     "github.com/benjamintf1/unmarshalledmatchers",
     "github.com/cloudfoundry-community/go-cfenv",
     "github.com/coreos/go-oidc",

@@ -114,7 +114,7 @@ func getCriterionFields(key, op, right antlr.TerminalNode) (leftOp string, opera
 }
 
 func findOpByString(op string) (Operator, error) {
-	for _, operator := range operators {
+	for _, operator := range Operators {
 		if operator.String() == op {
 			return operator, nil
 		}

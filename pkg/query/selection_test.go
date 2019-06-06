@@ -79,7 +79,7 @@ new line`))
 				_, err := AddCriteria(ctx, ByField(LessThanOperator, "leftOp", "5"))
 				Expect(err).ToNot(HaveOccurred())
 			})
-			for _, op := range Operators() {
+			for _, op := range Operators {
 				Specify("With valid operator parameters", func() {
 					_, err := AddCriteria(ctx, ByField(op, "leftOp", "rightop"))
 					Expect(err).ToNot(HaveOccurred())
@@ -112,7 +112,7 @@ new line`))
 	})
 
 	Describe("Parse query", func() {
-		for _, queryType := range CriteriaTypes() {
+		for _, queryType := range CriteriaTypes {
 			Context("With no query", func() {
 				It("Should return empty criteria", func() {
 					criteria, err := Parse(queryType, "")
@@ -211,7 +211,7 @@ new line`))
 			})
 
 			Context("With different operators and query type combinations", func() {
-				for _, op := range Operators() {
+				for _, op := range Operators {
 					for _, queryType := range []CriterionType{FieldQuery, LabelQuery} {
 						It("Should behave as expected", func() {
 							rightOp := []string{"rightOp"}
