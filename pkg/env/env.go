@@ -77,12 +77,7 @@ func CreatePFlags(set *pflag.FlagSet, value interface{}) {
 
 	for i, parameter := range parameters {
 		if set.Lookup(parameter.Name) == nil {
-			switch val := parameter.DefaultValue.(type) {
-			case []string:
-				set.StringSlice(parameter.Name, val, descriptions[i])
-			default:
-				set.Var(&flag{value: val}, parameter.Name, descriptions[i])
-			}
+			set.Var(&flag{value: parameter.DefaultValue}, parameter.Name, descriptions[i])
 		}
 	}
 }
@@ -178,5 +173,10 @@ func (f *flag) Set(s string) error {
 }
 
 func (f *flag) Type() string {
-	return reflect.TypeOf(f.value).Name()
+	flagType := reflect.TypeOf(f.value)
+	if flagType.Kind() == reflect.Slice {
+		return fmt.Sprintf("%sSlice", flagType.Elem().Name())
+	}
+
+	return flagType.Name()
 }
