@@ -75,7 +75,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 
 					It("should limit result to only 1", func() {
-						result, err := ctx.SMRepository.List(context.Background(), types.PlatformType, query.LimitResultBy("1"))
+						result, err := ctx.SMRepository.List(context.Background(), types.PlatformType, query.LimitResultBy(1))
 						Expect(err).ShouldNot(HaveOccurred())
 						Expect(result.Len()).To(Equal(1))
 						Expect((result.ItemAt(0).(*types.Platform)).Name).To(Equal(platform.Name))

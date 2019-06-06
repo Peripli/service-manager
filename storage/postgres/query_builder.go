@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"strconv"
 	"strings"
 
 	"github.com/Peripli/service-manager/pkg/query"
@@ -55,7 +54,7 @@ type pgQuery struct {
 
 	labelCriteria, fieldCriteria []query.Criterion
 	orderByFields                []orderRule
-	limit                        int
+	limit                        string
 	criteria                     []query.Criterion
 	hasLock                      bool
 	returningFields              []string
@@ -63,156 +62,141 @@ type pgQuery struct {
 	err error
 }
 
-func (qb *pgQuery) List(ctx context.Context, entity PostgresEntity) (*sqlx.Rows, error) {
-	if qb.err != nil {
-		return nil, qb.err
+func (pgq *pgQuery) List(ctx context.Context, entity PostgresEntity) (*sqlx.Rows, error) {
+	if pgq.err != nil {
+		return nil, pgq.err
 	}
 
 	baseQuery := constructBaseQueryForLabelable(entity.LabelEntity(), entity.TableName())
-	qb.sql.WriteString(baseQuery)
+	pgq.sql.WriteString(baseQuery)
 
-	if err := qb.finalizeSQL(entity); err != nil {
+	if err := pgq.finalizeSQL(entity); err != nil {
 		return nil, err
 	}
 
-	return qb.db.QueryxContext(ctx, qb.sql.String(), qb.queryParams...)
+	return pgq.db.QueryxContext(ctx, pgq.sql.String(), pgq.queryParams...)
 }
 
-func (qb *pgQuery) Delete(ctx context.Context, entity PostgresEntity) (*sqlx.Rows, error) {
-	if qb.err != nil {
-		return nil, qb.err
+func (pgq *pgQuery) Delete(ctx context.Context, entity PostgresEntity) (*sqlx.Rows, error) {
+	if pgq.err != nil {
+		return nil, pgq.err
 	}
 	baseTableName := entity.TableName()
-	qb.sql.WriteString(fmt.Sprintf("DELETE FROM %s", baseTableName))
-	for len(qb.labelCriteria) > 0 {
+	pgq.sql.WriteString(fmt.Sprintf("DELETE FROM %s", baseTableName))
+	for len(pgq.labelCriteria) > 0 {
 		return nil, &util.UnsupportedQueryError{Message: "conditional delete is only supported for field queries"}
 	}
 
-	if err := qb.finalizeSQL(entity); err != nil {
+	if err := pgq.finalizeSQL(entity); err != nil {
 		return nil, err
 	}
-	return qb.db.QueryxContext(ctx, qb.sql.String(), qb.queryParams...)
+	return pgq.db.QueryxContext(ctx, pgq.sql.String(), pgq.queryParams...)
 }
 
-func (qb *pgQuery) Return(fields ...string) *pgQuery {
-	qb.returningFields = append(qb.returningFields, fields...)
+func (pgq *pgQuery) Return(fields ...string) *pgQuery {
+	pgq.returningFields = append(pgq.returningFields, fields...)
 
-	return qb
+	return pgq
 }
 
-func (qb *pgQuery) Limit(limit int) *pgQuery {
-	if limit <= 0 {
-		qb.err = fmt.Errorf("limit (%d) should be greater than 0", limit)
-		return qb
-	}
-
-	qb.limit = limit
-
-	return qb
-}
-
-func (qb *pgQuery) OrderBy(field string, orderType query.OrderType) *pgQuery {
-	qb.orderByFields = append(qb.orderByFields, orderRule{
-		field:     field,
-		orderType: orderType,
-	})
-
-	return qb
-}
-
-func (qb *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
+func (pgq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
 	if len(criteria) == 0 {
-		return qb
+		return pgq
 	}
 
-	qb.criteria = append(qb.criteria, criteria...)
+	if err := validateCriteria(criteria...); err != nil {
+		pgq.err = err
+		return pgq
+	}
+
+	pgq.criteria = append(pgq.criteria, criteria...)
 	labelCriteria, fieldCriteria, resultCriteria := splitCriteriaByType(criteria)
-	qb.labelCriteria = append(qb.labelCriteria, labelCriteria...)
-	qb.fieldCriteria = append(qb.fieldCriteria, fieldCriteria...)
+	pgq.labelCriteria = append(pgq.labelCriteria, labelCriteria...)
+	pgq.fieldCriteria = append(pgq.fieldCriteria, fieldCriteria...)
 
-	qb.processResultCriteria(resultCriteria)
+	pgq.processResultCriteria(resultCriteria)
 
-	return qb
+	return pgq
 }
 
-func (qb *pgQuery) WithLock() *pgQuery {
-	if _, ok := qb.db.(*sqlx.Tx); ok {
-		qb.hasLock = true
+func (pgq *pgQuery) WithLock() *pgQuery {
+	if _, ok := pgq.db.(*sqlx.Tx); ok {
+		pgq.hasLock = true
 	}
-	return qb
+	return pgq
 }
 
-func (qb *pgQuery) finalizeSQL(entity PostgresEntity) error {
+func (pgq *pgQuery) finalizeSQL(entity PostgresEntity) error {
 	entityTags := getDBTags(entity, nil)
 	columns := columnsByTags(entityTags)
-	if err := validateFieldQueryParams(columns, qb.criteria); err != nil {
+	if err := validateFieldQueryParams(columns, pgq.criteria); err != nil {
 		return err
 	}
-	if err := validateOrderFields(columns, qb.orderByFields...); err != nil {
+	if err := validateOrderFields(columns, pgq.orderByFields...); err != nil {
 		return err
 	}
-	if err := validateReturningFields(columns, qb.returningFields...); err != nil {
+	if err := validateReturningFields(columns, pgq.returningFields...); err != nil {
 		return err
 	}
 
-	qb.labelCriteriaSQL(entity, qb.labelCriteria).
-		fieldCriteriaSQL(entity, qb.fieldCriteria).
+	pgq.labelCriteriaSQL(entity, pgq.labelCriteria).
+		fieldCriteriaSQL(entity, pgq.fieldCriteria).
 		orderBySQL().
 		limitSQL().
 		lockSQL(entity.TableName()).
 		returningSQL().
 		expandMultivariateOp()
 
-	if qb.err != nil {
-		return qb.err
+	if pgq.err != nil {
+		return pgq.err
 	}
 
-	sql := qb.sql.String()
-	qb.sql.Reset()
-	qb.sql.WriteString(qb.db.Rebind(sql))
-	qb.sql.WriteString(";")
+	sql := pgq.sql.String()
+	pgq.sql.Reset()
+	pgq.sql.WriteString(pgq.db.Rebind(sql))
+	pgq.sql.WriteString(";")
 	return nil
 }
 
-func (qb *pgQuery) orderBySQL() *pgQuery {
-	if len(qb.orderByFields) > 0 {
+func (pgq *pgQuery) orderBySQL() *pgQuery {
+	if len(pgq.orderByFields) > 0 {
 		sql := " ORDER BY"
-		for _, orderRule := range qb.orderByFields {
-			sql += fmt.Sprintf(" %s %s,", orderRule.field, qb.orderTypeToSQL(orderRule.orderType))
+		for _, orderRule := range pgq.orderByFields {
+			sql += fmt.Sprintf(" %s %s,", orderRule.field, pgq.orderTypeToSQL(orderRule.orderType))
 		}
 		sql = sql[:len(sql)-1]
-		qb.sql.WriteString(sql)
+		pgq.sql.WriteString(sql)
 	}
-	return qb
+	return pgq
 }
 
-func (qb *pgQuery) limitSQL() *pgQuery {
-	if qb.limit > 0 {
-		qb.sql.WriteString(fmt.Sprintf(" LIMIT %d", qb.limit))
+func (pgq *pgQuery) limitSQL() *pgQuery {
+	if len(pgq.limit) > 0 {
+		pgq.sql.WriteString(fmt.Sprintf(" LIMIT %s", pgq.limit))
 	}
-	return qb
+	return pgq
 }
 
-func (qb *pgQuery) returningSQL() *pgQuery {
-	if len(qb.returningFields) == 1 && qb.returningFields[0] == "*" {
-		qb.sql.WriteString(" RETURNING *")
-	} else if len(qb.returningFields) > 0 {
-		qb.sql.WriteString(" RETURNING " + strings.Join(qb.returningFields, ","))
+func (pgq *pgQuery) returningSQL() *pgQuery {
+	if len(pgq.returningFields) == 1 && pgq.returningFields[0] == "*" {
+		pgq.sql.WriteString(" RETURNING *")
+	} else if len(pgq.returningFields) > 0 {
+		pgq.sql.WriteString(" RETURNING " + strings.Join(pgq.returningFields, ","))
 	}
-	return qb
+	return pgq
 }
 
-func (qb *pgQuery) lockSQL(tableName string) *pgQuery {
-	if qb.hasLock {
+func (pgq *pgQuery) lockSQL(tableName string) *pgQuery {
+	if pgq.hasLock {
 		// Lock the rows if we are in transaction so that update operations on those rows can rely on unchanged data
 		// This allows us to handle concurrent updates on the same rows by executing them sequentially as
 		// before updating we have to anyway select the rows and can therefore lock them
-		qb.sql.WriteString(fmt.Sprintf(" FOR SHARE of %s", tableName))
+		pgq.sql.WriteString(fmt.Sprintf(" FOR SHARE of %s", tableName))
 	}
-	return qb
+	return pgq
 }
 
-func (qb *pgQuery) labelCriteriaSQL(entity PostgresEntity, criteria []query.Criterion) *pgQuery {
+func (pgq *pgQuery) labelCriteriaSQL(entity PostgresEntity, criteria []query.Criterion) *pgQuery {
 	var labelQueries []string
 
 	labelEntity := entity.LabelEntity()
@@ -224,32 +208,32 @@ func (qb *pgQuery) labelCriteriaSQL(entity PostgresEntity, criteria []query.Crit
 			rightOpBindVar, rightOpQueryValue := buildRightOp(option)
 			sqlOperation := translateOperationToSQLEquivalent(option.Operator)
 			labelQueries = append(labelQueries, fmt.Sprintf("(%[1]s.key = ? AND %[1]s.val %[2]s %s)", labelTableName, sqlOperation, rightOpBindVar))
-			qb.queryParams = append(qb.queryParams, option.LeftOp, rightOpQueryValue)
+			pgq.queryParams = append(pgq.queryParams, option.LeftOp, rightOpQueryValue)
 		}
 		labelSubQuery += strings.Join(labelQueries, " OR ")
 		labelSubQuery += "))"
 
-		qb.sql.Replace("LEFT JOIN", "JOIN "+labelSubQuery)
+		pgq.sql.Replace("LEFT JOIN", "JOIN "+labelSubQuery)
 	}
-	return qb
+	return pgq
 }
 
-func (qb *pgQuery) fieldCriteriaSQL(entity PostgresEntity, criteria []query.Criterion) *pgQuery {
+func (pgq *pgQuery) fieldCriteriaSQL(entity PostgresEntity, criteria []query.Criterion) *pgQuery {
 	baseTableName := entity.TableName()
 	dbTags := getDBTags(entity, nil)
 
 	var fieldQueries []string
 
 	if len(criteria) > 0 {
-		qb.sql.WriteString(" WHERE ")
+		pgq.sql.WriteString(" WHERE ")
 		for _, option := range criteria {
 			var ttype reflect.Type
 			if dbTags != nil {
 				var err error
 				ttype, err = findTagType(dbTags, option.LeftOp)
 				if err != nil {
-					qb.err = err
-					return qb
+					pgq.err = err
+					return pgq
 				}
 			}
 			rightOpBindVar, rightOpQueryValue := buildRightOp(option)
@@ -261,66 +245,56 @@ func (qb *pgQuery) fieldCriteriaSQL(entity PostgresEntity, criteria []query.Crit
 				clause = fmt.Sprintf("(%s OR %s.%s IS NULL)", clause, baseTableName, option.LeftOp)
 			}
 			fieldQueries = append(fieldQueries, clause)
-			qb.queryParams = append(qb.queryParams, rightOpQueryValue)
+			pgq.queryParams = append(pgq.queryParams, rightOpQueryValue)
 		}
-		qb.sql.WriteString(strings.Join(fieldQueries, " AND "))
+		pgq.sql.WriteString(strings.Join(fieldQueries, " AND "))
 	}
-	return qb
+	return pgq
 }
 
-func (qb *pgQuery) processResultCriteria(resultQuery []query.Criterion) *pgQuery {
+func (pgq *pgQuery) processResultCriteria(resultQuery []query.Criterion) *pgQuery {
 	for _, c := range resultQuery {
 		if c.Type != query.ResultQuery {
-			qb.err = fmt.Errorf("result query is expected, but %s is provided", c.Type)
-			return qb
+			pgq.err = fmt.Errorf("result query is expected, but %s is provided", c.Type)
+			return pgq
 		}
 		switch c.LeftOp {
 		case query.OrderBy:
-			if len(c.RightOp) < 1 {
-				qb.err = fmt.Errorf("order by clause expects field and order type, but has none")
-				return qb
-			}
-			if len(c.RightOp) < 2 {
-				qb.err = fmt.Errorf("order by clause (%s) expects order type, but has none", c.RightOp[0])
-				return qb
-			}
-			qb.OrderBy(c.RightOp[0], query.OrderType(c.RightOp[1]))
+			pgq.orderByFields = append(pgq.orderByFields, orderRule{
+				field:     c.RightOp[0],
+				orderType: query.OrderType(c.RightOp[1]),
+			})
 		case query.Limit:
-			limit, err := strconv.Atoi(c.RightOp[0])
-			if err != nil {
-				qb.err = err
-				return qb
-			}
-			qb.Limit(limit)
+			pgq.limit = c.RightOp[0]
 		}
 	}
 
-	return qb
+	return pgq
 }
 
-func (qb *pgQuery) expandMultivariateOp() *pgQuery {
-	if hasMultiVariateOp(qb.criteria) {
+func (pgq *pgQuery) expandMultivariateOp() *pgQuery {
+	if hasMultiVariateOp(pgq.criteria) {
 		var err error
 		// sqlx.In requires question marks(?) instead of positional arguments (the ones pgsql uses) in order to map the list argument to the IN operation
 		var sql string
-		if sql, qb.queryParams, err = sqlx.In(qb.sql.String(), qb.queryParams...); err != nil {
-			qb.err = err
-			return qb
+		if sql, pgq.queryParams, err = sqlx.In(pgq.sql.String(), pgq.queryParams...); err != nil {
+			pgq.err = err
+			return pgq
 		}
-		qb.sql.Reset()
-		qb.sql.WriteString(sql)
+		pgq.sql.Reset()
+		pgq.sql.WriteString(sql)
 	}
-	return qb
+	return pgq
 }
 
-func (qb *pgQuery) orderTypeToSQL(orderType query.OrderType) string {
+func (pgq *pgQuery) orderTypeToSQL(orderType query.OrderType) string {
 	switch orderType {
 	case query.AscOrder:
 		return "ASC"
 	case query.DescOrder:
 		return "DESC"
 	default:
-		qb.err = fmt.Errorf("unsupported order type: %s", string(orderType))
+		pgq.err = fmt.Errorf("unsupported order type: %s", string(orderType))
 	}
 	return ""
 }
@@ -347,6 +321,15 @@ func validateFields(columns map[string]bool, errorTemplate string, fields ...str
 	for _, field := range fields {
 		if !columns[field] {
 			return &util.UnsupportedQueryError{Message: fmt.Sprintf(errorTemplate, field)}
+		}
+	}
+	return nil
+}
+
+func validateCriteria(criteria ...query.Criterion) error {
+	for _, c := range criteria {
+		if err := c.Validate(); err != nil {
+			return err
 		}
 	}
 	return nil

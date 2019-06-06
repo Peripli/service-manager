@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/util"
 )
@@ -141,8 +142,9 @@ func OrderResultBy(field string, orderType OrderType) Criterion {
 }
 
 // LimitResultBy constructs a new criterion for limit result with
-func LimitResultBy(limit string) Criterion {
-	return newCriterion(Limit, NoOperator, []string{limit}, ResultQuery)
+func LimitResultBy(limit int) Criterion {
+	limitString := strconv.Itoa(limit)
+	return newCriterion(Limit, NoOperator, []string{limitString}, ResultQuery)
 }
 
 func newCriterion(leftOp string, operator Operator, rightOp []string, criteriaType CriterionType) Criterion {
@@ -151,15 +153,39 @@ func newCriterion(leftOp string, operator Operator, rightOp []string, criteriaTy
 
 // Validate the criterion fields
 func (c Criterion) Validate() error {
+	if c.Type == ResultQuery {
+		if c.LeftOp == Limit {
+			limit, err := strconv.Atoi(c.RightOp[0])
+			if err != nil {
+				return fmt.Errorf("could not cast string to int: %s", err.Error())
+			}
+			if limit < 1 {
+				return &util.UnsupportedQueryError{Message: fmt.Sprintf("limit (%d) is invalid. Limit should be positive number", limit)}
+			}
+		}
+
+		if c.LeftOp == OrderBy {
+			if len(c.RightOp) < 1 {
+				return &util.UnsupportedQueryError{Message: "order by result expects field and order type, but has none"}
+			}
+			if len(c.RightOp) < 2 {
+				return &util.UnsupportedQueryError{Message: fmt.Sprintf(`order by result for field "%s" expects order type, but has none`, c.RightOp[0])}
+			}
+		}
+
+		return nil
+	}
+
 	if len(c.RightOp) > 1 && !c.Operator.IsMultiVariate() {
 		return &util.UnsupportedQueryError{Message: fmt.Sprintf("multiple values %s received for single value operation %s", c.RightOp, c.Operator)}
 	}
 	if c.Operator.IsNullable() && c.Type != FieldQuery {
 		return &util.UnsupportedQueryError{Message: "nullable operations are supported only for field queries"}
 	}
-	if c.Operator.IsNumeric() && !isNumeric(c.RightOp[0]) {
-		return &util.UnsupportedQueryError{Message: fmt.Sprintf("%s is numeric operator, but the right operand %s is not numeric", c.Operator, c.RightOp[0])}
+	if c.Operator.IsNumeric() && !isNumeric(c.RightOp[0]) && !isDateTime(c.RightOp[0]) {
+		return &util.UnsupportedQueryError{Message: fmt.Sprintf("%s is numeric operator, but the right operand %s is not numeric or datetime", c.Operator, c.RightOp[0])}
 	}
+
 	if strings.ContainsRune(c.LeftOp, Separator) {
 		parts := strings.FieldsFunc(c.LeftOp, func(r rune) bool {
 			return r == Separator
@@ -365,5 +391,10 @@ func isNumeric(str string) bool {
 		return true
 	}
 	_, err = strconv.ParseFloat(str, 64)
+	return err == nil
+}
+
+func isDateTime(str string) bool {
+	_, err := time.Parse(time.RFC3339, str)
 	return err == nil
 }

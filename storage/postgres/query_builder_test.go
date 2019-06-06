@@ -92,19 +92,6 @@ var _ = Describe("Postgres Storage Query builder", func() {
 				Expect(queryArgs).To(HaveLen(0))
 			})
 
-			It("should build query with criteria limit clause", func() {
-				_, err := qb.NewQuery().
-					WithCriteria(query.Criterion{
-						Type:    query.ResultQuery,
-						LeftOp:  query.Limit,
-						RightOp: []string{"10"},
-					}).
-					List(ctx, entity)
-				Expect(err).ShouldNot(HaveOccurred())
-				Expect(executedQuery).Should(MatchRegexp("SELECT.*FROM visibilities .* LIMIT 10;"))
-				Expect(queryArgs).To(HaveLen(0))
-			})
-
 			When("order by criteria is invalid", func() {
 				It("should return error for missing order type", func() {
 					_, err := qb.NewQuery().
@@ -115,7 +102,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 						}).
 						List(ctx, entity)
 					Expect(err).Should(HaveOccurred())
-					Expect(err.Error()).To(ContainSubstring("order by clause (id) expects order type, but has none"))
+					Expect(err.Error()).To(ContainSubstring(`order by result for field "id" expects order type, but has none`))
 				})
 
 				It("should return error for missing field and order type", func() {
@@ -127,13 +114,13 @@ var _ = Describe("Postgres Storage Query builder", func() {
 						}).
 						List(ctx, entity)
 					Expect(err).Should(HaveOccurred())
-					Expect(err.Error()).To(ContainSubstring("order by clause expects field and order type, but has none"))
+					Expect(err.Error()).To(ContainSubstring("order by result expects field and order type, but has none"))
 				})
 			})
 
 			It("should build query with limit sugar", func() {
 				_, err := qb.NewQuery().
-					Limit(10).
+					WithCriteria(query.LimitResultBy(10)).
 					List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(MatchRegexp("SELECT.*FROM visibilities .* LIMIT 10;"))
@@ -142,8 +129,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 
 			It("should build query with order by and limit clause", func() {
 				_, err := qb.NewQuery().
-					Limit(10).
-					OrderBy("id", query.AscOrder).
+					WithCriteria(query.LimitResultBy(10), query.OrderResultBy("id", query.AscOrder)).
 					List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(MatchRegexp("SELECT.*FROM visibilities .* ORDER BY id ASC LIMIT 10;"))
@@ -154,7 +140,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 		Context("when order by is used", func() {
 			Context("and field is uknown", func() {
 				It("should return error", func() {
-					_, err := qb.NewQuery().OrderBy("unknown-field", query.AscOrder).List(ctx, entity)
+					_, err := qb.NewQuery().WithCriteria(query.OrderResultBy("unknown-field", query.AscOrder)).List(ctx, entity)
 					Expect(err).Should(HaveOccurred())
 					Expect(err.Error()).To(ContainSubstring("unsupported entity field for order by: unknown-field"))
 				})
@@ -162,7 +148,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 
 			Context("and order type is unknown", func() {
 				It("should return error", func() {
-					_, err := qb.NewQuery().OrderBy("id", "unknown-order").List(ctx, entity)
+					_, err := qb.NewQuery().WithCriteria(query.OrderResultBy("id", "unknown-order")).List(ctx, entity)
 					Expect(err).Should(HaveOccurred())
 					Expect(err.Error()).To(ContainSubstring("unsupported order type: unknown-order"))
 				})
@@ -171,9 +157,9 @@ var _ = Describe("Postgres Storage Query builder", func() {
 
 		Context("when limit is negative", func() {
 			It("should return error", func() {
-				_, err := qb.NewQuery().Limit(-1).List(ctx, entity)
+				_, err := qb.NewQuery().WithCriteria(query.LimitResultBy(-1)).List(ctx, entity)
 				Expect(err).Should(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("limit (-1) should be greater than 0"))
+				Expect(err.Error()).To(ContainSubstring("limit (-1) is invalid. Limit should be positive number"))
 			})
 		})
 	})
