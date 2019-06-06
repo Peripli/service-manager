@@ -19,25 +19,23 @@ package security_test
 import (
 	"context"
 	"crypto/rand"
-	"fmt"
-	"github.com/Peripli/service-manager/pkg/security"
-	"github.com/Peripli/service-manager/pkg/security/securityfakes"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	"log"
 	"testing"
+
+	"github.com/Peripli/service-manager/pkg/security"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
 func TestEncrypter(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Encrypter Test Suite")
+	RunSpecs(t, "encrypter Test Suite")
 }
 
-var _ = Describe("Encrypter", func() {
-
+var _ = Describe("AES Encrypter", func() {
 	var encrypter security.Encrypter
-	var fetcher *securityfakes.FakeKeyFetcher
 	plaintext := []byte("plaintext")
+
 	generateEncryptionKey := func() []byte {
 		encryptionKey := make([]byte, 32)
 		if _, err := rand.Read(encryptionKey); err != nil {
@@ -46,33 +44,23 @@ var _ = Describe("Encrypter", func() {
 		return encryptionKey
 	}
 
-	JustBeforeEach(func() {
-		encrypter = &security.TwoLayerEncrypter{
-			Fetcher: fetcher,
-		}
+	BeforeEach(func() {
+		encrypter = &security.AESEncrypter{}
 	})
 
 	Context("Encrypt", func() {
-		Context("When Fetcher returns an error", func() {
-			expectedError := fmt.Errorf("Error getting encryption key")
-			BeforeEach(func() {
-				fetcher = &securityfakes.FakeKeyFetcher{}
-				fetcher.GetEncryptionKeyReturns(nil, expectedError)
-			})
-			It("Should return error", func() {
-				encryptedString, err := encrypter.Encrypt(context.TODO(), plaintext)
-				Expect(encryptedString).To(BeNil())
-				Expect(err).To(Equal(expectedError))
+		Context("when the key is malformed", func() {
+			It("returns the error", func() {
+				encryptionKey := []byte{}
+				_, err := encrypter.Encrypt(context.TODO(), plaintext, encryptionKey)
+				Expect(err).ToNot(BeNil())
 			})
 		})
-		Context("When fetcher return encryption key", func() {
-			BeforeEach(func() {
-				fetcher = &securityfakes.FakeKeyFetcher{}
+
+		Context("when the key is valid", func() {
+			It("encrypts the data", func() {
 				encryptionKey := generateEncryptionKey()
-				fetcher.GetEncryptionKeyReturns(encryptionKey, nil)
-			})
-			It("Should encrypt the data", func() {
-				encryptedString, err := encrypter.Encrypt(context.TODO(), plaintext)
+				encryptedString, err := encrypter.Encrypt(context.TODO(), plaintext, encryptionKey)
 				Expect(encryptedString).To(Not(BeNil()))
 				Expect(err).To(BeNil())
 			})
@@ -80,32 +68,23 @@ var _ = Describe("Encrypter", func() {
 	})
 
 	Context("Decrypt", func() {
-		Context("When Fetcher returns an error", func() {
-			expectedError := fmt.Errorf("Error getting encryption key")
-			BeforeEach(func() {
-				fetcher = &securityfakes.FakeKeyFetcher{}
-				fetcher.GetEncryptionKeyReturns(nil, expectedError)
-			})
-			It("Should return error", func() {
-				encryptedString, err := encrypter.Decrypt(context.TODO(), []byte("cipher"))
-				Expect(encryptedString).To(BeNil())
-				Expect(err).To(Equal(expectedError))
+		Context("when the key is malformed", func() {
+			It("returns the error", func() {
+				encryptionKey := []byte{}
+				_, err := encrypter.Decrypt(context.TODO(), plaintext, encryptionKey)
+				Expect(err).ToNot(BeNil())
 			})
 		})
-	})
 
-	Context("When fetcher return encryption key", func() {
-		BeforeEach(func() {
-			fetcher = &securityfakes.FakeKeyFetcher{}
-			encryptionKey := generateEncryptionKey()
-			fetcher.GetEncryptionKeyReturns(encryptionKey, nil)
-		})
-		It("Should decrypt the data", func() {
-			encryptedString, _ := encrypter.Encrypt(context.TODO(), plaintext)
-			decryptedBytes, err := encrypter.Decrypt(context.TODO(), encryptedString)
-			Expect(decryptedBytes).To(Not(BeNil()))
-			Expect(err).To(BeNil())
-			Expect(decryptedBytes).To(Equal(plaintext))
+		Context("when the key is valid", func() {
+			It("decrypts the data", func() {
+				encryptionKey := generateEncryptionKey()
+				encryptedString, _ := encrypter.Encrypt(context.TODO(), plaintext, encryptionKey)
+				decryptedBytes, err := encrypter.Decrypt(context.TODO(), encryptedString, encryptionKey)
+				Expect(decryptedBytes).To(Not(BeNil()))
+				Expect(err).To(BeNil())
+				Expect(decryptedBytes).To(Equal(plaintext))
+			})
 		})
 	})
 })

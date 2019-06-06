@@ -17,14 +17,6 @@
   version = "v1.5.1"
 
 [[projects]]
-  digest = "1:d04889482897652dedae6d8575b479c06fa3eb3c3abe248163b25d3df5fab43e"
-  name = "github.com/antlr/antlr4"
-  packages = ["runtime/Go/antlr"]
-  pruneopts = "UT"
-  revision = "be58ebffde8e29c154192c019608f0a5b8e6a064"
-  version = "4.7.2"
-
-[[projects]]
   branch = "master"
   digest = "1:270034307d19ff986d62b52ae7b75c058d80642073b525328ba7b856720932ad"
   name = "github.com/benjamintf1/unmarshalledmatchers"
@@ -131,14 +123,6 @@
   pruneopts = "UT"
   revision = "93d53a5ae84d81945eedadfe8f6865530d61d51c"
   version = "v3.5.1"
-
-[[projects]]
-  branch = "master"
-  digest = "1:1ba1d79f2810270045c328ae5d674321db34e3aae468eb4233883b473c5c0467"
-  name = "github.com/golang/glog"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "23def4e6c14b4da8ac2ed8007337bc5eb5007998"
 
 [[projects]]
   digest = "1:318f1c959a8a740366fce4b1e1eb2fd914036b4af58fbd0a003349b305f118ad"
@@ -372,14 +356,6 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:8658f775ba5edb37ede96d8ec9eaecdfe06bc4aef1776152070185e6513dc0cc"
-  name = "github.com/pmorie/go-open-service-broker-client"
-  packages = ["v2"]
-  pruneopts = "UT"
-  revision = "dca737037ce636eb282e84e3a1c7479c9692e884"
-  version = "0.0.10"
-
-[[projects]]
   branch = "master"
   digest = "1:bd9efe4e0b0f768302a1e2f0c22458149278de533e521206e5ddc71848c269a0"
   name = "github.com/pquerna/cachecontrol"
@@ -572,7 +548,7 @@
     "pbkdf2",
   ]
   pruneopts = "UT"
-  revision = "22d7a77e9e5f409e934ed268692e56707cd169e5"
+  revision = "20be4c3c3ed52bfccdb2d59a412ee1a936d175a7"
 
 [[projects]]
   branch = "master"
@@ -603,11 +579,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:9ca267f99487ef450fff0c2a49eaf0788d9ff3562bbaeff19f564d380f84bc6d"
+  digest = "1:668e8c66b8895d69391429b0f64a72c35603c94f364c94d4e5fab5053d57a0b6"
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "UT"
-  revision = "9cd6430ef91e39e1a0ec0470cf1321a33ef1b887"
+  revision = "69e3a3a65b5bed52b8194d33c59d955757d87523"
 
 [[projects]]
   digest = "1:28deae5fe892797ff37a317b5bcda96d11d1c90dadd89f1337651df3bc4c586e"
@@ -704,7 +680,6 @@
   analyzer-version = 1
   input-imports = [
     "github.com/DATA-DOG/go-sqlmock",
-    "github.com/antlr/antlr4/runtime/Go/antlr",
     "github.com/benjamintf1/unmarshalledmatchers",
     "github.com/cloudfoundry-community/go-cfenv",
     "github.com/coreos/go-oidc",
@@ -726,7 +701,6 @@
     "github.com/onsi/ginkgo/extensions/table",
     "github.com/onsi/gomega",
     "github.com/onsi/gomega/ghttp",
-    "github.com/pmorie/go-open-service-broker-client/v2",
     "github.com/sirupsen/logrus",
     "github.com/spf13/cast",
     "github.com/spf13/pflag",

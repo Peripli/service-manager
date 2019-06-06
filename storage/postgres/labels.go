@@ -76,7 +76,7 @@ func addLabel(ctx context.Context, newLabelFunc func(labelID string, labelKey st
 
 	err = db.GetContext(ctx, newLabel, query, key, value, referenceID)
 	if checkSQLNoRows(err) == util.ErrNotFoundInStorage {
-		if _, err := create(ctx, db, labelTable, newLabel); err != nil {
+		if err := create(ctx, db, labelTable, newLabel, newLabel); err != nil {
 			return err
 		}
 	} else {

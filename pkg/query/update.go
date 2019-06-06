@@ -131,6 +131,9 @@ func ApplyLabelChangesToLabels(changes LabelChanges, labels types.Labels) (types
 					for i, value := range mergedLabels[change.Key] {
 						if value == valueToRemove {
 							mergedLabels[change.Key] = append(mergedLabels[change.Key][:i], mergedLabels[change.Key][i+1:]...)
+							if len(mergedLabels[change.Key]) == 0 {
+								delete(mergedLabels, change.Key)
+							}
 						}
 					}
 				}

@@ -28,7 +28,6 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/query"
 
-	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
@@ -76,6 +75,9 @@ func DefaultSettings() *Settings {
 func (s *Settings) Validate() error {
 	if len(s.URI) == 0 {
 		return fmt.Errorf("validate Settings: StorageURI missing")
+	}
+	if len(s.MigrationsURL) == 0 {
+		return fmt.Errorf("validate Settings: StorageMigrationsURL missing")
 	}
 	if len(s.EncryptionKey) != 32 {
 		return fmt.Errorf("validate Settings: StorageEncryptionKey must be exactly 32 symbols long but was %d symbols long", len(s.EncryptionKey))
@@ -150,7 +152,7 @@ func (mf PingFunc) Ping() error {
 
 type Repository interface {
 	// Create stores a broker in SM DB
-	Create(ctx context.Context, obj types.Object) (string, error)
+	Create(ctx context.Context, obj types.Object) (types.Object, error)
 
 	// Get retrieves a broker using the provided id from SM DB
 	Get(ctx context.Context, objectType types.ObjectType, id string) (types.Object, error)
@@ -163,9 +165,6 @@ type Repository interface {
 
 	// Update updates a broker from SM DB
 	Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error)
-
-	Credentials() Credentials
-	Security() Security
 }
 
 // TransactionalRepository is a storage repository that can initiate a transaction
@@ -176,6 +175,9 @@ type TransactionalRepository interface {
 	InTransaction(ctx context.Context, f func(ctx context.Context, storage Repository) error) error
 }
 
+// TransactionalRepositoryDecorator allows decorating a TransactionalRepository
+type TransactionalRepositoryDecorator func(TransactionalRepository) (TransactionalRepository, error)
+
 // Storage interface provides entity-specific storages
 //go:generate counterfeiter . Storage
 type Storage interface {
@@ -184,29 +186,6 @@ type Storage interface {
 	TransactionalRepository
 
 	Introduce(entity Entity)
-}
-
-// Credentials interface for Credentials db operations
-//go:generate counterfeiter . Credentials
-type Credentials interface {
-	// Get retrieves credentials using the provided username from SM DB
-	Get(ctx context.Context, username string) (*types.Credentials, error)
-}
-
-// Security interface for encryption key operations
-type Security interface {
-	// Lock locks the storage so that only one process can manipulate the encryption key.
-	// Returns an error if the process has already acquired the lock
-	Lock(ctx context.Context) error
-
-	// Unlock releases the acquired lock.
-	Unlock(ctx context.Context) error
-
-	// Fetcher provides means to obtain the encryption key
-	Fetcher() security.KeyFetcher
-
-	// Setter provides means to change the encryption  key
-	Setter() security.KeySetter
 }
 
 // ErrQueueClosed error stating that the queue is closed

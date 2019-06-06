@@ -130,7 +130,7 @@ var _ = Describe("Update", func() {
 	Describe("ApplyLabelChangesToLabels", func() {
 		Context("for changes with add and remove operations", func() {
 			type testEntry struct {
-				IntialLabels           types.Labels
+				InitialLabels          types.Labels
 				Changes                LabelChanges
 				ExpectedMergedLabels   types.Labels
 				ExpectedLabelsToRemove types.Labels
@@ -140,7 +140,7 @@ var _ = Describe("Update", func() {
 			entries := []TableEntry{
 				Entry("mixed",
 					testEntry{
-						IntialLabels: types.Labels{
+						InitialLabels: types.Labels{
 							"organization_guid": {
 								"org0",
 							},
@@ -207,7 +207,7 @@ var _ = Describe("Update", func() {
 					}),
 				Entry("remove key removes all values",
 					testEntry{
-						IntialLabels: types.Labels{
+						InitialLabels: types.Labels{
 							"organization_guid": {
 								"org0",
 							},
@@ -227,10 +227,32 @@ var _ = Describe("Update", func() {
 						},
 						ExpectedLabelsToAdd: types.Labels{},
 					}),
+				Entry("remove last value removes the key too",
+					testEntry{
+						InitialLabels: types.Labels{
+							"organization_guid": {
+								"org0",
+							},
+						},
+						Changes: LabelChanges{
+							&LabelChange{
+								Operation: RemoveLabelValuesOperation,
+								Key:       "organization_guid",
+								Values:    []string{"org0"},
+							},
+						},
+						ExpectedMergedLabels: types.Labels{},
+						ExpectedLabelsToRemove: types.Labels{
+							"organization_guid": {
+								"org0",
+							},
+						},
+						ExpectedLabelsToAdd: types.Labels{},
+					}),
 			}
 
 			DescribeTable("", func(t testEntry) {
-				mergedLabels, labelsToAdd, labelsToRemove := ApplyLabelChangesToLabels(t.Changes, t.IntialLabels)
+				mergedLabels, labelsToAdd, labelsToRemove := ApplyLabelChangesToLabels(t.Changes, t.InitialLabels)
 
 				Expect(mergedLabels).To(Equal(t.ExpectedMergedLabels))
 				Expect(labelsToAdd).To(Equal(t.ExpectedLabelsToAdd))

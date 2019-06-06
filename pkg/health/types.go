@@ -102,15 +102,19 @@ type AggregationPolicy interface {
 	Apply(healths map[string]*Health) *Health
 }
 
-// Registry is an interface to store and fetch health indicators
-type Registry interface {
-	// AddHealthIndicators registers a new health indicator
-	AddHealthIndicator(indicator Indicator)
-	// HealthIndicators returns the currently registered health indicators
-	HealthIndicators() []Indicator
+// NewDefaultRegistry returns a default health registry with a single ping indicator and a default aggregation policy
+func NewDefaultRegistry() *Registry {
+	return &Registry{
+		HealthIndicators:        []Indicator{&pingIndicator{}},
+		HealthAggregationPolicy: &DefaultAggregationPolicy{},
+	}
+}
 
-	// RegisterHealthAggregationPolicy sets the health aggregationPolicy
-	RegisterHealthAggregationPolicy(aggregator AggregationPolicy)
-	// HealthAggregationPolicy returns the registered health aggregationPolicy
-	HealthAggregationPolicy() AggregationPolicy
+// Registry is an interface to store and fetch health indicators
+type Registry struct {
+	// HealthIndicators are the currently registered health indicators
+	HealthIndicators []Indicator
+
+	// HealthAggregationPolicy is the registered health aggregationPolicy
+	HealthAggregationPolicy AggregationPolicy
 }

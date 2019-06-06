@@ -39,8 +39,7 @@ func TestVisibilities(t *testing.T) {
 }
 
 var _ = test.DescribeTestsFor(test.TestCase{
-	API:            web.VisibilitiesURL,
-	SupportsLabels: true,
+	API: web.VisibilitiesURL,
 	SupportedOps: []test.Op{
 		test.Get, test.List, test.Delete, test.DeleteList,
 	},

@@ -20,6 +20,7 @@ import (
 	"database/sql"
 
 	"github.com/Peripli/service-manager/storage"
+	sqlxtypes "github.com/jmoiron/sqlx/types"
 
 	"github.com/Peripli/service-manager/pkg/types"
 )
@@ -33,7 +34,9 @@ type Broker struct {
 	BrokerURL   string             `db:"broker_url"`
 	Username    string             `db:"username"`
 	Password    string             `db:"password"`
-	Services    []*ServiceOffering `db:"-"`
+	Catalog     sqlxtypes.JSONText `db:"catalog"`
+
+	Services []*ServiceOffering `db:"-"`
 }
 
 func (e *Broker) ToObject() types.Object {
@@ -57,6 +60,7 @@ func (e *Broker) ToObject() types.Object {
 				Password: e.Password,
 			},
 		},
+		Catalog:  getJSONRawMessage(e.Catalog),
 		Services: services,
 	}
 	return broker
@@ -80,9 +84,10 @@ func (*Broker) FromObject(object types.Object) (storage.Entity, bool) {
 			CreatedAt: broker.CreatedAt,
 			UpdatedAt: broker.UpdatedAt,
 		},
-		Description: toNullString(broker.Description),
 		Name:        broker.Name,
+		Description: toNullString(broker.Description),
 		BrokerURL:   broker.BrokerURL,
+		Catalog:     getJSONText(broker.Catalog),
 		Services:    services,
 	}
 	if broker.Credentials != nil && broker.Credentials.Basic != nil {

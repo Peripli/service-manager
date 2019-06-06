@@ -19,12 +19,9 @@ package postgres
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/query"
-
-	"github.com/Peripli/service-manager/pkg/security"
 )
 
 const securityLockIndex = 111
@@ -36,16 +33,11 @@ type Safe struct {
 	UpdatedAt time.Time `db:"updated_at"`
 }
 
-type securityStorage struct {
-	db            pgDB
-	encryptionKey []byte
-	isLocked      bool
-	mutex         *sync.Mutex
-}
-
 // Lock acquires a database lock so that only one process can manipulate the encryption key.
 // Returns an error if the process has already acquired the lock
-func (s *securityStorage) Lock(ctx context.Context) error {
+func (s *Storage) Lock(ctx context.Context) error {
+	s.checkOpen()
+
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	if s.isLocked {
@@ -55,11 +47,14 @@ func (s *securityStorage) Lock(ctx context.Context) error {
 		return err
 	}
 	s.isLocked = true
+
 	return nil
 }
 
 // Unlock releases the database lock.
-func (s *securityStorage) Unlock(ctx context.Context) error {
+func (s *Storage) Unlock(ctx context.Context) error {
+	s.checkOpen()
+
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	if !s.isLocked {
@@ -70,26 +65,14 @@ func (s *securityStorage) Unlock(ctx context.Context) error {
 		return err
 	}
 	s.isLocked = false
+
 	return nil
 }
 
-// Fetcher returns a KeyFetcher configured to fetch a key from the database
-func (s *securityStorage) Fetcher() security.KeyFetcher {
-	return &keyFetcher{s.db, []byte(s.encryptionKey)}
-}
-
-// Setter returns a KeySetter configured to set a key in the database
-func (s *securityStorage) Setter() security.KeySetter {
-	return &keySetter{s.db, s.encryptionKey}
-}
-
-type keyFetcher struct {
-	db            pgDB
-	encryptionKey []byte
-}
-
 // GetEncryptionKey returns the encryption key used to encrypt the credentials for brokers
-func (s *keyFetcher) GetEncryptionKey(ctx context.Context) ([]byte, error) {
+func (s *Storage) GetEncryptionKey(ctx context.Context, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) ([]byte, error) {
+	s.checkOpen()
+
 	safe := &Safe{}
 	rows, err := listByFieldCriteria(ctx, s.db, "safe", []query.Criterion{})
 	defer closeRows(ctx, rows)
@@ -105,17 +88,15 @@ func (s *keyFetcher) GetEncryptionKey(ctx context.Context) ([]byte, error) {
 		return []byte{}, nil
 	}
 	encryptedKey := []byte(safe.Secret)
-	return security.Decrypt(encryptedKey, s.encryptionKey)
+
+	return transformationFunc(ctx, encryptedKey, s.layerOneEncryptionKey)
 }
 
-type keySetter struct {
-	db            pgDB
-	encryptionKey []byte
-}
+// SetEncryptionKey Sets the encryption key by encrypting it beforehand with the encryption key in the environment
+func (s *Storage) SetEncryptionKey(ctx context.Context, key []byte, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) error {
+	s.checkOpen()
 
-// Sets the encryption key by encrypting it beforehand with the encryption key in the environment
-func (k *keySetter) SetEncryptionKey(ctx context.Context, key []byte) error {
-	rows, err := listByFieldCriteria(ctx, k.db, "safe", []query.Criterion{})
+	rows, err := listByFieldCriteria(ctx, s.db, "safe", []query.Criterion{})
 	defer closeRows(ctx, rows)
 	if err != nil {
 		return err
@@ -129,15 +110,16 @@ func (k *keySetter) SetEncryptionKey(ctx context.Context, key []byte) error {
 			return fmt.Errorf("encryption key is already set")
 		}
 	}
-	bytes, err := security.Encrypt(key, k.encryptionKey)
+	bytes, err := transformationFunc(ctx, key, s.layerOneEncryptionKey)
 	if err != nil {
 		return err
 	}
-	safe := Safe{
+
+	err = create(ctx, s.db, "safe", &Safe{}, Safe{
 		Secret:    bytes,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
-	}
-	_, err = create(ctx, k.db, "safe", safe)
+	})
+
 	return err
 }

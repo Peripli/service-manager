@@ -34,16 +34,22 @@ import (
 const simpleCatalog = `
 {
   "services": [{
-    "name": "no-tags-no-metadata",
-    "id": "acb56d7c-XXXX-XXXX-XXXX-feb140a59a67",
-    "description": "A fake service.",
-    "plans": [{
-      "name": "fake-plan-1",
-      "id": "d3031751-XXXX-XXXX-XXXX-a42377d33202",
-      "description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections.",
-      "free": false
-    }]
-  }]
+		"name": "no-tags-no-metadata",
+		"id": "acb56d7c-XXXX-XXXX-XXXX-feb140a59a67",
+		"description": "A fake service.",
+		"dashboard_client": {
+			"id": "id",
+			"secret": "secret",
+			"redirect_uri": "redirect_uri"		
+		},    
+		"plans": [{
+			"random_extension": "random_extension",
+			"name": "fake-plan-1",
+			"id": "d3031751-XXXX-XXXX-XXXX-a42377d33202",
+			"description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections.",
+			"free": false
+		}]
+	}]
 }
 `
 
@@ -59,8 +65,8 @@ func assertFailingBrokerError(req *httpexpect.Response) {
 }
 
 func assertMissingBrokerError(req *httpexpect.Response) {
-	req.Status(http.StatusBadGateway).JSON().Object().
-		Value("description").String().Contains("could not reach service broker")
+	req.Status(http.StatusNotFound).JSON().Object().
+		Value("description").String().Contains("could not find such broker")
 }
 
 func assertStoppedBrokerError(req *httpexpect.Response) {
@@ -214,6 +220,15 @@ var _ = Describe("Service Manager OSB API", func() {
 
 				plan := service.Value("plans").Array().First().Object()
 				plan.Keys().NotContains("metadata", "schemas")
+			})
+
+			It("should return valid catalog with all catalog extensions if catalog extensions are present", func() {
+				resp := ctx.SMWithBasic.GET(smUrlToSimpleBrokerCatalogBroker+"/v2/catalog").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+					Expect().
+					Status(http.StatusOK).JSON()
+
+				resp.Path("$.services[*].dashboard_client[*]").Array().Contains("id", "secret", "redirect_uri")
+				resp.Path("$.services[*].plans[*].random_extension").Array().Contains("random_extension")
 			})
 
 			It("should not reach service broker", func() {

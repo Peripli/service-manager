@@ -18,27 +18,61 @@ package security
 
 import (
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"fmt"
+	"io"
 )
 
-// TwoLayerEncrypter is an encrypter that fetches the encryption key from a remote location
-type TwoLayerEncrypter struct {
-	Fetcher KeyFetcher
+// Encrypter provides functionality to encrypt and decrypt data
+//go:generate counterfeiter . Encrypter
+type Encrypter interface {
+	Encrypt(ctx context.Context, plaintext, key []byte) ([]byte, error)
+	Decrypt(ctx context.Context, ciphertext, key []byte) ([]byte, error)
 }
 
-// Encrypt encrypts the plaintext with a key obtained from a remote location
-func (e *TwoLayerEncrypter) Encrypt(ctx context.Context, plaintext []byte) ([]byte, error) {
-	key, err := e.Fetcher.GetEncryptionKey(ctx)
+// AESEncrypter is an encrypter that fetches the encryption key from a remote location
+type AESEncrypter struct {
+}
+
+// Encrypt encrypts the plaintext with the provided key using AES
+func (e *AESEncrypter) Encrypt(_ context.Context, plaintext []byte, key []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
-	return Encrypt(plaintext, key)
-}
-
-// Decrypt decrypts the cipher text with a key obtained from a remote location
-func (e *TwoLayerEncrypter) Decrypt(ctx context.Context, ciphertext []byte) ([]byte, error) {
-	key, err := e.Fetcher.GetEncryptionKey(ctx)
+	gcm, err := cipher.NewGCM(block)
 	if err != nil {
 		return nil, err
 	}
-	return Decrypt(ciphertext, key)
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return nil, err
+	}
+
+	return gcm.Seal(nonce, nonce, plaintext, nil), nil
+}
+
+// Decrypt decrypts the cipher text with the provided key using AES
+func (e *AESEncrypter) Decrypt(_ context.Context, ciphertext []byte, key []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(ciphertext) < gcm.NonceSize() {
+		return nil, fmt.Errorf("malformed ciphertext")
+	}
+
+	return gcm.Open(nil,
+		ciphertext[:gcm.NonceSize()],
+		ciphertext[gcm.NonceSize():],
+		nil,
+	)
 }
