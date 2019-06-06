@@ -173,10 +173,5 @@ func (f *flag) Set(s string) error {
 }
 
 func (f *flag) Type() string {
-	flagType := reflect.TypeOf(f.value)
-	if flagType.Kind() == reflect.Slice {
-		return fmt.Sprintf("%sSlice", flagType.Elem().Name())
-	}
-
-	return flagType.Name()
+	return reflect.TypeOf(f.value).Name()
 }
