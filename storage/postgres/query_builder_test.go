@@ -156,7 +156,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 				It("should return error", func() {
 					_, err := qb.NewQuery().OrderBy("unknown-field", query.AscOrder).List(ctx, entity)
 					Expect(err).Should(HaveOccurred())
-					Expect(err.Error()).To(ContainSubstring("unsupported entity field: unknown-field"))
+					Expect(err.Error()).To(ContainSubstring("unsupported entity field for order by: unknown-field"))
 				})
 			})
 
@@ -208,7 +208,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 				It("should return error for unsupported field", func() {
 					_, err := qb.NewQuery().Return("unknown-field").Delete(ctx, entity)
 					Expect(err).Should(HaveOccurred())
-					Expect(err.Error()).To(ContainSubstring("unsupported entity field: unknown-field"))
+					Expect(err.Error()).To(ContainSubstring("unsupported entity field for return type: unknown-field"))
 				})
 			})
 		})

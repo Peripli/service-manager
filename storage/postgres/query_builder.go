@@ -330,7 +330,7 @@ func validateOrderFields(columns map[string]bool, orderRules ...orderRule) error
 	for _, or := range orderRules {
 		fields = append(fields, or.field)
 	}
-	return validateFields(columns, fields...)
+	return validateFields(columns, "unsupported entity field for order by: %s", fields...)
 }
 
 func validateReturningFields(columns map[string]bool, returningFields ...string) error {
@@ -338,15 +338,15 @@ func validateReturningFields(columns map[string]bool, returningFields ...string)
 		if returningFields[0] == "*" {
 			return nil
 		}
-		return validateFields(columns, returningFields...)
+		return validateFields(columns, "unsupported entity field for return type: %s", returningFields...)
 	}
 	return nil
 }
 
-func validateFields(columns map[string]bool, fields ...string) error {
+func validateFields(columns map[string]bool, errorTemplate string, fields ...string) error {
 	for _, field := range fields {
 		if !columns[field] {
-			return &util.UnsupportedQueryError{Message: fmt.Sprintf("unsupported entity field: %s", field)}
+			return &util.UnsupportedQueryError{Message: fmt.Sprintf(errorTemplate, field)}
 		}
 	}
 	return nil
