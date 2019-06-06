@@ -109,6 +109,11 @@ func buildDescriptionTreeWithParameters(value interface{}, tree *descriptionTree
 			} else {
 				name = field.Name()
 			}
+
+			if name == "-" || name == ",squash" {
+				continue
+			}
+
 			description := ""
 			if field.Tag("description") != "" {
 				description = field.Tag("description")
