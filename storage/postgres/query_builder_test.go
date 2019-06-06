@@ -85,7 +85,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 
 			It("should build query with order by clause", func() {
 				_, err := qb.
-					WithCriteria(query.WithOrder("id", query.DescOrder)).
+					WithCriteria(query.OrderResultBy("id", query.DescOrder)).
 					List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(MatchRegexp("SELECT.*FROM visibilities .* ORDER BY id DESC;"))

@@ -49,9 +49,8 @@ const (
 	NotInOperator Operator = "notin"
 	// EqualsOrNilOperator takes two operands and tests if the left is equal to the right, or if the left is nil
 	EqualsOrNilOperator Operator = "eqornil"
-
 	// NoOperator signifies that this is not an operator
-	NoOperator Operator = "noop"
+	NoOperator Operator = "nop"
 )
 
 // IsMultiVariate returns true if the operator requires right operand with multiple values
@@ -96,9 +95,20 @@ const (
 )
 
 const (
+	// OrderBy should be used as a left operand in Criterion
 	OrderBy string = "orderBy"
-
+	// Limit should be used as a left operand in Criterion to signify the
 	Limit string = "limit"
+)
+
+// OrderType is the type of the order in which result is presented
+type OrderType string
+
+const (
+	// AscOrder orders result in ascending order
+	AscOrder OrderType = "asc"
+	// DescOrder orders result in descending order
+	DescOrder OrderType = "desc"
 )
 
 var supportedQueryTypes = []CriterionType{FieldQuery, LabelQuery}
@@ -125,18 +135,13 @@ func ByLabel(operator Operator, leftOp string, rightOp ...string) Criterion {
 	return newCriterion(leftOp, operator, rightOp, LabelQuery)
 }
 
-type OrderType string
-
-const (
-	AscOrder  OrderType = "ASC"
-	DescOrder OrderType = "DESC"
-)
-
-func WithOrder(field string, orderType OrderType) Criterion {
+// OrderResultBy constructs a new criterion for result order
+func OrderResultBy(field string, orderType OrderType) Criterion {
 	return newCriterion(OrderBy, NoOperator, []string{field, string(orderType)}, ResultQuery)
 }
 
-func WithLimit(limit string) Criterion {
+// LimitResultBy constructs a new criterion for limit result with
+func LimitResultBy(limit string) Criterion {
 	return newCriterion(Limit, NoOperator, []string{limit}, ResultQuery)
 }
 

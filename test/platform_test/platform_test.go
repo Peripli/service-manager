@@ -67,7 +67,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 
 					It("should return them ordered by name", func() {
-						result, err := ctx.SMRepository.List(context.Background(), types.PlatformType, query.WithOrder("name", query.AscOrder))
+						result, err := ctx.SMRepository.List(context.Background(), types.PlatformType, query.OrderResultBy("name", query.AscOrder))
 						Expect(err).ShouldNot(HaveOccurred())
 						Expect(result.Len()).To(Equal(2))
 						Expect((result.ItemAt(0).(*types.Platform)).Name).To(Equal(platform2.Name))
@@ -75,7 +75,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 
 					It("should limit result to only 1", func() {
-						result, err := ctx.SMRepository.List(context.Background(), types.PlatformType, query.WithLimit("1"))
+						result, err := ctx.SMRepository.List(context.Background(), types.PlatformType, query.LimitResultBy("1"))
 						Expect(err).ShouldNot(HaveOccurred())
 						Expect(result.Len()).To(Equal(1))
 						Expect((result.ItemAt(0).(*types.Platform)).Name).To(Equal(platform.Name))
