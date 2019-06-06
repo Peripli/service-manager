@@ -111,11 +111,11 @@ func validateFieldQueryParams(columns map[string]bool, criteria []query.Criterio
 	return nil
 }
 
-func constructBaseQueryForEntity(tableName string) string {
-	return fmt.Sprintf("SELECT * FROM %s", tableName)
-}
-
 func constructBaseQueryForLabelable(labelsEntity PostgresLabel, baseTableName string) string {
+	if labelsEntity == nil {
+		return fmt.Sprintf("SELECT * FROM %s", baseTableName)
+	}
+
 	baseQuery := `SELECT %[1]s.*,`
 	for _, dbTag := range getDBTags(labelsEntity, isAutoIncrementable) {
 		baseQuery += " %[2]s." + dbTag.Tag + " " + "\"%[2]s." + dbTag.Tag + "\"" + ","

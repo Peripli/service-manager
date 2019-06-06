@@ -28,9 +28,28 @@ func (qsb *queryStringBuilder) Replace(old, new string) {
 	qsb.WriteString(current)
 }
 
+// QueryBuilder is used to construct new queries. It is safe for concurrent usage
 type QueryBuilder struct {
 	db pgDB
+}
 
+// NewQueryBuilder constructs new query builder for the current db
+func NewQueryBuilder(db pgDB) *QueryBuilder {
+	return &QueryBuilder{
+		db: db,
+	}
+}
+
+// NewQuery constructs new queries for the current query builder db
+func (qb *QueryBuilder) NewQuery() *pgQuery {
+	return &pgQuery{
+		db: qb.db,
+	}
+}
+
+// pgQuery is used to construct postgres queries. It should be constructed only via the query builder. It is not safe for concurrent use.
+type pgQuery struct {
+	db          pgDB
 	sql         queryStringBuilder
 	queryParams []interface{}
 
@@ -44,25 +63,12 @@ type QueryBuilder struct {
 	err error
 }
 
-func NewQueryBuilder(db pgDB) *QueryBuilder {
-	return &QueryBuilder{
-		db: db,
-	}
-}
-
-func (qb *QueryBuilder) List(ctx context.Context, entity PostgresEntity) (*sqlx.Rows, error) {
+func (qb *pgQuery) List(ctx context.Context, entity PostgresEntity) (*sqlx.Rows, error) {
 	if qb.err != nil {
 		return nil, qb.err
 	}
 
-	baseTableName := entity.TableName()
-	var baseQuery string
-	label := entity.LabelEntity()
-	if label == nil {
-		baseQuery = constructBaseQueryForEntity(baseTableName)
-	} else {
-		baseQuery = constructBaseQueryForLabelable(label, baseTableName)
-	}
+	baseQuery := constructBaseQueryForLabelable(entity.LabelEntity(), entity.TableName())
 	qb.sql.WriteString(baseQuery)
 
 	if err := qb.finalizeSQL(entity); err != nil {
@@ -72,7 +78,7 @@ func (qb *QueryBuilder) List(ctx context.Context, entity PostgresEntity) (*sqlx.
 	return qb.db.QueryxContext(ctx, qb.sql.String(), qb.queryParams...)
 }
 
-func (qb *QueryBuilder) Delete(ctx context.Context, entity PostgresEntity) (*sqlx.Rows, error) {
+func (qb *pgQuery) Delete(ctx context.Context, entity PostgresEntity) (*sqlx.Rows, error) {
 	if qb.err != nil {
 		return nil, qb.err
 	}
@@ -88,13 +94,13 @@ func (qb *QueryBuilder) Delete(ctx context.Context, entity PostgresEntity) (*sql
 	return qb.db.QueryxContext(ctx, qb.sql.String(), qb.queryParams...)
 }
 
-func (qb *QueryBuilder) Return(fields ...string) *QueryBuilder {
+func (qb *pgQuery) Return(fields ...string) *pgQuery {
 	qb.returningFields = append(qb.returningFields, fields...)
 
 	return qb
 }
 
-func (qb *QueryBuilder) Limit(limit int) *QueryBuilder {
+func (qb *pgQuery) Limit(limit int) *pgQuery {
 	if limit <= 0 {
 		qb.err = fmt.Errorf("limit (%d) should be greater than 0", limit)
 		return qb
@@ -105,7 +111,7 @@ func (qb *QueryBuilder) Limit(limit int) *QueryBuilder {
 	return qb
 }
 
-func (qb *QueryBuilder) OrderBy(field string, orderType query.OrderType) *QueryBuilder {
+func (qb *pgQuery) OrderBy(field string, orderType query.OrderType) *pgQuery {
 	qb.orderByFields = append(qb.orderByFields, orderRule{
 		field:     field,
 		orderType: orderType,
@@ -114,7 +120,7 @@ func (qb *QueryBuilder) OrderBy(field string, orderType query.OrderType) *QueryB
 	return qb
 }
 
-func (qb *QueryBuilder) WithCriteria(criteria ...query.Criterion) *QueryBuilder {
+func (qb *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
 	if len(criteria) == 0 {
 		return qb
 	}
@@ -129,14 +135,14 @@ func (qb *QueryBuilder) WithCriteria(criteria ...query.Criterion) *QueryBuilder 
 	return qb
 }
 
-func (qb *QueryBuilder) WithLock() *QueryBuilder {
+func (qb *pgQuery) WithLock() *pgQuery {
 	if _, ok := qb.db.(*sqlx.Tx); ok {
 		qb.hasLock = true
 	}
 	return qb
 }
 
-func (qb *QueryBuilder) finalizeSQL(entity PostgresEntity) error {
+func (qb *pgQuery) finalizeSQL(entity PostgresEntity) error {
 	entityTags := getDBTags(entity, nil)
 	columns := columnsByTags(entityTags)
 	if err := validateFieldQueryParams(columns, qb.criteria); err != nil {
@@ -168,7 +174,7 @@ func (qb *QueryBuilder) finalizeSQL(entity PostgresEntity) error {
 	return nil
 }
 
-func (qb *QueryBuilder) orderBySQL() *QueryBuilder {
+func (qb *pgQuery) orderBySQL() *pgQuery {
 	if len(qb.orderByFields) > 0 {
 		sql := " ORDER BY"
 		for _, orderRule := range qb.orderByFields {
@@ -180,14 +186,14 @@ func (qb *QueryBuilder) orderBySQL() *QueryBuilder {
 	return qb
 }
 
-func (qb *QueryBuilder) limitSQL() *QueryBuilder {
+func (qb *pgQuery) limitSQL() *pgQuery {
 	if qb.limit > 0 {
 		qb.sql.WriteString(fmt.Sprintf(" LIMIT %d", qb.limit))
 	}
 	return qb
 }
 
-func (qb *QueryBuilder) returningSQL() *QueryBuilder {
+func (qb *pgQuery) returningSQL() *pgQuery {
 	if len(qb.returningFields) == 1 && qb.returningFields[0] == "*" {
 		qb.sql.WriteString(" RETURNING *")
 	} else if len(qb.returningFields) > 0 {
@@ -196,7 +202,7 @@ func (qb *QueryBuilder) returningSQL() *QueryBuilder {
 	return qb
 }
 
-func (qb *QueryBuilder) lockSQL(tableName string) *QueryBuilder {
+func (qb *pgQuery) lockSQL(tableName string) *pgQuery {
 	if qb.hasLock {
 		// Lock the rows if we are in transaction so that update operations on those rows can rely on unchanged data
 		// This allows us to handle concurrent updates on the same rows by executing them sequentially as
@@ -206,7 +212,7 @@ func (qb *QueryBuilder) lockSQL(tableName string) *QueryBuilder {
 	return qb
 }
 
-func (qb *QueryBuilder) labelCriteriaSQL(entity PostgresEntity, criteria []query.Criterion) *QueryBuilder {
+func (qb *pgQuery) labelCriteriaSQL(entity PostgresEntity, criteria []query.Criterion) *pgQuery {
 	var labelQueries []string
 
 	labelEntity := entity.LabelEntity()
@@ -228,7 +234,7 @@ func (qb *QueryBuilder) labelCriteriaSQL(entity PostgresEntity, criteria []query
 	return qb
 }
 
-func (qb *QueryBuilder) fieldCriteriaSQL(entity PostgresEntity, criteria []query.Criterion) *QueryBuilder {
+func (qb *pgQuery) fieldCriteriaSQL(entity PostgresEntity, criteria []query.Criterion) *pgQuery {
 	baseTableName := entity.TableName()
 	dbTags := getDBTags(entity, nil)
 
@@ -262,7 +268,7 @@ func (qb *QueryBuilder) fieldCriteriaSQL(entity PostgresEntity, criteria []query
 	return qb
 }
 
-func (qb *QueryBuilder) processResultCriteria(resultQuery []query.Criterion) *QueryBuilder {
+func (qb *pgQuery) processResultCriteria(resultQuery []query.Criterion) *pgQuery {
 	for _, c := range resultQuery {
 		if c.Type != query.ResultQuery {
 			qb.err = fmt.Errorf("result query is expected, but %s is provided", c.Type)
@@ -292,7 +298,7 @@ func (qb *QueryBuilder) processResultCriteria(resultQuery []query.Criterion) *Qu
 	return qb
 }
 
-func (qb *QueryBuilder) expandMultivariateOp() *QueryBuilder {
+func (qb *pgQuery) expandMultivariateOp() *pgQuery {
 	if hasMultiVariateOp(qb.criteria) {
 		var err error
 		// sqlx.In requires question marks(?) instead of positional arguments (the ones pgsql uses) in order to map the list argument to the IN operation
@@ -307,7 +313,7 @@ func (qb *QueryBuilder) expandMultivariateOp() *QueryBuilder {
 	return qb
 }
 
-func (qb *QueryBuilder) orderTypeToSQL(orderType query.OrderType) string {
+func (qb *pgQuery) orderTypeToSQL(orderType query.OrderType) string {
 	switch orderType {
 	case query.AscOrder:
 		return "ASC"

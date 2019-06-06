@@ -109,8 +109,7 @@ func (s *Storage) GetEncryptionKey(ctx context.Context, transformationFunc func(
 	s.checkOpen()
 
 	safe := &Safe{}
-	qb := NewQueryBuilder(s.db)
-	rows, err := qb.List(ctx, safe)
+	rows, err := s.queryBuilder.NewQuery().List(ctx, safe)
 
 	defer closeRows(ctx, rows)
 	if err != nil {
@@ -134,8 +133,7 @@ func (s *Storage) SetEncryptionKey(ctx context.Context, key []byte, transformati
 	s.checkOpen()
 
 	existingKey := &Safe{}
-	qb := NewQueryBuilder(s.db)
-	rows, err := qb.List(ctx, existingKey)
+	rows, err := s.queryBuilder.NewQuery().List(ctx, existingKey)
 
 	defer closeRows(ctx, rows)
 	if err != nil {

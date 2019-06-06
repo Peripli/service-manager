@@ -52,7 +52,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 	Describe("List", func() {
 		Context("when there are no criterias", func() {
 			It("should build simple query for labeable entity", func() {
-				_, err := qb.List(ctx, entity)
+				_, err := qb.NewQuery().List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(MatchRegexp("SELECT.*FROM visibilities LEFT JOIN"))
 				Expect(queryArgs).To(HaveLen(0))
@@ -61,7 +61,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 
 		Context("when label criteria is used", func() {
 			It("should build query with label criteria", func() {
-				_, err := qb.
+				_, err := qb.NewQuery().
 					WithCriteria(query.ByLabel(query.EqualsOperator, "labelKey", "labelValue")).
 					List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
@@ -74,7 +74,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 
 		Context("when criteria is used", func() {
 			It("should build right query", func() {
-				_, err := qb.
+				_, err := qb.NewQuery().
 					WithCriteria(query.ByField(query.EqualsOperator, "id", "1")).
 					List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
@@ -84,7 +84,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 			})
 
 			It("should build query with order by clause", func() {
-				_, err := qb.
+				_, err := qb.NewQuery().
 					WithCriteria(query.OrderResultBy("id", query.DescOrder)).
 					List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
@@ -93,7 +93,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 			})
 
 			It("should build query with criteria limit clause", func() {
-				_, err := qb.
+				_, err := qb.NewQuery().
 					WithCriteria(query.Criterion{
 						Type:    query.ResultQuery,
 						LeftOp:  query.Limit,
@@ -107,7 +107,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 
 			When("order by criteria is invalid", func() {
 				It("should return error for missing order type", func() {
-					_, err := qb.
+					_, err := qb.NewQuery().
 						WithCriteria(query.Criterion{
 							Type:    query.ResultQuery,
 							LeftOp:  query.OrderBy,
@@ -119,7 +119,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 				})
 
 				It("should return error for missing field and order type", func() {
-					_, err := qb.
+					_, err := qb.NewQuery().
 						WithCriteria(query.Criterion{
 							Type:    query.ResultQuery,
 							LeftOp:  query.OrderBy,
@@ -132,7 +132,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 			})
 
 			It("should build query with limit sugar", func() {
-				_, err := qb.
+				_, err := qb.NewQuery().
 					Limit(10).
 					List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
@@ -141,7 +141,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 			})
 
 			It("should build query with order by and limit clause", func() {
-				_, err := qb.
+				_, err := qb.NewQuery().
 					Limit(10).
 					OrderBy("id", query.AscOrder).
 					List(ctx, entity)
@@ -154,7 +154,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 		Context("when order by is used", func() {
 			Context("and field is uknown", func() {
 				It("should return error", func() {
-					_, err := qb.OrderBy("unknown-field", query.AscOrder).List(ctx, entity)
+					_, err := qb.NewQuery().OrderBy("unknown-field", query.AscOrder).List(ctx, entity)
 					Expect(err).Should(HaveOccurred())
 					Expect(err.Error()).To(ContainSubstring("unsupported entity field: unknown-field"))
 				})
@@ -162,7 +162,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 
 			Context("and order type is unknown", func() {
 				It("should return error", func() {
-					_, err := qb.OrderBy("id", "unknown-order").List(ctx, entity)
+					_, err := qb.NewQuery().OrderBy("id", "unknown-order").List(ctx, entity)
 					Expect(err).Should(HaveOccurred())
 					Expect(err.Error()).To(ContainSubstring("unsupported order type: unknown-order"))
 				})
@@ -171,7 +171,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 
 		Context("when limit is negative", func() {
 			It("should return error", func() {
-				_, err := qb.Limit(-1).List(ctx, entity)
+				_, err := qb.NewQuery().Limit(-1).List(ctx, entity)
 				Expect(err).Should(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("limit (-1) should be greater than 0"))
 			})
@@ -182,14 +182,14 @@ var _ = Describe("Postgres Storage Query builder", func() {
 		Context("When deleting by label", func() {
 			It("Should return an error", func() {
 				criteria := query.ByLabel(query.EqualsOperator, "left", "right")
-				_, err := qb.WithCriteria(criteria).Delete(ctx, entity)
+				_, err := qb.NewQuery().WithCriteria(criteria).Delete(ctx, entity)
 				Expect(err).To(HaveOccurred())
 			})
 		})
 
 		Context("When no criteria is passed", func() {
 			It("Should construct query to delete all entries", func() {
-				_, err := qb.Return("*").Delete(ctx, entity)
+				_, err := qb.NewQuery().Return("*").Delete(ctx, entity)
 				expectedQuery := fmt.Sprintf("DELETE FROM visibilities RETURNING *;")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).To(Equal(expectedQuery))
@@ -198,7 +198,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 
 		Context("when returning certain fields is defined", func() {
 			It("should construct query with returning fields", func() {
-				_, err := qb.Return("id", "service_plan_id").Delete(ctx, entity)
+				_, err := qb.NewQuery().Return("id", "service_plan_id").Delete(ctx, entity)
 				expectedQuery := fmt.Sprintf("DELETE FROM visibilities RETURNING id,service_plan_id;")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).To(Equal(expectedQuery))
@@ -206,7 +206,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 
 			When("unknown field is needed", func() {
 				It("should return error for unsupported field", func() {
-					_, err := qb.Return("unknown-field").Delete(ctx, entity)
+					_, err := qb.NewQuery().Return("unknown-field").Delete(ctx, entity)
 					Expect(err).Should(HaveOccurred())
 					Expect(err.Error()).To(ContainSubstring("unsupported entity field: unknown-field"))
 				})
@@ -216,7 +216,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 		Context("When criteria uses missing field", func() {
 			It("Should return error", func() {
 				criteria := query.ByField(query.EqualsOperator, "non-existing-field", "value")
-				_, err := qb.WithCriteria(criteria).Delete(ctx, entity)
+				_, err := qb.NewQuery().WithCriteria(criteria).Delete(ctx, entity)
 				Expect(err).To(HaveOccurred())
 			})
 		})

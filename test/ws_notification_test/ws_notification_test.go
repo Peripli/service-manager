@@ -39,8 +39,6 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/Peripli/service-manager/pkg/env"
-	"github.com/Peripli/service-manager/pkg/sm"
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -97,11 +95,8 @@ var _ = Describe("WS", func() {
 		ctx = common.NewTestContextBuilder().
 			WithEnvPreExtensions(func(set *pflag.FlagSet) {
 				set.Set("websocket.ping_timeout", pingTimeout.String())
-			}).
-			WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
-				repository = smb.Storage
-				return nil
 			}).Build()
+		repository = ctx.SMRepository
 		Expect(repository).ToNot(BeNil())
 
 		platform = common.RegisterPlatformInSM(common.GenerateRandomPlatform(), ctx.SMWithOAuth, map[string]string{})
@@ -319,7 +314,6 @@ var _ = Describe("WS", func() {
 			expectNotification(newWsConn, notificationEmptyPlatform.ID, "")
 		})
 	})
-
 })
 
 func createNotification(repository storage.Repository, platformID string) *types.Notification {
