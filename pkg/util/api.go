@@ -50,7 +50,7 @@ func ToRFCFormat(timestamp time.Time) string {
 }
 
 // RequestBodyToBytes reads the request body and returns []byte with its content or an error if
-// the media type is incorrect or if the body is not a valid JSON
+// the media type is unsupported or if the body is not a valid JSON
 func RequestBodyToBytes(request *http.Request) ([]byte, error) {
 	contentType := request.Header.Get("Content-Type")
 	contentTypeSupported := false
