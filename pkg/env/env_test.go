@@ -17,6 +17,7 @@
 package env_test
 
 import (
+	"fmt"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -59,12 +60,14 @@ var _ = Describe("Env", func() {
 		keyNbool      = "nest.nbool"
 		keyNint       = "nest.nint"
 		keyNstring    = "nest.nstring"
+		keyNslice     = "nest.nslice"
 		keyNmappedVal = "nest.n_mapped_val"
 	)
 	type Nest struct {
 		NBool      bool
 		NInt       int
 		NString    string
+		NSlice     []string
 		NMappedVal string `mapstructure:"n_mapped_val" structs:"n_mapped_val"  yaml:"n_mapped_val"`
 	}
 
@@ -109,6 +112,7 @@ var _ = Describe("Env", func() {
 		set.Bool(keyNbool, s.Nest.NBool, description)
 		set.Int(keyNint, s.Nest.NInt, description)
 		set.String(keyNstring, s.Nest.NString, description)
+		set.StringSlice(keyNslice, s.Nest.NSlice, description)
 		set.String(keyNmappedVal, s.Nest.NMappedVal, description)
 
 		return set
@@ -142,6 +146,7 @@ var _ = Describe("Env", func() {
 		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyNbool), ".", "_", 1), cast.ToString(structure.Nest.NBool))).ShouldNot(HaveOccurred())
 		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyNint), ".", "_", 1), cast.ToString(structure.Nest.NInt))).ShouldNot(HaveOccurred())
 		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyNstring), ".", "_", 1), structure.Nest.NString)).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyNslice), ".", "_", 1), strings.Join(structure.Nest.NSlice, ","))).ShouldNot(HaveOccurred())
 		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyNmappedVal), ".", "_", 1), structure.Nest.NMappedVal)).ShouldNot(HaveOccurred())
 	}
 
@@ -154,6 +159,7 @@ var _ = Describe("Env", func() {
 		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyNbool), ".", "_", 1))).ShouldNot(HaveOccurred())
 		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyNint), ".", "_", 1))).ShouldNot(HaveOccurred())
 		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyNstring), ".", "_", 1))).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyNslice), ".", "_", 1))).ShouldNot(HaveOccurred())
 		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyNmappedVal), ".", "_", 1))).ShouldNot(HaveOccurred())
 
 		Expect(os.Unsetenv(strings.ToTitle(key))).ShouldNot(HaveOccurred())
@@ -191,7 +197,24 @@ var _ = Describe("Env", func() {
 			switch v := expectedValue.(type) {
 			case map[string]interface{}:
 				for nestedKey, nestedExpectedValue := range v {
-					Expect(cast.ToString(environment.Get(key + "." + nestedKey))).Should(Equal(cast.ToString(nestedExpectedValue)))
+					expectedValue, ok := nestedExpectedValue.([]string)
+					if ok {
+						nestedExpectedValue = strings.Join(expectedValue, ",")
+					}
+
+					envValue := environment.Get(key + "." + nestedKey)
+					switch actualValue := envValue.(type) {
+					case []string:
+						envValue = strings.Join(actualValue, ",")
+					case []interface{}:
+						temp := make([]string, len(actualValue))
+						for i, v := range actualValue {
+							temp[i] = fmt.Sprint(v)
+						}
+						envValue = strings.Join(temp, ",")
+					}
+
+					Expect(cast.ToString(envValue)).Should(Equal(cast.ToString(nestedExpectedValue)))
 				}
 			default:
 				Expect(cast.ToString(environment.Get(key))).To(Equal(cast.ToString(expectedValue)))
@@ -211,6 +234,7 @@ var _ = Describe("Env", func() {
 				NBool:      true,
 				NInt:       4321,
 				NString:    "nstringval",
+				NSlice:     []string{"nval1", "nval2", "nval3"},
 				NMappedVal: "nmappedval",
 			},
 		}
@@ -346,6 +370,7 @@ var _ = Describe("Env", func() {
 					NBool:      false,
 					NInt:       9999,
 					NString:    "overrideval",
+					NSlice:     []string{"nval1", "nval2", "nval3"},
 					NMappedVal: "overrideval",
 				},
 			}

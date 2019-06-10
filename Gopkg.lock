@@ -218,7 +218,7 @@
   revision = "38398a30ed8516ffda617a04c822de09df8a3ec5"
 
 [[projects]]
-  digest = "1:254c31ac21234c61cdcca10004f108779549f14dbf78b238a71d2de5630068b4"
+  digest = "1:589fb1a525a9596f15cf90064ad57cfad5de59b3579e91f272f470ab49051647"
   name = "github.com/klauspost/compress"
   packages = [
     "flate",
@@ -226,8 +226,8 @@
     "zlib",
   ]
   pruneopts = "UT"
-  revision = "2a8e997f9fe23bf2b2c9529c817f44ff724d2636"
-  version = "v1.6.0"
+  revision = "05d6922103c7275c684bd5df6608b25577b10521"
+  version = "v1.7.0"
 
 [[projects]]
   digest = "1:923c4d7194b42e054b2eb8a6c62824ac55e23ececc1c7e48d4da69c971c55954"
@@ -453,12 +453,12 @@
   version = "v1.0.1"
 
 [[projects]]
-  branch = "master"
   digest = "1:ddfe0a54e5f9b29536a6d7b2defa376f2cb2b6e4234d676d7ff214d5b097cb50"
   name = "github.com/tidwall/pretty"
   packages = ["."]
   pruneopts = "UT"
   revision = "1166b9ac2b65e46a43d8618d30d1554f4652d49b"
+  version = "v1.0.0"
 
 [[projects]]
   digest = "1:b70c951ba6fdeecfbd50dabe95aa5e1b973866ae9abbece46ad60348112214f2"
@@ -548,7 +548,7 @@
     "pbkdf2",
   ]
   pruneopts = "UT"
-  revision = "20be4c3c3ed52bfccdb2d59a412ee1a936d175a7"
+  revision = "f99c8df09eb5bff426315721bfa5f16a99cad32c"
 
 [[projects]]
   branch = "master"
@@ -564,7 +564,7 @@
     "publicsuffix",
   ]
   pruneopts = "UT"
-  revision = "60506f45cf65977eb3a9c6e30f995f54a721c271"
+  revision = "461777fb6f67e8cb9d70cda16573678d085a74cf"
 
 [[projects]]
   branch = "master"
@@ -575,7 +575,7 @@
     "internal",
   ]
   pruneopts = "UT"
-  revision = "aaccbc9213b0974828f81aaac109d194880e3014"
+  revision = "0f29369cfe4552d0e4bcddc57cc75f4d7e672a33"
 
 [[projects]]
   branch = "master"
@@ -583,7 +583,7 @@
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "UT"
-  revision = "4c4f7f33c9ed00de01c4c741d2177abfcfe19307"
+  revision = "1e42afee0f762ed3d76e6dd942e4181855fd1849"
 
 [[projects]]
   digest = "1:28deae5fe892797ff37a317b5bcda96d11d1c90dadd89f1337651df3bc4c586e"
@@ -635,8 +635,8 @@
     "urlfetch",
   ]
   pruneopts = "UT"
-  revision = "4c25cacc810c02874000e4f7071286a8e96b2515"
-  version = "v1.6.0"
+  revision = "b2f4a3cf3c67576a2ee09e1fe62656a5086ce880"
+  version = "v1.6.1"
 
 [[projects]]
   digest = "1:abeb38ade3f32a92943e5be54f55ed6d6e3b6602761d74b4aab4c9dd45c18abd"

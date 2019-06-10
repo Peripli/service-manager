@@ -18,7 +18,6 @@ package postgres
 
 import (
 	"context"
-
 	"github.com/Peripli/service-manager/storage"
 
 	. "github.com/onsi/ginkgo"
@@ -92,15 +91,18 @@ var _ = Describe("Postgres Storage", func() {
 					MigrationsURL: "file://migrations",
 				})
 				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("StorageURI missing"))
 			})
 		})
 
 		Context("Called with empty migrations", func() {
 			It("Should return error", func() {
 				err := pgStorage.Open(&storage.Settings{
+					URI:           "postgres://",
 					MigrationsURL: "",
 				})
 				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("StorageMigrationsURL missing"))
 			})
 		})
 
@@ -112,6 +114,7 @@ var _ = Describe("Postgres Storage", func() {
 						MigrationsURL:     "invalid",
 						EncryptionKey:     "ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8",
 						SkipSSLValidation: true,
+						Notification:      storage.DefaultNotificationSettings(),
 					})
 				}).To(Panic())
 			})

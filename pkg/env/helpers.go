@@ -109,6 +109,11 @@ func buildDescriptionTreeWithParameters(value interface{}, tree *descriptionTree
 			} else {
 				name = field.Name()
 			}
+
+			if name == "-" || name == ",squash" {
+				continue
+			}
+
 			description := ""
 			if field.Tag("description") != "" {
 				description = field.Tag("description")
@@ -126,5 +131,5 @@ func buildDescriptionTreeWithParameters(value interface{}, tree *descriptionTree
 
 func isValidField(field *structs.Field) bool {
 	kind := field.Kind()
-	return field.IsExported() && kind != reflect.Slice && kind != reflect.Interface && kind != reflect.Func
+	return field.IsExported() && kind != reflect.Interface && kind != reflect.Func
 }

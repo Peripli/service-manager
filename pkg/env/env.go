@@ -77,7 +77,12 @@ func CreatePFlags(set *pflag.FlagSet, value interface{}) {
 
 	for i, parameter := range parameters {
 		if set.Lookup(parameter.Name) == nil {
-			set.Var(&flag{value: parameter.DefaultValue}, parameter.Name, descriptions[i])
+			switch val := parameter.DefaultValue.(type) {
+			case []string:
+				set.StringSlice(parameter.Name, val, descriptions[i])
+			default:
+				set.Var(&flag{value: val}, parameter.Name, descriptions[i])
+			}
 		}
 	}
 }
@@ -139,6 +144,24 @@ func (v *ViperEnv) setupConfigFile() error {
 		return fmt.Errorf("could not read configuration cfg: %s", err)
 	}
 	return nil
+}
+
+// Default creates a default environment that can be used to boot up a Service Manager
+func Default(additionalPFlags ...func(set *pflag.FlagSet)) (Environment, error) {
+	set := EmptyFlagSet()
+
+	for _, addFlags := range additionalPFlags {
+		addFlags(set)
+	}
+
+	environment, err := New(set)
+	if err != nil {
+		return nil, fmt.Errorf("error loading environment: %s", err)
+	}
+	if err := setCFOverrides(environment); err != nil {
+		return nil, fmt.Errorf("error setting CF environment values: %s", err)
+	}
+	return environment, nil
 }
 
 type flag struct {
