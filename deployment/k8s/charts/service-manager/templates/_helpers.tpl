@@ -34,7 +34,7 @@ Create chart name and version as used by the chart label.
 
 {{- define "service-manager.postgresURI" -}}
 {{- if .Values.postgresql.install -}}
-postgres://{{ .Values.postgresql.postgresUser }}:{{ .Values.postgresql.postgresPassword }}@{{- printf "%s-postgresql" .Release.Name -}}.{{ .Release.Namespace}}:{{ .Values.postgresql.service.port }}/postgres?sslmode=disable
+postgres://{{ .Values.postgresql.postgresqlUsername }}:{{ .Values.postgresql.postgresqlPassword }}@{{- printf "%s-postgresql" .Release.Name -}}.{{ .Release.Namespace}}:{{ .Values.postgresql.service.port }}/postgres?sslmode=disable
 {{- else -}}
 {{- required "externalPostgresURI is required when automatic installation of PosgreSQL is disabled" .Values.externalPostgresURI -}}
 {{- end -}}
