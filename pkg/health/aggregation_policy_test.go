@@ -17,6 +17,7 @@
 package health
 
 import (
+	"github.com/InVisionApp/go-health"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -24,12 +25,12 @@ import (
 var _ = Describe("Healthcheck AggregationPolicy", func() {
 
 	aggregationPolicy := &DefaultAggregationPolicy{}
-	var healths map[string]*Health
+	var healths map[string]health.State
 
 	BeforeEach(func() {
-		healths = map[string]*Health{
-			"test1": New().Up(),
-			"test2": New().Up(),
+		healths = map[string]health.State{
+			"test1": {Status: "ok"},
+			"test2": {Status: "ok"},
 		}
 	})
 
@@ -43,9 +44,17 @@ var _ = Describe("Healthcheck AggregationPolicy", func() {
 
 	When("At least one health is DOWN", func() {
 		It("Returns DOWN", func() {
-			healths["test3"] = New().Down()
+			healths["test3"] = health.State{Status: "failed", ContiguousFailures: 4}
 			aggregatedHealth := aggregationPolicy.Apply(healths)
 			Expect(aggregatedHealth.Status).To(Equal(StatusDown))
+		})
+	})
+
+	When("There is DOWN healths but not more than 3 times in a row", func() {
+		It("Returns UP", func() {
+			healths["test3"] = health.State{Status: "failed"}
+			aggregatedHealth := aggregationPolicy.Apply(healths)
+			Expect(aggregatedHealth.Status).To(Equal(StatusUp))
 		})
 	})
 
@@ -60,7 +69,7 @@ var _ = Describe("Healthcheck AggregationPolicy", func() {
 		It("Includes them as overall details", func() {
 			aggregatedHealth := aggregationPolicy.Apply(healths)
 			for name, h := range healths {
-				Expect(aggregatedHealth.Details[name]).To(Equal(h))
+				Expect(aggregatedHealth.Details[name]).To(Equal(convertStatus(h.Status)))
 			}
 		})
 	})

@@ -17,6 +17,7 @@
 package health
 
 import (
+	"github.com/InVisionApp/go-health"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -68,7 +69,7 @@ var _ = Describe("Healthcheck Registry", func() {
 type testAggregationPolicy struct {
 }
 
-func (*testAggregationPolicy) Apply(healths map[string]*Health) *Health {
+func (*testAggregationPolicy) Apply(healths map[string]health.State) *Health {
 	return New().Up()
 }
 
@@ -79,6 +80,6 @@ func (*testIndicator) Name() string {
 	return "test"
 }
 
-func (*testIndicator) Health() *Health {
-	return New().Up()
+func (*testIndicator) Status() (interface{}, error) {
+	return nil, nil
 }

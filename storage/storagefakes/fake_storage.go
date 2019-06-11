@@ -108,16 +108,6 @@ type FakeStorage struct {
 	openReturnsOnCall map[int]struct {
 		result1 error
 	}
-	PingStub        func() error
-	pingMutex       sync.RWMutex
-	pingArgsForCall []struct {
-	}
-	pingReturns struct {
-		result1 error
-	}
-	pingReturnsOnCall map[int]struct {
-		result1 error
-	}
 	UpdateStub        func(context.Context, types.Object, query.LabelChanges, ...query.Criterion) (types.Object, error)
 	updateMutex       sync.RWMutex
 	updateArgsForCall []struct {
@@ -601,58 +591,6 @@ func (fake *FakeStorage) OpenReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeStorage) Ping() error {
-	fake.pingMutex.Lock()
-	ret, specificReturn := fake.pingReturnsOnCall[len(fake.pingArgsForCall)]
-	fake.pingArgsForCall = append(fake.pingArgsForCall, struct {
-	}{})
-	fake.recordInvocation("Ping", []interface{}{})
-	fake.pingMutex.Unlock()
-	if fake.PingStub != nil {
-		return fake.PingStub()
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	fakeReturns := fake.pingReturns
-	return fakeReturns.result1
-}
-
-func (fake *FakeStorage) PingCallCount() int {
-	fake.pingMutex.RLock()
-	defer fake.pingMutex.RUnlock()
-	return len(fake.pingArgsForCall)
-}
-
-func (fake *FakeStorage) PingCalls(stub func() error) {
-	fake.pingMutex.Lock()
-	defer fake.pingMutex.Unlock()
-	fake.PingStub = stub
-}
-
-func (fake *FakeStorage) PingReturns(result1 error) {
-	fake.pingMutex.Lock()
-	defer fake.pingMutex.Unlock()
-	fake.PingStub = nil
-	fake.pingReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeStorage) PingReturnsOnCall(i int, result1 error) {
-	fake.pingMutex.Lock()
-	defer fake.pingMutex.Unlock()
-	fake.PingStub = nil
-	if fake.pingReturnsOnCall == nil {
-		fake.pingReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.pingReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
 func (fake *FakeStorage) Update(arg1 context.Context, arg2 types.Object, arg3 query.LabelChanges, arg4 ...query.Criterion) (types.Object, error) {
 	fake.updateMutex.Lock()
 	ret, specificReturn := fake.updateReturnsOnCall[len(fake.updateArgsForCall)]
@@ -738,8 +676,6 @@ func (fake *FakeStorage) Invocations() map[string][][]interface{} {
 	defer fake.listMutex.RUnlock()
 	fake.openMutex.RLock()
 	defer fake.openMutex.RUnlock()
-	fake.pingMutex.RLock()
-	defer fake.pingMutex.RUnlock()
 	fake.updateMutex.RLock()
 	defer fake.updateMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}

@@ -4,14 +4,15 @@ package healthfakes
 import (
 	"sync"
 
+	healtha "github.com/InVisionApp/go-health"
 	"github.com/Peripli/service-manager/pkg/health"
 )
 
 type FakeAggregationPolicy struct {
-	ApplyStub        func(map[string]*health.Health) *health.Health
+	ApplyStub        func(map[string]healtha.State) *health.Health
 	applyMutex       sync.RWMutex
 	applyArgsForCall []struct {
-		arg1 map[string]*health.Health
+		arg1 map[string]healtha.State
 	}
 	applyReturns struct {
 		result1 *health.Health
@@ -23,11 +24,11 @@ type FakeAggregationPolicy struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeAggregationPolicy) Apply(arg1 map[string]*health.Health) *health.Health {
+func (fake *FakeAggregationPolicy) Apply(arg1 map[string]healtha.State) *health.Health {
 	fake.applyMutex.Lock()
 	ret, specificReturn := fake.applyReturnsOnCall[len(fake.applyArgsForCall)]
 	fake.applyArgsForCall = append(fake.applyArgsForCall, struct {
-		arg1 map[string]*health.Health
+		arg1 map[string]healtha.State
 	}{arg1})
 	fake.recordInvocation("Apply", []interface{}{arg1})
 	fake.applyMutex.Unlock()
@@ -47,13 +48,13 @@ func (fake *FakeAggregationPolicy) ApplyCallCount() int {
 	return len(fake.applyArgsForCall)
 }
 
-func (fake *FakeAggregationPolicy) ApplyCalls(stub func(map[string]*health.Health) *health.Health) {
+func (fake *FakeAggregationPolicy) ApplyCalls(stub func(map[string]healtha.State) *health.Health) {
 	fake.applyMutex.Lock()
 	defer fake.applyMutex.Unlock()
 	fake.ApplyStub = stub
 }
 
-func (fake *FakeAggregationPolicy) ApplyArgsForCall(i int) map[string]*health.Health {
+func (fake *FakeAggregationPolicy) ApplyArgsForCall(i int) map[string]healtha.State {
 	fake.applyMutex.RLock()
 	defer fake.applyMutex.RUnlock()
 	argsForCall := fake.applyArgsForCall[i]

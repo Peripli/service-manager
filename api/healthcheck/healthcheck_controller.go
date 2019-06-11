@@ -33,10 +33,10 @@ type controller struct {
 }
 
 // NewController returns a new healthcheck controller with the given indicators and aggregation policy
-func NewController(health h.IHealth, aggPolict health.AggregationPolicy) web.Controller {
+func NewController(health h.IHealth, aggPolicy health.AggregationPolicy) web.Controller {
 	return &controller{
 		health:    health,
-		aggPolicy: aggPolict,
+		aggPolicy: aggPolicy,
 	}
 }
 

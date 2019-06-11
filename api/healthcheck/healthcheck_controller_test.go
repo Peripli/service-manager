@@ -17,12 +17,11 @@ package healthcheck
 
 import (
 	"fmt"
+	h "github.com/InVisionApp/go-health"
+	"github.com/Peripli/service-manager/pkg/health"
+	"github.com/Peripli/service-manager/pkg/health/healthfakes"
 	"net/http"
 	"testing"
-
-	"github.com/Peripli/service-manager/pkg/health/healthfakes"
-
-	"github.com/Peripli/service-manager/pkg/health"
 
 	"github.com/Peripli/service-manager/pkg/web"
 
@@ -70,9 +69,39 @@ var _ = Describe("Healthcheck controller", func() {
 })
 
 func createController(status health.Status) *controller {
-	indicator := &healthfakes.FakeIndicator{}
-	indicator.HealthReturns(health.New().WithStatus(status))
+	aggPolicy := &healthfakes.FakeAggregationPolicy{}
+	aggPolicy.ApplyReturns(&health.Health{Status: status})
 	return &controller{
-		indicator: indicator,
+		health:    HealthFake{},
+		aggPolicy: aggPolicy,
 	}
+}
+
+type HealthFake struct {
+	state  map[string]h.State
+	failed bool
+	err    error
+}
+
+func (hf HealthFake) AddChecks(cfgs []*h.Config) error {
+	return nil
+}
+
+func (hf HealthFake) AddCheck(cfg *h.Config) error {
+	return nil
+}
+
+func (hf HealthFake) Start() error {
+	return nil
+}
+
+func (hf HealthFake) Stop() error {
+	return nil
+}
+
+func (hf HealthFake) State() (map[string]h.State, bool, error) {
+	return hf.state, hf.failed, hf.err
+}
+func (hf HealthFake) Failed() bool {
+	return hf.failed
 }

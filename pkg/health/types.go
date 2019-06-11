@@ -89,7 +89,6 @@ func (h *Health) WithDetails(details map[string]interface{}) *Health {
 }
 
 // Indicator is an interface to provide the health of a component
-//go:generate counterfeiter . Indicator
 type Indicator interface {
 	// Name returns the name of the component
 	Name() string
