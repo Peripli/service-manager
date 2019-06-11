@@ -21,9 +21,11 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"fmt"
+	health "github.com/InVisionApp/go-health"
 	"net"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/Peripli/service-manager/api/osb"
 
@@ -132,7 +134,12 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 		return nil, fmt.Errorf("error creating core api: %s", err)
 	}
 
-	API.HealthIndicators = append(API.HealthIndicators, &storage.HealthIndicator{Pinger: storage.PingFunc(smStorage.Ping)})
+	storageHealthIndicator, err := storage.NewStorageHealthIndicator(storage.PingFunc(smStorage.Ping))
+	if err != nil {
+		return nil, fmt.Errorf("error creating storage health indicator: %s", err)
+	}
+
+	API.HealthIndicators = append(API.HealthIndicators, storageHealthIndicator)
 
 	notificationCleaner := &storage.NotificationCleaner{
 		Storage:  interceptableRepository,
@@ -147,6 +154,11 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 		ctx:                 ctx,
 		wg:                  waitGroup,
 		cfg:                 cfg,
+	}
+
+	err = smb.installHealth()
+	if err != nil {
+		return nil, fmt.Errorf("error adding health chech to sm: %s", err)
 	}
 
 	// Register default interceptors that represent the core SM business logic
@@ -189,10 +201,32 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	}
 }
 
-func (smb *ServiceManagerBuilder) installHealth() {
-	if len(smb.HealthIndicators) > 0 {
-		smb.RegisterControllers(healthcheck.NewController(smb.HealthIndicators, smb.HealthAggregationPolicy))
+func (smb *ServiceManagerBuilder) installHealth() error {
+	if len(smb.HealthIndicators) == 0 {
+		return nil
 	}
+
+	h := health.New()
+
+	for _, indicator := range smb.HealthIndicators {
+		err := h.AddCheck(&health.Config{
+			Name:     indicator.Name(),
+			Checker:  indicator,
+			Interval: time.Duration(1) * time.Minute,
+		})
+
+		if err != nil {
+			return err
+		}
+	}
+	smb.RegisterControllers(healthcheck.NewController(h, smb.HealthAggregationPolicy))
+
+	err := h.Start()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Run starts the Service Manager

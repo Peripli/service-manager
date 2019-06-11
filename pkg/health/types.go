@@ -16,6 +16,8 @@
 
 package health
 
+import "github.com/InVisionApp/go-health"
+
 // Status represents the overall health status of a component
 type Status string
 
@@ -91,15 +93,16 @@ func (h *Health) WithDetails(details map[string]interface{}) *Health {
 type Indicator interface {
 	// Name returns the name of the component
 	Name() string
-	// Health returns the health of the component
-	Health() *Health
+
+	// Status returns the health information of the component
+	Status() (interface{}, error)
 }
 
 // AggregationPolicy is an interface to provide aggregated health information
 //go:generate counterfeiter . AggregationPolicy
 type AggregationPolicy interface {
 	// Apply processes the given healths to build a single health
-	Apply(healths map[string]*Health) *Health
+	Apply(healths map[string]health.State) *Health
 }
 
 // NewDefaultRegistry returns a default health registry with a single ping indicator and a default aggregation policy

@@ -24,6 +24,6 @@ func (*pingIndicator) Name() string {
 	return "ping"
 }
 
-func (*pingIndicator) Health() *Health {
-	return New().Up()
+func (*pingIndicator) Status() (interface{}, error) {
+	return nil, nil
 }

@@ -17,23 +17,26 @@
 package healthcheck
 
 import (
+	h "github.com/InVisionApp/go-health"
+	"github.com/Peripli/service-manager/pkg/health"
 	"github.com/Peripli/service-manager/pkg/util"
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/health"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
 // controller platform controller
 type controller struct {
-	indicator health.Indicator
+	health    h.IHealth
+	aggPolicy health.AggregationPolicy
 }
 
 // NewController returns a new healthcheck controller with the given indicators and aggregation policy
-func NewController(indicators []health.Indicator, aggregator health.AggregationPolicy) web.Controller {
+func NewController(health h.IHealth, aggPolict health.AggregationPolicy) web.Controller {
 	return &controller{
-		indicator: newCompositeIndicator(indicators, aggregator),
+		health:    health,
+		aggPolicy: aggPolict,
 	}
 }
 
@@ -41,8 +44,9 @@ func NewController(indicators []health.Indicator, aggregator health.AggregationP
 func (c *controller) healthCheck(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	logger := log.C(ctx)
-	logger.Debugf("Performing health check with %s...", c.indicator.Name())
-	healthResult := c.indicator.Health()
+	logger.Debugf("Performing health check...")
+	healthState, _, _ := c.health.State()
+	healthResult := c.aggPolicy.Apply(healthState)
 	var status int
 	if healthResult.Status == health.StatusUp {
 		status = http.StatusOK
