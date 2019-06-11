@@ -41,7 +41,7 @@ var _ = Describe("Forbidden label operations filter", func() {
 
 	BeforeEach(func() {
 		protectedLabels = map[string][]query.LabelOperation{
-			"forbidden": []query.LabelOperation{"add", "add_values", "remove", "remove_values"},
+			"forbidden": {"add", "add_values", "remove", "remove_values"},
 		}
 	})
 
@@ -92,7 +92,7 @@ var _ = Describe("Forbidden label operations filter", func() {
 		When("add operation is allowed, but remove forbidden", func() {
 			BeforeEach(func() {
 				protectedLabels = map[string][]query.LabelOperation{
-					"forbidden": []query.LabelOperation{"remove", "remove_values"},
+					"forbidden": {"remove", "remove_values"},
 				}
 			})
 			It("should call next filter in chain", func() {
