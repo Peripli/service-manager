@@ -18,7 +18,6 @@ package postgres
 
 import (
 	"context"
-
 	"github.com/Peripli/service-manager/storage"
 
 	. "github.com/onsi/ginkgo"
@@ -26,20 +25,44 @@ import (
 )
 
 var _ = Describe("Postgres Storage", func() {
-	pgStorage := &PostgresStorage{}
+	pgStorage := &Storage{}
 
-	Describe("Credentials", func() {
+	Describe("Lock", func() {
 		Context("Called with uninitialized db", func() {
 			It("Should panic", func() {
-				Expect(func() { pgStorage.Credentials() }).To(Panic())
+				Expect(func() { pgStorage.Lock(context.TODO()) }).To(Panic())
 			})
 		})
 	})
 
-	Context("Security", func() {
+	Context("Unlock", func() {
 		Context("Called with uninitialized db", func() {
 			It("Should panic", func() {
-				Expect(func() { pgStorage.Security() }).To(Panic())
+				Expect(func() { pgStorage.Unlock(context.TODO()) }).To(Panic())
+			})
+		})
+	})
+
+	Context("GetEncryptionKey", func() {
+		Context("Called with uninitialized db", func() {
+			It("Should panic", func() {
+				Expect(func() {
+					pgStorage.GetEncryptionKey(context.TODO(), func(i context.Context, bytes3 []byte, bytes2 []byte) (bytes []byte, e error) {
+						return []byte{}, nil
+					})
+				}).To(Panic())
+			})
+		})
+	})
+
+	Context("SetEncryptionKey", func() {
+		Context("Called with uninitialized db", func() {
+			It("Should panic", func() {
+				Expect(func() {
+					pgStorage.SetEncryptionKey(context.TODO(), []byte{}, func(i context.Context, bytes3 []byte, bytes2 []byte) (bytes []byte, e error) {
+						return []byte{}, nil
+					})
+				}).To(Panic())
 			})
 		})
 	})
@@ -68,15 +91,18 @@ var _ = Describe("Postgres Storage", func() {
 					MigrationsURL: "file://migrations",
 				})
 				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("StorageURI missing"))
 			})
 		})
 
 		Context("Called with empty migrations", func() {
 			It("Should return error", func() {
 				err := pgStorage.Open(&storage.Settings{
+					URI:           "postgres://",
 					MigrationsURL: "",
 				})
 				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("StorageMigrationsURL missing"))
 			})
 		})
 
@@ -88,6 +114,7 @@ var _ = Describe("Postgres Storage", func() {
 						MigrationsURL:     "invalid",
 						EncryptionKey:     "ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8",
 						SkipSSLValidation: true,
+						Notification:      storage.DefaultNotificationSettings(),
 					})
 				}).To(Panic())
 			})

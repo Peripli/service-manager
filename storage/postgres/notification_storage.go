@@ -46,7 +46,7 @@ type notificationStorage interface {
 
 // NewNotificationStorage returns new notification storage
 func NewNotificationStorage(st storage.Storage) (*notificationStorageImpl, error) {
-	pgStorage, ok := st.(*PostgresStorage)
+	pgStorage, ok := st.(*Storage)
 	if !ok {
 		return nil, errors.New("expected notification storage to be Postgres")
 	}
@@ -56,7 +56,7 @@ func NewNotificationStorage(st storage.Storage) (*notificationStorageImpl, error
 }
 
 type notificationStorageImpl struct {
-	storage *PostgresStorage
+	storage *Storage
 }
 
 func (ns *notificationStorageImpl) GetLastRevision(ctx context.Context) (int64, error) {

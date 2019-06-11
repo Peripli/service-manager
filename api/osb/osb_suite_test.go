@@ -14,22 +14,13 @@
  * limitations under the License.
  */
 
-package middlewares
+package osb
 
-import (
-	"github.com/Peripli/service-manager/pkg/web"
-)
+import "testing"
+import . "github.com/onsi/ginkgo"
+import . "github.com/onsi/gomega"
 
-type middleware struct {
-	FilterName string
-}
-
-// Name implements the web.Filter interface and returns the identifier of the filter
-func (m *middleware) Name() string {
-	return m.FilterName
-}
-
-// FilterMatchers implements the web.Filter interface and returns the conditions on which the filter should be executed
-func (m *middleware) FilterMatchers() []web.FilterMatcher {
-	panic("FilterMatchers not implemented")
+func TestOSB(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Service Manager OSB Suite")
 }

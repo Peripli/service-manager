@@ -66,39 +66,31 @@ type pgDB interface {
 	sqlx.ExtContext
 }
 
-func create(ctx context.Context, db pgDB, table string, dto interface{}) (string, error) {
-	var lastInsertID string
-	setTagType := getDBTags(dto, isAutoIncrementable)
+func create(ctx context.Context, db pgDB, table string, resultDto interface{}, argsDto interface{}) error {
+	setTagType := getDBTags(argsDto, isAutoIncrementable)
 	dbTags := make([]string, 0, len(setTagType))
 	for _, tagType := range setTagType {
 		dbTags = append(dbTags, tagType.Tag)
 	}
 
 	if len(dbTags) == 0 {
-		return lastInsertID, fmt.Errorf("%s insert: No fields to insert", table)
+		return fmt.Errorf("%s insert: No fields to insert", table)
 	}
 
 	sqlQuery := fmt.Sprintf(
-		"INSERT INTO %s (%s) VALUES(:%s)",
+		"INSERT INTO %s (%s) VALUES(:%s) RETURNING *;",
 		table,
 		strings.Join(dbTags, ", "),
 		strings.Join(dbTags, ", :"),
 	)
 
-	id, ok := structs.New(dto).FieldOk("ID")
-	if ok {
-		queryReturningID := fmt.Sprintf("%s Returning %s", sqlQuery, id.Tag("db"))
-		log.C(ctx).Debugf("Executing query %s", queryReturningID)
-		stmt, err := db.PrepareNamedContext(ctx, queryReturningID)
-		if err != nil {
-			return "", err
-		}
-		err = stmt.GetContext(ctx, &lastInsertID, dto)
-		return lastInsertID, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
-	}
 	log.C(ctx).Debugf("Executing query %s", sqlQuery)
-	_, err := db.NamedExecContext(ctx, sqlQuery, dto)
-	return lastInsertID, checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
+	stmt, err := db.PrepareNamedContext(ctx, sqlQuery)
+	if err != nil {
+		return err
+	}
+	err = stmt.GetContext(ctx, resultDto, argsDto)
+	return checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
 }
 
 func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface{}, label PostgresLabel, baseTableName string, criteria []query.Criterion) (*sqlx.Rows, error) {
@@ -320,6 +312,7 @@ func getJSONText(item json.RawMessage) sqlxtypes.JSONText {
 	if len(item) == len("null") && string(item) == "null" {
 		return sqlxtypes.JSONText("{}")
 	}
+
 	return sqlxtypes.JSONText(item)
 }
 

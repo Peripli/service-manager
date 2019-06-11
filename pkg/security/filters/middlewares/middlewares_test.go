@@ -34,12 +34,12 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestServer(t *testing.T) {
+func TestMiddlewares(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Security Middlewares Suite")
 }
 
-var _ = Describe("Middlewares tests", func() {
+var _ = Describe("Middlewares", func() {
 	const expectedErrorMessage = "expected error"
 	var (
 		req     *web.Request
@@ -58,29 +58,14 @@ var _ = Describe("Middlewares tests", func() {
 			handler = &webfakes.FakeHandler{}
 		})
 
-		Describe("when Filter.FilterMatchers is invoked", func() {
-			It("should panic", func() {
-				authzFilter := NewAuthzMiddleware(filterName, nil)
-				Expect(func() {
-					authzFilter.FilterMatchers()
-				}).To(Panic())
-			})
-		})
-
-		Describe("when Filter.Name is invoked", func() {
-			It("should return the name", func() {
-				authzFilter := NewAuthzMiddleware(filterName, nil)
-				Expect(authzFilter.Name()).To(Equal(filterName))
-			})
-		})
-
-		Describe("when Filter.Run is invoked", func() {
-
+		Describe("Run", func() {
 			Context("when authorizer returns decision", func() {
 				Context("Deny", func() {
 					It("should return error", func() {
 						authorizer.AuthorizeReturns(httpsec.Deny, nil)
-						authzFilter := NewAuthzMiddleware(filterName, authorizer)
+						authzFilter := Authorization{
+							Authorizer: authorizer,
+						}
 						_, err := authzFilter.Run(req, handler)
 						httpErr, ok := err.(*util.HTTPError)
 						Expect(ok).To(BeTrue())
@@ -91,7 +76,9 @@ var _ = Describe("Middlewares tests", func() {
 					It("should continue with calling handler", func() {
 						authorizer.AuthorizeReturns(httpsec.Abstain, nil)
 						handler.HandleReturns(nil, errors.New(expectedErrorMessage))
-						authzFilter := NewAuthzMiddleware(filterName, authorizer)
+						authzFilter := Authorization{
+							Authorizer: authorizer,
+						}
 						_, err := authzFilter.Run(req, handler)
 						checkExpectedErrorMessage(expectedErrorMessage, err)
 						Expect(web.IsAuthorized(req.Context())).To(BeFalse())
@@ -101,7 +88,9 @@ var _ = Describe("Middlewares tests", func() {
 					It("should add authorization flag in request context", func() {
 						authorizer.AuthorizeReturns(httpsec.Allow, nil)
 						handler.HandleReturns(nil, errors.New(expectedErrorMessage))
-						authzFilter := NewAuthzMiddleware(filterName, authorizer)
+						authzFilter := Authorization{
+							Authorizer: authorizer,
+						}
 						_, err := authzFilter.Run(req, handler)
 						checkExpectedErrorMessage(expectedErrorMessage, err)
 						Expect(web.IsAuthorized(req.Context())).To(BeTrue())
@@ -113,7 +102,9 @@ var _ = Describe("Middlewares tests", func() {
 				Context("and decision Abstain", func() {
 					It("should return error", func() {
 						authorizer.AuthorizeReturns(httpsec.Abstain, errors.New(expectedErrorMessage))
-						authzFilter := NewAuthzMiddleware(filterName, authorizer)
+						authzFilter := Authorization{
+							Authorizer: authorizer,
+						}
 						_, err := authzFilter.Run(req, handler)
 						checkExpectedErrorMessage(expectedErrorMessage, err)
 					})
@@ -122,7 +113,9 @@ var _ = Describe("Middlewares tests", func() {
 				Context("and decision Deny", func() {
 					It("should return http error 403", func() {
 						authorizer.AuthorizeReturns(httpsec.Deny, errors.New(expectedErrorMessage))
-						authzFilter := NewAuthzMiddleware(filterName, authorizer)
+						authzFilter := Authorization{
+							Authorizer: authorizer,
+						}
 						_, err := authzFilter.Run(req, handler)
 						checkExpectedErrorMessage(expectedErrorMessage, err)
 						httpErr, ok := err.(*util.HTTPError)
@@ -148,27 +141,12 @@ var _ = Describe("Middlewares tests", func() {
 			handler = &webfakes.FakeHandler{}
 		})
 
-		Describe("when Filter.FilterMatchers is invoked", func() {
-			It("should panic", func() {
-				authnFilter := NewAuthnMiddleware(filterName, nil)
-				Expect(func() {
-					authnFilter.FilterMatchers()
-				}).To(Panic())
-			})
-		})
-
-		Describe("when Filter.Name is invoked", func() {
-			It("should return the name", func() {
-				authnFilter := NewAuthnMiddleware(filterName, nil)
-				Expect(authnFilter.Name()).To(Equal(filterName))
-			})
-		})
-
-		Describe("when Filter.Run is invoked", func() {
-
+		Describe("Run", func() {
 			Context("when authentication already passed", func() {
 				It("should continue", func() {
-					authnFilter := NewAuthnMiddleware(filterName, nil)
+					authnFilter := Authentication{
+						Authenticator: nil,
+					}
 					req.Request = req.Request.WithContext(web.ContextWithUser(req.Context(), &web.UserContext{}))
 					authnFilter.Run(req, handler)
 					Expect(handler.HandleCallCount()).To(Equal(1))
@@ -179,8 +157,10 @@ var _ = Describe("Middlewares tests", func() {
 				Context("Deny", func() {
 					It("should return error", func() {
 						authenticator.AuthenticateReturns(nil, httpsec.Deny, nil)
-						authzFilter := NewAuthnMiddleware(filterName, authenticator)
-						_, err := authzFilter.Run(req, handler)
+						authnFilter := Authentication{
+							Authenticator: authenticator,
+						}
+						_, err := authnFilter.Run(req, handler)
 						httpErr, ok := err.(*util.HTTPError)
 						Expect(ok).To(BeTrue())
 						Expect(httpErr.StatusCode).To(Equal(http.StatusUnauthorized))
@@ -190,8 +170,10 @@ var _ = Describe("Middlewares tests", func() {
 					It("should continue with calling handler", func() {
 						authenticator.AuthenticateReturns(nil, httpsec.Abstain, nil)
 						handler.HandleReturns(nil, errors.New(expectedErrorMessage))
-						authzFilter := NewAuthnMiddleware(filterName, authenticator)
-						_, err := authzFilter.Run(req, handler)
+						authnFilter := Authentication{
+							Authenticator: authenticator,
+						}
+						_, err := authnFilter.Run(req, handler)
 						checkExpectedErrorMessage(expectedErrorMessage, err)
 						_, isAuthenticated := web.UserFromContext(req.Context())
 						Expect(isAuthenticated).To(BeFalse())
@@ -202,8 +184,10 @@ var _ = Describe("Middlewares tests", func() {
 						It("should add user in request context", func() {
 							authenticator.AuthenticateReturns(&web.UserContext{}, httpsec.Allow, nil)
 							handler.HandleReturns(nil, errors.New(expectedErrorMessage))
-							authzFilter := NewAuthnMiddleware(filterName, authenticator)
-							_, err := authzFilter.Run(req, handler)
+							authnFilter := Authentication{
+								Authenticator: authenticator,
+							}
+							_, err := authnFilter.Run(req, handler)
 							checkExpectedErrorMessage(expectedErrorMessage, err)
 							user, isAuthenticated := web.UserFromContext(req.Context())
 							Expect(isAuthenticated).To(BeTrue())
@@ -214,8 +198,10 @@ var _ = Describe("Middlewares tests", func() {
 						It("should return error", func() {
 							authenticator.AuthenticateReturns(nil, httpsec.Allow, nil)
 							handler.HandleReturns(nil, errors.New(expectedErrorMessage))
-							authzFilter := NewAuthnMiddleware(filterName, authenticator)
-							_, err := authzFilter.Run(req, handler)
+							authnFilter := Authentication{
+								Authenticator: authenticator,
+							}
+							_, err := authnFilter.Run(req, handler)
 							Expect(err).To(Equal(security.ErrUserNotFound))
 						})
 					})
@@ -226,8 +212,10 @@ var _ = Describe("Middlewares tests", func() {
 				Context("and decision Abstain", func() {
 					It("should return error", func() {
 						authenticator.AuthenticateReturns(nil, httpsec.Abstain, errors.New(expectedErrorMessage))
-						authzFilter := NewAuthnMiddleware(filterName, authenticator)
-						_, err := authzFilter.Run(req, handler)
+						authnFilter := Authentication{
+							Authenticator: authenticator,
+						}
+						_, err := authnFilter.Run(req, handler)
 						checkExpectedErrorMessage(expectedErrorMessage, err)
 					})
 				})
@@ -235,8 +223,10 @@ var _ = Describe("Middlewares tests", func() {
 				Context("and decision Deny", func() {
 					It("should return http error 403", func() {
 						authenticator.AuthenticateReturns(nil, httpsec.Deny, errors.New(expectedErrorMessage))
-						authzFilter := NewAuthnMiddleware(filterName, authenticator)
-						_, err := authzFilter.Run(req, handler)
+						authnFilter := Authentication{
+							Authenticator: authenticator,
+						}
+						_, err := authnFilter.Run(req, handler)
 						checkExpectedErrorMessage(expectedErrorMessage, err)
 						httpErr, ok := err.(*util.HTTPError)
 						Expect(ok).To(BeTrue())

@@ -18,9 +18,7 @@ package ws_notification_test
 
 import (
 	"context"
-	"encoding/base64"
 	"net/http"
-	"net/url"
 	"strconv"
 	"testing"
 	"time"
@@ -60,34 +58,10 @@ var _ = Describe("WS", func() {
 	var resp *http.Response
 	var repository storage.Repository
 	var platform *types.Platform
-	var connections []*websocket.Conn
-
-	wsconnect := func(platform *types.Platform, queryParams map[string]string) (*websocket.Conn, *http.Response, error) {
-		smURL := ctx.Servers[common.SMServer].URL()
-		smEndpoint, _ := url.Parse(smURL)
-		smEndpoint.Scheme = "ws"
-		smEndpoint.Path = web.NotificationsURL
-		q := smEndpoint.Query()
-		for k, v := range queryParams {
-			q.Add(k, v)
-		}
-		smEndpoint.RawQuery = q.Encode()
-
-		headers := http.Header{}
-		encodedPlatform := base64.StdEncoding.EncodeToString([]byte(platform.Credentials.Basic.Username + ":" + platform.Credentials.Basic.Password))
-		headers.Add("Authorization", "Basic "+encodedPlatform)
-
-		wsEndpoint := smEndpoint.String()
-		conn, resp, err := websocket.DefaultDialer.Dial(wsEndpoint, headers)
-		if conn != nil {
-			connections = append(connections, conn)
-		}
-		return conn, resp, err
-	}
 
 	wsconnectWithPlatform := func(queryParams map[string]string) (*types.Platform, *websocket.Conn, *http.Response, error) {
 		platform := common.RegisterPlatformInSM(common.GenerateRandomPlatform(), ctx.SMWithOAuth, map[string]string{})
-		conn, resp, err := wsconnect(platform, queryParams)
+		conn, resp, err := ctx.ConnectWebSocket(platform, queryParams)
 		return platform, conn, resp, err
 	}
 
@@ -109,7 +83,7 @@ var _ = Describe("WS", func() {
 
 	JustBeforeEach(func() {
 		var err error
-		wsconn, resp, err = wsconnect(platform, queryParams)
+		wsconn, resp, err = ctx.ConnectWebSocket(platform, queryParams)
 		Expect(err).ShouldNot(HaveOccurred())
 	})
 
@@ -121,13 +95,6 @@ var _ = Describe("WS", func() {
 			}
 		}
 		ctx.Cleanup()
-	})
-
-	JustAfterEach(func() {
-		for _, conn := range connections {
-			conn.Close()
-		}
-		connections = nil
 	})
 
 	Context("when non-websocket request is received", func() {
@@ -183,6 +150,14 @@ var _ = Describe("WS", func() {
 		It("should receive max ping timeout response header", func() {
 			Expect(resp.Header.Get(notifications.MaxPingPeriodHeader)).ToNot(BeEmpty())
 		})
+
+		Context("and revision known to proxy is 0", func() {
+			It("should receive 410 Gone", func() {
+				queryParams[notifications.LastKnownRevisionQueryParam] = "0"
+				_, resp, _ := ctx.ConnectWebSocket(platform, queryParams)
+				Expect(resp.StatusCode).To(Equal(http.StatusGone))
+			})
+		})
 	})
 
 	Context("when notifications are created prior to connection", func() {
@@ -204,6 +179,14 @@ var _ = Describe("WS", func() {
 			})
 		})
 
+		Context("and revision known to proxy is 0", func() {
+			It("should receive 410 Gone", func() {
+				queryParams[notifications.LastKnownRevisionQueryParam] = "0"
+				_, resp, _ := ctx.ConnectWebSocket(platform, queryParams)
+				Expect(resp.StatusCode).To(Equal(http.StatusGone))
+			})
+		})
+
 		Context("and proxy knows some notification revision", func() {
 			var notification2 *types.Notification
 			BeforeEach(func() {
@@ -219,7 +202,7 @@ var _ = Describe("WS", func() {
 		Context("and revision known to proxy is not known to sm anymore", func() {
 			It("should receive 410 Gone", func() {
 				queryParams[notifications.LastKnownRevisionQueryParam] = strconv.FormatInt(notification.Revision-1, 10)
-				_, resp, err := wsconnect(platform, queryParams)
+				_, resp, err := ctx.ConnectWebSocket(platform, queryParams)
 				Expect(resp.StatusCode).To(Equal(http.StatusGone))
 				Expect(err).Should(HaveOccurred())
 			})
@@ -228,7 +211,7 @@ var _ = Describe("WS", func() {
 		Context("and proxy known revision is greater than sm known revision", func() {
 			It("should receive 410 Gone", func() {
 				queryParams[notifications.LastKnownRevisionQueryParam] = strconv.FormatInt(notification.Revision+1, 10)
-				_, resp, err := wsconnect(platform, queryParams)
+				_, resp, err := ctx.ConnectWebSocket(platform, queryParams)
 				Expect(resp.StatusCode).To(Equal(http.StatusGone))
 				Expect(err).Should(HaveOccurred())
 			})
@@ -257,7 +240,7 @@ var _ = Describe("WS", func() {
 
 	Context("when same platform is connected twice", func() {
 		It("should send same notifications to both", func() {
-			conn, _, err := wsconnect(platform, queryParams)
+			conn, _, err := ctx.ConnectWebSocket(platform, queryParams)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(conn).ShouldNot(BeNil())
 
@@ -270,7 +253,7 @@ var _ = Describe("WS", func() {
 	Context("when revision known to proxy is invalid number", func() {
 		It("should return status 400", func() {
 			queryParams[notifications.LastKnownRevisionQueryParam] = "not_a_number"
-			_, resp, err := wsconnect(platform, queryParams)
+			_, resp, err := ctx.ConnectWebSocket(platform, queryParams)
 			Expect(resp.StatusCode).To(Equal(http.StatusBadRequest))
 			Expect(err).Should(HaveOccurred())
 		})
@@ -309,10 +292,10 @@ var _ = Describe("WS", func() {
 func createNotification(repository storage.Repository, platformID string) *types.Notification {
 	notification := common.GenerateRandomNotification()
 	notification.PlatformID = platformID
-	id, err := repository.Create(context.Background(), notification)
+	result, err := repository.Create(context.Background(), notification)
 	Expect(err).ShouldNot(HaveOccurred())
 
-	createdNotification, err := repository.Get(context.Background(), types.NotificationType, id)
+	createdNotification, err := repository.Get(context.Background(), types.NotificationType, result.GetID())
 	Expect(err).ShouldNot(HaveOccurred())
 	return createdNotification.(*types.Notification)
 }

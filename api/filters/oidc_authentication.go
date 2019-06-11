@@ -14,26 +14,36 @@
  * limitations under the License.
  */
 
-package oauth
+package filters
 
 import (
 	"context"
 
-	"github.com/Peripli/service-manager/pkg/security/authenticators"
-	"github.com/Peripli/service-manager/pkg/security/middlewares"
 	"github.com/Peripli/service-manager/pkg/web"
+
+	"github.com/Peripli/service-manager/pkg/security/filters"
+
+	"github.com/Peripli/service-manager/pkg/security/authenticators"
 )
 
 // BearerAuthnFilterName is the name of the bearer authentication filter
 const BearerAuthnFilterName string = "BearerAuthnFilter"
 
-// bearerAuthnFilter performs Bearer authentication by validating the Authorization header
-type bearerAuthnFilter struct {
-	web.Filter
+// NewOIDCAuthnFilter returns a web.Filter for Bearer authentication
+func NewOIDCAuthnFilter(ctx context.Context, tokenIssuer, clientID string) (*filters.AuthenticationFilter, error) {
+	authenticator, _, err := authenticators.NewOIDCAuthenticator(ctx, &authenticators.OIDCOptions{
+		IssuerURL: tokenIssuer,
+		ClientID:  clientID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return filters.NewAuthenticationFilter(authenticator, BearerAuthnFilterName, oidcAuthnMatchers()), nil
 }
 
 // FilterMatchers implements the web.Filter interface and returns the conditions on which the filter should be executed
-func (ba *bearerAuthnFilter) FilterMatchers() []web.FilterMatcher {
+func oidcAuthnMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
@@ -47,18 +57,4 @@ func (ba *bearerAuthnFilter) FilterMatchers() []web.FilterMatcher {
 			},
 		},
 	}
-}
-
-// NewFilter returns a web.Filter for Bearer authentication
-func NewFilter(ctx context.Context, tokenIssuer, clientID string) (web.Filter, error) {
-	authenticator, _, err := authenticators.NewOIDCAuthenticator(ctx, &authenticators.OIDCOptions{
-		IssuerURL: tokenIssuer,
-		ClientID:  clientID,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &bearerAuthnFilter{
-		Filter: middlewares.NewAuthnMiddleware(BearerAuthnFilterName, authenticator),
-	}, nil
 }

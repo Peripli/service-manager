@@ -86,9 +86,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		By(fmt.Sprintf("Attempting to create a random resource of %s", t.API))
 
 		gen := t.ResourceBlueprint(ctx)
-		if t.SupportsLabels {
-			gen = attachLabel(gen)
-		}
+		gen = attachLabel(gen)
 		delete(gen, "created_at")
 		delete(gen, "updated_at")
 		r = append(r, gen)
@@ -460,7 +458,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 				})
 
 				labels := params.queryArgs["labels"]
-				if t.SupportsLabels && labels != nil {
+				if labels != nil {
 
 					multiQueryValue, queryValues = expandLabelQuery(labels.(map[string]interface{}), params.queryTemplate)
 					lquery := "labelQuery" + "=" + multiQueryValue

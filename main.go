@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"github.com/Peripli/service-manager/config"
 
 	"github.com/Peripli/service-manager/pkg/sm"
 	"github.com/Peripli/service-manager/version"
@@ -29,7 +30,15 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	env := sm.DefaultEnv()
-	serviceManager := sm.New(ctx, cancel, env).Build()
-	serviceManager.Run()
+	cfg, err := config.New()
+	if err != nil {
+		panic(err)
+	}
+
+	serviceManager, err := sm.New(ctx, cancel, cfg)
+	if err != nil {
+		panic(err)
+	}
+
+	serviceManager.Build().Run()
 }
