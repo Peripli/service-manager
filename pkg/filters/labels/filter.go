@@ -28,36 +28,19 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-// ForbiddenLabelOperations describe denied label key operations
-type ForbiddenLabelOperations map[string][]query.LabelOperation
-
-func (flo ForbiddenLabelOperations) Validate() error {
-	for lk := range flo {
-		for _, op := range flo[lk] {
-			switch op {
-			case query.AddLabelOperation:
-				fallthrough
-			case query.AddLabelValuesOperation:
-				fallthrough
-			case query.RemoveLabelOperation:
-				fallthrough
-			case query.RemoveLabelValuesOperation:
-				return nil
-			default:
-				return fmt.Errorf("label operation %s not recognized", op)
-			}
-		}
-	}
-	return nil
-}
-
+// ForibiddenLabelOperationsFilter checks for forbidden labels being modified/added
 type ForibiddenLabelOperationsFilter struct {
-	forbiddenOperations ForbiddenLabelOperations
+	forbiddenLabels map[string]bool
 }
 
-func NewForbiddenLabelOperationsFilter(forbiddenOperations ForbiddenLabelOperations) *ForibiddenLabelOperationsFilter {
+// NewForbiddenLabelOperationsFilter creates new filter for forbidden labels
+func NewForbiddenLabelOperationsFilter(forbiddenLabels []string) *ForibiddenLabelOperationsFilter {
+	forbiddenLabelsMap := make(map[string]bool)
+	for _, label := range forbiddenLabels {
+		forbiddenLabelsMap[label] = true
+	}
 	return &ForibiddenLabelOperationsFilter{
-		forbiddenOperations: forbiddenOperations,
+		forbiddenLabels: forbiddenLabelsMap,
 	}
 }
 
@@ -66,8 +49,16 @@ func (flo *ForibiddenLabelOperationsFilter) Name() string {
 }
 
 func (flo *ForibiddenLabelOperationsFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
+	if len(flo.forbiddenLabels) == 0 {
+		return next.Handle(req)
+	}
+
 	if req.Method == http.MethodPost {
 		body := gjson.ParseBytes(req.Body).Map()
+		if _, found := body["labels"]; !found {
+			return next.Handle(req)
+		}
+
 		labelsBytes := []byte(body["labels"].String())
 		if len(labelsBytes) == 0 {
 			return next.Handle(req)
@@ -78,18 +69,15 @@ func (flo *ForibiddenLabelOperationsFilter) Run(req *web.Request, next web.Handl
 			return nil, err
 		}
 		for lKey := range labels {
-			labelOperations, found := flo.forbiddenOperations[lKey]
+			_, found := flo.forbiddenLabels[lKey]
 			if !found {
 				continue
 			}
-			for _, lo := range labelOperations {
-				if lo == query.AddLabelOperation || lo == query.AddLabelValuesOperation {
-					return nil, &util.HTTPError{
-						ErrorType:   "BadRequest",
-						Description: fmt.Sprintf("Set/Add values for label %s is not allowed", lKey),
-						StatusCode:  http.StatusBadRequest,
-					}
-				}
+
+			return nil, &util.HTTPError{
+				ErrorType:   "BadRequest",
+				Description: fmt.Sprintf("Set/Add values for label %s is not allowed", lKey),
+				StatusCode:  http.StatusBadRequest,
 			}
 		}
 	} else if req.Method == http.MethodPatch {
@@ -98,18 +86,15 @@ func (flo *ForibiddenLabelOperationsFilter) Run(req *web.Request, next web.Handl
 			return nil, err
 		}
 		for _, lc := range labelChanges {
-			deniedLabelOperations, found := flo.forbiddenOperations[lc.Key]
+			_, found := flo.forbiddenLabels[lc.Key]
 			if !found {
 				continue
 			}
-			for _, op := range deniedLabelOperations {
-				if op == lc.Operation {
-					return nil, &util.HTTPError{
-						ErrorType:   "BadRequest",
-						Description: fmt.Sprintf("Operation %s is not allowed for label %s", lc.Operation, lc.Key),
-						StatusCode:  http.StatusBadRequest,
-					}
-				}
+
+			return nil, &util.HTTPError{
+				ErrorType:   "BadRequest",
+				Description: fmt.Sprintf("Modifying is not allowed for label %s", lc.Key),
+				StatusCode:  http.StatusBadRequest,
 			}
 		}
 	}

@@ -24,7 +24,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/pkg/web/webfakes"
 
-	"github.com/Peripli/service-manager/pkg/query"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -37,12 +36,10 @@ func TestLabelsFilter(t *testing.T) {
 var _ = Describe("Forbidden label operations filter", func() {
 	var filter *ForibiddenLabelOperationsFilter
 	var handler *webfakes.FakeHandler
-	var protectedLabels map[string][]query.LabelOperation
+	var protectedLabels []string
 
 	BeforeEach(func() {
-		protectedLabels = map[string][]query.LabelOperation{
-			"forbidden": {"add", "add_values", "remove", "remove_values"},
-		}
+		protectedLabels = []string{"forbidden"}
 	})
 
 	JustBeforeEach(func() {
@@ -63,15 +60,52 @@ var _ = Describe("Forbidden label operations filter", func() {
 			})
 		})
 
+		When("entity has no forbidden labels", func() {
+			It("should call next filter in chain", func() {
+				req := mockedRequest(http.MethodPost, `{"labels": {"allowed": ["value"]}}`)
+				_, err := filter.Run(req, handler)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(handler.HandleCallCount()).To(Equal(1))
+			})
+		})
+
 		When("there are no protected labels specified", func() {
 			BeforeEach(func() {
-				protectedLabels = map[string][]query.LabelOperation{}
+				protectedLabels = []string{}
 			})
 			It("should call next filter in chain", func() {
 				req := mockedRequest(http.MethodPost, `{"labels": {"forbidden": ["forbidden_value"]}}`)
 				_, err := filter.Run(req, handler)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(handler.HandleCallCount()).To(Equal(1))
+			})
+		})
+
+		When("no labels are provided", func() {
+			It("should call next filter in chain", func() {
+				req := mockedRequest(http.MethodPost, `{}`)
+				_, err := filter.Run(req, handler)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(handler.HandleCallCount()).To(Equal(1))
+			})
+		})
+
+		When("empty labels are provided", func() {
+			It("should call next filter in chain", func() {
+				req := mockedRequest(http.MethodPost, `{"labels":nil}`)
+				_, err := filter.Run(req, handler)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(handler.HandleCallCount()).To(Equal(1))
+			})
+		})
+
+		When("when labels is invalid json", func() {
+			It("should return error", func() {
+				req := mockedRequest(http.MethodPost, `{"labels": "invalid"}`)
+				_, err := filter.Run(req, handler)
+				Expect(err).Should(HaveOccurred())
+				Expect(err.Error()).Should(ContainSubstring("Failed to decode"))
+				Expect(handler.HandleCallCount()).To(Equal(0))
 			})
 		})
 	})
@@ -84,16 +118,14 @@ var _ = Describe("Forbidden label operations filter", func() {
 				httpErr, ok := err.(*util.HTTPError)
 				Expect(ok).To(BeTrue())
 				Expect(httpErr.StatusCode).To(Equal(http.StatusBadRequest))
-				Expect(httpErr.Description).To(ContainSubstring("Operation add is not allowed for label forbidden"))
+				Expect(httpErr.Description).To(ContainSubstring("Modifying is not allowed for label forbidden"))
 				Expect(handler.HandleCallCount()).To(Equal(0))
 			})
 		})
 
-		When("add operation is allowed, but remove forbidden", func() {
+		When("there are no protected labels specified", func() {
 			BeforeEach(func() {
-				protectedLabels = map[string][]query.LabelOperation{
-					"forbidden": {"remove", "remove_values"},
-				}
+				protectedLabels = []string{}
 			})
 			It("should call next filter in chain", func() {
 				req := mockedRequest(http.MethodPatch, `{"labels": [{"op":"add", "key":"forbidden", "values":["forbidden_value"]}]}`)
@@ -101,24 +133,21 @@ var _ = Describe("Forbidden label operations filter", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(handler.HandleCallCount()).To(Equal(1))
 			})
+		})
 
-			It("should not call next filter in chain", func() {
-				req := mockedRequest(http.MethodPatch, `{"labels": [{"op":"remove", "key":"forbidden", "values":["forbidden_value"]}]}`)
+		When("when labels is invalid json", func() {
+			It("should return error", func() {
+				req := mockedRequest(http.MethodPatch, `{"labels": "invalid"}`)
 				_, err := filter.Run(req, handler)
-				httpErr, ok := err.(*util.HTTPError)
-				Expect(ok).To(BeTrue())
-				Expect(httpErr.StatusCode).To(Equal(http.StatusBadRequest))
-				Expect(httpErr.Description).To(ContainSubstring("Operation remove is not allowed for label forbidden"))
+				Expect(err).Should(HaveOccurred())
+				Expect(err.Error()).Should(ContainSubstring("Failed to decode"))
 				Expect(handler.HandleCallCount()).To(Equal(0))
 			})
 		})
 
-		When("there are no protected labels specified", func() {
-			BeforeEach(func() {
-				protectedLabels = map[string][]query.LabelOperation{}
-			})
+		When("entity has no forbidden labels", func() {
 			It("should call next filter in chain", func() {
-				req := mockedRequest(http.MethodPatch, `{"labels": [{"op":"add", "key":"forbidden", "values":["forbidden_value"]}]}`)
+				req := mockedRequest(http.MethodPatch, `{"labels": [{"op":"add", "key":"allowed", "values":["value"]}]}`)
 				_, err := filter.Run(req, handler)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(handler.HandleCallCount()).To(Equal(1))
