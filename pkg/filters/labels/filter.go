@@ -42,6 +42,8 @@ func (flo ForbiddenLabelOperations) Validate() error {
 			case query.RemoveLabelOperation:
 				fallthrough
 			case query.RemoveLabelValuesOperation:
+				return nil
+			default:
 				return fmt.Errorf("label operation %s not recognized", op)
 			}
 		}
