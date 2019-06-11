@@ -31,9 +31,9 @@ import (
 // ForbiddenLabelOperations describe denied label key operations
 type ForbiddenLabelOperations map[string][]query.LabelOperation
 
-func (flo *ForbiddenLabelOperations) Validate() error {
-	for lk := range *flo {
-		for _, op := range (*flo)[lk] {
+func (flo ForbiddenLabelOperations) Validate() error {
+	for lk := range flo {
+		for _, op := range flo[lk] {
 			switch op {
 			case query.AddLabelOperation:
 				fallthrough
