@@ -120,10 +120,10 @@ func New(ctx context.Context, options *Options) (*web.API, error) {
 			filters.NewBasicAuthnFilter(options.Repository),
 			bearerAuthnFilter,
 			secfilters.NewRequiredAuthnFilter(),
+			labels.NewForbiddenLabelOperationsFilter(options.APISettings.ProctedLabels),
 			&filters.SelectionCriteria{},
 			&filters.PlatformAwareVisibilityFilter{},
 			&filters.PatchOnlyLabelsFilter{},
-			labels.NewForbiddenLabelOperationsFilter(options.APISettings.ProctedLabels),
 		},
 		Registry: health.NewDefaultRegistry(),
 	}, nil
