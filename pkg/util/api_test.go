@@ -95,10 +95,11 @@ var _ = Describe("Utils test", func() {
 	Describe("RequestBodyToBytes", func() {
 		const validJSON = `{"key1":"value1","key2":"value2"}`
 		const invalidJSON = `{{{"KEY"`
+		const formURLEncoded = "client_id=test&client_secret=secret&parameter=value"
 
 		var req *http.Request
 
-		Context("when Content-type is not application/json", func() {
+		Context("when Content-type is not supported", func() {
 			It("returns a proper HTTPError", func() {
 				req = httptest.NewRequest(http.MethodPost, "http://example.com", strings.NewReader(validJSON))
 				req.Header.Add("Content-Type", "application/xml")
@@ -129,14 +130,28 @@ var _ = Describe("Utils test", func() {
 		})
 
 		Context("when successful", func() {
-			It("returns the []byte representation of the request body", func() {
-				req = httptest.NewRequest(http.MethodPost, "http://example.com", strings.NewReader(validJSON))
-				req.Header.Add("Content-Type", "application/json")
-				bytes, err := util.RequestBodyToBytes(req)
+			Context("when valid JSON is provided", func() {
+				It("returns the []byte representation of the request body", func() {
+					req = httptest.NewRequest(http.MethodPost, "http://example.com", strings.NewReader(validJSON))
+					req.Header.Add("Content-Type", "application/json")
+					bytes, err := util.RequestBodyToBytes(req)
 
-				Expect(err).ShouldNot(HaveOccurred())
-				Expect(string(bytes)).To(Equal(validJSON))
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(string(bytes)).To(Equal(validJSON))
+				})
 			})
+
+			Context("when form url encoded is provided", func() {
+				It("returns the []byte representation of the request body", func() {
+					req = httptest.NewRequest(http.MethodPost, "http://example.com", strings.NewReader(formURLEncoded))
+					req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+					bytes, err := util.RequestBodyToBytes(req)
+
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(string(bytes)).To(Equal(formURLEncoded))
+				})
+			})
+
 		})
 	})
 

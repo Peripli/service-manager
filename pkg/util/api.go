@@ -31,6 +31,7 @@ var (
 	reservedSymbolsRFC3986 = strings.Join([]string{
 		":", "/", "?", "#", "[", "]", "@", "!", "$", "&", "'", "(", ")", "*", "+", ",", ";", "=",
 	}, "")
+	supportedContentTypes = []string{"application/json", "application/x-www-form-urlencoded"}
 )
 
 // InputValidator should be implemented by types that need input validation check. For a reference refer to pkg/types
@@ -49,13 +50,21 @@ func ToRFCFormat(timestamp time.Time) string {
 }
 
 // RequestBodyToBytes reads the request body and returns []byte with its content or an error if
-// the media type is incorrect or if the body is not a valid JSON
+// the media type is unsupported or if the body is not a valid JSON
 func RequestBodyToBytes(request *http.Request) ([]byte, error) {
 	contentType := request.Header.Get("Content-Type")
-	if !strings.Contains(contentType, "application/json") {
+	contentTypeSupported := false
+	for _, supportedType := range supportedContentTypes {
+		if strings.Contains(contentType, supportedType) {
+			contentTypeSupported = true
+			break
+		}
+	}
+
+	if !contentTypeSupported {
 		return nil, &HTTPError{
-			ErrorType:   "InvalidMediaType",
-			Description: "invalid media type provided",
+			ErrorType:   "UnsupportedMediaType",
+			Description: "unsupported media type provided",
 			StatusCode:  http.StatusUnsupportedMediaType,
 		}
 	}
@@ -65,7 +74,7 @@ func RequestBodyToBytes(request *http.Request) ([]byte, error) {
 		return nil, err
 	}
 
-	if !json.Valid(body) {
+	if strings.Contains(contentType, "application/json") && !json.Valid(body) {
 		return nil, &HTTPError{
 			ErrorType:   "BadRequest",
 			Description: "request body is not valid JSON",
