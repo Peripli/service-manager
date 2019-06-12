@@ -143,8 +143,8 @@ var _ = Describe("WS", func() {
 	})
 
 	Context("when no notifications are present", func() {
-		It("should receive last known revision response header 0", func() {
-			Expect(resp.Header.Get(notifications.LastKnownRevisionHeader)).To(Equal("0"))
+		It("should not receive last known revision response header", func() {
+			Expect(resp.Header.Get(notifications.LastKnownRevisionHeader)).To(Equal(""))
 		})
 
 		It("should receive max ping timeout response header", func() {
@@ -166,10 +166,10 @@ var _ = Describe("WS", func() {
 			notification = createNotification(repository, platform.ID)
 		})
 
-		It("should receive last known revision response header greater than 0", func() {
+		It("should receive last known revision response header", func() {
 			lastKnownRevision, err := strconv.Atoi(resp.Header.Get(notifications.LastKnownRevisionHeader))
 			Expect(err).ShouldNot(HaveOccurred())
-			Expect(lastKnownRevision).To(BeNumerically(">", 0))
+			Expect(lastKnownRevision).To(BeNumerically(">", types.InvalidRevision))
 		})
 
 		Context("and proxy connects without last_notification_revision query parameter", func() {
