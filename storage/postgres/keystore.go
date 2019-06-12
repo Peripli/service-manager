@@ -21,7 +21,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/storage"
+
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/jmoiron/sqlx"
 )
 
 const securityLockIndex = 111
@@ -31,6 +34,38 @@ type Safe struct {
 	Secret    []byte    `db:"secret"`
 	CreatedAt time.Time `db:"created_at"`
 	UpdatedAt time.Time `db:"updated_at"`
+}
+
+func (s *Safe) GetID() string {
+	return ""
+}
+
+func (s *Safe) ToObject() types.Object {
+	return nil
+}
+
+func (s *Safe) FromObject(object types.Object) (storage.Entity, bool) {
+	return nil, false
+}
+
+func (s *Safe) BuildLabels(labels types.Labels, newLabel func(id, key, value string) storage.Label) ([]storage.Label, error) {
+	return nil, nil
+}
+
+func (s *Safe) NewLabel(id, key, value string) storage.Label {
+	return nil
+}
+
+func (s *Safe) TableName() string {
+	return "safe"
+}
+
+func (s *Safe) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
+	return nil, nil
+}
+
+func (s *Safe) LabelEntity() PostgresLabel {
+	return nil
 }
 
 // Lock acquires a database lock so that only one process can manipulate the encryption key.
@@ -74,7 +109,8 @@ func (s *Storage) GetEncryptionKey(ctx context.Context, transformationFunc func(
 	s.checkOpen()
 
 	safe := &Safe{}
-	rows, err := listByFieldCriteria(ctx, s.db, "safe", []query.Criterion{})
+	rows, err := s.queryBuilder.NewQuery().List(ctx, safe)
+
 	defer closeRows(ctx, rows)
 	if err != nil {
 		return nil, err
@@ -96,12 +132,13 @@ func (s *Storage) GetEncryptionKey(ctx context.Context, transformationFunc func(
 func (s *Storage) SetEncryptionKey(ctx context.Context, key []byte, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) error {
 	s.checkOpen()
 
-	rows, err := listByFieldCriteria(ctx, s.db, "safe", []query.Criterion{})
+	existingKey := &Safe{}
+	rows, err := s.queryBuilder.NewQuery().List(ctx, existingKey)
+
 	defer closeRows(ctx, rows)
 	if err != nil {
 		return err
 	}
-	existingKey := &Safe{}
 	if rows.Next() {
 		if err := rows.StructScan(existingKey); err != nil {
 			return err

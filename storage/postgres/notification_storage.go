@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
 	"strconv"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -67,7 +66,7 @@ func (ns *notificationStorageImpl) GetLastRevision(ctx context.Context) (int64, 
 		return 0, fmt.Errorf("could not get last notification revision from db %v", err)
 	}
 	if len(result) == 0 {
-		return 0, nil
+		return types.InvalidRevision, nil
 	}
 	return result[0].Revision, nil
 }
@@ -83,16 +82,13 @@ func (ns *notificationStorageImpl) GetNotification(ctx context.Context, id strin
 func (ns *notificationStorageImpl) ListNotifications(ctx context.Context, platformID string, from, to int64) ([]*types.Notification, error) {
 	listQuery1 := query.ByField(query.GreaterThanOperator, "revision", strconv.FormatInt(from, 10))
 	listQuery2 := query.ByField(query.LessThanOrEqualOperator, "revision", strconv.FormatInt(to, 10))
-
 	filterByPlatform := query.ByField(query.EqualsOrNilOperator, "platform_id", platformID)
-	objectList, err := ns.storage.List(ctx, types.NotificationType, listQuery1, listQuery2, filterByPlatform)
+	orderByRevision := query.OrderResultBy("revision", query.AscOrder)
+	objectList, err := ns.storage.List(ctx, types.NotificationType, orderByRevision, listQuery1, listQuery2, filterByPlatform)
 	if err != nil {
 		return nil, err
 	}
 	notificationsList := objectList.(*types.Notifications)
-	sort.Slice(notificationsList.Notifications, func(i, j int) bool {
-		return notificationsList.Notifications[i].Revision < notificationsList.Notifications[j].Revision
-	})
 
 	return notificationsList.Notifications, nil
 }

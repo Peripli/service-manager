@@ -37,8 +37,6 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/Peripli/service-manager/pkg/env"
-	"github.com/Peripli/service-manager/pkg/sm"
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -71,11 +69,8 @@ var _ = Describe("WS", func() {
 		ctx = common.NewTestContextBuilder().
 			WithEnvPreExtensions(func(set *pflag.FlagSet) {
 				set.Set("websocket.ping_timeout", pingTimeout.String())
-			}).
-			WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
-				repository = smb.Storage
-				return nil
 			}).Build()
+		repository = ctx.SMRepository
 		Expect(repository).ToNot(BeNil())
 
 		platform = common.RegisterPlatformInSM(common.GenerateRandomPlatform(), ctx.SMWithOAuth, map[string]string{})
@@ -143,8 +138,8 @@ var _ = Describe("WS", func() {
 	})
 
 	Context("when no notifications are present", func() {
-		It("should receive last known revision response header 0", func() {
-			Expect(resp.Header.Get(notifications.LastKnownRevisionHeader)).To(Equal("0"))
+		It("should not receive last known revision response header", func() {
+			Expect(resp.Header.Get(notifications.LastKnownRevisionHeader)).To(Equal(""))
 		})
 
 		It("should receive max ping timeout response header", func() {
@@ -166,10 +161,10 @@ var _ = Describe("WS", func() {
 			notification = createNotification(repository, platform.ID)
 		})
 
-		It("should receive last known revision response header greater than 0", func() {
+		It("should receive last known revision response header", func() {
 			lastKnownRevision, err := strconv.Atoi(resp.Header.Get(notifications.LastKnownRevisionHeader))
 			Expect(err).ShouldNot(HaveOccurred())
-			Expect(lastKnownRevision).To(BeNumerically(">", 0))
+			Expect(lastKnownRevision).To(BeNumerically(">", types.InvalidRevision))
 		})
 
 		Context("and proxy connects without last_notification_revision query parameter", func() {
@@ -286,7 +281,6 @@ var _ = Describe("WS", func() {
 			expectNotification(newWsConn, notificationEmptyPlatform.ID, "")
 		})
 	})
-
 })
 
 func createNotification(repository storage.Repository, platformID string) *types.Notification {

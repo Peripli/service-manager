@@ -217,7 +217,7 @@ var _ = Describe("Notificator", func() {
 				registerWithRevision = types.InvalidRevision
 			})
 
-			It("Should be filtered in the second queue", func() {
+			It("Should be filtered in the first queue", func() {
 				notificationChannel <- &pq.Notification{
 					Extra: createNotificationPayload(notification.PlatformID, notification.ID),
 				}
@@ -231,7 +231,7 @@ var _ = Describe("Notificator", func() {
 				registerWithRevision = defaultLastRevision - 1
 			})
 
-			It("Should be filtered in the second queue", func() {
+			It("Should be filtered in the first queue", func() {
 				expectReceivedNotification(notification, queue2)
 				Expect(queue.Channel()).To(HaveLen(0))
 			})

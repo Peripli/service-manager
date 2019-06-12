@@ -22,6 +22,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/query/parser"
 	"github.com/antlr/antlr4/runtime/Go/antlr"
@@ -65,7 +66,21 @@ type Operator interface {
 	// IsNumeric returns true if the operator works only with numbers
 	IsNumeric() bool
 }
+const (
+	// OrderBy should be used as a left operand in Criterion
+	OrderBy string = "orderBy"
+	// Limit should be used as a left operand in Criterion to signify the
+	Limit string = "limit"
+)
 
+// OrderType is the type of the order in which result is presented
+type OrderType string
+
+const (
+	// AscOrder orders result in ascending order
+	AscOrder OrderType = "asc"
+	// DescOrder orders result in descending order
+	DescOrder OrderType = "desc"
 var (
 	// Operators returns the supported query operators
 	Operators = []Operator{
@@ -100,12 +115,46 @@ func ByLabel(operator Operator, leftOp string, rightOp ...string) Criterion {
 	return NewCriterion(leftOp, operator, rightOp, LabelQuery)
 }
 
+// OrderResultBy constructs a new criterion for result order
+func OrderResultBy(field string, orderType OrderType) Criterion {
+	return newCriterion(OrderBy, NoOperator, []string{field, string(orderType)}, ResultQuery)
+}
+
+// LimitResultBy constructs a new criterion for limit result with
+func LimitResultBy(limit int) Criterion {
+	limitString := strconv.Itoa(limit)
+	return newCriterion(Limit, NoOperator, []string{limitString}, ResultQuery)
+}
+
 func NewCriterion(leftOp string, operator Operator, rightOp []string, criteriaType CriterionType) Criterion {
 	return Criterion{LeftOp: leftOp, Operator: operator, RightOp: rightOp, Type: criteriaType}
 }
 
 // Validate the criterion fields
 func (c Criterion) Validate() error {
+	if c.Type == ResultQuery {
+		if c.LeftOp == Limit {
+			limit, err := strconv.Atoi(c.RightOp[0])
+			if err != nil {
+				return fmt.Errorf("could not cast string to int: %s", err.Error())
+			}
+			if limit < 1 {
+				return &util.UnsupportedQueryError{Message: fmt.Sprintf("limit (%d) is invalid. Limit should be positive number", limit)}
+			}
+		}
+
+		if c.LeftOp == OrderBy {
+			if len(c.RightOp) < 1 {
+				return &util.UnsupportedQueryError{Message: "order by result expects field and order type, but has none"}
+			}
+			if len(c.RightOp) < 2 {
+				return &util.UnsupportedQueryError{Message: fmt.Sprintf(`order by result for field "%s" expects order type, but has none`, c.RightOp[0])}
+			}
+		}
+
+		return nil
+	}
+
 	if len(c.RightOp) > 1 && c.Operator.Type() != MultivariateOperator {
 		return &util.UnsupportedQueryError{Message: fmt.Sprintf("multiple values %s received for single value operation %s", c.RightOp, c.Operator)}
 	}
@@ -219,5 +268,10 @@ func isNumeric(str string) bool {
 		return true
 	}
 	_, err = strconv.ParseFloat(str, 64)
+	return err == nil
+}
+
+func isDateTime(str string) bool {
+	_, err := time.Parse(time.RFC3339, str)
 	return err == nil
 }
