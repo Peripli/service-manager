@@ -35,6 +35,8 @@ const (
 	NotInOperator notInOperator = "notin"
 	// EqualsOrNilOperator takes two operands and tests if the left is equal to the right, or if the left is nil
 	EqualsOrNilOperator eqOrNilOperator = "eqornil"
+
+	NoOperator noOperator = "nop"
 )
 
 type eqOperator string
@@ -197,4 +199,22 @@ func (lteOperator) IsNullable() bool {
 
 func (lteOperator) IsNumeric() bool {
 	return true
+}
+
+type noOperator string
+
+func (o noOperator) String() string {
+	return string(o)
+}
+
+func (noOperator) Type() OperatorType {
+	return MultivariateOperator
+}
+
+func (noOperator) IsNullable() bool {
+	return false
+}
+
+func (noOperator) IsNumeric() bool {
+	return false
 }

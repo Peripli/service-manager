@@ -43,6 +43,8 @@ const (
 	FieldQuery CriterionType = "fieldQuery"
 	// LabelQuery denotes that the query should be executed on the entity's labels
 	LabelQuery CriterionType = "labelQuery"
+	// ResultQuery is used to further process result
+	ResultQuery CriterionType = "resultQuery"
 )
 
 // OperatorType represents the type of the query operator
@@ -53,6 +55,35 @@ const (
 	UnivariateOperator OperatorType = "univariate"
 	// MultivariateOperator denotes that the operator expects more than one variable on the right side
 	MultivariateOperator OperatorType = "multivariate"
+)
+
+// OrderType is the type of the order in which result is presented
+type OrderType string
+
+const (
+	// AscOrder orders result in ascending order
+	AscOrder OrderType = "asc"
+	// DescOrder orders result in descending order
+	DescOrder OrderType = "desc"
+)
+
+const (
+	// OrderBy should be used as a left operand in Criterion
+	OrderBy string = "orderBy"
+	// Limit should be used as a left operand in Criterion to signify the
+	Limit string = "limit"
+)
+
+var (
+	// Operators returns the supported query operators
+	Operators = []Operator{
+		EqualsOperator, NotEqualsOperator,
+		GreaterThanOperator, LessThanOperator,
+		GreaterThanOrEqualOperator, LessThanOrEqualOperator,
+		InOperator, NotInOperator, EqualsOrNilOperator,
+	}
+	// CriteriaTypes returns the supported query criteria types
+	CriteriaTypes = []CriterionType{FieldQuery, LabelQuery}
 )
 
 // Operator is a query operator
@@ -66,32 +97,6 @@ type Operator interface {
 	// IsNumeric returns true if the operator works only with numbers
 	IsNumeric() bool
 }
-const (
-	// OrderBy should be used as a left operand in Criterion
-	OrderBy string = "orderBy"
-	// Limit should be used as a left operand in Criterion to signify the
-	Limit string = "limit"
-)
-
-// OrderType is the type of the order in which result is presented
-type OrderType string
-
-const (
-	// AscOrder orders result in ascending order
-	AscOrder OrderType = "asc"
-	// DescOrder orders result in descending order
-	DescOrder OrderType = "desc"
-var (
-	// Operators returns the supported query operators
-	Operators = []Operator{
-		EqualsOperator, NotEqualsOperator,
-		GreaterThanOperator, LessThanOperator,
-		GreaterThanOrEqualOperator, LessThanOrEqualOperator,
-		InOperator, NotInOperator, EqualsOrNilOperator,
-	}
-	// CriteriaTypes returns the supported query criteria types
-	CriteriaTypes = []CriterionType{FieldQuery, LabelQuery}
-)
 
 // Criterion is a single part of a query criteria
 type Criterion struct {
@@ -117,13 +122,13 @@ func ByLabel(operator Operator, leftOp string, rightOp ...string) Criterion {
 
 // OrderResultBy constructs a new criterion for result order
 func OrderResultBy(field string, orderType OrderType) Criterion {
-	return newCriterion(OrderBy, NoOperator, []string{field, string(orderType)}, ResultQuery)
+	return NewCriterion(OrderBy, NoOperator, []string{field, string(orderType)}, ResultQuery)
 }
 
 // LimitResultBy constructs a new criterion for limit result with
 func LimitResultBy(limit int) Criterion {
 	limitString := strconv.Itoa(limit)
-	return newCriterion(Limit, NoOperator, []string{limitString}, ResultQuery)
+	return NewCriterion(Limit, NoOperator, []string{limitString}, ResultQuery)
 }
 
 func NewCriterion(leftOp string, operator Operator, rightOp []string, criteriaType CriterionType) Criterion {
@@ -161,8 +166,8 @@ func (c Criterion) Validate() error {
 	if c.Operator.IsNullable() && c.Type != FieldQuery {
 		return &util.UnsupportedQueryError{Message: "nullable operations are supported only for field queries"}
 	}
-	if c.Operator.IsNumeric() && !isNumeric(c.RightOp[0]) {
-		return &util.UnsupportedQueryError{Message: fmt.Sprintf("%s is numeric operator, but the right operand %s is not numeric", c.Operator, c.RightOp[0])}
+	if c.Operator.IsNumeric() && !isNumeric(c.RightOp[0]) && !isDateTime(c.RightOp[0]) {
+		return &util.UnsupportedQueryError{Message: fmt.Sprintf("%s is numeric operator, but the right operand %s is not numeric or datetime", c.Operator, c.RightOp[0])}
 	}
 	if strings.Contains(c.LeftOp, Separator) {
 		return &util.UnsupportedQueryError{Message: fmt.Sprintf("separator %s is not allowed in %s with left operand \"%s\".", Separator, c.Type, c.LeftOp)}
