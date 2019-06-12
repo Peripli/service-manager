@@ -63,8 +63,8 @@ func RequestBodyToBytes(request *http.Request) ([]byte, error) {
 
 	if !contentTypeSupported {
 		return nil, &HTTPError{
-			ErrorType:   "InvalidMediaType",
-			Description: "invalid media type provided",
+			ErrorType:   "UnsupportedMediaType",
+			Description: "unsupported media type provided",
 			StatusCode:  http.StatusUnsupportedMediaType,
 		}
 	}
