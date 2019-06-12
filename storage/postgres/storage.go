@@ -42,6 +42,7 @@ type Storage struct {
 
 	pgDB                  pgDB
 	db                    *sqlx.DB
+	queryBuilder          *QueryBuilder
 	state                 *storageState
 	layerOneEncryptionKey []byte
 	scheme                *scheme
@@ -85,6 +86,7 @@ func (ps *Storage) Open(settings *storage.Settings) error {
 		ps.layerOneEncryptionKey = []byte(settings.EncryptionKey)
 		ps.db.SetMaxIdleConns(settings.MaxIdleConnections)
 		ps.pgDB = ps.db
+		ps.queryBuilder = NewQueryBuilder(ps.pgDB)
 
 		log.D().Debugf("Updating database schema using migrations from %s", settings.MigrationsURL)
 		if err := ps.updateSchema(settings.MigrationsURL, postgresDriverName); err != nil {
@@ -206,7 +208,13 @@ func (ps *Storage) List(ctx context.Context, objType types.ObjectType, criteria 
 	if err != nil {
 		return nil, err
 	}
-	rows, err := listWithLabelsByCriteria(ctx, ps.pgDB, entity, entity.LabelEntity(), entity.TableName(), criteria)
+
+	criteria = append(criteria, query.OrderResultBy("created_at", query.AscOrder))
+	rows, err := ps.queryBuilder.NewQuery().WithCriteria(criteria...).WithLock().List(ctx, entity)
+	if err != nil {
+		return nil, err
+	}
+
 	defer func() {
 		if rows == nil {
 			return
@@ -226,7 +234,8 @@ func (ps *Storage) Delete(ctx context.Context, objType types.ObjectType, criteri
 	if err != nil {
 		return nil, err
 	}
-	rows, err := deleteAllByFieldCriteria(ctx, ps.pgDB, entity.TableName(), entity, criteria)
+
+	rows, err := ps.queryBuilder.NewQuery().WithCriteria(criteria...).Return("*").Delete(ctx, entity)
 	defer closeRows(ctx, rows)
 	if err != nil {
 		return nil, err
@@ -286,6 +295,7 @@ func (ps *Storage) InTransaction(ctx context.Context, f func(ctx context.Context
 	transactionalStorage := &Storage{
 		pgDB:                  tx,
 		db:                    ps.db,
+		queryBuilder:          NewQueryBuilder(tx),
 		scheme:                ps.scheme,
 		layerOneEncryptionKey: ps.layerOneEncryptionKey,
 	}

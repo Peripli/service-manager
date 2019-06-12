@@ -93,79 +93,29 @@ func create(ctx context.Context, db pgDB, table string, resultDto interface{}, a
 	return checkIntegrityViolation(ctx, checkUniqueViolation(ctx, err))
 }
 
-func listWithLabelsByCriteria(ctx context.Context, db pgDB, baseEntity interface{}, label PostgresLabel, baseTableName string, criteria []query.Criterion) (*sqlx.Rows, error) {
-	if err := validateFieldQueryParams(getDBTags(baseEntity, nil), criteria); err != nil {
-		return nil, err
-	}
-	var baseQuery string
-	if label == nil {
-		baseQuery = constructBaseQueryForEntity(baseTableName)
-	} else {
-		baseQuery = constructBaseQueryForLabelable(label, baseTableName)
-	}
-	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, baseTableName, label, criteria, getDBTags(baseEntity, nil), " ORDER BY created_at")
-	if err != nil {
-		return nil, err
-	}
-
-	// Lock the rows if we are in transaction so that update operations on those rows can rely on unchanged data
-	// This allows us to handle concurrent updates on the same rows by executing them sequentially as
-	// before updating we have to anyway select the rows and can therefore lock them
-	if _, ok := db.(*sqlx.Tx); ok {
-		sqlQuery = sqlQuery[:len(sqlQuery)-1]
-		sqlQuery += fmt.Sprintf(" FOR SHARE of %s;", baseTableName)
-	}
-
-	log.C(ctx).Debugf("Executing query %s", sqlQuery)
-	return db.QueryxContext(ctx, sqlQuery, queryParams...)
-}
-
-func listByFieldCriteria(ctx context.Context, db pgDB, table string, criteria []query.Criterion) (*sqlx.Rows, error) {
-	baseQuery := constructBaseQueryForEntity(table)
-	sqlQuery, queryParams, err := buildQueryWithParams(db, baseQuery, table, nil, criteria, nil, " ORDER BY created_at")
-	if err != nil {
-		return nil, err
-	}
-	return db.QueryxContext(ctx, sqlQuery, queryParams...)
-}
-
-func deleteAllByFieldCriteria(ctx context.Context, extContext sqlx.ExtContext, table string, dto interface{}, criteria []query.Criterion) (*sqlx.Rows, error) {
-	for _, criterion := range criteria {
-		if criterion.Type != query.FieldQuery {
-			return nil, &util.UnsupportedQueryError{Message: "conditional delete is only supported for field queries"}
-		}
-	}
-	if err := validateFieldQueryParams(getDBTags(dto, nil), criteria); err != nil {
-		return nil, err
-	}
-	baseQuery := fmt.Sprintf("DELETE FROM %s", table)
-	sqlQuery, queryParams, err := buildQueryWithParams(extContext, baseQuery, table, nil, criteria, getDBTags(dto, isAutoIncrementable))
-	if err != nil {
-		return nil, err
-	}
-	sqlQuery = sqlQuery[:len(sqlQuery)-1] + " RETURNING *;"
-	return extContext.QueryxContext(ctx, sqlQuery, queryParams...)
-}
-
-func validateFieldQueryParams(tags []tagType, criteria []query.Criterion) error {
+func columnsByTags(tags []tagType) map[string]bool {
 	availableColumns := make(map[string]bool)
 	for _, dbTag := range tags {
 		tagValues := strings.Split(dbTag.Tag, ",")
 		availableColumns[tagValues[0]] = true
 	}
+	return availableColumns
+}
+
+func validateFieldQueryParams(columns map[string]bool, criteria []query.Criterion) error {
 	for _, criterion := range criteria {
-		if criterion.Type == query.FieldQuery && !availableColumns[criterion.LeftOp] {
+		if criterion.Type == query.FieldQuery && !columns[criterion.LeftOp] {
 			return &util.UnsupportedQueryError{Message: fmt.Sprintf("unsupported field query key: %s", criterion.LeftOp)}
 		}
 	}
 	return nil
 }
 
-func constructBaseQueryForEntity(tableName string) string {
-	return fmt.Sprintf("SELECT * FROM %s", tableName)
-}
-
 func constructBaseQueryForLabelable(labelsEntity PostgresLabel, baseTableName string) string {
+	if labelsEntity == nil {
+		return fmt.Sprintf("SELECT * FROM %s", baseTableName)
+	}
+
 	baseQuery := `SELECT %[1]s.*,`
 	for _, dbTag := range getDBTags(labelsEntity, isAutoIncrementable) {
 		baseQuery += " %[2]s." + dbTag.Tag + " " + "\"%[2]s." + dbTag.Tag + "\"" + ","

@@ -119,70 +119,6 @@ func removeLabel(ctx context.Context, execer sqlx.ExtContext, label PostgresLabe
 	return nil
 }
 
-func buildQueryWithParams(extContext sqlx.ExtContext, sqlQuery string, baseTableName string, labelEntity PostgresLabel, criteria []query.Criterion, dbTags []tagType, querySuffixes ...string) (string, []interface{}, error) {
-	if len(criteria) == 0 {
-		return sqlQuery + strings.Join(querySuffixes, " ") + ";", nil, nil
-	}
-
-	var queryParams []interface{}
-	var fieldQueries []string
-	var labelQueries []string
-
-	labelCriteria, fieldCriteria := splitCriteriaByType(criteria)
-
-	if len(labelCriteria) > 0 {
-		labelTableName := labelEntity.LabelsTableName()
-		referenceColumnName := labelEntity.ReferenceColumn()
-		labelSubQuery := fmt.Sprintf("(SELECT * FROM %[1]s WHERE %[2]s IN (SELECT %[2]s FROM %[1]s WHERE ", labelTableName, referenceColumnName)
-		for _, option := range labelCriteria {
-			rightOpBindVar, rightOpQueryValue := buildRightOp(option)
-			sqlOperation := translateOperationToSQLEquivalent(option.Operator)
-			labelQueries = append(labelQueries, fmt.Sprintf("(%[1]s.key = ? AND %[1]s.val %[2]s %s)", labelTableName, sqlOperation, rightOpBindVar))
-			queryParams = append(queryParams, option.LeftOp, rightOpQueryValue)
-		}
-		labelSubQuery += strings.Join(labelQueries, " OR ")
-		labelSubQuery += "))"
-
-		sqlQuery = strings.Replace(sqlQuery, "LEFT JOIN", "JOIN "+labelSubQuery, 1)
-	}
-
-	if len(fieldCriteria) > 0 {
-		sqlQuery += " WHERE "
-		for _, option := range fieldCriteria {
-			var ttype reflect.Type
-			if dbTags != nil {
-				var err error
-				ttype, err = findTagType(dbTags, option.LeftOp)
-				if err != nil {
-					return "", nil, err
-				}
-			}
-			rightOpBindVar, rightOpQueryValue := buildRightOp(option)
-			sqlOperation := translateOperationToSQLEquivalent(option.Operator)
-
-			dbCast := determineCastByType(ttype)
-			clause := fmt.Sprintf("%s.%s%s %s %s", baseTableName, option.LeftOp, dbCast, sqlOperation, rightOpBindVar)
-			if option.Operator.IsNullable() {
-				clause = fmt.Sprintf("(%s OR %s.%s IS NULL)", clause, baseTableName, option.LeftOp)
-			}
-			fieldQueries = append(fieldQueries, clause)
-			queryParams = append(queryParams, rightOpQueryValue)
-		}
-		sqlQuery += strings.Join(fieldQueries, " AND ")
-	}
-	sqlQuery += strings.Join(querySuffixes, " ") + ";"
-
-	if hasMultiVariateOp(criteria) {
-		var err error
-		// sqlx.In requires question marks(?) instead of positional arguments (the ones pgsql uses) in order to map the list argument to the IN operation
-		if sqlQuery, queryParams, err = sqlx.In(sqlQuery, queryParams...); err != nil {
-			return "", nil, err
-		}
-	}
-	sqlQuery = extContext.Rebind(sqlQuery)
-	return sqlQuery, queryParams, nil
-}
-
 func findTagType(tags []tagType, tagName string) (reflect.Type, error) {
 	for _, tag := range tags {
 		if strings.Split(tag.Tag, ",")[0] == tagName {
@@ -214,19 +150,23 @@ func determineCastByType(tagType reflect.Type) string {
 	return dbCast
 }
 
-func splitCriteriaByType(criteria []query.Criterion) ([]query.Criterion, []query.Criterion) {
+func splitCriteriaByType(criteria []query.Criterion) ([]query.Criterion, []query.Criterion, []query.Criterion) {
 	var labelQueries []query.Criterion
 	var fieldQueries []query.Criterion
+	var resultQueries []query.Criterion
 
 	for _, criterion := range criteria {
-		if criterion.Type == query.FieldQuery {
+		switch criterion.Type {
+		case query.FieldQuery:
 			fieldQueries = append(fieldQueries, criterion)
-		} else {
+		case query.LabelQuery:
 			labelQueries = append(labelQueries, criterion)
+		case query.ResultQuery:
+			resultQueries = append(resultQueries, criterion)
 		}
 	}
 
-	return labelQueries, fieldQueries
+	return labelQueries, fieldQueries, resultQueries
 }
 
 func buildRightOp(criterion query.Criterion) (string, interface{}) {
