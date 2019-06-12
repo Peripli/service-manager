@@ -101,11 +101,13 @@ var _ = Describe("Notification cleaner", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(old.GetID()).ToNot(BeNil())
 
+			Eventually(logInterceptor.String, eventuallyTimeout).
+				Should(ContainSubstring("successfully deleted 1 old notifications"))
+
 			Eventually(func() error {
 				_, err = repository.Get(ctx, types.NotificationType, old.GetID())
 				return err
 			}, eventuallyTimeout).Should(Equal(util.ErrNotFoundInStorage))
-			Expect(logInterceptor.String()).To(ContainSubstring("successfully deleted 1 old notifications"))
 
 			obj, err := repository.Get(ctx, types.NotificationType, new.GetID())
 			Expect(err).ToNot(HaveOccurred())
