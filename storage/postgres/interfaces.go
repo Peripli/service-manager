@@ -75,10 +75,12 @@ func rowsToList(rows *sqlx.Rows, rowCreator EntityLabelRowCreator, result types.
 			entities[row.GetID()] = entity
 			result.Add(entity)
 		}
-		if labels[entity.GetID()] == nil {
-			labels[entity.GetID()] = make(map[string][]string)
+		if row.GetKey() != "" {
+			if labels[entity.GetID()] == nil {
+				labels[entity.GetID()] = make(map[string][]string)
+			}
+			labels[entity.GetID()][row.GetKey()] = append(labels[entity.GetID()][row.GetKey()], row.GetValue())
 		}
-		labels[entity.GetID()][row.GetKey()] = append(labels[entity.GetID()][row.GetKey()], row.GetValue())
 	}
 	for i := 0; i < result.Len(); i++ {
 		b := result.ItemAt(i)
