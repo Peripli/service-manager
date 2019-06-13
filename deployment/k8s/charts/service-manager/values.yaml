@@ -2,12 +2,15 @@ replicaCount: 1
 
 image:
   repository: quay.io/service-manager/core
-  tag: v0.1.0
+  tag: v0.3.2
   pullPolicy: IfNotPresent
+  #pullsecret: <>
 
 service:
   type: ClusterIP
   port: 80
+
+securityContext: {}
 
 ingress:
   enabled: true
@@ -19,14 +22,14 @@ ingress:
 
 postgresql:
   install: true
-  postgresUser: pguser
-  postgresPassword: pgpassword
+  postgresqlUsername: postgres
+  postgresqlPassword: postgres
   persistence:
     size: 1Gi
 
 storage:
-  migrations_url: ""
-  skip_ssl_validation: false
+#  migrations_url: <migration_url>
+  encryption_key: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
 
 file:
   name: application
@@ -35,12 +38,14 @@ file:
 
 config:
   log:
-    level: info
+    level: error
     format: text
   server:
-    request_timeout: 3000ms
-    shutdown_timeout: 3000ms
+    request_timeout: 4000ms
+    shutdown_timeout: 4000ms
   api:
     token_issuer_url: https://uaa.dev.cfdev.sh
     client_id: cf
-    skip_ssl_validation: false
+    skip_ssl_validation: true # to be false
+  storage:
+    max_idle_connections: 5

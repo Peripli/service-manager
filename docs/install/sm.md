@@ -15,7 +15,7 @@ Clone the [service-manager](https://github.com/Peripli/service-manager) reposito
 ### Prerequisites for CF deployment
 
 * git
-* go 1.10
+* go > 1.11
 * dep
 * OpenID compliant Authorization Server 
 * CF CLI installed and configured.
@@ -58,7 +58,7 @@ cf push -f deployment/cf/manifest.yml
 ### Prerequisites for Kubernetes deployment
 
 * git
-* go 1.10
+* go > 1.11
 * dep
 * OpenID compliant Authorization Server 
 * kubectl is installed and configured to be used with the Kubernetes cluster
@@ -88,15 +88,7 @@ helm install --name service-manager --namespace service-manager . --set config.a
 
 where *<api_token_issuer_url>* is the URL of your OAuth server. If this configuration is not set it will use the CFDev UAA URL - `https://uaa.dev.cfdev.sh`
 
-To change the PostgreSQL username or password you can use the `postgresql.postgresUser` and `postgresql.postgresPassword` configurations as in the example below:
-
-```console
-helm install --name service-manager --namespace service-manager . --set postgresql.postgresUser=<pguser> --set postgresql.postgresPassword=<pgpass>
-```
-
-**Note:** These credentials will remain in your bash history. Alternatively you can change these values directly in *deployment/k8s/charts/service-manager/values.yaml* file.
-
-You can also install the Service Manager with external PostgreSQL using a connection string (here `externalPostgresURI` sets the value for `STORAGE_URI` env var):
+You can also install the Service Manager with external PostgreSQL using a connection string (here `externalPostgresURI` sets the value for `STORAGE_URI` environment variable):
 
 ```console
 helm install --name service-manager --namespace service-manager . --set postgresql.install=false --set externalPostgresURI=<postgresql_connection_string>

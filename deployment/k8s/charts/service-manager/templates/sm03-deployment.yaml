@@ -19,10 +19,18 @@ spec:
         app: {{ template "service-manager.name" . }}
         release: {{ .Release.Name }}
     spec:
+      {{- with .Values.securityContext }}
+      securityContext:
+{{ toYaml . | indent 8 }}
+      {{- end }}
       volumes:
       - name: config-volume
         configMap:
           name: {{ template "service-manager.fullname" . }}
+      {{- if .Values.image.pullsecret }}
+      imagePullSecrets:
+      - name: {{.Values.image.pullsecret}}
+      {{- end }}
       containers:
       - name: {{ .Chart.Name }}
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -43,14 +51,10 @@ spec:
               name: {{ template "service-manager.fullname" . }}-secret
               key: encryption_key
         args:
-        {{- if .Values.storage.migrations_url }}
-         - "--storage.migrations_url={{ .Values.storage.migrations_url }}"
-        {{- end }}
          - "--file.location={{ .Values.file.location }}"
          - "--file.name={{ .Values.file.name }}"
          - "--file.format={{ .Values.file.format }}"
-         - "--storage.skip_ssl_validation={{ .Values.storage.skip_ssl_validation }}"
-      ports:
-      - name: http
-        containerPort: 8080
-        protocol: TCP
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
