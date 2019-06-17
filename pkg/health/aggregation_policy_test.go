@@ -26,6 +26,7 @@ var _ = Describe("Healthcheck AggregationPolicy", func() {
 
 	aggregationPolicy := &DefaultAggregationPolicy{}
 	var healths map[string]health.State
+	var failuresTreshold int64 = 3
 
 	BeforeEach(func() {
 		healths = map[string]health.State{
@@ -36,7 +37,7 @@ var _ = Describe("Healthcheck AggregationPolicy", func() {
 
 	When("No healths are provided", func() {
 		It("Returns UNKNOWN and an error detail", func() {
-			aggregatedHealth := aggregationPolicy.Apply(nil)
+			aggregatedHealth := aggregationPolicy.Apply(nil, failuresTreshold)
 			Expect(aggregatedHealth.Status).To(Equal(StatusUnknown))
 			Expect(aggregatedHealth.Details["error"]).ToNot(BeNil())
 		})
@@ -45,29 +46,29 @@ var _ = Describe("Healthcheck AggregationPolicy", func() {
 	When("At least one health is DOWN", func() {
 		It("Returns DOWN", func() {
 			healths["test3"] = health.State{Status: "failed", ContiguousFailures: 4}
-			aggregatedHealth := aggregationPolicy.Apply(healths)
+			aggregatedHealth := aggregationPolicy.Apply(healths, failuresTreshold)
 			Expect(aggregatedHealth.Status).To(Equal(StatusDown))
 		})
 	})
 
-	When("There is DOWN healths but not more than 3 times in a row", func() {
+	When("There is DOWN healths but not more than treshold times in a row", func() {
 		It("Returns UP", func() {
 			healths["test3"] = health.State{Status: "failed"}
-			aggregatedHealth := aggregationPolicy.Apply(healths)
+			aggregatedHealth := aggregationPolicy.Apply(healths, failuresTreshold)
 			Expect(aggregatedHealth.Status).To(Equal(StatusUp))
 		})
 	})
 
 	When("All healths are UP", func() {
 		It("Returns UP", func() {
-			aggregatedHealth := aggregationPolicy.Apply(healths)
+			aggregatedHealth := aggregationPolicy.Apply(healths, failuresTreshold)
 			Expect(aggregatedHealth.Status).To(Equal(StatusUp))
 		})
 	})
 
 	When("Aggregating healths", func() {
 		It("Includes them as overall details", func() {
-			aggregatedHealth := aggregationPolicy.Apply(healths)
+			aggregatedHealth := aggregationPolicy.Apply(healths, failuresTreshold)
 			for name, h := range healths {
 				Expect(aggregatedHealth.Details[name]).To(Equal(convertStatus(h.Status)))
 			}

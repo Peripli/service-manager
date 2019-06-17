@@ -69,7 +69,7 @@ var _ = Describe("Healthcheck Registry", func() {
 type testAggregationPolicy struct {
 }
 
-func (*testAggregationPolicy) Apply(healths map[string]health.State) *Health {
+func (*testAggregationPolicy) Apply(healths map[string]health.State, failuresTreshold int64) *Health {
 	return New().Up()
 }
 

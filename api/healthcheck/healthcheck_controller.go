@@ -28,15 +28,17 @@ import (
 
 // controller platform controller
 type controller struct {
-	health    h.IHealth
-	aggPolicy health.AggregationPolicy
+	health           h.IHealth
+	aggPolicy        health.AggregationPolicy
+	failuresTreshold int64
 }
 
 // NewController returns a new healthcheck controller with the given indicators and aggregation policy
-func NewController(health h.IHealth, aggPolicy health.AggregationPolicy) web.Controller {
+func NewController(health h.IHealth, aggPolicy health.AggregationPolicy, failuresTreshold int64) web.Controller {
 	return &controller{
-		health:    health,
-		aggPolicy: aggPolicy,
+		health:           health,
+		aggPolicy:        aggPolicy,
+		failuresTreshold: failuresTreshold,
 	}
 }
 
@@ -46,7 +48,7 @@ func (c *controller) healthCheck(r *web.Request) (*web.Response, error) {
 	logger := log.C(ctx)
 	logger.Debugf("Performing health check...")
 	healthState, _, _ := c.health.State()
-	healthResult := c.aggPolicy.Apply(healthState)
+	healthResult := c.aggPolicy.Apply(healthState, c.failuresTreshold)
 	var status int
 	if healthResult.Status == health.StatusUp {
 		status = http.StatusOK

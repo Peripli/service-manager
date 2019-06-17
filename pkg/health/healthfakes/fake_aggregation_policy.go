@@ -9,10 +9,11 @@ import (
 )
 
 type FakeAggregationPolicy struct {
-	ApplyStub        func(map[string]healtha.State) *health.Health
+	ApplyStub        func(map[string]healtha.State, int64) *health.Health
 	applyMutex       sync.RWMutex
 	applyArgsForCall []struct {
 		arg1 map[string]healtha.State
+		arg2 int64
 	}
 	applyReturns struct {
 		result1 *health.Health
@@ -24,16 +25,17 @@ type FakeAggregationPolicy struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeAggregationPolicy) Apply(arg1 map[string]healtha.State) *health.Health {
+func (fake *FakeAggregationPolicy) Apply(arg1 map[string]healtha.State, arg2 int64) *health.Health {
 	fake.applyMutex.Lock()
 	ret, specificReturn := fake.applyReturnsOnCall[len(fake.applyArgsForCall)]
 	fake.applyArgsForCall = append(fake.applyArgsForCall, struct {
 		arg1 map[string]healtha.State
-	}{arg1})
-	fake.recordInvocation("Apply", []interface{}{arg1})
+		arg2 int64
+	}{arg1, arg2})
+	fake.recordInvocation("Apply", []interface{}{arg1, arg2})
 	fake.applyMutex.Unlock()
 	if fake.ApplyStub != nil {
-		return fake.ApplyStub(arg1)
+		return fake.ApplyStub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1
@@ -48,17 +50,17 @@ func (fake *FakeAggregationPolicy) ApplyCallCount() int {
 	return len(fake.applyArgsForCall)
 }
 
-func (fake *FakeAggregationPolicy) ApplyCalls(stub func(map[string]healtha.State) *health.Health) {
+func (fake *FakeAggregationPolicy) ApplyCalls(stub func(map[string]healtha.State, int64) *health.Health) {
 	fake.applyMutex.Lock()
 	defer fake.applyMutex.Unlock()
 	fake.ApplyStub = stub
 }
 
-func (fake *FakeAggregationPolicy) ApplyArgsForCall(i int) map[string]healtha.State {
+func (fake *FakeAggregationPolicy) ApplyArgsForCall(i int) (map[string]healtha.State, int64) {
 	fake.applyMutex.RLock()
 	defer fake.applyMutex.RUnlock()
 	argsForCall := fake.applyArgsForCall[i]
-	return argsForCall.arg1
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeAggregationPolicy) ApplyReturns(result1 *health.Health) {

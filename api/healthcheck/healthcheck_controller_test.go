@@ -72,8 +72,9 @@ func createController(status health.Status) *controller {
 	aggPolicy := &healthfakes.FakeAggregationPolicy{}
 	aggPolicy.ApplyReturns(&health.Health{Status: status})
 	return &controller{
-		health:    HealthFake{},
-		aggPolicy: aggPolicy,
+		health:           HealthFake{},
+		aggPolicy:        aggPolicy,
+		failuresTreshold: 3,
 	}
 }
 

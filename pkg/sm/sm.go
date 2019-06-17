@@ -21,7 +21,8 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"fmt"
-	health "github.com/InVisionApp/go-health"
+	h "github.com/InVisionApp/go-health"
+	"github.com/Peripli/service-manager/pkg/health"
 	"net"
 	"net/http"
 	"sync"
@@ -156,7 +157,7 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 		cfg:                 cfg,
 	}
 
-	err = smb.installHealth()
+	err = smb.installHealth(cfg.Health)
 	if err != nil {
 		return nil, fmt.Errorf("error adding health chech to sm: %s", err)
 	}
@@ -201,27 +202,27 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	}
 }
 
-func (smb *ServiceManagerBuilder) installHealth() error {
+func (smb *ServiceManagerBuilder) installHealth(cfg *health.Settings) error {
 	if len(smb.HealthIndicators) == 0 {
 		return nil
 	}
 
-	h := health.New()
+	healthz := h.New()
 
 	for _, indicator := range smb.HealthIndicators {
-		err := h.AddCheck(&health.Config{
+		err := healthz.AddCheck(&h.Config{
 			Name:     indicator.Name(),
 			Checker:  indicator,
-			Interval: time.Duration(1) * time.Minute,
+			Interval: time.Duration(cfg.Interval) * time.Second,
 		})
 
 		if err != nil {
 			return err
 		}
 	}
-	smb.RegisterControllers(healthcheck.NewController(h, smb.HealthAggregationPolicy))
+	smb.RegisterControllers(healthcheck.NewController(healthz, smb.HealthAggregationPolicy, cfg.FailuresTreshold))
 
-	err := h.Start()
+	err := healthz.Start()
 	if err != nil {
 		return err
 	}

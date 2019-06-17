@@ -16,7 +16,35 @@
 
 package health
 
-import "github.com/InVisionApp/go-health"
+import (
+	"fmt"
+	"github.com/InVisionApp/go-health"
+)
+
+// Settings type to be loaded from the environment
+type Settings struct {
+	FailuresTreshold int64 `mapstructure:"failures_treshold" description:"maximum failures in a row until component is considered down"`
+	Interval         int64 `description:"seconds between health checks of components"`
+}
+
+// DefaultSettings returns default values for health settings
+func DefaultSettings() *Settings {
+	return &Settings{
+		FailuresTreshold: 3,
+		Interval:         60,
+	}
+}
+
+// Validate validates the health settings
+func (s *Settings) Validate() error {
+	if s.FailuresTreshold <= 0 {
+		return fmt.Errorf("validate Settings: FailuresTreshold must be > 0")
+	}
+	if s.Interval <= 0 {
+		return fmt.Errorf("valudate Settings: Interval must be > 0")
+	}
+	return nil
+}
 
 // Status represents the overall health status of a component
 type Status string
@@ -101,7 +129,7 @@ type Indicator interface {
 //go:generate counterfeiter . AggregationPolicy
 type AggregationPolicy interface {
 	// Apply processes the given healths to build a single health
-	Apply(healths map[string]health.State) *Health
+	Apply(healths map[string]health.State, failureTreshold int64) *Health
 }
 
 // NewDefaultRegistry returns a default health registry with a single ping indicator and a default aggregation policy

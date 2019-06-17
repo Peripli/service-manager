@@ -23,6 +23,7 @@ import (
 
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/Peripli/service-manager/pkg/health"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/server"
 	"github.com/Peripli/service-manager/pkg/ws"
@@ -38,6 +39,7 @@ type Settings struct {
 	API        *api.Settings
 	WebSocket  *ws.Settings
 	HTTPClient *httpclient.Settings
+	Health     *health.Settings
 }
 
 // AddPFlags adds the SM config flags to the provided flag set
@@ -55,6 +57,7 @@ func DefaultSettings() *Settings {
 		API:        api.DefaultSettings(),
 		WebSocket:  ws.DefaultSettings(),
 		HTTPClient: httpclient.DefaultSettings(),
+		Health:     health.DefaultSettings(),
 	}
 }
 

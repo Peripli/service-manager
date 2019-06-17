@@ -24,13 +24,13 @@ type DefaultAggregationPolicy struct {
 }
 
 // Apply aggregates the given healths
-func (*DefaultAggregationPolicy) Apply(healths map[string]health.State) *Health {
+func (*DefaultAggregationPolicy) Apply(healths map[string]health.State, failureTreshold int64) *Health {
 	if len(healths) == 0 {
 		return New().WithDetail("error", "no health indicators registered").Unknown()
 	}
 	overallStatus := StatusUp
 	for _, health := range healths {
-		if health.Status == "failed" && health.ContiguousFailures > 3 {
+		if health.Status == "failed" && health.ContiguousFailures > failureTreshold {
 			overallStatus = StatusDown
 			break
 		}
