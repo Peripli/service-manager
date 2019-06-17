@@ -37,11 +37,11 @@ func DefaultSettings() *Settings {
 
 // Validate validates the health settings
 func (s *Settings) Validate() error {
-	if s.FailuresTreshold <= 0 {
-		return fmt.Errorf("validate Settings: FailuresTreshold must be > 0")
+	if s.FailuresTreshold < 0 {
+		return fmt.Errorf("validate Settings: FailuresTreshold must be >= 0")
 	}
-	if s.Interval <= 0 {
-		return fmt.Errorf("valudate Settings: Interval must be > 0")
+	if s.Interval < 0 {
+		return fmt.Errorf("valudate Settings: Interval must be >= 0")
 	}
 	return nil
 }
