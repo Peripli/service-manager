@@ -70,7 +70,7 @@ var _ = Describe("Healthcheck AggregationPolicy", func() {
 		It("Includes them as overall details", func() {
 			aggregatedHealth := aggregationPolicy.Apply(healths, failuresTreshold)
 			for name, h := range healths {
-				Expect(aggregatedHealth.Details[name]).To(Equal(convertStatus(h.Status)))
+				Expect(aggregatedHealth.Details[name]).To(Equal(ConvertStatus(h.Status)))
 			}
 		})
 	})

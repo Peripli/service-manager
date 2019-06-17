@@ -37,12 +37,13 @@ func (*DefaultAggregationPolicy) Apply(healths map[string]health.State, failureT
 	}
 	details := make(map[string]interface{})
 	for k, v := range healths {
-		details[k] = convertStatus(v.Status)
+		details[k] = ConvertStatus(v.Status)
 	}
 	return New().WithStatus(overallStatus).WithDetails(details)
 }
 
-func convertStatus(status string) Status {
+// ConvertStatus converts go-health status to Status
+func ConvertStatus(status string) Status {
 	switch status {
 	case "ok":
 		return StatusUp
