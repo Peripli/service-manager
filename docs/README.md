@@ -1,6 +1,6 @@
 # Documentation
 
-The `docs` folder contains end-to-end documentation for the Service Manager and its components. Start off my looking at the _Introduction_. Then checkout the _Usage_ section for a walkthrough as well as some example usage scenarios. In order to install the Service Manager components, refer to the _Installation_ section. In case you are interested to contribute, make sure to check the _Development_ section.
+The `docs` folder contains end-to-end documentation for the Service Manager and its components. Start off by looking at the _Introduction_. Then check out the _Usage_ section for a walkthrough as well as some example usage scenarios. In order to install the Service Manager components, refer to the _Installation_ section. In case you are interested to contribute, make sure to check the _Development_ section.
 
 ## Introduction
 
