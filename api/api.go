@@ -21,7 +21,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Peripli/service-manager/pkg/filters/labels"
+	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/pkg/util"
 
@@ -59,7 +59,6 @@ func DefaultSettings() *Settings {
 		SkipSSLValidation: false,
 		TokenBasicAuth:    true, // RFC 6749 section 2.3.1
 		OSBVersion:        osbVersion,
-		ProctedLabels:     nil,
 	}
 }
 
@@ -120,7 +119,7 @@ func New(ctx context.Context, options *Options) (*web.API, error) {
 			filters.NewBasicAuthnFilter(options.Repository),
 			bearerAuthnFilter,
 			secfilters.NewRequiredAuthnFilter(),
-			labels.NewForbiddenLabelOperationsFilter(options.APISettings.ProctedLabels),
+			filters.NewForbiddenLabelOperationsFilter(options.APISettings.ProctedLabels),
 			&filters.SelectionCriteria{},
 			&filters.PlatformAwareVisibilityFilter{},
 			&filters.PatchOnlyLabelsFilter{},
