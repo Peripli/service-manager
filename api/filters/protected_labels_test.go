@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-package labels
+package filters_test
 
 import (
 	"net/http"
-	"testing"
+
+	"github.com/Peripli/service-manager/api/filters"
 
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -28,13 +29,8 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestLabelsFilter(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Labels filter Suite")
-}
-
 var _ = Describe("Forbidden label operations filter", func() {
-	var filter *ForibiddenLabelOperationsFilter
+	var filter *filters.ForibiddenLabelOperationsFilter
 	var handler *webfakes.FakeHandler
 	var protectedLabels []string
 
@@ -44,7 +40,7 @@ var _ = Describe("Forbidden label operations filter", func() {
 
 	JustBeforeEach(func() {
 		handler = &webfakes.FakeHandler{}
-		filter = NewForbiddenLabelOperationsFilter(protectedLabels)
+		filter = filters.NewForbiddenLabelOperationsFilter(protectedLabels)
 	})
 
 	Context("POST", func() {
@@ -99,7 +95,7 @@ var _ = Describe("Forbidden label operations filter", func() {
 			})
 		})
 
-		When("when labels is invalid json", func() {
+		When("labels is invalid json", func() {
 			It("should return error", func() {
 				req := mockedRequest(http.MethodPost, `{"labels": "invalid"}`)
 				_, err := filter.Run(req, handler)
@@ -135,7 +131,7 @@ var _ = Describe("Forbidden label operations filter", func() {
 			})
 		})
 
-		When("when labels is invalid json", func() {
+		When("labels is invalid json", func() {
 			It("should return error", func() {
 				req := mockedRequest(http.MethodPatch, `{"labels": "invalid"}`)
 				_, err := filter.Run(req, handler)
