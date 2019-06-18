@@ -111,23 +111,6 @@ func validateFieldQueryParams(columns map[string]bool, criteria []query.Criterio
 	return nil
 }
 
-func constructBaseQueryForLabelable(labelsEntity PostgresLabel, baseTableName string) string {
-	if labelsEntity == nil {
-		return fmt.Sprintf("SELECT * FROM %s", baseTableName)
-	}
-
-	baseQuery := `SELECT %[1]s.*,`
-	for _, dbTag := range getDBTags(labelsEntity, isAutoIncrementable) {
-		baseQuery += " %[2]s." + dbTag.Tag + " " + "\"%[2]s." + dbTag.Tag + "\"" + ","
-	}
-	baseQuery = baseQuery[:len(baseQuery)-1] //remove last comma
-	labelsTableName := labelsEntity.LabelsTableName()
-	referenceKeyColumn := labelsEntity.ReferenceColumn()
-	primaryKeyColumn := labelsEntity.LabelsPrimaryColumn()
-	baseQuery += " FROM %[1]s LEFT JOIN %[2]s ON %[1]s." + primaryKeyColumn + " = %[2]s." + referenceKeyColumn
-	return fmt.Sprintf(baseQuery, baseTableName, labelsTableName)
-}
-
 func update(ctx context.Context, db namedExecerContext, table string, dto interface{}) error {
 	updateQueryString := updateQuery(table, dto)
 	if updateQueryString == "" {
