@@ -20,9 +20,12 @@
   version = "v2.1.0"
 
 [[projects]]
-  digest = "1:137a441b9903a0179439f1c497406765c3d3758a0f1e2922174dc61ae3c21fe6"
+  digest = "1:be2deb3cba3d2526b3692d80483f59df6462aabc875aace2db263f2664f30670"
   name = "github.com/InVisionApp/go-logger"
-  packages = ["."]
+  packages = [
+    ".",
+    "shims/logrus",
+  ]
   pruneopts = "UT"
   revision = "c377c6c3f6a48a6366517e86f77bafea18454ff1"
   version = "v1.0.1"
@@ -701,6 +704,7 @@
     "github.com/DATA-DOG/go-sqlmock",
     "github.com/InVisionApp/go-health",
     "github.com/InVisionApp/go-health/checkers",
+    "github.com/InVisionApp/go-logger/shims/logrus",
     "github.com/benjamintf1/unmarshalledmatchers",
     "github.com/cloudfoundry-community/go-cfenv",
     "github.com/coreos/go-oidc",
