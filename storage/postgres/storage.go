@@ -138,7 +138,7 @@ func (ps *Storage) updateSchema(migrationsURL, pgDriverName string) error {
 	return err
 }
 
-func (ps *Storage) Ping(ctx context.Context) error {
+func (ps *Storage) PingContext(ctx context.Context) error {
 	ps.checkOpen()
 	return ps.state.Get()
 }

@@ -23,7 +23,6 @@ import (
 	"fmt"
 	h "github.com/InVisionApp/go-health"
 	l "github.com/InVisionApp/go-logger/shims/logrus"
-	"github.com/Peripli/service-manager/pkg/health"
 	"net"
 	"net/http"
 	"sync"
@@ -136,7 +135,7 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 		return nil, fmt.Errorf("error creating core api: %s", err)
 	}
 
-	storageHealthIndicator, err := storage.NewStorageHealthIndicator(storage.PingFunc(smStorage.Ping))
+	storageHealthIndicator, err := storage.NewStorageHealthIndicator(storage.PingFunc(smStorage.PingContext))
 	if err != nil {
 		return nil, fmt.Errorf("error creating storage health indicator: %s", err)
 	}
@@ -221,7 +220,7 @@ func (smb *ServiceManagerBuilder) installHealth() error {
 		err := healthz.AddCheck(&h.Config{
 			Name:     indicator.Name(),
 			Checker:  indicator,
-			Interval: time.Duration(smb.health.Interval) * time.Second,
+			Interval: smb.health.Interval * time.Second,
 		})
 
 		if err != nil {
@@ -230,10 +229,18 @@ func (smb *ServiceManagerBuilder) installHealth() error {
 	}
 	smb.RegisterControllers(healthcheck.NewController(healthz, smb.HealthAggregationPolicy, smb.health.FailuresTreshold))
 
-	err := healthz.Start()
-	if err != nil {
+	if err := healthz.Start(); err != nil {
 		return err
 	}
+
+	// Handles safe termination of sm
+	util.StartInWaitGroupWithContext(smb.ctx, func(c context.Context) {
+		<-c.Done()
+		log.C(c).Debug("Context cancelled. Stopping health checks...")
+		if err := healthz.Stop(); err != nil {
+			log.D().Error(err)
+		}
+	}, smb.wg)
 
 	return nil
 }

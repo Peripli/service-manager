@@ -135,10 +135,17 @@ type OpenCloser interface {
 	Close() error
 }
 
+// Pinger allows pinging the storage to check liveliness
+//go:generate counterfeiter . Pinger
+type Pinger interface {
+	// PingContext verifies a connection to the database is still alive, establishing a connection if necessary.
+	PingContext(context.Context) error
+}
+
 // PingFunc is an adapter that allows to use regular functions as Pinger
 type PingFunc func(context.Context) error
 
-// Ping allows PingFunc to act as a Pinger
+// PingContext allows PingFunc to act as a Pinger
 func (mf PingFunc) PingContext(ctx context.Context) error {
 	return mf(ctx)
 }
@@ -176,6 +183,7 @@ type TransactionalRepositoryDecorator func(TransactionalRepository) (Transaction
 type Storage interface {
 	OpenCloser
 	TransactionalRepository
+	Pinger
 
 	Introduce(entity Entity)
 }

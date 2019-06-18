@@ -85,7 +85,7 @@ func NewForEnv(env env.Environment) (*Settings, error) {
 func (c *Settings) Validate() error {
 	validatable := []interface {
 		Validate() error
-	}{c.Server, c.Storage, c.Log, c.API, c.WebSocket}
+	}{c.Server, c.Storage, c.Log, c.Health, c.API, c.WebSocket}
 
 	for _, item := range validatable {
 		if err := item.Validate(); err != nil {

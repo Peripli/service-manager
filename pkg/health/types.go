@@ -19,12 +19,13 @@ package health
 import (
 	"fmt"
 	"github.com/InVisionApp/go-health"
+	"time"
 )
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	FailuresTreshold int64 `mapstructure:"failures_treshold" description:"maximum failures in a row until component is considered down"`
-	Interval         int64 `description:"seconds between health checks of components"`
+	FailuresTreshold int64         `mapstructure:"failures_treshold" description:"maximum failures in a row until component is considered down"`
+	Interval         time.Duration `mapstructure:"interval" description:"seconds between health checks of components"`
 }
 
 // DefaultSettings returns default values for health settings
@@ -40,8 +41,8 @@ func (s *Settings) Validate() error {
 	if s.FailuresTreshold < 0 {
 		return fmt.Errorf("validate Settings: FailuresTreshold must be >= 0")
 	}
-	if s.Interval < 0 {
-		return fmt.Errorf("valudate Settings: Interval must be >= 0")
+	if s.Interval < 30 {
+		return fmt.Errorf("validate Settings: Minimum interval is 30 seconds")
 	}
 	return nil
 }
