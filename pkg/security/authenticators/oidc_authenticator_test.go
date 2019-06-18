@@ -38,7 +38,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func TestApi(t *testing.T) {
+func TestAuthenticators(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "OIDC Authenticator")
 }
@@ -391,7 +391,7 @@ var _ = Describe("OIDC Authenticator", func() {
 								Abc string
 							}{}
 
-							err = user.Data.Data(&claims)
+							err = user.Data(&claims)
 
 							_, token := verifier.VerifyArgsForCall(0)
 							Expect(token).To(Equal("token"))
