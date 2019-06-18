@@ -80,7 +80,7 @@ func (a *BasicAuthenticator) Authenticate(request *http.Request) (*web.UserConte
 	}
 
 	return &web.UserContext{
-		DataFunc: func(v interface{}) error {
+		Data: func(v interface{}) error {
 			return json.Unmarshal(bytes, v)
 		},
 		AuthenticationType: web.Basic,

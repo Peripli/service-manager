@@ -163,7 +163,7 @@ func (c *Controller) unregisterConsumer(ctx context.Context, q storage.Notificat
 
 func extractPlatformFromContext(userContext *web.UserContext) (*types.Platform, error) {
 	platform := &types.Platform{}
-	err := userContext.DataFunc(platform)
+	err := userContext.Data(platform)
 	if err != nil {
 		return nil, fmt.Errorf("could not get platform from user context %v", err)
 	}

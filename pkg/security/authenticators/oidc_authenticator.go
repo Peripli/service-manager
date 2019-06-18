@@ -127,7 +127,7 @@ func (a *OauthAuthenticator) Authenticate(request *http.Request) (*web.UserConte
 		return nil, httpsec.Deny, err
 	}
 	return &web.UserContext{
-		DataFunc:           idToken.Claims,
+		Data:               idToken.Claims,
 		AuthenticationType: web.Bearer,
 		Name:               claims.Username,
 	}, httpsec.Allow, nil
