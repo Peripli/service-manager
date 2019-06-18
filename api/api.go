@@ -21,8 +21,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Peripli/service-manager/pkg/query"
-
 	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/pkg/types"
