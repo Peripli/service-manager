@@ -61,12 +61,12 @@ var _ = Describe("Postgres Storage Query builder", func() {
 				_, err := qb.NewQuery().List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`SELECT t.*,
-		visibility_labels.id "visibility_labels.id",
-		visibility_labels.key "visibility_labels.key",
-		visibility_labels.val "visibility_labels.val",
-		visibility_labels.created_at "visibility_labels.created_at",
-		visibility_labels.updated_at "visibility_labels.updated_at",
-		visibility_labels.visibility_id "visibility_labels.visibility_id"
+	visibility_labels.id "visibility_labels.id",
+	visibility_labels.key "visibility_labels.key",
+	visibility_labels.val "visibility_labels.val",
+	visibility_labels.created_at "visibility_labels.created_at",
+	visibility_labels.updated_at "visibility_labels.updated_at",
+	visibility_labels.visibility_id "visibility_labels.visibility_id"
 FROM visibilities t
 LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id;`)))
 				Expect(queryArgs).To(HaveLen(0))
@@ -80,12 +80,12 @@ LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id;`)))
 					List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`SELECT t.*,
-		visibility_labels.id "visibility_labels.id",
-		visibility_labels.key "visibility_labels.key",
-		visibility_labels.val "visibility_labels.val",
-		visibility_labels.created_at "visibility_labels.created_at",
-		visibility_labels.updated_at "visibility_labels.updated_at",
-		visibility_labels.visibility_id "visibility_labels.visibility_id"
+	visibility_labels.id "visibility_labels.id",
+	visibility_labels.key "visibility_labels.key",
+	visibility_labels.val "visibility_labels.val",
+	visibility_labels.created_at "visibility_labels.created_at",
+	visibility_labels.updated_at "visibility_labels.updated_at",
+	visibility_labels.visibility_id "visibility_labels.visibility_id"
 FROM visibilities t
 JOIN
   (SELECT *
@@ -108,12 +108,12 @@ JOIN
 					List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`SELECT t.*,
-		visibility_labels.id "visibility_labels.id",
-		visibility_labels.key "visibility_labels.key",
-		visibility_labels.val "visibility_labels.val",
-		visibility_labels.created_at "visibility_labels.created_at",
-		visibility_labels.updated_at "visibility_labels.updated_at",
-		visibility_labels.visibility_id "visibility_labels.visibility_id"
+	visibility_labels.id "visibility_labels.id",
+	visibility_labels.key "visibility_labels.key",
+	visibility_labels.val "visibility_labels.val",
+	visibility_labels.created_at "visibility_labels.created_at",
+	visibility_labels.updated_at "visibility_labels.updated_at",
+	visibility_labels.visibility_id "visibility_labels.visibility_id"
 FROM visibilities t
 LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
 WHERE t.id::text = ?;`)))
@@ -137,12 +137,12 @@ WHERE t.id::text = ?;`)))
 					List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`SELECT t.*,
-		visibility_labels.id "visibility_labels.id",
-		visibility_labels.key "visibility_labels.key",
-		visibility_labels.val "visibility_labels.val",
-		visibility_labels.created_at "visibility_labels.created_at",
-		visibility_labels.updated_at "visibility_labels.updated_at",
-		visibility_labels.visibility_id "visibility_labels.visibility_id"
+	visibility_labels.id "visibility_labels.id",
+	visibility_labels.key "visibility_labels.key",
+	visibility_labels.val "visibility_labels.val",
+	visibility_labels.created_at "visibility_labels.created_at",
+	visibility_labels.updated_at "visibility_labels.updated_at",
+	visibility_labels.visibility_id "visibility_labels.visibility_id"
 FROM visibilities t
 LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
 ORDER BY t.id DESC;`)))
@@ -201,12 +201,12 @@ ORDER BY t.id DESC;`)))
 					List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`SELECT t.*,
-		visibility_labels.id "visibility_labels.id",
-		visibility_labels.key "visibility_labels.key",
-		visibility_labels.val "visibility_labels.val",
-		visibility_labels.created_at "visibility_labels.created_at",
-		visibility_labels.updated_at "visibility_labels.updated_at",
-		visibility_labels.visibility_id "visibility_labels.visibility_id"
+	visibility_labels.id "visibility_labels.id",
+	visibility_labels.key "visibility_labels.key",
+	visibility_labels.val "visibility_labels.val",
+	visibility_labels.created_at "visibility_labels.created_at",
+	visibility_labels.updated_at "visibility_labels.updated_at",
+	visibility_labels.visibility_id "visibility_labels.visibility_id"
 FROM visibilities t
 LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
 LIMIT 10;`)))
@@ -237,11 +237,11 @@ LIMIT 10;`)))
 					List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`SELECT t.*,
-		visibility_labels.id "visibility_labels.id",
-		visibility_labels.key "visibility_labels.key",
-		visibility_labels.val "visibility_labels.val",
-		visibility_labels.created_at "visibility_labels.created_at",
-		visibility_labels.updated_at "visibility_labels.updated_at",
+	visibility_labels.id "visibility_labels.id",
+	visibility_labels.key "visibility_labels.key",
+	visibility_labels.val "visibility_labels.val",
+	visibility_labels.created_at "visibility_labels.created_at",
+	visibility_labels.updated_at "visibility_labels.updated_at",
 		visibility_labels.visibility_id "visibility_labels.visibility_id"
 FROM visibilities t
 JOIN
@@ -351,13 +351,13 @@ FROM visibilities USING visibilities t
 LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
 WHERE t.id = visibilities.id 
 RETURNING t.id,
-		t.service_plan_id,
-		visibility_labels.id "visibility_labels.id",
-		visibility_labels.key "visibility_labels.key",
-		visibility_labels.val "visibility_labels.val",
-		visibility_labels.created_at "visibility_labels.created_at",
-		visibility_labels.updated_at "visibility_labels.updated_at",
-		visibility_labels.visibility_id "visibility_labels.visibility_id";`)))
+	t.service_plan_id,
+	visibility_labels.id "visibility_labels.id",
+	visibility_labels.key "visibility_labels.key",
+	visibility_labels.val "visibility_labels.val",
+	visibility_labels.created_at "visibility_labels.created_at",
+	visibility_labels.updated_at "visibility_labels.updated_at",
+	visibility_labels.visibility_id "visibility_labels.visibility_id";`)))
 			})
 
 			It("builds query with *", func() {
@@ -369,12 +369,12 @@ FROM visibilities USING visibilities t
 LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
 WHERE t.id = visibilities.id 
 RETURNING t.*,
-		visibility_labels.id "visibility_labels.id",
-		visibility_labels.key "visibility_labels.key",
-		visibility_labels.val "visibility_labels.val",
-		visibility_labels.created_at "visibility_labels.created_at",
-		visibility_labels.updated_at "visibility_labels.updated_at",
-		visibility_labels.visibility_id "visibility_labels.visibility_id";`)))
+	visibility_labels.id "visibility_labels.id",
+	visibility_labels.key "visibility_labels.key",
+	visibility_labels.val "visibility_labels.val",
+	visibility_labels.created_at "visibility_labels.created_at",
+	visibility_labels.updated_at "visibility_labels.updated_at",
+	visibility_labels.visibility_id "visibility_labels.visibility_id";`)))
 			})
 
 			Context("when unknown field is specified", func() {
@@ -419,12 +419,12 @@ WHERE t.id = visibilities.id
   AND (t.platform_id::text = ?
 	   OR t.platform_id IS NULL) 
 RETURNING t.*,
-		visibility_labels.id "visibility_labels.id",
-		visibility_labels.key "visibility_labels.key",
-		visibility_labels.val "visibility_labels.val",
-		visibility_labels.created_at "visibility_labels.created_at",
-		visibility_labels.updated_at "visibility_labels.updated_at",
-		visibility_labels.visibility_id "visibility_labels.visibility_id";`)))
+	visibility_labels.id "visibility_labels.id",
+	visibility_labels.key "visibility_labels.key",
+	visibility_labels.val "visibility_labels.val",
+	visibility_labels.created_at "visibility_labels.created_at",
+	visibility_labels.updated_at "visibility_labels.updated_at",
+	visibility_labels.visibility_id "visibility_labels.visibility_id";`)))
 				Expect(queryArgs).To(HaveLen(12))
 				Expect(queryArgs[0]).Should(Equal("left1"))
 				Expect(queryArgs[1]).Should(Equal("right1"))
