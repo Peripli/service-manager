@@ -242,7 +242,7 @@ LIMIT 10;`)))
 	visibility_labels.val "visibility_labels.val",
 	visibility_labels.created_at "visibility_labels.created_at",
 	visibility_labels.updated_at "visibility_labels.updated_at",
-		visibility_labels.visibility_id "visibility_labels.visibility_id"
+	visibility_labels.visibility_id "visibility_labels.visibility_id"
 FROM visibilities t
 JOIN
   (SELECT *
