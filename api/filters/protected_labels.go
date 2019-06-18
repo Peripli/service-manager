@@ -105,13 +105,6 @@ func (flo *ForibiddenLabelOperationsFilter) FilterMatchers() []web.FilterMatcher
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
-				web.Path(web.ServiceBrokersURL + "/**"),
-				web.Methods(http.MethodPost, http.MethodPatch),
-			},
-		},
-		{
-			Matchers: []web.Matcher{
-				web.Path(web.PlatformsURL + "/**"),
 				web.Methods(http.MethodPost, http.MethodPatch),
 			},
 		},

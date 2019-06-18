@@ -230,7 +230,7 @@ var _ = Describe("Interceptors", func() {
 				createModificationInterceptors[types.PlatformType].OnTxCreateStub = func(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 					return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) (types.Object, error) {
 						By("calling storage update, should call update interceptor")
-						_, err := txStorage.Update(ctx, platform1)
+						_, err := txStorage.Update(ctx, platform1, query.LabelChanges{})
 						if err != nil {
 							return nil, err
 						}
@@ -260,7 +260,7 @@ var _ = Describe("Interceptors", func() {
 				createModificationInterceptors[types.PlatformType].OnTxCreateStub = func(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 					return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) (types.Object, error) {
 						By("calling storage update, should call update interceptor")
-						_, err := txStorage.Update(ctx, platform1)
+						_, err := txStorage.Update(ctx, platform1, query.LabelChanges{})
 						if err != nil {
 							return nil, err
 						}

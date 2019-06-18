@@ -111,7 +111,7 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 						StatusCode:  http.StatusBadRequest,
 					}
 				}
-				if _, err := txStorage.Update(ctx, catalogService); err != nil {
+				if _, err := txStorage.Update(ctx, catalogService, query.LabelChanges{}); err != nil {
 					return nil, err
 				}
 			} else {
@@ -178,7 +178,7 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 							}
 						}
 
-						if _, err := txStorage.Update(ctx, existingPlanUpdated); err != nil {
+						if _, err := txStorage.Update(ctx, existingPlanUpdated, query.LabelChanges{}); err != nil {
 							return nil, err
 						}
 

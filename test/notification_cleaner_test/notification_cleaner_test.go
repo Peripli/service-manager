@@ -20,6 +20,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/Peripli/service-manager/pkg/log"
 
 	"github.com/Peripli/service-manager/test/testutil"
@@ -105,11 +107,13 @@ var _ = Describe("Notification cleaner", func() {
 				Should(ContainSubstring("successfully deleted 1 old notifications"))
 
 			Eventually(func() error {
-				_, err = repository.Get(ctx, types.NotificationType, old.GetID())
+				byOldID := query.ByField(query.EqualsOperator, "id", old.GetID())
+				_, err = repository.Get(ctx, types.NotificationType, byOldID)
 				return err
 			}, eventuallyTimeout).Should(Equal(util.ErrNotFoundInStorage))
 
-			obj, err := repository.Get(ctx, types.NotificationType, new.GetID())
+			byNewID := query.ByField(query.EqualsOperator, "id", new.GetID())
+			obj, err := repository.Get(ctx, types.NotificationType, byNewID)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(obj.GetID()).To(Equal(new.GetID()))
 		})

@@ -18,10 +18,11 @@ package broker_test
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/web"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/Peripli/service-manager/pkg/web"
 
 	"github.com/Peripli/service-manager/storage"
 
@@ -198,7 +199,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect().
 								Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
 
-							brokerFromDB, err := repository.Get(context.TODO(), types.ServiceBrokerType, id)
+							byID := query.ByField(query.EqualsOperator, "id", id)
+							brokerFromDB, err := repository.Get(context.TODO(), types.ServiceBrokerType, byID)
 							Expect(err).ToNot(HaveOccurred())
 
 							Expect(string(brokerFromDB.(*types.ServiceBroker).Catalog)).To(MatchJSON(string(brokerServer.Catalog)))
@@ -454,7 +456,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						WithJSON(common.Object{}).
 						Expect()
 
-					brokerFromDB, err := repository.Get(context.TODO(), types.ServiceBrokerType, brokerID)
+					byID := query.ByField(query.EqualsOperator, "id", brokerID)
+					brokerFromDB, err := repository.Get(context.TODO(), types.ServiceBrokerType, byID)
 					Expect(err).ToNot(HaveOccurred())
 
 					Expect(string(brokerFromDB.(*types.ServiceBroker).Catalog)).To(MatchJSON(expectedCatalog))

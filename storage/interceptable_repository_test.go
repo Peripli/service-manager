@@ -43,7 +43,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 					Base: types.Base{
 						UpdatedAt: updateTime,
 					},
-				})
+				}, query.LabelChanges{})
 				Expect(err).ShouldNot(HaveOccurred())
 
 				byID := query.ByField(query.EqualsOperator, "id", "id")
@@ -114,7 +114,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 				return f(context, fakeStorage)
 			})
 
-			fakeStorage.UpdateCalls(func(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+			fakeStorage.UpdateCalls(func(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, criteria ...query.Criterion) (types.Object, error) {
 				return obj, nil
 			})
 
@@ -165,7 +165,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 
 		Context("when another update happens before the current update has finished", func() {
 			BeforeEach(func() {
-				fakeStorage.GetCalls(func(ctx context.Context, objectType types.ObjectType, id string) (types.Object, error) {
+				fakeStorage.GetCalls(func(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, error) {
 					return &types.ServiceBroker{
 						Base: types.Base{
 							// simulate the resource is updated when its retrieved again
@@ -182,7 +182,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 						Base: types.Base{
 							UpdatedAt: updateTime,
 						},
-					})
+					}, query.LabelChanges{})
 
 					return err
 				})
@@ -234,13 +234,13 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 
 			fakeUpdateIntercetptor.OnTxUpdateCalls(func(next storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
 				return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
-					o, err := txStorage.Update(ctx, newObj, labelChanges...)
+					o, err := txStorage.Update(ctx, newObj, labelChanges)
 					Expect(err).ShouldNot(HaveOccurred())
 
 					o, err = next(ctx, txStorage, oldObj, newObj, labelChanges...)
 					Expect(err).ShouldNot(HaveOccurred())
 
-					o, err = txStorage.Update(ctx, newObj, labelChanges...)
+					o, err = txStorage.Update(ctx, newObj, labelChanges)
 					Expect(err).ShouldNot(HaveOccurred())
 
 					return o, nil

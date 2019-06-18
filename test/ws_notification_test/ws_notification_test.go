@@ -23,6 +23,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/Peripli/service-manager/api/notifications"
 
 	"github.com/spf13/pflag"
@@ -289,7 +291,8 @@ func createNotification(repository storage.Repository, platformID string) *types
 	result, err := repository.Create(context.Background(), notification)
 	Expect(err).ShouldNot(HaveOccurred())
 
-	createdNotification, err := repository.Get(context.Background(), types.NotificationType, result.GetID())
+	byID := query.ByField(query.EqualsOperator, "id", result.GetID())
+	createdNotification, err := repository.Get(context.Background(), types.NotificationType, byID)
 	Expect(err).ShouldNot(HaveOccurred())
 	return createdNotification.(*types.Notification)
 }

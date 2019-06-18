@@ -70,10 +70,16 @@ type TestContext struct {
 	wg            *sync.WaitGroup
 	wsConnections []*websocket.Conn
 
-	SM           *httpexpect.Expect
-	SMWithOAuth  *httpexpect.Expect
-	SMWithBasic  *httpexpect.Expect
-	SMRepository storage.Repository
+	SM          *httpexpect.Expect
+	SMWithOAuth *httpexpect.Expect
+	// Requests a token the the "multitenant" oauth client - then token issued by this client contains
+	// the "multitenant" client id behind the specified token claim in the api config
+	// the token also contains a "tenant identifier" behind the configured tenant_indentifier claim that
+	// will be compared with the value of the label specified in the "label key" configuration
+	// In the end requesting brokers with this
+	SMWithOAuthForTenant func(tenant string) *httpexpect.Expect
+	SMWithBasic          *httpexpect.Expect
+	SMRepository         storage.Repository
 
 	TestPlatform *types.Platform
 
