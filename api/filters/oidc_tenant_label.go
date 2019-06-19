@@ -131,7 +131,7 @@ func (f *OIDCTenantFilter) Run(request *web.Request, next web.Handler) (*web.Res
 	}
 
 	var userData json.RawMessage
-	if err := user.DataFunc(&userData); err != nil {
+	if err := user.Data(&userData); err != nil {
 		return nil, fmt.Errorf("could not unmarshal claims from token: %s", err)
 	}
 
