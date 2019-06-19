@@ -59,35 +59,37 @@ func DescribePatchTestsFor(ctx *common.TestContext, t TestCase) bool {
 					})
 				})
 
-				Context("when the resource is tenant scoped", func() {
-					BeforeEach(func() {
-						createTestResourceWithAuth(ctx.SMWithOAuthForTenant)
-					})
+				if !t.DisableTenantResources {
+					Context("when the resource is tenant scoped", func() {
+						BeforeEach(func() {
+							createTestResourceWithAuth(ctx.SMWithOAuthForTenant)
+						})
 
-					Context("when authenticating with basic auth", func() {
-						It("returns 401", func() {
-							ctx.SMWithBasic.PATCH(t.API + "/" + testResourceID).WithJSON(common.Object{}).
-								Expect().
-								Status(http.StatusUnauthorized)
+						Context("when authenticating with basic auth", func() {
+							It("returns 401", func() {
+								ctx.SMWithBasic.PATCH(t.API + "/" + testResourceID).WithJSON(common.Object{}).
+									Expect().
+									Status(http.StatusUnauthorized)
+							})
+						})
+
+						Context("when authenticating with global token", func() {
+							It("returns 200", func() {
+								ctx.SMWithOAuth.PATCH(t.API + "/" + testResourceID).WithJSON(common.Object{}).
+									Expect().
+									Status(http.StatusOK)
+							})
+						})
+
+						Context("when authenticating with tenant scoped token", func() {
+							It("returns 200", func() {
+								ctx.SMWithOAuthForTenant.PATCH(t.API + "/" + testResourceID).WithJSON(common.Object{}).
+									Expect().
+									Status(http.StatusOK)
+							})
 						})
 					})
-
-					Context("when authenticating with global token", func() {
-						It("returns 200", func() {
-							ctx.SMWithOAuth.PATCH(t.API + "/" + testResourceID).WithJSON(common.Object{}).
-								Expect().
-								Status(http.StatusOK)
-						})
-					})
-
-					Context("when authenticating with tenant scoped token", func() {
-						It("returns 200", func() {
-							ctx.SMWithOAuthForTenant.PATCH(t.API + "/" + testResourceID).WithJSON(common.Object{}).
-								Expect().
-								Status(http.StatusOK)
-						})
-					})
-				})
+				}
 			})
 		})
 

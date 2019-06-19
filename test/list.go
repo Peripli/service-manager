@@ -395,29 +395,41 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		})
 
 		Context("with bearer auth", func() {
-			Context("when authenticating with tenant scoped token", func() {
-				var rForTenant common.Object
+			if !t.DisableTenantResources {
+				Context("when authenticating with tenant scoped token", func() {
+					var rForTenant common.Object
 
-				BeforeEach(func() {
-					rForTenant = t.ResourceBlueprint(ctx, ctx.SMWithOAuthForTenant)
-				})
+					BeforeEach(func() {
+						rForTenant = t.ResourceBlueprint(ctx, ctx.SMWithOAuthForTenant)
+					})
 
-				It("returns only tenant specific resources", func() {
-					verifyListOpWithAuth(listOpEntry{
-						resourcesToExpectBeforeOp: []common.Object{r[0], r[1], rForTenant},
-						resourcesToExpectAfterOp:  []common.Object{rForTenant},
-						expectedStatusCode:        http.StatusOK,
-					}, "", ctx.SMWithOAuthForTenant)
-				})
-
-				Context("when authenticating with global token", func() {
-					It("it returns all resources", func() {
+					It("returns only tenant specific resources", func() {
 						verifyListOpWithAuth(listOpEntry{
 							resourcesToExpectBeforeOp: []common.Object{r[0], r[1], rForTenant},
-							resourcesToExpectAfterOp:  []common.Object{r[0], r[1], rForTenant},
+							resourcesToExpectAfterOp:  []common.Object{rForTenant},
 							expectedStatusCode:        http.StatusOK,
-						}, "", ctx.SMWithOAuth)
+						}, "", ctx.SMWithOAuthForTenant)
 					})
+
+					Context("when authenticating with global token", func() {
+						It("it returns all resources", func() {
+							verifyListOpWithAuth(listOpEntry{
+								resourcesToExpectBeforeOp: []common.Object{r[0], r[1], rForTenant},
+								resourcesToExpectAfterOp:  []common.Object{r[0], r[1], rForTenant},
+								expectedStatusCode:        http.StatusOK,
+							}, "", ctx.SMWithOAuth)
+						})
+					})
+				})
+			}
+
+			Context("with no field query", func() {
+				It("it returns all resources", func() {
+					verifyListOpWithAuth(listOpEntry{
+						resourcesToExpectBeforeOp: []common.Object{r[0], r[1]},
+						resourcesToExpectAfterOp:  []common.Object{r[0], r[1]},
+						expectedStatusCode:        http.StatusOK,
+					}, "", ctx.SMWithOAuth)
 				})
 			})
 

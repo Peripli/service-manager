@@ -559,42 +559,44 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 			})
 
 			Context("with bearer auth", func() {
-				Context("when authenticating with tenant scoped token", func() {
-					var rForTenant common.Object
+				if !t.DisableTenantResources {
+					Context("when authenticating with tenant scoped token", func() {
+						var rForTenant common.Object
 
-					BeforeEach(func() {
-						rForTenant = t.ResourceBlueprint(ctx, ctx.SMWithOAuthForTenant)
-					})
+						BeforeEach(func() {
+							rForTenant = t.ResourceBlueprint(ctx, ctx.SMWithOAuthForTenant)
+						})
 
-					It("deletes only tenant specific resources", func() {
-						verifyDeleteListOpHelperWithAuth(deleteOpEntry{
-							resourcesToExpectBeforeOp: func() []common.Object {
-								return []common.Object{r[0], r[1], rForTenant}
-							},
-							resourcesNotToExpectAfterOp: func() []common.Object {
-								return []common.Object{rForTenant}
-							},
-							resourcesToExpectAfterOp: func() []common.Object {
-								return []common.Object{r[0], r[1]}
-							},
-							expectedStatusCode: http.StatusOK,
-						}, "", ctx.SMWithOAuthForTenant)
-					})
-
-					Context("when authenticating with global token", func() {
-						It("deletes all resources", func() {
+						It("deletes only tenant specific resources", func() {
 							verifyDeleteListOpHelperWithAuth(deleteOpEntry{
 								resourcesToExpectBeforeOp: func() []common.Object {
 									return []common.Object{r[0], r[1], rForTenant}
 								},
 								resourcesNotToExpectAfterOp: func() []common.Object {
-									return []common.Object{r[0], r[1], rForTenant}
+									return []common.Object{rForTenant}
+								},
+								resourcesToExpectAfterOp: func() []common.Object {
+									return []common.Object{r[0], r[1]}
 								},
 								expectedStatusCode: http.StatusOK,
-							}, "", ctx.SMWithOAuth)
+							}, "", ctx.SMWithOAuthForTenant)
+						})
+
+						Context("when authenticating with global token", func() {
+							It("deletes all resources", func() {
+								verifyDeleteListOpHelperWithAuth(deleteOpEntry{
+									resourcesToExpectBeforeOp: func() []common.Object {
+										return []common.Object{r[0], r[1], rForTenant}
+									},
+									resourcesNotToExpectAfterOp: func() []common.Object {
+										return []common.Object{r[0], r[1], rForTenant}
+									},
+									expectedStatusCode: http.StatusOK,
+								}, "", ctx.SMWithOAuth)
+							})
 						})
 					})
-				})
+				}
 
 				Context("with no query", func() {
 					It("deletes all the resources", func() {

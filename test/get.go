@@ -73,35 +73,37 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase) bool {
 				})
 			})
 
-			Context("when the resource is tenant scoped", func() {
-				BeforeEach(func() {
-					createTestResourceWithAuth(ctx.SMWithOAuthForTenant)
-				})
+			if !t.DisableTenantResources {
+				Context("when the resource is tenant scoped", func() {
+					BeforeEach(func() {
+						createTestResourceWithAuth(ctx.SMWithOAuthForTenant)
+					})
 
-				Context("when authenticating with basic auth", func() {
-					It("returns 200", func() {
-						ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
-							Expect().
-							Status(http.StatusOK).JSON().Object().ContainsMap(testResource)
+					Context("when authenticating with basic auth", func() {
+						It("returns 200", func() {
+							ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
+								Expect().
+								Status(http.StatusOK).JSON().Object().ContainsMap(testResource)
+						})
+					})
+
+					Context("when authenticating with global token", func() {
+						It("returns 200", func() {
+							ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
+								Expect().
+								Status(http.StatusOK).JSON().Object().ContainsMap(testResource)
+						})
+					})
+
+					Context("when authenticating with tenant scoped token", func() {
+						It("returns 200", func() {
+							ctx.SMWithOAuthForTenant.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
+								Expect().
+								Status(http.StatusOK).JSON().Object().ContainsMap(testResource)
+						})
 					})
 				})
-
-				Context("when authenticating with global token", func() {
-					It("returns 200", func() {
-						ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
-							Expect().
-							Status(http.StatusOK).JSON().Object().ContainsMap(testResource)
-					})
-				})
-
-				Context("when authenticating with tenant scoped token", func() {
-					It("returns 200", func() {
-						ctx.SMWithOAuthForTenant.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
-							Expect().
-							Status(http.StatusOK).JSON().Object().ContainsMap(testResource)
-					})
-				})
-			})
+			}
 		})
 
 		Context(fmt.Sprintf("Not existing resource of type %s", t.API), func() {

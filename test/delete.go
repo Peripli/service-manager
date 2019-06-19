@@ -87,31 +87,33 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase) bool {
 				})
 			})
 
-			Context("when the resource is tenant scoped", func() {
-				BeforeEach(func() {
-					createResourceFunc(ctx.SMWithOAuthForTenant)
-				})
+			if !t.DisableTenantResources {
+				Context("when the resource is tenant scoped", func() {
+					BeforeEach(func() {
+						createResourceFunc(ctx.SMWithOAuthForTenant)
+					})
 
-				Context("when authenticating with basic auth", func() {
-					It("returns 401", func() {
-						ctx.SMWithBasic.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).
-							Expect().
-							Status(http.StatusUnauthorized).JSON().Object().Keys().Contains("error", "description")
+					Context("when authenticating with basic auth", func() {
+						It("returns 401", func() {
+							ctx.SMWithBasic.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).
+								Expect().
+								Status(http.StatusUnauthorized).JSON().Object().Keys().Contains("error", "description")
+						})
+					})
+
+					Context("when authenticating with global token", func() {
+						It("returns 200", func() {
+							verifyResourceDeletion(ctx.SMWithOAuth, http.StatusOK, http.StatusNotFound)
+						})
+					})
+
+					Context("when authenticating with tenant scoped token", func() {
+						It("returns 200", func() {
+							verifyResourceDeletion(ctx.SMWithOAuthForTenant, http.StatusOK, http.StatusNotFound)
+						})
 					})
 				})
-
-				Context("when authenticating with global token", func() {
-					It("returns 200", func() {
-						verifyResourceDeletion(ctx.SMWithOAuth, http.StatusOK, http.StatusNotFound)
-					})
-				})
-
-				Context("when authenticating with tenant scoped token", func() {
-					It("returns 200", func() {
-						verifyResourceDeletion(ctx.SMWithOAuthForTenant, http.StatusOK, http.StatusNotFound)
-					})
-				})
-			})
+			}
 		})
 
 		Context("Not existing resource", func() {

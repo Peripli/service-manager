@@ -41,6 +41,7 @@ type TestCase struct {
 	API          string
 	SupportedOps []Op
 
+	DisableTenantResources                 bool
 	ResourceBlueprint                      func(ctx *common.TestContext, smClient *httpexpect.Expect) common.Object
 	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext, smClient *httpexpect.Expect) common.Object
 	AdditionalTests                        func(ctx *common.TestContext)
