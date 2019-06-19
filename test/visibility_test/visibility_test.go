@@ -45,6 +45,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	SupportedOps: []test.Op{
 		test.Get, test.List, test.Delete, test.DeleteList, test.Patch,
 	},
+	DisableTenantResources:                 true,
 	ResourceBlueprint:                      blueprint(true),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
 	AdditionalTests: func(ctx *common.TestContext) {
@@ -758,9 +759,7 @@ func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *htt
 			Status(http.StatusOK).JSON().Object().Value("service_plans").Array().First().Object().Value("id").String().Raw()
 		visReqBody["service_plan_id"] = servicePlanID
 		if setNullFieldsValues {
-			platformID := auth.POST(web.PlatformsURL).WithJSON(common.GenerateRandomPlatform()).
-				Expect().
-				Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
+			platformID := ctx.TestPlatform.GetID()
 			visReqBody["platform_id"] = platformID
 		}
 
