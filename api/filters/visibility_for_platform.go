@@ -41,19 +41,26 @@ func (*PlatformAwareVisibilityFilter) Run(req *web.Request, next web.Handler) (*
 		return nil, errors.New("user details not found in request context")
 	}
 
+	if user.AuthenticationType != web.Basic {
+		return next.Handle(req)
+	}
+
 	p := &types.Platform{}
-	if err := user.Data.Data(p); err != nil {
+	if err := user.Data(p); err != nil {
 		return nil, err
 	}
 
-	if p.ID != "" {
-		byPlatformID := query.ByField(query.EqualsOrNilOperator, "platform_id", p.ID)
-		var err error
-		if ctx, err = query.AddCriteria(ctx, byPlatformID); err != nil {
-			return nil, err
-		}
-		req.Request = req.WithContext(ctx)
+	if p.ID == "" {
+		return nil, errors.New("user details contain an invalid user")
 	}
+
+	byPlatformID := query.ByField(query.EqualsOrNilOperator, "platform_id", p.ID)
+	var err error
+	if ctx, err = query.AddCriteria(ctx, byPlatformID); err != nil {
+		return nil, err
+	}
+	req.Request = req.WithContext(ctx)
+
 	return next.Handle(req)
 }
 

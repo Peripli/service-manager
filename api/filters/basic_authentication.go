@@ -36,26 +36,18 @@ import (
 const BasicAuthnFilterName string = "BasicAuthnFilter"
 
 func NewBasicAuthnFilter(repository storage.Repository) *filters.AuthenticationFilter {
-	return filters.NewAuthenticationFilter(&basicAuthenticator{
+	return filters.NewAuthenticationFilter(&BasicAuthenticator{
 		Repository: repository,
 	}, BasicAuthnFilterName, basicAuthnMatchers())
 }
 
-type basicAuthnData struct {
-	data json.RawMessage
-}
-
-func (bad *basicAuthnData) Data(v interface{}) error {
-	return json.Unmarshal([]byte(bad.data), v)
-}
-
-// basicAuthenticator for basic security
-type basicAuthenticator struct {
+// BasicAuthenticator for basic security
+type BasicAuthenticator struct {
 	Repository storage.Repository
 }
 
 // Authenticate authenticates by using the provided Basic credentials
-func (a *basicAuthenticator) Authenticate(request *http.Request) (*web.UserContext, httpsec.Decision, error) {
+func (a *BasicAuthenticator) Authenticate(request *http.Request) (*web.UserContext, httpsec.Decision, error) {
 	username, password, ok := request.BasicAuth()
 	if !ok {
 		return nil, httpsec.Abstain, nil
@@ -88,10 +80,11 @@ func (a *basicAuthenticator) Authenticate(request *http.Request) (*web.UserConte
 	}
 
 	return &web.UserContext{
-		Data: &basicAuthnData{
-			data: bytes,
+		Data: func(v interface{}) error {
+			return json.Unmarshal(bytes, v)
 		},
-		Name: username,
+		AuthenticationType: web.Basic,
+		Name:               username,
 	}, httpsec.Allow, nil
 }
 

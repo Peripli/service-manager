@@ -68,14 +68,6 @@ func (v *oidcVerifier) Verify(ctx context.Context, idToken string) (httpsec.Toke
 	return v.IDTokenVerifier.Verify(ctx, idToken)
 }
 
-type oidcData struct {
-	httpsec.TokenData
-}
-
-func (td *oidcData) Data(v interface{}) error {
-	return td.TokenData.Claims(v)
-}
-
 // OauthAuthenticator is the OpenID implementation of security.Authenticator
 type OauthAuthenticator struct {
 	Verifier httpsec.TokenVerifier
@@ -135,8 +127,9 @@ func (a *OauthAuthenticator) Authenticate(request *http.Request) (*web.UserConte
 		return nil, httpsec.Deny, err
 	}
 	return &web.UserContext{
-		Name: claims.Username,
-		Data: &oidcData{TokenData: idToken},
+		Data:               idToken.Claims,
+		AuthenticationType: web.Bearer,
+		Name:               claims.Username,
 	}, httpsec.Allow, nil
 }
 

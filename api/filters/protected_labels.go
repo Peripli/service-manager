@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package labels
+package filters
 
 import (
 	"fmt"
