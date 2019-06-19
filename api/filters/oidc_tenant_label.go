@@ -158,6 +158,13 @@ func (f *OIDCTenantFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
+				web.Path(web.ServiceBrokersURL + "/**"),
+				web.Methods(f.Methods...),
+			},
+		},
+		{
+			Matchers: []web.Matcher{
+				web.Path(web.PlatformsURL + "/**"),
 				web.Methods(f.Methods...),
 			},
 		},
