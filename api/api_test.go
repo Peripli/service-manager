@@ -20,6 +20,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/Peripli/service-manager/api/filters"
+
 	"github.com/Peripli/service-manager/storage"
 
 	"github.com/Peripli/service-manager/api"
@@ -53,13 +55,13 @@ var _ = Describe("API", func() {
 	})
 
 	Describe("New", func() {
-
 		It("returns no error if creation is successful", func() {
 			_, err := api.New(context.TODO(), &api.Options{
 				Repository: mockedStorage,
 				APISettings: &api.Settings{
 					TokenIssuerURL: server.BaseURL,
 					ClientID:       "sm",
+					TenantCriteria: &filters.TenantCriteriaSettings{},
 				},
 			})
 			Expect(err).ShouldNot(HaveOccurred())

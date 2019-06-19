@@ -57,7 +57,7 @@ var _ = Describe("OIDCTenantFilters", func() {
 		labelTokenClaimVar = labelTokenClaim
 		labelValueVar = labelValue
 		fakeRequest.Request = fakeRequest.Request.WithContext(web.ContextWithUser(ctx, &web.UserContext{
-			DataFunc: func(data interface{}) error {
+			Data: func(data interface{}) error {
 				return json.Unmarshal([]byte(fmt.Sprintf(`{"%s":"%s","%s":"%s"}`, clientIDTokenClaimVar, clientIDVar, labelTokenClaimVar, labelValueVar)), data)
 			},
 			AuthenticationType: web.Bearer,
@@ -110,7 +110,7 @@ var _ = Describe("OIDCTenantFilters", func() {
 			When("context user is not Bearer token", func() {
 				It("proceeds with next in chain", func() {
 					fakeRequest.Request = fakeRequest.Request.WithContext(web.ContextWithUser(ctx, &web.UserContext{
-						DataFunc: func(data interface{}) error {
+						Data: func(data interface{}) error {
 							return nil
 						},
 						AuthenticationType: web.Basic,
@@ -129,7 +129,7 @@ var _ = Describe("OIDCTenantFilters", func() {
 			When("getting claims from token fails", func() {
 				It("returns an error", func() {
 					fakeRequest.Request = fakeRequest.Request.WithContext(web.ContextWithUser(ctx, &web.UserContext{
-						DataFunc: func(claims interface{}) error {
+						Data: func(claims interface{}) error {
 							return fmt.Errorf("error")
 						},
 						AuthenticationType: web.Bearer,
