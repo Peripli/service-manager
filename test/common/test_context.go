@@ -77,7 +77,7 @@ type TestContext struct {
 	// the token also contains a "tenant identifier" behind the configured tenant_indentifier claim that
 	// will be compared with the value of the label specified in the "label key" configuration
 	// In the end requesting brokers with this
-	SMWithOAuthForTenant func(tenant string) *httpexpect.Expect
+	SMWithOAuthForTenant *httpexpect.Expect
 	SMWithBasic          *httpexpect.Expect
 	SMRepository         storage.Repository
 
@@ -232,7 +232,7 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 	}
 	wg := &sync.WaitGroup{}
 
-	smServer, smRepository := newSMServer(environment, wg, tcb.smExtensions)
+	smServer, smRepository, smSettings := newSMServer(environment, wg, tcb.smExtensions)
 	tcb.Servers[SMServer] = smServer
 
 	SM := httpexpect.New(ginkgo.GinkgoT(), smServer.URL())
@@ -241,15 +241,24 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 	SMWithOAuth := SM.Builder(func(req *httpexpect.Request) {
 		req.WithHeader("Authorization", "Bearer "+accessToken)
 	})
+	tenantAccessToken := oauthServer.CreateToken(map[string]interface{}{
+		smSettings.API.TenantCriteria.ClientIDTokenClaim: smSettings.API.TenantCriteria.ClientID,
+		smSettings.API.TenantCriteria.LabelTokenClaim:    "tenantID",
+	})
+	SMWithOAuthForTenant := SM.Builder(func(req *httpexpect.Request) {
+		req.WithHeader("Authorization", "Bearer "+tenantAccessToken)
+
+	})
 	RemoveAllBrokers(SMWithOAuth)
 	RemoveAllPlatforms(SMWithOAuth)
 
 	testContext := &TestContext{
-		wg:           wg,
-		SM:           SM,
-		SMWithOAuth:  SMWithOAuth,
-		Servers:      tcb.Servers,
-		SMRepository: smRepository,
+		wg:                   wg,
+		SM:                   SM,
+		SMWithOAuth:          SMWithOAuth,
+		SMWithOAuthForTenant: SMWithOAuthForTenant,
+		Servers:              tcb.Servers,
+		SMRepository:         smRepository,
 	}
 
 	if !tcb.shouldSkipBasicAuthClient {
@@ -266,7 +275,7 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 	return testContext
 }
 
-func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error) (*testSMServer, storage.Repository) {
+func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error) (*testSMServer, storage.Repository, *config.Settings) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := struct {
 		Log *log.Settings
@@ -310,7 +319,7 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 	return &testSMServer{
 		cancel: cancel,
 		Server: httptest.NewServer(serviceManager.Server.Router),
-	}, smb.Storage
+	}, smb.Storage, cfg
 }
 
 func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object) (string, Object, *BrokerServer) {

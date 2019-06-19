@@ -28,28 +28,30 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-// ForibiddenLabelOperationsFilter checks for forbidden labels being modified/added
-type ForibiddenLabelOperationsFilter struct {
-	forbiddenLabels map[string]bool
+const ProtectedLabelsFilterName = "ProtectedLabelsFilter"
+
+// ProtectedLabelsFilter checks for forbidden labels being modified/added
+type ProtectedLabelsFilter struct {
+	protectedLabels map[string]bool
 }
 
-// NewForbiddenLabelOperationsFilter creates new filter for forbidden labels
-func NewForbiddenLabelOperationsFilter(forbiddenLabels []string) *ForibiddenLabelOperationsFilter {
+// NewProtectedLabelsFilter creates new filter for forbidden labels
+func NewProtectedLabelsFilter(forbiddenLabels []string) *ProtectedLabelsFilter {
 	forbiddenLabelsMap := make(map[string]bool)
 	for _, label := range forbiddenLabels {
 		forbiddenLabelsMap[label] = true
 	}
-	return &ForibiddenLabelOperationsFilter{
-		forbiddenLabels: forbiddenLabelsMap,
+	return &ProtectedLabelsFilter{
+		protectedLabels: forbiddenLabelsMap,
 	}
 }
 
-func (flo *ForibiddenLabelOperationsFilter) Name() string {
-	return "ForbiddenLabelOperationsFilter"
+func (flo *ProtectedLabelsFilter) Name() string {
+	return ProtectedLabelsFilterName
 }
 
-func (flo *ForibiddenLabelOperationsFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	if len(flo.forbiddenLabels) == 0 {
+func (flo *ProtectedLabelsFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
+	if len(flo.protectedLabels) == 0 {
 		return next.Handle(req)
 	}
 
@@ -69,7 +71,7 @@ func (flo *ForibiddenLabelOperationsFilter) Run(req *web.Request, next web.Handl
 			return nil, err
 		}
 		for lKey := range labels {
-			_, found := flo.forbiddenLabels[lKey]
+			_, found := flo.protectedLabels[lKey]
 			if !found {
 				continue
 			}
@@ -86,7 +88,7 @@ func (flo *ForibiddenLabelOperationsFilter) Run(req *web.Request, next web.Handl
 			return nil, err
 		}
 		for _, lc := range labelChanges {
-			_, found := flo.forbiddenLabels[lc.Key]
+			_, found := flo.protectedLabels[lc.Key]
 			if !found {
 				continue
 			}
@@ -101,7 +103,7 @@ func (flo *ForibiddenLabelOperationsFilter) Run(req *web.Request, next web.Handl
 	return next.Handle(req)
 }
 
-func (flo *ForibiddenLabelOperationsFilter) FilterMatchers() []web.FilterMatcher {
+func (flo *ProtectedLabelsFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{

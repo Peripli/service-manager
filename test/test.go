@@ -19,6 +19,8 @@ package test
 import (
 	"fmt"
 
+	"github.com/gavv/httpexpect"
+
 	. "github.com/onsi/gomega"
 
 	"github.com/Peripli/service-manager/test/common"
@@ -32,14 +34,15 @@ const (
 	List       Op = "list"
 	Delete     Op = "delete"
 	DeleteList Op = "deletelist"
+	Patch      Op = "patch"
 )
 
 type TestCase struct {
 	API          string
 	SupportedOps []Op
 
-	ResourceBlueprint                      func(ctx *common.TestContext) common.Object
-	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext) common.Object
+	ResourceBlueprint                      func(ctx *common.TestContext, smClient *httpexpect.Expect) common.Object
+	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext, smClient *httpexpect.Expect) common.Object
 	AdditionalTests                        func(ctx *common.TestContext)
 }
 
@@ -74,6 +77,8 @@ func DescribeTestsFor(t TestCase) bool {
 					DescribeDeleteTestsfor(ctx, t)
 				case DeleteList:
 					DescribeDeleteListFor(ctx, t)
+				case Patch:
+					DescribePatchTestsFor(ctx, t)
 				default:
 					_, err := fmt.Fprintf(GinkgoWriter, "Generic test cases for op %s are not implemented\n", op)
 					if err != nil {

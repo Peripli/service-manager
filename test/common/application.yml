@@ -15,3 +15,8 @@ api:
   token_issuer_url: http://localhost:8080/uaa
   client_id: sm
   skip_ssl_validation: false
+  tenant_criteria:
+    client_id: tenancyClient
+    label_key: tenant
+    client_id_token_claim: cid
+    label_token_claim: zid

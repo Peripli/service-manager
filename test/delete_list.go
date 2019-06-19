@@ -22,6 +22,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gavv/httpexpect"
+
 	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/test/common"
@@ -380,9 +382,9 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		By(fmt.Sprintf("[BEFOREEACH]: Preparing and creating test resources"))
 
 		r = make([]common.Object, 0, 0)
-		rWithMandatoryFields = t.ResourceWithoutNullableFieldsBlueprint(ctx)
+		rWithMandatoryFields = t.ResourceWithoutNullableFieldsBlueprint(ctx, ctx.SMWithOAuth)
 		for i := 0; i < 2; i++ {
-			gen := t.ResourceBlueprint(ctx)
+			gen := t.ResourceBlueprint(ctx, ctx.SMWithOAuth)
 			gen = attachLabel(gen, i)
 			delete(gen, "created_at")
 			delete(gen, "updated_at")
@@ -397,7 +399,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		By(fmt.Sprintf("[AFTEREACH]: Sucessfully finished cleaning up test resources"))
 	}
 
-	verifyDeleteListOpHelper := func(deleteListOpEntry deleteOpEntry, query string) {
+	verifyDeleteListOpHelperWithAuth := func(deleteListOpEntry deleteOpEntry, query string, auth *httpexpect.Expect) {
 		jsonArrayKey := strings.Replace(t.API, "/v1/", "", 1)
 
 		expectedAfterOpIDs := make([]string, 0)
@@ -439,7 +441,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 			}
 		}
 
-		req := ctx.SMWithOAuth.DELETE(t.API)
+		req := auth.DELETE(t.API)
 		if query != "" {
 			req = req.WithQueryString(query)
 		}
@@ -481,6 +483,9 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				}
 			}
 		}
+	}
+	verifyDeleteListOpHelper := func(deleteListOpEntry deleteOpEntry, query string) {
+		verifyDeleteListOpHelperWithAuth(deleteListOpEntry, query, ctx.SMWithOAuth)
 	}
 
 	verifyDeleteListOp := func(entry deleteOpEntry) {
@@ -554,6 +559,43 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 			})
 
 			Context("with bearer auth", func() {
+				Context("when authenticating with tenant scoped token", func() {
+					var rForTenant common.Object
+
+					BeforeEach(func() {
+						rForTenant = t.ResourceBlueprint(ctx, ctx.SMWithOAuthForTenant)
+					})
+
+					It("deletes only tenant specific resources", func() {
+						verifyDeleteListOpHelperWithAuth(deleteOpEntry{
+							resourcesToExpectBeforeOp: func() []common.Object {
+								return []common.Object{r[0], r[1], rForTenant}
+							},
+							resourcesNotToExpectAfterOp: func() []common.Object {
+								return []common.Object{rForTenant}
+							},
+							resourcesToExpectAfterOp: func() []common.Object {
+								return []common.Object{r[0], r[1]}
+							},
+							expectedStatusCode: http.StatusOK,
+						}, "", ctx.SMWithOAuthForTenant)
+					})
+
+					Context("when authenticating with global token", func() {
+						It("deletes all resources", func() {
+							verifyDeleteListOpHelperWithAuth(deleteOpEntry{
+								resourcesToExpectBeforeOp: func() []common.Object {
+									return []common.Object{r[0], r[1], rForTenant}
+								},
+								resourcesNotToExpectAfterOp: func() []common.Object {
+									return []common.Object{r[0], r[1], rForTenant}
+								},
+								expectedStatusCode: http.StatusOK,
+							}, "", ctx.SMWithOAuth)
+						})
+					})
+				})
+
 				Context("with no query", func() {
 					It("deletes all the resources", func() {
 						verifyDeleteListOpHelper(deleteOpEntry{
