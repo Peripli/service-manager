@@ -759,7 +759,9 @@ func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *htt
 			Status(http.StatusOK).JSON().Object().Value("service_plans").Array().First().Object().Value("id").String().Raw()
 		visReqBody["service_plan_id"] = servicePlanID
 		if setNullFieldsValues {
-			platformID := ctx.TestPlatform.GetID()
+			platformID := auth.POST(web.PlatformsURL).WithJSON(common.GenerateRandomPlatform()).
+				Expect().
+				Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
 			visReqBody["platform_id"] = platformID
 		}
 

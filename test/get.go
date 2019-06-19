@@ -48,14 +48,6 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase) bool {
 					createTestResourceWithAuth(ctx.SMWithOAuth)
 				})
 
-				Context("when authenticating with basic auth", func() {
-					It("returns 200", func() {
-						ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
-							Expect().
-							Status(http.StatusOK).JSON().Object().ContainsMap(testResource)
-					})
-				})
-
 				Context("when authenticating with global token", func() {
 					It("returns 200", func() {
 						ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
