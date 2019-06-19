@@ -46,7 +46,7 @@ func (*PlatformAwareVisibilityFilter) Run(req *web.Request, next web.Handler) (*
 	}
 
 	p := &types.Platform{}
-	if err := user.DataFunc(p); err != nil {
+	if err := user.Data(p); err != nil {
 		return nil, err
 	}
 

@@ -61,14 +61,14 @@ var _ = Describe("Postgres Storage Query builder", func() {
 				_, err := qb.NewQuery().List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`SELECT t.*,
-																   visibility_labels.id "visibility_labels.id",
-																   visibility_labels.key "visibility_labels.key",
-																   visibility_labels.val "visibility_labels.val",
-																   visibility_labels.created_at "visibility_labels.created_at",
-																   visibility_labels.updated_at "visibility_labels.updated_at",
-																   visibility_labels.visibility_id "visibility_labels.visibility_id"
-															FROM visibilities t
-															LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id;`)))
+	visibility_labels.id "visibility_labels.id",
+	visibility_labels.key "visibility_labels.key",
+	visibility_labels.val "visibility_labels.val",
+	visibility_labels.created_at "visibility_labels.created_at",
+	visibility_labels.updated_at "visibility_labels.updated_at",
+	visibility_labels.visibility_id "visibility_labels.visibility_id"
+FROM visibilities t
+LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id;`)))
 				Expect(queryArgs).To(HaveLen(0))
 			})
 		})
@@ -80,21 +80,21 @@ var _ = Describe("Postgres Storage Query builder", func() {
 					List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`SELECT t.*,
-																   visibility_labels.id "visibility_labels.id",
-																   visibility_labels.key "visibility_labels.key",
-																   visibility_labels.val "visibility_labels.val",
-																   visibility_labels.created_at "visibility_labels.created_at",
-																   visibility_labels.updated_at "visibility_labels.updated_at",
-																   visibility_labels.visibility_id "visibility_labels.visibility_id"
-															FROM visibilities t
-															JOIN
-															  (SELECT *
-															   FROM visibility_labels
-															   WHERE visibility_id IN
-																   (SELECT visibility_id
-																	FROM visibility_labels
-																	WHERE (visibility_labels.key = ?
-																		   AND visibility_labels.val = ?))) visibility_labels ON t.id = visibility_labels.visibility_id;`)))
+	visibility_labels.id "visibility_labels.id",
+	visibility_labels.key "visibility_labels.key",
+	visibility_labels.val "visibility_labels.val",
+	visibility_labels.created_at "visibility_labels.created_at",
+	visibility_labels.updated_at "visibility_labels.updated_at",
+	visibility_labels.visibility_id "visibility_labels.visibility_id"
+FROM visibilities t
+JOIN
+  (SELECT *
+   FROM visibility_labels
+   WHERE visibility_id IN
+	   (SELECT visibility_id
+		FROM visibility_labels
+		WHERE (visibility_labels.key = ?
+			   AND visibility_labels.val = ?))) visibility_labels ON t.id = visibility_labels.visibility_id;`)))
 				Expect(queryArgs).To(HaveLen(2))
 				Expect(queryArgs[0]).Should(Equal("labelKey"))
 				Expect(queryArgs[1]).Should(Equal("labelValue"))
@@ -108,15 +108,15 @@ var _ = Describe("Postgres Storage Query builder", func() {
 					List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`SELECT t.*,
-																   visibility_labels.id "visibility_labels.id",
-																   visibility_labels.key "visibility_labels.key",
-																   visibility_labels.val "visibility_labels.val",
-																   visibility_labels.created_at "visibility_labels.created_at",
-																   visibility_labels.updated_at "visibility_labels.updated_at",
-																   visibility_labels.visibility_id "visibility_labels.visibility_id"
-															FROM visibilities t
-															LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
-															WHERE t.id::text = ?;`)))
+	visibility_labels.id "visibility_labels.id",
+	visibility_labels.key "visibility_labels.key",
+	visibility_labels.val "visibility_labels.val",
+	visibility_labels.created_at "visibility_labels.created_at",
+	visibility_labels.updated_at "visibility_labels.updated_at",
+	visibility_labels.visibility_id "visibility_labels.visibility_id"
+FROM visibilities t
+LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
+WHERE t.id::text = ?;`)))
 				Expect(queryArgs).To(HaveLen(1))
 				Expect(queryArgs[0]).Should(Equal("1"))
 			})
@@ -137,15 +137,15 @@ var _ = Describe("Postgres Storage Query builder", func() {
 					List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`SELECT t.*,
-																   visibility_labels.id "visibility_labels.id",
-																   visibility_labels.key "visibility_labels.key",
-																   visibility_labels.val "visibility_labels.val",
-																   visibility_labels.created_at "visibility_labels.created_at",
-																   visibility_labels.updated_at "visibility_labels.updated_at",
-																   visibility_labels.visibility_id "visibility_labels.visibility_id"
-															FROM visibilities t
-															LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
-															ORDER BY t.id DESC;`)))
+	visibility_labels.id "visibility_labels.id",
+	visibility_labels.key "visibility_labels.key",
+	visibility_labels.val "visibility_labels.val",
+	visibility_labels.created_at "visibility_labels.created_at",
+	visibility_labels.updated_at "visibility_labels.updated_at",
+	visibility_labels.visibility_id "visibility_labels.visibility_id"
+FROM visibilities t
+LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
+ORDER BY t.id DESC;`)))
 				Expect(queryArgs).To(HaveLen(0))
 			})
 
@@ -201,15 +201,15 @@ var _ = Describe("Postgres Storage Query builder", func() {
 					List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`SELECT t.*,
-																   visibility_labels.id "visibility_labels.id",
-																   visibility_labels.key "visibility_labels.key",
-																   visibility_labels.val "visibility_labels.val",
-																   visibility_labels.created_at "visibility_labels.created_at",
-																   visibility_labels.updated_at "visibility_labels.updated_at",
-																   visibility_labels.visibility_id "visibility_labels.visibility_id"
-															FROM visibilities t
-															LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
-															LIMIT 10;`)))
+	visibility_labels.id "visibility_labels.id",
+	visibility_labels.key "visibility_labels.key",
+	visibility_labels.val "visibility_labels.val",
+	visibility_labels.created_at "visibility_labels.created_at",
+	visibility_labels.updated_at "visibility_labels.updated_at",
+	visibility_labels.visibility_id "visibility_labels.visibility_id"
+FROM visibilities t
+LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
+LIMIT 10;`)))
 				Expect(queryArgs).To(HaveLen(0))
 			})
 
@@ -237,29 +237,29 @@ var _ = Describe("Postgres Storage Query builder", func() {
 					List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`SELECT t.*,
-																   visibility_labels.id "visibility_labels.id",
-																   visibility_labels.key "visibility_labels.key",
-																   visibility_labels.val "visibility_labels.val",
-																   visibility_labels.created_at "visibility_labels.created_at",
-																   visibility_labels.updated_at "visibility_labels.updated_at",
-																   visibility_labels.visibility_id "visibility_labels.visibility_id"
-															FROM visibilities t
-															JOIN
-															  (SELECT *
-															   FROM visibility_labels
-															   WHERE visibility_id IN
-																   (SELECT visibility_id
-																	FROM visibility_labels
-																	WHERE (visibility_labels.key = ?
-																		   AND visibility_labels.val = ?)
-																	  OR (visibility_labels.key = ?
-																		  AND visibility_labels.val IN (?, ?))
-																	  OR (visibility_labels.key = ?
-																		  AND visibility_labels.val != ?))) visibility_labels ON t.id = visibility_labels.visibility_id
-															WHERE t.id::text != ?
-															  AND t.service_plan_id::text NOT IN (?, ?, ?)
-															  AND (t.platform_id::text = ?
-																   OR t.platform_id IS NULL);`)))
+	visibility_labels.id "visibility_labels.id",
+	visibility_labels.key "visibility_labels.key",
+	visibility_labels.val "visibility_labels.val",
+	visibility_labels.created_at "visibility_labels.created_at",
+	visibility_labels.updated_at "visibility_labels.updated_at",
+	visibility_labels.visibility_id "visibility_labels.visibility_id"
+FROM visibilities t
+JOIN
+  (SELECT *
+   FROM visibility_labels
+   WHERE visibility_id IN
+	   (SELECT visibility_id
+		FROM visibility_labels
+		WHERE (visibility_labels.key = ?
+			   AND visibility_labels.val = ?)
+		  OR (visibility_labels.key = ?
+			  AND visibility_labels.val IN (?, ?))
+		  OR (visibility_labels.key = ?
+			  AND visibility_labels.val != ?))) visibility_labels ON t.id = visibility_labels.visibility_id
+WHERE t.id::text != ?
+  AND t.service_plan_id::text NOT IN (?, ?, ?)
+  AND (t.platform_id::text = ?
+	   OR t.platform_id IS NULL);`)))
 				Expect(queryArgs).To(HaveLen(12))
 				Expect(queryArgs[0]).Should(Equal("left1"))
 				Expect(queryArgs[1]).Should(Equal("right1"))
@@ -283,9 +283,9 @@ var _ = Describe("Postgres Storage Query builder", func() {
 				_, err := qb.NewQuery().Delete(ctx, entity)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).To(Equal(trim(`DELETE
-														FROM visibilities USING visibilities t
-														LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
-														WHERE t.id = visibilities.id;`)))
+FROM visibilities USING visibilities t
+LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
+WHERE t.id = visibilities.id;`)))
 			})
 		})
 
@@ -296,18 +296,18 @@ var _ = Describe("Postgres Storage Query builder", func() {
 				_, err := qb.NewQuery().WithCriteria(criteria1, criteria2).Delete(ctx, entity)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`DELETE
-															FROM visibilities USING visibilities t
-															JOIN
-															  (SELECT *
-															   FROM visibility_labels
-															   WHERE visibility_id IN
-																   (SELECT visibility_id
-																	FROM visibility_labels
-																	WHERE (visibility_labels.key = ?
-																		   AND visibility_labels.val = ?)
-																	  OR (visibility_labels.key = ?
-																		  AND visibility_labels.val IN (?, ?)))) visibility_labels ON t.id = visibility_labels.visibility_id
-															WHERE t.id = visibilities.id;`)))
+FROM visibilities USING visibilities t
+JOIN
+  (SELECT *
+   FROM visibility_labels
+   WHERE visibility_id IN
+	   (SELECT visibility_id
+		FROM visibility_labels
+		WHERE (visibility_labels.key = ?
+			   AND visibility_labels.val = ?)
+		  OR (visibility_labels.key = ?
+			  AND visibility_labels.val IN (?, ?)))) visibility_labels ON t.id = visibility_labels.visibility_id
+WHERE t.id = visibilities.id;`)))
 				Expect(queryArgs).To(HaveLen(5))
 				Expect(queryArgs[0]).Should(Equal("left1"))
 				Expect(queryArgs[1]).Should(Equal("right1"))
@@ -324,10 +324,10 @@ var _ = Describe("Postgres Storage Query builder", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(executedQuery).Should(Equal(trim(`DELETE
-															FROM visibilities USING visibilities t
-															LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
-															WHERE t.id = visibilities.id
-															  AND t.id::text = ?;`)))
+FROM visibilities USING visibilities t
+LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
+WHERE t.id = visibilities.id
+  AND t.id::text = ?;`)))
 				Expect(queryArgs).To(HaveLen(1))
 				Expect(queryArgs[0]).Should(Equal("1"))
 			})
@@ -347,17 +347,17 @@ var _ = Describe("Postgres Storage Query builder", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(executedQuery).To(Equal(trim(`DELETE
-														FROM visibilities USING visibilities t
-														LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
-														WHERE t.id = visibilities.id 
-														RETURNING t.id,
-																t.service_plan_id,
-																visibility_labels.id "visibility_labels.id",
-																visibility_labels.key "visibility_labels.key",
-																visibility_labels.val "visibility_labels.val",
-																visibility_labels.created_at "visibility_labels.created_at",
-																visibility_labels.updated_at "visibility_labels.updated_at",
-																visibility_labels.visibility_id "visibility_labels.visibility_id";`)))
+FROM visibilities USING visibilities t
+LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
+WHERE t.id = visibilities.id 
+RETURNING t.id,
+	t.service_plan_id,
+	visibility_labels.id "visibility_labels.id",
+	visibility_labels.key "visibility_labels.key",
+	visibility_labels.val "visibility_labels.val",
+	visibility_labels.created_at "visibility_labels.created_at",
+	visibility_labels.updated_at "visibility_labels.updated_at",
+	visibility_labels.visibility_id "visibility_labels.visibility_id";`)))
 			})
 
 			It("builds query with *", func() {
@@ -365,16 +365,16 @@ var _ = Describe("Postgres Storage Query builder", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(executedQuery).To(Equal(trim(`DELETE
-														FROM visibilities USING visibilities t
-														LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
-														WHERE t.id = visibilities.id 
-														RETURNING t.*,
-															   visibility_labels.id "visibility_labels.id",
-															   visibility_labels.key "visibility_labels.key",
-															   visibility_labels.val "visibility_labels.val",
-															   visibility_labels.created_at "visibility_labels.created_at",
-															   visibility_labels.updated_at "visibility_labels.updated_at",
-															   visibility_labels.visibility_id "visibility_labels.visibility_id";`)))
+FROM visibilities USING visibilities t
+LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
+WHERE t.id = visibilities.id 
+RETURNING t.*,
+	visibility_labels.id "visibility_labels.id",
+	visibility_labels.key "visibility_labels.key",
+	visibility_labels.val "visibility_labels.val",
+	visibility_labels.created_at "visibility_labels.created_at",
+	visibility_labels.updated_at "visibility_labels.updated_at",
+	visibility_labels.visibility_id "visibility_labels.visibility_id";`)))
 			})
 
 			Context("when unknown field is specified", func() {
@@ -400,31 +400,31 @@ var _ = Describe("Postgres Storage Query builder", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(executedQuery).Should(Equal(trim(`DELETE
-															FROM visibilities USING visibilities t
-															JOIN
-															  (SELECT *
-															   FROM visibility_labels
-															   WHERE visibility_id IN
-																   (SELECT visibility_id
-																	FROM visibility_labels
-																	WHERE (visibility_labels.key = ?
-																		   AND visibility_labels.val = ?)
-																	  OR (visibility_labels.key = ?
-																		  AND visibility_labels.val IN (?, ?))
-																	  OR (visibility_labels.key = ?
-																		  AND visibility_labels.val != ?))) visibility_labels ON t.id = visibility_labels.visibility_id
-															WHERE t.id = visibilities.id
-															  AND t.id::text != ?
-															  AND t.service_plan_id::text NOT IN (?, ?, ?)
-															  AND (t.platform_id::text = ?
-																   OR t.platform_id IS NULL) 
-															RETURNING t.*,
-																   visibility_labels.id "visibility_labels.id",
-																   visibility_labels.key "visibility_labels.key",
-																   visibility_labels.val "visibility_labels.val",
-																   visibility_labels.created_at "visibility_labels.created_at",
-																   visibility_labels.updated_at "visibility_labels.updated_at",
-																   visibility_labels.visibility_id "visibility_labels.visibility_id";`)))
+FROM visibilities USING visibilities t
+JOIN
+  (SELECT *
+   FROM visibility_labels
+   WHERE visibility_id IN
+	   (SELECT visibility_id
+		FROM visibility_labels
+		WHERE (visibility_labels.key = ?
+			   AND visibility_labels.val = ?)
+		  OR (visibility_labels.key = ?
+			  AND visibility_labels.val IN (?, ?))
+		  OR (visibility_labels.key = ?
+			  AND visibility_labels.val != ?))) visibility_labels ON t.id = visibility_labels.visibility_id
+WHERE t.id = visibilities.id
+  AND t.id::text != ?
+  AND t.service_plan_id::text NOT IN (?, ?, ?)
+  AND (t.platform_id::text = ?
+	   OR t.platform_id IS NULL) 
+RETURNING t.*,
+	visibility_labels.id "visibility_labels.id",
+	visibility_labels.key "visibility_labels.key",
+	visibility_labels.val "visibility_labels.val",
+	visibility_labels.created_at "visibility_labels.created_at",
+	visibility_labels.updated_at "visibility_labels.updated_at",
+	visibility_labels.visibility_id "visibility_labels.visibility_id";`)))
 				Expect(queryArgs).To(HaveLen(12))
 				Expect(queryArgs[0]).Should(Equal("left1"))
 				Expect(queryArgs[1]).Should(Equal("right1"))

@@ -59,7 +59,6 @@ func DefaultSettings() *Settings {
 		ClientID:          "",
 		SkipSSLValidation: false,
 		TokenBasicAuth:    true, // RFC 6749 section 2.3.1
-		ProctedLabels:     nil,
 		TenantCriteria:    &filters.TenantCriteriaSettings{},
 		OSBVersion:        osbVersion,
 	}

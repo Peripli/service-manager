@@ -26,8 +26,8 @@ const (
 
 // UserContext holds the information for the current user
 type UserContext struct {
-	// DataFunc unmarshals the additional user context details into the specified struct
-	DataFunc func(data interface{}) error
+	// Data unmarshals the additional user context details into the specified struct
+	Data func(data interface{}) error
 	// AuthenticationType is the authentication type for this user context
 	AuthenticationType AuthenticationType
 	// Name is the name of the authenticated user
