@@ -50,13 +50,15 @@ func DescribePatchTestsFor(ctx *common.TestContext, t TestCase) bool {
 						})
 					})
 
-					Context("when authenticating with tenant scoped token", func() {
-						It("returns 404", func() {
-							ctx.SMWithOAuthForTenant.PATCH(t.API + "/" + testResourceID).WithJSON(common.Object{}).
-								Expect().
-								Status(http.StatusNotFound)
+					if !t.DisableTenantResources {
+						Context("when authenticating with tenant scoped token", func() {
+							It("returns 404", func() {
+								ctx.SMWithOAuthForTenant.PATCH(t.API + "/" + testResourceID).WithJSON(common.Object{}).
+									Expect().
+									Status(http.StatusNotFound)
+							})
 						})
-					})
+					}
 				})
 
 				if !t.DisableTenantResources {

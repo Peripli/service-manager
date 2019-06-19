@@ -56,13 +56,15 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase) bool {
 					})
 				})
 
-				Context("when authenticating with tenant scoped token", func() {
-					It("returns 404", func() {
-						ctx.SMWithOAuthForTenant.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
-							Expect().
-							Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
+				if !t.DisableTenantResources {
+					Context("when authenticating with tenant scoped token", func() {
+						It("returns 404", func() {
+							ctx.SMWithOAuthForTenant.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
+								Expect().
+								Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
+						})
 					})
-				})
+				}
 			})
 
 			if !t.DisableTenantResources {

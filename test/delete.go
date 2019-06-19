@@ -80,11 +80,13 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase) bool {
 					})
 				})
 
-				Context("when authenticating with tenant scoped token", func() {
-					It("returns 404", func() {
-						verifyResourceDeletion(ctx.SMWithOAuthForTenant, http.StatusNotFound, http.StatusOK)
+				if !t.DisableTenantResources {
+					Context("when authenticating with tenant scoped token", func() {
+						It("returns 404", func() {
+							verifyResourceDeletion(ctx.SMWithOAuthForTenant, http.StatusNotFound, http.StatusOK)
+						})
 					})
-				})
+				}
 			})
 
 			if !t.DisableTenantResources {
