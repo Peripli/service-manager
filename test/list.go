@@ -459,7 +459,6 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 
 				labels := params.queryArgs["labels"]
 				if labels != nil {
-
 					multiQueryValue, queryValues = expandLabelQuery(labels.(map[string]interface{}), params.queryTemplate)
 					lquery := "labelQuery" + "=" + multiQueryValue
 
