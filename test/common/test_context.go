@@ -30,6 +30,7 @@ import (
 	"runtime"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/gavv/httpexpect"
 	"github.com/gofrs/uuid"
@@ -267,10 +268,12 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener) *TestCon
 	return testContext
 }
 
-func NewSMListener() (net.Listener, string, error) {
+func NewSMListener() (net.Listener, error) {
 	minPort := 8100
 	maxPort := 9999
-	port := rand.Intn((maxPort - minPort) + minPort)
+
+	rand.Seed(time.Now().UnixNano())
+	port := rand.Intn(maxPort-minPort) + minPort
 
 	retries := 10
 
@@ -280,11 +283,11 @@ func NewSMListener() (net.Listener, string, error) {
 		smURL := "127.0.0.1:" + strconv.Itoa(port)
 		listener, err = net.Listen("tcp", smURL)
 		if err == nil {
-			return listener, smURL, nil
+			return listener, nil
 		}
 	}
 
-	return nil, "", fmt.Errorf("unable to create sm listener: %s", err)
+	return nil, fmt.Errorf("unable to create sm listener: %s", err)
 }
 
 func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error, listener net.Listener) (*testSMServer, storage.Repository) {
