@@ -267,7 +267,7 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener) *TestCon
 	return testContext
 }
 
-func newSMListener() (net.Listener, string, error) {
+func NewSMListener() (net.Listener, string, error) {
 	minPort := 8100
 	maxPort := 9999
 	port := rand.Intn((maxPort - minPort) + minPort)
