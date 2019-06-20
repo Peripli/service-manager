@@ -350,14 +350,7 @@ WHERE t.id = visibilities.id
 FROM visibilities USING visibilities t
 LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
 WHERE t.id = visibilities.id 
-RETURNING t.id,
-	t.service_plan_id,
-	visibility_labels.id "visibility_labels.id",
-	visibility_labels.key "visibility_labels.key",
-	visibility_labels.val "visibility_labels.val",
-	visibility_labels.created_at "visibility_labels.created_at",
-	visibility_labels.updated_at "visibility_labels.updated_at",
-	visibility_labels.visibility_id "visibility_labels.visibility_id";`)))
+RETURNING t.id, t.service_plan_id;`)))
 			})
 
 			It("builds query with *", func() {
@@ -368,13 +361,7 @@ RETURNING t.id,
 FROM visibilities USING visibilities t
 LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
 WHERE t.id = visibilities.id 
-RETURNING t.*,
-	visibility_labels.id "visibility_labels.id",
-	visibility_labels.key "visibility_labels.key",
-	visibility_labels.val "visibility_labels.val",
-	visibility_labels.created_at "visibility_labels.created_at",
-	visibility_labels.updated_at "visibility_labels.updated_at",
-	visibility_labels.visibility_id "visibility_labels.visibility_id";`)))
+RETURNING t.*;`)))
 			})
 
 			Context("when unknown field is specified", func() {
@@ -418,13 +405,7 @@ WHERE t.id = visibilities.id
   AND t.service_plan_id::text NOT IN (?, ?, ?)
   AND (t.platform_id::text = ?
 	   OR t.platform_id IS NULL) 
-RETURNING t.*,
-	visibility_labels.id "visibility_labels.id",
-	visibility_labels.key "visibility_labels.key",
-	visibility_labels.val "visibility_labels.val",
-	visibility_labels.created_at "visibility_labels.created_at",
-	visibility_labels.updated_at "visibility_labels.updated_at",
-	visibility_labels.visibility_id "visibility_labels.visibility_id";`)))
+RETURNING t.*;`)))
 				Expect(queryArgs).To(HaveLen(12))
 				Expect(queryArgs[0]).Should(Equal("left1"))
 				Expect(queryArgs[1]).Should(Equal("right1"))

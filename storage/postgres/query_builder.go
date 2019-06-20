@@ -221,21 +221,23 @@ func (pgq *pgQuery) limitSQL() *pgQuery {
 
 func (pgq *pgQuery) returningSQL(entity PostgresEntity) *pgQuery {
 	for i := range pgq.returningFields {
-		pgq.returningFields[i] = fmt.Sprintf("%s.%s", mainTableAlias, pgq.returningFields[i])
-	}
-
-	if len(pgq.returningFields) != 0 {
-		labelEntity := entity.LabelEntity()
-		if labelEntity != nil {
-			labelsTableName := labelEntity.LabelsTableName()
-			for _, dbTag := range getDBTags(labelEntity, isAutoIncrementable) {
-				pgq.returningFields = append(pgq.returningFields, fmt.Sprintf(`%[1]s.%[2]s "%[1]s.%[2]s"`, labelsTableName, dbTag.Tag))
-			}
+		if !strings.HasPrefix(pgq.returningFields[i], fmt.Sprintf("%s.", mainTableAlias)) {
+			pgq.returningFields[i] = fmt.Sprintf("%s.%s", mainTableAlias, pgq.returningFields[i])
 		}
 	}
 
+	//if len(pgq.returningFields) != 0 {
+	//	labelEntity := entity.LabelEntity()
+	//	if labelEntity != nil {
+	//		labelsTableName := labelEntity.LabelsTableName()
+	//		for _, dbTag := range getDBTags(labelEntity, isAutoIncrementable) {
+	//			pgq.returningFields = append(pgq.returningFields, fmt.Sprintf(`%[1]s.%[2]s "%[1]s.%[2]s"`, labelsTableName, dbTag.Tag))
+	//		}
+	//	}
+	//}
+
 	if len(pgq.returningFields) == 1 {
-		pgq.sql.WriteString(fmt.Sprintf(" RETURNING %s.%s", mainTableAlias, pgq.returningFields[0]))
+		pgq.sql.WriteString(fmt.Sprintf(" RETURNING " + pgq.returningFields[0]))
 	} else if len(pgq.returningFields) > 0 {
 		pgq.sql.WriteString(" RETURNING " + strings.Join(pgq.returningFields, ", "))
 	}
