@@ -184,7 +184,7 @@ func (pgq *pgQuery) finalizeSQL(ctx context.Context, entity PostgresEntity, wher
 		orderBySQL().
 		limitSQL().
 		lockSQL(entity.TableName()).
-		returningSQL(entity).
+		returningSQL().
 		expandMultivariateOp()
 
 	if pgq.err != nil {
@@ -219,7 +219,7 @@ func (pgq *pgQuery) limitSQL() *pgQuery {
 	return pgq
 }
 
-func (pgq *pgQuery) returningSQL(entity PostgresEntity) *pgQuery {
+func (pgq *pgQuery) returningSQL() *pgQuery {
 	for i := range pgq.returningFields {
 		if !strings.HasPrefix(pgq.returningFields[i], fmt.Sprintf("%s.", mainTableAlias)) {
 			pgq.returningFields[i] = fmt.Sprintf("%s.%s", mainTableAlias, pgq.returningFields[i])
