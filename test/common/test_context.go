@@ -271,15 +271,14 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener) *TestCon
 func NewSMListener() (net.Listener, error) {
 	minPort := 8100
 	maxPort := 9999
-
-	rand.Seed(time.Now().UnixNano())
-	port := rand.Intn(maxPort-minPort) + minPort
-
 	retries := 10
 
 	var listener net.Listener
 	var err error
 	for ; retries >= 0; retries-- {
+		rand.Seed(time.Now().UnixNano())
+		port := rand.Intn(maxPort-minPort) + minPort
+
 		smURL := "127.0.0.1:" + strconv.Itoa(port)
 		listener, err = net.Listen("tcp", smURL)
 		if err == nil {
