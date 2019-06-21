@@ -17,6 +17,7 @@
 package util
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -46,9 +47,9 @@ func (uq *UnsupportedQueryError) Error() string {
 }
 
 // WriteError sends a JSON containing the error to the response writer
-func WriteError(err error, writer http.ResponseWriter) {
+func WriteError(ctx context.Context, err error, writer http.ResponseWriter) {
 	var respError *HTTPError
-	logger := log.D()
+	logger := log.C(ctx)
 	switch t := err.(type) {
 	case *UnsupportedQueryError:
 		logger.Errorf("UnsupportedQueryError: %s", err)

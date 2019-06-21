@@ -19,7 +19,7 @@ func NewRecoveryMiddleware() mux.MiddlewareFunc {
 						StatusCode:  http.StatusInternalServerError,
 						Description: "Internal Server Error",
 					}
-					util.WriteError(httpError, w)
+					util.WriteError(r.Context(), httpError, w)
 					debug.PrintStack()
 					log.C(r.Context()).Error(err)
 				}

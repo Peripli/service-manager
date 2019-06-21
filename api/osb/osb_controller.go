@@ -149,7 +149,7 @@ func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.Se
 	}
 	proxy.ErrorHandler = func(writer http.ResponseWriter, request *http.Request, e error) {
 		logger.WithError(e).Errorf("Error while forwarding request to service broker %s", broker.Name)
-		util.WriteError(&util.HTTPError{
+		util.WriteError(request.Context(), &util.HTTPError{
 			ErrorType:   "ServiceBrokerErr",
 			Description: fmt.Sprintf("could not reach service broker %s at %s", broker.Name, request.URL),
 			StatusCode:  http.StatusBadGateway,
