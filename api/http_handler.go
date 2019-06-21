@@ -64,7 +64,11 @@ func (h *HTTPHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	var response *web.Response
 	response, err = h.Handler.Handle(request)
 	ctx = request.Context() // logging filter may have enriched the context with a logger
-	if request.IsResponseWriterHijacked() || err != nil {
+	if request.IsResponseWriterHijacked() {
+		err = nil
+		return
+	}
+	if err != nil {
 		return
 	}
 
