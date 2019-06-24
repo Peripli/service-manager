@@ -42,6 +42,7 @@ var _ = Describe("Errors", func() {
 		responseRecorder *httptest.ResponseRecorder
 		fakeErrorWriter  *errorResponseWriter
 		testHTTPError    *util.HTTPError
+		ctx              context.Context
 	)
 
 	BeforeEach(func() {
@@ -52,12 +53,13 @@ var _ = Describe("Errors", func() {
 			Description: "test description",
 			StatusCode:  http.StatusTeapot,
 		}
+		ctx = context.TODO()
 	})
 
 	Describe("WriteError", func() {
 		Context("when parameter is HTTPError", func() {
 			It("writes to response writer the proper output", func() {
-				util.WriteError(testHTTPError, responseRecorder)
+				util.WriteError(ctx, testHTTPError, responseRecorder)
 
 				Expect(responseRecorder.Code).To(Equal(http.StatusTeapot))
 				Expect(responseRecorder.Body.String()).To(ContainSubstring("test description"))
@@ -65,7 +67,7 @@ var _ = Describe("Errors", func() {
 		})
 		Context("With error as parameter", func() {
 			It("Writes to response writer the proper output", func() {
-				util.WriteError(errors.New("must not be included"), responseRecorder)
+				util.WriteError(ctx, errors.New("must not be included"), responseRecorder)
 
 				Expect(responseRecorder.Code).To(Equal(http.StatusInternalServerError))
 				Expect(responseRecorder.Body.String()).To(ContainSubstring("Internal server error"))
@@ -77,7 +79,7 @@ var _ = Describe("Errors", func() {
 			It("Logs write error", func() {
 				hook := &testutil.LogInterceptor{}
 				logrus.AddHook(hook)
-				util.WriteError(errors.New(""), fakeErrorWriter)
+				util.WriteError(ctx, errors.New(""), fakeErrorWriter)
 
 				Expect(hook).To(ContainSubstring("Could not write error to response: write error"))
 			})

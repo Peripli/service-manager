@@ -29,7 +29,7 @@ func (c *Controller) upgrade(rw http.ResponseWriter, req *http.Request, header h
 				ErrorType:   "WebsocketUpgradeError",
 				Description: reason.Error(),
 			}
-			util.WriteError(httpErr, w)
+			util.WriteError(r.Context(), httpErr, w)
 		},
 	}
 	conn, err := upgrader.Upgrade(rw, req, header)
