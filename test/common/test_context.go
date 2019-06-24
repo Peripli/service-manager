@@ -330,16 +330,12 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 		panic(err)
 	}
 
-	var testServer *httptest.Server
-	if listener == nil {
-		testServer = httptest.NewServer(serviceManager.Server.Router)
-	} else {
-		testServer = httptest.NewUnstartedServer(serviceManager.Server.Router)
+	testServer := httptest.NewUnstartedServer(serviceManager.Server.Router)
+	if listener != nil {
 		testServer.Listener.Close()
 		testServer.Listener = listener
-
-		testServer.Start()
 	}
+	testServer.Start()
 
 	return &testSMServer{
 		cancel: cancel,
