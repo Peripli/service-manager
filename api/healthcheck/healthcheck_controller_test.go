@@ -20,10 +20,11 @@ import (
 	h "github.com/InVisionApp/go-health"
 	"github.com/Peripli/service-manager/pkg/health"
 	"github.com/Peripli/service-manager/pkg/health/healthfakes"
+	"github.com/Peripli/service-manager/pkg/web"
 	"net/http"
 	"testing"
 
-	"github.com/Peripli/service-manager/pkg/web"
+	//"github.com/Peripli/service-manager/pkg/web"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -66,15 +67,132 @@ var _ = Describe("Healthcheck controller", func() {
 			})
 		})
 	})
+
+	Describe("aggregation", func() {
+		var c *controller
+		var healths map[string]h.State
+		var tresholds map[string]int64
+
+		BeforeEach(func() {
+			healths = map[string]h.State{
+				"test1": {Status: "ok"},
+				"test2": {Status: "ok"},
+			}
+			tresholds = map[string]int64{
+				"test1": 3,
+				"test2": 3,
+			}
+			c = &controller{
+				health:    HealthFake{},
+				tresholds: tresholds,
+			}
+		})
+
+		When("No healths are provided", func() {
+			It("Returns UNKNOWN and an error detail", func() {
+				aggregatedHealth := c.aggregate(nil)
+				Expect(aggregatedHealth.Status).To(Equal(health.StatusUnknown))
+				Expect(aggregatedHealth.Details["error"]).ToNot(BeNil())
+			})
+		})
+
+		When("At least one health is DOWN more than treshold times and is Fatal", func() {
+			It("Returns DOWN", func() {
+				healths["test3"] = h.State{Status: "failed", Fatal: true, ContiguousFailures: 4}
+				c.tresholds["test3"] = 3
+				aggregatedHealth := c.aggregate(healths)
+				Expect(aggregatedHealth.Status).To(Equal(health.StatusDown))
+			})
+		})
+
+		When("At least one health is DOWN more than treshold times and is not Fatal", func() {
+			It("Returns UP", func() {
+				healths["test3"] = h.State{Status: "failed", Fatal: false, ContiguousFailures: 4}
+				c.tresholds["test3"] = 3
+				aggregatedHealth := c.aggregate(healths)
+				Expect(aggregatedHealth.Status).To(Equal(health.StatusUp))
+			})
+		})
+
+		When("There is DOWN healths but not more than treshold times in a row", func() {
+			It("Returns UP", func() {
+				healths["test3"] = h.State{Status: "failed"}
+				c.tresholds["test3"] = 3
+				aggregatedHealth := c.aggregate(healths)
+				Expect(aggregatedHealth.Status).To(Equal(health.StatusUp))
+			})
+		})
+
+		When("All healths are UP", func() {
+			It("Returns UP", func() {
+				aggregatedHealth := c.aggregate(healths)
+				Expect(aggregatedHealth.Status).To(Equal(health.StatusUp))
+			})
+		})
+
+		When("Aggregating healths", func() {
+			It("Includes them as overall details", func() {
+				aggregatedHealth := c.aggregate(healths)
+				for name, h := range healths {
+					h.Status = convertStatus(h.Status)
+					Expect(aggregatedHealth.Details[name]).To(Equal(h))
+				}
+			})
+		})
+	})
+
+	Describe("create controller", func() {
+		var c web.Controller
+		tresholds := map[string]int64{
+			"test1": 2,
+			"test2": 3,
+		}
+
+		BeforeEach(func() {
+			indicators := make([]health.Indicator, 0, len(tresholds))
+			for i, v := range tresholds {
+				indicator := &healthfakes.FakeIndicator{}
+				indicator.NameReturns(i)
+				indicator.FailuresTresholdReturns(v)
+
+				indicators = append(indicators, indicator)
+			}
+			c = NewController(HealthFake{}, indicators)
+		})
+
+		When("Controller created with given indicators", func() {
+			It("Should extract tresholds", func() {
+				controllerStruct := c.(*controller)
+
+				Expect(controllerStruct.tresholds).To(Equal(tresholds))
+			})
+		})
+	})
 })
 
 func createController(status health.Status) *controller {
-	aggPolicy := &healthfakes.FakeAggregationPolicy{}
-	aggPolicy.ApplyReturns(&health.Health{Status: status})
+	if status == health.StatusUnknown {
+		return &controller{
+			health: HealthFake{},
+		}
+	}
+
+	stringStatus := "ok"
+	var contiguousFailures int64 = 0
+	if status == health.StatusDown {
+		stringStatus = "failed"
+		contiguousFailures = 1
+	}
+
 	return &controller{
-		health:           HealthFake{},
-		aggPolicy:        aggPolicy,
-		failuresTreshold: 3,
+		health: HealthFake{
+			state: map[string]h.State{
+				"test1": {Status: stringStatus, Fatal: true, ContiguousFailures: contiguousFailures},
+			},
+		},
+		tresholds: map[string]int64{
+			"test1": 1,
+		},
 	}
 }
 

@@ -32,7 +32,9 @@ var _ = Describe("Healthcheck", func() {
 		ping := func(ctx context.Context) error {
 			return nil
 		}
-		healthIndicator, _ = storage.NewStorageHealthIndicator(storage.PingFunc(ping))
+		var err error
+		healthIndicator, err = storage.NewStorageHealthIndicator(storage.PingFunc(ping))
+		Expect(err).ShouldNot(HaveOccurred())
 	})
 
 	Context("Name", func() {
@@ -53,7 +55,9 @@ var _ = Describe("Healthcheck", func() {
 			ping := func(ctx context.Context) error {
 				return expectedError
 			}
-			healthIndicator, _ = storage.NewStorageHealthIndicator(storage.PingFunc(ping))
+			var err error
+			healthIndicator, err = storage.NewStorageHealthIndicator(storage.PingFunc(ping))
+			Expect(err).ShouldNot(HaveOccurred())
 		})
 		It("Contains error", func() {
 			_, err := healthIndicator.Status()

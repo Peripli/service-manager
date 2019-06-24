@@ -16,12 +16,26 @@
 
 package health
 
+import "time"
+
 // pingIndicator is a default indicator that always returns up
 type pingIndicator struct {
 }
 
 func (*pingIndicator) Name() string {
 	return "ping"
+}
+
+func (*pingIndicator) Interval() time.Duration {
+	return 30
+}
+
+func (*pingIndicator) FailuresTreshold() int64 {
+	return 1
+}
+
+func (*pingIndicator) Fatal() bool {
+	return true
 }
 
 func (*pingIndicator) Status() (interface{}, error) {

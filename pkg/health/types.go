@@ -18,30 +18,54 @@ package health
 
 import (
 	"fmt"
-	"github.com/InVisionApp/go-health"
 	"time"
 )
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	FailuresTreshold int64         `mapstructure:"failures_treshold" description:"maximum failures in a row until component is considered down"`
-	Interval         time.Duration `mapstructure:"interval" description:"seconds between health checks of components"`
+	IndicatorsSettings map[string]*IndicatorSettings `mapstructure:"indicators,omitempty"`
 }
 
 // DefaultSettings returns default values for health settings
 func DefaultSettings() *Settings {
+	emptySettings := make(map[string]*IndicatorSettings)
 	return &Settings{
+		IndicatorsSettings: emptySettings,
+	}
+}
+
+// Validate validates health settings
+func (s *Settings) Validate() error {
+	for _, v := range s.IndicatorsSettings {
+		if err := v.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// IndicatorSettings type to be loaded from the environment
+type IndicatorSettings struct {
+	Fatal            bool          `mapstructure:"fatal" description:"if the indicator affects the overall status "`
+	FailuresTreshold int64         `mapstructure:"failures_treshold" description:"maximum failures in a row until component is considered down"`
+	Interval         time.Duration `mapstructure:"interval" description:"time between health checks of components"`
+}
+
+// DefaultIndicatorSettings returns default values for indicator settings
+func DefaultIndicatorSettings() *IndicatorSettings {
+	return &IndicatorSettings{
+		Fatal:            true,
 		FailuresTreshold: 3,
 		Interval:         60,
 	}
 }
 
-// Validate validates the health settings
-func (s *Settings) Validate() error {
-	if s.FailuresTreshold < 0 {
-		return fmt.Errorf("validate Settings: FailuresTreshold must be >= 0")
+// Validate validates indicator settings
+func (is *IndicatorSettings) Validate() error {
+	if is.FailuresTreshold <= 0 {
+		return fmt.Errorf("validate Settings: FailuresTreshold must be > 0")
 	}
-	if s.Interval < 30 {
+	if is.Interval < 30 {
 		return fmt.Errorf("validate Settings: Minimum interval is 30 seconds")
 	}
 	return nil
@@ -118,26 +142,39 @@ func (h *Health) WithDetails(details map[string]interface{}) *Health {
 }
 
 // Indicator is an interface to provide the health of a component
+//go:generate counterfeiter . Indicator
 type Indicator interface {
 	// Name returns the name of the component
 	Name() string
+
+	// Interval returns settings of the indicator
+	Interval() time.Duration
+
+	// FailuresTreshold returns the maximum failures in a row until component is considered down
+	FailuresTreshold() int64
+
+	// Fatal returns if the health indicator is fatal for the overall status
+	Fatal() bool
 
 	// Status returns the health information of the component
 	Status() (interface{}, error)
 }
 
-// AggregationPolicy is an interface to provide aggregated health information
-//go:generate counterfeiter . AggregationPolicy
-type AggregationPolicy interface {
-	// Apply processes the given healths to build a single health
-	Apply(healths map[string]health.State, failureTreshold int64) *Health
+// ConfigurableIndicator is an interface to provide configurable health of a component
+//go:generate counterfeiter . ConfigurableIndicator
+type ConfigurableIndicator interface {
+	Indicator
+
+	// Configure configures the indicator with given settings
+	Configure(*IndicatorSettings)
 }
 
-// NewDefaultRegistry returns a default health registry with a single ping indicator and a default aggregation policy
+// NewDefaultRegistry returns a default health registry with a single ping indicator
 func NewDefaultRegistry() *Registry {
+	emptySettings := make(map[string]*IndicatorSettings)
 	return &Registry{
-		HealthIndicators:        []Indicator{&pingIndicator{}},
-		HealthAggregationPolicy: &DefaultAggregationPolicy{},
+		HealthIndicators: []Indicator{&pingIndicator{}},
+		HealthSettings:   emptySettings,
 	}
 }
 
@@ -146,6 +183,19 @@ type Registry struct {
 	// HealthIndicators are the currently registered health indicators
 	HealthIndicators []Indicator
 
-	// HealthAggregationPolicy is the registered health aggregationPolicy
-	HealthAggregationPolicy AggregationPolicy
+	// Indicator Settings of the registry
+	HealthSettings map[string]*IndicatorSettings
+}
+
+// ConfigureIndicators configures registry's indicators with provided settings
+func (r *Registry) ConfigureIndicators() {
+	for _, hi := range r.HealthIndicators {
+		if indicator, ok := hi.(ConfigurableIndicator); ok {
+			if settings, ok := r.HealthSettings[indicator.Name()]; ok {
+				indicator.Configure(settings)
+			} else {
+				indicator.Configure(DefaultIndicatorSettings())
+			}
+		}
+	}
 }

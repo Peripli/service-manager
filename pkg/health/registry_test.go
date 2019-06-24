@@ -17,9 +17,9 @@
 package health
 
 import (
-	"github.com/InVisionApp/go-health"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"time"
 )
 
 var _ = Describe("Healthcheck Registry", func() {
@@ -31,27 +31,13 @@ var _ = Describe("Healthcheck Registry", func() {
 	})
 
 	When("Constructing default registry", func() {
-		It("Has ping indicator and default aggregation policy", func() {
+		It("Has ping indicator", func() {
 			indicators := registry.HealthIndicators
 			Expect(indicators).To(ConsistOf(&pingIndicator{}))
-
-			policy := registry.HealthAggregationPolicy
-			Expect(policy).To(BeAssignableToTypeOf(&DefaultAggregationPolicy{}))
 		})
 	})
 
-	Context("Register aggregation policy", func() {
-		It("Overrides the previous", func() {
-			policy := registry.HealthAggregationPolicy
-			Expect(policy).To(BeAssignableToTypeOf(&DefaultAggregationPolicy{}))
-
-			registry.HealthAggregationPolicy = &testAggregationPolicy{}
-			policy = registry.HealthAggregationPolicy
-			Expect(policy).To(BeAssignableToTypeOf(&testAggregationPolicy{}))
-		})
-	})
-
-	Context("Register health indicator", func() {
+	When("Register health indicator", func() {
 		It("Adds a new indicator", func() {
 			preAddIndicators := registry.HealthIndicators
 
@@ -64,22 +50,63 @@ var _ = Describe("Healthcheck Registry", func() {
 			Expect(postAddIndicators).To(ContainElement(newIndicator))
 		})
 	})
+
+	When("When configure indicators", func() {
+		It("Should configure with default settings if settings not provided", func() {
+			newIndicator := &testIndicator{}
+			registry.HealthIndicators = append(registry.HealthIndicators, newIndicator)
+
+			registry.ConfigureIndicators()
+
+			Expect(newIndicator.Interval()).To(Equal(DefaultIndicatorSettings().Interval))
+			Expect(newIndicator.FailuresTreshold()).To(Equal(DefaultIndicatorSettings().FailuresTreshold))
+		})
+	})
+
+	When("When configure indicators", func() {
+		It("Should configure with provided settings", func() {
+			newIndicator := &testIndicator{}
+			registry.HealthIndicators = append(registry.HealthIndicators, newIndicator)
+
+			settings := &IndicatorSettings{
+				Interval:         50,
+				FailuresTreshold: 2,
+			}
+
+			registry.HealthSettings[newIndicator.Name()] = settings
+
+			registry.ConfigureIndicators()
+
+			Expect(newIndicator.Interval()).To(Equal(settings.Interval))
+			Expect(newIndicator.FailuresTreshold()).To(Equal(settings.FailuresTreshold))
+		})
+	})
 })
 
-type testAggregationPolicy struct {
-}
-
-func (*testAggregationPolicy) Apply(healths map[string]health.State, failuresTreshold int64) *Health {
-	return New().Up()
-}
-
 type testIndicator struct {
+	settings *IndicatorSettings
 }
 
-func (*testIndicator) Name() string {
+func (i *testIndicator) Name() string {
 	return "test"
 }
 
-func (*testIndicator) Status() (interface{}, error) {
+func (i *testIndicator) Interval() time.Duration {
+	return i.settings.Interval
+}
+
+func (i *testIndicator) FailuresTreshold() int64 {
+	return i.settings.FailuresTreshold
+}
+
+func (i *testIndicator) Fatal() bool {
+	return i.settings.Fatal
+}
+
+func (i *testIndicator) Status() (interface{}, error) {
 	return nil, nil
+}
+
+func (i *testIndicator) Configure(settings *IndicatorSettings) {
+	i.settings = settings
 }

@@ -28,17 +28,19 @@ import (
 
 // controller platform controller
 type controller struct {
-	health           h.IHealth
-	aggPolicy        health.AggregationPolicy
-	failuresTreshold int64
+	health    h.IHealth
+	tresholds map[string]int64
 }
 
-// NewController returns a new healthcheck controller with the given indicators and aggregation policy
-func NewController(health h.IHealth, aggPolicy health.AggregationPolicy, failuresTreshold int64) web.Controller {
+// NewController returns a new healthcheck controller with the given health and tresholds
+func NewController(health h.IHealth, indicators []health.Indicator) web.Controller {
+	tresholds := make(map[string]int64)
+	for _, v := range indicators {
+		tresholds[v.Name()] = v.FailuresTreshold()
+	}
 	return &controller{
-		health:           health,
-		aggPolicy:        aggPolicy,
-		failuresTreshold: failuresTreshold,
+		health:    health,
+		tresholds: tresholds,
 	}
 }
 
@@ -48,7 +50,7 @@ func (c *controller) healthCheck(r *web.Request) (*web.Response, error) {
 	logger := log.C(ctx)
 	logger.Debugf("Performing health check...")
 	healthState, _, _ := c.health.State()
-	healthResult := c.aggPolicy.Apply(healthState, c.failuresTreshold)
+	healthResult := c.aggregate(healthState)
 	var status int
 	if healthResult.Status == health.StatusUp {
 		status = http.StatusOK
@@ -56,4 +58,34 @@ func (c *controller) healthCheck(r *web.Request) (*web.Response, error) {
 		status = http.StatusServiceUnavailable
 	}
 	return util.NewJSONResponse(status, healthResult)
+}
+
+func (c *controller) aggregate(state map[string]h.State) *health.Health {
+	if len(state) == 0 {
+		return health.New().WithDetail("error", "no health indicators registered").Unknown()
+	}
+	overallStatus := health.StatusUp
+	for i, v := range state {
+		if v.Fatal && v.ContiguousFailures >= c.tresholds[i] {
+			overallStatus = health.StatusDown
+			break
+		}
+	}
+	details := make(map[string]interface{})
+	for k, v := range state {
+		v.Status = convertStatus(v.Status)
+		details[k] = v
+	}
+	return health.New().WithStatus(overallStatus).WithDetails(details)
+}
+
+func convertStatus(status string) string {
+	switch status {
+	case "ok":
+		return string(health.StatusUp)
+	case "failed":
+		return string(health.StatusDown)
+	default:
+		return string(health.StatusUnknown)
+	}
 }

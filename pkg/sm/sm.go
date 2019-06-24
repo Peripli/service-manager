@@ -141,6 +141,7 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 	}
 
 	API.HealthIndicators = append(API.HealthIndicators, storageHealthIndicator)
+	API.HealthSettings = cfg.Health.IndicatorsSettings
 
 	notificationCleaner := &storage.NotificationCleaner{
 		Storage:  interceptableRepository,
@@ -187,8 +188,7 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 
 // Build builds the Service Manager
 func (smb *ServiceManagerBuilder) Build() *ServiceManager {
-	err := smb.installHealth()
-	if err != nil {
+	if err := smb.installHealth(); err != nil {
 		panic(err)
 	}
 
@@ -212,33 +212,33 @@ func (smb *ServiceManagerBuilder) installHealth() error {
 		return nil
 	}
 
+	smb.ConfigureIndicators()
+
 	healthz := h.New()
 	logger := log.C(smb.ctx).Logger
 	healthz.Logger = l.New(logger)
 
 	for _, indicator := range smb.HealthIndicators {
-		err := healthz.AddCheck(&h.Config{
+		if err := healthz.AddCheck(&h.Config{
 			Name:     indicator.Name(),
 			Checker:  indicator,
-			Interval: smb.health.Interval * time.Second,
-		})
-
-		if err != nil {
+			Interval: indicator.Interval() * time.Second,
+			Fatal:    indicator.Fatal(),
+		}); err != nil {
 			return err
 		}
 	}
-	smb.RegisterControllers(healthcheck.NewController(healthz, smb.HealthAggregationPolicy, smb.health.FailuresTreshold))
+	smb.RegisterControllers(healthcheck.NewController(healthz, smb.HealthIndicators))
 
 	if err := healthz.Start(); err != nil {
 		return err
 	}
 
-	// Handles safe termination of sm
 	util.StartInWaitGroupWithContext(smb.ctx, func(c context.Context) {
 		<-c.Done()
 		log.C(c).Debug("Context cancelled. Stopping health checks...")
 		if err := healthz.Stop(); err != nil {
-			log.D().Error(err)
+			log.C(c).Error(err)
 		}
 	}, smb.wg)
 
