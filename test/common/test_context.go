@@ -21,12 +21,16 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
+	"math/rand"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"path"
 	"runtime"
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/gavv/httpexpect"
 	"github.com/gofrs/uuid"
@@ -219,6 +223,10 @@ func (tcb *TestContextBuilder) WithSMExtensions(fs ...func(ctx context.Context, 
 }
 
 func (tcb *TestContextBuilder) Build() *TestContext {
+	return tcb.BuildWithListener(nil)
+}
+
+func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener) *TestContext {
 	environment := tcb.Environment(tcb.envPreHooks...)
 
 	for _, envPostHook := range tcb.envPostHooks {
@@ -226,7 +234,7 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 	}
 	wg := &sync.WaitGroup{}
 
-	smServer, smRepository := newSMServer(environment, wg, tcb.smExtensions)
+	smServer, smRepository := newSMServer(environment, wg, tcb.smExtensions, listener)
 	tcb.Servers[SMServer] = smServer
 
 	SM := httpexpect.New(ginkgo.GinkgoT(), smServer.URL())
@@ -260,7 +268,28 @@ func (tcb *TestContextBuilder) Build() *TestContext {
 	return testContext
 }
 
-func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error) (*testSMServer, storage.Repository) {
+func NewSMListener() (net.Listener, error) {
+	minPort := 8100
+	maxPort := 9999
+	retries := 10
+
+	var listener net.Listener
+	var err error
+	for ; retries >= 0; retries-- {
+		rand.Seed(time.Now().UnixNano())
+		port := rand.Intn(maxPort-minPort) + minPort
+
+		smURL := "127.0.0.1:" + strconv.Itoa(port)
+		listener, err = net.Listen("tcp", smURL)
+		if err == nil {
+			return listener, nil
+		}
+	}
+
+	return nil, fmt.Errorf("unable to create sm listener: %s", err)
+}
+
+func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error, listener net.Listener) (*testSMServer, storage.Repository) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := struct {
 		Log *log.Settings
@@ -301,9 +330,16 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 		panic(err)
 	}
 
+	testServer := httptest.NewUnstartedServer(serviceManager.Server.Router)
+	if listener != nil {
+		testServer.Listener.Close()
+		testServer.Listener = listener
+	}
+	testServer.Start()
+
 	return &testSMServer{
 		cancel: cancel,
-		Server: httptest.NewServer(serviceManager.Server.Router),
+		Server: testServer,
 	}, smb.Storage
 }
 
