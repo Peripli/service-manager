@@ -61,9 +61,7 @@ var _ = Describe("Healthcheck Registry", func() {
 			Expect(newIndicator.Interval()).To(Equal(DefaultIndicatorSettings().Interval))
 			Expect(newIndicator.FailuresTreshold()).To(Equal(DefaultIndicatorSettings().FailuresTreshold))
 		})
-	})
 
-	When("When configure indicators", func() {
 		It("Should configure with provided settings", func() {
 			newIndicator := &testIndicator{}
 			registry.HealthIndicators = append(registry.HealthIndicators, newIndicator)

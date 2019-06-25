@@ -127,24 +127,6 @@ func (h *Health) WithDetail(key string, val interface{}) *Health {
 	return h
 }
 
-// Up sets the health status to up
-func (h *Health) Up() *Health {
-	h.Status = StatusUp
-	return h
-}
-
-// Down sets the health status to down
-func (h *Health) Down() *Health {
-	h.Status = StatusDown
-	return h
-}
-
-// Unknown sets the health status to unknown
-func (h *Health) Unknown() *Health {
-	h.Status = StatusUnknown
-	return h
-}
-
 // WithDetails adds the given details to the health
 func (h *Health) WithDetails(details map[string]interface{}) *Health {
 	for k, v := range details {

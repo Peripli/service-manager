@@ -62,7 +62,7 @@ func (c *controller) healthCheck(r *web.Request) (*web.Response, error) {
 
 func (c *controller) aggregate(state map[string]h.State) *health.Health {
 	if len(state) == 0 {
-		return health.New().WithDetail("error", "no health indicators registered").Unknown()
+		return health.New().WithDetail("error", "no health indicators registered")
 	}
 	overallStatus := health.StatusUp
 	for i, v := range state {

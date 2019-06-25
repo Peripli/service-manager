@@ -84,4 +84,16 @@ var _ = Describe("Healthcheck Settings", func() {
 			assertValidationErrorOccured(err)
 		})
 	})
+
+	When("Indicator with positive treshold and interval > 30", func() {
+		It("Should be considered valid", func() {
+			interval = 30
+			failuresTreshold = 3
+			registerIndicatorSettings()
+
+			err := settings.Validate()
+
+			Expect(err).ShouldNot(HaveOccurred())
+		})
+	})
 })
