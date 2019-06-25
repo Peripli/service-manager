@@ -18,6 +18,8 @@ package health
 
 import (
 	"fmt"
+	"github.com/InVisionApp/go-health"
+	"github.com/Peripli/service-manager/pkg/log"
 	"time"
 )
 
@@ -82,6 +84,16 @@ const (
 	// StatusUnknown indicates that the health of the checked component cannot be determined
 	StatusUnknown Status = "UNKNOWN"
 )
+
+type StatusListener struct{}
+
+func (sl *StatusListener) HealthCheckFailed(state *health.State) {
+	log.D().Errorf("Health check for %v failed with: %v", state.Name, state.Err)
+}
+
+func (sl *StatusListener) HealthCheckRecovered(state *health.State, numberOfFailures int64, unavailableDuration float64) {
+	log.D().Infof("Health check for %v recovered after %v failures and was unavailable for %v seconds roughly", state.Name, numberOfFailures, unavailableDuration)
+}
 
 // Health contains information about the health of a component.
 type Health struct {

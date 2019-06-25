@@ -23,6 +23,7 @@ import (
 	"fmt"
 	h "github.com/InVisionApp/go-health"
 	l "github.com/InVisionApp/go-logger/shims/logrus"
+	"github.com/Peripli/service-manager/pkg/health"
 	"net"
 	"net/http"
 	"sync"
@@ -216,7 +217,9 @@ func (smb *ServiceManagerBuilder) installHealth() error {
 
 	healthz := h.New()
 	logger := log.C(smb.ctx).Logger
+
 	healthz.Logger = l.New(logger)
+	healthz.StatusListener = &health.StatusListener{}
 
 	for _, indicator := range smb.HealthIndicators {
 		if err := healthz.AddCheck(&h.Config{
@@ -228,6 +231,7 @@ func (smb *ServiceManagerBuilder) installHealth() error {
 			return err
 		}
 	}
+
 	smb.RegisterControllers(healthcheck.NewController(healthz, smb.HealthIndicators))
 
 	if err := healthz.Start(); err != nil {
