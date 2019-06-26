@@ -28,6 +28,26 @@ type TenantCriteriaSettings struct {
 	LabelTokenClaim    string `mapstructure:"label_token_claim" description:"the name of the claim in the OIDC token that contains the value of the label key that will be used for filtering the resources"`
 }
 
+// Validate validates the API settings
+func (s *TenantCriteriaSettings) Validate() error {
+	if (len(s.ClientID)) == 0 {
+		return fmt.Errorf("validate TenantCriteriaSettings: ClientID missing")
+	}
+
+	if (len(s.LabelKey)) == 0 {
+		return fmt.Errorf("validate TenantCriteriaSettings: LabelKey missing")
+	}
+
+	if (len(s.ClientIDTokenClaim)) == 0 {
+		return fmt.Errorf("validate TenantCriteriaSettings: ClientIDTokenClaim missing")
+	}
+
+	if (len(s.LabelTokenClaim)) == 0 {
+		return fmt.Errorf("validate TenantCriteriaSettings: LabelTokenClaim missing")
+	}
+	return nil
+}
+
 // NewOIDCTenantCriteriaFilter creates a new OIDCTenantFilter from the specified settings that filters the returned resources based on a filtering label
 func NewOIDCTenantCriteriaFilter(settings *TenantCriteriaSettings) *OIDCTenantFilter {
 	return &OIDCTenantFilter{

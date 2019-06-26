@@ -125,8 +125,6 @@ func New(ctx context.Context, options *Options) (*web.API, error) {
 			filters.NewProtectedLabelsFilter(options.APISettings.ProctedLabels),
 			&filters.SelectionCriteria{},
 			&filters.PlatformAwareVisibilityFilter{},
-			filters.NewOIDCTenantCriteriaFilter(options.APISettings.TenantCriteria),
-			filters.NewOIDCTenantLabelingFilter(options.APISettings.TenantCriteria),
 			&filters.PatchOnlyLabelsFilter{},
 		},
 		Registry: health.NewDefaultRegistry(),

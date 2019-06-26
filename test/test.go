@@ -17,7 +17,11 @@
 package test
 
 import (
+	"context"
 	"fmt"
+
+	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/Peripli/service-manager/pkg/sm"
 
 	"github.com/gavv/httpexpect"
 
@@ -41,6 +45,7 @@ type TestCase struct {
 	API          string
 	SupportedOps []Op
 
+	EnableMultitenancy                     bool
 	DisableTenantResources                 bool
 	ResourceBlueprint                      func(ctx *common.TestContext, smClient *httpexpect.Expect) common.Object
 	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext, smClient *httpexpect.Expect) common.Object
@@ -59,7 +64,13 @@ func DescribeTestsFor(t TestCase) bool {
 			By("==== Preparation for SM tests... ====")
 
 			defer GinkgoRecover()
-			ctx = common.DefaultTestContext()
+			ctx = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+				if t.EnableMultitenancy {
+					smb.EnableMultitenancy()
+				}
+				return nil
+			}).Build()
+			// ctx = common.DefaultTestContext()
 
 			// A panic outside of Ginkgo's primitives (during test setup) would be recovered
 			// by the deferred GinkgoRecover() and the error will be associated with the first

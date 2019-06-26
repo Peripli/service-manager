@@ -56,7 +56,7 @@ type ServiceManagerBuilder struct {
 	NotificationCleaner *storage.NotificationCleaner
 	ctx                 context.Context
 	wg                  *sync.WaitGroup
-	cfg                 *server.Settings
+	cfg                 *config.Settings
 }
 
 // ServiceManager  struct
@@ -139,7 +139,7 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 		NotificationCleaner: notificationCleaner,
 		ctx:                 ctx,
 		wg:                  waitGroup,
-		cfg:                 cfg.Server,
+		cfg:                 cfg,
 	}
 
 	// Register default interceptors that represent the core SM business logic
@@ -170,7 +170,7 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	// setup server and add relevant global middleware
 	smb.installHealth()
 
-	srv := server.New(smb.cfg, smb.API)
+	srv := server.New(smb.cfg.Server, smb.API)
 	srv.Use(filters.NewRecoveryMiddleware())
 
 	return &ServiceManager{
@@ -266,4 +266,16 @@ func (smb *ServiceManagerBuilder) WithDeleteInterceptorProvider(objectType types
 			return smb
 		},
 	}
+}
+
+func (smb *ServiceManagerBuilder) EnableMultitenancy() *ServiceManagerBuilder {
+	if err := smb.cfg.API.TenantCriteria.Validate(); err != nil {
+		log.D().Panicf("Could not enable multitenancy: %s", err.Error())
+	}
+	criteriaFilter := filters.NewOIDCTenantCriteriaFilter(smb.cfg.API.TenantCriteria)
+	labelingFilter := filters.NewOIDCTenantLabelingFilter(smb.cfg.API.TenantCriteria)
+
+	smb.RegisterFiltersAfter(filters.PlatformAwareVisibilityFilterName, criteriaFilter, labelingFilter)
+
+	return smb
 }
