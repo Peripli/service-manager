@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -35,6 +36,7 @@ import (
 
 const (
 	postgresChannel       = "notifications"
+	dbPingInterval        = time.Second * 60
 	aTrue           int32 = 1
 	aFalse          int32 = 0
 )
@@ -53,11 +55,12 @@ type Notificator struct {
 	storage           notificationStorage
 	connectionCreator notificationConnectionCreator
 
+	stopProcessing      context.CancelFunc
 	notificationFilters []storage.ReceiversFilterFunc
-
-	ctx context.Context
+	ctx                 context.Context
 
 	lastKnownRevision int64
+	dbPingInterval    time.Duration
 }
 
 // NewNotificator returns new Notificator based on a given NotificatorStorage and desired queue size
@@ -82,7 +85,9 @@ func NewNotificator(st storage.Storage, settings *storage.Settings) (*Notificato
 		},
 		storage:           ns,
 		connectionCreator: connectionCreator,
+		stopProcessing:    func() {},
 		lastKnownRevision: types.InvalidRevision,
+		dbPingInterval:    dbPingInterval,
 	}, nil
 }
 
@@ -95,10 +100,11 @@ func (n *Notificator) Start(ctx context.Context, group *sync.WaitGroup) error {
 	n.setConnection(n.connectionCreator.NewConnection(func(isConnected bool, err error) {
 		if isConnected {
 			atomic.StoreInt32(&n.isConnected, aTrue)
+			log.C(n.ctx).Debug("db connection for notifications established")
 		} else {
 			atomic.StoreInt32(&n.isConnected, aFalse)
-			log.C(n.ctx).WithError(err).Info("connection to db closed, closing all consumers")
-			n.closeAllConsumers()
+			log.C(n.ctx).WithError(err).Error("DB connection for notifications closed")
+			n.stopProcessing()
 		}
 	}))
 	util.StartInWaitGroupWithContext(ctx, func(c context.Context) {
@@ -164,7 +170,7 @@ func (n *Notificator) filterRecipients(recipients []*types.Platform, notificatio
 func (n *Notificator) replaceQueueWithMissingNotificationsQueue(queue storage.NotificationQueue, lastKnownRevision, lastKnownRevisionToSM int64, platform *types.Platform) (storage.NotificationQueue, error) {
 	if _, err := n.storage.GetNotificationByRevision(n.ctx, lastKnownRevision); err != nil {
 		if err == util.ErrNotFoundInStorage {
-			log.C(n.ctx).WithError(err).Debugf("notification with revision %d not found in storage", lastKnownRevision)
+			log.C(n.ctx).WithError(err).Debugf("Notification with revision %d not found in storage", lastKnownRevision)
 			return nil, util.ErrInvalidNotificationRevision
 		}
 		return nil, err
@@ -183,7 +189,7 @@ func (n *Notificator) replaceQueueWithMissingNotificationsQueue(queue storage.No
 	}
 
 	if n.queueSize < len(filteredMissedNotification) {
-		log.C(n.ctx).Debugf("too many missed notifications %d", len(filteredMissedNotification))
+		log.C(n.ctx).Debugf("Too many missed notifications %d", len(filteredMissedNotification))
 		return nil, util.ErrInvalidNotificationRevision
 	}
 
@@ -220,10 +226,14 @@ func (n *Notificator) replaceQueueWithMissingNotificationsQueue(queue storage.No
 func (n *Notificator) UnregisterConsumer(queue storage.NotificationQueue) error {
 	n.consumersMutex.Lock()
 	defer n.consumersMutex.Unlock()
-	n.consumers.Delete(queue)
 	queue.Close()
 	if n.consumers.Len() == 0 {
-		return n.stopListening()
+		return nil // Consumer already unregistered
+	}
+	n.consumers.Delete(queue)
+	if n.consumers.Len() == 0 {
+		log.C(n.ctx).Debugf("No notification consumers left. Stop listening to channel %s", postgresChannel)
+		n.stopProcessing()
 	}
 	return nil
 }
@@ -257,23 +267,53 @@ type notifyEventPayload struct {
 	Revision       int64  `json:"revision"`
 }
 
-func (n *Notificator) processNotifications(notificationChannel <-chan *pq.Notification) {
+func (n *Notificator) processNotifications(notificationChannel <-chan *pq.Notification, processingContext context.Context) {
 	defer func() {
+		n.connectionMutex.Lock()
+		defer n.connectionMutex.Unlock()
+		n.stopProcessing() // closing context if not already closed
+		n.closeAllConsumers()
+		log.C(n.ctx).Debugf("Stop listening notification channel %s", postgresChannel)
 		atomic.StoreInt32(&n.isListening, aFalse)
-	}()
-	for pqNotification := range notificationChannel {
-		if pqNotification == nil {
-			continue
-		}
-		payload, err := getPayload(pqNotification.Extra)
-		if err != nil {
-			log.C(n.ctx).WithError(err).Error("could not unmarshal notification payload")
-			n.closeAllConsumers() // Ensures no notifications are lost
-		} else {
-			if err = n.processNotificationPayload(payload); err != nil {
-				log.C(n.ctx).WithError(err).Error("closing consumers")
-				n.closeAllConsumers() // Ensures no notifications are lost
+		if atomic.LoadInt32(&n.isConnected) == aTrue {
+			if err := n.connection.Unlisten(postgresChannel); err != nil {
+				log.C(n.ctx).WithError(err).Errorf("Could not unlisten channel %s", postgresChannel)
 			}
+		}
+	}()
+	lastNotificationReceived := time.Now()
+	for {
+		select {
+		case pqNotification, ok := <-notificationChannel:
+			if !ok {
+				log.C(n.ctx).Error("Notification channel closed")
+				return
+			}
+			if pqNotification == nil { // when connection is re-established a nil notification is sent by the library
+				log.C(n.ctx).Debug("Empty notification received")
+				continue
+			}
+			lastNotificationReceived = time.Now()
+			log.C(n.ctx).Debugf("Received new notification from channel %s", pqNotification.Channel)
+			payload, err := getPayload(pqNotification.Extra)
+			if err != nil {
+				log.C(n.ctx).WithError(err).Error("Could not unmarshal notification payload")
+				return
+			} else {
+				if err = n.processNotificationPayload(payload); err != nil {
+					log.C(n.ctx).WithError(err).Error("Closing consumers")
+					return
+				}
+			}
+		case <-time.After(n.dbPingInterval):
+			log.C(n.ctx).Debugf("No notifications in %s. Pinging db", time.Since(lastNotificationReceived))
+			if err := n.connection.Ping(); err != nil {
+				log.C(n.ctx).WithError(err).Errorf("Pinging db failed. Closing all consumers")
+				return
+			}
+		case <-processingContext.Done():
+			log.C(n.ctx).Debug("Stopping processing of notifications")
+			return
 		}
 	}
 }
@@ -296,6 +336,7 @@ func (n *Notificator) processNotificationPayload(payload *notifyEventPayload) er
 
 	recipients := n.getRecipients(notificationPlatformID)
 	if len(recipients) == 0 {
+		log.C(n.ctx).Debugf("No recipients to receive notification %s", notificationID)
 		return nil
 	}
 	notification, err := n.storage.GetNotification(n.ctx, notificationID)
@@ -303,6 +344,7 @@ func (n *Notificator) processNotificationPayload(payload *notifyEventPayload) er
 		return fmt.Errorf("notification %s could not be retrieved from the DB: %v", notificationID, err.Error())
 	}
 	recipients = n.filterRecipients(recipients, notification)
+	log.C(n.ctx).Debugf("%d recipients will receive notification %s", len(recipients), notificationID)
 	for _, platform := range recipients {
 		n.sendNotificationToPlatformConsumers(n.consumers.GetQueuesForPlatform(platform.ID), notification)
 	}
@@ -323,40 +365,31 @@ func (n *Notificator) getRecipients(platformID string) []*types.Platform {
 func (n *Notificator) sendNotificationToPlatformConsumers(platformConsumers []storage.NotificationQueue, notification *types.Notification) {
 	for _, consumer := range platformConsumers {
 		if err := consumer.Enqueue(notification); err != nil {
-			log.C(n.ctx).WithError(err).Infof("consumer %s notification queue returned error %v", consumer.ID(), err)
+			log.C(n.ctx).WithError(err).Infof("Consumer %s notification queue returned error %v", consumer.ID(), err)
 			consumer.Close()
 		}
 	}
 }
 
 func (n *Notificator) stopConnection() {
-	err := n.stopListening()
-	logger := log.C(n.ctx)
-	if err != nil {
-		logger.WithError(err).Info("could not unlisten notification channel")
-	}
+	n.stopProcessing()
 	n.connectionMutex.Lock()
 	defer n.connectionMutex.Unlock()
-	if err = n.connection.Close(); err != nil {
-		logger.WithError(err).Info("could not close db connection")
-	}
-}
 
-func (n *Notificator) stopListening() error {
-	n.connectionMutex.Lock()
-	defer n.connectionMutex.Unlock()
-	if atomic.LoadInt32(&n.isListening) == aFalse {
-		return nil
+	atomic.StoreInt32(&n.isConnected, aFalse)
+	if err := n.connection.Close(); err != nil {
+		log.C(n.ctx).WithError(err).Error("Could not close db connection")
 	}
-	return n.connection.Unlisten(postgresChannel)
 }
 
 func (n *Notificator) startListening() error {
 	n.connectionMutex.Lock()
 	defer n.connectionMutex.Unlock()
 	if atomic.LoadInt32(&n.isListening) == aTrue {
+		log.C(n.ctx).Debugf("Already listening to notification channel %s", postgresChannel)
 		return nil
 	}
+	log.C(n.ctx).Debugf("Start listening notification channel %s", postgresChannel)
 	err := n.connection.Listen(postgresChannel)
 	if err != nil {
 		return err
@@ -370,7 +403,9 @@ func (n *Notificator) startListening() error {
 	}
 	atomic.StoreInt64(&n.lastKnownRevision, lastKnownRevision)
 	atomic.StoreInt32(&n.isListening, aTrue)
-	go n.processNotifications(n.connection.NotificationChannel())
+	notificationProcessingContext, stopProcessing := context.WithCancel(n.ctx)
+	n.stopProcessing = stopProcessing
+	go n.processNotifications(n.connection.NotificationChannel(), notificationProcessingContext)
 	return nil
 }
 

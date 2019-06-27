@@ -60,7 +60,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	}
 
 	correlationID := logger.Data[log.FieldCorrelationID].(string)
-	childCtx := newContextWithCorrelationID(c.baseCtx, correlationID)
+	childCtx, childCtxCancel := newContextWithCorrelationID(c.baseCtx, correlationID)
 
 	defer func() {
 		if err := recover(); err != nil {
@@ -82,7 +82,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 
 	done := make(chan struct{}, 2)
 
-	go c.closeConn(childCtx, conn, done)
+	go c.closeConn(childCtx, childCtxCancel, conn, done)
 	go c.writeLoop(childCtx, conn, notificationQueue, done)
 	go c.readLoop(childCtx, conn, done)
 
@@ -173,7 +173,8 @@ func extractPlatformFromContext(userContext *web.UserContext) (*types.Platform, 
 	return platform, nil
 }
 
-func newContextWithCorrelationID(baseCtx context.Context, correlationID string) context.Context {
+func newContextWithCorrelationID(baseCtx context.Context, correlationID string) (context.Context, context.CancelFunc) {
 	entry := log.C(baseCtx).WithField(log.FieldCorrelationID, correlationID)
-	return log.ContextWithLogger(baseCtx, entry)
+	newCtx := log.ContextWithLogger(baseCtx, entry)
+	return context.WithCancel(newCtx)
 }
