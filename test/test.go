@@ -20,6 +20,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Peripli/service-manager/pkg/multitenancy"
+
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/sm"
 
@@ -41,11 +43,20 @@ const (
 	Patch      Op = "patch"
 )
 
+type MultitenancySettings struct {
+	ClientID           string
+	ClientIDTokenClaim string
+	TenantTokenClaim   string
+	LabelKey           string
+
+	TokenClaims map[string]interface{}
+}
+
 type TestCase struct {
 	API          string
 	SupportedOps []Op
 
-	EnableMultitenancy                     bool
+	MultitenancySettings                   *MultitenancySettings
 	DisableTenantResources                 bool
 	ResourceBlueprint                      func(ctx *common.TestContext, smClient *httpexpect.Expect) common.Object
 	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext, smClient *httpexpect.Expect) common.Object
@@ -64,13 +75,17 @@ func DescribeTestsFor(t TestCase) bool {
 			By("==== Preparation for SM tests... ====")
 
 			defer GinkgoRecover()
-			ctx = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
-				if t.EnableMultitenancy {
-					smb.EnableMultitenancy()
-				}
-				return nil
-			}).Build()
-			// ctx = common.DefaultTestContext()
+			ctxBuilder := common.NewTestContextBuilder()
+
+			if t.MultitenancySettings != nil {
+				ctxBuilder.
+					WithTenantTokenClaims(t.MultitenancySettings.TokenClaims).
+					WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+						smb.EnableMultitenancy(t.MultitenancySettings.LabelKey, multitenancy.ExtractTenatFromTokenWrapperFunc(t.MultitenancySettings.ClientID, t.MultitenancySettings.ClientIDTokenClaim, t.MultitenancySettings.TenantTokenClaim))
+						return nil
+					})
+			}
+			ctx = ctxBuilder.Build()
 
 			// A panic outside of Ginkgo's primitives (during test setup) would be recovered
 			// by the deferred GinkgoRecover() and the error will be associated with the first

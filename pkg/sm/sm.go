@@ -268,14 +268,16 @@ func (smb *ServiceManagerBuilder) WithDeleteInterceptorProvider(objectType types
 	}
 }
 
-func (smb *ServiceManagerBuilder) EnableMultitenancy() *ServiceManagerBuilder {
-	if err := smb.cfg.API.TenantCriteria.Validate(); err != nil {
-		log.D().Panicf("Could not enable multitenancy: %s", err.Error())
+// EnableMultitenancy enables multitenancy resources for Service Manager by labeling them with appropriate tenant value
+func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTenantFunc func(*web.Request) (string, error)) *ServiceManagerBuilder {
+	if len(labelKey) == 0 {
+		log.D().Panic("labelKey should be provided")
 	}
-	criteriaFilter := filters.NewOIDCTenantCriteriaFilter(smb.cfg.API.TenantCriteria)
-	labelingFilter := filters.NewOIDCTenantLabelingFilter(smb.cfg.API.TenantCriteria)
+	if extractTenantFunc == nil {
+		log.D().Panic("extractTenantFunc should be provided")
+	}
 
-	smb.RegisterFiltersAfter(filters.PlatformAwareVisibilityFilterName, criteriaFilter, labelingFilter)
-
+	multitenancyFilters := filters.NewMultitenancyFilters(labelKey, extractTenantFunc)
+	smb.RegisterFiltersAfter(filters.ProtectedLabelsFilterName, multitenancyFilters...)
 	return smb
 }

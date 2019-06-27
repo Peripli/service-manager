@@ -20,8 +20,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/Peripli/service-manager/api/filters"
-
 	"github.com/Peripli/service-manager/storage"
 
 	"github.com/Peripli/service-manager/api"
@@ -61,7 +59,6 @@ var _ = Describe("API", func() {
 				APISettings: &api.Settings{
 					TokenIssuerURL: server.BaseURL,
 					ClientID:       "sm",
-					TenantCriteria: &filters.TenantCriteriaSettings{},
 				},
 			})
 			Expect(err).ShouldNot(HaveOccurred())
