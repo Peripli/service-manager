@@ -63,6 +63,7 @@ type TestContextBuilder struct {
 
 	smExtensions       []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error
 	defaultTokenClaims map[string]interface{}
+	tenantTokenClaims  map[string]interface{}
 
 	shouldSkipBasicAuthClient bool
 
@@ -74,10 +75,16 @@ type TestContext struct {
 	wg            *sync.WaitGroup
 	wsConnections []*websocket.Conn
 
-	SM           *httpexpect.Expect
-	SMWithOAuth  *httpexpect.Expect
-	SMWithBasic  *httpexpect.Expect
-	SMRepository storage.Repository
+	SM          *httpexpect.Expect
+	SMWithOAuth *httpexpect.Expect
+	// Requests a token the the "multitenant" oauth client - then token issued by this client contains
+	// the "multitenant" client id behind the specified token claim in the api config
+	// the token also contains a "tenant identifier" behind the configured tenant_indentifier claim that
+	// will be compared with the value of the label specified in the "label key" configuration
+	// In the end requesting brokers with this
+	SMWithOAuthForTenant *httpexpect.Expect
+	SMWithBasic          *httpexpect.Expect
+	SMRepository         storage.Repository
 
 	TestPlatform *types.Platform
 
@@ -127,6 +134,7 @@ func NewTestContextBuilder() *TestContextBuilder {
 		},
 		smExtensions:       []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error{},
 		defaultTokenClaims: make(map[string]interface{}, 0),
+		tenantTokenClaims:  make(map[string]interface{}, 0),
 		Servers: map[string]FakeServer{
 			"oauth-server": NewOAuthServer(),
 		},
@@ -198,6 +206,12 @@ func (tcb *TestContextBuilder) WithAdditionalFakeServers(additionalFakeServers m
 	return tcb
 }
 
+func (tcb *TestContextBuilder) WithTenantTokenClaims(tenantTokenClaims map[string]interface{}) *TestContextBuilder {
+	tcb.tenantTokenClaims = tenantTokenClaims
+
+	return tcb
+}
+
 func (tcb *TestContextBuilder) WithDefaultTokenClaims(defaultTokenClaims map[string]interface{}) *TestContextBuilder {
 	tcb.defaultTokenClaims = defaultTokenClaims
 
@@ -243,15 +257,22 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener) *TestCon
 	SMWithOAuth := SM.Builder(func(req *httpexpect.Request) {
 		req.WithHeader("Authorization", "Bearer "+accessToken)
 	})
+
+	tenantAccessToken := oauthServer.CreateToken(tcb.tenantTokenClaims)
+	SMWithOAuthForTenant := SM.Builder(func(req *httpexpect.Request) {
+		req.WithHeader("Authorization", "Bearer "+tenantAccessToken)
+	})
+
 	RemoveAllBrokers(SMWithOAuth)
 	RemoveAllPlatforms(SMWithOAuth)
 
 	testContext := &TestContext{
-		wg:           wg,
-		SM:           SM,
-		SMWithOAuth:  SMWithOAuth,
-		Servers:      tcb.Servers,
-		SMRepository: smRepository,
+		wg:                   wg,
+		SM:                   SM,
+		SMWithOAuth:          SMWithOAuth,
+		SMWithOAuthForTenant: SMWithOAuthForTenant,
+		Servers:              tcb.Servers,
+		SMRepository:         smRepository,
 	}
 
 	if !tcb.shouldSkipBasicAuthClient {

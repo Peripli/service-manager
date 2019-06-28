@@ -167,7 +167,14 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 	ctx := r.Context()
 	log.C(ctx).Debugf("Getting %s with id %s", c.objectType, objectID)
 
-	object, err := c.repository.Get(ctx, c.objectType, objectID)
+	byID := query.ByField(query.EqualsOperator, "id", objectID)
+	var err error
+	ctx, err = query.AddCriteria(ctx, byID)
+	if err != nil {
+		return nil, err
+	}
+	criteria := query.CriteriaForContext(ctx)
+	object, err := c.repository.Get(ctx, c.objectType, criteria...)
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
@@ -205,7 +212,13 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 
-	objFromDB, err := c.repository.Get(ctx, c.objectType, objectID)
+	byID := query.ByField(query.EqualsOperator, "id", objectID)
+	ctx, err = query.AddCriteria(ctx, byID)
+	if err != nil {
+		return nil, err
+	}
+	criteria := query.CriteriaForContext(ctx)
+	objFromDB, err := c.repository.Get(ctx, c.objectType, criteria...)
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
@@ -227,7 +240,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	labels, _, _ := query.ApplyLabelChangesToLabels(labelChanges, objFromDB.GetLabels())
 	objFromDB.SetLabels(labels)
 
-	object, err := c.repository.Update(ctx, objFromDB, labelChanges...)
+	object, err := c.repository.Update(ctx, objFromDB, labelChanges)
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}

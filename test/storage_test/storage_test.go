@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/Peripli/service-manager/pkg/types"
 
 	. "github.com/onsi/ginkgo"
@@ -44,7 +46,8 @@ var _ = Describe("Test", func() {
 		})
 
 		It("should be fetched from storage without any labels", func() {
-			obj, err := ctx.SMRepository.Get(context.Background(), types.PlatformType, platform.GetID())
+			byID := query.ByField(query.EqualsOperator, "id", platform.GetID())
+			obj, err := ctx.SMRepository.Get(context.Background(), types.PlatformType, byID)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(obj.GetLabels()).To(HaveLen(0))
 		})

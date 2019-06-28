@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/Peripli/service-manager/pkg/types"
 
 	"github.com/Peripli/service-manager/pkg/security/securityfakes"
@@ -207,7 +209,8 @@ var _ = Describe("Encrypting Repository", func() {
 			It("returns an error", func() {
 				fakeEncrypter.DecryptReturns(nil, fmt.Errorf("error"))
 
-				_, err = repository.Get(ctx, types.ServiceBrokerType, "id")
+				byID := query.ByField(query.EqualsOperator, "id", "id")
+				_, err = repository.Get(ctx, types.ServiceBrokerType, byID)
 				Expect(err).To(HaveOccurred())
 			})
 		})
@@ -216,7 +219,8 @@ var _ = Describe("Encrypting Repository", func() {
 			It("returns an error", func() {
 				fakeRepository.GetReturns(nil, fmt.Errorf("error"))
 
-				_, err = repository.Get(ctx, types.ServiceBrokerType, "id")
+				byID := query.ByField(query.EqualsOperator, "id", "id")
+				_, err = repository.Get(ctx, types.ServiceBrokerType, byID)
 				Expect(err).To(HaveOccurred())
 			})
 		})
@@ -226,7 +230,8 @@ var _ = Describe("Encrypting Repository", func() {
 			var err error
 
 			BeforeEach(func() {
-				returnedObj, err = repository.Get(ctx, types.ServiceBrokerType, "id")
+				byID := query.ByField(query.EqualsOperator, "id", "id")
+				returnedObj, err = repository.Get(ctx, types.ServiceBrokerType, byID)
 				Expect(err).ToNot(HaveOccurred())
 			})
 
@@ -250,7 +255,7 @@ var _ = Describe("Encrypting Repository", func() {
 			It("returns an error", func() {
 				fakeEncrypter.EncryptReturns(nil, fmt.Errorf("error"))
 
-				_, err = repository.Update(ctx, objWithDecryptedPassword)
+				_, err = repository.Update(ctx, objWithDecryptedPassword, query.LabelChanges{})
 				Expect(err).To(HaveOccurred())
 			})
 		})
@@ -259,7 +264,7 @@ var _ = Describe("Encrypting Repository", func() {
 			It("returns an error", func() {
 				fakeEncrypter.DecryptReturns(nil, fmt.Errorf("error"))
 
-				_, err = repository.Update(ctx, objWithDecryptedPassword)
+				_, err = repository.Update(ctx, objWithDecryptedPassword, query.LabelChanges{})
 				Expect(err).To(HaveOccurred())
 			})
 		})
@@ -268,7 +273,7 @@ var _ = Describe("Encrypting Repository", func() {
 			It("returns an error", func() {
 				fakeRepository.UpdateReturns(nil, fmt.Errorf("error"))
 
-				_, err = repository.Update(ctx, objWithDecryptedPassword)
+				_, err = repository.Update(ctx, objWithDecryptedPassword, query.LabelChanges{})
 				Expect(err).To(HaveOccurred())
 			})
 		})
@@ -280,7 +285,7 @@ var _ = Describe("Encrypting Repository", func() {
 
 			BeforeEach(func() {
 				delegateUpdateCallsCountBeforeOp = fakeRepository.UpdateCallCount()
-				returnedObj, err = repository.Update(ctx, objWithDecryptedPassword)
+				returnedObj, err = repository.Update(ctx, objWithDecryptedPassword, query.LabelChanges{})
 				Expect(err).ToNot(HaveOccurred())
 			})
 
@@ -290,7 +295,7 @@ var _ = Describe("Encrypting Repository", func() {
 
 			It("invokes the delegate repository with object with encrypted credentials", func() {
 				Expect(fakeRepository.UpdateCallCount() - delegateUpdateCallsCountBeforeOp).To(Equal(1))
-				_, objectArg, _ := fakeRepository.UpdateArgsForCall(0)
+				_, objectArg, _, _ := fakeRepository.UpdateArgsForCall(0)
 				isPassEncrypted := strings.HasPrefix(objectArg.(types.Secured).GetCredentials().Basic.Password, "encrypt")
 				Expect(isPassEncrypted).To(BeTrue())
 			})
@@ -376,16 +381,17 @@ var _ = Describe("Encrypting Repository", func() {
 
 					// verify update
 					delegateUpdateCallsCountBeforeOp := fakeRepository.UpdateCallCount()
-					returnedObj, err = repository.Update(ctx, objWithDecryptedPassword)
+					returnedObj, err = repository.Update(ctx, objWithDecryptedPassword, query.LabelChanges{})
 					Expect(err).ToNot(HaveOccurred())
 					Expect(fakeRepository.UpdateCallCount() - delegateUpdateCallsCountBeforeOp).To(Equal(1))
-					_, objectArg, _ = fakeRepository.UpdateArgsForCall(0)
+					_, objectArg, _, _ = fakeRepository.UpdateArgsForCall(0)
 					Expect(strings.HasPrefix(objectArg.(types.Secured).GetCredentials().Basic.Password, "encrypt")).To(BeTrue())
 					Expect(strings.HasPrefix(returnedObj.(types.Secured).GetCredentials().Basic.Password, "encrypt")).To(BeFalse())
 
 					// verify get
 					delegateGetCallsCountBeforeOp := fakeRepository.GetCallCount()
-					returnedObj, err = repository.Get(ctx, types.ServiceBrokerType, "id")
+					byID := query.ByField(query.EqualsOperator, "id", "id")
+					returnedObj, err = repository.Get(ctx, types.ServiceBrokerType, byID)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(fakeRepository.GetCallCount() - delegateGetCallsCountBeforeOp).To(Equal(1))
 					Expect(strings.HasPrefix(returnedObj.(types.Secured).GetCredentials().Basic.Password, "encrypt")).To(BeFalse())

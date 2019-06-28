@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/pkg/types"
@@ -18,19 +20,22 @@ func NewVisibilityNotificationsInterceptor() *NotificationsInterceptor {
 		AdditionalDetailsFunc: func(ctx context.Context, obj types.Object, repository storage.Repository) (util.InputValidator, error) {
 			visibility := obj.(*types.Visibility)
 
-			plan, err := repository.Get(ctx, types.ServicePlanType, visibility.ServicePlanID)
+			byPlanID := query.ByField(query.EqualsOperator, "id", visibility.ServicePlanID)
+			plan, err := repository.Get(ctx, types.ServicePlanType, byPlanID)
 			if err != nil {
 				return nil, err
 			}
 			servicePlan := plan.(*types.ServicePlan)
 
-			service, err := repository.Get(ctx, types.ServiceOfferingType, servicePlan.ServiceOfferingID)
+			byServiceID := query.ByField(query.EqualsOperator, "id", servicePlan.ServiceOfferingID)
+			service, err := repository.Get(ctx, types.ServiceOfferingType, byServiceID)
 			if err != nil {
 				return nil, err
 			}
 			serviceOffering := service.(*types.ServiceOffering)
 
-			broker, err := repository.Get(ctx, types.ServiceBrokerType, serviceOffering.BrokerID)
+			byBrokerID := query.ByField(query.EqualsOperator, "id", serviceOffering.BrokerID)
+			broker, err := repository.Get(ctx, types.ServiceBrokerType, byBrokerID)
 			if err != nil {
 				return nil, err
 			}

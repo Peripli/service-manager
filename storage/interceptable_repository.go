@@ -103,8 +103,8 @@ func (ir *interceptableRepository) Create(ctx context.Context, obj types.Object)
 	return createdObj, nil
 }
 
-func (ir *interceptableRepository) Get(ctx context.Context, objectType types.ObjectType, id string) (types.Object, error) {
-	object, err := ir.repositoryInTransaction.Get(ctx, objectType, id)
+func (ir *interceptableRepository) Get(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, error) {
+	object, err := ir.repositoryInTransaction.Get(ctx, objectType, criteria...)
 	if err != nil {
 		return nil, err
 	}
@@ -158,13 +158,13 @@ func (ir *interceptableRepository) Delete(ctx context.Context, objectType types.
 	return objectList, nil
 }
 
-func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, criteria ...query.Criterion) (types.Object, error) {
 	objectType := obj.GetType()
 
 	updateObjFunc := func(ctx context.Context, _ Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 		newObj.SetUpdatedAt(time.Now().UTC())
 
-		object, err := ir.repositoryInTransaction.Update(ctx, newObj, labelChanges...)
+		object, err := ir.repositoryInTransaction.Update(ctx, newObj, labelChanges, criteria...)
 		if err != nil {
 			return nil, err
 		}
@@ -179,7 +179,8 @@ func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object,
 	var err error
 
 	// postgres storage implementation also locks the retrieved row for update
-	oldObj, err := ir.Get(ctx, objectType, obj.GetID())
+	byID := query.ByField(query.EqualsOperator, "id", obj.GetID())
+	oldObj, err := ir.Get(ctx, objectType, byID)
 	if err != nil {
 		return nil, err
 	}
@@ -297,8 +298,8 @@ func (itr *InterceptableTransactionalRepository) Create(ctx context.Context, obj
 	return obj, nil
 }
 
-func (itr *InterceptableTransactionalRepository) Get(ctx context.Context, objectType types.ObjectType, id string) (types.Object, error) {
-	object, err := itr.smStorageRepository.Get(ctx, objectType, id)
+func (itr *InterceptableTransactionalRepository) Get(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, error) {
+	object, err := itr.smStorageRepository.Get(ctx, objectType, criteria...)
 	if err != nil {
 		return nil, err
 	}
@@ -377,10 +378,11 @@ type finalUpdateObjectInterceptor struct {
 	providedCreateInterceptors map[types.ObjectType]CreateInterceptor
 	providedUpdateInterceptors map[types.ObjectType]UpdateInterceptor
 	providedDeleteInterceptors map[types.ObjectType]DeleteInterceptor
+	criteria                   []query.Criterion
 }
 
 func (final *finalUpdateObjectInterceptor) InterceptUpdateOnTxFunc(ctx context.Context, txStorage Repository, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
-	return txStorage.Update(ctx, obj, labelChanges...)
+	return txStorage.Update(ctx, obj, labelChanges)
 }
 
 func (final *finalUpdateObjectInterceptor) InterceptUpdateAroundTxFunc(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
@@ -390,7 +392,7 @@ func (final *finalUpdateObjectInterceptor) InterceptUpdateAroundTxFunc(ctx conte
 	if err = final.repository.InTransaction(ctx, func(ctx context.Context, txStorage Repository) error {
 		interceptableRepository := newInterceptableRepository(txStorage, final.providedCreateInterceptors, final.providedUpdateInterceptors, final.providedDeleteInterceptors)
 
-		result, err = interceptableRepository.Update(ctx, obj, labelChanges...)
+		result, err = interceptableRepository.Update(ctx, obj, labelChanges)
 		if err != nil {
 			return err
 		}
@@ -403,7 +405,7 @@ func (final *finalUpdateObjectInterceptor) InterceptUpdateAroundTxFunc(ctx conte
 	return result, nil
 }
 
-func (itr *InterceptableTransactionalRepository) Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+func (itr *InterceptableTransactionalRepository) Update(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, criteria ...query.Criterion) (types.Object, error) {
 	providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors := itr.provideInterceptors()
 
 	objectType := obj.GetType()
@@ -414,6 +416,7 @@ func (itr *InterceptableTransactionalRepository) Update(ctx context.Context, obj
 		providedCreateInterceptors: providedCreateInterceptors,
 		providedUpdateInterceptors: providedUpdateInterceptors,
 		providedDeleteInterceptors: providedDeleteInterceptors,
+		criteria:                   criteria,
 	}
 
 	var err error

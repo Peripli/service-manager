@@ -15,3 +15,5 @@ api:
   token_issuer_url: http://localhost:8080/uaa
   client_id: sm
   skip_ssl_validation: false
+multitenancy:
+  label_key: tenant

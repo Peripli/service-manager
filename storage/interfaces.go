@@ -155,7 +155,7 @@ type Repository interface {
 	Create(ctx context.Context, obj types.Object) (types.Object, error)
 
 	// Get retrieves a broker using the provided id from SM DB
-	Get(ctx context.Context, objectType types.ObjectType, id string) (types.Object, error)
+	Get(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, error)
 
 	// List retrieves all brokers from SM DB
 	List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error)
@@ -164,7 +164,7 @@ type Repository interface {
 	Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error)
 
 	// Update updates a broker from SM DB
-	Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error)
+	Update(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, criteria ...query.Criterion) (types.Object, error)
 }
 
 // TransactionalRepository is a storage repository that can initiate a transaction

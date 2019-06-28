@@ -21,6 +21,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/Peripli/service-manager/pkg/util"
 
 	"github.com/Peripli/service-manager/pkg/types"
@@ -103,7 +105,8 @@ func New(ctx context.Context, options *Options) (*web.API, error) {
 			},
 			&osb.Controller{
 				BrokerFetcher: func(ctx context.Context, brokerID string) (*types.ServiceBroker, error) {
-					br, err := options.Repository.Get(ctx, types.ServiceBrokerType, brokerID)
+					byID := query.ByField(query.EqualsOperator, "id", brokerID)
+					br, err := options.Repository.Get(ctx, types.ServiceBrokerType, byID)
 					if err != nil {
 						return nil, util.HandleStorageError(err, "broker")
 					}
@@ -117,8 +120,8 @@ func New(ctx context.Context, options *Options) (*web.API, error) {
 			filters.NewBasicAuthnFilter(options.Repository),
 			bearerAuthnFilter,
 			secfilters.NewRequiredAuthnFilter(),
-			filters.NewForbiddenLabelOperationsFilter(options.APISettings.ProctedLabels),
 			&filters.SelectionCriteria{},
+			filters.NewProtectedLabelsFilter(options.APISettings.ProctedLabels),
 			&filters.PlatformAwareVisibilityFilter{},
 			&filters.PatchOnlyLabelsFilter{},
 		},

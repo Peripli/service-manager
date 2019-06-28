@@ -18,11 +18,13 @@ package service_test
 
 import (
 	"fmt"
+	"net/http"
+	"testing"
+
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
-	"net/http"
-	"testing"
+	"github.com/gavv/httpexpect"
 
 	"github.com/Peripli/service-manager/test"
 	"github.com/Peripli/service-manager/test/common"
@@ -39,13 +41,13 @@ func TestServicePlans(t *testing.T) {
 var _ = test.DescribeTestsFor(test.TestCase{
 	API: web.ServicePlansURL,
 	SupportedOps: []test.Op{
-		test.Get, test.List,
+		test.Get, test.List, test.Patch,
 	},
+	DisableTenantResources:                 true,
 	ResourceBlueprint:                      blueprint,
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
 	AdditionalTests: func(ctx *common.TestContext) {
 		Context("additional non-generic tests", func() {
-
 			Describe("PATCH", func() {
 				var id string
 
@@ -64,7 +66,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 					patchLabelsBody["labels"] = patchLabels
 
-					plan := blueprint(ctx)
+					plan := blueprint(ctx, ctx.SMWithOAuth)
 					id = plan["id"].(string)
 				})
 
@@ -135,7 +137,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 					patchLabelsBody["labels"] = patchLabels
 
-					plan := blueprint(ctx)
+					plan := blueprint(ctx, ctx.SMWithOAuth)
 					id = plan["id"].(string)
 
 					ctx.SMWithOAuth.PATCH(web.ServicePlansURL + "/" + id).
@@ -338,18 +340,18 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func blueprint(ctx *common.TestContext) common.Object {
+func blueprint(ctx *common.TestContext, auth *httpexpect.Expect) common.Object {
 	cPaidPlan := common.GeneratePaidTestPlan()
 	cService := common.GenerateTestServiceWithPlans(cPaidPlan)
 	catalog := common.NewEmptySBCatalog()
 	catalog.AddService(cService)
 	id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
 
-	so := ctx.SMWithOAuth.GET(web.ServiceOfferingsURL).WithQuery("fieldQuery", "broker_id = "+id).
+	so := auth.GET(web.ServiceOfferingsURL).WithQuery("fieldQuery", "broker_id = "+id).
 		Expect().
 		Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().First()
 
-	sp := ctx.SMWithOAuth.GET(web.ServicePlansURL).WithQuery("fieldQuery", fmt.Sprintf("service_offering_id = %s", so.Object().Value("id").String().Raw())).
+	sp := auth.GET(web.ServicePlansURL).WithQuery("fieldQuery", fmt.Sprintf("service_offering_id = %s", so.Object().Value("id").String().Raw())).
 		Expect().
 		Status(http.StatusOK).JSON().Object().Value("service_plans").Array().First()
 
