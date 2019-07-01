@@ -84,6 +84,7 @@ type TestContext struct {
 	// In the end requesting brokers with this
 	SMWithOAuthForTenant *httpexpect.Expect
 	SMWithBasic          *httpexpect.Expect
+	OperationExecutor    *httpexpect.Expect
 	SMRepository         storage.Repository
 
 	TestPlatform *types.Platform
@@ -364,6 +365,12 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 	}, smb.Storage
 }
 
+func (ctx *TestContext) Scope(operationExecutor *httpexpect.Expect, f func(ctx *TestContext)) *TestContext {
+	ctx.OperationExecutor = operationExecutor
+	f(ctx)
+	return ctx
+}
+
 func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object) (string, Object, *BrokerServer) {
 	brokerServer := NewBrokerServerWithCatalog(catalog)
 	UUID, err := uuid.NewV4()
@@ -387,8 +394,11 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, br
 	}
 
 	MergeObjects(brokerJSON, brokerData)
-
-	broker := RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth, map[string]string{})
+	operationExecutor := ctx.SMWithOAuth
+	if ctx.OperationExecutor != nil {
+		operationExecutor = ctx.OperationExecutor
+	}
+	broker := RegisterBrokerInSM(brokerJSON, operationExecutor, map[string]string{})
 	brokerID := broker["id"].(string)
 	brokerServer.ResetCallHistory()
 	ctx.Servers[BrokerServerPrefix+brokerID] = brokerServer
