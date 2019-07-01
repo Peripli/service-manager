@@ -42,7 +42,7 @@ const (
 )
 
 type Notificator struct {
-	isListening bool
+	isListening bool // To be used only under connectionMutex.Lock
 	isConnected int32
 
 	queueSize int
@@ -118,6 +118,8 @@ func (n *Notificator) Start(ctx context.Context, group *sync.WaitGroup) error {
 }
 
 func (n *Notificator) addConsumer(platform *types.Platform, queue storage.NotificationQueue) (int64, error) {
+	// must listen and add consumer under connectionMutex lock as UnregisterConsumer
+	// might stop notification processing if no other consumers are present
 	n.connectionMutex.Lock()
 	defer n.connectionMutex.Unlock()
 	if !n.isListening {
