@@ -20,9 +20,12 @@ import (
 	"fmt"
 	"net/http"
 
+	. "github.com/onsi/gomega"
+
+	"github.com/gavv/httpexpect"
+
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 )
 
 func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase) bool {
@@ -31,34 +34,88 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase) bool {
 		var testResourceID string
 
 		Context("Existing resource", func() {
-			BeforeEach(func() {
-				createFunc := t.ResourceBlueprint
-
+			createResourceFunc := func(auth *httpexpect.Expect) {
 				By(fmt.Sprintf("[SETUP]: Creating test resource of type %s", t.API))
-				testResource = createFunc(ctx)
+				testResource = t.ResourceBlueprint(ctx, auth)
 				Expect(testResource).ToNot(BeEmpty())
 
 				By(fmt.Sprintf("[SETUP]: Verifying that test resource %v has an non empty id of type string", testResource))
 				testResourceID = testResource["id"].(string)
 				Expect(testResourceID).ToNot(BeEmpty())
-			})
+			}
 
-			It("returns 200", func() {
+			verifyResourceDeletion := func(auth *httpexpect.Expect, deletionRequestResponseCode, getAfterDeletionRequestCode int) {
 				By("[TEST]: Verify resource of type %s exists before delete")
 				ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
 					Expect().
 					Status(http.StatusOK).JSON().Object().ContainsMap(testResource)
 
 				By("[TEST]: Verify resource of type %s is deleted successfully")
-				ctx.SMWithOAuth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).
+				auth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).
 					Expect().
-					Status(http.StatusOK)
+					Status(deletionRequestResponseCode)
 
 				By("[TEST]: Verify resource of type %s does not exist after delete")
 				ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
 					Expect().
-					Status(http.StatusNotFound)
+					Status(getAfterDeletionRequestCode)
+			}
+
+			Context("when the resource is global", func() {
+				BeforeEach(func() {
+					createResourceFunc(ctx.SMWithOAuth)
+				})
+
+				Context("when authenticating with basic auth", func() {
+					It("returns 401", func() {
+						ctx.SMWithBasic.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).
+							Expect().
+							Status(http.StatusUnauthorized).JSON().Object().Keys().Contains("error", "description")
+					})
+				})
+
+				Context("when authenticating with global token", func() {
+					It("returns 200", func() {
+						verifyResourceDeletion(ctx.SMWithOAuth, http.StatusOK, http.StatusNotFound)
+					})
+				})
+
+				if !t.DisableTenantResources {
+					Context("when authenticating with tenant scoped token", func() {
+						It("returns 404", func() {
+							verifyResourceDeletion(ctx.SMWithOAuthForTenant, http.StatusNotFound, http.StatusOK)
+						})
+					})
+				}
 			})
+
+			if !t.DisableTenantResources {
+				Context("when the resource is tenant scoped", func() {
+					BeforeEach(func() {
+						createResourceFunc(ctx.SMWithOAuthForTenant)
+					})
+
+					Context("when authenticating with basic auth", func() {
+						It("returns 401", func() {
+							ctx.SMWithBasic.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).
+								Expect().
+								Status(http.StatusUnauthorized).JSON().Object().Keys().Contains("error", "description")
+						})
+					})
+
+					Context("when authenticating with global token", func() {
+						It("returns 200", func() {
+							verifyResourceDeletion(ctx.SMWithOAuth, http.StatusOK, http.StatusNotFound)
+						})
+					})
+
+					Context("when authenticating with tenant scoped token", func() {
+						It("returns 200", func() {
+							verifyResourceDeletion(ctx.SMWithOAuthForTenant, http.StatusOK, http.StatusNotFound)
+						})
+					})
+				})
+			}
 		})
 
 		Context("Not existing resource", func() {
@@ -66,10 +123,20 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase) bool {
 				testResourceID = "non-existing-id"
 			})
 
-			It("returns 404", func() {
-				ctx.SMWithOAuth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).
-					Expect().
-					Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
+			Context("when authenticating with basic auth", func() {
+				It("returns 404", func() {
+					ctx.SMWithOAuth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).
+						Expect().
+						Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
+				})
+			})
+
+			Context("when authenticating with global token", func() {
+				It("returns 404", func() {
+					ctx.SMWithOAuth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).
+						Expect().
+						Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
+				})
 			})
 		})
 	})

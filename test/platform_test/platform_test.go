@@ -21,6 +21,8 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/gavv/httpexpect"
+
 	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -43,7 +45,17 @@ func TestPlatforms(t *testing.T) {
 var _ = test.DescribeTestsFor(test.TestCase{
 	API: web.PlatformsURL,
 	SupportedOps: []test.Op{
-		test.Get, test.List, test.Delete, test.DeleteList,
+		test.Get, test.List, test.Delete, test.DeleteList, test.Patch,
+	},
+	MultitenancySettings: &test.MultitenancySettings{
+		ClientID:           "tenancyClient",
+		ClientIDTokenClaim: "cid",
+		TenantTokenClaim:   "zid",
+		LabelKey:           "tenant",
+		TokenClaims: map[string]interface{}{
+			"cid": "tenancyClient",
+			"zid": "tenantID",
+		},
 	},
 	ResourceBlueprint:                      blueprint(true),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
@@ -325,13 +337,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext) common.Object {
-	return func(ctx *common.TestContext) common.Object {
+func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *httpexpect.Expect) common.Object {
+	return func(_ *common.TestContext, auth *httpexpect.Expect) common.Object {
 		randomPlatform := common.GenerateRandomPlatform()
 		if !setNullFieldsValues {
 			delete(randomPlatform, "description")
 		}
-		platform := ctx.SMWithOAuth.POST(web.PlatformsURL).WithJSON(randomPlatform).
+		platform := auth.POST(web.PlatformsURL).WithJSON(randomPlatform).
 			Expect().
 			Status(http.StatusCreated).JSON().Object().Raw()
 		delete(platform, "credentials")

@@ -21,6 +21,8 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/gavv/httpexpect"
+
 	"github.com/Peripli/service-manager/pkg/web"
 
 	"github.com/Peripli/service-manager/pkg/query"
@@ -41,8 +43,9 @@ func TestVisibilities(t *testing.T) {
 var _ = test.DescribeTestsFor(test.TestCase{
 	API: web.VisibilitiesURL,
 	SupportedOps: []test.Op{
-		test.Get, test.List, test.Delete, test.DeleteList,
+		test.Get, test.List, test.Delete, test.DeleteList, test.Patch,
 	},
+	DisableTenantResources:                 true,
 	ResourceBlueprint:                      blueprint(true),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
 	AdditionalTests: func(ctx *common.TestContext) {
@@ -737,8 +740,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext) common.Object {
-	return func(ctx *common.TestContext) common.Object {
+func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *httpexpect.Expect) common.Object {
+	return func(ctx *common.TestContext, auth *httpexpect.Expect) common.Object {
 		visReqBody := make(common.Object, 0)
 		cPaidPlan := common.GeneratePaidTestPlan()
 		cService := common.GenerateTestServiceWithPlans(cPaidPlan)
@@ -746,23 +749,23 @@ func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext) common.Ob
 		catalog.AddService(cService)
 		id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
 
-		object := ctx.SMWithOAuth.GET(web.ServiceOfferingsURL).WithQuery("fieldQuery", "broker_id = "+id).
+		object := auth.GET(web.ServiceOfferingsURL).WithQuery("fieldQuery", "broker_id = "+id).
 			Expect()
 
 		so := object.Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().First()
 
-		servicePlanID := ctx.SMWithOAuth.GET(web.ServicePlansURL).WithQuery("fieldQuery", fmt.Sprintf("service_offering_id = %s", so.Object().Value("id").String().Raw())).
+		servicePlanID := auth.GET(web.ServicePlansURL).WithQuery("fieldQuery", fmt.Sprintf("service_offering_id = %s", so.Object().Value("id").String().Raw())).
 			Expect().
 			Status(http.StatusOK).JSON().Object().Value("service_plans").Array().First().Object().Value("id").String().Raw()
 		visReqBody["service_plan_id"] = servicePlanID
 		if setNullFieldsValues {
-			platformID := ctx.SMWithOAuth.POST(web.PlatformsURL).WithJSON(common.GenerateRandomPlatform()).
+			platformID := auth.POST(web.PlatformsURL).WithJSON(common.GenerateRandomPlatform()).
 				Expect().
 				Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
 			visReqBody["platform_id"] = platformID
 		}
 
-		visibility := ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(visReqBody).Expect().
+		visibility := auth.POST(web.VisibilitiesURL).WithJSON(visReqBody).Expect().
 			Status(http.StatusCreated).JSON().Object().Raw()
 		return visibility
 	}

@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gavv/httpexpect"
+
 	"github.com/Peripli/service-manager/pkg/query"
 
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -81,11 +83,11 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 	}
 
 	By(fmt.Sprintf("Attempting to create a random resource of %s with mandatory fields only", t.API))
-	rWithMandatoryFields = t.ResourceWithoutNullableFieldsBlueprint(ctx)
+	rWithMandatoryFields = t.ResourceWithoutNullableFieldsBlueprint(ctx, ctx.SMWithOAuth)
 	for i := 0; i < 4; i++ {
 		By(fmt.Sprintf("Attempting to create a random resource of %s", t.API))
 
-		gen := t.ResourceBlueprint(ctx)
+		gen := t.ResourceBlueprint(ctx, ctx.SMWithOAuth)
 		gen = attachLabel(gen)
 		delete(gen, "created_at")
 		delete(gen, "updated_at")
@@ -301,7 +303,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		),
 	}
 
-	verifyListOp := func(listOpEntry listOpEntry, query string) {
+	verifyListOpWithAuth := func(listOpEntry listOpEntry, query string, auth *httpexpect.Expect) {
 		var expectedAfterOpIDs []string
 		var unexpectedAfterOpIDs []string
 		expectedAfterOpIDs = common.ExtractResourceIDs(listOpEntry.resourcesToExpectAfterOp)
@@ -379,6 +381,10 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		}
 	}
 
+	verifyListOp := func(listOpEntry listOpEntry, query string) {
+		verifyListOpWithAuth(listOpEntry, query, ctx.SMWithOAuth)
+	}
+
 	return Describe("List", func() {
 		Context("with basic auth", func() {
 			It("returns 200", func() {
@@ -389,13 +395,41 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		})
 
 		Context("with bearer auth", func() {
-			Context("with no query", func() {
-				It("returns all the resources", func() {
-					verifyListOp(listOpEntry{
+			if !t.DisableTenantResources {
+				Context("when authenticating with tenant scoped token", func() {
+					var rForTenant common.Object
+
+					BeforeEach(func() {
+						rForTenant = t.ResourceBlueprint(ctx, ctx.SMWithOAuthForTenant)
+					})
+
+					It("returns only tenant specific resources", func() {
+						verifyListOpWithAuth(listOpEntry{
+							resourcesToExpectBeforeOp: []common.Object{r[0], r[1], rForTenant},
+							resourcesToExpectAfterOp:  []common.Object{rForTenant},
+							expectedStatusCode:        http.StatusOK,
+						}, "", ctx.SMWithOAuthForTenant)
+					})
+
+					Context("when authenticating with global token", func() {
+						It("it returns all resources", func() {
+							verifyListOpWithAuth(listOpEntry{
+								resourcesToExpectBeforeOp: []common.Object{r[0], r[1], rForTenant},
+								resourcesToExpectAfterOp:  []common.Object{r[0], r[1], rForTenant},
+								expectedStatusCode:        http.StatusOK,
+							}, "", ctx.SMWithOAuth)
+						})
+					})
+				})
+			}
+
+			Context("with no field query", func() {
+				It("it returns all resources", func() {
+					verifyListOpWithAuth(listOpEntry{
 						resourcesToExpectBeforeOp: []common.Object{r[0], r[1]},
 						resourcesToExpectAfterOp:  []common.Object{r[0], r[1]},
 						expectedStatusCode:        http.StatusOK,
-					}, "")
+					}, "", ctx.SMWithOAuth)
 				})
 			})
 
@@ -429,6 +463,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 				})
 			})
 
+			// expand all field and label query test enties into Its wrapped by descriptive Contexts
 			for i := 0; i < len(entries); i++ {
 				params := entries[i].Parameters[0].(listOpEntry)
 				if len(params.queryTemplate) == 0 {

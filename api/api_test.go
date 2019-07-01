@@ -53,7 +53,6 @@ var _ = Describe("API", func() {
 	})
 
 	Describe("New", func() {
-
 		It("returns no error if creation is successful", func() {
 			_, err := api.New(context.TODO(), &api.Options{
 				Repository: mockedStorage,

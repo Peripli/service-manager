@@ -30,7 +30,7 @@ import (
 )
 
 var _ = Describe("Forbidden label operations filter", func() {
-	var filter *filters.ForibiddenLabelOperationsFilter
+	var filter *filters.ProtectedLabelsFilter
 	var handler *webfakes.FakeHandler
 	var protectedLabels []string
 
@@ -40,7 +40,7 @@ var _ = Describe("Forbidden label operations filter", func() {
 
 	JustBeforeEach(func() {
 		handler = &webfakes.FakeHandler{}
-		filter = filters.NewForbiddenLabelOperationsFilter(protectedLabels)
+		filter = filters.NewProtectedLabelsFilter(protectedLabels)
 	})
 
 	Context("POST", func() {

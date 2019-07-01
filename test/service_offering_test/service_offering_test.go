@@ -17,11 +17,13 @@
 package service_test
 
 import (
+	"net/http"
+	"testing"
+
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
-	"net/http"
-	"testing"
+	"github.com/gavv/httpexpect"
 
 	"github.com/Peripli/service-manager/test/common"
 
@@ -40,13 +42,13 @@ func TestServiceOfferings(t *testing.T) {
 var _ = test.DescribeTestsFor(test.TestCase{
 	API: web.ServiceOfferingsURL,
 	SupportedOps: []test.Op{
-		test.Get, test.List,
+		test.Get, test.List, test.Patch,
 	},
+	DisableTenantResources:                 true,
 	ResourceBlueprint:                      blueprint,
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
 	AdditionalTests: func(ctx *common.TestContext) {
 		Context("additional non-generic tests", func() {
-
 			Describe("PATCH", func() {
 				var id string
 
@@ -65,7 +67,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 					patchLabelsBody["labels"] = patchLabels
 
-					offering := blueprint(ctx)
+					offering := blueprint(ctx, ctx.SMWithOAuth)
 					id = offering["id"].(string)
 				})
 
@@ -136,7 +138,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 					patchLabelsBody["labels"] = patchLabels
 
-					offering := blueprint(ctx)
+					offering := blueprint(ctx, ctx.SMWithOAuth)
 					id = offering["id"].(string)
 
 					ctx.SMWithOAuth.PATCH(web.ServiceOfferingsURL + "/" + id).
@@ -339,13 +341,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func blueprint(ctx *common.TestContext) common.Object {
+func blueprint(ctx *common.TestContext, auth *httpexpect.Expect) common.Object {
 	cService := common.GenerateTestServiceWithPlans()
 	catalog := common.NewEmptySBCatalog()
 	catalog.AddService(cService)
 	id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
 
-	so := ctx.SMWithOAuth.GET(web.ServiceOfferingsURL).WithQuery("fieldQuery", "broker_id = "+id).
+	so := auth.GET(web.ServiceOfferingsURL).WithQuery("fieldQuery", "broker_id = "+id).
 		Expect().
 		Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().First()
 

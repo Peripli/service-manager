@@ -18,10 +18,11 @@ package broker_test
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/web"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/Peripli/service-manager/pkg/web"
 
 	"github.com/Peripli/service-manager/storage"
 
@@ -49,7 +50,17 @@ func TestBrokers(t *testing.T) {
 var _ = test.DescribeTestsFor(test.TestCase{
 	API: web.ServiceBrokersURL,
 	SupportedOps: []test.Op{
-		test.Get, test.List, test.Delete, test.DeleteList,
+		test.Get, test.List, test.Delete, test.DeleteList, test.Patch,
+	},
+	MultitenancySettings: &test.MultitenancySettings{
+		ClientID:           "tenancyClient",
+		ClientIDTokenClaim: "cid",
+		TenantTokenClaim:   "zid",
+		LabelKey:           "tenant",
+		TokenClaims: map[string]interface{}{
+			"cid": "tenancyClient",
+			"zid": "tenantID",
+		},
 	},
 	ResourceBlueprint:                      blueprint(true),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
@@ -198,7 +209,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect().
 								Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
 
-							brokerFromDB, err := repository.Get(context.TODO(), types.ServiceBrokerType, id)
+							byID := query.ByField(query.EqualsOperator, "id", id)
+							brokerFromDB, err := repository.Get(context.TODO(), types.ServiceBrokerType, byID)
 							Expect(err).ToNot(HaveOccurred())
 
 							Expect(string(brokerFromDB.(*types.ServiceBroker).Catalog)).To(MatchJSON(string(brokerServer.Catalog)))
@@ -454,7 +466,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						WithJSON(common.Object{}).
 						Expect()
 
-					brokerFromDB, err := repository.Get(context.TODO(), types.ServiceBrokerType, brokerID)
+					byID := query.ByField(query.EqualsOperator, "id", brokerID)
+					brokerFromDB, err := repository.Get(context.TODO(), types.ServiceBrokerType, byID)
 					Expect(err).ToNot(HaveOccurred())
 
 					Expect(string(brokerFromDB.(*types.ServiceBroker).Catalog)).To(MatchJSON(expectedCatalog))
@@ -1587,14 +1600,14 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext) common.Object {
-	return func(ctx *common.TestContext) common.Object {
+func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *httpexpect.Expect) common.Object {
+	return func(ctx *common.TestContext, auth *httpexpect.Expect) common.Object {
 		brokerJSON := common.GenerateRandomBroker()
 
 		if !setNullFieldsValues {
 			delete(brokerJSON, "description")
 		}
-		obj := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(brokerJSON).
+		obj := auth.POST(web.ServiceBrokersURL).WithJSON(brokerJSON).
 			Expect().
 			Status(http.StatusCreated).JSON().Object().Raw()
 		delete(obj, "credentials")
