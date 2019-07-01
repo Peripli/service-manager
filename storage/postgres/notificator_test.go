@@ -337,7 +337,7 @@ var _ = Describe("Notificator", func() {
 			})
 
 			It("Should return error", func() {
-				expectRegisterConsumerFail("listen to notifications channel failed "+expectedError.Error(), types.InvalidRevision)
+				expectRegisterConsumerFail("getting last revision failed "+expectedError.Error(), types.InvalidRevision)
 			})
 		})
 
@@ -448,6 +448,13 @@ var _ = Describe("Notificator", func() {
 			It("Should return error", func() {
 				fakeNotificationConnection.ListenReturns(expectedError)
 				expectRegisterConsumerFail(expectedError.Error(), types.InvalidRevision)
+			})
+
+			Context("And this error is pq.ErrChannelAlreadyOpen", func() {
+				It("Should register consumer", func() {
+					fakeNotificationConnection.ListenReturns(pq.ErrChannelAlreadyOpen)
+					expectRegisterConsumerSuccess(defaultPlatform, types.InvalidRevision)
+				})
 			})
 		})
 
