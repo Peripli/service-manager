@@ -40,6 +40,16 @@ type FakeNotificationConnection struct {
 	notificationChannelReturnsOnCall map[int]struct {
 		result1 <-chan *pq.Notification
 	}
+	PingStub        func() error
+	pingMutex       sync.RWMutex
+	pingArgsForCall []struct {
+	}
+	pingReturns struct {
+		result1 error
+	}
+	pingReturnsOnCall map[int]struct {
+		result1 error
+	}
 	UnlistenStub        func(string) error
 	unlistenMutex       sync.RWMutex
 	unlistenArgsForCall []struct {
@@ -219,6 +229,58 @@ func (fake *FakeNotificationConnection) NotificationChannelReturnsOnCall(i int, 
 	}{result1}
 }
 
+func (fake *FakeNotificationConnection) Ping() error {
+	fake.pingMutex.Lock()
+	ret, specificReturn := fake.pingReturnsOnCall[len(fake.pingArgsForCall)]
+	fake.pingArgsForCall = append(fake.pingArgsForCall, struct {
+	}{})
+	fake.recordInvocation("Ping", []interface{}{})
+	fake.pingMutex.Unlock()
+	if fake.PingStub != nil {
+		return fake.PingStub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.pingReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeNotificationConnection) PingCallCount() int {
+	fake.pingMutex.RLock()
+	defer fake.pingMutex.RUnlock()
+	return len(fake.pingArgsForCall)
+}
+
+func (fake *FakeNotificationConnection) PingCalls(stub func() error) {
+	fake.pingMutex.Lock()
+	defer fake.pingMutex.Unlock()
+	fake.PingStub = stub
+}
+
+func (fake *FakeNotificationConnection) PingReturns(result1 error) {
+	fake.pingMutex.Lock()
+	defer fake.pingMutex.Unlock()
+	fake.PingStub = nil
+	fake.pingReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeNotificationConnection) PingReturnsOnCall(i int, result1 error) {
+	fake.pingMutex.Lock()
+	defer fake.pingMutex.Unlock()
+	fake.PingStub = nil
+	if fake.pingReturnsOnCall == nil {
+		fake.pingReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.pingReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeNotificationConnection) Unlisten(arg1 string) error {
 	fake.unlistenMutex.Lock()
 	ret, specificReturn := fake.unlistenReturnsOnCall[len(fake.unlistenArgsForCall)]
@@ -288,6 +350,8 @@ func (fake *FakeNotificationConnection) Invocations() map[string][][]interface{}
 	defer fake.listenMutex.RUnlock()
 	fake.notificationChannelMutex.RLock()
 	defer fake.notificationChannelMutex.RUnlock()
+	fake.pingMutex.RLock()
+	defer fake.pingMutex.RUnlock()
 	fake.unlistenMutex.RLock()
 	defer fake.unlistenMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}

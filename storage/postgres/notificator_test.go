@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/gofrs/uuid"
 
@@ -99,7 +100,9 @@ var _ = Describe("Notificator", func() {
 			},
 			storage:           fakeStorage,
 			connectionCreator: fakeConnectionCreator,
+			stopProcessing:    func() {},
 			lastKnownRevision: types.InvalidRevision,
+			dbPingInterval:    time.Millisecond * 10,
 		}
 	}
 
@@ -129,6 +132,15 @@ var _ = Describe("Notificator", func() {
 		return string(notificationPayloadJSON)
 	}
 
+	expectUnlistenCalled := func(unlistenCalled chan struct{}) {
+		select {
+		case <-unlistenCalled:
+			break
+		case <-time.After(time.Second * 3):
+			Fail("Expected unlisten to be called")
+		}
+	}
+
 	BeforeEach(func() {
 		ctx, cancel = context.WithCancel(context.Background())
 		wg = &sync.WaitGroup{}
@@ -142,6 +154,7 @@ var _ = Describe("Notificator", func() {
 		fakeNotificationConnection = &notificationConnectionFakes.FakeNotificationConnection{}
 		fakeNotificationConnection.ListenReturns(nil)
 		fakeNotificationConnection.UnlistenReturns(nil)
+		fakeNotificationConnection.PingReturns(nil)
 		fakeNotificationConnection.CloseReturns(nil)
 		notificationChannel = make(chan *pq.Notification, 2)
 		fakeNotificationConnection.NotificationChannelReturns(notificationChannel)
@@ -262,9 +275,41 @@ var _ = Describe("Notificator", func() {
 
 		Context("When id is found", func() {
 			It("Should unregister consumer", func() {
+				unlistenCalled := make(chan struct{}, 1)
+				fakeNotificationConnection.UnlistenStub = func(s string) error {
+					Expect(s).To(Equal(postgresChannel))
+					unlistenCalled <- struct{}{}
+					return nil
+				}
 				err := testNotificator.UnregisterConsumer(queue)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(fakeNotificationConnection.UnlistenCallCount()).To(Equal(1))
+				expectUnlistenCalled(unlistenCalled)
+			})
+		})
+
+		Context("When unregister is called twice on a given consumer", func() {
+			It("Should not return error on second unregister", func() {
+				err := testNotificator.UnregisterConsumer(queue)
+				Expect(err).ToNot(HaveOccurred())
+				err = testNotificator.UnregisterConsumer(queue)
+				Expect(err).ToNot(HaveOccurred())
+			})
+		})
+
+		Context("When consumer is unregistered and then registered again after unlisten", func() {
+			It("Should listen again", func(done Done) {
+				fakeNotificationConnection.UnlistenStub = func(s string) error {
+					Expect(s).To(Equal(postgresChannel))
+					fakeNotificationConnection.UnlistenReturns(nil)
+					go func() {
+						registerDefaultPlatform()
+						Expect(fakeNotificationConnection.ListenCallCount()).To(Equal(2))
+						close(done)
+					}()
+					return nil
+				}
+				err := testNotificator.UnregisterConsumer(queue)
+				Expect(err).ToNot(HaveOccurred())
 			})
 		})
 
@@ -277,14 +322,6 @@ var _ = Describe("Notificator", func() {
 			})
 		})
 
-		Context("When unlisten returns error", func() {
-			It("Should unregister consumer", func() {
-				fakeNotificationConnection.UnlistenReturns(expectedError)
-				err := testNotificator.UnregisterConsumer(queue)
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring(expectedError.Error()))
-			})
-		})
 	})
 
 	Describe("RegisterConsumer", func() {
@@ -300,7 +337,7 @@ var _ = Describe("Notificator", func() {
 			})
 
 			It("Should return error", func() {
-				expectRegisterConsumerFail("listen to notifications channel failed "+expectedError.Error(), types.InvalidRevision)
+				expectRegisterConsumerFail("getting last revision failed "+expectedError.Error(), types.InvalidRevision)
 			})
 		})
 
@@ -308,6 +345,16 @@ var _ = Describe("Notificator", func() {
 			It("Should not return error", func() {
 				registerDefaultPlatform()
 				Expect(fakeNotificationConnection.ListenCallCount()).To(Equal(1))
+			})
+		})
+
+		Context("When Notificator is running", func() {
+			It("Should ping db regularly", func(done Done) {
+				fakeNotificationConnection.PingStub = func() error {
+					defer close(done)
+					return nil
+				}
+				registerDefaultPlatform()
 			})
 		})
 
@@ -320,18 +367,29 @@ var _ = Describe("Notificator", func() {
 		Context("When registering with 0 < revision < sm_revision", func() {
 			Context("When storage returns error when getting notification with revision", func() {
 				It("Should return the error", func() {
+					unlistenCalled := make(chan struct{}, 1)
+					fakeNotificationConnection.UnlistenStub = func(s string) error {
+						Expect(s).To(Equal(postgresChannel))
+						unlistenCalled <- struct{}{}
+						return nil
+					}
 					fakeStorage.GetNotificationByRevisionReturns(nil, expectedError)
 					expectRegisterConsumerFail(expectedError.Error(), defaultLastRevision-1)
-					Expect(fakeNotificationConnection.UnlistenCallCount()).To(Equal(1))
+					expectUnlistenCalled(unlistenCalled)
 				})
 			})
 
 			Context("When storage returns error and unlisten returns error when getting notification with revision", func() {
 				It("Should return the storage error", func() {
+					unlistenCalled := make(chan struct{}, 1)
+					fakeNotificationConnection.UnlistenStub = func(s string) error {
+						Expect(s).To(Equal(postgresChannel))
+						unlistenCalled <- struct{}{}
+						return errors.New("unlisten error")
+					}
 					fakeStorage.GetNotificationByRevisionReturns(nil, expectedError)
-					fakeNotificationConnection.UnlistenReturns(errors.New("unlisten error"))
 					expectRegisterConsumerFail(expectedError.Error(), defaultLastRevision-1)
-					Expect(fakeNotificationConnection.UnlistenCallCount()).To(Equal(1))
+					expectUnlistenCalled(unlistenCalled)
 				})
 			})
 
@@ -390,6 +448,13 @@ var _ = Describe("Notificator", func() {
 			It("Should return error", func() {
 				fakeNotificationConnection.ListenReturns(expectedError)
 				expectRegisterConsumerFail(expectedError.Error(), types.InvalidRevision)
+			})
+
+			Context("And this error is pq.ErrChannelAlreadyOpen", func() {
+				It("Should register consumer", func() {
+					fakeNotificationConnection.ListenReturns(pq.ErrChannelAlreadyOpen)
+					expectRegisterConsumerSuccess(defaultPlatform, types.InvalidRevision)
+				})
 			})
 		})
 
