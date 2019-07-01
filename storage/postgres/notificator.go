@@ -378,9 +378,10 @@ func (n *Notificator) processNotificationPayload(payload *notifyEventPayload) er
 		return fmt.Errorf("notification %s could not be retrieved from the DB: %v", notificationID, err.Error())
 	}
 	recipients = n.filterRecipients(recipients, notification)
-	log.C(n.ctx).Debugf("%d recipients will receive notification %s", len(recipients), notificationID)
+	log.C(n.ctx).Debugf("%d platforms should receive notification %s", len(recipients), notificationID)
 	for _, platform := range recipients {
-		n.sendNotificationToPlatformConsumers(n.consumers.GetQueuesForPlatform(platform.ID), notification)
+		platformID := platform.ID
+		n.sendNotificationToPlatformConsumers(platformID, n.consumers.GetQueuesForPlatform(platformID), notification)
 	}
 	return nil
 }
@@ -396,7 +397,8 @@ func (n *Notificator) getRecipients(platformID string) []*types.Platform {
 	return []*types.Platform{platform}
 }
 
-func (n *Notificator) sendNotificationToPlatformConsumers(platformConsumers []storage.NotificationQueue, notification *types.Notification) {
+func (n *Notificator) sendNotificationToPlatformConsumers(platformID string, platformConsumers []storage.NotificationQueue, notification *types.Notification) {
+	log.C(n.ctx).Debugf("Sending notification %s to %d consumers for platform %s", notification.ID, len(platformConsumers), platformID)
 	for _, consumer := range platformConsumers {
 		if err := consumer.Enqueue(notification); err != nil {
 			log.C(n.ctx).WithError(err).Infof("Consumer %s notification queue returned error %v", consumer.ID(), err)
