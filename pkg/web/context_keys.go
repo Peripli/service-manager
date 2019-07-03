@@ -13,8 +13,8 @@ const (
 
 // UserFromContext gets the authenticated user from the context
 func UserFromContext(ctx context.Context) (*UserContext, bool) {
-	userStr, ok := ctx.Value(userKey).(*UserContext)
-	return userStr, ok
+	userCtx, ok := ctx.Value(userKey).(*UserContext)
+	return userCtx, ok && userCtx != nil
 }
 
 // ContextWithUser sets the authenticated user in the context
