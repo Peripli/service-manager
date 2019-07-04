@@ -365,6 +365,10 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 }
 
 func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object) (string, Object, *BrokerServer) {
+	return ctx.RegisterBrokerWithCatalogAndLabelsExpect(catalog, brokerData, ctx.SMWithOAuth)
+}
+
+func (ctx *TestContext) RegisterBrokerWithCatalogAndLabelsExpect(catalog SBCatalog, brokerData Object, expect *httpexpect.Expect) (string, Object, *BrokerServer) {
 	brokerServer := NewBrokerServerWithCatalog(catalog)
 	UUID, err := uuid.NewV4()
 	if err != nil {
@@ -388,7 +392,7 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, br
 
 	MergeObjects(brokerJSON, brokerData)
 
-	broker := RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth, map[string]string{})
+	broker := RegisterBrokerInSM(brokerJSON, expect, map[string]string{})
 	brokerID := broker["id"].(string)
 	brokerServer.ResetCallHistory()
 	ctx.Servers[BrokerServerPrefix+brokerID] = brokerServer
