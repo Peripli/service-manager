@@ -23,13 +23,11 @@ import (
 	"fmt"
 	h "github.com/InVisionApp/go-health"
 	l "github.com/InVisionApp/go-logger/shims/logrus"
+	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/pkg/health"
 	"net"
 	"net/http"
 	"sync"
-	"time"
-
-	"github.com/Peripli/service-manager/api/osb"
 
 	"github.com/Peripli/service-manager/storage/catalog"
 
@@ -159,11 +157,6 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 		cfg:                 cfg,
 	}
 
-	err = smb.installHealth(cfg.Health)
-	if err != nil {
-		return nil, fmt.Errorf("error adding health chech to sm: %s", err)
-	}
-
 	// Register default interceptors that represent the core SM business logic
 	smb.
 		WithCreateInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerCreateCatalogInterceptorProvider{
@@ -194,8 +187,6 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	}
 
 	// setup server and add relevant global middleware
-	smb.installHealth()
-
 	srv := server.New(smb.cfg.Server, smb.API)
 	srv.Use(filters.NewRecoveryMiddleware())
 
@@ -225,7 +216,7 @@ func (smb *ServiceManagerBuilder) installHealth() error {
 		if err := healthz.AddCheck(&h.Config{
 			Name:     indicator.Name(),
 			Checker:  indicator,
-			Interval: indicator.Interval() * time.Second,
+			Interval: indicator.Interval(),
 			Fatal:    indicator.Fatal(),
 		}); err != nil {
 			return err

@@ -67,7 +67,7 @@ func (is *IndicatorSettings) Validate() error {
 	if is.FailuresTreshold <= 0 {
 		return fmt.Errorf("validate Settings: FailuresTreshold must be > 0")
 	}
-	if is.Interval < 30 {
+	if is.Interval < 30*time.Second {
 		return fmt.Errorf("validate Settings: Minimum interval is 30 seconds")
 	}
 	return nil
