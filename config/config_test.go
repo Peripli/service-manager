@@ -18,6 +18,7 @@ package config_test
 
 import (
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/health"
 	"testing"
 	"time"
 
@@ -44,9 +45,23 @@ var _ = Describe("config", func() {
 	)
 
 	Describe("Validate", func() {
+		var fatal bool
+		var failuresTreshold int64
+		var interval time.Duration
+
 		assertErrorDuringValidate := func() {
 			err = config.Validate()
 			Expect(err).To(HaveOccurred())
+		}
+
+		registerIndicatorSettings := func() {
+			indicatorSettings := &health.IndicatorSettings{
+				Fatal:            fatal,
+				FailuresTreshold: failuresTreshold,
+				Interval:         interval,
+			}
+
+			config.Health.IndicatorsSettings["test"] = indicatorSettings
 		}
 
 		BeforeEach(func() {
@@ -56,6 +71,46 @@ var _ = Describe("config", func() {
 			config.API.ClientID = "sm"
 			config.API.SkipSSLValidation = true
 			config.Storage.EncryptionKey = "ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8"
+
+			fatal = false
+			failuresTreshold = 1
+			interval = 30 * time.Second
+		})
+
+		Context("health indicator with negative treshold", func() {
+			It("should be considered invalid", func() {
+				failuresTreshold = -1
+				registerIndicatorSettings()
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("health indicator with 0 treshold", func() {
+			It("should be considered invalid", func() {
+				failuresTreshold = 0
+				registerIndicatorSettings()
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("health indicator with interval less than 30", func() {
+			It("should be considered invalid", func() {
+				interval = 15 * time.Second
+				registerIndicatorSettings()
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("health indicator with positive treshold and interval >= 30", func() {
+			It("should be considered valid", func() {
+				interval = 30 * time.Second
+				failuresTreshold = 3
+				registerIndicatorSettings()
+
+				err := config.Validate()
+
+				Expect(err).ShouldNot(HaveOccurred())
+			})
 		})
 
 		Context("when config is valid", func() {

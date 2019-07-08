@@ -27,7 +27,7 @@ func (*pingIndicator) Name() string {
 }
 
 func (*pingIndicator) Interval() time.Duration {
-	return 30
+	return 30 * time.Second
 }
 
 func (*pingIndicator) FailuresTreshold() int64 {
