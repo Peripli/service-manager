@@ -90,7 +90,7 @@ func (c *Controller) handler(request *web.Request, f func(r *web.Request, logger
 
 func (c *Controller) catalog(r *web.Request, logger *logrus.Entry, broker *types.ServiceBroker) (*web.Response, error) {
 	if len(broker.Catalog) == 0 {
-		logger.Debugf("Fetching catalog for broker with id %s from service broker catalog endpoint", broker.ID)
+		logger.Infof("Fetching catalog for broker with id %s from service broker catalog endpoint", broker.ID)
 		return c.proxy(r, logger, broker)
 	}
 
@@ -141,10 +141,10 @@ func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.Se
 	director := proxy.Director
 	proxy.Director = func(request *http.Request) {
 		director(request)
-		logger.Debugf("Forwarded OSB request to service broker %s at %s", broker.Name, request.URL)
+		logger.Infof("Forwarded OSB request to service broker %s at %s", broker.Name, request.URL)
 	}
 	proxy.ModifyResponse = func(response *http.Response) error {
-		logger.Debugf("Service broker %s replied with status %d", broker.Name, response.StatusCode)
+		logger.Infof("Service broker %s replied with status %d", broker.Name, response.StatusCode)
 		return nil
 	}
 	proxy.ErrorHandler = func(writer http.ResponseWriter, request *http.Request, e error) {
