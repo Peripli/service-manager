@@ -21,6 +21,9 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/spf13/pflag"
 
 	"github.com/Peripli/service-manager/pkg/web"
 
@@ -243,6 +246,45 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(postBrokerRequestWithNoLabels).
 							Expect().
 							Status(http.StatusBadGateway).JSON().Object().Keys().Contains("error", "description")
+					})
+				})
+
+				Context("when the broker call for catalog times out ", func() {
+					var (
+						timeoutTestCtx          *common.TestContext
+						brokerCatalogStopCancel context.CancelFunc
+					)
+
+					BeforeEach(func() {
+						timeoutDuration := time.Millisecond * 500
+						timeoutTestCtx = common.NewTestContextBuilder().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+							Expect(set.Set("httpclient.response_header_timeout", timeoutDuration.String())).ToNot(HaveOccurred())
+						}).Build()
+
+						var brokerCatalogStopCtx context.Context
+						brokerCatalogStopCtx, brokerCatalogStopCancel = context.WithCancel(context.Background())
+
+						brokerServer.CatalogHandler = func(rw http.ResponseWriter, req *http.Request) {
+							catalogStopDuration := timeoutDuration + time.Second // Continue with request a second after the expected timeout
+							continueCtx, _ := context.WithTimeout(brokerCatalogStopCtx, catalogStopDuration)
+
+							<-continueCtx.Done()
+
+							common.SetResponse(rw, http.StatusTeapot, common.Object{})
+						}
+					})
+
+					AfterEach(func() {
+						if brokerCatalogStopCancel != nil {
+							brokerCatalogStopCancel()
+						}
+						timeoutTestCtx.Cleanup()
+					})
+
+					It("returns 502", func() {
+						timeoutTestCtx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(postBrokerRequestWithNoLabels).
+							Expect().
+							Status(http.StatusBadGateway).JSON().Object().Value("description").String().Contains("could not reach service broker")
 					})
 				})
 

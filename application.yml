@@ -4,6 +4,11 @@ server:
   port: 8085
   # max_body_bytes: 4000
   # max_header_bytes: 1000
+httpclient:
+  response_header_timeout: 10000ms
+  tls_handshake_timeout: 10000ms
+  idle_conn_timeout: 10000ms
+  dial_timeout: 10000ms
 websocket:
   ping_timeout: 6000ms
   write_timeout: 6000ms
