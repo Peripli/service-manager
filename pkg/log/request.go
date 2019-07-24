@@ -23,7 +23,7 @@ import (
 )
 
 // CorrelationIDHeaders are the headers whose values will be taken as a correlation id for incoming requests
-var CorrelationIDHeaders = []string{"X-Correlation-ID", "X-CorrelationID", "X-ForRequest-ID", "X-Request-ID"}
+var CorrelationIDHeaders = []string{"X-Correlation-ID", "X-CorrelationID", "X-ForRequest-ID", "X-Request-ID", "X-Vcap-Request-Id"}
 
 // CorrelationIDForRequest returns checks the http headers for any of the supported correlation id headers.
 // The first that matches is taken as the correlation id. If none exists a new one is generated.
