@@ -69,6 +69,7 @@ type TestContextBuilder struct {
 
 	Environment func(f ...func(set *pflag.FlagSet)) env.Environment
 	Servers     map[string]FakeServer
+	HttpClient  *http.Client
 }
 
 type TestContext struct {
@@ -137,6 +138,19 @@ func NewTestContextBuilder() *TestContextBuilder {
 		tenantTokenClaims:  make(map[string]interface{}, 0),
 		Servers: map[string]FakeServer{
 			"oauth-server": NewOAuthServer(),
+		},
+		HttpClient: &http.Client{
+			Transport: &http.Transport{
+				Proxy: http.ProxyFromEnvironment,
+				DialContext: (&net.Dialer{
+					Timeout:   20 * time.Second,
+					KeepAlive: 20 * time.Second,
+				}).DialContext,
+				MaxIdleConns:          100,
+				IdleConnTimeout:       30 * time.Second,
+				TLSHandshakeTimeout:   10 * time.Second,
+				ExpectContinueTimeout: 1 * time.Second,
+			},
 		},
 	}
 }
@@ -255,12 +269,12 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener) *TestCon
 	oauthServer := tcb.Servers[OauthServer].(*OAuthServer)
 	accessToken := oauthServer.CreateToken(tcb.defaultTokenClaims)
 	SMWithOAuth := SM.Builder(func(req *httpexpect.Request) {
-		req.WithHeader("Authorization", "Bearer "+accessToken)
+		req.WithHeader("Authorization", "Bearer "+accessToken).WithClient(tcb.HttpClient)
 	})
 
 	tenantAccessToken := oauthServer.CreateToken(tcb.tenantTokenClaims)
 	SMWithOAuthForTenant := SM.Builder(func(req *httpexpect.Request) {
-		req.WithHeader("Authorization", "Bearer "+tenantAccessToken)
+		req.WithHeader("Authorization", "Bearer "+tenantAccessToken).WithClient(tcb.HttpClient)
 	})
 
 	RemoveAllBrokers(SMWithOAuth)
@@ -280,7 +294,7 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener) *TestCon
 		platform := RegisterPlatformInSM(platformJSON, SMWithOAuth, map[string]string{})
 		SMWithBasic := SM.Builder(func(req *httpexpect.Request) {
 			username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
-			req.WithBasicAuth(username, password)
+			req.WithBasicAuth(username, password).WithClient(tcb.HttpClient)
 		})
 		testContext.SMWithBasic = SMWithBasic
 		testContext.TestPlatform = platform

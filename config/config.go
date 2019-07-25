@@ -19,6 +19,8 @@ package config
 import (
 	"fmt"
 
+	"github.com/Peripli/service-manager/pkg/httpclient"
+
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/log"
@@ -30,11 +32,12 @@ import (
 
 // Settings is used to setup the Service Manager
 type Settings struct {
-	Server    *server.Settings
-	Storage   *storage.Settings
-	Log       *log.Settings
-	API       *api.Settings
-	WebSocket *ws.Settings
+	Server     *server.Settings
+	Storage    *storage.Settings
+	Log        *log.Settings
+	API        *api.Settings
+	WebSocket  *ws.Settings
+	HTTPClient *httpclient.Settings
 }
 
 // AddPFlags adds the SM config flags to the provided flag set
@@ -46,11 +49,12 @@ func AddPFlags(set *pflag.FlagSet) {
 // DefaultSettings returns the default values for configuring the Service Manager
 func DefaultSettings() *Settings {
 	return &Settings{
-		Server:    server.DefaultSettings(),
-		Storage:   storage.DefaultSettings(),
-		Log:       log.DefaultSettings(),
-		API:       api.DefaultSettings(),
-		WebSocket: ws.DefaultSettings(),
+		Server:     server.DefaultSettings(),
+		Storage:    storage.DefaultSettings(),
+		Log:        log.DefaultSettings(),
+		API:        api.DefaultSettings(),
+		WebSocket:  ws.DefaultSettings(),
+		HTTPClient: httpclient.DefaultSettings(),
 	}
 }
 

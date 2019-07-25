@@ -21,6 +21,7 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"fmt"
+	"net"
 	"net/http"
 	"sync"
 
@@ -75,10 +76,16 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 		return nil, fmt.Errorf("error validating configuration: %s", err)
 	}
 
-	// Setup the default http client
-	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: cfg.API.SkipSSLValidation}
-	http.DefaultClient.Transport = http.DefaultTransport
-	http.DefaultClient.Timeout = cfg.Server.RequestTimeout
+	// Setup the default http client and transport
+	transport := http.DefaultTransport.(*http.Transport)
+
+	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: cfg.API.SkipSSLValidation}
+	transport.ResponseHeaderTimeout = cfg.HTTPClient.ResponseHeaderTimeout
+	transport.TLSHandshakeTimeout = cfg.HTTPClient.TLSHandshakeTimeout
+	transport.IdleConnTimeout = cfg.HTTPClient.IdleConnTimeout
+	transport.DialContext = (&net.Dialer{Timeout: cfg.HTTPClient.DialTimeout}).DialContext
+
+	http.DefaultClient.Transport = transport
 
 	// Setup logging
 	ctx = log.Configure(ctx, cfg.Log)
