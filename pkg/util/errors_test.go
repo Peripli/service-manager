@@ -20,6 +20,9 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/url"
+
+	"github.com/Peripli/service-manager/pkg/util/utilfakes"
 
 	"net/http/httptest"
 
@@ -27,14 +30,14 @@ import (
 
 	"encoding/json"
 
-	"fmt"
-
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/test/common"
 	"github.com/Peripli/service-manager/test/testutil"
 	. "github.com/onsi/ginkgo"
 	"github.com/sirupsen/logrus"
 )
+
+//go:generate counterfeiter io.ReadCloser
 
 var _ = Describe("Errors", func() {
 
@@ -86,7 +89,23 @@ var _ = Describe("Errors", func() {
 		})
 	})
 
-	Describe("HandleClientError", func() {
+	Describe("HandleResponseError", func() {
+		Context("When response body cannot be read", func() {
+			It("return an error with the error in the body", func() {
+				fakeBody := &utilfakes.FakeReadCloser{}
+				readError := errors.New("read-error")
+				fakeBody.ReadReturns(0, readError)
+
+				response := &http.Response{
+					StatusCode: http.StatusInternalServerError,
+					Body:       fakeBody,
+				}
+				err := util.HandleResponseError(response)
+				Expect(err.Error()).To(SatisfyAll(
+					ContainSubstring("500"), ContainSubstring(readError.Error())))
+			})
+		})
+
 		Context("when response contains HTTPError", func() {
 			It("returns an HTTPError containing the same error information", func() {
 				bytes, err := json.Marshal(testHTTPError)
@@ -100,33 +119,50 @@ var _ = Describe("Errors", func() {
 
 				err = util.HandleResponseError(response)
 				validateHTTPErrorOccurred(err, response.StatusCode)
-
 			})
 		})
 
 		Context("when response contains standard error", func() {
-			It("returns an error containing information about the error handling failure", func() {
-				e := fmt.Errorf("test error")
-				r := http.Request{}
+			It("returns an error containing the response body and status code", func() {
+				e := "test error"
 				response := &http.Response{
 					StatusCode: http.StatusTeapot,
-					Body:       common.Closer(e.Error()),
-					Request:    r.WithContext(context.TODO()),
+					Body:       common.Closer(e),
 				}
 
 				err := util.HandleResponseError(response)
-				Expect(err.Error()).To(ContainSubstring(e.Error()))
+				Expect(err.Error()).To(ContainSubstring(e))
+			})
+		})
+
+		Context("when response is linked to request", func() {
+			It("returns an error containing information about the failing request", func() {
+				e := "test error"
+				u, _ := url.Parse("http://host/path")
+				r := http.Request{
+					Method: http.MethodPost,
+					URL:    u,
+				}
+				response := &http.Response{
+					StatusCode: http.StatusTeapot,
+					Body:       common.Closer(e),
+					Request:    &r,
+				}
+
+				err := util.HandleResponseError(response)
+				Expect(err.Error()).To(SatisfyAll(
+					ContainSubstring(r.Method),
+					ContainSubstring(r.URL.String()),
+					ContainSubstring(e)))
 			})
 		})
 
 		Context("when response contains JSON error that has no description", func() {
 			It("returns an error containing the response body", func() {
 				e := `{"key":"value"}`
-				r := http.Request{}
 				response := &http.Response{
 					StatusCode: http.StatusTeapot,
 					Body:       common.Closer(e),
-					Request:    r.WithContext(context.TODO()),
 				}
 
 				err := util.HandleResponseError(response)
