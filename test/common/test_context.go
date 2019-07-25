@@ -67,9 +67,9 @@ type TestContextBuilder struct {
 
 	shouldSkipBasicAuthClient bool
 
-	Environment    func(f ...func(set *pflag.FlagSet)) env.Environment
-	Servers        map[string]FakeServer
-	TestHttpClient *http.Client
+	Environment func(f ...func(set *pflag.FlagSet)) env.Environment
+	Servers     map[string]FakeServer
+	HttpClient  *http.Client
 }
 
 type TestContext struct {
@@ -139,7 +139,7 @@ func NewTestContextBuilder() *TestContextBuilder {
 		Servers: map[string]FakeServer{
 			"oauth-server": NewOAuthServer(),
 		},
-		TestHttpClient: &http.Client{
+		HttpClient: &http.Client{
 			Transport: &http.Transport{
 				Proxy: http.ProxyFromEnvironment,
 				DialContext: (&net.Dialer{
@@ -269,12 +269,12 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener) *TestCon
 	oauthServer := tcb.Servers[OauthServer].(*OAuthServer)
 	accessToken := oauthServer.CreateToken(tcb.defaultTokenClaims)
 	SMWithOAuth := SM.Builder(func(req *httpexpect.Request) {
-		req.WithHeader("Authorization", "Bearer "+accessToken).WithClient(tcb.TestHttpClient)
+		req.WithHeader("Authorization", "Bearer "+accessToken).WithClient(tcb.HttpClient)
 	})
 
 	tenantAccessToken := oauthServer.CreateToken(tcb.tenantTokenClaims)
 	SMWithOAuthForTenant := SM.Builder(func(req *httpexpect.Request) {
-		req.WithHeader("Authorization", "Bearer "+tenantAccessToken).WithClient(tcb.TestHttpClient)
+		req.WithHeader("Authorization", "Bearer "+tenantAccessToken).WithClient(tcb.HttpClient)
 	})
 
 	RemoveAllBrokers(SMWithOAuth)
@@ -294,7 +294,7 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener) *TestCon
 		platform := RegisterPlatformInSM(platformJSON, SMWithOAuth, map[string]string{})
 		SMWithBasic := SM.Builder(func(req *httpexpect.Request) {
 			username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
-			req.WithBasicAuth(username, password).WithClient(tcb.TestHttpClient)
+			req.WithBasicAuth(username, password).WithClient(tcb.HttpClient)
 		})
 		testContext.SMWithBasic = SMWithBasic
 		testContext.TestPlatform = platform

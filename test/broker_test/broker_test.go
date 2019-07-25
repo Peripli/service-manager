@@ -249,24 +249,24 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 				})
 
-				Context("when the broker call for catalog times out ", func() {
+				Context("when the broker call for catalog times out", func() {
+					const (
+						timeoutDuration             = time.Millisecond * 500
+						additionalDelayAfterTimeout = time.Second
+					)
+
 					var (
-						timeoutTestCtx          *common.TestContext
-						brokerCatalogStopCancel context.CancelFunc
+						timeoutTestCtx *common.TestContext
 					)
 
 					BeforeEach(func() {
-						timeoutDuration := time.Millisecond * 500
 						timeoutTestCtx = common.NewTestContextBuilder().WithEnvPreExtensions(func(set *pflag.FlagSet) {
 							Expect(set.Set("httpclient.response_header_timeout", timeoutDuration.String())).ToNot(HaveOccurred())
 						}).Build()
 
-						var brokerCatalogStopCtx context.Context
-						brokerCatalogStopCtx, brokerCatalogStopCancel = context.WithCancel(context.Background())
-
 						brokerServer.CatalogHandler = func(rw http.ResponseWriter, req *http.Request) {
-							catalogStopDuration := timeoutDuration + time.Second // Continue with request a second after the expected timeout
-							continueCtx, _ := context.WithTimeout(brokerCatalogStopCtx, catalogStopDuration)
+							catalogStopDuration := timeoutDuration + additionalDelayAfterTimeout
+							continueCtx, _ := context.WithTimeout(req.Context(), catalogStopDuration)
 
 							<-continueCtx.Done()
 
@@ -275,9 +275,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 
 					AfterEach(func() {
-						if brokerCatalogStopCancel != nil {
-							brokerCatalogStopCancel()
-						}
 						timeoutTestCtx.Cleanup()
 					})
 
