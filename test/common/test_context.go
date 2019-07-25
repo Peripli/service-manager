@@ -89,7 +89,9 @@ type TestContext struct {
 
 	TestPlatform *types.Platform
 
-	Servers map[string]FakeServer
+	Servers       map[string]FakeServer
+	Brokers       map[string]*BrokerServer
+	BrokerFactory *BrokerFactory
 }
 
 type testSMServer struct {
@@ -192,8 +194,8 @@ func TestEnv(additionalFlagFuncs ...func(set *pflag.FlagSet)) env.Environment {
 
 	additionalFlagFuncs = append(additionalFlagFuncs, f)
 
-	env, _ := env.Default(append([]func(set *pflag.FlagSet){config.AddPFlags}, additionalFlagFuncs...)...)
-	return env
+	testEnv, _ := env.Default(append([]func(set *pflag.FlagSet){config.AddPFlags}, additionalFlagFuncs...)...)
+	return testEnv
 }
 
 func (tcb *TestContextBuilder) SkipBasicAuthClientSetup(shouldSkip bool) *TestContextBuilder {
@@ -287,6 +289,8 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener) *TestCon
 		SMWithOAuthForTenant: SMWithOAuthForTenant,
 		Servers:              tcb.Servers,
 		SMRepository:         smRepository,
+		Brokers:              make(map[string]*BrokerServer),
+		BrokerFactory:        NewBrokerFactory(),
 	}
 
 	if !tcb.shouldSkipBasicAuthClient {
@@ -367,7 +371,7 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 
 	testServer := httptest.NewUnstartedServer(serviceManager.Server.Router)
 	if listener != nil {
-		testServer.Listener.Close()
+		_ = testServer.Listener.Close()
 		testServer.Listener = listener
 	}
 	testServer.Start()
@@ -382,8 +386,16 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, br
 	return ctx.RegisterBrokerWithCatalogAndLabelsExpect(catalog, brokerData, ctx.SMWithOAuth)
 }
 
+func (ctx *TestContext) NewBrokerServer() *BrokerServer {
+	return ctx.BrokerFactory.NewBrokerServer()
+}
+
+func (ctx *TestContext) NewBrokerServerWithCatalog(catalog SBCatalog) *BrokerServer {
+	return ctx.BrokerFactory.NewBrokerServerWithCatalog(catalog)
+}
+
 func (ctx *TestContext) RegisterBrokerWithCatalogAndLabelsExpect(catalog SBCatalog, brokerData Object, expect *httpexpect.Expect) (string, Object, *BrokerServer) {
-	brokerServer := NewBrokerServerWithCatalog(catalog)
+	broker := ctx.NewBrokerServerWithCatalog(catalog)
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		panic(err)
@@ -394,24 +406,24 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabelsExpect(catalog SBCatal
 	}
 	brokerJSON := Object{
 		"name":        UUID.String(),
-		"broker_url":  brokerServer.URL(),
+		"broker_url":  broker.URL(),
 		"description": UUID2.String(),
 		"credentials": Object{
 			"basic": Object{
-				"username": brokerServer.Username,
-				"password": brokerServer.Password,
+				"username": broker.Username,
+				"password": broker.Password,
 			},
 		},
 	}
 
 	MergeObjects(brokerJSON, brokerData)
 
-	broker := RegisterBrokerInSM(brokerJSON, expect, map[string]string{})
-	brokerID := broker["id"].(string)
-	brokerServer.ResetCallHistory()
-	ctx.Servers[BrokerServerPrefix+brokerID] = brokerServer
+	smBroker := RegisterBrokerInSM(brokerJSON, expect, map[string]string{})
+	brokerID := smBroker["id"].(string)
+	ctx.Brokers[brokerID] = broker
+	broker.ResetCallHistory()
 	brokerJSON["id"] = brokerID
-	return brokerID, broker, brokerServer
+	return brokerID, smBroker, broker
 }
 
 func MergeObjects(target, source Object) {
@@ -460,10 +472,9 @@ func (ctx *TestContext) RegisterPlatform() *types.Platform {
 }
 
 func (ctx *TestContext) CleanupBroker(id string) {
-	broker := ctx.Servers[BrokerServerPrefix+id]
+	broker := ctx.Brokers[id]
 	ctx.SMWithOAuth.DELETE("/v1/service_brokers/" + id).Expect()
 	broker.Close()
-	delete(ctx.Servers, BrokerServerPrefix+id)
 }
 
 func (ctx *TestContext) Cleanup() {
@@ -492,6 +503,7 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 	}
 
 	ctx.SMWithOAuth.DELETE("/v1/service_brokers").Expect()
+	ctx.Brokers = make(map[string]*BrokerServer)
 
 	if ctx.TestPlatform != nil {
 		ctx.SMWithOAuth.DELETE("/v1/platforms").WithQuery("fieldQuery", "id != "+ctx.TestPlatform.ID).Expect()
@@ -509,7 +521,7 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 	ctx.Servers = map[string]FakeServer{SMServer: smServer}
 
 	for _, conn := range ctx.wsConnections {
-		conn.Close()
+		_ = conn.Close()
 	}
 	ctx.wsConnections = nil
 }
@@ -541,7 +553,7 @@ func (ctx *TestContext) CloseWebSocket(conn *websocket.Conn) {
 	if conn == nil {
 		return
 	}
-	conn.Close()
+	_ = conn.Close()
 	for i, c := range ctx.wsConnections {
 		if c == conn {
 			ctx.wsConnections = append(ctx.wsConnections[:i], ctx.wsConnections[i+1:]...)

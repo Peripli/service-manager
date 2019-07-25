@@ -332,10 +332,10 @@ func GenerateRandomPlatform() Object {
 	return o
 }
 
-func GenerateRandomBroker() Object {
+func GenerateRandomBroker(ctx *TestContext) Object {
 	o := Object{}
 
-	brokerServer := NewBrokerServer()
+	brokerServer := ctx.NewBrokerServer()
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		panic(err)

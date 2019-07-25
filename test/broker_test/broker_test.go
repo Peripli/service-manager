@@ -97,8 +97,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			})
 
 			BeforeEach(func() {
-				brokerServer = common.NewBrokerServer()
-				brokerWithLabelsServer = common.NewBrokerServer()
+				brokerServer = ctx.NewBrokerServer()
+				brokerWithLabelsServer = ctx.NewBrokerServer()
 				brokerServer.Reset()
 				brokerWithLabelsServer.Reset()
 				brokerName := "brokerName"
@@ -586,7 +586,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					var anotherBrokerServer *common.BrokerServer
 
 					BeforeEach(func() {
-						anotherBrokerServer = common.NewBrokerServer()
+						anotherBrokerServer = ctx.NewBrokerServer()
 						anotherBrokerServer.Username = "username"
 						anotherBrokerServer.Password = "password"
 						anotherTestBroker = common.Object{
@@ -683,7 +683,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					)
 
 					BeforeEach(func() {
-						updatedBrokerServer = common.NewBrokerServer()
+						updatedBrokerServer = ctx.NewBrokerServer()
 						updatedBrokerServer.Username = "updated_user"
 						updatedBrokerServer.Password = "updated_password"
 						updatedBrokerJSON = common.Object{
@@ -1641,7 +1641,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *httpexpect.Expect) common.Object {
 	return func(ctx *common.TestContext, auth *httpexpect.Expect) common.Object {
-		brokerJSON := common.GenerateRandomBroker()
+		brokerJSON := common.GenerateRandomBroker(ctx)
 
 		if !setNullFieldsValues {
 			delete(brokerJSON, "description")

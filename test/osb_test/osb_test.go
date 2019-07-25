@@ -18,13 +18,10 @@ package osb_test
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
-	"strings"
 	"time"
 
-	"github.com/spf13/pflag"
-
 	"github.com/gofrs/uuid"
+	"github.com/spf13/pflag"
 
 	"github.com/Peripli/service-manager/test/common"
 	"github.com/gavv/httpexpect"
@@ -142,15 +139,13 @@ var _ = Describe("Service Manager OSB API", func() {
 		validBrokerID        string
 		smUrlToWorkingBroker string
 
-		brokerServerWithEmptyCatalog *common.BrokerServer
-		emptyCatalogBrokerID         string
-		smUrlToEmptyCatalogBroker    string
+		emptyCatalogBrokerID      string
+		smUrlToEmptyCatalogBroker string
 
 		smUrlToMissingBroker             string
 		smUrlToSimpleBrokerCatalogBroker string
 
 		stoppedBrokerServer  *common.BrokerServer
-		stoppedBrokerID      string
 		smUrlToStoppedBroker string
 
 		failingBrokerServer  *common.BrokerServer
@@ -170,7 +165,6 @@ var _ = Describe("Service Manager OSB API", func() {
 
 	resetBrokersHandlers := func() {
 		validBrokerServer.ResetHandlers()
-		brokerServerWithEmptyCatalog.ResetHandlers()
 		stoppedBrokerServer.ResetHandlers()
 		failingBrokerServer.ResetHandlers()
 		queryParameterVerificationServer.ResetHandlers()
@@ -205,11 +199,33 @@ var _ = Describe("Service Manager OSB API", func() {
 
 	resetBrokersCallHistory := func() {
 		validBrokerServer.ResetCallHistory()
-		brokerServerWithEmptyCatalog.ResetCallHistory()
 		stoppedBrokerServer.ResetCallHistory()
 		failingBrokerServer.ResetCallHistory()
 		queryParameterVerificationServer.ResetCallHistory()
 		timeoutBrokerServer.ResetCallHistory()
+	}
+
+	registerStoppedBroker := func() {
+		additionalBrokerFactory := common.NewBrokerFactory()
+		stoppedBrokerServer = additionalBrokerFactory.NewBrokerServer()
+		UUID, err := uuid.NewV4()
+		if err != nil {
+			panic(err)
+		}
+		brokerJSON := common.Object{
+			"name":       UUID.String(),
+			"broker_url": stoppedBrokerServer.URL(),
+			"credentials": common.Object{
+				"basic": common.Object{
+					"username": stoppedBrokerServer.Username,
+					"password": stoppedBrokerServer.Password,
+				},
+			},
+		}
+		smBroker := common.RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth, map[string]string{})
+		stoppedBrokerID := smBroker["id"].(string)
+		smUrlToStoppedBroker = "/v1/osb/" + stoppedBrokerID
+		additionalBrokerFactory.Close()
 	}
 
 	BeforeSuite(func() {
@@ -217,16 +233,16 @@ var _ = Describe("Service Manager OSB API", func() {
 			Expect(set.Set("httpclient.response_header_timeout", timeoutDuration.String())).ToNot(HaveOccurred())
 		}).Build()
 		validBrokerID, _, validBrokerServer = ctx.RegisterBroker()
-		smUrlToWorkingBroker = validBrokerServer.URL() + "/v1/osb/" + validBrokerID
+		smUrlToWorkingBroker = "/v1/osb/" + validBrokerID
 
-		emptyCatalogBrokerID, _, brokerServerWithEmptyCatalog = ctx.RegisterBrokerWithCatalog(common.NewEmptySBCatalog())
-		smUrlToEmptyCatalogBroker = brokerServerWithEmptyCatalog.URL() + "/v1/osb/" + emptyCatalogBrokerID
+		emptyCatalogBrokerID, _, _ = ctx.RegisterBrokerWithCatalog(common.NewEmptySBCatalog())
+		smUrlToEmptyCatalogBroker = "/v1/osb/" + emptyCatalogBrokerID
 
-		simpleBrokerCatalogID, _, brokerServerWithSimpleCatalog := ctx.RegisterBrokerWithCatalog(simpleCatalog)
-		smUrlToSimpleBrokerCatalogBroker = brokerServerWithSimpleCatalog.URL() + "/v1/osb/" + simpleBrokerCatalogID
+		simpleBrokerCatalogID, _, _ := ctx.RegisterBrokerWithCatalog(simpleCatalog)
+		smUrlToSimpleBrokerCatalogBroker = "/v1/osb/" + simpleBrokerCatalogID
 
 		failingBrokerID, _, failingBrokerServer = ctx.RegisterBroker()
-		smUrlToFailingBroker = failingBrokerServer.URL() + "/v1/osb/" + failingBrokerID
+		smUrlToFailingBroker = "/v1/osb/" + failingBrokerID
 
 		UUID, err := uuid.NewV4()
 		if err != nil {
@@ -234,17 +250,14 @@ var _ = Describe("Service Manager OSB API", func() {
 		}
 		smUrlToMissingBroker = "http://localhost:32123/v1/osb/" + UUID.String()
 
-		stoppedBrokerID, _, stoppedBrokerServer = ctx.RegisterBroker()
-		stoppedBrokerServer.Close()
-
-		smUrlToStoppedBroker = stoppedBrokerServer.URL() + "/v1/osb/" + stoppedBrokerID
+		registerStoppedBroker()
 
 		headerKey, headerValue = generateRandomQueryParam()
 		queryParameterVerificationServerID, _, queryParameterVerificationServer = ctx.RegisterBroker()
-		smUrlToQueryVerificationBroker = queryParameterVerificationServer.URL() + "/v1/osb/" + queryParameterVerificationServerID
+		smUrlToQueryVerificationBroker = "/v1/osb/" + queryParameterVerificationServerID
 
 		timeoutBrokerID, _, timeoutBrokerServer = ctx.RegisterBroker()
-		smUrlToTimeoutBroker = timeoutBrokerServer.URL() + "/v1/osb/" + timeoutBrokerID
+		smUrlToTimeoutBroker = "/v1/osb/" + timeoutBrokerID
 	})
 
 	BeforeEach(func() {
@@ -679,68 +692,4 @@ var _ = Describe("Service Manager OSB API", func() {
 			})
 		})
 	})
-
-	Describe("Prefixed broker path", func() {
-		Context("when call to working broker", func() {
-
-			const brokerPathPrefix = "/broker_prefix"
-			var (
-				server           common.FakeServer
-				osbURL           string
-				prefixedBrokerID string
-			)
-
-			BeforeEach(func() {
-				brokerHandler := &prefixedBrokerHandler{brokerPathPrefix}
-				server = &prefixedBrokerServer{Server: httptest.NewServer(brokerHandler)}
-				brokerURL := server.URL() + brokerPathPrefix
-
-				brokerJSON := common.Object{
-					"name":        "prefixed_broker",
-					"broker_url":  brokerURL,
-					"description": "",
-					"credentials": common.Object{
-						"basic": common.Object{
-							"username": "buser",
-							"password": "bpass",
-						},
-					},
-				}
-
-				prefixedBrokerID = common.RegisterBrokerInSM(brokerJSON, ctx.SMWithOAuth, map[string]string{})["id"].(string)
-				ctx.Servers[common.BrokerServerPrefix+prefixedBrokerID] = server
-				osbURL = "/v1/osb/" + prefixedBrokerID
-			})
-
-			AfterEach(func() {
-				ctx.CleanupBroker(prefixedBrokerID)
-			})
-
-			It("should get catalog", func() {
-				ctx.SMWithBasic.GET(osbURL + "/v2/catalog").
-					Expect().Status(http.StatusOK).JSON().Object().ContainsKey("services")
-			})
-		})
-	})
-
 })
-
-type prefixedBrokerHandler struct {
-	brokerPathPrefix string
-}
-
-func (pbh *prefixedBrokerHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if strings.HasPrefix(req.URL.Path, pbh.brokerPathPrefix) {
-		common.SetResponse(w, http.StatusOK, common.Object{"services": common.Array{}})
-	} else {
-		common.SetResponse(w, http.StatusNotFound, common.Object{})
-	}
-}
-
-type prefixedBrokerServer struct {
-	*httptest.Server
-}
-
-func (pbs *prefixedBrokerServer) URL() string {
-	return pbs.Server.URL
-}
