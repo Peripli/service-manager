@@ -85,9 +85,9 @@ func HandleResponseError(response *http.Response) error {
 
 	err = fmt.Errorf("StatusCode: %d Body: %s", response.StatusCode, body)
 	if response.Request != nil {
-		return fmt.Errorf("Request %s %s failed: %s", response.Request.Method, response.Request.URL, err)
+		return fmt.Errorf("request %s %s failed: %s", response.Request.Method, response.Request.URL, err)
 	}
-	return fmt.Errorf("Request failed: %s", err)
+	return fmt.Errorf("request failed: %s", err)
 }
 
 var (
