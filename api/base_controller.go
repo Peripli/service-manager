@@ -188,17 +188,18 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Getting all %ss", c.objectType)
-	objectList, err := c.repository.List(ctx, c.objectType, query.CriteriaForContext(ctx)...)
+	maxItems := r.URL.Query().Get("max_items")
+	token := r.URL.Query().Get("token")
+	objectPage, err := c.repository.ListWithPaging(ctx, c.objectType, maxItems, token, query.CriteriaForContext(ctx)...)
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
 
-	for i := 0; i < objectList.Len(); i++ {
-		obj := objectList.ItemAt(i)
+	for _, obj := range objectPage.Items {
 		stripCredentials(ctx, obj)
 	}
 
-	return util.NewJSONResponse(http.StatusOK, objectList)
+	return util.NewJSONResponse(http.StatusOK, objectPage)
 }
 
 // PatchObject handles the update of the object with the id specified in the request

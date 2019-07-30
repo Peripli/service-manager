@@ -142,6 +142,21 @@ func (er *encryptingRepository) List(ctx context.Context, objectType types.Objec
 	return objList, nil
 }
 
+func (er *encryptingRepository) ListWithPaging(ctx context.Context, objectType types.ObjectType, maxItems string, token string, criteria ...query.Criterion) (*types.ObjectPage, error) {
+	objPage, err := er.repository.ListWithPaging(ctx, objectType, maxItems, token, criteria...)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, obj := range objPage.Items {
+		if err := er.transformCredentials(ctx, obj, er.encrypter.Decrypt); err != nil {
+			return nil, err
+		}
+	}
+
+	return objPage, nil
+}
+
 func (er *encryptingRepository) Update(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, criteria ...query.Criterion) (types.Object, error) {
 	if err := er.transformCredentials(ctx, obj, er.encrypter.Encrypt); err != nil {
 		return nil, err

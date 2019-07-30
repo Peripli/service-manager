@@ -121,6 +121,15 @@ func (ir *interceptableRepository) List(ctx context.Context, objectType types.Ob
 	return objectList, nil
 }
 
+func (ir *interceptableRepository) ListWithPaging(ctx context.Context, objectType types.ObjectType, maxItems string, token string, criteria ...query.Criterion) (*types.ObjectPage, error) {
+	objectPage, err := ir.repositoryInTransaction.ListWithPaging(ctx, objectType, maxItems, token, criteria...)
+	if err != nil {
+		return nil, err
+	}
+
+	return objectPage, nil
+}
+
 func (ir *interceptableRepository) Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	deleteObjectFunc := func(ctx context.Context, _ Repository, _ types.ObjectList, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
 		objectList, err := ir.repositoryInTransaction.Delete(ctx, objectType, deletionCriteria...)
@@ -314,6 +323,15 @@ func (itr *InterceptableTransactionalRepository) List(ctx context.Context, objec
 	}
 
 	return objectList, nil
+}
+
+func (itr *InterceptableTransactionalRepository) ListWithPaging(ctx context.Context, objectType types.ObjectType, maxItems string, token string, criteria ...query.Criterion) (*types.ObjectPage, error) {
+	objectPage, err := itr.smStorageRepository.ListWithPaging(ctx, objectType, maxItems, token, criteria...)
+	if err != nil {
+		return nil, err
+	}
+
+	return objectPage, nil
 }
 
 type finalDeleteObjectInterceptor struct {

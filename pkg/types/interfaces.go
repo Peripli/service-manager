@@ -52,3 +52,13 @@ type ObjectList interface {
 	ItemAt(index int) Object
 	Len() int
 }
+
+const MaxPageSize = 50
+
+// ObjectPage is the DTO for a given page of resources when listing
+type ObjectPage struct {
+	HasMoreItems bool     `json:"has_more_items"`
+	ItemsCount   int      `json:"num_items,omitempty"`
+	Items        []Object `json:"items"`
+	Token        string   `json:"token,omitempty"`
+}

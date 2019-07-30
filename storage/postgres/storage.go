@@ -19,7 +19,10 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -225,6 +228,100 @@ func (ps *Storage) List(ctx context.Context, objType types.ObjectType, criteria 
 		return nil, err
 	}
 	return entity.RowsToList(rows)
+}
+
+func (ps *Storage) ListWithPaging(ctx context.Context, objType types.ObjectType, maxItems string, token string, criteria ...query.Criterion) (*types.ObjectPage, error) {
+	// TODO: Add logs
+	entity, err := ps.scheme.provide(objType)
+	if err != nil {
+		return nil, err
+	}
+
+	var targetCreatedAt string
+	var targetID string
+
+	limit, err := strconv.Atoi(maxItems)
+	if err != nil {
+		return nil, &util.ErrBadRequestStorage{Cause: fmt.Errorf("max_items should be integer: %v", err)}
+	}
+	if limit < 0 {
+		return nil, &util.ErrBadRequestStorage{Cause: fmt.Errorf("max_items cannot be negative")}
+	}
+	if limit == 0 {
+		// TODO: return only count
+	}
+	if limit > types.MaxPageSize {
+		limit = types.MaxPageSize
+	}
+
+	if token != "" {
+		base64DecodedTokenBytes, err := base64.StdEncoding.DecodeString(token)
+		if err != nil {
+			return nil, &util.ErrBadRequestStorage{Cause: fmt.Errorf("cannot base64 decode token: %v", err)}
+		}
+
+		base64DecodedToken := string(base64DecodedTokenBytes)
+		tokenParts := strings.Split(base64DecodedToken, "_")
+		targetCreatedAt = tokenParts[0]
+		targetID = tokenParts[1]
+	} else {
+		targetCreatedAt = time.Time{}.Format(time.RFC3339)
+	}
+
+	criteria = append(criteria, query.OrderResultBy("created_at", query.AscOrder), query.OrderResultBy("id", query.AscOrder),
+		query.ByField(query.GreaterThanOrEqualOperator, "created_at", targetCreatedAt))
+	rows, err := ps.queryBuilder.NewQuery().WithCriteria(criteria...).WithLock().List(ctx, entity)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		if rows == nil {
+			return
+		}
+		if err := rows.Close(); err != nil {
+			log.C(ctx).Errorf("Could not release connection when checking database. Error: %s", err)
+		}
+	}()
+	if err != nil {
+		return nil, err
+	}
+
+	objectList, err := entity.RowsToList(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	pageItems := make([]types.Object, 0, limit)
+	isAfterTarget := targetID == ""
+	var itemsInPage int
+
+	i := 0
+	for ; i < objectList.Len(); i++ {
+		obj := objectList.ItemAt(i)
+
+		if isAfterTarget && itemsInPage < limit {
+			pageItems = append(pageItems, obj)
+			continue
+		}
+
+		if obj.GetID() == targetID {
+			isAfterTarget = true
+		}
+	}
+	var nextPageTokenBase64Encoded string
+	if i != objectList.Len() {
+		lastItem := pageItems[len(pageItems)-1]
+		nextPageToken := lastItem.GetCreatedAt().String() + "_" + lastItem.GetID()
+		nextPageTokenBase64Encoded = base64.StdEncoding.EncodeToString([]byte(nextPageToken))
+	}
+
+	return &types.ObjectPage{
+		HasMoreItems: i != objectList.Len(),
+		Items:        pageItems,
+		Token:        nextPageTokenBase64Encoded,
+	}, nil
+
 }
 
 func (ps *Storage) Delete(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
