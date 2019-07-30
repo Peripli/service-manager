@@ -294,17 +294,19 @@ func (ps *Storage) ListWithPaging(ctx context.Context, objType types.ObjectType,
 
 	pageItems := make([]types.Object, 0, limit)
 	isAfterTarget := targetID == ""
-	var itemsInPage int
 
 	i := 0
 	for ; i < objectList.Len(); i++ {
 		obj := objectList.ItemAt(i)
 
-		if isAfterTarget && itemsInPage < limit {
-			pageItems = append(pageItems, obj)
-			continue
+		if isAfterTarget {
+			if len(pageItems) < limit {
+				pageItems = append(pageItems, obj)
+				continue
+			} else {
+				break
+			}
 		}
-
 		if obj.GetID() == targetID {
 			isAfterTarget = true
 		}
@@ -312,7 +314,7 @@ func (ps *Storage) ListWithPaging(ctx context.Context, objType types.ObjectType,
 	var nextPageTokenBase64Encoded string
 	if i != objectList.Len() {
 		lastItem := pageItems[len(pageItems)-1]
-		nextPageToken := lastItem.GetCreatedAt().String() + "_" + lastItem.GetID()
+		nextPageToken := lastItem.GetCreatedAt().Format(time.RFC3339) + "_" + lastItem.GetID()
 		nextPageTokenBase64Encoded = base64.StdEncoding.EncodeToString([]byte(nextPageToken))
 	}
 
