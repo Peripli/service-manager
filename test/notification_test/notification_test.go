@@ -172,14 +172,10 @@ var _ = Describe("Notifications Suite", func() {
 				catalog.AddService(cService)
 				id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
 
-				object := ctx.SMWithOAuth.GET("/v1/service_offerings").WithQuery("fieldQuery", "broker_id = "+id).
-					Expect()
+				so := common.ListWithQuery(ctx.SMWithOAuth, "/v1/service_offerings", "fieldQuery=broker_id = "+id).First()
 
-				so := object.Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().First()
-
-				servicePlanID := ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("fieldQuery", fmt.Sprintf("service_offering_id = %s", so.Object().Value("id").String().Raw())).
-					Expect().
-					Status(http.StatusOK).JSON().Object().Value("service_plans").Array().First().Object().Value("id").String().Raw()
+				servicePlanID := common.ListWithQuery(ctx.SMWithOAuth, "/v1/service_plans", "fieldQuery="+fmt.Sprintf("service_offering_id = %s", so.Object().Value("id").String().Raw())).
+					First().Object().Value("id").String().Raw()
 				visReqBody["service_plan_id"] = servicePlanID
 
 				platformID := ctx.SMWithOAuth.POST("/v1/platforms").WithJSON(common.GenerateRandomPlatform()).

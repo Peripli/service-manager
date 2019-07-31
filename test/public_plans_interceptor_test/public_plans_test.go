@@ -68,26 +68,20 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 	var newPublicPlan string
 
 	findOneVisibilityForServicePlanID := func(servicePlanID string) map[string]interface{} {
-		vs := ctx.SMWithOAuth.GET("/v1/visibilities").WithQuery("fieldQuery", "service_plan_id = "+servicePlanID).
-			Expect().
-			Status(http.StatusOK).JSON().Object().Value("visibilities").Array()
+		vs := common.ListWithQuery(ctx.SMWithOAuth, "/v1/visibilities", "fieldQuery=service_plan_id = "+servicePlanID)
 
 		vs.Length().Equal(1)
 		return vs.First().Object().Raw()
 	}
 
 	verifyZeroVisibilityForServicePlanID := func(servicePlanID string) {
-		vs := ctx.SMWithOAuth.GET("/v1/visibilities").WithQuery("fieldQuery", "service_plan_id = "+servicePlanID).
-			Expect().
-			Status(http.StatusOK).JSON().Object().Value("visibilities").Array()
+		vs := common.ListWithQuery(ctx.SMWithOAuth, "/v1/visibilities", "fieldQuery=service_plan_id = "+servicePlanID)
 
 		vs.Length().Equal(0)
 	}
 
 	findDatabaseIDForServicePlanByCatalogName := func(catalogServicePlanName string) string {
-		planID := ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("fieldQuery", "catalog_name = "+catalogServicePlanName).
-			Expect().
-			Status(http.StatusOK).JSON().Object().Value("service_plans").Array().First().Object().Value("id").String().Raw()
+		planID := common.ListWithQuery(ctx.SMWithOAuth, "/v1/service_plans", "fieldQuery=catalog_name = "+catalogServicePlanName).First().Object().Value("id").String().Raw()
 
 		Expect(planID).ToNot(BeEmpty())
 		return planID
@@ -109,9 +103,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 			return nil
 		}).Build()
 
-		ctx.SMWithOAuth.GET("/v1/service_plans").
-			Expect().
-			Status(http.StatusOK).JSON().Path("$.service_plans[*].catalog_id").Array().NotContains(newPublicPlanCatalogID, newPaidPlanCatalogID)
+		common.List(ctx.SMWithOAuth, "/v1/service_plans").Path("$[*].catalog_id").Array().NotContains(newPublicPlanCatalogID, newPaidPlanCatalogID)
 		c := common.NewEmptySBCatalog()
 
 		oldPublicPlan := common.GenerateFreeTestPlan()
@@ -221,9 +213,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 		})
 
 		It("creates the plan and creates a public visibility for it", func() {
-			ctx.SMWithOAuth.GET("/v1/service_plans").
-				Expect().
-				Status(http.StatusOK).JSON().Path("$.service_plans[*].catalog_id").Array().NotContains(newPublicPlanCatalogID)
+			common.List(ctx.SMWithOAuth, "/v1/service_plans").Path("$[*].catalog_id").Array().NotContains(newPublicPlanCatalogID)
 
 			ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + existingBrokerID).
 				WithJSON(common.Object{}).
@@ -246,9 +236,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 		})
 
 		It("creates the plan and does not create a new public visibility for it", func() {
-			ctx.SMWithOAuth.GET("/v1/service_plans").
-				Expect().
-				Status(http.StatusOK).JSON().Path("$.service_plans[*].catalog_id").Array().NotContains(newPaidPlanCatalogID)
+			common.List(ctx.SMWithOAuth, "/v1/service_plans").Path("$[*].catalog_id").Array().NotContains(newPaidPlanCatalogID)
 
 			ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + existingBrokerID).
 				WithJSON(common.Object{}).
@@ -273,13 +261,11 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 		})
 
 		It("deletes the public visibility associated with the plan", func() {
-			plan := ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("fieldQuery", "catalog_name = "+oldPublicPlanCatalogName).
-				Expect().
-				Status(http.StatusOK).JSON()
+			plan := common.ListWithQuery(ctx.SMWithOAuth, "/v1/service_plans", "fieldQuery=catalog_name = "+oldPublicPlanCatalogName)
 
-			plan.Path("$.service_plans[*].free").Array().Contains(true)
-			plan.Object().Value("service_plans").Array().Length().Equal(1)
-			planID := plan.Object().Value("service_plans").Array().First().Object().Value("id").String().Raw()
+			plan.Path("$[*].free").Array().Contains(true)
+			plan.Length().Equal(1)
+			planID := plan.First().Object().Value("id").String().Raw()
 			Expect(planID).ToNot(BeEmpty())
 
 			visibilities := findOneVisibilityForServicePlanID(planID)
@@ -322,12 +308,10 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 				"platform_id":     platformID,
 			})
 
-			plan := ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("fieldQuery", "catalog_name = "+oldPaidPlanCatalogName).
-				Expect().
-				Status(http.StatusOK).JSON()
+			plan := common.ListWithQuery(ctx.SMWithOAuth, "/v1/service_plans", "fieldQuery=catalog_name = "+oldPaidPlanCatalogName)
 
-			plan.Path("$.service_plans[*].free").Array().Contains(false)
-			plan.Object().Value("service_plans").Array().Length().Equal(1)
+			plan.Path("$[*].free").Array().Contains(false)
+			plan.Length().Equal(1)
 
 			visibilities := findOneVisibilityForServicePlanID(planID)
 			Expect(visibilities["platform_id"]).To(Equal(platformID))

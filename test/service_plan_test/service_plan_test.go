@@ -347,13 +347,9 @@ func blueprint(ctx *common.TestContext, auth *httpexpect.Expect) common.Object {
 	catalog.AddService(cService)
 	id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
 
-	so := auth.GET(web.ServiceOfferingsURL).WithQuery("fieldQuery", "broker_id = "+id).
-		Expect().
-		Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().First()
+	so := common.ListWithQuery(auth, web.ServiceOfferingsURL, "fieldQuery=broker_id = "+id).First()
 
-	sp := auth.GET(web.ServicePlansURL).WithQuery("fieldQuery", fmt.Sprintf("service_offering_id = %s", so.Object().Value("id").String().Raw())).
-		Expect().
-		Status(http.StatusOK).JSON().Object().Value("service_plans").Array().First()
+	sp := common.ListWithQuery(auth, web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id = %s", so.Object().Value("id").String().Raw())).First()
 
 	return sp.Object().Raw()
 }

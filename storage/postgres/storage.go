@@ -240,18 +240,21 @@ func (ps *Storage) ListWithPaging(ctx context.Context, objType types.ObjectType,
 	var targetCreatedAt string
 	var targetID string
 
-	limit, err := strconv.Atoi(maxItems)
-	if err != nil {
-		return nil, &util.ErrBadRequestStorage{Cause: fmt.Errorf("max_items should be integer: %v", err)}
-	}
-	if limit < 0 {
-		return nil, &util.ErrBadRequestStorage{Cause: fmt.Errorf("max_items cannot be negative")}
-	}
-	if limit == 0 {
-		// TODO: return only count
-	}
-	if limit > types.MaxPageSize {
-		limit = types.MaxPageSize
+	limit := types.DefaultPageSize
+	if maxItems != "" {
+		limit, err = strconv.Atoi(maxItems)
+		if err != nil {
+			return nil, &util.ErrBadRequestStorage{Cause: fmt.Errorf("max_items should be integer: %v", err)}
+		}
+		if limit < 0 {
+			return nil, &util.ErrBadRequestStorage{Cause: fmt.Errorf("max_items cannot be negative")}
+		}
+		if limit == 0 {
+			// TODO: return only count
+		}
+		if limit > types.MaxPageSize {
+			limit = types.MaxPageSize
+		}
 	}
 
 	if token != "" {

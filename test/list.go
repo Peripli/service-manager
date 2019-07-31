@@ -309,12 +309,8 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		expectedAfterOpIDs = common.ExtractResourceIDs(listOpEntry.resourcesToExpectAfterOp)
 		unexpectedAfterOpIDs = common.ExtractResourceIDs(listOpEntry.resourcesNotToExpectAfterOp)
 
-		jsonArrayKey := strings.Replace(t.API, "/v1/", "", 1)
-
 		By(fmt.Sprintf("[TEST]: Verifying expected %s before operation after present", t.API))
-		beforeOpArray := ctx.SMWithOAuth.GET(t.API).
-			Expect().
-			Status(http.StatusOK).JSON().Object().Value(jsonArrayKey).Array()
+		beforeOpArray := common.List(ctx.SMWithOAuth, t.API)
 
 		for _, v := range beforeOpArray.Iter() {
 			obj := v.Object().Raw()
@@ -344,16 +340,13 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		}
 
 		By(fmt.Sprintf("[TEST]: Verifying expected status code %d is returned from list operation", listOpEntry.expectedStatusCode))
-		resp := req.
-			Expect().
-			Status(listOpEntry.expectedStatusCode)
 
 		if listOpEntry.expectedStatusCode != http.StatusOK {
 			By(fmt.Sprintf("[TEST]: Verifying error and description fields are returned after list operation"))
 
-			resp.JSON().Object().Keys().Contains("error", "description")
+			req.Expect().Status(listOpEntry.expectedStatusCode).JSON().Object().Keys().Contains("error", "description")
 		} else {
-			array := resp.JSON().Object().Value(jsonArrayKey).Array()
+			array := common.ListWithQuery(ctx.SMWithOAuth, t.API, query)
 			for _, v := range array.Iter() {
 				obj := v.Object().Raw()
 				delete(obj, "created_at")

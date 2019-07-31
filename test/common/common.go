@@ -434,3 +434,36 @@ func DoHTTP(reaction *HTTPReaction, checks *HTTPExpectations) func(*http.Request
 		}, reaction.Err
 	}
 }
+
+func List(expect *httpexpect.Expect, path string) *httpexpect.Array {
+	return ListWithQuery(expect, path, "")
+}
+
+func ListWithQuery(expect *httpexpect.Expect, path string, query string) *httpexpect.Array {
+	req := expect.GET(path)
+	if query != "" {
+		req = req.WithQueryString(query)
+	}
+	page := req.Expect().Status(http.StatusOK).JSON().Object()
+	hasMoreItems := page.Value("has_more_items").Boolean().Raw()
+	items := page.Value("items").Array().Raw()
+	var token string
+	if hasMoreItems {
+		token = page.Value("token").String().Raw()
+	}
+
+	for hasMoreItems {
+		req := expect.GET(path)
+		if query != "" {
+			req = req.WithQueryString(query)
+		}
+		page = req.WithQuery("token", token).Expect().Status(http.StatusOK).JSON().Object()
+		hasMoreItems = page.Value("has_more_items").Boolean().Raw()
+		items = append(items, page.Value("items").Array().Raw()...)
+		if hasMoreItems {
+			token = page.Value("token").String().Raw()
+		}
+	}
+
+	return httpexpect.NewArray(ginkgo.GinkgoT(), items)
+}

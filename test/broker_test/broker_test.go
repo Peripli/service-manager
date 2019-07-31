@@ -839,10 +839,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								JSON().Object().
 								NotContainsMap(postBrokerRequestWithNoLabels)
 
-							ctx.SMWithOAuth.GET("/v1/service_brokers").
-								Expect().
-								Status(http.StatusOK).
-								JSON().Object().Value("service_brokers").Array().First().Object().
+							common.List(ctx.SMWithOAuth, "/v1/service_brokers").First().Object().
 								ContainsMap(expectedBrokerResponse)
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
@@ -902,11 +899,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 
 						It("is returned from the Services API associated with the correct broker", func() {
-							ctx.SMWithOAuth.GET("/v1/service_offerings").
-								Expect().
-								Status(http.StatusOK).
-								JSON().
-								Path("$.service_offerings[*].catalog_id").Array().NotContains(anotherServiceID)
+							common.List(ctx.SMWithOAuth, "/v1/service_offerings").
+								Path("$[*].catalog_id").Array().NotContains(anotherServiceID)
+
 							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
 								WithJSON(common.Object{}).
 								Expect().
@@ -918,15 +913,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect().
 								Status(http.StatusOK)
 
-							servicesJsonResp := ctx.SMWithOAuth.GET("/v1/service_offerings").
-								Expect().
-								Status(http.StatusOK).
-								JSON()
-							servicesJsonResp.Path("$.service_offerings[*].catalog_id").Array().Contains(anotherServiceID)
-							servicesJsonResp.Path("$.service_offerings[*].broker_id").Array().Contains(brokerID)
+							servicesJsonResp := common.List(ctx.SMWithOAuth, "/v1/service_offerings")
+							servicesJsonResp.Path("$[*].catalog_id").Array().Contains(anotherServiceID)
+							servicesJsonResp.Path("$[*].broker_id").Array().Contains(brokerID)
 
 							var soID string
-							for _, so := range servicesJsonResp.Object().Value("service_offerings").Array().Iter() {
+							for _, so := range servicesJsonResp.Iter() {
 								sbID := so.Object().Value("broker_id").String().Raw()
 								Expect(sbID).ToNot(BeEmpty())
 
@@ -940,12 +932,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								}
 							}
 
-							plansJsonResp := ctx.SMWithOAuth.GET("/v1/service_plans").
-								Expect().
-								Status(http.StatusOK).
-								JSON()
-							plansJsonResp.Path("$.service_plans[*].catalog_id").Array().Contains(existingPlanID)
-							plansJsonResp.Path("$.service_plans[*].service_offering_id").Array().Contains(soID)
+							plansJsonResp := common.List(ctx.SMWithOAuth, "/v1/service_plans")
+							plansJsonResp.Path("$[*].catalog_id").Array().Contains(existingPlanID)
+							plansJsonResp.Path("$[*].service_offering_id").Array().Contains(soID)
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 2)
 						})
@@ -976,24 +965,18 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 
 						It("is returned from the Services API associated with the correct broker", func() {
-							ctx.SMWithOAuth.GET("/v1/service_offerings").
-								Expect().
-								Status(http.StatusOK).
-								JSON().
-								Path("$.service_offerings[*].catalog_id").Array().NotContains(anotherServiceID)
+							common.List(ctx.SMWithOAuth, "/v1/service_offerings").
+								Path("$[*].catalog_id").Array().NotContains(anotherServiceID)
 							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
 								WithJSON(common.Object{}).
 								Expect().
 								Status(http.StatusOK)
-							servicesJsonResp := ctx.SMWithOAuth.GET("/v1/service_offerings").
-								Expect().
-								Status(http.StatusOK).
-								JSON()
-							servicesJsonResp.Path("$.service_offerings[*].catalog_id").Array().Contains(anotherServiceID)
-							servicesJsonResp.Path("$.service_offerings[*].broker_id").Array().Contains(brokerID)
+							servicesJsonResp := common.List(ctx.SMWithOAuth, "/v1/service_offerings")
+							servicesJsonResp.Path("$[*].catalog_id").Array().Contains(anotherServiceID)
+							servicesJsonResp.Path("$[*].broker_id").Array().Contains(brokerID)
 
 							var soID string
-							for _, so := range servicesJsonResp.Object().Value("service_offerings").Array().Iter() {
+							for _, so := range servicesJsonResp.Iter() {
 								sbID := so.Object().Value("broker_id").String().Raw()
 								Expect(sbID).ToNot(BeEmpty())
 
@@ -1007,12 +990,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								}
 							}
 
-							plansJsonResp := ctx.SMWithOAuth.GET("/v1/service_plans").
-								Expect().
-								Status(http.StatusOK).
-								JSON()
-							plansJsonResp.Path("$.service_plans[*].catalog_id").Array().Contains(anotherPlanID)
-							plansJsonResp.Path("$.service_plans[*].service_offering_id").Array().Contains(soID)
+							plansJsonResp := common.List(ctx.SMWithOAuth, "/v1/service_plans")
+							plansJsonResp.Path("$[*].catalog_id").Array().Contains(anotherPlanID)
+							plansJsonResp.Path("$[*].service_offering_id").Array().Contains(soID)
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 						})
@@ -1088,23 +1068,17 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 
 						It("is returned from the Services API associated with the correct broker", func() {
-							ctx.SMWithOAuth.GET("/v1/service_offerings").
-								Expect().
-								Status(http.StatusOK).
-								JSON().
-								Path("$.service_offerings[*].catalog_id").Array().NotContains(anotherServiceID)
+							common.List(ctx.SMWithOAuth, "/v1/service_offerings").
+								Path("$[*].catalog_id").Array().NotContains(anotherServiceID)
 
 							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
 								WithJSON(common.Object{}).
 								Expect().
 								Status(http.StatusOK)
 
-							jsonResp := ctx.SMWithOAuth.GET("/v1/service_offerings").
-								Expect().
-								Status(http.StatusOK).
-								JSON()
-							jsonResp.Path("$.service_offerings[*].catalog_id").Array().Contains(anotherServiceID)
-							jsonResp.Path("$.service_offerings[*].broker_id").Array().Contains(brokerID)
+							jsonResp := common.List(ctx.SMWithOAuth, "/v1/service_offerings")
+							jsonResp.Path("$[*].catalog_id").Array().Contains(anotherServiceID)
+							jsonResp.Path("$[*].broker_id").Array().Contains(brokerID)
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 						})
@@ -1122,10 +1096,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							catalogServiceID := gjson.Get(string(brokerServer.Catalog), "services.0.id").Str
 							Expect(catalogServiceID).ToNot(BeEmpty())
 
-							serviceOfferings := ctx.SMWithOAuth.GET("/v1/service_offerings").
-								Expect().
-								Status(http.StatusOK).
-								JSON().Object().Value("service_offerings").Array().Iter()
+							serviceOfferings := common.List(ctx.SMWithOAuth, "/v1/service_offerings").Iter()
 
 							for _, so := range serviceOfferings {
 								sbID := so.Object().Value("broker_id").String().Raw()
@@ -1146,10 +1117,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 
 						It("is no longer returned by the Services and Plans API", func() {
-							plans := ctx.SMWithOAuth.GET("/v1/service_plans").
-								Expect().
-								Status(http.StatusOK).
-								JSON().Object().Value("service_plans").Array().Iter()
+							plans := common.List(ctx.SMWithOAuth, "/v1/service_plans").Iter()
 
 							var planIDsForService []interface{}
 							for _, plan := range plans {
@@ -1167,15 +1135,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect().
 								Status(http.StatusOK)
 
-							ctx.SMWithOAuth.GET("/v1/service_offerings").
-								Expect().
-								Status(http.StatusOK).
-								JSON().Path("$.service_offerings[*].id").Array().NotContains(serviceOfferingID)
+							common.List(ctx.SMWithOAuth, "/v1/service_offerings").Path("$[*].id").Array().NotContains(serviceOfferingID)
 
-							ctx.SMWithOAuth.GET("/v1/service_plans").
-								Expect().
-								Status(http.StatusOK).
-								JSON().Path("$.service_plans[*].id").Array().NotContains(planIDsForService)
+							common.List(ctx.SMWithOAuth, "/v1/service_plans").Path("$[*].id").Array().NotContains(planIDsForService)
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 						})
@@ -1259,10 +1221,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							catalogServiceID := gjson.Get(string(brokerServer.Catalog), "services.0.id").Str
 							Expect(catalogServiceID).ToNot(BeEmpty())
 
-							serviceOfferings := ctx.SMWithOAuth.GET("/v1/service_offerings").
-								Expect().
-								Status(http.StatusOK).
-								JSON().Object().Value("service_offerings").Array().Iter()
+							serviceOfferings := common.List(ctx.SMWithOAuth, "/v1/service_offerings").Iter()
 
 							for _, so := range serviceOfferings {
 								sbID := so.Object().Value("broker_id").String().Raw()
@@ -1283,23 +1242,17 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 
 						It("is returned from the Plans API associated with the correct service offering", func() {
-							ctx.SMWithOAuth.GET("/v1/service_plans").
-								Expect().
-								Status(http.StatusOK).
-								JSON().
-								Path("$.service_plans[*].catalog_id").Array().NotContains(anotherPlanID)
+							common.List(ctx.SMWithOAuth, "/v1/service_plans").
+								Path("$[*].catalog_id").Array().NotContains(anotherPlanID)
 
 							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
 								WithJSON(common.Object{}).
 								Expect().
 								Status(http.StatusOK)
 
-							jsonResp := ctx.SMWithOAuth.GET("/v1/service_plans").
-								Expect().
-								Status(http.StatusOK).
-								JSON()
-							jsonResp.Path("$.service_plans[*].catalog_id").Array().Contains(anotherPlanID)
-							jsonResp.Path("$.service_plans[*].service_offering_id").Array().Contains(serviceOfferingID)
+							jsonResp := common.List(ctx.SMWithOAuth, "/v1/service_plans")
+							jsonResp.Path("$[*].catalog_id").Array().Contains(anotherPlanID)
+							jsonResp.Path("$[*].service_offering_id").Array().Contains(serviceOfferingID)
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 						})
@@ -1322,20 +1275,16 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 
 						It("is no longer returned by the Plans API", func() {
-							ctx.SMWithOAuth.GET("/v1/service_plans").
-								Expect().
-								Status(http.StatusOK).
-								JSON().Path("$.service_plans[*].catalog_id").Array().Contains(removedPlanCatalogID)
+							common.List(ctx.SMWithOAuth, "/v1/service_plans").
+								Path("$[*].catalog_id").Array().Contains(removedPlanCatalogID)
 
 							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
 								WithJSON(common.Object{}).
 								Expect().
 								Status(http.StatusOK)
 
-							ctx.SMWithOAuth.GET("/v1/service_plans").
-								Expect().
-								Status(http.StatusOK).
-								JSON().Path("$.service_plans[*].catalog_id").Array().NotContains(removedPlanCatalogID)
+							common.List(ctx.SMWithOAuth, "/v1/service_plans").
+								Path("$[*].catalog_id").Array().NotContains(removedPlanCatalogID)
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 						})
