@@ -159,7 +159,7 @@ func (c Criterion) Validate() error {
 			if err != nil {
 				return fmt.Errorf("could not cast string to int: %s", err.Error())
 			}
-			if limit < 1 {
+			if limit < 0 {
 				return &util.UnsupportedQueryError{Message: fmt.Sprintf("limit (%d) is invalid. Limit should be positive number", limit)}
 			}
 		}

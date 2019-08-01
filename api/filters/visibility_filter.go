@@ -43,15 +43,23 @@ func (vf *VisibilityFilter) Run(req *web.Request, next web.Handler) (*web.Respon
 	if err := userCtx.Data(platform); err != nil {
 		return nil, err
 	}
-	visibilities, err := vf.repository.List(ctx, types.VisibilityType, query.ByField(query.EqualsOperator, "platform_id", platform.ID))
+	objectList, err := vf.repository.List(ctx, types.VisibilityType, query.ByField(query.EqualsOperator, "platform_id", platform.ID))
 	if err != nil {
 		return nil, util.HandleStorageError(err, "Visibility")
 	}
-	visibilityIDs := make([]string, 0, visibilities.Len())
-	for i := 0; i < visibilities.Len(); i++ {
-		visibilityIDs = append(visibilityIDs, visibilities.ItemAt(i).GetID())
+	visibilityList := objectList.(*types.Visibilities)
+	planIDs := make([]string, 0, visibilityList.Len())
+	for _, vis := range visibilityList.Visibilities {
+		planIDs = append(planIDs, vis.ServicePlanID)
 	}
-	ctx = query.ContextWithCriteria(ctx, []query.Criterion{query.ByField(query.InOperator, "id", visibilityIDs...)})
+
+	if len(planIDs) > 0 {
+		ctx = query.ContextWithCriteria(ctx, []query.Criterion{query.ByField(query.InOperator, "id", planIDs...)})
+	} else {
+		// Paging must come before this filter
+		ctx = query.ContextWithCriteria(ctx, []query.Criterion{query.LimitResultBy(0)})
+	}
+
 	req.Request = req.WithContext(ctx)
 	return next.Handle(req)
 }
