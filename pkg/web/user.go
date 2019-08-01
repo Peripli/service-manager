@@ -32,4 +32,6 @@ type UserContext struct {
 	AuthenticationType AuthenticationType
 	// Name is the name of the authenticated user
 	Name string
+	// TenantID
+	TenantID string
 }
