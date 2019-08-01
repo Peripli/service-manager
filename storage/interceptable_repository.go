@@ -121,8 +121,8 @@ func (ir *interceptableRepository) List(ctx context.Context, objectType types.Ob
 	return objectList, nil
 }
 
-func (ir *interceptableRepository) ListWithPaging(ctx context.Context, objectType types.ObjectType, maxItems string, token string, criteria ...query.Criterion) (*types.ObjectPage, error) {
-	objectPage, err := ir.repositoryInTransaction.ListWithPaging(ctx, objectType, maxItems, token, criteria...)
+func (ir *interceptableRepository) ListWithPaging(ctx context.Context, objectType types.ObjectType, limit int, targetCreatedAt, targetID string, criteria ...query.Criterion) (*types.ObjectPage, error) {
+	objectPage, err := ir.repositoryInTransaction.ListWithPaging(ctx, objectType, limit, targetCreatedAt, targetID, criteria...)
 	if err != nil {
 		return nil, err
 	}
@@ -325,8 +325,8 @@ func (itr *InterceptableTransactionalRepository) List(ctx context.Context, objec
 	return objectList, nil
 }
 
-func (itr *InterceptableTransactionalRepository) ListWithPaging(ctx context.Context, objectType types.ObjectType, maxItems string, token string, criteria ...query.Criterion) (*types.ObjectPage, error) {
-	objectPage, err := itr.smStorageRepository.ListWithPaging(ctx, objectType, maxItems, token, criteria...)
+func (itr *InterceptableTransactionalRepository) ListWithPaging(ctx context.Context, objectType types.ObjectType, limit int, targetCreatedAt, targetID string, criteria ...query.Criterion) (*types.ObjectPage, error) {
+	objectPage, err := itr.smStorageRepository.ListWithPaging(ctx, objectType, limit, targetCreatedAt, targetID, criteria...)
 	if err != nil {
 		return nil, err
 	}

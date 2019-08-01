@@ -53,10 +53,6 @@ type ObjectList interface {
 	Len() int
 }
 
-//TODO: extract it in cofig
-const MaxPageSize = 50
-const DefaultPageSize = 10
-
 // ObjectPage is the DTO for a given page of resources when listing
 type ObjectPage struct {
 	HasMoreItems bool     `json:"has_more_items"`

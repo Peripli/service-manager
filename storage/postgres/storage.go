@@ -21,9 +21,6 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"fmt"
-	"github.com/gofrs/uuid"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -225,69 +222,26 @@ func (ps *Storage) List(ctx context.Context, objType types.ObjectType, criteria 
 			log.C(ctx).WithError(err).Error("Could not release connection when checking database")
 		}
 	}()
-	if err != nil {
-		return nil, err
-	}
+
 	return entity.RowsToList(rows)
 }
 
-func (ps *Storage) ListWithPaging(ctx context.Context, objType types.ObjectType, maxItems string, token string, criteria ...query.Criterion) (*types.ObjectPage, error) {
+func (ps *Storage) ListWithPaging(ctx context.Context, objType types.ObjectType, limit int, targetCreatedAt, targetID string, criteria ...query.Criterion) (*types.ObjectPage, error) {
 	// TODO: Add logs
 	entity, err := ps.scheme.provide(objType)
 	if err != nil {
 		return nil, err
 	}
-
-	var targetCreatedAt string
-	var targetID string
-
-	limit := types.DefaultPageSize
-	if maxItems != "" {
-		limit, err = strconv.Atoi(maxItems)
-		if err != nil {
-			return nil, &util.ErrBadRequestStorage{Cause: fmt.Errorf("max_items should be integer: %v", err)}
-		}
-		if limit < 0 {
-			return nil, &util.ErrBadRequestStorage{Cause: fmt.Errorf("max_items cannot be negative")}
-		}
-		if limit == 0 {
-			// TODO: return only count
-		}
-		if limit > types.MaxPageSize {
-			limit = types.MaxPageSize
-		}
+	if limit == 0 {
+		// TODO: return only count
 	}
-
-	if token != "" {
-		base64DecodedTokenBytes, err := base64.StdEncoding.DecodeString(token)
-		if err != nil {
-			return nil, util.ErrNotFoundInStorage
-		}
-		base64DecodedToken := string(base64DecodedTokenBytes)
-
-		tokenParts := strings.Split(base64DecodedToken, "_")
-		if len(tokenParts) != 2 {
-			return nil, util.ErrNotFoundInStorage
-		}
-
-		targetCreatedAt = tokenParts[0]
-		_, err = time.Parse(time.RFC3339, targetCreatedAt)
-		if err != nil {
-			return nil, util.ErrNotFoundInStorage
-		}
-
-		targetID = tokenParts[1]
-		_, err = uuid.FromString(targetID)
-		if err != nil {
-			return nil, util.ErrNotFoundInStorage
-		}
-
-	} else {
+	if targetCreatedAt == "" {
 		targetCreatedAt = time.Time{}.Format(time.RFC3339)
 	}
 
 	criteria = append(criteria, query.OrderResultBy("created_at", query.AscOrder), query.OrderResultBy("id", query.AscOrder),
 		query.ByField(query.GreaterThanOrEqualOperator, "created_at", targetCreatedAt))
+
 	rows, err := ps.queryBuilder.NewQuery().WithCriteria(criteria...).WithLock().List(ctx, entity)
 	if err != nil {
 		return nil, err
@@ -301,50 +255,46 @@ func (ps *Storage) ListWithPaging(ctx context.Context, objType types.ObjectType,
 			log.C(ctx).Errorf("Could not release connection when checking database. Error: %s", err)
 		}
 	}()
-	if err != nil {
-		return nil, err
-	}
 
 	objectList, err := entity.RowsToList(rows)
 	if err != nil {
 		return nil, err
 	}
 
-	if token != "" && objectList.Len() == 0 {
+	isFirstPage := targetID == ""
+	if !isFirstPage && objectList.Len() == 0 {
 		return nil, util.ErrNotFoundInStorage
 	}
-
 	pageItems := make([]types.Object, 0, limit)
-	isAfterTarget := targetID == ""
+	isAfterTarget := isFirstPage
 
 	i := 0
-	for ; i < objectList.Len(); i++ {
+	for ; i < objectList.Len() && len(pageItems) < limit; i++ {
 		obj := objectList.ItemAt(i)
-
 		if isAfterTarget {
-			if len(pageItems) < limit {
-				pageItems = append(pageItems, obj)
-				continue
-			} else {
-				break
-			}
+			pageItems = append(pageItems, obj)
+			continue
 		}
 		if obj.GetID() == targetID {
 			isAfterTarget = true
 		}
 	}
-	var nextPageTokenBase64Encoded string
-	if i != objectList.Len() {
-		lastItem := pageItems[len(pageItems)-1]
-		nextPageToken := lastItem.GetCreatedAt().Format(time.RFC3339) + "_" + lastItem.GetID()
-		nextPageTokenBase64Encoded = base64.StdEncoding.EncodeToString([]byte(nextPageToken))
-	}
 
+	hasMoreItems := i != objectList.Len()
+	var token string
+	if hasMoreItems {
+		token = generateTokenForItem(pageItems[len(pageItems)-1])
+	}
 	return &types.ObjectPage{
-		HasMoreItems: i != objectList.Len(),
+		HasMoreItems: hasMoreItems,
 		Items:        pageItems,
-		Token:        nextPageTokenBase64Encoded,
+		Token:        token,
 	}, nil
+}
+
+func generateTokenForItem(obj types.Object) string {
+	nextPageToken := obj.GetCreatedAt().Format(time.RFC3339) + "_" + obj.GetID()
+	return base64.StdEncoding.EncodeToString([]byte(nextPageToken))
 }
 
 func (ps *Storage) Delete(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {

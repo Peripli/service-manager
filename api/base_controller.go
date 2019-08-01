@@ -18,8 +18,11 @@ package api
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/tidwall/sjson"
@@ -39,6 +42,8 @@ const PathParamID = "id"
 
 // BaseController provides common CRUD handlers for all object types in the service manager
 type BaseController struct {
+	maxPageSize     int
+	defaultPageSize int
 	resourceBaseURL string
 	objectType      types.ObjectType
 	repository      storage.Repository
@@ -46,8 +51,10 @@ type BaseController struct {
 }
 
 // NewController returns a new base controller
-func NewController(repository storage.Repository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object) *BaseController {
+func NewController(repository storage.Repository, settings *Settings, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object) *BaseController {
 	return &BaseController{
+		maxPageSize:     settings.MaxPageSize,
+		defaultPageSize: settings.DefaultPageSize,
 		repository:      repository,
 		resourceBaseURL: resourceBaseURL,
 		objectBlueprint: objectBlueprint,
@@ -187,10 +194,21 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 // ListObjects handles the fetching of all objects
 func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
-	log.C(ctx).Debugf("Getting all %ss", c.objectType)
+	log.C(ctx).Debugf("Getting a page of %ss", c.objectType)
+
 	maxItems := r.URL.Query().Get("max_items")
+	limit, err := c.validateMaxItemsQuery(maxItems)
+	if err != nil {
+		return nil, err
+	}
+
 	token := r.URL.Query().Get("token")
-	objectPage, err := c.repository.ListWithPaging(ctx, c.objectType, maxItems, token, query.CriteriaForContext(ctx)...)
+	targetCreatedAt, targetID, err := c.validatePageToken(token)
+	if err != nil {
+		return nil, err
+	}
+
+	objectPage, err := c.repository.ListWithPaging(ctx, c.objectType, limit, targetCreatedAt, targetID, query.CriteriaForContext(ctx)...)
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
@@ -199,7 +217,16 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 		stripCredentials(ctx, obj)
 	}
 
-	return util.NewJSONResponse(http.StatusOK, objectPage)
+	resp, err := util.NewJSONResponse(http.StatusOK, objectPage)
+	if err != nil {
+		return nil, err
+	}
+
+	if objectPage.Token != "" {
+		resp.Header.Add("Link", fmt.Sprintf(`<%s?max_items=%s&token=%s>; rel="next"`, r.URL.Path, maxItems, objectPage.Token))
+	}
+
+	return resp, nil
 }
 
 // PatchObject handles the update of the object with the id specified in the request
@@ -249,6 +276,79 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	stripCredentials(ctx, object)
 
 	return util.NewJSONResponse(http.StatusOK, object)
+}
+
+func (c *BaseController) validateMaxItemsQuery(maxItems string) (int, error) {
+	limit := c.defaultPageSize
+	var err error
+	if maxItems != "" {
+		limit, err = strconv.Atoi(maxItems)
+		if err != nil {
+			return -1, &util.HTTPError{
+				ErrorType:   "InvalidMaxItems",
+				Description: fmt.Sprintf("max_items should be integer: %v", err),
+				StatusCode:  http.StatusBadRequest,
+			}
+		}
+		if limit < 0 {
+			return -1, &util.HTTPError{
+				ErrorType:   "InvalidMaxItems",
+				Description: fmt.Sprintf("max_items cannot be negative"),
+				StatusCode:  http.StatusBadRequest,
+			}
+		}
+		if limit > c.maxPageSize {
+			limit = c.maxPageSize
+		}
+	}
+	return limit, nil
+}
+
+func (c *BaseController) validatePageToken(token string) (string, string, error) {
+	var targetCreatedAt, targetID string
+
+	if token != "" {
+		base64DecodedTokenBytes, err := base64.StdEncoding.DecodeString(token)
+		if err != nil {
+			return "", "", &util.HTTPError{
+				ErrorType:   "TokenInvalid",
+				Description: fmt.Sprintf("Invalid token provided: %v", err),
+				StatusCode:  http.StatusNotFound,
+			}
+		}
+		base64DecodedToken := string(base64DecodedTokenBytes)
+
+		tokenParts := strings.Split(base64DecodedToken, "_")
+		if len(tokenParts) != 2 {
+			return "", "", &util.HTTPError{
+				ErrorType:   "TokenInvalid",
+				Description: fmt.Sprintf("Invalid token provided."),
+				StatusCode:  http.StatusNotFound,
+			}
+		}
+
+		targetCreatedAt = tokenParts[0]
+		_, err = time.Parse(time.RFC3339, targetCreatedAt)
+		if err != nil {
+			return "", "", &util.HTTPError{
+				ErrorType:   "TokenInvalid",
+				Description: fmt.Sprintf("Invalid token provided: %v", err),
+				StatusCode:  http.StatusNotFound,
+			}
+		}
+
+		targetID = tokenParts[1]
+		_, err = uuid.FromString(targetID)
+		if err != nil {
+			return "", "", &util.HTTPError{
+				ErrorType:   "TokenInvalid",
+				Description: fmt.Sprintf("Invalid token provided: %v", err),
+				StatusCode:  http.StatusNotFound,
+			}
+		}
+	}
+
+	return targetCreatedAt, targetID, nil
 }
 
 func stripCredentials(ctx context.Context, object types.Object) {

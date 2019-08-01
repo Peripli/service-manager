@@ -50,6 +50,8 @@ type Settings struct {
 	TokenBasicAuth bool     `mapstructure:"token_basic_auth" description:"specifies if client credentials to the authorization server should be sent in the header as basic auth (true) or in the body (false)"`
 	ProctedLabels  []string `mapstructure:"protected_labels" description:"defines labels which cannot be modified/added by REST API requests"`
 	OSBVersion     string   `mapstructure:"-"`
+	MaxPageSize       int      `mapstructure:"max_page_size" description:"maximum number of items that could be returned in a single page"`
+	DefaultPageSize   int      `mapstructure:"default_page_size" description:"default number of items returned in a single page if not specified in request"`
 }
 
 // DefaultSettings returns default values for API settings
@@ -59,6 +61,8 @@ func DefaultSettings() *Settings {
 		ClientID:       "",
 		TokenBasicAuth: true, // RFC 6749 section 2.3.1
 		OSBVersion:     osbVersion,
+		MaxPageSize:       50,
+		DefaultPageSize:   5,
 	}
 }
 
@@ -66,6 +70,13 @@ func DefaultSettings() *Settings {
 func (s *Settings) Validate() error {
 	if (len(s.TokenIssuerURL)) == 0 {
 		return fmt.Errorf("validate Settings: APITokenIssuerURL missing")
+	}
+	//TODO: Add tests
+	if s.MaxPageSize < 50 {
+		return fmt.Errorf("validate Settings: MaxPageSize could not be less than 50")
+	}
+	if s.DefaultPageSize < 5 {
+		return fmt.Errorf("validate Settings: DefaultPageSize could not be less than 5")
 	}
 	return nil
 }
@@ -87,18 +98,18 @@ func New(ctx context.Context, options *Options) (*web.API, error) {
 	return &web.API{
 		// Default controllers - more filters can be registered using the relevant API methods
 		Controllers: []web.Controller{
-			NewController(options.Repository, web.ServiceBrokersURL, types.ServiceBrokerType, func() types.Object {
+			NewController(options.Repository, options.APISettings, web.ServiceBrokersURL, types.ServiceBrokerType, func() types.Object {
 				return &types.ServiceBroker{}
 			}),
-			NewController(options.Repository, web.PlatformsURL, types.PlatformType, func() types.Object {
+			NewController(options.Repository, options.APISettings, web.PlatformsURL, types.PlatformType, func() types.Object {
 				return &types.Platform{}
 			}),
-			NewController(options.Repository, web.VisibilitiesURL, types.VisibilityType, func() types.Object {
+			NewController(options.Repository, options.APISettings, web.VisibilitiesURL, types.VisibilityType, func() types.Object {
 				return &types.Visibility{}
 			}),
 			apiNotifications.NewController(ctx, options.Repository, options.WSSettings, options.Notificator),
-			NewServiceOfferingController(options.Repository),
-			NewServicePlanController(options.Repository),
+			NewServiceOfferingController(options.Repository, options.APISettings),
+			NewServicePlanController(options.Repository, options.APISettings),
 			&info.Controller{
 				TokenIssuer:    options.APISettings.TokenIssuerURL,
 				TokenBasicAuth: options.APISettings.TokenBasicAuth,

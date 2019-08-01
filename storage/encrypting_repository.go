@@ -142,8 +142,8 @@ func (er *encryptingRepository) List(ctx context.Context, objectType types.Objec
 	return objList, nil
 }
 
-func (er *encryptingRepository) ListWithPaging(ctx context.Context, objectType types.ObjectType, maxItems string, token string, criteria ...query.Criterion) (*types.ObjectPage, error) {
-	objPage, err := er.repository.ListWithPaging(ctx, objectType, maxItems, token, criteria...)
+func (er *encryptingRepository) ListWithPaging(ctx context.Context, objectType types.ObjectType, limit int, targetCreatedAt, targetID string, criteria ...query.Criterion) (*types.ObjectPage, error) {
+	objPage, err := er.repository.ListWithPaging(ctx, objectType, limit, targetCreatedAt, targetID, criteria...)
 	if err != nil {
 		return nil, err
 	}

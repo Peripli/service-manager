@@ -428,12 +428,14 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 
 			Context("Paging", func() {
 				Context("with max items query", func() {
-					It("returns smaller pages", func() {
+					It("returns smaller pages and Link header", func() {
 						pageSize := 5
-						resp := ctx.SMWithOAuth.GET(t.API).WithQuery("max_items", pageSize).Expect().Status(http.StatusOK).JSON()
-						resp.Path("$.has_more_items").Boolean().True()
-						resp.Path("$.items[*]").Array().Length().Le(pageSize)
-						resp.Path("$.token").NotNull()
+						resp := ctx.SMWithOAuth.GET(t.API).WithQuery("max_items", pageSize).Expect().Status(http.StatusOK)
+
+						resp.Header("Link").Contains(fmt.Sprintf("<%s?max_items=%d&token=", t.API, pageSize)).Contains(`>; rel="next"`)
+						resp.JSON().Path("$.has_more_items").Boolean().True()
+						resp.JSON().Path("$.items[*]").Array().Length().Le(pageSize)
+						resp.JSON().Path("$.token").NotNull()
 					})
 				})
 
@@ -448,7 +450,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 						resp := ctx.SMWithOAuth.GET(t.API).WithQuery("max_items", 0).Expect().Status(http.StatusOK).JSON()
 						resp.Path("$.items[*]").Array().Empty()
 						resp.Path("$.num_items").Number().Ge(0)
-						resp.Path("$.token").Null()
+						resp.Object().NotContainsKey("token")
 					})
 				})
 

@@ -31,9 +31,9 @@ type ServiceOfferingController struct {
 	*BaseController
 }
 
-func NewServiceOfferingController(repository storage.Repository) *ServiceOfferingController {
+func NewServiceOfferingController(repository storage.Repository, settings *Settings) *ServiceOfferingController {
 	return &ServiceOfferingController{
-		BaseController: NewController(repository, web.ServiceOfferingsURL, types.ServiceOfferingType, func() types.Object {
+		BaseController: NewController(repository, settings, web.ServiceOfferingsURL, types.ServiceOfferingType, func() types.Object {
 			return &types.ServiceOffering{}
 		}),
 	}
