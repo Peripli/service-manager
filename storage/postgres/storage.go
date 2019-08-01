@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"fmt"
+	"github.com/gofrs/uuid"
 	"strconv"
 	"strings"
 	"sync"
@@ -260,13 +261,27 @@ func (ps *Storage) ListWithPaging(ctx context.Context, objType types.ObjectType,
 	if token != "" {
 		base64DecodedTokenBytes, err := base64.StdEncoding.DecodeString(token)
 		if err != nil {
-			return nil, &util.ErrBadRequestStorage{Cause: fmt.Errorf("cannot base64 decode token: %v", err)}
+			return nil, util.ErrNotFoundInStorage
+		}
+		base64DecodedToken := string(base64DecodedTokenBytes)
+
+		tokenParts := strings.Split(base64DecodedToken, "_")
+		if len(tokenParts) != 2 {
+			return nil, util.ErrNotFoundInStorage
 		}
 
-		base64DecodedToken := string(base64DecodedTokenBytes)
-		tokenParts := strings.Split(base64DecodedToken, "_")
 		targetCreatedAt = tokenParts[0]
+		_, err = time.Parse(time.RFC3339, targetCreatedAt)
+		if err != nil {
+			return nil, util.ErrNotFoundInStorage
+		}
+
 		targetID = tokenParts[1]
+		_, err = uuid.FromString(targetID)
+		if err != nil {
+			return nil, util.ErrNotFoundInStorage
+		}
+
 	} else {
 		targetCreatedAt = time.Time{}.Format(time.RFC3339)
 	}
@@ -293,6 +308,10 @@ func (ps *Storage) ListWithPaging(ctx context.Context, objType types.ObjectType,
 	objectList, err := entity.RowsToList(rows)
 	if err != nil {
 		return nil, err
+	}
+
+	if token != "" && objectList.Len() == 0 {
+		return nil, util.ErrNotFoundInStorage
 	}
 
 	pageItems := make([]types.Object, 0, limit)
@@ -326,7 +345,6 @@ func (ps *Storage) ListWithPaging(ctx context.Context, objType types.ObjectType,
 		Items:        pageItems,
 		Token:        nextPageTokenBase64Encoded,
 	}, nil
-
 }
 
 func (ps *Storage) Delete(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {

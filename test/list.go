@@ -17,11 +17,13 @@
 package test
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"strings"
-
 	"github.com/gavv/httpexpect"
+	"github.com/gofrs/uuid"
+	"strings"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/query"
 
@@ -84,7 +86,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 
 	By(fmt.Sprintf("Attempting to create a random resource of %s with mandatory fields only", t.API))
 	rWithMandatoryFields = t.ResourceWithoutNullableFieldsBlueprint(ctx, ctx.SMWithOAuth)
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 10; i++ {
 		By(fmt.Sprintf("Attempting to create a random resource of %s", t.API))
 
 		gen := t.ResourceBlueprint(ctx, ctx.SMWithOAuth)
@@ -334,16 +336,14 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 
 		By("[TEST]: ====================================")
 
-		req := ctx.SMWithOAuth.GET(t.API)
-		if query != "" {
-			req = req.WithQueryString(query)
-		}
-
 		By(fmt.Sprintf("[TEST]: Verifying expected status code %d is returned from list operation", listOpEntry.expectedStatusCode))
 
 		if listOpEntry.expectedStatusCode != http.StatusOK {
 			By(fmt.Sprintf("[TEST]: Verifying error and description fields are returned after list operation"))
-
+			req := ctx.SMWithOAuth.GET(t.API)
+			if query != "" {
+				req = req.WithQueryString(query)
+			}
 			req.Expect().Status(listOpEntry.expectedStatusCode).JSON().Object().Keys().Contains("error", "description")
 		} else {
 			array := common.ListWithQuery(ctx.SMWithOAuth, t.API, query)
@@ -423,6 +423,68 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 						resourcesToExpectAfterOp:  []common.Object{r[0], r[1]},
 						expectedStatusCode:        http.StatusOK,
 					}, "", ctx.SMWithOAuth)
+				})
+			})
+
+			Context("Paging", func() {
+				Context("with max items query", func() {
+					It("returns smaller pages", func() {
+						pageSize := 5
+						resp := ctx.SMWithOAuth.GET(t.API).WithQuery("max_items", pageSize).Expect().Status(http.StatusOK).JSON()
+						resp.Path("$.has_more_items").Boolean().True()
+						resp.Path("$.items[*]").Array().Length().Le(pageSize)
+						resp.Path("$.token").NotNull()
+					})
+				})
+
+				Context("with negative max items query", func() {
+					It("returns 400", func() {
+						ctx.SMWithOAuth.GET(t.API).WithQuery("max_items", -1).Expect().Status(http.StatusBadRequest)
+					})
+				})
+
+				PContext("with zero max items query", func() {
+					It("returns count of the items only", func() {
+						resp := ctx.SMWithOAuth.GET(t.API).WithQuery("max_items", 0).Expect().Status(http.StatusOK).JSON()
+						resp.Path("$.items[*]").Array().Empty()
+						resp.Path("$.num_items").Number().Ge(0)
+						resp.Path("$.token").Null()
+					})
+				})
+
+				Context("with invalid token", func() {
+					executeWithInvalidToken := func(token string) {
+						ctx.SMWithOAuth.GET(t.API).WithQuery("token", token).Expect().Status(http.StatusNotFound)
+					}
+
+					Context("no base64 encoded", func() {
+						It("returns 404", func() {
+							executeWithInvalidToken("invalid")
+						})
+					})
+
+					Context("no timestamp", func() {
+						It("returns 404", func() {
+							id, _ := uuid.NewV4()
+							token := base64.StdEncoding.EncodeToString([]byte("_" + id.String()))
+							executeWithInvalidToken(token)
+						})
+					})
+
+					Context("no id", func() {
+						It("returns 404", func() {
+							token := base64.StdEncoding.EncodeToString([]byte(time.Now().Format(time.RFC3339) + "_"))
+							executeWithInvalidToken(token)
+						})
+					})
+
+					Context("valid token without coresponding entity in database", func() {
+						It("returns 404", func() {
+							id, _ := uuid.NewV4()
+							token := base64.StdEncoding.EncodeToString([]byte(time.Now().Format(time.RFC3339) + "_" + id.String()))
+							executeWithInvalidToken(token)
+						})
+					})
 				})
 			})
 
