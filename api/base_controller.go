@@ -223,9 +223,12 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	}
 
 	if objectPage.Token != "" {
-		resp.Header.Add("Link", fmt.Sprintf(`<%s?max_items=%s&token=%s>; rel="next"`, r.URL.Path, maxItems, objectPage.Token))
+		nextPageUrl := r.URL
+		q := nextPageUrl.Query()
+		q.Set("token", objectPage.Token)
+		nextPageUrl.RawQuery = q.Encode()
+		resp.Header.Add("Link", fmt.Sprintf(`<%s>; rel="next"`, nextPageUrl))
 	}
-
 	return resp, nil
 }
 

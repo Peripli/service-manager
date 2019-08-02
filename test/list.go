@@ -445,11 +445,18 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 					})
 				})
 
-				PContext("with zero max items query", func() {
+				Context("with non numerical max_items query", func() {
+					It("returns 400", func() {
+						ctx.SMWithOAuth.GET(t.API).WithQuery("max_items", "invalid").Expect().Status(http.StatusBadRequest)
+					})
+				})
+
+				Context("with zero max items query", func() {
 					It("returns count of the items only", func() {
 						resp := ctx.SMWithOAuth.GET(t.API).WithQuery("max_items", 0).Expect().Status(http.StatusOK).JSON()
+
 						resp.Path("$.items[*]").Array().Empty()
-						resp.Path("$.num_items").Number().Ge(0)
+						resp.Path("$.num_items").Number().Gt(0)
 						resp.Object().NotContainsKey("token")
 					})
 				})

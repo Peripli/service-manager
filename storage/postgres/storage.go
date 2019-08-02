@@ -227,13 +227,19 @@ func (ps *Storage) List(ctx context.Context, objType types.ObjectType, criteria 
 }
 
 func (ps *Storage) ListWithPaging(ctx context.Context, objType types.ObjectType, limit int, targetCreatedAt, targetID string, criteria ...query.Criterion) (*types.ObjectPage, error) {
-	// TODO: Add logs
 	entity, err := ps.scheme.provide(objType)
 	if err != nil {
 		return nil, err
 	}
 	if limit == 0 {
-		// TODO: return only count
+		log.C(ctx).Debugf("Requested page size is zero. Returning resources count only")
+		count, err := ps.queryBuilder.NewQuery().WithCriteria(criteria...).WithLock().Count(ctx, entity)
+		if err != nil {
+			return nil, err
+		}
+		return &types.ObjectPage{
+			ItemsCount: count,
+		}, nil
 	}
 	if targetCreatedAt == "" {
 		targetCreatedAt = time.Time{}.Format(time.RFC3339)
