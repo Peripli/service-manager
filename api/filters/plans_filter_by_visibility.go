@@ -4,8 +4,6 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/util"
-
 	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/pkg/types"
@@ -17,19 +15,19 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-const VisibilityFilterName = "VisibilityFilter"
+const PlanVisibilityFilterName = "PlanFilterByVisibility"
 
-func NewVisibilityFilter(repository storage.Repository) *VisibilityFilter {
-	return &VisibilityFilter{
+func NewPlanFilterByVisibility(repository storage.Repository) *PlanFilterByVisibility {
+	return &PlanFilterByVisibility{
 		repository: repository,
 	}
 }
 
-type VisibilityFilter struct {
+type PlanFilterByVisibility struct {
 	repository storage.Repository
 }
 
-func (vf *VisibilityFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
+func (vf *PlanFilterByVisibility) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 	userCtx, ok := web.UserFromContext(ctx)
 	if !ok {
@@ -43,28 +41,32 @@ func (vf *VisibilityFilter) Run(req *web.Request, next web.Handler) (*web.Respon
 	if err := userCtx.Data(platform); err != nil {
 		return nil, err
 	}
-	objectList, err := vf.repository.List(ctx, types.VisibilityType, query.ByField(query.EqualsOperator, "platform_id", platform.ID))
-	if err != nil {
-		return nil, util.HandleStorageError(err, "Visibility")
-	}
-	visibilityList := objectList.(*types.Visibilities)
-	planIDs := make([]string, 0, visibilityList.Len())
-	for _, vis := range visibilityList.Visibilities {
-		planIDs = append(planIDs, vis.ServicePlanID)
-	}
 
-	if len(planIDs) > 0 {
-		ctx = query.ContextWithCriteria(ctx, []query.Criterion{query.ByField(query.InOperator, "id", planIDs...)})
-	} else {
-		// Paging must come before this filter
+	planQuery, err := plansCriteria(ctx, vf.repository, platform.ID)
+	if err != nil {
+		return nil, err
+	}
+	objectID := req.PathParams["id"]
+	hasID := false
+	if planQuery != nil {
+		for _, planID := range planQuery.RightOp {
+			if planID == objectID {
+				hasID = true
+				break
+			}
+		}
+	}
+	if planQuery == nil || (!hasID && objectID != "") {
 		ctx = query.ContextWithCriteria(ctx, []query.Criterion{query.LimitResultBy(0)})
+	} else if objectID == "" {
+		ctx = query.ContextWithCriteria(ctx, []query.Criterion{*planQuery})
 	}
 
 	req.Request = req.WithContext(ctx)
 	return next.Handle(req)
 }
 
-func (vf *VisibilityFilter) FilterMatchers() []web.FilterMatcher {
+func (vf *PlanFilterByVisibility) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
@@ -75,6 +77,6 @@ func (vf *VisibilityFilter) FilterMatchers() []web.FilterMatcher {
 	}
 }
 
-func (vf *VisibilityFilter) Name() string {
-	return VisibilityFilterName
+func (vf *PlanFilterByVisibility) Name() string {
+	return PlanVisibilityFilterName
 }

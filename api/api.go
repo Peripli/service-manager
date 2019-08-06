@@ -124,7 +124,9 @@ func New(ctx context.Context, options *Options) (*web.API, error) {
 			filters.NewProtectedLabelsFilter(options.APISettings.ProctedLabels),
 			&filters.PlatformAwareVisibilityFilter{},
 			&filters.PatchOnlyLabelsFilter{},
-			filters.NewVisibilityFilter(options.Repository),
+			filters.NewPlanFilterByVisibility(options.Repository),
+			filters.NewServicesFilterByVisibility(options.Repository),
+			filters.NewBrokersFilterByVisibility(options.Repository),
 		},
 		Registry: health.NewDefaultRegistry(),
 	}, nil

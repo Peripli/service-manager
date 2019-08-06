@@ -365,7 +365,7 @@ var _ = Describe("Interceptors", func() {
 			It("Should call interceptors in right order", func() {
 				platform := ctx.RegisterPlatform() // Post /v1/platforms
 				ctx.RegisterBroker()
-				plans := ctx.SMWithBasic.GET(web.ServicePlansURL).Expect().JSON().Object().Value("service_plans").Array()
+				plans := ctx.SMWithOAuth.GET(web.ServicePlansURL).Expect().JSON().Object().Value("service_plans").Array()
 				planID := plans.First().Object().Value("id").String().Raw()
 				clearStacks()
 				visibility := types.Visibility{
@@ -413,7 +413,7 @@ var _ = Describe("Interceptors", func() {
 				createEntryFunc: func() string {
 					platform := ctx.RegisterPlatform() // Post /v1/platforms
 					ctx.RegisterBroker()
-					plans := ctx.SMWithBasic.GET(web.ServicePlansURL).Expect().JSON().Object().Value("service_plans").Array()
+					plans := ctx.SMWithOAuth.GET(web.ServicePlansURL).Expect().JSON().Object().Value("service_plans").Array()
 					planID := plans.First().Object().Value("id").String().Raw()
 					visibility := types.Visibility{
 						PlatformID:    platform.ID,

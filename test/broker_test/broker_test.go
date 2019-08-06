@@ -21,9 +21,6 @@ import (
 	"net/http"
 	"strings"
 	"testing"
-	"time"
-
-	"github.com/spf13/pflag"
 
 	"github.com/Peripli/service-manager/pkg/web"
 
@@ -249,42 +246,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 				})
 
-				Context("when the broker call for catalog times out", func() {
-					const (
-						timeoutDuration             = time.Millisecond * 500
-						additionalDelayAfterTimeout = time.Second
-					)
-
-					var (
-						timeoutTestCtx *common.TestContext
-					)
-
-					BeforeEach(func() {
-						timeoutTestCtx = common.NewTestContextBuilder().WithEnvPreExtensions(func(set *pflag.FlagSet) {
-							Expect(set.Set("httpclient.response_header_timeout", timeoutDuration.String())).ToNot(HaveOccurred())
-						}).Build()
-
-						brokerServer.CatalogHandler = func(rw http.ResponseWriter, req *http.Request) {
-							catalogStopDuration := timeoutDuration + additionalDelayAfterTimeout
-							continueCtx, _ := context.WithTimeout(req.Context(), catalogStopDuration)
-
-							<-continueCtx.Done()
-
-							common.SetResponse(rw, http.StatusTeapot, common.Object{})
-						}
-					})
-
-					AfterEach(func() {
-						timeoutTestCtx.Cleanup()
-					})
-
-					It("returns 502", func() {
-						timeoutTestCtx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(postBrokerRequestWithNoLabels).
-							Expect().
-							Status(http.StatusBadGateway).JSON().Object().Value("description").String().Contains("could not reach service broker")
-					})
-				})
-
 				Context("when the broker catalog is incomplete", func() {
 					verifyPOSTWhenCatalogFieldIsMissing := func(responseVerifier func(r *httpexpect.Response), fieldPath string) {
 						BeforeEach(func() {
@@ -476,7 +437,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("When label key has new line", func() {
 						It("Should return 400", func() {
 							labels[`key with
-	new line`] = common.Array{"label-value"}
+								new line`] = common.Array{"label-value"}
 							ctx.SMWithOAuth.POST("/v1/service_brokers").
 								WithJSON(postBrokerRequestWithLabels).
 								Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains("cannot contain whitespaces and special symbol")
@@ -486,9 +447,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("When label value has new line", func() {
 						It("Should return 400", func() {
 							labels["cluster_id"] = common.Array{`{
-	"key": "k1",
-	"val": "val1"
-	}`}
+								"key": "k1",
+								"val": "val1"
+								}`}
 							ctx.SMWithOAuth.POST("/v1/service_brokers").
 								WithJSON(postBrokerRequestWithLabels).
 								Expect().Status(http.StatusBadRequest)
@@ -1633,6 +1594,81 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Status(http.StatusOK)
 						})
 					})
+				})
+			})
+
+			Describe("GET", func() {
+				createTestResourceWithAuth := func(auth *httpexpect.Expect) map[string]interface{} {
+					testResource := blueprint(true)(ctx, auth)
+					Expect(testResource).ToNot(BeEmpty())
+
+					By(fmt.Sprintf("[SETUP]: Verifying that test resource %v has an id of type string", testResource))
+					testResourceID := testResource["id"].(string)
+					Expect(testResourceID).ToNot(BeEmpty())
+					return testResource
+				}
+
+				plansForBrokerID := func(brokerID string) []*types.ServicePlan {
+					// brokers := ctx.SMWithOAuth.GET(web.ServiceBrokersURL).Expect().Status(http.StatusOK).JSON().Object().Value("service_brokers")
+					brokers, err := ctx.SMRepository.List(context.Background(), types.ServiceBrokerType, query.ByField(query.EqualsOperator, "id", brokerID))
+					Expect(err).NotTo(HaveOccurred())
+					brokerIDs := make([]string, 0, brokers.Len())
+					for i := 0; i < brokers.Len(); i++ {
+						brokerIDs = append(brokerIDs, brokers.ItemAt(i).GetID())
+					}
+					offerings, err := ctx.SMRepository.List(context.Background(), types.ServiceOfferingType, query.ByField(query.InOperator, "broker_id", brokerIDs...))
+					Expect(err).NotTo(HaveOccurred())
+					offeringIDs := make([]string, 0, offerings.Len())
+					for i := 0; i < offerings.Len(); i++ {
+						offeringIDs = append(offeringIDs, offerings.ItemAt(i).GetID())
+					}
+
+					plans, err := ctx.SMRepository.List(context.Background(), types.ServicePlanType, query.ByField(query.InOperator, "service_offering_id", offeringIDs...))
+					Expect(err).NotTo(HaveOccurred())
+					return (plans.(*types.ServicePlans)).ServicePlans
+				}
+
+				var resourceVisible, resourceNotVisible map[string]interface{}
+				BeforeEach(func() {
+					resourceVisible = createTestResourceWithAuth(ctx.SMWithOAuth)
+					resourceNotVisible = createTestResourceWithAuth(ctx.SMWithOAuth)
+				})
+
+				AfterEach(func() {
+					ctx.SMWithOAuth.DELETE("/v1/service_brokers/" + resourceVisible["id"].(string)).Expect()
+					ctx.SMWithOAuth.DELETE("/v1/service_brokers/" + resourceNotVisible["id"].(string)).Expect()
+				})
+
+				It("brokers without visibilities", func() {
+					ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServiceBrokersURL, resourceVisible["id"].(string))).
+						Expect().
+						Status(http.StatusNotFound)
+					ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServiceBrokersURL, resourceNotVisible["id"].(string))).
+						Expect().
+						Status(http.StatusNotFound)
+					ctx.SMWithBasic.GET(web.ServiceBrokersURL).
+						Expect().
+						Status(http.StatusOK).JSON().Object().Value("service_brokers").Array().Length().Equal(0)
+				})
+
+				It("one broker with visibilities for its plans", func() {
+					plans := plansForBrokerID(resourceVisible["id"].(string))
+					for _, p := range plans {
+						ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
+							"service_plan_id": p.ID,
+						}).Expect().Status(http.StatusCreated)
+					}
+					ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServiceBrokersURL, resourceVisible["id"].(string))).
+						Expect().
+						Status(http.StatusOK).JSON().Object().ContainsMap(resourceVisible)
+					ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServiceBrokersURL, resourceNotVisible["id"].(string))).
+						Expect().
+						Status(http.StatusNotFound)
+					result := ctx.SMWithBasic.GET(web.ServiceBrokersURL).
+						Expect().
+						Status(http.StatusOK).JSON().Object().Value("service_brokers").Array()
+					result.Length().Equal(1)
+					result.First().Object().ContainsMap(resourceVisible)
 				})
 			})
 		})
