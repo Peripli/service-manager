@@ -2,7 +2,6 @@ package filters
 
 import (
 	"context"
-	"errors"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/query"
@@ -11,8 +10,6 @@ import (
 
 	"github.com/Peripli/service-manager/storage"
 
-	"github.com/Peripli/service-manager/pkg/log"
-
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
@@ -20,80 +17,45 @@ const BrokersVisibilityFilterName = "BrokersFilterByVisibility"
 
 func NewBrokersFilterByVisibility(repository storage.Repository) *BrokersFilterByVisibility {
 	return &BrokersFilterByVisibility{
-		repository: repository,
+		visibilityFilteringMiddleware: &visibilityFilteringMiddleware{
+			FilteringFunc: newBrokersFilterFunc(repository),
+		},
 	}
 }
 
 type BrokersFilterByVisibility struct {
-	repository storage.Repository
+	*visibilityFilteringMiddleware
 }
 
-func (vf *BrokersFilterByVisibility) Run(req *web.Request, next web.Handler) (*web.Response, error) {
-	ctx := req.Context()
-	userCtx, ok := web.UserFromContext(ctx)
-	if !ok {
-		return nil, errors.New("No user found")
-	}
-	if userCtx.AuthenticationType != web.Basic {
-		log.C(ctx).Debugf("Authentication is %s, not basic so proceed without visibility filter criteria", userCtx.AuthenticationType)
-		return next.Handle(req)
-	}
-	platform := &types.Platform{}
-	if err := userCtx.Data(platform); err != nil {
-		return nil, err
-	}
+func newBrokersFilterFunc(repository storage.Repository) func(ctx context.Context, platformID string) (*query.Criterion, error) {
+	return func(ctx context.Context, platformID string) (*query.Criterion, error) {
+		planQuery, err := plansCriteria(ctx, repository, platformID)
+		if err != nil {
+			return nil, err
+		}
+		if planQuery == nil {
+			return nil, nil
+		}
 
-	zeroResult := false
-
-	planQuery, err := plansCriteria(ctx, vf.repository, platform.ID)
-	if err != nil {
-		return nil, err
-	}
-	if planQuery == nil {
-		zeroResult = true
-	}
-
-	var servicesQuery *query.Criterion
-	if !zeroResult {
-		servicesQuery, err = servicesCriteria(ctx, vf.repository, planQuery)
+		var servicesQuery *query.Criterion
+		servicesQuery, err = servicesCriteria(ctx, repository, planQuery)
 		if err != nil {
 			return nil, err
 		}
 		if servicesQuery == nil {
-			zeroResult = true
+			return nil, nil
 		}
-	}
 
-	if !zeroResult {
-		objectID := req.PathParams["id"]
-		brokersQuery, err := brokersCriteria(ctx, vf.repository, servicesQuery)
+		brokersQuery, err := brokersCriteria(ctx, repository, servicesQuery)
 		if err != nil {
 			return nil, err
 		}
-
-		hasID := false
-		if brokersQuery != nil {
-			for _, brokerID := range brokersQuery.RightOp {
-				if brokerID == objectID {
-					hasID = true
-					break
-				}
-			}
+		if brokersQuery == nil {
+			return nil, nil
 		}
 
-		if brokersQuery == nil || (!hasID && objectID != "") {
-			zeroResult = true
-		} else if objectID == "" {
-			ctx = query.ContextWithCriteria(ctx, []query.Criterion{*brokersQuery})
-		}
+		return brokersQuery, nil
 	}
-
-	if zeroResult {
-		ctx = query.ContextWithCriteria(ctx, []query.Criterion{query.LimitResultBy(0)})
-	}
-
-	req.Request = req.WithContext(ctx)
-	return next.Handle(req)
 }
 
 func brokersCriteria(ctx context.Context, repository storage.Repository, serviceQuery *query.Criterion) (*query.Criterion, error) {
