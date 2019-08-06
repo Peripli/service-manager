@@ -101,50 +101,59 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					ctx.CleanupAdditionalResources()
 				})
 
-				It("With no visibilities for plan", func() {
-					blueprint(ctx, ctx.SMWithOAuth)
-					ctx.SMWithBasic.GET(web.ServicePlansURL).
-						Expect().
-						Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(0)
+				Context("with plan", func() {
+					var plan common.Object
+					BeforeEach(func() {
+						plan = blueprint(ctx, ctx.SMWithOAuth)
+					})
+
+					It("With no visibilities for plan", func() {
+						ctx.SMWithBasic.GET(web.ServicePlansURL).
+							Expect().
+							Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(0)
+					})
+
+					It("With visibility for plan and empty platform", func() {
+						ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
+							"service_plan_id": plan["id"].(string),
+						}).Expect().Status(http.StatusCreated)
+						ctx.SMWithBasic.GET(web.ServicePlansURL).
+							Expect().
+							Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(1)
+					})
+
+					Context("with additional plan", func() {
+						var plan2 common.Object
+						BeforeEach(func() {
+							plan2 = blueprint(ctx, ctx.SMWithOAuth)
+						})
+
+						It("With additional plan, but no visibilities should not get either of them", func() {
+							ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServicePlansURL, plan["id"].(string))).
+								Expect().
+								Status(http.StatusNotFound)
+							ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServicePlansURL, plan2["id"].(string))).
+								Expect().
+								Status(http.StatusNotFound)
+						})
+
+						It("With 2 plans, but visibility for one", func() {
+							ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
+								"service_plan_id": plan["id"].(string),
+							}).Expect().Status(http.StatusCreated)
+							ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServicePlansURL, plan["id"].(string))).
+								Expect().
+								Status(http.StatusOK)
+							ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServicePlansURL, plan2["id"].(string))).
+								Expect().
+								Status(http.StatusNotFound)
+							ctx.SMWithBasic.GET(web.ServicePlansURL).
+								Expect().
+								Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(1)
+						})
+					})
 				})
 
-				It("With visibility for plan", func() {
-					plan := blueprint(ctx, ctx.SMWithOAuth)
-					ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
-						"service_plan_id": plan["id"].(string),
-					}).Expect().Status(http.StatusCreated)
-					ctx.SMWithBasic.GET(web.ServicePlansURL).
-						Expect().
-						Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(1)
-				})
-
-				It("With 2 plans, but no visibilities should not get either of them", func() {
-					plan1 := blueprint(ctx, ctx.SMWithOAuth)
-					plan2 := blueprint(ctx, ctx.SMWithOAuth)
-					ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServicePlansURL, plan1["id"].(string))).
-						Expect().
-						Status(http.StatusNotFound)
-					ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServicePlansURL, plan2["id"].(string))).
-						Expect().
-						Status(http.StatusNotFound)
-				})
-
-				It("With 2 plans, but visibility for one", func() {
-					plan1 := blueprint(ctx, ctx.SMWithOAuth)
-					plan2 := blueprint(ctx, ctx.SMWithOAuth)
-					ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
-						"service_plan_id": plan1["id"].(string),
-					}).Expect().Status(http.StatusCreated)
-					ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServicePlansURL, plan1["id"].(string))).
-						Expect().
-						Status(http.StatusOK)
-					ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServicePlansURL, plan2["id"].(string))).
-						Expect().
-						Status(http.StatusNotFound)
-					ctx.SMWithBasic.GET(web.ServicePlansURL).
-						Expect().
-						Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(1)
-				})
 			})
 
 			Describe("Labelled", func() {

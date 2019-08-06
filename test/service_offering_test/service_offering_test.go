@@ -17,6 +17,8 @@
 package service_test
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -93,6 +95,116 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Expect().
 							Status(http.StatusBadRequest)
 
+					})
+				})
+			})
+
+			Describe("GET", func() {
+				getPlansByOffering := func(offeringID string) *types.ServicePlan {
+					plans, err := ctx.SMRepository.List(context.Background(), types.ServicePlanType, query.ByField(query.EqualsOperator, "service_offering_id", offeringID))
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(plans.Len()).To(BeNumerically(">", 0))
+					return (plans.(*types.ServicePlans)).ServicePlans[0]
+				}
+
+				AfterEach(func() {
+					ctx.CleanupAdditionalResources()
+				})
+
+				It("With no visibilities for offering's plans", func() {
+					offering := blueprint(ctx, ctx.SMWithOAuth)
+					ctx.SMWithBasic.GET(web.ServiceOfferingsURL).
+						Expect().
+						Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().Length().Equal(0)
+					ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering["id"].(string))).
+						Expect().
+						Status(http.StatusNotFound)
+				})
+
+				It("With visibility for offering's plan and empty platform", func() {
+					offering := blueprint(ctx, ctx.SMWithOAuth)
+					plan := getPlansByOffering(offering["id"].(string))
+
+					ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
+						"service_plan_id": plan.ID,
+					}).Expect().Status(http.StatusCreated)
+
+					ctx.SMWithBasic.GET(web.ServiceOfferingsURL).
+						Expect().
+						Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().Length().Equal(1)
+					ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering["id"].(string))).
+						Expect().
+						Status(http.StatusOK).JSON().Object().ContainsMap(offering)
+				})
+
+				It("With visibility for offering's plan and the calling platform's id", func() {
+					offering := blueprint(ctx, ctx.SMWithOAuth)
+					plan := getPlansByOffering(offering["id"].(string))
+
+					ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
+						"service_plan_id": plan.ID,
+						"platform_id":     ctx.TestPlatform.ID,
+					}).Expect().Status(http.StatusCreated)
+
+					ctx.SMWithBasic.GET(web.ServiceOfferingsURL).
+						Expect().
+						Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().Length().Equal(1)
+					ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering["id"].(string))).
+						Expect().
+						Status(http.StatusOK).JSON().Object().ContainsMap(offering)
+				})
+
+				It("With visibility for offering's plan and NOT calling platform's id", func() {
+					offering := blueprint(ctx, ctx.SMWithOAuth)
+					plan := getPlansByOffering(offering["id"].(string))
+
+					otherPlatform := ctx.RegisterPlatform()
+					ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
+						"service_plan_id": plan.ID,
+						"platform_id":     otherPlatform.ID,
+					}).Expect().Status(http.StatusCreated)
+
+					ctx.SMWithBasic.GET(web.ServiceOfferingsURL).
+						Expect().
+						Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().Length().Equal(0)
+					ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering["id"].(string))).
+						Expect().
+						Status(http.StatusNotFound)
+				})
+
+				Context("with 2 offerings", func() {
+					var offering1, offering2 common.Object
+					BeforeEach(func() {
+						offering1 = blueprint(ctx, ctx.SMWithOAuth)
+						offering2 = blueprint(ctx, ctx.SMWithOAuth)
+					})
+
+					It("With 2 offerings, but no visibilities, should not get either of them", func() {
+						ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering1["id"].(string))).
+							Expect().
+							Status(http.StatusNotFound)
+						ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering2["id"].(string))).
+							Expect().
+							Status(http.StatusNotFound)
+						ctx.SMWithBasic.GET(web.ServiceOfferingsURL).
+							Expect().
+							Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().Length().Equal(0)
+					})
+
+					It("With 2 offerings, but visibility for one", func() {
+						plan := getPlansByOffering(offering1["id"].(string))
+						ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
+							"service_plan_id": plan.ID,
+						}).Expect().Status(http.StatusCreated)
+						ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering1["id"].(string))).
+							Expect().
+							Status(http.StatusOK)
+						ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering2["id"].(string))).
+							Expect().
+							Status(http.StatusNotFound)
+						ctx.SMWithBasic.GET(web.ServiceOfferingsURL).
+							Expect().
+							Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().Length().Equal(1)
 					})
 				})
 			})
@@ -342,7 +454,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 })
 
 func blueprint(ctx *common.TestContext, auth *httpexpect.Expect) common.Object {
-	cService := common.GenerateTestServiceWithPlans()
+	cService := common.GenerateTestServiceWithPlans(common.GenerateFreeTestPlan())
 	catalog := common.NewEmptySBCatalog()
 	catalog.AddService(cService)
 	id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)

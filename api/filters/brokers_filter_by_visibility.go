@@ -89,9 +89,6 @@ func (vf *BrokersFilterByVisibility) Run(req *web.Request, next web.Handler) (*w
 	}
 
 	if zeroResult {
-		// return util.NewJSONResponse(http.StatusOK, types.ServiceBrokers{
-		// 	ServiceBrokers: nil,
-		// })
 		ctx = query.ContextWithCriteria(ctx, []query.Criterion{query.LimitResultBy(0)})
 	}
 

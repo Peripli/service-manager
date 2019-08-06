@@ -58,7 +58,18 @@ func (vf *ServicesFilterByVisibility) Run(req *web.Request, next web.Handler) (*
 		if err != nil {
 			return nil, err
 		}
-		if servicesQuery == nil {
+
+		hasID := false
+		if servicesQuery != nil {
+			for _, serviceID := range servicesQuery.RightOp {
+				if serviceID == objectID {
+					hasID = true
+					break
+				}
+			}
+		}
+
+		if servicesQuery == nil || (!hasID && objectID != "") {
 			zeroResult = true
 		} else if objectID == "" {
 			ctx = query.ContextWithCriteria(ctx, []query.Criterion{*servicesQuery})
@@ -67,9 +78,6 @@ func (vf *ServicesFilterByVisibility) Run(req *web.Request, next web.Handler) (*
 
 	if zeroResult {
 		ctx = query.ContextWithCriteria(ctx, []query.Criterion{query.LimitResultBy(0)})
-		// return util.NewJSONResponse(http.StatusOK, types.ServiceOfferings{
-		// 	ServiceOfferings: nil,
-		// })
 	}
 	req.Request = req.WithContext(ctx)
 	return next.Handle(req)
