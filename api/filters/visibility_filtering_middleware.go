@@ -34,20 +34,20 @@ func (m visibilityFilteringMiddleware) Run(req *web.Request, next web.Handler) (
 		return nil, err
 	}
 
-	objectID := req.PathParams["id"]
-	hasID := false
-	if finalQuery != nil {
+	resourceID := req.PathParams["id"]
+	foundResource := false
+	if finalQuery != nil && resourceID != "" {
 		for _, serviceID := range finalQuery.RightOp {
-			if serviceID == objectID {
-				hasID = true
+			if serviceID == resourceID {
+				foundResource = true
 				break
 			}
 		}
 	}
 
-	if finalQuery == nil || (!hasID && objectID != "") {
+	if finalQuery == nil || (!foundResource && resourceID != "") {
 		ctx = query.ContextWithCriteria(ctx, []query.Criterion{query.LimitResultBy(0)})
-	} else if objectID == "" {
+	} else if resourceID == "" {
 		ctx = query.ContextWithCriteria(ctx, []query.Criterion{*finalQuery})
 	}
 
