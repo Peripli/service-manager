@@ -29,9 +29,10 @@ import (
 	"path"
 	"runtime"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
+
+	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/gavv/httpexpect"
 	"github.com/gofrs/uuid"
@@ -533,8 +534,8 @@ func (ctx *TestContext) CleanupAfterSuite() {
 	}
 	ctx.CleanupAllBrokers() // removes also all visibilities
 	ctx.CleanupAllPlatforms()
-	ctx.CleanupNotifications()
 	ctx.CleanupWebsocketConnections()
+	ctx.CleanupNotifications()
 
 	ctx.BrokerFactory.Close()
 	ctx.CleanupFakeServers()
@@ -546,18 +547,30 @@ func (ctx *TestContext) CleanupAfterEach() {
 	if ctx == nil {
 		return
 	}
-	ctx.CleanupNotifications()
 	ctx.CleanupBrokers()
 	ctx.CleanupVisibilities()
 	ctx.CleanupPlatforms()
 	ctx.CleanupWebsocketConnections()
+	ctx.CleanupNotifications()
 }
 
-func (ctx *TestContext) CleanupNotifications() {
-	_, err := ctx.SMRepository.Delete(context.TODO(), types.NotificationType)
+func idNotInCriteria(ids []string) query.Criterion {
+	return query.Criterion{
+		LeftOp:   "id",
+		RightOp:  ids,
+		Operator: query.NotInOperator,
+	}
+}
+
+func (ctx *TestContext) deleteFromRepo(resourceType types.ObjectType, criteria ...query.Criterion) {
+	_, err := ctx.SMRepository.Delete(context.TODO(), resourceType)
 	if err != nil && err != util.ErrNotFoundInStorage {
 		panic(err)
 	}
+}
+
+func (ctx *TestContext) CleanupNotifications() {
+	ctx.deleteFromRepo(types.NotificationType)
 }
 
 // CleanupBroker removes a broker from the SM and closes the server if available
@@ -573,22 +586,16 @@ func (ctx *TestContext) CleanupBroker(id string) {
 	broker.Close()
 }
 
-func withIDNotInQuery(expect *httpexpect.Request, ids []string) *httpexpect.Request {
-	fieldQueryRightOperand := "[" + strings.Join(ids, "||") + "]"
-	expect.WithQuery("fieldQuery", "id notin "+fieldQueryRightOperand)
-	return expect
-}
-
 // CleanupAllBrokers removes all service brokers registered in SM except the permanent ones
 func (ctx *TestContext) CleanupBrokers() {
 	if len(ctx.PermanentBrokers) == 0 {
-		RemoveAllBrokers(ctx.SMWithOAuth)
+		ctx.deleteFromRepo(types.ServiceBrokerType)
 	} else {
-		permanentBrokers := make([]string, 0, len(ctx.PermanentBrokers))
+		permanentBrokerIDs := make([]string, 0, len(ctx.PermanentBrokers))
 		for brokerID := range ctx.PermanentBrokers {
-			permanentBrokers = append(permanentBrokers, brokerID)
+			permanentBrokerIDs = append(permanentBrokerIDs, brokerID)
 		}
-		withIDNotInQuery(ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL), permanentBrokers).Expect()
+		ctx.deleteFromRepo(types.ServiceBrokerType, idNotInCriteria(permanentBrokerIDs))
 	}
 	for _, broker := range ctx.Brokers {
 		broker.Close()
@@ -598,7 +605,7 @@ func (ctx *TestContext) CleanupBrokers() {
 
 // CleanupAllBrokers removes all service brokers registered in SM
 func (ctx *TestContext) CleanupAllBrokers() {
-	RemoveAllBrokers(ctx.SMWithOAuth)
+	ctx.deleteFromRepo(types.PlatformType)
 	for _, broker := range ctx.Brokers {
 		broker.Close()
 	}
@@ -625,29 +632,29 @@ func (ctx *TestContext) CleanupPlatforms() {
 		permanentPlatformIDs = append(permanentPlatformIDs, platformID)
 	}
 	if len(permanentPlatformIDs) == 0 {
-		RemoveAllPlatforms(ctx.SMWithOAuth)
+		ctx.deleteFromRepo(types.PlatformType)
 	} else {
-		withIDNotInQuery(ctx.SMWithOAuth.DELETE(web.PlatformsURL), permanentPlatformIDs).Expect()
+		ctx.deleteFromRepo(types.PlatformType, idNotInCriteria(permanentPlatformIDs))
 	}
 }
 
 // CleanupAllPlatforms removes all registered platforms in SM
 func (ctx *TestContext) CleanupAllPlatforms() {
-	RemoveAllPlatforms(ctx.SMWithOAuth)
+	ctx.deleteFromRepo(types.PlatformType)
 	ctx.PermanentPlatforms = make(map[string]*types.Platform)
 }
 
 // CleanupVisibilities removes all registered visibilities in SM except the permanent ones
 func (ctx *TestContext) CleanupVisibilities() {
 	if len(ctx.PermanentVisibilities) == 0 {
-		RemoveAllVisibilities(ctx.SMWithOAuth)
+		ctx.deleteFromRepo(types.VisibilityType)
 		return
 	}
 	permanentVisibilitiesIDs := make([]string, 0, len(ctx.PermanentVisibilities))
 	for visibilityID := range ctx.PermanentVisibilities {
 		permanentVisibilitiesIDs = append(permanentVisibilitiesIDs, visibilityID)
 	}
-	withIDNotInQuery(ctx.SMWithOAuth.DELETE(web.VisibilitiesURL), permanentVisibilitiesIDs).Expect()
+	ctx.deleteFromRepo(types.VisibilityType, idNotInCriteria(permanentVisibilitiesIDs))
 }
 
 // CleanupVisibility removes a visibility from the SM
