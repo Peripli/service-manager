@@ -503,6 +503,9 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 	}
 
 	ctx.SMWithOAuth.DELETE("/v1/service_brokers").Expect()
+	for _, broker := range ctx.Brokers {
+		broker.Close()
+	}
 	ctx.Brokers = make(map[string]*BrokerServer)
 
 	if ctx.TestPlatform != nil {
