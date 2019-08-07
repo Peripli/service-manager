@@ -301,7 +301,7 @@ var _ = Describe("Notifications Suite", func() {
 	})
 
 	AfterSuite(func() {
-		ctx.Cleanup()
+		ctx.CleanupAfterSuite()
 	})
 
 	BeforeEach(func() {

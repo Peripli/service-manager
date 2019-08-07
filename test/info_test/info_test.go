@@ -55,7 +55,7 @@ var _ = Describe("Info API", func() {
 			ctx = common.NewTestContextBuilder().WithEnvPostExtensions(postHook).Build()
 
 			defer func() {
-				ctx.Cleanup()
+				ctx.CleanupAfterSuite()
 			}()
 
 			ctx.SM.GET(info.URL).

@@ -161,7 +161,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 
 	AfterEach(func() {
 		ctx.CleanupBroker(existingBrokerID)
-		ctx.Cleanup()
+		ctx.CleanupAfterSuite()
 	})
 
 	Specify("plans and visibilities for the registered brokers are known to SM", func() {

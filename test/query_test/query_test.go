@@ -44,7 +44,7 @@ var _ = Describe("Service Manager Query", func() {
 
 	AfterSuite(func() {
 		if ctx != nil {
-			ctx.Cleanup()
+			ctx.CleanupAfterSuite()
 		}
 	})
 

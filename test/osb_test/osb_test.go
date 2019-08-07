@@ -266,7 +266,7 @@ var _ = Describe("Service Manager OSB API", func() {
 	})
 
 	AfterSuite(func() {
-		ctx.Cleanup()
+		ctx.CleanupAfterSuite()
 	})
 
 	Describe("Catalog", func() {

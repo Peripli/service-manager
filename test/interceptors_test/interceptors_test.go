@@ -206,9 +206,7 @@ var _ = Describe("Interceptors", func() {
 	})
 
 	AfterSuite(func() {
-		if ctx != nil {
-			ctx.Cleanup()
-		}
+		ctx.CleanupAfterSuite()
 	})
 
 	BeforeEach(func() {
@@ -217,9 +215,7 @@ var _ = Describe("Interceptors", func() {
 
 	AfterEach(func() {
 		resetModificationInterceptors()
-		if ctx != nil {
-			ctx.CleanupAdditionalResources()
-		}
+		ctx.CleanupAfterEach()
 	})
 
 	Describe("Calling other intereceptors", func() {

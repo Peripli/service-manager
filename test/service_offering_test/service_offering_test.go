@@ -345,7 +345,7 @@ func blueprint(ctx *common.TestContext, auth *httpexpect.Expect) common.Object {
 	cService := common.GenerateTestServiceWithPlans()
 	catalog := common.NewEmptySBCatalog()
 	catalog.AddService(cService)
-	id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
+	id, _, _ := ctx.RegisterPermanentBrokerWithCatalog(catalog)
 
 	so := auth.GET(web.ServiceOfferingsURL).WithQuery("fieldQuery", "broker_id = "+id).
 		Expect().

@@ -338,7 +338,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 })
 
 func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *httpexpect.Expect) common.Object {
-	return func(_ *common.TestContext, auth *httpexpect.Expect) common.Object {
+	return func(ctx *common.TestContext, auth *httpexpect.Expect) common.Object {
 		randomPlatform := common.GenerateRandomPlatform()
 		if !setNullFieldsValues {
 			delete(randomPlatform, "description")
@@ -347,7 +347,13 @@ func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *htt
 			Expect().
 			Status(http.StatusCreated).JSON().Object().Raw()
 		delete(platform, "credentials")
+		platformID := platform["id"].(string)
 
+		ctx.PermanentPlatforms[platformID] = &types.Platform{
+			Base: types.Base{
+				ID: platformID,
+			},
+		}
 		return platform
 	}
 }

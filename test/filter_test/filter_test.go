@@ -41,7 +41,7 @@ var _ = Describe("Service Manager Filters", func() {
 	})
 
 	AfterEach(func() {
-		ctx.Cleanup()
+		ctx.CleanupAfterSuite()
 	})
 
 	Describe("Attach filter on multiple endpoints", func() {

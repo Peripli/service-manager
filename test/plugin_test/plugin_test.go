@@ -35,7 +35,7 @@ var _ = Describe("Service Manager Plugins", func() {
 
 	AfterEach(func() {
 		if ctx != nil {
-			ctx.Cleanup()
+			ctx.CleanupAfterSuite()
 		}
 	})
 
@@ -116,7 +116,7 @@ var _ = Describe("Service Manager Plugins", func() {
 
 			reply.ValueEqual("extra", "response")
 			jsonBody := object{}
-			json.Unmarshal(brokerServer.LastRequestBody, &jsonBody)
+			Expect(json.Unmarshal(brokerServer.LastRequestBody, &jsonBody)).ToNot(HaveOccurred())
 			Expect(jsonBody).To(Equal(object{
 				"service_id": "s123",
 				"plan_id":    "p123",

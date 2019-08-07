@@ -51,7 +51,7 @@ var _ = Describe("Service Manager Authentication", func() {
 	})
 
 	AfterSuite(func() {
-		ctx.Cleanup()
+		ctx.CleanupAfterSuite()
 	})
 
 	Context("Nontrivial scenarios", func() {

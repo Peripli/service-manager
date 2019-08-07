@@ -68,7 +68,11 @@ func DescribeTestsFor(t TestCase) bool {
 		var ctx *common.TestContext
 
 		AfterSuite(func() {
-			ctx.Cleanup()
+			ctx.CleanupAfterSuite()
+		})
+
+		AfterEach(func() {
+			ctx.CleanupAfterEach()
 		})
 
 		func() {

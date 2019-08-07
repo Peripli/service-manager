@@ -38,7 +38,7 @@ var _ = Describe("Healthcheck API", func() {
 	})
 
 	AfterSuite(func() {
-		ctx.Cleanup()
+		ctx.CleanupAfterSuite()
 	})
 
 	Describe("Get info handler", func() {

@@ -29,6 +29,7 @@ import (
 	"path"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -55,7 +56,6 @@ func init() {
 
 const SMServer = "sm-server"
 const OauthServer = "oauth-server"
-const BrokerServerPrefix = "broker-"
 
 type TestContextBuilder struct {
 	envPreHooks  []func(set *pflag.FlagSet)
@@ -89,9 +89,12 @@ type TestContext struct {
 
 	TestPlatform *types.Platform
 
-	Servers       map[string]FakeServer
-	Brokers       map[string]*BrokerServer
-	BrokerFactory *BrokerFactory
+	Servers               map[string]FakeServer
+	Brokers               map[string]*BrokerServer
+	PermanentBrokers      map[string]*BrokerServer
+	PermanentPlatforms    map[string]*types.Platform
+	PermanentVisibilities map[string]*types.Visibility
+	BrokerFactory         *BrokerFactory
 }
 
 type testSMServer struct {
@@ -283,14 +286,18 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener) *TestCon
 	RemoveAllPlatforms(SMWithOAuth)
 
 	testContext := &TestContext{
-		wg:                   wg,
-		SM:                   SM,
-		SMWithOAuth:          SMWithOAuth,
-		SMWithOAuthForTenant: SMWithOAuthForTenant,
-		Servers:              tcb.Servers,
-		SMRepository:         smRepository,
-		Brokers:              make(map[string]*BrokerServer),
-		BrokerFactory:        NewBrokerFactory(),
+		wg:                    wg,
+		SM:                    SM,
+		SMWithOAuth:           SMWithOAuth,
+		SMWithOAuthForTenant:  SMWithOAuthForTenant,
+		Servers:               tcb.Servers,
+		SMRepository:          smRepository,
+		wsConnections:         make([]*websocket.Conn, 0),
+		Brokers:               make(map[string]*BrokerServer),
+		PermanentBrokers:      make(map[string]*BrokerServer),
+		PermanentPlatforms:    make(map[string]*types.Platform),
+		PermanentVisibilities: make(map[string]*types.Visibility),
+		BrokerFactory:         NewBrokerFactory(),
 	}
 
 	if !tcb.shouldSkipBasicAuthClient {
@@ -382,19 +389,69 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 	}, smb.Storage
 }
 
-func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object) (string, Object, *BrokerServer) {
-	return ctx.RegisterBrokerWithCatalogAndLabelsExpect(catalog, brokerData, ctx.SMWithOAuth)
-}
-
+// NewBrokerServer creates a new broker server with a random catalog. The server is managed by the test context.
 func (ctx *TestContext) NewBrokerServer() *BrokerServer {
 	return ctx.BrokerFactory.NewBrokerServer()
 }
 
+// NewBrokerServerWithCatalog creates a new broker server with a given catalog. The server is managed by the test context.
 func (ctx *TestContext) NewBrokerServerWithCatalog(catalog SBCatalog) *BrokerServer {
 	return ctx.BrokerFactory.NewBrokerServerWithCatalog(catalog)
 }
 
+// RegisterBroker registers a new broker with a given catalog and broker data in SM
+func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object) (string, Object, *BrokerServer) {
+	return ctx.RegisterBrokerWithCatalogAndLabelsExpect(catalog, brokerData, ctx.SMWithOAuth)
+}
+
+// RegisterBroker registers a new broker with a given catalog and broker data in SM which should not be deleted after each test execution
+func (ctx *TestContext) RegisterPermanentBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object) (string, Object, *BrokerServer) {
+	return ctx.RegisterPermanentBrokerWithCatalogAndLabelsExpect(catalog, brokerData, ctx.SMWithOAuth)
+}
+
+// RegisterBroker registers a new broker with a given catalog, broker data and expect object in SM
 func (ctx *TestContext) RegisterBrokerWithCatalogAndLabelsExpect(catalog SBCatalog, brokerData Object, expect *httpexpect.Expect) (string, Object, *BrokerServer) {
+	return ctx.registerBrokerWithCatalogAndLabelsExpect(catalog, brokerData, expect, false)
+}
+
+// RegisterBroker registers a new broker with a given catalog, broker data and expect object in SM which should not be deleted after each test execution
+func (ctx *TestContext) RegisterPermanentBrokerWithCatalogAndLabelsExpect(catalog SBCatalog, brokerData Object, expect *httpexpect.Expect) (string, Object, *BrokerServer) {
+	return ctx.registerBrokerWithCatalogAndLabelsExpect(catalog, brokerData, expect, true)
+}
+
+// RegisterBrokerWithCatalog registers a new broker with a given catalog in SM
+func (ctx *TestContext) RegisterBrokerWithCatalog(catalog SBCatalog) (string, Object, *BrokerServer) {
+	return ctx.RegisterBrokerWithCatalogAndLabels(catalog, Object{})
+}
+
+// RegisterBroker registers a new broker with a given catalog in SM which should not be deleted after each test execution
+func (ctx *TestContext) RegisterPermanentBrokerWithCatalog(catalog SBCatalog) (string, Object, *BrokerServer) {
+	return ctx.RegisterPermanentBrokerWithCatalogAndLabels(catalog, Object{})
+}
+
+// RegisterBroker registers a new broker in SM
+func (ctx *TestContext) RegisterBroker() (string, Object, *BrokerServer) {
+	return ctx.RegisterBrokerWithCatalog(NewRandomSBCatalog())
+}
+
+// RegisterBroker registers a new broker in SM which should not be deleted after each test execution
+func (ctx *TestContext) RegisterPermanentBroker() (string, Object, *BrokerServer) {
+	return ctx.RegisterPermanentBrokerWithCatalog(NewRandomSBCatalog())
+}
+
+// RegisterVisibility registers a new visibility in SM
+func (ctx *TestContext) RegisterVisibility(visibilityJSON Object) *types.Visibility {
+	return RegisterVisibilityInSM(visibilityJSON, ctx.SMWithOAuth, map[string]string{})
+}
+
+// RegisterPermanentVisibility registers a new visibility in SM which should not be deleted after each test execution
+func (ctx *TestContext) RegisterPermanentVisibility(visibilityJSON Object) *types.Visibility {
+	visibility := ctx.RegisterVisibility(visibilityJSON)
+	ctx.PermanentVisibilities[visibility.ID] = visibility
+	return visibility
+}
+
+func (ctx *TestContext) registerBrokerWithCatalogAndLabelsExpect(catalog SBCatalog, brokerData Object, expect *httpexpect.Expect, isPermanent bool) (string, Object, *BrokerServer) {
 	broker := ctx.NewBrokerServerWithCatalog(catalog)
 	UUID, err := uuid.NewV4()
 	if err != nil {
@@ -420,45 +477,18 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabelsExpect(catalog SBCatal
 
 	smBroker := RegisterBrokerInSM(brokerJSON, expect, map[string]string{})
 	brokerID := smBroker["id"].(string)
-	ctx.Brokers[brokerID] = broker
+	if isPermanent {
+		ctx.PermanentBrokers[brokerID] = broker
+	} else {
+		ctx.Brokers[brokerID] = broker
+	}
+
 	broker.ResetCallHistory()
 	brokerJSON["id"] = brokerID
 	return brokerID, smBroker, broker
 }
 
-func MergeObjects(target, source Object) {
-	for k, v := range source {
-		obj, ok := v.(Object)
-		if ok {
-			var tobj Object
-			tv, exists := target[k]
-			if exists {
-				tobj, ok = tv.(Object)
-				if !ok {
-					// incompatible types, just overwrite
-					target[k] = v
-					continue
-				}
-			} else {
-				tobj = Object{}
-				target[k] = tobj
-			}
-			MergeObjects(tobj, obj)
-		} else {
-			target[k] = v
-		}
-	}
-}
-
-func (ctx *TestContext) RegisterBrokerWithCatalog(catalog SBCatalog) (string, Object, *BrokerServer) {
-	return ctx.RegisterBrokerWithCatalogAndLabels(catalog, Object{})
-}
-
-func (ctx *TestContext) RegisterBroker() (string, Object, *BrokerServer) {
-	return ctx.RegisterBrokerWithCatalog(NewRandomSBCatalog())
-}
-
-func (ctx *TestContext) RegisterPlatform() *types.Platform {
+func (ctx *TestContext) registerPlatform(isPermanent bool, expect *httpexpect.Expect) *types.Platform {
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		panic(err)
@@ -466,64 +496,179 @@ func (ctx *TestContext) RegisterPlatform() *types.Platform {
 	platformJSON := Object{
 		"name":        UUID.String(),
 		"type":        "testType",
-		"description": "testDescrption",
+		"description": "testDescription",
 	}
-	return RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
+	result := RegisterPlatformInSM(platformJSON, expect, map[string]string{})
+	if isPermanent {
+		ctx.PermanentPlatforms[result.ID] = result
+	}
+	return result
 }
 
-func (ctx *TestContext) CleanupBroker(id string) {
-	broker := ctx.Brokers[id]
-	ctx.SMWithOAuth.DELETE("/v1/service_brokers/" + id).Expect()
-	broker.Close()
+// RegisterPlatform registers a new platform in SM
+func (ctx *TestContext) RegisterPlatform() *types.Platform {
+	return ctx.registerPlatform(false, ctx.SMWithOAuth)
 }
 
-func (ctx *TestContext) Cleanup() {
+// RegisterPlatform registers a new platform in SM with a given expect object which will should not be deleted after each test execution
+func (ctx *TestContext) RegisterPermanentPlatform() *types.Platform {
+	return ctx.registerPlatform(true, ctx.SMWithOAuth)
+}
+
+// RegisterPlatform registers a new platform in SM with a given expect object
+func (ctx *TestContext) RegisterPlatformExpect(expect *httpexpect.Expect) *types.Platform {
+	return ctx.registerPlatform(false, expect)
+}
+
+// RegisterPlatform registers a new platform in SM which will should not be deleted after each test execution
+func (ctx *TestContext) RegisterPermanentPlatformExpect(expect *httpexpect.Expect) *types.Platform {
+	return ctx.registerPlatform(true, expect)
+}
+
+// CleanupAfterSuite removes all resources from the SM database. To be called only from AfterSuite.
+// After this call test context must not be used.
+func (ctx *TestContext) CleanupAfterSuite() {
 	if ctx == nil {
 		return
 	}
+	ctx.CleanupAllBrokers() // removes also all visibilities
+	ctx.CleanupAllPlatforms()
+	ctx.CleanupNotifications()
+	ctx.CleanupWebsocketConnections()
 
-	ctx.CleanupAdditionalResources()
-
-	for _, server := range ctx.Servers {
-		server.Close()
-	}
-	ctx.Servers = map[string]FakeServer{}
-
-	ctx.wg.Wait()
+	ctx.BrokerFactory.Close()
+	ctx.CleanupFakeServers()
+	ctx.wg.Wait() // Wait for SM server to finish
 }
 
-func (ctx *TestContext) CleanupAdditionalResources() {
+// CleanupAfterEach removes all resources that are not permanent. To be called in AfterEach
+func (ctx *TestContext) CleanupAfterEach() {
 	if ctx == nil {
 		return
 	}
+	ctx.CleanupNotifications()
+	ctx.CleanupBrokers()
+	ctx.CleanupVisibilities()
+	ctx.CleanupPlatforms()
+	ctx.CleanupWebsocketConnections()
+}
 
+func (ctx *TestContext) CleanupNotifications() {
 	_, err := ctx.SMRepository.Delete(context.TODO(), types.NotificationType)
 	if err != nil && err != util.ErrNotFoundInStorage {
 		panic(err)
 	}
+}
 
-	ctx.SMWithOAuth.DELETE("/v1/service_brokers").Expect()
-	ctx.Brokers = make(map[string]*BrokerServer)
-
-	if ctx.TestPlatform != nil {
-		ctx.SMWithOAuth.DELETE("/v1/platforms").WithQuery("fieldQuery", "id != "+ctx.TestPlatform.ID).Expect()
+// CleanupBroker removes a broker from the SM and closes the server if available
+func (ctx *TestContext) CleanupBroker(id string) {
+	broker, ok := ctx.Brokers[id]
+	if ok {
+		delete(ctx.Brokers, id)
 	} else {
-		ctx.SMWithOAuth.DELETE("/v1/platforms").Expect()
+		broker = ctx.PermanentBrokers[id]
+		delete(ctx.PermanentBrokers, id)
 	}
-	var smServer FakeServer
-	for serverName, server := range ctx.Servers {
-		if serverName == SMServer {
-			smServer = server
-		} else {
-			server.Close()
-		}
-	}
-	ctx.Servers = map[string]FakeServer{SMServer: smServer}
+	ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL + "/" + id).Expect()
+	broker.Close()
+}
 
+func withIDNotInQuery(expect *httpexpect.Request, ids []string) *httpexpect.Request {
+	fieldQueryRightOperand := "[" + strings.Join(ids, "||") + "]"
+	expect.WithQuery("fieldQuery", "id notin "+fieldQueryRightOperand)
+	return expect
+}
+
+// CleanupAllBrokers removes all service brokers registered in SM except the permanent ones
+func (ctx *TestContext) CleanupBrokers() {
+	if len(ctx.PermanentBrokers) == 0 {
+		RemoveAllBrokers(ctx.SMWithOAuth)
+	} else {
+		permanentBrokers := make([]string, 0, len(ctx.PermanentBrokers))
+		for brokerID := range ctx.PermanentBrokers {
+			permanentBrokers = append(permanentBrokers, brokerID)
+		}
+		withIDNotInQuery(ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL), permanentBrokers).Expect()
+	}
+	for _, broker := range ctx.Brokers {
+		broker.Close()
+	}
+	ctx.Brokers = make(map[string]*BrokerServer)
+}
+
+// CleanupAllBrokers removes all service brokers registered in SM
+func (ctx *TestContext) CleanupAllBrokers() {
+	RemoveAllBrokers(ctx.SMWithOAuth)
+	for _, broker := range ctx.Brokers {
+		broker.Close()
+	}
+	for _, broker := range ctx.PermanentBrokers {
+		broker.Close()
+	}
+	ctx.Brokers = make(map[string]*BrokerServer)
+	ctx.PermanentBrokers = make(map[string]*BrokerServer)
+}
+
+// CleanupPlatform removes a platform from the SM
+func (ctx *TestContext) CleanupPlatform(id string) {
+	ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/" + id).Expect()
+	delete(ctx.PermanentPlatforms, id)
+}
+
+// CleanupPlatforms removes all registered platforms in SM except the permanent ones
+func (ctx *TestContext) CleanupPlatforms() {
+	permanentPlatformIDs := make([]string, 0, len(ctx.PermanentPlatforms)+1)
+	if ctx.TestPlatform != nil {
+		permanentPlatformIDs = append(permanentPlatformIDs, ctx.TestPlatform.ID)
+	}
+	for platformID := range ctx.PermanentPlatforms {
+		permanentPlatformIDs = append(permanentPlatformIDs, platformID)
+	}
+	if len(permanentPlatformIDs) == 0 {
+		RemoveAllPlatforms(ctx.SMWithOAuth)
+	} else {
+		withIDNotInQuery(ctx.SMWithOAuth.DELETE(web.PlatformsURL), permanentPlatformIDs).Expect()
+	}
+}
+
+// CleanupAllPlatforms removes all registered platforms in SM
+func (ctx *TestContext) CleanupAllPlatforms() {
+	RemoveAllPlatforms(ctx.SMWithOAuth)
+	ctx.PermanentPlatforms = make(map[string]*types.Platform)
+}
+
+// CleanupVisibilities removes all registered visibilities in SM except the permanent ones
+func (ctx *TestContext) CleanupVisibilities() {
+	if len(ctx.PermanentVisibilities) == 0 {
+		RemoveAllVisibilities(ctx.SMWithOAuth)
+		return
+	}
+	permanentVisibilitiesIDs := make([]string, 0, len(ctx.PermanentVisibilities))
+	for visibilityID := range ctx.PermanentVisibilities {
+		permanentVisibilitiesIDs = append(permanentVisibilitiesIDs, visibilityID)
+	}
+	withIDNotInQuery(ctx.SMWithOAuth.DELETE(web.VisibilitiesURL), permanentVisibilitiesIDs).Expect()
+}
+
+// CleanupVisibility removes a visibility from the SM
+func (ctx *TestContext) CleanupVisibility(id string) {
+	ctx.SMWithOAuth.DELETE(web.VisibilitiesURL + "/" + id).Expect()
+	delete(ctx.PermanentVisibilities, id)
+}
+
+// CleanupFakeServers stops all servers including the SM
+func (ctx *TestContext) CleanupFakeServers() {
+	for _, server := range ctx.Servers {
+		server.Close()
+	}
+	ctx.Servers = map[string]FakeServer{}
+}
+
+func (ctx *TestContext) CleanupWebsocketConnections() {
 	for _, conn := range ctx.wsConnections {
 		_ = conn.Close()
 	}
-	ctx.wsConnections = nil
+	ctx.wsConnections = make([]*websocket.Conn, 0)
 }
 
 func (ctx *TestContext) ConnectWebSocket(platform *types.Platform, queryParams map[string]string) (*websocket.Conn, *http.Response, error) {
@@ -549,15 +694,26 @@ func (ctx *TestContext) ConnectWebSocket(platform *types.Platform, queryParams m
 	return conn, resp, err
 }
 
-func (ctx *TestContext) CloseWebSocket(conn *websocket.Conn) {
-	if conn == nil {
-		return
-	}
-	_ = conn.Close()
-	for i, c := range ctx.wsConnections {
-		if c == conn {
-			ctx.wsConnections = append(ctx.wsConnections[:i], ctx.wsConnections[i+1:]...)
-			return
+func MergeObjects(target, source Object) {
+	for k, v := range source {
+		obj, ok := v.(Object)
+		if ok {
+			var tobj Object
+			tv, exists := target[k]
+			if exists {
+				tobj, ok = tv.(Object)
+				if !ok {
+					// incompatible types, just overwrite
+					target[k] = v
+					continue
+				}
+			} else {
+				tobj = Object{}
+				target[k] = tobj
+			}
+			MergeObjects(tobj, obj)
+		} else {
+			target[k] = v
 		}
 	}
 }

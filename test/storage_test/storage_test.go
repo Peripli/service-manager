@@ -27,7 +27,7 @@ var _ = Describe("Test", func() {
 	})
 
 	AfterEach(func() {
-		ctx.Cleanup()
+		ctx.CleanupAfterSuite()
 	})
 
 	Context("when resource is created without labels", func() {

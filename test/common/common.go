@@ -19,6 +19,8 @@ package common
 import (
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/web"
+
 	"github.com/onsi/ginkgo"
 	"github.com/spf13/pflag"
 
@@ -189,15 +191,15 @@ func MapContains(actual Object, expected Object) {
 }
 
 func RemoveAllBrokers(SM *httpexpect.Expect) {
-	removeAll(SM, "service_brokers", "/v1/service_brokers")
+	removeAll(SM, "service_brokers", web.ServiceBrokersURL)
 }
 
 func RemoveAllPlatforms(SM *httpexpect.Expect) {
-	removeAll(SM, "platforms", "/v1/platforms")
+	removeAll(SM, "platforms", web.PlatformsURL)
 }
 
 func RemoveAllVisibilities(SM *httpexpect.Expect) {
-	removeAll(SM, "visibilities", "/v1/visibilities")
+	removeAll(SM, "visibilities", web.VisibilitiesURL)
 }
 
 func removeAll(SM *httpexpect.Expect, entity, rootURLPath string) {
@@ -206,26 +208,17 @@ func removeAll(SM *httpexpect.Expect, entity, rootURLPath string) {
 }
 
 func RegisterBrokerInSM(brokerJSON Object, SM *httpexpect.Expect, headers map[string]string) Object {
-	return SM.POST("/v1/service_brokers").
+	return SM.POST(web.ServiceBrokersURL).
 		WithHeaders(headers).
 		WithJSON(brokerJSON).Expect().Status(http.StatusCreated).JSON().Object().Raw()
 }
 
 func RegisterPlatformInSM(platformJSON Object, SM *httpexpect.Expect, headers map[string]string) *types.Platform {
-	reply := SM.POST("/v1/platforms").
+	reply := SM.POST(web.PlatformsURL).
 		WithHeaders(headers).
 		WithJSON(platformJSON).
 		Expect().Status(http.StatusCreated).JSON().Object().Raw()
-	createdAtString := reply["created_at"].(string)
-	updatedAtString := reply["updated_at"].(string)
-	createdAt, err := time.Parse(time.RFC3339, createdAtString)
-	if err != nil {
-		panic(err)
-	}
-	updatedAt, err := time.Parse(time.RFC3339, updatedAtString)
-	if err != nil {
-		panic(err)
-	}
+	createdAt, updatedAt := getTimestampsFromReply(reply)
 	platform := &types.Platform{
 		Base: types.Base{
 			ID:        reply["id"].(string),
@@ -243,6 +236,40 @@ func RegisterPlatformInSM(platformJSON Object, SM *httpexpect.Expect, headers ma
 		Name:        reply["name"].(string),
 	}
 	return platform
+}
+
+func RegisterVisibilityInSM(visibilityJSON Object, SM *httpexpect.Expect, headers map[string]string) *types.Visibility {
+	reply := SM.POST(web.VisibilitiesURL).
+		WithHeaders(headers).
+		WithJSON(visibilityJSON).
+		Expect().Status(http.StatusCreated).JSON().Object().Raw()
+
+	createdAt, updatedAt := getTimestampsFromReply(reply)
+	visibility := &types.Visibility{
+		Base: types.Base{
+			ID:        reply["id"].(string),
+			CreatedAt: createdAt,
+			UpdatedAt: updatedAt,
+		},
+		PlatformID:    reply["platform_id"].(string),
+		ServicePlanID: reply["service_plan_id"].(string),
+	}
+	return visibility
+}
+
+func getTimestampsFromReply(reply map[string]interface{}) (createdAt, updatedAt time.Time) {
+	createdAtString := reply["created_at"].(string)
+	updatedAtString := reply["updated_at"].(string)
+	var err error
+	createdAt, err = time.Parse(time.RFC3339, createdAtString)
+	if err != nil {
+		panic(err)
+	}
+	updatedAt, err = time.Parse(time.RFC3339, updatedAtString)
+	if err != nil {
+		panic(err)
+	}
+	return
 }
 
 func generatePrivateKey() *rsa.PrivateKey {
@@ -327,12 +354,11 @@ func GenerateRandomPlatform() Object {
 			panic(err)
 		}
 		o[key] = UUID.String()
-
 	}
 	return o
 }
 
-func GenerateRandomBroker(ctx *TestContext) Object {
+func GenerateRandomBroker(ctx *TestContext) (Object, *BrokerServer) {
 	o := Object{}
 
 	brokerServer := ctx.NewBrokerServer()
@@ -355,7 +381,7 @@ func GenerateRandomBroker(ctx *TestContext) Object {
 			},
 		},
 	}
-	return o
+	return o, brokerServer
 }
 
 func Print(message string, args ...interface{}) {

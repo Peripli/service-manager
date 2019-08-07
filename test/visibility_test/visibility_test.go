@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/gavv/httpexpect"
 
@@ -76,7 +77,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				postVisibilityRequestNoLabels = common.Object{
 					"platform_id":     existingPlatformID,
-					"service_plan_id": existingPlanIDs[0],
+					"service_plan_id": existingPlanIDs[2],
 				}
 
 				labels = common.Object{
@@ -90,9 +91,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					"service_plan_id": existingPlanIDs[1],
 					"labels":          labels,
 				}
-
-				common.RemoveAllVisibilities(ctx.SMWithOAuth)
-
 			})
 
 			Describe("POST", func() {
@@ -138,7 +136,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 							WithJSON(common.Object{
-								"service_plan_id": existingPlanIDs[0],
+								"service_plan_id": existingPlanIDs[3],
 								"platform_id":     platformId,
 							}).
 							Expect().Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
@@ -162,17 +160,17 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					It("returns 400 if visibilities for the plan exist", func() {
 						ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 							WithJSON(common.Object{
-								"service_plan_id": existingPlanIDs[0],
+								"service_plan_id": existingPlanIDs[3],
 								"platform_id":     existingPlatformID,
 							}).
 							Expect().Status(http.StatusCreated)
 
 						ctx.SMWithOAuth.GET(web.VisibilitiesURL).
-							Expect().Status(http.StatusOK).JSON().Path("$.visibilities[*].service_plan_id").Array().Contains(existingPlanIDs[0])
+							Expect().Status(http.StatusOK).JSON().Path("$.visibilities[*].service_plan_id").Array().Contains(existingPlanIDs[3])
 
 						ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 							WithJSON(common.Object{
-								"service_plan_id": existingPlanIDs[0],
+								"service_plan_id": existingPlanIDs[3],
 							}).
 							Expect().Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
 					})
@@ -221,13 +219,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						It("returns 400", func() {
 							ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 								WithJSON(common.Object{
-									"service_plan_id": existingPlanIDs[0],
+									"service_plan_id": existingPlanIDs[3],
 								}).
 								Expect().Status(http.StatusCreated)
 
 							ctx.SMWithOAuth.POST(web.VisibilitiesURL).
 								WithJSON(common.Object{
-									"service_plan_id": existingPlanIDs[0],
+									"service_plan_id": existingPlanIDs[3],
 									"platform_id":     existingPlatformID,
 								}).
 								Expect().Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
@@ -312,7 +310,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					existingVisibilityReqBody = common.Object{
 						"platform_id":     existingPlatformID,
-						"service_plan_id": existingPlanIDs[0],
+						"service_plan_id": existingPlanIDs[3],
 					}
 
 					updatedVisibilityReqBody = common.Object{
@@ -352,7 +350,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						expectedUpdatedVisibilityRespBody = common.Object{
 							"id":              existingVisibilityID,
 							"platform_id":     existingPlatformID,
-							"service_plan_id": existingPlanIDs[0],
+							"service_plan_id": existingPlanIDs[3],
 						}
 					})
 
@@ -489,7 +487,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						ctx.SMWithOAuth.PATCH(web.VisibilitiesURL+"/"+existingVisibilityID).
 							WithJSON(common.Object{
 								"platform_id":     platformID,
-								"service_plan_id": existingPlanIDs[0],
+								"service_plan_id": existingPlanIDs[3],
 							}).
 							Expect().Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
 					})
@@ -747,7 +745,7 @@ func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *htt
 		cService := common.GenerateTestServiceWithPlans(cPaidPlan)
 		catalog := common.NewEmptySBCatalog()
 		catalog.AddService(cService)
-		id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
+		id, _, _ := ctx.RegisterPermanentBrokerWithCatalog(catalog)
 
 		object := auth.GET(web.ServiceOfferingsURL).WithQuery("fieldQuery", "broker_id = "+id).
 			Expect()
@@ -759,15 +757,19 @@ func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *htt
 			Status(http.StatusOK).JSON().Object().Value("service_plans").Array().First().Object().Value("id").String().Raw()
 		visReqBody["service_plan_id"] = servicePlanID
 		if setNullFieldsValues {
-			platformID := auth.POST(web.PlatformsURL).WithJSON(common.GenerateRandomPlatform()).
-				Expect().
-				Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
-			visReqBody["platform_id"] = platformID
+			visReqBody["platform_id"] = ctx.RegisterPermanentPlatform().ID
 		}
 
-		visibility := auth.POST(web.VisibilitiesURL).WithJSON(visReqBody).Expect().
-			Status(http.StatusCreated).JSON().Object().Raw()
-		return visibility
+		visibility := ctx.RegisterPermanentVisibility(visReqBody)
+
+		visibilityObj := common.Object{
+			"id":              visibility.ID,
+			"created_at":      visibility.CreatedAt.Format(time.RFC3339),
+			"updated_at":      visibility.UpdatedAt.Format(time.RFC3339),
+			"platform_id":     visibility.PlatformID,
+			"service_plan_id": visibility.ServicePlanID,
+		}
+		return visibilityObj
 	}
 }
 

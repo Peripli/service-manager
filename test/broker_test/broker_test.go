@@ -87,13 +87,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			}
 
 			AfterEach(func() {
-				if brokerServer != nil {
-					brokerServer.Close()
-				}
-
-				if brokerWithLabelsServer != nil {
-					brokerWithLabelsServer.Close()
-				}
+				brokerServer.Close()
+				brokerWithLabelsServer.Close()
 			})
 
 			BeforeEach(func() {
@@ -140,8 +135,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					},
 					"labels": labels,
 				}
-				common.RemoveAllBrokers(ctx.SMWithOAuth)
-
 				repository = ctx.SMRepository
 			})
 
@@ -275,7 +268,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 
 					AfterEach(func() {
-						timeoutTestCtx.Cleanup()
+						timeoutTestCtx.CleanupAfterSuite()
 					})
 
 					It("returns 502", func() {
@@ -1641,7 +1634,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *httpexpect.Expect) common.Object {
 	return func(ctx *common.TestContext, auth *httpexpect.Expect) common.Object {
-		brokerJSON := common.GenerateRandomBroker(ctx)
+		brokerJSON, brokerServer := common.GenerateRandomBroker(ctx)
 
 		if !setNullFieldsValues {
 			delete(brokerJSON, "description")
@@ -1649,6 +1642,9 @@ func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *htt
 		obj := auth.POST(web.ServiceBrokersURL).WithJSON(brokerJSON).
 			Expect().
 			Status(http.StatusCreated).JSON().Object().Raw()
+
+		ctx.PermanentBrokers[obj["id"].(string)] = brokerServer
+
 		delete(obj, "credentials")
 		return obj
 	}

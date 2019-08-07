@@ -395,7 +395,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 
 	afterEachHelper := func() {
 		By(fmt.Sprintf("[AFTEREACH]: Cleaning up test resources"))
-		ctx.CleanupAdditionalResources()
+		ctx.CleanupAfterEach()
 		By(fmt.Sprintf("[AFTEREACH]: Sucessfully finished cleaning up test resources"))
 	}
 
@@ -514,8 +514,8 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 			fields := common.CopyObject(args)
 			delete(fields, "labels")
 			queryValue := expandNextFieldQuery(entry.queryTemplate, fields, queryKey)
-			query := "fieldQuery=" + queryValue
-			verifyDeleteListOpHelper(entry, query)
+			fieldQuery := "fieldQuery=" + queryValue
+			verifyDeleteListOpHelper(entry, fieldQuery)
 			afterEachHelper()
 		}
 

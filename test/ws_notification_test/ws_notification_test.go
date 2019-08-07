@@ -24,12 +24,9 @@ import (
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/query"
-
-	"github.com/Peripli/service-manager/api/notifications"
-
 	"github.com/spf13/pflag"
 
-	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/api/notifications"
 
 	"github.com/Peripli/service-manager/pkg/types"
 
@@ -59,39 +56,40 @@ var _ = Describe("WS", func() {
 	var repository storage.Repository
 	var platform *types.Platform
 
-	wsconnectWithPlatform := func(queryParams map[string]string) (*types.Platform, *websocket.Conn, *http.Response, error) {
-		platform := common.RegisterPlatformInSM(common.GenerateRandomPlatform(), ctx.SMWithOAuth, map[string]string{})
-		conn, resp, err := ctx.ConnectWebSocket(platform, queryParams)
-		return platform, conn, resp, err
+	wsconnectWithPlatform := func(queryParams map[string]string) (*types.Platform, *websocket.Conn, *http.Response) {
+		newPlatform := ctx.RegisterPlatform()
+		conn, resp, err := ctx.ConnectWebSocket(newPlatform, queryParams)
+		Expect(err).ShouldNot(HaveOccurred())
+		return platform, conn, resp
 	}
 
-	BeforeEach(func() {
-		queryParams = map[string]string{}
-
+	BeforeSuite(func() {
 		ctx = common.NewTestContextBuilder().
 			WithEnvPreExtensions(func(set *pflag.FlagSet) {
-				set.Set("websocket.ping_timeout", pingTimeout.String())
+				Expect(set.Set("websocket.ping_timeout", pingTimeout.String())).ToNot(HaveOccurred())
 			}).Build()
 		repository = ctx.SMRepository
 		Expect(repository).ToNot(BeNil())
 
-		platform = common.RegisterPlatformInSM(common.GenerateRandomPlatform(), ctx.SMWithOAuth, map[string]string{})
+		platform = ctx.RegisterPermanentPlatform()
+	})
+
+	AfterSuite(func() {
+		ctx.CleanupAfterSuite()
+	})
+
+	AfterEach(func() {
+		ctx.CleanupAfterEach()
+	})
+
+	BeforeEach(func() {
+		queryParams = map[string]string{}
 	})
 
 	JustBeforeEach(func() {
 		var err error
 		wsconn, resp, err = ctx.ConnectWebSocket(platform, queryParams)
 		Expect(err).ShouldNot(HaveOccurred())
-	})
-
-	AfterEach(func() {
-		if repository != nil {
-			_, err := repository.Delete(context.Background(), types.NotificationType)
-			if err != nil {
-				Expect(err).To(Equal(util.ErrNotFoundInStorage))
-			}
-		}
-		ctx.Cleanup()
 	})
 
 	Context("when non-websocket request is received", func() {
@@ -107,13 +105,14 @@ var _ = Describe("WS", func() {
 
 		JustBeforeEach(func() {
 			pongCh = make(chan struct{})
-			wsconn.SetReadDeadline(time.Time{})
+			Expect(wsconn.SetReadDeadline(time.Time{})).ToNot(HaveOccurred())
 			wsconn.SetPongHandler(func(data string) error {
 				Expect(data).To(Equal("pingping"))
 				close(pongCh)
 				return nil
 			})
 			go func() {
+				defer GinkgoRecover()
 				_, _, err := wsconn.ReadMessage()
 				Expect(err).Should(HaveOccurred())
 			}()
@@ -134,7 +133,9 @@ var _ = Describe("WS", func() {
 				return nil
 			})
 			go func() {
-				wsconn.ReadMessage()
+				defer GinkgoRecover()
+				_, _, err := wsconn.ReadMessage()
+				Expect(err).Should(HaveOccurred())
 			}()
 		}, pingTimeout.Seconds()+1)
 	})
@@ -200,8 +201,8 @@ var _ = Describe("WS", func() {
 			It("should receive 410 Gone", func() {
 				queryParams[notifications.LastKnownRevisionQueryParam] = strconv.FormatInt(notification.Revision-1, 10)
 				_, resp, err := ctx.ConnectWebSocket(platform, queryParams)
-				Expect(resp.StatusCode).To(Equal(http.StatusGone))
 				Expect(err).Should(HaveOccurred())
+				Expect(resp.StatusCode).To(Equal(http.StatusGone))
 			})
 		})
 
@@ -209,19 +210,18 @@ var _ = Describe("WS", func() {
 			It("should receive 410 Gone", func() {
 				queryParams[notifications.LastKnownRevisionQueryParam] = strconv.FormatInt(notification.Revision+1, 10)
 				_, resp, err := ctx.ConnectWebSocket(platform, queryParams)
-				Expect(resp.StatusCode).To(Equal(http.StatusGone))
 				Expect(err).Should(HaveOccurred())
+				Expect(resp.StatusCode).To(Equal(http.StatusGone))
 			})
 		})
 
 		Context("when multiple connections are opened", func() {
 			It("all other should not receive prior notifications, but only newly created", func() {
-				wsconns := make([]*websocket.Conn, 0)
-				createdNotifications := make([]*types.Notification, 0)
-				for i := 0; i < 5; i++ {
-					pl, conn, _, err := wsconnectWithPlatform(nil)
-
-					Expect(err).ShouldNot(HaveOccurred())
+				const connectionCount = 5
+				wsconns := make([]*websocket.Conn, 0, connectionCount)
+				createdNotifications := make([]*types.Notification, 0, connectionCount)
+				for i := 0; i < connectionCount; i++ {
+					pl, conn, _ := wsconnectWithPlatform(nil)
 					wsconns = append(wsconns, conn)
 
 					n := createNotification(repository, pl.ID)
@@ -251,8 +251,8 @@ var _ = Describe("WS", func() {
 		It("should return status 400", func() {
 			queryParams[notifications.LastKnownRevisionQueryParam] = "not_a_number"
 			_, resp, err := ctx.ConnectWebSocket(platform, queryParams)
-			Expect(resp.StatusCode).To(Equal(http.StatusBadRequest))
 			Expect(err).Should(HaveOccurred())
+			Expect(resp.StatusCode).To(Equal(http.StatusBadRequest))
 		})
 	})
 
@@ -278,8 +278,8 @@ var _ = Describe("WS", func() {
 			expectNotification(wsconn, notificationEmptyPlatform.ID, "")
 
 			By("creating new connection")
-			_, newWsConn, _, err := wsconnectWithPlatform(queryParams)
-			Expect(err).ShouldNot(HaveOccurred())
+			_, newWsConn, _ := wsconnectWithPlatform(queryParams)
+
 			expectNotification(newWsConn, notificationEmptyPlatform.ID, "")
 		})
 	})

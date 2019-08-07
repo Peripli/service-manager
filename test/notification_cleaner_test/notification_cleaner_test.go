@@ -86,14 +86,14 @@ var _ = Describe("Notification cleaner", func() {
 	})
 
 	AfterSuite(func() {
-		testContext.Cleanup()
+		testContext.CleanupAfterSuite()
 	})
 
 	Context("When two notifications are inserted", func() {
 		It("Should delete the old one", func() {
-			new, err := repository.Create(ctx, randomNotification())
+			newNotification, err := repository.Create(ctx, randomNotification())
 			Expect(err).ToNot(HaveOccurred())
-			Expect(new.GetID()).ToNot(BeEmpty())
+			Expect(newNotification.GetID()).ToNot(BeEmpty())
 
 			oldNotification := randomNotification()
 			oldNotification.CreatedAt = time.Now().Add(-(defaultKeepFor + time.Hour))
@@ -112,10 +112,10 @@ var _ = Describe("Notification cleaner", func() {
 				return err
 			}, eventuallyTimeout).Should(Equal(util.ErrNotFoundInStorage))
 
-			byNewID := query.ByField(query.EqualsOperator, "id", new.GetID())
+			byNewID := query.ByField(query.EqualsOperator, "id", newNotification.GetID())
 			obj, err := repository.Get(ctx, types.NotificationType, byNewID)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(obj.GetID()).To(Equal(new.GetID()))
+			Expect(obj.GetID()).To(Equal(newNotification.GetID()))
 		})
 	})
 })
