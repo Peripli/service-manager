@@ -28,7 +28,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// TestServiceManager tests servermanager package
+// TestLog tests logging package
 func TestLog(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Log Suite")
