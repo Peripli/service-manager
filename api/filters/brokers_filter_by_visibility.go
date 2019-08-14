@@ -114,7 +114,7 @@ func (vf *BrokersFilterByVisibility) FilterMatchers() []web.FilterMatcher {
 		{
 			Matchers: []web.Matcher{
 				web.Path(web.ServiceBrokersURL + "/**"),
-				web.Methods(http.MethodGet, http.MethodPatch, http.MethodPut, http.MethodDelete),
+				web.Methods(http.MethodGet),
 			},
 		},
 	}

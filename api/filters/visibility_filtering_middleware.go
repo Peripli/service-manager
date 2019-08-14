@@ -18,7 +18,7 @@ func (m visibilityFilteringMiddleware) Run(req *web.Request, next web.Handler) (
 	ctx := req.Context()
 	userCtx, ok := web.UserFromContext(ctx)
 	if !ok {
-		return nil, errors.New("No user found")
+		return nil, errors.New("no user found")
 	}
 	if userCtx.AuthenticationType != web.Basic {
 		log.C(ctx).Debugf("Authentication is %s, not basic so proceed without visibility filter criteria", userCtx.AuthenticationType)
@@ -27,6 +27,10 @@ func (m visibilityFilteringMiddleware) Run(req *web.Request, next web.Handler) (
 	platform := &types.Platform{}
 	if err := userCtx.Data(platform); err != nil {
 		return nil, err
+	}
+	if platform.Type != "kubernetes" {
+		log.C(ctx).Debugf("Platform type is %s, which is not kubernetes. Skip filtering on visibilities", platform.Type)
+		return next.Handle(req)
 	}
 
 	finalQuery, err := m.FilteringFunc(ctx, platform.ID)

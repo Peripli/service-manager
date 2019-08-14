@@ -17,10 +17,18 @@ package osb_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"time"
+
+	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/pkg/types"
+
+	"github.com/tidwall/gjson"
+
+	"github.com/Peripli/service-manager/pkg/web"
 
 	"github.com/spf13/pflag"
 
@@ -224,6 +232,7 @@ var _ = Describe("Service Manager OSB API", func() {
 
 		simpleBrokerCatalogID, _, brokerServerWithSimpleCatalog := ctx.RegisterBrokerWithCatalog(simpleCatalog)
 		smUrlToSimpleBrokerCatalogBroker = brokerServerWithSimpleCatalog.URL() + "/v1/osb/" + simpleBrokerCatalogID
+		common.RegisterVisibilityForBrokerID(ctx.SMWithOAuth, simpleBrokerCatalogID)
 
 		failingBrokerID, _, failingBrokerServer = ctx.RegisterBroker()
 		smUrlToFailingBroker = failingBrokerServer.URL() + "/v1/osb/" + failingBrokerID
@@ -333,6 +342,67 @@ var _ = Describe("Service Manager OSB API", func() {
 				Expect(len(stoppedBrokerServer.CatalogEndpointRequests)).To(Equal(0))
 			})
 		})
+
+		Describe("filtering", func() {
+			var brokerID string
+			var plan1, plan2 string
+			var plan1ID, plan1CatalogID, plan2ID, plan2CatalogID string
+
+			getSMPlanIDByCatalogID := func(planCatalogID string) string {
+				plans, err := ctx.SMRepository.List(context.Background(), types.ServicePlanType, query.ByField(query.EqualsOperator, "catalog_id", planCatalogID))
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(plans.Len()).To(BeNumerically("==", 1))
+				return plans.ItemAt(0).GetID()
+			}
+
+			BeforeEach(func() {
+				catalog := common.NewEmptySBCatalog()
+				plan1 = common.GenerateFreeTestPlan()
+				plan2 = common.GenerateTestPlan()
+				catalog.AddService(common.GenerateTestServiceWithPlans(plan1, plan2))
+				brokerID, _, _ = ctx.RegisterBrokerWithCatalog(catalog)
+
+				plan1CatalogID = gjson.Get(plan1, "id").String()
+				plan2CatalogID = gjson.Get(plan2, "id").String()
+				plan1ID = getSMPlanIDByCatalogID(plan1CatalogID)
+				plan2ID = getSMPlanIDByCatalogID(plan2CatalogID)
+			})
+
+			AfterEach(func() {
+				ctx.CleanupBroker(brokerID)
+			})
+
+			Context("for platform with no visibilities", func() {
+				It("should return empty services catalog", func() {
+					ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s/v2/catalog", web.OSBURL, brokerID)).
+						Expect().Status(http.StatusOK).JSON().Object().Value("services").Array().Length().Equal(0)
+				})
+			})
+
+			Context("for platform with public visibility for one plan", func() {
+				It("should return only the plan with visibility", func() {
+					ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
+						"service_plan_id": plan1ID,
+					}).Expect().Status(http.StatusCreated)
+					result := ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s/v2/catalog", web.OSBURL, brokerID)).
+						Expect().Status(http.StatusOK).JSON().Object().Value("services").Array().First().Object().Value("plans").Array()
+					result.First().Object().ValueEqual("id", plan1CatalogID)
+					result.Length().Equal(1)
+
+					By("adding another visibility for the platform")
+					ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
+						"service_plan_id": plan2ID,
+						"platform_id":     ctx.TestPlatform.ID,
+					}).Expect().Status(http.StatusCreated)
+					result = ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s/v2/catalog", web.OSBURL, brokerID)).
+						Expect().Status(http.StatusOK).JSON().Object().Value("services").Array().First().Object().Value("plans").Array()
+					result.First().Object().ValueEqual("id", plan1CatalogID)
+					result.Element(1).Object().ValueEqual("id", plan2CatalogID)
+					result.Length().Equal(2)
+				})
+			})
+		})
+
 	})
 
 	Describe("Provision", func() {
