@@ -21,6 +21,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Peripli/service-manager/api/configuration"
+
 	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -113,6 +115,7 @@ func New(ctx context.Context, options *Options) (*web.API, error) {
 					return br.(*types.ServiceBroker), nil
 				},
 			},
+			&configuration.Controller{},
 		},
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{

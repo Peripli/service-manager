@@ -34,8 +34,9 @@ var (
 		"json": &logrus.JSONFormatter{},
 		"text": &logrus.TextFormatter{},
 	}
-	mutex        = sync.RWMutex{}
-	defaultEntry = logrus.NewEntry(logrus.StandardLogger())
+	mutex           = sync.RWMutex{}
+	defaultEntry    = logrus.NewEntry(logrus.StandardLogger())
+	currentSettings = &Settings{}
 	// C is an alias for ForContext
 	C = ForContext
 	// D is an alias for Default
@@ -84,6 +85,7 @@ func Configure(ctx context.Context, settings *Settings) context.Context {
 	mutex.Lock()
 	defer mutex.Unlock()
 
+	currentSettings = settings
 	level, err := logrus.ParseLevel(settings.Level)
 	if err != nil {
 		panic(fmt.Sprintf("Could not parse log level configuration: %s", err))
@@ -107,11 +109,17 @@ func Configure(ctx context.Context, settings *Settings) context.Context {
 	return ContextWithLogger(ctx, defaultEntry)
 }
 
+func Configuration() *Settings {
+	mutex.RLock()
+	defer mutex.RUnlock()
+
+	return currentSettings
+}
+
 // ForContext retrieves the current logger from the context.
 func ForContext(ctx context.Context) *logrus.Entry {
 	mutex.RLock()
 	defer mutex.RUnlock()
-
 	entry := ctx.Value(logKey{})
 	if entry == nil {
 		entry = defaultEntry
@@ -143,6 +151,8 @@ func RegisterFormatter(name string, formatter logrus.Formatter) error {
 
 // AddHook adds a hook to all loggers
 func AddHook(hook logrus.Hook) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	defaultEntry.Logger.AddHook(hook)
 }
 

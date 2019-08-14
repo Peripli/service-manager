@@ -17,11 +17,8 @@
 package filters
 
 import (
-	"fmt"
-
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -42,13 +39,6 @@ func (*Logging) Name() string {
 func (l *Logging) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 	entry := log.C(ctx)
-	if level := req.Header.Get("X-Logging-Level"); level != "" {
-		parsedLevel, err := logrus.ParseLevel(level)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing log level %s provided by request header X-Logging-Level: %s", level, err)
-		}
-		entry.Logger.SetLevel(parsedLevel)
-	}
 	if correlationID := log.CorrelationIDForRequest(req.Request); correlationID != "" {
 		entry = entry.WithField(log.FieldCorrelationID, correlationID)
 	}
