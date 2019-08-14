@@ -75,7 +75,7 @@ func (pgq *pgQuery) List(ctx context.Context, entity PostgresEntity) (*sqlx.Rows
 	labelsEntity := entity.LabelEntity()
 
 	baseQuery := fmt.Sprintf("SELECT %s.*", mainTableAlias)
-	if entity.LabelEntity() != nil {
+	if entity.LabelEntity() != nil && tableName != "broker_visibilities" {
 		labelsTableName := labelsEntity.LabelsTableName()
 		baseQuery += `, `
 		for _, dbTag := range getDBTags(labelsEntity, isAutoIncrementable) {
@@ -86,7 +86,7 @@ func (pgq *pgQuery) List(ctx context.Context, entity PostgresEntity) (*sqlx.Rows
 
 	baseQuery += fmt.Sprintf(" FROM %s %s", tableName, mainTableAlias)
 
-	if labelsEntity != nil {
+	if labelsEntity != nil && tableName != "broker_visibilities" {
 		labelsTableName := labelsEntity.LabelsTableName()
 		referenceKeyColumn := labelsEntity.ReferenceColumn()
 		primaryKeyColumn := labelsEntity.LabelsPrimaryColumn()
@@ -249,6 +249,7 @@ func (pgq *pgQuery) labelCriteriaSQL(entity PostgresEntity, criteria []query.Cri
 
 	labelEntity := entity.LabelEntity()
 	if len(criteria) > 0 {
+		fmt.Println(">>>>>>>>>>>>>>>>HAS LABEL CRIT")
 		labelTableName := labelEntity.LabelsTableName()
 		referenceColumnName := labelEntity.ReferenceColumn()
 		labelSubQuery := fmt.Sprintf("(SELECT * FROM %[1]s WHERE %[2]s IN (SELECT %[2]s FROM %[1]s WHERE ", labelTableName, referenceColumnName)

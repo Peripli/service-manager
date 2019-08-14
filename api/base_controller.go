@@ -188,7 +188,8 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Getting all %ss", c.objectType)
-	objectList, err := c.repository.List(ctx, c.objectType, query.CriteriaForContext(ctx)...)
+	// objectList, err := c.repository.List(ctx, c.objectType, query.CriteriaForContext(ctx)...)
+	objectList, err := c.repository.List(ctx, types.BrokerVisibilityType, query.ByField(query.EqualsOperator, "platform_id", "87cd8adc-5d2f-4e02-91ba-e364fa320b08"))
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}

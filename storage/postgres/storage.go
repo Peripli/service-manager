@@ -93,6 +93,7 @@ func (ps *Storage) Open(settings *storage.Settings) error {
 			return fmt.Errorf("could not update database schema: %s", err)
 		}
 		ps.scheme = newScheme()
+		ps.scheme.introduce(&BrokerVisibility{})
 		ps.scheme.introduce(&Broker{})
 		ps.scheme.introduce(&Platform{})
 		ps.scheme.introduce(&ServiceOffering{})
