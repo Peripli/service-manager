@@ -52,6 +52,10 @@ func (s *Safe) BuildLabels(labels types.Labels, newLabel func(id, key, value str
 	return nil, nil
 }
 
+func (s *Safe) IsLabelable() bool {
+	return false
+}
+
 func (s *Safe) NewLabel(id, key, value string) storage.Label {
 	return nil
 }

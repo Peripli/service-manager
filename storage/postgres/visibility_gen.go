@@ -24,6 +24,10 @@ func (*Visibility) TableName() string {
 	return VisibilityTable
 }
 
+func (*Visibility) IsLabelable() bool {
+	return true
+}
+
 func (e *Visibility) NewLabel(id, key, value string) storage.Label {
 	now := pq.NullTime{
 		Time:  time.Now(),

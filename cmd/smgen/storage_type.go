@@ -32,6 +32,7 @@ type StorageType struct {
 	TypeLowerSnakeCase   string
 	TypePlural           string
 	TableName            string
+	IsLabelable          bool
 	ApiType              string
 	ApiTypePlural        string
 	PackageName          string
@@ -41,7 +42,7 @@ type StorageType struct {
 	StoragePackageImport string
 }
 
-func GenerateStorageEntityFile(storageTypeDir, typeName, packageName, apiPackageDir, tableName string) error {
+func GenerateStorageEntityFile(storageTypeDir, typeName, packageName, apiPackageDir, tableName string, isLabelable bool) error {
 	typeNamePlural := toPlural(typeName)
 	if tableName == "" {
 		tableName = toLowerSnakeCase(typeNamePlural)
@@ -84,6 +85,7 @@ func GenerateStorageEntityFile(storageTypeDir, typeName, packageName, apiPackage
 		ApiPackageImport:     apiPackageImport,
 		StoragePackage:       storagePackage,
 		StoragePackageImport: storagePackageImport,
+		IsLabelable:          isLabelable,
 	}
 	file, err := os.Create(fmt.Sprintf("%s/%s_gen.go", storageTypeDir, strings.ToLower(typeName)))
 	if err != nil {

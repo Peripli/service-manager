@@ -20,6 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -49,13 +50,20 @@ func main() {
 		}
 	case "storage":
 		var apiPackage, tableName string
+		isLabelable := true
 		if len(args) > 2 {
 			apiPackage = args[2]
 		}
 		if len(args) > 3 {
 			tableName = args[3]
 		}
-		if err := GenerateStorageEntityFile(dir, typeName, packageName, apiPackage, tableName); err != nil {
+		if len(args) > 4 {
+			isLabelable, err = strconv.ParseBool(args[4])
+			if err != nil {
+				panic(err)
+			}
+		}
+		if err := GenerateStorageEntityFile(dir, typeName, packageName, apiPackage, tableName, isLabelable); err != nil {
 			panic(err)
 		}
 	default:

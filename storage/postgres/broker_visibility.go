@@ -26,7 +26,7 @@ import (
 )
 
 // BrokerVisibility entity
-//go:generate smgen storage BrokerVisibility github.com/Peripli/service-manager/pkg/types:BrokerVisibility
+//go:generate smgen storage BrokerVisibility github.com/Peripli/service-manager/pkg/types:BrokerVisibility broker_visibilities false
 type BrokerVisibility struct {
 	BaseEntity
 	Name        string             `db:"name"`

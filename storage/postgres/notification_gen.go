@@ -24,6 +24,10 @@ func (*Notification) TableName() string {
 	return NotificationTable
 }
 
+func (*Notification) IsLabelable() bool {
+	return true
+}
+
 func (e *Notification) NewLabel(id, key, value string) storage.Label {
 	now := pq.NullTime{
 		Time:  time.Now(),

@@ -75,7 +75,7 @@ func (pgq *pgQuery) List(ctx context.Context, entity PostgresEntity) (*sqlx.Rows
 	labelsEntity := entity.LabelEntity()
 
 	baseQuery := fmt.Sprintf("SELECT %s.*", mainTableAlias)
-	if entity.LabelEntity() != nil && tableName != "broker_visibilities" {
+	if entity.LabelEntity() != nil && entity.IsLabelable() {
 		labelsTableName := labelsEntity.LabelsTableName()
 		baseQuery += `, `
 		for _, dbTag := range getDBTags(labelsEntity, isAutoIncrementable) {
@@ -86,7 +86,7 @@ func (pgq *pgQuery) List(ctx context.Context, entity PostgresEntity) (*sqlx.Rows
 
 	baseQuery += fmt.Sprintf(" FROM %s %s", tableName, mainTableAlias)
 
-	if labelsEntity != nil && tableName != "broker_visibilities" {
+	if labelsEntity != nil && entity.IsLabelable() {
 		labelsTableName := labelsEntity.LabelsTableName()
 		referenceKeyColumn := labelsEntity.ReferenceColumn()
 		primaryKeyColumn := labelsEntity.LabelsPrimaryColumn()
@@ -179,6 +179,10 @@ func (pgq *pgQuery) finalizeSQL(ctx context.Context, entity PostgresEntity, wher
 		return err
 	}
 
+	if !entity.IsLabelable() && len(pgq.labelCriteria) > 0 {
+		return &util.UnsupportedQueryError{Message: fmt.Sprint("entity does not support label criteria")}
+	}
+
 	pgq.labelCriteriaSQL(entity, pgq.labelCriteria).
 		fieldCriteriaSQL(entity, pgq.fieldCriteria, whereClausePresent).
 		orderBySQL().
@@ -249,7 +253,6 @@ func (pgq *pgQuery) labelCriteriaSQL(entity PostgresEntity, criteria []query.Cri
 
 	labelEntity := entity.LabelEntity()
 	if len(criteria) > 0 {
-		fmt.Println(">>>>>>>>>>>>>>>>HAS LABEL CRIT")
 		labelTableName := labelEntity.LabelsTableName()
 		referenceColumnName := labelEntity.ReferenceColumn()
 		labelSubQuery := fmt.Sprintf("(SELECT * FROM %[1]s WHERE %[2]s IN (SELECT %[2]s FROM %[1]s WHERE ", labelTableName, referenceColumnName)

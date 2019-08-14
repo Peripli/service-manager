@@ -24,6 +24,10 @@ func (*ServicePlan) TableName() string {
 	return ServicePlanTable
 }
 
+func (*ServicePlan) IsLabelable() bool {
+	return true
+}
+
 func (e *ServicePlan) NewLabel(id, key, value string) storage.Label {
 	now := pq.NullTime{
 		Time:  time.Now(),

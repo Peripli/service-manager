@@ -24,6 +24,10 @@ func (*BrokerVisibility) TableName() string {
 	return BrokerVisibilityTable
 }
 
+func (*BrokerVisibility) IsLabelable() bool {
+	return false
+}
+
 func (e *BrokerVisibility) NewLabel(id, key, value string) storage.Label {
 	now := pq.NullTime{
 		Time:  time.Now(),

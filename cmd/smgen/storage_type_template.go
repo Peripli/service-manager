@@ -46,6 +46,10 @@ func (*{{.Type}}) TableName() string {
 	return {{.Type}}Table
 }
 
+func (*{{.Type}}) IsLabelable() bool {
+	return {{.IsLabelable}}
+}
+
 func (e *{{.Type}}) NewLabel(id, key, value string) storage.Label {
 	now := pq.NullTime{
 		Time:  time.Now(),

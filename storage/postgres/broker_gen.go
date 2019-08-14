@@ -24,6 +24,10 @@ func (*Broker) TableName() string {
 	return BrokerTable
 }
 
+func (*Broker) IsLabelable() bool {
+	return true
+}
+
 func (e *Broker) NewLabel(id, key, value string) storage.Label {
 	now := pq.NullTime{
 		Time:  time.Now(),

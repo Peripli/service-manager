@@ -24,6 +24,10 @@ func (*Platform) TableName() string {
 	return PlatformTable
 }
 
+func (*Platform) IsLabelable() bool {
+	return true
+}
+
 func (e *Platform) NewLabel(id, key, value string) storage.Label {
 	now := pq.NullTime{
 		Time:  time.Now(),
