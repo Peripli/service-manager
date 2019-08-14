@@ -106,7 +106,12 @@ func Configure(ctx context.Context, settings *Settings) context.Context {
 	defaultEntry = logrus.NewEntry(logger)
 	defaultEntry = defaultEntry.WithField(FieldCorrelationID, "-")
 
-	return ContextWithLogger(ctx, defaultEntry)
+	entry := ctx.Value(logKey{})
+	if entry == nil {
+		return ContextWithLogger(ctx, copyEntry(defaultEntry))
+	}
+
+	return ContextWithLogger(ctx, entry.(*logrus.Entry))
 }
 
 func Configuration() *Settings {
@@ -122,9 +127,9 @@ func ForContext(ctx context.Context) *logrus.Entry {
 	defer mutex.RUnlock()
 	entry := ctx.Value(logKey{})
 	if entry == nil {
-		entry = defaultEntry
+		return copyEntry(defaultEntry)
 	}
-	return copyEntry(entry.(*logrus.Entry))
+	return entry.(*logrus.Entry)
 }
 
 // Default returns the default logger
