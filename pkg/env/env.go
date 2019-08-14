@@ -169,7 +169,7 @@ func Default(ctx context.Context, additionalPFlags ...func(set *pflag.FlagSet)) 
 
 	dynamicLogHandler := func(env Environment) func(event fsnotify.Event) {
 		return func(event fsnotify.Event) {
-			if strings.Contains(event.String(), "WRITE") {
+			if strings.Contains(event.String(), "WRITE") || strings.Contains(event.String(), "CREATE") {
 				logLevel := env.Get("log.level").(string)
 				logFormat := env.Get("log.format").(string)
 
