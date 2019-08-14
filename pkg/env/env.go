@@ -17,10 +17,13 @@
 package env
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"reflect"
 	"strings"
+
+	"github.com/fsnotify/fsnotify"
 
 	"github.com/spf13/cast"
 
@@ -89,7 +92,7 @@ func CreatePFlags(set *pflag.FlagSet, value interface{}) {
 
 // New creates a new environment. It accepts a flag set that should contain all the flags that the
 // environment should be aware of.
-func New(set *pflag.FlagSet) (*ViperEnv, error) {
+func New(ctx context.Context, set *pflag.FlagSet, onConfigChangeHandlers ...func(env Environment) func(event fsnotify.Event)) (*ViperEnv, error) {
 	v := &ViperEnv{
 		Viper: viper.New(),
 	}
@@ -106,7 +109,7 @@ func New(set *pflag.FlagSet) (*ViperEnv, error) {
 		}
 	})
 
-	if err := v.setupConfigFile(); err != nil {
+	if err := v.setupConfigFile(ctx, onConfigChangeHandlers...); err != nil {
 		return nil, err
 	}
 
@@ -126,7 +129,7 @@ func (v *ViperEnv) Unmarshal(value interface{}) error {
 	return v.Viper.Unmarshal(value)
 }
 
-func (v *ViperEnv) setupConfigFile() error {
+func (v *ViperEnv) setupConfigFile(ctx context.Context, onConfigChangeHandlers ...func(env Environment) func(op fsnotify.Event)) error {
 	cfg := struct{ File File }{File: File{}}
 	if err := v.Unmarshal(&cfg); err != nil {
 		return fmt.Errorf("could not find configuration cfg: %s", err)
@@ -143,18 +146,44 @@ func (v *ViperEnv) setupConfigFile() error {
 		}
 		return fmt.Errorf("could not read configuration cfg: %s", err)
 	}
+
+	v.Viper.WatchConfig()
+
+	v.Viper.OnConfigChange(func(event fsnotify.Event) {
+		log.C(ctx).Warnf("Configuration file was changed by event %s. Triggering on config changed handlers...", event.String())
+		for _, handler := range onConfigChangeHandlers {
+			handler(v)(event)
+		}
+	})
+
 	return nil
 }
 
 // Default creates a default environment that can be used to boot up a Service Manager
-func Default(additionalPFlags ...func(set *pflag.FlagSet)) (Environment, error) {
+func Default(ctx context.Context, additionalPFlags ...func(set *pflag.FlagSet)) (Environment, error) {
 	set := EmptyFlagSet()
 
 	for _, addFlags := range additionalPFlags {
 		addFlags(set)
 	}
 
-	environment, err := New(set)
+	dynamicLogHandler := func(env Environment) func(event fsnotify.Event) {
+		return func(event fsnotify.Event) {
+			if strings.Contains(event.String(), "WRITE") {
+				logLevel := env.Get("log.level").(string)
+				logFormat := env.Get("log.format").(string)
+
+				log.C(ctx).Warnf("Reconfiguring logrus logging using level %s and format %s", logLevel, logFormat)
+				ctx = log.Configure(ctx, &log.Settings{
+					Level:  logLevel,
+					Format: logFormat,
+					Output: os.Stdout,
+				})
+			}
+		}
+	}
+
+	environment, err := New(ctx, set, dynamicLogHandler)
 	if err != nil {
 		return nil, fmt.Errorf("error loading environment: %s", err)
 	}

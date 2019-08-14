@@ -21,7 +21,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sync"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -139,6 +138,5 @@ func expectOutput(substring string, logFormat string) {
 }
 
 func configure(settings *Settings) context.Context {
-	once = sync.Once{}
 	return Configure(context.TODO(), settings)
 }

@@ -17,7 +17,11 @@
 package env_test
 
 import (
+	"context"
 	"fmt"
+
+	"github.com/Peripli/service-manager/pkg/log"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -62,6 +66,9 @@ var _ = Describe("Env", func() {
 		keyNstring    = "nest.nstring"
 		keyNslice     = "nest.nslice"
 		keyNmappedVal = "nest.n_mapped_val"
+
+		keyLogFormat = "log.format"
+		keyLogLevel  = "log.level"
 	)
 	type Nest struct {
 		NBool      bool
@@ -77,6 +84,7 @@ var _ = Describe("Env", func() {
 		WString    string
 		WMappedVal string `mapstructure:"w_mapped_val" structs:"w_mapped_val" yaml:"w_mapped_val"`
 		Nest       Nest
+		Log        log.Settings
 	}
 
 	type testFile struct {
@@ -115,6 +123,9 @@ var _ = Describe("Env", func() {
 		set.StringSlice(keyNslice, s.Nest.NSlice, description)
 		set.String(keyNmappedVal, s.Nest.NMappedVal, description)
 
+		set.String(keyLogLevel, s.Log.Level, description)
+		set.String(keyLogFormat, s.Log.Format, description)
+
 		return set
 	}
 
@@ -135,6 +146,9 @@ var _ = Describe("Env", func() {
 		Expect(testFlags.Set(keyNint, cast.ToString(o.Nest.NInt))).ShouldNot(HaveOccurred())
 		Expect(testFlags.Set(keyNstring, o.Nest.NString)).ShouldNot(HaveOccurred())
 		Expect(testFlags.Set(keyNmappedVal, o.Nest.NMappedVal)).ShouldNot(HaveOccurred())
+
+		Expect(testFlags.Set(keyLogFormat, o.Log.Format)).ShouldNot(HaveOccurred())
+		Expect(testFlags.Set(keyLogLevel, o.Log.Level)).ShouldNot(HaveOccurred())
 	}
 
 	setEnvVars := func() {
@@ -148,6 +162,9 @@ var _ = Describe("Env", func() {
 		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyNstring), ".", "_", 1), structure.Nest.NString)).ShouldNot(HaveOccurred())
 		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyNslice), ".", "_", 1), strings.Join(structure.Nest.NSlice, ","))).ShouldNot(HaveOccurred())
 		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyNmappedVal), ".", "_", 1), structure.Nest.NMappedVal)).ShouldNot(HaveOccurred())
+
+		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyLogFormat), ".", "_", 1), structure.Log.Format)).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyLogLevel), ".", "_", 1), structure.Log.Level)).ShouldNot(HaveOccurred())
 	}
 
 	cleanUpEnvVars := func() {
@@ -161,6 +178,9 @@ var _ = Describe("Env", func() {
 		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyNstring), ".", "_", 1))).ShouldNot(HaveOccurred())
 		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyNslice), ".", "_", 1))).ShouldNot(HaveOccurred())
 		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyNmappedVal), ".", "_", 1))).ShouldNot(HaveOccurred())
+
+		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyLogFormat), ".", "_", 1))).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyLogLevel), ".", "_", 1))).ShouldNot(HaveOccurred())
 
 		Expect(os.Unsetenv(strings.ToTitle(key))).ShouldNot(HaveOccurred())
 	}
@@ -177,14 +197,17 @@ var _ = Describe("Env", func() {
 			Expect(err).ShouldNot(HaveOccurred())
 			err = ioutil.WriteFile(f, bytes, 0640)
 			Expect(err).ShouldNot(HaveOccurred())
-
-			defer func() {
-				os.Remove(f)
-			}()
 		}
 
-		environment, err = env.New(testFlags)
+		environment, err = env.Default(context.TODO(), func(set *pflag.FlagSet) {
+			set.AddFlagSet(testFlags)
+		})
 		return err
+	}
+
+	cleanUpFile := func() {
+		f := cfgFile.Location + string(filepath.Separator) + cfgFile.Name + "." + cfgFile.Format
+		os.Remove(f)
 	}
 
 	verifyEnvCreated := func() {
@@ -230,6 +253,10 @@ var _ = Describe("Env", func() {
 			WInt:       1234,
 			WString:    "wstringval",
 			WMappedVal: "wmappedval",
+			Log: log.Settings{
+				Level:  "error",
+				Format: "text",
+			},
 			Nest: Nest{
 				NBool:      true,
 				NInt:       4321,
@@ -254,6 +281,7 @@ var _ = Describe("Env", func() {
 
 		It("adds viper bindings for the provided flags", func() {
 			testFlags.AddFlagSet(standardPFlagsSet(structure))
+			cfgFile.content = nil
 
 			verifyEnvCreated()
 
@@ -266,6 +294,10 @@ var _ = Describe("Env", func() {
 					File:    env.DefaultConfigFile(),
 					content: structure,
 				}
+			})
+
+			AfterEach(func() {
+				cleanUpFile()
 			})
 
 			Context("when SM config file pflags are not provided", func() {
@@ -319,6 +351,25 @@ var _ = Describe("Env", func() {
 					verifyEnvContainsValues(structure)
 				})
 
+				It("updates the logging configuration if config file contents change", func() {
+					verifyEnvCreated()
+					Expect(log.D().Logger.Level.String()).ToNot(Equal("debug"))
+
+					// write to file
+					f := cfgFile.Location + string(filepath.Separator) + cfgFile.Name + "." + cfgFile.Format
+					fileContent := cfgFile.content.(Outer)
+					fileContent.Log.Level = "debug"
+					cfgFile.content = fileContent
+					bytes, err := yaml.Marshal(cfgFile.content)
+					Expect(err).ShouldNot(HaveOccurred())
+
+					err = ioutil.WriteFile(f, bytes, 0640)
+					Expect(err).ShouldNot(HaveOccurred())
+
+					// verify log level was reconfigured
+					Eventually(func() string { return log.D().Logger.Level.String() }).Should(Equal("debug"))
+				})
+
 				It("returns an err if config file loading fails", func() {
 					cfgFile.Format = "json"
 					testFlags.Set(keyFileFormat, "json")
@@ -330,7 +381,7 @@ var _ = Describe("Env", func() {
 
 		Context("when SM config file doesn't exist", func() {
 			It("returns no error", func() {
-				_, err := env.New(testFlags)
+				_, err := env.New(context.TODO(), testFlags)
 				Expect(err).ShouldNot(HaveOccurred())
 			})
 		})
@@ -342,6 +393,11 @@ var _ = Describe("Env", func() {
 			description = description
 			aliasKey    = "test.flag"
 		)
+
+		AfterEach(func() {
+			cleanUpFile()
+		})
+
 		It("allows getting a pflag from the environment with an alias name", func() {
 			testFlags.AddFlagSet(singlePFlagSet(key, flagDefaultValue, description))
 
@@ -374,6 +430,10 @@ var _ = Describe("Env", func() {
 					NMappedVal: "overrideval",
 				},
 			}
+		})
+
+		AfterEach(func() {
+			cleanUpFile()
 		})
 
 		JustBeforeEach(func() {
@@ -469,6 +529,10 @@ var _ = Describe("Env", func() {
 	})
 
 	Describe("Set", func() {
+		AfterEach(func() {
+			cleanUpFile()
+		})
+
 		It("adds the property in the environment abstraction", func() {
 			verifyEnvCreated()
 			environment.Set(key, overrideValue)
@@ -497,6 +561,10 @@ var _ = Describe("Env", func() {
 
 		JustBeforeEach(func() {
 			verifyEnvCreated()
+		})
+
+		AfterEach(func() {
+			cleanUpFile()
 		})
 
 		Context("when parameter is not a pointer to a struct", func() {

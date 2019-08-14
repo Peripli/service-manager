@@ -34,8 +34,7 @@ var (
 		"json": &logrus.JSONFormatter{},
 		"text": &logrus.TextFormatter{},
 	}
-	regMutex     = sync.Mutex{}
-	once         = sync.Once{}
+	mutex        = sync.RWMutex{}
 	defaultEntry = logrus.NewEntry(logrus.StandardLogger())
 	// C is an alias for ForContext
 	C = ForContext
@@ -54,7 +53,7 @@ const (
 type Settings struct {
 	Level  string    `description:"minimum level for log messages"`
 	Format string    `description:"format of log messages. Allowed values - text, json"`
-	Output io.Writer `mapstructure:"-"`
+	Output io.Writer `mapstructure:"-" yaml:"-"`
 }
 
 // DefaultSettings returns default values for Log settings
@@ -82,32 +81,37 @@ func (s *Settings) Validate() error {
 
 // Configure creates a new context with a logger using the provided settings.
 func Configure(ctx context.Context, settings *Settings) context.Context {
-	once.Do(func() {
-		level, err := logrus.ParseLevel(settings.Level)
-		if err != nil {
-			panic(fmt.Sprintf("Could not parse log level configuration: %s", err))
-		}
-		formatter, ok := supportedFormatters[settings.Format]
-		if !ok {
-			panic(fmt.Sprintf("Invalid log format: %s", settings.Format))
-		}
-		logger := &logrus.Logger{
-			Formatter: formatter,
-			Level:     level,
-			Out:       settings.Output,
-			Hooks:     make(logrus.LevelHooks),
-		}
-		hook := filename.NewHook()
-		hook.Field = FieldComponentName
-		logger.AddHook(hook)
-		defaultEntry = logrus.NewEntry(logger)
-		defaultEntry = defaultEntry.WithField(FieldCorrelationID, "-")
-	})
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	level, err := logrus.ParseLevel(settings.Level)
+	if err != nil {
+		panic(fmt.Sprintf("Could not parse log level configuration: %s", err))
+	}
+	formatter, ok := supportedFormatters[settings.Format]
+	if !ok {
+		panic(fmt.Sprintf("Invalid log format: %s", settings.Format))
+	}
+	logger := &logrus.Logger{
+		Formatter: formatter,
+		Level:     level,
+		Out:       settings.Output,
+		Hooks:     make(logrus.LevelHooks),
+	}
+	hook := filename.NewHook()
+	hook.Field = FieldComponentName
+	logger.AddHook(hook)
+	defaultEntry = logrus.NewEntry(logger)
+	defaultEntry = defaultEntry.WithField(FieldCorrelationID, "-")
+
 	return ContextWithLogger(ctx, defaultEntry)
 }
 
 // ForContext retrieves the current logger from the context.
 func ForContext(ctx context.Context) *logrus.Entry {
+	mutex.RLock()
+	defer mutex.RUnlock()
+
 	entry := ctx.Value(logKey{})
 	if entry == nil {
 		entry = defaultEntry
@@ -128,8 +132,8 @@ func ContextWithLogger(ctx context.Context, entry *logrus.Entry) context.Context
 // RegisterFormatter registers a new logrus Formatter with the given name.
 // Returns an error if there is a formatter with the same name.
 func RegisterFormatter(name string, formatter logrus.Formatter) error {
-	regMutex.Lock()
-	defer regMutex.Unlock()
+	mutex.Lock()
+	defer mutex.Unlock()
 	if _, exists := supportedFormatters[name]; exists {
 		return fmt.Errorf("formatter with name %s is already registered", name)
 	}
