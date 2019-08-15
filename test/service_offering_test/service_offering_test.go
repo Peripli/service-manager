@@ -107,16 +107,28 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					return (plans.(*types.ServicePlans)).ServicePlans[0]
 				}
 
+				var k8sPlatform *types.Platform
+				var k8sAgent *httpexpect.Expect
+
+				BeforeEach(func() {
+					k8sPlatformJSON := common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
+					k8sPlatform = common.RegisterPlatformInSM(k8sPlatformJSON, ctx.SMWithOAuth, map[string]string{})
+					k8sAgent = ctx.SM.Builder(func(req *httpexpect.Request) {
+						username, password := k8sPlatform.Credentials.Basic.Username, k8sPlatform.Credentials.Basic.Password
+						req.WithBasicAuth(username, password)
+					})
+				})
+
 				AfterEach(func() {
 					ctx.CleanupAdditionalResources()
 				})
 
 				It("With no visibilities for offering's plans", func() {
 					offering := blueprint(ctx, ctx.SMWithOAuth)
-					ctx.SMWithBasic.GET(web.ServiceOfferingsURL).
+					k8sAgent.GET(web.ServiceOfferingsURL).
 						Expect().
 						Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().Length().Equal(0)
-					ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering["id"].(string))).
+					k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering["id"].(string))).
 						Expect().
 						Status(http.StatusNotFound)
 				})
@@ -129,10 +141,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						"service_plan_id": plan.ID,
 					}).Expect().Status(http.StatusCreated)
 
-					ctx.SMWithBasic.GET(web.ServiceOfferingsURL).
+					k8sAgent.GET(web.ServiceOfferingsURL).
 						Expect().
 						Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().Length().Equal(1)
-					ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering["id"].(string))).
+					k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering["id"].(string))).
 						Expect().
 						Status(http.StatusOK).JSON().Object().ContainsMap(offering)
 				})
@@ -143,13 +155,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
 						"service_plan_id": plan.ID,
-						"platform_id":     ctx.TestPlatform.ID,
+						"platform_id":     k8sPlatform.ID,
 					}).Expect().Status(http.StatusCreated)
 
-					ctx.SMWithBasic.GET(web.ServiceOfferingsURL).
+					k8sAgent.GET(web.ServiceOfferingsURL).
 						Expect().
 						Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().Length().Equal(1)
-					ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering["id"].(string))).
+					k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering["id"].(string))).
 						Expect().
 						Status(http.StatusOK).JSON().Object().ContainsMap(offering)
 				})
@@ -164,10 +176,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						"platform_id":     otherPlatform.ID,
 					}).Expect().Status(http.StatusCreated)
 
-					ctx.SMWithBasic.GET(web.ServiceOfferingsURL).
+					k8sAgent.GET(web.ServiceOfferingsURL).
 						Expect().
 						Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().Length().Equal(0)
-					ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering["id"].(string))).
+					k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering["id"].(string))).
 						Expect().
 						Status(http.StatusNotFound)
 				})
@@ -180,13 +192,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 
 					It("With 2 offerings, but no visibilities, should not get either of them", func() {
-						ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering1["id"].(string))).
+						k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering1["id"].(string))).
 							Expect().
 							Status(http.StatusNotFound)
-						ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering2["id"].(string))).
+						k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering2["id"].(string))).
 							Expect().
 							Status(http.StatusNotFound)
-						ctx.SMWithBasic.GET(web.ServiceOfferingsURL).
+						k8sAgent.GET(web.ServiceOfferingsURL).
 							Expect().
 							Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().Length().Equal(0)
 					})
@@ -196,13 +208,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
 							"service_plan_id": plan.ID,
 						}).Expect().Status(http.StatusCreated)
-						ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering1["id"].(string))).
+						k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering1["id"].(string))).
 							Expect().
 							Status(http.StatusOK)
-						ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering2["id"].(string))).
+						k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering2["id"].(string))).
 							Expect().
 							Status(http.StatusNotFound)
-						ctx.SMWithBasic.GET(web.ServiceOfferingsURL).
+						k8sAgent.GET(web.ServiceOfferingsURL).
 							Expect().
 							Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().Length().Equal(1)
 					})
