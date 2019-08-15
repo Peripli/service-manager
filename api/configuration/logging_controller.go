@@ -2,7 +2,6 @@ package configuration
 
 import (
 	"net/http"
-	"os"
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -32,18 +31,14 @@ func (c *Controller) getLoggingConfiguration(r *web.Request) (*web.Response, err
 
 func (c *Controller) setLoggingConfiguration(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
-	loggingConfig := &log.Settings{
-		Output: os.Stdout,
-	}
+	loggingConfig := log.Configuration()
 	body := &LoggingConfig{
-		Format: "kibana",
+		Level:  loggingConfig.Format,
+		Format: loggingConfig.Level,
 	}
 	if err := util.BytesToObject(r.Body, body); err != nil {
 		return nil, err
 	}
-
-	loggingConfig.Format = body.Format
-	loggingConfig.Level = body.Level
 
 	log.C(ctx).Infof("Attempting to set logging configuration with level: %s and format: %s", loggingConfig.Level, loggingConfig.Format)
 	ctx = log.Configure(ctx, loggingConfig)

@@ -23,25 +23,14 @@ import (
 	"os"
 	"sync"
 
+	"github.com/onsi/ginkgo"
+
 	"github.com/onrik/logrus/filename"
+
 	"github.com/sirupsen/logrus"
 )
 
 type logKey struct{}
-
-var (
-	supportedFormatters = map[string]logrus.Formatter{
-		"json": &logrus.JSONFormatter{},
-		"text": &logrus.TextFormatter{},
-	}
-	mutex           = sync.RWMutex{}
-	defaultEntry    = logrus.NewEntry(logrus.StandardLogger())
-	currentSettings = &Settings{}
-	// C is an alias for ForContext
-	C = ForContext
-	// D is an alias for Default
-	D = Default
-)
 
 const (
 	// FieldComponentName is the key of the component field in the log message.
@@ -50,11 +39,44 @@ const (
 	FieldCorrelationID = "correlation_id"
 )
 
+var (
+	defaultEntry = logrus.NewEntry(logrus.StandardLogger())
+
+	supportedFormatters = map[string]logrus.Formatter{
+		"json": &logrus.JSONFormatter{},
+		"text": &logrus.TextFormatter{},
+	}
+
+	supportedOutputs = map[string]io.Writer{
+		os.Stdout.Name(): os.Stdout,
+		os.Stdin.Name():  os.Stdin,
+		os.Stderr.Name(): os.Stderr,
+		"ginkgowriter":   ginkgo.GinkgoWriter,
+	}
+	mutex           = sync.RWMutex{}
+	currentSettings = DefaultSettings()
+
+	once sync.Once
+
+	// C is an alias for ForContext
+	C = ForContext
+	// D is an alias for Default
+	D = Default
+)
+
+func init() {
+	hook := filename.NewHook()
+	hook.Field = FieldComponentName
+	defaultEntry.Logger.AddHook(hook)
+	defaultEntry = defaultEntry.WithField(FieldCorrelationID, "-")
+	Configure(context.TODO(), currentSettings)
+}
+
 // Settings type to be loaded from the environment
 type Settings struct {
-	Level  string    `description:"minimum level for log messages"`
-	Format string    `description:"format of log messages. Allowed values - text, json"`
-	Output io.Writer `mapstructure:"-" yaml:"-"`
+	Level  string `description:"minimum level for log messages"`
+	Format string `description:"format of log messages. Allowed values - text, json"`
+	Output string `description:"output for the logs. Allowed values - /dev/stdout, /dev/stdin, /dev/stderr, ginkgowriter"`
 }
 
 // DefaultSettings returns default values for Log settings
@@ -62,7 +84,7 @@ func DefaultSettings() *Settings {
 	return &Settings{
 		Level:  "error",
 		Format: "text",
-		Output: os.Stdout,
+		Output: os.Stdout.Name(),
 	}
 }
 
@@ -74,9 +96,10 @@ func (s *Settings) Validate() error {
 	if len(s.Format) == 0 {
 		return fmt.Errorf("validate Settings: LogFormat missing")
 	}
-	if s.Output == nil {
+	if len(s.Output) == 0 {
 		return fmt.Errorf("validate Settings: LogOutput missing")
 	}
+
 	return nil
 }
 
@@ -94,17 +117,15 @@ func Configure(ctx context.Context, settings *Settings) context.Context {
 	if !ok {
 		panic(fmt.Sprintf("Invalid log format: %s", settings.Format))
 	}
-	logger := &logrus.Logger{
-		Formatter: formatter,
-		Level:     level,
-		Out:       settings.Output,
-		Hooks:     make(logrus.LevelHooks),
+
+	output, ok := supportedOutputs[settings.Output]
+	if !ok {
+		panic(fmt.Sprintf("Invalid output: %s", settings.Output))
 	}
-	hook := filename.NewHook()
-	hook.Field = FieldComponentName
-	logger.AddHook(hook)
-	defaultEntry = logrus.NewEntry(logger)
-	defaultEntry = defaultEntry.WithField(FieldCorrelationID, "-")
+
+	defaultEntry.Logger.SetOutput(output)
+	defaultEntry.Logger.SetLevel(level)
+	defaultEntry.Logger.SetFormatter(formatter)
 
 	entry := ctx.Value(logKey{})
 	if entry == nil {

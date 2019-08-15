@@ -177,7 +177,7 @@ func Default(ctx context.Context, additionalPFlags ...func(set *pflag.FlagSet)) 
 				ctx = log.Configure(ctx, &log.Settings{
 					Level:  logLevel,
 					Format: logFormat,
-					Output: os.Stdout,
+					Output: os.Stdout.Name(),
 				})
 			}
 		}
