@@ -10,6 +10,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
+const k8sPlatformType string = "kubernetes"
+
 type visibilityFilteringMiddleware struct {
 	FilteringFunc func(context.Context, string) (*query.Criterion, error)
 }
@@ -28,7 +30,7 @@ func (m visibilityFilteringMiddleware) Run(req *web.Request, next web.Handler) (
 	if err := userCtx.Data(platform); err != nil {
 		return nil, err
 	}
-	if platform.Type != "kubernetes" {
+	if platform.Type != k8sPlatformType {
 		log.C(ctx).Debugf("Platform type is %s, which is not kubernetes. Skip filtering on visibilities", platform.Type)
 		return next.Handle(req)
 	}
