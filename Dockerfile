@@ -34,6 +34,7 @@ COPY --from=builder /main /app/
 
 # Copy migration scripts
 COPY --from=builder /go/src/github.com/Peripli/service-manager/storage/postgres/migrations/ /app/
+COPY --from=builder /go/src/github.com/Peripli/service-manager/application.yml /app/
 
 # If one wants to use migrations scripts from somewhere else, overriding this env var would override the scripts from the image
 ENV STORAGE_MIGRATIONS_URL=file:///app

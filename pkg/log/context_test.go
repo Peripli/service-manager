@@ -21,7 +21,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sync"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -29,7 +28,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// TestServiceManager tests servermanager package
+// TestLog tests logging package
 func TestLog(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Log Suite")
@@ -64,6 +63,7 @@ var _ = Describe("log", func() {
 				expectPanic(&Settings{
 					Level:  "invalid",
 					Format: "text",
+					Output: os.Stderr.Name(),
 				})
 			})
 		})
@@ -73,6 +73,17 @@ var _ = Describe("log", func() {
 				expectPanic(&Settings{
 					Level:  "debug",
 					Format: "invalid",
+					Output: os.Stderr.Name(),
+				})
+			})
+		})
+
+		Context("with invalid log format", func() {
+			It("should panic", func() {
+				expectPanic(&Settings{
+					Level:  "debug",
+					Format: "text",
+					Output: "invalid",
 				})
 			})
 		})
@@ -118,17 +129,17 @@ func (wr *MyWriter) Write(p []byte) (n int, err error) {
 }
 
 func expectPanic(settings *Settings) {
-	wrapper := func() {
-		configure(settings)
-	}
-	Expect(wrapper).To(Panic())
+	Expect(func() {
+		Configure(context.TODO(), settings)
+	}).To(Panic())
 }
 
 func expectOutput(substring string, logFormat string) {
 	w := &MyWriter{}
-	ctx := configure(&Settings{
+	ctx := Configure(context.TODO(), &Settings{
 		Level:  "debug",
 		Format: logFormat,
+		Output: os.Stderr.Name(),
 	})
 	entry := ForContext(ctx)
 	entry.Logger.SetOutput(w)
@@ -136,9 +147,4 @@ func expectOutput(substring string, logFormat string) {
 	entry.Debug("Test")
 	fmt.Println(w.Data)
 	Expect(w.Data).To(ContainSubstring(substring))
-}
-
-func configure(settings *Settings) context.Context {
-	once = sync.Once{}
-	return Configure(context.TODO(), settings)
 }
