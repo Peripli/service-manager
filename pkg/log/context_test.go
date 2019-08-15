@@ -56,7 +56,7 @@ func TestMultipleGoroutinesMixedLog(t *testing.T) {
 }
 
 var _ = Describe("log", func() {
-	FDescribe("SetupLogging", func() {
+	Describe("SetupLogging", func() {
 
 		Context("with invalid log level", func() {
 			It("should panic", func() {
