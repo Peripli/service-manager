@@ -111,7 +111,7 @@ func (n *Notificator) Start(ctx context.Context, group *sync.WaitGroup) error {
 	}))
 	util.StartInWaitGroupWithContext(ctx, func(c context.Context) {
 		<-c.Done()
-		log.D().Info("context cancelled, stopping Notificator...")
+		log.C(c).Info("context cancelled, stopping Notificator...")
 		n.stopConnection()
 	}, group)
 	return nil

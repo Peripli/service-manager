@@ -69,7 +69,7 @@ func init() {
 	hook.Field = FieldComponentName
 	defaultEntry.Logger.AddHook(hook)
 	defaultEntry = defaultEntry.WithField(FieldCorrelationID, "-")
-	Configure(context.TODO(), currentSettings)
+	//Configure(context.TODO(), currentSettings)
 }
 
 // Settings type to be loaded from the environment
@@ -129,10 +129,10 @@ func Configure(ctx context.Context, settings *Settings) context.Context {
 
 	entry := ctx.Value(logKey{})
 	if entry == nil {
-		return ContextWithLogger(ctx, copyEntry(defaultEntry))
+		entry = defaultEntry
 	}
 
-	return ContextWithLogger(ctx, entry.(*logrus.Entry))
+	return ContextWithLogger(ctx, copyEntry(entry.(*logrus.Entry)))
 }
 
 func Configuration() *Settings {
@@ -148,9 +148,9 @@ func ForContext(ctx context.Context) *logrus.Entry {
 	defer mutex.RUnlock()
 	entry := ctx.Value(logKey{})
 	if entry == nil {
-		return copyEntry(defaultEntry)
+		entry = defaultEntry
 	}
-	return entry.(*logrus.Entry)
+	return copyEntry(entry.(*logrus.Entry))
 }
 
 // Default returns the default logger
@@ -166,8 +166,6 @@ func ContextWithLogger(ctx context.Context, entry *logrus.Entry) context.Context
 // RegisterFormatter registers a new logrus Formatter with the given name.
 // Returns an error if there is a formatter with the same name.
 func RegisterFormatter(name string, formatter logrus.Formatter) error {
-	mutex.Lock()
-	defer mutex.Unlock()
 	if _, exists := supportedFormatters[name]; exists {
 		return fmt.Errorf("formatter with name %s is already registered", name)
 	}
@@ -177,8 +175,6 @@ func RegisterFormatter(name string, formatter logrus.Formatter) error {
 
 // AddHook adds a hook to all loggers
 func AddHook(hook logrus.Hook) {
-	mutex.Lock()
-	defer mutex.Unlock()
 	defaultEntry.Logger.AddHook(hook)
 }
 

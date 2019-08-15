@@ -41,7 +41,7 @@ func (c *Controller) setLoggingConfiguration(r *web.Request) (*web.Response, err
 	}
 
 	log.C(ctx).Infof("Attempting to set logging configuration with level: %s and format: %s", loggingConfig.Level, loggingConfig.Format)
-	ctx = log.Configure(ctx, loggingConfig)
+	//ctx = log.Configure(ctx, loggingConfig)
 	r.Request = r.WithContext(ctx)
 	log.C(ctx).Infof("Successfully set logging configuration with level: %s and format: %s", loggingConfig.Level, loggingConfig.Format)
 

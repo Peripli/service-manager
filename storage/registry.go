@@ -33,9 +33,9 @@ func InitializeWithSafeTermination(ctx context.Context, s Storage, settings *Set
 
 	util.StartInWaitGroupWithContext(ctx, func(c context.Context) {
 		<-c.Done()
-		log.D().Debug("Context cancelled. Closing storage...")
+		log.C(c).Debug("Context cancelled. Closing storage...")
 		if err := s.Close(); err != nil {
-			log.D().Error(err)
+			log.C(c).Error(err)
 		}
 	}, wg)
 
