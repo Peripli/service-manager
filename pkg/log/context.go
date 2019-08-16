@@ -56,8 +56,6 @@ var (
 	mutex           = sync.RWMutex{}
 	currentSettings = DefaultSettings()
 
-	once sync.Once
-
 	// C is an alias for ForContext
 	C = ForContext
 	// D is an alias for Default
@@ -198,14 +196,6 @@ func copyEntry(entry *logrus.Entry) *logrus.Entry {
 		entryData[k] = v
 	}
 
-	//newLogger := &logrus.Logger{
-	//	Out:          entry.Logger.Out,
-	//	Hooks:        entry.Logger.Hooks,
-	//	Formatter:    entry.Logger.Formatter,
-	//	ReportCaller: entry.Logger.ReportCaller,
-	//	Level:        entry.Logger.Level,
-	//	ExitFunc:     entry.Logger.ExitFunc,
-	//}
 	newEntry := logrus.NewEntry(entry.Logger)
 	newEntry.Level = entry.Level
 	newEntry.Data = entryData

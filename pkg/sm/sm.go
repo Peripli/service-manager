@@ -18,12 +18,12 @@ package sm
 
 import (
 	"context"
-	"crypto/tls"
 	"database/sql"
 	"fmt"
-	"net"
 	"net/http"
 	"sync"
+
+	"github.com/Peripli/service-manager/pkg/httpclient"
 
 	"github.com/Peripli/service-manager/api/osb"
 
@@ -76,16 +76,7 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 		return nil, fmt.Errorf("error validating configuration: %s", err)
 	}
 
-	// Setup the default http client and transport
-	transport := http.DefaultTransport.(*http.Transport)
-
-	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: cfg.API.SkipSSLValidation}
-	transport.ResponseHeaderTimeout = cfg.HTTPClient.ResponseHeaderTimeout
-	transport.TLSHandshakeTimeout = cfg.HTTPClient.TLSHandshakeTimeout
-	transport.IdleConnTimeout = cfg.HTTPClient.IdleConnTimeout
-	transport.DialContext = (&net.Dialer{Timeout: cfg.HTTPClient.DialTimeout}).DialContext
-
-	http.DefaultClient.Transport = transport
+	httpclient.Configure(cfg.HTTPClient)
 
 	// Setup logging
 	ctx = log.Configure(ctx, cfg.Log)

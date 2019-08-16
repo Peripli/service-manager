@@ -45,22 +45,20 @@ const osbVersion = "2.13"
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	TokenIssuerURL    string   `mapstructure:"token_issuer_url" description:"url of the token issuer which to use for validating tokens"`
-	ClientID          string   `mapstructure:"client_id" description:"id of the client from which the token must be issued"`
-	SkipSSLValidation bool     `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when making calls to external services"`
-	TokenBasicAuth    bool     `mapstructure:"token_basic_auth" description:"specifies if client credentials to the authorization server should be sent in the header as basic auth (true) or in the body (false)"`
-	ProctedLabels     []string `mapstructure:"protected_labels" description:"defines labels which cannot be modified/added by REST API requests"`
-	OSBVersion        string   `mapstructure:"-"`
+	TokenIssuerURL string   `mapstructure:"token_issuer_url" description:"url of the token issuer which to use for validating tokens"`
+	ClientID       string   `mapstructure:"client_id" description:"id of the client from which the token must be issued"`
+	TokenBasicAuth bool     `mapstructure:"token_basic_auth" description:"specifies if client credentials to the authorization server should be sent in the header as basic auth (true) or in the body (false)"`
+	ProctedLabels  []string `mapstructure:"protected_labels" description:"defines labels which cannot be modified/added by REST API requests"`
+	OSBVersion     string   `mapstructure:"-"`
 }
 
 // DefaultSettings returns default values for API settings
 func DefaultSettings() *Settings {
 	return &Settings{
-		TokenIssuerURL:    "",
-		ClientID:          "",
-		SkipSSLValidation: false,
-		TokenBasicAuth:    true, // RFC 6749 section 2.3.1
-		OSBVersion:        osbVersion,
+		TokenIssuerURL: "",
+		ClientID:       "",
+		TokenBasicAuth: true, // RFC 6749 section 2.3.1
+		OSBVersion:     osbVersion,
 	}
 }
 

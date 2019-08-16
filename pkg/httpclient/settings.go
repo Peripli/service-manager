@@ -17,7 +17,10 @@
 package httpclient
 
 import (
+	"crypto/tls"
 	"fmt"
+	"net"
+	"net/http"
 	"time"
 )
 
@@ -26,6 +29,7 @@ type Settings struct {
 	IdleConnTimeout       time.Duration `mapstructure:"idle_conn_timeout"`
 	ResponseHeaderTimeout time.Duration `mapstructure:"response_header_timeout"`
 	DialTimeout           time.Duration `mapstructure:"dial_timeout"`
+	SkipSSLValidation     bool          `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when making calls to external services"`
 }
 
 // DefaultSettings return the default values for httpclient settings
@@ -35,6 +39,7 @@ func DefaultSettings() *Settings {
 		IdleConnTimeout:       time.Second * 10,
 		ResponseHeaderTimeout: time.Second * 10,
 		DialTimeout:           time.Second * 10,
+		SkipSSLValidation:     false,
 	}
 }
 
@@ -53,4 +58,18 @@ func (s *Settings) Validate() error {
 		return fmt.Errorf("validate httpclient settings: dial_timeout should be >= 0")
 	}
 	return nil
+}
+
+func Configure(settings *Settings) {
+
+	// Setup the default http client and transport
+	transport := http.DefaultTransport.(*http.Transport)
+
+	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: settings.SkipSSLValidation}
+	transport.ResponseHeaderTimeout = settings.ResponseHeaderTimeout
+	transport.TLSHandshakeTimeout = settings.TLSHandshakeTimeout
+	transport.IdleConnTimeout = settings.IdleConnTimeout
+	transport.DialContext = (&net.Dialer{Timeout: settings.DialTimeout}).DialContext
+
+	http.DefaultClient.Transport = transport
 }
