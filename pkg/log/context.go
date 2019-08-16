@@ -69,7 +69,7 @@ func init() {
 	hook.Field = FieldComponentName
 	defaultEntry.Logger.AddHook(hook)
 	defaultEntry = defaultEntry.WithField(FieldCorrelationID, "-")
-	//Configure(context.TODO(), currentSettings)
+	Configure(context.TODO(), currentSettings)
 }
 
 // Settings type to be loaded from the environment
@@ -123,16 +123,21 @@ func Configure(ctx context.Context, settings *Settings) context.Context {
 		panic(fmt.Sprintf("Invalid output: %s", settings.Output))
 	}
 
-	defaultEntry.Logger.SetOutput(output)
-	defaultEntry.Logger.SetLevel(level)
-	defaultEntry.Logger.SetFormatter(formatter)
-
 	entry := ctx.Value(logKey{})
 	if entry == nil {
 		entry = defaultEntry
 	}
+	e := entry.(*logrus.Entry)
+	defaultEntry.Logger = &logrus.Logger{
+		Out:          output,
+		Hooks:        e.Logger.Hooks,
+		Formatter:    formatter,
+		ReportCaller: e.Logger.ReportCaller,
+		Level:        level,
+		ExitFunc:     e.Logger.ExitFunc,
+	}
 
-	return ContextWithLogger(ctx, copyEntry(entry.(*logrus.Entry)))
+	return ContextWithLogger(ctx, copyEntry(e))
 }
 
 func Configuration() *Settings {
@@ -183,15 +188,8 @@ func copyEntry(entry *logrus.Entry) *logrus.Entry {
 	for k, v := range entry.Data {
 		entryData[k] = v
 	}
-	newLogger := &logrus.Logger{
-		Out:          entry.Logger.Out,
-		Hooks:        entry.Logger.Hooks,
-		Formatter:    entry.Logger.Formatter,
-		ReportCaller: entry.Logger.ReportCaller,
-		Level:        entry.Logger.Level,
-		ExitFunc:     entry.Logger.ExitFunc,
-	}
-	newEntry := logrus.NewEntry(newLogger)
+
+	newEntry := logrus.NewEntry(entry.Logger)
 	newEntry.Level = entry.Level
 	newEntry.Data = entryData
 	newEntry.Time = entry.Time

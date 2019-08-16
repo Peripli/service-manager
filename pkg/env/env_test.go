@@ -367,7 +367,9 @@ var _ = Describe("Env", func() {
 					Expect(err).ShouldNot(HaveOccurred())
 
 					// verify log level was reconfigured
-					Eventually(func() string { return log.D().Logger.Level.String() }).Should(Equal("debug"))
+					Eventually(func() string {
+						return log.D().Logger.Level.String()
+					}).Should(Equal("debug"))
 				})
 
 				It("returns an err if config file loading fails", func() {
