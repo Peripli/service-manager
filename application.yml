@@ -15,7 +15,7 @@ websocket:
   write_timeout: 6000ms
 log:
   level: error
-  format: text
+  format: kibana
 storage:
   #  name: sm-postgres
   uri: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
