@@ -13,7 +13,8 @@ import (
 const k8sPlatformType string = "kubernetes"
 
 type visibilityFilteringMiddleware struct {
-	FilteringFunc func(context.Context, string) (*query.Criterion, error)
+	SingleResourceFilterFunc func(ctx context.Context, resourceID, platformID string) (bool, error)
+	MultiResourceFilterFunc  func(ctx context.Context, platformID string) (*query.Criterion, error)
 }
 
 func (m visibilityFilteringMiddleware) Run(req *web.Request, next web.Handler) (*web.Response, error) {
@@ -35,25 +36,32 @@ func (m visibilityFilteringMiddleware) Run(req *web.Request, next web.Handler) (
 		return next.Handle(req)
 	}
 
-	finalQuery, err := m.FilteringFunc(ctx, platform.ID)
-	if err != nil {
-		return nil, err
-	}
-
 	resourceID := req.PathParams["id"]
 	foundResource := false
-	if finalQuery != nil && resourceID != "" {
-		for _, serviceID := range finalQuery.RightOp {
-			if serviceID == resourceID {
-				foundResource = true
-				break
-			}
+	var err error
+	var finalQuery *query.Criterion
+
+	if resourceID != "" {
+		foundResource, err = m.SingleResourceFilterFunc(ctx, resourceID, platform.ID)
+		if err != nil {
+			return nil, err
+		}
+		if foundResource {
+			return next.Handle(req)
+		}
+	} else {
+		finalQuery, err = m.MultiResourceFilterFunc(ctx, platform.ID)
+		if err != nil {
+			return nil, err
+		}
+		if finalQuery != nil {
+			foundResource = true
 		}
 	}
 
-	if finalQuery == nil || (!foundResource && resourceID != "") {
+	if !foundResource {
 		ctx = query.ContextWithCriteria(ctx, []query.Criterion{query.LimitResultBy(0)})
-	} else if resourceID == "" {
+	} else {
 		ctx = query.ContextWithCriteria(ctx, []query.Criterion{*finalQuery})
 	}
 

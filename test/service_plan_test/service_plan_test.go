@@ -108,11 +108,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						req.WithBasicAuth(username, password)
 					})
 				})
-				
+
 				AfterEach(func() {
 					ctx.CleanupAdditionalResources()
 				})
-
 
 				Context("with plan", func() {
 					var plan common.Object

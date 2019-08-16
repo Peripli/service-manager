@@ -83,7 +83,6 @@ func (vf *CatalogFilterByVisibility) Run(req *web.Request, next web.Handler) (*w
 
 	res.Body, err = deleteNotVisibleServices(ctx, vf.repository, res.Body, planIDs, offeringIDs)
 	return res, err
-	// services := gjson.GetBytes(res.Body, "services")
 }
 
 func servicesCriteria(ctx context.Context, repository storage.Repository, planQuery *query.Criterion) (*query.Criterion, error) {

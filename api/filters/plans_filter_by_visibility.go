@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/Peripli/service-manager/pkg/types"
+
 	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/storage"
@@ -16,7 +18,8 @@ const PlanVisibilityFilterName = "PlanFilterByVisibility"
 func NewPlanFilterByVisibility(repository storage.Repository) *PlanFilterByVisibility {
 	return &PlanFilterByVisibility{
 		visibilityFilteringMiddleware: &visibilityFilteringMiddleware{
-			FilteringFunc: newPlansFilterFunc(repository),
+			MultiResourceFilterFunc:  newPlansFilterFunc(repository),
+			SingleResourceFilterFunc: newSinglePlanFilterFunc(repository),
 		},
 	}
 }
@@ -25,7 +28,15 @@ type PlanFilterByVisibility struct {
 	*visibilityFilteringMiddleware
 }
 
-func newPlansFilterFunc(repository storage.Repository) func(ctx context.Context, platformID string) (*query.Criterion, error) {
+func newSinglePlanFilterFunc(repository storage.Repository) func(ctx context.Context, planID, platformID string) (bool, error) {
+	return func(ctx context.Context, planID, platformID string) (bool, error) {
+		visibilities, err := repository.List(ctx, types.VisibilityType, query.ByField(query.EqualsOperator, "service_plan_id", planID),
+			query.ByField(query.EqualsOrNilOperator, "platform_id", platformID))
+		return visibilities.Len() > 0, err
+	}
+}
+
+func newPlansFilterFunc(repository storage.Repository) func(context.Context, string) (*query.Criterion, error) {
 	return func(ctx context.Context, platformID string) (*query.Criterion, error) {
 		planQuery, err := plansCriteria(ctx, repository, platformID)
 		if err != nil {
