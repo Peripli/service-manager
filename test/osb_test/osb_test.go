@@ -347,6 +347,8 @@ var _ = Describe("Service Manager OSB API", func() {
 			var brokerID string
 			var plan1, plan2 string
 			var plan1ID, plan1CatalogID, plan2ID, plan2CatalogID string
+			var k8sPlatform *types.Platform
+			var k8sAgent *httpexpect.Expect
 
 			getSMPlanIDByCatalogID := func(planCatalogID string) string {
 				plans, err := ctx.SMRepository.List(context.Background(), types.ServicePlanType, query.ByField(query.EqualsOperator, "catalog_id", planCatalogID))
@@ -356,6 +358,13 @@ var _ = Describe("Service Manager OSB API", func() {
 			}
 
 			BeforeEach(func() {
+				k8sPlatformJSON := common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
+				k8sPlatform = common.RegisterPlatformInSM(k8sPlatformJSON, ctx.SMWithOAuth, map[string]string{})
+				k8sAgent = ctx.SM.Builder(func(req *httpexpect.Request) {
+					username, password := k8sPlatform.Credentials.Basic.Username, k8sPlatform.Credentials.Basic.Password
+					req.WithBasicAuth(username, password)
+				})
+
 				catalog := common.NewEmptySBCatalog()
 				plan1 = common.GenerateFreeTestPlan()
 				plan2 = common.GenerateTestPlan()
@@ -370,11 +379,13 @@ var _ = Describe("Service Manager OSB API", func() {
 
 			AfterEach(func() {
 				ctx.CleanupBroker(brokerID)
+				ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/" + k8sPlatform.ID).
+					Expect().Status(http.StatusOK)
 			})
 
 			Context("for platform with no visibilities", func() {
 				It("should return empty services catalog", func() {
-					ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s/v2/catalog", web.OSBURL, brokerID)).
+					k8sAgent.GET(fmt.Sprintf("%s/%s/v2/catalog", web.OSBURL, brokerID)).
 						Expect().Status(http.StatusOK).JSON().Object().Value("services").Array().Length().Equal(0)
 				})
 			})
@@ -384,7 +395,7 @@ var _ = Describe("Service Manager OSB API", func() {
 					ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
 						"service_plan_id": plan1ID,
 					}).Expect().Status(http.StatusCreated)
-					result := ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s/v2/catalog", web.OSBURL, brokerID)).
+					result := k8sAgent.GET(fmt.Sprintf("%s/%s/v2/catalog", web.OSBURL, brokerID)).
 						Expect().Status(http.StatusOK).JSON().Object().Value("services").Array().First().Object().Value("plans").Array()
 					result.First().Object().ValueEqual("id", plan1CatalogID)
 					result.Length().Equal(1)
@@ -392,9 +403,9 @@ var _ = Describe("Service Manager OSB API", func() {
 					By("adding another visibility for the platform")
 					ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
 						"service_plan_id": plan2ID,
-						"platform_id":     ctx.TestPlatform.ID,
+						"platform_id":     k8sPlatform.ID,
 					}).Expect().Status(http.StatusCreated)
-					result = ctx.SMWithBasic.GET(fmt.Sprintf("%s/%s/v2/catalog", web.OSBURL, brokerID)).
+					result = k8sAgent.GET(fmt.Sprintf("%s/%s/v2/catalog", web.OSBURL, brokerID)).
 						Expect().Status(http.StatusOK).JSON().Object().Value("services").Array().First().Object().Value("plans").Array()
 					result.First().Object().ValueEqual("id", plan1CatalogID)
 					result.Element(1).Object().ValueEqual("id", plan2CatalogID)

@@ -42,6 +42,10 @@ func (vf *CatalogFilterByVisibility) Run(req *web.Request, next web.Handler) (*w
 	if err := userCtx.Data(platform); err != nil {
 		return nil, err
 	}
+	if platform.Type != k8sPlatformType {
+		log.C(ctx).Debugf("Platform type is %s, which is not kubernetes. Skip filtering on visibilities", platform.Type)
+		return next.Handle(req)
+	}
 
 	res, err := next.Handle(req)
 	if err != nil {
@@ -201,7 +205,7 @@ func (vf *CatalogFilterByVisibility) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
-				web.Path(web.OSBURL + "/**"),
+				web.Path(web.OSBURL + "/*/v2/catalog"),
 				web.Methods(http.MethodGet),
 			},
 		},
