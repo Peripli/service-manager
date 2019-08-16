@@ -32,7 +32,7 @@ func (vf *CatalogFilterByVisibility) Run(req *web.Request, next web.Handler) (*w
 	ctx := req.Context()
 	userCtx, ok := web.UserFromContext(ctx)
 	if !ok {
-		return nil, errors.New("No user found")
+		return nil, errors.New("no user found")
 	}
 	if userCtx.AuthenticationType != web.Basic {
 		log.C(ctx).Debugf("Authentication is %s, not basic so proceed without visibility filter criteria", userCtx.AuthenticationType)
