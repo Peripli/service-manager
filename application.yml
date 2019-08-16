@@ -9,6 +9,7 @@ httpclient:
   tls_handshake_timeout: 10000ms
   idle_conn_timeout: 10000ms
   dial_timeout: 10000ms
+  skip_ssl_validation: false
 websocket:
   ping_timeout: 6000ms
   write_timeout: 6000ms
@@ -24,4 +25,3 @@ storage:
 api:
   token_issuer_url: http://localhost:8080/uaa
   client_id: cf
-  skip_ssl_validation: false
