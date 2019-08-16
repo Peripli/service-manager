@@ -54,7 +54,6 @@ var _ = Describe("config", func() {
 			config.Storage.URI = "postgres://postgres:postgres@localhost:5555/postgres?sslmode=disable"
 			config.API.TokenIssuerURL = "http://example.com"
 			config.API.ClientID = "sm"
-			config.API.SkipSSLValidation = true
 			config.Storage.EncryptionKey = "ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8"
 		})
 
@@ -200,9 +199,8 @@ var _ = Describe("config", func() {
 						Level:  "debug",
 					},
 					API: &api.Settings{
-						TokenIssuerURL:    "http://example.com",
-						ClientID:          "sm",
-						SkipSSLValidation: false,
+						TokenIssuerURL: "http://example.com",
+						ClientID:       "sm",
 					},
 				}
 

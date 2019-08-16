@@ -60,9 +60,8 @@ func (s *Settings) Validate() error {
 	return nil
 }
 
+// Configure configures the default http client and transport
 func Configure(settings *Settings) {
-
-	// Setup the default http client and transport
 	transport := http.DefaultTransport.(*http.Transport)
 
 	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: settings.SkipSSLValidation}
