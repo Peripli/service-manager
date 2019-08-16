@@ -8,12 +8,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-// LoggingConfig struct represents the configurable logger properties
-type LoggingConfig struct {
-	Level  string `json:"level,omitempty"`
-	Format string `json:"format,omitempty"`
-}
-
 // Controller logging configuration controller
 type Controller struct {
 }
@@ -23,20 +17,13 @@ func (c *Controller) getLoggingConfiguration(r *web.Request) (*web.Response, err
 	logCfg := log.Configuration()
 	log.C(ctx).Debugf("Obtaining log configuration with level: %s and format: %s", logCfg.Format, logCfg.Level)
 
-	return util.NewJSONResponse(http.StatusOK, &LoggingConfig{
-		Level:  logCfg.Level,
-		Format: logCfg.Format,
-	})
+	return util.NewJSONResponse(http.StatusOK, logCfg)
 }
 
 func (c *Controller) setLoggingConfiguration(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	loggingConfig := log.Configuration()
-	body := &LoggingConfig{
-		Level:  loggingConfig.Format,
-		Format: loggingConfig.Level,
-	}
-	if err := util.BytesToObject(r.Body, body); err != nil {
+	if err := util.BytesToObject(r.Body, loggingConfig); err != nil {
 		return nil, err
 	}
 

@@ -74,9 +74,9 @@ func init() {
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	Level  string `description:"minimum level for log messages"`
-	Format string `description:"format of log messages. Allowed values - text, json"`
-	Output string `description:"output for the logs. Allowed values - /dev/stdout, /dev/stdin, /dev/stderr, ginkgowriter"`
+	Level  string `description:"minimum level for log messages" json:"level,omitempty"`
+	Format string `description:"format of log messages. Allowed values - text, json" json:"format,omitempty"`
+	Output string `description:"output for the logs. Allowed values - /dev/stdout, /dev/stdin, /dev/stderr, ginkgowriter" json:"output,omitempty"`
 }
 
 // DefaultSettings returns default values for Log settings
@@ -126,9 +126,18 @@ func Configure(ctx context.Context, settings *Settings) context.Context {
 	entry := ctx.Value(logKey{})
 	if entry == nil {
 		entry = defaultEntry
+	} else {
+		defaultEntry.Logger = &logrus.Logger{
+			Out:          output,
+			Hooks:        defaultEntry.Logger.Hooks,
+			Formatter:    formatter,
+			ReportCaller: defaultEntry.Logger.ReportCaller,
+			Level:        level,
+			ExitFunc:     defaultEntry.Logger.ExitFunc,
+		}
 	}
 	e := entry.(*logrus.Entry)
-	defaultEntry.Logger = &logrus.Logger{
+	e.Logger = &logrus.Logger{
 		Out:          output,
 		Hooks:        e.Logger.Hooks,
 		Formatter:    formatter,
@@ -189,6 +198,14 @@ func copyEntry(entry *logrus.Entry) *logrus.Entry {
 		entryData[k] = v
 	}
 
+	//newLogger := &logrus.Logger{
+	//	Out:          entry.Logger.Out,
+	//	Hooks:        entry.Logger.Hooks,
+	//	Formatter:    entry.Logger.Formatter,
+	//	ReportCaller: entry.Logger.ReportCaller,
+	//	Level:        entry.Logger.Level,
+	//	ExitFunc:     entry.Logger.ExitFunc,
+	//}
 	newEntry := logrus.NewEntry(entry.Logger)
 	newEntry.Level = entry.Level
 	newEntry.Data = entryData
