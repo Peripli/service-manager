@@ -207,7 +207,8 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	// TODO: Add new integer field in DB for paging
+	// TODO: Extract query in criteria in a filter before controller
 	objectPage, err := c.repository.ListWithPaging(ctx, c.objectType, limit, targetCreatedAt, targetID, query.CriteriaForContext(ctx)...)
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
