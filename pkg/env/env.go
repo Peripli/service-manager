@@ -149,6 +149,24 @@ func (v *ViperEnv) setupConfigFile(ctx context.Context, onConfigChangeHandlers .
 
 	v.Viper.WatchConfig()
 
+	dynamicLogHandler := func(env Environment) func(event fsnotify.Event) {
+		return func(event fsnotify.Event) {
+			if strings.Contains(event.String(), "WRITE") || strings.Contains(event.String(), "CREATE") {
+				logLevel := env.Get("log.level").(string)
+				logFormat := env.Get("log.format").(string)
+
+				log.C(ctx).Warnf("Reconfiguring logrus logging using level %s and format %s", logLevel, logFormat)
+				ctx = log.Configure(ctx, &log.Settings{
+					Level:  logLevel,
+					Format: logFormat,
+					Output: os.Stdout.Name(),
+				})
+			}
+		}
+	}
+
+	onConfigChangeHandlers = append(onConfigChangeHandlers, dynamicLogHandler)
+
 	v.Viper.OnConfigChange(func(event fsnotify.Event) {
 		log.C(ctx).Warnf("Configuration file was changed by event %s. Triggering on config changed handlers...", event.String())
 		for _, handler := range onConfigChangeHandlers {
@@ -167,23 +185,7 @@ func Default(ctx context.Context, additionalPFlags ...func(set *pflag.FlagSet)) 
 		addFlags(set)
 	}
 
-	dynamicLogHandler := func(env Environment) func(event fsnotify.Event) {
-		return func(event fsnotify.Event) {
-			if strings.Contains(event.String(), "WRITE") || strings.Contains(event.String(), "CREATE") {
-				logLevel := env.Get("log.level").(string)
-				logFormat := env.Get("log.format").(string)
-
-				log.C(ctx).Warnf("Reconfiguring logrus logging using level %s and format %s", logLevel, logFormat)
-				ctx = log.Configure(ctx, &log.Settings{
-					Level:  logLevel,
-					Format: logFormat,
-					Output: os.Stdout.Name(),
-				})
-			}
-		}
-	}
-
-	environment, err := New(ctx, set, dynamicLogHandler)
+	environment, err := New(ctx, set)
 	if err != nil {
 		return nil, fmt.Errorf("error loading environment: %s", err)
 	}
