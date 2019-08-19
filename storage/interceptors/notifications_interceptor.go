@@ -191,10 +191,11 @@ func CreateNotification(ctx context.Context, repository storage.Repository, op t
 			UpdatedAt: currentTime,
 			Labels:    map[string][]string{},
 		},
-		Resource:   resource,
-		Type:       op,
-		PlatformID: platformID,
-		Payload:    payloadBytes,
+		Resource:      resource,
+		Type:          op,
+		PlatformID:    platformID,
+		Payload:       payloadBytes,
+		CorrelationID: log.CorrelationIDFromContext(ctx),
 	}
 
 	notificationID, err := repository.Create(ctx, notification)
