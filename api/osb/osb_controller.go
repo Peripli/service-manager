@@ -27,6 +27,9 @@ import (
 	"net/url"
 	"regexp"
 
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
+
 	"github.com/sirupsen/logrus"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -123,15 +126,32 @@ func (c *Controller) proxy(r *web.Request, logger *logrus.Entry, broker *types.S
 
 	proxy.ServeHTTP(recorder, modifiedRequest)
 
-	respBody, err := ioutil.ReadAll(recorder.Body)
+	brokerResponseBody, err := ioutil.ReadAll(recorder.Body)
 	if err != nil {
 		return nil, err
+	}
+
+	responseBody := brokerResponseBody
+
+	if !gjson.ValidBytes(brokerResponseBody) {
+		recorder.Header().Set("Content-Type", "application/json")
+		responseBody = []byte(fmt.Sprintf(`{"description": "Broker with name %s response is not a valid json: %s"}`, broker.Name, brokerResponseBody))
+	} else if recorder.Code > 399 || recorder.Code < 100 {
+		recorder.Header().Set("Content-Type", "application/json")
+		description := gjson.GetBytes(brokerResponseBody, "description").String()
+		if description == "" {
+			description = ""
+		}
+		responseBody, err = sjson.SetBytes(brokerResponseBody, "description", fmt.Sprintf("Broker with name %s failed with: %s", broker.Name, description))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	resp := &web.Response{
 		StatusCode: recorder.Code,
 		Header:     recorder.Header(),
-		Body:       respBody,
+		Body:       responseBody,
 	}
 	return resp, nil
 }
@@ -156,4 +176,9 @@ func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.Se
 		}, writer)
 	}
 	return proxy
+}
+
+type brokerError struct {
+	Description string `json:"description"`
+	Error       string `json:"error"`
 }
