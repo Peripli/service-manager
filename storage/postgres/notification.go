@@ -59,26 +59,18 @@ func (*Notification) FromObject(object types.Object) (storage.Entity, bool) {
 		return nil, false
 	}
 
-	platformID := sql.NullString{
-		String: notification.PlatformID,
-		Valid:  notification.PlatformID != "",
-	}
-
 	n := &Notification{
 		BaseEntity: BaseEntity{
 			ID:        notification.ID,
 			CreatedAt: notification.CreatedAt,
 			UpdatedAt: notification.UpdatedAt,
 		},
-		Resource:   string(notification.Resource),
-		Type:       string(notification.Type),
-		PlatformID: platformID,
-		Revision:   notification.Revision, // when creating new Notification, Revision will be set by DB
-		Payload:    getJSONText(notification.Payload),
-		CorrelationID: sql.NullString{
-			String: notification.CorrelationID,
-			Valid:  notification.CorrelationID != "",
-		},
+		Resource:      string(notification.Resource),
+		Type:          string(notification.Type),
+		PlatformID:    toNullString(notification.PlatformID),
+		Revision:      notification.Revision, // when creating new Notification, Revision will be set by DB
+		Payload:       getJSONText(notification.Payload),
+		CorrelationID: toNullString(notification.CorrelationID),
 	}
 	return n, true
 }
