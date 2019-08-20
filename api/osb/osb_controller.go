@@ -177,8 +177,3 @@ func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.Se
 	}
 	return proxy
 }
-
-type brokerError struct {
-	Description string `json:"description"`
-	Error       string `json:"error"`
-}
