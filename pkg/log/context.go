@@ -31,8 +31,9 @@ type logKey struct{}
 
 var (
 	supportedFormatters = map[string]logrus.Formatter{
-		"json": &logrus.JSONFormatter{},
-		"text": &logrus.TextFormatter{},
+		"json":   &logrus.JSONFormatter{},
+		"text":   &logrus.TextFormatter{},
+		"kibana": &KibanaFormatter{},
 	}
 	regMutex     = sync.Mutex{}
 	once         = sync.Once{}
