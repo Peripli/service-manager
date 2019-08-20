@@ -24,8 +24,6 @@ import (
 	"net/http"
 	"testing"
 
-	//"github.com/Peripli/service-manager/pkg/web"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
