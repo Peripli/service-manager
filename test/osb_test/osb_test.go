@@ -725,16 +725,24 @@ var _ = Describe("Service Manager OSB API", func() {
 
 	Describe("Malfunctioning broker", func() {
 		Context("when broker response is not a valid json", func() {
-			BeforeEach(func() {
+			It("should return an OSB compliant error", func() {
 				failingBrokerServer.ServiceInstanceHandler = func(rw http.ResponseWriter, _ *http.Request) {
-					rw.WriteHeader(http.StatusBadRequest)
+					rw.WriteHeader(http.StatusCreated)
 					rw.Write([]byte("[not a json]"))
 				}
-			})
-
-			It("should return an OSB compliant error", func() {
 				ctx.SMWithBasic.PUT(smUrlToFailingBroker+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
-					WithJSON(getDummyService()).Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").String().Match("Broker with name .* response is not a valid json: \\[not a json\\]")
+					WithJSON(getDummyService()).Expect().Status(http.StatusCreated).JSON().Object().Value("description").String().Match("Broker with name .* response is not a valid json: \\[not a json\\]")
+			})
+		})
+
+		Context("when broker response error description is empty but", func() {
+			It("should assing default description", func() {
+				failingBrokerServer.ServiceInstanceHandler = func(rw http.ResponseWriter, _ *http.Request) {
+					rw.WriteHeader(http.StatusBadRequest)
+					rw.Write([]byte(`{"error": "ErrorType"}`))
+				}
+				ctx.SMWithBasic.PUT(smUrlToFailingBroker+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+					WithJSON(getDummyService()).Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").String().Match("Broker with name .* failed with: {}")
 			})
 		})
 	})
