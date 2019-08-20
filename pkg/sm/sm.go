@@ -183,7 +183,7 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 // Build builds the Service Manager
 func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	if err := smb.installHealth(); err != nil {
-		log.C(smb.ctx).Panic()
+		log.C(smb.ctx).Panic(err)
 	}
 
 	// setup server and add relevant global middleware
