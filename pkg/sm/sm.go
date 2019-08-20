@@ -183,7 +183,7 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 // Build builds the Service Manager
 func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	if err := smb.installHealth(); err != nil {
-		panic(err)
+		log.C(smb.ctx).Panic()
 	}
 
 	// setup server and add relevant global middleware
@@ -204,15 +204,22 @@ func (smb *ServiceManagerBuilder) installHealth() error {
 		return nil
 	}
 
-	smb.ConfigureIndicators()
-
 	healthz := h.New()
 	logger := log.C(smb.ctx).Logger
 
 	healthz.Logger = l.New(logger)
 	healthz.StatusListener = &health.StatusListener{}
 
+	tresholds := make(map[string]int64)
+
 	for _, indicator := range smb.HealthIndicators {
+		if configurableIndicator, ok := indicator.(health.ConfigurableIndicator); ok {
+			if settings, ok := smb.HealthSettings[configurableIndicator.Name()]; ok {
+				configurableIndicator.Configure(settings)
+			} else {
+				configurableIndicator.Configure(health.DefaultIndicatorSettings())
+			}
+		}
 		if err := healthz.AddCheck(&h.Config{
 			Name:     indicator.Name(),
 			Checker:  indicator,
@@ -221,9 +228,10 @@ func (smb *ServiceManagerBuilder) installHealth() error {
 		}); err != nil {
 			return err
 		}
+		tresholds[indicator.Name()] = indicator.FailuresTreshold()
 	}
 
-	smb.RegisterControllers(healthcheck.NewController(healthz, smb.HealthIndicators))
+	smb.RegisterControllers(healthcheck.NewController(healthz, tresholds))
 
 	if err := healthz.Start(); err != nil {
 		return err

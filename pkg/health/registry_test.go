@@ -50,35 +50,6 @@ var _ = Describe("Healthcheck Registry", func() {
 			Expect(postAddIndicators).To(ContainElement(newIndicator))
 		})
 	})
-
-	When("When configure indicators", func() {
-		It("Should configure with default settings if settings not provided", func() {
-			newIndicator := &testIndicator{}
-			registry.HealthIndicators = append(registry.HealthIndicators, newIndicator)
-
-			registry.ConfigureIndicators()
-
-			Expect(newIndicator.Interval()).To(Equal(DefaultIndicatorSettings().Interval))
-			Expect(newIndicator.FailuresTreshold()).To(Equal(DefaultIndicatorSettings().FailuresTreshold))
-		})
-
-		It("Should configure with provided settings", func() {
-			newIndicator := &testIndicator{}
-			registry.HealthIndicators = append(registry.HealthIndicators, newIndicator)
-
-			settings := &IndicatorSettings{
-				Interval:         50,
-				FailuresTreshold: 2,
-			}
-
-			registry.HealthSettings[newIndicator.Name()] = settings
-
-			registry.ConfigureIndicators()
-
-			Expect(newIndicator.Interval()).To(Equal(settings.Interval))
-			Expect(newIndicator.FailuresTreshold()).To(Equal(settings.FailuresTreshold))
-		})
-	})
 })
 
 type testIndicator struct {

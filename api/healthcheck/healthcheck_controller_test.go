@@ -19,7 +19,6 @@ import (
 	"fmt"
 	h "github.com/InVisionApp/go-health"
 	"github.com/Peripli/service-manager/pkg/health"
-	"github.com/Peripli/service-manager/pkg/health/healthfakes"
 	"github.com/Peripli/service-manager/pkg/web"
 	"net/http"
 	"testing"
@@ -135,34 +134,6 @@ var _ = Describe("Healthcheck controller", func() {
 					h.Status = convertStatus(h.Status)
 					Expect(aggregatedHealth.Details[name]).To(Equal(h))
 				}
-			})
-		})
-	})
-
-	Describe("create controller", func() {
-		var c web.Controller
-		tresholds := map[string]int64{
-			"test1": 2,
-			"test2": 3,
-		}
-
-		BeforeEach(func() {
-			indicators := make([]health.Indicator, 0, len(tresholds))
-			for i, v := range tresholds {
-				indicator := &healthfakes.FakeIndicator{}
-				indicator.NameReturns(i)
-				indicator.FailuresTresholdReturns(v)
-
-				indicators = append(indicators, indicator)
-			}
-			c = NewController(HealthFake{}, indicators)
-		})
-
-		When("Controller created with given indicators", func() {
-			It("Should extract tresholds", func() {
-				controllerStruct := c.(*controller)
-
-				Expect(controllerStruct.tresholds).To(Equal(tresholds))
 			})
 		})
 	})

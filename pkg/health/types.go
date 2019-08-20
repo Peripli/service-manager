@@ -180,16 +180,3 @@ type Registry struct {
 	// Indicator Settings of the registry
 	HealthSettings map[string]*IndicatorSettings
 }
-
-// ConfigureIndicators configures registry's indicators with provided settings
-func (r *Registry) ConfigureIndicators() {
-	for _, hi := range r.HealthIndicators {
-		if indicator, ok := hi.(ConfigurableIndicator); ok {
-			if settings, ok := r.HealthSettings[indicator.Name()]; ok {
-				indicator.Configure(settings)
-			} else {
-				indicator.Configure(DefaultIndicatorSettings())
-			}
-		}
-	}
-}

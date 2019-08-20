@@ -33,11 +33,7 @@ type controller struct {
 }
 
 // NewController returns a new healthcheck controller with the given health and tresholds
-func NewController(health h.IHealth, indicators []health.Indicator) web.Controller {
-	tresholds := make(map[string]int64)
-	for _, v := range indicators {
-		tresholds[v.Name()] = v.FailuresTreshold()
-	}
+func NewController(health h.IHealth, tresholds map[string]int64) web.Controller {
 	return &controller{
 		health:    health,
 		tresholds: tresholds,
