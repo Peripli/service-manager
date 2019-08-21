@@ -65,7 +65,7 @@ func TestOSB(t *testing.T) {
 
 func assertFailingBrokerError(req *httpexpect.Response) {
 	req.Status(http.StatusNotAcceptable).JSON().Object().
-		Value("description").String().Match("Service broker .* failed with: .*Failing service broker error")
+		Value("description").String().Match("Service broker .* failed with: Failing service broker error")
 }
 
 func assertMissingBrokerError(req *httpexpect.Response) {
@@ -740,14 +740,27 @@ var _ = Describe("Service Manager OSB API", func() {
 			})
 		})
 
+		Context("when broker returns a valid json with no description", func() {
+			It("should return the broker's response", func() {
+				failingBrokerServer.ServiceInstanceHandler = func(rw http.ResponseWriter, _ *http.Request) {
+					rw.WriteHeader(http.StatusBadRequest)
+					rw.Write([]byte("3"))
+				}
+				ctx.SMWithBasic.PUT(smUrlToFailingBroker+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+					WithJSON(getDummyService()).Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").String().Match("Service broker .* failed with: 3")
+			})
+		})
+
 		Context("when broker response error description is empty", func() {
 			It("should assing default description", func() {
 				failingBrokerServer.ServiceInstanceHandler = func(rw http.ResponseWriter, _ *http.Request) {
 					rw.WriteHeader(http.StatusBadRequest)
 					rw.Write([]byte(`{"error": "ErrorType"}`))
 				}
-				ctx.SMWithBasic.PUT(smUrlToFailingBroker+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
-					WithJSON(getDummyService()).Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").String().Match("Service broker .* failed with: {}")
+				response := ctx.SMWithBasic.PUT(smUrlToFailingBroker+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+					WithJSON(getDummyService()).Expect().Status(http.StatusBadRequest).JSON().Object()
+				response.Value("description").String().Match("Service broker .* failed with: {}")
+				response.Value("error").String().Match("ErrorType")
 			})
 		})
 	})

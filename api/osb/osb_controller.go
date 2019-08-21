@@ -140,7 +140,7 @@ func (c *Controller) proxy(r *web.Request, logger *logrus.Entry, broker *types.S
 		recorder.Header().Set("Content-Type", "application/json")
 		description := gjson.GetBytes(brokerResponseBody, "description").String()
 		if description == "" {
-			description = "{}"
+			description = string(brokerResponseBody)
 		}
 		responseBody, err = sjson.SetBytes(brokerResponseBody, "description", fmt.Sprintf("Service broker %s failed with: %s", broker.Name, description))
 		if err != nil {
