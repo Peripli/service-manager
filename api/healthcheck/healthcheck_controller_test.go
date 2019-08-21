@@ -52,12 +52,6 @@ var _ = Describe("Healthcheck controller", func() {
 			})
 		})
 
-		When("health returns unknown", func() {
-			It("should respond with 503", func() {
-				assertResponse(health.StatusUnknown, http.StatusServiceUnavailable)
-			})
-		})
-
 		When("health returns up", func() {
 			It("should respond with 200", func() {
 				assertResponse(health.StatusUp, http.StatusOK)
@@ -68,53 +62,51 @@ var _ = Describe("Healthcheck controller", func() {
 	Describe("aggregation", func() {
 		var c *controller
 		var healths map[string]h.State
-		var tresholds map[string]int64
+		var thresholds map[string]int64
 
 		BeforeEach(func() {
 			healths = map[string]h.State{
 				"test1": {Status: "ok"},
 				"test2": {Status: "ok"},
 			}
-			tresholds = map[string]int64{
+			thresholds = map[string]int64{
 				"test1": 3,
 				"test2": 3,
 			}
 			c = &controller{
-				health:    HealthFake{},
-				tresholds: tresholds,
+				health:     HealthFake{},
+				thresholds: thresholds,
 			}
 		})
 
 		When("No healths are provided", func() {
-			It("Returns UNKNOWN and an error detail", func() {
+			It("Returns UP", func() {
 				aggregatedHealth := c.aggregate(nil)
-				Expect(aggregatedHealth.Status).To(Equal(health.StatusUnknown))
-				Expect(aggregatedHealth.Details["error"]).ToNot(BeNil())
+				Expect(aggregatedHealth.Status).To(Equal(health.StatusUp))
 			})
 		})
 
-		When("At least one health is DOWN more than treshold times and is Fatal", func() {
+		When("At least one health is DOWN more than threshold times and is Fatal", func() {
 			It("Returns DOWN", func() {
 				healths["test3"] = h.State{Status: "failed", Fatal: true, ContiguousFailures: 4}
-				c.tresholds["test3"] = 3
+				c.thresholds["test3"] = 3
 				aggregatedHealth := c.aggregate(healths)
 				Expect(aggregatedHealth.Status).To(Equal(health.StatusDown))
 			})
 		})
 
-		When("At least one health is DOWN more than treshold times and is not Fatal", func() {
+		When("At least one health is DOWN and is not Fatal", func() {
 			It("Returns UP", func() {
 				healths["test3"] = h.State{Status: "failed", Fatal: false, ContiguousFailures: 4}
-				c.tresholds["test3"] = 3
 				aggregatedHealth := c.aggregate(healths)
 				Expect(aggregatedHealth.Status).To(Equal(health.StatusUp))
 			})
 		})
 
-		When("There is DOWN healths but not more than treshold times in a row", func() {
+		When("There is DOWN healths but not more than threshold times in a row", func() {
 			It("Returns UP", func() {
 				healths["test3"] = h.State{Status: "failed"}
-				c.tresholds["test3"] = 3
+				c.thresholds["test3"] = 3
 				aggregatedHealth := c.aggregate(healths)
 				Expect(aggregatedHealth.Status).To(Equal(health.StatusUp))
 			})
@@ -140,12 +132,6 @@ var _ = Describe("Healthcheck controller", func() {
 })
 
 func createController(status health.Status) *controller {
-	if status == health.StatusUnknown {
-		return &controller{
-			health: HealthFake{},
-		}
-	}
-
 	stringStatus := "ok"
 	var contiguousFailures int64 = 0
 	if status == health.StatusDown {
@@ -159,7 +145,7 @@ func createController(status health.Status) *controller {
 				"test1": {Status: stringStatus, Fatal: true, ContiguousFailures: contiguousFailures},
 			},
 		},
-		tresholds: map[string]int64{
+		thresholds: map[string]int64{
 			"test1": 1,
 		},
 	}

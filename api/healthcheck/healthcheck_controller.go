@@ -28,15 +28,15 @@ import (
 
 // controller platform controller
 type controller struct {
-	health    h.IHealth
-	tresholds map[string]int64
+	health     h.IHealth
+	thresholds map[string]int64
 }
 
-// NewController returns a new healthcheck controller with the given health and tresholds
-func NewController(health h.IHealth, tresholds map[string]int64) web.Controller {
+// NewController returns a new healthcheck controller with the given health and thresholds
+func NewController(health h.IHealth, thresholds map[string]int64) web.Controller {
 	return &controller{
-		health:    health,
-		tresholds: tresholds,
+		health:     health,
+		thresholds: thresholds,
 	}
 }
 
@@ -56,21 +56,21 @@ func (c *controller) healthCheck(r *web.Request) (*web.Response, error) {
 	return util.NewJSONResponse(status, healthResult)
 }
 
-func (c *controller) aggregate(state map[string]h.State) *health.Health {
-	if len(state) == 0 {
-		return health.New().WithDetail("error", "no health indicators registered")
+func (c *controller) aggregate(overallState map[string]h.State) *health.Health {
+	if len(overallState) == 0 {
+		return health.New().WithStatus(health.StatusUp)
 	}
 	overallStatus := health.StatusUp
-	for i, v := range state {
-		if v.Fatal && v.ContiguousFailures >= c.tresholds[i] {
+	for name, state := range overallState {
+		if state.Fatal && state.ContiguousFailures >= c.thresholds[name] {
 			overallStatus = health.StatusDown
 			break
 		}
 	}
 	details := make(map[string]interface{})
-	for k, v := range state {
-		v.Status = convertStatus(v.Status)
-		details[k] = v
+	for name, state := range overallState {
+		state.Status = convertStatus(state.Status)
+		details[name] = state
 	}
 	return health.New().WithStatus(overallStatus).WithDetails(details)
 }

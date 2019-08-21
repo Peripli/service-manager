@@ -46,7 +46,7 @@ var _ = Describe("config", func() {
 
 	Describe("Validate", func() {
 		var fatal bool
-		var failuresTreshold int64
+		var failuresThreshold int64
 		var interval time.Duration
 
 		assertErrorDuringValidate := func() {
@@ -56,12 +56,12 @@ var _ = Describe("config", func() {
 
 		registerIndicatorSettings := func() {
 			indicatorSettings := &health.IndicatorSettings{
-				Fatal:            fatal,
-				FailuresTreshold: failuresTreshold,
-				Interval:         interval,
+				Fatal:             fatal,
+				FailuresThreshold: failuresThreshold,
+				Interval:          interval,
 			}
 
-			config.Health.IndicatorsSettings["test"] = indicatorSettings
+			config.Health.Indicators["test"] = indicatorSettings
 		}
 
 		BeforeEach(func() {
@@ -72,22 +72,41 @@ var _ = Describe("config", func() {
 			config.API.SkipSSLValidation = true
 			config.Storage.EncryptionKey = "ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8"
 
-			fatal = false
-			failuresTreshold = 1
+			fatal = true
+			failuresThreshold = 1
 			interval = 30 * time.Second
 		})
 
-		Context("health indicator with negative treshold", func() {
+		Context("health indicator with negative threshold", func() {
 			It("should be considered invalid", func() {
-				failuresTreshold = -1
+				failuresThreshold = -1
 				registerIndicatorSettings()
 				assertErrorDuringValidate()
 			})
 		})
 
-		Context("health indicator with 0 treshold", func() {
-			It("should be considered invalid", func() {
-				failuresTreshold = 0
+		Context("health indicator with 0 threshold", func() {
+			It("should be considered invalid if it is fatal", func() {
+				failuresThreshold = 0
+				registerIndicatorSettings()
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("health indicator with 0 threshold", func() {
+			It("should be considered valid if it is not fatal", func() {
+				fatal = false
+				failuresThreshold = 0
+				registerIndicatorSettings()
+				err := config.Validate()
+				Expect(err).ShouldNot(HaveOccurred())
+			})
+		})
+
+		Context("health indicator with positive threshold", func() {
+			It("should be considered invalid if it is not fatal", func() {
+				fatal = false
+				failuresThreshold = 3
 				registerIndicatorSettings()
 				assertErrorDuringValidate()
 			})
@@ -101,10 +120,10 @@ var _ = Describe("config", func() {
 			})
 		})
 
-		Context("health indicator with positive treshold and interval >= 30", func() {
+		Context("health indicator with positive threshold and interval >= 30", func() {
 			It("should be considered valid", func() {
 				interval = 30 * time.Second
-				failuresTreshold = 3
+				failuresThreshold = 3
 				registerIndicatorSettings()
 
 				err := config.Validate()

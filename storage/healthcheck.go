@@ -19,38 +19,9 @@ package storage
 import (
 	"github.com/InVisionApp/go-health/checkers"
 	"github.com/Peripli/service-manager/pkg/health"
-	"time"
 )
 
-// HealthIndicator returns a new indicator for the storage
-type HealthIndicator struct {
-	*checkers.SQL
-
-	settings *health.IndicatorSettings
-}
-
-// Name returns the name of the storage component
-func (i *HealthIndicator) Name() string {
-	return "storage"
-}
-
-func (i *HealthIndicator) Configure(settings *health.IndicatorSettings) {
-	i.settings = settings
-}
-
-func (i *HealthIndicator) Interval() time.Duration {
-	return i.settings.Interval
-}
-
-func (i *HealthIndicator) FailuresTreshold() int64 {
-	return i.settings.FailuresTreshold
-}
-
-func (i *HealthIndicator) Fatal() bool {
-	return i.settings.Fatal
-}
-
-func NewStorageHealthIndicator(pingFunc PingFunc) (health.Indicator, error) {
+func NewHealthIndicator(pingFunc PingFunc) (health.Indicator, error) {
 	sqlConfig := &checkers.SQLConfig{
 		Pinger: pingFunc,
 	}
@@ -64,5 +35,14 @@ func NewStorageHealthIndicator(pingFunc PingFunc) (health.Indicator, error) {
 	}
 
 	return indicator, nil
+}
 
+// HealthIndicator returns a new indicator for the storage
+type HealthIndicator struct {
+	*checkers.SQL
+}
+
+// Name returns the name of the storage component
+func (i *HealthIndicator) Name() string {
+	return "storage"
 }

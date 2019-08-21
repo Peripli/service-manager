@@ -134,13 +134,12 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 		return nil, fmt.Errorf("error creating core api: %s", err)
 	}
 
-	storageHealthIndicator, err := storage.NewStorageHealthIndicator(storage.PingFunc(smStorage.PingContext))
+	storageHealthIndicator, err := storage.NewHealthIndicator(storage.PingFunc(smStorage.PingContext))
 	if err != nil {
 		return nil, fmt.Errorf("error creating storage health indicator: %s", err)
 	}
 
 	API.HealthIndicators = append(API.HealthIndicators, storageHealthIndicator)
-	API.HealthSettings = cfg.Health.IndicatorsSettings
 
 	notificationCleaner := &storage.NotificationCleaner{
 		Storage:  interceptableRepository,
@@ -200,38 +199,31 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 }
 
 func (smb *ServiceManagerBuilder) installHealth() error {
-	if len(smb.HealthIndicators) == 0 {
-		return nil
-	}
-
 	healthz := h.New()
 	logger := log.C(smb.ctx).Logger
 
 	healthz.Logger = l.New(logger)
 	healthz.StatusListener = &health.StatusListener{}
 
-	tresholds := make(map[string]int64)
+	thresholds := make(map[string]int64)
 
 	for _, indicator := range smb.HealthIndicators {
-		if configurableIndicator, ok := indicator.(health.ConfigurableIndicator); ok {
-			if settings, ok := smb.HealthSettings[configurableIndicator.Name()]; ok {
-				configurableIndicator.Configure(settings)
-			} else {
-				configurableIndicator.Configure(health.DefaultIndicatorSettings())
-			}
+		settings, ok := smb.cfg.Health.Indicators[indicator.Name()]
+		if !ok {
+			settings = health.DefaultIndicatorSettings()
 		}
 		if err := healthz.AddCheck(&h.Config{
 			Name:     indicator.Name(),
 			Checker:  indicator,
-			Interval: indicator.Interval(),
-			Fatal:    indicator.Fatal(),
+			Interval: settings.Interval,
+			Fatal:    settings.Fatal,
 		}); err != nil {
 			return err
 		}
-		tresholds[indicator.Name()] = indicator.FailuresTreshold()
+		thresholds[indicator.Name()] = settings.FailuresThreshold
 	}
 
-	smb.RegisterControllers(healthcheck.NewController(healthz, tresholds))
+	smb.RegisterControllers(healthcheck.NewController(healthz, thresholds))
 
 	if err := healthz.Start(); err != nil {
 		return err

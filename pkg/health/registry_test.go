@@ -19,7 +19,6 @@ package health
 import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"time"
 )
 
 var _ = Describe("Healthcheck Registry", func() {
@@ -31,9 +30,9 @@ var _ = Describe("Healthcheck Registry", func() {
 	})
 
 	When("Constructing default registry", func() {
-		It("Has ping indicator", func() {
+		It("Has empty indicators", func() {
 			indicators := registry.HealthIndicators
-			Expect(indicators).To(ConsistOf(&pingIndicator{}))
+			Expect(len(indicators)).To(Equal(0))
 		})
 	})
 
@@ -53,29 +52,12 @@ var _ = Describe("Healthcheck Registry", func() {
 })
 
 type testIndicator struct {
-	settings *IndicatorSettings
 }
 
 func (i *testIndicator) Name() string {
 	return "test"
 }
 
-func (i *testIndicator) Interval() time.Duration {
-	return i.settings.Interval
-}
-
-func (i *testIndicator) FailuresTreshold() int64 {
-	return i.settings.FailuresTreshold
-}
-
-func (i *testIndicator) Fatal() bool {
-	return i.settings.Fatal
-}
-
 func (i *testIndicator) Status() (interface{}, error) {
 	return nil, nil
-}
-
-func (i *testIndicator) Configure(settings *IndicatorSettings) {
-	i.settings = settings
 }

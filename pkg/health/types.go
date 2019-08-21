@@ -25,20 +25,20 @@ import (
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	IndicatorsSettings map[string]*IndicatorSettings `mapstructure:"indicators,omitempty"`
+	Indicators map[string]*IndicatorSettings `mapstructure:"indicators,omitempty"`
 }
 
 // DefaultSettings returns default values for health settings
 func DefaultSettings() *Settings {
 	emptySettings := make(map[string]*IndicatorSettings)
 	return &Settings{
-		IndicatorsSettings: emptySettings,
+		Indicators: emptySettings,
 	}
 }
 
 // Validate validates health settings
 func (s *Settings) Validate() error {
-	for _, v := range s.IndicatorsSettings {
+	for _, v := range s.Indicators {
 		if err := v.Validate(); err != nil {
 			return err
 		}
@@ -48,24 +48,27 @@ func (s *Settings) Validate() error {
 
 // IndicatorSettings type to be loaded from the environment
 type IndicatorSettings struct {
-	Fatal            bool          `mapstructure:"fatal" description:"if the indicator affects the overall status "`
-	FailuresTreshold int64         `mapstructure:"failures_treshold" description:"maximum failures in a row until component is considered down"`
-	Interval         time.Duration `mapstructure:"interval" description:"time between health checks of components"`
+	Fatal             bool          `mapstructure:"fatal" description:"if the indicator affects the overall status, if false not failures_threshold expected"`
+	FailuresThreshold int64         `mapstructure:"failures_threshold" description:"number of failures in a row that will affect overall status"`
+	Interval          time.Duration `mapstructure:"interval" description:"time between health checks of components"`
 }
 
 // DefaultIndicatorSettings returns default values for indicator settings
 func DefaultIndicatorSettings() *IndicatorSettings {
 	return &IndicatorSettings{
-		Fatal:            true,
-		FailuresTreshold: 3,
-		Interval:         60,
+		Fatal:             true,
+		FailuresThreshold: 3,
+		Interval:          60 * time.Second,
 	}
 }
 
 // Validate validates indicator settings
 func (is *IndicatorSettings) Validate() error {
-	if is.FailuresTreshold <= 0 {
-		return fmt.Errorf("validate Settings: FailuresTreshold must be > 0")
+	if !is.Fatal && is.FailuresThreshold != 0 {
+		return fmt.Errorf("validate Settings: FailuresThreshold not applicable for non-fatal indicators")
+	}
+	if is.Fatal && is.FailuresThreshold <= 0 {
+		return fmt.Errorf("validate Settings: FailuresThreshold must be > 0 for fatal indicators")
 	}
 	if is.Interval < 30*time.Second {
 		return fmt.Errorf("validate Settings: Minimum interval is 30 seconds")
@@ -141,34 +144,14 @@ type Indicator interface {
 	// Name returns the name of the component
 	Name() string
 
-	// Interval returns settings of the indicator
-	Interval() time.Duration
-
-	// FailuresTreshold returns the maximum failures in a row until component is considered down
-	FailuresTreshold() int64
-
-	// Fatal returns if the health indicator is fatal for the overall status
-	Fatal() bool
-
 	// Status returns the health information of the component
 	Status() (interface{}, error)
 }
 
-// ConfigurableIndicator is an interface to provide configurable health of a component
-//go:generate counterfeiter . ConfigurableIndicator
-type ConfigurableIndicator interface {
-	Indicator
-
-	// Configure configures the indicator with given settings
-	Configure(*IndicatorSettings)
-}
-
 // NewDefaultRegistry returns a default health registry with a single ping indicator
 func NewDefaultRegistry() *Registry {
-	emptySettings := make(map[string]*IndicatorSettings)
 	return &Registry{
-		HealthIndicators: []Indicator{&pingIndicator{}},
-		HealthSettings:   emptySettings,
+		HealthIndicators: []Indicator{},
 	}
 }
 
@@ -176,7 +159,4 @@ func NewDefaultRegistry() *Registry {
 type Registry struct {
 	// HealthIndicators are the currently registered health indicators
 	HealthIndicators []Indicator
-
-	// Indicator Settings of the registry
-	HealthSettings map[string]*IndicatorSettings
 }

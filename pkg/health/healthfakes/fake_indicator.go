@@ -3,42 +3,11 @@ package healthfakes
 
 import (
 	"sync"
-	"time"
 
 	"github.com/Peripli/service-manager/pkg/health"
 )
 
 type FakeIndicator struct {
-	FailuresTresholdStub        func() int64
-	failuresTresholdMutex       sync.RWMutex
-	failuresTresholdArgsForCall []struct {
-	}
-	failuresTresholdReturns struct {
-		result1 int64
-	}
-	failuresTresholdReturnsOnCall map[int]struct {
-		result1 int64
-	}
-	FatalStub        func() bool
-	fatalMutex       sync.RWMutex
-	fatalArgsForCall []struct {
-	}
-	fatalReturns struct {
-		result1 bool
-	}
-	fatalReturnsOnCall map[int]struct {
-		result1 bool
-	}
-	IntervalStub        func() time.Duration
-	intervalMutex       sync.RWMutex
-	intervalArgsForCall []struct {
-	}
-	intervalReturns struct {
-		result1 time.Duration
-	}
-	intervalReturnsOnCall map[int]struct {
-		result1 time.Duration
-	}
 	NameStub        func() string
 	nameMutex       sync.RWMutex
 	nameArgsForCall []struct {
@@ -63,162 +32,6 @@ type FakeIndicator struct {
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
-}
-
-func (fake *FakeIndicator) FailuresTreshold() int64 {
-	fake.failuresTresholdMutex.Lock()
-	ret, specificReturn := fake.failuresTresholdReturnsOnCall[len(fake.failuresTresholdArgsForCall)]
-	fake.failuresTresholdArgsForCall = append(fake.failuresTresholdArgsForCall, struct {
-	}{})
-	fake.recordInvocation("FailuresTreshold", []interface{}{})
-	fake.failuresTresholdMutex.Unlock()
-	if fake.FailuresTresholdStub != nil {
-		return fake.FailuresTresholdStub()
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	fakeReturns := fake.failuresTresholdReturns
-	return fakeReturns.result1
-}
-
-func (fake *FakeIndicator) FailuresTresholdCallCount() int {
-	fake.failuresTresholdMutex.RLock()
-	defer fake.failuresTresholdMutex.RUnlock()
-	return len(fake.failuresTresholdArgsForCall)
-}
-
-func (fake *FakeIndicator) FailuresTresholdCalls(stub func() int64) {
-	fake.failuresTresholdMutex.Lock()
-	defer fake.failuresTresholdMutex.Unlock()
-	fake.FailuresTresholdStub = stub
-}
-
-func (fake *FakeIndicator) FailuresTresholdReturns(result1 int64) {
-	fake.failuresTresholdMutex.Lock()
-	defer fake.failuresTresholdMutex.Unlock()
-	fake.FailuresTresholdStub = nil
-	fake.failuresTresholdReturns = struct {
-		result1 int64
-	}{result1}
-}
-
-func (fake *FakeIndicator) FailuresTresholdReturnsOnCall(i int, result1 int64) {
-	fake.failuresTresholdMutex.Lock()
-	defer fake.failuresTresholdMutex.Unlock()
-	fake.FailuresTresholdStub = nil
-	if fake.failuresTresholdReturnsOnCall == nil {
-		fake.failuresTresholdReturnsOnCall = make(map[int]struct {
-			result1 int64
-		})
-	}
-	fake.failuresTresholdReturnsOnCall[i] = struct {
-		result1 int64
-	}{result1}
-}
-
-func (fake *FakeIndicator) Fatal() bool {
-	fake.fatalMutex.Lock()
-	ret, specificReturn := fake.fatalReturnsOnCall[len(fake.fatalArgsForCall)]
-	fake.fatalArgsForCall = append(fake.fatalArgsForCall, struct {
-	}{})
-	fake.recordInvocation("Fatal", []interface{}{})
-	fake.fatalMutex.Unlock()
-	if fake.FatalStub != nil {
-		return fake.FatalStub()
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	fakeReturns := fake.fatalReturns
-	return fakeReturns.result1
-}
-
-func (fake *FakeIndicator) FatalCallCount() int {
-	fake.fatalMutex.RLock()
-	defer fake.fatalMutex.RUnlock()
-	return len(fake.fatalArgsForCall)
-}
-
-func (fake *FakeIndicator) FatalCalls(stub func() bool) {
-	fake.fatalMutex.Lock()
-	defer fake.fatalMutex.Unlock()
-	fake.FatalStub = stub
-}
-
-func (fake *FakeIndicator) FatalReturns(result1 bool) {
-	fake.fatalMutex.Lock()
-	defer fake.fatalMutex.Unlock()
-	fake.FatalStub = nil
-	fake.fatalReturns = struct {
-		result1 bool
-	}{result1}
-}
-
-func (fake *FakeIndicator) FatalReturnsOnCall(i int, result1 bool) {
-	fake.fatalMutex.Lock()
-	defer fake.fatalMutex.Unlock()
-	fake.FatalStub = nil
-	if fake.fatalReturnsOnCall == nil {
-		fake.fatalReturnsOnCall = make(map[int]struct {
-			result1 bool
-		})
-	}
-	fake.fatalReturnsOnCall[i] = struct {
-		result1 bool
-	}{result1}
-}
-
-func (fake *FakeIndicator) Interval() time.Duration {
-	fake.intervalMutex.Lock()
-	ret, specificReturn := fake.intervalReturnsOnCall[len(fake.intervalArgsForCall)]
-	fake.intervalArgsForCall = append(fake.intervalArgsForCall, struct {
-	}{})
-	fake.recordInvocation("Interval", []interface{}{})
-	fake.intervalMutex.Unlock()
-	if fake.IntervalStub != nil {
-		return fake.IntervalStub()
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	fakeReturns := fake.intervalReturns
-	return fakeReturns.result1
-}
-
-func (fake *FakeIndicator) IntervalCallCount() int {
-	fake.intervalMutex.RLock()
-	defer fake.intervalMutex.RUnlock()
-	return len(fake.intervalArgsForCall)
-}
-
-func (fake *FakeIndicator) IntervalCalls(stub func() time.Duration) {
-	fake.intervalMutex.Lock()
-	defer fake.intervalMutex.Unlock()
-	fake.IntervalStub = stub
-}
-
-func (fake *FakeIndicator) IntervalReturns(result1 time.Duration) {
-	fake.intervalMutex.Lock()
-	defer fake.intervalMutex.Unlock()
-	fake.IntervalStub = nil
-	fake.intervalReturns = struct {
-		result1 time.Duration
-	}{result1}
-}
-
-func (fake *FakeIndicator) IntervalReturnsOnCall(i int, result1 time.Duration) {
-	fake.intervalMutex.Lock()
-	defer fake.intervalMutex.Unlock()
-	fake.IntervalStub = nil
-	if fake.intervalReturnsOnCall == nil {
-		fake.intervalReturnsOnCall = make(map[int]struct {
-			result1 time.Duration
-		})
-	}
-	fake.intervalReturnsOnCall[i] = struct {
-		result1 time.Duration
-	}{result1}
 }
 
 func (fake *FakeIndicator) Name() string {
@@ -331,12 +144,6 @@ func (fake *FakeIndicator) StatusReturnsOnCall(i int, result1 interface{}, resul
 func (fake *FakeIndicator) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.failuresTresholdMutex.RLock()
-	defer fake.failuresTresholdMutex.RUnlock()
-	fake.fatalMutex.RLock()
-	defer fake.fatalMutex.RUnlock()
-	fake.intervalMutex.RLock()
-	defer fake.intervalMutex.RUnlock()
 	fake.nameMutex.RLock()
 	defer fake.nameMutex.RUnlock()
 	fake.statusMutex.RLock()
