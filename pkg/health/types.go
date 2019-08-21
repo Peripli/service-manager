@@ -148,14 +148,14 @@ type Indicator interface {
 	Status() (interface{}, error)
 }
 
-// NewDefaultRegistry returns a default health registry with a single ping indicator
+// NewDefaultRegistry returns a default empty health registry
 func NewDefaultRegistry() *Registry {
 	return &Registry{
-		HealthIndicators: []Indicator{},
+		HealthIndicators: make([]Indicator, 0),
 	}
 }
 
-// Registry is an interface to store and fetch health indicators
+// Registry is a struct to store health indicators
 type Registry struct {
 	// HealthIndicators are the currently registered health indicators
 	HealthIndicators []Indicator
