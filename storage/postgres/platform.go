@@ -18,6 +18,7 @@ package postgres
 
 import (
 	"database/sql"
+	"time"
 
 	"github.com/Peripli/service-manager/storage"
 
@@ -33,6 +34,8 @@ type Platform struct {
 	Description sql.NullString `db:"description"`
 	Username    string         `db:"username"`
 	Password    string         `db:"password"`
+	Active      bool           `db:"active"`
+	LastActive  time.Time      `db:"last_active"`
 }
 
 func (p *Platform) FromObject(object types.Object) (storage.Entity, bool) {
@@ -49,6 +52,8 @@ func (p *Platform) FromObject(object types.Object) (storage.Entity, bool) {
 		Type:        platform.Type,
 		Name:        platform.Name,
 		Description: toNullString(platform.Description),
+		Active:      platform.Active,
+		LastActive:  platform.LastActive,
 	}
 
 	if platform.Description != "" {
@@ -77,5 +82,7 @@ func (p *Platform) ToObject() types.Object {
 				Password: p.Password,
 			},
 		},
+		Active:     p.Active,
+		LastActive: p.LastActive,
 	}
 }

@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE platforms ADD COLUMN active BOOLEAN;
+ALTER TABLE platforms ADD COLUMN last_active TIMESTAMP;
+
+COMMIT;

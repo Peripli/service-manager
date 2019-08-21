@@ -66,7 +66,7 @@ type Notificator struct {
 }
 
 // NewNotificator returns new Notificator based on a given NotificatorStorage and desired queue size
-func NewNotificator(st storage.Storage, settings *storage.Settings) (*Notificator, error) {
+func NewNotificator(st storage.Storage, repository storage.Repository, settings *storage.Settings) (*Notificator, error) {
 	ns, err := NewNotificationStorage(st)
 	connectionCreator := &notificationConnectionCreatorImpl{
 		storageURI:           settings.URI,
@@ -82,8 +82,9 @@ func NewNotificator(st storage.Storage, settings *storage.Settings) (*Notificato
 		connectionMutex: &sync.Mutex{},
 		consumersMutex:  &sync.Mutex{},
 		consumers: &consumers{
-			queues:    make(map[string][]storage.NotificationQueue),
-			platforms: make([]*types.Platform, 0),
+			repository: repository,
+			queues:     make(map[string][]storage.NotificationQueue),
+			platforms:  make([]*types.Platform, 0),
 		},
 		storage:           ns,
 		connectionCreator: connectionCreator,
@@ -99,6 +100,7 @@ func (n *Notificator) Start(ctx context.Context, group *sync.WaitGroup) error {
 		return errors.New("notificator already started")
 	}
 	n.ctx = ctx
+	n.consumers.ctx = ctx
 	n.setConnection(n.connectionCreator.NewConnection(func(isConnected bool, err error) {
 		if isConnected {
 			atomic.StoreInt32(&n.isConnected, aTrue)
@@ -145,7 +147,9 @@ func (n *Notificator) addConsumer(platform *types.Platform, queue storage.Notifi
 	}
 	n.consumersMutex.Lock()
 	defer n.consumersMutex.Unlock()
-	n.consumers.Add(platform, queue)
+	if err := n.consumers.Add(platform, queue); err != nil {
+		return types.InvalidRevision, err
+	}
 	return atomic.LoadInt64(&n.lastKnownRevision), nil
 }
 
@@ -259,7 +263,9 @@ func (n *Notificator) UnregisterConsumer(queue storage.NotificationQueue) error 
 	if n.consumers.Len() == 0 {
 		return nil // Consumer already unregistered
 	}
-	n.consumers.Delete(queue)
+	if err := n.consumers.Delete(queue); err != nil {
+		return err
+	}
 	if n.consumers.Len() == 0 {
 		log.C(n.ctx).Debugf("No notification consumers left. Stop listening to channel %s", postgresChannel)
 		n.stopProcessing() // stop processing notifications as there are no consumers
@@ -419,8 +425,10 @@ func (n *Notificator) stopConnection() {
 }
 
 type consumers struct {
-	queues    map[string][]storage.NotificationQueue
-	platforms []*types.Platform
+	repository storage.Repository
+	ctx        context.Context
+	queues     map[string][]storage.NotificationQueue
+	platforms  []*types.Platform
 }
 
 func (c *consumers) find(queueID string) (string, int) {
@@ -443,10 +451,10 @@ func (c *consumers) ReplaceQueue(queueID string, newQueue storage.NotificationQu
 	return nil
 }
 
-func (c *consumers) Delete(queue storage.NotificationQueue) {
+func (c *consumers) Delete(queue storage.NotificationQueue) error {
 	platformIDToDelete, queueIndex := c.find(queue.ID())
 	if queueIndex == -1 {
-		return
+		return nil
 	}
 	platformConsumers := c.queues[platformIDToDelete]
 	c.queues[platformIDToDelete] = append(platformConsumers[:queueIndex], platformConsumers[queueIndex+1:]...)
@@ -456,17 +464,32 @@ func (c *consumers) Delete(queue storage.NotificationQueue) {
 		for index, platform := range c.platforms {
 			if platform.ID == platformIDToDelete {
 				c.platforms = append(c.platforms[:index], c.platforms[index+1:]...)
+
+				platform.Active = false
+				platform.LastActive = time.Now()
+
+				if _, err := c.repository.Update(c.ctx, platform, nil); err != nil {
+					return err
+				}
 				break
 			}
 		}
 	}
+	return nil
 }
 
-func (c *consumers) Add(platform *types.Platform, queue storage.NotificationQueue) {
+func (c *consumers) Add(platform *types.Platform, queue storage.NotificationQueue) error {
 	if len(c.queues[platform.ID]) == 0 {
 		c.platforms = append(c.platforms, platform)
+
+		platform.Active = true
+
+		if _, err := c.repository.Update(c.ctx, platform, nil); err != nil {
+			return err
+		}
 	}
 	c.queues[platform.ID] = append(c.queues[platform.ID], queue)
+	return nil
 }
 
 func (c *consumers) Clear() map[string][]storage.NotificationQueue {
