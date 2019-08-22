@@ -135,12 +135,18 @@ func (c *Controller) proxy(r *web.Request, logger *logrus.Entry, broker *types.S
 
 	if !gjson.ValidBytes(brokerResponseBody) {
 		recorder.Header().Set("Content-Type", "application/json")
-		responseBody = []byte(fmt.Sprintf(`{"description": "Service broker %s responded with invalid JSON: %s"}`, broker.Name, brokerResponseBody))
+		responseBody, err = sjson.SetBytes(nil, "description", fmt.Sprintf("Service broker %s responded with invalid JSON: %s", broker.Name, brokerResponseBody))
+		if err != nil {
+			return nil, err
+		}
 	} else if recorder.Code > 399 || recorder.Code < 100 {
 		recorder.Header().Set("Content-Type", "application/json")
 		description := gjson.GetBytes(brokerResponseBody, "description").String()
 		if description == "" {
 			description = string(brokerResponseBody)
+		}
+		if !gjson.ParseBytes(brokerResponseBody).IsObject() {
+			brokerResponseBody = nil
 		}
 		responseBody, err = sjson.SetBytes(brokerResponseBody, "description", fmt.Sprintf("Service broker %s failed with: %s", broker.Name, description))
 		if err != nil {
@@ -168,7 +174,7 @@ func buildProxy(targetBrokerURL *url.URL, logger *logrus.Entry, broker *types.Se
 		return nil
 	}
 	proxy.ErrorHandler = func(writer http.ResponseWriter, request *http.Request, e error) {
-		logger.WithError(e).Errorf("ErrorЧ while forwarding request to service broker %s", broker.Name)
+		logger.WithError(e).Errorf("Error while forwarding request to service broker %s", broker.Name)
 		util.WriteError(request.Context(), &util.HTTPError{
 			ErrorType:   "ServiceBrokerErr",
 			Description: fmt.Sprintf("could not reach service broker %s at %s", broker.Name, request.URL),

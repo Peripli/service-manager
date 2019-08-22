@@ -17,6 +17,7 @@ package osb_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -32,6 +33,7 @@ import (
 	"testing"
 
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 )
 
@@ -155,6 +157,7 @@ var _ = Describe("Service Manager OSB API", func() {
 
 		failingBrokerServer  *common.BrokerServer
 		failingBrokerID      string
+		failingBrokerName    string
 		smUrlToFailingBroker string
 
 		queryParameterVerificationServer   *common.BrokerServer
@@ -223,7 +226,9 @@ var _ = Describe("Service Manager OSB API", func() {
 		simpleBrokerCatalogID, _, brokerServerWithSimpleCatalog := ctx.RegisterBrokerWithCatalog(simpleCatalog)
 		smUrlToSimpleBrokerCatalogBroker = brokerServerWithSimpleCatalog.URL() + "/v1/osb/" + simpleBrokerCatalogID
 
-		failingBrokerID, _, failingBrokerServer = ctx.RegisterBroker()
+		var failingBrokerObject common.Object
+		failingBrokerID, failingBrokerObject, failingBrokerServer = ctx.RegisterBroker()
+		failingBrokerName = failingBrokerObject["name"].(string)
 		smUrlToFailingBroker = failingBrokerServer.URL() + "/v1/osb/" + failingBrokerID
 
 		UUID, err := uuid.NewV4()
@@ -728,42 +733,23 @@ var _ = Describe("Service Manager OSB API", func() {
 		})
 	})
 
-	Describe("Malfunctioning broker", func() {
-		Context("when broker response is not a valid json", func() {
-			It("should return an OSB compliant error", func() {
-				failingBrokerServer.ServiceInstanceHandler = func(rw http.ResponseWriter, _ *http.Request) {
-					rw.WriteHeader(http.StatusCreated)
-					rw.Write([]byte("[not a json]"))
-				}
-				ctx.SMWithBasic.PUT(smUrlToFailingBroker+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
-					WithJSON(getDummyService()).Expect().Status(http.StatusCreated).JSON().Object().Value("description").String().Match("Service broker .* responded with invalid JSON: \\[not a json\\]")
-			})
-		})
-
-		Context("when broker returns a valid json with no description", func() {
-			It("should return the broker's response", func() {
-				failingBrokerServer.ServiceInstanceHandler = func(rw http.ResponseWriter, _ *http.Request) {
-					rw.WriteHeader(http.StatusBadRequest)
-					rw.Write([]byte("3"))
-				}
-				ctx.SMWithBasic.PUT(smUrlToFailingBroker+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
-					WithJSON(getDummyService()).Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").String().Match("Service broker .* failed with: 3")
-			})
-		})
-
-		Context("when broker response error description is empty", func() {
-			It("should assing default description", func() {
-				failingBrokerServer.ServiceInstanceHandler = func(rw http.ResponseWriter, _ *http.Request) {
-					rw.WriteHeader(http.StatusBadRequest)
-					rw.Write([]byte(`{"error": "ErrorType"}`))
-				}
-				response := ctx.SMWithBasic.PUT(smUrlToFailingBroker+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
-					WithJSON(getDummyService()).Expect().Status(http.StatusBadRequest).JSON().Object()
-				response.Value("description").String().Match("Service broker .* failed with: {}")
-				response.Value("error").String().Match("ErrorType")
-			})
-		})
-	})
+	DescribeTable("Malfunctioning broker",
+		func(statusCode int, responseBody, expectedDescriptionPattern string) {
+			failingBrokerServer.ServiceInstanceHandler = func(rw http.ResponseWriter, _ *http.Request) {
+				rw.Header().Set("Content-Type", "application/json")
+				rw.WriteHeader(statusCode)
+				rw.Write([]byte(responseBody))
+			}
+			expectedDescription := fmt.Sprintf(expectedDescriptionPattern, failingBrokerName)
+			ctx.SMWithBasic.PUT(smUrlToFailingBroker+"/v2/service_instances/12345").WithHeader("X-Broker-API-Version", "oidc_authn.13").
+				WithJSON(getDummyService()).Expect().Status(statusCode).JSON().Object().
+				Value("description").String().Equal(expectedDescription)
+		},
+		Entry("when broker response is not a valid json, should return an OSB compliant error", http.StatusCreated, "[not a json]", "Service broker %s responded with invalid JSON: [not a json]"),
+		Entry("when broker returns a valid json which is not an object, should return the broker's response", http.StatusBadRequest, "3", "Service broker %s failed with: 3"),
+		Entry("when broker response error without description, should assing broker's response body as description", http.StatusBadRequest, `{"error": "ErrorType"}`, `Service broker %s failed with: {"error": "ErrorType"}`),
+		Entry("when broker response is JSON array, should return it in description", http.StatusBadRequest, `[1,2,3]`, `Service broker %s failed with: [1,2,3]`),
+	)
 })
 
 type prefixedBrokerHandler struct {
