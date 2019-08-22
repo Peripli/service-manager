@@ -18,7 +18,10 @@ package log
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"os"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/sirupsen/logrus"
@@ -31,10 +34,12 @@ var _ = Describe("kibana formatter", func() {
 
 	BeforeEach(func() {
 		buffer = &bytes.Buffer{}
-		ctx := configure(&Settings{
+		ctx, err := Configure(context.TODO(), &Settings{
 			Level:  "debug",
 			Format: "kibana",
+			Output: os.Stdout.Name(),
 		})
+		Expect(err).ToNot(HaveOccurred())
 		entry = ForContext(ctx)
 		entry.Logger.SetOutput(buffer)
 	})
