@@ -44,11 +44,12 @@ const (
 // Notification struct
 type Notification struct {
 	Base
-	Resource   ObjectType      `json:"resource"`
-	Type       OperationType   `json:"type"`
-	PlatformID string          `json:"platform_id,omitempty"`
-	Revision   int64           `json:"revision"`
-	Payload    json.RawMessage `json:"payload"`
+	Resource      ObjectType      `json:"resource"`
+	Type          OperationType   `json:"type"`
+	PlatformID    string          `json:"platform_id,omitempty"`
+	Revision      int64           `json:"revision"`
+	Payload       json.RawMessage `json:"payload"`
+	CorrelationID string          `json:"correlation_id"`
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

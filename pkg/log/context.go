@@ -138,6 +138,17 @@ func RegisterFormatter(name string, formatter logrus.Formatter) error {
 	return nil
 }
 
+// CorrelationIDFromContext returns the correlation id associated with the context logger or empty string if none exists
+func CorrelationIDFromContext(ctx context.Context) string {
+	correlationID, exists := C(ctx).Data[FieldCorrelationID]
+	if exists {
+		if id, ok := correlationID.(string); ok {
+			return id
+		}
+	}
+	return ""
+}
+
 // AddHook adds a hook to all loggers
 func AddHook(hook logrus.Hook) {
 	defaultEntry.Logger.AddHook(hook)
