@@ -163,7 +163,7 @@ func (v *ViperEnv) setupConfigFile(ctx context.Context, onConfigChangeHandlers .
 					Output: os.Stdout.Name(),
 				})
 				if err != nil {
-					log.C(ctx).Errorf("Could not set log level to %s and log format to %s after config file modification event of type %s: %s", logLevel, logFormat, event.String())
+					log.C(ctx).Errorf("Could not set log level to %s and log format to %s after config file modification event of type %s: %s", logLevel, logFormat, event.String(), err)
 				}
 			}
 		}
