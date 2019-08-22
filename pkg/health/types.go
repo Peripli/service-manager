@@ -25,14 +25,16 @@ import (
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	Indicators map[string]*IndicatorSettings `mapstructure:"indicators,omitempty"`
+	PlatformTypes []string                      `mapstructure:"platform_types,omitempty" description:"platform types which health will be measured"`
+	Indicators    map[string]*IndicatorSettings `mapstructure:"indicators,omitempty"`
 }
 
 // DefaultSettings returns default values for health settings
 func DefaultSettings() *Settings {
 	emptySettings := make(map[string]*IndicatorSettings)
 	return &Settings{
-		Indicators: emptySettings,
+		PlatformTypes: make([]string, 0),
+		Indicators:    emptySettings,
 	}
 }
 
@@ -91,7 +93,12 @@ const (
 type StatusListener struct{}
 
 func (sl *StatusListener) HealthCheckFailed(state *health.State) {
-	log.D().Errorf("Health check for %v failed with: %v", state.Name, state.Err)
+	msg := fmt.Sprintf("Health check for %v failed with: %v", state.Name, state.Err)
+	if state.Fatal {
+		log.D().Error(msg)
+	} else {
+		log.D().Warn(msg)
+	}
 }
 
 func (sl *StatusListener) HealthCheckRecovered(state *health.State, numberOfFailures int64, unavailableDuration float64) {

@@ -140,6 +140,9 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 	}
 
 	API.HealthIndicators = append(API.HealthIndicators, storageHealthIndicator)
+	for _, platformType := range cfg.Health.PlatformTypes {
+		API.HealthIndicators = append(API.HealthIndicators, healthcheck.NewPlatformIndicator(ctx, interceptableRepository, platformType))
+	}
 
 	notificationCleaner := &storage.NotificationCleaner{
 		Storage:  interceptableRepository,

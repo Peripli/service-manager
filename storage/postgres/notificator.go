@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/query"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -66,7 +67,7 @@ type Notificator struct {
 }
 
 // NewNotificator returns new Notificator based on a given NotificatorStorage and desired queue size
-func NewNotificator(st storage.Storage, repository storage.Repository, settings *storage.Settings) (*Notificator, error) {
+func NewNotificator(st storage.Storage, repository storage.TransactionalRepository, settings *storage.Settings) (*Notificator, error) {
 	ns, err := NewNotificationStorage(st)
 	connectionCreator := &notificationConnectionCreatorImpl{
 		storageURI:           settings.URI,
@@ -425,7 +426,7 @@ func (n *Notificator) stopConnection() {
 }
 
 type consumers struct {
-	repository storage.Repository
+	repository storage.TransactionalRepository
 	ctx        context.Context
 	queues     map[string][]storage.NotificationQueue
 	platforms  []*types.Platform
@@ -464,11 +465,10 @@ func (c *consumers) Delete(queue storage.NotificationQueue) error {
 		for index, platform := range c.platforms {
 			if platform.ID == platformIDToDelete {
 				c.platforms = append(c.platforms[:index], c.platforms[index+1:]...)
-
-				platform.Active = false
-				platform.LastActive = time.Now()
-
-				if _, err := c.repository.Update(c.ctx, platform, nil); err != nil {
+				if err := c.updatePlatform(platform.ID, func(p *types.Platform) {
+					p.Active = false
+					p.LastActive = time.Now()
+				}); err != nil {
 					return err
 				}
 				break
@@ -481,10 +481,9 @@ func (c *consumers) Delete(queue storage.NotificationQueue) error {
 func (c *consumers) Add(platform *types.Platform, queue storage.NotificationQueue) error {
 	if len(c.queues[platform.ID]) == 0 {
 		c.platforms = append(c.platforms, platform)
-
-		platform.Active = true
-
-		if _, err := c.repository.Update(c.ctx, platform, nil); err != nil {
+		if err := c.updatePlatform(platform.ID, func(p *types.Platform) {
+			p.Active = true
+		}); err != nil {
 			return err
 		}
 	}
@@ -514,4 +513,30 @@ func (c *consumers) GetPlatform(platformID string) *types.Platform {
 
 func (c *consumers) GetQueuesForPlatform(platformID string) []storage.NotificationQueue {
 	return c.queues[platformID]
+}
+
+func (c *consumers) updatePlatform(platformID string, updatePlatformFunc func(p *types.Platform)) error {
+	if err := c.repository.InTransaction(c.ctx, func(ctx context.Context, storage storage.Repository) error {
+		idCriteria := query.Criterion{
+			LeftOp:   "id",
+			Operator: query.EqualsOperator,
+			RightOp:  []string{platformID},
+			Type:     query.FieldQuery,
+		}
+		obj, err := storage.Get(ctx, types.PlatformType, idCriteria)
+		if err != nil {
+			return err
+		}
+
+		platform := obj.(*types.Platform)
+		updatePlatformFunc(platform)
+
+		if _, err := storage.Update(ctx, platform, nil); err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
 }
