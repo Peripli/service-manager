@@ -79,7 +79,10 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 	httpclient.Configure(cfg.HTTPClient)
 
 	// Setup logging
-	ctx = log.Configure(ctx, cfg.Log)
+	ctx, err = log.Configure(ctx, cfg.Log)
+	if err != nil {
+		return nil, fmt.Errorf("error configuring logging,: %s", err)
+	}
 
 	util.HandleInterrupts(ctx, cancel)
 

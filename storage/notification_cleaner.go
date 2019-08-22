@@ -50,7 +50,7 @@ func (nc *NotificationCleaner) Start(ctx context.Context, group *sync.WaitGroup)
 			group.Done()
 		}()
 		cleanInterval := nc.Settings.Notification.CleanInterval
-		log.D().Infof("Scheduling notification cleaning every %s", cleanInterval.String())
+		log.C(ctx).Infof("Scheduling notification cleaning every %s", cleanInterval.String())
 		for {
 			select {
 			case <-ctx.Done():

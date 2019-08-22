@@ -156,11 +156,15 @@ func (v *ViperEnv) setupConfigFile(ctx context.Context, onConfigChangeHandlers .
 				logFormat := env.Get("log.format").(string)
 
 				log.C(ctx).Warnf("Reconfiguring logrus logging using level %s and format %s", logLevel, logFormat)
-				ctx = log.Configure(ctx, &log.Settings{
+				var err error
+				ctx, err = log.Configure(ctx, &log.Settings{
 					Level:  logLevel,
 					Format: logFormat,
 					Output: os.Stdout.Name(),
 				})
+				if err != nil {
+					log.C(ctx).Errorf("Could not set log level to %s and log format to %s after config file modification event of type %s: %s", logLevel, logFormat, event.String())
+				}
 			}
 		}
 	}

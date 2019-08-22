@@ -36,21 +36,24 @@ func TestLog(t *testing.T) {
 
 // TestMultipleGoroutinesDefaultLog validates that no race conditions occur when two go routines log using the default log
 func TestMultipleGoroutinesDefaultLog(t *testing.T) {
-	Configure(context.TODO(), DefaultSettings())
+	_, err := Configure(context.TODO(), DefaultSettings())
+	Expect(err).ToNot(HaveOccurred())
 	go func() { D().Debug("message") }()
 	go func() { D().Debug("message") }()
 }
 
 // TestMultipleGoroutinesContextLog validates that no race conditions occur when two go routines log using the context log
 func TestMultipleGoroutinesContextLog(t *testing.T) {
-	ctx := Configure(context.Background(), DefaultSettings())
+	ctx, err := Configure(context.Background(), DefaultSettings())
+	Expect(err).ToNot(HaveOccurred())
 	go func() { C(ctx).Debug("message") }()
 	go func() { C(ctx).Debug("message") }()
 }
 
 // TestMultipleGoroutinesMixedLog validates that no race conditions occur when two go routines log using both context and default log
 func TestMultipleGoroutinesMixedLog(t *testing.T) {
-	ctx := Configure(context.TODO(), DefaultSettings())
+	ctx, err := Configure(context.TODO(), DefaultSettings())
+	Expect(err).ToNot(HaveOccurred())
 	go func() { C(ctx).Debug("message") }()
 	go func() { D().Debug("message") }()
 }
@@ -59,8 +62,8 @@ var _ = Describe("log", func() {
 	Describe("SetupLogging", func() {
 
 		Context("with invalid log level", func() {
-			It("should panic", func() {
-				expectPanic(&Settings{
+			It("returns an error", func() {
+				expectError(&Settings{
 					Level:  "invalid",
 					Format: "text",
 					Output: os.Stderr.Name(),
@@ -70,7 +73,7 @@ var _ = Describe("log", func() {
 
 		Context("with invalid log level", func() {
 			It("should panic", func() {
-				expectPanic(&Settings{
+				expectError(&Settings{
 					Level:  "debug",
 					Format: "invalid",
 					Output: os.Stderr.Name(),
@@ -80,7 +83,7 @@ var _ = Describe("log", func() {
 
 		Context("with invalid log format", func() {
 			It("should panic", func() {
-				expectPanic(&Settings{
+				expectError(&Settings{
 					Level:  "debug",
 					Format: "text",
 					Output: "invalid",
@@ -128,19 +131,19 @@ func (wr *MyWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func expectPanic(settings *Settings) {
-	Expect(func() {
-		Configure(context.TODO(), settings)
-	}).To(Panic())
+func expectError(settings *Settings) {
+	_, err := Configure(context.TODO(), settings)
+	Expect(err).To(HaveOccurred())
 }
 
 func expectOutput(substring string, logFormat string) {
 	w := &MyWriter{}
-	ctx := Configure(context.TODO(), &Settings{
+	ctx, err := Configure(context.TODO(), &Settings{
 		Level:  "debug",
 		Format: logFormat,
 		Output: os.Stderr.Name(),
 	})
+	Expect(err).ToNot(HaveOccurred())
 	entry := ForContext(ctx)
 	entry.Logger.SetOutput(w)
 	defer entry.Logger.SetOutput(os.Stderr) // return default output

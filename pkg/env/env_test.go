@@ -20,6 +20,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/Peripli/service-manager/pkg/log"
 
 	. "github.com/onsi/ginkgo"
@@ -367,9 +369,9 @@ var _ = Describe("Env", func() {
 					Expect(err).ShouldNot(HaveOccurred())
 
 					// verify log level was reconfigured
-					Eventually(func() string {
-						return log.D().Logger.Level.String()
-					}).Should(Equal("debug"))
+					Eventually(func() bool {
+						return log.D().Logger.IsLevelEnabled(logrus.DebugLevel)
+					}).Should(BeTrue())
 				})
 
 				It("returns an err if config file loading fails", func() {

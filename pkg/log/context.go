@@ -49,7 +49,6 @@ var (
 
 	supportedOutputs = map[string]io.Writer{
 		os.Stdout.Name(): os.Stdout,
-		os.Stdin.Name():  os.Stdin,
 		os.Stderr.Name(): os.Stderr,
 		"ginkgowriter":   ginkgo.GinkgoWriter,
 	}
@@ -67,14 +66,17 @@ func init() {
 	hook.Field = FieldComponentName
 	defaultEntry.Logger.AddHook(hook)
 	defaultEntry = defaultEntry.WithField(FieldCorrelationID, "-")
-	Configure(context.TODO(), currentSettings)
+	_, err := Configure(context.Background(), currentSettings)
+	if err != nil {
+		panic(err)
+	}
 }
 
 // Settings type to be loaded from the environment
 type Settings struct {
 	Level  string `description:"minimum level for log messages" json:"level,omitempty"`
 	Format string `description:"format of log messages. Allowed values - text, json" json:"format,omitempty"`
-	Output string `description:"output for the logs. Allowed values - /dev/stdout, /dev/stdin, /dev/stderr, ginkgowriter" json:"output,omitempty"`
+	Output string `description:"output for the logs. Allowed values - /dev/stdout, /dev/stderr, ginkgowriter" json:"output,omitempty"`
 }
 
 // DefaultSettings returns default values for Log settings
@@ -89,69 +91,70 @@ func DefaultSettings() *Settings {
 // Validate validates the logging settings
 func (s *Settings) Validate() error {
 	if _, err := logrus.ParseLevel(s.Level); err != nil {
-		return fmt.Errorf("validate Settings: %s", err)
+		return fmt.Errorf("validate Settings: log level %s is invalid: %s", s.Level, err)
 	}
+
 	if len(s.Format) == 0 {
-		return fmt.Errorf("validate Settings: LogFormat missing")
+		return fmt.Errorf("validate Settings: log format missing")
 	}
+
+	if _, ok := supportedFormatters[s.Format]; !ok {
+		return fmt.Errorf("validate Settings: log format %s is invalid", s.Format)
+	}
+
 	if len(s.Output) == 0 {
-		return fmt.Errorf("validate Settings: LogOutput missing")
+		return fmt.Errorf("validate Settings: log output missing")
+	}
+
+	if _, ok := supportedOutputs[s.Output]; !ok {
+		return fmt.Errorf("validate Settings: log output %s is invalid", s.Output)
 	}
 
 	return nil
 }
 
 // Configure creates a new context with a logger using the provided settings.
-func Configure(ctx context.Context, settings *Settings) context.Context {
+func Configure(ctx context.Context, settings *Settings) (context.Context, error) {
 	mutex.Lock()
 	defer mutex.Unlock()
 
 	currentSettings = settings
 	level, err := logrus.ParseLevel(settings.Level)
 	if err != nil {
-		panic(fmt.Sprintf("Could not parse log level configuration: %s", err))
+		return nil, fmt.Errorf("invalid log level: %s", err)
 	}
 	formatter, ok := supportedFormatters[settings.Format]
 	if !ok {
-		panic(fmt.Sprintf("Invalid log format: %s", settings.Format))
+		return nil, fmt.Errorf("invalid log format: %s", settings.Format)
 	}
 
 	output, ok := supportedOutputs[settings.Output]
 	if !ok {
-		panic(fmt.Sprintf("Invalid output: %s", settings.Output))
+		return nil, fmt.Errorf("invalid output: %s", settings.Output)
 	}
 
 	entry := ctx.Value(logKey{})
 	if entry == nil {
 		entry = defaultEntry
 	} else {
-		defaultEntry.Logger = &logrus.Logger{
-			Out:          output,
-			Hooks:        defaultEntry.Logger.Hooks,
-			Formatter:    formatter,
-			ReportCaller: defaultEntry.Logger.ReportCaller,
-			Level:        level,
-			ExitFunc:     defaultEntry.Logger.ExitFunc,
-		}
+		defaultEntry.Logger.SetOutput(output)
+		defaultEntry.Logger.SetFormatter(formatter)
+		defaultEntry.Logger.SetLevel(level)
 	}
-	e := entry.(*logrus.Entry)
-	e.Logger = &logrus.Logger{
-		Out:          output,
-		Hooks:        e.Logger.Hooks,
-		Formatter:    formatter,
-		ReportCaller: e.Logger.ReportCaller,
-		Level:        level,
-		ExitFunc:     e.Logger.ExitFunc,
-	}
+	e := copyEntry(entry.(*logrus.Entry))
+	e.Logger.SetLevel(level)
+	e.Logger.SetFormatter(formatter)
+	e.Logger.SetOutput(output)
 
-	return ContextWithLogger(ctx, copyEntry(e))
+	return ContextWithLogger(ctx, e), nil
 }
 
-func Configuration() *Settings {
+// Configuration returns the logger settings
+func Configuration() Settings {
 	mutex.RLock()
 	defer mutex.RUnlock()
 
-	return currentSettings
+	return *currentSettings
 }
 
 // ForContext retrieves the current logger from the context.

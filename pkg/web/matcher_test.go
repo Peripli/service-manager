@@ -229,16 +229,17 @@ var _ = Describe("Filters", func() {
 		})
 
 		var filters []web.Filter
-		var oldSettings *log.Settings
+		var oldSettings log.Settings
 
 		BeforeEach(func() {
 			hook := &testutil.LogInterceptor{}
 			oldSettings = log.Configuration()
-			log.Configure(context.TODO(), &log.Settings{
+			_, err := log.Configure(context.TODO(), &log.Settings{
 				Level:  "debug",
 				Format: "text",
 				Output: "/dev/stdout",
 			})
+			Expect(err).ToNot(HaveOccurred())
 			log.AddHook(hook)
 			filters = []web.Filter{
 				fakeFilter("filter1", loggingValidationMiddleware("", "filter1", "filter2", hook), []web.FilterMatcher{}),
@@ -247,7 +248,8 @@ var _ = Describe("Filters", func() {
 			}
 		})
 		AfterEach(func() {
-			log.Configure(context.TODO(), oldSettings)
+			_, err := log.Configure(context.TODO(), &oldSettings)
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("executes all chained filters in the correct order", func() {

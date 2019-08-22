@@ -8,7 +8,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-// Controller logging configuration controller
+// Controller dynamic configuration controller
 type Controller struct {
 }
 
@@ -23,12 +23,29 @@ func (c *Controller) getLoggingConfiguration(r *web.Request) (*web.Response, err
 func (c *Controller) setLoggingConfiguration(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	loggingConfig := log.Configuration()
-	if err := util.BytesToObject(r.Body, loggingConfig); err != nil {
+	if err := util.BytesToObject(r.Body, &loggingConfig); err != nil {
 		return nil, err
 	}
 
 	log.C(ctx).Infof("Attempting to set logging configuration with level: %s and format: %s", loggingConfig.Level, loggingConfig.Format)
-	ctx = log.Configure(ctx, loggingConfig)
+
+	if loggingConfig.Output != log.Configuration().Output {
+		return nil, &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: "Changing logger output is not allowed",
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+
+	var err error
+	ctx, err = log.Configure(ctx, &loggingConfig)
+	if err != nil {
+		return nil, &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: err.Error(),
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
 	r.Request = r.WithContext(ctx)
 	log.C(ctx).Infof("Successfully set logging configuration with level: %s and format: %s", loggingConfig.Level, loggingConfig.Format)
 
