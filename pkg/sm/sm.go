@@ -134,7 +134,7 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 		return nil, fmt.Errorf("error creating core api: %s", err)
 	}
 
-	storageHealthIndicator, err := storage.NewHealthIndicator(storage.PingFunc(smStorage.PingContext))
+	storageHealthIndicator, err := storage.NewSQLHealthIndicator(storage.PingFunc(smStorage.PingContext))
 	if err != nil {
 		return nil, fmt.Errorf("error creating storage health indicator: %s", err)
 	}

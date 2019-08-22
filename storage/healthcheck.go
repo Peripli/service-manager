@@ -21,7 +21,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/health"
 )
 
-func NewHealthIndicator(pingFunc PingFunc) (health.Indicator, error) {
+// NewSQLHealthIndicator returns new health indicator for sql storage given a ping function
+func NewSQLHealthIndicator(pingFunc PingFunc) (health.Indicator, error) {
 	sqlConfig := &checkers.SQLConfig{
 		Pinger: pingFunc,
 	}
@@ -30,19 +31,19 @@ func NewHealthIndicator(pingFunc PingFunc) (health.Indicator, error) {
 		return nil, err
 	}
 
-	indicator := &HealthIndicator{
+	indicator := &SQLHealthIndicator{
 		SQL: sqlChecker,
 	}
 
 	return indicator, nil
 }
 
-// HealthIndicator returns a new indicator for the storage
-type HealthIndicator struct {
+// SQLHealthIndicator returns a new indicator for SQL storage
+type SQLHealthIndicator struct {
 	*checkers.SQL
 }
 
 // Name returns the name of the storage component
-func (i *HealthIndicator) Name() string {
+func (i *SQLHealthIndicator) Name() string {
 	return "storage"
 }

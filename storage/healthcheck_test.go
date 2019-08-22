@@ -33,7 +33,7 @@ var _ = Describe("Healthcheck", func() {
 			return nil
 		}
 		var err error
-		healthIndicator, err = storage.NewHealthIndicator(storage.PingFunc(ping))
+		healthIndicator, err = storage.NewSQLHealthIndicator(storage.PingFunc(ping))
 		Expect(err).ShouldNot(HaveOccurred())
 	})
 
@@ -56,7 +56,7 @@ var _ = Describe("Healthcheck", func() {
 				return expectedError
 			}
 			var err error
-			healthIndicator, err = storage.NewHealthIndicator(storage.PingFunc(ping))
+			healthIndicator, err = storage.NewSQLHealthIndicator(storage.PingFunc(ping))
 			Expect(err).ShouldNot(HaveOccurred())
 		})
 		It("Contains error", func() {
