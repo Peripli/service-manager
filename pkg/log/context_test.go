@@ -18,8 +18,8 @@
 package log
 
 import (
+	"bytes"
 	"context"
-	"fmt"
 	"os"
 	"testing"
 
@@ -71,8 +71,8 @@ var _ = Describe("log", func() {
 			})
 		})
 
-		Context("with invalid log level", func() {
-			It("should panic", func() {
+		Context("with invalid log format", func() {
+			It("returns an error", func() {
 				expectError(&Settings{
 					Level:  "debug",
 					Format: "invalid",
@@ -82,7 +82,7 @@ var _ = Describe("log", func() {
 		})
 
 		Context("with invalid log format", func() {
-			It("should panic", func() {
+			It("returns an error", func() {
 				expectError(&Settings{
 					Level:  "debug",
 					Format: "text",
@@ -91,15 +91,22 @@ var _ = Describe("log", func() {
 			})
 		})
 
-		Context("with text log level", func() {
+		Context("with text log format", func() {
 			It("should log text", func() {
 				expectOutput("msg=Test", "text")
 			})
 		})
 
-		Context("with json log level", func() {
+		Context("with json log format", func() {
 			It("should log json", func() {
 				expectOutput("\"msg\":\"Test\"", "json")
+			})
+		})
+
+		Context("with kibana log format", func() {
+			It("should log in kibana format", func() {
+				expectOutput(`"component_type":"application","correlation_id":"-"`, "kibana")
+				expectOutput(`"msg":"Test","type":"log"`, "kibana")
 			})
 		})
 	})
@@ -122,22 +129,13 @@ var _ = Describe("log", func() {
 	})
 })
 
-type MyWriter struct {
-	Data string
-}
-
-func (wr *MyWriter) Write(p []byte) (n int, err error) {
-	wr.Data += string(p)
-	return len(p), nil
-}
-
 func expectError(settings *Settings) {
 	_, err := Configure(context.TODO(), settings)
 	Expect(err).To(HaveOccurred())
 }
 
 func expectOutput(substring string, logFormat string) {
-	w := &MyWriter{}
+	w := &bytes.Buffer{}
 	ctx, err := Configure(context.TODO(), &Settings{
 		Level:  "debug",
 		Format: logFormat,
@@ -148,6 +146,5 @@ func expectOutput(substring string, logFormat string) {
 	entry.Logger.SetOutput(w)
 	defer entry.Logger.SetOutput(os.Stderr) // return default output
 	entry.Debug("Test")
-	fmt.Println(w.Data)
-	Expect(w.Data).To(ContainSubstring(substring))
+	Expect(w.String()).To(ContainSubstring(substring))
 }

@@ -28,11 +28,12 @@ import (
 //go:generate smgen storage notification github.com/Peripli/service-manager/pkg/types:Notification
 type Notification struct {
 	BaseEntity
-	Resource   string             `db:"resource"`
-	Type       string             `db:"type"`
-	PlatformID sql.NullString     `db:"platform_id"`
-	Revision   int64              `db:"revision,auto_increment"`
-	Payload    sqlxtypes.JSONText `db:"payload"`
+	Resource      string             `db:"resource"`
+	Type          string             `db:"type"`
+	PlatformID    sql.NullString     `db:"platform_id"`
+	Revision      int64              `db:"revision,auto_increment"`
+	Payload       sqlxtypes.JSONText `db:"payload"`
+	CorrelationID sql.NullString     `db:"correlation_id"`
 }
 
 func (n *Notification) ToObject() types.Object {
@@ -43,11 +44,12 @@ func (n *Notification) ToObject() types.Object {
 			UpdatedAt: n.UpdatedAt,
 			Labels:    map[string][]string{},
 		},
-		Resource:   types.ObjectType(n.Resource),
-		Type:       types.OperationType(n.Type),
-		PlatformID: n.PlatformID.String,
-		Revision:   n.Revision,
-		Payload:    getJSONRawMessage(n.Payload),
+		Resource:      types.ObjectType(n.Resource),
+		Type:          types.OperationType(n.Type),
+		PlatformID:    n.PlatformID.String,
+		Revision:      n.Revision,
+		Payload:       getJSONRawMessage(n.Payload),
+		CorrelationID: n.CorrelationID.String,
 	}
 }
 
@@ -57,22 +59,18 @@ func (*Notification) FromObject(object types.Object) (storage.Entity, bool) {
 		return nil, false
 	}
 
-	platformID := sql.NullString{
-		String: notification.PlatformID,
-		Valid:  notification.PlatformID != "",
-	}
-
 	n := &Notification{
 		BaseEntity: BaseEntity{
 			ID:        notification.ID,
 			CreatedAt: notification.CreatedAt,
 			UpdatedAt: notification.UpdatedAt,
 		},
-		Resource:   string(notification.Resource),
-		Type:       string(notification.Type),
-		PlatformID: platformID,
-		Revision:   notification.Revision, // when creating new Notification, Revision will be set by DB
-		Payload:    getJSONText(notification.Payload),
+		Resource:      string(notification.Resource),
+		Type:          string(notification.Type),
+		PlatformID:    toNullString(notification.PlatformID),
+		Revision:      notification.Revision, // when creating new Notification, Revision will be set by DB
+		Payload:       getJSONText(notification.Payload),
+		CorrelationID: toNullString(notification.CorrelationID),
 	}
 	return n, true
 }
