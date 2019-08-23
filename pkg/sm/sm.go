@@ -21,11 +21,13 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"fmt"
+	h "github.com/InVisionApp/go-health"
+	l "github.com/InVisionApp/go-logger/shims/logrus"
+	"github.com/Peripli/service-manager/api/osb"
+	"github.com/Peripli/service-manager/pkg/health"
 	"net"
 	"net/http"
 	"sync"
-
-	"github.com/Peripli/service-manager/api/osb"
 
 	"github.com/Peripli/service-manager/storage/catalog"
 
@@ -132,7 +134,12 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 		return nil, fmt.Errorf("error creating core api: %s", err)
 	}
 
-	API.HealthIndicators = append(API.HealthIndicators, &storage.HealthIndicator{Pinger: storage.PingFunc(smStorage.Ping)})
+	storageHealthIndicator, err := storage.NewSQLHealthIndicator(storage.PingFunc(smStorage.PingContext))
+	if err != nil {
+		return nil, fmt.Errorf("error creating storage health indicator: %s", err)
+	}
+
+	API.HealthIndicators = append(API.HealthIndicators, storageHealthIndicator)
 
 	notificationCleaner := &storage.NotificationCleaner{
 		Storage:  interceptableRepository,
@@ -174,9 +181,11 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 
 // Build builds the Service Manager
 func (smb *ServiceManagerBuilder) Build() *ServiceManager {
-	// setup server and add relevant global middleware
-	smb.installHealth()
+	if err := smb.installHealth(); err != nil {
+		log.C(smb.ctx).Panic(err)
+	}
 
+	// setup server and add relevant global middleware
 	srv := server.New(smb.cfg.Server, smb.API)
 	srv.Use(filters.NewRecoveryMiddleware())
 
@@ -189,10 +198,46 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	}
 }
 
-func (smb *ServiceManagerBuilder) installHealth() {
-	if len(smb.HealthIndicators) > 0 {
-		smb.RegisterControllers(healthcheck.NewController(smb.HealthIndicators, smb.HealthAggregationPolicy))
+func (smb *ServiceManagerBuilder) installHealth() error {
+	healthz := h.New()
+	logger := log.C(smb.ctx).Logger
+
+	healthz.Logger = l.New(logger)
+	healthz.StatusListener = &health.StatusListener{}
+
+	thresholds := make(map[string]int64)
+
+	for _, indicator := range smb.HealthIndicators {
+		settings, ok := smb.cfg.Health.Indicators[indicator.Name()]
+		if !ok {
+			settings = health.DefaultIndicatorSettings()
+		}
+		if err := healthz.AddCheck(&h.Config{
+			Name:     indicator.Name(),
+			Checker:  indicator,
+			Interval: settings.Interval,
+			Fatal:    settings.Fatal,
+		}); err != nil {
+			return err
+		}
+		thresholds[indicator.Name()] = settings.FailuresThreshold
 	}
+
+	smb.RegisterControllers(healthcheck.NewController(healthz, thresholds))
+
+	if err := healthz.Start(); err != nil {
+		return err
+	}
+
+	util.StartInWaitGroupWithContext(smb.ctx, func(c context.Context) {
+		<-c.Done()
+		log.C(c).Debug("Context cancelled. Stopping health checks...")
+		if err := healthz.Stop(); err != nil {
+			log.C(c).Error(err)
+		}
+	}, smb.wg)
+
+	return nil
 }
 
 // Run starts the Service Manager

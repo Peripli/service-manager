@@ -9,6 +9,28 @@
   revision = "852fc940e4b9b895dc144b88ee8f6e39228127b0"
 
 [[projects]]
+  digest = "1:12156f9d8523585d9d875a03c4b5c6c6374f7370716cd814aa6781732ac942c5"
+  name = "github.com/InVisionApp/go-health"
+  packages = [
+    ".",
+    "checkers",
+  ]
+  pruneopts = "UT"
+  revision = "06e1878ab5a8acf6e841861c6cbfcc4d3036add0"
+  version = "v2.1.0"
+
+[[projects]]
+  digest = "1:be2deb3cba3d2526b3692d80483f59df6462aabc875aace2db263f2664f30670"
+  name = "github.com/InVisionApp/go-logger"
+  packages = [
+    ".",
+    "shims/logrus",
+  ]
+  pruneopts = "UT"
+  revision = "c377c6c3f6a48a6366517e86f77bafea18454ff1"
+  version = "v1.0.1"
+
+[[projects]]
   digest = "1:f780d408067189c4c42b53f7bb24ebf8fd2a1e4510b813ed6e79dd6563e38cc5"
   name = "github.com/ajg/form"
   packages = ["."]
@@ -680,6 +702,9 @@
   analyzer-version = 1
   input-imports = [
     "github.com/DATA-DOG/go-sqlmock",
+    "github.com/InVisionApp/go-health",
+    "github.com/InVisionApp/go-health/checkers",
+    "github.com/InVisionApp/go-logger/shims/logrus",
     "github.com/benjamintf1/unmarshalledmatchers",
     "github.com/cloudfoundry-community/go-cfenv",
     "github.com/coreos/go-oidc",
