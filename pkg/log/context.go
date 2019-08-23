@@ -119,7 +119,10 @@ func Configure(ctx context.Context, settings *Settings) (context.Context, error)
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	currentSettings = settings
+	if err := settings.Validate(); err != nil {
+		return nil, err
+	}
+
 	level, err := logrus.ParseLevel(settings.Level)
 	if err != nil {
 		return nil, fmt.Errorf("invalid log level: %s", err)
@@ -133,6 +136,8 @@ func Configure(ctx context.Context, settings *Settings) (context.Context, error)
 	if !ok {
 		return nil, fmt.Errorf("invalid output: %s", settings.Output)
 	}
+
+	currentSettings = settings
 
 	entry := ctx.Value(logKey{})
 	if entry == nil {

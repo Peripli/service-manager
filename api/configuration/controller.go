@@ -37,9 +37,7 @@ func (c *Controller) setLoggingConfiguration(r *web.Request) (*web.Response, err
 		}
 	}
 
-	var err error
-	ctx, err = log.Configure(ctx, &loggingConfig)
-	if err != nil {
+	if _, err := log.Configure(ctx, &loggingConfig); err != nil {
 		return nil, &util.HTTPError{
 			ErrorType:   "BadRequest",
 			Description: err.Error(),

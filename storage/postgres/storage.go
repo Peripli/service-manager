@@ -218,7 +218,7 @@ func (ps *Storage) List(ctx context.Context, objType types.ObjectType, criteria 
 			return
 		}
 		if err := rows.Close(); err != nil {
-			log.C(ctx).Errorf("Could not release connection when checking database. Error: %s", err)
+			log.C(ctx).WithError(err).Errorf("Could not release connection when checking database")
 		}
 	}()
 	if err != nil {

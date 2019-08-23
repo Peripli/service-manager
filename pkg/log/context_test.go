@@ -63,7 +63,7 @@ var _ = Describe("log", func() {
 
 		Context("with invalid log level", func() {
 			It("returns an error", func() {
-				expectError(&Settings{
+				expectConfigModificationToFail(&Settings{
 					Level:  "invalid",
 					Format: "text",
 					Output: os.Stderr.Name(),
@@ -73,7 +73,7 @@ var _ = Describe("log", func() {
 
 		Context("with invalid log format", func() {
 			It("returns an error", func() {
-				expectError(&Settings{
+				expectConfigModificationToFail(&Settings{
 					Level:  "debug",
 					Format: "invalid",
 					Output: os.Stderr.Name(),
@@ -83,7 +83,7 @@ var _ = Describe("log", func() {
 
 		Context("with invalid log format", func() {
 			It("returns an error", func() {
-				expectError(&Settings{
+				expectConfigModificationToFail(&Settings{
 					Level:  "debug",
 					Format: "text",
 					Output: "invalid",
@@ -129,9 +129,12 @@ var _ = Describe("log", func() {
 	})
 })
 
-func expectError(settings *Settings) {
+func expectConfigModificationToFail(settings *Settings) {
+	previousConfig := Configuration()
 	_, err := Configure(context.TODO(), settings)
 	Expect(err).To(HaveOccurred())
+	currentConfig := Configuration()
+	Expect(previousConfig).To(Equal(currentConfig))
 }
 
 func expectOutput(substring string, logFormat string) {

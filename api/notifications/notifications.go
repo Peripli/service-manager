@@ -137,7 +137,7 @@ func (c *Controller) readLoop(ctx context.Context, conn *websocket.Conn, done ch
 		// currently we don't expect to receive something else from the proxies
 		_, _, err := conn.ReadMessage()
 		if err != nil {
-			log.C(ctx).Errorf("ws: could not read: %v", err)
+			log.C(ctx).WithError(err).Errorf("ws: could not read")
 			return
 		}
 	}
@@ -145,11 +145,11 @@ func (c *Controller) readLoop(ctx context.Context, conn *websocket.Conn, done ch
 
 func (c *Controller) sendWsMessage(ctx context.Context, conn *websocket.Conn, msg interface{}) bool {
 	if err := conn.SetWriteDeadline(time.Now().Add(c.wsSettings.WriteTimeout)); err != nil {
-		log.C(ctx).Errorf("Could not set write deadline: %v", err)
+		log.C(ctx).WithError(err).Errorf("Could not set write deadline")
 	}
 
 	if err := conn.WriteJSON(msg); err != nil {
-		log.C(ctx).Errorf("ws: could not write: %v", err)
+		log.C(ctx).WithError(err).Errorf("ws: could not write")
 		return false
 	}
 	return true
@@ -157,7 +157,7 @@ func (c *Controller) sendWsMessage(ctx context.Context, conn *websocket.Conn, ms
 
 func (c *Controller) unregisterConsumer(ctx context.Context, q storage.NotificationQueue) {
 	if unregErr := c.notificator.UnregisterConsumer(q); unregErr != nil {
-		log.C(ctx).Errorf("Could not unregister notification consumer: %v", unregErr)
+		log.C(ctx).WithError(unregErr).Errorf("Could not unregister notification consumer")
 	}
 }
 

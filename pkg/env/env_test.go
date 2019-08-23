@@ -20,12 +20,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/Peripli/service-manager/pkg/log"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/sirupsen/logrus"
 
 	"io/ioutil"
 	"os"
@@ -353,32 +351,40 @@ var _ = Describe("Env", func() {
 					verifyEnvContainsValues(structure)
 				})
 
-				It("updates the logging configuration if config file contents change", func() {
-					verifyEnvCreated()
-					Expect(log.D().Logger.Level.String()).ToNot(Equal("debug"))
-
-					// write to file
-					f := cfgFile.Location + string(filepath.Separator) + cfgFile.Name + "." + cfgFile.Format
-					fileContent := cfgFile.content.(Outer)
-					fileContent.Log.Level = "debug"
-					cfgFile.content = fileContent
-					bytes, err := yaml.Marshal(cfgFile.content)
-					Expect(err).ShouldNot(HaveOccurred())
-
-					err = ioutil.WriteFile(f, bytes, 0640)
-					Expect(err).ShouldNot(HaveOccurred())
-
-					// verify log level was reconfigured
-					Eventually(func() bool {
-						return log.D().Logger.IsLevelEnabled(logrus.DebugLevel)
-					}).Should(BeTrue())
-				})
-
 				It("returns an err if config file loading fails", func() {
 					cfgFile.Format = "json"
 					testFlags.Set(keyFileFormat, "json")
 
 					Expect(createEnv()).Should(HaveOccurred())
+				})
+
+				Context("when the logging properties are changed", func() {
+					It("reconfigures the loggers with the correct logging config", func() {
+						verifyEnvCreated()
+						oldCfg := log.Configuration()
+						newLogLevel := logrus.DebugLevel.String()
+						Expect(newLogLevel).ToNot(Equal(oldCfg.Level))
+						Expect(log.D().Logger.Level.String()).ToNot(Equal(newLogLevel))
+						newOutput := os.Stderr.Name()
+						Expect(newOutput).ToNot(Equal(oldCfg.Output))
+						Expect(log.D().Logger.Out.(*os.File).Name()).ToNot(Equal(newOutput))
+
+						f := cfgFile.Location + string(filepath.Separator) + cfgFile.Name + "." + cfgFile.Format
+						fileContent := cfgFile.content.(Outer)
+						fileContent.Log.Level = logrus.DebugLevel.String()
+						fileContent.Log.Output = newOutput
+						cfgFile.content = fileContent
+						bytes, err := yaml.Marshal(cfgFile.content)
+						Expect(err).ShouldNot(HaveOccurred())
+						err = ioutil.WriteFile(f, bytes, 0640)
+						Expect(err).ShouldNot(HaveOccurred())
+
+						Eventually(func() bool {
+							return log.D().Logger.IsLevelEnabled(logrus.DebugLevel)
+						}).Should(BeTrue())
+						Expect(log.Configuration().Level).To(Equal(newLogLevel))
+						Expect(log.Configuration().Output).ToNot(Equal(newOutput))
+					})
 				})
 			})
 		})

@@ -40,7 +40,7 @@ func EncryptingDecorator(ctx context.Context, encrypter security.Encrypter, keyS
 		}
 		defer func() {
 			if err := keyStore.Unlock(ctx); err != nil {
-				log.C(ctx).Errorf("error while unlocking keystore: %s", err)
+				log.C(ctx).WithError(err).Errorf("error while unlocking keystore: %s")
 			}
 		}()
 
