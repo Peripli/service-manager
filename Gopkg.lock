@@ -179,12 +179,12 @@
   version = "v1.6.1"
 
 [[projects]]
-  digest = "1:7b5c6e2eeaa9ae5907c391a91c132abfd5c9e8a784a341b5625e750c67e6825d"
+  digest = "1:e62657cca9badaa308d86e7716083e4c5933bb78e30a17743fc67f50be26f6f4"
   name = "github.com/gorilla/websocket"
   packages = ["."]
   pruneopts = "UT"
-  revision = "66b9c49e59c6c48f0ffce28c2d8b8a5678502c6d"
-  version = "v1.4.0"
+  revision = "c3e18be99d19e6b3e8f1559eea2c161a665c4b6b"
+  version = "v1.4.1"
 
 [[projects]]
   digest = "1:c0d19ab64b32ce9fe5cf4ddceba78d5bc9807f0016db6b1183599da3dcc24d10"
@@ -240,7 +240,7 @@
   revision = "38398a30ed8516ffda617a04c822de09df8a3ec5"
 
 [[projects]]
-  digest = "1:836838f1466d370fc7678c927e5b7473f38ba12c2e571f8eca957bd0a102c2db"
+  digest = "1:caa1da085cc12cd39d3ddb267434902f621050e1b46f7e9477b2b933df680193"
   name = "github.com/klauspost/compress"
   packages = [
     "flate",
@@ -248,8 +248,8 @@
     "zlib",
   ]
   pruneopts = "UT"
-  revision = "53fd0299b54f91f5d91c50ee5f4d5e0393e45eb8"
-  version = "v1.7.5"
+  revision = "7a422a2abf4b2f2905a961d3b6926e4e21dab4bb"
+  version = "v1.8.0"
 
 [[projects]]
   digest = "1:923c4d7194b42e054b2eb8a6c62824ac55e23ececc1c7e48d4da69c971c55954"
@@ -312,7 +312,7 @@
   version = "v0.4.1"
 
 [[projects]]
-  digest = "1:b013cb97ec8147b033199dfc5360d410130e1fc5d74dd6f08c4d777fe49b5c37"
+  digest = "1:bb964139623533b324969bf9c50bf30e5be0206f6d6e75f2f7c1c4b3c8407337"
   name = "github.com/onsi/ginkgo"
   packages = [
     ".",
@@ -336,8 +336,8 @@
     "types",
   ]
   pruneopts = "UT"
-  revision = "eea6ad008b96acdaa524f5b409513bf062b500ad"
-  version = "v1.8.0"
+  revision = "7e8b50db0c6d0a15ac0eb015d4ca64e7e7e2c88c"
+  version = "v1.9.0"
 
 [[projects]]
   digest = "1:e42321c3ec0ff36c0644da60c2c1469886b214134286f4610199b704619e11a3"
@@ -448,15 +448,15 @@
   version = "v1.4.0"
 
 [[projects]]
-  digest = "1:5da8ce674952566deae4dbc23d07c85caafc6cfa815b0b3e03e41979cedb8750"
+  digest = "1:99d32780e5238c2621fff621123997c3e3cca96db8be13179013aea77dfab551"
   name = "github.com/stretchr/testify"
   packages = [
     "assert",
     "require",
   ]
   pruneopts = "UT"
-  revision = "ffdc059bfe9ce6a4e144ba849dbedead332c6053"
-  version = "v1.3.0"
+  revision = "221dbe5ed46703ee255b1da0dec05086f5035f62"
+  version = "v1.4.0"
 
 [[projects]]
   digest = "1:46aea6ffe39c3d95c13640c2515236ed3c5cdffc3c78c6c0ed4edec2caf7a0dc"
@@ -570,7 +570,7 @@
     "pbkdf2",
   ]
   pruneopts = "UT"
-  revision = "4def268fd1a49955bfb3dda92fe3db4f924f2285"
+  revision = "60c769a6c58655dab1b9adac0d58967dd517cfba"
 
 [[projects]]
   branch = "master"
@@ -605,7 +605,7 @@
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "UT"
-  revision = "fde4db37ae7ad8191b03d30d27f258b5291ae4e3"
+  revision = "fb81701db80f1745f51259b1f286de3fe2ec80c8"
 
 [[projects]]
   digest = "1:28deae5fe892797ff37a317b5bcda96d11d1c90dadd89f1337651df3bc4c586e"
