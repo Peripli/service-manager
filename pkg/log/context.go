@@ -123,19 +123,9 @@ func Configure(ctx context.Context, settings *Settings) (context.Context, error)
 		return nil, err
 	}
 
-	level, err := logrus.ParseLevel(settings.Level)
-	if err != nil {
-		return nil, fmt.Errorf("invalid log level: %s", err)
-	}
-	formatter, ok := supportedFormatters[settings.Format]
-	if !ok {
-		return nil, fmt.Errorf("invalid log format: %s", settings.Format)
-	}
-
-	output, ok := supportedOutputs[settings.Output]
-	if !ok {
-		return nil, fmt.Errorf("invalid output: %s", settings.Output)
-	}
+	level, _ := logrus.ParseLevel(settings.Level)
+	formatter := supportedFormatters[settings.Format]
+	output := supportedOutputs[settings.Output]
 
 	currentSettings = settings
 
