@@ -27,7 +27,6 @@ import (
 	"time"
 )
 
-
 var _ = Describe("Platforms Indicator", func() {
 	var indicator health.Indicator
 	var repository *storagefakes2.FakeStorage
@@ -40,9 +39,9 @@ var _ = Describe("Platforms Indicator", func() {
 		repository = &storagefakes2.FakeStorage{}
 		platformType = "kubernetes"
 		platform = &types.Platform{
-			Name: "test-platform",
-			Type: platformType,
-			Active: false,
+			Name:       "test-platform",
+			Type:       platformType,
+			Active:     false,
 			LastActive: time.Now(),
 		}
 		indicator = NewPlatformIndicator(ctx, repository, platformType)
@@ -57,7 +56,7 @@ var _ = Describe("Platforms Indicator", func() {
 	Context("There is inactive platforms", func() {
 		BeforeEach(func() {
 			objectList := &types.Platforms{[]*types.Platform{platform}}
-			repository.ListReturns(objectList,nil)
+			repository.ListReturns(objectList, nil)
 		})
 		It("should return error", func() {
 			details, err := indicator.Status()
@@ -71,7 +70,7 @@ var _ = Describe("Platforms Indicator", func() {
 		var expectedErr error
 		BeforeEach(func() {
 			expectedErr = errors.New("storage err")
-			repository.ListReturns(nil,expectedErr)
+			repository.ListReturns(nil, expectedErr)
 		})
 		It("should return error", func() {
 			_, err := indicator.Status()

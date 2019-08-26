@@ -270,15 +270,15 @@ var _ = Describe("WS", func() {
 			ticker := time.NewTicker(500 * time.Millisecond)
 			for {
 				select {
-					case <-ticker.C:
-						obj, err := repository.Get(context.TODO(), types.PlatformType, idCriteria)
-						Expect(err).ShouldNot(HaveOccurred())
-						p := obj.(*types.Platform)
-						if p.Active == false && !p.LastActive.IsZero() {
-							return
-						}
-					case <-ctx.Done():
-						Fail("Timeout: platform active status not set to false")
+				case <-ticker.C:
+					obj, err := repository.Get(context.TODO(), types.PlatformType, idCriteria)
+					Expect(err).ShouldNot(HaveOccurred())
+					p := obj.(*types.Platform)
+					if p.Active == false && !p.LastActive.IsZero() {
+						return
+					}
+				case <-ctx.Done():
+					Fail("Timeout: platform active status not set to false")
 				}
 			}
 		})
