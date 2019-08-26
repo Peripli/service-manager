@@ -121,6 +121,9 @@ func New(ctx context.Context, set *pflag.FlagSet, onConfigChangeHandlers ...func
 func (v *ViperEnv) Unmarshal(value interface{}) error {
 	parameters := buildParameters(value)
 	for _, parameter := range parameters {
+		// These bindings are required in case the value for a particular configuration property that is a field of the specified value struct
+		// is only set via env variables (if we do not explicitly do a binding, viper.AllKeys() will not return a key for this configuration
+		// property and unmarshal will not even try to find a value for this property key when filling up the config struct)
 		if err := v.Viper.BindEnv(parameter.Name); err != nil {
 			return err
 		}
