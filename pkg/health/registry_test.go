@@ -30,27 +30,13 @@ var _ = Describe("Healthcheck Registry", func() {
 	})
 
 	When("Constructing default registry", func() {
-		It("Has ping indicator and default aggregation policy", func() {
+		It("Has empty indicators", func() {
 			indicators := registry.HealthIndicators
-			Expect(indicators).To(ConsistOf(&pingIndicator{}))
-
-			policy := registry.HealthAggregationPolicy
-			Expect(policy).To(BeAssignableToTypeOf(&DefaultAggregationPolicy{}))
+			Expect(len(indicators)).To(Equal(0))
 		})
 	})
 
-	Context("Register aggregation policy", func() {
-		It("Overrides the previous", func() {
-			policy := registry.HealthAggregationPolicy
-			Expect(policy).To(BeAssignableToTypeOf(&DefaultAggregationPolicy{}))
-
-			registry.HealthAggregationPolicy = &testAggregationPolicy{}
-			policy = registry.HealthAggregationPolicy
-			Expect(policy).To(BeAssignableToTypeOf(&testAggregationPolicy{}))
-		})
-	})
-
-	Context("Register health indicator", func() {
+	When("Register health indicator", func() {
 		It("Adds a new indicator", func() {
 			preAddIndicators := registry.HealthIndicators
 
@@ -65,20 +51,13 @@ var _ = Describe("Healthcheck Registry", func() {
 	})
 })
 
-type testAggregationPolicy struct {
-}
-
-func (*testAggregationPolicy) Apply(healths map[string]*Health) *Health {
-	return New().Up()
-}
-
 type testIndicator struct {
 }
 
-func (*testIndicator) Name() string {
+func (i *testIndicator) Name() string {
 	return "test"
 }
 
-func (*testIndicator) Health() *Health {
-	return New().Up()
+func (i *testIndicator) Status() (interface{}, error) {
+	return nil, nil
 }
