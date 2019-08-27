@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/spf13/pflag"
+	"github.com/Peripli/service-manager/pkg/httpclient"
 
 	"github.com/Peripli/service-manager/pkg/web"
 
@@ -255,15 +255,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						additionalDelayAfterTimeout = time.Second
 					)
 
-					var (
-						timeoutTestCtx *common.TestContext
-					)
-
 					BeforeEach(func() {
-						timeoutTestCtx = common.NewTestContextBuilder().WithEnvPreExtensions(func(set *pflag.FlagSet) {
-							Expect(set.Set("httpclient.response_header_timeout", timeoutDuration.String())).ToNot(HaveOccurred())
-						}).Build()
-
+						settings := httpclient.DefaultSettings()
+						settings.ResponseHeaderTimeout = timeoutDuration
+						httpclient.Configure(settings)
 						brokerServer.CatalogHandler = func(rw http.ResponseWriter, req *http.Request) {
 							catalogStopDuration := timeoutDuration + additionalDelayAfterTimeout
 							continueCtx, _ := context.WithTimeout(req.Context(), catalogStopDuration)
@@ -275,11 +270,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 
 					AfterEach(func() {
-						timeoutTestCtx.Cleanup()
+						httpclient.Configure(httpclient.DefaultSettings())
 					})
 
 					It("returns 502", func() {
-						timeoutTestCtx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(postBrokerRequestWithNoLabels).
+						ctx.SMWithOAuth.POST("/v1/service_brokers").WithJSON(postBrokerRequestWithNoLabels).
 							Expect().
 							Status(http.StatusBadGateway).JSON().Object().Value("description").String().Contains("could not reach service broker")
 					})

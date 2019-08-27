@@ -17,6 +17,7 @@
 package config
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/Peripli/service-manager/pkg/httpclient"
@@ -62,8 +63,8 @@ func DefaultSettings() *Settings {
 }
 
 // New creates a configuration from the default env
-func New() (*Settings, error) {
-	env, err := env.Default(AddPFlags)
+func New(ctx context.Context) (*Settings, error) {
+	env, err := env.Default(ctx, AddPFlags)
 	if err != nil {
 		return nil, fmt.Errorf("error loading default env: %s", err)
 	}

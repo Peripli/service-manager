@@ -94,7 +94,9 @@ func convertToWebRequest(request *http.Request, rw http.ResponseWriter) (*web.Re
 	var err error
 	if request.Method == "PUT" || request.Method == "POST" || request.Method == "PATCH" {
 		body, err = util.RequestBodyToBytes(request)
-		err = isPayloadTooLargeErr(request.Context(), err)
+		if err != nil {
+			return nil, isPayloadTooLargeErr(request.Context(), err)
+		}
 	}
 
 	webReq := &web.Request{
@@ -103,14 +105,13 @@ func convertToWebRequest(request *http.Request, rw http.ResponseWriter) (*web.Re
 		Body:       body,
 	}
 	webReq.SetResponseWriter(rw)
-	return webReq, err
+	return webReq, nil
 }
 
 func isPayloadTooLargeErr(ctx context.Context, err error) error {
 	// Go http package uses errors.New() to return the below error, so
 	// we can only check it with string matching
 	if err != nil && err.Error() == "http: request body too large" {
-		log.C(ctx).Errorf(err.Error())
 		return &util.HTTPError{
 			StatusCode:  http.StatusRequestEntityTooLarge,
 			ErrorType:   "PayloadTooLarge",

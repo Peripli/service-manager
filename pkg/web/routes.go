@@ -29,4 +29,10 @@ const (
 
 	// InfoURL is the path of the info endpoint
 	InfoURL = "/" + apiVersion + "/info"
+
+	// ConfigURL is the Configuration API base URL path
+	ConfigURL = "/" + apiVersion + "/config"
+
+	// LoggingConfigURL is the Logging Configuration API URL path
+	LoggingConfigURL = ConfigURL + "/logging"
 )

@@ -18,10 +18,11 @@ package sm_test
 
 import (
 	"context"
-	"github.com/Peripli/service-manager/config"
-	"github.com/Peripli/service-manager/pkg/env"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/Peripli/service-manager/config"
+	"github.com/Peripli/service-manager/pkg/env"
 
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
@@ -61,7 +62,7 @@ var _ = Describe("SM", func() {
 	Describe("New", func() {
 		Context("when validating config fails", func() {
 			It("should return error", func() {
-				env, err := env.Default(config.AddPFlags, common.SetTestFileLocation)
+				env, err := env.Default(context.TODO(), config.AddPFlags, common.SetTestFileLocation)
 				Expect(err).ToNot(HaveOccurred())
 				env.Set("api.token_issuer_url", oauthServer.URL())
 				env.Set("log.level", "invalid")
@@ -77,7 +78,7 @@ var _ = Describe("SM", func() {
 
 		Context("when setting up storage with invalid uri", func() {
 			It("should throw error during migrations setup", func() {
-				env, err := env.Default(config.AddPFlags, common.SetTestFileLocation)
+				env, err := env.Default(context.TODO(), config.AddPFlags, common.SetTestFileLocation)
 				Expect(err).ToNot(HaveOccurred())
 				env.Set("api.token_issuer_url", oauthServer.URL())
 				env.Set("storage.uri", "invalid")
@@ -93,7 +94,7 @@ var _ = Describe("SM", func() {
 
 		Context("when setting up API fails", func() {
 			It("should return error", func() {
-				env, err := env.Default(config.AddPFlags, common.SetTestFileLocation)
+				env, err := env.Default(context.TODO(), config.AddPFlags, common.SetTestFileLocation)
 				Expect(err).ToNot(HaveOccurred())
 				env.Set("api.token_issuer_url", "")
 
@@ -107,7 +108,7 @@ var _ = Describe("SM", func() {
 
 		Context("when no API extensions are registered", func() {
 			It("should return working service manager", func() {
-				env, err := env.Default(config.AddPFlags, common.SetTestFileLocation)
+				env, err := env.Default(context.TODO(), config.AddPFlags, common.SetTestFileLocation)
 				Expect(err).ToNot(HaveOccurred())
 				env.Set("api.token_issuer_url", oauthServer.URL())
 
@@ -123,7 +124,7 @@ var _ = Describe("SM", func() {
 
 		Context("when additional filter is registered", func() {
 			It("should return working service manager with a new filter", func() {
-				env, err := env.Default(config.AddPFlags, common.SetTestFileLocation)
+				env, err := env.Default(context.TODO(), config.AddPFlags, common.SetTestFileLocation)
 				Expect(err).ToNot(HaveOccurred())
 				env.Set("api.token_issuer_url", oauthServer.URL())
 
@@ -145,7 +146,7 @@ var _ = Describe("SM", func() {
 
 		Context("when additional controller is registered", func() {
 			It("should return working service manager with additional controller", func() {
-				env, err := env.Default(config.AddPFlags, common.SetTestFileLocation)
+				env, err := env.Default(context.TODO(), config.AddPFlags, common.SetTestFileLocation)
 				Expect(err).ToNot(HaveOccurred())
 				env.Set("api.token_issuer_url", oauthServer.URL())
 
