@@ -25,6 +25,7 @@ import (
 
 	h "github.com/InVisionApp/go-health"
 	l "github.com/InVisionApp/go-logger/shims/logrus"
+	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/pkg/health"
 
 	"github.com/Peripli/service-manager/pkg/httpclient"
@@ -195,28 +196,9 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 }
 
 func (smb *ServiceManagerBuilder) installHealth() error {
-	healthz := h.New()
-	logger := log.C(smb.ctx).Logger
-
-	healthz.Logger = l.New(logger)
-	healthz.StatusListener = &health.StatusListener{}
-
-	thresholds := make(map[string]int64)
-
-	for _, indicator := range smb.HealthIndicators {
-		settings, ok := smb.cfg.Health.Indicators[indicator.Name()]
-		if !ok {
-			settings = health.DefaultIndicatorSettings()
-		}
-		if err := healthz.AddCheck(&h.Config{
-			Name:     indicator.Name(),
-			Checker:  indicator,
-			Interval: settings.Interval,
-			Fatal:    settings.Fatal,
-		}); err != nil {
-			return err
-		}
-		thresholds[indicator.Name()] = settings.FailuresThreshold
+	healthz, thresholds, err := health.Configure(smb.ctx, smb.HealthIndicators, smb.cfg.Health)
+	if err != nil {
+		return err
 	}
 
 	smb.RegisterControllers(healthcheck.NewController(healthz, thresholds))
