@@ -23,9 +23,6 @@ import (
 	"net/http"
 	"sync"
 
-	h "github.com/InVisionApp/go-health"
-	l "github.com/InVisionApp/go-logger/shims/logrus"
-	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/pkg/health"
 
 	"github.com/Peripli/service-manager/pkg/httpclient"
