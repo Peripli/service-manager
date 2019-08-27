@@ -17,10 +17,12 @@
 package healthcheck
 
 import (
+	"context"
 	h "github.com/InVisionApp/go-health"
 	"github.com/Peripli/service-manager/pkg/health"
 	"github.com/Peripli/service-manager/pkg/util"
 	"net/http"
+	"strings"
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -46,7 +48,7 @@ func (c *controller) healthCheck(r *web.Request) (*web.Response, error) {
 	logger := log.C(ctx)
 	logger.Debugf("Performing health check...")
 	healthState, _, _ := c.health.State()
-	healthResult := c.aggregate(healthState)
+	healthResult := c.aggregate(ctx, healthState)
 	var status int
 	if healthResult.Status == health.StatusUp {
 		status = http.StatusOK
@@ -56,7 +58,7 @@ func (c *controller) healthCheck(r *web.Request) (*web.Response, error) {
 	return util.NewJSONResponse(status, healthResult)
 }
 
-func (c *controller) aggregate(overallState map[string]h.State) *health.Health {
+func (c *controller) aggregate(ctx context.Context, overallState map[string]h.State) *health.Health {
 	if len(overallState) == 0 {
 		return health.New().WithStatus(health.StatusUp)
 	}
@@ -70,6 +72,9 @@ func (c *controller) aggregate(overallState map[string]h.State) *health.Health {
 	details := make(map[string]interface{})
 	for name, state := range overallState {
 		state.Status = convertStatus(state.Status)
+		if strings.Contains(name, PlatformIndicatorSuffix) && !web.IsAuthorized(ctx) {
+			state.Details = nil
+		}
 		details[name] = state
 	}
 	return health.New().WithStatus(overallStatus).WithDetails(details)

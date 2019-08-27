@@ -17,6 +17,7 @@
 package healthcheck
 
 import (
+	"context"
 	"fmt"
 	h "github.com/InVisionApp/go-health"
 	"github.com/Peripli/service-manager/pkg/health"
@@ -61,14 +62,20 @@ var _ = Describe("Healthcheck controller", func() {
 	})
 
 	Describe("aggregation", func() {
+		var ctx context.Context
 		var c *controller
 		var healths map[string]h.State
+		var platformHealths map[string]h.State
 		var thresholds map[string]int64
 
 		BeforeEach(func() {
+			ctx = context.TODO()
 			healths = map[string]h.State{
-				"test1": {Status: "ok"},
-				"test2": {Status: "ok"},
+				"test1": {Status: "ok", Details: "details"},
+				"test2": {Status: "ok", Details: "details"},
+			}
+			platformHealths = map[string]h.State{
+				"k8s_platforms": {Status: "ok", Details: "details"},
 			}
 			thresholds = map[string]int64{
 				"test1": 3,
@@ -82,7 +89,7 @@ var _ = Describe("Healthcheck controller", func() {
 
 		When("No healths are provided", func() {
 			It("Returns UP", func() {
-				aggregatedHealth := c.aggregate(nil)
+				aggregatedHealth := c.aggregate(ctx, nil)
 				Expect(aggregatedHealth.Status).To(Equal(health.StatusUp))
 			})
 		})
@@ -91,7 +98,7 @@ var _ = Describe("Healthcheck controller", func() {
 			It("Returns DOWN", func() {
 				healths["test3"] = h.State{Status: "failed", Fatal: true, ContiguousFailures: 4}
 				c.thresholds["test3"] = 3
-				aggregatedHealth := c.aggregate(healths)
+				aggregatedHealth := c.aggregate(ctx, healths)
 				Expect(aggregatedHealth.Status).To(Equal(health.StatusDown))
 			})
 		})
@@ -99,7 +106,7 @@ var _ = Describe("Healthcheck controller", func() {
 		When("At least one health is DOWN and is not Fatal", func() {
 			It("Returns UP", func() {
 				healths["test3"] = h.State{Status: "failed", Fatal: false, ContiguousFailures: 4}
-				aggregatedHealth := c.aggregate(healths)
+				aggregatedHealth := c.aggregate(ctx, healths)
 				Expect(aggregatedHealth.Status).To(Equal(health.StatusUp))
 			})
 		})
@@ -108,22 +115,44 @@ var _ = Describe("Healthcheck controller", func() {
 			It("Returns UP", func() {
 				healths["test3"] = h.State{Status: "failed"}
 				c.thresholds["test3"] = 3
-				aggregatedHealth := c.aggregate(healths)
+				aggregatedHealth := c.aggregate(ctx, healths)
 				Expect(aggregatedHealth.Status).To(Equal(health.StatusUp))
 			})
 		})
 
 		When("All healths are UP", func() {
 			It("Returns UP", func() {
-				aggregatedHealth := c.aggregate(healths)
+				aggregatedHealth := c.aggregate(ctx, healths)
 				Expect(aggregatedHealth.Status).To(Equal(health.StatusUp))
 			})
 		})
 
 		When("Aggregating healths", func() {
 			It("Includes them as overall details", func() {
-				aggregatedHealth := c.aggregate(healths)
+				aggregatedHealth := c.aggregate(ctx, healths)
 				for name, h := range healths {
+					h.Status = convertStatus(h.Status)
+					Expect(aggregatedHealth.Details[name]).To(Equal(h))
+				}
+			})
+		})
+
+		When("Aggregating platforms health as unauthorized user", func() {
+			It("should strip platform details", func() {
+				aggregatedHealth := c.aggregate(ctx, platformHealths)
+				for name, h := range platformHealths {
+					h.Status = convertStatus(h.Status)
+					h.Details = nil
+					Expect(aggregatedHealth.Details[name]).To(Equal(h))
+				}
+			})
+		})
+
+		When("Aggregating platforms health as authorized user", func() {
+			It("should include all platform details", func() {
+				ctx = web.ContextWithAuthorization(ctx)
+				aggregatedHealth := c.aggregate(ctx, platformHealths)
+				for name, h := range platformHealths {
 					h.Status = convertStatus(h.Status)
 					Expect(aggregatedHealth.Details[name]).To(Equal(h))
 				}

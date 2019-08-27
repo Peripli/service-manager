@@ -25,6 +25,8 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
+const PlatformIndicatorSuffix = "_platforms"
+
 // NewPlatformIndicator returns new health indicator for platforms of given type
 func NewPlatformIndicator(ctx context.Context, repository storage.Repository, platformType string) health.Indicator {
 	return &platformIndicator{
@@ -42,7 +44,7 @@ type platformIndicator struct {
 
 // Name returns the name of the indicator
 func (pi *platformIndicator) Name() string {
-	return pi.platformType + "_platforms" // e.g. cf_platforms, k8s_platforms ...
+	return pi.platformType + PlatformIndicatorSuffix // e.g. cf_platforms, k8s_platforms ...
 }
 
 // Status returns status of the health check
