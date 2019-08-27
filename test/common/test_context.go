@@ -40,7 +40,6 @@ import (
 
 	"github.com/Peripli/service-manager/config"
 	"github.com/Peripli/service-manager/pkg/env"
-	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/sm"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
@@ -117,6 +116,7 @@ func NewTestContextBuilder() *TestContextBuilder {
 		envPreHooks: []func(set *pflag.FlagSet){
 			SetTestFileLocation,
 			SetNotificationsCleanerSettings,
+			SetLogOutput,
 		},
 		Environment: TestEnv,
 		envPostHooks: []func(env env.Environment, servers map[string]FakeServer){
@@ -175,6 +175,13 @@ func SetNotificationsCleanerSettings(set *pflag.FlagSet) {
 	}
 }
 
+func SetLogOutput(set *pflag.FlagSet) {
+	err := set.Set("log.output", "ginkgowriter")
+	if err != nil {
+		panic(err)
+	}
+}
+
 func TestEnv(additionalFlagFuncs ...func(set *pflag.FlagSet)) env.Environment {
 	// copies all sm pflags to flag so that those can be set via go test
 	f := func(set *pflag.FlagSet) {
@@ -192,7 +199,7 @@ func TestEnv(additionalFlagFuncs ...func(set *pflag.FlagSet)) env.Environment {
 
 	additionalFlagFuncs = append(additionalFlagFuncs, f)
 
-	env, _ := env.Default(append([]func(set *pflag.FlagSet){config.AddPFlags}, additionalFlagFuncs...)...)
+	env, _ := env.Default(context.TODO(), append([]func(set *pflag.FlagSet){config.AddPFlags}, additionalFlagFuncs...)...)
 	return env
 }
 
@@ -326,18 +333,6 @@ func NewSMListener() (net.Listener, error) {
 
 func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error, listener net.Listener) (*testSMServer, storage.Repository) {
 	ctx, cancel := context.WithCancel(context.Background())
-	s := struct {
-		Log *log.Settings
-	}{
-		Log: &log.Settings{
-			Output: ginkgo.GinkgoWriter,
-		},
-	}
-	err := smEnv.Unmarshal(&s)
-	if err != nil {
-		panic(err)
-	}
-	ctx = log.Configure(ctx, s.Log)
 
 	cfg, err := config.NewForEnv(smEnv)
 	if err != nil {

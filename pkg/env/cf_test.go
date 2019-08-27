@@ -17,8 +17,8 @@
 package env
 
 import (
+	"context"
 	"os"
-	"testing"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -52,11 +52,6 @@ const VCAP_SERVICES_VALUE = `{ "postgresql": [
   ]
  }`
 
-func TestApi(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "CF Env Suite")
-}
-
 var _ = Describe("CF Env", func() {
 	var (
 		environment Environment
@@ -69,7 +64,7 @@ var _ = Describe("CF Env", func() {
 		Expect(os.Setenv("STORAGE_NAME", "smdb")).ShouldNot(HaveOccurred())
 		Expect(os.Unsetenv("STORAGE_URI")).ShouldNot(HaveOccurred())
 
-		environment, err = New(EmptyFlagSet())
+		environment, err = New(context.TODO(), EmptyFlagSet())
 		Expect(err).ShouldNot(HaveOccurred())
 	})
 

@@ -18,7 +18,10 @@ package log
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"os"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/sirupsen/logrus"
@@ -31,10 +34,12 @@ var _ = Describe("kibana formatter", func() {
 
 	BeforeEach(func() {
 		buffer = &bytes.Buffer{}
-		ctx := configure(&Settings{
+		ctx, err := Configure(context.TODO(), &Settings{
 			Level:  "debug",
 			Format: "kibana",
+			Output: os.Stdout.Name(),
 		})
+		Expect(err).ToNot(HaveOccurred())
 		entry = ForContext(ctx)
 		entry.Logger.SetOutput(buffer)
 	})
@@ -73,7 +78,7 @@ var _ = Describe("kibana formatter", func() {
 	When("error is logged", func() {
 		It("should append it to the message", func() {
 			err := fmt.Errorf("error message")
-			entry.WithError(err).Errorf("test message")
+			entry.WithError(err).Error("test message")
 
 			Expect(buffer.String()).To(ContainSubstring(`"level":"error"`))
 			Expect(buffer.String()).To(ContainSubstring(`"msg":"test message: ` + err.Error() + `"`))

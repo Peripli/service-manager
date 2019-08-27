@@ -17,8 +17,11 @@
 package health
 
 import (
+	"context"
 	"fmt"
 	"github.com/InVisionApp/go-health"
+	h "github.com/InVisionApp/go-health"
+	l "github.com/InVisionApp/go-logger/shims/logrus"
 	"github.com/Peripli/service-manager/pkg/log"
 	"time"
 )
@@ -166,4 +169,32 @@ func NewDefaultRegistry() *Registry {
 type Registry struct {
 	// HealthIndicators are the currently registered health indicators
 	HealthIndicators []Indicator
+}
+
+// Configure creates new health using provided settings.
+func Configure(ctx context.Context, indicators []Indicator, settings *Settings) (*h.Health, map[string]int64, error) {
+	healthz := h.New()
+	logger := log.C(ctx).Logger
+
+	healthz.Logger = l.New(logger)
+	healthz.StatusListener = &StatusListener{}
+
+	thresholds := make(map[string]int64)
+
+	for _, indicator := range indicators {
+		s, ok := settings.Indicators[indicator.Name()]
+		if !ok {
+			s = DefaultIndicatorSettings()
+		}
+		if err := healthz.AddCheck(&h.Config{
+			Name:     indicator.Name(),
+			Checker:  indicator,
+			Interval: s.Interval,
+			Fatal:    s.Fatal,
+		}); err != nil {
+			return nil, nil, err
+		}
+		thresholds[indicator.Name()] = s.FailuresThreshold
+	}
+	return healthz, thresholds, nil
 }

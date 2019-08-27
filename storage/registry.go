@@ -35,7 +35,7 @@ func InitializeWithSafeTermination(ctx context.Context, s Storage, settings *Set
 		<-c.Done()
 		log.C(c).Debug("Context cancelled. Closing storage...")
 		if err := s.Close(); err != nil {
-			log.D().Error(err)
+			log.C(c).Error(err)
 		}
 	}, wg)
 

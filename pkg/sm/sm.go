@@ -18,16 +18,16 @@ package sm
 
 import (
 	"context"
-	"crypto/tls"
 	"database/sql"
 	"fmt"
-	h "github.com/InVisionApp/go-health"
-	l "github.com/InVisionApp/go-logger/shims/logrus"
-	"github.com/Peripli/service-manager/api/osb"
-	"github.com/Peripli/service-manager/pkg/health"
-	"net"
 	"net/http"
 	"sync"
+
+	"github.com/Peripli/service-manager/pkg/health"
+
+	"github.com/Peripli/service-manager/pkg/httpclient"
+
+	"github.com/Peripli/service-manager/api/osb"
 
 	"github.com/Peripli/service-manager/storage/catalog"
 
@@ -78,19 +78,13 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 		return nil, fmt.Errorf("error validating configuration: %s", err)
 	}
 
-	// Setup the default http client and transport
-	transport := http.DefaultTransport.(*http.Transport)
-
-	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: cfg.API.SkipSSLValidation}
-	transport.ResponseHeaderTimeout = cfg.HTTPClient.ResponseHeaderTimeout
-	transport.TLSHandshakeTimeout = cfg.HTTPClient.TLSHandshakeTimeout
-	transport.IdleConnTimeout = cfg.HTTPClient.IdleConnTimeout
-	transport.DialContext = (&net.Dialer{Timeout: cfg.HTTPClient.DialTimeout}).DialContext
-
-	http.DefaultClient.Transport = transport
+	httpclient.Configure(cfg.HTTPClient)
 
 	// Setup logging
-	ctx = log.Configure(ctx, cfg.Log)
+	ctx, err = log.Configure(ctx, cfg.Log)
+	if err != nil {
+		return nil, fmt.Errorf("error configuring logging,: %s", err)
+	}
 
 	util.HandleInterrupts(ctx, cancel)
 
@@ -202,28 +196,9 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 }
 
 func (smb *ServiceManagerBuilder) installHealth() error {
-	healthz := h.New()
-	logger := log.C(smb.ctx).Logger
-
-	healthz.Logger = l.New(logger)
-	healthz.StatusListener = &health.StatusListener{}
-
-	thresholds := make(map[string]int64)
-
-	for _, indicator := range smb.HealthIndicators {
-		settings, ok := smb.cfg.Health.Indicators[indicator.Name()]
-		if !ok {
-			settings = health.DefaultIndicatorSettings()
-		}
-		if err := healthz.AddCheck(&h.Config{
-			Name:     indicator.Name(),
-			Checker:  indicator,
-			Interval: settings.Interval,
-			Fatal:    settings.Fatal,
-		}); err != nil {
-			return err
-		}
-		thresholds[indicator.Name()] = settings.FailuresThreshold
+	healthz, thresholds, err := health.Configure(smb.ctx, smb.HealthIndicators, smb.cfg.Health)
+	if err != nil {
+		return err
 	}
 
 	smb.RegisterControllers(healthcheck.NewController(healthz, thresholds))
