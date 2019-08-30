@@ -26,18 +26,39 @@ import (
 	"time"
 )
 
+// StorageIndicatorName is the name of storage indicator
+const StorageIndicatorName = "storage"
+
+// PlatformIndicatorSuffix is the suffix for a platform type indicator
+const PlatformIndicatorSuffix = "_platforms"
+
+// indicatorNames is a list of names of indicators which will be registered with default settings
+// as part of default health settings, this will allow binding them as part of environment.
+// If an indicator is registered but not specified in this list, it will be configured with
+// default settings again, but this defaults could be overridden only via application.yml,
+// env variables and pflags won't have any effect. If an indicator is specified in this list
+// but later not registered nothing will happen.
+var indicatorNames = [...]string{
+	StorageIndicatorName,
+	"kubernetes" + PlatformIndicatorSuffix,
+	"cloudfoundry" + PlatformIndicatorSuffix,
+}
+
 // Settings type to be loaded from the environment
 type Settings struct {
-	PlatformTypes []string                      `mapstructure:"platform_types,omitempty" description:"platform types which health will be measured"`
-	Indicators    map[string]*IndicatorSettings `mapstructure:"indicators,omitempty"`
+	PlatformTypes []string                      `mapstructure:"platform_types" description:"platform types for which health will be measured"`
+	Indicators    map[string]*IndicatorSettings `mapstructure:"indicators"`
 }
 
 // DefaultSettings returns default values for health settings
 func DefaultSettings() *Settings {
-	emptySettings := make(map[string]*IndicatorSettings)
+	defaultIndicatorSettings := make(map[string]*IndicatorSettings)
+	for _, name := range indicatorNames {
+		defaultIndicatorSettings[name] = DefaultIndicatorSettings()
+	}
 	return &Settings{
 		PlatformTypes: make([]string, 0),
-		Indicators:    emptySettings,
+		Indicators:    defaultIndicatorSettings,
 	}
 }
 

@@ -72,7 +72,7 @@ func (c *controller) aggregate(ctx context.Context, overallState map[string]h.St
 	details := make(map[string]interface{})
 	for name, state := range overallState {
 		state.Status = convertStatus(state.Status)
-		if strings.Contains(name, PlatformIndicatorSuffix) && !web.IsAuthorized(ctx) {
+		if strings.Contains(name, health.PlatformIndicatorSuffix) && !web.IsAuthorized(ctx) {
 			state.Details = nil
 		}
 		details[name] = state

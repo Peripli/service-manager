@@ -48,6 +48,7 @@ func TestEnv(t *testing.T) {
 
 var _ = Describe("Env", func() {
 	const (
+		mapKey           = "map"
 		key              = "key"
 		description      = "desc"
 		flagDefaultValue = "pflagDefaultValue"
@@ -67,6 +68,12 @@ var _ = Describe("Env", func() {
 		keyNslice     = "nest.nslice"
 		keyNmappedVal = "nest.n_mapped_val"
 
+		keyMapNbool      = mapKey + "." + keyNbool
+		keyMapNint       = mapKey + "." + keyNint
+		keyMapNstring    = mapKey + "." + keyNstring
+		keyMapNslice     = mapKey + "." + keyNslice
+		keyMapNmappedVal = mapKey + "." + keyNmappedVal
+
 		keyLogFormat = "log.format"
 		keyLogLevel  = "log.level"
 	)
@@ -83,6 +90,7 @@ var _ = Describe("Env", func() {
 		WInt       int
 		WString    string
 		WMappedVal string `mapstructure:"w_mapped_val" structs:"w_mapped_val" yaml:"w_mapped_val"`
+		WMapNest   map[string]Nest
 		Nest       Nest
 		Log        log.Settings
 	}
@@ -123,6 +131,12 @@ var _ = Describe("Env", func() {
 		set.StringSlice(keyNslice, s.Nest.NSlice, description)
 		set.String(keyNmappedVal, s.Nest.NMappedVal, description)
 
+		set.Bool(keyMapNbool, s.WMapNest[mapKey].NBool, description)
+		set.Int(keyMapNint, s.WMapNest[mapKey].NInt, description)
+		set.String(keyMapNstring, s.WMapNest[mapKey].NString, description)
+		set.StringSlice(keyMapNslice, s.WMapNest[mapKey].NSlice, description)
+		set.String(keyMapNmappedVal, s.WMapNest[mapKey].NMappedVal, description)
+
 		set.String(keyLogLevel, s.Log.Level, description)
 		set.String(keyLogFormat, s.Log.Format, description)
 
@@ -147,6 +161,11 @@ var _ = Describe("Env", func() {
 		Expect(testFlags.Set(keyNstring, o.Nest.NString)).ShouldNot(HaveOccurred())
 		Expect(testFlags.Set(keyNmappedVal, o.Nest.NMappedVal)).ShouldNot(HaveOccurred())
 
+		Expect(testFlags.Set(keyMapNbool, cast.ToString(o.WMapNest[mapKey].NBool))).ShouldNot(HaveOccurred())
+		Expect(testFlags.Set(keyMapNint, cast.ToString(o.WMapNest[mapKey].NInt))).ShouldNot(HaveOccurred())
+		Expect(testFlags.Set(keyMapNstring, o.WMapNest[mapKey].NString)).ShouldNot(HaveOccurred())
+		Expect(testFlags.Set(keyMapNmappedVal, o.WMapNest[mapKey].NMappedVal)).ShouldNot(HaveOccurred())
+
 		Expect(testFlags.Set(keyLogFormat, o.Log.Format)).ShouldNot(HaveOccurred())
 		Expect(testFlags.Set(keyLogLevel, o.Log.Level)).ShouldNot(HaveOccurred())
 	}
@@ -163,6 +182,12 @@ var _ = Describe("Env", func() {
 		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyNslice), ".", "_", 1), strings.Join(structure.Nest.NSlice, ","))).ShouldNot(HaveOccurred())
 		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyNmappedVal), ".", "_", 1), structure.Nest.NMappedVal)).ShouldNot(HaveOccurred())
 
+		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyMapNbool), ".", "_", 1), cast.ToString(structure.WMapNest[mapKey].NBool))).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyMapNint), ".", "_", 1), cast.ToString(structure.WMapNest[mapKey].NInt))).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyMapNstring), ".", "_", 1), structure.WMapNest[mapKey].NString)).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyMapNslice), ".", "_", 1), strings.Join(structure.WMapNest[mapKey].NSlice, ","))).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyMapNmappedVal), ".", "_", 1), structure.WMapNest[mapKey].NMappedVal)).ShouldNot(HaveOccurred())
+
 		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyLogFormat), ".", "_", 1), structure.Log.Format)).ShouldNot(HaveOccurred())
 		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyLogLevel), ".", "_", 1), structure.Log.Level)).ShouldNot(HaveOccurred())
 	}
@@ -178,6 +203,12 @@ var _ = Describe("Env", func() {
 		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyNstring), ".", "_", 1))).ShouldNot(HaveOccurred())
 		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyNslice), ".", "_", 1))).ShouldNot(HaveOccurred())
 		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyNmappedVal), ".", "_", 1))).ShouldNot(HaveOccurred())
+
+		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyMapNbool), ".", "_", 1))).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyMapNint), ".", "_", 1))).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyMapNstring), ".", "_", 1))).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyMapNslice), ".", "_", 1))).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyMapNmappedVal), ".", "_", 1))).ShouldNot(HaveOccurred())
 
 		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyLogFormat), ".", "_", 1))).ShouldNot(HaveOccurred())
 		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyLogLevel), ".", "_", 1))).ShouldNot(HaveOccurred())
@@ -248,6 +279,14 @@ var _ = Describe("Env", func() {
 	BeforeEach(func() {
 		testFlags = env.EmptyFlagSet()
 
+		nest := Nest{
+			NBool:      true,
+			NInt:       4321,
+			NString:    "nstringval",
+			NSlice:     []string{"nval1", "nval2", "nval3"},
+			NMappedVal: "nmappedval",
+		}
+
 		structure = Outer{
 			WBool:      true,
 			WInt:       1234,
@@ -257,12 +296,9 @@ var _ = Describe("Env", func() {
 				Level:  "error",
 				Format: "text",
 			},
-			Nest: Nest{
-				NBool:      true,
-				NInt:       4321,
-				NString:    "nstringval",
-				NSlice:     []string{"nval1", "nval2", "nval3"},
-				NMappedVal: "nmappedval",
+			Nest: nest,
+			WMapNest: map[string]Nest{
+				mapKey: nest,
 			},
 		}
 	})
