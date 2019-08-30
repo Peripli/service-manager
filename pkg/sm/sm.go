@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/env"
 	"net/http"
 	"sync"
 
@@ -60,6 +61,7 @@ type ServiceManagerBuilder struct {
 	ctx                 context.Context
 	wg                  *sync.WaitGroup
 	cfg                 *config.Settings
+	env                 env.Environment
 }
 
 // ServiceManager  struct
@@ -72,8 +74,12 @@ type ServiceManager struct {
 }
 
 // New returns service-manager Server with default setup
-func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (*ServiceManagerBuilder, error) {
-	var err error
+func New(ctx context.Context, cancel context.CancelFunc, env env.Environment) (*ServiceManagerBuilder, error) {
+	cfg, err := config.NewForEnv(env)
+	if err != nil {
+		return nil, fmt.Errorf("error loading configuration: %s", err)
+	}
+
 	if err = cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("error validating configuration: %s", err)
 	}
@@ -151,6 +157,7 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 		ctx:                 ctx,
 		wg:                  waitGroup,
 		cfg:                 cfg,
+		env:                 env,
 	}
 
 	// Register default interceptors that represent the core SM business logic
@@ -196,7 +203,7 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 }
 
 func (smb *ServiceManagerBuilder) installHealth() error {
-	healthz, thresholds, err := health.Configure(smb.ctx, smb.HealthIndicators, smb.cfg.Health)
+	healthz, thresholds, err := health.Configure(smb.ctx, smb.HealthIndicators, smb.env)
 	if err != nil {
 		return err
 	}

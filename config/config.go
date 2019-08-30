@@ -72,7 +72,7 @@ func New(ctx context.Context) (*Settings, error) {
 	return NewForEnv(env)
 }
 
-// New creates a configuration from the provided env
+// NewForEnv creates a configuration from the provided env
 func NewForEnv(env env.Environment) (*Settings, error) {
 	config := DefaultSettings()
 	if err := env.Unmarshal(config); err != nil {

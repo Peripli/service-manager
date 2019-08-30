@@ -127,8 +127,8 @@ func (v *ViperEnv) Unmarshal(value interface{}) error {
 		if err := v.Viper.BindEnv(parameter.Name); err != nil {
 			return err
 		}
+		v.Viper.SetDefault(parameter.Name, parameter.DefaultValue)
 	}
-
 	return v.Viper.Unmarshal(value)
 }
 

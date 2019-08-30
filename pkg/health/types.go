@@ -22,14 +22,15 @@ import (
 	"github.com/InVisionApp/go-health"
 	h "github.com/InVisionApp/go-health"
 	l "github.com/InVisionApp/go-logger/shims/logrus"
+	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/log"
 	"time"
 )
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	PlatformTypes []string                      `mapstructure:"platform_types,omitempty" description:"platform types which health will be measured"`
-	Indicators    map[string]*IndicatorSettings `mapstructure:"indicators,omitempty"`
+	PlatformTypes []string                      `mapstructure:"platform_types" description:"platform types which health will be measured"`
+	Indicators    map[string]*IndicatorSettings `mapstructure:"indicators"`
 }
 
 // DefaultSettings returns default values for health settings
@@ -172,7 +173,7 @@ type Registry struct {
 }
 
 // Configure creates new health using provided settings.
-func Configure(ctx context.Context, indicators []Indicator, settings *Settings) (*h.Health, map[string]int64, error) {
+func Configure(ctx context.Context, indicators []Indicator, env env.Environment) (*h.Health, map[string]int64, error) {
 	healthz := h.New()
 	logger := log.C(ctx).Logger
 
@@ -181,11 +182,24 @@ func Configure(ctx context.Context, indicators []Indicator, settings *Settings) 
 
 	thresholds := make(map[string]int64)
 
+	settings := &struct {
+		Health *Settings
+	}{
+		Health: &Settings{
+			Indicators: map[string]*IndicatorSettings{},
+		},
+	}
+
 	for _, indicator := range indicators {
-		s, ok := settings.Indicators[indicator.Name()]
-		if !ok {
-			s = DefaultIndicatorSettings()
-		}
+		settings.Health.Indicators[indicator.Name()] = DefaultIndicatorSettings()
+	}
+
+	if err := env.Unmarshal(settings); err != nil {
+		return nil, nil, err
+	}
+
+	for _, indicator := range indicators {
+		s := settings.Health.Indicators[indicator.Name()]
 		if err := healthz.AddCheck(&h.Config{
 			Name:     indicator.Name(),
 			Checker:  indicator,
