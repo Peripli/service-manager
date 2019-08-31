@@ -90,7 +90,18 @@ func buildDescriptionPaths(root *descriptionTree, path []*descriptionTree) []str
 
 func buildDescriptionTreeWithParameters(value interface{}, tree *descriptionTree, buffer string, result *[]configurationParameter) {
 	v := reflect.ValueOf(value)
-	if v.Kind() != reflect.Map {
+	switch v.Kind() {
+	case reflect.Map:
+		for _, key := range v.MapKeys() {
+			field := v.MapIndex(key).Interface()
+			if isValidField(field) {
+				name := key.String()
+				buffer += name + "."
+				buildDescriptionTreeWithParameters(field, tree, buffer, result)
+				buffer = buffer[0:strings.LastIndex(buffer, name)]
+			}
+		}
+	default:
 		if !structs.IsStruct(value) {
 			index := strings.LastIndex(buffer, ".")
 			if index == -1 {
@@ -129,16 +140,7 @@ func buildDescriptionTreeWithParameters(value interface{}, tree *descriptionTree
 				buffer = buffer[0:strings.LastIndex(buffer, name)]
 			}
 		}
-	} else {
-		for _, key := range v.MapKeys() {
-			field := v.MapIndex(key).Interface()
-			if isValidField(field) {
-				name := key.String()
-				buffer += name + "."
-				buildDescriptionTreeWithParameters(field, tree, buffer, result)
-				buffer = buffer[0:strings.LastIndex(buffer, name)]
-			}
-		}
+
 	}
 }
 
