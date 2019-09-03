@@ -19,6 +19,11 @@ func NewServicesFilterByVisibility(repository storage.Repository) *ServicesFilte
 		visibilityFilteringMiddleware: &visibilityFilteringMiddleware{
 			MultiResourceFilterFunc:  newServicesFilterFunc(repository),
 			SingleResourceFilterFunc: newSingleServiceFilterFunc(repository),
+			EmptyResourceArrayFunc: func() types.ObjectList {
+				return &types.ServiceOfferings{
+					ServiceOfferings: []*types.ServiceOffering{},
+				}
+			},
 		},
 	}
 }

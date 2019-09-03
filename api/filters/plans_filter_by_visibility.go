@@ -20,6 +20,11 @@ func NewPlanFilterByVisibility(repository storage.Repository) *PlanFilterByVisib
 		visibilityFilteringMiddleware: &visibilityFilteringMiddleware{
 			MultiResourceFilterFunc:  newPlansFilterFunc(repository),
 			SingleResourceFilterFunc: newSinglePlanFilterFunc(repository),
+			EmptyResourceArrayFunc: func() types.ObjectList {
+				return &types.ServicePlans{
+					ServicePlans: []*types.ServicePlan{},
+				}
+			},
 		},
 	}
 }
