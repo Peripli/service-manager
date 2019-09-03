@@ -17,27 +17,24 @@
 package storage_test
 
 import (
+	"context"
 	"fmt"
-
 	"github.com/Peripli/service-manager/pkg/health"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/Peripli/service-manager/storage/storagefakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Healthcheck", func() {
-	var healthIndicator *storage.HealthIndicator
-	var pinger *storagefakes.FakePinger
+	var healthIndicator health.Indicator
 
 	BeforeEach(func() {
-		pinger = &storagefakes.FakePinger{}
-		pinger.PingStub = func() error {
+		ping := func(ctx context.Context) error {
 			return nil
 		}
-		healthIndicator = &storage.HealthIndicator{
-			Pinger: pinger,
-		}
+		var err error
+		healthIndicator, err = storage.NewSQLHealthIndicator(storage.PingFunc(ping))
+		Expect(err).ShouldNot(HaveOccurred())
 	})
 
 	Context("Name", func() {
@@ -47,27 +44,25 @@ var _ = Describe("Healthcheck", func() {
 	})
 
 	Context("Ping does not return error", func() {
-		It("Returns health status UP", func() {
-			healthz := healthIndicator.Health()
-			Expect(healthz.Status).To(Equal(health.StatusUp))
+		It("Status doest not contains error", func() {
+			_, err := healthIndicator.Status()
+			Expect(err).ShouldNot(HaveOccurred())
 		})
 	})
 	Context("Ping returns error", func() {
 		expectedError := fmt.Errorf("could not connect to database")
 		BeforeEach(func() {
-			pinger.PingStub = func() error {
+			ping := func(ctx context.Context) error {
 				return expectedError
 			}
-		})
-		It("Returns status DOWN", func() {
-			healthz := healthIndicator.Health()
-			Expect(healthz.Status).To(Equal(health.StatusDown))
+			var err error
+			healthIndicator, err = storage.NewSQLHealthIndicator(storage.PingFunc(ping))
+			Expect(err).ShouldNot(HaveOccurred())
 		})
 		It("Contains error", func() {
-			healthz := healthIndicator.Health()
-			errorDetails := healthz.Details["error"]
-			Expect(errorDetails).To(Equal(expectedError))
+			_, err := healthIndicator.Status()
+			Expect(err).Should(HaveOccurred())
+			Expect(err).To(Equal(expectedError))
 		})
-
 	})
 })

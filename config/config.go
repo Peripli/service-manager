@@ -17,12 +17,14 @@
 package config
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/Peripli/service-manager/pkg/httpclient"
 
 	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/Peripli/service-manager/pkg/health"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/server"
 	"github.com/Peripli/service-manager/pkg/ws"
@@ -38,6 +40,7 @@ type Settings struct {
 	API        *api.Settings
 	WebSocket  *ws.Settings
 	HTTPClient *httpclient.Settings
+	Health     *health.Settings
 }
 
 // AddPFlags adds the SM config flags to the provided flag set
@@ -55,12 +58,13 @@ func DefaultSettings() *Settings {
 		API:        api.DefaultSettings(),
 		WebSocket:  ws.DefaultSettings(),
 		HTTPClient: httpclient.DefaultSettings(),
+		Health:     health.DefaultSettings(),
 	}
 }
 
 // New creates a configuration from the default env
-func New() (*Settings, error) {
-	env, err := env.Default(AddPFlags)
+func New(ctx context.Context) (*Settings, error) {
+	env, err := env.Default(ctx, AddPFlags)
 	if err != nil {
 		return nil, fmt.Errorf("error loading default env: %s", err)
 	}
@@ -82,7 +86,7 @@ func NewForEnv(env env.Environment) (*Settings, error) {
 func (c *Settings) Validate() error {
 	validatable := []interface {
 		Validate() error
-	}{c.Server, c.Storage, c.Log, c.API, c.WebSocket}
+	}{c.Server, c.Storage, c.Log, c.Health, c.API, c.WebSocket}
 
 	for _, item := range validatable {
 		if err := item.Validate(); err != nil {

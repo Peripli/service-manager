@@ -16,6 +16,69 @@
 
 package health
 
+import (
+	"context"
+	"fmt"
+	"github.com/InVisionApp/go-health"
+	h "github.com/InVisionApp/go-health"
+	l "github.com/InVisionApp/go-logger/shims/logrus"
+	"github.com/Peripli/service-manager/pkg/log"
+	"time"
+)
+
+// Settings type to be loaded from the environment
+type Settings struct {
+	Indicators map[string]*IndicatorSettings `mapstructure:"indicators,omitempty"`
+}
+
+// DefaultSettings returns default values for health settings
+func DefaultSettings() *Settings {
+	emptySettings := make(map[string]*IndicatorSettings)
+	return &Settings{
+		Indicators: emptySettings,
+	}
+}
+
+// Validate validates health settings
+func (s *Settings) Validate() error {
+	for _, v := range s.Indicators {
+		if err := v.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// IndicatorSettings type to be loaded from the environment
+type IndicatorSettings struct {
+	Fatal             bool          `mapstructure:"fatal" description:"if the indicator affects the overall status, if false not failures_threshold expected"`
+	FailuresThreshold int64         `mapstructure:"failures_threshold" description:"number of failures in a row that will affect overall status"`
+	Interval          time.Duration `mapstructure:"interval" description:"time between health checks of components"`
+}
+
+// DefaultIndicatorSettings returns default values for indicator settings
+func DefaultIndicatorSettings() *IndicatorSettings {
+	return &IndicatorSettings{
+		Fatal:             true,
+		FailuresThreshold: 3,
+		Interval:          60 * time.Second,
+	}
+}
+
+// Validate validates indicator settings
+func (is *IndicatorSettings) Validate() error {
+	if !is.Fatal && is.FailuresThreshold != 0 {
+		return fmt.Errorf("validate Settings: FailuresThreshold not applicable for non-fatal indicators")
+	}
+	if is.Fatal && is.FailuresThreshold <= 0 {
+		return fmt.Errorf("validate Settings: FailuresThreshold must be > 0 for fatal indicators")
+	}
+	if is.Interval < 30*time.Second {
+		return fmt.Errorf("validate Settings: Minimum interval is 30 seconds")
+	}
+	return nil
+}
+
 // Status represents the overall health status of a component
 type Status string
 
@@ -27,6 +90,16 @@ const (
 	// StatusUnknown indicates that the health of the checked component cannot be determined
 	StatusUnknown Status = "UNKNOWN"
 )
+
+type StatusListener struct{}
+
+func (sl *StatusListener) HealthCheckFailed(state *health.State) {
+	log.D().Errorf("Health check for %v failed with: %v", state.Name, state.Err)
+}
+
+func (sl *StatusListener) HealthCheckRecovered(state *health.State, numberOfFailures int64, unavailableDuration float64) {
+	log.D().Infof("Health check for %v recovered after %v failures and was unavailable for %v seconds roughly", state.Name, numberOfFailures, unavailableDuration)
+}
 
 // Health contains information about the health of a component.
 type Health struct {
@@ -60,24 +133,6 @@ func (h *Health) WithDetail(key string, val interface{}) *Health {
 	return h
 }
 
-// Up sets the health status to up
-func (h *Health) Up() *Health {
-	h.Status = StatusUp
-	return h
-}
-
-// Down sets the health status to down
-func (h *Health) Down() *Health {
-	h.Status = StatusDown
-	return h
-}
-
-// Unknown sets the health status to unknown
-func (h *Health) Unknown() *Health {
-	h.Status = StatusUnknown
-	return h
-}
-
 // WithDetails adds the given details to the health
 func (h *Health) WithDetails(details map[string]interface{}) *Health {
 	for k, v := range details {
@@ -91,30 +146,48 @@ func (h *Health) WithDetails(details map[string]interface{}) *Health {
 type Indicator interface {
 	// Name returns the name of the component
 	Name() string
-	// Health returns the health of the component
-	Health() *Health
+
+	// Status returns the health information of the component
+	Status() (interface{}, error)
 }
 
-// AggregationPolicy is an interface to provide aggregated health information
-//go:generate counterfeiter . AggregationPolicy
-type AggregationPolicy interface {
-	// Apply processes the given healths to build a single health
-	Apply(healths map[string]*Health) *Health
-}
-
-// NewDefaultRegistry returns a default health registry with a single ping indicator and a default aggregation policy
+// NewDefaultRegistry returns a default empty health registry
 func NewDefaultRegistry() *Registry {
 	return &Registry{
-		HealthIndicators:        []Indicator{&pingIndicator{}},
-		HealthAggregationPolicy: &DefaultAggregationPolicy{},
+		HealthIndicators: make([]Indicator, 0),
 	}
 }
 
-// Registry is an interface to store and fetch health indicators
+// Registry is a struct to store health indicators
 type Registry struct {
 	// HealthIndicators are the currently registered health indicators
 	HealthIndicators []Indicator
+}
 
-	// HealthAggregationPolicy is the registered health aggregationPolicy
-	HealthAggregationPolicy AggregationPolicy
+// Configure creates new health using provided settings.
+func Configure(ctx context.Context, indicators []Indicator, settings *Settings) (*h.Health, map[string]int64, error) {
+	healthz := h.New()
+	logger := log.C(ctx).Logger
+
+	healthz.Logger = l.New(logger)
+	healthz.StatusListener = &StatusListener{}
+
+	thresholds := make(map[string]int64)
+
+	for _, indicator := range indicators {
+		s, ok := settings.Indicators[indicator.Name()]
+		if !ok {
+			s = DefaultIndicatorSettings()
+		}
+		if err := healthz.AddCheck(&h.Config{
+			Name:     indicator.Name(),
+			Checker:  indicator,
+			Interval: s.Interval,
+			Fatal:    s.Fatal,
+		}); err != nil {
+			return nil, nil, err
+		}
+		thresholds[indicator.Name()] = s.FailuresThreshold
+	}
+	return healthz, thresholds, nil
 }

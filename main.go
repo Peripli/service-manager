@@ -31,7 +31,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	cfg, err := config.New()
+	cfg, err := config.New(ctx)
 	if err != nil {
 		panic(err)
 	}

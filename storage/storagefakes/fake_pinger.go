@@ -2,74 +2,84 @@
 package storagefakes
 
 import (
+	"context"
 	"sync"
 
 	"github.com/Peripli/service-manager/storage"
 )
 
 type FakePinger struct {
-	PingStub        func() error
-	pingMutex       sync.RWMutex
-	pingArgsForCall []struct {
+	PingContextStub        func(context.Context) error
+	pingContextMutex       sync.RWMutex
+	pingContextArgsForCall []struct {
+		arg1 context.Context
 	}
-	pingReturns struct {
+	pingContextReturns struct {
 		result1 error
 	}
-	pingReturnsOnCall map[int]struct {
+	pingContextReturnsOnCall map[int]struct {
 		result1 error
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakePinger) Ping() error {
-	fake.pingMutex.Lock()
-	ret, specificReturn := fake.pingReturnsOnCall[len(fake.pingArgsForCall)]
-	fake.pingArgsForCall = append(fake.pingArgsForCall, struct {
-	}{})
-	fake.recordInvocation("Ping", []interface{}{})
-	fake.pingMutex.Unlock()
-	if fake.PingStub != nil {
-		return fake.PingStub()
+func (fake *FakePinger) PingContext(arg1 context.Context) error {
+	fake.pingContextMutex.Lock()
+	ret, specificReturn := fake.pingContextReturnsOnCall[len(fake.pingContextArgsForCall)]
+	fake.pingContextArgsForCall = append(fake.pingContextArgsForCall, struct {
+		arg1 context.Context
+	}{arg1})
+	fake.recordInvocation("PingContext", []interface{}{arg1})
+	fake.pingContextMutex.Unlock()
+	if fake.PingContextStub != nil {
+		return fake.PingContextStub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.pingReturns
+	fakeReturns := fake.pingContextReturns
 	return fakeReturns.result1
 }
 
-func (fake *FakePinger) PingCallCount() int {
-	fake.pingMutex.RLock()
-	defer fake.pingMutex.RUnlock()
-	return len(fake.pingArgsForCall)
+func (fake *FakePinger) PingContextCallCount() int {
+	fake.pingContextMutex.RLock()
+	defer fake.pingContextMutex.RUnlock()
+	return len(fake.pingContextArgsForCall)
 }
 
-func (fake *FakePinger) PingCalls(stub func() error) {
-	fake.pingMutex.Lock()
-	defer fake.pingMutex.Unlock()
-	fake.PingStub = stub
+func (fake *FakePinger) PingContextCalls(stub func(context.Context) error) {
+	fake.pingContextMutex.Lock()
+	defer fake.pingContextMutex.Unlock()
+	fake.PingContextStub = stub
 }
 
-func (fake *FakePinger) PingReturns(result1 error) {
-	fake.pingMutex.Lock()
-	defer fake.pingMutex.Unlock()
-	fake.PingStub = nil
-	fake.pingReturns = struct {
+func (fake *FakePinger) PingContextArgsForCall(i int) context.Context {
+	fake.pingContextMutex.RLock()
+	defer fake.pingContextMutex.RUnlock()
+	argsForCall := fake.pingContextArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakePinger) PingContextReturns(result1 error) {
+	fake.pingContextMutex.Lock()
+	defer fake.pingContextMutex.Unlock()
+	fake.PingContextStub = nil
+	fake.pingContextReturns = struct {
 		result1 error
 	}{result1}
 }
 
-func (fake *FakePinger) PingReturnsOnCall(i int, result1 error) {
-	fake.pingMutex.Lock()
-	defer fake.pingMutex.Unlock()
-	fake.PingStub = nil
-	if fake.pingReturnsOnCall == nil {
-		fake.pingReturnsOnCall = make(map[int]struct {
+func (fake *FakePinger) PingContextReturnsOnCall(i int, result1 error) {
+	fake.pingContextMutex.Lock()
+	defer fake.pingContextMutex.Unlock()
+	fake.PingContextStub = nil
+	if fake.pingContextReturnsOnCall == nil {
+		fake.pingContextReturnsOnCall = make(map[int]struct {
 			result1 error
 		})
 	}
-	fake.pingReturnsOnCall[i] = struct {
+	fake.pingContextReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
 }
@@ -77,8 +87,8 @@ func (fake *FakePinger) PingReturnsOnCall(i int, result1 error) {
 func (fake *FakePinger) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.pingMutex.RLock()
-	defer fake.pingMutex.RUnlock()
+	fake.pingContextMutex.RLock()
+	defer fake.pingContextMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

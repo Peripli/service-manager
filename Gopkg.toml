@@ -19,7 +19,7 @@
 
 [[constraint]]
  name = "github.com/onrik/logrus"
- branch = "master"
+ version = "=0.4.1"
 
 [[constraint]]
   name = "github.com/onsi/ginkgo"
@@ -39,7 +39,7 @@
 
 [[constraint]]
   name = "github.com/spf13/viper"
-  version = "=1.0.2"
+  version = "=1.4.0"
 
 [[constraint]]
   name = "github.com/lib/pq"
@@ -109,3 +109,7 @@
 [[override]]
 name = "gopkg.in/fsnotify.v1"
 source = "https://github.com/fsnotify/fsnotify.git"
+
+[[constraint]]
+  name = "github.com/InVisionApp/go-health"
+  version = "v2.1.0"

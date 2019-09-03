@@ -138,7 +138,7 @@ func (ps *Storage) updateSchema(migrationsURL, pgDriverName string) error {
 	return err
 }
 
-func (ps *Storage) Ping() error {
+func (ps *Storage) PingContext(ctx context.Context) error {
 	ps.checkOpen()
 	return ps.state.Get()
 }
@@ -218,7 +218,7 @@ func (ps *Storage) List(ctx context.Context, objType types.ObjectType, criteria 
 			return
 		}
 		if err := rows.Close(); err != nil {
-			log.C(ctx).Errorf("Could not release connection when checking database. Error: %s", err)
+			log.C(ctx).WithError(err).Error("Could not release connection when checking database")
 		}
 	}()
 	if err != nil {

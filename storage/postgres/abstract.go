@@ -214,7 +214,7 @@ func closeRows(ctx context.Context, rows *sqlx.Rows) {
 		return
 	}
 	if err := rows.Close(); err != nil {
-		log.C(ctx).WithError(err).Errorf("Could not release connection")
+		log.C(ctx).WithError(err).Error("Could not release connection")
 	}
 }
 

@@ -17,7 +17,10 @@
 package web_test
 
 import (
+	"context"
 	"net/http"
+
+	"github.com/Peripli/service-manager/pkg/log"
 
 	"net/http/httptest"
 	"strings"
@@ -27,7 +30,6 @@ import (
 	"github.com/Peripli/service-manager/test/testutil"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/sirupsen/logrus"
 )
 
 var _ = Describe("Filters", func() {
@@ -227,13 +229,18 @@ var _ = Describe("Filters", func() {
 		})
 
 		var filters []web.Filter
-		var level logrus.Level
+		var oldSettings log.Settings
 
 		BeforeEach(func() {
 			hook := &testutil.LogInterceptor{}
-			level = logrus.GetLevel()
-			logrus.SetLevel(logrus.DebugLevel)
-			logrus.AddHook(hook)
+			oldSettings = log.Configuration()
+			_, err := log.Configure(context.TODO(), &log.Settings{
+				Level:  "debug",
+				Format: "text",
+				Output: "/dev/stdout",
+			})
+			Expect(err).ToNot(HaveOccurred())
+			log.AddHook(hook)
 			filters = []web.Filter{
 				fakeFilter("filter1", loggingValidationMiddleware("", "filter1", "filter2", hook), []web.FilterMatcher{}),
 				fakeFilter("filter2", loggingValidationMiddleware("filter1", "filter2", "filter3", hook), []web.FilterMatcher{}),
@@ -241,7 +248,8 @@ var _ = Describe("Filters", func() {
 			}
 		})
 		AfterEach(func() {
-			logrus.SetLevel(level)
+			_, err := log.Configure(context.TODO(), &oldSettings)
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("executes all chained filters in the correct order", func() {

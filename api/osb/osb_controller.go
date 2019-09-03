@@ -27,6 +27,9 @@ import (
 	"net/url"
 	"regexp"
 
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
+
 	"github.com/sirupsen/logrus"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -123,15 +126,38 @@ func (c *Controller) proxy(r *web.Request, logger *logrus.Entry, broker *types.S
 
 	proxy.ServeHTTP(recorder, modifiedRequest)
 
-	respBody, err := ioutil.ReadAll(recorder.Body)
+	brokerResponseBody, err := ioutil.ReadAll(recorder.Body)
 	if err != nil {
 		return nil, err
+	}
+
+	responseBody := brokerResponseBody
+
+	if !gjson.ValidBytes(brokerResponseBody) {
+		recorder.Header().Set("Content-Type", "application/json")
+		responseBody, err = sjson.SetBytes(nil, "description", fmt.Sprintf("Service broker %s responded with invalid JSON: %s", broker.Name, brokerResponseBody))
+		if err != nil {
+			return nil, err
+		}
+	} else if recorder.Code > 399 || recorder.Code < 100 {
+		recorder.Header().Set("Content-Type", "application/json")
+		description := gjson.GetBytes(brokerResponseBody, "description").String()
+		if description == "" {
+			description = string(brokerResponseBody)
+		}
+		if !gjson.ParseBytes(brokerResponseBody).IsObject() {
+			brokerResponseBody = nil
+		}
+		responseBody, err = sjson.SetBytes(brokerResponseBody, "description", fmt.Sprintf("Service broker %s failed with: %s", broker.Name, description))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	resp := &web.Response{
 		StatusCode: recorder.Code,
 		Header:     recorder.Header(),
-		Body:       respBody,
+		Body:       responseBody,
 	}
 	return resp, nil
 }

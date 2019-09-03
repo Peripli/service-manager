@@ -18,12 +18,14 @@ package sm
 
 import (
 	"context"
-	"crypto/tls"
 	"database/sql"
 	"fmt"
-	"net"
 	"net/http"
 	"sync"
+
+	"github.com/Peripli/service-manager/pkg/health"
+
+	"github.com/Peripli/service-manager/pkg/httpclient"
 
 	"github.com/Peripli/service-manager/api/osb"
 
@@ -76,19 +78,13 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 		return nil, fmt.Errorf("error validating configuration: %s", err)
 	}
 
-	// Setup the default http client and transport
-	transport := http.DefaultTransport.(*http.Transport)
-
-	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: cfg.API.SkipSSLValidation}
-	transport.ResponseHeaderTimeout = cfg.HTTPClient.ResponseHeaderTimeout
-	transport.TLSHandshakeTimeout = cfg.HTTPClient.TLSHandshakeTimeout
-	transport.IdleConnTimeout = cfg.HTTPClient.IdleConnTimeout
-	transport.DialContext = (&net.Dialer{Timeout: cfg.HTTPClient.DialTimeout}).DialContext
-
-	http.DefaultClient.Transport = transport
+	httpclient.Configure(cfg.HTTPClient)
 
 	// Setup logging
-	ctx = log.Configure(ctx, cfg.Log)
+	ctx, err = log.Configure(ctx, cfg.Log)
+	if err != nil {
+		return nil, fmt.Errorf("error configuring logging,: %s", err)
+	}
 
 	util.HandleInterrupts(ctx, cancel)
 
@@ -132,7 +128,12 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 		return nil, fmt.Errorf("error creating core api: %s", err)
 	}
 
-	API.HealthIndicators = append(API.HealthIndicators, &storage.HealthIndicator{Pinger: storage.PingFunc(smStorage.Ping)})
+	storageHealthIndicator, err := storage.NewSQLHealthIndicator(storage.PingFunc(smStorage.PingContext))
+	if err != nil {
+		return nil, fmt.Errorf("error creating storage health indicator: %s", err)
+	}
+
+	API.HealthIndicators = append(API.HealthIndicators, storageHealthIndicator)
 
 	notificationCleaner := &storage.NotificationCleaner{
 		Storage:  interceptableRepository,
@@ -174,9 +175,11 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 
 // Build builds the Service Manager
 func (smb *ServiceManagerBuilder) Build() *ServiceManager {
-	// setup server and add relevant global middleware
-	smb.installHealth()
+	if err := smb.installHealth(); err != nil {
+		log.C(smb.ctx).Panic(err)
+	}
 
+	// setup server and add relevant global middleware
 	srv := server.New(smb.cfg.Server, smb.API)
 	srv.Use(filters.NewRecoveryMiddleware())
 
@@ -189,10 +192,27 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	}
 }
 
-func (smb *ServiceManagerBuilder) installHealth() {
-	if len(smb.HealthIndicators) > 0 {
-		smb.RegisterControllers(healthcheck.NewController(smb.HealthIndicators, smb.HealthAggregationPolicy))
+func (smb *ServiceManagerBuilder) installHealth() error {
+	healthz, thresholds, err := health.Configure(smb.ctx, smb.HealthIndicators, smb.cfg.Health)
+	if err != nil {
+		return err
 	}
+
+	smb.RegisterControllers(healthcheck.NewController(healthz, thresholds))
+
+	if err := healthz.Start(); err != nil {
+		return err
+	}
+
+	util.StartInWaitGroupWithContext(smb.ctx, func(c context.Context) {
+		<-c.Done()
+		log.C(c).Debug("Context cancelled. Stopping health checks...")
+		if err := healthz.Stop(); err != nil {
+			log.C(c).Error(err)
+		}
+	}, smb.wg)
+
+	return nil
 }
 
 // Run starts the Service Manager

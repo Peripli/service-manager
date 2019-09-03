@@ -342,7 +342,7 @@ func (n *Notificator) processNotifications(notificationChannel <-chan *pq.Notifi
 		case <-time.After(n.dbPingInterval):
 			log.C(n.ctx).Debugf("No notifications in %s. Pinging connection", time.Since(lastNotificationReceived))
 			if err := n.connection.Ping(); err != nil {
-				log.C(n.ctx).WithError(err).Errorf("Pinging connection failed. Closing all consumers...")
+				log.C(n.ctx).WithError(err).Error("Pinging connection failed. Closing all consumers...")
 				return
 			}
 		case <-processingContext.Done():

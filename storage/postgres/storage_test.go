@@ -70,7 +70,7 @@ var _ = Describe("Postgres Storage", func() {
 	Describe("Ping", func() {
 		Context("Called with uninitialized db", func() {
 			It("Should panic", func() {
-				Expect(func() { pgStorage.Ping() }).To(Panic())
+				Expect(func() { pgStorage.PingContext(context.Background()) }).To(Panic())
 			})
 		})
 	})
