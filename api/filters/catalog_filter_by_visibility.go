@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/Peripli/service-manager/api/osb"
+
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -55,37 +57,48 @@ func (vf *CatalogFilterByVisibility) Run(req *web.Request, next web.Handler) (*w
 		return res, nil
 	}
 
-	plansQuery, err := plansCriteria(ctx, vf.repository, platform.ID)
+	brokerID := req.PathParams[osb.BrokerIDPathParam]
+	offerings, err := vf.repository.List(ctx, types.ServiceOfferingType, query.ByField(query.EqualsOperator, "broker_id", brokerID))
 	if err != nil {
 		return nil, err
 	}
-	plans, err := vf.getPlans(ctx, plansQuery)
+	// TODO: If offerings is empty: return
+	offeringIDs := make([]string, 0, offerings.Len())
+	for i := 0; i < offerings.Len(); i++ {
+		offeringIDs = append(offeringIDs, offerings.ItemAt(i).GetID())
+	}
+
+	// TODO: If plans is empty: return?
+	plansList, err := vf.repository.List(ctx, types.ServicePlanType, query.ByField(query.InOperator, "service_offering_id", offeringIDs...))
 	if err != nil {
 		return nil, err
 	}
+	planIDs := make([]string, 0, plansList.Len())
+	for i := 0; i < plansList.Len(); i++ {
+		planIDs = append(planIDs, plansList.ItemAt(i).GetID())
+	}
 
-	var services []*types.ServiceOffering
-	if plansQuery != nil {
-		servicesQuery, err := servicesCriteria(ctx, vf.repository, plansQuery)
-		if err != nil {
-			return nil, err
+	plans := (plansList.(*types.ServicePlans)).ServicePlans
+	visibilitiesList, err := vf.repository.List(ctx, types.VisibilityType,
+		query.ByField(query.EqualsOrNilOperator, "platform_id", platform.ID),
+		query.ByField(query.InOperator, "service_plan_id", planIDs...))
+	if err != nil {
+		return nil, err
+	}
+	visibilities := (visibilitiesList.(*types.Visibilities)).Visibilities
+	visiblePlans := make(map[string]bool)
+	for _, v := range visibilities {
+		visiblePlans[v.ServicePlanID] = true
+	}
+
+	visibleCatalogPlans := make(map[string]bool)
+	for _, p := range plans {
+		if visiblePlans[p.ID] {
+			visibleCatalogPlans[p.CatalogID] = true
 		}
-		services, err = vf.getServices(ctx, servicesQuery)
-		if err != nil {
-			return nil, err
-		}
 	}
 
-	planIDs := make([]string, 0, len(plans))
-	for _, plan := range plans {
-		planIDs = append(planIDs, plan.ID)
-	}
-	offeringIDs := make([]string, 0, len(services))
-	for _, offering := range services {
-		offeringIDs = append(offeringIDs, offering.ID)
-	}
-
-	res.Body, err = deleteNotVisibleServices(ctx, vf.repository, res.Body, planIDs, offeringIDs)
+	res.Body, err = filterCatalogByVisiblePlans(res.Body, visibleCatalogPlans)
 	return res, err
 }
 
@@ -123,8 +136,7 @@ func plansCriteria(ctx context.Context, repository storage.Repository, platformI
 	return &c, nil
 }
 
-// deleteNotVisibleServices deletes the unsupported services from the catalog
-func deleteNotVisibleServices(ctx context.Context, repository storage.Repository, catalog []byte, visiblePlanIDs []string, visibleServiceIDs []string) ([]byte, error) {
+func filterCatalogByVisiblePlans(catalog []byte, visibleCatalogPlans map[string]bool) ([]byte, error) {
 	var err error
 	services := gjson.GetBytes(catalog, "services").Array()
 
@@ -133,13 +145,18 @@ func deleteNotVisibleServices(ctx context.Context, repository storage.Repository
 		servicePath := fmt.Sprintf(`services.%d`, i)
 		plans := services[i].Get("plans").Array()
 
-		catalog, err = deleteNotVisiblePlans(ctx, repository, plans, visiblePlanIDs, visibleServiceIDs, catalog, servicePath)
-		if err != nil {
-			return nil, err
+		for j := len(plans) - 1; j >= 0; j-- {
+			catalogPlanID := plans[j].Get("id").String()
+			if !visibleCatalogPlans[catalogPlanID] {
+				planPath := fmt.Sprintf(servicePath+`.plans.%d`, j)
+				catalog, err = sjson.DeleteBytes(catalog, planPath)
+				if err != nil {
+					return nil, err
+				}
+			}
 		}
 
-		plans = gjson.GetBytes(catalog, servicePath+".plans").Array()
-		if len(plans) == 0 {
+		if len(gjson.GetBytes(catalog, servicePath+".plans").Array()) == 0 {
 			catalog, err = sjson.DeleteBytes(catalog, servicePath)
 			if err != nil {
 				return nil, err
@@ -147,58 +164,7 @@ func deleteNotVisibleServices(ctx context.Context, repository storage.Repository
 		}
 	}
 
-	return catalog, err
-
-}
-
-func deleteNotVisiblePlans(ctx context.Context, repository storage.Repository, plans []gjson.Result, visiblePlanIDs []string, visibleServiceIDs []string, catalog []byte, servicePath string) ([]byte, error) {
-	// loop plans in reverse order to ease the removal of elements
-	for j := len(plans) - 1; j >= 0; j-- {
-		isSupported, err := isPlanVisible(ctx, repository, plans[j], visiblePlanIDs, visibleServiceIDs)
-		if err != nil {
-			return nil, err
-		}
-		if !isSupported {
-			planPath := fmt.Sprintf(servicePath+`.plans.%d`, j)
-			var err error
-			catalog, err = sjson.DeleteBytes(catalog, planPath)
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
 	return catalog, nil
-}
-
-func isPlanVisible(ctx context.Context, repository storage.Repository, plan gjson.Result, visiblePlanIDs []string, visibleServiceIDs []string) (bool, error) {
-	if len(visiblePlanIDs) < 1 || len(visibleServiceIDs) < 1 {
-		return false, nil
-	}
-	catalogPlanID := plan.Get("id").String()
-	list, err := repository.List(ctx, types.ServicePlanType,
-		query.ByField(query.InOperator, "id", visiblePlanIDs...),
-		query.ByField(query.InOperator, "service_offering_id", visibleServiceIDs...),
-		query.ByField(query.EqualsOperator, "catalog_id", catalogPlanID))
-	if err != nil {
-		return false, err
-	}
-	return list.Len() > 0, nil
-}
-
-func (vf *CatalogFilterByVisibility) getPlans(ctx context.Context, q *query.Criterion) ([]*types.ServicePlan, error) {
-	if q == nil {
-		return nil, nil
-	}
-	list, err := vf.repository.List(ctx, types.ServicePlanType, *q)
-	return (list.(*types.ServicePlans)).ServicePlans, err
-}
-
-func (vf *CatalogFilterByVisibility) getServices(ctx context.Context, q *query.Criterion) ([]*types.ServiceOffering, error) {
-	if q == nil {
-		return nil, nil
-	}
-	list, err := vf.repository.List(ctx, types.ServiceOfferingType, *q)
-	return (list.(*types.ServiceOfferings)).ServiceOfferings, err
 }
 
 func (vf *CatalogFilterByVisibility) FilterMatchers() []web.FilterMatcher {
