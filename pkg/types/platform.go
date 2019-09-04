@@ -23,6 +23,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
+const K8sPlatformType string = "kubernetes"
+
 //go:generate smgen api Platform
 // Platform platform struct
 type Platform struct {

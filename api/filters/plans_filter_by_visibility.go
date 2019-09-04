@@ -18,9 +18,9 @@ const PlanVisibilityFilterName = "PlanFilterByVisibility"
 func NewPlanFilterByVisibility(repository storage.Repository) *PlanFilterByVisibility {
 	return &PlanFilterByVisibility{
 		visibilityFilteringMiddleware: &visibilityFilteringMiddleware{
-			MultiResourceFilterFunc:  newPlansFilterFunc(repository),
-			SingleResourceFilterFunc: newSinglePlanFilterFunc(repository),
-			EmptyResourceArrayFunc: func() types.ObjectList {
+			ListResourcesCriteria: newPlansFilterFunc(repository),
+			IsResourceVisible:     newSinglePlanFilterFunc(repository),
+			EmptyObjectListProvider: func() types.ObjectList {
 				return &types.ServicePlans{
 					ServicePlans: []*types.ServicePlan{},
 				}

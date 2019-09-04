@@ -17,9 +17,9 @@ const ServicesVisibilityFilterName = "ServicesFilterByVisibility"
 func NewServicesFilterByVisibility(repository storage.Repository) *ServicesFilterByVisibility {
 	return &ServicesFilterByVisibility{
 		visibilityFilteringMiddleware: &visibilityFilteringMiddleware{
-			MultiResourceFilterFunc:  newServicesFilterFunc(repository),
-			SingleResourceFilterFunc: newSingleServiceFilterFunc(repository),
-			EmptyResourceArrayFunc: func() types.ObjectList {
+			ListResourcesCriteria: newServicesFilterFunc(repository),
+			IsResourceVisible:     newSingleServiceFilterFunc(repository),
+			EmptyObjectListProvider: func() types.ObjectList {
 				return &types.ServiceOfferings{
 					ServiceOfferings: []*types.ServiceOffering{},
 				}

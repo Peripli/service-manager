@@ -15,12 +15,10 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-const k8sPlatformType string = "kubernetes"
-
 type visibilityFilteringMiddleware struct {
-	SingleResourceFilterFunc func(ctx context.Context, resourceID, platformID string) (bool, error)
-	MultiResourceFilterFunc  func(ctx context.Context, platformID string) (*query.Criterion, error)
-	EmptyResourceArrayFunc   func() types.ObjectList
+	IsResourceVisible       func(ctx context.Context, resourceID, platformID string) (bool, error)
+	ListResourcesCriteria   func(ctx context.Context, platformID string) (*query.Criterion, error)
+	EmptyObjectListProvider func() types.ObjectList
 }
 
 func (m visibilityFilteringMiddleware) Run(req *web.Request, next web.Handler) (*web.Response, error) {
@@ -37,7 +35,7 @@ func (m visibilityFilteringMiddleware) Run(req *web.Request, next web.Handler) (
 	if err := userCtx.Data(platform); err != nil {
 		return nil, err
 	}
-	if platform.Type != k8sPlatformType {
+	if platform.Type != types.K8sPlatformType {
 		log.C(ctx).Debugf("Platform type is %s, which is not kubernetes. Skip filtering on visibilities", platform.Type)
 		return next.Handle(req)
 	}
@@ -48,26 +46,25 @@ func (m visibilityFilteringMiddleware) Run(req *web.Request, next web.Handler) (
 	var finalQuery *query.Criterion
 
 	if isSingleResource {
-		foundResource, err := m.SingleResourceFilterFunc(ctx, resourceID, platform.ID)
-		if err != nil {
+		if isResourceVisible, err := m.IsResourceVisible(ctx, resourceID, platform.ID); err != nil {
 			return nil, err
+		} else if !isResourceVisible {
+			return nil, &util.HTTPError{
+				ErrorType:   "NotFound",
+				Description: fmt.Sprintf("could not find resource"),
+				StatusCode:  http.StatusNotFound,
+			}
 		}
-		if foundResource {
-			return next.Handle(req)
-		}
-		return nil, &util.HTTPError{
-			ErrorType:   "NotFound",
-			Description: fmt.Sprintf("could not find resource"),
-			StatusCode:  http.StatusNotFound,
-		}
+
+		return next.Handle(req)
 	}
 
-	finalQuery, err = m.MultiResourceFilterFunc(ctx, platform.ID)
+	finalQuery, err = m.ListResourcesCriteria(ctx, platform.ID)
 	if err != nil {
 		return nil, err
 	}
 	if finalQuery == nil {
-		return util.NewJSONResponse(http.StatusOK, m.EmptyResourceArrayFunc())
+		return util.NewJSONResponse(http.StatusOK, m.EmptyObjectListProvider())
 	}
 
 	criterion := query.CriteriaForContext(ctx)
@@ -97,7 +94,7 @@ func (m visibilityFilteringMiddleware) Run(req *web.Request, next web.Handler) (
 			}
 
 			if len(criterion[i].RightOp) == 0 {
-				return util.NewJSONResponse(http.StatusOK, m.EmptyResourceArrayFunc())
+				return util.NewJSONResponse(http.StatusOK, m.EmptyObjectListProvider())
 			}
 		}
 	}

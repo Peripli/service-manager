@@ -1,4 +1,4 @@
-package filters
+package plugins
 
 import (
 	"context"
@@ -18,47 +18,49 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
-const CatalogFilterByVisibilityName = "CatalogFilterByVisibility"
+const CatalogFilterByVisibilityPluginName = "CatalogFilterByVisibilityPlugin"
 
-func NewCatalogFilterByVisibility(repository storage.Repository) *CatalogFilterByVisibility {
-	return &CatalogFilterByVisibility{
+func NewCatalogFilterByVisibilityPlugin(repository storage.Repository) *CatalogFilterByVisibilityPlugin {
+	return &CatalogFilterByVisibilityPlugin{
 		repository: repository,
 	}
 }
 
-type CatalogFilterByVisibility struct {
+func (c *CatalogFilterByVisibilityPlugin) Name() string {
+	return CatalogFilterByVisibilityPluginName
+}
+
+type CatalogFilterByVisibilityPlugin struct {
 	repository storage.Repository
 }
 
-func (vf *CatalogFilterByVisibility) Run(req *web.Request, next web.Handler) (*web.Response, error) {
+func (c *CatalogFilterByVisibilityPlugin) FetchCatalog(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 	userCtx, ok := web.UserFromContext(ctx)
 	if !ok {
 		return nil, errors.New("no user found")
 	}
+
+	res, err := next.Handle(req)
+	if err != nil || res.StatusCode != http.StatusOK {
+		return res, err
+	}
+
 	if userCtx.AuthenticationType != web.Basic {
-		log.C(ctx).Debugf("Authentication is %s, not basic so proceed without visibility filter criteria", userCtx.AuthenticationType)
-		return next.Handle(req)
+		log.C(ctx).Debugf("Authentication is %s, not basic. Skip filtering on visibilities", userCtx.AuthenticationType)
+		return res, nil
 	}
 	platform := &types.Platform{}
 	if err := userCtx.Data(platform); err != nil {
 		return nil, err
 	}
-	if platform.Type != k8sPlatformType {
+	if platform.Type != types.K8sPlatformType {
 		log.C(ctx).Debugf("Platform type is %s, which is not kubernetes. Skip filtering on visibilities", platform.Type)
 		return next.Handle(req)
 	}
 
-	res, err := next.Handle(req)
-	if err != nil {
-		return nil, err
-	}
-	if res.StatusCode != http.StatusOK {
-		return res, nil
-	}
-
 	brokerID := req.PathParams[osb.BrokerIDPathParam]
-	visibleCatalogPlans, err := getVisiblePlansByBrokerIDAndPlatformID(ctx, vf.repository, brokerID, platform.ID)
+	visibleCatalogPlans, err := getVisiblePlansByBrokerIDAndPlatformID(ctx, c.repository, brokerID, platform.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -119,40 +121,6 @@ func getOfferingIDsByBrokerID(ctx context.Context, repository storage.Repository
 	return offeringIDs, nil
 }
 
-func servicesCriteria(ctx context.Context, repository storage.Repository, planQuery *query.Criterion) (*query.Criterion, error) {
-	objectList, err := repository.List(ctx, types.ServicePlanType, *planQuery)
-	if err != nil {
-		return nil, err
-	}
-	plans := objectList.(*types.ServicePlans)
-	if plans.Len() < 1 {
-		return nil, nil
-	}
-	serviceIDs := make([]string, 0, plans.Len())
-	for _, p := range plans.ServicePlans {
-		serviceIDs = append(serviceIDs, p.ServiceOfferingID)
-	}
-	c := query.ByField(query.InOperator, "id", serviceIDs...)
-	return &c, nil
-}
-
-func plansCriteria(ctx context.Context, repository storage.Repository, platformID string) (*query.Criterion, error) {
-	objectList, err := repository.List(ctx, types.VisibilityType, query.ByField(query.EqualsOrNilOperator, "platform_id", platformID))
-	if err != nil {
-		return nil, err
-	}
-	visibilityList := objectList.(*types.Visibilities)
-	if visibilityList.Len() < 1 {
-		return nil, nil
-	}
-	planIDs := make([]string, 0, visibilityList.Len())
-	for _, vis := range visibilityList.Visibilities {
-		planIDs = append(planIDs, vis.ServicePlanID)
-	}
-	c := query.ByField(query.InOperator, "id", planIDs...)
-	return &c, nil
-}
-
 func filterCatalogByVisiblePlans(catalog []byte, visibleCatalogPlans map[string]bool) ([]byte, error) {
 	var err error
 	services := gjson.GetBytes(catalog, "services").Array()
@@ -182,19 +150,4 @@ func filterCatalogByVisiblePlans(catalog []byte, visibleCatalogPlans map[string]
 	}
 
 	return catalog, nil
-}
-
-func (vf *CatalogFilterByVisibility) FilterMatchers() []web.FilterMatcher {
-	return []web.FilterMatcher{
-		{
-			Matchers: []web.Matcher{
-				web.Path(web.OSBURL + "/*/v2/catalog"),
-				web.Methods(http.MethodGet),
-			},
-		},
-	}
-}
-
-func (vf *CatalogFilterByVisibility) Name() string {
-	return CatalogFilterByVisibilityName
 }

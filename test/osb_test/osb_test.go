@@ -345,10 +345,10 @@ var _ = Describe("Service Manager OSB API", func() {
 			})
 		})
 
-		Describe("filtering", func() {
+		Describe("filtering catalog for k8s platform based on visibilities", func() {
 			var brokerID string
-			var plan1, plan2 string
-			var plan1ID, plan1CatalogID, plan2ID, plan2CatalogID string
+			var plan1, plan2, plan3 string
+			var plan1ID, plan1CatalogID, plan2ID, plan2CatalogID, plan3ID, plan3CatalogID string
 			var k8sPlatform *types.Platform
 			var k8sAgent *httpexpect.Expect
 
@@ -357,6 +357,16 @@ var _ = Describe("Service Manager OSB API", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(plans.Len()).To(BeNumerically("==", 1))
 				return plans.ItemAt(0).GetID()
+			}
+
+			assertBrokerPlansVisibleForPlatform := func(brokerID string, agent *httpexpect.Expect, plans ...interface{}) {
+				result := agent.GET(fmt.Sprintf("%s/%s/v2/catalog", web.OSBURL, brokerID)).
+					Expect().Status(http.StatusOK).JSON()
+
+				result.Path("$.services[*].plans[*].id").Array().Length().Equal(len(plans))
+				if len(plans) > 0 {
+					result.Path("$.services[*].plans[*].id").Array().ContainsOnly(plans...)
+				}
 			}
 
 			BeforeEach(func() {
@@ -370,13 +380,17 @@ var _ = Describe("Service Manager OSB API", func() {
 				catalog := common.NewEmptySBCatalog()
 				plan1 = common.GenerateFreeTestPlan()
 				plan2 = common.GenerateTestPlan()
+				plan3 = common.GenerateTestPlan()
 				catalog.AddService(common.GenerateTestServiceWithPlans(plan1, plan2))
+				catalog.AddService(common.GenerateTestServiceWithPlans(plan3))
 				brokerID, _, _ = ctx.RegisterBrokerWithCatalog(catalog)
 
 				plan1CatalogID = gjson.Get(plan1, "id").String()
 				plan2CatalogID = gjson.Get(plan2, "id").String()
+				plan3CatalogID = gjson.Get(plan3, "id").String()
 				plan1ID = getSMPlanIDByCatalogID(plan1CatalogID)
 				plan2ID = getSMPlanIDByCatalogID(plan2CatalogID)
+				plan3ID = getSMPlanIDByCatalogID(plan3CatalogID)
 			})
 
 			AfterEach(func() {
@@ -387,31 +401,57 @@ var _ = Describe("Service Manager OSB API", func() {
 
 			Context("for platform with no visibilities", func() {
 				It("should return empty services catalog", func() {
-					k8sAgent.GET(fmt.Sprintf("%s/%s/v2/catalog", web.OSBURL, brokerID)).
-						Expect().Status(http.StatusOK).JSON().Object().Value("services").Array().Length().Equal(0)
+					assertBrokerPlansVisibleForPlatform(brokerID, k8sAgent)
 				})
 			})
 
-			Context("for platform with public visibility for one plan", func() {
-				It("should return only the plan with visibility", func() {
+			Context("for cloud foundry platform", func() {
+				It("should return all services and plans, no matter the visibilities", func() {
+					assertBrokerPlansVisibleForPlatform(brokerID, ctx.SMWithBasic, plan1CatalogID, plan2CatalogID, plan3CatalogID)
+				})
+			})
+
+			Context("for platform with visibilities for 2 plans from 2 services", func() {
+				It("should return 2 plans", func() {
+					assertBrokerPlansVisibleForPlatform(brokerID, k8sAgent)
+
 					ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
 						"service_plan_id": plan1ID,
+						"platform_id":     k8sPlatform.ID,
 					}).Expect().Status(http.StatusCreated)
-					result := k8sAgent.GET(fmt.Sprintf("%s/%s/v2/catalog", web.OSBURL, brokerID)).
-						Expect().Status(http.StatusOK).JSON().Object().Value("services").Array().First().Object().Value("plans").Array()
-					result.First().Object().ValueEqual("id", plan1CatalogID)
-					result.Length().Equal(1)
+					ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
+						"service_plan_id": plan3ID,
+						"platform_id":     k8sPlatform.ID,
+					}).Expect().Status(http.StatusCreated)
 
-					By("adding another visibility for the platform")
+					assertBrokerPlansVisibleForPlatform(brokerID, k8sAgent, plan3CatalogID, plan1CatalogID)
+				})
+			})
+
+			Context("for platform with non-public visibility for one plan", func() {
+				It("should return 1 plan", func() {
+					assertBrokerPlansVisibleForPlatform(brokerID, k8sAgent)
+
 					ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
 						"service_plan_id": plan2ID,
 						"platform_id":     k8sPlatform.ID,
 					}).Expect().Status(http.StatusCreated)
-					result = k8sAgent.GET(fmt.Sprintf("%s/%s/v2/catalog", web.OSBURL, brokerID)).
-						Expect().Status(http.StatusOK).JSON().Object().Value("services").Array().First().Object().Value("plans").Array()
-					result.First().Object().ValueEqual("id", plan1CatalogID)
-					result.Element(1).Object().ValueEqual("id", plan2CatalogID)
-					result.Length().Equal(2)
+
+					assertBrokerPlansVisibleForPlatform(brokerID, k8sAgent, plan2CatalogID)
+				})
+			})
+
+			Context("for platform with public visibility for one plan", func() {
+				It("should return 1 plan", func() {
+					assertBrokerPlansVisibleForPlatform(brokerID, k8sAgent)
+
+					k8sAgent.GET(fmt.Sprintf("%s/%s/v2/catalog", web.OSBURL, brokerID)).
+						Expect().Status(http.StatusOK).JSON().Object().Value("services").Array().Empty()
+
+					ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
+						"service_plan_id": plan1ID,
+					}).Expect().Status(http.StatusCreated)
+					assertBrokerPlansVisibleForPlatform(brokerID, k8sAgent, plan1CatalogID)
 				})
 			})
 		})
