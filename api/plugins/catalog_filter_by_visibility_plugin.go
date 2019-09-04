@@ -42,6 +42,7 @@ func (c *CatalogFilterByVisibilityPlugin) FetchCatalog(req *web.Request, next we
 	}
 
 	res, err := next.Handle(req)
+
 	if err != nil || res.StatusCode != http.StatusOK {
 		return res, err
 	}
@@ -56,7 +57,7 @@ func (c *CatalogFilterByVisibilityPlugin) FetchCatalog(req *web.Request, next we
 	}
 	if platform.Type != types.K8sPlatformType {
 		log.C(ctx).Debugf("Platform type is %s, which is not kubernetes. Skip filtering on visibilities", platform.Type)
-		return next.Handle(req)
+		return res, nil
 	}
 
 	brokerID := req.PathParams[osb.BrokerIDPathParam]

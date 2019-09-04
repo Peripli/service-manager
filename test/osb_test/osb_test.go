@@ -361,11 +361,11 @@ var _ = Describe("Service Manager OSB API", func() {
 
 			assertBrokerPlansVisibleForPlatform := func(brokerID string, agent *httpexpect.Expect, plans ...interface{}) {
 				result := agent.GET(fmt.Sprintf("%s/%s/v2/catalog", web.OSBURL, brokerID)).
-					Expect().Status(http.StatusOK).JSON()
+					Expect().Status(http.StatusOK).JSON().Path("$.services[*].plans[*].id").Array()
 
-				result.Path("$.services[*].plans[*].id").Array().Length().Equal(len(plans))
+				result.Length().Equal(len(plans))
 				if len(plans) > 0 {
-					result.Path("$.services[*].plans[*].id").Array().ContainsOnly(plans...)
+					result.ContainsOnly(plans...)
 				}
 			}
 
