@@ -58,19 +58,23 @@ func (vf *CatalogFilterByVisibility) Run(req *web.Request, next web.Handler) (*w
 	}
 
 	brokerID := req.PathParams[osb.BrokerIDPathParam]
-	offerings, err := vf.repository.List(ctx, types.ServiceOfferingType, query.ByField(query.EqualsOperator, "broker_id", brokerID))
+	visibleCatalogPlans, err := getVisiblePlansByBrokerIDAndPlatformID(ctx, vf.repository, brokerID, platform.ID)
 	if err != nil {
 		return nil, err
 	}
-	// TODO: If offerings is empty: return
-	offeringIDs := make([]string, 0, offerings.Len())
-	for i := 0; i < offerings.Len(); i++ {
-		offeringIDs = append(offeringIDs, offerings.ItemAt(i).GetID())
+	res.Body, err = filterCatalogByVisiblePlans(res.Body, visibleCatalogPlans)
+	return res, err
+}
+
+func getVisiblePlansByBrokerIDAndPlatformID(ctx context.Context, repository storage.Repository, brokerID, platformID string) (map[string]bool, error) {
+	offeringIDs, err := getOfferingIDsByBrokerID(ctx, repository, brokerID)
+	if err != nil {
+		return nil, err
 	}
 
-	// TODO: If plans is empty: return?
-	plansList, err := vf.repository.List(ctx, types.ServicePlanType, query.ByField(query.InOperator, "service_offering_id", offeringIDs...))
+	plansList, err := repository.List(ctx, types.ServicePlanType, query.ByField(query.InOperator, "service_offering_id", offeringIDs...))
 	if err != nil {
+		log.C(ctx).Errorf("Could not get %s: %v", types.ServicePlanType, err)
 		return nil, err
 	}
 	planIDs := make([]string, 0, plansList.Len())
@@ -78,11 +82,11 @@ func (vf *CatalogFilterByVisibility) Run(req *web.Request, next web.Handler) (*w
 		planIDs = append(planIDs, plansList.ItemAt(i).GetID())
 	}
 
-	plans := (plansList.(*types.ServicePlans)).ServicePlans
-	visibilitiesList, err := vf.repository.List(ctx, types.VisibilityType,
-		query.ByField(query.EqualsOrNilOperator, "platform_id", platform.ID),
+	visibilitiesList, err := repository.List(ctx, types.VisibilityType,
+		query.ByField(query.EqualsOrNilOperator, "platform_id", platformID),
 		query.ByField(query.InOperator, "service_plan_id", planIDs...))
 	if err != nil {
+		log.C(ctx).Errorf("Could not get %s: %v", types.VisibilityType, err)
 		return nil, err
 	}
 	visibilities := (visibilitiesList.(*types.Visibilities)).Visibilities
@@ -91,15 +95,28 @@ func (vf *CatalogFilterByVisibility) Run(req *web.Request, next web.Handler) (*w
 		visiblePlans[v.ServicePlanID] = true
 	}
 
+	plans := (plansList.(*types.ServicePlans)).ServicePlans
 	visibleCatalogPlans := make(map[string]bool)
 	for _, p := range plans {
 		if visiblePlans[p.ID] {
 			visibleCatalogPlans[p.CatalogID] = true
 		}
 	}
+	return visibleCatalogPlans, nil
+}
 
-	res.Body, err = filterCatalogByVisiblePlans(res.Body, visibleCatalogPlans)
-	return res, err
+func getOfferingIDsByBrokerID(ctx context.Context, repository storage.Repository, brokerID string) ([]string, error) {
+	offerings, err := repository.List(ctx, types.ServiceOfferingType, query.ByField(query.EqualsOperator, "broker_id", brokerID))
+	if err != nil {
+		log.C(ctx).Errorf("Could not get %s: %v", types.ServiceOfferingType, err)
+		return nil, err
+	}
+
+	offeringIDs := make([]string, 0, offerings.Len())
+	for i := 0; i < offerings.Len(); i++ {
+		offeringIDs = append(offeringIDs, offerings.ItemAt(i).GetID())
+	}
+	return offeringIDs, nil
 }
 
 func servicesCriteria(ctx context.Context, repository storage.Repository, planQuery *query.Criterion) (*query.Criterion, error) {

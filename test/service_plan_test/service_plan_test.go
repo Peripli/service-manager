@@ -197,6 +197,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								result.First().Object().ValueEqual("id", planID1)
 							})
 
+							It("should return empty plan list with id equal not visible plan field query", func() {
+								result := k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "id = "+planID2).
+									Expect().
+									Status(http.StatusOK).JSON().Object().Value("service_plans").Array()
+								result.Length().Equal(0)
+							})
+
 							It("should return only empty plan list with id not in field query", func() {
 								result := k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "id notin ["+planID1+"]").
 									Expect().
@@ -221,6 +228,19 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								result.First().Object().ValueEqual("id", planID1)
 							})
 
+							It("should return only one plan with catalog_name not in query", func() {
+								plan1CatalogName := plan["catalog_name"].(string)
+								result := k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "catalog_name notin ["+plan1CatalogName+"]").
+									Expect().
+									Status(http.StatusOK).JSON().Object().Value("service_plans").Array()
+								result.Length().Equal(0)
+							})
+
+							It("should return error when using unsupported field operators", func() {
+								k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "id gt 1").
+									Expect().
+									Status(http.StatusBadRequest).JSON().Object().ValueEqual("description", "Unsupported fieldQuery operator gt for id")
+							})
 						})
 
 					})

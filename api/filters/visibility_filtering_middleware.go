@@ -75,15 +75,25 @@ func (m visibilityFilteringMiddleware) Run(req *web.Request, next web.Handler) (
 	for i, c := range criterion {
 		if c.LeftOp == "id" {
 			merged = true
-			if c.Operator == query.EqualsOperator ||
-				c.Operator == query.EqualsOrNilOperator ||
-				c.Operator == query.InOperator {
-
+			switch c.Operator {
+			case query.EqualsOperator:
+				fallthrough
+			case query.EqualsOrNilOperator:
+				fallthrough
+			case query.InOperator:
 				finalQuery.RightOp = intersect(finalQuery.RightOp, c.RightOp)
 				criterion[i] = *finalQuery
-			} else if c.Operator == query.NotEqualsOperator || c.Operator == query.NotInOperator {
+			case query.NotEqualsOperator:
+				fallthrough
+			case query.NotInOperator:
 				finalQuery.RightOp = subtract(finalQuery.RightOp, c.RightOp)
 				criterion[i] = *finalQuery
+			default:
+				return nil, &util.HTTPError{
+					ErrorType:   "BadRequest",
+					Description: fmt.Sprintf("Unsupported fieldQuery operator %s for id", c.Operator),
+					StatusCode:  http.StatusBadRequest,
+				}
 			}
 
 			if len(criterion[i].RightOp) == 0 {
