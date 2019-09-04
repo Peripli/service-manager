@@ -15,11 +15,11 @@ import (
 
 const PlanVisibilityFilterName = "PlanFilterByVisibility"
 
-func NewPlanFilterByVisibility(repository storage.Repository) *PlanFilterByVisibility {
+func NewPlansFilterByVisibility(repository storage.Repository) *PlanFilterByVisibility {
 	return &PlanFilterByVisibility{
 		visibilityFilteringMiddleware: &visibilityFilteringMiddleware{
-			ListResourcesCriteria: newPlansFilterFunc(repository),
-			IsResourceVisible:     newSinglePlanFilterFunc(repository),
+			ListResourcesCriteria: plansCriteriaFunc(repository),
+			IsResourceVisible:     isPlanVisibile(repository),
 			EmptyObjectListProvider: func() types.ObjectList {
 				return &types.ServicePlans{
 					ServicePlans: []*types.ServicePlan{},
@@ -33,7 +33,7 @@ type PlanFilterByVisibility struct {
 	*visibilityFilteringMiddleware
 }
 
-func newSinglePlanFilterFunc(repository storage.Repository) func(ctx context.Context, planID, platformID string) (bool, error) {
+func isPlanVisibile(repository storage.Repository) func(ctx context.Context, planID, platformID string) (bool, error) {
 	return func(ctx context.Context, planID, platformID string) (bool, error) {
 		visibilities, err := repository.List(ctx, types.VisibilityType, query.ByField(query.EqualsOperator, "service_plan_id", planID),
 			query.ByField(query.EqualsOrNilOperator, "platform_id", platformID))
@@ -41,7 +41,7 @@ func newSinglePlanFilterFunc(repository storage.Repository) func(ctx context.Con
 	}
 }
 
-func newPlansFilterFunc(repository storage.Repository) func(context.Context, string) (*query.Criterion, error) {
+func plansCriteriaFunc(repository storage.Repository) func(context.Context, string) (*query.Criterion, error) {
 	return func(ctx context.Context, platformID string) (*query.Criterion, error) {
 		planQuery, err := plansCriteria(ctx, repository, platformID)
 		if err != nil {

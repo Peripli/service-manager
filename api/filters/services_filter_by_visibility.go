@@ -17,8 +17,8 @@ const ServicesVisibilityFilterName = "ServicesFilterByVisibility"
 func NewServicesFilterByVisibility(repository storage.Repository) *ServicesFilterByVisibility {
 	return &ServicesFilterByVisibility{
 		visibilityFilteringMiddleware: &visibilityFilteringMiddleware{
-			ListResourcesCriteria: newServicesFilterFunc(repository),
-			IsResourceVisible:     newSingleServiceFilterFunc(repository),
+			ListResourcesCriteria: servicesCriteriaFunc(repository),
+			IsResourceVisible:     isServiceVisible(repository),
 			EmptyObjectListProvider: func() types.ObjectList {
 				return &types.ServiceOfferings{
 					ServiceOfferings: []*types.ServiceOffering{},
@@ -32,7 +32,7 @@ type ServicesFilterByVisibility struct {
 	*visibilityFilteringMiddleware
 }
 
-func newSingleServiceFilterFunc(repository storage.Repository) func(ctx context.Context, serviceID, platformID string) (bool, error) {
+func isServiceVisible(repository storage.Repository) func(ctx context.Context, serviceID, platformID string) (bool, error) {
 	return func(ctx context.Context, serviceID, platformID string) (bool, error) {
 		plansList, err := repository.List(ctx, types.ServicePlanType, query.ByField(query.EqualsOperator, "service_offering_id", serviceID))
 		if err != nil {
@@ -49,7 +49,7 @@ func newSingleServiceFilterFunc(repository storage.Repository) func(ctx context.
 	}
 }
 
-func newServicesFilterFunc(repository storage.Repository) func(ctx context.Context, platformID string) (*query.Criterion, error) {
+func servicesCriteriaFunc(repository storage.Repository) func(ctx context.Context, platformID string) (*query.Criterion, error) {
 	return func(ctx context.Context, platformID string) (*query.Criterion, error) {
 		planQuery, err := plansCriteria(ctx, repository, platformID)
 		if err != nil {
