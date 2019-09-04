@@ -235,12 +235,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									Status(http.StatusOK).JSON().Object().Value("service_plans").Array()
 								result.Length().Equal(0)
 							})
-
-							It("should return error when using unsupported field operators", func() {
-								k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "id gt 1").
-									Expect().
-									Status(http.StatusBadRequest).JSON().Object().ValueEqual("description", "Unsupported fieldQuery operator gt for id")
-							})
 						})
 
 					})

@@ -67,42 +67,7 @@ func (m visibilityFilteringMiddleware) Run(req *web.Request, next web.Handler) (
 		return util.NewJSONResponse(http.StatusOK, m.EmptyObjectListProvider())
 	}
 
-	criterion := query.CriteriaForContext(ctx)
-	merged := false
-	for i, c := range criterion {
-		if c.LeftOp == "id" {
-			merged = true
-			switch c.Operator {
-			case query.EqualsOperator:
-				fallthrough
-			case query.EqualsOrNilOperator:
-				fallthrough
-			case query.InOperator:
-				finalQuery.RightOp = intersect(finalQuery.RightOp, c.RightOp)
-				criterion[i] = *finalQuery
-			case query.NotEqualsOperator:
-				fallthrough
-			case query.NotInOperator:
-				finalQuery.RightOp = subtract(finalQuery.RightOp, c.RightOp)
-				criterion[i] = *finalQuery
-			default:
-				return nil, &util.HTTPError{
-					ErrorType:   "BadRequest",
-					Description: fmt.Sprintf("Unsupported fieldQuery operator %s for id", c.Operator),
-					StatusCode:  http.StatusBadRequest,
-				}
-			}
-
-			if len(criterion[i].RightOp) == 0 {
-				return util.NewJSONResponse(http.StatusOK, m.EmptyObjectListProvider())
-			}
-		}
-	}
-	if !merged {
-		ctx, err = query.AddCriteria(ctx, *finalQuery)
-	} else {
-		ctx = query.ContextWithCriteria(ctx, criterion)
-	}
+	ctx, err = query.AddCriteria(ctx, *finalQuery)
 
 	if err != nil {
 		return nil, err

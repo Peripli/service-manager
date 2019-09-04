@@ -266,15 +266,6 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				expectedStatusCode: http.StatusBadRequest,
 			},
 		),
-		Entry("returns 400 when query is duplicated",
-			deleteOpEntry{
-				queryTemplate: "%[1]s = %[2]v|%[1]s = %[2]v",
-				queryArgs: func() common.Object {
-					return r[0]
-				},
-				expectedStatusCode: http.StatusBadRequest,
-			},
-		),
 		Entry("returns 400 when operator is not properly separated with right space from operands",
 			deleteOpEntry{
 				queryTemplate: "%s =%v",
