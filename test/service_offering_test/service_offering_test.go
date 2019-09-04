@@ -100,15 +100,16 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			})
 
 			Describe("GET", func() {
+				var k8sPlatform *types.Platform
+				var k8sAgent *httpexpect.Expect
+				var offering common.Object
+
 				getPlansByOffering := func(offeringID string) *types.ServicePlan {
 					plans, err := ctx.SMRepository.List(context.Background(), types.ServicePlanType, query.ByField(query.EqualsOperator, "service_offering_id", offeringID))
 					Expect(err).ShouldNot(HaveOccurred())
 					Expect(plans.Len()).To(BeNumerically(">", 0))
 					return (plans.(*types.ServicePlans)).ServicePlans[0]
 				}
-
-				var k8sPlatform *types.Platform
-				var k8sAgent *httpexpect.Expect
 
 				BeforeEach(func() {
 					k8sPlatformJSON := common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
@@ -117,106 +118,118 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						username, password := k8sPlatform.Credentials.Basic.Username, k8sPlatform.Credentials.Basic.Password
 						req.WithBasicAuth(username, password)
 					})
+					offering = blueprint(ctx, ctx.SMWithOAuth)
 				})
 
 				AfterEach(func() {
 					ctx.CleanupAdditionalResources()
 				})
 
-				It("With no visibilities for offering's plans", func() {
-					offering := blueprint(ctx, ctx.SMWithOAuth)
-					k8sAgent.GET(web.ServiceOfferingsURL).
-						Expect().
-						Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().Length().Equal(0)
-					k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering["id"].(string))).
-						Expect().
-						Status(http.StatusNotFound)
-				})
-
-				It("With visibility for offering's plan and empty platform", func() {
-					offering := blueprint(ctx, ctx.SMWithOAuth)
-					plan := getPlansByOffering(offering["id"].(string))
-
-					ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
-						"service_plan_id": plan.ID,
-					}).Expect().Status(http.StatusCreated)
-
-					k8sAgent.GET(web.ServiceOfferingsURL).
-						Expect().
-						Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().Length().Equal(1)
-					k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering["id"].(string))).
-						Expect().
-						Status(http.StatusOK).JSON().Object().ContainsMap(offering)
-				})
-
-				It("With visibility for offering's plan and the calling platform's id", func() {
-					offering := blueprint(ctx, ctx.SMWithOAuth)
-					plan := getPlansByOffering(offering["id"].(string))
-
-					ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
-						"service_plan_id": plan.ID,
-						"platform_id":     k8sPlatform.ID,
-					}).Expect().Status(http.StatusCreated)
-
-					k8sAgent.GET(web.ServiceOfferingsURL).
-						Expect().
-						Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().Length().Equal(1)
-					k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering["id"].(string))).
-						Expect().
-						Status(http.StatusOK).JSON().Object().ContainsMap(offering)
-				})
-
-				It("With visibility for offering's plan and NOT calling platform's id", func() {
-					offering := blueprint(ctx, ctx.SMWithOAuth)
-					plan := getPlansByOffering(offering["id"].(string))
-
-					otherPlatform := ctx.RegisterPlatform()
-					ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
-						"service_plan_id": plan.ID,
-						"platform_id":     otherPlatform.ID,
-					}).Expect().Status(http.StatusCreated)
-
-					k8sAgent.GET(web.ServiceOfferingsURL).
-						Expect().
-						Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().Length().Equal(0)
-					k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering["id"].(string))).
-						Expect().
-						Status(http.StatusNotFound)
-				})
-
-				Context("with 2 offerings", func() {
-					var offering1, offering2 common.Object
-					BeforeEach(func() {
-						offering1 = blueprint(ctx, ctx.SMWithOAuth)
-						offering2 = blueprint(ctx, ctx.SMWithOAuth)
-					})
-
-					It("With 2 offerings, but no visibilities, should not get either of them", func() {
-						k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering1["id"].(string))).
-							Expect().
-							Status(http.StatusNotFound)
-						k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering2["id"].(string))).
-							Expect().
-							Status(http.StatusNotFound)
+				Context("with no visibilities for offering's plans", func() {
+					It("should return not found", func() {
 						k8sAgent.GET(web.ServiceOfferingsURL).
 							Expect().
 							Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().Length().Equal(0)
+						k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering["id"].(string))).
+							Expect().
+							Status(http.StatusNotFound)
 					})
+				})
 
-					It("With 2 offerings, but visibility for one", func() {
-						plan := getPlansByOffering(offering1["id"].(string))
+				Context("with public visibility for offering's plan", func() {
+					It("should return one plan", func() {
+						plan := getPlansByOffering(offering["id"].(string))
+
 						ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
 							"service_plan_id": plan.ID,
 						}).Expect().Status(http.StatusCreated)
-						k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering1["id"].(string))).
-							Expect().
-							Status(http.StatusOK)
-						k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering2["id"].(string))).
-							Expect().
-							Status(http.StatusNotFound)
+
 						k8sAgent.GET(web.ServiceOfferingsURL).
 							Expect().
-							Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().Length().Equal(1)
+							Status(http.StatusOK).JSON().Path("$.service_offerings[*].id").Array().
+							ContainsOnly(offering["id"])
+
+						k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering["id"].(string))).
+							Expect().
+							Status(http.StatusOK).JSON().Object().ContainsMap(offering)
+					})
+				})
+
+				Context("with visibility for platform and plan of the offering", func() {
+					It("should return the offering", func() {
+						plan := getPlansByOffering(offering["id"].(string))
+
+						ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
+							"service_plan_id": plan.ID,
+							"platform_id":     k8sPlatform.ID,
+						}).Expect().Status(http.StatusCreated)
+
+						k8sAgent.GET(web.ServiceOfferingsURL).
+							Expect().
+							Status(http.StatusOK).JSON().Path("$.service_offerings[*].id").Array().
+							ContainsOnly(offering["id"])
+						k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering["id"].(string))).
+							Expect().
+							Status(http.StatusOK).JSON().Object().ContainsMap(offering)
+					})
+				})
+
+				Context("with visibility for other platform", func() {
+					It("should not return the offering for this platform", func() {
+						plan := getPlansByOffering(offering["id"].(string))
+
+						otherPlatform := ctx.RegisterPlatform()
+						ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
+							"service_plan_id": plan.ID,
+							"platform_id":     otherPlatform.ID,
+						}).Expect().Status(http.StatusCreated)
+
+						k8sAgent.GET(web.ServiceOfferingsURL).
+							Expect().
+							Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().Length().Equal(0)
+						k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering["id"].(string))).
+							Expect().
+							Status(http.StatusNotFound)
+					})
+				})
+
+				Context("with additional offerings", func() {
+					var offering2 common.Object
+					BeforeEach(func() {
+						offering2 = blueprint(ctx, ctx.SMWithOAuth)
+					})
+
+					Context("but no visibilities", func() {
+						It("should not get either of them", func() {
+							k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering["id"].(string))).
+								Expect().
+								Status(http.StatusNotFound)
+							k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering2["id"].(string))).
+								Expect().
+								Status(http.StatusNotFound)
+							k8sAgent.GET(web.ServiceOfferingsURL).
+								Expect().
+								Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().Length().Equal(0)
+						})
+					})
+
+					Context("but visibility for one", func() {
+						It("should return the one with visibility", func() {
+							plan := getPlansByOffering(offering["id"].(string))
+							ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
+								"service_plan_id": plan.ID,
+							}).Expect().Status(http.StatusCreated)
+							k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering["id"].(string))).
+								Expect().
+								Status(http.StatusOK)
+							k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offering2["id"].(string))).
+								Expect().
+								Status(http.StatusNotFound)
+							k8sAgent.GET(web.ServiceOfferingsURL).
+								Expect().
+								Status(http.StatusOK).JSON().Path("$.service_offerings[*].id").Array().
+								ContainsOnly(offering["id"])
+						})
 					})
 				})
 			})
