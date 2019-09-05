@@ -235,7 +235,6 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 				expectedStatusCode:        http.StatusOK,
 			},
 		),
-
 		Entry("returns 400 when query operator is invalid",
 			listOpEntry{
 				queryTemplate:      "%s @@ %v",

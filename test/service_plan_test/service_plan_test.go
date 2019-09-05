@@ -113,33 +113,40 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					ctx.CleanupAdditionalResources()
 				})
 
-				Context("for plan", func() {
+				Context("filtering plans for k8s platforms", func() {
 					var plan common.Object
 					BeforeEach(func() {
 						plan = blueprint(ctx, ctx.SMWithOAuth)
 					})
 
-					It("with no visibilities", func() {
-						k8sAgent.GET(web.ServicePlansURL).
-							Expect().
-							Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(0)
+					Context("with no visibilities", func() {
+						It("should return empty plans", func() {
+							k8sAgent.GET(web.ServicePlansURL).
+								Expect().
+								Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(0)
+						})
 					})
 
-					It("with visibility for plan and empty platform", func() {
-						ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
-							"service_plan_id": plan["id"].(string),
-						}).Expect().Status(http.StatusCreated)
-						k8sAgent.GET(web.ServicePlansURL).
-							Expect().
-							Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(1)
+					Context("with public visibility for plan", func() {
+						It("should return only this plan", func() {
+							ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
+								"service_plan_id": plan["id"].(string),
+							}).Expect().Status(http.StatusCreated)
+							k8sAgent.GET(web.ServicePlansURL).
+								Expect().
+								Status(http.StatusOK).JSON().Path("$.service_plans[*].id").Array().
+								ContainsOnly(plan["id"])
+						})
 					})
 
-					It("list with field query catalog_name for not visible plan", func() {
-						planCatalogName := plan["catalog_name"].(string)
-						Expect(planCatalogName).To(Not(BeEmpty()))
-						k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "catalog_name = "+planCatalogName).
-							Expect().
-							Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(0)
+					Context("with field query catalog name for not visible plan", func() {
+						It("should return empty plans", func() {
+							planCatalogName := plan["catalog_name"].(string)
+							Expect(planCatalogName).To(Not(BeEmpty()))
+							k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "catalog_name = "+planCatalogName).
+								Expect().
+								Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(0)
+						})
 					})
 
 					It("list with field query plan id for not visible plan", func() {
@@ -156,7 +163,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							plan2 = blueprint(ctx, ctx.SMWithOAuth)
 						})
 
-						It("should not get either of them when no visibilities are present", func() {
+						It("should not return either of them when no visibilities are present", func() {
 							k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServicePlansURL, plan["id"].(string))).
 								Expect().
 								Status(http.StatusNotFound)
@@ -186,54 +193,52 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									Status(http.StatusNotFound)
 								k8sAgent.GET(web.ServicePlansURL).
 									Expect().
-									Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(1)
+									Status(http.StatusOK).JSON().Path("$.service_plans[*].id").
+									Array().
+									ContainsOnly(planID1)
 							})
 
 							It("should return only one plan with id in field query", func() {
-								result := k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "id in ["+planID1+"||"+planID2+"]").
+								k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "id in ["+planID1+"||"+planID2+"]").
 									Expect().
-									Status(http.StatusOK).JSON().Object().Value("service_plans").Array()
-								result.Length().Equal(1)
-								result.First().Object().ValueEqual("id", planID1)
+									Status(http.StatusOK).JSON().Path("$.service_plans[*].id").
+									Array().
+									ContainsOnly(planID1)
 							})
 
 							It("should return empty plan list with id equal not visible plan field query", func() {
-								result := k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "id = "+planID2).
+								k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "id = "+planID2).
 									Expect().
-									Status(http.StatusOK).JSON().Object().Value("service_plans").Array()
-								result.Length().Equal(0)
+									Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(0)
 							})
 
 							It("should return only empty plan list with id not in field query", func() {
-								result := k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "id notin ["+planID1+"]").
+								k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "id notin ["+planID1+"]").
 									Expect().
-									Status(http.StatusOK).JSON().Object().Value("service_plans").Array()
-								result.Length().Equal(0)
+									Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(0)
 							})
 
 							It("should return only empty plan list with id in not visible id field query", func() {
-								result := k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "id in ["+planID2+"]").
+								k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "id in ["+planID2+"]").
 									Expect().
-									Status(http.StatusOK).JSON().Object().Value("service_plans").Array()
-								result.Length().Equal(0)
+									Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(0)
 							})
 
 							It("should return only one plan with catalog_name in query", func() {
 								plan1CatalogName := plan["catalog_name"].(string)
 								plan2CatalogName := plan2["catalog_name"].(string)
-								result := k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "catalog_name in ["+plan1CatalogName+"||"+plan2CatalogName+"]").
+								k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "catalog_name in ["+plan1CatalogName+"||"+plan2CatalogName+"]").
 									Expect().
-									Status(http.StatusOK).JSON().Object().Value("service_plans").Array()
-								result.Length().Equal(1)
-								result.First().Object().ValueEqual("id", planID1)
+									Status(http.StatusOK).JSON().Path("$.service_plans[*].id").
+									Array().
+									ContainsOnly(planID1)
 							})
 
 							It("should return only one plan with catalog_name not in query", func() {
 								plan1CatalogName := plan["catalog_name"].(string)
-								result := k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "catalog_name notin ["+plan1CatalogName+"]").
+								k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "catalog_name notin ["+plan1CatalogName+"]").
 									Expect().
-									Status(http.StatusOK).JSON().Object().Value("service_plans").Array()
-								result.Length().Equal(0)
+									Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(0)
 							})
 						})
 
