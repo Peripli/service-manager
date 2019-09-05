@@ -217,6 +217,13 @@ var _ = Describe("Selection", func() {
 				Expect(criteriaFromRequest).To(ConsistOf(expectedQuery))
 			})
 		})
+		Context("Right operand with new lines", func() {
+			It("Should return error", func() {
+				_, err := AddCriteria(context.Background(), ByField(EqualsOperator, "left", `right
+					op`))
+				Expect(err).To(HaveOccurred())
+			})
+		})
 		Context("Complex right operand", func() {
 			It("Should be okay", func() {
 				rightOp := "this is a mixed, input example. It contains symbols   words ! -h@ppy p@rs|ng"
