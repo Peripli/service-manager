@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -75,34 +74,4 @@ func (m visibilityFilteringMiddleware) Run(req *web.Request, next web.Handler) (
 
 	req.Request = req.WithContext(ctx)
 	return next.Handle(req)
-}
-
-func elementMap(a []string) map[string]bool {
-	inMap := make(map[string]bool)
-	for _, el := range a {
-		inMap[el] = true
-	}
-	return inMap
-}
-
-func subtract(a, b []string) []string {
-	inB := elementMap(b)
-	result := make([]string, 0, len(a))
-	for _, elA := range a {
-		if !inB[elA] {
-			result = append(result, elA)
-		}
-	}
-	return result
-}
-
-func intersect(a, b []string) []string {
-	inB := elementMap(b)
-	result := make([]string, 0, int(math.Min(float64(len(a)), float64(len(b)))))
-	for _, elA := range a {
-		if inB[elA] {
-			result = append(result, elA)
-		}
-	}
-	return result
 }
