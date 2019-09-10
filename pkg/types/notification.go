@@ -40,6 +40,16 @@ const (
 	InvalidRevision int64 = -1
 )
 
+// NotificationResult is the result from applying a notification
+type NotificationResult struct {
+	// Notification is the notification that was applied on the platform
+	Notification *Notification `json:"notification"`
+	// Error message that occured while applying the notification
+	Error string `json:"error"`
+	// Successful was it applied succesfully
+	Successful bool `json:"successful"`
+}
+
 //go:generate smgen api Notification
 // Notification struct
 type Notification struct {

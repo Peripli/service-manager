@@ -135,10 +135,18 @@ func (c *Controller) readLoop(ctx context.Context, conn *websocket.Conn, done ch
 	for {
 		// ReadMessage is needed only to receive ping/pong/close control messages
 		// currently we don't expect to receive something else from the proxies
-		_, _, err := conn.ReadMessage()
+		var result types.NotificationResult
+		err := conn.ReadJSON(&result)
+		// messageType, message, err := conn.ReadMessage()
 		if err != nil {
 			log.C(ctx).WithError(err).Error("ws: could not read")
 			return
+		}
+		// TODO: Use correlation ID from result.Notification for more accurate correlation with logs from the agent
+		if result.Successful {
+			log.C(ctx).Infof("Notification type %s for %s was applied succesfully", result.Notification.Type, result.Notification.Resource)
+		} else {
+			log.C(ctx).Errorf("Notification type %s for %s failed to apply: %v", result.Notification.Type, result.Notification.Resource, result.Error)
 		}
 	}
 }
