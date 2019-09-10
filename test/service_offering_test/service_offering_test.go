@@ -104,13 +104,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				var k8sAgent *httpexpect.Expect
 				var offering common.Object
 
-				createVisibilityForPlanAndPlatform := func(planID, platformID string) {
-					ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
-						"service_plan_id": planID,
-						"platform_id":     platformID,
-					}).Expect().Status(http.StatusCreated)
-				}
-
 				getPlansByOffering := func(offeringID string) *types.ServicePlan {
 					plans, err := ctx.SMRepository.List(context.Background(), types.ServicePlanType, query.ByField(query.EqualsOperator, "service_offering_id", offeringID))
 					Expect(err).ShouldNot(HaveOccurred())
@@ -124,14 +117,22 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						Status(status)
 				}
 
-				assertOfferingsForPlatform := func(agent *httpexpect.Expect, offerings ...interface{}) {
-					result := agent.GET(web.ServiceOfferingsURL).
-						Expect().
+				assertOfferingsForPlatformWithQuery := func(agent *httpexpect.Expect, query map[string]interface{}, offerings ...interface{}) {
+					req := agent.GET(web.ServiceOfferingsURL)
+					for k, v := range query {
+						req = req.WithQuery(k, v)
+					}
+
+					result := req.Expect().
 						Status(http.StatusOK).JSON().Path("$.service_offerings[*].id").Array()
 					result.Length().Equal(len(offerings))
 					if len(offerings) > 0 {
 						result.ContainsOnly(offerings...)
 					}
+				}
+
+				assertOfferingsForPlatform := func(agent *httpexpect.Expect, offerings ...interface{}) {
+					assertOfferingsForPlatformWithQuery(agent, nil, offerings...)
 				}
 
 				BeforeEach(func() {
@@ -150,8 +151,15 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("with no visibilities for offering's plans", func() {
 					It("should return not found", func() {
-						assertOfferingsForPlatform(k8sAgent)
+						assertOfferingsForPlatform(k8sAgent, nil...)
 						assertOfferingForPlatformByID(k8sAgent, offering["id"], http.StatusNotFound)
+					})
+
+					It("should not list offering with field query offering id", func() {
+						assertOfferingsForPlatformWithQuery(k8sAgent,
+							map[string]interface{}{
+								"fieldQuery": fmt.Sprintf("service_offering_id = %s", offering["id"]),
+							}, nil...)
 					})
 				})
 
@@ -159,10 +167,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					It("should return one plan", func() {
 						plan := getPlansByOffering(offering["id"].(string))
 
-						assertOfferingsForPlatform(k8sAgent)
+						assertOfferingsForPlatform(k8sAgent, nil...)
 						assertOfferingForPlatformByID(k8sAgent, offering["id"], http.StatusNotFound)
 
-						createVisibilityForPlanAndPlatform(plan.ID, "")
+						common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, plan.ID, "")
 
 						assertOfferingsForPlatform(k8sAgent, offering["id"])
 						assertOfferingForPlatformByID(k8sAgent, offering["id"], http.StatusOK)
@@ -173,7 +181,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					It("should return the offering", func() {
 						plan := getPlansByOffering(offering["id"].(string))
 
-						createVisibilityForPlanAndPlatform(plan.ID, k8sPlatform.ID)
+						common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, plan.ID, k8sPlatform.ID)
 
 						assertOfferingsForPlatform(k8sAgent, offering["id"])
 						assertOfferingForPlatformByID(k8sAgent, offering["id"], http.StatusOK)
@@ -185,9 +193,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						plan := getPlansByOffering(offering["id"].(string))
 
 						otherPlatform := ctx.RegisterPlatform()
-						createVisibilityForPlanAndPlatform(plan.ID, otherPlatform.ID)
+						common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, plan.ID, otherPlatform.ID)
 
-						assertOfferingsForPlatform(k8sAgent)
+						assertOfferingsForPlatform(k8sAgent, nil...)
 						assertOfferingForPlatformByID(k8sAgent, offering["id"], http.StatusNotFound)
 					})
 				})
@@ -200,7 +208,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("but no visibilities", func() {
 						It("should not get either of them", func() {
-							assertOfferingsForPlatform(k8sAgent)
+							assertOfferingsForPlatform(k8sAgent, nil...)
 							assertOfferingForPlatformByID(k8sAgent, offering["id"], http.StatusNotFound)
 							assertOfferingForPlatformByID(k8sAgent, offering2["id"], http.StatusNotFound)
 						})
@@ -209,7 +217,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("but visibility for one", func() {
 						It("should return the one with visibility", func() {
 							plan := getPlansByOffering(offering["id"].(string))
-							createVisibilityForPlanAndPlatform(plan.ID, "")
+							common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, plan.ID, "")
 
 							assertOfferingForPlatformByID(k8sAgent, offering["id"], http.StatusOK)
 							assertOfferingForPlatformByID(k8sAgent, offering2["id"], http.StatusNotFound)

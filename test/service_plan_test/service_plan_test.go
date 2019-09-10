@@ -100,6 +100,30 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				var k8sPlatform *types.Platform
 				var k8sAgent *httpexpect.Expect
 
+				assertPlanForPlatformByID := func(agent *httpexpect.Expect, planID string, status int) {
+					k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServicePlansURL, planID)).
+						Expect().
+						Status(status)
+				}
+
+				assertPlansForPlatformWithQuery := func(agent *httpexpect.Expect, query map[string]interface{}, plansIDs ...interface{}) {
+					req := agent.GET(web.ServicePlansURL)
+					for k, v := range query {
+						req = req.WithQuery(k, v)
+					}
+
+					result := req.Expect().
+						Status(http.StatusOK).JSON().Path("$.service_plans[*].id").Array()
+					result.Length().Equal(len(plansIDs))
+					if len(plansIDs) > 0 {
+						result.ContainsOnly(plansIDs...)
+					}
+				}
+
+				assertPlansForPlatform := func(agent *httpexpect.Expect, plansIDs ...interface{}) {
+					assertPlansForPlatformWithQuery(agent, nil, plansIDs...)
+				}
+
 				BeforeEach(func() {
 					k8sPlatformJSON := common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
 					k8sPlatform = common.RegisterPlatformInSM(k8sPlatformJSON, ctx.SMWithOAuth, map[string]string{})
@@ -115,130 +139,118 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("with k8s platform credentials", func() {
 					var plan common.Object
+					var planID string
 					BeforeEach(func() {
 						plan = blueprint(ctx, ctx.SMWithOAuth)
+						planID = plan["id"].(string)
 					})
 
 					Context("with no visibilities", func() {
 						It("should return empty plans", func() {
-							k8sAgent.GET(web.ServicePlansURL).
-								Expect().
-								Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(0)
+							assertPlanForPlatformByID(k8sAgent, planID, http.StatusNotFound)
+							assertPlansForPlatform(k8sAgent, nil...)
 						})
 
 						It("should not list plan with field query plan id", func() {
-							planID := plan["id"].(string)
-							Expect(planID).To(Not(BeEmpty()))
-							k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "id = "+planID).
-								Expect().
-								Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(0)
+							assertPlansForPlatformWithQuery(k8sAgent,
+								map[string]interface{}{
+									"fieldQuery": fmt.Sprintf("id = %s", planID),
+								}, nil...)
+						})
+
+						It("should not list plan with field query catalog name", func() {
+							planCatalogName := plan["catalog_name"].(string)
+							Expect(planCatalogName).To(Not(BeEmpty()))
+							assertPlansForPlatformWithQuery(k8sAgent,
+								map[string]interface{}{
+									"fieldQuery": fmt.Sprintf("catalog_name = %s", planCatalogName),
+								}, nil...)
 						})
 					})
 
 					Context("with public visibility for plan", func() {
 						It("should return only this plan", func() {
-							ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
-								"service_plan_id": plan["id"].(string),
-							}).Expect().Status(http.StatusCreated)
-							k8sAgent.GET(web.ServicePlansURL).
-								Expect().
-								Status(http.StatusOK).JSON().Path("$.service_plans[*].id").Array().
-								ContainsOnly(plan["id"])
-						})
-					})
+							assertPlanForPlatformByID(k8sAgent, planID, http.StatusNotFound)
+							assertPlansForPlatform(k8sAgent, nil...)
 
-					Context("with field query catalog name for not visible plan", func() {
-						It("should return empty plans", func() {
-							planCatalogName := plan["catalog_name"].(string)
-							Expect(planCatalogName).To(Not(BeEmpty()))
-							k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "catalog_name = "+planCatalogName).
-								Expect().
-								Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(0)
+							common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, planID, "")
+
+							assertPlanForPlatformByID(k8sAgent, planID, http.StatusOK)
+							assertPlansForPlatform(k8sAgent, planID)
 						})
 					})
 
 					Context("with additional plan", func() {
 						var plan2 common.Object
+						var plan2ID string
 						BeforeEach(func() {
 							plan2 = blueprint(ctx, ctx.SMWithOAuth)
+							plan2ID = plan2["id"].(string)
 						})
 
-						It("should not return either of them when no visibilities are present", func() {
-							k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServicePlansURL, plan["id"].(string))).
-								Expect().
-								Status(http.StatusNotFound)
-							k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServicePlansURL, plan2["id"].(string))).
-								Expect().
-								Status(http.StatusNotFound)
+						Context("with no visiblities", func() {
+							It("should not return either of them", func() {
+								assertPlanForPlatformByID(k8sAgent, planID, http.StatusNotFound)
+								assertPlanForPlatformByID(k8sAgent, plan2ID, http.StatusNotFound)
+								assertPlansForPlatform(k8sAgent, nil...)
+							})
 						})
 
 						Context("with visibility for one plan", func() {
-							var planID1, planID2 string
 							BeforeEach(func() {
-								planID1 = plan["id"].(string)
-								Expect(planID1).To(Not(BeEmpty()))
-								planID2 = plan2["id"].(string)
-								Expect(planID2).To(Not(BeEmpty()))
-								ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
-									"service_plan_id": plan["id"].(string),
-								}).Expect().Status(http.StatusCreated)
+								common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, planID, "")
 							})
 
 							It("should return only one plan for get operation", func() {
-								k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServicePlansURL, planID1)).
-									Expect().
-									Status(http.StatusOK)
-								k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServicePlansURL, planID2)).
-									Expect().
-									Status(http.StatusNotFound)
-								k8sAgent.GET(web.ServicePlansURL).
-									Expect().
-									Status(http.StatusOK).JSON().Path("$.service_plans[*].id").
-									Array().
-									ContainsOnly(planID1)
+								assertPlanForPlatformByID(k8sAgent, planID, http.StatusOK)
+								assertPlanForPlatformByID(k8sAgent, plan2ID, http.StatusNotFound)
+								assertPlansForPlatform(k8sAgent, planID)
 							})
 
 							It("should return only one plan with id in field query", func() {
-								k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "id in ["+planID1+"||"+planID2+"]").
-									Expect().
-									Status(http.StatusOK).JSON().Path("$.service_plans[*].id").
-									Array().
-									ContainsOnly(planID1)
+								assertPlansForPlatformWithQuery(k8sAgent,
+									map[string]interface{}{
+										"fieldQuery": fmt.Sprintf("id in [%s]", planID+"||"+plan2ID),
+									}, planID)
 							})
 
 							It("should return empty plan list with id equal not visible plan field query", func() {
-								k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "id = "+planID2).
-									Expect().
-									Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(0)
+								assertPlansForPlatformWithQuery(k8sAgent,
+									map[string]interface{}{
+										"fieldQuery": fmt.Sprintf("id = %s", plan2ID),
+									}, nil...)
 							})
 
-							It("should return only empty plan list with id not in field query", func() {
-								k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "id notin ["+planID1+"]").
-									Expect().
-									Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(0)
+							It("should return only one plan with id not in field query", func() {
+								assertPlansForPlatformWithQuery(k8sAgent,
+									map[string]interface{}{
+										"fieldQuery": fmt.Sprintf("id notin [%s]", plan2ID),
+									}, planID)
 							})
 
 							It("should return only empty plan list with id in not visible id field query", func() {
-								k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "id in ["+planID2+"]").
-									Expect().
-									Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(0)
+								assertPlansForPlatformWithQuery(k8sAgent,
+									map[string]interface{}{
+										"fieldQuery": fmt.Sprintf("id in [%s]", plan2ID),
+									}, nil...)
 							})
 
 							It("should return only one plan with catalog_name in query", func() {
 								plan1CatalogName := plan["catalog_name"].(string)
 								plan2CatalogName := plan2["catalog_name"].(string)
-								k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "catalog_name in ["+plan1CatalogName+"||"+plan2CatalogName+"]").
-									Expect().
-									Status(http.StatusOK).JSON().Path("$.service_plans[*].id").
-									Array().
-									ContainsOnly(planID1)
+
+								assertPlansForPlatformWithQuery(k8sAgent,
+									map[string]interface{}{
+										"fieldQuery": fmt.Sprintf("catalog_name in [%s]", plan1CatalogName+"||"+plan2CatalogName),
+									}, planID)
 							})
 
 							It("should return only one plan with catalog_name not in query", func() {
 								plan1CatalogName := plan["catalog_name"].(string)
-								k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "catalog_name notin ["+plan1CatalogName+"]").
-									Expect().
-									Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(0)
+								assertPlansForPlatformWithQuery(k8sAgent,
+									map[string]interface{}{
+										"fieldQuery": fmt.Sprintf("catalog_name notin [%s]", plan1CatalogName),
+									}, nil...)
 							})
 						})
 
