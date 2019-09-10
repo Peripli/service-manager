@@ -113,7 +113,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					ctx.CleanupAdditionalResources()
 				})
 
-				Context("filtering plans for k8s platforms", func() {
+				Context("with k8s platform credentials", func() {
 					var plan common.Object
 					BeforeEach(func() {
 						plan = blueprint(ctx, ctx.SMWithOAuth)
@@ -122,6 +122,14 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("with no visibilities", func() {
 						It("should return empty plans", func() {
 							k8sAgent.GET(web.ServicePlansURL).
+								Expect().
+								Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(0)
+						})
+
+						It("should not list plan with field query plan id", func() {
+							planID := plan["id"].(string)
+							Expect(planID).To(Not(BeEmpty()))
+							k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "id = "+planID).
 								Expect().
 								Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(0)
 						})
@@ -147,14 +155,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect().
 								Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(0)
 						})
-					})
-
-					It("list with field query plan id for not visible plan", func() {
-						planID := plan["id"].(string)
-						Expect(planID).To(Not(BeEmpty()))
-						k8sAgent.GET(web.ServicePlansURL).WithQuery("fieldQuery", "id = "+planID).
-							Expect().
-							Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Length().Equal(0)
 					})
 
 					Context("with additional plan", func() {

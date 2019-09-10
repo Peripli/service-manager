@@ -41,8 +41,6 @@ func (m visibilityFilteringMiddleware) Run(req *web.Request, next web.Handler) (
 
 	resourceID := req.PathParams["id"]
 	isSingleResource := (req.PathParams["id"] != "")
-	var err error
-	var finalQuery *query.Criterion
 
 	if isSingleResource {
 		if isResourceVisible, err := m.IsResourceVisible(ctx, resourceID, platform.ID); err != nil {
@@ -58,7 +56,7 @@ func (m visibilityFilteringMiddleware) Run(req *web.Request, next web.Handler) (
 		return next.Handle(req)
 	}
 
-	finalQuery, err = m.ListResourcesCriteria(ctx, platform.ID)
+	finalQuery, err := m.ListResourcesCriteria(ctx, platform.ID)
 	if err != nil {
 		return nil, err
 	}
