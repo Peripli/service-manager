@@ -70,8 +70,8 @@ var _ = Describe("Healthcheck controller", func() {
 		BeforeEach(func() {
 			ctx = context.TODO()
 			healths = map[string]h.State{
-				"test1": {Status: "ok", Details: "details"},
-				"test2": {Status: "ok", Details: "details"},
+				"test1":       {Status: "ok", Details: "details"},
+				"test2":       {Status: "ok", Details: "details"},
 				"failedState": {Status: "failed", Details: "details", Err: "err"},
 			}
 			thresholds = map[string]int64{
