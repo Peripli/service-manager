@@ -70,6 +70,7 @@ func (c *controller) aggregate(ctx context.Context, healthState map[string]gohea
 		state.Status = convertStatus(state.Status)
 		if !web.IsAuthorized(ctx) {
 			state.Details = nil
+			state.Err = ""
 		}
 		details[name] = state
 	}

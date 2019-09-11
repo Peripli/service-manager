@@ -58,7 +58,8 @@ func (pi *platformIndicator) Status() (interface{}, error) {
 	platforms := objList.(*types.Platforms).Platforms
 
 	details := make(map[string]*health.Health)
-	inactivePlatformsCount := 0
+	inactivePlatforms := 0
+	fatalInactivePlatforms := 0
 	for _, platform := range platforms {
 		if platform.Active {
 			details[platform.Name] = health.New().WithStatus(health.StatusUp).
@@ -67,14 +68,15 @@ func (pi *platformIndicator) Status() (interface{}, error) {
 			details[platform.Name] = health.New().WithStatus(health.StatusDown).
 				WithDetail("since", platform.LastActive).
 				WithDetail("type", platform.Type)
+			inactivePlatforms++
 			if pi.fatal(platform) {
-				inactivePlatformsCount++
+				fatalInactivePlatforms++
 			}
 		}
 	}
 
-	if inactivePlatformsCount > 0 {
-		err = fmt.Errorf("there are %d inactive platforms", inactivePlatformsCount)
+	if fatalInactivePlatforms > 0 {
+		err = fmt.Errorf("there are %d inactive platforms %d of them are fatal", inactivePlatforms, fatalInactivePlatforms)
 	}
 
 	return details, err

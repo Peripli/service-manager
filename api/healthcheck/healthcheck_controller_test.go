@@ -65,7 +65,6 @@ var _ = Describe("Healthcheck controller", func() {
 		var ctx context.Context
 		var c *controller
 		var healths map[string]h.State
-		var platformHealths map[string]h.State
 		var thresholds map[string]int64
 
 		BeforeEach(func() {
@@ -73,9 +72,7 @@ var _ = Describe("Healthcheck controller", func() {
 			healths = map[string]h.State{
 				"test1": {Status: "ok", Details: "details"},
 				"test2": {Status: "ok", Details: "details"},
-			}
-			platformHealths = map[string]h.State{
-				"k8s_platforms": {Status: "ok", Details: "details"},
+				"failedState": {Status: "failed", Details: "details", Err: "err"},
 			}
 			thresholds = map[string]int64{
 				"test1": 3,
@@ -127,33 +124,23 @@ var _ = Describe("Healthcheck controller", func() {
 			})
 		})
 
-		When("Aggregating healths", func() {
-			It("Includes them as overall details", func() {
+		When("Aggregating health as unauthorized user", func() {
+			It("should strip details and error", func() {
 				aggregatedHealth := c.aggregate(ctx, healths)
 				for name, h := range healths {
 					h.Status = convertStatus(h.Status)
 					h.Details = nil
+					h.Err = ""
 					Expect(aggregatedHealth.Details[name]).To(Equal(h))
 				}
 			})
 		})
 
-		When("Aggregating platforms health as unauthorized user", func() {
-			It("should strip platform details", func() {
-				aggregatedHealth := c.aggregate(ctx, platformHealths)
-				for name, h := range platformHealths {
-					h.Status = convertStatus(h.Status)
-					h.Details = nil
-					Expect(aggregatedHealth.Details[name]).To(Equal(h))
-				}
-			})
-		})
-
-		When("Aggregating platforms health as authorized user", func() {
-			It("should include all platform details", func() {
+		When("Aggregating health as authorized user", func() {
+			It("should include all details and errors", func() {
 				ctx = web.ContextWithAuthorization(ctx)
-				aggregatedHealth := c.aggregate(ctx, platformHealths)
-				for name, h := range platformHealths {
+				aggregatedHealth := c.aggregate(ctx, healths)
+				for name, h := range healths {
 					h.Status = convertStatus(h.Status)
 					Expect(aggregatedHealth.Details[name]).To(Equal(h))
 				}
