@@ -60,7 +60,7 @@ var _ = Describe("Platforms Indicator", func() {
 		})
 		It("should return error", func() {
 			details, err := indicator.Status()
-			health := details.(map[string]interface{})[platform.Name].(*health.Health)
+			health := details.(map[string]*health.Health)[platform.Name]
 			Expect(err).Should(HaveOccurred())
 			Expect(health.Details["since"]).ShouldNot(BeNil())
 		})

@@ -58,15 +58,21 @@ func (pi *platformIndicator) Status() (interface{}, error) {
 		return nil, fmt.Errorf("could not fetch platforms health from storage: %v", err)
 	}
 
-	details := make(map[string]interface{})
+	details := make(map[string]*health.Health)
+	inactivePlatformsCount := 0
 	for i := 0; i < objList.Len(); i++ {
 		platform := objList.ItemAt(i).(*types.Platform)
 		if platform.Active {
 			details[platform.Name] = health.New().WithStatus(health.StatusUp)
 		} else {
 			details[platform.Name] = health.New().WithStatus(health.StatusDown).WithDetail("since", platform.LastActive)
-			err = fmt.Errorf("there is inactive %s platforms", pi.platformType)
+			inactivePlatformsCount++
 		}
 	}
+
+	if inactivePlatformsCount > 0 {
+		err = fmt.Errorf("there are %d inactive %s platforms", inactivePlatformsCount, pi.platformType)
+	}
+
 	return details, err
 }

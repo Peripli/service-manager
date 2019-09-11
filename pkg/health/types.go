@@ -91,7 +91,7 @@ func DefaultIndicatorSettings() *IndicatorSettings {
 // Validate validates indicator settings
 func (is *IndicatorSettings) Validate() error {
 	if !is.Fatal && is.FailuresThreshold != 0 {
-		return fmt.Errorf("validate Settings: FailuresThreshold not applicable for non-fatal indicators")
+		return fmt.Errorf("validate Settings: FailuresThreshold must be 0 for non-fatal indicators")
 	}
 	if is.Fatal && is.FailuresThreshold <= 0 {
 		return fmt.Errorf("validate Settings: FailuresThreshold must be > 0 for fatal indicators")

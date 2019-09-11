@@ -132,6 +132,7 @@ var _ = Describe("Healthcheck controller", func() {
 				aggregatedHealth := c.aggregate(ctx, healths)
 				for name, h := range healths {
 					h.Status = convertStatus(h.Status)
+					h.Details = nil
 					Expect(aggregatedHealth.Details[name]).To(Equal(h))
 				}
 			})

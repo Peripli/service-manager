@@ -465,10 +465,11 @@ func (c *consumers) Delete(queue storage.NotificationQueue) error {
 		for index, platform := range c.platforms {
 			if platform.ID == platformIDToDelete {
 				c.platforms = append(c.platforms[:index], c.platforms[index+1:]...)
-				if err := c.updatePlatform(platform.ID, func(p *types.Platform) {
+				err := c.updatePlatform(platform.ID, func(p *types.Platform) {
 					p.Active = false
 					p.LastActive = time.Now()
-				}); err != nil {
+				})
+				if err != nil {
 					return err
 				}
 				break
@@ -481,9 +482,10 @@ func (c *consumers) Delete(queue storage.NotificationQueue) error {
 func (c *consumers) Add(platform *types.Platform, queue storage.NotificationQueue) error {
 	if len(c.queues[platform.ID]) == 0 {
 		c.platforms = append(c.platforms, platform)
-		if err := c.updatePlatform(platform.ID, func(p *types.Platform) {
+		err := c.updatePlatform(platform.ID, func(p *types.Platform) {
 			p.Active = true
-		}); err != nil {
+		})
+		if err != nil {
 			return err
 		}
 	}
