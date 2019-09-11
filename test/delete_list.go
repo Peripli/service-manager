@@ -242,6 +242,26 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				expectedStatusCode: http.StatusOK,
 			},
 		),
+		Entry("returns 400 when label query is duplicated",
+			deleteOpEntry{
+				queryTemplate: "%[1]s = %[2]v|%[1]s = %[2]v",
+				queryArgs: func() common.Object {
+					return common.Object{
+						"labels": common.CopyLabels(r[0]),
+					}
+				},
+				expectedStatusCode: http.StatusBadRequest,
+			},
+		),
+		Entry("returns 200 when field query is duplicated",
+			deleteOpEntry{
+				queryTemplate: "%[1]s = %[2]v|%[1]s = %[2]v",
+				queryArgs: func() common.Object {
+					return common.CopyFields(r[0])
+				},
+				expectedStatusCode: http.StatusOK,
+			},
+		),
 		Entry("returns 200 for JSON fields with stripped new lines",
 			deleteOpEntry{
 				resourcesToExpectBeforeOp: func() []common.Object {

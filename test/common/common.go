@@ -157,6 +157,17 @@ func RemoveNotNullableFieldAndLabels(obj Object, objithMandatoryFields Object) O
 	return o
 }
 
+func CopyLabels(obj Object) Object {
+	result := CopyObject(obj)
+	return (result["labels"]).(Object)
+}
+
+func CopyFields(obj Object) Object {
+	result := CopyObject(obj)
+	delete(result, "labels")
+	return result
+}
+
 func CopyObject(obj Object) Object {
 	o := Object{}
 	for k, v := range obj {
