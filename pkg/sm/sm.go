@@ -133,10 +133,8 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 		return nil, fmt.Errorf("error creating storage health indicator: %s", err)
 	}
 
-	API.HealthIndicators = append(API.HealthIndicators, storageHealthIndicator)
-	for _, platformType := range cfg.Health.PlatformTypes {
-		API.HealthIndicators = append(API.HealthIndicators, healthcheck.NewPlatformIndicator(ctx, interceptableRepository, platformType))
-	}
+	API.SetIndicator(storageHealthIndicator)
+	API.SetIndicator(healthcheck.NewPlatformIndicator(ctx, interceptableRepository, nil))
 
 	notificationCleaner := &storage.NotificationCleaner{
 		Storage:  interceptableRepository,

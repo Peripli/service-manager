@@ -20,58 +20,61 @@ import (
 	"context"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/health"
-	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 )
 
 // NewPlatformIndicator returns new health indicator for platforms of given type
-func NewPlatformIndicator(ctx context.Context, repository storage.Repository, platformType string) health.Indicator {
+func NewPlatformIndicator(ctx context.Context, repository storage.Repository, fatal func(*types.Platform) bool) health.Indicator {
+	if fatal == nil {
+		fatal = func(platform *types.Platform) bool {
+			return true
+		}
+	}
 	return &platformIndicator{
-		ctx:          ctx,
-		repository:   repository,
-		platformType: platformType,
+		ctx:        ctx,
+		repository: repository,
+		fatal:      fatal,
 	}
 }
 
 type platformIndicator struct {
-	repository   storage.Repository
-	ctx          context.Context
-	platformType string
+	repository storage.Repository
+	ctx        context.Context
+	fatal      func(*types.Platform) bool
 }
 
 // Name returns the name of the indicator
 func (pi *platformIndicator) Name() string {
-	return pi.platformType + health.PlatformIndicatorSuffix // e.g. cf_platforms, k8s_platforms ...
+	return health.PlatformsIndicatorName
 }
 
 // Status returns status of the health check
 func (pi *platformIndicator) Status() (interface{}, error) {
-	typeCriteria := query.Criterion{
-		LeftOp:   "type",
-		Operator: query.EqualsOperator,
-		RightOp:  []string{pi.platformType},
-		Type:     query.FieldQuery,
-	}
-	objList, err := pi.repository.List(pi.ctx, types.PlatformType, typeCriteria)
+	objList, err := pi.repository.List(pi.ctx, types.PlatformType)
 	if err != nil {
 		return nil, fmt.Errorf("could not fetch platforms health from storage: %v", err)
 	}
+	platforms := objList.(*types.Platforms).Platforms
 
 	details := make(map[string]*health.Health)
 	inactivePlatformsCount := 0
-	for i := 0; i < objList.Len(); i++ {
-		platform := objList.ItemAt(i).(*types.Platform)
+	for _, platform := range platforms {
 		if platform.Active {
-			details[platform.Name] = health.New().WithStatus(health.StatusUp)
+			details[platform.Name] = health.New().WithStatus(health.StatusUp).
+				WithDetail("type", platform.Type)
 		} else {
-			details[platform.Name] = health.New().WithStatus(health.StatusDown).WithDetail("since", platform.LastActive)
-			inactivePlatformsCount++
+			details[platform.Name] = health.New().WithStatus(health.StatusDown).
+				WithDetail("since", platform.LastActive).
+				WithDetail("type", platform.Type)
+			if pi.fatal(platform) {
+				inactivePlatformsCount++
+			}
 		}
 	}
 
 	if inactivePlatformsCount > 0 {
-		err = fmt.Errorf("there are %d inactive %s platforms", inactivePlatformsCount, pi.platformType)
+		err = fmt.Errorf("there are %d inactive platforms", inactivePlatformsCount)
 	}
 
 	return details, err

@@ -29,8 +29,8 @@ import (
 // StorageIndicatorName is the name of storage indicator
 const StorageIndicatorName = "storage"
 
-// PlatformIndicatorSuffix is the suffix for a platform type indicator
-const PlatformIndicatorSuffix = "_platforms"
+// PlatformsIndicatorName is the name of platforms indicator
+const PlatformsIndicatorName = "platforms"
 
 // indicatorNames is a list of names of indicators which will be registered with default settings
 // as part of default health settings, this will allow binding them as part of environment.
@@ -40,14 +40,12 @@ const PlatformIndicatorSuffix = "_platforms"
 // but later not registered nothing will happen.
 var indicatorNames = [...]string{
 	StorageIndicatorName,
-	"kubernetes" + PlatformIndicatorSuffix,
-	"cloudfoundry" + PlatformIndicatorSuffix,
+	PlatformsIndicatorName,
 }
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	PlatformTypes []string                      `mapstructure:"platform_types" description:"platform types for which health will be measured"`
-	Indicators    map[string]*IndicatorSettings `mapstructure:"indicators"`
+	Indicators map[string]*IndicatorSettings `mapstructure:"indicators"`
 }
 
 // DefaultSettings returns default values for health settings
@@ -57,8 +55,7 @@ func DefaultSettings() *Settings {
 		defaultIndicatorSettings[name] = DefaultIndicatorSettings()
 	}
 	return &Settings{
-		PlatformTypes: make([]string, 0),
-		Indicators:    defaultIndicatorSettings,
+		Indicators: defaultIndicatorSettings,
 	}
 }
 
@@ -190,6 +187,17 @@ func NewDefaultRegistry() *Registry {
 type Registry struct {
 	// HealthIndicators are the currently registered health indicators
 	HealthIndicators []Indicator
+}
+
+// SetIndicator adds or replaces existing indicator with same name in registry
+func (r *Registry) SetIndicator(healthIndicator Indicator) {
+	for i, indicator := range r.HealthIndicators {
+		if indicator.Name() == healthIndicator.Name() {
+			r.HealthIndicators[i] = healthIndicator
+			return
+		}
+	}
+	r.HealthIndicators = append(r.HealthIndicators, healthIndicator)
 }
 
 // Configure creates new health using provided settings.

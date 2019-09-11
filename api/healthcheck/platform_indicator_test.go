@@ -30,30 +30,28 @@ import (
 var _ = Describe("Platforms Indicator", func() {
 	var indicator health.Indicator
 	var repository *storagefakes2.FakeStorage
-	var platformType string
 	var ctx context.Context
 	var platform *types.Platform
 
 	BeforeEach(func() {
 		ctx = context.TODO()
 		repository = &storagefakes2.FakeStorage{}
-		platformType = "kubernetes"
 		platform = &types.Platform{
 			Name:       "test-platform",
-			Type:       platformType,
+			Type:       "kubernetes",
 			Active:     false,
 			LastActive: time.Now(),
 		}
-		indicator = NewPlatformIndicator(ctx, repository, platformType)
+		indicator = NewPlatformIndicator(ctx, repository, nil)
 	})
 
 	Context("Name", func() {
-		It("should contain platform type in it", func() {
-			Expect(indicator.Name()).Should(ContainSubstring(platformType))
+		It("should not be empty", func() {
+			Expect(indicator.Name()).Should(Equal(health.PlatformsIndicatorName))
 		})
 	})
 
-	Context("There is inactive platforms", func() {
+	Context("There are inactive platforms", func() {
 		BeforeEach(func() {
 			objectList := &types.Platforms{[]*types.Platform{platform}}
 			repository.ListReturns(objectList, nil)
