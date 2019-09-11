@@ -142,13 +142,14 @@ func (er *encryptingRepository) List(ctx context.Context, objectType types.Objec
 	return objList, nil
 }
 
-func (er *encryptingRepository) ListWithPaging(ctx context.Context, objectType types.ObjectType, limit int, targetCreatedAt, targetID string, criteria ...query.Criterion) (*types.ObjectPage, error) {
-	objPage, err := er.repository.ListWithPaging(ctx, objectType, limit, targetCreatedAt, targetID, criteria...)
+func (er *encryptingRepository) ListWithPaging(ctx context.Context, objectType types.ObjectType, limit, targetPagingSequence int, criteria ...query.Criterion) (*types.ObjectPage, error) {
+	objPage, err := er.repository.ListWithPaging(ctx, objectType, limit, targetPagingSequence, criteria...)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, obj := range objPage.Items {
+	for i := 0; i < objPage.Items.Len(); i++ {
+		obj := objPage.Items.ItemAt(i)
 		if err := er.transformCredentials(ctx, obj, er.encrypter.Decrypt); err != nil {
 			return nil, err
 		}

@@ -43,7 +43,12 @@ type ServiceOffering struct {
 	CatalogID   string `json:"catalog_id"`
 	CatalogName string `json:"catalog_name"`
 
-	Plans []*ServicePlan `json:"plans"`
+	Plans          []*ServicePlan `json:"plans"`
+	PagingSequence int            `json:"-"`
+}
+
+func (e *ServiceOffering) GetPagingSequence() int {
+	return e.PagingSequence
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

@@ -35,6 +35,7 @@ type Platform struct {
 	Credentials *Credentials `json:"credentials,omitempty"`
 	Active      bool         `json:"-"`
 	LastActive  time.Time    `json:"-"`
+	PagingSequence int          `json:"-"`
 }
 
 func (e *Platform) SetCredentials(credentials *Credentials) {
@@ -43,6 +44,10 @@ func (e *Platform) SetCredentials(credentials *Credentials) {
 
 func (e *Platform) GetCredentials() *Credentials {
 	return e.Credentials
+}
+
+func (e *Platform) GetPagingSequence() int {
+	return e.PagingSequence
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -226,7 +227,7 @@ func (ps *Storage) List(ctx context.Context, objType types.ObjectType, criteria 
 	return entity.RowsToList(rows)
 }
 
-func (ps *Storage) ListWithPaging(ctx context.Context, objType types.ObjectType, limit int, targetCreatedAt, targetID string, criteria ...query.Criterion) (*types.ObjectPage, error) {
+func (ps *Storage) ListWithPaging(ctx context.Context, objType types.ObjectType, limit, targetPagingSequence int, criteria ...query.Criterion) (*types.ObjectPage, error) {
 	entity, err := ps.scheme.provide(objType)
 	if err != nil {
 		return nil, err
@@ -241,14 +242,16 @@ func (ps *Storage) ListWithPaging(ctx context.Context, objType types.ObjectType,
 			ItemsCount: count,
 		}, nil
 	}
-	if targetCreatedAt == "" {
-		targetCreatedAt = time.Time{}.Format(time.RFC3339)
+
+	criteria = append(criteria, query.OrderResultBy("paging_sequence", query.AscOrder),
+		query.ByField(query.GreaterThanOperator, "paging_sequence", strconv.Itoa(targetPagingSequence)))
+
+	count, err := ps.queryBuilder.NewQuery().WithCriteria(criteria...).WithLock().Count(ctx, entity)
+	if err != nil {
+		return nil, err
 	}
 
-	criteria = append(criteria, query.OrderResultBy("created_at", query.AscOrder), query.OrderResultBy("id", query.AscOrder),
-		query.ByField(query.GreaterThanOrEqualOperator, "created_at", targetCreatedAt))
-
-	rows, err := ps.queryBuilder.NewQuery().WithCriteria(criteria...).WithLock().List(ctx, entity)
+	rows, err := ps.queryBuilder.NewQuery().WithCriteria(criteria...).WithCriteria(query.LimitResultBy(limit)).WithLock().List(ctx, entity)
 	if err != nil {
 		return nil, err
 	}
@@ -267,40 +270,27 @@ func (ps *Storage) ListWithPaging(ctx context.Context, objType types.ObjectType,
 		return nil, err
 	}
 
-	isFirstPage := targetID == ""
+	isFirstPage := targetPagingSequence == 0
 	if !isFirstPage && objectList.Len() == 0 {
 		return nil, util.ErrNotFoundInStorage
 	}
-	pageItems := make([]types.Object, 0, limit)
-	isAfterTarget := isFirstPage
 
-	i := 0
-	for ; i < objectList.Len() && len(pageItems) < limit; i++ {
-		obj := objectList.ItemAt(i)
-		if isAfterTarget {
-			pageItems = append(pageItems, obj)
-			continue
-		}
-		if obj.GetID() == targetID {
-			isAfterTarget = true
-		}
-	}
-
-	hasMoreItems := i != objectList.Len()
+	hasMoreItems := count > objectList.Len()
 	var token string
 	if hasMoreItems {
-		token = generateTokenForItem(pageItems[len(pageItems)-1])
+		token = generateTokenForItem(objectList.ItemAt(objectList.Len() - 1))
 	}
 	return &types.ObjectPage{
+		ItemsCount:   count,
 		HasMoreItems: hasMoreItems,
-		Items:        pageItems,
+		Items:        objectList,
 		Token:        token,
 	}, nil
 }
 
 func generateTokenForItem(obj types.Object) string {
-	nextPageToken := obj.GetCreatedAt().Format(time.RFC3339) + "_" + obj.GetID()
-	return base64.StdEncoding.EncodeToString([]byte(nextPageToken))
+	nextPageToken := obj.(types.Pageable).GetPagingSequence()
+	return base64.StdEncoding.EncodeToString([]byte(strconv.Itoa(nextPageToken)))
 }
 
 func (ps *Storage) Delete(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {

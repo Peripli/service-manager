@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/tidwall/sjson"
@@ -203,19 +202,19 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	}
 
 	token := r.URL.Query().Get("token")
-	targetCreatedAt, targetID, err := c.validatePageToken(token)
+	targetPagingSeq, err := c.validatePageToken(token)
 	if err != nil {
 		return nil, err
 	}
 	// TODO: Add new integer field in DB for paging
 	// TODO: Extract query in criteria in a filter before controller
-	objectPage, err := c.repository.ListWithPaging(ctx, c.objectType, limit, targetCreatedAt, targetID, query.CriteriaForContext(ctx)...)
+	objectPage, err := c.repository.ListWithPaging(ctx, c.objectType, limit, targetPagingSeq, query.CriteriaForContext(ctx)...)
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
 
-	for _, obj := range objectPage.Items {
-		stripCredentials(ctx, obj)
+	for i := 0; i < objectPage.Items.Len(); i++ {
+		stripCredentials(ctx, objectPage.Items.ItemAt(i))
 	}
 
 	resp, err := util.NewJSONResponse(http.StatusOK, objectPage)
@@ -308,51 +307,31 @@ func (c *BaseController) validateMaxItemsQuery(maxItems string) (int, error) {
 	return limit, nil
 }
 
-func (c *BaseController) validatePageToken(token string) (string, string, error) {
-	var targetCreatedAt, targetID string
+func (c *BaseController) validatePageToken(token string) (int, error) {
+	var targetPageSequence int
 
 	if token != "" {
 		base64DecodedTokenBytes, err := base64.StdEncoding.DecodeString(token)
 		if err != nil {
-			return "", "", &util.HTTPError{
+			return 0, &util.HTTPError{
 				ErrorType:   "TokenInvalid",
 				Description: fmt.Sprintf("Invalid token provided: %v", err),
 				StatusCode:  http.StatusNotFound,
 			}
 		}
+
 		base64DecodedToken := string(base64DecodedTokenBytes)
 
-		tokenParts := strings.Split(base64DecodedToken, "_")
-		if len(tokenParts) != 2 {
-			return "", "", &util.HTTPError{
-				ErrorType:   "TokenInvalid",
-				Description: fmt.Sprintf("Invalid token provided."),
-				StatusCode:  http.StatusNotFound,
-			}
-		}
-
-		targetCreatedAt = tokenParts[0]
-		_, err = time.Parse(time.RFC3339, targetCreatedAt)
+		targetPageSequence, err = strconv.Atoi(base64DecodedToken)
 		if err != nil {
-			return "", "", &util.HTTPError{
-				ErrorType:   "TokenInvalid",
-				Description: fmt.Sprintf("Invalid token provided: %v", err),
-				StatusCode:  http.StatusNotFound,
-			}
-		}
-
-		targetID = tokenParts[1]
-		_, err = uuid.FromString(targetID)
-		if err != nil {
-			return "", "", &util.HTTPError{
+			return 0, &util.HTTPError{
 				ErrorType:   "TokenInvalid",
 				Description: fmt.Sprintf("Invalid token provided: %v", err),
 				StatusCode:  http.StatusNotFound,
 			}
 		}
 	}
-
-	return targetCreatedAt, targetID, nil
+	return targetPageSequence, nil
 }
 
 func stripCredentials(ctx context.Context, object types.Object) {

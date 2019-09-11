@@ -36,6 +36,7 @@ type Platform struct {
 	Password    string         `db:"password"`
 	Active      bool           `db:"active"`
 	LastActive  time.Time      `db:"last_active"`
+	PagingSequence int            `db:"paging_sequence,auto_increment"`
 }
 
 func (p *Platform) FromObject(object types.Object) (storage.Entity, bool) {
@@ -54,6 +55,7 @@ func (p *Platform) FromObject(object types.Object) (storage.Entity, bool) {
 		Description: toNullString(platform.Description),
 		Active:      platform.Active,
 		LastActive:  platform.LastActive,
+		PagingSequence: platform.PagingSequence,
 	}
 
 	if platform.Description != "" {
@@ -73,9 +75,10 @@ func (p *Platform) ToObject() types.Object {
 			CreatedAt: p.CreatedAt,
 			UpdatedAt: p.UpdatedAt,
 		},
-		Type:        p.Type,
-		Name:        p.Name,
-		Description: p.Description.String,
+		Type:           p.Type,
+		Name:           p.Name,
+		Description:    p.Description.String,
+		PagingSequence: p.PagingSequence,
 		Credentials: &types.Credentials{
 			Basic: &types.Basic{
 				Username: p.Username,

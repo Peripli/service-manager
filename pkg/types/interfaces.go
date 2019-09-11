@@ -25,6 +25,11 @@ import (
 // ObjectType is the type of the object in the Service Manager
 type ObjectType string
 
+// Pageable interface indicates that an object can be listed
+type Pageable interface {
+	GetPagingSequence() int
+}
+
 // Secured interface indicates that an object requires credentials to access it
 type Secured interface {
 	SetCredentials(credentials *Credentials)
@@ -55,8 +60,8 @@ type ObjectList interface {
 
 // ObjectPage is the DTO for a given page of resources when listing
 type ObjectPage struct {
-	HasMoreItems bool     `json:"has_more_items"`
-	Token        string   `json:"token,omitempty"`
-	ItemsCount   int      `json:"num_items,omitempty"`
-	Items        []Object `json:"items"`
+	HasMoreItems bool       `json:"has_more_items"`
+	Token        string     `json:"token,omitempty"`
+	ItemsCount   int        `json:"num_items,omitempty"`
+	Items        ObjectList `json:"items"`
 }

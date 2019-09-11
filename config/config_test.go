@@ -194,6 +194,20 @@ var _ = Describe("config", func() {
 			})
 		})
 
+		Context("when API max page size is less than 50", func() {
+			It("returns an error", func() {
+				config.API.MaxPageSize = 49
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("when API defaukt page size is less than 5", func() {
+			It("returns an error", func() {
+				config.API.DefaultPageSize = 3
+				assertErrorDuringValidate()
+			})
+		})
+
 		Context("when notification queues size is 0", func() {
 			It("returns an error", func() {
 				config.Storage.Notification.QueuesSize = 0

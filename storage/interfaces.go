@@ -161,7 +161,7 @@ type Repository interface {
 	List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error)
 
 	// ListWithPaging retrieves all objects of particular type from SM DB page by page
-	ListWithPaging(ctx context.Context, objectType types.ObjectType, limit int, targetCreatedAt, targetID string, criteria ...query.Criterion) (*types.ObjectPage, error)
+	ListWithPaging(ctx context.Context, objectType types.ObjectType, limit, targetPagingSequence int, criteria ...query.Criterion) (*types.ObjectPage, error)
 
 	// Delete deletes an object from SM DB
 	Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error)
