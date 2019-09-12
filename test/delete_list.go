@@ -308,7 +308,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				resourcesToExpectBeforeOp: func() []common.Object {
 					return []common.Object{r[0], r[1]}
 				},
-				queryTemplate: "%[1]s in [%[2]v||%[2]v]",
+				queryTemplate: "%[1]s in ('%[2]v','%[2]v')",
 				queryArgs: func() common.Object {
 					return common.Object{
 						"labels": map[string]interface{}{

@@ -400,7 +400,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 			labelKey := "labelKey1"
 			labelValue := "symbols!that@are#url$encoded%when^making a*request("
 			BeforeEach(func() {
-				obj = t.ResourceBlueprint(ctx)
+				obj = t.ResourceBlueprint(ctx, ctx.SMWithOAuth)
 				patchLabelsBody := make(map[string]interface{})
 				patchLabels := []query.LabelChange{
 					{
