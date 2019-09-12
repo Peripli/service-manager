@@ -40,7 +40,7 @@ func EncryptingDecorator(ctx context.Context, encrypter security.Encrypter, keyS
 		}
 		defer func() {
 			if err := keyStore.Unlock(ctx); err != nil {
-				log.C(ctx).Errorf("error while unlocking keystore: %s", err)
+				log.C(ctx).WithError(err).Error("error while unlocking keystore")
 			}
 		}()
 
@@ -114,8 +114,8 @@ func (er *encryptingRepository) Create(ctx context.Context, obj types.Object) (t
 	return newObj, nil
 }
 
-func (er *encryptingRepository) Get(ctx context.Context, objectType types.ObjectType, id string) (types.Object, error) {
-	obj, err := er.repository.Get(ctx, objectType, id)
+func (er *encryptingRepository) Get(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, error) {
+	obj, err := er.repository.Get(ctx, objectType, criteria...)
 	if err != nil {
 		return nil, err
 	}
@@ -142,12 +142,12 @@ func (er *encryptingRepository) List(ctx context.Context, objectType types.Objec
 	return objList, nil
 }
 
-func (er *encryptingRepository) Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+func (er *encryptingRepository) Update(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, criteria ...query.Criterion) (types.Object, error) {
 	if err := er.transformCredentials(ctx, obj, er.encrypter.Encrypt); err != nil {
 		return nil, err
 	}
 
-	updatedObj, err := er.repository.Update(ctx, obj, labelChanges...)
+	updatedObj, err := er.repository.Update(ctx, obj, labelChanges)
 	if err != nil {
 		return nil, err
 	}

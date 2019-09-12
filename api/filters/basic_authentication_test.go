@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-package filters
+package filters_test
 
 import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
-	"testing"
+
+	"github.com/Peripli/service-manager/api/filters"
 
 	"github.com/Peripli/service-manager/storage/storagefakes"
 
@@ -31,11 +32,6 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestFilters(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Basic Authenticator")
-}
-
 var _ = Describe("Basic Authenticator", func() {
 	var user string
 	var password string
@@ -45,7 +41,7 @@ var _ = Describe("Basic Authenticator", func() {
 
 	var fakeRepository *storagefakes.FakeStorage
 
-	var authenticator *basicAuthenticator
+	var authenticator *filters.BasicAuthenticator
 
 	BeforeEach(func() {
 		user = "username"
@@ -54,7 +50,7 @@ var _ = Describe("Basic Authenticator", func() {
 
 		fakeRepository = &storagefakes.FakeStorage{}
 
-		authenticator = &basicAuthenticator{
+		authenticator = &filters.BasicAuthenticator{
 			Repository: fakeRepository,
 		}
 

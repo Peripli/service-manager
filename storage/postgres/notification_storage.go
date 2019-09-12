@@ -72,7 +72,8 @@ func (ns *notificationStorageImpl) GetLastRevision(ctx context.Context) (int64, 
 }
 
 func (ns *notificationStorageImpl) GetNotification(ctx context.Context, id string) (*types.Notification, error) {
-	notificationObj, err := ns.storage.Get(ctx, types.NotificationType, id)
+	byID := query.ByField(query.EqualsOperator, "id", id)
+	notificationObj, err := ns.storage.Get(ctx, types.NotificationType, byID)
 	if err != nil {
 		return nil, err
 	}

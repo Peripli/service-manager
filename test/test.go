@@ -17,7 +17,15 @@
 package test
 
 import (
+	"context"
 	"fmt"
+
+	"github.com/Peripli/service-manager/pkg/multitenancy"
+
+	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/Peripli/service-manager/pkg/sm"
+
+	"github.com/gavv/httpexpect"
 
 	. "github.com/onsi/gomega"
 
@@ -32,14 +40,26 @@ const (
 	List       Op = "list"
 	Delete     Op = "delete"
 	DeleteList Op = "deletelist"
+	Patch      Op = "patch"
 )
+
+type MultitenancySettings struct {
+	ClientID           string
+	ClientIDTokenClaim string
+	TenantTokenClaim   string
+	LabelKey           string
+
+	TokenClaims map[string]interface{}
+}
 
 type TestCase struct {
 	API          string
 	SupportedOps []Op
 
-	ResourceBlueprint                      func(ctx *common.TestContext) common.Object
-	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext) common.Object
+	MultitenancySettings                   *MultitenancySettings
+	DisableTenantResources                 bool
+	ResourceBlueprint                      func(ctx *common.TestContext, smClient *httpexpect.Expect) common.Object
+	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext, smClient *httpexpect.Expect) common.Object
 	AdditionalTests                        func(ctx *common.TestContext)
 }
 
@@ -55,7 +75,17 @@ func DescribeTestsFor(t TestCase) bool {
 			By("==== Preparation for SM tests... ====")
 
 			defer GinkgoRecover()
-			ctx = common.DefaultTestContext()
+			ctxBuilder := common.NewTestContextBuilder()
+
+			if t.MultitenancySettings != nil {
+				ctxBuilder.
+					WithTenantTokenClaims(t.MultitenancySettings.TokenClaims).
+					WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+						smb.EnableMultitenancy(t.MultitenancySettings.LabelKey, multitenancy.ExtractTenatFromTokenWrapperFunc(t.MultitenancySettings.ClientID, t.MultitenancySettings.ClientIDTokenClaim, t.MultitenancySettings.TenantTokenClaim))
+						return nil
+					})
+			}
+			ctx = ctxBuilder.Build()
 
 			// A panic outside of Ginkgo's primitives (during test setup) would be recovered
 			// by the deferred GinkgoRecover() and the error will be associated with the first
@@ -74,6 +104,8 @@ func DescribeTestsFor(t TestCase) bool {
 					DescribeDeleteTestsfor(ctx, t)
 				case DeleteList:
 					DescribeDeleteListFor(ctx, t)
+				case Patch:
+					DescribePatchTestsFor(ctx, t)
 				default:
 					_, err := fmt.Fprintf(GinkgoWriter, "Generic test cases for op %s are not implemented\n", op)
 					if err != nil {

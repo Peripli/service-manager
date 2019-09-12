@@ -17,23 +17,26 @@
 package healthcheck
 
 import (
-	"github.com/Peripli/service-manager/pkg/util"
-	"net/http"
-
+	"context"
+	gohealth "github.com/InVisionApp/go-health"
 	"github.com/Peripli/service-manager/pkg/health"
 	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
+	"net/http"
 )
 
 // controller platform controller
 type controller struct {
-	indicator health.Indicator
+	health     gohealth.IHealth
+	thresholds map[string]int64
 }
 
-// NewController returns a new healthcheck controller with the given indicators and aggregation policy
-func NewController(indicators []health.Indicator, aggregator health.AggregationPolicy) web.Controller {
+// NewController returns a new healthcheck controller with the given health and thresholds
+func NewController(health gohealth.IHealth, thresholds map[string]int64) web.Controller {
 	return &controller{
-		indicator: newCompositeIndicator(indicators, aggregator),
+		health:     health,
+		thresholds: thresholds,
 	}
 }
 
@@ -41,8 +44,9 @@ func NewController(indicators []health.Indicator, aggregator health.AggregationP
 func (c *controller) healthCheck(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	logger := log.C(ctx)
-	logger.Debugf("Performing health check with %s...", c.indicator.Name())
-	healthResult := c.indicator.Health()
+	logger.Debugf("Performing health check...")
+	healthState, _, _ := c.health.State()
+	healthResult := c.aggregate(ctx, healthState)
 	var status int
 	if healthResult.Status == health.StatusUp {
 		status = http.StatusOK
@@ -50,4 +54,37 @@ func (c *controller) healthCheck(r *web.Request) (*web.Response, error) {
 		status = http.StatusServiceUnavailable
 	}
 	return util.NewJSONResponse(status, healthResult)
+}
+
+func (c *controller) aggregate(ctx context.Context, healthState map[string]gohealth.State) *health.Health {
+	if len(healthState) == 0 {
+		return health.New().WithStatus(health.StatusUp)
+	}
+
+	details := make(map[string]interface{})
+	overallStatus := health.StatusUp
+	for name, state := range healthState {
+		if state.Fatal && state.ContiguousFailures >= c.thresholds[name] {
+			overallStatus = health.StatusDown
+		}
+		state.Status = convertStatus(state.Status)
+		if !web.IsAuthorized(ctx) {
+			state.Details = nil
+			state.Err = ""
+		}
+		details[name] = state
+	}
+
+	return health.New().WithStatus(overallStatus).WithDetails(details)
+}
+
+func convertStatus(status string) string {
+	switch status {
+	case "ok":
+		return string(health.StatusUp)
+	case "failed":
+		return string(health.StatusDown)
+	default:
+		return string(health.StatusUnknown)
+	}
 }

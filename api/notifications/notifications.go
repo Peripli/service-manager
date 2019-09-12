@@ -60,7 +60,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	}
 
 	correlationID := logger.Data[log.FieldCorrelationID].(string)
-	childCtx := newContextWithCorrelationID(c.baseCtx, correlationID)
+	childCtx, childCtxCancel := newContextWithCorrelationID(c.baseCtx, correlationID)
 
 	defer func() {
 		if err := recover(); err != nil {
@@ -82,7 +82,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 
 	done := make(chan struct{}, 2)
 
-	go c.closeConn(childCtx, conn, done)
+	go c.closeConn(childCtx, childCtxCancel, conn, done)
 	go c.writeLoop(childCtx, conn, notificationQueue, done)
 	go c.readLoop(childCtx, conn, done)
 
@@ -137,7 +137,7 @@ func (c *Controller) readLoop(ctx context.Context, conn *websocket.Conn, done ch
 		// currently we don't expect to receive something else from the proxies
 		_, _, err := conn.ReadMessage()
 		if err != nil {
-			log.C(ctx).Errorf("ws: could not read: %v", err)
+			log.C(ctx).WithError(err).Error("ws: could not read")
 			return
 		}
 	}
@@ -145,11 +145,11 @@ func (c *Controller) readLoop(ctx context.Context, conn *websocket.Conn, done ch
 
 func (c *Controller) sendWsMessage(ctx context.Context, conn *websocket.Conn, msg interface{}) bool {
 	if err := conn.SetWriteDeadline(time.Now().Add(c.wsSettings.WriteTimeout)); err != nil {
-		log.C(ctx).Errorf("Could not set write deadline: %v", err)
+		log.C(ctx).WithError(err).Error("Could not set write deadline")
 	}
 
 	if err := conn.WriteJSON(msg); err != nil {
-		log.C(ctx).Errorf("ws: could not write: %v", err)
+		log.C(ctx).WithError(err).Error("ws: could not write")
 		return false
 	}
 	return true
@@ -157,13 +157,13 @@ func (c *Controller) sendWsMessage(ctx context.Context, conn *websocket.Conn, ms
 
 func (c *Controller) unregisterConsumer(ctx context.Context, q storage.NotificationQueue) {
 	if unregErr := c.notificator.UnregisterConsumer(q); unregErr != nil {
-		log.C(ctx).Errorf("Could not unregister notification consumer: %v", unregErr)
+		log.C(ctx).WithError(unregErr).Errorf("Could not unregister notification consumer")
 	}
 }
 
 func extractPlatformFromContext(userContext *web.UserContext) (*types.Platform, error) {
 	platform := &types.Platform{}
-	err := userContext.Data.Data(platform)
+	err := userContext.Data(platform)
 	if err != nil {
 		return nil, fmt.Errorf("could not get platform from user context %v", err)
 	}
@@ -173,7 +173,8 @@ func extractPlatformFromContext(userContext *web.UserContext) (*types.Platform, 
 	return platform, nil
 }
 
-func newContextWithCorrelationID(baseCtx context.Context, correlationID string) context.Context {
+func newContextWithCorrelationID(baseCtx context.Context, correlationID string) (context.Context, context.CancelFunc) {
 	entry := log.C(baseCtx).WithField(log.FieldCorrelationID, correlationID)
-	return log.ContextWithLogger(baseCtx, entry)
+	newCtx := log.ContextWithLogger(baseCtx, entry)
+	return context.WithCancel(newCtx)
 }

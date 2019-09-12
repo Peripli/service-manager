@@ -16,24 +16,34 @@
 
 package storage
 
-import "github.com/Peripli/service-manager/pkg/health"
+import (
+	"github.com/InVisionApp/go-health/checkers"
+	"github.com/Peripli/service-manager/pkg/health"
+)
 
-// HealthIndicator returns a new indicator for the storage
-type HealthIndicator struct {
-	Pinger Pinger
+// NewSQLHealthIndicator returns new health indicator for sql storage given a ping function
+func NewSQLHealthIndicator(pingFunc PingFunc) (health.Indicator, error) {
+	sqlConfig := &checkers.SQLConfig{
+		Pinger: pingFunc,
+	}
+	sqlChecker, err := checkers.NewSQL(sqlConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	indicator := &SQLHealthIndicator{
+		SQL: sqlChecker,
+	}
+
+	return indicator, nil
+}
+
+// SQLHealthIndicator returns a new indicator for SQL storage
+type SQLHealthIndicator struct {
+	*checkers.SQL
 }
 
 // Name returns the name of the storage component
-func (i *HealthIndicator) Name() string {
-	return "storage"
-}
-
-// Health returns the health of the storage component
-func (i *HealthIndicator) Health() *health.Health {
-	err := i.Pinger.Ping()
-	healthz := health.New()
-	if err != nil {
-		return healthz.WithError(err).WithDetail("message", "TransactionalRepository ping failed")
-	}
-	return healthz.Up()
+func (i *SQLHealthIndicator) Name() string {
+	return health.StorageIndicatorName
 }

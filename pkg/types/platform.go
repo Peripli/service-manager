@@ -19,6 +19,7 @@ package types
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/util"
 )
@@ -32,6 +33,8 @@ type Platform struct {
 	Name        string       `json:"name"`
 	Description string       `json:"description"`
 	Credentials *Credentials `json:"credentials,omitempty"`
+	Active      bool         `json:"-"`
+	LastActive  time.Time    `json:"-"`
 }
 
 func (e *Platform) SetCredentials(credentials *Credentials) {

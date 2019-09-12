@@ -18,11 +18,14 @@ package sm
 
 import (
 	"context"
-	"crypto/tls"
 	"database/sql"
 	"fmt"
 	"net/http"
 	"sync"
+
+	"github.com/Peripli/service-manager/pkg/health"
+
+	"github.com/Peripli/service-manager/pkg/httpclient"
 
 	"github.com/Peripli/service-manager/api/osb"
 
@@ -56,7 +59,7 @@ type ServiceManagerBuilder struct {
 	NotificationCleaner *storage.NotificationCleaner
 	ctx                 context.Context
 	wg                  *sync.WaitGroup
-	cfg                 *server.Settings
+	cfg                 *config.Settings
 }
 
 // ServiceManager  struct
@@ -75,13 +78,13 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 		return nil, fmt.Errorf("error validating configuration: %s", err)
 	}
 
-	// Setup the default http client
-	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: cfg.API.SkipSSLValidation}
-	http.DefaultClient.Transport = http.DefaultTransport
-	http.DefaultClient.Timeout = cfg.Server.RequestTimeout
+	httpclient.Configure(cfg.HTTPClient)
 
 	// Setup logging
-	ctx = log.Configure(ctx, cfg.Log)
+	ctx, err = log.Configure(ctx, cfg.Log)
+	if err != nil {
+		return nil, fmt.Errorf("error configuring logging,: %s", err)
+	}
 
 	util.HandleInterrupts(ctx, cancel)
 
@@ -109,7 +112,7 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 	// Setup core API
 	log.C(ctx).Info("Setting up Service Manager core API...")
 
-	pgNotificator, err := postgres.NewNotificator(smStorage, cfg.Storage)
+	pgNotificator, err := postgres.NewNotificator(smStorage, interceptableRepository, cfg.Storage)
 	if err != nil {
 		return nil, fmt.Errorf("could not create notificator: %v", err)
 	}
@@ -125,7 +128,13 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 		return nil, fmt.Errorf("error creating core api: %s", err)
 	}
 
-	API.HealthIndicators = append(API.HealthIndicators, &storage.HealthIndicator{Pinger: storage.PingFunc(smStorage.Ping)})
+	storageHealthIndicator, err := storage.NewSQLHealthIndicator(storage.PingFunc(smStorage.PingContext))
+	if err != nil {
+		return nil, fmt.Errorf("error creating storage health indicator: %s", err)
+	}
+
+	API.SetIndicator(storageHealthIndicator)
+	API.SetIndicator(healthcheck.NewPlatformIndicator(ctx, interceptableRepository, nil))
 
 	notificationCleaner := &storage.NotificationCleaner{
 		Storage:  interceptableRepository,
@@ -139,7 +148,7 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 		NotificationCleaner: notificationCleaner,
 		ctx:                 ctx,
 		wg:                  waitGroup,
-		cfg:                 cfg.Server,
+		cfg:                 cfg,
 	}
 
 	// Register default interceptors that represent the core SM business logic
@@ -167,10 +176,12 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 
 // Build builds the Service Manager
 func (smb *ServiceManagerBuilder) Build() *ServiceManager {
-	// setup server and add relevant global middleware
-	smb.installHealth()
+	if err := smb.installHealth(); err != nil {
+		log.C(smb.ctx).Panic(err)
+	}
 
-	srv := server.New(smb.cfg, smb.API)
+	// setup server and add relevant global middleware
+	srv := server.New(smb.cfg.Server, smb.API)
 	srv.Use(filters.NewRecoveryMiddleware())
 
 	return &ServiceManager{
@@ -182,10 +193,27 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	}
 }
 
-func (smb *ServiceManagerBuilder) installHealth() {
-	if len(smb.HealthIndicators) > 0 {
-		smb.RegisterControllers(healthcheck.NewController(smb.HealthIndicators, smb.HealthAggregationPolicy))
+func (smb *ServiceManagerBuilder) installHealth() error {
+	healthz, thresholds, err := health.Configure(smb.ctx, smb.HealthIndicators, smb.cfg.Health)
+	if err != nil {
+		return err
 	}
+
+	smb.RegisterControllers(healthcheck.NewController(healthz, thresholds))
+
+	if err := healthz.Start(); err != nil {
+		return err
+	}
+
+	util.StartInWaitGroupWithContext(smb.ctx, func(c context.Context) {
+		<-c.Done()
+		log.C(c).Debug("Context cancelled. Stopping health checks...")
+		if err := healthz.Stop(); err != nil {
+			log.C(c).Error(err)
+		}
+	}, smb.wg)
+
+	return nil
 }
 
 // Run starts the Service Manager
@@ -266,4 +294,18 @@ func (smb *ServiceManagerBuilder) WithDeleteInterceptorProvider(objectType types
 			return smb
 		},
 	}
+}
+
+// EnableMultitenancy enables multitenancy resources for Service Manager by labeling them with appropriate tenant value
+func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTenantFunc func(*web.Request) (string, error)) *ServiceManagerBuilder {
+	if len(labelKey) == 0 {
+		log.D().Panic("labelKey should be provided")
+	}
+	if extractTenantFunc == nil {
+		log.D().Panic("extractTenantFunc should be provided")
+	}
+
+	multitenancyFilters := filters.NewMultitenancyFilters(labelKey, extractTenantFunc)
+	smb.RegisterFiltersAfter(filters.ProtectedLabelsFilterName, multitenancyFilters...)
+	return smb
 }

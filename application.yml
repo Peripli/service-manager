@@ -4,12 +4,18 @@ server:
   port: 8085
   # max_body_bytes: 4000
   # max_header_bytes: 1000
+httpclient:
+  response_header_timeout: 10000ms
+  tls_handshake_timeout: 10000ms
+  idle_conn_timeout: 10000ms
+  dial_timeout: 10000ms
+  skip_ssl_validation: false
 websocket:
   ping_timeout: 6000ms
   write_timeout: 6000ms
 log:
   level: error
-  format: text
+  format: kibana
 storage:
   #  name: sm-postgres
   uri: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
@@ -19,4 +25,3 @@ storage:
 api:
   token_issuer_url: http://localhost:8080/uaa
   client_id: cf
-  skip_ssl_validation: false

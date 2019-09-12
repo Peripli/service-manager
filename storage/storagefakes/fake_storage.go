@@ -50,12 +50,12 @@ type FakeStorage struct {
 		result1 types.ObjectList
 		result2 error
 	}
-	GetStub        func(context.Context, types.ObjectType, string) (types.Object, error)
+	GetStub        func(context.Context, types.ObjectType, ...query.Criterion) (types.Object, error)
 	getMutex       sync.RWMutex
 	getArgsForCall []struct {
 		arg1 context.Context
 		arg2 types.ObjectType
-		arg3 string
+		arg3 []query.Criterion
 	}
 	getReturns struct {
 		result1 types.Object
@@ -108,22 +108,24 @@ type FakeStorage struct {
 	openReturnsOnCall map[int]struct {
 		result1 error
 	}
-	PingStub        func() error
-	pingMutex       sync.RWMutex
-	pingArgsForCall []struct {
+	PingContextStub        func(context.Context) error
+	pingContextMutex       sync.RWMutex
+	pingContextArgsForCall []struct {
+		arg1 context.Context
 	}
-	pingReturns struct {
+	pingContextReturns struct {
 		result1 error
 	}
-	pingReturnsOnCall map[int]struct {
+	pingContextReturnsOnCall map[int]struct {
 		result1 error
 	}
-	UpdateStub        func(context.Context, types.Object, ...*query.LabelChange) (types.Object, error)
+	UpdateStub        func(context.Context, types.Object, query.LabelChanges, ...query.Criterion) (types.Object, error)
 	updateMutex       sync.RWMutex
 	updateArgsForCall []struct {
 		arg1 context.Context
 		arg2 types.Object
-		arg3 []*query.LabelChange
+		arg3 query.LabelChanges
+		arg4 []query.Criterion
 	}
 	updateReturns struct {
 		result1 types.Object
@@ -318,18 +320,18 @@ func (fake *FakeStorage) DeleteReturnsOnCall(i int, result1 types.ObjectList, re
 	}{result1, result2}
 }
 
-func (fake *FakeStorage) Get(arg1 context.Context, arg2 types.ObjectType, arg3 string) (types.Object, error) {
+func (fake *FakeStorage) Get(arg1 context.Context, arg2 types.ObjectType, arg3 ...query.Criterion) (types.Object, error) {
 	fake.getMutex.Lock()
 	ret, specificReturn := fake.getReturnsOnCall[len(fake.getArgsForCall)]
 	fake.getArgsForCall = append(fake.getArgsForCall, struct {
 		arg1 context.Context
 		arg2 types.ObjectType
-		arg3 string
+		arg3 []query.Criterion
 	}{arg1, arg2, arg3})
 	fake.recordInvocation("Get", []interface{}{arg1, arg2, arg3})
 	fake.getMutex.Unlock()
 	if fake.GetStub != nil {
-		return fake.GetStub(arg1, arg2, arg3)
+		return fake.GetStub(arg1, arg2, arg3...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -344,13 +346,13 @@ func (fake *FakeStorage) GetCallCount() int {
 	return len(fake.getArgsForCall)
 }
 
-func (fake *FakeStorage) GetCalls(stub func(context.Context, types.ObjectType, string) (types.Object, error)) {
+func (fake *FakeStorage) GetCalls(stub func(context.Context, types.ObjectType, ...query.Criterion) (types.Object, error)) {
 	fake.getMutex.Lock()
 	defer fake.getMutex.Unlock()
 	fake.GetStub = stub
 }
 
-func (fake *FakeStorage) GetArgsForCall(i int) (context.Context, types.ObjectType, string) {
+func (fake *FakeStorage) GetArgsForCall(i int) (context.Context, types.ObjectType, []query.Criterion) {
 	fake.getMutex.RLock()
 	defer fake.getMutex.RUnlock()
 	argsForCall := fake.getArgsForCall[i]
@@ -600,70 +602,79 @@ func (fake *FakeStorage) OpenReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeStorage) Ping() error {
-	fake.pingMutex.Lock()
-	ret, specificReturn := fake.pingReturnsOnCall[len(fake.pingArgsForCall)]
-	fake.pingArgsForCall = append(fake.pingArgsForCall, struct {
-	}{})
-	fake.recordInvocation("Ping", []interface{}{})
-	fake.pingMutex.Unlock()
-	if fake.PingStub != nil {
-		return fake.PingStub()
+func (fake *FakeStorage) PingContext(arg1 context.Context) error {
+	fake.pingContextMutex.Lock()
+	ret, specificReturn := fake.pingContextReturnsOnCall[len(fake.pingContextArgsForCall)]
+	fake.pingContextArgsForCall = append(fake.pingContextArgsForCall, struct {
+		arg1 context.Context
+	}{arg1})
+	fake.recordInvocation("PingContext", []interface{}{arg1})
+	fake.pingContextMutex.Unlock()
+	if fake.PingContextStub != nil {
+		return fake.PingContextStub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.pingReturns
+	fakeReturns := fake.pingContextReturns
 	return fakeReturns.result1
 }
 
-func (fake *FakeStorage) PingCallCount() int {
-	fake.pingMutex.RLock()
-	defer fake.pingMutex.RUnlock()
-	return len(fake.pingArgsForCall)
+func (fake *FakeStorage) PingContextCallCount() int {
+	fake.pingContextMutex.RLock()
+	defer fake.pingContextMutex.RUnlock()
+	return len(fake.pingContextArgsForCall)
 }
 
-func (fake *FakeStorage) PingCalls(stub func() error) {
-	fake.pingMutex.Lock()
-	defer fake.pingMutex.Unlock()
-	fake.PingStub = stub
+func (fake *FakeStorage) PingContextCalls(stub func(context.Context) error) {
+	fake.pingContextMutex.Lock()
+	defer fake.pingContextMutex.Unlock()
+	fake.PingContextStub = stub
 }
 
-func (fake *FakeStorage) PingReturns(result1 error) {
-	fake.pingMutex.Lock()
-	defer fake.pingMutex.Unlock()
-	fake.PingStub = nil
-	fake.pingReturns = struct {
+func (fake *FakeStorage) PingContextArgsForCall(i int) context.Context {
+	fake.pingContextMutex.RLock()
+	defer fake.pingContextMutex.RUnlock()
+	argsForCall := fake.pingContextArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeStorage) PingContextReturns(result1 error) {
+	fake.pingContextMutex.Lock()
+	defer fake.pingContextMutex.Unlock()
+	fake.PingContextStub = nil
+	fake.pingContextReturns = struct {
 		result1 error
 	}{result1}
 }
 
-func (fake *FakeStorage) PingReturnsOnCall(i int, result1 error) {
-	fake.pingMutex.Lock()
-	defer fake.pingMutex.Unlock()
-	fake.PingStub = nil
-	if fake.pingReturnsOnCall == nil {
-		fake.pingReturnsOnCall = make(map[int]struct {
+func (fake *FakeStorage) PingContextReturnsOnCall(i int, result1 error) {
+	fake.pingContextMutex.Lock()
+	defer fake.pingContextMutex.Unlock()
+	fake.PingContextStub = nil
+	if fake.pingContextReturnsOnCall == nil {
+		fake.pingContextReturnsOnCall = make(map[int]struct {
 			result1 error
 		})
 	}
-	fake.pingReturnsOnCall[i] = struct {
+	fake.pingContextReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
 }
 
-func (fake *FakeStorage) Update(arg1 context.Context, arg2 types.Object, arg3 ...*query.LabelChange) (types.Object, error) {
+func (fake *FakeStorage) Update(arg1 context.Context, arg2 types.Object, arg3 query.LabelChanges, arg4 ...query.Criterion) (types.Object, error) {
 	fake.updateMutex.Lock()
 	ret, specificReturn := fake.updateReturnsOnCall[len(fake.updateArgsForCall)]
 	fake.updateArgsForCall = append(fake.updateArgsForCall, struct {
 		arg1 context.Context
 		arg2 types.Object
-		arg3 []*query.LabelChange
-	}{arg1, arg2, arg3})
-	fake.recordInvocation("Update", []interface{}{arg1, arg2, arg3})
+		arg3 query.LabelChanges
+		arg4 []query.Criterion
+	}{arg1, arg2, arg3, arg4})
+	fake.recordInvocation("Update", []interface{}{arg1, arg2, arg3, arg4})
 	fake.updateMutex.Unlock()
 	if fake.UpdateStub != nil {
-		return fake.UpdateStub(arg1, arg2, arg3...)
+		return fake.UpdateStub(arg1, arg2, arg3, arg4...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -678,17 +689,17 @@ func (fake *FakeStorage) UpdateCallCount() int {
 	return len(fake.updateArgsForCall)
 }
 
-func (fake *FakeStorage) UpdateCalls(stub func(context.Context, types.Object, ...*query.LabelChange) (types.Object, error)) {
+func (fake *FakeStorage) UpdateCalls(stub func(context.Context, types.Object, query.LabelChanges, ...query.Criterion) (types.Object, error)) {
 	fake.updateMutex.Lock()
 	defer fake.updateMutex.Unlock()
 	fake.UpdateStub = stub
 }
 
-func (fake *FakeStorage) UpdateArgsForCall(i int) (context.Context, types.Object, []*query.LabelChange) {
+func (fake *FakeStorage) UpdateArgsForCall(i int) (context.Context, types.Object, query.LabelChanges, []query.Criterion) {
 	fake.updateMutex.RLock()
 	defer fake.updateMutex.RUnlock()
 	argsForCall := fake.updateArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
 }
 
 func (fake *FakeStorage) UpdateReturns(result1 types.Object, result2 error) {
@@ -736,8 +747,8 @@ func (fake *FakeStorage) Invocations() map[string][][]interface{} {
 	defer fake.listMutex.RUnlock()
 	fake.openMutex.RLock()
 	defer fake.openMutex.RUnlock()
-	fake.pingMutex.RLock()
-	defer fake.pingMutex.RUnlock()
+	fake.pingContextMutex.RLock()
+	defer fake.pingContextMutex.RUnlock()
 	fake.updateMutex.RLock()
 	defer fake.updateMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}

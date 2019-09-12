@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-package health
+package filters_test
 
-// pingIndicator is a default indicator that always returns up
-type pingIndicator struct {
-}
+import (
+	"testing"
 
-func (*pingIndicator) Name() string {
-	return "ping"
-}
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+)
 
-func (*pingIndicator) Health() *Health {
-	return New().Up()
+func TestFilters(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Filters Test Suite")
 }

@@ -30,6 +30,10 @@ type NotificationConnection interface {
 	// Close closes the connection
 	Close() error
 
+	// Ping the remote server to make sure it's alive.  Non-nil return value means
+	// that there is no active connection.
+	Ping() error
+
 	// NotificationChannel returns channel for receiving notifications
 	NotificationChannel() <-chan *pq.Notification
 }

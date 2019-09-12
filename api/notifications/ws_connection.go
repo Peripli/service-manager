@@ -29,7 +29,7 @@ func (c *Controller) upgrade(rw http.ResponseWriter, req *http.Request, header h
 				ErrorType:   "WebsocketUpgradeError",
 				Description: reason.Error(),
 			}
-			util.WriteError(httpErr, w)
+			util.WriteError(r.Context(), httpErr, w)
 		},
 	}
 	conn, err := upgrader.Upgrade(rw, req, header)
@@ -64,13 +64,13 @@ func (c *Controller) configureConn(ctx context.Context, conn *websocket.Conn) {
 	})
 }
 
-func (c *Controller) closeConn(ctx context.Context, conn *websocket.Conn, done <-chan struct{}) {
+func (c *Controller) closeConn(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, done <-chan struct{}) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.C(ctx).Errorf("recovered from panic while closing websocket connection: %s", err)
 		}
 	}()
-
+	defer cancel()
 	// if base context is cancelled, write loop will quit and write to done
 	<-done
 

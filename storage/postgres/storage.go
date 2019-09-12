@@ -138,7 +138,7 @@ func (ps *Storage) updateSchema(migrationsURL, pgDriverName string) error {
 	return err
 }
 
-func (ps *Storage) Ping() error {
+func (ps *Storage) PingContext(ctx context.Context) error {
 	ps.checkOpen()
 	return ps.state.Get()
 }
@@ -190,10 +190,8 @@ func (ps *Storage) createLabels(ctx context.Context, entityID string, labels []s
 	return nil
 }
 
-func (ps *Storage) Get(ctx context.Context, objectType types.ObjectType, id string) (types.Object, error) {
-	byPrimaryColumn := query.ByField(query.EqualsOperator, "id", id)
-
-	result, err := ps.List(ctx, objectType, byPrimaryColumn)
+func (ps *Storage) Get(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, error) {
+	result, err := ps.List(ctx, objectType, criteria...)
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +218,7 @@ func (ps *Storage) List(ctx context.Context, objType types.ObjectType, criteria 
 			return
 		}
 		if err := rows.Close(); err != nil {
-			log.C(ctx).Errorf("Could not release connection when checking database. Error: %s", err)
+			log.C(ctx).WithError(err).Error("Could not release connection when checking database")
 		}
 	}()
 	if err != nil {
@@ -250,7 +248,7 @@ func (ps *Storage) Delete(ctx context.Context, objType types.ObjectType, criteri
 	return objectList, nil
 }
 
-func (ps *Storage) Update(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+func (ps *Storage) Update(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, criteria ...query.Criterion) (types.Object, error) {
 	entity, err := ps.scheme.convert(obj)
 	if err != nil {
 		return nil, err

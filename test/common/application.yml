@@ -2,6 +2,11 @@ server:
   request_timeout: 4000ms
   shutdown_timeout: 4000ms
   port: 1234
+httpclient:
+  response_header_timeout: 10000ms
+  tls_handshake_timeout: 10000ms
+  idle_conn_timeout: 10000ms
+  dial_timeout: 10000ms
 websocket:
   ping_timeout: 6000ms
   write_timeout: 6000ms
@@ -15,3 +20,5 @@ api:
   token_issuer_url: http://localhost:8080/uaa
   client_id: sm
   skip_ssl_validation: false
+multitenancy:
+  label_key: tenant

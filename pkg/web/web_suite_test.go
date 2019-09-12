@@ -16,11 +16,45 @@
 
 package web_test
 
-import "testing"
-import . "github.com/onsi/ginkgo"
-import . "github.com/onsi/gomega"
+import (
+	"context"
+	"github.com/Peripli/service-manager/pkg/web"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+	"testing"
+)
 
 func TestWeb(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Web Suite")
 }
+
+var _ = Describe("Context keys", func() {
+
+	Context("when valid user is in context", func() {
+		It("returns user and ok", func() {
+			ctx := web.ContextWithUser(context.TODO(), &web.UserContext{})
+			userContext, ok := web.UserFromContext(ctx)
+			Expect(userContext).ToNot(BeNil())
+			Expect(ok).To(BeTrue())
+		})
+	})
+
+	Context("when nil user is in context", func() {
+		It("returns nil and not ok", func() {
+			ctx := web.ContextWithUser(context.TODO(), nil)
+			userContext, ok := web.UserFromContext(ctx)
+			Expect(userContext).To(BeNil())
+			Expect(ok).To(BeFalse())
+		})
+	})
+
+	Context("when user is not in context", func() {
+		It("returns nil and not ok", func() {
+			userContext, ok := web.UserFromContext(context.TODO())
+			Expect(userContext).To(BeNil())
+			Expect(ok).To(BeFalse())
+		})
+	})
+
+})

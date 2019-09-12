@@ -17,6 +17,7 @@
 package util
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -46,9 +47,9 @@ func (uq *UnsupportedQueryError) Error() string {
 }
 
 // WriteError sends a JSON containing the error to the response writer
-func WriteError(err error, writer http.ResponseWriter) {
+func WriteError(ctx context.Context, err error, writer http.ResponseWriter) {
 	var respError *HTTPError
-	logger := log.D()
+	logger := log.C(ctx)
 	switch t := err.(type) {
 	case *UnsupportedQueryError:
 		logger.Errorf("UnsupportedQueryError: %s", err)
@@ -75,20 +76,18 @@ func WriteError(err error, writer http.ResponseWriter) {
 	}
 }
 
-// HandleResponseError builds at HttpErrorResponse from the given response.
+// HandleResponseError builds an error from the given response
 func HandleResponseError(response *http.Response) error {
 	body, err := BodyToBytes(response.Body)
 	if err != nil {
-		return fmt.Errorf("error processing response body of resp with status code %d: %s", response.StatusCode, err)
+		body = []byte(fmt.Sprintf("error reading response body: %s", err))
 	}
 
 	err = fmt.Errorf("StatusCode: %d Body: %s", response.StatusCode, body)
 	if response.Request != nil {
-		log.C(response.Request.Context()).Errorf("Call to client failed with: %s", err)
-	} else {
-		log.D().Errorf("Call to client failed with: %s", err)
+		return fmt.Errorf("request %s %s failed: %s", response.Request.Method, response.Request.URL, err)
 	}
-	return err
+	return fmt.Errorf("request failed: %s", err)
 }
 
 var (

@@ -47,25 +47,29 @@ func (h *HTTPHandler) Handle(req *web.Request) (resp *web.Response, err error) {
 
 // ServeHTTP implements the http.Handler interface and allows wrapping web.Handlers into http.Handlers
 func (h *HTTPHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	if err := h.serve(res, req); err != nil {
-		util.WriteError(err, res)
-	}
-}
+	var err error
+	ctx := req.Context()
+	defer func() {
+		if err != nil {
+			util.WriteError(ctx, err, res)
+		}
+	}()
 
-func (h *HTTPHandler) serve(res http.ResponseWriter, req *http.Request) error {
+	var request *web.Request
 	req.Body = http.MaxBytesReader(res, req.Body, int64(h.requestBodyMaxSize))
-
-	request, err := convertToWebRequest(req, res)
-	if err != nil {
-		return err
+	if request, err = convertToWebRequest(req, res); err != nil {
+		return
 	}
 
-	response, err := h.Handler.Handle(request)
+	var response *web.Response
+	response, err = h.Handler.Handle(request)
+	ctx = request.Context() // logging filter may have enriched the context with a logger
 	if request.IsResponseWriterHijacked() {
-		return nil
+		err = nil
+		return
 	}
 	if err != nil {
-		return err
+		return
 	}
 
 	// copy response headers
@@ -76,13 +80,11 @@ func (h *HTTPHandler) serve(res http.ResponseWriter, req *http.Request) error {
 	}
 
 	res.WriteHeader(response.StatusCode)
-	_, err = res.Write(response.Body)
-	if err != nil {
+	if _, err = res.Write(response.Body); err != nil {
 		// HTTP headers and status are sent already
 		// if we return an error, the error Handler will try to send them again
-		log.C(req.Context()).Error("Error sending response", err)
+		log.C(ctx).Error("Error sending response", err)
 	}
-	return nil
 }
 
 func convertToWebRequest(request *http.Request, rw http.ResponseWriter) (*web.Request, error) {
@@ -92,7 +94,9 @@ func convertToWebRequest(request *http.Request, rw http.ResponseWriter) (*web.Re
 	var err error
 	if request.Method == "PUT" || request.Method == "POST" || request.Method == "PATCH" {
 		body, err = util.RequestBodyToBytes(request)
-		err = isPayloadTooLargeErr(request.Context(), err)
+		if err != nil {
+			return nil, isPayloadTooLargeErr(request.Context(), err)
+		}
 	}
 
 	webReq := &web.Request{
@@ -101,14 +105,13 @@ func convertToWebRequest(request *http.Request, rw http.ResponseWriter) (*web.Re
 		Body:       body,
 	}
 	webReq.SetResponseWriter(rw)
-	return webReq, err
+	return webReq, nil
 }
 
 func isPayloadTooLargeErr(ctx context.Context, err error) error {
 	// Go http package uses errors.New() to return the below error, so
 	// we can only check it with string matching
 	if err != nil && err.Error() == "http: request body too large" {
-		log.C(ctx).Errorf(err.Error())
 		return &util.HTTPError{
 			StatusCode:  http.StatusRequestEntityTooLarge,
 			ErrorType:   "PayloadTooLarge",

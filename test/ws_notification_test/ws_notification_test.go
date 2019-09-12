@@ -23,6 +23,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/Peripli/service-manager/api/notifications"
 
 	"github.com/spf13/pflag"
@@ -233,6 +235,55 @@ var _ = Describe("WS", func() {
 		})
 	})
 
+	Context("when platform is connected", func() {
+		It("should switch platform's active status to true", func() {
+			Expect(platform.Active).To(BeFalse())
+			_, _, err := ctx.ConnectWebSocket(platform, queryParams)
+			Expect(err).ShouldNot(HaveOccurred())
+
+			idCriteria := query.Criterion{
+				LeftOp:   "id",
+				Operator: query.EqualsOperator,
+				RightOp:  []string{platform.ID},
+				Type:     query.FieldQuery,
+			}
+			obj, err := repository.Get(context.TODO(), types.PlatformType, idCriteria)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(obj.(*types.Platform).Active).To(BeTrue())
+		})
+	})
+
+	Context("when platform disconnects", func() {
+		It("should switch platform's active status to false", func() {
+			conn, _, err := ctx.ConnectWebSocket(platform, queryParams)
+			Expect(err).ShouldNot(HaveOccurred())
+
+			ctx.CloseWebSocket(conn)
+
+			idCriteria := query.Criterion{
+				LeftOp:   "id",
+				Operator: query.EqualsOperator,
+				RightOp:  []string{platform.ID},
+				Type:     query.FieldQuery,
+			}
+			ctx, _ := context.WithTimeout(context.TODO(), 5*time.Second)
+			ticker := time.NewTicker(500 * time.Millisecond)
+			for {
+				select {
+				case <-ticker.C:
+					obj, err := repository.Get(context.TODO(), types.PlatformType, idCriteria)
+					Expect(err).ShouldNot(HaveOccurred())
+					p := obj.(*types.Platform)
+					if p.Active == false && !p.LastActive.IsZero() {
+						return
+					}
+				case <-ctx.Done():
+					Fail("Timeout: platform active status not set to false")
+				}
+			}
+		})
+	})
+
 	Context("when same platform is connected twice", func() {
 		It("should send same notifications to both", func() {
 			conn, _, err := ctx.ConnectWebSocket(platform, queryParams)
@@ -289,7 +340,8 @@ func createNotification(repository storage.Repository, platformID string) *types
 	result, err := repository.Create(context.Background(), notification)
 	Expect(err).ShouldNot(HaveOccurred())
 
-	createdNotification, err := repository.Get(context.Background(), types.NotificationType, result.GetID())
+	byID := query.ByField(query.EqualsOperator, "id", result.GetID())
+	createdNotification, err := repository.Get(context.Background(), types.NotificationType, byID)
 	Expect(err).ShouldNot(HaveOccurred())
 	return createdNotification.(*types.Notification)
 }
