@@ -111,15 +111,15 @@ var _ = Describe("config", func() {
 			})
 		})
 
-		Context("health indicator with interval less than 30", func() {
+		Context("health indicator with interval less than 10", func() {
 			It("should be considered invalid", func() {
-				interval = 15 * time.Second
+				interval = 5 * time.Second
 				registerIndicatorSettings()
 				assertErrorDuringValidate()
 			})
 		})
 
-		Context("health indicator with positive threshold and interval >= 30", func() {
+		Context("health indicator with positive threshold and interval >= 10", func() {
 			It("should be considered valid", func() {
 				interval = 30 * time.Second
 				failuresThreshold = 3
