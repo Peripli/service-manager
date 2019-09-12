@@ -26,7 +26,6 @@ import (
 	"time"
 )
 
-
 // MinInterval is the minimum check interval for a indicator configuration
 var MinInterval = 10 * time.Second
 
