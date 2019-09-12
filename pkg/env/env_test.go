@@ -19,12 +19,11 @@ package env_test
 import (
 	"context"
 	"fmt"
-
 	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/fatih/structs"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/sirupsen/logrus"
-
 	"io/ioutil"
 	"os"
 	"testing"
@@ -35,7 +34,6 @@ import (
 
 	"github.com/Peripli/service-manager/config"
 	"github.com/Peripli/service-manager/pkg/env"
-	"github.com/fatih/structs"
 	"github.com/spf13/cast"
 	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v2"
@@ -68,6 +66,12 @@ var _ = Describe("Env", func() {
 		keyNslice     = "nest.nslice"
 		keyNmappedVal = "nest.n_mapped_val"
 
+		keySquashNbool      = "nbool"
+		keySquashNint       = "nint"
+		keySquashNstring    = "nstring"
+		keySquashNslice     = "nslice"
+		keySquashNmappedVal = "n_mapped_val"
+
 		keyMapNbool      = "wmapnest" + "." + mapKey + "." + "nbool"
 		keyMapNint       = "wmapnest" + "." + mapKey + "." + "nint"
 		keyMapNstring    = "wmapnest" + "." + mapKey + "." + "nstring"
@@ -92,7 +96,26 @@ var _ = Describe("Env", func() {
 		WMappedVal string `mapstructure:"w_mapped_val" structs:"w_mapped_val" yaml:"w_mapped_val"`
 		WMapNest   map[string]Nest
 		Nest       Nest
+		Squash     Nest `mapstructure:",squash"`
 		Log        log.Settings
+	}
+
+	type FlatOuter struct {
+		WBool      bool
+		WInt       int
+		WString    string
+		WMappedVal string `mapstructure:"w_mapped_val" structs:"w_mapped_val" yaml:"w_mapped_val"`
+		WMapNest   map[string]Nest
+		Nest       Nest
+
+		// Flattened Nest fields due to squash tag
+		NBool      bool
+		NInt       int
+		NString    string
+		NSlice     []string
+		NMappedVal string `mapstructure:"n_mapped_val" structs:"n_mapped_val"  yaml:"n_mapped_val"`
+
+		Log log.Settings
 	}
 
 	type testFile struct {
@@ -101,7 +124,8 @@ var _ = Describe("Env", func() {
 	}
 
 	var (
-		expected Outer
+		outer     Outer
+		flatOuter FlatOuter
 
 		cfgFile   testFile
 		testFlags *pflag.FlagSet
@@ -124,6 +148,12 @@ var _ = Describe("Env", func() {
 		set.Int(keyWint, s.WInt, description)
 		set.String(keyWstring, s.WString, description)
 		set.String(keyWmappedVal, s.WMappedVal, description)
+
+		set.Bool(keySquashNbool, s.Squash.NBool, description)
+		set.Int(keySquashNint, s.Squash.NInt, description)
+		set.String(keySquashNstring, s.Squash.NString, description)
+		set.StringSlice(keySquashNslice, s.Squash.NSlice, description)
+		set.String(keySquashNmappedVal, s.Squash.NMappedVal, description)
 
 		set.Bool(keyNbool, s.Nest.NBool, description)
 		set.Int(keyNint, s.Nest.NInt, description)
@@ -156,6 +186,12 @@ var _ = Describe("Env", func() {
 		Expect(testFlags.Set(keyWstring, o.WString)).ShouldNot(HaveOccurred())
 		Expect(testFlags.Set(keyWmappedVal, o.WMappedVal)).ShouldNot(HaveOccurred())
 
+		Expect(testFlags.Set(keySquashNbool, cast.ToString(o.Squash.NBool))).ShouldNot(HaveOccurred())
+		Expect(testFlags.Set(keySquashNint, cast.ToString(o.Squash.NInt))).ShouldNot(HaveOccurred())
+		Expect(testFlags.Set(keySquashNstring, o.Squash.NString)).ShouldNot(HaveOccurred())
+		Expect(testFlags.Set(keySquashNslice, strings.Join(o.Squash.NSlice, ","))).ShouldNot(HaveOccurred())
+		Expect(testFlags.Set(keySquashNmappedVal, o.Squash.NMappedVal)).ShouldNot(HaveOccurred())
+
 		Expect(testFlags.Set(keyNbool, cast.ToString(o.Nest.NBool))).ShouldNot(HaveOccurred())
 		Expect(testFlags.Set(keyNint, cast.ToString(o.Nest.NInt))).ShouldNot(HaveOccurred())
 		Expect(testFlags.Set(keyNstring, o.Nest.NString)).ShouldNot(HaveOccurred())
@@ -171,25 +207,31 @@ var _ = Describe("Env", func() {
 	}
 
 	setEnvVars := func() {
-		Expect(os.Setenv(strings.ToTitle(keyWbool), cast.ToString(expected.WBool))).ShouldNot(HaveOccurred())
-		Expect(os.Setenv(strings.ToTitle(keyWint), cast.ToString(expected.WInt))).ShouldNot(HaveOccurred())
-		Expect(os.Setenv(strings.ToTitle(keyWstring), expected.WString)).ShouldNot(HaveOccurred())
-		Expect(os.Setenv(strings.ToTitle(keyWmappedVal), expected.WMappedVal)).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.ToTitle(keyWbool), cast.ToString(outer.WBool))).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.ToTitle(keyWint), cast.ToString(outer.WInt))).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.ToTitle(keyWstring), outer.WString)).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.ToTitle(keyWmappedVal), outer.WMappedVal)).ShouldNot(HaveOccurred())
 
-		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyNbool), ".", "_", -1), cast.ToString(expected.Nest.NBool))).ShouldNot(HaveOccurred())
-		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyNint), ".", "_", -1), cast.ToString(expected.Nest.NInt))).ShouldNot(HaveOccurred())
-		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyNstring), ".", "_", -1), expected.Nest.NString)).ShouldNot(HaveOccurred())
-		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyNslice), ".", "_", -1), strings.Join(expected.Nest.NSlice, ","))).ShouldNot(HaveOccurred())
-		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyNmappedVal), ".", "_", -1), expected.Nest.NMappedVal)).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.ToTitle(keySquashNbool), cast.ToString(outer.Squash.NBool))).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.ToTitle(keySquashNint), cast.ToString(outer.Squash.NInt))).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.ToTitle(keySquashNstring), outer.Squash.NString)).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.ToTitle(keySquashNslice), strings.Join(outer.Squash.NSlice, ","))).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.ToTitle(keySquashNmappedVal), outer.Squash.NMappedVal)).ShouldNot(HaveOccurred())
 
-		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyMapNbool), ".", "_", -1), cast.ToString(expected.WMapNest[mapKey].NBool))).ShouldNot(HaveOccurred())
-		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyMapNint), ".", "_", -1), cast.ToString(expected.WMapNest[mapKey].NInt))).ShouldNot(HaveOccurred())
-		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyMapNstring), ".", "_", -1), expected.WMapNest[mapKey].NString)).ShouldNot(HaveOccurred())
-		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyMapNslice), ".", "_", -1), strings.Join(expected.WMapNest[mapKey].NSlice, ","))).ShouldNot(HaveOccurred())
-		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyMapNmappedVal), ".", "_", -1), expected.WMapNest[mapKey].NMappedVal)).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyNbool), ".", "_", -1), cast.ToString(outer.Nest.NBool))).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyNint), ".", "_", -1), cast.ToString(outer.Nest.NInt))).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyNstring), ".", "_", -1), outer.Nest.NString)).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyNslice), ".", "_", -1), strings.Join(outer.Nest.NSlice, ","))).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyNmappedVal), ".", "_", -1), outer.Nest.NMappedVal)).ShouldNot(HaveOccurred())
 
-		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyLogFormat), ".", "_", -1), expected.Log.Format)).ShouldNot(HaveOccurred())
-		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyLogLevel), ".", "_", -1), expected.Log.Level)).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyMapNbool), ".", "_", -1), cast.ToString(outer.WMapNest[mapKey].NBool))).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyMapNint), ".", "_", -1), cast.ToString(outer.WMapNest[mapKey].NInt))).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyMapNstring), ".", "_", -1), outer.WMapNest[mapKey].NString)).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyMapNslice), ".", "_", -1), strings.Join(outer.WMapNest[mapKey].NSlice, ","))).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyMapNmappedVal), ".", "_", -1), outer.WMapNest[mapKey].NMappedVal)).ShouldNot(HaveOccurred())
+
+		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyLogFormat), ".", "_", -1), outer.Log.Format)).ShouldNot(HaveOccurred())
+		Expect(os.Setenv(strings.Replace(strings.ToTitle(keyLogLevel), ".", "_", -1), outer.Log.Level)).ShouldNot(HaveOccurred())
 	}
 
 	cleanUpEnvVars := func() {
@@ -197,6 +239,12 @@ var _ = Describe("Env", func() {
 		Expect(os.Unsetenv(strings.ToTitle(keyWint))).ShouldNot(HaveOccurred())
 		Expect(os.Unsetenv(strings.ToTitle(keyWstring))).ShouldNot(HaveOccurred())
 		Expect(os.Unsetenv(strings.ToTitle(keyWmappedVal))).ShouldNot(HaveOccurred())
+
+		Expect(os.Unsetenv(strings.ToTitle(keySquashNbool))).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(strings.ToTitle(keySquashNint))).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(strings.ToTitle(keySquashNstring))).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(strings.ToTitle(keySquashNslice))).ShouldNot(HaveOccurred())
+		Expect(os.Unsetenv(strings.ToTitle(keySquashNmappedVal))).ShouldNot(HaveOccurred())
 
 		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyNbool), ".", "_", -1))).ShouldNot(HaveOccurred())
 		Expect(os.Unsetenv(strings.Replace(strings.ToTitle(keyNint), ".", "_", -1))).ShouldNot(HaveOccurred())
@@ -245,35 +293,31 @@ var _ = Describe("Env", func() {
 		Expect(createEnv()).ShouldNot(HaveOccurred())
 	}
 
-	verifyEnvContainsValues := func(expected interface{}) {
-		props := structs.Map(expected)
-		for key, expectedValue := range props {
-			switch v := expectedValue.(type) {
+	var verifyValues func(expected map[string]interface{}, prefix string)
+
+	verifyValues = func(fields map[string]interface{}, prefix string) {
+		for name, value := range fields {
+			switch v := value.(type) {
 			case map[string]interface{}:
-				for nestedKey, nestedExpectedValue := range v {
-					expectedValue, ok := nestedExpectedValue.([]string)
-					if ok {
-						nestedExpectedValue = strings.Join(expectedValue, ",")
-					}
-
-					envValue := environment.Get(key + "." + nestedKey)
-					switch actualValue := envValue.(type) {
-					case []string:
-						envValue = strings.Join(actualValue, ",")
-					case []interface{}:
-						temp := make([]string, len(actualValue))
-						for i, v := range actualValue {
-							temp[i] = fmt.Sprint(v)
-						}
-						envValue = strings.Join(temp, ",")
-					}
-
-					Expect(cast.ToString(envValue)).Should(Equal(cast.ToString(nestedExpectedValue)))
+				verifyValues(v, prefix+name+".")
+			case []string:
+				switch envVar := environment.Get(prefix + name).(type) {
+				case string:
+					Expect(envVar).To(Equal(strings.Join(v, ",")))
+				case []string, []interface{}:
+					Expect(fmt.Sprint(envVar)).To(Equal(fmt.Sprint(v)))
+				default:
+					Fail(fmt.Sprintf("Expected env value of type []string but got: %T", envVar))
 				}
 			default:
-				Expect(cast.ToString(environment.Get(key))).To(Equal(cast.ToString(expectedValue)))
+				Expect(cast.ToString(environment.Get(prefix+name))).To(Equal(cast.ToString(v)), prefix+name)
 			}
 		}
+	}
+
+	verifyEnvContainsValues := func(expected interface{}) {
+		fields := structs.Map(expected)
+		verifyValues(fields, "")
 	}
 
 	BeforeEach(func() {
@@ -287,11 +331,32 @@ var _ = Describe("Env", func() {
 			NMappedVal: "nmappedval",
 		}
 
-		expected = Outer{
+		outer = Outer{
 			WBool:      true,
 			WInt:       1234,
 			WString:    "wstringval",
 			WMappedVal: "wmappedval",
+			Squash:     nest,
+			Log: log.Settings{
+				Level:  "error",
+				Format: "text",
+			},
+			Nest: nest,
+			WMapNest: map[string]Nest{
+				mapKey: nest,
+			},
+		}
+
+		flatOuter = FlatOuter{
+			WBool:      true,
+			WInt:       1234,
+			WString:    "wstringval",
+			WMappedVal: "wmappedval",
+			NBool:      true,
+			NInt:       4321,
+			NString:    "nstringval",
+			NSlice:     []string{"nval1", "nval2", "nval3"},
+			NMappedVal: "nmappedval",
 			Log: log.Settings{
 				Level:  "error",
 				Format: "text",
@@ -316,19 +381,19 @@ var _ = Describe("Env", func() {
 		)
 
 		It("adds viper bindings for the provided flags", func() {
-			testFlags.AddFlagSet(standardPFlagsSet(expected))
+			testFlags.AddFlagSet(standardPFlagsSet(outer))
 			cfgFile.content = nil
 
 			verifyEnvCreated()
 
-			verifyEnvContainsValues(expected)
+			verifyEnvContainsValues(flatOuter)
 		})
 
 		Context("when SM config file exists", func() {
 			BeforeEach(func() {
 				cfgFile = testFile{
 					File:    env.DefaultConfigFile(),
-					content: expected,
+					content: flatOuter,
 				}
 			})
 
@@ -384,7 +449,7 @@ var _ = Describe("Env", func() {
 				It("reads the file in the environment", func() {
 					verifyEnvCreated()
 
-					verifyEnvContainsValues(expected)
+					verifyEnvContainsValues(flatOuter)
 				})
 
 				It("returns an err if config file loading fails", func() {
@@ -406,7 +471,7 @@ var _ = Describe("Env", func() {
 						Expect(log.D().Logger.Out.(*os.File).Name()).ToNot(Equal(newOutput))
 
 						f := cfgFile.Location + string(filepath.Separator) + cfgFile.Name + "." + cfgFile.Format
-						fileContent := cfgFile.content.(Outer)
+						fileContent := cfgFile.content.(FlatOuter)
 						fileContent.Log.Level = logrus.DebugLevel.String()
 						fileContent.Log.Output = newOutput
 						cfgFile.content = fileContent
@@ -461,20 +526,37 @@ var _ = Describe("Env", func() {
 
 	Describe("Get", func() {
 		var overrideStructure Outer
+		var overrideStructureOutput FlatOuter
 
 		BeforeEach(func() {
+			nest := Nest{
+				NBool:      false,
+				NInt:       9999,
+				NString:    "overrideval",
+				NSlice:     []string{"nval1", "nval2", "nval3"},
+				NMappedVal: "overrideval",
+			}
+
 			overrideStructure = Outer{
 				WBool:      false,
 				WInt:       8888,
 				WString:    "overrideval",
 				WMappedVal: "overrideval",
-				Nest: Nest{
-					NBool:      false,
-					NInt:       9999,
-					NString:    "overrideval",
-					NSlice:     []string{"nval1", "nval2", "nval3"},
-					NMappedVal: "overrideval",
-				},
+				Nest:       nest,
+				Squash:     nest,
+			}
+
+			overrideStructureOutput = FlatOuter{
+				WBool:      false,
+				WInt:       8888,
+				WString:    "overrideval",
+				WMappedVal: "overrideval",
+				Nest:       nest,
+				NBool:      false,
+				NInt:       9999,
+				NString:    "overrideval",
+				NSlice:     []string{"nval1", "nval2", "nval3"},
+				NMappedVal: "overrideval",
 			}
 		})
 
@@ -488,34 +570,34 @@ var _ = Describe("Env", func() {
 
 		Context("when properties are loaded via standard pflags", func() {
 			BeforeEach(func() {
-				testFlags.AddFlagSet(standardPFlagsSet(expected))
+				testFlags.AddFlagSet(standardPFlagsSet(outer))
 			})
 
 			It("returns the default flag value if the flag is not set", func() {
-				verifyEnvContainsValues(expected)
+				verifyEnvContainsValues(flatOuter)
 			})
 
 			It("returns the flags values if the flags are set", func() {
 				setPFlags(overrideStructure)
 
-				verifyEnvContainsValues(overrideStructure)
+				verifyEnvContainsValues(overrideStructureOutput)
 
 			})
 		})
 
 		Context("when properties are loaded via generated pflags", func() {
 			BeforeEach(func() {
-				testFlags.AddFlagSet(generatedPFlagsSet(expected))
+				testFlags.AddFlagSet(generatedPFlagsSet(outer))
 			})
 
 			It("returns the default flag value if the flag is not set", func() {
-				verifyEnvContainsValues(expected)
+				verifyEnvContainsValues(flatOuter)
 			})
 
 			It("returns the flags values if the flags are set", func() {
 				setPFlags(overrideStructure)
 
-				verifyEnvContainsValues(overrideStructure)
+				verifyEnvContainsValues(overrideStructureOutput)
 			})
 		})
 
@@ -523,14 +605,14 @@ var _ = Describe("Env", func() {
 			BeforeEach(func() {
 				cfgFile = testFile{
 					File:    env.DefaultConfigFile(),
-					content: expected,
+					content: flatOuter,
 				}
 				config.AddPFlags(testFlags)
 				verifyEnvCreated()
 			})
 
 			It("returns values from the config file", func() {
-				verifyEnvContainsValues(expected)
+				verifyEnvContainsValues(flatOuter)
 			})
 		})
 
@@ -540,7 +622,7 @@ var _ = Describe("Env", func() {
 			})
 
 			It("returns values from environment", func() {
-				verifyEnvContainsValues(expected)
+				verifyEnvContainsValues(flatOuter)
 			})
 		})
 
@@ -636,21 +718,21 @@ var _ = Describe("Env", func() {
 
 			Context("when properties are loaded via standard pflags", func() {
 				BeforeEach(func() {
-					testFlags.AddFlagSet(standardPFlagsSet(expected))
+					testFlags.AddFlagSet(standardPFlagsSet(outer))
 				})
 
 				It("unmarshals correctly", func() {
-					verifyUnmarshallingIsCorrect(&actual, &expected)
+					verifyUnmarshallingIsCorrect(&actual, &outer)
 				})
 			})
 
 			Context("when properties are loaded via generated pflags", func() {
 				BeforeEach(func() {
-					testFlags.AddFlagSet(generatedPFlagsSet(expected))
+					testFlags.AddFlagSet(generatedPFlagsSet(outer))
 				})
 
 				It("unmarshals correctly", func() {
-					verifyUnmarshallingIsCorrect(&actual, &expected)
+					verifyUnmarshallingIsCorrect(&actual, &outer)
 				})
 			})
 
@@ -658,13 +740,13 @@ var _ = Describe("Env", func() {
 				BeforeEach(func() {
 					cfgFile = testFile{
 						File:    env.DefaultConfigFile(),
-						content: expected,
+						content: flatOuter,
 					}
 					config.AddPFlags(testFlags)
 				})
 
 				It("unmarshals correctly", func() {
-					verifyUnmarshallingIsCorrect(&actual, &expected)
+					verifyUnmarshallingIsCorrect(&actual, &outer)
 				})
 			})
 
@@ -674,7 +756,7 @@ var _ = Describe("Env", func() {
 				})
 
 				It("unmarshals correctly", func() {
-					verifyUnmarshallingIsCorrect(&actual, &expected)
+					verifyUnmarshallingIsCorrect(&actual, &outer)
 				})
 			})
 

@@ -113,7 +113,6 @@ func buildDescriptionTreeWithParameters(value interface{}, tree *descriptionTree
 			return
 		}
 		s := structs.New(value)
-		k := 0
 		for _, field := range s.Fields() {
 			if isValidField(field) {
 				var name string
@@ -122,11 +121,13 @@ func buildDescriptionTreeWithParameters(value interface{}, tree *descriptionTree
 				} else {
 					name = field.Name()
 				}
-
-				if name == "-" || name == ",squash" {
+				if name == "-" {
 					continue
 				}
-
+				if name == ",squash" {
+					buildDescriptionTreeWithParameters(field.Value(), tree, buffer, result)
+					continue
+				}
 				description := ""
 				if field.Tag("description") != "" {
 					description = field.Tag("description")
@@ -134,13 +135,9 @@ func buildDescriptionTreeWithParameters(value interface{}, tree *descriptionTree
 
 				baseTree := newDescriptionTree(description)
 				tree.AddNode(baseTree)
-				buffer += name + "."
-				buildDescriptionTreeWithParameters(field.Value(), tree.Children[k], buffer, result)
-				k++
-				buffer = buffer[0:strings.LastIndex(buffer, name)]
+				buildDescriptionTreeWithParameters(field.Value(), baseTree, buffer+name+".", result)
 			}
 		}
-
 	}
 }
 
