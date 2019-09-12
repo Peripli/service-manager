@@ -112,7 +112,7 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 	// Setup core API
 	log.C(ctx).Info("Setting up Service Manager core API...")
 
-	pgNotificator, err := postgres.NewNotificator(smStorage, cfg.Storage)
+	pgNotificator, err := postgres.NewNotificator(smStorage, interceptableRepository, cfg.Storage)
 	if err != nil {
 		return nil, fmt.Errorf("could not create notificator: %v", err)
 	}
@@ -133,7 +133,8 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 		return nil, fmt.Errorf("error creating storage health indicator: %s", err)
 	}
 
-	API.HealthIndicators = append(API.HealthIndicators, storageHealthIndicator)
+	API.SetIndicator(storageHealthIndicator)
+	API.SetIndicator(healthcheck.NewPlatformIndicator(ctx, interceptableRepository, nil))
 
 	notificationCleaner := &storage.NotificationCleaner{
 		Storage:  interceptableRepository,
