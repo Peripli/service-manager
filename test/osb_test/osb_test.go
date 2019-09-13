@@ -232,7 +232,7 @@ var _ = Describe("Service Manager OSB API", func() {
 
 		simpleBrokerCatalogID, _, brokerServerWithSimpleCatalog := ctx.RegisterBrokerWithCatalog(simpleCatalog)
 		smUrlToSimpleBrokerCatalogBroker = brokerServerWithSimpleCatalog.URL() + "/v1/osb/" + simpleBrokerCatalogID
-		common.RegisterVisibilityForBrokerID(ctx.SMWithOAuth, simpleBrokerCatalogID)
+		common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, simpleBrokerCatalogID)
 
 		var failingBrokerObject common.Object
 		failingBrokerID, failingBrokerObject, failingBrokerServer = ctx.RegisterBroker()

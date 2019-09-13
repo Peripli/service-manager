@@ -231,7 +231,7 @@ func RegisterVisibilityForPlanAndPlatform(SM *httpexpect.Expect, planID, platfor
 	}).Expect().Status(http.StatusCreated)
 }
 
-func RegisterVisibilityForBrokerID(SM *httpexpect.Expect, brokerID string) {
+func CreateVisibilitiesForAllBrokerPlans(SM *httpexpect.Expect, brokerID string) {
 	offerings := SM.GET(web.ServiceOfferingsURL).WithQuery("fieldQuery", "broker_id = "+brokerID).
 		Expect().Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().Iter()
 	offeringIDs := make([]string, 0, len(offerings))
