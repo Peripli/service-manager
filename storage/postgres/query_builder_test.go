@@ -277,6 +277,141 @@ WHERE t.id::text != ?
 		})
 	})
 
+	Describe("Count", func() {
+		Context("when no criteria is used", func() {
+			It("builds simple query for entity and its labels", func() {
+				_, err := qb.NewQuery().Count(ctx, entity)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(executedQuery).Should(Equal(trim(`SELECT COUNT(*) FROM visibilities t
+LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id;`)))
+				Expect(queryArgs).To(HaveLen(0))
+			})
+		})
+
+		Context("when label criteria is used", func() {
+			It("should build query with label criteria", func() {
+				_, err := qb.NewQuery().
+					WithCriteria(query.ByLabel(query.EqualsOperator, "labelKey", "labelValue")).
+					Count(ctx, entity)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(executedQuery).Should(Equal(trim(`SELECT COUNT(*) FROM visibilities t
+JOIN
+  (SELECT *
+   FROM visibility_labels
+   WHERE visibility_id IN
+	   (SELECT visibility_id
+		FROM visibility_labels
+		WHERE (visibility_labels.key = ?
+			   AND visibility_labels.val = ?))) visibility_labels ON t.id = visibility_labels.visibility_id;`)))
+				Expect(queryArgs).To(HaveLen(2))
+				Expect(queryArgs[0]).Should(Equal("labelKey"))
+				Expect(queryArgs[1]).Should(Equal("labelValue"))
+			})
+		})
+
+		Context("when field criteria is used", func() {
+			It("builds query with field criteria", func() {
+				_, err := qb.NewQuery().
+					WithCriteria(query.ByField(query.EqualsOperator, "id", "1")).
+					Count(ctx, entity)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(executedQuery).Should(Equal(trim(`SELECT COUNT(*) FROM visibilities t
+LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
+WHERE t.id::text = ?;`)))
+				Expect(queryArgs).To(HaveLen(1))
+				Expect(queryArgs[0]).Should(Equal("1"))
+			})
+
+			Context("when field is missing", func() {
+				It("returns error", func() {
+					criteria := query.ByField(query.EqualsOperator, "non-existing-field", "value")
+					_, err := qb.NewQuery().WithCriteria(criteria).Count(ctx, entity)
+					Expect(err).To(HaveOccurred())
+				})
+			})
+		})
+
+		Context("when order by criteria is used", func() {
+			It("skips order", func() {
+				_, err := qb.NewQuery().
+					WithCriteria(query.OrderResultBy("id", query.DescOrder)).
+					Count(ctx, entity)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(executedQuery).Should(Equal(trim(`SELECT COUNT(*) FROM visibilities t
+LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id;`)))
+				Expect(queryArgs).To(HaveLen(0))
+			})
+		})
+
+		Context("when limit criteria is used", func() {
+			It("builds query with limit clause", func() {
+				_, err := qb.NewQuery().
+					WithCriteria(query.LimitResultBy(10)).
+					Count(ctx, entity)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(executedQuery).Should(Equal(trim(`SELECT COUNT(*) FROM visibilities t
+LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
+LIMIT 10;`)))
+				Expect(queryArgs).To(HaveLen(0))
+			})
+
+			Context("when limit is negative", func() {
+				It("returns error", func() {
+					_, err := qb.NewQuery().WithCriteria(query.LimitResultBy(-1)).Count(ctx, entity)
+					Expect(err).Should(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("limit (-1) is invalid. Limit should be positive number"))
+				})
+			})
+		})
+
+		Context("when multiple criteria are used", func() {
+			It("builds a valid query", func() {
+				criteria1 := query.ByField(query.NotEqualsOperator, "id", "1")
+				criteria2 := query.ByField(query.NotInOperator, "service_plan_id", "2", "3", "4")
+				criteria3 := query.ByField(query.EqualsOrNilOperator, "platform_id", "5")
+
+				criteria4 := query.ByLabel(query.EqualsOperator, "left1", "right1")
+				criteria5 := query.ByLabel(query.InOperator, "left2", "right2", "right3")
+				criteria6 := query.ByLabel(query.NotEqualsOperator, "left3", "right4")
+
+				_, err := qb.NewQuery().
+					WithCriteria(criteria1, criteria2, criteria3, criteria4, criteria5, criteria6).
+					Count(ctx, entity)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(executedQuery).Should(Equal(trim(`SELECT COUNT(*) FROM visibilities t
+JOIN
+  (SELECT *
+   FROM visibility_labels
+   WHERE visibility_id IN
+	   (SELECT visibility_id
+		FROM visibility_labels
+		WHERE (visibility_labels.key = ?
+			   AND visibility_labels.val = ?)
+		  OR (visibility_labels.key = ?
+			  AND visibility_labels.val IN (?, ?))
+		  OR (visibility_labels.key = ?
+			  AND visibility_labels.val != ?))) visibility_labels ON t.id = visibility_labels.visibility_id
+WHERE t.id::text != ?
+  AND t.service_plan_id::text NOT IN (?, ?, ?)
+  AND (t.platform_id::text = ?
+	   OR t.platform_id IS NULL);`)))
+				Expect(queryArgs).To(HaveLen(12))
+				Expect(queryArgs[0]).Should(Equal("left1"))
+				Expect(queryArgs[1]).Should(Equal("right1"))
+				Expect(queryArgs[2]).Should(Equal("left2"))
+				Expect(queryArgs[3]).Should(Equal("right2"))
+				Expect(queryArgs[4]).Should(Equal("right3"))
+				Expect(queryArgs[5]).Should(Equal("left3"))
+				Expect(queryArgs[6]).Should(Equal("right4"))
+				Expect(queryArgs[7]).Should(Equal("1"))
+				Expect(queryArgs[8]).Should(Equal("2"))
+				Expect(queryArgs[9]).Should(Equal("3"))
+				Expect(queryArgs[10]).Should(Equal("4"))
+				Expect(queryArgs[11]).Should(Equal("5"))
+			})
+		})
+	})
+
 	Describe("Delete", func() {
 		Context("when no criteria is used", func() {
 			It("builds query to delete all entries", func() {

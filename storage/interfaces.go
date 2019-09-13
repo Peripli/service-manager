@@ -151,19 +151,22 @@ func (mf PingFunc) PingContext(ctx context.Context) error {
 }
 
 type Repository interface {
-	// Create stores a broker in SM DB
+	// Create stores an object in SM DB
 	Create(ctx context.Context, obj types.Object) (types.Object, error)
 
-	// Get retrieves a broker using the provided id from SM DB
+	// Get retrieves an object using the provided id from SM DB
 	Get(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, error)
 
-	// List retrieves all brokers from SM DB
+	// List retrieves all object from SM DB
 	List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error)
 
-	// Delete deletes a broker from SM DB
+	// Count retrieves number of objects of particular type in SM DB
+	Count(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (int, error)
+
+	// Delete deletes an object from SM DB
 	Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error)
 
-	// Update updates a broker from SM DB
+	// Update updates an object from SM DB
 	Update(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, criteria ...query.Criterion) (types.Object, error)
 }
 
