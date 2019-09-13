@@ -19,9 +19,8 @@ package test
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
-
 	"github.com/gavv/httpexpect"
+	"strings"
 
 	"github.com/Peripli/service-manager/pkg/query"
 
@@ -84,7 +83,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 
 	By(fmt.Sprintf("Attempting to create a random resource of %s with mandatory fields only", t.API))
 	rWithMandatoryFields = t.ResourceWithoutNullableFieldsBlueprint(ctx, ctx.SMWithOAuth)
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 10; i++ {
 		By(fmt.Sprintf("Attempting to create a random resource of %s", t.API))
 
 		gen := t.ResourceBlueprint(ctx, ctx.SMWithOAuth)
@@ -420,6 +419,36 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 					})
 				})
 			}
+
+			Context("Paging", func() {
+				Context("with max items query", func() {
+					It("returns smaller pages", func() {
+						pageSize := 5
+						resp := ctx.SMWithOAuth.GET(t.API).WithQuery("max_items", pageSize).Expect().Status(http.StatusOK)
+
+						resp.JSON().Path("$.num_items").Number().Gt(0).Le(pageSize)
+						resp.JSON().Path("$.items[*]").Array().Length().Gt(0).Le(pageSize)
+					})
+				})
+				Context("with negative max items query", func() {
+					It("returns 400", func() {
+						ctx.SMWithOAuth.GET(t.API).WithQuery("max_items", -1).Expect().Status(http.StatusBadRequest)
+					})
+				})
+				Context("with non numerical max_items query", func() {
+					It("returns 400", func() {
+						ctx.SMWithOAuth.GET(t.API).WithQuery("max_items", "invalid").Expect().Status(http.StatusBadRequest)
+					})
+				})
+				Context("with zero max items query", func() {
+					It("returns count of the items only", func() {
+						resp := ctx.SMWithOAuth.GET(t.API).WithQuery("max_items", 0).Expect().Status(http.StatusOK).JSON()
+
+						resp.Object().NotContainsKey("items")
+						resp.Path("$.num_items").Number().Gt(0)
+					})
+				})
+			})
 
 			Context("with no field query", func() {
 				It("it returns all resources", func() {

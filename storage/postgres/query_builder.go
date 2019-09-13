@@ -103,6 +103,40 @@ func (pgq *pgQuery) List(ctx context.Context, entity PostgresEntity) (*sqlx.Rows
 	return pgq.db.QueryxContext(ctx, pgq.sql.String(), pgq.queryParams...)
 }
 
+func (pgq *pgQuery) Count(ctx context.Context, entity PostgresEntity) (int, error) {
+	if pgq.err != nil {
+		return 0, pgq.err
+	}
+
+	tableName := entity.TableName()
+	labelsEntity := entity.LabelEntity()
+
+	baseQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s %s", tableName, mainTableAlias)
+
+	if labelsEntity != nil {
+		labelsTableName := labelsEntity.LabelsTableName()
+		referenceKeyColumn := labelsEntity.ReferenceColumn()
+		primaryKeyColumn := labelsEntity.LabelsPrimaryColumn()
+		baseQuery += fmt.Sprintf(` LEFT JOIN %[2]s ON %[1]s.%[3]s = %[2]s.%[4]s`,
+			mainTableAlias, labelsTableName, primaryKeyColumn, referenceKeyColumn)
+	}
+
+	pgq.sql.WriteString(baseQuery)
+
+	pgq.orderByFields = nil
+
+	if err := pgq.finalizeSQL(ctx, entity, false); err != nil {
+		return 0, err
+	}
+
+	count := make([]int, 0, 1)
+	err := pgq.db.SelectContext(ctx, &count, pgq.sql.String(), pgq.queryParams...)
+	if len(count) == 0 {
+		count = append(count, 0)
+	}
+	return count[0], err
+}
+
 func (pgq *pgQuery) Delete(ctx context.Context, entity PostgresEntity) (*sqlx.Rows, error) {
 	if pgq.err != nil {
 		return nil, pgq.err
