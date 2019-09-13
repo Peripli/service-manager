@@ -18,6 +18,10 @@ func (e *Platforms) Add(object Object) {
 	e.Platforms = append(e.Platforms, object.(*Platform))
 }
 
+func (e *Platforms) AsSlice() []Object {
+	return e.Platforms
+}
+
 func (e *Platforms) ItemAt(index int) Object {
 	return e.Platforms[index]
 }

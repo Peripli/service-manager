@@ -332,59 +332,14 @@ WHERE t.id::text = ?;`)))
 		})
 
 		Context("when order by criteria is used", func() {
-			It("builds query with order by clause", func() {
+			It("skips order", func() {
 				_, err := qb.NewQuery().
 					WithCriteria(query.OrderResultBy("id", query.DescOrder)).
 					Count(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`SELECT COUNT(*) FROM visibilities t
-LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
-ORDER BY t.id DESC;`)))
+LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id;`)))
 				Expect(queryArgs).To(HaveLen(0))
-			})
-
-			Context("when order type is unknown", func() {
-				It("returns error", func() {
-					_, err := qb.NewQuery().WithCriteria(query.OrderResultBy("id", "unknown-order")).Count(ctx, entity)
-					Expect(err).Should(HaveOccurred())
-					Expect(err.Error()).To(ContainSubstring("unsupported order type: unknown-order"))
-				})
-			})
-
-			Context("when the field is unknown", func() {
-				It("returns error", func() {
-					_, err := qb.NewQuery().WithCriteria(query.OrderResultBy("unknown-field", query.AscOrder)).Count(ctx, entity)
-					Expect(err).Should(HaveOccurred())
-					Expect(err.Error()).To(ContainSubstring("unsupported entity field for order by: unknown-field"))
-				})
-			})
-
-			Context("when order type is missing", func() {
-				It("returns error", func() {
-					_, err := qb.NewQuery().
-						WithCriteria(query.Criterion{
-							Type:    query.ResultQuery,
-							LeftOp:  query.OrderBy,
-							RightOp: []string{"id"},
-						}).
-						Count(ctx, entity)
-					Expect(err).Should(HaveOccurred())
-					Expect(err.Error()).To(ContainSubstring(`order by result for field "id" expects order type, but has none`))
-				})
-			})
-
-			Context("when order type and field are missing", func() {
-				It("return errors", func() {
-					_, err := qb.NewQuery().
-						WithCriteria(query.Criterion{
-							Type:    query.ResultQuery,
-							LeftOp:  query.OrderBy,
-							RightOp: []string{},
-						}).
-						Count(ctx, entity)
-					Expect(err).Should(HaveOccurred())
-					Expect(err.Error()).To(ContainSubstring("order by result expects field and order type, but has none"))
-				})
 			})
 		})
 

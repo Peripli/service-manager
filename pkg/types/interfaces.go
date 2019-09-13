@@ -54,6 +54,7 @@ type Object interface {
 // ObjectList is the interface that lists of objects must implement
 type ObjectList interface {
 	Add(object Object)
+	AsSlice() []Object
 	ItemAt(index int) Object
 	Len() int
 }

@@ -18,6 +18,10 @@ func (e *ServicePlans) Add(object Object) {
 	e.ServicePlans = append(e.ServicePlans, object.(*ServicePlan))
 }
 
+func (e *ServicePlans) AsSlice() []Object {
+	return e.ServicePlans
+}
+
 func (e *ServicePlans) ItemAt(index int) Object {
 	return e.ServicePlans[index]
 }

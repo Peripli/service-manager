@@ -206,7 +206,7 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	// TODO: Add new integer field in DB for paging
+
 	// TODO: Extract query in criteria in a filter before controller
 	objectPage, err := c.repository.ListWithPaging(ctx, c.objectType, limit, targetPagingSeq, query.CriteriaForContext(ctx)...)
 	if err != nil {
@@ -287,14 +287,14 @@ func (c *BaseController) validateMaxItemsQuery(maxItems string) (int, error) {
 	if maxItems != "" {
 		limit, err = strconv.Atoi(maxItems)
 		if err != nil {
-			return -1, &util.HTTPError{
+			return 0, &util.HTTPError{
 				ErrorType:   "InvalidMaxItems",
 				Description: fmt.Sprintf("max_items should be integer: %v", err),
 				StatusCode:  http.StatusBadRequest,
 			}
 		}
 		if limit < 0 {
-			return -1, &util.HTTPError{
+			return 0, &util.HTTPError{
 				ErrorType:   "InvalidMaxItems",
 				Description: fmt.Sprintf("max_items cannot be negative"),
 				StatusCode:  http.StatusBadRequest,
@@ -309,7 +309,6 @@ func (c *BaseController) validateMaxItemsQuery(maxItems string) (int, error) {
 
 func (c *BaseController) validatePageToken(token string) (int, error) {
 	var targetPageSequence int
-
 	if token != "" {
 		base64DecodedTokenBytes, err := base64.StdEncoding.DecodeString(token)
 		if err != nil {
@@ -319,9 +318,7 @@ func (c *BaseController) validatePageToken(token string) (int, error) {
 				StatusCode:  http.StatusNotFound,
 			}
 		}
-
 		base64DecodedToken := string(base64DecodedTokenBytes)
-
 		targetPageSequence, err = strconv.Atoi(base64DecodedToken)
 		if err != nil {
 			return 0, &util.HTTPError{

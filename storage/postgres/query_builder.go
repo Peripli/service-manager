@@ -123,6 +123,8 @@ func (pgq *pgQuery) Count(ctx context.Context, entity PostgresEntity) (int, erro
 
 	pgq.sql.WriteString(baseQuery)
 
+	pgq.orderByFields = nil
+
 	if err := pgq.finalizeSQL(ctx, entity, false); err != nil {
 		return 0, err
 	}

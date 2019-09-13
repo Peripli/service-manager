@@ -28,13 +28,13 @@ import (
 // Platform platform struct
 type Platform struct {
 	Base
-	Secured     `json:"-"`
-	Type        string       `json:"type"`
-	Name        string       `json:"name"`
-	Description string       `json:"description"`
-	Credentials *Credentials `json:"credentials,omitempty"`
-	Active      bool         `json:"-"`
-	LastActive  time.Time    `json:"-"`
+	Secured        `json:"-"`
+	Type           string       `json:"type"`
+	Name           string       `json:"name"`
+	Description    string       `json:"description"`
+	Credentials    *Credentials `json:"credentials,omitempty"`
+	Active         bool         `json:"-"`
+	LastActive     time.Time    `json:"-"`
 	PagingSequence int          `json:"-"`
 }
 

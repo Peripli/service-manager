@@ -38,6 +38,10 @@ func (e *{{.TypePlural}}) Add(object {{.TypesPackage}}Object) {
 	e.{{.TypePlural}} = append(e.{{.TypePlural}}, object.(*{{.Type}}))
 }
 
+func (e *{{.TypePlural}}) AsSlice() []Object {
+	return e.{{.TypePlural}}
+}
+
 func (e *{{.TypePlural}}) ItemAt(index int) {{.TypesPackage}}Object {
 	return e.{{.TypePlural}}[index]
 }

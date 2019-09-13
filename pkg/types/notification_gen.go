@@ -18,6 +18,10 @@ func (e *Notifications) Add(object Object) {
 	e.Notifications = append(e.Notifications, object.(*Notification))
 }
 
+func (e *Notifications) AsSlice() []Object {
+	return e.Notifications
+}
+
 func (e *Notifications) ItemAt(index int) Object {
 	return e.Notifications[index]
 }

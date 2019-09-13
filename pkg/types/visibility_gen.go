@@ -18,6 +18,10 @@ func (e *Visibilities) Add(object Object) {
 	e.Visibilities = append(e.Visibilities, object.(*Visibility))
 }
 
+func (e *Visibilities) AsSlice() []Object {
+	return e.Visibilities
+}
+
 func (e *Visibilities) ItemAt(index int) Object {
 	return e.Visibilities[index]
 }

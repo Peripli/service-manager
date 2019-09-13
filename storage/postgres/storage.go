@@ -244,14 +244,10 @@ func (ps *Storage) ListWithPaging(ctx context.Context, objType types.ObjectType,
 	}
 
 	criteria = append(criteria, query.OrderResultBy("paging_sequence", query.AscOrder),
-		query.ByField(query.GreaterThanOperator, "paging_sequence", strconv.Itoa(targetPagingSequence)))
+		query.ByField(query.GreaterThanOperator, "paging_sequence", strconv.Itoa(targetPagingSequence)),
+		query.LimitResultBy(limit+1))
 
-	count, err := ps.queryBuilder.NewQuery().WithCriteria(criteria...).WithLock().Count(ctx, entity)
-	if err != nil {
-		return nil, err
-	}
-
-	rows, err := ps.queryBuilder.NewQuery().WithCriteria(criteria...).WithCriteria(query.LimitResultBy(limit)).WithLock().List(ctx, entity)
+	rows, err := ps.queryBuilder.NewQuery().WithCriteria(criteria...).WithLock().List(ctx, entity)
 	if err != nil {
 		return nil, err
 	}
@@ -275,13 +271,13 @@ func (ps *Storage) ListWithPaging(ctx context.Context, objType types.ObjectType,
 		return nil, util.ErrNotFoundInStorage
 	}
 
-	hasMoreItems := count > objectList.Len()
+	hasMoreItems := objectList.Len() > limit
 	var token string
 	if hasMoreItems {
+		objectList.Remove(objectList.Len() - 1)
 		token = generateTokenForItem(objectList.ItemAt(objectList.Len() - 1))
 	}
 	return &types.ObjectPage{
-		ItemsCount:   count,
 		HasMoreItems: hasMoreItems,
 		Items:        objectList,
 		Token:        token,

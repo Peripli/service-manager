@@ -97,15 +97,14 @@ type FakeStorage struct {
 		result1 types.ObjectList
 		result2 error
 	}
-	ListWithPagingStub        func(context.Context, types.ObjectType, int, string, string, ...query.Criterion) (*types.ObjectPage, error)
+	ListWithPagingStub        func(context.Context, types.ObjectType, int, int, ...query.Criterion) (*types.ObjectPage, error)
 	listWithPagingMutex       sync.RWMutex
 	listWithPagingArgsForCall []struct {
 		arg1 context.Context
 		arg2 types.ObjectType
 		arg3 int
-		arg4 string
-		arg5 string
-		arg6 []query.Criterion
+		arg4 int
+		arg5 []query.Criterion
 	}
 	listWithPagingReturns struct {
 		result1 *types.ObjectPage
@@ -560,21 +559,20 @@ func (fake *FakeStorage) ListReturnsOnCall(i int, result1 types.ObjectList, resu
 	}{result1, result2}
 }
 
-func (fake *FakeStorage) ListWithPaging(arg1 context.Context, arg2 types.ObjectType, arg3 int, arg4 string, arg5 string, arg6 ...query.Criterion) (*types.ObjectPage, error) {
+func (fake *FakeStorage) ListWithPaging(arg1 context.Context, arg2 types.ObjectType, arg3 int, arg4 int, arg5 ...query.Criterion) (*types.ObjectPage, error) {
 	fake.listWithPagingMutex.Lock()
 	ret, specificReturn := fake.listWithPagingReturnsOnCall[len(fake.listWithPagingArgsForCall)]
 	fake.listWithPagingArgsForCall = append(fake.listWithPagingArgsForCall, struct {
 		arg1 context.Context
 		arg2 types.ObjectType
 		arg3 int
-		arg4 string
-		arg5 string
-		arg6 []query.Criterion
-	}{arg1, arg2, arg3, arg4, arg5, arg6})
-	fake.recordInvocation("ListWithPaging", []interface{}{arg1, arg2, arg3, arg4, arg5, arg6})
+		arg4 int
+		arg5 []query.Criterion
+	}{arg1, arg2, arg3, arg4, arg5})
+	fake.recordInvocation("ListWithPaging", []interface{}{arg1, arg2, arg3, arg4, arg5})
 	fake.listWithPagingMutex.Unlock()
 	if fake.ListWithPagingStub != nil {
-		return fake.ListWithPagingStub(arg1, arg2, arg3, arg4, arg5, arg6...)
+		return fake.ListWithPagingStub(arg1, arg2, arg3, arg4, arg5...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -589,17 +587,17 @@ func (fake *FakeStorage) ListWithPagingCallCount() int {
 	return len(fake.listWithPagingArgsForCall)
 }
 
-func (fake *FakeStorage) ListWithPagingCalls(stub func(context.Context, types.ObjectType, int, string, string, ...query.Criterion) (*types.ObjectPage, error)) {
+func (fake *FakeStorage) ListWithPagingCalls(stub func(context.Context, types.ObjectType, int, int, ...query.Criterion) (*types.ObjectPage, error)) {
 	fake.listWithPagingMutex.Lock()
 	defer fake.listWithPagingMutex.Unlock()
 	fake.ListWithPagingStub = stub
 }
 
-func (fake *FakeStorage) ListWithPagingArgsForCall(i int) (context.Context, types.ObjectType, int, string, string, []query.Criterion) {
+func (fake *FakeStorage) ListWithPagingArgsForCall(i int) (context.Context, types.ObjectType, int, int, []query.Criterion) {
 	fake.listWithPagingMutex.RLock()
 	defer fake.listWithPagingMutex.RUnlock()
 	argsForCall := fake.listWithPagingArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4, argsForCall.arg5, argsForCall.arg6
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4, argsForCall.arg5
 }
 
 func (fake *FakeStorage) ListWithPagingReturns(result1 *types.ObjectPage, result2 error) {
