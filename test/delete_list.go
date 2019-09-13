@@ -66,7 +66,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				resourcesToExpectBeforeOp: func() []common.Object {
 					return []common.Object{r[0], r[1]}
 				},
-				queryTemplate: "%s neq '%v'",
+				queryTemplate: "%s ne '%v'",
 				queryArgs: func() common.Object {
 					return r[0]
 				},
@@ -173,7 +173,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				resourcesToExpectBeforeOp: func() []common.Object {
 					return []common.Object{r[0], r[1]}
 				},
-				queryTemplate: "%s gte %v",
+				queryTemplate: "%s ge %v",
 				queryArgs: func() common.Object {
 					return common.RemoveNonNumericArgs(r[1])
 				},
@@ -188,7 +188,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				resourcesToExpectBeforeOp: func() []common.Object {
 					return []common.Object{r[0], r[1]}
 				},
-				queryTemplate: "%s gte %v",
+				queryTemplate: "%s ge %v",
 				queryArgs: func() common.Object {
 					return common.RemoveNumericArgs(r[0])
 				},
@@ -203,7 +203,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				resourcesToExpectBeforeOp: func() []common.Object {
 					return []common.Object{r[0], r[1]}
 				},
-				queryTemplate: "%s lte %v",
+				queryTemplate: "%s le %v",
 				queryArgs: func() common.Object {
 					return common.RemoveNonNumericArgs(r[1])
 				},
@@ -217,7 +217,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				resourcesToExpectBeforeOp: func() []common.Object {
 					return []common.Object{r[0], r[1]}
 				},
-				queryTemplate: "%s lte %v",
+				queryTemplate: "%s le %v",
 				queryArgs: func() common.Object {
 					return common.RemoveNumericArgs(r[0])
 				},
@@ -227,12 +227,12 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				expectedStatusCode: http.StatusBadRequest,
 			},
 		),
-		Entry("returns 200 for operator eqornil",
+		Entry("returns 200 for operator en",
 			deleteOpEntry{
 				resourcesToExpectBeforeOp: func() []common.Object {
 					return []common.Object{r[0], rWithMandatoryFields}
 				},
-				queryTemplate: "%s eqornil '%v'",
+				queryTemplate: "%s en '%v'",
 				queryArgs: func() common.Object {
 					return common.RemoveNotNullableFieldAndLabels(r[0], rWithMandatoryFields)
 				},
@@ -325,7 +325,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		),
 		Entry("returns 400 when single value operator is used with multiple right value arguments",
 			deleteOpEntry{
-				queryTemplate: "%[1]s neq ('%[2]v','%[2]v','%[2]v')",
+				queryTemplate: "%[1]s ne ('%[2]v','%[2]v','%[2]v')",
 				queryArgs: func() common.Object {
 					return r[0]
 				},

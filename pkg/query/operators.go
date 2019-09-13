@@ -20,21 +20,21 @@ const (
 	// EqualsOperator takes two operands and tests if they are equal
 	EqualsOperator eqOperator = "eq"
 	// NotEqualsOperator takes two operands and tests if they are not equal
-	NotEqualsOperator neqOperator = "neq"
+	NotEqualsOperator neOperator = "ne"
 	// GreaterThanOperator takes two operands and tests if the left is greater than the right
 	GreaterThanOperator gtOperator = "gt"
 	// GreaterThanOrEqualOperator takes two operands and tests if the left is greater than or equal the right
-	GreaterThanOrEqualOperator gteOperator = "gte"
+	GreaterThanOrEqualOperator geOperator = "ge"
 	// LessThanOperator takes two operands and tests if the left is lesser than the right
 	LessThanOperator ltOperator = "lt"
 	// LessThanOrEqualOperator takes two operands and tests if the left is lesser than or equal the right
-	LessThanOrEqualOperator lteOperator = "lte"
+	LessThanOrEqualOperator leOperator = "le"
 	// InOperator takes two operands and tests if the left is contained in the right
 	InOperator inOperator = "in"
 	// NotInOperator takes two operands and tests if the left is not contained in the right
 	NotInOperator notInOperator = "notin"
 	// EqualsOrNilOperator takes two operands and tests if the left is equal to the right, or if the left is nil
-	EqualsOrNilOperator eqOrNilOperator = "eqornil"
+	EqualsOrNilOperator enOperator = "en"
 
 	NoOperator noOperator = "nop"
 )
@@ -57,21 +57,21 @@ func (eqOperator) IsNullable() bool {
 	return false
 }
 
-type neqOperator string
+type neOperator string
 
-func (o neqOperator) String() string {
+func (o neOperator) String() string {
 	return string(o)
 }
 
-func (neqOperator) Type() OperatorType {
+func (neOperator) Type() OperatorType {
 	return UnivariateOperator
 }
 
-func (neqOperator) IsNullable() bool {
+func (neOperator) IsNullable() bool {
 	return false
 }
 
-func (neqOperator) IsNumeric() bool {
+func (neOperator) IsNumeric() bool {
 	return false
 }
 
@@ -147,57 +147,57 @@ func (notInOperator) IsNumeric() bool {
 	return false
 }
 
-type eqOrNilOperator string
+type enOperator string
 
-func (o eqOrNilOperator) String() string {
+func (o enOperator) String() string {
 	return string(o)
 }
 
-func (eqOrNilOperator) Type() OperatorType {
+func (enOperator) Type() OperatorType {
 	return UnivariateOperator
 }
 
-func (eqOrNilOperator) IsNullable() bool {
+func (enOperator) IsNullable() bool {
 	return true
 }
 
-func (eqOrNilOperator) IsNumeric() bool {
+func (enOperator) IsNumeric() bool {
 	return false
 }
 
-type gteOperator string
+type geOperator string
 
-func (o gteOperator) String() string {
+func (o geOperator) String() string {
 	return string(o)
 }
 
-func (gteOperator) Type() OperatorType {
+func (geOperator) Type() OperatorType {
 	return UnivariateOperator
 }
 
-func (gteOperator) IsNullable() bool {
+func (geOperator) IsNullable() bool {
 	return false
 }
 
-func (gteOperator) IsNumeric() bool {
+func (geOperator) IsNumeric() bool {
 	return true
 }
 
-type lteOperator string
+type leOperator string
 
-func (o lteOperator) String() string {
+func (o leOperator) String() string {
 	return string(o)
 }
 
-func (lteOperator) Type() OperatorType {
+func (leOperator) Type() OperatorType {
 	return UnivariateOperator
 }
 
-func (lteOperator) IsNullable() bool {
+func (leOperator) IsNullable() bool {
 	return false
 }
 
-func (lteOperator) IsNumeric() bool {
+func (leOperator) IsNumeric() bool {
 	return true
 }
 

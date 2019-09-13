@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/gavv/httpexpect"
@@ -31,6 +32,7 @@ import (
 	"net/http"
 
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 
 	"github.com/Peripli/service-manager/test/common"
 )
@@ -108,7 +110,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		Entry("returns 200",
 			listOpEntry{
 				resourcesToExpectBeforeOp:   []common.Object{r[0], r[1], r[2], r[3]},
-				queryTemplate:               "%s neq '%v'",
+				queryTemplate:               "%s ne '%v'",
 				queryArgs:                   r[0],
 				resourcesNotToExpectAfterOp: []common.Object{r[0]},
 				expectedStatusCode:          http.StatusOK,
@@ -164,7 +166,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		Entry("returns 200 for greater than or equal queries",
 			listOpEntry{
 				resourcesToExpectBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
-				queryTemplate:             "%s gte %v",
+				queryTemplate:             "%s ge %v",
 				queryArgs:                 common.RemoveNonNumericArgs(r[0]),
 				resourcesToExpectAfterOp:  []common.Object{r[0], r[1], r[2], r[3]},
 				expectedStatusCode:        http.StatusOK,
@@ -173,7 +175,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		Entry("returns 400 for greater than or equal queries when query args are non numeric",
 			listOpEntry{
 				resourcesToExpectBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
-				queryTemplate:             "%s gte %v",
+				queryTemplate:             "%s ge %v",
 				queryArgs:                 common.RemoveNumericArgs(r[0]),
 				resourcesToExpectAfterOp:  []common.Object{r[0], r[1], r[2], r[3]},
 				expectedStatusCode:        http.StatusBadRequest,
@@ -182,7 +184,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		Entry("returns 200 for less than or equal queries",
 			listOpEntry{
 				resourcesToExpectBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
-				queryTemplate:             "%s lte %v",
+				queryTemplate:             "%s le %v",
 				queryArgs:                 common.RemoveNonNumericArgs(r[0]),
 				resourcesToExpectAfterOp:  []common.Object{r[0], r[1], r[2], r[3]},
 				expectedStatusCode:        http.StatusOK,
@@ -191,7 +193,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		Entry("returns 400 for less than or equal queries when query args are non numeric",
 			listOpEntry{
 				resourcesToExpectBeforeOp: []common.Object{r[0], r[1], r[2], r[3]},
-				queryTemplate:             "%s lte %v",
+				queryTemplate:             "%s le %v",
 				queryArgs:                 common.RemoveNumericArgs(r[0]),
 				resourcesToExpectAfterOp:  []common.Object{r[0], r[1], r[2], r[3]},
 				expectedStatusCode:        http.StatusBadRequest,
@@ -209,15 +211,15 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		Entry("returns 200 for field queries",
 			listOpEntry{
 				resourcesToExpectBeforeOp: []common.Object{r[0], rWithMandatoryFields},
-				queryTemplate:             "%s eqornil '%v'",
+				queryTemplate:             "%s en '%v'",
 				queryArgs:                 common.RemoveNotNullableFieldAndLabels(r[0], rWithMandatoryFields),
 				resourcesToExpectAfterOp:  []common.Object{r[0], rWithMandatoryFields},
 				expectedStatusCode:        http.StatusOK,
 			},
 		),
-		Entry("returns 400 for label queries with operator eqornil",
+		Entry("returns 400 for label queries with operator en",
 			listOpEntry{
-				queryTemplate: "%s eqornil '%v'",
+				queryTemplate: "%s en '%v'",
 				queryArgs: common.Object{
 					"labels": map[string]interface{}{
 						"labelKey1": []interface{}{
@@ -289,7 +291,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		),
 		Entry("returns 400 when single value operator is used with multiple right value arguments",
 			listOpEntry{
-				queryTemplate:      "%[1]s neq ('%[2]v','%[2]v','%[2]v')",
+				queryTemplate:      "%[1]s ne ('%[2]v','%[2]v','%[2]v')",
 				queryArgs:          r[0],
 				expectedStatusCode: http.StatusBadRequest,
 			},
@@ -395,6 +397,27 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 			})
 		})
 
+		Context("by date", func() {
+			It("returns 200 when date is properly formatted", func() {
+				jsonArrayKey := strings.Replace(t.API, "/v1/", "", 1)
+				createdAtValue := ctx.SMWithOAuth.GET(t.API + "/" + r[0]["id"].(string)).Expect().Status(http.StatusOK).
+					JSON().Object().Value("created_at").String().Raw()
+				createdAtHour := createdAtValue[11:13]
+				originalHour, err := strconv.ParseInt(createdAtHour, 10, 64)
+				Expect(err).ToNot(HaveOccurred())
+				createdAtValue = createdAtValue[:11] + "01" + createdAtValue[13:]
+				newHour := originalHour - 1
+				hourPattern := fmt.Sprintf("-%d:00", newHour)
+				if newHour < 10 {
+					hourPattern = fmt.Sprintf("-0%d:00", newHour)
+				}
+				escapedCreatedAtValue := url.QueryEscape(createdAtValue[:len(createdAtValue)-1] + hourPattern)
+				ctx.SMWithOAuth.GET(t.API).WithQuery("fieldQuery", fmt.Sprintf("%s eq %s", "created_at", escapedCreatedAtValue)).
+					Expect().Status(http.StatusOK).JSON().Object().Value(jsonArrayKey).Array().
+					Element(0).Object().Value("id").Equal(r[0]["id"])
+			})
+		})
+
 		Context("when query requires encoding", func() {
 			var obj common.Object
 			labelKey := "labelKey1"
@@ -412,6 +435,12 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 				patchLabelsBody["labels"] = patchLabels
 
 				ctx.SMWithOAuth.PATCH(t.API + "/" + obj["id"].(string)).WithJSON(patchLabelsBody).
+					Expect().
+					Status(http.StatusOK)
+			})
+
+			AfterEach(func() {
+				ctx.SMWithOAuth.DELETE(t.API + "/" + obj["id"].(string)).
 					Expect().
 					Status(http.StatusOK)
 			})

@@ -19,10 +19,11 @@ package util
 
 import (
 	"encoding/json"
-	"github.com/Peripli/service-manager/pkg/web"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/Peripli/service-manager/pkg/web"
 
 	"github.com/Peripli/service-manager/pkg/log"
 )
@@ -46,7 +47,12 @@ func HasRFC3986ReservedSymbols(input string) bool {
 
 // ToRFCFormat converts a time.Time timestamp to RFC3339 format
 func ToRFCFormat(timestamp time.Time) string {
-	return timestamp.UTC().Format(time.RFC3339)
+	return timestamp.UTC().Format(time.RFC3339Nano)
+}
+
+// ToRFCNanoFormat converts a time.Time timestamp to RFC3339Nano format
+func ToRFCNanoFormat(timestamp time.Time) string {
+	return timestamp.UTC().Format(time.RFC3339Nano)
 }
 
 // RequestBodyToBytes reads the request body and returns []byte with its content or an error if

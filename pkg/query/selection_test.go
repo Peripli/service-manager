@@ -258,16 +258,16 @@ new line`))
 			})
 
 			Context("When using equals or operators", func() {
-				It("should build the right gte query", func() {
-					criteria, err := Parse(FieldQuery, "leftop gte -1.35")
+				It("should build the right ge query", func() {
+					criteria, err := Parse(FieldQuery, "leftop ge -1.35")
 					Expect(err).ToNot(HaveOccurred())
 					Expect(criteria).ToNot(BeNil())
 					expectedQuery := ByField(GreaterThanOrEqualOperator, "leftop", "-1.35")
 					Expect(criteria).To(ConsistOf(expectedQuery))
 				})
 
-				It("should build the right lte query", func() {
-					criteria, err := Parse(FieldQuery, "leftop lte 3")
+				It("should build the right le query", func() {
+					criteria, err := Parse(FieldQuery, "leftop le 3")
 					Expect(err).ToNot(HaveOccurred())
 					Expect(criteria).ToNot(BeNil())
 					expectedQuery := ByField(LessThanOrEqualOperator, "leftop", "3")
