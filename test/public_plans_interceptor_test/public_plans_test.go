@@ -70,7 +70,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 	findOneVisibilityForServicePlanID := func(servicePlanID string) map[string]interface{} {
 		vs := ctx.SMWithOAuth.GET("/v1/visibilities").WithQuery("fieldQuery", "service_plan_id = "+servicePlanID).
 			Expect().
-			Status(http.StatusOK).JSON().Object().Value("visibilities").Array()
+			Status(http.StatusOK).JSON().Object().Value("items").Array()
 
 		vs.Length().Equal(1)
 		return vs.First().Object().Raw()
@@ -79,7 +79,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 	verifyZeroVisibilityForServicePlanID := func(servicePlanID string) {
 		vs := ctx.SMWithOAuth.GET("/v1/visibilities").WithQuery("fieldQuery", "service_plan_id = "+servicePlanID).
 			Expect().
-			Status(http.StatusOK).JSON().Object().Value("visibilities").Array()
+			Status(http.StatusOK).JSON().Object().Value("items").Array()
 
 		vs.Length().Equal(0)
 	}
@@ -87,7 +87,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 	findDatabaseIDForServicePlanByCatalogName := func(catalogServicePlanName string) string {
 		planID := ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("fieldQuery", "catalog_name = "+catalogServicePlanName).
 			Expect().
-			Status(http.StatusOK).JSON().Object().Value("service_plans").Array().First().Object().Value("id").String().Raw()
+			Status(http.StatusOK).JSON().Object().Value("items").Array().First().Object().Value("id").String().Raw()
 
 		Expect(planID).ToNot(BeEmpty())
 		return planID
@@ -111,7 +111,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 
 		ctx.SMWithOAuth.GET("/v1/service_plans").
 			Expect().
-			Status(http.StatusOK).JSON().Path("$.service_plans[*].catalog_id").Array().NotContains(newPublicPlanCatalogID, newPaidPlanCatalogID)
+			Status(http.StatusOK).JSON().Path("$.items[*].catalog_id").Array().NotContains(newPublicPlanCatalogID, newPaidPlanCatalogID)
 		c := common.NewEmptySBCatalog()
 
 		oldPublicPlan := common.GenerateFreeTestPlan()
@@ -223,7 +223,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 		It("creates the plan and creates a public visibility for it", func() {
 			ctx.SMWithOAuth.GET("/v1/service_plans").
 				Expect().
-				Status(http.StatusOK).JSON().Path("$.service_plans[*].catalog_id").Array().NotContains(newPublicPlanCatalogID)
+				Status(http.StatusOK).JSON().Path("$.items[*].catalog_id").Array().NotContains(newPublicPlanCatalogID)
 
 			ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + existingBrokerID).
 				WithJSON(common.Object{}).
@@ -248,7 +248,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 		It("creates the plan and does not create a new public visibility for it", func() {
 			ctx.SMWithOAuth.GET("/v1/service_plans").
 				Expect().
-				Status(http.StatusOK).JSON().Path("$.service_plans[*].catalog_id").Array().NotContains(newPaidPlanCatalogID)
+				Status(http.StatusOK).JSON().Path("$.items[*].catalog_id").Array().NotContains(newPaidPlanCatalogID)
 
 			ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + existingBrokerID).
 				WithJSON(common.Object{}).
@@ -277,9 +277,9 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 				Expect().
 				Status(http.StatusOK).JSON()
 
-			plan.Path("$.service_plans[*].free").Array().Contains(true)
-			plan.Object().Value("service_plans").Array().Length().Equal(1)
-			planID := plan.Object().Value("service_plans").Array().First().Object().Value("id").String().Raw()
+			plan.Path("$.items[*].free").Array().Contains(true)
+			plan.Object().Value("items").Array().Length().Equal(1)
+			planID := plan.Object().Value("items").Array().First().Object().Value("id").String().Raw()
 			Expect(planID).ToNot(BeEmpty())
 
 			visibilities := findOneVisibilityForServicePlanID(planID)
@@ -326,8 +326,8 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 				Expect().
 				Status(http.StatusOK).JSON()
 
-			plan.Path("$.service_plans[*].free").Array().Contains(false)
-			plan.Object().Value("service_plans").Array().Length().Equal(1)
+			plan.Path("$.items[*].free").Array().Contains(false)
+			plan.Object().Value("items").Array().Length().Equal(1)
 
 			visibilities := findOneVisibilityForServicePlanID(planID)
 			Expect(visibilities["platform_id"]).To(Equal(platformID))

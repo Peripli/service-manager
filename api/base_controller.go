@@ -193,12 +193,18 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
 
-	for i := 0; i < objectList.Len(); i++ {
-		obj := objectList.ItemAt(i)
-		stripCredentials(ctx, obj)
+	page := types.ObjectPage{
+		Items: make([]types.Object, 0, objectList.Len()),
 	}
 
-	return util.NewJSONResponse(http.StatusOK, objectList)
+	for i := 0; i < objectList.Len(); i++ {
+		page.ItemsCount++
+		obj := objectList.ItemAt(i)
+		stripCredentials(ctx, obj)
+		page.Items = append(page.Items, obj)
+	}
+
+	return util.NewJSONResponse(http.StatusOK, page)
 }
 
 // PatchObject handles the update of the object with the id specified in the request

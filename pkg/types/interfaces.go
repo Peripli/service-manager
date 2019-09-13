@@ -52,3 +52,9 @@ type ObjectList interface {
 	ItemAt(index int) Object
 	Len() int
 }
+
+// ObjectPage is the DTO for a given page of resources when listing
+type ObjectPage struct {
+	ItemsCount int      `json:"num_items"`
+	Items      []Object `json:"items"`
+}
