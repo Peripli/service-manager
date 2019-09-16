@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: quay.io/service-manager/core
-  tag: v0.3.2
+  tag: v0.5.1
   pullPolicy: IfNotPresent
   #pullsecret: <>
 
@@ -38,14 +38,14 @@ file:
 
 config:
   log:
-    level: error
+    level: info
     format: text
   server:
     request_timeout: 4000ms
     shutdown_timeout: 4000ms
+  httpclient:
+    skip_ssl_validation: true # to be false
   api:
     token_issuer_url: https://uaa.dev.cfdev.sh
-    client_id: cf
-    skip_ssl_validation: true # to be false
   storage:
     max_idle_connections: 5
