@@ -24,8 +24,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/gavv/httpexpect"
-
 	"github.com/Peripli/service-manager/test"
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
@@ -340,20 +338,16 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func blueprint(ctx *common.TestContext, auth *httpexpect.Expect) common.Object {
+func blueprint(ctx *common.TestContext, auth *common.SMExpect) common.Object {
 	cPaidPlan := common.GeneratePaidTestPlan()
 	cService := common.GenerateTestServiceWithPlans(cPaidPlan)
 	catalog := common.NewEmptySBCatalog()
 	catalog.AddService(cService)
 	id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
 
-	so := auth.GET(web.ServiceOfferingsURL).WithQuery("fieldQuery", "broker_id = "+id).
-		Expect().
-		Status(http.StatusOK).JSON().Object().Value("items").Array().First()
+	so := auth.ListWithQuery(web.ServiceOfferingsURL, "fieldQuery=broker_id = "+id).First()
 
-	sp := auth.GET(web.ServicePlansURL).WithQuery("fieldQuery", fmt.Sprintf("service_offering_id = %s", so.Object().Value("id").String().Raw())).
-		Expect().
-		Status(http.StatusOK).JSON().Object().Value("items").Array().First()
+	sp := auth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id = %s", so.Object().Value("id").String().Raw())).First()
 
 	return sp.Object().Raw()
 }

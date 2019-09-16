@@ -11,7 +11,7 @@ import (
 const PlatformType ObjectType = "types.Platform"
 
 type Platforms struct {
-	Platforms []*Platform `json:"platforms"`
+	Platforms []*Platform `json:"items"`
 }
 
 func (e *Platforms) Add(object Object) {

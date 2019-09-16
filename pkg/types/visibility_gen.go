@@ -11,7 +11,7 @@ import (
 const VisibilityType ObjectType = "types.Visibility"
 
 type Visibilities struct {
-	Visibilities []*Visibility `json:"visibilities"`
+	Visibilities []*Visibility `json:"items"`
 }
 
 func (e *Visibilities) Add(object Object) {

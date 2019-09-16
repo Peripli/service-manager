@@ -73,13 +73,13 @@ var _ = Describe("Service Manager Filters", func() {
 			})
 
 			Specify("/v1/service_brokers", func() {
-				ctx.SMWithOAuth.GET("/v1/service_brokers").
+				ctx.SMWithOAuth.GET(web.ServiceBrokersURL).
 					Expect().Status(http.StatusOK)
 				Expect(order).ToNot(Equal("osb1osb2"))
 			})
 
 			Specify("/v1/platforms", func() {
-				ctx.SMWithOAuth.GET("/v1/platforms").
+				ctx.SMWithOAuth.GET(web.PlatformsURL).
 					Expect().Status(http.StatusOK)
 				Expect(order).ToNot(Equal("osb1osb2"))
 			})
@@ -95,7 +95,7 @@ var _ = Describe("Service Manager Filters", func() {
 		})
 
 		It("should be called on platform API", func() {
-			ctx.SMWithOAuth.GET("/v1/platforms").
+			ctx.SMWithOAuth.GET(web.PlatformsURL).
 				Expect().Status(http.StatusOK)
 			Expect(order).To(Equal("a1b1b2a2"))
 		})

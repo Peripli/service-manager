@@ -31,7 +31,7 @@ import (
 const {{.Type}}Type {{.TypesPackage}}ObjectType = "{{.PackageName}}.{{.Type}}"
 
 type {{.TypePlural}} struct {
-	{{.TypePlural}} []*{{.Type}} ` + "`json:\"{{.TypePluralLowercase}}\"`" + `
+	{{.TypePlural}} []*{{.Type}} ` + "`json:\"items\"`" + `
 }
 
 func (e *{{.TypePlural}}) Add(object {{.TypesPackage}}Object) {

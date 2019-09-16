@@ -17,6 +17,7 @@
 package common
 
 import (
+	"github.com/Peripli/service-manager/pkg/web"
 	"time"
 
 	"github.com/onsi/ginkgo"
@@ -40,7 +41,6 @@ import (
 	"io/ioutil"
 
 	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 )
 
@@ -188,31 +188,31 @@ func MapContains(actual Object, expected Object) {
 	}
 }
 
-func RemoveAllBrokers(SM *httpexpect.Expect) {
-	removeAll(SM, "service_brokers", "/v1/service_brokers")
+func RemoveAllBrokers(SM *SMExpect) {
+	removeAll(SM, "service_brokers", web.ServiceBrokersURL)
 }
 
-func RemoveAllPlatforms(SM *httpexpect.Expect) {
-	removeAll(SM, "platforms", "/v1/platforms")
+func RemoveAllPlatforms(SM *SMExpect) {
+	removeAll(SM, "platforms", web.PlatformsURL)
 }
 
-func RemoveAllVisibilities(SM *httpexpect.Expect) {
-	removeAll(SM, "visibilities", "/v1/visibilities")
+func RemoveAllVisibilities(SM *SMExpect) {
+	removeAll(SM, "visibilities", web.VisibilitiesURL)
 }
 
-func removeAll(SM *httpexpect.Expect, entity, rootURLPath string) {
+func removeAll(SM *SMExpect, entity, rootURLPath string) {
 	By("removing all " + entity)
 	SM.DELETE(rootURLPath).Expect()
 }
 
-func RegisterBrokerInSM(brokerJSON Object, SM *httpexpect.Expect, headers map[string]string) Object {
-	return SM.POST("/v1/service_brokers").
+func RegisterBrokerInSM(brokerJSON Object, SM *SMExpect, headers map[string]string) Object {
+	return SM.POST(web.ServiceBrokersURL).
 		WithHeaders(headers).
 		WithJSON(brokerJSON).Expect().Status(http.StatusCreated).JSON().Object().Raw()
 }
 
-func RegisterPlatformInSM(platformJSON Object, SM *httpexpect.Expect, headers map[string]string) *types.Platform {
-	reply := SM.POST("/v1/platforms").
+func RegisterPlatformInSM(platformJSON Object, SM *SMExpect, headers map[string]string) *types.Platform {
+	reply := SM.POST(web.PlatformsURL).
 		WithHeaders(headers).
 		WithJSON(platformJSON).
 		Expect().Status(http.StatusCreated).JSON().Object().Raw()

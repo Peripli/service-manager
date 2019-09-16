@@ -207,7 +207,6 @@ func (ps *Storage) List(ctx context.Context, objType types.ObjectType, criteria 
 		return nil, err
 	}
 
-	criteria = append(criteria, query.OrderResultBy("created_at", query.AscOrder))
 	rows, err := ps.queryBuilder.NewQuery().WithCriteria(criteria...).WithLock().List(ctx, entity)
 	if err != nil {
 		return nil, err

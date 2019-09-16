@@ -11,7 +11,7 @@ import (
 const ServiceOfferingType ObjectType = "types.ServiceOffering"
 
 type ServiceOfferings struct {
-	ServiceOfferings []*ServiceOffering `json:"service_offerings"`
+	ServiceOfferings []*ServiceOffering `json:"items"`
 }
 
 func (e *ServiceOfferings) Add(object Object) {

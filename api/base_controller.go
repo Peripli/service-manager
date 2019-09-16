@@ -18,8 +18,10 @@ package api
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/tidwall/sjson"
@@ -187,12 +189,15 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 // ListObjects handles the fetching of all objects
 func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
-	if ctx.Value("limit").(int) == 0 {
-		log.C(ctx).Debugf("Getting count of %s since max_items is 0", c.objectType)
-		count, err := c.repository.Count(ctx, c.objectType, query.CriteriaForContext(ctx)...)
-		if err != nil {
-			return nil, util.HandleStorageError(err, string(c.objectType))
-		}
+	userCriteria := ctx.Value("user_provided_query").([]query.Criterion)
+	count, err := c.repository.Count(ctx, c.objectType, userCriteria...)
+	if err != nil {
+		return nil, util.HandleStorageError(err, string(c.objectType))
+	}
+
+	limit := ctx.Value("limit").(int)
+	if limit == 0 {
+		log.C(ctx).Debugf("Returning only count of %s since max_items is 0", c.objectType)
 		page := struct {
 			ItemsCount int `json:"num_items"`
 		}{
@@ -200,21 +205,45 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 		}
 		return util.NewJSONResponse(http.StatusOK, page)
 	}
-	log.C(ctx).Debugf("Getting all %ss", c.objectType)
+
+	log.C(ctx).Debugf("Getting a page of %ss", c.objectType)
 	objectList, err := c.repository.List(ctx, c.objectType, query.CriteriaForContext(ctx)...)
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
+
 	page := types.ObjectPage{
-		Items: make([]types.Object, 0, objectList.Len()),
+		ItemsCount: count,
+		Items:      make([]types.Object, 0, objectList.Len()),
 	}
+
 	for i := 0; i < objectList.Len(); i++ {
-		page.ItemsCount++
 		obj := objectList.ItemAt(i)
 		stripCredentials(ctx, obj)
 		page.Items = append(page.Items, obj)
 	}
-	return util.NewJSONResponse(http.StatusOK, page)
+
+	var token string
+	if len(page.Items) > limit {
+		page.Items = page.Items[:len(page.Items)-1]
+		token = generateTokenForItem(page.Items[len(page.Items)-1])
+	}
+	page.Token = token
+
+	resp, err := util.NewJSONResponse(http.StatusOK, page)
+	if err != nil {
+		return nil, err
+	}
+
+	if page.Token != "" {
+		nextPageUrl := r.URL
+		q := nextPageUrl.Query()
+		q.Set("token", page.Token)
+		nextPageUrl.RawQuery = q.Encode()
+		resp.Header.Add("Link", fmt.Sprintf(`<%s>; rel="next"`, nextPageUrl))
+	}
+
+	return resp, nil
 }
 
 // PatchObject handles the update of the object with the id specified in the request
@@ -272,4 +301,9 @@ func stripCredentials(ctx context.Context, object types.Object) {
 	} else {
 		log.C(ctx).Debugf("Object of type %s with id %s is not secured, so no credentials are cleaned up on response", object.GetType(), object.GetID())
 	}
+}
+
+func generateTokenForItem(obj types.Object) string {
+	nextPageToken := obj.(types.Pageable).GetPagingSequence()
+	return base64.StdEncoding.EncodeToString([]byte(strconv.Itoa(nextPageToken)))
 }

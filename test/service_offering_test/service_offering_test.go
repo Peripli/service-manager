@@ -23,8 +23,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/gavv/httpexpect"
-
 	"github.com/Peripli/service-manager/test/common"
 
 	"github.com/Peripli/service-manager/test"
@@ -341,15 +339,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func blueprint(ctx *common.TestContext, auth *httpexpect.Expect) common.Object {
+func blueprint(ctx *common.TestContext, auth *common.SMExpect) common.Object {
 	cService := common.GenerateTestServiceWithPlans()
 	catalog := common.NewEmptySBCatalog()
 	catalog.AddService(cService)
 	id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
 
-	so := auth.GET(web.ServiceOfferingsURL).WithQuery("fieldQuery", "broker_id = "+id).
-		Expect().
-		Status(http.StatusOK).JSON().Object().Value("items").Array().First()
-
-	return so.Object().Raw()
+	return auth.ListWithQuery(web.ServiceOfferingsURL, "fieldQuery=broker_id = "+id).First().Object().Raw()
 }

@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/gavv/httpexpect"
 	. "github.com/onsi/gomega"
 
 	"github.com/Peripli/service-manager/test/common"
@@ -33,7 +32,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase) bool {
 		var testResourceID string
 
 		Context(fmt.Sprintf("Existing resource of type %s", t.API), func() {
-			createTestResourceWithAuth := func(auth *httpexpect.Expect) {
+			createTestResourceWithAuth := func(auth *common.SMExpect) {
 				testResource = t.ResourceBlueprint(ctx, auth)
 				By(fmt.Sprintf("[SETUP]: Verifying that test resource %v is not empty", testResource))
 				Expect(testResource).ToNot(BeEmpty())

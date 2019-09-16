@@ -60,8 +60,7 @@ type ObjectList interface {
 
 // ObjectPage is the DTO for a given page of resources when listing
 type ObjectPage struct {
-	HasMoreItems bool     `json:"has_more_items"`
-	Token        string   `json:"token,omitempty"`
-	ItemsCount   int      `json:"num_items"`
-	Items        []Object `json:"items"`
+	Token      string   `json:"token,omitempty"`
+	ItemsCount int      `json:"num_items"`
+	Items      []Object `json:"items"`
 }
