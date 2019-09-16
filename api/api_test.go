@@ -20,6 +20,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/Peripli/service-manager/pkg/env/envfakes"
+
 	"github.com/Peripli/service-manager/storage"
 
 	"github.com/Peripli/service-manager/api"
@@ -36,8 +38,9 @@ func TestAPI(t *testing.T) {
 
 var _ = Describe("API", func() {
 	var (
-		mockedStorage *storage.InterceptableTransactionalRepository
-		server        *common.OAuthServer
+		mockedStorage   *storage.InterceptableTransactionalRepository
+		server          *common.OAuthServer
+		fakeEnvironment *envfakes.FakeEnvironment
 	)
 
 	BeforeSuite(func() {
@@ -50,11 +53,12 @@ var _ = Describe("API", func() {
 
 	BeforeEach(func() {
 		mockedStorage = storage.NewInterceptableTransactionalRepository(&storagefakes.FakeStorage{})
+		fakeEnvironment = &envfakes.FakeEnvironment{}
 	})
 
 	Describe("New", func() {
 		It("returns no error if creation is successful", func() {
-			_, err := api.New(context.TODO(), &api.Options{
+			_, err := api.New(context.TODO(), fakeEnvironment, &api.Options{
 				Repository: mockedStorage,
 				APISettings: &api.Settings{
 					TokenIssuerURL: server.BaseURL,
@@ -65,7 +69,7 @@ var _ = Describe("API", func() {
 		})
 
 		It("returns an error if creation fails", func() {
-			_, err := api.New(context.TODO(), &api.Options{
+			_, err := api.New(context.TODO(), fakeEnvironment, &api.Options{
 				Repository: mockedStorage,
 				APISettings: &api.Settings{
 					TokenIssuerURL: "http://invalidurl.com",
