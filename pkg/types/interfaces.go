@@ -31,6 +31,11 @@ type Secured interface {
 	GetCredentials() *Credentials
 }
 
+// Pageable interface indicates that an object can be listed page by page
+type Pageable interface {
+	GetPagingSequence() int
+}
+
 // Object is the common interface that all resources in the Service Manager must implement
 type Object interface {
 	util.InputValidator
@@ -55,6 +60,8 @@ type ObjectList interface {
 
 // ObjectPage is the DTO for a given page of resources when listing
 type ObjectPage struct {
-	ItemsCount int      `json:"num_items"`
-	Items      []Object `json:"items"`
+	HasMoreItems bool     `json:"has_more_items"`
+	Token        string   `json:"token,omitempty"`
+	ItemsCount   int      `json:"num_items"`
+	Items        []Object `json:"items"`
 }

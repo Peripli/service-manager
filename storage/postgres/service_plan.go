@@ -38,6 +38,7 @@ type ServicePlan struct {
 	Schemas  sqlxtypes.JSONText `db:"schemas"`
 
 	ServiceOfferingID string `db:"service_offering_id"`
+	PagingSequence    int    `db:"paging_sequence,auto_increment"`
 }
 
 func (sp *ServicePlan) ToObject() types.Object {
@@ -57,6 +58,7 @@ func (sp *ServicePlan) ToObject() types.Object {
 		Metadata:          getJSONRawMessage(sp.Metadata),
 		Schemas:           getJSONRawMessage(sp.Schemas),
 		ServiceOfferingID: sp.ServiceOfferingID,
+		PagingSequence:    sp.PagingSequence,
 	}
 }
 
@@ -81,5 +83,6 @@ func (sp *ServicePlan) FromObject(object types.Object) (storage.Entity, bool) {
 		Metadata:          getJSONText(plan.Metadata),
 		Schemas:           getJSONText(plan.Schemas),
 		ServiceOfferingID: plan.ServiceOfferingID,
+		PagingSequence:    plan.PagingSequence,
 	}, true
 }

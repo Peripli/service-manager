@@ -39,11 +39,16 @@ type ServiceOffering struct {
 	Requires json.RawMessage `json:"requires,omitempty"`
 	Metadata json.RawMessage `json:"metadata,omitempty"`
 
-	BrokerID    string `json:"broker_id"`
-	CatalogID   string `json:"catalog_id"`
-	CatalogName string `json:"catalog_name"`
+	BrokerID       string `json:"broker_id"`
+	CatalogID      string `json:"catalog_id"`
+	CatalogName    string `json:"catalog_name"`
+	PagingSequence int    `json:"-"`
 
 	Plans []*ServicePlan `json:"plans"`
+}
+
+func (e *ServiceOffering) GetPagingSequence() int {
+	return e.PagingSequence
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

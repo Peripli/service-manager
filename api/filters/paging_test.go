@@ -51,11 +51,11 @@ var _ = Describe("Paging Filter Test", func() {
 		BeforeEach(func() {
 			maxItems = "5"
 		})
-		It("should add limit criteria", func() {
+		It("should add limit criteria with 1 more", func() {
 			_, err := filter.Run(request, handler)
 			Expect(err).ShouldNot(HaveOccurred())
 			actualRequest := handler.HandleArgsForCall(0)
-			Expect(query.CriteriaForContext(actualRequest.Context())).To(ContainElement(query.LimitResultBy(5)))
+			Expect(query.CriteriaForContext(actualRequest.Context())).To(ContainElement(query.LimitResultBy(6)))
 			Expect(actualRequest.Context().Value("limit").(int)).To(Equal(5))
 		})
 	})

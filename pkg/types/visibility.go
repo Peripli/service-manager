@@ -27,8 +27,13 @@ import (
 // Visibility struct
 type Visibility struct {
 	Base
-	PlatformID    string `json:"platform_id"`
-	ServicePlanID string `json:"service_plan_id"`
+	PlatformID     string `json:"platform_id"`
+	ServicePlanID  string `json:"service_plan_id"`
+	PagingSequence int    `json:"-"`
+}
+
+func (e *Visibility) GetPagingSequence() int {
+	return e.PagingSequence
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

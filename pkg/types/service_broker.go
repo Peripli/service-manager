@@ -26,11 +26,12 @@ import (
 // ServiceBroker broker struct
 type ServiceBroker struct {
 	Base
-	Secured     `json:"-"`
-	Name        string       `json:"name"`
-	Description string       `json:"description"`
-	BrokerURL   string       `json:"broker_url"`
-	Credentials *Credentials `json:"credentials,omitempty" structs:"-"`
+	Secured        `json:"-"`
+	Name           string       `json:"name"`
+	Description    string       `json:"description"`
+	BrokerURL      string       `json:"broker_url"`
+	Credentials    *Credentials `json:"credentials,omitempty" structs:"-"`
+	PagingSequence int          `json:"-"`
 
 	Catalog  json.RawMessage    `json:"-" structs:"-"`
 	Services []*ServiceOffering `json:"-" structs:"-"`
@@ -42,6 +43,10 @@ func (e *ServiceBroker) SetCredentials(credentials *Credentials) {
 
 func (e *ServiceBroker) GetCredentials() *Credentials {
 	return e.Credentials
+}
+
+func (e *ServiceBroker) GetPagingSequence() int {
+	return e.PagingSequence
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

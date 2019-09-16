@@ -27,8 +27,9 @@ import (
 //go:generate smgen storage Visibility github.com/Peripli/service-manager/pkg/types
 type Visibility struct {
 	BaseEntity
-	PlatformID    sql.NullString `db:"platform_id"`
-	ServicePlanID string         `db:"service_plan_id"`
+	PlatformID     sql.NullString `db:"platform_id"`
+	ServicePlanID  string         `db:"service_plan_id"`
+	PagingSequence int            `db:"paging_sequence,auto_increment"`
 }
 
 func (v *Visibility) ToObject() types.Object {
@@ -39,8 +40,9 @@ func (v *Visibility) ToObject() types.Object {
 			UpdatedAt: v.UpdatedAt,
 			Labels:    make(map[string][]string),
 		},
-		PlatformID:    v.PlatformID.String,
-		ServicePlanID: v.ServicePlanID,
+		PlatformID:     v.PlatformID.String,
+		ServicePlanID:  v.ServicePlanID,
+		PagingSequence: v.PagingSequence,
 	}
 }
 
@@ -55,7 +57,8 @@ func (v *Visibility) FromObject(visibility types.Object) (storage.Entity, bool) 
 			CreatedAt: vis.CreatedAt,
 			UpdatedAt: vis.UpdatedAt,
 		},
-		PlatformID:    toNullString(vis.PlatformID),
-		ServicePlanID: vis.ServicePlanID,
+		PlatformID:     toNullString(vis.PlatformID),
+		ServicePlanID:  vis.ServicePlanID,
+		PagingSequence: vis.PagingSequence,
 	}, true
 }

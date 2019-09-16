@@ -18,8 +18,11 @@ package filters
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"net/http"
@@ -56,15 +59,47 @@ func (pf *pagingFilter) Run(req *web.Request, next web.Handler) (*web.Response, 
 	if err != nil {
 		return nil, err
 	}
+	rawToken := req.URL.Query().Get("token")
+	token, err := pf.validatePageToken(rawToken)
+	if err != nil {
+		return nil, err
+	}
+
 	ctx = context.WithValue(ctx, "limit", limit)
-	if limit > 0 {
-		ctx, err = query.AddCriteria(ctx, query.LimitResultBy(limit))
-		if err != nil {
-			return nil, err
-		}
+	if limit == 0 {
+		req.Request = req.WithContext(ctx)
+		return next.Handle(req)
+	}
+
+	ctx, err = query.AddCriteria(ctx, query.LimitResultBy(limit+1),
+		query.OrderResultBy("paging_sequence", query.AscOrder),
+		query.ByField(query.GreaterThanOperator, "paging_sequence", strconv.Itoa(token)))
+	if err != nil {
+		return nil, err
 	}
 	req.Request = req.WithContext(ctx)
-	return next.Handle(req)
+
+	response, err := next.Handle(req)
+	if err != nil {
+		return response, err
+	}
+
+	page := &types.ObjectPage{}
+	err = json.Unmarshal(response.Body, page)
+	if err != nil {
+		return nil, err
+	}
+	if page.ItemsCount > limit {
+		page.ItemsCount--
+		page.Items = page.Items[:len(page.Items)-1]
+		page.Token = pf.generateTokenForItem(page.Items[len(page.Items)-1])
+		page.HasMoreItems = true
+	}
+	response.Body, err = json.Marshal(page)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
 }
 
 func (pf *pagingFilter) validateMaxItemsQuery(maxItems string) (int, error) {
@@ -91,6 +126,35 @@ func (pf *pagingFilter) validateMaxItemsQuery(maxItems string) (int, error) {
 		}
 	}
 	return limit, nil
+}
+
+func (pf *pagingFilter) validatePageToken(token string) (int, error) {
+	var targetPageSequence int
+	if token != "" {
+		base64DecodedTokenBytes, err := base64.StdEncoding.DecodeString(token)
+		if err != nil {
+			return 0, &util.HTTPError{
+				ErrorType:   "TokenInvalid",
+				Description: fmt.Sprintf("Invalid token provided: %v", err),
+				StatusCode:  http.StatusNotFound,
+			}
+		}
+		base64DecodedToken := string(base64DecodedTokenBytes)
+		targetPageSequence, err = strconv.Atoi(base64DecodedToken)
+		if err != nil {
+			return 0, &util.HTTPError{
+				ErrorType:   "TokenInvalid",
+				Description: fmt.Sprintf("Invalid token provided: %v", err),
+				StatusCode:  http.StatusNotFound,
+			}
+		}
+	}
+	return targetPageSequence, nil
+}
+
+func (pf *pagingFilter) generateTokenForItem(obj types.Object) string {
+	nextPageToken := obj.(types.Pageable).GetPagingSequence()
+	return base64.StdEncoding.EncodeToString([]byte(strconv.Itoa(nextPageToken)))
 }
 
 // FilterMatchers implements the web.Filter interface and returns the conditions on which the filter should be executed.
