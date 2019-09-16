@@ -41,6 +41,11 @@ var _ = Describe("Postgres Storage Query builder", func() {
 		queryArgs = args
 		return nil
 	}
+	db.GetContextStub = func(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
+		executedQuery = query
+		queryArgs = args
+		return nil
+	}
 	db.ExecContextStub = func(ctx context.Context, query string, args ...interface{}) (result sql.Result, e error) {
 		executedQuery = query
 		queryArgs = args
@@ -133,7 +138,7 @@ WHERE t.id::text = ?;`)))
 		Context("when order by criteria is used", func() {
 			It("builds query with order by clause", func() {
 				_, err := qb.NewQuery().
-					WithCriteria(query.OrderResultBy("id", query.DescOrder)).
+					WithCriteria(query.OrderResultBy("id", query.DescOrder), query.OrderResultBy("created_at", query.AscOrder)).
 					List(ctx, entity)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`SELECT t.*,
@@ -145,7 +150,7 @@ WHERE t.id::text = ?;`)))
 	visibility_labels.visibility_id "visibility_labels.visibility_id"
 FROM visibilities t
 LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
-ORDER BY t.id DESC;`)))
+ORDER BY t.id DESC, t.created_at ASC;`)))
 				Expect(queryArgs).To(HaveLen(0))
 			})
 
@@ -218,6 +223,14 @@ LIMIT 10;`)))
 					_, err := qb.NewQuery().WithCriteria(query.LimitResultBy(-1)).List(ctx, entity)
 					Expect(err).Should(HaveOccurred())
 					Expect(err.Error()).To(ContainSubstring("limit (-1) is invalid. Limit should be positive number"))
+				})
+			})
+			Context("when multiple limit criteria is used", func() {
+				It("returns error", func() {
+					_, err := qb.NewQuery().WithCriteria(query.LimitResultBy(10)).
+						WithCriteria(query.LimitResultBy(5)).List(ctx, entity)
+					Expect(err).Should(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("zero/one limit expected but multiple provided"))
 				})
 			})
 		})
@@ -360,6 +373,15 @@ LIMIT 10;`)))
 					_, err := qb.NewQuery().WithCriteria(query.LimitResultBy(-1)).Count(ctx, entity)
 					Expect(err).Should(HaveOccurred())
 					Expect(err.Error()).To(ContainSubstring("limit (-1) is invalid. Limit should be positive number"))
+				})
+			})
+
+			Context("when multiple limit criteria is used", func() {
+				It("returns error", func() {
+					_, err := qb.NewQuery().WithCriteria(query.LimitResultBy(10)).
+						WithCriteria(query.LimitResultBy(5)).Count(ctx, entity)
+					Expect(err).Should(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("zero/one limit expected but multiple provided"))
 				})
 			})
 		})

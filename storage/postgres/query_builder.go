@@ -129,12 +129,9 @@ func (pgq *pgQuery) Count(ctx context.Context, entity PostgresEntity) (int, erro
 		return 0, err
 	}
 
-	count := make([]int, 0, 1)
-	err := pgq.db.SelectContext(ctx, &count, pgq.sql.String(), pgq.queryParams...)
-	if len(count) == 0 {
-		count = append(count, 0)
-	}
-	return count[0], err
+	var count int
+	err := pgq.db.GetContext(ctx, &count, pgq.sql.String(), pgq.queryParams...)
+	return count, err
 }
 
 func (pgq *pgQuery) Delete(ctx context.Context, entity PostgresEntity) (*sqlx.Rows, error) {
@@ -350,10 +347,13 @@ func (pgq *pgQuery) processResultCriteria(resultQuery []query.Criterion) *pgQuer
 				orderType: query.OrderType(c.RightOp[1]),
 			})
 		case query.Limit:
+			if pgq.limit != "" {
+				pgq.err = fmt.Errorf("zero/one limit expected but multiple provided")
+				return pgq
+			}
 			pgq.limit = c.RightOp[0]
 		}
 	}
-
 	return pgq
 }
 
