@@ -309,7 +309,7 @@ var _ = Describe("Interceptors", func() {
 				By("should be left with the created platform and the test one only")
 				ctx.SMWithOAuth.GET(web.PlatformsURL).
 					Expect().JSON().Object().
-					Value("platforms").Array().
+					Value("items").Array().
 					Length().Equal(2)
 			})
 		})
@@ -365,7 +365,7 @@ var _ = Describe("Interceptors", func() {
 			It("Should call interceptors in right order", func() {
 				platform := ctx.RegisterPlatform() // Post /v1/platforms
 				ctx.RegisterBroker()
-				plans := ctx.SMWithBasic.GET(web.ServicePlansURL).Expect().JSON().Object().Value("service_plans").Array()
+				plans := ctx.SMWithBasic.GET(web.ServicePlansURL).Expect().JSON().Object().Value("items").Array()
 				planID := plans.First().Object().Value("id").String().Raw()
 				clearStacks()
 				visibility := types.Visibility{
@@ -413,7 +413,7 @@ var _ = Describe("Interceptors", func() {
 				createEntryFunc: func() string {
 					platform := ctx.RegisterPlatform() // Post /v1/platforms
 					ctx.RegisterBroker()
-					plans := ctx.SMWithBasic.GET(web.ServicePlansURL).Expect().JSON().Object().Value("service_plans").Array()
+					plans := ctx.SMWithBasic.GET(web.ServicePlansURL).Expect().JSON().Object().Value("items").Array()
 					planID := plans.First().Object().Value("id").String().Raw()
 					visibility := types.Visibility{
 						PlatformID:    platform.ID,

@@ -842,7 +842,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							ctx.SMWithOAuth.GET("/v1/service_brokers").
 								Expect().
 								Status(http.StatusOK).
-								JSON().Object().Value("service_brokers").Array().First().Object().
+								JSON().Object().Value("items").Array().First().Object().
 								ContainsMap(expectedBrokerResponse)
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
@@ -906,7 +906,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect().
 								Status(http.StatusOK).
 								JSON().
-								Path("$.service_offerings[*].catalog_id").Array().NotContains(anotherServiceID)
+								Path("$.items[*].catalog_id").Array().NotContains(anotherServiceID)
 							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
 								WithJSON(common.Object{}).
 								Expect().
@@ -922,11 +922,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect().
 								Status(http.StatusOK).
 								JSON()
-							servicesJsonResp.Path("$.service_offerings[*].catalog_id").Array().Contains(anotherServiceID)
-							servicesJsonResp.Path("$.service_offerings[*].broker_id").Array().Contains(brokerID)
+							servicesJsonResp.Path("$.items[*].catalog_id").Array().Contains(anotherServiceID)
+							servicesJsonResp.Path("$.items[*].broker_id").Array().Contains(brokerID)
 
 							var soID string
-							for _, so := range servicesJsonResp.Object().Value("service_offerings").Array().Iter() {
+							for _, so := range servicesJsonResp.Object().Value("items").Array().Iter() {
 								sbID := so.Object().Value("broker_id").String().Raw()
 								Expect(sbID).ToNot(BeEmpty())
 
@@ -944,8 +944,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect().
 								Status(http.StatusOK).
 								JSON()
-							plansJsonResp.Path("$.service_plans[*].catalog_id").Array().Contains(existingPlanID)
-							plansJsonResp.Path("$.service_plans[*].service_offering_id").Array().Contains(soID)
+							plansJsonResp.Path("$.items[*].catalog_id").Array().Contains(existingPlanID)
+							plansJsonResp.Path("$.items[*].service_offering_id").Array().Contains(soID)
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 2)
 						})
@@ -980,7 +980,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect().
 								Status(http.StatusOK).
 								JSON().
-								Path("$.service_offerings[*].catalog_id").Array().NotContains(anotherServiceID)
+								Path("$.items[*].catalog_id").Array().NotContains(anotherServiceID)
 							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
 								WithJSON(common.Object{}).
 								Expect().
@@ -989,11 +989,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect().
 								Status(http.StatusOK).
 								JSON()
-							servicesJsonResp.Path("$.service_offerings[*].catalog_id").Array().Contains(anotherServiceID)
-							servicesJsonResp.Path("$.service_offerings[*].broker_id").Array().Contains(brokerID)
+							servicesJsonResp.Path("$.items[*].catalog_id").Array().Contains(anotherServiceID)
+							servicesJsonResp.Path("$.items[*].broker_id").Array().Contains(brokerID)
 
 							var soID string
-							for _, so := range servicesJsonResp.Object().Value("service_offerings").Array().Iter() {
+							for _, so := range servicesJsonResp.Object().Value("items").Array().Iter() {
 								sbID := so.Object().Value("broker_id").String().Raw()
 								Expect(sbID).ToNot(BeEmpty())
 
@@ -1011,8 +1011,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect().
 								Status(http.StatusOK).
 								JSON()
-							plansJsonResp.Path("$.service_plans[*].catalog_id").Array().Contains(anotherPlanID)
-							plansJsonResp.Path("$.service_plans[*].service_offering_id").Array().Contains(soID)
+							plansJsonResp.Path("$.items[*].catalog_id").Array().Contains(anotherPlanID)
+							plansJsonResp.Path("$.items[*].service_offering_id").Array().Contains(soID)
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 						})
@@ -1092,7 +1092,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect().
 								Status(http.StatusOK).
 								JSON().
-								Path("$.service_offerings[*].catalog_id").Array().NotContains(anotherServiceID)
+								Path("$.items[*].catalog_id").Array().NotContains(anotherServiceID)
 
 							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
 								WithJSON(common.Object{}).
@@ -1103,8 +1103,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect().
 								Status(http.StatusOK).
 								JSON()
-							jsonResp.Path("$.service_offerings[*].catalog_id").Array().Contains(anotherServiceID)
-							jsonResp.Path("$.service_offerings[*].broker_id").Array().Contains(brokerID)
+							jsonResp.Path("$.items[*].catalog_id").Array().Contains(anotherServiceID)
+							jsonResp.Path("$.items[*].broker_id").Array().Contains(brokerID)
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 						})
@@ -1125,7 +1125,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							serviceOfferings := ctx.SMWithOAuth.GET("/v1/service_offerings").
 								Expect().
 								Status(http.StatusOK).
-								JSON().Object().Value("service_offerings").Array().Iter()
+								JSON().Object().Value("items").Array().Iter()
 
 							for _, so := range serviceOfferings {
 								sbID := so.Object().Value("broker_id").String().Raw()
@@ -1149,7 +1149,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							plans := ctx.SMWithOAuth.GET("/v1/service_plans").
 								Expect().
 								Status(http.StatusOK).
-								JSON().Object().Value("service_plans").Array().Iter()
+								JSON().Object().Value("items").Array().Iter()
 
 							var planIDsForService []interface{}
 							for _, plan := range plans {
@@ -1170,12 +1170,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							ctx.SMWithOAuth.GET("/v1/service_offerings").
 								Expect().
 								Status(http.StatusOK).
-								JSON().Path("$.service_offerings[*].id").Array().NotContains(serviceOfferingID)
+								JSON().Path("$.items[*].id").Array().NotContains(serviceOfferingID)
 
 							ctx.SMWithOAuth.GET("/v1/service_plans").
 								Expect().
 								Status(http.StatusOK).
-								JSON().Path("$.service_plans[*].id").Array().NotContains(planIDsForService)
+								JSON().Path("$.items[*].id").Array().NotContains(planIDsForService)
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 						})
@@ -1262,7 +1262,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							serviceOfferings := ctx.SMWithOAuth.GET("/v1/service_offerings").
 								Expect().
 								Status(http.StatusOK).
-								JSON().Object().Value("service_offerings").Array().Iter()
+								JSON().Object().Value("items").Array().Iter()
 
 							for _, so := range serviceOfferings {
 								sbID := so.Object().Value("broker_id").String().Raw()
@@ -1287,7 +1287,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect().
 								Status(http.StatusOK).
 								JSON().
-								Path("$.service_plans[*].catalog_id").Array().NotContains(anotherPlanID)
+								Path("$.items[*].catalog_id").Array().NotContains(anotherPlanID)
 
 							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
 								WithJSON(common.Object{}).
@@ -1298,8 +1298,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect().
 								Status(http.StatusOK).
 								JSON()
-							jsonResp.Path("$.service_plans[*].catalog_id").Array().Contains(anotherPlanID)
-							jsonResp.Path("$.service_plans[*].service_offering_id").Array().Contains(serviceOfferingID)
+							jsonResp.Path("$.items[*].catalog_id").Array().Contains(anotherPlanID)
+							jsonResp.Path("$.items[*].service_offering_id").Array().Contains(serviceOfferingID)
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 						})
@@ -1325,7 +1325,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							ctx.SMWithOAuth.GET("/v1/service_plans").
 								Expect().
 								Status(http.StatusOK).
-								JSON().Path("$.service_plans[*].catalog_id").Array().Contains(removedPlanCatalogID)
+								JSON().Path("$.items[*].catalog_id").Array().Contains(removedPlanCatalogID)
 
 							ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + brokerID).
 								WithJSON(common.Object{}).
@@ -1335,7 +1335,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							ctx.SMWithOAuth.GET("/v1/service_plans").
 								Expect().
 								Status(http.StatusOK).
-								JSON().Path("$.service_plans[*].catalog_id").Array().NotContains(removedPlanCatalogID)
+								JSON().Path("$.items[*].catalog_id").Array().NotContains(removedPlanCatalogID)
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 						})

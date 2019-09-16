@@ -309,12 +309,10 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		expectedAfterOpIDs = common.ExtractResourceIDs(listOpEntry.resourcesToExpectAfterOp)
 		unexpectedAfterOpIDs = common.ExtractResourceIDs(listOpEntry.resourcesNotToExpectAfterOp)
 
-		jsonArrayKey := strings.Replace(t.API, "/v1/", "", 1)
-
 		By(fmt.Sprintf("[TEST]: Verifying expected %s before operation after present", t.API))
 		beforeOpArray := ctx.SMWithOAuth.GET(t.API).
 			Expect().
-			Status(http.StatusOK).JSON().Object().Value(jsonArrayKey).Array()
+			Status(http.StatusOK).JSON().Object().Value("items").Array()
 
 		for _, v := range beforeOpArray.Iter() {
 			obj := v.Object().Raw()
@@ -353,7 +351,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 
 			resp.JSON().Object().Keys().Contains("error", "description")
 		} else {
-			array := resp.JSON().Object().Value(jsonArrayKey).Array()
+			array := resp.JSON().Object().Value("items").Array()
 			for _, v := range array.Iter() {
 				obj := v.Object().Raw()
 				delete(obj, "created_at")

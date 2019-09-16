@@ -349,7 +349,7 @@ func blueprint(ctx *common.TestContext, auth *httpexpect.Expect) common.Object {
 
 	so := auth.GET(web.ServiceOfferingsURL).WithQuery("fieldQuery", "broker_id = "+id).
 		Expect().
-		Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().First()
+		Status(http.StatusOK).JSON().Object().Value("items").Array().First()
 
 	return so.Object().Raw()
 }
