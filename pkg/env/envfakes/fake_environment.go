@@ -9,6 +9,16 @@ import (
 )
 
 type FakeEnvironment struct {
+	AllSettingsStub        func() map[string]interface{}
+	allSettingsMutex       sync.RWMutex
+	allSettingsArgsForCall []struct {
+	}
+	allSettingsReturns struct {
+		result1 map[string]interface{}
+	}
+	allSettingsReturnsOnCall map[int]struct {
+		result1 map[string]interface{}
+	}
 	BindPFlagStub        func(string, *pflag.Flag) error
 	bindPFlagMutex       sync.RWMutex
 	bindPFlagArgsForCall []struct {
@@ -51,6 +61,58 @@ type FakeEnvironment struct {
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
+}
+
+func (fake *FakeEnvironment) AllSettings() map[string]interface{} {
+	fake.allSettingsMutex.Lock()
+	ret, specificReturn := fake.allSettingsReturnsOnCall[len(fake.allSettingsArgsForCall)]
+	fake.allSettingsArgsForCall = append(fake.allSettingsArgsForCall, struct {
+	}{})
+	fake.recordInvocation("AllSettings", []interface{}{})
+	fake.allSettingsMutex.Unlock()
+	if fake.AllSettingsStub != nil {
+		return fake.AllSettingsStub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.allSettingsReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeEnvironment) AllSettingsCallCount() int {
+	fake.allSettingsMutex.RLock()
+	defer fake.allSettingsMutex.RUnlock()
+	return len(fake.allSettingsArgsForCall)
+}
+
+func (fake *FakeEnvironment) AllSettingsCalls(stub func() map[string]interface{}) {
+	fake.allSettingsMutex.Lock()
+	defer fake.allSettingsMutex.Unlock()
+	fake.AllSettingsStub = stub
+}
+
+func (fake *FakeEnvironment) AllSettingsReturns(result1 map[string]interface{}) {
+	fake.allSettingsMutex.Lock()
+	defer fake.allSettingsMutex.Unlock()
+	fake.AllSettingsStub = nil
+	fake.allSettingsReturns = struct {
+		result1 map[string]interface{}
+	}{result1}
+}
+
+func (fake *FakeEnvironment) AllSettingsReturnsOnCall(i int, result1 map[string]interface{}) {
+	fake.allSettingsMutex.Lock()
+	defer fake.allSettingsMutex.Unlock()
+	fake.AllSettingsStub = nil
+	if fake.allSettingsReturnsOnCall == nil {
+		fake.allSettingsReturnsOnCall = make(map[int]struct {
+			result1 map[string]interface{}
+		})
+	}
+	fake.allSettingsReturnsOnCall[i] = struct {
+		result1 map[string]interface{}
+	}{result1}
 }
 
 func (fake *FakeEnvironment) BindPFlag(arg1 string, arg2 *pflag.Flag) error {
@@ -269,6 +331,8 @@ func (fake *FakeEnvironment) UnmarshalReturnsOnCall(i int, result1 error) {
 func (fake *FakeEnvironment) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
+	fake.allSettingsMutex.RLock()
+	defer fake.allSettingsMutex.RUnlock()
 	fake.bindPFlagMutex.RLock()
 	defer fake.bindPFlagMutex.RUnlock()
 	fake.getMutex.RLock()

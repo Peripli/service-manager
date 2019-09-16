@@ -21,6 +21,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Peripli/service-manager/pkg/env"
+
 	"github.com/Peripli/service-manager/api/configuration"
 
 	"github.com/Peripli/service-manager/pkg/query"
@@ -59,6 +61,7 @@ func DefaultSettings() *Settings {
 		ClientID:       "",
 		TokenBasicAuth: true, // RFC 6749 section 2.3.1
 		OSBVersion:     osbVersion,
+		ProctedLabels:  []string{},
 	}
 }
 
@@ -78,7 +81,7 @@ type Options struct {
 }
 
 // New returns the minimum set of REST APIs needed for the Service Manager
-func New(ctx context.Context, options *Options) (*web.API, error) {
+func New(ctx context.Context, e env.Environment, options *Options) (*web.API, error) {
 	bearerAuthnFilter, err := filters.NewOIDCAuthnFilter(ctx, options.APISettings.TokenIssuerURL, options.APISettings.ClientID)
 	if err != nil {
 		return nil, err
@@ -113,7 +116,9 @@ func New(ctx context.Context, options *Options) (*web.API, error) {
 					return br.(*types.ServiceBroker), nil
 				},
 			},
-			&configuration.Controller{},
+			&configuration.Controller{
+				Environment: e,
+			},
 		},
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{

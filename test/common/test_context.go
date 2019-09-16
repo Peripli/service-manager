@@ -85,8 +85,7 @@ type TestContext struct {
 	SMWithOAuthForTenant *httpexpect.Expect
 	SMWithBasic          *httpexpect.Expect
 	SMRepository         storage.Repository
-
-	TestPlatform *types.Platform
+	TestPlatform         *types.Platform
 
 	Servers map[string]FakeServer
 }
@@ -334,12 +333,12 @@ func NewSMListener() (net.Listener, error) {
 func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error, listener net.Listener) (*testSMServer, storage.Repository) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	cfg, err := config.NewForEnv(smEnv)
+	cfg, err := config.New(smEnv)
 	if err != nil {
 		panic(err)
 	}
 
-	smb, err := sm.New(ctx, cancel, cfg)
+	smb, err := sm.New(ctx, cancel, smEnv, cfg)
 	if err != nil {
 		panic(err)
 	}

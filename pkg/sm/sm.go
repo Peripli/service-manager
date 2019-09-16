@@ -23,6 +23,8 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/Peripli/service-manager/pkg/env"
+
 	"github.com/Peripli/service-manager/pkg/health"
 
 	"github.com/Peripli/service-manager/pkg/httpclient"
@@ -72,7 +74,7 @@ type ServiceManager struct {
 }
 
 // New returns service-manager Server with default setup
-func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (*ServiceManagerBuilder, error) {
+func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg *config.Settings) (*ServiceManagerBuilder, error) {
 	var err error
 	if err = cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("error validating configuration: %s", err)
@@ -123,7 +125,7 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 		WSSettings:  cfg.WebSocket,
 		Notificator: pgNotificator,
 	}
-	API, err := api.New(ctx, apiOptions)
+	API, err := api.New(ctx, e, apiOptions)
 	if err != nil {
 		return nil, fmt.Errorf("error creating core api: %s", err)
 	}

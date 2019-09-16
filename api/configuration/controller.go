@@ -3,13 +3,22 @@ package configuration
 import (
 	"net/http"
 
+	"github.com/Peripli/service-manager/pkg/env"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-// Controller dynamic configuration controller
+// Controller configuration controller
 type Controller struct {
+	Environment env.Environment
+}
+
+func (c *Controller) getConfiguration(r *web.Request) (*web.Response, error) {
+	log.C(r.Context()).Debug("Obtaining application configuration...")
+
+	return util.NewJSONResponse(http.StatusOK, c.Environment.AllSettings())
 }
 
 func (c *Controller) getLoggingConfiguration(r *web.Request) (*web.Response, error) {
@@ -53,6 +62,13 @@ func (c *Controller) setLoggingConfiguration(r *web.Request) (*web.Response, err
 // Routes provides endpoints for modifying and obtaining the logging configuration
 func (c *Controller) Routes() []web.Route {
 	return []web.Route{
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodGet,
+				Path:   web.ConfigURL,
+			},
+			Handler: c.getConfiguration,
+		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,

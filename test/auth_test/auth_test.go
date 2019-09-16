@@ -192,6 +192,12 @@ var _ = Describe("Service Manager Authentication", func() {
 			{"Missing token in authorization header", "DELETE", "/v1/visibilities/999", "Bearer "},
 			{"Invalid token in authorization header", "DELETE", "/v1/visibilities/999", "Bearer abc"},
 
+			// CONFIG
+			{"Missing authorization header", "GET", "/v1/config", ""},
+			{"Invalid authorization schema", "GET", "/v1/config", "Basic abc"},
+			{"Missing token in authorization header", "GET", "/v1/config", "Bearer "},
+			{"Invalid token in authorization header", "GET", "/v1/config", "Bearer abc"},
+
 			// LOGGING CONFIG
 			{"Missing authorization header", "GET", "/v1/config/logging", ""},
 			{"Invalid authorization schema", "GET", "/v1/config/logging", "Basic abc"},

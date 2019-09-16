@@ -238,7 +238,7 @@ var _ = Describe("config", func() {
 		)
 
 		assertErrorDuringNewConfiguration := func() {
-			_, err := cfg.NewForEnv(fakeEnv)
+			_, err := cfg.New(fakeEnv)
 			Expect(err).To(HaveOccurred())
 		}
 
@@ -299,7 +299,7 @@ var _ = Describe("config", func() {
 				})
 
 				It("uses the config values from env", func() {
-					c, err := cfg.NewForEnv(fakeEnv)
+					c, err := cfg.New(fakeEnv)
 
 					Expect(err).To(Not(HaveOccurred()))
 					Expect(fakeEnv.UnmarshalCallCount()).To(Equal(1))
@@ -316,7 +316,7 @@ var _ = Describe("config", func() {
 				})
 
 				It("returns an empty config", func() {
-					c, err := cfg.NewForEnv(fakeEnv)
+					c, err := cfg.New(fakeEnv)
 
 					Expect(err).To(Not(HaveOccurred()))
 					Expect(fakeEnv.UnmarshalCallCount()).To(Equal(1))
