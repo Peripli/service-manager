@@ -104,7 +104,7 @@ func columnsByTags(tags []tagType) map[string]bool {
 
 func validateFieldQueryParams(columns map[string]bool, criteria []query.Criterion) error {
 	for _, criterion := range criteria {
-		if criterion.Type == query.FieldQuery && !columns[criterion.LeftOp] {
+		if !columns[criterion.LeftOp] {
 			return &util.UnsupportedQueryError{Message: fmt.Sprintf("unsupported field query key: %s", criterion.LeftOp)}
 		}
 	}
@@ -135,12 +135,14 @@ type tagType struct {
 	Type reflect.Type
 }
 
+func noPredicate(string) bool { return false }
+
 func getDBTags(structure interface{}, predicate func(string) bool) []tagType {
 	s := structs.New(structure)
 	fields := s.Fields()
 	set := make([]tagType, 0, len(fields))
 	if predicate == nil {
-		predicate = func(string) bool { return false }
+		predicate = noPredicate
 	}
 	getTags(fields, &set, predicate)
 	return set

@@ -60,46 +60,37 @@ type pgQuery struct {
 	labelCriteria, fieldCriteria []query.Criterion
 	orderByFields                []orderRule
 	limit                        string
-	criteria                     []query.Criterion
 	hasLock                      bool
 	returningFields              []string
 
 	err error
 }
 
+/*
+	SELECT FROM (<sub_query>) t LEFT JOIN (<labels_table>|<sub_query>) WHERE <clause>
+
+ */
+
 func (pgq *pgQuery) List(ctx context.Context, entity PostgresEntity) (*sqlx.Rows, error) {
 	if pgq.err != nil {
 		return nil, pgq.err
 	}
-
-	tableName := entity.TableName()
+	table := entity.TableName()
 	labelsEntity := entity.LabelEntity()
 
 	baseQuery := fmt.Sprintf("SELECT %s.*", mainTableAlias)
-	if entity.LabelEntity() != nil {
-		labelsTableName := labelsEntity.LabelsTableName()
-		baseQuery += `, `
-		for _, dbTag := range getDBTags(labelsEntity, isAutoIncrementable) {
-			baseQuery += fmt.Sprintf(`%[1]s.%[2]s "%[1]s.%[2]s", `, labelsTableName, dbTag.Tag)
-		}
-		baseQuery = baseQuery[:len(baseQuery)-2] //remove last comma
-	}
 
-	table := tableName
 	if labelsEntity != nil {
+		baseQuery += pgq.selectColumnsSQL(labelsEntity)
 		if err := pgq.fromSubquerySQL(ctx, entity); err != nil {
 			return nil, err
 		}
 		table = pgq.fromSubquery.String()
-		baseQuery += fmt.Sprintf(" FROM %s %s", table, mainTableAlias)
+	}
+	baseQuery += fmt.Sprintf(" FROM %s %s", table, mainTableAlias)
 
-		labelsTableName := labelsEntity.LabelsTableName()
-		referenceKeyColumn := labelsEntity.ReferenceColumn()
-		primaryKeyColumn := labelsEntity.LabelsPrimaryColumn()
-		baseQuery += fmt.Sprintf(` LEFT JOIN %[2]s ON %[1]s.%[3]s = %[2]s.%[4]s`,
-			mainTableAlias, labelsTableName, primaryKeyColumn, referenceKeyColumn)
-	} else {
-		baseQuery += fmt.Sprintf(" FROM %s %s", table, mainTableAlias)
+	if labelsEntity != nil {
+		baseQuery += pgq.joinLabelsSQL(labelsEntity)
 	}
 
 	pgq.sql.WriteString(baseQuery)
@@ -114,7 +105,7 @@ func (pgq *pgQuery) List(ctx context.Context, entity PostgresEntity) (*sqlx.Rows
 func (pgq *pgQuery) fromSubquerySQL(ctx context.Context, entity PostgresEntity) error {
 	entityTags := getDBTags(entity, nil)
 	columns := columnsByTags(entityTags)
-	if err := validateFieldQueryParams(columns, pgq.criteria); err != nil {
+	if err := validateFieldQueryParams(columns, pgq.fieldCriteria); err != nil {
 		return err
 	}
 	if err := validateOrderFields(columns, pgq.orderByFields...); err != nil {
@@ -142,10 +133,9 @@ func (pgq *pgQuery) Count(ctx context.Context, entity PostgresEntity) (int, erro
 
 	pgq.orderByFields = nil
 
-	tableName := entity.TableName()
+	table := entity.TableName()
 	labelsEntity := entity.LabelEntity()
 
-	table := tableName
 	baseQuery := fmt.Sprintf("SELECT COUNT(DISTINCT %[2]s.id) FROM %[1]s %[2]s", table, mainTableAlias)
 
 	if labelsEntity != nil {
@@ -154,12 +144,7 @@ func (pgq *pgQuery) Count(ctx context.Context, entity PostgresEntity) (int, erro
 		}
 		table = pgq.fromSubquery.String()
 		baseQuery = fmt.Sprintf("SELECT COUNT(DISTINCT %[2]s.id) FROM %[1]s %[2]s", table, mainTableAlias)
-
-		labelsTableName := labelsEntity.LabelsTableName()
-		referenceKeyColumn := labelsEntity.ReferenceColumn()
-		primaryKeyColumn := labelsEntity.LabelsPrimaryColumn()
-		baseQuery += fmt.Sprintf(` LEFT JOIN %[2]s ON %[1]s.%[3]s = %[2]s.%[4]s`,
-			mainTableAlias, labelsTableName, primaryKeyColumn, referenceKeyColumn)
+		baseQuery += pgq.joinLabelsSQL(labelsEntity)
 	}
 
 	pgq.sql.WriteString(baseQuery)
@@ -178,25 +163,19 @@ func (pgq *pgQuery) Delete(ctx context.Context, entity PostgresEntity) (*sqlx.Ro
 		return nil, pgq.err
 	}
 
-	tableName := entity.TableName()
+	table := entity.TableName()
 	labelsEntity := entity.LabelEntity()
 
-	baseQuery := fmt.Sprintf("DELETE FROM %[1]s USING %[1]s %[2]s", tableName, mainTableAlias)
+	baseQuery := fmt.Sprintf("DELETE FROM %[1]s USING %[1]s %[2]s", table, mainTableAlias)
 
-	table := tableName
 	primaryKeyColumn := "id"
 	if labelsEntity != nil {
 		if err := pgq.fromSubquerySQL(ctx, entity); err != nil {
 			return nil, err
 		}
 		table = pgq.fromSubquery.String()
-		baseQuery = fmt.Sprintf("DELETE FROM %s USING %s %s", tableName, table, mainTableAlias)
-
-		labelsTableName := labelsEntity.LabelsTableName()
-		referenceKeyColumn := labelsEntity.ReferenceColumn()
-		primaryKeyColumn = labelsEntity.LabelsPrimaryColumn()
-		baseQuery += fmt.Sprintf(` LEFT JOIN %[2]s ON %[1]s.%[3]s = %[2]s.%[4]s`,
-			mainTableAlias, labelsTableName, primaryKeyColumn, referenceKeyColumn)
+		baseQuery = fmt.Sprintf("DELETE FROM %s USING %s %s", entity.TableName(), table, mainTableAlias)
+		baseQuery += pgq.joinLabelsSQL(labelsEntity)
 	}
 
 	baseQuery += fmt.Sprintf(` WHERE %[1]s.%[2]s = %[3]s.%[2]s`, mainTableAlias, primaryKeyColumn, entity.TableName())
@@ -226,7 +205,6 @@ func (pgq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
 		return pgq
 	}
 
-	pgq.criteria = append(pgq.criteria, criteria...)
 	labelCriteria, fieldCriteria, resultCriteria := splitCriteriaByType(criteria)
 	pgq.labelCriteria = append(pgq.labelCriteria, labelCriteria...)
 	pgq.fieldCriteria = append(pgq.fieldCriteria, fieldCriteria...)
@@ -241,6 +219,23 @@ func (pgq *pgQuery) WithLock() *pgQuery {
 		pgq.hasLock = true
 	}
 	return pgq
+}
+
+func (pgq *pgQuery) selectColumnsSQL(labelsEntity PostgresLabel) string {
+	labelsTableName := labelsEntity.LabelsTableName()
+	baseQuery := `, `
+	for _, dbTag := range getDBTags(labelsEntity,nil) {
+		baseQuery += fmt.Sprintf(`%[1]s.%[2]s "%[1]s.%[2]s", `, labelsTableName, dbTag.Tag)
+	}
+	return baseQuery[:len(baseQuery)-2]	//remove last comma
+}
+
+func (pgq *pgQuery) joinLabelsSQL(labelsEntity PostgresLabel) string {
+	return fmt.Sprintf(` LEFT JOIN %[2]s ON %[1]s.%[3]s = %[2]s.%[4]s`,
+		mainTableAlias,
+		labelsEntity.LabelsTableName(),
+		labelsEntity.LabelsPrimaryColumn(),
+		labelsEntity.ReferenceColumn())
 }
 
 func (pgq *pgQuery) finalizeSQL(ctx context.Context, entity PostgresEntity) error {
@@ -396,7 +391,7 @@ func (pgq *pgQuery) processResultCriteria(resultQuery []query.Criterion) *pgQuer
 }
 
 func (pgq *pgQuery) expandMultivariateOp() *pgQuery {
-	if hasMultiVariateOp(pgq.criteria) {
+	if hasMultiVariateOp(append(pgq.fieldCriteria, pgq.labelCriteria...)) {
 		var err error
 		// sqlx.In requires question marks(?) instead of positional arguments (the ones pgsql uses) in order to map the list argument to the IN operation
 		var sql string
