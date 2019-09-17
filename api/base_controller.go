@@ -187,23 +187,33 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 // ListObjects handles the fetching of all objects
 func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
+	if ctx.Value("limit").(int) == 0 {
+		log.C(ctx).Debugf("Getting count of %s since max_items is 0", c.objectType)
+		count, err := c.repository.Count(ctx, c.objectType, query.CriteriaForContext(ctx)...)
+		if err != nil {
+			return nil, util.HandleStorageError(err, string(c.objectType))
+		}
+		page := struct {
+			ItemsCount int `json:"num_items"`
+		}{
+			ItemsCount: count,
+		}
+		return util.NewJSONResponse(http.StatusOK, page)
+	}
 	log.C(ctx).Debugf("Getting all %ss", c.objectType)
 	objectList, err := c.repository.List(ctx, c.objectType, query.CriteriaForContext(ctx)...)
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
-
 	page := types.ObjectPage{
 		Items: make([]types.Object, 0, objectList.Len()),
 	}
-
 	for i := 0; i < objectList.Len(); i++ {
 		page.ItemsCount++
 		obj := objectList.ItemAt(i)
 		stripCredentials(ctx, obj)
 		page.Items = append(page.Items, obj)
 	}
-
 	return util.NewJSONResponse(http.StatusOK, page)
 }
 

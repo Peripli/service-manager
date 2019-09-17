@@ -227,6 +227,14 @@ func (ps *Storage) List(ctx context.Context, objType types.ObjectType, criteria 
 	return entity.RowsToList(rows)
 }
 
+func (ps *Storage) Count(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) (int, error) {
+	entity, err := ps.scheme.provide(objType)
+	if err != nil {
+		return 0, err
+	}
+	return ps.queryBuilder.NewQuery().WithCriteria(criteria...).WithLock().Count(ctx, entity)
+}
+
 func (ps *Storage) Delete(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	entity, err := ps.scheme.provide(objType)
 	if err != nil {
