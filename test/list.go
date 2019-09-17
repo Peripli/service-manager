@@ -414,7 +414,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 
 			Context("Paging", func() {
 				Context("with max items query", func() {
-					FIt("returns smaller pages and Link header", func() {
+					It("returns smaller pages token and Link header", func() {
 						pageSize := 5
 						resp := ctx.SMWithOAuth.GET(t.API).WithQuery("max_items", pageSize).Expect().Status(http.StatusOK)
 
@@ -442,6 +442,11 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 						resp.Path("$.num_items").Number().Gt(0)
 					})
 				})
+				When("there is no more pages", func() {
+					It("should not return token and Link header", func() {
+						// TODO:
+					})
+				})
 				Context("with invalid token", func() {
 					executeWithInvalidToken := func(token string) {
 						ctx.SMWithOAuth.GET(t.API).WithQuery("token", token).Expect().Status(http.StatusNotFound)
@@ -458,7 +463,6 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 						})
 					})
 				})
-
 			})
 
 			Context("with no field query", func() {

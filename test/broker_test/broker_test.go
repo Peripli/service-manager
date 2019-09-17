@@ -544,7 +544,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("when request body is not valid JSON", func() {
 					It("returns 400", func() {
-						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+brokerID).
+						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
 							WithText("invalid json").
 							WithHeader("content-type", "application/json").
 							Expect().
@@ -556,7 +556,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("when request body contains invalid credentials", func() {
 					It("returns 400", func() {
-						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+brokerID).
+						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
 							WithJSON(common.Object{"credentials": "123"}).
 							Expect().
 							Status(http.StatusBadRequest).
@@ -567,7 +567,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("when request body contains incomplete credentials", func() {
 					It("returns 400", func() {
-						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+brokerID).
+						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
 							WithJSON(common.Object{"credentials": common.Object{"basic": common.Object{"password": ""}}}).
 							Expect().
 							Status(http.StatusBadRequest).
@@ -611,7 +611,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						assertInvocationCount(anotherBrokerServer.CatalogEndpointRequests, 1)
 
-						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+brokerID).
+						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
 							WithJSON(anotherTestBroker).
 							Expect().Status(http.StatusConflict).
 							JSON().Object().
@@ -653,7 +653,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					It("should not change created_at", func() {
 						createdAt := "2015-01-01T00:00:00Z"
 
-						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+brokerID).
+						ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
 							WithJSON(common.Object{"created_at": createdAt}).
 							Expect().
 							Status(http.StatusOK).JSON().Object().
@@ -708,7 +708,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("when all updatable fields are updated at once", func() {
 						It("returns 200", func() {
-							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+brokerID).
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
 								WithJSON(updatedBrokerJSON).
 								Expect().
 								Status(http.StatusOK).

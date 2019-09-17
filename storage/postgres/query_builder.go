@@ -52,9 +52,10 @@ func (qb *QueryBuilder) NewQuery() *pgQuery {
 
 // pgQuery is used to construct postgres queries. It should be constructed only via the query builder. It is not safe for concurrent use.
 type pgQuery struct {
-	db          pgDB
-	sql         queryStringBuilder
-	queryParams []interface{}
+	db           pgDB
+	sql          queryStringBuilder
+	fromSubquery queryStringBuilder
+	queryParams  []interface{}
 
 	labelCriteria, fieldCriteria []query.Criterion
 	orderByFields                []orderRule
@@ -84,23 +85,54 @@ func (pgq *pgQuery) List(ctx context.Context, entity PostgresEntity) (*sqlx.Rows
 		baseQuery = baseQuery[:len(baseQuery)-2] //remove last comma
 	}
 
-	baseQuery += fmt.Sprintf(" FROM %s %s", tableName, mainTableAlias)
-
+	table := tableName
 	if labelsEntity != nil {
+		if err := pgq.fromSubquerySQL(ctx, entity); err != nil {
+			return nil, err
+		}
+		table = pgq.fromSubquery.String()
+		baseQuery += fmt.Sprintf(" FROM %s %s", table, mainTableAlias)
+
 		labelsTableName := labelsEntity.LabelsTableName()
 		referenceKeyColumn := labelsEntity.ReferenceColumn()
 		primaryKeyColumn := labelsEntity.LabelsPrimaryColumn()
 		baseQuery += fmt.Sprintf(` LEFT JOIN %[2]s ON %[1]s.%[3]s = %[2]s.%[4]s`,
 			mainTableAlias, labelsTableName, primaryKeyColumn, referenceKeyColumn)
+	} else {
+		baseQuery += fmt.Sprintf(" FROM %s %s", table, mainTableAlias)
 	}
 
 	pgq.sql.WriteString(baseQuery)
 
-	if err := pgq.finalizeSQL(ctx, entity, false); err != nil {
+	if err := pgq.finalizeSQL(ctx, entity); err != nil {
 		return nil, err
 	}
 
 	return pgq.db.QueryxContext(ctx, pgq.sql.String(), pgq.queryParams...)
+}
+
+func (pgq *pgQuery) fromSubquerySQL(ctx context.Context, entity PostgresEntity) error {
+	entityTags := getDBTags(entity, nil)
+	columns := columnsByTags(entityTags)
+	if err := validateFieldQueryParams(columns, pgq.criteria); err != nil {
+		return err
+	}
+	if err := validateOrderFields(columns, pgq.orderByFields...); err != nil {
+		return err
+	}
+	baseQuery := fmt.Sprintf("(SELECT * FROM %s", entity.TableName())
+	pgq.fromSubquery.WriteString(baseQuery)
+
+	pgq.fieldCriteriaSQL(entity, pgq.fieldCriteria).
+		orderBySQL(true).
+		limitSQL()
+
+	pgq.fromSubquery.WriteString(")")
+
+	if pgq.err != nil {
+		return pgq.err
+	}
+	return nil
 }
 
 func (pgq *pgQuery) Count(ctx context.Context, entity PostgresEntity) (int, error) {
@@ -108,12 +140,21 @@ func (pgq *pgQuery) Count(ctx context.Context, entity PostgresEntity) (int, erro
 		return 0, pgq.err
 	}
 
+	pgq.orderByFields = nil
+
 	tableName := entity.TableName()
 	labelsEntity := entity.LabelEntity()
 
-	baseQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s %s", tableName, mainTableAlias)
+	table := tableName
+	baseQuery := fmt.Sprintf("SELECT COUNT(DISTINCT %[2]s.id) FROM %[1]s %[2]s", table, mainTableAlias)
 
 	if labelsEntity != nil {
+		if err := pgq.fromSubquerySQL(ctx, entity); err != nil {
+			return 0, err
+		}
+		table = pgq.fromSubquery.String()
+		baseQuery = fmt.Sprintf("SELECT COUNT(DISTINCT %[2]s.id) FROM %[1]s %[2]s", table, mainTableAlias)
+
 		labelsTableName := labelsEntity.LabelsTableName()
 		referenceKeyColumn := labelsEntity.ReferenceColumn()
 		primaryKeyColumn := labelsEntity.LabelsPrimaryColumn()
@@ -123,9 +164,7 @@ func (pgq *pgQuery) Count(ctx context.Context, entity PostgresEntity) (int, erro
 
 	pgq.sql.WriteString(baseQuery)
 
-	pgq.orderByFields = nil
-
-	if err := pgq.finalizeSQL(ctx, entity, false); err != nil {
+	if err := pgq.finalizeSQL(ctx, entity); err != nil {
 		return 0, err
 	}
 
@@ -144,8 +183,15 @@ func (pgq *pgQuery) Delete(ctx context.Context, entity PostgresEntity) (*sqlx.Ro
 
 	baseQuery := fmt.Sprintf("DELETE FROM %[1]s USING %[1]s %[2]s", tableName, mainTableAlias)
 
+	table := tableName
 	primaryKeyColumn := "id"
 	if labelsEntity != nil {
+		if err := pgq.fromSubquerySQL(ctx, entity); err != nil {
+			return nil, err
+		}
+		table = pgq.fromSubquery.String()
+		baseQuery = fmt.Sprintf("DELETE FROM %s USING %s %s", tableName, table, mainTableAlias)
+
 		labelsTableName := labelsEntity.LabelsTableName()
 		referenceKeyColumn := labelsEntity.ReferenceColumn()
 		primaryKeyColumn = labelsEntity.LabelsPrimaryColumn()
@@ -157,7 +203,7 @@ func (pgq *pgQuery) Delete(ctx context.Context, entity PostgresEntity) (*sqlx.Ro
 
 	pgq.sql.WriteString(baseQuery)
 
-	if err := pgq.finalizeSQL(ctx, entity, true); err != nil {
+	if err := pgq.finalizeSQL(ctx, entity); err != nil {
 		return nil, err
 	}
 
@@ -197,24 +243,16 @@ func (pgq *pgQuery) WithLock() *pgQuery {
 	return pgq
 }
 
-func (pgq *pgQuery) finalizeSQL(ctx context.Context, entity PostgresEntity, whereClausePresent bool) error {
+func (pgq *pgQuery) finalizeSQL(ctx context.Context, entity PostgresEntity) error {
 	entityTags := getDBTags(entity, nil)
 	columns := columnsByTags(entityTags)
-	if err := validateFieldQueryParams(columns, pgq.criteria); err != nil {
-		return err
-	}
-	if err := validateOrderFields(columns, pgq.orderByFields...); err != nil {
-		return err
-	}
 	if err := validateReturningFields(columns, pgq.returningFields...); err != nil {
 		return err
 	}
 
 	pgq.labelCriteriaSQL(entity, pgq.labelCriteria).
-		fieldCriteriaSQL(entity, pgq.fieldCriteria, whereClausePresent).
-		orderBySQL().
-		limitSQL().
 		lockSQL(entity.TableName()).
+		orderBySQL(false).
 		returningSQL().
 		expandMultivariateOp()
 
@@ -231,21 +269,25 @@ func (pgq *pgQuery) finalizeSQL(ctx context.Context, entity PostgresEntity, wher
 	return nil
 }
 
-func (pgq *pgQuery) orderBySQL() *pgQuery {
+func (pgq *pgQuery) orderBySQL(isSubquery bool) *pgQuery {
 	if len(pgq.orderByFields) > 0 {
 		sql := " ORDER BY"
 		for _, orderRule := range pgq.orderByFields {
-			sql += fmt.Sprintf(" %s.%s %s,", mainTableAlias, orderRule.field, pgq.orderTypeToSQL(orderRule.orderType))
+			sql += fmt.Sprintf(" %s %s,", orderRule.field, pgq.orderTypeToSQL(orderRule.orderType))
 		}
 		sql = sql[:len(sql)-1]
-		pgq.sql.WriteString(sql)
+		if isSubquery {
+			pgq.fromSubquery.WriteString(sql)
+		} else {
+			pgq.sql.WriteString(sql)
+		}
 	}
 	return pgq
 }
 
 func (pgq *pgQuery) limitSQL() *pgQuery {
 	if len(pgq.limit) > 0 {
-		pgq.sql.WriteString(fmt.Sprintf(" LIMIT %s", pgq.limit))
+		pgq.fromSubquery.WriteString(fmt.Sprintf(" LIMIT %s", pgq.limit))
 	}
 	return pgq
 }
@@ -297,17 +339,13 @@ func (pgq *pgQuery) labelCriteriaSQL(entity PostgresEntity, criteria []query.Cri
 	return pgq
 }
 
-func (pgq *pgQuery) fieldCriteriaSQL(entity PostgresEntity, criteria []query.Criterion, whereClausePresent bool) *pgQuery {
+func (pgq *pgQuery) fieldCriteriaSQL(entity PostgresEntity, criteria []query.Criterion) *pgQuery {
 	dbTags := getDBTags(entity, nil)
 
 	var fieldQueries []string
 
 	if len(criteria) > 0 {
-		if !whereClausePresent {
-			pgq.sql.WriteString(" WHERE ")
-		} else {
-			pgq.sql.WriteString(" AND ")
-		}
+		pgq.fromSubquery.WriteString(" WHERE ")
 		for _, option := range criteria {
 			var ttype reflect.Type
 			if dbTags != nil {
@@ -322,14 +360,14 @@ func (pgq *pgQuery) fieldCriteriaSQL(entity PostgresEntity, criteria []query.Cri
 			sqlOperation := translateOperationToSQLEquivalent(option.Operator)
 
 			dbCast := determineCastByType(ttype)
-			clause := fmt.Sprintf("%s.%s%s %s %s", mainTableAlias, option.LeftOp, dbCast, sqlOperation, rightOpBindVar)
+			clause := fmt.Sprintf("%s%s %s %s", option.LeftOp, dbCast, sqlOperation, rightOpBindVar)
 			if option.Operator.IsNullable() {
-				clause = fmt.Sprintf("(%s OR %s.%s IS NULL)", clause, mainTableAlias, option.LeftOp)
+				clause = fmt.Sprintf("(%s OR %s IS NULL)", clause, option.LeftOp)
 			}
 			fieldQueries = append(fieldQueries, clause)
 			pgq.queryParams = append(pgq.queryParams, rightOpQueryValue)
 		}
-		pgq.sql.WriteString(strings.Join(fieldQueries, " AND "))
+		pgq.fromSubquery.WriteString(strings.Join(fieldQueries, " AND "))
 	}
 	return pgq
 }
