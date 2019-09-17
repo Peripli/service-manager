@@ -11,7 +11,7 @@ import (
 const NotificationType ObjectType = "types.Notification"
 
 type Notifications struct {
-	Notifications []*Notification `json:"items"`
+	Notifications []*Notification `json:"notifications"`
 }
 
 func (e *Notifications) Add(object Object) {

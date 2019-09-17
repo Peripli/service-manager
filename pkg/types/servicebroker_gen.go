@@ -11,7 +11,7 @@ import (
 const ServiceBrokerType ObjectType = "types.ServiceBroker"
 
 type ServiceBrokers struct {
-	ServiceBrokers []*ServiceBroker `json:"items"`
+	ServiceBrokers []*ServiceBroker `json:"service_brokers"`
 }
 
 func (e *ServiceBrokers) Add(object Object) {
