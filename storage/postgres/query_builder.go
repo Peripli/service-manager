@@ -20,6 +20,13 @@ type orderRule struct {
 	orderType query.OrderType
 }
 
+type logicalOperator string
+
+const (
+	AND logicalOperator = "AND"
+	OR  logicalOperator = "OR"
+)
+
 // TODO: Handle errors on writeString
 type queryStringBuilder struct {
 	strings.Builder
@@ -32,33 +39,74 @@ func (qsb *queryStringBuilder) Replace(old, new string) {
 	qsb.WriteString(current)
 }
 
-// QueryBuilder is used to construct new queries. It is safe for concurrent usage
-type QueryBuilder struct {
-	db pgDB
+// whereClauseTree represents an sql where clause as tree structure with AND/OR on the nodes
+type whereClauseTree struct {
+	operator  logicalOperator
+	criterion query.Criterion
+	children  []*whereClauseTree
 }
 
-// NewQueryBuilder constructs new query builder for the current db
-func NewQueryBuilder(db pgDB) *QueryBuilder {
-	return &QueryBuilder{
-		db: db,
+func newWhereClauseTree() *whereClauseTree {
+	return &whereClauseTree{
+		children: make([]*whereClauseTree, 0),
 	}
 }
 
-// NewQuery constructs new queries for the current query builder db
-func (qb *QueryBuilder) NewQuery() *pgQuery {
-	return &pgQuery{
-		db:           qb.db,
-		fromSubquery: newSelectSubQuery(),
+func (t *whereClauseTree) addNode(operator logicalOperator) *whereClauseTree {
+	node := &whereClauseTree{
+		operator: operator,
+		children: make([]*whereClauseTree, 0),
 	}
+	t.children = append(t.children, node)
+	return node
+}
+
+func (t *whereClauseTree) addLeaf(criterion query.Criterion) {
+	t.children = append(t.children, &whereClauseTree{
+		criterion: criterion,
+		children:  make([]*whereClauseTree, 0),
+	})
+}
+
+func (t *whereClauseTree) isLeaf() bool {
+	return len(t.children) == 0
+}
+
+func (t *whereClauseTree) compileSQL(dbTags []tagType) (string, []interface{}, error) {
+	if t.isLeaf() {
+		sql, queryParam, err := criterionSQL(t.criterion, dbTags)
+		if err != nil {
+			return "", nil, err
+		}
+		return sql, []interface{}{queryParam}, nil
+	}
+	queryParams := make([]interface{}, 0)
+	childrenSQL := make([]string, 0)
+	for _, child := range t.children {
+		childSQL, childQueryParams, err := child.compileSQL(dbTags)
+		if err != nil {
+			return "", nil, err
+		}
+		childrenSQL = append(childrenSQL, childSQL)
+		queryParams = append(queryParams, childQueryParams...)
+	}
+	sep := " " + string(t.operator) + " "
+	sql := fmt.Sprintf("(%s)", strings.Join(childrenSQL, sep))
+	return sql, queryParams, nil
 }
 
 type subQuery struct {
-	sql         queryStringBuilder
-	queryParams []interface{}
+	tableName        string
+	referenceColumns string
+	dbTags           []tagType
+	sql              queryStringBuilder
+	queryParams      []interface{}
 
 	fieldCriteria []query.Criterion
 	orderByFields []orderRule
 	limit         string
+
+	whereClauseTreeCreator func([]query.Criterion) *whereClauseTree
 
 	err error
 }
@@ -67,9 +115,14 @@ type selectSubQuery struct {
 	*subQuery
 }
 
-func newSelectSubQuery() *selectSubQuery {
+func newSelectSubQuery(tableName string, referenceColumns string, dbTags []tagType, creator func([]query.Criterion) *whereClauseTree) *selectSubQuery {
 	return &selectSubQuery{
-		&subQuery{},
+		&subQuery{
+			tableName:              tableName,
+			referenceColumns:       referenceColumns,
+			dbTags:                 dbTags,
+			whereClauseTreeCreator: creator,
+		},
 	}
 }
 
@@ -90,52 +143,32 @@ func (ssq *selectSubQuery) limitSQL() *selectSubQuery {
 	return ssq
 }
 
-func (ssq *selectSubQuery) fieldCriteriaSQL(entity PostgresEntity, criteria []query.Criterion) *selectSubQuery {
-	dbTags := getDBTags(entity, nil)
-
-	var fieldQueries []string
-
-	if len(criteria) > 0 {
-		ssq.sql.WriteString(" WHERE ")
-		for _, option := range criteria {
-			var ttype reflect.Type
-			if dbTags != nil {
-				var err error
-				ttype, err = findTagType(dbTags, option.LeftOp)
-				if err != nil {
-					ssq.err = err
-					return ssq
-				}
-			}
-			rightOpBindVar, rightOpQueryValue := buildRightOp(option)
-			sqlOperation := translateOperationToSQLEquivalent(option.Operator)
-
-			dbCast := determineCastByType(ttype)
-			clause := fmt.Sprintf("%s%s %s %s", option.LeftOp, dbCast, sqlOperation, rightOpBindVar)
-			if option.Operator.IsNullable() {
-				clause = fmt.Sprintf("(%s OR %s IS NULL)", clause, option.LeftOp)
-			}
-			fieldQueries = append(fieldQueries, clause)
-			ssq.queryParams = append(ssq.queryParams, rightOpQueryValue)
+func (ssq *selectSubQuery) fieldCriteriaSQL() *selectSubQuery {
+	if len(ssq.fieldCriteria) > 0 {
+		tree := ssq.whereClauseTreeCreator(ssq.fieldCriteria)
+		whereSQL, queryParams, err := tree.compileSQL(ssq.dbTags)
+		if err != nil {
+			ssq.err = err
+			return ssq
 		}
-		ssq.sql.WriteString(strings.Join(fieldQueries, " AND "))
+		ssq.queryParams = append(ssq.queryParams, queryParams...)
+		ssq.sql.WriteString(" WHERE " + whereSQL)
 	}
 	return ssq
 }
 
-func (ssq *selectSubQuery) compileSQL(ctx context.Context, entity PostgresEntity) (string, error) {
-	entityTags := getDBTags(entity, nil)
-	columns := columnsByTags(entityTags)
+func (ssq *selectSubQuery) compileSQL() (string, error) {
+	columns := columnsByTags(ssq.dbTags)
 	if err := validateFieldQueryParams(columns, ssq.fieldCriteria); err != nil {
 		return "", err
 	}
 	if err := validateOrderFields(columns, ssq.orderByFields...); err != nil {
 		return "", err
 	}
-	baseQuery := fmt.Sprintf("(SELECT * FROM %s", entity.TableName())
+	baseQuery := fmt.Sprintf("(SELECT %s FROM %s", ssq.referenceColumns, ssq.tableName)
 	ssq.sql.WriteString(baseQuery)
 
-	ssq.fieldCriteriaSQL(entity, ssq.fieldCriteria).
+	ssq.fieldCriteriaSQL().
 		orderBySQL().
 		limitSQL()
 
@@ -147,14 +180,82 @@ func (ssq *selectSubQuery) compileSQL(ctx context.Context, entity PostgresEntity
 	return ssq.sql.String(), nil
 }
 
+func criterionSQL(criterion query.Criterion, dbTags []tagType) (string, interface{}, error) {
+	var ttype reflect.Type
+	if dbTags != nil {
+		var err error
+		ttype, err = findTagType(dbTags, criterion.LeftOp)
+		if err != nil {
+			return "", nil, err
+		}
+	}
+	rightOpBindVar, rightOpQueryValue := buildRightOp(criterion)
+	sqlOperation := translateOperationToSQLEquivalent(criterion.Operator)
+
+	dbCast := determineCastByType(ttype)
+	clause := fmt.Sprintf("%s%s %s %s", criterion.LeftOp, dbCast, sqlOperation, rightOpBindVar)
+	if criterion.Operator.IsNullable() {
+		clause = fmt.Sprintf("(%s OR %s IS NULL)", clause, criterion.LeftOp)
+	}
+	return clause, rightOpQueryValue, nil
+}
+
+// QueryBuilder is used to construct new queries. It is safe for concurrent usage
+type QueryBuilder struct {
+	db pgDB
+}
+
+// NewQueryBuilder constructs new query builder for the current db
+func NewQueryBuilder(db pgDB) *QueryBuilder {
+	return &QueryBuilder{
+		db: db,
+	}
+}
+
+// NewQuery constructs new queries for the current query builder db
+func (qb *QueryBuilder) NewQuery(entity PostgresEntity) *pgQuery {
+	fromSubquery := newSelectSubQuery(entity.TableName(), "*", getDBTags(entity, nil),
+		func(criteria []query.Criterion) *whereClauseTree {
+			tree := newWhereClauseTree()
+			tree.operator = AND
+			for _, criterion := range criteria {
+				tree.addLeaf(criterion)
+			}
+			return tree
+		})
+
+	labelEntity := entity.LabelEntity()
+	joinLabelsSubquery := &selectSubQuery{&subQuery{}}
+	if labelEntity != nil {
+		joinLabelsSubquery = newSelectSubQuery(labelEntity.LabelsTableName(), labelEntity.ReferenceColumn(), getDBTags(entity.LabelEntity(), nil),
+			func(criteria []query.Criterion) *whereClauseTree {
+				tree := newWhereClauseTree()
+				tree.operator = OR
+				for i := 0; i < len(criteria)-1; i += 2 {
+					newNode := tree.addNode(AND)
+					newNode.addLeaf(criteria[i])
+					newNode.addLeaf(criteria[i+1])
+				}
+				return tree
+			})
+	}
+	return &pgQuery{
+		entity:             entity,
+		db:                 qb.db,
+		fromSubquery:       fromSubquery,
+		joinLabelsSubquery: joinLabelsSubquery,
+	}
+}
+
 // pgQuery is used to construct postgres queries. It should be constructed only via the query builder. It is not safe for concurrent use.
 type pgQuery struct {
-	db           pgDB
-	sql          queryStringBuilder
-	fromSubquery *selectSubQuery
-	queryParams  []interface{}
+	db                 pgDB
+	entity             PostgresEntity
+	sql                queryStringBuilder
+	fromSubquery       *selectSubQuery
+	joinLabelsSubquery *selectSubQuery
+	queryParams        []interface{}
 
-	labelCriteria   []query.Criterion
 	orderByFields   []orderRule
 	hasLock         bool
 	returningFields []string
@@ -162,17 +263,12 @@ type pgQuery struct {
 	err error
 }
 
-/*
-	SELECT FROM (<sub_query>) t LEFT JOIN (<labels_table>|<sub_query>) WHERE <clause>
-
-*/
-
-func (pgq *pgQuery) List(ctx context.Context, entity PostgresEntity) (*sqlx.Rows, error) {
+func (pgq *pgQuery) List(ctx context.Context) (*sqlx.Rows, error) {
 	if pgq.err != nil {
 		return nil, pgq.err
 	}
-	table := entity.TableName()
-	labelsEntity := entity.LabelEntity()
+	table := pgq.entity.TableName()
+	labelsEntity := pgq.entity.LabelEntity()
 
 	baseQuery := fmt.Sprintf("SELECT %s.*", mainTableAlias)
 
@@ -180,7 +276,7 @@ func (pgq *pgQuery) List(ctx context.Context, entity PostgresEntity) (*sqlx.Rows
 		baseQuery += pgq.selectColumnsSQL(labelsEntity)
 
 		var err error
-		if table, err = pgq.fromSubquery.compileSQL(ctx, entity); err != nil {
+		if table, err = pgq.fromSubquery.compileSQL(); err != nil {
 			return nil, err
 		}
 	}
@@ -192,14 +288,14 @@ func (pgq *pgQuery) List(ctx context.Context, entity PostgresEntity) (*sqlx.Rows
 
 	pgq.sql.WriteString(baseQuery)
 
-	if err := pgq.finalizeSQL(ctx, entity); err != nil {
+	if err := pgq.finalizeSQL(ctx); err != nil {
 		return nil, err
 	}
 
 	return pgq.db.QueryxContext(ctx, pgq.sql.String(), pgq.queryParams...)
 }
 
-func (pgq *pgQuery) Count(ctx context.Context, entity PostgresEntity) (int, error) {
+func (pgq *pgQuery) Count(ctx context.Context) (int, error) {
 	if pgq.err != nil {
 		return 0, pgq.err
 	}
@@ -207,14 +303,14 @@ func (pgq *pgQuery) Count(ctx context.Context, entity PostgresEntity) (int, erro
 	pgq.orderByFields = nil
 	pgq.fromSubquery.orderByFields = nil
 
-	table := entity.TableName()
-	labelsEntity := entity.LabelEntity()
+	table := pgq.entity.TableName()
+	labelsEntity := pgq.entity.LabelEntity()
 
 	baseQuery := fmt.Sprintf("SELECT COUNT(DISTINCT %[2]s.id) FROM %[1]s %[2]s", table, mainTableAlias)
 
 	if labelsEntity != nil {
 		var err error
-		if table, err = pgq.fromSubquery.compileSQL(ctx, entity); err != nil {
+		if table, err = pgq.fromSubquery.compileSQL(); err != nil {
 			return 0, err
 		}
 		baseQuery = fmt.Sprintf("SELECT COUNT(DISTINCT %[2]s.id) FROM %[1]s %[2]s", table, mainTableAlias)
@@ -223,7 +319,7 @@ func (pgq *pgQuery) Count(ctx context.Context, entity PostgresEntity) (int, erro
 
 	pgq.sql.WriteString(baseQuery)
 
-	if err := pgq.finalizeSQL(ctx, entity); err != nil {
+	if err := pgq.finalizeSQL(ctx); err != nil {
 		return 0, err
 	}
 
@@ -232,31 +328,31 @@ func (pgq *pgQuery) Count(ctx context.Context, entity PostgresEntity) (int, erro
 	return count, err
 }
 
-func (pgq *pgQuery) Delete(ctx context.Context, entity PostgresEntity) (*sqlx.Rows, error) {
+func (pgq *pgQuery) Delete(ctx context.Context) (*sqlx.Rows, error) {
 	if pgq.err != nil {
 		return nil, pgq.err
 	}
 
-	table := entity.TableName()
-	labelsEntity := entity.LabelEntity()
+	table := pgq.entity.TableName()
+	labelsEntity := pgq.entity.LabelEntity()
 
 	baseQuery := fmt.Sprintf("DELETE FROM %[1]s USING %[1]s %[2]s", table, mainTableAlias)
 
 	primaryKeyColumn := "id"
 	if labelsEntity != nil {
 		var err error
-		if table, err = pgq.fromSubquery.compileSQL(ctx, entity); err != nil {
+		if table, err = pgq.fromSubquery.compileSQL(); err != nil {
 			return nil, err
 		}
-		baseQuery = fmt.Sprintf("DELETE FROM %s USING %s %s", entity.TableName(), table, mainTableAlias)
+		baseQuery = fmt.Sprintf("DELETE FROM %s USING %s %s", pgq.entity.TableName(), table, mainTableAlias)
 		baseQuery += pgq.joinLabelsSQL(labelsEntity)
 	}
 
-	baseQuery += fmt.Sprintf(` WHERE %[1]s.%[2]s = %[3]s.%[2]s`, mainTableAlias, primaryKeyColumn, entity.TableName())
+	baseQuery += fmt.Sprintf(` WHERE %[1]s.%[2]s = %[3]s.%[2]s`, mainTableAlias, primaryKeyColumn, pgq.entity.TableName())
 
 	pgq.sql.WriteString(baseQuery)
 
-	if err := pgq.finalizeSQL(ctx, entity); err != nil {
+	if err := pgq.finalizeSQL(ctx); err != nil {
 		return nil, err
 	}
 
@@ -280,7 +376,11 @@ func (pgq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
 	}
 
 	labelCriteria, fieldCriteria, resultCriteria := splitCriteriaByType(criteria)
-	pgq.labelCriteria = append(pgq.labelCriteria, labelCriteria...)
+	for _, criterion := range labelCriteria {
+		pgq.joinLabelsSubquery.fieldCriteria = append(pgq.joinLabelsSubquery.fieldCriteria,
+			query.ByField(query.EqualsOperator, "key", criterion.LeftOp),
+			query.ByField(criterion.Operator, "val", criterion.RightOp...))
+	}
 	pgq.fromSubquery.fieldCriteria = append(pgq.fromSubquery.fieldCriteria, fieldCriteria...)
 
 	pgq.processResultCriteria(resultCriteria)
@@ -312,15 +412,15 @@ func (pgq *pgQuery) joinLabelsSQL(labelsEntity PostgresLabel) string {
 		labelsEntity.ReferenceColumn())
 }
 
-func (pgq *pgQuery) finalizeSQL(ctx context.Context, entity PostgresEntity) error {
-	entityTags := getDBTags(entity, nil)
+func (pgq *pgQuery) finalizeSQL(ctx context.Context) error {
+	entityTags := getDBTags(pgq.entity, nil)
 	columns := columnsByTags(entityTags)
 	if err := validateReturningFields(columns, pgq.returningFields...); err != nil {
 		return err
 	}
 
-	pgq.labelCriteriaSQL(entity, pgq.labelCriteria).
-		lockSQL(entity.TableName()).
+	pgq.labelCriteriaSQL().
+		lockSQL(pgq.entity.TableName()).
 		orderBySQL().
 		returningSQL().
 		mergeQueryParams()
@@ -373,30 +473,18 @@ func (pgq *pgQuery) lockSQL(tableName string) *pgQuery {
 	return pgq
 }
 
-/*
-Sub select queries:
-  SELECT * FROM <table> WHERE <field_queries>
- */
-
-func (pgq *pgQuery) labelCriteriaSQL(entity PostgresEntity, criteria []query.Criterion) *pgQuery {
-	var labelQueries []string
-
-	labelEntity := entity.LabelEntity()
-	if len(criteria) > 0 {
-		labelTableName := labelEntity.LabelsTableName()
-		referenceColumnName := labelEntity.ReferenceColumn()
-		labelSubQuery := fmt.Sprintf("(SELECT * FROM %[1]s WHERE %[2]s IN (SELECT %[2]s FROM %[1]s WHERE ", labelTableName, referenceColumnName)
-		for _, option := range criteria {
-			rightOpBindVar, rightOpQueryValue := buildRightOp(option)
-			sqlOperation := translateOperationToSQLEquivalent(option.Operator)
-			labelQueries = append(labelQueries, fmt.Sprintf("(%[1]s.key = ? AND %[1]s.val %[2]s %s)", labelTableName, sqlOperation, rightOpBindVar))
-			pgq.queryParams = append(pgq.queryParams, option.LeftOp, rightOpQueryValue)
-		}
-		labelSubQuery += strings.Join(labelQueries, " OR ")
-		labelSubQuery += "))"
-
-		pgq.sql.Replace("LEFT JOIN", "JOIN "+labelSubQuery)
+func (pgq *pgQuery) labelCriteriaSQL() *pgQuery {
+	if len(pgq.joinLabelsSubquery.fieldCriteria) == 0 {
+		return pgq
 	}
+	labelEntity := pgq.entity.LabelEntity()
+	subquerySQL, err := pgq.joinLabelsSubquery.compileSQL()
+	if err != nil {
+		pgq.err = err
+		return pgq
+	}
+	labelSubQuery := fmt.Sprintf("(SELECT * FROM %[1]s WHERE %[2]s IN %s)", labelEntity.LabelsTableName(), labelEntity.ReferenceColumn(), subquerySQL)
+	pgq.sql.Replace("LEFT JOIN", "JOIN "+labelSubQuery)
 	return pgq
 }
 
@@ -428,18 +516,18 @@ func (pgq *pgQuery) processResultCriteria(resultQuery []query.Criterion) *pgQuer
 }
 
 func (pgq *pgQuery) mergeQueryParams() *pgQuery {
-	if hasMultiVariateOp(append(pgq.fromSubquery.fieldCriteria,pgq.labelCriteria...)) {
+	if hasMultiVariateOp(append(pgq.fromSubquery.fieldCriteria, pgq.joinLabelsSubquery.fieldCriteria...)) {
 		var err error
 		// sqlx.In requires question marks(?) instead of positional arguments (the ones pgsql uses) in order to map the list argument to the IN operation
 		var sql string
-		if sql, pgq.queryParams, err = sqlx.In(pgq.sql.String(), append(pgq.fromSubquery.queryParams,pgq.queryParams...)...); err != nil {
+		if sql, pgq.queryParams, err = sqlx.In(pgq.sql.String(), append(pgq.fromSubquery.queryParams, pgq.joinLabelsSubquery.queryParams...)...); err != nil {
 			pgq.err = err
 			return pgq
 		}
 		pgq.sql.Reset()
 		pgq.sql.WriteString(sql)
 	} else {
-		pgq.queryParams = append(pgq.fromSubquery.queryParams, pgq.queryParams...)
+		pgq.queryParams = append(pgq.fromSubquery.queryParams, pgq.joinLabelsSubquery.queryParams...)
 	}
 	return pgq
 }
