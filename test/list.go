@@ -444,7 +444,17 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 				})
 				When("there is no more pages", func() {
 					It("should not return token and Link header", func() {
-						// TODO:
+						resp := ctx.SMWithOAuth.GET(t.API).WithQuery("max_items", 0).Expect().Status(http.StatusOK)
+
+						resp.JSON().Object().NotContainsKey("items")
+						pageSize := resp.JSON().Path("$.num_items").Number().Raw()
+
+						resp = ctx.SMWithOAuth.GET(t.API).WithQuery("max_items", pageSize).Expect().Status(http.StatusOK)
+
+						resp.Header("Link").Empty()
+						resp.JSON().Object().NotContainsKey("token")
+						resp.JSON().Path("$.num_items").Number().Gt(0)
+						resp.JSON().Path("$.items[*]").Array().Length().Gt(0).Le(pageSize)
 					})
 				})
 				Context("with invalid token", func() {

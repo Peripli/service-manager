@@ -65,7 +65,6 @@ func (pf *pagingFilter) Run(req *web.Request, next web.Handler) (*web.Response, 
 	}
 
 	ctx = context.WithValue(ctx, "limit", limit)
-	ctx = context.WithValue(ctx, "user_provided_query", query.CriteriaForContext(ctx))
 	if limit > 0 {
 		ctx, err = query.AddCriteria(ctx, query.LimitResultBy(limit+1),
 			query.OrderResultBy("paging_sequence", query.AscOrder),

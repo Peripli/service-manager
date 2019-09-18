@@ -189,7 +189,7 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 // ListObjects handles the fetching of all objects
 func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
-	userCriteria := ctx.Value("user_provided_query").([]query.Criterion)
+	userCriteria := query.UserCriteriaForContext(ctx)
 	count, err := c.repository.Count(ctx, c.objectType, userCriteria...)
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))

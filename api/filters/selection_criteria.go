@@ -48,6 +48,9 @@ func (l *SelectionCriteria) Run(req *web.Request, next web.Handler) (*web.Respon
 	if err != nil {
 		return nil, err
 	}
+	if ctx, err = query.ContextWithUserCriteria(ctx, criteria...); err != nil {
+		return nil, err
+	}
 	req.Request = req.WithContext(ctx)
 	return next.Handle(req)
 }

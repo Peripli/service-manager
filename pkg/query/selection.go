@@ -237,6 +237,7 @@ func mergeCriteria(c1 []Criterion, c2 []Criterion) ([]Criterion, error) {
 }
 
 type criteriaCtxKey struct{}
+type userProvidedCriteriaCtxKey struct{}
 
 // AddCriteria adds the given criteria to the context and returns an error if any of the criteria is not valid
 func AddCriteria(ctx context.Context, newCriteria ...Criterion) (context.Context, error) {
@@ -257,12 +258,29 @@ func CriteriaForContext(ctx context.Context) []Criterion {
 	return currentCriteria.([]Criterion)
 }
 
+// UserCriteriaForContext returns user-provided criteria for the given context (without system criteria)
+func UserCriteriaForContext(ctx context.Context) []Criterion {
+	currentCriteria := ctx.Value(userProvidedCriteriaCtxKey{})
+	if currentCriteria == nil {
+		return []Criterion{}
+	}
+	return currentCriteria.([]Criterion)
+}
+
 // ContextWithCriteria returns a new context with given criteria
 func ContextWithCriteria(ctx context.Context, criteria ...Criterion) (context.Context, error) {
 	if err := validateWholeCriteria(criteria...); err != nil {
 		return nil, err
 	}
 	return context.WithValue(ctx, criteriaCtxKey{}, criteria), nil
+}
+
+// ContextWithUserCriteria returns a new context with given user-provided criteria
+func ContextWithUserCriteria(ctx context.Context, criteria ...Criterion) (context.Context, error) {
+	if err := validateWholeCriteria(criteria...); err != nil {
+		return nil, err
+	}
+	return context.WithValue(ctx, userProvidedCriteriaCtxKey{}, criteria), nil
 }
 
 // BuildCriteriaFromRequest builds criteria for the given request's query params and returns an error if the query is not valid
