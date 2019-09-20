@@ -439,12 +439,6 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 					Status(http.StatusOK)
 			})
 
-			AfterEach(func() {
-				ctx.SMWithOAuth.DELETE(t.API + "/" + obj["id"].(string)).
-					Expect().
-					Status(http.StatusOK)
-			})
-
 			It("and is not encoded, returns 400", func() {
 				ctx.SMWithOAuth.GET(t.API).WithQuery("labelQuery", fmt.Sprintf("%s eq '%s'", labelKey, labelValue)).
 					Expect().Status(http.StatusBadRequest).Body().Contains("not URL encoded")

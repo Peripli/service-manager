@@ -187,13 +187,17 @@ func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object,
 
 	// while the AroundTx hooks were being executed the stored resource actually changed - another concurrent update
 	// happened and finished concurrently and before this one so fail the request
-	if util.ToRFCNanoFormat(oldObj.GetUpdatedAt()) != util.ToRFCNanoFormat(obj.GetUpdatedAt()) {
+	// update to the same entity in the same transaction may be possible from an interceptor
+	updateInProgress, _ := ctx.Value("op_in_progress").(bool)
+	if !oldObj.GetUpdatedAt().UTC().Equal(obj.GetUpdatedAt().UTC()) && !updateInProgress {
 		return nil, util.ErrConcurrentResourceModification
 	}
 
 	if updateInterceptorChain, found := ir.updateInterceptor[objectType]; found {
 		delete(ir.updateInterceptor, objectType)
 
+		// specify that an update is in progress so that multiple updates to the entity are not taken as false positive concurrent update
+		ctx = context.WithValue(ctx, "op_in_progress", true)
 		updatedObj, err = updateInterceptorChain.OnTxUpdate(updateObjFunc)(ctx, ir, oldObj, obj, labelChanges...)
 
 		ir.updateInterceptor[objectType] = updateInterceptorChain
