@@ -180,11 +180,11 @@ func (c Criterion) Validate() error {
 	return nil
 }
 
-func validateCriteria(c []Criterion) error {
+func validateCriteria(criteria []Criterion) error {
 	fieldQueryLeftOperands := make(map[string]int)
 	labelQueryLeftOperands := make(map[string]int)
 
-	for _, criterion := range c {
+	for _, criterion := range criteria {
 		if criterion.Type == FieldQuery {
 			fieldQueryLeftOperands[criterion.LeftOp]++
 		}
@@ -193,17 +193,17 @@ func validateCriteria(c []Criterion) error {
 		}
 	}
 
-	for _, cc := range c {
-		leftOp := cc.LeftOp
+	for _, c := range criteria {
+		leftOp := c.LeftOp
 		// disallow duplicate label queries
-		if count, ok := labelQueryLeftOperands[leftOp]; ok && count > 1 && cc.Type == LabelQuery {
+		if count, ok := labelQueryLeftOperands[leftOp]; ok && count > 1 && c.Type == LabelQuery {
 			return &util.UnsupportedQueryError{Message: fmt.Sprintf("duplicate label query key: %s", leftOp)}
 		}
 		// disallow duplicate field query keys
-		if count, ok := fieldQueryLeftOperands[leftOp]; ok && count > 1 && cc.Type == FieldQuery {
+		if count, ok := fieldQueryLeftOperands[leftOp]; ok && count > 1 && c.Type == FieldQuery {
 			return &util.UnsupportedQueryError{Message: fmt.Sprintf("duplicate field query key: %s", leftOp)}
 		}
-		if err := cc.Validate(); err != nil {
+		if err := c.Validate(); err != nil {
 			return err
 		}
 	}

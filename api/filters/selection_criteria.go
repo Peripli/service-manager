@@ -21,9 +21,8 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/Peripli/service-manager/pkg/util"
-
 	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
