@@ -11,6 +11,9 @@ type QueryListener interface {
 	// EnterExpression is called when entering the expression production.
 	EnterExpression(c *ExpressionContext)
 
+	// EnterCriterions is called when entering the criterions production.
+	EnterCriterions(c *CriterionsContext)
+
 	// EnterCriterion is called when entering the criterion production.
 	EnterCriterion(c *CriterionContext)
 
@@ -28,6 +31,9 @@ type QueryListener interface {
 
 	// ExitExpression is called when exiting the expression production.
 	ExitExpression(c *ExpressionContext)
+
+	// ExitCriterions is called when exiting the criterions production.
+	ExitCriterions(c *CriterionsContext)
 
 	// ExitCriterion is called when exiting the criterion production.
 	ExitCriterion(c *CriterionContext)

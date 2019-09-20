@@ -45,11 +45,6 @@ func HasRFC3986ReservedSymbols(input string) bool {
 	return strings.ContainsAny(input, reservedSymbolsRFC3986)
 }
 
-// ToRFCFormat converts a time.Time timestamp to RFC3339 format
-func ToRFCFormat(timestamp time.Time) string {
-	return timestamp.UTC().Format(time.RFC3339Nano)
-}
-
 // ToRFCNanoFormat converts a time.Time timestamp to RFC3339Nano format
 func ToRFCNanoFormat(timestamp time.Time) string {
 	return timestamp.UTC().Format(time.RFC3339Nano)

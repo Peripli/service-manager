@@ -19,7 +19,6 @@ package query
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/Peripli/service-manager/pkg/util"
 
@@ -79,9 +78,6 @@ func (s *queryListener) storeCriterion() error {
 		return err
 	}
 	criterion := NewCriterion(s.leftOp, operator, s.rightOp, s.criteriaType)
-	if err := criterionDateToUTC(&criterion); err != nil {
-		return err
-	}
 	if err = criterion.Validate(); err != nil {
 		return err
 	}
@@ -115,23 +111,6 @@ func getCriterionFields(key, op, right antlr.TerminalNode) (leftOp string, opera
 		operator = op.GetText()
 	}
 	return
-}
-
-func criterionDateToUTC(c *Criterion) error {
-	if c.LeftOp != "created_at" && c.LeftOp != "updated_at" {
-		return nil
-	}
-	rightOp := make([]string, 0, len(c.RightOp))
-	for _, r := range c.RightOp {
-		parsedTime, err := time.Parse(time.RFC3339Nano, r)
-		if err != nil {
-			return err
-		}
-		formatted := parsedTime.UTC().Format(time.RFC3339Nano)
-		rightOp = append(rightOp, formatted)
-	}
-	c.RightOp = rightOp
-	return nil
 }
 
 func findOpByString(op string) (Operator, error) {

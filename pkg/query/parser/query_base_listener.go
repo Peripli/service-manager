@@ -27,6 +27,12 @@ func (s *BaseQueryListener) EnterExpression(ctx *ExpressionContext) {}
 // ExitExpression is called when production expression is exited.
 func (s *BaseQueryListener) ExitExpression(ctx *ExpressionContext) {}
 
+// EnterCriterions is called when production criterions is entered.
+func (s *BaseQueryListener) EnterCriterions(ctx *CriterionsContext) {}
+
+// ExitCriterions is called when production criterions is exited.
+func (s *BaseQueryListener) ExitCriterions(ctx *CriterionsContext) {}
+
 // EnterCriterion is called when production criterion is entered.
 func (s *BaseQueryListener) EnterCriterion(ctx *CriterionContext) {}
 

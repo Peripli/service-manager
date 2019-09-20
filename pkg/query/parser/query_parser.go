@@ -17,43 +17,41 @@ var _ = strconv.Itoa
 
 
 var parserATN = []uint16{
-	3, 24715, 42794, 33075, 47597, 16764, 15335, 30598, 22884, 3, 22, 51, 4, 
-	2, 9, 2, 4, 3, 9, 3, 4, 4, 9, 4, 4, 5, 9, 5, 4, 6, 9, 6, 4, 7, 9, 7, 3, 
-	2, 3, 2, 3, 2, 3, 2, 3, 2, 5, 2, 20, 10, 2, 3, 2, 3, 2, 3, 3, 3, 3, 5, 
-	3, 26, 10, 3, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3, 5, 3, 5, 3, 5, 3, 
-	5, 3, 5, 3, 5, 3, 6, 3, 6, 5, 6, 42, 10, 6, 3, 6, 3, 6, 3, 7, 3, 7, 3, 
-	7, 5, 7, 49, 10, 7, 3, 7, 2, 2, 8, 2, 4, 6, 8, 10, 12, 2, 2, 2, 48, 2, 
-	14, 3, 2, 2, 2, 4, 25, 3, 2, 2, 2, 6, 27, 3, 2, 2, 2, 8, 33, 3, 2, 2, 2, 
-	10, 39, 3, 2, 2, 2, 12, 45, 3, 2, 2, 2, 14, 19, 5, 4, 3, 2, 15, 16, 7, 
-	21, 2, 2, 16, 17, 7, 3, 2, 2, 17, 18, 7, 21, 2, 2, 18, 20, 5, 2, 2, 2, 
-	19, 15, 3, 2, 2, 2, 19, 20, 3, 2, 2, 2, 20, 21, 3, 2, 2, 2, 21, 22, 7, 
-	2, 2, 3, 22, 3, 3, 2, 2, 2, 23, 26, 5, 6, 4, 2, 24, 26, 5, 8, 5, 2, 25, 
-	23, 3, 2, 2, 2, 25, 24, 3, 2, 2, 2, 26, 5, 3, 2, 2, 2, 27, 28, 7, 19, 2, 
-	2, 28, 29, 7, 21, 2, 2, 29, 30, 7, 6, 2, 2, 30, 31, 7, 21, 2, 2, 31, 32, 
-	5, 10, 6, 2, 32, 7, 3, 2, 2, 2, 33, 34, 7, 19, 2, 2, 34, 35, 7, 21, 2, 
-	2, 35, 36, 7, 7, 2, 2, 36, 37, 7, 21, 2, 2, 37, 38, 7, 8, 2, 2, 38, 9, 
-	3, 2, 2, 2, 39, 41, 7, 4, 2, 2, 40, 42, 5, 12, 7, 2, 41, 40, 3, 2, 2, 2, 
-	41, 42, 3, 2, 2, 2, 42, 43, 3, 2, 2, 2, 43, 44, 7, 5, 2, 2, 44, 11, 3, 
-	2, 2, 2, 45, 48, 7, 8, 2, 2, 46, 47, 7, 20, 2, 2, 47, 49, 5, 12, 7, 2, 
-	48, 46, 3, 2, 2, 2, 48, 49, 3, 2, 2, 2, 49, 13, 3, 2, 2, 2, 6, 19, 25, 
-	41, 48,
+	3, 24715, 42794, 33075, 47597, 16764, 15335, 30598, 22884, 3, 12, 52, 4, 
+	2, 9, 2, 4, 3, 9, 3, 4, 4, 9, 4, 4, 5, 9, 5, 4, 6, 9, 6, 4, 7, 9, 7, 4, 
+	8, 9, 8, 3, 2, 3, 2, 3, 2, 3, 3, 3, 3, 3, 3, 5, 3, 23, 10, 3, 3, 4, 3, 
+	4, 5, 4, 27, 10, 4, 3, 5, 3, 5, 3, 5, 3, 5, 3, 5, 3, 5, 3, 6, 3, 6, 3, 
+	6, 3, 6, 3, 6, 3, 6, 3, 7, 3, 7, 5, 7, 43, 10, 7, 3, 7, 3, 7, 3, 8, 3, 
+	8, 3, 8, 5, 8, 50, 10, 8, 3, 8, 2, 2, 9, 2, 4, 6, 8, 10, 12, 14, 2, 2, 
+	2, 48, 2, 16, 3, 2, 2, 2, 4, 19, 3, 2, 2, 2, 6, 26, 3, 2, 2, 2, 8, 28, 
+	3, 2, 2, 2, 10, 34, 3, 2, 2, 2, 12, 40, 3, 2, 2, 2, 14, 46, 3, 2, 2, 2, 
+	16, 17, 5, 4, 3, 2, 17, 18, 7, 2, 2, 3, 18, 3, 3, 2, 2, 2, 19, 22, 5, 6, 
+	4, 2, 20, 21, 7, 5, 2, 2, 21, 23, 5, 4, 3, 2, 22, 20, 3, 2, 2, 2, 22, 23, 
+	3, 2, 2, 2, 23, 5, 3, 2, 2, 2, 24, 27, 5, 8, 5, 2, 25, 27, 5, 10, 6, 2, 
+	26, 24, 3, 2, 2, 2, 26, 25, 3, 2, 2, 2, 27, 7, 3, 2, 2, 2, 28, 29, 7, 8, 
+	2, 2, 29, 30, 7, 11, 2, 2, 30, 31, 7, 3, 2, 2, 31, 32, 7, 11, 2, 2, 32, 
+	33, 5, 12, 7, 2, 33, 9, 3, 2, 2, 2, 34, 35, 7, 8, 2, 2, 35, 36, 7, 11, 
+	2, 2, 36, 37, 7, 4, 2, 2, 37, 38, 7, 11, 2, 2, 38, 39, 7, 6, 2, 2, 39, 
+	11, 3, 2, 2, 2, 40, 42, 7, 9, 2, 2, 41, 43, 5, 14, 8, 2, 42, 41, 3, 2, 
+	2, 2, 42, 43, 3, 2, 2, 2, 43, 44, 3, 2, 2, 2, 44, 45, 7, 10, 2, 2, 45, 
+	13, 3, 2, 2, 2, 46, 49, 7, 6, 2, 2, 47, 48, 7, 7, 2, 2, 48, 50, 5, 14, 
+	8, 2, 49, 47, 3, 2, 2, 2, 49, 50, 3, 2, 2, 2, 50, 15, 3, 2, 2, 2, 6, 22, 
+	26, 42, 49,
 }
 var deserializer = antlr.NewATNDeserializer(nil)
 var deserializedATN = deserializer.DeserializeFromUInt16(parserATN)
 
 var literalNames = []string{
-	"", "'and'", "'('", "')'", "", "", "", "", "", "", "", "", "", "", "", 
-	"", "", "", "", "' '",
+	"", "", "", "", "", "", "", "'('", "')'", "' '",
 }
 var symbolicNames = []string{
-	"", "", "", "", "MultiOp", "UniOp", "Value", "STRING", "BOOLEAN", "NUMBER", 
-	"SIGN", "DATETIME", "DIGIT", "INTEGER", "TWO_DIGITS", "FOUR_DIGITS", "FIVE_DIGITS", 
-	"Key", "ValueSeparator", "Whitespace", "WS",
+	"", "MultiOp", "UniOp", "Concat", "Value", "ValueSeparator", "Key", "OpenBracket", 
+	"CloseBracket", "Whitespace", "WS",
 }
 
 var ruleNames = []string{
-	"expression", "criterion", "multivariate", "univariate", "multiValues", 
-	"manyValues",
+	"expression", "criterions", "criterion", "multivariate", "univariate", 
+	"multiValues", "manyValues",
 }
 var decisionToDFA = make([]*antlr.DFA, len(deserializedATN.DecisionToState))
 
@@ -84,36 +82,27 @@ func NewQueryParser(input antlr.TokenStream) *QueryParser {
 // QueryParser tokens.
 const (
 	QueryParserEOF = antlr.TokenEOF
-	QueryParserT__0 = 1
-	QueryParserT__1 = 2
-	QueryParserT__2 = 3
-	QueryParserMultiOp = 4
-	QueryParserUniOp = 5
-	QueryParserValue = 6
-	QueryParserSTRING = 7
-	QueryParserBOOLEAN = 8
-	QueryParserNUMBER = 9
-	QueryParserSIGN = 10
-	QueryParserDATETIME = 11
-	QueryParserDIGIT = 12
-	QueryParserINTEGER = 13
-	QueryParserTWO_DIGITS = 14
-	QueryParserFOUR_DIGITS = 15
-	QueryParserFIVE_DIGITS = 16
-	QueryParserKey = 17
-	QueryParserValueSeparator = 18
-	QueryParserWhitespace = 19
-	QueryParserWS = 20
+	QueryParserMultiOp = 1
+	QueryParserUniOp = 2
+	QueryParserConcat = 3
+	QueryParserValue = 4
+	QueryParserValueSeparator = 5
+	QueryParserKey = 6
+	QueryParserOpenBracket = 7
+	QueryParserCloseBracket = 8
+	QueryParserWhitespace = 9
+	QueryParserWS = 10
 )
 
 // QueryParser rules.
 const (
 	QueryParserRULE_expression = 0
-	QueryParserRULE_criterion = 1
-	QueryParserRULE_multivariate = 2
-	QueryParserRULE_univariate = 3
-	QueryParserRULE_multiValues = 4
-	QueryParserRULE_manyValues = 5
+	QueryParserRULE_criterions = 1
+	QueryParserRULE_criterion = 2
+	QueryParserRULE_multivariate = 3
+	QueryParserRULE_univariate = 4
+	QueryParserRULE_multiValues = 5
+	QueryParserRULE_manyValues = 6
 )
 
 // IExpressionContext is an interface to support dynamic dispatch.
@@ -154,36 +143,18 @@ func NewExpressionContext(parser antlr.Parser, parent antlr.ParserRuleContext, i
 
 func (s *ExpressionContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *ExpressionContext) Criterion() ICriterionContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*ICriterionContext)(nil)).Elem(), 0)
+func (s *ExpressionContext) Criterions() ICriterionsContext {
+	var t = s.GetTypedRuleContext(reflect.TypeOf((*ICriterionsContext)(nil)).Elem(), 0)
 
 	if t == nil {
 		return nil
 	}
 
-	return t.(ICriterionContext)
+	return t.(ICriterionsContext)
 }
 
 func (s *ExpressionContext) EOF() antlr.TerminalNode {
 	return s.GetToken(QueryParserEOF, 0)
-}
-
-func (s *ExpressionContext) AllWhitespace() []antlr.TerminalNode {
-	return s.GetTokens(QueryParserWhitespace)
-}
-
-func (s *ExpressionContext) Whitespace(i int) antlr.TerminalNode {
-	return s.GetToken(QueryParserWhitespace, i)
-}
-
-func (s *ExpressionContext) Expression() IExpressionContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IExpressionContext)(nil)).Elem(), 0)
-
-	if t == nil {
-		return nil
-	}
-
-	return t.(IExpressionContext)
 }
 
 func (s *ExpressionContext) GetRuleContext() antlr.RuleContext {
@@ -213,6 +184,128 @@ func (s *ExpressionContext) ExitRule(listener antlr.ParseTreeListener) {
 func (p *QueryParser) Expression() (localctx IExpressionContext) {
 	localctx = NewExpressionContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 0, QueryParserRULE_expression)
+
+	defer func() {
+		p.ExitRule()
+	}()
+
+	defer func() {
+		if err := recover(); err != nil {
+			if v, ok := err.(antlr.RecognitionException); ok {
+				localctx.SetException(v)
+				p.GetErrorHandler().ReportError(p, v)
+				p.GetErrorHandler().Recover(p, v)
+			} else {
+				panic(err)
+			}
+		}
+	}()
+
+	p.EnterOuterAlt(localctx, 1)
+	{
+		p.SetState(14)
+		p.Criterions()
+	}
+	{
+		p.SetState(15)
+		p.Match(QueryParserEOF)
+	}
+
+
+
+	return localctx
+}
+
+
+// ICriterionsContext is an interface to support dynamic dispatch.
+type ICriterionsContext interface {
+	antlr.ParserRuleContext
+
+	// GetParser returns the parser.
+	GetParser() antlr.Parser
+
+	// IsCriterionsContext differentiates from other interfaces.
+	IsCriterionsContext()
+}
+
+type CriterionsContext struct {
+	*antlr.BaseParserRuleContext
+	parser antlr.Parser
+}
+
+func NewEmptyCriterionsContext() *CriterionsContext {
+	var p = new(CriterionsContext)
+	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	p.RuleIndex = QueryParserRULE_criterions
+	return p
+}
+
+func (*CriterionsContext) IsCriterionsContext() {}
+
+func NewCriterionsContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *CriterionsContext {
+	var p = new(CriterionsContext)
+
+	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+
+	p.parser = parser
+	p.RuleIndex = QueryParserRULE_criterions
+
+	return p
+}
+
+func (s *CriterionsContext) GetParser() antlr.Parser { return s.parser }
+
+func (s *CriterionsContext) Criterion() ICriterionContext {
+	var t = s.GetTypedRuleContext(reflect.TypeOf((*ICriterionContext)(nil)).Elem(), 0)
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(ICriterionContext)
+}
+
+func (s *CriterionsContext) Concat() antlr.TerminalNode {
+	return s.GetToken(QueryParserConcat, 0)
+}
+
+func (s *CriterionsContext) Criterions() ICriterionsContext {
+	var t = s.GetTypedRuleContext(reflect.TypeOf((*ICriterionsContext)(nil)).Elem(), 0)
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(ICriterionsContext)
+}
+
+func (s *CriterionsContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *CriterionsContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
+}
+
+
+func (s *CriterionsContext) EnterRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(QueryListener); ok {
+		listenerT.EnterCriterions(s)
+	}
+}
+
+func (s *CriterionsContext) ExitRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(QueryListener); ok {
+		listenerT.ExitCriterions(s)
+	}
+}
+
+
+
+
+func (p *QueryParser) Criterions() (localctx ICriterionsContext) {
+	localctx = NewCriterionsContext(p, p.GetParserRuleContext(), p.GetState())
+	p.EnterRule(localctx, 2, QueryParserRULE_criterions)
 	var _la int
 
 
@@ -234,36 +327,24 @@ func (p *QueryParser) Expression() (localctx IExpressionContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(12)
+		p.SetState(17)
 		p.Criterion()
 	}
-	p.SetState(17)
+	p.SetState(20)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 
-	if _la == QueryParserWhitespace {
+	if _la == QueryParserConcat {
 		{
-			p.SetState(13)
-			p.Match(QueryParserWhitespace)
+			p.SetState(18)
+			p.Match(QueryParserConcat)
 		}
 		{
-			p.SetState(14)
-			p.Match(QueryParserT__0)
-		}
-		{
-			p.SetState(15)
-			p.Match(QueryParserWhitespace)
-		}
-		{
-			p.SetState(16)
-			p.Expression()
+			p.SetState(19)
+			p.Criterions()
 		}
 
-	}
-	{
-		p.SetState(19)
-		p.Match(QueryParserEOF)
 	}
 
 
@@ -356,7 +437,7 @@ func (s *CriterionContext) ExitRule(listener antlr.ParseTreeListener) {
 
 func (p *QueryParser) Criterion() (localctx ICriterionContext) {
 	localctx = NewCriterionContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 2, QueryParserRULE_criterion)
+	p.EnterRule(localctx, 4, QueryParserRULE_criterion)
 
 	defer func() {
 		p.ExitRule()
@@ -374,13 +455,13 @@ func (p *QueryParser) Criterion() (localctx ICriterionContext) {
 		}
 	}()
 
-	p.SetState(23)
+	p.SetState(24)
 	p.GetErrorHandler().Sync(p)
 	switch p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 1, p.GetParserRuleContext()) {
 	case 1:
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(21)
+			p.SetState(22)
 			p.Multivariate()
 		}
 
@@ -388,7 +469,7 @@ func (p *QueryParser) Criterion() (localctx ICriterionContext) {
 	case 2:
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(22)
+			p.SetState(23)
 			p.Univariate()
 		}
 
@@ -489,7 +570,7 @@ func (s *MultivariateContext) ExitRule(listener antlr.ParseTreeListener) {
 
 func (p *QueryParser) Multivariate() (localctx IMultivariateContext) {
 	localctx = NewMultivariateContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 4, QueryParserRULE_multivariate)
+	p.EnterRule(localctx, 6, QueryParserRULE_multivariate)
 
 	defer func() {
 		p.ExitRule()
@@ -509,23 +590,23 @@ func (p *QueryParser) Multivariate() (localctx IMultivariateContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(25)
+		p.SetState(26)
 		p.Match(QueryParserKey)
 	}
 	{
-		p.SetState(26)
-		p.Match(QueryParserWhitespace)
-	}
-	{
 		p.SetState(27)
-		p.Match(QueryParserMultiOp)
+		p.Match(QueryParserWhitespace)
 	}
 	{
 		p.SetState(28)
-		p.Match(QueryParserWhitespace)
+		p.Match(QueryParserMultiOp)
 	}
 	{
 		p.SetState(29)
+		p.Match(QueryParserWhitespace)
+	}
+	{
+		p.SetState(30)
 		p.MultiValues()
 	}
 
@@ -619,7 +700,7 @@ func (s *UnivariateContext) ExitRule(listener antlr.ParseTreeListener) {
 
 func (p *QueryParser) Univariate() (localctx IUnivariateContext) {
 	localctx = NewUnivariateContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 6, QueryParserRULE_univariate)
+	p.EnterRule(localctx, 8, QueryParserRULE_univariate)
 
 	defer func() {
 		p.ExitRule()
@@ -639,23 +720,23 @@ func (p *QueryParser) Univariate() (localctx IUnivariateContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(31)
+		p.SetState(32)
 		p.Match(QueryParserKey)
 	}
 	{
-		p.SetState(32)
-		p.Match(QueryParserWhitespace)
-	}
-	{
 		p.SetState(33)
-		p.Match(QueryParserUniOp)
+		p.Match(QueryParserWhitespace)
 	}
 	{
 		p.SetState(34)
-		p.Match(QueryParserWhitespace)
+		p.Match(QueryParserUniOp)
 	}
 	{
 		p.SetState(35)
+		p.Match(QueryParserWhitespace)
+	}
+	{
+		p.SetState(36)
 		p.Match(QueryParserValue)
 	}
 
@@ -703,6 +784,14 @@ func NewMultiValuesContext(parser antlr.Parser, parent antlr.ParserRuleContext, 
 
 func (s *MultiValuesContext) GetParser() antlr.Parser { return s.parser }
 
+func (s *MultiValuesContext) OpenBracket() antlr.TerminalNode {
+	return s.GetToken(QueryParserOpenBracket, 0)
+}
+
+func (s *MultiValuesContext) CloseBracket() antlr.TerminalNode {
+	return s.GetToken(QueryParserCloseBracket, 0)
+}
+
 func (s *MultiValuesContext) ManyValues() IManyValuesContext {
 	var t = s.GetTypedRuleContext(reflect.TypeOf((*IManyValuesContext)(nil)).Elem(), 0)
 
@@ -739,7 +828,7 @@ func (s *MultiValuesContext) ExitRule(listener antlr.ParseTreeListener) {
 
 func (p *QueryParser) MultiValues() (localctx IMultiValuesContext) {
 	localctx = NewMultiValuesContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 8, QueryParserRULE_multiValues)
+	p.EnterRule(localctx, 10, QueryParserRULE_multiValues)
 	var _la int
 
 
@@ -761,24 +850,24 @@ func (p *QueryParser) MultiValues() (localctx IMultiValuesContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(37)
-		p.Match(QueryParserT__1)
+		p.SetState(38)
+		p.Match(QueryParserOpenBracket)
 	}
-	p.SetState(39)
+	p.SetState(40)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 
 	if _la == QueryParserValue {
 		{
-			p.SetState(38)
+			p.SetState(39)
 			p.ManyValues()
 		}
 
 	}
 	{
-		p.SetState(41)
-		p.Match(QueryParserT__2)
+		p.SetState(42)
+		p.Match(QueryParserCloseBracket)
 	}
 
 
@@ -869,7 +958,7 @@ func (s *ManyValuesContext) ExitRule(listener antlr.ParseTreeListener) {
 
 func (p *QueryParser) ManyValues() (localctx IManyValuesContext) {
 	localctx = NewManyValuesContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 10, QueryParserRULE_manyValues)
+	p.EnterRule(localctx, 12, QueryParserRULE_manyValues)
 	var _la int
 
 
@@ -891,21 +980,21 @@ func (p *QueryParser) ManyValues() (localctx IManyValuesContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(43)
+		p.SetState(44)
 		p.Match(QueryParserValue)
 	}
-	p.SetState(46)
+	p.SetState(47)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 
 	if _la == QueryParserValueSeparator {
 		{
-			p.SetState(44)
+			p.SetState(45)
 			p.Match(QueryParserValueSeparator)
 		}
 		{
-			p.SetState(45)
+			p.SetState(46)
 			p.ManyValues()
 		}
 
