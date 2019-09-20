@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"testing"
 
 	"github.com/Peripli/service-manager/pkg/env"
@@ -315,7 +314,7 @@ var _ = Describe("Notifications Suite", func() {
 		getNotifications := func(ids ...string) (*types.Notifications, []string) {
 			filters := make([]query.Criterion, 0)
 			if len(ids) != 0 {
-				filters = append(filters, query.ByField(query.NotInOperator, "id", "["+strings.Join(ids, "||"+"]")))
+				filters = append(filters, query.ByField(query.NotInOperator, "id", ids...))
 			}
 
 			objectList, err := ctx.SMRepository.List(c, types.NotificationType, filters...)
