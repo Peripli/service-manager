@@ -22,9 +22,9 @@ type ListIterator struct {
 }
 
 type listResponse struct {
-	Token    string          `json:"token"`
-	NumItems int64           `json:"num_items"`
-	Items    json.RawMessage `json:"items"`
+	Token    string      `json:"token"`
+	NumItems int64       `json:"num_items"`
+	Items    interface{} `json:"items"`
 }
 
 // Next loads the next page of items
@@ -48,7 +48,6 @@ func (li *ListIterator) Next(ctx context.Context, items interface{}, maxItems in
 
 	method := http.MethodGet
 	url := li.URL
-	var responseBody listResponse
 	response, err := SendRequest(ctx, li.DoRequest, method, url, params, nil)
 	if err != nil {
 		return false, -1, fmt.Errorf("Error sending request %s %s: %s", method, url, err)
@@ -64,15 +63,10 @@ func (li *ListIterator) Next(ctx context.Context, items interface{}, maxItems in
 		return false, -1, fmt.Errorf("error reading response body of request %s %s: %s",
 			method, url, err)
 	}
+	responseBody := listResponse{Items: items}
 	if err = json.Unmarshal(body, &responseBody); err != nil {
 		return false, -1, fmt.Errorf("error parsing response body of request %s %s: %s",
 			method, url, err)
-	}
-	if items != nil {
-		if err = json.Unmarshal(responseBody.Items, items); err != nil {
-			return false, -1, fmt.Errorf("error parsing response items of request %s %s: %s",
-				method, url, err)
-		}
 	}
 
 	li.next = responseBody.Token
