@@ -22,18 +22,12 @@ import (
 	"net/http/httptest"
 	"strconv"
 	"strings"
-	"testing"
 
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 
 	"github.com/Peripli/service-manager/pkg/util"
-	. "github.com/onsi/gomega"
 )
-
-func TestUtil(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Util test suite")
-}
 
 func validateHTTPErrorOccurred(err error, code int) {
 	Expect(err).Should(HaveOccurred())

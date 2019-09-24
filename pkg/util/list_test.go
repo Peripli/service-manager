@@ -194,6 +194,7 @@ var _ = Describe("List Utils", func() {
 				sequence := []common.HTTPCouple{
 					{
 						Reaction: &common.HTTPReaction{
+							Status: http.StatusOK,
 							Body: `{
 								"num_items": 3,
 								"token": "page2",
@@ -203,6 +204,7 @@ var _ = Describe("List Utils", func() {
 					},
 					{
 						Reaction: &common.HTTPReaction{
+							Status: http.StatusOK,
 							Body: `{
 								"num_items": 3,
 								"items":["ccc"]
