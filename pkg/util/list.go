@@ -34,6 +34,11 @@ type listResponse struct {
 // more is true if there are more items
 // count is the total number of items, -1 if not available
 func (li *ListIterator) Next(ctx context.Context, items interface{}, maxItems int) (more bool, count int64, err error) {
+	itemsType := reflect.TypeOf(items)
+	if itemsType != nil && (itemsType.Kind() != reflect.Ptr || itemsType.Elem().Kind() != reflect.Slice) {
+		return false, -1, fmt.Errorf("items should be nil or a pointer to a slice, but got %v", itemsType)
+	}
+
 	if li.done {
 		return false, -1, errors.New("Iteration already complete")
 	}
@@ -79,7 +84,7 @@ func (li *ListIterator) Next(ctx context.Context, items interface{}, maxItems in
 // doRequest function executes the HTTP request, it is responsible for authentication
 func ListAll(ctx context.Context, doRequest DoRequestFunc, url string, items interface{}) error {
 	itemsType := reflect.TypeOf(items)
-	if !(itemsType.Kind() == reflect.Ptr && itemsType.Elem().Kind() == reflect.Slice) {
+	if itemsType.Kind() != reflect.Ptr || itemsType.Elem().Kind() != reflect.Slice {
 		return fmt.Errorf("items should be a pointer to a slice, but got %v", itemsType)
 	}
 

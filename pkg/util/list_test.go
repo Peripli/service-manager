@@ -56,6 +56,14 @@ var _ = Describe("List Utils", func() {
 			}
 		})
 
+		When("items is not a pointer to a slice", func() {
+			It("Returns an error", func() {
+				var items string
+				_, _, err := it.Next(ctx, &items, -1)
+				Expect(err.Error()).To(ContainSubstring("*string"))
+			})
+		})
+
 		When("Requesting only the count", func() {
 			It("Returns only the count", func() {
 				reaction.Body = `{
