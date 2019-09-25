@@ -120,7 +120,7 @@ var _ = Describe("List Utils", func() {
 
 				By("Requesting the next page after the last one")
 				_, _, err = it.Next(ctx, &items, -1)
-				Expect(err.Error()).To(Equal("Iteration already complete"))
+				Expect(err.Error()).To(Equal("iteration already complete"))
 			})
 		})
 

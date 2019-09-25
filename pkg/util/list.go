@@ -40,7 +40,7 @@ func (li *ListIterator) Next(ctx context.Context, items interface{}, maxItems in
 	}
 
 	if li.done {
-		return false, -1, errors.New("Iteration already complete")
+		return false, -1, errors.New("iteration already complete")
 	}
 
 	params := map[string]string{}
