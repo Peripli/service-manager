@@ -434,3 +434,17 @@ func DoHTTP(reaction *HTTPReaction, checks *HTTPExpectations) func(*http.Request
 		}, reaction.Err
 	}
 }
+
+type HTTPCouple struct {
+	Expectations *HTTPExpectations
+	Reaction     *HTTPReaction
+}
+
+func DoHTTPSequence(sequence []HTTPCouple) func(*http.Request) (*http.Response, error) {
+	i := 0
+	return func(request *http.Request) (*http.Response, error) {
+		r, err := DoHTTP(sequence[i].Reaction, sequence[i].Expectations)(request)
+		i++
+		return r, err
+	}
+}
