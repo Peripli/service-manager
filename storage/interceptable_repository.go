@@ -59,7 +59,8 @@ type InterceptableTransactionalRepository struct {
 	deleteProviders map[types.ObjectType][]OrderedDeleteInterceptorProvider
 }
 
-// interceptableRepository wraps a Repository to be used throughout a transaction (in all OnTx interceptors); it also holds sets of interceptors for each object types to run inside the transaction lifecycle
+// interceptableRepository wraps a Repository to be used throughout a transaction (in all OnTx interceptors).
+// It also holds sets of interceptors for each object type to run inside the transaction lifecycle
 type interceptableRepository struct {
 	repositoryInTransaction Repository
 
@@ -427,6 +428,7 @@ func providerWithNameExists(existingNames []string, orderedRelativeTo string) bo
 	return false
 }
 
+// provideInterceptors generates Create/Update/DeleteInterceptorChains from the provided OrderedCreate/Update/DeleteInterceptorProviders
 func (itr *InterceptableTransactionalRepository) provideInterceptors() (map[types.ObjectType]CreateInterceptor, map[types.ObjectType]UpdateInterceptor, map[types.ObjectType]DeleteInterceptor) {
 	providedCreateInterceptors := make(map[types.ObjectType]CreateInterceptor)
 	for objectType, providers := range itr.createProviders {
