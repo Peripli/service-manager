@@ -469,17 +469,18 @@ func (itr *InterceptableTransactionalRepository) validateDeleteProviders(objectT
 }
 
 func validateProviderOrder(order InterceptorOrder, existingProviderNames []string, providerName string) {
-	positionAroundTx, aroundTxName := order.AroundTxPosition.PositionType, order.AroundTxPosition.Name
-	positionTx, nameTx := order.OnTxPosition.PositionType, order.OnTxPosition.Name
 	if providerWithNameExists(existingProviderNames, providerName) {
 		log.D().Panicf("%s create interceptor provider is already registered", providerName)
 	}
 
+	positionAroundTx, aroundTxName := order.AroundTxPosition.PositionType, order.AroundTxPosition.Name
 	if positionAroundTx != PositionNone {
 		if !providerWithNameExists(existingProviderNames, aroundTxName) {
 			log.D().Panicf("could not find interceptor with name %s", aroundTxName)
 		}
 	}
+
+	positionTx, nameTx := order.OnTxPosition.PositionType, order.OnTxPosition.Name
 	if positionTx != PositionNone {
 		if !providerWithNameExists(existingProviderNames, nameTx) {
 			log.D().Panicf("could not find interceptor with name %s", nameTx)
