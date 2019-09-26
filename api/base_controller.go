@@ -195,7 +195,7 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
 
-	limit := ctx.Value("limit").(int)
+	limit := web.PageLimitFromContext(ctx)
 	if limit == 0 {
 		log.C(ctx).Debugf("Returning only count of %s since max_items is 0", c.objectType)
 		page := struct {

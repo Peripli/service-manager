@@ -56,7 +56,7 @@ var _ = Describe("Paging Filter Test", func() {
 			Expect(err).ShouldNot(HaveOccurred())
 			actualRequest := handler.HandleArgsForCall(0)
 			Expect(query.CriteriaForContext(actualRequest.Context())).To(ContainElement(query.LimitResultBy(6)))
-			Expect(actualRequest.Context().Value("limit").(int)).To(Equal(5))
+			Expect(web.PageLimitFromContext(actualRequest.Context())).To(Equal(5))
 		})
 	})
 	When("max_items is 0", func() {
@@ -71,7 +71,7 @@ var _ = Describe("Paging Filter Test", func() {
 			for _, criterion := range criteria {
 				Expect(criterion.LeftOp).ToNot(Equal(query.Limit))
 			}
-			Expect(actualRequest.Context().Value("limit").(int)).To(Equal(0))
+			Expect(web.PageLimitFromContext(actualRequest.Context())).To(Equal(0))
 		})
 	})
 

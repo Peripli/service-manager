@@ -17,7 +17,6 @@
 package filters
 
 import (
-	"context"
 	"encoding/base64"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -64,7 +63,7 @@ func (pf *pagingFilter) Run(req *web.Request, next web.Handler) (*web.Response, 
 		return nil, err
 	}
 
-	ctx = context.WithValue(ctx, "limit", limit)
+	ctx = web.ContextWithPageLimit(ctx, limit)
 	if limit > 0 {
 		ctx, err = query.AddCriteria(ctx, query.LimitResultBy(limit+1),
 			query.OrderResultBy("paging_sequence", query.AscOrder),

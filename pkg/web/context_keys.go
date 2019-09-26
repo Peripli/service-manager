@@ -9,6 +9,7 @@ type contextKey int
 const (
 	userKey contextKey = iota
 	isAuthorizedKey
+	limitKey
 )
 
 // UserFromContext gets the authenticated user from the context
@@ -31,4 +32,14 @@ func IsAuthorized(ctx context.Context) bool {
 // ContextWithAuthorization sets the boolean flag isAuthorized in the request context
 func ContextWithAuthorization(ctx context.Context) context.Context {
 	return context.WithValue(ctx, isAuthorizedKey, true)
+}
+
+// ContextWithPageLimit sets the page size for list requests
+func ContextWithPageLimit(ctx context.Context, limit int) context.Context {
+	return context.WithValue(ctx, limitKey, limit)
+}
+
+// PageLimitFromContext retrieves the page size from the context
+func PageLimitFromContext(ctx context.Context) int {
+	return ctx.Value(limitKey).(int)
 }

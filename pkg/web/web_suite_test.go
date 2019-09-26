@@ -57,4 +57,11 @@ var _ = Describe("Context keys", func() {
 		})
 	})
 
+	Context("when limit is in context", func() {
+		It("returns it", func() {
+			limit := 10
+			ctx := web.ContextWithPageLimit(context.TODO(), limit)
+			Expect(web.PageLimitFromContext(ctx)).To(Equal(limit))
+		})
+	})
 })
