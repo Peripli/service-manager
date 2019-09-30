@@ -50,7 +50,6 @@ func newInterceptableRepository(repository Repository,
 	}
 }
 
-// InterceptableTransactionalRepository wraps a TransactionalRepository and holds sets of ordered interceptor providers for each object type
 type InterceptableTransactionalRepository struct {
 	smStorageRepository TransactionalRepository
 
