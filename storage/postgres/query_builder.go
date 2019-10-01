@@ -46,7 +46,7 @@ func NewQueryBuilder(db pgDB) *QueryBuilder {
 func (qb *QueryBuilder) NewQuery(entity PostgresEntity) *pgQuery {
 	fromSubquery := newSelectSubQuery(entity.TableName(), "*", getDBTags(entity, nil), fromSubQueryWhereSchema)
 	labelEntity := entity.LabelEntity()
-	labelCriteriaSubquery := &selectSubQuery{&subQuery{}}
+	labelCriteriaSubquery := &selectSubQuery{}
 	if labelEntity != nil {
 		labelCriteriaSubquery = newSelectSubQuery(labelEntity.LabelsTableName(), labelEntity.ReferenceColumn(),
 			getDBTags(entity.LabelEntity(), nil), labelsJoinSubQueryWhereSchema)
@@ -118,14 +118,15 @@ func (pgq *pgQuery) Count(ctx context.Context) (int, error) {
 	table := pgq.entity.TableName()
 	labelsEntity := pgq.entity.LabelEntity()
 
-	baseQuery := fmt.Sprintf("SELECT COUNT(DISTINCT %[2]s.id) FROM %[1]s %[2]s", table, mainTableAlias)
+	countSQLFormat := "SELECT COUNT(DISTINCT %[2]s.id) FROM %[1]s %[2]s"
+	baseQuery := fmt.Sprintf(countSQLFormat, table, mainTableAlias)
 
 	if labelsEntity != nil {
 		var err error
 		if table, err = pgq.fromSubquery.compileSQL(); err != nil {
 			return 0, err
 		}
-		baseQuery = fmt.Sprintf("SELECT COUNT(DISTINCT %[2]s.id) FROM %[1]s %[2]s", table, mainTableAlias)
+		baseQuery = fmt.Sprintf(countSQLFormat, table, mainTableAlias)
 		baseQuery += pgq.joinLabelsSQL(labelsEntity)
 	}
 
@@ -359,16 +360,14 @@ func orderBySQL(rules []orderRule) (string, error) {
 }
 
 func orderTypeToSQL(orderType query.OrderType) (string, error) {
-	var err error
 	switch orderType {
 	case query.AscOrder:
 		return "ASC", nil
 	case query.DescOrder:
 		return "DESC", nil
 	default:
-		err = fmt.Errorf("unsupported order type: %s", string(orderType))
+		return "", fmt.Errorf("unsupported order type: %s", string(orderType))
 	}
-	return "", err
 }
 
 func validateOrderFields(columns map[string]bool, orderRules ...orderRule) error {

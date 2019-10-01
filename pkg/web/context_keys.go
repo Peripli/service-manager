@@ -41,5 +41,6 @@ func ContextWithPageLimit(ctx context.Context, limit int) context.Context {
 
 // PageLimitFromContext retrieves the page size from the context
 func PageLimitFromContext(ctx context.Context) int {
-	return ctx.Value(limitKey).(int)
+	limit, _ := ctx.Value(limitKey).(int)
+	return limit
 }

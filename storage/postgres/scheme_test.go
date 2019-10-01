@@ -193,6 +193,10 @@ func (obj) SetLabels(labels types.Labels) {
 func (obj) SetUpdatedAt(time time.Time) {
 }
 
+func (obj) GetPagingSequence() int64 {
+	return 0
+}
+
 type dummyTypeObj struct {
 	*obj
 }

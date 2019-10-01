@@ -243,8 +243,11 @@ LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id;`)))
 				criteria5 := query.ByLabel(query.InOperator, "left2", "right2", "right3")
 				criteria6 := query.ByLabel(query.NotEqualsOperator, "left3", "right4")
 
+				criteria7 := query.LimitResultBy(10)
+				criteria8 := query.OrderResultBy("id", query.AscOrder)
+
 				_, err := qb.NewQuery(entity).
-					WithCriteria(criteria1, criteria2, criteria3, criteria4, criteria5, criteria6).
+					WithCriteria(criteria1, criteria2, criteria3, criteria4, criteria5, criteria6, criteria7, criteria8).
 					List(ctx)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`SELECT t.*,
@@ -257,7 +260,7 @@ LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id;`)))
 FROM (SELECT * FROM visibilities WHERE (id::text != ?
   AND service_plan_id::text NOT IN (?, ?, ?)
   AND (platform_id::text = ?
-	   OR platform_id IS NULL))) t
+	   OR platform_id IS NULL)) ORDER BY id ASC LIMIT 10) t
 JOIN
   (SELECT *
    FROM visibility_labels
@@ -269,7 +272,8 @@ JOIN
 		  OR (key::text = ?
 			  AND val::text IN (?, ?))
 		  OR (key::text = ?
-			  AND val::text != ?)))) visibility_labels ON t.id = visibility_labels.visibility_id;`)))
+			  AND val::text != ?)))) visibility_labels ON t.id = visibility_labels.visibility_id
+ORDER BY id ASC;`)))
 				Expect(queryArgs).To(HaveLen(12))
 				Expect(queryArgs[0]).Should(Equal("1"))
 				Expect(queryArgs[1]).Should(Equal("2"))
@@ -391,8 +395,11 @@ LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id;`)))
 				criteria5 := query.ByLabel(query.InOperator, "left2", "right2", "right3")
 				criteria6 := query.ByLabel(query.NotEqualsOperator, "left3", "right4")
 
+				criteria7 := query.LimitResultBy(10)
+				criteria8 := query.OrderResultBy("id", query.AscOrder)
+
 				_, err := qb.NewQuery(entity).
-					WithCriteria(criteria1, criteria2, criteria3, criteria4, criteria5, criteria6).
+					WithCriteria(criteria1, criteria2, criteria3, criteria4, criteria5, criteria6, criteria7, criteria8).
 					Count(ctx)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`SELECT COUNT(DISTINCT t.id)
@@ -400,7 +407,7 @@ FROM (SELECT * FROM visibilities
 WHERE (id::text != ?
   AND service_plan_id::text NOT IN (?, ?, ?)
   AND (platform_id::text = ?
-	   OR platform_id IS NULL))) t
+	   OR platform_id IS NULL)) LIMIT 10) t
 JOIN
   (SELECT *
    FROM visibility_labels
@@ -535,14 +542,17 @@ RETURNING t.*;`)))
 				criteria5 := query.ByLabel(query.InOperator, "left2", "right2", "right3")
 				criteria6 := query.ByLabel(query.NotEqualsOperator, "left3", "right4")
 
-				_, err := qb.NewQuery(entity).WithCriteria(criteria1, criteria2, criteria3, criteria4, criteria5, criteria6).Return("*").Delete(ctx)
+				criteria7 := query.LimitResultBy(10)
+				criteria8 := query.OrderResultBy("id", query.AscOrder)
+
+				_, err := qb.NewQuery(entity).WithCriteria(criteria1, criteria2, criteria3, criteria4, criteria5, criteria6, criteria7, criteria8).Return("*").Delete(ctx)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`DELETE
 FROM visibilities 
 USING (SELECT * FROM visibilities WHERE (id::text != ?
   AND service_plan_id::text NOT IN (?, ?, ?)
   AND (platform_id::text = ?
-	   OR platform_id IS NULL))) t
+	   OR platform_id IS NULL)) ORDER BY id ASC LIMIT 10) t
 JOIN
   (SELECT *
    FROM visibility_labels
@@ -556,6 +566,7 @@ JOIN
 		  OR (key::text = ?
 			  AND val::text != ?)))) visibility_labels ON t.id = visibility_labels.visibility_id
 WHERE t.id = visibilities.id
+ORDER BY id ASC
 RETURNING t.*;`)))
 				Expect(queryArgs).To(HaveLen(12))
 				Expect(queryArgs[0]).Should(Equal("1"))

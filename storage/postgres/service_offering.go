@@ -41,7 +41,7 @@ type ServiceOffering struct {
 	Metadata sqlxtypes.JSONText `db:"metadata"`
 
 	BrokerID       string `db:"broker_id"`
-	PagingSequence int    `db:"paging_sequence,auto_increment"`
+	PagingSequence int64  `db:"paging_sequence,auto_increment"`
 
 	Plans []*ServicePlan `db:"-"`
 }
@@ -53,9 +53,10 @@ func (e *ServiceOffering) ToObject() types.Object {
 	}
 	return &types.ServiceOffering{
 		Base: types.Base{
-			ID:        e.ID,
-			CreatedAt: e.CreatedAt,
-			UpdatedAt: e.UpdatedAt,
+			ID:             e.ID,
+			CreatedAt:      e.CreatedAt,
+			UpdatedAt:      e.UpdatedAt,
+			PagingSequence: e.PagingSequence,
 		},
 		Name:                 e.Name,
 		Description:          e.Description,
@@ -69,7 +70,6 @@ func (e *ServiceOffering) ToObject() types.Object {
 		Requires:             getJSONRawMessage(e.Requires),
 		Metadata:             getJSONRawMessage(e.Metadata),
 		BrokerID:             e.BrokerID,
-		PagingSequence:       e.PagingSequence,
 		Plans:                plans,
 	}
 }

@@ -33,11 +33,12 @@ type Secured interface {
 
 // Pageable interface indicates that an object can be listed page by page
 type Pageable interface {
-	GetPagingSequence() int
+	GetPagingSequence() int64
 }
 
 // Object is the common interface that all resources in the Service Manager must implement
 type Object interface {
+	Pageable
 	util.InputValidator
 
 	SetID(id string)

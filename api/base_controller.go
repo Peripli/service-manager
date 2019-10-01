@@ -223,12 +223,10 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 		page.Items = append(page.Items, obj)
 	}
 
-	var token string
 	if len(page.Items) > limit {
 		page.Items = page.Items[:len(page.Items)-1]
-		token = generateTokenForItem(page.Items[len(page.Items)-1])
+		page.Token = generateTokenForItem(page.Items[len(page.Items)-1])
 	}
-	page.Token = token
 
 	resp, err := util.NewJSONResponse(http.StatusOK, page)
 	if err != nil {
@@ -304,6 +302,6 @@ func stripCredentials(ctx context.Context, object types.Object) {
 }
 
 func generateTokenForItem(obj types.Object) string {
-	nextPageToken := obj.(types.Pageable).GetPagingSequence()
-	return base64.StdEncoding.EncodeToString([]byte(strconv.Itoa(nextPageToken)))
+	nextPageToken := obj.GetPagingSequence()
+	return base64.StdEncoding.EncodeToString([]byte(strconv.FormatInt(nextPageToken, 10)))
 }

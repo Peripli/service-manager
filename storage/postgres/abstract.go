@@ -104,7 +104,7 @@ func columnsByTags(tags []tagType) map[string]bool {
 
 func validateFieldQueryParams(columns map[string]bool, criteria []query.Criterion) error {
 	for _, criterion := range criteria {
-		if !columns[criterion.LeftOp] {
+		if criterion.Type == query.FieldQuery && !columns[criterion.LeftOp] {
 			return &util.UnsupportedQueryError{Message: fmt.Sprintf("unsupported field query key: %s", criterion.LeftOp)}
 		}
 	}

@@ -22,7 +22,7 @@ import (
 	"reflect"
 )
 
-type subQuery struct {
+type selectSubQuery struct {
 	tableName        string
 	referenceColumns string
 	dbTags           []tagType
@@ -38,18 +38,12 @@ type subQuery struct {
 	err error
 }
 
-type selectSubQuery struct {
-	*subQuery
-}
-
 func newSelectSubQuery(tableName string, referenceColumns string, dbTags []tagType, creator func([]query.Criterion) *whereClauseTree) *selectSubQuery {
 	return &selectSubQuery{
-		&subQuery{
-			tableName:              tableName,
-			referenceColumns:       referenceColumns,
-			dbTags:                 dbTags,
-			whereClauseTreeCreator: creator,
-		},
+		tableName:              tableName,
+		referenceColumns:       referenceColumns,
+		dbTags:                 dbTags,
+		whereClauseTreeCreator: creator,
 	}
 }
 

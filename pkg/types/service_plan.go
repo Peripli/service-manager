@@ -40,11 +40,6 @@ type ServicePlan struct {
 	Schemas  json.RawMessage `json:"schemas,omitempty"`
 
 	ServiceOfferingID string `json:"service_offering_id"`
-	PagingSequence    int    `json:"-"`
-}
-
-func (e *ServicePlan) GetPagingSequence() int {
-	return e.PagingSequence
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

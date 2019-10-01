@@ -29,20 +29,20 @@ type Visibility struct {
 	BaseEntity
 	PlatformID     sql.NullString `db:"platform_id"`
 	ServicePlanID  string         `db:"service_plan_id"`
-	PagingSequence int            `db:"paging_sequence,auto_increment"`
+	PagingSequence int64          `db:"paging_sequence,auto_increment"`
 }
 
 func (v *Visibility) ToObject() types.Object {
 	return &types.Visibility{
 		Base: types.Base{
-			ID:        v.ID,
-			CreatedAt: v.CreatedAt,
-			UpdatedAt: v.UpdatedAt,
-			Labels:    make(map[string][]string),
+			ID:             v.ID,
+			CreatedAt:      v.CreatedAt,
+			UpdatedAt:      v.UpdatedAt,
+			Labels:         make(map[string][]string),
+			PagingSequence: v.PagingSequence,
 		},
-		PlatformID:     v.PlatformID.String,
-		ServicePlanID:  v.ServicePlanID,
-		PagingSequence: v.PagingSequence,
+		PlatformID:    v.PlatformID.String,
+		ServicePlanID: v.ServicePlanID,
 	}
 }
 

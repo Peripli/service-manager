@@ -29,6 +29,11 @@ import (
 // PagingFilterName is the name of the paging filter
 const PagingFilterName = "PagingFilter"
 
+// pagingLimitOffset is a constant which is needed to identify if there are more items in the DB.
+// If there are 1 more items than requested, we need to generate a token for the next page.
+// The last item is omitted.
+const pagingLimitOffset = 1
+
 // pagingFilter is filter that adds paging criteria to request
 type pagingFilter struct {
 	DefaultPageSize int
@@ -58,16 +63,16 @@ func (pf *pagingFilter) Run(req *web.Request, next web.Handler) (*web.Response, 
 	}
 
 	rawToken := req.URL.Query().Get("token")
-	token, err := pf.parsePageToken(rawToken)
+	pagingSequence, err := pf.parsePageToken(rawToken)
 	if err != nil {
 		return nil, err
 	}
 
 	ctx = web.ContextWithPageLimit(ctx, limit)
 	if limit > 0 {
-		ctx, err = query.AddCriteria(ctx, query.LimitResultBy(limit+1),
+		ctx, err = query.AddCriteria(ctx, query.LimitResultBy(limit+pagingLimitOffset),
 			query.OrderResultBy("paging_sequence", query.AscOrder),
-			query.ByField(query.GreaterThanOperator, "paging_sequence", strconv.Itoa(token)))
+			query.ByField(query.GreaterThanOperator, "paging_sequence", pagingSequence))
 		if err != nil {
 			return nil, err
 		}
@@ -103,23 +108,30 @@ func (pf *pagingFilter) parseMaxItemsQuery(maxItems string) (int, error) {
 	return limit, nil
 }
 
-func (pf *pagingFilter) parsePageToken(token string) (int, error) {
-	var targetPageSequence int
+func (pf *pagingFilter) parsePageToken(token string) (string, error) {
+	targetPageSequence := "1"
 	if token != "" {
 		base64DecodedTokenBytes, err := base64.StdEncoding.DecodeString(token)
 		if err != nil {
-			return 0, &util.HTTPError{
+			return "", &util.HTTPError{
 				ErrorType:   "TokenInvalid",
 				Description: fmt.Sprintf("Invalid token provided: %v", err),
 				StatusCode:  http.StatusNotFound,
 			}
 		}
-		base64DecodedToken := string(base64DecodedTokenBytes)
-		targetPageSequence, err = strconv.Atoi(base64DecodedToken)
+		targetPageSequence = string(base64DecodedTokenBytes)
+		pagingSequence, err := strconv.ParseInt(targetPageSequence, 10, 0)
 		if err != nil {
-			return 0, &util.HTTPError{
+			return "", &util.HTTPError{
 				ErrorType:   "TokenInvalid",
 				Description: fmt.Sprintf("Invalid token provided: %v", err),
+				StatusCode:  http.StatusNotFound,
+			}
+		}
+		if pagingSequence <= 0 {
+			return "", &util.HTTPError{
+				ErrorType:   "TokenInvalid",
+				Description: fmt.Sprintf("Invalid token provided: value greater than 0 expected"),
 				StatusCode:  http.StatusNotFound,
 			}
 		}

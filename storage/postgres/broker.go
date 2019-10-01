@@ -35,7 +35,7 @@ type Broker struct {
 	Username       string             `db:"username"`
 	Password       string             `db:"password"`
 	Catalog        sqlxtypes.JSONText `db:"catalog"`
-	PagingSequence int                `db:"paging_sequence,auto_increment"`
+	PagingSequence int64              `db:"paging_sequence,auto_increment"`
 
 	Services []*ServiceOffering `db:"-"`
 }
@@ -47,10 +47,11 @@ func (e *Broker) ToObject() types.Object {
 	}
 	broker := &types.ServiceBroker{
 		Base: types.Base{
-			ID:        e.ID,
-			CreatedAt: e.CreatedAt,
-			UpdatedAt: e.UpdatedAt,
-			Labels:    map[string][]string{},
+			ID:             e.ID,
+			CreatedAt:      e.CreatedAt,
+			UpdatedAt:      e.UpdatedAt,
+			Labels:         map[string][]string{},
+			PagingSequence: e.PagingSequence,
 		},
 		Name:        e.Name,
 		Description: e.Description.String,
@@ -61,9 +62,8 @@ func (e *Broker) ToObject() types.Object {
 				Password: e.Password,
 			},
 		},
-		Catalog:        getJSONRawMessage(e.Catalog),
-		PagingSequence: e.PagingSequence,
-		Services:       services,
+		Catalog:  getJSONRawMessage(e.Catalog),
+		Services: services,
 	}
 	return broker
 }

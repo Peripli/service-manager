@@ -442,7 +442,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 						resp.Path("$.num_items").Number().Gt(0)
 					})
 				})
-				When("there is no more pages", func() {
+				When("there are no more pages", func() {
 					It("should not return token and Link header", func() {
 						resp := ctx.SMWithOAuth.GET(t.API).WithQuery("max_items", 0).Expect().Status(http.StatusOK)
 
@@ -469,6 +469,18 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 					Context("non numerical", func() {
 						It("returns 404", func() {
 							token := base64.StdEncoding.EncodeToString([]byte("non-numerical"))
+							executeWithInvalidToken(token)
+						})
+					})
+					Context("negative value", func() {
+						It("returns 404", func() {
+							token := base64.StdEncoding.EncodeToString([]byte("-1"))
+							executeWithInvalidToken(token)
+						})
+					})
+					Context("zero value", func() {
+						It("returns 404", func() {
+							token := base64.StdEncoding.EncodeToString([]byte("0"))
 							executeWithInvalidToken(token)
 						})
 					})
