@@ -478,12 +478,6 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 							executeWithInvalidToken(token)
 						})
 					})
-					Context("zero value", func() {
-						It("returns 404", func() {
-							token := base64.StdEncoding.EncodeToString([]byte("0"))
-							executeWithInvalidToken(token)
-						})
-					})
 				})
 			})
 

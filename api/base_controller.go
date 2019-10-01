@@ -357,7 +357,7 @@ func (c *BaseController) parsePageToken(token string) (string, error) {
 				StatusCode:  http.StatusNotFound,
 			}
 		}
-		if pagingSequence <= 0 {
+		if pagingSequence < 0 {
 			return "", &util.HTTPError{
 				ErrorType:   "TokenInvalid",
 				Description: fmt.Sprintf("Invalid token provided: value greater than 0 expected"),
