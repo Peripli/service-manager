@@ -338,7 +338,7 @@ func (c *BaseController) parseMaxItemsQuery(maxItems string) (int, error) {
 }
 
 func (c *BaseController) parsePageToken(token string) (string, error) {
-	targetPageSequence := "1"
+	targetPageSequence := "0"
 	if token != "" {
 		base64DecodedTokenBytes, err := base64.StdEncoding.DecodeString(token)
 		if err != nil {
