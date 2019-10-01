@@ -93,16 +93,16 @@ func New(ctx context.Context, options *Options) (*web.API, error) {
 		Controllers: []web.Controller{
 			NewController(options.Repository, web.ServiceBrokersURL, types.ServiceBrokerType, func() types.Object {
 				return &types.ServiceBroker{}
-			}),
+			}, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
 			NewController(options.Repository, web.PlatformsURL, types.PlatformType, func() types.Object {
 				return &types.Platform{}
-			}),
+			}, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
 			NewController(options.Repository, web.VisibilitiesURL, types.VisibilityType, func() types.Object {
 				return &types.Visibility{}
-			}),
+			}, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
 			apiNotifications.NewController(ctx, options.Repository, options.WSSettings, options.Notificator),
-			NewServiceOfferingController(options.Repository),
-			NewServicePlanController(options.Repository),
+			NewServiceOfferingController(options.Repository, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
+			NewServicePlanController(options.Repository, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
 			&info.Controller{
 				TokenIssuer:    options.APISettings.TokenIssuerURL,
 				TokenBasicAuth: options.APISettings.TokenBasicAuth,
@@ -126,7 +126,6 @@ func New(ctx context.Context, options *Options) (*web.API, error) {
 			bearerAuthnFilter,
 			secfilters.NewRequiredAuthnFilter(),
 			&filters.SelectionCriteria{},
-			filters.NewPagingFilter(options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
 			filters.NewProtectedLabelsFilter(options.APISettings.ProctedLabels),
 			&filters.PlatformAwareVisibilityFilter{},
 			&filters.PatchOnlyLabelsFilter{},

@@ -122,39 +122,6 @@ var _ = Describe("Selection", func() {
 		})
 	})
 
-	Describe("Context with user criteria", func() {
-		Context("When there are no criteria in the context", func() {
-			It("Adds the new ones", func() {
-				newCriteria := []Criterion{ByField(EqualsOperator, "leftOp", "rightOp")}
-				newContext, err := ContextWithUserCriteria(ctx, newCriteria...)
-				Expect(err).ShouldNot(HaveOccurred())
-				Expect(UserCriteriaForContext(newContext)).To(ConsistOf(newCriteria))
-			})
-		})
-		Context("When there are criteria already in the context", func() {
-			It("Overrides them", func() {
-				oldCriteria := []Criterion{ByField(EqualsOperator, "leftOp", "rightOp")}
-				oldContext, err := ContextWithUserCriteria(ctx, oldCriteria...)
-				Expect(err).ShouldNot(HaveOccurred())
-
-				newCriteria := []Criterion{ByLabel(NotEqualsOperator, "leftOp1", "rightOp1")}
-				newContext, err := ContextWithUserCriteria(oldContext, newCriteria...)
-				Expect(err).ShouldNot(HaveOccurred())
-
-				criteriaForNewContext := UserCriteriaForContext(newContext)
-				Expect(criteriaForNewContext).To(ConsistOf(newCriteria))
-				Expect(criteriaForNewContext).ToNot(ContainElement(oldCriteria[0]))
-			})
-		})
-		Context("When limit is already in the context adding it again", func() {
-			It("should return error", func() {
-				ctx, err := ContextWithUserCriteria(ctx, LimitResultBy(10), LimitResultBy(5))
-				Expect(err).Should(HaveOccurred())
-				Expect(ctx).Should(BeNil())
-			})
-		})
-	})
-
 	Describe("Build criteria from request", func() {
 		buildCriteria := func(url string) ([]Criterion, error) {
 			newRequest, err := http.NewRequest(http.MethodGet, url, nil)

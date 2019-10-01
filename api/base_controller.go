@@ -39,21 +39,30 @@ import (
 
 const PathParamID = "id"
 
+// pagingLimitOffset is a constant which is needed to identify if there are more items in the DB.
+// If there are 1 more items than requested, we need to generate a token for the next page.
+// The last item is omitted.
+const pagingLimitOffset = 1
+
 // BaseController provides common CRUD handlers for all object types in the service manager
 type BaseController struct {
 	resourceBaseURL string
 	objectType      types.ObjectType
 	repository      storage.Repository
 	objectBlueprint func() types.Object
+	DefaultPageSize int
+	MaxPageSize     int
 }
 
 // NewController returns a new base controller
-func NewController(repository storage.Repository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object) *BaseController {
+func NewController(repository storage.Repository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, defaultPageSize, maxPageSize int) *BaseController {
 	return &BaseController{
 		repository:      repository,
 		resourceBaseURL: resourceBaseURL,
 		objectBlueprint: objectBlueprint,
 		objectType:      objectType,
+		DefaultPageSize: defaultPageSize,
+		MaxPageSize:     maxPageSize,
 	}
 }
 
@@ -189,13 +198,19 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 // ListObjects handles the fetching of all objects
 func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
-	userCriteria := query.UserCriteriaForContext(ctx)
-	count, err := c.repository.Count(ctx, c.objectType, userCriteria...)
+
+	criteria := query.CriteriaForContext(ctx)
+	count, err := c.repository.Count(ctx, c.objectType, criteria...)
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
 
-	limit := web.PageLimitFromContext(ctx)
+	maxItems := r.URL.Query().Get("max_items")
+	limit, err := c.parseMaxItemsQuery(maxItems)
+	if err != nil {
+		return nil, err
+	}
+
 	if limit == 0 {
 		log.C(ctx).Debugf("Returning only count of %s since max_items is 0", c.objectType)
 		page := struct {
@@ -206,28 +221,23 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 		return util.NewJSONResponse(http.StatusOK, page)
 	}
 
+	rawToken := r.URL.Query().Get("token")
+	pagingSequence, err := c.parsePageToken(rawToken)
+	if err != nil {
+		return nil, err
+	}
+
+	criteria = append(criteria, query.LimitResultBy(limit+pagingLimitOffset),
+		query.OrderResultBy("paging_sequence", query.AscOrder),
+		query.ByField(query.GreaterThanOperator, "paging_sequence", pagingSequence))
+
 	log.C(ctx).Debugf("Getting a page of %ss", c.objectType)
-	objectList, err := c.repository.List(ctx, c.objectType, query.CriteriaForContext(ctx)...)
+	objectList, err := c.repository.List(ctx, c.objectType, criteria...)
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
 
-	page := types.ObjectPage{
-		ItemsCount: count,
-		Items:      make([]types.Object, 0, objectList.Len()),
-	}
-
-	for i := 0; i < objectList.Len(); i++ {
-		obj := objectList.ItemAt(i)
-		stripCredentials(ctx, obj)
-		page.Items = append(page.Items, obj)
-	}
-
-	if len(page.Items) > limit {
-		page.Items = page.Items[:len(page.Items)-1]
-		page.Token = generateTokenForItem(page.Items[len(page.Items)-1])
-	}
-
+	page := pageFromObjectList(ctx, objectList, count, limit)
 	resp, err := util.NewJSONResponse(http.StatusOK, page)
 	if err != nil {
 		return nil, err
@@ -301,7 +311,83 @@ func stripCredentials(ctx context.Context, object types.Object) {
 	}
 }
 
+func (c *BaseController) parseMaxItemsQuery(maxItems string) (int, error) {
+	limit := c.DefaultPageSize
+	var err error
+	if maxItems != "" {
+		limit, err = strconv.Atoi(maxItems)
+		if err != nil {
+			return -1, &util.HTTPError{
+				ErrorType:   "InvalidMaxItems",
+				Description: fmt.Sprintf("max_items should be integer: %v", err),
+				StatusCode:  http.StatusBadRequest,
+			}
+		}
+		if limit < 0 {
+			return -1, &util.HTTPError{
+				ErrorType:   "InvalidMaxItems",
+				Description: fmt.Sprintf("max_items cannot be negative"),
+				StatusCode:  http.StatusBadRequest,
+			}
+		}
+		if limit > c.MaxPageSize {
+			limit = c.MaxPageSize
+		}
+	}
+	return limit, nil
+}
+
+func (c *BaseController) parsePageToken(token string) (string, error) {
+	targetPageSequence := "1"
+	if token != "" {
+		base64DecodedTokenBytes, err := base64.StdEncoding.DecodeString(token)
+		if err != nil {
+			return "", &util.HTTPError{
+				ErrorType:   "TokenInvalid",
+				Description: fmt.Sprintf("Invalid token provided: %v", err),
+				StatusCode:  http.StatusNotFound,
+			}
+		}
+		targetPageSequence = string(base64DecodedTokenBytes)
+		pagingSequence, err := strconv.ParseInt(targetPageSequence, 10, 0)
+		if err != nil {
+			return "", &util.HTTPError{
+				ErrorType:   "TokenInvalid",
+				Description: fmt.Sprintf("Invalid token provided: %v", err),
+				StatusCode:  http.StatusNotFound,
+			}
+		}
+		if pagingSequence <= 0 {
+			return "", &util.HTTPError{
+				ErrorType:   "TokenInvalid",
+				Description: fmt.Sprintf("Invalid token provided: value greater than 0 expected"),
+				StatusCode:  http.StatusNotFound,
+			}
+		}
+	}
+	return targetPageSequence, nil
+}
+
 func generateTokenForItem(obj types.Object) string {
 	nextPageToken := obj.GetPagingSequence()
 	return base64.StdEncoding.EncodeToString([]byte(strconv.FormatInt(nextPageToken, 10)))
+}
+
+func pageFromObjectList(ctx context.Context, objectList types.ObjectList, count, limit int) *types.ObjectPage {
+	page := &types.ObjectPage{
+		ItemsCount: count,
+		Items:      make([]types.Object, 0, objectList.Len()),
+	}
+
+	for i := 0; i < objectList.Len(); i++ {
+		obj := objectList.ItemAt(i)
+		stripCredentials(ctx, obj)
+		page.Items = append(page.Items, obj)
+	}
+
+	if len(page.Items) > limit {
+		page.Items = page.Items[:len(page.Items)-1]
+		page.Token = generateTokenForItem(page.Items[len(page.Items)-1])
+	}
+	return page
 }
