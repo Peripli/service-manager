@@ -32,4 +32,6 @@ type UserContext struct {
 	AuthenticationType AuthenticationType
 	// Name is the name of the authenticated user
 	Name string
+	// Attributes contains additional details about the user
+	Attributes map[string]string
 }

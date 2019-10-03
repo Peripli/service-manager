@@ -85,6 +85,7 @@ func (a *BasicAuthenticator) Authenticate(request *http.Request) (*web.UserConte
 		},
 		AuthenticationType: web.Basic,
 		Name:               username,
+		Attributes:         make(map[string]string),
 	}, httpsec.Allow, nil
 }
 

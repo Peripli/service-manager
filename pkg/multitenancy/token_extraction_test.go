@@ -70,6 +70,7 @@ var _ = Describe("ExtractTenantFromToken", func() {
 				},
 				AuthenticationType: web.Bearer,
 				Name:               "test-user",
+				Attributes:         make(map[string]string),
 			}))
 		})
 
@@ -91,6 +92,7 @@ var _ = Describe("ExtractTenantFromToken", func() {
 					},
 					AuthenticationType: web.Basic,
 					Name:               "test-user",
+					Attributes:         make(map[string]string),
 				}))
 				extractorFunc := multitenancy.ExtractTenatFromTokenWrapperFunc(clientID, clientIDTokenClaim, tenantTokenClaim)
 				extractedTenant, err := extractorFunc(fakeRequest)
@@ -107,6 +109,7 @@ var _ = Describe("ExtractTenantFromToken", func() {
 					},
 					AuthenticationType: web.Bearer,
 					Name:               "test-user",
+					Attributes:         make(map[string]string),
 				}))
 
 				extractorFunc := multitenancy.ExtractTenatFromTokenWrapperFunc(clientID, clientIDTokenClaim, tenantTokenClaim)
