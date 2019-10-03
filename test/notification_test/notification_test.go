@@ -411,9 +411,9 @@ var _ = Describe("Notifications Suite", func() {
 				oldResource := gjson.GetBytes(notification.Payload, "old.resource").Value().(common.Object)
 				Expect(oldResource).To(Equal(objBeforeOp))
 
-				actualOldPayload := gjson.GetBytes(notification.Payload, "old.additional").Raw
-				expectedOldPayload = entry.ExpectedAdditionalPayloadFunc(objBeforeOp, ctx.SMRepository)
-				Expect(actualOldPayload).To(MatchUnorderedJSON(expectedOldPayload))
+				//actualOldPayload := gjson.GetBytes(notification.Payload, "old.additional").Raw
+				//expectedOldPayload = entry.ExpectedAdditionalPayloadFunc(objBeforeOp, ctx.SMRepository)
+				//Expect(actualOldPayload).To(MatchUnorderedJSON(expectedOldPayload))
 
 				newResource := gjson.GetBytes(notification.Payload, "new.resource").Value().(common.Object)
 				Expect(newResource).To(Equal(objAfterOp))
