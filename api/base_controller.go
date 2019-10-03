@@ -222,7 +222,7 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	}
 
 	rawToken := r.URL.Query().Get("token")
-	pagingSequence, err := c.parsePageToken(rawToken)
+	pagingSequence, err := c.parsePageToken(ctx, rawToken)
 	if err != nil {
 		return nil, err
 	}
@@ -337,30 +337,33 @@ func (c *BaseController) parseMaxItemsQuery(maxItems string) (int, error) {
 	return limit, nil
 }
 
-func (c *BaseController) parsePageToken(token string) (string, error) {
+func (c *BaseController) parsePageToken(ctx context.Context, token string) (string, error) {
 	targetPageSequence := "0"
 	if token != "" {
 		base64DecodedTokenBytes, err := base64.StdEncoding.DecodeString(token)
 		if err != nil {
+			log.C(ctx).Infof("Invalid token provided: %v", err)
 			return "", &util.HTTPError{
 				ErrorType:   "TokenInvalid",
-				Description: fmt.Sprintf("Invalid token provided: %v", err),
+				Description: "Invalid token provided.",
 				StatusCode:  http.StatusNotFound,
 			}
 		}
 		targetPageSequence = string(base64DecodedTokenBytes)
 		pagingSequence, err := strconv.ParseInt(targetPageSequence, 10, 0)
 		if err != nil {
+			log.C(ctx).Infof("Invalid token provided: %v", err)
 			return "", &util.HTTPError{
 				ErrorType:   "TokenInvalid",
-				Description: fmt.Sprintf("Invalid token provided: %v", err),
+				Description: "Invalid token provided.",
 				StatusCode:  http.StatusNotFound,
 			}
 		}
 		if pagingSequence < 0 {
+			log.C(ctx).Infof("Invalid token provided: negative value")
 			return "", &util.HTTPError{
 				ErrorType:   "TokenInvalid",
-				Description: fmt.Sprintf("Invalid token provided: negative value"),
+				Description: "Invalid token provided.",
 				StatusCode:  http.StatusNotFound,
 			}
 		}

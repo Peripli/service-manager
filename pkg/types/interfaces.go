@@ -31,14 +31,8 @@ type Secured interface {
 	GetCredentials() *Credentials
 }
 
-// Pageable interface indicates that an object can be listed page by page
-type Pageable interface {
-	GetPagingSequence() int64
-}
-
 // Object is the common interface that all resources in the Service Manager must implement
 type Object interface {
-	Pageable
 	util.InputValidator
 
 	SetID(id string)
@@ -50,6 +44,7 @@ type Object interface {
 	GetCreatedAt() time.Time
 	SetUpdatedAt(time time.Time)
 	GetUpdatedAt() time.Time
+	GetPagingSequence() int64
 }
 
 // ObjectList is the interface that lists of objects must implement
