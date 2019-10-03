@@ -45,9 +45,11 @@ func HasRFC3986ReservedSymbols(input string) bool {
 	return strings.ContainsAny(input, reservedSymbolsRFC3986)
 }
 
+const rfc3339NanoShort = "2006-01-02T15:04:05.999999Z07:00"
+
 // ToRFCNanoFormat converts a time.Time timestamp to RFC3339Nano format
 func ToRFCNanoFormat(timestamp time.Time) string {
-	return timestamp.UTC().Format(time.RFC3339Nano)
+	return timestamp.UTC().Format(rfc3339NanoShort)
 }
 
 // RequestBodyToBytes reads the request body and returns []byte with its content or an error if
