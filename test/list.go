@@ -459,7 +459,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 				})
 				Context("with invalid token", func() {
 					executeWithInvalidToken := func(token string) {
-						ctx.SMWithOAuth.GET(t.API).WithQuery("token", token).Expect().Status(http.StatusNotFound)
+						ctx.SMWithOAuth.GET(t.API).WithQuery("token", token).Expect().Status(http.StatusBadRequest)
 					}
 					Context("no base64 encoded", func() {
 						It("returns 404", func() {

@@ -346,7 +346,7 @@ func (c *BaseController) parsePageToken(ctx context.Context, token string) (stri
 			return "", &util.HTTPError{
 				ErrorType:   "TokenInvalid",
 				Description: "Invalid token provided.",
-				StatusCode:  http.StatusNotFound,
+				StatusCode:  http.StatusBadRequest,
 			}
 		}
 		targetPageSequence = string(base64DecodedTokenBytes)
@@ -356,7 +356,7 @@ func (c *BaseController) parsePageToken(ctx context.Context, token string) (stri
 			return "", &util.HTTPError{
 				ErrorType:   "TokenInvalid",
 				Description: "Invalid token provided.",
-				StatusCode:  http.StatusNotFound,
+				StatusCode:  http.StatusBadRequest,
 			}
 		}
 		if pagingSequence < 0 {
@@ -364,7 +364,7 @@ func (c *BaseController) parsePageToken(ctx context.Context, token string) (stri
 			return "", &util.HTTPError{
 				ErrorType:   "TokenInvalid",
 				Description: "Invalid token provided.",
-				StatusCode:  http.StatusNotFound,
+				StatusCode:  http.StatusBadRequest,
 			}
 		}
 	}
