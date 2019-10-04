@@ -17,23 +17,23 @@
 package healthcheck
 
 import (
-	h "github.com/InVisionApp/go-health"
+	"context"
+	gohealth "github.com/InVisionApp/go-health"
 	"github.com/Peripli/service-manager/pkg/health"
-	"github.com/Peripli/service-manager/pkg/util"
-	"net/http"
-
 	"github.com/Peripli/service-manager/pkg/log"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
+	"net/http"
 )
 
 // controller platform controller
 type controller struct {
-	health     h.IHealth
+	health     gohealth.IHealth
 	thresholds map[string]int64
 }
 
 // NewController returns a new healthcheck controller with the given health and thresholds
-func NewController(health h.IHealth, thresholds map[string]int64) web.Controller {
+func NewController(health gohealth.IHealth, thresholds map[string]int64) web.Controller {
 	return &controller{
 		health:     health,
 		thresholds: thresholds,
@@ -46,7 +46,7 @@ func (c *controller) healthCheck(r *web.Request) (*web.Response, error) {
 	logger := log.C(ctx)
 	logger.Debugf("Performing health check...")
 	healthState, _, _ := c.health.State()
-	healthResult := c.aggregate(healthState)
+	healthResult := c.aggregate(ctx, healthState)
 	var status int
 	if healthResult.Status == health.StatusUp {
 		status = http.StatusOK
@@ -56,22 +56,25 @@ func (c *controller) healthCheck(r *web.Request) (*web.Response, error) {
 	return util.NewJSONResponse(status, healthResult)
 }
 
-func (c *controller) aggregate(overallState map[string]h.State) *health.Health {
-	if len(overallState) == 0 {
+func (c *controller) aggregate(ctx context.Context, healthState map[string]gohealth.State) *health.Health {
+	if len(healthState) == 0 {
 		return health.New().WithStatus(health.StatusUp)
 	}
+
+	details := make(map[string]interface{})
 	overallStatus := health.StatusUp
-	for name, state := range overallState {
+	for name, state := range healthState {
 		if state.Fatal && state.ContiguousFailures >= c.thresholds[name] {
 			overallStatus = health.StatusDown
-			break
 		}
-	}
-	details := make(map[string]interface{})
-	for name, state := range overallState {
 		state.Status = convertStatus(state.Status)
+		if !web.IsAuthorized(ctx) {
+			state.Details = nil
+			state.Err = ""
+		}
 		details[name] = state
 	}
+
 	return health.New().WithStatus(overallStatus).WithDetails(details)
 }
 

@@ -45,5 +45,5 @@ type SQLHealthIndicator struct {
 
 // Name returns the name of the storage component
 func (i *SQLHealthIndicator) Name() string {
-	return "storage"
+	return health.StorageIndicatorName
 }

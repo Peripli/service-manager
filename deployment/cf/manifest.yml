@@ -1,18 +1,15 @@
 ---
 applications:
 - name: service-manager
-  memory: 64M
+  memory: 512M
   services: <postgre_instance_name>
   docker:
-    image: quay.io/service-manager/core:v0.1.1
+    image: quay.io/service-manager/core:v0.5.1
   env:
-    GOVERSION: go1.11
+    GOVERSION: go1.12
     GOPACKAGENAME: github.com/Peripli/service-manager
-    LOG_FORMAT: json
-    LOG_LEVEL: info
     API_TOKEN_ISSUER_URL: https://uaa.dev.cfdev.sh
-    API_CLIENT_ID: cf
-    API_SKIP_SSL_VALIDATION: true
+    HTTPCLIENT_SKIP_SSL_VALIDATION: true
     STORAGE_ENCRYPTION_KEY: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
     STORAGE_NAME: <postgre_instance_name>
     STORAGE_SKIP_SSL_VALIDATION: false

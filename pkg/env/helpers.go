@@ -89,47 +89,63 @@ func buildDescriptionPaths(root *descriptionTree, path []*descriptionTree) []str
 }
 
 func buildDescriptionTreeWithParameters(value interface{}, tree *descriptionTree, buffer string, result *[]configurationParameter) {
-	if !structs.IsStruct(value) {
-		index := strings.LastIndex(buffer, ".")
-		if index == -1 {
-			index = 0
+	v := reflect.ValueOf(value)
+	switch v.Kind() {
+	case reflect.Map:
+		for _, key := range v.MapKeys() {
+			field := v.MapIndex(key).Interface()
+			if isValidField(field) {
+				name := key.String()
+				buffer += name + "."
+				buildDescriptionTreeWithParameters(field, tree, buffer, result)
+				buffer = buffer[0:strings.LastIndex(buffer, name)]
+			}
 		}
-		key := strings.ToLower(buffer[0:index])
-		*result = append(*result, configurationParameter{Name: key, DefaultValue: value})
-		tree.Children = nil
-		return
-	}
-	s := structs.New(value)
-	k := 0
-	for _, field := range s.Fields() {
-		if isValidField(field) {
-			var name string
-			if field.Tag("mapstructure") != "" {
-				name = field.Tag("mapstructure")
-			} else {
-				name = field.Name()
+	default:
+		if !structs.IsStruct(value) {
+			index := strings.LastIndex(buffer, ".")
+			if index == -1 {
+				index = 0
 			}
+			key := strings.ToLower(buffer[0:index])
+			*result = append(*result, configurationParameter{Name: key, DefaultValue: value})
+			tree.Children = nil
+			return
+		}
+		s := structs.New(value)
+		for _, field := range s.Fields() {
+			if isValidField(field) {
+				var name string
+				if field.Tag("mapstructure") != "" {
+					name = field.Tag("mapstructure")
+				} else {
+					name = field.Name()
+				}
+				if name == "-" {
+					continue
+				}
+				if name == ",squash" {
+					buildDescriptionTreeWithParameters(field.Value(), tree, buffer, result)
+					continue
+				}
+				description := ""
+				if field.Tag("description") != "" {
+					description = field.Tag("description")
+				}
 
-			if name == "-" || name == ",squash" {
-				continue
+				baseTree := newDescriptionTree(description)
+				tree.AddNode(baseTree)
+				buildDescriptionTreeWithParameters(field.Value(), baseTree, buffer+name+".", result)
 			}
-
-			description := ""
-			if field.Tag("description") != "" {
-				description = field.Tag("description")
-			}
-
-			baseTree := newDescriptionTree(description)
-			tree.AddNode(baseTree)
-			buffer += name + "."
-			buildDescriptionTreeWithParameters(field.Value(), tree.Children[k], buffer, result)
-			k++
-			buffer = buffer[0:strings.LastIndex(buffer, name)]
 		}
 	}
 }
 
-func isValidField(field *structs.Field) bool {
-	kind := field.Kind()
-	return field.IsExported() && kind != reflect.Interface && kind != reflect.Func
+func isValidField(field interface{}) bool {
+	if fieldStruct, ok := field.(*structs.Field); ok {
+		kind := fieldStruct.Kind()
+		return fieldStruct.IsExported() && kind != reflect.Interface && kind != reflect.Func
+	}
+	kind := reflect.ValueOf(field).Kind()
+	return kind != reflect.Interface && kind != reflect.Func
 }

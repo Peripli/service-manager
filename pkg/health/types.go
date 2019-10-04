@@ -26,16 +26,39 @@ import (
 	"time"
 )
 
+// MinInterval is the minimum check interval for a indicator configuration
+var MinInterval = 10 * time.Second
+
+// StorageIndicatorName is the name of storage indicator
+const StorageIndicatorName = "storage"
+
+// PlatformsIndicatorName is the name of platforms indicator
+const PlatformsIndicatorName = "platforms"
+
+// indicatorNames is a list of names of indicators which will be registered with default settings
+// as part of default health settings, this will allow binding them as part of environment.
+// If an indicator is registered but not specified in this list, it will be configured with
+// default settings again, but this defaults could be overridden only via application.yml,
+// env variables and pflags won't have any effect. If an indicator is specified in this list
+// but later not registered nothing will happen.
+var indicatorNames = [...]string{
+	StorageIndicatorName,
+	PlatformsIndicatorName,
+}
+
 // Settings type to be loaded from the environment
 type Settings struct {
-	Indicators map[string]*IndicatorSettings `mapstructure:"indicators,omitempty"`
+	Indicators map[string]*IndicatorSettings `mapstructure:"indicators"`
 }
 
 // DefaultSettings returns default values for health settings
 func DefaultSettings() *Settings {
-	emptySettings := make(map[string]*IndicatorSettings)
+	defaultIndicatorSettings := make(map[string]*IndicatorSettings)
+	for _, name := range indicatorNames {
+		defaultIndicatorSettings[name] = DefaultIndicatorSettings()
+	}
 	return &Settings{
-		Indicators: emptySettings,
+		Indicators: defaultIndicatorSettings,
 	}
 }
 
@@ -68,13 +91,13 @@ func DefaultIndicatorSettings() *IndicatorSettings {
 // Validate validates indicator settings
 func (is *IndicatorSettings) Validate() error {
 	if !is.Fatal && is.FailuresThreshold != 0 {
-		return fmt.Errorf("validate Settings: FailuresThreshold not applicable for non-fatal indicators")
+		return fmt.Errorf("validate Settings: FailuresThreshold must be 0 for non-fatal indicators")
 	}
 	if is.Fatal && is.FailuresThreshold <= 0 {
 		return fmt.Errorf("validate Settings: FailuresThreshold must be > 0 for fatal indicators")
 	}
-	if is.Interval < 30*time.Second {
-		return fmt.Errorf("validate Settings: Minimum interval is 30 seconds")
+	if is.Interval < MinInterval {
+		return fmt.Errorf("validate Settings: Minimum interval is %v", MinInterval)
 	}
 	return nil
 }
@@ -94,7 +117,12 @@ const (
 type StatusListener struct{}
 
 func (sl *StatusListener) HealthCheckFailed(state *health.State) {
-	log.D().Errorf("Health check for %v failed with: %v", state.Name, state.Err)
+	msg := fmt.Sprintf("Health check for %v failed with: %v", state.Name, state.Err)
+	if state.Fatal {
+		log.D().Error(msg)
+	} else {
+		log.D().Warn(msg)
+	}
 }
 
 func (sl *StatusListener) HealthCheckRecovered(state *health.State, numberOfFailures int64, unavailableDuration float64) {
@@ -162,6 +190,17 @@ func NewDefaultRegistry() *Registry {
 type Registry struct {
 	// HealthIndicators are the currently registered health indicators
 	HealthIndicators []Indicator
+}
+
+// SetIndicator adds or replaces existing indicator with same name in registry
+func (r *Registry) SetIndicator(healthIndicator Indicator) {
+	for i, indicator := range r.HealthIndicators {
+		if indicator.Name() == healthIndicator.Name() {
+			r.HealthIndicators[i] = healthIndicator
+			return
+		}
+	}
+	r.HealthIndicators = append(r.HealthIndicators, healthIndicator)
 }
 
 // Configure creates new health using provided settings.
