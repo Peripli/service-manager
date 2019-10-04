@@ -22,8 +22,6 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	"github.com/gavv/httpexpect"
-
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 )
@@ -34,7 +32,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase) bool {
 		var testResourceID string
 
 		Context("Existing resource", func() {
-			createResourceFunc := func(auth *httpexpect.Expect) {
+			createResourceFunc := func(auth *common.SMExpect) {
 				By(fmt.Sprintf("[SETUP]: Creating test resource of type %s", t.API))
 				testResource = t.ResourceBlueprint(ctx, auth)
 				Expect(testResource).ToNot(BeEmpty())
@@ -44,7 +42,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase) bool {
 				Expect(testResourceID).ToNot(BeEmpty())
 			}
 
-			verifyResourceDeletion := func(auth *httpexpect.Expect, deletionRequestResponseCode, getAfterDeletionRequestCode int) {
+			verifyResourceDeletion := func(auth *common.SMExpect, deletionRequestResponseCode, getAfterDeletionRequestCode int) {
 				By("[TEST]: Verify resource of type %s exists before delete")
 				ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
 					Expect().

@@ -207,8 +207,7 @@ func (ps *Storage) List(ctx context.Context, objType types.ObjectType, criteria 
 		return nil, err
 	}
 
-	criteria = append(criteria, query.OrderResultBy("created_at", query.AscOrder))
-	rows, err := ps.queryBuilder.NewQuery().WithCriteria(criteria...).WithLock().List(ctx, entity)
+	rows, err := ps.queryBuilder.NewQuery(entity).WithCriteria(criteria...).WithLock().List(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +231,7 @@ func (ps *Storage) Count(ctx context.Context, objType types.ObjectType, criteria
 	if err != nil {
 		return 0, err
 	}
-	return ps.queryBuilder.NewQuery().WithCriteria(criteria...).WithLock().Count(ctx, entity)
+	return ps.queryBuilder.NewQuery(entity).WithCriteria(criteria...).WithLock().Count(ctx)
 }
 
 func (ps *Storage) Delete(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
@@ -241,7 +240,7 @@ func (ps *Storage) Delete(ctx context.Context, objType types.ObjectType, criteri
 		return nil, err
 	}
 
-	rows, err := ps.queryBuilder.NewQuery().WithCriteria(criteria...).Return("*").Delete(ctx, entity)
+	rows, err := ps.queryBuilder.NewQuery(entity).WithCriteria(criteria...).Return("*").Delete(ctx)
 	defer closeRows(ctx, rows)
 	if err != nil {
 		return nil, err

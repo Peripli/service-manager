@@ -44,6 +44,7 @@ type Object interface {
 	GetCreatedAt() time.Time
 	SetUpdatedAt(time time.Time)
 	GetUpdatedAt() time.Time
+	GetPagingSequence() int64
 }
 
 // ObjectList is the interface that lists of objects must implement
@@ -55,6 +56,7 @@ type ObjectList interface {
 
 // ObjectPage is the DTO for a given page of resources when listing
 type ObjectPage struct {
+	Token      string   `json:"token,omitempty"`
 	ItemsCount int      `json:"num_items"`
 	Items      []Object `json:"items"`
 }

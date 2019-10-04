@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/web"
 	"net/http"
 	"strings"
 	"testing"
@@ -67,7 +68,7 @@ var _ = Describe("Notifications Suite", func() {
 				return obj
 			},
 			ResourceUpdateFunc: func(obj common.Object, update common.Object) common.Object {
-				patchedObj := ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + obj["id"].(string)).
+				patchedObj := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + obj["id"].(string)).
 					WithJSON(update).
 					Expect().
 					Status(http.StatusOK).JSON().Object().Raw()
@@ -84,7 +85,7 @@ var _ = Describe("Notifications Suite", func() {
 					}
 				},
 				func() common.Object {
-					anotherPlatformID := ctx.SMWithOAuth.POST("/v1/platforms").WithJSON(common.Object{
+					anotherPlatformID := ctx.SMWithOAuth.POST(web.PlatformsURL).WithJSON(common.Object{
 						"id":          "cluster1",
 						"name":        "k8s1",
 						"type":        "kubernetes",
@@ -172,28 +173,25 @@ var _ = Describe("Notifications Suite", func() {
 				catalog.AddService(cService)
 				id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
 
-				object := ctx.SMWithOAuth.GET("/v1/service_offerings").WithQuery("fieldQuery", "broker_id = "+id).
-					Expect()
+				so := ctx.SMWithOAuth.ListWithQuery(web.ServiceOfferingsURL, "fieldQuery=broker_id = "+id).First()
 
-				so := object.Status(http.StatusOK).JSON().Object().Value("items").Array().First()
+				servicePlanID := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id = %s", so.Object().Value("id").String().Raw())).
+					First().Object().Value("id").String().Raw()
 
-				servicePlanID := ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("fieldQuery", fmt.Sprintf("service_offering_id = %s", so.Object().Value("id").String().Raw())).
-					Expect().
-					Status(http.StatusOK).JSON().Object().Value("items").Array().First().Object().Value("id").String().Raw()
 				visReqBody["service_plan_id"] = servicePlanID
 
-				platformID := ctx.SMWithOAuth.POST("/v1/platforms").WithJSON(common.GenerateRandomPlatform()).
+				platformID := ctx.SMWithOAuth.POST(web.PlatformsURL).WithJSON(common.GenerateRandomPlatform()).
 					Expect().
 					Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
 				visReqBody["platform_id"] = platformID
 
-				visibility := ctx.SMWithOAuth.POST("/v1/visibilities").WithJSON(visReqBody).Expect().
+				visibility := ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(visReqBody).Expect().
 					Status(http.StatusCreated).JSON().Object().Raw()
 
 				return visibility
 			},
 			ResourceUpdateFunc: func(obj common.Object, update common.Object) common.Object {
-				updatedObj := ctx.SMWithOAuth.PATCH("/v1/visibilities/" + obj["id"].(string)).WithJSON(update).Expect().
+				updatedObj := ctx.SMWithOAuth.PATCH(web.VisibilitiesURL + "/" + obj["id"].(string)).WithJSON(update).Expect().
 					Status(http.StatusOK).JSON().Object().Raw()
 
 				return updatedObj
@@ -208,7 +206,7 @@ var _ = Describe("Notifications Suite", func() {
 					}
 				},
 				func() common.Object {
-					anotherPlatformID := ctx.SMWithOAuth.POST("/v1/platforms").WithJSON(common.Object{
+					anotherPlatformID := ctx.SMWithOAuth.POST(web.PlatformsURL).WithJSON(common.Object{
 						"id":          "cluster123",
 						"name":        "k8s123s",
 						"type":        "kubernetes",
@@ -242,7 +240,7 @@ var _ = Describe("Notifications Suite", func() {
 				},
 			},
 			ResourceDeleteFunc: func(obj common.Object) {
-				ctx.SMWithOAuth.DELETE("/v1/visibilities/" + obj["id"].(string)).Expect().
+				ctx.SMWithOAuth.DELETE(web.VisibilitiesURL + "/" + obj["id"].(string)).Expect().
 					Status(http.StatusOK)
 			},
 			ExpectedPlatformIDFunc: func(obj common.Object) string {

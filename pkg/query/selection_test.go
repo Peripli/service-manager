@@ -97,7 +97,6 @@ var _ = Describe("Selection", func() {
 				Expect(CriteriaForContext(newContext)).To(ConsistOf(newCriteria))
 			})
 		})
-
 		Context("When there are criteria already in the context", func() {
 			It("Overrides them", func() {
 				oldCriteria := []Criterion{ByField(EqualsOperator, "leftOp", "rightOp")}
@@ -113,7 +112,6 @@ var _ = Describe("Selection", func() {
 				Expect(criteriaForNewContext).ToNot(ContainElement(oldCriteria[0]))
 			})
 		})
-
 		Context("When limit is already in the context adding it again", func() {
 			It("should return error", func() {
 				ctx, err := ContextWithCriteria(ctx, LimitResultBy(10), LimitResultBy(5))

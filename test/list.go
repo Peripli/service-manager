@@ -17,12 +17,11 @@
 package test
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/gavv/httpexpect"
-	"strings"
-
 	"github.com/Peripli/service-manager/pkg/query"
+	"strings"
 
 	. "github.com/onsi/ginkgo/extensions/table"
 
@@ -302,16 +301,14 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		),
 	}
 
-	verifyListOpWithAuth := func(listOpEntry listOpEntry, query string, auth *httpexpect.Expect) {
+	verifyListOpWithAuth := func(listOpEntry listOpEntry, query string, auth *common.SMExpect) {
 		var expectedAfterOpIDs []string
 		var unexpectedAfterOpIDs []string
 		expectedAfterOpIDs = common.ExtractResourceIDs(listOpEntry.resourcesToExpectAfterOp)
 		unexpectedAfterOpIDs = common.ExtractResourceIDs(listOpEntry.resourcesNotToExpectAfterOp)
 
 		By(fmt.Sprintf("[TEST]: Verifying expected %s before operation after present", t.API))
-		beforeOpArray := ctx.SMWithOAuth.GET(t.API).
-			Expect().
-			Status(http.StatusOK).JSON().Object().Value("items").Array()
+		beforeOpArray := ctx.SMWithOAuth.List(t.API)
 
 		for _, v := range beforeOpArray.Iter() {
 			obj := v.Object().Raw()
@@ -335,22 +332,17 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 
 		By("[TEST]: ====================================")
 
-		req := ctx.SMWithOAuth.GET(t.API)
-		if query != "" {
-			req = req.WithQueryString(query)
-		}
-
 		By(fmt.Sprintf("[TEST]: Verifying expected status code %d is returned from list operation", listOpEntry.expectedStatusCode))
-		resp := req.
-			Expect().
-			Status(listOpEntry.expectedStatusCode)
 
 		if listOpEntry.expectedStatusCode != http.StatusOK {
 			By(fmt.Sprintf("[TEST]: Verifying error and description fields are returned after list operation"))
-
-			resp.JSON().Object().Keys().Contains("error", "description")
+			req := ctx.SMWithOAuth.GET(t.API)
+			if query != "" {
+				req = req.WithQueryString(query)
+			}
+			req.Expect().Status(listOpEntry.expectedStatusCode).JSON().Object().Keys().Contains("error", "description")
 		} else {
-			array := resp.JSON().Object().Value("items").Array()
+			array := ctx.SMWithOAuth.ListWithQuery(t.API, query)
 			for _, v := range array.Iter() {
 				obj := v.Object().Raw()
 				delete(obj, "created_at")
@@ -422,12 +414,14 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 
 			Context("Paging", func() {
 				Context("with max items query", func() {
-					It("returns smaller pages", func() {
+					It("returns smaller pages token and Link header", func() {
 						pageSize := 5
 						resp := ctx.SMWithOAuth.GET(t.API).WithQuery("max_items", pageSize).Expect().Status(http.StatusOK)
 
-						resp.JSON().Path("$.num_items").Number().Gt(0).Le(pageSize)
+						resp.Header("Link").Contains(fmt.Sprintf("<%s?max_items=%d&token=", t.API, pageSize)).Contains(`>; rel="next"`)
+						resp.JSON().Path("$.num_items").Number().Gt(0)
 						resp.JSON().Path("$.items[*]").Array().Length().Gt(0).Le(pageSize)
+						resp.JSON().Path("$.token").NotNull()
 					})
 				})
 				Context("with negative max items query", func() {
@@ -446,6 +440,43 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 
 						resp.Object().NotContainsKey("items")
 						resp.Path("$.num_items").Number().Gt(0)
+					})
+				})
+				When("there are no more pages", func() {
+					It("should not return token and Link header", func() {
+						resp := ctx.SMWithOAuth.GET(t.API).WithQuery("max_items", 0).Expect().Status(http.StatusOK)
+
+						resp.JSON().Object().NotContainsKey("items")
+						pageSize := resp.JSON().Path("$.num_items").Number().Raw()
+
+						resp = ctx.SMWithOAuth.GET(t.API).WithQuery("max_items", pageSize).Expect().Status(http.StatusOK)
+
+						resp.Header("Link").Empty()
+						resp.JSON().Object().NotContainsKey("token")
+						resp.JSON().Path("$.num_items").Number().Gt(0)
+						resp.JSON().Path("$.items[*]").Array().Length().Gt(0).Le(pageSize)
+					})
+				})
+				Context("with invalid token", func() {
+					executeWithInvalidToken := func(token string) {
+						ctx.SMWithOAuth.GET(t.API).WithQuery("token", token).Expect().Status(http.StatusBadRequest)
+					}
+					Context("no base64 encoded", func() {
+						It("returns 404", func() {
+							executeWithInvalidToken("invalid")
+						})
+					})
+					Context("non numerical", func() {
+						It("returns 404", func() {
+							token := base64.StdEncoding.EncodeToString([]byte("non-numerical"))
+							executeWithInvalidToken(token)
+						})
+					})
+					Context("negative value", func() {
+						It("returns 404", func() {
+							token := base64.StdEncoding.EncodeToString([]byte("-1"))
+							executeWithInvalidToken(token)
+						})
 					})
 				})
 			})
