@@ -81,7 +81,7 @@ func DescribeTestsFor(t TestCase) bool {
 				ctxBuilder.
 					WithTenantTokenClaims(t.MultitenancySettings.TokenClaims).
 					WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
-						smb.EnableMultitenancy(t.MultitenancySettings.LabelKey, multitenancy.ExtractTenatFromTokenWrapperFunc(t.MultitenancySettings.ClientID, t.MultitenancySettings.ClientIDTokenClaim, t.MultitenancySettings.TenantTokenClaim))
+						smb.EnableMultitenancy(t.MultitenancySettings.LabelKey, multitenancy.ExtractTenantFromTokenWrapperFunc(t.MultitenancySettings.ClientID, t.MultitenancySettings.ClientIDTokenClaim, t.MultitenancySettings.TenantTokenClaim))
 						return nil
 					})
 			}

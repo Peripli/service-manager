@@ -29,19 +29,19 @@ var _ = Describe("ExtractTenantFromToken", func() {
 
 	When("some configurations are missing", func() {
 		It("should return error for missing clientID", func() {
-			extractorFunc := multitenancy.ExtractTenatFromTokenWrapperFunc("", "clientid-claim", "tenant-claim")
+			extractorFunc := multitenancy.ExtractTenantFromTokenWrapperFunc("", "clientid-claim", "tenant-claim")
 			_, err := extractorFunc(nil)
 			Expect(err).Should(HaveOccurred())
 		})
 
 		It("should return error for missing clientIDTokenClaim", func() {
-			extractorFunc := multitenancy.ExtractTenatFromTokenWrapperFunc("clientid", "", "tenant-claim")
+			extractorFunc := multitenancy.ExtractTenantFromTokenWrapperFunc("clientid", "", "tenant-claim")
 			_, err := extractorFunc(nil)
 			Expect(err).Should(HaveOccurred())
 		})
 
 		It("should return error for missing tenantTokenClaim", func() {
-			extractorFunc := multitenancy.ExtractTenatFromTokenWrapperFunc("clientid", "clientid-claim", "")
+			extractorFunc := multitenancy.ExtractTenantFromTokenWrapperFunc("clientid", "clientid-claim", "")
 			_, err := extractorFunc(nil)
 			Expect(err).Should(HaveOccurred())
 		})
@@ -77,7 +77,7 @@ var _ = Describe("ExtractTenantFromToken", func() {
 		When("user is missing from context", func() {
 			It("should return empty tenant", func() {
 				fakeRequest.Request = fakeRequest.Request.WithContext(context.TODO())
-				extractorFunc := multitenancy.ExtractTenatFromTokenWrapperFunc(clientID, clientIDTokenClaim, tenantTokenClaim)
+				extractorFunc := multitenancy.ExtractTenantFromTokenWrapperFunc(clientID, clientIDTokenClaim, tenantTokenClaim)
 				extractedTenant, err := extractorFunc(fakeRequest)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(extractedTenant).To(Equal(""))
@@ -94,7 +94,7 @@ var _ = Describe("ExtractTenantFromToken", func() {
 					Name:               "test-user",
 					Attributes:         make(map[string]string),
 				}))
-				extractorFunc := multitenancy.ExtractTenatFromTokenWrapperFunc(clientID, clientIDTokenClaim, tenantTokenClaim)
+				extractorFunc := multitenancy.ExtractTenantFromTokenWrapperFunc(clientID, clientIDTokenClaim, tenantTokenClaim)
 				extractedTenant, err := extractorFunc(fakeRequest)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(extractedTenant).To(Equal(""))
@@ -112,7 +112,7 @@ var _ = Describe("ExtractTenantFromToken", func() {
 					Attributes:         make(map[string]string),
 				}))
 
-				extractorFunc := multitenancy.ExtractTenatFromTokenWrapperFunc(clientID, clientIDTokenClaim, tenantTokenClaim)
+				extractorFunc := multitenancy.ExtractTenantFromTokenWrapperFunc(clientID, clientIDTokenClaim, tenantTokenClaim)
 				extractedTenant, err := extractorFunc(fakeRequest)
 				Expect(err).Should(HaveOccurred())
 				Expect(extractedTenant).To(Equal(""))
@@ -121,7 +121,7 @@ var _ = Describe("ExtractTenantFromToken", func() {
 
 		When("client ID token claim is not found in the token claims", func() {
 			It("should return empty tenant", func() {
-				extractorFunc := multitenancy.ExtractTenatFromTokenWrapperFunc(clientID, "different-value", tenantTokenClaim)
+				extractorFunc := multitenancy.ExtractTenantFromTokenWrapperFunc(clientID, "different-value", tenantTokenClaim)
 				extractedTenant, err := extractorFunc(fakeRequest)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(extractedTenant).To(Equal(""))
@@ -130,7 +130,7 @@ var _ = Describe("ExtractTenantFromToken", func() {
 
 		When("tenant token claim is not found in the token claims", func() {
 			It("should return an error", func() {
-				extractorFunc := multitenancy.ExtractTenatFromTokenWrapperFunc(clientID, clientIDTokenClaim, "different-value")
+				extractorFunc := multitenancy.ExtractTenantFromTokenWrapperFunc(clientID, clientIDTokenClaim, "different-value")
 				extractedTenant, err := extractorFunc(fakeRequest)
 				Expect(err).Should(HaveOccurred())
 				Expect(extractedTenant).To(Equal(""))
@@ -139,7 +139,7 @@ var _ = Describe("ExtractTenantFromToken", func() {
 
 		When("authentication is bearer", func() {
 			It("should extract tenant from token", func() {
-				extractorFunc := multitenancy.ExtractTenatFromTokenWrapperFunc(clientID, clientIDTokenClaim, tenantTokenClaim)
+				extractorFunc := multitenancy.ExtractTenantFromTokenWrapperFunc(clientID, clientIDTokenClaim, tenantTokenClaim)
 				extractedTenant, err := extractorFunc(fakeRequest)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(extractedTenant).To(Equal(tenant))
