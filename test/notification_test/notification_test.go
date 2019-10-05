@@ -66,11 +66,13 @@ var _ = Describe("Notifications Suite", func() {
 		parsed := gjson.Parse(services)
 		for i := range parsed.Array() {
 			services, err = sjson.Delete(services, fmt.Sprintf("%d.updated_at", i))
+			services, err = sjson.Delete(services, fmt.Sprintf("%d.created_at", i))
 			Expect(err).ToNot(HaveOccurred())
 			service := gjson.Get(services, fmt.Sprintf("%d", i)).Raw
 			plans := gjson.Get(service, "plans")
 			for j := range plans.Array() {
 				services, err = sjson.Delete(services, fmt.Sprintf("%d.plans.%d.updated_at", i, j))
+				services, err = sjson.Delete(services, fmt.Sprintf("%d.plans.%d.created_at", i, j))
 				Expect(err).ToNot(HaveOccurred())
 			}
 		}
