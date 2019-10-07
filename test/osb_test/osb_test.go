@@ -350,7 +350,7 @@ var _ = Describe("Service Manager OSB API", func() {
 			var plan1, plan2, plan3 string
 			var plan1ID, plan1CatalogID, plan2ID, plan2CatalogID, plan3ID, plan3CatalogID string
 			var k8sPlatform *types.Platform
-			var k8sAgent *httpexpect.Expect
+			var k8sAgent *common.SMExpect
 
 			getSMPlanIDByCatalogID := func(planCatalogID string) string {
 				plans, err := ctx.SMRepository.List(context.Background(), types.ServicePlanType, query.ByField(query.EqualsOperator, "catalog_id", planCatalogID))
@@ -359,7 +359,7 @@ var _ = Describe("Service Manager OSB API", func() {
 				return plans.ItemAt(0).GetID()
 			}
 
-			assertBrokerPlansVisibleForPlatform := func(brokerID string, agent *httpexpect.Expect, plans ...interface{}) {
+			assertBrokerPlansVisibleForPlatform := func(brokerID string, agent *common.SMExpect, plans ...interface{}) {
 				result := agent.GET(fmt.Sprintf("%s/%s/v2/catalog", web.OSBURL, brokerID)).
 					Expect().Status(http.StatusOK).JSON().Path("$.services[*].plans[*].id").Array()
 
@@ -372,10 +372,10 @@ var _ = Describe("Service Manager OSB API", func() {
 			BeforeEach(func() {
 				k8sPlatformJSON := common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
 				k8sPlatform = common.RegisterPlatformInSM(k8sPlatformJSON, ctx.SMWithOAuth, map[string]string{})
-				k8sAgent = ctx.SM.Builder(func(req *httpexpect.Request) {
+				k8sAgent = &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
 					username, password := k8sPlatform.Credentials.Basic.Username, k8sPlatform.Credentials.Basic.Password
 					req.WithBasicAuth(username, password)
-				})
+				})}
 
 				catalog := common.NewEmptySBCatalog()
 				plan1 = common.GenerateFreeTestPlan()

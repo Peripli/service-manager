@@ -113,7 +113,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					}
 					queryString := q.Encode()
 
-					result := agent.ListWithQuery(web.ServicePlansURL, queryString)
+					result := agent.ListWithQuery(web.ServicePlansURL, queryString).Path("$[*].id").Array()
 					result.Length().Equal(len(plansIDs))
 					if len(plansIDs) > 0 {
 						result.ContainsOnly(plansIDs...)

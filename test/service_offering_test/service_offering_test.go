@@ -123,7 +123,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						q.Set(k, fmt.Sprint(v))
 					}
 					queryString := q.Encode()
-					result := agent.ListWithQuery(web.ServiceOfferingsURL, queryString)
+					result := agent.ListWithQuery(web.ServiceOfferingsURL, queryString).Path("$[*].id").Array()
 					result.Length().Equal(len(offerings))
 					if len(offerings) > 0 {
 						result.ContainsOnly(offerings...)

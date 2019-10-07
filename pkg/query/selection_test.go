@@ -30,11 +30,9 @@ import (
 var _ = Describe("Selection", func() {
 
 	var ctx context.Context
-	var validCriterion Criterion
 
 	BeforeEach(func() {
 		ctx = context.TODO()
-		validCriterion = ByField(EqualsOperator, "left", "right")
 	})
 
 	Describe("Add criteria to context", func() {
@@ -55,12 +53,6 @@ var _ = Describe("Selection", func() {
 				addInvalidCriterion(ByField(GreaterThanOrEqualOperator, "leftOp", "non-numeric"))
 				addInvalidCriterion(ByField(LessThanOperator, "leftOp", "non-numeric"))
 				addInvalidCriterion(ByField(LessThanOrEqualOperator, "leftOp", "non-numeric"))
-			})
-			Specify("Field query with duplicate key", func() {
-				var err error
-				ctx, err = AddCriteria(ctx, validCriterion)
-				Expect(err).ToNot(HaveOccurred())
-				addInvalidCriterion(ByField(EqualsOrNilOperator, validCriterion.LeftOp, "right op"))
 			})
 			Specify("Multiple limit criteria", func() {
 				var err error
