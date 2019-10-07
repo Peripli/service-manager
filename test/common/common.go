@@ -19,6 +19,8 @@ package common
 import (
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/web"
+
 	"github.com/onsi/ginkgo"
 	"github.com/spf13/pflag"
 
@@ -155,6 +157,17 @@ func RemoveNotNullableFieldAndLabels(obj Object, objithMandatoryFields Object) O
 	return o
 }
 
+func CopyLabels(obj Object) Object {
+	result := CopyObject(obj)
+	return (result["labels"]).(Object)
+}
+
+func CopyFields(obj Object) Object {
+	result := CopyObject(obj)
+	delete(result, "labels")
+	return result
+}
+
 func CopyObject(obj Object) Object {
 	o := Object{}
 	for k, v := range obj {
@@ -209,6 +222,29 @@ func RegisterBrokerInSM(brokerJSON Object, SM *httpexpect.Expect, headers map[st
 	return SM.POST("/v1/service_brokers").
 		WithHeaders(headers).
 		WithJSON(brokerJSON).Expect().Status(http.StatusCreated).JSON().Object().Raw()
+}
+
+func RegisterVisibilityForPlanAndPlatform(SM *httpexpect.Expect, planID, platformID string) {
+	SM.POST(web.VisibilitiesURL).WithJSON(Object{
+		"service_plan_id": planID,
+		"platform_id":     platformID,
+	}).Expect().Status(http.StatusCreated)
+}
+
+func CreateVisibilitiesForAllBrokerPlans(SM *httpexpect.Expect, brokerID string) {
+	offerings := SM.GET(web.ServiceOfferingsURL).WithQuery("fieldQuery", "broker_id = "+brokerID).
+		Expect().Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().Iter()
+	offeringIDs := make([]string, 0, len(offerings))
+	for _, offering := range offerings {
+		offeringIDs = append(offeringIDs, offering.Object().Value("id").String().Raw())
+	}
+	plans := SM.GET(web.ServicePlansURL).WithQuery("fieldQuery", fmt.Sprintf("service_offering_id in [%s]", strings.Join(offeringIDs, "||"))).
+		Expect().Status(http.StatusOK).JSON().Object().Value("service_plans").Array().Iter()
+	for _, p := range plans {
+		SM.POST(web.VisibilitiesURL).WithJSON(Object{
+			"service_plan_id": p.Object().Value("id").String().Raw(),
+		}).Expect().Status(http.StatusCreated)
+	}
 }
 
 func RegisterPlatformInSM(platformJSON Object, SM *httpexpect.Expect, headers map[string]string) *types.Platform {

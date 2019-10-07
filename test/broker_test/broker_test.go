@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/httpclient"
-
 	"github.com/Peripli/service-manager/pkg/web"
 
 	"github.com/Peripli/service-manager/storage"
@@ -471,7 +470,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("When label key has new line", func() {
 						It("Should return 400", func() {
 							labels[`key with
-	new line`] = common.Array{"label-value"}
+								new line`] = common.Array{"label-value"}
 							ctx.SMWithOAuth.POST("/v1/service_brokers").
 								WithJSON(postBrokerRequestWithLabels).
 								Expect().Status(http.StatusBadRequest).JSON().Object().Value("description").String().Contains("cannot contain whitespaces and special symbol")
@@ -481,9 +480,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("When label value has new line", func() {
 						It("Should return 400", func() {
 							labels["cluster_id"] = common.Array{`{
-	"key": "k1",
-	"val": "val1"
-	}`}
+								"key": "k1",
+								"val": "val1"
+								}`}
 							ctx.SMWithOAuth.POST("/v1/service_brokers").
 								WithJSON(postBrokerRequestWithLabels).
 								Expect().Status(http.StatusBadRequest)
