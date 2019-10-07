@@ -155,6 +155,17 @@ func RemoveNotNullableFieldAndLabels(obj Object, objithMandatoryFields Object) O
 	return o
 }
 
+func CopyLabels(obj Object) Object {
+	result := CopyObject(obj)
+	return (result["labels"]).(Object)
+}
+
+func CopyFields(obj Object) Object {
+	result := CopyObject(obj)
+	delete(result, "labels")
+	return result
+}
+
 func CopyObject(obj Object) Object {
 	o := Object{}
 	for k, v := range obj {
@@ -209,6 +220,27 @@ func RegisterBrokerInSM(brokerJSON Object, SM *SMExpect, headers map[string]stri
 	return SM.POST(web.ServiceBrokersURL).
 		WithHeaders(headers).
 		WithJSON(brokerJSON).Expect().Status(http.StatusCreated).JSON().Object().Raw()
+}
+
+func RegisterVisibilityForPlanAndPlatform(SM *SMExpect, planID, platformID string) {
+	SM.POST(web.VisibilitiesURL).WithJSON(Object{
+		"service_plan_id": planID,
+		"platform_id":     platformID,
+	}).Expect().Status(http.StatusCreated)
+}
+
+func CreateVisibilitiesForAllBrokerPlans(SM *SMExpect, brokerID string) {
+	offerings := SM.ListWithQuery(web.ServiceOfferingsURL, "fieldQuery=broker_id = "+brokerID).Iter()
+	offeringIDs := make([]string, 0, len(offerings))
+	for _, offering := range offerings {
+		offeringIDs = append(offeringIDs, offering.Object().Value("id").String().Raw())
+	}
+	plans := SM.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id in [%s]", strings.Join(offeringIDs, "||"))).Iter()
+	for _, p := range plans {
+		SM.POST(web.VisibilitiesURL).WithJSON(Object{
+			"service_plan_id": p.Object().Value("id").String().Raw(),
+		}).Expect().Status(http.StatusCreated)
+	}
 }
 
 func RegisterPlatformInSM(platformJSON Object, SM *SMExpect, headers map[string]string) *types.Platform {

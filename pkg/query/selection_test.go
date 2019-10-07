@@ -242,6 +242,13 @@ var _ = Describe("Selection", func() {
 				Expect(criteriaFromRequest).To(ConsistOf(expectedQuery))
 			})
 		})
+		Context("Right operand with new lines", func() {
+			It("Should return error", func() {
+				_, err := AddCriteria(context.Background(), ByField(EqualsOperator, "left", `right
+					op`))
+				Expect(err).To(HaveOccurred())
+			})
+		})
 		Context("Complex right operand", func() {
 			It("Should be okay", func() {
 				rightOp := "this is a mixed, input example. It contains symbols   words ! -h@ppy p@rs|ng"
@@ -255,10 +262,12 @@ var _ = Describe("Selection", func() {
 		})
 
 		Context("Duplicate field query key", func() {
-			It("Should return error", func() {
+			It("Should be okay", func() {
 				criteriaFromRequest, err := buildCriteria(`http://localhost:8080/v1/visibilities?fieldQuery=leftop1 = rightop|leftop1 = rightop2`)
-				Expect(err).To(HaveOccurred())
-				Expect(criteriaFromRequest).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
+				Expect(criteriaFromRequest).To(ConsistOf(
+					ByField(EqualsOperator, "leftop1", "rightop"),
+					ByField(EqualsOperator, "leftop1", "rightop2")))
 			})
 		})
 

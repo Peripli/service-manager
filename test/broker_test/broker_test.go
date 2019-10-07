@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/httpclient"
-
 	"github.com/Peripli/service-manager/pkg/web"
 
 	"github.com/Peripli/service-manager/storage"

@@ -18,7 +18,9 @@ package service_test
 
 import (
 	"fmt"
+	"github.com/gavv/httpexpect"
 	"net/http"
+	"net/url"
 	"testing"
 
 	"github.com/Peripli/service-manager/pkg/query"
@@ -92,6 +94,169 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					})
 				})
+			})
+
+			Describe("GET", func() {
+				var k8sPlatform *types.Platform
+				var k8sAgent *common.SMExpect
+
+				assertPlanForPlatformByID := func(agent *common.SMExpect, planID string, status int) {
+					k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServicePlansURL, planID)).
+						Expect().
+						Status(status)
+				}
+
+				assertPlansForPlatformWithQuery := func(agent *common.SMExpect, query map[string]interface{}, plansIDs ...interface{}) {
+					q := url.Values{}
+					for k, v := range query {
+						q.Set(k, fmt.Sprint(v))
+					}
+					queryString := q.Encode()
+
+					result := agent.ListWithQuery(web.ServicePlansURL, queryString)
+					result.Length().Equal(len(plansIDs))
+					if len(plansIDs) > 0 {
+						result.ContainsOnly(plansIDs...)
+					}
+				}
+
+				assertPlansForPlatform := func(agent *common.SMExpect, plansIDs ...interface{}) {
+					assertPlansForPlatformWithQuery(agent, nil, plansIDs...)
+				}
+
+				BeforeEach(func() {
+					k8sPlatformJSON := common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
+					k8sPlatform = common.RegisterPlatformInSM(k8sPlatformJSON, ctx.SMWithOAuth, map[string]string{})
+					k8sAgent = &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
+						username, password := k8sPlatform.Credentials.Basic.Username, k8sPlatform.Credentials.Basic.Password
+						req.WithBasicAuth(username, password)
+					})}
+				})
+
+				AfterEach(func() {
+					ctx.CleanupAdditionalResources()
+				})
+
+				Context("with k8s platform credentials", func() {
+					var plan common.Object
+					var planID string
+					BeforeEach(func() {
+						plan = blueprint(ctx, ctx.SMWithOAuth)
+						planID = plan["id"].(string)
+					})
+
+					Context("with no visibilities", func() {
+						It("should return empty plans", func() {
+							assertPlanForPlatformByID(k8sAgent, planID, http.StatusNotFound)
+							assertPlansForPlatform(k8sAgent, nil...)
+						})
+
+						It("should not list plan with field query plan id", func() {
+							assertPlansForPlatformWithQuery(k8sAgent,
+								map[string]interface{}{
+									"fieldQuery": fmt.Sprintf("id = %s", planID),
+								}, nil...)
+						})
+
+						It("should not list plan with field query catalog name", func() {
+							planCatalogName := plan["catalog_name"].(string)
+							Expect(planCatalogName).To(Not(BeEmpty()))
+							assertPlansForPlatformWithQuery(k8sAgent,
+								map[string]interface{}{
+									"fieldQuery": fmt.Sprintf("catalog_name = %s", planCatalogName),
+								}, nil...)
+						})
+					})
+
+					Context("with public visibility for plan", func() {
+						It("should return only this plan", func() {
+							assertPlanForPlatformByID(k8sAgent, planID, http.StatusNotFound)
+							assertPlansForPlatform(k8sAgent, nil...)
+
+							common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, planID, "")
+
+							assertPlanForPlatformByID(k8sAgent, planID, http.StatusOK)
+							assertPlansForPlatform(k8sAgent, planID)
+						})
+					})
+
+					Context("with additional plan", func() {
+						var plan2 common.Object
+						var plan2ID string
+						BeforeEach(func() {
+							plan2 = blueprint(ctx, ctx.SMWithOAuth)
+							plan2ID = plan2["id"].(string)
+						})
+
+						Context("with no visiblities", func() {
+							It("should not return either of them", func() {
+								assertPlanForPlatformByID(k8sAgent, planID, http.StatusNotFound)
+								assertPlanForPlatformByID(k8sAgent, plan2ID, http.StatusNotFound)
+								assertPlansForPlatform(k8sAgent, nil...)
+							})
+						})
+
+						Context("with visibility for one plan", func() {
+							BeforeEach(func() {
+								common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, planID, "")
+							})
+
+							It("should return only one plan for get operation", func() {
+								assertPlanForPlatformByID(k8sAgent, planID, http.StatusOK)
+								assertPlanForPlatformByID(k8sAgent, plan2ID, http.StatusNotFound)
+								assertPlansForPlatform(k8sAgent, planID)
+							})
+
+							It("should return only one plan with id in field query", func() {
+								assertPlansForPlatformWithQuery(k8sAgent,
+									map[string]interface{}{
+										"fieldQuery": fmt.Sprintf("id in [%s]", planID+"||"+plan2ID),
+									}, planID)
+							})
+
+							It("should return empty plan list with id equal not visible plan field query", func() {
+								assertPlansForPlatformWithQuery(k8sAgent,
+									map[string]interface{}{
+										"fieldQuery": fmt.Sprintf("id = %s", plan2ID),
+									}, nil...)
+							})
+
+							It("should return only one plan with id not in field query", func() {
+								assertPlansForPlatformWithQuery(k8sAgent,
+									map[string]interface{}{
+										"fieldQuery": fmt.Sprintf("id notin [%s]", plan2ID),
+									}, planID)
+							})
+
+							It("should return only empty plan list with id in not visible id field query", func() {
+								assertPlansForPlatformWithQuery(k8sAgent,
+									map[string]interface{}{
+										"fieldQuery": fmt.Sprintf("id in [%s]", plan2ID),
+									}, nil...)
+							})
+
+							It("should return only one plan with catalog_name in query", func() {
+								plan1CatalogName := plan["catalog_name"].(string)
+								plan2CatalogName := plan2["catalog_name"].(string)
+
+								assertPlansForPlatformWithQuery(k8sAgent,
+									map[string]interface{}{
+										"fieldQuery": fmt.Sprintf("catalog_name in [%s]", plan1CatalogName+"||"+plan2CatalogName),
+									}, planID)
+							})
+
+							It("should return only one plan with catalog_name not in query", func() {
+								plan1CatalogName := plan["catalog_name"].(string)
+								assertPlansForPlatformWithQuery(k8sAgent,
+									map[string]interface{}{
+										"fieldQuery": fmt.Sprintf("catalog_name notin [%s]", plan1CatalogName),
+									}, nil...)
+							})
+						})
+
+					})
+				})
+
 			})
 
 			Describe("Labelled", func() {

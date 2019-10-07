@@ -233,17 +233,9 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 				expectedStatusCode:        http.StatusOK,
 			},
 		),
-
 		Entry("returns 400 when query operator is invalid",
 			listOpEntry{
 				queryTemplate:      "%s @@ %v",
-				queryArgs:          r[0],
-				expectedStatusCode: http.StatusBadRequest,
-			},
-		),
-		Entry("returns 400 when query is duplicated",
-			listOpEntry{
-				queryTemplate:      "%[1]s = %[2]v|%[1]s = %[2]v",
 				queryArgs:          r[0],
 				expectedStatusCode: http.StatusBadRequest,
 			},
@@ -253,6 +245,22 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 				queryTemplate:      "%s =%v",
 				queryArgs:          r[0],
 				expectedStatusCode: http.StatusBadRequest,
+			},
+		),
+		Entry("returns 400 when label query is duplicated",
+			listOpEntry{
+				queryTemplate: "%[1]s = %[2]v|%[1]s = %[2]v",
+				queryArgs: common.Object{
+					"labels": common.CopyLabels(r[0]),
+				},
+				expectedStatusCode: http.StatusBadRequest,
+			},
+		),
+		Entry("returns 200 when field query is duplicated",
+			listOpEntry{
+				queryTemplate:      "%[1]s = %[2]v|%[1]s = %[2]v",
+				queryArgs:          common.CopyFields(r[0]),
+				expectedStatusCode: http.StatusOK,
 			},
 		),
 		Entry("returns 400 when operator is not properly separated with left space from operands",
