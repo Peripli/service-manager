@@ -38,15 +38,15 @@ On Windows adapt the shell variable syntax accordingly.
 
 Get the curent schema version:
 ```sh
-migrate -source "file://$MIGRATIONS" -database $DATABASE version
+migrate -source "file://$MIGRATIONS" -database "$DATABASE" version
 ```
 Go to specific version:
 ```sh
-migrate -source "file://$MIGRATIONS" -database $DATABASE goto $SCHEMA_VERSION
+migrate -source "file://$MIGRATIONS" -database "$DATABASE" goto $SCHEMA_VERSION
 ```
 
 ## Troubleshooting
-A common problem when switching SM versions is this error during startup"
+A common problem when switching SM versions is this error during startup:
 ```
 ERR panic: unbale to construct service-manager builder: error opening storage: error opening storage: could not update database schema: file does not exist
 ```
