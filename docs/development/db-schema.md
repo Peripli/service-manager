@@ -52,6 +52,8 @@ ERR panic: unbale to construct service-manager builder: error opening storage: e
 ```
 The reason usually is that an older version of SM was started after a newer one has updated the db schema.
 The older version is unaware of the new schema version and bails out with this error.
+See [this issue](https://github.com/golang-migrate/migrate/issues/79) in _migrate_.
+
 Normally SM should be updated only to newer versions.
 If for some reason it is necessary to downgrade it to an older version,
 then the db schame should be downgraded to the corresponding version too.
