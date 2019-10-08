@@ -6,8 +6,6 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	"github.com/gavv/httpexpect"
-
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 )
@@ -17,7 +15,7 @@ func DescribePatchTestsFor(ctx *common.TestContext, t TestCase) bool {
 		var testResource common.Object
 		var testResourceID string
 
-		createTestResourceWithAuth := func(auth *httpexpect.Expect) {
+		createTestResourceWithAuth := func(auth *common.SMExpect) {
 			testResource = t.ResourceBlueprint(ctx, auth)
 			By(fmt.Sprintf("[SETUP]: Verifying that test resource %v is not empty", testResource))
 			Expect(testResource).ToNot(BeEmpty())

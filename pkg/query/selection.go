@@ -226,6 +226,9 @@ func mergeCriteria(c1 []Criterion, c2 []Criterion) ([]Criterion, error) {
 		}
 	}
 	result = append(result, c2...)
+	if err := validateWholeCriteria(result...); err != nil {
+		return nil, err
+	}
 	return result, nil
 }
 
@@ -251,8 +254,11 @@ func CriteriaForContext(ctx context.Context) []Criterion {
 }
 
 // ContextWithCriteria returns a new context with given criteria
-func ContextWithCriteria(ctx context.Context, criteria []Criterion) context.Context {
-	return context.WithValue(ctx, criteriaCtxKey{}, criteria)
+func ContextWithCriteria(ctx context.Context, criteria ...Criterion) (context.Context, error) {
+	if err := validateWholeCriteria(criteria...); err != nil {
+		return nil, err
+	}
+	return context.WithValue(ctx, criteriaCtxKey{}, criteria), nil
 }
 
 // BuildCriteriaFromRequest builds criteria for the given request's query params and returns an error if the query is not valid
@@ -326,6 +332,9 @@ func process(input string, criteriaType CriterionType) ([]Criterion, error) {
 			Message: fmt.Sprintf("%s is not a valid %s", input, criteriaType),
 		}
 	}
+	if err := validateWholeCriteria(c...); err != nil {
+		return nil, err
+	}
 	return c, nil
 }
 
@@ -393,4 +402,17 @@ func isNumeric(str string) bool {
 func isDateTime(str string) bool {
 	_, err := time.Parse(time.RFC3339, str)
 	return err == nil
+}
+
+func validateWholeCriteria(criteria ...Criterion) error {
+	isLimited := false
+	for _, criterion := range criteria {
+		if criterion.LeftOp == Limit {
+			if isLimited {
+				return fmt.Errorf("zero/one limit criterion expected but multiple provided")
+			}
+			isLimited = true
+		}
+	}
+	return nil
 }

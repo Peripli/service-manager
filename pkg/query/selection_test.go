@@ -54,6 +54,12 @@ var _ = Describe("Selection", func() {
 				addInvalidCriterion(ByField(LessThanOperator, "leftOp", "non-numeric"))
 				addInvalidCriterion(ByField(LessThanOrEqualOperator, "leftOp", "non-numeric"))
 			})
+			Specify("Multiple limit criteria", func() {
+				var err error
+				ctx, err = AddCriteria(ctx, LimitResultBy(10))
+				Expect(err).ShouldNot(HaveOccurred())
+				addInvalidCriterion(LimitResultBy(5))
+			})
 		})
 
 		Context("Valid", func() {
@@ -78,21 +84,32 @@ var _ = Describe("Selection", func() {
 		Context("When there are no criteria in the context", func() {
 			It("Adds the new ones", func() {
 				newCriteria := []Criterion{ByField(EqualsOperator, "leftOp", "rightOp")}
-				newContext := ContextWithCriteria(ctx, newCriteria)
+				newContext, err := ContextWithCriteria(ctx, newCriteria...)
+				Expect(err).ShouldNot(HaveOccurred())
 				Expect(CriteriaForContext(newContext)).To(ConsistOf(newCriteria))
 			})
 		})
-
 		Context("When there are criteria already in the context", func() {
 			It("Overrides them", func() {
 				oldCriteria := []Criterion{ByField(EqualsOperator, "leftOp", "rightOp")}
-				oldContext := ContextWithCriteria(ctx, oldCriteria)
+				oldContext, err := ContextWithCriteria(ctx, oldCriteria...)
+				Expect(err).ShouldNot(HaveOccurred())
 
 				newCriteria := []Criterion{ByLabel(NotEqualsOperator, "leftOp1", "rightOp1")}
-				newContext := ContextWithCriteria(oldContext, newCriteria)
+				newContext, err := ContextWithCriteria(oldContext, newCriteria...)
+				Expect(err).ShouldNot(HaveOccurred())
+
 				criteriaForNewContext := CriteriaForContext(newContext)
 				Expect(criteriaForNewContext).To(ConsistOf(newCriteria))
 				Expect(criteriaForNewContext).ToNot(ContainElement(oldCriteria[0]))
+			})
+		})
+		Context("When limit is already in the context adding it again", func() {
+			It("should return error", func() {
+				ctx, err := ContextWithCriteria(ctx, LimitResultBy(10), LimitResultBy(5))
+				Expect(err).Should(HaveOccurred())
+				Expect(ctx).Should(BeNil())
+
 			})
 		})
 	})

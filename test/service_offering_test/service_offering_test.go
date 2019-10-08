@@ -19,14 +19,14 @@ package service_test
 import (
 	"context"
 	"fmt"
+	"github.com/gavv/httpexpect"
 	"net/http"
+	"net/url"
 	"testing"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/gavv/httpexpect"
-
 	"github.com/Peripli/service-manager/test/common"
 
 	"github.com/Peripli/service-manager/test"
@@ -101,7 +101,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 			Describe("GET", func() {
 				var k8sPlatform *types.Platform
-				var k8sAgent *httpexpect.Expect
+				var k8sAgent *common.SMExpect
 				var offering common.Object
 
 				getPlansByOffering := func(offeringID string) *types.ServicePlan {
@@ -111,37 +111,36 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					return (plans.(*types.ServicePlans)).ServicePlans[0]
 				}
 
-				assertOfferingForPlatformByID := func(agent *httpexpect.Expect, offeringID interface{}, status int) {
+				assertOfferingForPlatformByID := func(agent *common.SMExpect, offeringID interface{}, status int) {
 					k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offeringID.(string))).
 						Expect().
 						Status(status)
 				}
 
-				assertOfferingsForPlatformWithQuery := func(agent *httpexpect.Expect, query map[string]interface{}, offerings ...interface{}) {
-					req := agent.GET(web.ServiceOfferingsURL)
+				assertOfferingsForPlatformWithQuery := func(agent *common.SMExpect, query map[string]interface{}, offerings ...interface{}) {
+					q := url.Values{}
 					for k, v := range query {
-						req = req.WithQuery(k, v)
+						q.Set(k, fmt.Sprint(v))
 					}
-
-					result := req.Expect().
-						Status(http.StatusOK).JSON().Path("$.service_offerings[*].id").Array()
+					queryString := q.Encode()
+					result := agent.ListWithQuery(web.ServiceOfferingsURL, queryString).Path("$[*].id").Array()
 					result.Length().Equal(len(offerings))
 					if len(offerings) > 0 {
 						result.ContainsOnly(offerings...)
 					}
 				}
 
-				assertOfferingsForPlatform := func(agent *httpexpect.Expect, offerings ...interface{}) {
+				assertOfferingsForPlatform := func(agent *common.SMExpect, offerings ...interface{}) {
 					assertOfferingsForPlatformWithQuery(agent, nil, offerings...)
 				}
 
 				BeforeEach(func() {
 					k8sPlatformJSON := common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
 					k8sPlatform = common.RegisterPlatformInSM(k8sPlatformJSON, ctx.SMWithOAuth, map[string]string{})
-					k8sAgent = ctx.SM.Builder(func(req *httpexpect.Request) {
+					k8sAgent = &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
 						username, password := k8sPlatform.Credentials.Basic.Username, k8sPlatform.Credentials.Basic.Password
 						req.WithBasicAuth(username, password)
-					})
+					})}
 					offering = blueprint(ctx, ctx.SMWithOAuth)
 				})
 
@@ -471,15 +470,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func blueprint(ctx *common.TestContext, auth *httpexpect.Expect) common.Object {
+func blueprint(ctx *common.TestContext, auth *common.SMExpect) common.Object {
 	cService := common.GenerateTestServiceWithPlans(common.GenerateFreeTestPlan())
 	catalog := common.NewEmptySBCatalog()
 	catalog.AddService(cService)
 	id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
 
-	so := auth.GET(web.ServiceOfferingsURL).WithQuery("fieldQuery", "broker_id = "+id).
-		Expect().
-		Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().First()
-
-	return so.Object().Raw()
+	return auth.ListWithQuery(web.ServiceOfferingsURL, "fieldQuery=broker_id = "+id).First().Object().Raw()
 }

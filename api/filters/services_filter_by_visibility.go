@@ -19,11 +19,6 @@ func NewServicesFilterByVisibility(repository storage.Repository) *ServicesFilte
 		visibilityFilteringMiddleware: &visibilityFilteringMiddleware{
 			ListResourcesCriteria: servicesCriteriaFunc(repository),
 			IsResourceVisible:     isServiceVisible(repository),
-			EmptyObjectListProvider: func() types.ObjectList {
-				return &types.ServiceOfferings{
-					ServiceOfferings: []*types.ServiceOffering{},
-				}
-			},
 		},
 	}
 }

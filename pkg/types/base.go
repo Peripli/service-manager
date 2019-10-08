@@ -19,10 +19,11 @@ package types
 import "time"
 
 type Base struct {
-	ID        string    `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Labels    Labels    `json:"labels,omitempty"`
+	ID             string    `json:"id"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+	Labels         Labels    `json:"labels,omitempty"`
+	PagingSequence int64     `json:"-"`
 }
 
 func (e *Base) SetID(id string) {
@@ -55,4 +56,8 @@ func (e *Base) SetLabels(labels Labels) {
 
 func (e *Base) GetLabels() Labels {
 	return e.Labels
+}
+
+func (e *Base) GetPagingSequence() int64 {
+	return e.PagingSequence
 }

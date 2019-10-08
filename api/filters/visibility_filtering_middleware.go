@@ -15,9 +15,8 @@ import (
 )
 
 type visibilityFilteringMiddleware struct {
-	IsResourceVisible       func(ctx context.Context, resourceID, platformID string) (bool, error)
-	ListResourcesCriteria   func(ctx context.Context, platformID string) (*query.Criterion, error)
-	EmptyObjectListProvider func() types.ObjectList
+	IsResourceVisible     func(ctx context.Context, resourceID, platformID string) (bool, error)
+	ListResourcesCriteria func(ctx context.Context, platformID string) (*query.Criterion, error)
 }
 
 func (m visibilityFilteringMiddleware) Run(req *web.Request, next web.Handler) (*web.Response, error) {
@@ -61,7 +60,7 @@ func (m visibilityFilteringMiddleware) Run(req *web.Request, next web.Handler) (
 		return nil, err
 	}
 	if finalQuery == nil {
-		return util.NewJSONResponse(http.StatusOK, m.EmptyObjectListProvider())
+		return util.NewJSONResponse(http.StatusOK, types.ObjectPage{Items: make([]types.Object, 0)})
 	}
 
 	ctx, err = query.AddCriteria(ctx, *finalQuery)

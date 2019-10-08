@@ -17,6 +17,7 @@
 package auth_test
 
 import (
+	"github.com/Peripli/service-manager/pkg/web"
 	"net/http"
 	"testing"
 
@@ -56,11 +57,11 @@ var _ = Describe("Service Manager Authentication", func() {
 
 	Context("Nontrivial scenarios", func() {
 		It("Forbidden broker registration with basic auth", func() {
-			ctx.SMWithBasic.GET("/v1/service_brokers").
+			ctx.SMWithBasic.GET(web.ServiceBrokersURL).
 				Expect().
 				Status(http.StatusOK)
 
-			ctx.SMWithBasic.POST("/v1/service_brokers").
+			ctx.SMWithBasic.POST(web.ServiceBrokersURL).
 				WithHeader("Content-type", "application/json").
 				WithJSON(common.Object{}).
 				Expect().
@@ -72,56 +73,56 @@ var _ = Describe("Service Manager Authentication", func() {
 	Context("Failing security scenarios", func() {
 		authRequests := []struct{ name, method, path, authHeader string }{
 			// PLATFORMS
-			{"Missing authorization header", "GET", "/v1/platforms/999", ""},
-			{"Invalid authorization schema", "GET", "/v1/platforms/999", "Basic abc"},
-			{"Missing token in authorization header", "GET", "/v1/platforms/999", "Bearer "},
-			{"Invalid token in authorization header", "GET", "/v1/platforms/999", "Bearer abc"},
+			{"Missing authorization header", "GET", web.PlatformsURL + "/999", ""},
+			{"Invalid authorization schema", "GET", web.PlatformsURL + "/999", "Basic abc"},
+			{"Missing token in authorization header", "GET", web.PlatformsURL + "/999", "Bearer "},
+			{"Invalid token in authorization header", "GET", web.PlatformsURL + "/999", "Bearer abc"},
 
-			{"Missing authorization header", "GET", "/v1/platforms", ""},
-			{"Invalid authorization schema", "GET", "/v1/platforms", "Basic abc"},
-			{"Missing token in authorization header", "GET", "/v1/platforms", "Bearer "},
-			{"Invalid token in authorization header", "GET", "/v1/platforms", "Bearer abc"},
+			{"Missing authorization header", "GET", web.PlatformsURL, ""},
+			{"Invalid authorization schema", "GET", web.PlatformsURL, "Basic abc"},
+			{"Missing token in authorization header", "GET", web.PlatformsURL, "Bearer "},
+			{"Invalid token in authorization header", "GET", web.PlatformsURL, "Bearer abc"},
 
-			{"Missing authorization header", "POST", "/v1/platforms", ""},
-			{"Invalid authorization schema", "POST", "/v1/platforms", "Basic abc"},
-			{"Missing token in authorization header", "POST", "/v1/platforms", "Bearer "},
-			{"Invalid token in authorization header", "POST", "/v1/platforms", "Bearer abc"},
+			{"Missing authorization header", "POST", web.PlatformsURL, ""},
+			{"Invalid authorization schema", "POST", web.PlatformsURL, "Basic abc"},
+			{"Missing token in authorization header", "POST", web.PlatformsURL, "Bearer "},
+			{"Invalid token in authorization header", "POST", web.PlatformsURL, "Bearer abc"},
 
-			{"Missing authorization header", "PATCH", "/v1/platforms/999", ""},
-			{"Invalid authorization schema", "PATCH", "/v1/platforms/999", "Basic abc"},
-			{"Missing token in authorization header", "PATCH", "/v1/platforms/999", "Bearer "},
-			{"Invalid token in authorization header", "PATCH", "/v1/platforms/999", "Bearer abc"},
+			{"Missing authorization header", "PATCH", web.PlatformsURL + "/999", ""},
+			{"Invalid authorization schema", "PATCH", web.PlatformsURL + "/999", "Basic abc"},
+			{"Missing token in authorization header", "PATCH", web.PlatformsURL + "/999", "Bearer "},
+			{"Invalid token in authorization header", "PATCH", web.PlatformsURL + "/999", "Bearer abc"},
 
-			{"Missing authorization header", "DELETE", "/v1/platforms/999", ""},
-			{"Invalid authorization schema", "DELETE", "/v1/platforms/999", "Basic abc"},
-			{"Missing token in authorization header", "DELETE", "/v1/platforms/999", "Bearer "},
-			{"Invalid token in authorization header", "DELETE", "/v1/platforms/999", "Bearer abc"},
+			{"Missing authorization header", "DELETE", web.PlatformsURL + "/999", ""},
+			{"Invalid authorization schema", "DELETE", web.PlatformsURL + "/999", "Basic abc"},
+			{"Missing token in authorization header", "DELETE", web.PlatformsURL + "/999", "Bearer "},
+			{"Invalid token in authorization header", "DELETE", web.PlatformsURL + "/999", "Bearer abc"},
 
 			// BROKERS
-			{"Missing authorization header", "GET", "/v1/service_brokers/999", ""},
-			{"Invalid authorization schema", "GET", "/v1/service_brokers/999", "Basic abc"},
-			{"Missing token in authorization header", "GET", "/v1/service_brokers/999", "Bearer "},
-			{"Invalid token in authorization header", "GET", "/v1/service_brokers/999", "Bearer abc"},
+			{"Missing authorization header", "GET", web.ServiceBrokersURL + "/999", ""},
+			{"Invalid authorization schema", "GET", web.ServiceBrokersURL + "/999", "Basic abc"},
+			{"Missing token in authorization header", "GET", web.ServiceBrokersURL + "/999", "Bearer "},
+			{"Invalid token in authorization header", "GET", web.ServiceBrokersURL + "/999", "Bearer abc"},
 
-			{"Missing authorization header", "GET", "/v1/service_brokers", ""},
-			{"Invalid authorization schema", "GET", "/v1/service_brokers", "Basic abc"},
-			{"Missing token in authorization header", "GET", "/v1/service_brokers", "Bearer "},
-			{"Invalid token in authorization header", "GET", "/v1/service_brokers", "Bearer abc"},
+			{"Missing authorization header", "GET", web.ServiceBrokersURL, ""},
+			{"Invalid authorization schema", "GET", web.ServiceBrokersURL, "Basic abc"},
+			{"Missing token in authorization header", "GET", web.ServiceBrokersURL, "Bearer "},
+			{"Invalid token in authorization header", "GET", web.ServiceBrokersURL, "Bearer abc"},
 
-			{"Missing authorization header", "POST", "/v1/service_brokers", ""},
-			{"Invalid authorization schema", "POST", "/v1/service_brokers", "Basic abc"},
-			{"Missing token in authorization header", "POST", "/v1/service_brokers", "Bearer "},
-			{"Invalid token in authorization header", "POST", "/v1/service_brokers", "Bearer abc"},
+			{"Missing authorization header", "POST", web.ServiceBrokersURL, ""},
+			{"Invalid authorization schema", "POST", web.ServiceBrokersURL, "Basic abc"},
+			{"Missing token in authorization header", "POST", web.ServiceBrokersURL, "Bearer "},
+			{"Invalid token in authorization header", "POST", web.ServiceBrokersURL, "Bearer abc"},
 
-			{"Missing authorization header", "PATCH", "/v1/service_brokers/999", ""},
-			{"Invalid authorization schema", "PATCH", "/v1/service_brokers/999", "Basic abc"},
-			{"Missing token in authorization header", "PATCH", "/v1/service_brokers/999", "Bearer "},
-			{"Invalid token in authorization header", "PATCH", "/v1/service_brokers/999", "Bearer abc"},
+			{"Missing authorization header", "PATCH", web.ServiceBrokersURL + "/999", ""},
+			{"Invalid authorization schema", "PATCH", web.ServiceBrokersURL + "/999", "Basic abc"},
+			{"Missing token in authorization header", "PATCH", web.ServiceBrokersURL + "/999", "Bearer "},
+			{"Invalid token in authorization header", "PATCH", web.ServiceBrokersURL + "/999", "Bearer abc"},
 
-			{"Missing authorization header", "DELETE", "/v1/service_brokers/999", ""},
-			{"Invalid authorization schema", "DELETE", "/v1/service_brokers/999", "Basic abc"},
-			{"Missing token in authorization header", "DELETE", "/v1/service_brokers/999", "Bearer "},
-			{"Invalid token in authorization header", "DELETE", "/v1/service_brokers/999", "Bearer abc"},
+			{"Missing authorization header", "DELETE", web.ServiceBrokersURL + "/999", ""},
+			{"Invalid authorization schema", "DELETE", web.ServiceBrokersURL + "/999", "Basic abc"},
+			{"Missing token in authorization header", "DELETE", web.ServiceBrokersURL + "/999", "Bearer "},
+			{"Invalid token in authorization header", "DELETE", web.ServiceBrokersURL + "/999", "Bearer abc"},
 
 			// OSB
 			{"Missing authorization header", "GET", "/v1/osb/999/v2/catalog", ""},
@@ -145,63 +146,63 @@ var _ = Describe("Service Manager Authentication", func() {
 			{"Invalid token in authorization header", "DELETE", "/v1/osb/999/v2/service_instances/111/service_bindings/222", "Bearer abc"},
 
 			// SERVICE OFFERINGS
-			{"Missing authorization header", "GET", "/v1/service_offerings/999", ""},
-			{"Invalid basic credentials", "GET", "/v1/service_offerings/999", "Basic abc"},
-			{"Missing token in authorization header", "GET", "/v1/service_offerings/999", "Bearer "},
-			{"Invalid token in authorization header", "GET", "/v1/service_offerings/999", "Bearer abc"},
+			{"Missing authorization header", "GET", web.ServiceOfferingsURL + "/999", ""},
+			{"Invalid basic credentials", "GET", web.ServiceOfferingsURL + "/999", "Basic abc"},
+			{"Missing token in authorization header", "GET", web.ServiceOfferingsURL + "/999", "Bearer "},
+			{"Invalid token in authorization header", "GET", web.ServiceOfferingsURL + "/999", "Bearer abc"},
 
-			{"Missing authorization header", "GET", "/v1/service_offerings", ""},
-			{"Invalid basic credentials", "GET", "/v1/service_offerings", "Basic abc"},
-			{"Missing token in authorization header", "GET", "/v1/service_offerings", "Bearer "},
-			{"Invalid token in authorization header", "GET", "/v1/service_offerings", "Bearer abc"},
+			{"Missing authorization header", "GET", web.ServiceOfferingsURL, ""},
+			{"Invalid basic credentials", "GET", web.ServiceOfferingsURL, "Basic abc"},
+			{"Missing token in authorization header", "GET", web.ServiceOfferingsURL, "Bearer "},
+			{"Invalid token in authorization header", "GET", web.ServiceOfferingsURL, "Bearer abc"},
 
 			// SERVICE PLANS
-			{"Missing authorization header", "GET", "/v1/service_plans/999", ""},
-			{"Invalid basic credentials", "GET", "/v1/service_plans/999", "Basic abc"},
-			{"Missing token in authorization header", "GET", "/v1/service_plans/999", "Bearer "},
-			{"Invalid token in authorization header", "GET", "/v1/service_plans/999", "Bearer abc"},
+			{"Missing authorization header", "GET", web.ServicePlansURL + "/999", ""},
+			{"Invalid basic credentials", "GET", web.ServicePlansURL + "/999", "Basic abc"},
+			{"Missing token in authorization header", "GET", web.ServicePlansURL + "/999", "Bearer "},
+			{"Invalid token in authorization header", "GET", web.ServicePlansURL + "/999", "Bearer abc"},
 
-			{"Missing authorization header", "GET", "/v1/service_plans", ""},
-			{"Invalid basic credentials", "GET", "/v1/service_plans", "Basic abc"},
-			{"Missing token in authorization header", "GET", "/v1/service_plans", "Bearer "},
-			{"Invalid token in authorization header", "GET", "/v1/service_plans", "Bearer abc"},
+			{"Missing authorization header", "GET", web.ServicePlansURL, ""},
+			{"Invalid basic credentials", "GET", web.ServicePlansURL, "Basic abc"},
+			{"Missing token in authorization header", "GET", web.ServicePlansURL, "Bearer "},
+			{"Invalid token in authorization header", "GET", web.ServicePlansURL, "Bearer abc"},
 
 			// VISIBILITIES
-			{"Missing authorization header", "GET", "/v1/visibilities/999", ""},
-			{"Invalid authorization schema", "GET", "/v1/visibilities/999", "Basic abc"},
-			{"Missing token in authorization header", "GET", "/v1/visibilities/999", "Bearer "},
-			{"Invalid token in authorization header", "GET", "/v1/visibilities/999", "Bearer abc"},
+			{"Missing authorization header", "GET", web.VisibilitiesURL + "/999", ""},
+			{"Invalid authorization schema", "GET", web.VisibilitiesURL + "/999", "Basic abc"},
+			{"Missing token in authorization header", "GET", web.VisibilitiesURL + "/999", "Bearer "},
+			{"Invalid token in authorization header", "GET", web.VisibilitiesURL + "/999", "Bearer abc"},
 
-			{"Missing authorization header", "GET", "/v1/visibilities", ""},
-			{"Invalid authorization schema", "GET", "/v1/visibilities", "Basic abc"},
-			{"Missing token in authorization header", "GET", "/v1/visibilities", "Bearer "},
-			{"Invalid token in authorization header", "GET", "/v1/visibilities", "Bearer abc"},
+			{"Missing authorization header", "GET", web.VisibilitiesURL, ""},
+			{"Invalid authorization schema", "GET", web.VisibilitiesURL, "Basic abc"},
+			{"Missing token in authorization header", "GET", web.VisibilitiesURL, "Bearer "},
+			{"Invalid token in authorization header", "GET", web.VisibilitiesURL, "Bearer abc"},
 
-			{"Missing authorization header", "POST", "/v1/visibilities", ""},
-			{"Invalid authorization schema", "POST", "/v1/visibilities", "Basic abc"},
-			{"Missing token in authorization header", "POST", "/v1/visibilities", "Bearer "},
-			{"Invalid token in authorization header", "POST", "/v1/visibilities", "Bearer abc"},
+			{"Missing authorization header", "POST", web.VisibilitiesURL, ""},
+			{"Invalid authorization schema", "POST", web.VisibilitiesURL, "Basic abc"},
+			{"Missing token in authorization header", "POST", web.VisibilitiesURL, "Bearer "},
+			{"Invalid token in authorization header", "POST", web.VisibilitiesURL, "Bearer abc"},
 
-			{"Missing authorization header", "PATCH", "/v1/visibilities/999", ""},
-			{"Invalid authorization schema", "PATCH", "/v1/visibilities/999", "Basic abc"},
-			{"Missing token in authorization header", "PATCH", "/v1/visibilities/999", "Bearer "},
-			{"Invalid token in authorization header", "PATCH", "/v1/visibilities/999", "Bearer abc"},
+			{"Missing authorization header", "PATCH", web.VisibilitiesURL + "/999", ""},
+			{"Invalid authorization schema", "PATCH", web.VisibilitiesURL + "/999", "Basic abc"},
+			{"Missing token in authorization header", "PATCH", web.VisibilitiesURL + "/999", "Bearer "},
+			{"Invalid token in authorization header", "PATCH", web.VisibilitiesURL + "/999", "Bearer abc"},
 
-			{"Missing authorization header", "DELETE", "/v1/visibilities/999", ""},
-			{"Invalid authorization schema", "DELETE", "/v1/visibilities/999", "Basic abc"},
-			{"Missing token in authorization header", "DELETE", "/v1/visibilities/999", "Bearer "},
-			{"Invalid token in authorization header", "DELETE", "/v1/visibilities/999", "Bearer abc"},
+			{"Missing authorization header", "DELETE", web.VisibilitiesURL + "/999", ""},
+			{"Invalid authorization schema", "DELETE", web.VisibilitiesURL + "/999", "Basic abc"},
+			{"Missing token in authorization header", "DELETE", web.VisibilitiesURL + "/999", "Bearer "},
+			{"Invalid token in authorization header", "DELETE", web.VisibilitiesURL + "/999", "Bearer abc"},
 
 			// LOGGING CONFIG
-			{"Missing authorization header", "GET", "/v1/config/logging", ""},
-			{"Invalid authorization schema", "GET", "/v1/config/logging", "Basic abc"},
-			{"Missing token in authorization header", "GET", "/v1/config/logging", "Bearer "},
-			{"Invalid token in authorization header", "GET", "/v1/config/logging", "Bearer abc"},
+			{"Missing authorization header", "GET", web.LoggingConfigURL, ""},
+			{"Invalid authorization schema", "GET", web.LoggingConfigURL, "Basic abc"},
+			{"Missing token in authorization header", "GET", web.LoggingConfigURL, "Bearer "},
+			{"Invalid token in authorization header", "GET", web.LoggingConfigURL, "Bearer abc"},
 
-			{"Missing authorization header", "PUT", "/v1/config/logging", ""},
-			{"Invalid authorization schema", "PUT", "/v1/config/logging", "Basic abc"},
-			{"Missing token in authorization header", "PUT", "/v1/config/logging", "Bearer "},
-			{"Invalid token in authorization header", "PUT", "/v1/config/logging", "Bearer abc"},
+			{"Missing authorization header", "PUT", web.LoggingConfigURL, ""},
+			{"Invalid authorization schema", "PUT", web.LoggingConfigURL, "Basic abc"},
+			{"Missing token in authorization header", "PUT", web.LoggingConfigURL, "Bearer "},
+			{"Invalid token in authorization header", "PUT", web.LoggingConfigURL, "Bearer abc"},
 		}
 
 		for _, request := range authRequests {

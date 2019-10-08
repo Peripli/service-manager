@@ -29,13 +29,14 @@ import (
 // Platform entity
 type Platform struct {
 	BaseEntity
-	Type        string         `db:"type"`
-	Name        string         `db:"name"`
-	Description sql.NullString `db:"description"`
-	Username    string         `db:"username"`
-	Password    string         `db:"password"`
-	Active      bool           `db:"active"`
-	LastActive  time.Time      `db:"last_active"`
+	Type           string         `db:"type"`
+	Name           string         `db:"name"`
+	Description    sql.NullString `db:"description"`
+	Username       string         `db:"username"`
+	Password       string         `db:"password"`
+	Active         bool           `db:"active"`
+	LastActive     time.Time      `db:"last_active"`
+	PagingSequence int64          `db:"paging_sequence,auto_increment"`
 }
 
 func (p *Platform) FromObject(object types.Object) (storage.Entity, bool) {
@@ -49,11 +50,12 @@ func (p *Platform) FromObject(object types.Object) (storage.Entity, bool) {
 			CreatedAt: platform.CreatedAt,
 			UpdatedAt: platform.UpdatedAt,
 		},
-		Type:        platform.Type,
-		Name:        platform.Name,
-		Description: toNullString(platform.Description),
-		Active:      platform.Active,
-		LastActive:  platform.LastActive,
+		Type:           platform.Type,
+		Name:           platform.Name,
+		Description:    toNullString(platform.Description),
+		Active:         platform.Active,
+		LastActive:     platform.LastActive,
+		PagingSequence: platform.PagingSequence,
 	}
 
 	if platform.Description != "" {
@@ -69,9 +71,10 @@ func (p *Platform) FromObject(object types.Object) (storage.Entity, bool) {
 func (p *Platform) ToObject() types.Object {
 	return &types.Platform{
 		Base: types.Base{
-			ID:        p.ID,
-			CreatedAt: p.CreatedAt,
-			UpdatedAt: p.UpdatedAt,
+			ID:             p.ID,
+			CreatedAt:      p.CreatedAt,
+			UpdatedAt:      p.UpdatedAt,
+			PagingSequence: p.PagingSequence,
 		},
 		Type:        p.Type,
 		Name:        p.Name,
