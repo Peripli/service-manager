@@ -18,7 +18,7 @@ All List endpoints return the list of entities page by page as defined in [speci
 }
 ```
 
-The `num_items` value MAY NOT be accurate the next time the client retrieves the result set or the next page in the result set.
+The `num_items` value **MAY NOT** be accurate the next time the client retrieves the result set or the next page in the result set.
 
 
 ## Token

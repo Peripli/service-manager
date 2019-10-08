@@ -40,7 +40,7 @@ import (
 const PathParamID = "id"
 
 // pagingLimitOffset is a constant which is needed to identify if there are more items in the DB.
-// If there are 1 more items than requested, we need to generate a token for the next page.
+// If there is 1 more item than requested, we need to generate a token for the next page.
 // The last item is omitted.
 const pagingLimitOffset = 1
 
