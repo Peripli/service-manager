@@ -30,7 +30,7 @@ type Authorization struct {
 // Run represents the authorization middleware function that delegates the authorization
 // to the provided authorizer
 func (m *Authorization) Run(request *web.Request, next web.Handler) (*web.Response, error) {
-	decision, err := m.Authorizer.Authorize(request)
+	decision, accessLevel, err := m.Authorizer.Authorize(request)
 	if err != nil {
 		if decision == http.Deny {
 			return nil, security.ForbiddenHTTPError(err.Error())
@@ -41,6 +41,15 @@ func (m *Authorization) Run(request *web.Request, next web.Handler) (*web.Respon
 	switch decision {
 	case http.Allow:
 		ctx := request.Context()
+		userContext, found := web.UserFromContext(ctx)
+		if !found {
+			return nil, security.UnauthorizedHTTPError("authorization failed due to missing authentication")
+		}
+		if accessLevel != web.DefaultAccess {
+			userContext.AccessLevel = accessLevel
+			request.Request = request.WithContext(web.ContextWithUser(ctx, userContext))
+		}
+
 		if !web.IsAuthorized(ctx) {
 			request.Request = request.WithContext(web.ContextWithAuthorization(ctx))
 		}
