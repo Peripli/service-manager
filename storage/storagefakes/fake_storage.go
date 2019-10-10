@@ -21,6 +21,21 @@ type FakeStorage struct {
 	closeReturnsOnCall map[int]struct {
 		result1 error
 	}
+	CountStub        func(context.Context, types.ObjectType, ...query.Criterion) (int, error)
+	countMutex       sync.RWMutex
+	countArgsForCall []struct {
+		arg1 context.Context
+		arg2 types.ObjectType
+		arg3 []query.Criterion
+	}
+	countReturns struct {
+		result1 int
+		result2 error
+	}
+	countReturnsOnCall map[int]struct {
+		result1 int
+		result2 error
+	}
 	CreateStub        func(context.Context, types.Object) (types.Object, error)
 	createMutex       sync.RWMutex
 	createArgsForCall []struct {
@@ -189,6 +204,71 @@ func (fake *FakeStorage) CloseReturnsOnCall(i int, result1 error) {
 	fake.closeReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
+}
+
+func (fake *FakeStorage) Count(arg1 context.Context, arg2 types.ObjectType, arg3 ...query.Criterion) (int, error) {
+	fake.countMutex.Lock()
+	ret, specificReturn := fake.countReturnsOnCall[len(fake.countArgsForCall)]
+	fake.countArgsForCall = append(fake.countArgsForCall, struct {
+		arg1 context.Context
+		arg2 types.ObjectType
+		arg3 []query.Criterion
+	}{arg1, arg2, arg3})
+	fake.recordInvocation("Count", []interface{}{arg1, arg2, arg3})
+	fake.countMutex.Unlock()
+	if fake.CountStub != nil {
+		return fake.CountStub(arg1, arg2, arg3...)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	fakeReturns := fake.countReturns
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeStorage) CountCallCount() int {
+	fake.countMutex.RLock()
+	defer fake.countMutex.RUnlock()
+	return len(fake.countArgsForCall)
+}
+
+func (fake *FakeStorage) CountCalls(stub func(context.Context, types.ObjectType, ...query.Criterion) (int, error)) {
+	fake.countMutex.Lock()
+	defer fake.countMutex.Unlock()
+	fake.CountStub = stub
+}
+
+func (fake *FakeStorage) CountArgsForCall(i int) (context.Context, types.ObjectType, []query.Criterion) {
+	fake.countMutex.RLock()
+	defer fake.countMutex.RUnlock()
+	argsForCall := fake.countArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeStorage) CountReturns(result1 int, result2 error) {
+	fake.countMutex.Lock()
+	defer fake.countMutex.Unlock()
+	fake.CountStub = nil
+	fake.countReturns = struct {
+		result1 int
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeStorage) CountReturnsOnCall(i int, result1 int, result2 error) {
+	fake.countMutex.Lock()
+	defer fake.countMutex.Unlock()
+	fake.CountStub = nil
+	if fake.countReturnsOnCall == nil {
+		fake.countReturnsOnCall = make(map[int]struct {
+			result1 int
+			result2 error
+		})
+	}
+	fake.countReturnsOnCall[i] = struct {
+		result1 int
+		result2 error
+	}{result1, result2}
 }
 
 func (fake *FakeStorage) Create(arg1 context.Context, arg2 types.Object) (types.Object, error) {
@@ -733,6 +813,8 @@ func (fake *FakeStorage) Invocations() map[string][][]interface{} {
 	defer fake.invocationsMutex.RUnlock()
 	fake.closeMutex.RLock()
 	defer fake.closeMutex.RUnlock()
+	fake.countMutex.RLock()
+	defer fake.countMutex.RUnlock()
 	fake.createMutex.RLock()
 	defer fake.createMutex.RUnlock()
 	fake.deleteMutex.RLock()

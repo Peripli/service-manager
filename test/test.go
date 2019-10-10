@@ -30,8 +30,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/sm"
 
-	"github.com/gavv/httpexpect"
-
 	. "github.com/onsi/gomega"
 
 	"github.com/Peripli/service-manager/test/common"
@@ -63,8 +61,8 @@ type TestCase struct {
 
 	MultitenancySettings                   *MultitenancySettings
 	DisableTenantResources                 bool
-	ResourceBlueprint                      func(ctx *common.TestContext, smClient *httpexpect.Expect) common.Object
-	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext, smClient *httpexpect.Expect) common.Object
+	ResourceBlueprint                      func(ctx *common.TestContext, smClient *common.SMExpect) common.Object
+	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext, smClient *common.SMExpect) common.Object
 	AdditionalTests                        func(ctx *common.TestContext)
 }
 

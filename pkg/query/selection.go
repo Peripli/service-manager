@@ -159,7 +159,7 @@ func (c Criterion) Validate() error {
 			if err != nil {
 				return fmt.Errorf("could not cast string to int: %s", err.Error())
 			}
-			if limit < 1 {
+			if limit < 0 {
 				return &util.UnsupportedQueryError{Message: fmt.Sprintf("limit (%d) is invalid. Limit should be positive number", limit)}
 			}
 		}
@@ -221,15 +221,14 @@ func mergeCriteria(c1 []Criterion, c2 []Criterion) ([]Criterion, error) {
 		if count, ok := labelQueryLeftOperands[leftOp]; ok && count > 1 && newCriterion.Type == LabelQuery {
 			return nil, &util.UnsupportedQueryError{Message: fmt.Sprintf("duplicate label query key: %s", newCriterion.LeftOp)}
 		}
-		// disallow duplicate field query keys
-		if count, ok := fieldQueryLeftOperands[leftOp]; ok && count > 1 && newCriterion.Type == FieldQuery {
-			return nil, &util.UnsupportedQueryError{Message: fmt.Sprintf("duplicate field query key: %s", newCriterion.LeftOp)}
-		}
 		if err := newCriterion.Validate(); err != nil {
 			return nil, err
 		}
 	}
 	result = append(result, c2...)
+	if err := validateWholeCriteria(result...); err != nil {
+		return nil, err
+	}
 	return result, nil
 }
 
@@ -255,8 +254,11 @@ func CriteriaForContext(ctx context.Context) []Criterion {
 }
 
 // ContextWithCriteria returns a new context with given criteria
-func ContextWithCriteria(ctx context.Context, criteria []Criterion) context.Context {
-	return context.WithValue(ctx, criteriaCtxKey{}, criteria)
+func ContextWithCriteria(ctx context.Context, criteria ...Criterion) (context.Context, error) {
+	if err := validateWholeCriteria(criteria...); err != nil {
+		return nil, err
+	}
+	return context.WithValue(ctx, criteriaCtxKey{}, criteria), nil
 }
 
 // BuildCriteriaFromRequest builds criteria for the given request's query params and returns an error if the query is not valid
@@ -330,6 +332,9 @@ func process(input string, criteriaType CriterionType) ([]Criterion, error) {
 			Message: fmt.Sprintf("%s is not a valid %s", input, criteriaType),
 		}
 	}
+	if err := validateWholeCriteria(c...); err != nil {
+		return nil, err
+	}
 	return c, nil
 }
 
@@ -397,4 +402,17 @@ func isNumeric(str string) bool {
 func isDateTime(str string) bool {
 	_, err := time.Parse(time.RFC3339, str)
 	return err == nil
+}
+
+func validateWholeCriteria(criteria ...Criterion) error {
+	isLimited := false
+	for _, criterion := range criteria {
+		if criterion.LeftOp == Limit {
+			if isLimited {
+				return fmt.Errorf("zero/one limit criterion expected but multiple provided")
+			}
+			isLimited = true
+		}
+	}
+	return nil
 }

@@ -78,7 +78,7 @@ func SendRequestWithHeaders(ctx context.Context, doRequest DoRequestFunc, method
 		request.Header.Set(log.CorrelationIDHeaders[0], correlationID)
 	}
 
-	logger.Debugf("Sending a request to %s", request.URL)
+	logger.Debugf("Sending request %s %s", request.Method, request.URL)
 	return doRequest(request)
 }
 

@@ -23,6 +23,8 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/Peripli/service-manager/api/plugins"
+
 	"github.com/Peripli/service-manager/pkg/health"
 
 	"github.com/Peripli/service-manager/pkg/httpclient"
@@ -150,6 +152,8 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 		wg:                  waitGroup,
 		cfg:                 cfg,
 	}
+
+	smb.RegisterPlugins(plugins.NewCatalogFilterByVisibilityPlugin(interceptableRepository))
 
 	// Register default interceptors that represent the core SM business logic
 	smb.
