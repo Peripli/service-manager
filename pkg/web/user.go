@@ -34,15 +34,11 @@ func (a AuthenticationType) String() string {
 // AccessLevel specifies the access level privileges that are stored in the user context
 type AccessLevel int
 
-var levels = []string{"DefaultAccess", "GlobalAccess", "SingleTenantAccess", "AllTenantAccess"}
+var levels = []string{"NoAccess", "SingleTenantAccess", "AllTenantAccess", "GlobalAccess"}
 
 const (
-	//DefaultAccess is the default value for access level - it is used when a component does not expliciting set an access level
-	DefaultAccess AccessLevel = iota
-
-	// GlobalAccess means access was granted to manage global resources (such resources are not scoped or associated with tenant.
-	// Such access might be granted to systems that need to manage global resources	GlobalAccess AccessLevel = iota
-	GlobalAccess
+	//NoAccess is the default value for access level - it is used when no explicit access was granted
+	NoAccess AccessLevel = iota
 
 	// TenantAccess means access was granted to manage the tenant's own resources. Such access might be granted to a user
 	// so the he can manage his own data
@@ -51,6 +47,10 @@ const (
 	// AllTenantAccess means access was granted to manage the resources of all tenants. Such access might be granted
 	// to systems that have to manage data across multiple tenants
 	AllTenantAccess
+
+	// GlobalAccess means access was granted to manage global resources (such resources are not scoped or associated with tenant.
+	// Such access might be granted to systems that need to manage global resources
+	GlobalAccess
 )
 
 // String implements Stringer and converts the decision to human-readable value

@@ -63,7 +63,7 @@ var _ = Describe("Middlewares", func() {
 			Context("when authorizer returns decision", func() {
 				Context("Deny", func() {
 					It("should return error", func() {
-						authorizer.AuthorizeReturns(httpsec.Deny, web.DefaultAccess, nil)
+						authorizer.AuthorizeReturns(httpsec.Deny, web.NoAccess, nil)
 						authzFilter := Authorization{
 							Authorizer: authorizer,
 						}
@@ -75,7 +75,7 @@ var _ = Describe("Middlewares", func() {
 				})
 				Context("Abstain", func() {
 					It("should continue with calling handler", func() {
-						authorizer.AuthorizeReturns(httpsec.Abstain, web.DefaultAccess, nil)
+						authorizer.AuthorizeReturns(httpsec.Abstain, web.NoAccess, nil)
 						handler.HandleReturns(nil, errors.New(expectedErrorMessage))
 						authzFilter := Authorization{
 							Authorizer: authorizer,
@@ -98,7 +98,7 @@ var _ = Describe("Middlewares", func() {
 								Authorizer: authorizer,
 							}
 							_, err := authzFilter.Run(req, handler)
-							checkExpectedErrorMessage("authorization failed due to missing authentication", err)
+							checkExpectedErrorMessage("authorization failed due to missing user context", err)
 							Expect(web.IsAuthorized(req.Context())).To(BeFalse())
 						})
 					})
@@ -126,27 +126,27 @@ var _ = Describe("Middlewares", func() {
 					}
 
 					Context("when usercontext is present", func() {
-						Context("with access level is Default", func() {
+						Context("with access level is NoAccess", func() {
 							It("should not modify the user context access level", func() {
-								testCase(web.GlobalAccess, web.DefaultAccess, web.GlobalAccess, 0, "authorization failed due to missing access level", false)
+								testCase(web.GlobalAccess, web.NoAccess, web.GlobalAccess, 0, "authorization failed due to missing access level", false)
 							})
 						})
 
 						Context("with access level is Global", func() {
 							It("should modify the user context access level", func() {
-								testCase(web.DefaultAccess, web.GlobalAccess, web.GlobalAccess, 1, expectedErrorMessage, true)
+								testCase(web.NoAccess, web.GlobalAccess, web.GlobalAccess, 1, expectedErrorMessage, true)
 							})
 						})
 
 						Context("with access level is Tenant", func() {
 							It("should modify the user context access level", func() {
-								testCase(web.DefaultAccess, web.TenantAccess, web.TenantAccess, 1, expectedErrorMessage, true)
+								testCase(web.NoAccess, web.TenantAccess, web.TenantAccess, 1, expectedErrorMessage, true)
 							})
 						})
 
 						Context("with access level is AllTenant", func() {
 							It("should modify the user context access level", func() {
-								testCase(web.DefaultAccess, web.AllTenantAccess, web.AllTenantAccess, 1, expectedErrorMessage, true)
+								testCase(web.NoAccess, web.AllTenantAccess, web.AllTenantAccess, 1, expectedErrorMessage, true)
 							})
 						})
 					})
@@ -156,7 +156,7 @@ var _ = Describe("Middlewares", func() {
 			Context("when authorizer returns error", func() {
 				Context("and decision Abstain", func() {
 					It("should return error", func() {
-						authorizer.AuthorizeReturns(httpsec.Abstain, web.DefaultAccess, errors.New(expectedErrorMessage))
+						authorizer.AuthorizeReturns(httpsec.Abstain, web.NoAccess, errors.New(expectedErrorMessage))
 						authzFilter := Authorization{
 							Authorizer: authorizer,
 						}
@@ -167,7 +167,7 @@ var _ = Describe("Middlewares", func() {
 
 				Context("and decision Deny", func() {
 					It("should return http error 403", func() {
-						authorizer.AuthorizeReturns(httpsec.Deny, web.DefaultAccess, errors.New(expectedErrorMessage))
+						authorizer.AuthorizeReturns(httpsec.Deny, web.NoAccess, errors.New(expectedErrorMessage))
 						authzFilter := Authorization{
 							Authorizer: authorizer,
 						}
@@ -293,5 +293,5 @@ var _ = Describe("Middlewares", func() {
 
 func checkExpectedErrorMessage(expectedErrorMessage string, err error) {
 	Expect(err).To(HaveOccurred())
-	Expect(err.Error()).To(Equal(expectedErrorMessage))
+	Expect(err.Error()).To(ContainSubstring(expectedErrorMessage))
 }

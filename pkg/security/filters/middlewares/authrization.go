@@ -17,6 +17,8 @@
 package middlewares
 
 import (
+	"fmt"
+
 	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/security/http"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -41,17 +43,16 @@ func (m *Authorization) Run(request *web.Request, next web.Handler) (*web.Respon
 	switch decision {
 	case http.Allow:
 		ctx := request.Context()
+
 		userContext, found := web.UserFromContext(ctx)
 		if !found {
-			return nil, security.UnauthorizedHTTPError("authorization failed due to missing authentication")
+			return nil, fmt.Errorf("authorization failed due to missing user context")
 		}
-		if accessLevel == web.DefaultAccess {
-			return nil, security.UnauthorizedHTTPError("authorization failed due to missing access level")
-		}
-
 		userContext.AccessLevel = accessLevel
 		request.Request = request.WithContext(web.ContextWithUser(ctx, userContext))
-
+		if accessLevel == web.NoAccess {
+			return nil, fmt.Errorf("authorization failed due to missing access level. Authizier that allows access should also specify the access level")
+		}
 		if !web.IsAuthorized(ctx) {
 			request.Request = request.WithContext(web.ContextWithAuthorization(ctx))
 		}
