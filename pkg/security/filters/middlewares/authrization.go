@@ -45,10 +45,12 @@ func (m *Authorization) Run(request *web.Request, next web.Handler) (*web.Respon
 		if !found {
 			return nil, security.UnauthorizedHTTPError("authorization failed due to missing authentication")
 		}
-		if accessLevel != web.DefaultAccess {
-			userContext.AccessLevel = accessLevel
-			request.Request = request.WithContext(web.ContextWithUser(ctx, userContext))
+		if accessLevel == web.DefaultAccess {
+			return nil, security.UnauthorizedHTTPError("authorization failed due to missing access level")
 		}
+
+		userContext.AccessLevel = accessLevel
+		request.Request = request.WithContext(web.ContextWithUser(ctx, userContext))
 
 		if !web.IsAuthorized(ctx) {
 			request.Request = request.WithContext(web.ContextWithAuthorization(ctx))

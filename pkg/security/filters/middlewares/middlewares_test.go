@@ -103,7 +103,7 @@ var _ = Describe("Middlewares", func() {
 						})
 					})
 
-					testCase := func(initialLevel, mockLevel, expectedLevel web.AccessLevel) {
+					testCase := func(initialLevel, mockLevel, expectedLevel web.AccessLevel, expectedHandlerCallCount int, expectedErrorMessage string, expectAuthrized bool) {
 						req.Request = req.WithContext(web.ContextWithUser(context.Background(), &web.UserContext{
 							Name:               "test-user",
 							AccessLevel:        initialLevel,
@@ -116,36 +116,37 @@ var _ = Describe("Middlewares", func() {
 						}
 						_, err := authzFilter.Run(req, handler)
 						checkExpectedErrorMessage(expectedErrorMessage, err)
-						Expect(web.IsAuthorized(req.Context())).To(BeTrue())
-						req := handler.HandleArgsForCall(0)
-						userContext, found := web.UserFromContext(req.Context())
-						Expect(found).To(BeTrue())
-						Expect(userContext.AccessLevel).To(Equal(expectedLevel))
-
+						Expect(web.IsAuthorized(req.Context())).To(Equal(expectAuthrized))
+						if expectedHandlerCallCount > 0 {
+							req := handler.HandleArgsForCall(0)
+							userContext, found := web.UserFromContext(req.Context())
+							Expect(found).To(BeTrue())
+							Expect(userContext.AccessLevel).To(Equal(expectedLevel))
+						}
 					}
 
 					Context("when usercontext is present", func() {
 						Context("with access level is Default", func() {
 							It("should not modify the user context access level", func() {
-								testCase(web.GlobalAccess, web.DefaultAccess, web.GlobalAccess)
+								testCase(web.GlobalAccess, web.DefaultAccess, web.GlobalAccess, 0, "authorization failed due to missing access level", false)
 							})
 						})
 
 						Context("with access level is Global", func() {
 							It("should modify the user context access level", func() {
-								testCase(web.DefaultAccess, web.GlobalAccess, web.GlobalAccess)
+								testCase(web.DefaultAccess, web.GlobalAccess, web.GlobalAccess, 1, expectedErrorMessage, true)
 							})
 						})
 
 						Context("with access level is Tenant", func() {
 							It("should modify the user context access level", func() {
-								testCase(web.DefaultAccess, web.TenantAccess, web.TenantAccess)
+								testCase(web.DefaultAccess, web.TenantAccess, web.TenantAccess, 1, expectedErrorMessage, true)
 							})
 						})
 
 						Context("with access level is AllTenant", func() {
 							It("should modify the user context access level", func() {
-								testCase(web.DefaultAccess, web.AllTenantAccess, web.AllTenantAccess)
+								testCase(web.DefaultAccess, web.AllTenantAccess, web.AllTenantAccess, 1, expectedErrorMessage, true)
 							})
 						})
 					})
