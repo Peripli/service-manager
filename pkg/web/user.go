@@ -28,7 +28,7 @@ const (
 
 // String implements Stringer and converts the decision to human-readable value
 func (a AuthenticationType) String() string {
-	return levels[a]
+	return authenticationTypes[a]
 }
 
 // AccessLevel specifies the access level privileges that are stored in the user context
