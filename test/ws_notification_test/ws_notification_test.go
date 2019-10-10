@@ -18,6 +18,7 @@ package ws_notification_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"testing"
@@ -235,55 +236,77 @@ var _ = Describe("WS", func() {
 		})
 	})
 
-	Context("when ping is received", func() {
-		FIt("should switch platform's active status to true", func() {
-			newPlatform := common.RegisterPlatformInSM(common.GenerateRandomPlatform(), ctx.SMWithOAuth, map[string]string{})
-			conn, _, err := ctx.ConnectWebSocket(newPlatform, queryParams)
-			Expect(err).ShouldNot(HaveOccurred())
-			Expect(newPlatform.Active).To(BeFalse())
+	Context("platform health", func() {
+		var pongCh chan struct{}
+		var conn *websocket.Conn
+		var newPlatform *types.Platform
+		var idCriteria query.Criterion
 
-			idCriteria := query.Criterion{
+		assertPlatformIsActive := func() {
+			obj, err := repository.Get(context.TODO(), types.PlatformType, idCriteria)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(obj.(*types.Platform).Active).To(BeTrue())
+		}
+
+		BeforeEach(func() {
+			pongCh = make(chan struct{})
+			newPlatform = common.RegisterPlatformInSM(common.GenerateRandomPlatform(), ctx.SMWithOAuth, map[string]string{})
+			idCriteria = query.Criterion{
 				LeftOp:   "id",
 				Operator: query.EqualsOperator,
 				RightOp:  []string{newPlatform.ID},
 				Type:     query.FieldQuery,
 			}
-			Expect(conn.WriteMessage(websocket.PingMessage, []byte("pingping"))).ShouldNot(HaveOccurred())
-			time.Sleep(5 * time.Second)
-			obj, err := repository.Get(context.TODO(), types.PlatformType, idCriteria)
+			Expect(newPlatform.Active).To(BeFalse())
+
+			var err error
+			conn, _, err = ctx.ConnectWebSocket(newPlatform, queryParams)
 			Expect(err).ShouldNot(HaveOccurred())
-			Expect(obj.(*types.Platform).Active).To(BeTrue())
+
+			conn.SetPongHandler(func(data string) error {
+				Expect(data).To(Equal("pingping"))
+				close(pongCh)
+				return nil
+			})
+
+			go func() {
+				_, _, err := conn.ReadMessage()
+				Expect(err).Should(HaveOccurred())
+			}()
 		})
-	})
 
-	Context("when platform disconnects", func() {
-		It("should switch platform's active status to false", func() {
-			conn, _, err := ctx.ConnectWebSocket(platform, queryParams)
-			Expect(err).ShouldNot(HaveOccurred())
+		Context("when ping is received", func() {
+			It("should switch platform's active status to true", func() {
+				Expect(conn.WriteControl(websocket.PingMessage, []byte("pingping"), time.Now().Add(pingTimeout))).ShouldNot(HaveOccurred())
+				Eventually(pongCh).Should(BeClosed()) // wait for a pong message
+				assertPlatformIsActive()
+			})
+		})
 
-			ctx.CloseWebSocket(conn)
+		Context("when ping is not received", func() {
+			It("should switch platform's active status to false", func() {
+				Expect(conn.WriteControl(websocket.PingMessage, []byte("pingping"), time.Now().Add(pingTimeout))).ShouldNot(HaveOccurred())
+				Eventually(pongCh).Should(BeClosed()) // wait for a pong message
+				assertPlatformIsActive()
 
-			idCriteria := query.Criterion{
-				LeftOp:   "id",
-				Operator: query.EqualsOperator,
-				RightOp:  []string{platform.ID},
-				Type:     query.FieldQuery,
-			}
-			ctx, _ := context.WithTimeout(context.TODO(), 5*time.Second)
-			ticker := time.NewTicker(500 * time.Millisecond)
-			for {
-				select {
-				case <-ticker.C:
-					obj, err := repository.Get(context.TODO(), types.PlatformType, idCriteria)
-					Expect(err).ShouldNot(HaveOccurred())
-					p := obj.(*types.Platform)
-					if p.Active == false && !p.LastActive.IsZero() {
-						return
+				By(fmt.Sprintf("Ping received and active status is true if %v ping timeout pass active status should be set to false", pingTimeout))
+
+				ctx, _ := context.WithTimeout(context.TODO(), pingTimeout+time.Second)
+				ticker := time.NewTicker(500 * time.Millisecond)
+				for {
+					select {
+					case <-ticker.C:
+						obj, err := repository.Get(context.TODO(), types.PlatformType, idCriteria)
+						Expect(err).ShouldNot(HaveOccurred())
+						p := obj.(*types.Platform)
+						if p.Active == false && !p.LastActive.IsZero() {
+							return
+						}
+					case <-ctx.Done():
+						Fail("Timeout: platform active status not set to false")
 					}
-				case <-ctx.Done():
-					Fail("Timeout: platform active status not set to false")
 				}
-			}
+			})
 		})
 	})
 
