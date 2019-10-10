@@ -70,7 +70,7 @@ var _ = Describe("WS", func() {
 
 		ctx = common.NewTestContextBuilder().
 			WithEnvPreExtensions(func(set *pflag.FlagSet) {
-				set.Set("websocket.ping_timeout", pingTimeout.String())
+				Expect(set.Set("websocket.ping_timeout", pingTimeout.String())).ShouldNot(HaveOccurred())
 			}).Build()
 		repository = ctx.SMRepository
 		Expect(repository).ToNot(BeNil())
@@ -107,7 +107,7 @@ var _ = Describe("WS", func() {
 
 		JustBeforeEach(func() {
 			pongCh = make(chan struct{})
-			wsconn.SetReadDeadline(time.Time{})
+			Expect(wsconn.SetReadDeadline(time.Time{})).ShouldNot(HaveOccurred())
 			wsconn.SetPongHandler(func(data string) error {
 				Expect(data).To(Equal("pingping"))
 				close(pongCh)
@@ -235,18 +235,21 @@ var _ = Describe("WS", func() {
 		})
 	})
 
-	Context("when platform is connected", func() {
-		It("should switch platform's active status to true", func() {
-			Expect(platform.Active).To(BeFalse())
-			_, _, err := ctx.ConnectWebSocket(platform, queryParams)
+	Context("when ping is received", func() {
+		FIt("should switch platform's active status to true", func() {
+			newPlatform := common.RegisterPlatformInSM(common.GenerateRandomPlatform(), ctx.SMWithOAuth, map[string]string{})
+			conn, _, err := ctx.ConnectWebSocket(newPlatform, queryParams)
 			Expect(err).ShouldNot(HaveOccurred())
+			Expect(newPlatform.Active).To(BeFalse())
 
 			idCriteria := query.Criterion{
 				LeftOp:   "id",
 				Operator: query.EqualsOperator,
-				RightOp:  []string{platform.ID},
+				RightOp:  []string{newPlatform.ID},
 				Type:     query.FieldQuery,
 			}
+			Expect(conn.WriteMessage(websocket.PingMessage, []byte("pingping"))).ShouldNot(HaveOccurred())
+			time.Sleep(5 * time.Second)
 			obj, err := repository.Get(context.TODO(), types.PlatformType, idCriteria)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(obj.(*types.Platform).Active).To(BeTrue())

@@ -75,7 +75,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		responseHeaders.Add(LastKnownRevisionHeader, strconv.FormatInt(lastKnownToSMRevision, 10))
 	}
 
-	conn, err := c.upgrade(c.repository, platform, rw, req.Request, responseHeaders)
+	conn, err := c.upgrade(childCtx, c.repository, platform, rw, req.Request, responseHeaders)
 	if err != nil {
 		c.unregisterConsumer(ctx, notificationQueue)
 		return nil, err

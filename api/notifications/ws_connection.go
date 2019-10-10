@@ -18,7 +18,7 @@ const (
 	MaxPingPeriodHeader = "max_ping_period"
 )
 
-func (c *Controller) upgrade(repository storage.TransactionalRepository, platform *types.Platform, rw http.ResponseWriter, req *http.Request, header http.Header) (*websocket.Conn, error) {
+func (c *Controller) upgrade(ctx context.Context, repository storage.TransactionalRepository, platform *types.Platform, rw http.ResponseWriter, req *http.Request, header http.Header) (*websocket.Conn, error) {
 	if header == nil {
 		header = http.Header{}
 	}
@@ -38,7 +38,7 @@ func (c *Controller) upgrade(repository storage.TransactionalRepository, platfor
 	if err != nil {
 		return nil, err
 	}
-	c.configureConn(req.Context(), repository, platform, conn)
+	c.configureConn(ctx, repository, platform, conn)
 
 	return conn, nil
 }
