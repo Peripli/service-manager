@@ -75,7 +75,7 @@ func (s *Settings) Validate() error {
 }
 
 type Options struct {
-	Repository  storage.Repository
+	Repository  storage.TransactionalRepository
 	APISettings *Settings
 	WSSettings  *ws.Settings
 	Notificator storage.Notificator

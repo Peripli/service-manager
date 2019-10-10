@@ -114,7 +114,7 @@ func New(ctx context.Context, cancel context.CancelFunc, cfg *config.Settings) (
 	// Setup core API
 	log.C(ctx).Info("Setting up Service Manager core API...")
 
-	pgNotificator, err := postgres.NewNotificator(smStorage, interceptableRepository, cfg.Storage)
+	pgNotificator, err := postgres.NewNotificator(smStorage, cfg.Storage)
 	if err != nil {
 		return nil, fmt.Errorf("could not create notificator: %v", err)
 	}
