@@ -138,12 +138,10 @@ func (c *Controller) readLoop(ctx context.Context, repository storage.Transactio
 		// currently we don't expect to receive something else from the proxies
 		_, _, err := conn.ReadMessage()
 		if err != nil {
-			if storageErr := updatePlatformStatus(ctx, repository, platform.ID, false); storageErr != nil {
-				log.C(ctx).WithError(storageErr).Error("could not update platform status")
-				return
-			}
-
 			log.C(ctx).WithError(err).Error("ws: could not read")
+			if err = updatePlatformStatus(ctx, repository, platform.ID, false); err != nil {
+				log.C(ctx).WithError(err).Error("could not update platform status")
+			}
 			return
 		}
 	}
