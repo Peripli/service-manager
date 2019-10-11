@@ -557,7 +557,7 @@ JOIN
   (SELECT *
    FROM visibility_labels
    WHERE visibility_id IN
-	   (SELECT visibility_idt
+	   (SELECT visibility_id
 		FROM visibility_labels
 		WHERE ((key::text = ?
 			   AND val::text = ?)
