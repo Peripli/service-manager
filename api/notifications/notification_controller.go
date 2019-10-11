@@ -30,7 +30,7 @@ import (
 // Controller implements api.Controller by providing service plans API logic
 type Controller struct {
 	baseCtx    context.Context
-	repository storage.Repository
+	repository storage.TransactionalRepository
 
 	wsSettings  *ws.Settings
 	notificator storage.Notificator
@@ -50,7 +50,7 @@ func (c *Controller) Routes() []web.Route {
 }
 
 // NewController creates new notifications controller
-func NewController(baseCtx context.Context, repository storage.Repository, wsSettings *ws.Settings, notificator storage.Notificator) *Controller {
+func NewController(baseCtx context.Context, repository storage.TransactionalRepository, wsSettings *ws.Settings, notificator storage.Notificator) *Controller {
 	return &Controller{
 		baseCtx:     baseCtx,
 		repository:  repository,
