@@ -138,11 +138,7 @@ func (c *Controller) readLoop(ctx context.Context, repository storage.Transactio
 		// currently we don't expect to receive something else from the proxies
 		_, _, err := conn.ReadMessage()
 		if err != nil {
-			storageErr := updatePlatform(ctx, repository, platform.ID, func(p *types.Platform) {
-				p.Active = false
-				p.LastActive = time.Now()
-			})
-			if storageErr != nil {
+			if storageErr := updatePlatformStatus(ctx, repository, platform.ID, false); storageErr != nil {
 				log.C(ctx).WithError(storageErr).Error("could not update platform status")
 				return
 			}
@@ -189,7 +185,7 @@ func newContextWithCorrelationID(baseCtx context.Context, correlationID string) 
 	return context.WithCancel(newCtx)
 }
 
-func updatePlatform(ctx context.Context, repository storage.TransactionalRepository, platformID string, updatePlatformFunc func(p *types.Platform)) error {
+func updatePlatformStatus(ctx context.Context, repository storage.TransactionalRepository, platformID string, desiredStatus bool) error {
 	if err := repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
 		idCriteria := query.Criterion{
 			LeftOp:   "id",
@@ -203,10 +199,16 @@ func updatePlatform(ctx context.Context, repository storage.TransactionalReposit
 		}
 
 		platform := obj.(*types.Platform)
-		updatePlatformFunc(platform)
 
-		if _, err := storage.Update(ctx, platform, nil); err != nil {
-			return err
+		if platform.Active != desiredStatus {
+			platform.Active = desiredStatus
+			if desiredStatus == false {
+				platform.LastActive = time.Now()
+			}
+
+			if _, err := storage.Update(ctx, platform, nil); err != nil {
+				return err
+			}
 		}
 		return nil
 	}); err != nil {

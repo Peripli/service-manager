@@ -289,7 +289,7 @@ var _ = Describe("WS", func() {
 				Eventually(pongCh).Should(BeClosed()) // wait for a pong message
 				assertPlatformIsActive()
 
-				By(fmt.Sprintf("Ping received and active status is true if %v ping timeout pass active status should be set to false", pingTimeout))
+				By(fmt.Sprintf("Ping received and active status is true, then when %v ping timeout passes, active status should be set to false", pingTimeout))
 
 				ctx, _ := context.WithTimeout(context.TODO(), pingTimeout+time.Second)
 				ticker := time.NewTicker(500 * time.Millisecond)

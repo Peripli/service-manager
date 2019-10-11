@@ -53,20 +53,13 @@ func (c *Controller) configureConn(ctx context.Context, repository storage.Trans
 			return err
 		}
 
-		err := updatePlatform(ctx, repository, platform.ID, func(p *types.Platform) {
-			p.Active = true
-		})
-		if err != nil {
+		if err := updatePlatformStatus(ctx, repository, platform.ID, true); err != nil {
 			return err
 		}
 
-		err = conn.WriteControl(websocket.PongMessage, []byte(message), time.Now().Add(c.wsSettings.WriteTimeout))
+		err := conn.WriteControl(websocket.PongMessage, []byte(message), time.Now().Add(c.wsSettings.WriteTimeout))
 		if err != nil {
-			storageErr := updatePlatform(ctx, repository, platform.ID, func(p *types.Platform) {
-				p.Active = false
-				p.LastActive = time.Now()
-			})
-			if storageErr != nil {
+			if storageErr := updatePlatformStatus(ctx, repository, platform.ID, false); storageErr != nil {
 				return storageErr
 			}
 
