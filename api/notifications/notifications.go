@@ -202,7 +202,7 @@ func updatePlatformStatus(ctx context.Context, repository storage.TransactionalR
 
 		if platform.Active != desiredStatus {
 			platform.Active = desiredStatus
-			if desiredStatus == false {
+			if !platform.Active {
 				platform.LastActive = time.Now()
 			}
 
