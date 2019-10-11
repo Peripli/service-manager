@@ -41,7 +41,7 @@ const (
 	NoAccess AccessLevel = iota
 
 	// TenantAccess means access was granted to manage the tenant's own resources. Such access might be granted to a user
-	// so the he can manage his own data
+	// so that he can manage his own data
 	TenantAccess
 
 	// AllTenantAccess means access was granted to manage the resources of all tenants. Such access might be granted
