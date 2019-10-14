@@ -277,7 +277,7 @@
     "scram",
   ]
   pruneopts = "UT"
-  revision = "931b5ae4c24e6810c8c82ab4734904de3df1c3dc"
+  revision = "f91d3411e481ed313eeab65ebfe9076466c39d01"
 
 [[projects]]
   digest = "1:5a0ef768465592efca0412f7e838cdc0826712f8447e70e6ccc52eb441e9ab13"

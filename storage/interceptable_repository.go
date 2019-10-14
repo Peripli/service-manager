@@ -59,7 +59,7 @@ type InterceptableTransactionalRepository struct {
 }
 
 // interceptableRepository wraps a Repository to be used throughout a transaction (in all OnTx interceptors).
-// It also holds sets of interceptors for each object type to run inside the transaction lifecycle
+// It also holds sets of interceptors for each object type to run inside the transaction lifecycle.
 type interceptableRepository struct {
 	repositoryInTransaction Repository
 
