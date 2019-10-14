@@ -160,7 +160,7 @@ func (c Criterion) Validate() error {
 		return nil
 	}
 
-	if len(c.RightOp) > 1 && c.Operator.Type() != MultivariateOperator {
+	if len(c.RightOp) > 1 && c.Operator.Type() == UnivariateOperator {
 		return &util.UnsupportedQueryError{Message: fmt.Sprintf("multiple values %s received for single value operation %s", c.RightOp, c.Operator)}
 	}
 	if c.Operator.IsNullable() && c.Type != FieldQuery {
@@ -245,7 +245,7 @@ func Parse(criterionType CriterionType, expression string) ([]Criterion, error) 
 	input := antlr.NewInputStream(expression)
 	lexer := parser.NewQueryLexer(input)
 	lexer.RemoveErrorListeners()
-	stream := antlr.NewCommonTokenStream(lexer, 0)
+	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 
 	p := parser.NewQueryParser(stream)
 	p.RemoveErrorListeners()
