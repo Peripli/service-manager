@@ -17,13 +17,12 @@
 package test
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
-
-	"github.com/gavv/httpexpect"
 
 	"github.com/Peripli/service-manager/pkg/query"
 
@@ -87,7 +86,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 
 	By(fmt.Sprintf("Attempting to create a random resource of %s with mandatory fields only", t.API))
 	rWithMandatoryFields = t.ResourceWithoutNullableFieldsBlueprint(ctx, ctx.SMWithOAuth)
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 10; i++ {
 		By(fmt.Sprintf("Attempting to create a random resource of %s", t.API))
 
 		gen := t.ResourceBlueprint(ctx, ctx.SMWithOAuth)
@@ -238,7 +237,6 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 				expectedStatusCode:        http.StatusOK,
 			},
 		),
-
 		Entry("returns 400 when query operator is invalid",
 			listOpEntry{
 				queryTemplate:      "%s @@ '%v'",
@@ -246,10 +244,12 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 				expectedStatusCode: http.StatusBadRequest,
 			},
 		),
-		Entry("returns 400 when query is duplicated",
+		Entry("returns 400 when label query is duplicated",
 			listOpEntry{
-				queryTemplate:      "%[1]s eq '%[2]v' and %[1]s eq '%[2]v'",
-				queryArgs:          r[0],
+				queryTemplate: "%[1]s eq '%[2]v' and %[1]s and '%[2]v'",
+				queryArgs: common.Object{
+					"labels": common.CopyLabels(r[0]),
+				},
 				expectedStatusCode: http.StatusBadRequest,
 			},
 		),
@@ -258,6 +258,13 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 				queryTemplate:      "%s eq'%v'",
 				queryArgs:          r[0],
 				expectedStatusCode: http.StatusBadRequest,
+			},
+		),
+		Entry("returns 200 when field query is duplicated",
+			listOpEntry{
+				queryTemplate:      "%[1]s eq '%[2]v' and %[1]s eq '%[2]v'",
+				queryArgs:          common.CopyFields(r[0]),
+				expectedStatusCode: http.StatusOK,
 			},
 		),
 		Entry("returns 400 when operator is not properly separated with left space from operands",
@@ -306,18 +313,14 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 		),
 	}
 
-	verifyListOpWithAuth := func(listOpEntry listOpEntry, query string, auth *httpexpect.Expect) {
+	verifyListOpWithAuth := func(listOpEntry listOpEntry, query string, auth *common.SMExpect) {
 		var expectedAfterOpIDs []string
 		var unexpectedAfterOpIDs []string
 		expectedAfterOpIDs = common.ExtractResourceIDs(listOpEntry.resourcesToExpectAfterOp)
 		unexpectedAfterOpIDs = common.ExtractResourceIDs(listOpEntry.resourcesNotToExpectAfterOp)
 
-		jsonArrayKey := strings.Replace(t.API, "/v1/", "", 1)
-
 		By(fmt.Sprintf("[TEST]: Verifying expected %s before operation after present", t.API))
-		beforeOpArray := ctx.SMWithOAuth.GET(t.API).
-			Expect().
-			Status(http.StatusOK).JSON().Object().Value(jsonArrayKey).Array()
+		beforeOpArray := ctx.SMWithOAuth.List(t.API)
 
 		for _, v := range beforeOpArray.Iter() {
 			obj := v.Object().Raw()
@@ -341,22 +344,17 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 
 		By("[TEST]: ====================================")
 
-		req := ctx.SMWithOAuth.GET(t.API)
-		if query != "" {
-			req = req.WithQueryString(query)
-		}
-
 		By(fmt.Sprintf("[TEST]: Verifying expected status code %d is returned from list operation", listOpEntry.expectedStatusCode))
-		resp := req.
-			Expect().
-			Status(listOpEntry.expectedStatusCode)
 
 		if listOpEntry.expectedStatusCode != http.StatusOK {
 			By(fmt.Sprintf("[TEST]: Verifying error and description fields are returned after list operation"))
-
-			resp.JSON().Object().Keys().Contains("error", "description")
+			req := ctx.SMWithOAuth.GET(t.API)
+			if query != "" {
+				req = req.WithQueryString(query)
+			}
+			req.Expect().Status(listOpEntry.expectedStatusCode).JSON().Object().Keys().Contains("error", "description")
 		} else {
-			array := resp.JSON().Object().Value(jsonArrayKey).Array()
+			array := ctx.SMWithOAuth.ListWithQuery(t.API, query)
 			for _, v := range array.Iter() {
 				obj := v.Object().Raw()
 				delete(obj, "created_at")
@@ -399,7 +397,6 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 
 		Context("by date", func() {
 			It("returns 200 when date is properly formatted", func() {
-				jsonArrayKey := strings.Replace(t.API, "/v1/", "", 1)
 				createdAtValue := ctx.SMWithOAuth.GET(t.API + "/" + r[0]["id"].(string)).Expect().Status(http.StatusOK).
 					JSON().Object().Value("created_at").String().Raw()
 				createdAtHour := createdAtValue[11:13]
@@ -413,7 +410,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 				}
 				escapedCreatedAtValue := url.QueryEscape(createdAtValue[:len(createdAtValue)-1] + hourPattern)
 				ctx.SMWithOAuth.GET(t.API).WithQuery("fieldQuery", fmt.Sprintf("%s eq %s", "created_at", escapedCreatedAtValue)).
-					Expect().Status(http.StatusOK).JSON().Object().Value(jsonArrayKey).Array().
+					Expect().Status(http.StatusOK).JSON().Object().Value("items").Array().
 					Element(0).Object().Value("id").Equal(r[0]["id"])
 			})
 		})
@@ -446,9 +443,8 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 
 			It("and is encoded, returns 200", func() {
 				escapedLabelValue := url.QueryEscape(labelValue)
-				jsonArrayKey := strings.Replace(t.API, "/v1/", "", 1)
 				ctx.SMWithOAuth.GET(t.API).WithQuery("labelQuery", fmt.Sprintf("%s eq '%s'", labelKey, escapedLabelValue)).
-					Expect().Status(http.StatusOK).JSON().Object().Path(fmt.Sprintf("$.%s[*].id", jsonArrayKey)).Array().Contains(obj["id"])
+					Expect().Status(http.StatusOK).JSON().Object().Path("$.items[*].id").Array().Contains(obj["id"])
 			})
 		})
 
@@ -480,6 +476,75 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 					})
 				})
 			}
+
+			Context("Paging", func() {
+				Context("with max items query", func() {
+					It("returns smaller pages token and Link header", func() {
+						pageSize := 5
+						resp := ctx.SMWithOAuth.GET(t.API).WithQuery("max_items", pageSize).Expect().Status(http.StatusOK)
+
+						resp.Header("Link").Contains(fmt.Sprintf("<%s?max_items=%d&token=", t.API, pageSize)).Contains(`>; rel="next"`)
+						resp.JSON().Path("$.num_items").Number().Gt(0)
+						resp.JSON().Path("$.items[*]").Array().Length().Gt(0).Le(pageSize)
+						resp.JSON().Path("$.token").NotNull()
+					})
+				})
+				Context("with negative max items query", func() {
+					It("returns 400", func() {
+						ctx.SMWithOAuth.GET(t.API).WithQuery("max_items", -1).Expect().Status(http.StatusBadRequest)
+					})
+				})
+				Context("with non numerical max_items query", func() {
+					It("returns 400", func() {
+						ctx.SMWithOAuth.GET(t.API).WithQuery("max_items", "invalid").Expect().Status(http.StatusBadRequest)
+					})
+				})
+				Context("with zero max items query", func() {
+					It("returns count of the items only", func() {
+						resp := ctx.SMWithOAuth.GET(t.API).WithQuery("max_items", 0).Expect().Status(http.StatusOK).JSON()
+
+						resp.Object().NotContainsKey("items")
+						resp.Path("$.num_items").Number().Gt(0)
+					})
+				})
+				When("there are no more pages", func() {
+					It("should not return token and Link header", func() {
+						resp := ctx.SMWithOAuth.GET(t.API).WithQuery("max_items", 0).Expect().Status(http.StatusOK)
+
+						resp.JSON().Object().NotContainsKey("items")
+						pageSize := resp.JSON().Path("$.num_items").Number().Raw()
+
+						resp = ctx.SMWithOAuth.GET(t.API).WithQuery("max_items", pageSize).Expect().Status(http.StatusOK)
+
+						resp.Header("Link").Empty()
+						resp.JSON().Object().NotContainsKey("token")
+						resp.JSON().Path("$.num_items").Number().Gt(0)
+						resp.JSON().Path("$.items[*]").Array().Length().Gt(0).Le(pageSize)
+					})
+				})
+				Context("with invalid token", func() {
+					executeWithInvalidToken := func(token string) {
+						ctx.SMWithOAuth.GET(t.API).WithQuery("token", token).Expect().Status(http.StatusBadRequest)
+					}
+					Context("no base64 encoded", func() {
+						It("returns 404", func() {
+							executeWithInvalidToken("invalid")
+						})
+					})
+					Context("non numerical", func() {
+						It("returns 404", func() {
+							token := base64.StdEncoding.EncodeToString([]byte("non-numerical"))
+							executeWithInvalidToken(token)
+						})
+					})
+					Context("negative value", func() {
+						It("returns 404", func() {
+							token := base64.StdEncoding.EncodeToString([]byte("-1"))
+							executeWithInvalidToken(token)
+						})
+					})
+				})
+			})
 
 			Context("with no field query", func() {
 				It("it returns all resources", func() {

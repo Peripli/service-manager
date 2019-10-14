@@ -23,6 +23,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/pkg/types"
+
+	"github.com/tidwall/gjson"
+
+	"github.com/Peripli/service-manager/pkg/web"
+
 	"github.com/spf13/pflag"
 
 	"github.com/gofrs/uuid"
@@ -225,6 +232,7 @@ var _ = Describe("Service Manager OSB API", func() {
 
 		simpleBrokerCatalogID, _, brokerServerWithSimpleCatalog := ctx.RegisterBrokerWithCatalog(simpleCatalog)
 		smUrlToSimpleBrokerCatalogBroker = brokerServerWithSimpleCatalog.URL() + "/v1/osb/" + simpleBrokerCatalogID
+		common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, simpleBrokerCatalogID)
 
 		var failingBrokerObject common.Object
 		failingBrokerID, failingBrokerObject, failingBrokerServer = ctx.RegisterBroker()
@@ -336,6 +344,118 @@ var _ = Describe("Service Manager OSB API", func() {
 				Expect(len(stoppedBrokerServer.CatalogEndpointRequests)).To(Equal(0))
 			})
 		})
+
+		Describe("filtering catalog for k8s platform based on visibilities", func() {
+			var brokerID string
+			var plan1, plan2, plan3 string
+			var plan1ID, plan1CatalogID, plan2ID, plan2CatalogID, plan3ID, plan3CatalogID string
+			var k8sPlatform *types.Platform
+			var k8sAgent *common.SMExpect
+
+			getSMPlanIDByCatalogID := func(planCatalogID string) string {
+				plans, err := ctx.SMRepository.List(context.Background(), types.ServicePlanType, query.ByField(query.EqualsOperator, "catalog_id", planCatalogID))
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(plans.Len()).To(BeNumerically("==", 1))
+				return plans.ItemAt(0).GetID()
+			}
+
+			assertBrokerPlansVisibleForPlatform := func(brokerID string, agent *common.SMExpect, plans ...interface{}) {
+				result := agent.GET(fmt.Sprintf("%s/%s/v2/catalog", web.OSBURL, brokerID)).
+					Expect().Status(http.StatusOK).JSON().Path("$.services[*].plans[*].id").Array()
+
+				result.Length().Equal(len(plans))
+				if len(plans) > 0 {
+					result.ContainsOnly(plans...)
+				}
+			}
+
+			BeforeEach(func() {
+				k8sPlatformJSON := common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
+				k8sPlatform = common.RegisterPlatformInSM(k8sPlatformJSON, ctx.SMWithOAuth, map[string]string{})
+				k8sAgent = &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
+					username, password := k8sPlatform.Credentials.Basic.Username, k8sPlatform.Credentials.Basic.Password
+					req.WithBasicAuth(username, password)
+				})}
+
+				catalog := common.NewEmptySBCatalog()
+				plan1 = common.GenerateFreeTestPlan()
+				plan2 = common.GenerateTestPlan()
+				plan3 = common.GenerateTestPlan()
+				catalog.AddService(common.GenerateTestServiceWithPlans(plan1, plan2))
+				catalog.AddService(common.GenerateTestServiceWithPlans(plan3))
+				brokerID, _, _ = ctx.RegisterBrokerWithCatalog(catalog)
+
+				plan1CatalogID = gjson.Get(plan1, "id").String()
+				plan2CatalogID = gjson.Get(plan2, "id").String()
+				plan3CatalogID = gjson.Get(plan3, "id").String()
+				plan1ID = getSMPlanIDByCatalogID(plan1CatalogID)
+				plan2ID = getSMPlanIDByCatalogID(plan2CatalogID)
+				plan3ID = getSMPlanIDByCatalogID(plan3CatalogID)
+			})
+
+			AfterEach(func() {
+				ctx.CleanupBroker(brokerID)
+				ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/" + k8sPlatform.ID).
+					Expect().Status(http.StatusOK)
+			})
+
+			Context("for platform with no visibilities", func() {
+				It("should return empty services catalog", func() {
+					assertBrokerPlansVisibleForPlatform(brokerID, k8sAgent)
+				})
+			})
+
+			Context("for cloud foundry platform", func() {
+				It("should return all services and plans, no matter the visibilities", func() {
+					assertBrokerPlansVisibleForPlatform(brokerID, ctx.SMWithBasic, plan1CatalogID, plan2CatalogID, plan3CatalogID)
+				})
+			})
+
+			Context("for platform with visibilities for 2 plans from 2 services", func() {
+				It("should return 2 plans", func() {
+					assertBrokerPlansVisibleForPlatform(brokerID, k8sAgent)
+
+					ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
+						"service_plan_id": plan1ID,
+						"platform_id":     k8sPlatform.ID,
+					}).Expect().Status(http.StatusCreated)
+					ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
+						"service_plan_id": plan3ID,
+						"platform_id":     k8sPlatform.ID,
+					}).Expect().Status(http.StatusCreated)
+
+					assertBrokerPlansVisibleForPlatform(brokerID, k8sAgent, plan3CatalogID, plan1CatalogID)
+				})
+			})
+
+			Context("for platform with non-public visibility for one plan", func() {
+				It("should return 1 plan", func() {
+					assertBrokerPlansVisibleForPlatform(brokerID, k8sAgent)
+
+					ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
+						"service_plan_id": plan2ID,
+						"platform_id":     k8sPlatform.ID,
+					}).Expect().Status(http.StatusCreated)
+
+					assertBrokerPlansVisibleForPlatform(brokerID, k8sAgent, plan2CatalogID)
+				})
+			})
+
+			Context("for platform with public visibility for one plan", func() {
+				It("should return 1 plan", func() {
+					assertBrokerPlansVisibleForPlatform(brokerID, k8sAgent)
+
+					k8sAgent.GET(fmt.Sprintf("%s/%s/v2/catalog", web.OSBURL, brokerID)).
+						Expect().Status(http.StatusOK).JSON().Object().Value("services").Array().Empty()
+
+					ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
+						"service_plan_id": plan1ID,
+					}).Expect().Status(http.StatusCreated)
+					assertBrokerPlansVisibleForPlatform(brokerID, k8sAgent, plan1CatalogID)
+				})
+			})
+		})
+
 	})
 
 	Describe("Provision", func() {

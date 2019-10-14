@@ -40,8 +40,10 @@ type ServiceOffering struct {
 	Requires sqlxtypes.JSONText `db:"requires"`
 	Metadata sqlxtypes.JSONText `db:"metadata"`
 
-	BrokerID string         `db:"broker_id"`
-	Plans    []*ServicePlan `db:"-"`
+	BrokerID       string `db:"broker_id"`
+	PagingSequence int64  `db:"paging_sequence,auto_increment"`
+
+	Plans []*ServicePlan `db:"-"`
 }
 
 func (e *ServiceOffering) ToObject() types.Object {
@@ -51,9 +53,10 @@ func (e *ServiceOffering) ToObject() types.Object {
 	}
 	return &types.ServiceOffering{
 		Base: types.Base{
-			ID:        e.ID,
-			CreatedAt: e.CreatedAt,
-			UpdatedAt: e.UpdatedAt,
+			ID:             e.ID,
+			CreatedAt:      e.CreatedAt,
+			UpdatedAt:      e.UpdatedAt,
+			PagingSequence: e.PagingSequence,
 		},
 		Name:                 e.Name,
 		Description:          e.Description,
@@ -101,6 +104,7 @@ func (*ServiceOffering) FromObject(object types.Object) (storage.Entity, bool) {
 		Requires:             getJSONText(offering.Requires),
 		Metadata:             getJSONText(offering.Metadata),
 		BrokerID:             offering.BrokerID,
+		PagingSequence:       offering.PagingSequence,
 		Plans:                plans,
 	}
 	return result, true

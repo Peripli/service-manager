@@ -26,6 +26,9 @@ import (
 	"time"
 )
 
+// MinInterval is the minimum check interval for a indicator configuration
+var MinInterval = 10 * time.Second
+
 // StorageIndicatorName is the name of storage indicator
 const StorageIndicatorName = "storage"
 
@@ -93,8 +96,8 @@ func (is *IndicatorSettings) Validate() error {
 	if is.Fatal && is.FailuresThreshold <= 0 {
 		return fmt.Errorf("validate Settings: FailuresThreshold must be > 0 for fatal indicators")
 	}
-	if is.Interval < 30*time.Second {
-		return fmt.Errorf("validate Settings: Minimum interval is 30 seconds")
+	if is.Interval < MinInterval {
+		return fmt.Errorf("validate Settings: Minimum interval is %v", MinInterval)
 	}
 	return nil
 }

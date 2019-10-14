@@ -135,12 +135,14 @@ type tagType struct {
 	Type reflect.Type
 }
 
+func noPredicate(string) bool { return false }
+
 func getDBTags(structure interface{}, predicate func(string) bool) []tagType {
 	s := structs.New(structure)
 	fields := s.Fields()
 	set := make([]tagType, 0, len(fields))
 	if predicate == nil {
-		predicate = func(string) bool { return false }
+		predicate = noPredicate
 	}
 	getTags(fields, &set, predicate)
 	return set

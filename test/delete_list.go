@@ -22,8 +22,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gavv/httpexpect"
-
 	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/test/common"
@@ -242,6 +240,26 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				expectedStatusCode: http.StatusOK,
 			},
 		),
+		Entry("returns 400 when label query is duplicated",
+			deleteOpEntry{
+				queryTemplate: "%[1]s eq '%[2]v' and %[1]s eq '%[2]v'",
+				queryArgs: func() common.Object {
+					return common.Object{
+						"labels": common.CopyLabels(r[0]),
+					}
+				},
+				expectedStatusCode: http.StatusBadRequest,
+			},
+		),
+		Entry("returns 200 when field query is duplicated",
+			deleteOpEntry{
+				queryTemplate: "%[1]s eq '%[2]v' and %[1]s eq '%[2]v'",
+				queryArgs: func() common.Object {
+					return common.CopyFields(r[0])
+				},
+				expectedStatusCode: http.StatusOK,
+			},
+		),
 		Entry("returns 200 for JSON fields with stripped new lines",
 			deleteOpEntry{
 				resourcesToExpectBeforeOp: func() []common.Object {
@@ -399,9 +417,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		By(fmt.Sprintf("[AFTEREACH]: Sucessfully finished cleaning up test resources"))
 	}
 
-	verifyDeleteListOpHelperWithAuth := func(deleteListOpEntry deleteOpEntry, query string, auth *httpexpect.Expect) {
-		jsonArrayKey := strings.Replace(t.API, "/v1/", "", 1)
-
+	verifyDeleteListOpHelperWithAuth := func(deleteListOpEntry deleteOpEntry, query string, auth *common.SMExpect) {
 		expectedAfterOpIDs := make([]string, 0)
 		unexpectedAfterOpIDs := make([]string, 0)
 
@@ -424,9 +440,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 
 		if deleteListOpEntry.resourcesToExpectBeforeOp != nil {
 			By(fmt.Sprintf("[TEST]: Verifying expected %s before operation are present", t.API))
-			beforeOpArray := ctx.SMWithOAuth.GET(t.API).
-				Expect().
-				Status(http.StatusOK).JSON().Object().Value(jsonArrayKey).Array()
+			beforeOpArray := ctx.SMWithOAuth.List(t.API)
 
 			for _, v := range beforeOpArray.Iter() {
 				obj := v.Object().Raw()
@@ -455,9 +469,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 			By(fmt.Sprintf("[TEST]: Verifying error and description fields are returned after operation"))
 			resp.JSON().Object().Keys().Contains("error", "description")
 		} else {
-			afterOpArray := ctx.SMWithOAuth.GET(t.API).
-				Expect().
-				Status(http.StatusOK).JSON().Object().Value(jsonArrayKey).Array()
+			afterOpArray := ctx.SMWithOAuth.List(t.API)
 
 			for _, v := range afterOpArray.Iter() {
 				obj := v.Object().Raw()

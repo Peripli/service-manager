@@ -121,6 +121,10 @@ func (ir *interceptableRepository) List(ctx context.Context, objectType types.Ob
 	return objectList, nil
 }
 
+func (ir *interceptableRepository) Count(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (int, error) {
+	return ir.repositoryInTransaction.Count(ctx, objectType, criteria...)
+}
+
 func (ir *interceptableRepository) Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	deleteObjectFunc := func(ctx context.Context, _ Repository, _ types.ObjectList, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
 		objectList, err := ir.repositoryInTransaction.Delete(ctx, objectType, deletionCriteria...)
@@ -318,6 +322,10 @@ func (itr *InterceptableTransactionalRepository) List(ctx context.Context, objec
 	}
 
 	return objectList, nil
+}
+
+func (itr *InterceptableTransactionalRepository) Count(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (int, error) {
+	return itr.smStorageRepository.Count(ctx, objectType, criteria...)
 }
 
 type finalDeleteObjectInterceptor struct {

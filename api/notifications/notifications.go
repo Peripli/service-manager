@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/query"
 	"net/http"
 	"strconv"
 	"time"
@@ -74,7 +75,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		responseHeaders.Add(LastKnownRevisionHeader, strconv.FormatInt(lastKnownToSMRevision, 10))
 	}
 
-	conn, err := c.upgrade(rw, req.Request, responseHeaders)
+	conn, err := c.upgrade(childCtx, c.repository, platform, rw, req.Request, responseHeaders)
 	if err != nil {
 		c.unregisterConsumer(ctx, notificationQueue)
 		return nil, err
@@ -84,7 +85,7 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 
 	go c.closeConn(childCtx, childCtxCancel, conn, done)
 	go c.writeLoop(childCtx, conn, notificationQueue, done)
-	go c.readLoop(childCtx, conn, done)
+	go c.readLoop(childCtx, c.repository, platform, conn, done)
 
 	return &web.Response{}, nil
 }
@@ -121,7 +122,7 @@ func (c *Controller) writeLoop(ctx context.Context, conn *websocket.Conn, q stor
 	}
 }
 
-func (c *Controller) readLoop(ctx context.Context, conn *websocket.Conn, done chan<- struct{}) {
+func (c *Controller) readLoop(ctx context.Context, repository storage.TransactionalRepository, platform *types.Platform, conn *websocket.Conn, done chan<- struct{}) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.C(ctx).Errorf("recovered from panic while reading from websocket connection: %s", err)
@@ -138,6 +139,9 @@ func (c *Controller) readLoop(ctx context.Context, conn *websocket.Conn, done ch
 		_, _, err := conn.ReadMessage()
 		if err != nil {
 			log.C(ctx).WithError(err).Error("ws: could not read")
+			if err = updatePlatformStatus(ctx, repository, platform.ID, false); err != nil {
+				log.C(ctx).WithError(err).Error("could not update platform status")
+			}
 			return
 		}
 	}
@@ -177,4 +181,36 @@ func newContextWithCorrelationID(baseCtx context.Context, correlationID string) 
 	entry := log.C(baseCtx).WithField(log.FieldCorrelationID, correlationID)
 	newCtx := log.ContextWithLogger(baseCtx, entry)
 	return context.WithCancel(newCtx)
+}
+
+func updatePlatformStatus(ctx context.Context, repository storage.TransactionalRepository, platformID string, desiredStatus bool) error {
+	if err := repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
+		idCriteria := query.Criterion{
+			LeftOp:   "id",
+			Operator: query.EqualsOperator,
+			RightOp:  []string{platformID},
+			Type:     query.FieldQuery,
+		}
+		obj, err := storage.Get(ctx, types.PlatformType, idCriteria)
+		if err != nil {
+			return err
+		}
+
+		platform := obj.(*types.Platform)
+
+		if platform.Active != desiredStatus {
+			platform.Active = desiredStatus
+			if !platform.Active {
+				platform.LastActive = time.Now()
+			}
+
+			if _, err := storage.Update(ctx, platform, nil); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
 }
