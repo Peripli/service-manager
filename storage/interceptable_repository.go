@@ -343,7 +343,7 @@ func (itr *InterceptableTransactionalRepository) Update(ctx context.Context, obj
 
 		if err = itr.smStorageRepository.InTransaction(ctx, func(ctx context.Context, txStorage Repository) error {
 			interceptableRepository := newInterceptableRepository(txStorage, providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors)
-			result, err = interceptableRepository.Update(ctx, obj, labelChanges)
+			result, err = interceptableRepository.Update(ctx, obj, labelChanges, criteria...)
 			if err != nil {
 				return err
 			}

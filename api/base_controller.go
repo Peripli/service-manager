@@ -293,7 +293,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	labels, _, _ := query.ApplyLabelChangesToLabels(labelChanges, objFromDB.GetLabels())
 	objFromDB.SetLabels(labels)
 
-	object, err := c.repository.Update(ctx, objFromDB, labelChanges)
+	object, err := c.repository.Update(ctx, objFromDB, labelChanges, criteria...)
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
