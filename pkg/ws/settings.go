@@ -13,8 +13,8 @@ type Settings struct {
 // DefaultSettings return the default values for ws server
 func DefaultSettings() *Settings {
 	return &Settings{
-		PingTimeout:  time.Second * 5,
-		WriteTimeout: time.Second * 5,
+		PingTimeout:  time.Second * 30,
+		WriteTimeout: time.Second * 30,
 	}
 }
 
