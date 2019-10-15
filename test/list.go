@@ -414,7 +414,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 			})
 		})
 
-		Context("when query requires encoding", func() {
+		Context("when query contains special symbols", func() {
 			var obj common.Object
 			labelKey := "labelKey1"
 			labelValue := "symbols!that@are#url$encoded%when^making a*request("
@@ -435,15 +435,9 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 					Status(http.StatusOK)
 			})
 
-			It("and is not encoded, returns 400", func() {
-				ctx.SMWithOAuth.GET(t.API).WithQuery("labelQuery", fmt.Sprintf("%s eq '%s'", labelKey, labelValue)).
-					Expect().Status(http.StatusBadRequest).Body().Contains("not URL encoded")
-			})
-
-			It("and is encoded, returns 200", func() {
-				escapedLabelValue := url.QueryEscape(labelValue)
-				ctx.SMWithOAuth.GET(t.API).WithQuery("labelQuery", fmt.Sprintf("%s eq '%s'", labelKey, escapedLabelValue)).
-					Expect().Status(http.StatusOK).JSON().Object().Path("$.items[*].id").Array().Contains(obj["id"])
+			It("returns 200", func() {
+				ctx.SMWithOAuth.ListWithQuery(t.API, fmt.Sprintf("labelQuery=%s eq '%s'", labelKey, url.QueryEscape(labelValue))).
+					Path("$[*].id").Array().Contains(obj["id"])
 			})
 		})
 
