@@ -290,9 +290,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 	Context("when fetching with query parameter", func() {
 		It("returns correct result", func() {
 			isPlanFree := gjson.Get(oldPaidPlan, "free").Raw
-			ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("fieldQuery", fmt.Sprintf("free eq %s", isPlanFree)).
-				Expect().
-				Status(http.StatusOK).JSON().Object().Value("service_plans").Array().
+			ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=free eq %s", isPlanFree)).
 				Element(0).Object().Value("catalog_id").Equal(oldPaidPlanCatalogID)
 		})
 	})
