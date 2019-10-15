@@ -409,8 +409,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 					hourPattern = fmt.Sprintf("-0%d:00", newHour)
 				}
 				escapedCreatedAtValue := url.QueryEscape(createdAtValue[:len(createdAtValue)-1] + hourPattern)
-				ctx.SMWithOAuth.GET(t.API).WithQuery("fieldQuery", fmt.Sprintf("%s eq %s", "created_at", escapedCreatedAtValue)).
-					Expect().Status(http.StatusOK).JSON().Object().Value("items").Array().
+				ctx.SMWithOAuth.ListWithQuery(t.API, fmt.Sprintf("fieldQuery=%s eq %s", "created_at", escapedCreatedAtValue)).
 					Element(0).Object().Value("id").Equal(r[0]["id"])
 			})
 		})
