@@ -69,7 +69,7 @@ type Notificator struct {
 func NewNotificator(st storage.Storage, settings *storage.Settings) (*Notificator, error) {
 	ns, err := NewNotificationStorage(st)
 	connectionCreator := &notificationConnectionCreatorImpl{
-		skipSSSLValidation:   settings.SkipSSLValidation,
+		skipSSLValidation:    settings.SkipSSLValidation,
 		storageURI:           settings.URI,
 		minReconnectInterval: settings.Notification.MinReconnectInterval,
 		maxReconnectInterval: settings.Notification.MaxReconnectInterval,
