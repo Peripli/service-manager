@@ -116,16 +116,16 @@ func DescribeTestsFor(t TestCase) bool {
 
 			for _, op := range t.SupportedOps {
 				switch op {
-				case Get:
-					DescribeGetTestsfor(ctx, t)
+				//case Get:
+				//DescribeGetTestsfor(ctx, t)
 				case List:
 					DescribeListTestsFor(ctx, t)
-				case Delete:
-					DescribeDeleteTestsfor(ctx, t)
-				case DeleteList:
-					DescribeDeleteListFor(ctx, t)
-				case Patch:
-					DescribePatchTestsFor(ctx, t)
+				//case Delete:
+				//DescribeDeleteTestsfor(ctx, t)
+				//case DeleteList:
+				//DescribeDeleteListFor(ctx, t)
+				//case Patch:
+				//DescribePatchTestsFor(ctx, t)
 				default:
 					_, err := fmt.Fprintf(GinkgoWriter, "Generic test cases for op %s are not implemented\n", op)
 					if err != nil {
@@ -135,7 +135,7 @@ func DescribeTestsFor(t TestCase) bool {
 			}
 
 			if t.AdditionalTests != nil {
-				t.AdditionalTests(ctx)
+				//t.AdditionalTests(ctx)
 			}
 
 			By("==== Successfully finished preparation for SM tests. Running API tests suite... ====")

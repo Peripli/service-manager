@@ -18,8 +18,10 @@ package postgres
 
 import (
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/query"
+	"reflect"
 	"strings"
+
+	"github.com/Peripli/service-manager/pkg/query"
 )
 
 type logicalOperator string
@@ -40,9 +42,9 @@ func (t *whereClauseTree) isLeaf() bool {
 	return len(t.children) == 0
 }
 
-func (t *whereClauseTree) compileSQL(dbTags []tagType) (string, []interface{}, error) {
+func (t *whereClauseTree) compileSQL(dbTags []tagType, tableName string) (string, []interface{}, error) {
 	if t.isLeaf() {
-		sql, queryParam, err := criterionSQL(t.criterion, dbTags)
+		sql, queryParam, err := criterionSQL(t.criterion, dbTags, tableName)
 		if err != nil {
 			return "", nil, err
 		}
@@ -51,7 +53,7 @@ func (t *whereClauseTree) compileSQL(dbTags []tagType) (string, []interface{}, e
 	queryParams := make([]interface{}, 0)
 	childrenSQL := make([]string, 0)
 	for _, child := range t.children {
-		childSQL, childQueryParams, err := child.compileSQL(dbTags)
+		childSQL, childQueryParams, err := child.compileSQL(dbTags, tableName)
 		if err != nil {
 			return "", nil, err
 		}
@@ -63,24 +65,27 @@ func (t *whereClauseTree) compileSQL(dbTags []tagType) (string, []interface{}, e
 	return sql, queryParams, nil
 }
 
-func treesFromCriteria(criteria ...query.Criterion) []*whereClauseTree {
-	trees := make([]*whereClauseTree, 0, len(criteria))
-	for _, criterion := range criteria {
-		trees = append(trees, &whereClauseTree{criterion: criterion})
+func criterionSQL(criterion query.Criterion, dbTags []tagType, tableName string) (string, interface{}, error) {
+	var ttype reflect.Type
+	if dbTags != nil {
+		var err error
+		ttype, err = findTagType(dbTags, criterion.LeftOp)
+		if err != nil {
+			return "", nil, err
+		}
 	}
-	return trees
-}
+	rightOpBindVar, rightOpQueryValue := buildRightOp(criterion)
+	sqlOperation := translateOperationToSQLEquivalent(criterion.Operator)
 
-func and(trees []*whereClauseTree) *whereClauseTree {
-	return &whereClauseTree{
-		operator: AND,
-		children: trees,
+	dbCast := determineCastByType(ttype)
+	var clause string
+	if tableName != "" {
+		clause = fmt.Sprintf("%s.%s%s %s %s", tableName, criterion.LeftOp, dbCast, sqlOperation, rightOpBindVar)
+	} else {
+		clause = fmt.Sprintf("%s%s %s %s", criterion.LeftOp, dbCast, sqlOperation, rightOpBindVar)
 	}
-}
-
-func or(trees []*whereClauseTree) *whereClauseTree {
-	return &whereClauseTree{
-		operator: OR,
-		children: trees,
+	if criterion.Operator.IsNullable() {
+		clause = fmt.Sprintf("(%s OR %s IS NULL)", clause, criterion.LeftOp)
 	}
+	return clause, rightOpQueryValue, nil
 }
