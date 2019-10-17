@@ -20,8 +20,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/query"
 	"strings"
+
+	"github.com/Peripli/service-manager/pkg/query"
 
 	. "github.com/onsi/ginkgo/extensions/table"
 

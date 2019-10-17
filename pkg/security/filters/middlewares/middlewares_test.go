@@ -17,6 +17,7 @@
 package middlewares
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -62,7 +63,7 @@ var _ = Describe("Middlewares", func() {
 			Context("when authorizer returns decision", func() {
 				Context("Deny", func() {
 					It("should return error", func() {
-						authorizer.AuthorizeReturns(httpsec.Deny, nil)
+						authorizer.AuthorizeReturns(httpsec.Deny, web.NoAccess, nil)
 						authzFilter := Authorization{
 							Authorizer: authorizer,
 						}
@@ -74,7 +75,7 @@ var _ = Describe("Middlewares", func() {
 				})
 				Context("Abstain", func() {
 					It("should continue with calling handler", func() {
-						authorizer.AuthorizeReturns(httpsec.Abstain, nil)
+						authorizer.AuthorizeReturns(httpsec.Abstain, web.NoAccess, nil)
 						handler.HandleReturns(nil, errors.New(expectedErrorMessage))
 						authzFilter := Authorization{
 							Authorizer: authorizer,
@@ -85,15 +86,69 @@ var _ = Describe("Middlewares", func() {
 					})
 				})
 				Context("Allow", func() {
-					It("should add authorization flag in request context", func() {
-						authorizer.AuthorizeReturns(httpsec.Allow, nil)
+					Context("when usercontext is missing", func() {
+						BeforeEach(func() {
+							req.Request = req.WithContext(context.TODO())
+						})
+
+						It("should return an error", func() {
+							authorizer.AuthorizeReturns(httpsec.Allow, web.GlobalAccess, nil)
+							handler.HandleReturns(nil, errors.New(expectedErrorMessage))
+							authzFilter := Authorization{
+								Authorizer: authorizer,
+							}
+							_, err := authzFilter.Run(req, handler)
+							checkExpectedErrorMessage("authorization failed due to missing user context", err)
+							Expect(web.IsAuthorized(req.Context())).To(BeFalse())
+						})
+					})
+
+					testCase := func(initialLevel, mockLevel, expectedLevel web.AccessLevel, expectedHandlerCallCount int, expectedErrorMessage string, expectAuthrized bool) {
+						req.Request = req.WithContext(web.ContextWithUser(context.Background(), &web.UserContext{
+							Name:               "test-user",
+							AccessLevel:        initialLevel,
+							AuthenticationType: web.Bearer,
+						}))
+						authorizer.AuthorizeReturns(httpsec.Allow, mockLevel, nil)
 						handler.HandleReturns(nil, errors.New(expectedErrorMessage))
 						authzFilter := Authorization{
 							Authorizer: authorizer,
 						}
 						_, err := authzFilter.Run(req, handler)
 						checkExpectedErrorMessage(expectedErrorMessage, err)
-						Expect(web.IsAuthorized(req.Context())).To(BeTrue())
+						Expect(web.IsAuthorized(req.Context())).To(Equal(expectAuthrized))
+						if expectedHandlerCallCount > 0 {
+							req := handler.HandleArgsForCall(0)
+							userContext, found := web.UserFromContext(req.Context())
+							Expect(found).To(BeTrue())
+							Expect(userContext.AccessLevel).To(Equal(expectedLevel))
+						}
+					}
+
+					Context("when usercontext is present", func() {
+						Context("with access level is NoAccess", func() {
+							It("should not modify the user context access level", func() {
+								testCase(web.GlobalAccess, web.NoAccess, web.GlobalAccess, 0, "authorization failed due to missing access level", false)
+							})
+						})
+
+						Context("with access level is Global", func() {
+							It("should modify the user context access level", func() {
+								testCase(web.NoAccess, web.GlobalAccess, web.GlobalAccess, 1, expectedErrorMessage, true)
+							})
+						})
+
+						Context("with access level is Tenant", func() {
+							It("should modify the user context access level", func() {
+								testCase(web.NoAccess, web.TenantAccess, web.TenantAccess, 1, expectedErrorMessage, true)
+							})
+						})
+
+						Context("with access level is AllTenant", func() {
+							It("should modify the user context access level", func() {
+								testCase(web.NoAccess, web.AllTenantAccess, web.AllTenantAccess, 1, expectedErrorMessage, true)
+							})
+						})
 					})
 				})
 			})
@@ -101,7 +156,7 @@ var _ = Describe("Middlewares", func() {
 			Context("when authorizer returns error", func() {
 				Context("and decision Abstain", func() {
 					It("should return error", func() {
-						authorizer.AuthorizeReturns(httpsec.Abstain, errors.New(expectedErrorMessage))
+						authorizer.AuthorizeReturns(httpsec.Abstain, web.NoAccess, errors.New(expectedErrorMessage))
 						authzFilter := Authorization{
 							Authorizer: authorizer,
 						}
@@ -112,7 +167,7 @@ var _ = Describe("Middlewares", func() {
 
 				Context("and decision Deny", func() {
 					It("should return http error 403", func() {
-						authorizer.AuthorizeReturns(httpsec.Deny, errors.New(expectedErrorMessage))
+						authorizer.AuthorizeReturns(httpsec.Deny, web.NoAccess, errors.New(expectedErrorMessage))
 						authzFilter := Authorization{
 							Authorizer: authorizer,
 						}
@@ -129,8 +184,6 @@ var _ = Describe("Middlewares", func() {
 	})
 
 	Describe("Authn middleware", func() {
-		const filterName = "authnFilterName"
-
 		var authenticator *httpfakes.FakeAuthenticator
 
 		BeforeEach(func() {
@@ -240,5 +293,5 @@ var _ = Describe("Middlewares", func() {
 
 func checkExpectedErrorMessage(expectedErrorMessage string, err error) {
 	Expect(err).To(HaveOccurred())
-	Expect(err.Error()).To(Equal(expectedErrorMessage))
+	Expect(err.Error()).To(ContainSubstring(expectedErrorMessage))
 }
