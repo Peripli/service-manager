@@ -32,7 +32,7 @@ SELECT %s
 FROM {{.ENTITY_TABLE}}
 {{.FOR_SHARE_OF}}
 {{.ORDER_BY}}
-{{.LIMIT}});`
+{{.LIMIT}};`
 
 const SELECTWithLabelsAndWithoutCriteriaTemplate = `
 SELECT %s
