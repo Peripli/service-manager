@@ -16,75 +16,72 @@ import (
 )
 
 const SELECTWithoutLabelsAndWithoutCriteriaTemplate = `
-SELECT %s 
-FROM {{.ENTITY_TABLE}} t
+SELECT %s
+FROM {{.ENTITY_TABLE}}
 {{.FOR_SHARE_OF}};`
 
 const SELECTWithLabelsAndWithoutCriteriaTemplate = `
-SELECT %s 
-FROM {{.ENTITY_TABLE}} t
-         {{.JOIN}} {{.LABELS_TABLE}}
-                   ON t.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.LABELS_TABLE_REF_COLUMN}}
-{{.FOR_SHARE_OF}};`
+SELECT %s
+FROM {{.ENTITY_TABLE}}
+         LEFT JOIN {{.LABELS_TABLE}}
+                   ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}};`
 
 const SELECTWithoutLabelsAndWithCriteriaTemplate = `
 WITH matching_resources as (SELECT DISTINCT t.paging_sequence
-                          FROM {{.ENTITY_TABLE}} t
+                          FROM {{.ENTITY_TABLE}}
                           {{.WHERE}}
                           {{.ORDER_BY}}
                           {{.LIMIT}})
-SELECT %s 
-FROM {{.ENTITY_TABLE}} t
-WHERE t.paging_sequence IN 
+SELECT %s
+FROM {{.ENTITY_TABLE}}
+WHERE {{.ENTITY_TABLE}}.paging_sequence IN
 		(SELECT matching_resources.paging_sequence FROM matching_resources)
-{{.FOR_SHARE_OF}}
+
 {{.ORDER_BY}};`
 
 const SELECTWithLabelsAndWithCriteriaTemplate = `
-WITH matching_resources as (SELECT DISTINCT t.paging_sequence
-                          FROM {{.ENTITY_TABLE}} t
-                                   {{.JOIN}} {{.LABELS_TABLE}} 
-										ON t.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.LABELS_TABLE_REF_COLUMN}}
+WITH matching_resources as (SELECT DISTINCT {{.ENTITY_TABLE}}.paging_sequence
+                          FROM {{.ENTITY_TABLE}}
+                                   LEFT JOIN {{.LABELS_TABLE}} 
+										ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
                           {{.WHERE}}
                           {{.ORDER_BY}}
                           {{.LIMIT}})
 SELECT %s 
-FROM {{.ENTITY_TABLE}} t
-         {{.JOIN}} {{.LABELS_TABLE}}
-                   ON t.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.LABELS_TABLE_REF_COLUMN}}
-WHERE t.paging_sequence IN 
+FROM {{.ENTITY_TABLE}}
+         LEFT JOIN {{.LABELS_TABLE}}
+                   ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
+WHERE {{.ENTITY_TABLE}}.paging_sequence IN 
 		(SELECT matching_resources.paging_sequence FROM matching_resources)
-{{.FOR_SHARE_OF}}
 {{.ORDER_BY}};`
 
 const SELECTWithLabelsColumns = `
-t.*,
+{{.ENTITY_TABLE}}.*,
 {{.LABELS_TABLE}}.id         "{{.LABELS_TABLE}}.id",
 {{.LABELS_TABLE}}.key        "{{.LABELS_TABLE}}.key",
 {{.LABELS_TABLE}}.val        "{{.LABELS_TABLE}}.val",
 {{.LABELS_TABLE}}.created_at "{{.LABELS_TABLE}}.created_at",
 {{.LABELS_TABLE}}.updated_at "{{.LABELS_TABLE}}.updated_at",
-{{.LABELS_TABLE}}.{{.LABELS_TABLE_REF_COLUMN}} "{{.LABELS_TABLE}}.{{.LABELS_TABLE_REF_COLUMN}}"`
+{{.LABELS_TABLE}}.{{.REF_COLUMN}} "{{.LABELS_TABLE}}.{{.REF_COLUMN}}"`
 
-const SELECTWithoutLabelsColumns = `t.*`
+const SELECTWithoutLabelsColumns = `*`
 
-const COUNTColumns = `COUNT(DISTINCT t.{{.PRIMARY_KEY}})`
+const COUNTColumns = `COUNT(DISTINCT {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}})`
 
 const DELETEWithoutCriteriaTemplate = `
 DELETE 
-FROM {{.ENTITY_TABLE}} t
+FROM {{.ENTITY_TABLE}}
 {{.RETURNING}};`
 
 const DELETEWithCriteriaTemplate = `
-WITH matching_resources as (SELECT DISTINCT t.paging_sequence
-                          FROM {{.ENTITY_TABLE}} t
-                                   {{.JOIN}} {{.LABELS_TABLE}} l
-										ON t.{{.PRIMARY_KEY}} = l.{{.LABELS_TABLE_REF_COLUMN}}
+WITH matching_resources as (SELECT DISTINCT {{.ENTITY_TABLE}}.paging_sequence
+                          FROM {{.ENTITY_TABLE}}
+                                   LEFT JOIN {{.LABELS_TABLE}}
+										ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
                           {{.WHERE}})
-DELETE FROM {{.ENTITY_TABLE}} t
-WHERE t.paging_sequence IN 
+DELETE FROM {{.ENTITY_TABLE}}
+WHERE {{.ENTITY_TABLE}}.paging_sequence IN 
 		(SELECT matching_resources.paging_sequence FROM matching_resources)
-	AND {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = t.{{.PRIMARY_KEY}}
 {{.RETURNING}};`
 
 type orderRule struct {
@@ -108,11 +105,15 @@ func NewQueryBuilder(db pgDB) *QueryBuilder {
 func (qb *QueryBuilder) NewQuery(entity PostgresEntity) *pgQuery {
 	return &pgQuery{
 		labelEntity:     entity.LabelEntity(),
-		entityTableName: entity.TableName(),
+		entity:          entity,
 		entityTags:      getDBTags(entity, nil),
+		labelEntityTags: getDBTags(entity.LabelEntity(), nil),
 		db:              qb.db,
-		whereClauseTree: &whereClauseTree{
+		fieldsWhereClause: &whereClauseTree{
 			operator: AND,
+		},
+		labelsWhereClause: &whereClauseTree{
+			operator: OR,
 		},
 	}
 }
@@ -120,9 +121,10 @@ func (qb *QueryBuilder) NewQuery(entity PostgresEntity) *pgQuery {
 // pgQuery is used to construct postgres queries. It should be constructed only via the query builder. It is not safe for concurrent use.
 type pgQuery struct {
 	db              pgDB
+	entity          PostgresEntity
 	labelEntity     PostgresLabel
-	entityTableName string
 	entityTags      []tagType
+	labelEntityTags []tagType
 
 	queryParams []interface{}
 
@@ -131,10 +133,10 @@ type pgQuery struct {
 	hasLock         bool
 	returningFields []string
 
-	whereClauseTree      *whereClauseTree
-	shouldRebind         bool
-	labelCriteriaPresent bool
-	err                  error
+	fieldsWhereClause *whereClauseTree
+	labelsWhereClause *whereClauseTree
+	shouldRebind      bool
+	err               error
 }
 
 func (pgq *pgQuery) List(ctx context.Context) (*sqlx.Rows, error) {
@@ -194,10 +196,10 @@ func (pgq *pgQuery) Delete(ctx context.Context) (*sqlx.Rows, error) {
 }
 
 func (pgq *pgQuery) resolveQueryTemplate(ctx context.Context, templates map[string]string) (string, error) {
+
 	data := map[string]interface{}{
-		"ENTITY_TABLE": pgq.entityTableName,
+		"ENTITY_TABLE": pgq.entity.TableName(),
 		"PRIMARY_KEY":  "id",
-		"JOIN":         pgq.joinSQL(),
 		"WHERE":        pgq.whereSQL(),
 		"FOR_SHARE_OF": pgq.lockSQL(),
 		"ORDER_BY":     pgq.orderBySQL(),
@@ -206,11 +208,10 @@ func (pgq *pgQuery) resolveQueryTemplate(ctx context.Context, templates map[stri
 	}
 
 	var q string
-	var err error
-	hasCriteria := len(pgq.whereClauseTree.children) != 0
+	hasCriteria := len(pgq.fieldsWhereClause.children) != 0 || len(pgq.labelsWhereClause.children) != 0
 	if pgq.labelEntity != nil {
 		data["LABELS_TABLE"] = pgq.labelEntity.LabelsTableName()
-		data["LABELS_TABLE_REF_COLUMN"] = pgq.labelEntity.ReferenceColumn()
+		data["REF_COLUMN"] = pgq.labelEntity.ReferenceColumn()
 		if hasCriteria {
 			q = templates["lc"]
 		} else {
@@ -223,6 +224,7 @@ func (pgq *pgQuery) resolveQueryTemplate(ctx context.Context, templates map[stri
 			q = templates["nlnc"]
 		}
 	}
+	var err error
 	q, err = tsprintf(q, data)
 	if err != nil {
 		return "", err
@@ -270,19 +272,22 @@ func (pgq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
 				pgq.err = &util.UnsupportedQueryError{Message: fmt.Sprintf("unsupported field query key: %s", criterion.LeftOp)}
 				return pgq
 			}
-			pgq.whereClauseTree.children = append(pgq.whereClauseTree.children, &whereClauseTree{
+			pgq.fieldsWhereClause.children = append(pgq.fieldsWhereClause.children, &whereClauseTree{
 				criterion: criterion,
+				dbTags:    pgq.entityTags,
+				tableName: pgq.entity.TableName(),
 			})
 		case query.LabelQuery:
-			pgq.labelCriteriaPresent = true
-			pgq.whereClauseTree.children = append(pgq.whereClauseTree.children, &whereClauseTree{
-				operator: OR,
+			pgq.labelsWhereClause.children = append(pgq.labelsWhereClause.children, &whereClauseTree{
+				operator: AND,
 				children: []*whereClauseTree{
 					{
 						criterion: query.ByField(query.EqualsOperator, "key", criterion.LeftOp),
+						dbTags:    pgq.labelEntityTags,
 					},
 					{
 						criterion: query.ByField(criterion.Operator, "val", criterion.RightOp...),
+						dbTags:    pgq.labelEntityTags,
 					},
 				},
 			})
@@ -314,16 +319,22 @@ func (ssq *pgQuery) limitSQL() string {
 
 func (ssq *pgQuery) joinSQL() string {
 	join := " LEFT JOIN "
-	if ssq.labelCriteriaPresent {
+	if len(ssq.labelsWhereClause.children) != 0 {
 		join = " JOIN "
 	}
 	return join
 }
 
 func (ssq *pgQuery) whereSQL() string {
-	whereSQL, queryParams, err := ssq.whereClauseTree.compileSQL(ssq.entityTags, "t")
-	if err != nil {
-		ssq.err = err
+	whereClause := &whereClauseTree{
+		children: []*whereClauseTree{
+			ssq.fieldsWhereClause,
+			ssq.labelsWhereClause,
+		},
+		operator: AND,
+	}
+	whereSQL, queryParams := whereClause.compileSQL()
+	if len(whereSQL) == 0 {
 		return ""
 	}
 	ssq.queryParams = append(ssq.queryParams, queryParams...)
@@ -331,12 +342,6 @@ func (ssq *pgQuery) whereSQL() string {
 }
 
 func (pgq *pgQuery) returningSQL() string {
-	for i := range pgq.returningFields {
-		if !strings.HasPrefix(pgq.returningFields[i], fmt.Sprintf("%s.", "t")) {
-			pgq.returningFields[i] = fmt.Sprintf("%s.%s", "t", pgq.returningFields[i])
-		}
-	}
-
 	fieldsCount := len(pgq.returningFields)
 	switch fieldsCount {
 	case 0:
@@ -353,7 +358,7 @@ func (pgq *pgQuery) lockSQL() string {
 		// Lock the rows if we are in transaction so that update operations on those rows can rely on unchanged data
 		// This allows us to handle concurrent updates on the same rows by executing them sequentially as
 		// before updating we have to anyway select the rows and can therefore lock them
-		return fmt.Sprintf("FOR SHARE OF %s", "t")
+		return fmt.Sprintf("FOR SHARE OF %s", pgq.entity.TableName())
 	}
 	return ""
 }
@@ -367,6 +372,9 @@ func (pgq *pgQuery) finalizeSQL(ctx context.Context, sql string) (string, error)
 		}
 	}
 	sql = pgq.db.Rebind(sql)
+
+	newline := regexp.MustCompile("\n\n")
+	sql = newline.ReplaceAllString(sql, "\n")
 
 	space := regexp.MustCompile(`\s+`)
 	sql = space.ReplaceAllString(sql, " ")

@@ -18,7 +18,6 @@ package postgres
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/Peripli/service-manager/pkg/query"
@@ -33,59 +32,82 @@ const (
 
 // whereClauseTree represents an sql where clause as tree structure with AND/OR on the nodes
 type whereClauseTree struct {
-	operator  logicalOperator
 	criterion query.Criterion
-	children  []*whereClauseTree
+	dbTags    []tagType
+	tableName string
+
+	operator logicalOperator
+	children []*whereClauseTree
 }
 
 func (t *whereClauseTree) isLeaf() bool {
 	return len(t.children) == 0
 }
 
-func (t *whereClauseTree) compileSQL(dbTags []tagType, tableName string) (string, []interface{}, error) {
+func (t *whereClauseTree) compileSQL() (string, []interface{}) {
+	if len(t.criterion.Operator) == 0 && len(t.children) == 0 {
+		return "", []interface{}{}
+	}
 	if t.isLeaf() {
-		sql, queryParam, err := criterionSQL(t.criterion, dbTags, tableName)
-		if err != nil {
-			return "", nil, err
-		}
-		return sql, []interface{}{queryParam}, nil
+		sql, queryParam := criterionSQL(t.criterion, t.dbTags, t.tableName)
+		return sql, []interface{}{queryParam}
 	}
 	queryParams := make([]interface{}, 0)
 	childrenSQL := make([]string, 0)
 	for _, child := range t.children {
-		childSQL, childQueryParams, err := child.compileSQL(dbTags, tableName)
-		if err != nil {
-			return "", nil, err
+		childSQL, childQueryParams := child.compileSQL()
+		if len(childSQL) != 0 {
+			childrenSQL = append(childrenSQL, childSQL)
+			queryParams = append(queryParams, childQueryParams...)
 		}
-		childrenSQL = append(childrenSQL, childSQL)
-		queryParams = append(queryParams, childQueryParams...)
 	}
-	sep := " " + string(t.operator) + " "
-	sql := fmt.Sprintf("(%s)", strings.Join(childrenSQL, sep))
-	return sql, queryParams, nil
+	sql := fmt.Sprintf("(%s)", strings.Join(childrenSQL, fmt.Sprintf(" %s ", t.operator)))
+	return sql, queryParams
 }
 
-func criterionSQL(criterion query.Criterion, dbTags []tagType, tableName string) (string, interface{}, error) {
-	var ttype reflect.Type
-	if dbTags != nil {
-		var err error
-		ttype, err = findTagType(dbTags, criterion.LeftOp)
-		if err != nil {
-			return "", nil, err
-		}
-	}
-	rightOpBindVar, rightOpQueryValue := buildRightOp(criterion)
-	sqlOperation := translateOperationToSQLEquivalent(criterion.Operator)
+func criterionSQL(c query.Criterion, dbTags []tagType, tableAlias string) (string, interface{}) {
+	rightOpBindVar, rightOpQueryValue := buildRightOp(c.Operator, c.RightOp)
+	sqlOperation := translateOperationToSQLEquivalent(c.Operator)
 
+	ttype := findTagType(dbTags, c.LeftOp)
 	dbCast := determineCastByType(ttype)
 	var clause string
-	if tableName != "" {
-		clause = fmt.Sprintf("%s.%s%s %s %s", tableName, criterion.LeftOp, dbCast, sqlOperation, rightOpBindVar)
+	if tableAlias != "" {
+		clause = fmt.Sprintf("%s.%s%s %s %s", tableAlias, c.LeftOp, dbCast, sqlOperation, rightOpBindVar)
 	} else {
-		clause = fmt.Sprintf("%s%s %s %s", criterion.LeftOp, dbCast, sqlOperation, rightOpBindVar)
+		clause = fmt.Sprintf("%s%s %s %s", c.LeftOp, dbCast, sqlOperation, rightOpBindVar)
 	}
-	if criterion.Operator.IsNullable() {
-		clause = fmt.Sprintf("(%s OR %s IS NULL)", clause, criterion.LeftOp)
+	if c.Operator.IsNullable() {
+		clause = fmt.Sprintf("(%s OR %s IS NULL)", clause, c.LeftOp)
 	}
-	return clause, rightOpQueryValue, nil
+	return clause, rightOpQueryValue
+}
+
+func buildRightOp(operator query.Operator, rightOp []string) (string, interface{}) {
+	rightOpBindVar := "?"
+	var rhs interface{} = rightOp[0]
+	if operator.IsMultiVariate() {
+		rightOpBindVar = "(?)"
+		rhs = rightOp
+	}
+	return rightOpBindVar, rhs
+}
+
+func translateOperationToSQLEquivalent(operator query.Operator) string {
+	switch operator {
+	case query.LessThanOperator:
+		return "<"
+	case query.LessThanOrEqualOperator:
+		return "<="
+	case query.GreaterThanOperator:
+		return ">"
+	case query.GreaterThanOrEqualOperator:
+		return ">="
+	case query.NotInOperator:
+		return "NOT IN"
+	case query.EqualsOrNilOperator:
+		return "="
+	default:
+		return strings.ToUpper(string(operator))
+	}
 }

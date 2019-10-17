@@ -20,7 +20,7 @@ import (
 
 // The query builder tests contain the full queries that are expected to be build and can therefore be used as documentation
 // to better understand the final queries that will be executed
-var _ = XDescribe("Postgres Storage Query builder", func() {
+var _ = Describe("Postgres Storage Query builder", func() {
 	var executedQuery string
 	var queryArgs []interface{}
 	var ctx = context.Background()
@@ -75,7 +75,8 @@ SELECT t.*,
        visibility_labels.updated_at    "visibility_labels.updated_at",
        visibility_labels.visibility_id "visibility_labels.visibility_id"
 FROM visibilities t
-         LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id ;`)))
+         LEFT JOIN visibility_labels ON t.id = visibility_labels.visibility_id
+;`)))
 				Expect(queryArgs).To(HaveLen(0))
 			})
 		})
