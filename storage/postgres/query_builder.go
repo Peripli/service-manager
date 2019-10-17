@@ -15,16 +15,31 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+const PrimaryKeyColumn = "id"
+const SELECTWithoutLabelsColumns = `*`
+const SELECTWithLabelsColumns = `
+{{.ENTITY_TABLE}}.*,
+{{.LABELS_TABLE}}.id         "{{.LABELS_TABLE}}.id",
+{{.LABELS_TABLE}}.key        "{{.LABELS_TABLE}}.key",
+{{.LABELS_TABLE}}.val        "{{.LABELS_TABLE}}.val",
+{{.LABELS_TABLE}}.created_at "{{.LABELS_TABLE}}.created_at",
+{{.LABELS_TABLE}}.updated_at "{{.LABELS_TABLE}}.updated_at",
+{{.LABELS_TABLE}}.{{.REF_COLUMN}} "{{.LABELS_TABLE}}.{{.REF_COLUMN}}"`
+const COUNTColumns = `COUNT(DISTINCT {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}})`
+
 const SELECTWithoutLabelsAndWithoutCriteriaTemplate = `
 SELECT %s
 FROM {{.ENTITY_TABLE}}
-{{.FOR_SHARE_OF}};`
+{{.FOR_SHARE_OF}}
+{{.ORDER_BY}}
+{{.LIMIT}});`
 
 const SELECTWithLabelsAndWithoutCriteriaTemplate = `
 SELECT %s
 FROM {{.ENTITY_TABLE}}
          LEFT JOIN {{.LABELS_TABLE}}
-                   ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}};`
+                   ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
+{{.ORDER_BY}};`
 
 const SELECTWithoutLabelsAndWithCriteriaTemplate = `
 WITH matching_resources as (SELECT DISTINCT t.paging_sequence
@@ -36,7 +51,6 @@ SELECT %s
 FROM {{.ENTITY_TABLE}}
 WHERE {{.ENTITY_TABLE}}.paging_sequence IN
 		(SELECT matching_resources.paging_sequence FROM matching_resources)
-
 {{.ORDER_BY}};`
 
 const SELECTWithLabelsAndWithCriteriaTemplate = `
@@ -55,19 +69,6 @@ WHERE {{.ENTITY_TABLE}}.paging_sequence IN
 		(SELECT matching_resources.paging_sequence FROM matching_resources)
 {{.ORDER_BY}};`
 
-const SELECTWithLabelsColumns = `
-{{.ENTITY_TABLE}}.*,
-{{.LABELS_TABLE}}.id         "{{.LABELS_TABLE}}.id",
-{{.LABELS_TABLE}}.key        "{{.LABELS_TABLE}}.key",
-{{.LABELS_TABLE}}.val        "{{.LABELS_TABLE}}.val",
-{{.LABELS_TABLE}}.created_at "{{.LABELS_TABLE}}.created_at",
-{{.LABELS_TABLE}}.updated_at "{{.LABELS_TABLE}}.updated_at",
-{{.LABELS_TABLE}}.{{.REF_COLUMN}} "{{.LABELS_TABLE}}.{{.REF_COLUMN}}"`
-
-const SELECTWithoutLabelsColumns = `*`
-
-const COUNTColumns = `COUNT(DISTINCT {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}})`
-
 const DELETEWithoutCriteriaTemplate = `
 DELETE 
 FROM {{.ENTITY_TABLE}}
@@ -83,11 +84,6 @@ DELETE FROM {{.ENTITY_TABLE}}
 WHERE {{.ENTITY_TABLE}}.paging_sequence IN 
 		(SELECT matching_resources.paging_sequence FROM matching_resources)
 {{.RETURNING}};`
-
-type orderRule struct {
-	field     string
-	orderType query.OrderType
-}
 
 // QueryBuilder is used to construct new queries. It is safe for concurrent usage
 type QueryBuilder struct {
@@ -116,6 +112,11 @@ func (qb *QueryBuilder) NewQuery(entity PostgresEntity) *pgQuery {
 			operator: OR,
 		},
 	}
+}
+
+type orderRule struct {
+	field     string
+	orderType query.OrderType
 }
 
 // pgQuery is used to construct postgres queries. It should be constructed only via the query builder. It is not safe for concurrent use.
@@ -199,7 +200,7 @@ func (pgq *pgQuery) resolveQueryTemplate(ctx context.Context, templates map[stri
 
 	data := map[string]interface{}{
 		"ENTITY_TABLE": pgq.entity.TableName(),
-		"PRIMARY_KEY":  "id",
+		"PRIMARY_KEY":  PrimaryKeyColumn,
 		"WHERE":        pgq.whereSQL(),
 		"FOR_SHARE_OF": pgq.lockSQL(),
 		"ORDER_BY":     pgq.orderBySQL(),
@@ -208,7 +209,10 @@ func (pgq *pgQuery) resolveQueryTemplate(ctx context.Context, templates map[stri
 	}
 
 	var q string
-	hasCriteria := len(pgq.fieldsWhereClause.children) != 0 || len(pgq.labelsWhereClause.children) != 0
+	hasCriteria := len(pgq.fieldsWhereClause.children) != 0 ||
+		len(pgq.labelsWhereClause.children) != 0 ||
+		len(pgq.limit) != 0
+
 	if pgq.labelEntity != nil {
 		data["LABELS_TABLE"] = pgq.labelEntity.LabelsTableName()
 		data["REF_COLUMN"] = pgq.labelEntity.ReferenceColumn()
@@ -395,7 +399,7 @@ func (pgq *pgQuery) processResultCriteria(c query.Criterion) *pgQuery {
 			field:     c.RightOp[0],
 			orderType: query.OrderType(c.RightOp[1]),
 		}
-		if err := validateOrderFields(columnsByTags(pgq.entityTags)); err != nil {
+		if err := validateOrderFields(columnsByTags(pgq.entityTags), rule); err != nil {
 			pgq.err = err
 			return pgq
 		}
@@ -425,8 +429,16 @@ func (pgq *pgQuery) orderBySQL() string {
 
 func validateOrderFields(columns map[string]bool, orderRules ...orderRule) error {
 	fields := make([]string, 0, len(orderRules))
+	orderTypes := make([]string, 0, len(orderRules))
 	for _, or := range orderRules {
 		fields = append(fields, or.field)
+		orderTypes = append(orderTypes, string(or.orderType))
+	}
+	if err := validateFields(map[string]bool{
+		string(query.AscOrder):  true,
+		string(query.DescOrder): true,
+	}, "unsupported order type: %s", orderTypes...); err != nil {
+		return err
 	}
 	return validateFields(columns, "unsupported entity field for order by: %s", fields...)
 }

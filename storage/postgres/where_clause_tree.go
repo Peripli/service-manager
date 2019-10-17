@@ -61,7 +61,17 @@ func (t *whereClauseTree) compileSQL() (string, []interface{}) {
 			queryParams = append(queryParams, childQueryParams...)
 		}
 	}
-	sql := fmt.Sprintf("(%s)", strings.Join(childrenSQL, fmt.Sprintf(" %s ", t.operator)))
+	var sql string
+	childrenCount := len(childrenSQL)
+	switch childrenCount {
+	case 0:
+		sql = ""
+	case 1:
+		sql = childrenSQL[0]
+	default:
+		sql = fmt.Sprintf("(%s)", strings.Join(childrenSQL, fmt.Sprintf(" %s ", t.operator)))
+	}
+
 	return sql, queryParams
 }
 
