@@ -85,6 +85,11 @@ WHERE {{.ENTITY_TABLE}}.paging_sequence IN
 		(SELECT matching_resources.paging_sequence FROM matching_resources)
 {{.RETURNING}};`
 
+const noLabelsNoCriteria = "nlnc"
+const noLabelsWithCriteria = "nlc"
+const labelsNoCriteria = "lnc"
+const labelsWithCriteria = "lc"
+
 // QueryBuilder is used to construct new queries. It is safe for concurrent usage
 type QueryBuilder struct {
 	db pgDB
@@ -140,92 +145,91 @@ type pgQuery struct {
 	err               error
 }
 
-func (pgq *pgQuery) List(ctx context.Context) (*sqlx.Rows, error) {
-	if pgq.err != nil {
-		return nil, pgq.err
+func (pq *pgQuery) List(ctx context.Context) (*sqlx.Rows, error) {
+	if pq.err != nil {
+		return nil, pq.err
 	}
 
 	templates := map[string]string{
-		"nlnc": fmt.Sprintf(SELECTWithoutLabelsAndWithoutCriteriaTemplate, SELECTWithoutLabelsColumns),
-		"lnc":  fmt.Sprintf(SELECTWithLabelsAndWithoutCriteriaTemplate, SELECTWithLabelsColumns),
-		"nlc":  fmt.Sprintf(SELECTWithoutLabelsAndWithCriteriaTemplate, SELECTWithoutLabelsColumns),
-		"lc":   fmt.Sprintf(SELECTWithLabelsAndWithCriteriaTemplate, SELECTWithLabelsColumns),
+		noLabelsNoCriteria:   fmt.Sprintf(SELECTWithoutLabelsAndWithoutCriteriaTemplate, SELECTWithoutLabelsColumns),
+		labelsNoCriteria:     fmt.Sprintf(SELECTWithLabelsAndWithoutCriteriaTemplate, SELECTWithLabelsColumns),
+		noLabelsWithCriteria: fmt.Sprintf(SELECTWithoutLabelsAndWithCriteriaTemplate, SELECTWithoutLabelsColumns),
+		labelsWithCriteria:   fmt.Sprintf(SELECTWithLabelsAndWithCriteriaTemplate, SELECTWithLabelsColumns),
 	}
-	q, err := pgq.resolveQueryTemplate(ctx, templates)
+	q, err := pq.resolveQueryTemplate(ctx, templates)
 	if err != nil {
 		return nil, err
 	}
-	return pgq.db.QueryxContext(ctx, q, pgq.queryParams...)
+	return pq.db.QueryxContext(ctx, q, pq.queryParams...)
 }
 
-func (pgq *pgQuery) Count(ctx context.Context) (int, error) {
-	if pgq.err != nil {
-		return 0, pgq.err
+func (pq *pgQuery) Count(ctx context.Context) (int, error) {
+	if pq.err != nil {
+		return 0, pq.err
 	}
 	templates := map[string]string{
-		"nlnc": fmt.Sprintf(SELECTWithoutLabelsAndWithoutCriteriaTemplate, COUNTColumns),
-		"lnc":  fmt.Sprintf(SELECTWithLabelsAndWithoutCriteriaTemplate, COUNTColumns),
-		"nlc":  fmt.Sprintf(SELECTWithoutLabelsAndWithCriteriaTemplate, COUNTColumns),
-		"lc":   fmt.Sprintf(SELECTWithLabelsAndWithCriteriaTemplate, COUNTColumns),
+		noLabelsNoCriteria:   fmt.Sprintf(SELECTWithoutLabelsAndWithoutCriteriaTemplate, COUNTColumns),
+		labelsNoCriteria:     fmt.Sprintf(SELECTWithLabelsAndWithoutCriteriaTemplate, COUNTColumns),
+		noLabelsWithCriteria: fmt.Sprintf(SELECTWithoutLabelsAndWithCriteriaTemplate, COUNTColumns),
+		labelsWithCriteria:   fmt.Sprintf(SELECTWithLabelsAndWithCriteriaTemplate, COUNTColumns),
 	}
-	q, err := pgq.resolveQueryTemplate(ctx, templates)
+	q, err := pq.resolveQueryTemplate(ctx, templates)
 	if err != nil {
 		return 0, err
 	}
 	var count int
-	if err := pgq.db.GetContext(ctx, &count, q, pgq.queryParams...); err != nil {
+	if err := pq.db.GetContext(ctx, &count, q, pq.queryParams...); err != nil {
 		return 0, err
 	}
 	return count, nil
 }
 
-func (pgq *pgQuery) Delete(ctx context.Context) (*sqlx.Rows, error) {
-	if pgq.err != nil {
-		return nil, pgq.err
+func (pq *pgQuery) Delete(ctx context.Context) (*sqlx.Rows, error) {
+	if pq.err != nil {
+		return nil, pq.err
 	}
 	templates := map[string]string{
-		"nlnc": DELETEWithoutCriteriaTemplate,
-		"lnc":  DELETEWithoutCriteriaTemplate,
-		"nlc":  DELETEWithCriteriaTemplate,
-		"lc":   DELETEWithCriteriaTemplate,
+		noLabelsNoCriteria:   DELETEWithoutCriteriaTemplate,
+		labelsNoCriteria:     DELETEWithoutCriteriaTemplate,
+		noLabelsWithCriteria: DELETEWithCriteriaTemplate,
+		labelsWithCriteria:   DELETEWithCriteriaTemplate,
 	}
-	q, err := pgq.resolveQueryTemplate(ctx, templates)
+	q, err := pq.resolveQueryTemplate(ctx, templates)
 	if err != nil {
 		return nil, err
 	}
-	return pgq.db.QueryxContext(ctx, q, pgq.queryParams...)
+	return pq.db.QueryxContext(ctx, q, pq.queryParams...)
 }
 
-func (pgq *pgQuery) resolveQueryTemplate(ctx context.Context, templates map[string]string) (string, error) {
-
+func (pq *pgQuery) resolveQueryTemplate(ctx context.Context, templates map[string]string) (string, error) {
 	data := map[string]interface{}{
-		"ENTITY_TABLE": pgq.entity.TableName(),
+		"ENTITY_TABLE": pq.entity.TableName(),
 		"PRIMARY_KEY":  PrimaryKeyColumn,
-		"WHERE":        pgq.whereSQL(),
-		"FOR_SHARE_OF": pgq.lockSQL(),
-		"ORDER_BY":     pgq.orderBySQL(),
-		"LIMIT":        pgq.limitSQL(),
-		"RETURNING":    pgq.returningSQL(),
+		"WHERE":        pq.whereSQL(),
+		"FOR_SHARE_OF": pq.lockSQL(),
+		"ORDER_BY":     pq.orderBySQL(),
+		"LIMIT":        pq.limitSQL(),
+		"RETURNING":    pq.returningSQL(),
 	}
 
 	var q string
-	hasCriteria := len(pgq.fieldsWhereClause.children) != 0 ||
-		len(pgq.labelsWhereClause.children) != 0 ||
-		len(pgq.limit) != 0
+	hasCriteria := len(pq.fieldsWhereClause.children) != 0 ||
+		len(pq.labelsWhereClause.children) != 0 ||
+		len(pq.limit) != 0
 
-	if pgq.labelEntity != nil {
-		data["LABELS_TABLE"] = pgq.labelEntity.LabelsTableName()
-		data["REF_COLUMN"] = pgq.labelEntity.ReferenceColumn()
+	if pq.labelEntity != nil {
+		data["LABELS_TABLE"] = pq.labelEntity.LabelsTableName()
+		data["REF_COLUMN"] = pq.labelEntity.ReferenceColumn()
 		if hasCriteria {
-			q = templates["lc"]
+			q = templates[labelsWithCriteria]
 		} else {
-			q = templates["lnc"]
+			q = templates[labelsNoCriteria]
 		}
 	} else {
 		if hasCriteria {
-			q = templates["nlc"]
+			q = templates[noLabelsWithCriteria]
 		} else {
-			q = templates["nlnc"]
+			q = templates[noLabelsNoCriteria]
 		}
 	}
 	var err error
@@ -234,106 +238,98 @@ func (pgq *pgQuery) resolveQueryTemplate(ctx context.Context, templates map[stri
 		return "", err
 	}
 
-	if q, err = pgq.finalizeSQL(ctx, q); err != nil {
+	if q, err = pq.finalizeSQL(ctx, q); err != nil {
 		return "", err
 	}
 
 	return q, nil
 }
 
-func (pgq *pgQuery) Return(fields ...string) *pgQuery {
-	if pgq.err != nil {
-		return pgq
+func (pq *pgQuery) Return(fields ...string) *pgQuery {
+	if pq.err != nil {
+		return pq
 	}
-	if err := validateReturningFields(columnsByTags(pgq.entityTags), fields...); err != nil {
-		pgq.err = err
-		return pgq
+	if err := validateReturningFields(columnsByTags(pq.entityTags), fields...); err != nil {
+		pq.err = err
+		return pq
 	}
-	pgq.returningFields = append(pgq.returningFields, fields...)
+	pq.returningFields = append(pq.returningFields, fields...)
 
-	return pgq
+	return pq
 }
 
-func (pgq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
-	if pgq.err != nil {
-		return pgq
+func (pq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
+	if pq.err != nil {
+		return pq
 	}
 	if len(criteria) == 0 {
-		return pgq
+		return pq
 	}
 	for _, criterion := range criteria {
 		if err := criterion.Validate(); err != nil {
-			pgq.err = err
-			return pgq
+			pq.err = err
+			return pq
 		}
 		if hasMultiVariateOp(criteria) {
-			pgq.shouldRebind = true
+			pq.shouldRebind = true
 		}
 		switch criterion.Type {
 		case query.FieldQuery:
-			columns := columnsByTags(pgq.entityTags)
+			columns := columnsByTags(pq.entityTags)
 			if !columns[criterion.LeftOp] {
-				pgq.err = &util.UnsupportedQueryError{Message: fmt.Sprintf("unsupported field query key: %s", criterion.LeftOp)}
-				return pgq
+				pq.err = &util.UnsupportedQueryError{Message: fmt.Sprintf("unsupported field query key: %s", criterion.LeftOp)}
+				return pq
 			}
-			pgq.fieldsWhereClause.children = append(pgq.fieldsWhereClause.children, &whereClauseTree{
+			pq.fieldsWhereClause.children = append(pq.fieldsWhereClause.children, &whereClauseTree{
 				criterion: criterion,
-				dbTags:    pgq.entityTags,
-				tableName: pgq.entity.TableName(),
+				dbTags:    pq.entityTags,
+				tableName: pq.entity.TableName(),
 			})
 		case query.LabelQuery:
-			pgq.labelsWhereClause.children = append(pgq.labelsWhereClause.children, &whereClauseTree{
+			pq.labelsWhereClause.children = append(pq.labelsWhereClause.children, &whereClauseTree{
 				operator: AND,
 				children: []*whereClauseTree{
 					{
 						criterion: query.ByField(query.EqualsOperator, "key", criterion.LeftOp),
-						dbTags:    pgq.labelEntityTags,
+						dbTags:    pq.labelEntityTags,
 					},
 					{
 						criterion: query.ByField(criterion.Operator, "val", criterion.RightOp...),
-						dbTags:    pgq.labelEntityTags,
+						dbTags:    pq.labelEntityTags,
 					},
 				},
 			})
 		case query.ResultQuery:
-			pgq.processResultCriteria(criterion)
+			pq.processResultCriteria(criterion)
 		}
 	}
 
-	return pgq
+	return pq
 }
 
-func (pgq *pgQuery) WithLock() *pgQuery {
-	if pgq.err != nil {
-		return pgq
+func (pq *pgQuery) WithLock() *pgQuery {
+	if pq.err != nil {
+		return pq
 	}
-	if _, ok := pgq.db.(*sqlx.Tx); ok {
-		pgq.hasLock = true
+	if _, ok := pq.db.(*sqlx.Tx); ok {
+		pq.hasLock = true
 	}
-	return pgq
+	return pq
 }
 
-func (ssq *pgQuery) limitSQL() string {
-	if len(ssq.limit) > 0 {
-		ssq.queryParams = append(ssq.queryParams, ssq.limit)
+func (pq *pgQuery) limitSQL() string {
+	if len(pq.limit) > 0 {
+		pq.queryParams = append(pq.queryParams, pq.limit)
 		return "LIMIT ?"
 	}
 	return ""
 }
 
-func (ssq *pgQuery) joinSQL() string {
-	join := " LEFT JOIN "
-	if len(ssq.labelsWhereClause.children) != 0 {
-		join = " JOIN "
-	}
-	return join
-}
-
-func (ssq *pgQuery) whereSQL() string {
+func (pq *pgQuery) whereSQL() string {
 	whereClause := &whereClauseTree{
 		children: []*whereClauseTree{
-			ssq.fieldsWhereClause,
-			ssq.labelsWhereClause,
+			pq.fieldsWhereClause,
+			pq.labelsWhereClause,
 		},
 		operator: AND,
 	}
@@ -341,41 +337,41 @@ func (ssq *pgQuery) whereSQL() string {
 	if len(whereSQL) == 0 {
 		return ""
 	}
-	ssq.queryParams = append(ssq.queryParams, queryParams...)
+	pq.queryParams = append(pq.queryParams, queryParams...)
 	return fmt.Sprintf(" WHERE %s", whereSQL)
 }
 
-func (pgq *pgQuery) returningSQL() string {
-	fieldsCount := len(pgq.returningFields)
+func (pq *pgQuery) returningSQL() string {
+	fieldsCount := len(pq.returningFields)
 	switch fieldsCount {
 	case 0:
 		return ""
 	case 1:
-		return " RETURNING " + pgq.returningFields[0]
+		return " RETURNING " + pq.returningFields[0]
 	default:
-		return " RETURNING " + strings.Join(pgq.returningFields, ", ")
+		return " RETURNING " + strings.Join(pq.returningFields, ", ")
 	}
 }
 
-func (pgq *pgQuery) lockSQL() string {
-	if pgq.hasLock {
+func (pq *pgQuery) lockSQL() string {
+	if pq.hasLock {
 		// Lock the rows if we are in transaction so that update operations on those rows can rely on unchanged data
 		// This allows us to handle concurrent updates on the same rows by executing them sequentially as
 		// before updating we have to anyway select the rows and can therefore lock them
-		return fmt.Sprintf("FOR SHARE OF %s", pgq.entity.TableName())
+		return fmt.Sprintf("FOR SHARE OF %s", pq.entity.TableName())
 	}
 	return ""
 }
 
-func (pgq *pgQuery) finalizeSQL(ctx context.Context, sql string) (string, error) {
-	if pgq.shouldRebind {
+func (pq *pgQuery) finalizeSQL(ctx context.Context, sql string) (string, error) {
+	if pq.shouldRebind {
 		var err error
 		// sqlx.In requires question marks(?) instead of positional arguments (the ones pgsql uses) in order to map the list argument to the IN operation
-		if sql, pgq.queryParams, err = sqlx.In(sql, pgq.queryParams...); err != nil {
+		if sql, pq.queryParams, err = sqlx.In(sql, pq.queryParams...); err != nil {
 			return "", err
 		}
 	}
-	sql = pgq.db.Rebind(sql)
+	sql = pq.db.Rebind(sql)
 
 	newline := regexp.MustCompile("\n\n")
 	sql = newline.ReplaceAllString(sql, "\n")
@@ -388,10 +384,10 @@ func (pgq *pgQuery) finalizeSQL(ctx context.Context, sql string) (string, error)
 	return sql, nil
 }
 
-func (pgq *pgQuery) processResultCriteria(c query.Criterion) *pgQuery {
+func (pq *pgQuery) processResultCriteria(c query.Criterion) *pgQuery {
 	if c.Type != query.ResultQuery {
-		pgq.err = fmt.Errorf("result query is expected, but %s is provided", c.Type)
-		return pgq
+		pq.err = fmt.Errorf("result query is expected, but %s is provided", c.Type)
+		return pq
 	}
 	switch c.LeftOp {
 	case query.OrderBy:
@@ -399,24 +395,24 @@ func (pgq *pgQuery) processResultCriteria(c query.Criterion) *pgQuery {
 			field:     c.RightOp[0],
 			orderType: query.OrderType(c.RightOp[1]),
 		}
-		if err := validateOrderFields(columnsByTags(pgq.entityTags), rule); err != nil {
-			pgq.err = err
-			return pgq
+		if err := validateOrderFields(columnsByTags(pq.entityTags), rule); err != nil {
+			pq.err = err
+			return pq
 		}
-		pgq.orderByFields = append(pgq.orderByFields, rule)
+		pq.orderByFields = append(pq.orderByFields, rule)
 	case query.Limit:
-		if pgq.limit != "" {
-			pgq.err = fmt.Errorf("zero/one limit expected but multiple provided")
-			return pgq
+		if pq.limit != "" {
+			pq.err = fmt.Errorf("zero/one limit expected but multiple provided")
+			return pq
 		}
-		pgq.limit = c.RightOp[0]
+		pq.limit = c.RightOp[0]
 	}
-	return pgq
+	return pq
 }
 
-func (pgq *pgQuery) orderBySQL() string {
+func (pq *pgQuery) orderBySQL() string {
 	sql := ""
-	rules := pgq.orderByFields
+	rules := pq.orderByFields
 	if len(rules) > 0 {
 		sql += " ORDER BY"
 		for _, orderRule := range rules {
