@@ -28,9 +28,10 @@ import (
 )
 
 type BaseEntity struct {
-	ID        string    `db:"id"`
-	CreatedAt time.Time `db:"created_at"`
-	UpdatedAt time.Time `db:"updated_at"`
+	ID             string    `db:"id"`
+	CreatedAt      time.Time `db:"created_at"`
+	UpdatedAt      time.Time `db:"updated_at"`
+	PagingSequence int64     `db:"paging_sequence,auto_increment"`
 }
 
 func (e *BaseEntity) GetID() string {
