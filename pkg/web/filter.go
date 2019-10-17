@@ -163,8 +163,6 @@ func (fs Filters) Chain(h Handler) Handler {
 				"method":               r.Method,
 				log.FieldCorrelationID: log.CorrelationIDForRequest(r.Request),
 			}
-			logger := log.C(r.Context())
-			logger.WithFields(params).Debug("Entering Filter: ", fs[i].Name())
 
 			resp, err := fs[i].Run(r, wrappedFilters[i+1])
 
@@ -172,8 +170,6 @@ func (fs Filters) Chain(h Handler) Handler {
 			if resp != nil {
 				params["statusCode"] = resp.StatusCode
 			}
-
-			logger.WithFields(params).Debug("Exiting Filter: ", fs[i].Name())
 
 			return resp, err
 		})
