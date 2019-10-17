@@ -1,6 +1,7 @@
 package filters_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -42,10 +43,25 @@ var _ = Describe("TenantFilters", func() {
 	})
 
 	Describe("TenantFilter", func() {
+		var ctx context.Context
 		var extractTenantFunc func(*web.Request) (string, error)
 		var labelingFunc func(request *web.Request, labelKey, labelValue string) error
 
+		verifyProceedsWithNextInChain := func() {
+			_, err := filter.Run(fakeRequest, fakeHandler)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(fakeHandler.HandleCallCount()).To(Equal(1))
+			actualRequest := fakeHandler.HandleArgsForCall(0)
+			Expect(query.CriteriaForContext(actualRequest.Context())).To(BeEmpty())
+		}
+
 		BeforeEach(func() {
+			ctx = web.ContextWithUser(context.Background(), &web.UserContext{
+				AuthenticationType: web.Bearer,
+				Name:               "test",
+				AccessLevel:        web.TenantAccess,
+			})
+			fakeRequest.Request = fakeRequest.WithContext(ctx)
 			extractTenantFunc = func(*web.Request) (string, error) {
 				return "", nil
 			}
@@ -85,14 +101,32 @@ var _ = Describe("TenantFilters", func() {
 					Expect(err.Error()).To(ContainSubstring("LabelingFunc"))
 				})
 			})
-			When("the extracted tenant is empty", func() {
-				It("proceeds with next in chain", func() {
-					_, err := filter.Run(fakeRequest, fakeHandler)
-					Expect(err).ToNot(HaveOccurred())
-					Expect(fakeHandler.HandleCallCount()).To(Equal(1))
-					actualRequest := fakeHandler.HandleArgsForCall(0)
-					Expect(query.CriteriaForContext(actualRequest.Context())).To(BeEmpty())
+			When("usercontext is missing", func() {
+				BeforeEach(func() {
+					fakeRequest.Request = fakeRequest.WithContext(context.TODO())
 				})
+				It("proceeds with next in chain", verifyProceedsWithNextInChain)
+			})
+			When("authentication type is not Bearer", func() {
+				BeforeEach(func() {
+					fakeRequest.Request = fakeRequest.WithContext(web.ContextWithUser(context.Background(), &web.UserContext{
+						AuthenticationType: web.Basic,
+						AccessLevel:        web.GlobalAccess,
+					}))
+				})
+				It("proceeds with next in chain", verifyProceedsWithNextInChain)
+			})
+			When("access level is global", func() {
+				BeforeEach(func() {
+					fakeRequest.Request = fakeRequest.WithContext(web.ContextWithUser(context.Background(), &web.UserContext{
+						AuthenticationType: web.Bearer,
+						AccessLevel:        web.GlobalAccess,
+					}))
+				})
+				It("proceeds with next in chain", verifyProceedsWithNextInChain)
+			})
+			When("the extracted tenant is empty", func() {
+				It("proceeds with next in chain", verifyProceedsWithNextInChain)
 			})
 			When("extract tenant returns an error", func() {
 				BeforeEach(func() {
@@ -153,6 +187,11 @@ var _ = Describe("TenantFilters", func() {
 						newReq, err := http.NewRequest(method, "http://example.com", nil)
 						Expect(err).ShouldNot(HaveOccurred())
 						fakeRequest.Request = newReq
+						fakeRequest.Request = fakeRequest.WithContext(web.ContextWithUser(context.Background(), &web.UserContext{
+							AuthenticationType: web.Bearer,
+							Name:               "test",
+							AccessLevel:        web.TenantAccess,
+						}))
 						multitenancyFilters[0].Run(fakeRequest, fakeHandler)
 						Expect(fakeHandler.HandleCallCount()).To(Equal(1))
 						actualRequest := fakeHandler.HandleArgsForCall(0)
@@ -233,6 +272,11 @@ var _ = Describe("TenantFilters", func() {
 				newReq, err := http.NewRequest(http.MethodPost, "http://example.com", nil)
 				Expect(err).ShouldNot(HaveOccurred())
 				fakeRequest.Request = newReq
+				fakeRequest.Request = fakeRequest.WithContext(web.ContextWithUser(context.Background(), &web.UserContext{
+					AuthenticationType: web.Bearer,
+					Name:               "test",
+					AccessLevel:        web.TenantAccess,
+				}))
 				fakeRequest.Body = []byte(t.actualRequestBody)
 				_, err = multitenancyFilters[1].Run(fakeRequest, fakeHandler)
 				Expect(err).ToNot(HaveOccurred())

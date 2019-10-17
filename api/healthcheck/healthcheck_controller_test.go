@@ -19,11 +19,12 @@ package healthcheck
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"testing"
+
 	h "github.com/InVisionApp/go-health"
 	"github.com/Peripli/service-manager/pkg/health"
 	"github.com/Peripli/service-manager/pkg/web"
-	"net/http"
-	"testing"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -138,7 +139,7 @@ var _ = Describe("Healthcheck controller", func() {
 
 		When("Aggregating health as authorized user", func() {
 			It("should include all details and errors", func() {
-				ctx = web.ContextWithAuthorization(ctx)
+				ctx = web.ContextWithAuthorization(context.Background())
 				aggregatedHealth := c.aggregate(ctx, healths)
 				for name, h := range healths {
 					h.Status = convertStatus(h.Status)

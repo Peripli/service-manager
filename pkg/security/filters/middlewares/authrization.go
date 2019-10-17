@@ -17,6 +17,8 @@
 package middlewares
 
 import (
+	"fmt"
+
 	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/security/http"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -30,7 +32,7 @@ type Authorization struct {
 // Run represents the authorization middleware function that delegates the authorization
 // to the provided authorizer
 func (m *Authorization) Run(request *web.Request, next web.Handler) (*web.Response, error) {
-	decision, err := m.Authorizer.Authorize(request)
+	decision, accessLevel, err := m.Authorizer.Authorize(request)
 	if err != nil {
 		if decision == http.Deny {
 			return nil, security.ForbiddenHTTPError(err.Error())
@@ -41,6 +43,16 @@ func (m *Authorization) Run(request *web.Request, next web.Handler) (*web.Respon
 	switch decision {
 	case http.Allow:
 		ctx := request.Context()
+
+		userContext, found := web.UserFromContext(ctx)
+		if !found {
+			return nil, fmt.Errorf("authorization failed due to missing user context")
+		}
+		userContext.AccessLevel = accessLevel
+		request.Request = request.WithContext(web.ContextWithUser(ctx, userContext))
+		if accessLevel == web.NoAccess {
+			return nil, fmt.Errorf("authorization failed due to missing access level. Authizier that allows access should also specify the access level")
+		}
 		if !web.IsAuthorized(ctx) {
 			request.Request = request.WithContext(web.ContextWithAuthorization(ctx))
 		}

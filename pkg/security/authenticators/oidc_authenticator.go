@@ -130,6 +130,7 @@ func (a *OauthAuthenticator) Authenticate(request *http.Request) (*web.UserConte
 		Data:               idToken.Claims,
 		AuthenticationType: web.Bearer,
 		Name:               claims.Username,
+		AccessLevel:        web.NoAccess,
 	}, httpsec.Allow, nil
 }
 
