@@ -255,7 +255,7 @@ func (ps *Storage) Delete(ctx context.Context, objType types.ObjectType, criteri
 	return objectList, nil
 }
 
-func (ps *Storage) Update(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, criteria ...query.Criterion) (types.Object, error) {
+func (ps *Storage) Update(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, _ ...query.Criterion) (types.Object, error) {
 	entity, err := ps.scheme.convert(obj)
 	if err != nil {
 		return nil, err
