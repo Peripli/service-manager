@@ -216,6 +216,7 @@ ORDER BY id DESC, created_at ASC;`)))
 WITH matching_resources as (SELECT DISTINCT visibilities.paging_sequence
                             FROM visibilities
                                      LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
+							ORDER BY visibilities.paging_sequence ASC
                             LIMIT ?)
 SELECT visibilities.*,
        visibility_labels.id            "visibility_labels.id",
@@ -274,7 +275,7 @@ WITH matching_resources as (SELECT DISTINCT visibilities.paging_sequence
                                     (visibilities.platform_id::text = ? OR platform_id IS NULL)) AND
                                    ((key::text = ? AND val::text = ?) OR (key::text = ? AND val::text IN (?, ?)) OR
                                     (key::text = ? AND val::text != ?)))
-                            ORDER BY id ASC
+                            ORDER BY visibilities.paging_sequence ASC
                             LIMIT ?)
 SELECT visibilities.*,
        visibility_labels.id            "visibility_labels.id",
@@ -392,6 +393,7 @@ ORDER BY id DESC;`)))
 WITH matching_resources as (SELECT DISTINCT visibilities.paging_sequence
                             FROM visibilities
                                      LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
+                            ORDER BY visibilities.paging_sequence ASC
                             LIMIT ?)
 SELECT COUNT(DISTINCT visibilities.id)
 FROM visibilities
@@ -445,7 +447,7 @@ WITH matching_resources as (SELECT DISTINCT visibilities.paging_sequence
                                     (visibilities.platform_id::text = ? OR platform_id IS NULL)) AND
                                    ((key::text = ? AND val::text = ?) OR (key::text = ? AND val::text IN (?, ?)) OR
                                     (key::text = ? AND val::text != ?)))
-                            ORDER BY id ASC
+                            ORDER BY visibilities.paging_sequence ASC
                             LIMIT ?)
 SELECT COUNT(DISTINCT visibilities.id)
 FROM visibilities

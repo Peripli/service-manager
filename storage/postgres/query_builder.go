@@ -42,10 +42,10 @@ FROM {{.ENTITY_TABLE}}
 {{.ORDER_BY}};`
 
 const SELECTWithoutLabelsAndWithCriteriaTemplate = `
-WITH matching_resources as (SELECT DISTINCT t.paging_sequence
+WITH matching_resources as (SELECT DISTINCT {{.ENTITY_TABLE}}.paging_sequence
                           FROM {{.ENTITY_TABLE}}
                           {{.WHERE}}
-                          {{.ORDER_BY}}
+                          {{.ORDER_BY_SEQUENCE}}
                           {{.LIMIT}})
 SELECT %s
 FROM {{.ENTITY_TABLE}}
@@ -59,7 +59,7 @@ WITH matching_resources as (SELECT DISTINCT {{.ENTITY_TABLE}}.paging_sequence
                                    LEFT JOIN {{.LABELS_TABLE}} 
 										ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
                           {{.WHERE}}
-                          {{.ORDER_BY}}
+                          {{.ORDER_BY_SEQUENCE}}
                           {{.LIMIT}})
 SELECT %s 
 FROM {{.ENTITY_TABLE}}
@@ -203,13 +203,14 @@ func (pq *pgQuery) Delete(ctx context.Context) (*sqlx.Rows, error) {
 
 func (pq *pgQuery) resolveQueryTemplate(ctx context.Context, templates map[string]string) (string, error) {
 	data := map[string]interface{}{
-		"ENTITY_TABLE": pq.entity.TableName(),
-		"PRIMARY_KEY":  PrimaryKeyColumn,
-		"WHERE":        pq.whereSQL(),
-		"FOR_SHARE_OF": pq.lockSQL(),
-		"ORDER_BY":     pq.orderBySQL(),
-		"LIMIT":        pq.limitSQL(),
-		"RETURNING":    pq.returningSQL(),
+		"ENTITY_TABLE":      pq.entity.TableName(),
+		"PRIMARY_KEY":       PrimaryKeyColumn,
+		"WHERE":             pq.whereSQL(),
+		"FOR_SHARE_OF":      pq.lockSQL(),
+		"ORDER_BY":          pq.orderBySQL(),
+		"ORDER_BY_SEQUENCE": pq.orderBySequenceSQL(),
+		"LIMIT":             pq.limitSQL(),
+		"RETURNING":         pq.returningSQL(),
 	}
 
 	var q string
@@ -414,13 +415,20 @@ func (pq *pgQuery) orderBySQL() string {
 	sql := ""
 	rules := pq.orderByFields
 	if len(rules) > 0 {
-		sql += " ORDER BY"
+		sql += "ORDER BY"
 		for _, orderRule := range rules {
 			sql += fmt.Sprintf(" %s %s,", orderRule.field, orderRule.orderType)
 		}
 		sql = sql[:len(sql)-1]
 	}
 	return sql
+}
+
+func (pq *pgQuery) orderBySequenceSQL() string {
+	if len(pq.limit) > 0 {
+		return fmt.Sprintf("ORDER BY %s.paging_sequence ASC", pq.entity.TableName())
+	}
+	return ""
 }
 
 func validateOrderFields(columns map[string]bool, orderRules ...orderRule) error {
