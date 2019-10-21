@@ -24,8 +24,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/Peripli/service-manager/pkg/query"
-
 	"github.com/jmoiron/sqlx"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
 
@@ -100,15 +98,6 @@ func columnsByTags(tags []tagType) map[string]bool {
 		availableColumns[tagValues[0]] = true
 	}
 	return availableColumns
-}
-
-func validateFieldQueryParams(columns map[string]bool, criteria []query.Criterion) error {
-	for _, criterion := range criteria {
-		if criterion.Type == query.FieldQuery && !columns[criterion.LeftOp] {
-			return &util.UnsupportedQueryError{Message: fmt.Sprintf("unsupported field query key: %s", criterion.LeftOp)}
-		}
-	}
-	return nil
 }
 
 func update(ctx context.Context, db namedExecerContext, table string, dto interface{}) error {

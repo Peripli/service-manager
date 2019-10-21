@@ -106,7 +106,7 @@ func NewQueryBuilder(db pgDB) *QueryBuilder {
 func (qb *QueryBuilder) NewQuery(entity PostgresEntity) *pgQuery {
 	return &pgQuery{
 		labelEntity:     entity.LabelEntity(),
-		entity:          entity,
+		entityTableName: entity.TableName(),
 		entityTags:      getDBTags(entity, nil),
 		labelEntityTags: getDBTags(entity.LabelEntity(), nil),
 		db:              qb.db,
@@ -127,7 +127,7 @@ type orderRule struct {
 // pgQuery is used to construct postgres queries. It should be constructed only via the query builder. It is not safe for concurrent use.
 type pgQuery struct {
 	db              pgDB
-	entity          PostgresEntity
+	entityTableName string
 	labelEntity     PostgresLabel
 	entityTags      []tagType
 	labelEntityTags []tagType
@@ -203,7 +203,7 @@ func (pq *pgQuery) Delete(ctx context.Context) (*sqlx.Rows, error) {
 
 func (pq *pgQuery) resolveQueryTemplate(ctx context.Context, templates map[string]string) (string, error) {
 	data := map[string]interface{}{
-		"ENTITY_TABLE":      pq.entity.TableName(),
+		"ENTITY_TABLE":      pq.entityTableName,
 		"PRIMARY_KEY":       PrimaryKeyColumn,
 		"WHERE":             pq.whereSQL(),
 		"FOR_SHARE_OF":      pq.lockSQL(),
@@ -284,7 +284,7 @@ func (pq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
 			pq.fieldsWhereClause.children = append(pq.fieldsWhereClause.children, &whereClauseTree{
 				criterion: criterion,
 				dbTags:    pq.entityTags,
-				tableName: pq.entity.TableName(),
+				tableName: pq.entityTableName,
 			})
 		case query.LabelQuery:
 			pq.labelsWhereClause.children = append(pq.labelsWhereClause.children, &whereClauseTree{
@@ -359,7 +359,7 @@ func (pq *pgQuery) lockSQL() string {
 		// Lock the rows if we are in transaction so that update operations on those rows can rely on unchanged data
 		// This allows us to handle concurrent updates on the same rows by executing them sequentially as
 		// before updating we have to anyway select the rows and can therefore lock them
-		return fmt.Sprintf("FOR SHARE OF %s", pq.entity.TableName())
+		return fmt.Sprintf("FOR SHARE OF %s", pq.entityTableName)
 	}
 	return ""
 }
@@ -426,7 +426,7 @@ func (pq *pgQuery) orderBySQL() string {
 
 func (pq *pgQuery) orderBySequenceSQL() string {
 	if len(pq.limit) > 0 {
-		return fmt.Sprintf("ORDER BY %s.paging_sequence ASC", pq.entity.TableName())
+		return fmt.Sprintf("ORDER BY %s.paging_sequence ASC", pq.entityTableName)
 	}
 	return ""
 }
