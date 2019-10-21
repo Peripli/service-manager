@@ -16,8 +16,7 @@ import (
 )
 
 const PrimaryKeyColumn = "id"
-const SELECTWithoutLabelsColumns = `*`
-const SELECTWithLabelsColumns = `
+const SELECTColumns = `
 {{.ENTITY_TABLE}}.*,
 {{.LABELS_TABLE}}.id         "{{.LABELS_TABLE}}.id",
 {{.LABELS_TABLE}}.key        "{{.LABELS_TABLE}}.key",
@@ -27,14 +26,7 @@ const SELECTWithLabelsColumns = `
 {{.LABELS_TABLE}}.{{.REF_COLUMN}} "{{.LABELS_TABLE}}.{{.REF_COLUMN}}"`
 const COUNTColumns = `COUNT(DISTINCT {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}})`
 
-const SELECTWithoutLabelsAndWithoutCriteriaTemplate = `
-SELECT %s
-FROM {{.ENTITY_TABLE}}
-{{.FOR_SHARE_OF}}
-{{.ORDER_BY}}
-{{.LIMIT}};`
-
-const SELECTWithLabelsAndWithoutCriteriaTemplate = `
+const SELECTWithoutCriteriaTemplate = `
 SELECT %s
 FROM {{.ENTITY_TABLE}}
          LEFT JOIN {{.LABELS_TABLE}}
@@ -42,20 +34,7 @@ FROM {{.ENTITY_TABLE}}
 {{.FOR_SHARE_OF}}
 {{.ORDER_BY}};`
 
-const SELECTWithoutLabelsAndWithCriteriaTemplate = `
-WITH matching_resources as (SELECT DISTINCT {{.ENTITY_TABLE}}.paging_sequence
-                          FROM {{.ENTITY_TABLE}}
-                          {{.WHERE}}
-                          {{.ORDER_BY_SEQUENCE}}
-                          {{.LIMIT}})
-SELECT %s
-FROM {{.ENTITY_TABLE}}
-WHERE {{.ENTITY_TABLE}}.paging_sequence IN
-		(SELECT matching_resources.paging_sequence FROM matching_resources)
-{{.FOR_SHARE_OF}}
-{{.ORDER_BY}};`
-
-const SELECTWithLabelsAndWithCriteriaTemplate = `
+const SELECTWithCriteriaTemplate = `
 WITH matching_resources as (SELECT DISTINCT {{.ENTITY_TABLE}}.paging_sequence
                           FROM {{.ENTITY_TABLE}}
                                    LEFT JOIN {{.LABELS_TABLE}} 
@@ -88,10 +67,8 @@ WHERE {{.ENTITY_TABLE}}.paging_sequence IN
 		(SELECT matching_resources.paging_sequence FROM matching_resources)
 {{.RETURNING}};`
 
-const noLabelsNoCriteria = "nlnc"
-const noLabelsWithCriteria = "nlc"
-const labelsNoCriteria = "lnc"
-const labelsWithCriteria = "lc"
+const noCriteria = "nc"
+const withCriteria = "c"
 
 // QueryBuilder is used to construct new queries. It is safe for concurrent usage
 type QueryBuilder struct {
@@ -154,10 +131,8 @@ func (pq *pgQuery) List(ctx context.Context) (*sqlx.Rows, error) {
 	}
 
 	templates := map[string]string{
-		noLabelsNoCriteria:   fmt.Sprintf(SELECTWithoutLabelsAndWithoutCriteriaTemplate, SELECTWithoutLabelsColumns),
-		labelsNoCriteria:     fmt.Sprintf(SELECTWithLabelsAndWithoutCriteriaTemplate, SELECTWithLabelsColumns),
-		noLabelsWithCriteria: fmt.Sprintf(SELECTWithoutLabelsAndWithCriteriaTemplate, SELECTWithoutLabelsColumns),
-		labelsWithCriteria:   fmt.Sprintf(SELECTWithLabelsAndWithCriteriaTemplate, SELECTWithLabelsColumns),
+		noCriteria:   fmt.Sprintf(SELECTWithoutCriteriaTemplate, SELECTColumns),
+		withCriteria: fmt.Sprintf(SELECTWithCriteriaTemplate, SELECTColumns),
 	}
 	q, err := pq.resolveQueryTemplate(ctx, templates)
 	if err != nil {
@@ -171,10 +146,8 @@ func (pq *pgQuery) Count(ctx context.Context) (int, error) {
 		return 0, pq.err
 	}
 	templates := map[string]string{
-		noLabelsNoCriteria:   fmt.Sprintf(SELECTWithoutLabelsAndWithoutCriteriaTemplate, COUNTColumns),
-		labelsNoCriteria:     fmt.Sprintf(SELECTWithLabelsAndWithoutCriteriaTemplate, COUNTColumns),
-		noLabelsWithCriteria: fmt.Sprintf(SELECTWithoutLabelsAndWithCriteriaTemplate, COUNTColumns),
-		labelsWithCriteria:   fmt.Sprintf(SELECTWithLabelsAndWithCriteriaTemplate, COUNTColumns),
+		noCriteria:   fmt.Sprintf(SELECTWithoutCriteriaTemplate, COUNTColumns),
+		withCriteria: fmt.Sprintf(SELECTWithCriteriaTemplate, COUNTColumns),
 	}
 	q, err := pq.resolveQueryTemplate(ctx, templates)
 	if err != nil {
@@ -192,10 +165,8 @@ func (pq *pgQuery) Delete(ctx context.Context) (*sqlx.Rows, error) {
 		return nil, pq.err
 	}
 	templates := map[string]string{
-		noLabelsNoCriteria:   DELETEWithoutCriteriaTemplate,
-		labelsNoCriteria:     DELETEWithoutCriteriaTemplate,
-		noLabelsWithCriteria: DELETEWithCriteriaTemplate,
-		labelsWithCriteria:   DELETEWithCriteriaTemplate,
+		noCriteria:   DELETEWithoutCriteriaTemplate,
+		withCriteria: DELETEWithCriteriaTemplate,
 	}
 	q, err := pq.resolveQueryTemplate(ctx, templates)
 	if err != nil {
@@ -205,9 +176,14 @@ func (pq *pgQuery) Delete(ctx context.Context) (*sqlx.Rows, error) {
 }
 
 func (pq *pgQuery) resolveQueryTemplate(ctx context.Context, templates map[string]string) (string, error) {
+	if pq.labelEntity == nil {
+		return "", fmt.Errorf("query builder requires the entity to have associated label entity")
+	}
 	data := map[string]interface{}{
 		"ENTITY_TABLE":      pq.entityTableName,
 		"PRIMARY_KEY":       PrimaryKeyColumn,
+		"LABELS_TABLE":      pq.labelEntity.LabelsTableName(),
+		"REF_COLUMN":        pq.labelEntity.ReferenceColumn(),
 		"WHERE":             pq.whereSQL(),
 		"FOR_SHARE_OF":      pq.lockSQL(),
 		"ORDER_BY":          pq.orderBySQL(),
@@ -221,27 +197,16 @@ func (pq *pgQuery) resolveQueryTemplate(ctx context.Context, templates map[strin
 		len(pq.labelsWhereClause.children) != 0 ||
 		len(pq.limit) != 0
 
-	if pq.labelEntity != nil {
-		data["LABELS_TABLE"] = pq.labelEntity.LabelsTableName()
-		data["REF_COLUMN"] = pq.labelEntity.ReferenceColumn()
-		if hasCriteria {
-			q = templates[labelsWithCriteria]
-		} else {
-			q = templates[labelsNoCriteria]
-		}
+	if hasCriteria {
+		q = templates[withCriteria]
 	} else {
-		if hasCriteria {
-			q = templates[noLabelsWithCriteria]
-		} else {
-			q = templates[noLabelsNoCriteria]
-		}
+		q = templates[noCriteria]
 	}
 	var err error
 	q, err = tsprintf(q, data)
 	if err != nil {
 		return "", err
 	}
-
 	if q, err = pq.finalizeSQL(ctx, q); err != nil {
 		return "", err
 	}

@@ -168,7 +168,6 @@ var _ = Describe("Secured Storage", func() {
 
 		Context("When key does not yet exist", func() {
 			BeforeEach(func() {
-				mock.ExpectQuery("SELECT").WillReturnRows(sqlmock.NewRows([]string{"secret", "created_at", "updated_at"}))
 				mock.ExpectPrepare("INSERT").WillReturnError(nil)
 				mock.ExpectQuery("INSERT").WillReturnRows(sqlmock.NewRows([]string{"secret"}).FromCSVString("secret"))
 			})
@@ -181,7 +180,6 @@ var _ = Describe("Secured Storage", func() {
 
 		Context("When key already exists", func() {
 			BeforeEach(func() {
-				mock.ExpectQuery("SELECT").WillReturnRows(sqlmock.NewRows([]string{"secret", "created_at", "updated_at"}))
 				mock.ExpectPrepare("INSERT").WillReturnError(nil)
 				mock.ExpectQuery("INSERT").WillReturnRows(sqlmock.NewRows([]string{"secret"}).FromCSVString("secret"))
 				mock.ExpectQuery("SELECT").WillReturnRows(sqlmock.NewRows([]string{"secret"}).FromCSVString("secret"))

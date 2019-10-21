@@ -44,8 +44,12 @@ func (t *whereClauseTree) isLeaf() bool {
 	return len(t.children) == 0
 }
 
+func (t *whereClauseTree) isEmpty() bool {
+	return len(t.criterion.Operator) == 0 && len(t.children) == 0
+}
+
 func (t *whereClauseTree) compileSQL() (string, []interface{}) {
-	if len(t.criterion.Operator) == 0 && len(t.children) == 0 {
+	if t.isEmpty() {
 		return "", []interface{}{}
 	}
 	if t.isLeaf() {

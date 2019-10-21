@@ -62,6 +62,13 @@ var _ = Describe("Postgres Storage Query builder", func() {
 	})
 
 	Describe("List", func() {
+		Context("when entity does not have an associated label entity", func() {
+			It("returns error", func() {
+				_, err := qb.NewQuery(&postgres.Safe{}).List(ctx)
+				Expect(err.Error()).To(ContainSubstring("query builder requires the entity to have associated label entity"))
+			})
+		})
+
 		Context("when no criteria is used", func() {
 			It("builds simple query for entity and its labels", func() {
 				_, err := qb.NewQuery(entity).List(ctx)
@@ -307,6 +314,13 @@ ORDER BY id ASC;`)))
 	})
 
 	Describe("Count", func() {
+		Context("when entity does not have an associated label entity", func() {
+			It("returns error", func() {
+				_, err := qb.NewQuery(&postgres.Safe{}).Count(ctx)
+				Expect(err.Error()).To(ContainSubstring("query builder requires the entity to have associated label entity"))
+			})
+		})
+
 		Context("when no criteria is used", func() {
 			It("builds simple query for entity and its labels", func() {
 				_, err := qb.NewQuery(entity).Count(ctx)
@@ -473,6 +487,13 @@ ORDER BY id ASC;`)))
 	})
 
 	Describe("Delete", func() {
+		Context("when entity does not have an associated label entity", func() {
+			It("returns error", func() {
+				_, err := qb.NewQuery(&postgres.Safe{}).Delete(ctx)
+				Expect(err.Error()).To(ContainSubstring("query builder requires the entity to have associated label entity"))
+			})
+		})
+
 		Context("when no criteria is used", func() {
 			It("builds query to delete all entries", func() {
 				_, err := qb.NewQuery(entity).Delete(ctx)
