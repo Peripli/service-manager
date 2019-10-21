@@ -158,20 +158,7 @@ func (fs Filters) Chain(h Handler) Handler {
 	for i := len(fs) - 1; i >= 0; i-- {
 		i := i
 		wrappedFilters[i] = HandlerFunc(func(r *Request) (*Response, error) {
-			params := map[string]interface{}{
-				"path":                 r.URL.Path,
-				"method":               r.Method,
-				log.FieldCorrelationID: log.CorrelationIDForRequest(r.Request),
-			}
-
-			resp, err := fs[i].Run(r, wrappedFilters[i+1])
-
-			params["err"] = err
-			if resp != nil {
-				params["statusCode"] = resp.StatusCode
-			}
-
-			return resp, err
+			return fs[i].Run(r, wrappedFilters[i+1])
 		})
 	}
 
