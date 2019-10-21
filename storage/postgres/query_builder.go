@@ -39,6 +39,7 @@ SELECT %s
 FROM {{.ENTITY_TABLE}}
          LEFT JOIN {{.LABELS_TABLE}}
                    ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
+{{.FOR_SHARE_OF}}
 {{.ORDER_BY}};`
 
 const SELECTWithoutLabelsAndWithCriteriaTemplate = `
@@ -51,6 +52,7 @@ SELECT %s
 FROM {{.ENTITY_TABLE}}
 WHERE {{.ENTITY_TABLE}}.paging_sequence IN
 		(SELECT matching_resources.paging_sequence FROM matching_resources)
+{{.FOR_SHARE_OF}}
 {{.ORDER_BY}};`
 
 const SELECTWithLabelsAndWithCriteriaTemplate = `
@@ -67,6 +69,7 @@ FROM {{.ENTITY_TABLE}}
                    ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
 WHERE {{.ENTITY_TABLE}}.paging_sequence IN 
 		(SELECT matching_resources.paging_sequence FROM matching_resources)
+{{.FOR_SHARE_OF}}
 {{.ORDER_BY}};`
 
 const DELETEWithoutCriteriaTemplate = `
@@ -127,7 +130,6 @@ type orderRule struct {
 // pgQuery is used to construct postgres queries. It should be constructed only via the query builder. It is not safe for concurrent use.
 type pgQuery struct {
 	db              pgDB
-	entityTableName string
 	labelEntity     PostgresLabel
 	entityTags      []tagType
 	labelEntityTags []tagType
@@ -135,9 +137,10 @@ type pgQuery struct {
 	queryParams []interface{}
 
 	orderByFields   []orderRule
-	limit           string
 	hasLock         bool
+	limit           string
 	returningFields []string
+	entityTableName string
 
 	fieldsWhereClause *whereClauseTree
 	labelsWhereClause *whereClauseTree
