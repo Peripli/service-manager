@@ -16,6 +16,22 @@ import (
 )
 
 const PrimaryKeyColumn = "id"
+
+const COUNTWithoutCriteriaTemplate = `
+SELECT COUNT(DISTINCT {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}})
+FROM {{.ENTITY_TABLE}}
+{{.FOR_SHARE_OF}}
+{{.LIMIT}};`
+
+const COUNTWithCriteriaTemplate = `
+SELECT COUNT(DISTINCT {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}})
+FROM {{.ENTITY_TABLE}}
+	{{.JOIN}} {{.LABELS_TABLE}}
+		ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
+{{.WHERE}}
+{{.FOR_SHARE_OF}}
+{{.LIMIT}};`
+
 const SELECTColumns = `
 {{.ENTITY_TABLE}}.*,
 {{.LABELS_TABLE}}.id         "{{.LABELS_TABLE}}.id",
@@ -24,7 +40,6 @@ const SELECTColumns = `
 {{.LABELS_TABLE}}.created_at "{{.LABELS_TABLE}}.created_at",
 {{.LABELS_TABLE}}.updated_at "{{.LABELS_TABLE}}.updated_at",
 {{.LABELS_TABLE}}.{{.REF_COLUMN}} "{{.LABELS_TABLE}}.{{.REF_COLUMN}}"`
-const COUNTColumns = `COUNT(DISTINCT {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}})`
 
 const SELECTWithoutCriteriaTemplate = `
 SELECT %s
@@ -145,8 +160,8 @@ func (pq *pgQuery) Count(ctx context.Context) (int, error) {
 		return 0, pq.err
 	}
 	templates := map[string]string{
-		noCriteria:   fmt.Sprintf(SELECTWithoutCriteriaTemplate, COUNTColumns),
-		withCriteria: fmt.Sprintf(SELECTWithCriteriaTemplate, COUNTColumns),
+		noCriteria:   COUNTWithoutCriteriaTemplate,
+		withCriteria: COUNTWithCriteriaTemplate,
 	}
 	q, err := pq.resolveQueryTemplate(ctx, templates)
 	if err != nil {

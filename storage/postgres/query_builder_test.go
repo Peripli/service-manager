@@ -96,7 +96,7 @@ FROM visibilities
 				Expect(executedQuery).Should(Equal(trim(`
 WITH matching_resources as (SELECT DISTINCT visibilities.paging_sequence
                             FROM visibilities
-                                     LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
+								JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
                             WHERE (key::text = ? AND val::text = ?) )
 SELECT visibilities.*,
        visibility_labels.id            "visibility_labels.id",
@@ -106,7 +106,7 @@ SELECT visibilities.*,
        visibility_labels.updated_at    "visibility_labels.updated_at",
        visibility_labels.visibility_id "visibility_labels.visibility_id"
 FROM visibilities
-         LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
+	JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
 WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence FROM matching_resources) ;`)))
 				Expect(queryArgs).To(HaveLen(2))
 				Expect(queryArgs[0]).Should(Equal("labelKey"))
@@ -276,7 +276,7 @@ WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence
 				Expect(executedQuery).Should(Equal(trim(`
 WITH matching_resources as (SELECT DISTINCT visibilities.paging_sequence
                             FROM visibilities
-                                     LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
+								JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
                             WHERE ((visibilities.id::text != ? AND
                                     visibilities.service_plan_id::text NOT IN (?, ?, ?) AND
                                     (visibilities.platform_id::text = ? OR platform_id IS NULL)) AND
@@ -292,7 +292,7 @@ SELECT visibilities.*,
        visibility_labels.updated_at    "visibility_labels.updated_at",
        visibility_labels.visibility_id "visibility_labels.visibility_id"
 FROM visibilities
-         LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
+	JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
 WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence FROM matching_resources)
 ORDER BY id ASC;`)))
 				Expect(queryArgs).To(HaveLen(13))
@@ -327,8 +327,7 @@ ORDER BY id ASC;`)))
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`
 SELECT COUNT(DISTINCT visibilities.id)
-FROM visibilities
-         LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id ;`)))
+FROM visibilities ;`)))
 				Expect(queryArgs).To(HaveLen(0))
 			})
 		})
@@ -340,14 +339,10 @@ FROM visibilities
 					Count(ctx)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`
-WITH matching_resources as (SELECT DISTINCT visibilities.paging_sequence
-                            FROM visibilities
-                                     LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
-                            WHERE (key::text = ? AND val::text = ?) )
 SELECT COUNT(DISTINCT visibilities.id)
 FROM visibilities
-         LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
-WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence FROM matching_resources) ;`)))
+	JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
+WHERE (key::text = ? AND val::text = ?) ;`)))
 				Expect(queryArgs).To(HaveLen(2))
 				Expect(queryArgs[0]).Should(Equal("labelKey"))
 				Expect(queryArgs[1]).Should(Equal("labelValue"))
@@ -361,14 +356,10 @@ WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence
 					Count(ctx)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`
-WITH matching_resources as (SELECT DISTINCT visibilities.paging_sequence
-                            FROM visibilities
-                                     LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
-                            WHERE visibilities.id::text = ? )
 SELECT COUNT(DISTINCT visibilities.id)
 FROM visibilities
          LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
-WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence FROM matching_resources) ;`)))
+WHERE visibilities.id::text = ? ;`)))
 				Expect(queryArgs).To(HaveLen(1))
 				Expect(queryArgs[0]).Should(Equal("1"))
 			})
@@ -390,9 +381,7 @@ WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`
 SELECT COUNT(DISTINCT visibilities.id)
-FROM visibilities
-         LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
-ORDER BY id DESC;`)))
+FROM visibilities ;`)))
 				Expect(queryArgs).To(HaveLen(0))
 			})
 		})
@@ -404,15 +393,10 @@ ORDER BY id DESC;`)))
 					Count(ctx)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`
-WITH matching_resources as (SELECT DISTINCT visibilities.paging_sequence
-                            FROM visibilities
-                                     LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
-                            ORDER BY visibilities.paging_sequence ASC
-                            LIMIT ?)
-SELECT COUNT(DISTINCT visibilities.id)
-FROM visibilities
-         LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
-WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence FROM matching_resources) ;`)))
+SELECT COUNT(DISTINCT visibilities.id) FROM visibilities 
+	LEFT JOIN visibility_labels 
+		ON visibilities.id = visibility_labels.visibility_id 
+LIMIT ?;`)))
 				Expect(queryArgs).To(HaveLen(1))
 				Expect(queryArgs[0]).Should(Equal("10"))
 			})
@@ -453,21 +437,15 @@ WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence
 					Count(ctx)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`
-WITH matching_resources as (SELECT DISTINCT visibilities.paging_sequence
-                            FROM visibilities
-                                     LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
-                            WHERE ((visibilities.id::text != ? AND
-                                    visibilities.service_plan_id::text NOT IN (?, ?, ?) AND
-                                    (visibilities.platform_id::text = ? OR platform_id IS NULL)) AND
-                                   ((key::text = ? AND val::text = ?) OR (key::text = ? AND val::text IN (?, ?)) OR
-                                    (key::text = ? AND val::text != ?)))
-                            ORDER BY visibilities.paging_sequence ASC
-                            LIMIT ?)
 SELECT COUNT(DISTINCT visibilities.id)
 FROM visibilities
-         LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
-WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence FROM matching_resources)
-ORDER BY id ASC;`)))
+         JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
+WHERE ((visibilities.id::text != ? AND
+	visibilities.service_plan_id::text NOT IN (?, ?, ?) AND
+		(visibilities.platform_id::text = ? OR platform_id IS NULL)) AND
+		((key::text = ? AND val::text = ?) OR (key::text = ? AND val::text IN (?, ?)) OR
+		(key::text = ? AND val::text != ?)))
+LIMIT ?;`)))
 				Expect(queryArgs).To(HaveLen(13))
 				Expect(queryArgs[0]).Should(Equal("1"))
 				Expect(queryArgs[1]).Should(Equal("2"))
@@ -511,13 +489,12 @@ FROM visibilities ;`)))
 				_, err := qb.NewQuery(entity).WithCriteria(criteria1, criteria2).Delete(ctx)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`
-WITH matching_resources as (SELECT DISTINCT visibilities.paging_sequence
-                            FROM visibilities
-                                     LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
-                            WHERE ((key::text = ? AND val::text = ?) OR (key::text = ? AND val::text IN (?, ?))))
 DELETE
-FROM visibilities
-WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence FROM matching_resources) ;`)))
+FROM visibilities USING (SELECT visibilities.id
+                         FROM visibilities
+                                  JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
+                         WHERE ((key::text = ? AND val::text = ?) OR (key::text = ? AND val::text IN (?, ?)))) t
+WHERE visibilities.id = t.id ;`)))
 				Expect(queryArgs).To(HaveLen(5))
 				Expect(queryArgs[0]).Should(Equal("left1"))
 				Expect(queryArgs[1]).Should(Equal("right1"))
@@ -534,13 +511,12 @@ WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(executedQuery).Should(Equal(trim(`
-WITH matching_resources as (SELECT DISTINCT visibilities.paging_sequence
-                            FROM visibilities
-                                     LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
-                            WHERE visibilities.id::text = ?)
 DELETE
-FROM visibilities
-WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence FROM matching_resources) ;`)))
+FROM visibilities USING (SELECT visibilities.id
+                         FROM visibilities
+                                  LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
+                         WHERE visibilities.id::text = ?) t
+WHERE visibilities.id = t.id ;`)))
 				Expect(queryArgs).To(HaveLen(1))
 				Expect(queryArgs[0]).Should(Equal("1"))
 			})
@@ -599,18 +575,15 @@ RETURNING *;`)))
 				_, err := qb.NewQuery(entity).WithCriteria(criteria1, criteria2, criteria3, criteria4, criteria5, criteria6, criteria7).Return("*").Delete(ctx)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`
-WITH matching_resources as (SELECT DISTINCT visibilities.paging_sequence
-                            FROM visibilities
-                                     LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
-                            WHERE ((visibilities.id::text != ? AND
-                                    visibilities.service_plan_id::text NOT IN (?, ?, ?) AND
-                                    (visibilities.platform_id::text = ? OR platform_id IS NULL)) AND
-                                   ((key::text = ? AND val::text = ?) OR (key::text = ? AND val::text IN (?, ?)) OR
-                                    (key::text = ? AND val::text != ?))))
 DELETE
-FROM visibilities
-WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence FROM matching_resources)
-RETURNING *;`)))
+FROM visibilities USING (SELECT visibilities.id
+                         FROM visibilities
+                                  JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
+                         WHERE ((visibilities.id::text != ? AND visibilities.service_plan_id::text NOT IN (?, ?, ?) AND
+                                 (visibilities.platform_id::text = ? OR platform_id IS NULL)) AND
+                                ((key::text = ? AND val::text = ?) OR (key::text = ? AND val::text IN (?, ?)) OR
+                                 (key::text = ? AND val::text != ?)))) t
+WHERE visibilities.id = t.id RETURNING *;`)))
 				Expect(queryArgs).To(HaveLen(12))
 				Expect(queryArgs[0]).Should(Equal("1"))
 				Expect(queryArgs[1]).Should(Equal("2"))

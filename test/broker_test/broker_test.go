@@ -51,11 +51,9 @@ func TestBrokers(t *testing.T) {
 
 var _ = test.DescribeTestsFor(test.TestCase{
 	API: web.ServiceBrokersURL,
-
 	SupportedOps: []test.Op{
 		test.Get, test.List, test.Delete, test.DeleteList, test.Patch,
 	},
-
 	MultitenancySettings: &test.MultitenancySettings{
 		ClientID:           "tenancyClient",
 		ClientIDTokenClaim: "cid",
@@ -66,11 +64,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			"zid": "tenantID",
 		},
 	},
-
-	ResourceBlueprint: blueprint(true),
-
+	ResourceBlueprint:                      blueprint(true),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
-
 	AdditionalTests: func(ctx *common.TestContext) {
 		Context("additional non-generic tests", func() {
 			var (
