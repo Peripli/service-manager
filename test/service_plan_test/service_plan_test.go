@@ -18,10 +18,11 @@ package service_test
 
 import (
 	"fmt"
-	"github.com/gavv/httpexpect"
 	"net/http"
 	"net/url"
 	"testing"
+
+	"github.com/gavv/httpexpect"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -154,7 +155,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						It("should not list plan with field query plan id", func() {
 							assertPlansForPlatformWithQuery(k8sAgent,
 								map[string]interface{}{
-									"fieldQuery": fmt.Sprintf("id = %s", planID),
+									"fieldQuery": fmt.Sprintf("id eq '%s'", planID),
 								}, nil...)
 						})
 
@@ -163,7 +164,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Expect(planCatalogName).To(Not(BeEmpty()))
 							assertPlansForPlatformWithQuery(k8sAgent,
 								map[string]interface{}{
-									"fieldQuery": fmt.Sprintf("catalog_name = %s", planCatalogName),
+									"fieldQuery": fmt.Sprintf("catalog_name eq '%s'", planCatalogName),
 								}, nil...)
 						})
 					})
@@ -210,28 +211,28 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							It("should return only one plan with id in field query", func() {
 								assertPlansForPlatformWithQuery(k8sAgent,
 									map[string]interface{}{
-										"fieldQuery": fmt.Sprintf("id in [%s]", planID+"||"+plan2ID),
+										"fieldQuery": fmt.Sprintf("id in ('%s', '%s')", planID, plan2ID),
 									}, planID)
 							})
 
 							It("should return empty plan list with id equal not visible plan field query", func() {
 								assertPlansForPlatformWithQuery(k8sAgent,
 									map[string]interface{}{
-										"fieldQuery": fmt.Sprintf("id = %s", plan2ID),
+										"fieldQuery": fmt.Sprintf("id eq '%s'", plan2ID),
 									}, nil...)
 							})
 
 							It("should return only one plan with id not in field query", func() {
 								assertPlansForPlatformWithQuery(k8sAgent,
 									map[string]interface{}{
-										"fieldQuery": fmt.Sprintf("id notin [%s]", plan2ID),
+										"fieldQuery": fmt.Sprintf("id notin ('%s')", plan2ID),
 									}, planID)
 							})
 
 							It("should return only empty plan list with id in not visible id field query", func() {
 								assertPlansForPlatformWithQuery(k8sAgent,
 									map[string]interface{}{
-										"fieldQuery": fmt.Sprintf("id in [%s]", plan2ID),
+										"fieldQuery": fmt.Sprintf("id in ('%s')", plan2ID),
 									}, nil...)
 							})
 
@@ -241,7 +242,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 								assertPlansForPlatformWithQuery(k8sAgent,
 									map[string]interface{}{
-										"fieldQuery": fmt.Sprintf("catalog_name in [%s]", plan1CatalogName+"||"+plan2CatalogName),
+										"fieldQuery": fmt.Sprintf("catalog_name in ('%s', '%s')", plan1CatalogName, plan2CatalogName),
 									}, planID)
 							})
 
@@ -249,7 +250,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								plan1CatalogName := plan["catalog_name"].(string)
 								assertPlansForPlatformWithQuery(k8sAgent,
 									map[string]interface{}{
-										"fieldQuery": fmt.Sprintf("catalog_name notin [%s]", plan1CatalogName),
+										"fieldQuery": fmt.Sprintf("catalog_name notin ('%s')", plan1CatalogName),
 									}, nil...)
 							})
 						})
@@ -510,9 +511,9 @@ func blueprint(ctx *common.TestContext, auth *common.SMExpect) common.Object {
 	catalog.AddService(cService)
 	id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
 
-	so := auth.ListWithQuery(web.ServiceOfferingsURL, "fieldQuery=broker_id = "+id).First()
+	so := auth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", id)).First()
 
-	sp := auth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id = %s", so.Object().Value("id").String().Raw())).First()
+	sp := auth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw())).First()
 
 	return sp.Object().Raw()
 }

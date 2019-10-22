@@ -18,9 +18,11 @@ package interceptor_test
 
 import (
 	"context"
-	"github.com/Peripli/service-manager/pkg/web"
+	"fmt"
 	"net/http"
 	"testing"
+
+	"github.com/Peripli/service-manager/pkg/web"
 
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -67,21 +69,22 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 	var testCatalog string
 	var newPaidPlan string
 	var newPublicPlan string
+	var oldPaidPlan string
 
 	findOneVisibilityForServicePlanID := func(servicePlanID string) map[string]interface{} {
-		vs := ctx.SMWithOAuth.ListWithQuery(web.VisibilitiesURL, "fieldQuery=service_plan_id = "+servicePlanID)
+		vs := ctx.SMWithOAuth.ListWithQuery(web.VisibilitiesURL, fmt.Sprintf("fieldQuery=service_plan_id eq '%s'", servicePlanID))
 
 		vs.Length().Equal(1)
 		return vs.First().Object().Raw()
 	}
 
 	verifyZeroVisibilityForServicePlanID := func(servicePlanID string) {
-		vs := ctx.SMWithOAuth.ListWithQuery(web.VisibilitiesURL, "fieldQuery=service_plan_id = "+servicePlanID)
+		vs := ctx.SMWithOAuth.ListWithQuery(web.VisibilitiesURL, fmt.Sprintf("fieldQuery=service_plan_id eq '%s'", servicePlanID))
 		vs.Length().Equal(0)
 	}
 
 	findDatabaseIDForServicePlanByCatalogName := func(catalogServicePlanName string) string {
-		planID := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery=catalog_name = "+catalogServicePlanName).
+		planID := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=catalog_name eq '%s'", catalogServicePlanName)).
 			First().Object().Value("id").String().Raw()
 
 		Expect(planID).ToNot(BeEmpty())
@@ -109,7 +112,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 		c := common.NewEmptySBCatalog()
 
 		oldPublicPlan := common.GenerateFreeTestPlan()
-		oldPaidPlan := common.GeneratePaidTestPlan()
+		oldPaidPlan = common.GeneratePaidTestPlan()
 		newPublicPlan = common.GenerateFreeTestPlan()
 		newPaidPlan = common.GeneratePaidTestPlan()
 		oldService := common.GenerateTestServiceWithPlans(oldPublicPlan, oldPaidPlan)
@@ -265,7 +268,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 		})
 
 		It("deletes the public visibility associated with the plan", func() {
-			plan := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery=catalog_name = "+oldPublicPlanCatalogName)
+			plan := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=catalog_name eq '%s'", oldPublicPlanCatalogName))
 
 			plan.Path("$[*].free").Array().Contains(true)
 			plan.Length().Equal(1)
@@ -281,6 +284,14 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 				Status(http.StatusOK)
 
 			verifyZeroVisibilityForServicePlanID(planID)
+		})
+	})
+
+	Context("when fetching with query parameter", func() {
+		It("returns correct result", func() {
+			isPlanFree := gjson.Get(oldPaidPlan, "free").Raw
+			ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=free eq %s", isPlanFree)).
+				Element(0).Object().Value("catalog_id").Equal(oldPaidPlanCatalogID)
 		})
 	})
 
@@ -312,7 +323,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 				"platform_id":     platformID,
 			})
 
-			plan := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery=catalog_name = "+oldPaidPlanCatalogName)
+			plan := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=catalog_name eq '%s'", oldPaidPlanCatalogName))
 
 			plan.Path("$[*].free").Array().Contains(false)
 			plan.Length().Equal(1)

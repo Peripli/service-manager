@@ -63,11 +63,11 @@ func (e *{{.Type}}) MarshalJSON() ([]byte, error) {
 		Labels: e.Labels,
 	}
 	if !e.CreatedAt.IsZero() {
-		str := util.ToRFCFormat(e.CreatedAt)
+		str := util.ToRFCNanoFormat(e.CreatedAt)
 		toMarshal.CreatedAt = &str
 	}
 	if !e.UpdatedAt.IsZero() {
-		str := util.ToRFCFormat(e.UpdatedAt)
+		str := util.ToRFCNanoFormat(e.UpdatedAt)
 		toMarshal.UpdatedAt = &str
 	}
 	hasNoLabels := true

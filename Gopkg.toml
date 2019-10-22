@@ -105,6 +105,10 @@
   name = "github.com/tidwall/sjson"
   version = "v1.0.3"
 
+[[constraint]]
+  name = "github.com/antlr/antlr4"
+  version = "4.7.2"
+
 # Refer to issue https://github.com/golang/dep/issues/1799
 [[override]]
 name = "gopkg.in/fsnotify.v1"

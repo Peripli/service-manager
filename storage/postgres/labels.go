@@ -172,7 +172,7 @@ func splitCriteriaByType(criteria []query.Criterion) ([]query.Criterion, []query
 func buildRightOp(criterion query.Criterion) (string, interface{}) {
 	rightOpBindVar := "?"
 	var rhs interface{} = criterion.RightOp[0]
-	if criterion.Operator.IsMultiVariate() {
+	if criterion.Operator.Type() == query.MultivariateOperator {
 		rightOpBindVar = "(?)"
 		rhs = criterion.RightOp
 	}
@@ -181,7 +181,7 @@ func buildRightOp(criterion query.Criterion) (string, interface{}) {
 
 func hasMultiVariateOp(criteria []query.Criterion) bool {
 	for _, opt := range criteria {
-		if opt.Operator.IsMultiVariate() {
+		if opt.Operator.Type() == query.MultivariateOperator {
 			return true
 		}
 	}
@@ -200,10 +200,14 @@ func translateOperationToSQLEquivalent(operator query.Operator) string {
 		return ">="
 	case query.NotInOperator:
 		return "NOT IN"
+	case query.EqualsOperator:
+		fallthrough
 	case query.EqualsOrNilOperator:
 		return "="
+	case query.NotEqualsOperator:
+		return "!="
 	default:
-		return strings.ToUpper(string(operator))
+		return strings.ToUpper(operator.String())
 	}
 }
 

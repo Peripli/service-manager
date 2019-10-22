@@ -28,6 +28,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
+const updateInProgress string = "udpate_in_progress"
+
 func NewInterceptableTransactionalRepository(repository TransactionalRepository) *InterceptableTransactionalRepository {
 	return &InterceptableTransactionalRepository{
 		smStorageRepository: repository,
@@ -190,13 +192,17 @@ func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object,
 
 	// while the AroundTx hooks were being executed the stored resource actually changed - another concurrent update
 	// happened and finished concurrently and before this one so fail the request
-	if util.ToRFCFormat(oldObj.GetUpdatedAt()) != util.ToRFCFormat(obj.GetUpdatedAt()) {
+	// update to the same entity in the same transaction may be possible from an interceptor
+	inUpdate, _ := ctx.Value(updateInProgress).(bool)
+	if !oldObj.GetUpdatedAt().UTC().Equal(obj.GetUpdatedAt().UTC()) && !inUpdate {
 		return nil, util.ErrConcurrentResourceModification
 	}
 
 	if updateInterceptorChain, found := ir.updateInterceptor[objectType]; found {
 		delete(ir.updateInterceptor, objectType)
 
+		// specify that an update is in progress so that multiple updates to the entity are not taken as false positive concurrent update
+		ctx = context.WithValue(ctx, updateInProgress, true)
 		updatedObj, err = updateInterceptorChain.OnTxUpdate(updateObjFunc)(ctx, ir, oldObj, obj, labelChanges...)
 
 		ir.updateInterceptor[objectType] = updateInterceptorChain
