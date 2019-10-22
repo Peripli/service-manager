@@ -29,24 +29,25 @@ const COUNTColumns = `COUNT(DISTINCT {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}})`
 const SELECTWithoutCriteriaTemplate = `
 SELECT %s
 FROM {{.ENTITY_TABLE}}
-	{{.JOIN}} {{.LABELS_TABLE}}
+	LEFT JOIN {{.LABELS_TABLE}}
 		ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
 {{.FOR_SHARE_OF}}
 {{.ORDER_BY}};`
 
 const SELECTWithCriteriaTemplate = `
+WITH matching_resources as (SELECT DISTINCT {{.ENTITY_TABLE}}.paging_sequence
+							FROM {{.ENTITY_TABLE}}
+								LEFT JOIN {{.LABELS_TABLE}} 
+									ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
+							{{.WHERE}}
+							{{.ORDER_BY_SEQUENCE}}
+							{{.LIMIT}})
 SELECT %s 
 FROM {{.ENTITY_TABLE}}
-	{{.JOIN}} {{.LABELS_TABLE}}
+	LEFT JOIN {{.LABELS_TABLE}}
 		ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
 WHERE {{.ENTITY_TABLE}}.paging_sequence IN 
-		(SELECT DISTINCT {{.ENTITY_TABLE}}.paging_sequence
-			FROM {{.ENTITY_TABLE}}
-			{{.JOIN}} {{.LABELS_TABLE}} 
-				ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
-			{{.WHERE}}
-			{{.ORDER_BY_SEQUENCE}}
-			{{.LIMIT}})
+	(SELECT matching_resources.paging_sequence FROM matching_resources)
 {{.FOR_SHARE_OF}}
 {{.ORDER_BY}};`
 
@@ -56,13 +57,14 @@ FROM {{.ENTITY_TABLE}}
 {{.RETURNING}};`
 
 const DELETEWithCriteriaTemplate = `
+WITH matching_resources as (SELECT DISTINCT {{.ENTITY_TABLE}}.paging_sequence
+							FROM {{.ENTITY_TABLE}}
+								LEFT JOIN {{.LABELS_TABLE}}
+									ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
+							{{.WHERE}})
 DELETE FROM {{.ENTITY_TABLE}}
-WHERE {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} IN 
-	(SELECT DISTINCT {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}}
-		FROM {{.ENTITY_TABLE}}
-			{{.JOIN}} {{.LABELS_TABLE}}
-				ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
-	{{.WHERE}})
+WHERE {{.ENTITY_TABLE}}.paging_sequence IN 
+	(SELECT matching_resources.paging_sequence FROM matching_resources)
 {{.RETURNING}};`
 
 const noCriteria = "nc"
@@ -182,7 +184,6 @@ func (pq *pgQuery) resolveQueryTemplate(ctx context.Context, templates map[strin
 		"PRIMARY_KEY":       PrimaryKeyColumn,
 		"LABELS_TABLE":      pq.labelEntity.LabelsTableName(),
 		"REF_COLUMN":        pq.labelEntity.ReferenceColumn(),
-		"JOIN":              pq.joinSQL(),
 		"WHERE":             pq.whereSQL(),
 		"FOR_SHARE_OF":      pq.lockSQL(),
 		"ORDER_BY":          pq.orderBySQL(),
@@ -280,16 +281,6 @@ func (pq *pgQuery) WithLock() *pgQuery {
 		pq.hasLock = true
 	}
 	return pq
-}
-
-// joinSQL is a performance improvement - queries can work with LEFT JOIN always but are slower
-// JOIN is used when a label quert is present, LEFT JOIN is used when no label query is present so that resultset includes
-// unlabelled resources
-func (pq *pgQuery) joinSQL() string {
-	if len(pq.labelsWhereClause.children) == 0 {
-		return "LEFT JOIN"
-	}
-	return "JOIN"
 }
 
 func (pq *pgQuery) limitSQL() string {
