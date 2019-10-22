@@ -463,7 +463,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 					})
 
 					It("successfully returns the item", func() {
-						array := ctx.SMWithOAuth.ListWithQuery(t.API, fmt.Sprintf("max_items=%d&labelQuery=%s = %s", pageSize, labelKey, objID))
+						array := ctx.SMWithOAuth.ListWithQuery(t.API, fmt.Sprintf("max_items=%d&labelQuery=%s eq '%s'", pageSize, labelKey, objID))
 						array.Length().Equal(1)
 						array.Path(fmt.Sprintf("$[0].labels[%s][*]", labelKey)).Array().Contains(objID)
 					})

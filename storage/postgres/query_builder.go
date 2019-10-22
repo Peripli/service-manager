@@ -231,9 +231,6 @@ func (pq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
 	if pq.err != nil {
 		return pq
 	}
-	if len(criteria) == 0 {
-		return pq
-	}
 	for _, criterion := range criteria {
 		if err := criterion.Validate(); err != nil {
 			pq.err = err
@@ -296,11 +293,11 @@ func (pq *pgQuery) limitSQL() string {
 
 func (pq *pgQuery) whereSQL() string {
 	whereClause := &whereClauseTree{
+		operator: AND,
 		children: []*whereClauseTree{
 			pq.fieldsWhereClause,
 			pq.labelsWhereClause,
 		},
-		operator: AND,
 	}
 	whereSQL, queryParams := whereClause.compileSQL()
 	if len(whereSQL) == 0 {
@@ -315,8 +312,6 @@ func (pq *pgQuery) returningSQL() string {
 	switch fieldsCount {
 	case 0:
 		return ""
-	case 1:
-		return " RETURNING " + pq.returningFields[0]
 	default:
 		return " RETURNING " + strings.Join(pq.returningFields, ", ")
 	}
