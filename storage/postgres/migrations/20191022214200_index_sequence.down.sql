@@ -1,0 +1,10 @@
+BEGIN;
+
+DROP index brokers_paging_sequence_uindex;
+DROP index platforms_paging_sequence_uindex;
+DROP index service_offerings_paging_sequence_uindex;
+DROP index service_plans_paging_sequence_uindex;
+DROP index visibilities_paging_sequence_uindex;
+DROP index notifications_paging_sequence_uindex;
+
+COMMIT;
