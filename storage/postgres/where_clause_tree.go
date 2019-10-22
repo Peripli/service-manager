@@ -45,7 +45,7 @@ func (t *whereClauseTree) isLeaf() bool {
 }
 
 func (t *whereClauseTree) isEmpty() bool {
-	return len(t.criterion.Operator) == 0 && len(t.children) == 0
+	return t.criterion.Operator == nil && len(t.children) == 0
 }
 
 func (t *whereClauseTree) compileSQL() (string, []interface{}) {
@@ -100,7 +100,7 @@ func criterionSQL(c query.Criterion, dbTags []tagType, tableAlias string) (strin
 func buildRightOp(operator query.Operator, rightOp []string) (string, interface{}) {
 	rightOpBindVar := "?"
 	var rhs interface{} = rightOp[0]
-	if operator.IsMultiVariate() {
+	if operator.Type() == query.MultivariateOperator {
 		rightOpBindVar = "(?)"
 		rhs = rightOp
 	}
@@ -119,9 +119,13 @@ func translateOperationToSQLEquivalent(operator query.Operator) string {
 		return ">="
 	case query.NotInOperator:
 		return "NOT IN"
+	case query.EqualsOperator:
+		fallthrough
 	case query.EqualsOrNilOperator:
 		return "="
+	case query.NotEqualsOperator:
+		return "!="
 	default:
-		return strings.ToUpper(string(operator))
+		return strings.ToUpper(operator.String())
 	}
 }
