@@ -57,14 +57,13 @@ FROM {{.ENTITY_TABLE}}
 {{.RETURNING}};`
 
 const DELETEWithCriteriaTemplate = `
-WITH matching_resources as (SELECT DISTINCT {{.ENTITY_TABLE}}.paging_sequence
-							FROM {{.ENTITY_TABLE}}
-								LEFT JOIN {{.LABELS_TABLE}}
-									ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
-							{{.WHERE}})
 DELETE FROM {{.ENTITY_TABLE}}
-WHERE {{.ENTITY_TABLE}}.paging_sequence IN 
-	(SELECT matching_resources.paging_sequence FROM matching_resources)
+USING (SELECT {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}}
+		FROM {{.ENTITY_TABLE}}
+			LEFT JOIN {{.LABELS_TABLE}}
+				ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
+		{{.WHERE}}) t
+WHERE {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = t.{{.PRIMARY_KEY}}
 {{.RETURNING}};`
 
 const noCriteria = "nc"
