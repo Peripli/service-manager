@@ -18,11 +18,13 @@ package service_test
 
 import (
 	"context"
-	"fmt"
-	"github.com/gavv/httpexpect"
 	"net/http"
 	"net/url"
 	"testing"
+
+	"github.com/gavv/httpexpect"
+
+	"fmt"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -157,7 +159,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					It("should not list offering with field query offering id", func() {
 						assertOfferingsForPlatformWithQuery(k8sAgent,
 							map[string]interface{}{
-								"fieldQuery": fmt.Sprintf("service_offering_id = %s", offering["id"]),
+								"fieldQuery": fmt.Sprintf("service_offering_id eq '%s'", offering["id"]),
 							}, nil...)
 					})
 				})
@@ -476,5 +478,5 @@ func blueprint(ctx *common.TestContext, auth *common.SMExpect) common.Object {
 	catalog.AddService(cService)
 	id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
 
-	return auth.ListWithQuery(web.ServiceOfferingsURL, "fieldQuery=broker_id = "+id).First().Object().Raw()
+	return auth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", id)).First().Object().Raw()
 }

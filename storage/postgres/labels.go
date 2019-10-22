@@ -152,7 +152,7 @@ func determineCastByType(tagType reflect.Type) string {
 
 func hasMultiVariateOp(criteria []query.Criterion) bool {
 	for _, opt := range criteria {
-		if opt.Operator.IsMultiVariate() {
+		if opt.Operator.Type() == query.MultivariateOperator {
 			return true
 		}
 	}

@@ -23,6 +23,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
+// CreateInterceptorChain holds a mapping of aroundTx and onTx funcs with their respective names.
+// Using the ordered string slices aroundTxNames and onTxNames the funcs in the two maps can be wrapped in the correct order.
 type CreateInterceptorChain struct {
 	aroundTxNames []string
 	aroundTxFuncs map[string]func(InterceptCreateAroundTxFunc) InterceptCreateAroundTxFunc
@@ -35,6 +37,7 @@ func (c *CreateInterceptorChain) Name() string {
 	return "CreateInterceptorChain"
 }
 
+// AroundTxCreate wraps the provided InterceptCreateAroundTxFunc into all the existing aroundTx funcs
 func (c *CreateInterceptorChain) AroundTxCreate(f InterceptCreateAroundTxFunc) InterceptCreateAroundTxFunc {
 	for i := range c.aroundTxNames {
 		f = c.aroundTxFuncs[c.aroundTxNames[len(c.aroundTxNames)-1-i]](f)
@@ -42,6 +45,7 @@ func (c *CreateInterceptorChain) AroundTxCreate(f InterceptCreateAroundTxFunc) I
 	return f
 }
 
+// OnTxCreate wraps the provided InterceptCreateOnTxFunc into all the existing onTx funcs
 func (c *CreateInterceptorChain) OnTxCreate(f InterceptCreateOnTxFunc) InterceptCreateOnTxFunc {
 	for i := range c.onTxNames {
 		f = c.onTxFuncs[c.onTxNames[len(c.onTxNames)-1-i]](f)
@@ -89,6 +93,8 @@ type CreateInterceptor interface {
 	OnTxCreate(f InterceptCreateOnTxFunc) InterceptCreateOnTxFunc
 }
 
+// insertName inserts the given newInterceptorName into it's the expected position.
+// The resulting names slice can then be used to wrap all interceptors into the right order
 func insertName(names []string, positionType PositionType, name, newInterceptorName string) []string {
 	if positionType == PositionNone {
 		names = append(names, newInterceptorName)

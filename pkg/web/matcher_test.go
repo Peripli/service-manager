@@ -45,16 +45,11 @@ var _ = Describe("Filters", func() {
 		return next.Handle(request)
 	}
 
-	loggingValidationMiddleware := func(prevFilterName, currFilterName, nextFilterName string, hook *testutil.LogInterceptor) web.MiddlewareFunc {
+	loggingValidationMiddleware := func(filterName string) web.MiddlewareFunc {
 		return func(request *web.Request, next web.Handler) (*web.Response, error) {
-			if prevFilterName != "" {
-				Expect(hook).To(ContainSubstring("Entering Filter: " + prevFilterName))
-			}
-			Expect(hook).To(ContainSubstring("Entering Filter: " + currFilterName))
+			log.D().Debugf("pre-%s", filterName)
 			resp, err := next.Handle(request)
-			if nextFilterName != "" {
-				Expect(hook).To(ContainSubstring("Exiting Filter: " + nextFilterName))
-			}
+			log.D().Debugf("post-%s", filterName)
 			return resp, err
 		}
 	}
@@ -224,15 +219,16 @@ var _ = Describe("Filters", func() {
 				Header:     headers,
 				Body:       []byte(`{}`),
 			}
-
+			log.D().Debug("handler")
 			return resp, nil
 		})
 
 		var filters []web.Filter
 		var oldSettings log.Settings
+		var hook *testutil.LogInterceptor
 
 		BeforeEach(func() {
-			hook := &testutil.LogInterceptor{}
+			hook = &testutil.LogInterceptor{}
 			oldSettings = log.Configuration()
 			_, err := log.Configure(context.TODO(), &log.Settings{
 				Level:  "debug",
@@ -242,9 +238,9 @@ var _ = Describe("Filters", func() {
 			Expect(err).ToNot(HaveOccurred())
 			log.AddHook(hook)
 			filters = []web.Filter{
-				fakeFilter("filter1", loggingValidationMiddleware("", "filter1", "filter2", hook), []web.FilterMatcher{}),
-				fakeFilter("filter2", loggingValidationMiddleware("filter1", "filter2", "filter3", hook), []web.FilterMatcher{}),
-				fakeFilter("filter3", loggingValidationMiddleware("filter2", "filter3", "", hook), []web.FilterMatcher{}),
+				fakeFilter("filter1", loggingValidationMiddleware("filter1"), []web.FilterMatcher{}),
+				fakeFilter("filter2", loggingValidationMiddleware("filter2"), []web.FilterMatcher{}),
+				fakeFilter("filter3", loggingValidationMiddleware("filter3"), []web.FilterMatcher{}),
 			}
 		})
 		AfterEach(func() {
@@ -261,6 +257,8 @@ var _ = Describe("Filters", func() {
 
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(resp.Header.Get("handler")).To(Equal("handler"))
+			Expect(hook.String()).To(MatchRegexp(
+				"(?s)pre-filter1.*pre-filter2.*pre-filter3.*handler.*post-filter3.*post-filter2.*post-filter1"))
 		})
 
 	})

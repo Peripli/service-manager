@@ -1,0 +1,13 @@
+MultiOp=1
+UniOp=2
+Concat=3
+Value=4
+ValueSeparator=5
+Key=6
+OpenBracket=7
+CloseBracket=8
+Whitespace=9
+WS=10
+'('=7
+')'=8
+' '=9

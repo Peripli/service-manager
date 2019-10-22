@@ -28,6 +28,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
+const updateInProgress string = "udpate_in_progress"
+
 func NewInterceptableTransactionalRepository(repository TransactionalRepository) *InterceptableTransactionalRepository {
 	return &InterceptableTransactionalRepository{
 		smStorageRepository: repository,
@@ -58,6 +60,8 @@ type InterceptableTransactionalRepository struct {
 	deleteProviders map[types.ObjectType][]OrderedDeleteInterceptorProvider
 }
 
+// interceptableRepository wraps a Repository to be used throughout a transaction (in all OnTx interceptors).
+// It also holds sets of interceptors for each object type to run inside the transaction lifecycle.
 type interceptableRepository struct {
 	repositoryInTransaction Repository
 
@@ -67,10 +71,7 @@ type interceptableRepository struct {
 }
 
 func (ir *interceptableRepository) Create(ctx context.Context, obj types.Object) (types.Object, error) {
-	objectType := obj.GetType()
-
 	createObjectFunc := func(ctx context.Context, _ Repository, newObject types.Object) (types.Object, error) {
-
 		createdObj, err := ir.repositoryInTransaction.Create(ctx, newObject)
 		if err != nil {
 			return nil, err
@@ -81,6 +82,7 @@ func (ir *interceptableRepository) Create(ctx context.Context, obj types.Object)
 
 	var createdObj types.Object
 	var err error
+	objectType := obj.GetType()
 	if createInterceptorChain, found := ir.createInterceptor[objectType]; found {
 		// remove the create interceptor chain so that if one of the interceptors in the chain tries
 		// to create another resource of the same type we don't get into infinite recursion
@@ -163,8 +165,6 @@ func (ir *interceptableRepository) Delete(ctx context.Context, objectType types.
 }
 
 func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, criteria ...query.Criterion) (types.Object, error) {
-	objectType := obj.GetType()
-
 	updateObjFunc := func(ctx context.Context, _ Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 		newObj.SetUpdatedAt(time.Now().UTC())
 
@@ -183,6 +183,7 @@ func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object,
 	var err error
 
 	// postgres storage implementation also locks the retrieved row for update
+	objectType := obj.GetType()
 	byID := query.ByField(query.EqualsOperator, "id", obj.GetID())
 	oldObj, err := ir.Get(ctx, objectType, byID)
 	if err != nil {
@@ -191,13 +192,17 @@ func (ir *interceptableRepository) Update(ctx context.Context, obj types.Object,
 
 	// while the AroundTx hooks were being executed the stored resource actually changed - another concurrent update
 	// happened and finished concurrently and before this one so fail the request
-	if util.ToRFCFormat(oldObj.GetUpdatedAt()) != util.ToRFCFormat(obj.GetUpdatedAt()) {
+	// update to the same entity in the same transaction may be possible from an interceptor
+	inUpdate, _ := ctx.Value(updateInProgress).(bool)
+	if !oldObj.GetUpdatedAt().UTC().Equal(obj.GetUpdatedAt().UTC()) && !inUpdate {
 		return nil, util.ErrConcurrentResourceModification
 	}
 
 	if updateInterceptorChain, found := ir.updateInterceptor[objectType]; found {
 		delete(ir.updateInterceptor, objectType)
 
+		// specify that an update is in progress so that multiple updates to the entity are not taken as false positive concurrent update
+		ctx = context.WithValue(ctx, updateInProgress, true)
 		updatedObj, err = updateInterceptorChain.OnTxUpdate(updateObjFunc)(ctx, ir, oldObj, obj, labelChanges...)
 
 		ir.updateInterceptor[objectType] = updateInterceptorChain
@@ -239,60 +244,34 @@ func (itr *InterceptableTransactionalRepository) AddDeleteInterceptorProvider(ob
 	itr.deleteProviders[objectType] = append(itr.deleteProviders[objectType], provider)
 }
 
-type finalCreateObjectInterceptor struct {
-	repository                 TransactionalRepository
-	objectType                 types.ObjectType
-	providedCreateInterceptors map[types.ObjectType]CreateInterceptor
-	providedUpdateInterceptors map[types.ObjectType]UpdateInterceptor
-	providedDeleteInterceptors map[types.ObjectType]DeleteInterceptor
-}
-
-func (final *finalCreateObjectInterceptor) InterceptCreateOnTx(ctx context.Context, txStorage Repository, newObject types.Object) (types.Object, error) {
-	createdObj, err := txStorage.Create(ctx, newObject)
-	if err != nil {
-		return nil, err
-	}
-
-	return createdObj, nil
-}
-
-func (final *finalCreateObjectInterceptor) InterceptCreateAroundTx(ctx context.Context, obj types.Object) (types.Object, error) {
-	var createdObj types.Object
-	var err error
-
-	if err := final.repository.InTransaction(ctx, func(ctx context.Context, txStorage Repository) error {
-		interceptableRepository := newInterceptableRepository(txStorage, final.providedCreateInterceptors, final.providedUpdateInterceptors, final.providedDeleteInterceptors)
-		createdObj, err = interceptableRepository.Create(ctx, obj)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-
-	return createdObj, nil
-}
-
 func (itr *InterceptableTransactionalRepository) Create(ctx context.Context, obj types.Object) (types.Object, error) {
 	providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors := itr.provideInterceptors()
 
-	objectType := obj.GetType()
+	finalInterceptor := func(ctx context.Context, obj types.Object) (types.Object, error) {
+		var createdObj types.Object
+		var err error
 
-	finalInterceptor := &finalCreateObjectInterceptor{
-		repository:                 itr.smStorageRepository,
-		objectType:                 objectType,
-		providedCreateInterceptors: providedCreateInterceptors,
-		providedUpdateInterceptors: providedUpdateInterceptors,
-		providedDeleteInterceptors: providedDeleteInterceptors,
+		if err := itr.smStorageRepository.InTransaction(ctx, func(ctx context.Context, txStorage Repository) error {
+			interceptableRepository := newInterceptableRepository(txStorage, providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors)
+			createdObj, err = interceptableRepository.Create(ctx, obj)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+
+		return createdObj, nil
 	}
 
 	var err error
+	objectType := obj.GetType()
 	if providedCreateInterceptors[objectType] != nil {
-		obj, err = providedCreateInterceptors[objectType].AroundTxCreate(finalInterceptor.InterceptCreateAroundTx)(ctx, obj)
+		obj, err = providedCreateInterceptors[objectType].AroundTxCreate(finalInterceptor)(ctx, obj)
 	} else {
-		obj, err = finalInterceptor.InterceptCreateAroundTx(ctx, obj)
+		obj, err = finalInterceptor(ctx, obj)
 	}
 
 	if err != nil {
@@ -324,53 +303,34 @@ func (itr *InterceptableTransactionalRepository) Count(ctx context.Context, obje
 	return itr.smStorageRepository.Count(ctx, objectType, criteria...)
 }
 
-type finalDeleteObjectInterceptor struct {
-	repository                 TransactionalRepository
-	objectType                 types.ObjectType
-	providedCreateInterceptors map[types.ObjectType]CreateInterceptor
-	providedUpdateInterceptors map[types.ObjectType]UpdateInterceptor
-	providedDeleteInterceptors map[types.ObjectType]DeleteInterceptor
-}
-
-func (final *finalDeleteObjectInterceptor) InterceptDeleteOnTx(ctx context.Context, txStorage Repository, criteria ...query.Criterion) (types.ObjectList, error) {
-	return txStorage.Delete(ctx, final.objectType, criteria...)
-}
-
-func (final *finalDeleteObjectInterceptor) InterceptDeleteAroundTx(ctx context.Context, criteria ...query.Criterion) (types.ObjectList, error) {
-	var result types.ObjectList
-	var err error
-
-	if err := final.repository.InTransaction(ctx, func(ctx context.Context, txStorage Repository) error {
-		interceptableRepository := newInterceptableRepository(txStorage, final.providedCreateInterceptors, final.providedUpdateInterceptors, final.providedDeleteInterceptors)
-		result, err = interceptableRepository.Delete(ctx, final.objectType, criteria...)
-		if err != nil {
-			return err
-		}
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
 func (itr *InterceptableTransactionalRepository) Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors := itr.provideInterceptors()
 
-	finalInterceptor := &finalDeleteObjectInterceptor{
-		repository:                 itr.smStorageRepository,
-		objectType:                 objectType,
-		providedCreateInterceptors: providedCreateInterceptors,
-		providedUpdateInterceptors: providedUpdateInterceptors,
-		providedDeleteInterceptors: providedDeleteInterceptors,
+	finalInterceptor := func(ctx context.Context, criteria ...query.Criterion) (types.ObjectList, error) {
+		var result types.ObjectList
+		var err error
+
+		if err := itr.smStorageRepository.InTransaction(ctx, func(ctx context.Context, txStorage Repository) error {
+			interceptableRepository := newInterceptableRepository(txStorage, providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors)
+			result, err = interceptableRepository.Delete(ctx, objectType, criteria...)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+		return result, nil
 	}
 
 	var objectList types.ObjectList
 	var err error
 
 	if providedDeleteInterceptors[objectType] != nil {
-		objectList, err = providedDeleteInterceptors[objectType].AroundTxDelete(finalInterceptor.InterceptDeleteAroundTx)(ctx, criteria...)
+		objectList, err = providedDeleteInterceptors[objectType].AroundTxDelete(finalInterceptor)(ctx, criteria...)
 	} else {
-		objectList, err = finalInterceptor.InterceptDeleteAroundTx(ctx, criteria...)
+		objectList, err = finalInterceptor(ctx, criteria...)
 	}
 
 	if err != nil {
@@ -380,58 +340,34 @@ func (itr *InterceptableTransactionalRepository) Delete(ctx context.Context, obj
 	return objectList, err
 }
 
-type finalUpdateObjectInterceptor struct {
-	repository                 TransactionalRepository
-	objectType                 types.ObjectType
-	providedCreateInterceptors map[types.ObjectType]CreateInterceptor
-	providedUpdateInterceptors map[types.ObjectType]UpdateInterceptor
-	providedDeleteInterceptors map[types.ObjectType]DeleteInterceptor
-	criteria                   []query.Criterion
-}
-
-func (final *finalUpdateObjectInterceptor) InterceptUpdateOnTxFunc(ctx context.Context, txStorage Repository, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
-	return txStorage.Update(ctx, obj, labelChanges)
-}
-
-func (final *finalUpdateObjectInterceptor) InterceptUpdateAroundTxFunc(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
-	var err error
-	var result types.Object
-
-	if err = final.repository.InTransaction(ctx, func(ctx context.Context, txStorage Repository) error {
-		interceptableRepository := newInterceptableRepository(txStorage, final.providedCreateInterceptors, final.providedUpdateInterceptors, final.providedDeleteInterceptors)
-
-		result, err = interceptableRepository.Update(ctx, obj, labelChanges)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
-
 func (itr *InterceptableTransactionalRepository) Update(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, criteria ...query.Criterion) (types.Object, error) {
 	providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors := itr.provideInterceptors()
 
-	objectType := obj.GetType()
+	finalInterceptor := func(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
+		var result types.Object
+		var err error
 
-	finalInterceptor := &finalUpdateObjectInterceptor{
-		repository:                 itr.smStorageRepository,
-		objectType:                 objectType,
-		providedCreateInterceptors: providedCreateInterceptors,
-		providedUpdateInterceptors: providedUpdateInterceptors,
-		providedDeleteInterceptors: providedDeleteInterceptors,
-		criteria:                   criteria,
+		if err = itr.smStorageRepository.InTransaction(ctx, func(ctx context.Context, txStorage Repository) error {
+			interceptableRepository := newInterceptableRepository(txStorage, providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors)
+			result, err = interceptableRepository.Update(ctx, obj, labelChanges, criteria...)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+
+		return result, nil
 	}
 
 	var err error
+	objectType := obj.GetType()
 	if providedUpdateInterceptors[objectType] != nil {
-		obj, err = providedUpdateInterceptors[objectType].AroundTxUpdate(finalInterceptor.InterceptUpdateAroundTxFunc)(ctx, obj, labelChanges...)
+		obj, err = providedUpdateInterceptors[objectType].AroundTxUpdate(finalInterceptor)(ctx, obj, labelChanges...)
 	} else {
-		obj, err = finalInterceptor.InterceptUpdateAroundTxFunc(ctx, obj, labelChanges...)
+		obj, err = finalInterceptor(ctx, obj, labelChanges...)
 	}
 
 	if err != nil {
@@ -469,17 +405,18 @@ func (itr *InterceptableTransactionalRepository) validateDeleteProviders(objectT
 }
 
 func validateProviderOrder(order InterceptorOrder, existingProviderNames []string, providerName string) {
-	positionAroundTx, aroundTxName := order.AroundTxPosition.PositionType, order.AroundTxPosition.Name
-	positionTx, nameTx := order.OnTxPosition.PositionType, order.OnTxPosition.Name
 	if providerWithNameExists(existingProviderNames, providerName) {
 		log.D().Panicf("%s create interceptor provider is already registered", providerName)
 	}
 
+	positionAroundTx, aroundTxName := order.AroundTxPosition.PositionType, order.AroundTxPosition.Name
 	if positionAroundTx != PositionNone {
 		if !providerWithNameExists(existingProviderNames, aroundTxName) {
 			log.D().Panicf("could not find interceptor with name %s", aroundTxName)
 		}
 	}
+
+	positionTx, nameTx := order.OnTxPosition.PositionType, order.OnTxPosition.Name
 	if positionTx != PositionNone {
 		if !providerWithNameExists(existingProviderNames, nameTx) {
 			log.D().Panicf("could not find interceptor with name %s", nameTx)
@@ -496,6 +433,7 @@ func providerWithNameExists(existingNames []string, orderedRelativeTo string) bo
 	return false
 }
 
+// provideInterceptors generates Create/Update/DeleteInterceptorChains from the provided OrderedCreate/Update/DeleteInterceptorProviders
 func (itr *InterceptableTransactionalRepository) provideInterceptors() (map[types.ObjectType]CreateInterceptor, map[types.ObjectType]UpdateInterceptor, map[types.ObjectType]DeleteInterceptor) {
 	providedCreateInterceptors := make(map[types.ObjectType]CreateInterceptor)
 	for objectType, providers := range itr.createProviders {
