@@ -20,7 +20,8 @@ const PrimaryKeyColumn = "id"
 const COUNTWithoutCriteriaTemplate = `
 SELECT COUNT(DISTINCT {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}})
 FROM {{.ENTITY_TABLE}}
-{{.FOR_SHARE_OF}};`
+{{.FOR_SHARE_OF}}
+{{.LIMIT}};`
 
 const COUNTWithCriteriaTemplate = `
 SELECT COUNT(DISTINCT {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}})
