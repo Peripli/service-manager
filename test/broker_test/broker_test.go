@@ -324,6 +324,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							}, "services.0.name")
 						})
 
+						Context("that has not CLI-friendly catalog name", func() {
+							verifyPOSTWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
+								r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+							}, "services.0.name", "=not cli friendly")
+						})
+
 						Context("that has an empty description", func() {
 							verifyPOSTWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
 								r.Status(http.StatusCreated).JSON().Object().Keys().NotContains("services").Contains("credentials")
@@ -360,6 +366,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							verifyPOSTWhenCatalogFieldIsMissing(func(r *httpexpect.Response) {
 								r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
 							}, "services.0.plans.0.name")
+						})
+
+						Context("that has not CLI-friendly catalog name", func() {
+							verifyPOSTWhenCatalogFieldHasValue(func(r *httpexpect.Response) {
+								r.Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
+							}, "services.0.plans.0.name", "=not cli friendly")
 						})
 
 						Context("that has an empty description", func() {

@@ -52,7 +52,7 @@ func (e *ServiceOffering) Validate() error {
 		return fmt.Errorf("%s contains invalid character(s)", e.ID)
 	}
 	if e.Name == "" {
-		return fmt.Errorf("service offering catalog name missing")
+		return fmt.Errorf("service offering name missing")
 	}
 	if e.CatalogID == "" {
 		return fmt.Errorf("service offering catalog id missing")
@@ -62,6 +62,11 @@ func (e *ServiceOffering) Validate() error {
 	}
 	if e.BrokerID == "" {
 		return fmt.Errorf("service offering broker id missing")
+	}
+	if cliFriendly, err := util.IsCLIFriendly(e.CatalogName); err != nil {
+		return err
+	} else if !cliFriendly {
+		return fmt.Errorf("service offering catalog name is not CLI-friendly")
 	}
 	var array []interface{}
 	if len(e.Tags) != 0 {

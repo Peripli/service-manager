@@ -86,6 +86,35 @@ var _ = Describe("Utils test", func() {
 		})
 	})
 
+	Describe("IsCLIFriendly", func() {
+		Context("name with characters that are not alaphanumeric, period or hyphens", func() {
+			cases := []string{
+				"name with whitespace", "name=test", "invalid[name", "invalid+name", "invalid&name",
+				"invalid%name", "invalid#name", "invalid$name", "invalid*name", "invalid@name", "invalid!name",
+				"invalid;name", "invalid)name", "invalid?name", "invalid^name", "invalid~name", "invalid`name",
+			}
+			for _, v := range cases {
+				name := v
+				It(fmt.Sprintf("%s should be considered not CLI-friendly", name), func() {
+					Expect(util.IsCLIFriendly(name)).To(Equal(false))
+				})
+			}
+		})
+		Context("name with only alaphanumeric, period or hyphens characters", func() {
+			cases := []string{
+				"a-perfect-cli-friendly-name",
+				"cli.friendly-name.with-periods",
+				"cli_friendly_name_with_underscores",
+			}
+			for _, v := range cases {
+				name := v
+				It(fmt.Sprintf("%s should be considered CLI-friendly", name), func() {
+					Expect(util.IsCLIFriendly(name)).To(Equal(true))
+				})
+			}
+		})
+	})
+
 	Describe("RequestBodyToBytes", func() {
 		const validJSON = `{"key1":"value1","key2":"value2"}`
 		const invalidJSON = `{{{"KEY"`

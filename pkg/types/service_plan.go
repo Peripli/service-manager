@@ -59,6 +59,11 @@ func (e *ServicePlan) Validate() error {
 	if e.ServiceOfferingID == "" {
 		return fmt.Errorf("service plan service offering id missing")
 	}
+	if cliFriendly, err := util.IsCLIFriendly(e.CatalogName); err != nil {
+		return err
+	} else if !cliFriendly {
+		return fmt.Errorf("service plan catalog name is not CLI-friendly")
+	}
 	var obj map[string]interface{}
 	if len(e.Schemas) != 0 {
 		if err := json.Unmarshal(e.Schemas, &obj); err != nil {

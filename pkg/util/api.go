@@ -20,6 +20,7 @@ package util
 import (
 	"encoding/json"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -38,6 +39,15 @@ var (
 // InputValidator should be implemented by types that need input validation check. For a reference refer to pkg/types
 type InputValidator interface {
 	Validate() error
+}
+
+// IsCLIFriendly checks if a string is CLI-friendly string as described in the OSB spec
+func IsCLIFriendly(name string) (bool, error) {
+	matched, err := regexp.MatchString("^[A-Za-z0-9]([-._A-Za-z0-9]*[A-Za-z0-9])?$", name)
+	if err != nil {
+		return false, err
+	}
+	return matched, nil
 }
 
 // HasRFC3986ReservedSymbols returns true if input contains any reserver characters as defined in RFC3986 section oidc_authn.oidc_authn
