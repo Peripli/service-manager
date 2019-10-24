@@ -24,8 +24,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/Peripli/service-manager/pkg/query"
-
 	"github.com/jmoiron/sqlx"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
 
@@ -102,15 +100,6 @@ func columnsByTags(tags []tagType) map[string]bool {
 	return availableColumns
 }
 
-func validateFieldQueryParams(columns map[string]bool, criteria []query.Criterion) error {
-	for _, criterion := range criteria {
-		if criterion.Type == query.FieldQuery && !columns[criterion.LeftOp] {
-			return &util.UnsupportedQueryError{Message: fmt.Sprintf("unsupported field query key: %s", criterion.LeftOp)}
-		}
-	}
-	return nil
-}
-
 func update(ctx context.Context, db namedExecerContext, table string, dto interface{}) error {
 	updateQueryString := updateQuery(table, dto)
 	if updateQueryString == "" {
@@ -138,6 +127,9 @@ type tagType struct {
 func noPredicate(string) bool { return false }
 
 func getDBTags(structure interface{}, predicate func(string) bool) []tagType {
+	if structure == nil {
+		return nil
+	}
 	s := structs.New(structure)
 	fields := s.Fields()
 	set := make([]tagType, 0, len(fields))

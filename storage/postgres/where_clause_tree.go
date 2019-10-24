@@ -18,8 +18,9 @@ package postgres
 
 import (
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/query"
 	"strings"
+
+	"github.com/Peripli/service-manager/pkg/query"
 )
 
 type logicalOperator string
@@ -31,56 +32,100 @@ const (
 
 // whereClauseTree represents an sql where clause as tree structure with AND/OR on the nodes
 type whereClauseTree struct {
-	operator  logicalOperator
 	criterion query.Criterion
-	children  []*whereClauseTree
+	dbTags    []tagType
+	tableName string
+
+	operator logicalOperator
+	children []*whereClauseTree
 }
 
 func (t *whereClauseTree) isLeaf() bool {
 	return len(t.children) == 0
 }
 
-func (t *whereClauseTree) compileSQL(dbTags []tagType) (string, []interface{}, error) {
+func (t *whereClauseTree) isEmpty() bool {
+	return t.criterion.Operator == nil && len(t.children) == 0
+}
+
+func (t *whereClauseTree) compileSQL() (string, []interface{}) {
+	if t.isEmpty() {
+		return "", []interface{}{}
+	}
 	if t.isLeaf() {
-		sql, queryParam, err := criterionSQL(t.criterion, dbTags)
-		if err != nil {
-			return "", nil, err
-		}
-		return sql, []interface{}{queryParam}, nil
+		sql, queryParam := criterionSQL(t.criterion, t.dbTags, t.tableName)
+		return sql, []interface{}{queryParam}
 	}
 	queryParams := make([]interface{}, 0)
 	childrenSQL := make([]string, 0)
 	for _, child := range t.children {
-		childSQL, childQueryParams, err := child.compileSQL(dbTags)
-		if err != nil {
-			return "", nil, err
+		childSQL, childQueryParams := child.compileSQL()
+		if len(childSQL) != 0 {
+			childrenSQL = append(childrenSQL, childSQL)
+			queryParams = append(queryParams, childQueryParams...)
 		}
-		childrenSQL = append(childrenSQL, childSQL)
-		queryParams = append(queryParams, childQueryParams...)
 	}
-	sep := " " + string(t.operator) + " "
-	sql := fmt.Sprintf("(%s)", strings.Join(childrenSQL, sep))
-	return sql, queryParams, nil
+	var sql string
+	childrenCount := len(childrenSQL)
+	switch childrenCount {
+	case 0:
+		sql = ""
+	case 1:
+		sql = childrenSQL[0]
+	default:
+		sql = fmt.Sprintf("(%s)", strings.Join(childrenSQL, fmt.Sprintf(" %s ", t.operator)))
+	}
+
+	return sql, queryParams
 }
 
-func treesFromCriteria(criteria ...query.Criterion) []*whereClauseTree {
-	trees := make([]*whereClauseTree, 0, len(criteria))
-	for _, criterion := range criteria {
-		trees = append(trees, &whereClauseTree{criterion: criterion})
+func criterionSQL(c query.Criterion, dbTags []tagType, tableAlias string) (string, interface{}) {
+	rightOpBindVar, rightOpQueryValue := buildRightOp(c.Operator, c.RightOp)
+	sqlOperation := translateOperationToSQLEquivalent(c.Operator)
+
+	ttype := findTagType(dbTags, c.LeftOp)
+	dbCast := determineCastByType(ttype)
+	var clause string
+	if tableAlias != "" {
+		clause = fmt.Sprintf("%s.%s%s %s %s", tableAlias, c.LeftOp, dbCast, sqlOperation, rightOpBindVar)
+	} else {
+		clause = fmt.Sprintf("%s%s %s %s", c.LeftOp, dbCast, sqlOperation, rightOpBindVar)
 	}
-	return trees
+	if c.Operator.IsNullable() {
+		clause = fmt.Sprintf("(%s OR %s IS NULL)", clause, c.LeftOp)
+	}
+	return clause, rightOpQueryValue
 }
 
-func and(trees []*whereClauseTree) *whereClauseTree {
-	return &whereClauseTree{
-		operator: AND,
-		children: trees,
+func buildRightOp(operator query.Operator, rightOp []string) (string, interface{}) {
+	rightOpBindVar := "?"
+	var rhs interface{} = rightOp[0]
+	if operator.Type() == query.MultivariateOperator {
+		rightOpBindVar = "(?)"
+		rhs = rightOp
 	}
+	return rightOpBindVar, rhs
 }
 
-func or(trees []*whereClauseTree) *whereClauseTree {
-	return &whereClauseTree{
-		operator: OR,
-		children: trees,
+func translateOperationToSQLEquivalent(operator query.Operator) string {
+	switch operator {
+	case query.LessThanOperator:
+		return "<"
+	case query.LessThanOrEqualOperator:
+		return "<="
+	case query.GreaterThanOperator:
+		return ">"
+	case query.GreaterThanOrEqualOperator:
+		return ">="
+	case query.NotInOperator:
+		return "NOT IN"
+	case query.EqualsOperator:
+		fallthrough
+	case query.EqualsOrNilOperator:
+		return "="
+	case query.NotEqualsOperator:
+		return "!="
+	default:
+		return strings.ToUpper(operator.String())
 	}
 }

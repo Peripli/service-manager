@@ -119,13 +119,13 @@ func removeLabel(ctx context.Context, execer sqlx.ExtContext, label PostgresLabe
 	return nil
 }
 
-func findTagType(tags []tagType, tagName string) (reflect.Type, error) {
+func findTagType(tags []tagType, tagName string) reflect.Type {
 	for _, tag := range tags {
 		if strings.Split(tag.Tag, ",")[0] == tagName {
-			return tag.Type, nil
+			return tag.Type
 		}
 	}
-	return nil, fmt.Errorf("could not find tag name: %s", tagName)
+	return nil
 }
 
 var (
@@ -150,35 +150,6 @@ func determineCastByType(tagType reflect.Type) string {
 	return dbCast
 }
 
-func splitCriteriaByType(criteria []query.Criterion) ([]query.Criterion, []query.Criterion, []query.Criterion) {
-	var labelQueries []query.Criterion
-	var fieldQueries []query.Criterion
-	var resultQueries []query.Criterion
-
-	for _, criterion := range criteria {
-		switch criterion.Type {
-		case query.FieldQuery:
-			fieldQueries = append(fieldQueries, criterion)
-		case query.LabelQuery:
-			labelQueries = append(labelQueries, criterion)
-		case query.ResultQuery:
-			resultQueries = append(resultQueries, criterion)
-		}
-	}
-
-	return labelQueries, fieldQueries, resultQueries
-}
-
-func buildRightOp(criterion query.Criterion) (string, interface{}) {
-	rightOpBindVar := "?"
-	var rhs interface{} = criterion.RightOp[0]
-	if criterion.Operator.Type() == query.MultivariateOperator {
-		rightOpBindVar = "(?)"
-		rhs = criterion.RightOp
-	}
-	return rightOpBindVar, rhs
-}
-
 func hasMultiVariateOp(criteria []query.Criterion) bool {
 	for _, opt := range criteria {
 		if opt.Operator.Type() == query.MultivariateOperator {
@@ -186,29 +157,6 @@ func hasMultiVariateOp(criteria []query.Criterion) bool {
 		}
 	}
 	return false
-}
-
-func translateOperationToSQLEquivalent(operator query.Operator) string {
-	switch operator {
-	case query.LessThanOperator:
-		return "<"
-	case query.LessThanOrEqualOperator:
-		return "<="
-	case query.GreaterThanOperator:
-		return ">"
-	case query.GreaterThanOrEqualOperator:
-		return ">="
-	case query.NotInOperator:
-		return "NOT IN"
-	case query.EqualsOperator:
-		fallthrough
-	case query.EqualsOrNilOperator:
-		return "="
-	case query.NotEqualsOperator:
-		return "!="
-	default:
-		return strings.ToUpper(operator.String())
-	}
 }
 
 func executeNew(ctx context.Context, extContext sqlx.ExtContext, query string, args []interface{}) error {

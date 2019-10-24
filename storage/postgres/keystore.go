@@ -18,6 +18,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -109,19 +110,11 @@ func (s *Storage) GetEncryptionKey(ctx context.Context, transformationFunc func(
 	s.checkOpen()
 
 	safe := &Safe{}
-	rows, err := s.queryBuilder.NewQuery(safe).List(ctx)
-
-	defer closeRows(ctx, rows)
-	if err != nil {
-		return nil, err
-	}
-	if rows.Next() {
-		if err := rows.StructScan(safe); err != nil {
-			return nil, err
+	if err := s.db.GetContext(ctx, safe, "SELECT * FROM safe"); err != nil {
+		if err == sql.ErrNoRows {
+			return []byte{}, nil
 		}
-	}
-	if len(safe.Secret) == 0 {
-		return []byte{}, nil
+		return nil, err
 	}
 	encryptedKey := []byte(safe.Secret)
 
@@ -132,21 +125,6 @@ func (s *Storage) GetEncryptionKey(ctx context.Context, transformationFunc func(
 func (s *Storage) SetEncryptionKey(ctx context.Context, key []byte, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) error {
 	s.checkOpen()
 
-	existingKey := &Safe{}
-	rows, err := s.queryBuilder.NewQuery(existingKey).List(ctx)
-
-	defer closeRows(ctx, rows)
-	if err != nil {
-		return err
-	}
-	if rows.Next() {
-		if err := rows.StructScan(existingKey); err != nil {
-			return err
-		}
-		if existingKey.Secret != nil && len(existingKey.Secret) > 0 {
-			return fmt.Errorf("encryption key is already set")
-		}
-	}
 	bytes, err := transformationFunc(ctx, key, s.layerOneEncryptionKey)
 	if err != nil {
 		return err

@@ -62,9 +62,9 @@ type OrderType string
 
 const (
 	// AscOrder orders result in ascending order
-	AscOrder OrderType = "asc"
+	AscOrder OrderType = "ASC"
 	// DescOrder orders result in descending order
-	DescOrder OrderType = "desc"
+	DescOrder OrderType = "DESC"
 )
 
 const (

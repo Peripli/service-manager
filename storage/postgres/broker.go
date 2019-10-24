@@ -29,13 +29,12 @@ import (
 //go:generate smgen storage broker github.com/Peripli/service-manager/pkg/types:ServiceBroker
 type Broker struct {
 	BaseEntity
-	Name           string             `db:"name"`
-	Description    sql.NullString     `db:"description"`
-	BrokerURL      string             `db:"broker_url"`
-	Username       string             `db:"username"`
-	Password       string             `db:"password"`
-	Catalog        sqlxtypes.JSONText `db:"catalog"`
-	PagingSequence int64              `db:"paging_sequence,auto_increment"`
+	Name        string             `db:"name"`
+	Description sql.NullString     `db:"description"`
+	BrokerURL   string             `db:"broker_url"`
+	Username    string             `db:"username"`
+	Password    string             `db:"password"`
+	Catalog     sqlxtypes.JSONText `db:"catalog"`
 
 	Services []*ServiceOffering `db:"-"`
 }
@@ -82,16 +81,16 @@ func (*Broker) FromObject(object types.Object) (storage.Entity, bool) {
 	}
 	b := &Broker{
 		BaseEntity: BaseEntity{
-			ID:        broker.ID,
-			CreatedAt: broker.CreatedAt,
-			UpdatedAt: broker.UpdatedAt,
+			ID:             broker.ID,
+			CreatedAt:      broker.CreatedAt,
+			UpdatedAt:      broker.UpdatedAt,
+			PagingSequence: broker.PagingSequence,
 		},
-		Name:           broker.Name,
-		Description:    toNullString(broker.Description),
-		BrokerURL:      broker.BrokerURL,
-		PagingSequence: broker.PagingSequence,
-		Catalog:        getJSONText(broker.Catalog),
-		Services:       services,
+		Name:        broker.Name,
+		Description: toNullString(broker.Description),
+		BrokerURL:   broker.BrokerURL,
+		Catalog:     getJSONText(broker.Catalog),
+		Services:    services,
 	}
 	if broker.Credentials != nil && broker.Credentials.Basic != nil {
 		b.Username = broker.Credentials.Basic.Username
