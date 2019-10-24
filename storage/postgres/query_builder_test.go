@@ -123,7 +123,6 @@ WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence
 				Expect(executedQuery).Should(Equal(trim(`
 WITH matching_resources as (SELECT DISTINCT visibilities.paging_sequence
                             FROM visibilities
-                                     LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
                             WHERE visibilities.id::text = ? )
 SELECT visibilities.*,
        visibility_labels.id            "visibility_labels.id",
@@ -222,7 +221,6 @@ ORDER BY id DESC, created_at ASC;`)))
 				Expect(executedQuery).Should(Equal(trim(`
 WITH matching_resources as (SELECT DISTINCT visibilities.paging_sequence
                             FROM visibilities
-                                     LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
 							ORDER BY visibilities.paging_sequence ASC
                             LIMIT ?)
 SELECT visibilities.*,
@@ -358,7 +356,6 @@ WHERE (key::text = ? AND val::text = ?) ;`)))
 				Expect(executedQuery).Should(Equal(trim(`
 SELECT COUNT(DISTINCT visibilities.id)
 FROM visibilities
-         LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
 WHERE visibilities.id::text = ? ;`)))
 				Expect(queryArgs).To(HaveLen(1))
 				Expect(queryArgs[0]).Should(Equal("1"))
@@ -393,9 +390,8 @@ FROM visibilities ;`)))
 					Count(ctx)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`
-SELECT COUNT(DISTINCT visibilities.id) FROM visibilities 
-	LEFT JOIN visibility_labels 
-		ON visibilities.id = visibility_labels.visibility_id 
+SELECT COUNT(DISTINCT visibilities.id) 
+FROM visibilities 
 LIMIT ?;`)))
 				Expect(queryArgs).To(HaveLen(1))
 				Expect(queryArgs[0]).Should(Equal("10"))
@@ -512,11 +508,8 @@ WHERE visibilities.id = t.id ;`)))
 
 				Expect(executedQuery).Should(Equal(trim(`
 DELETE
-FROM visibilities USING (SELECT visibilities.id
-                         FROM visibilities
-                                  LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
-                         WHERE visibilities.id::text = ?) t
-WHERE visibilities.id = t.id ;`)))
+FROM visibilities 
+WHERE visibilities.id::text = ? ;`)))
 				Expect(queryArgs).To(HaveLen(1))
 				Expect(queryArgs[0]).Should(Equal("1"))
 			})

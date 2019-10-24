@@ -17,72 +17,60 @@ import (
 
 const PrimaryKeyColumn = "id"
 
-const COUNTWithoutCriteriaTemplate = `
+const CountQueryTemplate = `
 SELECT COUNT(DISTINCT {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}})
 FROM {{.ENTITY_TABLE}}
-{{.FOR_SHARE_OF}}
-{{.LIMIT}};`
-
-const COUNTWithCriteriaTemplate = `
-SELECT COUNT(DISTINCT {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}})
-FROM {{.ENTITY_TABLE}}
+	{{if .hasLabelCriteria}}
 	{{.JOIN}} {{.LABELS_TABLE}}
 		ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
+	{{end}}
 {{.WHERE}}
 {{.FOR_SHARE_OF}}
 {{.LIMIT}};`
 
-const SELECTColumns = `
+const SelectQueryTemplate = `
+{{if or .hasFieldCriteria .hasLabelCriteria}}
+WITH matching_resources as (SELECT DISTINCT {{.ENTITY_TABLE}}.paging_sequence
+							FROM {{.ENTITY_TABLE}}
+							{{if .hasLabelCriteria}}
+							{{.JOIN}} {{.LABELS_TABLE}} 
+								ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
+							{{end}}
+							{{.WHERE}}
+							{{.ORDER_BY_SEQUENCE}}
+							{{.LIMIT}})
+{{end}}
+SELECT 
 {{.ENTITY_TABLE}}.*,
 {{.LABELS_TABLE}}.id         "{{.LABELS_TABLE}}.id",
 {{.LABELS_TABLE}}.key        "{{.LABELS_TABLE}}.key",
 {{.LABELS_TABLE}}.val        "{{.LABELS_TABLE}}.val",
 {{.LABELS_TABLE}}.created_at "{{.LABELS_TABLE}}.created_at",
 {{.LABELS_TABLE}}.updated_at "{{.LABELS_TABLE}}.updated_at",
-{{.LABELS_TABLE}}.{{.REF_COLUMN}} "{{.LABELS_TABLE}}.{{.REF_COLUMN}}"`
-
-const SELECTWithoutCriteriaTemplate = `
-SELECT %s
+{{.LABELS_TABLE}}.{{.REF_COLUMN}} "{{.LABELS_TABLE}}.{{.REF_COLUMN}}" 
 FROM {{.ENTITY_TABLE}}
 	{{.JOIN}} {{.LABELS_TABLE}}
 		ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
-{{.FOR_SHARE_OF}}
-{{.ORDER_BY}};`
-
-const SELECTWithCriteriaTemplate = `
-WITH matching_resources as (SELECT DISTINCT {{.ENTITY_TABLE}}.paging_sequence
-							FROM {{.ENTITY_TABLE}}
-								{{.JOIN}} {{.LABELS_TABLE}} 
-									ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
-							{{.WHERE}}
-							{{.ORDER_BY_SEQUENCE}}
-							{{.LIMIT}})
-SELECT %s 
-FROM {{.ENTITY_TABLE}}
-	{{.JOIN}} {{.LABELS_TABLE}}
-		ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
+{{if or .hasFieldCriteria .hasLabelCriteria}}
 WHERE {{.ENTITY_TABLE}}.paging_sequence IN 
 	(SELECT matching_resources.paging_sequence FROM matching_resources)
+{{end}}
 {{.FOR_SHARE_OF}}
 {{.ORDER_BY}};`
 
-const DELETEWithoutCriteriaTemplate = `
-DELETE 
-FROM {{.ENTITY_TABLE}}
-{{.RETURNING}};`
-
-const DELETEWithCriteriaTemplate = `
+const DeleteQueryTemplate = `
 DELETE FROM {{.ENTITY_TABLE}}
-USING (SELECT {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}}
-		FROM {{.ENTITY_TABLE}}
-			{{.JOIN}} {{.LABELS_TABLE}}
-				ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
-		{{.WHERE}}) t
-WHERE {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = t.{{.PRIMARY_KEY}}
+{{if .hasLabelCriteria}}
+	USING (SELECT {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}}
+			FROM {{.ENTITY_TABLE}}
+				{{.JOIN}} {{.LABELS_TABLE}}
+					ON {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = {{.LABELS_TABLE}}.{{.REF_COLUMN}}
+			{{.WHERE}}) t
+	WHERE {{.ENTITY_TABLE}}.{{.PRIMARY_KEY}} = t.{{.PRIMARY_KEY}}
+{{else if .hasFieldCriteria}}
+	{{.WHERE}}
+{{end}}
 {{.RETURNING}};`
-
-const noCriteria = "nc"
-const withCriteria = "c"
 
 // QueryBuilder is used to construct new queries. It is safe for concurrent usage
 type QueryBuilder struct {
@@ -140,15 +128,7 @@ type pgQuery struct {
 }
 
 func (pq *pgQuery) List(ctx context.Context) (*sqlx.Rows, error) {
-	if pq.err != nil {
-		return nil, pq.err
-	}
-
-	templates := map[string]string{
-		noCriteria:   fmt.Sprintf(SELECTWithoutCriteriaTemplate, SELECTColumns),
-		withCriteria: fmt.Sprintf(SELECTWithCriteriaTemplate, SELECTColumns),
-	}
-	q, err := pq.resolveQueryTemplate(ctx, templates)
+	q, err := pq.resolveQueryTemplate(ctx, SelectQueryTemplate)
 	if err != nil {
 		return nil, err
 	}
@@ -156,14 +136,7 @@ func (pq *pgQuery) List(ctx context.Context) (*sqlx.Rows, error) {
 }
 
 func (pq *pgQuery) Count(ctx context.Context) (int, error) {
-	if pq.err != nil {
-		return 0, pq.err
-	}
-	templates := map[string]string{
-		noCriteria:   COUNTWithoutCriteriaTemplate,
-		withCriteria: COUNTWithCriteriaTemplate,
-	}
-	q, err := pq.resolveQueryTemplate(ctx, templates)
+	q, err := pq.resolveQueryTemplate(ctx, CountQueryTemplate)
 	if err != nil {
 		return 0, err
 	}
@@ -175,25 +148,25 @@ func (pq *pgQuery) Count(ctx context.Context) (int, error) {
 }
 
 func (pq *pgQuery) Delete(ctx context.Context) (*sqlx.Rows, error) {
-	if pq.err != nil {
-		return nil, pq.err
-	}
-	templates := map[string]string{
-		noCriteria:   DELETEWithoutCriteriaTemplate,
-		withCriteria: DELETEWithCriteriaTemplate,
-	}
-	q, err := pq.resolveQueryTemplate(ctx, templates)
+	q, err := pq.resolveQueryTemplate(ctx, DeleteQueryTemplate)
 	if err != nil {
 		return nil, err
 	}
 	return pq.db.QueryxContext(ctx, q, pq.queryParams...)
 }
 
-func (pq *pgQuery) resolveQueryTemplate(ctx context.Context, templates map[string]string) (string, error) {
+func (pq *pgQuery) resolveQueryTemplate(ctx context.Context, template string) (string, error) {
+	if pq.err != nil {
+		return "", pq.err
+	}
 	if pq.labelEntity == nil {
 		return "", fmt.Errorf("query builder requires the entity to have associated label entity")
 	}
+	hasFieldCriteria := len(pq.fieldsWhereClause.children) != 0 || len(pq.limit) != 0
+	hasLabelCriteria := len(pq.labelsWhereClause.children) != 0
 	data := map[string]interface{}{
+		"hasFieldCriteria":  hasFieldCriteria,
+		"hasLabelCriteria":  hasLabelCriteria,
 		"ENTITY_TABLE":      pq.entityTableName,
 		"PRIMARY_KEY":       PrimaryKeyColumn,
 		"LABELS_TABLE":      pq.labelEntity.LabelsTableName(),
@@ -207,18 +180,7 @@ func (pq *pgQuery) resolveQueryTemplate(ctx context.Context, templates map[strin
 		"RETURNING":         pq.returningSQL(),
 	}
 
-	var q string
-	hasCriteria := len(pq.fieldsWhereClause.children) != 0 ||
-		len(pq.labelsWhereClause.children) != 0 ||
-		len(pq.limit) != 0
-
-	if hasCriteria {
-		q = templates[withCriteria]
-	} else {
-		q = templates[noCriteria]
-	}
-	var err error
-	q, err = tsprintf(q, data)
+	q, err := tsprintf(template, data)
 	if err != nil {
 		return "", err
 	}
