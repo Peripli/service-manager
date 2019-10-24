@@ -21,8 +21,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/query"
 
@@ -399,16 +399,13 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 			It("returns 200 when date is properly formatted", func() {
 				createdAtValue := ctx.SMWithOAuth.GET(t.API + "/" + r[0]["id"].(string)).Expect().Status(http.StatusOK).
 					JSON().Object().Value("created_at").String().Raw()
-				createdAtHour := createdAtValue[11:13]
-				originalHour, err := strconv.ParseInt(createdAtHour, 10, 64)
+				parsed, err := time.Parse(time.RFC3339Nano, createdAtValue)
 				Expect(err).ToNot(HaveOccurred())
-				createdAtValue = createdAtValue[:11] + "01" + createdAtValue[13:]
-				newHour := originalHour - 1
-				hourPattern := fmt.Sprintf("-%d:00", newHour)
-				if newHour < 10 {
-					hourPattern = fmt.Sprintf("-0%d:00", newHour)
-				}
-				escapedCreatedAtValue := url.QueryEscape(createdAtValue[:len(createdAtValue)-1] + hourPattern)
+				location, err := time.LoadLocation("America/New_York")
+				Expect(err).ToNot(HaveOccurred())
+				timeInZone := parsed.In(location)
+				offsetCreatedAtValue := timeInZone.Format(time.RFC3339Nano)
+				escapedCreatedAtValue := url.QueryEscape(offsetCreatedAtValue)
 				ctx.SMWithOAuth.ListWithQuery(t.API, fmt.Sprintf("fieldQuery=%s eq %s", "created_at", escapedCreatedAtValue)).
 					Element(0).Object().Value("id").Equal(r[0]["id"])
 			})
