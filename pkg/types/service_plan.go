@@ -62,7 +62,7 @@ func (e *ServicePlan) Validate() error {
 	if cliFriendly, err := util.IsCLIFriendly(e.CatalogName); err != nil {
 		return err
 	} else if !cliFriendly {
-		return fmt.Errorf("service plan catalog name is not CLI-friendly")
+		return fmt.Errorf("service plan catalog name must consist of only alphanumeric characters, periods, and hyphens")
 	}
 	var obj map[string]interface{}
 	if len(e.Schemas) != 0 {

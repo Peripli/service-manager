@@ -66,7 +66,7 @@ func (e *ServiceOffering) Validate() error {
 	if cliFriendly, err := util.IsCLIFriendly(e.CatalogName); err != nil {
 		return err
 	} else if !cliFriendly {
-		return fmt.Errorf("service offering catalog name is not CLI-friendly")
+		return fmt.Errorf("service offering catalog name must consist of only alphanumeric characters, periods, and hyphens")
 	}
 	var array []interface{}
 	if len(e.Tags) != 0 {

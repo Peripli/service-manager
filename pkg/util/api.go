@@ -19,6 +19,7 @@ package util
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
@@ -45,7 +46,8 @@ type InputValidator interface {
 func IsCLIFriendly(name string) (bool, error) {
 	matched, err := regexp.MatchString("^[A-Za-z0-9]([-._A-Za-z0-9]*[A-Za-z0-9])?$", name)
 	if err != nil {
-		return false, err
+		log.D().WithError(err).Errorf("Error while checking if %s is cli-friendly", name)
+		return false, fmt.Errorf("could not validate %s name due to internal error. Check logs for more information", name)
 	}
 	return matched, nil
 }
