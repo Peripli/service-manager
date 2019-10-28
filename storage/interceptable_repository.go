@@ -670,17 +670,17 @@ func (itr *InterceptableTransactionalRepository) provideOnTxInterceptors() (
 }
 
 // PositionType could be "before", "after" or "none"
-type PositionType string
+type PositionType int
 
 const (
 	// PositionNone states that a position is not set and the item will be appended
-	PositionNone PositionType = "none"
+	PositionNone PositionType = iota
 
 	// PositionBefore states that a position should be calculated before another position
-	PositionBefore PositionType = "before"
+	PositionBefore
 
 	// PositionAfter states that a position should be calculated after another position
-	PositionAfter PositionType = "after"
+	PositionAfter
 )
 
 type InterceptorPosition struct {
