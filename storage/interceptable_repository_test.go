@@ -15,7 +15,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = FDescribe("Interceptable TransactionalRepository", func() {
+var _ = Describe("Interceptable TransactionalRepository", func() {
 	var interceptableRepository *storage.InterceptableTransactionalRepository
 	var ctx context.Context
 	var updateTime time.Time
