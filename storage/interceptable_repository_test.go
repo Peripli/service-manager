@@ -18,20 +18,265 @@ import (
 var _ = Describe("Interceptable TransactionalRepository", func() {
 	var interceptableRepository *storage.InterceptableTransactionalRepository
 	var ctx context.Context
+	var updateTime time.Time
+
+	var fakeCreateAroundTxInterceptorProvider *storagefakes.FakeCreateAroundTxInterceptorProvider
+	var fakeCreateAroundTxInterceptor *storagefakes.FakeCreateAroundTxInterceptor
+
+	var fakeCreateOnTxInterceptorProvider *storagefakes.FakeCreateOnTxInterceptorProvider
+	var fakeCreateOnTxInterceptor *storagefakes.FakeCreateOnTxInterceptor
+
+	var fakeCreateInterceptorProvider *storagefakes.FakeCreateInterceptorProvider
+	var fakeCreateInterceptor *storagefakes.FakeCreateInterceptor
+
+	var fakeUpdateAroundTxInterceptorProvider *storagefakes.FakeUpdateAroundTxInterceptorProvider
+	var fakeUpdateAroundTxIntercetptor *storagefakes.FakeUpdateAroundTxInterceptor
+
+	var fakeUpdateOnTxInterceptorProvider *storagefakes.FakeUpdateOnTxInterceptorProvider
+	var fakeUpdateOnTxIntercetptor *storagefakes.FakeUpdateOnTxInterceptor
+
+	var fakeUpdateInterceptorProvider *storagefakes.FakeUpdateInterceptorProvider
+	var fakeUpdateIntercetptor *storagefakes.FakeUpdateInterceptor
+
+	var fakeDeleteAroundTxInterceptorProvider *storagefakes.FakeDeleteAroundTxInterceptorProvider
+	var fakeDeleteAroundTxInterceptor *storagefakes.FakeDeleteAroundTxInterceptor
+
+	var fakeDeleteOnTxInterceptorProvider *storagefakes.FakeDeleteOnTxInterceptorProvider
+	var fakeDeleteOnTxInterceptor *storagefakes.FakeDeleteOnTxInterceptor
+
+	var fakeDeleteInterceptorProvider *storagefakes.FakeDeleteInterceptorProvider
+	var fakeDeleteInterceptor *storagefakes.FakeDeleteInterceptor
+
+	var fakeStorage *storagefakes.FakeStorage
+
+	BeforeEach(func() {
+		ctx = context.TODO()
+		updateTime = time.Now()
+
+		fakeCreateAroundTxInterceptor = &storagefakes.FakeCreateAroundTxInterceptor{}
+		fakeCreateAroundTxInterceptor.AroundTxCreateCalls(func(next storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
+			return func(ctx context.Context, obj types.Object) (types.Object, error) {
+				return next(ctx, obj)
+			}
+		})
+
+		fakeCreateOnTxInterceptor = &storagefakes.FakeCreateOnTxInterceptor{}
+		fakeCreateOnTxInterceptor.OnTxCreateCalls(func(next storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
+			return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) (types.Object, error) {
+				return next(ctx, txStorage, newObject)
+			}
+		})
+
+		fakeCreateInterceptor = &storagefakes.FakeCreateInterceptor{}
+		fakeCreateInterceptor.OnTxCreateCalls(func(next storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
+			return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) (types.Object, error) {
+				return next(ctx, txStorage, newObject)
+			}
+		})
+		fakeCreateInterceptor.AroundTxCreateCalls(func(next storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
+			return func(ctx context.Context, obj types.Object) (types.Object, error) {
+				return next(ctx, obj)
+			}
+		})
+
+		fakeUpdateAroundTxIntercetptor = &storagefakes.FakeUpdateAroundTxInterceptor{}
+		fakeUpdateAroundTxIntercetptor.AroundTxUpdateCalls(func(next storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
+			return func(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
+				return next(ctx, obj, labelChanges...)
+			}
+		})
+
+		fakeUpdateOnTxIntercetptor = &storagefakes.FakeUpdateOnTxInterceptor{}
+		fakeUpdateOnTxIntercetptor.OnTxUpdateCalls(func(next storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
+			return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
+				return next(ctx, txStorage, oldObj, newObj, labelChanges...)
+			}
+		})
+
+		fakeUpdateIntercetptor = &storagefakes.FakeUpdateInterceptor{}
+		fakeUpdateIntercetptor.OnTxUpdateCalls(func(next storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
+			return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
+				return next(ctx, txStorage, oldObj, newObj, labelChanges...)
+			}
+		})
+
+		fakeUpdateIntercetptor.AroundTxUpdateCalls(func(next storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
+			return func(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
+				return next(ctx, obj, labelChanges...)
+			}
+		})
+
+		fakeDeleteAroundTxInterceptor = &storagefakes.FakeDeleteAroundTxInterceptor{}
+		fakeDeleteAroundTxInterceptor.AroundTxDeleteCalls(func(next storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
+			return func(ctx context.Context, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
+				return next(ctx, deletionCriteria...)
+			}
+		})
+
+		fakeDeleteOnTxInterceptor = &storagefakes.FakeDeleteOnTxInterceptor{}
+		fakeDeleteOnTxInterceptor.OnTxDeleteCalls(func(next storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
+			return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
+				return next(ctx, txStorage, objects, deletionCriteria...)
+			}
+		})
+
+		fakeDeleteInterceptor = &storagefakes.FakeDeleteInterceptor{}
+		fakeDeleteInterceptor.OnTxDeleteCalls(func(next storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
+			return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
+				return next(ctx, txStorage, objects, deletionCriteria...)
+			}
+		})
+		fakeDeleteInterceptor.AroundTxDeleteCalls(func(next storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
+			return func(ctx context.Context, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
+				return next(ctx, deletionCriteria...)
+			}
+		})
+
+		fakeCreateAroundTxInterceptorProvider = &storagefakes.FakeCreateAroundTxInterceptorProvider{}
+		fakeCreateAroundTxInterceptorProvider.NameReturns("fakeCreateAroundTxInterceptor")
+		fakeCreateAroundTxInterceptorProvider.ProvideReturns(fakeCreateAroundTxInterceptor)
+
+		fakeCreateOnTxInterceptorProvider = &storagefakes.FakeCreateOnTxInterceptorProvider{}
+		fakeCreateOnTxInterceptorProvider.NameReturns("fakeCreateOnTxInterceptor")
+		fakeCreateOnTxInterceptorProvider.ProvideReturns(fakeCreateOnTxInterceptor)
+
+		fakeCreateInterceptorProvider = &storagefakes.FakeCreateInterceptorProvider{}
+		fakeCreateInterceptorProvider.NameReturns("fakeCreateInterceptor")
+		fakeCreateInterceptorProvider.ProvideReturns(fakeCreateInterceptor)
+
+		fakeUpdateAroundTxInterceptorProvider = &storagefakes.FakeUpdateAroundTxInterceptorProvider{}
+		fakeUpdateAroundTxInterceptorProvider.NameReturns("fakeUpdateAroundTxInterceptor")
+		fakeUpdateAroundTxInterceptorProvider.ProvideReturns(fakeUpdateAroundTxIntercetptor)
+
+		fakeUpdateOnTxInterceptorProvider = &storagefakes.FakeUpdateOnTxInterceptorProvider{}
+		fakeUpdateOnTxInterceptorProvider.NameReturns("fakeUpdateOnTxInterceptor")
+		fakeUpdateOnTxInterceptorProvider.ProvideReturns(fakeUpdateOnTxIntercetptor)
+
+		fakeUpdateInterceptorProvider = &storagefakes.FakeUpdateInterceptorProvider{}
+		fakeUpdateInterceptorProvider.NameReturns("fakeUpdateInterceptor")
+		fakeUpdateInterceptorProvider.ProvideReturns(fakeUpdateIntercetptor)
+
+		fakeDeleteAroundTxInterceptorProvider = &storagefakes.FakeDeleteAroundTxInterceptorProvider{}
+		fakeDeleteAroundTxInterceptorProvider.NameReturns("fakeDeleteAroundTxInterceptor")
+		fakeDeleteAroundTxInterceptorProvider.ProvideReturns(fakeDeleteAroundTxInterceptor)
+
+		fakeDeleteOnTxInterceptorProvider = &storagefakes.FakeDeleteOnTxInterceptorProvider{}
+		fakeDeleteOnTxInterceptorProvider.NameReturns("fakeDeleteOnTxInterceptor")
+		fakeDeleteOnTxInterceptorProvider.ProvideReturns(fakeDeleteOnTxInterceptor)
+
+		fakeDeleteInterceptorProvider = &storagefakes.FakeDeleteInterceptorProvider{}
+		fakeDeleteInterceptorProvider.NameReturns("fakeDeleteInterceptor")
+		fakeDeleteInterceptorProvider.ProvideReturns(fakeDeleteInterceptor)
+
+		fakeStorage = &storagefakes.FakeStorage{}
+		fakeStorage.InTransactionCalls(func(context context.Context, f func(ctx context.Context, storage storage.Repository) error) error {
+			return f(context, fakeStorage)
+		})
+
+		fakeStorage.UpdateCalls(func(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, criteria ...query.Criterion) (types.Object, error) {
+			return obj, nil
+		})
+
+		fakeStorage.GetReturns(&types.ServiceBroker{
+			Base: types.Base{
+				UpdatedAt: updateTime,
+			},
+		}, nil)
+
+		interceptableRepository = storage.NewInterceptableTransactionalRepository(fakeStorage)
+
+		orderNone := storage.InterceptorOrder{
+			OnTxPosition: storage.InterceptorPosition{
+				PositionType: storage.PositionNone,
+			},
+			AroundTxPosition: storage.InterceptorPosition{
+				PositionType: storage.PositionNone,
+			},
+		}
+
+		interceptableRepository.AddCreateAroundTxInterceptorProvider(types.ServiceBrokerType, fakeCreateAroundTxInterceptorProvider, orderNone)
+		interceptableRepository.AddCreateOnTxInterceptorProvider(types.ServiceBrokerType, fakeCreateOnTxInterceptorProvider, orderNone)
+		interceptableRepository.AddCreateInterceptorProvider(types.ServiceBrokerType, fakeCreateInterceptorProvider, orderNone)
+
+		interceptableRepository.AddUpdateAroundTxInterceptorProvider(types.ServiceBrokerType, fakeUpdateAroundTxInterceptorProvider, orderNone)
+		interceptableRepository.AddUpdateOnTxInterceptorProvider(types.ServiceBrokerType, fakeUpdateOnTxInterceptorProvider, orderNone)
+		interceptableRepository.AddUpdateInterceptorProvider(types.ServiceBrokerType, fakeUpdateInterceptorProvider, orderNone)
+
+		interceptableRepository.AddDeleteAroundTxInterceptorProvider(types.ServiceBrokerType, fakeDeleteAroundTxInterceptorProvider, orderNone)
+		interceptableRepository.AddDeleteOnTxInterceptorProvider(types.ServiceBrokerType, fakeDeleteOnTxInterceptorProvider, orderNone)
+		interceptableRepository.AddDeleteInterceptorProvider(types.ServiceBrokerType, fakeDeleteInterceptorProvider, orderNone)
+
+		Expect(fakeCreateAroundTxInterceptor.AroundTxCreateCallCount()).To(Equal(0))
+		Expect(fakeCreateOnTxInterceptor.OnTxCreateCallCount()).To(Equal(0))
+		Expect(fakeCreateInterceptor.AroundTxCreateCallCount()).To(Equal(0))
+		Expect(fakeCreateInterceptor.OnTxCreateCallCount()).To(Equal(0))
+
+		Expect(fakeUpdateAroundTxIntercetptor.AroundTxUpdateCallCount()).To(Equal(0))
+		Expect(fakeUpdateOnTxIntercetptor.OnTxUpdateCallCount()).To(Equal(0))
+		Expect(fakeUpdateIntercetptor.AroundTxUpdateCallCount()).To(Equal(0))
+		Expect(fakeUpdateIntercetptor.OnTxUpdateCallCount()).To(Equal(0))
+
+		Expect(fakeDeleteAroundTxInterceptor.AroundTxDeleteCallCount()).To(Equal(0))
+		Expect(fakeDeleteOnTxInterceptor.OnTxDeleteCallCount()).To(Equal(0))
+		Expect(fakeDeleteInterceptor.AroundTxDeleteCallCount()).To(Equal(0))
+		Expect(fakeDeleteInterceptor.OnTxDeleteCallCount()).To(Equal(0))
+
+		Expect(fakeStorage.CreateCallCount()).To(Equal(0))
+		Expect(fakeStorage.UpdateCallCount()).To(Equal(0))
+		Expect(fakeStorage.DeleteCallCount()).To(Equal(0))
+	})
+
+	Describe("Create", func() {
+		It("invokes all interceptors", func() {
+			_, err := interceptableRepository.Create(ctx, &types.ServiceBroker{})
+
+			Expect(err).ShouldNot(HaveOccurred())
+
+			Expect(fakeCreateAroundTxInterceptor.AroundTxCreateCallCount()).To(Equal(1))
+			Expect(fakeCreateOnTxInterceptor.OnTxCreateCallCount()).To(Equal(1))
+			Expect(fakeCreateInterceptor.AroundTxCreateCallCount()).To(Equal(1))
+			Expect(fakeCreateInterceptor.OnTxCreateCallCount()).To(Equal(1))
+
+			Expect(fakeStorage.CreateCallCount()).To(Equal(1))
+		})
+	})
+
+	Describe("Update", func() {
+		It("invokes all interceptors", func() {
+			_, err := interceptableRepository.Update(ctx, &types.ServiceBroker{
+				Base: types.Base{
+					UpdatedAt: updateTime,
+				},
+			}, query.LabelChanges{})
+
+			Expect(err).ShouldNot(HaveOccurred())
+
+			Expect(fakeUpdateAroundTxIntercetptor.AroundTxUpdateCallCount()).To(Equal(1))
+			Expect(fakeUpdateOnTxIntercetptor.OnTxUpdateCallCount()).To(Equal(1))
+			Expect(fakeUpdateIntercetptor.AroundTxUpdateCallCount()).To(Equal(1))
+			Expect(fakeUpdateIntercetptor.OnTxUpdateCallCount()).To(Equal(1))
+
+			Expect(fakeStorage.UpdateCallCount()).To(Equal(1))
+		})
+	})
+
+	Describe("Delete", func() {
+		It("invokes all interceptors", func() {
+			byID := query.ByField(query.EqualsOperator, "id", "id")
+			_, err := interceptableRepository.Delete(ctx, types.ServiceBrokerType, byID)
+
+			Expect(err).ShouldNot(HaveOccurred())
+
+			Expect(fakeDeleteAroundTxInterceptor.AroundTxDeleteCallCount()).To(Equal(1))
+			Expect(fakeDeleteOnTxInterceptor.OnTxDeleteCallCount()).To(Equal(1))
+			Expect(fakeDeleteInterceptor.AroundTxDeleteCallCount()).To(Equal(1))
+			Expect(fakeDeleteInterceptor.OnTxDeleteCallCount()).To(Equal(1))
+
+			Expect(fakeStorage.DeleteCallCount()).To(Equal(1))
+		})
+	})
 
 	Describe("In transaction", func() {
-		var updateTime time.Time
-		var fakeCreateInterceptorProvider *storagefakes.FakeCreateInterceptorProvider
-		var fakeCreateInterceptor *storagefakes.FakeCreateInterceptor
-
-		var fakeUpdateInterceptorProvider *storagefakes.FakeUpdateInterceptorProvider
-		var fakeUpdateIntercetptor *storagefakes.FakeUpdateInterceptor
-
-		var fakeDeleteInterceptorProvider *storagefakes.FakeDeleteInterceptorProvider
-		var fakeDeleteInterceptor *storagefakes.FakeDeleteInterceptor
-
-		var fakeStorage *storagefakes.FakeStorage
-
 		var executionsCount int
 
 		OnTxStub := func(ctx context.Context, storage storage.Repository) error {
@@ -55,112 +300,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 		}
 
 		BeforeEach(func() {
-			ctx = context.TODO()
-			updateTime = time.Now()
-
 			executionsCount = 1
-
-			fakeCreateInterceptor = &storagefakes.FakeCreateInterceptor{}
-			fakeCreateInterceptor.OnTxCreateCalls(func(next storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
-				return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) (types.Object, error) {
-					return next(ctx, txStorage, newObject)
-				}
-			})
-			fakeCreateInterceptor.AroundTxCreateCalls(func(next storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
-				return func(ctx context.Context, obj types.Object) (types.Object, error) {
-					return next(ctx, obj)
-				}
-			})
-
-			fakeUpdateIntercetptor = &storagefakes.FakeUpdateInterceptor{}
-			fakeUpdateIntercetptor.OnTxUpdateCalls(func(next storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
-				return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
-					return next(ctx, txStorage, oldObj, newObj, labelChanges...)
-				}
-			})
-
-			fakeUpdateIntercetptor.AroundTxUpdateCalls(func(next storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
-				return func(ctx context.Context, obj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
-					return next(ctx, obj, labelChanges...)
-				}
-			})
-
-			fakeDeleteInterceptor = &storagefakes.FakeDeleteInterceptor{}
-			fakeDeleteInterceptor.OnTxDeleteCalls(func(next storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
-				return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
-					return next(ctx, txStorage, objects, deletionCriteria...)
-				}
-			})
-			fakeDeleteInterceptor.AroundTxDeleteCalls(func(next storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
-				return func(ctx context.Context, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
-					return next(ctx, deletionCriteria...)
-				}
-			})
-
-			fakeCreateInterceptorProvider = &storagefakes.FakeCreateInterceptorProvider{}
-			fakeCreateInterceptorProvider.NameReturns("fakeCreateInterceptor")
-			fakeCreateInterceptorProvider.ProvideReturns(fakeCreateInterceptor)
-
-			fakeUpdateInterceptorProvider = &storagefakes.FakeUpdateInterceptorProvider{}
-			fakeUpdateInterceptorProvider.NameReturns("fakeUpdateInterceptor")
-			fakeUpdateInterceptorProvider.ProvideReturns(fakeUpdateIntercetptor)
-
-			fakeDeleteInterceptorProvider = &storagefakes.FakeDeleteInterceptorProvider{}
-			fakeDeleteInterceptorProvider.NameReturns("fakeDeleteInterceptor")
-			fakeDeleteInterceptorProvider.ProvideReturns(fakeDeleteInterceptor)
-
-			fakeStorage = &storagefakes.FakeStorage{}
-			fakeStorage.InTransactionCalls(func(context context.Context, f func(ctx context.Context, storage storage.Repository) error) error {
-				return f(context, fakeStorage)
-			})
-
-			fakeStorage.UpdateCalls(func(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, criteria ...query.Criterion) (types.Object, error) {
-				return obj, nil
-			})
-
-			fakeStorage.GetReturns(&types.ServiceBroker{
-				Base: types.Base{
-					UpdatedAt: updateTime,
-				},
-			}, nil)
-
-			interceptableRepository = storage.NewInterceptableTransactionalRepository(fakeStorage)
-
-			orderNone := storage.InterceptorOrder{
-				OnTxPosition: storage.InterceptorPosition{
-					PositionType: storage.PositionNone,
-				},
-				AroundTxPosition: storage.InterceptorPosition{
-					PositionType: storage.PositionNone,
-				},
-			}
-
-			interceptableRepository.AddCreateInterceptorProvider(types.ServiceBrokerType, storage.OrderedCreateInterceptorProvider{
-				InterceptorOrder:          orderNone,
-				CreateInterceptorProvider: fakeCreateInterceptorProvider,
-			})
-
-			interceptableRepository.AddUpdateInterceptorProvider(types.ServiceBrokerType, storage.OrderedUpdateInterceptorProvider{
-				InterceptorOrder:          orderNone,
-				UpdateInterceptorProvider: fakeUpdateInterceptorProvider,
-			})
-
-			interceptableRepository.AddDeleteInterceptorProvider(types.ServiceBrokerType, storage.OrderedDeleteInterceptorProvider{
-				InterceptorOrder:          orderNone,
-				DeleteInterceptorProvider: fakeDeleteInterceptorProvider,
-			})
-
-			Expect(fakeCreateInterceptor.OnTxCreateCallCount()).To(Equal(0))
-			Expect(fakeUpdateIntercetptor.OnTxUpdateCallCount()).To(Equal(0))
-			Expect(fakeDeleteInterceptor.OnTxDeleteCallCount()).To(Equal(0))
-
-			Expect(fakeCreateInterceptor.AroundTxCreateCallCount()).To(Equal(0))
-			Expect(fakeUpdateIntercetptor.AroundTxUpdateCallCount()).To(Equal(0))
-			Expect(fakeDeleteInterceptor.AroundTxDeleteCallCount()).To(Equal(0))
-
-			Expect(fakeStorage.CreateCallCount()).To(Equal(0))
-			Expect(fakeStorage.UpdateCallCount()).To(Equal(0))
-			Expect(fakeStorage.DeleteCallCount()).To(Equal(0))
 		})
 
 		Context("when another update happens before the current update has finished", func() {
@@ -177,7 +317,6 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 
 			It("fails with concurrent modification failure", func() {
 				err := interceptableRepository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-
 					_, err := storage.Update(ctx, &types.ServiceBroker{
 						Base: types.Base{
 							UpdatedAt: updateTime,
@@ -197,18 +336,35 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 				executionsCount = 2
 			})
 
-			It("triggers the interceptors OnTx logic for each resource create/update/delete", func() {
+			It("triggers the interceptors OnTx of OnTxInterceptors for each resource create/update/delete", func() {
 				err := interceptableRepository.InTransaction(ctx, OnTxStub)
 
 				Expect(err).ShouldNot(HaveOccurred())
 
-				Expect(fakeCreateInterceptor.OnTxCreateCallCount()).To(Equal(executionsCount))
-				Expect(fakeUpdateIntercetptor.OnTxUpdateCallCount()).To(Equal(executionsCount))
-				Expect(fakeDeleteInterceptor.OnTxDeleteCallCount()).To(Equal(executionsCount))
+				Expect(fakeCreateOnTxInterceptor.OnTxCreateCallCount()).To(Equal(executionsCount))
+				Expect(fakeUpdateOnTxIntercetptor.OnTxUpdateCallCount()).To(Equal(executionsCount))
+				Expect(fakeDeleteOnTxInterceptor.OnTxDeleteCallCount()).To(Equal(executionsCount))
+
+				Expect(fakeStorage.CreateCallCount()).To(Equal(executionsCount))
+				Expect(fakeStorage.UpdateCallCount()).To(Equal(executionsCount))
+				Expect(fakeStorage.DeleteCallCount()).To(Equal(executionsCount))
+			})
+
+			It("does not trigger any aroundTx or mixed interceptors", func() {
+				err := interceptableRepository.InTransaction(ctx, OnTxStub)
+
+				Expect(err).ShouldNot(HaveOccurred())
 
 				Expect(fakeCreateInterceptor.AroundTxCreateCallCount()).To(Equal(0))
+				Expect(fakeCreateInterceptor.OnTxCreateCallCount()).To(Equal(0))
 				Expect(fakeUpdateIntercetptor.AroundTxUpdateCallCount()).To(Equal(0))
+				Expect(fakeUpdateIntercetptor.OnTxUpdateCallCount()).To(Equal(0))
 				Expect(fakeDeleteInterceptor.AroundTxDeleteCallCount()).To(Equal(0))
+				Expect(fakeDeleteInterceptor.OnTxDeleteCallCount()).To(Equal(0))
+
+				Expect(fakeCreateAroundTxInterceptor.AroundTxCreateCallCount()).To(Equal(0))
+				Expect(fakeUpdateAroundTxIntercetptor.AroundTxUpdateCallCount()).To(Equal(0))
+				Expect(fakeDeleteAroundTxInterceptor.AroundTxDeleteCallCount()).To(Equal(0))
 
 				Expect(fakeStorage.CreateCallCount()).To(Equal(executionsCount))
 				Expect(fakeStorage.UpdateCallCount()).To(Equal(executionsCount))
@@ -217,7 +373,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 		})
 
 		It("does not get into infinite recursion when an interceptor triggers the same db op for the same db type it intercepts", func() {
-			fakeCreateInterceptor.OnTxCreateCalls(func(next storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
+			fakeCreateOnTxInterceptor.OnTxCreateCalls(func(next storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 				return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) (types.Object, error) {
 					_, err := txStorage.Create(ctx, newObject)
 					Expect(err).ShouldNot(HaveOccurred())
@@ -232,7 +388,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 				}
 			})
 
-			fakeUpdateIntercetptor.OnTxUpdateCalls(func(next storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
+			fakeUpdateOnTxIntercetptor.OnTxUpdateCalls(func(next storage.InterceptUpdateOnTxFunc) storage.InterceptUpdateOnTxFunc {
 				return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error) {
 					o, err := txStorage.Update(ctx, newObj, labelChanges)
 					Expect(err).ShouldNot(HaveOccurred())
@@ -247,7 +403,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 				}
 			})
 
-			fakeDeleteInterceptor.OnTxDeleteCalls(func(next storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
+			fakeDeleteOnTxInterceptor.OnTxDeleteCalls(func(next storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
 				return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
 					byID := query.ByField(query.EqualsOperator, "id", "id")
 
@@ -267,18 +423,24 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 			err := interceptableRepository.InTransaction(ctx, OnTxStub)
 			Expect(err).ShouldNot(HaveOccurred())
 
-			Expect(fakeCreateInterceptor.OnTxCreateCallCount()).To(Equal(1))
-			Expect(fakeUpdateIntercetptor.OnTxUpdateCallCount()).To(Equal(1))
-			Expect(fakeDeleteInterceptor.OnTxDeleteCallCount()).To(Equal(1))
+			Expect(fakeCreateOnTxInterceptor.OnTxCreateCallCount()).To(Equal(1))
+			Expect(fakeUpdateOnTxIntercetptor.OnTxUpdateCallCount()).To(Equal(1))
+			Expect(fakeDeleteOnTxInterceptor.OnTxDeleteCallCount()).To(Equal(1))
 
 			Expect(fakeCreateInterceptor.AroundTxCreateCallCount()).To(Equal(0))
+			Expect(fakeCreateInterceptor.OnTxCreateCallCount()).To(Equal(0))
 			Expect(fakeUpdateIntercetptor.AroundTxUpdateCallCount()).To(Equal(0))
+			Expect(fakeUpdateIntercetptor.OnTxUpdateCallCount()).To(Equal(0))
 			Expect(fakeDeleteInterceptor.AroundTxDeleteCallCount()).To(Equal(0))
+			Expect(fakeDeleteInterceptor.OnTxDeleteCallCount()).To(Equal(0))
+
+			Expect(fakeCreateAroundTxInterceptor.AroundTxCreateCallCount()).To(Equal(0))
+			Expect(fakeUpdateAroundTxIntercetptor.AroundTxUpdateCallCount()).To(Equal(0))
+			Expect(fakeDeleteAroundTxInterceptor.AroundTxDeleteCallCount()).To(Equal(0))
 
 			Expect(fakeStorage.CreateCallCount()).To(Equal(3))
 			Expect(fakeStorage.UpdateCallCount()).To(Equal(3))
 			Expect(fakeStorage.DeleteCallCount()).To(Equal(3))
-
 		})
 	})
 
@@ -293,16 +455,13 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 					provider := &storagefakes.FakeCreateInterceptorProvider{}
 					provider.NameReturns("createInterceptorProvider")
 					f := func() {
-						interceptableRepository.AddCreateInterceptorProvider(types.ServiceBrokerType, storage.OrderedCreateInterceptorProvider{
-							InterceptorOrder: storage.InterceptorOrder{
-								OnTxPosition: storage.InterceptorPosition{
-									PositionType: storage.PositionNone,
-								},
-								AroundTxPosition: storage.InterceptorPosition{
-									PositionType: storage.PositionNone,
-								},
+						interceptableRepository.AddCreateInterceptorProvider(types.ServiceBrokerType, provider, storage.InterceptorOrder{
+							OnTxPosition: storage.InterceptorPosition{
+								PositionType: storage.PositionNone,
 							},
-							CreateInterceptorProvider: provider,
+							AroundTxPosition: storage.InterceptorPosition{
+								PositionType: storage.PositionNone,
+							},
 						})
 					}
 					f()
@@ -317,16 +476,13 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 					provider := &storagefakes.FakeUpdateInterceptorProvider{}
 					provider.NameReturns("updateInterceptorProvider")
 					f := func() {
-						interceptableRepository.AddUpdateInterceptorProvider(types.ServiceBrokerType, storage.OrderedUpdateInterceptorProvider{
-							InterceptorOrder: storage.InterceptorOrder{
-								OnTxPosition: storage.InterceptorPosition{
-									PositionType: storage.PositionNone,
-								},
-								AroundTxPosition: storage.InterceptorPosition{
-									PositionType: storage.PositionNone,
-								},
+						interceptableRepository.AddUpdateInterceptorProvider(types.ServiceBrokerType, provider, storage.InterceptorOrder{
+							OnTxPosition: storage.InterceptorPosition{
+								PositionType: storage.PositionNone,
 							},
-							UpdateInterceptorProvider: provider,
+							AroundTxPosition: storage.InterceptorPosition{
+								PositionType: storage.PositionNone,
+							},
 						})
 					}
 					f()
@@ -341,16 +497,13 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 					provider := &storagefakes.FakeDeleteInterceptorProvider{}
 					provider.NameReturns("deleteInterceptorProvider")
 					f := func() {
-						interceptableRepository.AddDeleteInterceptorProvider(types.ServiceBrokerType, storage.OrderedDeleteInterceptorProvider{
-							InterceptorOrder: storage.InterceptorOrder{
-								OnTxPosition: storage.InterceptorPosition{
-									PositionType: storage.PositionNone,
-								},
-								AroundTxPosition: storage.InterceptorPosition{
-									PositionType: storage.PositionNone,
-								},
+						interceptableRepository.AddDeleteInterceptorProvider(types.ServiceBrokerType, provider, storage.InterceptorOrder{
+							OnTxPosition: storage.InterceptorPosition{
+								PositionType: storage.PositionNone,
 							},
-							DeleteInterceptorProvider: provider,
+							AroundTxPosition: storage.InterceptorPosition{
+								PositionType: storage.PositionNone,
+							},
 						})
 					}
 					f()

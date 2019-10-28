@@ -33,18 +33,6 @@ type NotificationsInterceptor struct {
 	AdditionalDetailsFunc  func(ctx context.Context, object types.Object, repository storage.Repository) (util.InputValidator, error)
 }
 
-func (ni *NotificationsInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
-	return h
-}
-
-func (ni *NotificationsInterceptor) AroundTxUpdate(h storage.InterceptUpdateAroundTxFunc) storage.InterceptUpdateAroundTxFunc {
-	return h
-}
-
-func (ni *NotificationsInterceptor) AroundTxDelete(h storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
-	return h
-}
-
 func (ni *NotificationsInterceptor) OnTxCreate(h storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 	return func(ctx context.Context, repository storage.Repository, obj types.Object) (types.Object, error) {
 		newObj, err := h(ctx, repository, obj)
