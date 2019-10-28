@@ -50,7 +50,7 @@ func (*BrokerNotificationsCreateInterceptorProvider) Name() string {
 	return BrokerCreateNotificationInterceptorName
 }
 
-func (*BrokerNotificationsCreateInterceptorProvider) Provide() storage.CreateInterceptor {
+func (*BrokerNotificationsCreateInterceptorProvider) Provide() storage.CreateOnTxInterceptor {
 	return NewBrokerNotificationsInterceptor()
 }
 
@@ -61,7 +61,7 @@ func (*BrokerNotificationsUpdateInterceptorProvider) Name() string {
 	return BrokerUpdateNotificationInterceptorName
 }
 
-func (*BrokerNotificationsUpdateInterceptorProvider) Provide() storage.UpdateInterceptor {
+func (*BrokerNotificationsUpdateInterceptorProvider) Provide() storage.UpdateOnTxInterceptor {
 	return NewBrokerNotificationsInterceptor()
 }
 
@@ -72,6 +72,6 @@ func (*BrokerNotificationsDeleteInterceptorProvider) Name() string {
 	return BrokerDeleteNotificationInterceptorName
 }
 
-func (*BrokerNotificationsDeleteInterceptorProvider) Provide() storage.DeleteInterceptor {
+func (*BrokerNotificationsDeleteInterceptorProvider) Provide() storage.DeleteOnTxInterceptor {
 	return NewBrokerNotificationsInterceptor()
 }

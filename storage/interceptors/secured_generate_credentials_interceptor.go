@@ -32,7 +32,7 @@ const (
 type GenerateCredentialsInterceptorProvider struct {
 }
 
-func (c *GenerateCredentialsInterceptorProvider) Provide() storage.CreateInterceptor {
+func (c *GenerateCredentialsInterceptorProvider) Provide() storage.CreateAroundTxInterceptor {
 	return &generateCredentialsInterceptor{}
 }
 
@@ -54,9 +54,4 @@ func (c *generateCredentialsInterceptor) AroundTxCreate(h storage.InterceptCreat
 
 		return h(ctx, obj)
 	}
-}
-
-// OnTxCreate invokes the next interceptor in the chain
-func (*generateCredentialsInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
-	return f
 }

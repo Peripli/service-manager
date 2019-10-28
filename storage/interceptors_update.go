@@ -19,70 +19,12 @@ package storage
 import (
 	"context"
 
+	"github.com/Peripli/service-manager/pkg/web"
+
 	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/pkg/types"
 )
-
-type UpdateInterceptorChain struct {
-	aroundTxNames []string
-	aroundTxFuncs map[string]func(InterceptUpdateAroundTxFunc) InterceptUpdateAroundTxFunc
-
-	onTxNames []string
-	onTxFuncs map[string]func(InterceptUpdateOnTxFunc) InterceptUpdateOnTxFunc
-}
-
-func (u *UpdateInterceptorChain) Name() string {
-	return "UpdateInterceptorChain"
-}
-
-func (u *UpdateInterceptorChain) AroundTxUpdate(f InterceptUpdateAroundTxFunc) InterceptUpdateAroundTxFunc {
-	for i := range u.aroundTxNames {
-		f = u.aroundTxFuncs[u.aroundTxNames[len(u.aroundTxNames)-1-i]](f)
-	}
-	return f
-}
-
-func (u *UpdateInterceptorChain) OnTxUpdate(f InterceptUpdateOnTxFunc) InterceptUpdateOnTxFunc {
-	for i := range u.onTxNames {
-		f = u.onTxFuncs[u.onTxNames[len(u.onTxNames)-1-i]](f)
-	}
-	return f
-}
-
-// newUpdateInterceptorChain returns a function which spawns all update interceptors, sorts them and wraps them into one.
-func newUpdateInterceptorChain(providers []OrderedUpdateInterceptorProvider) *UpdateInterceptorChain {
-	chain := &UpdateInterceptorChain{}
-	chain.aroundTxFuncs = make(map[string]func(InterceptUpdateAroundTxFunc) InterceptUpdateAroundTxFunc)
-	chain.aroundTxNames = make([]string, 0, len(providers))
-	chain.onTxFuncs = make(map[string]func(InterceptUpdateOnTxFunc) InterceptUpdateOnTxFunc)
-	chain.onTxNames = make([]string, 0, len(providers))
-
-	for _, p := range providers {
-		interceptor := p.Provide()
-
-		chain.aroundTxFuncs[p.Name()] = interceptor.AroundTxUpdate
-		chain.aroundTxNames = insertName(chain.aroundTxNames, p.AroundTxPosition.PositionType, p.AroundTxPosition.Name, p.Name())
-
-		chain.onTxFuncs[p.Name()] = interceptor.OnTxUpdate
-		chain.onTxNames = insertName(chain.onTxNames, p.OnTxPosition.PositionType, p.OnTxPosition.Name, p.Name())
-	}
-	return chain
-}
-
-// UpdateContext provides changes done by the update operation
-type UpdateContext struct {
-	Object        types.Object
-	ObjectChanges []byte
-	LabelChanges  []*query.LabelChange
-}
-
-// UpdateInterceptorProvider provides UpdateInterceptors for each request
-//go:generate counterfeiter . UpdateInterceptorProvider
-type UpdateInterceptorProvider interface {
-	Named
-	Provide() UpdateInterceptor
-}
 
 // InterceptUpdateAroundTxFunc hook for entity update outside of transaction
 type InterceptUpdateAroundTxFunc func(ctx context.Context, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error)
@@ -90,9 +32,134 @@ type InterceptUpdateAroundTxFunc func(ctx context.Context, newObj types.Object, 
 // InterceptUpdateOnTxFunc hook for entity update in transaction
 type InterceptUpdateOnTxFunc func(ctx context.Context, txStorage Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (types.Object, error)
 
+// UpdateAroundTxInterceptor provides hooks on entity update during AroundTx
+//go:generate counterfeiter . UpdateAroundTxInterceptor
+type UpdateAroundTxInterceptor interface {
+	AroundTxUpdate(h InterceptUpdateAroundTxFunc) InterceptUpdateAroundTxFunc
+}
+
+// UpdateOnTxInterceptor provides hooks on entity update during OnTx
+//go:generate counterfeiter . UpdateOnTxInterceptor
+type UpdateOnTxInterceptor interface {
+	OnTxUpdate(f InterceptUpdateOnTxFunc) InterceptUpdateOnTxFunc
+}
+
 // UpdateInterceptor provides hooks on entity update
 //go:generate counterfeiter . UpdateInterceptor
 type UpdateInterceptor interface {
-	AroundTxUpdate(h InterceptUpdateAroundTxFunc) InterceptUpdateAroundTxFunc
-	OnTxUpdate(f InterceptUpdateOnTxFunc) InterceptUpdateOnTxFunc
+	UpdateAroundTxInterceptor
+	UpdateOnTxInterceptor
+}
+
+//go:generate counterfeiter . UpdateOnTxInterceptorProvider
+type UpdateOnTxInterceptorProvider interface {
+	web.Named
+	Provide() UpdateOnTxInterceptor
+}
+
+type OrderedUpdateOnTxInterceptorProvider struct {
+	InterceptorOrder
+	UpdateOnTxInterceptorProvider
+}
+
+//go:generate counterfeiter . UpdateAroundTxInterceptorProvider
+type UpdateAroundTxInterceptorProvider interface {
+	web.Named
+	Provide() UpdateAroundTxInterceptor
+}
+
+type OrderedUpdateAroundTxInterceptorProvider struct {
+	InterceptorOrder
+	UpdateAroundTxInterceptorProvider
+}
+
+// UpdateInterceptorProvider provides UpdateInterceptors for each request
+//go:generate counterfeiter . UpdateInterceptorProvider
+type UpdateInterceptorProvider interface {
+	web.Named
+	Provide() UpdateInterceptor
+}
+
+type OrderedUpdateInterceptorProvider struct {
+	InterceptorOrder
+	UpdateInterceptorProvider
+}
+
+type UpdateAroundTxInterceptorChain struct {
+	aroundTxNames []string
+	aroundTxFuncs map[string]UpdateAroundTxInterceptor
+}
+
+// AroundTxUpdate wraps the provided InterceptUpdateAroundTxFunc into all the existing aroundTx funcs
+func (c *UpdateAroundTxInterceptorChain) AroundTxUpdate(f InterceptUpdateAroundTxFunc) InterceptUpdateAroundTxFunc {
+	for i := range c.aroundTxNames {
+		if interceptor, found := c.aroundTxFuncs[c.aroundTxNames[len(c.aroundTxNames)-1-i]]; found {
+			f = interceptor.AroundTxUpdate(f)
+		}
+	}
+	return f
+}
+
+type UpdateOnTxInterceptorChain struct {
+	onTxNames []string
+	onTxFuncs map[string]UpdateOnTxInterceptor
+}
+
+// OnTxUpdate wraps the provided InterceptUpdateOnTxFunc into all the existing onTx funcs
+func (c *UpdateOnTxInterceptorChain) OnTxUpdate(f InterceptUpdateOnTxFunc) InterceptUpdateOnTxFunc {
+	for i := range c.onTxNames {
+		if interceptor, found := c.onTxFuncs[c.onTxNames[len(c.onTxNames)-1-i]]; found {
+			f = interceptor.OnTxUpdate(f)
+		}
+	}
+	return f
+}
+
+// UpdateInterceptorChain is an interceptor tha provides and chains a list of ordered interceptor providers.
+type UpdateInterceptorChain struct {
+	*UpdateAroundTxInterceptorChain
+	*UpdateOnTxInterceptorChain
+}
+
+func (itr *InterceptableTransactionalRepository) newUpdateOnTxInterceptorChain(objectType types.ObjectType) *UpdateOnTxInterceptorChain {
+	providers := itr.updateOnTxProviders[objectType]
+	onTxFuncs := make(map[string]UpdateOnTxInterceptor, len(providers))
+	for _, provider := range providers {
+		onTxFuncs[provider.Name()] = provider.Provide()
+	}
+	return &UpdateOnTxInterceptorChain{
+		onTxNames: itr.orderedUpdateOnTxProvidersNames[objectType],
+		onTxFuncs: onTxFuncs,
+	}
+}
+
+func (itr *InterceptableTransactionalRepository) newUpdateInterceptorChain(objectType types.ObjectType) *UpdateInterceptorChain {
+	aroundTxFuncs := make(map[string]UpdateAroundTxInterceptor)
+	for _, p := range itr.updateAroundTxProviders[objectType] {
+		aroundTxFuncs[p.Name()] = p.Provide()
+	}
+
+	onTxFuncs := make(map[string]UpdateOnTxInterceptor)
+	for _, p := range itr.updateOnTxProviders[objectType] {
+		onTxFuncs[p.Name()] = p.Provide()
+	}
+
+	for _, p := range itr.updateProviders[objectType] {
+		// Provide once to share state
+		interceptor := p.Provide()
+		aroundTxFuncs[p.Name()] = interceptor
+		onTxFuncs[p.Name()] = interceptor
+
+	}
+
+	return &UpdateInterceptorChain{
+		UpdateAroundTxInterceptorChain: &UpdateAroundTxInterceptorChain{
+			aroundTxNames: itr.orderedUpdateAroundTxProvidersNames[objectType],
+			aroundTxFuncs: aroundTxFuncs,
+		},
+		UpdateOnTxInterceptorChain: &UpdateOnTxInterceptorChain{
+			onTxNames: itr.orderedUpdateOnTxProvidersNames[objectType],
+			onTxFuncs: onTxFuncs,
+		},
+	}
 }

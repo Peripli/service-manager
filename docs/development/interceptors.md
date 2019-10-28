@@ -188,3 +188,16 @@ func (c *DeleteInterceptor)OnTxDelete(f storage.InterceptDeleteOnTxFunc) storage
 }
 
 ```
+
+**Note:** Similarly to `CreateInterceptor`, `UpdatteInterceptor` and `DeleteInterceptor`, if one wants to just have the `AroundTx`
+logic, one should implement the respective `CreateAroundTxInterceptor`, `UpdateAroundTxInterceptor` or `DeleteAroundTxInterceptor` 
+as well as its respective provider - `CreateAroundTxInterceptorProvider`, `UpdateAroundTxInterceptorProvider` or `DeleteAroundTxInterceptorProvider`.
+
+**Note:** Similarly to `CreateInterceptor`, `UpdatteInterceptor` and `DeleteInterceptor`, if one wants to just have the `OnTx`
+logic, one should implement the respective `CreateOnTxInterceptor`, `UpdateOnTxInterceptor` or `DeleteOnTxInterceptor` 
+as well as its respective provider - `CreateOnTxInterceptorProvider`, `UpdateOnTxInterceptorProvider` or `DeleteOnTxInterceptorProvider`.
+
+**Only `CreateOnTxInterceptor`, `UpdateOnTxInterceptor` and `DeleteOnTxInterceptor` interceptors will be triggered if one uses the storage `InTransaction` method directly.
+This means that `CreateAroundTxInterceptor`, `UpdateAroundTxInterceptor`, `DeleteAroundTxInterceptor`,`CreateInterceptor`, `UpdateInterceptor` and `DeleteInterceptor` 
+interceptors will not be triggered when using `storage.InTransaction` direcrly. The reason for that is because `InTransaction` starts a database transaction and while in 
+transaction we don't want to execute any `AroundTx` logic or interceptors that have `AroundTx` logic.**
