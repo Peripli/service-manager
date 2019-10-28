@@ -78,12 +78,6 @@ var _ = Describe("Test", func() {
 					return err
 				}
 				Expect(updatedPlatform.(*types.Platform).Active).To(Equal(true))
-
-				platformFromStorage.(*types.Platform).Active = false
-				if updatedPlatform, err = storage.Update(ctx, platformFromStorage, query.LabelChanges{}); err != nil {
-					return err
-				}
-				Expect(updatedPlatform.(*types.Platform).Active).To(Equal(false))
 				return nil
 			})
 			Expect(err).ToNot(HaveOccurred())
