@@ -600,15 +600,15 @@ func providerWithNameExists(existingNames []string, orderedRelativeTo string) bo
 func (itr *InterceptableTransactionalRepository) provideInterceptors() (map[types.ObjectType]CreateInterceptor, map[types.ObjectType]UpdateInterceptor, map[types.ObjectType]DeleteInterceptor) {
 	createObjectTypes, updateObjectTypes, deleteObjectTypes := itr.mergeObjectTypes()
 
-	providedCreateInterceptors := make(map[types.ObjectType]CreateInterceptor, 0)
+	providedCreateInterceptors := make(map[types.ObjectType]CreateInterceptor)
 	for _, objectType := range createObjectTypes {
 		providedCreateInterceptors[objectType] = itr.newCreateInterceptorChain(objectType)
 	}
-	providedUpdateInterceptors := make(map[types.ObjectType]UpdateInterceptor, 0)
+	providedUpdateInterceptors := make(map[types.ObjectType]UpdateInterceptor)
 	for _, objectType := range updateObjectTypes {
 		providedUpdateInterceptors[objectType] = itr.newUpdateInterceptorChain(objectType)
 	}
-	providedDeleteInterceptors := make(map[types.ObjectType]DeleteInterceptor, 0)
+	providedDeleteInterceptors := make(map[types.ObjectType]DeleteInterceptor)
 	for _, objectType := range deleteObjectTypes {
 		providedDeleteInterceptors[objectType] = itr.newDeleteInterceptorChain(objectType)
 	}
