@@ -99,10 +99,12 @@ func criterionSQL(c query.Criterion, dbTags []tagType, tableAlias string) (strin
 
 func buildRightOp(operator query.Operator, rightOp []string) (string, interface{}) {
 	rightOpBindVar := "?"
-	var rhs interface{} = rightOp[0]
+	var rhs interface{}
 	if operator.Type() == query.MultivariateOperator {
 		rightOpBindVar = "(?)"
 		rhs = rightOp
+	} else {
+		rhs = rightOp[0]
 	}
 	return rightOpBindVar, rhs
 }
