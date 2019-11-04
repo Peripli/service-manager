@@ -193,7 +193,7 @@ ORDER BY id DESC, created_at ASC;`)))
 						}).
 						List(ctx)
 					Expect(err).Should(HaveOccurred())
-					Expect(err.Error()).To(ContainSubstring(`order by result for field "id" expects order type, but has none`))
+					Expect(err.Error()).To(ContainSubstring("order by result expects field name and order type"))
 				})
 			})
 
@@ -207,7 +207,7 @@ ORDER BY id DESC, created_at ASC;`)))
 						}).
 						List(ctx)
 					Expect(err).Should(HaveOccurred())
-					Expect(err.Error()).To(ContainSubstring("order by result expects field and order type, but has none"))
+					Expect(err.Error()).To(ContainSubstring("missing right operand"))
 				})
 			})
 		})
@@ -390,8 +390,8 @@ FROM visibilities ;`)))
 					Count(ctx)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`
-SELECT COUNT(DISTINCT visibilities.id) 
-FROM visibilities 
+SELECT COUNT(DISTINCT visibilities.id)
+FROM visibilities
 LIMIT ?;`)))
 				Expect(queryArgs).To(HaveLen(1))
 				Expect(queryArgs[0]).Should(Equal("10"))
@@ -508,7 +508,7 @@ WHERE visibilities.id = t.id ;`)))
 
 				Expect(executedQuery).Should(Equal(trim(`
 DELETE
-FROM visibilities 
+FROM visibilities
 WHERE visibilities.id::text = ? ;`)))
 				Expect(queryArgs).To(HaveLen(1))
 				Expect(queryArgs[0]).Should(Equal("1"))
@@ -529,8 +529,8 @@ WHERE visibilities.id::text = ? ;`)))
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(executedQuery).To(Equal(trim(`
-DELETE 
-FROM visibilities 
+DELETE
+FROM visibilities
 RETURNING id, service_plan_id;`)))
 			})
 
@@ -539,8 +539,8 @@ RETURNING id, service_plan_id;`)))
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(executedQuery).To(Equal(trim(`
-DELETE 
-FROM visibilities 
+DELETE
+FROM visibilities
 RETURNING *;`)))
 			})
 

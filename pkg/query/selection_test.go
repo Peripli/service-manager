@@ -21,9 +21,11 @@ import (
 	"fmt"
 	"strings"
 
-	. "github.com/Peripli/service-manager/pkg/query"
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+
+	. "github.com/Peripli/service-manager/pkg/query"
 )
 
 var _ = Describe("Selection", func() {
@@ -54,7 +56,7 @@ var _ = Describe("Selection", func() {
 				addInvalidCriterion(ByField(LessThanOrEqualOperator, "leftOp", "non-numeric"))
 			})
 			Specify("Right operand containing new line", func() {
-				addInvalidCriterion(ByField(EqualsOperator, "leftOp", `value with 
+				addInvalidCriterion(ByField(EqualsOperator, "leftOp", `value with
 new line`))
 			})
 			Specify("Left operand with query separator", func() {
@@ -291,4 +293,47 @@ new line`))
 			})
 		}
 	})
+
+	DescribeTable("Validate Criterion",
+		func(c Criterion, expectedErr ...string) {
+			err := c.Validate()
+			if len(expectedErr) == 0 {
+				Expect(err).To(BeNil())
+			} else {
+				Expect(err).NotTo(BeNil())
+				Expect(err.Error()).To(ContainSubstring(expectedErr[0]))
+			}
+		},
+		Entry("Empty right operand is not allowed",
+			ByField(InOperator, "left"),
+			"missing right operand"),
+		Entry("Limit that is not a number is not allowed",
+			NewCriterion(Limit, NoOperator, []string{"not a number"}, ResultQuery),
+			"could not convert string to int"),
+		Entry("Negative limit is not allowed",
+			LimitResultBy(-1),
+			"should be positive"),
+		Entry("Valid limit is allowed",
+			LimitResultBy(10)),
+		Entry("Missing order type is not allowed",
+			NewCriterion(OrderBy, NoOperator, []string{"field"}, ResultQuery),
+			"expects field name and order type"),
+		Entry("Valid order by is allowed",
+			OrderResultBy("field", AscOrder)),
+		Entry("Multiple right operands are not allowed for univariate operators",
+			ByField(EqualsOperator, "left", "right1", "right2"),
+			"single value operation"),
+		Entry("Operators working with nil are not allowed for label queries",
+			ByLabel(EqualsOrNilOperator, "left", "right"),
+			"only for field queries"),
+		Entry("Non-numeric operand is not allowed by comparison operators",
+			ByField(LessThanOperator, "left", "not numeric"),
+			"not numeric or datetime"),
+		Entry("Separator word 'and' is not allowed to appear in left operand",
+			ByField(EqualsOperator, "band", "music"),
+			"separator and is not allowed"),
+		Entry("New line character is not allowed in right operand",
+			ByField(EqualsOperator, "left", "one\ntwo"),
+			"forbidden new line character"),
+	)
 })
