@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/query"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -67,9 +66,10 @@ type Notificator struct {
 }
 
 // NewNotificator returns new Notificator based on a given NotificatorStorage and desired queue size
-func NewNotificator(st storage.Storage, repository storage.TransactionalRepository, settings *storage.Settings) (*Notificator, error) {
+func NewNotificator(st storage.Storage, settings *storage.Settings) (*Notificator, error) {
 	ns, err := NewNotificationStorage(st)
 	connectionCreator := &notificationConnectionCreatorImpl{
+		skipSSLValidation:    settings.SkipSSLValidation,
 		storageURI:           settings.URI,
 		minReconnectInterval: settings.Notification.MinReconnectInterval,
 		maxReconnectInterval: settings.Notification.MaxReconnectInterval,
@@ -83,9 +83,8 @@ func NewNotificator(st storage.Storage, repository storage.TransactionalReposito
 		connectionMutex: &sync.Mutex{},
 		consumersMutex:  &sync.Mutex{},
 		consumers: &consumers{
-			repository: repository,
-			queues:     make(map[string][]storage.NotificationQueue),
-			platforms:  make([]*types.Platform, 0),
+			queues:    make(map[string][]storage.NotificationQueue),
+			platforms: make([]*types.Platform, 0),
 		},
 		storage:           ns,
 		connectionCreator: connectionCreator,
@@ -101,7 +100,6 @@ func (n *Notificator) Start(ctx context.Context, group *sync.WaitGroup) error {
 		return errors.New("notificator already started")
 	}
 	n.ctx = ctx
-	n.consumers.ctx = ctx
 	n.setConnection(n.connectionCreator.NewConnection(func(isConnected bool, err error) {
 		if isConnected {
 			atomic.StoreInt32(&n.isConnected, aTrue)
@@ -148,9 +146,7 @@ func (n *Notificator) addConsumer(platform *types.Platform, queue storage.Notifi
 	}
 	n.consumersMutex.Lock()
 	defer n.consumersMutex.Unlock()
-	if err := n.consumers.Add(platform, queue); err != nil {
-		return types.InvalidRevision, err
-	}
+	n.consumers.Add(platform, queue)
 	return atomic.LoadInt64(&n.lastKnownRevision), nil
 }
 
@@ -264,9 +260,7 @@ func (n *Notificator) UnregisterConsumer(queue storage.NotificationQueue) error 
 	if n.consumers.Len() == 0 {
 		return nil // Consumer already unregistered
 	}
-	if err := n.consumers.Delete(queue); err != nil {
-		return err
-	}
+	n.consumers.Delete(queue)
 	if n.consumers.Len() == 0 {
 		log.C(n.ctx).Debugf("No notification consumers left. Stop listening to channel %s", postgresChannel)
 		n.stopProcessing() // stop processing notifications as there are no consumers
@@ -426,10 +420,8 @@ func (n *Notificator) stopConnection() {
 }
 
 type consumers struct {
-	repository storage.TransactionalRepository
-	ctx        context.Context
-	queues     map[string][]storage.NotificationQueue
-	platforms  []*types.Platform
+	queues    map[string][]storage.NotificationQueue
+	platforms []*types.Platform
 }
 
 func (c *consumers) find(queueID string) (string, int) {
@@ -452,10 +444,10 @@ func (c *consumers) ReplaceQueue(queueID string, newQueue storage.NotificationQu
 	return nil
 }
 
-func (c *consumers) Delete(queue storage.NotificationQueue) error {
+func (c *consumers) Delete(queue storage.NotificationQueue) {
 	platformIDToDelete, queueIndex := c.find(queue.ID())
 	if queueIndex == -1 {
-		return nil
+		return
 	}
 	platformConsumers := c.queues[platformIDToDelete]
 	c.queues[platformIDToDelete] = append(platformConsumers[:queueIndex], platformConsumers[queueIndex+1:]...)
@@ -465,32 +457,17 @@ func (c *consumers) Delete(queue storage.NotificationQueue) error {
 		for index, platform := range c.platforms {
 			if platform.ID == platformIDToDelete {
 				c.platforms = append(c.platforms[:index], c.platforms[index+1:]...)
-				err := c.updatePlatform(platform.ID, func(p *types.Platform) {
-					p.Active = false
-					p.LastActive = time.Now()
-				})
-				if err != nil {
-					return err
-				}
 				break
 			}
 		}
 	}
-	return nil
 }
 
-func (c *consumers) Add(platform *types.Platform, queue storage.NotificationQueue) error {
+func (c *consumers) Add(platform *types.Platform, queue storage.NotificationQueue) {
 	if len(c.queues[platform.ID]) == 0 {
 		c.platforms = append(c.platforms, platform)
-		err := c.updatePlatform(platform.ID, func(p *types.Platform) {
-			p.Active = true
-		})
-		if err != nil {
-			return err
-		}
 	}
 	c.queues[platform.ID] = append(c.queues[platform.ID], queue)
-	return nil
 }
 
 func (c *consumers) Clear() map[string][]storage.NotificationQueue {
@@ -515,30 +492,4 @@ func (c *consumers) GetPlatform(platformID string) *types.Platform {
 
 func (c *consumers) GetQueuesForPlatform(platformID string) []storage.NotificationQueue {
 	return c.queues[platformID]
-}
-
-func (c *consumers) updatePlatform(platformID string, updatePlatformFunc func(p *types.Platform)) error {
-	if err := c.repository.InTransaction(c.ctx, func(ctx context.Context, storage storage.Repository) error {
-		idCriteria := query.Criterion{
-			LeftOp:   "id",
-			Operator: query.EqualsOperator,
-			RightOp:  []string{platformID},
-			Type:     query.FieldQuery,
-		}
-		obj, err := storage.Get(ctx, types.PlatformType, idCriteria)
-		if err != nil {
-			return err
-		}
-
-		platform := obj.(*types.Platform)
-		updatePlatformFunc(platform)
-
-		if _, err := storage.Update(ctx, platform, nil); err != nil {
-			return err
-		}
-		return nil
-	}); err != nil {
-		return err
-	}
-	return nil
 }

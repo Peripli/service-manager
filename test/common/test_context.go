@@ -75,19 +75,50 @@ type TestContext struct {
 	wg            *sync.WaitGroup
 	wsConnections []*websocket.Conn
 
-	SM          *httpexpect.Expect
-	SMWithOAuth *httpexpect.Expect
+	SM          *SMExpect
+	SMWithOAuth *SMExpect
 	// Requests a token the the "multitenant" oauth client - then token issued by this client contains
 	// the "multitenant" client id behind the specified token claim in the api config
 	// the token also contains a "tenant identifier" behind the configured tenant_indentifier claim that
 	// will be compared with the value of the label specified in the "label key" configuration
 	// In the end requesting brokers with this
-	SMWithOAuthForTenant *httpexpect.Expect
-	SMWithBasic          *httpexpect.Expect
-	SMRepository         storage.Repository
-	TestPlatform         *types.Platform
+	SMWithOAuthForTenant *SMExpect
+	SMWithBasic          *SMExpect
+	SMRepository         storage.TransactionalRepository
+
+	TestPlatform *types.Platform
 
 	Servers map[string]FakeServer
+}
+
+type SMExpect struct {
+	*httpexpect.Expect
+}
+
+func (expect *SMExpect) List(path string) *httpexpect.Array {
+	return expect.ListWithQuery(path, "")
+}
+
+func (expect *SMExpect) ListWithQuery(path string, query string) *httpexpect.Array {
+	req := expect.GET(path)
+	if query != "" {
+		req = req.WithQueryString(query)
+	}
+	page := req.Expect().Status(http.StatusOK).JSON().Object()
+	token, hasMoreItems := page.Raw()["token"]
+	items := page.Value("items").Array().Raw()
+
+	for hasMoreItems {
+		req := expect.GET(path)
+		if query != "" {
+			req = req.WithQueryString(query)
+		}
+		page = req.WithQuery("token", token).Expect().Status(http.StatusOK).JSON().Object()
+		items = append(items, page.Value("items").Array().Raw()...)
+		token, hasMoreItems = page.Raw()["token"]
+	}
+
+	return httpexpect.NewArray(ginkgo.GinkgoT(), items)
 }
 
 type testSMServer struct {
@@ -283,26 +314,26 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener) *TestCon
 		req.WithHeader("Authorization", "Bearer "+tenantAccessToken).WithClient(tcb.HttpClient)
 	})
 
-	RemoveAllBrokers(SMWithOAuth)
-	RemoveAllPlatforms(SMWithOAuth)
-
 	testContext := &TestContext{
 		wg:                   wg,
-		SM:                   SM,
-		SMWithOAuth:          SMWithOAuth,
-		SMWithOAuthForTenant: SMWithOAuthForTenant,
+		SM:                   &SMExpect{SM},
+		SMWithOAuth:          &SMExpect{SMWithOAuth},
+		SMWithOAuthForTenant: &SMExpect{SMWithOAuthForTenant},
 		Servers:              tcb.Servers,
 		SMRepository:         smRepository,
 	}
 
+	RemoveAllBrokers(testContext.SMWithOAuth)
+	RemoveAllPlatforms(testContext.SMWithOAuth)
+
 	if !tcb.shouldSkipBasicAuthClient {
 		platformJSON := MakePlatform("tcb-platform-test", "tcb-platform-test", "platform-type", "test-platform")
-		platform := RegisterPlatformInSM(platformJSON, SMWithOAuth, map[string]string{})
+		platform := RegisterPlatformInSM(platformJSON, testContext.SMWithOAuth, map[string]string{})
 		SMWithBasic := SM.Builder(func(req *httpexpect.Request) {
 			username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
 			req.WithBasicAuth(username, password).WithClient(tcb.HttpClient)
 		})
-		testContext.SMWithBasic = SMWithBasic
+		testContext.SMWithBasic = &SMExpect{SMWithBasic}
 		testContext.TestPlatform = platform
 	}
 
@@ -330,7 +361,7 @@ func NewSMListener() (net.Listener, error) {
 	return nil, fmt.Errorf("unable to create sm listener: %s", err)
 }
 
-func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error, listener net.Listener) (*testSMServer, storage.Repository) {
+func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error, listener net.Listener) (*testSMServer, storage.TransactionalRepository) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	cfg, err := config.New(smEnv)
@@ -376,7 +407,7 @@ func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, br
 	return ctx.RegisterBrokerWithCatalogAndLabelsExpect(catalog, brokerData, ctx.SMWithOAuth)
 }
 
-func (ctx *TestContext) RegisterBrokerWithCatalogAndLabelsExpect(catalog SBCatalog, brokerData Object, expect *httpexpect.Expect) (string, Object, *BrokerServer) {
+func (ctx *TestContext) RegisterBrokerWithCatalogAndLabelsExpect(catalog SBCatalog, brokerData Object, expect *SMExpect) (string, Object, *BrokerServer) {
 	brokerServer := NewBrokerServerWithCatalog(catalog)
 	UUID, err := uuid.NewV4()
 	if err != nil {
@@ -455,7 +486,7 @@ func (ctx *TestContext) RegisterPlatform() *types.Platform {
 
 func (ctx *TestContext) CleanupBroker(id string) {
 	broker := ctx.Servers[BrokerServerPrefix+id]
-	ctx.SMWithOAuth.DELETE("/v1/service_brokers/" + id).Expect()
+	ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL + "/" + id).Expect()
 	broker.Close()
 	delete(ctx.Servers, BrokerServerPrefix+id)
 }
@@ -485,12 +516,12 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 		panic(err)
 	}
 
-	ctx.SMWithOAuth.DELETE("/v1/service_brokers").Expect()
+	ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL).Expect()
 
 	if ctx.TestPlatform != nil {
-		ctx.SMWithOAuth.DELETE("/v1/platforms").WithQuery("fieldQuery", "id != "+ctx.TestPlatform.ID).Expect()
+		ctx.SMWithOAuth.DELETE(web.PlatformsURL).WithQuery("fieldQuery", fmt.Sprintf("id ne '%s'", ctx.TestPlatform.ID)).Expect()
 	} else {
-		ctx.SMWithOAuth.DELETE("/v1/platforms").Expect()
+		ctx.SMWithOAuth.DELETE(web.PlatformsURL).Expect()
 	}
 	var smServer FakeServer
 	for serverName, server := range ctx.Servers {

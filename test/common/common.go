@@ -19,6 +19,8 @@ package common
 import (
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/web"
+
 	"github.com/onsi/ginkgo"
 	"github.com/spf13/pflag"
 
@@ -40,7 +42,6 @@ import (
 	"io/ioutil"
 
 	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 )
 
@@ -155,6 +156,17 @@ func RemoveNotNullableFieldAndLabels(obj Object, objithMandatoryFields Object) O
 	return o
 }
 
+func CopyLabels(obj Object) Object {
+	result := CopyObject(obj)
+	return (result["labels"]).(Object)
+}
+
+func CopyFields(obj Object) Object {
+	result := CopyObject(obj)
+	delete(result, "labels")
+	return result
+}
+
 func CopyObject(obj Object) Object {
 	o := Object{}
 	for k, v := range obj {
@@ -188,41 +200,62 @@ func MapContains(actual Object, expected Object) {
 	}
 }
 
-func RemoveAllBrokers(SM *httpexpect.Expect) {
-	removeAll(SM, "service_brokers", "/v1/service_brokers")
+func RemoveAllBrokers(SM *SMExpect) {
+	removeAll(SM, "service_brokers", web.ServiceBrokersURL)
 }
 
-func RemoveAllPlatforms(SM *httpexpect.Expect) {
-	removeAll(SM, "platforms", "/v1/platforms")
+func RemoveAllPlatforms(SM *SMExpect) {
+	removeAll(SM, "platforms", web.PlatformsURL)
 }
 
-func RemoveAllVisibilities(SM *httpexpect.Expect) {
-	removeAll(SM, "visibilities", "/v1/visibilities")
+func RemoveAllVisibilities(SM *SMExpect) {
+	removeAll(SM, "visibilities", web.VisibilitiesURL)
 }
 
-func removeAll(SM *httpexpect.Expect, entity, rootURLPath string) {
+func removeAll(SM *SMExpect, entity, rootURLPath string) {
 	By("removing all " + entity)
 	SM.DELETE(rootURLPath).Expect()
 }
 
-func RegisterBrokerInSM(brokerJSON Object, SM *httpexpect.Expect, headers map[string]string) Object {
-	return SM.POST("/v1/service_brokers").
+func RegisterBrokerInSM(brokerJSON Object, SM *SMExpect, headers map[string]string) Object {
+	return SM.POST(web.ServiceBrokersURL).
 		WithHeaders(headers).
 		WithJSON(brokerJSON).Expect().Status(http.StatusCreated).JSON().Object().Raw()
 }
 
-func RegisterPlatformInSM(platformJSON Object, SM *httpexpect.Expect, headers map[string]string) *types.Platform {
-	reply := SM.POST("/v1/platforms").
+func RegisterVisibilityForPlanAndPlatform(SM *SMExpect, planID, platformID string) {
+	SM.POST(web.VisibilitiesURL).WithJSON(Object{
+		"service_plan_id": planID,
+		"platform_id":     platformID,
+	}).Expect().Status(http.StatusCreated)
+}
+
+func CreateVisibilitiesForAllBrokerPlans(SM *SMExpect, brokerID string) {
+	offerings := SM.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerID)).Iter()
+	offeringIDs := make([]string, 0, len(offerings))
+	for _, offering := range offerings {
+		offeringIDs = append(offeringIDs, offering.Object().Value("id").String().Raw())
+	}
+	plans := SM.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id in ('%s')", strings.Join(offeringIDs, "','"))).Iter()
+	for _, p := range plans {
+		SM.POST(web.VisibilitiesURL).WithJSON(Object{
+			"service_plan_id": p.Object().Value("id").String().Raw(),
+		}).Expect().Status(http.StatusCreated)
+	}
+}
+
+func RegisterPlatformInSM(platformJSON Object, SM *SMExpect, headers map[string]string) *types.Platform {
+	reply := SM.POST(web.PlatformsURL).
 		WithHeaders(headers).
 		WithJSON(platformJSON).
 		Expect().Status(http.StatusCreated).JSON().Object().Raw()
 	createdAtString := reply["created_at"].(string)
 	updatedAtString := reply["updated_at"].(string)
-	createdAt, err := time.Parse(time.RFC3339, createdAtString)
+	createdAt, err := time.Parse(time.RFC3339Nano, createdAtString)
 	if err != nil {
 		panic(err)
 	}
-	updatedAt, err := time.Parse(time.RFC3339, updatedAtString)
+	updatedAt, err := time.Parse(time.RFC3339Nano, updatedAtString)
 	if err != nil {
 		panic(err)
 	}
@@ -432,5 +465,19 @@ func DoHTTP(reaction *HTTPReaction, checks *HTTPExpectations) func(*http.Request
 			Body:       Closer(reaction.Body),
 			Request:    request,
 		}, reaction.Err
+	}
+}
+
+type HTTPCouple struct {
+	Expectations *HTTPExpectations
+	Reaction     *HTTPReaction
+}
+
+func DoHTTPSequence(sequence []HTTPCouple) func(*http.Request) (*http.Response, error) {
+	i := 0
+	return func(request *http.Request) (*http.Response, error) {
+		r, err := DoHTTP(sequence[i].Reaction, sequence[i].Expectations)(request)
+		i++
+		return r, err
 	}
 }

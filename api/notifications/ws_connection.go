@@ -2,6 +2,8 @@ package notifications
 
 import (
 	"context"
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
 	"net"
 	"net/http"
 	"time"
@@ -16,7 +18,7 @@ const (
 	MaxPingPeriodHeader = "max_ping_period"
 )
 
-func (c *Controller) upgrade(rw http.ResponseWriter, req *http.Request, header http.Header) (*websocket.Conn, error) {
+func (c *Controller) upgrade(ctx context.Context, repository storage.TransactionalRepository, platform *types.Platform, rw http.ResponseWriter, req *http.Request, header http.Header) (*websocket.Conn, error) {
 	if header == nil {
 		header = http.Header{}
 	}
@@ -36,12 +38,12 @@ func (c *Controller) upgrade(rw http.ResponseWriter, req *http.Request, header h
 	if err != nil {
 		return nil, err
 	}
-	c.configureConn(req.Context(), conn)
+	c.configureConn(ctx, repository, platform, conn)
 
 	return conn, nil
 }
 
-func (c *Controller) configureConn(ctx context.Context, conn *websocket.Conn) {
+func (c *Controller) configureConn(ctx context.Context, repository storage.TransactionalRepository, platform *types.Platform, conn *websocket.Conn) {
 	if err := conn.SetReadDeadline(time.Now().Add(c.wsSettings.PingTimeout)); err != nil {
 		log.C(ctx).WithError(err).Error("Could not set read deadline")
 	}
@@ -51,8 +53,16 @@ func (c *Controller) configureConn(ctx context.Context, conn *websocket.Conn) {
 			return err
 		}
 
+		if err := updatePlatformStatus(ctx, repository, platform.ID, true); err != nil {
+			return err
+		}
+
 		err := conn.WriteControl(websocket.PongMessage, []byte(message), time.Now().Add(c.wsSettings.WriteTimeout))
 		if err != nil {
+			if storageErr := updatePlatformStatus(ctx, repository, platform.ID, false); storageErr != nil {
+				return storageErr
+			}
+
 			log.C(ctx).WithError(err).Error("Could not send pong message")
 			if err == websocket.ErrCloseSent {
 				return nil

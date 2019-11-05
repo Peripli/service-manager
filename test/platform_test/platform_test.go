@@ -21,8 +21,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/gavv/httpexpect"
-
 	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -96,7 +94,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("With invalid content type", func() {
 					It("returns 415", func() {
-						ctx.SMWithOAuth.POST("/v1/platforms").
+						ctx.SMWithOAuth.POST(web.PlatformsURL).
 							WithText("text").
 							Expect().Status(http.StatusUnsupportedMediaType)
 					})
@@ -104,7 +102,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("With invalid content JSON", func() {
 					It("returns 400 if input is not valid JSON", func() {
-						ctx.SMWithOAuth.POST("/v1/platforms").
+						ctx.SMWithOAuth.POST(web.PlatformsURL).
 							WithText("invalid json").
 							WithHeader("content-type", "application/json").
 							Expect().Status(http.StatusBadRequest)
@@ -116,7 +114,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						newplatform := func() common.Object {
 							return common.MakePlatform("platform1", "cf-10", "cf", "descr")
 						}
-						ctx.SMWithOAuth.POST("/v1/platforms").
+						ctx.SMWithOAuth.POST(web.PlatformsURL).
 							WithJSON(newplatform()).
 							Expect().Status(http.StatusCreated)
 
@@ -124,7 +122,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							platform := newplatform()
 							delete(platform, prop)
 
-							ctx.SMWithOAuth.POST("/v1/platforms").
+							ctx.SMWithOAuth.POST(web.PlatformsURL).
 								WithJSON(platform).
 								Expect().Status(http.StatusBadRequest)
 						}
@@ -134,10 +132,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("With conflicting fields", func() {
 					It("returns 409", func() {
 						platform := common.MakePlatform("platform1", "cf-10", "cf", "descr")
-						ctx.SMWithOAuth.POST("/v1/platforms").
+						ctx.SMWithOAuth.POST(web.PlatformsURL).
 							WithJSON(platform).
 							Expect().Status(http.StatusCreated)
-						ctx.SMWithOAuth.POST("/v1/platforms").
+						ctx.SMWithOAuth.POST(web.PlatformsURL).
 							WithJSON(platform).
 							Expect().Status(http.StatusConflict)
 					})
@@ -150,7 +148,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						delete(platform, "id")
 						delete(platform, "description")
 
-						reply := ctx.SMWithOAuth.POST("/v1/platforms").
+						reply := ctx.SMWithOAuth.POST(web.PlatformsURL).
 							WithJSON(platform).
 							Expect().Status(http.StatusCreated).JSON().Object()
 
@@ -166,7 +164,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					It("fails", func() {
 						platform := common.MakePlatform("platform/1", "cf-10", "cf", "descr")
 
-						reply := ctx.SMWithOAuth.POST("/v1/platforms").
+						reply := ctx.SMWithOAuth.POST(web.PlatformsURL).
 							WithJSON(platform).
 							Expect().Status(http.StatusBadRequest).JSON().Object()
 
@@ -181,7 +179,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						By("POST returns the new platform")
 
-						reply := ctx.SMWithOAuth.POST("/v1/platforms").
+						reply := ctx.SMWithOAuth.POST(web.PlatformsURL).
 							WithJSON(platform).
 							Expect().Status(http.StatusCreated).JSON().Object()
 
@@ -194,7 +192,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						By("GET returns the same platform")
 
-						reply = ctx.SMWithOAuth.GET("/v1/platforms/" + id).
+						reply = ctx.SMWithOAuth.GET(web.PlatformsURL + "/" + id).
 							Expect().Status(http.StatusOK).JSON().Object()
 
 						common.MapContains(reply.Raw(), platform)
@@ -210,7 +208,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					By("Create new platform")
 
 					platform = common.MakePlatform(id, "cf-10", "cf", "descr")
-					ctx.SMWithOAuth.POST("/v1/platforms").
+					ctx.SMWithOAuth.POST(web.PlatformsURL).
 						WithJSON(platform).
 						Expect().Status(http.StatusCreated)
 				})
@@ -222,7 +220,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						updatedPlatform := common.MakePlatform("", "cf-11", "cff", "descr2")
 						delete(updatedPlatform, "id")
 
-						reply := ctx.SMWithOAuth.PATCH("/v1/platforms/" + id).
+						reply := ctx.SMWithOAuth.PATCH(web.PlatformsURL + "/" + id).
 							WithJSON(updatedPlatform).
 							Expect().
 							Status(http.StatusOK).JSON().Object()
@@ -234,7 +232,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						By("Update is persisted")
 
-						reply = ctx.SMWithOAuth.GET("/v1/platforms/" + id).
+						reply = ctx.SMWithOAuth.GET(web.PlatformsURL + "/" + id).
 							Expect().
 							Status(http.StatusOK).JSON().Object()
 
@@ -251,7 +249,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							"created_at": createdAt,
 						}
 
-						ctx.SMWithOAuth.PATCH("/v1/platforms/"+id).
+						ctx.SMWithOAuth.PATCH(web.PlatformsURL+"/"+id).
 							WithJSON(updatedPlatform).
 							Expect().
 							Status(http.StatusOK).JSON().Object().
@@ -261,7 +259,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						By("Update is persisted")
 
-						ctx.SMWithOAuth.GET("/v1/platforms/"+id).
+						ctx.SMWithOAuth.GET(web.PlatformsURL+"/"+id).
 							Expect().
 							Status(http.StatusOK).JSON().Object().
 							ContainsKey("created_at").
@@ -277,7 +275,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						for prop, val := range updatedPlatform {
 							update := common.Object{}
 							update[prop] = val
-							reply := ctx.SMWithOAuth.PATCH("/v1/platforms/" + id).
+							reply := ctx.SMWithOAuth.PATCH(web.PlatformsURL + "/" + id).
 								WithJSON(update).
 								Expect().
 								Status(http.StatusOK).JSON().Object()
@@ -287,7 +285,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							platform[prop] = val
 							common.MapContains(reply.Raw(), platform)
 
-							reply = ctx.SMWithOAuth.GET("/v1/platforms/" + id).
+							reply = ctx.SMWithOAuth.GET(web.PlatformsURL + "/" + id).
 								Expect().
 								Status(http.StatusOK).JSON().Object()
 
@@ -298,13 +296,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("With provided id", func() {
 					It("should not update platform id", func() {
-						ctx.SMWithOAuth.PATCH("/v1/platforms/" + id).
+						ctx.SMWithOAuth.PATCH(web.PlatformsURL + "/" + id).
 							WithJSON(common.Object{"id": "123"}).
 							Expect().
 							Status(http.StatusOK).JSON().Object().
 							NotContainsKey("credentials")
 
-						ctx.SMWithOAuth.GET("/v1/platforms/123").
+						ctx.SMWithOAuth.GET(web.PlatformsURL + "/123").
 							Expect().
 							Status(http.StatusNotFound)
 					})
@@ -312,7 +310,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("On missing platform", func() {
 					It("returns 404", func() {
-						ctx.SMWithOAuth.PATCH("/v1/platforms/123").
+						ctx.SMWithOAuth.PATCH(web.PlatformsURL + "/123").
 							WithJSON(common.Object{"name": "123"}).
 							Expect().
 							Status(http.StatusNotFound)
@@ -322,11 +320,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("With conflicting fields", func() {
 					It("should return 409", func() {
 						platform2 := common.MakePlatform("p2", "cf-12", "cf2", "descr2")
-						ctx.SMWithOAuth.POST("/v1/platforms").
+						ctx.SMWithOAuth.POST(web.PlatformsURL).
 							WithJSON(platform2).
 							Expect().Status(http.StatusCreated)
 
-						ctx.SMWithOAuth.PATCH("/v1/platforms/" + id).
+						ctx.SMWithOAuth.PATCH(web.PlatformsURL + "/" + id).
 							WithJSON(platform2).
 							Expect().
 							Status(http.StatusConflict)
@@ -337,8 +335,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *httpexpect.Expect) common.Object {
-	return func(_ *common.TestContext, auth *httpexpect.Expect) common.Object {
+func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *common.SMExpect) common.Object {
+	return func(_ *common.TestContext, auth *common.SMExpect) common.Object {
 		randomPlatform := common.GenerateRandomPlatform()
 		if !setNullFieldsValues {
 			delete(randomPlatform, "description")

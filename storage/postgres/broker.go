@@ -46,10 +46,11 @@ func (e *Broker) ToObject() types.Object {
 	}
 	broker := &types.ServiceBroker{
 		Base: types.Base{
-			ID:        e.ID,
-			CreatedAt: e.CreatedAt,
-			UpdatedAt: e.UpdatedAt,
-			Labels:    map[string][]string{},
+			ID:             e.ID,
+			CreatedAt:      e.CreatedAt,
+			UpdatedAt:      e.UpdatedAt,
+			Labels:         map[string][]string{},
+			PagingSequence: e.PagingSequence,
 		},
 		Name:        e.Name,
 		Description: e.Description.String,
@@ -80,9 +81,10 @@ func (*Broker) FromObject(object types.Object) (storage.Entity, bool) {
 	}
 	b := &Broker{
 		BaseEntity: BaseEntity{
-			ID:        broker.ID,
-			CreatedAt: broker.CreatedAt,
-			UpdatedAt: broker.UpdatedAt,
+			ID:             broker.ID,
+			CreatedAt:      broker.CreatedAt,
+			UpdatedAt:      broker.UpdatedAt,
+			PagingSequence: broker.PagingSequence,
 		},
 		Name:        broker.Name,
 		Description: toNullString(broker.Description),

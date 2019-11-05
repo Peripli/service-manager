@@ -78,7 +78,7 @@ func (*VisibilityCreateNotificationsInterceptorProvider) Name() string {
 	return "VisibilityCreateNotificationsInterceptorProvider"
 }
 
-func (*VisibilityCreateNotificationsInterceptorProvider) Provide() storage.CreateInterceptor {
+func (*VisibilityCreateNotificationsInterceptorProvider) Provide() storage.CreateOnTxInterceptor {
 	return NewVisibilityNotificationsInterceptor()
 }
 
@@ -89,7 +89,7 @@ func (*VisibilityUpdateNotificationsInterceptorProvider) Name() string {
 	return "VisibilityUpdateNotificationsInterceptorProvider"
 }
 
-func (*VisibilityUpdateNotificationsInterceptorProvider) Provide() storage.UpdateInterceptor {
+func (*VisibilityUpdateNotificationsInterceptorProvider) Provide() storage.UpdateOnTxInterceptor {
 	return NewVisibilityNotificationsInterceptor()
 }
 
@@ -100,6 +100,6 @@ func (*VisibilityDeleteNotificationsInterceptorProvider) Name() string {
 	return "VisibilityDeleteNotificationsInterceptorProvider"
 }
 
-func (*VisibilityDeleteNotificationsInterceptorProvider) Provide() storage.DeleteInterceptor {
+func (*VisibilityDeleteNotificationsInterceptorProvider) Provide() storage.DeleteOnTxInterceptor {
 	return NewVisibilityNotificationsInterceptor()
 }

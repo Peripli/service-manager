@@ -34,10 +34,11 @@ type Visibility struct {
 func (v *Visibility) ToObject() types.Object {
 	return &types.Visibility{
 		Base: types.Base{
-			ID:        v.ID,
-			CreatedAt: v.CreatedAt,
-			UpdatedAt: v.UpdatedAt,
-			Labels:    make(map[string][]string),
+			ID:             v.ID,
+			CreatedAt:      v.CreatedAt,
+			UpdatedAt:      v.UpdatedAt,
+			Labels:         make(map[string][]string),
+			PagingSequence: v.PagingSequence,
 		},
 		PlatformID:    v.PlatformID.String,
 		ServicePlanID: v.ServicePlanID,
@@ -51,9 +52,10 @@ func (v *Visibility) FromObject(visibility types.Object) (storage.Entity, bool) 
 	}
 	return &Visibility{
 		BaseEntity: BaseEntity{
-			ID:        vis.ID,
-			CreatedAt: vis.CreatedAt,
-			UpdatedAt: vis.UpdatedAt,
+			ID:             vis.ID,
+			CreatedAt:      vis.CreatedAt,
+			UpdatedAt:      vis.UpdatedAt,
+			PagingSequence: vis.PagingSequence,
 		},
 		PlatformID:    toNullString(vis.PlatformID),
 		ServicePlanID: vis.ServicePlanID,

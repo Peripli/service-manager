@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"testing"
+
+	"github.com/Peripli/service-manager/pkg/web"
+
+	"github.com/tidwall/sjson"
 
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/sm"
@@ -48,15 +51,35 @@ type notificationTypeEntry struct {
 	// ExpectedPlatformIDFunc calculates the expected platform ID for the given object
 	ExpectedPlatformIDFunc func(obj common.Object) string
 	// ExpectedAdditionalPayloadFunc calculates the expected additional payload for the given object
-	ExpectedAdditionalPayloadFunc func(expected common.Object, repository storage.Repository) []byte
+	ExpectedAdditionalPayloadFunc func(expected common.Object, repository storage.Repository) string
 	// Verify additional stuff such as creation of notifications for dependant entities
 	AdditionalVerificationNotificationsFunc func(expected common.Object, repository storage.Repository, notificationsAfterOp *types.Notifications)
+	ProcessNotificationPayload              func(payload string) string
 }
 
 var _ = Describe("Notifications Suite", func() {
 	var ctx *common.TestContext
 	var c context.Context
 	var objAfterOp common.Object
+
+	processBrokersPayload := func(payload string) string {
+		var err error
+		services := gjson.Get(payload, "services").Raw
+		parsed := gjson.Parse(services)
+		for i := range parsed.Array() {
+			services, err = sjson.Delete(services, fmt.Sprintf("%d.updated_at", i))
+			services, err = sjson.Delete(services, fmt.Sprintf("%d.created_at", i))
+			Expect(err).ToNot(HaveOccurred())
+			service := gjson.Get(services, fmt.Sprintf("%d", i)).Raw
+			plans := gjson.Get(service, "plans")
+			for j := range plans.Array() {
+				services, err = sjson.Delete(services, fmt.Sprintf("%d.plans.%d.updated_at", i, j))
+				services, err = sjson.Delete(services, fmt.Sprintf("%d.plans.%d.created_at", i, j))
+				Expect(err).ToNot(HaveOccurred())
+			}
+		}
+		return services
+	}
 
 	entries := []notificationTypeEntry{
 		{
@@ -67,7 +90,7 @@ var _ = Describe("Notifications Suite", func() {
 				return obj
 			},
 			ResourceUpdateFunc: func(obj common.Object, update common.Object) common.Object {
-				patchedObj := ctx.SMWithOAuth.PATCH("/v1/service_brokers/" + obj["id"].(string)).
+				patchedObj := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + obj["id"].(string)).
 					WithJSON(update).
 					Expect().
 					Status(http.StatusOK).JSON().Object().Raw()
@@ -84,7 +107,7 @@ var _ = Describe("Notifications Suite", func() {
 					}
 				},
 				func() common.Object {
-					anotherPlatformID := ctx.SMWithOAuth.POST("/v1/platforms").WithJSON(common.Object{
+					anotherPlatformID := ctx.SMWithOAuth.POST(web.PlatformsURL).WithJSON(common.Object{
 						"id":          "cluster1",
 						"name":        "k8s1",
 						"type":        "kubernetes",
@@ -123,7 +146,7 @@ var _ = Describe("Notifications Suite", func() {
 			ExpectedPlatformIDFunc: func(object common.Object) string {
 				return ""
 			},
-			ExpectedAdditionalPayloadFunc: func(expected common.Object, repository storage.Repository) []byte {
+			ExpectedAdditionalPayloadFunc: func(expected common.Object, repository storage.Repository) string {
 				serviceOfferings, err := catalog.Load(c, expected["id"].(string), ctx.SMRepository)
 				Expect(err).ShouldNot(HaveOccurred())
 
@@ -132,7 +155,10 @@ var _ = Describe("Notifications Suite", func() {
 				}{ServiceOfferings: serviceOfferings.ServiceOfferings})
 				Expect(err).ShouldNot(HaveOccurred())
 
-				return bytes
+				return processBrokersPayload(string(bytes))
+			},
+			ProcessNotificationPayload: func(payload string) string {
+				return string(processBrokersPayload(payload))
 			},
 			AdditionalVerificationNotificationsFunc: func(expected common.Object, repository storage.Repository, notificationsAfterOp *types.Notifications) {
 				serviceOfferings, err := catalog.Load(c, expected["id"].(string), ctx.SMRepository)
@@ -172,28 +198,25 @@ var _ = Describe("Notifications Suite", func() {
 				catalog.AddService(cService)
 				id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
 
-				object := ctx.SMWithOAuth.GET("/v1/service_offerings").WithQuery("fieldQuery", "broker_id = "+id).
-					Expect()
+				so := ctx.SMWithOAuth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", id)).First()
 
-				so := object.Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().First()
+				servicePlanID := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw())).
+					First().Object().Value("id").String().Raw()
 
-				servicePlanID := ctx.SMWithOAuth.GET("/v1/service_plans").WithQuery("fieldQuery", fmt.Sprintf("service_offering_id = %s", so.Object().Value("id").String().Raw())).
-					Expect().
-					Status(http.StatusOK).JSON().Object().Value("service_plans").Array().First().Object().Value("id").String().Raw()
 				visReqBody["service_plan_id"] = servicePlanID
 
-				platformID := ctx.SMWithOAuth.POST("/v1/platforms").WithJSON(common.GenerateRandomPlatform()).
+				platformID := ctx.SMWithOAuth.POST(web.PlatformsURL).WithJSON(common.GenerateRandomPlatform()).
 					Expect().
 					Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
 				visReqBody["platform_id"] = platformID
 
-				visibility := ctx.SMWithOAuth.POST("/v1/visibilities").WithJSON(visReqBody).Expect().
+				visibility := ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(visReqBody).Expect().
 					Status(http.StatusCreated).JSON().Object().Raw()
 
 				return visibility
 			},
 			ResourceUpdateFunc: func(obj common.Object, update common.Object) common.Object {
-				updatedObj := ctx.SMWithOAuth.PATCH("/v1/visibilities/" + obj["id"].(string)).WithJSON(update).Expect().
+				updatedObj := ctx.SMWithOAuth.PATCH(web.VisibilitiesURL + "/" + obj["id"].(string)).WithJSON(update).Expect().
 					Status(http.StatusOK).JSON().Object().Raw()
 
 				return updatedObj
@@ -208,7 +231,7 @@ var _ = Describe("Notifications Suite", func() {
 					}
 				},
 				func() common.Object {
-					anotherPlatformID := ctx.SMWithOAuth.POST("/v1/platforms").WithJSON(common.Object{
+					anotherPlatformID := ctx.SMWithOAuth.POST(web.PlatformsURL).WithJSON(common.Object{
 						"id":          "cluster123",
 						"name":        "k8s123s",
 						"type":        "kubernetes",
@@ -242,13 +265,13 @@ var _ = Describe("Notifications Suite", func() {
 				},
 			},
 			ResourceDeleteFunc: func(obj common.Object) {
-				ctx.SMWithOAuth.DELETE("/v1/visibilities/" + obj["id"].(string)).Expect().
+				ctx.SMWithOAuth.DELETE(web.VisibilitiesURL + "/" + obj["id"].(string)).Expect().
 					Status(http.StatusOK)
 			},
 			ExpectedPlatformIDFunc: func(obj common.Object) string {
 				return obj["platform_id"].(string)
 			},
-			ExpectedAdditionalPayloadFunc: func(expected common.Object, repository storage.Repository) []byte {
+			ExpectedAdditionalPayloadFunc: func(expected common.Object, repository storage.Repository) string {
 				byPlanID := query.ByField(query.EqualsOperator, "id", expected["service_plan_id"].(string))
 				expectedPlan, err := repository.Get(c, types.ServicePlanType, byPlanID)
 				Expect(err).ShouldNot(HaveOccurred())
@@ -272,7 +295,10 @@ var _ = Describe("Notifications Suite", func() {
 				})
 				Expect(err).ShouldNot(HaveOccurred())
 
-				return bytes
+				return string(bytes)
+			},
+			ProcessNotificationPayload: func(payload string) string {
+				return payload
 			},
 			AdditionalVerificationNotificationsFunc: func(expected common.Object, repository storage.Repository, notificationsAfterOp *types.Notifications) {
 
@@ -315,7 +341,7 @@ var _ = Describe("Notifications Suite", func() {
 		getNotifications := func(ids ...string) (*types.Notifications, []string) {
 			filters := make([]query.Criterion, 0)
 			if len(ids) != 0 {
-				filters = append(filters, query.ByField(query.NotInOperator, "id", "["+strings.Join(ids, "||"+"]")))
+				filters = append(filters, query.ByField(query.NotInOperator, "id", ids...))
 			}
 
 			objectList, err := ctx.SMRepository.List(c, types.NotificationType, filters...)
@@ -350,6 +376,7 @@ var _ = Describe("Notifications Suite", func() {
 				Expect(resource).To(Equal(objAfterOp))
 
 				actualPayload := gjson.GetBytes(notification.Payload, "new.additional").Raw
+				actualPayload = entry.ProcessNotificationPayload(actualPayload)
 				expectedPayload := entry.ExpectedAdditionalPayloadFunc(objAfterOp, ctx.SMRepository)
 				Expect(actualPayload).To(MatchUnorderedJSON(expectedPayload))
 				found = true
@@ -360,7 +387,7 @@ var _ = Describe("Notifications Suite", func() {
 			}
 		}
 
-		verifyDeletionNotificationCreated := func(objAfterOp common.Object, notificationsAfterOp *types.Notifications, expectedOldPayload []byte) {
+		verifyDeletionNotificationCreated := func(objAfterOp common.Object, notificationsAfterOp *types.Notifications, expectedOldPayload string) {
 			found := false
 			for _, notification := range notificationsAfterOp.Notifications {
 				if notification.Type != types.DELETED {
@@ -380,6 +407,7 @@ var _ = Describe("Notifications Suite", func() {
 				Expect(resource).To(Equal(objAfterOp))
 
 				actualPayload := gjson.GetBytes(notification.Payload, "old.additional").Raw
+				actualPayload = entry.ProcessNotificationPayload(actualPayload)
 				Expect(actualPayload).To(MatchUnorderedJSON(expectedOldPayload))
 
 				found = true
@@ -392,7 +420,7 @@ var _ = Describe("Notifications Suite", func() {
 
 		verifyModificationNotificationsCreated := func(objBeforeOp, objAfterOp, update common.Object, notificationsAfterOp *types.Notifications) {
 			found := false
-			var expectedOldPayload []byte
+			var expectedOldPayload string
 			for _, notification := range notificationsAfterOp.Notifications {
 				if notification.Type != types.MODIFIED {
 					continue
@@ -413,6 +441,7 @@ var _ = Describe("Notifications Suite", func() {
 				Expect(oldResource).To(Equal(objBeforeOp))
 
 				actualOldPayload := gjson.GetBytes(notification.Payload, "old.additional").Raw
+				actualOldPayload = entry.ProcessNotificationPayload(actualOldPayload)
 				expectedOldPayload = entry.ExpectedAdditionalPayloadFunc(objBeforeOp, ctx.SMRepository)
 				Expect(actualOldPayload).To(MatchUnorderedJSON(expectedOldPayload))
 
@@ -420,6 +449,7 @@ var _ = Describe("Notifications Suite", func() {
 				Expect(newResource).To(Equal(objAfterOp))
 
 				actualNewPayload := gjson.GetBytes(notification.Payload, "new.additional").Raw
+				actualNewPayload = entry.ProcessNotificationPayload(actualNewPayload)
 				expectedNewPayload := entry.ExpectedAdditionalPayloadFunc(objAfterOp, ctx.SMRepository)
 				Expect(actualNewPayload).To(MatchUnorderedJSON(expectedNewPayload))
 

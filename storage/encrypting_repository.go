@@ -142,6 +142,10 @@ func (er *encryptingRepository) List(ctx context.Context, objectType types.Objec
 	return objList, nil
 }
 
+func (er *encryptingRepository) Count(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (int, error) {
+	return er.repository.Count(ctx, objectType, criteria...)
+}
+
 func (er *encryptingRepository) Update(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, criteria ...query.Criterion) (types.Object, error) {
 	if err := er.transformCredentials(ctx, obj, er.encrypter.Encrypt); err != nil {
 		return nil, err

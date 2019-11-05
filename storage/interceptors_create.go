@@ -18,63 +18,11 @@ package storage
 
 import (
 	"context"
-	"fmt"
+
+	"github.com/Peripli/service-manager/pkg/web"
 
 	"github.com/Peripli/service-manager/pkg/types"
 )
-
-type CreateInterceptorChain struct {
-	aroundTxNames []string
-	aroundTxFuncs map[string]func(InterceptCreateAroundTxFunc) InterceptCreateAroundTxFunc
-
-	onTxNames []string
-	onTxFuncs map[string]func(InterceptCreateOnTxFunc) InterceptCreateOnTxFunc
-}
-
-func (c *CreateInterceptorChain) Name() string {
-	return "CreateInterceptorChain"
-}
-
-func (c *CreateInterceptorChain) AroundTxCreate(f InterceptCreateAroundTxFunc) InterceptCreateAroundTxFunc {
-	for i := range c.aroundTxNames {
-		f = c.aroundTxFuncs[c.aroundTxNames[len(c.aroundTxNames)-1-i]](f)
-	}
-	return f
-}
-
-func (c *CreateInterceptorChain) OnTxCreate(f InterceptCreateOnTxFunc) InterceptCreateOnTxFunc {
-	for i := range c.onTxNames {
-		f = c.onTxFuncs[c.onTxNames[len(c.onTxNames)-1-i]](f)
-	}
-	return f
-}
-
-// newCreateInterceptorChain returns a function which spawns all create interceptors, sorts them and wraps them into one.
-func newCreateInterceptorChain(providers []OrderedCreateInterceptorProvider) *CreateInterceptorChain {
-	chain := &CreateInterceptorChain{}
-	chain.aroundTxFuncs = make(map[string]func(InterceptCreateAroundTxFunc) InterceptCreateAroundTxFunc)
-	chain.aroundTxNames = make([]string, 0, len(providers))
-	chain.onTxFuncs = make(map[string]func(InterceptCreateOnTxFunc) InterceptCreateOnTxFunc)
-	chain.onTxNames = make([]string, 0, len(providers))
-
-	for _, p := range providers {
-		interceptor := p.Provide()
-
-		chain.aroundTxFuncs[p.Name()] = interceptor.AroundTxCreate
-		chain.aroundTxNames = insertName(chain.aroundTxNames, p.AroundTxPosition.PositionType, p.AroundTxPosition.Name, p.Name())
-
-		chain.onTxFuncs[p.Name()] = interceptor.OnTxCreate
-		chain.onTxNames = insertName(chain.onTxNames, p.OnTxPosition.PositionType, p.OnTxPosition.Name, p.Name())
-	}
-	return chain
-}
-
-// CreateInterceptorProvider provides CreateInterceptors for each request
-//go:generate counterfeiter . CreateInterceptorProvider
-type CreateInterceptorProvider interface {
-	Named
-	Provide() CreateInterceptor
-}
 
 // InterceptCreateAroundTxFunc hook for entity creation outside of transaction
 type InterceptCreateAroundTxFunc func(ctx context.Context, obj types.Object) (types.Object, error)
@@ -82,56 +30,134 @@ type InterceptCreateAroundTxFunc func(ctx context.Context, obj types.Object) (ty
 // InterceptCreateOnTxFunc hook for entity creation in transaction
 type InterceptCreateOnTxFunc func(ctx context.Context, txStorage Repository, obj types.Object) (types.Object, error)
 
-// CreateInterceptor provides hooks on entity creation
-//go:generate counterfeiter . CreateInterceptor
-type CreateInterceptor interface {
-	AroundTxCreate(h InterceptCreateAroundTxFunc) InterceptCreateAroundTxFunc
+// CreateAroundTxInterceptor provides hooks on entity creation during AroundTx
+//go:generate counterfeiter . CreateAroundTxInterceptor
+type CreateAroundTxInterceptor interface {
+	AroundTxCreate(f InterceptCreateAroundTxFunc) InterceptCreateAroundTxFunc
+}
+
+// CreateOnTxInterceptor provides hooks on entity creation during OnTx
+//go:generate counterfeiter . CreateOnTxInterceptor
+type CreateOnTxInterceptor interface {
 	OnTxCreate(f InterceptCreateOnTxFunc) InterceptCreateOnTxFunc
 }
 
-func insertName(names []string, positionType PositionType, name, newInterceptorName string) []string {
-	if positionType == PositionNone {
-		names = append(names, newInterceptorName)
-		return names
-	}
-	pos := findName(names, name)
-	if pos == -1 {
-		panic(fmt.Errorf("could not find create API hook with name %s", name))
-	}
-	names = append(names, "")
-	if positionType == PositionAfter {
-		pos = pos + 1
-	}
-	copy(names[pos+1:], names[pos:])
-	names[pos] = newInterceptorName
-	return names
+// CreateInterceptor provides hooks on entity creation both during AroundTx and OnTx
+//go:generate counterfeiter . CreateInterceptor
+type CreateInterceptor interface {
+	CreateAroundTxInterceptor
+	CreateOnTxInterceptor
 }
 
-func findName(names []string, existingInterceptorName string) int {
-	for i, name := range names {
-		if name == existingInterceptorName {
-			return i
+//go:generate counterfeiter . CreateOnTxInterceptorProvider
+type CreateOnTxInterceptorProvider interface {
+	web.Named
+	Provide() CreateOnTxInterceptor
+}
+
+type OrderedCreateOnTxInterceptorProvider struct {
+	InterceptorOrder
+	CreateOnTxInterceptorProvider
+}
+
+//go:generate counterfeiter . CreateAroundTxInterceptorProvider
+type CreateAroundTxInterceptorProvider interface {
+	web.Named
+	Provide() CreateAroundTxInterceptor
+}
+
+type OrderedCreateAroundTxInterceptorProvider struct {
+	InterceptorOrder
+	CreateAroundTxInterceptorProvider
+}
+
+// CreateInterceptorProvider provides CreateInterceptors for each request
+//go:generate counterfeiter . CreateInterceptorProvider
+type CreateInterceptorProvider interface {
+	web.Named
+	Provide() CreateInterceptor
+}
+
+type OrderedCreateInterceptorProvider struct {
+	InterceptorOrder
+	CreateInterceptorProvider
+}
+
+type CreateAroundTxInterceptorChain struct {
+	aroundTxNames []string
+	aroundTxFuncs map[string]CreateAroundTxInterceptor
+}
+
+// AroundTxCreate wraps the provided InterceptCreateAroundTxFunc into all the existing aroundTx funcs
+func (c *CreateAroundTxInterceptorChain) AroundTxCreate(f InterceptCreateAroundTxFunc) InterceptCreateAroundTxFunc {
+	for i := range c.aroundTxNames {
+		if interceptor, found := c.aroundTxFuncs[c.aroundTxNames[len(c.aroundTxNames)-1-i]]; found {
+			f = interceptor.AroundTxCreate(f)
 		}
 	}
-
-	return -1
+	return f
 }
 
-// PositionType could be "before", "after" or "none"
-type PositionType string
+type CreateOnTxInterceptorChain struct {
+	onTxNames []string
+	onTxFuncs map[string]CreateOnTxInterceptor
+}
 
-const (
-	// PositionNone states that a position is not set and the item will be appended
-	PositionNone PositionType = "none"
+// OnTxCreate wraps the provided InterceptCreateOnTxFunc into all the existing onTx funcs
+func (c *CreateOnTxInterceptorChain) OnTxCreate(f InterceptCreateOnTxFunc) InterceptCreateOnTxFunc {
+	for i := range c.onTxNames {
+		if interceptor, found := c.onTxFuncs[c.onTxNames[len(c.onTxNames)-1-i]]; found {
+			f = interceptor.OnTxCreate(f)
+		}
+	}
+	return f
+}
 
-	// PositionBefore states that a position should be calculated before another position
-	PositionBefore PositionType = "before"
+// CreateInterceptorChain is an interceptor tha provides and chains a list of ordered interceptor providers.
+type CreateInterceptorChain struct {
+	*CreateAroundTxInterceptorChain
+	*CreateOnTxInterceptorChain
+}
 
-	// PositionAfter states that a position should be calculated after another position
-	PositionAfter PositionType = "after"
-)
+func (itr *InterceptableTransactionalRepository) newCreateOnTxInterceptorChain(objectType types.ObjectType) *CreateOnTxInterceptorChain {
+	providers := itr.createOnTxProviders[objectType]
+	onTxFuncs := make(map[string]CreateOnTxInterceptor, len(providers))
+	for _, provider := range providers {
+		onTxFuncs[provider.Name()] = provider.Provide()
+	}
+	return &CreateOnTxInterceptorChain{
+		onTxNames: itr.orderedCreateOnTxProvidersNames[objectType],
+		onTxFuncs: onTxFuncs,
+	}
+}
 
-// Named interface for named entities
-type Named interface {
-	Name() string
+func (itr *InterceptableTransactionalRepository) newCreateInterceptorChain(objectType types.ObjectType) *CreateInterceptorChain {
+	aroundTxFuncs := make(map[string]CreateAroundTxInterceptor)
+	for _, p := range itr.createAroundTxProviders[objectType] {
+		aroundTxFuncs[p.Name()] = p.Provide()
+	}
+
+	onTxFuncs := make(map[string]CreateOnTxInterceptor)
+	for _, p := range itr.createOnTxProviders[objectType] {
+		onTxFuncs[p.Name()] = p.Provide()
+	}
+
+	for _, p := range itr.createProviders[objectType] {
+		// Provide once to share state
+		interceptor := p.Provide()
+		aroundTxFuncs[p.Name()] = interceptor
+		onTxFuncs[p.Name()] = interceptor
+
+	}
+
+	return &CreateInterceptorChain{
+		CreateAroundTxInterceptorChain: &CreateAroundTxInterceptorChain{
+			aroundTxNames: itr.orderedCreateAroundTxProvidersNames[objectType],
+			aroundTxFuncs: aroundTxFuncs,
+		},
+		CreateOnTxInterceptorChain: &CreateOnTxInterceptorChain{
+			onTxNames: itr.orderedCreateOnTxProvidersNames[objectType],
+			onTxFuncs: onTxFuncs,
+		},
+	}
 }

@@ -17,14 +17,18 @@
 package service_test
 
 import (
+	"context"
 	"net/http"
+	"net/url"
 	"testing"
+
+	"github.com/gavv/httpexpect"
+
+	"fmt"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/gavv/httpexpect"
-
 	"github.com/Peripli/service-manager/test/common"
 
 	"github.com/Peripli/service-manager/test"
@@ -93,6 +97,133 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Expect().
 							Status(http.StatusBadRequest)
 
+					})
+				})
+			})
+
+			Describe("GET", func() {
+				var k8sPlatform *types.Platform
+				var k8sAgent *common.SMExpect
+				var offering common.Object
+
+				getPlansByOffering := func(offeringID string) *types.ServicePlan {
+					plans, err := ctx.SMRepository.List(context.Background(), types.ServicePlanType, query.ByField(query.EqualsOperator, "service_offering_id", offeringID))
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(plans.Len()).To(BeNumerically(">", 0))
+					return (plans.(*types.ServicePlans)).ServicePlans[0]
+				}
+
+				assertOfferingForPlatformByID := func(agent *common.SMExpect, offeringID interface{}, status int) {
+					k8sAgent.GET(fmt.Sprintf("%s/%s", web.ServiceOfferingsURL, offeringID.(string))).
+						Expect().
+						Status(status)
+				}
+
+				assertOfferingsForPlatformWithQuery := func(agent *common.SMExpect, query map[string]interface{}, offerings ...interface{}) {
+					q := url.Values{}
+					for k, v := range query {
+						q.Set(k, fmt.Sprint(v))
+					}
+					queryString := q.Encode()
+					result := agent.ListWithQuery(web.ServiceOfferingsURL, queryString).Path("$[*].id").Array()
+					result.Length().Equal(len(offerings))
+					if len(offerings) > 0 {
+						result.ContainsOnly(offerings...)
+					}
+				}
+
+				assertOfferingsForPlatform := func(agent *common.SMExpect, offerings ...interface{}) {
+					assertOfferingsForPlatformWithQuery(agent, nil, offerings...)
+				}
+
+				BeforeEach(func() {
+					k8sPlatformJSON := common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
+					k8sPlatform = common.RegisterPlatformInSM(k8sPlatformJSON, ctx.SMWithOAuth, map[string]string{})
+					k8sAgent = &common.SMExpect{Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
+						username, password := k8sPlatform.Credentials.Basic.Username, k8sPlatform.Credentials.Basic.Password
+						req.WithBasicAuth(username, password)
+					})}
+					offering = blueprint(ctx, ctx.SMWithOAuth)
+				})
+
+				AfterEach(func() {
+					ctx.CleanupAdditionalResources()
+				})
+
+				Context("with no visibilities for offering's plans", func() {
+					It("should return not found", func() {
+						assertOfferingsForPlatform(k8sAgent, nil...)
+						assertOfferingForPlatformByID(k8sAgent, offering["id"], http.StatusNotFound)
+					})
+
+					It("should not list offering with field query offering id", func() {
+						assertOfferingsForPlatformWithQuery(k8sAgent,
+							map[string]interface{}{
+								"fieldQuery": fmt.Sprintf("service_offering_id eq '%s'", offering["id"]),
+							}, nil...)
+					})
+				})
+
+				Context("with public visibility for offering's plan", func() {
+					It("should return one plan", func() {
+						plan := getPlansByOffering(offering["id"].(string))
+
+						assertOfferingsForPlatform(k8sAgent, nil...)
+						assertOfferingForPlatformByID(k8sAgent, offering["id"], http.StatusNotFound)
+
+						common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, plan.ID, "")
+
+						assertOfferingsForPlatform(k8sAgent, offering["id"])
+						assertOfferingForPlatformByID(k8sAgent, offering["id"], http.StatusOK)
+					})
+				})
+
+				Context("with visibility for platform and plan of the offering", func() {
+					It("should return the offering", func() {
+						plan := getPlansByOffering(offering["id"].(string))
+
+						common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, plan.ID, k8sPlatform.ID)
+
+						assertOfferingsForPlatform(k8sAgent, offering["id"])
+						assertOfferingForPlatformByID(k8sAgent, offering["id"], http.StatusOK)
+					})
+				})
+
+				Context("with visibility for other platform", func() {
+					It("should not return the offering for this platform", func() {
+						plan := getPlansByOffering(offering["id"].(string))
+
+						otherPlatform := ctx.RegisterPlatform()
+						common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, plan.ID, otherPlatform.ID)
+
+						assertOfferingsForPlatform(k8sAgent, nil...)
+						assertOfferingForPlatformByID(k8sAgent, offering["id"], http.StatusNotFound)
+					})
+				})
+
+				Context("with additional offerings", func() {
+					var offering2 common.Object
+					BeforeEach(func() {
+						offering2 = blueprint(ctx, ctx.SMWithOAuth)
+					})
+
+					Context("but no visibilities", func() {
+						It("should not get either of them", func() {
+							assertOfferingsForPlatform(k8sAgent, nil...)
+							assertOfferingForPlatformByID(k8sAgent, offering["id"], http.StatusNotFound)
+							assertOfferingForPlatformByID(k8sAgent, offering2["id"], http.StatusNotFound)
+						})
+					})
+
+					Context("but visibility for one", func() {
+						It("should return the one with visibility", func() {
+							plan := getPlansByOffering(offering["id"].(string))
+							common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, plan.ID, "")
+
+							assertOfferingForPlatformByID(k8sAgent, offering["id"], http.StatusOK)
+							assertOfferingForPlatformByID(k8sAgent, offering2["id"], http.StatusNotFound)
+							assertOfferingsForPlatform(k8sAgent, offering["id"])
+						})
 					})
 				})
 			})
@@ -341,15 +472,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func blueprint(ctx *common.TestContext, auth *httpexpect.Expect) common.Object {
-	cService := common.GenerateTestServiceWithPlans()
+func blueprint(ctx *common.TestContext, auth *common.SMExpect) common.Object {
+	cService := common.GenerateTestServiceWithPlans(common.GenerateFreeTestPlan())
 	catalog := common.NewEmptySBCatalog()
 	catalog.AddService(cService)
 	id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
 
-	so := auth.GET(web.ServiceOfferingsURL).WithQuery("fieldQuery", "broker_id = "+id).
-		Expect().
-		Status(http.StatusOK).JSON().Object().Value("service_offerings").Array().First()
-
-	return so.Object().Raw()
+	return auth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", id)).First().Object().Raw()
 }

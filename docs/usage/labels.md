@@ -35,8 +35,8 @@ They can be attached to a resource at creation time and added or modified at any
 ## Syntax
 
 Valid labels consist of a key and one or more values.  
-Keys can contain all characters **except** the query separator (**|**) and the new-line character (**\n**).  
-Values can contain all characters **except** the new-line character (**\n**). If any value contains the query separator (**|**), then this symbol must be escaped with a backslash (**\\**) - `This is a value with a \| separator`  
+Keys can contain all characters **except** whitespaces and new-line character (**\n**).  
+Values can contain all characters **except** the new-line character (**\n**). If any value contains a quote (**'**), then this symbol must be escaped with another quote(**''**) - `This is a value with a '' quote`  
 The length of both the key and each value must be between 1 and 255 characters.
 
 ## Management
@@ -50,50 +50,60 @@ Labels can be attached to or detached from a resource by `PATCH`-ing the resourc
 Querying can be performed both on labels and resource fields.
 A valid query consist one or more criteria and a criterion consists of a left operand, an operator and a right operand.
 
-The syntax is described below (note that **|** is a query separator and **||** is a separator for multiple values): 
+The syntax is described below: 
 ```
-<query-syntax>              ::= <criterion> OR <criterion> "|" <query-syntax>
+<query-syntax>              ::= <criterion> OR <criterion> " and " <query-syntax>
 <criterion>                 ::= KEY [ <multivariate-criterion> OR <univariate-criterion> ]
 <multivariate-criterion>    ::= <empty-list> OR <multivariate-operator> <multiple-values>
-<empyt-list>                ::= "[]"
+<empyt-list>                ::= "()"
 <multivariate-operator>     ::= "in" OR "notin"
-<multiple-values>           ::= "[" <values> "]"
-<values>                    ::= VALUE OR VALUE "||" <values>
-<univariate-criterion>      ::= ["=" OR "!=" OR "eqornil" OR "lt" OR "gt"] VALUE
+<multiple-values>           ::= "(" <values> ")"
+<values>                    ::= value OR value "," <values>
+<univariate-criterion>      ::= ["eq" OR "ne" OR "en" OR "lt" OR "gt" OR "le" OR "ge"] value
+<value>                     ::= STRING OR NUMBER OR BOOLEAN OR DATETIME
 
-KEY is a sequence of characters with length from 1 to 255 characters, not containing a query separator and new lines.
-VALUE is a sequence of characters with length from 1 to 255 characters.  
+KEY is a sequence of characters with length from 1 to 255 characters, not containing whitespaces and new lines.
+STRING is a sequence of characters enclosed in single quotes.
+NUMBER is a sequence of digits with or without a floating, signed or unsigned without quotes.
+BOOLEAN is either 'true' or 'false' not enclosed in quotes.
+DATETIME is an ISO 8601 date not enclosed in quotes.
 The new line character (\n) must not be present.  
-The query separator character (|) must be escaped with a backslash (\) if it is present.
-For array values, the separator between the values in the array is ||.  
-Delimiter between the operator and its operands is exactly one whitespace: ' '
+The quote (') must be escaped with another quote (') if it is present.
+For array values, the separator between the values in the array is a comma (,).  
+Delimiter between the operator and its operands is exactly one whitespace.
 Example:
-x in [val1||val2]|y = 5|z eqornil value with \| separator
+x in ('string1', 'string2') and y = -1.5 and z en 'value with '' quote'
 ```
 
 ## Operators
 
-* Equals (**=**):
+* Equals (**eq**):
     - Checks whether the left operand's value and the right operand are equal
-    - Example: `platform_id = my_platform_id`
-* Not equals (**!=**):
+    - Example: `platform_id eq 'my_platform_id'`
+* Not equals (**ne**):
     - Checks whether the left operand's value and the right operand are not equal
-    - Example: `platform_id != my_platform_id`
-* Equals or nil (**eqornil**)
+    - Example: `platform_id ne 'my_platform_id'`
+* Equals or nil (**en**)
     - Checks whether the left operand's value is equal to the right operand OR the left operand's value is NULL
-    - Example: `platform_id eqornil my_platform_id`
+    - Example: `platform_id en 'my_platform_id'`
 * Greater than (**gt**):
     - Checks whether the left operand's value is greater than the right operand. Supports only numerical values.
     - Example: `id gt 5`
 * Less than (**lt**)
     - Checks whether the left operand's value is less than the right operand. Supports only numerical values.
     - Example: `id lt 5`
+* Less than or equal to (**le**)
+    - Checks whether the left operand's value is less than or equal to the right operand. Supports only numerical values.
+    - Example: `id le 5`
+* Greater than or equal to (**ge**)
+    - Checks whether the left operand's value is greater than or equal to the right operand. Supports only numerical values.
+    - Example: `id ge 5`
 * In (**in**)
     - Checks whether the left operand's value is contained in the right operand. Works only for list values of the right operand contained in square braces.
-    - Example: `id in [5||6||7]`
+    - Example: `id in (5,6,7)`
 * Not in (**notin**)
     - Checks whether the left operand's value is NOT contained in the right operand. Works only for list values of the right operand contained in square braces.
-    - Example: `id notin [1||2||3]`
+    - Example: `id notin (1,2,3)`
 
 ## Query Types
 
@@ -101,15 +111,15 @@ Queries let you select resources based on the value of either the resource field
 
 * Field Query  
 A field query is a query that is performed on the fields of the object.  
-Example: The `visibility` object has the field `platform_id` so one might say `Give me all visibilities for a platform with id 038001bc-80bd-4d67-bf3a-956e4d545e3c`. This translates to `GET /visibilities?fieldQuery=platform_id = 038001bc-80bd-4d67-bf3a-956e4d545e3c`
+Example: The `visibility` object has the field `platform_id` so one might say `Give me all visibilities for a platform with id 038001bc-80bd-4d67-bf3a-956e4d545e3c`. This translates to `GET /visibilities?fieldQuery=platform_id eq '038001bc-80bd-4d67-bf3a-956e4d545e3c'`
 
 * Label Query  
 A label query is a query that is performed on the labels associated with the object.
-Example: You might label multiple visibilities with the label `test = true` saying that this is test data. So getting all non-test visibilities (these are the ones that either have `test = false` or they don't have a `test` label) would translate to `GET /visibilities?labelQuery=test eqornil false`
+Example: You might label multiple visibilities with the label `test = true` saying that this is test data. So getting all non-test visibilities (these are the ones that either have `test = false` or they don't have a `test` label) would translate to `GET /visibilities?labelQuery=test en false`
 
 * Mixed Query  
 A mixed query is a query that is performed both on fields and labels.  
-Example: `Give me all non-test visibilities for platform with id 038001bc-80bd-4d67-bf3a-956e4d545e3c.` This would translate to `/visibilities?fieldQuery=platform_id = 038001bc-80bd-4d67-bf3a-956e4d545e3c&labelQuery=test eqornil false`
+Example: `Give me all non-test visibilities for platform with id 038001bc-80bd-4d67-bf3a-956e4d545e3c.` This would translate to `/visibilities?fieldQuery=platform_id eq '038001bc-80bd-4d67-bf3a-956e4d545e3c'&labelQuery=test en false`
 
 # Supported resources
 

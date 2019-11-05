@@ -18,14 +18,17 @@ package test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+
+	"github.com/tidwall/gjson"
 
 	"github.com/Peripli/service-manager/pkg/multitenancy"
 
+	"github.com/Peripli/service-manager/pkg/web"
+
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/sm"
-
-	"github.com/gavv/httpexpect"
 
 	. "github.com/onsi/gomega"
 
@@ -58,8 +61,8 @@ type TestCase struct {
 
 	MultitenancySettings                   *MultitenancySettings
 	DisableTenantResources                 bool
-	ResourceBlueprint                      func(ctx *common.TestContext, smClient *httpexpect.Expect) common.Object
-	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext, smClient *httpexpect.Expect) common.Object
+	ResourceBlueprint                      func(ctx *common.TestContext, smClient *common.SMExpect) common.Object
+	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext, smClient *common.SMExpect) common.Object
 	AdditionalTests                        func(ctx *common.TestContext)
 }
 
@@ -81,7 +84,24 @@ func DescribeTestsFor(t TestCase) bool {
 				ctxBuilder.
 					WithTenantTokenClaims(t.MultitenancySettings.TokenClaims).
 					WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
-						smb.EnableMultitenancy(t.MultitenancySettings.LabelKey, multitenancy.ExtractTenatFromTokenWrapperFunc(t.MultitenancySettings.ClientID, t.MultitenancySettings.ClientIDTokenClaim, t.MultitenancySettings.TenantTokenClaim))
+						smb.EnableMultitenancy(t.MultitenancySettings.LabelKey, func(request *web.Request) (string, error) {
+							extractTenantFromToken := multitenancy.ExtractTenantFromTokenWrapperFunc(t.MultitenancySettings.TenantTokenClaim)
+							user, ok := web.UserFromContext(request.Context())
+							if !ok {
+								return "", nil
+							}
+							var userData json.RawMessage
+							if err := user.Data(&userData); err != nil {
+								return "", fmt.Errorf("could not unmarshal claims from token: %s", err)
+							}
+							clientIDFromToken := gjson.GetBytes([]byte(userData), t.MultitenancySettings.ClientIDTokenClaim).String()
+							if t.MultitenancySettings.ClientID != clientIDFromToken {
+								return "", nil
+							}
+							user.AccessLevel = web.TenantAccess
+							request.Request = request.WithContext(web.ContextWithUser(request.Context(), user))
+							return extractTenantFromToken(request)
+						})
 						return nil
 					})
 			}

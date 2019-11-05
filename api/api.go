@@ -47,20 +47,24 @@ const osbVersion = "2.13"
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	TokenIssuerURL string   `mapstructure:"token_issuer_url" description:"url of the token issuer which to use for validating tokens"`
-	ClientID       string   `mapstructure:"client_id" description:"id of the client from which the token must be issued"`
-	TokenBasicAuth bool     `mapstructure:"token_basic_auth" description:"specifies if client credentials to the authorization server should be sent in the header as basic auth (true) or in the body (false)"`
-	ProctedLabels  []string `mapstructure:"protected_labels" description:"defines labels which cannot be modified/added by REST API requests"`
-	OSBVersion     string   `mapstructure:"-"`
+	TokenIssuerURL  string   `mapstructure:"token_issuer_url" description:"url of the token issuer which to use for validating tokens"`
+	ClientID        string   `mapstructure:"client_id" description:"id of the client from which the token must be issued"`
+	TokenBasicAuth  bool     `mapstructure:"token_basic_auth" description:"specifies if client credentials to the authorization server should be sent in the header as basic auth (true) or in the body (false)"`
+	ProctedLabels   []string `mapstructure:"protected_labels" description:"defines labels which cannot be modified/added by REST API requests"`
+	OSBVersion      string   `mapstructure:"-"`
+	MaxPageSize     int      `mapstructure:"max_page_size" description:"maximum number of items that could be returned in a single page"`
+	DefaultPageSize int      `mapstructure:"default_page_size" description:"default number of items returned in a single page if not specified in request"`
 }
 
 // DefaultSettings returns default values for API settings
 func DefaultSettings() *Settings {
 	return &Settings{
-		TokenIssuerURL: "",
-		ClientID:       "",
-		TokenBasicAuth: true, // RFC 6749 section 2.3.1
-		OSBVersion:     osbVersion,
+		TokenIssuerURL:  "",
+		ClientID:        "",
+		TokenBasicAuth:  true, // RFC 6749 section 2.3.1
+		OSBVersion:      osbVersion,
+		MaxPageSize:     200,
+		DefaultPageSize: 50,
 		ProctedLabels:  []string{},
 	}
 }
@@ -74,7 +78,7 @@ func (s *Settings) Validate() error {
 }
 
 type Options struct {
-	Repository  storage.Repository
+	Repository  storage.TransactionalRepository
 	APISettings *Settings
 	WSSettings  *ws.Settings
 	Notificator storage.Notificator
@@ -92,16 +96,16 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 		Controllers: []web.Controller{
 			NewController(options.Repository, web.ServiceBrokersURL, types.ServiceBrokerType, func() types.Object {
 				return &types.ServiceBroker{}
-			}),
+			}, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
 			NewController(options.Repository, web.PlatformsURL, types.PlatformType, func() types.Object {
 				return &types.Platform{}
-			}),
+			}, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
 			NewController(options.Repository, web.VisibilitiesURL, types.VisibilityType, func() types.Object {
 				return &types.Visibility{}
-			}),
+			}, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
 			apiNotifications.NewController(ctx, options.Repository, options.WSSettings, options.Notificator),
-			NewServiceOfferingController(options.Repository),
-			NewServicePlanController(options.Repository),
+			NewServiceOfferingController(options.Repository, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
+			NewServicePlanController(options.Repository, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
 			&info.Controller{
 				TokenIssuer:    options.APISettings.TokenIssuerURL,
 				TokenBasicAuth: options.APISettings.TokenBasicAuth,
@@ -130,6 +134,8 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			filters.NewProtectedLabelsFilter(options.APISettings.ProctedLabels),
 			&filters.PlatformAwareVisibilityFilter{},
 			&filters.PatchOnlyLabelsFilter{},
+			filters.NewPlansFilterByVisibility(options.Repository),
+			filters.NewServicesFilterByVisibility(options.Repository),
 		},
 		Registry: health.NewDefaultRegistry(),
 	}, nil

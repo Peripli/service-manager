@@ -58,9 +58,9 @@ type Authenticator interface {
 // returns a decision if the authorization passed
 //go:generate counterfeiter . Authorizer
 type Authorizer interface {
-	// Authorize returns decision specifying
-	// whether the authorizer ran or not and an error if one occurs
-	Authorize(req *web.Request) (Decision, error)
+	// Authorize returns decision specifying whether the authorizer allowed, denied or abstained from giving access,
+	// the access level associated with the decision and an error if one occurs
+	Authorize(req *web.Request) (Decision, web.AccessLevel, error)
 }
 
 // TokenData represents the authentication token

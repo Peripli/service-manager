@@ -43,9 +43,10 @@ type ServicePlan struct {
 func (sp *ServicePlan) ToObject() types.Object {
 	return &types.ServicePlan{
 		Base: types.Base{
-			ID:        sp.ID,
-			CreatedAt: sp.CreatedAt,
-			UpdatedAt: sp.UpdatedAt,
+			ID:             sp.ID,
+			CreatedAt:      sp.CreatedAt,
+			UpdatedAt:      sp.UpdatedAt,
+			PagingSequence: sp.PagingSequence,
 		},
 		Name:              sp.Name,
 		Description:       sp.Description,
@@ -67,9 +68,10 @@ func (sp *ServicePlan) FromObject(object types.Object) (storage.Entity, bool) {
 	}
 	return &ServicePlan{
 		BaseEntity: BaseEntity{
-			ID:        plan.ID,
-			CreatedAt: plan.CreatedAt,
-			UpdatedAt: plan.UpdatedAt,
+			ID:             plan.ID,
+			CreatedAt:      plan.CreatedAt,
+			UpdatedAt:      plan.UpdatedAt,
+			PagingSequence: plan.PagingSequence,
 		},
 		Name:              plan.Name,
 		Description:       plan.Description,

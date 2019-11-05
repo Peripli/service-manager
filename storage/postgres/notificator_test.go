@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/Peripli/service-manager/storage/storagefakes"
 	"sync"
 	"time"
 
@@ -53,7 +52,6 @@ var _ = Describe("Notificator", func() {
 		ctx                        context.Context
 		cancel                     context.CancelFunc
 		wg                         *sync.WaitGroup
-		fakeStorage                *storagefakes.FakeStorage
 		fakeNotificationStorage    *postgresfakes.FakeNotificationStorage
 		fakeConnectionCreator      *postgresfakes.FakeNotificationConnectionCreator
 		testNotificator            storage.Notificator
@@ -97,9 +95,8 @@ var _ = Describe("Notificator", func() {
 			connectionMutex: &sync.Mutex{},
 			consumersMutex:  &sync.Mutex{},
 			consumers: &consumers{
-				repository: fakeStorage,
-				queues:     make(map[string][]storage.NotificationQueue),
-				platforms:  make([]*types.Platform, 0),
+				queues:    make(map[string][]storage.NotificationQueue),
+				platforms: make([]*types.Platform, 0),
 			},
 			storage:           fakeNotificationStorage,
 			connectionCreator: fakeConnectionCreator,
@@ -152,7 +149,6 @@ var _ = Describe("Notificator", func() {
 				ID: "platformID",
 			},
 		}
-		fakeStorage = &storagefakes.FakeStorage{}
 		fakeNotificationStorage = &postgresfakes.FakeNotificationStorage{}
 		fakeNotificationStorage.GetLastRevisionReturns(defaultLastRevision, nil)
 		fakeNotificationConnection = &notificationConnectionFakes.FakeNotificationConnection{}

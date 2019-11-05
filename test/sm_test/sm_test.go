@@ -141,7 +141,7 @@ var _ = Describe("SM", func() {
 
 				SM := verifyServiceManagerStartsSuccessFully(httptest.NewServer(smanager.Build().Server.Router))
 
-				SM.GET("/v1/info").
+				SM.GET(web.InfoURL).
 					Expect().
 					Status(http.StatusOK).JSON().Object().Value("invoked").Equal("filter")
 			})
@@ -172,14 +172,14 @@ var _ = Describe("SM", func() {
 	})
 })
 
-func verifyServiceManagerStartsSuccessFully(serviceManagerServer *httptest.Server) *httpexpect.Expect {
+func verifyServiceManagerStartsSuccessFully(serviceManagerServer *httptest.Server) *common.SMExpect {
 	SM := httpexpect.New(GinkgoT(), serviceManagerServer.URL)
 	SM.GET(healthcheck.URL).
 		Expect().
 		Status(http.StatusOK).JSON().Object().ContainsMap(map[string]interface{}{
 		"status": "UP",
 	})
-	return SM
+	return &common.SMExpect{SM}
 }
 
 func testHandler(identifier string) web.HandlerFunc {
@@ -209,7 +209,7 @@ func (tf testFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
-				web.Path("/v1/info/*"),
+				web.Path(web.InfoURL + "/*"),
 			},
 		},
 	}

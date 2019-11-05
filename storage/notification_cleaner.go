@@ -64,7 +64,7 @@ func (nc *NotificationCleaner) Start(ctx context.Context, group *sync.WaitGroup)
 }
 
 func (nc *NotificationCleaner) clean(ctx context.Context) {
-	cleanTimestamp := time.Now().Add(-nc.Settings.Notification.KeepFor).Format(time.RFC3339)
+	cleanTimestamp := util.ToRFCNanoFormat(time.Now().Add(-nc.Settings.Notification.KeepFor))
 	log.C(ctx).Infof("Deleting notifications created before %s", cleanTimestamp)
 
 	q := query.ByField(query.LessThanOperator, "created_at", cleanTimestamp)

@@ -45,9 +45,10 @@ func (p *Platform) FromObject(object types.Object) (storage.Entity, bool) {
 	}
 	result := &Platform{
 		BaseEntity: BaseEntity{
-			ID:        platform.ID,
-			CreatedAt: platform.CreatedAt,
-			UpdatedAt: platform.UpdatedAt,
+			ID:             platform.ID,
+			CreatedAt:      platform.CreatedAt,
+			UpdatedAt:      platform.UpdatedAt,
+			PagingSequence: platform.PagingSequence,
 		},
 		Type:        platform.Type,
 		Name:        platform.Name,
@@ -69,9 +70,10 @@ func (p *Platform) FromObject(object types.Object) (storage.Entity, bool) {
 func (p *Platform) ToObject() types.Object {
 	return &types.Platform{
 		Base: types.Base{
-			ID:        p.ID,
-			CreatedAt: p.CreatedAt,
-			UpdatedAt: p.UpdatedAt,
+			ID:             p.ID,
+			CreatedAt:      p.CreatedAt,
+			UpdatedAt:      p.UpdatedAt,
+			PagingSequence: p.PagingSequence,
 		},
 		Type:        p.Type,
 		Name:        p.Name,
