@@ -3,7 +3,7 @@
 # docker container. The alpine build image has to match
 # the alpine image in the referencing runtime container.
 #########################################################
-FROM golang:1.11.13-alpine3.10 AS builder
+FROM golang:1.12.13-alpine3.10 AS builder
 
 # We need so that dep can fetch it's dependencies
 RUN apk --no-cache add git
