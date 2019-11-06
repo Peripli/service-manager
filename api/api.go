@@ -65,7 +65,7 @@ func DefaultSettings() *Settings {
 		OSBVersion:      osbVersion,
 		MaxPageSize:     200,
 		DefaultPageSize: 50,
-		ProctedLabels:  []string{},
+		ProctedLabels:   []string{},
 	}
 }
 
