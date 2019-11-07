@@ -21,6 +21,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/Peripli/service-manager/pkg/env/envfakes"
+
 	"github.com/Peripli/service-manager/config"
 	"github.com/Peripli/service-manager/pkg/env"
 
@@ -46,12 +48,13 @@ var _ = Describe("SM", func() {
 		ctx         context.Context
 		cancel      context.CancelFunc
 		oauthServer *common.OAuthServer
+		fakeEnv     *envfakes.FakeEnvironment
 	)
 
 	BeforeEach(func() {
 		ctx, cancel = context.WithCancel(context.Background())
-
 		oauthServer = common.NewOAuthServer()
+		fakeEnv = &envfakes.FakeEnvironment{}
 	})
 
 	AfterEach(func() {
@@ -67,10 +70,10 @@ var _ = Describe("SM", func() {
 				env.Set("api.token_issuer_url", oauthServer.URL())
 				env.Set("log.level", "invalid")
 
-				cfg, err := config.NewForEnv(env)
+				cfg, err := config.New(env)
 				Expect(err).ToNot(HaveOccurred())
 
-				_, err = sm.New(ctx, cancel, cfg)
+				_, err = sm.New(ctx, cancel, fakeEnv, cfg)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("error validating configuration"))
 			})
@@ -83,10 +86,10 @@ var _ = Describe("SM", func() {
 				env.Set("api.token_issuer_url", oauthServer.URL())
 				env.Set("storage.uri", "invalid")
 
-				cfg, err := config.NewForEnv(env)
+				cfg, err := config.New(env)
 				Expect(err).ToNot(HaveOccurred())
 
-				_, err = sm.New(ctx, cancel, cfg)
+				_, err = sm.New(ctx, cancel, fakeEnv, cfg)
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("error opening storage"))
 			})
@@ -98,10 +101,10 @@ var _ = Describe("SM", func() {
 				Expect(err).ToNot(HaveOccurred())
 				env.Set("api.token_issuer_url", "")
 
-				cfg, err := config.NewForEnv(env)
+				cfg, err := config.New(env)
 				Expect(err).ToNot(HaveOccurred())
 
-				_, err = sm.New(ctx, cancel, cfg)
+				_, err = sm.New(ctx, cancel, fakeEnv, cfg)
 				Expect(err).To(HaveOccurred())
 			})
 		})
@@ -112,10 +115,10 @@ var _ = Describe("SM", func() {
 				Expect(err).ToNot(HaveOccurred())
 				env.Set("api.token_issuer_url", oauthServer.URL())
 
-				cfg, err := config.NewForEnv(env)
+				cfg, err := config.New(env)
 				Expect(err).ToNot(HaveOccurred())
 
-				smanager, err := sm.New(ctx, cancel, cfg)
+				smanager, err := sm.New(ctx, cancel, fakeEnv, cfg)
 				Expect(err).ToNot(HaveOccurred())
 
 				verifyServiceManagerStartsSuccessFully(httptest.NewServer(smanager.Build().Server.Router))
@@ -128,10 +131,10 @@ var _ = Describe("SM", func() {
 				Expect(err).ToNot(HaveOccurred())
 				env.Set("api.token_issuer_url", oauthServer.URL())
 
-				cfg, err := config.NewForEnv(env)
+				cfg, err := config.New(env)
 				Expect(err).ToNot(HaveOccurred())
 
-				smanager, err := sm.New(ctx, cancel, cfg)
+				smanager, err := sm.New(ctx, cancel, fakeEnv, cfg)
 				Expect(err).ToNot(HaveOccurred())
 
 				smanager.RegisterFilters(testFilter{})
@@ -150,10 +153,10 @@ var _ = Describe("SM", func() {
 				Expect(err).ToNot(HaveOccurred())
 				env.Set("api.token_issuer_url", oauthServer.URL())
 
-				cfg, err := config.NewForEnv(env)
+				cfg, err := config.New(env)
 				Expect(err).ToNot(HaveOccurred())
 
-				smanager, err := sm.New(ctx, cancel, cfg)
+				smanager, err := sm.New(ctx, cancel, fakeEnv, cfg)
 				Expect(err).ToNot(HaveOccurred())
 
 				smanager.RegisterControllers(testController{})
