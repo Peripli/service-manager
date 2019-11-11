@@ -253,24 +253,24 @@ var _ = Describe("Update", func() {
 					testEntry{
 						InitialLabels: types.Labels{
 							"organization_guid": {
-								"org0", "org1", "org2",
+								"org0", "org1", "org2", "org4",
 							},
 						},
 						Changes: LabelChanges{
 							&LabelChange{
 								Operation: RemoveLabelValuesOperation,
 								Key:       "organization_guid",
-								Values:    []string{"org0", "org1"},
+								Values:    []string{"org1", "org2"},
 							},
 						},
 						ExpectedMergedLabels: types.Labels{
 							"organization_guid": {
-								"org2",
+								"org0", "org4",
 							},
 						},
 						ExpectedLabelsToRemove: types.Labels{
 							"organization_guid": {
-								"org0", "org1",
+								"org1", "org2",
 							},
 						},
 						ExpectedLabelsToAdd: types.Labels{},
