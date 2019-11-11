@@ -249,6 +249,32 @@ var _ = Describe("Update", func() {
 						},
 						ExpectedLabelsToAdd: types.Labels{},
 					}),
+				Entry("remove two consecutive values removes both of them",
+					testEntry{
+						InitialLabels: types.Labels{
+							"organization_guid": {
+								"org0", "org1", "org2",
+							},
+						},
+						Changes: LabelChanges{
+							&LabelChange{
+								Operation: RemoveLabelValuesOperation,
+								Key:       "organization_guid",
+								Values:    []string{"org0", "org1"},
+							},
+						},
+						ExpectedMergedLabels: types.Labels{
+							"organization_guid": {
+								"org2",
+							},
+						},
+						ExpectedLabelsToRemove: types.Labels{
+							"organization_guid": {
+								"org0", "org1",
+							},
+						},
+						ExpectedLabelsToAdd: types.Labels{},
+					}),
 			}
 
 			DescribeTable("", func(t testEntry) {
