@@ -9,8 +9,6 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/query"
 
-	"github.com/tidwall/gjson"
-
 	"github.com/Peripli/service-manager/pkg/log"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -37,14 +35,14 @@ func newTenantCriteriaFilter(labelKey string, extractTenantFunc func(request *we
 		ExtractTenant: extractTenantFunc,
 		LabelingFunc: func(request *web.Request, labelKey, labelValue string) error {
 			ctx := request.Context()
-			criterion := query.ByLabel(query.EqualsOperator, labelKey, labelValue)
+			criterion := query.ByField(query.EqualsOperator, "namespace", labelValue)
 			var err error
 			ctx, err = query.AddCriteria(ctx, criterion)
 			if err != nil {
-				return fmt.Errorf("could not add label criteria with key %s and value %s: %s", labelKey, labelValue, err)
+				return fmt.Errorf("could not add field criteria with key %s and value %s: %s", "namespace", labelValue, err)
 			}
 
-			log.C(ctx).Infof("Successfully added label criteria with key %s and value %s to context", labelKey, labelValue)
+			log.C(ctx).Infof("Successfully added field criteria with key %s and value %s to context", "namespace", labelValue)
 			request.Request = request.WithContext(ctx)
 
 			return nil
@@ -60,26 +58,12 @@ func newTenantLabelingFilter(labelKey string, extractTenantFunc func(request *we
 		Methods:       []string{http.MethodPost},
 		ExtractTenant: extractTenantFunc,
 		LabelingFunc: func(request *web.Request, labelKey, labelValue string) error {
-			ctx := request.Context()
-			currentLabelValues := gjson.GetBytes(request.Body, fmt.Sprintf("labels.%s", labelKey)).Raw
-			var path string
-			var obj interface{}
-			if len(currentLabelValues) != 0 {
-				path = fmt.Sprintf("labels.%s.-1", labelKey)
-				obj = labelValue
-			} else {
-				path = fmt.Sprintf("labels.%s", labelKey)
-				obj = []string{labelValue}
-			}
-
 			var err error
-			request.Body, err = sjson.SetBytes(request.Body, path, obj)
+			request.Body, err = sjson.SetBytes(request.Body, "namespace", labelValue)
 			if err != nil {
-				return fmt.Errorf("could not add label with key %s and value %s: %s to request body during resource creation", labelKey, labelValue, err)
+				return fmt.Errorf("could not set namespace with value %s: %s to request body during resource creation", labelValue, err)
 			}
-
-			log.C(ctx).Infof("Successfully added label with key %s and value %s to request body during resource creation", labelKey, labelValue)
-
+			log.C(request.Context()).Infof("Successfully added namespace with value %s to request body during resource creation", labelValue)
 			return nil
 		},
 	}
