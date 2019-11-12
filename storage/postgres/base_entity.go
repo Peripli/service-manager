@@ -31,11 +31,16 @@ type BaseEntity struct {
 	ID             string    `db:"id"`
 	CreatedAt      time.Time `db:"created_at"`
 	UpdatedAt      time.Time `db:"updated_at"`
+	Namespace      string    `db:"namespace"`
 	PagingSequence int64     `db:"paging_sequence,auto_increment"`
 }
 
 func (e *BaseEntity) GetID() string {
 	return e.ID
+}
+
+func (e *BaseEntity) GetNamespace() string {
+	return e.Namespace
 }
 
 func (e *BaseEntity) BuildLabels(labels types.Labels, newLabel func(id, key, value string) storage.Label) ([]storage.Label, error) {

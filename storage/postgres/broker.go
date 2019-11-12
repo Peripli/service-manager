@@ -50,6 +50,7 @@ func (e *Broker) ToObject() types.Object {
 			CreatedAt:      e.CreatedAt,
 			UpdatedAt:      e.UpdatedAt,
 			Labels:         map[string][]string{},
+			Namespace:      e.Namespace,
 			PagingSequence: e.PagingSequence,
 		},
 		Name:        e.Name,

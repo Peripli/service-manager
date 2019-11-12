@@ -23,6 +23,7 @@ type Base struct {
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 	Labels         Labels    `json:"labels,omitempty"`
+	Namespace      string    `json:"-"`
 	PagingSequence int64     `json:"-"`
 }
 
@@ -56,6 +57,14 @@ func (e *Base) SetLabels(labels Labels) {
 
 func (e *Base) GetLabels() Labels {
 	return e.Labels
+}
+
+func (e *Base) SetNamespace(namespace string) {
+	e.Namespace = namespace
+}
+
+func (e *Base) GetNamespace() string {
+	return e.Namespace
 }
 
 func (e *Base) GetPagingSequence() int64 {
