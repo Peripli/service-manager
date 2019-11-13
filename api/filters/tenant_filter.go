@@ -105,6 +105,7 @@ func (f *TenantFilter) Run(request *web.Request, next web.Handler) (*web.Respons
 	}
 	if userContext.AccessLevel == web.GlobalAccess {
 		log.C(ctx).Infof("Access level is Global. Proceeding with empty tenant ID value...")
+		// TODO Do not allow namespace to be set by user
 		return next.Handle(request)
 	}
 

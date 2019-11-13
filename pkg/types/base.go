@@ -23,7 +23,7 @@ type Base struct {
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 	Labels         Labels    `json:"labels,omitempty"`
-	Namespace      string    `json:"-"`
+	Namespace      string    `json:"namespace"`
 	PagingSequence int64     `json:"-"`
 }
 
