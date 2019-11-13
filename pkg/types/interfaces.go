@@ -44,6 +44,8 @@ type Object interface {
 	GetCreatedAt() time.Time
 	SetUpdatedAt(time time.Time)
 	GetUpdatedAt() time.Time
+	GetNamespace() string
+	SetNamespace(namespace string)
 	GetPagingSequence() int64
 }
 

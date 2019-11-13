@@ -7,4 +7,8 @@ ALTER TABLE service_plans DROP COLUMN namespace;
 ALTER TABLE service_offerings DROP COLUMN namespace;
 ALTER TABLE visibilities DROP COLUMN namespace;
 
+ALTER TABLE brokers DROP CONSTRAINT unique_broker;
+-- TODO transfer namespace to subaccount labels and fix duplicate names
+ALTER TABLE brokers ADD CONSTRAINT brokers_name_key UNIQUE (name);
+
 COMMIT;
