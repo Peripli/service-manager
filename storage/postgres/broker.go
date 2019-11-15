@@ -85,6 +85,7 @@ func (*Broker) FromObject(object types.Object) (storage.Entity, bool) {
 			ID:             broker.ID,
 			CreatedAt:      broker.CreatedAt,
 			UpdatedAt:      broker.UpdatedAt,
+			Namespace:      broker.Namespace,
 			PagingSequence: broker.PagingSequence,
 		},
 		Name:        broker.Name,
