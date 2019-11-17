@@ -1,6 +1,6 @@
 BEGIN;
 
-CREATE TYPE operation_type AS ENUM ('CREATE', 'DELETE', 'UPDATE');
+CREATE TYPE operation_type  AS ENUM ('CREATE', 'DELETE', 'UPDATE');
 CREATE TYPE operation_state AS ENUM ('SUCCEEDED', 'FAILED', 'IN PROGRESS');
 
 CREATE TABLE operations
@@ -24,9 +24,9 @@ CREATE TABLE operation_labels
   id            varchar(100) PRIMARY KEY,
   key           varchar(255) NOT NULL CHECK (key <> ''),
   val           varchar(255) NOT NULL CHECK (val <> ''),
-  operation_id varchar(100) NOT NULL REFERENCES operations (id) ON DELETE CASCADE,
-  created_at    timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at    timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  operation_id  varchar(100) NOT NULL REFERENCES operations (id) ON DELETE CASCADE,
+  created_at    timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE (key, val, operation_id)
 );
 
