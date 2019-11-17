@@ -25,7 +25,7 @@ import (
 )
 
 //go:generate smgen api ServiceInstance
-// ServiceInstance broker struct
+// ServiceInstance struct
 type ServiceInstance struct {
 	Base
 	Name            string          `json:"name"`
