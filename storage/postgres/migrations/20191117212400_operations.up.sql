@@ -15,7 +15,22 @@ CREATE TABLE operations
   resource_id       varchar(100),
   created_at        timestamptz    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at        timestamptz    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  errors            json         DEFAULT '{}'
+  errors            json         DEFAULT '{}',
+  paging_sequence   BIGSERIAL
 );
+
+CREATE TABLE operation_labels
+(
+  id            varchar(100) PRIMARY KEY,
+  key           varchar(255) NOT NULL CHECK (key <> ''),
+  val           varchar(255) NOT NULL CHECK (val <> ''),
+  operation_id varchar(100) NOT NULL REFERENCES operations (id) ON DELETE CASCADE,
+  created_at    timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (key, val, operation_id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS operations_paging_sequence_uindex
+    on operations (paging_sequence);
 
 COMMIT;

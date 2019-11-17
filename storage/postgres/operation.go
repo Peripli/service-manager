@@ -41,10 +41,10 @@ type Operation struct {
 func (o *Operation) ToObject() types.Object {
 	return &types.Operation{
 		Base: types.Base{
-			ID:        o.ID,
-			CreatedAt: o.CreatedAt,
-			UpdatedAt: o.UpdatedAt,
-			Labels:    map[string][]string{},
+			ID:             o.ID,
+			CreatedAt:      o.CreatedAt,
+			UpdatedAt:      o.UpdatedAt,
+			PagingSequence: o.PagingSequence,
 		},
 		Description:   o.Description.String,
 		Type:          types.OperationCategory(o.Type),
@@ -65,9 +65,10 @@ func (*Operation) FromObject(object types.Object) (storage.Entity, bool) {
 
 	o := &Operation{
 		BaseEntity: BaseEntity{
-			ID:        operation.ID,
-			CreatedAt: operation.CreatedAt,
-			UpdatedAt: operation.UpdatedAt,
+			ID:             operation.ID,
+			CreatedAt:      operation.CreatedAt,
+			UpdatedAt:      operation.UpdatedAt,
+			PagingSequence: operation.PagingSequence,
 		},
 		Description:   toNullString(operation.Description),
 		Type:          string(operation.Type),
