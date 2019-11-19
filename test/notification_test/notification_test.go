@@ -289,9 +289,10 @@ var _ = Describe("Notifications Suite", func() {
 				serviceBroker := broker.(*types.ServiceBroker)
 
 				bytes, err := json.Marshal(interceptors.VisibilityAdditional{
-					BrokerID:    serviceBroker.ID,
-					BrokerName:  serviceBroker.Name,
-					ServicePlan: expectedServicePlan,
+					BrokerID:        serviceBroker.ID,
+					BrokerName:      serviceBroker.Name,
+					BrokerNamespace: serviceBroker.Namespace,
+					ServicePlan:     expectedServicePlan,
 				})
 				Expect(err).ShouldNot(HaveOccurred())
 

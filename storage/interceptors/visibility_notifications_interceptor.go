@@ -43,18 +43,20 @@ func NewVisibilityNotificationsInterceptor() *NotificationsInterceptor {
 			serviceBroker := broker.(*types.ServiceBroker)
 
 			return &VisibilityAdditional{
-				BrokerID:    serviceBroker.ID,
-				BrokerName:  serviceBroker.Name,
-				ServicePlan: plan.(*types.ServicePlan),
+				BrokerID:        serviceBroker.ID,
+				BrokerName:      serviceBroker.Name,
+				BrokerNamespace: serviceBroker.Namespace,
+				ServicePlan:     plan.(*types.ServicePlan),
 			}, nil
 		},
 	}
 }
 
 type VisibilityAdditional struct {
-	BrokerID    string             `json:"broker_id"`
-	BrokerName  string             `json:"broker_name"`
-	ServicePlan *types.ServicePlan `json:"service_plan,omitempty"`
+	BrokerID        string             `json:"broker_id"`
+	BrokerName      string             `json:"broker_name"`
+	BrokerNamespace string             `json:"broker_namespace"`
+	ServicePlan     *types.ServicePlan `json:"service_plan,omitempty"`
 }
 
 func (va VisibilityAdditional) Validate() error {
