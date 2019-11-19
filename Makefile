@@ -41,7 +41,7 @@ GENERATE_PREREQ_FILES = $(shell find . -name "*.go" ! -path "./vendor/*" -exec g
 
 # GO_FLAGS - extra "go build" flags to use - e.g. -v (for verbose)
 GO_BUILD 		= env CGO_ENABLED=0 GOOS=$(PLATFORM) GOARCH=$(ARCH) \
-           		$(GO) build $(GO_FLAGS) -ldflags '-s -w $(BUILD_LDFLAGS) $(VERSION_FLAGS)'
+           		$(GO) build  $(GO_FLAGS) -ldflags '-s -w $(BUILD_LDFLAGS) $(VERSION_FLAGS) '
 
 # TEST_FLAGS - extra "go test" flags to use
 GO_INT_TEST 	= $(GO) test -p 1 -race -coverpkg $(shell go list ./... | egrep -v "fakes|test|cmd|parser" | paste -sd "," -) \
@@ -115,7 +115,19 @@ service-manager: $(BINDIR)/service-manager
 
 # Build serivce-manager under ./bin/service-manager
 $(BINDIR)/service-manager: FORCE | .init
-	 $(GO_BUILD) -o $@ $(PROJECT_PKG)
+	 $(GO_BUILD) -o $@ $(PROJECT_PKG)/cmd/service-manager
+
+cf-agent: $(BINDIR)/cf-agent
+
+# Build cf service-broker-proxy under ./bin/cf-sbproxy
+$(BINDIR)/cf-agent: .init
+	 $(GO_BUILD) -o $@ $(PROJECT_PKG)/cmd/cf-agent
+
+k8s-agent: $(BINDIR)/k8s-agent
+
+# Build cf service-broker-proxy under ./bin/cf-sbproxy
+$(BINDIR)/k8s-agent: .init
+	 $(GO_BUILD) -o $@ $(PROJECT_PKG)/cmd/k8s-agent
 
 # init creates the bin dir
 .init: $(BINDIR)

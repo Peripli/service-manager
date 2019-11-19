@@ -47,14 +47,6 @@
   version = "v1.5.0"
 
 [[projects]]
-  digest = "1:dd9c36de5dc65421ea4f8ab638bf22baaa4f20113f8deabed877dee3daf71553"
-  name = "github.com/Peripli/service-broker-proxy-k8s"
-  packages = ["pkg/k8s/api"]
-  pruneopts = "UT"
-  revision = "36350004c3f0c142358b29417879699686628bb3"
-  version = "v0.3.3"
-
-[[projects]]
   digest = "1:f780d408067189c4c42b53f7bb24ebf8fd2a1e4510b813ed6e79dd6563e38cc5"
   name = "github.com/ajg/form"
   packages = ["."]
@@ -1054,7 +1046,6 @@
     "github.com/InVisionApp/go-health",
     "github.com/InVisionApp/go-health/checkers",
     "github.com/InVisionApp/go-logger/shims/logrus",
-    "github.com/Peripli/service-broker-proxy-k8s/pkg/k8s/api",
     "github.com/antlr/antlr4/runtime/Go/antlr",
     "github.com/benjamintf1/unmarshalledmatchers",
     "github.com/cloudfoundry-community/go-cfclient",

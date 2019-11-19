@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Peripli/service-manager/cmd/k8s-agent/k8s/api"
 	"github.com/Peripli/service-manager/cmd/k8s-agent/k8s/config"
-	"github.com/Peripli/service-manager/pkg/agent/k8s/api"
 	servicecatalog "github.com/kubernetes-sigs/service-catalog/pkg/svcat/service-catalog"
 
 	"github.com/Peripli/service-manager/pkg/agent/platform"
