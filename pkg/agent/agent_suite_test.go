@@ -23,7 +23,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestSbproxy(t *testing.T) {
+func TestAgent(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Sbproxy Suite")
+	RunSpecs(t, "Agent Suite")
 }
