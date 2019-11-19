@@ -4,6 +4,11 @@
   go-tests = true
   unused-packages = true
 
+  [[prune.project]]
+    name = "github.com/kubernetes-sigs/service-catalog"
+    # service catalog has some wierd files that are too long on Windows
+    non-go = true
+
 # Backwards-incompatible change is introduced in mux 1.6.2 - gorilla/mux#338
 [[constraint]]
   name = "github.com/gorilla/mux"
@@ -77,7 +82,7 @@
   name = "github.com/spf13/pflag"
   version = "=1.0.1"
 
-[[constraint]]
+[[override]]
   name = "gopkg.in/yaml.v2"
   version = "2.2.1"
 
@@ -117,3 +122,40 @@ source = "https://github.com/fsnotify/fsnotify.git"
 [[constraint]]
   name = "github.com/InVisionApp/go-health"
   version = "v2.1.0"
+
+[[constraint]]
+  name = "github.com/kubernetes-sigs/service-catalog"
+  revision = "6d7cea62c1aa18b8296ce1c7263b431ade159f3a"
+
+# Specify kubernetes dependency versions
+[[override]]
+  branch = "release-1.14"
+  name = "k8s.io/api"
+
+[[override]]
+  branch = "release-1.14"
+  name = "k8s.io/apiextensions-apiserver"
+
+[[override]]
+  branch = "release-1.14"
+  name = "k8s.io/apimachinery"
+
+[[override]]
+  branch = "release-1.14"
+  name = "k8s.io/apiserver"
+
+[[override]]
+  branch = "release-11.0"
+  name = "k8s.io/client-go"
+
+[[override]]
+  branch = "release-1.14"
+  name = "k8s.io/code-generator"
+
+[[constraint]]
+  name = "github.com/pkg/errors"
+  version = "0.8.0"
+
+[[constraint]]
+  name = "github.com/cloudfoundry-community/go-cfclient"
+  branch = "master"
