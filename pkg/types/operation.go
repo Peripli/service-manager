@@ -26,9 +26,6 @@ import (
 // OperationCategory is the type of an operation
 type OperationCategory string
 
-// OperationState is the state of an operation
-type OperationState string
-
 const (
 	// CREATE represents an operation type for creating a resource
 	CREATE OperationCategory = "CREATE"
@@ -38,7 +35,12 @@ const (
 
 	// DELETE represents an operation type for deleting a resource
 	DELETE OperationCategory = "DELETE"
+)
 
+// OperationState is the state of an operation
+type OperationState string
+
+const (
 	// SUCCEEDED represents the state of an operation after successful execution
 	SUCCEEDED OperationState = "SUCCEEDED"
 
