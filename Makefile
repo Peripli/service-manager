@@ -119,13 +119,13 @@ $(BINDIR)/service-manager: FORCE | .init
 
 cf-agent: $(BINDIR)/cf-agent
 
-# Build cf service-broker-proxy under ./bin/cf-sbproxy
+# Build cf service-manager-agent under ./bin/cf-sbproxy
 $(BINDIR)/cf-agent: .init
 	 $(GO_BUILD) -o $@ $(PROJECT_PKG)/cmd/cf-agent
 
 k8s-agent: $(BINDIR)/k8s-agent
 
-# Build cf service-broker-proxy under ./bin/cf-sbproxy
+# Build cf service-manager-agent under ./bin/cf-sbproxy
 $(BINDIR)/k8s-agent: .init
 	 $(GO_BUILD) -o $@ $(PROJECT_PKG)/cmd/k8s-agent
 

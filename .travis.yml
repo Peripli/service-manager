@@ -3,6 +3,11 @@ language: go
 go:
   - 1.12.x
 
+# set tag for helm chart
+env:
+  global:
+    - HELM_URL=https://storage.googleapis.com/kubernetes-helm/helm-v2.11.0-linux-amd64.tar.gz
+
 addons:
   postgresql: "9.6"
 
@@ -16,6 +21,28 @@ script:
   - make precommit
   - goveralls -coverprofile profile.cov -service=travis-ci
 
+before_deploy:
+  # Download and install helm
+  - wget ${HELM_URL} -O helm.tar.gz
+  - tar -xzf helm.tar.gz
+  - mv linux-amd64/helm $HOME/bin
+  - rm -rf helm.tar.gz linux-amd64
+
+  # Change default docker image tag in values.yaml
+  - "sed -i -e 's/tag: master/tag: '${TRAVIS_TAG:-master}'/g' ./deployment/k8s/charts/service-manager-agent/values.yaml"
+
+  # Create helm-chart
+  - mkdir out
+  - helm package --app-version ${TRAVIS_TAG:-"master"} -d ./out deployment/k8s/charts/service-manager-agent --save=false
+
+deploy:
+  provider: releases
+  file_glob: true
+  file: out/*
+  skip_cleanup: true
+  api_key: $GITHUB_TOKEN
+  on:
+    tags: true
 
 notifications:
   slack: openservicebrokerapi:KQo2QAC6LXeEeXPOemOXja48

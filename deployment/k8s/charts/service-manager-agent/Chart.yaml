@@ -1,0 +1,5 @@
+apiVersion: v1
+appVersion: "master"
+description: A Helm chart for Service Manager Agent for Kubernetes
+name: service-manager-agent
+version: 0.5.0
