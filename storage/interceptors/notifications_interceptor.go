@@ -149,7 +149,7 @@ func (ni *NotificationsInterceptor) OnTxDelete(h storage.InterceptDeleteOnTxFunc
 	}
 }
 
-func CreateNotification(ctx context.Context, repository storage.Repository, op types.OperationType, resource types.ObjectType, platformID string, payload *Payload) error {
+func CreateNotification(ctx context.Context, repository storage.Repository, op types.NotificationOperation, resource types.ObjectType, platformID string, payload *Payload) error {
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		return fmt.Errorf("could not generate GUID for notification of type %s for resource of type %s: %s", op, resource, err)
