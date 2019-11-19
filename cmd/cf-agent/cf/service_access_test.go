@@ -260,7 +260,7 @@ var _ = Describe("Client Service Plan Access", func() {
 			Count: 1,
 			Pages: 1,
 			Resources: []cfclient.ServiceBrokerResource{
-				cfclient.ServiceBrokerResource{
+				{
 					Entity: cfclient.ServiceBroker{
 						Guid: brokerGUID,
 					},
@@ -272,7 +272,7 @@ var _ = Describe("Client Service Plan Access", func() {
 			Count: 1,
 			Pages: 1,
 			Resources: []cfclient.ServicesResource{
-				cfclient.ServicesResource{
+				{
 					Entity: cfclient.Service{
 						Guid:              serviceGUID,
 						ServiceBrokerGuid: brokerGUID,
