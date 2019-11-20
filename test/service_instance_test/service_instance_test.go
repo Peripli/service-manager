@@ -19,7 +19,6 @@ package service_test
 import (
 	"context"
 	"fmt"
-
 	"github.com/Peripli/service-manager/test/testutil/service_instance"
 
 	"github.com/Peripli/service-manager/pkg/query"
