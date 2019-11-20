@@ -22,6 +22,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/gofrs/uuid"
+	"net/http"
 	"testing"
 	"time"
 
@@ -79,9 +80,39 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	AdditionalTests: func(ctx *common.TestContext) {
 		Context("additional non-generic tests", func() {
 			Describe("GET", func() {
-				It("instance is labelled with tenant identifier", func() {
-					serviceInstance := ctx.SMWithOAuth.List(web.ServiceInstancesURL).First().Object()
-					serviceInstance.Path(fmt.Sprintf("$.labels[%s][*]", TenantIdentifier)).Array().Contains(TenantValue)
+				var serviceInstance *types.ServiceInstance
+
+				When("service instance contains tenant identifier in OSB context", func() {
+					BeforeEach(func() {
+						serviceInstance = prepareServiceInstance(ctx, ctx.SMWithOAuth, fmt.Sprintf(`{"%s":"%s"}`, TenantIdentifier, TenantValue))
+						ctx.SMRepository.Create(context.Background(), serviceInstance)
+					})
+
+					It("labels instance with tenant identifier", func() {
+						ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + serviceInstance.ID).Expect().
+							Status(http.StatusOK).
+							JSON().
+							Object().Path(fmt.Sprintf("$.labels[%s][*]", TenantIdentifier)).Array().Contains(TenantValue)
+					})
+				})
+				When("service instance doesn't contain tenant identifier in OSB context", func() {
+					BeforeEach(func() {
+						serviceInstance = prepareServiceInstance(ctx, ctx.SMWithOAuth, "{}")
+						ctx.SMRepository.Create(context.Background(), serviceInstance)
+					})
+
+					It("doesn't label instance with tenant identifier", func() {
+						obj := ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + serviceInstance.ID).Expect().
+							Status(http.StatusOK).JSON().Object()
+
+						objMap := obj.Raw()
+						objLabels, exist := objMap["labels"]
+						if exist {
+							labels := objLabels.(map[string]interface{})
+							_, tenantLabelExists := labels[TenantIdentifier]
+							Expect(tenantLabelExists).To(BeFalse())
+						}
+					})
 				})
 			})
 		})
@@ -89,6 +120,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 })
 
 func blueprint(ctx *common.TestContext, auth *common.SMExpect) common.Object {
+	serviceInstance := prepareServiceInstance(ctx, auth, fmt.Sprintf(`{"%s":"%s"}`, TenantIdentifier, TenantValue))
+	ctx.SMRepository.Create(context.Background(), serviceInstance)
+
+	return auth.ListWithQuery(web.ServiceInstancesURL, fmt.Sprintf("fieldQuery=id eq '%s'", serviceInstance.ID)).First().Object().Raw()
+}
+
+func prepareServiceInstance(ctx *common.TestContext, auth *common.SMExpect, OSBContext string) *types.ServiceInstance {
 	cService := common.GenerateTestServiceWithPlans(common.GenerateFreeTestPlan())
 	catalog := common.NewEmptySBCatalog()
 	catalog.AddService(cService)
@@ -113,7 +151,7 @@ func blueprint(ctx *common.TestContext, auth *common.SMExpect) common.Object {
 		Fail(fmt.Sprintf("failed to generate instance GUID: %s", err))
 	}
 
-	ctx.SMRepository.Create(context.Background(), &types.ServiceInstance{
+	return &types.ServiceInstance{
 		Base: types.Base{
 			ID:        instanceID.String(),
 			CreatedAt: time.Now(),
@@ -122,10 +160,8 @@ func blueprint(ctx *common.TestContext, auth *common.SMExpect) common.Object {
 		Name:          "test-service-instance",
 		ServicePlanID: planID,
 		PlatformID:    ctx.TestPlatform.ID,
-		Context:       []byte(fmt.Sprintf(`{"%s":"%s"}`, TenantIdentifier, TenantValue)),
+		Context:       []byte(OSBContext),
 		Ready:         true,
 		Usable:        true,
-	})
-
-	return auth.ListWithQuery(web.ServiceInstancesURL, fmt.Sprintf("fieldQuery=id eq '%s'", instanceID.String())).First().Object().Raw()
+	}
 }

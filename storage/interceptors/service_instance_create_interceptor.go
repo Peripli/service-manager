@@ -38,7 +38,6 @@ func (c *ServiceInstanceCreateInsterceptorProvider) Provide() storage.CreateInte
 	return &serviceInstanceCreateInterceptor{
 		TenantIdentifier: c.TenantIdentifier,
 	}
-
 }
 
 type serviceInstanceCreateInterceptor struct {
