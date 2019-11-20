@@ -60,6 +60,9 @@ func (c *serviceInstanceCreateInterceptor) AroundTxCreate(h storage.InterceptCre
 		}
 
 		labels := serviceInstance.GetLabels()
+		if labels == nil {
+			labels = types.Labels{}
+		}
 		labels[c.TenantIdentifier] = []string{tenantID.String()}
 
 		serviceInstance.SetLabels(labels)

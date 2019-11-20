@@ -40,10 +40,25 @@ func TestServiceInstances(t *testing.T) {
 	RunSpecs(t, "Service Instances Tests Suite")
 }
 
+const (
+	TenantIdentifier = "tenant"
+	TenantValue      = "tenant_value"
+)
+
 var _ = test.DescribeTestsFor(test.TestCase{
 	API: web.ServiceInstancesURL,
 	SupportedOps: []test.Op{
 		test.Get, test.List,
+	},
+	MultitenancySettings: &test.MultitenancySettings{
+		ClientID:           "tenancyClient",
+		ClientIDTokenClaim: "cid",
+		TenantTokenClaim:   "zid",
+		LabelKey:           TenantIdentifier,
+		TokenClaims: map[string]interface{}{
+			"cid": "tenancyClient",
+			"zid": "tenantID",
+		},
 	},
 	ResourceType:                           types.ServiceInstanceType,
 	DisableTenantResources:                 true,
@@ -60,6 +75,16 @@ var _ = test.DescribeTestsFor(test.TestCase{
 		if err != nil {
 			Fail(fmt.Sprintf("unable to update resource %s: %s", resourceType, err))
 		}
+	},
+	AdditionalTests: func(ctx *common.TestContext) {
+		Context("additional non-generic tests", func() {
+			Describe("GET", func() {
+				It("instance is labelled with tenant identifier", func() {
+					serviceInstance := ctx.SMWithOAuth.List(web.ServiceInstancesURL).First().Object()
+					serviceInstance.Path(fmt.Sprintf("$.labels[%s][*]", TenantIdentifier)).Array().Contains(TenantValue)
+				})
+			})
+		})
 	},
 })
 
@@ -97,6 +122,7 @@ func blueprint(ctx *common.TestContext, auth *common.SMExpect) common.Object {
 		Name:          "test-service-instance",
 		ServicePlanID: planID,
 		PlatformID:    ctx.TestPlatform.ID,
+		Context:       []byte(fmt.Sprintf(`{"%s":"%s"}`, TenantIdentifier, TenantValue)),
 		Ready:         true,
 		Usable:        true,
 	})
