@@ -19,7 +19,6 @@ package interceptors
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/tidwall/gjson"
@@ -50,12 +49,12 @@ func (c *serviceInstanceCreateInterceptor) AroundTxCreate(h storage.InterceptCre
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		serviceInstance := obj.(*types.ServiceInstance)
 
-		b, err := json.Marshal(&serviceInstance.Context)
+		bytes, err := json.Marshal(&serviceInstance.Context)
 		if err != nil {
 			return nil, err
 		}
 
-		tenantID := gjson.Get(string(b), fmt.Sprintf("context.%s", c.TenantIdentifier))
+		tenantID := gjson.Get(string(bytes), c.TenantIdentifier)
 		if !tenantID.Exists() {
 			return h(ctx, serviceInstance)
 		}
