@@ -66,6 +66,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 	ResourceBlueprint:                      blueprint(true),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
+	PatchResource:                          test.DefaultResourcePatch,
 	AdditionalTests: func(ctx *common.TestContext) {
 		Context("additional non-generic tests", func() {
 			var (
