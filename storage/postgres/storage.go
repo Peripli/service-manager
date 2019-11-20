@@ -100,6 +100,7 @@ func (ps *Storage) Open(settings *storage.Settings) error {
 		ps.scheme.introduce(&Visibility{})
 		ps.scheme.introduce(&Notification{})
 		ps.scheme.introduce(&Operation{})
+		ps.scheme.introduce(&ServiceInstance{})
 	}
 
 	return nil
