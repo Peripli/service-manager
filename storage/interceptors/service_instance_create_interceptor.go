@@ -1,0 +1,76 @@
+/*
+ * Copyright 2018 The Service Manager Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package interceptors
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
+	"github.com/tidwall/gjson"
+)
+
+const ServiceInstanceCreateInterceptorName = "ServiceInstanceCreateInterceptor"
+
+type ServiceInstanceCreateInsterceptorProvider struct {
+	TenantIdentifier string
+}
+
+func (c *ServiceInstanceCreateInsterceptorProvider) Name() string {
+	return ServiceInstanceCreateInterceptorName
+}
+
+func (c *ServiceInstanceCreateInsterceptorProvider) Provide() storage.CreateInterceptor {
+	return &serviceInstanceCreateInterceptor{
+		TenantIdentifier: c.TenantIdentifier,
+	}
+
+}
+
+type serviceInstanceCreateInterceptor struct {
+	TenantIdentifier string
+}
+
+func (c *serviceInstanceCreateInterceptor) AroundTxCreate(h storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
+	return func(ctx context.Context, obj types.Object) (types.Object, error) {
+		serviceInstance := obj.(*types.ServiceInstance)
+
+		b, err := json.Marshal(&serviceInstance.Context)
+		if err != nil {
+			return nil, err
+		}
+
+		tenantID := gjson.Get(string(b), fmt.Sprintf("context.%s", c.TenantIdentifier))
+		if !tenantID.Exists() {
+			return h(ctx, serviceInstance)
+		}
+
+		labels := serviceInstance.GetLabels()
+		labels[c.TenantIdentifier] = []string{tenantID.String()}
+
+		serviceInstance.SetLabels(labels)
+
+		return h(ctx, serviceInstance)
+	}
+}
+
+func (c *serviceInstanceCreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
+	return func(ctx context.Context, storage storage.Repository, obj types.Object) (types.Object, error) {
+		return f(ctx, storage, obj)
+	}
+}
