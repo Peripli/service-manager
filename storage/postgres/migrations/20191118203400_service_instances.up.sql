@@ -11,7 +11,7 @@ CREATE TABLE service_instances
   previous_values   json DEFAULT '{}',
   created_at        timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at        timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  instance_usable   boolean NOT NULL,
+  usable            boolean NOT NULL,
   ready             boolean NOT NULL,
   paging_sequence   BIGSERIAL
 );

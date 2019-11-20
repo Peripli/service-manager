@@ -33,7 +33,7 @@ type ServiceInstance struct {
 	MaintenanceInfo sqlxtypes.JSONText `db:"maintenance_info"`
 	Context         sqlxtypes.JSONText `db:"context"`
 	PreviousValues  sqlxtypes.JSONText `db:"previous_values"`
-	InstanceUsable  bool               `db:"instance_usable"`
+	Usable          bool               `db:"usable"`
 	Ready           bool               `db:"ready"`
 }
 
@@ -52,7 +52,7 @@ func (si *ServiceInstance) ToObject() types.Object {
 		MaintenanceInfo: getJSONRawMessage(si.MaintenanceInfo),
 		Context:         getJSONRawMessage(si.Context),
 		PreviousValues:  getJSONRawMessage(si.PreviousValues),
-		Usable:          si.InstanceUsable,
+		Usable:          si.Usable,
 		Ready:           si.Ready,
 	}
 }
@@ -76,7 +76,7 @@ func (*ServiceInstance) FromObject(object types.Object) (storage.Entity, bool) {
 		MaintenanceInfo: getJSONText(serviceInstance.MaintenanceInfo),
 		Context:         getJSONText(serviceInstance.Context),
 		PreviousValues:  getJSONText(serviceInstance.PreviousValues),
-		InstanceUsable:  serviceInstance.Usable,
+		Usable:          serviceInstance.Usable,
 		Ready:           serviceInstance.Ready,
 	}
 
