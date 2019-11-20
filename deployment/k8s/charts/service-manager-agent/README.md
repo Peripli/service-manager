@@ -23,11 +23,27 @@ You can get `smctl` tool from https://github.com/Peripli/service-manager-cli.
 
 ## Installation
 
-From the root folder of this repository, execute:
+### Add Peripli helm repo
+```bash
+helm repo add peripli 'https://peripli.github.io'
+```
+
+### Instal Service Manager agent
 
 ```bash
 # using helm v2.x.x
-helm install charts/service-manager-agent \
+helm install peripli/service-manager-agent \
+  --name service-broker-proxy \
+  --namespace service-broker-proxy \
+  --set image.tag=<VERSION> \
+  --set config.sm.url=<SM_URL> \
+  --set sm.user=<USER> \
+  --set sm.password=<PASSWORD>
+```
+
+```bash
+# using helm v2.x.x
+helm install peripli/service-manager-agent \
   --name service-manager-agent \
   --namespace service-manager-agent \
   --set image.tag=<VERSION> \
