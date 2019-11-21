@@ -98,7 +98,7 @@ var (
 	ErrAlreadyExistsInStorage = errors.New("unique constraint violation")
 
 	// ErrExistingReferenceEntityInStorage error returned from storage when entity cannot be deleted due to an existing reference entity
-	ErrExistingReferenceEntityInStorage = errors.New("unique constraint violation")
+	ErrExistingReferenceEntityInStorage = errors.New("foreign key violation")
 
 	// ErrConcurrentResourceModification error returned when concurrent resource updates are happening
 	ErrConcurrentResourceModification = errors.New("another resource update happened concurrently. Please reattempt the update")
