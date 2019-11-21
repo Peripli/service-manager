@@ -18,7 +18,7 @@ package interceptors
 
 import (
 	"context"
-	"encoding/json"
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/tidwall/gjson"
@@ -34,7 +34,7 @@ func (c *ServiceInstanceCreateInsterceptorProvider) Name() string {
 	return ServiceInstanceCreateInterceptorName
 }
 
-func (c *ServiceInstanceCreateInsterceptorProvider) Provide() storage.CreateInterceptor {
+func (c *ServiceInstanceCreateInsterceptorProvider) Provide() storage.CreateAroundTxInterceptor {
 	return &serviceInstanceCreateInterceptor{
 		TenantIdentifier: c.TenantIdentifier,
 	}
@@ -48,13 +48,9 @@ func (c *serviceInstanceCreateInterceptor) AroundTxCreate(h storage.InterceptCre
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		serviceInstance := obj.(*types.ServiceInstance)
 
-		bytes, err := json.Marshal(&serviceInstance.Context)
-		if err != nil {
-			return nil, err
-		}
-
-		tenantID := gjson.Get(string(bytes), c.TenantIdentifier)
+		tenantID := gjson.GetBytes([]byte(serviceInstance.Context), c.TenantIdentifier)
 		if !tenantID.Exists() {
+			log.D().Debugf("Could not add %s label to service instance with id %s. Label not found in OSB context.", c.TenantIdentifier, serviceInstance.ID)
 			return h(ctx, serviceInstance)
 		}
 
@@ -67,11 +63,5 @@ func (c *serviceInstanceCreateInterceptor) AroundTxCreate(h storage.InterceptCre
 		serviceInstance.SetLabels(labels)
 
 		return h(ctx, serviceInstance)
-	}
-}
-
-func (c *serviceInstanceCreateInterceptor) OnTxCreate(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
-	return func(ctx context.Context, storage storage.Repository, obj types.Object) (types.Object, error) {
-		return f(ctx, storage, obj)
 	}
 }

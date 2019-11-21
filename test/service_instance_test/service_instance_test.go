@@ -82,6 +82,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			Describe("GET", func() {
 				var serviceInstance *types.ServiceInstance
 
+				AfterEach(func() {
+					ctx.CleanupAdditionalResources()
+				})
+
 				When("service instance contains tenant identifier in OSB context", func() {
 					BeforeEach(func() {
 						serviceInstance = prepareServiceInstance(ctx, ctx.SMWithOAuth, fmt.Sprintf(`{"%s":"%s"}`, TenantIdentifier, TenantValue))
