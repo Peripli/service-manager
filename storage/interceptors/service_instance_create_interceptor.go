@@ -18,7 +18,6 @@ package interceptors
 
 import (
 	"context"
-
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
