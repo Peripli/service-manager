@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/lib/pq"
 	"sync"
 	"time"
 
@@ -245,6 +246,13 @@ func (ps *Storage) Delete(ctx context.Context, objType types.ObjectType, criteri
 	rows, err := ps.queryBuilder.NewQuery(entity).WithCriteria(criteria...).Return("*").Delete(ctx)
 	defer closeRows(ctx, rows)
 	if err != nil {
+		pqError, ok := err.(*pq.Error)
+		if ok && pqError.Code.Name() == "foreign_key_violation" {
+			return nil, &util.ErrBadRequestStorage{
+				Cause: err,
+			}
+		}
+
 		return nil, err
 	}
 	objectList, err := entity.RowsToList(rows)

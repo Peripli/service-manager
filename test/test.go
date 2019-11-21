@@ -22,7 +22,9 @@ import (
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/gofrs/uuid"
 	"net/http"
+	"time"
 
 	"github.com/tidwall/gjson"
 
@@ -156,4 +158,44 @@ func DescribeTestsFor(t TestCase) bool {
 			By("==== Successfully finished preparation for SM tests. Running API tests suite... ====")
 		}()
 	})
+}
+
+func PrepareServiceInstance(ctx *common.TestContext, auth *common.SMExpect, platformID string, OSBContext string) *types.ServiceInstance {
+	cService := common.GenerateTestServiceWithPlans(common.GenerateFreeTestPlan())
+	catalog := common.NewEmptySBCatalog()
+	catalog.AddService(cService)
+	id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
+
+	byBrokerID := query.ByField(query.EqualsOperator, "broker_id", id)
+	obj, err := ctx.SMRepository.Get(context.Background(), types.ServiceOfferingType, byBrokerID)
+	if err != nil {
+		Fail(fmt.Sprintf("unable to fetch service offering: %s", err))
+	}
+
+	byServiceOfferingID := query.ByField(query.EqualsOperator, "service_offering_id", obj.GetID())
+	obj, err = ctx.SMRepository.Get(context.Background(), types.ServicePlanType, byServiceOfferingID)
+	if err != nil {
+		Fail(fmt.Sprintf("unable to service plan: %s", err))
+	}
+
+	planID := obj.GetID()
+
+	instanceID, err := uuid.NewV4()
+	if err != nil {
+		Fail(fmt.Sprintf("failed to generate instance GUID: %s", err))
+	}
+
+	return &types.ServiceInstance{
+		Base: types.Base{
+			ID:        instanceID.String(),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		Name:          "test-service-instance",
+		ServicePlanID: planID,
+		PlatformID:    platformID,
+		Context:       []byte(OSBContext),
+		Ready:         true,
+		Usable:        true,
+	}
 }
