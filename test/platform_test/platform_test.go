@@ -334,18 +334,16 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			})
 
 			Describe("DELETE", func() {
-				var platform common.Object
 				const platformID = "p1"
+				var platform common.Object
 
 				BeforeEach(func() {
-					By("Create new platform")
-
 					platform = common.MakePlatform(platformID, "cf-10", "cf", "descr")
 					ctx.SMWithOAuth.POST(web.PlatformsURL).
 						WithJSON(platform).
 						Expect().Status(http.StatusCreated)
 
-					serviceInstance := test.PrepareServiceInstance(ctx, ctx.SMWithOAuth, platformID, "{}")
+					_, serviceInstance := test.PrepareServiceInstance(ctx, ctx.SMWithOAuth, platformID, "", "{}")
 					ctx.SMRepository.Create(context.Background(), serviceInstance)
 				})
 
@@ -354,7 +352,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 
 				Context("with existing service instances", func() {
-					It("should return user-friendly message", func() {
+					It("should return 400 with user-friendly message", func() {
 						ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/" + platformID).
 							Expect().
 							Status(http.StatusBadRequest).
