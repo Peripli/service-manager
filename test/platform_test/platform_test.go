@@ -359,7 +359,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Expect().
 							Status(http.StatusBadRequest).
 							JSON().Object().
-							Value("description").String().Contains("violate")
+							Value("description").String().Contains("existing reference entity")
 					})
 				})
 			})

@@ -36,7 +36,10 @@ import (
 	_ "github.com/lib/pq"
 )
 
-const postgresDriverName = "postgres"
+const (
+	postgresDriverName  = "postgres"
+	foreignKeyViolation = "foreign_key_violation"
+)
 
 type Storage struct {
 	ConnectFunc func(driver string, url string) (*sql.DB, error)
@@ -247,10 +250,8 @@ func (ps *Storage) Delete(ctx context.Context, objType types.ObjectType, criteri
 	defer closeRows(ctx, rows)
 	if err != nil {
 		pqError, ok := err.(*pq.Error)
-		if ok && pqError.Code.Name() == "foreign_key_violation" {
-			return nil, &util.ErrBadRequestStorage{
-				Cause: err,
-			}
+		if ok && pqError.Code.Name() == foreignKeyViolation {
+			return nil, util.ErrExistingReferenceEntityInStorage
 		}
 
 		return nil, err

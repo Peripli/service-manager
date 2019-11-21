@@ -97,6 +97,9 @@ var (
 	// ErrAlreadyExistsInStorage error returned from storage when entity has conflicting fields
 	ErrAlreadyExistsInStorage = errors.New("unique constraint violation")
 
+	// ErrExistingReferenceEntityInStorage error returned from storage when entity cannot be deleted due to an existing reference entity
+	ErrExistingReferenceEntityInStorage = errors.New("unique constraint violation")
+
 	// ErrConcurrentResourceModification error returned when concurrent resource updates are happening
 	ErrConcurrentResourceModification = errors.New("another resource update happened concurrently. Please reattempt the update")
 
@@ -133,6 +136,12 @@ func HandleStorageError(err error, entityName string) error {
 			ErrorType:   "Conflict",
 			Description: fmt.Sprintf("found conflicting %s", entityName),
 			StatusCode:  http.StatusConflict,
+		}
+	case ErrExistingReferenceEntityInStorage:
+		return &HTTPError{
+			ErrorType:   "ExistingReferenceEntity",
+			Description: fmt.Sprintf("Could not remove entity '%s' due to an existing reference entity", entityName),
+			StatusCode:  http.StatusBadRequest,
 		}
 	case ErrNotFoundInStorage:
 		return &HTTPError{
