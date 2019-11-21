@@ -38,7 +38,7 @@ var _ {{.StoragePackage}}PostgresEntity = &{{.Type}}{}
 
 const {{.Type}}Table storage.EntityType = "{{.TableName}}"
 
-func (*{{.Type}}) GetType() storage.EntityType  {
+func (*{{.Type}}) GetType() storage.EntityType {
 	return {{.Type}}Table
 }
 
