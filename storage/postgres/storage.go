@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/lib/pq"
+	"regexp"
 	"sync"
 	"time"
 
@@ -251,7 +252,11 @@ func (ps *Storage) Delete(ctx context.Context, objType types.ObjectType, criteri
 	if err != nil {
 		pqError, ok := err.(*pq.Error)
 		if ok && pqError.Code.Name() == foreignKeyViolation {
-			return nil, util.ErrExistingReferenceEntityInStorage
+			violationEntity := retrieveViolationEntity(pqError.Message)
+			return nil, &util.ErrForeignKeyViolationStorage{
+				Entity:          violationEntity,
+				ViolationEntity: pqError.Table,
+			}
 		}
 
 		return nil, err
@@ -335,4 +340,10 @@ func (migrateLogger) Printf(format string, v ...interface{}) {
 
 func (migrateLogger) Verbose() bool {
 	return true
+}
+
+func retrieveViolationEntity(pqErrorMsg string) string {
+	re, _ := regexp.Compile(`.*table "(.*)" violates.*`)
+	matches := re.FindStringSubmatch(pqErrorMsg)
+	return matches[1]
 }
