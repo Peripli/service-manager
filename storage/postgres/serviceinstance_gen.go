@@ -14,14 +14,18 @@ import (
 
 var _ PostgresEntity = &ServiceInstance{}
 
-const ServiceInstanceTable = "service_instances"
+const ServiceInstanceTable storage.EntityType = "service_instances"
+
+func (*ServiceInstance) GetType() storage.EntityType  {
+	return ServiceInstanceTable
+}
 
 func (*ServiceInstance) LabelEntity() PostgresLabel {
 	return &ServiceInstanceLabel{}
 }
 
-func (*ServiceInstance) TableName() string {
-	return ServiceInstanceTable
+func (e *ServiceInstance) TableName() string {
+	return string(e.GetType())
 }
 
 func (e *ServiceInstance) NewLabel(id, key, value string) storage.Label {

@@ -14,14 +14,18 @@ import (
 
 var _ PostgresEntity = &Visibility{}
 
-const VisibilityTable = "visibilities"
+const VisibilityTable storage.EntityType = "visibilities"
+
+func (*Visibility) GetType() storage.EntityType  {
+	return VisibilityTable
+}
 
 func (*Visibility) LabelEntity() PostgresLabel {
 	return &VisibilityLabel{}
 }
 
-func (*Visibility) TableName() string {
-	return VisibilityTable
+func (e *Visibility) TableName() string {
+	return string(e.GetType())
 }
 
 func (e *Visibility) NewLabel(id, key, value string) storage.Label {

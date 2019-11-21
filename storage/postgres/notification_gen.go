@@ -14,14 +14,18 @@ import (
 
 var _ PostgresEntity = &Notification{}
 
-const NotificationTable = "notifications"
+const NotificationTable storage.EntityType = "notifications"
+
+func (*Notification) GetType() storage.EntityType  {
+	return NotificationTable
+}
 
 func (*Notification) LabelEntity() PostgresLabel {
 	return &NotificationLabel{}
 }
 
-func (*Notification) TableName() string {
-	return NotificationTable
+func (e *Notification) TableName() string {
+	return string(e.GetType())
 }
 
 func (e *Notification) NewLabel(id, key, value string) storage.Label {

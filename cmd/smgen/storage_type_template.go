@@ -36,14 +36,18 @@ import (
 
 var _ {{.StoragePackage}}PostgresEntity = &{{.Type}}{}
 
-const {{.Type}}Table = "{{.TableName}}"
+const {{.Type}}Table storage.EntityType = "{{.TableName}}"
+
+func (*{{.Type}}) GetType() storage.EntityType  {
+	return {{.Type}}Table
+}
 
 func (*{{.Type}}) LabelEntity() {{.StoragePackage}}PostgresLabel {
 	return &{{.Type}}Label{}
 }
 
-func (*{{.Type}}) TableName() string {
-	return {{.Type}}Table
+func (e *{{.Type}}) TableName() string {
+	return string(e.GetType())
 }
 
 func (e *{{.Type}}) NewLabel(id, key, value string) storage.Label {

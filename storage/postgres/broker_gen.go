@@ -14,14 +14,18 @@ import (
 
 var _ PostgresEntity = &Broker{}
 
-const BrokerTable = "brokers"
+const BrokerTable storage.EntityType = "brokers"
+
+func (*Broker) GetType() storage.EntityType  {
+	return BrokerTable
+}
 
 func (*Broker) LabelEntity() PostgresLabel {
 	return &BrokerLabel{}
 }
 
-func (*Broker) TableName() string {
-	return BrokerTable
+func (e *Broker) TableName() string {
+	return string(e.GetType())
 }
 
 func (e *Broker) NewLabel(id, key, value string) storage.Label {

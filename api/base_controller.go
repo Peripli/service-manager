@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/tidwall/sjson"
@@ -137,7 +138,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 
 	createdObj, err := c.repository.Create(ctx, result)
 	if err != nil {
-		return nil, util.HandleStorageError(err, string(c.objectType))
+		return nil, util.HandleStorageError(err, trimObjectTypePrefix(c.objectType))
 	}
 
 	return util.NewJSONResponse(http.StatusCreated, createdObj)
@@ -150,7 +151,7 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 
 	criteria := query.CriteriaForContext(ctx)
 	if _, err := c.repository.Delete(ctx, c.objectType, criteria...); err != nil {
-		return nil, util.HandleStorageError(err, string(c.objectType))
+		return nil, util.HandleStorageError(err, trimObjectTypePrefix(c.objectType))
 	}
 
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
@@ -187,7 +188,7 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 	criteria := query.CriteriaForContext(ctx)
 	object, err := c.repository.Get(ctx, c.objectType, criteria...)
 	if err != nil {
-		return nil, util.HandleStorageError(err, string(c.objectType))
+		return nil, util.HandleStorageError(err, trimObjectTypePrefix(c.objectType))
 	}
 
 	stripCredentials(ctx, object)
@@ -202,7 +203,7 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	criteria := query.CriteriaForContext(ctx)
 	count, err := c.repository.Count(ctx, c.objectType, criteria...)
 	if err != nil {
-		return nil, util.HandleStorageError(err, string(c.objectType))
+		return nil, util.HandleStorageError(err, trimObjectTypePrefix(c.objectType))
 	}
 
 	maxItems := r.URL.Query().Get("max_items")
@@ -234,7 +235,7 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	log.C(ctx).Debugf("Getting a page of %ss", c.objectType)
 	objectList, err := c.repository.List(ctx, c.objectType, criteria...)
 	if err != nil {
-		return nil, util.HandleStorageError(err, string(c.objectType))
+		return nil, util.HandleStorageError(err, trimObjectTypePrefix(c.objectType))
 	}
 
 	page := pageFromObjectList(ctx, objectList, count, limit)
@@ -273,7 +274,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	criteria := query.CriteriaForContext(ctx)
 	objFromDB, err := c.repository.Get(ctx, c.objectType, criteria...)
 	if err != nil {
-		return nil, util.HandleStorageError(err, string(c.objectType))
+		return nil, util.HandleStorageError(err, trimObjectTypePrefix(c.objectType))
 	}
 
 	if r.Body, err = sjson.DeleteBytes(r.Body, "labels"); err != nil {
@@ -295,7 +296,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 
 	object, err := c.repository.Update(ctx, objFromDB, labelChanges, criteria...)
 	if err != nil {
-		return nil, util.HandleStorageError(err, string(c.objectType))
+		return nil, util.HandleStorageError(err, trimObjectTypePrefix(c.objectType))
 	}
 
 	stripCredentials(ctx, object)
@@ -393,4 +394,8 @@ func pageFromObjectList(ctx context.Context, objectList types.ObjectList, count,
 		page.Token = generateTokenForItem(page.Items[len(page.Items)-1])
 	}
 	return page
+}
+
+func trimObjectTypePrefix(objectType types.ObjectType) string {
+	return strings.TrimPrefix(string(objectType), types.Prefix)
 }

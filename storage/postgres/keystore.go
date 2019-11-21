@@ -28,7 +28,10 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-const securityLockIndex = 111
+const (
+	securityLockIndex                    = 111
+	SafeTable         storage.EntityType = "safe"
+)
 
 // Safe represents a secret entity
 type Safe struct {
@@ -57,8 +60,12 @@ func (s *Safe) NewLabel(id, key, value string) storage.Label {
 	return nil
 }
 
+func (s *Safe) GetType() storage.EntityType {
+	return SafeTable
+}
+
 func (s *Safe) TableName() string {
-	return "safe"
+	return string(s.GetType())
 }
 
 func (s *Safe) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {

@@ -22,6 +22,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
+const Prefix = "types."
+
 // ObjectType is the type of the object in the Service Manager
 type ObjectType string
 

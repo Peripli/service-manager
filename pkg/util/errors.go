@@ -20,10 +20,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
-	"strings"
-
 	"github.com/Peripli/service-manager/pkg/log"
+	"net/http"
 )
 
 // HTTPError is an error type that provides error details that Service Manager error handlers would propagate to the client
@@ -117,17 +115,14 @@ func (e *ErrBadRequestStorage) Error() string {
 	return e.Cause.Error()
 }
 
-// ErrForeignKeyViolationStorage represents a foreign key storage error that should be translated to a user-friendly http.StatusBadRequest
-type ErrForeignKeyViolationStorage struct {
+// ErrExistingReferenceEntityStorage represents a foreign key constraint storage error that should be translated to a user-friendly http.StatusBadRequest
+type ErrExistingReferenceEntityStorage struct {
 	Entity          string
 	ViolationEntity string
 }
 
-func (e *ErrForeignKeyViolationStorage) Error() string {
-	normalizedEntity := normalizeDBEntityName(e.Entity)
-	normalizedReferenceEntity := normalizeDBEntityName(e.ViolationEntity)
-
-	return fmt.Sprintf("Could not delete entity %s due to existing reference entity %s", normalizedEntity, normalizedReferenceEntity)
+func (e *ErrExistingReferenceEntityStorage) Error() string {
+	return fmt.Sprintf("Could not delete entity %s due to existing reference entity %s", e.Entity, e.ViolationEntity)
 }
 
 // HandleStorageError handles storage errors by converting them to relevant HTTPErrors
@@ -140,7 +135,6 @@ func HandleStorageError(err error, entityName string) error {
 		return err
 	}
 
-	entityName = strings.TrimPrefix(entityName, "types.")
 	if len(entityName) == 0 {
 		entityName = "entity"
 	}
@@ -167,7 +161,7 @@ func HandleStorageError(err error, entityName string) error {
 	default:
 		// in case we did not replace the pg.Error in the DB layer, propagate it as response message to give the caller relevant info
 		switch e := err.(type) {
-		case *ErrForeignKeyViolationStorage:
+		case *ErrExistingReferenceEntityStorage:
 			return &HTTPError{
 				ErrorType:   "ExistingReferenceEntity",
 				Description: fmt.Sprintf("Error deleting entity %s: %s", entityName, err.Error()),
@@ -183,16 +177,4 @@ func HandleStorageError(err error, entityName string) error {
 			return err
 		}
 	}
-}
-
-func normalizeDBEntityName(name string) string {
-	name = name[:len(name)-1]
-	if !strings.ContainsRune(name, '_') {
-		return strings.Title(name)
-	}
-
-	name = strings.Replace(name, "_", " ", -1)
-	name = strings.Title(name)
-	name = strings.Replace(name, " ", "", -1)
-	return name
 }

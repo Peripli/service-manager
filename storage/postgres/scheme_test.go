@@ -236,8 +236,12 @@ type postgresEntity struct {
 	*storageEntity
 }
 
-func (postgresEntity) TableName() string {
+func (postgresEntity) GetType() storage.EntityType {
 	return "table"
+}
+
+func (pe postgresEntity) TableName() string {
+	return string(pe.GetType())
 }
 
 func (postgresEntity) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
