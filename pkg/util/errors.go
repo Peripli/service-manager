@@ -117,7 +117,7 @@ func (e *ErrBadRequestStorage) Error() string {
 	return e.Cause.Error()
 }
 
-// ErrBadRequestStorage represents a storage error that should be translated to http.StatusBadRequest
+// ErrForeignKeyViolationStorage represents a foreign key storage error that should be translated to a user-friendly http.StatusBadRequest
 type ErrForeignKeyViolationStorage struct {
 	Entity          string
 	ViolationEntity string
