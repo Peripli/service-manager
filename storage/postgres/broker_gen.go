@@ -16,7 +16,7 @@ var _ PostgresEntity = &Broker{}
 
 const BrokerTable storage.EntityType = "brokers"
 
-func (*Broker) GetType() storage.EntityType  {
+func (*Broker) GetType() storage.EntityType {
 	return BrokerTable
 }
 

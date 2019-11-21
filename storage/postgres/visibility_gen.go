@@ -16,7 +16,7 @@ var _ PostgresEntity = &Visibility{}
 
 const VisibilityTable storage.EntityType = "visibilities"
 
-func (*Visibility) GetType() storage.EntityType  {
+func (*Visibility) GetType() storage.EntityType {
 	return VisibilityTable
 }
 

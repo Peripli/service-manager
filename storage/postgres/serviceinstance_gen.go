@@ -16,7 +16,7 @@ var _ PostgresEntity = &ServiceInstance{}
 
 const ServiceInstanceTable storage.EntityType = "service_instances"
 
-func (*ServiceInstance) GetType() storage.EntityType  {
+func (*ServiceInstance) GetType() storage.EntityType {
 	return ServiceInstanceTable
 }
 

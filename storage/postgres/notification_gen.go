@@ -16,7 +16,7 @@ var _ PostgresEntity = &Notification{}
 
 const NotificationTable storage.EntityType = "notifications"
 
-func (*Notification) GetType() storage.EntityType  {
+func (*Notification) GetType() storage.EntityType {
 	return NotificationTable
 }
 

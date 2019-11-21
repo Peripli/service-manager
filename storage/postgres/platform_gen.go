@@ -16,7 +16,7 @@ var _ PostgresEntity = &Platform{}
 
 const PlatformTable storage.EntityType = "platforms"
 
-func (*Platform) GetType() storage.EntityType  {
+func (*Platform) GetType() storage.EntityType {
 	return PlatformTable
 }
 

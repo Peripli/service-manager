@@ -16,7 +16,7 @@ var _ PostgresEntity = &Operation{}
 
 const OperationTable storage.EntityType = "operations"
 
-func (*Operation) GetType() storage.EntityType  {
+func (*Operation) GetType() storage.EntityType {
 	return OperationTable
 }
 
