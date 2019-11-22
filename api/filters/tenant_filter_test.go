@@ -192,7 +192,8 @@ var _ = Describe("TenantFilters", func() {
 							Name:               "test",
 							AccessLevel:        web.TenantAccess,
 						}))
-						multitenancyFilters[0].Run(fakeRequest, fakeHandler)
+						_, err = multitenancyFilters[0].Run(fakeRequest, fakeHandler)
+						Expect(err).ToNot(HaveOccurred())
 						Expect(fakeHandler.HandleCallCount()).To(Equal(1))
 						actualRequest := fakeHandler.HandleArgsForCall(0)
 						criteria := query.CriteriaForContext(actualRequest.Context())
@@ -280,7 +281,7 @@ var _ = Describe("TenantFilters", func() {
 				fakeRequest.Body = []byte(t.actualRequestBody)
 				_, err = multitenancyFilters[1].Run(fakeRequest, fakeHandler)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(string(string(fakeRequest.Body))).To(unmarshalledmatchers.MatchOrderedJSON(t.expectedRequestBody))
+				Expect(string(fakeRequest.Body)).To(unmarshalledmatchers.MatchOrderedJSON(t.expectedRequestBody))
 			}, entries...)
 		})
 	})
