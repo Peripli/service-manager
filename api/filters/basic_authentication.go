@@ -123,6 +123,12 @@ func basicAuthnMatchers() []web.FilterMatcher {
 		{
 			Matchers: []web.Matcher{
 				web.Methods(http.MethodGet),
+				web.Path(web.ServiceInstancesURL + "/**"),
+			},
+		},
+		{
+			Matchers: []web.Matcher{
+				web.Methods(http.MethodGet),
 				web.Path(web.VisibilitiesURL + "/**"),
 			},
 		},
