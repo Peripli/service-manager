@@ -10,11 +10,14 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
+// BrokerValidator is a type of ResourceValidator
 type BrokerValidator struct {
 	DefaultResourceValidator
 	CatalogFetcher func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error)
 }
 
+// ValidateUpdate ensures that there are no service instances associated with a service plan
+// in the cases when a broker's catalog gets updated by removing that service plan
 func (bv *BrokerValidator) ValidateUpdate(ctx context.Context, repository storage.Repository, object types.Object) error {
 	_, ok := object.(*types.ServiceBroker)
 	if !ok {
@@ -67,7 +70,7 @@ func (bv *BrokerValidator) ValidateUpdate(ctx context.Context, repository storag
 	if len(instanceIDs) > 0 {
 		log.C(ctx).Debugf("Found service instances associated with plans removed from catalog of broker with ID (%s): %s", object.GetID(), instanceIDs)
 		return &util.ErrExistingReferenceEntityStorage{
-			Entity:          string(object.GetType()),
+			Entity:          string(types.ServicePlanType),
 			ViolationEntity: string(types.ServiceInstanceType),
 			ViolationIDs:    instanceIDs,
 		}
@@ -77,6 +80,7 @@ func (bv *BrokerValidator) ValidateUpdate(ctx context.Context, repository storag
 	return nil
 }
 
+// ValidateDelete ensures that there are no service instances associated with a service plan of the broker that's about to be deleted
 func (bv *BrokerValidator) ValidateDelete(ctx context.Context, repository storage.Repository, object types.Object) error {
 	_, ok := object.(*types.ServiceBroker)
 	if !ok {
@@ -93,7 +97,7 @@ func (bv *BrokerValidator) ValidateDelete(ctx context.Context, repository storag
 	if len(instanceIDs) > 0 {
 		log.C(ctx).Debugf("Found service instances associated with broker with ID (%s): %s", object.GetID(), instanceIDs)
 		return &util.ErrExistingReferenceEntityStorage{
-			Entity:          string(object.GetType()),
+			Entity:          string(types.ServicePlanType),
 			ViolationEntity: string(types.ServiceInstanceType),
 			ViolationIDs:    instanceIDs,
 		}

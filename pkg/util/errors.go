@@ -21,9 +21,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/Peripli/service-manager/pkg/log"
 )
+
+const typesPrefix = "types."
 
 // HTTPError is an error type that provides error details that Service Manager error handlers would propagate to the client
 type HTTPError struct {
@@ -121,7 +124,8 @@ type ErrExistingReferenceEntityStorage struct {
 }
 
 func (e *ErrExistingReferenceEntityStorage) Error() string {
-	return fmt.Sprintf("Could not delete %s due to one or more existing %s reference entities with ID(s): %s", e.Entity, e.ViolationEntity, e.ViolationIDs)
+	return fmt.Sprintf("Could not delete %s due to one or more existing %s reference entities with ID(s): %s",
+		strings.TrimPrefix(e.Entity, typesPrefix), strings.TrimPrefix(e.ViolationEntity, typesPrefix), fmt.Sprintf("[%s]", strings.Join(e.ViolationIDs, ",")))
 }
 
 // HandleStorageError handles storage errors by converting them to relevant HTTPErrors
@@ -133,6 +137,8 @@ func HandleStorageError(err error, entityName string) error {
 	if _, ok := err.(*HTTPError); ok {
 		return err
 	}
+
+	entityName = strings.TrimPrefix(entityName, typesPrefix)
 
 	if len(entityName) == 0 {
 		entityName = "entity"
@@ -163,7 +169,7 @@ func HandleStorageError(err error, entityName string) error {
 		case *ErrExistingReferenceEntityStorage:
 			return &HTTPError{
 				ErrorType:   "ExistingReferenceEntity",
-				Description: fmt.Sprintf("Error deleting %s: %s", entityName, err.Error()),
+				Description: fmt.Sprintf("Error executing %s request: %s", entityName, err.Error()),
 				StatusCode:  http.StatusBadRequest,
 			}
 		case *ErrBadRequestStorage:

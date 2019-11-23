@@ -9,10 +9,12 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
+// PlatformValidator is a type of ResourceValidator
 type PlatformValidator struct {
 	DefaultResourceValidator
 }
 
+// ValidateDelete ensures that there are no existing service instances prior to deleting of a platform
 func (pv *PlatformValidator) ValidateDelete(ctx context.Context, repository storage.Repository, object types.Object) error {
 	_, ok := object.(*types.Platform)
 	if !ok {

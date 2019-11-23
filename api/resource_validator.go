@@ -9,6 +9,7 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
+// ResourceValidator allows plugging custom validation logic prior to executing CUD API requests
 type ResourceValidator interface {
 	ValidateCreate(ctx context.Context, repository storage.Repository, object types.Object) error
 	ValidateUpdate(ctx context.Context, repository storage.Repository, object types.Object) error
