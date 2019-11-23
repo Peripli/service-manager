@@ -108,20 +108,6 @@ func unmarshal(body []byte, value interface{}) error {
 	return nil
 }
 
-// validate validates the specified value in case it implements InputValidator
-func validate(value interface{}) error {
-	if input, ok := value.(InputValidator); ok {
-		if err := input.Validate(); err != nil {
-			return &HTTPError{
-				ErrorType:   "BadRequest",
-				Description: input.Validate().Error(),
-				StatusCode:  http.StatusBadRequest,
-			}
-		}
-	}
-	return nil
-}
-
 // WriteJSON writes a JSON value and sets the specified HTTP Status code
 func WriteJSON(writer http.ResponseWriter, code int, value interface{}) error {
 	writer.Header().Add("Content-Type", "application/json")
