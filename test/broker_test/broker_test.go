@@ -1183,7 +1183,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									Status(http.StatusBadRequest).
 									JSON().Object().
 									Value("description").String().
-									Contains("reference entities").Contains(fmt.Sprint(serviceInstanceIDs))
+									Contains("reference entities").Contains(strings.Join(serviceInstanceIDs, ","))
 
 								serviceOfferings := ctx.SMWithOAuth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=id eq '%s'", serviceOfferingID))
 								serviceOfferings.NotEmpty()
