@@ -8,6 +8,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/Peripli/service-manager/storage"
+	"net/http"
 )
 
 // BrokerValidator is a type of ResourceValidator
@@ -26,7 +27,11 @@ func (bv *BrokerValidator) ValidateUpdate(ctx context.Context, repository storag
 	}
 
 	if err := object.Validate(); err != nil {
-		return err
+		return &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: err.Error(),
+			StatusCode:  http.StatusBadRequest,
+		}
 	}
 
 	broker := object.(*types.ServiceBroker)

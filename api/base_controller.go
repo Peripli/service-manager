@@ -137,7 +137,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	result.SetCreatedAt(currentTime)
 	result.SetUpdatedAt(currentTime)
 
-	log.C(ctx).Debugf("Attempting to validate creation of %s object with ID (%)", result.GetType(), result.GetID())
+	log.C(ctx).Debugf("Attempting to validate creation of %s object with ID (%s)", result.GetType(), result.GetID())
 	if err := c.ResourceValidator.ValidateCreate(ctx, c.repository, result); err != nil {
 		return nil, err
 	}
@@ -165,7 +165,7 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 
 	log.C(ctx).Debugf("Attempting to validate deletion of %s object(s)", c.objectType)
 	for i := 0; i < objectList.Len(); i++ {
-		log.C(ctx).Debugf("Attempting to validate deletion of %s object with ID (%)", c.objectType, objectList.ItemAt(i).GetID())
+		log.C(ctx).Debugf("Attempting to validate deletion of %s object with ID (%s)", c.objectType, objectList.ItemAt(i).GetID())
 		err = c.ResourceValidator.ValidateDelete(ctx, c.repository, objectList.ItemAt(i))
 		if err != nil {
 			return nil, util.HandleStorageError(err, string(c.objectType))
@@ -316,7 +316,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	labels, _, _ := query.ApplyLabelChangesToLabels(labelChanges, objFromDB.GetLabels())
 	objFromDB.SetLabels(labels)
 
-	log.C(ctx).Debugf("Attempting to validate update of %s object with ID (%)", objFromDB.GetType(), objFromDB.GetID())
+	log.C(ctx).Debugf("Attempting to validate update of %s object with ID (%s)", objFromDB.GetType(), objFromDB.GetID())
 	if err := c.ResourceValidator.ValidateUpdate(ctx, c.repository, objFromDB); err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}

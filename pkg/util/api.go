@@ -91,10 +91,6 @@ func BytesToObject(bytes []byte, object interface{}) error {
 	if err := unmarshal(bytes, object); err != nil {
 		return err
 	}
-	if err := validate(object); err != nil {
-		return err
-	}
-
 	return nil
 }
 

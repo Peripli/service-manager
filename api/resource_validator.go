@@ -7,6 +7,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
+	"net/http"
 )
 
 // ResourceValidator allows plugging custom validation logic prior to executing CUD API requests
@@ -21,11 +22,25 @@ var ErrIncompatibleObjectType = errors.New("incompatible object type provided")
 type DefaultResourceValidator struct{}
 
 func (drv *DefaultResourceValidator) ValidateCreate(_ context.Context, _ storage.Repository, object types.Object) error {
-	return object.Validate()
+	if err := object.Validate(); err != nil {
+		return &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: err.Error(),
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+	return nil
 }
 
 func (drv *DefaultResourceValidator) ValidateUpdate(_ context.Context, _ storage.Repository, object types.Object) error {
-	return object.Validate()
+	if err := object.Validate(); err != nil {
+		return &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: err.Error(),
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+	return nil
 }
 
 func (drv *DefaultResourceValidator) ValidateDelete(_ context.Context, _ storage.Repository, object types.Object) error {

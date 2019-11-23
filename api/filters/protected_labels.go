@@ -70,6 +70,15 @@ func (flo *ProtectedLabelsFilter) Run(req *web.Request, next web.Handler) (*web.
 		if err := util.BytesToObject(labelsBytes, &labels); err != nil {
 			return nil, err
 		}
+
+		if err := labels.Validate(); err != nil {
+			return nil, &util.HTTPError{
+				ErrorType:   "BadRequest",
+				Description: err.Error(),
+				StatusCode:  http.StatusBadRequest,
+			}
+		}
+
 		for lKey := range labels {
 			_, found := flo.protectedLabels[lKey]
 			if !found {
