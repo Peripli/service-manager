@@ -1155,7 +1155,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect(err).To(Not(HaveOccurred()))
 							})
 
-							It("should return 400 with user-friendly message", func() {
+							It("should fail and return 400 with user-friendly message containing existing instance IDs", func() {
 								plans := ctx.SMWithOAuth.List(web.ServicePlansURL).Iter()
 
 								var planIDsForService []string
@@ -1182,7 +1182,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									Expect().
 									Status(http.StatusBadRequest).
 									JSON().Object().
-									Value("description").String().Contains("reference entities")
+									Value("description").String().
+									Contains("reference entities").Contains(fmt.Sprint(serviceInstanceIDs))
 
 								serviceOfferings := ctx.SMWithOAuth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=id eq '%s'", serviceOfferingID))
 								serviceOfferings.NotEmpty()
@@ -1364,7 +1365,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect(err).To(Not(HaveOccurred()))
 							})
 
-							It("should return 400 with user-friendly message", func() {
+							It("should fail and return 400 with user-friendly message containing existing instance ID", func() {
 								ctx.SMWithOAuth.List(web.ServicePlansURL).
 									Path("$[*].catalog_id").Array().Contains(removedPlanCatalogID)
 
@@ -1373,7 +1374,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									Expect().
 									Status(http.StatusBadRequest).
 									JSON().Object().
-									Value("description").String().Contains("reference entities")
+									Value("description").String().
+									Contains("reference entities").Contains(serviceInstance.ID)
 
 								ctx.SMWithOAuth.List(web.ServicePlansURL).
 									Path("$[*].catalog_id").Array().Contains(removedPlanCatalogID)
@@ -1671,12 +1673,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 			Describe("DELETE", func() {
 				var (
-					brokerID string
+					brokerID        string
+					serviceInstance *types.ServiceInstance
 				)
 
 				BeforeEach(func() {
-					var serviceInstance *types.ServiceInstance
-
 					brokerID, serviceInstance = test.PrepareServiceInstance(ctx, ctx.SMWithOAuth, ctx.TestPlatform.ID, "", "{}")
 					ctx.SMRepository.Create(context.Background(), serviceInstance)
 				})
@@ -1686,12 +1687,21 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 
 				Context("with existing service instances to some broker plan", func() {
-					It("should return 400 with user-friendly message", func() {
+					It("should fail and return 400 with user-friendly message containing existing instance ID", func() {
+						ctx.SMWithOAuth.GET(web.ServiceBrokersURL + "/" + brokerID).
+							Expect().
+							Status(http.StatusOK)
+
 						ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL + "/" + brokerID).
 							Expect().
 							Status(http.StatusBadRequest).
 							JSON().Object().
-							Value("description").String().Contains("reference entities")
+							Value("description").String().
+							Contains("reference entities").Contains(serviceInstance.ID)
+
+						ctx.SMWithOAuth.GET(web.ServiceBrokersURL + "/" + brokerID).
+							Expect().
+							Status(http.StatusOK)
 					})
 				})
 			})
