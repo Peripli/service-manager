@@ -31,11 +31,11 @@ type ServiceOfferingController struct {
 	*BaseController
 }
 
-func NewServiceOfferingController(repository storage.Repository, defaultPageSize, maxPageSize int) *ServiceOfferingController {
+func NewServiceOfferingController(repository storage.TransactionalRepository, defaultPageSize, maxPageSize int) *ServiceOfferingController {
 	return &ServiceOfferingController{
 		BaseController: NewController(repository, web.ServiceOfferingsURL, types.ServiceOfferingType, func() types.Object {
 			return &types.ServiceOffering{}
-		}, defaultPageSize, maxPageSize),
+		}, defaultPageSize, maxPageSize, &DefaultResourceValidator{}),
 	}
 }
 func (c *ServiceOfferingController) Routes() []web.Route {

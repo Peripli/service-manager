@@ -20,8 +20,8 @@ package api
 import (
 	"context"
 	"fmt"
-
 	"github.com/Peripli/service-manager/pkg/env"
+	"net/http"
 
 	"github.com/Peripli/service-manager/api/configuration"
 
@@ -96,13 +96,14 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 		Controllers: []web.Controller{
 			NewController(options.Repository, web.ServiceBrokersURL, types.ServiceBrokerType, func() types.Object {
 				return &types.ServiceBroker{}
-			}, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
+			}, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize,
+				&BrokerValidator{CatalogFetcher: osb.CatalogFetcher(http.DefaultClient.Do, options.APISettings.OSBVersion)}),
 			NewController(options.Repository, web.PlatformsURL, types.PlatformType, func() types.Object {
 				return &types.Platform{}
-			}, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
+			}, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize, &PlatformValidator{}),
 			NewController(options.Repository, web.VisibilitiesURL, types.VisibilityType, func() types.Object {
 				return &types.Visibility{}
-			}, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
+			}, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize, &DefaultResourceValidator{}),
 			apiNotifications.NewController(ctx, options.Repository, options.WSSettings, options.Notificator),
 			NewServiceOfferingController(options.Repository, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
 			NewServicePlanController(options.Repository, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),

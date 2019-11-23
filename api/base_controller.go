@@ -46,23 +46,25 @@ const pagingLimitOffset = 1
 
 // BaseController provides common CRUD handlers for all object types in the service manager
 type BaseController struct {
-	resourceBaseURL string
-	objectType      types.ObjectType
-	repository      storage.Repository
-	objectBlueprint func() types.Object
-	DefaultPageSize int
-	MaxPageSize     int
+	resourceBaseURL   string
+	objectType        types.ObjectType
+	repository        storage.TransactionalRepository
+	objectBlueprint   func() types.Object
+	DefaultPageSize   int
+	MaxPageSize       int
+	ResourceValidator ResourceValidator
 }
 
 // NewController returns a new base controller
-func NewController(repository storage.Repository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, defaultPageSize, maxPageSize int) *BaseController {
+func NewController(repository storage.TransactionalRepository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, defaultPageSize, maxPageSize int, resourceValidator ResourceValidator) *BaseController {
 	return &BaseController{
-		repository:      repository,
-		resourceBaseURL: resourceBaseURL,
-		objectBlueprint: objectBlueprint,
-		objectType:      objectType,
-		DefaultPageSize: defaultPageSize,
-		MaxPageSize:     maxPageSize,
+		repository:        repository,
+		resourceBaseURL:   resourceBaseURL,
+		objectBlueprint:   objectBlueprint,
+		objectType:        objectType,
+		DefaultPageSize:   defaultPageSize,
+		MaxPageSize:       maxPageSize,
+		ResourceValidator: resourceValidator,
 	}
 }
 
@@ -135,6 +137,11 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	result.SetCreatedAt(currentTime)
 	result.SetUpdatedAt(currentTime)
 
+	log.C(ctx).Debugf("Attempting to validate creation of %s object with ID (%)", result.GetType(), result.GetID())
+	if err := c.ResourceValidator.ValidateCreate(ctx, c.repository, result); err != nil {
+		return nil, err
+	}
+
 	createdObj, err := c.repository.Create(ctx, result)
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
@@ -149,6 +156,22 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 	log.C(ctx).Debugf("Deleting %ss...", c.objectType)
 
 	criteria := query.CriteriaForContext(ctx)
+	idCriterion := getIDCriterion(criteria)
+
+	objectList, err := c.repository.List(ctx, c.objectType, idCriterion...)
+	if err != nil {
+		return nil, err
+	}
+
+	log.C(ctx).Debugf("Attempting to validate deletion of %s object(s)", c.objectType)
+	for i := 0; i < objectList.Len(); i++ {
+		log.C(ctx).Debugf("Attempting to validate deletion of %s object with ID (%)", c.objectType, objectList.ItemAt(i).GetID())
+		err = c.ResourceValidator.ValidateDelete(ctx, c.repository, objectList.ItemAt(i))
+		if err != nil {
+			return nil, util.HandleStorageError(err, string(c.objectType))
+		}
+	}
+
 	if _, err := c.repository.Delete(ctx, c.objectType, criteria...); err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
 	}
@@ -293,6 +316,11 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	labels, _, _ := query.ApplyLabelChangesToLabels(labelChanges, objFromDB.GetLabels())
 	objFromDB.SetLabels(labels)
 
+	log.C(ctx).Debugf("Attempting to validate update of %s object with ID (%)", objFromDB.GetType(), objFromDB.GetID())
+	if err := c.ResourceValidator.ValidateUpdate(ctx, c.repository, objFromDB); err != nil {
+		return nil, util.HandleStorageError(err, string(c.objectType))
+	}
+
 	object, err := c.repository.Update(ctx, objFromDB, labelChanges, criteria...)
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(c.objectType))
@@ -393,4 +421,13 @@ func pageFromObjectList(ctx context.Context, objectList types.ObjectList, count,
 		page.Token = generateTokenForItem(page.Items[len(page.Items)-1])
 	}
 	return page
+}
+
+func getIDCriterion(criteria []query.Criterion) []query.Criterion {
+	for _, criterion := range criteria {
+		if criterion.LeftOp == "id" {
+			return []query.Criterion{criterion}
+		}
+	}
+	return []query.Criterion{}
 }
