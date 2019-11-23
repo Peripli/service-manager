@@ -31,7 +31,7 @@ type ServiceInstanceController struct {
 	*BaseController
 }
 
-func NewServiceInstanceController(repository storage.TransactionalRepository, defaultPageSize, maxPageSize int) *ServiceInstanceController {
+func NewServiceInstanceController(repository storage.Repository, defaultPageSize, maxPageSize int) *ServiceInstanceController {
 	return &ServiceInstanceController{
 		BaseController: NewController(repository, web.ServiceInstancesURL, types.ServiceInstanceType, func() types.Object {
 			return &types.ServiceInstance{}

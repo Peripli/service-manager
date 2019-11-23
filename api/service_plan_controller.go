@@ -30,7 +30,7 @@ type ServicePlanController struct {
 	*BaseController
 }
 
-func NewServicePlanController(repository storage.TransactionalRepository, defaultPageSize, maxPageSize int) *ServicePlanController {
+func NewServicePlanController(repository storage.Repository, defaultPageSize, maxPageSize int) *ServicePlanController {
 	return &ServicePlanController{
 		BaseController: NewController(repository, web.ServicePlansURL, types.ServicePlanType, func() types.Object {
 			return &types.ServicePlan{}

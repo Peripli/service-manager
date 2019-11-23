@@ -48,7 +48,7 @@ const pagingLimitOffset = 1
 type BaseController struct {
 	resourceBaseURL   string
 	objectType        types.ObjectType
-	repository        storage.TransactionalRepository
+	repository        storage.Repository
 	objectBlueprint   func() types.Object
 	DefaultPageSize   int
 	MaxPageSize       int
@@ -56,7 +56,7 @@ type BaseController struct {
 }
 
 // NewController returns a new base controller
-func NewController(repository storage.TransactionalRepository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, defaultPageSize, maxPageSize int, resourceValidator ResourceValidator) *BaseController {
+func NewController(repository storage.Repository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, defaultPageSize, maxPageSize int, resourceValidator ResourceValidator) *BaseController {
 	return &BaseController{
 		repository:        repository,
 		resourceBaseURL:   resourceBaseURL,
