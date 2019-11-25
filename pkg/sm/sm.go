@@ -191,6 +191,11 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	srv := server.New(smb.cfg.Server, smb.API)
 	srv.Use(filters.NewRecoveryMiddleware())
 
+	// start each api scheduler's worker pool
+	for _, scheduler := range smb.API.Schedulers {
+		scheduler.Run()
+	}
+
 	return &ServiceManager{
 		ctx:                 smb.ctx,
 		wg:                  smb.wg,

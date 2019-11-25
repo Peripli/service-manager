@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/Peripli/service-manager/api/operations"
 	"net/http"
 	"strconv"
 	"time"
@@ -46,6 +47,7 @@ const pagingLimitOffset = 1
 
 // BaseController provides common CRUD handlers for all object types in the service manager
 type BaseController struct {
+	scheduler       operations.JobScheduler
 	resourceBaseURL string
 	objectType      types.ObjectType
 	repository      storage.Repository
@@ -55,9 +57,10 @@ type BaseController struct {
 }
 
 // NewController returns a new base controller
-func NewController(repository storage.Repository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, defaultPageSize, maxPageSize int) *BaseController {
+func NewController(repository storage.Repository, scheduler operations.JobScheduler, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, defaultPageSize, maxPageSize int) *BaseController {
 	return &BaseController{
 		repository:      repository,
+		scheduler:       scheduler,
 		resourceBaseURL: resourceBaseURL,
 		objectBlueprint: objectBlueprint,
 		objectType:      objectType,
@@ -135,12 +138,31 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	result.SetCreatedAt(currentTime)
 	result.SetUpdatedAt(currentTime)
 
-	createdObj, err := c.repository.Create(ctx, result)
+	UUID, err := uuid.NewV4()
 	if err != nil {
-		return nil, util.HandleStorageError(err, c.objectType.String())
+		return nil, fmt.Errorf("could not generate GUID for operation: %s", err)
 	}
 
-	return util.NewJSONResponse(http.StatusCreated, createdObj)
+	operation := &types.Operation{
+		Base: types.Base{
+			ID:        UUID.String(),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		Type:          types.CREATE,
+		State:         types.IN_PROGRESS,
+		ResourceID:    result.GetID(),
+		ResourceType:  string(result.GetType()),
+		CorrelationID: log.CorrelationIDFromContext(ctx),
+	}
+	_, err = c.repository.Create(ctx, operation)
+	if err != nil {
+		return nil, err
+	}
+
+	c.scheduler.ScheduleCreate(ctx, result, operation.ID)
+
+	return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operation.ID)
 }
 
 // DeleteObjects handles the deletion of the objects specified in the request
@@ -149,11 +171,32 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 	log.C(ctx).Debugf("Deleting %ss...", c.objectType)
 
 	criteria := query.CriteriaForContext(ctx)
-	if err := c.repository.Delete(ctx, c.objectType, criteria...); err != nil {
-		return nil, util.HandleStorageError(err, c.objectType.String())
+
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		return nil, fmt.Errorf("could not generate GUID for operation: %s", err)
 	}
 
-	return util.NewJSONResponse(http.StatusOK, map[string]string{})
+	operation := &types.Operation{
+		Base: types.Base{
+			ID:        UUID.String(),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		Type:          types.DELETE,
+		State:         types.IN_PROGRESS,
+		ResourceID:    "",
+		ResourceType:  string(c.objectType),
+		CorrelationID: log.CorrelationIDFromContext(ctx),
+	}
+	_, err = c.repository.Create(ctx, operation)
+	if err != nil {
+		return nil, err
+	}
+
+	c.scheduler.ScheduleDelete(ctx, c.objectType, criteria, operation.ID)
+
+	return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operation.ID)
 }
 
 // DeleteSingleObject handles the deletion of the object with the id specified in the request
@@ -293,14 +336,31 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	labels, _, _ := query.ApplyLabelChangesToLabels(labelChanges, objFromDB.GetLabels())
 	objFromDB.SetLabels(labels)
 
-	object, err := c.repository.Update(ctx, objFromDB, labelChanges, criteria...)
+	UUID, err := uuid.NewV4()
 	if err != nil {
-		return nil, util.HandleStorageError(err, c.objectType.String())
+		return nil, fmt.Errorf("could not generate GUID for operation: %s", err)
 	}
 
-	stripCredentials(ctx, object)
+	operation := &types.Operation{
+		Base: types.Base{
+			ID:        UUID.String(),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		Type:          types.UPDATE,
+		State:         types.IN_PROGRESS,
+		ResourceID:    objFromDB.GetID(),
+		ResourceType:  string(objFromDB.GetType()),
+		CorrelationID: log.CorrelationIDFromContext(ctx),
+	}
+	_, err = c.repository.Create(ctx, operation)
+	if err != nil {
+		return nil, err
+	}
 
-	return util.NewJSONResponse(http.StatusOK, object)
+	c.scheduler.ScheduleUpdate(ctx, objFromDB, labelChanges, criteria, operation.ID)
+
+	return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operation.ID)
 }
 
 func stripCredentials(ctx context.Context, object types.Object) {
