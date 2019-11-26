@@ -43,7 +43,7 @@
 
 [[constraint]]
   name = "github.com/lib/pq"
-  branch = "master"
+  version = "1.0.0"
 
 [[constraint]]
   name = "github.com/gofrs/uuid"
@@ -51,7 +51,7 @@
 
 [[constraint]]
   name = "github.com/golang-migrate/migrate"
-  version = "3.2.0"
+  version = "3.5.4"
 
 [[override]]
   name = "github.com/valyala/fasthttp"
