@@ -20,24 +20,29 @@ type JobScheduler interface {
 }
 
 type DefaultScheduler struct {
-	smCtx      context.Context
-	repository storage.Repository
-	workerPool *WorkerPool
-	jobs       chan ExecutableJob
+	smCtx               context.Context
+	repository          storage.Repository
+	workerPool          *WorkerPool
+	operationMaintainer *OperationMaintainer
+	jobs                chan ExecutableJob
 }
 
 func NewScheduler(smCtx context.Context, options *api.Options) *DefaultScheduler {
 	workerPool := NewPool(options.Repository, options.APISettings.PoolSize)
+	operationMaintainer := NewOperationMaintainer(options)
+
 	return &DefaultScheduler{
-		smCtx:      smCtx,
-		repository: options.Repository,
-		workerPool: workerPool,
-		jobs:       workerPool.jobs,
+		smCtx:               smCtx,
+		repository:          options.Repository,
+		workerPool:          workerPool,
+		operationMaintainer: operationMaintainer,
+		jobs:                workerPool.jobs,
 	}
 }
 
 func (ds *DefaultScheduler) Run() {
 	ds.workerPool.Run()
+	ds.operationMaintainer.Run()
 }
 
 func (ds *DefaultScheduler) ScheduleCreate(ctx context.Context, object types.Object, operationID string) {

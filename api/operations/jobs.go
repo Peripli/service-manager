@@ -11,7 +11,7 @@ import (
 )
 
 type ExecutableJob interface {
-	Execute(repository storage.Repository, results chan error)
+	Execute(ctx context.Context, repository storage.Repository, results chan error)
 }
 
 type CreateJob struct {
@@ -35,7 +35,7 @@ type DeleteJob struct {
 	criteria    []query.Criterion
 }
 
-func (co *CreateJob) Execute(repository storage.Repository, errChan chan error) {
+func (co *CreateJob) Execute(ctx context.Context, repository storage.Repository, errChan chan error) {
 	var err error
 	defer func() {
 		errChan <- err
@@ -56,7 +56,7 @@ func (co *CreateJob) Execute(repository storage.Repository, errChan chan error) 
 	}
 }
 
-func (uo *UpdateJob) Execute(repository storage.Repository, errChan chan error) {
+func (uo *UpdateJob) Execute(ctx context.Context, repository storage.Repository, errChan chan error) {
 	var err error
 	defer func() {
 		errChan <- err
@@ -77,7 +77,7 @@ func (uo *UpdateJob) Execute(repository storage.Repository, errChan chan error) 
 	}
 }
 
-func (do *DeleteJob) Execute(repository storage.Repository, errChan chan error) {
+func (do *DeleteJob) Execute(ctx context.Context, repository storage.Repository, errChan chan error) {
 	var err error
 	defer func() {
 		errChan <- err
