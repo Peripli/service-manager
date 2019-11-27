@@ -407,5 +407,8 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 
 	multitenancyFilters := filters.NewMultitenancyFilters(labelKey, extractTenantFunc)
 	smb.RegisterFiltersAfter(filters.ProtectedLabelsFilterName, multitenancyFilters...)
+	smb.WithCreateAroundTxInterceptorProvider(types.ServiceInstanceType, &interceptors.ServiceInstanceCreateInsterceptorProvider{
+		TenantIdentifier: labelKey,
+	}).Register()
 	return smb
 }
