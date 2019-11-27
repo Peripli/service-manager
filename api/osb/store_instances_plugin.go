@@ -571,6 +571,9 @@ func (ssi *StoreServiceInstancePlugin) updateInstance(ctx context.Context, req *
 		return err
 	}
 	previousValuesBytes, err = sjson.SetBytes(previousValuesBytes, smServicePlanIDKey, oldServicePlanID)
+	if err != nil {
+		return err
+	}
 	if len(req.PlanID) != 0 && req.PreviousValues.PlanID != req.PlanID {
 		var err error
 		serviceInstance.ServicePlanID, err = findServicePlanIDByCatalogIDs(ctx, storage, req.BrokerID, req.ServiceID, req.PlanID)
