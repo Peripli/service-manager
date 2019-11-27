@@ -387,14 +387,14 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 
 	correlationID := log.CorrelationIDForRequest(request.Request)
 	if err := ssi.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-		criterias := []query.Criterion{
+		criteria := []query.Criterion{
 			query.ByField(query.EqualsOperator, "resource_id", req.InstanceID),
 			query.OrderResultBy("paging_sequence", query.DescOrder),
 		}
 		if len(req.OperationData) != 0 {
-			criterias = append(criterias, query.ByField(query.EqualsOperator, "external_id", req.OperationData))
+			criteria = append(criteria, query.ByField(query.EqualsOperator, "external_id", req.OperationData))
 		}
-		op, err := storage.Get(ctx, types.OperationType, criterias...)
+		op, err := storage.Get(ctx, types.OperationType, criteria...)
 		if err != nil && err != util.ErrNotFoundInStorage {
 			return err
 		}
@@ -403,7 +403,7 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 		}
 
 		operationFromDB := op.(*types.Operation)
-		if strings.ToLower(string(operationFromDB.State)) != strings.ToLower(string(resp.State)) {
+		if !strings.EqualFold(string(operationFromDB.State), string(resp.State)) {
 			switch operationFromDB.Type {
 			case types.CREATE:
 				switch resp.State {
@@ -483,6 +483,9 @@ func (ssi *StoreServiceInstancePlugin) updateOperation(ctx context.Context, oper
 			return err
 		}
 		operation.Errors, err = sjson.SetBytes(operation.Errors, "errors.-1", errorBytes)
+		if err != nil {
+			return err
+		}
 	}
 
 	if _, err := storage.Update(ctx, operation, query.LabelChanges{}); err != nil {
