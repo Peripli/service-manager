@@ -323,6 +323,8 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener) *TestCon
 		SMRepository:         smRepository,
 	}
 
+	RemoveAllOperations(testContext.SMRepository)
+	RemoveAllInstances(testContext.SMRepository)
 	RemoveAllBrokers(testContext.SMWithOAuth)
 	RemoveAllPlatforms(testContext.SMWithOAuth)
 
@@ -517,6 +519,11 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 	}
 
 	_, err = ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType)
+	if err != nil && err != util.ErrNotFoundInStorage {
+		panic(err)
+	}
+
+	_, err = ctx.SMRepository.Delete(context.TODO(), types.OperationType)
 	if err != nil && err != util.ErrNotFoundInStorage {
 		panic(err)
 	}

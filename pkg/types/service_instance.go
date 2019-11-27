@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/Peripli/service-manager/pkg/util"
 )
 

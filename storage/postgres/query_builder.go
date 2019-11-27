@@ -55,8 +55,8 @@ FROM {{.ENTITY_TABLE}}
 WHERE {{.ENTITY_TABLE}}.paging_sequence IN 
 	(SELECT matching_resources.paging_sequence FROM matching_resources)
 {{end}}
-{{.FOR_SHARE_OF}}
-{{.ORDER_BY}};`
+{{.ORDER_BY}}
+{{.FOR_SHARE_OF}};`
 
 const DeleteQueryTemplate = `
 DELETE FROM {{.ENTITY_TABLE}}

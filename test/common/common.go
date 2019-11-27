@@ -17,7 +17,10 @@
 package common
 
 import (
+	"context"
 	"time"
+
+	"github.com/Peripli/service-manager/storage"
 
 	"github.com/Peripli/service-manager/pkg/web"
 
@@ -198,6 +201,14 @@ func MapContains(actual Object, expected Object) {
 				1)
 		}
 	}
+}
+
+func RemoveAllOperations(repository storage.Repository) {
+	repository.Delete(context.TODO(), types.OperationType)
+}
+
+func RemoveAllInstances(repository storage.Repository) {
+	repository.Delete(context.TODO(), types.ServiceInstanceType)
 }
 
 func RemoveAllBrokers(SM *SMExpect) {
