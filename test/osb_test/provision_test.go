@@ -258,6 +258,24 @@ var _ = Describe("Provision", func() {
 			},
 		))
 
+	Context("when instance already exists", func() {
+		It("returns 409", func() {
+			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
+			serviceInstance := provisionRequestBodyMap()()
+
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+				WithHeader("X-Broker-API-Version", "2.13").
+				WithJSON(serviceInstance).Expect().Status(http.StatusOK)
+
+			ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + SID).
+				Expect().Status(http.StatusOK)
+
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+				WithHeader("X-Broker-API-Version", "2.13").
+				WithJSON(serviceInstance).Expect().Status(http.StatusConflict)
+		})
+	})
+
 	Context("when call contains query params", func() {
 		It("propagates them to the service broker", func() {
 			headerKey, headerValue := generateRandomQueryParam()

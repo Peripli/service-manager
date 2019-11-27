@@ -192,12 +192,8 @@ func (ssi *StoreServiceInstancePlugin) Provision(request *web.Request, next web.
 	ctx := request.Context()
 
 	req := &provisionRequest{}
-	shouldSkip, err := decodeRequestBody(request, req)
-	if err != nil {
+	if err := decodeRequestBody(request, req); err != nil {
 		return nil, err
-	}
-	if shouldSkip {
-		return next.Handle(request)
 	}
 
 	response, err := next.Handle(request)
@@ -254,12 +250,8 @@ func (ssi *StoreServiceInstancePlugin) Deprovision(request *web.Request, next we
 	ctx := request.Context()
 
 	req := &deprovisionRequest{}
-	shouldSkip, err := parseRequestForm(request, req)
-	if err != nil {
+	if err := parseRequestForm(request, req); err != nil {
 		return nil, err
-	}
-	if shouldSkip {
-		return next.Handle(request)
 	}
 
 	response, err := next.Handle(request)
@@ -284,7 +276,8 @@ func (ssi *StoreServiceInstancePlugin) Deprovision(request *web.Request, next we
 			byID := query.ByField(query.EqualsOperator, "id", req.InstanceID)
 			if _, err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
 				if err != util.ErrNotFoundInStorage {
-					return err
+					return util.HandleStorageError(err, string(types.ServiceInstanceType))
+
 				}
 			}
 			if err := ssi.storeOperation(ctx, storage, req, &resp, types.SUCCEEDED, types.DELETE, correlationID); err != nil {
@@ -307,12 +300,8 @@ func (ssi *StoreServiceInstancePlugin) UpdateService(request *web.Request, next 
 	ctx := request.Context()
 
 	req := &updateRequest{}
-	shouldSkip, err := decodeRequestBody(request, req)
-	if err != nil {
+	if err := decodeRequestBody(request, req); err != nil {
 		return nil, err
-	}
-	if shouldSkip {
-		return next.Handle(request)
 	}
 
 	response, err := next.Handle(request)
@@ -358,12 +347,8 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 	ctx := request.Context()
 
 	req := &lastOperationRequest{}
-	shouldSkip, err := parseRequestForm(request, req)
-	if err != nil {
+	if err := parseRequestForm(request, req); err != nil {
 		return nil, err
-	}
-	if shouldSkip {
-		return next.Handle(request)
 	}
 
 	response, err := next.Handle(request)
@@ -396,7 +381,7 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 		}
 		op, err := storage.Get(ctx, types.OperationType, criteria...)
 		if err != nil && err != util.ErrNotFoundInStorage {
-			return err
+			return util.HandleStorageError(err, string(types.OperationType))
 		}
 		if op == nil {
 			return nil
@@ -418,7 +403,7 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 					byID := query.ByField(query.EqualsOperator, "id", req.InstanceID)
 					if _, err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
 						if err != util.ErrNotFoundInStorage {
-							return err
+							return util.HandleStorageError(err, string(types.ServiceInstanceType))
 						}
 					}
 					if err := ssi.updateOperation(ctx, operationFromDB, storage, req, &resp.Response, types.FAILED, correlationID); err != nil {
@@ -445,7 +430,7 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 					byID := query.ByField(query.EqualsOperator, "id", req.InstanceID)
 					if _, err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
 						if err != util.ErrNotFoundInStorage {
-							return err
+							return util.HandleStorageError(err, string(types.ServiceInstanceType))
 						}
 					}
 					if err := ssi.updateOperation(ctx, operationFromDB, storage, req, &resp.Response, types.SUCCEEDED, correlationID); err != nil {
@@ -489,7 +474,7 @@ func (ssi *StoreServiceInstancePlugin) updateOperation(ctx context.Context, oper
 	}
 
 	if _, err := storage.Update(ctx, operation, query.LabelChanges{}); err != nil {
-		return err
+		return util.HandleStorageError(err, string(operation.GetType()))
 	}
 
 	return nil
@@ -516,7 +501,7 @@ func (ssi *StoreServiceInstancePlugin) storeOperation(ctx context.Context, stora
 	}
 
 	if _, err := storage.Create(ctx, operation); err != nil {
-		return err
+		return util.HandleStorageError(err, string(operation.GetType()))
 	}
 
 	return nil
@@ -532,7 +517,7 @@ func (ssi *StoreServiceInstancePlugin) storeInstance(ctx context.Context, storag
 		log.C(ctx).Debugf("Instance name missing. Defaulting to id %s", req.InstanceID)
 		instanceName = req.InstanceID
 	}
-	if _, err := storage.Create(ctx, &types.ServiceInstance{
+	instance := &types.ServiceInstance{
 		Base: types.Base{
 			ID:        req.InstanceID,
 			CreatedAt: req.Timestamp,
@@ -546,8 +531,9 @@ func (ssi *StoreServiceInstancePlugin) storeInstance(ctx context.Context, storag
 		Context:         req.RawContext,
 		Ready:           ready,
 		Usable:          true,
-	}); err != nil {
-		return err
+	}
+	if _, err := storage.Create(ctx, instance); err != nil {
+		return util.HandleStorageError(err, string(instance.GetType()))
 	}
 	return nil
 }
@@ -558,7 +544,7 @@ func (ssi *StoreServiceInstancePlugin) updateInstance(ctx context.Context, req *
 	var err error
 	if instance, err = storage.Get(ctx, types.ServiceInstanceType, byID); err != nil {
 		if err != util.ErrNotFoundInStorage {
-			return err
+			return util.HandleStorageError(err, string(types.ServiceInstanceType))
 		}
 	}
 	if instance == nil {
@@ -590,7 +576,7 @@ func (ssi *StoreServiceInstancePlugin) updateInstance(ctx context.Context, req *
 
 	serviceInstance.PreviousValues = previousValuesBytes
 	if _, err := storage.Update(ctx, serviceInstance, query.LabelChanges{}); err != nil {
-		return err
+		return util.HandleStorageError(err, string(serviceInstance.GetType()))
 	}
 
 	return nil
@@ -601,14 +587,7 @@ func (ssi *StoreServiceInstancePlugin) rollbackInstance(ctx context.Context, req
 	var instance types.Object
 	var err error
 	if instance, err = storage.Get(ctx, types.ServiceInstanceType, byID); err != nil {
-		if err == util.ErrNotFoundInStorage {
-			return &util.HTTPError{
-				ErrorType:   "NotFound",
-				Description: "instance operation details not found, please retry",
-				StatusCode:  http.StatusNotFound,
-			}
-		}
-		return err
+		return util.HandleStorageError(err, string(types.ServiceInstanceType))
 	}
 	if instance == nil {
 		return nil
@@ -629,7 +608,7 @@ func (ssi *StoreServiceInstancePlugin) rollbackInstance(ctx context.Context, req
 	}
 
 	if _, err := storage.Update(ctx, serviceInstance, query.LabelChanges{}); err != nil {
-		return err
+		return util.HandleStorageError(err, string(serviceInstance.GetType()))
 	}
 
 	return nil
@@ -640,14 +619,7 @@ func (ssi *StoreServiceInstancePlugin) updateInstanceReady(ctx context.Context, 
 	var instance types.Object
 	var err error
 	if instance, err = storage.Get(ctx, types.ServiceInstanceType, byID); err != nil {
-		if err == util.ErrNotFoundInStorage {
-			return &util.HTTPError{
-				ErrorType:   "NotFound",
-				Description: "instance operation details not found, please retry",
-				StatusCode:  http.StatusNotFound,
-			}
-		}
-		return err
+		return util.HandleStorageError(err, string(types.ServiceInstanceType))
 	}
 	if instance == nil {
 		return nil
@@ -656,39 +628,25 @@ func (ssi *StoreServiceInstancePlugin) updateInstanceReady(ctx context.Context, 
 	serviceInstance.Ready = true
 
 	if _, err := storage.Update(ctx, serviceInstance, query.LabelChanges{}); err != nil {
-		return err
+		return util.HandleStorageError(err, string(serviceInstance.GetType()))
 	}
 
 	return nil
 }
 
-func findServicePlanIDByCatalogIDs(ctx context.Context, repository storage.Repository, brokerID, catalogServiceID, catalogPlanID string) (string, error) {
+func findServicePlanIDByCatalogIDs(ctx context.Context, storage storage.Repository, brokerID, catalogServiceID, catalogPlanID string) (string, error) {
 	byBrokerID := query.ByField(query.EqualsOperator, "broker_id", brokerID)
 	byCatalogServiceID := query.ByField(query.EqualsOperator, "catalog_id", catalogServiceID)
-	serviceOffering, err := repository.Get(ctx, types.ServiceOfferingType, byBrokerID, byCatalogServiceID)
+	serviceOffering, err := storage.Get(ctx, types.ServiceOfferingType, byBrokerID, byCatalogServiceID)
 	if err != nil {
-		if err == util.ErrNotFoundInStorage {
-			return "", &util.HTTPError{
-				ErrorType:   "UnknownService",
-				Description: fmt.Sprintf("catalog service_id %s for broker with id %s not known to SM", catalogServiceID, brokerID),
-				StatusCode:  http.StatusBadRequest,
-			}
-		}
-		return "", err
+		return "", util.HandleStorageError(err, string(types.ServiceOfferingType))
 	}
 
 	byServiceOfferingID := query.ByField(query.EqualsOperator, "service_offering_id", serviceOffering.GetID())
 	byCatalogPlanID := query.ByField(query.EqualsOperator, "catalog_id", catalogPlanID)
-	servicePlan, err := repository.Get(ctx, types.ServicePlanType, byServiceOfferingID, byCatalogPlanID)
+	servicePlan, err := storage.Get(ctx, types.ServicePlanType, byServiceOfferingID, byCatalogPlanID)
 	if err != nil {
-		if err == util.ErrNotFoundInStorage {
-			return "", &util.HTTPError{
-				ErrorType:   "UnknownPlan",
-				Description: fmt.Sprintf("catalog plan_id %s for catalog service_id %s and broker with id %s not known to SM", catalogPlanID, catalogServiceID, brokerID),
-				StatusCode:  http.StatusBadRequest,
-			}
-		}
-		return "", err
+		return "", util.HandleStorageError(err, string(types.ServicePlanType))
 	}
 
 	return servicePlan.GetID(), nil
@@ -699,69 +657,51 @@ func (ssi *StoreServiceInstancePlugin) findPlanIDForInput(ctx context.Context, s
 	byBrokerID := query.ByField(query.EqualsOperator, "broker_id", brokerID)
 	service, err := storage.Get(ctx, types.ServiceOfferingType, byServiceOfferingCatalogID, byBrokerID)
 	if err != nil {
-		if err == util.ErrNotFoundInStorage {
-			return "", &util.HTTPError{
-				ErrorType:   "UnknownService",
-				Description: fmt.Sprintf("catalog service_id %s for broker with id %s not known to SM", catalogServiceID, brokerID),
-				StatusCode:  http.StatusBadRequest,
-			}
-		}
-		return "", err
+		return "", util.HandleStorageError(err, string(types.ServiceOfferingType))
 	}
 	byServiceOfferingID := query.ByField(query.EqualsOperator, "service_offering_id", service.GetID())
 	byServicePlanCatalogID := query.ByField(query.EqualsOperator, "catalog_id", catalogPlanID)
 	var plan types.Object
 	if plan, err = storage.Get(ctx, types.ServicePlanType, byServiceOfferingID, byServicePlanCatalogID); err != nil {
-		if err == util.ErrNotFoundInStorage {
-			return "", &util.HTTPError{
-				ErrorType:   "UnknownPlan",
-				Description: fmt.Sprintf("catalog plan_id %s for catalog service_id %s and broker with id %s not known to SM", catalogPlanID, catalogServiceID, brokerID),
-				StatusCode:  http.StatusBadRequest,
-			}
-		}
-		return "", err
+		return "", util.HandleStorageError(err, string(types.ServicePlanType))
 	}
 
 	return plan.GetID(), nil
 }
 
-func parseRequestForm(request *web.Request, body commonOSBRequest) (bool, error) {
+func parseRequestForm(request *web.Request, body commonOSBRequest) error {
 	user, ok := web.UserFromContext(request.Context())
 	if !ok {
-		return false, fmt.Errorf("user details not found in request context")
-	}
-	if user.AuthenticationType != web.Basic {
-		log.C(request.Context()).Debugf("Authentication is %s, not basic so proceed without activating store instance plugin", user.AuthenticationType)
-		return true, nil
+		return fmt.Errorf("user details not found in request context")
 	}
 	platform := &types.Platform{}
 	if err := user.Data(platform); err != nil {
-		return false, err
+		return err
 	}
 	if err := platform.Validate(); err != nil {
-		return false, fmt.Errorf("invalid platform found in user context: %s", err)
+		return fmt.Errorf("invalid platform found in user context: %s", err)
 	}
 
 	brokerID, ok := request.PathParams[BrokerIDPathParam]
 	if !ok {
-		return false, fmt.Errorf("path parameter missing: %s", BrokerIDPathParam)
+		return fmt.Errorf("path parameter missing: %s", BrokerIDPathParam)
 	}
 	instanceID, ok := request.PathParams[InstanceIDPathParam]
 	if !ok {
-		return false, fmt.Errorf("path parameter missing: %s", InstanceIDPathParam)
+		return fmt.Errorf("path parameter missing: %s", InstanceIDPathParam)
 	}
 	body.SetBrokerID(brokerID)
 	body.SetInstanceID(instanceID)
 	body.SetPlatformID(platform.ID)
 	body.SetTimestamp(time.Now().UTC())
 
-	return false, nil
+	return nil
 
 }
 
-func decodeRequestBody(request *web.Request, body commonOSBRequest) (bool, error) {
+func decodeRequestBody(request *web.Request, body commonOSBRequest) error {
 	if err := util.BytesToObject(request.Body, body); err != nil {
-		return false, err
+		return err
 	}
 	return parseRequestForm(request, body)
 }
