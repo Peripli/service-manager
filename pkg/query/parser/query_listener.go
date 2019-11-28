@@ -1,4 +1,4 @@
-// Code generated from /Users/i322053/goworkspace/src/github.com/Peripli/service-manager/pkg/query/Query.g4 by ANTLR 4.7.2. DO NOT EDIT.
+// Code generated from Query.g4 by ANTLR 4.7.2. DO NOT EDIT.
 
 package parser // Query
 
