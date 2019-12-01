@@ -1181,19 +1181,17 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
 									WithJSON(common.Object{}).
 									Expect().
-									Status(http.StatusBadRequest).
+									Status(http.StatusConflict).
 									JSON().Object().
-									Value("description").String().Contains("existing reference entity")
+									Value("error").String().Contains("ExistingReferenceEntity")
 
-								serviceOfferings := ctx.SMWithOAuth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=id eq '%s'", serviceOfferingID))
-								serviceOfferings.NotEmpty()
+								ctx.SMWithOAuth.GET(web.ServiceOfferingsURL + "/" + serviceOfferingID).
+									Expect().
+									Status(http.StatusOK).Body().NotEmpty()
 
 								servicePlans := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("id in ('%s')", strings.Join(planIDsForService, "','")))
 								servicePlans.NotEmpty()
 								servicePlans.Length().Equal(len(planIDsForService))
-
-								assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
-
 							})
 						})
 					})
@@ -1370,14 +1368,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
 									WithJSON(common.Object{}).
 									Expect().
-									Status(http.StatusBadRequest).
+									Status(http.StatusConflict).
 									JSON().Object().
-									Value("description").String().Contains("existing reference entity")
+									Value("error").String().Contains("ExistingReferenceEntity")
 
 								ctx.SMWithOAuth.List(web.ServicePlansURL).
 									Path("$[*].catalog_id").Array().Contains(removedPlanCatalogID)
-
-								assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 							})
 						})
 					})
@@ -1688,9 +1684,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					It("should return 400 with user-friendly message", func() {
 						ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL + "/" + brokerID).
 							Expect().
-							Status(http.StatusBadRequest).
+							Status(http.StatusConflict).
 							JSON().Object().
-							Value("description").String().Contains("existing reference entity")
+							Value("error").String().Contains("ExistingReferenceEntity")
 					})
 				})
 			})

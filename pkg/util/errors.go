@@ -112,14 +112,14 @@ func (e *ErrBadRequestStorage) Error() string {
 	return e.Cause.Error()
 }
 
-// ErrExistingReferenceEntityStorage represents a foreign key constraint storage error that should be translated to a user-friendly http.StatusBadRequest
-type ErrExistingReferenceEntityStorage struct {
+// ErrForeignKeyViolation represents a foreign key constraint storage error that should be translated to a user-friendly http.StatusBadRequest
+type ErrForeignKeyViolation struct {
 	Entity          string
-	ViolationEntity string
+	ReferenceEntity string
 }
 
-func (e *ErrExistingReferenceEntityStorage) Error() string {
-	return fmt.Sprintf("Could not delete entity %s due to existing reference entity %s", e.Entity, e.ViolationEntity)
+func (e *ErrForeignKeyViolation) Error() string {
+	return fmt.Sprintf("Could not delete entity %s due to existing reference entity %s", e.Entity, e.ReferenceEntity)
 }
 
 // HandleStorageError handles storage errors by converting them to relevant HTTPErrors
@@ -158,11 +158,11 @@ func HandleStorageError(err error, entityName string) error {
 	default:
 		// in case we did not replace the pg.Error in the DB layer, propagate it as response message to give the caller relevant info
 		switch e := err.(type) {
-		case *ErrExistingReferenceEntityStorage:
+		case *ErrForeignKeyViolation:
 			return &HTTPError{
 				ErrorType:   "ExistingReferenceEntity",
 				Description: fmt.Sprintf("Error deleting entity %s: %s", entityName, err.Error()),
-				StatusCode:  http.StatusBadRequest,
+				StatusCode:  http.StatusConflict,
 			}
 		case *ErrBadRequestStorage:
 			return &HTTPError{

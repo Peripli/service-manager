@@ -355,9 +355,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					It("should return 400 with user-friendly message", func() {
 						ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/" + platformID).
 							Expect().
-							Status(http.StatusBadRequest).
+							Status(http.StatusConflict).
 							JSON().Object().
-							Value("description").String().Contains("existing reference entity")
+							Value("error").String().Contains("ExistingReferenceEntity")
 					})
 				})
 			})

@@ -21,7 +21,6 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/lib/pq"
-	"strings"
 	"sync"
 	"time"
 
@@ -252,12 +251,12 @@ func (ps *Storage) Delete(ctx context.Context, objType types.ObjectType, criteri
 	if err != nil {
 		pqError, ok := err.(*pq.Error)
 		if ok && pqError.Code.Name() == foreignKeyViolation {
-			entityName := string(entity.GetType().ToObjectType())
-			violationEntityName := string(storage.EntityType(pqError.Table).ToObjectType())
+			entityName := objType.String()
+			referenceEntityName := storage.EntityType(pqError.Table).ToObjectType().String()
 
-			return nil, &util.ErrExistingReferenceEntityStorage{
-				Entity:          strings.TrimPrefix(entityName, types.Prefix),
-				ViolationEntity: strings.TrimPrefix(violationEntityName, types.Prefix),
+			return nil, &util.ErrForeignKeyViolation{
+				Entity:          entityName,
+				ReferenceEntity: referenceEntityName,
 			}
 		}
 
