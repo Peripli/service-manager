@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/gofrs/uuid"
+
 	"github.com/Peripli/service-manager/pkg/env"
 
 	"github.com/Peripli/service-manager/pkg/sm"
@@ -32,6 +34,8 @@ var _ = Describe("Service Manager Plugins", func() {
 	var ctx *common.TestContext
 	var brokerServer *common.BrokerServer
 	var osbURL string
+	var serviceID string
+	var planID string
 
 	AfterEach(func() {
 		if ctx != nil {
@@ -46,15 +50,26 @@ var _ = Describe("Service Manager Plugins", func() {
 				return nil
 			}).Build()
 
+			UUID, err := uuid.NewV4()
+			Expect(err).ToNot(HaveOccurred())
+			planID = UUID.String()
+			plan1 := common.GenerateTestPlanWithID(planID)
+			UUID, err = uuid.NewV4()
+			Expect(err).ToNot(HaveOccurred())
+			serviceID = UUID.String()
+			service1 := common.GenerateTestServiceWithPlansWithID(serviceID, plan1)
+			catalog := common.NewEmptySBCatalog()
+			catalog.AddService(service1)
+
 			var brokerID string
-			brokerID, _, brokerServer = ctx.RegisterBroker()
+			brokerID, _, brokerServer = ctx.RegisterBrokerWithCatalog(catalog)
 			osbURL = "/v1/osb/" + brokerID
 		})
 
 		It("should be called for provision and not for deprovision", func() {
 			ctx.SMWithBasic.PUT(osbURL+"/v2/service_instances/1234").
 				WithHeader("Content-Type", "application/json").
-				WithJSON(object{}).
+				WithJSON(object{"service_id": serviceID, "plan_id": planID}).
 				Expect().Status(http.StatusCreated).Header("X-Plugin").Equal("provision")
 
 			ctx.SMWithBasic.DELETE(osbURL+"/v2/service_instances/1234").
@@ -75,8 +90,19 @@ var _ = Describe("Service Manager Plugins", func() {
 				return nil
 			}).Build()
 
+			UUID, err := uuid.NewV4()
+			Expect(err).ToNot(HaveOccurred())
+			planID = UUID.String()
+			plan1 := common.GenerateTestPlanWithID(planID)
+			UUID, err = uuid.NewV4()
+			Expect(err).ToNot(HaveOccurred())
+			serviceID = UUID.String()
+			service1 := common.GenerateTestServiceWithPlansWithID(serviceID, plan1)
+			catalog := common.NewEmptySBCatalog()
+			catalog.AddService(service1)
+
 			var brokerID string
-			brokerID, _, brokerServer = ctx.RegisterBroker()
+			brokerID, _, brokerServer = ctx.RegisterBrokerWithCatalog(catalog)
 			osbURL = "/v1/osb/" + brokerID
 		})
 
@@ -103,8 +129,8 @@ var _ = Describe("Service Manager Plugins", func() {
 			})
 
 			provisionBody := object{
-				"service_id": "s123",
-				"plan_id":    "p123",
+				"service_id": serviceID,
+				"plan_id":    planID,
 			}
 			resp := ctx.SMWithBasic.PUT(osbURL + "/v2/service_instances/1234").
 				WithJSON(provisionBody).Expect().Status(http.StatusCreated)
@@ -118,8 +144,8 @@ var _ = Describe("Service Manager Plugins", func() {
 			jsonBody := object{}
 			json.Unmarshal(brokerServer.LastRequestBody, &jsonBody)
 			Expect(jsonBody).To(Equal(object{
-				"service_id": "s123",
-				"plan_id":    "p123",
+				"service_id": serviceID,
+				"plan_id":    planID,
 				"extra":      "request",
 			}))
 		})
@@ -138,7 +164,7 @@ var _ = Describe("Service Manager Plugins", func() {
 				return res, nil
 			})
 
-			ctx.SMWithBasic.PUT(osbURL+"/v2/service_instances/123").WithHeader("extra", "value").WithJSON(object{}).
+			ctx.SMWithBasic.PUT(osbURL+"/v2/service_instances/123").WithHeader("extra", "value").WithJSON(object{"service_id": serviceID, "plan_id": planID}).
 				Expect().Status(http.StatusCreated).Header("extra").Equal("value-response")
 
 			Expect(brokerServer.LastRequest.Header.Get("extra")).To(Equal("value-request"))
@@ -177,7 +203,8 @@ var _ = Describe("Service Manager Plugins", func() {
 			expectedStatus int
 		}{
 			{"fetchCatalog", "GET", "/v2/catalog", []string{""}, http.StatusOK},
-			{"provision", "PUT", "/v2/service_instances/1234", []string{"", "accepts_incomplete=true"}, http.StatusCreated},
+			{"provision", "PUT", "/v2/service_instances/1234", []string{""}, http.StatusCreated},
+			{"provision", "PUT", "/v2/service_instances/1234", []string{"accepts_incomplete=true"}, http.StatusCreated},
 			{"deprovision", "DELETE", "/v2/service_instances/1234", []string{""}, http.StatusOK},
 			{"updateService", "PATCH", "/v2/service_instances/1234", []string{""}, http.StatusOK},
 			{"fetchService", "GET", "/v2/service_instances/1234", []string{""}, http.StatusOK},
@@ -203,7 +230,7 @@ var _ = Describe("Service Manager Plugins", func() {
 				for _, query := range op.queries {
 					ctx.SMWithBasic.Request(op.method, osbURL+op.path).
 						WithHeader("Content-Type", "application/json").
-						WithJSON(object{}).
+						WithJSON(object{"service_id": serviceID, "plan_id": planID}).
 						WithQueryString(query).
 						Expect().Status(op.expectedStatus).Header("X-Plugin").Equal(op.name)
 				}
