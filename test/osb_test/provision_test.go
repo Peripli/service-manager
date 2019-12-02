@@ -34,7 +34,7 @@ var _ = Describe("Provision", func() {
 			serviceInstance := serviceInstanceFunc()
 
 			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
-				WithHeader("X-Broker-API-Version", "2.13").
+				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(serviceInstance).Expect().Status(expectedStatusCode)
 
 			ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + SID).
@@ -64,7 +64,7 @@ var _ = Describe("Provision", func() {
 		func(brokerHandler func(http.ResponseWriter, *http.Request), expectedStatusCode int, expectedDescriptionPattern string) {
 			brokerServer.ServiceInstanceHandler = brokerHandler
 			expectedDescription := fmt.Sprintf(expectedDescriptionPattern, brokerName)
-			response := ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+			response := ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).Expect().Status(expectedStatusCode)
 			if expectedStatusCode > 399 {
 				response.JSON().Object().Value("description").String().Contains(expectedDescription)
@@ -98,7 +98,7 @@ var _ = Describe("Provision", func() {
 			serviceInstance := serviceInstanceFunc()
 
 			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
-				WithHeader("X-Broker-API-Version", "2.13").
+				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(serviceInstance).Expect().StatusRange(httpexpect.Status2xx)
 
 			ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + SID).
@@ -264,14 +264,14 @@ var _ = Describe("Provision", func() {
 			serviceInstance := provisionRequestBodyMap()()
 
 			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
-				WithHeader("X-Broker-API-Version", "2.13").
+				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(serviceInstance).Expect().Status(http.StatusOK)
 
 			ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + SID).
 				Expect().Status(http.StatusOK)
 
 			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
-				WithHeader("X-Broker-API-Version", "2.13").
+				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(serviceInstance).Expect().Status(http.StatusConflict)
 		})
 	})
@@ -280,7 +280,7 @@ var _ = Describe("Provision", func() {
 		It("propagates them to the service broker", func() {
 			headerKey, headerValue := generateRandomQueryParam()
 			brokerServer.ServiceInstanceHandler = queryParameterVerificationHandler(headerKey, headerValue)
-			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).WithQuery(headerKey, headerValue).Expect().Status(http.StatusCreated)
 		})
 	})
@@ -288,7 +288,7 @@ var _ = Describe("Provision", func() {
 	Context("when broker times out", func() {
 		It("should fail with 502", func(done chan<- interface{}) {
 			brokerServer.ServiceInstanceHandler = delayingHandler(done)
-			assertUnresponsiveBrokerError(ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+			assertUnresponsiveBrokerError(ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).Expect())
 
 			ctx.SMWithOAuth.List(web.ServiceInstancesURL).Path("$[*].id").Array().NotContains(SID)
@@ -299,7 +299,7 @@ var _ = Describe("Provision", func() {
 
 	Context("when broker does not exist", func() {
 		It("should fail with 404", func() {
-			assertMissingBrokerError(ctx.SMWithBasic.PUT("http://localhost:32123/v1/osb/"+SID+"/v2/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+			assertMissingBrokerError(ctx.SMWithBasic.PUT("http://localhost:32123/v1/osb/"+SID+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).Expect())
 
 			ctx.SMWithOAuth.List(web.ServiceInstancesURL).Path("$[*].id").Array().NotContains(SID)
@@ -310,7 +310,7 @@ var _ = Describe("Provision", func() {
 
 	Context("when broker is stopped", func() {
 		It("should fail with 502", func() {
-			assertUnresponsiveBrokerError(ctx.SMWithBasic.PUT(smUrlToStoppedBroker+"/v2/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+			assertUnresponsiveBrokerError(ctx.SMWithBasic.PUT(smUrlToStoppedBroker+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).Expect())
 
 			ctx.SMWithOAuth.List(web.ServiceInstancesURL).Path("$[*].id").Array().NotContains(SID)

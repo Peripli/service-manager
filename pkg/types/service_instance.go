@@ -32,7 +32,7 @@ type ServiceInstance struct {
 	Name            string          `json:"name"`
 	ServicePlanID   string          `json:"service_plan_id"`
 	PlatformID      string          `json:"platform_id"`
-	MaintenanceInfo json.RawMessage `json:"maintenance_info"`
+	MaintenanceInfo json.RawMessage `json:"maintenance_info,omitempty"`
 	Context         json.RawMessage `json:"-"`
 	PreviousValues  json.RawMessage `json:"-"`
 	Ready           bool            `json:"ready"`

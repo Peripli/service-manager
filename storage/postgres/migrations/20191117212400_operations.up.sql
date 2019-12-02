@@ -1,7 +1,7 @@
 BEGIN;
 
-CREATE TYPE operation_type  AS ENUM ('CREATE', 'DELETE', 'UPDATE');
-CREATE TYPE operation_state AS ENUM ('SUCCEEDED', 'FAILED', 'IN PROGRESS');
+CREATE TYPE operation_type  AS ENUM ('create', 'delete', 'update');
+CREATE TYPE operation_state AS ENUM ('succeeded', 'failed', 'in progress');
 
 CREATE TABLE operations
 (

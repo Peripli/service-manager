@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/tidwall/sjson"
@@ -43,7 +42,10 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-const smServicePlanIDKey = "sm_service_plan_id"
+const (
+	smServicePlanIDKey = "sm_service_plan_id"
+	smContextKey       = "sm_context_key"
+)
 
 type provisionRequest struct {
 	commonRequestDetails
@@ -74,7 +76,7 @@ type updateRequest struct {
 	ServiceID       string          `json:"service_id"`
 	PlanID          string          `json:"plan_id"`
 	RawParameters   json.RawMessage `json:"parameters"`
-	RawContext      json.RawMessage `json:"context,omitempty"`
+	RawContext      json.RawMessage `json:"context"`
 	MaintenanceInfo json.RawMessage `json:"maintenance_info"`
 	PreviousValues  previousValues  `json:"previous_values"`
 }
@@ -113,6 +115,7 @@ type commonOSBRequest interface {
 	SetPlatformID(string)
 	SetTimestamp(time.Time)
 }
+
 type commonRequestDetails struct {
 	BrokerID   string    `json:"-"`
 	InstanceID string    `json:"-"`
@@ -162,15 +165,8 @@ type Response struct {
 type lastOperationResponse struct {
 	Response
 
-	State lastOperationState `json:"state"`
+	State types.OperationState `json:"state"`
 }
-
-type lastOperationState string
-
-const (
-	Succeeded lastOperationState = "succeeded"
-	Failed    lastOperationState = "failed"
-)
 
 // NewStoreServiceInstancesPlugin creates a plugin that stores service instances on OSB requests
 func NewStoreServiceInstancesPlugin(repository storage.TransactionalRepository) *StoreServiceInstancePlugin {
@@ -206,8 +202,7 @@ func (ssi *StoreServiceInstancePlugin) Provision(request *web.Request, next web.
 	}
 
 	if err := json.Unmarshal(response.Body, &resp); err != nil {
-		brokerID := request.PathParams[BrokerIDPathParam]
-		log.C(ctx).Warnf("Could not unmarshal response body %s for broker with id %s", string(response.Body), brokerID)
+		log.C(ctx).Warnf("Could not unmarshal response body %s for broker with id %s", string(response.Body), req.BrokerID)
 	}
 
 	correlationID := log.CorrelationIDForRequest(request.Request)
@@ -263,8 +258,7 @@ func (ssi *StoreServiceInstancePlugin) Deprovision(request *web.Request, next we
 		InstanceUsable: true,
 	}
 	if err := json.Unmarshal(response.Body, &resp); err != nil {
-		brokerID := request.PathParams[BrokerIDPathParam]
-		log.C(ctx).Warnf("Could not unmarshal response body %s for broker with id %s", string(response.Body), brokerID)
+		log.C(ctx).Warnf("Could not unmarshal response body %s for broker with id %s", string(response.Body), req.BrokerID)
 	}
 
 	correlationID := log.CorrelationIDForRequest(request.Request)
@@ -313,8 +307,7 @@ func (ssi *StoreServiceInstancePlugin) UpdateService(request *web.Request, next 
 		InstanceUsable: true,
 	}
 	if err := json.Unmarshal(response.Body, &resp); err != nil {
-		brokerID := request.PathParams[BrokerIDPathParam]
-		log.C(ctx).Warnf("Could not unmarshal response body %s for broker with id %s", string(response.Body), brokerID)
+		log.C(ctx).Warnf("Could not unmarshal response body %s for broker with id %s", string(response.Body), req.BrokerID)
 	}
 
 	correlationID := log.CorrelationIDForRequest(request.Request)
@@ -366,8 +359,7 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 		},
 	}
 	if err := json.Unmarshal(response.Body, &resp); err != nil {
-		brokerID := request.PathParams[BrokerIDPathParam]
-		log.C(ctx).Warnf("Could not unmarshal response body %s for broker with id %s", string(response.Body), brokerID)
+		log.C(ctx).Warnf("Could not unmarshal response body %s for broker with id %s", string(response.Body), req.BrokerID)
 	}
 
 	correlationID := log.CorrelationIDForRequest(request.Request)
@@ -388,18 +380,18 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 		}
 
 		operationFromDB := op.(*types.Operation)
-		if !strings.EqualFold(string(operationFromDB.State), string(resp.State)) {
+		if operationFromDB.State != resp.State {
 			switch operationFromDB.Type {
 			case types.CREATE:
 				switch resp.State {
-				case Succeeded:
+				case types.SUCCEEDED:
 					if err := ssi.updateInstanceReady(ctx, req, storage); err != nil {
 						return err
 					}
 					if err := ssi.updateOperation(ctx, operationFromDB, storage, req, &resp.Response, types.SUCCEEDED, correlationID); err != nil {
 						return err
 					}
-				case Failed:
+				case types.FAILED:
 					byID := query.ByField(query.EqualsOperator, "id", req.InstanceID)
 					if _, err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
 						if err != util.ErrNotFoundInStorage {
@@ -412,11 +404,11 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 				}
 			case types.UPDATE:
 				switch resp.State {
-				case Succeeded:
+				case types.SUCCEEDED:
 					if err := ssi.updateOperation(ctx, operationFromDB, storage, req, &resp.Response, types.SUCCEEDED, correlationID); err != nil {
 						return err
 					}
-				case Failed:
+				case types.FAILED:
 					if err := ssi.rollbackInstance(ctx, req, storage, resp.InstanceUsable); err != nil {
 						return err
 					}
@@ -426,7 +418,7 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 				}
 			case types.DELETE:
 				switch resp.State {
-				case Succeeded:
+				case types.SUCCEEDED:
 					byID := query.ByField(query.EqualsOperator, "id", req.InstanceID)
 					if _, err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
 						if err != util.ErrNotFoundInStorage {
@@ -436,7 +428,7 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 					if err := ssi.updateOperation(ctx, operationFromDB, storage, req, &resp.Response, types.SUCCEEDED, correlationID); err != nil {
 						return err
 					}
-				case Failed:
+				case types.FAILED:
 					if err := ssi.rollbackInstance(ctx, req, storage, resp.InstanceUsable); err != nil {
 						return err
 					}
@@ -490,7 +482,7 @@ func (ssi *StoreServiceInstancePlugin) storeOperation(ctx context.Context, stora
 			ID:        UUID.String(),
 			CreatedAt: req.GetTimestamp(),
 			UpdatedAt: req.GetTimestamp(),
-			Labels:    map[string][]string{},
+			Labels:    make(map[string][]string),
 		},
 		Type:          category,
 		State:         state,
@@ -551,12 +543,15 @@ func (ssi *StoreServiceInstancePlugin) updateInstance(ctx context.Context, req *
 		return nil
 	}
 	serviceInstance := instance.(*types.ServiceInstance)
-	oldServicePlanID := serviceInstance.ServicePlanID
 	previousValuesBytes, err := json.Marshal(req.PreviousValues)
 	if err != nil {
 		return err
 	}
-	previousValuesBytes, err = sjson.SetBytes(previousValuesBytes, smServicePlanIDKey, oldServicePlanID)
+	previousValuesBytes, err = sjson.SetBytes(previousValuesBytes, smServicePlanIDKey, serviceInstance.ServicePlanID)
+	if err != nil {
+		return err
+	}
+	previousValuesBytes, err = sjson.SetBytes(previousValuesBytes, smContextKey, serviceInstance.Context)
 	if err != nil {
 		return err
 	}
@@ -600,6 +595,10 @@ func (ssi *StoreServiceInstancePlugin) rollbackInstance(ctx context.Context, req
 		oldCatalogPlanID := gjson.GetBytes(previousValues, smServicePlanIDKey).String()
 		if len(oldCatalogPlanID) != 0 {
 			serviceInstance.ServicePlanID = oldCatalogPlanID
+		}
+		oldContext := gjson.GetBytes(previousValues, smContextKey).Raw
+		if len(oldCatalogPlanID) != 0 {
+			serviceInstance.Context = []byte(oldContext)
 		}
 		oldMaintenanceInfo := gjson.GetBytes(previousValues, "maintenance_info").Raw
 		if len(oldMaintenanceInfo) != 0 {

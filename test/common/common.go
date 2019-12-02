@@ -203,12 +203,19 @@ func MapContains(actual Object, expected Object) {
 	}
 }
 
-func RemoveAllOperations(repository storage.Repository) {
-	repository.Delete(context.TODO(), types.OperationType)
+func RemoveAllOperations(repository storage.Repository) error {
+	_, err := repository.Delete(context.TODO(), types.OperationType)
+	return err
 }
 
-func RemoveAllInstances(repository storage.Repository) {
-	repository.Delete(context.TODO(), types.ServiceInstanceType)
+func RemoveAllNotifications(repository storage.Repository) error {
+	_, err := repository.Delete(context.TODO(), types.NotificationType)
+	return err
+}
+
+func RemoveAllInstances(repository storage.Repository) error {
+	_, err := repository.Delete(context.TODO(), types.ServiceInstanceType)
+	return err
 }
 
 func RemoveAllBrokers(SM *SMExpect) {

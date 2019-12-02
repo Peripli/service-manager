@@ -27,7 +27,7 @@ var _ = Describe("Post Binding Adapt Credentials", func() {
 	Context("when call to working service broker", func() {
 		It("should succeed", func() {
 			brokerServer.BindingAdaptCredentialsHandler = parameterizedHandler(http.StatusOK, `{}`)
-			ctx.SMWithBasic.POST(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader("X-Broker-API-Version", "2.13").WithJSON(&common.Object{}).
+			ctx.SMWithBasic.POST(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).WithJSON(&common.Object{}).
 				Expect().Status(http.StatusOK)
 		})
 	})
@@ -36,7 +36,7 @@ var _ = Describe("Post Binding Adapt Credentials", func() {
 		It("should fail", func() {
 			brokerServer.BindingAdaptCredentialsHandler = parameterizedHandler(http.StatusInternalServerError, `internal server error`)
 			assertFailingBrokerError(
-				ctx.SMWithBasic.POST(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader("X-Broker-API-Version", "2.13").WithJSON(&common.Object{}).
+				ctx.SMWithBasic.POST(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).WithJSON(&common.Object{}).
 					Expect(), http.StatusInternalServerError, "internal server error")
 
 		})
@@ -45,7 +45,7 @@ var _ = Describe("Post Binding Adapt Credentials", func() {
 	Context("when call to missing service broker", func() {
 		It("should fail", func() {
 			assertMissingBrokerError(
-				ctx.SMWithBasic.POST("http://localhost:3456/v1/osb/123"+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader("X-Broker-API-Version", "2.13").WithJSON(&common.Object{}).Expect())
+				ctx.SMWithBasic.POST("http://localhost:3456/v1/osb/123"+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).WithJSON(&common.Object{}).Expect())
 
 		})
 	})
@@ -53,7 +53,7 @@ var _ = Describe("Post Binding Adapt Credentials", func() {
 	Context("when call to stopped service broker", func() {
 		It("should fail", func() {
 			assertUnresponsiveBrokerError(
-				ctx.SMWithBasic.POST(smUrlToStoppedBroker+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader("X-Broker-API-Version", "2.13").WithJSON(&common.Object{}).Expect())
+				ctx.SMWithBasic.POST(smUrlToStoppedBroker+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).WithJSON(&common.Object{}).Expect())
 		})
 	})
 
@@ -61,7 +61,7 @@ var _ = Describe("Post Binding Adapt Credentials", func() {
 		It("propagates them to the service broker", func() {
 			headerKey, headerValue := generateRandomQueryParam()
 			brokerServer.BindingAdaptCredentialsHandler = queryParameterVerificationHandler(headerKey, headerValue)
-			ctx.SMWithBasic.POST(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader("X-Broker-API-Version", "2.13").
+			ctx.SMWithBasic.POST(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).WithQuery(headerKey, headerValue).Expect().Status(http.StatusOK)
 		})
 	})
@@ -69,7 +69,7 @@ var _ = Describe("Post Binding Adapt Credentials", func() {
 	Context("when broker doesn't respond in a timely manner", func() {
 		It("should fail with 502", func(done chan<- interface{}) {
 			brokerServer.BindingAdaptCredentialsHandler = delayingHandler(done)
-			assertUnresponsiveBrokerError(ctx.SMWithBasic.POST(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader("X-Broker-API-Version", "2.13").
+			assertUnresponsiveBrokerError(ctx.SMWithBasic.POST(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid/adapt_credentials").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).Expect())
 		})
 	})

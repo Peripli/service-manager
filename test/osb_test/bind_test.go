@@ -26,30 +26,30 @@ var _ = Describe("Bind", func() {
 	Context("call to working service broker", func() {
 		It("should succeed", func() {
 			brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
-			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "2.13").
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
 		})
 	})
 
-	Context("when call to broker service broker", func() {
+	Context("when call to failing service broker", func() {
 		It("should fail", func() {
 			brokerServer.BindingHandler = parameterizedHandler(http.StatusInternalServerError, `internal server error`)
 			assertFailingBrokerError(
-				ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "2.13").
+				ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					WithJSON(provisionRequestBodyMap()()).Expect(), http.StatusInternalServerError, `internal server error`)
 		})
 	})
 
 	Context("when call to missing service broker", func() {
 		It("should fail", func() {
-			assertMissingBrokerError(ctx.SMWithBasic.PUT("http://localhost:3456/v1/osb/123"+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "2.13").
+			assertMissingBrokerError(ctx.SMWithBasic.PUT("http://localhost:3456/v1/osb/123"+"/v2/service_instances/iid/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).Expect())
 		})
 	})
 
 	Context("when call to stopped service broker", func() {
 		It("should fail", func() {
-			assertUnresponsiveBrokerError(ctx.SMWithBasic.PUT(smUrlToStoppedBroker+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "2.13").
+			assertUnresponsiveBrokerError(ctx.SMWithBasic.PUT(smUrlToStoppedBroker+"/v2/service_instances/iid/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).Expect())
 		})
 	})
@@ -58,7 +58,7 @@ var _ = Describe("Bind", func() {
 		It("propagates them to the service broker", func() {
 			headerKey, headerValue := generateRandomQueryParam()
 			brokerServer.BindingHandler = queryParameterVerificationHandler(headerKey, headerValue)
-			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "2.13").
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).WithQuery(headerKey, headerValue).Expect().Status(http.StatusCreated)
 		})
 	})
@@ -66,7 +66,7 @@ var _ = Describe("Bind", func() {
 	Context("when broker doesn't respond in a timely manner", func() {
 		It("should fail with 502", func(done chan<- interface{}) {
 			brokerServer.BindingHandler = delayingHandler(done)
-			assertUnresponsiveBrokerError(ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader("X-Broker-API-Version", "2.13").
+			assertUnresponsiveBrokerError(ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).Expect())
 		})
 	})

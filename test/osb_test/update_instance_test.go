@@ -36,7 +36,7 @@ var _ = Describe("Update", func() {
 				Expect().Status(http.StatusNotFound)
 
 			ctx.SMWithBasic.PATCH(smBrokerURL+"/v2/service_instances/"+SID).
-				WithHeader("X-Broker-API-Version", "2.13").
+				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(updateRequestBodyMap()()).Expect().Status(http.StatusOK)
 		})
 	})
@@ -46,11 +46,11 @@ var _ = Describe("Update", func() {
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
 
 			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
-				WithHeader("X-Broker-API-Version", "2.13").
+				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusOK)
 
 			ctx.SMWithBasic.PATCH(smBrokerURL+"/v2/service_instances/"+SID).
-				WithHeader("X-Broker-API-Version", "2.13").
+				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(requestBody()).Expect().Status(expectedStatusCode)
 
 			ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + SID).
@@ -76,7 +76,7 @@ var _ = Describe("Update", func() {
 		func(brokerHandler func(http.ResponseWriter, *http.Request), expectedStatusCode int, expectedDescriptionPattern string) {
 			brokerServer.ServiceInstanceHandler = brokerHandler
 			expectedDescription := fmt.Sprintf(expectedDescriptionPattern, brokerName)
-			ctx.SMWithBasic.PATCH(smBrokerURL+"/v2/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+			ctx.SMWithBasic.PATCH(smBrokerURL+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(updateRequestBodyMap()()).Expect().Status(expectedStatusCode).
 				JSON().Object().Value("description").String().Contains(expectedDescription)
 		},
@@ -105,12 +105,12 @@ var _ = Describe("Update", func() {
 	DescribeTable("call to broker with valid request", func(updateRequest func() map[string]interface{}, brokerResponseStatusCode int, brokerResponseBody string, instanceExpectations func() map[string]interface{}, operationExpectations operationExpectations) {
 		brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
 		ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
-			WithHeader("X-Broker-API-Version", "2.13").
+			WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 			WithJSON(provisionRequestBodyMap()()).Expect().StatusRange(httpexpect.Status2xx)
 
 		brokerServer.ServiceInstanceHandler = parameterizedHandler(brokerResponseStatusCode, brokerResponseBody)
 		ctx.SMWithBasic.PATCH(smBrokerURL+"/v2/service_instances/"+SID).
-			WithHeader("X-Broker-API-Version", "2.13").WithJSON(updateRequest()).
+			WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).WithJSON(updateRequest()).
 			Expect().Status(brokerResponseStatusCode)
 
 		ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + SID).

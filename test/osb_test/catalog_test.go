@@ -58,12 +58,12 @@ const simpleCatalog = `
 var _ = Describe("Catalog", func() {
 	Context("when call to working service broker", func() {
 		It("should succeed", func() {
-			ctx.SMWithBasic.GET(smBrokerURL+"/v2/catalog").WithHeader("X-Broker-API-Version", "2.13").
+			ctx.SMWithBasic.GET(smBrokerURL+"/v2/catalog").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect().Status(http.StatusOK)
 		})
 
 		It("should return valid catalog if it's missing some properties", func() {
-			req := ctx.SMWithBasic.GET(smUrlToSimpleBrokerCatalogBroker+"/v2/catalog").WithHeader("X-Broker-API-Version", "2.13").Expect()
+			req := ctx.SMWithBasic.GET(smUrlToSimpleBrokerCatalogBroker+"/v2/catalog").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).Expect()
 			req.Status(http.StatusOK)
 
 			service := req.JSON().Object().Value("services").Array().First().Object()
@@ -74,7 +74,7 @@ var _ = Describe("Catalog", func() {
 		})
 
 		It("should return valid catalog with all catalog extensions if catalog extensions are present", func() {
-			resp := ctx.SMWithBasic.GET(smUrlToSimpleBrokerCatalogBroker+"/v2/catalog").WithHeader("X-Broker-API-Version", "2.13").
+			resp := ctx.SMWithBasic.GET(smUrlToSimpleBrokerCatalogBroker+"/v2/catalog").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect().
 				Status(http.StatusOK).JSON()
 
@@ -83,7 +83,7 @@ var _ = Describe("Catalog", func() {
 		})
 
 		It("should not reach service broker", func() {
-			ctx.SMWithBasic.GET(smBrokerURL+"/v2/catalog").WithHeader("X-Broker-API-Version", "2.13").
+			ctx.SMWithBasic.GET(smBrokerURL+"/v2/catalog").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect().Status(http.StatusOK)
 
 			Expect(len(brokerServer.CatalogEndpointRequests)).To(Equal(0))
@@ -91,7 +91,7 @@ var _ = Describe("Catalog", func() {
 
 		Context("when call to empty catalog broker", func() {
 			It("should succeed and return empty services", func() {
-				ctx.SMWithBasic.GET(smUrlToEmptyCatalogBroker+"/v2/catalog").WithHeader("X-Broker-API-Version", "2.13").
+				ctx.SMWithBasic.GET(smUrlToEmptyCatalogBroker+"/v2/catalog").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK).JSON().Object().Value("services").Array().Empty()
 				Expect(len(brokerServerWithEmptyCatalog.CatalogEndpointRequests)).To(Equal(0))
 			})
@@ -101,7 +101,7 @@ var _ = Describe("Catalog", func() {
 	Context("when call to failing service broker", func() {
 		It("should succeed because broker is not actually invoked", func() {
 			brokerServer.CatalogHandler = parameterizedHandler(http.StatusInternalServerError, `{}`)
-			ctx.SMWithBasic.GET(smBrokerURL+"/v2/catalog").WithHeader("X-Broker-API-Version", "2.13").
+			ctx.SMWithBasic.GET(smBrokerURL+"/v2/catalog").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect().Status(http.StatusOK)
 
 			Expect(len(brokerServer.CatalogEndpointRequests)).To(Equal(0))
@@ -111,13 +111,13 @@ var _ = Describe("Catalog", func() {
 	Context("when call to missing service broker", func() {
 		It("should fail", func() {
 			assertMissingBrokerError(
-				ctx.SMWithBasic.GET("http://localhost:3456/v1/osb/123"+"/v2/catalog").WithHeader("X-Broker-API-Version", "2.13").Expect())
+				ctx.SMWithBasic.GET("http://localhost:3456/v1/osb/123"+"/v2/catalog").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).Expect())
 		})
 	})
 
 	Context("when call to stopped service broker", func() {
 		It("should succeed because broker is not actually invoked", func() {
-			ctx.SMWithBasic.GET(smUrlToStoppedBroker+"/v2/catalog").WithHeader("X-Broker-API-Version", "2.13").
+			ctx.SMWithBasic.GET(smUrlToStoppedBroker+"/v2/catalog").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect().Status(http.StatusOK)
 
 			Expect(len(stoppedBrokerServer.CatalogEndpointRequests)).To(Equal(0))

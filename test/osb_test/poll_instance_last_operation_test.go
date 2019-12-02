@@ -40,7 +40,7 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(objectList.Len()).To(Equal(0))
 
-			ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+			ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect().Status(http.StatusOK)
 		})
 	})
@@ -49,7 +49,7 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 		func(brokerHandler func(http.ResponseWriter, *http.Request), expectedStatusCode int, expectedDescriptionPattern string) {
 			brokerServer.ServiceInstanceLastOpHandler = brokerHandler
 			expectedDescription := fmt.Sprintf(expectedDescriptionPattern, brokerName)
-			ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+			ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect().Status(expectedStatusCode).
 				JSON().Object().Value("description").String().Contains(expectedDescription)
 		},
@@ -79,11 +79,11 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 		BeforeEach(func() {
 			By(fmt.Sprintf("Creating service instance with id %s", SID))
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusAccepted, `{}`)
-			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusAccepted)
 
 			By(fmt.Sprintf("Verifying service instance with id %s is created with ready=false", SID))
-			ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+			ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect().Status(http.StatusOK).JSON().Object().Value("ready").Boolean().Equal(false)
 
 			By(fmt.Sprintf("Verifying operation create in progress for service instance with id %s was created", SID))
@@ -103,11 +103,11 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 			It("updates the operation to succeeded and updates the instance to ready=true", func() {
 				By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
-				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK)
 
 				By(fmt.Sprintf("Verifying service instance with id %s is updated to ready=true", SID))
-				ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+				ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK).JSON().Object().Value("ready").Boolean().Equal(true)
 
 				By(fmt.Sprintf("Verifying create operation for service instance with id %s is updated to succeeded", SID))
@@ -129,13 +129,13 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 					_, err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
 					Expect(err).ToNot(HaveOccurred())
 
-					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusNotFound)
 				})
 
 				It("returns 404", func() {
 					By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
-					ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+					ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusNotFound)
 				})
 			})
@@ -148,11 +148,11 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 			It("updates the operation to failed and deletes the instance", func() {
 				By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
-				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK)
 
 				By(fmt.Sprintf("Verifying service instance with id %s is deleted", SID))
-				ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+				ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusNotFound)
 
 				By(fmt.Sprintf("Verifying create operation for service instance with id %s is updated to failed", SID))
@@ -174,11 +174,11 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 			It("does not update the operation and does not update the instance", func() {
 				By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
-				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK)
 
 				By(fmt.Sprintf("Verifying service instance with id %s is not changed", SID))
-				ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+				ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK).JSON().Object().Value("ready").Boolean().Equal(false)
 
 				By(fmt.Sprintf("Verifying create operation for service instance with id %s is in progress", SID))
@@ -199,11 +199,11 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 			It("does not update the operation and does not update the instance", func() {
 				By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
-				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK)
 
 				By(fmt.Sprintf("Verifying service instance with id %s is not changed", SID))
-				ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+				ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK).JSON().Object().Value("ready").Boolean().Equal(false)
 
 				By(fmt.Sprintf("Verifying create operation for service instance with id %s is in progress", SID))
@@ -222,16 +222,16 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 		BeforeEach(func() {
 			By(fmt.Sprintf("Creating service instance with id %s", SID))
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
-			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusOK)
 
 			By(fmt.Sprintf("Updating service instance with id %s", SID))
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusAccepted, `{}`)
-			ctx.SMWithBasic.PATCH(smBrokerURL+"/v2/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+			ctx.SMWithBasic.PATCH(smBrokerURL+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(updateRequestBodyMap()()).Expect().Status(http.StatusAccepted)
 
 			By(fmt.Sprintf("Verifying service instance with id %s is updated with new plan id", SID))
-			ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+			ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect().Status(http.StatusOK).JSON().Object().Value("service_plan_id").String().Equal(findSMPlanIDForCatalogPlanID(plan2CatalogID))
 
 			By(fmt.Sprintf("Verifying operation update in progress for service instance with id %s was created", SID))
@@ -251,11 +251,11 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 			It("updates the operation to succeeded", func() {
 				By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
-				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK)
 
 				By(fmt.Sprintf("Verifying service instance with id %s is updated with new plan id", SID))
-				ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+				ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK).JSON().Object().Value("service_plan_id").String().Equal(findSMPlanIDForCatalogPlanID(plan2CatalogID))
 
 				By(fmt.Sprintf("Verifying update operation for service instance with id %s is updated to succeeded", SID))
@@ -276,11 +276,11 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 			It("updates the operation to failed and rollbacks the instance", func() {
 				By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
-				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK)
 
 				By(fmt.Sprintf("Verifying service instance with id %s is rolledback to old plan id", SID))
-				object := ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+				object := ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK).JSON().Object()
 				object.Value("service_plan_id").String().Equal(findSMPlanIDForCatalogPlanID(plan1CatalogID))
 				object.Value("usable").Boolean().Equal(true)
@@ -303,11 +303,11 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 				It("updates the instance to instance_usable=false", func() {
 					By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
-					ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+					ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusOK)
 
 					By(fmt.Sprintf("Verifying service instance with id %s is updated to to usable=false", SID))
-					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusOK).JSON().Object().Value("usable").Boolean().Equal(false)
 				})
 			})
@@ -319,11 +319,11 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 				It("updates the instance to instance_usable=true", func() {
 					By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
-					ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+					ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusOK)
 
 					By(fmt.Sprintf("Verifying service instance with id %s is updated to to usable=true", SID))
-					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusOK).JSON().Object().Value("usable").Boolean().Equal(true)
 				})
 			})
@@ -337,13 +337,13 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 					_, err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
 					Expect(err).ToNot(HaveOccurred())
 
-					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusNotFound)
 				})
 
 				It("returns 404", func() {
 					By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
-					ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+					ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusNotFound)
 				})
 			})
@@ -356,11 +356,11 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 			It("does not update the operation and does not update the instance", func() {
 				By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
-				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK)
 
 				By(fmt.Sprintf("Verifying service instance with id %s is not changed", SID))
-				object := ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+				object := ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK).JSON().Object()
 				object.Value("service_plan_id").String().Equal(findSMPlanIDForCatalogPlanID(plan2CatalogID))
 				object.Value("usable").Boolean().Equal(true)
@@ -383,11 +383,11 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 			It("does not update the operation and does not update the instance", func() {
 				By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
-				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK)
 
 				By(fmt.Sprintf("Verifying service instance with id %s is not changed", SID))
-				object := ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+				object := ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK).JSON().Object()
 				object.Value("service_plan_id").String().Equal(findSMPlanIDForCatalogPlanID(plan2CatalogID))
 				object.Value("usable").Boolean().Equal(true)
@@ -408,12 +408,12 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 		BeforeEach(func() {
 			By(fmt.Sprintf("Creating service instance with id %s", SID))
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
-			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusOK)
 
 			By(fmt.Sprintf("Deleting service instance with id %s", SID))
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusAccepted, `{}`)
-			ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+			ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect().Status(http.StatusAccepted)
 
 			By(fmt.Sprintf("Verifying operation delete in progress for service instance with id %s was created", SID))
@@ -433,11 +433,11 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 			It("deletes the instance and updates the operation to delete succeeded", func() {
 				By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
-				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK)
 
 				By(fmt.Sprintf("Verifying service instance with id %s is deleted", SID))
-				ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+				ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusNotFound)
 
 				By(fmt.Sprintf("Verifying delete operation for service instance with id %s is updated to succeeded", SID))
@@ -459,13 +459,13 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 					_, err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
 					Expect(err).ToNot(HaveOccurred())
 
-					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusNotFound)
 				})
 
 				It("does not fail", func() {
 					By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
-					ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+					ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusOK)
 				})
 			})
@@ -478,11 +478,11 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 			It("updates the operation to failed and does not delete the instance", func() {
 				By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
-				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK)
 
 				By(fmt.Sprintf("Verifying service instance with id %s is not deleted", SID))
-				object := ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+				object := ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK).JSON().Object()
 				object.Value("usable").Boolean().Equal(true)
 
@@ -504,11 +504,11 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 				It("updates the instance to instance_usable=false", func() {
 					By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
-					ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+					ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusOK)
 
 					By(fmt.Sprintf("Verifying service instance with id %s is updated to to usable=false", SID))
-					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusOK).JSON().Object().Value("usable").Boolean().Equal(false)
 				})
 			})
@@ -520,11 +520,11 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 				It("updates the operation to failed and does not delete the instance", func() {
 					By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
-					ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+					ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusOK)
 
 					By(fmt.Sprintf("Verifying service instance with id %s is not deleted", SID))
-					object := ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+					object := ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusOK).JSON().Object()
 					object.Value("usable").Boolean().Equal(true)
 				})
@@ -539,13 +539,13 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 					_, err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
 					Expect(err).ToNot(HaveOccurred())
 
-					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusNotFound)
 				})
 
 				It("returns 404", func() {
 					By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
-					ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+					ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusNotFound)
 				})
 			})
@@ -558,11 +558,11 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 			It("does not update the operation and does not delete the instance", func() {
 				By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
-				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK)
 
 				By(fmt.Sprintf("Verifying service instance with id %s is not deleted", SID))
-				ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+				ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK)
 
 				By(fmt.Sprintf("Verifying delete operation for service instance with id %s is in progress", SID))
@@ -583,11 +583,11 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 			It("does not update the operation and does not delete the instance", func() {
 				By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
-				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK)
 
 				By(fmt.Sprintf("Verifying service instance with id %s is not deleted", SID))
-				ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+				ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusOK)
 
 				By(fmt.Sprintf("Verifying delete operation for service instance with id %s is in progress", SID))
@@ -604,7 +604,7 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 	Context("when call to working service broker", func() {
 		It("should succeed", func() {
-			ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+			ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect().Status(http.StatusOK)
 		})
 	})
@@ -614,7 +614,7 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 			brokerServer.ServiceInstanceLastOpHandler = parameterizedHandler(http.StatusInternalServerError, `internal server error`)
 
 			assertFailingBrokerError(
-				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect(), http.StatusInternalServerError, `internal server error`)
 
 		})
@@ -623,14 +623,14 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 	Context("when call to missing service broker", func() {
 		It("should fail", func() {
 			assertMissingBrokerError(
-				ctx.SMWithBasic.GET("http://localhost:3456/v1/osb/123"+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").Expect())
+				ctx.SMWithBasic.GET("http://localhost:3456/v1/osb/123"+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).Expect())
 		})
 	})
 
 	Context("when call to stopped service broker", func() {
 		It("should fail", func() {
 			assertUnresponsiveBrokerError(
-				ctx.SMWithBasic.GET(smUrlToStoppedBroker+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").Expect())
+				ctx.SMWithBasic.GET(smUrlToStoppedBroker+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).Expect())
 		})
 	})
 
@@ -638,7 +638,7 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 		It("propagates them to the service broker", func() {
 			headerKey, headerValue := generateRandomQueryParam()
 			brokerServer.ServiceInstanceLastOpHandler = queryParameterVerificationHandler(headerKey, headerValue)
-			ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+			ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithQuery(headerKey, headerValue).Expect().Status(http.StatusOK)
 		})
 	})
@@ -646,7 +646,7 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 	Context("when broker doesn't respond in a timely manner", func() {
 		It("should fail with 502", func(done chan<- interface{}) {
 			brokerServer.ServiceInstanceLastOpHandler = delayingHandler(done)
-			assertUnresponsiveBrokerError(ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader("X-Broker-API-Version", "2.13").
+			assertUnresponsiveBrokerError(ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect())
 		})
 	})

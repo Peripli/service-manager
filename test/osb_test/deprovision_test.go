@@ -36,7 +36,7 @@ var _ = Describe("Deprovision", func() {
 				Expect().Status(http.StatusNotFound)
 
 			ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+SID).
-				WithHeader("X-Broker-API-Version", "2.13").
+				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect().Status(http.StatusOK)
 		})
 	})
@@ -46,7 +46,7 @@ var _ = Describe("Deprovision", func() {
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
 
 			ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+SID).WithQueryString(query()).
-				WithHeader("X-Broker-API-Version", "2.13").
+				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect().Status(expectedStatusCode)
 
 			ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + SID).
@@ -94,7 +94,7 @@ var _ = Describe("Deprovision", func() {
 		func(brokerHandler func(http.ResponseWriter, *http.Request), expectedStatusCode int, expectedDescriptionPattern string) {
 			brokerServer.ServiceInstanceHandler = brokerHandler
 			expectedDescription := fmt.Sprintf(expectedDescriptionPattern, brokerName)
-			ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+			ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect().Status(expectedStatusCode).
 				JSON().Object().Value("description").String().Contains(expectedDescription)
 		},
@@ -124,12 +124,12 @@ var _ = Describe("Deprovision", func() {
 		brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
 		if instanceExists {
 			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
-				WithHeader("X-Broker-API-Version", "2.13").
+				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMap()()).Expect().StatusRange(httpexpect.Status2xx)
 		}
 		brokerServer.ServiceInstanceHandler = parameterizedHandler(brokerResponseStatusCode, brokerResponseBody)
 		ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+SID).
-			WithHeader("X-Broker-API-Version", "2.13").
+			WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 			Expect().Status(brokerResponseStatusCode)
 
 		ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + SID).
@@ -299,7 +299,7 @@ var _ = Describe("Deprovision", func() {
 	Context("when broker responds with an error", func() {
 		It("should fail", func() {
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusInternalServerError, `internal server error`)
-			assertFailingBrokerError(ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+			assertFailingBrokerError(ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect(), http.StatusInternalServerError, "internal server error")
 
 			ctx.SMWithOAuth.List(web.ServiceInstancesURL).Path("$[*].id").Array().NotContains(SID)
@@ -312,7 +312,7 @@ var _ = Describe("Deprovision", func() {
 		It("propagates them to the service broker", func() {
 			headerKey, headerValue := generateRandomQueryParam()
 			brokerServer.ServiceInstanceHandler = queryParameterVerificationHandler(headerKey, headerValue)
-			ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+			ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithQuery(headerKey, headerValue).Expect().Status(http.StatusOK)
 		})
 	})
@@ -320,7 +320,7 @@ var _ = Describe("Deprovision", func() {
 	Context("when broker times out", func() {
 		It("should fail with 502", func(done chan<- interface{}) {
 			brokerServer.ServiceInstanceHandler = delayingHandler(done)
-			assertUnresponsiveBrokerError(ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+			assertUnresponsiveBrokerError(ctx.SMWithBasic.DELETE(smBrokerURL+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect())
 
 			ctx.SMWithOAuth.List(web.ServiceInstancesURL).Path("$[*].id").Array().NotContains(SID)
@@ -331,7 +331,7 @@ var _ = Describe("Deprovision", func() {
 
 	Context("when broker does not exist", func() {
 		It("should fail with 404", func() {
-			assertMissingBrokerError(ctx.SMWithBasic.DELETE("http://localhost:32123/v1/osb/"+SID+"/v2/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+			assertMissingBrokerError(ctx.SMWithBasic.DELETE("http://localhost:32123/v1/osb/"+SID+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect())
 
 			ctx.SMWithOAuth.List(web.ServiceInstancesURL).Path("$[*].id").Array().NotContains(SID)
@@ -342,7 +342,7 @@ var _ = Describe("Deprovision", func() {
 
 	Context("when broker is stopped", func() {
 		It("should fail with 502", func() {
-			assertUnresponsiveBrokerError(ctx.SMWithBasic.DELETE(smUrlToStoppedBroker+"/v2/service_instances/"+SID).WithHeader("X-Broker-API-Version", "2.13").
+			assertUnresponsiveBrokerError(ctx.SMWithBasic.DELETE(smUrlToStoppedBroker+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect())
 
 			ctx.SMWithOAuth.List(web.ServiceInstancesURL).Path("$[*].id").Array().NotContains(SID)

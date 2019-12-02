@@ -51,6 +51,9 @@ const (
 	SID                         = "12345"
 	timeoutDuration             = time.Millisecond * 500
 	additionalDelayAfterTimeout = time.Second
+
+	brokerAPIVersionHeaderKey   = "X-Broker-API-Version"
+	brokerAPIVersionHeaderValue = "2.13"
 )
 
 var (

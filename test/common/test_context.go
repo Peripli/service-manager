@@ -513,18 +513,14 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 		return
 	}
 
-	_, err := ctx.SMRepository.Delete(context.TODO(), types.NotificationType)
-	if err != nil && err != util.ErrNotFoundInStorage {
+	if err := RemoveAllNotifications(ctx.SMRepository); err != nil && err != util.ErrNotFoundInStorage {
+		panic(err)
+	}
+	if err := RemoveAllInstances(ctx.SMRepository); err != nil && err != util.ErrNotFoundInStorage {
 		panic(err)
 	}
 
-	_, err = ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType)
-	if err != nil && err != util.ErrNotFoundInStorage {
-		panic(err)
-	}
-
-	_, err = ctx.SMRepository.Delete(context.TODO(), types.OperationType)
-	if err != nil && err != util.ErrNotFoundInStorage {
+	if err := RemoveAllOperations(ctx.SMRepository); err != nil && err != util.ErrNotFoundInStorage {
 		panic(err)
 	}
 
