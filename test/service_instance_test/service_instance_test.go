@@ -87,7 +87,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				When("service instance contains tenant identifier in OSB context", func() {
 					BeforeEach(func() {
-						_, serviceInstance = test.PrepareServiceInstance(ctx, ctx.SMWithOAuth, ctx.TestPlatform.ID, "", fmt.Sprintf(`{"%s":"%s"}`, TenantIdentifier, TenantValue))
+						_, serviceInstance = test.PrepareServiceInstance(ctx, ctx.TestPlatform.ID, "", fmt.Sprintf(`{"%s":"%s"}`, TenantIdentifier, TenantValue))
 						_, err := ctx.SMRepository.Create(context.Background(), serviceInstance)
 						Expect(err).ToNot(HaveOccurred())
 					})
@@ -101,7 +101,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 				When("service instance doesn't contain tenant identifier in OSB context", func() {
 					BeforeEach(func() {
-						_, serviceInstance = test.PrepareServiceInstance(ctx, ctx.SMWithOAuth, ctx.TestPlatform.ID, "", "{}")
+						_, serviceInstance = test.PrepareServiceInstance(ctx, ctx.TestPlatform.ID, "", "{}")
 						_, err := ctx.SMRepository.Create(context.Background(), serviceInstance)
 						Expect(err).ToNot(HaveOccurred())
 					})
@@ -125,7 +125,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 })
 
 func blueprint(ctx *common.TestContext, auth *common.SMExpect) common.Object {
-	_, serviceInstance := test.PrepareServiceInstance(ctx, auth, ctx.TestPlatform.ID, "", fmt.Sprintf(`{"%s":"%s"}`, TenantIdentifier, TenantValue))
+	_, serviceInstance := test.PrepareServiceInstance(ctx, ctx.TestPlatform.ID, "", fmt.Sprintf(`{"%s":"%s"}`, TenantIdentifier, TenantValue))
 	_, err := ctx.SMRepository.Create(context.Background(), serviceInstance)
 	if err != nil {
 		Fail(fmt.Sprintf("could not create service instance: %s", err))

@@ -1172,7 +1172,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								}
 
 								for _, planID := range planIDsForService {
-									_, serviceInstance := test.PrepareServiceInstance(ctx, ctx.SMWithOAuth, ctx.TestPlatform.ID, planID, "{}")
+									_, serviceInstance := test.PrepareServiceInstance(ctx, ctx.TestPlatform.ID, planID, "{}")
 									ctx.SMRepository.Create(context.Background(), serviceInstance)
 
 									serviceInstanceIDs = append(serviceInstanceIDs, serviceInstance.ID)
@@ -1351,7 +1351,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								removedPlanID := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=catalog_id eq '%s'", removedPlanCatalogID)).
 									First().Object().Value("id").String().Raw()
 
-								_, serviceInstance = test.PrepareServiceInstance(ctx, ctx.SMWithOAuth, ctx.TestPlatform.ID, removedPlanID, "{}")
+								_, serviceInstance = test.PrepareServiceInstance(ctx, ctx.TestPlatform.ID, removedPlanID, "{}")
 								ctx.SMRepository.Create(context.Background(), serviceInstance)
 							})
 
@@ -1672,7 +1672,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				BeforeEach(func() {
 					var serviceInstance *types.ServiceInstance
 
-					brokerID, serviceInstance = test.PrepareServiceInstance(ctx, ctx.SMWithOAuth, ctx.TestPlatform.ID, "", "{}")
+					brokerID, serviceInstance = test.PrepareServiceInstance(ctx, ctx.TestPlatform.ID, "", "{}")
 					ctx.SMRepository.Create(context.Background(), serviceInstance)
 				})
 

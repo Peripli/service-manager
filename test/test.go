@@ -160,7 +160,7 @@ func DescribeTestsFor(t TestCase) bool {
 	})
 }
 
-func PrepareServiceInstance(ctx *common.TestContext, auth *common.SMExpect, platformID, planID string, OSBContext string) (string, *types.ServiceInstance) {
+func PrepareServiceInstance(ctx *common.TestContext, platformID, planID string, OSBContext string) (string, *types.ServiceInstance) {
 	var brokerID string
 	if planID == "" {
 		cService := common.GenerateTestServiceWithPlans(common.GenerateFreeTestPlan())
