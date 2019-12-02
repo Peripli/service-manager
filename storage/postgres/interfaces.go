@@ -28,7 +28,6 @@ import (
 
 type PostgresEntity interface {
 	storage.Entity
-	GetType() storage.EntityType
 	TableName() string
 	RowsToList(rows *sqlx.Rows) (types.ObjectList, error)
 	LabelEntity() PostgresLabel

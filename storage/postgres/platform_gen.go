@@ -14,18 +14,14 @@ import (
 
 var _ PostgresEntity = &Platform{}
 
-const PlatformTable storage.EntityType = "platforms"
-
-func (*Platform) GetType() storage.EntityType {
-	return PlatformTable
-}
+const PlatformTable = "platforms"
 
 func (*Platform) LabelEntity() PostgresLabel {
 	return &PlatformLabel{}
 }
 
-func (e *Platform) TableName() string {
-	return string(e.GetType())
+func (*Platform) TableName() string {
+	return PlatformTable
 }
 
 func (e *Platform) NewLabel(id, key, value string) storage.Label {
