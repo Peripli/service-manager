@@ -18,6 +18,7 @@ package platform_test
 
 import (
 	"context"
+	"github.com/Peripli/service-manager/test/testutil"
 	"net/http"
 	"testing"
 
@@ -343,7 +344,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						WithJSON(platform).
 						Expect().Status(http.StatusCreated)
 
-					_, serviceInstance := test.PrepareServiceInstance(ctx, platformID, "", "{}")
+					_, serviceInstance := testutil.PrepareServiceInstance(ctx, platformID, "", "{}")
 					ctx.SMRepository.Create(context.Background(), serviceInstance)
 				})
 
