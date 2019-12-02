@@ -28,13 +28,13 @@ type OperationCategory string
 
 const (
 	// CREATE represents an operation type for creating a resource
-	CREATE OperationCategory = "CREATE"
+	CREATE OperationCategory = "create"
 
 	// UPDATE represents an operation type for updating a resource
-	UPDATE OperationCategory = "UPDATE"
+	UPDATE OperationCategory = "update"
 
 	// DELETE represents an operation type for deleting a resource
-	DELETE OperationCategory = "DELETE"
+	DELETE OperationCategory = "delete"
 )
 
 // OperationState is the state of an operation
@@ -42,13 +42,13 @@ type OperationState string
 
 const (
 	// SUCCEEDED represents the state of an operation after successful execution
-	SUCCEEDED OperationState = "SUCCEEDED"
+	SUCCEEDED OperationState = "succeeded"
 
 	// IN_PROGRESS represents the state of an operation after execution has started but has not yet finished
-	IN_PROGRESS OperationState = "IN PROGRESS"
+	IN_PROGRESS OperationState = "in progress"
 
 	// FAILED represents the state of an operation after unsuccessful execution
-	FAILED OperationState = "FAILED"
+	FAILED OperationState = "failed"
 )
 
 //go:generate smgen api Operation
