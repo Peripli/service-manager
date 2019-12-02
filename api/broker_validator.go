@@ -123,52 +123,63 @@ func retrieveCatalogPlanIDs(services []*types.ServiceOffering) []string {
 }
 
 func retrieveServiceInstanceIDsByCatalogPlanIDs(ctx context.Context, repository storage.Repository, catalogPlanIDs []string) ([]string, error) {
-	instanceIDs := make([]string, 0)
-	for _, catalogPlanID := range catalogPlanIDs {
-		byCatalogPlanID := query.ByField(query.EqualsOperator, "catalog_id", catalogPlanID)
-		objectList, err := repository.List(ctx, types.ServicePlanType, byCatalogPlanID)
-		if err != nil {
-			return nil, util.HandleStorageError(err, string(types.ServicePlanType))
-		}
-
-		for i := 0; i < objectList.Len(); i++ {
-			byPlanID := query.ByField(query.EqualsOperator, "service_plan_id", objectList.ItemAt(i).GetID())
-			ids, err := retrieveServiceInstanceIDsByCriteria(ctx, repository, byPlanID)
-			if err != nil {
-				return nil, util.HandleStorageError(err, string(types.ServiceInstanceType))
-			}
-
-			instanceIDs = append(instanceIDs, ids...)
-		}
+	if len(catalogPlanIDs) == 0 {
+		return []string{}, nil
 	}
+
+	byCatalogPlanIDs := query.ByField(query.InOperator, "catalog_id", catalogPlanIDs...)
+	instanceIDs, err := retrieveServiceInstanceIDsByPlanCriteria(ctx, repository, byCatalogPlanIDs)
+	if err != nil {
+		return nil, err
+	}
+
 	return instanceIDs, nil
 }
 
 func retrieveServiceInstanceIDsByBrokerID(ctx context.Context, repository storage.Repository, brokerID string) ([]string, error) {
-	instanceIDs := make([]string, 0)
-
 	byBrokerID := query.ByField(query.EqualsOperator, "broker_id", brokerID)
 	offeringList, err := repository.List(ctx, types.ServiceOfferingType, byBrokerID)
 	if err != nil {
 		return nil, util.HandleStorageError(err, string(types.ServiceOfferingType))
 	}
 
+	if offeringList.Len() == 0 {
+		return []string{}, nil
+	}
+
+	offeringIDs := make([]string, 0)
 	for i := 0; i < offeringList.Len(); i++ {
-		byOfferingID := query.ByField(query.EqualsOperator, "service_offering_id", offeringList.ItemAt(i).GetID())
-		planList, err := repository.List(ctx, types.ServicePlanType, byOfferingID)
-		if err != nil {
-			return nil, util.HandleStorageError(err, string(types.ServicePlanType))
-		}
+		offeringIDs = append(offeringIDs, offeringList.ItemAt(i).GetID())
+	}
 
-		for j := 0; j < planList.Len(); j++ {
-			byPlanID := query.ByField(query.EqualsOperator, "service_plan_id", planList.ItemAt(j).GetID())
-			ids, err := retrieveServiceInstanceIDsByCriteria(ctx, repository, byPlanID)
-			if err != nil {
-				return nil, util.HandleStorageError(err, string(types.ServiceInstanceType))
-			}
+	byOfferingIDs := query.ByField(query.InOperator, "service_offering_id", offeringIDs...)
+	instanceIDs, err := retrieveServiceInstanceIDsByPlanCriteria(ctx, repository, byOfferingIDs)
+	if err != nil {
+		return nil, err
+	}
 
-			instanceIDs = append(instanceIDs, ids...)
-		}
+	return instanceIDs, nil
+}
+
+func retrieveServiceInstanceIDsByPlanCriteria(ctx context.Context, repository storage.Repository, planCriteria ...query.Criterion) ([]string, error) {
+	planList, err := repository.List(ctx, types.ServicePlanType, planCriteria...)
+	if err != nil {
+		return nil, util.HandleStorageError(err, string(types.ServicePlanType))
+	}
+
+	if planList.Len() == 0 {
+		return []string{}, nil
+	}
+
+	planIDs := make([]string, 0)
+	for i := 0; i < planList.Len(); i++ {
+		planIDs = append(planIDs, planList.ItemAt(i).GetID())
+	}
+
+	byPlanIDs := query.ByField(query.InOperator, "service_plan_id", planIDs...)
+	instanceIDs, err := retrieveServiceInstanceIDsByCriteria(ctx, repository, byPlanIDs)
+	if err != nil {
+		return nil, util.HandleStorageError(err, string(types.ServiceInstanceType))
 	}
 
 	return instanceIDs, nil
