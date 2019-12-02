@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"path"
 	"runtime"
-	"strings"
 	"sync"
 	"time"
 
@@ -31,9 +30,6 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/types"
 )
-
-// EntityType is the type of the entity in the Service Manager DB
-type EntityType string
 
 type Entity interface {
 	GetID() string
@@ -128,20 +124,6 @@ func (s *NotificationSettings) Validate() error {
 		return fmt.Errorf("notification clean interval (%d) should be grater or equal to 0", s.CleanInterval)
 	}
 	return nil
-}
-
-func (et EntityType) ToObjectType() types.ObjectType {
-	name := string(et)
-
-	name = name[:len(name)-1]
-	if !strings.ContainsRune(name, '_') {
-		return types.ObjectType(types.Prefix + strings.Title(name))
-	}
-
-	name = strings.Replace(name, "_", " ", -1)
-	name = strings.Title(name)
-	name = strings.Replace(name, " ", "", -1)
-	return types.ObjectType(types.Prefix + name)
 }
 
 // OpenCloser represents an openable and closeable storage

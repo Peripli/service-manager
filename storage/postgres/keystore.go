@@ -29,8 +29,8 @@ import (
 )
 
 const (
-	securityLockIndex                    = 111
-	SafeTable         storage.EntityType = "safe"
+	securityLockIndex = 111
+	SafeTable         = "safe"
 )
 
 // Safe represents a secret entity
@@ -60,12 +60,8 @@ func (s *Safe) NewLabel(id, key, value string) storage.Label {
 	return nil
 }
 
-func (s *Safe) GetType() storage.EntityType {
-	return SafeTable
-}
-
 func (s *Safe) TableName() string {
-	return string(s.GetType())
+	return SafeTable
 }
 
 func (s *Safe) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {

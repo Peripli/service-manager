@@ -1,4 +1,4 @@
-package testutil
+package service_instance
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 	. "github.com/onsi/ginkgo"
 )
 
-func PrepareServiceInstance(ctx *common.TestContext, platformID, planID string, OSBContext string) (string, *types.ServiceInstance) {
+func Prepare(ctx *common.TestContext, platformID, planID string, OSBContext string) (string, *types.ServiceInstance) {
 	var brokerID string
 	if planID == "" {
 		cService := common.GenerateTestServiceWithPlans(common.GenerateFreeTestPlan())

@@ -252,7 +252,7 @@ func (ps *Storage) Delete(ctx context.Context, objType types.ObjectType, criteri
 		pqError, ok := err.(*pq.Error)
 		if ok && pqError.Code.Name() == foreignKeyViolation {
 			entityName := objType.String()
-			referenceEntityName := storage.EntityType(pqError.Table).ToObjectType().String()
+			referenceEntityName := ps.scheme.entityToObjectTypeConverter[pqError.Table]
 
 			return nil, &util.ErrForeignKeyViolation{
 				Entity:          entityName,
