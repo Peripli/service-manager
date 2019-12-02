@@ -178,13 +178,9 @@ func NewEmptySBCatalog() SBCatalog {
 	return catalog
 }
 
-func GenerateTestServiceWithPlans(plans ...string) string {
-	UUID, err := uuid.NewV4()
-	if err != nil {
-		panic(err)
-	}
-
-	catalogService := fmt.Sprintf(testService, UUID.String())
+func GenerateTestServiceWithPlansWithID(serviceID string, plans ...string) string {
+	var err error
+	catalogService := fmt.Sprintf(testService, serviceID)
 	for _, plan := range plans {
 		catalogService, err = sjson.Set(catalogService, "plans.-1", JSONToMap(plan))
 		if err != nil {
@@ -204,22 +200,52 @@ func GenerateTestServiceWithPlans(plans ...string) string {
 	return catalogService
 }
 
-func GenerateTestPlan() string {
-	return GenerateTestPlanFromTemplate(testPaidPlan)
-}
-
-func GenerateFreeTestPlan() string {
-	return GenerateTestPlanFromTemplate(testFreePlan)
-}
-
-func GeneratePaidTestPlan() string {
-	return GenerateTestPlanFromTemplate(testPaidPlan)
-}
-
-func GenerateTestPlanFromTemplate(planTemplate string) string {
+func GenerateTestServiceWithPlans(plans ...string) string {
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		panic(err)
 	}
-	return fmt.Sprintf(planTemplate, UUID.String())
+
+	return GenerateTestServiceWithPlansWithID(UUID.String(), plans...)
+
+}
+
+func GenerateTestPlanWithID(planID string) string {
+	return GenerateTestPlanFromTemplate(planID, testPaidPlan)
+}
+
+func GenerateTestPlan() string {
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+	id := UUID.String()
+	return GenerateTestPlanWithID(id)
+}
+
+func GenerateFreeTestPlan() string {
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+	return GenerateTestPlanFromTemplate(UUID.String(), testFreePlan)
+}
+
+func GeneratePaidTestPlan() string {
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+	return GenerateTestPlanFromTemplate(UUID.String(), testPaidPlan)
+}
+
+func GenerateTestPlanFromTemplate(id, planTemplate string) string {
+	if len(id) == 0 {
+		UUID, err := uuid.NewV4()
+		if err != nil {
+			panic(err)
+		}
+		id = UUID.String()
+	}
+	return fmt.Sprintf(planTemplate, id)
 }

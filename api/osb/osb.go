@@ -25,7 +25,8 @@ import (
 
 const (
 	// BrokerIDPathParam is a service broker ID path parameter
-	BrokerIDPathParam = "brokerID"
+	BrokerIDPathParam   = "brokerID"
+	InstanceIDPathParam = "instance_id"
 
 	// baseURL is the OSB API Controller path
 	baseURL = web.OSBURL + "/{" + BrokerIDPathParam + "}"
