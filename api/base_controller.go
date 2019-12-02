@@ -46,26 +46,13 @@ const pagingLimitOffset = 1
 
 // BaseController provides common CRUD handlers for all object types in the service manager
 type BaseController struct {
-	resourceBaseURL   string
-	objectType        types.ObjectType
-	repository        storage.Repository
-	objectBlueprint   func() types.Object
+	ResourceBaseURL   string
+	ObjectType        types.ObjectType
+	Repository        storage.Repository
+	ObjectBlueprint   func() types.Object
 	DefaultPageSize   int
 	MaxPageSize       int
 	ResourceValidator ResourceValidator
-}
-
-// NewController returns a new base controller
-func NewController(repository storage.Repository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, defaultPageSize, maxPageSize int, resourceValidator ResourceValidator) *BaseController {
-	return &BaseController{
-		repository:        repository,
-		resourceBaseURL:   resourceBaseURL,
-		objectBlueprint:   objectBlueprint,
-		objectType:        objectType,
-		DefaultPageSize:   defaultPageSize,
-		MaxPageSize:       maxPageSize,
-		ResourceValidator: resourceValidator,
-	}
 }
 
 // Routes returns the common set of routes for all objects
@@ -74,42 +61,42 @@ func (c *BaseController) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodPost,
-				Path:   c.resourceBaseURL,
+				Path:   c.ResourceBaseURL,
 			},
 			Handler: c.CreateObject,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamID),
+				Path:   fmt.Sprintf("%s/{%s}", c.ResourceBaseURL, PathParamID),
 			},
 			Handler: c.GetSingleObject,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   c.resourceBaseURL,
+				Path:   c.ResourceBaseURL,
 			},
 			Handler: c.ListObjects,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodDelete,
-				Path:   c.resourceBaseURL,
+				Path:   c.ResourceBaseURL,
 			},
 			Handler: c.DeleteObjects,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodDelete,
-				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamID),
+				Path:   fmt.Sprintf("%s/{%s}", c.ResourceBaseURL, PathParamID),
 			},
 			Handler: c.DeleteSingleObject,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodPatch,
-				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamID),
+				Path:   fmt.Sprintf("%s/{%s}", c.ResourceBaseURL, PathParamID),
 			},
 			Handler: c.PatchObject,
 		},
@@ -119,9 +106,9 @@ func (c *BaseController) Routes() []web.Route {
 // CreateObject handles the creation of a new object
 func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
-	log.C(ctx).Debugf("Creating new %s", c.objectType)
+	log.C(ctx).Debugf("Creating new %s", c.ObjectType)
 
-	result := c.objectBlueprint()
+	result := c.ObjectBlueprint()
 	if err := util.BytesToObject(r.Body, result); err != nil {
 		return nil, err
 	}
@@ -129,7 +116,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	if result.GetID() == "" {
 		UUID, err := uuid.NewV4()
 		if err != nil {
-			return nil, fmt.Errorf("could not generate GUID for %s: %s", c.objectType, err)
+			return nil, fmt.Errorf("could not generate GUID for %s: %s", c.ObjectType, err)
 		}
 		result.SetID(UUID.String())
 	}
@@ -138,13 +125,13 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	result.SetUpdatedAt(currentTime)
 
 	log.C(ctx).Debugf("Attempting to validate creation of %s object with ID (%s)", result.GetType(), result.GetID())
-	if err := c.ResourceValidator.ValidateCreate(ctx, c.repository, result); err != nil {
+	if err := c.ResourceValidator.ValidateCreate(ctx, c.Repository, result); err != nil {
 		return nil, err
 	}
 
-	createdObj, err := c.repository.Create(ctx, result)
+	createdObj, err := c.Repository.Create(ctx, result)
 	if err != nil {
-		return nil, util.HandleStorageError(err, string(c.objectType))
+		return nil, util.HandleStorageError(err, string(c.ObjectType))
 	}
 
 	return util.NewJSONResponse(http.StatusCreated, createdObj)
@@ -153,26 +140,26 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 // DeleteObjects handles the deletion of the objects specified in the request
 func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
-	log.C(ctx).Debugf("Deleting %ss...", c.objectType)
+	log.C(ctx).Debugf("Deleting %ss...", c.ObjectType)
 
 	criteria := query.CriteriaForContext(ctx)
 
-	objectList, err := c.repository.List(ctx, c.objectType, criteria...)
+	objectList, err := c.Repository.List(ctx, c.ObjectType, criteria...)
 	if err != nil {
 		return nil, err
 	}
 
-	log.C(ctx).Debugf("Attempting to validate deletion of %s object(s)", c.objectType)
+	log.C(ctx).Debugf("Attempting to validate deletion of %s object(s)", c.ObjectType)
 	for i := 0; i < objectList.Len(); i++ {
-		log.C(ctx).Debugf("Attempting to validate deletion of %s object with ID (%s)", c.objectType, objectList.ItemAt(i).GetID())
-		err = c.ResourceValidator.ValidateDelete(ctx, c.repository, objectList.ItemAt(i))
+		log.C(ctx).Debugf("Attempting to validate deletion of %s object with ID (%s)", c.ObjectType, objectList.ItemAt(i).GetID())
+		err = c.ResourceValidator.ValidateDelete(ctx, c.Repository, objectList.ItemAt(i))
 		if err != nil {
-			return nil, util.HandleStorageError(err, string(c.objectType))
+			return nil, util.HandleStorageError(err, string(c.ObjectType))
 		}
 	}
 
-	if _, err := c.repository.Delete(ctx, c.objectType, criteria...); err != nil {
-		return nil, util.HandleStorageError(err, string(c.objectType))
+	if _, err := c.Repository.Delete(ctx, c.ObjectType, criteria...); err != nil {
+		return nil, util.HandleStorageError(err, string(c.ObjectType))
 	}
 
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
@@ -182,7 +169,7 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, error) {
 	objectID := r.PathParams[PathParamID]
 	ctx := r.Context()
-	log.C(ctx).Debugf("Deleting %s with id %s", c.objectType, objectID)
+	log.C(ctx).Debugf("Deleting %s with id %s", c.ObjectType, objectID)
 
 	byID := query.ByField(query.EqualsOperator, "id", objectID)
 	ctx, err := query.AddCriteria(ctx, byID)
@@ -198,7 +185,7 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) {
 	objectID := r.PathParams[PathParamID]
 	ctx := r.Context()
-	log.C(ctx).Debugf("Getting %s with id %s", c.objectType, objectID)
+	log.C(ctx).Debugf("Getting %s with id %s", c.ObjectType, objectID)
 
 	byID := query.ByField(query.EqualsOperator, "id", objectID)
 	var err error
@@ -207,9 +194,9 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 		return nil, err
 	}
 	criteria := query.CriteriaForContext(ctx)
-	object, err := c.repository.Get(ctx, c.objectType, criteria...)
+	object, err := c.Repository.Get(ctx, c.ObjectType, criteria...)
 	if err != nil {
-		return nil, util.HandleStorageError(err, string(c.objectType))
+		return nil, util.HandleStorageError(err, string(c.ObjectType))
 	}
 
 	stripCredentials(ctx, object)
@@ -222,9 +209,9 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 
 	criteria := query.CriteriaForContext(ctx)
-	count, err := c.repository.Count(ctx, c.objectType, criteria...)
+	count, err := c.Repository.Count(ctx, c.ObjectType, criteria...)
 	if err != nil {
-		return nil, util.HandleStorageError(err, string(c.objectType))
+		return nil, util.HandleStorageError(err, string(c.ObjectType))
 	}
 
 	maxItems := r.URL.Query().Get("max_items")
@@ -234,7 +221,7 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 	}
 
 	if limit == 0 {
-		log.C(ctx).Debugf("Returning only count of %s since max_items is 0", c.objectType)
+		log.C(ctx).Debugf("Returning only count of %s since max_items is 0", c.ObjectType)
 		page := struct {
 			ItemsCount int `json:"num_items"`
 		}{
@@ -253,10 +240,10 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 		query.OrderResultBy("paging_sequence", query.AscOrder),
 		query.ByField(query.GreaterThanOperator, "paging_sequence", pagingSequence))
 
-	log.C(ctx).Debugf("Getting a page of %ss", c.objectType)
-	objectList, err := c.repository.List(ctx, c.objectType, criteria...)
+	log.C(ctx).Debugf("Getting a page of %ss", c.ObjectType)
+	objectList, err := c.Repository.List(ctx, c.ObjectType, criteria...)
 	if err != nil {
-		return nil, util.HandleStorageError(err, string(c.objectType))
+		return nil, util.HandleStorageError(err, string(c.ObjectType))
 	}
 
 	page := pageFromObjectList(ctx, objectList, count, limit)
@@ -280,7 +267,7 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	objectID := r.PathParams[PathParamID]
 	ctx := r.Context()
-	log.C(ctx).Debugf("Updating %s with id %s", c.objectType, objectID)
+	log.C(ctx).Debugf("Updating %s with id %s", c.ObjectType, objectID)
 
 	labelChanges, err := query.LabelChangesFromJSON(r.Body)
 	if err != nil {
@@ -293,9 +280,9 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		return nil, err
 	}
 	criteria := query.CriteriaForContext(ctx)
-	objFromDB, err := c.repository.Get(ctx, c.objectType, criteria...)
+	objFromDB, err := c.Repository.Get(ctx, c.ObjectType, criteria...)
 	if err != nil {
-		return nil, util.HandleStorageError(err, string(c.objectType))
+		return nil, util.HandleStorageError(err, string(c.ObjectType))
 	}
 
 	if r.Body, err = sjson.DeleteBytes(r.Body, "labels"); err != nil {
@@ -316,13 +303,13 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	objFromDB.SetLabels(labels)
 
 	log.C(ctx).Debugf("Attempting to validate update of %s object with ID (%s)", objFromDB.GetType(), objFromDB.GetID())
-	if err := c.ResourceValidator.ValidateUpdate(ctx, c.repository, objFromDB); err != nil {
-		return nil, util.HandleStorageError(err, string(c.objectType))
+	if err := c.ResourceValidator.ValidateUpdate(ctx, c.Repository, objFromDB); err != nil {
+		return nil, util.HandleStorageError(err, string(c.ObjectType))
 	}
 
-	object, err := c.repository.Update(ctx, objFromDB, labelChanges, criteria...)
+	object, err := c.Repository.Update(ctx, objFromDB, labelChanges, criteria...)
 	if err != nil {
-		return nil, util.HandleStorageError(err, string(c.objectType))
+		return nil, util.HandleStorageError(err, string(c.ObjectType))
 	}
 
 	stripCredentials(ctx, object)

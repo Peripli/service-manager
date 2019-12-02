@@ -33,9 +33,17 @@ type ServiceInstanceController struct {
 
 func NewServiceInstanceController(repository storage.Repository, defaultPageSize, maxPageSize int) *ServiceInstanceController {
 	return &ServiceInstanceController{
-		BaseController: NewController(repository, web.ServiceInstancesURL, types.ServiceInstanceType, func() types.Object {
-			return &types.ServiceInstance{}
-		}, defaultPageSize, maxPageSize, &DefaultResourceValidator{}),
+		BaseController: &BaseController{
+			ResourceBaseURL: web.ServiceInstancesURL,
+			ObjectType:      types.ServiceInstanceType,
+			ObjectBlueprint: func() types.Object {
+				return &types.ServiceInstance{}
+			},
+			Repository:        repository,
+			DefaultPageSize:   defaultPageSize,
+			MaxPageSize:       maxPageSize,
+			ResourceValidator: &DefaultResourceValidator{},
+		},
 	}
 }
 func (c *ServiceInstanceController) Routes() []web.Route {
