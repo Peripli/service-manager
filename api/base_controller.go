@@ -156,9 +156,8 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 	log.C(ctx).Debugf("Deleting %ss...", c.objectType)
 
 	criteria := query.CriteriaForContext(ctx)
-	idCriterion := getIDCriterion(criteria)
 
-	objectList, err := c.repository.List(ctx, c.objectType, idCriterion...)
+	objectList, err := c.repository.List(ctx, c.objectType, criteria...)
 	if err != nil {
 		return nil, err
 	}
@@ -421,13 +420,4 @@ func pageFromObjectList(ctx context.Context, objectList types.ObjectList, count,
 		page.Token = generateTokenForItem(page.Items[len(page.Items)-1])
 	}
 	return page
-}
-
-func getIDCriterion(criteria []query.Criterion) []query.Criterion {
-	for _, criterion := range criteria {
-		if criterion.LeftOp == "id" {
-			return []query.Criterion{criterion}
-		}
-	}
-	return []query.Criterion{}
 }

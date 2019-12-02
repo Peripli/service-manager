@@ -14,7 +14,7 @@ import (
 // BrokerValidator is a type of ResourceValidator
 type BrokerValidator struct {
 	DefaultResourceValidator
-	CatalogFetcher func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error)
+	FetchCatalog func(ctx context.Context, broker *types.ServiceBroker) ([]byte, error)
 }
 
 // ValidateUpdate ensures that there are no service instances associated with a service plan
@@ -43,7 +43,7 @@ func (bv *BrokerValidator) ValidateUpdate(ctx context.Context, repository storag
 		return err
 	}
 
-	catalogBytes, err := bv.CatalogFetcher(ctx, broker)
+	catalogBytes, err := bv.FetchCatalog(ctx, broker)
 	if err != nil {
 		return err
 	}
@@ -73,7 +73,7 @@ func (bv *BrokerValidator) ValidateUpdate(ctx context.Context, repository storag
 	}
 
 	if len(instanceIDs) > 0 {
-		log.C(ctx).Debugf("Found service instances associated with plans removed from catalog of broker with ID (%s): %s", object.GetID(), instanceIDs)
+		log.C(ctx).Infof("Found service instances associated with plans removed from catalog of broker with ID (%s): %s", object.GetID(), instanceIDs)
 		return &util.ErrExistingReferenceEntityStorage{
 			Entity:          string(types.ServicePlanType),
 			ViolationEntity: string(types.ServiceInstanceType),
@@ -100,7 +100,7 @@ func (bv *BrokerValidator) ValidateDelete(ctx context.Context, repository storag
 	}
 
 	if len(instanceIDs) > 0 {
-		log.C(ctx).Debugf("Found service instances associated with broker with ID (%s): %s", object.GetID(), instanceIDs)
+		log.C(ctx).Infof("Found service instances associated with broker with ID (%s): %s", object.GetID(), instanceIDs)
 		return &util.ErrExistingReferenceEntityStorage{
 			Entity:          string(types.ServicePlanType),
 			ViolationEntity: string(types.ServiceInstanceType),

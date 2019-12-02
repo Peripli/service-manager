@@ -97,7 +97,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			NewController(options.Repository, web.ServiceBrokersURL, types.ServiceBrokerType, func() types.Object {
 				return &types.ServiceBroker{}
 			}, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize,
-				&BrokerValidator{CatalogFetcher: osb.CatalogFetcher(http.DefaultClient.Do, options.APISettings.OSBVersion)}),
+				&BrokerValidator{FetchCatalog: osb.CatalogFetcher(http.DefaultClient.Do, options.APISettings.OSBVersion)}),
 			NewController(options.Repository, web.PlatformsURL, types.PlatformType, func() types.Object {
 				return &types.Platform{}
 			}, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize, &PlatformValidator{}),

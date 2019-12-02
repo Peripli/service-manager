@@ -30,7 +30,7 @@ func (pv *PlatformValidator) ValidateDelete(ctx context.Context, repository stor
 	}
 
 	if len(instanceIDs) > 0 {
-		log.C(ctx).Debugf("Found service instances associated with platform with ID (%s): %s", object.GetID(), instanceIDs)
+		log.C(ctx).Infof("Found service instances associated with platform with ID (%s): %s", object.GetID(), instanceIDs)
 		return &util.ErrExistingReferenceEntityStorage{
 			Entity:          string(object.GetType()),
 			ViolationEntity: string(types.ServiceInstanceType),

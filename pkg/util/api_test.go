@@ -30,8 +30,6 @@ import (
 )
 
 func validateHTTPErrorOccurred(err error, code int) {
-	//Expect(err).Should(HaveOccurred())
-
 	httpError, ok := err.(*util.HTTPError)
 	if ok {
 		Expect(httpError.ErrorType).To(Not(BeEmpty()))
