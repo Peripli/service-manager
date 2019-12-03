@@ -19,6 +19,7 @@ package query
 import (
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/types"
 
@@ -84,6 +85,14 @@ func LabelChangesFromJSON(jsonBytes []byte) ([]*LabelChange, error) {
 
 	if err := util.BytesToObject([]byte(labelChangesBytes), &labelChanges); err != nil {
 		return nil, err
+	}
+
+	if err := labelChanges.Validate(); err != nil {
+		return nil, &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: err.Error(),
+			StatusCode:  http.StatusBadRequest,
+		}
 	}
 
 	for _, v := range labelChanges {

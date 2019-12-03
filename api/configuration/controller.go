@@ -35,6 +35,13 @@ func (c *Controller) setLoggingConfiguration(r *web.Request) (*web.Response, err
 	if err := util.BytesToObject(r.Body, &loggingConfig); err != nil {
 		return nil, err
 	}
+	if err := loggingConfig.Validate(); err != nil {
+		return nil, &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: err.Error(),
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
 
 	log.C(ctx).Infof("Attempting to set logging configuration with level: %s and format: %s", loggingConfig.Level, loggingConfig.Format)
 

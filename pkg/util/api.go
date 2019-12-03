@@ -88,19 +88,7 @@ func RequestBodyToBytes(request *http.Request) ([]byte, error) {
 
 // BytesToObject converts the provided bytes to object and validates it
 func BytesToObject(bytes []byte, object interface{}) error {
-	if err := unmarshal(bytes, object); err != nil {
-		return err
-	}
-	if err := validate(object); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// unmarshal unmarshals the specified []byte into the provided value and returns an HttpError in unmarshaling fails
-func unmarshal(body []byte, value interface{}) error {
-	err := json.Unmarshal(body, value)
+	err := json.Unmarshal(bytes, object)
 	if err != nil {
 		log.D().Error("Failed to decode request body: ", err)
 		return &HTTPError{
@@ -112,8 +100,8 @@ func unmarshal(body []byte, value interface{}) error {
 	return nil
 }
 
-// validate validates the specified value in case it implements InputValidator
-func validate(value interface{}) error {
+// Validate validates the specified value in case it implements InputValidator
+func Validate(value interface{}) error {
 	if input, ok := value.(InputValidator); ok {
 		if err := input.Validate(); err != nil {
 			return &HTTPError{

@@ -33,9 +33,17 @@ type ServiceOfferingController struct {
 
 func NewServiceOfferingController(repository storage.Repository, defaultPageSize, maxPageSize int) *ServiceOfferingController {
 	return &ServiceOfferingController{
-		BaseController: NewController(repository, web.ServiceOfferingsURL, types.ServiceOfferingType, func() types.Object {
-			return &types.ServiceOffering{}
-		}, defaultPageSize, maxPageSize),
+		BaseController: &BaseController{
+			ResourceBaseURL: web.ServiceOfferingsURL,
+			ObjectType:      types.ServiceOfferingType,
+			ObjectBlueprint: func() types.Object {
+				return &types.ServiceOffering{}
+			},
+			Repository:        repository,
+			DefaultPageSize:   defaultPageSize,
+			MaxPageSize:       maxPageSize,
+			ResourceValidator: &DefaultResourceValidator{},
+		},
 	}
 }
 func (c *ServiceOfferingController) Routes() []web.Route {

@@ -32,9 +32,17 @@ type ServicePlanController struct {
 
 func NewServicePlanController(repository storage.Repository, defaultPageSize, maxPageSize int) *ServicePlanController {
 	return &ServicePlanController{
-		BaseController: NewController(repository, web.ServicePlansURL, types.ServicePlanType, func() types.Object {
-			return &types.ServicePlan{}
-		}, defaultPageSize, maxPageSize),
+		BaseController: &BaseController{
+			ResourceBaseURL: web.ServicePlansURL,
+			ObjectType:      types.ServicePlanType,
+			ObjectBlueprint: func() types.Object {
+				return &types.ServicePlan{}
+			},
+			Repository:        repository,
+			DefaultPageSize:   defaultPageSize,
+			MaxPageSize:       maxPageSize,
+			ResourceValidator: &DefaultResourceValidator{},
+		},
 	}
 }
 

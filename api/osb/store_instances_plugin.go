@@ -192,6 +192,10 @@ func (ssi *StoreServiceInstancePlugin) Provision(request *web.Request, next web.
 		return nil, err
 	}
 
+	if err := util.Validate(requestPayload); err != nil {
+		return nil, err
+	}
+
 	response, err := next.Handle(request)
 	if err != nil {
 		return nil, err
@@ -270,7 +274,7 @@ func (ssi *StoreServiceInstancePlugin) Deprovision(request *web.Request, next we
 			byID := query.ByField(query.EqualsOperator, "id", requestPayload.InstanceID)
 			if _, err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
 				if err != util.ErrNotFoundInStorage {
-					return util.HandleStorageError(err, string(types.ServiceInstanceType))
+					return util.HandleStorageError(err, types.ServiceInstanceType.String())
 
 				}
 			}
@@ -295,6 +299,10 @@ func (ssi *StoreServiceInstancePlugin) UpdateService(request *web.Request, next 
 
 	requestPayload := &updateRequest{}
 	if err := decodeRequestBody(request, requestPayload); err != nil {
+		return nil, err
+	}
+
+	if err := util.Validate(requestPayload); err != nil {
 		return nil, err
 	}
 
@@ -373,7 +381,7 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 		}
 		op, err := storage.Get(ctx, types.OperationType, criteria...)
 		if err != nil && err != util.ErrNotFoundInStorage {
-			return util.HandleStorageError(err, string(types.OperationType))
+			return util.HandleStorageError(err, types.OperationType.String())
 		}
 		if op == nil {
 			return nil
@@ -395,7 +403,7 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 					byID := query.ByField(query.EqualsOperator, "id", requestPayload.InstanceID)
 					if _, err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
 						if err != util.ErrNotFoundInStorage {
-							return util.HandleStorageError(err, string(types.ServiceInstanceType))
+							return util.HandleStorageError(err, types.ServiceInstanceType.String())
 						}
 					}
 					if err := ssi.updateOperation(ctx, operationFromDB, storage, requestPayload, &resp.Response, types.FAILED, correlationID); err != nil {
@@ -422,7 +430,7 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 					byID := query.ByField(query.EqualsOperator, "id", requestPayload.InstanceID)
 					if _, err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
 						if err != util.ErrNotFoundInStorage {
-							return util.HandleStorageError(err, string(types.ServiceInstanceType))
+							return util.HandleStorageError(err, types.ServiceInstanceType.String())
 						}
 					}
 					if err := ssi.updateOperation(ctx, operationFromDB, storage, requestPayload, &resp.Response, types.SUCCEEDED, correlationID); err != nil {
@@ -536,7 +544,7 @@ func (ssi *StoreServiceInstancePlugin) updateInstance(ctx context.Context, req *
 	var err error
 	if instance, err = storage.Get(ctx, types.ServiceInstanceType, byID); err != nil {
 		if err != util.ErrNotFoundInStorage {
-			return util.HandleStorageError(err, string(types.ServiceInstanceType))
+			return util.HandleStorageError(err, types.ServiceInstanceType.String())
 		}
 	}
 	if instance == nil {
@@ -582,7 +590,7 @@ func (ssi *StoreServiceInstancePlugin) rollbackInstance(ctx context.Context, req
 	var instance types.Object
 	var err error
 	if instance, err = storage.Get(ctx, types.ServiceInstanceType, byID); err != nil {
-		return util.HandleStorageError(err, string(types.ServiceInstanceType))
+		return util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
 	if instance == nil {
 		return nil
@@ -618,7 +626,7 @@ func (ssi *StoreServiceInstancePlugin) updateInstanceReady(ctx context.Context, 
 	var instance types.Object
 	var err error
 	if instance, err = storage.Get(ctx, types.ServiceInstanceType, byID); err != nil {
-		return util.HandleStorageError(err, string(types.ServiceInstanceType))
+		return util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
 	if instance == nil {
 		return nil
@@ -638,14 +646,14 @@ func findServicePlanIDByCatalogIDs(ctx context.Context, storage storage.Reposito
 	byBrokerID := query.ByField(query.EqualsOperator, "broker_id", brokerID)
 	serviceOffering, err := storage.Get(ctx, types.ServiceOfferingType, byBrokerID, byCatalogServiceID)
 	if err != nil {
-		return "", util.HandleStorageError(err, string(types.ServiceOfferingType))
+		return "", util.HandleStorageError(err, types.ServiceOfferingType.String())
 	}
 
 	byServiceOfferingID := query.ByField(query.EqualsOperator, "service_offering_id", serviceOffering.GetID())
 	byCatalogPlanID := query.ByField(query.EqualsOperator, "catalog_id", catalogPlanID)
 	servicePlan, err := storage.Get(ctx, types.ServicePlanType, byServiceOfferingID, byCatalogPlanID)
 	if err != nil {
-		return "", util.HandleStorageError(err, string(types.ServicePlanType))
+		return "", util.HandleStorageError(err, types.ServicePlanType.String())
 	}
 
 	return servicePlan.GetID(), nil

@@ -640,7 +640,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Status(http.StatusOK).
 							JSON().Object()
 
-						assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+						assertInvocationCount(brokerServer.CatalogEndpointRequests, 2)
 
 						reply = ctx.SMWithOAuth.GET(web.ServiceBrokersURL + "/" + brokerID).
 							Expect().
@@ -661,7 +661,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							ContainsKey("created_at").
 							ValueNotEqual("created_at", createdAt)
 
-						assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+						assertInvocationCount(brokerServer.CatalogEndpointRequests, 2)
 
 						ctx.SMWithOAuth.GET(web.ServiceBrokersURL+"/"+brokerID).
 							Expect().
@@ -717,7 +717,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								ContainsMap(expectedUpdatedBrokerResponse).
 								Keys().NotContains("services", "credentials")
 
-							assertInvocationCount(updatedBrokerServer.CatalogEndpointRequests, 1)
+							assertInvocationCount(updatedBrokerServer.CatalogEndpointRequests, 2)
 
 							ctx.SMWithOAuth.GET(web.ServiceBrokersURL+"/"+brokerID).
 								Expect().
@@ -745,7 +745,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Keys().NotContains("services", "credentials")
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 0)
-							assertInvocationCount(updatedBrokerServer.CatalogEndpointRequests, 1)
+							assertInvocationCount(updatedBrokerServer.CatalogEndpointRequests, 2)
 
 							ctx.SMWithOAuth.GET(web.ServiceBrokersURL+"/"+brokerID).
 								Expect().
@@ -800,7 +800,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Keys().NotContains("services", "credentials")
 
 						}
-						assertInvocationCount(brokerServer.CatalogEndpointRequests, 2)
+						assertInvocationCount(brokerServer.CatalogEndpointRequests, 4)
 					})
 				})
 
@@ -819,7 +819,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect().
 								Status(http.StatusNotFound)
 
-							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+							assertInvocationCount(brokerServer.CatalogEndpointRequests, 2)
 						})
 					})
 
@@ -843,7 +843,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							ctx.SMWithOAuth.List(web.ServiceBrokersURL).First().Object().
 								ContainsMap(expectedBrokerResponse)
 
-							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+							assertInvocationCount(brokerServer.CatalogEndpointRequests, 2)
 						})
 					})
 				})
@@ -936,7 +936,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							plansJsonResp.Path("$[*].catalog_id").Array().Contains(existingPlanID)
 							plansJsonResp.Path("$[*].service_offering_id").Array().Contains(soID)
 
-							assertInvocationCount(brokerServer.CatalogEndpointRequests, 2)
+							assertInvocationCount(brokerServer.CatalogEndpointRequests, 4)
 						})
 
 						It("is returned from the repository as part of the brokers catalog field", func() {
@@ -994,7 +994,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							plansJsonResp.Path("$[*].catalog_id").Array().Contains(anotherPlanID)
 							plansJsonResp.Path("$[*].service_offering_id").Array().Contains(soID)
 
-							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+							assertInvocationCount(brokerServer.CatalogEndpointRequests, 2)
 						})
 
 						It("is returned from the repository as part of the brokers catalog field", func() {
@@ -1019,7 +1019,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						It("returns correct response", func() {
 							responseVerifier(ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).WithJSON(common.Object{}).Expect())
 
-							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+							assertInvocationCount(brokerServer.CatalogEndpointRequests, 2)
 						})
 
 						Specify("the catalog is correctly returned by the repository", func() {
@@ -1045,7 +1045,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						It("returns correct response", func() {
 							responseVerifier(ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).WithJSON(common.Object{}).Expect())
 
-							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+							assertInvocationCount(brokerServer.CatalogEndpointRequests, 2)
 						})
 
 						Specify("the catalog is correctly returned by the repository", func() {
@@ -1080,7 +1080,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							jsonResp.Path("$[*].catalog_id").Array().Contains(anotherServiceID)
 							jsonResp.Path("$[*].broker_id").Array().Contains(brokerID)
 
-							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+							assertInvocationCount(brokerServer.CatalogEndpointRequests, 2)
 						})
 
 						It("is returned from the repository as part of the brokers catalog field", func() {
@@ -1140,7 +1140,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								ctx.SMWithOAuth.List(web.ServiceOfferingsURL).NotContains(serviceOfferingID)
 								ctx.SMWithOAuth.List(web.ServicePlansURL).NotContains(planIDsForService)
 
-								assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+								assertInvocationCount(brokerServer.CatalogEndpointRequests, 2)
 							})
 
 							It("is not returned from the repository as part of the brokers catalog field", func() {
@@ -1157,7 +1157,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect(err).To(Not(HaveOccurred()))
 							})
 
-							It("should return 400 with user-friendly message", func() {
+							It("should fail and return 400 with user-friendly message containing existing instance IDs", func() {
 								plans := ctx.SMWithOAuth.List(web.ServicePlansURL).Iter()
 
 								var planIDsForService []string
@@ -1179,20 +1179,23 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									serviceInstanceIDs = append(serviceInstanceIDs, serviceInstance.ID)
 								}
 
-								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
+								resp := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
 									WithJSON(common.Object{}).
 									Expect().
 									Status(http.StatusConflict).
-									JSON().Object().
-									Value("error").String().Contains("ExistingReferenceEntity")
+									JSON().Object()
 
-								ctx.SMWithOAuth.GET(web.ServiceOfferingsURL + "/" + serviceOfferingID).
-									Expect().
-									Status(http.StatusOK).Body().NotEmpty()
+								resp.Value("error").String().Contains("ExistingReferenceEntity")
+								resp.Value("description").String().Contains(strings.Join(serviceInstanceIDs, ","))
+
+								serviceOfferings := ctx.SMWithOAuth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=id eq '%s'", serviceOfferingID))
+								serviceOfferings.NotEmpty()
 
 								servicePlans := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("id in ('%s')", strings.Join(planIDsForService, "','")))
 								servicePlans.NotEmpty()
 								servicePlans.Length().Equal(len(planIDsForService))
+
+								assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 							})
 						})
 					})
@@ -1214,7 +1217,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									Expect().
 									Status(http.StatusConflict).JSON().Object().Keys().Contains("error", "description")
 
-								assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+								assertInvocationCount(brokerServer.CatalogEndpointRequests, 2)
 							})
 
 							Specify("the catalog before the modification is returned by the repository", func() {
@@ -1304,7 +1307,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							jsonResp.Path("$[*].catalog_id").Array().Contains(anotherPlanID)
 							jsonResp.Path("$[*].service_offering_id").Array().Contains(serviceOfferingID)
 
-							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+							assertInvocationCount(brokerServer.CatalogEndpointRequests, 2)
 						})
 
 						It("is returned from the repository as part of the brokers catalog field", func() {
@@ -1324,7 +1327,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							brokerServer.Catalog = common.SBCatalog(s)
 						})
 
-						Context("with no existing service instances", func() {
+						Context("without existing service instances", func() {
 							It("is no longer returned by the Plans API", func() {
 								ctx.SMWithOAuth.List(web.ServicePlansURL).
 									Path("$[*].catalog_id").Array().Contains(removedPlanCatalogID)
@@ -1337,7 +1340,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								ctx.SMWithOAuth.List(web.ServicePlansURL).
 									Path("$[*].catalog_id").Array().NotContains(removedPlanCatalogID)
 
-								assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+								assertInvocationCount(brokerServer.CatalogEndpointRequests, 2)
 							})
 
 							It("is not returned from the repository as part of the brokers catalog field", func() {
@@ -1362,19 +1365,23 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect(err).To(Not(HaveOccurred()))
 							})
 
-							It("should return 400 with user-friendly message", func() {
+							It("should fail and return 400 with user-friendly message containing existing instance ID", func() {
 								ctx.SMWithOAuth.List(web.ServicePlansURL).
 									Path("$[*].catalog_id").Array().Contains(removedPlanCatalogID)
 
-								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
+								resp := ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
 									WithJSON(common.Object{}).
 									Expect().
 									Status(http.StatusConflict).
-									JSON().Object().
-									Value("error").String().Contains("ExistingReferenceEntity")
+									JSON().Object()
+
+								resp.Value("error").String().Contains("ExistingReferenceEntity")
+								resp.Value("description").String().Contains(serviceInstance.ID)
 
 								ctx.SMWithOAuth.List(web.ServicePlansURL).
 									Path("$[*].catalog_id").Array().Contains(removedPlanCatalogID)
+
+								assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
 							})
 						})
 					})
@@ -1397,7 +1404,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 									Expect().
 									Status(http.StatusConflict).JSON().Object().Keys().Contains("error", "description")
 
-								assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+								assertInvocationCount(brokerServer.CatalogEndpointRequests, 2)
 							})
 
 							Specify("the catalog before the modification is returned by the repository", func() {
@@ -1667,12 +1674,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 			Describe("DELETE", func() {
 				var (
-					brokerID string
+					brokerID        string
+					serviceInstance *types.ServiceInstance
 				)
 
 				BeforeEach(func() {
-					var serviceInstance *types.ServiceInstance
-
 					brokerID, serviceInstance = service_instance.Prepare(ctx, ctx.TestPlatform.ID, "", "{}")
 					ctx.SMRepository.Create(context.Background(), serviceInstance)
 				})
@@ -1682,12 +1688,22 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 
 				Context("with existing service instances to some broker plan", func() {
-					It("should return 400 with user-friendly message", func() {
-						ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL + "/" + brokerID).
+					It("should fail and return 400 with user-friendly message containing existing instance ID", func() {
+						ctx.SMWithOAuth.GET(web.ServiceBrokersURL + "/" + brokerID).
+							Expect().
+							Status(http.StatusOK)
+
+						resp := ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL + "/" + brokerID).
 							Expect().
 							Status(http.StatusConflict).
-							JSON().Object().
-							Value("error").String().Contains("ExistingReferenceEntity")
+							JSON().Object()
+
+						resp.Value("error").String().Contains("ExistingReferenceEntity")
+						resp.Value("description").String().Contains(serviceInstance.ID)
+
+						ctx.SMWithOAuth.GET(web.ServiceBrokersURL + "/" + brokerID).
+							Expect().
+							Status(http.StatusOK)
 					})
 				})
 			})

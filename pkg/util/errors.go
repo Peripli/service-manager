@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/log"
 	"net/http"
+	"strings"
 )
 
 // HTTPError is an error type that provides error details that Service Manager error handlers would propagate to the client
@@ -114,12 +115,17 @@ func (e *ErrBadRequestStorage) Error() string {
 
 // ErrForeignKeyViolation represents a foreign key constraint storage error that should be translated to a user-friendly http.StatusBadRequest
 type ErrForeignKeyViolation struct {
-	Entity          string
-	ReferenceEntity string
+	Entity             string
+	ReferenceEntity    string
+	ReferenceEntityIDs []string
 }
 
 func (e *ErrForeignKeyViolation) Error() string {
-	return fmt.Sprintf("Could not delete entity %s due to existing reference entity %s", e.Entity, e.ReferenceEntity)
+	if len(e.ReferenceEntityIDs) == 0 {
+		return fmt.Sprintf("Could not delete entity %s due to existing reference entity %s", e.Entity, e.ReferenceEntity)
+	}
+	return fmt.Sprintf("Could not delete %s due to one or more existing %s reference entities with ID(s): %s",
+		e.Entity, e.ReferenceEntity, fmt.Sprintf("[%s]", strings.Join(e.ReferenceEntityIDs, ",")))
 }
 
 // HandleStorageError handles storage errors by converting them to relevant HTTPErrors
@@ -161,7 +167,7 @@ func HandleStorageError(err error, entityName string) error {
 		case *ErrForeignKeyViolation:
 			return &HTTPError{
 				ErrorType:   "ExistingReferenceEntity",
-				Description: fmt.Sprintf("Error deleting entity %s: %s", entityName, err.Error()),
+				Description: fmt.Sprintf("Error executing %s request: %s", entityName, err.Error()),
 				StatusCode:  http.StatusConflict,
 			}
 		case *ErrBadRequestStorage:

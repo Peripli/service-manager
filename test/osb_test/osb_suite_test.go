@@ -123,7 +123,7 @@ var _ = AfterSuite(func() {
 
 func assertMissingBrokerError(req *httpexpect.Response) {
 	req.Status(http.StatusNotFound).JSON().Object().
-		Value("description").String().Contains("could not find such broker")
+		Value("description").String().Contains("could not find such " + types.ServiceBrokerType.String())
 }
 
 func assertUnresponsiveBrokerError(req *httpexpect.Response) {

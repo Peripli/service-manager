@@ -20,6 +20,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/env"
 
@@ -94,15 +95,39 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 	return &web.API{
 		// Default controllers - more filters can be registered using the relevant API methods
 		Controllers: []web.Controller{
-			NewController(options.Repository, web.ServiceBrokersURL, types.ServiceBrokerType, func() types.Object {
-				return &types.ServiceBroker{}
-			}, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
-			NewController(options.Repository, web.PlatformsURL, types.PlatformType, func() types.Object {
-				return &types.Platform{}
-			}, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
-			NewController(options.Repository, web.VisibilitiesURL, types.VisibilityType, func() types.Object {
-				return &types.Visibility{}
-			}, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
+			&BaseController{
+				ResourceBaseURL: web.ServiceBrokersURL,
+				ObjectType:      types.ServiceBrokerType,
+				ObjectBlueprint: func() types.Object {
+					return &types.ServiceBroker{}
+				},
+				Repository:        options.Repository,
+				DefaultPageSize:   options.APISettings.DefaultPageSize,
+				MaxPageSize:       options.APISettings.MaxPageSize,
+				ResourceValidator: &BrokerValidator{FetchCatalog: osb.CatalogFetcher(http.DefaultClient.Do, options.APISettings.OSBVersion)},
+			},
+			&BaseController{
+				ResourceBaseURL: web.PlatformsURL,
+				ObjectType:      types.PlatformType,
+				ObjectBlueprint: func() types.Object {
+					return &types.Platform{}
+				},
+				Repository:        options.Repository,
+				DefaultPageSize:   options.APISettings.DefaultPageSize,
+				MaxPageSize:       options.APISettings.MaxPageSize,
+				ResourceValidator: &PlatformValidator{},
+			},
+			&BaseController{
+				ResourceBaseURL: web.VisibilitiesURL,
+				ObjectType:      types.VisibilityType,
+				ObjectBlueprint: func() types.Object {
+					return &types.Visibility{}
+				},
+				Repository:        options.Repository,
+				DefaultPageSize:   options.APISettings.DefaultPageSize,
+				MaxPageSize:       options.APISettings.MaxPageSize,
+				ResourceValidator: &DefaultResourceValidator{},
+			},
 			apiNotifications.NewController(ctx, options.Repository, options.WSSettings, options.Notificator),
 			NewServiceOfferingController(options.Repository, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
 			NewServicePlanController(options.Repository, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
@@ -116,7 +141,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 					byID := query.ByField(query.EqualsOperator, "id", brokerID)
 					br, err := options.Repository.Get(ctx, types.ServiceBrokerType, byID)
 					if err != nil {
-						return nil, util.HandleStorageError(err, "broker")
+						return nil, util.HandleStorageError(err, types.ServiceBrokerType.String())
 					}
 					return br.(*types.ServiceBroker), nil
 				},
