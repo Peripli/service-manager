@@ -192,6 +192,10 @@ func (ssi *StoreServiceInstancePlugin) Provision(request *web.Request, next web.
 		return nil, err
 	}
 
+	if err := util.Validate(requestPayload); err != nil {
+		return nil, err
+	}
+
 	response, err := next.Handle(request)
 	if err != nil {
 		return nil, err
@@ -295,6 +299,10 @@ func (ssi *StoreServiceInstancePlugin) UpdateService(request *web.Request, next 
 
 	requestPayload := &updateRequest{}
 	if err := decodeRequestBody(request, requestPayload); err != nil {
+		return nil, err
+	}
+
+	if err := util.Validate(requestPayload); err != nil {
 		return nil, err
 	}
 
