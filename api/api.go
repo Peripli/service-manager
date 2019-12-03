@@ -50,7 +50,7 @@ type Settings struct {
 	TokenIssuerURL  string   `mapstructure:"token_issuer_url" description:"url of the token issuer which to use for validating tokens"`
 	ClientID        string   `mapstructure:"client_id" description:"id of the client from which the token must be issued"`
 	TokenBasicAuth  bool     `mapstructure:"token_basic_auth" description:"specifies if client credentials to the authorization server should be sent in the header as basic auth (true) or in the body (false)"`
-	ProctedLabels   []string `mapstructure:"protected_labels" description:"defines labels which cannot be modified/added by REST API requests"`
+	ProtectedLabels []string `mapstructure:"protected_labels" description:"defines labels which cannot be modified/added by REST API requests"`
 	OSBVersion      string   `mapstructure:"-"`
 	MaxPageSize     int      `mapstructure:"max_page_size" description:"maximum number of items that could be returned in a single page"`
 	DefaultPageSize int      `mapstructure:"default_page_size" description:"default number of items returned in a single page if not specified in request"`
@@ -65,7 +65,7 @@ func DefaultSettings() *Settings {
 		OSBVersion:      osbVersion,
 		MaxPageSize:     200,
 		DefaultPageSize: 50,
-		ProctedLabels:   []string{},
+		ProtectedLabels: []string{},
 	}
 }
 
@@ -106,6 +106,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			apiNotifications.NewController(ctx, options.Repository, options.WSSettings, options.Notificator),
 			NewServiceOfferingController(options.Repository, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
 			NewServicePlanController(options.Repository, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
+			NewServiceInstanceController(options.Repository, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
 			&info.Controller{
 				TokenIssuer:    options.APISettings.TokenIssuerURL,
 				TokenBasicAuth: options.APISettings.TokenBasicAuth,
@@ -131,7 +132,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			bearerAuthnFilter,
 			secfilters.NewRequiredAuthnFilter(),
 			&filters.SelectionCriteria{},
-			filters.NewProtectedLabelsFilter(options.APISettings.ProctedLabels),
+			filters.NewProtectedLabelsFilter(options.APISettings.ProtectedLabels),
 			&filters.PlatformAwareVisibilityFilter{},
 			&filters.PatchOnlyLabelsFilter{},
 			filters.NewPlansFilterByVisibility(options.Repository),

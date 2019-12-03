@@ -18,6 +18,7 @@ package broker_test
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/test/testutil/service_instance"
 	"net/http"
 	"strings"
 	"testing"
@@ -66,6 +67,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 	ResourceBlueprint:                      blueprint(true),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
+	PatchResource:                          test.DefaultResourcePatch,
 	AdditionalTests: func(ctx *common.TestContext) {
 		Context("additional non-generic tests", func() {
 			var (
@@ -1114,33 +1116,84 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							brokerServer.Catalog = common.SBCatalog(s)
 						})
 
-						It("is no longer returned by the Services and Plans API", func() {
-							plans := ctx.SMWithOAuth.List(web.ServicePlansURL).Iter()
+						Context("with no existing service instances", func() {
 
-							var planIDsForService []interface{}
-							for _, plan := range plans {
-								soID := plan.Object().Value("service_offering_id").String().Raw()
-								Expect(soID).ToNot(BeEmpty())
-								if soID == serviceOfferingID {
-									planID := plan.Object().Value("id").String().Raw()
+							It("is no longer returned by the Services and Plans API", func() {
+								plans := ctx.SMWithOAuth.List(web.ServicePlansURL).Iter()
+
+								var planIDsForService []interface{}
+								for _, plan := range plans {
+									soID := plan.Object().Value("service_offering_id").String().Raw()
 									Expect(soID).ToNot(BeEmpty())
+									if soID == serviceOfferingID {
+										planID := plan.Object().Value("id").String().Raw()
+										Expect(soID).ToNot(BeEmpty())
 
-									planIDsForService = append(planIDsForService, planID)
+										planIDsForService = append(planIDsForService, planID)
+									}
 								}
-							}
-							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
-								WithJSON(common.Object{}).
-								Expect().
-								Status(http.StatusOK)
+								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
+									WithJSON(common.Object{}).
+									Expect().
+									Status(http.StatusOK)
 
-							ctx.SMWithOAuth.List(web.ServiceOfferingsURL).NotContains(serviceOfferingID)
-							ctx.SMWithOAuth.List(web.ServicePlansURL).NotContains(planIDsForService)
+								ctx.SMWithOAuth.List(web.ServiceOfferingsURL).NotContains(serviceOfferingID)
+								ctx.SMWithOAuth.List(web.ServicePlansURL).NotContains(planIDsForService)
 
-							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+								assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+							})
+
+							It("is not returned from the repository as part of the brokers catalog field", func() {
+								assertRepositoryReturnsExpectedCatalogAfterPatching(brokerID, string(brokerServer.Catalog))
+							})
 						})
 
-						It("is not returned from the repository as part of the brokers catalog field", func() {
-							assertRepositoryReturnsExpectedCatalogAfterPatching(brokerID, string(brokerServer.Catalog))
+						Context("with existing service instances", func() {
+							var serviceInstanceIDs []string
+
+							AfterEach(func() {
+								byIDs := query.ByField(query.InOperator, "id", serviceInstanceIDs...)
+								_, err := ctx.SMRepository.Delete(context.Background(), types.ServiceInstanceType, byIDs)
+								Expect(err).To(Not(HaveOccurred()))
+							})
+
+							It("should return 400 with user-friendly message", func() {
+								plans := ctx.SMWithOAuth.List(web.ServicePlansURL).Iter()
+
+								var planIDsForService []string
+								for _, plan := range plans {
+									soID := plan.Object().Value("service_offering_id").String().Raw()
+									Expect(soID).ToNot(BeEmpty())
+									if soID == serviceOfferingID {
+										planID := plan.Object().Value("id").String().Raw()
+										Expect(soID).ToNot(BeEmpty())
+
+										planIDsForService = append(planIDsForService, planID)
+									}
+								}
+
+								for _, planID := range planIDsForService {
+									_, serviceInstance := service_instance.Prepare(ctx, ctx.TestPlatform.ID, planID, "{}")
+									ctx.SMRepository.Create(context.Background(), serviceInstance)
+
+									serviceInstanceIDs = append(serviceInstanceIDs, serviceInstance.ID)
+								}
+
+								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
+									WithJSON(common.Object{}).
+									Expect().
+									Status(http.StatusConflict).
+									JSON().Object().
+									Value("error").String().Contains("ExistingReferenceEntity")
+
+								ctx.SMWithOAuth.GET(web.ServiceOfferingsURL + "/" + serviceOfferingID).
+									Expect().
+									Status(http.StatusOK).Body().NotEmpty()
+
+								servicePlans := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("id in ('%s')", strings.Join(planIDsForService, "','")))
+								servicePlans.NotEmpty()
+								servicePlans.Length().Equal(len(planIDsForService))
+							})
 						})
 					})
 
@@ -1271,23 +1324,58 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							brokerServer.Catalog = common.SBCatalog(s)
 						})
 
-						It("is no longer returned by the Plans API", func() {
-							ctx.SMWithOAuth.List(web.ServicePlansURL).
-								Path("$[*].catalog_id").Array().Contains(removedPlanCatalogID)
+						Context("with no existing service instances", func() {
+							It("is no longer returned by the Plans API", func() {
+								ctx.SMWithOAuth.List(web.ServicePlansURL).
+									Path("$[*].catalog_id").Array().Contains(removedPlanCatalogID)
 
-							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
-								WithJSON(common.Object{}).
-								Expect().
-								Status(http.StatusOK)
+								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
+									WithJSON(common.Object{}).
+									Expect().
+									Status(http.StatusOK)
 
-							ctx.SMWithOAuth.List(web.ServicePlansURL).
-								Path("$[*].catalog_id").Array().NotContains(removedPlanCatalogID)
+								ctx.SMWithOAuth.List(web.ServicePlansURL).
+									Path("$[*].catalog_id").Array().NotContains(removedPlanCatalogID)
 
-							assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+								assertInvocationCount(brokerServer.CatalogEndpointRequests, 1)
+							})
+
+							It("is not returned from the repository as part of the brokers catalog field", func() {
+								assertRepositoryReturnsExpectedCatalogAfterPatching(brokerID, string(brokerServer.Catalog))
+							})
 						})
 
-						It("is not returned from the repository as part of the brokers catalog field", func() {
-							assertRepositoryReturnsExpectedCatalogAfterPatching(brokerID, string(brokerServer.Catalog))
+						Context("with existing service instances", func() {
+							var serviceInstance *types.ServiceInstance
+
+							BeforeEach(func() {
+								removedPlanID := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=catalog_id eq '%s'", removedPlanCatalogID)).
+									First().Object().Value("id").String().Raw()
+
+								_, serviceInstance = service_instance.Prepare(ctx, ctx.TestPlatform.ID, removedPlanID, "{}")
+								ctx.SMRepository.Create(context.Background(), serviceInstance)
+							})
+
+							AfterEach(func() {
+								byID := query.ByField(query.EqualsOperator, "id", serviceInstance.ID)
+								_, err := ctx.SMRepository.Delete(context.Background(), types.ServiceInstanceType, byID)
+								Expect(err).To(Not(HaveOccurred()))
+							})
+
+							It("should return 400 with user-friendly message", func() {
+								ctx.SMWithOAuth.List(web.ServicePlansURL).
+									Path("$[*].catalog_id").Array().Contains(removedPlanCatalogID)
+
+								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).
+									WithJSON(common.Object{}).
+									Expect().
+									Status(http.StatusConflict).
+									JSON().Object().
+									Value("error").String().Contains("ExistingReferenceEntity")
+
+								ctx.SMWithOAuth.List(web.ServicePlansURL).
+									Path("$[*].catalog_id").Array().Contains(removedPlanCatalogID)
+							})
 						})
 					})
 
@@ -1573,6 +1661,33 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect().
 								Status(http.StatusOK)
 						})
+					})
+				})
+			})
+
+			Describe("DELETE", func() {
+				var (
+					brokerID string
+				)
+
+				BeforeEach(func() {
+					var serviceInstance *types.ServiceInstance
+
+					brokerID, serviceInstance = service_instance.Prepare(ctx, ctx.TestPlatform.ID, "", "{}")
+					ctx.SMRepository.Create(context.Background(), serviceInstance)
+				})
+
+				AfterEach(func() {
+					ctx.CleanupAdditionalResources()
+				})
+
+				Context("with existing service instances to some broker plan", func() {
+					It("should return 400 with user-friendly message", func() {
+						ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL + "/" + brokerID).
+							Expect().
+							Status(http.StatusConflict).
+							JSON().Object().
+							Value("error").String().Contains("ExistingReferenceEntity")
 					})
 				})
 			})

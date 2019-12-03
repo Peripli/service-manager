@@ -17,9 +17,10 @@
 package auth_test
 
 import (
-	"github.com/Peripli/service-manager/pkg/web"
 	"net/http"
 	"testing"
+
+	"github.com/Peripli/service-manager/pkg/web"
 
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
@@ -209,6 +210,17 @@ var _ = Describe("Service Manager Authentication", func() {
 			{"Invalid authorization schema", "PUT", web.LoggingConfigURL, "Basic abc"},
 			{"Missing token in authorization header", "PUT", web.LoggingConfigURL, "Bearer "},
 			{"Invalid token in authorization header", "PUT", web.LoggingConfigURL, "Bearer abc"},
+
+			// SERVICE INSTANCES
+			{"Missing authorization header", "GET", web.ServiceInstancesURL + "/999", ""},
+			{"Invalid authorization schema", "GET", web.ServiceInstancesURL + "/999", "Basic abc"},
+			{"Missing token in authorization header", "GET", web.ServiceInstancesURL + "/999", "Bearer "},
+			{"Invalid token in authorization header", "GET", web.ServiceInstancesURL + "/999", "Bearer abc"},
+
+			{"Missing authorization header", "GET", web.ServiceInstancesURL, ""},
+			{"Invalid authorization schema", "GET", web.ServiceInstancesURL, "Basic abc"},
+			{"Missing token in authorization header", "GET", web.ServiceInstancesURL, "Bearer "},
+			{"Invalid token in authorization header", "GET", web.ServiceInstancesURL, "Bearer abc"},
 		}
 
 		for _, request := range authRequests {

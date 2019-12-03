@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/gofrs/uuid"
+
 	"github.com/Peripli/service-manager/pkg/env"
 
 	"github.com/Peripli/service-manager/pkg/sm"
@@ -28,6 +30,8 @@ var _ = Describe("Service Manager Filters", func() {
 
 	var testFilters []web.Filter
 	var order string
+	var serviceID string
+	var planID string
 
 	JustBeforeEach(func() {
 		ctx = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error {
@@ -35,7 +39,17 @@ var _ = Describe("Service Manager Filters", func() {
 			return nil
 		}).Build()
 
-		brokerID, _, _ := ctx.RegisterBroker()
+		UUID, err := uuid.NewV4()
+		Expect(err).ToNot(HaveOccurred())
+		planID = UUID.String()
+		plan1 := common.GenerateTestPlanWithID(planID)
+		UUID, err = uuid.NewV4()
+		Expect(err).ToNot(HaveOccurred())
+		serviceID = UUID.String()
+		service1 := common.GenerateTestServiceWithPlansWithID(serviceID, plan1)
+		catalog := common.NewEmptySBCatalog()
+		catalog.AddService(service1)
+		brokerID, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
 		osbURL = "/v1/osb/" + brokerID
 		order = ""
 	})
@@ -61,7 +75,7 @@ var _ = Describe("Service Manager Filters", func() {
 			Specify("/v2/service_instances/1234", func() {
 				ctx.SMWithBasic.PUT(osbURL+"/v2/service_instances/1234").
 					WithHeader("Content-Type", "application/json").
-					WithJSON(object{}).
+					WithJSON(object{"service_id": serviceID, "plan_id": planID}).
 					Expect().Status(http.StatusCreated)
 				Expect(order).To(Equal("osb1osb2"))
 			})

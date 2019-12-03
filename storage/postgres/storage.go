@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/lib/pq"
 	"sync"
 	"time"
 
@@ -35,7 +36,10 @@ import (
 	_ "github.com/lib/pq"
 )
 
-const postgresDriverName = "postgres"
+const (
+	postgresDriverName  = "postgres"
+	foreignKeyViolation = "foreign_key_violation"
+)
 
 type Storage struct {
 	ConnectFunc func(driver string, url string) (*sql.DB, error)
@@ -99,6 +103,8 @@ func (ps *Storage) Open(settings *storage.Settings) error {
 		ps.scheme.introduce(&ServicePlan{})
 		ps.scheme.introduce(&Visibility{})
 		ps.scheme.introduce(&Notification{})
+		ps.scheme.introduce(&Operation{})
+		ps.scheme.introduce(&ServiceInstance{})
 	}
 
 	return nil
@@ -243,6 +249,17 @@ func (ps *Storage) Delete(ctx context.Context, objType types.ObjectType, criteri
 	rows, err := ps.queryBuilder.NewQuery(entity).WithCriteria(criteria...).Return("*").Delete(ctx)
 	defer closeRows(ctx, rows)
 	if err != nil {
+		pqError, ok := err.(*pq.Error)
+		if ok && pqError.Code.Name() == foreignKeyViolation {
+			entityName := objType.String()
+			referenceEntityName := ps.scheme.entityToObjectTypeConverter[pqError.Table]
+
+			return nil, &util.ErrForeignKeyViolation{
+				Entity:          entityName,
+				ReferenceEntity: referenceEntityName,
+			}
+		}
+
 		return nil, err
 	}
 	objectList, err := entity.RowsToList(rows)

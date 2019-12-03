@@ -156,6 +156,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	}
 
 	smb.RegisterPlugins(plugins.NewCatalogFilterByVisibilityPlugin(interceptableRepository))
+	smb.RegisterPlugins(osb.NewStoreServiceInstancesPlugin(interceptableRepository))
 
 	// Register default interceptors that represent the core SM business logic
 	smb.
@@ -406,5 +407,8 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 
 	multitenancyFilters := filters.NewMultitenancyFilters(labelKey, extractTenantFunc)
 	smb.RegisterFiltersAfter(filters.ProtectedLabelsFilterName, multitenancyFilters...)
+	smb.WithCreateAroundTxInterceptorProvider(types.ServiceInstanceType, &interceptors.ServiceInstanceCreateInsterceptorProvider{
+		TenantIdentifier: labelKey,
+	}).Register()
 	return smb
 }

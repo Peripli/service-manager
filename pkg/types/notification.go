@@ -23,18 +23,18 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
-// OperationType is the notification type
-type OperationType string
+// NotificationOperation is the notification type
+type NotificationOperation string
 
 const (
 	// CREATED represents a notification type for creating a resource
-	CREATED OperationType = "CREATED"
+	CREATED NotificationOperation = "CREATED"
 
 	// MODIFIED represents a notification type for modifying a resource
-	MODIFIED OperationType = "MODIFIED"
+	MODIFIED NotificationOperation = "MODIFIED"
 
 	// DELETED represents a notification type for deleting a resource
-	DELETED OperationType = "DELETED"
+	DELETED NotificationOperation = "DELETED"
 
 	// InvalidRevision revision with invalid value
 	InvalidRevision int64 = -1
@@ -44,12 +44,12 @@ const (
 // Notification struct
 type Notification struct {
 	Base
-	Resource      ObjectType      `json:"resource"`
-	Type          OperationType   `json:"type"`
-	PlatformID    string          `json:"platform_id,omitempty"`
-	Revision      int64           `json:"revision"`
-	Payload       json.RawMessage `json:"payload"`
-	CorrelationID string          `json:"correlation_id"`
+	Resource      ObjectType            `json:"resource"`
+	Type          NotificationOperation `json:"type"`
+	PlatformID    string                `json:"platform_id,omitempty"`
+	Revision      int64                 `json:"revision"`
+	Payload       json.RawMessage       `json:"payload"`
+	CorrelationID string                `json:"correlation_id"`
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

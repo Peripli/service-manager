@@ -20,8 +20,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
+	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/tidwall/gjson"
+	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/multitenancy"
 
@@ -58,12 +60,24 @@ type MultitenancySettings struct {
 type TestCase struct {
 	API          string
 	SupportedOps []Op
+	ResourceType types.ObjectType
 
 	MultitenancySettings                   *MultitenancySettings
 	DisableTenantResources                 bool
 	ResourceBlueprint                      func(ctx *common.TestContext, smClient *common.SMExpect) common.Object
 	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext, smClient *common.SMExpect) common.Object
+	PatchResource                          func(ctx *common.TestContext, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange)
 	AdditionalTests                        func(ctx *common.TestContext)
+}
+
+func DefaultResourcePatch(ctx *common.TestContext, apiPath string, objID string, _ types.ObjectType, patchLabels []*query.LabelChange) {
+	patchLabelsBody := make(map[string]interface{})
+	patchLabelsBody["labels"] = patchLabels
+
+	By(fmt.Sprintf("Attempting to patch resource of %s with labels as labels are declared supported", apiPath))
+	ctx.SMWithOAuth.PATCH(apiPath + "/" + objID).WithJSON(patchLabelsBody).
+		Expect().
+		Status(http.StatusOK)
 }
 
 func DescribeTestsFor(t TestCase) bool {

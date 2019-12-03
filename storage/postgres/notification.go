@@ -45,7 +45,7 @@ func (n *Notification) ToObject() types.Object {
 			Labels:    map[string][]string{},
 		},
 		Resource:      types.ObjectType(n.Resource),
-		Type:          types.OperationType(n.Type),
+		Type:          types.NotificationOperation(n.Type),
 		PlatformID:    n.PlatformID.String,
 		Revision:      n.Revision,
 		Payload:       getJSONRawMessage(n.Payload),

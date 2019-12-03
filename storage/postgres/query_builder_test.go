@@ -163,7 +163,7 @@ SELECT visibilities.*,
        visibility_labels.visibility_id "visibility_labels.visibility_id"
 FROM visibilities
          LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
-ORDER BY id DESC, created_at ASC;`)))
+ORDER BY id DESC, created_at ASC ;`)))
 				Expect(queryArgs).To(HaveLen(0))
 			})
 
@@ -292,7 +292,7 @@ SELECT visibilities.*,
 FROM visibilities
 	JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
 WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence FROM matching_resources)
-ORDER BY id ASC;`)))
+ORDER BY id ASC ;`)))
 				Expect(queryArgs).To(HaveLen(13))
 				Expect(queryArgs[0]).Should(Equal("1"))
 				Expect(queryArgs[1]).Should(Equal("2"))

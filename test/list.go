@@ -51,8 +51,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 	var rWithMandatoryFields common.Object
 
 	attachLabel := func(obj common.Object) common.Object {
-		patchLabelsBody := make(map[string]interface{})
-		patchLabels := []query.LabelChange{
+		patchLabels := []*query.LabelChange{
 			{
 				Operation: query.AddLabelOperation,
 				Key:       "labelKey1",
@@ -69,19 +68,14 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 				Values:    []string{`{"key1": "val1", "key2": "val2"}`},
 			},
 		}
-		patchLabelsBody["labels"] = patchLabels
 
-		By(fmt.Sprintf("Attempting to patch resource of %s with labels as labels are declared supported", t.API))
-		ctx.SMWithOAuth.PATCH(t.API + "/" + obj["id"].(string)).WithJSON(patchLabelsBody).
-			Expect().
-			Status(http.StatusOK)
-
+		t.PatchResource(ctx, t.API, obj["id"].(string), t.ResourceType, patchLabels)
 		result := ctx.SMWithOAuth.GET(t.API + "/" + obj["id"].(string)).
 			Expect().
 			Status(http.StatusOK).JSON().Object()
 		result.ContainsKey("labels")
-		r := result.Raw()
-		return r
+
+		return result.Raw()
 	}
 
 	By(fmt.Sprintf("Attempting to create a random resource of %s with mandatory fields only", t.API))
@@ -417,19 +411,14 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 			labelValue := "symbols!that@are#url$encoded%when^making a*request("
 			BeforeEach(func() {
 				obj = t.ResourceBlueprint(ctx, ctx.SMWithOAuth)
-				patchLabelsBody := make(map[string]interface{})
-				patchLabels := []query.LabelChange{
+				patchLabels := []*query.LabelChange{
 					{
 						Operation: query.AddLabelOperation,
 						Key:       labelKey,
 						Values:    []string{labelValue},
 					},
 				}
-				patchLabelsBody["labels"] = patchLabels
-
-				ctx.SMWithOAuth.PATCH(t.API + "/" + obj["id"].(string)).WithJSON(patchLabelsBody).
-					Expect().
-					Status(http.StatusOK)
+				t.PatchResource(ctx, t.API, obj["id"].(string), t.ResourceType, patchLabels)
 			})
 
 			It("returns 200", func() {
@@ -487,20 +476,16 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 					BeforeEach(func() {
 						objID = r[len(r)-1]["id"].(string)
 						pageSize = len(r) / 2
-						patchLabelsBody := make(map[string]interface{})
-						patchLabels := []query.LabelChange{
+						patchLabels := []*query.LabelChange{
 							{
 								Operation: query.AddLabelOperation,
 								Key:       labelKey,
 								Values:    []string{objID},
 							},
 						}
-						patchLabelsBody["labels"] = patchLabels
 
 						By(fmt.Sprintf("Attempting add one additional %s label with value %v to resoucre of type %s with id %s", labelKey, []string{objID}, t.API, objID))
-						ctx.SMWithOAuth.PATCH(t.API + "/" + objID).WithJSON(patchLabelsBody).
-							Expect().
-							Status(http.StatusOK)
+						t.PatchResource(ctx, t.API, objID, t.ResourceType, patchLabels)
 
 						object := ctx.SMWithOAuth.GET(t.API + "/" + objID).
 							Expect().

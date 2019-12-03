@@ -18,6 +18,7 @@ package platform_test
 
 import (
 	"context"
+	"github.com/Peripli/service-manager/test/testutil/service_instance"
 	"net/http"
 	"testing"
 
@@ -57,6 +58,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 	ResourceBlueprint:                      blueprint(true),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
+	PatchResource:                          test.DefaultResourcePatch,
 	AdditionalTests: func(ctx *common.TestContext) {
 		Context("non-generic tests", func() {
 			BeforeEach(func() {
@@ -328,6 +330,35 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							WithJSON(platform2).
 							Expect().
 							Status(http.StatusConflict)
+					})
+				})
+			})
+
+			Describe("DELETE", func() {
+				const platformID = "p1"
+				var platform common.Object
+
+				BeforeEach(func() {
+					platform = common.MakePlatform(platformID, "cf-10", "cf", "descr")
+					ctx.SMWithOAuth.POST(web.PlatformsURL).
+						WithJSON(platform).
+						Expect().Status(http.StatusCreated)
+
+					_, serviceInstance := service_instance.Prepare(ctx, platformID, "", "{}")
+					ctx.SMRepository.Create(context.Background(), serviceInstance)
+				})
+
+				AfterEach(func() {
+					ctx.CleanupAdditionalResources()
+				})
+
+				Context("with existing service instances", func() {
+					It("should return 400 with user-friendly message", func() {
+						ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/" + platformID).
+							Expect().
+							Status(http.StatusConflict).
+							JSON().Object().
+							Value("error").String().Contains("ExistingReferenceEntity")
 					})
 				})
 			})
