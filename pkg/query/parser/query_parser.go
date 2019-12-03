@@ -1,5 +1,3 @@
-// Code generated from Query.g4 by ANTLR 4.7.2. DO NOT EDIT.
-
 package parser // Query
 
 import (
