@@ -30,7 +30,7 @@ var CorrelationIDHeaders = []string{"X-Correlation-ID", "X-CorrelationID", "X-Fo
 func CorrelationIDForRequest(request *http.Request) string {
 	for _, header := range CorrelationIDHeaders {
 		headerValue := request.Header.Get(header)
-		if headerValue != "" {
+		if headerValue != "" && headerValue != "-" {
 			return headerValue
 		}
 	}
