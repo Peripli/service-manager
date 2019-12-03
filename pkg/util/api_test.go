@@ -43,6 +43,15 @@ func validateHTTPErrorOccurred(err error, code int) {
 }
 
 var _ = Describe("Utils test", func() {
+	const (
+		testTypeValid    = `{"field1":"value1", "field2":"value2"}`
+		testTypeNotValid = `{"field1":"value1"}`
+	)
+
+	var (
+		testTypeValidation   testTypeValidated
+		testTypeNoValidation testTypeNotValidated
+	)
 
 	Describe("HasRFC3986ReservedSymbols", func() {
 
@@ -148,12 +157,6 @@ var _ = Describe("Utils test", func() {
 	})
 
 	Describe("BytesToObject", func() {
-		const testTypeValid = `{"field1":"value1", "field2":"value2"}`
-
-		var (
-			testTypeValidation testTypeValidated
-		)
-
 		BeforeEach(func() {
 			testTypeValidation = testTypeValidated{}
 		})
@@ -161,6 +164,41 @@ var _ = Describe("Utils test", func() {
 		Context("when unmarshaling succeeds", func() {
 			It("returns nil", func() {
 				err := util.BytesToObject([]byte(testTypeValid), &testTypeValidation)
+
+				Expect(err).ShouldNot(HaveOccurred())
+			})
+		})
+	})
+
+	Describe("Validate", func() {
+		BeforeEach(func() {
+			testTypeValidation = testTypeValidated{}
+			testTypeNoValidation = testTypeNotValidated{}
+		})
+
+		Context("when input validation fails", func() {
+			It("returns a proper HTTPError", func() {
+				err := util.BytesToObject([]byte(testTypeNotValid), &testTypeValidation)
+				err = util.Validate(testTypeValidation)
+
+				validateHTTPErrorOccurred(err, http.StatusBadRequest)
+			})
+		})
+
+		Context("when value is not InputValidator", func() {
+			It("returns nil", func() {
+				err := util.BytesToObject([]byte(testTypeNotValid), &testTypeNoValidation)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				err = util.Validate(testTypeNoValidation)
+				Expect(err).ShouldNot(HaveOccurred())
+			})
+		})
+
+		Context("when validation succeeds", func() {
+			It("returns nil", func() {
+				err := util.BytesToObject([]byte(testTypeValid), &testTypeValidation)
+				err = util.Validate(testTypeValidation)
 
 				Expect(err).ShouldNot(HaveOccurred())
 			})
