@@ -17,13 +17,20 @@
 package types
 
 import (
+	"strings"
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
+const prefix = "types."
+
 // ObjectType is the type of the object in the Service Manager
 type ObjectType string
+
+func (ot ObjectType) String() string {
+	return strings.TrimPrefix(string(ot), prefix)
+}
 
 // Secured interface indicates that an object requires credentials to access it
 type Secured interface {

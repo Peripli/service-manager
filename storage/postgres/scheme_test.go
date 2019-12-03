@@ -79,11 +79,11 @@ var _ = Describe("Postgres Storage", func() {
 		})
 
 		Context("When introduced entity is not postgres entity", func() {
-			It("Returns error", func() {
-				scheme.introduce(&storageEntity{})
-				pgEntity, err := scheme.provide(obj{}.GetType())
-				Expect(pgEntity).To(BeNil())
-				Expect(err).To(HaveOccurred())
+			It("Should panic", func() {
+				intFunc := func() {
+					scheme.introduce(&storageEntity{})
+				}
+				Expect(intFunc).To(Panic())
 			})
 		})
 
@@ -119,24 +119,24 @@ var _ = Describe("Postgres Storage", func() {
 		})
 
 		Context("When FromObject is not ok", func() {
-			It("Returns error", func() {
-				scheme.introduce(&pgEntityFromObjectNotOk{
-					postgresEntity: &postgresEntity{
-						storageEntity: &storageEntity{},
-					},
-				})
-				pgEntity, err := scheme.convert(&obj{})
-				Expect(pgEntity).To(BeNil())
-				Expect(err).To(HaveOccurred())
+			It("Should panic", func() {
+				intFunc := func() {
+					scheme.introduce(&pgEntityFromObjectNotOk{
+						postgresEntity: &postgresEntity{
+							storageEntity: &storageEntity{},
+						},
+					})
+				}
+				Expect(intFunc).To(Panic())
 			})
 		})
 
 		Context("When introduced entity is not postgres entity", func() {
-			It("Returns error", func() {
-				scheme.introduce(&storageEntity{})
-				pgEntity, err := scheme.convert(&obj{})
-				Expect(pgEntity).To(BeNil())
-				Expect(err).To(HaveOccurred())
+			It("Should panic", func() {
+				intFunc := func() {
+					scheme.introduce(&storageEntity{})
+				}
+				Expect(intFunc).To(Panic())
 			})
 		})
 
@@ -236,7 +236,7 @@ type postgresEntity struct {
 	*storageEntity
 }
 
-func (postgresEntity) TableName() string {
+func (pe postgresEntity) TableName() string {
 	return "table"
 }
 
