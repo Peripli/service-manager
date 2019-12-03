@@ -19,16 +19,15 @@ package service_test
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"testing"
-	"time"
+	"github.com/Peripli/service-manager/test/testutil/service_instance"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/gofrs/uuid"
 
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/test/common"
+	"net/http"
+	"testing"
 
 	"github.com/Peripli/service-manager/test"
 
@@ -89,7 +88,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				When("service instance contains tenant identifier in OSB context", func() {
 					BeforeEach(func() {
-						serviceInstance = prepareServiceInstance(ctx, ctx.SMWithOAuth, fmt.Sprintf(`{"%s":"%s"}`, TenantIdentifier, TenantValue))
+						_, serviceInstance = service_instance.Prepare(ctx, ctx.TestPlatform.ID, "", fmt.Sprintf(`{"%s":"%s"}`, TenantIdentifier, TenantValue))
 						_, err := ctx.SMRepository.Create(context.Background(), serviceInstance)
 						Expect(err).ToNot(HaveOccurred())
 					})
@@ -103,7 +102,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 				When("service instance doesn't contain tenant identifier in OSB context", func() {
 					BeforeEach(func() {
-						serviceInstance = prepareServiceInstance(ctx, ctx.SMWithOAuth, "{}")
+						_, serviceInstance = service_instance.Prepare(ctx, ctx.TestPlatform.ID, "", "{}")
 						_, err := ctx.SMRepository.Create(context.Background(), serviceInstance)
 						Expect(err).ToNot(HaveOccurred())
 					})
@@ -127,51 +126,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 })
 
 func blueprint(ctx *common.TestContext, auth *common.SMExpect) common.Object {
-	serviceInstance := prepareServiceInstance(ctx, auth, fmt.Sprintf(`{"%s":"%s"}`, TenantIdentifier, TenantValue))
+	_, serviceInstance := service_instance.Prepare(ctx, ctx.TestPlatform.ID, "", fmt.Sprintf(`{"%s":"%s"}`, TenantIdentifier, TenantValue))
 	_, err := ctx.SMRepository.Create(context.Background(), serviceInstance)
 	if err != nil {
 		Fail(fmt.Sprintf("could not create service instance: %s", err))
 	}
 
 	return auth.ListWithQuery(web.ServiceInstancesURL, fmt.Sprintf("fieldQuery=id eq '%s'", serviceInstance.ID)).First().Object().Raw()
-}
-
-func prepareServiceInstance(ctx *common.TestContext, auth *common.SMExpect, OSBContext string) *types.ServiceInstance {
-	cService := common.GenerateTestServiceWithPlans(common.GenerateFreeTestPlan())
-	catalog := common.NewEmptySBCatalog()
-	catalog.AddService(cService)
-	id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
-
-	byBrokerID := query.ByField(query.EqualsOperator, "broker_id", id)
-	obj, err := ctx.SMRepository.Get(context.Background(), types.ServiceOfferingType, byBrokerID)
-	if err != nil {
-		Fail(fmt.Sprintf("unable to fetch service offering: %s", err))
-	}
-
-	byServiceOfferingID := query.ByField(query.EqualsOperator, "service_offering_id", obj.GetID())
-	obj, err = ctx.SMRepository.Get(context.Background(), types.ServicePlanType, byServiceOfferingID)
-	if err != nil {
-		Fail(fmt.Sprintf("unable to service plan: %s", err))
-	}
-
-	planID := obj.GetID()
-
-	instanceID, err := uuid.NewV4()
-	if err != nil {
-		Fail(fmt.Sprintf("failed to generate instance GUID: %s", err))
-	}
-
-	return &types.ServiceInstance{
-		Base: types.Base{
-			ID:        instanceID.String(),
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		},
-		Name:          "test-service-instance",
-		ServicePlanID: planID,
-		PlatformID:    ctx.TestPlatform.ID,
-		Context:       []byte(OSBContext),
-		Ready:         true,
-		Usable:        true,
-	}
 }

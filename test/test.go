@@ -22,9 +22,8 @@ import (
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
-	"net/http"
-
 	"github.com/tidwall/gjson"
+	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/multitenancy"
 

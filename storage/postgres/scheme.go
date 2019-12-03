@@ -29,14 +29,16 @@ type objectConverter func(object types.Object) (PostgresEntity, error)
 
 func newScheme() *scheme {
 	return &scheme{
-		instanceProviders: make(map[types.ObjectType]entityProvider),
-		converters:        make(map[types.ObjectType]objectConverter),
+		instanceProviders:           make(map[types.ObjectType]entityProvider),
+		converters:                  make(map[types.ObjectType]objectConverter),
+		entityToObjectTypeConverter: make(map[string]string),
 	}
 }
 
 type scheme struct {
-	instanceProviders map[types.ObjectType]entityProvider
-	converters        map[types.ObjectType]objectConverter
+	instanceProviders           map[types.ObjectType]entityProvider
+	converters                  map[types.ObjectType]objectConverter
+	entityToObjectTypeConverter map[string]string
 }
 
 func (s *scheme) introduce(entity storage.Entity) {
@@ -66,6 +68,12 @@ func (s *scheme) introduce(entity storage.Entity) {
 	s.instanceProviders[objType] = func() (PostgresEntity, error) {
 		return s.convert(entity.ToObject())
 	}
+
+	pgEntity, err := s.instanceProviders[objType]()
+	if err != nil {
+		panic(fmt.Sprintf("Unable to construct PostgresEntity when introducing object type %s: %s", objType.String(), err))
+	}
+	s.entityToObjectTypeConverter[pgEntity.TableName()] = objType.String()
 }
 
 func (s *scheme) convert(object types.Object) (PostgresEntity, error) {
