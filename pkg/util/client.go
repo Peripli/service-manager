@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/gofrs/uuid"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -74,8 +75,13 @@ func SendRequestWithHeaders(ctx context.Context, doRequest DoRequestFunc, method
 	request = request.WithContext(ctx)
 	logger := log.C(ctx)
 	correlationID, exists := logger.Data[log.FieldCorrelationID].(string)
-	if exists {
+	if exists && correlationID != "-" {
 		request.Header.Set(log.CorrelationIDHeaders[0], correlationID)
+	} else {
+		uuids, err := uuid.NewV4()
+		if err == nil {
+			request.Header.Set(log.CorrelationIDHeaders[0], uuids.String())
+		}
 	}
 
 	logger.Debugf("Sending request %s %s", request.Method, request.URL)
