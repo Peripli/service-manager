@@ -238,6 +238,29 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 				})
 
+				Context("when request body has invalid field", func() {
+					Context("when name field is too long", func() {
+						BeforeEach(func() {
+							length := 500
+							brokerName := make([]rune, length)
+							for i := range brokerName {
+								brokerName[i] = 'a'
+							}
+							postBrokerRequestWithLabels["name"] = string(brokerName)
+						})
+
+						It("returns 400", func() {
+							ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithLabels).
+								Expect().
+								Status(http.StatusBadRequest).
+								JSON().Object().
+								Keys().Contains("error", "description")
+
+							assertInvocationCount(brokerServer.CatalogEndpointRequests, 0)
+						})
+					})
+				})
+
 				Context("when obtaining the broker catalog fails because the broker is not reachable", func() {
 					BeforeEach(func() {
 						postBrokerRequestWithNoLabels["broker_url"] = "http://localhost:12345"

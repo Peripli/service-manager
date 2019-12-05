@@ -20,7 +20,11 @@ package types
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strconv"
 )
+
+const maxNameLength = 255
 
 //go:generate smgen api ServiceBroker
 // ServiceBroker broker struct
@@ -48,6 +52,9 @@ func (e *ServiceBroker) GetCredentials() *Credentials {
 func (e *ServiceBroker) Validate() error {
 	if e.Name == "" {
 		return errors.New("missing broker name")
+	}
+	if len(e.Name) > maxNameLength {
+		return errors.New(fmt.Sprintf("broker name cannot exceed %s symbols", strconv.Itoa(maxNameLength)))
 	}
 	if e.BrokerURL == "" {
 		return errors.New("missing broker url")
