@@ -43,8 +43,10 @@ import (
 )
 
 const (
-	smServicePlanIDKey = "sm_service_plan_id"
-	smContextKey       = "sm_context_key"
+	// StoreServiceInstancePluginName is the plugin name
+	StoreServiceInstancePluginName = "StoreServiceInstancePlugin"
+	smServicePlanIDKey             = "sm_service_plan_id"
+	smContextKey                   = "sm_context_key"
 )
 
 type provisionRequest struct {
@@ -181,7 +183,7 @@ type StoreServiceInstancePlugin struct {
 }
 
 func (*StoreServiceInstancePlugin) Name() string {
-	return "StoreServiceInstancePlugin"
+	return StoreServiceInstancePluginName
 }
 
 func (ssi *StoreServiceInstancePlugin) Provision(request *web.Request, next web.Handler) (*web.Response, error) {
