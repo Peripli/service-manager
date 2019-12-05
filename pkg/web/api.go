@@ -20,6 +20,7 @@ package web
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/Peripli/service-manager/pkg/health"
 	"github.com/Peripli/service-manager/pkg/log"
@@ -94,7 +95,7 @@ func (api *API) RegisterFiltersBefore(beforeFilterName string, filters ...Filter
 	for _, filter := range filters {
 		log.D().Debugf("Registering filter %s before %s", filter.Name(), beforeFilterName)
 		api.validateFilters(filter)
-		api.registerFilterRelatively(beforeFilterName, filter, func(beforeFilterPosition int) int {
+		api.registerFilterRelativelyOrDie(beforeFilterName, filter, func(beforeFilterPosition int) int {
 			return beforeFilterPosition
 		})
 	}
@@ -108,7 +109,7 @@ func (api *API) RegisterFiltersAfter(afterFilterName string, filters ...Filter) 
 	for i, filter := range filters {
 		log.D().Debugf("Registering filter %s after %s", filter.Name(), afterFilterName)
 		api.validateFilters(filter)
-		api.registerFilterRelatively(afterFilterName, filter, func(filterPosition int) int {
+		api.registerFilterRelativelyOrDie(afterFilterName, filter, func(filterPosition int) int {
 			return filterPosition + 1 + i
 		})
 	}
@@ -142,6 +143,28 @@ func (api *API) RegisterPlugins(plugins ...Plugin) {
 	}
 }
 
+// RegisterPluginsBefore registers a set of plugins before the plugin with the specified name
+func (api *API) RegisterPluginsBefore(beforePluginName string, plugins ...Plugin) {
+	for _, plugin := range plugins {
+		if len(plugin.Name()) == 0 {
+			log.D().Panic("Plugin name cannot be empty")
+		}
+
+		registeredFilterNames := api.filterNames(api.Filters)
+		if slice.StringsAnyPrefix(registeredFilterNames, plugin.Name()+":") {
+			log.D().Panicf("Plugin %s is already registered", plugin.Name())
+		}
+
+		pluginSegments := api.decomposePluginOrDie(plugin)
+		for _, pluginSegment := range pluginSegments {
+			split := strings.Split(pluginSegment.Name(), ":")
+			api.registerFilterRelatively(beforePluginName+":"+split[1], pluginSegment, func(beforeFilterPosition int) int {
+				return beforeFilterPosition
+			})
+		}
+	}
+}
+
 func (api *API) validateFilters(filters ...Filter) {
 	newFilterNames := api.filterNames(filters)
 	if slice.StringsAnyEquals(newFilterNames, "") {
@@ -158,12 +181,27 @@ func (api *API) validateFilters(filters ...Filter) {
 	}
 }
 
-func (api *API) registerFilterRelatively(filterName string, newFilter Filter, newFilterPosition func(filterPosition int) int) {
+func (api *API) registerFilterRelativelyOrDie(filterName string, newFilter Filter, newFilterPosition func(filterPosition int) int) {
 	registeredFilterPosition := api.findFilterPosition(filterName)
+	if registeredFilterPosition < 0 {
+		log.D().Panicf("Filter with name %s is not found", filterName)
+	}
 	filterPosition := newFilterPosition(registeredFilterPosition)
 	api.Filters = append(api.Filters, nil)
 	copy(api.Filters[filterPosition+1:], api.Filters[filterPosition:])
 	api.Filters[filterPosition] = newFilter
+}
+
+func (api *API) registerFilterRelatively(filterName string, newFilter Filter, newFilterPosition func(filterPosition int) int) {
+	registeredFilterPosition := api.findFilterPosition(filterName)
+	if registeredFilterPosition < 0 {
+		api.Filters = append(api.Filters, newFilter)
+	} else {
+		filterPosition := newFilterPosition(registeredFilterPosition)
+		api.Filters = append(api.Filters, nil)
+		copy(api.Filters[filterPosition+1:], api.Filters[filterPosition:])
+		api.Filters[filterPosition] = newFilter
+	}
 }
 
 func (api *API) findFilterPosition(filterName string) int {
@@ -175,9 +213,7 @@ func (api *API) findFilterPosition(filterName string) int {
 			break
 		}
 	}
-	if filterPosition < 0 {
-		log.D().Panicf("Filter with name %s is not found", filterName)
-	}
+
 	return filterPosition
 }
 
@@ -188,6 +224,15 @@ func (api *API) filterNames(filters []Filter) []string {
 		filterNames = append(filterNames, filter.Name())
 	}
 	return filterNames
+}
+
+func (api *API) pluginNames(plugins []Plugin) []string {
+	var pluginNames []string
+	for i := range plugins {
+		plugin := plugins[i]
+		pluginNames = append(pluginNames, plugin.Name())
+	}
+	return pluginNames
 }
 
 func (api *API) decomposePluginOrDie(plugin Plugin) []Filter {
