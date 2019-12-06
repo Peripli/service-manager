@@ -54,7 +54,7 @@ func (e *ServiceBroker) Validate() error {
 		return errors.New("missing broker name")
 	}
 	if len(e.Name) > maxNameLength {
-		return errors.New(fmt.Sprintf("broker name cannot exceed %s symbols", strconv.Itoa(maxNameLength)))
+		return fmt.Errorf("broker name cannot exceed %s symbols", strconv.Itoa(maxNameLength))
 	}
 	if e.BrokerURL == "" {
 		return errors.New("missing broker url")
