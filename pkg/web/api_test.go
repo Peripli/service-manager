@@ -59,7 +59,7 @@ var _ = Describe("API", func() {
 		Context("When plugin is valid", func() {
 			It("Successfully registers plugin", func() {
 				originalCount := len(api.Filters)
-				api.RegisterPlugins(&validPlugin{})
+				api.RegisterPlugins(&validPlugin{"validPlugin"})
 				Expect(len(api.Filters)).To(Equal(originalCount + 8))
 			})
 		})
@@ -67,10 +67,46 @@ var _ = Describe("API", func() {
 		Context("When plugin with the same name is already registered", func() {
 			It("Panics", func() {
 				registerPlugin := func() {
-					api.RegisterPlugins(&validPlugin{})
+					api.RegisterPlugins(&validPlugin{"validPlugin"})
 				}
 				registerPlugin()
 				Expect(registerPlugin).To(Panic())
+			})
+		})
+	})
+
+	Describe("Register Plugin Before", func() {
+		Context("when plugin with such name does not exist", func() {
+			It("does not panic", func() {
+				originalCount := len(api.Filters)
+				api.RegisterPluginsBefore("some-plugin", &validPlugin{"validPlugin"})
+				Expect(len(api.Filters)).To(Equal(originalCount + 8))
+			})
+		})
+
+		Context("when plugin with such name exists", func() {
+			It("adds the plugin before it", func() {
+				api.RegisterPlugins(&validPlugin{"existing-plugin"})
+				api.RegisterPluginsBefore("existing-plugin", &validPlugin{"before-existing-plugin"})
+				names := filterNames()
+				Expect(names).To(Equal([]string{
+					"before-existing-plugin:FetchCatalog",
+					"existing-plugin:FetchCatalog",
+					"before-existing-plugin:FetchService",
+					"existing-plugin:FetchService",
+					"before-existing-plugin:Provision",
+					"existing-plugin:Provision",
+					"before-existing-plugin:UpdateService",
+					"existing-plugin:UpdateService",
+					"before-existing-plugin:Deprovision",
+					"existing-plugin:Deprovision",
+					"before-existing-plugin:FetchBinding",
+					"existing-plugin:FetchBinding",
+					"before-existing-plugin:Bind",
+					"existing-plugin:Bind",
+					"before-existing-plugin:Unbind",
+					"existing-plugin:Unbind",
+				}))
 			})
 		})
 	})
@@ -251,6 +287,7 @@ func (p *invalidPlugin) Name() string {
 }
 
 type validPlugin struct {
+	name string
 }
 
 func (c *validPlugin) UpdateService(request *web.Request, next web.Handler) (*web.Response, error) {
@@ -286,5 +323,5 @@ func (c *validPlugin) FetchCatalog(request *web.Request, next web.Handler) (*web
 }
 
 func (c *validPlugin) Name() string {
-	return "validPlugin"
+	return c.name
 }
