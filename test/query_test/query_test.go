@@ -39,7 +39,7 @@ var _ = Describe("Service Manager Query", func() {
 
 	AfterEach(func() {
 		if repository != nil {
-			_, err := repository.Delete(context.Background(), types.NotificationType)
+			err := repository.Delete(context.Background(), types.NotificationType)
 			Expect(err).ShouldNot(HaveOccurred())
 		}
 	})

@@ -18,11 +18,12 @@ package broker_test
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/test/testutil/service_instance"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Peripli/service-manager/test/testutil/service_instance"
 
 	"github.com/Peripli/service-manager/pkg/httpclient"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -1153,7 +1154,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 							AfterEach(func() {
 								byIDs := query.ByField(query.InOperator, "id", serviceInstanceIDs...)
-								_, err := ctx.SMRepository.Delete(context.Background(), types.ServiceInstanceType, byIDs)
+								err := ctx.SMRepository.Delete(context.Background(), types.ServiceInstanceType, byIDs)
 								Expect(err).To(Not(HaveOccurred()))
 							})
 
@@ -1358,7 +1359,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 							AfterEach(func() {
 								byID := query.ByField(query.EqualsOperator, "id", serviceInstance.ID)
-								_, err := ctx.SMRepository.Delete(context.Background(), types.ServiceInstanceType, byID)
+								err := ctx.SMRepository.Delete(context.Background(), types.ServiceInstanceType, byID)
 								Expect(err).To(Not(HaveOccurred()))
 							})
 

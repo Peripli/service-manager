@@ -3,6 +3,7 @@ package postgres
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"fmt"
 	"regexp"
 	"strings"
@@ -147,12 +148,25 @@ func (pq *pgQuery) Count(ctx context.Context) (int, error) {
 	return count, nil
 }
 
-func (pq *pgQuery) Delete(ctx context.Context) (*sqlx.Rows, error) {
+func (pq *pgQuery) Delete(ctx context.Context) (*sqlx.Rows, sql.Result, error) {
 	q, err := pq.resolveQueryTemplate(ctx, DeleteQueryTemplate)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return pq.db.QueryxContext(ctx, q, pq.queryParams...)
+
+	if len(pq.returningFields) != 0 {
+		rows, err := pq.db.QueryxContext(ctx, q, pq.queryParams...)
+		if err != nil {
+			return nil, nil, err
+		}
+		return rows, nil, nil
+	} else {
+		result, err := pq.db.ExecContext(ctx, q, pq.queryParams...)
+		if err != nil {
+			return nil, nil, err
+		}
+		return nil, result, nil
+	}
 }
 
 func (pq *pgQuery) resolveQueryTemplate(ctx context.Context, template string) (string, error) {

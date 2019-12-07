@@ -226,6 +226,15 @@ func (api *API) filterNames(filters []Filter) []string {
 	return filterNames
 }
 
+func (api *API) pluginNames(plugins []Plugin) []string {
+	var pluginNames []string
+	for i := range plugins {
+		plugin := plugins[i]
+		pluginNames = append(pluginNames, plugin.Name())
+	}
+	return pluginNames
+}
+
 func (api *API) decomposePluginOrDie(plugin Plugin) []Filter {
 	pluginSegments := api.decomposePlugin(plugin)
 	if len(pluginSegments) == 0 {

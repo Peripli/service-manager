@@ -112,26 +112,25 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 }
 
 func (ni *NotificationsInterceptor) OnTxDelete(h storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
-	return func(ctx context.Context, repository storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
+	return func(ctx context.Context, repository storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) error {
 		additionalDetailsMap := make(map[string]util.InputValidator)
 
 		for i := 0; i < objects.Len(); i++ {
 			object := objects.ItemAt(i)
 			additionalDetails, err := ni.AdditionalDetailsFunc(ctx, object, repository)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
 			additionalDetailsMap[object.GetID()] = additionalDetails
 		}
 
-		deletedObjects, err := h(ctx, repository, objects, deletionCriteria...)
-		if err != nil {
-			return nil, err
+		if err := h(ctx, repository, objects, deletionCriteria...); err != nil {
+			return err
 		}
 
-		for i := 0; i < deletedObjects.Len(); i++ {
-			oldObject := deletedObjects.ItemAt(i)
+		for i := 0; i < objects.Len(); i++ {
+			oldObject := objects.ItemAt(i)
 
 			platformID := ni.PlatformIdProviderFunc(ctx, oldObject)
 
@@ -141,11 +140,11 @@ func (ni *NotificationsInterceptor) OnTxDelete(h storage.InterceptDeleteOnTxFunc
 					Additional: additionalDetailsMap[oldObject.GetID()],
 				},
 			}); err != nil {
-				return nil, err
+				return err
 			}
 		}
 
-		return deletedObjects, nil
+		return nil
 	}
 }
 
