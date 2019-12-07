@@ -41,7 +41,7 @@ func (c *Cache) PutList(ctx context.Context, obj types.ObjectList, criteria ...q
 	c.objectLists[key] = obj
 }
 
-func (c *Cache) Put(ctx context.Context, obj types.Object, criteria ...query.Criterion) {
+func (c *Cache) Put(obj types.Object, criteria ...query.Criterion) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	key := Key{
@@ -51,7 +51,24 @@ func (c *Cache) Put(ctx context.Context, obj types.Object, criteria ...query.Cri
 	c.objects[key] = obj
 }
 
-func (c *Cache) Get(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, bool) {
+func (c *Cache) InvalidateForType(objectType types.ObjectType, criteria ...query.Criterion) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for key := range c.objectLists {
+		if key.objectType == objectType && (criteria == nil || key.criteria == stringifyCriteria(criteria...)) {
+			delete(c.objectLists, key)
+		}
+	}
+
+	for key := range c.objects {
+		if key.objectType == objectType && (criteria == nil || key.criteria == stringifyCriteria(criteria...)) {
+			delete(c.objectLists, key)
+		}
+	}
+}
+
+func (c *Cache) Get(objectType types.ObjectType, criteria ...query.Criterion) (types.Object, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	key := Key{
@@ -65,7 +82,7 @@ func (c *Cache) Get(ctx context.Context, objectType types.ObjectType, criteria .
 	return nil, false
 }
 
-func (c *Cache) GetList(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) types.ObjectList {
+func (c *Cache) GetList(objectType types.ObjectType, criteria ...query.Criterion) types.ObjectList {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	key := Key{

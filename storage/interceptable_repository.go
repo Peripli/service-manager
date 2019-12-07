@@ -154,24 +154,26 @@ func (ir *queryScopedInterceptableRepository) Create(ctx context.Context, obj ty
 		return nil, err
 	}
 
+	ir.cache.InvalidateForType(objectType)
+
 	return createdObj, nil
 }
 
 func (ir *queryScopedInterceptableRepository) Get(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, error) {
-	object, found := ir.cache.Get(ctx, objectType, criteria...)
+	object, found := ir.cache.Get(objectType, criteria...)
 	if !found {
 		var err error
 		object, err = ir.repositoryInTransaction.Get(ctx, objectType, criteria...)
 		if err != nil {
 			return nil, err
 		}
-		ir.cache.Put(ctx, object, criteria...)
+		ir.cache.Put(object, criteria...)
 	}
 	return object, nil
 }
 
 func (ir *queryScopedInterceptableRepository) List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
-	objectList := ir.cache.GetList(ctx, objectType, criteria...)
+	objectList := ir.cache.GetList(objectType, criteria...)
 	if objectList == nil || objectList.Len() == 0 {
 		var err error
 		objectList, err = ir.repositoryInTransaction.List(ctx, objectType, criteria...)
@@ -184,7 +186,7 @@ func (ir *queryScopedInterceptableRepository) List(ctx context.Context, objectTy
 }
 
 func (ir *queryScopedInterceptableRepository) Count(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (int, error) {
-	objectList := ir.cache.GetList(ctx, objectType, criteria...)
+	objectList := ir.cache.GetList(objectType, criteria...)
 	count := 0
 	if objectList == nil || objectList.Len() == 0 {
 		var err error
@@ -225,6 +227,8 @@ func (ir *queryScopedInterceptableRepository) DeleteReturning(ctx context.Contex
 		}
 	}
 
+	ir.cache.InvalidateForType(objectType, criteria...)
+
 	return resultList, nil
 }
 
@@ -253,6 +257,8 @@ func (ir *queryScopedInterceptableRepository) Delete(ctx context.Context, object
 			return err
 		}
 	}
+
+	ir.cache.InvalidateForType(objectType, criteria...)
 
 	return nil
 }
@@ -307,6 +313,8 @@ func (ir *queryScopedInterceptableRepository) Update(ctx context.Context, obj ty
 	if err != nil {
 		return nil, err
 	}
+
+	ir.cache.InvalidateForType(objectType, criteria...)
 
 	return updatedObj, nil
 }
