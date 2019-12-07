@@ -29,6 +29,7 @@ type Cache struct {
 
 func (c *Cache) PutList(ctx context.Context, obj types.ObjectList, criteria ...query.Criterion) {
 	c.mu.Lock()
+	defer c.mu.Unlock()
 	if obj.Len() == 0 {
 		return
 	}
@@ -38,26 +39,25 @@ func (c *Cache) PutList(ctx context.Context, obj types.ObjectList, criteria ...q
 	}
 
 	c.objectLists[key] = obj
-	c.mu.Unlock()
 }
 
 func (c *Cache) Put(ctx context.Context, obj types.Object, criteria ...query.Criterion) {
 	c.mu.Lock()
+	defer c.mu.Unlock()
 	key := Key{
 		objectType: obj.GetType(),
 		criteria:   stringifyCriteria(criteria...),
 	}
 	c.objects[key] = obj
-	c.mu.Unlock()
 }
 
 func (c *Cache) Get(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, bool) {
 	c.mu.RLock()
+	defer c.mu.RUnlock()
 	key := Key{
 		objectType: objectType,
 		criteria:   stringifyCriteria(criteria...),
 	}
-	c.mu.RUnlock()
 	if c.objects[key] != nil {
 		return c.objects[key], true
 	}
@@ -67,11 +67,11 @@ func (c *Cache) Get(ctx context.Context, objectType types.ObjectType, criteria .
 
 func (c *Cache) GetList(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) types.ObjectList {
 	c.mu.RLock()
+	defer c.mu.RUnlock()
 	key := Key{
 		objectType: objectType,
 		criteria:   stringifyCriteria(criteria...),
 	}
-	c.mu.RUnlock()
 
 	return c.objectLists[key]
 }
