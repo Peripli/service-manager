@@ -61,7 +61,7 @@ func newScopedRepositoryWithOnTxInterceptors(repository Repository,
 	providedDeleteInterceptors map[types.ObjectType]func(InterceptDeleteOnTxFunc) InterceptDeleteOnTxFunc) *queryScopedInterceptableRepository {
 
 	return &queryScopedInterceptableRepository{
-		cache:                   NewCache(),
+		cache:                   newSelectionCache(),
 		repositoryInTransaction: repository,
 		createOnTxFuncs:         providedCreateInterceptors,
 		updateOnTxFuncs:         providedUpdateInterceptors,
@@ -160,7 +160,7 @@ func (ir *queryScopedInterceptableRepository) Create(ctx context.Context, obj ty
 }
 
 func (ir *queryScopedInterceptableRepository) Get(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, error) {
-	object, found := ir.cache.Get(objectType, criteria...)
+	object, found := ir.cache.Get(ctx, objectType, criteria...)
 	if !found {
 		var err error
 		object, err = ir.repositoryInTransaction.Get(ctx, objectType, criteria...)
@@ -169,11 +169,12 @@ func (ir *queryScopedInterceptableRepository) Get(ctx context.Context, objectTyp
 		}
 		ir.cache.Put(object, criteria...)
 	}
+
 	return object, nil
 }
 
 func (ir *queryScopedInterceptableRepository) List(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
-	objectList := ir.cache.GetList(objectType, criteria...)
+	objectList := ir.cache.GetList(ctx, objectType, criteria...)
 	if objectList == nil || objectList.Len() == 0 {
 		var err error
 		objectList, err = ir.repositoryInTransaction.List(ctx, objectType, criteria...)
@@ -182,11 +183,12 @@ func (ir *queryScopedInterceptableRepository) List(ctx context.Context, objectTy
 		}
 		ir.cache.PutList(ctx, objectList, criteria...)
 	}
+
 	return objectList, nil
 }
 
 func (ir *queryScopedInterceptableRepository) Count(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (int, error) {
-	objectList := ir.cache.GetList(objectType, criteria...)
+	objectList := ir.cache.GetList(ctx, objectType, criteria...)
 	count := 0
 	if objectList == nil || objectList.Len() == 0 {
 		var err error
@@ -227,7 +229,7 @@ func (ir *queryScopedInterceptableRepository) DeleteReturning(ctx context.Contex
 		}
 	}
 
-	ir.cache.InvalidateForType(objectType, criteria...)
+	ir.cache.InvalidateForType(objectType)
 
 	return resultList, nil
 }
@@ -258,7 +260,7 @@ func (ir *queryScopedInterceptableRepository) Delete(ctx context.Context, object
 		}
 	}
 
-	ir.cache.InvalidateForType(objectType, criteria...)
+	ir.cache.InvalidateForType(objectType)
 
 	return nil
 }

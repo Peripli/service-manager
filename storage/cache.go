@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/Peripli/service-manager/pkg/log"
+
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
-func NewCache() *Cache {
+func newSelectionCache() *Cache {
 	return &Cache{
 		objectLists: make(map[Key]types.ObjectList),
 		objects:     make(map[Key]types.Object),
@@ -56,33 +58,35 @@ func (c *Cache) InvalidateForType(objectType types.ObjectType, criteria ...query
 	defer c.mu.Unlock()
 
 	for key := range c.objectLists {
-		if key.objectType == objectType && (criteria == nil || key.criteria == stringifyCriteria(criteria...)) {
+		if key.objectType == objectType && (len(criteria) == 0 || key.criteria == stringifyCriteria(criteria...)) {
 			delete(c.objectLists, key)
 		}
 	}
 
 	for key := range c.objects {
-		if key.objectType == objectType && (criteria == nil || key.criteria == stringifyCriteria(criteria...)) {
+		if key.objectType == objectType && (len(criteria) == 0 || key.criteria == stringifyCriteria(criteria...)) {
 			delete(c.objectLists, key)
 		}
 	}
 }
 
-func (c *Cache) Get(objectType types.ObjectType, criteria ...query.Criterion) (types.Object, bool) {
+func (c *Cache) Get(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.Object, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	key := Key{
 		objectType: objectType,
 		criteria:   stringifyCriteria(criteria...),
 	}
-	if c.objects[key] != nil {
-		return c.objects[key], true
+	object, found := c.objects[key]
+	if found {
+		log.C(ctx).Debugf("Using cached entry for object of type %s and criteria %s", objectType, key.criteria)
+		return object, true
 	}
 
 	return nil, false
 }
 
-func (c *Cache) GetList(objectType types.ObjectType, criteria ...query.Criterion) types.ObjectList {
+func (c *Cache) GetList(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) types.ObjectList {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	key := Key{
@@ -90,7 +94,12 @@ func (c *Cache) GetList(objectType types.ObjectType, criteria ...query.Criterion
 		criteria:   stringifyCriteria(criteria...),
 	}
 
-	return c.objectLists[key]
+	list, found := c.objectLists[key]
+	if found {
+		log.C(ctx).Debugf("Using cached entry for object list of type %s and criteria %s", objectType, key.criteria)
+	}
+
+	return list
 }
 
 func stringifyCriteria(criteria ...query.Criterion) string {
