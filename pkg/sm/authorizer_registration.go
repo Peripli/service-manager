@@ -17,13 +17,13 @@ import (
 )
 
 var TypeToPath = map[types.ObjectType]string{
-	types.ServiceBrokerType:   web.ServiceBrokersURL,
-	types.PlatformType:        web.PlatformsURL,
-	types.ServiceOfferingType: web.ServiceOfferingsURL,
-	types.ServicePlanType:     web.ServicePlansURL,
-	types.VisibilityType:      web.VisibilitiesURL,
-	types.NotificationType:    web.NotificationsURL,
-	types.ServiceInstanceType: web.ServiceInstancesURL,
+	types.ServiceBrokerType:   web.ServiceBrokersURL + "/**",
+	types.PlatformType:        web.PlatformsURL + "/**",
+	types.ServiceOfferingType: web.ServiceOfferingsURL + "/**",
+	types.ServicePlanType:     web.ServicePlansURL + "/**",
+	types.VisibilityType:      web.VisibilitiesURL + "/**",
+	types.NotificationType:    web.NotificationsURL + "/**",
+	types.ServiceInstanceType: web.ServiceInstancesURL + "/**",
 }
 
 type authorizerBuilder struct {
