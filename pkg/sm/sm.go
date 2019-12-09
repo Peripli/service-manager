@@ -421,6 +421,9 @@ func (smb *ServiceManagerBuilder) Authorize(objectType types.ObjectType) *author
 		attachFunc: func(authorizationFilter web.Filter) {
 			smb.RegisterFiltersAfter(filters.CriteriaFilterName, authorizationFilter)
 		},
+		done: func() *ServiceManagerBuilder {
+			return smb
+		},
 	}
 }
 
@@ -429,6 +432,9 @@ func (smb *ServiceManagerBuilder) AuthorizePath(path string) *authorizerBuilder 
 		path: path,
 		attachFunc: func(authorizationFilter web.Filter) {
 			smb.RegisterFiltersAfter(filters.CriteriaFilterName, authorizationFilter)
+		},
+		done: func() *ServiceManagerBuilder {
+			return smb
 		},
 	}
 }

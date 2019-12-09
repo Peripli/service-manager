@@ -27,13 +27,17 @@ var TypeToPath = map[types.ObjectType]string{
 }
 
 type authorizerBuilder struct {
+	parent *authorizerBuilder
+
 	objectType            types.ObjectType
 	path                  string
-	attachFunc            func(web.Filter)
+	methods               []string
 	authorizer            httpsec.Authorizer
 	cloneSpace            string
 	clientID              string
 	trustedClientIDSuffix string
+	attachFunc            func(web.Filter)
+	done                  func() *ServiceManagerBuilder
 }
 
 func (ab *authorizerBuilder) Configure(cloneSpace, clientID, trustedClientIDSuffix string) *authorizerBuilder {
@@ -78,13 +82,9 @@ func (ab *authorizerBuilder) AllTenant(allTenantScopes ...string) *authorizerBui
 }
 
 func (ab *authorizerBuilder) For(methods ...string) *authorizerBuilder {
-	path := ab.path
-	if len(path) == 0 {
-		path = TypeToPath[ab.objectType]
-	}
-	filter := NewAuthzFilter(methods, path, ab.authorizer)
-	ab.attachFunc(filter)
+	ab.methods = methods
 	return &authorizerBuilder{
+		parent:                ab,
 		path:                  ab.path,
 		objectType:            ab.objectType,
 		cloneSpace:            ab.cloneSpace,
@@ -92,6 +92,20 @@ func (ab *authorizerBuilder) For(methods ...string) *authorizerBuilder {
 		trustedClientIDSuffix: ab.trustedClientIDSuffix,
 		attachFunc:            ab.attachFunc,
 	}
+}
+
+func (ab *authorizerBuilder) Done() *ServiceManagerBuilder {
+	current := ab.parent
+	for current != nil {
+		path := current.path
+		if len(path) == 0 {
+			path = TypeToPath[current.objectType]
+		}
+		filter := NewAuthzFilter(current.methods, path, current.authorizer)
+		current.attachFunc(filter)
+		current = current.parent
+	}
+	return ab.done()
 }
 
 // NewOAuthCloneAuthorizer returns OAuth authorizer
