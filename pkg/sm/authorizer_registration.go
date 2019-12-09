@@ -27,42 +27,52 @@ var TypeToPath = map[types.ObjectType]string{
 }
 
 type authorizerBuilder struct {
-	objectType types.ObjectType
-	path       string
-	result     func(web.Filter) *ServiceManagerBuilder
-	authorizer httpsec.Authorizer
+	objectType            types.ObjectType
+	path                  string
+	result                func(web.Filter) *ServiceManagerBuilder
+	authorizer            httpsec.Authorizer
+	cloneSpace            string
+	clientID              string
+	trustedClientIDSuffix string
 }
 
-func (ab *authorizerBuilder) Global(cloneSpace string, trustedClientIDSuffix string, scopes ...string) *authorizerBuilder {
+func (ab *authorizerBuilder) Configure(cloneSpace, clientID, trustedClientIDSuffix string) *authorizerBuilder {
+	ab.cloneSpace = cloneSpace
+	ab.clientID = clientID
+	ab.trustedClientIDSuffix = trustedClientIDSuffix
+	return ab
+}
+
+func (ab *authorizerBuilder) Global(scopes ...string) *authorizerBuilder {
 	ab.authorizer = authz.NewOrAuthorizer(
 		ab.authorizer,
 		authz.NewAndAuthorizer(
-			NewOAuthCloneAuthorizer(trustedClientIDSuffix, web.GlobalAccess),
-			NewRequiredScopesAuthorizer(PrefixScopes(cloneSpace, scopes...), web.GlobalAccess),
+			NewOAuthCloneAuthorizer(ab.trustedClientIDSuffix, web.GlobalAccess),
+			NewRequiredScopesAuthorizer(PrefixScopes(ab.cloneSpace, ab.scopes...), web.GlobalAccess),
 		))
 	return ab
 }
 
-func (ab *authorizerBuilder) Tenant(cloneSpace, clientID, trustedClientIDSuffix string, tenantScopes ...string) *authorizerBuilder {
+func (ab *authorizerBuilder) Tenant(tenantScopes ...string) *authorizerBuilder {
 	ab.authorizer = authz.NewOrAuthorizer(
 		ab.authorizer,
 		authz.NewAndAuthorizer(
 			authz.NewOrAuthorizer(
-				NewOauthClientAuthorizer(clientID, web.GlobalAccess),
+				NewOauthClientAuthorizer(ab.clientID, web.GlobalAccess),
 				// required for sm broker
-				NewOAuthCloneAuthorizer(trustedClientIDSuffix, web.GlobalAccess),
+				NewOAuthCloneAuthorizer(ab.trustedClientIDSuffix, web.GlobalAccess),
 			),
-			NewRequiredScopesAuthorizer(PrefixScopes(cloneSpace, tenantScopes...), web.TenantAccess),
+			NewRequiredScopesAuthorizer(PrefixScopes(ab.cloneSpace, tenantScopes...), web.TenantAccess),
 		))
 	return ab
 }
 
-func (ab *authorizerBuilder) AllTenant(cloneSpace, trustedClientIDSuffix string, allTenantScopes ...string) *authorizerBuilder {
+func (ab *authorizerBuilder) AllTenant(allTenantScopes ...string) *authorizerBuilder {
 	ab.authorizer = authz.NewOrAuthorizer(
 		ab.authorizer,
 		authz.NewAndAuthorizer(
-			NewOAuthCloneAuthorizer(trustedClientIDSuffix, web.GlobalAccess),
-			NewRequiredScopesAuthorizer(PrefixScopes(cloneSpace, allTenantScopes...), web.AllTenantAccess),
+			NewOAuthCloneAuthorizer(ab.trustedClientIDSuffix, web.GlobalAccess),
+			NewRequiredScopesAuthorizer(PrefixScopes(ab.cloneSpace, allTenantScopes...), web.AllTenantAccess),
 		))
 	return ab
 }
