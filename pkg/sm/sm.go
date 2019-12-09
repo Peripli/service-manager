@@ -64,6 +64,7 @@ type ServiceManagerBuilder struct {
 	ctx                 context.Context
 	wg                  *sync.WaitGroup
 	cfg                 *config.Settings
+	authorizations      authorizerBuilder
 }
 
 // ServiceManager  struct
@@ -153,6 +154,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		ctx:                 ctx,
 		wg:                  waitGroup,
 		cfg:                 cfg,
+		authorizations:      authorizerBuilder{},
 	}
 
 	smb.RegisterPlugins(plugins.NewCatalogFilterByVisibilityPlugin(interceptableRepository))
@@ -411,4 +413,24 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 		TenantIdentifier: labelKey,
 	}).Register()
 	return smb
+}
+
+func (smb *ServiceManagerBuilder) Authorize(objectType types.ObjectType) *authorizerBuilder {
+	return &authorizerBuilder{
+		objectType: objectType,
+		result: func(authorizationFilter web.Filter) *ServiceManagerBuilder {
+			smb.RegisterFiltersAfter(filters.CriteriaFilterName, authorizationFilter)
+			return smb
+		},
+	}
+}
+
+func (smb *ServiceManagerBuilder) AuthorizePath(path string) *authorizerBuilder {
+	return &authorizerBuilder{
+		path: path,
+		result: func(authorizationFilter web.Filter) *ServiceManagerBuilder {
+			smb.RegisterFiltersAfter(filters.CriteriaFilterName, authorizationFilter)
+			return smb
+		},
+	}
 }

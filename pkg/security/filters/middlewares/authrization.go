@@ -51,7 +51,7 @@ func (m *Authorization) Run(request *web.Request, next web.Handler) (*web.Respon
 		userContext.AccessLevel = accessLevel
 		request.Request = request.WithContext(web.ContextWithUser(ctx, userContext))
 		if accessLevel == web.NoAccess {
-			return nil, fmt.Errorf("authorization failed due to missing access level. Authizier that allows access should also specify the access level")
+			return nil, fmt.Errorf("authorization failed due to missing access level. Authorizer that allows access should also specify the access level")
 		}
 		if !web.IsAuthorized(ctx) {
 			request.Request = request.WithContext(web.ContextWithAuthorization(ctx))
