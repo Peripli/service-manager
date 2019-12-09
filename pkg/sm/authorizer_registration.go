@@ -102,6 +102,7 @@ func (ab *authorizerBuilder) And() *authorizerBuilder {
 		clientID:              ab.clientID,
 		trustedClientIDSuffix: ab.trustedClientIDSuffix,
 		attachFunc:            ab.attachFunc,
+		done:                  ab.done,
 	}
 }
 
