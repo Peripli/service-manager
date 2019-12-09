@@ -418,9 +418,8 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 func (smb *ServiceManagerBuilder) Authorize(objectType types.ObjectType) *authorizerBuilder {
 	return &authorizerBuilder{
 		objectType: objectType,
-		result: func(authorizationFilter web.Filter) *ServiceManagerBuilder {
+		attachFunc: func(authorizationFilter web.Filter) {
 			smb.RegisterFiltersAfter(filters.CriteriaFilterName, authorizationFilter)
-			return smb
 		},
 	}
 }
@@ -428,9 +427,8 @@ func (smb *ServiceManagerBuilder) Authorize(objectType types.ObjectType) *author
 func (smb *ServiceManagerBuilder) AuthorizePath(path string) *authorizerBuilder {
 	return &authorizerBuilder{
 		path: path,
-		result: func(authorizationFilter web.Filter) *ServiceManagerBuilder {
+		attachFunc: func(authorizationFilter web.Filter) {
 			smb.RegisterFiltersAfter(filters.CriteriaFilterName, authorizationFilter)
-			return smb
 		},
 	}
 }

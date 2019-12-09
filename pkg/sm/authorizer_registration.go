@@ -29,7 +29,7 @@ var TypeToPath = map[types.ObjectType]string{
 type authorizerBuilder struct {
 	objectType            types.ObjectType
 	path                  string
-	result                func(web.Filter) *ServiceManagerBuilder
+	attachFunc            func(web.Filter)
 	authorizer            httpsec.Authorizer
 	cloneSpace            string
 	clientID              string
@@ -48,7 +48,7 @@ func (ab *authorizerBuilder) Global(scopes ...string) *authorizerBuilder {
 		ab.authorizer,
 		authz.NewAndAuthorizer(
 			NewOAuthCloneAuthorizer(ab.trustedClientIDSuffix, web.GlobalAccess),
-			NewRequiredScopesAuthorizer(PrefixScopes(ab.cloneSpace, ab.scopes...), web.GlobalAccess),
+			NewRequiredScopesAuthorizer(PrefixScopes(ab.cloneSpace, scopes...), web.GlobalAccess),
 		))
 	return ab
 }
@@ -77,13 +77,21 @@ func (ab *authorizerBuilder) AllTenant(allTenantScopes ...string) *authorizerBui
 	return ab
 }
 
-func (ab *authorizerBuilder) For(methods ...string) *ServiceManagerBuilder {
+func (ab *authorizerBuilder) For(methods ...string) *authorizerBuilder {
 	path := ab.path
 	if len(path) == 0 {
 		path = TypeToPath[ab.objectType]
 	}
 	filter := NewAuthzFilter(methods, path, ab.authorizer)
-	return ab.result(filter)
+	ab.attachFunc(filter)
+	return &authorizerBuilder{
+		path:                  ab.path,
+		objectType:            ab.objectType,
+		cloneSpace:            ab.cloneSpace,
+		clientID:              ab.clientID,
+		trustedClientIDSuffix: ab.trustedClientIDSuffix,
+		attachFunc:            ab.attachFunc,
+	}
 }
 
 // NewOAuthCloneAuthorizer returns OAuth authorizer
