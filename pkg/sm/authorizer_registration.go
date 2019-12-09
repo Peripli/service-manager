@@ -33,16 +33,17 @@ type authorizerBuilder struct {
 	authorizer httpsec.Authorizer
 }
 
-func (ab *authorizerBuilder) Global(cloneSpace string, trustedClientIDSuffix string, scopes ...string) {
+func (ab *authorizerBuilder) Global(cloneSpace string, trustedClientIDSuffix string, scopes ...string) *authorizerBuilder {
 	ab.authorizer = authz.NewOrAuthorizer(
 		ab.authorizer,
 		authz.NewAndAuthorizer(
 			NewOAuthCloneAuthorizer(trustedClientIDSuffix, web.GlobalAccess),
 			NewRequiredScopesAuthorizer(PrefixScopes(cloneSpace, scopes...), web.GlobalAccess),
 		))
+	return ab
 }
 
-func (ab *authorizerBuilder) Tenant(cloneSpace, clientID, trustedClientIDSuffix string, tenantScopes ...string) {
+func (ab *authorizerBuilder) Tenant(cloneSpace, clientID, trustedClientIDSuffix string, tenantScopes ...string) *authorizerBuilder {
 	ab.authorizer = authz.NewOrAuthorizer(
 		ab.authorizer,
 		authz.NewAndAuthorizer(
@@ -53,15 +54,17 @@ func (ab *authorizerBuilder) Tenant(cloneSpace, clientID, trustedClientIDSuffix 
 			),
 			NewRequiredScopesAuthorizer(PrefixScopes(cloneSpace, tenantScopes...), web.TenantAccess),
 		))
+	return ab
 }
 
-func (ab *authorizerBuilder) AllTenant(cloneSpace, trustedClientIDSuffix string, allTenantScopes ...string) {
+func (ab *authorizerBuilder) AllTenant(cloneSpace, trustedClientIDSuffix string, allTenantScopes ...string) *authorizerBuilder {
 	ab.authorizer = authz.NewOrAuthorizer(
 		ab.authorizer,
 		authz.NewAndAuthorizer(
 			NewOAuthCloneAuthorizer(trustedClientIDSuffix, web.GlobalAccess),
 			NewRequiredScopesAuthorizer(PrefixScopes(cloneSpace, allTenantScopes...), web.AllTenantAccess),
 		))
+	return ab
 }
 
 func (ab *authorizerBuilder) For(methods ...string) *ServiceManagerBuilder {
