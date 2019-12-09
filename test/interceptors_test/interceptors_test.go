@@ -116,7 +116,7 @@ var _ = Describe("Interceptors", func() {
 				fakeUpdateInterceptorProviderBA := updateInterceptorProvider(string(entityType)+"APIBefore_TXAfter", updateStack)
 				fakeUpdateInterceptorProviderAB := updateInterceptorProvider(string(entityType)+"APIAfter_TXBefore", updateStack)
 
-				// Delete entity interceptors
+				// DeleteReturning entity interceptors
 				fakeDeleteInterceptorProvider0 := deleteInterceptorProvider(string(entityType)+"0", deleteStack)
 				fakeDeleteInterceptorProvider1 := deleteInterceptorProvider(string(entityType)+"1", deleteStack)
 				fakeDeleteInterceptorProvider2 := deleteInterceptorProvider(string(entityType)+"2", deleteStack)
@@ -272,7 +272,7 @@ var _ = Describe("Interceptors", func() {
 					return func(ctx context.Context, txStorage storage.Repository, oldObj, newObj types.Object, labelChanges ...*query.LabelChange) (object types.Object, e error) {
 						deleteCriteria := query.ByField(query.EqualsOperator, "id", platform2.ID)
 						By("calling storage delete, should call delete interceptor")
-						_, err := txStorage.Delete(ctx, types.PlatformType, deleteCriteria)
+						err := txStorage.Delete(ctx, types.PlatformType, deleteCriteria)
 						if err != nil {
 							return nil, err
 						}
@@ -281,7 +281,7 @@ var _ = Describe("Interceptors", func() {
 				}
 
 				deleteModificationInterceptors[types.PlatformType].OnTxDeleteStub = func(f storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
-					return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
+					return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) error {
 						Expect(deletionCriteria).To(HaveLen(1))
 						Expect(deletionCriteria[0].LeftOp).To(Equal("id"))
 						Expect(deletionCriteria[0].RightOp[0]).To(Equal(platform2.ID))
@@ -294,7 +294,7 @@ var _ = Describe("Interceptors", func() {
 				Expect(deleteModificationInterceptors[types.PlatformType].OnTxDeleteCallCount()).To(Equal(txDeleteCallCount + 1))
 
 				deleteModificationInterceptors[types.PlatformType].OnTxDeleteStub = func(f storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
-					return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
+					return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) error {
 						Expect(deletionCriteria).To(HaveLen(1))
 						Expect(deletionCriteria[0].LeftOp).To(Equal("id"))
 						Expect(deletionCriteria[0].RightOp[0]).To(Equal(platform1.ID))
@@ -329,7 +329,7 @@ var _ = Describe("Interceptors", func() {
 		checkDeleteStack := func(objectType types.ObjectType) {
 			Expect(createStack.Items).To(HaveLen(0))
 			Expect(updateStack.Items).To(HaveLen(0))
-			Expect(deleteStack.Items).To(Equal(getSequence("Delete", objectType)))
+			Expect(deleteStack.Items).To(Equal(getSequence("DeleteReturning", objectType)))
 			clearStacks()
 		}
 
@@ -341,7 +341,7 @@ var _ = Describe("Interceptors", func() {
 				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + brokerID).WithJSON(common.Object{}).Expect().Status(http.StatusOK)
 				checkUpdateStack(types.ServiceBrokerType)
 
-				ctx.CleanupBroker(brokerID) // Delete /v1/service_brokers/<id>
+				ctx.CleanupBroker(brokerID) // DeleteReturning /v1/service_brokers/<id>
 				checkDeleteStack(types.ServiceBrokerType)
 			})
 		})
@@ -482,10 +482,10 @@ var _ = Describe("Interceptors", func() {
 						Value(newLabelKey).Array().Equal(newLabelValue)
 				})
 
-				It("Delete", func() {
+				It("DeleteReturning", func() {
 					_ = e.createEntryFunc()
 					deleteModificationInterceptors[types.ObjectType(e.name)].AroundTxDeleteStub = func(h storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
-						return func(ctx context.Context, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
+						return func(ctx context.Context, deletionCriteria ...query.Criterion) error {
 							deletionCriteria = append(deletionCriteria, query.ByField(query.InOperator, "id", "invalid"))
 							return h(ctx, deletionCriteria...)
 						}
@@ -493,7 +493,7 @@ var _ = Describe("Interceptors", func() {
 					ctx.SMWithOAuth.DELETE(e.url).Expect().Status(http.StatusNotFound)
 					resetModificationInterceptors()
 					deleteModificationInterceptors[types.ObjectType(e.name)].OnTxDeleteStub = func(f storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
-						return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
+						return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) error {
 							deletionCriteria = append(deletionCriteria, query.ByField(query.InOperator, "id", "invalid"))
 							return f(ctx, txStorage, objects, deletionCriteria...)
 						}
@@ -576,25 +576,25 @@ func updateInterceptorProvider(nameSuffix string, stack *callStack) *storagefake
 }
 
 func deleteInterceptorProvider(nameSuffix string, stack *callStack) *storagefakes.FakeDeleteInterceptorProvider {
-	name := "Delete" + nameSuffix
+	name := "DeleteReturning" + nameSuffix
 
 	fakeDeleteInterceptorProvider := &storagefakes.FakeDeleteInterceptorProvider{}
 	fakeDeleteInterceptorProvider.NameReturns(name)
 	fakeDeleteInterceptor := &storagefakes.FakeDeleteInterceptor{}
 	fakeDeleteInterceptor.AroundTxDeleteStub = func(h storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
-		return func(ctx context.Context, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
+		return func(ctx context.Context, deletionCriteria ...query.Criterion) error {
 			stack.Add(name + "APIpre")
-			obj, err := h(ctx, deletionCriteria...)
+			err := h(ctx, deletionCriteria...)
 			stack.Add(name + "APIpost")
-			return obj, err
+			return err
 		}
 	}
 	fakeDeleteInterceptor.OnTxDeleteStub = func(h storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
-		return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
+		return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) error {
 			stack.Add(name + "TXpre")
-			obj, err := h(ctx, txStorage, objects, deletionCriteria...)
+			err := h(ctx, txStorage, objects, deletionCriteria...)
 			stack.Add(name + "TXpost")
-			return obj, err
+			return err
 		}
 	}
 	fakeDeleteInterceptorProvider.ProvideReturns(fakeDeleteInterceptor)

@@ -50,7 +50,7 @@ type FakeStorage struct {
 		result1 types.Object
 		result2 error
 	}
-	DeleteStub        func(context.Context, types.ObjectType, ...query.Criterion) (types.ObjectList, error)
+	DeleteStub        func(context.Context, types.ObjectType, ...query.Criterion) error
 	deleteMutex       sync.RWMutex
 	deleteArgsForCall []struct {
 		arg1 context.Context
@@ -58,10 +58,23 @@ type FakeStorage struct {
 		arg3 []query.Criterion
 	}
 	deleteReturns struct {
+		result1 error
+	}
+	deleteReturnsOnCall map[int]struct {
+		result1 error
+	}
+	DeleteReturningStub        func(context.Context, types.ObjectType, ...query.Criterion) (types.ObjectList, error)
+	deleteReturningMutex       sync.RWMutex
+	deleteReturningArgsForCall []struct {
+		arg1 context.Context
+		arg2 types.ObjectType
+		arg3 []query.Criterion
+	}
+	deleteReturningReturns struct {
 		result1 types.ObjectList
 		result2 error
 	}
-	deleteReturnsOnCall map[int]struct {
+	deleteReturningReturnsOnCall map[int]struct {
 		result1 types.ObjectList
 		result2 error
 	}
@@ -335,7 +348,7 @@ func (fake *FakeStorage) CreateReturnsOnCall(i int, result1 types.Object, result
 	}{result1, result2}
 }
 
-func (fake *FakeStorage) Delete(arg1 context.Context, arg2 types.ObjectType, arg3 ...query.Criterion) (types.ObjectList, error) {
+func (fake *FakeStorage) Delete(arg1 context.Context, arg2 types.ObjectType, arg3 ...query.Criterion) error {
 	fake.deleteMutex.Lock()
 	ret, specificReturn := fake.deleteReturnsOnCall[len(fake.deleteArgsForCall)]
 	fake.deleteArgsForCall = append(fake.deleteArgsForCall, struct {
@@ -349,10 +362,10 @@ func (fake *FakeStorage) Delete(arg1 context.Context, arg2 types.ObjectType, arg
 		return fake.DeleteStub(arg1, arg2, arg3...)
 	}
 	if specificReturn {
-		return ret.result1, ret.result2
+		return ret.result1
 	}
 	fakeReturns := fake.deleteReturns
-	return fakeReturns.result1, fakeReturns.result2
+	return fakeReturns.result1
 }
 
 func (fake *FakeStorage) DeleteCallCount() int {
@@ -361,7 +374,7 @@ func (fake *FakeStorage) DeleteCallCount() int {
 	return len(fake.deleteArgsForCall)
 }
 
-func (fake *FakeStorage) DeleteCalls(stub func(context.Context, types.ObjectType, ...query.Criterion) (types.ObjectList, error)) {
+func (fake *FakeStorage) DeleteCalls(stub func(context.Context, types.ObjectType, ...query.Criterion) error) {
 	fake.deleteMutex.Lock()
 	defer fake.deleteMutex.Unlock()
 	fake.DeleteStub = stub
@@ -374,27 +387,89 @@ func (fake *FakeStorage) DeleteArgsForCall(i int) (context.Context, types.Object
 	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
-func (fake *FakeStorage) DeleteReturns(result1 types.ObjectList, result2 error) {
+func (fake *FakeStorage) DeleteReturns(result1 error) {
 	fake.deleteMutex.Lock()
 	defer fake.deleteMutex.Unlock()
 	fake.DeleteStub = nil
 	fake.deleteReturns = struct {
-		result1 types.ObjectList
-		result2 error
-	}{result1, result2}
+		result1 error
+	}{result1}
 }
 
-func (fake *FakeStorage) DeleteReturnsOnCall(i int, result1 types.ObjectList, result2 error) {
+func (fake *FakeStorage) DeleteReturnsOnCall(i int, result1 error) {
 	fake.deleteMutex.Lock()
 	defer fake.deleteMutex.Unlock()
 	fake.DeleteStub = nil
 	if fake.deleteReturnsOnCall == nil {
 		fake.deleteReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.deleteReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeStorage) DeleteReturning(arg1 context.Context, arg2 types.ObjectType, arg3 ...query.Criterion) (types.ObjectList, error) {
+	fake.deleteReturningMutex.Lock()
+	ret, specificReturn := fake.deleteReturningReturnsOnCall[len(fake.deleteReturningArgsForCall)]
+	fake.deleteReturningArgsForCall = append(fake.deleteReturningArgsForCall, struct {
+		arg1 context.Context
+		arg2 types.ObjectType
+		arg3 []query.Criterion
+	}{arg1, arg2, arg3})
+	fake.recordInvocation("DeleteReturning", []interface{}{arg1, arg2, arg3})
+	fake.deleteReturningMutex.Unlock()
+	if fake.DeleteReturningStub != nil {
+		return fake.DeleteReturningStub(arg1, arg2, arg3...)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	fakeReturns := fake.deleteReturningReturns
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeStorage) DeleteReturningCallCount() int {
+	fake.deleteReturningMutex.RLock()
+	defer fake.deleteReturningMutex.RUnlock()
+	return len(fake.deleteReturningArgsForCall)
+}
+
+func (fake *FakeStorage) DeleteReturningCalls(stub func(context.Context, types.ObjectType, ...query.Criterion) (types.ObjectList, error)) {
+	fake.deleteReturningMutex.Lock()
+	defer fake.deleteReturningMutex.Unlock()
+	fake.DeleteReturningStub = stub
+}
+
+func (fake *FakeStorage) DeleteReturningArgsForCall(i int) (context.Context, types.ObjectType, []query.Criterion) {
+	fake.deleteReturningMutex.RLock()
+	defer fake.deleteReturningMutex.RUnlock()
+	argsForCall := fake.deleteReturningArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeStorage) DeleteReturningReturns(result1 types.ObjectList, result2 error) {
+	fake.deleteReturningMutex.Lock()
+	defer fake.deleteReturningMutex.Unlock()
+	fake.DeleteReturningStub = nil
+	fake.deleteReturningReturns = struct {
+		result1 types.ObjectList
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeStorage) DeleteReturningReturnsOnCall(i int, result1 types.ObjectList, result2 error) {
+	fake.deleteReturningMutex.Lock()
+	defer fake.deleteReturningMutex.Unlock()
+	fake.DeleteReturningStub = nil
+	if fake.deleteReturningReturnsOnCall == nil {
+		fake.deleteReturningReturnsOnCall = make(map[int]struct {
 			result1 types.ObjectList
 			result2 error
 		})
 	}
-	fake.deleteReturnsOnCall[i] = struct {
+	fake.deleteReturningReturnsOnCall[i] = struct {
 		result1 types.ObjectList
 		result2 error
 	}{result1, result2}
@@ -819,6 +894,8 @@ func (fake *FakeStorage) Invocations() map[string][][]interface{} {
 	defer fake.createMutex.RUnlock()
 	fake.deleteMutex.RLock()
 	defer fake.deleteMutex.RUnlock()
+	fake.deleteReturningMutex.RLock()
+	defer fake.deleteReturningMutex.RUnlock()
 	fake.getMutex.RLock()
 	defer fake.getMutex.RUnlock()
 	fake.inTransactionMutex.RLock()

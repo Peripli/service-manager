@@ -177,41 +177,64 @@ func (ir *queryScopedInterceptableRepository) Count(ctx context.Context, objectT
 	return ir.repositoryInTransaction.Count(ctx, objectType, criteria...)
 }
 
-func (ir *queryScopedInterceptableRepository) Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
-	deleteObjectFunc := func(ctx context.Context, _ Repository, _ types.ObjectList, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
-		objectList, err := ir.repositoryInTransaction.Delete(ctx, objectType, deletionCriteria...)
-		if err != nil {
-			return nil, err
+func (ir *queryScopedInterceptableRepository) DeleteReturning(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
+	var resultList types.ObjectList
+	deleteObjectFunc := func(ctx context.Context, _ Repository, _ types.ObjectList, deletionCriteria ...query.Criterion) error {
+		var err error
+		if resultList, err = ir.repositoryInTransaction.DeleteReturning(ctx, objectType, deletionCriteria...); err != nil {
+			return err
 		}
-
-		return objectList, nil
+		return nil
 	}
 
-	var objectList types.ObjectList
-	var objects types.ObjectList
-	var err error
-
 	if deleteOnTxFunc, found := ir.deleteOnTxFuncs[objectType]; found {
-		objects, err = ir.List(ctx, objectType, criteria...)
+		objects, err := ir.List(ctx, objectType, criteria...)
 		if err != nil {
 			return nil, err
 		}
-
 		delete(ir.deleteOnTxFuncs, objectType)
-
-		objectList, err = deleteOnTxFunc(deleteObjectFunc)(ctx, ir, objects, criteria...)
-
+		if err := deleteOnTxFunc(deleteObjectFunc)(ctx, ir, objects, criteria...); err != nil {
+			ir.deleteOnTxFuncs[objectType] = deleteOnTxFunc
+			return nil, err
+		}
 		ir.deleteOnTxFuncs[objectType] = deleteOnTxFunc
 
 	} else {
-		objectList, err = deleteObjectFunc(ctx, nil, nil, criteria...)
+		if err := deleteObjectFunc(ctx, nil, nil, criteria...); err != nil {
+			return nil, err
+		}
 	}
 
-	if err != nil {
-		return nil, err
+	return resultList, nil
+}
+
+func (ir *queryScopedInterceptableRepository) Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) error {
+	deleteObjectFunc := func(ctx context.Context, _ Repository, _ types.ObjectList, deletionCriteria ...query.Criterion) error {
+		if err := ir.repositoryInTransaction.Delete(ctx, objectType, deletionCriteria...); err != nil {
+			return err
+		}
+		return nil
 	}
 
-	return objectList, nil
+	if deleteOnTxFunc, found := ir.deleteOnTxFuncs[objectType]; found {
+		objects, err := ir.List(ctx, objectType, criteria...)
+		if err != nil {
+			return err
+		}
+		delete(ir.deleteOnTxFuncs, objectType)
+		if err := deleteOnTxFunc(deleteObjectFunc)(ctx, ir, objects, criteria...); err != nil {
+			ir.deleteOnTxFuncs[objectType] = deleteOnTxFunc
+			return err
+		}
+		ir.deleteOnTxFuncs[objectType] = deleteOnTxFunc
+
+	} else {
+		if err := deleteObjectFunc(ctx, nil, nil, criteria...); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (ir *queryScopedInterceptableRepository) Update(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, criteria ...query.Criterion) (types.Object, error) {
@@ -449,41 +472,67 @@ func (itr *InterceptableTransactionalRepository) Count(ctx context.Context, obje
 	return itr.smStorageRepository.Count(ctx, objectType, criteria...)
 }
 
-func (itr *InterceptableTransactionalRepository) Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
+func (itr *InterceptableTransactionalRepository) DeleteReturning(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors := itr.provideInterceptors()
 
-	finalInterceptor := func(ctx context.Context, criteria ...query.Criterion) (types.ObjectList, error) {
-		var result types.ObjectList
-		var err error
-
+	var result types.ObjectList
+	finalInterceptor := func(ctx context.Context, criteria ...query.Criterion) error {
 		if err := itr.smStorageRepository.InTransaction(ctx, func(ctx context.Context, txStorage Repository) error {
 			interceptableRepository := newScopedRepositoryWithInterceptors(txStorage, providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors)
-			result, err = interceptableRepository.Delete(ctx, objectType, criteria...)
+			var err error
+			result, err = interceptableRepository.DeleteReturning(ctx, objectType, criteria...)
 			if err != nil {
 				return err
 			}
-
 			return nil
 		}); err != nil {
-			return nil, err
+			return err
 		}
-		return result, nil
-	}
 
-	var objectList types.ObjectList
-	var err error
+		return nil
+	}
 
 	if providedDeleteInterceptors[objectType] != nil {
-		objectList, err = providedDeleteInterceptors[objectType].AroundTxDelete(finalInterceptor)(ctx, criteria...)
+		if err := providedDeleteInterceptors[objectType].AroundTxDelete(finalInterceptor)(ctx, criteria...); err != nil {
+			return nil, err
+		}
 	} else {
-		objectList, err = finalInterceptor(ctx, criteria...)
+		if err := finalInterceptor(ctx, criteria...); err != nil {
+			return nil, err
+		}
 	}
 
-	if err != nil {
-		return nil, err
+	return result, nil
+}
+
+func (itr *InterceptableTransactionalRepository) Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) error {
+	providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors := itr.provideInterceptors()
+
+	finalInterceptor := func(ctx context.Context, criteria ...query.Criterion) error {
+		if err := itr.smStorageRepository.InTransaction(ctx, func(ctx context.Context, txStorage Repository) error {
+			interceptableRepository := newScopedRepositoryWithInterceptors(txStorage, providedCreateInterceptors, providedUpdateInterceptors, providedDeleteInterceptors)
+			if err := interceptableRepository.Delete(ctx, objectType, criteria...); err != nil {
+				return err
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
+
+		return nil
 	}
 
-	return objectList, err
+	if providedDeleteInterceptors[objectType] != nil {
+		if err := providedDeleteInterceptors[objectType].AroundTxDelete(finalInterceptor)(ctx, criteria...); err != nil {
+			return err
+		}
+	} else {
+		if err := finalInterceptor(ctx, criteria...); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (itr *InterceptableTransactionalRepository) Update(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, criteria ...query.Criterion) (types.Object, error) {

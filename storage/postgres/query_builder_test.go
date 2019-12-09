@@ -463,14 +463,14 @@ LIMIT ?;`)))
 	Describe("Delete", func() {
 		Context("when entity does not have an associated label entity", func() {
 			It("returns error", func() {
-				_, err := qb.NewQuery(&postgres.Safe{}).Delete(ctx)
+				_, _, err := qb.NewQuery(&postgres.Safe{}).Delete(ctx)
 				Expect(err.Error()).To(ContainSubstring("query builder requires the entity to have associated label entity"))
 			})
 		})
 
 		Context("when no criteria is used", func() {
 			It("builds query to delete all entries", func() {
-				_, err := qb.NewQuery(entity).Delete(ctx)
+				_, _, err := qb.NewQuery(entity).Delete(ctx)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).To(Equal(trim(`
 DELETE
@@ -482,7 +482,7 @@ FROM visibilities ;`)))
 			It("builds query with label criteria", func() {
 				criteria1 := query.ByLabel(query.EqualsOperator, "left1", "right1")
 				criteria2 := query.ByLabel(query.InOperator, "left2", "right2", "right3")
-				_, err := qb.NewQuery(entity).WithCriteria(criteria1, criteria2).Delete(ctx)
+				_, _, err := qb.NewQuery(entity).WithCriteria(criteria1, criteria2).Delete(ctx)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`
 DELETE
@@ -503,7 +503,7 @@ WHERE visibilities.id = t.id ;`)))
 		Context("when field criteria is used", func() {
 			It("builds query with field criteria", func() {
 				criteria := query.ByField(query.EqualsOperator, "id", "1")
-				_, err := qb.NewQuery(entity).WithCriteria(criteria).Delete(ctx)
+				_, _, err := qb.NewQuery(entity).WithCriteria(criteria).Delete(ctx)
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(executedQuery).Should(Equal(trim(`
@@ -517,7 +517,7 @@ WHERE visibilities.id::text = ? ;`)))
 			Context("when field is missing", func() {
 				It("returns error", func() {
 					criteria := query.ByField(query.EqualsOperator, "non-existing-field", "value")
-					_, err := qb.NewQuery(entity).WithCriteria(criteria).Delete(ctx)
+					_, _, err := qb.NewQuery(entity).WithCriteria(criteria).Delete(ctx)
 					Expect(err).To(HaveOccurred())
 				})
 			})
@@ -525,7 +525,7 @@ WHERE visibilities.id::text = ? ;`)))
 
 		Context("when returning clause is used", func() {
 			It("builds query with specified fields fields", func() {
-				_, err := qb.NewQuery(entity).Return("id", "service_plan_id").Delete(ctx)
+				_, _, err := qb.NewQuery(entity).Return("id", "service_plan_id").Delete(ctx)
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(executedQuery).To(Equal(trim(`
@@ -535,7 +535,7 @@ RETURNING id, service_plan_id;`)))
 			})
 
 			It("builds query with *", func() {
-				_, err := qb.NewQuery(entity).Return("*").Delete(ctx)
+				_, _, err := qb.NewQuery(entity).Return("*").Delete(ctx)
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(executedQuery).To(Equal(trim(`
@@ -546,7 +546,7 @@ RETURNING *;`)))
 
 			Context("when unknown field is specified", func() {
 				It("returns error", func() {
-					_, err := qb.NewQuery(entity).Return("unknown-field").Delete(ctx)
+					_, _, err := qb.NewQuery(entity).Return("unknown-field").Delete(ctx)
 					Expect(err).Should(HaveOccurred())
 					Expect(err.Error()).To(ContainSubstring("unsupported entity field for return type: unknown-field"))
 				})
@@ -565,7 +565,7 @@ RETURNING *;`)))
 
 				criteria7 := query.OrderResultBy("id", query.AscOrder)
 
-				_, err := qb.NewQuery(entity).WithCriteria(criteria1, criteria2, criteria3, criteria4, criteria5, criteria6, criteria7).Return("*").Delete(ctx)
+				_, _, err := qb.NewQuery(entity).WithCriteria(criteria1, criteria2, criteria3, criteria4, criteria5, criteria6, criteria7).Return("*").Delete(ctx)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`
 DELETE

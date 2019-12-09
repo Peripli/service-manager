@@ -68,13 +68,14 @@ func (nc *NotificationCleaner) clean(ctx context.Context) {
 	log.C(ctx).Infof("Deleting notifications created before %s", cleanTimestamp)
 
 	q := query.ByField(query.LessThanOperator, "created_at", cleanTimestamp)
-	deletedNotifications, err := nc.Storage.Delete(ctx, types.NotificationType, q)
-
-	if err == util.ErrNotFoundInStorage {
-		log.C(ctx).Debug("no old notifications to delete")
-	} else if err != nil {
-		log.C(ctx).WithError(err).Error("could not delete old notifications")
+	if err := nc.Storage.Delete(ctx, types.NotificationType, q); err != nil {
+		if err == util.ErrNotFoundInStorage {
+			log.C(ctx).Debug("no old notifications to delete")
+		} else {
+			log.C(ctx).WithError(err).Error("could not delete old notifications")
+		}
 	} else {
-		log.C(ctx).Infof("successfully deleted %d old notifications", deletedNotifications.Len())
+		log.C(ctx).Infof("successfully deleted notifications created before %v", cleanTimestamp)
+
 	}
 }

@@ -108,26 +108,26 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 
 		fakeDeleteAroundTxInterceptor = &storagefakes.FakeDeleteAroundTxInterceptor{}
 		fakeDeleteAroundTxInterceptor.AroundTxDeleteCalls(func(next storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
-			return func(ctx context.Context, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
+			return func(ctx context.Context, deletionCriteria ...query.Criterion) error {
 				return next(ctx, deletionCriteria...)
 			}
 		})
 
 		fakeDeleteOnTxInterceptor = &storagefakes.FakeDeleteOnTxInterceptor{}
 		fakeDeleteOnTxInterceptor.OnTxDeleteCalls(func(next storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
-			return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
+			return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) error {
 				return next(ctx, txStorage, objects, deletionCriteria...)
 			}
 		})
 
 		fakeDeleteInterceptor = &storagefakes.FakeDeleteInterceptor{}
 		fakeDeleteInterceptor.OnTxDeleteCalls(func(next storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
-			return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
+			return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) error {
 				return next(ctx, txStorage, objects, deletionCriteria...)
 			}
 		})
 		fakeDeleteInterceptor.AroundTxDeleteCalls(func(next storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
-			return func(ctx context.Context, deletionCriteria ...query.Criterion) (list types.ObjectList, e error) {
+			return func(ctx context.Context, deletionCriteria ...query.Criterion) error {
 				return next(ctx, deletionCriteria...)
 			}
 		})
@@ -263,7 +263,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 	Describe("Delete", func() {
 		It("invokes all interceptors", func() {
 			byID := query.ByField(query.EqualsOperator, "id", "id")
-			_, err := interceptableRepository.Delete(ctx, types.ServiceBrokerType, byID)
+			err := interceptableRepository.Delete(ctx, types.ServiceBrokerType, byID)
 
 			Expect(err).ShouldNot(HaveOccurred())
 
@@ -273,6 +273,22 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 			Expect(fakeDeleteInterceptor.OnTxDeleteCallCount()).To(Equal(1))
 
 			Expect(fakeStorage.DeleteCallCount()).To(Equal(1))
+		})
+	})
+
+	Describe("DeleteReturning", func() {
+		It("invokes all interceptors", func() {
+			byID := query.ByField(query.EqualsOperator, "id", "id")
+			_, err := interceptableRepository.DeleteReturning(ctx, types.ServiceBrokerType, byID)
+
+			Expect(err).ShouldNot(HaveOccurred())
+
+			Expect(fakeDeleteAroundTxInterceptor.AroundTxDeleteCallCount()).To(Equal(1))
+			Expect(fakeDeleteOnTxInterceptor.OnTxDeleteCallCount()).To(Equal(1))
+			Expect(fakeDeleteInterceptor.AroundTxDeleteCallCount()).To(Equal(1))
+			Expect(fakeDeleteInterceptor.OnTxDeleteCallCount()).To(Equal(1))
+
+			Expect(fakeStorage.DeleteReturningCallCount()).To(Equal(1))
 		})
 	})
 
@@ -292,7 +308,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 
 				byID := query.ByField(query.EqualsOperator, "id", "id")
-				_, err = storage.Delete(ctx, types.ServiceBrokerType, byID)
+				err = storage.Delete(ctx, types.ServiceBrokerType, byID)
 				Expect(err).ShouldNot(HaveOccurred())
 
 			}
@@ -404,19 +420,19 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 			})
 
 			fakeDeleteOnTxInterceptor.OnTxDeleteCalls(func(next storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
-				return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
+				return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) error {
 					byID := query.ByField(query.EqualsOperator, "id", "id")
 
-					objectList, err := txStorage.Delete(ctx, types.ServiceBrokerType, byID)
+					err := txStorage.Delete(ctx, types.ServiceBrokerType, byID)
 					Expect(err).ShouldNot(HaveOccurred())
 
-					objectList, err = next(ctx, txStorage, objects, byID)
+					err = next(ctx, txStorage, objects, byID)
 					Expect(err).ShouldNot(HaveOccurred())
 
-					objectList, err = txStorage.Delete(ctx, types.ServiceBrokerType, byID)
+					err = txStorage.Delete(ctx, types.ServiceBrokerType, byID)
 					Expect(err).ShouldNot(HaveOccurred())
 
-					return objectList, nil
+					return nil
 				}
 			})
 
@@ -491,7 +507,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 			})
 		})
 
-		Context("Delete interceptor", func() {
+		Context("DeleteReturning interceptor", func() {
 			Context("When provider with the same name is already registered", func() {
 				It("Panics", func() {
 					provider := &storagefakes.FakeDeleteInterceptorProvider{}

@@ -122,13 +122,13 @@ func resync(ctx context.Context, broker *types.ServiceBroker, txStorage storage.
 						hasPublicVisibility = true
 						continue
 					} else {
-						if _, err := txStorage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
+						if err := txStorage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
 							return err
 						}
 					}
 				} else {
 					if visibility.PlatformID == "" {
-						if _, err := txStorage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
+						if err := txStorage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
 							return err
 						}
 					} else {

@@ -149,7 +149,7 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 	log.C(ctx).Debugf("Deleting %ss...", c.objectType)
 
 	criteria := query.CriteriaForContext(ctx)
-	if _, err := c.repository.Delete(ctx, c.objectType, criteria...); err != nil {
+	if err := c.repository.Delete(ctx, c.objectType, criteria...); err != nil {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
