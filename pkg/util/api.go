@@ -118,7 +118,7 @@ func validate(value interface{}) error {
 		if err := input.Validate(); err != nil {
 			return &HTTPError{
 				ErrorType:   "BadRequest",
-				Description: input.Validate().Error(),
+				Description: err.Error(),
 				StatusCode:  http.StatusBadRequest,
 			}
 		}
