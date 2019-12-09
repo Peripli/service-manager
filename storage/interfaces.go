@@ -51,25 +51,23 @@ var (
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	URI                  string                `mapstructure:"uri" description:"URI of the storage"`
-	TransactionalCaching bool                  `mapstructure:"transactional_caching" description:"transactional caching of similar read statements"`
-	MigrationsURL        string                `mapstructure:"migrations_url" description:"location of a directory containing sql migrations scripts"`
-	EncryptionKey        string                `mapstructure:"encryption_key" description:"key to use for encrypting database entries"`
-	SkipSSLValidation    bool                  `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when connecting to the storage"`
-	MaxIdleConnections   int                   `mapstructure:"max_idle_connections" description:"sets the maximum number of connections in the idle connection pool"`
-	Notification         *NotificationSettings `mapstructure:"notification"`
+	URI                string                `mapstructure:"uri" description:"URI of the storage"`
+	MigrationsURL      string                `mapstructure:"migrations_url" description:"location of a directory containing sql migrations scripts"`
+	EncryptionKey      string                `mapstructure:"encryption_key" description:"key to use for encrypting database entries"`
+	SkipSSLValidation  bool                  `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when connecting to the storage"`
+	MaxIdleConnections int                   `mapstructure:"max_idle_connections" description:"sets the maximum number of connections in the idle connection pool"`
+	Notification       *NotificationSettings `mapstructure:"notification"`
 }
 
 // DefaultSettings returns default values for storage settings
 func DefaultSettings() *Settings {
 	return &Settings{
-		URI:                  "",
-		MigrationsURL:        fmt.Sprintf("file://%s/postgres/migrations", basepath),
-		EncryptionKey:        "",
-		TransactionalCaching: false,
-		SkipSSLValidation:    false,
-		MaxIdleConnections:   5,
-		Notification:         DefaultNotificationSettings(),
+		URI:                "",
+		MigrationsURL:      fmt.Sprintf("file://%s/postgres/migrations", basepath),
+		EncryptionKey:      "",
+		SkipSSLValidation:  false,
+		MaxIdleConnections: 5,
+		Notification:       DefaultNotificationSettings(),
 	}
 }
 
