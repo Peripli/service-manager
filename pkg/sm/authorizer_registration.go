@@ -83,6 +83,10 @@ func (ab *authorizerBuilder) AllTenant(allTenantScopes ...string) *authorizerBui
 
 func (ab *authorizerBuilder) For(methods ...string) *authorizerBuilder {
 	ab.methods = methods
+	return ab
+}
+
+func (ab *authorizerBuilder) And() *authorizerBuilder {
 	return &authorizerBuilder{
 		parent:                ab,
 		path:                  ab.path,
@@ -94,12 +98,15 @@ func (ab *authorizerBuilder) For(methods ...string) *authorizerBuilder {
 	}
 }
 
-func (ab *authorizerBuilder) Done() *ServiceManagerBuilder {
-	current := ab.parent
+func (ab *authorizerBuilder) Register() *ServiceManagerBuilder {
+	current := ab
 	for current != nil {
 		path := current.path
 		if len(path) == 0 {
 			path = TypeToPath[current.objectType]
+		}
+		if len(current.methods) == 0 {
+			log.D().Panicf("Cannot register authorization for %s with no methods", path)
 		}
 		filter := NewAuthzFilter(current.methods, path, current.authorizer)
 		current.attachFunc(filter)
