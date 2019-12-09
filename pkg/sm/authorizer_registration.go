@@ -33,7 +33,7 @@ type authorizerBuilder struct {
 	path       string
 	methods    []string
 
-	authorizer httpsec.Authorizer
+	authorizers []httpsec.Authorizer
 
 	cloneSpace            string
 	clientID              string
@@ -50,41 +50,34 @@ func (ab *authorizerBuilder) Configure(cloneSpace, clientID, trustedClientIDSuff
 }
 
 func (ab *authorizerBuilder) Custom(authorizer httpsec.Authorizer) *authorizerBuilder {
-	ab.authorizer = authorizer
+	ab.authorizers = append(ab.authorizers, authorizer)
 	return ab
 }
 
 func (ab *authorizerBuilder) Global(scopes ...string) *authorizerBuilder {
-	ab.authorizer = authz.NewOrAuthorizer(
-		ab.authorizer,
-		authz.NewAndAuthorizer(
-			NewOAuthCloneAuthorizer(ab.trustedClientIDSuffix, web.GlobalAccess),
-			NewRequiredScopesAuthorizer(PrefixScopes(ab.cloneSpace, scopes...), web.GlobalAccess),
-		))
+	ab.authorizers = append(ab.authorizers, authz.NewAndAuthorizer(
+		NewOAuthCloneAuthorizer(ab.trustedClientIDSuffix, web.GlobalAccess),
+		NewRequiredScopesAuthorizer(PrefixScopes(ab.cloneSpace, scopes...), web.GlobalAccess),
+	))
 	return ab
 }
 
 func (ab *authorizerBuilder) Tenant(tenantScopes ...string) *authorizerBuilder {
-	ab.authorizer = authz.NewOrAuthorizer(
-		ab.authorizer,
-		authz.NewAndAuthorizer(
-			authz.NewOrAuthorizer(
-				NewOauthClientAuthorizer(ab.clientID, web.GlobalAccess),
-				// required for sm broker
-				NewOAuthCloneAuthorizer(ab.trustedClientIDSuffix, web.GlobalAccess),
-			),
-			NewRequiredScopesAuthorizer(PrefixScopes(ab.cloneSpace, tenantScopes...), web.TenantAccess),
-		))
+	ab.authorizers = append(ab.authorizers, authz.NewAndAuthorizer(
+		authz.NewOrAuthorizer(
+			NewOauthClientAuthorizer(ab.clientID, web.GlobalAccess),
+			NewOAuthCloneAuthorizer(ab.trustedClientIDSuffix, web.GlobalAccess),
+		),
+		NewRequiredScopesAuthorizer(PrefixScopes(ab.cloneSpace, tenantScopes...), web.TenantAccess),
+	))
 	return ab
 }
 
 func (ab *authorizerBuilder) AllTenant(allTenantScopes ...string) *authorizerBuilder {
-	ab.authorizer = authz.NewOrAuthorizer(
-		ab.authorizer,
-		authz.NewAndAuthorizer(
-			NewOAuthCloneAuthorizer(ab.trustedClientIDSuffix, web.GlobalAccess),
-			NewRequiredScopesAuthorizer(PrefixScopes(ab.cloneSpace, allTenantScopes...), web.AllTenantAccess),
-		))
+	ab.authorizers = append(ab.authorizers, authz.NewAndAuthorizer(
+		NewOAuthCloneAuthorizer(ab.trustedClientIDSuffix, web.GlobalAccess),
+		NewRequiredScopesAuthorizer(PrefixScopes(ab.cloneSpace, allTenantScopes...), web.AllTenantAccess),
+	))
 	return ab
 }
 
@@ -116,7 +109,7 @@ func (ab *authorizerBuilder) Register() *ServiceManagerBuilder {
 		if len(current.methods) == 0 {
 			log.D().Panicf("Cannot register authorization for %s with no methods", path)
 		}
-		filter := NewAuthzFilter(current.methods, path, current.authorizer)
+		filter := NewAuthzFilter(current.methods, path, authz.NewOrAuthorizer(current.authorizers...))
 		current.attachFunc(filter)
 		current = current.parent
 	}
