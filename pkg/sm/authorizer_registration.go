@@ -29,10 +29,12 @@ var TypeToPath = map[types.ObjectType]string{
 type authorizerBuilder struct {
 	parent *authorizerBuilder
 
-	objectType            types.ObjectType
-	path                  string
-	methods               []string
-	authorizer            httpsec.Authorizer
+	objectType types.ObjectType
+	path       string
+	methods    []string
+
+	authorizer httpsec.Authorizer
+
 	cloneSpace            string
 	clientID              string
 	trustedClientIDSuffix string
@@ -44,6 +46,11 @@ func (ab *authorizerBuilder) Configure(cloneSpace, clientID, trustedClientIDSuff
 	ab.cloneSpace = cloneSpace
 	ab.clientID = clientID
 	ab.trustedClientIDSuffix = trustedClientIDSuffix
+	return ab
+}
+
+func (ab *authorizerBuilder) Custom(authorizer httpsec.Authorizer) *authorizerBuilder {
+	ab.authorizer = authorizer
 	return ab
 }
 
