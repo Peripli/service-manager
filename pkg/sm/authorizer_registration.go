@@ -1,6 +1,8 @@
 package sm
 
 import (
+	"fmt"
+
 	"github.com/Peripli/service-manager/pkg/security/filters"
 
 	"github.com/Peripli/service-manager/pkg/security/http/authz"
@@ -122,7 +124,7 @@ func (ab *authorizerBuilder) Register() *ServiceManagerBuilder {
 		filter := filters.NewAuthzFilter(current.methods, path, finalAuthorizer)
 		current.attachFunc(filter)
 		if !ab.optional {
-			current.attachFunc(filters.NewRequiredAuthzFilter([]web.FilterMatcher{
+			current.attachFunc(filters.NewRequiredAuthzFilter(fmt.Sprintf("%v-%s", current.methods, path), []web.FilterMatcher{
 				{
 					Matchers: []web.Matcher{
 						web.Path(path),

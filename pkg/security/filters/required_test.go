@@ -53,7 +53,7 @@ var _ = Describe("Filters tests", func() {
 
 		BeforeEach(func() {
 			matchers = []web.FilterMatcher{}
-			requiredAuthzFilter = NewRequiredAuthzFilter(matchers)
+			requiredAuthzFilter = NewRequiredAuthzFilter("test", matchers)
 		})
 
 		Describe("when Filter.Run is invoked with no authorization confirmation", func() {
