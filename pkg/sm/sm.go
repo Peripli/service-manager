@@ -58,13 +58,13 @@ import (
 type ServiceManagerBuilder struct {
 	*web.API
 
-	Storage             *storage.InterceptableTransactionalRepository
-	Notificator         storage.Notificator
-	NotificationCleaner *storage.NotificationCleaner
-	ctx                 context.Context
-	wg                  *sync.WaitGroup
-	cfg                 *config.Settings
-	authorizations      authorizerBuilder
+	Storage              *storage.InterceptableTransactionalRepository
+	Notificator          storage.Notificator
+	NotificationCleaner  *storage.NotificationCleaner
+	ctx                  context.Context
+	wg                   *sync.WaitGroup
+	cfg                  *config.Settings
+	authorizationFilters []web.Filter
 }
 
 // ServiceManager  struct
@@ -147,14 +147,14 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	}
 
 	smb := &ServiceManagerBuilder{
-		API:                 API,
-		Storage:             interceptableRepository,
-		Notificator:         pgNotificator,
-		NotificationCleaner: notificationCleaner,
-		ctx:                 ctx,
-		wg:                  waitGroup,
-		cfg:                 cfg,
-		authorizations:      authorizerBuilder{},
+		API:                  API,
+		Storage:              interceptableRepository,
+		Notificator:          pgNotificator,
+		NotificationCleaner:  notificationCleaner,
+		ctx:                  ctx,
+		wg:                   waitGroup,
+		cfg:                  cfg,
+		authorizationFilters: make([]web.Filter, 0),
 	}
 
 	smb.RegisterPlugins(plugins.NewCatalogFilterByVisibilityPlugin(interceptableRepository))
@@ -185,6 +185,8 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 
 // Build builds the Service Manager
 func (smb *ServiceManagerBuilder) Build() *ServiceManager {
+	smb.RegisterFiltersAfter(filters.CriteriaFilterName, smb.authorizationFilters...)
+
 	if err := smb.installHealth(); err != nil {
 		log.C(smb.ctx).Panic(err)
 	}
@@ -419,7 +421,7 @@ func (smb *ServiceManagerBuilder) Authorize(objectType types.ObjectType) *author
 	return &authorizerBuilder{
 		objectType: objectType,
 		attachFunc: func(authorizationFilter web.Filter) {
-			smb.RegisterFiltersAfter(filters.CriteriaFilterName, authorizationFilter)
+			smb.authorizationFilters = append(smb.authorizationFilters, authorizationFilter)
 		},
 		done: func() *ServiceManagerBuilder {
 			return smb
@@ -431,7 +433,7 @@ func (smb *ServiceManagerBuilder) AuthorizePath(path string) *authorizerBuilder 
 	return &authorizerBuilder{
 		path: path,
 		attachFunc: func(authorizationFilter web.Filter) {
-			smb.RegisterFiltersAfter(filters.CriteriaFilterName, authorizationFilter)
+			smb.authorizationFilters = append(smb.authorizationFilters, authorizationFilter)
 		},
 		done: func() *ServiceManagerBuilder {
 			return smb
