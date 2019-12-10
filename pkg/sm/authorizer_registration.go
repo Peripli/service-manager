@@ -107,7 +107,10 @@ func (ab *authorizerBuilder) Register() *ServiceManagerBuilder {
 			path = TypeToPath[current.objectType]
 		}
 		if len(current.methods) == 0 {
-			log.D().Panicf("Cannot register authorization for %s with no methods", path)
+			log.D().Panicf("Cannot register authorizers at %s with no methods", path)
+		}
+		if len(current.authorizers) == 0 {
+			log.D().Panicf("Cannot register 0 authorizers at %s for %v", path, current.methods)
 		}
 		filter := filters.NewAuthzFilter(current.methods, path, authz.NewOrAuthorizer(current.authorizers...))
 		current.attachFunc(filter)
