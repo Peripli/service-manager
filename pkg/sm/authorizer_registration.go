@@ -119,27 +119,19 @@ func (ab *authorizerBuilder) Register() *ServiceManagerBuilder {
 			log.D().Panicf("Cannot register 0 authorizers at %s for %v", path, current.methods)
 		}
 		finalAuthorizer := authz.NewOrAuthorizer(current.authorizers...)
-		if !ab.optional {
-			finalAuthorizer = authz.NewAndAuthorizer(finalAuthorizer, NewRequiredAuthz())
-		}
 		filter := filters.NewAuthzFilter(current.methods, path, finalAuthorizer)
 		current.attachFunc(filter)
+		if !ab.optional {
+			current.attachFunc(filters.NewRequiredAuthzFilter([]web.FilterMatcher{
+				{
+					Matchers: []web.Matcher{
+						web.Path(path),
+						web.Methods(current.methods...),
+					},
+				},
+			}))
+		}
 		current = current.parent
 	}
 	return ab.done()
-}
-
-func NewRequiredAuthz() httpsec.Authorizer {
-	return &requiredAuthz{}
-}
-
-type requiredAuthz struct{}
-
-func (raz *requiredAuthz) Authorize(req *web.Request) (httpsec.Decision, web.AccessLevel, error) {
-	ctx := req.Context()
-	user, found := web.UserFromContext(ctx)
-	if web.IsAuthorized(ctx) && found {
-		return httpsec.Allow, user.AccessLevel, nil
-	}
-	return httpsec.Deny, web.NoAccess, nil
 }
