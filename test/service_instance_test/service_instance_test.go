@@ -19,15 +19,17 @@ package service_test
 import (
 	"context"
 	"fmt"
+
 	"github.com/Peripli/service-manager/test/testutil/service_instance"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 
-	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/test/common"
 	"net/http"
 	"testing"
+
+	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/test/common"
 
 	"github.com/Peripli/service-manager/test"
 
