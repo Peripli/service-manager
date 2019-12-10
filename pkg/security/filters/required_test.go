@@ -35,7 +35,6 @@ func TestServer(t *testing.T) {
 }
 
 var _ = Describe("Filters tests", func() {
-	const expectedErrorMessage = "expected error"
 	var (
 		req     *web.Request
 		handler *webfakes.FakeHandler

@@ -28,8 +28,8 @@ type authorizerBuilder struct {
 	path       string
 	methods    []string
 
-	authorizers []httpsec.Authorizer
-
+	authorizers           []httpsec.Authorizer
+	optional              bool
 	cloneSpace            string
 	clientID              string
 	trustedClientIDSuffix string
@@ -86,6 +86,11 @@ func (ab *authorizerBuilder) For(methods ...string) *authorizerBuilder {
 	return ab
 }
 
+func (ab *authorizerBuilder) Optional() *authorizerBuilder {
+	ab.optional = true
+	return ab
+}
+
 func (ab *authorizerBuilder) And() *authorizerBuilder {
 	return &authorizerBuilder{
 		parent:                ab,
@@ -96,6 +101,7 @@ func (ab *authorizerBuilder) And() *authorizerBuilder {
 		trustedClientIDSuffix: ab.trustedClientIDSuffix,
 		attachFunc:            ab.attachFunc,
 		done:                  ab.done,
+		optional:              false,
 	}
 }
 
@@ -112,9 +118,28 @@ func (ab *authorizerBuilder) Register() *ServiceManagerBuilder {
 		if len(current.authorizers) == 0 {
 			log.D().Panicf("Cannot register 0 authorizers at %s for %v", path, current.methods)
 		}
-		filter := filters.NewAuthzFilter(current.methods, path, authz.NewOrAuthorizer(current.authorizers...))
+		finalAuthorizer := authz.NewOrAuthorizer(current.authorizers...)
+		if !ab.optional {
+			finalAuthorizer = authz.NewAndAuthorizer(finalAuthorizer, NewRequiredAuthz())
+		}
+		filter := filters.NewAuthzFilter(current.methods, path, finalAuthorizer)
 		current.attachFunc(filter)
 		current = current.parent
 	}
 	return ab.done()
+}
+
+func NewRequiredAuthz() httpsec.Authorizer {
+	return &requiredAuthz{}
+}
+
+type requiredAuthz struct{}
+
+func (raz *requiredAuthz) Authorize(req *web.Request) (httpsec.Decision, web.AccessLevel, error) {
+	ctx := req.Context()
+	user, found := web.UserFromContext(ctx)
+	if web.IsAuthorized(ctx) && found {
+		return httpsec.Allow, user.AccessLevel, nil
+	}
+	return httpsec.Deny, web.NoAccess, nil
 }
