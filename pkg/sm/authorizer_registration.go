@@ -76,6 +76,11 @@ func (ab *authorizerBuilder) AllTenant(allTenantScopes ...string) *authorizerBui
 	return ab
 }
 
+func (ab *authorizerBuilder) Basic(access web.AccessLevel) *authorizerBuilder {
+	ab.authorizers = append(ab.authorizers, authz.NewBasic(access))
+	return ab
+}
+
 func (ab *authorizerBuilder) For(methods ...string) *authorizerBuilder {
 	ab.methods = methods
 	return ab
