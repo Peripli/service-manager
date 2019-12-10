@@ -4,7 +4,6 @@ import (
 	"context"
 
 	httpsec "github.com/Peripli/service-manager/pkg/security/http"
-
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
@@ -37,15 +36,4 @@ func (a *baseAuthorizer) Authorize(request *web.Request) (httpsec.Decision, web.
 	request.Request = request.WithContext(web.ContextWithUser(ctx, user))
 
 	return decision, accessLevel, nil
-}
-
-func findMostRestrictiveAccessLevel(levels []web.AccessLevel) web.AccessLevel {
-	min := levels[0]
-	for _, level := range levels {
-
-		if level < min {
-			min = level
-		}
-	}
-	return min
 }
