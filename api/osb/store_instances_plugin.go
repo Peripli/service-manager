@@ -584,7 +584,9 @@ func (ssi *StoreServiceInstancePlugin) rollbackInstance(ctx context.Context, req
 	var instance types.Object
 	var err error
 	if instance, err = storage.Get(ctx, types.ServiceInstanceType, byID); err != nil {
-		return util.HandleStorageError(err, string(types.ServiceInstanceType))
+		if err != util.ErrNotFoundInStorage {
+			return util.HandleStorageError(err, string(types.ServiceInstanceType))
+		}
 	}
 	if instance == nil {
 		return nil
@@ -620,7 +622,9 @@ func (ssi *StoreServiceInstancePlugin) updateInstanceReady(ctx context.Context, 
 	var instance types.Object
 	var err error
 	if instance, err = storage.Get(ctx, types.ServiceInstanceType, byID); err != nil {
-		return util.HandleStorageError(err, string(types.ServiceInstanceType))
+		if err != util.ErrNotFoundInStorage {
+			return util.HandleStorageError(err, string(types.ServiceInstanceType))
+		}
 	}
 	if instance == nil {
 		return nil
