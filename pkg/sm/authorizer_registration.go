@@ -123,7 +123,7 @@ func (ab *authorizerBuilder) Register() *ServiceManagerBuilder {
 		finalAuthorizer := authz.NewOrAuthorizer(current.authorizers...)
 		filter := filters.NewAuthzFilter(current.methods, path, finalAuthorizer)
 		current.attachFunc(filter)
-		if !ab.optional {
+		if !current.optional {
 			current.attachFunc(filters.NewRequiredAuthzFilter(fmt.Sprintf("%v-%s", current.methods, path), []web.FilterMatcher{
 				{
 					Matchers: []web.Matcher{
