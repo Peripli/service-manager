@@ -16,16 +16,15 @@ type securityBuilder struct {
 	currentMatchers []web.Matcher
 	paths           []string
 	methods         []string
-	smb             *ServiceManagerBuilder
-
-	authenticators []httpsec.Authenticator
-	authorizers    []httpsec.Authorizer
+	authenticators  []httpsec.Authenticator
+	authorizers     []httpsec.Authorizer
 
 	requiredAuthNMatchers []web.FilterMatcher
 	requiredAuthZMatchers []web.FilterMatcher
+	authnFilters          []web.Filter
+	authzFilters          []web.Filter
 
-	authnFilters []web.Filter
-	authzFilters []web.Filter
+	smb *ServiceManagerBuilder
 }
 
 type authenticationBuilder struct {
@@ -67,6 +66,26 @@ func (sb *securityBuilder) WithAuthentication(authenticator httpsec.Authenticato
 	return sb
 }
 
+func (sb *securityBuilder) WithAuthorization(authorizer httpsec.Authorizer) *securityBuilder {
+	sb.authorizers = append(sb.authorizers, authorizer)
+	return sb
+}
+
+func (sb *securityBuilder) WithScopes(scopes ...string) *securityBuilder {
+	sb.authorizers = append(sb.authorizers, authz.NewScopesAuthorizer(scopes, web.GlobalAccess))
+	return sb
+}
+
+func (sb *securityBuilder) WithClientIDSuffix(suffix string) *securityBuilder {
+	sb.authorizers = append(sb.authorizers, authz.NewOAuthCloneAuthorizer(suffix, web.GlobalAccess))
+	return sb
+}
+
+func (sb *securityBuilder) WithClientID(clientID string) *securityBuilder {
+	sb.authorizers = append(sb.authorizers, authz.NewOauthClientAuthorizer(clientID, web.GlobalAccess))
+	return sb
+}
+
 func (sb *securityBuilder) reset() {
 	sb.currentMatchers = make([]web.Matcher, 0)
 	sb.paths = make([]string, 0)
@@ -77,7 +96,6 @@ func (sb *securityBuilder) reset() {
 
 func (sb *securityBuilder) register() {
 	if len(sb.authenticators) > 0 {
-		// sb.requiredAuthNMatchers = append(sb.requiredAuthNMatchers, web.FilterMatcher{sb.currentMatchers})
 		finalAuthenticator := authn.NewOrAuthenticator(sb.authenticators...)
 
 		sb.authnFilters = append(sb.authnFilters,

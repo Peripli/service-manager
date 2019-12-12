@@ -20,7 +20,7 @@ import (
 // 	return newScopesAuthorizer(optionalScopes, false, level)
 // }
 
-func NewScopesAuthorizer(scopes []string, mandatory bool, level web.AccessLevel) httpsec.Authorizer {
+func NewScopesAuthorizer(scopes []string, level web.AccessLevel) httpsec.Authorizer {
 	return newBaseAuthorizer(func(ctx context.Context, userContext *web.UserContext) (httpsec.Decision, web.AccessLevel, error) {
 		var claims struct {
 			Scopes []string `json:"scope"`
