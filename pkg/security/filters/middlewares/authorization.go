@@ -56,8 +56,8 @@ func (m *Authorization) Run(request *web.Request, next web.Handler) (*web.Respon
 		if !web.IsAuthorized(ctx) {
 			request.Request = request.WithContext(web.ContextWithAuthorization(ctx))
 		}
-	case http.Deny:
-		return nil, security.ForbiddenHTTPError("authorization failed")
+		// case http.Deny:
+		// 	return nil, security.ForbiddenHTTPError("authorization failed")
 	}
 
 	return next.Handle(request)

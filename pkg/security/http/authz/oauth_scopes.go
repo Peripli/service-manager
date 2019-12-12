@@ -10,17 +10,17 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-// NewRequiredScopesAuthorizer returns OAuth authorizer which denys if scopes not presented
-func NewRequiredScopesAuthorizer(requiredScopes []string, level web.AccessLevel) httpsec.Authorizer {
-	return newScopesAuthorizer(requiredScopes, true, level)
-}
+// // NewRequiredScopesAuthorizer returns OAuth authorizer which denys if scopes not presented
+// func NewRequiredScopesAuthorizer(requiredScopes []string, level web.AccessLevel) httpsec.Authorizer {
+// 	return newScopesAuthorizer(requiredScopes, true, level)
+// }
 
-// NewOptionalScopesAuthorizer returns OAuth authorizer which abstains if scopes not presented
-func NewOptionalScopesAuthorizer(optionalScopes []string, level web.AccessLevel) httpsec.Authorizer {
-	return newScopesAuthorizer(optionalScopes, false, level)
-}
+// // NewOptionalScopesAuthorizer returns OAuth authorizer which abstains if scopes not presented
+// func NewOptionalScopesAuthorizer(optionalScopes []string, level web.AccessLevel) httpsec.Authorizer {
+// 	return newScopesAuthorizer(optionalScopes, false, level)
+// }
 
-func newScopesAuthorizer(scopes []string, mandatory bool, level web.AccessLevel) httpsec.Authorizer {
+func NewScopesAuthorizer(scopes []string, mandatory bool, level web.AccessLevel) httpsec.Authorizer {
 	return newBaseAuthorizer(func(ctx context.Context, userContext *web.UserContext) (httpsec.Decision, web.AccessLevel, error) {
 		var claims struct {
 			Scopes []string `json:"scope"`
@@ -35,10 +35,6 @@ func newScopesAuthorizer(scopes []string, mandatory bool, level web.AccessLevel)
 			if slice.StringsAnyEquals(userScopes, scope) {
 				return httpsec.Allow, level, nil
 			}
-		}
-		if mandatory {
-			return httpsec.Deny, web.NoAccess, fmt.Errorf(`none of the required scopes %v are present in the user token scopes %v`,
-				scopes, userScopes)
 		}
 
 		log.C(ctx).Debugf("none of the optional scopes %v are present in the user token scopes %v", scopes, userScopes)

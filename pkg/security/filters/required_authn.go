@@ -26,12 +26,16 @@ import (
 const RequiredAuthenticationFilterName = "RequiredAuthenticationFilter"
 
 // NewRequiredAuthnFilter returns web.Filter
-func NewRequiredAuthnFilter() web.Filter {
-	return &requiredAuthnFilter{}
+func NewRequiredAuthnFilter(matchers []web.FilterMatcher) web.Filter {
+	return &requiredAuthnFilter{
+		matchers: matchers,
+	}
 }
 
 // requiredAuthnFilter type verifies that authentication has been performed for APIs that are secured
-type requiredAuthnFilter struct{}
+type requiredAuthnFilter struct {
+	matchers []web.FilterMatcher
+}
 
 // Name implements the web.Filter interface and returns the identifier of the filter
 func (raf *requiredAuthnFilter) Name() string {
@@ -52,21 +56,5 @@ func (raf *requiredAuthnFilter) Run(request *web.Request, next web.Handler) (*we
 
 // FilterMatchers implements the web.Filter interface and returns the conditions on which the filter should be executed
 func (raf *requiredAuthnFilter) FilterMatchers() []web.FilterMatcher {
-	return []web.FilterMatcher{
-		{
-			Matchers: []web.Matcher{
-				web.Path(
-					web.ServiceBrokersURL+"/**",
-					web.PlatformsURL+"/**",
-					web.OSBURL+"/**",
-					web.ServiceOfferingsURL+"/**",
-					web.ServicePlansURL+"/**",
-					web.VisibilitiesURL+"/**",
-					web.NotificationsURL+"/**",
-					web.ServiceInstancesURL+"/**",
-					web.ConfigURL+"/**",
-				),
-			},
-		},
-	}
+	return raf.matchers
 }

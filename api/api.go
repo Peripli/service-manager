@@ -38,7 +38,6 @@ import (
 	"github.com/Peripli/service-manager/api/info"
 	"github.com/Peripli/service-manager/api/osb"
 	"github.com/Peripli/service-manager/pkg/health"
-	secfilters "github.com/Peripli/service-manager/pkg/security/filters"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
 )
@@ -86,10 +85,10 @@ type Options struct {
 
 // New returns the minimum set of REST APIs needed for the Service Manager
 func New(ctx context.Context, e env.Environment, options *Options) (*web.API, error) {
-	bearerAuthnFilter, err := filters.NewOIDCAuthnFilter(ctx, options.APISettings.TokenIssuerURL, options.APISettings.ClientID)
-	if err != nil {
-		return nil, err
-	}
+	// bearerAuthnFilter, err := filters.NewOIDCAuthnFilter(ctx, options.APISettings.TokenIssuerURL, options.APISettings.ClientID)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	return &web.API{
 		// Default controllers - more filters can be registered using the relevant API methods
@@ -128,9 +127,9 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
 			&filters.Logging{},
-			filters.NewBasicAuthnFilter(options.Repository),
-			bearerAuthnFilter,
-			secfilters.NewRequiredAuthnFilter(),
+			// filters.NewBasicAuthnFilter(options.Repository),
+			// bearerAuthnFilter,
+			// secfilters.NewRequiredAuthnFilter(),
 			&filters.SelectionCriteria{},
 			filters.NewProtectedLabelsFilter(options.APISettings.ProtectedLabels),
 			&filters.PlatformAwareVisibilityFilter{},

@@ -49,8 +49,8 @@ func (m *Authentication) Run(request *web.Request, next web.Handler) (*web.Respo
 			return nil, security.ErrUserNotFound
 		}
 		request.Request = request.WithContext(web.ContextWithUser(ctx, user))
-	case http.Deny:
-		return nil, security.UnauthorizedHTTPError("authentication failed")
+	// case http.Deny:
+	// 	return nil, security.UnauthorizedHTTPError("authentication failed")
 	}
 
 	return next.Handle(request)

@@ -17,8 +17,6 @@
 package filters
 
 import (
-	"fmt"
-
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -29,21 +27,19 @@ const RequiredAuthorizationFilterName = "RequiredAuthorizationFilter"
 
 // requiredAuthzFilter type verifies that authorization has been performed for APIs that are secured
 type requiredAuthzFilter struct {
-	where          string
 	filterMatchers []web.FilterMatcher
 }
 
 // NewRequiredAuthzFilter returns web.Filter which requires at least one authorization flows to be successful
-func NewRequiredAuthzFilter(where string, matchers []web.FilterMatcher) web.Filter {
+func NewRequiredAuthzFilter(matchers []web.FilterMatcher) web.Filter {
 	return &requiredAuthzFilter{
-		where:          where,
 		filterMatchers: matchers,
 	}
 }
 
 // Name implements the web.Filter interface and returns the identifier of the filter
 func (raf *requiredAuthzFilter) Name() string {
-	return fmt.Sprintf("%s@%s", RequiredAuthorizationFilterName, raf.where)
+	return RequiredAuthorizationFilterName
 }
 
 // Run implements web.Filter and represents the authorization middleware function that verifies the user is

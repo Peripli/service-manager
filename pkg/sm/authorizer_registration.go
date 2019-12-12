@@ -1,13 +1,8 @@
 package sm
 
 import (
-	"fmt"
-
-	"github.com/Peripli/service-manager/pkg/security/filters"
-
 	"github.com/Peripli/service-manager/pkg/security/http/authz"
 
-	"github.com/Peripli/service-manager/pkg/log"
 	httpsec "github.com/Peripli/service-manager/pkg/security/http"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -51,32 +46,32 @@ func (ab *authorizerBuilder) Custom(authorizer httpsec.Authorizer) *authorizerBu
 	return ab
 }
 
-func (ab *authorizerBuilder) Global(scopes ...string) *authorizerBuilder {
-	ab.authorizers = append(ab.authorizers, authz.NewAndAuthorizer(
-		authz.NewOAuthCloneAuthorizer(ab.trustedClientIDSuffix, web.GlobalAccess),
-		authz.NewRequiredScopesAuthorizer(authz.PrefixScopes(ab.cloneSpace, scopes...), web.GlobalAccess),
-	))
-	return ab
-}
+// func (ab *authorizerBuilder) Global(scopes ...string) *authorizerBuilder {
+// 	ab.authorizers = append(ab.authorizers, authz.NewAndAuthorizer(
+// 		authz.NewOAuthCloneAuthorizer(ab.trustedClientIDSuffix, web.GlobalAccess),
+// 		authz.NewRequiredScopesAuthorizer(authz.PrefixScopes(ab.cloneSpace, scopes...), web.GlobalAccess),
+// 	))
+// 	return ab
+// }
 
-func (ab *authorizerBuilder) Tenant(tenantScopes ...string) *authorizerBuilder {
-	ab.authorizers = append(ab.authorizers, authz.NewAndAuthorizer(
-		authz.NewOrAuthorizer(
-			authz.NewOauthClientAuthorizer(ab.clientID, web.GlobalAccess),
-			authz.NewOAuthCloneAuthorizer(ab.trustedClientIDSuffix, web.GlobalAccess),
-		),
-		authz.NewRequiredScopesAuthorizer(authz.PrefixScopes(ab.cloneSpace, tenantScopes...), web.TenantAccess),
-	))
-	return ab
-}
+// func (ab *authorizerBuilder) Tenant(tenantScopes ...string) *authorizerBuilder {
+// 	ab.authorizers = append(ab.authorizers, authz.NewAndAuthorizer(
+// 		authz.NewOrAuthorizer(
+// 			authz.NewOauthClientAuthorizer(ab.clientID, web.GlobalAccess),
+// 			authz.NewOAuthCloneAuthorizer(ab.trustedClientIDSuffix, web.GlobalAccess),
+// 		),
+// 		authz.NewRequiredScopesAuthorizer(authz.PrefixScopes(ab.cloneSpace, tenantScopes...), web.TenantAccess),
+// 	))
+// 	return ab
+// }
 
-func (ab *authorizerBuilder) AllTenant(allTenantScopes ...string) *authorizerBuilder {
-	ab.authorizers = append(ab.authorizers, authz.NewAndAuthorizer(
-		authz.NewOAuthCloneAuthorizer(ab.trustedClientIDSuffix, web.GlobalAccess),
-		authz.NewRequiredScopesAuthorizer(authz.PrefixScopes(ab.cloneSpace, allTenantScopes...), web.AllTenantAccess),
-	))
-	return ab
-}
+// func (ab *authorizerBuilder) AllTenant(allTenantScopes ...string) *authorizerBuilder {
+// 	ab.authorizers = append(ab.authorizers, authz.NewAndAuthorizer(
+// 		authz.NewOAuthCloneAuthorizer(ab.trustedClientIDSuffix, web.GlobalAccess),
+// 		authz.NewRequiredScopesAuthorizer(authz.PrefixScopes(ab.cloneSpace, allTenantScopes...), web.AllTenantAccess),
+// 	))
+// 	return ab
+// }
 
 func (ab *authorizerBuilder) Basic(access web.AccessLevel) *authorizerBuilder {
 	ab.authorizers = append(ab.authorizers, authz.NewBasic(access))
@@ -107,33 +102,33 @@ func (ab *authorizerBuilder) And() *authorizerBuilder {
 	}
 }
 
-func (ab *authorizerBuilder) Register() *ServiceManagerBuilder {
-	current := ab
-	for current != nil {
-		path := current.path
-		if len(path) == 0 {
-			path = TypeToPath[current.objectType]
-		}
-		if len(current.methods) == 0 {
-			log.D().Panicf("Cannot register authorizers at %s with no methods", path)
-		}
-		if len(current.authorizers) == 0 {
-			log.D().Panicf("Cannot register 0 authorizers at %s for %v", path, current.methods)
-		}
-		finalAuthorizer := authz.NewOrAuthorizer(current.authorizers...)
-		filter := filters.NewAuthzFilter(current.methods, path, finalAuthorizer)
-		current.attachFunc(filter)
-		if !current.optional {
-			current.attachFunc(filters.NewRequiredAuthzFilter(fmt.Sprintf("%v-%s", current.methods, path), []web.FilterMatcher{
-				{
-					Matchers: []web.Matcher{
-						web.Path(path),
-						web.Methods(current.methods...),
-					},
-				},
-			}))
-		}
-		current = current.parent
-	}
-	return ab.done()
-}
+// func (ab *authorizerBuilder) Register() *ServiceManagerBuilder {
+// 	current := ab
+// 	for current != nil {
+// 		path := current.path
+// 		if len(path) == 0 {
+// 			path = TypeToPath[current.objectType]
+// 		}
+// 		if len(current.methods) == 0 {
+// 			log.D().Panicf("Cannot register authorizers at %s with no methods", path)
+// 		}
+// 		if len(current.authorizers) == 0 {
+// 			log.D().Panicf("Cannot register 0 authorizers at %s for %v", path, current.methods)
+// 		}
+// 		finalAuthorizer := authz.NewOrAuthorizer(current.authorizers...)
+// 		filter := filters.NewAuthzFilter(current.methods, path, finalAuthorizer)
+// 		current.attachFunc(filter)
+// 		if !current.optional {
+// 			current.attachFunc(filters.NewRequiredAuthzFilter(fmt.Sprintf("%v-%s", current.methods, path), []web.FilterMatcher{
+// 				{
+// 					Matchers: []web.Matcher{
+// 						web.Path(path),
+// 						web.Methods(current.methods...),
+// 					},
+// 				},
+// 			}))
+// 		}
+// 		current = current.parent
+// 	}
+// 	return ab.done()
+// }
