@@ -148,25 +148,35 @@ func (pq *pgQuery) Count(ctx context.Context) (int, error) {
 	return count, nil
 }
 
-func (pq *pgQuery) Delete(ctx context.Context) (*sqlx.Rows, sql.Result, error) {
+func (pq *pgQuery) Delete(ctx context.Context) (sql.Result, error) {
 	q, err := pq.resolveQueryTemplate(ctx, DeleteQueryTemplate)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	if len(pq.returningFields) != 0 {
-		rows, err := pq.db.QueryxContext(ctx, q, pq.queryParams...)
-		if err != nil {
-			return nil, nil, err
-		}
-		return rows, nil, nil
-	} else {
-		result, err := pq.db.ExecContext(ctx, q, pq.queryParams...)
-		if err != nil {
-			return nil, nil, err
-		}
-		return nil, result, nil
+	result, err := pq.db.ExecContext(ctx, q, pq.queryParams...)
+	if err != nil {
+		return nil, err
 	}
+	return result, nil
+}
+
+func (pq *pgQuery) DeleteReturning(ctx context.Context, fields ...string) (*sqlx.Rows, error) {
+	if err := validateReturningFields(columnsByTags(pq.entityTags), fields...); err != nil {
+		return nil, err
+	}
+	pq.returningFields = append(pq.returningFields, fields...)
+
+	q, err := pq.resolveQueryTemplate(ctx, DeleteQueryTemplate)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := pq.db.QueryxContext(ctx, q, pq.queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
 }
 
 func (pq *pgQuery) resolveQueryTemplate(ctx context.Context, template string) (string, error) {
@@ -203,19 +213,6 @@ func (pq *pgQuery) resolveQueryTemplate(ctx context.Context, template string) (s
 	}
 
 	return q, nil
-}
-
-func (pq *pgQuery) Return(fields ...string) *pgQuery {
-	if pq.err != nil {
-		return pq
-	}
-	if err := validateReturningFields(columnsByTags(pq.entityTags), fields...); err != nil {
-		pq.err = err
-		return pq
-	}
-	pq.returningFields = append(pq.returningFields, fields...)
-
-	return pq
 }
 
 func (pq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
@@ -412,6 +409,9 @@ func validateOrderFields(columns map[string]bool, orderRules ...orderRule) error
 }
 
 func validateReturningFields(columns map[string]bool, returningFields ...string) error {
+	if len(returningFields) == 0 {
+		return fmt.Errorf("returning fields cannot be empty")
+	}
 	fieldsToValidate := make([]string, 0, len(returningFields))
 	for _, returnedField := range returningFields {
 		if strings.Contains(returnedField, "*") {

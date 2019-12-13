@@ -247,7 +247,7 @@ func (ps *Storage) DeleteReturning(ctx context.Context, objType types.ObjectType
 		return nil, err
 	}
 
-	rows, _, err := ps.queryBuilder.NewQuery(entity).WithCriteria(criteria...).Return("*").Delete(ctx)
+	rows, err := ps.queryBuilder.NewQuery(entity).WithCriteria(criteria...).DeleteReturning(ctx, "*")
 	defer closeRows(ctx, rows)
 	if err != nil {
 		pqError, ok := err.(*pq.Error)
@@ -279,7 +279,7 @@ func (ps *Storage) Delete(ctx context.Context, objType types.ObjectType, criteri
 		return err
 	}
 
-	_, result, err := ps.queryBuilder.NewQuery(entity).WithCriteria(criteria...).Delete(ctx)
+	result, err := ps.queryBuilder.NewQuery(entity).WithCriteria(criteria...).Delete(ctx)
 	if err != nil {
 		pqError, ok := err.(*pq.Error)
 		if ok && pqError.Code.Name() == foreignKeyViolation {
