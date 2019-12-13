@@ -19,6 +19,9 @@ type securityBuilder struct {
 	authenticators  []httpsec.Authenticator
 	authorizers     []httpsec.Authorizer
 
+	authentication bool
+	authorization  bool
+
 	requiredAuthNMatchers []web.FilterMatcher
 	requiredAuthZMatchers []web.FilterMatcher
 	optionalAuthNMatchers []web.FilterMatcher
@@ -58,10 +61,10 @@ func (sb *securityBuilder) Optional() *ServiceManagerBuilder {
 }
 
 func (sb *securityBuilder) Required() *ServiceManagerBuilder {
-	if len(sb.authorizers) > 0 {
+	if sb.authorization {
 		sb.requiredAuthZMatchers = append(sb.requiredAuthZMatchers, web.FilterMatcher{sb.currentMatchers})
 	}
-	if len(sb.authenticators) > 0 {
+	if sb.authentication
 		sb.requiredAuthNMatchers = append(sb.requiredAuthNMatchers, web.FilterMatcher{sb.currentMatchers})
 	}
 	sb.register()
@@ -81,13 +84,23 @@ func (sb *securityBuilder) Method(methods ...string) *securityBuilder {
 	return sb
 }
 
+func (sb *securityBuilder) Authentication() *securityBuilder {
+	sb.authentication = true
+}
+
+func (sb *securityBuilder) Authorization() *securityBuilder {
+	sb.authorization = true
+}
+
 func (sb *securityBuilder) WithAuthentication(authenticator httpsec.Authenticator) *securityBuilder {
 	sb.authenticators = append(sb.authenticators, authenticator)
+	sb.authentication = true
 	return sb
 }
 
 func (sb *securityBuilder) WithAuthorization(authorizer httpsec.Authorizer) *securityBuilder {
 	sb.authorizers = append(sb.authorizers, authorizer)
+	sb.authorization = true
 	return sb
 }
 
@@ -112,6 +125,8 @@ func (sb *securityBuilder) reset() {
 	sb.methods = make([]string, 0)
 	sb.authenticators = make([]httpsec.Authenticator, 0)
 	sb.authorizers = make([]httpsec.Authorizer, 0)
+	sb.authentication = false
+	sb.authorization = false
 }
 
 func (sb *securityBuilder) register() {
@@ -144,7 +159,6 @@ func (sb *securityBuilder) register() {
 }
 
 func (sb *securityBuilder) finalize() {
-	sb.calculateRequired()
 	finalFilters := sb.authnFilters
 	if len(sb.requiredAuthNMatchers) > 0 {
 		requiredAuthN := secFilters.NewRequiredAuthnFilter(sb.requiredAuthNMatchers)
@@ -158,6 +172,3 @@ func (sb *securityBuilder) finalize() {
 	sb.smb.RegisterFiltersAfter(filters.LoggingFilterName, finalFilters...)
 }
 
-func (sb *securityBuilder) calculateRequired() {
-
-}
