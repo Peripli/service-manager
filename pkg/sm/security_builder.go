@@ -21,6 +21,8 @@ type securityBuilder struct {
 
 	requiredAuthNMatchers []web.FilterMatcher
 	requiredAuthZMatchers []web.FilterMatcher
+	optionalAuthNMatchers []web.FilterMatcher
+	optionalAuthZMatchers []web.FilterMatcher
 	authnFilters          []web.Filter
 	authzFilters          []web.Filter
 
@@ -32,6 +34,24 @@ type authenticationBuilder struct {
 }
 
 func (sb *securityBuilder) Optional() *ServiceManagerBuilder {
+	if len(sb.authorizers) > 0 {
+		for i := range sb.requiredAuthZMatchers {
+			sb.requiredAuthZMatchers[i].Matchers = append(sb.requiredAuthZMatchers[i].Matchers,
+				web.Not(
+					web.Path(sb.paths...),
+					web.Methods(sb.methods...),
+				))
+		}
+	}
+	if len(sb.authenticators) > 0 {
+		for i := range sb.requiredAuthNMatchers {
+			sb.requiredAuthNMatchers[i].Matchers = append(sb.requiredAuthNMatchers[i].Matchers,
+				web.Not(
+					web.Path(sb.paths...),
+					web.Methods(sb.methods...),
+				))
+		}
+	}
 	sb.register()
 	sb.reset()
 	return sb.smb
@@ -124,6 +144,7 @@ func (sb *securityBuilder) register() {
 }
 
 func (sb *securityBuilder) finalize() {
+	sb.calculateRequired()
 	finalFilters := sb.authnFilters
 	if len(sb.requiredAuthNMatchers) > 0 {
 		requiredAuthN := secFilters.NewRequiredAuthnFilter(sb.requiredAuthNMatchers)
@@ -135,4 +156,8 @@ func (sb *securityBuilder) finalize() {
 		finalFilters = append(finalFilters, requiredAuthZ)
 	}
 	sb.smb.RegisterFiltersAfter(filters.LoggingFilterName, finalFilters...)
+}
+
+func (sb *securityBuilder) calculateRequired() {
+
 }

@@ -39,6 +39,17 @@ func Methods(methods ...string) Matcher {
 	})
 }
 
+// NotMethods returns a Matcher that matches to routes that contain any of the specified methods
+func NotMethods(methods ...string) Matcher {
+	return MatcherFunc(func(endpoint Endpoint) (bool, error) {
+		if len(methods) == 0 {
+			return false, errEmptyHTTPMethods
+		}
+		method := endpoint.Method
+		return !matchInArray(methods, method), nil
+	})
+}
+
 // Path returns a Matcher that matches to routes a path that matches any of the specified patterns
 func Path(patterns ...string) Matcher {
 	return MatcherFunc(func(endpoint Endpoint) (bool, error) {
@@ -59,6 +70,42 @@ func Path(patterns ...string) Matcher {
 		return false, nil
 	})
 
+}
+
+func NotPath(patterns ...string) Matcher {
+	return MatcherFunc(func(endpoint Endpoint) (bool, error) {
+		path := endpoint.Path
+		if len(patterns) == 0 {
+			return false, errEmptyPathPattern
+		}
+		for _, pattern := range patterns {
+			pat, err := glob.Compile(pattern, '/')
+			if err != nil {
+				return false, errInvalidPathPattern
+			}
+			if pat.Match(path) || pat.Match(path+"/") {
+				return false, nil
+			}
+		}
+		return true, nil
+	})
+}
+
+func Not(matchers ...Matcher) Matcher {
+	return MatcherFunc(func(endpoint Endpoint) (bool, error) {
+		for _, m := range matchers {
+			match, err := m.Matches(endpoint)
+			if err != nil {
+				return false, err
+			}
+			// Match must be negated because of Not
+			match = !match
+			if match {
+				return true, nil
+			}
+		}
+		return false, nil
+	})
 }
 
 func matchInArray(arr []string, value string) bool {

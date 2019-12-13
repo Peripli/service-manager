@@ -52,6 +52,33 @@ var _ = Describe("Service Manager Authentication", func() {
 		ctx.Cleanup()
 	})
 
+	When("optional subpath", func() {
+		BeforeEach(func() {
+			contextBuilder.WithSMExtensions(func(_ context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+				smb.Security().Path("/**").Method(http.MethodGet).
+					WithAuthentication(&filters.BasicAuthenticator{
+						Repository: smb.Storage,
+					}).
+					Required()
+				smb.Security().Path("/v1/monitor/health").Method(http.MethodGet).
+					WithAuthentication(&filters.BasicAuthenticator{
+						Repository: smb.Storage,
+					}).
+					Optional()
+				return nil
+			})
+		})
+
+		It("should not require health authentication", func() {
+			ctx.SM.GET("/v1/monitor/health").Expect().Status(http.StatusOK)
+		})
+
+		It("should require broker authentication", func() {
+			ctx.SM.GET("/v1/service_brokers").Expect().Status(http.StatusUnauthorized)
+			ctx.SMWithBasic.GET("/v1/service_brokers").Expect().Status(http.StatusOK)
+		})
+	})
+
 	When("two types of authentication are attached", func() {
 		When("optional", func() {
 			BeforeEach(func() {

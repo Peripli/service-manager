@@ -89,6 +89,18 @@ func (a *BasicAuthenticator) Authenticate(request *http.Request) (*web.UserConte
 	}, httpsec.Allow, nil
 }
 
+func testMatchers() []web.FilterMatcher {
+	return []web.FilterMatcher{
+		{
+			Matchers: []web.Matcher{
+				web.Path("/**"),
+				web.Methods(http.MethodGet),
+				web.NotPath("/v1/monitor/health"),
+			},
+		},
+	}
+}
+
 func basicAuthnMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
