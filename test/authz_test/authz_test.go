@@ -61,9 +61,7 @@ var _ = Describe("Service Manager Authentication", func() {
 					}).
 					Required()
 				smb.Security().Path("/v1/monitor/health").Method(http.MethodGet).
-					WithAuthentication(&filters.BasicAuthenticator{
-						Repository: smb.Storage,
-					}).
+					Authentication().
 					Optional()
 				return nil
 			})

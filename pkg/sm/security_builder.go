@@ -13,11 +13,13 @@ import (
 )
 
 type securityBuilder struct {
-	currentMatchers []web.Matcher
-	paths           []string
-	methods         []string
-	authenticators  []httpsec.Authenticator
-	authorizers     []httpsec.Authorizer
+	pathMatcher   web.Matcher
+	methodMatcher web.Matcher
+
+	paths          []string
+	methods        []string
+	authenticators []httpsec.Authenticator
+	authorizers    []httpsec.Authorizer
 
 	authentication bool
 	authorization  bool
@@ -36,8 +38,8 @@ type authenticationBuilder struct {
 	sb *securityBuilder
 }
 
-func (sb *securityBuilder) Optional() *ServiceManagerBuilder {
-	if len(sb.authorizers) > 0 {
+func (sb *securityBuilder) Optional() *securityBuilder {
+	if sb.authorization {
 		for i := range sb.requiredAuthZMatchers {
 			sb.requiredAuthZMatchers[i].Matchers = append(sb.requiredAuthZMatchers[i].Matchers,
 				web.Not(
@@ -46,7 +48,7 @@ func (sb *securityBuilder) Optional() *ServiceManagerBuilder {
 				))
 		}
 	}
-	if len(sb.authenticators) > 0 {
+	if sb.authentication {
 		for i := range sb.requiredAuthNMatchers {
 			sb.requiredAuthNMatchers[i].Matchers = append(sb.requiredAuthNMatchers[i].Matchers,
 				web.Not(
@@ -56,40 +58,50 @@ func (sb *securityBuilder) Optional() *ServiceManagerBuilder {
 		}
 	}
 	sb.register()
-	sb.reset()
-	return sb.smb
+	sb.resetAuthenticators()
+	return sb
 }
 
-func (sb *securityBuilder) Required() *ServiceManagerBuilder {
-	if sb.authorization {
-		sb.requiredAuthZMatchers = append(sb.requiredAuthZMatchers, web.FilterMatcher{sb.currentMatchers})
+func (sb *securityBuilder) Required() *securityBuilder {
+	finalMatchers := make([]web.Matcher, 0)
+	if sb.pathMatcher != nil {
+		finalMatchers = append(finalMatchers, sb.pathMatcher)
 	}
-	if sb.authentication
-		sb.requiredAuthNMatchers = append(sb.requiredAuthNMatchers, web.FilterMatcher{sb.currentMatchers})
+	if sb.methodMatcher != nil {
+		finalMatchers = append(finalMatchers, sb.methodMatcher)
+	}
+
+	if sb.authorization {
+		sb.requiredAuthZMatchers = append(sb.requiredAuthZMatchers, web.FilterMatcher{finalMatchers})
+	}
+	if sb.authentication {
+		sb.requiredAuthNMatchers = append(sb.requiredAuthNMatchers, web.FilterMatcher{finalMatchers})
 	}
 	sb.register()
-	sb.reset()
-	return sb.smb
+	sb.resetAuthenticators()
+	return sb
 }
 
 func (sb *securityBuilder) Path(paths ...string) *securityBuilder {
-	sb.currentMatchers = append(sb.currentMatchers, web.Path(paths...))
-	sb.paths = append(sb.paths, paths...)
+	sb.pathMatcher = web.Path(paths...)
+	sb.paths = paths
 	return sb
 }
 
 func (sb *securityBuilder) Method(methods ...string) *securityBuilder {
-	sb.currentMatchers = append(sb.currentMatchers, web.Methods(methods...))
-	sb.methods = append(sb.methods, methods...)
+	sb.methodMatcher = web.Methods(methods...)
+	sb.methods = methods
 	return sb
 }
 
 func (sb *securityBuilder) Authentication() *securityBuilder {
 	sb.authentication = true
+	return sb
 }
 
 func (sb *securityBuilder) Authorization() *securityBuilder {
 	sb.authorization = true
+	return sb
 }
 
 func (sb *securityBuilder) WithAuthentication(authenticator httpsec.Authenticator) *securityBuilder {
@@ -119,17 +131,31 @@ func (sb *securityBuilder) WithClientID(clientID string) *securityBuilder {
 	return sb
 }
 
-func (sb *securityBuilder) reset() {
-	sb.currentMatchers = make([]web.Matcher, 0)
-	sb.paths = make([]string, 0)
-	sb.methods = make([]string, 0)
+func (sb *securityBuilder) resetAuthenticators() {
 	sb.authenticators = make([]httpsec.Authenticator, 0)
 	sb.authorizers = make([]httpsec.Authorizer, 0)
 	sb.authentication = false
 	sb.authorization = false
 }
 
+func (sb *securityBuilder) reset() *securityBuilder {
+	sb.resetAuthenticators()
+	sb.pathMatcher = nil
+	sb.methodMatcher = nil
+	sb.paths = make([]string, 0)
+	sb.methods = make([]string, 0)
+	return sb
+}
+
 func (sb *securityBuilder) register() {
+	finalMatchers := make([]web.Matcher, 0)
+	if sb.pathMatcher != nil {
+		finalMatchers = append(finalMatchers, sb.pathMatcher)
+	}
+	if sb.methodMatcher != nil {
+		finalMatchers = append(finalMatchers, sb.methodMatcher)
+	}
+
 	if len(sb.authenticators) > 0 {
 		finalAuthenticator := authn.NewOrAuthenticator(sb.authenticators...)
 
@@ -139,7 +165,7 @@ func (sb *securityBuilder) register() {
 				fmt.Sprintf("%v-AuthNFilter%d@%v", sb.methods, len(sb.authnFilters), sb.paths),
 				[]web.FilterMatcher{
 					{
-						sb.currentMatchers,
+						Matchers: finalMatchers,
 					},
 				}))
 	}
@@ -152,7 +178,7 @@ func (sb *securityBuilder) register() {
 				fmt.Sprintf("%v-AuthZFilter%d@%v", sb.methods, len(sb.authzFilters), sb.paths),
 				[]web.FilterMatcher{
 					{
-						sb.currentMatchers,
+						Matchers: finalMatchers,
 					},
 				}))
 	}
@@ -171,4 +197,3 @@ func (sb *securityBuilder) finalize() {
 	}
 	sb.smb.RegisterFiltersAfter(filters.LoggingFilterName, finalFilters...)
 }
-

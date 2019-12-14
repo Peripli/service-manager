@@ -441,7 +441,7 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 
 func (smb *ServiceManagerBuilder) Security() *securityBuilder {
 	smb.secBuilder.smb = smb
-	return smb.secBuilder
+	return smb.secBuilder.reset()
 }
 
 // func (smb *ServiceManagerBuilder) Authorize(objectType types.ObjectType) *authorizerBuilder {
