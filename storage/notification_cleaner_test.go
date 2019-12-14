@@ -77,15 +77,15 @@ var _ = Describe("Notification cleaner", func() {
 
 	Describe("clean", func() {
 		Context("When scheduled", func() {
-			It("Should call storage.Delete", func() {
+			It("Should call storage.DeleteReturning", func() {
 				nc.Settings.Notification.CleanInterval = 0
 				var objType types.ObjectType
 				var criteria []query.Criterion
-				fakeStorage.DeleteStub = func(ctx context.Context, objectType types.ObjectType, criterion ...query.Criterion) (types.ObjectList, error) {
+				fakeStorage.DeleteStub = func(ctx context.Context, objectType types.ObjectType, criterion ...query.Criterion) error {
 					objType = objectType
 					criteria = criterion
 					cancel() // stop notification cleaner
-					return &types.Notifications{}, nil
+					return nil
 				}
 				err := nc.Start(ctx, wg)
 				Expect(err).ToNot(HaveOccurred())
@@ -102,13 +102,13 @@ var _ = Describe("Notification cleaner", func() {
 		checkCleanerNotStopped := func(storageError error) {
 			nc.Settings.Notification.CleanInterval = 0
 			called := false
-			fakeStorage.DeleteStub = func(ctx context.Context, objectType types.ObjectType, criterion ...query.Criterion) (types.ObjectList, error) {
+			fakeStorage.DeleteStub = func(ctx context.Context, objectType types.ObjectType, criterion ...query.Criterion) error {
 				if !called {
 					called = true
-					return nil, storageError
+					return storageError
 				} else {
 					cancel()
-					return &types.Notifications{}, nil
+					return nil
 				}
 			}
 			err := nc.Start(ctx, wg)

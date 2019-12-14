@@ -521,11 +521,18 @@ WHERE visibilities.id::text = ? ;`)))
 					Expect(err).To(HaveOccurred())
 				})
 			})
+
+			Context("when returning field is not specified", func() {
+				It("returns error", func() {
+					_, err := qb.NewQuery(entity).DeleteReturning(ctx)
+					Expect(err).To(HaveOccurred())
+				})
+			})
 		})
 
 		Context("when returning clause is used", func() {
 			It("builds query with specified fields fields", func() {
-				_, err := qb.NewQuery(entity).Return("id", "service_plan_id").Delete(ctx)
+				_, err := qb.NewQuery(entity).DeleteReturning(ctx, "id", "service_plan_id")
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(executedQuery).To(Equal(trim(`
@@ -535,7 +542,7 @@ RETURNING id, service_plan_id;`)))
 			})
 
 			It("builds query with *", func() {
-				_, err := qb.NewQuery(entity).Return("*").Delete(ctx)
+				_, err := qb.NewQuery(entity).DeleteReturning(ctx, "*")
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(executedQuery).To(Equal(trim(`
@@ -546,7 +553,7 @@ RETURNING *;`)))
 
 			Context("when unknown field is specified", func() {
 				It("returns error", func() {
-					_, err := qb.NewQuery(entity).Return("unknown-field").Delete(ctx)
+					_, err := qb.NewQuery(entity).DeleteReturning(ctx, "unknown-field")
 					Expect(err).Should(HaveOccurred())
 					Expect(err.Error()).To(ContainSubstring("unsupported entity field for return type: unknown-field"))
 				})
@@ -565,7 +572,7 @@ RETURNING *;`)))
 
 				criteria7 := query.OrderResultBy("id", query.AscOrder)
 
-				_, err := qb.NewQuery(entity).WithCriteria(criteria1, criteria2, criteria3, criteria4, criteria5, criteria6, criteria7).Return("*").Delete(ctx)
+				_, err := qb.NewQuery(entity).WithCriteria(criteria1, criteria2, criteria3, criteria4, criteria5, criteria6, criteria7).DeleteReturning(ctx, "*")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(executedQuery).Should(Equal(trim(`
 DELETE

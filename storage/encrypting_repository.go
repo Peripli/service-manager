@@ -163,8 +163,8 @@ func (er *encryptingRepository) Update(ctx context.Context, obj types.Object, la
 	return updatedObj, nil
 }
 
-func (er *encryptingRepository) Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
-	objList, err := er.repository.Delete(ctx, objectType, criteria...)
+func (er *encryptingRepository) DeleteReturning(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
+	objList, err := er.repository.DeleteReturning(ctx, objectType, criteria...)
 	if err != nil {
 		return nil, err
 	}
@@ -176,6 +176,14 @@ func (er *encryptingRepository) Delete(ctx context.Context, objectType types.Obj
 	}
 
 	return objList, nil
+}
+
+func (er *encryptingRepository) Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) error {
+	if err := er.repository.Delete(ctx, objectType, criteria...); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (er *encryptingRepository) transformCredentials(ctx context.Context, obj types.Object, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) error {

@@ -26,11 +26,8 @@ import (
 
 	"github.com/Peripli/service-manager/test/testutil"
 
-	"github.com/Peripli/service-manager/pkg/env"
-	"github.com/Peripli/service-manager/pkg/sm"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
-	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/test/common"
 	"github.com/gofrs/uuid"
 	. "github.com/onsi/ginkgo"
@@ -50,7 +47,6 @@ var _ = Describe("Notification cleaner", func() {
 	)
 	var (
 		testContext    *common.TestContext
-		repository     storage.Repository
 		ctx            context.Context
 		logInterceptor *testutil.LogInterceptor
 	)
@@ -74,10 +70,7 @@ var _ = Describe("Notification cleaner", func() {
 		logInterceptor = &testutil.LogInterceptor{}
 		ctx = context.Background()
 
-		testContext = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
-			repository = smb.Storage
-			return nil
-		}).WithEnvPreExtensions(func(set *pflag.FlagSet) {
+		testContext = common.NewTestContextBuilder().WithEnvPreExtensions(func(set *pflag.FlagSet) {
 			err := set.Set("storage.notification.clean_interval", "10ms")
 			Expect(err).ToNot(HaveOccurred())
 			err = set.Set("storage.notification.keep_for", defaultKeepFor.String())
@@ -91,7 +84,7 @@ var _ = Describe("Notification cleaner", func() {
 
 	Context("When two notifications are inserted", func() {
 		It("Should delete the old one", func() {
-			new, err := repository.Create(ctx, randomNotification())
+			new, err := testContext.SMRepository.Create(ctx, randomNotification())
 			Expect(err).ToNot(HaveOccurred())
 			Expect(new.GetID()).ToNot(BeEmpty())
 
@@ -99,21 +92,21 @@ var _ = Describe("Notification cleaner", func() {
 			oldNotification.CreatedAt = time.Now().Add(-(defaultKeepFor + time.Hour))
 
 			log.AddHook(logInterceptor)
-			old, err := repository.Create(ctx, oldNotification)
+			old, err := testContext.SMRepository.Create(ctx, oldNotification)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(old.GetID()).ToNot(BeNil())
 
 			Eventually(logInterceptor.String, eventuallyTimeout).
-				Should(ContainSubstring("successfully deleted 1 old notifications"))
+				Should(ContainSubstring("successfully deleted notifications created before"))
 
 			Eventually(func() error {
 				byOldID := query.ByField(query.EqualsOperator, "id", old.GetID())
-				_, err = repository.Get(ctx, types.NotificationType, byOldID)
+				_, err = testContext.SMRepository.Get(ctx, types.NotificationType, byOldID)
 				return err
 			}, eventuallyTimeout).Should(Equal(util.ErrNotFoundInStorage))
 
 			byNewID := query.ByField(query.EqualsOperator, "id", new.GetID())
-			obj, err := repository.Get(ctx, types.NotificationType, byNewID)
+			obj, err := testContext.SMRepository.Get(ctx, types.NotificationType, byNewID)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(obj.GetID()).To(Equal(new.GetID()))
 		})

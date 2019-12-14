@@ -163,8 +163,11 @@ type Repository interface {
 	// Count retrieves number of objects of particular type in SM DB
 	Count(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (int, error)
 
-	// Delete deletes an object from SM DB
-	Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error)
+	// DeleteReturning deletes objects from SM DB
+	DeleteReturning(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error)
+
+	//Delete deletes objects from SM DB
+	Delete(ctx context.Context, objectType types.ObjectType, criteria ...query.Criterion) error
 
 	// Update updates an object from SM DB
 	Update(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, criteria ...query.Criterion) (types.Object, error)

@@ -270,7 +270,7 @@ func (ssi *StoreServiceInstancePlugin) Deprovision(request *web.Request, next we
 			fallthrough
 		case http.StatusGone:
 			byID := query.ByField(query.EqualsOperator, "id", requestPayload.InstanceID)
-			if _, err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
+			if err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
 				if err != util.ErrNotFoundInStorage {
 					return util.HandleStorageError(err, string(types.ServiceInstanceType))
 
@@ -395,7 +395,7 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 					}
 				case types.FAILED:
 					byID := query.ByField(query.EqualsOperator, "id", requestPayload.InstanceID)
-					if _, err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
+					if err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
 						if err != util.ErrNotFoundInStorage {
 							return util.HandleStorageError(err, string(types.ServiceInstanceType))
 						}
@@ -422,7 +422,7 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 				switch resp.State {
 				case types.SUCCEEDED:
 					byID := query.ByField(query.EqualsOperator, "id", requestPayload.InstanceID)
-					if _, err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
+					if err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
 						if err != util.ErrNotFoundInStorage {
 							return util.HandleStorageError(err, string(types.ServiceInstanceType))
 						}

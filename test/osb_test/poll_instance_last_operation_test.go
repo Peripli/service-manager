@@ -127,7 +127,7 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 					By(fmt.Sprintf("Deleting instance with id %s", SID))
 					byID := query.ByField(query.EqualsOperator, "id", SID)
-					_, err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
+					err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
 					Expect(err).ToNot(HaveOccurred())
 
 					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
@@ -335,7 +335,7 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 					By(fmt.Sprintf("Deleting instance with id %s", SID))
 					byID := query.ByField(query.EqualsOperator, "id", SID)
-					_, err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
+					err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
 					Expect(err).ToNot(HaveOccurred())
 
 					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
@@ -457,7 +457,7 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 					By(fmt.Sprintf("Deleting instance with id %s", SID))
 					byID := query.ByField(query.EqualsOperator, "id", SID)
-					_, err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
+					err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
 					Expect(err).ToNot(HaveOccurred())
 
 					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
@@ -537,7 +537,7 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 					By(fmt.Sprintf("Deleting instance with id %s", SID))
 					byID := query.ByField(query.EqualsOperator, "id", SID)
-					_, err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
+					err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
 					Expect(err).ToNot(HaveOccurred())
 
 					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
