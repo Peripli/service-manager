@@ -524,11 +524,6 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 		panic(err)
 	}
 
-	_, err = ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType)
-	if err != nil && err != util.ErrNotFoundInStorage {
-		panic(err)
-	}
-
 	ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL).Expect()
 
 	if ctx.TestPlatform != nil {
