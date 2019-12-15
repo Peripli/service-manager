@@ -157,7 +157,6 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	isAsync := r.URL.Query().Get(QueryParamAsync)
 	if isAsync == "true" {
 		log.C(ctx).Debugf("Request will be executed asynchronously")
-
 		if err := c.checkAsyncSupport(); err != nil {
 			return nil, err
 		}
@@ -190,6 +189,7 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 
 	isAsync := r.URL.Query().Get(QueryParamAsync)
 	if isAsync == "true" {
+		log.C(ctx).Debugf("Request will be executed asynchronously")
 		if err := c.checkAsyncSupport(); err != nil {
 			return nil, err
 		}
@@ -204,6 +204,7 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operationID)
 	}
 
+	log.C(ctx).Debugf("Request will be executed synchronously")
 	if err := c.repository.Delete(ctx, c.objectType, criteria...); err != nil {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
@@ -350,6 +351,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 
 	isAsync := r.URL.Query().Get(QueryParamAsync)
 	if isAsync == "true" {
+		log.C(ctx).Debugf("Request will be executed asynchronously")
 		if err := c.checkAsyncSupport(); err != nil {
 			return nil, err
 		}
@@ -364,6 +366,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operationID)
 	}
 
+	log.C(ctx).Debugf("Request will be executed synchronously")
 	object, err := c.repository.Update(ctx, objFromDB, labelChanges, criteria...)
 	if err != nil {
 		return nil, util.HandleStorageError(err, c.objectType.String())
