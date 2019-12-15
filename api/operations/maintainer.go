@@ -65,7 +65,7 @@ func (om *OperationMaintainer) cleanupOrphans() {
 func (om *OperationMaintainer) deleteResourceOperations() {
 	// TODO: don't cleanup all until two hours ago, clean up all but the last C/U/D opeartion for each resource_id
 	byDate := query.ByField(query.LessThanOperator, "created_at", time.Now().Add(-om.cleanupThreshold).String())
-	if _, err := om.repository.Delete(context.Background(), types.OperationType, byDate); err != nil {
+	if err := om.repository.Delete(context.Background(), types.OperationType, byDate); err != nil {
 		log.D().Debugf("Failed to cleanup operations: %s", err)
 		return
 	}
@@ -78,7 +78,7 @@ func (om *OperationMaintainer) deleteOrphanResourceOperations() {
 		query.ByField(query.LessThanOperator, "created_at", time.Now().Add(-om.jobTimeout).String()),
 	}
 
-	if _, err := om.repository.Delete(context.Background(), types.OperationType, criteria...); err != nil {
+	if err := om.repository.Delete(context.Background(), types.OperationType, criteria...); err != nil {
 		log.D().Debugf("Failed to cleanup orphan operations: %s", err)
 		return
 	}

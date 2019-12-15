@@ -83,7 +83,7 @@ func (do *DeleteJob) Execute(ctx context.Context, repository storage.Repository,
 		errChan <- err
 	}()
 
-	if _, err = repository.Delete(do.reqCtx, do.objectType, do.criteria...); err != nil {
+	if err = repository.Delete(do.reqCtx, do.objectType, do.criteria...); err != nil {
 		log.D().Debugf("Failed to execute DELETE operation with id (%s) for entity %s", do.operationID, do.objectType)
 		if opErr := updateOperationState(do.reqCtx, repository, do.operationID, types.FAILED); err != nil {
 			log.D().Debugf("Failed to set state of operation with id (%s) to %s", do.operationID, types.FAILED)
