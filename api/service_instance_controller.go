@@ -36,7 +36,7 @@ func NewServiceInstanceController(ctx context.Context, repository storage.Reposi
 	return &ServiceInstanceController{
 		BaseController: NewController(ctx, repository, web.ServiceInstancesURL, types.ServiceInstanceType, func() types.Object {
 			return &types.ServiceInstance{}
-		}, options),
+		}, options, false),
 	}
 }
 func (c *ServiceInstanceController) Routes() []web.Route {

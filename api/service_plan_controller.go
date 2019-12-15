@@ -35,7 +35,7 @@ func NewServicePlanController(ctx context.Context, repository storage.Repository
 	return &ServicePlanController{
 		BaseController: NewController(ctx, repository, web.ServicePlansURL, types.ServicePlanType, func() types.Object {
 			return &types.ServicePlan{}
-		}, options),
+		}, options, false),
 	}
 }
 

@@ -36,7 +36,7 @@ func NewServiceOfferingController(ctx context.Context, repository storage.Reposi
 	return &ServiceOfferingController{
 		BaseController: NewController(ctx, repository, web.ServiceOfferingsURL, types.ServiceOfferingType, func() types.Object {
 			return &types.ServiceOffering{}
-		}, options),
+		}, options, false),
 	}
 }
 func (c *ServiceOfferingController) Routes() []web.Route {
