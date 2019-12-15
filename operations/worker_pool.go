@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+// WorkerPool is an abstraction responsible for processing
+// jobs which are scheduleed by a JobScheduler
 type WorkerPool struct {
 	repository     storage.Repository
 	jobs           chan ExecutableJob
@@ -18,7 +20,8 @@ type WorkerPool struct {
 	mutex          *sync.RWMutex
 }
 
-func NewPool(repository storage.Repository, poolSize int) *WorkerPool {
+// NewWorkerPool constructs a new worker pool
+func NewWorkerPool(repository storage.Repository, poolSize int) *WorkerPool {
 	return &WorkerPool{
 		repository:     repository,
 		jobs:           make(chan ExecutableJob, poolSize),
@@ -28,6 +31,7 @@ func NewPool(repository storage.Repository, poolSize int) *WorkerPool {
 	}
 }
 
+// Run starts the worker pool so it can start polling for scheduled jobs
 func (wp *WorkerPool) Run() {
 	wp.proccess()
 }

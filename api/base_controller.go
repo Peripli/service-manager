@@ -63,7 +63,7 @@ type BaseController struct {
 func NewController(ctx context.Context, repository storage.Repository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, options *Options, supportsAsync bool) *BaseController {
 	var scheduler *operations.DefaultScheduler
 	if supportsAsync {
-		scheduler = operations.NewScheduler(ctx, repository, options.APISettings.PoolSize, options.APISettings.JobTimeout)
+		scheduler = operations.NewScheduler(ctx, repository, options.OperationSettings.PoolSize)
 	}
 
 	return &BaseController{

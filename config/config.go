@@ -18,6 +18,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/Peripli/service-manager/operations"
 
 	"github.com/Peripli/service-manager/pkg/httpclient"
 
@@ -37,6 +38,7 @@ type Settings struct {
 	Storage    *storage.Settings
 	Log        *log.Settings
 	API        *api.Settings
+	Operations *operations.Settings
 	WebSocket  *ws.Settings
 	HTTPClient *httpclient.Settings
 	Health     *health.Settings
@@ -55,6 +57,7 @@ func DefaultSettings() *Settings {
 		Storage:    storage.DefaultSettings(),
 		Log:        log.DefaultSettings(),
 		API:        api.DefaultSettings(),
+		Operations: operations.DefaultSettings(),
 		WebSocket:  ws.DefaultSettings(),
 		HTTPClient: httpclient.DefaultSettings(),
 		Health:     health.DefaultSettings(),
@@ -75,7 +78,7 @@ func New(env env.Environment) (*Settings, error) {
 func (c *Settings) Validate() error {
 	validatable := []interface {
 		Validate() error
-	}{c.Server, c.Storage, c.Log, c.Health, c.API, c.WebSocket}
+	}{c.Server, c.Storage, c.Log, c.Health, c.API, c.Operations, c.WebSocket}
 
 	for _, item := range validatable {
 		if err := item.Validate(); err != nil {

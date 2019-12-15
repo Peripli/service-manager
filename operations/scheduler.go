@@ -6,11 +6,12 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
-	"time"
 )
 
 const scheduleMsg = "Scheduling %s job for operation with id (%s)"
 
+// DefaultScheduler implements JobScheduler interface. It's responsible for
+// storing C/U/D jobs so that a worker pool can eventually start consuming these jobs
 type DefaultScheduler struct {
 	smCtx      context.Context
 	repository storage.Repository
@@ -18,8 +19,9 @@ type DefaultScheduler struct {
 	jobs       chan ExecutableJob
 }
 
-func NewScheduler(smCtx context.Context, repository storage.Repository, poolSize int, jobTimeout time.Duration) *DefaultScheduler {
-	workerPool := NewPool(repository, poolSize)
+// NewScheduler constructs a DefaultScheduler
+func NewScheduler(smCtx context.Context, repository storage.Repository, poolSize int) *DefaultScheduler {
+	workerPool := NewWorkerPool(repository, poolSize)
 
 	return &DefaultScheduler{
 		smCtx:      smCtx,
@@ -29,10 +31,13 @@ func NewScheduler(smCtx context.Context, repository storage.Repository, poolSize
 	}
 }
 
+// Run starts the DefaultScheduler's worker pool enabling him to start polling
+// for scheduled jobs
 func (ds *DefaultScheduler) Run() {
 	ds.workerPool.Run()
 }
 
+// SchedulerCreate schedules a Create job in the worker pool
 func (ds *DefaultScheduler) ScheduleCreate(ctx context.Context, object types.Object, operationID string) {
 	go func() {
 		log.D().Infof(scheduleMsg, types.CREATE, operationID)
@@ -44,6 +49,7 @@ func (ds *DefaultScheduler) ScheduleCreate(ctx context.Context, object types.Obj
 	}()
 }
 
+// SchedulerUpdate schedules an Update job in the worker pool
 func (ds *DefaultScheduler) ScheduleUpdate(ctx context.Context, object types.Object, labelChanges query.LabelChanges, criteria []query.Criterion, operationID string) {
 	go func() {
 		log.D().Infof(scheduleMsg, types.UPDATE, operationID)
@@ -57,6 +63,7 @@ func (ds *DefaultScheduler) ScheduleUpdate(ctx context.Context, object types.Obj
 	}()
 }
 
+// SchedulerDelete schedules an Delete job in the worker pool
 func (ds *DefaultScheduler) ScheduleDelete(ctx context.Context, objectType types.ObjectType, criteria []query.Criterion, operationID string) {
 	go func() {
 		log.D().Infof(scheduleMsg, types.DELETE, operationID)

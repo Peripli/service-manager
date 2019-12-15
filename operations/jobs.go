@@ -10,16 +10,21 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
+// ExecutableJob represents a DB operation that has to be executed.
+// Upon invocation, a results channel has to be provided in order for
+// a client to be able to retrieve potential errors in the execution of the DB operation.
 type ExecutableJob interface {
 	Execute(ctx context.Context, repository storage.Repository, results chan error)
 }
 
+// CreateJob represents an ExecutableJob which is responsible for executing a Create DB operation
 type CreateJob struct {
 	operationID string
 	reqCtx      context.Context
 	object      types.Object
 }
 
+// UpdateJob represents an ExecutableJob which is responsible for executing an Update DB operation
 type UpdateJob struct {
 	operationID  string
 	reqCtx       context.Context
@@ -28,6 +33,7 @@ type UpdateJob struct {
 	criteria     []query.Criterion
 }
 
+// DeleteJob represents an ExecutableJob which is responsible for executing a Delete DB operation
 type DeleteJob struct {
 	operationID string
 	reqCtx      context.Context
@@ -35,6 +41,7 @@ type DeleteJob struct {
 	criteria    []query.Criterion
 }
 
+// Execute executes a Create DB operation
 func (co *CreateJob) Execute(ctx context.Context, repository storage.Repository, errChan chan error) {
 	var err error
 	defer func() {
@@ -56,6 +63,7 @@ func (co *CreateJob) Execute(ctx context.Context, repository storage.Repository,
 	}
 }
 
+// Execute executes an Update DB operation
 func (uo *UpdateJob) Execute(ctx context.Context, repository storage.Repository, errChan chan error) {
 	var err error
 	defer func() {
@@ -77,6 +85,7 @@ func (uo *UpdateJob) Execute(ctx context.Context, repository storage.Repository,
 	}
 }
 
+// Execute executes a Delete DB operation
 func (do *DeleteJob) Execute(ctx context.Context, repository storage.Repository, errChan chan error) {
 	var err error
 	defer func() {
