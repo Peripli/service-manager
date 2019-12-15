@@ -17,6 +17,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -30,11 +31,11 @@ type ServicePlanController struct {
 	*BaseController
 }
 
-func NewServicePlanController(repository storage.Repository, defaultPageSize, maxPageSize int) *ServicePlanController {
+func NewServicePlanController(ctx context.Context, repository storage.Repository, options *Options) *ServicePlanController {
 	return &ServicePlanController{
-		BaseController: NewController(repository, web.ServicePlansURL, types.ServicePlanType, func() types.Object {
+		BaseController: NewController(ctx, repository, web.ServicePlansURL, types.ServicePlanType, func() types.Object {
 			return &types.ServicePlan{}
-		}, defaultPageSize, maxPageSize),
+		}, options),
 	}
 }
 

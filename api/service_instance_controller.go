@@ -17,6 +17,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -31,11 +32,11 @@ type ServiceInstanceController struct {
 	*BaseController
 }
 
-func NewServiceInstanceController(repository storage.Repository, defaultPageSize, maxPageSize int) *ServiceInstanceController {
+func NewServiceInstanceController(ctx context.Context, repository storage.Repository, options *Options) *ServiceInstanceController {
 	return &ServiceInstanceController{
-		BaseController: NewController(repository, web.ServiceInstancesURL, types.ServiceInstanceType, func() types.Object {
+		BaseController: NewController(ctx, repository, web.ServiceInstancesURL, types.ServiceInstanceType, func() types.Object {
 			return &types.ServiceInstance{}
-		}, defaultPageSize, maxPageSize),
+		}, options),
 	}
 }
 func (c *ServiceInstanceController) Routes() []web.Route {

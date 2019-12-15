@@ -18,6 +18,7 @@
 package osb
 
 import (
+	"github.com/Peripli/service-manager/api/operations"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -38,6 +39,10 @@ const (
 	serviceBindingLastOperationURL    = baseURL + "/v2/service_instances/{instance_id}/service_bindings/{binding_id}/last_operation"
 	serviceBindingAdaptCredentialsURL = baseURL + "/v2/service_instances/{instance_id}/service_bindings/{binding_id}/adapt_credentials"
 )
+
+func (c *Controller) Scheduler() (bool, operations.JobScheduler) {
+	return false, nil
+}
 
 // Routes implements api.Controller.Routes by providing the routes for the OSB API
 func (c *Controller) Routes() []web.Route {

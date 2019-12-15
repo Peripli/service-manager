@@ -17,6 +17,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -31,11 +32,11 @@ type ServiceOfferingController struct {
 	*BaseController
 }
 
-func NewServiceOfferingController(repository storage.Repository, defaultPageSize, maxPageSize int) *ServiceOfferingController {
+func NewServiceOfferingController(ctx context.Context, repository storage.Repository, options *Options) *ServiceOfferingController {
 	return &ServiceOfferingController{
-		BaseController: NewController(repository, web.ServiceOfferingsURL, types.ServiceOfferingType, func() types.Object {
+		BaseController: NewController(ctx, repository, web.ServiceOfferingsURL, types.ServiceOfferingType, func() types.Object {
 			return &types.ServiceOffering{}
-		}, defaultPageSize, maxPageSize),
+		}, options),
 	}
 }
 func (c *ServiceOfferingController) Routes() []web.Route {

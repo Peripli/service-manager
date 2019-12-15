@@ -1,6 +1,7 @@
 package configuration
 
 import (
+	"github.com/Peripli/service-manager/api/operations"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/env"
@@ -57,6 +58,10 @@ func (c *Controller) setLoggingConfiguration(r *web.Request) (*web.Response, err
 	log.C(ctx).Infof("Successfully set logging configuration with level: %s and format: %s", loggingConfig.Level, loggingConfig.Format)
 
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
+}
+
+func (c *Controller) Scheduler() (bool, operations.JobScheduler) {
+	return false, nil
 }
 
 // Routes provides endpoints for modifying and obtaining the logging configuration

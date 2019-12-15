@@ -18,6 +18,7 @@ package notifications
 
 import (
 	"context"
+	"github.com/Peripli/service-manager/api/operations"
 	"net/http"
 
 	"github.com/Peripli/service-manager/storage"
@@ -34,6 +35,10 @@ type Controller struct {
 
 	wsSettings  *ws.Settings
 	notificator storage.Notificator
+}
+
+func (c *Controller) Scheduler() (bool, operations.JobScheduler) {
+	return false, nil
 }
 
 // Routes returns the routes for notifications

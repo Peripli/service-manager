@@ -16,10 +16,15 @@
 
 package web
 
+import "github.com/Peripli/service-manager/api/operations"
+
 // Controller is an entity that wraps a set of HTTP Routes
 type Controller interface {
 	// Routes returns the set of routes for this controller
 	Routes() []Route
+
+	// Scheduler returns the Async job scheduler for this controller (and whether it has one)
+	Scheduler() (bool, operations.JobScheduler)
 }
 
 // Route is a mapping between an Endpoint and a REST API SMHandler

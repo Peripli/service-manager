@@ -20,7 +20,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/api/operations"
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/env"
@@ -56,7 +55,7 @@ type Settings struct {
 	OSBVersion      string        `mapstructure:"-"`
 	MaxPageSize     int           `mapstructure:"max_page_size" description:"maximum number of items that could be returned in a single page"`
 	DefaultPageSize int           `mapstructure:"default_page_size" description:"default number of items returned in a single page if not specified in request"`
-	PoolSize        int           `mapstructure:"pool_size" description:"pool size denoting the maximum number of concurrent API operations capable of being processed"`
+	PoolSize        int           `mapstructure:"pool_size" description:"pool size denoting the maximum number of concurrent API operations capable of being processed per API resource"`
 	JobTimeout      time.Duration `mapstructure:"job_timeout" description:"timeout for async operations"`
 }
 
@@ -97,28 +96,22 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 		return nil, err
 	}
 
-	schedulers := map[string]operations.JobScheduler{
-		"broker":     operations.NewScheduler(ctx, options),
-		"platform":   operations.NewScheduler(ctx, options),
-		"visibility": operations.NewScheduler(ctx, options),
-	}
-
 	return &web.API{
 		// Default controllers - more filters can be registered using the relevant API methods
 		Controllers: []web.Controller{
-			NewController(options.Repository, schedulers["broker"], web.ServiceBrokersURL, types.ServiceBrokerType, func() types.Object {
+			NewController(ctx, options.Repository, web.ServiceBrokersURL, types.ServiceBrokerType, func() types.Object {
 				return &types.ServiceBroker{}
-			}, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
-			NewController(options.Repository, schedulers["platform"], web.PlatformsURL, types.PlatformType, func() types.Object {
+			}, options),
+			NewController(ctx, options.Repository, web.PlatformsURL, types.PlatformType, func() types.Object {
 				return &types.Platform{}
-			}, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
-			NewController(options.Repository, schedulers["visibility"], web.VisibilitiesURL, types.VisibilityType, func() types.Object {
+			}, options),
+			NewController(ctx, options.Repository, web.VisibilitiesURL, types.VisibilityType, func() types.Object {
 				return &types.Visibility{}
-			}, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
+			}, options),
 			apiNotifications.NewController(ctx, options.Repository, options.WSSettings, options.Notificator),
-			NewServiceOfferingController(options.Repository, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
-			NewServicePlanController(options.Repository, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
-			NewServiceInstanceController(options.Repository, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
+			NewServiceOfferingController(ctx, options.Repository, options),
+			NewServicePlanController(ctx, options.Repository, options),
+			NewServiceInstanceController(ctx, options.Repository, options),
 			&info.Controller{
 				TokenIssuer:    options.APISettings.TokenIssuerURL,
 				TokenBasicAuth: options.APISettings.TokenBasicAuth,
@@ -150,7 +143,6 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			filters.NewPlansFilterByVisibility(options.Repository),
 			filters.NewServicesFilterByVisibility(options.Repository),
 		},
-		Schedulers: schedulers,
-		Registry:   health.NewDefaultRegistry(),
+		Registry: health.NewDefaultRegistry(),
 	}, nil
 }

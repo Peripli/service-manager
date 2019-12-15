@@ -19,7 +19,6 @@
 package web
 
 import (
-	"github.com/Peripli/service-manager/api/operations"
 	"net/http"
 	"strings"
 
@@ -35,9 +34,6 @@ type API struct {
 
 	// Filters contains the registered filters
 	Filters []Filter
-
-	// Schedulers contains API schedulers
-	Schedulers map[string]operations.JobScheduler
 
 	// Registry is the health indicators registry for this API
 	*health.Registry

@@ -18,6 +18,7 @@
 package info
 
 import (
+	"github.com/Peripli/service-manager/api/operations"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -25,6 +26,10 @@ import (
 
 // URL is the path of the info endpoint
 const URL = web.InfoURL
+
+func (c *Controller) Scheduler() (bool, operations.JobScheduler) {
+	return false, nil
+}
 
 // Routes returns a slice of the routs that handle info operations
 func (c *Controller) Routes() []web.Route {

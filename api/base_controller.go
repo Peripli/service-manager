@@ -57,16 +57,20 @@ type BaseController struct {
 }
 
 // NewController returns a new base controller
-func NewController(repository storage.Repository, scheduler operations.JobScheduler, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, defaultPageSize, maxPageSize int) *BaseController {
+func NewController(ctx context.Context, repository storage.Repository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, options *Options) *BaseController {
 	return &BaseController{
 		repository:      repository,
-		scheduler:       scheduler,
+		scheduler:       operations.NewScheduler(ctx, options),
 		resourceBaseURL: resourceBaseURL,
 		objectBlueprint: objectBlueprint,
 		objectType:      objectType,
-		DefaultPageSize: defaultPageSize,
-		MaxPageSize:     maxPageSize,
+		DefaultPageSize: options.APISettings.DefaultPageSize,
+		MaxPageSize:     options.APISettings.MaxPageSize,
 	}
+}
+
+func (c *BaseController) Scheduler() (bool, operations.JobScheduler) {
+	return true, c.scheduler
 }
 
 // Routes returns the common set of routes for all objects
