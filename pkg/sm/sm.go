@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/Peripli/service-manager/operations"
 	"net/http"
 	"sync"
 
@@ -61,6 +62,7 @@ type ServiceManagerBuilder struct {
 	Storage             *storage.InterceptableTransactionalRepository
 	Notificator         storage.Notificator
 	NotificationCleaner *storage.NotificationCleaner
+	OperationMaintainer *operations.OperationMaintainer
 	ctx                 context.Context
 	wg                  *sync.WaitGroup
 	cfg                 *config.Settings
@@ -145,11 +147,14 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		Settings: *cfg.Storage,
 	}
 
+	operationMaintainer := operations.NewOperationMaintainer(interceptableRepository, cfg.API.JobTimeout)
+
 	smb := &ServiceManagerBuilder{
 		API:                 API,
 		Storage:             interceptableRepository,
 		Notificator:         pgNotificator,
 		NotificationCleaner: notificationCleaner,
+		OperationMaintainer: operationMaintainer,
 		ctx:                 ctx,
 		wg:                  waitGroup,
 		cfg:                 cfg,
@@ -190,6 +195,9 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	// setup server and add relevant global middleware
 	srv := server.New(smb.cfg.Server, smb.API)
 	srv.Use(filters.NewRecoveryMiddleware())
+
+	// start the operation maintainer
+	smb.OperationMaintainer.Run()
 
 	// start each Controller scheduler's worker pool
 	for _, controller := range smb.API.Controllers {

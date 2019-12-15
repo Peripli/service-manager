@@ -30,7 +30,7 @@ func (om *OperationMaintainer) Run() {
 	go om.cleanupOrphans()
 }
 
-// cleanOperations cleans up periodicallyall operations but the last
+// cleanOperations cleans up periodically all operations but the last
 // for each C/U/D operation for every resource_id
 func (om *OperationMaintainer) cleanupOperations() {
 	ticker := time.NewTicker(om.cleanupInterval)

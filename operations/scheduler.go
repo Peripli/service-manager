@@ -12,29 +12,25 @@ import (
 const scheduleMsg = "Scheduling %s job for operation with id (%s)"
 
 type DefaultScheduler struct {
-	smCtx               context.Context
-	repository          storage.Repository
-	workerPool          *WorkerPool
-	operationMaintainer *OperationMaintainer
-	jobs                chan ExecutableJob
+	smCtx      context.Context
+	repository storage.Repository
+	workerPool *WorkerPool
+	jobs       chan ExecutableJob
 }
 
 func NewScheduler(smCtx context.Context, repository storage.Repository, poolSize int, jobTimeout time.Duration) *DefaultScheduler {
 	workerPool := NewPool(repository, poolSize)
-	operationMaintainer := NewOperationMaintainer(repository, jobTimeout)
 
 	return &DefaultScheduler{
-		smCtx:               smCtx,
-		repository:          repository,
-		workerPool:          workerPool,
-		operationMaintainer: operationMaintainer,
-		jobs:                workerPool.jobs,
+		smCtx:      smCtx,
+		repository: repository,
+		workerPool: workerPool,
+		jobs:       workerPool.jobs,
 	}
 }
 
 func (ds *DefaultScheduler) Run() {
 	ds.workerPool.Run()
-	ds.operationMaintainer.Run()
 }
 
 func (ds *DefaultScheduler) ScheduleCreate(ctx context.Context, object types.Object, operationID string) {
