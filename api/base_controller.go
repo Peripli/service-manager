@@ -78,7 +78,7 @@ func NewController(ctx context.Context, repository storage.Repository, resourceB
 }
 
 func (c *BaseController) Scheduler() (bool, operations.JobScheduler) {
-	return c.scheduler != nil, c.scheduler
+	return c.supportsAsync(), c.scheduler
 }
 
 // Routes returns the common set of routes for all objects
@@ -129,6 +129,10 @@ func (c *BaseController) Routes() []web.Route {
 	}
 }
 
+func (c *BaseController) supportsAsync() bool {
+	return c.scheduler != nil
+}
+
 // CreateObject handles the creation of a new object
 func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
@@ -157,6 +161,10 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 
 	isAsync := r.PathParams[PathParamAsync]
 	if isAsync == "true" {
+		if err := c.checkAsyncSupport(); err != nil {
+			return nil, err
+		}
+
 		operation := &types.Operation{
 			Base: types.Base{
 				ID:        UUID.String(),
@@ -195,6 +203,10 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 
 	isAsync := r.PathParams[PathParamAsync]
 	if isAsync == "true" {
+		if err := c.checkAsyncSupport(); err != nil {
+			return nil, err
+		}
+
 		UUID, err := uuid.NewV4()
 		if err != nil {
 			return nil, fmt.Errorf("could not generate GUID for operation: %s", err)
@@ -366,6 +378,10 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 
 	isAsync := r.PathParams[PathParamAsync]
 	if isAsync == "true" {
+		if err := c.checkAsyncSupport(); err != nil {
+			return nil, err
+		}
+
 		UUID, err := uuid.NewV4()
 		if err != nil {
 			return nil, fmt.Errorf("could not generate GUID for operation: %s", err)
@@ -467,6 +483,17 @@ func (c *BaseController) parsePageToken(ctx context.Context, token string) (stri
 		}
 	}
 	return targetPageSequence, nil
+}
+
+func (c *BaseController) checkAsyncSupport() error {
+	if !c.supportsAsync() {
+		return &util.HTTPError{
+			ErrorType:   "InvalidRequest",
+			Description: fmt.Sprintf("requested %s api doesn't support asynchronous operations", c.objectType),
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+	return nil
 }
 
 func generateTokenForItem(obj types.Object) string {
