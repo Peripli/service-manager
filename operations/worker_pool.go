@@ -9,7 +9,7 @@ import (
 )
 
 // WorkerPool is an abstraction responsible for processing
-// jobs which are scheduleed by a JobScheduler
+// jobs which are scheduled by a JobScheduler
 type WorkerPool struct {
 	smCtx          context.Context
 	repository     storage.Repository
@@ -33,16 +33,16 @@ func NewWorkerPool(ctx context.Context, repository storage.Repository, poolSize 
 
 // Run starts the worker pool so it can start polling for scheduled jobs
 func (wp *WorkerPool) Run() {
-	wp.proccess()
+	wp.process()
 }
 
-func (wp *WorkerPool) proccess() {
-	go wp.proccessJobs()
+func (wp *WorkerPool) process() {
+	go wp.processJobs()
 }
 
-// proccessJobs polls the currently scheduled jobs and as long as there
+// processJobs polls the currently scheduled jobs and as long as there
 // are available workers it assigns a worker to execute for each available scheduled job
-func (wp *WorkerPool) proccessJobs() {
+func (wp *WorkerPool) processJobs() {
 	for {
 		job := <-wp.jobs
 		for wp.currentWorkers >= wp.poolSize {

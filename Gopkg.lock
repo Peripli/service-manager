@@ -237,7 +237,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:a9f806e41fa14a1c88641efeecaffdb05f1728a4ed423c3233cdd4fd1f6d2801"
+  digest = "1:9d697efc0ad1d6ee43708e8fc822861a66107d03f95d2b398ef488305500140a"
   name = "github.com/jmoiron/sqlx"
   packages = [
     ".",
@@ -245,10 +245,10 @@
     "types",
   ]
   pruneopts = "UT"
-  revision = "d7d95172beb5a538ff08c50a6e98aee6e7c41f40"
+  revision = "2ba0fc60eb4a54030f3a6d73ff0a047349c7eeca"
 
 [[projects]]
-  digest = "1:fa4b4bfa0edfb83c4690d8746ea25bc2447ad0c20063ba72adcb5725f54acde0"
+  digest = "1:1a27a67993fd9ad63a5e04b49a9cacd32e4d3efdf44223749410c1e02bb53011"
   name = "github.com/klauspost/compress"
   packages = [
     "flate",
@@ -256,8 +256,8 @@
     "zlib",
   ]
   pruneopts = "UT"
-  revision = "4e96aec082898e4dad17d8aca1a7e2d01362ff6c"
-  version = "v1.9.2"
+  revision = "438db640fd672278e44bb9bec0b979358e7e9c76"
+  version = "v1.9.4"
 
 [[projects]]
   digest = "1:31e761d97c76151dde79e9d28964a812c46efc5baee4085b86f68f0c654450de"
@@ -269,7 +269,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:ee780c2838219eedc4146248ddf9b82bb6a4a344425ee1aeb9f0d6eb8435614d"
+  digest = "1:9ff22c26414baf7deaf74f2a788fe7b97666048bcbe346c52cfe823442abbdfb"
   name = "github.com/lib/pq"
   packages = [
     ".",
@@ -277,7 +277,7 @@
     "scram",
   ]
   pruneopts = "UT"
-  revision = "f91d3411e481ed313eeab65ebfe9076466c39d01"
+  revision = "99274577be97ac9b1d95a2d61d566dc9b7cc6a54"
 
 [[projects]]
   digest = "1:5a0ef768465592efca0412f7e838cdc0826712f8447e70e6ccc52eb441e9ab13"
@@ -570,11 +570,11 @@
     "pbkdf2",
   ]
   pruneopts = "UT"
-  revision = "4f8c1d86b1ba699e7a66cd649947ed270a74e0bb"
+  revision = "e9b2fee46413994441b28dfca259d911d963dfed"
 
 [[projects]]
   branch = "master"
-  digest = "1:daaa5e61b17adb291a0fe8e55ed0bb00e24ead2f0b56b1f9a7389325c52d1b97"
+  digest = "1:317bb86f606d3cdb6b282cea377e61ce50023b16bdc72d2edfb2ef0164f18364"
   name = "golang.org/x/net"
   packages = [
     "context",
@@ -586,26 +586,26 @@
     "publicsuffix",
   ]
   pruneopts = "UT"
-  revision = "fc4aabc6c91483155dade6fbb627cc953a723260"
+  revision = "c0dbc17a35534bf2e581d7a942408dc936316da4"
 
 [[projects]]
   branch = "master"
-  digest = "1:8d1c112fb1679fa097e9a9255a786ee47383fa2549a3da71bcb1334a693ebcfe"
+  digest = "1:55d36eb35766a3f105fa36cfb2faf053cc33c019108a6adee799c4e7d59d62b2"
   name = "golang.org/x/oauth2"
   packages = [
     ".",
     "internal",
   ]
   pruneopts = "UT"
-  revision = "0f29369cfe4552d0e4bcddc57cc75f4d7e672a33"
+  revision = "858c2ad4c8b6c5d10852cb89079f6ca1c7309787"
 
 [[projects]]
   branch = "master"
-  digest = "1:fc96eb481f72e9a5edeb4bb3f3610d3b9384c036f7c1e39f8c0dedff23d0c34d"
+  digest = "1:634414cd43ed62a728aaf9b3e61fde85f012880f9b32b7d00678b6fd887ff9c1"
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "UT"
-  revision = "bd437916bb0eb726b873ee8e9b2dcf212d32e2fd"
+  revision = "ac6580df4449443a05718fd7858c1f91ad5f8d20"
 
 [[projects]]
   digest = "1:28deae5fe892797ff37a317b5bcda96d11d1c90dadd89f1337651df3bc4c586e"

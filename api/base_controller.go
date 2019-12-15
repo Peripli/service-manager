@@ -156,6 +156,8 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 
 	isAsync := r.PathParams[PathParamAsync]
 	if isAsync == "true" {
+		log.C(ctx).Debugf("Request will be executed asynchronously")
+
 		if err := c.checkAsyncSupport(); err != nil {
 			return nil, err
 		}
@@ -170,6 +172,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operationID)
 	}
 
+	log.C(ctx).Debugf("Request will be executed synchronously")
 	createdObj, err := c.repository.Create(ctx, result)
 	if err != nil {
 		return nil, util.HandleStorageError(err, c.objectType.String())

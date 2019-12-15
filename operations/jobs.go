@@ -2,7 +2,6 @@ package operations
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -59,7 +58,7 @@ func (co *CreateJob) Execute(ctx context.Context, repository storage.Repository)
 
 		if opErr := updateOperationState(co.reqCtx, repository, co.operationID, types.FAILED); opErr != nil {
 			log.D().Debugf("Failed to set state of operation with id (%s) to %s", co.operationID, types.FAILED)
-			err = errors.New(fmt.Sprintf("%s : %s", err, opErr))
+			err = fmt.Errorf("%s : %s", err, opErr)
 		}
 		return co.operationID, err
 	}
@@ -86,7 +85,7 @@ func (uo *UpdateJob) Execute(ctx context.Context, repository storage.Repository)
 
 		if opErr := updateOperationState(uo.reqCtx, repository, uo.operationID, types.FAILED); opErr != nil {
 			log.D().Debugf("Failed to set state of operation with id (%s) to %s", uo.operationID, types.FAILED)
-			err = errors.New(fmt.Sprintf("%s : %s", err, opErr))
+			err = fmt.Errorf("%s : %s", err, opErr)
 		}
 		return uo.operationID, err
 	}
@@ -113,7 +112,7 @@ func (do *DeleteJob) Execute(ctx context.Context, repository storage.Repository)
 
 		if opErr := updateOperationState(do.reqCtx, repository, do.operationID, types.FAILED); opErr != nil {
 			log.D().Debugf("Failed to set state of operation with id (%s) to %s", do.operationID, types.FAILED)
-			err = errors.New(fmt.Sprintf("%s : %s", err, opErr))
+			err = fmt.Errorf("%s : %s", err, opErr)
 		}
 		return do.operationID, err
 	}
