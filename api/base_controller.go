@@ -154,36 +154,20 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	result.SetCreatedAt(currentTime)
 	result.SetUpdatedAt(currentTime)
 
-	UUID, err := uuid.NewV4()
-	if err != nil {
-		return nil, fmt.Errorf("could not generate GUID for operation: %s", err)
-	}
-
 	isAsync := r.PathParams[PathParamAsync]
 	if isAsync == "true" {
 		if err := c.checkAsyncSupport(); err != nil {
 			return nil, err
 		}
 
-		operation := &types.Operation{
-			Base: types.Base{
-				ID:        UUID.String(),
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			},
-			Type:          types.CREATE,
-			State:         types.IN_PROGRESS,
-			ResourceID:    result.GetID(),
-			ResourceType:  string(result.GetType()),
-			CorrelationID: log.CorrelationIDFromContext(ctx),
-		}
-		_, err = c.repository.Create(ctx, operation)
+		operationID, err := c.storeOperation(ctx, c.repository, types.IN_PROGRESS, types.CREATE, result.GetID(), log.CorrelationIDFromContext(ctx))
 		if err != nil {
 			return nil, err
 		}
 
-		c.scheduler.ScheduleCreate(ctx, result, operation.ID)
-		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operation.ID)
+		c.scheduler.ScheduleCreate(ctx, result, operationID)
+
+		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operationID)
 	}
 
 	createdObj, err := c.repository.Create(ctx, result)
@@ -207,29 +191,13 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 
-		UUID, err := uuid.NewV4()
-		if err != nil {
-			return nil, fmt.Errorf("could not generate GUID for operation: %s", err)
-		}
-
-		operation := &types.Operation{
-			Base: types.Base{
-				ID:        UUID.String(),
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			},
-			Type:          types.DELETE,
-			State:         types.IN_PROGRESS,
-			ResourceType:  string(c.objectType),
-			CorrelationID: log.CorrelationIDFromContext(ctx),
-		}
-		_, err = c.repository.Create(ctx, operation)
+		operationID, err := c.storeOperation(ctx, c.repository, types.IN_PROGRESS, types.DELETE, "", log.CorrelationIDFromContext(ctx))
 		if err != nil {
 			return nil, err
 		}
 
-		c.scheduler.ScheduleDelete(ctx, c.objectType, criteria, operation.ID)
-		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operation.ID)
+		c.scheduler.ScheduleDelete(ctx, c.objectType, criteria, operationID)
+		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operationID)
 	}
 
 	if err := c.repository.Delete(ctx, c.objectType, criteria...); err != nil {
@@ -382,30 +350,13 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 
-		UUID, err := uuid.NewV4()
-		if err != nil {
-			return nil, fmt.Errorf("could not generate GUID for operation: %s", err)
-		}
-
-		operation := &types.Operation{
-			Base: types.Base{
-				ID:        UUID.String(),
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			},
-			Type:          types.UPDATE,
-			State:         types.IN_PROGRESS,
-			ResourceID:    objFromDB.GetID(),
-			ResourceType:  string(objFromDB.GetType()),
-			CorrelationID: log.CorrelationIDFromContext(ctx),
-		}
-		_, err = c.repository.Create(ctx, operation)
+		operationID, err := c.storeOperation(ctx, c.repository, types.IN_PROGRESS, types.UPDATE, objFromDB.GetID(), log.CorrelationIDFromContext(ctx))
 		if err != nil {
 			return nil, err
 		}
 
-		c.scheduler.ScheduleUpdate(ctx, objFromDB, labelChanges, criteria, operation.ID)
-		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operation.ID)
+		c.scheduler.ScheduleUpdate(ctx, objFromDB, labelChanges, criteria, operationID)
+		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operationID)
 	}
 
 	object, err := c.repository.Update(ctx, objFromDB, labelChanges, criteria...)
@@ -494,6 +445,32 @@ func (c *BaseController) checkAsyncSupport() error {
 		}
 	}
 	return nil
+}
+
+func (c *BaseController) storeOperation(ctx context.Context, storage storage.Repository, state types.OperationState, category types.OperationCategory, resourceID, correlationID string) (string, error) {
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		return "", fmt.Errorf("could not generate GUID for %s: %s", c.objectType, err)
+	}
+	operation := &types.Operation{
+		Base: types.Base{
+			ID:        UUID.String(),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Labels:    make(map[string][]string),
+		},
+		Type:          category,
+		State:         state,
+		ResourceID:    resourceID,
+		ResourceType:  c.resourceBaseURL,
+		CorrelationID: correlationID,
+	}
+
+	if _, err := storage.Create(ctx, operation); err != nil {
+		return "", util.HandleStorageError(err, operation.GetType().String())
+	}
+
+	return operation.ID, nil
 }
 
 func generateTokenForItem(obj types.Object) string {
