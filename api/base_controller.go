@@ -39,8 +39,8 @@ import (
 )
 
 const (
-	PathParamID    = "id"
-	PathParamAsync = "async"
+	PathParamID     = "id"
+	QueryParamAsync = "async"
 )
 
 // pagingLimitOffset is a constant which is needed to identify if there are more items in the DB.
@@ -154,7 +154,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	result.SetCreatedAt(currentTime)
 	result.SetUpdatedAt(currentTime)
 
-	isAsync := r.PathParams[PathParamAsync]
+	isAsync := r.URL.Query().Get(QueryParamAsync)
 	if isAsync == "true" {
 		log.C(ctx).Debugf("Request will be executed asynchronously")
 
@@ -188,7 +188,7 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 
 	criteria := query.CriteriaForContext(ctx)
 
-	isAsync := r.PathParams[PathParamAsync]
+	isAsync := r.URL.Query().Get(QueryParamAsync)
 	if isAsync == "true" {
 		if err := c.checkAsyncSupport(); err != nil {
 			return nil, err
@@ -348,7 +348,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	labels, _, _ := query.ApplyLabelChangesToLabels(labelChanges, objFromDB.GetLabels())
 	objFromDB.SetLabels(labels)
 
-	isAsync := r.PathParams[PathParamAsync]
+	isAsync := r.URL.Query().Get(QueryParamAsync)
 	if isAsync == "true" {
 		if err := c.checkAsyncSupport(); err != nil {
 			return nil, err
