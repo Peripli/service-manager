@@ -38,7 +38,10 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-const PathParamID = "id"
+const (
+	PathParamID    = "id"
+	PathParamAsync = "async"
+)
 
 // pagingLimitOffset is a constant which is needed to identify if there are more items in the DB.
 // If there is 1 more item than requested, we need to generate a token for the next page.
@@ -152,26 +155,35 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		return nil, fmt.Errorf("could not generate GUID for operation: %s", err)
 	}
 
-	operation := &types.Operation{
-		Base: types.Base{
-			ID:        UUID.String(),
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		},
-		Type:          types.CREATE,
-		State:         types.IN_PROGRESS,
-		ResourceID:    result.GetID(),
-		ResourceType:  string(result.GetType()),
-		CorrelationID: log.CorrelationIDFromContext(ctx),
+	isAsync := r.PathParams[PathParamAsync]
+	if isAsync == "true" {
+		operation := &types.Operation{
+			Base: types.Base{
+				ID:        UUID.String(),
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Type:          types.CREATE,
+			State:         types.IN_PROGRESS,
+			ResourceID:    result.GetID(),
+			ResourceType:  string(result.GetType()),
+			CorrelationID: log.CorrelationIDFromContext(ctx),
+		}
+		_, err = c.repository.Create(ctx, operation)
+		if err != nil {
+			return nil, err
+		}
+
+		c.scheduler.ScheduleCreate(ctx, result, operation.ID)
+		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operation.ID)
 	}
-	_, err = c.repository.Create(ctx, operation)
+
+	createdObj, err := c.repository.Create(ctx, result)
 	if err != nil {
-		return nil, err
+		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
-	c.scheduler.ScheduleCreate(ctx, result, operation.ID)
-
-	return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operation.ID)
+	return util.NewJSONResponse(http.StatusCreated, createdObj)
 }
 
 // DeleteObjects handles the deletion of the objects specified in the request
@@ -181,31 +193,38 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 
 	criteria := query.CriteriaForContext(ctx)
 
-	UUID, err := uuid.NewV4()
-	if err != nil {
-		return nil, fmt.Errorf("could not generate GUID for operation: %s", err)
+	isAsync := r.PathParams[PathParamAsync]
+	if isAsync == "true" {
+		UUID, err := uuid.NewV4()
+		if err != nil {
+			return nil, fmt.Errorf("could not generate GUID for operation: %s", err)
+		}
+
+		operation := &types.Operation{
+			Base: types.Base{
+				ID:        UUID.String(),
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Type:          types.DELETE,
+			State:         types.IN_PROGRESS,
+			ResourceType:  string(c.objectType),
+			CorrelationID: log.CorrelationIDFromContext(ctx),
+		}
+		_, err = c.repository.Create(ctx, operation)
+		if err != nil {
+			return nil, err
+		}
+
+		c.scheduler.ScheduleDelete(ctx, c.objectType, criteria, operation.ID)
+		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operation.ID)
 	}
 
-	operation := &types.Operation{
-		Base: types.Base{
-			ID:        UUID.String(),
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		},
-		Type:          types.DELETE,
-		State:         types.IN_PROGRESS,
-		ResourceID:    "",
-		ResourceType:  string(c.objectType),
-		CorrelationID: log.CorrelationIDFromContext(ctx),
-	}
-	_, err = c.repository.Create(ctx, operation)
-	if err != nil {
-		return nil, err
+	if err := c.repository.Delete(ctx, c.objectType, criteria...); err != nil {
+		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
-	c.scheduler.ScheduleDelete(ctx, c.objectType, criteria, operation.ID)
-
-	return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operation.ID)
+	return util.NewJSONResponse(http.StatusOK, map[string]string{})
 }
 
 // DeleteSingleObject handles the deletion of the object with the id specified in the request
@@ -345,31 +364,41 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	labels, _, _ := query.ApplyLabelChangesToLabels(labelChanges, objFromDB.GetLabels())
 	objFromDB.SetLabels(labels)
 
-	UUID, err := uuid.NewV4()
+	isAsync := r.PathParams[PathParamAsync]
+	if isAsync == "true" {
+		UUID, err := uuid.NewV4()
+		if err != nil {
+			return nil, fmt.Errorf("could not generate GUID for operation: %s", err)
+		}
+
+		operation := &types.Operation{
+			Base: types.Base{
+				ID:        UUID.String(),
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Type:          types.UPDATE,
+			State:         types.IN_PROGRESS,
+			ResourceID:    objFromDB.GetID(),
+			ResourceType:  string(objFromDB.GetType()),
+			CorrelationID: log.CorrelationIDFromContext(ctx),
+		}
+		_, err = c.repository.Create(ctx, operation)
+		if err != nil {
+			return nil, err
+		}
+
+		c.scheduler.ScheduleUpdate(ctx, objFromDB, labelChanges, criteria, operation.ID)
+		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operation.ID)
+	}
+
+	object, err := c.repository.Update(ctx, objFromDB, labelChanges, criteria...)
 	if err != nil {
-		return nil, fmt.Errorf("could not generate GUID for operation: %s", err)
+		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
-	operation := &types.Operation{
-		Base: types.Base{
-			ID:        UUID.String(),
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		},
-		Type:          types.UPDATE,
-		State:         types.IN_PROGRESS,
-		ResourceID:    objFromDB.GetID(),
-		ResourceType:  string(objFromDB.GetType()),
-		CorrelationID: log.CorrelationIDFromContext(ctx),
-	}
-	_, err = c.repository.Create(ctx, operation)
-	if err != nil {
-		return nil, err
-	}
-
-	c.scheduler.ScheduleUpdate(ctx, objFromDB, labelChanges, criteria, operation.ID)
-
-	return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operation.ID)
+	stripCredentials(ctx, object)
+	return util.NewJSONResponse(http.StatusOK, object)
 }
 
 func stripCredentials(ctx context.Context, object types.Object) {
