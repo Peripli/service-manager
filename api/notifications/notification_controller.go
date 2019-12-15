@@ -18,7 +18,6 @@ package notifications
 
 import (
 	"context"
-	"github.com/Peripli/service-manager/operations"
 	"net/http"
 
 	"github.com/Peripli/service-manager/storage"
@@ -37,7 +36,7 @@ type Controller struct {
 	notificator storage.Notificator
 }
 
-func (c *Controller) Scheduler() (bool, operations.JobScheduler) {
+func (c *Controller) Scheduler() (bool, web.JobScheduler) {
 	return false, nil
 }
 

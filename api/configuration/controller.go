@@ -1,7 +1,6 @@
 package configuration
 
 import (
-	"github.com/Peripli/service-manager/operations"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/env"
@@ -60,7 +59,7 @@ func (c *Controller) setLoggingConfiguration(r *web.Request) (*web.Response, err
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
 }
 
-func (c *Controller) Scheduler() (bool, operations.JobScheduler) {
+func (c *Controller) Scheduler() (bool, web.JobScheduler) {
 	return false, nil
 }
 

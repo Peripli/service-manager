@@ -50,7 +50,7 @@ const pagingLimitOffset = 1
 
 // BaseController provides common CRUD handlers for all object types in the service manager
 type BaseController struct {
-	scheduler       operations.JobScheduler
+	scheduler       *operations.DefaultScheduler
 	resourceBaseURL string
 	objectType      types.ObjectType
 	repository      storage.Repository
@@ -61,7 +61,7 @@ type BaseController struct {
 
 // NewController returns a new base controller
 func NewController(ctx context.Context, repository storage.Repository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, options *Options, supportsAsync bool) *BaseController {
-	var scheduler operations.JobScheduler
+	var scheduler *operations.DefaultScheduler
 	if supportsAsync {
 		scheduler = operations.NewScheduler(ctx, repository, options.APISettings.PoolSize, options.APISettings.JobTimeout)
 	}
@@ -77,7 +77,7 @@ func NewController(ctx context.Context, repository storage.Repository, resourceB
 	}
 }
 
-func (c *BaseController) Scheduler() (bool, operations.JobScheduler) {
+func (c *BaseController) Scheduler() (bool, web.JobScheduler) {
 	return c.supportsAsync(), c.scheduler
 }
 

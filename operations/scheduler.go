@@ -11,14 +11,6 @@ import (
 
 const scheduleMsg = "Scheduling %s job for operation with id (%s)"
 
-// JobScheduler is the component responsible for scheduling Async API resource operations
-type JobScheduler interface {
-	Run()
-	ScheduleCreate(ctx context.Context, object types.Object, operationID string)
-	ScheduleUpdate(ctx context.Context, object types.Object, labelChanges query.LabelChanges, criteria []query.Criterion, operationID string)
-	ScheduleDelete(ctx context.Context, objectType types.ObjectType, criteria []query.Criterion, operationID string)
-}
-
 type DefaultScheduler struct {
 	smCtx               context.Context
 	repository          storage.Repository

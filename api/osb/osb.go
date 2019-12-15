@@ -18,7 +18,6 @@
 package osb
 
 import (
-	"github.com/Peripli/service-manager/operations"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -40,7 +39,7 @@ const (
 	serviceBindingAdaptCredentialsURL = baseURL + "/v2/service_instances/{instance_id}/service_bindings/{binding_id}/adapt_credentials"
 )
 
-func (c *Controller) Scheduler() (bool, operations.JobScheduler) {
+func (c *Controller) Scheduler() (bool, web.JobScheduler) {
 	return false, nil
 }
 
