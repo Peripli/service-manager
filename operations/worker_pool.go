@@ -27,16 +27,13 @@ func NewWorkerPool(ctx context.Context, repository storage.Repository, poolSize 
 		repository:     repository,
 		jobs:           make(chan ExecutableJob, poolSize),
 		poolSize:       poolSize,
+		mutex:          &sync.RWMutex{},
 		currentWorkers: 0,
 	}
 }
 
 // Run starts the worker pool so it can start polling for scheduled jobs
 func (wp *WorkerPool) Run() {
-	wp.process()
-}
-
-func (wp *WorkerPool) process() {
 	go wp.processJobs()
 }
 
