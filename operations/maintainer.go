@@ -5,6 +5,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 	"time"
 )
@@ -66,7 +67,7 @@ func (om *OperationMaintainer) cleanupStuckOperations() {
 
 func (om *OperationMaintainer) deleteOldOperations() {
 	// TODO: Leave out the last C/U/D operation for each resource_id (don't just delete all operations older than cleanupInterval time)
-	byDate := query.ByField(query.LessThanOperator, "created_at", time.Now().Add(-om.cleanupInterval).String())
+	byDate := query.ByField(query.LessThanOperator, "created_at", util.ToRFCNanoFormat(time.Now().Add(-om.cleanupInterval)))
 	if err := om.repository.Delete(context.Background(), types.OperationType, byDate); err != nil {
 		log.D().Debugf("Failed to cleanup operations: %s", err)
 		return
@@ -77,7 +78,7 @@ func (om *OperationMaintainer) deleteOldOperations() {
 func (om *OperationMaintainer) deleteOrphanOperations() {
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
-		query.ByField(query.LessThanOperator, "created_at", time.Now().Add(-om.jobTimeout).String()),
+		query.ByField(query.LessThanOperator, "created_at", util.ToRFCNanoFormat(time.Now().Add(-om.jobTimeout))),
 	}
 
 	if err := om.repository.Delete(context.Background(), types.OperationType, criteria...); err != nil {
