@@ -21,7 +21,7 @@ type DefaultScheduler struct {
 
 // NewScheduler constructs a DefaultScheduler
 func NewScheduler(smCtx context.Context, repository storage.Repository, poolSize int) *DefaultScheduler {
-	workerPool := NewWorkerPool(repository, poolSize)
+	workerPool := NewWorkerPool(smCtx, repository, poolSize)
 
 	return &DefaultScheduler{
 		smCtx:      smCtx,

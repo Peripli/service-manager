@@ -97,7 +97,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 		Controllers: []web.Controller{
 			NewController(ctx, options.Repository, web.ServiceBrokersURL, types.ServiceBrokerType, func() types.Object {
 				return &types.ServiceBroker{}
-			}, options, true),
+			}, options, false),
 			NewController(ctx, options.Repository, web.PlatformsURL, types.PlatformType, func() types.Object {
 				return &types.Platform{}
 			}, options, false),

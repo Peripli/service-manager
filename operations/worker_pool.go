@@ -11,9 +11,9 @@ import (
 // WorkerPool is an abstraction responsible for processing
 // jobs which are scheduleed by a JobScheduler
 type WorkerPool struct {
+	smCtx          context.Context
 	repository     storage.Repository
 	jobs           chan ExecutableJob
-	errors         chan error
 	jobTimeout     time.Duration
 	poolSize       int
 	currentWorkers int
@@ -21,11 +21,11 @@ type WorkerPool struct {
 }
 
 // NewWorkerPool constructs a new worker pool
-func NewWorkerPool(repository storage.Repository, poolSize int) *WorkerPool {
+func NewWorkerPool(ctx context.Context, repository storage.Repository, poolSize int) *WorkerPool {
 	return &WorkerPool{
+		smCtx:          ctx,
 		repository:     repository,
 		jobs:           make(chan ExecutableJob, poolSize),
-		errors:         make(chan error, poolSize),
 		poolSize:       poolSize,
 		currentWorkers: 0,
 	}
@@ -38,7 +38,6 @@ func (wp *WorkerPool) Run() {
 
 func (wp *WorkerPool) proccess() {
 	go wp.proccessJobs()
-	go wp.proccessErrors()
 }
 
 // proccessJobs polls the currently scheduled jobs and as long as there
@@ -50,27 +49,25 @@ func (wp *WorkerPool) proccessJobs() {
 		}
 
 		go func() {
-			ctxWithTimeout, cancel := context.WithTimeout(context.Background(), wp.jobTimeout)
+			defer func() {
+				wp.mutex.Lock()
+				wp.currentWorkers--
+				wp.mutex.Unlock()
+			}()
+
+			ctxWithTimeout, cancel := context.WithTimeout(wp.smCtx, wp.jobTimeout)
 			defer cancel()
 
-			job.Execute(ctxWithTimeout, wp.repository, wp.errors)
-			// TODO: gracefully handle operation failure when timeout + modify currentWorkers
+			operationID, err := job.Execute(ctxWithTimeout, wp.repository)
+			if err != nil {
+				log.D().Debugf("Error occurred during execution of operation with ID (%s): %s", operationID, err.Error())
+			} else {
+				log.D().Debugf("Successful executed operation with ID (%s)", operationID)
+			}
 		}()
 
 		wp.mutex.Lock()
 		wp.currentWorkers++
-		wp.mutex.Unlock()
-	}
-}
-
-func (wp *WorkerPool) proccessErrors() {
-	for err := range wp.errors {
-		if err != nil {
-			log.D().Debugf("Error executing operation: %s", err.Error())
-		}
-
-		wp.mutex.Lock()
-		wp.currentWorkers--
 		wp.mutex.Unlock()
 	}
 }
