@@ -41,6 +41,8 @@ func (wp *WorkerPool) proccess() {
 	go wp.proccessErrors()
 }
 
+// proccessJobs polls the currently scheduled jobs and as long as there
+// are available workers it assigns a worker to execute for each available scheduled job
 func (wp *WorkerPool) proccessJobs() {
 	for {
 		job := <-wp.jobs
@@ -48,8 +50,10 @@ func (wp *WorkerPool) proccessJobs() {
 		}
 
 		go func() {
-			ctxWithTimeout, _ := context.WithTimeout(context.Background(), wp.jobTimeout)
-			go job.Execute(ctxWithTimeout, wp.repository, wp.errors)
+			ctxWithTimeout, cancel := context.WithTimeout(context.Background(), wp.jobTimeout)
+			defer cancel()
+
+			job.Execute(ctxWithTimeout, wp.repository, wp.errors)
 			// TODO: gracefully handle operation failure when timeout + modify currentWorkers
 		}()
 

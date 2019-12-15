@@ -55,9 +55,11 @@ func (co *CreateJob) Execute(ctx context.Context, repository storage.Repository,
 
 	if _, err = repository.Create(co.reqCtx, co.object); err != nil {
 		log.D().Debugf("Failed to execute CREATE operation with id (%s) for entity %s", co.operationID, co.object.GetType())
-		if opErr := updateOperationState(co.reqCtx, repository, co.operationID, types.FAILED); err != nil {
+		err = JobError{OperationID: co.operationID, OperationSuccessful: false, error: err}
+
+		if opErr := updateOperationState(co.reqCtx, repository, co.operationID, types.FAILED); opErr != nil {
 			log.D().Debugf("Failed to set state of operation with id (%s) to %s", co.operationID, types.FAILED)
-			err = errors.New(fmt.Sprintf("%s:%s", err, opErr))
+			err = JobError{OperationID: co.operationID, OperationSuccessful: false, error: errors.New(fmt.Sprintf("%s : %s", err, opErr))}
 		}
 		return
 	}
@@ -65,6 +67,7 @@ func (co *CreateJob) Execute(ctx context.Context, repository storage.Repository,
 	log.D().Debugf("Successfully executed CREATE operation with id (%s) for entity %s", co.operationID, co.object.GetType())
 	if err = updateOperationState(co.reqCtx, repository, co.operationID, types.SUCCEEDED); err != nil {
 		log.D().Debugf("Failed to set state of operation with id (%s) to %s", co.operationID, types.SUCCEEDED)
+		err = JobError{OperationID: co.operationID, OperationSuccessful: true, error: err}
 	}
 }
 
@@ -77,9 +80,11 @@ func (uo *UpdateJob) Execute(ctx context.Context, repository storage.Repository,
 
 	if _, err = repository.Update(uo.reqCtx, uo.object, uo.labelChanges, uo.criteria...); err != nil {
 		log.D().Debugf("Failed to execute UPDATE operation with id (%s) for entity %s", uo.operationID, uo.object.GetType())
-		if opErr := updateOperationState(uo.reqCtx, repository, uo.operationID, types.FAILED); err != nil {
+		err = JobError{OperationID: uo.operationID, OperationSuccessful: false, error: err}
+
+		if opErr := updateOperationState(uo.reqCtx, repository, uo.operationID, types.FAILED); opErr != nil {
 			log.D().Debugf("Failed to set state of operation with id (%s) to %s", uo.operationID, types.FAILED)
-			err = errors.New(fmt.Sprintf("%s:%s", err, opErr))
+			err = JobError{OperationID: uo.operationID, OperationSuccessful: false, error: errors.New(fmt.Sprintf("%s : %s", err, opErr))}
 		}
 		return
 	}
@@ -87,6 +92,7 @@ func (uo *UpdateJob) Execute(ctx context.Context, repository storage.Repository,
 	log.D().Debugf("Successfully executed UPDATE operation with id (%s) for entity %s", uo.operationID, uo.object.GetType())
 	if err = updateOperationState(uo.reqCtx, repository, uo.operationID, types.SUCCEEDED); err != nil {
 		log.D().Debugf("Failed to set state of operation with id (%s) to %s", uo.operationID, types.SUCCEEDED)
+		err = JobError{OperationID: uo.operationID, OperationSuccessful: true, error: err}
 	}
 }
 
@@ -99,9 +105,11 @@ func (do *DeleteJob) Execute(ctx context.Context, repository storage.Repository,
 
 	if err = repository.Delete(do.reqCtx, do.objectType, do.criteria...); err != nil {
 		log.D().Debugf("Failed to execute DELETE operation with id (%s) for entity %s", do.operationID, do.objectType)
-		if opErr := updateOperationState(do.reqCtx, repository, do.operationID, types.FAILED); err != nil {
+		err = JobError{OperationID: do.operationID, OperationSuccessful: false, error: err}
+
+		if opErr := updateOperationState(do.reqCtx, repository, do.operationID, types.FAILED); opErr != nil {
 			log.D().Debugf("Failed to set state of operation with id (%s) to %s", do.operationID, types.FAILED)
-			err = errors.New(fmt.Sprintf("%s:%s", err, opErr))
+			err = JobError{OperationID: do.operationID, OperationSuccessful: false, error: errors.New(fmt.Sprintf("%s : %s", err, opErr))}
 		}
 		return
 	}
@@ -109,6 +117,7 @@ func (do *DeleteJob) Execute(ctx context.Context, repository storage.Repository,
 	log.D().Debugf("Successfully executed DELETE operation with id (%s) for entity %s", do.operationID, do.objectType)
 	if err = updateOperationState(do.reqCtx, repository, do.operationID, types.SUCCEEDED); err != nil {
 		log.D().Debugf("Failed to set state of operation with id (%s) to %s", do.operationID, types.SUCCEEDED)
+		err = JobError{OperationID: do.operationID, OperationSuccessful: true, error: err}
 	}
 }
 

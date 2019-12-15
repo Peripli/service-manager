@@ -28,3 +28,17 @@ func (s *Settings) Validate() error {
 	}
 	return nil
 }
+
+// JobError represents an error during execution of a scheduled job
+// It contains the OperationID so that the error handler can retry to
+// either set the operation state Success if operation was successful
+// or to Failed if operation was not successful
+type JobError struct {
+	error
+	OperationID         string
+	OperationSuccessful bool
+}
+
+func (je JobError) Error() string {
+	return fmt.Sprintf("job for operation wih ID %s failed to execute: %s", je.OperationID, je.error)
+}

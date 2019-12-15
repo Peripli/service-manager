@@ -65,7 +65,7 @@ func (om *OperationMaintainer) cleanupStuckOperations() {
 }
 
 func (om *OperationMaintainer) deleteOldOperations() {
-	// TODO: don't cleanup all until two hours ago, clean up all but the last C/U/D opeartion for each resource_id
+	// TODO: Leave out the last C/U/D operation for each resource_id (don't just delete all operations older than cleanupInterval time)
 	byDate := query.ByField(query.LessThanOperator, "created_at", time.Now().Add(-om.cleanupInterval).String())
 	if err := om.repository.Delete(context.Background(), types.OperationType, byDate); err != nil {
 		log.D().Debugf("Failed to cleanup operations: %s", err)
