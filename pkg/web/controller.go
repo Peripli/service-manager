@@ -16,7 +16,7 @@
 
 package web
 
-import "github.com/Peripli/service-manager/api/operations"
+import "github.com/Peripli/service-manager/operations"
 
 // Controller is an entity that wraps a set of HTTP Routes
 type Controller interface {

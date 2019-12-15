@@ -2,7 +2,6 @@ package operations
 
 import (
 	"context"
-	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -17,12 +16,12 @@ type OperationMaintainer struct {
 	cleanupThreshold time.Duration
 }
 
-func NewOperationMaintainer(options *api.Options) *OperationMaintainer {
+func NewOperationMaintainer(repository storage.Repository, jobTimeout time.Duration) *OperationMaintainer {
 	return &OperationMaintainer{
-		repository:       options.Repository,
-		jobTimeout:       options.APISettings.JobTimeout,
-		cleanupInterval:  options.APISettings.JobTimeout,
-		cleanupThreshold: options.APISettings.JobTimeout,
+		repository:       repository,
+		jobTimeout:       jobTimeout,
+		cleanupInterval:  jobTimeout,
+		cleanupThreshold: jobTimeout,
 	}
 }
 

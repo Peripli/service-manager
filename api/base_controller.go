@@ -20,7 +20,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/Peripli/service-manager/api/operations"
+	"github.com/Peripli/service-manager/operations"
 	"net/http"
 	"strconv"
 	"time"
@@ -63,7 +63,7 @@ type BaseController struct {
 func NewController(ctx context.Context, repository storage.Repository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, options *Options, supportsAsync bool) *BaseController {
 	var scheduler operations.JobScheduler
 	if supportsAsync {
-		scheduler = operations.NewScheduler(ctx, options)
+		scheduler = operations.NewScheduler(ctx, repository, options.APISettings.PoolSize, options.APISettings.JobTimeout)
 	}
 
 	return &BaseController{

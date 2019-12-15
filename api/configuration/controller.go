@@ -1,7 +1,7 @@
 package configuration
 
 import (
-	"github.com/Peripli/service-manager/api/operations"
+	"github.com/Peripli/service-manager/operations"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/env"

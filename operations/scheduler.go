@@ -2,11 +2,11 @@ package operations
 
 import (
 	"context"
-	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
+	"time"
 )
 
 const scheduleMsg = "Scheduling %s job for operation with id (%s)"
@@ -27,13 +27,13 @@ type DefaultScheduler struct {
 	jobs                chan ExecutableJob
 }
 
-func NewScheduler(smCtx context.Context, options *api.Options) *DefaultScheduler {
-	workerPool := NewPool(options.Repository, options.APISettings.PoolSize)
-	operationMaintainer := NewOperationMaintainer(options)
+func NewScheduler(smCtx context.Context, repository storage.Repository, poolSize int, jobTimeout time.Duration) *DefaultScheduler {
+	workerPool := NewPool(repository, poolSize)
+	operationMaintainer := NewOperationMaintainer(repository, jobTimeout)
 
 	return &DefaultScheduler{
 		smCtx:               smCtx,
-		repository:          options.Repository,
+		repository:          repository,
 		workerPool:          workerPool,
 		operationMaintainer: operationMaintainer,
 		jobs:                workerPool.jobs,
