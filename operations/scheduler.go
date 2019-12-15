@@ -13,7 +13,6 @@ const scheduleMsg = "Scheduling %s job for operation with id (%s)"
 // DefaultScheduler implements JobScheduler interface. It's responsible for
 // storing C/U/D jobs so that a worker pool can eventually start consuming these jobs
 type DefaultScheduler struct {
-	smCtx      context.Context
 	repository storage.Repository
 	workerPool *WorkerPool
 	jobs       chan ExecutableJob
@@ -24,7 +23,6 @@ func NewScheduler(smCtx context.Context, repository storage.Repository, poolSize
 	workerPool := NewWorkerPool(smCtx, repository, poolSize)
 
 	return &DefaultScheduler{
-		smCtx:      smCtx,
 		repository: repository,
 		workerPool: workerPool,
 		jobs:       workerPool.jobs,
