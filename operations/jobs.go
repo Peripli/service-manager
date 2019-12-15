@@ -17,17 +17,23 @@ type ExecutableJob interface {
 	Execute(ctx context.Context, repository storage.Repository, results chan error)
 }
 
+// baseJob provides the base of what an ExecutableJob should contain
+type baseJob struct {
+	operationID string
+
+	reqCtx       context.Context
+	reqCtxCancel context.CancelFunc
+}
+
 // CreateJob represents an ExecutableJob which is responsible for executing a Create DB operation
 type CreateJob struct {
-	operationID string
-	reqCtx      context.Context
-	object      types.Object
+	baseJob
+	object types.Object
 }
 
 // UpdateJob represents an ExecutableJob which is responsible for executing an Update DB operation
 type UpdateJob struct {
-	operationID  string
-	reqCtx       context.Context
+	baseJob
 	object       types.Object
 	labelChanges query.LabelChanges
 	criteria     []query.Criterion
@@ -35,10 +41,9 @@ type UpdateJob struct {
 
 // DeleteJob represents an ExecutableJob which is responsible for executing a Delete DB operation
 type DeleteJob struct {
-	operationID string
-	reqCtx      context.Context
-	objectType  types.ObjectType
-	criteria    []query.Criterion
+	baseJob
+	objectType types.ObjectType
+	criteria   []query.Criterion
 }
 
 // Execute executes a Create DB operation

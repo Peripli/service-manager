@@ -39,23 +39,33 @@ func (ds *DefaultScheduler) Run() {
 
 // SchedulerCreate schedules a Create job in the worker pool
 func (ds *DefaultScheduler) ScheduleCreate(ctx context.Context, object types.Object, operationID string) {
+	childCtx, childCtxCancel := context.WithCancel(ctx)
+
 	go func() {
 		log.D().Infof(scheduleMsg, types.CREATE, operationID)
 		ds.jobs <- &CreateJob{
-			operationID: operationID,
-			reqCtx:      ctx,
-			object:      object,
+			baseJob: baseJob{
+				operationID:  operationID,
+				reqCtx:       childCtx,
+				reqCtxCancel: childCtxCancel,
+			},
+			object: object,
 		}
 	}()
 }
 
 // SchedulerUpdate schedules an Update job in the worker pool
 func (ds *DefaultScheduler) ScheduleUpdate(ctx context.Context, object types.Object, labelChanges query.LabelChanges, criteria []query.Criterion, operationID string) {
+	childCtx, childCtxCancel := context.WithCancel(ctx)
+
 	go func() {
 		log.D().Infof(scheduleMsg, types.UPDATE, operationID)
 		ds.jobs <- &UpdateJob{
-			operationID:  operationID,
-			reqCtx:       ctx,
+			baseJob: baseJob{
+				operationID:  operationID,
+				reqCtx:       childCtx,
+				reqCtxCancel: childCtxCancel,
+			},
 			object:       object,
 			labelChanges: labelChanges,
 			criteria:     criteria,
@@ -65,13 +75,18 @@ func (ds *DefaultScheduler) ScheduleUpdate(ctx context.Context, object types.Obj
 
 // SchedulerDelete schedules an Delete job in the worker pool
 func (ds *DefaultScheduler) ScheduleDelete(ctx context.Context, objectType types.ObjectType, criteria []query.Criterion, operationID string) {
+	childCtx, childCtxCancel := context.WithCancel(ctx)
+
 	go func() {
 		log.D().Infof(scheduleMsg, types.DELETE, operationID)
 		ds.jobs <- &DeleteJob{
-			operationID: operationID,
-			reqCtx:      ctx,
-			objectType:  objectType,
-			criteria:    criteria,
+			baseJob: baseJob{
+				operationID:  operationID,
+				reqCtx:       childCtx,
+				reqCtxCancel: childCtxCancel,
+			},
+			objectType: objectType,
+			criteria:   criteria,
 		}
 	}()
 }
