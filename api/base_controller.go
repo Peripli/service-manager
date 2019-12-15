@@ -197,6 +197,7 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 		}
 
 		c.scheduler.ScheduleDelete(ctx, c.objectType, criteria, operationID)
+
 		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operationID)
 	}
 
@@ -356,6 +357,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		}
 
 		c.scheduler.ScheduleUpdate(ctx, objFromDB, labelChanges, criteria, operationID)
+
 		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operationID)
 	}
 
