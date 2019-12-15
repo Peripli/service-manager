@@ -57,10 +57,15 @@ type BaseController struct {
 }
 
 // NewController returns a new base controller
-func NewController(ctx context.Context, repository storage.Repository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, options *Options) *BaseController {
+func NewController(ctx context.Context, repository storage.Repository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, options *Options, supportsAsync bool) *BaseController {
+	var scheduler operations.JobScheduler
+	if supportsAsync {
+		scheduler = operations.NewScheduler(ctx, options)
+	}
+
 	return &BaseController{
 		repository:      repository,
-		scheduler:       operations.NewScheduler(ctx, options),
+		scheduler:       scheduler,
 		resourceBaseURL: resourceBaseURL,
 		objectBlueprint: objectBlueprint,
 		objectType:      objectType,
@@ -70,7 +75,7 @@ func NewController(ctx context.Context, repository storage.Repository, resourceB
 }
 
 func (c *BaseController) Scheduler() (bool, operations.JobScheduler) {
-	return true, c.scheduler
+	return c.scheduler != nil, c.scheduler
 }
 
 // Routes returns the common set of routes for all objects

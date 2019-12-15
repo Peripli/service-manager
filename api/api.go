@@ -101,13 +101,13 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 		Controllers: []web.Controller{
 			NewController(ctx, options.Repository, web.ServiceBrokersURL, types.ServiceBrokerType, func() types.Object {
 				return &types.ServiceBroker{}
-			}, options),
+			}, options, true),
 			NewController(ctx, options.Repository, web.PlatformsURL, types.PlatformType, func() types.Object {
 				return &types.Platform{}
-			}, options),
+			}, options, false),
 			NewController(ctx, options.Repository, web.VisibilitiesURL, types.VisibilityType, func() types.Object {
 				return &types.Visibility{}
-			}, options),
+			}, options, false),
 			apiNotifications.NewController(ctx, options.Repository, options.WSSettings, options.Notificator),
 			NewServiceOfferingController(ctx, options.Repository, options),
 			NewServicePlanController(ctx, options.Repository, options),
