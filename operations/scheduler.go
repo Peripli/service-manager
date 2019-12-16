@@ -5,6 +5,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 )
 
@@ -37,7 +38,8 @@ func (ds *DefaultScheduler) Run() {
 
 // SchedulerCreate schedules a Create job in the worker pool
 func (ds *DefaultScheduler) ScheduleCreate(ctx context.Context, object types.Object, operationID string) {
-	childCtx, childCtxCancel := context.WithCancel(ctx)
+	reqCtxClone := util.RequestContextCopy{Context: ctx}
+	childCtx, childCtxCancel := context.WithCancel(reqCtxClone)
 
 	go func() {
 		log.D().Infof(scheduleMsg, types.CREATE, operationID)
@@ -54,7 +56,8 @@ func (ds *DefaultScheduler) ScheduleCreate(ctx context.Context, object types.Obj
 
 // SchedulerUpdate schedules an Update job in the worker pool
 func (ds *DefaultScheduler) ScheduleUpdate(ctx context.Context, object types.Object, labelChanges query.LabelChanges, criteria []query.Criterion, operationID string) {
-	childCtx, childCtxCancel := context.WithCancel(ctx)
+	reqCtxClone := util.RequestContextCopy{Context: ctx}
+	childCtx, childCtxCancel := context.WithCancel(reqCtxClone)
 
 	go func() {
 		log.D().Infof(scheduleMsg, types.UPDATE, operationID)
@@ -73,7 +76,8 @@ func (ds *DefaultScheduler) ScheduleUpdate(ctx context.Context, object types.Obj
 
 // SchedulerDelete schedules an Delete job in the worker pool
 func (ds *DefaultScheduler) ScheduleDelete(ctx context.Context, objectType types.ObjectType, criteria []query.Criterion, operationID string) {
-	childCtx, childCtxCancel := context.WithCancel(ctx)
+	reqCtxClone := util.RequestContextCopy{Context: ctx}
+	childCtx, childCtxCancel := context.WithCancel(reqCtxClone)
 
 	go func() {
 		log.D().Infof(scheduleMsg, types.DELETE, operationID)
