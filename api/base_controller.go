@@ -63,7 +63,7 @@ type BaseController struct {
 func NewController(ctx context.Context, repository storage.Repository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, options *Options, supportsAsync bool) *BaseController {
 	var scheduler *operations.DefaultScheduler
 	if supportsAsync {
-		scheduler = operations.NewScheduler(ctx, repository, options.OperationSettings.PoolSize)
+		scheduler = operations.NewScheduler(ctx, repository, options.OperationSettings)
 	}
 
 	return &BaseController{
@@ -166,7 +166,8 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 
-		c.scheduler.ScheduleCreate(ctx, result, operationID)
+		reqCtxCopy := util.RequestContextCopy{Context: ctx}
+		c.scheduler.ScheduleCreate(reqCtxCopy, result, operationID)
 
 		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operationID)
 	}
@@ -199,7 +200,8 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 
-		c.scheduler.ScheduleDelete(ctx, c.objectType, criteria, operationID)
+		reqCtxCopy := util.RequestContextCopy{Context: ctx}
+		c.scheduler.ScheduleDelete(reqCtxCopy, c.objectType, criteria, operationID)
 
 		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operationID)
 	}
@@ -361,7 +363,8 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 
-		c.scheduler.ScheduleUpdate(ctx, objFromDB, labelChanges, criteria, operationID)
+		reqCtxCopy := util.RequestContextCopy{Context: ctx}
+		c.scheduler.ScheduleUpdate(reqCtxCopy, objFromDB, labelChanges, criteria, operationID)
 
 		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operationID)
 	}

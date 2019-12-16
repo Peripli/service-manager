@@ -4,31 +4,27 @@ import (
 	"context"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/storage"
-	"sync"
 	"time"
 )
 
 // WorkerPool is an abstraction responsible for processing
 // jobs which are scheduled by a JobScheduler
 type WorkerPool struct {
-	smCtx          context.Context
-	repository     storage.Repository
-	jobs           chan ExecutableJob
-	jobTimeout     time.Duration
-	poolSize       int
-	currentWorkers int
-	mutex          *sync.RWMutex
+	smCtx      context.Context
+	repository storage.Repository
+	jobs       chan ExecutableJob
+	workers    chan struct{}
+	jobTimeout time.Duration
 }
 
 // NewWorkerPool constructs a new worker pool
-func NewWorkerPool(ctx context.Context, repository storage.Repository, poolSize int) *WorkerPool {
+func NewWorkerPool(ctx context.Context, repository storage.Repository, options *Settings) *WorkerPool {
 	return &WorkerPool{
-		smCtx:          ctx,
-		repository:     repository,
-		jobs:           make(chan ExecutableJob, poolSize),
-		poolSize:       poolSize,
-		mutex:          &sync.RWMutex{},
-		currentWorkers: 0,
+		smCtx:      ctx,
+		repository: repository,
+		jobs:       make(chan ExecutableJob, options.PoolSize),
+		workers:    make(chan struct{}, options.PoolSize),
+		jobTimeout: options.JobTimeout,
 	}
 }
 
@@ -42,14 +38,11 @@ func (wp *WorkerPool) Run() {
 func (wp *WorkerPool) processJobs() {
 	for {
 		job := <-wp.jobs
-		for wp.currentWorkers >= wp.poolSize {
-		}
+		wp.workers <- struct{}{}
 
 		go func() {
 			defer func() {
-				wp.mutex.Lock()
-				wp.currentWorkers--
-				wp.mutex.Unlock()
+				<-wp.workers
 			}()
 
 			ctxWithTimeout, cancel := context.WithTimeout(wp.smCtx, wp.jobTimeout)
@@ -62,9 +55,5 @@ func (wp *WorkerPool) processJobs() {
 				log.D().Debugf("Successful executed operation with ID (%s)", operationID)
 			}
 		}()
-
-		wp.mutex.Lock()
-		wp.currentWorkers++
-		wp.mutex.Unlock()
 	}
 }
