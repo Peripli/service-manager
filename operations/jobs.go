@@ -2,11 +2,13 @@ package operations
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
+	"time"
 )
 
 // ExecutableJob represents a DB operation that has to be executed.
@@ -56,7 +58,7 @@ func (co *CreateJob) Execute(ctx context.Context, repository storage.Repository)
 	if _, err = repository.Create(co.reqCtx, co.object); err != nil {
 		log.D().Debugf("Failed to execute CREATE operation with id (%s) for entity %s", co.operationID, co.object.GetType())
 
-		if opErr := updateOperationState(co.reqCtx, repository, co.operationID, types.FAILED); opErr != nil {
+		if opErr := updateOperationState(co.reqCtx, repository, co.operationID, types.FAILED, &OperationError{Message: err.Error()}); opErr != nil {
 			log.D().Debugf("Failed to set state of operation with id (%s) to %s", co.operationID, types.FAILED)
 			err = fmt.Errorf("%s : %s", err, opErr)
 		}
@@ -64,7 +66,7 @@ func (co *CreateJob) Execute(ctx context.Context, repository storage.Repository)
 	}
 
 	log.D().Debugf("Successfully executed CREATE operation with id (%s) for entity %s", co.operationID, co.object.GetType())
-	if err = updateOperationState(co.reqCtx, repository, co.operationID, types.SUCCEEDED); err != nil {
+	if err = updateOperationState(co.reqCtx, repository, co.operationID, types.SUCCEEDED, nil); err != nil {
 		log.D().Debugf("Failed to set state of operation with id (%s) to %s", co.operationID, types.SUCCEEDED)
 	}
 
@@ -83,7 +85,7 @@ func (uo *UpdateJob) Execute(ctx context.Context, repository storage.Repository)
 	if _, err = repository.Update(uo.reqCtx, uo.object, uo.labelChanges, uo.criteria...); err != nil {
 		log.D().Debugf("Failed to execute UPDATE operation with id (%s) for entity %s", uo.operationID, uo.object.GetType())
 
-		if opErr := updateOperationState(uo.reqCtx, repository, uo.operationID, types.FAILED); opErr != nil {
+		if opErr := updateOperationState(uo.reqCtx, repository, uo.operationID, types.FAILED, &OperationError{Message: err.Error()}); opErr != nil {
 			log.D().Debugf("Failed to set state of operation with id (%s) to %s", uo.operationID, types.FAILED)
 			err = fmt.Errorf("%s : %s", err, opErr)
 		}
@@ -91,7 +93,7 @@ func (uo *UpdateJob) Execute(ctx context.Context, repository storage.Repository)
 	}
 
 	log.D().Debugf("Successfully executed UPDATE operation with id (%s) for entity %s", uo.operationID, uo.object.GetType())
-	if err = updateOperationState(uo.reqCtx, repository, uo.operationID, types.SUCCEEDED); err != nil {
+	if err = updateOperationState(uo.reqCtx, repository, uo.operationID, types.SUCCEEDED, nil); err != nil {
 		log.D().Debugf("Failed to set state of operation with id (%s) to %s", uo.operationID, types.SUCCEEDED)
 	}
 
@@ -110,7 +112,7 @@ func (do *DeleteJob) Execute(ctx context.Context, repository storage.Repository)
 	if err = repository.Delete(do.reqCtx, do.objectType, do.criteria...); err != nil {
 		log.D().Debugf("Failed to execute DELETE operation with id (%s) for entity %s", do.operationID, do.objectType)
 
-		if opErr := updateOperationState(do.reqCtx, repository, do.operationID, types.FAILED); opErr != nil {
+		if opErr := updateOperationState(do.reqCtx, repository, do.operationID, types.FAILED, &OperationError{Message: err.Error()}); opErr != nil {
 			log.D().Debugf("Failed to set state of operation with id (%s) to %s", do.operationID, types.FAILED)
 			err = fmt.Errorf("%s : %s", err, opErr)
 		}
@@ -118,20 +120,29 @@ func (do *DeleteJob) Execute(ctx context.Context, repository storage.Repository)
 	}
 
 	log.D().Debugf("Successfully executed DELETE operation with id (%s) for entity %s", do.operationID, do.objectType)
-	if err = updateOperationState(do.reqCtx, repository, do.operationID, types.SUCCEEDED); err != nil {
+	if err = updateOperationState(do.reqCtx, repository, do.operationID, types.SUCCEEDED, nil); err != nil {
 		log.D().Debugf("Failed to set state of operation with id (%s) to %s", do.operationID, types.SUCCEEDED)
 	}
 
 	return do.operationID, err
 }
 
-func updateOperationState(ctx context.Context, repository storage.Repository, operationID string, state types.OperationState) error {
+func updateOperationState(ctx context.Context, repository storage.Repository, operationID string, state types.OperationState, opErr *OperationError) error {
 	operation, err := fetchOperation(ctx, repository, operationID)
 	if err != nil {
 		return err
 	}
 
 	operation.State = state
+	operation.UpdatedAt = time.Now()
+
+	if opErr != nil {
+		bytes, err := json.Marshal(opErr)
+		if err != nil {
+			return err
+		}
+		operation.Errors = json.RawMessage(bytes)
+	}
 
 	_, err = repository.Update(ctx, operation, query.LabelChanges{})
 	if err != nil {
