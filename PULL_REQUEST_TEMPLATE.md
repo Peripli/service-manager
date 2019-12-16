@@ -14,10 +14,6 @@ _How does this change address the problem?_
 
 ## Pull Request status
 
-Use checklists as a means to represent the status of your Pull Request.
-
-For example:
-
 * [x] Initial implementation
 * [ ] Refactoring
 * [ ] Unit tests
