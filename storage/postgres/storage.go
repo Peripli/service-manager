@@ -20,9 +20,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/lib/pq"
 	"sync"
 	"time"
+
+	"github.com/lib/pq"
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -240,13 +241,13 @@ func (ps *Storage) Count(ctx context.Context, objType types.ObjectType, criteria
 	return ps.queryBuilder.NewQuery(entity).WithCriteria(criteria...).WithLock().Count(ctx)
 }
 
-func (ps *Storage) Delete(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
+func (ps *Storage) DeleteReturning(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) (types.ObjectList, error) {
 	entity, err := ps.scheme.provide(objType)
 	if err != nil {
 		return nil, err
 	}
 
-	rows, err := ps.queryBuilder.NewQuery(entity).WithCriteria(criteria...).Return("*").Delete(ctx)
+	rows, err := ps.queryBuilder.NewQuery(entity).WithCriteria(criteria...).DeleteReturning(ctx, "*")
 	defer closeRows(ctx, rows)
 	if err != nil {
 		pqError, ok := err.(*pq.Error)
@@ -270,6 +271,30 @@ func (ps *Storage) Delete(ctx context.Context, objType types.ObjectType, criteri
 		return nil, util.ErrNotFoundInStorage
 	}
 	return objectList, nil
+}
+
+func (ps *Storage) Delete(ctx context.Context, objType types.ObjectType, criteria ...query.Criterion) error {
+	entity, err := ps.scheme.provide(objType)
+	if err != nil {
+		return err
+	}
+
+	result, err := ps.queryBuilder.NewQuery(entity).WithCriteria(criteria...).Delete(ctx)
+	if err != nil {
+		pqError, ok := err.(*pq.Error)
+		if ok && pqError.Code.Name() == foreignKeyViolation {
+			entityName := objType.String()
+			referenceEntityName := ps.scheme.entityToObjectTypeConverter[pqError.Table]
+
+			return &util.ErrForeignKeyViolation{
+				Entity:          entityName,
+				ReferenceEntity: referenceEntityName,
+			}
+		}
+		return err
+	}
+
+	return checkRowsAffected(ctx, result)
 }
 
 func (ps *Storage) Update(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, _ ...query.Criterion) (types.Object, error) {

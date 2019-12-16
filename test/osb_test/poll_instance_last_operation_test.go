@@ -29,6 +29,7 @@ import (
 )
 
 var _ = Describe("Get Service Instance Last Operation", func() {
+	const brokerLastOperationStateFailed = `{"state":"failed", "description": "an error happened"}`
 	BeforeEach(func() {
 		brokerServer.ServiceInstanceLastOpHandler = parameterizedHandler(http.StatusOK, `{}`)
 	})
@@ -126,24 +127,24 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 					By(fmt.Sprintf("Deleting instance with id %s", SID))
 					byID := query.ByField(query.EqualsOperator, "id", SID)
-					_, err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
+					err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
 					Expect(err).ToNot(HaveOccurred())
 
 					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusNotFound)
 				})
 
-				It("returns 404", func() {
+				It("returns 200", func() {
 					By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
 					ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-						Expect().Status(http.StatusNotFound)
+						Expect().Status(http.StatusOK).Body().Equal(`{"state":"succeeded"}`)
 				})
 			})
 		})
 
 		Context("that has failed", func() {
 			BeforeEach(func() {
-				brokerServer.ServiceInstanceLastOpHandler = parameterizedHandler(http.StatusOK, `{"state":"failed", "description": "an error happened"}`)
+				brokerServer.ServiceInstanceLastOpHandler = parameterizedHandler(http.StatusOK, brokerLastOperationStateFailed)
 			})
 
 			It("updates the operation to failed and deletes the instance", func() {
@@ -271,7 +272,7 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 		Context("that has failed", func() {
 			BeforeEach(func() {
-				brokerServer.ServiceInstanceLastOpHandler = parameterizedHandler(http.StatusOK, `{"state":"failed", "description": "an error happened"}`)
+				brokerServer.ServiceInstanceLastOpHandler = parameterizedHandler(http.StatusOK, brokerLastOperationStateFailed)
 			})
 
 			It("updates the operation to failed and rollbacks the instance", func() {
@@ -334,17 +335,17 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 					By(fmt.Sprintf("Deleting instance with id %s", SID))
 					byID := query.ByField(query.EqualsOperator, "id", SID)
-					_, err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
+					err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
 					Expect(err).ToNot(HaveOccurred())
 
 					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusNotFound)
 				})
 
-				It("returns 404", func() {
+				It("returns response from broker", func() {
 					By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
 					ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-						Expect().Status(http.StatusNotFound)
+						Expect().Status(http.StatusOK).Body().Equal(brokerLastOperationStateFailed)
 				})
 			})
 		})
@@ -456,7 +457,7 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 					By(fmt.Sprintf("Deleting instance with id %s", SID))
 					byID := query.ByField(query.EqualsOperator, "id", SID)
-					_, err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
+					err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
 					Expect(err).ToNot(HaveOccurred())
 
 					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
@@ -473,7 +474,7 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 		Context("that has failed", func() {
 			BeforeEach(func() {
-				brokerServer.ServiceInstanceLastOpHandler = parameterizedHandler(http.StatusOK, `{"state":"failed", "description": "an error happened"}`)
+				brokerServer.ServiceInstanceLastOpHandler = parameterizedHandler(http.StatusOK, brokerLastOperationStateFailed)
 			})
 
 			It("updates the operation to failed and does not delete the instance", func() {
@@ -536,17 +537,17 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 
 					By(fmt.Sprintf("Deleting instance with id %s", SID))
 					byID := query.ByField(query.EqualsOperator, "id", SID)
-					_, err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
+					err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
 					Expect(err).ToNot(HaveOccurred())
 
 					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						Expect().Status(http.StatusNotFound)
 				})
 
-				It("returns 404", func() {
+				It("returns response from broker", func() {
 					By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
 					ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-						Expect().Status(http.StatusNotFound)
+						Expect().Status(http.StatusOK).Body().Equal(brokerLastOperationStateFailed)
 				})
 			})
 		})

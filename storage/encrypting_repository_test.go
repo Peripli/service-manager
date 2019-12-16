@@ -85,7 +85,7 @@ var _ = Describe("Encrypting Repository", func() {
 
 		fakeRepository.GetReturns(objWithEncryptedPassword.(*types.ServiceBroker), nil)
 
-		fakeRepository.DeleteReturns(&types.ServiceBrokers{
+		fakeRepository.DeleteReturningReturns(&types.ServiceBrokers{
 			ServiceBrokers: []*types.ServiceBroker{
 				objWithEncryptedPassword.(*types.ServiceBroker),
 			},
@@ -311,21 +311,21 @@ var _ = Describe("Encrypting Repository", func() {
 		})
 	})
 
-	Describe("Delete", func() {
+	Describe("DeleteReturning", func() {
 		Context("when decrypting fails", func() {
 			It("returns an error", func() {
 				fakeEncrypter.DecryptReturns(nil, fmt.Errorf("error"))
 
-				_, err = repository.Delete(ctx, types.ServiceBrokerType)
+				_, err = repository.DeleteReturning(ctx, types.ServiceBrokerType)
 				Expect(err).To(HaveOccurred())
 			})
 		})
 
 		Context("when delegate call fails", func() {
 			It("returns an error", func() {
-				fakeRepository.DeleteReturns(nil, fmt.Errorf("error"))
+				fakeRepository.DeleteReturns(fmt.Errorf("error"))
 
-				_, err = repository.Delete(ctx, types.ServiceBrokerType)
+				err = repository.Delete(ctx, types.ServiceBrokerType)
 				Expect(err).To(HaveOccurred())
 			})
 		})
@@ -335,7 +335,7 @@ var _ = Describe("Encrypting Repository", func() {
 			var err error
 
 			BeforeEach(func() {
-				returnedObjList, err = repository.Delete(ctx, types.ServiceBrokerType)
+				returnedObjList, err = repository.DeleteReturning(ctx, types.ServiceBrokerType)
 				Expect(err).ToNot(HaveOccurred())
 			})
 
@@ -398,7 +398,7 @@ var _ = Describe("Encrypting Repository", func() {
 
 					// verify delete
 					delegateDeleteCallsCountBeforeOp := fakeRepository.DeleteCallCount()
-					returnedObjList, err = repository.Delete(ctx, types.ServiceBrokerType)
+					returnedObjList, err = repository.DeleteReturning(ctx, types.ServiceBrokerType)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(fakeRepository.DeleteCallCount() - delegateDeleteCallsCountBeforeOp).To(Equal(1))
 					for i := 0; i < returnedObjList.Len(); i++ {

@@ -141,7 +141,7 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 
 		for _, existingServiceOffering := range existingServicesOfferingsMap {
 			byID := query.ByField(query.EqualsOperator, "id", existingServiceOffering.ID)
-			if _, err := txStorage.Delete(ctx, types.ServiceOfferingType, byID); err != nil {
+			if err := txStorage.Delete(ctx, types.ServiceOfferingType, byID); err != nil {
 				return nil, err
 			}
 		}
@@ -201,7 +201,7 @@ func (c *brokerUpdateCatalogInterceptor) OnTxUpdate(f storage.InterceptUpdateOnT
 		for _, existingServicePlansForOffering := range existingServicePlansPerOfferingMap {
 			for _, existingServicePlan := range existingServicePlansForOffering {
 				byID := query.ByField(query.EqualsOperator, "id", existingServicePlan.ID)
-				if _, err := txStorage.Delete(ctx, types.ServicePlanType, byID); err != nil {
+				if err := txStorage.Delete(ctx, types.ServicePlanType, byID); err != nil {
 					if err == util.ErrNotFoundInStorage {
 						// If the service for the plan was deleted, plan would already be gone
 						continue
