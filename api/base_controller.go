@@ -195,7 +195,8 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 
-		operationID, err := c.storeOperation(ctx, c.repository, types.IN_PROGRESS, types.DELETE, "", log.CorrelationIDFromContext(ctx))
+		resourceID := getResourceIDFromCriteria(criteria)
+		operationID, err := c.storeOperation(ctx, c.repository, types.IN_PROGRESS, types.DELETE, resourceID, log.CorrelationIDFromContext(ctx))
 		if err != nil {
 			return nil, err
 		}
@@ -506,4 +507,16 @@ func pageFromObjectList(ctx context.Context, objectList types.ObjectList, count,
 		page.Token = generateTokenForItem(page.Items[len(page.Items)-1])
 	}
 	return page
+}
+
+func getResourceIDFromCriteria(criteria []query.Criterion) string {
+	for _, criterion := range criteria {
+		if criterion.LeftOp == "id" {
+			if len(criterion.RightOp) == 1 {
+				return criterion.RightOp[0]
+			}
+			return ""
+		}
+	}
+	return ""
 }
