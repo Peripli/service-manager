@@ -37,8 +37,7 @@ func NewScopesAuthorizer(scopes []string, level web.AccessLevel) httpsec.Authori
 			}
 		}
 
-		log.C(ctx).Debugf("none of the optional scopes %v are present in the user token scopes %v", scopes, userScopes)
-		return httpsec.Abstain, web.NoAccess, nil
+		return httpsec.Deny, web.NoAccess, fmt.Errorf(`none of the scopes %v are present in the user token scopes %v`, scopes, userScopes)
 	})
 }
 

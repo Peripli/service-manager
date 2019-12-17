@@ -24,8 +24,7 @@ func NewOAuthCloneAuthorizer(trustedClientIDSuffix string, level web.AccessLevel
 		logger.Debugf("User token: zid=%s cid=%s", claims.ZID, claims.CID)
 
 		if !slice.StringsAnySuffix([]string{claims.CID}, trustedClientIDSuffix) {
-			logger.Debugf(`Client id "%s" from user token is not generated from a clone OAuth client %v`, claims.CID, trustedClientIDSuffix)
-			return httpsec.Deny, web.NoAccess, fmt.Errorf(`client id "%s" from user token is not generated from a clone OAuth client`, claims.CID)
+			return httpsec.Deny, web.NoAccess, fmt.Errorf(`client id "%s" from user token does not have the required suffix`, claims.CID)
 		}
 
 		return httpsec.Allow, level, nil

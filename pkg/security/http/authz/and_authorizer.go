@@ -1,6 +1,9 @@
 package authz
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/web"
 
@@ -22,30 +25,49 @@ func (a *andAuthorizer) Authorize(request *web.Request) (httpsec.Decision, web.A
 	ctx := request.Context()
 	logger := log.C(ctx)
 
-	allowed := true
+	errs := compositeError{}
+	abstain := false
+	denied := false
+
 	accessLevels := make([]web.AccessLevel, 0)
 	for _, authorizer := range a.authorizers {
 		decision, level, err := authorizer.Authorize(request)
 		if err != nil {
 			logger.WithError(err).Debug("AndAuthorizer: error during evaluate authorizer")
+			if decision == httpsec.Deny {
+				logger.Debug("AndAuthorizer: one authorizer denied, stop evaluating")
+				denied = true
+				errs = append(errs, err)
+				continue
+			}
 			return decision, web.NoAccess, err
 		}
 
 		if decision == httpsec.Deny {
-			logger.Debug("AndAuthorizer: one authorizer denied, stop evaluating")
-			return httpsec.Deny, web.NoAccess, nil
-		}
-
-		if decision != httpsec.Allow {
-			allowed = false
-		} else {
+			denied = true
+		} else if decision == httpsec.Allow {
 			accessLevels = append(accessLevels, level)
+		} else {
+			abstain = true
 		}
 	}
 
-	if allowed {
-		return httpsec.Allow, findMostRestrictiveAccessLevel(accessLevels), nil
+	if denied {
+		return httpsec.Deny, web.NoAccess, errs
+	} else if abstain {
+		return httpsec.Abstain, web.NoAccess, nil
 	}
 
-	return httpsec.Abstain, web.NoAccess, nil
+	return httpsec.Allow, findMostRestrictiveAccessLevel(accessLevels), nil
+}
+
+type compositeError []error
+
+func (c compositeError) Error() string {
+	s := make([]string, 0, len(c))
+	for _, e := range c {
+		s = append(s, "cause: "+e.Error())
+	}
+
+	return fmt.Sprintf("(%s)", strings.Join(s, "; "))
 }

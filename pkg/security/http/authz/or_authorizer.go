@@ -1,8 +1,6 @@
 package authz
 
 import (
-	"strings"
-
 	"github.com/Peripli/service-manager/pkg/web"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -54,15 +52,4 @@ func (a *orAuthorizer) Authorize(request *web.Request) (httpsec.Decision, web.Ac
 	}
 
 	return httpsec.Abstain, web.NoAccess, nil
-}
-
-type compositeError []error
-
-func (c compositeError) Error() string {
-	s := make([]string, 0, len(c))
-	for _, e := range c {
-		s = append(s, "Cause: "+e.Error())
-	}
-
-	return strings.Join(s, ". ")
 }

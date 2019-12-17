@@ -17,6 +17,8 @@
 package filters
 
 import (
+	"fmt"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -48,7 +50,11 @@ func (raf *requiredAuthzFilter) Run(request *web.Request, next web.Handler) (*we
 	ctx := request.Context()
 	if !web.IsAuthorized(ctx) {
 		log.C(ctx).Info("No authorization confirmation found during execution of filter ", raf.Name())
-		return nil, security.ForbiddenHTTPError("Not authorized")
+		message := "not authorized"
+		if err, found := web.AuthorizationErrorFromContext(ctx); found {
+			message = fmt.Sprintf("%s: %s", message, err)
+		}
+		return nil, security.ForbiddenHTTPError(message)
 	}
 	return next.Handle(request)
 }

@@ -20,6 +20,8 @@ type securityBuilder struct {
 	methods        []string
 	authenticators []httpsec.Authenticator
 	authorizers    []httpsec.Authorizer
+	accessLevelSet bool
+	accessLevel    web.AccessLevel
 
 	authentication bool
 	authorization  bool
@@ -117,23 +119,35 @@ func (sb *securityBuilder) WithAuthorization(authorizer httpsec.Authorizer) *sec
 }
 
 func (sb *securityBuilder) WithScopes(scopes ...string) *securityBuilder {
+	sb.authorization = true
 	sb.authorizers = append(sb.authorizers, authz.NewScopesAuthorizer(scopes, web.GlobalAccess))
 	return sb
 }
 
 func (sb *securityBuilder) WithClientIDSuffix(suffix string) *securityBuilder {
+	sb.authorization = true
 	sb.authorizers = append(sb.authorizers, authz.NewOAuthCloneAuthorizer(suffix, web.GlobalAccess))
 	return sb
 }
 
 func (sb *securityBuilder) WithClientID(clientID string) *securityBuilder {
+	sb.authorization = true
 	sb.authorizers = append(sb.authorizers, authz.NewOauthClientAuthorizer(clientID, web.GlobalAccess))
+	return sb
+}
+
+func (sb *securityBuilder) SetAccessLevel(accessLevel web.AccessLevel) *securityBuilder {
+	sb.authorization = true
+	sb.accessLevelSet = true
+	sb.accessLevel = accessLevel
 	return sb
 }
 
 func (sb *securityBuilder) resetAuthenticators() {
 	sb.authenticators = make([]httpsec.Authenticator, 0)
 	sb.authorizers = make([]httpsec.Authorizer, 0)
+	sb.accessLevelSet = false
+	sb.accessLevel = web.GlobalAccess
 	sb.authentication = false
 	sb.authorization = false
 }
@@ -172,6 +186,9 @@ func (sb *securityBuilder) register() {
 
 	if len(sb.authorizers) > 0 {
 		finalAuthorizer := authz.NewAndAuthorizer(sb.authorizers...)
+		if sb.accessLevelSet {
+			finalAuthorizer = newAccessLevelAuthorizer(finalAuthorizer, sb.accessLevel)
+		}
 		sb.authzFilters = append(sb.authzFilters,
 			secFilters.NewAuthzFilter(
 				finalAuthorizer,
@@ -196,4 +213,21 @@ func (sb *securityBuilder) finalize() {
 		finalFilters = append(finalFilters, requiredAuthZ)
 	}
 	sb.smb.RegisterFiltersAfter(filters.LoggingFilterName, finalFilters...)
+}
+
+func newAccessLevelAuthorizer(authorizer httpsec.Authorizer, accessLevel web.AccessLevel) httpsec.Authorizer {
+	return &accessLevelAuthorizer{
+		authorizer:  authorizer,
+		accessLevel: accessLevel,
+	}
+}
+
+type accessLevelAuthorizer struct {
+	authorizer  httpsec.Authorizer
+	accessLevel web.AccessLevel
+}
+
+func (ala *accessLevelAuthorizer) Authorize(req *web.Request) (httpsec.Decision, web.AccessLevel, error) {
+	decision, _, err := ala.authorizer.Authorize(req)
+	return decision, ala.accessLevel, err
 }
