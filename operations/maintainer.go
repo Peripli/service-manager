@@ -32,13 +32,12 @@ func NewOperationMaintainer(smCtx context.Context, repository storage.Repository
 // Run starts the two recurring jobs responsible for cleaning up old operations
 // and deleting stuck (orphan) operations
 func (om *OperationMaintainer) Run() {
-	go om.cleanupOperations()
-	go om.cleanupStuckOperations()
+	go om.processOldOperations()
+	go om.processStuckOperations()
 }
 
-// cleanOperations cleans up periodically all operations but the last
-// for each C/U/D operation for every resource_id which are older than some specified time
-func (om *OperationMaintainer) cleanupOperations() {
+// processOldOperations cleans up periodically all operations which are older than some specified time
+func (om *OperationMaintainer) processOldOperations() {
 	ticker := time.NewTicker(om.cleanupInterval)
 	for {
 		select {
@@ -51,13 +50,13 @@ func (om *OperationMaintainer) cleanupOperations() {
 	}
 }
 
-// cleanupStuckOperations periodically cleans up all operations which are stuck in state IN_PROGRESS
-func (om *OperationMaintainer) cleanupStuckOperations() {
+// processStuckOperations periodically checks for operations which are stuck in state IN_PROGRESS and updates their status to FAILED
+func (om *OperationMaintainer) processStuckOperations() {
 	ticker := time.NewTicker(om.jobTimeout)
 	for {
 		select {
 		case <-ticker.C:
-			om.deleteOrphanOperations()
+			om.markOrphanOperationsFailed()
 		case <-om.smCtx.Done():
 			ticker.Stop()
 			return
@@ -75,15 +74,27 @@ func (om *OperationMaintainer) deleteOldOperations() {
 	log.D().Debug("Successfully cleaned up operations")
 }
 
-func (om *OperationMaintainer) deleteOrphanOperations() {
+func (om *OperationMaintainer) markOrphanOperationsFailed() {
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
 		query.ByField(query.LessThanOperator, "created_at", util.ToRFCNanoFormat(time.Now().Add(-om.jobTimeout))),
 	}
 
-	if err := om.repository.Delete(context.Background(), types.OperationType, criteria...); err != nil {
-		log.D().Debugf("Failed to cleanup orphan operations: %s", err)
+	objectList, err := om.repository.List(context.Background(), types.OperationType, criteria...)
+	if err != nil {
+		log.D().Debugf("Failed to fetch orphan operations: %s", err)
 		return
 	}
+
+	operations := objectList.(*types.Operations)
+	for i := 0; i < operations.Len(); i++ {
+		operation := operations.ItemAt(i).(*types.Operation)
+		operation.State = types.FAILED
+
+		if _, err := om.repository.Update(context.Background(), operation, query.LabelChanges{}); err != nil {
+			log.D().Debugf("Failed to update orphan operation with ID (%s) state to FAILED: %s", operation.ID, err)
+		}
+	}
+
 	log.D().Debug("Successfully cleaned up orphan operations")
 }
