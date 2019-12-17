@@ -70,4 +70,29 @@ var _ = Describe("Bind", func() {
 				WithJSON(provisionRequestBodyMap()()).Expect())
 		})
 	})
+
+	FContext("bind request", func() {
+		BeforeEach(func() {
+			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
+			serviceInstance := provisionRequestBodyMapWith("context."+TenantIdentifier, TenantValue)()
+
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithJSON(serviceInstance).Expect().Status(http.StatusCreated)
+		})
+		Context("from not an instance owner", func() {
+			It("should return 404", func() {
+				brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
+				ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					WithJSON(provisionRequestBodyMapWith("context."+TenantIdentifier, "other_tenant")()).Expect().Status(http.StatusNotFound)
+			})
+		})
+		Context("from an instance owner", func() {
+			It("should return 201", func() {
+				brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
+				ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					WithJSON(provisionRequestBodyMapWith("context."+TenantIdentifier, TenantValue)()).Expect().Status(http.StatusCreated)
+			})
+		})
+	})
 })
