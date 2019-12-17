@@ -74,7 +74,9 @@ func NewController(repository storage.Repository, resourceBaseURL string, object
 // NewAsyncController returns a new base controller with a scheduler making it effectively an async controller
 func NewAsyncController(ctx context.Context, repository storage.Repository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, options *Options) *BaseController {
 	controller := NewController(repository, resourceBaseURL, objectType, objectBlueprint, options)
-	controller.scheduler = operations.NewScheduler(ctx, repository, options.OperationSettings)
+
+	workerPool := operations.NewWorkerPool(ctx, repository, options.OperationSettings)
+	controller.scheduler = operations.NewScheduler(repository, workerPool)
 
 	return controller
 }
