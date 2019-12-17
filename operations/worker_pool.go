@@ -51,9 +51,9 @@ func (wp *WorkerPool) processJobs() {
 			operationID, err := job.Execute(ctxWithTimeout, wp.repository)
 			if err != nil {
 				log.D().Debugf("Error occurred during execution of operation with ID (%s): %s", operationID, err.Error())
-			} else {
-				log.D().Debugf("Successful executed operation with ID (%s)", operationID)
+				return
 			}
+			log.D().Debugf("Successful executed operation with ID (%s)", operationID)
 		}()
 	}
 }

@@ -670,7 +670,7 @@
   version = "v1.4.7"
 
 [[projects]]
-  digest = "1:8ebd7bc4892e673e8d3c6377c71e8c691b92c5e51cd3159efb8343b580213b70"
+  digest = "1:3c4aaca5a82adc021322f239e0cf3f46852bb0b18ae050d0feab2e9e4c527462"
   name = "gopkg.in/square/go-jose.v2"
   packages = [
     ".",
@@ -678,8 +678,8 @@
     "json",
   ]
   pruneopts = "UT"
-  revision = "8fd82ff1d52a5162ff23c0a48e2c64a1fa4a3f8f"
-  version = "v2.4.0"
+  revision = "4ef0f1b175ccd65472d154e1207c4d7b8102545f"
+  version = "v2.4.1"
 
 [[projects]]
   branch = "v1"

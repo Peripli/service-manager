@@ -22,7 +22,7 @@ type Controller interface {
 	Routes() []Route
 
 	// Scheduler returns the Async job scheduler for this controller (and whether it has one)
-	Scheduler() (bool, JobScheduler)
+	Scheduler() (JobScheduler, bool)
 }
 
 // JobScheduler is the component responsible for scheduling Async API resource operations

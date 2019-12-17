@@ -148,7 +148,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		Settings: *cfg.Storage,
 	}
 
-	operationMaintainer := operations.NewOperationMaintainer(interceptableRepository, cfg.Operations)
+	operationMaintainer := operations.NewOperationMaintainer(ctx, interceptableRepository, cfg.Operations)
 
 	smb := &ServiceManagerBuilder{
 		API:                 API,
@@ -202,7 +202,7 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 
 	// start each Controller scheduler's worker pool
 	for _, controller := range smb.API.Controllers {
-		hasScheduler, scheduler := controller.Scheduler()
+		scheduler, hasScheduler := controller.Scheduler()
 		if hasScheduler {
 			scheduler.Run()
 		}

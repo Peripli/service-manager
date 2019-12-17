@@ -39,8 +39,8 @@ const (
 	serviceBindingAdaptCredentialsURL = baseURL + "/v2/service_instances/{instance_id}/service_bindings/{binding_id}/adapt_credentials"
 )
 
-func (c *Controller) Scheduler() (bool, web.JobScheduler) {
-	return false, nil
+func (c *Controller) Scheduler() (web.JobScheduler, bool) {
+	return nil, false
 }
 
 // Routes implements api.Controller.Routes by providing the routes for the OSB API

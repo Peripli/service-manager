@@ -146,11 +146,11 @@ func updateOperationState(ctx context.Context, repository storage.Repository, op
 
 	_, err = repository.Update(ctx, operation, query.LabelChanges{})
 	if err != nil {
-		log.D().Debugf("Failed to update state of operation with id (%s) to SUCCEEDED", operationID)
+		log.D().Debugf("Failed to update state of operation with id (%s) to %s", operationID, state)
 		return err
 	}
 
-	log.D().Debugf("Successfully updated state of operation with id (%s) to SUCCEEDED", operationID)
+	log.D().Debugf("Successfully updated state of operation with id (%s) to %s", operationID, state)
 	return nil
 }
 

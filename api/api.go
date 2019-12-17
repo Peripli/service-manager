@@ -95,19 +95,19 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 	return &web.API{
 		// Default controllers - more filters can be registered using the relevant API methods
 		Controllers: []web.Controller{
-			NewController(ctx, options.Repository, web.ServiceBrokersURL, types.ServiceBrokerType, func() types.Object {
+			NewAsyncController(ctx, options.Repository, web.ServiceBrokersURL, types.ServiceBrokerType, func() types.Object {
 				return &types.ServiceBroker{}
-			}, options, true),
-			NewController(ctx, options.Repository, web.PlatformsURL, types.PlatformType, func() types.Object {
+			}, options),
+			NewAsyncController(ctx, options.Repository, web.PlatformsURL, types.PlatformType, func() types.Object {
 				return &types.Platform{}
-			}, options, true),
-			NewController(ctx, options.Repository, web.VisibilitiesURL, types.VisibilityType, func() types.Object {
+			}, options),
+			NewAsyncController(ctx, options.Repository, web.VisibilitiesURL, types.VisibilityType, func() types.Object {
 				return &types.Visibility{}
-			}, options, false),
+			}, options),
 			apiNotifications.NewController(ctx, options.Repository, options.WSSettings, options.Notificator),
-			NewServiceOfferingController(ctx, options.Repository, options),
-			NewServicePlanController(ctx, options.Repository, options),
-			NewServiceInstanceController(ctx, options.Repository, options),
+			NewServiceOfferingController(options.Repository, options),
+			NewServicePlanController(options.Repository, options),
+			NewServiceInstanceController(options.Repository, options),
 			&info.Controller{
 				TokenIssuer:    options.APISettings.TokenIssuerURL,
 				TokenBasicAuth: options.APISettings.TokenBasicAuth,

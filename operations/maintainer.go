@@ -13,14 +13,16 @@ import (
 // OperationMaintainer ensures that operations old enough are deleted
 // and that no stuck (orphan) operations are left in the DB due to crashes/restarts of SM
 type OperationMaintainer struct {
+	smCtx           context.Context
 	repository      storage.Repository
 	jobTimeout      time.Duration
 	cleanupInterval time.Duration
 }
 
 // NewOperationMaintainer constructs an OperationMaintainer
-func NewOperationMaintainer(repository storage.Repository, options *Settings) *OperationMaintainer {
+func NewOperationMaintainer(smCtx context.Context, repository storage.Repository, options *Settings) *OperationMaintainer {
 	return &OperationMaintainer{
+		smCtx:           smCtx,
 		repository:      repository,
 		jobTimeout:      options.JobTimeout,
 		cleanupInterval: options.CleanupInterval,
@@ -38,12 +40,11 @@ func (om *OperationMaintainer) Run() {
 // for each C/U/D operation for every resource_id which are older than some specified time
 func (om *OperationMaintainer) cleanupOperations() {
 	ticker := time.NewTicker(om.cleanupInterval)
-	terminate := make(chan struct{})
 	for {
 		select {
 		case <-ticker.C:
 			om.deleteOldOperations()
-		case <-terminate:
+		case <-om.smCtx.Done():
 			ticker.Stop()
 			return
 		}
@@ -53,12 +54,11 @@ func (om *OperationMaintainer) cleanupOperations() {
 // cleanupStuckOperations periodically cleans up all operations which are stuck in state IN_PROGRESS
 func (om *OperationMaintainer) cleanupStuckOperations() {
 	ticker := time.NewTicker(om.jobTimeout)
-	terminate := make(chan struct{})
 	for {
 		select {
 		case <-ticker.C:
 			om.deleteOrphanOperations()
-		case <-terminate:
+		case <-om.smCtx.Done():
 			ticker.Stop()
 			return
 		}

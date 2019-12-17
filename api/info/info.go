@@ -26,8 +26,8 @@ import (
 // URL is the path of the info endpoint
 const URL = web.InfoURL
 
-func (c *Controller) Scheduler() (bool, web.JobScheduler) {
-	return false, nil
+func (c *Controller) Scheduler() (web.JobScheduler, bool) {
+	return nil, false
 }
 
 // Routes returns a slice of the routs that handle info operations

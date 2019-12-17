@@ -59,8 +59,8 @@ func (c *Controller) setLoggingConfiguration(r *web.Request) (*web.Response, err
 	return util.NewJSONResponse(http.StatusOK, map[string]string{})
 }
 
-func (c *Controller) Scheduler() (bool, web.JobScheduler) {
-	return false, nil
+func (c *Controller) Scheduler() (web.JobScheduler, bool) {
+	return nil, false
 }
 
 // Routes provides endpoints for modifying and obtaining the logging configuration

@@ -60,15 +60,9 @@ type BaseController struct {
 }
 
 // NewController returns a new base controller
-func NewController(ctx context.Context, repository storage.Repository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, options *Options, supportsAsync bool) *BaseController {
-	var scheduler *operations.DefaultScheduler
-	if supportsAsync {
-		scheduler = operations.NewScheduler(ctx, repository, options.OperationSettings)
-	}
-
+func NewController(repository storage.Repository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, options *Options) *BaseController {
 	return &BaseController{
 		repository:      repository,
-		scheduler:       scheduler,
 		resourceBaseURL: resourceBaseURL,
 		objectBlueprint: objectBlueprint,
 		objectType:      objectType,
@@ -77,8 +71,16 @@ func NewController(ctx context.Context, repository storage.Repository, resourceB
 	}
 }
 
-func (c *BaseController) Scheduler() (bool, web.JobScheduler) {
-	return c.supportsAsync(), c.scheduler
+// NewAsyncController returns a new base controller with a scheduler making it effectively an async controller
+func NewAsyncController(ctx context.Context, repository storage.Repository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, options *Options) *BaseController {
+	controller := NewController(repository, resourceBaseURL, objectType, objectBlueprint, options)
+	controller.scheduler = operations.NewScheduler(ctx, repository, options.OperationSettings)
+
+	return controller
+}
+
+func (c *BaseController) Scheduler() (web.JobScheduler, bool) {
+	return c.scheduler, c.scheduler != nil
 }
 
 // Routes returns the common set of routes for all objects
@@ -449,7 +451,7 @@ func (c *BaseController) parsePageToken(ctx context.Context, token string) (stri
 }
 
 func (c *BaseController) checkAsyncSupport() error {
-	if !c.supportsAsync() {
+	if c.scheduler == nil {
 		return &util.HTTPError{
 			ErrorType:   "InvalidRequest",
 			Description: fmt.Sprintf("requested %s api doesn't support asynchronous operations", c.objectType),
