@@ -34,10 +34,6 @@ type securityBuilder struct {
 	smb *ServiceManagerBuilder
 }
 
-type authenticationBuilder struct {
-	sb *securityBuilder
-}
-
 func (sb *securityBuilder) Optional() *securityBuilder {
 	matcher := web.Not(
 		web.Path(sb.paths...),

@@ -17,6 +17,8 @@
 package filters
 
 import (
+	"fmt"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -48,7 +50,11 @@ func (raf *requiredAuthnFilter) Run(request *web.Request, next web.Handler) (*we
 	ctx := request.Context()
 	if _, ok := web.UserFromContext(ctx); !ok {
 		log.C(ctx).Error("No authenticated user found in request context during execution of filter ", raf.Name())
-		return nil, security.UnauthorizedHTTPError("No authenticated user found")
+		message := "No authenticated user found"
+		if found, err := web.AuthenticationErrorFromContext(ctx); found {
+			message = fmt.Sprintf("%s: %s", message, err)
+		}
+		return nil, security.UnauthorizedHTTPError(message)
 	}
 
 	return next.Handle(request)

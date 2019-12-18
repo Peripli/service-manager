@@ -66,7 +66,7 @@ var _ = Describe("Middlewares", func() {
 							Authorizer: authorizer,
 						}
 						_, err := authzFilter.Run(req, handler)
-						err, ok := web.AuthorizationErrorFromContext(req.Context())
+						ok, err := web.AuthorizationErrorFromContext(req.Context())
 						Expect(ok).To(BeTrue())
 						Expect(err.Error()).To(Equal("errored"))
 						Expect(web.IsAuthorized(req.Context())).To(BeFalse())
@@ -172,7 +172,7 @@ var _ = Describe("Middlewares", func() {
 						}
 						authzFilter.Run(req, handler)
 						handler.HandleReturns(nil, nil)
-						err, ok := web.AuthorizationErrorFromContext(req.Context())
+						ok, err := web.AuthorizationErrorFromContext(req.Context())
 						Expect(ok).To(BeTrue())
 						Expect(err.Error()).To(Equal(expectedErrorMessage))
 						Expect(web.IsAuthorized(req.Context())).To(BeFalse())
@@ -214,7 +214,7 @@ var _ = Describe("Middlewares", func() {
 							Authenticator: authenticator,
 						}
 						authnFilter.Run(req, handler)
-						_, ok := web.AuthenticationErrorFromContext(req.Context())
+						ok, _ := web.AuthenticationErrorFromContext(req.Context())
 						Expect(ok).To(BeFalse())
 						Expect(web.IsAuthorized(req.Context())).To(BeFalse())
 					})
@@ -280,7 +280,7 @@ var _ = Describe("Middlewares", func() {
 							Authenticator: authenticator,
 						}
 						_, err := authnFilter.Run(req, handler)
-						err, ok := web.AuthenticationErrorFromContext(req.Context())
+						ok, err := web.AuthenticationErrorFromContext(req.Context())
 						Expect(ok).To(BeTrue())
 						Expect(err.Error()).To(Equal(expectedErrorMessage))
 					})

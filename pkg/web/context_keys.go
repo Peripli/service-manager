@@ -40,20 +40,20 @@ func ContextWithAuthenticationError(ctx context.Context, authNError error) conte
 	return context.WithValue(ctx, authenticationErrorKey, authNError)
 }
 
-func AuthenticationErrorFromContext(ctx context.Context) (error, bool) {
+func AuthenticationErrorFromContext(ctx context.Context) (bool, error) {
 	authnError, ok := ctx.Value(authenticationErrorKey).(error)
-	return authnError, ok && authnError != nil
+	return ok && authnError != nil, authnError
 }
 
 func ContextWithAuthorizationError(ctx context.Context, authZError error) context.Context {
-	currentAuthZError, found := AuthorizationErrorFromContext(ctx)
+	found, currentAuthZError := AuthorizationErrorFromContext(ctx)
 	if found {
 		authZError = fmt.Errorf("%s or %s", currentAuthZError, authZError)
 	}
 	return context.WithValue(ctx, authorizationErrorKey, authZError)
 }
 
-func AuthorizationErrorFromContext(ctx context.Context) (error, bool) {
+func AuthorizationErrorFromContext(ctx context.Context) (bool, error) {
 	authzError, ok := ctx.Value(authorizationErrorKey).(error)
-	return authzError, ok && authzError != nil
+	return ok && authzError != nil, authzError
 }

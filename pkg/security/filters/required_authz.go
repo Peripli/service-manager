@@ -51,7 +51,7 @@ func (raf *requiredAuthzFilter) Run(request *web.Request, next web.Handler) (*we
 	if !web.IsAuthorized(ctx) {
 		log.C(ctx).Info("No authorization confirmation found during execution of filter ", raf.Name())
 		message := "not authorized"
-		if err, found := web.AuthorizationErrorFromContext(ctx); found {
+		if found, err := web.AuthorizationErrorFromContext(ctx); found {
 			message = fmt.Sprintf("%s: %s", message, err)
 		}
 		return nil, security.ForbiddenHTTPError(message)

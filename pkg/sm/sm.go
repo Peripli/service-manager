@@ -183,24 +183,6 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		WithUpdateOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsUpdateInterceptorProvider{}).Before(interceptors.BrokerUpdateCatalogInterceptorName).Register().
 		WithDeleteOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsDeleteInterceptorProvider{}).After(interceptors.BrokerDeleteCatalogInterceptorName).Register()
 
-	// authenticator, _, err := authenticators.NewOIDCAuthenticator(ctx, &authenticators.OIDCOptions{
-	// 	IssuerURL: cfg.API.TokenIssuerURL,
-	// 	ClientID:  cfg.API.ClientID,
-	// })
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// basicAuthenticator := &BasicAuthenticator{
-	// 	Repository: interceptableRepository,
-	// }
-
-	// smb.Authenticate(types.ServiceBrokerType, types.PlatformType, types.ServiceOfferingType, types.ServicePlanType, types.VisibilityType, types.ServiceInstanceType).
-	// 	For(http.MethodGet, http.MethodPut, http.MethodPost, http.MethodPatch, http.MethodDelete).
-	// 	With("oidc", authenticator).
-	// 	Register().
-	// 	AuthenticatePath(web.ConfigURL+"/**").For(http.MethodGet, http.MethodPut, http.MethodPost, http.MethodPatch, http.MethodDelete).With("oidc", authenticator).Register().
-
 	return smb, nil
 }
 
@@ -455,51 +437,3 @@ func (smb *ServiceManagerBuilder) Security() *securityBuilder {
 	}
 	return smb.secBuilder.reset()
 }
-
-// func (smb *ServiceManagerBuilder) Authorize(objectType types.ObjectType) *authorizerBuilder {
-// 	return &authorizerBuilder{
-// 		objectType: objectType,
-// 		attachFunc: func(authorizationFilter web.Filter) {
-// 			smb.authorizationFilters = append(smb.authorizationFilters, authorizationFilter)
-// 		},
-// 		done: func() *ServiceManagerBuilder {
-// 			return smb
-// 		},
-// 	}
-// }
-
-// func (smb *ServiceManagerBuilder) AuthorizePath(path string) *authorizerBuilder {
-// 	return &authorizerBuilder{
-// 		path: path,
-// 		attachFunc: func(authorizationFilter web.Filter) {
-// 			smb.authorizationFilters = append(smb.authorizationFilters, authorizationFilter)
-// 		},
-// 		done: func() *ServiceManagerBuilder {
-// 			return smb
-// 		},
-// 	}
-// }
-
-// func (smb *ServiceManagerBuilder) Authenticate(objectTypes ...types.ObjectType) *authenticatorBuilder {
-// 	return &authenticatorBuilder{
-// 		objectType: objectType,
-// 		attachFunc: func(authorizationFilter web.Filter) {
-// 			smb.authenticationFilters = append(smb.authenticationFilters, authorizationFilter)
-// 		},
-// 		done: func() *ServiceManagerBuilder {
-// 			return smb
-// 		},
-// 	}
-// }
-
-// func (smb *ServiceManagerBuilder) AuthenticatePath(paths ...string) *authenticatorBuilder {
-// 	return &authenticatorBuilder{
-// 		path: path,
-// 		attachFunc: func(authorizationFilter web.Filter) {
-// 			smb.authenticationFilters = append(smb.authenticationFilters, authorizationFilter)
-// 		},
-// 		done: func() *ServiceManagerBuilder {
-// 			return smb
-// 		},
-// 	}
-// }
