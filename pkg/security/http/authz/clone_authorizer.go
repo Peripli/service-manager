@@ -12,7 +12,7 @@ import (
 
 // NewOAuthCloneAuthorizer returns OAuth authorizer
 func NewOAuthCloneAuthorizer(trustedClientIDSuffix string, level web.AccessLevel) httpsec.Authorizer {
-	return newBaseAuthorizer(func(ctx context.Context, userContext *web.UserContext) (httpsec.Decision, web.AccessLevel, error) {
+	return NewBaseAuthorizer(func(ctx context.Context, userContext *web.UserContext) (httpsec.Decision, web.AccessLevel, error) {
 		var claims struct {
 			ZID string
 			CID string

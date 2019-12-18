@@ -10,18 +10,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-// // NewRequiredScopesAuthorizer returns OAuth authorizer which denys if scopes not presented
-// func NewRequiredScopesAuthorizer(requiredScopes []string, level web.AccessLevel) httpsec.Authorizer {
-// 	return newScopesAuthorizer(requiredScopes, true, level)
-// }
-
-// // NewOptionalScopesAuthorizer returns OAuth authorizer which abstains if scopes not presented
-// func NewOptionalScopesAuthorizer(optionalScopes []string, level web.AccessLevel) httpsec.Authorizer {
-// 	return newScopesAuthorizer(optionalScopes, false, level)
-// }
-
 func NewScopesAuthorizer(scopes []string, level web.AccessLevel) httpsec.Authorizer {
-	return newBaseAuthorizer(func(ctx context.Context, userContext *web.UserContext) (httpsec.Decision, web.AccessLevel, error) {
+	return NewBaseAuthorizer(func(ctx context.Context, userContext *web.UserContext) (httpsec.Decision, web.AccessLevel, error) {
 		var claims struct {
 			Scopes []string `json:"scope"`
 		}

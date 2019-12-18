@@ -207,7 +207,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 
 // Build builds the Service Manager
 func (smb *ServiceManagerBuilder) Build() *ServiceManager {
-	smb.secBuilder.finalize()
+	smb.secBuilder.build()
 
 	if err := smb.installHealth(); err != nil {
 		log.C(smb.ctx).Panic(err)

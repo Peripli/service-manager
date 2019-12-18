@@ -11,7 +11,7 @@ type baseAuthorizer struct {
 	userProcessingFunc func(context.Context, *web.UserContext) (httpsec.Decision, web.AccessLevel, error)
 }
 
-func newBaseAuthorizer(userProcessingFunc func(context.Context, *web.UserContext) (httpsec.Decision, web.AccessLevel, error)) *baseAuthorizer {
+func NewBaseAuthorizer(userProcessingFunc func(context.Context, *web.UserContext) (httpsec.Decision, web.AccessLevel, error)) *baseAuthorizer {
 	return &baseAuthorizer{userProcessingFunc: userProcessingFunc}
 }
 

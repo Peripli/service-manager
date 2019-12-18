@@ -10,7 +10,7 @@ import (
 )
 
 func NewOauthClientAuthorizer(clientID string, level web.AccessLevel) http.Authorizer {
-	return newBaseAuthorizer(func(ctx context.Context, userContext *web.UserContext) (http.Decision, web.AccessLevel, error) {
+	return NewBaseAuthorizer(func(ctx context.Context, userContext *web.UserContext) (http.Decision, web.AccessLevel, error) {
 		var cid struct {
 			CID string
 		}
