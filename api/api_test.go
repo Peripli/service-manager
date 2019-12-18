@@ -67,16 +67,5 @@ var _ = Describe("API", func() {
 			})
 			Expect(err).ShouldNot(HaveOccurred())
 		})
-
-		It("returns an error if creation fails", func() {
-			_, err := api.New(context.TODO(), fakeEnvironment, &api.Options{
-				Repository: mockedStorage,
-				APISettings: &api.Settings{
-					TokenIssuerURL: "http://invalidurl.com",
-					ClientID:       "invalidclient",
-				},
-			})
-			Expect(err).Should(HaveOccurred())
-		})
 	})
 })

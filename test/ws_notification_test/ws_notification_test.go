@@ -69,7 +69,7 @@ var _ = Describe("WS", func() {
 	BeforeEach(func() {
 		queryParams = map[string]string{}
 
-		ctx = common.NewTestContextBuilder().
+		ctx = common.DefaultTestContextBuilder().
 			WithEnvPreExtensions(func(set *pflag.FlagSet) {
 				Expect(set.Set("websocket.ping_timeout", pingTimeout.String())).ShouldNot(HaveOccurred())
 			}).Build()

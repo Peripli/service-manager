@@ -157,7 +157,6 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		ctx:                  ctx,
 		wg:                   waitGroup,
 		cfg:                  cfg,
-		secBuilder:           &securityBuilder{},
 		authorizationFilters: make([]web.Filter, 0),
 	}
 
@@ -207,7 +206,9 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 
 // Build builds the Service Manager
 func (smb *ServiceManagerBuilder) Build() *ServiceManager {
-	smb.secBuilder.build()
+	if smb.secBuilder != nil {
+		smb.secBuilder.build()
+	}
 
 	if err := smb.installHealth(); err != nil {
 		log.C(smb.ctx).Panic(err)
@@ -267,6 +268,13 @@ func (sm *ServiceManager) Run() {
 
 func (smb *ServiceManagerBuilder) RegisterNotificationReceiversFilter(filterFunc storage.ReceiversFilterFunc) {
 	smb.Notificator.RegisterFilter(filterFunc)
+}
+
+func (smb *ServiceManagerBuilder) RegisterExtension(registry Extendable) *ServiceManagerBuilder {
+	if err := registry.Extend(smb.ctx, smb); err != nil {
+		log.D().Panicf("Could not register extension: %s", err)
+	}
+	return smb
 }
 
 func (smb *ServiceManagerBuilder) WithCreateAroundTxInterceptorProvider(objectType types.ObjectType, provider storage.CreateAroundTxInterceptorProvider) *interceptorRegistrationBuilder {
@@ -440,7 +448,11 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 }
 
 func (smb *ServiceManagerBuilder) Security() *securityBuilder {
-	smb.secBuilder.smb = smb
+	if smb.secBuilder == nil {
+		smb.secBuilder = &securityBuilder{
+			smb: smb,
+		}
+	}
 	return smb.secBuilder.reset()
 }
 

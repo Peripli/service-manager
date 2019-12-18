@@ -10,8 +10,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-// NewOAuthCloneAuthorizer returns OAuth authorizer
-func NewOAuthCloneAuthorizer(trustedClientIDSuffix string, level web.AccessLevel) httpsec.Authorizer {
+// NewClientIDSuffixAuthorizer returns OAuth authorizer
+func NewClientIDSuffixAuthorizer(trustedClientIDSuffix string, level web.AccessLevel) httpsec.Authorizer {
 	return NewBaseAuthorizer(func(ctx context.Context, userContext *web.UserContext) (httpsec.Decision, web.AccessLevel, error) {
 		var claims struct {
 			ZID string

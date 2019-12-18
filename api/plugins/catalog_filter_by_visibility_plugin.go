@@ -2,13 +2,13 @@ package plugins
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/Peripli/service-manager/api/osb"
 
 	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 
@@ -38,7 +38,7 @@ func (c *CatalogFilterByVisibilityPlugin) FetchCatalog(req *web.Request, next we
 	ctx := req.Context()
 	userCtx, ok := web.UserFromContext(ctx)
 	if !ok {
-		return nil, errors.New("no user found")
+		return nil, security.UnauthorizedHTTPError("no user found")
 	}
 
 	res, err := next.Handle(req)

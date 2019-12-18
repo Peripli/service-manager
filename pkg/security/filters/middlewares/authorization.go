@@ -49,7 +49,6 @@ func (m *Authorization) Run(request *web.Request, next web.Handler) (*web.Respon
 	}
 
 	if decision == http.Allow {
-
 		userContext, found := web.UserFromContext(ctx)
 		if !found {
 			return nil, fmt.Errorf("authorization failed due to missing user context")

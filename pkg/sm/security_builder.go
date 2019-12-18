@@ -120,7 +120,7 @@ func (sb *securityBuilder) WithScopes(scopes ...string) *securityBuilder {
 
 func (sb *securityBuilder) WithClientIDSuffix(suffix string) *securityBuilder {
 	sb.authorization = true
-	sb.authorizers = append(sb.authorizers, authz.NewOAuthCloneAuthorizer(suffix, web.GlobalAccess))
+	sb.authorizers = append(sb.authorizers, authz.NewClientIDSuffixAuthorizer(suffix, web.GlobalAccess))
 	return sb
 }
 

@@ -40,6 +40,11 @@ func ContextWithAuthenticationError(ctx context.Context, authNError error) conte
 	return context.WithValue(ctx, authenticationErrorKey, authNError)
 }
 
+func AuthenticationErrorFromContext(ctx context.Context) (error, bool) {
+	authnError, ok := ctx.Value(authenticationErrorKey).(error)
+	return authnError, ok && authnError != nil
+}
+
 func ContextWithAuthorizationError(ctx context.Context, authZError error) context.Context {
 	currentAuthZError, found := AuthorizationErrorFromContext(ctx)
 	if found {

@@ -19,6 +19,8 @@ package main
 import (
 	"context"
 
+	"github.com/Peripli/service-manager/api/extensions/security"
+
 	"github.com/Peripli/service-manager/pkg/env"
 
 	"github.com/Peripli/service-manager/config"
@@ -47,6 +49,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	extension := security.NewSecurityExtension(cfg)
+	serviceManager.RegisterExtension(extension)
 
 	serviceManager.Build().Run()
 }

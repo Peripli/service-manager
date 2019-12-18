@@ -96,7 +96,7 @@ func assertAuthorizer(authorizator httpsec.Authorizer, webReq *web.Request, expe
 		Expect(err).NotTo(BeNil())
 		Expect(err.Error()).To(ContainSubstring(expectedError))
 	} else {
-		Expect(err).To(BeNil())
+		Expect(err).To(SatisfyAny(BeNil(), BeEmpty()))
 	}
 	Expect(decision).To(Equal(expectedDecision))
 	Expect(access).To(Equal(expectedAccess))

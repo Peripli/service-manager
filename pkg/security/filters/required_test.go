@@ -53,7 +53,7 @@ var _ = Describe("Filters tests", func() {
 
 		BeforeEach(func() {
 			matchers = []web.FilterMatcher{}
-			requiredAuthzFilter = NewRequiredAuthzFilter("test", matchers)
+			requiredAuthzFilter = NewRequiredAuthzFilter(matchers)
 		})
 
 		Describe("when Filter.Run is invoked with no authorization confirmation", func() {
@@ -87,7 +87,7 @@ var _ = Describe("Filters tests", func() {
 
 		Describe("when Filter.Run is invoked with no user in context", func() {
 			It("should return 401", func() {
-				requiredAuthnFilter := NewRequiredAuthnFilter()
+				requiredAuthnFilter := NewRequiredAuthnFilter(nil)
 				resp, err := requiredAuthnFilter.Run(req, handler)
 				Expect(resp).To(BeNil())
 				httpErr, ok := err.(*util.HTTPError)
@@ -98,7 +98,7 @@ var _ = Describe("Filters tests", func() {
 
 		Describe("when Filter.Run is invoked with user in context", func() {
 			It("should continue", func() {
-				requiredAuthzFilter := NewRequiredAuthnFilter()
+				requiredAuthzFilter := NewRequiredAuthnFilter(nil)
 				req.Request = req.WithContext(web.ContextWithUser(req.Context(), &web.UserContext{}))
 				_, err := requiredAuthzFilter.Run(req, handler)
 				Expect(err).ToNot(HaveOccurred())
@@ -107,8 +107,8 @@ var _ = Describe("Filters tests", func() {
 		})
 
 		Describe("when Filter.FilterMatchers is invoked", func() {
-			It("should return a non-empty array", func() {
-				Expect(NewRequiredAuthnFilter().FilterMatchers()).To(HaveLen(1))
+			It("should return an empty array", func() {
+				Expect(NewRequiredAuthnFilter([]web.FilterMatcher{}).FilterMatchers()).To(HaveLen(0))
 			})
 		})
 

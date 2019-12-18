@@ -120,7 +120,7 @@ var _ = Describe("AndAuthorizer", func() {
 			// error cases
 			{
 				description:      "Errors and abstains if one authorizer errors and other denies",
-				expectedDecision: httpsec.Abstain,
+				expectedDecision: httpsec.Deny,
 				expectError:      "abstained",
 				authorizers: []httpsec.Authorizer{
 					&dummyAuthorizer{
@@ -137,8 +137,9 @@ var _ = Describe("AndAuthorizer", func() {
 				expectedAccess: web.NoAccess,
 			},
 			{
-				description:      "Denies if one authorizer denies and other errors and abstains",
+				description:      "Denies if one authorizer denies, but the other throws an error and abstains",
 				expectedDecision: httpsec.Deny,
+				expectError:      "abstained",
 				authorizers: []httpsec.Authorizer{
 					&dummyAuthorizer{
 						decision: httpsec.Deny,

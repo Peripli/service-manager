@@ -20,10 +20,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/tidwall/gjson"
-	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/multitenancy"
 
@@ -92,7 +93,7 @@ func DescribeTestsFor(t TestCase) bool {
 			By("==== Preparation for SM tests... ====")
 
 			defer GinkgoRecover()
-			ctxBuilder := common.NewTestContextBuilder()
+			ctxBuilder := common.DefaultTestContextBuilder()
 
 			if t.MultitenancySettings != nil {
 				ctxBuilder.

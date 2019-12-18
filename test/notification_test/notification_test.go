@@ -309,7 +309,7 @@ var _ = Describe("Notifications Suite", func() {
 	BeforeSuite(func() {
 		// Register the public plans interceptor with default public plans function that uses the catalog plan free value
 		// so that we can verify that notifications for public plans are also created
-		ctx = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+		ctx = common.DefaultTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 			smb.WithCreateInterceptorProvider(types.ServiceBrokerType, &interceptors.PublicPlanCreateInterceptorProvider{
 				IsCatalogPlanPublicFunc: func(broker *types.ServiceBroker, catalogService *types.ServiceOffering, catalogPlan *types.ServicePlan) (b bool, e error) {
 					return catalogPlan.Free, nil

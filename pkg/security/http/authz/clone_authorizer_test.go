@@ -9,7 +9,7 @@ import (
 
 var _ = Describe("CloneFilter", func() {
 	DescribeTable("Run", func(t testCase) {
-		runTestCase(t, NewOAuthCloneAuthorizer(t.params.(string), web.GlobalAccess))
+		runTestCase(t, NewClientIDSuffixAuthorizer(t.params.(string), web.GlobalAccess))
 	}, []TableEntry{
 		Entry("Fails if no user is authenticated", testCase{
 			params:           "",
@@ -34,7 +34,7 @@ var _ = Describe("CloneFilter", func() {
 		Entry("Fails if token is not generated from Master Oauth client", testCase{
 			params:           "|suffix",
 			claims:           `{"cid": "wrong-sufix"}`,
-			expectError:      `client id "wrong-sufix" from user token is not generated from a clone OAuth client`,
+			expectError:      `client id "wrong-sufix" from user token does not have the required suffix`,
 			expectedDecision: httpsec.Deny,
 			expectedAccess:   web.NoAccess,
 		}),

@@ -40,7 +40,7 @@ func (a *andAuthorizer) Authorize(request *web.Request) (httpsec.Decision, web.A
 				errs = append(errs, err)
 				continue
 			}
-			return decision, web.NoAccess, err
+			return httpsec.Deny, web.NoAccess, err
 		}
 
 		if decision == httpsec.Deny {
@@ -68,6 +68,9 @@ func (c compositeError) Error() string {
 	for _, e := range c {
 		s = append(s, "cause: "+e.Error())
 	}
-
-	return fmt.Sprintf("(%s)", strings.Join(s, "; "))
+	if len(s) > 0 {
+		return fmt.Sprintf("(%s)", strings.Join(s, "; "))
+	} else {
+		return ""
+	}
 }
