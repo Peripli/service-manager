@@ -75,7 +75,15 @@ func NewController(repository storage.Repository, resourceBaseURL string, object
 func NewAsyncController(ctx context.Context, repository storage.Repository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, options *Options) *BaseController {
 	controller := NewController(repository, resourceBaseURL, objectType, objectBlueprint, options)
 
-	workerPool := operations.NewWorkerPool(ctx, repository, options.OperationSettings)
+	poolSize := operations.MinPoolSize
+	for _, pool := range options.OperationSettings.Pools {
+		if pool.Resource == objectType.String() {
+			poolSize = pool.Size
+			break
+		}
+	}
+
+	workerPool := operations.NewWorkerPool(ctx, repository, poolSize, options.OperationSettings.JobTimeout)
 	controller.scheduler = operations.NewScheduler(repository, workerPool)
 
 	return controller

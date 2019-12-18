@@ -25,3 +25,13 @@ storage:
 api:
   token_issuer_url: http://localhost:8080/uaa
   client_id: cf
+operations:
+  cleanup_interval: 30m
+  job_timeout: 12m
+  pools:
+    - resource: service_broker
+      size: 100
+    - resource: platform
+      size: 10
+    - resource: visibility
+      size: 25

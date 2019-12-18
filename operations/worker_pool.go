@@ -18,13 +18,13 @@ type WorkerPool struct {
 }
 
 // NewWorkerPool constructs a new worker pool
-func NewWorkerPool(ctx context.Context, repository storage.Repository, options *Settings) *WorkerPool {
+func NewWorkerPool(ctx context.Context, repository storage.Repository, poolSize int, jobTimeout time.Duration) *WorkerPool {
 	return &WorkerPool{
 		smCtx:      ctx,
 		repository: repository,
-		jobs:       make(chan ExecutableJob, options.PoolSize),
-		workers:    make(chan struct{}, options.PoolSize),
-		jobTimeout: options.JobTimeout,
+		jobs:       make(chan ExecutableJob, poolSize),
+		workers:    make(chan struct{}, poolSize),
+		jobTimeout: jobTimeout,
 	}
 }
 
