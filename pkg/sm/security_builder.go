@@ -64,10 +64,14 @@ func (sb *securityBuilder) Required() *securityBuilder {
 	}
 
 	if sb.authorization {
-		sb.requiredAuthZMatchers = append(sb.requiredAuthZMatchers, web.FilterMatcher{finalMatchers})
+		sb.requiredAuthZMatchers = append(sb.requiredAuthZMatchers, web.FilterMatcher{
+			Matchers: finalMatchers,
+		})
 	}
 	if sb.authentication {
-		sb.requiredAuthNMatchers = append(sb.requiredAuthNMatchers, web.FilterMatcher{finalMatchers})
+		sb.requiredAuthNMatchers = append(sb.requiredAuthNMatchers, web.FilterMatcher{
+			Matchers: finalMatchers,
+		})
 	}
 	sb.register()
 	sb.resetAuthenticators()

@@ -65,9 +65,7 @@ type ServiceManagerBuilder struct {
 	wg                  *sync.WaitGroup
 	cfg                 *config.Settings
 
-	secBuilder            *securityBuilder
-	authenticationFilters []web.Filter
-	authorizationFilters  []web.Filter
+	secBuilder *securityBuilder
 }
 
 // ServiceManager  struct
@@ -150,14 +148,13 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	}
 
 	smb := &ServiceManagerBuilder{
-		API:                  API,
-		Storage:              interceptableRepository,
-		Notificator:          pgNotificator,
-		NotificationCleaner:  notificationCleaner,
-		ctx:                  ctx,
-		wg:                   waitGroup,
-		cfg:                  cfg,
-		authorizationFilters: make([]web.Filter, 0),
+		API:                 API,
+		Storage:             interceptableRepository,
+		Notificator:         pgNotificator,
+		NotificationCleaner: notificationCleaner,
+		ctx:                 ctx,
+		wg:                  waitGroup,
+		cfg:                 cfg,
 	}
 
 	smb.RegisterPlugins(plugins.NewCatalogFilterByVisibilityPlugin(interceptableRepository))
