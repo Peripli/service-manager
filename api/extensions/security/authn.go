@@ -8,8 +8,6 @@ import (
 
 	"github.com/Peripli/service-manager/config"
 
-	"github.com/Peripli/service-manager/api/filters"
-
 	"github.com/Peripli/service-manager/pkg/web"
 
 	"github.com/Peripli/service-manager/pkg/sm"
@@ -26,7 +24,7 @@ func NewSecurityExtension(cfg *config.Settings) *SecurityExtendable {
 }
 
 func (se *SecurityExtendable) Extend(ctx context.Context, smb *sm.ServiceManagerBuilder) error {
-	basicAuthenticator := &filters.BasicAuthenticator{
+	basicAuthenticator := &authenticators.Basic{
 		Repository: smb.Storage,
 	}
 
