@@ -34,6 +34,20 @@ type securityBuilder struct {
 	smb *ServiceManagerBuilder
 }
 
+// Optional makes authentication/authorization optional for the requested path pattern (meaning all subpaths if "*" is used) and methods.
+// Optional will be applied only if there are any required paths
+//
+// Example 1:
+//  	no matter if Required("/v1/service_brokers") is applied
+//  	if Optional("/**") is set, then all subpaths will be optional
+//
+// Example 2:
+//  	Required("/v1/**") is applied
+//  	Optional("/v1/service_brokers") is applied,
+//		then only "/v1/service_brokers" will be optional
+//
+// Best practice is to set optional paths in the end and be
+// as specific as possible.
 func (sb *securityBuilder) Optional() *securityBuilder {
 	matcher := web.Not(
 		web.Path(sb.paths...),
@@ -54,6 +68,15 @@ func (sb *securityBuilder) Optional() *securityBuilder {
 	return sb
 }
 
+// Required makes authentication/authorization required for the path pattern and methods
+// Example 1:
+//  	no matter if Required("/v1/service_brokers") is applied
+//  	if Optional("/**") is set, then all subpaths will be optional
+//
+// Example 2:
+//  	Required("/v1/**") is applied
+//  	Optional("/v1/service_brokers") is applied,
+//		then only "/v1/service_brokers" will be optional
 func (sb *securityBuilder) Required() *securityBuilder {
 	finalMatchers := make([]web.Matcher, 0)
 	if sb.pathMatcher != nil {
@@ -78,58 +101,81 @@ func (sb *securityBuilder) Required() *securityBuilder {
 	return sb
 }
 
+// Path specifies which paths will have authentication/authorization.
 func (sb *securityBuilder) Path(paths ...string) *securityBuilder {
 	sb.pathMatcher = web.Path(paths...)
 	sb.paths = paths
 	return sb
 }
 
+// Method specifies which methods will have authentication/authorization.
 func (sb *securityBuilder) Method(methods ...string) *securityBuilder {
 	sb.methodMatcher = web.Methods(methods...)
 	sb.methods = methods
 	return sb
 }
 
+// Authentication should be used to guarantee that a given path and method will have an authentication.
+// Later on, a specific authentication can be applied for a given path/subpath
+// Example:
+// 		Path("/**").
+// 		Method(http.MethodGet, http.MethodPut, http.MethodPost, http.MethodPatch, http.MethodDelete).
+// 		Authentication().
+// 		Required()
 func (sb *securityBuilder) Authentication() *securityBuilder {
 	sb.authentication = true
 	return sb
 }
 
+// Authorization should be used to guarantee that a given path and method will have an authorization
+// Later on, a specific authorization can be applied for a given path/subpath
+// Example:
+// 		Path("/**").
+// 		Method(http.MethodGet, http.MethodPut, http.MethodPost, http.MethodPatch, http.MethodDelete).
+// 		Authorization().
+// 		Required()
 func (sb *securityBuilder) Authorization() *securityBuilder {
 	sb.authorization = true
 	return sb
 }
 
+// WithAuthentication applies the provided authenticator
 func (sb *securityBuilder) WithAuthentication(authenticator httpsec.Authenticator) *securityBuilder {
 	sb.authenticators = append(sb.authenticators, authenticator)
 	sb.authentication = true
 	return sb
 }
 
+// WithAuthorization applies the provided authorizator
 func (sb *securityBuilder) WithAuthorization(authorizer httpsec.Authorizer) *securityBuilder {
 	sb.authorizers = append(sb.authorizers, authorizer)
 	sb.authorization = true
 	return sb
 }
 
+// WithScopes applies authorization mechanism, which checks the JWT scopes for the specified scopes
 func (sb *securityBuilder) WithScopes(scopes ...string) *securityBuilder {
 	sb.authorization = true
 	sb.authorizers = append(sb.authorizers, authz.NewScopesAuthorizer(scopes, web.GlobalAccess))
 	return sb
 }
 
+// WithClientIDSuffix applies authorization mechanism, which checks the JWT client id for the specified suffix
 func (sb *securityBuilder) WithClientIDSuffix(suffix string) *securityBuilder {
 	sb.authorization = true
 	sb.authorizers = append(sb.authorizers, authz.NewClientIDSuffixAuthorizer(suffix, web.GlobalAccess))
 	return sb
 }
 
+// WithClientID applies authorization mechanism, which checks the JWT client id for equality with the given one
 func (sb *securityBuilder) WithClientID(clientID string) *securityBuilder {
 	sb.authorization = true
 	sb.authorizers = append(sb.authorizers, authz.NewOauthClientAuthorizer(clientID, web.GlobalAccess))
 	return sb
 }
 
+// SetAccessLevel will set the specified access level, no matter what the authorizators returned before it.
+// If this is set, it will override the default access level of the authorizers
 func (sb *securityBuilder) SetAccessLevel(accessLevel web.AccessLevel) *securityBuilder {
 	sb.authorization = true
 	sb.accessLevelSet = true

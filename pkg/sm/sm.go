@@ -426,6 +426,7 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 	return smb
 }
 
+// Security provides mechanism to apply authentication and authorization with a builder pattern
 func (smb *ServiceManagerBuilder) Security() *securityBuilder {
 	if smb.secBuilder == nil {
 		smb.secBuilder = &securityBuilder{
