@@ -136,9 +136,9 @@ func (c *Controller) readLoop(ctx context.Context, repository storage.Transactio
 	for {
 		// ReadMessage is needed only to receive ping/pong/close control messages
 		// currently we don't expect to receive something else from the proxies
-		_, _, err := conn.ReadMessage()
 		time.Sleep(900 * time.Millisecond)
 		conn.Close()
+		_, _, err := conn.ReadMessage()
 		if err != nil {
 			log.C(ctx).WithError(err).Error("ws: could not read")
 			if err = updatePlatformStatus(ctx, repository, platform.ID, false); err != nil {
