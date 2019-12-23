@@ -28,9 +28,11 @@ type ObjectPayload struct {
 	Additional util.InputValidator `json:"additional,omitempty"`
 }
 
+type objectDetails map[string]util.InputValidator
+
 type NotificationsInterceptor struct {
 	PlatformIdProviderFunc func(ctx context.Context, object types.Object) string
-	AdditionalDetailsFunc  func(ctx context.Context, object types.Object, repository storage.Repository) (util.InputValidator, error)
+	AdditionalDetailsFunc  func(ctx context.Context, objects types.ObjectList, repository storage.Repository) (objectDetails, error)
 }
 
 func (ni *NotificationsInterceptor) OnTxCreate(h storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
@@ -40,7 +42,7 @@ func (ni *NotificationsInterceptor) OnTxCreate(h storage.InterceptCreateOnTxFunc
 			return nil, err
 		}
 
-		additionalDetails, err := ni.AdditionalDetailsFunc(ctx, obj, repository)
+		additionalDetails, err := ni.AdditionalDetailsFunc(ctx, types.NewObjectArray(obj), repository)
 		if err != nil {
 			return nil, err
 		}
@@ -50,7 +52,7 @@ func (ni *NotificationsInterceptor) OnTxCreate(h storage.InterceptCreateOnTxFunc
 		return newObj, CreateNotification(ctx, repository, types.CREATED, newObj.GetType(), platformID, &Payload{
 			New: &ObjectPayload{
 				Resource:   newObj,
-				Additional: additionalDetails,
+				Additional: additionalDetails[obj.GetID()],
 			},
 		})
 	}
@@ -63,10 +65,11 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 			return nil, err
 		}
 
-		additionalDetails, err := ni.AdditionalDetailsFunc(ctx, updatedObject, repository)
+		detailsMap, err := ni.AdditionalDetailsFunc(ctx, types.NewObjectArray(updatedObject), repository)
 		if err != nil {
 			return nil, err
 		}
+		additionalDetails := detailsMap[updatedObject.GetID()]
 
 		oldPlatformID := ni.PlatformIdProviderFunc(ctx, oldObject)
 		newPlatformID := ni.PlatformIdProviderFunc(ctx, newObject)
@@ -112,40 +115,32 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 }
 
 func (ni *NotificationsInterceptor) OnTxDelete(h storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
-	return func(ctx context.Context, repository storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
-		additionalDetailsMap := make(map[string]util.InputValidator)
+	return func(ctx context.Context, repository storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) error {
+		additionalDetails, err := ni.AdditionalDetailsFunc(ctx, objects, repository)
+		if err != nil {
+			return err
+		}
+
+		if err := h(ctx, repository, objects, deletionCriteria...); err != nil {
+			return err
+		}
 
 		for i := 0; i < objects.Len(); i++ {
-			object := objects.ItemAt(i)
-			additionalDetails, err := ni.AdditionalDetailsFunc(ctx, object, repository)
-			if err != nil {
-				return nil, err
-			}
-
-			additionalDetailsMap[object.GetID()] = additionalDetails
-		}
-
-		deletedObjects, err := h(ctx, repository, objects, deletionCriteria...)
-		if err != nil {
-			return nil, err
-		}
-
-		for i := 0; i < deletedObjects.Len(); i++ {
-			oldObject := deletedObjects.ItemAt(i)
+			oldObject := objects.ItemAt(i)
 
 			platformID := ni.PlatformIdProviderFunc(ctx, oldObject)
 
 			if err := CreateNotification(ctx, repository, types.DELETED, oldObject.GetType(), platformID, &Payload{
 				Old: &ObjectPayload{
 					Resource:   oldObject,
-					Additional: additionalDetailsMap[oldObject.GetID()],
+					Additional: additionalDetails[oldObject.GetID()],
 				},
 			}); err != nil {
-				return nil, err
+				return err
 			}
 		}
 
-		return deletedObjects, nil
+		return nil
 	}
 }
 

@@ -11,10 +11,10 @@ import (
 )
 
 // InterceptDeleteAroundTxFunc hook for entity deletion outside of transaction
-type InterceptDeleteAroundTxFunc func(ctx context.Context, deletionCriteria ...query.Criterion) (types.ObjectList, error)
+type InterceptDeleteAroundTxFunc func(ctx context.Context, deletionCriteria ...query.Criterion) error
 
 // InterceptDeleteOnTxFunc hook for entity deletion in transaction
-type InterceptDeleteOnTxFunc func(ctx context.Context, txStorage Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) (types.ObjectList, error)
+type InterceptDeleteOnTxFunc func(ctx context.Context, txStorage Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) error
 
 // DeleteAroundTxInterceptor provides hooks on entity deletion during AroundTx
 //go:generate counterfeiter . DeleteAroundTxInterceptor

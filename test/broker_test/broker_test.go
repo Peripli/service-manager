@@ -18,11 +18,12 @@ package broker_test
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/test/testutil/service_instance"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Peripli/service-manager/test/testutil/service_instance"
 
 	"github.com/Peripli/service-manager/pkg/httpclient"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -235,6 +236,29 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("when description field is missing", func() {
 						assertPOSTReturns201WhenFieldIsMissing("description")
+					})
+				})
+
+				Context("when request body has invalid field", func() {
+					Context("when name field is too long", func() {
+						BeforeEach(func() {
+							length := 500
+							brokerName := make([]rune, length)
+							for i := range brokerName {
+								brokerName[i] = 'a'
+							}
+							postBrokerRequestWithLabels["name"] = string(brokerName)
+						})
+
+						It("returns 400", func() {
+							ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithLabels).
+								Expect().
+								Status(http.StatusBadRequest).
+								JSON().Object().
+								Keys().Contains("error", "description")
+
+							assertInvocationCount(brokerServer.CatalogEndpointRequests, 0)
+						})
 					})
 				})
 
@@ -1153,7 +1177,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 							AfterEach(func() {
 								byIDs := query.ByField(query.InOperator, "id", serviceInstanceIDs...)
-								_, err := ctx.SMRepository.Delete(context.Background(), types.ServiceInstanceType, byIDs)
+								err := ctx.SMRepository.Delete(context.Background(), types.ServiceInstanceType, byIDs)
 								Expect(err).To(Not(HaveOccurred()))
 							})
 
@@ -1358,7 +1382,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 							AfterEach(func() {
 								byID := query.ByField(query.EqualsOperator, "id", serviceInstance.ID)
-								_, err := ctx.SMRepository.Delete(context.Background(), types.ServiceInstanceType, byID)
+								err := ctx.SMRepository.Delete(context.Background(), types.ServiceInstanceType, byID)
 								Expect(err).To(Not(HaveOccurred()))
 							})
 

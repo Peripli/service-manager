@@ -270,7 +270,7 @@ func (ssi *StoreServiceInstancePlugin) Deprovision(request *web.Request, next we
 			fallthrough
 		case http.StatusGone:
 			byID := query.ByField(query.EqualsOperator, "id", requestPayload.InstanceID)
-			if _, err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
+			if err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
 				if err != util.ErrNotFoundInStorage {
 					return util.HandleStorageError(err, string(types.ServiceInstanceType))
 
@@ -395,7 +395,7 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 					}
 				case types.FAILED:
 					byID := query.ByField(query.EqualsOperator, "id", requestPayload.InstanceID)
-					if _, err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
+					if err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
 						if err != util.ErrNotFoundInStorage {
 							return util.HandleStorageError(err, string(types.ServiceInstanceType))
 						}
@@ -422,7 +422,7 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 				switch resp.State {
 				case types.SUCCEEDED:
 					byID := query.ByField(query.EqualsOperator, "id", requestPayload.InstanceID)
-					if _, err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
+					if err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
 						if err != util.ErrNotFoundInStorage {
 							return util.HandleStorageError(err, string(types.ServiceInstanceType))
 						}
@@ -584,7 +584,9 @@ func (ssi *StoreServiceInstancePlugin) rollbackInstance(ctx context.Context, req
 	var instance types.Object
 	var err error
 	if instance, err = storage.Get(ctx, types.ServiceInstanceType, byID); err != nil {
-		return util.HandleStorageError(err, string(types.ServiceInstanceType))
+		if err != util.ErrNotFoundInStorage {
+			return util.HandleStorageError(err, string(types.ServiceInstanceType))
+		}
 	}
 	if instance == nil {
 		return nil
@@ -620,7 +622,9 @@ func (ssi *StoreServiceInstancePlugin) updateInstanceReady(ctx context.Context, 
 	var instance types.Object
 	var err error
 	if instance, err = storage.Get(ctx, types.ServiceInstanceType, byID); err != nil {
-		return util.HandleStorageError(err, string(types.ServiceInstanceType))
+		if err != util.ErrNotFoundInStorage {
+			return util.HandleStorageError(err, string(types.ServiceInstanceType))
+		}
 	}
 	if instance == nil {
 		return nil

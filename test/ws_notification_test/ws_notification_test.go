@@ -87,7 +87,7 @@ var _ = Describe("WS", func() {
 
 	AfterEach(func() {
 		if repository != nil {
-			_, err := repository.Delete(context.Background(), types.NotificationType)
+			err := repository.Delete(context.Background(), types.NotificationType)
 			if err != nil {
 				Expect(err).To(Equal(util.ErrNotFoundInStorage))
 			}

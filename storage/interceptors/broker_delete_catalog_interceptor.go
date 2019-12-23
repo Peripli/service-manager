@@ -35,12 +35,12 @@ func (b *brokerDeleteCatalogInterceptor) AroundTxDelete(h storage.InterceptDelet
 
 // OnTxDelete loads the broker catalog. Currently the catalog is required so that the additional data to the delete broker notifications can be attached.
 func (b *brokerDeleteCatalogInterceptor) OnTxDelete(h storage.InterceptDeleteOnTxFunc) storage.InterceptDeleteOnTxFunc {
-	return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) (types.ObjectList, error) {
+	return func(ctx context.Context, txStorage storage.Repository, objects types.ObjectList, deletionCriteria ...query.Criterion) error {
 		brokers := objects.(*types.ServiceBrokers)
 		for _, broker := range brokers.ServiceBrokers {
 			serviceOfferings, err := b.CatalogLoader(ctx, broker.GetID(), txStorage)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
 			broker.Services = serviceOfferings.ServiceOfferings
