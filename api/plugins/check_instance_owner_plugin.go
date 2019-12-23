@@ -19,7 +19,7 @@ type checkInstanceOwnerPlugin struct {
 	tenantIdentifier string
 }
 
-// NewCheckInstanceOwnerPlugin creates new plugin that checks the owner of the instance on bind requests
+// NewCheckInstanceOwnerPlugin creates new plugin that checks the owner of the instance
 func NewCheckInstanceOwnerPlugin(repository storage.Repository, tenantIdentifier string) *checkInstanceOwnerPlugin {
 	return &checkInstanceOwnerPlugin{
 		repository:       repository,

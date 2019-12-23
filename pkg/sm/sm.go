@@ -157,6 +157,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 
 	smb.RegisterPlugins(plugins.NewCatalogFilterByVisibilityPlugin(interceptableRepository))
 	smb.RegisterPluginsBefore(plugins.CheckInstanceOwnerPluginName, osb.NewStoreServiceInstancesPlugin(interceptableRepository))
+	smb.RegisterPlugins(plugins.NewCheckPlatformIDPlugin(interceptableRepository))
 
 	// Register default interceptors that represent the core SM business logic
 	smb.

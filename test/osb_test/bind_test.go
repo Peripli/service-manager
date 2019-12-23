@@ -17,6 +17,9 @@
 package osb_test
 
 import (
+	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/test/common"
+	"github.com/gavv/httpexpect"
 	"net/http"
 
 	. "github.com/onsi/ginkgo"
@@ -74,24 +77,49 @@ var _ = Describe("Bind", func() {
 	Context("bind request", func() {
 		BeforeEach(func() {
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
-			serviceInstance := provisionRequestBodyMap()()
 
 			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
 				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-				WithJSON(serviceInstance).Expect().Status(http.StatusCreated)
+				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
 		})
-		Context("from not an instance owner", func() {
-			It("should return 404", func() {
-				brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
-				ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-					WithJSON(provisionRequestBodyMapWith("context."+TenantIdentifier, "other_tenant")()).Expect().Status(http.StatusNotFound)
+		Context("multitenant check", func() {
+			Context("from not an instance owner", func() {
+				It("should return 404", func() {
+					brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
+					ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+						WithJSON(provisionRequestBodyMapWith("context."+TenantIdentifier, "other_tenant")()).Expect().Status(http.StatusNotFound)
+				})
+			})
+			Context("from an instance owner", func() {
+				It("should return 201", func() {
+					brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
+					ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+						WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
+				})
 			})
 		})
-		Context("from an instance owner", func() {
-			It("should return 201", func() {
-				brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
-				ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-					WithJSON(provisionRequestBodyMapWith("context."+TenantIdentifier, TenantValue)()).Expect().Status(http.StatusCreated)
+		Context("platform_id check", func() {
+			Context("bind from not an instance owner", func() {
+				var NewPlatformExpect *httpexpect.Expect
+
+				BeforeEach(func() {
+					platformJSON := common.MakePlatform("tcb-platform-test2", "tcb-platform-test2", "platform-type", "test-platform")
+					platform := common.RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
+					NewPlatformExpect = ctx.SM.Builder(func(req *httpexpect.Request) {
+						username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
+						req.WithBasicAuth(username, password)
+					})
+				})
+
+				It("should return 404", func() {
+					brokerServer.BindingHandler = parameterizedHandler(http.StatusCreated, `{}`)
+					NewPlatformExpect.PUT(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/bid").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+						WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusNotFound)
+				})
+
+				AfterEach(func() {
+					ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/tcb-platform-test2").Expect().Status(http.StatusOK)
+				})
 			})
 		})
 	})
