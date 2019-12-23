@@ -240,12 +240,13 @@ func buildRequestBody(serviceID, planID string) string {
 			"organization_name": "system",
 			"space_guid": "aaaa1234-da91-4f12-8ffa-b51d0336aaaa",
 			"space_name": "development",
-			"instance_name": "my-db"
+			"instance_name": "my-db",
+			"%s":"%s"
 		},
 		"maintenance_info": {
 			"version": "old"
 		}
-}`, serviceID, planID)
+}`, serviceID, planID, TenantIdentifier, TenantValue)
 	return result
 }
 func provisionRequestBodyMapWith(key, value string, idsToRemove ...string) func() map[string]interface{} {
@@ -297,7 +298,8 @@ func updateRequestBody(serviceID, oldPlanID, newPlanID string) string {
 			"organization_name": "system",
 			"space_guid": "aaaa1234-da91-4f12-8ffa-b51d0336aaaa",
 			"space_name": "development",
-			"instance_name": "my-db"
+			"instance_name": "my-db",
+			"%s":"%s"
 		},
 		"maintenance_info": {
 			"version": "new"
@@ -311,7 +313,7 @@ func updateRequestBody(serviceID, oldPlanID, newPlanID string) string {
 				"version": "old"
 			}
 		}
-}`, serviceID, newPlanID, serviceID, oldPlanID)
+}`, serviceID, newPlanID, TenantIdentifier, TenantValue, serviceID, oldPlanID)
 	return body
 }
 

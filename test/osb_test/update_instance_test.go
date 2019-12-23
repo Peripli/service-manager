@@ -70,6 +70,10 @@ var _ = Describe("Update", func() {
 			updateRequestBodyMap("service_id"),
 			http.StatusBadRequest,
 			http.StatusOK),
+		Entry("when not an instance owner performs update",
+			updateRequestBodyMapWith("context."+TenantIdentifier, "other_tenant"),
+			http.StatusNotFound,
+			http.StatusOK),
 	)
 
 	DescribeTable("call to broker with invalid response",
@@ -240,7 +244,9 @@ var _ = Describe("Update", func() {
 			},
 		),
 		Entry("updates the instance and creates operation update succeeded when update does not contain organization_id and broker responds with 200 OK and operation in body",
-			updateRequestBodyMap("organization_id", "space_id", "context", "parameters", "previous_values"),
+			updateRequestBodyMap("organization_id", "space_id", "context.platform", "context.organization_guid",
+				"context.organization_name", "context.space_guid", "context.space_name", "context.instance_name",
+				"parameters", "previous_values"),
 			http.StatusOK,
 			`{"operation":"abc123"}`,
 			func() map[string]interface{} {

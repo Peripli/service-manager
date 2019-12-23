@@ -74,7 +74,7 @@ var _ = Describe("Bind", func() {
 	Context("bind request", func() {
 		BeforeEach(func() {
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
-			serviceInstance := provisionRequestBodyMapWith("context."+TenantIdentifier, TenantValue)()
+			serviceInstance := provisionRequestBodyMap()()
 
 			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
 				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
