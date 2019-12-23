@@ -1,6 +1,7 @@
 package plugins
 
 import (
+	"fmt"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -65,6 +66,10 @@ func (p *checkPlatformIDPlugin) assertPlatformID(req *web.Request, next web.Hand
 	if err := user.Data(platform); err != nil {
 		return nil, err
 	}
+	if err := platform.Validate(); err != nil {
+		log.C(ctx).WithError(err).Errorf("Invalid platform found in context")
+		return nil, err
+	}
 
 	instanceID := req.PathParams["instance_id"]
 	byID := query.ByField(query.EqualsOperator, "id", instanceID)
@@ -82,7 +87,7 @@ func (p *checkPlatformIDPlugin) assertPlatformID(req *web.Request, next web.Hand
 			"was performed from platform with id %s", instance.ID, instance.PlatformID, platform.ID)
 		return nil, &util.HTTPError{
 			ErrorType:   "NotFound",
-			Description: "Service instance not found or not visible to the current user.",
+			Description: fmt.Sprintf("could not find such %s", string(types.ServiceInstanceType)),
 			StatusCode:  http.StatusNotFound,
 		}
 	}

@@ -45,6 +45,11 @@ func (p *checkInstanceOwnerPlugin) UpdateService(req *web.Request, next web.Hand
 func (p *checkInstanceOwnerPlugin) assertOwner(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 	callerTenantID := gjson.GetBytes(req.Body, "context."+p.tenantIdentifier).String()
+	if len(callerTenantID) == 0 {
+		log.C(ctx).Info("Tenant identifier not found in request context.")
+		return next.Handle(req)
+	}
+
 	instanceID := req.PathParams["instance_id"]
 	byID := query.ByField(query.EqualsOperator, "id", instanceID)
 	object, err := p.repository.Get(ctx, types.ServiceInstanceType, byID)
@@ -56,20 +61,22 @@ func (p *checkInstanceOwnerPlugin) assertOwner(req *web.Request, next web.Handle
 	}
 	instance := object.(*types.ServiceInstance)
 
-	if instance.Labels == nil {
-		return nil, fmt.Errorf("could not determine owner of service instance with id: %s", instanceID)
+	var instanceOwnerTenantID string
+	if instance.Labels != nil {
+		if tenantIDLabel, ok := instance.Labels[p.tenantIdentifier]; ok {
+			instanceOwnerTenantID = tenantIDLabel[0]
+		}
 	}
-	tenantIDLabel, ok := instance.Labels[p.tenantIdentifier]
-	if !ok {
-		return nil, fmt.Errorf("could not determine owner of service instance with id: %s", instanceID)
+	if instanceOwnerTenantID == "" {
+		log.C(ctx).Infof("Tenant label for instance with id %s is missing.", instanceID)
+		return next.Handle(req)
 	}
-	instanceOwnerTenantID := tenantIDLabel[0]
 
 	if instanceOwnerTenantID != callerTenantID {
 		log.C(ctx).Errorf("Instance owner %s is not the same as the caller %s", instanceOwnerTenantID, callerTenantID)
 		return nil, &util.HTTPError{
 			ErrorType:   "NotFound",
-			Description: "Service instance not found or not visible to the current user.",
+			Description: fmt.Sprintf("could not find such %s", string(types.ServiceInstanceType)),
 			StatusCode:  http.StatusNotFound,
 		}
 	}
