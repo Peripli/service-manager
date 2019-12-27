@@ -316,7 +316,7 @@ var _ = Describe("Provision", func() {
 	Context("when broker is stopped", func() {
 		It("should fail with 502", func() {
 			assertUnresponsiveBrokerError(ctx.SMWithBasic.PUT(smUrlToStoppedBroker+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-				WithJSON(provisionRequestBodyMap()()).Expect())
+				WithJSON(common.JSONToMap(buildRequestBody(service0CatalogID, plan0CatalogID))).Expect())
 
 			ctx.SMWithOAuth.List(web.ServiceInstancesURL).Path("$[*].id").Array().NotContains(SID)
 
@@ -335,6 +335,7 @@ var _ = Describe("Provision", func() {
 				First().Object().Value("id").String().Raw()
 
 			common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, plan1ID, platform.ID)
+			// TODO: Add label to the visibility with the org_id
 		})
 
 		AfterEach(func() {

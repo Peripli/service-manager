@@ -45,9 +45,11 @@ func TestOSB(t *testing.T) {
 }
 
 const (
+	plan0CatalogID              = "plan0CatalogID"
 	plan1CatalogID              = "plan1CatalogID"
 	plan2CatalogID              = "plan2CatalogID"
 	plan3CatalogID              = "plan3CatalogID"
+	service0CatalogID           = "service0CatalogID"
 	service1CatalogID           = "service1CatalogID"
 	SID                         = "12345"
 	timeoutDuration             = time.Millisecond * 500
@@ -90,7 +92,13 @@ var _ = BeforeSuite(func() {
 	smUrlToSimpleBrokerCatalogBroker = brokerServerWithSimpleCatalog.URL() + "/v1/osb/" + simpleBrokerCatalogID
 	common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, simpleBrokerCatalogID)
 
-	stoppedBrokerID, _, stoppedBrokerServer = ctx.RegisterBroker()
+	plan0 := common.GenerateTestPlanWithID(plan0CatalogID)
+	service0 := common.GenerateTestServiceWithPlansWithID(service0CatalogID, plan0)
+	catalog := common.NewEmptySBCatalog()
+	catalog.AddService(service0)
+
+	stoppedBrokerID, _, stoppedBrokerServer = ctx.RegisterBrokerWithCatalog(catalog)
+	common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, stoppedBrokerID)
 	stoppedBrokerServer.Close()
 	smUrlToStoppedBroker = stoppedBrokerServer.URL() + "/v1/osb/" + stoppedBrokerID
 
@@ -99,12 +107,12 @@ var _ = BeforeSuite(func() {
 	plan3 := common.GenerateTestPlanWithID(plan3CatalogID)
 
 	service1 := common.GenerateTestServiceWithPlansWithID(service1CatalogID, plan1, plan2, plan3)
-	catalog := common.NewEmptySBCatalog()
+	catalog = common.NewEmptySBCatalog()
 	catalog.AddService(service1)
 
 	var brokerObject common.Object
 	brokerID, brokerObject, brokerServer = ctx.RegisterBrokerWithCatalog(catalog)
-	plans := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("catalog_id in ('%s','%s')",plan1CatalogID, plan2CatalogID)).Iter()
+	plans := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("catalog_id in ('%s','%s')", plan1CatalogID, plan2CatalogID)).Iter()
 	for _, p := range plans {
 		common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, p.Object().Value("id").String().Raw(), ctx.TestPlatform.ID)
 	}
@@ -129,7 +137,7 @@ var _ = AfterSuite(func() {
 
 func assertMissingBrokerError(req *httpexpect.Response) {
 	req.Status(http.StatusNotFound).JSON().Object().
-		Value("description").String().Contains("could not find such broker")
+		Value("description").String().Contains("could not find") // broker or offering
 }
 
 func assertUnresponsiveBrokerError(req *httpexpect.Response) {

@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-package osb
+package plugins
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Peripli/service-manager/api/osb"
 	"net/http"
 	"time"
 
@@ -658,25 +659,17 @@ func findServicePlanIDByCatalogIDs(ctx context.Context, storage storage.Reposito
 }
 
 func parseRequestForm(request *web.Request, body commonOSBRequest) error {
-	user, ok := web.UserFromContext(request.Context())
-	if !ok {
-		return fmt.Errorf("user details not found in request context")
-	}
-	platform := &types.Platform{}
-	if err := user.Data(platform); err != nil {
+	platform, err := extractPlatformFromContext(request.Context())
+	if err != nil {
 		return err
 	}
-	if err := platform.Validate(); err != nil {
-		return fmt.Errorf("invalid platform found in user context: %s", err)
-	}
-
-	brokerID, ok := request.PathParams[BrokerIDPathParam]
+	brokerID, ok := request.PathParams[osb.BrokerIDPathParam]
 	if !ok {
-		return fmt.Errorf("path parameter missing: %s", BrokerIDPathParam)
+		return fmt.Errorf("path parameter missing: %s", osb.BrokerIDPathParam)
 	}
-	instanceID, ok := request.PathParams[InstanceIDPathParam]
+	instanceID, ok := request.PathParams[osb.InstanceIDPathParam]
 	if !ok {
-		return fmt.Errorf("path parameter missing: %s", InstanceIDPathParam)
+		return fmt.Errorf("path parameter missing: %s", osb.InstanceIDPathParam)
 	}
 	body.SetBrokerID(brokerID)
 	body.SetInstanceID(instanceID)
@@ -684,7 +677,21 @@ func parseRequestForm(request *web.Request, body commonOSBRequest) error {
 	body.SetTimestamp(time.Now().UTC())
 
 	return nil
+}
 
+func extractPlatformFromContext(ctx context.Context) (*types.Platform, error) {
+	user, ok := web.UserFromContext(ctx)
+	if !ok {
+		return nil, fmt.Errorf("user details not found in request context")
+	}
+	platform := &types.Platform{}
+	if err := user.Data(platform); err != nil {
+		return nil, err
+	}
+	if err := platform.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid platform found in user context: %s", err)
+	}
+	return platform, nil
 }
 
 func decodeRequestBody(request *web.Request, body commonOSBRequest) error {
