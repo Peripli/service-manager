@@ -351,7 +351,7 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 		return nil, err
 	}
 
-	if response.StatusCode != http.StatusOK {
+	if response.StatusCode != http.StatusOK || response.StatusCode != http.StatusGone {
 		return response, nil
 	}
 
@@ -382,6 +382,13 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 		}
 
 		operationFromDB := op.(*types.Operation)
+		if response.StatusCode == http.StatusGone {
+			if operationFromDB.Type != types.DELETE {
+				return nil
+			}
+			resp.State = types.SUCCEEDED
+		}
+
 		if operationFromDB.State != resp.State {
 			switch operationFromDB.Type {
 			case types.CREATE:
