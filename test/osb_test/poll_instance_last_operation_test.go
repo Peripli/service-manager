@@ -601,6 +601,51 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 				})
 			})
 		})
+
+		Context("that returns 410 gone", func() {
+			BeforeEach(func() {
+				brokerServer.ServiceInstanceLastOpHandler = parameterizedHandler(http.StatusGone, `{}`)
+			})
+
+			It("deletes the instance and updates the operation to delete succeeded", func() {
+				By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusGone)
+
+				By(fmt.Sprintf("Verifying service instance with id %s is deleted", SID))
+				ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusNotFound)
+
+				By(fmt.Sprintf("Verifying delete operation for service instance with id %s is updated to succeeded", SID))
+				verifyOperationExists(operationExpectations{
+					Type:         types.DELETE,
+					State:        types.SUCCEEDED,
+					ResourceID:   SID,
+					ResourceType: "/v1/service_instances",
+					ExternalID:   "",
+				})
+			})
+
+			Context("when instance does not exist", func() {
+				BeforeEach(func() {
+					brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
+
+					By(fmt.Sprintf("Deleting instance with id %s", SID))
+					byID := query.ByField(query.EqualsOperator, "id", SID)
+					err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
+					Expect(err).ToNot(HaveOccurred())
+
+					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+						Expect().Status(http.StatusNotFound)
+				})
+
+				It("does not fail", func() {
+					By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
+					ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+						Expect().Status(http.StatusGone)
+				})
+			})
+		})
 	})
 
 	Context("when call to working service broker", func() {
