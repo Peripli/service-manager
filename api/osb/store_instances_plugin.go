@@ -351,7 +351,7 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 		return nil, err
 	}
 
-	if response.StatusCode != http.StatusOK || response.StatusCode != http.StatusGone {
+	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusGone {
 		return response, nil
 	}
 
