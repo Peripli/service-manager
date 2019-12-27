@@ -446,6 +446,8 @@ var _ = Describe("Notifications Suite", func() {
 				Expect(actualOldPayload).To(MatchUnorderedJSON(expectedOldPayload))
 
 				newResource := gjson.GetBytes(notification.Payload, "new.resource").Value().(common.Object)
+				delete(objAfterOp, "labels")
+				delete(newResource, "labels")
 				Expect(newResource).To(Equal(objAfterOp))
 
 				actualNewPayload := gjson.GetBytes(notification.Payload, "new.additional").Raw

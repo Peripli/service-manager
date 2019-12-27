@@ -74,6 +74,21 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 		oldPlatformID := ni.PlatformIdProviderFunc(ctx, oldObject)
 		newPlatformID := ni.PlatformIdProviderFunc(ctx, newObject)
 
+		oldObjectLabels := oldObject.GetLabels()
+		newObjectLabels := newObject.GetLabels()
+		updatedObjectLabels := updatedObject.GetLabels()
+
+		if updatedObject.GetType() == types.VisibilityType {
+			oldVisibility := oldObject.(*types.Visibility)
+			newVisibility := newObject.(*types.Visibility)
+			if oldPlatformID == newPlatformID && oldVisibility.ServicePlanID == newVisibility.ServicePlanID {
+				updatedObject.SetLabels(nil)
+				newObject.SetLabels(nil)
+			}
+
+			oldObject.SetLabels(nil)
+		}
+
 		// if the resource update contains change in the platform ID field this means that the notification would be processed by
 		// two platforms - one needs to perform a delete operation and the other needs to perform a create operation.
 		if oldPlatformID != newPlatformID {
@@ -85,7 +100,6 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 			}); err != nil {
 				return nil, err
 			}
-
 			if err := CreateNotification(ctx, repository, types.DELETED, updatedObject.GetType(), oldPlatformID, &Payload{
 				Old: &ObjectPayload{
 					Resource:   oldObject,
@@ -109,6 +123,10 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 		}); err != nil {
 			return nil, err
 		}
+
+		newObject.SetLabels(newObjectLabels)
+		oldObject.SetLabels(oldObjectLabels)
+		updatedObject.SetLabels(updatedObjectLabels)
 
 		return updatedObject, nil
 	}
