@@ -227,6 +227,19 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 				By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
 				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusGone)
+
+				By(fmt.Sprintf("Verifying service instance with id %s is not updated to ready=true", SID))
+				ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusOK).JSON().Object().Value("ready").Boolean().Equal(false)
+
+				By(fmt.Sprintf("Verifying create operation for service instance with id %s is not updated to succeeded", SID))
+				verifyOperationExists(operationExpectations{
+					Type:         types.CREATE,
+					State:        types.IN_PROGRESS,
+					ResourceID:   SID,
+					ResourceType: "/v1/service_instances",
+					ExternalID:   "",
+				})
 			})
 		})
 	})
@@ -425,6 +438,15 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 				By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
 				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					Expect().Status(http.StatusGone)
+
+				By(fmt.Sprintf("Verifying update operation for service instance with id %s is still in progress", SID))
+				verifyOperationExists(operationExpectations{
+					Type:         types.UPDATE,
+					State:        types.IN_PROGRESS,
+					ResourceID:   SID,
+					ResourceType: "/v1/service_instances",
+					ExternalID:   "",
+				})
 			})
 		})
 	})
