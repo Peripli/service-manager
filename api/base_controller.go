@@ -178,7 +178,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 
-		reqCtxCopy := util.RequestContextCopy{Context: ctx}
+		reqCtxCopy := util.StateContext{Context: ctx}
 		c.scheduler.ScheduleCreate(reqCtxCopy, result, operationID)
 
 		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operationID)
@@ -213,7 +213,7 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 
-		reqCtxCopy := util.RequestContextCopy{Context: ctx}
+		reqCtxCopy := util.StateContext{Context: ctx}
 		c.scheduler.ScheduleDelete(reqCtxCopy, c.objectType, criteria, operationID)
 
 		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operationID)
@@ -376,7 +376,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 
-		reqCtxCopy := util.RequestContextCopy{Context: ctx}
+		reqCtxCopy := util.StateContext{Context: ctx}
 		c.scheduler.ScheduleUpdate(reqCtxCopy, objFromDB, labelChanges, criteria, operationID)
 
 		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operationID)
