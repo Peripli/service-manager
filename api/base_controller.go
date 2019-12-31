@@ -178,8 +178,8 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 
-		reqCtxCopy := util.StateContext{Context: ctx}
-		c.scheduler.ScheduleCreate(reqCtxCopy, result, operationID)
+		childCtx, childCtxCancel := context.WithCancel(util.StateContext{Context: ctx})
+		go c.scheduler.ScheduleCreate(childCtx, childCtxCancel, result, operationID)
 
 		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operationID)
 	}
@@ -213,8 +213,8 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 
-		reqCtxCopy := util.StateContext{Context: ctx}
-		c.scheduler.ScheduleDelete(reqCtxCopy, c.objectType, criteria, operationID)
+		childCtx, childCtxCancel := context.WithCancel(util.StateContext{Context: ctx})
+		go c.scheduler.ScheduleDelete(childCtx, childCtxCancel, c.objectType, criteria, operationID)
 
 		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operationID)
 	}
@@ -376,8 +376,8 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 
-		reqCtxCopy := util.StateContext{Context: ctx}
-		c.scheduler.ScheduleUpdate(reqCtxCopy, objFromDB, labelChanges, criteria, operationID)
+		childCtx, childCtxCancel := context.WithCancel(util.StateContext{Context: ctx})
+		go c.scheduler.ScheduleUpdate(childCtx, childCtxCancel, objFromDB, labelChanges, criteria, operationID)
 
 		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operationID)
 	}

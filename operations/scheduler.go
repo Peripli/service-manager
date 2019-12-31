@@ -34,55 +34,43 @@ func (ds *DefaultScheduler) Run() {
 }
 
 // SchedulerCreate schedules a Create job in the worker pool
-func (ds *DefaultScheduler) ScheduleCreate(reqCtx context.Context, object types.Object, operationID string) {
-	childCtx, childCtxCancel := context.WithCancel(reqCtx)
-
-	go func() {
-		log.D().Infof(scheduleMsg, types.CREATE, operationID)
-		ds.jobs <- &CreateJob{
-			baseJob: baseJob{
-				operationID:  operationID,
-				reqCtx:       childCtx,
-				reqCtxCancel: childCtxCancel,
-			},
-			object: object,
-		}
-	}()
+func (ds *DefaultScheduler) ScheduleCreate(reqCtx context.Context, reqCtxCancel context.CancelFunc, object types.Object, operationID string) {
+	log.D().Infof(scheduleMsg, types.CREATE, operationID)
+	ds.jobs <- &CreateJob{
+		baseJob: baseJob{
+			operationID:  operationID,
+			reqCtx:       reqCtx,
+			reqCtxCancel: reqCtxCancel,
+		},
+		object: object,
+	}
 }
 
 // SchedulerUpdate schedules an Update job in the worker pool
-func (ds *DefaultScheduler) ScheduleUpdate(reqCtx context.Context, object types.Object, labelChanges query.LabelChanges, criteria []query.Criterion, operationID string) {
-	childCtx, childCtxCancel := context.WithCancel(reqCtx)
-
-	go func() {
-		log.D().Infof(scheduleMsg, types.UPDATE, operationID)
-		ds.jobs <- &UpdateJob{
-			baseJob: baseJob{
-				operationID:  operationID,
-				reqCtx:       childCtx,
-				reqCtxCancel: childCtxCancel,
-			},
-			object:       object,
-			labelChanges: labelChanges,
-			criteria:     criteria,
-		}
-	}()
+func (ds *DefaultScheduler) ScheduleUpdate(reqCtx context.Context, reqCtxCancel context.CancelFunc, object types.Object, labelChanges query.LabelChanges, criteria []query.Criterion, operationID string) {
+	log.D().Infof(scheduleMsg, types.UPDATE, operationID)
+	ds.jobs <- &UpdateJob{
+		baseJob: baseJob{
+			operationID:  operationID,
+			reqCtx:       reqCtx,
+			reqCtxCancel: reqCtxCancel,
+		},
+		object:       object,
+		labelChanges: labelChanges,
+		criteria:     criteria,
+	}
 }
 
 // SchedulerDelete schedules an Delete job in the worker pool
-func (ds *DefaultScheduler) ScheduleDelete(reqCtx context.Context, objectType types.ObjectType, criteria []query.Criterion, operationID string) {
-	childCtx, childCtxCancel := context.WithCancel(reqCtx)
-
-	go func() {
-		log.D().Infof(scheduleMsg, types.DELETE, operationID)
-		ds.jobs <- &DeleteJob{
-			baseJob: baseJob{
-				operationID:  operationID,
-				reqCtx:       childCtx,
-				reqCtxCancel: childCtxCancel,
-			},
-			objectType: objectType,
-			criteria:   criteria,
-		}
-	}()
+func (ds *DefaultScheduler) ScheduleDelete(reqCtx context.Context, reqCtxCancel context.CancelFunc, objectType types.ObjectType, criteria []query.Criterion, operationID string) {
+	log.D().Infof(scheduleMsg, types.DELETE, operationID)
+	ds.jobs <- &DeleteJob{
+		baseJob: baseJob{
+			operationID:  operationID,
+			reqCtx:       reqCtx,
+			reqCtxCancel: reqCtxCancel,
+		},
+		objectType: objectType,
+		criteria:   criteria,
+	}
 }
