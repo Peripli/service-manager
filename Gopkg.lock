@@ -256,8 +256,8 @@
     "zlib",
   ]
   pruneopts = "UT"
-  revision = "438db640fd672278e44bb9bec0b979358e7e9c76"
-  version = "v1.9.4"
+  revision = "17b3d80415252d99aa09c6717fea5f1f60a01ea5"
+  version = "v1.9.5"
 
 [[projects]]
   digest = "1:31e761d97c76151dde79e9d28964a812c46efc5baee4085b86f68f0c654450de"
@@ -312,7 +312,7 @@
   version = "v0.4.1"
 
 [[projects]]
-  digest = "1:e8b90ccda83af6f29b677f8b01a0be6721ab974c9f57d2f13b6149e478dfb4ec"
+  digest = "1:ad7bc85a2256ae7246450290c96619db309d8d8f1918a3163e9af90ef1d7a077"
   name = "github.com/onsi/ginkgo"
   packages = [
     ".",
@@ -336,8 +336,8 @@
     "types",
   ]
   pruneopts = "UT"
-  revision = "ce5d301e555bb672c693c099ba6ca5087b06c0b4"
-  version = "v1.10.3"
+  revision = "388ac7e50a3abf0798010091d5094171f4aefc0b"
+  version = "v1.11.0"
 
 [[projects]]
   digest = "1:e42321c3ec0ff36c0644da60c2c1469886b214134286f4610199b704619e11a3"
@@ -389,12 +389,12 @@
   revision = "1555304b9b35fdd2b425bccf1a5613677705e7d0"
 
 [[projects]]
-  digest = "1:d917313f309bda80d27274d53985bc65651f81a5b66b820749ac7f8ef061fd04"
+  digest = "1:d0d418e1c02e6fc00259ef09d0d4f5135fc6aedac356ff0a11f4e5ef0c447270"
   name = "github.com/sergi/go-diff"
   packages = ["diffmatchpatch"]
   pruneopts = "UT"
-  revision = "1744e2970ca51c86172c8190fadad617561ed6e7"
-  version = "v1.0.0"
+  revision = "58c5cb1602ee9676b5d3590d782bedde80706fcc"
+  version = "v1.1.0"
 
 [[projects]]
   digest = "1:fd61cf4ae1953d55df708acb6b91492d538f49c305b364a014049914495db426"
@@ -570,7 +570,7 @@
     "pbkdf2",
   ]
   pruneopts = "UT"
-  revision = "e9b2fee46413994441b28dfca259d911d963dfed"
+  revision = "53104e6ec876ad4e22ad27cce588b01392043c1b"
 
 [[projects]]
   branch = "master"
@@ -601,11 +601,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:634414cd43ed62a728aaf9b3e61fde85f012880f9b32b7d00678b6fd887ff9c1"
+  digest = "1:21fdc4d02e91b37ce39866d3a949a4b54220f3acb839ccb0b3ae0497df638903"
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "UT"
-  revision = "ac6580df4449443a05718fd7858c1f91ad5f8d20"
+  revision = "04cbcbbfeed8aa0b2b010b2ddab558e9f717fd3e"
 
 [[projects]]
   digest = "1:28deae5fe892797ff37a317b5bcda96d11d1c90dadd89f1337651df3bc4c586e"

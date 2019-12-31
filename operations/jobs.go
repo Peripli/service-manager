@@ -8,7 +8,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
-	"time"
 )
 
 // ExecutableJob represents a DB operation that has to be executed.
@@ -48,6 +47,7 @@ type DeleteJob struct {
 
 // Execute executes a Create DB operation
 func (co *CreateJob) Execute(ctx context.Context, repository storage.Repository) (string, error) {
+	log.D().Debugf("Starting execution of CREATE operation with id (%s) for entity %s", co.operationID, co.object.GetType())
 	var err error
 
 	go func() {
@@ -75,6 +75,7 @@ func (co *CreateJob) Execute(ctx context.Context, repository storage.Repository)
 
 // Execute executes an Update DB operation
 func (uo *UpdateJob) Execute(ctx context.Context, repository storage.Repository) (string, error) {
+	log.D().Debugf("Starting execution of UPDATE operation with id (%s) for entity %s", uo.operationID, uo.object.GetType())
 	var err error
 
 	go func() {
@@ -102,6 +103,7 @@ func (uo *UpdateJob) Execute(ctx context.Context, repository storage.Repository)
 
 // Execute executes a Delete DB operation
 func (do *DeleteJob) Execute(ctx context.Context, repository storage.Repository) (string, error) {
+	log.D().Debugf("Starting execution of DELETE operation with id (%s) for entity %s", do.operationID, do.objectType)
 	var err error
 
 	go func() {
@@ -134,7 +136,6 @@ func updateOperationState(ctx context.Context, repository storage.Repository, op
 	}
 
 	operation.State = state
-	operation.UpdatedAt = time.Now()
 
 	if opErr != nil {
 		bytes, err := json.Marshal(opErr)
