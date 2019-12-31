@@ -3,10 +3,12 @@ package operations
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 )
 
@@ -49,16 +51,23 @@ type DeleteJob struct {
 func (co *CreateJob) Execute(ctx context.Context, repository storage.Repository) (string, error) {
 	log.D().Debugf("Starting execution of CREATE operation with id (%s) for entity %s", co.operationID, co.object.GetType())
 	var err error
+	opCtx := util.StateContext{Context: co.reqCtx}
 
+	timedOut := false
 	go func() {
 		<-ctx.Done()
 		co.reqCtxCancel()
+		timedOut = true
 	}()
 
 	if _, err = repository.Create(co.reqCtx, co.object); err != nil {
 		log.D().Debugf("Failed to execute CREATE operation with id (%s) for entity %s", co.operationID, co.object.GetType())
 
-		if opErr := updateOperationState(co.reqCtx, repository, co.operationID, types.FAILED, &OperationError{Message: err.Error()}); opErr != nil {
+		if timedOut {
+			err = errors.New("job timed out")
+		}
+
+		if opErr := updateOperationState(opCtx, repository, co.operationID, types.FAILED, &OperationError{Message: err.Error()}); opErr != nil {
 			log.D().Debugf("Failed to set state of operation with id (%s) to %s", co.operationID, types.FAILED)
 			err = fmt.Errorf("%s : %s", err, opErr)
 		}
@@ -66,7 +75,7 @@ func (co *CreateJob) Execute(ctx context.Context, repository storage.Repository)
 	}
 
 	log.D().Debugf("Successfully executed CREATE operation with id (%s) for entity %s", co.operationID, co.object.GetType())
-	if err = updateOperationState(co.reqCtx, repository, co.operationID, types.SUCCEEDED, nil); err != nil {
+	if err = updateOperationState(opCtx, repository, co.operationID, types.SUCCEEDED, nil); err != nil {
 		log.D().Debugf("Failed to set state of operation with id (%s) to %s", co.operationID, types.SUCCEEDED)
 	}
 
@@ -77,16 +86,23 @@ func (co *CreateJob) Execute(ctx context.Context, repository storage.Repository)
 func (uo *UpdateJob) Execute(ctx context.Context, repository storage.Repository) (string, error) {
 	log.D().Debugf("Starting execution of UPDATE operation with id (%s) for entity %s", uo.operationID, uo.object.GetType())
 	var err error
+	opCtx := util.StateContext{Context: uo.reqCtx}
 
+	timedOut := false
 	go func() {
 		<-ctx.Done()
 		uo.reqCtxCancel()
+		timedOut = true
 	}()
 
 	if _, err = repository.Update(uo.reqCtx, uo.object, uo.labelChanges, uo.criteria...); err != nil {
 		log.D().Debugf("Failed to execute UPDATE operation with id (%s) for entity %s", uo.operationID, uo.object.GetType())
 
-		if opErr := updateOperationState(uo.reqCtx, repository, uo.operationID, types.FAILED, &OperationError{Message: err.Error()}); opErr != nil {
+		if timedOut {
+			err = errors.New("job timed out")
+		}
+
+		if opErr := updateOperationState(opCtx, repository, uo.operationID, types.FAILED, &OperationError{Message: err.Error()}); opErr != nil {
 			log.D().Debugf("Failed to set state of operation with id (%s) to %s", uo.operationID, types.FAILED)
 			err = fmt.Errorf("%s : %s", err, opErr)
 		}
@@ -94,7 +110,7 @@ func (uo *UpdateJob) Execute(ctx context.Context, repository storage.Repository)
 	}
 
 	log.D().Debugf("Successfully executed UPDATE operation with id (%s) for entity %s", uo.operationID, uo.object.GetType())
-	if err = updateOperationState(uo.reqCtx, repository, uo.operationID, types.SUCCEEDED, nil); err != nil {
+	if err = updateOperationState(opCtx, repository, uo.operationID, types.SUCCEEDED, nil); err != nil {
 		log.D().Debugf("Failed to set state of operation with id (%s) to %s", uo.operationID, types.SUCCEEDED)
 	}
 
@@ -105,16 +121,23 @@ func (uo *UpdateJob) Execute(ctx context.Context, repository storage.Repository)
 func (do *DeleteJob) Execute(ctx context.Context, repository storage.Repository) (string, error) {
 	log.D().Debugf("Starting execution of DELETE operation with id (%s) for entity %s", do.operationID, do.objectType)
 	var err error
+	opCtx := util.StateContext{Context: do.reqCtx}
 
+	timedOut := false
 	go func() {
 		<-ctx.Done()
 		do.reqCtxCancel()
+		timedOut = true
 	}()
 
 	if err = repository.Delete(do.reqCtx, do.objectType, do.criteria...); err != nil {
 		log.D().Debugf("Failed to execute DELETE operation with id (%s) for entity %s", do.operationID, do.objectType)
 
-		if opErr := updateOperationState(do.reqCtx, repository, do.operationID, types.FAILED, &OperationError{Message: err.Error()}); opErr != nil {
+		if timedOut {
+			err = errors.New("job timed out")
+		}
+
+		if opErr := updateOperationState(opCtx, repository, do.operationID, types.FAILED, &OperationError{Message: err.Error()}); opErr != nil {
 			log.D().Debugf("Failed to set state of operation with id (%s) to %s", do.operationID, types.FAILED)
 			err = fmt.Errorf("%s : %s", err, opErr)
 		}
@@ -122,7 +145,7 @@ func (do *DeleteJob) Execute(ctx context.Context, repository storage.Repository)
 	}
 
 	log.D().Debugf("Successfully executed DELETE operation with id (%s) for entity %s", do.operationID, do.objectType)
-	if err = updateOperationState(do.reqCtx, repository, do.operationID, types.SUCCEEDED, nil); err != nil {
+	if err = updateOperationState(opCtx, repository, do.operationID, types.SUCCEEDED, nil); err != nil {
 		log.D().Debugf("Failed to set state of operation with id (%s) to %s", do.operationID, types.SUCCEEDED)
 	}
 
