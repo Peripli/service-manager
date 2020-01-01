@@ -202,8 +202,7 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 
 	// start each Controller scheduler's worker pool
 	for _, controller := range smb.API.Controllers {
-		scheduler, hasScheduler := controller.Scheduler()
-		if hasScheduler {
+		if scheduler, hasScheduler := controller.Scheduler(); hasScheduler {
 			scheduler.Run()
 		}
 	}

@@ -45,6 +45,7 @@ func (om *OperationMaintainer) processOldOperations() {
 			om.deleteOldOperations()
 		case <-om.smCtx.Done():
 			ticker.Stop()
+			log.C(om.smCtx).Info("Server is shutting down. Stopping old operations maintainer...")
 			return
 		}
 	}
@@ -59,15 +60,15 @@ func (om *OperationMaintainer) processStuckOperations() {
 			om.markOrphanOperationsFailed()
 		case <-om.smCtx.Done():
 			ticker.Stop()
+			log.C(om.smCtx).Info("Server is shutting down. Stopping stuck operations maintainer...")
 			return
 		}
 	}
 }
 
 func (om *OperationMaintainer) deleteOldOperations() {
-	// TODO: Leave out the last C/U/D operation for each resource_id (don't just delete all operations older than cleanupInterval time)
 	byDate := query.ByField(query.LessThanOperator, "created_at", util.ToRFCNanoFormat(time.Now().Add(-om.cleanupInterval)))
-	if err := om.repository.Delete(context.Background(), types.OperationType, byDate); err != nil {
+	if err := om.repository.Delete(om.smCtx, types.OperationType, byDate); err != nil {
 		log.D().Debugf("Failed to cleanup operations: %s", err)
 		return
 	}
@@ -80,7 +81,7 @@ func (om *OperationMaintainer) markOrphanOperationsFailed() {
 		query.ByField(query.LessThanOperator, "created_at", util.ToRFCNanoFormat(time.Now().Add(-om.jobTimeout))),
 	}
 
-	objectList, err := om.repository.List(context.Background(), types.OperationType, criteria...)
+	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
 	if err != nil {
 		log.D().Debugf("Failed to fetch orphan operations: %s", err)
 		return
@@ -91,7 +92,7 @@ func (om *OperationMaintainer) markOrphanOperationsFailed() {
 		operation := operations.ItemAt(i).(*types.Operation)
 		operation.State = types.FAILED
 
-		if _, err := om.repository.Update(context.Background(), operation, query.LabelChanges{}); err != nil {
+		if _, err := om.repository.Update(om.smCtx, operation, query.LabelChanges{}); err != nil {
 			log.D().Debugf("Failed to update orphan operation with ID (%s) state to FAILED: %s", operation.ID, err)
 		}
 	}
