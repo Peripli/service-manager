@@ -6,8 +6,6 @@ import (
 )
 
 const (
-	MinPoolSize = 10
-
 	minJobTimeout      = 5 * time.Minute
 	minCleanupInterval = 10 * time.Minute
 )

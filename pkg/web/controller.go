@@ -16,6 +16,8 @@
 
 package web
 
+import "github.com/Peripli/service-manager/operations"
+
 // Controller is an entity that wraps a set of HTTP Routes
 type Controller interface {
 	// Routes returns the set of routes for this controller
@@ -27,7 +29,7 @@ type Controller interface {
 
 // JobScheduler is the component responsible for scheduling Async API resource operations
 type JobScheduler interface {
-	Run()
+	Schedule(job *operations.Job) (string, error)
 }
 
 // Route is a mapping between an Endpoint and a REST API SMHandler

@@ -74,17 +74,7 @@ func NewController(repository storage.Repository, resourceBaseURL string, object
 // NewAsyncController returns a new base controller with a scheduler making it effectively an async controller
 func NewAsyncController(ctx context.Context, repository storage.Repository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, options *Options) *BaseController {
 	controller := NewController(repository, resourceBaseURL, objectType, objectBlueprint, options)
-
-	poolSize := operations.MinPoolSize
-	for _, pool := range options.OperationSettings.Pools {
-		if pool.Resource == objectType.String() {
-			poolSize = pool.Size
-			break
-		}
-	}
-
-	workerPool := operations.NewWorkerPool(ctx, repository, poolSize, options.OperationSettings.JobTimeout)
-	controller.scheduler = operations.NewScheduler(repository, workerPool)
+	controller.scheduler = operations.NewScheduler(ctx, repository, options.OperationSettings.JobTimeout)
 
 	return controller
 }
@@ -173,13 +163,17 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 
-		operation, err := c.storeOperation(ctx, c.repository, types.IN_PROGRESS, types.CREATE, result.GetID(), log.CorrelationIDFromContext(ctx))
+		operation, err := c.buildOperation(ctx, c.repository, types.IN_PROGRESS, types.CREATE, result.GetID(), log.CorrelationIDFromContext(ctx))
 		if err != nil {
 			return nil, err
 		}
 
-		reqCtx := util.StateContext{Context: ctx}
-		go c.scheduler.Schedule(reqCtx, c.objectType, operation, operationFunc)
+		c.scheduler.Schedule(&operations.Job{
+			ReqCtx:        util.StateContext{Context: ctx},
+			ObjectType:    c.objectType,
+			Operation:     operation,
+			OperationFunc: operationFunc,
+		})
 
 		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operation.ID)
 	}
@@ -212,13 +206,17 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 		}
 
 		resourceID := getResourceIDFromCriteria(criteria)
-		operation, err := c.storeOperation(ctx, c.repository, types.IN_PROGRESS, types.DELETE, resourceID, log.CorrelationIDFromContext(ctx))
+		operation, err := c.buildOperation(ctx, c.repository, types.IN_PROGRESS, types.DELETE, resourceID, log.CorrelationIDFromContext(ctx))
 		if err != nil {
 			return nil, err
 		}
 
-		reqCtx := util.StateContext{Context: ctx}
-		go c.scheduler.Schedule(reqCtx, c.objectType, operation, operationFunc)
+		c.scheduler.Schedule(&operations.Job{
+			ReqCtx:        util.StateContext{Context: ctx},
+			ObjectType:    c.objectType,
+			Operation:     operation,
+			OperationFunc: operationFunc,
+		})
 
 		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operation.ID)
 	}
@@ -379,13 +377,18 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 
-		operation, err := c.storeOperation(ctx, c.repository, types.IN_PROGRESS, types.UPDATE, objFromDB.GetID(), log.CorrelationIDFromContext(ctx))
+		operation, err := c.buildOperation(ctx, c.repository, types.IN_PROGRESS, types.UPDATE, objFromDB.GetID(), log.CorrelationIDFromContext(ctx))
 		if err != nil {
 			return nil, err
 		}
 
-		reqCtx := util.StateContext{Context: ctx}
-		go c.scheduler.Schedule(reqCtx, c.objectType, operation, operationFunc)
+		c.scheduler.Schedule(&operations.Job{
+			Repository:    c.repository,
+			ReqCtx:        util.StateContext{Context: ctx},
+			ObjectType:    c.objectType,
+			Operation:     operation,
+			OperationFunc: operationFunc,
+		})
 
 		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operation.ID)
 	}
@@ -479,7 +482,7 @@ func (c *BaseController) checkAsyncSupport() error {
 	return nil
 }
 
-func (c *BaseController) storeOperation(ctx context.Context, storage storage.Repository, state types.OperationState, category types.OperationCategory, resourceID, correlationID string) (*types.Operation, error) {
+func (c *BaseController) buildOperation(ctx context.Context, storage storage.Repository, state types.OperationState, category types.OperationCategory, resourceID, correlationID string) (*types.Operation, error) {
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		return nil, fmt.Errorf("could not generate GUID for %s: %s", c.objectType, err)
@@ -496,10 +499,6 @@ func (c *BaseController) storeOperation(ctx context.Context, storage storage.Rep
 		ResourceID:    resourceID,
 		ResourceType:  c.resourceBaseURL,
 		CorrelationID: correlationID,
-	}
-
-	if _, err := storage.Create(ctx, operation); err != nil {
-		return nil, util.HandleStorageError(err, operation.GetType().String())
 	}
 
 	return operation, nil
