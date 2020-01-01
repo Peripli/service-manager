@@ -27,8 +27,8 @@ type Job struct {
 	reqCtx     context.Context
 }
 
-// Execute executes a Create DB operation
-func (j *Job) Execute(ctx context.Context, repository storage.Repository) (string, error) {
+// Execute executes a C/U/D DB operation
+func (j *Job) Execute(ctxWithTimeout context.Context, repository storage.Repository) (string, error) {
 	log.D().Debugf("Starting execution of %s operation with id (%s) for %s entity", j.operation.Type, j.operation.ID, j.objectType)
 	var err error
 
@@ -37,7 +37,7 @@ func (j *Job) Execute(ctx context.Context, repository storage.Repository) (strin
 
 	timedOut := false
 	go func() {
-		<-ctx.Done()
+		<-ctxWithTimeout.Done()
 		reqCtxCancel()
 		timedOut = true
 	}()

@@ -141,10 +141,6 @@ func (c *BaseController) Routes() []web.Route {
 	}
 }
 
-func (c *BaseController) supportsAsync() bool {
-	return c.scheduler != nil
-}
-
 // CreateObject handles the creation of a new object
 func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
