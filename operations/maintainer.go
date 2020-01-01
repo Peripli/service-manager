@@ -97,5 +97,5 @@ func (om *OperationMaintainer) markOrphanOperationsFailed() {
 		}
 	}
 
-	log.D().Debug("Successfully cleaned up orphan operations")
+	log.D().Debug("Successfully marked orphan operations as failed")
 }
