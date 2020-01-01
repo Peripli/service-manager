@@ -166,6 +166,10 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	result.SetCreatedAt(currentTime)
 	result.SetUpdatedAt(currentTime)
 
+	operationFunc := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+		return repository.Create(ctx, result)
+	}
+
 	isAsync := r.URL.Query().Get(QueryParamAsync)
 	if isAsync == "true" {
 		log.C(ctx).Debugf("Request will be executed asynchronously")
@@ -173,19 +177,19 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 
-		operationID, err := c.storeOperation(ctx, c.repository, types.IN_PROGRESS, types.CREATE, result.GetID(), log.CorrelationIDFromContext(ctx))
+		operation, err := c.storeOperation(ctx, c.repository, types.IN_PROGRESS, types.CREATE, result.GetID(), log.CorrelationIDFromContext(ctx))
 		if err != nil {
 			return nil, err
 		}
 
-		childCtx, childCtxCancel := context.WithCancel(util.StateContext{Context: ctx})
-		go c.scheduler.ScheduleCreate(childCtx, childCtxCancel, result, operationID)
+		reqCtx := util.StateContext{Context: ctx}
+		go c.scheduler.Schedule(reqCtx, c.objectType, operation, operationFunc)
 
-		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operationID)
+		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operation.ID)
 	}
 
 	log.C(ctx).Debugf("Request will be executed synchronously")
-	createdObj, err := c.repository.Create(ctx, result)
+	createdObj, err := operationFunc(ctx, c.repository)
 	if err != nil {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
@@ -200,6 +204,10 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 
 	criteria := query.CriteriaForContext(ctx)
 
+	operationFunc := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+		return nil, repository.Delete(ctx, c.objectType, criteria...)
+	}
+
 	isAsync := r.URL.Query().Get(QueryParamAsync)
 	if isAsync == "true" {
 		log.C(ctx).Debugf("Request will be executed asynchronously")
@@ -208,19 +216,19 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 		}
 
 		resourceID := getResourceIDFromCriteria(criteria)
-		operationID, err := c.storeOperation(ctx, c.repository, types.IN_PROGRESS, types.DELETE, resourceID, log.CorrelationIDFromContext(ctx))
+		operation, err := c.storeOperation(ctx, c.repository, types.IN_PROGRESS, types.DELETE, resourceID, log.CorrelationIDFromContext(ctx))
 		if err != nil {
 			return nil, err
 		}
 
-		childCtx, childCtxCancel := context.WithCancel(util.StateContext{Context: ctx})
-		go c.scheduler.ScheduleDelete(childCtx, childCtxCancel, c.objectType, criteria, operationID)
+		reqCtx := util.StateContext{Context: ctx}
+		go c.scheduler.Schedule(reqCtx, c.objectType, operation, operationFunc)
 
-		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operationID)
+		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operation.ID)
 	}
 
 	log.C(ctx).Debugf("Request will be executed synchronously")
-	if err := c.repository.Delete(ctx, c.objectType, criteria...); err != nil {
+	if _, err := operationFunc(ctx, c.repository); err != nil {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
@@ -364,6 +372,10 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	labels, _, _ := query.ApplyLabelChangesToLabels(labelChanges, objFromDB.GetLabels())
 	objFromDB.SetLabels(labels)
 
+	operationFunc := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+		return repository.Update(ctx, objFromDB, labelChanges, criteria...)
+	}
+
 	isAsync := r.URL.Query().Get(QueryParamAsync)
 	if isAsync == "true" {
 		log.C(ctx).Debugf("Request will be executed asynchronously")
@@ -371,19 +383,19 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 
-		operationID, err := c.storeOperation(ctx, c.repository, types.IN_PROGRESS, types.UPDATE, objFromDB.GetID(), log.CorrelationIDFromContext(ctx))
+		operation, err := c.storeOperation(ctx, c.repository, types.IN_PROGRESS, types.UPDATE, objFromDB.GetID(), log.CorrelationIDFromContext(ctx))
 		if err != nil {
 			return nil, err
 		}
 
-		childCtx, childCtxCancel := context.WithCancel(util.StateContext{Context: ctx})
-		go c.scheduler.ScheduleUpdate(childCtx, childCtxCancel, objFromDB, labelChanges, criteria, operationID)
+		reqCtx := util.StateContext{Context: ctx}
+		go c.scheduler.Schedule(reqCtx, c.objectType, operation, operationFunc)
 
-		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operationID)
+		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operation.ID)
 	}
 
 	log.C(ctx).Debugf("Request will be executed synchronously")
-	object, err := c.repository.Update(ctx, objFromDB, labelChanges, criteria...)
+	object, err := operationFunc(ctx, c.repository)
 	if err != nil {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
@@ -471,10 +483,10 @@ func (c *BaseController) checkAsyncSupport() error {
 	return nil
 }
 
-func (c *BaseController) storeOperation(ctx context.Context, storage storage.Repository, state types.OperationState, category types.OperationCategory, resourceID, correlationID string) (string, error) {
+func (c *BaseController) storeOperation(ctx context.Context, storage storage.Repository, state types.OperationState, category types.OperationCategory, resourceID, correlationID string) (*types.Operation, error) {
 	UUID, err := uuid.NewV4()
 	if err != nil {
-		return "", fmt.Errorf("could not generate GUID for %s: %s", c.objectType, err)
+		return nil, fmt.Errorf("could not generate GUID for %s: %s", c.objectType, err)
 	}
 	operation := &types.Operation{
 		Base: types.Base{
@@ -491,10 +503,10 @@ func (c *BaseController) storeOperation(ctx context.Context, storage storage.Rep
 	}
 
 	if _, err := storage.Create(ctx, operation); err != nil {
-		return "", util.HandleStorageError(err, operation.GetType().String())
+		return nil, util.HandleStorageError(err, operation.GetType().String())
 	}
 
-	return operation.ID, nil
+	return operation, nil
 }
 
 func generateTokenForItem(obj types.Object) string {

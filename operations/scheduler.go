@@ -3,7 +3,6 @@ package operations
 import (
 	"context"
 	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 )
@@ -33,44 +32,13 @@ func (ds *DefaultScheduler) Run() {
 	ds.workerPool.Run()
 }
 
-// SchedulerCreate schedules a Create job in the worker pool
-func (ds *DefaultScheduler) ScheduleCreate(reqCtx context.Context, reqCtxCancel context.CancelFunc, object types.Object, operationID string) {
-	log.D().Infof(scheduleMsg, types.CREATE, operationID)
-	ds.jobs <- &CreateJob{
-		baseJob: baseJob{
-			operationID:  operationID,
-			reqCtx:       reqCtx,
-			reqCtxCancel: reqCtxCancel,
-		},
-		object: object,
-	}
-}
-
-// SchedulerUpdate schedules an Update job in the worker pool
-func (ds *DefaultScheduler) ScheduleUpdate(reqCtx context.Context, reqCtxCancel context.CancelFunc, object types.Object, labelChanges query.LabelChanges, criteria []query.Criterion, operationID string) {
-	log.D().Infof(scheduleMsg, types.UPDATE, operationID)
-	ds.jobs <- &UpdateJob{
-		baseJob: baseJob{
-			operationID:  operationID,
-			reqCtx:       reqCtx,
-			reqCtxCancel: reqCtxCancel,
-		},
-		object:       object,
-		labelChanges: labelChanges,
-		criteria:     criteria,
-	}
-}
-
-// SchedulerDelete schedules an Delete job in the worker pool
-func (ds *DefaultScheduler) ScheduleDelete(reqCtx context.Context, reqCtxCancel context.CancelFunc, objectType types.ObjectType, criteria []query.Criterion, operationID string) {
-	log.D().Infof(scheduleMsg, types.DELETE, operationID)
-	ds.jobs <- &DeleteJob{
-		baseJob: baseJob{
-			operationID:  operationID,
-			reqCtx:       reqCtx,
-			reqCtxCancel: reqCtxCancel,
-		},
-		objectType: objectType,
-		criteria:   criteria,
+// Schedule schedules a CREATE/UPDATE/DELETE job in the worker pool
+func (ds *DefaultScheduler) Schedule(reqCtx context.Context, objectType types.ObjectType, operation *types.Operation, operationFunc func(ctx context.Context, repository storage.Repository) (types.Object, error)) {
+	log.D().Infof(scheduleMsg, operation.Type, operation.ID)
+	ds.jobs <- &Job{
+		operation:     operation,
+		operationFunc: operationFunc,
+		objectType:    objectType,
+		reqCtx:        reqCtx,
 	}
 }
