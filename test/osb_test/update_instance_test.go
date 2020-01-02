@@ -107,7 +107,8 @@ var _ = Describe("Update", func() {
 			http.StatusOK),
 		Entry("when plan is not visible",
 			updateRequestBodyMapWith("plan_id", plan3CatalogID),
-		),
+			http.StatusNotFound,
+			http.StatusOK),
 		Entry("when not an instance owner performs update",
 			updateRequestBodyMapWith("context."+TenantIdentifier, "other_tenant"),
 			http.StatusNotFound,
@@ -334,7 +335,7 @@ var _ = Describe("Update", func() {
 					Expect().
 					Status(http.StatusOK)
 			}
-			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+			NewPlatformExpect.PUT(smBrokerURL+"/v2/service_instances/"+SID).
 				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID)()).
 				Expect().Status(http.StatusCreated)
