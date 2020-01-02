@@ -18,6 +18,7 @@ package osb_test
 
 import (
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/test/common"
@@ -268,14 +269,33 @@ var _ = Describe("Update", func() {
 	Context("update instance plan", func() {
 		var platform *types.Platform
 		var platformJSON common.Object
+		var NewPlatformExpect *httpexpect.Expect
 
 		JustBeforeEach(func() {
 			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
 
 			platform = common.RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
+			NewPlatformExpect = ctx.SM.Builder(func(req *httpexpect.Request) {
+				username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
+				req.WithBasicAuth(username, password)
+			})
+
 			plans := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("catalog_id in ('%s','%s')", plan1CatalogID, plan2CatalogID)).Iter()
 			for _, p := range plans {
-				common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, p.Object().Value("id").String().Raw(), platform.ID)
+				planID := p.Object().Value("id").String().Raw()
+				visibilityID := common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, planID, platform.ID)
+				patchLabelsBody := make(map[string]interface{})
+				patchLabels := []query.LabelChange{{
+					Operation: query.AddLabelOperation,
+					Key:       "organization_guid",
+					Values:    []string{organizationGUID},
+				}}
+				patchLabelsBody["labels"] = patchLabels
+
+				ctx.SMWithOAuth.PATCH(web.VisibilitiesURL + "/" + visibilityID).
+					WithJSON(patchLabelsBody).
+					Expect().
+					Status(http.StatusOK)
 			}
 			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
 				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
@@ -296,14 +316,14 @@ var _ = Describe("Update", func() {
 			})
 
 			It("should return 404 if new plan is not visible in the org", func() {
-				ctx.SMWithBasic.PATCH(smBrokerURL+"/v2/service_instances/"+SID).
+				NewPlatformExpect.PATCH(smBrokerURL+"/v2/service_instances/"+SID).
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					WithJSON(updateRequestBodyMapWith("plan_id", plan3CatalogID)()).
 					Expect().Status(http.StatusNotFound)
 			})
 
 			It("should return 200 if new plan is visible in the org", func() {
-				ctx.SMWithBasic.PATCH(smBrokerURL+"/v2/service_instances/"+SID).
+				NewPlatformExpect.PATCH(smBrokerURL+"/v2/service_instances/"+SID).
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					WithJSON(updateRequestBodyMapWith("plan_id", plan2CatalogID)()).
 					Expect().Status(http.StatusOK)
@@ -316,14 +336,14 @@ var _ = Describe("Update", func() {
 			})
 
 			It("should return 404 if new plan is not visible in the platform", func() {
-				ctx.SMWithBasic.PATCH(smBrokerURL+"/v2/service_instances/"+SID).
+				NewPlatformExpect.PATCH(smBrokerURL+"/v2/service_instances/"+SID).
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					WithJSON(updateRequestBodyMapWith("plan_id", plan3CatalogID)()).
 					Expect().Status(http.StatusNotFound)
 			})
 
 			It("should return 200 if new plan is visible in the platform", func() {
-				ctx.SMWithBasic.PATCH(smBrokerURL+"/v2/service_instances/"+SID).
+				NewPlatformExpect.PATCH(smBrokerURL+"/v2/service_instances/"+SID).
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					WithJSON(updateRequestBodyMapWith("plan_id", plan2CatalogID)()).
 					Expect().Status(http.StatusOK)

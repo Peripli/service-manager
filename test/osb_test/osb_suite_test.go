@@ -51,6 +51,7 @@ const (
 	plan3CatalogID              = "plan3CatalogID"
 	service0CatalogID           = "service0CatalogID"
 	service1CatalogID           = "service1CatalogID"
+	organizationGUID            = "1113aa0-124e-4af2-1526-6bfacf61b111"
 	SID                         = "12345"
 	timeoutDuration             = time.Millisecond * 500
 	additionalDelayAfterTimeout = time.Second
@@ -126,7 +127,7 @@ var _ = BeforeEach(func() {
 	provisionRequestBody = buildRequestBody(service1CatalogID, plan1CatalogID)
 })
 
-var _ = AfterEach(func() {
+var _ = JustAfterEach(func() {
 	common.RemoveAllOperations(ctx.SMRepository)
 	common.RemoveAllInstances(ctx.SMRepository)
 })
@@ -223,7 +224,7 @@ func buildRequestBody(serviceID, planID string) string {
 		},
 		"context": {
 			"platform": "cloudfoundry",
-			"organization_guid": "1113aa0-124e-4af2-1526-6bfacf61b111",
+			"organization_guid": "%s",
 			"organization_name": "system",
 			"space_guid": "aaaa1234-da91-4f12-8ffa-b51d0336aaaa",
 			"space_name": "development",
@@ -232,7 +233,7 @@ func buildRequestBody(serviceID, planID string) string {
 		"maintenance_info": {
 			"version": "old"
 		}
-}`, serviceID, planID)
+}`, serviceID, planID, organizationGUID)
 	return result
 }
 func provisionRequestBodyMapWith(key, value string, idsToRemove ...string) func() map[string]interface{} {
@@ -280,7 +281,7 @@ func updateRequestBody(serviceID, oldPlanID, newPlanID string) string {
 		},
 		"context": {
 			"platform": "cloudfoundry",
-			"organization_guid": "1113aa0-124e-4af2-1526-6bfacf61b111",
+			"organization_guid": "%s",
 			"organization_name": "system",
 			"space_guid": "aaaa1234-da91-4f12-8ffa-b51d0336aaaa",
 			"space_name": "development",
@@ -298,7 +299,7 @@ func updateRequestBody(serviceID, oldPlanID, newPlanID string) string {
 				"version": "old"
 			}
 		}
-}`, serviceID, newPlanID, serviceID, oldPlanID)
+}`, serviceID, newPlanID, organizationGUID, serviceID, oldPlanID)
 	return body
 }
 
