@@ -83,8 +83,7 @@ func (p *checkPlatformIDPlugin) assertPlatformID(req *web.Request, next web.Hand
 	instance := object.(*types.ServiceInstance)
 
 	if platform.ID != instance.PlatformID {
-		log.C(ctx).Errorf("Operation with instance with id %s in platform with id %s "+
-			"was performed from platform with id %s", instance.ID, instance.PlatformID, platform.ID)
+		log.C(ctx).Errorf("Instance with id %s and platform id %s does not belong to platform with id %s", instance.ID, instance.PlatformID, platform.ID)
 		return nil, &util.HTTPError{
 			ErrorType:   "NotFound",
 			Description: fmt.Sprintf("could not find such %s", string(types.ServiceInstanceType)),
