@@ -1,4 +1,4 @@
-package plugins
+package osb
 
 import (
 	"encoding/json"

@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-package plugins
+package osb
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Peripli/service-manager/api/osb"
 	"net/http"
 	"time"
 
@@ -663,13 +662,13 @@ func parseRequestForm(request *web.Request, body commonOSBRequest) error {
 	if err != nil {
 		return err
 	}
-	brokerID, ok := request.PathParams[osb.BrokerIDPathParam]
+	brokerID, ok := request.PathParams[BrokerIDPathParam]
 	if !ok {
-		return fmt.Errorf("path parameter missing: %s", osb.BrokerIDPathParam)
+		return fmt.Errorf("path parameter missing: %s", BrokerIDPathParam)
 	}
-	instanceID, ok := request.PathParams[osb.InstanceIDPathParam]
+	instanceID, ok := request.PathParams[InstanceIDPathParam]
 	if !ok {
-		return fmt.Errorf("path parameter missing: %s", osb.InstanceIDPathParam)
+		return fmt.Errorf("path parameter missing: %s", InstanceIDPathParam)
 	}
 	body.SetBrokerID(brokerID)
 	body.SetInstanceID(instanceID)
