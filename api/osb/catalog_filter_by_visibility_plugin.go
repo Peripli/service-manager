@@ -1,12 +1,10 @@
-package plugins
+package osb
 
 import (
 	"context"
 	"errors"
 	"fmt"
 	"net/http"
-
-	"github.com/Peripli/service-manager/api/osb"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/tidwall/gjson"
@@ -60,7 +58,7 @@ func (c *CatalogFilterByVisibilityPlugin) FetchCatalog(req *web.Request, next we
 		return res, nil
 	}
 
-	brokerID := req.PathParams[osb.BrokerIDPathParam]
+	brokerID := req.PathParams[BrokerIDPathParam]
 	visibleCatalogPlans, err := getVisiblePlansByBrokerIDAndPlatformID(ctx, c.repository, brokerID, platform.ID)
 	if err != nil {
 		return nil, err
