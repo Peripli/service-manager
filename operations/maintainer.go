@@ -78,7 +78,7 @@ func (om *OperationMaintainer) deleteOldOperations() {
 func (om *OperationMaintainer) markOrphanOperationsFailed() {
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
-		query.ByField(query.LessThanOperator, "created_at", util.ToRFCNanoFormat(time.Now().Add(-om.jobTimeout))),
+		query.ByField(query.LessThanOperator, "claimed_at", util.ToRFCNanoFormat(time.Now().Add(-om.jobTimeout))),
 	}
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
@@ -97,5 +97,5 @@ func (om *OperationMaintainer) markOrphanOperationsFailed() {
 		}
 	}
 
-	log.D().Debug("Successfully cleaned up orphan operations")
+	log.D().Debug("Successfully marked orphan operations as failed")
 }
