@@ -34,8 +34,10 @@ type ServicePlan struct {
 	CatalogID     string `db:"catalog_id"`
 	CatalogName   string `db:"catalog_name"`
 
-	Metadata sqlxtypes.JSONText `db:"metadata"`
-	Schemas  sqlxtypes.JSONText `db:"schemas"`
+	Metadata               sqlxtypes.JSONText `db:"metadata"`
+	Schemas                sqlxtypes.JSONText `db:"schemas"`
+	MaximumPollingDuration int                `db:"maximum_polling_duration"`
+	MaintenanceInfo        sqlxtypes.JSONText `db:"maintenance_info"`
 
 	ServiceOfferingID string `db:"service_offering_id"`
 }
@@ -48,16 +50,18 @@ func (sp *ServicePlan) ToObject() types.Object {
 			UpdatedAt:      sp.UpdatedAt,
 			PagingSequence: sp.PagingSequence,
 		},
-		Name:              sp.Name,
-		Description:       sp.Description,
-		CatalogID:         sp.CatalogID,
-		CatalogName:       sp.CatalogName,
-		Free:              sp.Free,
-		Bindable:          sp.Bindable,
-		PlanUpdatable:     sp.PlanUpdatable,
-		Metadata:          getJSONRawMessage(sp.Metadata),
-		Schemas:           getJSONRawMessage(sp.Schemas),
-		ServiceOfferingID: sp.ServiceOfferingID,
+		Name:                   sp.Name,
+		Description:            sp.Description,
+		CatalogID:              sp.CatalogID,
+		CatalogName:            sp.CatalogName,
+		Free:                   sp.Free,
+		Bindable:               sp.Bindable,
+		PlanUpdatable:          sp.PlanUpdatable,
+		Metadata:               getJSONRawMessage(sp.Metadata),
+		Schemas:                getJSONRawMessage(sp.Schemas),
+		MaximumPollingDuration: sp.MaximumPollingDuration,
+		MaintenanceInfo:        getJSONRawMessage(sp.MaintenanceInfo),
+		ServiceOfferingID:      sp.ServiceOfferingID,
 	}
 }
 
@@ -73,15 +77,17 @@ func (sp *ServicePlan) FromObject(object types.Object) (storage.Entity, bool) {
 			UpdatedAt:      plan.UpdatedAt,
 			PagingSequence: plan.PagingSequence,
 		},
-		Name:              plan.Name,
-		Description:       plan.Description,
-		Free:              plan.Free,
-		Bindable:          plan.Bindable,
-		PlanUpdatable:     plan.PlanUpdatable,
-		CatalogID:         plan.CatalogID,
-		CatalogName:       plan.CatalogName,
-		Metadata:          getJSONText(plan.Metadata),
-		Schemas:           getJSONText(plan.Schemas),
-		ServiceOfferingID: plan.ServiceOfferingID,
+		Name:                   plan.Name,
+		Description:            plan.Description,
+		Free:                   plan.Free,
+		Bindable:               plan.Bindable,
+		PlanUpdatable:          plan.PlanUpdatable,
+		CatalogID:              plan.CatalogID,
+		CatalogName:            plan.CatalogName,
+		Metadata:               getJSONText(plan.Metadata),
+		Schemas:                getJSONText(plan.Schemas),
+		MaximumPollingDuration: plan.MaximumPollingDuration,
+		MaintenanceInfo:        getJSONText(plan.MaintenanceInfo),
+		ServiceOfferingID:      plan.ServiceOfferingID,
 	}, true
 }
