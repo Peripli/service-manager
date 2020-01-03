@@ -33,6 +33,7 @@ type ServiceOffering struct {
 	InstancesRetrievable bool   `db:"instances_retrievable"`
 	BindingsRetrievable  bool   `db:"bindings_retrievable"`
 	PlanUpdatable        bool   `db:"plan_updateable"`
+	AllowContextUpdates  bool   `db:"allow_context_updates"`
 	CatalogID            string `db:"catalog_id"`
 	CatalogName          string `db:"catalog_name"`
 
@@ -63,6 +64,7 @@ func (e *ServiceOffering) ToObject() types.Object {
 		InstancesRetrievable: e.InstancesRetrievable,
 		BindingsRetrievable:  e.BindingsRetrievable,
 		PlanUpdatable:        e.PlanUpdatable,
+		AllowContextUpdates:  e.AllowContextUpdates,
 		CatalogID:            e.CatalogID,
 		CatalogName:          e.CatalogName,
 		Tags:                 getJSONRawMessage(e.Tags),
@@ -98,6 +100,7 @@ func (*ServiceOffering) FromObject(object types.Object) (storage.Entity, bool) {
 		InstancesRetrievable: offering.InstancesRetrievable,
 		BindingsRetrievable:  offering.BindingsRetrievable,
 		PlanUpdatable:        offering.PlanUpdatable,
+		AllowContextUpdates:  offering.AllowContextUpdates,
 		CatalogID:            offering.CatalogID,
 		CatalogName:          offering.CatalogName,
 		Tags:                 getJSONText(offering.Tags),
