@@ -50,7 +50,7 @@ func (vf *PlanFilterByVisibility) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
-				web.Path(web.ServicePlansURL + "/**"),
+				web.Path(web.ServicePlansURL + "/*"),
 				web.Methods(http.MethodGet),
 			},
 		},

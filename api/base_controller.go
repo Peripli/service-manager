@@ -38,6 +38,7 @@ import (
 )
 
 const PathParamID = "id"
+const PathParamResourceID = "resource_id"
 
 // pagingLimitOffset is a constant which is needed to identify if there are more items in the DB.
 // If there is 1 more item than requested, we need to generate a token for the next page.
@@ -82,6 +83,13 @@ func (c *BaseController) Routes() []web.Route {
 				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamID),
 			},
 			Handler: c.GetSingleObject,
+		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodGet,
+				Path:   fmt.Sprintf("%s/{%s}%s/{%s}", c.resourceBaseURL, PathParamResourceID, web.OperationsURL, PathParamID),
+			},
+			Handler: c.GetOperation,
 		},
 		{
 			Endpoint: web.Endpoint{
@@ -193,6 +201,30 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 	stripCredentials(ctx, object)
 
 	return util.NewJSONResponse(http.StatusOK, object)
+}
+
+// GetOperation handles the fetching of a single operation with the id specified for the specified resource
+func (c *BaseController) GetOperation(r *web.Request) (*web.Response, error) {
+	objectID := r.PathParams[PathParamResourceID]
+	operationID := r.PathParams[PathParamID]
+
+	ctx := r.Context()
+	log.C(ctx).Debugf("Getting operation with id %s for object of type %s with id %s", operationID, c.objectType, objectID)
+
+	byOperationID := query.ByField(query.EqualsOperator, "id", operationID)
+	byObjectID := query.ByField(query.EqualsOperator, "resource_id", objectID)
+	var err error
+	ctx, err = query.AddCriteria(ctx, byObjectID, byOperationID)
+	if err != nil {
+		return nil, err
+	}
+	criteria := query.CriteriaForContext(ctx)
+	operation, err := c.repository.Get(ctx, types.OperationType, criteria...)
+	if err != nil {
+		return nil, util.HandleStorageError(err, c.objectType.String())
+	}
+
+	return util.NewJSONResponse(http.StatusOK, operation)
 }
 
 // ListObjects handles the fetching of all objects

@@ -99,43 +99,43 @@ func basicAuthnMatchers() []web.FilterMatcher {
 		{
 			Matchers: []web.Matcher{
 				web.Methods(http.MethodGet),
-				web.Path(web.PlatformsURL + "/**"),
+				web.Path(web.PlatformsURL + "/*"),
 			},
 		},
 		{
 			Matchers: []web.Matcher{
 				web.Methods(http.MethodGet),
-				web.Path(web.ServiceBrokersURL + "/**"),
+				web.Path(web.ServiceBrokersURL + "/*"),
 			},
 		},
 		{
 			Matchers: []web.Matcher{
 				web.Methods(http.MethodGet),
-				web.Path(web.ServiceOfferingsURL + "/**"),
+				web.Path(web.ServiceOfferingsURL + "/*"),
 			},
 		},
 		{
 			Matchers: []web.Matcher{
 				web.Methods(http.MethodGet),
-				web.Path(web.ServicePlansURL + "/**"),
+				web.Path(web.ServicePlansURL + "/*"),
 			},
 		},
 		{
 			Matchers: []web.Matcher{
 				web.Methods(http.MethodGet),
-				web.Path(web.ServiceInstancesURL + "/**"),
+				web.Path(web.ServiceInstancesURL + "/*"),
 			},
 		},
 		{
 			Matchers: []web.Matcher{
 				web.Methods(http.MethodGet),
-				web.Path(web.VisibilitiesURL + "/**"),
+				web.Path(web.VisibilitiesURL + "/*"),
 			},
 		},
 		{
 			Matchers: []web.Matcher{
 				web.Methods(http.MethodGet),
-				web.Path(web.NotificationsURL + "/**"),
+				web.Path(web.NotificationsURL + "/*"),
 			},
 		},
 	}
