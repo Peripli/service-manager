@@ -161,5 +161,11 @@ func (f *TenantFilter) FilterMatchers() []web.FilterMatcher {
 				web.Methods(f.Methods...),
 			},
 		},
+		{
+			Matchers: []web.Matcher{
+				web.Path(web.OperationsURL + "/**"),
+				web.Methods(http.MethodGet),
+			},
+		},
 	}
 }

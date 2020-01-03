@@ -14,7 +14,7 @@ log:
   level: debug
   format: text
 storage:
-  uri: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+  uri: postgres://postgres:postgres@localhost:5454/postgres?sslmode=disable
   encryption_key: ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8
 api:
   token_issuer_url: http://localhost:8080/uaa

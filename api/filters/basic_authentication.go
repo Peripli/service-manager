@@ -138,5 +138,11 @@ func basicAuthnMatchers() []web.FilterMatcher {
 				web.Path(web.NotificationsURL + "/**"),
 			},
 		},
+		{
+			Matchers: []web.Matcher{
+				web.Methods(http.MethodGet),
+				web.Path(web.OperationsURL + "/**"),
+			},
+		},
 	}
 }

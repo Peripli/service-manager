@@ -106,6 +106,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			apiNotifications.NewController(ctx, options.Repository, options.WSSettings, options.Notificator),
 			NewServiceOfferingController(options.Repository, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
 			NewServicePlanController(options.Repository, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
+			NewOperationsController(options.Repository, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
 			NewServiceInstanceController(options.Repository, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
 			&info.Controller{
 				TokenIssuer:    options.APISettings.TokenIssuerURL,
