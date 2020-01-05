@@ -61,7 +61,7 @@ func (ds *DefaultScheduler) Schedule(job Job) (string, error) {
 		log.D().Infof("Failed to schedule %s operation with id (%s) - all workers are busy.", job.Operation.Type, job.Operation.ID)
 		return "", &util.HTTPError{
 			ErrorType:   "ServiceUnavailable",
-			Description: "Failed to schedule operation. Server is busy - try again in a few minutes.",
+			Description: "Failed to schedule job. Server is busy - try again in a few minutes.",
 			StatusCode:  http.StatusServiceUnavailable,
 		}
 	}
