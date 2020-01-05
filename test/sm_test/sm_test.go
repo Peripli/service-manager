@@ -218,10 +218,6 @@ func (tf testFilter) FilterMatchers() []web.FilterMatcher {
 type testController struct {
 }
 
-func (tc testController) Scheduler() (web.JobScheduler, bool) {
-	return nil, false
-}
-
 func (tc testController) Routes() []web.Route {
 	return []web.Route{
 		{

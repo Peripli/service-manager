@@ -36,10 +36,6 @@ type Controller struct {
 	notificator storage.Notificator
 }
 
-func (c *Controller) Scheduler() (web.JobScheduler, bool) {
-	return nil, false
-}
-
 // Routes returns the routes for notifications
 func (c *Controller) Routes() []web.Route {
 	return []web.Route{

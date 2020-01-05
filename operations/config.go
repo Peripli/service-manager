@@ -47,7 +47,7 @@ func (s *Settings) Validate() error {
 
 // PoolSettings defines the settings for a worker pool
 type PoolSettings struct {
-	Resource string `mapstructure:"resourcec" description:"name of the resource for which a worker pool is created"`
+	Resource string `mapstructure:"resource" description:"name of the resource for which a worker pool is created"`
 	Size     int    `mapstructure:"size" description:"size of the worker pool"`
 }
 

@@ -98,10 +98,6 @@ func (t *testController) RegisterRoutes(routes ...web.Route) {
 	t.testRoutes = append(t.testRoutes, routes...)
 }
 
-func (t *testController) Scheduler() (web.JobScheduler, bool) {
-	return nil, false
-}
-
 func (t *testController) Routes() []web.Route {
 	return t.testRoutes
 }

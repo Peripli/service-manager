@@ -259,10 +259,6 @@ var _ = Describe("API", func() {
 type testController struct {
 }
 
-func (t *testController) Scheduler() (web.JobScheduler, bool) {
-	return nil, false
-}
-
 func (c *testController) Routes() []web.Route {
 	return []web.Route{}
 }

@@ -20,14 +20,6 @@ package web
 type Controller interface {
 	// Routes returns the set of routes for this controller
 	Routes() []Route
-
-	// Scheduler returns the Async job scheduler for this controller (and whether it has one)
-	Scheduler() (JobScheduler, bool)
-}
-
-// JobScheduler is the component responsible for scheduling Async API resource operations
-type JobScheduler interface {
-	Run()
 }
 
 // Route is a mapping between an Endpoint and a REST API SMHandler

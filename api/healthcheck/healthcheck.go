@@ -26,10 +26,6 @@ import (
 // URL is the path of the healthcheck endpoint
 const URL = web.MonitorHealthURL
 
-func (c *controller) Scheduler() (web.JobScheduler, bool) {
-	return nil, false
-}
-
 // Routes returns slice of routes which handle healthcheck operation
 func (c *controller) Routes() []web.Route {
 	return []web.Route{

@@ -13,28 +13,22 @@ import (
 	"time"
 )
 
-// ExecutableJob represents a DB operation that has to be executed.
-// After execution, the ID of the operation being executed and an error (if occurred) is returned.
-type ExecutableJob interface {
-	Execute(ctx context.Context, repository storage.Repository) (string, error)
-}
-
 // Job represents an ExecutableJob which is responsible for executing a C/U/D DB operation
 type Job struct {
-	operation     *types.Operation
-	operationFunc func(ctx context.Context, repository storage.Repository) (types.Object, error)
+	ReqCtx     context.Context
+	ObjectType types.ObjectType
 
-	objectType types.ObjectType
-	reqCtx     context.Context
+	Operation     *types.Operation
+	OperationFunc func(ctx context.Context, repository storage.Repository) (types.Object, error)
 }
 
 // Execute executes a C/U/D DB operation
 func (j *Job) Execute(ctxWithTimeout context.Context, repository storage.Repository) (string, error) {
-	log.D().Debugf("Starting execution of %s operation with id (%s) for %s entity", j.operation.Type, j.operation.ID, j.objectType)
+	log.D().Debugf("Starting execution of %s operation with id (%s) for %s entity", j.Operation.Type, j.Operation.ID, j.ObjectType)
 	var err error
 
-	opCtx := util.StateContext{Context: j.reqCtx}
-	reqCtx, reqCtxCancel := context.WithCancel(j.reqCtx)
+	opCtx := util.StateContext{Context: j.ReqCtx}
+	reqCtx, reqCtxCancel := context.WithCancel(j.ReqCtx)
 
 	timedOut := false
 	go func() {
@@ -43,31 +37,31 @@ func (j *Job) Execute(ctxWithTimeout context.Context, repository storage.Reposit
 		timedOut = true
 	}()
 
-	log.D().Debugf("Claiming %s operation with id (%s) for %s entity", j.operation.Type, j.operation.ID, j.objectType)
-	if err = claimOperation(opCtx, repository, j.operation.ID); err != nil {
-		log.D().Debugf("Failed to claim operation with id (%s)", j.operation.ID)
+	log.D().Debugf("Claiming %s operation with id (%s) for %s entity", j.Operation.Type, j.Operation.ID, j.ObjectType)
+	if err = claimOperation(opCtx, repository, j.Operation.ID); err != nil {
+		log.D().Debugf("Failed to claim operation with id (%s)", j.Operation.ID)
 	}
 
-	if _, err = j.operationFunc(reqCtx, repository); err != nil {
-		log.D().Debugf("Failed to execute %s operation with id (%s) for %s entity", j.operation.Type, j.operation.ID, j.objectType)
+	if _, err = j.OperationFunc(reqCtx, repository); err != nil {
+		log.D().Debugf("Failed to execute %s operation with id (%s) for %s entity", j.Operation.Type, j.Operation.ID, j.ObjectType)
 
 		if timedOut {
 			err = errors.New("job timed out")
 		}
 
-		if opErr := updateOperationState(opCtx, repository, j.operation.ID, types.FAILED, false, &OperationError{Message: err.Error()}); opErr != nil {
-			log.D().Debugf("Failed to set state of operation with id (%s) to %s", j.operation.ID, types.FAILED)
+		if opErr := updateOperationState(opCtx, repository, j.Operation.ID, types.FAILED, false, &OperationError{Message: err.Error()}); opErr != nil {
+			log.D().Debugf("Failed to set state of operation with id (%s) to %s", j.Operation.ID, types.FAILED)
 			err = fmt.Errorf("%s : %s", err, opErr)
 		}
-		return j.operation.ID, err
+		return j.Operation.ID, err
 	}
 
-	log.D().Debugf("Successfully executed %s operation with id (%s) for %s entity", j.operation.Type, j.operation.ID, j.objectType)
-	if err = updateOperationState(opCtx, repository, j.operation.ID, types.SUCCEEDED, false, nil); err != nil {
-		log.D().Debugf("Failed to set state of operation with id (%s) to %s", j.operation.ID, types.SUCCEEDED)
+	log.D().Debugf("Successfully executed %s operation with id (%s) for %s entity", j.Operation.Type, j.Operation.ID, j.ObjectType)
+	if err = updateOperationState(opCtx, repository, j.Operation.ID, types.SUCCEEDED, false, nil); err != nil {
+		log.D().Debugf("Failed to set state of operation with id (%s) to %s", j.Operation.ID, types.SUCCEEDED)
 	}
 
-	return j.operation.ID, err
+	return j.Operation.ID, err
 }
 
 func claimOperation(ctx context.Context, repository storage.Repository, operationID string) error {
