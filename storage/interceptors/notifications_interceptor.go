@@ -72,27 +72,20 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 		additionalDetails := detailsMap[updatedObject.GetID()]
 
 		oldPlatformID := ni.PlatformIdProviderFunc(ctx, oldObject)
-		newPlatformID := ni.PlatformIdProviderFunc(ctx, newObject)
+		updatedPlatformID := ni.PlatformIdProviderFunc(ctx, updatedObject)
 
 		oldObjectLabels := oldObject.GetLabels()
-		newObjectLabels := newObject.GetLabels()
 		updatedObjectLabels := updatedObject.GetLabels()
 
-		if updatedObject.GetType() == types.VisibilityType {
-			oldVisibility := oldObject.(*types.Visibility)
-			newVisibility := newObject.(*types.Visibility)
-			if oldPlatformID == newPlatformID && oldVisibility.ServicePlanID == newVisibility.ServicePlanID {
-				updatedObject.SetLabels(nil)
-				newObject.SetLabels(nil)
-			}
-
-			oldObject.SetLabels(nil)
+		if updatedObject.Equals(oldObject) {
+			updatedObject.SetLabels(nil)
 		}
+		oldObject.SetLabels(nil)
 
 		// if the resource update contains change in the platform ID field this means that the notification would be processed by
 		// two platforms - one needs to perform a delete operation and the other needs to perform a create operation.
-		if oldPlatformID != newPlatformID {
-			if err := CreateNotification(ctx, repository, types.CREATED, updatedObject.GetType(), newPlatformID, &Payload{
+		if oldPlatformID != updatedPlatformID {
+			if err := CreateNotification(ctx, repository, types.CREATED, updatedObject.GetType(), updatedPlatformID, &Payload{
 				New: &ObjectPayload{
 					Resource:   updatedObject,
 					Additional: additionalDetails,
@@ -110,7 +103,7 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 			}
 		}
 
-		if err := CreateNotification(ctx, repository, types.MODIFIED, updatedObject.GetType(), newPlatformID, &Payload{
+		if err := CreateNotification(ctx, repository, types.MODIFIED, updatedObject.GetType(), updatedPlatformID, &Payload{
 			New: &ObjectPayload{
 				Resource:   updatedObject,
 				Additional: additionalDetails,
@@ -124,7 +117,6 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 			return nil, err
 		}
 
-		newObject.SetLabels(newObjectLabels)
 		oldObject.SetLabels(oldObjectLabels)
 		updatedObject.SetLabels(updatedObjectLabels)
 

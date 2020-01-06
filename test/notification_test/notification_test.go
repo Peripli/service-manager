@@ -191,7 +191,7 @@ var _ = Describe("Notifications Suite", func() {
 		{
 			ResourceType: types.VisibilityType,
 			ResourceCreateFunc: func() common.Object {
-				visReqBody := make(common.Object, 0)
+				visReqBody := make(common.Object)
 				cPaidPlan := common.GeneratePaidTestPlan()
 				cService := common.GenerateTestServiceWithPlans(cPaidPlan)
 				catalog := common.NewEmptySBCatalog()
@@ -203,7 +203,12 @@ var _ = Describe("Notifications Suite", func() {
 				servicePlanID := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw())).
 					First().Object().Value("id").String().Raw()
 
+				labels := types.Labels{
+					"organization_guid": []string{"1", "2"},
+				}
+
 				visReqBody["service_plan_id"] = servicePlanID
+				visReqBody["labels"] = labels
 
 				platformID := ctx.SMWithOAuth.POST(web.PlatformsURL).WithJSON(common.GenerateRandomPlatform()).
 					Expect().
@@ -256,6 +261,19 @@ var _ = Describe("Notifications Suite", func() {
 							common.Object{
 								"op":  "remove_value",
 								"key": "test",
+								"values": common.Array{
+									"test",
+								},
+							},
+						},
+					}
+				},
+				func() common.Object {
+					return common.Object{
+						"labels": common.Array{
+							common.Object{
+								"op":  "add",
+								"key": "organization_guid",
 								"values": common.Array{
 									"test",
 								},
@@ -437,8 +455,12 @@ var _ = Describe("Notifications Suite", func() {
 					continue
 				}
 
+				Expect(gjson.GetBytes(notification.Payload, "old.resource.labels").Exists()).To(BeFalse())
 				oldResource := gjson.GetBytes(notification.Payload, "old.resource").Value().(common.Object)
+				labels := objBeforeOp["labels"]
+				delete(objBeforeOp, "labels")
 				Expect(oldResource).To(Equal(objBeforeOp))
+				objBeforeOp["labels"] = labels
 
 				actualOldPayload := gjson.GetBytes(notification.Payload, "old.additional").Raw
 				actualOldPayload = entry.ProcessNotificationPayload(actualOldPayload)
@@ -446,9 +468,11 @@ var _ = Describe("Notifications Suite", func() {
 				Expect(actualOldPayload).To(MatchUnorderedJSON(expectedOldPayload))
 
 				newResource := gjson.GetBytes(notification.Payload, "new.resource").Value().(common.Object)
+				labels = objAfterOp["labels"]
 				delete(objAfterOp, "labels")
 				delete(newResource, "labels")
 				Expect(newResource).To(Equal(objAfterOp))
+				objAfterOp["labels"] = labels
 
 				actualNewPayload := gjson.GetBytes(notification.Payload, "new.additional").Raw
 				actualNewPayload = entry.ProcessNotificationPayload(actualNewPayload)
@@ -471,7 +495,10 @@ var _ = Describe("Notifications Suite", func() {
 
 			if entry.ExpectedPlatformIDFunc(objBeforeOp) != entry.ExpectedPlatformIDFunc(objAfterOp) {
 				verifyCreationNotificationCreated(objAfterOp, notificationsAfterOp)
+				labels := objBeforeOp["labels"]
+				delete(objBeforeOp, "labels")
 				verifyDeletionNotificationCreated(objBeforeOp, notificationsAfterOp, expectedOldPayload)
+				objBeforeOp["labels"] = labels
 			}
 		}
 

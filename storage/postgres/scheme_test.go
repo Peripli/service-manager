@@ -156,6 +156,10 @@ var _ = Describe("Postgres Storage", func() {
 type obj struct {
 }
 
+func (obj) Equals(other types.Object) bool {
+	return false
+}
+
 func (obj) Validate() error {
 	return nil
 }
