@@ -102,7 +102,7 @@ var _ = Describe("Service Manager Config API", func() {
 						"queues_size": 100
 					},
 					"skip_ssl_validation": false,
-					"uri": "postgres://postgres:postgres@localhost:5454/postgres?sslmode=disable"
+					"uri": "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"
 				},
 				"websocket": {
 					"ping_timeout": "6000ms",
