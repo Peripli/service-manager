@@ -18,9 +18,6 @@ package postgres
 
 import (
 	"database/sql"
-	"github.com/lib/pq"
-	"time"
-
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
@@ -30,7 +27,6 @@ import (
 //go:generate smgen storage operation github.com/Peripli/service-manager/pkg/types:Operation
 type Operation struct {
 	BaseEntity
-	ClaimedAt     pq.NullTime        `db:"claimed_at"`
 	Description   sql.NullString     `db:"description"`
 	Type          string             `db:"type"`
 	State         string             `db:"state"`
@@ -49,7 +45,6 @@ func (o *Operation) ToObject() types.Object {
 			UpdatedAt:      o.UpdatedAt,
 			PagingSequence: o.PagingSequence,
 		},
-		ClaimedAt:     o.ClaimedAt.Time,
 		Description:   o.Description.String,
 		Type:          types.OperationCategory(o.Type),
 		State:         types.OperationState(o.State),
@@ -67,11 +62,6 @@ func (*Operation) FromObject(object types.Object) (storage.Entity, bool) {
 		return nil, false
 	}
 
-	claimedAt := pq.NullTime{
-		Time:  operation.ClaimedAt,
-		Valid: operation.ClaimedAt != time.Time{},
-	}
-
 	o := &Operation{
 		BaseEntity: BaseEntity{
 			ID:             operation.ID,
@@ -79,7 +69,6 @@ func (*Operation) FromObject(object types.Object) (storage.Entity, bool) {
 			UpdatedAt:      operation.UpdatedAt,
 			PagingSequence: operation.PagingSequence,
 		},
-		ClaimedAt:     claimedAt,
 		Description:   toNullString(operation.Description),
 		Type:          string(operation.Type),
 		State:         string(operation.State),

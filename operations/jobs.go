@@ -26,7 +26,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
-	"time"
 )
 
 // Job represents an ExecutableJob which is responsible for executing a C/U/D DB operation
@@ -53,11 +52,6 @@ func (j *Job) Execute(ctxWithTimeout context.Context, repository storage.Reposit
 		timedOut = true
 	}()
 
-	log.D().Debugf("Claiming %s operation with id (%s) for %s entity", j.Operation.Type, j.Operation.ID, j.ObjectType)
-	if err = claimOperation(opCtx, repository, j.Operation.ID); err != nil {
-		log.D().Debugf("Failed to claim operation with id (%s)", j.Operation.ID)
-	}
-
 	if _, err = j.OperationFunc(reqCtx, repository); err != nil {
 		log.D().Debugf("Failed to execute %s operation with id (%s) for %s entity", j.Operation.Type, j.Operation.ID, j.ObjectType)
 
@@ -65,7 +59,7 @@ func (j *Job) Execute(ctxWithTimeout context.Context, repository storage.Reposit
 			err = errors.New("job timed out")
 		}
 
-		if opErr := updateOperationState(opCtx, repository, j.Operation.ID, types.FAILED, false, &OperationError{Message: err.Error()}); opErr != nil {
+		if opErr := updateOperationState(opCtx, repository, j.Operation.ID, types.FAILED, &OperationError{Message: err.Error()}); opErr != nil {
 			log.D().Debugf("Failed to set state of operation with id (%s) to %s", j.Operation.ID, types.FAILED)
 			err = fmt.Errorf("%s : %s", err, opErr)
 		}
@@ -73,28 +67,20 @@ func (j *Job) Execute(ctxWithTimeout context.Context, repository storage.Reposit
 	}
 
 	log.D().Debugf("Successfully executed %s operation with id (%s) for %s entity", j.Operation.Type, j.Operation.ID, j.ObjectType)
-	if err = updateOperationState(opCtx, repository, j.Operation.ID, types.SUCCEEDED, false, nil); err != nil {
+	if err = updateOperationState(opCtx, repository, j.Operation.ID, types.SUCCEEDED, nil); err != nil {
 		log.D().Debugf("Failed to set state of operation with id (%s) to %s", j.Operation.ID, types.SUCCEEDED)
 	}
 
 	return j.Operation.ID, err
 }
 
-func claimOperation(ctx context.Context, repository storage.Repository, operationID string) error {
-	return updateOperationState(ctx, repository, operationID, types.IN_PROGRESS, true, nil)
-}
-
-func updateOperationState(ctx context.Context, repository storage.Repository, operationID string, state types.OperationState, claimOperation bool, opErr *OperationError) error {
+func updateOperationState(ctx context.Context, repository storage.Repository, operationID string, state types.OperationState, opErr *OperationError) error {
 	operation, err := fetchOperation(ctx, repository, operationID)
 	if err != nil {
 		return err
 	}
 
 	operation.State = state
-
-	if claimOperation {
-		operation.ClaimedAt = time.Now()
-	}
 
 	if opErr != nil {
 		bytes, err := json.Marshal(opErr)

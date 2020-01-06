@@ -19,8 +19,6 @@ package types
 import (
 	"encoding/json"
 	"fmt"
-	"time"
-
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
@@ -56,7 +54,6 @@ const (
 // Operation struct
 type Operation struct {
 	Base
-	ClaimedAt     time.Time         `json:"claimed_at"`
 	Description   string            `json:"description"`
 	Type          OperationCategory `json:"type"`
 	State         OperationState    `json:"state"`
