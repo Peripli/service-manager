@@ -59,7 +59,7 @@ var _ = Describe("Maintainer", func() {
 
 	When("Specified cleanup interval passes", func() {
 		It("Deletes operations older than that interval", func() {
-			resp := ctx.SMWithOAuth.DELETE(web.PlatformsURL+"/non-existent-platform-id").WithQuery("async", true).
+			resp := ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL+"/non-existent-broker-id").WithQuery("async", true).
 				Expect().
 				Status(http.StatusAccepted)
 

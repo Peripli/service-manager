@@ -55,6 +55,7 @@ func (om *OperationMaintainer) Run() {
 // processOldOperations cleans up periodically all operations which are older than some specified time
 func (om *OperationMaintainer) processOldOperations() {
 	ticker := time.NewTicker(om.cleanupInterval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
@@ -70,6 +71,7 @@ func (om *OperationMaintainer) processOldOperations() {
 // processStuckOperations periodically checks for operations which are stuck in state IN_PROGRESS and updates their status to FAILED
 func (om *OperationMaintainer) processStuckOperations() {
 	ticker := time.NewTicker(om.jobTimeout)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:

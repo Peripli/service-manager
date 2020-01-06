@@ -22,10 +22,8 @@ import (
 )
 
 const (
-	MinPoolSize = 10
-
-	minJobTimeout      = 5 * time.Minute
-	minCleanupInterval = 10 * time.Minute
+	MinPoolSize   = 10
+	minTimePeriod = time.Second
 )
 
 // Settings type to be loaded from the environment
@@ -38,19 +36,19 @@ type Settings struct {
 // DefaultSettings returns default values for API settings
 func DefaultSettings() *Settings {
 	return &Settings{
-		JobTimeout:      10 * time.Minute,
-		CleanupInterval: 60 * time.Minute,
+		JobTimeout:      5 * time.Minute,
+		CleanupInterval: 10 * time.Minute,
 		Pools:           []PoolSettings{},
 	}
 }
 
 // Validate validates the Operations settings
 func (s *Settings) Validate() error {
-	if s.JobTimeout < minJobTimeout {
-		return fmt.Errorf("validate Settings: JobTimeout must be larger than %s", minJobTimeout)
+	if s.JobTimeout <= minTimePeriod {
+		return fmt.Errorf("validate Settings: JobTimeout must be larger than %s", minTimePeriod)
 	}
-	if s.CleanupInterval < minCleanupInterval {
-		return fmt.Errorf("validate Settings: CleanupInterval must be larger than %s", minCleanupInterval)
+	if s.CleanupInterval <= minTimePeriod {
+		return fmt.Errorf("validate Settings: CleanupInterval must be larger than %s", minTimePeriod)
 	}
 	for _, pool := range s.Pools {
 		if err := pool.Validate(); err != nil {
