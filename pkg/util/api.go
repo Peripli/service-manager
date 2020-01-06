@@ -148,7 +148,7 @@ func NewJSONResponseWithOperation(code int, value interface{}, operationID strin
 	headers := http.Header{}
 	headers.Add("Content-Type", "application/json")
 	if operationID != "" {
-		headers.Add("Location", fmt.Sprintf("%s?%s", web.OperationsURL, operationID))
+		headers.Add("Location", fmt.Sprintf("%s/%s", web.OperationsURL, operationID))
 	}
 
 	body := make([]byte, 0)

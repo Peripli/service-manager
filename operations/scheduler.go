@@ -30,10 +30,7 @@ import (
 type DefaultScheduler struct {
 	smCtx      context.Context
 	repository storage.Repository
-
-	workers        chan struct{}
-	workerPoolSize int
-
+	workers    chan struct{}
 	jobTimeout time.Duration
 }
 
