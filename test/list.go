@@ -46,7 +46,7 @@ type listOpEntry struct {
 	expectedStatusCode          int
 }
 
-func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
+func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode ResponseMode) bool {
 	var r []common.Object
 	var rWithMandatoryFields common.Object
 
@@ -69,7 +69,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 			},
 		}
 
-		t.PatchResource(ctx, t.API, obj["id"].(string), t.ResourceType, patchLabels)
+		t.PatchResource(ctx, t.API, obj["id"].(string), t.ResourceType, patchLabels, bool(responseMode))
 		result := ctx.SMWithOAuth.GET(t.API + "/" + obj["id"].(string)).
 			Expect().
 			Status(http.StatusOK).JSON().Object()
@@ -79,11 +79,11 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 	}
 
 	By(fmt.Sprintf("Attempting to create a random resource of %s with mandatory fields only", t.API))
-	rWithMandatoryFields = t.ResourceWithoutNullableFieldsBlueprint(ctx, ctx.SMWithOAuth)
+	rWithMandatoryFields = t.ResourceWithoutNullableFieldsBlueprint(ctx, ctx.SMWithOAuth, bool(responseMode))
 	for i := 0; i < 10; i++ {
 		By(fmt.Sprintf("Attempting to create a random resource of %s", t.API))
 
-		gen := t.ResourceBlueprint(ctx, ctx.SMWithOAuth)
+		gen := t.ResourceBlueprint(ctx, ctx.SMWithOAuth, bool(responseMode))
 		gen = attachLabel(gen)
 		delete(gen, "created_at")
 		delete(gen, "updated_at")
@@ -410,7 +410,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 			labelKey := "labelKey1"
 			labelValue := "symbols!that@are#url$encoded%when^making a*request("
 			BeforeEach(func() {
-				obj = t.ResourceBlueprint(ctx, ctx.SMWithOAuth)
+				obj = t.ResourceBlueprint(ctx, ctx.SMWithOAuth, bool(responseMode))
 				patchLabels := []*query.LabelChange{
 					{
 						Operation: query.AddLabelOperation,
@@ -418,7 +418,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 						Values:    []string{labelValue},
 					},
 				}
-				t.PatchResource(ctx, t.API, obj["id"].(string), t.ResourceType, patchLabels)
+				t.PatchResource(ctx, t.API, obj["id"].(string), t.ResourceType, patchLabels, bool(responseMode))
 			})
 
 			It("returns 200", func() {
@@ -433,7 +433,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 					var rForTenant common.Object
 
 					BeforeEach(func() {
-						rForTenant = t.ResourceBlueprint(ctx, ctx.SMWithOAuthForTenant)
+						rForTenant = t.ResourceBlueprint(ctx, ctx.SMWithOAuthForTenant, bool(responseMode))
 					})
 
 					It("returns only tenant specific resources", func() {
@@ -485,7 +485,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase) bool {
 						}
 
 						By(fmt.Sprintf("Attempting add one additional %s label with value %v to resoucre of type %s with id %s", labelKey, []string{objID}, t.API, objID))
-						t.PatchResource(ctx, t.API, objID, t.ResourceType, patchLabels)
+						t.PatchResource(ctx, t.API, objID, t.ResourceType, patchLabels, bool(responseMode))
 
 						object := ctx.SMWithOAuth.GET(t.API + "/" + objID).
 							Expect().

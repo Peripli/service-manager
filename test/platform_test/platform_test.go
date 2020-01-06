@@ -42,7 +42,8 @@ func TestPlatforms(t *testing.T) {
 }
 
 var _ = test.DescribeTestsFor(test.TestCase{
-	API: web.PlatformsURL,
+	API:           web.PlatformsURL,
+	SupportsAsync: false,
 	SupportedOps: []test.Op{
 		test.Get, test.List, test.Delete, test.DeleteList, test.Patch,
 	},
@@ -366,8 +367,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *common.SMExpect) common.Object {
-	return func(_ *common.TestContext, auth *common.SMExpect) common.Object {
+func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *common.SMExpect, async bool) common.Object {
+	return func(_ *common.TestContext, auth *common.SMExpect, _ bool) common.Object {
 		randomPlatform := common.GenerateRandomPlatform()
 		if !setNullFieldsValues {
 			delete(randomPlatform, "description")

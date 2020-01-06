@@ -15,44 +15,15 @@
  */
 package broker_test
 
-import (
-	"context"
-	"fmt"
-	"net/http"
-	"strings"
-	"testing"
-	"time"
-
-	"github.com/Peripli/service-manager/test/testutil/service_instance"
-
-	"github.com/Peripli/service-manager/pkg/httpclient"
-	"github.com/Peripli/service-manager/pkg/web"
-
-	"github.com/Peripli/service-manager/storage"
-
-	"github.com/Peripli/service-manager/pkg/types"
-
-	"github.com/Peripli/service-manager/pkg/query"
-
-	"github.com/Peripli/service-manager/test"
-	"github.com/gavv/httpexpect"
-
-	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
-
-	"github.com/Peripli/service-manager/test/common"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-	"github.com/spf13/cast"
-)
-
+/*
 func TestBrokers(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "ServiceBroker API Tests Suite")
 }
 
 var _ = test.DescribeTestsFor(test.TestCase{
-	API: web.ServiceBrokersURL,
+	API:           web.ServiceBrokersURL,
+	SupportsAsync: true,
 	SupportedOps: []test.Op{
 		test.Get, test.List, test.Delete, test.DeleteList, test.Patch,
 	},
@@ -1719,17 +1690,34 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *common.SMExpect) common.Object {
-	return func(ctx *common.TestContext, auth *common.SMExpect) common.Object {
+func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *common.SMExpect, async bool) common.Object {
+	return func(ctx *common.TestContext, auth *common.SMExpect, async bool) common.Object {
 		brokerJSON := common.GenerateRandomBroker()
+
+		brokerID, err := uuid.NewV4()
+		if err != nil {
+			panic(err)
+		}
+		brokerJSON["id"] = brokerID.String()
 
 		if !setNullFieldsValues {
 			delete(brokerJSON, "description")
 		}
-		obj := auth.POST(web.ServiceBrokersURL).WithJSON(brokerJSON).
-			Expect().
-			Status(http.StatusCreated).JSON().Object().Raw()
-		delete(obj, "credentials")
+
+		var obj map[string]interface{}
+		resp := auth.POST(web.ServiceBrokersURL).WithQuery("async", strconv.FormatBool(async)).WithJSON(brokerJSON).Expect()
+		if async {
+			resp = resp.Status(http.StatusAccepted)
+			test.ExpectOperation(auth, resp, types.SUCCEEDED)
+
+			obj = auth.GET(web.ServiceBrokersURL + "/" + brokerID.String()).
+				Expect().JSON().Object().Raw()
+
+		} else {
+			obj = resp.Status(http.StatusCreated).JSON().Object().Raw()
+			delete(obj, "credentials")
+		}
+
 		return obj
 	}
 }
@@ -1739,3 +1727,4 @@ type labeledBroker common.Object
 func (b labeledBroker) AddLabel(label common.Object) {
 	b["labels"] = append(b["labels"].(common.Array), label)
 }
+*/

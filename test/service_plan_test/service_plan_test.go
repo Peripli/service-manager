@@ -68,7 +68,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 					patchLabelsBody["labels"] = patchLabels
 
-					plan := blueprint(ctx, ctx.SMWithOAuth)
+					plan := blueprint(ctx, ctx.SMWithOAuth, false)
 					id = plan["id"].(string)
 				})
 
@@ -143,7 +143,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					var plan common.Object
 					var planID string
 					BeforeEach(func() {
-						plan = blueprint(ctx, ctx.SMWithOAuth)
+						plan = blueprint(ctx, ctx.SMWithOAuth, false)
 						planID = plan["id"].(string)
 					})
 
@@ -186,7 +186,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						var plan2 common.Object
 						var plan2ID string
 						BeforeEach(func() {
-							plan2 = blueprint(ctx, ctx.SMWithOAuth)
+							plan2 = blueprint(ctx, ctx.SMWithOAuth, false)
 							plan2ID = plan2["id"].(string)
 						})
 
@@ -302,7 +302,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 					patchLabelsBody["labels"] = patchLabels
 
-					plan := blueprint(ctx, ctx.SMWithOAuth)
+					plan := blueprint(ctx, ctx.SMWithOAuth, false)
 					id = plan["id"].(string)
 
 					ctx.SMWithOAuth.PATCH(web.ServicePlansURL + "/" + id).
@@ -505,7 +505,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func blueprint(ctx *common.TestContext, auth *common.SMExpect) common.Object {
+func blueprint(ctx *common.TestContext, auth *common.SMExpect, _ bool) common.Object {
 	cPaidPlan := common.GeneratePaidTestPlan()
 	cService := common.GenerateTestServiceWithPlans(cPaidPlan)
 	catalog := common.NewEmptySBCatalog()

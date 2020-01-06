@@ -72,7 +72,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 					patchLabelsBody["labels"] = patchLabels
 
-					offering := blueprint(ctx, ctx.SMWithOAuth)
+					offering := blueprint(ctx, ctx.SMWithOAuth, false)
 					id = offering["id"].(string)
 				})
 
@@ -144,7 +144,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						username, password := k8sPlatform.Credentials.Basic.Username, k8sPlatform.Credentials.Basic.Password
 						req.WithBasicAuth(username, password)
 					})}
-					offering = blueprint(ctx, ctx.SMWithOAuth)
+					offering = blueprint(ctx, ctx.SMWithOAuth, false)
 				})
 
 				AfterEach(func() {
@@ -205,7 +205,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("with additional offerings", func() {
 					var offering2 common.Object
 					BeforeEach(func() {
-						offering2 = blueprint(ctx, ctx.SMWithOAuth)
+						offering2 = blueprint(ctx, ctx.SMWithOAuth, false)
 					})
 
 					Context("but no visibilities", func() {
@@ -270,7 +270,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 					patchLabelsBody["labels"] = patchLabels
 
-					offering := blueprint(ctx, ctx.SMWithOAuth)
+					offering := blueprint(ctx, ctx.SMWithOAuth, false)
 					id = offering["id"].(string)
 
 					ctx.SMWithOAuth.PATCH(web.ServiceOfferingsURL + "/" + id).
@@ -473,7 +473,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func blueprint(ctx *common.TestContext, auth *common.SMExpect) common.Object {
+func blueprint(ctx *common.TestContext, auth *common.SMExpect, _ bool) common.Object {
 	cService := common.GenerateTestServiceWithPlans(common.GenerateFreeTestPlan())
 	catalog := common.NewEmptySBCatalog()
 	catalog.AddService(cService)

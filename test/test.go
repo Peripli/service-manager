@@ -22,7 +22,10 @@ import (
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/gavv/httpexpect"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/tidwall/gjson"
 
@@ -41,12 +44,17 @@ import (
 
 type Op string
 
+type ResponseMode bool
+
 const (
 	Get        Op = "get"
 	List       Op = "list"
 	Delete     Op = "delete"
 	DeleteList Op = "deletelist"
 	Patch      Op = "patch"
+
+	Sync  ResponseMode = false
+	Async ResponseMode = true
 )
 
 type MultitenancySettings struct {
@@ -59,26 +67,50 @@ type MultitenancySettings struct {
 }
 
 type TestCase struct {
-	API          string
-	SupportedOps []Op
-	ResourceType types.ObjectType
+	API           string
+	SupportsAsync bool
+	SupportedOps  []Op
+	ResourceType  types.ObjectType
 
 	MultitenancySettings                   *MultitenancySettings
 	DisableTenantResources                 bool
-	ResourceBlueprint                      func(ctx *common.TestContext, smClient *common.SMExpect) common.Object
-	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext, smClient *common.SMExpect) common.Object
-	PatchResource                          func(ctx *common.TestContext, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange)
+	ResourceBlueprint                      func(ctx *common.TestContext, smClient *common.SMExpect, async bool) common.Object
+	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext, smClient *common.SMExpect, async bool) common.Object
+	PatchResource                          func(ctx *common.TestContext, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange, async bool)
 	AdditionalTests                        func(ctx *common.TestContext)
 }
 
-func DefaultResourcePatch(ctx *common.TestContext, apiPath string, objID string, _ types.ObjectType, patchLabels []*query.LabelChange) {
+func DefaultResourcePatch(ctx *common.TestContext, apiPath string, objID string, _ types.ObjectType, patchLabels []*query.LabelChange, async bool) {
 	patchLabelsBody := make(map[string]interface{})
 	patchLabelsBody["labels"] = patchLabels
 
 	By(fmt.Sprintf("Attempting to patch resource of %s with labels as labels are declared supported", apiPath))
-	ctx.SMWithOAuth.PATCH(apiPath + "/" + objID).WithJSON(patchLabelsBody).
-		Expect().
-		Status(http.StatusOK)
+	resp := ctx.SMWithOAuth.PATCH(apiPath + "/" + objID).WithJSON(patchLabelsBody).Expect()
+
+	if async {
+		resp = resp.Status(http.StatusAccepted)
+		ExpectOperation(ctx.SMWithOAuth, resp, types.SUCCEEDED)
+	} else {
+		resp.Status(http.StatusOK)
+	}
+
+}
+
+func ExpectOperation(auth *common.SMExpect, resp *httpexpect.Response, expectedState types.OperationState) {
+	locationHeader := resp.Header("Location").Raw()
+	split := strings.Split(locationHeader, "/")
+	operationID := split[len(split)-1]
+
+	var operation *httpexpect.Object
+	Eventually(func() string {
+		operation = auth.GET(web.OperationsURL + "/" + operationID).
+			Expect().JSON().Object()
+		return operation.Value("state").String().Raw()
+	}, 10*time.Second).Should(Equal(expectedState))
+
+	if expectedState == types.FAILED {
+		Expect(operation.Value("errors")).To(Not(Equal("{}")))
+	}
 }
 
 func DescribeTestsFor(t TestCase) bool {
@@ -129,22 +161,29 @@ func DescribeTestsFor(t TestCase) bool {
 				Expect(true).To(BeTrue())
 			})
 
+			responseModes := []ResponseMode{Sync}
+			if t.SupportsAsync {
+				responseModes = append(responseModes, Async)
+			}
+
 			for _, op := range t.SupportedOps {
-				switch op {
-				case Get:
-					DescribeGetTestsfor(ctx, t)
-				case List:
-					DescribeListTestsFor(ctx, t)
-				case Delete:
-					DescribeDeleteTestsfor(ctx, t)
-				case DeleteList:
-					DescribeDeleteListFor(ctx, t)
-				case Patch:
-					DescribePatchTestsFor(ctx, t)
-				default:
-					_, err := fmt.Fprintf(GinkgoWriter, "Generic test cases for op %s are not implemented\n", op)
-					if err != nil {
-						panic(err)
+				for _, respMode := range responseModes {
+					switch op {
+					case Get:
+						DescribeGetTestsfor(ctx, t, respMode)
+					case List:
+						DescribeListTestsFor(ctx, t, respMode)
+					case Delete:
+						DescribeDeleteTestsfor(ctx, t, respMode)
+					case DeleteList:
+						DescribeDeleteListFor(ctx, t, respMode)
+					case Patch:
+						DescribePatchTestsFor(ctx, t, respMode)
+					default:
+						_, err := fmt.Fprintf(GinkgoWriter, "Generic test cases for op %s are not implemented\n", op)
+						if err != nil {
+							panic(err)
+						}
 					}
 				}
 			}
