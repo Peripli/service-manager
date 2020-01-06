@@ -46,7 +46,7 @@ func TestOperations(t *testing.T) {
 var _ = test.DescribeTestsFor(test.TestCase{
 	API: web.OperationsURL,
 	SupportedOps: []test.Op{
-		test.Get, test.List,
+		test.Get,
 	},
 	ResourceType: types.OperationType,
 	MultitenancySettings: &test.MultitenancySettings{

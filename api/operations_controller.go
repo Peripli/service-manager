@@ -31,12 +31,5 @@ func (c *OperationsController) Routes() []web.Route {
 			},
 			Handler: c.GetSingleObject,
 		},
-		{
-			Endpoint: web.Endpoint{
-				Method: http.MethodGet,
-				Path:   web.OperationsURL,
-			},
-			Handler: c.ListObjects,
-		},
 	}
 }
