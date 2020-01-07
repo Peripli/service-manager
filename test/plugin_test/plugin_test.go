@@ -45,7 +45,7 @@ var _ = Describe("Service Manager Plugins", func() {
 
 	Describe("Partial plugin", func() {
 		BeforeEach(func() {
-			ctx = common.DefaultTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+			ctx = common.NewTestContextBuilderWithSecurity().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 				smb.API.RegisterPlugins(&PartialPlugin{})
 				return nil
 			}).Build()
@@ -85,7 +85,7 @@ var _ = Describe("Service Manager Plugins", func() {
 		BeforeEach(func() {
 			testPlugin = TestPlugin{}
 
-			ctx = common.DefaultTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+			ctx = common.NewTestContextBuilderWithSecurity().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 				smb.API.RegisterPlugins(testPlugin)
 				return nil
 			}).Build()

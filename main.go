@@ -49,9 +49,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
-	extension := security.NewSecurityExtension(cfg)
-	serviceManager.RegisterExtension(extension)
+	if err := security.Register(ctx, cfg, serviceManager); err != nil {
+		panic(err)
+	}
 
 	serviceManager.Build().Run()
 }

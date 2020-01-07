@@ -78,7 +78,7 @@ var (
 )
 
 var _ = BeforeSuite(func() {
-	ctx = common.DefaultTestContextBuilder().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+	ctx = common.NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
 		Expect(set.Set("httpclient.response_header_timeout", timeoutDuration.String())).ToNot(HaveOccurred())
 	}).Build()
 

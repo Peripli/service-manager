@@ -12,6 +12,15 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
+// securityBuilder provides means by which authentication and authorization filters
+// can be constructed and attached in a builder-pattern style through the use of methods such as:
+// Path(...), Method(...), WithAuthentication(...), WithAuthorization(...) and more.
+// A key part of the builder is that once you've chained all desired authentication
+// and authorization settings for a specific API (a set of path and method parameters)
+// you have to use one of the provided finisher methods - Required() or Optional().
+// These finisher methods will ensure that the appropriate authentication/authorization filter is constructed for
+// the desired path and methods. A finisher method also ensures a "clean slate" in terms of authorization
+// so that you continue chaining and constructing new authorization filters.
 type securityBuilder struct {
 	pathMatcher   web.Matcher
 	methodMatcher web.Matcher
@@ -63,7 +72,7 @@ func (sb *securityBuilder) Optional() *securityBuilder {
 			sb.requiredAuthNMatchers[i].Matchers = append(sb.requiredAuthNMatchers[i].Matchers, matcher)
 		}
 	}
-	sb.register()
+	sb.register(sb.finalMatchers())
 	sb.resetAuthenticators()
 	return sb
 }
@@ -78,13 +87,7 @@ func (sb *securityBuilder) Optional() *securityBuilder {
 //  	Optional("/v1/service_brokers") is applied,
 //		then only "/v1/service_brokers" will be optional
 func (sb *securityBuilder) Required() *securityBuilder {
-	finalMatchers := make([]web.Matcher, 0)
-	if sb.pathMatcher != nil {
-		finalMatchers = append(finalMatchers, sb.pathMatcher)
-	}
-	if sb.methodMatcher != nil {
-		finalMatchers = append(finalMatchers, sb.methodMatcher)
-	}
+	finalMatchers := sb.finalMatchers()
 
 	if sb.authorization {
 		sb.requiredAuthZMatchers = append(sb.requiredAuthZMatchers, web.FilterMatcher{
@@ -96,7 +99,7 @@ func (sb *securityBuilder) Required() *securityBuilder {
 			Matchers: finalMatchers,
 		})
 	}
-	sb.register()
+	sb.register(finalMatchers)
 	sb.resetAuthenticators()
 	return sb
 }
@@ -201,15 +204,7 @@ func (sb *securityBuilder) reset() *securityBuilder {
 	return sb
 }
 
-func (sb *securityBuilder) register() {
-	finalMatchers := make([]web.Matcher, 0)
-	if sb.pathMatcher != nil {
-		finalMatchers = append(finalMatchers, sb.pathMatcher)
-	}
-	if sb.methodMatcher != nil {
-		finalMatchers = append(finalMatchers, sb.methodMatcher)
-	}
-
+func (sb *securityBuilder) register(finalMatchers []web.Matcher) {
 	if len(sb.authenticators) > 0 {
 		finalAuthenticator := authn.NewOrAuthenticator(sb.authenticators...)
 
@@ -253,6 +248,17 @@ func (sb *securityBuilder) build() {
 		finalFilters = append(finalFilters, requiredAuthZ)
 	}
 	sb.smb.RegisterFiltersAfter(filters.LoggingFilterName, finalFilters...)
+}
+
+func (sb *securityBuilder) finalMatchers() []web.Matcher {
+	result := make([]web.Matcher, 0)
+	if sb.pathMatcher != nil {
+		result = append(result, sb.pathMatcher)
+	}
+	if sb.methodMatcher != nil {
+		result = append(result, sb.methodMatcher)
+	}
+	return result
 }
 
 func newAccessLevelAuthorizer(authorizer httpsec.Authorizer, accessLevel web.AccessLevel) httpsec.Authorizer {

@@ -29,7 +29,7 @@ var _ = Describe("Test", func() {
 	var err error
 
 	BeforeEach(func() {
-		ctx = common.DefaultTestContextBuilder().Build()
+		ctx = common.NewTestContextBuilderWithSecurity().Build()
 		platform, err = ctx.SMRepository.Create(context.Background(), &types.Platform{
 			Base: types.Base{
 				ID: "id",

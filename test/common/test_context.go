@@ -139,17 +139,18 @@ func (ts *testSMServer) Close() {
 
 // DefaultTestContext sets up a test context with default values
 func DefaultTestContext() *TestContext {
-	return DefaultTestContextBuilder().Build()
+	return NewTestContextBuilderWithSecurity().Build()
 }
 
-func DefaultTestContextBuilder() *TestContextBuilder {
+func NewTestContextBuilderWithSecurity() *TestContextBuilder {
 	return NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 		cfg, err := config.New(e)
 		if err != nil {
 			return err
 		}
-		securityExtensions := security.NewSecurityExtension(cfg)
-		smb.RegisterExtension(securityExtensions)
+		if err := security.Register(ctx, cfg, smb); err != nil {
+			return err
+		}
 
 		return nil
 	})

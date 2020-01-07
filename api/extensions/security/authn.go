@@ -8,22 +8,13 @@ import (
 
 	"github.com/Peripli/service-manager/config"
 
-	"github.com/Peripli/service-manager/pkg/web"
-
 	"github.com/Peripli/service-manager/pkg/sm"
+
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
-type SecurityExtendable struct {
-	cfg *config.Settings
-}
-
-func NewSecurityExtension(cfg *config.Settings) *SecurityExtendable {
-	return &SecurityExtendable{
-		cfg: cfg,
-	}
-}
-
-func (se *SecurityExtendable) Extend(ctx context.Context, smb *sm.ServiceManagerBuilder) error {
+// Register adds security configuration to the service manager builder
+func Register(ctx context.Context, cfg *config.Settings, smb *sm.ServiceManagerBuilder) error {
 	basicAuthenticator := &authenticators.Basic{
 		Repository: smb.Storage,
 	}
@@ -45,8 +36,8 @@ func (se *SecurityExtendable) Extend(ctx context.Context, smb *sm.ServiceManager
 		WithAuthentication(basicAuthenticator).Required()
 
 	bearerAuthenticator, _, err := authenticators.NewOIDCAuthenticator(ctx, &authenticators.OIDCOptions{
-		IssuerURL: se.cfg.API.TokenIssuerURL,
-		ClientID:  se.cfg.API.ClientID,
+		IssuerURL: cfg.API.TokenIssuerURL,
+		ClientID:  cfg.API.ClientID,
 	})
 	if err != nil {
 		return err

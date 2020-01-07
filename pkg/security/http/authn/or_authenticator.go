@@ -25,8 +25,7 @@ func (a *orAuthenticator) Authenticate(request *http.Request) (*web.UserContext,
 	ctx := request.Context()
 	logger := log.C(ctx)
 	denied := false
-	errs := compositeError{}
-
+	var errs compositeError = nil
 	for _, authenticator := range a.authenticators {
 		userContext, decision, err := authenticator.Authenticate(request)
 		if err != nil {
@@ -48,9 +47,6 @@ func (a *orAuthenticator) Authenticate(request *http.Request) (*web.UserContext,
 	}
 
 	if denied {
-		if len(errs) == 0 {
-			return nil, httpsec.Deny, nil
-		}
 		return nil, httpsec.Deny, errs
 	}
 
