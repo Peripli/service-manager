@@ -17,6 +17,9 @@
 package osb_test
 
 import (
+	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/test/common"
+	"github.com/gavv/httpexpect"
 	"net/http"
 
 	. "github.com/onsi/ginkgo"
@@ -69,6 +72,39 @@ var _ = Describe("Get Binding Last Operation", func() {
 			brokerServer.BindingLastOpHandler = delayingHandler(done)
 			assertUnresponsiveBrokerError(ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/iid/service_bindings/bid/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect())
+		})
+	})
+
+	Context("platform_id check", func() {
+		BeforeEach(func() {
+			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
+		})
+
+		Context("get binding last operaion from not an instance owner", func() {
+			var NewPlatformExpect *httpexpect.Expect
+
+			BeforeEach(func() {
+				platformJSON := common.MakePlatform("tcb-platform-test2", "tcb-platform-test2", "platform-type", "test-platform")
+				platform := common.RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
+				NewPlatformExpect = ctx.SM.Builder(func(req *httpexpect.Request) {
+					username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
+					req.WithBasicAuth(username, password)
+				})
+			})
+
+			It("should return 404", func() {
+				brokerServer.BindingLastOpHandler = parameterizedHandler(http.StatusOK, `{}`)
+				NewPlatformExpect.GET(smBrokerURL+"/v2/service_instances/"+SID+"/service_bindings/bid/last_operation").
+					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusNotFound)
+			})
+
+			AfterEach(func() {
+				ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/tcb-platform-test2").Expect().Status(http.StatusOK)
+			})
 		})
 	})
 })

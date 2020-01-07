@@ -34,6 +34,7 @@ type ServiceOffering struct {
 	InstancesRetrievable bool   `json:"instances_retrievable"`
 	BindingsRetrievable  bool   `json:"bindings_retrievable"`
 	PlanUpdatable        bool   `json:"plan_updateable"`
+	AllowContextUpdates  bool   `json:"allow_context_updates"`
 
 	Tags     json.RawMessage `json:"tags,omitempty"`
 	Requires json.RawMessage `json:"requires,omitempty"`

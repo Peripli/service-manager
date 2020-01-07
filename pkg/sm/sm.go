@@ -23,8 +23,6 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/Peripli/service-manager/api/plugins"
-
 	"github.com/Peripli/service-manager/pkg/env"
 
 	"github.com/Peripli/service-manager/pkg/health"
@@ -157,8 +155,9 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		cfg:                 cfg,
 	}
 
-	smb.RegisterPlugins(plugins.NewCatalogFilterByVisibilityPlugin(interceptableRepository))
-	smb.RegisterPlugins(osb.NewStoreServiceInstancesPlugin(interceptableRepository))
+	smb.RegisterPlugins(osb.NewCatalogFilterByVisibilityPlugin(interceptableRepository))
+	smb.RegisterPluginsBefore(osb.CheckInstanceOwnerPluginName, osb.NewStoreServiceInstancesPlugin(interceptableRepository))
+	smb.RegisterPlugins(osb.NewCheckPlatformIDPlugin(interceptableRepository))
 
 	// Register default interceptors that represent the core SM business logic
 	smb.
@@ -420,6 +419,7 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 
 	multitenancyFilters := filters.NewMultitenancyFilters(labelKey, extractTenantFunc)
 	smb.RegisterFiltersAfter(filters.ProtectedLabelsFilterName, multitenancyFilters...)
+	smb.RegisterPlugins(osb.NewCheckInstanceOwnerPlugin(smb.Storage, labelKey))
 	smb.WithCreateOnTxInterceptorProvider(types.ServiceInstanceType, &interceptors.ServiceInstanceCreateInsterceptorProvider{
 		TenantIdentifier: labelKey,
 	}).Register()
