@@ -56,13 +56,9 @@ type Object interface {
 }
 
 func Equals(obj, other Object) bool {
-	if obj.GetType() != other.GetType() {
-		return false
-	}
-	if obj.GetID() != other.GetID() {
-		return false
-	}
-	if !obj.GetCreatedAt().Equal(other.GetCreatedAt()) {
+	if obj.GetID() != other.GetID() ||
+		obj.GetType() != other.GetType() ||
+		!obj.GetCreatedAt().Equal(other.GetCreatedAt()) {
 		return false
 	}
 	return true
