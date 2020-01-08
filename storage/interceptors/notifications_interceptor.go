@@ -72,12 +72,20 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 		additionalDetails := detailsMap[updatedObject.GetID()]
 
 		oldPlatformID := ni.PlatformIdProviderFunc(ctx, oldObject)
-		newPlatformID := ni.PlatformIdProviderFunc(ctx, newObject)
+		updatedPlatformID := ni.PlatformIdProviderFunc(ctx, updatedObject)
+
+		oldObjectLabels := oldObject.GetLabels()
+		updatedObjectLabels := updatedObject.GetLabels()
+
+		if updatedObject.Equals(oldObject) {
+			updatedObject.SetLabels(nil)
+		}
+		oldObject.SetLabels(nil)
 
 		// if the resource update contains change in the platform ID field this means that the notification would be processed by
 		// two platforms - one needs to perform a delete operation and the other needs to perform a create operation.
-		if oldPlatformID != newPlatformID {
-			if err := CreateNotification(ctx, repository, types.CREATED, updatedObject.GetType(), newPlatformID, &Payload{
+		if oldPlatformID != updatedPlatformID {
+			if err := CreateNotification(ctx, repository, types.CREATED, updatedObject.GetType(), updatedPlatformID, &Payload{
 				New: &ObjectPayload{
 					Resource:   updatedObject,
 					Additional: additionalDetails,
@@ -85,7 +93,6 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 			}); err != nil {
 				return nil, err
 			}
-
 			if err := CreateNotification(ctx, repository, types.DELETED, updatedObject.GetType(), oldPlatformID, &Payload{
 				Old: &ObjectPayload{
 					Resource:   oldObject,
@@ -96,7 +103,7 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 			}
 		}
 
-		if err := CreateNotification(ctx, repository, types.MODIFIED, updatedObject.GetType(), newPlatformID, &Payload{
+		if err := CreateNotification(ctx, repository, types.MODIFIED, updatedObject.GetType(), updatedPlatformID, &Payload{
 			New: &ObjectPayload{
 				Resource:   updatedObject,
 				Additional: additionalDetails,
@@ -109,6 +116,9 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 		}); err != nil {
 			return nil, err
 		}
+
+		oldObject.SetLabels(oldObjectLabels)
+		updatedObject.SetLabels(updatedObjectLabels)
 
 		return updatedObject, nil
 	}

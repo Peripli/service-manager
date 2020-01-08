@@ -31,6 +31,20 @@ type Visibility struct {
 	ServicePlanID string `json:"service_plan_id"`
 }
 
+func (e *Visibility) Equals(obj Object) bool {
+	if !Equals(e, obj) {
+		return false
+	}
+
+	visibility := obj.(*Visibility)
+	if e.PlatformID != visibility.PlatformID ||
+		e.ServicePlanID != visibility.ServicePlanID {
+		return false
+	}
+
+	return true
+}
+
 // Validate implements InputValidator and verifies all mandatory fields are populated
 func (e *Visibility) Validate() error {
 	if e.ServicePlanID == "" {

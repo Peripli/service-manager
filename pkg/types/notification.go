@@ -19,6 +19,7 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	"github.com/Peripli/service-manager/pkg/util"
 )
@@ -50,6 +51,24 @@ type Notification struct {
 	Revision      int64                 `json:"revision"`
 	Payload       json.RawMessage       `json:"payload"`
 	CorrelationID string                `json:"correlation_id"`
+}
+
+func (e *Notification) Equals(obj Object) bool {
+	if !Equals(e, obj) {
+		return false
+	}
+
+	notification := obj.(*Notification)
+	if e.PlatformID != notification.PlatformID ||
+		e.Type != notification.Type ||
+		e.Resource != notification.Resource ||
+		e.Revision != notification.Revision ||
+		e.CorrelationID != notification.CorrelationID ||
+		!reflect.DeepEqual(e.Payload, notification.Payload) {
+		return false
+	}
+
+	return true
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

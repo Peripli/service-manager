@@ -42,6 +42,7 @@ type Secured interface {
 type Object interface {
 	util.InputValidator
 
+	Equals(object Object) bool
 	SetID(id string)
 	GetID() string
 	GetType() ObjectType
@@ -52,6 +53,15 @@ type Object interface {
 	SetUpdatedAt(time time.Time)
 	GetUpdatedAt() time.Time
 	GetPagingSequence() int64
+}
+
+func Equals(obj, other Object) bool {
+	if obj.GetID() != other.GetID() ||
+		obj.GetType() != other.GetType() ||
+		!obj.GetCreatedAt().Equal(other.GetCreatedAt()) {
+		return false
+	}
+	return true
 }
 
 // ObjectList is the interface that lists of objects must implement
