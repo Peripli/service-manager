@@ -3,6 +3,8 @@ package osb
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -10,17 +12,18 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/tidwall/gjson"
-	"net/http"
 )
 
 const CheckVisibilityPluginName = "CheckVisibilityPlugin"
 
 type checkVisibilityPlugin struct {
-	repository storage.Repository
+	repository   storage.Repository
+	platformType string
+	labelKey     string
 }
 
 // NewCheckVisibilityPlugin creates new plugin that checks if a plan is visible to the user on provision request
-func NewCheckVisibilityPlugin(repository storage.Repository) *checkVisibilityPlugin {
+func NewCheckVisibilityPlugin(repository storage.Repository, platformType, labelKey string) *checkVisibilityPlugin {
 	return &checkVisibilityPlugin{
 		repository: repository,
 	}
@@ -76,8 +79,8 @@ func (p *checkVisibilityPlugin) checkVisibility(req *web.Request, next web.Handl
 	visibilities := visibilitiesList.(*types.Visibilities)
 
 	switch platform.Type {
-	case "cloudfoundry":
-		payloadOrgGUID := gjson.GetBytes(osbContext, "organization_guid").String()
+	case p.platformType:
+		payloadOrgGUID := gjson.GetBytes(osbContext, p.labelKey).String()
 		if len(payloadOrgGUID) == 0 {
 			log.C(ctx).Errorf("Could not find organization_guid in the context of the osb request.")
 			return nil, fmt.Errorf("organization_guid missing in osb context")
@@ -90,7 +93,7 @@ func (p *checkVisibilityPlugin) checkVisibility(req *web.Request, next web.Handl
 				if v.Labels == nil {
 					return next.Handle(req)
 				}
-				orgGUIDs, ok := v.Labels["organization_guid"]
+				orgGUIDs, ok := v.Labels[p.labelKey]
 				if !ok {
 					return next.Handle(req)
 				}
