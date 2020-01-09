@@ -1693,28 +1693,41 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			})
 
 			Describe("DELETE", func() {
-				var (
-					brokerID string
-				)
-
-				BeforeEach(func() {
-					var serviceInstance *types.ServiceInstance
-
-					brokerID, serviceInstance = service_instance.Prepare(ctx, ctx.TestPlatform.ID, "", "{}")
-					ctx.SMRepository.Create(context.Background(), serviceInstance)
-				})
 
 				AfterEach(func() {
 					ctx.CleanupAdditionalResources()
 				})
 
 				Context("with existing service instances to some broker plan", func() {
+					var (
+						brokerID string
+					)
+
+					BeforeEach(func() {
+						var serviceInstance *types.ServiceInstance
+
+						brokerID, serviceInstance = service_instance.Prepare(ctx, ctx.TestPlatform.ID, "", "{}")
+						ctx.SMRepository.Create(context.Background(), serviceInstance)
+					})
+
 					It("should return 400 with user-friendly message", func() {
 						ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL + "/" + brokerID).
 							Expect().
 							Status(http.StatusConflict).
 							JSON().Object().
 							Value("error").String().Contains("ExistingReferenceEntity")
+					})
+				})
+
+				Context("when attempting async bulk delete", func() {
+					It("should return 400", func() {
+						ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL).
+							WithQuery("fieldQuery", "id in ('id1','id2','id3')").
+							WithQuery("async", "true").
+							Expect().
+							Status(http.StatusBadRequest).
+							JSON().Object().
+							Value("description").String().Contains("Only one resource can be deleted asynchronously at a time")
 					})
 				})
 			})

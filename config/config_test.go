@@ -72,6 +72,13 @@ var _ = Describe("config", func() {
 			config.API.ClientID = "sm"
 			config.Storage.EncryptionKey = "ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8"
 
+			config.Operations.Pools = []operations.PoolSettings{
+				{
+					Resource: "ServiceBroker",
+					Size:     5,
+				},
+			}
+
 			fatal = true
 			failuresThreshold = 1
 			interval = 30 * time.Second

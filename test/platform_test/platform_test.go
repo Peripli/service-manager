@@ -176,6 +176,20 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 				})
 
+				Context("With async query param", func() {
+					It("fails", func() {
+						platform := common.MakePlatform("", "cf-10", "cf", "descr")
+						delete(platform, "id")
+
+						reply := ctx.SMWithOAuth.POST(web.PlatformsURL).
+							WithQuery("async", "true").
+							WithJSON(platform).
+							Expect().Status(http.StatusBadRequest).JSON().Object()
+
+						reply.Value("description").String().Contains("api doesn't support asynchronous operations")
+					})
+				})
+
 				Context("Without id", func() {
 					It("returns the new platform with generated id and credentials", func() {
 						platform := common.MakePlatform("", "cf-10", "cf", "descr")
