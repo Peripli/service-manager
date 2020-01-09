@@ -55,6 +55,8 @@ import (
 // controllers before running ServiceManager.
 type ServiceManagerBuilder struct {
 	*web.API
+	authnDynamicFilter *DynamicMatchingFilter
+	authzDynamicFilter *DynamicMatchingFilter
 
 	Storage             *storage.InterceptableTransactionalRepository
 	Notificator         storage.Notificator
@@ -132,6 +134,10 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		return nil, fmt.Errorf("error creating core api: %s", err)
 	}
 
+	authnDynamicFilter := NewDynamicMatchingFilter("Authentication")
+	authzDynamicFilter := NewDynamicMatchingFilter("Authorization")
+	API.RegisterFiltersAfter(filters.LoggingFilterName, authnDynamicFilter, authzDynamicFilter)
+
 	storageHealthIndicator, err := storage.NewSQLHealthIndicator(storage.PingFunc(smStorage.PingContext))
 	if err != nil {
 		return nil, fmt.Errorf("error creating storage health indicator: %s", err)
@@ -150,6 +156,8 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		Storage:             interceptableRepository,
 		Notificator:         pgNotificator,
 		NotificationCleaner: notificationCleaner,
+		authnDynamicFilter:  authnDynamicFilter,
+		authzDynamicFilter:  authzDynamicFilter,
 		ctx:                 ctx,
 		wg:                  waitGroup,
 		cfg:                 cfg,
