@@ -25,7 +25,9 @@ type checkVisibilityPlugin struct {
 // NewCheckVisibilityPlugin creates new plugin that checks if a plan is visible to the user on provision request
 func NewCheckVisibilityPlugin(repository storage.Repository, platformType, labelKey string) *checkVisibilityPlugin {
 	return &checkVisibilityPlugin{
-		repository: repository,
+		repository:   repository,
+		platformType: platformType,
+		labelKey:     labelKey,
 	}
 }
 
