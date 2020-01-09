@@ -24,7 +24,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/gavv/httpexpect"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/tidwall/gjson"
@@ -96,15 +95,13 @@ func DefaultResourcePatch(ctx *common.TestContext, apiPath string, objID string,
 
 }
 
-func ExpectOperation(auth *common.SMExpect, resp *httpexpect.Response, expectedState types.OperationState) {
-	locationHeader := resp.Header("Location").Raw()
-	split := strings.Split(locationHeader, "/")
-	operationID := split[len(split)-1]
+func ExpectOperation(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState) {
+	operationURL := asyncResp.Header("Location").Raw()
 
 	var operation *httpexpect.Object
 	Eventually(func() string {
-		operation = auth.GET(web.OperationsURL + "/" + operationID).
-			Expect().JSON().Object()
+		operation = auth.GET(operationURL).
+			Expect().Status(http.StatusOK).JSON().Object()
 		return operation.Value("state").String().Raw()
 	}, 10*time.Second).Should(Equal(expectedState))
 
