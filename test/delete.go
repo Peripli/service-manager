@@ -31,6 +31,9 @@ import (
 
 func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode ResponseMode) bool {
 	return Describe(fmt.Sprintf("DELETE %s", t.API), func() {
+
+		const notFoundMsg = "not found"
+
 		var (
 			testResource   common.Object
 			testResourceID string
@@ -63,7 +66,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 				Expect(testResourceID).ToNot(BeEmpty())
 			}
 
-			verifyResourceDeletion := func(auth *common.SMExpect, deletionRequestResponseCode, getAfterDeletionRequestCode int, expectedOpState types.OperationState) {
+			verifyResourceDeletionWithErrorMsg := func(auth *common.SMExpect, deletionRequestResponseCode, getAfterDeletionRequestCode int, expectedOpState types.OperationState, expectedErrMsg string) {
 				By("[TEST]: Verify resource of type %s exists before delete")
 				ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
 					Expect().
@@ -75,7 +78,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 					Status(deletionRequestResponseCode)
 
 				if responseMode == Async {
-					err := ExpectOperation(auth, resp, expectedOpState)
+					err := ExpectOperationWithError(auth, resp, expectedOpState, expectedErrMsg)
 					Expect(err).To(BeNil())
 				}
 
@@ -83,6 +86,10 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 				ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
 					Expect().
 					Status(getAfterDeletionRequestCode)
+			}
+
+			verifyResourceDeletion := func(auth *common.SMExpect, deletionRequestResponseCode, getAfterDeletionRequestCode int, expectedOpState types.OperationState) {
+				verifyResourceDeletionWithErrorMsg(auth, deletionRequestResponseCode, getAfterDeletionRequestCode, expectedOpState, "")
 			}
 
 			Context("when the resource is global", func() {
@@ -107,7 +114,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 				if !t.DisableTenantResources {
 					Context("when authenticating with tenant scoped token", func() {
 						It("returns 404", func() {
-							verifyResourceDeletion(ctx.SMWithOAuthForTenant, failedDeletionRequestResponseCode, http.StatusOK, types.FAILED)
+							verifyResourceDeletionWithErrorMsg(ctx.SMWithOAuthForTenant, failedDeletionRequestResponseCode, http.StatusOK, types.FAILED, notFoundMsg)
 						})
 					})
 				}
@@ -147,10 +154,10 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 				testResourceID = "non-existing-id"
 			})
 
-			verifyMissingResourceFailedDeletion := func(resp *httpexpect.Response) {
+			verifyMissingResourceFailedDeletion := func(resp *httpexpect.Response, expectedErrMsg string) {
 				switch responseMode {
 				case Async:
-					err := ExpectOperation(ctx.SMWithOAuth, resp, types.FAILED)
+					err := ExpectOperationWithError(ctx.SMWithOAuth, resp, types.FAILED, expectedErrMsg)
 					Expect(err).To(BeNil())
 				case Sync:
 					resp.Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
@@ -160,14 +167,14 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 			Context("when authenticating with basic auth", func() {
 				It("returns 404", func() {
 					resp := ctx.SMWithOAuth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).WithQuery("async", asyncParam).Expect()
-					verifyMissingResourceFailedDeletion(resp)
+					verifyMissingResourceFailedDeletion(resp, notFoundMsg)
 				})
 			})
 
 			Context("when authenticating with global token", func() {
 				It("returns 404", func() {
 					resp := ctx.SMWithOAuth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).WithQuery("async", asyncParam).Expect()
-					verifyMissingResourceFailedDeletion(resp)
+					verifyMissingResourceFailedDeletion(resp, notFoundMsg)
 				})
 			})
 		})

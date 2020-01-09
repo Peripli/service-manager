@@ -48,8 +48,7 @@ const (
 )
 
 var _ = test.DescribeTestsFor(test.TestCase{
-	API:           web.ServiceInstancesURL,
-	SupportsAsync: false,
+	API: web.ServiceInstancesURL,
 	SupportedOps: []test.Op{
 		test.Get, test.List,
 	},

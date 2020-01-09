@@ -19,9 +19,7 @@ package test
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/types"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/Peripli/service-manager/pkg/query"
@@ -41,11 +39,9 @@ type deleteOpEntry struct {
 	expectedStatusCode          int
 }
 
-func DescribeDeleteListFor(ctx *common.TestContext, t TestCase, responseMode ResponseMode) bool {
+func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 	var r []common.Object
 	var rWithMandatoryFields common.Object
-
-	var asyncParam = strconv.FormatBool(bool(responseMode))
 
 	entriesWithQuery := []TableEntry{
 		Entry("returns 200 for operator =",
@@ -404,9 +400,9 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase, responseMode Res
 		By(fmt.Sprintf("[BEFOREEACH]: Preparing and creating test resources"))
 
 		r = make([]common.Object, 0, 0)
-		rWithMandatoryFields = t.ResourceWithoutNullableFieldsBlueprint(ctx, ctx.SMWithOAuth, bool(responseMode))
+		rWithMandatoryFields = t.ResourceWithoutNullableFieldsBlueprint(ctx, ctx.SMWithOAuth, false)
 		for i := 0; i < 2; i++ {
-			gen := t.ResourceBlueprint(ctx, ctx.SMWithOAuth, bool(responseMode))
+			gen := t.ResourceBlueprint(ctx, ctx.SMWithOAuth, false)
 			gen = attachLabel(gen, i)
 			delete(gen, "created_at")
 			delete(gen, "updated_at")
@@ -432,22 +428,13 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase, responseMode Res
 			unexpectedAfterOpIDs = common.ExtractResourceIDs(deleteListOpEntry.resourcesNotToExpectAfterOp())
 		}
 
-		expectedStatusCode := deleteListOpEntry.expectedStatusCode
-		expectedOperationState := types.SUCCEEDED
-		if responseMode == Async {
-			if expectedStatusCode != http.StatusOK {
-				expectedOperationState = types.FAILED
-			}
-			expectedStatusCode = http.StatusAccepted
-		}
-
 		By("[TEST]: ======= Expectations Summary =======")
 
-		By(fmt.Sprintf("[TEST]: Deleting %s at %s (async = %s)", t.API, query, asyncParam))
+		By(fmt.Sprintf("[TEST]: Deleting %s at %s", t.API, query))
 		By(fmt.Sprintf("[TEST]: Currently present resources: %v", r))
 		By(fmt.Sprintf("[TEST]: Expected %s ids after operations: %s", t.API, expectedAfterOpIDs))
 		By(fmt.Sprintf("[TEST]: Unexpected %s ids after operations: %s", t.API, unexpectedAfterOpIDs))
-		By(fmt.Sprintf("[TEST]: Expected status code %d", expectedStatusCode))
+		By(fmt.Sprintf("[TEST]: Expected status code %d", deleteListOpEntry.expectedStatusCode))
 
 		By("[TEST]: ====================================")
 
@@ -468,25 +455,19 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase, responseMode Res
 			}
 		}
 
-		req := auth.DELETE(t.API).WithQuery("async", asyncParam)
+		req := auth.DELETE(t.API)
 		if query != "" {
 			req = req.WithQueryString(query)
 		}
 
-		By(fmt.Sprintf("[TEST]: Verifying expected status code %d is returned from operation", expectedStatusCode))
-		resp := req.Expect().Status(expectedStatusCode)
-
-		if responseMode == Async {
-			if err := ExpectOperation(auth, resp, expectedOperationState); err != nil {
-				panic(err)
-			}
-		}
+		By(fmt.Sprintf("[TEST]: Verifying expected status code %d is returned from operation", deleteListOpEntry.expectedStatusCode))
+		resp := req.
+			Expect().
+			Status(deleteListOpEntry.expectedStatusCode)
 
 		if deleteListOpEntry.expectedStatusCode != http.StatusOK {
 			By(fmt.Sprintf("[TEST]: Verifying error and description fields are returned after operation"))
-			if responseMode == Sync {
-				resp.JSON().Object().Keys().Contains("error", "description")
-			}
+			resp.JSON().Object().Keys().Contains("error", "description")
 		} else {
 			afterOpArray := ctx.SMWithOAuth.List(t.API)
 
@@ -583,7 +564,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase, responseMode Res
 
 			Context("with basic auth", func() {
 				It("returns 200", func() {
-					ctx.SMWithBasic.DELETE(t.API).WithQuery("async", asyncParam).
+					ctx.SMWithBasic.DELETE(t.API).
 						Expect().
 						Status(http.StatusUnauthorized)
 				})
@@ -595,7 +576,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase, responseMode Res
 						var rForTenant common.Object
 
 						BeforeEach(func() {
-							rForTenant = t.ResourceBlueprint(ctx, ctx.SMWithOAuthForTenant, bool(responseMode))
+							rForTenant = t.ResourceBlueprint(ctx, ctx.SMWithOAuthForTenant, false)
 						})
 
 						It("deletes only tenant specific resources", func() {

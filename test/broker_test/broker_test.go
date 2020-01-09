@@ -54,8 +54,7 @@ func TestBrokers(t *testing.T) {
 }
 
 var _ = test.DescribeTestsFor(test.TestCase{
-	API:           web.ServiceBrokersURL,
-	SupportsAsync: true,
+	API: web.ServiceBrokersURL,
 	SupportedOps: []test.Op{
 		test.Get, test.List, test.Delete, test.DeleteList, test.Patch,
 	},

@@ -43,8 +43,7 @@ func TestPlatforms(t *testing.T) {
 }
 
 var _ = test.DescribeTestsFor(test.TestCase{
-	API:           web.PlatformsURL,
-	SupportsAsync: false,
+	API: web.PlatformsURL,
 	SupportedOps: []test.Op{
 		test.Get, test.List, test.Delete, test.DeleteList, test.Patch,
 	},

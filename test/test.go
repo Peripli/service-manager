@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -69,7 +70,6 @@ type MultitenancySettings struct {
 
 type TestCase struct {
 	API                     string
-	SupportsAsync           bool
 	SupportsAsyncOperations bool
 	SupportedOps            []Op
 	ResourceType            types.ObjectType
@@ -102,20 +102,11 @@ func DefaultResourcePatch(ctx *common.TestContext, apiPath string, objID string,
 }
 
 func ExpectOperation(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState) error {
+	return ExpectOperationWithError(auth, asyncResp, expectedState, "")
+}
+
+func ExpectOperationWithError(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState, expectedErrMsg string) error {
 	operationURL := asyncResp.Header("Location").Raw()
-
-	/*
-		var operation *httpexpect.Object
-		Eventually(func() string {
-			operation = auth.GET(operationURL).
-				Expect().Status(http.StatusOK).JSON().Object()
-			return operation.Value("state").String().Raw()
-		}, 10*time.Second).Should(Equal(string(expectedState)))
-
-		if expectedState == types.FAILED {
-			Expect(operation.Value("errors")).To(Not(Equal("{}")))
-		}
-	*/
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -131,8 +122,14 @@ func ExpectOperation(auth *common.SMExpect, asyncResp *httpexpect.Response, expe
 			state := operation.Value("state").String().Raw()
 			if state == string(expectedState) {
 				errs := operation.Value("errors")
-				if expectedState == types.FAILED && errs != nil && errs.String().Raw() == "{}" {
-					err = fmt.Errorf("unable to verify operation - expected error to exist, but didn't")
+				if expectedState == types.SUCCEEDED {
+					errs.Null()
+				} else {
+					errMsg := errs.Object().Value("message").String().Raw()
+
+					if !strings.Contains(errMsg, expectedErrMsg) {
+						err = fmt.Errorf("unable to verify operation - expected error message (%s), but got (%s)", expectedErrMsg, errs.String().Raw())
+					}
 				}
 				return nil
 			}
@@ -190,7 +187,7 @@ func DescribeTestsFor(t TestCase) bool {
 			})
 
 			responseModes := []ResponseMode{Sync}
-			if t.SupportsAsync {
+			if t.SupportsAsyncOperations {
 				responseModes = append(responseModes, Async)
 			}
 
@@ -204,7 +201,9 @@ func DescribeTestsFor(t TestCase) bool {
 					case Delete:
 						DescribeDeleteTestsfor(ctx, t, respMode)
 					case DeleteList:
-						DescribeDeleteListFor(ctx, t, respMode)
+						if respMode == Sync {
+							DescribeDeleteListFor(ctx, t)
+						}
 					case Patch:
 						DescribePatchTestsFor(ctx, t, respMode)
 					default:
