@@ -20,6 +20,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/Peripli/service-manager/pkg/multitenancy"
+	"github.com/Peripli/service-manager/pkg/sm"
+	"github.com/tidwall/gjson"
 	"net/http"
 	"strings"
 	"testing"
@@ -45,6 +49,9 @@ func TestOSB(t *testing.T) {
 }
 
 const (
+	TenantIdentifier = "tenant"
+	TenantValue      = "tenant_value"
+
 	plan1CatalogID              = "plan1CatalogID"
 	plan2CatalogID              = "plan2CatalogID"
 	service1CatalogID           = "service1CatalogID"
@@ -80,6 +87,26 @@ var (
 var _ = BeforeSuite(func() {
 	ctx = common.NewTestContextBuilder().WithEnvPreExtensions(func(set *pflag.FlagSet) {
 		Expect(set.Set("httpclient.response_header_timeout", timeoutDuration.String())).ToNot(HaveOccurred())
+	}).WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+		smb.EnableMultitenancy(TenantIdentifier, func(request *web.Request) (string, error) {
+			extractTenantFromToken := multitenancy.ExtractTenantFromTokenWrapperFunc("zid")
+			user, ok := web.UserFromContext(request.Context())
+			if !ok {
+				return "", nil
+			}
+			var userData json.RawMessage
+			if err := user.Data(&userData); err != nil {
+				return "", fmt.Errorf("could not unmarshal claims from token: %s", err)
+			}
+			clientIDFromToken := gjson.GetBytes([]byte(userData), "cid").String()
+			if "tenancyClient" != clientIDFromToken {
+				return "", nil
+			}
+			user.AccessLevel = web.TenantAccess
+			request.Request = request.WithContext(web.ContextWithUser(request.Context(), user))
+			return extractTenantFromToken(request)
+		})
+		return nil
 	}).Build()
 
 	emptyCatalogBrokerID, _, brokerServerWithEmptyCatalog = ctx.RegisterBrokerWithCatalog(common.NewEmptySBCatalog())
@@ -213,12 +240,13 @@ func buildRequestBody(serviceID, planID string) string {
 			"organization_name": "system",
 			"space_guid": "aaaa1234-da91-4f12-8ffa-b51d0336aaaa",
 			"space_name": "development",
-			"instance_name": "my-db"
+			"instance_name": "my-db",
+			"%s":"%s"
 		},
 		"maintenance_info": {
 			"version": "old"
 		}
-}`, serviceID, planID)
+}`, serviceID, planID, TenantIdentifier, TenantValue)
 	return result
 }
 func provisionRequestBodyMapWith(key, value string, idsToRemove ...string) func() map[string]interface{} {
@@ -270,7 +298,8 @@ func updateRequestBody(serviceID, oldPlanID, newPlanID string) string {
 			"organization_name": "system",
 			"space_guid": "aaaa1234-da91-4f12-8ffa-b51d0336aaaa",
 			"space_name": "development",
-			"instance_name": "my-db"
+			"instance_name": "my-db",
+			"%s":"%s"
 		},
 		"maintenance_info": {
 			"version": "new"
@@ -284,7 +313,7 @@ func updateRequestBody(serviceID, oldPlanID, newPlanID string) string {
 				"version": "old"
 			}
 		}
-}`, serviceID, newPlanID, serviceID, oldPlanID)
+}`, serviceID, newPlanID, TenantIdentifier, TenantValue, serviceID, oldPlanID)
 	return body
 }
 

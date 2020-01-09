@@ -477,7 +477,9 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase, responseMode Res
 		resp := req.Expect().Status(expectedStatusCode)
 
 		if responseMode == Async {
-			ExpectOperation(auth, resp, expectedOperationState)
+			if err := ExpectOperation(auth, resp, expectedOperationState); err != nil {
+				panic(err)
+			}
 		}
 
 		if deleteListOpEntry.expectedStatusCode != http.StatusOK {

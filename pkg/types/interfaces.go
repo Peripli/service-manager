@@ -68,3 +68,24 @@ type ObjectPage struct {
 	ItemsCount int      `json:"num_items"`
 	Items      []Object `json:"items"`
 }
+
+// ObjectArray is an ObjectList backed by a slice of Object's
+type ObjectArray struct {
+	Objects []Object
+}
+
+func NewObjectArray(objects ...Object) *ObjectArray {
+	return &ObjectArray{objects}
+}
+
+func (a *ObjectArray) Add(object Object) {
+	a.Objects = append(a.Objects, object)
+}
+
+func (a *ObjectArray) ItemAt(index int) Object {
+	return a.Objects[index]
+}
+
+func (a *ObjectArray) Len() int {
+	return len(a.Objects)
+}

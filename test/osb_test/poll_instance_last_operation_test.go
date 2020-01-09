@@ -19,6 +19,9 @@ package osb_test
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/test/common"
+	"github.com/gavv/httpexpect"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/query"
@@ -217,6 +220,31 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 				})
 			})
 		})
+
+		Context("that returns 410 gone", func() {
+			BeforeEach(func() {
+				brokerServer.ServiceInstanceLastOpHandler = parameterizedHandler(http.StatusGone, `{}`)
+			})
+
+			It("returns 410", func() {
+				By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusGone)
+
+				By(fmt.Sprintf("Verifying service instance with id %s is not updated to ready=true", SID))
+				ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusOK).JSON().Object().Value("ready").Boolean().Equal(false)
+
+				By(fmt.Sprintf("Verifying create operation for service instance with id %s is not updated to succeeded", SID))
+				verifyOperationExists(operationExpectations{
+					Type:         types.CREATE,
+					State:        types.IN_PROGRESS,
+					ResourceID:   SID,
+					ResourceType: "/v1/service_instances",
+					ExternalID:   "",
+				})
+			})
+		})
 	})
 
 	Context("when polling UPDATE for which operation exists", func() {
@@ -394,6 +422,27 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 				object.Value("usable").Boolean().Equal(true)
 
 				By(fmt.Sprintf("Verifying updatw operation for service instance with id %s is in progress", SID))
+				verifyOperationExists(operationExpectations{
+					Type:         types.UPDATE,
+					State:        types.IN_PROGRESS,
+					ResourceID:   SID,
+					ResourceType: "/v1/service_instances",
+					ExternalID:   "",
+				})
+			})
+		})
+
+		Context("that returns 410 gone", func() {
+			BeforeEach(func() {
+				brokerServer.ServiceInstanceLastOpHandler = parameterizedHandler(http.StatusGone, `{}`)
+			})
+
+			It("returns 410", func() {
+				By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusGone)
+
+				By(fmt.Sprintf("Verifying update operation for service instance with id %s is still in progress", SID))
 				verifyOperationExists(operationExpectations{
 					Type:         types.UPDATE,
 					State:        types.IN_PROGRESS,
@@ -601,6 +650,51 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 				})
 			})
 		})
+
+		Context("that returns 410 gone", func() {
+			BeforeEach(func() {
+				brokerServer.ServiceInstanceLastOpHandler = parameterizedHandler(http.StatusGone, `{}`)
+			})
+
+			It("deletes the instance and updates the operation to delete succeeded", func() {
+				By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
+				ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusGone)
+
+				By(fmt.Sprintf("Verifying service instance with id %s is deleted", SID))
+				ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusNotFound)
+
+				By(fmt.Sprintf("Verifying delete operation for service instance with id %s is updated to succeeded", SID))
+				verifyOperationExists(operationExpectations{
+					Type:         types.DELETE,
+					State:        types.SUCCEEDED,
+					ResourceID:   SID,
+					ResourceType: "/v1/service_instances",
+					ExternalID:   "",
+				})
+			})
+
+			Context("when instance does not exist", func() {
+				BeforeEach(func() {
+					brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
+
+					By(fmt.Sprintf("Deleting instance with id %s", SID))
+					byID := query.ByField(query.EqualsOperator, "id", SID)
+					err := ctx.SMRepository.Delete(context.TODO(), types.ServiceInstanceType, byID)
+					Expect(err).ToNot(HaveOccurred())
+
+					ctx.SMWithOAuth.GET("/v1/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+						Expect().Status(http.StatusNotFound)
+				})
+
+				It("does not fail", func() {
+					By(fmt.Sprintf("Getting last operation for service instance with id %s", SID))
+					ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+						Expect().Status(http.StatusGone)
+				})
+			})
+		})
 	})
 
 	Context("when call to working service broker", func() {
@@ -649,6 +743,39 @@ var _ = Describe("Get Service Instance Last Operation", func() {
 			brokerServer.ServiceInstanceLastOpHandler = delayingHandler(done)
 			assertUnresponsiveBrokerError(ctx.SMWithBasic.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				Expect())
+		})
+	})
+
+	Context("platform_id check", func() {
+		BeforeEach(func() {
+			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
+		})
+
+		Context("get instance last operaion from not an instance owner", func() {
+			var NewPlatformExpect *httpexpect.Expect
+
+			BeforeEach(func() {
+				platformJSON := common.MakePlatform("tcb-platform-test2", "tcb-platform-test2", "platform-type", "test-platform")
+				platform := common.RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
+				NewPlatformExpect = ctx.SM.Builder(func(req *httpexpect.Request) {
+					username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
+					req.WithBasicAuth(username, password)
+				})
+			})
+
+			It("should return 404", func() {
+				brokerServer.ServiceInstanceLastOpHandler = parameterizedHandler(http.StatusOK, `{}`)
+				NewPlatformExpect.GET(smBrokerURL+"/v2/service_instances/"+SID+"/last_operation").
+					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusNotFound)
+			})
+
+			AfterEach(func() {
+				ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/tcb-platform-test2").Expect().Status(http.StatusOK)
+			})
 		})
 	})
 })

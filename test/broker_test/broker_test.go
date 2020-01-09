@@ -15,7 +15,39 @@
  */
 package broker_test
 
-/*
+import (
+	"context"
+	"fmt"
+	"github.com/gofrs/uuid"
+	"net/http"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/Peripli/service-manager/test/testutil/service_instance"
+
+	"github.com/Peripli/service-manager/pkg/httpclient"
+	"github.com/Peripli/service-manager/pkg/web"
+
+	"github.com/Peripli/service-manager/storage"
+
+	"github.com/Peripli/service-manager/pkg/types"
+
+	"github.com/Peripli/service-manager/pkg/query"
+
+	"github.com/Peripli/service-manager/test"
+	"github.com/gavv/httpexpect"
+
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
+
+	"github.com/Peripli/service-manager/test/common"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+	"github.com/spf13/cast"
+)
+
 func TestBrokers(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "ServiceBroker API Tests Suite")
@@ -37,6 +69,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			"zid": "tenantID",
 		},
 	},
+	SupportsAsyncOperations:                true,
 	ResourceBlueprint:                      blueprint(true),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
 	PatchResource:                          test.DefaultResourcePatch,
@@ -1708,7 +1741,9 @@ func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *com
 		resp := auth.POST(web.ServiceBrokersURL).WithQuery("async", strconv.FormatBool(async)).WithJSON(brokerJSON).Expect()
 		if async {
 			resp = resp.Status(http.StatusAccepted)
-			test.ExpectOperation(auth, resp, types.SUCCEEDED)
+			if err := test.ExpectOperation(auth, resp, types.SUCCEEDED); err != nil {
+				panic(err)
+			}
 
 			obj = auth.GET(web.ServiceBrokersURL + "/" + brokerID.String()).
 				Expect().JSON().Object().Raw()
@@ -1727,4 +1762,3 @@ type labeledBroker common.Object
 func (b labeledBroker) AddLabel(label common.Object) {
 	b["labels"] = append(b["labels"].(common.Array), label)
 }
-*/

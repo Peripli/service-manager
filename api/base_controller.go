@@ -39,8 +39,9 @@ import (
 )
 
 const (
-	PathParamID     = "id"
-	QueryParamAsync = "async"
+	PathParamID         = "id"
+	PathParamResourceID = "resource_id"
+	QueryParamAsync     = "async"
 )
 
 // pagingLimitOffset is a constant which is needed to identify if there are more items in the DB.
@@ -104,6 +105,13 @@ func (c *BaseController) Routes() []web.Route {
 				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamID),
 			},
 			Handler: c.GetSingleObject,
+		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodGet,
+				Path:   fmt.Sprintf("%s/{%s}%s/{%s}", c.resourceBaseURL, PathParamResourceID, web.OperationsURL, PathParamID),
+			},
+			Handler: c.GetOperation,
 		},
 		{
 			Endpoint: web.Endpoint{
@@ -183,7 +191,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 
-		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operationID)
+		return newAsyncResponse(operationID, result.GetID(), c.resourceBaseURL)
 	}
 
 	log.C(ctx).Debugf("Request will be executed synchronously")
@@ -213,7 +221,17 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 
-		resourceID := getResourceIDFromCriteria(criteria)
+		resourceIDs := getResourceIDsFromCriteria(criteria)
+		if len(resourceIDs) != 1 {
+			return nil, &util.HTTPError{
+				ErrorType:   "BadRequest",
+				Description: "Only one resource can be deleted asynchronously at a time",
+				StatusCode:  http.StatusBadRequest,
+			}
+		}
+
+		resourceID := resourceIDs[0]
+
 		operation, err := c.buildOperation(ctx, c.repository, types.IN_PROGRESS, types.DELETE, resourceID, log.CorrelationIDFromContext(ctx))
 		if err != nil {
 			return nil, err
@@ -229,7 +247,7 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 
-		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operationID)
+		return newAsyncResponse(operationID, resourceID, c.resourceBaseURL)
 	}
 
 	log.C(ctx).Debugf("Request will be executed synchronously")
@@ -277,6 +295,30 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 	stripCredentials(ctx, object)
 
 	return util.NewJSONResponse(http.StatusOK, object)
+}
+
+// GetOperation handles the fetching of a single operation with the id specified for the specified resource
+func (c *BaseController) GetOperation(r *web.Request) (*web.Response, error) {
+	objectID := r.PathParams[PathParamResourceID]
+	operationID := r.PathParams[PathParamID]
+
+	ctx := r.Context()
+	log.C(ctx).Debugf("Getting operation with id %s for object of type %s with id %s", operationID, c.objectType, objectID)
+
+	byOperationID := query.ByField(query.EqualsOperator, "id", operationID)
+	byObjectID := query.ByField(query.EqualsOperator, "resource_id", objectID)
+	var err error
+	ctx, err = query.AddCriteria(ctx, byObjectID, byOperationID)
+	if err != nil {
+		return nil, err
+	}
+	criteria := query.CriteriaForContext(ctx)
+	operation, err := c.repository.Get(ctx, types.OperationType, criteria...)
+	if err != nil {
+		return nil, util.HandleStorageError(err, c.objectType.String())
+	}
+
+	return util.NewJSONResponse(http.StatusOK, operation)
 }
 
 // ListObjects handles the fetching of all objects
@@ -403,7 +445,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 			return nil, err
 		}
 
-		return util.NewJSONResponseWithOperation(http.StatusAccepted, map[string]string{}, operationID)
+		return newAsyncResponse(operationID, objFromDB.GetID(), c.resourceBaseURL)
 	}
 
 	log.C(ctx).Debugf("Request will be executed synchronously")
@@ -541,14 +583,21 @@ func pageFromObjectList(ctx context.Context, objectList types.ObjectList, count,
 	return page
 }
 
-func getResourceIDFromCriteria(criteria []query.Criterion) string {
+func getResourceIDsFromCriteria(criteria []query.Criterion) []string {
 	for _, criterion := range criteria {
 		if criterion.LeftOp == "id" {
-			if len(criterion.RightOp) == 1 {
-				return criterion.RightOp[0]
-			}
-			return ""
+			return criterion.RightOp
 		}
 	}
-	return ""
+	return []string{}
+}
+
+func newAsyncResponse(operationID, resourceID, resourceBaseURL string) (*web.Response, error) {
+	operationURL := buildOperationURL(operationID, resourceID, resourceBaseURL)
+	additionalHeaders := map[string]string{"Location": operationURL}
+	return util.NewJSONResponseWithHeaders(http.StatusAccepted, map[string]string{}, additionalHeaders)
+}
+
+func buildOperationURL(operationID, resourceID, resourceType string) string {
+	return fmt.Sprintf("%s/%s%s/%s", resourceType, resourceID, web.OperationsURL, operationID)
 }

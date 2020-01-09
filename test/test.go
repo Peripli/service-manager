@@ -20,10 +20,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
+
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/gavv/httpexpect"
-	"net/http"
 	"time"
 
 	"github.com/tidwall/gjson"
@@ -66,10 +68,11 @@ type MultitenancySettings struct {
 }
 
 type TestCase struct {
-	API           string
-	SupportsAsync bool
-	SupportedOps  []Op
-	ResourceType  types.ObjectType
+	API                     string
+	SupportsAsync           bool
+	SupportsAsyncOperations bool
+	SupportedOps            []Op
+	ResourceType            types.ObjectType
 
 	MultitenancySettings                   *MultitenancySettings
 	DisableTenantResources                 bool
@@ -84,30 +87,58 @@ func DefaultResourcePatch(ctx *common.TestContext, apiPath string, objID string,
 	patchLabelsBody["labels"] = patchLabels
 
 	By(fmt.Sprintf("Attempting to patch resource of %s with labels as labels are declared supported", apiPath))
-	resp := ctx.SMWithOAuth.PATCH(apiPath + "/" + objID).WithJSON(patchLabelsBody).Expect()
+	resp := ctx.SMWithOAuth.PATCH(apiPath+"/"+objID).WithQuery("async", strconv.FormatBool(async)).WithJSON(patchLabelsBody).Expect()
 
 	if async {
 		resp = resp.Status(http.StatusAccepted)
-		ExpectOperation(ctx.SMWithOAuth, resp, types.SUCCEEDED)
+		err := ExpectOperation(ctx.SMWithOAuth, resp, types.SUCCEEDED)
+		if err != nil {
+			panic(err)
+		}
 	} else {
 		resp.Status(http.StatusOK)
 	}
 
 }
 
-func ExpectOperation(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState) {
+func ExpectOperation(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState) error {
 	operationURL := asyncResp.Header("Location").Raw()
 
-	var operation *httpexpect.Object
-	Eventually(func() string {
-		operation = auth.GET(operationURL).
-			Expect().Status(http.StatusOK).JSON().Object()
-		return operation.Value("state").String().Raw()
-	}, 10*time.Second).Should(Equal(expectedState))
+	/*
+		var operation *httpexpect.Object
+		Eventually(func() string {
+			operation = auth.GET(operationURL).
+				Expect().Status(http.StatusOK).JSON().Object()
+			return operation.Value("state").String().Raw()
+		}, 10*time.Second).Should(Equal(string(expectedState)))
 
-	if expectedState == types.FAILED {
-		Expect(operation.Value("errors")).To(Not(Equal("{}")))
+		if expectedState == types.FAILED {
+			Expect(operation.Value("errors")).To(Not(Equal("{}")))
+		}
+	*/
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := fmt.Errorf("unable to verify operation state (expected state = %s)", string(expectedState))
+	var operation *httpexpect.Object
+	for {
+		select {
+		case <-ctx.Done():
+		default:
+			operation = auth.GET(operationURL).
+				Expect().Status(http.StatusOK).JSON().Object()
+			state := operation.Value("state").String().Raw()
+			if state == string(expectedState) {
+				errs := operation.Value("errors")
+				if expectedState == types.FAILED && errs != nil && errs.String().Raw() == "{}" {
+					err = fmt.Errorf("unable to verify operation - expected error to exist, but didn't")
+				}
+				return nil
+			}
+		}
 	}
+	return err
 }
 
 func DescribeTestsFor(t TestCase) bool {

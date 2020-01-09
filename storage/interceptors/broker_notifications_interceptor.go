@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Peripli/service-manager/pkg/util"
-
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 )
@@ -15,12 +13,15 @@ func NewBrokerNotificationsInterceptor() *NotificationsInterceptor {
 		PlatformIdProviderFunc: func(ctx context.Context, obj types.Object) string {
 			return ""
 		},
-		AdditionalDetailsFunc: func(ctx context.Context, obj types.Object, repository storage.Repository) (util.InputValidator, error) {
-			broker := obj.(*types.ServiceBroker)
-
-			return &BrokerAdditional{
-				Services: broker.Services,
-			}, nil
+		AdditionalDetailsFunc: func(ctx context.Context, objects types.ObjectList, repository storage.Repository) (objectDetails, error) {
+			details := make(objectDetails, objects.Len())
+			for i := 0; i < objects.Len(); i++ {
+				broker := objects.ItemAt(i).(*types.ServiceBroker)
+				details[broker.ID] = &BrokerAdditional{
+					Services: broker.Services,
+				}
+			}
+			return details, nil
 		},
 	}
 }

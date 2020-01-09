@@ -248,7 +248,7 @@
   revision = "2ba0fc60eb4a54030f3a6d73ff0a047349c7eeca"
 
 [[projects]]
-  digest = "1:60a4c716301192a7be42f363c41b2b1fab64ae80d9db4453c702b13b05ccddeb"
+  digest = "1:1a27a67993fd9ad63a5e04b49a9cacd32e4d3efdf44223749410c1e02bb53011"
   name = "github.com/klauspost/compress"
   packages = [
     "flate",
@@ -256,8 +256,8 @@
     "zlib",
   ]
   pruneopts = "UT"
-  revision = "f61bac3a179b270c811148ce2a1f819dfc82825f"
-  version = "v1.9.7"
+  revision = "438db640fd672278e44bb9bec0b979358e7e9c76"
+  version = "v1.9.4"
 
 [[projects]]
   digest = "1:31e761d97c76151dde79e9d28964a812c46efc5baee4085b86f68f0c654450de"
@@ -570,7 +570,7 @@
     "pbkdf2",
   ]
   pruneopts = "UT"
-  revision = "53104e6ec876ad4e22ad27cce588b01392043c1b"
+  revision = "e9b2fee46413994441b28dfca259d911d963dfed"
 
 [[projects]]
   branch = "master"
@@ -601,11 +601,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:c1b1f11d25f274813ed6642e8eb55237183a3456d4a809cfcb0395d0fc50a46c"
+  digest = "1:634414cd43ed62a728aaf9b3e61fde85f012880f9b32b7d00678b6fd887ff9c1"
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "UT"
-  revision = "5f8ca72cd6325689efbbfd415c3e82ec8be1f5a4"
+  revision = "ac6580df4449443a05718fd7858c1f91ad5f8d20"
 
 [[projects]]
   digest = "1:28deae5fe892797ff37a317b5bcda96d11d1c90dadd89f1337651df3bc4c586e"

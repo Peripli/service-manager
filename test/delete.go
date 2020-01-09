@@ -75,7 +75,8 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 					Status(deletionRequestResponseCode)
 
 				if responseMode == Async {
-					ExpectOperation(auth, resp, expectedOpState)
+					err := ExpectOperation(auth, resp, expectedOpState)
+					Expect(err).To(BeNil())
 				}
 
 				By("[TEST]: Verify resource of type %s does not exist after delete")
@@ -149,7 +150,8 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 			verifyMissingResourceFailedDeletion := func(resp *httpexpect.Response) {
 				switch responseMode {
 				case Async:
-					ExpectOperation(ctx.SMWithOAuth, resp, types.FAILED)
+					err := ExpectOperation(ctx.SMWithOAuth, resp, types.FAILED)
+					Expect(err).To(BeNil())
 				case Sync:
 					resp.Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")
 				}

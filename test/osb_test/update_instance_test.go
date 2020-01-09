@@ -18,6 +18,7 @@ package osb_test
 
 import (
 	"fmt"
+	"github.com/Peripli/service-manager/test/common"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/types"
@@ -38,6 +39,39 @@ var _ = Describe("Update", func() {
 			ctx.SMWithBasic.PATCH(smBrokerURL+"/v2/service_instances/"+SID).
 				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 				WithJSON(updateRequestBodyMap()()).Expect().Status(http.StatusOK)
+		})
+	})
+
+	Context("platform_id check", func() {
+		BeforeEach(func() {
+			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
+			ctx.SMWithBasic.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+				WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+				WithJSON(provisionRequestBodyMap()()).Expect().Status(http.StatusCreated)
+		})
+
+		Context("update instance from not an instance owner", func() {
+			var NewPlatformExpect *httpexpect.Expect
+
+			BeforeEach(func() {
+				platformJSON := common.MakePlatform("tcb-platform-test2", "tcb-platform-test2", "platform-type", "test-platform")
+				platform := common.RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
+				NewPlatformExpect = ctx.SM.Builder(func(req *httpexpect.Request) {
+					username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
+					req.WithBasicAuth(username, password)
+				})
+			})
+
+			It("should return 404", func() {
+				brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusOK, `{}`)
+				NewPlatformExpect.PATCH(smBrokerURL+"/v2/service_instances/"+SID).
+					WithJSON(provisionRequestBodyMap()()).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					Expect().Status(http.StatusNotFound)
+			})
+
+			AfterEach(func() {
+				ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/tcb-platform-test2").Expect().Status(http.StatusOK)
+			})
 		})
 	})
 
@@ -69,6 +103,10 @@ var _ = Describe("Update", func() {
 		Entry("when service_id is missing",
 			updateRequestBodyMap("service_id"),
 			http.StatusBadRequest,
+			http.StatusOK),
+		Entry("when not an instance owner performs update",
+			updateRequestBodyMapWith("context."+TenantIdentifier, "other_tenant"),
+			http.StatusNotFound,
 			http.StatusOK),
 	)
 
