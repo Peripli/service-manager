@@ -74,12 +74,14 @@ type TestCase struct {
 	SupportedOps            []Op
 	ResourceType            types.ObjectType
 
-	MultitenancySettings                   *MultitenancySettings
-	DisableTenantResources                 bool
+	MultitenancySettings   *MultitenancySettings
+	DisableTenantResources bool
+
 	ResourceBlueprint                      func(ctx *common.TestContext, smClient *common.SMExpect, async bool) common.Object
 	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext, smClient *common.SMExpect, async bool) common.Object
 	PatchResource                          func(ctx *common.TestContext, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange, async bool)
-	AdditionalTests                        func(ctx *common.TestContext)
+
+	AdditionalTests func(ctx *common.TestContext)
 }
 
 func DefaultResourcePatch(ctx *common.TestContext, apiPath string, objID string, _ types.ObjectType, patchLabels []*query.LabelChange, async bool) {
