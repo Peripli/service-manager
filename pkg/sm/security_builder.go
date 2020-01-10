@@ -1,7 +1,7 @@
 package sm
 
 import (
-	"github.com/Peripli/service-manager/pkg/security/filters/middlewares"
+	"fmt"
 
 	secFilters "github.com/Peripli/service-manager/pkg/security/filters"
 
@@ -36,8 +36,6 @@ type securityBuilder struct {
 
 	requiredAuthNMatchers []web.FilterMatcher
 	requiredAuthZMatchers []web.FilterMatcher
-	authnFilters          []web.Filter
-	authzFilters          []web.Filter
 
 	smb *ServiceManagerBuilder
 }
@@ -207,16 +205,12 @@ func (sb *securityBuilder) register(finalMatchers []web.Matcher) {
 	if len(sb.authenticators) > 0 {
 		finalAuthenticator := authn.NewOrAuthenticator(sb.authenticators...)
 
-		sb.smb.authnDynamicFilter.middlewares = append(sb.smb.authnDynamicFilter.middlewares, dynamicMiddlewares{
-			matchers: []web.FilterMatcher{
-				{
-					Matchers: finalMatchers,
-				},
+		name := fmt.Sprintf("authN-inner-%d", len(sb.authenticators))
+		sb.smb.authnDynamicFilter.AddFilter(secFilters.NewAuthenticationFilter(finalAuthenticator, name, []web.FilterMatcher{
+			{
+				Matchers: finalMatchers,
 			},
-			middleware: &middlewares.Authentication{
-				Authenticator: finalAuthenticator,
-			},
-		})
+		}))
 	}
 
 	if len(sb.authorizers) > 0 {
@@ -224,34 +218,23 @@ func (sb *securityBuilder) register(finalMatchers []web.Matcher) {
 		if sb.accessLevelSet {
 			finalAuthorizer = newAccessLevelAuthorizer(finalAuthorizer, sb.accessLevel)
 		}
-		sb.smb.authzDynamicFilter.middlewares = append(sb.smb.authzDynamicFilter.middlewares, dynamicMiddlewares{
-			matchers: []web.FilterMatcher{
-				{
-					Matchers: finalMatchers,
-				},
+
+		name := fmt.Sprintf("authZ-inner-%d", len(sb.authenticators))
+		sb.smb.authzDynamicFilter.AddFilter(secFilters.NewAuthzFilter(finalAuthorizer, name, []web.FilterMatcher{
+			{
+				Matchers: finalMatchers,
 			},
-			middleware: &middlewares.Authorization{
-				Authorizer: finalAuthorizer,
-			},
-		})
+		}))
 	}
 }
 
 func (sb *securityBuilder) build() {
 	if len(sb.requiredAuthNMatchers) > 0 {
-		sb.smb.authnDynamicFilter.middlewares = append(sb.smb.authnDynamicFilter.middlewares, dynamicMiddlewares{
-			matchers: sb.requiredAuthNMatchers,
-			// TODO: Refactor the required authn filter to middleware
-			middleware: secFilters.NewRequiredAuthnFilter(sb.requiredAuthNMatchers),
-		})
+		sb.smb.authnDynamicFilter.AddFilter(secFilters.NewRequiredAuthnFilter(sb.requiredAuthNMatchers))
 	}
 
 	if len(sb.requiredAuthZMatchers) > 0 {
-		sb.smb.authzDynamicFilter.middlewares = append(sb.smb.authzDynamicFilter.middlewares, dynamicMiddlewares{
-			matchers: sb.requiredAuthZMatchers,
-			// TODO: Refactor the required authz filter to middleware
-			middleware: secFilters.NewRequiredAuthzFilter(sb.requiredAuthZMatchers),
-		})
+		sb.smb.authzDynamicFilter.AddFilter(secFilters.NewRequiredAuthzFilter(sb.requiredAuthZMatchers))
 	}
 }
 

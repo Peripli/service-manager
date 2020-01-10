@@ -23,6 +23,8 @@ import (
 	"net/http"
 	"sync"
 
+	secFilters "github.com/Peripli/service-manager/pkg/security/filters"
+
 	"github.com/Peripli/service-manager/pkg/env"
 
 	"github.com/Peripli/service-manager/pkg/health"
@@ -55,8 +57,8 @@ import (
 // controllers before running ServiceManager.
 type ServiceManagerBuilder struct {
 	*web.API
-	authnDynamicFilter *DynamicMatchingFilter
-	authzDynamicFilter *DynamicMatchingFilter
+	authnDynamicFilter *web.DynamicMatchingFilter
+	authzDynamicFilter *web.DynamicMatchingFilter
 
 	Storage             *storage.InterceptableTransactionalRepository
 	Notificator         storage.Notificator
@@ -134,8 +136,8 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		return nil, fmt.Errorf("error creating core api: %s", err)
 	}
 
-	authnDynamicFilter := NewDynamicMatchingFilter("Authentication")
-	authzDynamicFilter := NewDynamicMatchingFilter("Authorization")
+	authnDynamicFilter := web.NewDynamicMatchingFilter(secFilters.AuthenticationFilterName)
+	authzDynamicFilter := web.NewDynamicMatchingFilter(secFilters.AuthorizationFilterName)
 	API.RegisterFiltersAfter(filters.LoggingFilterName, authnDynamicFilter, authzDynamicFilter)
 
 	storageHealthIndicator, err := storage.NewSQLHealthIndicator(storage.PingFunc(smStorage.PingContext))

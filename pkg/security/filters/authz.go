@@ -6,6 +6,10 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
+const (
+	AuthorizationFilterName string = "Authorization"
+)
+
 // NewAuthzFilter returns a web.Filter for a specific scope and endpoint
 func NewAuthzFilter(authorizer http.Authorizer, name string, matchers []web.FilterMatcher) *AuthorizationFilter {
 	return &AuthorizationFilter{
