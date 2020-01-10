@@ -57,7 +57,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			"zid": "tenantID",
 		},
 	},
-	SupportsAsyncOperations:                false,
 	ResourceBlueprint:                      blueprint(true),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
 	PatchResource:                          test.DefaultResourcePatch,
