@@ -76,7 +76,7 @@ func NewController(options *Options, resourceBaseURL string, objectType types.Ob
 func NewAsyncController(ctx context.Context, options *Options, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object) *BaseController {
 	controller := NewController(options, resourceBaseURL, objectType, objectBlueprint)
 
-	poolSize := operations.MinPoolSize
+	poolSize := options.OperationSettings.DefaultPoolSize
 	for _, pool := range options.OperationSettings.Pools {
 		if pool.Resource == objectType.String() {
 			poolSize = pool.Size

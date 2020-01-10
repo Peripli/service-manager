@@ -259,6 +259,13 @@ var _ = Describe("config", func() {
 			})
 		})
 
+		Context("when operation default pool size is <= 0", func() {
+			It("returns an error", func() {
+				config.Operations.DefaultPoolSize = 0
+				assertErrorDuringValidate()
+			})
+		})
+
 		Context("when operation pool size is 0", func() {
 			It("returns an error", func() {
 				config.Operations.Pools = []operations.PoolSettings{

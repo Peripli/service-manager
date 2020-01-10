@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	MinPoolSize = 10
+	defaultPoolSize = 10
 
 	minTimePeriod     = time.Nanosecond
 	defaultJobTimeout = 5 * time.Minute
@@ -33,6 +33,7 @@ type Settings struct {
 	JobTimeout          time.Duration  `mapstructure:"job_timeout" description:"timeout for async operations"`
 	MarkOrphansInterval time.Duration  `mapstructure:"mark_orphans_interval" description:"interval denoting how often to mark orphan operations as failed"`
 	CleanupInterval     time.Duration  `mapstructure:"cleanup_interval" description:"cleanup interval of old operations"`
+	DefaultPoolSize     int            `mapstructure:"default_pool_size" description:"default worker pool size"`
 	Pools               []PoolSettings `mapstructure:"pools" description:"defines the different available worker pools"`
 }
 
@@ -42,6 +43,7 @@ func DefaultSettings() *Settings {
 		JobTimeout:          defaultJobTimeout,
 		MarkOrphansInterval: defaultJobTimeout,
 		CleanupInterval:     10 * time.Minute,
+		DefaultPoolSize:     defaultPoolSize,
 		Pools:               []PoolSettings{},
 	}
 }
@@ -56,6 +58,9 @@ func (s *Settings) Validate() error {
 	}
 	if s.CleanupInterval <= minTimePeriod {
 		return fmt.Errorf("validate Settings: CleanupInterval must be larger than %s", minTimePeriod)
+	}
+	if s.DefaultPoolSize <= 0 {
+		return fmt.Errorf("validate Settings: DefaultPoolSize must be larger than 0")
 	}
 	for _, pool := range s.Pools {
 		if err := pool.Validate(); err != nil {
