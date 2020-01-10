@@ -3,6 +3,8 @@ package osb
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -10,7 +12,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/tidwall/gjson"
-	"net/http"
 )
 
 const CheckVisibilityPluginName = "CheckVisibilityPlugin"
@@ -77,10 +78,22 @@ func (p *checkVisibilityPlugin) checkVisibility(req *web.Request, next web.Handl
 
 	switch platform.Type {
 	case "cloudfoundry":
+		if len(osbContext) == 0 {
+			log.C(ctx).Errorf("Could not find context in the osb request.")
+			return nil, &util.HTTPError{
+				ErrorType:   "BadRequest",
+				Description: "missing context in request body",
+				StatusCode:  http.StatusBadRequest,
+			}
+		}
 		payloadOrgGUID := gjson.GetBytes(osbContext, "organization_guid").String()
 		if len(payloadOrgGUID) == 0 {
 			log.C(ctx).Errorf("Could not find organization_guid in the context of the osb request.")
-			return nil, fmt.Errorf("organization_guid missing in osb context")
+			return nil, &util.HTTPError{
+				ErrorType:   "BadRequest",
+				Description: "organization_guid missing in osb context",
+				StatusCode:  http.StatusBadRequest,
+			}
 		}
 		for _, v := range visibilities.Visibilities {
 			if v.PlatformID == "" {
