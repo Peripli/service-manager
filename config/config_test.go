@@ -252,6 +252,13 @@ var _ = Describe("config", func() {
 			})
 		})
 
+		Context("when operation mark orphans interval is < 0", func() {
+			It("returns an error", func() {
+				config.Operations.MarkOrphansInterval = -time.Second
+				assertErrorDuringValidate()
+			})
+		})
+
 		Context("when operation pool size is 0", func() {
 			It("returns an error", func() {
 				config.Operations.Pools = []operations.PoolSettings{

@@ -22,23 +22,27 @@ import (
 )
 
 const (
-	MinPoolSize   = 10
-	minTimePeriod = time.Second
+	MinPoolSize = 10
+
+	minTimePeriod     = time.Nanosecond
+	defaultJobTimeout = 5 * time.Minute
 )
 
 // Settings type to be loaded from the environment
 type Settings struct {
-	JobTimeout      time.Duration  `mapstructure:"job_timeout" description:"timeout for async operations"`
-	CleanupInterval time.Duration  `mapstructure:"cleanup_interval" description:"cleanup interval of old operations"`
-	Pools           []PoolSettings `mapstructure:"pools" description:"defines the different available worker pools"`
+	JobTimeout          time.Duration  `mapstructure:"job_timeout" description:"timeout for async operations"`
+	MarkOrphansInterval time.Duration  `mapstructure:"mark_orphans_interval" description:"interval denoting how often to mark orphan operations as failed"`
+	CleanupInterval     time.Duration  `mapstructure:"cleanup_interval" description:"cleanup interval of old operations"`
+	Pools               []PoolSettings `mapstructure:"pools" description:"defines the different available worker pools"`
 }
 
 // DefaultSettings returns default values for API settings
 func DefaultSettings() *Settings {
 	return &Settings{
-		JobTimeout:      5 * time.Minute,
-		CleanupInterval: 10 * time.Minute,
-		Pools:           []PoolSettings{},
+		JobTimeout:          defaultJobTimeout,
+		MarkOrphansInterval: defaultJobTimeout,
+		CleanupInterval:     10 * time.Minute,
+		Pools:               []PoolSettings{},
 	}
 }
 
@@ -46,6 +50,9 @@ func DefaultSettings() *Settings {
 func (s *Settings) Validate() error {
 	if s.JobTimeout <= minTimePeriod {
 		return fmt.Errorf("validate Settings: JobTimeout must be larger than %s", minTimePeriod)
+	}
+	if s.MarkOrphansInterval <= minTimePeriod {
+		return fmt.Errorf("validate Settings: MarkOrphanscInterval must be larger than %s", minTimePeriod)
 	}
 	if s.CleanupInterval <= minTimePeriod {
 		return fmt.Errorf("validate Settings: CleanupInterval must be larger than %s", minTimePeriod)

@@ -125,6 +125,7 @@ func ExpectOperationWithError(auth *common.SMExpect, asyncResp *httpexpect.Respo
 				if expectedState == types.SUCCEEDED {
 					errs.Null()
 				} else {
+					errs.NotNull()
 					errMsg := errs.Object().Value("message").String().Raw()
 
 					if !strings.Contains(errMsg, expectedErrMsg) {

@@ -21,6 +21,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/test"
 	"github.com/Peripli/service-manager/test/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -32,85 +33,124 @@ import (
 
 func TestOperations(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Maintainer Tests Suite")
+	RunSpecs(t, "Operations Tests Suite")
 }
 
-var _ = Describe("Maintainer", func() {
-
-	const (
-		jobTimeout      = 3 * time.Second
-		cleanupInterval = 5 * time.Second
-	)
+var _ = Describe("Operations", func() {
 
 	var ctx *common.TestContext
 
-	BeforeSuite(func() {
-		postHook := func(e env.Environment, servers map[string]common.FakeServer) {
-			e.Set("operations.job_timeout", jobTimeout)
-			e.Set("operations.cleanup_interval", cleanupInterval)
-		}
-
-		ctx = common.NewTestContextBuilder().WithEnvPostExtensions(postHook).Build()
-	})
-
-	AfterSuite(func() {
-		ctx.Cleanup()
-	})
-
-	When("Specified cleanup interval passes", func() {
-		It("Deletes operations older than that interval", func() {
-			resp := ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL+"/non-existent-broker-id").WithQuery("async", true).
-				Expect().
-				Status(http.StatusAccepted)
-
-			locationHeader := resp.Header("Location").Raw()
-			split := strings.Split(locationHeader, "/")
-			operationID := split[len(split)-1]
-
-			byID := query.ByField(query.EqualsOperator, "id", operationID)
-			count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byID)
-			Expect(err).To(BeNil())
-			Expect(count).To(Equal(1))
-
-			Eventually(func() int {
-				count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byID)
-				Expect(err).To(BeNil())
-
-				return count
-			}, cleanupInterval*2).Should(Equal(0))
-		})
-
-	})
-
-	When("Specified job timeout passes", func() {
-		It("Marks orphans as failed operations", func() {
-			operationID := "test-opration-id"
-			operation := &types.Operation{
-				Base: types.Base{
-					ID:        operationID,
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-					Labels:    make(map[string][]string),
-				},
-				Type:          types.CREATE,
-				State:         types.IN_PROGRESS,
-				ResourceID:    "test-resource-id",
-				ResourceType:  web.ServiceBrokersURL,
-				CorrelationID: "test-correlation-id",
+	Context("Scheduler", func() {
+		BeforeEach(func() {
+			postHook := func(e env.Environment, servers map[string]common.FakeServer) {
+				e.Set("operations.job_timeout", 2*time.Nanosecond)
+				e.Set("operations.mark_orphans_interval", 1*time.Hour)
 			}
 
-			object, err := ctx.SMRepository.Create(context.Background(), operation)
-			Expect(err).To(BeNil())
-			Expect(object).To(Not(BeNil()))
+			ctx = common.NewTestContextBuilder().WithEnvPostExtensions(postHook).Build()
+		})
 
-			Eventually(func() types.OperationState {
+		When("job timeout runs out", func() {
+			It("marks operation as failed", func() {
+				brokerServer := common.NewBrokerServer()
+				postBrokerRequestWithNoLabels := common.Object{
+					"name":       "test-broker",
+					"broker_url": brokerServer.URL(),
+					"credentials": common.Object{
+						"basic": common.Object{
+							"username": brokerServer.Username,
+							"password": brokerServer.Password,
+						},
+					},
+				}
+
+				resp := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithNoLabels).
+					WithQuery("async", "true").
+					Expect().
+					Status(http.StatusAccepted)
+				test.ExpectOperationWithError(ctx.SMWithOAuth, resp, types.FAILED, "job timed out")
+			})
+		})
+		AfterEach(func() {
+			ctx.Cleanup()
+		})
+	})
+
+	Context("Maintainer", func() {
+		const (
+			jobTimeout      = 3 * time.Second
+			cleanupInterval = 5 * time.Second
+		)
+
+		BeforeEach(func() {
+			postHook := func(e env.Environment, servers map[string]common.FakeServer) {
+				e.Set("operations.job_timeout", jobTimeout)
+				e.Set("operations.mark_orphans_interval", jobTimeout)
+				e.Set("operations.cleanup_interval", cleanupInterval)
+			}
+
+			ctx = common.NewTestContextBuilder().WithEnvPostExtensions(postHook).Build()
+		})
+
+		AfterEach(func() {
+			ctx.Cleanup()
+		})
+
+		When("Specified cleanup interval passes", func() {
+			It("Deletes operations older than that interval", func() {
+				resp := ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL+"/non-existent-broker-id").WithQuery("async", true).
+					Expect().
+					Status(http.StatusAccepted)
+
+				locationHeader := resp.Header("Location").Raw()
+				split := strings.Split(locationHeader, "/")
+				operationID := split[len(split)-1]
+
 				byID := query.ByField(query.EqualsOperator, "id", operationID)
-				object, err := ctx.SMRepository.Get(context.Background(), types.OperationType, byID)
+				count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byID)
 				Expect(err).To(BeNil())
+				Expect(count).To(Equal(1))
 
-				op := object.(*types.Operation)
-				return op.State
-			}, jobTimeout*2).Should(Equal(types.FAILED))
+				Eventually(func() int {
+					count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byID)
+					Expect(err).To(BeNil())
+
+					return count
+				}, cleanupInterval*2).Should(Equal(0))
+			})
+
+		})
+
+		When("Specified job timeout passes", func() {
+			It("Marks orphans as failed operations", func() {
+				operationID := "test-opration-id"
+				operation := &types.Operation{
+					Base: types.Base{
+						ID:        operationID,
+						CreatedAt: time.Now(),
+						UpdatedAt: time.Now(),
+						Labels:    make(map[string][]string),
+					},
+					Type:          types.CREATE,
+					State:         types.IN_PROGRESS,
+					ResourceID:    "test-resource-id",
+					ResourceType:  web.ServiceBrokersURL,
+					CorrelationID: "test-correlation-id",
+				}
+
+				object, err := ctx.SMRepository.Create(context.Background(), operation)
+				Expect(err).To(BeNil())
+				Expect(object).To(Not(BeNil()))
+
+				Eventually(func() types.OperationState {
+					byID := query.ByField(query.EqualsOperator, "id", operationID)
+					object, err := ctx.SMRepository.Get(context.Background(), types.OperationType, byID)
+					Expect(err).To(BeNil())
+
+					op := object.(*types.Operation)
+					return op.State
+				}, jobTimeout*2).Should(Equal(types.FAILED))
+			})
 		})
 	})
 })
