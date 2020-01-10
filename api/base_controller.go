@@ -37,6 +37,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
+const PathParamResourceID = "resource_id"
 const PathParamID = "id"
 
 // pagingLimitOffset is a constant which is needed to identify if there are more items in the DB.
@@ -79,9 +80,16 @@ func (c *BaseController) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamID),
+				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamResourceID),
 			},
 			Handler: c.GetSingleObject,
+		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodGet,
+				Path:   fmt.Sprintf("%s/{%s}%s/{%s}", c.resourceBaseURL, PathParamResourceID, web.OperationsURL, PathParamID),
+			},
+			Handler: c.GetOperation,
 		},
 		{
 			Endpoint: web.Endpoint{
@@ -100,14 +108,14 @@ func (c *BaseController) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodDelete,
-				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamID),
+				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamResourceID),
 			},
 			Handler: c.DeleteSingleObject,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodPatch,
-				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamID),
+				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamResourceID),
 			},
 			Handler: c.PatchObject,
 		},
@@ -158,7 +166,7 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 
 // DeleteSingleObject handles the deletion of the object with the id specified in the request
 func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, error) {
-	objectID := r.PathParams[PathParamID]
+	objectID := r.PathParams[PathParamResourceID]
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting %s with id %s", c.objectType, objectID)
 
@@ -174,7 +182,7 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 
 // GetSingleObject handles the fetching of a single object with the id specified in the request
 func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) {
-	objectID := r.PathParams[PathParamID]
+	objectID := r.PathParams[PathParamResourceID]
 	ctx := r.Context()
 	log.C(ctx).Debugf("Getting %s with id %s", c.objectType, objectID)
 
@@ -193,6 +201,30 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 	stripCredentials(ctx, object)
 
 	return util.NewJSONResponse(http.StatusOK, object)
+}
+
+// GetOperation handles the fetching of a single operation with the id specified for the specified resource
+func (c *BaseController) GetOperation(r *web.Request) (*web.Response, error) {
+	objectID := r.PathParams[PathParamResourceID]
+	operationID := r.PathParams[PathParamID]
+
+	ctx := r.Context()
+	log.C(ctx).Debugf("Getting operation with id %s for object of type %s with id %s", operationID, c.objectType, objectID)
+
+	byOperationID := query.ByField(query.EqualsOperator, "id", operationID)
+	byObjectID := query.ByField(query.EqualsOperator, "resource_id", objectID)
+	var err error
+	ctx, err = query.AddCriteria(ctx, byObjectID, byOperationID)
+	if err != nil {
+		return nil, err
+	}
+	criteria := query.CriteriaForContext(ctx)
+	operation, err := c.repository.Get(ctx, types.OperationType, criteria...)
+	if err != nil {
+		return nil, util.HandleStorageError(err, c.objectType.String())
+	}
+
+	return util.NewJSONResponse(http.StatusOK, operation)
 }
 
 // ListObjects handles the fetching of all objects
@@ -256,7 +288,7 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 
 // PatchObject handles the update of the object with the id specified in the request
 func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
-	objectID := r.PathParams[PathParamID]
+	objectID := r.PathParams[PathParamResourceID]
 	ctx := r.Context()
 	log.C(ctx).Debugf("Updating %s with id %s", c.objectType, objectID)
 

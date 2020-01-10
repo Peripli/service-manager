@@ -18,9 +18,10 @@ package platform_test
 
 import (
 	"context"
-	"github.com/Peripli/service-manager/test/testutil/service_instance"
 	"net/http"
 	"testing"
+
+	"github.com/Peripli/service-manager/test/testutil/service_instance"
 
 	"github.com/Peripli/service-manager/pkg/query"
 

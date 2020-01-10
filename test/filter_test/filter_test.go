@@ -50,6 +50,7 @@ var _ = Describe("Service Manager Filters", func() {
 		catalog := common.NewEmptySBCatalog()
 		catalog.AddService(service1)
 		brokerID, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
+		common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, brokerID)
 		osbURL = "/v1/osb/" + brokerID
 		order = ""
 	})

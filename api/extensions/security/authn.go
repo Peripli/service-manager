@@ -20,13 +20,13 @@ func Register(ctx context.Context, cfg *config.Settings, smb *sm.ServiceManagerB
 	}
 
 	smb.Security().Path(
-		web.ServiceBrokersURL+"/**",
-		web.PlatformsURL+"/**",
-		web.ServiceOfferingsURL+"/**",
-		web.ServicePlansURL+"/**",
-		web.VisibilitiesURL+"/**",
-		web.ServiceInstancesURL+"/**",
-		web.NotificationsURL+"/**").
+		web.ServiceBrokersURL+"/*",
+		web.PlatformsURL+"/*",
+		web.ServiceOfferingsURL+"/*",
+		web.ServicePlansURL+"/*",
+		web.VisibilitiesURL+"/*",
+		web.ServiceInstancesURL+"/*",
+		web.NotificationsURL+"/*").
 		Method(http.MethodGet).
 		WithAuthentication(basicAuthenticator).Required()
 

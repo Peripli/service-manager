@@ -64,6 +64,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 		},
 	},
 	ResourceType:                           types.ServiceInstanceType,
+	SupportsAsyncOperations:                true,
 	DisableTenantResources:                 true,
 	ResourceBlueprint:                      blueprint,
 	ResourceWithoutNullableFieldsBlueprint: blueprint,

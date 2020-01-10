@@ -19,6 +19,7 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	"github.com/Peripli/service-manager/pkg/util"
 )
@@ -63,6 +64,26 @@ type Operation struct {
 	Errors        json.RawMessage   `json:"errors"`
 	CorrelationID string            `json:"correlation_id"`
 	ExternalID    string            `json:"-"`
+}
+
+func (e *Operation) Equals(obj Object) bool {
+	if !Equals(e, obj) {
+		return false
+	}
+
+	operation := obj.(*Operation)
+	if e.Description != operation.Description ||
+		e.ResourceID != operation.ResourceID ||
+		e.ResourceType != operation.ResourceType ||
+		e.CorrelationID != operation.CorrelationID ||
+		e.ExternalID != operation.ExternalID ||
+		e.State != operation.State ||
+		e.Type != operation.Type ||
+		!reflect.DeepEqual(e.Errors, operation.Errors) {
+		return false
+	}
+
+	return true
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

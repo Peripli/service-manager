@@ -19,6 +19,7 @@ package types
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -37,6 +38,24 @@ type Platform struct {
 	Credentials *Credentials `json:"credentials,omitempty"`
 	Active      bool         `json:"-"`
 	LastActive  time.Time    `json:"-"`
+}
+
+func (e *Platform) Equals(obj Object) bool {
+	if !Equals(e, obj) {
+		return false
+	}
+
+	platform := obj.(*Platform)
+	if e.Description != platform.Description ||
+		e.Type != platform.Type ||
+		e.Name != platform.Name ||
+		e.Active != platform.Active ||
+		!e.LastActive.Equal(platform.LastActive) ||
+		!reflect.DeepEqual(e.Credentials, platform.Credentials) {
+		return false
+	}
+
+	return true
 }
 
 func (e *Platform) SetCredentials(credentials *Credentials) {

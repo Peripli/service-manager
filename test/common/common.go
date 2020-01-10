@@ -238,11 +238,11 @@ func RegisterBrokerInSM(brokerJSON Object, SM *SMExpect, headers map[string]stri
 		WithJSON(brokerJSON).Expect().Status(http.StatusCreated).JSON().Object().Raw()
 }
 
-func RegisterVisibilityForPlanAndPlatform(SM *SMExpect, planID, platformID string) {
-	SM.POST(web.VisibilitiesURL).WithJSON(Object{
+func RegisterVisibilityForPlanAndPlatform(SM *SMExpect, planID, platformID string) string {
+	return SM.POST(web.VisibilitiesURL).WithJSON(Object{
 		"service_plan_id": planID,
 		"platform_id":     platformID,
-	}).Expect().Status(http.StatusCreated)
+	}).Expect().Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
 }
 
 func CreateVisibilitiesForAllBrokerPlans(SM *SMExpect, brokerID string) {

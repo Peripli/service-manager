@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/Peripli/service-manager/pkg/util"
 )
@@ -37,6 +38,24 @@ type ServiceInstance struct {
 	PreviousValues  json.RawMessage `json:"-"`
 	Ready           bool            `json:"ready"`
 	Usable          bool            `json:"usable"`
+}
+
+func (e *ServiceInstance) Equals(obj Object) bool {
+	if !Equals(e, obj) {
+		return false
+	}
+
+	instance := obj.(*ServiceInstance)
+	if e.Name != instance.Name ||
+		e.PlatformID != instance.PlatformID ||
+		e.ServicePlanID != instance.ServicePlanID ||
+		!reflect.DeepEqual(e.PreviousValues, instance.PreviousValues) ||
+		!reflect.DeepEqual(e.Context, instance.Context) ||
+		!reflect.DeepEqual(e.MaintenanceInfo, instance.MaintenanceInfo) {
+		return false
+	}
+
+	return true
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
