@@ -42,6 +42,8 @@ type Job struct {
 func (j *Job) Execute(ctxWithTimeout context.Context, repository storage.Repository) (operationID string, err error) {
 	log.D().Debugf("Starting execution of %s operation with id (%s) for %s entity", j.Operation.Type, j.Operation.ID, j.ObjectType)
 	operationID = j.Operation.ID
+
+	reqCtx := util.StateContext{Context: j.ReqCtx}
 	opCtx := util.StateContext{Context: j.ReqCtx}
 
 	defer func() {
@@ -55,13 +57,13 @@ func (j *Job) Execute(ctxWithTimeout context.Context, repository storage.Reposit
 		}
 	}()
 
-	reqCtx, reqCtxCancel := context.WithCancel(j.ReqCtx)
+	ctx, cancel := context.WithCancel(reqCtx)
 	go func() {
 		<-ctxWithTimeout.Done()
-		reqCtxCancel()
+		cancel()
 	}()
 
-	if _, err = j.OperationFunc(reqCtx, repository); err != nil {
+	if _, err = j.OperationFunc(ctx, repository); err != nil {
 		log.D().Debugf("Failed to execute %s operation with id (%s) for %s entity", j.Operation.Type, operationID, j.ObjectType)
 
 		select {

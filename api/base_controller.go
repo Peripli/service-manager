@@ -182,7 +182,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		}
 
 		operationID, err := c.scheduler.Schedule(operations.Job{
-			ReqCtx:        util.StateContext{Context: ctx},
+			ReqCtx:        ctx,
 			ObjectType:    c.objectType,
 			Operation:     operation,
 			OperationFunc: operationFunc,
@@ -238,7 +238,7 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 		}
 
 		operationID, err := c.scheduler.Schedule(operations.Job{
-			ReqCtx:        util.StateContext{Context: ctx},
+			ReqCtx:        ctx,
 			ObjectType:    c.objectType,
 			Operation:     operation,
 			OperationFunc: operationFunc,
@@ -436,7 +436,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		}
 
 		operationID, err := c.scheduler.Schedule(operations.Job{
-			ReqCtx:        util.StateContext{Context: ctx},
+			ReqCtx:        ctx,
 			ObjectType:    c.objectType,
 			Operation:     operation,
 			OperationFunc: operationFunc,
