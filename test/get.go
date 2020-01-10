@@ -141,7 +141,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase) bool {
 				var testOperation types.Object
 				var testOperationID string
 
-				createTestOperationWithAuth := func(resourceID string, tenantAccess bool) (types.Object, string) {
+				createTestOperation := func(resourceID string, tenantAccess bool) (types.Object, string) {
 					id, err := uuid.NewV4()
 					Expect(err).ToNot(HaveOccurred())
 					labels := make(map[string][]string)
@@ -169,7 +169,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase) bool {
 				Context(fmt.Sprintf("Existing operation for resource of type %s", t.API), func() {
 					Context("when the operation is global", func() {
 						BeforeEach(func() {
-							testOperation, testOperationID = createTestOperationWithAuth(testResourceID, false)
+							testOperation, testOperationID = createTestOperation(testResourceID, false)
 						})
 
 						AfterEach(func() {
@@ -208,7 +208,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase) bool {
 					if !t.DisableTenantResources {
 						Context("when the operation is tenant scoped", func() {
 							BeforeEach(func() {
-								testOperation, testOperationID = createTestOperationWithAuth(testResourceID, true)
+								testOperation, testOperationID = createTestOperation(testResourceID, true)
 							})
 
 							Context("when authenticating with basic auth", func() {
