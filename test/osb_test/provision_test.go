@@ -18,9 +18,10 @@ package osb_test
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/test/common"
-	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -371,6 +372,22 @@ var _ = Describe("Provision", func() {
 					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 					WithJSON(provisionRequestBodyMapWith("plan_id", plan2CatalogID)()).
 					Expect().Status(http.StatusNotFound)
+			})
+
+			It("should return 400 if no context is available", func() {
+				NewPlatformExpect.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID, "context")()).
+					Expect().Status(http.StatusBadRequest)
+			})
+
+			It("should return 400 if organization_id is not in the context", func() {
+				body := provisionRequestBodyMapWith("plan_id", plan1CatalogID)()
+				body["context"] = "{}"
+				NewPlatformExpect.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					WithJSON(body).
+					Expect().Status(http.StatusBadRequest)
 			})
 
 			It("should return 201 if plan is visible in the org", func() {
