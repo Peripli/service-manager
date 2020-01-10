@@ -45,9 +45,9 @@ func (j *Job) Execute(ctxWithTimeout context.Context, repository storage.Reposit
 	opCtx := util.StateContext{Context: j.ReqCtx}
 
 	defer func() {
-		if err := recover(); err != nil {
-			err = errors.New("job panicked while executing")
-			if opErr := updateOperationState(opCtx, repository, operationID, types.FAILED, &OperationError{Message: "Internal Server error"}); opErr != nil {
+		if panicErr := recover(); panicErr != nil {
+			err = fmt.Errorf("job panicked while executing: %s", panicErr)
+			if opErr := updateOperationState(opCtx, repository, operationID, types.FAILED, &OperationError{Message: "job interrupted"}); opErr != nil {
 				log.D().Debugf("Failed to set state of operation with id (%s) to %s", operationID, types.FAILED)
 				err = fmt.Errorf("%s : %s", err, opErr)
 			}
