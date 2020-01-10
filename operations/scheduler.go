@@ -58,8 +58,8 @@ func (ds *DefaultScheduler) Schedule(job Job) (string, error) {
 			return "", util.HandleStorageError(err, job.Operation.GetType().String())
 		}
 
+		ds.wg.Add(1)
 		go func() {
-			ds.wg.Add(1)
 			defer func() {
 				<-ds.workers
 				ds.wg.Done()
