@@ -68,7 +68,7 @@ func (*PlatformAwareVisibilityFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
-				web.Path(web.VisibilitiesURL + "/**"),
+				web.Path(web.VisibilitiesURL + "/*"),
 				web.Methods(http.MethodGet),
 			},
 		},

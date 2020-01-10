@@ -62,7 +62,7 @@ func (vf *ServicesFilterByVisibility) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
-				web.Path(web.ServiceOfferingsURL + "/**"),
+				web.Path(web.ServiceOfferingsURL + "/*"),
 				web.Methods(http.MethodGet),
 			},
 		},

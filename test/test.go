@@ -20,10 +20,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/tidwall/gjson"
-	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/multitenancy"
 
@@ -62,8 +63,11 @@ type TestCase struct {
 	SupportedOps []Op
 	ResourceType types.ObjectType
 
-	MultitenancySettings                   *MultitenancySettings
-	DisableTenantResources                 bool
+	MultitenancySettings *MultitenancySettings
+
+	SupportsAsyncOperations bool
+	DisableTenantResources  bool
+
 	ResourceBlueprint                      func(ctx *common.TestContext, smClient *common.SMExpect) common.Object
 	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext, smClient *common.SMExpect) common.Object
 	PatchResource                          func(ctx *common.TestContext, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange)
