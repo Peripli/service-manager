@@ -43,7 +43,7 @@ func (c *ServiceInstanceController) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   fmt.Sprintf("%s/{%s}", web.ServiceInstancesURL, PathParamID),
+				Path:   fmt.Sprintf("%s/{%s}", web.ServiceInstancesURL, PathParamResourceID),
 			},
 			Handler: c.GetSingleObject,
 		},

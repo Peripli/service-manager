@@ -19,6 +19,7 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	"github.com/Peripli/service-manager/pkg/util"
 )
@@ -34,6 +35,7 @@ type ServiceOffering struct {
 	InstancesRetrievable bool   `json:"instances_retrievable"`
 	BindingsRetrievable  bool   `json:"bindings_retrievable"`
 	PlanUpdatable        bool   `json:"plan_updateable"`
+	AllowContextUpdates  bool   `json:"allow_context_updates"`
 
 	Tags     json.RawMessage `json:"tags,omitempty"`
 	Requires json.RawMessage `json:"requires,omitempty"`
@@ -44,6 +46,30 @@ type ServiceOffering struct {
 	CatalogName string `json:"catalog_name"`
 
 	Plans []*ServicePlan `json:"plans"`
+}
+
+func (e *ServiceOffering) Equals(obj Object) bool {
+	if !Equals(e, obj) {
+		return false
+	}
+
+	offering := obj.(*ServiceOffering)
+	if e.Name != offering.Name ||
+		e.PlanUpdatable != offering.PlanUpdatable ||
+		e.Bindable != offering.Bindable ||
+		e.BindingsRetrievable != offering.BindingsRetrievable ||
+		e.BrokerID != offering.BrokerID ||
+		e.CatalogID != offering.CatalogID ||
+		e.CatalogName != offering.CatalogName ||
+		e.Description != offering.Description ||
+		e.InstancesRetrievable != offering.InstancesRetrievable ||
+		!reflect.DeepEqual(e.Tags, offering.Tags) ||
+		!reflect.DeepEqual(e.Requires, offering.Requires) ||
+		!reflect.DeepEqual(e.Metadata, offering.Metadata) {
+		return false
+	}
+
+	return true
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 )
 
@@ -34,10 +35,10 @@ type ServiceBroker struct {
 	Name        string       `json:"name"`
 	Description string       `json:"description"`
 	BrokerURL   string       `json:"broker_url"`
-	Credentials *Credentials `json:"credentials,omitempty" structs:"-"`
+	Credentials *Credentials `json:"credentials,omitempty"`
 
-	Catalog  json.RawMessage    `json:"-" structs:"-"`
-	Services []*ServiceOffering `json:"-" structs:"-"`
+	Catalog  json.RawMessage    `json:"-"`
+	Services []*ServiceOffering `json:"-"`
 }
 
 func (e *ServiceBroker) SetCredentials(credentials *Credentials) {
@@ -68,4 +69,21 @@ func (e *ServiceBroker) Validate() error {
 		return errors.New("missing credentials")
 	}
 	return e.Credentials.Validate()
+}
+
+func (e *ServiceBroker) Equals(obj Object) bool {
+	if !Equals(e, obj) {
+		return false
+	}
+
+	broker := obj.(*ServiceBroker)
+	if e.Name != broker.Name ||
+		e.BrokerURL != broker.BrokerURL ||
+		e.Description != broker.Description ||
+		!reflect.DeepEqual(e.Catalog, broker.Catalog) ||
+		!reflect.DeepEqual(e.Credentials, broker.Credentials) {
+		return false
+	}
+
+	return true
 }

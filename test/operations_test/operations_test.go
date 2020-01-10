@@ -93,7 +93,6 @@ var _ = Describe("Operations", func() {
 
 				requestCount := 100
 				resultChan := make(chan struct{}, requestCount)
-				defer close(resultChan)
 				executeReq := func() {
 					resp := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithNoLabels).
 						WithQuery("async", "true").Expect()

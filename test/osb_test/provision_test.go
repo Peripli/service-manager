@@ -20,6 +20,9 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/test/common"
+
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/gavv/httpexpect"
@@ -57,6 +60,10 @@ var _ = Describe("Provision", func() {
 		Entry("when plan_id is missing",
 			provisionRequestBodyMap("plan_id"),
 			http.StatusBadRequest,
+			http.StatusNotFound),
+		Entry("when plan is not visible",
+			provisionRequestBodyMapWith("plan_id", plan3CatalogID),
+			http.StatusNotFound,
 			http.StatusNotFound),
 	)
 
@@ -311,11 +318,104 @@ var _ = Describe("Provision", func() {
 	Context("when broker is stopped", func() {
 		It("should fail with 502", func() {
 			assertUnresponsiveBrokerError(ctx.SMWithBasic.PUT(smUrlToStoppedBroker+"/v2/service_instances/"+SID).WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-				WithJSON(provisionRequestBodyMap()()).Expect())
+				WithJSON(common.JSONToMap(buildRequestBody(service0CatalogID, plan0CatalogID))).Expect())
 
 			ctx.SMWithOAuth.List(web.ServiceInstancesURL).Path("$[*].id").Array().NotContains(SID)
 
 			verifyOperationDoesNotExist(SID)
+		})
+	})
+
+	Context("provision instance of plan", func() {
+		var platform *types.Platform
+		var platformJSON common.Object
+		var NewPlatformExpect *httpexpect.Expect
+
+		JustBeforeEach(func() {
+			brokerServer.ServiceInstanceHandler = parameterizedHandler(http.StatusCreated, `{}`)
+			platform = common.RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
+			NewPlatformExpect = ctx.SM.Builder(func(req *httpexpect.Request) {
+				username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
+				req.WithBasicAuth(username, password)
+			})
+
+			plan1ID := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("catalog_id eq '%s'", plan1CatalogID)).
+				First().Object().Value("id").String().Raw()
+
+			visibilityID := common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, plan1ID, platform.ID)
+			patchLabelsBody := make(map[string]interface{})
+			patchLabels := []query.LabelChange{{
+				Operation: query.AddLabelOperation,
+				Key:       "organization_guid",
+				Values:    []string{organizationGUID},
+			}}
+			patchLabelsBody["labels"] = patchLabels
+
+			ctx.SMWithOAuth.PATCH(web.VisibilitiesURL + "/" + visibilityID).
+				WithJSON(patchLabelsBody).
+				Expect().
+				Status(http.StatusOK)
+		})
+
+		AfterEach(func() {
+			ctx.SMWithOAuth.DELETE(web.VisibilitiesURL + "?fieldQuery=" + fmt.Sprintf("platform_id eq '%s'", platform.ID))
+			ctx.SMWithOAuth.DELETE(web.PlatformsURL + "/" + platform.ID).Expect().Status(http.StatusOK)
+		})
+
+		Context("in CF platform", func() {
+			BeforeEach(func() {
+				platformJSON = common.MakePlatform("cf-platform", "cf-platform", "cloudfoundry", "test-platform-cf")
+			})
+
+			It("should return 404 if plan is not visible in the org", func() {
+				NewPlatformExpect.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					WithJSON(provisionRequestBodyMapWith("plan_id", plan2CatalogID)()).
+					Expect().Status(http.StatusNotFound)
+			})
+
+			It("should return 400 if no context is available", func() {
+				NewPlatformExpect.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID, "context")()).
+					Expect().Status(http.StatusBadRequest)
+			})
+
+			It("should return 400 if organization_id is not in the context", func() {
+				body := provisionRequestBodyMapWith("plan_id", plan1CatalogID)()
+				body["context"] = "{}"
+				NewPlatformExpect.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					WithJSON(body).
+					Expect().Status(http.StatusBadRequest)
+			})
+
+			It("should return 201 if plan is visible in the org", func() {
+				NewPlatformExpect.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID)()).
+					Expect().Status(http.StatusCreated)
+			})
+		})
+
+		Context("in K8S platform", func() {
+			BeforeEach(func() {
+				platformJSON = common.MakePlatform("k8s-platform", "k8s-platform", "kubernetes", "test-platform-k8s")
+			})
+
+			It("should return 404 if plan is not visible in the platform", func() {
+				NewPlatformExpect.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					WithJSON(provisionRequestBodyMapWith("plan_id", plan2CatalogID)()).
+					Expect().Status(http.StatusNotFound)
+			})
+
+			It("should return 201 if plan is visible in the platform", func() {
+				NewPlatformExpect.PUT(smBrokerURL+"/v2/service_instances/"+SID).
+					WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+					WithJSON(provisionRequestBodyMapWith("plan_id", plan1CatalogID)()).
+					Expect().Status(http.StatusCreated)
+			})
 		})
 	})
 })
