@@ -22,8 +22,6 @@ import (
 )
 
 const (
-	defaultPoolSize = 10
-
 	minTimePeriod     = time.Nanosecond
 	defaultJobTimeout = 5 * time.Minute
 )
@@ -43,7 +41,7 @@ func DefaultSettings() *Settings {
 		JobTimeout:          defaultJobTimeout,
 		MarkOrphansInterval: defaultJobTimeout,
 		CleanupInterval:     10 * time.Minute,
-		DefaultPoolSize:     defaultPoolSize,
+		DefaultPoolSize:     20,
 		Pools:               []PoolSettings{},
 	}
 }
