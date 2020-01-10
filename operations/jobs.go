@@ -45,18 +45,18 @@ func (j *Job) Execute(ctxWithTimeout context.Context, repository storage.Reposit
 	opCtx := util.StateContext{Context: j.ReqCtx}
 	reqCtx, reqCtxCancel := context.WithCancel(j.ReqCtx)
 
-	timedOut := false
 	go func() {
 		<-ctxWithTimeout.Done()
 		reqCtxCancel()
-		timedOut = true
 	}()
 
 	if _, err = j.OperationFunc(reqCtx, repository); err != nil {
 		log.D().Debugf("Failed to execute %s operation with id (%s) for %s entity", j.Operation.Type, j.Operation.ID, j.ObjectType)
 
-		if timedOut {
+		select {
+		case <-ctxWithTimeout.Done():
 			err = errors.New("job timed out")
+		default:
 		}
 
 		if opErr := updateOperationState(opCtx, repository, j.Operation.ID, types.FAILED, &OperationError{Message: err.Error()}); opErr != nil {

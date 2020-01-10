@@ -18,9 +18,10 @@ package platform_test
 
 import (
 	"context"
-	"github.com/Peripli/service-manager/test/testutil/service_instance"
 	"net/http"
 	"testing"
+
+	"github.com/Peripli/service-manager/test/testutil/service_instance"
 
 	"github.com/Peripli/service-manager/pkg/query"
 
@@ -42,8 +43,7 @@ func TestPlatforms(t *testing.T) {
 }
 
 var _ = test.DescribeTestsFor(test.TestCase{
-	API:           web.PlatformsURL,
-	SupportsAsync: false,
+	API: web.PlatformsURL,
 	SupportedOps: []test.Op{
 		test.Get, test.List, test.Delete, test.DeleteList, test.Patch,
 	},
@@ -57,6 +57,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			"zid": "tenantID",
 		},
 	},
+	SupportsAsyncOperations:                false,
 	ResourceBlueprint:                      blueprint(true),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
 	PatchResource:                          test.DefaultResourcePatch,
@@ -172,6 +173,20 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Expect().Status(http.StatusBadRequest).JSON().Object()
 
 						reply.Value("description").Equal("platform/1 contains invalid character(s)")
+					})
+				})
+
+				Context("With async query param", func() {
+					It("fails", func() {
+						platform := common.MakePlatform("", "cf-10", "cf", "descr")
+						delete(platform, "id")
+
+						reply := ctx.SMWithOAuth.POST(web.PlatformsURL).
+							WithQuery("async", "true").
+							WithJSON(platform).
+							Expect().Status(http.StatusBadRequest).JSON().Object()
+
+						reply.Value("description").String().Contains("api doesn't support asynchronous operations")
 					})
 				})
 

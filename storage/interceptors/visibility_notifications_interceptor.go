@@ -6,8 +6,6 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/query"
 
-	"github.com/Peripli/service-manager/pkg/util"
-
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 )
@@ -17,38 +15,120 @@ func NewVisibilityNotificationsInterceptor() *NotificationsInterceptor {
 		PlatformIdProviderFunc: func(ctx context.Context, obj types.Object) string {
 			return obj.(*types.Visibility).PlatformID
 		},
-		AdditionalDetailsFunc: func(ctx context.Context, obj types.Object, repository storage.Repository) (util.InputValidator, error) {
-			visibility := obj.(*types.Visibility)
+		AdditionalDetailsFunc: func(ctx context.Context, objects types.ObjectList, repository storage.Repository) (objectDetails, error) {
+			var visibilities []*types.Visibility
+			switch t := objects.(type) {
+			case *types.Visibilities:
+				visibilities = t.Visibilities
+			default:
+				visibilities = make([]*types.Visibility, objects.Len())
+				for i := 0; i < objects.Len(); i++ {
+					visibilities[i] = objects.ItemAt(i).(*types.Visibility)
+				}
+			}
+			if len(visibilities) == 0 {
+				return objectDetails{}, nil
+			}
 
-			byPlanID := query.ByField(query.EqualsOperator, "id", visibility.ServicePlanID)
-			plan, err := repository.Get(ctx, types.ServicePlanType, byPlanID)
+			plans, err := fetchVisibilityPlans(ctx, repository, visibilities)
 			if err != nil {
 				return nil, err
 			}
-			servicePlan := plan.(*types.ServicePlan)
-
-			byServiceID := query.ByField(query.EqualsOperator, "id", servicePlan.ServiceOfferingID)
-			service, err := repository.Get(ctx, types.ServiceOfferingType, byServiceID)
+			offerings, err := fetchPlanOfferings(ctx, repository, plans)
 			if err != nil {
 				return nil, err
 			}
-			serviceOffering := service.(*types.ServiceOffering)
-
-			byBrokerID := query.ByField(query.EqualsOperator, "id", serviceOffering.BrokerID)
-			broker, err := repository.Get(ctx, types.ServiceBrokerType, byBrokerID)
+			brokers, err := fetchOfferingBrokers(ctx, repository, offerings)
 			if err != nil {
 				return nil, err
 			}
 
-			serviceBroker := broker.(*types.ServiceBroker)
-
-			return &VisibilityAdditional{
-				BrokerID:    serviceBroker.ID,
-				BrokerName:  serviceBroker.Name,
-				ServicePlan: plan.(*types.ServicePlan),
-			}, nil
+			details := make(objectDetails, len(visibilities))
+			for _, vis := range visibilities {
+				plan := plans[vis.ServicePlanID]
+				offering := offerings[plan.ServiceOfferingID]
+				broker := brokers[offering.BrokerID]
+				details[vis.ID] = &VisibilityAdditional{
+					BrokerID:    broker.ID,
+					BrokerName:  broker.Name,
+					ServicePlan: plan,
+				}
+			}
+			return details, nil
 		},
 	}
+}
+
+func fetchVisibilityPlans(ctx context.Context, repository storage.Repository, visibilities []*types.Visibility) (map[string]*types.ServicePlan, error) {
+	planSet := make(map[string]bool, len(visibilities))
+	for _, vis := range visibilities {
+		planSet[vis.ServicePlanID] = true
+	}
+	planIDs := make([]string, len(planSet))
+	i := 0
+	for id := range planSet {
+		planIDs[i] = id
+		i++
+	}
+	list, err := repository.List(ctx, types.ServicePlanType,
+		query.ByField(query.InOperator, "id", planIDs...))
+	if err != nil {
+		return nil, err
+	}
+	plans := list.(*types.ServicePlans).ServicePlans
+	planMap := make(map[string]*types.ServicePlan, len(plans))
+	for _, plan := range plans {
+		planMap[plan.ID] = plan
+	}
+	return planMap, nil
+}
+
+func fetchPlanOfferings(ctx context.Context, repository storage.Repository, plans map[string]*types.ServicePlan) (map[string]*types.ServiceOffering, error) {
+	offeringSet := make(map[string]bool, len(plans))
+	for _, plan := range plans {
+		offeringSet[plan.ServiceOfferingID] = true
+	}
+	offeringIDs := make([]string, len(offeringSet))
+	i := 0
+	for id := range offeringSet {
+		offeringIDs[i] = id
+		i++
+	}
+	list, err := repository.List(ctx, types.ServiceOfferingType,
+		query.ByField(query.InOperator, "id", offeringIDs...))
+	if err != nil {
+		return nil, err
+	}
+	offerings := list.(*types.ServiceOfferings).ServiceOfferings
+	offeringMap := make(map[string]*types.ServiceOffering, len(offerings))
+	for _, offering := range offerings {
+		offeringMap[offering.ID] = offering
+	}
+	return offeringMap, nil
+}
+
+func fetchOfferingBrokers(ctx context.Context, repository storage.Repository, offerings map[string]*types.ServiceOffering) (map[string]*types.ServiceBroker, error) {
+	brokerSet := make(map[string]bool, len(offerings))
+	for _, offering := range offerings {
+		brokerSet[offering.BrokerID] = true
+	}
+	brokerIDs := make([]string, len(brokerSet))
+	i := 0
+	for id := range brokerSet {
+		brokerIDs[i] = id
+		i++
+	}
+	list, err := repository.List(ctx, types.ServiceBrokerType,
+		query.ByField(query.InOperator, "id", brokerIDs...))
+	if err != nil {
+		return nil, err
+	}
+	brokers := list.(*types.ServiceBrokers).ServiceBrokers
+	brokerMap := make(map[string]*types.ServiceBroker, len(brokers))
+	for _, broker := range brokers {
+		brokerMap[broker.ID] = broker
+	}
+	return brokerMap, nil
 }
 
 type VisibilityAdditional struct {

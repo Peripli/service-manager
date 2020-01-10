@@ -351,7 +351,7 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 		return nil, err
 	}
 
-	if response.StatusCode != http.StatusOK {
+	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusGone {
 		return response, nil
 	}
 
@@ -382,6 +382,13 @@ func (ssi *StoreServiceInstancePlugin) PollInstance(request *web.Request, next w
 		}
 
 		operationFromDB := op.(*types.Operation)
+		if response.StatusCode == http.StatusGone {
+			if operationFromDB.Type != types.DELETE {
+				return nil
+			}
+			resp.State = types.SUCCEEDED
+		}
+
 		if operationFromDB.State != resp.State {
 			switch operationFromDB.Type {
 			case types.CREATE:
@@ -658,18 +665,10 @@ func findServicePlanIDByCatalogIDs(ctx context.Context, storage storage.Reposito
 }
 
 func parseRequestForm(request *web.Request, body commonOSBRequest) error {
-	user, ok := web.UserFromContext(request.Context())
-	if !ok {
-		return fmt.Errorf("user details not found in request context")
-	}
-	platform := &types.Platform{}
-	if err := user.Data(platform); err != nil {
+	platform, err := extractPlatformFromContext(request.Context())
+	if err != nil {
 		return err
 	}
-	if err := platform.Validate(); err != nil {
-		return fmt.Errorf("invalid platform found in user context: %s", err)
-	}
-
 	brokerID, ok := request.PathParams[BrokerIDPathParam]
 	if !ok {
 		return fmt.Errorf("path parameter missing: %s", BrokerIDPathParam)
@@ -684,7 +683,21 @@ func parseRequestForm(request *web.Request, body commonOSBRequest) error {
 	body.SetTimestamp(time.Now().UTC())
 
 	return nil
+}
 
+func extractPlatformFromContext(ctx context.Context) (*types.Platform, error) {
+	user, ok := web.UserFromContext(ctx)
+	if !ok {
+		return nil, fmt.Errorf("user details not found in request context")
+	}
+	platform := &types.Platform{}
+	if err := user.Data(platform); err != nil {
+		return nil, err
+	}
+	if err := platform.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid platform found in user context: %s", err)
+	}
+	return platform, nil
 }
 
 func decodeRequestBody(request *web.Request, body commonOSBRequest) error {

@@ -19,7 +19,6 @@ package util
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -141,14 +140,15 @@ type EmptyResponseBody struct{}
 
 // NewJSONResponse turns plain object into a byte array representing JSON value and wraps it in web.Response
 func NewJSONResponse(code int, value interface{}) (*web.Response, error) {
-	return NewJSONResponseWithOperation(code, value, "")
+	return NewJSONResponseWithHeaders(code, value, nil)
 }
 
-func NewJSONResponseWithOperation(code int, value interface{}, operationID string) (*web.Response, error) {
+func NewJSONResponseWithHeaders(code int, value interface{}, additionalHeaders map[string]string) (*web.Response, error) {
 	headers := http.Header{}
 	headers.Add("Content-Type", "application/json")
-	if operationID != "" {
-		headers.Add("Location", fmt.Sprintf("%s/%s", web.OperationsURL, operationID))
+
+	for header, value := range additionalHeaders {
+		headers.Add(header, value)
 	}
 
 	body := make([]byte, 0)

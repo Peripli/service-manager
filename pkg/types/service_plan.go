@@ -19,6 +19,7 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	"github.com/Peripli/service-manager/pkg/util"
 )
@@ -36,10 +37,34 @@ type ServicePlan struct {
 	Bindable      bool   `json:"bindable"`
 	PlanUpdatable bool   `json:"plan_updateable"`
 
-	Metadata json.RawMessage `json:"metadata,omitempty"`
-	Schemas  json.RawMessage `json:"schemas,omitempty"`
+	Metadata               json.RawMessage `json:"metadata,omitempty"`
+	Schemas                json.RawMessage `json:"schemas,omitempty"`
+	MaximumPollingDuration int             `json:"maximum_polling_duration,omitempty"`
+	MaintenanceInfo        json.RawMessage `json:"maintenance_info,omitempty"`
 
 	ServiceOfferingID string `json:"service_offering_id"`
+}
+
+func (e *ServicePlan) Equals(obj Object) bool {
+	if !Equals(e, obj) {
+		return false
+	}
+
+	plan := obj.(*ServicePlan)
+	if e.Name != plan.Name ||
+		e.PlanUpdatable != plan.PlanUpdatable ||
+		e.Bindable != plan.Bindable ||
+		e.ServiceOfferingID != plan.ServiceOfferingID ||
+		e.Free != plan.Free ||
+		e.CatalogID != plan.CatalogID ||
+		e.CatalogName != plan.CatalogName ||
+		e.Description != plan.Description ||
+		!reflect.DeepEqual(e.Schemas, plan.Schemas) ||
+		!reflect.DeepEqual(e.Metadata, plan.Metadata) {
+		return false
+	}
+
+	return true
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

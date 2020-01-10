@@ -48,8 +48,7 @@ const (
 )
 
 var _ = test.DescribeTestsFor(test.TestCase{
-	API:           web.ServiceInstancesURL,
-	SupportsAsync: false,
+	API: web.ServiceInstancesURL,
 	SupportedOps: []test.Op{
 		test.Get, test.List,
 	},
@@ -64,6 +63,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 		},
 	},
 	ResourceType:                           types.ServiceInstanceType,
+	SupportsAsyncOperations:                true,
 	DisableTenantResources:                 true,
 	ResourceBlueprint:                      blueprint,
 	ResourceWithoutNullableFieldsBlueprint: blueprint,

@@ -39,6 +39,6 @@ const (
 	// LoggingConfigURL is the Logging Configuration API URL path
 	LoggingConfigURL = ConfigURL + "/logging"
 
-	// OperationsURL is the Operations API URL path
-	OperationsURL = "/" + apiVersion + "/operations"
+	// OperationsURL is the URL path fetch operations
+	OperationsURL = "/operations"
 )

@@ -29,19 +29,21 @@ import (
 // OperationMaintainer ensures that operations old enough are deleted
 // and that no stuck (orphan) operations are left in the DB due to crashes/restarts of SM
 type OperationMaintainer struct {
-	smCtx           context.Context
-	repository      storage.Repository
-	jobTimeout      time.Duration
-	cleanupInterval time.Duration
+	smCtx               context.Context
+	repository          storage.Repository
+	jobTimeout          time.Duration
+	markOrphansInterval time.Duration
+	cleanupInterval     time.Duration
 }
 
 // NewOperationMaintainer constructs an OperationMaintainer
 func NewOperationMaintainer(smCtx context.Context, repository storage.Repository, options *Settings) *OperationMaintainer {
 	return &OperationMaintainer{
-		smCtx:           smCtx,
-		repository:      repository,
-		jobTimeout:      options.JobTimeout,
-		cleanupInterval: options.CleanupInterval,
+		smCtx:               smCtx,
+		repository:          repository,
+		jobTimeout:          options.JobTimeout,
+		markOrphansInterval: options.MarkOrphansInterval,
+		cleanupInterval:     options.CleanupInterval,
 	}
 }
 
@@ -70,7 +72,7 @@ func (om *OperationMaintainer) processOldOperations() {
 
 // processStuckOperations periodically checks for operations which are stuck in state IN_PROGRESS and updates their status to FAILED
 func (om *OperationMaintainer) processStuckOperations() {
-	ticker := time.NewTicker(om.jobTimeout)
+	ticker := time.NewTicker(om.markOrphansInterval)
 	defer ticker.Stop()
 	for {
 		select {

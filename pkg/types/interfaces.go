@@ -42,6 +42,7 @@ type Secured interface {
 type Object interface {
 	util.InputValidator
 
+	Equals(object Object) bool
 	SetID(id string)
 	GetID() string
 	GetType() ObjectType
@@ -52,6 +53,15 @@ type Object interface {
 	SetUpdatedAt(time time.Time)
 	GetUpdatedAt() time.Time
 	GetPagingSequence() int64
+}
+
+func Equals(obj, other Object) bool {
+	if obj.GetID() != other.GetID() ||
+		obj.GetType() != other.GetType() ||
+		!obj.GetCreatedAt().Equal(other.GetCreatedAt()) {
+		return false
+	}
+	return true
 }
 
 // ObjectList is the interface that lists of objects must implement
@@ -67,4 +77,25 @@ type ObjectPage struct {
 	Token      string   `json:"token,omitempty"`
 	ItemsCount int      `json:"num_items"`
 	Items      []Object `json:"items"`
+}
+
+// ObjectArray is an ObjectList backed by a slice of Object's
+type ObjectArray struct {
+	Objects []Object
+}
+
+func NewObjectArray(objects ...Object) *ObjectArray {
+	return &ObjectArray{objects}
+}
+
+func (a *ObjectArray) Add(object Object) {
+	a.Objects = append(a.Objects, object)
+}
+
+func (a *ObjectArray) ItemAt(index int) Object {
+	return a.Objects[index]
+}
+
+func (a *ObjectArray) Len() int {
+	return len(a.Objects)
 }

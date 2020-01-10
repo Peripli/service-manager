@@ -20,6 +20,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/Peripli/service-manager/pkg/multitenancy"
+	"github.com/Peripli/service-manager/pkg/sm"
+	"github.com/tidwall/gjson"
 	"net/http"
 	"strings"
 	"testing"
@@ -45,9 +49,15 @@ func TestOSB(t *testing.T) {
 }
 
 const (
+	TenantIdentifier            = "tenant"
+	TenantValue                 = "tenant_value"
+	plan0CatalogID              = "plan0CatalogID"
 	plan1CatalogID              = "plan1CatalogID"
 	plan2CatalogID              = "plan2CatalogID"
+	plan3CatalogID              = "plan3CatalogID"
+	service0CatalogID           = "service0CatalogID"
 	service1CatalogID           = "service1CatalogID"
+	organizationGUID            = "1113aa0-124e-4af2-1526-6bfacf61b111"
 	SID                         = "12345"
 	timeoutDuration             = time.Millisecond * 500
 	additionalDelayAfterTimeout = time.Second
@@ -80,6 +90,26 @@ var (
 var _ = BeforeSuite(func() {
 	ctx = common.NewTestContextBuilder().WithEnvPreExtensions(func(set *pflag.FlagSet) {
 		Expect(set.Set("httpclient.response_header_timeout", timeoutDuration.String())).ToNot(HaveOccurred())
+	}).WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+		smb.EnableMultitenancy(TenantIdentifier, func(request *web.Request) (string, error) {
+			extractTenantFromToken := multitenancy.ExtractTenantFromTokenWrapperFunc("zid")
+			user, ok := web.UserFromContext(request.Context())
+			if !ok {
+				return "", nil
+			}
+			var userData json.RawMessage
+			if err := user.Data(&userData); err != nil {
+				return "", fmt.Errorf("could not unmarshal claims from token: %s", err)
+			}
+			clientIDFromToken := gjson.GetBytes([]byte(userData), "cid").String()
+			if "tenancyClient" != clientIDFromToken {
+				return "", nil
+			}
+			user.AccessLevel = web.TenantAccess
+			request.Request = request.WithContext(web.ContextWithUser(request.Context(), user))
+			return extractTenantFromToken(request)
+		})
+		return nil
 	}).Build()
 
 	emptyCatalogBrokerID, _, brokerServerWithEmptyCatalog = ctx.RegisterBrokerWithCatalog(common.NewEmptySBCatalog())
@@ -89,19 +119,30 @@ var _ = BeforeSuite(func() {
 	smUrlToSimpleBrokerCatalogBroker = brokerServerWithSimpleCatalog.URL() + "/v1/osb/" + simpleBrokerCatalogID
 	common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, simpleBrokerCatalogID)
 
-	stoppedBrokerID, _, stoppedBrokerServer = ctx.RegisterBroker()
+	plan0 := common.GenerateTestPlanWithID(plan0CatalogID)
+	service0 := common.GenerateTestServiceWithPlansWithID(service0CatalogID, plan0)
+	catalog := common.NewEmptySBCatalog()
+	catalog.AddService(service0)
+
+	stoppedBrokerID, _, stoppedBrokerServer = ctx.RegisterBrokerWithCatalog(catalog)
+	common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, stoppedBrokerID)
 	stoppedBrokerServer.Close()
 	smUrlToStoppedBroker = stoppedBrokerServer.URL() + "/v1/osb/" + stoppedBrokerID
 
 	plan1 := common.GenerateTestPlanWithID(plan1CatalogID)
 	plan2 := common.GenerateTestPlanWithID(plan2CatalogID)
+	plan3 := common.GenerateTestPlanWithID(plan3CatalogID)
 
-	service1 := common.GenerateTestServiceWithPlansWithID(service1CatalogID, plan1, plan2)
-	catalog := common.NewEmptySBCatalog()
+	service1 := common.GenerateTestServiceWithPlansWithID(service1CatalogID, plan1, plan2, plan3)
+	catalog = common.NewEmptySBCatalog()
 	catalog.AddService(service1)
 
 	var brokerObject common.Object
 	brokerID, brokerObject, brokerServer = ctx.RegisterBrokerWithCatalog(catalog)
+	plans := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("catalog_id in ('%s','%s')", plan1CatalogID, plan2CatalogID)).Iter()
+	for _, p := range plans {
+		common.RegisterVisibilityForPlanAndPlatform(ctx.SMWithOAuth, p.Object().Value("id").String().Raw(), ctx.TestPlatform.ID)
+	}
 	smBrokerURL = brokerServer.URL() + "/v1/osb/" + brokerID
 	brokerName = brokerObject["name"].(string)
 })
@@ -112,7 +153,7 @@ var _ = BeforeEach(func() {
 	provisionRequestBody = buildRequestBody(service1CatalogID, plan1CatalogID)
 })
 
-var _ = AfterEach(func() {
+var _ = JustAfterEach(func() {
 	common.RemoveAllOperations(ctx.SMRepository)
 	common.RemoveAllInstances(ctx.SMRepository)
 })
@@ -123,7 +164,7 @@ var _ = AfterSuite(func() {
 
 func assertMissingBrokerError(req *httpexpect.Response) {
 	req.Status(http.StatusNotFound).JSON().Object().
-		Value("description").String().Contains("could not find such broker")
+		Value("description").String().Contains("could not find") // broker or offering
 }
 
 func assertUnresponsiveBrokerError(req *httpexpect.Response) {
@@ -209,16 +250,17 @@ func buildRequestBody(serviceID, planID string) string {
 		},
 		"context": {
 			"platform": "cloudfoundry",
-			"organization_guid": "1113aa0-124e-4af2-1526-6bfacf61b111",
+			"organization_guid": "%s",
 			"organization_name": "system",
 			"space_guid": "aaaa1234-da91-4f12-8ffa-b51d0336aaaa",
 			"space_name": "development",
-			"instance_name": "my-db"
+			"instance_name": "my-db",
+			"%s":"%s"
 		},
 		"maintenance_info": {
 			"version": "old"
 		}
-}`, serviceID, planID)
+}`, serviceID, planID, organizationGUID, TenantIdentifier, TenantValue)
 	return result
 }
 func provisionRequestBodyMapWith(key, value string, idsToRemove ...string) func() map[string]interface{} {
@@ -266,11 +308,12 @@ func updateRequestBody(serviceID, oldPlanID, newPlanID string) string {
 		},
 		"context": {
 			"platform": "cloudfoundry",
-			"organization_guid": "1113aa0-124e-4af2-1526-6bfacf61b111",
+			"organization_guid": "%s",
 			"organization_name": "system",
 			"space_guid": "aaaa1234-da91-4f12-8ffa-b51d0336aaaa",
 			"space_name": "development",
-			"instance_name": "my-db"
+			"instance_name": "my-db",
+			"%s":"%s"
 		},
 		"maintenance_info": {
 			"version": "new"
@@ -284,7 +327,7 @@ func updateRequestBody(serviceID, oldPlanID, newPlanID string) string {
 				"version": "old"
 			}
 		}
-}`, serviceID, newPlanID, serviceID, oldPlanID)
+}`, serviceID, newPlanID, organizationGUID, TenantIdentifier, TenantValue, serviceID, oldPlanID)
 	return body
 }
 

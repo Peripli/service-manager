@@ -15,15 +15,46 @@
  */
 package broker_test
 
-/*
+import (
+	"context"
+	"fmt"
+	"github.com/gofrs/uuid"
+	"net/http"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/Peripli/service-manager/test/testutil/service_instance"
+
+	"github.com/Peripli/service-manager/pkg/httpclient"
+	"github.com/Peripli/service-manager/pkg/web"
+
+	"github.com/Peripli/service-manager/storage"
+
+	"github.com/Peripli/service-manager/pkg/types"
+
+	"github.com/Peripli/service-manager/pkg/query"
+
+	"github.com/Peripli/service-manager/test"
+	"github.com/gavv/httpexpect"
+
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
+
+	"github.com/Peripli/service-manager/test/common"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+	"github.com/spf13/cast"
+)
+
 func TestBrokers(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "ServiceBroker API Tests Suite")
 }
 
 var _ = test.DescribeTestsFor(test.TestCase{
-	API:           web.ServiceBrokersURL,
-	SupportsAsync: true,
+	API: web.ServiceBrokersURL,
 	SupportedOps: []test.Op{
 		test.Get, test.List, test.Delete, test.DeleteList, test.Patch,
 	},
@@ -37,6 +68,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			"zid": "tenantID",
 		},
 	},
+	SupportsAsyncOperations:                true,
 	ResourceBlueprint:                      blueprint(true),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
 	PatchResource:                          test.DefaultResourcePatch,
@@ -1661,28 +1693,41 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			})
 
 			Describe("DELETE", func() {
-				var (
-					brokerID string
-				)
-
-				BeforeEach(func() {
-					var serviceInstance *types.ServiceInstance
-
-					brokerID, serviceInstance = service_instance.Prepare(ctx, ctx.TestPlatform.ID, "", "{}")
-					ctx.SMRepository.Create(context.Background(), serviceInstance)
-				})
 
 				AfterEach(func() {
 					ctx.CleanupAdditionalResources()
 				})
 
 				Context("with existing service instances to some broker plan", func() {
+					var (
+						brokerID string
+					)
+
+					BeforeEach(func() {
+						var serviceInstance *types.ServiceInstance
+
+						brokerID, serviceInstance = service_instance.Prepare(ctx, ctx.TestPlatform.ID, "", "{}")
+						ctx.SMRepository.Create(context.Background(), serviceInstance)
+					})
+
 					It("should return 400 with user-friendly message", func() {
 						ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL + "/" + brokerID).
 							Expect().
 							Status(http.StatusConflict).
 							JSON().Object().
 							Value("error").String().Contains("ExistingReferenceEntity")
+					})
+				})
+
+				Context("when attempting async bulk delete", func() {
+					It("should return 400", func() {
+						ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL).
+							WithQuery("fieldQuery", "id in ('id1','id2','id3')").
+							WithQuery("async", "true").
+							Expect().
+							Status(http.StatusBadRequest).
+							JSON().Object().
+							Value("description").String().Contains("Only one resource can be deleted asynchronously at a time")
 					})
 				})
 			})
@@ -1708,7 +1753,9 @@ func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *com
 		resp := auth.POST(web.ServiceBrokersURL).WithQuery("async", strconv.FormatBool(async)).WithJSON(brokerJSON).Expect()
 		if async {
 			resp = resp.Status(http.StatusAccepted)
-			test.ExpectOperation(auth, resp, types.SUCCEEDED)
+			if err := test.ExpectOperation(auth, resp, types.SUCCEEDED); err != nil {
+				panic(err)
+			}
 
 			obj = auth.GET(web.ServiceBrokersURL + "/" + brokerID.String()).
 				Expect().JSON().Object().Raw()
@@ -1727,4 +1774,3 @@ type labeledBroker common.Object
 func (b labeledBroker) AddLabel(label common.Object) {
 	b["labels"] = append(b["labels"].(common.Array), label)
 }
-*/
