@@ -26,6 +26,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
+	"runtime/debug"
 )
 
 // Job represents an ExecutableJob which is responsible for executing a C/U/D DB operation
@@ -38,20 +39,30 @@ type Job struct {
 }
 
 // Execute executes a C/U/D DB operation
-func (j *Job) Execute(ctxWithTimeout context.Context, repository storage.Repository) (string, error) {
+func (j *Job) Execute(ctxWithTimeout context.Context, repository storage.Repository) (operationID string, err error) {
 	log.D().Debugf("Starting execution of %s operation with id (%s) for %s entity", j.Operation.Type, j.Operation.ID, j.ObjectType)
-	var err error
-
+	operationID = j.Operation.ID
 	opCtx := util.StateContext{Context: j.ReqCtx}
-	reqCtx, reqCtxCancel := context.WithCancel(j.ReqCtx)
 
+	defer func() {
+		if err := recover(); err != nil {
+			err = errors.New("job panicked while executing")
+			if opErr := updateOperationState(opCtx, repository, operationID, types.FAILED, &OperationError{Message: "Internal Server error"}); opErr != nil {
+				log.D().Debugf("Failed to set state of operation with id (%s) to %s", operationID, types.FAILED)
+				err = fmt.Errorf("%s : %s", err, opErr)
+			}
+			debug.PrintStack()
+		}
+	}()
+
+	reqCtx, reqCtxCancel := context.WithCancel(j.ReqCtx)
 	go func() {
 		<-ctxWithTimeout.Done()
 		reqCtxCancel()
 	}()
 
 	if _, err = j.OperationFunc(reqCtx, repository); err != nil {
-		log.D().Debugf("Failed to execute %s operation with id (%s) for %s entity", j.Operation.Type, j.Operation.ID, j.ObjectType)
+		log.D().Debugf("Failed to execute %s operation with id (%s) for %s entity", j.Operation.Type, operationID, j.ObjectType)
 
 		select {
 		case <-ctxWithTimeout.Done():
@@ -59,19 +70,19 @@ func (j *Job) Execute(ctxWithTimeout context.Context, repository storage.Reposit
 		default:
 		}
 
-		if opErr := updateOperationState(opCtx, repository, j.Operation.ID, types.FAILED, &OperationError{Message: err.Error()}); opErr != nil {
-			log.D().Debugf("Failed to set state of operation with id (%s) to %s", j.Operation.ID, types.FAILED)
+		if opErr := updateOperationState(opCtx, repository, operationID, types.FAILED, &OperationError{Message: err.Error()}); opErr != nil {
+			log.D().Debugf("Failed to set state of operation with id (%s) to %s", operationID, types.FAILED)
 			err = fmt.Errorf("%s : %s", err, opErr)
 		}
-		return j.Operation.ID, err
+		return operationID, err
 	}
 
-	log.D().Debugf("Successfully executed %s operation with id (%s) for %s entity", j.Operation.Type, j.Operation.ID, j.ObjectType)
-	if err = updateOperationState(opCtx, repository, j.Operation.ID, types.SUCCEEDED, nil); err != nil {
-		log.D().Debugf("Failed to set state of operation with id (%s) to %s", j.Operation.ID, types.SUCCEEDED)
+	log.D().Debugf("Successfully executed %s operation with id (%s) for %s entity", j.Operation.Type, operationID, j.ObjectType)
+	if err = updateOperationState(opCtx, repository, operationID, types.SUCCEEDED, nil); err != nil {
+		log.D().Debugf("Failed to set state of operation with id (%s) to %s", operationID, types.SUCCEEDED)
 	}
 
-	return j.Operation.ID, err
+	return operationID, err
 }
 
 func updateOperationState(ctx context.Context, repository storage.Repository, operationID string, state types.OperationState, opErr *OperationError) error {
