@@ -17,18 +17,28 @@ package operations_test
 
 import (
 	"context"
+	"fmt"
+	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/pkg/sm"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
+	"github.com/Peripli/service-manager/storage"
 	"github.com/Peripli/service-manager/test"
 	"github.com/Peripli/service-manager/test/common"
+	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+)
+
+const (
+	defaultOperationID = "test-operation-id"
+	testControllerURL  = "/v1/panic"
 )
 
 func TestOperations(t *testing.T) {
@@ -118,6 +128,59 @@ var _ = Describe("Operations", func() {
 
 	})
 
+	Context("Jobs", func() {
+
+		var operation *types.Operation
+
+		BeforeEach(func() {
+			operation = &types.Operation{
+				Base: types.Base{
+					ID:        defaultOperationID,
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+					Labels:    make(map[string][]string),
+				},
+				Type:          types.CREATE,
+				State:         types.IN_PROGRESS,
+				ResourceID:    "test-resource-id",
+				ResourceType:  web.ServiceBrokersURL,
+				CorrelationID: "test-correlation-id",
+			}
+
+			ctx = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+				testController := panicController{
+					operation: operation,
+					scheduler: operations.NewScheduler(ctx, smb.Storage, 10*time.Minute, 10),
+				}
+
+				smb.RegisterControllers(testController)
+				return nil
+			}).Build()
+
+		})
+
+		AfterEach(func() {
+			ctx.Cleanup()
+		})
+
+		When("job panics", func() {
+			It("recovers successfully and marks operation as failed", func() {
+				ctx.SM.GET(web.MonitorHealthURL).Expect().Status(http.StatusOK)
+				ctx.SM.GET(testControllerURL).Expect()
+				ctx.SM.GET(web.MonitorHealthURL).Expect().Status(http.StatusOK)
+
+				var respBody *httpexpect.Object
+				Eventually(func() string {
+					respBody = ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s%s/%s", operation.ResourceType, operation.ResourceID, web.OperationsURL, operation.ID)).
+						Expect().Status(http.StatusOK).JSON().Object()
+					return respBody.Value("state").String().Raw()
+				}, 2*time.Second).Should(Equal("failed"))
+
+				Expect(respBody.Value("errors").Object().Value("message").String().Raw()).To(ContainSubstring("job interrupted"))
+			})
+		})
+	})
+
 	Context("Maintainer", func() {
 		const (
 			jobTimeout      = 3 * time.Second
@@ -165,10 +228,9 @@ var _ = Describe("Operations", func() {
 
 		When("Specified job timeout passes", func() {
 			It("Marks orphans as failed operations", func() {
-				operationID := "test-opration-id"
 				operation := &types.Operation{
 					Base: types.Base{
-						ID:        operationID,
+						ID:        defaultOperationID,
 						CreatedAt: time.Now(),
 						UpdatedAt: time.Now(),
 						Labels:    make(map[string][]string),
@@ -185,7 +247,7 @@ var _ = Describe("Operations", func() {
 				Expect(object).To(Not(BeNil()))
 
 				Eventually(func() types.OperationState {
-					byID := query.ByField(query.EqualsOperator, "id", operationID)
+					byID := query.ByField(query.EqualsOperator, "id", defaultOperationID)
 					object, err := ctx.SMRepository.Get(context.Background(), types.OperationType, byID)
 					Expect(err).To(BeNil())
 
@@ -196,3 +258,33 @@ var _ = Describe("Operations", func() {
 		})
 	})
 })
+
+type panicController struct {
+	operation *types.Operation
+	scheduler *operations.DefaultScheduler
+}
+
+func (pc panicController) Routes() []web.Route {
+	return []web.Route{
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodGet,
+				Path:   testControllerURL,
+			},
+			Handler: func(req *web.Request) (resp *web.Response, err error) {
+				job := operations.Job{
+					ReqCtx:     context.Background(),
+					ObjectType: "test-type",
+					Operation:  pc.operation,
+					OperationFunc: func(ctx context.Context, repository storage.Repository) (object types.Object, e error) {
+						panic("test panic")
+					},
+				}
+
+				pc.scheduler.Schedule(job)
+				return
+			},
+		},
+	}
+
+}
