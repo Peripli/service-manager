@@ -50,6 +50,10 @@ var _ = Describe("Operations", func() {
 			ctx = common.NewTestContextBuilder().WithEnvPostExtensions(postHook).Build()
 		})
 
+		AfterEach(func() {
+			ctx.Cleanup()
+		})
+
 		When("job timeout runs out", func() {
 			It("marks operation as failed", func() {
 				brokerServer := common.NewBrokerServer()
@@ -68,12 +72,51 @@ var _ = Describe("Operations", func() {
 					WithQuery("async", "true").
 					Expect().
 					Status(http.StatusAccepted)
-				test.ExpectOperationWithError(ctx.SMWithOAuth, resp, types.FAILED, "job timed out")
+				err := test.ExpectOperationWithError(ctx.SMWithOAuth, resp, types.FAILED, "job timed out")
+				Expect(err).To(BeNil())
 			})
 		})
-		AfterEach(func() {
-			ctx.Cleanup()
+
+		When("when there are no available workers", func() {
+			It("returns 503", func() {
+				brokerServer := common.NewBrokerServer()
+				postBrokerRequestWithNoLabels := common.Object{
+					"name":       "test-broker",
+					"broker_url": brokerServer.URL(),
+					"credentials": common.Object{
+						"basic": common.Object{
+							"username": brokerServer.Username,
+							"password": brokerServer.Password,
+						},
+					},
+				}
+
+				requestCount := 100
+				resultChan := make(chan struct{}, requestCount)
+				defer close(resultChan)
+				executeReq := func() {
+					resp := ctx.SMWithOAuth.POST(web.ServiceBrokersURL).WithJSON(postBrokerRequestWithNoLabels).
+						WithQuery("async", "true").Expect()
+					if resp.Raw().StatusCode == http.StatusServiceUnavailable {
+						resultChan <- struct{}{}
+					}
+				}
+
+				for i := 0; i < requestCount; i++ {
+					go executeReq()
+				}
+
+				ctxWithTimeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+
+				select {
+				case <-ctxWithTimeout.Done():
+					Fail("expected to get 503 from server due to too many async requests but didn't")
+				case <-resultChan:
+				}
+			})
 		})
+
 	})
 
 	Context("Maintainer", func() {
