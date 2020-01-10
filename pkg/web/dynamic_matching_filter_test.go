@@ -88,7 +88,7 @@ type test struct {
 func filterWithMatchers(matchers ...web.Matcher) *innerTestFilter {
 	return &innerTestFilter{
 		matchers: []web.FilterMatcher{
-			web.FilterMatcher{
+			{
 				Matchers: matchers,
 			},
 		},
