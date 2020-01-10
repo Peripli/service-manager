@@ -22,7 +22,6 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/Peripli/service-manager/storage"
 )
 
 // ServicePlanController implements api.Controller by providing service plans API logic
@@ -30,11 +29,11 @@ type ServicePlanController struct {
 	*BaseController
 }
 
-func NewServicePlanController(repository storage.Repository, options *Options) *ServicePlanController {
+func NewServicePlanController(options *Options) *ServicePlanController {
 	return &ServicePlanController{
-		BaseController: NewController(repository, web.ServicePlansURL, types.ServicePlanType, func() types.Object {
+		BaseController: NewController(options, web.ServicePlansURL, types.ServicePlanType, func() types.Object {
 			return &types.ServicePlan{}
-		}, options),
+		}),
 	}
 }
 

@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/pkg/env"
+	"sync"
 
 	"github.com/Peripli/service-manager/api/configuration"
 
@@ -83,6 +84,7 @@ type Options struct {
 	OperationSettings *operations.Settings
 	WSSettings        *ws.Settings
 	Notificator       storage.Notificator
+	WaitGroup         *sync.WaitGroup
 }
 
 // New returns the minimum set of REST APIs needed for the Service Manager
@@ -95,19 +97,19 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 	return &web.API{
 		// Default controllers - more filters can be registered using the relevant API methods
 		Controllers: []web.Controller{
-			NewAsyncController(ctx, options.Repository, web.ServiceBrokersURL, types.ServiceBrokerType, func() types.Object {
+			NewAsyncController(ctx, options, web.ServiceBrokersURL, types.ServiceBrokerType, func() types.Object {
 				return &types.ServiceBroker{}
-			}, options),
-			NewController(options.Repository, web.PlatformsURL, types.PlatformType, func() types.Object {
+			}),
+			NewController(options, web.PlatformsURL, types.PlatformType, func() types.Object {
 				return &types.Platform{}
-			}, options),
-			NewController(options.Repository, web.VisibilitiesURL, types.VisibilityType, func() types.Object {
+			}),
+			NewController(options, web.VisibilitiesURL, types.VisibilityType, func() types.Object {
 				return &types.Visibility{}
-			}, options),
+			}),
 			apiNotifications.NewController(ctx, options.Repository, options.WSSettings, options.Notificator),
-			NewServiceOfferingController(options.Repository, options),
-			NewServicePlanController(options.Repository, options),
-			NewServiceInstanceController(options.Repository, options),
+			NewServiceOfferingController(options),
+			NewServicePlanController(options),
+			NewServiceInstanceController(options),
 			&info.Controller{
 				TokenIssuer:    options.APISettings.TokenIssuerURL,
 				TokenBasicAuth: options.APISettings.TokenBasicAuth,

@@ -32,6 +32,7 @@ import (
 	. "github.com/onsi/gomega"
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -50,6 +51,10 @@ var _ = Describe("Operations", func() {
 
 	var ctx *common.TestContext
 
+	AfterEach(func() {
+		ctx.Cleanup()
+	})
+
 	Context("Scheduler", func() {
 		BeforeEach(func() {
 			postHook := func(e env.Environment, servers map[string]common.FakeServer) {
@@ -58,10 +63,6 @@ var _ = Describe("Operations", func() {
 			}
 
 			ctx = common.NewTestContextBuilder().WithEnvPostExtensions(postHook).Build()
-		})
-
-		AfterEach(func() {
-			ctx.Cleanup()
 		})
 
 		When("job timeout runs out", func() {
@@ -150,17 +151,13 @@ var _ = Describe("Operations", func() {
 			ctx = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 				testController := panicController{
 					operation: operation,
-					scheduler: operations.NewScheduler(ctx, smb.Storage, 10*time.Minute, 10),
+					scheduler: operations.NewScheduler(ctx, smb.Storage, 10*time.Minute, 10, &sync.WaitGroup{}),
 				}
 
 				smb.RegisterControllers(testController)
 				return nil
 			}).Build()
 
-		})
-
-		AfterEach(func() {
-			ctx.Cleanup()
 		})
 
 		When("job panics", func() {
@@ -197,10 +194,6 @@ var _ = Describe("Operations", func() {
 			ctx = common.NewTestContextBuilder().WithEnvPostExtensions(postHook).Build()
 		})
 
-		AfterEach(func() {
-			ctx.Cleanup()
-		})
-
 		When("Specified cleanup interval passes", func() {
 			It("Deletes operations older than that interval", func() {
 				resp := ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL+"/non-existent-broker-id").WithQuery("async", true).
@@ -227,7 +220,7 @@ var _ = Describe("Operations", func() {
 		})
 
 		When("Specified job timeout passes", func() {
-			It("Marks orphans as failed operations", func() {
+			FIt("Marks orphans as failed operations", func() {
 				operation := &types.Operation{
 					Base: types.Base{
 						ID:        defaultOperationID,
@@ -253,7 +246,7 @@ var _ = Describe("Operations", func() {
 
 					op := object.(*types.Operation)
 					return op.State
-				}, jobTimeout*2).Should(Equal(types.FAILED))
+				}, jobTimeout*5).Should(Equal(types.FAILED))
 			})
 		})
 	})

@@ -61,9 +61,9 @@ type BaseController struct {
 }
 
 // NewController returns a new base controller
-func NewController(repository storage.Repository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, options *Options) *BaseController {
+func NewController(options *Options, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object) *BaseController {
 	return &BaseController{
-		repository:      repository,
+		repository:      options.Repository,
 		resourceBaseURL: resourceBaseURL,
 		objectBlueprint: objectBlueprint,
 		objectType:      objectType,
@@ -73,8 +73,8 @@ func NewController(repository storage.Repository, resourceBaseURL string, object
 }
 
 // NewAsyncController returns a new base controller with a scheduler making it effectively an async controller
-func NewAsyncController(ctx context.Context, repository storage.Repository, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object, options *Options) *BaseController {
-	controller := NewController(repository, resourceBaseURL, objectType, objectBlueprint, options)
+func NewAsyncController(ctx context.Context, options *Options, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object) *BaseController {
+	controller := NewController(options, resourceBaseURL, objectType, objectBlueprint)
 
 	poolSize := operations.MinPoolSize
 	for _, pool := range options.OperationSettings.Pools {
@@ -84,7 +84,7 @@ func NewAsyncController(ctx context.Context, repository storage.Repository, reso
 		}
 	}
 
-	controller.scheduler = operations.NewScheduler(ctx, repository, options.OperationSettings.JobTimeout, poolSize)
+	controller.scheduler = operations.NewScheduler(ctx, options.Repository, options.OperationSettings.JobTimeout, poolSize, options.WaitGroup)
 
 	return controller
 }

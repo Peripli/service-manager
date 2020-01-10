@@ -127,6 +127,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		OperationSettings: cfg.Operations,
 		WSSettings:        cfg.WebSocket,
 		Notificator:       pgNotificator,
+		WaitGroup:         waitGroup,
 	}
 	API, err := api.New(ctx, e, apiOptions)
 	if err != nil {

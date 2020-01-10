@@ -22,6 +22,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -32,15 +33,17 @@ type DefaultScheduler struct {
 	repository storage.Repository
 	workers    chan struct{}
 	jobTimeout time.Duration
+	wg         *sync.WaitGroup
 }
 
 // NewScheduler constructs a DefaultScheduler
-func NewScheduler(smCtx context.Context, repository storage.Repository, jobTimeout time.Duration, workerPoolSize int) *DefaultScheduler {
+func NewScheduler(smCtx context.Context, repository storage.Repository, jobTimeout time.Duration, workerPoolSize int, wg *sync.WaitGroup) *DefaultScheduler {
 	return &DefaultScheduler{
 		smCtx:      smCtx,
 		repository: repository,
 		workers:    make(chan struct{}, workerPoolSize),
 		jobTimeout: jobTimeout,
+		wg:         wg,
 	}
 }
 
@@ -56,8 +59,10 @@ func (ds *DefaultScheduler) Schedule(job Job) (string, error) {
 		}
 
 		go func() {
+			ds.wg.Add(1)
 			defer func() {
 				<-ds.workers
+				ds.wg.Done()
 			}()
 
 			ctxWithTimeout, cancel := context.WithTimeout(ds.smCtx, ds.jobTimeout)

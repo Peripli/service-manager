@@ -21,8 +21,6 @@ import (
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/storage"
-
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
@@ -31,11 +29,11 @@ type ServiceInstanceController struct {
 	*BaseController
 }
 
-func NewServiceInstanceController(repository storage.Repository, options *Options) *ServiceInstanceController {
+func NewServiceInstanceController(options *Options) *ServiceInstanceController {
 	return &ServiceInstanceController{
-		BaseController: NewController(repository, web.ServiceInstancesURL, types.ServiceInstanceType, func() types.Object {
+		BaseController: NewController(options, web.ServiceInstancesURL, types.ServiceInstanceType, func() types.Object {
 			return &types.ServiceInstance{}
-		}, options),
+		}),
 	}
 }
 func (c *ServiceInstanceController) Routes() []web.Route {
