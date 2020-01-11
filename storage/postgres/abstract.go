@@ -185,7 +185,7 @@ func checkUniqueViolation(ctx context.Context, err error) error {
 	}
 	sqlErr, ok := err.(*pq.Error)
 	if ok && sqlErr.Code.Name() == "unique_violation" {
-		log.C(ctx).Debug(sqlErr)
+		log.C(ctx).Errorf("%v: %v", sqlErr.Message, sqlErr.Detail)
 		return util.ErrAlreadyExistsInStorage
 	}
 	return err
@@ -197,7 +197,7 @@ func checkIntegrityViolation(ctx context.Context, err error) error {
 	}
 	sqlErr, ok := err.(*pq.Error)
 	if ok && (sqlErr.Code.Class() == "42" || sqlErr.Code.Class() == "44" || sqlErr.Code.Class() == "23") {
-		log.C(ctx).Debug(sqlErr)
+		log.C(ctx).Errorf("%v: %v", sqlErr.Message, sqlErr.Detail)
 		return &util.ErrBadRequestStorage{Cause: err}
 	}
 	return err
