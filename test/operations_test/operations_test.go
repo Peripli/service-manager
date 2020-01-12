@@ -254,7 +254,7 @@ var _ = Describe("Operations", func() {
 
 type panicController struct {
 	operation *types.Operation
-	scheduler *operations.DefaultScheduler
+	scheduler *operations.Scheduler
 }
 
 func (pc panicController) Routes() []web.Route {

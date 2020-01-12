@@ -26,9 +26,9 @@ import (
 	"time"
 )
 
-// DefaultScheduler implements JobScheduler interface. It's responsible for
-// storing C/U/D jobs so that a worker pool can eventually start consuming these jobs
-type DefaultScheduler struct {
+// Scheduler is responsible for storing Operation entities in the DB
+// and also for spawning goroutines to execute the respective DB transaction asynchronously
+type Scheduler struct {
 	smCtx      context.Context
 	repository storage.Repository
 	workers    chan struct{}
@@ -36,9 +36,9 @@ type DefaultScheduler struct {
 	wg         *sync.WaitGroup
 }
 
-// NewScheduler constructs a DefaultScheduler
-func NewScheduler(smCtx context.Context, repository storage.Repository, jobTimeout time.Duration, workerPoolSize int, wg *sync.WaitGroup) *DefaultScheduler {
-	return &DefaultScheduler{
+// NewScheduler constructs a Scheduler
+func NewScheduler(smCtx context.Context, repository storage.Repository, jobTimeout time.Duration, workerPoolSize int, wg *sync.WaitGroup) *Scheduler {
+	return &Scheduler{
 		smCtx:      smCtx,
 		repository: repository,
 		workers:    make(chan struct{}, workerPoolSize),
@@ -47,8 +47,8 @@ func NewScheduler(smCtx context.Context, repository storage.Repository, jobTimeo
 	}
 }
 
-// Schedule schedules a CREATE/UPDATE/DELETE job and executes it asynchronously when as soon as possible
-func (ds *DefaultScheduler) Schedule(job Job) (string, error) {
+// Schedule stores the Job's Operation entity in DB and spawns a goroutine to execute the CREATE/UPDATE/DELETE DB transaction asynchronously
+func (ds *Scheduler) Schedule(job Job) (string, error) {
 	log.D().Infof("Scheduling %s operation with id (%s)", job.Operation.Type, job.Operation.ID)
 	select {
 	case ds.workers <- struct{}{}:

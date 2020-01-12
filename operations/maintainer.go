@@ -26,9 +26,9 @@ import (
 	"time"
 )
 
-// OperationMaintainer ensures that operations old enough are deleted
-// and that no stuck (orphan) operations are left in the DB due to crashes/restarts of SM
-type OperationMaintainer struct {
+// Maintainer ensures that operations old enough are deleted
+// and that no orphan operations are left in the DB due to crashes/restarts of SM
+type Maintainer struct {
 	smCtx               context.Context
 	repository          storage.Repository
 	jobTimeout          time.Duration
@@ -36,9 +36,9 @@ type OperationMaintainer struct {
 	cleanupInterval     time.Duration
 }
 
-// NewOperationMaintainer constructs an OperationMaintainer
-func NewOperationMaintainer(smCtx context.Context, repository storage.Repository, options *Settings) *OperationMaintainer {
-	return &OperationMaintainer{
+// NewMaintainer constructs a Maintainer
+func NewMaintainer(smCtx context.Context, repository storage.Repository, options *Settings) *Maintainer {
+	return &Maintainer{
 		smCtx:               smCtx,
 		repository:          repository,
 		jobTimeout:          options.JobTimeout,
@@ -47,21 +47,21 @@ func NewOperationMaintainer(smCtx context.Context, repository storage.Repository
 	}
 }
 
-// Run starts the two recurring jobs responsible for cleaning up old operations
-// and deleting stuck (orphan) operations
-func (om *OperationMaintainer) Run() {
+// Run starts the two recurring jobs responsible for cleaning up operations which are too old
+// and deleting orphan operations
+func (om *Maintainer) Run() {
 	go om.processOldOperations()
-	go om.processStuckOperations()
+	go om.processOrphanOperations()
 }
 
 // processOldOperations cleans up periodically all operations which are older than some specified time
-func (om *OperationMaintainer) processOldOperations() {
+func (om *Maintainer) processOldOperations() {
 	ticker := time.NewTicker(om.cleanupInterval)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			om.deleteOldOperations()
+			om.cleanUpOldOperations()
 		case <-om.smCtx.Done():
 			ticker.Stop()
 			log.C(om.smCtx).Info("Server is shutting down. Stopping old operations maintainer...")
@@ -70,8 +70,8 @@ func (om *OperationMaintainer) processOldOperations() {
 	}
 }
 
-// processStuckOperations periodically checks for operations which are stuck in state IN_PROGRESS and updates their status to FAILED
-func (om *OperationMaintainer) processStuckOperations() {
+// processOrphanOperations periodically checks for operations which are stuck in state IN_PROGRESS and updates their status to FAILED
+func (om *Maintainer) processOrphanOperations() {
 	ticker := time.NewTicker(om.markOrphansInterval)
 	defer ticker.Stop()
 	for {
@@ -86,7 +86,7 @@ func (om *OperationMaintainer) processStuckOperations() {
 	}
 }
 
-func (om *OperationMaintainer) deleteOldOperations() {
+func (om *Maintainer) cleanUpOldOperations() {
 	byDate := query.ByField(query.LessThanOperator, "created_at", util.ToRFCNanoFormat(time.Now().Add(-om.cleanupInterval)))
 	if err := om.repository.Delete(om.smCtx, types.OperationType, byDate); err != nil {
 		log.D().Debugf("Failed to cleanup operations: %s", err)
@@ -95,7 +95,7 @@ func (om *OperationMaintainer) deleteOldOperations() {
 	log.D().Debug("Successfully cleaned up operations")
 }
 
-func (om *OperationMaintainer) markOrphanOperationsFailed() {
+func (om *Maintainer) markOrphanOperationsFailed() {
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
 		query.ByField(query.LessThanOperator, "created_at", util.ToRFCNanoFormat(time.Now().Add(-om.jobTimeout))),
