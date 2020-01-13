@@ -40,8 +40,7 @@ func (m *Authorization) Run(request *web.Request, next web.Handler) (*web.Respon
 	decision, accessLevel, err := m.Authorizer.Authorize(request)
 	if err != nil {
 		if decision == http.Deny {
-			logger := log.C(ctx)
-			logger.Debug(err)
+			log.C(ctx).Debug(err)
 			request.Request = request.WithContext(web.ContextWithAuthorizationError(ctx, err))
 			return next.Handle(request)
 		}

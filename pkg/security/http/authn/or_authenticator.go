@@ -24,13 +24,13 @@ func NewOrAuthenticator(authenticators ...httpsec.Authenticator) httpsec.Authent
 func (a *orAuthenticator) Authenticate(request *http.Request) (*web.UserContext, httpsec.Decision, error) {
 	ctx := request.Context()
 	logger := log.C(ctx)
-	denied := false
-	var errs compositeError = nil
+	finalDecision := httpsec.Abstain
+	var errs compositeError
 	for _, authenticator := range a.authenticators {
 		userContext, decision, err := authenticator.Authenticate(request)
 		if err != nil {
-			logger.WithError(err).Debug("OrAuthenticator: error during evaluate authenticator")
 			if decision != httpsec.Deny {
+				logger.WithError(err).Error("OrAuthenticator: error during evaluate authenticator")
 				return userContext, httpsec.Deny, err
 			}
 			errs = append(errs, err)
@@ -42,15 +42,13 @@ func (a *orAuthenticator) Authenticate(request *http.Request) (*web.UserContext,
 		}
 
 		if decision == httpsec.Deny {
-			denied = true
+			finalDecision = httpsec.Deny
 		}
 	}
-
-	if denied {
-		return nil, httpsec.Deny, errs
+	if finalDecision == httpsec.Allow || finalDecision == httpsec.Abstain {
+		return nil, finalDecision, nil
 	}
-
-	return nil, httpsec.Abstain, nil
+	return nil, finalDecision, errs
 }
 
 type compositeError []error

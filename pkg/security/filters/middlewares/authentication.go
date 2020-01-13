@@ -39,8 +39,7 @@ func (m *Authentication) Run(request *web.Request, next web.Handler) (*web.Respo
 	user, decision, err := m.Authenticator.Authenticate(request.Request)
 	if err != nil {
 		if decision == http.Deny {
-			logger := log.C(ctx)
-			logger.Debug(err)
+			log.C(ctx).Debug(err)
 			request.Request = request.WithContext(web.ContextWithAuthenticationError(ctx, err))
 			return next.Handle(request)
 		}

@@ -25,40 +25,37 @@ func (a *andAuthorizer) Authorize(request *web.Request) (httpsec.Decision, web.A
 	ctx := request.Context()
 	logger := log.C(ctx)
 
-	errs := compositeError{}
-	abstain := false
-	denied := false
+	var errs compositeError = nil
+	finalDecision := httpsec.Allow
 
 	accessLevels := make([]web.AccessLevel, 0)
 	for _, authorizer := range a.authorizers {
 		decision, level, err := authorizer.Authorize(request)
 		if err != nil {
-			logger.WithError(err).Debug("AndAuthorizer: error during evaluate authorizer")
-			if decision == httpsec.Deny {
-				logger.Debug("AndAuthorizer: one authorizer denied, stop evaluating")
-				denied = true
-				errs = append(errs, err)
-				continue
+			if decision != httpsec.Deny {
+				logger.WithError(err).Error("AndAuthorizer: error during evaluate authorizer")
+				return httpsec.Deny, web.NoAccess, err
 			}
-			return httpsec.Deny, web.NoAccess, err
+			finalDecision = httpsec.Deny
+			errs = append(errs, err)
 		}
 
-		if decision == httpsec.Deny {
-			denied = true
-		} else if decision == httpsec.Allow {
-			accessLevels = append(accessLevels, level)
-		} else {
-			abstain = true
+		if decision != httpsec.Allow && finalDecision != httpsec.Deny {
+			finalDecision = decision
 		}
+
+		accessLevels = append(accessLevels, level)
 	}
 
-	if denied {
-		return httpsec.Deny, web.NoAccess, errs
-	} else if abstain {
-		return httpsec.Abstain, web.NoAccess, nil
+	level := web.NoAccess
+	if finalDecision == httpsec.Allow {
+		level = findMostRestrictiveAccessLevel(accessLevels)
 	}
 
-	return httpsec.Allow, findMostRestrictiveAccessLevel(accessLevels), nil
+	if finalDecision == httpsec.Allow || finalDecision == httpsec.Abstain {
+		return finalDecision, level, nil
+	}
+	return finalDecision, level, errs
 }
 
 type compositeError []error
