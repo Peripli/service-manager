@@ -61,6 +61,24 @@ func Path(patterns ...string) Matcher {
 
 }
 
+// Not returns matcher that matches the opposite of the provided Matchers
+func Not(matchers ...Matcher) Matcher {
+	return MatcherFunc(func(endpoint Endpoint) (bool, error) {
+		for _, m := range matchers {
+			match, err := m.Matches(endpoint)
+			if err != nil {
+				return false, err
+			}
+			// Match must be negated because of Not
+			match = !match
+			if match {
+				return true, nil
+			}
+		}
+		return false, nil
+	})
+}
+
 func matchInArray(arr []string, value string) bool {
 	for _, v := range arr {
 		if v == value {

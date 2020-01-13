@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"fmt"
 )
 
 type contextKey int
@@ -9,6 +10,8 @@ type contextKey int
 const (
 	userKey contextKey = iota
 	isAuthorizedKey
+	authenticationErrorKey
+	authorizationErrorKey
 )
 
 // UserFromContext gets the authenticated user from the context
@@ -31,4 +34,26 @@ func IsAuthorized(ctx context.Context) bool {
 // ContextWithAuthorization sets the boolean flag isAuthorized in the request context
 func ContextWithAuthorization(ctx context.Context) context.Context {
 	return context.WithValue(ctx, isAuthorizedKey, true)
+}
+
+func ContextWithAuthenticationError(ctx context.Context, authNError error) context.Context {
+	return context.WithValue(ctx, authenticationErrorKey, authNError)
+}
+
+func AuthenticationErrorFromContext(ctx context.Context) (bool, error) {
+	authnError, ok := ctx.Value(authenticationErrorKey).(error)
+	return ok && authnError != nil, authnError
+}
+
+func ContextWithAuthorizationError(ctx context.Context, authZError error) context.Context {
+	found, currentAuthZError := AuthorizationErrorFromContext(ctx)
+	if found {
+		authZError = fmt.Errorf("%s or %s", currentAuthZError, authZError)
+	}
+	return context.WithValue(ctx, authorizationErrorKey, authZError)
+}
+
+func AuthorizationErrorFromContext(ctx context.Context) (bool, error) {
+	authzError, ok := ctx.Value(authorizationErrorKey).(error)
+	return ok && authzError != nil, authzError
 }

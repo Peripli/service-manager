@@ -19,6 +19,8 @@ package main
 import (
 	"context"
 
+	"github.com/Peripli/service-manager/api/extensions/security"
+
 	"github.com/Peripli/service-manager/pkg/env"
 
 	"github.com/Peripli/service-manager/config"
@@ -45,6 +47,9 @@ func main() {
 
 	serviceManager, err := sm.New(ctx, cancel, env, cfg)
 	if err != nil {
+		panic(err)
+	}
+	if err := security.Register(ctx, cfg, serviceManager); err != nil {
 		panic(err)
 	}
 

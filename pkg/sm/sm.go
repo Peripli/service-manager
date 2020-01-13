@@ -23,6 +23,8 @@ import (
 	"net/http"
 	"sync"
 
+	secFilters "github.com/Peripli/service-manager/pkg/security/filters"
+
 	"github.com/Peripli/service-manager/pkg/env"
 
 	"github.com/Peripli/service-manager/pkg/health"
@@ -55,6 +57,8 @@ import (
 // controllers before running ServiceManager.
 type ServiceManagerBuilder struct {
 	*web.API
+	authnDynamicFilter *web.DynamicMatchingFilter
+	authzDynamicFilter *web.DynamicMatchingFilter
 
 	Storage             *storage.InterceptableTransactionalRepository
 	Notificator         storage.Notificator
@@ -62,6 +66,8 @@ type ServiceManagerBuilder struct {
 	ctx                 context.Context
 	wg                  *sync.WaitGroup
 	cfg                 *config.Settings
+
+	secBuilder *securityBuilder
 }
 
 // ServiceManager  struct
@@ -130,6 +136,10 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		return nil, fmt.Errorf("error creating core api: %s", err)
 	}
 
+	authnDynamicFilter := web.NewDynamicMatchingFilter(secFilters.AuthenticationFilterName)
+	authzDynamicFilter := web.NewDynamicMatchingFilter(secFilters.AuthorizationFilterName)
+	API.RegisterFiltersAfter(filters.LoggingFilterName, authnDynamicFilter, authzDynamicFilter)
+
 	storageHealthIndicator, err := storage.NewSQLHealthIndicator(storage.PingFunc(smStorage.PingContext))
 	if err != nil {
 		return nil, fmt.Errorf("error creating storage health indicator: %s", err)
@@ -148,6 +158,8 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		Storage:             interceptableRepository,
 		Notificator:         pgNotificator,
 		NotificationCleaner: notificationCleaner,
+		authnDynamicFilter:  authnDynamicFilter,
+		authzDynamicFilter:  authzDynamicFilter,
 		ctx:                 ctx,
 		wg:                  waitGroup,
 		cfg:                 cfg,
@@ -183,6 +195,10 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 
 // Build builds the Service Manager
 func (smb *ServiceManagerBuilder) Build() *ServiceManager {
+	if smb.secBuilder != nil {
+		smb.secBuilder.build()
+	}
+
 	if err := smb.installHealth(); err != nil {
 		log.C(smb.ctx).Panic(err)
 	}
@@ -241,6 +257,13 @@ func (sm *ServiceManager) Run() {
 
 func (smb *ServiceManagerBuilder) RegisterNotificationReceiversFilter(filterFunc storage.ReceiversFilterFunc) {
 	smb.Notificator.RegisterFilter(filterFunc)
+}
+
+func (smb *ServiceManagerBuilder) RegisterExtension(registry Extendable) *ServiceManagerBuilder {
+	if err := registry.Extend(smb.ctx, smb); err != nil {
+		log.D().Panicf("Could not register extension: %s", err)
+	}
+	return smb
 }
 
 func (smb *ServiceManagerBuilder) WithCreateAroundTxInterceptorProvider(objectType types.ObjectType, provider storage.CreateAroundTxInterceptorProvider) *interceptorRegistrationBuilder {
@@ -412,4 +435,14 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 		TenantIdentifier: labelKey,
 	}).Register()
 	return smb
+}
+
+// Security provides mechanism to apply authentication and authorization with a builder pattern
+func (smb *ServiceManagerBuilder) Security() *securityBuilder {
+	if smb.secBuilder == nil {
+		smb.secBuilder = &securityBuilder{
+			smb: smb,
+		}
+	}
+	return smb.secBuilder.reset()
 }

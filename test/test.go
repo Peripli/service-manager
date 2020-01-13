@@ -96,7 +96,7 @@ func DescribeTestsFor(t TestCase) bool {
 			By("==== Preparation for SM tests... ====")
 
 			defer GinkgoRecover()
-			ctxBuilder := common.NewTestContextBuilder()
+			ctxBuilder := common.NewTestContextBuilderWithSecurity()
 
 			if t.MultitenancySettings != nil {
 				ctxBuilder.

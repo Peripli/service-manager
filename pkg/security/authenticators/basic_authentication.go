@@ -14,14 +14,12 @@
  * limitations under the License.
  */
 
-package filters
+package authenticators
 
 import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-
-	"github.com/Peripli/service-manager/pkg/security/filters"
 
 	"github.com/Peripli/service-manager/pkg/types"
 
@@ -33,21 +31,13 @@ import (
 	"github.com/Peripli/service-manager/storage"
 )
 
-const BasicAuthnFilterName string = "BasicAuthnFilter"
-
-func NewBasicAuthnFilter(repository storage.Repository) *filters.AuthenticationFilter {
-	return filters.NewAuthenticationFilter(&BasicAuthenticator{
-		Repository: repository,
-	}, BasicAuthnFilterName, basicAuthnMatchers())
-}
-
-// BasicAuthenticator for basic security
-type BasicAuthenticator struct {
+// Basic for basic security
+type Basic struct {
 	Repository storage.Repository
 }
 
 // Authenticate authenticates by using the provided Basic credentials
-func (a *BasicAuthenticator) Authenticate(request *http.Request) (*web.UserContext, httpsec.Decision, error) {
+func (a *Basic) Authenticate(request *http.Request) (*web.UserContext, httpsec.Decision, error) {
 	username, password, ok := request.BasicAuth()
 	if !ok {
 		return nil, httpsec.Abstain, nil
@@ -87,56 +77,4 @@ func (a *BasicAuthenticator) Authenticate(request *http.Request) (*web.UserConte
 		Name:               username,
 		AccessLevel:        web.NoAccess,
 	}, httpsec.Allow, nil
-}
-
-func basicAuthnMatchers() []web.FilterMatcher {
-	return []web.FilterMatcher{
-		{
-			Matchers: []web.Matcher{
-				web.Path(web.OSBURL + "/**"),
-			},
-		},
-		{
-			Matchers: []web.Matcher{
-				web.Methods(http.MethodGet),
-				web.Path(web.PlatformsURL + "/*"),
-			},
-		},
-		{
-			Matchers: []web.Matcher{
-				web.Methods(http.MethodGet),
-				web.Path(web.ServiceBrokersURL + "/*"),
-			},
-		},
-		{
-			Matchers: []web.Matcher{
-				web.Methods(http.MethodGet),
-				web.Path(web.ServiceOfferingsURL + "/*"),
-			},
-		},
-		{
-			Matchers: []web.Matcher{
-				web.Methods(http.MethodGet),
-				web.Path(web.ServicePlansURL + "/*"),
-			},
-		},
-		{
-			Matchers: []web.Matcher{
-				web.Methods(http.MethodGet),
-				web.Path(web.ServiceInstancesURL + "/*"),
-			},
-		},
-		{
-			Matchers: []web.Matcher{
-				web.Methods(http.MethodGet),
-				web.Path(web.VisibilitiesURL + "/*"),
-			},
-		},
-		{
-			Matchers: []web.Matcher{
-				web.Methods(http.MethodGet),
-				web.Path(web.NotificationsURL + "/*"),
-			},
-		},
-	}
 }
