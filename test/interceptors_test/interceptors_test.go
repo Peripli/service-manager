@@ -98,7 +98,7 @@ var _ = Describe("Interceptors", func() {
 		updateStack = &callStack{}
 		deleteStack = &callStack{}
 
-		contextBuilder := common.NewTestContextBuilder()
+		contextBuilder := common.NewTestContextBuilderWithSecurity()
 		contextBuilder.WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 
 			for _, entityType := range []types.ObjectType{types.ServiceBrokerType, types.PlatformType, types.VisibilityType} {

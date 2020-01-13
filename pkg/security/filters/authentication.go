@@ -22,6 +22,10 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
+const (
+	AuthenticationFilterName string = "Authentication"
+)
+
 func NewAuthenticationFilter(authenticator http.Authenticator, name string, matchers []web.FilterMatcher) *AuthenticationFilter {
 	return &AuthenticationFilter{
 		Authentication: &middlewares.Authentication{

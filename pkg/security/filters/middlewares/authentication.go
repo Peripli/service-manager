@@ -17,6 +17,7 @@
 package middlewares
 
 import (
+	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/security/http"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -38,19 +39,18 @@ func (m *Authentication) Run(request *web.Request, next web.Handler) (*web.Respo
 	user, decision, err := m.Authenticator.Authenticate(request.Request)
 	if err != nil {
 		if decision == http.Deny {
-			return nil, security.UnauthorizedHTTPError(err.Error())
+			log.C(ctx).Debug(err)
+			request.Request = request.WithContext(web.ContextWithAuthenticationError(ctx, err))
+			return next.Handle(request)
 		}
 		return nil, err
 	}
 
-	switch decision {
-	case http.Allow:
+	if decision == http.Allow {
 		if user == nil {
 			return nil, security.ErrUserNotFound
 		}
 		request.Request = request.WithContext(web.ContextWithUser(ctx, user))
-	case http.Deny:
-		return nil, security.UnauthorizedHTTPError("authentication failed")
 	}
 
 	return next.Handle(request)
