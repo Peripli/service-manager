@@ -174,25 +174,35 @@ func (fs Filters) Matching(endpoint Endpoint) Filters {
 			matchedFilters = append(matchedFilters, filter)
 			matchedNames = append(matchedNames, filter.Name())
 		}
-		for _, routeMatcher := range filter.FilterMatchers() {
-			missMatch := false
-			for _, matcher := range routeMatcher.Matchers {
-				match, err := matcher.Matches(endpoint)
-				if err != nil {
-					panic(fmt.Sprintf("error matching filter %s: %s", filter.Name(), err.Error()))
-				}
-				if !match {
-					missMatch = true
-					break
-				}
-			}
-			if !missMatch {
-				matchedFilters = append(matchedFilters, filter)
-				matchedNames = append(matchedNames, filter.Name())
-				break
-			}
+		matches, err := Matching(filter.FilterMatchers(), endpoint)
+		if err != nil {
+			panic(fmt.Sprintf("error matching filter %s: %s", filter.Name(), err.Error()))
+		}
+		if matches {
+			matchedFilters = append(matchedFilters, filter)
+			matchedNames = append(matchedNames, filter.Name())
 		}
 	}
 	log.D().Debugf("Filters for %s %s:%v", endpoint.Method, endpoint.Path, matchedNames)
 	return matchedFilters
+}
+
+func Matching(filterMatchers []FilterMatcher, endpoint Endpoint) (bool, error) {
+	for _, routeMatcher := range filterMatchers {
+		missMatch := false
+		for _, matcher := range routeMatcher.Matchers {
+			match, err := matcher.Matches(endpoint)
+			if err != nil {
+				return false, err
+			}
+			if !match {
+				missMatch = true
+				break
+			}
+		}
+		if !missMatch {
+			return true, nil
+		}
+	}
+	return false, nil
 }

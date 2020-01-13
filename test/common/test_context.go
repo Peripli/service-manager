@@ -32,6 +32,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Peripli/service-manager/api/extensions/security"
+
 	"github.com/gavv/httpexpect"
 	"github.com/gofrs/uuid"
 	"github.com/gorilla/websocket"
@@ -137,7 +139,21 @@ func (ts *testSMServer) Close() {
 
 // DefaultTestContext sets up a test context with default values
 func DefaultTestContext() *TestContext {
-	return NewTestContextBuilder().Build()
+	return NewTestContextBuilderWithSecurity().Build()
+}
+
+func NewTestContextBuilderWithSecurity() *TestContextBuilder {
+	return NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+		cfg, err := config.New(e)
+		if err != nil {
+			return err
+		}
+		if err := security.Register(ctx, cfg, smb); err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
 // NewTestContextBuilder sets up a builder with default values

@@ -14,17 +14,16 @@
  * limitations under the License.
  */
 
-package filters_test
+package authenticators_test
 
 import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
 
-	"github.com/Peripli/service-manager/api/filters"
-
 	"github.com/Peripli/service-manager/storage/storagefakes"
 
+	"github.com/Peripli/service-manager/pkg/security/authenticators"
 	httpsec "github.com/Peripli/service-manager/pkg/security/http"
 
 	"github.com/Peripli/service-manager/pkg/types"
@@ -41,7 +40,7 @@ var _ = Describe("Basic Authenticator", func() {
 
 	var fakeRepository *storagefakes.FakeStorage
 
-	var authenticator *filters.BasicAuthenticator
+	var authenticator *authenticators.Basic
 
 	BeforeEach(func() {
 		user = "username"
@@ -50,7 +49,7 @@ var _ = Describe("Basic Authenticator", func() {
 
 		fakeRepository = &storagefakes.FakeStorage{}
 
-		authenticator = &filters.BasicAuthenticator{
+		authenticator = &authenticators.Basic{
 			Repository: fakeRepository,
 		}
 

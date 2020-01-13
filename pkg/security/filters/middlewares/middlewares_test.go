@@ -19,7 +19,6 @@ package middlewares
 import (
 	"context"
 	"errors"
-	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -27,7 +26,6 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/security/http/httpfakes"
-	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/pkg/web/webfakes"
 
@@ -62,15 +60,16 @@ var _ = Describe("Middlewares", func() {
 		Describe("Run", func() {
 			Context("when authorizer returns decision", func() {
 				Context("Deny", func() {
-					It("should return error", func() {
-						authorizer.AuthorizeReturns(httpsec.Deny, web.NoAccess, nil)
+					It("should write return error to context", func() {
+						authorizer.AuthorizeReturns(httpsec.Deny, web.NoAccess, errors.New("errored"))
 						authzFilter := Authorization{
 							Authorizer: authorizer,
 						}
 						_, err := authzFilter.Run(req, handler)
-						httpErr, ok := err.(*util.HTTPError)
+						ok, err := web.AuthorizationErrorFromContext(req.Context())
 						Expect(ok).To(BeTrue())
-						Expect(httpErr.StatusCode).To(Equal(http.StatusForbidden))
+						Expect(err.Error()).To(Equal("errored"))
+						Expect(web.IsAuthorized(req.Context())).To(BeFalse())
 					})
 				})
 				Context("Abstain", func() {
@@ -166,16 +165,17 @@ var _ = Describe("Middlewares", func() {
 				})
 
 				Context("and decision Deny", func() {
-					It("should return http error 403", func() {
+					It("should call next handler and set error to context", func() {
 						authorizer.AuthorizeReturns(httpsec.Deny, web.NoAccess, errors.New(expectedErrorMessage))
 						authzFilter := Authorization{
 							Authorizer: authorizer,
 						}
-						_, err := authzFilter.Run(req, handler)
-						checkExpectedErrorMessage(expectedErrorMessage, err)
-						httpErr, ok := err.(*util.HTTPError)
+						authzFilter.Run(req, handler)
+						handler.HandleReturns(nil, nil)
+						ok, err := web.AuthorizationErrorFromContext(req.Context())
 						Expect(ok).To(BeTrue())
-						Expect(httpErr.StatusCode).To(Equal(http.StatusForbidden))
+						Expect(err.Error()).To(Equal(expectedErrorMessage))
+						Expect(web.IsAuthorized(req.Context())).To(BeFalse())
 					})
 				})
 			})
@@ -208,15 +208,15 @@ var _ = Describe("Middlewares", func() {
 
 			Context("when authenticator returns decision", func() {
 				Context("Deny", func() {
-					It("should return error", func() {
+					It("should set error in context", func() {
 						authenticator.AuthenticateReturns(nil, httpsec.Deny, nil)
 						authnFilter := Authentication{
 							Authenticator: authenticator,
 						}
-						_, err := authnFilter.Run(req, handler)
-						httpErr, ok := err.(*util.HTTPError)
-						Expect(ok).To(BeTrue())
-						Expect(httpErr.StatusCode).To(Equal(http.StatusUnauthorized))
+						authnFilter.Run(req, handler)
+						ok, _ := web.AuthenticationErrorFromContext(req.Context())
+						Expect(ok).To(BeFalse())
+						Expect(web.IsAuthorized(req.Context())).To(BeFalse())
 					})
 				})
 				Context("Abstain", func() {
@@ -274,16 +274,15 @@ var _ = Describe("Middlewares", func() {
 				})
 
 				Context("and decision Deny", func() {
-					It("should return http error 403", func() {
+					It("should set error in context", func() {
 						authenticator.AuthenticateReturns(nil, httpsec.Deny, errors.New(expectedErrorMessage))
 						authnFilter := Authentication{
 							Authenticator: authenticator,
 						}
 						_, err := authnFilter.Run(req, handler)
-						checkExpectedErrorMessage(expectedErrorMessage, err)
-						httpErr, ok := err.(*util.HTTPError)
+						ok, err := web.AuthenticationErrorFromContext(req.Context())
 						Expect(ok).To(BeTrue())
-						Expect(httpErr.StatusCode).To(Equal(http.StatusUnauthorized))
+						Expect(err.Error()).To(Equal(expectedErrorMessage))
 					})
 				})
 			})

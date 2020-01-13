@@ -17,6 +17,8 @@
 package filters
 
 import (
+	"fmt"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/security"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -32,7 +34,9 @@ type requiredAuthzFilter struct {
 
 // NewRequiredAuthzFilter returns web.Filter which requires at least one authorization flows to be successful
 func NewRequiredAuthzFilter(matchers []web.FilterMatcher) web.Filter {
-	return &requiredAuthzFilter{matchers}
+	return &requiredAuthzFilter{
+		filterMatchers: matchers,
+	}
 }
 
 // Name implements the web.Filter interface and returns the identifier of the filter
@@ -46,7 +50,11 @@ func (raf *requiredAuthzFilter) Run(request *web.Request, next web.Handler) (*we
 	ctx := request.Context()
 	if !web.IsAuthorized(ctx) {
 		log.C(ctx).Info("No authorization confirmation found during execution of filter ", raf.Name())
-		return nil, security.ForbiddenHTTPError("Not authorized")
+		message := "not authorized"
+		if found, err := web.AuthorizationErrorFromContext(ctx); found {
+			message = fmt.Sprintf("%s: %s", message, err)
+		}
+		return nil, security.ForbiddenHTTPError(message)
 	}
 	return next.Handle(request)
 }

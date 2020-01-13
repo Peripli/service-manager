@@ -34,7 +34,7 @@ var _ = Describe("Service Manager Filters", func() {
 	var planID string
 
 	JustBeforeEach(func() {
-		ctx = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error {
+		ctx = common.NewTestContextBuilderWithSecurity().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error {
 			smb.API.RegisterFilters(testFilters...)
 			return nil
 		}).Build()
