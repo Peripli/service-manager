@@ -18,6 +18,7 @@ package sm_test
 
 import (
 	"context"
+	"fmt"
 	"net/http/httptest"
 	"testing"
 
@@ -167,6 +168,17 @@ var _ = Describe("SM", func() {
 					Expect().
 					Status(http.StatusOK).JSON().Object().Value("invoked").Equal("controller")
 
+			})
+		})
+
+		It("stores a service manager platform in SMDB after bootstrap", func() {
+			testContext := common.NewTestContextBuilder().SkipBasicAuthClientSetup(true).Build()
+			resp := testContext.SMWithOAuth.GET(web.PlatformsURL).WithQueryString(fmt.Sprintf("fieldQuery=name eq '%s'", sm.Platform)).
+				Expect().Status(http.StatusOK).JSON()
+			resp.Path("$.num_items").Number().Equal(1)
+			resp.Path("$.items[*]").Array().First().Object().ContainsMap(map[string]interface{}{
+				"type": sm.Platform,
+				"name": sm.Platform,
 			})
 		})
 	})

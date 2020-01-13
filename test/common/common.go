@@ -20,6 +20,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/sm"
+
 	"github.com/Peripli/service-manager/storage"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -220,7 +222,7 @@ func RemoveAllBrokers(SM *SMExpect) {
 }
 
 func RemoveAllPlatforms(SM *SMExpect) {
-	removeAll(SM, "platforms", web.PlatformsURL)
+	removeAll(SM, "platforms", web.PlatformsURL+fmt.Sprintf("?fieldQuery=name ne '%s'", sm.Platform))
 }
 
 func RemoveAllVisibilities(SM *SMExpect) {

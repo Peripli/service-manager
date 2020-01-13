@@ -20,9 +20,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/Peripli/service-manager/operations"
 	"net/http"
 	"sync"
+	"time"
+
+	"github.com/Peripli/service-manager/operations"
+	"github.com/gofrs/uuid"
 
 	"github.com/Peripli/service-manager/pkg/env"
 
@@ -51,6 +54,9 @@ import (
 	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/pkg/web"
 )
+
+// Platform is the name and type of the service manager platform that will be registered in SMDB
+const Platform = "service-manager"
 
 // ServiceManagerBuilder type is an extension point that allows adding additional filters, plugins and
 // controllers before running ServiceManager.
@@ -201,6 +207,10 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	// start the operation maintainer
 	smb.OperationMaintainer.Run()
 
+	if err := smb.registerSMPlatform(); err != nil {
+		log.C(smb.ctx).Panic(err)
+	}
+
 	return &ServiceManager{
 		ctx:                 smb.ctx,
 		wg:                  smb.wg,
@@ -208,6 +218,31 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 		Notificator:         smb.Notificator,
 		NotificationCleaner: smb.NotificationCleaner,
 	}
+}
+
+func (smb *ServiceManagerBuilder) registerSMPlatform() error {
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		return fmt.Errorf("could not generate GUID for %s: %s", types.PlatformType, err)
+	}
+	if _, err := smb.Storage.Create(smb.ctx, &types.Platform{
+		Base: types.Base{
+			ID:        UUID.String(),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Labels:    make(map[string][]string),
+		},
+		Type: Platform,
+		Name: Platform,
+	}); err != nil {
+		if err == util.ErrAlreadyExistsInStorage {
+			log.C(smb.ctx).Infof("platform %s already exists in SMDB...", "service-manager")
+			return nil
+		}
+		return fmt.Errorf("could register service-manager platform during bootstrap: %s", err)
+	}
+
+	return nil
 }
 
 func (smb *ServiceManagerBuilder) installHealth() error {

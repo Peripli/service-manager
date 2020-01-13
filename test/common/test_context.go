@@ -527,7 +527,7 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 	ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL).Expect()
 
 	if ctx.TestPlatform != nil {
-		ctx.SMWithOAuth.DELETE(web.PlatformsURL).WithQuery("fieldQuery", fmt.Sprintf("id ne '%s'", ctx.TestPlatform.ID)).Expect()
+		ctx.SMWithOAuth.DELETE(web.PlatformsURL).WithQuery("fieldQuery", fmt.Sprintf("id notin ('%s', '%s')", ctx.TestPlatform.ID, sm.Platform)).Expect()
 	} else {
 		ctx.SMWithOAuth.DELETE(web.PlatformsURL).Expect()
 	}
