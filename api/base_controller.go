@@ -94,6 +94,13 @@ func (c *BaseController) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
+				Path:   fmt.Sprintf("%s/{%s}%s", c.resourceBaseURL, PathParamResourceID, web.OperationsURL, PathParamID),
+			},
+			Handler: c.ListOperations,
+		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodGet,
 				Path:   c.resourceBaseURL,
 			},
 			Handler: c.ListObjects,
@@ -225,6 +232,28 @@ func (c *BaseController) GetOperation(r *web.Request) (*web.Response, error) {
 	}
 
 	return util.NewJSONResponse(http.StatusOK, operation)
+}
+
+// ListOperations handles the fetching of a single operation with the id specified for the specified resource
+func (c *BaseController) ListOperations(r *web.Request) (*web.Response, error) {
+	objectID := r.PathParams[PathParamResourceID]
+
+	ctx := r.Context()
+	log.C(ctx).Debugf("Listing operation for object of type %s with id %s", c.objectType, objectID)
+
+	byObjectID := query.ByField(query.EqualsOperator, "resource_id", objectID)
+	var err error
+	ctx, err = query.AddCriteria(ctx, byObjectID)
+	if err != nil {
+		return nil, err
+	}
+	criteria := query.CriteriaForContext(ctx)
+	operations, err := c.repository.List(ctx, types.OperationType, criteria...)
+	if err != nil {
+		return nil, util.HandleStorageError(err, c.objectType.String())
+	}
+
+	return util.NewJSONResponse(http.StatusOK, operations)
 }
 
 // ListObjects handles the fetching of all objects
