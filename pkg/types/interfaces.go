@@ -20,6 +20,8 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/square/go-jose.v2/json"
+
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
@@ -36,6 +38,12 @@ func (ot ObjectType) String() string {
 type Secured interface {
 	SetCredentials(credentials *Credentials)
 	GetCredentials() *Credentials
+}
+
+// CredentialsObject interface indicates that an object has secured credentials object
+type CredentialsObject interface {
+	SetCredentials(credentials json.RawMessage)
+	GetCredentials() json.RawMessage
 }
 
 // Object is the common interface that all resources in the Service Manager must implement

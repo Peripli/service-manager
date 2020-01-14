@@ -20,10 +20,11 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/Peripli/service-manager/operations"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/Peripli/service-manager/operations"
 
 	"github.com/tidwall/sjson"
 
@@ -292,7 +293,7 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
-	stripCredentials(ctx, object)
+	stripBasicCredentials(ctx, object)
 
 	return util.NewJSONResponse(http.StatusOK, object)
 }
@@ -454,11 +455,11 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
-	stripCredentials(ctx, object)
+	stripBasicCredentials(ctx, object)
 	return util.NewJSONResponse(http.StatusOK, object)
 }
 
-func stripCredentials(ctx context.Context, object types.Object) {
+func stripBasicCredentials(ctx context.Context, object types.Object) {
 	if secured, ok := object.(types.Secured); ok {
 		secured.SetCredentials(nil)
 	} else {
@@ -572,7 +573,7 @@ func pageFromObjectList(ctx context.Context, objectList types.ObjectList, count,
 
 	for i := 0; i < objectList.Len(); i++ {
 		obj := objectList.ItemAt(i)
-		stripCredentials(ctx, obj)
+		stripBasicCredentials(ctx, obj)
 		page.Items = append(page.Items, obj)
 	}
 

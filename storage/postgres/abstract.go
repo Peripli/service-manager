@@ -243,6 +243,20 @@ func getJSONText(item json.RawMessage) sqlxtypes.JSONText {
 	return sqlxtypes.JSONText(item)
 }
 
+func getNullJSONText(item json.RawMessage) sqlxtypes.NullJSONText {
+	itemLen := len(item)
+	if itemLen == 0 || itemLen == len("null") && string(item) == "null" {
+		return sqlxtypes.NullJSONText{
+			JSONText: nil,
+			Valid:    false,
+		}
+	}
+	return sqlxtypes.NullJSONText{
+		JSONText: getJSONText(item),
+		Valid:    true,
+	}
+}
+
 func getJSONRawMessage(item sqlxtypes.JSONText) json.RawMessage {
 	if len(item) <= len("null") {
 		itemStr := string(item)
