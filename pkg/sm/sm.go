@@ -57,9 +57,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-// Platform is the name and type of the service manager platform that will be registered in SMDB
-const Platform = "service-manager"
-
 // ServiceManagerBuilder type is an extension point that allows adding additional filters, plugins and
 // controllers before running ServiceManager.
 type ServiceManagerBuilder struct {
@@ -248,8 +245,8 @@ func (smb *ServiceManagerBuilder) registerSMPlatform() error {
 			UpdatedAt: time.Now(),
 			Labels:    make(map[string][]string),
 		},
-		Type: Platform,
-		Name: Platform,
+		Type: types.SMPlatform,
+		Name: types.SMPlatform,
 	}); err != nil {
 		if err == util.ErrAlreadyExistsInStorage {
 			log.C(smb.ctx).Infof("platform %s already exists in SMDB...", "service-manager")

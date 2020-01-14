@@ -22,6 +22,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/Peripli/service-manager/pkg/types"
+
 	"github.com/Peripli/service-manager/pkg/env/envfakes"
 
 	"github.com/Peripli/service-manager/config"
@@ -171,15 +173,61 @@ var _ = Describe("SM", func() {
 			})
 		})
 
-		It("stores a service manager platform in SMDB after bootstrap", func() {
-			testContext := common.NewTestContextBuilder().SkipBasicAuthClientSetup(true).Build()
-			resp := testContext.SMWithOAuth.GET(web.PlatformsURL).WithQueryString(fmt.Sprintf("fieldQuery=name eq '%s'", sm.Platform)).
-				Expect().Status(http.StatusOK).JSON()
-			resp.Path("$.num_items").Number().Equal(1)
-			resp.Path("$.items[*]").Array().First().Object().ContainsMap(map[string]interface{}{
-				"type": sm.Platform,
-				"name": sm.Platform,
+		Context("Service Manager platform", func() {
+			var ctx *common.TestContext
+			var smPlatformID string
+			verifySMPlatformExists := func() string {
+				resp := ctx.SMWithOAuth.GET(web.PlatformsURL).WithQueryString(fmt.Sprintf("fieldQuery=name eq '%s'", types.SMPlatform)).
+					Expect().Status(http.StatusOK).JSON()
+				resp.Path("$.num_items").Number().Equal(1)
+				resp.Path("$.items[*]").Array().First().Object().ContainsMap(map[string]interface{}{
+					"type": types.SMPlatform,
+					"name": types.SMPlatform,
+				})
+				return resp.Path("$.items[*]").Array().First().Object().Value("id").String().Raw()
+			}
+
+			BeforeEach(func() {
+				ctx = common.NewTestContextBuilder().Build()
+				smPlatformID = verifySMPlatformExists()
 			})
+
+			AfterEach(func() {
+				verifySMPlatformExists()
+			})
+
+			auths := []func() *common.SMExpect{
+				func() *common.SMExpect {
+					return ctx.SM
+				},
+				func() *common.SMExpect {
+					return ctx.SMWithOAuth
+				},
+				func() *common.SMExpect {
+					return ctx.SMWithOAuthForTenant
+				},
+				func() *common.SMExpect {
+					return ctx.SMWithBasic
+				},
+			}
+
+			for _, auth := range auths {
+				auth := auth
+				It("disallows bulk deleting of service manager platform", func() {
+					auth().DELETE(web.PlatformsURL).WithQueryString(fmt.Sprintf("fieldQuery=name eq '%s'", types.SMPlatform)).
+						Expect().Status(http.StatusNotFound)
+				})
+
+				It("disallows single deleting of service manager platform", func() {
+					auth().DELETE(web.PlatformsURL + "/" + smPlatformID).
+						Expect().Status(http.StatusNotFound)
+				})
+
+				It("disallows patching the service manager platform", func() {
+					auth().PATCH(web.PlatformsURL + "/" + smPlatformID).WithJSON(common.Object{}).
+						Expect().Status(http.StatusNotFound)
+				})
+			}
 		})
 	})
 })

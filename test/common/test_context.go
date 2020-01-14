@@ -526,9 +526,9 @@ func (ctx *TestContext) Cleanup() {
 
 func (ctx *TestContext) CleanupPlatforms() {
 	if ctx.TestPlatform != nil {
-		ctx.SMWithOAuth.DELETE(web.PlatformsURL).WithQuery("fieldQuery", fmt.Sprintf("id notin ('%s', '%s')", ctx.TestPlatform.ID, sm.Platform)).Expect()
+		ctx.SMWithOAuth.DELETE(web.PlatformsURL).WithQuery("fieldQuery", fmt.Sprintf("id notin ('%s', '%s')", ctx.TestPlatform.ID, types.SMPlatform)).Expect()
 	} else {
-		ctx.SMWithOAuth.DELETE(web.PlatformsURL).WithQuery("fieldQuery", fmt.Sprintf("id ne '%s'", sm.Platform)).Expect()
+		ctx.SMWithOAuth.DELETE(web.PlatformsURL).WithQuery("fieldQuery", fmt.Sprintf("id ne '%s'", types.SMPlatform)).Expect()
 	}
 }
 
