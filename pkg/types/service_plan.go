@@ -43,6 +43,8 @@ type ServicePlan struct {
 	MaintenanceInfo        json.RawMessage `json:"maintenance_info,omitempty"`
 
 	ServiceOfferingID string `json:"service_offering_id"`
+
+	LastOperation *Operation `json:"last_operation,omitempty"`
 }
 
 func (e *ServicePlan) Equals(obj Object) bool {
@@ -65,6 +67,14 @@ func (e *ServicePlan) Equals(obj Object) bool {
 	}
 
 	return true
+}
+
+func (e *ServicePlan) SetLastOperation(lastOp *Operation) {
+	e.LastOperation = lastOp
+}
+
+func (e *ServicePlan) GetLastOperation() *Operation {
+	return e.LastOperation
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

@@ -20,10 +20,11 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/Peripli/service-manager/operations"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/Peripli/service-manager/operations"
 
 	"github.com/tidwall/sjson"
 
@@ -293,6 +294,12 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 	}
 
 	stripCredentials(ctx, object)
+	displayOp := r.URL.Query().Get("display_op")
+	if displayOp == "true" {
+		if err := attachLastOperation(ctx, objectID, object, r, c.repository); err != nil {
+			return nil, err
+		}
+	}
 
 	return util.NewJSONResponse(http.StatusOK, object)
 }
@@ -456,6 +463,32 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 
 	stripCredentials(ctx, object)
 	return util.NewJSONResponse(http.StatusOK, object)
+}
+
+func attachLastOperation(ctx context.Context, objectID string, object types.Object, r *web.Request, repository storage.Repository) error {
+	operationable, ok := object.(types.Operationable)
+	if ok {
+		orderBy := query.OrderResultBy("paging_sequence", query.DescOrder)
+		limitBy := query.LimitResultBy(1)
+		byObjectID := query.ByField(query.EqualsOperator, "resource_id", objectID)
+		list, err := repository.List(ctx, types.OperationType, byObjectID, orderBy, limitBy)
+		if err != nil {
+			return util.HandleStorageError(err, types.OperationType.String())
+		}
+		if list.Len() == 0 {
+			log.C(ctx).Debugf("No last operation found for entity with id %s of type %s", objectID, object.GetType().String())
+			return nil
+		}
+		lastOperation := list.ItemAt(0)
+		operationable.SetLastOperation(lastOperation.(*types.Operation))
+		return nil
+	}
+
+	return &util.HTTPError{
+		ErrorType:   "LastOperationNotSupported",
+		Description: fmt.Sprintf("last operation is not supported for type %s", object.GetType().String()),
+		StatusCode:  http.StatusBadRequest,
+	}
 }
 
 func stripCredentials(ctx context.Context, object types.Object) {

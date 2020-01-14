@@ -39,6 +39,8 @@ type ServiceInstance struct {
 	PreviousValues  json.RawMessage `json:"-"`
 	Ready           bool            `json:"ready"`
 	Usable          bool            `json:"usable"`
+
+	LastOperation *Operation `json:"last_operation,omitempty"`
 }
 
 func (e *ServiceInstance) Equals(obj Object) bool {
@@ -58,6 +60,14 @@ func (e *ServiceInstance) Equals(obj Object) bool {
 	}
 
 	return true
+}
+
+func (e *ServiceInstance) SetLastOperation(lastOp *Operation) {
+	e.LastOperation = lastOp
+}
+
+func (e *ServiceInstance) GetLastOperation() *Operation {
+	return e.LastOperation
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated

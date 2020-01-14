@@ -38,6 +38,11 @@ type Secured interface {
 	GetCredentials() *Credentials
 }
 
+type Operationable interface {
+	SetLastOperation(*Operation)
+	GetLastOperation() *Operation
+}
+
 // Object is the common interface that all resources in the Service Manager must implement
 type Object interface {
 	util.InputValidator

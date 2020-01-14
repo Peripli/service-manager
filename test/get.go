@@ -67,6 +67,29 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 								Expect().
 								Status(http.StatusOK).JSON().Object().ContainsMap(testResource)
 						})
+
+						if t.SupportsAsyncOperations && responseMode == Async {
+							Context("when resource is created async and query param display_op is true", func() {
+								It("returns last operation with the resource", func() {
+									ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
+										WithQuery("display_op", "true").
+										Expect().
+										// No need to wait, because when resource is created async, its operation is expected to be successful
+										Status(http.StatusOK).JSON().Object().Value("last_operation").Object().ValueEqual("state", "succeeded")
+								})
+							})
+						}
+
+						if !t.SupportsAsyncOperations {
+							Context("when resource does not support async and query param display_op is true", func() {
+								It("returns error", func() {
+									ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
+										WithQuery("display_op", "true").
+										Expect().
+										Status(http.StatusBadRequest).JSON().Object().Value("description").Equal("last operation is not supported for type Platform")
+								})
+							})
+						}
 					})
 
 					if !t.DisableTenantResources {

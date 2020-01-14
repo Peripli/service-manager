@@ -39,6 +39,8 @@ type ServiceBroker struct {
 
 	Catalog  json.RawMessage    `json:"-"`
 	Services []*ServiceOffering `json:"-"`
+
+	LastOperation *Operation `json:"last_operation,omitempty"`
 }
 
 func (e *ServiceBroker) SetCredentials(credentials *Credentials) {
@@ -47,6 +49,14 @@ func (e *ServiceBroker) SetCredentials(credentials *Credentials) {
 
 func (e *ServiceBroker) GetCredentials() *Credentials {
 	return e.Credentials
+}
+
+func (e *ServiceBroker) SetLastOperation(lastOp *Operation) {
+	e.LastOperation = lastOp
+}
+
+func (e *ServiceBroker) GetLastOperation() *Operation {
+	return e.LastOperation
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
