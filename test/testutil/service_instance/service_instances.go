@@ -48,6 +48,7 @@ func Prepare(ctx *common.TestContext, platformID, planID string, OSBContext stri
 		Name:          "test-service-instance",
 		ServicePlanID: planID,
 		PlatformID:    platformID,
+		DashboardURL:  "http://test-service.com/dashboard",
 		Context:       []byte(OSBContext),
 		Ready:         true,
 		Usable:        true,
