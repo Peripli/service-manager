@@ -524,6 +524,14 @@ func (ctx *TestContext) Cleanup() {
 	ctx.wg.Wait()
 }
 
+func (ctx *TestContext) CleanupPlatforms() {
+	if ctx.TestPlatform != nil {
+		ctx.SMWithOAuth.DELETE(web.PlatformsURL).WithQuery("fieldQuery", fmt.Sprintf("id notin ('%s', '%s')", ctx.TestPlatform.ID, sm.Platform)).Expect()
+	} else {
+		ctx.SMWithOAuth.DELETE(web.PlatformsURL).WithQuery("fieldQuery", fmt.Sprintf("id ne '%s'", sm.Platform)).Expect()
+	}
+}
+
 func (ctx *TestContext) CleanupAdditionalResources() {
 	if ctx == nil {
 		return
@@ -542,11 +550,7 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 
 	ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL).Expect()
 
-	if ctx.TestPlatform != nil {
-		ctx.SMWithOAuth.DELETE(web.PlatformsURL).WithQuery("fieldQuery", fmt.Sprintf("id notin ('%s', '%s')", ctx.TestPlatform.ID, sm.Platform)).Expect()
-	} else {
-		ctx.SMWithOAuth.DELETE(web.PlatformsURL).Expect()
-	}
+	ctx.CleanupPlatforms()
 	var smServer FakeServer
 	for serverName, server := range ctx.Servers {
 		if serverName == SMServer {
