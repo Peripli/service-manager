@@ -18,6 +18,7 @@ package api_test
 
 import (
 	"context"
+	"github.com/Peripli/service-manager/operations"
 	"testing"
 
 	"github.com/Peripli/service-manager/pkg/env/envfakes"
@@ -59,7 +60,8 @@ var _ = Describe("API", func() {
 	Describe("New", func() {
 		It("returns no error if creation is successful", func() {
 			_, err := api.New(context.TODO(), fakeEnvironment, &api.Options{
-				Repository: mockedStorage,
+				Repository:        mockedStorage,
+				OperationSettings: &operations.Settings{},
 				APISettings: &api.Settings{
 					TokenIssuerURL: server.BaseURL,
 					ClientID:       "sm",

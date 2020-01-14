@@ -36,7 +36,7 @@ import (
 	. "github.com/onsi/ginkgo"
 )
 
-func DescribeGetTestsfor(ctx *common.TestContext, t TestCase) bool {
+func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode ResponseMode) bool {
 	return Describe("GET", func() {
 		Context("Resource", func() {
 			var testResource common.Object
@@ -44,7 +44,8 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase) bool {
 
 			Context(fmt.Sprintf("Existing resource of type %s", t.API), func() {
 				createTestResourceWithAuth := func(auth *common.SMExpect) (common.Object, string) {
-					testResource := t.ResourceBlueprint(ctx, auth)
+					testResource = t.ResourceBlueprint(ctx, auth, bool(responseMode))
+
 					By(fmt.Sprintf("[SETUP]: Verifying that test resource %v is not empty", testResource))
 					Expect(testResource).ToNot(BeEmpty())
 

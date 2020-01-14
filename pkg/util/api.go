@@ -140,8 +140,16 @@ type EmptyResponseBody struct{}
 
 // NewJSONResponse turns plain object into a byte array representing JSON value and wraps it in web.Response
 func NewJSONResponse(code int, value interface{}) (*web.Response, error) {
+	return NewJSONResponseWithHeaders(code, value, nil)
+}
+
+func NewJSONResponseWithHeaders(code int, value interface{}, additionalHeaders map[string]string) (*web.Response, error) {
 	headers := http.Header{}
 	headers.Add("Content-Type", "application/json")
+
+	for header, value := range additionalHeaders {
+		headers.Add(header, value)
+	}
 
 	body := make([]byte, 0)
 	var err error

@@ -57,6 +57,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			"zid": "tenantID",
 		},
 	},
+	SupportsAsyncOperations:                false,
 	ResourceBlueprint:                      blueprint(true),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
 	PatchResource:                          test.DefaultResourcePatch,
@@ -172,6 +173,20 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Expect().Status(http.StatusBadRequest).JSON().Object()
 
 						reply.Value("description").Equal("platform/1 contains invalid character(s)")
+					})
+				})
+
+				Context("With async query param", func() {
+					It("fails", func() {
+						platform := common.MakePlatform("", "cf-10", "cf", "descr")
+						delete(platform, "id")
+
+						reply := ctx.SMWithOAuth.POST(web.PlatformsURL).
+							WithQuery("async", "true").
+							WithJSON(platform).
+							Expect().Status(http.StatusBadRequest).JSON().Object()
+
+						reply.Value("description").String().Contains("api doesn't support asynchronous operations")
 					})
 				})
 
@@ -367,8 +382,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *common.SMExpect) common.Object {
-	return func(_ *common.TestContext, auth *common.SMExpect) common.Object {
+func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *common.SMExpect, async bool) common.Object {
+	return func(_ *common.TestContext, auth *common.SMExpect, _ bool) common.Object {
 		randomPlatform := common.GenerateRandomPlatform()
 		if !setNullFieldsValues {
 			delete(randomPlatform, "description")

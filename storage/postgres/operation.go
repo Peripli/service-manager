@@ -18,7 +18,6 @@ package postgres
 
 import (
 	"database/sql"
-
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 	sqlxtypes "github.com/jmoiron/sqlx/types"

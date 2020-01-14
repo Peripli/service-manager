@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/Peripli/service-manager/operations"
 	"net/http"
 	"sync"
 
@@ -63,6 +64,7 @@ type ServiceManagerBuilder struct {
 	Storage             *storage.InterceptableTransactionalRepository
 	Notificator         storage.Notificator
 	NotificationCleaner *storage.NotificationCleaner
+	OperationMaintainer *operations.Maintainer
 	ctx                 context.Context
 	wg                  *sync.WaitGroup
 	cfg                 *config.Settings
@@ -126,10 +128,12 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	}
 
 	apiOptions := &api.Options{
-		Repository:  interceptableRepository,
-		APISettings: cfg.API,
-		WSSettings:  cfg.WebSocket,
-		Notificator: pgNotificator,
+		Repository:        interceptableRepository,
+		APISettings:       cfg.API,
+		OperationSettings: cfg.Operations,
+		WSSettings:        cfg.WebSocket,
+		Notificator:       pgNotificator,
+		WaitGroup:         waitGroup,
 	}
 	API, err := api.New(ctx, e, apiOptions)
 	if err != nil {
@@ -153,11 +157,14 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		Settings: *cfg.Storage,
 	}
 
+	operationMaintainer := operations.NewMaintainer(ctx, interceptableRepository, cfg.Operations)
+
 	smb := &ServiceManagerBuilder{
 		API:                 API,
 		Storage:             interceptableRepository,
 		Notificator:         pgNotificator,
 		NotificationCleaner: notificationCleaner,
+		OperationMaintainer: operationMaintainer,
 		authnDynamicFilter:  authnDynamicFilter,
 		authzDynamicFilter:  authzDynamicFilter,
 		ctx:                 ctx,
@@ -206,6 +213,9 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	// setup server and add relevant global middleware
 	srv := server.New(smb.cfg.Server, smb.API)
 	srv.Use(filters.NewRecoveryMiddleware())
+
+	// start the operation maintainer
+	smb.OperationMaintainer.Run()
 
 	return &ServiceManager{
 		ctx:                 smb.ctx,
@@ -432,6 +442,9 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 	smb.RegisterFiltersAfter(filters.ProtectedLabelsFilterName, multitenancyFilters...)
 	smb.RegisterPlugins(osb.NewCheckInstanceOwnerPlugin(smb.Storage, labelKey))
 	smb.WithCreateOnTxInterceptorProvider(types.ServiceInstanceType, &interceptors.ServiceInstanceCreateInsterceptorProvider{
+		TenantIdentifier: labelKey,
+	}).Register()
+	smb.WithCreateOnTxInterceptorProvider(types.OperationType, &interceptors.OperationsCreateInsterceptorProvider{
 		TenantIdentifier: labelKey,
 	}).Register()
 	return smb

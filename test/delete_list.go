@@ -43,7 +43,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 	var r []common.Object
 	var rWithMandatoryFields common.Object
 
-	entries := []TableEntry{
+	entriesWithQuery := []TableEntry{
 		Entry("returns 200 for operator =",
 			deleteOpEntry{
 				resourcesToExpectBeforeOp: func() []common.Object {
@@ -400,9 +400,9 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		By(fmt.Sprintf("[BEFOREEACH]: Preparing and creating test resources"))
 
 		r = make([]common.Object, 0, 0)
-		rWithMandatoryFields = t.ResourceWithoutNullableFieldsBlueprint(ctx, ctx.SMWithOAuth)
+		rWithMandatoryFields = t.ResourceWithoutNullableFieldsBlueprint(ctx, ctx.SMWithOAuth, false)
 		for i := 0; i < 2; i++ {
-			gen := t.ResourceBlueprint(ctx, ctx.SMWithOAuth)
+			gen := t.ResourceBlueprint(ctx, ctx.SMWithOAuth, false)
 			gen = attachLabel(gen, i)
 			delete(gen, "created_at")
 			delete(gen, "updated_at")
@@ -576,7 +576,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 						var rForTenant common.Object
 
 						BeforeEach(func() {
-							rForTenant = t.ResourceBlueprint(ctx, ctx.SMWithOAuthForTenant)
+							rForTenant = t.ResourceBlueprint(ctx, ctx.SMWithOAuthForTenant, false)
 						})
 
 						It("deletes only tenant specific resources", func() {
@@ -668,7 +668,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 			})
 		})
 
-		DescribeTable("with non-empty query", verifyDeleteListOp, entries...)
+		DescribeTable("with non-empty query", verifyDeleteListOp, entriesWithQuery...)
 	})
 }
 

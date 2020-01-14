@@ -18,7 +18,9 @@ package broker_test
 import (
 	"context"
 	"fmt"
+	"github.com/gofrs/uuid"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -1691,22 +1693,23 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			})
 
 			Describe("DELETE", func() {
-				var (
-					brokerID string
-				)
-
-				BeforeEach(func() {
-					var serviceInstance *types.ServiceInstance
-
-					brokerID, serviceInstance = service_instance.Prepare(ctx, ctx.TestPlatform.ID, "", "{}")
-					ctx.SMRepository.Create(context.Background(), serviceInstance)
-				})
 
 				AfterEach(func() {
 					ctx.CleanupAdditionalResources()
 				})
 
 				Context("with existing service instances to some broker plan", func() {
+					var (
+						brokerID string
+					)
+
+					BeforeEach(func() {
+						var serviceInstance *types.ServiceInstance
+
+						brokerID, serviceInstance = service_instance.Prepare(ctx, ctx.TestPlatform.ID, "", "{}")
+						ctx.SMRepository.Create(context.Background(), serviceInstance)
+					})
+
 					It("should return 400 with user-friendly message", func() {
 						ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL + "/" + brokerID).
 							Expect().
@@ -1715,22 +1718,53 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Value("error").String().Contains("ExistingReferenceEntity")
 					})
 				})
+
+				Context("when attempting async bulk delete", func() {
+					It("should return 400", func() {
+						ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL).
+							WithQuery("fieldQuery", "id in ('id1','id2','id3')").
+							WithQuery("async", "true").
+							Expect().
+							Status(http.StatusBadRequest).
+							JSON().Object().
+							Value("description").String().Contains("Only one resource can be deleted asynchronously at a time")
+					})
+				})
 			})
 		})
 	},
 })
 
-func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *common.SMExpect) common.Object {
-	return func(ctx *common.TestContext, auth *common.SMExpect) common.Object {
+func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *common.SMExpect, async bool) common.Object {
+	return func(ctx *common.TestContext, auth *common.SMExpect, async bool) common.Object {
 		brokerJSON := common.GenerateRandomBroker()
+
+		brokerID, err := uuid.NewV4()
+		if err != nil {
+			panic(err)
+		}
+		brokerJSON["id"] = brokerID.String()
 
 		if !setNullFieldsValues {
 			delete(brokerJSON, "description")
 		}
-		obj := auth.POST(web.ServiceBrokersURL).WithJSON(brokerJSON).
-			Expect().
-			Status(http.StatusCreated).JSON().Object().Raw()
-		delete(obj, "credentials")
+
+		var obj map[string]interface{}
+		resp := auth.POST(web.ServiceBrokersURL).WithQuery("async", strconv.FormatBool(async)).WithJSON(brokerJSON).Expect()
+		if async {
+			resp = resp.Status(http.StatusAccepted)
+			if err := test.ExpectOperation(auth, resp, types.SUCCEEDED); err != nil {
+				panic(err)
+			}
+
+			obj = auth.GET(web.ServiceBrokersURL + "/" + brokerID.String()).
+				Expect().JSON().Object().Raw()
+
+		} else {
+			obj = resp.Status(http.StatusCreated).JSON().Object().Raw()
+			delete(obj, "credentials")
+		}
+
 		return obj
 	}
 }

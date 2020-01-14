@@ -2,7 +2,10 @@ package test
 
 import (
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/gavv/httpexpect"
 	"net/http"
+	"strconv"
 
 	. "github.com/onsi/gomega"
 
@@ -10,19 +13,33 @@ import (
 	. "github.com/onsi/ginkgo"
 )
 
-func DescribePatchTestsFor(ctx *common.TestContext, t TestCase) bool {
+func DescribePatchTestsFor(ctx *common.TestContext, t TestCase, responseMode ResponseMode) bool {
 	return Describe("Patch", func() {
 		var testResource common.Object
 		var testResourceID string
 
+		var asyncParam = strconv.FormatBool(bool(responseMode))
+
 		createTestResourceWithAuth := func(auth *common.SMExpect) {
-			testResource = t.ResourceBlueprint(ctx, auth)
+			testResource = t.ResourceBlueprint(ctx, auth, bool(responseMode))
 			By(fmt.Sprintf("[SETUP]: Verifying that test resource %v is not empty", testResource))
 			Expect(testResource).ToNot(BeEmpty())
 
 			By(fmt.Sprintf("[SETUP]: Verifying that test resource %v has an id of type string", testResource))
 			testResourceID = testResource["id"].(string)
 			Expect(testResourceID).ToNot(BeEmpty())
+		}
+
+		verifyPatchedResource := func(resp *httpexpect.Response) {
+			switch responseMode {
+			case Async:
+				resp.Status(http.StatusAccepted)
+
+				err := ExpectOperation(ctx.SMWithOAuth, resp, types.SUCCEEDED)
+				Expect(err).To(BeNil())
+			case Sync:
+				resp.Status(http.StatusOK)
+			}
 		}
 
 		Context(fmt.Sprintf("Existing resource of type %s", t.API), func() {
@@ -34,7 +51,7 @@ func DescribePatchTestsFor(ctx *common.TestContext, t TestCase) bool {
 
 					Context("when authenticating with basic auth", func() {
 						It("returns 401", func() {
-							ctx.SMWithBasic.PATCH(t.API + "/" + testResourceID).WithJSON(common.Object{}).
+							ctx.SMWithBasic.PATCH(t.API+"/"+testResourceID).WithQuery("async", asyncParam).WithJSON(common.Object{}).
 								Expect().
 								Status(http.StatusUnauthorized)
 						})
@@ -42,18 +59,16 @@ func DescribePatchTestsFor(ctx *common.TestContext, t TestCase) bool {
 
 					Context("when authenticating with global token", func() {
 						It("returns 200", func() {
-							ctx.SMWithOAuth.PATCH(t.API + "/" + testResourceID).WithJSON(common.Object{}).
-								Expect().
-								Status(http.StatusOK)
+							resp := ctx.SMWithOAuth.PATCH(t.API+"/"+testResourceID).WithQuery("async", asyncParam).WithJSON(common.Object{}).Expect()
+							verifyPatchedResource(resp)
 						})
 					})
 
 					if !t.DisableTenantResources {
 						Context("when authenticating with tenant scoped token", func() {
 							It("returns 404", func() {
-								ctx.SMWithOAuthForTenant.PATCH(t.API + "/" + testResourceID).WithJSON(common.Object{}).
-									Expect().
-									Status(http.StatusNotFound)
+								ctx.SMWithOAuthForTenant.PATCH(t.API+"/"+testResourceID).WithQuery("async", asyncParam).WithJSON(common.Object{}).
+									Expect().Status(http.StatusNotFound)
 							})
 						})
 					}
@@ -67,7 +82,7 @@ func DescribePatchTestsFor(ctx *common.TestContext, t TestCase) bool {
 
 						Context("when authenticating with basic auth", func() {
 							It("returns 401", func() {
-								ctx.SMWithBasic.PATCH(t.API + "/" + testResourceID).WithJSON(common.Object{}).
+								ctx.SMWithBasic.PATCH(t.API+"/"+testResourceID).WithQuery("async", asyncParam).WithJSON(common.Object{}).
 									Expect().
 									Status(http.StatusUnauthorized)
 							})
@@ -75,17 +90,15 @@ func DescribePatchTestsFor(ctx *common.TestContext, t TestCase) bool {
 
 						Context("when authenticating with global token", func() {
 							It("returns 200", func() {
-								ctx.SMWithOAuth.PATCH(t.API + "/" + testResourceID).WithJSON(common.Object{}).
-									Expect().
-									Status(http.StatusOK)
+								resp := ctx.SMWithOAuth.PATCH(t.API+"/"+testResourceID).WithQuery("async", asyncParam).WithJSON(common.Object{}).Expect()
+								verifyPatchedResource(resp)
 							})
 						})
 
 						Context("when authenticating with tenant scoped token", func() {
 							It("returns 200", func() {
-								ctx.SMWithOAuthForTenant.PATCH(t.API + "/" + testResourceID).WithJSON(common.Object{}).
-									Expect().
-									Status(http.StatusOK)
+								resp := ctx.SMWithOAuthForTenant.PATCH(t.API+"/"+testResourceID).WithQuery("async", asyncParam).WithJSON(common.Object{}).Expect()
+								verifyPatchedResource(resp)
 							})
 						})
 					})
@@ -100,7 +113,7 @@ func DescribePatchTestsFor(ctx *common.TestContext, t TestCase) bool {
 
 			Context("when authenticating with basic auth", func() {
 				It("returns 401", func() {
-					ctx.SMWithBasic.PATCH(t.API + "/" + testResourceID).WithJSON(common.Object{}).
+					ctx.SMWithBasic.PATCH(t.API+"/"+testResourceID).WithQuery("async", asyncParam).WithJSON(common.Object{}).
 						Expect().
 						Status(http.StatusUnauthorized)
 				})
@@ -108,9 +121,8 @@ func DescribePatchTestsFor(ctx *common.TestContext, t TestCase) bool {
 
 			Context("when authenticating with global token", func() {
 				It("returns 404", func() {
-					ctx.SMWithOAuth.PATCH(t.API + "/" + testResourceID).WithJSON(common.Object{}).
-						Expect().
-						Status(http.StatusNotFound)
+					ctx.SMWithOAuth.PATCH(t.API+"/"+testResourceID).WithQuery("async", asyncParam).WithJSON(common.Object{}).
+						Expect().Status(http.StatusNotFound)
 				})
 			})
 		})

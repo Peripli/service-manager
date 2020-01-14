@@ -19,14 +19,13 @@ package service_test
 import (
 	"context"
 	"fmt"
-
 	"github.com/Peripli/service-manager/test/testutil/service_instance"
-
-	"github.com/Peripli/service-manager/pkg/query"
-	"github.com/Peripli/service-manager/pkg/types"
 
 	"net/http"
 	"testing"
+
+	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/pkg/types"
 
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/test/common"
@@ -68,7 +67,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	DisableTenantResources:                 true,
 	ResourceBlueprint:                      blueprint,
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
-	PatchResource: func(ctx *common.TestContext, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange) {
+	PatchResource: func(ctx *common.TestContext, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange, _ bool) {
 		byID := query.ByField(query.EqualsOperator, "id", objID)
 		si, err := ctx.SMRepository.Get(context.Background(), resourceType, byID)
 		if err != nil {
@@ -128,7 +127,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func blueprint(ctx *common.TestContext, auth *common.SMExpect) common.Object {
+func blueprint(ctx *common.TestContext, auth *common.SMExpect, _ bool) common.Object {
 	_, serviceInstance := service_instance.Prepare(ctx, ctx.TestPlatform.ID, "", fmt.Sprintf(`{"%s":"%s"}`, TenantIdentifier, TenantValue))
 	_, err := ctx.SMRepository.Create(context.Background(), serviceInstance)
 	if err != nil {

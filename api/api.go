@@ -20,8 +20,9 @@ package api
 import (
 	"context"
 	"fmt"
-
+	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/pkg/env"
+	"sync"
 
 	"github.com/Peripli/service-manager/api/configuration"
 
@@ -77,10 +78,12 @@ func (s *Settings) Validate() error {
 }
 
 type Options struct {
-	Repository  storage.TransactionalRepository
-	APISettings *Settings
-	WSSettings  *ws.Settings
-	Notificator storage.Notificator
+	Repository        storage.TransactionalRepository
+	APISettings       *Settings
+	OperationSettings *operations.Settings
+	WSSettings        *ws.Settings
+	Notificator       storage.Notificator
+	WaitGroup         *sync.WaitGroup
 }
 
 // New returns the minimum set of REST APIs needed for the Service Manager
@@ -88,19 +91,19 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 	return &web.API{
 		// Default controllers - more filters can be registered using the relevant API methods
 		Controllers: []web.Controller{
-			NewController(options.Repository, web.ServiceBrokersURL, types.ServiceBrokerType, func() types.Object {
+			NewAsyncController(ctx, options, web.ServiceBrokersURL, types.ServiceBrokerType, func() types.Object {
 				return &types.ServiceBroker{}
-			}, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
-			NewController(options.Repository, web.PlatformsURL, types.PlatformType, func() types.Object {
+			}),
+			NewController(options, web.PlatformsURL, types.PlatformType, func() types.Object {
 				return &types.Platform{}
-			}, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
-			NewController(options.Repository, web.VisibilitiesURL, types.VisibilityType, func() types.Object {
+			}),
+			NewController(options, web.VisibilitiesURL, types.VisibilityType, func() types.Object {
 				return &types.Visibility{}
-			}, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
+			}),
 			apiNotifications.NewController(ctx, options.Repository, options.WSSettings, options.Notificator),
-			NewServiceOfferingController(options.Repository, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
-			NewServicePlanController(options.Repository, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
-			NewServiceInstanceController(options.Repository, options.APISettings.DefaultPageSize, options.APISettings.MaxPageSize),
+			NewServiceOfferingController(options),
+			NewServicePlanController(options),
+			NewServiceInstanceController(options),
 			&info.Controller{
 				TokenIssuer:    options.APISettings.TokenIssuerURL,
 				TokenBasicAuth: options.APISettings.TokenBasicAuth,

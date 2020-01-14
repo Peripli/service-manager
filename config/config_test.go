@@ -18,6 +18,7 @@ package config_test
 
 import (
 	"fmt"
+	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/pkg/health"
 	"testing"
 	"time"
@@ -70,6 +71,13 @@ var _ = Describe("config", func() {
 			config.API.TokenIssuerURL = "http://example.com"
 			config.API.ClientID = "sm"
 			config.Storage.EncryptionKey = "ejHjRNHbS0NaqARSRvnweVV9zcmhQEa8"
+
+			config.Operations.Pools = []operations.PoolSettings{
+				{
+					Resource: "ServiceBroker",
+					Size:     5,
+				},
+			}
 
 			fatal = true
 			failuresThreshold = 1
@@ -226,6 +234,46 @@ var _ = Describe("config", func() {
 		Context("when notification min reconnect interval is < 0", func() {
 			It("returns an error", func() {
 				config.Storage.Notification.MinReconnectInterval = -time.Second
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("when operation job timeout is < 0", func() {
+			It("returns an error", func() {
+				config.Operations.JobTimeout = -time.Second
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("when operation cleanup interval is < 0", func() {
+			It("returns an error", func() {
+				config.Operations.CleanupInterval = -time.Second
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("when operation mark orphans interval is < 0", func() {
+			It("returns an error", func() {
+				config.Operations.MarkOrphansInterval = -time.Second
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("when operation default pool size is <= 0", func() {
+			It("returns an error", func() {
+				config.Operations.DefaultPoolSize = 0
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("when operation pool size is 0", func() {
+			It("returns an error", func() {
+				config.Operations.Pools = []operations.PoolSettings{
+					{
+						Resource: "ServiceBroker",
+						Size:     0,
+					},
+				}
 				assertErrorDuringValidate()
 			})
 		})

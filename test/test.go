@@ -21,9 +21,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/gavv/httpexpect"
+	"time"
+
 	"github.com/tidwall/gjson"
 
 	"github.com/Peripli/service-manager/pkg/multitenancy"
@@ -41,12 +46,17 @@ import (
 
 type Op string
 
+type ResponseMode bool
+
 const (
 	Get        Op = "get"
 	List       Op = "list"
 	Delete     Op = "delete"
 	DeleteList Op = "deletelist"
 	Patch      Op = "patch"
+
+	Sync  ResponseMode = false
+	Async ResponseMode = true
 )
 
 type MultitenancySettings struct {
@@ -59,29 +69,76 @@ type MultitenancySettings struct {
 }
 
 type TestCase struct {
-	API          string
-	SupportedOps []Op
-	ResourceType types.ObjectType
-
-	MultitenancySettings *MultitenancySettings
-
+	API                     string
 	SupportsAsyncOperations bool
-	DisableTenantResources  bool
+	SupportedOps            []Op
+	ResourceType            types.ObjectType
 
-	ResourceBlueprint                      func(ctx *common.TestContext, smClient *common.SMExpect) common.Object
-	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext, smClient *common.SMExpect) common.Object
-	PatchResource                          func(ctx *common.TestContext, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange)
-	AdditionalTests                        func(ctx *common.TestContext)
+	MultitenancySettings   *MultitenancySettings
+	DisableTenantResources bool
+
+	ResourceBlueprint                      func(ctx *common.TestContext, smClient *common.SMExpect, async bool) common.Object
+	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext, smClient *common.SMExpect, async bool) common.Object
+	PatchResource                          func(ctx *common.TestContext, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange, async bool)
+
+	AdditionalTests func(ctx *common.TestContext)
 }
 
-func DefaultResourcePatch(ctx *common.TestContext, apiPath string, objID string, _ types.ObjectType, patchLabels []*query.LabelChange) {
+func DefaultResourcePatch(ctx *common.TestContext, apiPath string, objID string, _ types.ObjectType, patchLabels []*query.LabelChange, async bool) {
 	patchLabelsBody := make(map[string]interface{})
 	patchLabelsBody["labels"] = patchLabels
 
 	By(fmt.Sprintf("Attempting to patch resource of %s with labels as labels are declared supported", apiPath))
-	ctx.SMWithOAuth.PATCH(apiPath + "/" + objID).WithJSON(patchLabelsBody).
-		Expect().
-		Status(http.StatusOK)
+	resp := ctx.SMWithOAuth.PATCH(apiPath+"/"+objID).WithQuery("async", strconv.FormatBool(async)).WithJSON(patchLabelsBody).Expect()
+
+	if async {
+		resp = resp.Status(http.StatusAccepted)
+		err := ExpectOperation(ctx.SMWithOAuth, resp, types.SUCCEEDED)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		resp.Status(http.StatusOK)
+	}
+
+}
+
+func ExpectOperation(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState) error {
+	return ExpectOperationWithError(auth, asyncResp, expectedState, "")
+}
+
+func ExpectOperationWithError(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState, expectedErrMsg string) error {
+	operationURL := asyncResp.Header("Location").Raw()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := fmt.Errorf("unable to verify operation state (expected state = %s)", string(expectedState))
+	var operation *httpexpect.Object
+	for {
+		select {
+		case <-ctx.Done():
+		default:
+			operation = auth.GET(operationURL).
+				Expect().Status(http.StatusOK).JSON().Object()
+			state := operation.Value("state").String().Raw()
+			if state == string(expectedState) {
+				errs := operation.Value("errors")
+				if expectedState == types.SUCCEEDED {
+					errs.Null()
+				} else {
+					errs.NotNull()
+					errMsg := errs.Object().Value("message").String().Raw()
+
+					if !strings.Contains(errMsg, expectedErrMsg) {
+						err = fmt.Errorf("unable to verify operation - expected error message (%s), but got (%s)", expectedErrMsg, errs.String().Raw())
+					}
+				}
+				return nil
+			}
+		}
+	}
+	return err
 }
 
 func DescribeTestsFor(t TestCase) bool {
@@ -132,22 +189,31 @@ func DescribeTestsFor(t TestCase) bool {
 				Expect(true).To(BeTrue())
 			})
 
+			responseModes := []ResponseMode{Sync}
+			if t.SupportsAsyncOperations {
+				responseModes = append(responseModes, Async)
+			}
+
 			for _, op := range t.SupportedOps {
-				switch op {
-				case Get:
-					DescribeGetTestsfor(ctx, t)
-				case List:
-					DescribeListTestsFor(ctx, t)
-				case Delete:
-					DescribeDeleteTestsfor(ctx, t)
-				case DeleteList:
-					DescribeDeleteListFor(ctx, t)
-				case Patch:
-					DescribePatchTestsFor(ctx, t)
-				default:
-					_, err := fmt.Fprintf(GinkgoWriter, "Generic test cases for op %s are not implemented\n", op)
-					if err != nil {
-						panic(err)
+				for _, respMode := range responseModes {
+					switch op {
+					case Get:
+						DescribeGetTestsfor(ctx, t, respMode)
+					case List:
+						DescribeListTestsFor(ctx, t, respMode)
+					case Delete:
+						DescribeDeleteTestsfor(ctx, t, respMode)
+					case DeleteList:
+						if respMode == Sync {
+							DescribeDeleteListFor(ctx, t)
+						}
+					case Patch:
+						DescribePatchTestsFor(ctx, t, respMode)
+					default:
+						_, err := fmt.Fprintf(GinkgoWriter, "Generic test cases for op %s are not implemented\n", op)
+						if err != nil {
+							panic(err)
+						}
 					}
 				}
 			}

@@ -43,6 +43,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	SupportedOps: []test.Op{
 		test.Get, test.List, test.Delete, test.DeleteList, test.Patch,
 	},
+	SupportsAsyncOperations:                false,
 	DisableTenantResources:                 true,
 	ResourceBlueprint:                      blueprint(true),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
@@ -736,8 +737,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *common.SMExpect) common.Object {
-	return func(ctx *common.TestContext, auth *common.SMExpect) common.Object {
+func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *common.SMExpect, async bool) common.Object {
+	return func(ctx *common.TestContext, auth *common.SMExpect, _ bool) common.Object {
 		visReqBody := make(common.Object, 0)
 		cPaidPlan := common.GeneratePaidTestPlan()
 		cService := common.GenerateTestServiceWithPlans(cPaidPlan)
