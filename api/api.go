@@ -100,7 +100,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			NewController(options, web.VisibilitiesURL, types.VisibilityType, func() types.Object {
 				return &types.Visibility{}
 			}),
-			NewController(options, web.ServiceInstancesURL, types.ServiceInstanceType, func() types.Object {
+			NewAsyncController(ctx, options, web.ServiceInstancesURL, types.ServiceInstanceType, func() types.Object {
 				return &types.ServiceInstance{}
 			}),
 			apiNotifications.NewController(ctx, options.Repository, options.WSSettings, options.Notificator),
