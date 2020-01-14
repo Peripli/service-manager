@@ -20,6 +20,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/Peripli/service-manager/test/testutil/service_instance"
+	"github.com/gofrs/uuid"
+	"strconv"
 
 	"net/http"
 	"testing"
@@ -65,8 +67,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	ResourceType:                           types.ServiceInstanceType,
 	SupportsAsyncOperations:                true,
 	DisableTenantResources:                 true,
-	ResourceBlueprint:                      blueprint,
-	ResourceWithoutNullableFieldsBlueprint: blueprint,
+	ResourceBlueprint:                      blueprint(),
+	ResourceWithoutNullableFieldsBlueprint: blueprint(),
 	PatchResource: func(ctx *common.TestContext, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange, _ bool) {
 		byID := query.ByField(query.EqualsOperator, "id", objID)
 		si, err := ctx.SMRepository.Get(context.Background(), resourceType, byID)
@@ -127,12 +129,49 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 })
 
-func blueprint(ctx *common.TestContext, auth *common.SMExpect, _ bool) common.Object {
-	_, serviceInstance := service_instance.Prepare(ctx, ctx.TestPlatform.ID, "", fmt.Sprintf(`{"%s":"%s"}`, TenantIdentifier, TenantValue))
-	_, err := ctx.SMRepository.Create(context.Background(), serviceInstance)
-	if err != nil {
-		Fail(fmt.Sprintf("could not create service instance: %s", err))
-	}
+func blueprint() func(ctx *common.TestContext, auth *common.SMExpect, async bool) common.Object {
+	return func(ctx *common.TestContext, auth *common.SMExpect, async bool) common.Object {
+		instanceID, err := uuid.NewV4()
+		if err != nil {
+			panic(err)
+		}
 
-	return auth.ListWithQuery(web.ServiceInstancesURL, fmt.Sprintf("fieldQuery=id eq '%s'", serviceInstance.ID)).First().Object().Raw()
+		instanceReqBody := make(common.Object, 0)
+		instanceReqBody["id"] = instanceID.String()
+		instanceReqBody["name"] = "test-instance-" + instanceID.String()
+
+		cPaidPlan := common.GeneratePaidTestPlan()
+		cService := common.GenerateTestServiceWithPlans(cPaidPlan)
+		catalog := common.NewEmptySBCatalog()
+		catalog.AddService(cService)
+		brokerID, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
+
+		so := auth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerID)).First()
+
+		servicePlanID := auth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw())).
+			First().Object().Value("id").String().Raw()
+		instanceReqBody["service_plan_id"] = servicePlanID
+		platformID := auth.POST(web.PlatformsURL).WithJSON(common.GenerateRandomPlatform()).
+			Expect().
+			Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
+		instanceReqBody["platform_id"] = platformID
+
+		resp := auth.POST(web.ServiceInstancesURL).WithQuery("async", strconv.FormatBool(async)).WithJSON(instanceReqBody).Expect()
+
+		var instance map[string]interface{}
+		if async {
+			resp = resp.Status(http.StatusAccepted)
+			if err := test.ExpectOperation(auth, resp, types.SUCCEEDED); err != nil {
+				panic(err)
+			}
+
+			instance = auth.GET(web.ServiceInstancesURL + "/" + instanceID.String()).
+				Expect().JSON().Object().Raw()
+
+		} else {
+			instance = resp.Status(http.StatusCreated).JSON().Object().Raw()
+		}
+
+		return instance
+	}
 }

@@ -744,9 +744,9 @@ func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *com
 		cService := common.GenerateTestServiceWithPlans(cPaidPlan)
 		catalog := common.NewEmptySBCatalog()
 		catalog.AddService(cService)
-		id, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
+		brokerID, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
 
-		so := auth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", id)).First()
+		so := auth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerID)).First()
 
 		servicePlanID := auth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw())).
 			First().Object().Value("id").String().Raw()
