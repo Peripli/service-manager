@@ -158,6 +158,7 @@ func (r *commonRequestDetails) SetTimestamp(timestamp time.Time) {
 }
 
 type Response struct {
+	DashboardURL   string `json:"dashboard_url"`
 	OperationData  string `json:"operation"`
 	Error          string `json:"error"`
 	Description    string `json:"description"`
@@ -214,11 +215,11 @@ func (ssi *StoreServiceInstancePlugin) Provision(request *web.Request, next web.
 			if err := ssi.storeOperation(ctx, storage, requestPayload, &resp, types.SUCCEEDED, types.CREATE, correlationID); err != nil {
 				return err
 			}
-			if err := ssi.storeInstance(ctx, storage, requestPayload, true); err != nil {
+			if err := ssi.storeInstance(ctx, storage, requestPayload, &resp, true); err != nil {
 				return err
 			}
 		case http.StatusOK:
-			if err := ssi.storeInstance(ctx, storage, requestPayload, true); err != nil {
+			if err := ssi.storeInstance(ctx, storage, requestPayload, &resp, true); err != nil {
 				if err != util.ErrAlreadyExistsInStorage {
 					return err
 				}
@@ -231,7 +232,7 @@ func (ssi *StoreServiceInstancePlugin) Provision(request *web.Request, next web.
 			if err := ssi.storeOperation(ctx, storage, requestPayload, &resp, types.IN_PROGRESS, types.CREATE, correlationID); err != nil {
 				return err
 			}
-			if err := ssi.storeInstance(ctx, storage, requestPayload, false); err != nil {
+			if err := ssi.storeInstance(ctx, storage, requestPayload, &resp, false); err != nil {
 				return err
 			}
 		}
@@ -316,14 +317,14 @@ func (ssi *StoreServiceInstancePlugin) UpdateService(request *web.Request, next 
 	if err := ssi.Repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
 		switch response.StatusCode {
 		case http.StatusOK:
-			if err := ssi.updateInstance(ctx, requestPayload, storage, true); err != nil {
+			if err := ssi.updateInstance(ctx, storage, requestPayload, &resp, true); err != nil {
 				return err
 			}
 			if err := ssi.storeOperation(ctx, storage, requestPayload, &resp, types.SUCCEEDED, types.UPDATE, correlationID); err != nil {
 				return err
 			}
 		case http.StatusAccepted:
-			if err := ssi.updateInstance(ctx, requestPayload, storage, true); err != nil {
+			if err := ssi.updateInstance(ctx, storage, requestPayload, &resp, true); err != nil {
 				return err
 			}
 			if err := ssi.storeOperation(ctx, storage, requestPayload, &resp, types.IN_PROGRESS, types.UPDATE, correlationID); err != nil {
@@ -508,7 +509,7 @@ func (ssi *StoreServiceInstancePlugin) storeOperation(ctx context.Context, stora
 	return nil
 }
 
-func (ssi *StoreServiceInstancePlugin) storeInstance(ctx context.Context, storage storage.Repository, req *provisionRequest, ready bool) error {
+func (ssi *StoreServiceInstancePlugin) storeInstance(ctx context.Context, storage storage.Repository, req *provisionRequest, resp *Response, ready bool) error {
 	planID, err := findServicePlanIDByCatalogIDs(ctx, storage, req.BrokerID, req.ServiceID, req.PlanID)
 	if err != nil {
 		return err
@@ -528,6 +529,7 @@ func (ssi *StoreServiceInstancePlugin) storeInstance(ctx context.Context, storag
 		Name:            instanceName,
 		ServicePlanID:   planID,
 		PlatformID:      req.PlatformID,
+		DashboardURL:    resp.DashboardURL,
 		MaintenanceInfo: req.RawMaintenanceInfo,
 		Context:         req.RawContext,
 		Ready:           ready,
@@ -539,7 +541,7 @@ func (ssi *StoreServiceInstancePlugin) storeInstance(ctx context.Context, storag
 	return nil
 }
 
-func (ssi *StoreServiceInstancePlugin) updateInstance(ctx context.Context, req *updateRequest, storage storage.Repository, usable bool) error {
+func (ssi *StoreServiceInstancePlugin) updateInstance(ctx context.Context, storage storage.Repository, req *updateRequest, resp *Response, usable bool) error {
 	byID := query.ByField(query.EqualsOperator, "id", req.InstanceID)
 	var instance types.Object
 	var err error
@@ -570,6 +572,9 @@ func (ssi *StoreServiceInstancePlugin) updateInstance(ctx context.Context, req *
 		if err != nil {
 			return err
 		}
+	}
+	if len(resp.DashboardURL) != 0 {
+		serviceInstance.DashboardURL = resp.DashboardURL
 	}
 	if len(req.MaintenanceInfo) != 0 {
 		serviceInstance.MaintenanceInfo = req.MaintenanceInfo

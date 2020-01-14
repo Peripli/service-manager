@@ -29,7 +29,7 @@ import (
 	"runtime/debug"
 )
 
-// Job represents an ExecutableJob which is responsible for executing a C/U/D DB operation
+// Job is responsible for executing a C/U/D DB operation
 type Job struct {
 	ReqCtx     context.Context
 	ObjectType types.ObjectType

@@ -30,6 +30,7 @@ type ServiceInstance struct {
 	Name            string             `db:"name"`
 	ServicePlanID   string             `db:"service_plan_id"`
 	PlatformID      string             `db:"platform_id"`
+	DashboardURL    string             `db:"dashboard_url"`
 	MaintenanceInfo sqlxtypes.JSONText `db:"maintenance_info"`
 	Context         sqlxtypes.JSONText `db:"context"`
 	PreviousValues  sqlxtypes.JSONText `db:"previous_values"`
@@ -49,6 +50,7 @@ func (si *ServiceInstance) ToObject() types.Object {
 		Name:            si.Name,
 		ServicePlanID:   si.ServicePlanID,
 		PlatformID:      si.PlatformID,
+		DashboardURL:    si.DashboardURL,
 		MaintenanceInfo: getJSONRawMessage(si.MaintenanceInfo),
 		Context:         getJSONRawMessage(si.Context),
 		PreviousValues:  getJSONRawMessage(si.PreviousValues),
@@ -73,6 +75,7 @@ func (*ServiceInstance) FromObject(object types.Object) (storage.Entity, bool) {
 		Name:            serviceInstance.Name,
 		ServicePlanID:   serviceInstance.ServicePlanID,
 		PlatformID:      serviceInstance.PlatformID,
+		DashboardURL:    serviceInstance.DashboardURL,
 		MaintenanceInfo: getJSONText(serviceInstance.MaintenanceInfo),
 		Context:         getJSONText(serviceInstance.Context),
 		PreviousValues:  getJSONText(serviceInstance.PreviousValues),

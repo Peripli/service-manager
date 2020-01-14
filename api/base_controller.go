@@ -51,7 +51,7 @@ const pagingLimitOffset = 1
 
 // BaseController provides common CRUD handlers for all object types in the service manager
 type BaseController struct {
-	scheduler       *operations.DefaultScheduler
+	scheduler       *operations.Scheduler
 	resourceBaseURL string
 	objectType      types.ObjectType
 	repository      storage.Repository

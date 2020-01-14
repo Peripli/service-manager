@@ -279,6 +279,7 @@ func createServiceInstance(now time.Time) Object {
 		Name:            "name",
 		ServicePlanID:   "1",
 		PlatformID:      "1",
+		DashboardURL:    "http://test-service.com/dashboard",
 		MaintenanceInfo: []byte("default"),
 		Context:         []byte("default"),
 		PreviousValues:  []byte("default"),

@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/Peripli/service-manager/operations"
 	"net/http"
 	"sync"
 	"time"
@@ -70,7 +71,7 @@ type ServiceManagerBuilder struct {
 	Storage             *storage.InterceptableTransactionalRepository
 	Notificator         storage.Notificator
 	NotificationCleaner *storage.NotificationCleaner
-	OperationMaintainer *operations.OperationMaintainer
+	OperationMaintainer *operations.Maintainer
 	ctx                 context.Context
 	wg                  *sync.WaitGroup
 	cfg                 *config.Settings
@@ -163,16 +164,16 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		Settings: *cfg.Storage,
 	}
 
-	operationMaintainer := operations.NewOperationMaintainer(ctx, interceptableRepository, cfg.Operations)
+	operationMaintainer := operations.NewMaintainer(ctx, interceptableRepository, cfg.Operations)
 
 	smb := &ServiceManagerBuilder{
 		API:                 API,
 		Storage:             interceptableRepository,
 		Notificator:         pgNotificator,
 		NotificationCleaner: notificationCleaner,
+		OperationMaintainer: operationMaintainer,
 		authnDynamicFilter:  authnDynamicFilter,
 		authzDynamicFilter:  authzDynamicFilter,
-		OperationMaintainer: operationMaintainer,
 		ctx:                 ctx,
 		wg:                  waitGroup,
 		cfg:                 cfg,

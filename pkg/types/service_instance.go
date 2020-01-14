@@ -33,6 +33,7 @@ type ServiceInstance struct {
 	Name            string          `json:"name"`
 	ServicePlanID   string          `json:"service_plan_id"`
 	PlatformID      string          `json:"platform_id"`
+	DashboardURL    string          `json:"dashboard_url,omitempty"`
 	MaintenanceInfo json.RawMessage `json:"maintenance_info,omitempty"`
 	Context         json.RawMessage `json:"-"`
 	PreviousValues  json.RawMessage `json:"-"`
@@ -49,6 +50,7 @@ func (e *ServiceInstance) Equals(obj Object) bool {
 	if e.Name != instance.Name ||
 		e.PlatformID != instance.PlatformID ||
 		e.ServicePlanID != instance.ServicePlanID ||
+		e.DashboardURL != instance.DashboardURL ||
 		!reflect.DeepEqual(e.PreviousValues, instance.PreviousValues) ||
 		!reflect.DeepEqual(e.Context, instance.Context) ||
 		!reflect.DeepEqual(e.MaintenanceInfo, instance.MaintenanceInfo) {
