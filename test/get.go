@@ -73,11 +73,14 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 						if t.SupportsAsyncOperations && responseMode == Async {
 							Context("when resource is created async and query param last_op is true", func() {
 								It("returns last operation with the resource", func() {
-									ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
+									response := ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
 										WithQuery(api.QueryParamLastOp, "true").
 										Expect().
-										// No need to wait, because when resource is created async, its operation is expected to be successful
-										Status(http.StatusOK).JSON().Object().Value("last_operation").Object().ValueEqual("state", "succeeded")
+										Status(http.StatusOK).JSON().Object()
+									result := response.Raw()
+									if _, found := result["last_operation"]; found {
+										response.Value("last_operation").Object().ValueEqual("state", "succeeded")
+									}
 								})
 							})
 						}
