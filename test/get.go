@@ -88,7 +88,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 									ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
 										WithQuery(api.QueryParamLastOp, "true").
 										Expect().
-										Status(http.StatusBadRequest).JSON().Object().Value("description").Equal("last operation is not supported for type Platform")
+										Status(http.StatusBadRequest).JSON().Object().Value("description").String().Match("last operation is not supported for type *")
 								})
 							})
 						}
