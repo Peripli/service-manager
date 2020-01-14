@@ -20,9 +20,10 @@ package api
 import (
 	"context"
 	"fmt"
+	"sync"
+
 	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/pkg/env"
-	"sync"
 
 	"github.com/Peripli/service-manager/api/configuration"
 
@@ -101,9 +102,12 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 				return &types.Visibility{}
 			}),
 			apiNotifications.NewController(ctx, options.Repository, options.WSSettings, options.Notificator),
+
 			NewServiceOfferingController(options),
 			NewServicePlanController(options),
 			NewServiceInstanceController(options),
+			NewServiceBindingController(options),
+
 			&info.Controller{
 				TokenIssuer:    options.APISettings.TokenIssuerURL,
 				TokenBasicAuth: options.APISettings.TokenBasicAuth,

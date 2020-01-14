@@ -15,6 +15,9 @@ const (
 	// ServiceInstancesURL is the URL path to manage service instances
 	ServiceInstancesURL = "/" + apiVersion + "/service_instances"
 
+	// ServiceBindingsURL is the URL path to manage service bindings
+	ServiceBindingsURL = "/" + apiVersion + "/service_bindings"
+
 	// VisibilitiesURL is the URL path to manage visibilities
 	VisibilitiesURL = "/" + apiVersion + "/visibilities"
 

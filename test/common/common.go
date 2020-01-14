@@ -215,6 +215,10 @@ func RemoveAllInstances(repository storage.Repository) error {
 	return repository.Delete(context.TODO(), types.ServiceInstanceType)
 }
 
+func RemoveAllBindings(repository storage.Repository) error {
+	return repository.Delete(context.TODO(), types.ServiceBindingType)
+}
+
 func RemoveAllBrokers(SM *SMExpect) {
 	removeAll(SM, "service_brokers", web.ServiceBrokersURL)
 }
