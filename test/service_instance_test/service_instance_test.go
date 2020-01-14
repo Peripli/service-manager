@@ -50,7 +50,7 @@ const (
 var _ = test.DescribeTestsFor(test.TestCase{
 	API: web.ServiceInstancesURL,
 	SupportedOps: []test.Op{
-		test.Get, test.List,
+		test.Get, test.List, test.Delete, test.DeleteList, test.Patch,
 	},
 	MultitenancySettings: &test.MultitenancySettings{
 		ClientID:           "tenancyClient",
