@@ -222,16 +222,20 @@ func RemoveAllBrokers(SM *SMExpect) {
 }
 
 func RemoveAllPlatforms(SM *SMExpect) {
-	removeAll(SM, "platforms", web.PlatformsURL+fmt.Sprintf("?fieldQuery=name ne '%s'", sm.Platform))
+	removeAll(SM, "platforms", web.PlatformsURL, fmt.Sprintf("fieldQuery=name ne '%s'", sm.Platform))
 }
 
 func RemoveAllVisibilities(SM *SMExpect) {
 	removeAll(SM, "visibilities", web.VisibilitiesURL)
 }
 
-func removeAll(SM *SMExpect, entity, rootURLPath string) {
+func removeAll(SM *SMExpect, entity, rootURLPath string, queries ...string) {
 	By("removing all " + entity)
-	SM.DELETE(rootURLPath).Expect()
+	deleteCall := SM.DELETE(rootURLPath)
+	for _, query := range queries {
+		deleteCall.WithQueryString(query)
+	}
+	deleteCall.Expect()
 }
 
 func RegisterBrokerInSM(brokerJSON Object, SM *SMExpect, headers map[string]string) Object {
