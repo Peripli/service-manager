@@ -22,6 +22,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Peripli/service-manager/api"
+
 	"github.com/Peripli/service-manager/pkg/web"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -69,10 +71,10 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 						})
 
 						if t.SupportsAsyncOperations && responseMode == Async {
-							Context("when resource is created async and query param display_op is true", func() {
+							Context("when resource is created async and query param last_op is true", func() {
 								It("returns last operation with the resource", func() {
 									ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
-										WithQuery("display_op", "true").
+										WithQuery(api.QueryParamLastOp, "true").
 										Expect().
 										// No need to wait, because when resource is created async, its operation is expected to be successful
 										Status(http.StatusOK).JSON().Object().Value("last_operation").Object().ValueEqual("state", "succeeded")
@@ -81,10 +83,10 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 						}
 
 						if !t.SupportsAsyncOperations {
-							Context("when resource does not support async and query param display_op is true", func() {
+							Context("when resource does not support async and query param last_op is true", func() {
 								It("returns error", func() {
 									ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
-										WithQuery("display_op", "true").
+										WithQuery(api.QueryParamLastOp, "true").
 										Expect().
 										Status(http.StatusBadRequest).JSON().Object().Value("description").Equal("last operation is not supported for type Platform")
 								})

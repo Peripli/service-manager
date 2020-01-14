@@ -38,6 +38,7 @@ type Secured interface {
 	GetCredentials() *Credentials
 }
 
+// Operationable is implemented by resources which have last operation associated
 type Operationable interface {
 	SetLastOperation(*Operation)
 	GetLastOperation() *Operation

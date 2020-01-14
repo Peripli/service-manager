@@ -43,6 +43,7 @@ const (
 	PathParamID         = "id"
 	PathParamResourceID = "resource_id"
 	QueryParamAsync     = "async"
+	QueryParamLastOp    = "last_op"
 )
 
 // pagingLimitOffset is a constant which is needed to identify if there are more items in the DB.
@@ -294,7 +295,7 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 	}
 
 	stripCredentials(ctx, object)
-	displayOp := r.URL.Query().Get("display_op")
+	displayOp := r.URL.Query().Get(QueryParamLastOp)
 	if displayOp == "true" {
 		if err := attachLastOperation(ctx, objectID, object, r, c.repository); err != nil {
 			return nil, err
@@ -466,8 +467,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 }
 
 func attachLastOperation(ctx context.Context, objectID string, object types.Object, r *web.Request, repository storage.Repository) error {
-	operationable, ok := object.(types.Operationable)
-	if ok {
+	if operationable, ok := object.(types.Operationable); ok {
 		orderBy := query.OrderResultBy("paging_sequence", query.DescOrder)
 		limitBy := query.LimitResultBy(1)
 		byObjectID := query.ByField(query.EqualsOperator, "resource_id", objectID)

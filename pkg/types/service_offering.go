@@ -46,8 +46,6 @@ type ServiceOffering struct {
 	CatalogName string `json:"catalog_name"`
 
 	Plans []*ServicePlan `json:"plans"`
-
-	LastOperation *Operation `json:"last_operation,omitempty"`
 }
 
 func (e *ServiceOffering) Equals(obj Object) bool {
@@ -72,14 +70,6 @@ func (e *ServiceOffering) Equals(obj Object) bool {
 	}
 
 	return true
-}
-
-func (e *ServiceOffering) SetLastOperation(lastOp *Operation) {
-	e.LastOperation = lastOp
-}
-
-func (e *ServiceOffering) GetLastOperation() *Operation {
-	return e.LastOperation
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
