@@ -70,12 +70,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
 	PatchResource: func(ctx *common.TestContext, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange, _ bool) {
 		byID := query.ByField(query.EqualsOperator, "id", objID)
-		si, err := ctx.SMRepository.Get(context.Background(), resourceType, byID)
+		sb, err := ctx.SMRepository.Get(context.Background(), resourceType, byID)
 		if err != nil {
 			Fail(fmt.Sprintf("unable to retrieve resource %s: %s", resourceType, err))
 		}
 
-		_, err = ctx.SMRepository.Update(context.Background(), si, patchLabels)
+		_, err = ctx.SMRepository.Update(context.Background(), sb, patchLabels)
 		if err != nil {
 			Fail(fmt.Sprintf("unable to update resource %s: %s", resourceType, err))
 		}
@@ -89,11 +89,13 @@ func blueprint(ctx *common.TestContext, auth *common.SMExpect, _ bool) common.Ob
 	if err != nil {
 		Fail(fmt.Sprintf("could not create service instance: %s", err))
 	}
-	serviceBinding := service_binding.Prepare(serviceInstance.ID, fmt.Sprintf(`{"%s":"%s"}`, TenantIdentifier, TenantValue), []byte("{}"))
-	_, err = ctx.SMRepository.Create(context.Background(), serviceBinding)
+	serviceBindingObj := service_binding.Prepare(serviceInstance.ID, fmt.Sprintf(`{"%s":"%s"}`, TenantIdentifier, TenantValue), `{"password": "secret"}`)
+	_, err = ctx.SMRepository.Create(context.Background(), serviceBindingObj)
 	if err != nil {
 		Fail(fmt.Sprintf("could not create service binding: %s", err))
 	}
 
-	return auth.ListWithQuery(web.ServiceBindingsURL, fmt.Sprintf("fieldQuery=id eq '%s'", serviceBinding.ID)).First().Object().Raw()
+	binding := auth.ListWithQuery(web.ServiceBindingsURL, fmt.Sprintf("fieldQuery=id eq '%s'", serviceBindingObj.ID)).First().Object().Raw()
+	delete(binding, "credentials")
+	return binding
 }

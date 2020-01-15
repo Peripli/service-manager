@@ -39,32 +39,32 @@ type ServiceBinding struct {
 	Endpoints         json.RawMessage `json:"endpoints,omitempty"`
 	Context           json.RawMessage `json:"-"`
 	BindResource      json.RawMessage `json:"-"`
-	Credentials       json.RawMessage `json:"credentials"`
+	Credentials       string          `json:"credentials"`
 }
 
-func (sb *ServiceBinding) SetCredentials(credentials json.RawMessage) {
-	sb.Credentials = credentials
+func (e *ServiceBinding) SetCredentials(credentials string) {
+	e.Credentials = credentials
 }
 
-func (sb *ServiceBinding) GetCredentials() json.RawMessage {
-	return sb.Credentials
+func (e *ServiceBinding) GetCredentials() string {
+	return e.Credentials
 }
 
-func (sb *ServiceBinding) Equals(obj Object) bool {
-	if !Equals(sb, obj) {
+func (e *ServiceBinding) Equals(obj Object) bool {
+	if !Equals(e, obj) {
 		return false
 	}
 
 	binding := obj.(*ServiceBinding)
-	if sb.Name != binding.Name ||
-		sb.ServiceInstanceID != binding.ServiceInstanceID ||
-		sb.SyslogDrainURL != binding.SyslogDrainURL ||
-		sb.RouteServiceURL != binding.RouteServiceURL ||
-		!reflect.DeepEqual(sb.VolumeMounts, binding.VolumeMounts) ||
-		!reflect.DeepEqual(sb.Endpoints, binding.Endpoints) ||
-		!reflect.DeepEqual(sb.Context, binding.Context) ||
-		!reflect.DeepEqual(sb.BindResource, binding.BindResource) ||
-		!reflect.DeepEqual(sb.Credentials, binding.Credentials) {
+	if e.Name != binding.Name ||
+		e.ServiceInstanceID != binding.ServiceInstanceID ||
+		e.SyslogDrainURL != binding.SyslogDrainURL ||
+		e.RouteServiceURL != binding.RouteServiceURL ||
+		!reflect.DeepEqual(e.VolumeMounts, binding.VolumeMounts) ||
+		!reflect.DeepEqual(e.Endpoints, binding.Endpoints) ||
+		!reflect.DeepEqual(e.Context, binding.Context) ||
+		!reflect.DeepEqual(e.BindResource, binding.BindResource) ||
+		!reflect.DeepEqual(e.Credentials, binding.Credentials) {
 		return false
 	}
 
@@ -72,14 +72,14 @@ func (sb *ServiceBinding) Equals(obj Object) bool {
 }
 
 // Validate implements InputValidator and verifies all mandatory fields are populated
-func (sb *ServiceBinding) Validate() error {
-	if util.HasRFC3986ReservedSymbols(sb.ID) {
-		return fmt.Errorf("%s contains invalid character(s)", sb.ID)
+func (e *ServiceBinding) Validate() error {
+	if util.HasRFC3986ReservedSymbols(e.ID) {
+		return fmt.Errorf("%s contains invalid character(s)", e.ID)
 	}
-	if sb.Name == "" {
+	if e.Name == "" {
 		return errors.New("missing service binding name")
 	}
-	if err := sb.Labels.Validate(); err != nil {
+	if err := e.Labels.Validate(); err != nil {
 		return err
 	}
 

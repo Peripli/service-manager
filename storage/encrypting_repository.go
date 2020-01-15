@@ -207,11 +207,11 @@ func (er *encryptingRepository) transformCredentialsObject(ctx context.Context, 
 	if isSecured {
 		credentials := objectWithCredentials.GetCredentials()
 		if len(credentials) != 0 {
-			transformedCredentials, err := transformationFunc(ctx, credentials, er.encryptionKey)
+			transformedCredentials, err := transformationFunc(ctx, []byte(credentials), er.encryptionKey)
 			if err != nil {
 				return err
 			}
-			objectWithCredentials.SetCredentials(transformedCredentials)
+			objectWithCredentials.SetCredentials(string(transformedCredentials))
 		}
 	}
 	return nil

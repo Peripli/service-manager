@@ -1,7 +1,6 @@
 package service_binding
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -11,7 +10,7 @@ import (
 	. "github.com/onsi/ginkgo"
 )
 
-func Prepare(serviceInstanceID string, OSBContext string, credentials json.RawMessage) *types.ServiceBinding {
+func Prepare(serviceInstanceID string, OSBContext string, credentials string) *types.ServiceBinding {
 	bindingID, err := uuid.NewV4()
 	if err != nil {
 		Fail(fmt.Sprintf("failed to generate binding GUID: %s", err))
