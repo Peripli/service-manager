@@ -98,7 +98,7 @@ type TransactionalEncryptingRepository struct {
 }
 
 func (er *encryptingRepository) Create(ctx context.Context, obj types.Object) (types.Object, error) {
-	if err := er.transform(ctx, obj, er.encrypter.Encrypt); err != nil {
+	if err := er.encrypt(ctx, obj); err != nil {
 		return nil, err
 	}
 
@@ -107,7 +107,7 @@ func (er *encryptingRepository) Create(ctx context.Context, obj types.Object) (t
 		return nil, err
 	}
 
-	if err := er.transform(ctx, newObj, er.encrypter.Decrypt); err != nil {
+	if err := er.decrypt(ctx, newObj); err != nil {
 		return nil, err
 	}
 
@@ -120,7 +120,7 @@ func (er *encryptingRepository) Get(ctx context.Context, objectType types.Object
 		return nil, err
 	}
 
-	if err := er.transform(ctx, obj, er.encrypter.Decrypt); err != nil {
+	if err := er.decrypt(ctx, obj); err != nil {
 		return nil, err
 	}
 
@@ -134,7 +134,7 @@ func (er *encryptingRepository) List(ctx context.Context, objectType types.Objec
 	}
 
 	for i := 0; i < objList.Len(); i++ {
-		if err := er.transform(ctx, objList.ItemAt(i), er.encrypter.Decrypt); err != nil {
+		if err := er.decrypt(ctx, objList.ItemAt(i)); err != nil {
 			return nil, err
 		}
 	}
@@ -146,8 +146,8 @@ func (er *encryptingRepository) Count(ctx context.Context, objectType types.Obje
 	return er.repository.Count(ctx, objectType, criteria...)
 }
 
-func (er *encryptingRepository) Update(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, criteria ...query.Criterion) (types.Object, error) {
-	if err := er.transform(ctx, obj, er.encrypter.Encrypt); err != nil {
+func (er *encryptingRepository) Update(ctx context.Context, obj types.Object, labelChanges query.LabelChanges, _ ...query.Criterion) (types.Object, error) {
+	if err := er.encrypt(ctx, obj); err != nil {
 		return nil, err
 	}
 
@@ -156,7 +156,7 @@ func (er *encryptingRepository) Update(ctx context.Context, obj types.Object, la
 		return nil, err
 	}
 
-	if err := er.transform(ctx, updatedObj, er.encrypter.Decrypt); err != nil {
+	if err := er.decrypt(ctx, updatedObj); err != nil {
 		return nil, err
 	}
 
@@ -170,7 +170,7 @@ func (er *encryptingRepository) DeleteReturning(ctx context.Context, objectType 
 	}
 
 	for i := 0; i < objList.Len(); i++ {
-		if err := er.transform(ctx, objList.ItemAt(i), er.encrypter.Decrypt); err != nil {
+		if err := er.decrypt(ctx, objList.ItemAt(i)); err != nil {
 			return nil, err
 		}
 	}
@@ -186,43 +186,22 @@ func (er *encryptingRepository) Delete(ctx context.Context, objectType types.Obj
 	return nil
 }
 
-func (er *encryptingRepository) transformBasicCredentials(ctx context.Context, obj types.Object, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) error {
-	securedObj, isSecured := obj.(types.Secured)
-	if isSecured {
-		credentials := securedObj.GetCredentials()
-		if credentials != nil {
-			transformedPassword, err := transformationFunc(ctx, []byte(credentials.Basic.Password), er.encryptionKey)
-			if err != nil {
-				return err
-			}
-			credentials.Basic.Password = string(transformedPassword)
-			securedObj.SetCredentials(credentials)
-		}
+func (er *encryptingRepository) encrypt(ctx context.Context, obj types.Object) error {
+	if securedObject, isSecured := obj.(types.Secured); isSecured {
+		return securedObject.Encrypt(ctx, func(ctx context.Context, bytes []byte) ([]byte, error) {
+			return er.encrypter.Encrypt(ctx, bytes, er.encryptionKey)
+		})
 	}
 	return nil
 }
 
-func (er *encryptingRepository) transformCredentialsObject(ctx context.Context, obj types.Object, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) error {
-	objectWithCredentials, isSecured := obj.(types.CredentialsObject)
-	if isSecured {
-		credentials := objectWithCredentials.GetCredentials()
-		if len(credentials) != 0 {
-			transformedCredentials, err := transformationFunc(ctx, []byte(credentials), er.encryptionKey)
-			if err != nil {
-				return err
-			}
-			objectWithCredentials.SetCredentials(string(transformedCredentials))
-		}
+func (er *encryptingRepository) decrypt(ctx context.Context, obj types.Object) error {
+	if securedObject, isSecured := obj.(types.Secured); isSecured {
+		return securedObject.Decrypt(ctx, func(ctx context.Context, bytes []byte) ([]byte, error) {
+			return er.encrypter.Decrypt(ctx, bytes, er.encryptionKey)
+		})
 	}
 	return nil
-}
-
-func (er *encryptingRepository) transform(ctx context.Context, obj types.Object, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) error {
-	err := er.transformBasicCredentials(ctx, obj, transformationFunc)
-	if err != nil {
-		return err
-	}
-	return er.transformCredentialsObject(ctx, obj, transformationFunc)
 }
 
 // InTransaction wraps repository passed in the transaction to also encypt/decrypt credentials

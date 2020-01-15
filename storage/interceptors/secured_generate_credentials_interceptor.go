@@ -18,6 +18,7 @@ package interceptors
 
 import (
 	"context"
+	"errors"
 
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/storage"
@@ -50,7 +51,11 @@ func (c *generateCredentialsInterceptor) AroundTxCreate(h storage.InterceptCreat
 			log.C(ctx).Error("Could not generate credentials for platform")
 			return nil, err
 		}
-		(obj.(types.Secured)).SetCredentials(credentials)
+		platform, ok := obj.(*types.Platform)
+		if !ok {
+			return nil, errors.New("created object is not a platform")
+		}
+		platform.Credentials = credentials
 
 		return h(ctx, obj)
 	}

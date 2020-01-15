@@ -18,6 +18,7 @@
 package types
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,7 +31,7 @@ import (
 // ServiceBinding struct
 type ServiceBinding struct {
 	Base
-	CredentialsObject `json:"-"`
+	Secured           `json:"-"`
 	Name              string          `json:"name"`
 	ServiceInstanceID string          `json:"service_instance_id"`
 	SyslogDrainURL    string          `json:"syslog_drain_url,omitempty"`
@@ -42,12 +43,24 @@ type ServiceBinding struct {
 	Credentials       string          `json:"credentials"`
 }
 
-func (e *ServiceBinding) SetCredentials(credentials string) {
-	e.Credentials = credentials
+func (e *ServiceBinding) Encrypt(ctx context.Context, encryptionFunc func(context.Context, []byte) ([]byte, error)) error {
+	return e.transform(ctx, encryptionFunc)
 }
 
-func (e *ServiceBinding) GetCredentials() string {
-	return e.Credentials
+func (e *ServiceBinding) Decrypt(ctx context.Context, decryptionFunc func(context.Context, []byte) ([]byte, error)) error {
+	return e.transform(ctx, decryptionFunc)
+}
+
+func (e *ServiceBinding) transform(ctx context.Context, transformationFunc func(context.Context, []byte) ([]byte, error)) error {
+	if len(e.Credentials) == 0 {
+		return nil
+	}
+	transformedCredentials, err := transformationFunc(ctx, []byte(e.Credentials))
+	if err != nil {
+		return err
+	}
+	e.Credentials = string(transformedCredentials)
+	return nil
 }
 
 func (e *ServiceBinding) Equals(obj Object) bool {

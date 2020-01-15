@@ -17,6 +17,7 @@
 package types
 
 import (
+	"context"
 	"strings"
 	"time"
 
@@ -32,16 +33,15 @@ func (ot ObjectType) String() string {
 	return strings.TrimPrefix(string(ot), prefix)
 }
 
-// Secured interface indicates that an object requires credentials to access it
-type Secured interface {
-	SetCredentials(credentials *Credentials)
-	GetCredentials() *Credentials
+// Strip interface indicates that an object needs to be sanitized before it is returned to the client
+type Strip interface {
+	Sanitize()
 }
 
-// CredentialsObject interface indicates that an object has secured credentials object
-type CredentialsObject interface {
-	SetCredentials(credentials string)
-	GetCredentials() string
+// Secured interface indicates that an object needs to be processed before stored/retrieved to/from storage
+type Secured interface {
+	Encrypt(context.Context, func(context.Context, []byte) ([]byte, error)) error
+	Decrypt(context.Context, func(context.Context, []byte) ([]byte, error)) error
 }
 
 // Object is the common interface that all resources in the Service Manager must implement
