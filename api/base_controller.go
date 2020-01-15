@@ -283,13 +283,8 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 	log.C(ctx).Debugf("Getting %s with id %s", c.objectType, objectID)
 
 	byID := query.ByField(query.EqualsOperator, "id", objectID)
-	var err error
-	ctx, err = query.AddCriteria(ctx, byID)
-	if err != nil {
-		return nil, err
-	}
 	criteria := query.CriteriaForContext(ctx)
-	object, err := c.repository.Get(ctx, c.objectType, criteria...)
+	object, err := c.repository.Get(ctx, c.objectType, append(criteria, byID)...)
 	if err != nil {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
@@ -471,7 +466,8 @@ func attachLastOperation(ctx context.Context, objectID string, object types.Obje
 		orderBy := query.OrderResultBy("paging_sequence", query.DescOrder)
 		limitBy := query.LimitResultBy(1)
 		byObjectID := query.ByField(query.EqualsOperator, "resource_id", objectID)
-		list, err := repository.List(ctx, types.OperationType, byObjectID, orderBy, limitBy)
+		criteria := query.CriteriaForContext(ctx)
+		list, err := repository.List(ctx, types.OperationType, append(criteria, byObjectID, orderBy, limitBy)...)
 		if err != nil {
 			return util.HandleStorageError(err, types.OperationType.String())
 		}
