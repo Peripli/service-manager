@@ -20,9 +20,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/Peripli/service-manager/operations"
 	"net/http"
 	"sync"
+
+	"github.com/Peripli/service-manager/operations"
 
 	secFilters "github.com/Peripli/service-manager/pkg/security/filters"
 
@@ -81,7 +82,7 @@ type ServiceManager struct {
 	NotificationCleaner *storage.NotificationCleaner
 }
 
-// New returns service-manager Server with default setup
+// New returns service-manager builder with default setup
 func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg *config.Settings) (*ServiceManagerBuilder, error) {
 	var err error
 	if err = cfg.Validate(); err != nil {
@@ -157,7 +158,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		Settings: *cfg.Storage,
 	}
 
-	operationMaintainer := operations.NewMaintainer(ctx, interceptableRepository, cfg.Operations)
+	operationMaintainer := operations.NewMaintainer(ctx, interceptableRepository, cfg.Operations, waitGroup)
 
 	smb := &ServiceManagerBuilder{
 		API:                 API,

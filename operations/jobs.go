@@ -21,12 +21,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"runtime/debug"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
-	"runtime/debug"
 )
 
 // Job is responsible for executing a C/U/D DB operation
@@ -50,7 +51,7 @@ func (j *Job) Execute(ctxWithTimeout context.Context, repository storage.Reposit
 		if panicErr := recover(); panicErr != nil {
 			err = fmt.Errorf("job panicked while executing: %s", panicErr)
 			if opErr := updateOperationState(opCtx, repository, operationID, types.FAILED, &OperationError{Message: "job interrupted"}); opErr != nil {
-				log.D().Debugf("Failed to set state of operation with id (%s) to %s", operationID, types.FAILED)
+				log.C(ctxWithTimeout).Debugf("Failed to set state of operation with id (%s) to %s", operationID, types.FAILED)
 				err = fmt.Errorf("%s : %s", err, opErr)
 			}
 			debug.PrintStack()
@@ -64,7 +65,7 @@ func (j *Job) Execute(ctxWithTimeout context.Context, repository storage.Reposit
 	}()
 
 	if _, err = j.OperationFunc(ctx, repository); err != nil {
-		log.D().Debugf("Failed to execute %s operation with id (%s) for %s entity", j.Operation.Type, operationID, j.ObjectType)
+		log.C(ctxWithTimeout).Errorf("Failed to execute %s operation with id (%s) for %s entity", j.Operation.Type, operationID, j.ObjectType)
 
 		select {
 		case <-ctxWithTimeout.Done():
@@ -73,15 +74,15 @@ func (j *Job) Execute(ctxWithTimeout context.Context, repository storage.Reposit
 		}
 
 		if opErr := updateOperationState(opCtx, repository, operationID, types.FAILED, &OperationError{Message: err.Error()}); opErr != nil {
-			log.D().Debugf("Failed to set state of operation with id (%s) to %s", operationID, types.FAILED)
+			log.C(ctxWithTimeout).Errorf("Failed to set state of operation with id (%s) to %s", operationID, types.FAILED)
 			err = fmt.Errorf("%s : %s", err, opErr)
 		}
 		return operationID, err
 	}
 
-	log.D().Debugf("Successfully executed %s operation with id (%s) for %s entity", j.Operation.Type, operationID, j.ObjectType)
+	log.C(ctxWithTimeout).Debugf("Successfully executed %s operation with id (%s) for %s entity", j.Operation.Type, operationID, j.ObjectType)
 	if err = updateOperationState(opCtx, repository, operationID, types.SUCCEEDED, nil); err != nil {
-		log.D().Debugf("Failed to set state of operation with id (%s) to %s", operationID, types.SUCCEEDED)
+		log.C(ctxWithTimeout).Errorf("Failed to set state of operation with id (%s) to %s", operationID, types.SUCCEEDED)
 	}
 
 	return operationID, err
@@ -105,11 +106,11 @@ func updateOperationState(ctx context.Context, repository storage.Repository, op
 
 	_, err = repository.Update(ctx, operation, query.LabelChanges{})
 	if err != nil {
-		log.D().Debugf("Failed to update state of operation with id (%s) to %s", operationID, state)
+		log.C(ctx).Errorf("Failed to update state of operation with id (%s) to %s", operationID, state)
 		return err
 	}
 
-	log.D().Debugf("Successfully updated state of operation with id (%s) to %s", operationID, state)
+	log.C(ctx).Debugf("Successfully updated state of operation with id (%s) to %s", operationID, state)
 	return nil
 }
 
@@ -117,7 +118,7 @@ func fetchOperation(ctx context.Context, repository storage.Repository, operatio
 	byID := query.ByField(query.EqualsOperator, "id", operationID)
 	objFromDB, err := repository.Get(ctx, types.OperationType, byID)
 	if err != nil {
-		log.D().Debugf("Failed to retrieve operation with id (%s)", operationID)
+		log.C(ctx).Errorf("Failed to retrieve operation with id (%s)", operationID)
 		return nil, err
 	}
 
