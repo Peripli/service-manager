@@ -2,7 +2,6 @@ package osb
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -96,7 +95,7 @@ func (p *checkVisibilityPlugin) checkVisibility(req *web.Request, next web.Handl
 			}
 		}
 		for _, v := range visibilities.Visibilities {
-			if v.PlatformID == "" {
+			if v.PlatformID == "" { // public visibility
 				return next.Handle(req)
 			}
 			if v.PlatformID == platform.ID {
@@ -114,23 +113,25 @@ func (p *checkVisibilityPlugin) checkVisibility(req *web.Request, next web.Handl
 				}
 			}
 		}
+		log.C(ctx).Errorf("Service plan %v is not visible on platform %v", planID, platform.ID)
 		return nil, &util.HTTPError{
 			ErrorType:   "NotFound",
-			Description: fmt.Sprintf("could not find such %s", string(types.ServicePlanType)),
+			Description: "could not find such service plan",
 			StatusCode:  http.StatusNotFound,
 		}
 	default:
 		for _, v := range visibilities.Visibilities {
-			if v.PlatformID == "" {
+			if v.PlatformID == "" { // public visibility
 				return next.Handle(req)
 			}
 			if v.PlatformID == platform.ID {
 				return next.Handle(req)
 			}
 		}
+		log.C(ctx).Errorf("Service plan %v is not visible on platform %v", planID, platform.ID)
 		return nil, &util.HTTPError{
 			ErrorType:   "NotFound",
-			Description: fmt.Sprintf("could not find such %s", string(types.ServicePlanType)),
+			Description: "could not find such service plan",
 			StatusCode:  http.StatusNotFound,
 		}
 	}

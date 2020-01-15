@@ -1,7 +1,8 @@
 package osb
 
 import (
-	"fmt"
+	"net/http"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -9,7 +10,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/tidwall/gjson"
-	"net/http"
 )
 
 const CheckInstanceOwnerPluginName = "CheckInstanceOwnerPlugin"
@@ -76,7 +76,7 @@ func (p *checkInstanceOwnerPlugin) assertOwner(req *web.Request, next web.Handle
 		log.C(ctx).Errorf("Instance owner %s is not the same as the caller %s", instanceOwnerTenantID, callerTenantID)
 		return nil, &util.HTTPError{
 			ErrorType:   "NotFound",
-			Description: fmt.Sprintf("could not find such %s", string(types.ServiceInstanceType)),
+			Description: "could not find such service instance",
 			StatusCode:  http.StatusNotFound,
 		}
 	}
