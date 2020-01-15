@@ -467,7 +467,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 }
 
 func attachLastOperation(ctx context.Context, objectID string, object types.Object, r *web.Request, repository storage.Repository) error {
-	if operationable, ok := object.(types.Operationable); ok {
+	if operatable, ok := object.(types.Operatable); ok {
 		orderBy := query.OrderResultBy("paging_sequence", query.DescOrder)
 		limitBy := query.LimitResultBy(1)
 		byObjectID := query.ByField(query.EqualsOperator, "resource_id", objectID)
@@ -480,7 +480,7 @@ func attachLastOperation(ctx context.Context, objectID string, object types.Obje
 			return nil
 		}
 		lastOperation := list.ItemAt(0)
-		operationable.SetLastOperation(lastOperation.(*types.Operation))
+		operatable.SetLastOperation(lastOperation.(*types.Operation))
 		return nil
 	}
 
