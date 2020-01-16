@@ -205,6 +205,7 @@ func (sb *SecurityBuilder) resetAuthenticators() {
 	sb.authorization = false
 }
 
+// Reset should be called before starting with new matchers
 func (sb *SecurityBuilder) Reset() *SecurityBuilder {
 	sb.resetAuthenticators()
 	sb.pathMatcher = nil
@@ -212,6 +213,25 @@ func (sb *SecurityBuilder) Reset() *SecurityBuilder {
 	sb.paths = make([]string, 0)
 	sb.methods = make([]string, 0)
 	return sb
+}
+
+// Clear removes all authentication and authorization already build by the security builder
+func (sb *SecurityBuilder) Clear() *SecurityBuilder {
+	return sb.ClearAuthentication().ClearAuthorization()
+}
+
+// ClearAuthentication removes all authentication already build by the security builder
+func (sb *SecurityBuilder) ClearAuthentication() *SecurityBuilder {
+	sb.requiredAuthNMatchers = make([]web.FilterMatcher, 0)
+	sb.authnDynamicFilter.ClearFilters()
+	return sb.Reset()
+}
+
+// ClearAuthorization removes all authorization already build by the security builder
+func (sb *SecurityBuilder) ClearAuthorization() *SecurityBuilder {
+	sb.requiredAuthZMatchers = make([]web.FilterMatcher, 0)
+	sb.authzDynamicFilter.ClearFilters()
+	return sb.Reset()
 }
 
 func (sb *SecurityBuilder) register(finalMatchers []web.Matcher) {
