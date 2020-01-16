@@ -247,13 +247,22 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 
 				Context("when request body platform_id field is provided", func() {
-					It("should return 400", func() {
-						postInstanceRequest["platform_id"] = "test-platform-id"
-						resp := ctx.SMWithOAuth.POST(web.ServiceInstancesURL).
-							WithJSON(postInstanceRequest).
-							Expect().Status(http.StatusBadRequest).JSON().Object()
+					Context("which is not service-manager platform", func() {
+						It("should return 400", func() {
+							postInstanceRequest["platform_id"] = "test-platform-id"
+							resp := ctx.SMWithOAuth.POST(web.ServiceInstancesURL).
+								WithJSON(postInstanceRequest).
+								Expect().Status(http.StatusBadRequest).JSON().Object()
 
-						resp.Value("description").Equal("Providing platform_id property during provisioning/updating of a service instance is forbidden")
+							resp.Value("description").Equal("Providing platform_id property during provisioning/updating of a service instance is forbidden")
+						})
+					})
+
+					Context("which is service-manager platform", func() {
+						It("should return 200", func() {
+							postInstanceRequest["platform_id"] = types.SMPlatform
+							createInstance()
+						})
 					})
 				})
 
@@ -330,20 +339,39 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 
 				Context("when platform_id provided in body", func() {
-					It("should return 400", func() {
-						createInstance()
+					Context("which is not service-manager platform", func() {
+						It("should return 400", func() {
+							createInstance()
 
-						resp := ctx.SMWithOAuth.PATCH(web.ServiceInstancesURL + "/" + instanceID).
-							WithJSON(common.Object{"platform_id": "test-platform-id"}).
-							Expect().Status(http.StatusBadRequest).JSON().Object()
+							resp := ctx.SMWithOAuth.PATCH(web.ServiceInstancesURL + "/" + instanceID).
+								WithJSON(common.Object{"platform_id": "test-platform-id"}).
+								Expect().Status(http.StatusBadRequest).JSON().Object()
 
-						resp.Value("description").Equal("Providing platform_id property during provisioning/updating of a service instance is forbidden")
+							resp.Value("description").Equal("Providing platform_id property during provisioning/updating of a service instance is forbidden")
 
-						ctx.SMWithOAuth.GET(web.ServiceInstancesURL+"/"+instanceID).
-							Expect().
-							Status(http.StatusOK).JSON().Object().
-							ContainsKey("platform_id").
-							ValueEqual("platform_id", types.SMPlatform)
+							ctx.SMWithOAuth.GET(web.ServiceInstancesURL+"/"+instanceID).
+								Expect().
+								Status(http.StatusOK).JSON().Object().
+								ContainsKey("platform_id").
+								ValueEqual("platform_id", types.SMPlatform)
+						})
+					})
+
+					Context("which is service-manager platform", func() {
+						It("should return 200", func() {
+							createInstance()
+
+							ctx.SMWithOAuth.PATCH(web.ServiceInstancesURL + "/" + instanceID).
+								WithJSON(common.Object{"platform_id": types.SMPlatform}).
+								Expect().Status(http.StatusOK).JSON().Object()
+
+							ctx.SMWithOAuth.GET(web.ServiceInstancesURL+"/"+instanceID).
+								Expect().
+								Status(http.StatusOK).JSON().Object().
+								ContainsKey("platform_id").
+								ValueEqual("platform_id", types.SMPlatform)
+
+						})
 					})
 				})
 

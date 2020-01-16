@@ -41,7 +41,7 @@ func (*ServiceInstanceValidationFilter) Name() string {
 func (*ServiceInstanceValidationFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	platformID := gjson.GetBytes(req.Body, platformIDProperty).Str
 
-	if platformID != "" {
+	if platformID != "" && platformID != types.SMPlatform {
 		return nil, &util.HTTPError{
 			ErrorType:   "BadRequest",
 			Description: fmt.Sprintf("Providing %s property during provisioning/updating of a service instance is forbidden", platformIDProperty),
@@ -50,7 +50,7 @@ func (*ServiceInstanceValidationFilter) Run(req *web.Request, next web.Handler) 
 	}
 
 	var err error
-	if req.Method == http.MethodPost {
+	if req.Method == http.MethodPost && platformID == "" {
 		req.Body, err = sjson.SetBytes(req.Body, platformIDProperty, types.SMPlatform)
 		if err != nil {
 			return nil, err
