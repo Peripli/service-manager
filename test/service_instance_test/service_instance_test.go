@@ -83,6 +83,49 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 	AdditionalTests: func(ctx *common.TestContext) {
 		Context("additional non-generic tests", func() {
+			var (
+				postInstanceRequest      common.Object
+				expectedInstanceResponse common.Object
+
+				instanceID string
+			)
+
+			createInstance := func() {
+				ctx.SMWithOAuth.POST(web.ServiceInstancesURL).WithJSON(postInstanceRequest).
+					Expect().
+					Status(http.StatusCreated).
+					JSON().Object().
+					ContainsMap(expectedInstanceResponse).ContainsKey("id")
+			}
+
+			BeforeEach(func() {
+				id, err := uuid.NewV4()
+				if err != nil {
+					panic(err)
+				}
+
+				instanceID = id.String()
+				name := "test-instance"
+				servicePlanID := generateServicePlan(ctx, ctx.SMWithOAuth)
+				platformID := generatePlatform(ctx.SMWithOAuth)
+
+				postInstanceRequest = common.Object{
+					"id":               instanceID,
+					"name":             name,
+					"service_plan_id":  servicePlanID,
+					"platform_id":      platformID,
+					"maintenance_info": "{}",
+				}
+				expectedInstanceResponse = common.Object{
+					"id":               instanceID,
+					"name":             name,
+					"service_plan_id":  servicePlanID,
+					"platform_id":      platformID,
+					"maintenance_info": "{}",
+				}
+
+			})
+
 			AfterEach(func() {
 				ctx.CleanupAdditionalResources()
 			})
@@ -127,39 +170,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			})
 
 			Describe("POST", func() {
-
-				var (
-					postInstanceRequest      common.Object
-					expectedInstanceResponse common.Object
-				)
-
-				BeforeEach(func() {
-					instanceID, err := uuid.NewV4()
-					if err != nil {
-						panic(err)
-					}
-
-					name := "test-instance"
-					servicePlanID := generateServicePlan(ctx, ctx.SMWithOAuth)
-					platformID := generatePlatform(ctx, ctx.SMWithOAuth)
-
-					postInstanceRequest = common.Object{
-						"id":               instanceID.String(),
-						"name":             name,
-						"service_plan_id":  servicePlanID,
-						"platform_id":      platformID,
-						"maintenance_info": "{}",
-					}
-					expectedInstanceResponse = common.Object{
-						"id":               instanceID.String(),
-						"name":             name,
-						"service_plan_id":  servicePlanID,
-						"platform_id":      platformID,
-						"maintenance_info": "{}",
-					}
-
-				})
-
 				Context("when content type is not JSON", func() {
 					It("returns 415", func() {
 						ctx.SMWithOAuth.POST(web.ServiceInstancesURL).WithText("text").
@@ -205,11 +215,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 
 						It("returns 201", func() {
-							ctx.SMWithOAuth.POST(web.ServiceInstancesURL).WithJSON(postInstanceRequest).
-								Expect().
-								Status(http.StatusCreated).
-								JSON().Object().
-								ContainsMap(expectedInstanceResponse).ContainsKey("id")
+							createInstance()
 						})
 					}
 
@@ -254,13 +260,93 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 						test.ExpectOperation(ctx.SMWithOAuth, resp, types.SUCCEEDED)
 
-						instanceID := fmt.Sprintf("%s", postInstanceRequest["id"])
 						ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + instanceID).Expect().
 							Status(http.StatusOK).
 							JSON().Object().
 							ContainsMap(expectedInstanceResponse).ContainsKey("id")
 					})
 				})
+			})
+
+			Describe("PATCH", func() {
+				Context("when content type is not JSON", func() {
+					It("returns 415", func() {
+						instanceID := fmt.Sprintf("%s", postInstanceRequest["id"])
+						ctx.SMWithOAuth.PATCH(web.ServiceInstancesURL+"/"+instanceID).
+							WithText("text").
+							Expect().Status(http.StatusUnsupportedMediaType).
+							JSON().Object().
+							Keys().Contains("error", "description")
+					})
+				})
+
+				Context("when instance is missing", func() {
+					It("returns 404", func() {
+						ctx.SMWithOAuth.PATCH(web.ServiceInstancesURL+"/no_such_id").
+							WithJSON(postInstanceRequest).
+							Expect().Status(http.StatusNotFound).
+							JSON().Object().
+							Keys().Contains("error", "description")
+					})
+				})
+
+				Context("when request body is not valid JSON", func() {
+					It("returns 400", func() {
+						ctx.SMWithOAuth.PATCH(web.ServiceInstancesURL+"/"+instanceID).
+							WithText("invalid json").
+							WithHeader("content-type", "application/json").
+							Expect().
+							Status(http.StatusBadRequest).
+							JSON().Object().
+							Keys().Contains("error", "description")
+					})
+				})
+
+				Context("when created_at provided in body", func() {
+					It("should not change createdat", func() {
+						createInstance()
+
+						createdAt := "2015-01-01T00:00:00Z"
+
+						ctx.SMWithOAuth.PATCH(web.ServiceInstancesURL+"/"+instanceID).
+							WithJSON(common.Object{"created_at": createdAt}).
+							Expect().
+							Status(http.StatusOK).JSON().Object().
+							ContainsKey("created_at").
+							ValueNotEqual("created_at", createdAt)
+
+						ctx.SMWithOAuth.GET(web.ServiceInstancesURL+"/"+instanceID).
+							Expect().
+							Status(http.StatusOK).JSON().Object().
+							ContainsKey("created_at").
+							ValueNotEqual("created_at", createdAt)
+					})
+				})
+
+				Context("when fields are updated one by one", func() {
+					It("returns 200", func() {
+						createInstance()
+
+						for _, prop := range []string{"name", "maintenance_info"} {
+							updatedBrokerJSON := common.Object{}
+							updatedBrokerJSON[prop] = "updated-" + prop
+							ctx.SMWithOAuth.PATCH(web.ServiceInstancesURL + "/" + instanceID).
+								WithJSON(updatedBrokerJSON).
+								Expect().
+								Status(http.StatusOK).
+								JSON().Object().
+								ContainsMap(updatedBrokerJSON)
+
+							ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + instanceID).
+								Expect().
+								Status(http.StatusOK).
+								JSON().Object().
+								ContainsMap(updatedBrokerJSON)
+
+						}
+					})
+				})
+
 			})
 		})
 	},
@@ -277,7 +363,7 @@ func blueprint(ctx *common.TestContext, auth *common.SMExpect, async bool) commo
 	instanceReqBody["name"] = "test-instance-" + instanceID.String()
 
 	instanceReqBody["service_plan_id"] = generateServicePlan(ctx, auth)
-	instanceReqBody["platform_id"] = generatePlatform(ctx, auth)
+	instanceReqBody["platform_id"] = generatePlatform(auth)
 
 	resp := auth.POST(web.ServiceInstancesURL).WithQuery("async", strconv.FormatBool(async)).WithJSON(instanceReqBody).Expect()
 
@@ -313,7 +399,7 @@ func generateServicePlan(ctx *common.TestContext, auth *common.SMExpect) string 
 	return servicePlanID
 }
 
-func generatePlatform(ctx *common.TestContext, auth *common.SMExpect) string {
+func generatePlatform(auth *common.SMExpect) string {
 	platformID := auth.POST(web.PlatformsURL).WithJSON(common.GenerateRandomPlatform()).
 		Expect().
 		Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
