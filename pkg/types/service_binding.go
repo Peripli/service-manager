@@ -92,6 +92,9 @@ func (e *ServiceBinding) Validate() error {
 	if e.Name == "" {
 		return errors.New("missing service binding name")
 	}
+	if e.ServiceInstanceID == "" {
+		return errors.New("missing service binding service instance ID")
+	}
 	if err := e.Labels.Validate(); err != nil {
 		return err
 	}
