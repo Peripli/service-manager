@@ -570,7 +570,7 @@
     "pbkdf2",
   ]
   pruneopts = "UT"
-  revision = "61a87790db17894570dfb32dbaa0a4af9ce60cb4"
+  revision = "6d4e4cb37c7d6416dfea8472e751c7b6615267a6"
 
 [[projects]]
   branch = "master"
@@ -605,7 +605,7 @@
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "UT"
-  revision = "86b910548bc16777f40503131aa424ae0a092199"
+  revision = "b77594299b429d05028403d72b68172959c7dad5"
 
 [[projects]]
   digest = "1:28deae5fe892797ff37a317b5bcda96d11d1c90dadd89f1337651df3bc4c586e"
