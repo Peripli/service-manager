@@ -83,12 +83,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 	AdditionalTests: func(ctx *common.TestContext) {
 		Context("additional non-generic tests", func() {
+			AfterEach(func() {
+				ctx.CleanupAdditionalResources()
+			})
+
 			Describe("GET", func() {
 				var serviceInstance *types.ServiceInstance
-
-				AfterEach(func() {
-					ctx.CleanupAdditionalResources()
-				})
 
 				When("service instance contains tenant identifier in OSB context", func() {
 					BeforeEach(func() {
@@ -125,6 +125,143 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 				})
 			})
+
+			Describe("POST", func() {
+
+				var (
+					postInstanceRequest      common.Object
+					expectedInstanceResponse common.Object
+				)
+
+				BeforeEach(func() {
+					instanceID, err := uuid.NewV4()
+					if err != nil {
+						panic(err)
+					}
+
+					name := "test-instance"
+					servicePlanID := generateServicePlan(ctx, ctx.SMWithOAuth)
+					platformID := generatePlatform(ctx, ctx.SMWithOAuth)
+
+					postInstanceRequest = common.Object{
+						"id":               instanceID.String(),
+						"name":             name,
+						"service_plan_id":  servicePlanID,
+						"platform_id":      platformID,
+						"maintenance_info": "{}",
+					}
+					expectedInstanceResponse = common.Object{
+						"id":               instanceID.String(),
+						"name":             name,
+						"service_plan_id":  servicePlanID,
+						"platform_id":      platformID,
+						"maintenance_info": "{}",
+					}
+
+				})
+
+				Context("when content type is not JSON", func() {
+					It("returns 415", func() {
+						ctx.SMWithOAuth.POST(web.ServiceInstancesURL).WithText("text").
+							Expect().
+							Status(http.StatusUnsupportedMediaType).
+							JSON().Object().
+							Keys().Contains("error", "description")
+					})
+				})
+
+				Context("when request body is not a valid JSON", func() {
+					It("returns 400", func() {
+						ctx.SMWithOAuth.POST(web.ServiceInstancesURL).
+							WithText("invalid json").
+							WithHeader("content-type", "application/json").
+							Expect().
+							Status(http.StatusBadRequest).
+							JSON().Object().
+							Keys().Contains("error", "description")
+					})
+				})
+
+				Context("when a request body field is missing", func() {
+					assertPOSTReturns400WhenFieldIsMissing := func(field string) {
+						BeforeEach(func() {
+							delete(postInstanceRequest, field)
+							delete(expectedInstanceResponse, field)
+						})
+
+						It("returns 400", func() {
+							ctx.SMWithOAuth.POST(web.ServiceInstancesURL).WithJSON(postInstanceRequest).
+								Expect().
+								Status(http.StatusBadRequest).
+								JSON().Object().
+								Keys().Contains("error", "description")
+						})
+					}
+
+					assertPOSTReturns201WhenFieldIsMissing := func(field string) {
+						BeforeEach(func() {
+							delete(postInstanceRequest, field)
+							delete(expectedInstanceResponse, field)
+						})
+
+						It("returns 201", func() {
+							ctx.SMWithOAuth.POST(web.ServiceInstancesURL).WithJSON(postInstanceRequest).
+								Expect().
+								Status(http.StatusCreated).
+								JSON().Object().
+								ContainsMap(expectedInstanceResponse).ContainsKey("id")
+						})
+					}
+
+					Context("when id  field is missing", func() {
+						assertPOSTReturns201WhenFieldIsMissing("id")
+					})
+
+					Context("when name field is missing", func() {
+						assertPOSTReturns400WhenFieldIsMissing("name")
+					})
+
+					Context("when service_plan_id field is missing", func() {
+						assertPOSTReturns400WhenFieldIsMissing("service_plan_id")
+					})
+
+					Context("when platform_id field is missing", func() {
+						assertPOSTReturns400WhenFieldIsMissing("platform_id")
+					})
+
+					Context("when maintenance_info field is missing", func() {
+						assertPOSTReturns201WhenFieldIsMissing("maintenance_info")
+					})
+				})
+
+				Context("when request body id field is invalid", func() {
+					It("fails", func() {
+						postInstanceRequest["id"] = "instance/1"
+						reply := ctx.SMWithOAuth.POST(web.ServiceInstancesURL).
+							WithJSON(postInstanceRequest).
+							Expect().Status(http.StatusBadRequest).JSON().Object()
+
+						reply.Value("description").Equal("instance/1 contains invalid character(s)")
+					})
+				})
+
+				Context("With async query param", func() {
+					It("succeeds", func() {
+						resp := ctx.SMWithOAuth.POST(web.ServiceInstancesURL).WithJSON(postInstanceRequest).
+							WithQuery("async", "true").
+							Expect().
+							Status(http.StatusAccepted)
+
+						test.ExpectOperation(ctx.SMWithOAuth, resp, types.SUCCEEDED)
+
+						instanceID := fmt.Sprintf("%s", postInstanceRequest["id"])
+						ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + instanceID).Expect().
+							Status(http.StatusOK).
+							JSON().Object().
+							ContainsMap(expectedInstanceResponse).ContainsKey("id")
+					})
+				})
+			})
 		})
 	},
 })
@@ -139,21 +276,8 @@ func blueprint(ctx *common.TestContext, auth *common.SMExpect, async bool) commo
 	instanceReqBody["id"] = instanceID.String()
 	instanceReqBody["name"] = "test-instance-" + instanceID.String()
 
-	cPaidPlan := common.GeneratePaidTestPlan()
-	cService := common.GenerateTestServiceWithPlans(cPaidPlan)
-	catalog := common.NewEmptySBCatalog()
-	catalog.AddService(cService)
-	brokerID, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
-
-	so := auth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerID)).First()
-
-	servicePlanID := auth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw())).
-		First().Object().Value("id").String().Raw()
-	instanceReqBody["service_plan_id"] = servicePlanID
-	platformID := auth.POST(web.PlatformsURL).WithJSON(common.GenerateRandomPlatform()).
-		Expect().
-		Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
-	instanceReqBody["platform_id"] = platformID
+	instanceReqBody["service_plan_id"] = generateServicePlan(ctx, auth)
+	instanceReqBody["platform_id"] = generatePlatform(ctx, auth)
 
 	resp := auth.POST(web.ServiceInstancesURL).WithQuery("async", strconv.FormatBool(async)).WithJSON(instanceReqBody).Expect()
 
@@ -172,4 +296,27 @@ func blueprint(ctx *common.TestContext, auth *common.SMExpect, async bool) commo
 	}
 
 	return instance
+}
+
+func generateServicePlan(ctx *common.TestContext, auth *common.SMExpect) string {
+	cPaidPlan := common.GeneratePaidTestPlan()
+	cService := common.GenerateTestServiceWithPlans(cPaidPlan)
+	catalog := common.NewEmptySBCatalog()
+	catalog.AddService(cService)
+	brokerID, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
+
+	so := auth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerID)).First()
+
+	servicePlanID := auth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw())).
+		First().Object().Value("id").String().Raw()
+
+	return servicePlanID
+}
+
+func generatePlatform(ctx *common.TestContext, auth *common.SMExpect) string {
+	platformID := auth.POST(web.PlatformsURL).WithJSON(common.GenerateRandomPlatform()).
+		Expect().
+		Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
+
+	return platformID
 }
