@@ -25,8 +25,6 @@ import (
 	"time"
 
 	"github.com/Peripli/service-manager/operations"
-	"github.com/gofrs/uuid"
-
 	secFilters "github.com/Peripli/service-manager/pkg/security/filters"
 
 	"github.com/Peripli/service-manager/pkg/env"
@@ -234,13 +232,9 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 }
 
 func (smb *ServiceManagerBuilder) registerSMPlatform() error {
-	UUID, err := uuid.NewV4()
-	if err != nil {
-		return fmt.Errorf("could not generate GUID for %s: %s", types.PlatformType, err)
-	}
 	if _, err := smb.Storage.Create(smb.ctx, &types.Platform{
 		Base: types.Base{
-			ID:        UUID.String(),
+			ID:        types.SMPlatform,
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 			Labels:    make(map[string][]string),

@@ -181,6 +181,7 @@ var _ = Describe("SM", func() {
 					Expect().Status(http.StatusOK).JSON()
 				resp.Path("$.num_items").Number().Equal(1)
 				resp.Path("$.items[*]").Array().First().Object().ContainsMap(map[string]interface{}{
+					"id":   types.SMPlatform,
 					"type": types.SMPlatform,
 					"name": types.SMPlatform,
 				})
