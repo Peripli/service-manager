@@ -276,6 +276,14 @@
   version = "v1.0.2"
 
 [[projects]]
+  digest = "1:8658f775ba5edb37ede96d8ec9eaecdfe06bc4aef1776152070185e6513dc0cc"
+  name = "github.com/kubernetes-sigs/go-open-service-broker-client"
+  packages = ["v2"]
+  pruneopts = "UT"
+  revision = "dca737037ce636eb282e84e3a1c7479c9692e884"
+  version = "0.0.10"
+
+[[projects]]
   branch = "master"
   digest = "1:cbc008e8b6866556c853447a1216480aeb10d12d7fd83058dfbb17fbe8f36355"
   name = "github.com/lib/pq"
@@ -384,14 +392,6 @@
   pruneopts = "UT"
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
   version = "v1.0.0"
-
-[[projects]]
-  digest = "1:8658f775ba5edb37ede96d8ec9eaecdfe06bc4aef1776152070185e6513dc0cc"
-  name = "github.com/pmorie/go-open-service-broker-client"
-  packages = ["v2"]
-  pruneopts = "UT"
-  revision = "dca737037ce636eb282e84e3a1c7479c9692e884"
-  version = "0.0.10"
 
 [[projects]]
   branch = "master"
@@ -586,7 +586,7 @@
     "pbkdf2",
   ]
   pruneopts = "UT"
-  revision = "61a87790db17894570dfb32dbaa0a4af9ce60cb4"
+  revision = "6d4e4cb37c7d6416dfea8472e751c7b6615267a6"
 
 [[projects]]
   branch = "master"
@@ -621,7 +621,7 @@
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "UT"
-  revision = "86b910548bc16777f40503131aa424ae0a092199"
+  revision = "b77594299b429d05028403d72b68172959c7dad5"
 
 [[projects]]
   digest = "1:28deae5fe892797ff37a317b5bcda96d11d1c90dadd89f1337651df3bc4c586e"
@@ -738,13 +738,13 @@
     "github.com/gorilla/websocket",
     "github.com/jmoiron/sqlx",
     "github.com/jmoiron/sqlx/types",
+    "github.com/kubernetes-sigs/go-open-service-broker-client/v2",
     "github.com/lib/pq",
     "github.com/onrik/logrus/filename",
     "github.com/onsi/ginkgo",
     "github.com/onsi/ginkgo/extensions/table",
     "github.com/onsi/gomega",
     "github.com/onsi/gomega/ghttp",
-    "github.com/pmorie/go-open-service-broker-client/v2",
     "github.com/sirupsen/logrus",
     "github.com/spf13/cast",
     "github.com/spf13/pflag",
