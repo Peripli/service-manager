@@ -1,14 +1,14 @@
 package osb
 
 import (
-	"fmt"
+	"net/http"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
-	"net/http"
 )
 
 const CheckPlatformIDPluginName = "CheckPlatformIDPlugin"
@@ -86,7 +86,7 @@ func (p *checkPlatformIDPlugin) assertPlatformID(req *web.Request, next web.Hand
 		log.C(ctx).Errorf("Instance with id %s and platform id %s does not belong to platform with id %s", instance.ID, instance.PlatformID, platform.ID)
 		return nil, &util.HTTPError{
 			ErrorType:   "NotFound",
-			Description: fmt.Sprintf("could not find such %s", string(types.ServiceInstanceType)),
+			Description: "could not find such service instance",
 			StatusCode:  http.StatusNotFound,
 		}
 	}
