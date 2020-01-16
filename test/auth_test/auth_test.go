@@ -263,6 +263,21 @@ var _ = Describe("Service Manager Authentication", func() {
 			{"Invalid authorization schema", "GET", web.ServiceInstancesURL, invalidBasicAuthHeader},
 			{"Missing token in authorization header", "GET", web.ServiceInstancesURL, emptyBearerAuthHeader},
 			{"Invalid token in authorization header", "GET", web.ServiceInstancesURL, invalidBearerAuthHeader},
+
+			{"Missing authorization header", "POST", web.ServiceInstancesURL, emptyAuthHeader},
+			{"Invalid authorization schema", "POST", web.ServiceInstancesURL, invalidBasicAuthHeader},
+			{"Missing token in authorization header", "POST", web.ServiceInstancesURL, emptyBearerAuthHeader},
+			{"Invalid token in authorization header", "POST", web.ServiceInstancesURL, invalidBearerAuthHeader},
+
+			{"Missing authorization header", "PATCH", web.ServiceInstancesURL + "/999", emptyAuthHeader},
+			{"Invalid authorization schema", "PATCH", web.ServiceInstancesURL + "/999", invalidBasicAuthHeader},
+			{"Missing token in authorization header", "PATCH", web.ServiceInstancesURL + "/999", emptyBearerAuthHeader},
+			{"Invalid token in authorization header", "PATCH", web.ServiceInstancesURL + "/999", invalidBearerAuthHeader},
+
+			{"Missing authorization header", "DELETE", web.ServiceInstancesURL + "/999", emptyAuthHeader},
+			{"Invalid authorization schema", "DELETE", web.ServiceInstancesURL + "/999", invalidBasicAuthHeader},
+			{"Missing token in authorization header", "DELETE", web.ServiceInstancesURL + "/999", emptyBearerAuthHeader},
+			{"Invalid token in authorization header", "DELETE", web.ServiceInstancesURL + "/999", invalidBearerAuthHeader},
 		}
 
 		for _, request := range authRequests {

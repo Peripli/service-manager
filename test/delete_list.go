@@ -66,7 +66,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				},
 				queryTemplate: "%s ne '%v'",
 				queryArgs: func() common.Object {
-					return r[0]
+					return common.RemoveBooleanArgs(r[0])
 				},
 				resourcesToExpectAfterOp: func() []common.Object {
 					return []common.Object{r[0]}
@@ -113,7 +113,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				},
 				queryTemplate: "%[1]s notin ('%[2]v','%[2]v','%[2]v')",
 				queryArgs: func() common.Object {
-					return r[0]
+					return common.RemoveBooleanArgs(r[0])
 				},
 				resourcesToExpectAfterOp: func() []common.Object {
 					return []common.Object{r[0]}
@@ -128,7 +128,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				},
 				queryTemplate: "%s notin ('%v')",
 				queryArgs: func() common.Object {
-					return r[0]
+					return common.RemoveBooleanArgs(r[0])
 				},
 				resourcesToExpectAfterOp: func() []common.Object {
 					return []common.Object{r[0]}
