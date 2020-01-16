@@ -11,8 +11,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-var builder *SecurityBuilder
-
 // SecurityBuilder provides means by which authentication and authorization filters
 // can be constructed and attached in a builder-pattern style through the use of methods such as:
 // Path(...), Method(...), WithAuthentication(...), WithAuthorization(...) and more.
@@ -43,20 +41,16 @@ type SecurityBuilder struct {
 	authzDynamicFilter *web.DynamicMatchingFilter
 }
 
-// GetSecurity should be used when someone needs to build security of the API.
-// The afterFilterName should be the name of an already attached filter to the API
-func GetSecurity(api *web.API, afterFilterName string) *SecurityBuilder {
-	if builder != nil {
-		authnDynamicFilter := web.NewDynamicMatchingFilter(secFilters.AuthenticationFilterName)
-		authzDynamicFilter := web.NewDynamicMatchingFilter(secFilters.AuthorizationFilterName)
-		api.RegisterFiltersAfter(afterFilterName, authnDynamicFilter, authzDynamicFilter)
+// NewSecurityBuilder should be used when someone needs to build security of the API.
+// The returned filters should be attached where the authentication and authorization needs to be in the filter chain
+func NewSecurityBuilder() (*SecurityBuilder, []web.Filter) {
+	authnDynamicFilter := web.NewDynamicMatchingFilter(secFilters.AuthenticationFilterName)
+	authzDynamicFilter := web.NewDynamicMatchingFilter(secFilters.AuthorizationFilterName)
 
-		builder = &SecurityBuilder{
-			authnDynamicFilter: authnDynamicFilter,
-			authzDynamicFilter: authzDynamicFilter,
-		}
-	}
-	return builder.reset()
+	return &SecurityBuilder{
+		authnDynamicFilter: authnDynamicFilter,
+		authzDynamicFilter: authzDynamicFilter,
+	}, []web.Filter{authnDynamicFilter, authzDynamicFilter}
 }
 
 // Optional makes authentication/authorization optional for the requested path pattern (meaning all subpaths if "*" is used) and methods.
