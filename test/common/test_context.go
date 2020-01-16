@@ -340,6 +340,7 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener) *TestCon
 	}
 
 	RemoveAllOperations(testContext.SMRepository)
+	RemoveAllBindings(testContext.SMRepository)
 	RemoveAllInstances(testContext.SMRepository)
 	RemoveAllBrokers(testContext.SMWithOAuth)
 	RemoveAllPlatforms(testContext.SMWithOAuth)
