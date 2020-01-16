@@ -24,10 +24,11 @@ import (
 	"strconv"
 	"strings"
 
+	"time"
+
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/gavv/httpexpect"
-	"time"
 
 	"github.com/tidwall/gjson"
 
@@ -82,6 +83,12 @@ type TestCase struct {
 	PatchResource                          func(ctx *common.TestContext, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange, async bool)
 
 	AdditionalTests func(ctx *common.TestContext)
+}
+
+func StripObject(obj common.Object) {
+	delete(obj, "created_at")
+	delete(obj, "updated_at")
+	delete(obj, "credentials")
 }
 
 func DefaultResourcePatch(ctx *common.TestContext, apiPath string, objID string, _ types.ObjectType, patchLabels []*query.LabelChange, async bool) {

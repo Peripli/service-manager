@@ -28,7 +28,7 @@ func Prepare(serviceInstanceID string, OSBContext string, credentials string) *t
 		SyslogDrainURL:    "drain_url",
 		RouteServiceURL:   "route_service_url",
 		VolumeMounts:      []byte(`[]`),
-		Endpoints:         []byte(`[{ "host": "some_host", "ports": ["1234"] }]`),
+		Endpoints:         []byte(`[]`),
 		Context:           []byte(OSBContext),
 		BindResource:      []byte(`{"app_guid": "app-guid"}`),
 		Credentials:       credentials,

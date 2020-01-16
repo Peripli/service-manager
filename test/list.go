@@ -74,8 +74,10 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 			Expect().
 			Status(http.StatusOK).JSON().Object()
 		result.ContainsKey("labels")
+		resultObject := result.Raw()
+		delete(resultObject, "credentials")
 
-		return result.Raw()
+		return resultObject
 	}
 
 	By(fmt.Sprintf("Attempting to create a random resource of %s with mandatory fields only", t.API))
@@ -318,13 +320,11 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 
 		for _, v := range beforeOpArray.Iter() {
 			obj := v.Object().Raw()
-			delete(obj, "created_at")
-			delete(obj, "updated_at")
+			StripObject(obj)
 		}
 
 		for _, entity := range listOpEntry.resourcesToExpectBeforeOp {
-			delete(entity, "created_at")
-			delete(entity, "updated_at")
+			StripObject(entity)
 			beforeOpArray.Contains(entity)
 		}
 
@@ -351,15 +351,13 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 			array := ctx.SMWithOAuth.ListWithQuery(t.API, query)
 			for _, v := range array.Iter() {
 				obj := v.Object().Raw()
-				delete(obj, "created_at")
-				delete(obj, "updated_at")
+				StripObject(obj)
 			}
 
 			if listOpEntry.resourcesToExpectAfterOp != nil {
 				By(fmt.Sprintf("[TEST]: Verifying expected %s are returned after list operation", t.API))
 				for _, entity := range listOpEntry.resourcesToExpectAfterOp {
-					delete(entity, "created_at")
-					delete(entity, "updated_at")
+					StripObject(entity)
 					array.Contains(entity)
 				}
 			}
@@ -368,8 +366,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 				By(fmt.Sprintf("[TEST]: Verifying unexpected %s are NOT returned after list operation", t.API))
 
 				for _, entity := range listOpEntry.resourcesNotToExpectAfterOp {
-					delete(entity, "created_at")
-					delete(entity, "updated_at")
+					StripObject(entity)
 					array.NotContains(entity)
 				}
 			}

@@ -444,13 +444,11 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 
 			for _, v := range beforeOpArray.Iter() {
 				obj := v.Object().Raw()
-				delete(obj, "created_at")
-				delete(obj, "updated_at")
+				StripObject(obj)
 			}
 
 			for _, entity := range deleteListOpEntry.resourcesToExpectBeforeOp() {
-				delete(entity, "created_at")
-				delete(entity, "updated_at")
+				StripObject(entity)
 				beforeOpArray.Contains(entity)
 			}
 		}
@@ -473,15 +471,13 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 
 			for _, v := range afterOpArray.Iter() {
 				obj := v.Object().Raw()
-				delete(obj, "created_at")
-				delete(obj, "updated_at")
+				StripObject(obj)
 			}
 
 			if deleteListOpEntry.resourcesToExpectAfterOp != nil {
 				By(fmt.Sprintf("[TEST]: Verifying expected %s are returned after operation", t.API))
 				for _, entity := range deleteListOpEntry.resourcesToExpectAfterOp() {
-					delete(entity, "created_at")
-					delete(entity, "updated_at")
+					StripObject(entity)
 					afterOpArray.Contains(entity)
 				}
 			}
@@ -489,8 +485,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 			if deleteListOpEntry.resourcesNotToExpectAfterOp != nil {
 				By(fmt.Sprintf("[TEST]: Verifying unexpected %s are NOT returned after operation", t.API))
 				for _, entity := range deleteListOpEntry.resourcesNotToExpectAfterOp() {
-					delete(entity, "created_at")
-					delete(entity, "updated_at")
+					StripObject(entity)
 					afterOpArray.NotContains(entity)
 				}
 			}

@@ -17,6 +17,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -29,9 +30,9 @@ type ServiceBindingController struct {
 	*BaseController
 }
 
-func NewServiceBindingController(options *Options) *ServiceBindingController {
+func NewServiceBindingController(ctx context.Context, options *Options) *ServiceBindingController {
 	return &ServiceBindingController{
-		BaseController: NewController(options, web.ServiceBindingsURL, types.ServiceBindingType, func() types.Object {
+		BaseController: NewAsyncController(ctx, options, web.ServiceBindingsURL, types.ServiceBindingType, func() types.Object {
 			return &types.ServiceBinding{}
 		}),
 	}
