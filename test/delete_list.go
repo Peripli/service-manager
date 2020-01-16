@@ -404,8 +404,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		for i := 0; i < 2; i++ {
 			gen := t.ResourceBlueprint(ctx, ctx.SMWithOAuth, false)
 			gen = attachLabel(gen, i)
-			delete(gen, "created_at")
-			delete(gen, "updated_at")
+			stripObject(gen, t.ResourcePropertiesToIgnore...)
 			r = append(r, gen)
 		}
 		By(fmt.Sprintf("[BEFOREEACH]: Successfully finished preparing and creating test resources"))
@@ -444,13 +443,11 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 
 			for _, v := range beforeOpArray.Iter() {
 				obj := v.Object().Raw()
-				delete(obj, "created_at")
-				delete(obj, "updated_at")
+				stripObject(obj, t.ResourcePropertiesToIgnore...)
 			}
 
 			for _, entity := range deleteListOpEntry.resourcesToExpectBeforeOp() {
-				delete(entity, "created_at")
-				delete(entity, "updated_at")
+				stripObject(entity, t.ResourcePropertiesToIgnore...)
 				beforeOpArray.Contains(entity)
 			}
 		}
@@ -473,15 +470,13 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 
 			for _, v := range afterOpArray.Iter() {
 				obj := v.Object().Raw()
-				delete(obj, "created_at")
-				delete(obj, "updated_at")
+				stripObject(obj, t.ResourcePropertiesToIgnore...)
 			}
 
 			if deleteListOpEntry.resourcesToExpectAfterOp != nil {
 				By(fmt.Sprintf("[TEST]: Verifying expected %s are returned after operation", t.API))
 				for _, entity := range deleteListOpEntry.resourcesToExpectAfterOp() {
-					delete(entity, "created_at")
-					delete(entity, "updated_at")
+					stripObject(entity, t.ResourcePropertiesToIgnore...)
 					afterOpArray.Contains(entity)
 				}
 			}
@@ -489,8 +484,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 			if deleteListOpEntry.resourcesNotToExpectAfterOp != nil {
 				By(fmt.Sprintf("[TEST]: Verifying unexpected %s are NOT returned after operation", t.API))
 				for _, entity := range deleteListOpEntry.resourcesNotToExpectAfterOp() {
-					delete(entity, "created_at")
-					delete(entity, "updated_at")
+					stripObject(entity, t.ResourcePropertiesToIgnore...)
 					afterOpArray.NotContains(entity)
 				}
 			}

@@ -69,6 +69,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	DisableTenantResources:                 true,
 	ResourceBlueprint:                      blueprint,
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
+	ResourcePropertiesToIgnore:             []string{"platform_id"},
 	PatchResource: func(ctx *common.TestContext, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange, _ bool) {
 		byID := query.ByField(query.EqualsOperator, "id", objID)
 		si, err := ctx.SMRepository.Get(context.Background(), resourceType, byID)
@@ -95,7 +96,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Expect().
 					Status(http.StatusCreated).
 					JSON().Object().
-					ContainsMap(expectedInstanceResponse).ContainsKey("id")
+					ContainsMap(expectedInstanceResponse).ContainsKey("id").
+					ValueEqual("platform_id", types.SMPlatform)
 			}
 
 			BeforeEach(func() {
@@ -107,20 +109,17 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				instanceID = id.String()
 				name := "test-instance"
 				servicePlanID := generateServicePlan(ctx, ctx.SMWithOAuth)
-				platformID := generatePlatform(ctx.SMWithOAuth)
 
 				postInstanceRequest = common.Object{
 					"id":               instanceID,
 					"name":             name,
 					"service_plan_id":  servicePlanID,
-					"platform_id":      platformID,
 					"maintenance_info": "{}",
 				}
 				expectedInstanceResponse = common.Object{
 					"id":               instanceID,
 					"name":             name,
 					"service_plan_id":  servicePlanID,
-					"platform_id":      platformID,
 					"maintenance_info": "{}",
 				}
 
@@ -231,23 +230,30 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						assertPOSTReturns400WhenFieldIsMissing("service_plan_id")
 					})
 
-					Context("when platform_id field is missing", func() {
-						assertPOSTReturns400WhenFieldIsMissing("platform_id")
-					})
-
 					Context("when maintenance_info field is missing", func() {
 						assertPOSTReturns201WhenFieldIsMissing("maintenance_info")
 					})
 				})
 
 				Context("when request body id field is invalid", func() {
-					It("fails", func() {
+					It("should return 400", func() {
 						postInstanceRequest["id"] = "instance/1"
-						reply := ctx.SMWithOAuth.POST(web.ServiceInstancesURL).
+						resp := ctx.SMWithOAuth.POST(web.ServiceInstancesURL).
 							WithJSON(postInstanceRequest).
 							Expect().Status(http.StatusBadRequest).JSON().Object()
 
-						reply.Value("description").Equal("instance/1 contains invalid character(s)")
+						resp.Value("description").Equal("instance/1 contains invalid character(s)")
+					})
+				})
+
+				Context("when request body platform_id field is provided", func() {
+					It("should return 400", func() {
+						postInstanceRequest["platform_id"] = "test-platform-id"
+						resp := ctx.SMWithOAuth.POST(web.ServiceInstancesURL).
+							WithJSON(postInstanceRequest).
+							Expect().Status(http.StatusBadRequest).JSON().Object()
+
+						resp.Value("description").Equal("Providing platform_id property during provisioning/updating of a service instance is forbidden")
 					})
 				})
 
@@ -303,7 +309,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 
 				Context("when created_at provided in body", func() {
-					It("should not change createdat", func() {
+					It("should not change created at", func() {
 						createInstance()
 
 						createdAt := "2015-01-01T00:00:00Z"
@@ -320,6 +326,24 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Status(http.StatusOK).JSON().Object().
 							ContainsKey("created_at").
 							ValueNotEqual("created_at", createdAt)
+					})
+				})
+
+				Context("when platform_id provided in body", func() {
+					It("should return 400", func() {
+						createInstance()
+
+						resp := ctx.SMWithOAuth.PATCH(web.ServiceInstancesURL + "/" + instanceID).
+							WithJSON(common.Object{"platform_id": "test-platform-id"}).
+							Expect().Status(http.StatusBadRequest).JSON().Object()
+
+						resp.Value("description").Equal("Providing platform_id property during provisioning/updating of a service instance is forbidden")
+
+						ctx.SMWithOAuth.GET(web.ServiceInstancesURL+"/"+instanceID).
+							Expect().
+							Status(http.StatusOK).JSON().Object().
+							ContainsKey("platform_id").
+							ValueEqual("platform_id", types.SMPlatform)
 					})
 				})
 
@@ -363,7 +387,6 @@ func blueprint(ctx *common.TestContext, auth *common.SMExpect, async bool) commo
 	instanceReqBody["name"] = "test-instance-" + instanceID.String()
 
 	instanceReqBody["service_plan_id"] = generateServicePlan(ctx, auth)
-	instanceReqBody["platform_id"] = generatePlatform(auth)
 
 	resp := auth.POST(web.ServiceInstancesURL).WithQuery("async", strconv.FormatBool(async)).WithJSON(instanceReqBody).Expect()
 
@@ -397,12 +420,4 @@ func generateServicePlan(ctx *common.TestContext, auth *common.SMExpect) string 
 		First().Object().Value("id").String().Raw()
 
 	return servicePlanID
-}
-
-func generatePlatform(auth *common.SMExpect) string {
-	platformID := auth.POST(web.PlatformsURL).WithJSON(common.GenerateRandomPlatform()).
-		Expect().
-		Status(http.StatusCreated).JSON().Object().Value("id").String().Raw()
-
-	return platformID
 }

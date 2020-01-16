@@ -18,6 +18,7 @@ package filters
 
 import (
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/tidwall/gjson"
@@ -50,7 +51,7 @@ func (*ServiceInstanceValidationFilter) Run(req *web.Request, next web.Handler) 
 
 	var err error
 	if req.Method == http.MethodPost {
-		req.Body, err = sjson.SetBytes(req.Body, platformIDProperty, "service-manager")
+		req.Body, err = sjson.SetBytes(req.Body, platformIDProperty, types.SMPlatform)
 		if err != nil {
 			return nil, err
 		}
