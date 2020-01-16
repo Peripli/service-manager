@@ -26,6 +26,7 @@ import (
 )
 
 const K8sPlatformType string = "kubernetes"
+const SMPlatform = "service-manager"
 
 //go:generate smgen api Platform
 // Platform platform struct

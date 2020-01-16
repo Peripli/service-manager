@@ -20,9 +20,10 @@ package api
 import (
 	"context"
 	"fmt"
+	"sync"
+
 	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/pkg/env"
-	"sync"
 
 	"github.com/Peripli/service-manager/api/configuration"
 
@@ -127,6 +128,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			&filters.Logging{},
 			&filters.SelectionCriteria{},
 			filters.NewProtectedLabelsFilter(options.APISettings.ProtectedLabels),
+			&filters.ProtectedSMPlatformFilter{},
 			&filters.PlatformAwareVisibilityFilter{},
 			&filters.PatchOnlyLabelsFilter{},
 			filters.NewPlansFilterByVisibility(options.Repository),

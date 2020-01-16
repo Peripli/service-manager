@@ -20,10 +20,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/Peripli/service-manager/operations"
 	"net/http"
 	"sync"
+	"time"
 
+	"github.com/Peripli/service-manager/operations"
 	secFilters "github.com/Peripli/service-manager/pkg/security/filters"
 
 	"github.com/Peripli/service-manager/pkg/env"
@@ -217,6 +218,10 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 	// start the operation maintainer
 	smb.OperationMaintainer.Run()
 
+	if err := smb.registerSMPlatform(); err != nil {
+		log.C(smb.ctx).Panic(err)
+	}
+
 	return &ServiceManager{
 		ctx:                 smb.ctx,
 		wg:                  smb.wg,
@@ -224,6 +229,27 @@ func (smb *ServiceManagerBuilder) Build() *ServiceManager {
 		Notificator:         smb.Notificator,
 		NotificationCleaner: smb.NotificationCleaner,
 	}
+}
+
+func (smb *ServiceManagerBuilder) registerSMPlatform() error {
+	if _, err := smb.Storage.Create(smb.ctx, &types.Platform{
+		Base: types.Base{
+			ID:        types.SMPlatform,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Labels:    make(map[string][]string),
+		},
+		Type: types.SMPlatform,
+		Name: types.SMPlatform,
+	}); err != nil {
+		if err == util.ErrAlreadyExistsInStorage {
+			log.C(smb.ctx).Infof("platform %s already exists in SMDB...", "service-manager")
+			return nil
+		}
+		return fmt.Errorf("could register service-manager platform during bootstrap: %s", err)
+	}
+
+	return nil
 }
 
 func (smb *ServiceManagerBuilder) installHealth() error {
