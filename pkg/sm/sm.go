@@ -20,9 +20,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/Peripli/service-manager/operations"
 	"net/http"
 	"sync"
+
+	"github.com/Peripli/service-manager/operations"
 
 	secFilters "github.com/Peripli/service-manager/pkg/security/filters"
 
@@ -68,8 +69,6 @@ type ServiceManagerBuilder struct {
 	ctx                 context.Context
 	wg                  *sync.WaitGroup
 	cfg                 *config.Settings
-
-	secBuilder *securityBuilder
 }
 
 // ServiceManager  struct
@@ -202,9 +201,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 
 // Build builds the Service Manager
 func (smb *ServiceManagerBuilder) Build() *ServiceManager {
-	if smb.secBuilder != nil {
-		smb.secBuilder.build()
-	}
+	GetSecurity(smb.authnDynamicFilter, smb.authzDynamicFilter).Build()
 
 	if err := smb.installHealth(); err != nil {
 		log.C(smb.ctx).Panic(err)
@@ -451,11 +448,6 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 }
 
 // Security provides mechanism to apply authentication and authorization with a builder pattern
-func (smb *ServiceManagerBuilder) Security() *securityBuilder {
-	if smb.secBuilder == nil {
-		smb.secBuilder = &securityBuilder{
-			smb: smb,
-		}
-	}
-	return smb.secBuilder.reset()
+func (smb *ServiceManagerBuilder) Security() *SecurityBuilder {
+	return GetSecurity(smb.authnDynamicFilter, smb.authzDynamicFilter)
 }
