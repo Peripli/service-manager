@@ -19,6 +19,10 @@ func (dmf *DynamicMatchingFilter) AddFilter(dynamicFilter Filter) {
 	dmf.filters = append(dmf.filters, dynamicFilter)
 }
 
+func (dmf *DynamicMatchingFilter) ClearFilters() {
+	dmf.filters = Filters{}
+}
+
 func (dmf *DynamicMatchingFilter) Name() string {
 	return dmf.name
 }

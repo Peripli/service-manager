@@ -11,7 +11,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-// securityBuilder provides means by which authentication and authorization filters
+// SecurityBuilder provides means by which authentication and authorization filters
 // can be constructed and attached in a builder-pattern style through the use of methods such as:
 // Path(...), Method(...), WithAuthentication(...), WithAuthorization(...) and more.
 // A key part of the builder is that once you've chained all desired authentication
@@ -20,7 +20,7 @@ import (
 // These finisher methods will ensure that the appropriate authentication/authorization filter is constructed for
 // the desired path and methods. A finisher method also ensures a "clean slate" in terms of authorization
 // so that you continue chaining and constructing new authorization filters.
-type securityBuilder struct {
+type SecurityBuilder struct {
 	pathMatcher   web.Matcher
 	methodMatcher web.Matcher
 
@@ -37,7 +37,20 @@ type securityBuilder struct {
 	requiredAuthNMatchers []web.FilterMatcher
 	requiredAuthZMatchers []web.FilterMatcher
 
-	smb *ServiceManagerBuilder
+	authnDynamicFilter *web.DynamicMatchingFilter
+	authzDynamicFilter *web.DynamicMatchingFilter
+}
+
+// NewSecurityBuilder should be used when someone needs to build security of the API.
+// The returned filters should be attached where the authentication and authorization needs to be in the filter chain
+func NewSecurityBuilder() (*SecurityBuilder, []web.Filter) {
+	authnDynamicFilter := web.NewDynamicMatchingFilter(secFilters.AuthenticationFilterName)
+	authzDynamicFilter := web.NewDynamicMatchingFilter(secFilters.AuthorizationFilterName)
+
+	return &SecurityBuilder{
+		authnDynamicFilter: authnDynamicFilter,
+		authzDynamicFilter: authzDynamicFilter,
+	}, []web.Filter{authnDynamicFilter, authzDynamicFilter}
 }
 
 // Optional makes authentication/authorization optional for the requested path pattern (meaning all subpaths if "*" is used) and methods.
@@ -54,7 +67,7 @@ type securityBuilder struct {
 //
 // Best practice is to set optional paths in the end and be
 // as specific as possible.
-func (sb *securityBuilder) Optional() *securityBuilder {
+func (sb *SecurityBuilder) Optional() *SecurityBuilder {
 	matcher := web.Not(
 		web.Path(sb.paths...),
 		web.Methods(sb.methods...),
@@ -83,7 +96,7 @@ func (sb *securityBuilder) Optional() *securityBuilder {
 //  	Required("/v1/**") is applied
 //  	Optional("/v1/service_brokers") is applied,
 //		then only "/v1/service_brokers" will be optional
-func (sb *securityBuilder) Required() *securityBuilder {
+func (sb *SecurityBuilder) Required() *SecurityBuilder {
 	finalMatchers := sb.finalMatchers()
 
 	if sb.authorization {
@@ -102,14 +115,14 @@ func (sb *securityBuilder) Required() *securityBuilder {
 }
 
 // Path specifies which paths will have authentication/authorization.
-func (sb *securityBuilder) Path(paths ...string) *securityBuilder {
+func (sb *SecurityBuilder) Path(paths ...string) *SecurityBuilder {
 	sb.pathMatcher = web.Path(paths...)
 	sb.paths = paths
 	return sb
 }
 
 // Method specifies which methods will have authentication/authorization.
-func (sb *securityBuilder) Method(methods ...string) *securityBuilder {
+func (sb *SecurityBuilder) Method(methods ...string) *SecurityBuilder {
 	sb.methodMatcher = web.Methods(methods...)
 	sb.methods = methods
 	return sb
@@ -122,7 +135,7 @@ func (sb *securityBuilder) Method(methods ...string) *securityBuilder {
 // 		Method(http.MethodGet, http.MethodPut, http.MethodPost, http.MethodPatch, http.MethodDelete).
 // 		Authentication().
 // 		Required()
-func (sb *securityBuilder) Authentication() *securityBuilder {
+func (sb *SecurityBuilder) Authentication() *SecurityBuilder {
 	sb.authentication = true
 	return sb
 }
@@ -134,41 +147,41 @@ func (sb *securityBuilder) Authentication() *securityBuilder {
 // 		Method(http.MethodGet, http.MethodPut, http.MethodPost, http.MethodPatch, http.MethodDelete).
 // 		Authorization().
 // 		Required()
-func (sb *securityBuilder) Authorization() *securityBuilder {
+func (sb *SecurityBuilder) Authorization() *SecurityBuilder {
 	sb.authorization = true
 	return sb
 }
 
 // WithAuthentication applies the provided authenticator
-func (sb *securityBuilder) WithAuthentication(authenticator httpsec.Authenticator) *securityBuilder {
+func (sb *SecurityBuilder) WithAuthentication(authenticator httpsec.Authenticator) *SecurityBuilder {
 	sb.authenticators = append(sb.authenticators, authenticator)
 	sb.authentication = true
 	return sb
 }
 
 // WithAuthorization applies the provided authorizator
-func (sb *securityBuilder) WithAuthorization(authorizer httpsec.Authorizer) *securityBuilder {
+func (sb *SecurityBuilder) WithAuthorization(authorizer httpsec.Authorizer) *SecurityBuilder {
 	sb.authorizers = append(sb.authorizers, authorizer)
 	sb.authorization = true
 	return sb
 }
 
 // WithScopes applies authorization mechanism, which checks the JWT scopes for the specified scopes
-func (sb *securityBuilder) WithScopes(scopes ...string) *securityBuilder {
+func (sb *SecurityBuilder) WithScopes(scopes ...string) *SecurityBuilder {
 	sb.authorization = true
 	sb.authorizers = append(sb.authorizers, authz.NewScopesAuthorizer(scopes, web.GlobalAccess))
 	return sb
 }
 
 // WithClientIDSuffix applies authorization mechanism, which checks the JWT client id for the specified suffix
-func (sb *securityBuilder) WithClientIDSuffix(suffix string) *securityBuilder {
+func (sb *SecurityBuilder) WithClientIDSuffix(suffix string) *SecurityBuilder {
 	sb.authorization = true
 	sb.authorizers = append(sb.authorizers, authz.NewClientIDSuffixAuthorizer(suffix, web.GlobalAccess))
 	return sb
 }
 
 // WithClientID applies authorization mechanism, which checks the JWT client id for equality with the given one
-func (sb *securityBuilder) WithClientID(clientID string) *securityBuilder {
+func (sb *SecurityBuilder) WithClientID(clientID string) *SecurityBuilder {
 	sb.authorization = true
 	sb.authorizers = append(sb.authorizers, authz.NewOauthClientAuthorizer(clientID, web.GlobalAccess))
 	return sb
@@ -176,14 +189,14 @@ func (sb *securityBuilder) WithClientID(clientID string) *securityBuilder {
 
 // SetAccessLevel will set the specified access level, no matter what the authorizators returned before it.
 // If this is set, it will override the default access level of the authorizers
-func (sb *securityBuilder) SetAccessLevel(accessLevel web.AccessLevel) *securityBuilder {
+func (sb *SecurityBuilder) SetAccessLevel(accessLevel web.AccessLevel) *SecurityBuilder {
 	sb.authorization = true
 	sb.accessLevelSet = true
 	sb.accessLevel = accessLevel
 	return sb
 }
 
-func (sb *securityBuilder) resetAuthenticators() {
+func (sb *SecurityBuilder) resetAuthenticators() {
 	sb.authenticators = make([]httpsec.Authenticator, 0)
 	sb.authorizers = make([]httpsec.Authorizer, 0)
 	sb.accessLevelSet = false
@@ -192,7 +205,8 @@ func (sb *securityBuilder) resetAuthenticators() {
 	sb.authorization = false
 }
 
-func (sb *securityBuilder) reset() *securityBuilder {
+// Reset should be called before starting with new matchers
+func (sb *SecurityBuilder) Reset() *SecurityBuilder {
 	sb.resetAuthenticators()
 	sb.pathMatcher = nil
 	sb.methodMatcher = nil
@@ -201,12 +215,31 @@ func (sb *securityBuilder) reset() *securityBuilder {
 	return sb
 }
 
-func (sb *securityBuilder) register(finalMatchers []web.Matcher) {
+// Clear removes all authentication and authorization already build by the security builder
+func (sb *SecurityBuilder) Clear() *SecurityBuilder {
+	return sb.ClearAuthentication().ClearAuthorization()
+}
+
+// ClearAuthentication removes all authentication already build by the security builder
+func (sb *SecurityBuilder) ClearAuthentication() *SecurityBuilder {
+	sb.requiredAuthNMatchers = make([]web.FilterMatcher, 0)
+	sb.authnDynamicFilter.ClearFilters()
+	return sb.Reset()
+}
+
+// ClearAuthorization removes all authorization already build by the security builder
+func (sb *SecurityBuilder) ClearAuthorization() *SecurityBuilder {
+	sb.requiredAuthZMatchers = make([]web.FilterMatcher, 0)
+	sb.authzDynamicFilter.ClearFilters()
+	return sb.Reset()
+}
+
+func (sb *SecurityBuilder) register(finalMatchers []web.Matcher) {
 	if len(sb.authenticators) > 0 {
 		finalAuthenticator := authn.NewOrAuthenticator(sb.authenticators...)
 
 		name := fmt.Sprintf("authN-inner-%d", len(sb.authenticators))
-		sb.smb.authnDynamicFilter.AddFilter(secFilters.NewAuthenticationFilter(finalAuthenticator, name, []web.FilterMatcher{
+		sb.authnDynamicFilter.AddFilter(secFilters.NewAuthenticationFilter(finalAuthenticator, name, []web.FilterMatcher{
 			{
 				Matchers: finalMatchers,
 			},
@@ -220,7 +253,7 @@ func (sb *securityBuilder) register(finalMatchers []web.Matcher) {
 		}
 
 		name := fmt.Sprintf("authZ-inner-%d", len(sb.authenticators))
-		sb.smb.authzDynamicFilter.AddFilter(secFilters.NewAuthzFilter(finalAuthorizer, name, []web.FilterMatcher{
+		sb.authzDynamicFilter.AddFilter(secFilters.NewAuthzFilter(finalAuthorizer, name, []web.FilterMatcher{
 			{
 				Matchers: finalMatchers,
 			},
@@ -228,17 +261,18 @@ func (sb *securityBuilder) register(finalMatchers []web.Matcher) {
 	}
 }
 
-func (sb *securityBuilder) build() {
+// Builder should be called when security is ready and nothing else will be changed
+func (sb *SecurityBuilder) Build() {
 	if len(sb.requiredAuthNMatchers) > 0 {
-		sb.smb.authnDynamicFilter.AddFilter(secFilters.NewRequiredAuthnFilter(sb.requiredAuthNMatchers))
+		sb.authnDynamicFilter.AddFilter(secFilters.NewRequiredAuthnFilter(sb.requiredAuthNMatchers))
 	}
 
 	if len(sb.requiredAuthZMatchers) > 0 {
-		sb.smb.authzDynamicFilter.AddFilter(secFilters.NewRequiredAuthzFilter(sb.requiredAuthZMatchers))
+		sb.authzDynamicFilter.AddFilter(secFilters.NewRequiredAuthzFilter(sb.requiredAuthZMatchers))
 	}
 }
 
-func (sb *securityBuilder) finalMatchers() []web.Matcher {
+func (sb *SecurityBuilder) finalMatchers() []web.Matcher {
 	result := make([]web.Matcher, 0)
 	if sb.pathMatcher != nil {
 		result = append(result, sb.pathMatcher)
