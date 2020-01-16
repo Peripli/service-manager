@@ -25,8 +25,6 @@ import (
 
 	"github.com/Peripli/service-manager/operations"
 
-	secFilters "github.com/Peripli/service-manager/pkg/security/filters"
-
 	"github.com/Peripli/service-manager/pkg/env"
 
 	"github.com/Peripli/service-manager/pkg/health"
@@ -59,8 +57,6 @@ import (
 // controllers before running ServiceManager.
 type ServiceManagerBuilder struct {
 	*web.API
-	authnDynamicFilter *web.DynamicMatchingFilter
-	authzDynamicFilter *web.DynamicMatchingFilter
 
 	Storage             *storage.InterceptableTransactionalRepository
 	Notificator         storage.Notificator
@@ -139,9 +135,9 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		return nil, fmt.Errorf("error creating core api: %s", err)
 	}
 
-	authnDynamicFilter := web.NewDynamicMatchingFilter(secFilters.AuthenticationFilterName)
-	authzDynamicFilter := web.NewDynamicMatchingFilter(secFilters.AuthorizationFilterName)
-	API.RegisterFiltersAfter(filters.LoggingFilterName, authnDynamicFilter, authzDynamicFilter)
+	// authnDynamicFilter := web.NewDynamicMatchingFilter(secFilters.AuthenticationFilterName)
+	// authzDynamicFilter := web.NewDynamicMatchingFilter(secFilters.AuthorizationFilterName)
+	// API.RegisterFiltersAfter(filters.LoggingFilterName, authnDynamicFilter, authzDynamicFilter)
 
 	storageHealthIndicator, err := storage.NewSQLHealthIndicator(storage.PingFunc(smStorage.PingContext))
 	if err != nil {
@@ -164,8 +160,6 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		Notificator:         pgNotificator,
 		NotificationCleaner: notificationCleaner,
 		OperationMaintainer: operationMaintainer,
-		authnDynamicFilter:  authnDynamicFilter,
-		authzDynamicFilter:  authzDynamicFilter,
 		ctx:                 ctx,
 		wg:                  waitGroup,
 		cfg:                 cfg,
@@ -201,7 +195,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 
 // Build builds the Service Manager
 func (smb *ServiceManagerBuilder) Build() *ServiceManager {
-	GetSecurity(smb.authnDynamicFilter, smb.authzDynamicFilter).Build()
+	GetSecurity(smb.API, filters.LoggingFilterName).Build()
 
 	if err := smb.installHealth(); err != nil {
 		log.C(smb.ctx).Panic(err)
@@ -449,5 +443,5 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 
 // Security provides mechanism to apply authentication and authorization with a builder pattern
 func (smb *ServiceManagerBuilder) Security() *SecurityBuilder {
-	return GetSecurity(smb.authnDynamicFilter, smb.authzDynamicFilter)
+	return GetSecurity(smb.API, filters.LoggingFilterName)
 }

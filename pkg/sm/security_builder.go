@@ -43,8 +43,14 @@ type SecurityBuilder struct {
 	authzDynamicFilter *web.DynamicMatchingFilter
 }
 
-func GetSecurity(authnDynamicFilter, authzDynamicFilter *web.DynamicMatchingFilter) *SecurityBuilder {
+// GetSecurity should be used when someone needs to build security of the API.
+// The afterFilterName should be the name of an already attached filter to the API
+func GetSecurity(api *web.API, afterFilterName string) *SecurityBuilder {
 	if builder != nil {
+		authnDynamicFilter := web.NewDynamicMatchingFilter(secFilters.AuthenticationFilterName)
+		authzDynamicFilter := web.NewDynamicMatchingFilter(secFilters.AuthorizationFilterName)
+		api.RegisterFiltersAfter(afterFilterName, authnDynamicFilter, authzDynamicFilter)
+
 		builder = &SecurityBuilder{
 			authnDynamicFilter: authnDynamicFilter,
 			authzDynamicFilter: authzDynamicFilter,
@@ -241,6 +247,7 @@ func (sb *SecurityBuilder) register(finalMatchers []web.Matcher) {
 	}
 }
 
+// Builder should be called when security is ready and nothing else will be changed
 func (sb *SecurityBuilder) Build() {
 	if len(sb.requiredAuthNMatchers) > 0 {
 		sb.authnDynamicFilter.AddFilter(secFilters.NewRequiredAuthnFilter(sb.requiredAuthNMatchers))
