@@ -205,7 +205,7 @@ func (sb *SecurityBuilder) resetAuthenticators() {
 	sb.authorization = false
 }
 
-func (sb *SecurityBuilder) reset() *SecurityBuilder {
+func (sb *SecurityBuilder) Reset() *SecurityBuilder {
 	sb.resetAuthenticators()
 	sb.pathMatcher = nil
 	sb.methodMatcher = nil
