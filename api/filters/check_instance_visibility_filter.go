@@ -67,13 +67,21 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 	}
 
 	criteria := []query.Criterion{
-		query.ByField(query.EqualsOperator, planIDProperty, planID),
 		query.ByField(query.EqualsOperator, platformIDProperty, types.SMPlatform),
+		query.ByField(query.EqualsOperator, planIDProperty, planID),
 		query.ByLabel(query.InOperator, f.tenantIdentifier, tenantID),
 	}
 
 	_, err := f.repository.Get(ctx, types.VisibilityType, criteria...)
 	if err != nil {
+		if err == util.ErrNotFoundInStorage {
+			return nil, &util.HTTPError{
+				ErrorType:   "BadRequest",
+				Description: "insufficient service plan visibilities",
+				StatusCode:  http.StatusBadRequest,
+			}
+		}
+
 		return nil, util.HandleStorageError(err, string(types.VisibilityType))
 	}
 
