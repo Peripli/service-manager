@@ -50,9 +50,8 @@ func (*serviceInstanceOwnershipFilter) Name() string {
 
 func (f *serviceInstanceOwnershipFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
-	var serviceInstanceID string
 
-	serviceInstanceID = req.PathParams[web.PathParamResourceID]
+	serviceInstanceID := req.PathParams[web.PathParamResourceID]
 	if serviceInstanceID == "" {
 		serviceInstanceID = query.RetrieveFromCriteria("id", query.CriteriaForContext(ctx)...)
 		if serviceInstanceID == "" {
