@@ -30,7 +30,9 @@ const platformIDProperty = "platform_id"
 
 const ServiceInstanceValidationFilterName = "ServiceInstanceValidationFilter"
 
-// ServiceInstanceValidationFilter checks patch request for service offerings and plans include only label changes
+// ServiceInstanceValidationFilter ensures that if a platform is provided for service instance that it's
+// the SM Platform and also discards the properties 'ready' and 'usable' if they're provided as these properties
+// are only maintained internally.
 type ServiceInstanceValidationFilter struct {
 }
 
