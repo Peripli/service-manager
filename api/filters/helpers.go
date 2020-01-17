@@ -9,6 +9,7 @@ import (
 )
 
 func servicesCriteria(ctx context.Context, repository storage.Repository, planQuery *query.Criterion) (*query.Criterion, error) {
+	// types.PlatformType
 	objectList, err := repository.List(ctx, types.ServicePlanType, *planQuery)
 	if err != nil {
 		return nil, err

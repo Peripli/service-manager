@@ -2,27 +2,25 @@ package osb
 
 import (
 	"encoding/json"
-	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/query"
-	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/pkg/visibility"
+
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
-	"github.com/tidwall/gjson"
 )
 
 const CheckVisibilityPluginName = "CheckVisibilityPlugin"
 
 type checkVisibilityPlugin struct {
 	repository storage.Repository
+	checker    *visibility.Checker
 }
 
 // NewCheckVisibilityPlugin creates new plugin that checks if a plan is visible to the user on provision request
 func NewCheckVisibilityPlugin(repository storage.Repository) *checkVisibilityPlugin {
 	return &checkVisibilityPlugin{
 		repository: repository,
+		checker:    visibility.NewChecker(repository, "cloudfoundry", "organization_guid"),
 	}
 }
 
@@ -68,71 +66,8 @@ func (p *checkVisibilityPlugin) checkVisibility(req *web.Request, next web.Handl
 	if err != nil {
 		return nil, err
 	}
-	byPlanID := query.ByField(query.EqualsOperator, "service_plan_id", planID)
-	visibilitiesList, err := p.repository.List(ctx, types.VisibilityType, byPlanID)
-	if err != nil {
-		return nil, util.HandleStorageError(err, string(types.VisibilityType))
+	if err := p.checker.CheckVisibility(req, platform, planID, osbContext); err != nil {
+		return nil, err
 	}
-	visibilities := visibilitiesList.(*types.Visibilities)
-
-	switch platform.Type {
-	case "cloudfoundry":
-		if len(osbContext) == 0 {
-			log.C(ctx).Errorf("Could not find context in the osb request.")
-			return nil, &util.HTTPError{
-				ErrorType:   "BadRequest",
-				Description: "missing context in request body",
-				StatusCode:  http.StatusBadRequest,
-			}
-		}
-		payloadOrgGUID := gjson.GetBytes(osbContext, "organization_guid").String()
-		if len(payloadOrgGUID) == 0 {
-			log.C(ctx).Errorf("Could not find organization_guid in the context of the osb request.")
-			return nil, &util.HTTPError{
-				ErrorType:   "BadRequest",
-				Description: "organization_guid missing in osb context",
-				StatusCode:  http.StatusBadRequest,
-			}
-		}
-		for _, v := range visibilities.Visibilities {
-			if v.PlatformID == "" { // public visibility
-				return next.Handle(req)
-			}
-			if v.PlatformID == platform.ID {
-				if v.Labels == nil {
-					return next.Handle(req)
-				}
-				orgGUIDs, ok := v.Labels["organization_guid"]
-				if !ok {
-					return next.Handle(req)
-				}
-				for _, orgGUID := range orgGUIDs {
-					if payloadOrgGUID == orgGUID {
-						return next.Handle(req)
-					}
-				}
-			}
-		}
-		log.C(ctx).Errorf("Service plan %v is not visible on platform %v", planID, platform.ID)
-		return nil, &util.HTTPError{
-			ErrorType:   "NotFound",
-			Description: "could not find such service plan",
-			StatusCode:  http.StatusNotFound,
-		}
-	default:
-		for _, v := range visibilities.Visibilities {
-			if v.PlatformID == "" { // public visibility
-				return next.Handle(req)
-			}
-			if v.PlatformID == platform.ID {
-				return next.Handle(req)
-			}
-		}
-		log.C(ctx).Errorf("Service plan %v is not visible on platform %v", planID, platform.ID)
-		return nil, &util.HTTPError{
-			ErrorType:   "NotFound",
-			Description: "could not find such service plan",
-			StatusCode:  http.StatusNotFound,
-		}
-	}
+	return next.Handle(req)
 }

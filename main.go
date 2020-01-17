@@ -19,6 +19,8 @@ package main
 import (
 	"context"
 
+	"github.com/Peripli/service-manager/pkg/types"
+
 	"github.com/Peripli/service-manager/api/extensions/security"
 
 	"github.com/Peripli/service-manager/pkg/env"
@@ -52,6 +54,7 @@ func main() {
 	if err := security.Register(ctx, cfg, serviceManager); err != nil {
 		panic(err)
 	}
+	serviceManager.EnableVisibilityCheck(types.SMPlatform, "")
 
 	serviceManager.Build().Run()
 }

@@ -24,6 +24,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/visibility"
+
 	"github.com/Peripli/service-manager/operations"
 	secFilters "github.com/Peripli/service-manager/pkg/security/filters"
 
@@ -484,4 +486,12 @@ func (smb *ServiceManagerBuilder) Security() *securityBuilder {
 		}
 	}
 	return smb.secBuilder.reset()
+}
+
+func (smb *ServiceManagerBuilder) EnableVisibilityCheck(platformType, labelKey string) *ServiceManagerBuilder {
+	visibilityChecker := visibility.NewChecker(smb.Storage, platformType, labelKey)
+	filter := filters.NewCheckVisibilityFilter(smb.Storage, visibilityChecker)
+	smb.RegisterFilters(filter)
+
+	return smb
 }
