@@ -295,8 +295,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("instance visibility", func() {
 					When("tenant doesn't have plan visibility", func() {
-						It("returns 400", func() {
-							createInstance(ctx.SMWithOAuthForTenant, http.StatusBadRequest)
+						It("returns 404", func() {
+							createInstance(ctx.SMWithOAuthForTenant, http.StatusNotFound)
 						})
 					})
 
@@ -427,13 +427,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("instance visibility", func() {
 					When("tenant doesn't have plan visibility", func() {
-						It("returns 400", func() {
+						It("returns 404", func() {
 							ensurePlanVisibility(ctx.SMWithOAuth, types.SMPlatform, servicePlanID)
 							createInstance(ctx.SMWithOAuthForTenant, http.StatusCreated)
 
 							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL + "/" + instanceID).
 								WithJSON(common.Object{"service_plan_id": anotherServicePlanID}).
-								Expect().Status(http.StatusBadRequest).JSON().Object()
+								Expect().Status(http.StatusNotFound)
 						})
 					})
 
@@ -445,7 +445,30 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							ensurePlanVisibility(ctx.SMWithOAuth, types.SMPlatform, anotherServicePlanID)
 							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL + "/" + instanceID).
 								WithJSON(common.Object{"service_plan_id": anotherServicePlanID}).
-								Expect().Status(http.StatusOK).JSON().Object()
+								Expect().Status(http.StatusOK)
+						})
+					})
+				})
+
+				Context("instance ownership", func() {
+					When("tenant doesn't have ownership of instance", func() {
+						It("returns 404", func() {
+							createInstance(ctx.SMWithOAuth, http.StatusCreated)
+
+							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL + "/" + instanceID).
+								WithJSON(common.Object{"service_plan_id": anotherServicePlanID}).
+								Expect().Status(http.StatusNotFound)
+						})
+					})
+
+					When("tenant has ownership of instance", func() {
+						It("returns 200", func() {
+							ensurePlanVisibility(ctx.SMWithOAuth, types.SMPlatform, servicePlanID)
+							createInstance(ctx.SMWithOAuthForTenant, http.StatusCreated)
+
+							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL + "/" + instanceID).
+								WithJSON(common.Object{"platform_id": types.SMPlatform}).
+								Expect().Status(http.StatusOK)
 						})
 					})
 				})

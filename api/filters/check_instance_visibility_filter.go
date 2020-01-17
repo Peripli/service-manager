@@ -76,9 +76,9 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 	if err != nil {
 		if err == util.ErrNotFoundInStorage {
 			return nil, &util.HTTPError{
-				ErrorType:   "BadRequest",
-				Description: "insufficient service plan visibilities",
-				StatusCode:  http.StatusBadRequest,
+				ErrorType:   "NotFound",
+				Description: "could not find such service plan",
+				StatusCode:  http.StatusNotFound,
 			}
 		}
 
