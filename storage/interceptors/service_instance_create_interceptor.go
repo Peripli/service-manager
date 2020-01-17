@@ -18,6 +18,7 @@ package interceptors
 
 import (
 	"context"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
@@ -48,7 +49,7 @@ func (c *serviceInstanceCreateInterceptor) OnTxCreate(h storage.InterceptCreateO
 	return func(ctx context.Context, storage storage.Repository, obj types.Object) (types.Object, error) {
 		serviceInstance := obj.(*types.ServiceInstance)
 
-		tenantID := gjson.GetBytes([]byte(serviceInstance.Context), c.TenantIdentifier)
+		tenantID := gjson.GetBytes(serviceInstance.Context, c.TenantIdentifier)
 		if !tenantID.Exists() {
 			log.D().Debugf("Could not add %s label to service instance with id %s. Label not found in OSB context.", c.TenantIdentifier, serviceInstance.ID)
 			return h(ctx, storage, serviceInstance)

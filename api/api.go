@@ -105,8 +105,11 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 				return &types.ServiceInstance{}
 			}),
 			apiNotifications.NewController(ctx, options.Repository, options.WSSettings, options.Notificator),
+
 			NewServiceOfferingController(options),
 			NewServicePlanController(options),
+			NewServiceBindingController(ctx, options),
+
 			&info.Controller{
 				TokenIssuer:    options.APISettings.TokenIssuerURL,
 				TokenBasicAuth: options.APISettings.TokenBasicAuth,

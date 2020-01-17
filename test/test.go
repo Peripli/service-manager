@@ -24,10 +24,11 @@ import (
 	"strconv"
 	"strings"
 
+	"time"
+
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/gavv/httpexpect"
-	"time"
 
 	"github.com/tidwall/gjson"
 

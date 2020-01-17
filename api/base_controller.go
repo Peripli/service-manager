@@ -20,10 +20,11 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/Peripli/service-manager/operations"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/Peripli/service-manager/operations"
 
 	"github.com/tidwall/sjson"
 
@@ -292,7 +293,7 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
-	stripCredentials(ctx, object)
+	cleanObject(ctx, object)
 
 	return util.NewJSONResponse(http.StatusOK, object)
 }
@@ -454,13 +455,13 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
-	stripCredentials(ctx, object)
+	cleanObject(ctx, object)
 	return util.NewJSONResponse(http.StatusOK, object)
 }
 
-func stripCredentials(ctx context.Context, object types.Object) {
-	if secured, ok := object.(types.Secured); ok {
-		secured.SetCredentials(nil)
+func cleanObject(ctx context.Context, object types.Object) {
+	if secured, ok := object.(types.Strip); ok {
+		secured.Sanitize()
 	} else {
 		log.C(ctx).Debugf("Object of type %s with id %s is not secured, so no credentials are cleaned up on response", object.GetType(), object.GetID())
 	}
@@ -572,7 +573,7 @@ func pageFromObjectList(ctx context.Context, objectList types.ObjectList, count,
 
 	for i := 0; i < objectList.Len(); i++ {
 		obj := objectList.ItemAt(i)
-		stripCredentials(ctx, obj)
+		cleanObject(ctx, obj)
 		page.Items = append(page.Items, obj)
 	}
 

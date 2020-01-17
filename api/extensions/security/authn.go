@@ -26,6 +26,7 @@ func Register(ctx context.Context, cfg *config.Settings, smb *sm.ServiceManagerB
 		web.ServicePlansURL+"/*",
 		web.VisibilitiesURL+"/*",
 		web.ServiceInstancesURL+"/*",
+		web.ServiceBindingsURL+"/*",
 		web.NotificationsURL+"/*").
 		Method(http.MethodGet).
 		WithAuthentication(basicAuthenticator).Required()
@@ -51,6 +52,7 @@ func Register(ctx context.Context, cfg *config.Settings, smb *sm.ServiceManagerB
 		web.VisibilitiesURL+"/**",
 		web.NotificationsURL+"/**",
 		web.ServiceInstancesURL+"/**",
+		web.ServiceBindingsURL+"/**",
 		web.ConfigURL+"/**").
 		Method(http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete).
 		WithAuthentication(bearerAuthenticator).Required()

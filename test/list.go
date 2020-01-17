@@ -74,8 +74,10 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 			Expect().
 			Status(http.StatusOK).JSON().Object()
 		result.ContainsKey("labels")
+		resultObject := result.Raw()
+		delete(resultObject, "credentials")
 
-		return result.Raw()
+		return resultObject
 	}
 
 	By(fmt.Sprintf("Attempting to create a random resource of %s with mandatory fields only", t.API))
