@@ -18,7 +18,6 @@ package filters
 
 import (
 	"fmt"
-	"github.com/Peripli/service-manager/api"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -61,7 +60,7 @@ func (f *serviceBindingOwnershipFilter) Run(req *web.Request, next web.Handler) 
 	case http.MethodPost:
 		serviceInstanceID = gjson.GetBytes(req.Body, serviceInstanceIDProperty).Str
 	case http.MethodDelete:
-		serviceInstanceID = req.PathParams[api.PathParamResourceID]
+		serviceInstanceID = req.PathParams[web.PathParamResourceID]
 		if serviceInstanceID == "" {
 			serviceInstanceID = query.RetrieveFromCriteria("id", query.CriteriaForContext(ctx)...)
 		}

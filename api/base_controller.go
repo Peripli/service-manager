@@ -39,13 +39,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-const (
-	PathParamID         = "id"
-	PathParamResourceID = "resource_id"
-	QueryParamAsync     = "async"
-	QueryParamLastOp    = "last_op"
-)
-
 // pagingLimitOffset is a constant which is needed to identify if there are more items in the DB.
 // If there is 1 more item than requested, we need to generate a token for the next page.
 // The last item is omitted.
@@ -104,14 +97,14 @@ func (c *BaseController) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamResourceID),
+				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, web.PathParamResourceID),
 			},
 			Handler: c.GetSingleObject,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   fmt.Sprintf("%s/{%s}%s/{%s}", c.resourceBaseURL, PathParamResourceID, web.OperationsURL, PathParamID),
+				Path:   fmt.Sprintf("%s/{%s}%s/{%s}", c.resourceBaseURL, web.PathParamResourceID, web.OperationsURL, web.PathParamID),
 			},
 			Handler: c.GetOperation,
 		},
@@ -132,14 +125,14 @@ func (c *BaseController) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodDelete,
-				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamResourceID),
+				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, web.PathParamResourceID),
 			},
 			Handler: c.DeleteSingleObject,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodPatch,
-				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamResourceID),
+				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, web.PathParamResourceID),
 			},
 			Handler: c.PatchObject,
 		},
@@ -171,7 +164,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		return repository.Create(ctx, result)
 	}
 
-	isAsync := r.URL.Query().Get(QueryParamAsync)
+	isAsync := r.URL.Query().Get(web.QueryParamAsync)
 	if isAsync == "true" {
 		log.C(ctx).Debugf("Request will be executed asynchronously")
 		if err := c.checkAsyncSupport(); err != nil {
@@ -216,7 +209,7 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 		return nil, repository.Delete(ctx, c.objectType, criteria...)
 	}
 
-	isAsync := r.URL.Query().Get(QueryParamAsync)
+	isAsync := r.URL.Query().Get(web.QueryParamAsync)
 	if isAsync == "true" {
 		log.C(ctx).Debugf("Request will be executed asynchronously")
 		if err := c.checkAsyncSupport(); err != nil {
@@ -262,7 +255,7 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 
 // DeleteSingleObject handles the deletion of the object with the id specified in the request
 func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, error) {
-	objectID := r.PathParams[PathParamResourceID]
+	objectID := r.PathParams[web.PathParamResourceID]
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting %s with id %s", c.objectType, objectID)
 
@@ -278,7 +271,7 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 
 // GetSingleObject handles the fetching of a single object with the id specified in the request
 func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) {
-	objectID := r.PathParams[PathParamResourceID]
+	objectID := r.PathParams[web.PathParamResourceID]
 	ctx := r.Context()
 	log.C(ctx).Debugf("Getting %s with id %s", c.objectType, objectID)
 
@@ -290,7 +283,7 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 	}
 
 	cleanObject(ctx, object)
-	displayOp := r.URL.Query().Get(QueryParamLastOp)
+	displayOp := r.URL.Query().Get(web.QueryParamLastOp)
 	if displayOp == "true" {
 		if err := attachLastOperation(ctx, objectID, object, r, c.repository); err != nil {
 			return nil, err
@@ -302,8 +295,8 @@ func (c *BaseController) GetSingleObject(r *web.Request) (*web.Response, error) 
 
 // GetOperation handles the fetching of a single operation with the id specified for the specified resource
 func (c *BaseController) GetOperation(r *web.Request) (*web.Response, error) {
-	objectID := r.PathParams[PathParamResourceID]
-	operationID := r.PathParams[PathParamID]
+	objectID := r.PathParams[web.PathParamResourceID]
+	operationID := r.PathParams[web.PathParamID]
 
 	ctx := r.Context()
 	log.C(ctx).Debugf("Getting operation with id %s for object of type %s with id %s", operationID, c.objectType, objectID)
@@ -385,7 +378,7 @@ func (c *BaseController) ListObjects(r *web.Request) (*web.Response, error) {
 
 // PatchObject handles the update of the object with the id specified in the request
 func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
-	objectID := r.PathParams[PathParamResourceID]
+	objectID := r.PathParams[web.PathParamResourceID]
 	ctx := r.Context()
 	log.C(ctx).Debugf("Updating %s with id %s", c.objectType, objectID)
 
@@ -426,7 +419,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		return repository.Update(ctx, objFromDB, labelChanges, criteria...)
 	}
 
-	isAsync := r.URL.Query().Get(QueryParamAsync)
+	isAsync := r.URL.Query().Get(web.QueryParamAsync)
 	if isAsync == "true" {
 		log.C(ctx).Debugf("Request will be executed asynchronously")
 		if err := c.checkAsyncSupport(); err != nil {

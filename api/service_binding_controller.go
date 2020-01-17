@@ -50,14 +50,14 @@ func (c *ServiceBindingController) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamResourceID),
+				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, web.PathParamResourceID),
 			},
 			Handler: c.GetSingleObject,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   fmt.Sprintf("%s/{%s}%s/{%s}", c.resourceBaseURL, PathParamResourceID, web.OperationsURL, PathParamID),
+				Path:   fmt.Sprintf("%s/{%s}%s/{%s}", c.resourceBaseURL, web.PathParamResourceID, web.OperationsURL, web.PathParamID),
 			},
 			Handler: c.GetOperation,
 		},

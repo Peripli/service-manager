@@ -41,7 +41,7 @@ func (c *ServiceOfferingController) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   fmt.Sprintf("%s/{%s}", web.ServiceOfferingsURL, PathParamResourceID),
+				Path:   fmt.Sprintf("%s/{%s}", web.ServiceOfferingsURL, web.PathParamResourceID),
 			},
 			Handler: c.GetSingleObject,
 		},
@@ -55,7 +55,7 @@ func (c *ServiceOfferingController) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodPatch,
-				Path:   fmt.Sprintf("%s/{%s}", web.ServiceOfferingsURL, PathParamResourceID),
+				Path:   fmt.Sprintf("%s/{%s}", web.ServiceOfferingsURL, web.PathParamResourceID),
 			},
 			Handler: c.PatchObject,
 		},
