@@ -98,7 +98,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 				})
 
-				Context("With invalid content type", func() {
+				Context("when content type is not JSON", func() {
 					It("returns 415", func() {
 						ctx.SMWithOAuth.POST(web.PlatformsURL).
 							WithText("text").
@@ -106,7 +106,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 				})
 
-				Context("With invalid content JSON", func() {
+				Context("when request body is not a valid JSON", func() {
 					It("returns 400 if input is not valid JSON", func() {
 						ctx.SMWithOAuth.POST(web.PlatformsURL).
 							WithText("invalid json").
@@ -178,20 +178,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 				})
 
-				Context("With async query param", func() {
-					It("fails", func() {
-						platform := common.MakePlatform("", "cf-10", "cf", "descr")
-						delete(platform, "id")
-
-						reply := ctx.SMWithOAuth.POST(web.PlatformsURL).
-							WithQuery("async", "true").
-							WithJSON(platform).
-							Expect().Status(http.StatusBadRequest).JSON().Object()
-
-						reply.Value("description").String().Contains("api doesn't support asynchronous operations")
-					})
-				})
-
 				Context("Without id", func() {
 					It("returns the new platform with generated id and credentials", func() {
 						platform := common.MakePlatform("", "cf-10", "cf", "descr")
@@ -216,6 +202,20 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Expect().Status(http.StatusOK).JSON().Object()
 
 						common.MapContains(reply.Raw(), platform)
+					})
+				})
+
+				Context("With async query param", func() {
+					It("fails", func() {
+						platform := common.MakePlatform("", "cf-10", "cf", "descr")
+						delete(platform, "id")
+
+						reply := ctx.SMWithOAuth.POST(web.PlatformsURL).
+							WithQuery("async", "true").
+							WithJSON(platform).
+							Expect().Status(http.StatusBadRequest).JSON().Object()
+
+						reply.Value("description").String().Contains("api doesn't support asynchronous operations")
 					})
 				})
 			})

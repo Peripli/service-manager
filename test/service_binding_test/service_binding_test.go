@@ -68,6 +68,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	DisableTenantResources:                 true,
 	ResourceBlueprint:                      blueprint,
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
+	ResourcePropertiesToIgnore:             []string{"credentials"},
 	PatchResource: func(ctx *common.TestContext, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange, _ bool) {
 		byID := query.ByField(query.EqualsOperator, "id", objID)
 		sb, err := ctx.SMRepository.Get(context.Background(), resourceType, byID)

@@ -87,8 +87,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 
 		gen := t.ResourceBlueprint(ctx, ctx.SMWithOAuth, bool(responseMode))
 		gen = attachLabel(gen)
-		delete(gen, "created_at")
-		delete(gen, "updated_at")
+		stripObject(gen, t.ResourcePropertiesToIgnore...)
 		r = append(r, gen)
 	}
 
@@ -320,11 +319,11 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 
 		for _, v := range beforeOpArray.Iter() {
 			obj := v.Object().Raw()
-			StripObject(obj)
+			stripObject(obj, t.ResourcePropertiesToIgnore...)
 		}
 
 		for _, entity := range listOpEntry.resourcesToExpectBeforeOp {
-			StripObject(entity)
+			stripObject(entity, t.ResourcePropertiesToIgnore...)
 			beforeOpArray.Contains(entity)
 		}
 
@@ -351,13 +350,13 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 			array := ctx.SMWithOAuth.ListWithQuery(t.API, query)
 			for _, v := range array.Iter() {
 				obj := v.Object().Raw()
-				StripObject(obj)
+				stripObject(obj, t.ResourcePropertiesToIgnore...)
 			}
 
 			if listOpEntry.resourcesToExpectAfterOp != nil {
 				By(fmt.Sprintf("[TEST]: Verifying expected %s are returned after list operation", t.API))
 				for _, entity := range listOpEntry.resourcesToExpectAfterOp {
-					StripObject(entity)
+					stripObject(entity, t.ResourcePropertiesToIgnore...)
 					array.Contains(entity)
 				}
 			}
@@ -366,7 +365,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 				By(fmt.Sprintf("[TEST]: Verifying unexpected %s are NOT returned after list operation", t.API))
 
 				for _, entity := range listOpEntry.resourcesNotToExpectAfterOp {
-					StripObject(entity)
+					stripObject(entity, t.ResourcePropertiesToIgnore...)
 					array.NotContains(entity)
 				}
 			}

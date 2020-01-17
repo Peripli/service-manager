@@ -101,11 +101,13 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			NewController(options, web.VisibilitiesURL, types.VisibilityType, func() types.Object {
 				return &types.Visibility{}
 			}),
+			NewAsyncController(ctx, options, web.ServiceInstancesURL, types.ServiceInstanceType, func() types.Object {
+				return &types.ServiceInstance{}
+			}),
 			apiNotifications.NewController(ctx, options.Repository, options.WSSettings, options.Notificator),
 
 			NewServiceOfferingController(options),
 			NewServicePlanController(options),
-			NewServiceInstanceController(options),
 			NewServiceBindingController(ctx, options),
 
 			&info.Controller{
@@ -132,6 +134,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			&filters.SelectionCriteria{},
 			filters.NewProtectedLabelsFilter(options.APISettings.ProtectedLabels),
 			&filters.ProtectedSMPlatformFilter{},
+			&filters.ServiceInstanceValidationFilter{},
 			&filters.PlatformAwareVisibilityFilter{},
 			&filters.PatchOnlyLabelsFilter{},
 			filters.NewPlansFilterByVisibility(options.Repository),

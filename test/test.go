@@ -70,10 +70,11 @@ type MultitenancySettings struct {
 }
 
 type TestCase struct {
-	API                     string
-	SupportsAsyncOperations bool
-	SupportedOps            []Op
-	ResourceType            types.ObjectType
+	API                        string
+	SupportsAsyncOperations    bool
+	SupportedOps               []Op
+	ResourceType               types.ObjectType
+	ResourcePropertiesToIgnore []string
 
 	MultitenancySettings   *MultitenancySettings
 	DisableTenantResources bool
@@ -85,10 +86,13 @@ type TestCase struct {
 	AdditionalTests func(ctx *common.TestContext)
 }
 
-func StripObject(obj common.Object) {
+func stripObject(obj common.Object, properties ...string) {
 	delete(obj, "created_at")
 	delete(obj, "updated_at")
-	delete(obj, "credentials")
+
+	for _, prop := range properties {
+		delete(obj, prop)
+	}
 }
 
 func DefaultResourcePatch(ctx *common.TestContext, apiPath string, objID string, _ types.ObjectType, patchLabels []*query.LabelChange, async bool) {

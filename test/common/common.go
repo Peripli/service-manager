@@ -84,6 +84,10 @@ func RemoveNumericArgs(obj Object) Object {
 	return removeOnCondition(isNumeric, obj)
 }
 
+func RemoveBooleanArgs(obj Object) Object {
+	return removeOnCondition(isBoolean, obj)
+}
+
 func RemoveNonJSONArgs(obj Object) Object {
 	return removeOnCondition(isNotJSON, obj)
 }
@@ -143,6 +147,11 @@ func isNumeric(arg interface{}) bool {
 
 func isNotNumeric(arg interface{}) bool {
 	return !isNumeric(arg)
+}
+
+func isBoolean(arg interface{}) bool {
+	_, ok := arg.(bool)
+	return ok
 }
 
 func RemoveNotNullableFieldAndLabels(obj Object, objithMandatoryFields Object) Object {
