@@ -227,6 +227,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 		})
 	},
+	// todo: Add tests for ServiceBindingOwnershipFilter
 })
 
 func blueprint(ctx *common.TestContext, auth *common.SMExpect, async bool) common.Object {

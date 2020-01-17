@@ -473,6 +473,38 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 				})
 			})
+
+			Describe("DELETE", func() {
+				Context("instance ownership", func() {
+					When("tenant doesn't have ownership of instance", func() {
+						It("returns 404", func() {
+							createInstance(ctx.SMWithOAuth, http.StatusCreated)
+
+							ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL + "/" + instanceID).
+								Expect().Status(http.StatusNotFound)
+						})
+					})
+
+					When("tenant doesn't have ownership of some instances in bulk delete", func() {
+						It("returns 404", func() {
+							createInstance(ctx.SMWithOAuth, http.StatusCreated)
+
+							ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL).
+								Expect().Status(http.StatusNotFound)
+						})
+					})
+
+					When("tenant has ownership of instance", func() {
+						It("returns 200", func() {
+							ensurePlanVisibility(ctx.SMWithOAuth, types.SMPlatform, servicePlanID)
+							createInstance(ctx.SMWithOAuthForTenant, http.StatusCreated)
+
+							ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL + "/" + instanceID).
+								Expect().Status(http.StatusOK)
+						})
+					})
+				})
+			})
 		})
 	},
 })
