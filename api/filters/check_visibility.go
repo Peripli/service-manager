@@ -39,7 +39,7 @@ func (f *checkVisibilityFilter) Run(req *web.Request, next web.Handler) (*web.Re
 		*types.ServiceInstance
 		RawContext json.RawMessage `json:"context"`
 	}
-	err := util.BytesToObject(req.Body, instance)
+	err := util.BytesToObject(req.Body, &instance)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func (f *checkVisibilityFilter) Run(req *web.Request, next web.Handler) (*web.Re
 
 func (f *checkVisibilityFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
-		web.FilterMatcher{
+		{
 			Matchers: []web.Matcher{
 				web.Path(web.ServiceInstancesURL),
 				web.Methods(http.MethodPost),
