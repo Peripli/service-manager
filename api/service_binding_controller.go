@@ -25,7 +25,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-// ServiceBindingController implements api.Controller by providing service instances API logic
+// ServiceBindingController implements api.Controller by providing service bindings API logic
 type ServiceBindingController struct {
 	*BaseController
 }

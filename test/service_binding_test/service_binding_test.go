@@ -19,11 +19,13 @@ package service_binding_test
 import (
 	"context"
 	"fmt"
+	"net/http"
 
-	"github.com/Peripli/service-manager/test/testutil/service_binding"
-	"github.com/Peripli/service-manager/test/testutil/service_instance"
+	"github.com/gofrs/uuid"
 
 	"testing"
+
+	"github.com/Peripli/service-manager/test/testutil/service_binding"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -85,12 +87,20 @@ var _ = test.DescribeTestsFor(test.TestCase{
 })
 
 func blueprint(ctx *common.TestContext, auth *common.SMExpect, _ bool) common.Object {
-	_, serviceInstance := service_instance.Prepare(ctx, ctx.TestPlatform.ID, "", fmt.Sprintf(`{"%s":"%s"}`, TenantIdentifier, TenantValue))
-	_, err := ctx.SMRepository.Create(context.Background(), serviceInstance)
+	instanceIDObj, err := uuid.NewV4()
 	if err != nil {
-		Fail(fmt.Sprintf("could not create service instance: %s", err))
+		Fail(fmt.Sprintf("failed to generate instance GUID: %s", err))
 	}
-	serviceBindingObj := service_binding.Prepare(serviceInstance.ID, fmt.Sprintf(`{"%s":"%s"}`, TenantIdentifier, TenantValue), `{"password": "secret"}`)
+	instanceID := instanceIDObj.String()
+
+	ctx.SMWithOAuth.POST(web.ServiceInstancesURL).WithJSON(common.Object{
+		"id":               instanceID,
+		"name":             instanceID + "name",
+		"service_plan_id":  newServicePlan(ctx),
+		"maintenance_info": "{}",
+	}).Expect().Status(http.StatusCreated)
+
+	serviceBindingObj := service_binding.Prepare(instanceID, fmt.Sprintf(`{"%s":"%s"}`, TenantIdentifier, TenantValue), `{"password": "secret"}`)
 	_, err = ctx.SMRepository.Create(context.Background(), serviceBindingObj)
 	if err != nil {
 		Fail(fmt.Sprintf("could not create service binding: %s", err))
@@ -99,4 +109,12 @@ func blueprint(ctx *common.TestContext, auth *common.SMExpect, _ bool) common.Ob
 	binding := auth.ListWithQuery(web.ServiceBindingsURL, fmt.Sprintf("fieldQuery=id eq '%s'", serviceBindingObj.ID)).First().Object().Raw()
 	delete(binding, "credentials")
 	return binding
+}
+
+func newServicePlan(ctx *common.TestContext) string {
+	brokerID, _, _ := ctx.RegisterBrokerWithCatalog(common.NewRandomSBCatalog())
+	so := ctx.SMWithOAuth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerID)).First()
+	servicePlanID := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw())).
+		First().Object().Value("id").String().Raw()
+	return servicePlanID
 }
