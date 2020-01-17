@@ -19,6 +19,7 @@ package service_test
 import (
 	"context"
 	"fmt"
+
 	"github.com/Peripli/service-manager/test/testutil/service_instance"
 
 	"net/http"
@@ -120,6 +121,19 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							_, tenantLabelExists := labels[TenantIdentifier]
 							Expect(tenantLabelExists).To(BeFalse())
 						}
+					})
+				})
+				When("service instance dashboard_url is not set", func() {
+					BeforeEach(func() {
+						_, serviceInstance = service_instance.Prepare(ctx, ctx.TestPlatform.ID, "", fmt.Sprintf(`{"%s":"%s"}`, TenantIdentifier, TenantValue))
+						serviceInstance.DashboardURL = ""
+						_, err := ctx.SMRepository.Create(context.Background(), serviceInstance)
+						Expect(err).ToNot(HaveOccurred())
+					})
+
+					It("doesn't return dashboard_url", func() {
+						ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + serviceInstance.ID).Expect().
+							Status(http.StatusOK).JSON().Object().NotContainsKey("dashboard_url")
 					})
 				})
 			})
