@@ -59,7 +59,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				expectedStatusCode: http.StatusOK,
 			},
 		),
-		FEntry("returns 200 for operator !=",
+		Entry("returns 200 for operator !=",
 			deleteOpEntry{
 				resourcesToExpectBeforeOp: func() []common.Object {
 					return []common.Object{r[0], r[1]}

@@ -126,6 +126,18 @@ func StorageResourcePatch(ctx *common.TestContext, _ string, objID string, resou
 	}
 }
 
+func ExpectSuccessfulAsyncResourceCreation(resp *httpexpect.Response, SM *common.SMExpect, resourceID, resourceURL string) map[string]interface{} {
+	resp = resp.Status(http.StatusAccepted)
+	if err := ExpectOperation(SM, resp, types.SUCCEEDED); err != nil {
+		panic(err)
+	}
+
+	obj := SM.GET(resourceURL + "/" + resourceID).
+		Expect().Status(http.StatusOK).JSON().Object().Raw()
+
+	return obj
+}
+
 func ExpectOperation(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState) error {
 	return ExpectOperationWithError(auth, asyncResp, expectedState, "")
 }

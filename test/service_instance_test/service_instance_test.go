@@ -422,14 +422,7 @@ func blueprint(ctx *common.TestContext, auth *common.SMExpect, async bool) commo
 
 	var instance map[string]interface{}
 	if async {
-		resp = resp.Status(http.StatusAccepted)
-		if err := test.ExpectOperation(auth, resp, types.SUCCEEDED); err != nil {
-			panic(err)
-		}
-
-		instance = auth.GET(web.ServiceInstancesURL + "/" + instanceID.String()).
-			Expect().JSON().Object().Raw()
-
+		instance = test.ExpectSuccessfulAsyncResourceCreation(resp, auth, instanceID.String(), web.ServiceInstancesURL)
 	} else {
 		instance = resp.Status(http.StatusCreated).JSON().Object().Raw()
 	}

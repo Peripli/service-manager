@@ -17,15 +17,13 @@
 package service_binding_test
 
 import (
-	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gofrs/uuid"
 
 	"testing"
-
-	"github.com/Peripli/service-manager/test/testutil/service_binding"
 
 	"github.com/Peripli/service-manager/pkg/types"
 
@@ -74,27 +72,46 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	AdditionalTests:                        func(ctx *common.TestContext) {},
 })
 
-func blueprint(ctx *common.TestContext, auth *common.SMExpect, _ bool) common.Object {
-	instanceIDObj, err := uuid.NewV4()
+func blueprint(ctx *common.TestContext, auth *common.SMExpect, async bool) common.Object {
+	ID, err := uuid.NewV4()
 	if err != nil {
 		Fail(fmt.Sprintf("failed to generate instance GUID: %s", err))
 	}
-	instanceID := instanceIDObj.String()
+	instanceID := "instance-" + ID.String()
 
-	ctx.SMWithOAuth.POST(web.ServiceInstancesURL).WithJSON(common.Object{
-		"id":               instanceID,
-		"name":             instanceID + "name",
-		"service_plan_id":  newServicePlan(ctx),
-		"maintenance_info": "{}",
-	}).Expect().Status(http.StatusCreated)
+	resp := ctx.SMWithOAuth.POST(web.ServiceInstancesURL).
+		WithQuery("async", strconv.FormatBool(async)).
+		WithJSON(common.Object{
+			"id":               instanceID,
+			"name":             instanceID + "name",
+			"service_plan_id":  newServicePlan(ctx),
+			"maintenance_info": "{}",
+		}).Expect()
 
-	serviceBindingObj := service_binding.Prepare(instanceID, fmt.Sprintf(`{"%s":"%s"}`, TenantIdentifier, TenantValue), `{"password": "secret"}`)
-	_, err = ctx.SMRepository.Create(context.Background(), serviceBindingObj)
-	if err != nil {
-		Fail(fmt.Sprintf("could not create service binding: %s", err))
+	if async {
+		test.ExpectSuccessfulAsyncResourceCreation(resp, auth, instanceID, web.ServiceInstancesURL)
+	} else {
+		resp.Status(http.StatusCreated)
 	}
 
-	binding := auth.ListWithQuery(web.ServiceBindingsURL, fmt.Sprintf("fieldQuery=id eq '%s'", serviceBindingObj.ID)).First().Object().Raw()
+	bindingID := "binding-" + ID.String()
+
+	resp = ctx.SMWithOAuth.POST(web.ServiceBindingsURL).
+		WithQuery("async", strconv.FormatBool(async)).
+		WithJSON(common.Object{
+			"id":                  bindingID,
+			"name":                bindingID + "name",
+			"service_instance_id": instanceID,
+			"credentials":         `{"password": "secret"}`,
+		}).Expect()
+
+	var binding map[string]interface{}
+	if async {
+		binding = test.ExpectSuccessfulAsyncResourceCreation(resp, auth, bindingID, web.ServiceBindingsURL)
+	} else {
+		binding = resp.Status(http.StatusCreated).JSON().Object().Raw()
+	}
+
 	delete(binding, "credentials")
 	return binding
 }
