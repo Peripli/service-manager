@@ -104,11 +104,11 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			NewAsyncController(ctx, options, web.ServiceInstancesURL, types.ServiceInstanceType, func() types.Object {
 				return &types.ServiceInstance{}
 			}),
+			NewServiceBindingController(ctx, options),
 			apiNotifications.NewController(ctx, options.Repository, options.WSSettings, options.Notificator),
 
 			NewServiceOfferingController(options),
 			NewServicePlanController(options),
-			NewServiceBindingController(ctx, options),
 
 			&info.Controller{
 				TokenIssuer:    options.APISettings.TokenIssuerURL,

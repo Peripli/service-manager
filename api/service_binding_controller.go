@@ -42,8 +42,15 @@ func (c *ServiceBindingController) Routes() []web.Route {
 	return []web.Route{
 		{
 			Endpoint: web.Endpoint{
+				Method: http.MethodPost,
+				Path:   c.resourceBaseURL,
+			},
+			Handler: c.CreateObject,
+		},
+		{
+			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   fmt.Sprintf("%s/{%s}", web.ServiceBindingsURL, PathParamResourceID),
+				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamResourceID),
 			},
 			Handler: c.GetSingleObject,
 		},
@@ -57,9 +64,23 @@ func (c *ServiceBindingController) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   web.ServiceBindingsURL,
+				Path:   c.resourceBaseURL,
 			},
 			Handler: c.ListObjects,
+		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodDelete,
+				Path:   c.resourceBaseURL,
+			},
+			Handler: c.DeleteObjects,
+		},
+		{
+			Endpoint: web.Endpoint{
+				Method: http.MethodDelete,
+				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamResourceID),
+			},
+			Handler: c.DeleteSingleObject,
 		},
 	}
 }
