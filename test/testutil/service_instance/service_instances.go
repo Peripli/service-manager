@@ -12,7 +12,6 @@ import (
 	. "github.com/onsi/ginkgo"
 )
 
-// todo: Remove this function, use APIs instead
 func Prepare(ctx *common.TestContext, platformID, planID string, OSBContext string) (string, *types.ServiceInstance) {
 	var brokerID string
 	if planID == "" {
