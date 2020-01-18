@@ -19,6 +19,7 @@ package service_test
 import (
 	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/gavv/httpexpect"
 
 	"github.com/Peripli/service-manager/test/testutil/service_instance"

@@ -73,7 +73,7 @@ func (f *serviceInstanceOwnershipFilter) Run(req *web.Request, next web.Handler)
 
 	_, err := f.repository.Get(ctx, types.ServiceInstanceType, criteria...)
 	if err != nil {
-		return nil, util.HandleStorageError(err, string(types.ServiceInstanceType))
+		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
 
 	return next.Handle(req)

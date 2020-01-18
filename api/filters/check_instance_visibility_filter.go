@@ -82,7 +82,7 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 			}
 		}
 
-		return nil, util.HandleStorageError(err, string(types.VisibilityType))
+		return nil, util.HandleStorageError(err, types.VisibilityType.String())
 	}
 
 	return next.Handle(req)

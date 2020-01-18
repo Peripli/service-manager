@@ -54,15 +54,18 @@ func (*serviceBindingOwnershipFilter) Name() string {
 
 func (f *serviceBindingOwnershipFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
-	var serviceInstanceID string
+	var resourceID string
+	var objectType types.ObjectType
 
 	switch req.Method {
 	case http.MethodPost:
-		serviceInstanceID = gjson.GetBytes(req.Body, serviceInstanceIDProperty).Str
+		objectType = types.ServiceInstanceType
+		resourceID = gjson.GetBytes(req.Body, serviceInstanceIDProperty).Str
 	case http.MethodDelete:
-		serviceInstanceID = req.PathParams[web.PathParamResourceID]
-		if serviceInstanceID == "" {
-			serviceInstanceID = query.RetrieveFromCriteria("id", query.CriteriaForContext(ctx)...)
+		objectType = types.ServiceBindingType
+		resourceID = req.PathParams[web.PathParamResourceID]
+		if resourceID == "" {
+			resourceID = query.RetrieveFromCriteria("id", query.CriteriaForContext(ctx)...)
 		}
 	default:
 		return nil, &util.HTTPError{
@@ -72,8 +75,8 @@ func (f *serviceBindingOwnershipFilter) Run(req *web.Request, next web.Handler) 
 		}
 	}
 
-	if serviceInstanceID == "" {
-		log.C(ctx).Info("Service Instance ID is not provided in the request. Proceeding with the next handler...")
+	if resourceID == "" {
+		log.C(ctx).Info("Service Instance/Binding ID is not provided in the request. Proceeding with the next handler...")
 		return next.Handle(req)
 	}
 
@@ -84,13 +87,13 @@ func (f *serviceBindingOwnershipFilter) Run(req *web.Request, next web.Handler) 
 	}
 
 	criteria := []query.Criterion{
-		query.ByField(query.EqualsOperator, "id", serviceInstanceID),
+		query.ByField(query.EqualsOperator, "id", resourceID),
 		query.ByLabel(query.InOperator, f.tenantIdentifier, tenantID),
 	}
 
-	_, err := f.repository.Get(ctx, types.ServiceInstanceType, criteria...)
+	_, err := f.repository.Get(ctx, objectType, criteria...)
 	if err != nil {
-		return nil, util.HandleStorageError(err, string(types.ServiceInstanceType))
+		return nil, util.HandleStorageError(err, objectType.String())
 	}
 
 	return next.Handle(req)
@@ -100,7 +103,7 @@ func (*serviceBindingOwnershipFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
-				web.Path(web.ServiceInstancesURL + "/**"),
+				web.Path(web.ServiceBindingsURL + "/**"),
 				web.Methods(http.MethodPost, http.MethodDelete),
 			},
 		},

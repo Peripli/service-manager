@@ -18,6 +18,7 @@ package service_binding_test
 
 import (
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/query"
 	"net/http"
 	"strconv"
 
@@ -44,7 +45,7 @@ func TestServiceBindings(t *testing.T) {
 
 const (
 	TenantIdentifier = "tenant"
-	TenantValue      = "tenant_value"
+	TenantValue      = "tenantID"
 )
 
 var _ = test.DescribeTestsFor(test.TestCase{
@@ -59,7 +60,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 		LabelKey:           TenantIdentifier,
 		TokenClaims: map[string]interface{}{
 			"cid": "tenancyClient",
-			"zid": "tenantID",
+			"zid": TenantValue,
 		},
 	},
 	ResourceType:                           types.ServiceBindingType,
@@ -74,12 +75,31 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			var (
 				postBindingRequest      common.Object
 				expectedBindingResponse common.Object
+
+				smExpect *common.SMExpect
 			)
 
-			createInstance := func(body common.Object) {
-				ctx.SMWithOAuth.POST(web.ServiceInstancesURL).WithJSON(body).
+			createInstance := func(SM *common.SMExpect) string {
+				instanceID, err := uuid.NewV4()
+				if err != nil {
+					panic(err)
+				}
+
+				planID := newServicePlan(ctx)
+				ensurePlanVisibility(ctx.SMWithOAuth, types.SMPlatform, planID)
+
+				instanceBody := common.Object{
+					"id":               instanceID.String(),
+					"name":             "test-instance",
+					"service_plan_id":  planID,
+					"maintenance_info": "{}",
+				}
+
+				SM.POST(web.ServiceInstancesURL).WithJSON(instanceBody).
 					Expect().
 					Status(http.StatusCreated)
+
+				return instanceID.String()
 			}
 
 			createBinding := func(body common.Object) {
@@ -91,19 +111,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			}
 
 			BeforeEach(func() {
-				var err error
-				instanceID, err := uuid.NewV4()
-				if err != nil {
-					panic(err)
-				}
+				smExpect = ctx.SMWithOAuth
+			})
 
-				instanceBody := common.Object{
-					"id":               instanceID.String(),
-					"name":             "test-instance",
-					"service_plan_id":  newServicePlan(ctx),
-					"maintenance_info": "{}",
-				}
-				createInstance(instanceBody)
+			JustBeforeEach(func() {
+				var err error
+				instanceID := createInstance(smExpect)
 
 				bindingID, err := uuid.NewV4()
 				if err != nil {
@@ -115,13 +128,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				postBindingRequest = common.Object{
 					"id":                  bindingID.String(),
 					"name":                bindingName,
-					"service_instance_id": instanceID.String(),
+					"service_instance_id": instanceID,
 					"credentials":         `{"password": "secret"}`,
 				}
 				expectedBindingResponse = common.Object{
 					"id":                  bindingID.String(),
 					"name":                bindingName,
-					"service_instance_id": instanceID.String(),
+					"service_instance_id": instanceID,
 					"credentials":         `{"password": "secret"}`,
 				}
 			})
@@ -155,7 +168,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("when a request body field is missing", func() {
 					assertPOSTReturns400WhenFieldIsMissing := func(field string) {
-						BeforeEach(func() {
+						JustBeforeEach(func() {
 							delete(postBindingRequest, field)
 							delete(expectedBindingResponse, field)
 						})
@@ -170,7 +183,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					}
 
 					assertPOSTReturns201WhenFieldIsMissing := func(field string) {
-						BeforeEach(func() {
+						JustBeforeEach(func() {
 							delete(postBindingRequest, field)
 							delete(expectedBindingResponse, field)
 						})
@@ -223,11 +236,73 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							ContainsMap(expectedBindingResponse).ContainsKey("id")
 					})
 				})
+
+				Context("instance ownership", func() {
+					When("tenant doesn't have ownership of instance", func() {
+						It("returns 404", func() {
+							ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
+								WithJSON(postBindingRequest).
+								Expect().Status(http.StatusNotFound)
+						})
+					})
+
+					When("tenant has ownership of instance", func() {
+						BeforeEach(func() {
+							smExpect = ctx.SMWithOAuthForTenant
+						})
+
+						It("returns 201", func() {
+							ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
+								WithJSON(postBindingRequest).
+								Expect().Status(http.StatusCreated)
+						})
+					})
+				})
+			})
+
+			Describe("DELETE", func() {
+				Context("instance ownership", func() {
+					When("tenant doesn't have ownership of binding", func() {
+						It("returns 404", func() {
+							ctx.SMWithOAuth.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
+								Expect().
+								Status(http.StatusCreated)
+
+							ctx.SMWithOAuthForTenant.DELETE(fmt.Sprintf("%s/%s", web.ServiceBindingsURL, postBindingRequest["id"])).
+								Expect().Status(http.StatusNotFound)
+						})
+					})
+
+					When("tenant doesn't have ownership of some instances in bulk delete", func() {
+						It("returns 404", func() {
+							ctx.SMWithOAuth.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
+								Expect().
+								Status(http.StatusCreated)
+
+							ctx.SMWithOAuthForTenant.DELETE(web.ServiceBindingsURL).
+								Expect().Status(http.StatusNotFound)
+						})
+					})
+
+					When("tenant has ownership of instance", func() {
+						BeforeEach(func() {
+							smExpect = ctx.SMWithOAuthForTenant
+						})
+
+						It("returns 200", func() {
+							ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
+								Expect().
+								Status(http.StatusCreated)
+
+							ctx.SMWithOAuthForTenant.DELETE(fmt.Sprintf("%s/%s", web.ServiceBindingsURL, postBindingRequest["id"])).
+								Expect().Status(http.StatusOK)
+						})
+					})
+				})
 			})
 
 		})
 	},
-	// todo: Add tests for ServiceBindingOwnershipFilter when APIs are introduced
 })
 
 func blueprint(ctx *common.TestContext, auth *common.SMExpect, async bool) common.Object {
@@ -280,4 +355,30 @@ func newServicePlan(ctx *common.TestContext) string {
 	servicePlanID := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw())).
 		First().Object().Value("id").String().Raw()
 	return servicePlanID
+}
+
+func ensurePlanVisibility(SM *common.SMExpect, platformID, planID string) {
+	vis := &common.Object{
+		"platform_id":     platformID,
+		"service_plan_id": planID,
+	}
+
+	resp := SM.POST(web.VisibilitiesURL).
+		WithJSON(vis).Expect().Status(http.StatusCreated)
+
+	visID := resp.JSON().Object().Value("id").String().Raw()
+
+	patchLabelsBody := make(map[string]interface{})
+	patchLabelsBody["labels"] = []query.LabelChange{
+		{
+			Operation: query.AddLabelOperation,
+			Key:       TenantIdentifier,
+			Values:    []string{TenantValue},
+		},
+	}
+
+	SM.PATCH(fmt.Sprintf("%s/%s", web.VisibilitiesURL, visID)).
+		WithJSON(patchLabelsBody).
+		Expect().
+		Status(http.StatusOK)
 }
