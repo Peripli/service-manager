@@ -384,11 +384,6 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		patchLabelsBody["labels"] = patchLabels
 
 		By(fmt.Sprintf("Attempting to patch resource of %s with labels as labels are declared supported", t.API))
-		/*
-			ctx.SMWithOAuth.PATCH(t.API + "/" + obj["id"].(string)).WithJSON(patchLabelsBody).
-				Expect().
-				Status(http.StatusOK)
-		*/
 		t.PatchResource(ctx, t.API, obj["id"].(string), t.ResourceType, patchLabels, false)
 
 		result := ctx.SMWithOAuth.GET(t.API + "/" + obj["id"].(string)).
