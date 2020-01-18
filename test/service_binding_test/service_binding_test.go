@@ -102,8 +102,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				return instanceID.String()
 			}
 
-			createBinding := func(body common.Object) {
-				ctx.SMWithOAuth.POST(web.ServiceBindingsURL).WithJSON(body).
+			createBinding := func(SM *common.SMExpect, body common.Object) {
+				SM.POST(web.ServiceBindingsURL).WithJSON(body).
 					Expect().
 					Status(http.StatusCreated).
 					JSON().Object().
@@ -111,7 +111,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			}
 
 			BeforeEach(func() {
-				smExpect = ctx.SMWithOAuth
+				smExpect = ctx.SMWithOAuth // by default all requests are not tenant-scoped
 			})
 
 			JustBeforeEach(func() {
@@ -146,7 +146,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			Describe("POST", func() {
 				Context("when content type is not JSON", func() {
 					It("returns 415", func() {
-						ctx.SMWithOAuth.POST(web.ServiceBindingsURL).WithText("text").
+						smExpect.POST(web.ServiceBindingsURL).WithText("text").
 							Expect().
 							Status(http.StatusUnsupportedMediaType).
 							JSON().Object().
@@ -156,7 +156,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("when request body is not a valid JSON", func() {
 					It("returns 400", func() {
-						ctx.SMWithOAuth.POST(web.ServiceBindingsURL).
+						smExpect.POST(web.ServiceBindingsURL).
 							WithText("invalid json").
 							WithHeader("content-type", "application/json").
 							Expect().
@@ -174,7 +174,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 
 						It("returns 400", func() {
-							ctx.SMWithOAuth.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
+							smExpect.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
 								Expect().
 								Status(http.StatusBadRequest).
 								JSON().Object().
@@ -189,7 +189,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 
 						It("returns 201", func() {
-							createBinding(postBindingRequest)
+							createBinding(smExpect, postBindingRequest)
 						})
 					}
 
@@ -213,7 +213,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("when request body id field is invalid", func() {
 					It("should return 400", func() {
 						postBindingRequest["id"] = "binding/1"
-						resp := ctx.SMWithOAuth.POST(web.ServiceBindingsURL).
+						resp := smExpect.POST(web.ServiceBindingsURL).
 							WithJSON(postBindingRequest).
 							Expect().Status(http.StatusBadRequest).JSON().Object()
 
@@ -223,14 +223,14 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("With async query param", func() {
 					It("succeeds", func() {
-						resp := ctx.SMWithOAuth.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
+						resp := smExpect.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
 							WithQuery("async", "true").
 							Expect().
 							Status(http.StatusAccepted)
 
-						test.ExpectOperation(ctx.SMWithOAuth, resp, types.SUCCEEDED)
+						test.ExpectOperation(smExpect, resp, types.SUCCEEDED)
 
-						ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", web.ServiceBindingsURL, postBindingRequest["id"])).Expect().
+						smExpect.GET(fmt.Sprintf("%s/%s", web.ServiceBindingsURL, postBindingRequest["id"])).Expect().
 							Status(http.StatusOK).
 							JSON().Object().
 							ContainsMap(expectedBindingResponse).ContainsKey("id")
@@ -252,7 +252,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 
 						It("returns 201", func() {
-							ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
+							smExpect.POST(web.ServiceBindingsURL).
 								WithJSON(postBindingRequest).
 								Expect().Status(http.StatusCreated)
 						})
@@ -264,7 +264,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("instance ownership", func() {
 					When("tenant doesn't have ownership of binding", func() {
 						It("returns 404", func() {
-							ctx.SMWithOAuth.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
+							smExpect.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
 								Expect().
 								Status(http.StatusCreated)
 
@@ -275,7 +275,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					When("tenant doesn't have ownership of some instances in bulk delete", func() {
 						It("returns 404", func() {
-							ctx.SMWithOAuth.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
+							smExpect.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
 								Expect().
 								Status(http.StatusCreated)
 
@@ -290,11 +290,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 
 						It("returns 200", func() {
-							ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
+							smExpect.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
 								Expect().
 								Status(http.StatusCreated)
 
-							ctx.SMWithOAuthForTenant.DELETE(fmt.Sprintf("%s/%s", web.ServiceBindingsURL, postBindingRequest["id"])).
+							smExpect.DELETE(fmt.Sprintf("%s/%s", web.ServiceBindingsURL, postBindingRequest["id"])).
 								Expect().Status(http.StatusOK)
 						})
 					})
