@@ -59,7 +59,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				expectedStatusCode: http.StatusOK,
 			},
 		),
-		Entry("returns 200 for operator !=",
+		FEntry("returns 200 for operator !=",
 			deleteOpEntry{
 				resourcesToExpectBeforeOp: func() []common.Object {
 					return []common.Object{r[0], r[1]}
@@ -364,7 +364,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 
 	attachLabel := func(obj common.Object, i int) common.Object {
 		patchLabelsBody := make(map[string]interface{})
-		patchLabels := []query.LabelChange{
+		patchLabels := []*query.LabelChange{
 			{
 				Operation: query.AddLabelOperation,
 				Key:       "labelKey1",
@@ -384,9 +384,12 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		patchLabelsBody["labels"] = patchLabels
 
 		By(fmt.Sprintf("Attempting to patch resource of %s with labels as labels are declared supported", t.API))
-		ctx.SMWithOAuth.PATCH(t.API + "/" + obj["id"].(string)).WithJSON(patchLabelsBody).
-			Expect().
-			Status(http.StatusOK)
+		/*
+			ctx.SMWithOAuth.PATCH(t.API + "/" + obj["id"].(string)).WithJSON(patchLabelsBody).
+				Expect().
+				Status(http.StatusOK)
+		*/
+		t.PatchResource(ctx, t.API, obj["id"].(string), t.ResourceType, patchLabels, false)
 
 		result := ctx.SMWithOAuth.GET(t.API + "/" + obj["id"].(string)).
 			Expect().

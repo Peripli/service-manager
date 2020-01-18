@@ -27,7 +27,6 @@ import (
 
 	"github.com/Peripli/service-manager/test/testutil/service_binding"
 
-	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -53,7 +52,7 @@ const (
 var _ = test.DescribeTestsFor(test.TestCase{
 	API: web.ServiceBindingsURL,
 	SupportedOps: []test.Op{
-		test.Get, test.List,
+		test.Get, test.List, test.Delete, test.DeleteList,
 	},
 	MultitenancySettings: &test.MultitenancySettings{
 		ClientID:           "tenancyClient",
@@ -70,20 +69,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	DisableTenantResources:                 true,
 	ResourceBlueprint:                      blueprint,
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
-	ResourcePropertiesToIgnore:             []string{"credentials"},
-	PatchResource: func(ctx *common.TestContext, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange, _ bool) {
-		byID := query.ByField(query.EqualsOperator, "id", objID)
-		sb, err := ctx.SMRepository.Get(context.Background(), resourceType, byID)
-		if err != nil {
-			Fail(fmt.Sprintf("unable to retrieve resource %s: %s", resourceType, err))
-		}
-
-		_, err = ctx.SMRepository.Update(context.Background(), sb, patchLabels)
-		if err != nil {
-			Fail(fmt.Sprintf("unable to update resource %s: %s", resourceType, err))
-		}
-	},
-	AdditionalTests: func(ctx *common.TestContext) {},
+	ResourcePropertiesToIgnore:             []string{"volume_mounts", "endpoints", "bind_resource", "credentials"},
+	PatchResource:                          test.StorageResourcePatch,
+	AdditionalTests:                        func(ctx *common.TestContext) {},
 })
 
 func blueprint(ctx *common.TestContext, auth *common.SMExpect, _ bool) common.Object {

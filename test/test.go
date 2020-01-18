@@ -95,7 +95,7 @@ func stripObject(obj common.Object, properties ...string) {
 	}
 }
 
-func DefaultResourcePatch(ctx *common.TestContext, apiPath string, objID string, _ types.ObjectType, patchLabels []*query.LabelChange, async bool) {
+func APIResourcePatch(ctx *common.TestContext, apiPath string, objID string, _ types.ObjectType, patchLabels []*query.LabelChange, async bool) {
 	patchLabelsBody := make(map[string]interface{})
 	patchLabelsBody["labels"] = patchLabels
 
@@ -111,7 +111,19 @@ func DefaultResourcePatch(ctx *common.TestContext, apiPath string, objID string,
 	} else {
 		resp.Status(http.StatusOK)
 	}
+}
 
+func StorageResourcePatch(ctx *common.TestContext, _ string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange, _ bool) {
+	byID := query.ByField(query.EqualsOperator, "id", objID)
+	sb, err := ctx.SMRepository.Get(context.Background(), resourceType, byID)
+	if err != nil {
+		Fail(fmt.Sprintf("unable to retrieve resource %s: %s", resourceType, err))
+	}
+
+	_, err = ctx.SMRepository.Update(context.Background(), sb, patchLabels)
+	if err != nil {
+		Fail(fmt.Sprintf("unable to update resource %s: %s", resourceType, err))
+	}
 }
 
 func ExpectOperation(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState) error {

@@ -27,7 +27,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -71,18 +70,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	ResourceBlueprint:                      blueprint,
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
 	ResourcePropertiesToIgnore:             []string{"platform_id"},
-	PatchResource: func(ctx *common.TestContext, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange, _ bool) {
-		byID := query.ByField(query.EqualsOperator, "id", objID)
-		si, err := ctx.SMRepository.Get(context.Background(), resourceType, byID)
-		if err != nil {
-			Fail(fmt.Sprintf("unable to retrieve resource %s: %s", resourceType, err))
-		}
-
-		_, err = ctx.SMRepository.Update(context.Background(), si, patchLabels)
-		if err != nil {
-			Fail(fmt.Sprintf("unable to update resource %s: %s", resourceType, err))
-		}
-	},
+	PatchResource:                          test.APIResourcePatch,
 	AdditionalTests: func(ctx *common.TestContext) {
 		Context("additional non-generic tests", func() {
 			var (
