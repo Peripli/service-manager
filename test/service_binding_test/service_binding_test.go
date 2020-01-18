@@ -69,7 +69,164 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
 	ResourcePropertiesToIgnore:             []string{"volume_mounts", "endpoints", "bind_resource", "credentials"},
 	PatchResource:                          test.StorageResourcePatch,
-	AdditionalTests:                        func(ctx *common.TestContext) {},
+	AdditionalTests: func(ctx *common.TestContext) {
+		Context("additional non-generic tests", func() {
+			var (
+				postBindingRequest      common.Object
+				expectedBindingResponse common.Object
+			)
+
+			createInstance := func(body common.Object) {
+				ctx.SMWithOAuth.POST(web.ServiceInstancesURL).WithJSON(body).
+					Expect().
+					Status(http.StatusCreated)
+			}
+
+			createBinding := func(body common.Object) {
+				ctx.SMWithOAuth.POST(web.ServiceBindingsURL).WithJSON(body).
+					Expect().
+					Status(http.StatusCreated).
+					JSON().Object().
+					ContainsMap(expectedBindingResponse).ContainsKey("id")
+			}
+
+			BeforeEach(func() {
+				var err error
+				instanceID, err := uuid.NewV4()
+				if err != nil {
+					panic(err)
+				}
+
+				instanceBody := common.Object{
+					"id":               instanceID.String(),
+					"name":             "test-instance",
+					"service_plan_id":  newServicePlan(ctx),
+					"maintenance_info": "{}",
+				}
+				createInstance(instanceBody)
+
+				bindingID, err := uuid.NewV4()
+				if err != nil {
+					panic(err)
+				}
+
+				bindingName := "test-binding"
+
+				postBindingRequest = common.Object{
+					"id":                  bindingID.String(),
+					"name":                bindingName,
+					"service_instance_id": instanceID.String(),
+					"credentials":         `{"password": "secret"}`,
+				}
+				expectedBindingResponse = common.Object{
+					"id":                  bindingID.String(),
+					"name":                bindingName,
+					"service_instance_id": instanceID.String(),
+					"credentials":         `{"password": "secret"}`,
+				}
+			})
+
+			AfterEach(func() {
+				ctx.CleanupAdditionalResources()
+			})
+
+			Describe("POST", func() {
+				Context("when content type is not JSON", func() {
+					It("returns 415", func() {
+						ctx.SMWithOAuth.POST(web.ServiceBindingsURL).WithText("text").
+							Expect().
+							Status(http.StatusUnsupportedMediaType).
+							JSON().Object().
+							Keys().Contains("error", "description")
+					})
+				})
+
+				Context("when request body is not a valid JSON", func() {
+					It("returns 400", func() {
+						ctx.SMWithOAuth.POST(web.ServiceBindingsURL).
+							WithText("invalid json").
+							WithHeader("content-type", "application/json").
+							Expect().
+							Status(http.StatusBadRequest).
+							JSON().Object().
+							Keys().Contains("error", "description")
+					})
+				})
+
+				Context("when a request body field is missing", func() {
+					assertPOSTReturns400WhenFieldIsMissing := func(field string) {
+						BeforeEach(func() {
+							delete(postBindingRequest, field)
+							delete(expectedBindingResponse, field)
+						})
+
+						It("returns 400", func() {
+							ctx.SMWithOAuth.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
+								Expect().
+								Status(http.StatusBadRequest).
+								JSON().Object().
+								Keys().Contains("error", "description")
+						})
+					}
+
+					assertPOSTReturns201WhenFieldIsMissing := func(field string) {
+						BeforeEach(func() {
+							delete(postBindingRequest, field)
+							delete(expectedBindingResponse, field)
+						})
+
+						It("returns 201", func() {
+							createBinding(postBindingRequest)
+						})
+					}
+
+					Context("when id  field is missing", func() {
+						assertPOSTReturns201WhenFieldIsMissing("id")
+					})
+
+					Context("when name field is missing", func() {
+						assertPOSTReturns400WhenFieldIsMissing("name")
+					})
+
+					Context("when service_instance_id field is missing", func() {
+						assertPOSTReturns400WhenFieldIsMissing("service_instance_id")
+					})
+
+					Context("when credentials field is missing", func() {
+						assertPOSTReturns201WhenFieldIsMissing("credentials")
+					})
+				})
+
+				Context("when request body id field is invalid", func() {
+					It("should return 400", func() {
+						postBindingRequest["id"] = "binding/1"
+						resp := ctx.SMWithOAuth.POST(web.ServiceBindingsURL).
+							WithJSON(postBindingRequest).
+							Expect().Status(http.StatusBadRequest).JSON().Object()
+
+						resp.Value("description").Equal("binding/1 contains invalid character(s)")
+					})
+				})
+
+				Context("With async query param", func() {
+					It("succeeds", func() {
+						resp := ctx.SMWithOAuth.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
+							WithQuery("async", "true").
+							Expect().
+							Status(http.StatusAccepted)
+
+						test.ExpectOperation(ctx.SMWithOAuth, resp, types.SUCCEEDED)
+
+						ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", web.ServiceBindingsURL, postBindingRequest["id"])).Expect().
+							Status(http.StatusOK).
+							JSON().Object().
+							ContainsMap(expectedBindingResponse).ContainsKey("id")
+					})
+				})
+			})
+
+		})
+	},
 })
 
 func blueprint(ctx *common.TestContext, auth *common.SMExpect, async bool) common.Object {
