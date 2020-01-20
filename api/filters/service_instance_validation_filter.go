@@ -18,6 +18,7 @@ package filters
 
 import (
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -28,19 +29,18 @@ import (
 
 const platformIDProperty = "platform_id"
 
-const ServiceInstanceValidationFilterName = "ServiceInstanceValidationFilter"
+const ServiceInstanceFilterName = "ServiceInstanceFilter"
 
-// ServiceInstanceValidationFilter ensures that if a platform is provided for service instance that it's
-// the SM Platform and also discards the properties 'ready' and 'usable' if they're provided as these properties
-// are only maintained internally.
-type ServiceInstanceValidationFilter struct {
+// ServiceInstanceFilter ensures that if a platform is provided for service instance that it's the SM Platform
+type ServiceInstanceFilter struct {
 }
 
-func (*ServiceInstanceValidationFilter) Name() string {
-	return ServiceInstanceValidationFilterName
+func (*ServiceInstanceFilter) Name() string {
+	return ServiceInstanceFilterName
 }
 
-func (*ServiceInstanceValidationFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
+func (*ServiceInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
+	reqCtx := req.Context()
 	platformID := gjson.GetBytes(req.Body, platformIDProperty).Str
 
 	if platformID != "" && platformID != types.SMPlatform {
@@ -52,32 +52,35 @@ func (*ServiceInstanceValidationFilter) Run(req *web.Request, next web.Handler) 
 	}
 
 	var err error
-	if req.Method == http.MethodPost && platformID == "" {
-		req.Body, err = sjson.SetBytes(req.Body, platformIDProperty, types.SMPlatform)
+
+	switch req.Request.Method {
+	case http.MethodPost:
+		if platformID == "" {
+			req.Body, err = sjson.SetBytes(req.Body, platformIDProperty, types.SMPlatform)
+			if err != nil {
+				return nil, err
+			}
+		}
+	case http.MethodPatch:
+		fallthrough
+	case http.MethodDelete:
+		byPlatformID := query.ByField(query.EqualsOperator, platformIDProperty, types.SMPlatform)
+		ctx, err := query.AddCriteria(reqCtx, byPlatformID)
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	req.Body, err = sjson.DeleteBytes(req.Body, "ready")
-	if err != nil {
-		return nil, err
-	}
-
-	req.Body, err = sjson.DeleteBytes(req.Body, "usable")
-	if err != nil {
-		return nil, err
+		req.Request = req.WithContext(ctx)
 	}
 
 	return next.Handle(req)
 }
 
-func (*ServiceInstanceValidationFilter) FilterMatchers() []web.FilterMatcher {
+func (*ServiceInstanceFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
 				web.Path(web.ServiceInstancesURL + "/**"),
-				web.Methods(http.MethodPost, http.MethodPatch),
+				web.Methods(http.MethodPost, http.MethodPatch, http.MethodDelete),
 			},
 		},
 	}
