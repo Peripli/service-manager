@@ -28,7 +28,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Service Binding Strip Filter", func() {
+var _ = Describe("Service Instance Strip Filter", func() {
 	const (
 		propertyNotToBeDeleted = "some_prop"
 		defaultValue           = "value"
