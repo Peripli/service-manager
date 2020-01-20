@@ -29,8 +29,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/web"
 )
 
-const serviceInstanceIDProperty = "service_instance_id"
-
 const ServiceBindingOwnershipFilterName = "ServiceBindingOwnershipFilter"
 
 // serviceBindingOwnershipFilter ensures that the tenant making the create/delete binding request

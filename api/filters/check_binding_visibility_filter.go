@@ -28,35 +28,35 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-const planIDProperty = "service_plan_id"
+const serviceInstanceIDProperty = "service_instance_id"
 
-const ServiceInstanceVisibilityFilterName = "ServiceInstanceVisibilityFilter"
+const ServiceBindingVisibilityFilterName = "ServiceBindingVisibilityFilter"
 
-// serviceInstanceVisibilityFilter ensures that the tenant making the provisioning/update request
+// serviceBindingVisibilityFilter ensures that the tenant making the provisioning/update request
 // has the necessary visibilities.
-type serviceInstanceVisibilityFilter struct {
+type serviceBindingVisibilityFilter struct {
 	repository       storage.Repository
 	tenantIdentifier string
 }
 
-// NewServiceInstanceVisibilityFilter creates a new serviceInstanceVisibilityFilter filter
-func NewServiceInstanceVisibilityFilter(repository storage.Repository, tenantIdentifier string) *serviceInstanceVisibilityFilter {
-	return &serviceInstanceVisibilityFilter{
+// NewServiceBindingVisibilityFilter creates a new serviceInstanceVisibilityFilter filter
+func NewServiceBindingVisibilityFilter(repository storage.Repository, tenantIdentifier string) *serviceBindingVisibilityFilter {
+	return &serviceBindingVisibilityFilter{
 		repository:       repository,
 		tenantIdentifier: tenantIdentifier,
 	}
 }
 
-func (*serviceInstanceVisibilityFilter) Name() string {
-	return ServiceInstanceVisibilityFilterName
+func (*serviceBindingVisibilityFilter) Name() string {
+	return ServiceBindingVisibilityFilterName
 }
 
-func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
+func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
-	planID := gjson.GetBytes(req.Body, planIDProperty).String()
+	instanceID := gjson.GetBytes(req.Body, serviceInstanceIDProperty).String()
 
-	if planID == "" {
-		log.C(ctx).Info("Plan ID is not provided in the request. Proceeding with the next handler...")
+	if instanceID == "" {
+		log.C(ctx).Info("Service Instance ID is not provided in the request. Proceeding with the next handler...")
 		return next.Handle(req)
 	}
 
@@ -68,32 +68,32 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, platformIDProperty, types.SMPlatform),
-		query.ByField(query.EqualsOperator, planIDProperty, planID),
+		query.ByField(query.EqualsOperator, serviceInstanceIDProperty, instanceID),
 		query.ByLabel(query.InOperator, f.tenantIdentifier, tenantID),
 	}
 
-	_, err := f.repository.Get(ctx, types.VisibilityType, criteria...)
+	count, err := f.repository.Count(ctx, types.ServiceInstanceType, criteria...)
 	if err != nil {
-		if err == util.ErrNotFoundInStorage {
-			return nil, &util.HTTPError{
-				ErrorType:   "NotFound",
-				Description: "could not find such service plan",
-				StatusCode:  http.StatusNotFound,
-			}
-		}
+		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
+	}
 
-		return nil, util.HandleStorageError(err, types.VisibilityType.String())
+	if count != 1 {
+		return nil, &util.HTTPError{
+			ErrorType:   "NotFound",
+			Description: "could not find such service instance",
+			StatusCode:  http.StatusNotFound,
+		}
 	}
 
 	return next.Handle(req)
 }
 
-func (*serviceInstanceVisibilityFilter) FilterMatchers() []web.FilterMatcher {
+func (*serviceBindingVisibilityFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
-				web.Path(web.ServiceInstancesURL + "/**"),
-				web.Methods(http.MethodPost, http.MethodPatch),
+				web.Path(web.ServiceBindingsURL),
+				web.Methods(http.MethodPost),
 			},
 		},
 	}
