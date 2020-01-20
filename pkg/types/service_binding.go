@@ -41,6 +41,7 @@ type ServiceBinding struct {
 	Context           json.RawMessage `json:"-"`
 	BindResource      json.RawMessage `json:"bind_resource,omitempty"`
 	Credentials       string          `json:"credentials"`
+	Ready             bool            `json:"ready"`
 
 	LastOperation *Operation `json:"last_operation,omitempty"`
 }

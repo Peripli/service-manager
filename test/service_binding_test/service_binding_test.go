@@ -44,7 +44,6 @@ func TestServiceBindings(t *testing.T) {
 
 const (
 	TenantIdentifier = "tenant"
-	TenantValue      = "tenant_value"
 )
 
 var _ = test.DescribeTestsFor(test.TestCase{
@@ -116,13 +115,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					"id":                  bindingID.String(),
 					"name":                bindingName,
 					"service_instance_id": instanceID.String(),
-					"credentials":         `{"password": "secret"}`,
 				}
 				expectedBindingResponse = common.Object{
 					"id":                  bindingID.String(),
 					"name":                bindingName,
 					"service_instance_id": instanceID.String(),
-					"credentials":         `{"password": "secret"}`,
 				}
 			})
 
@@ -192,9 +189,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						assertPOSTReturns400WhenFieldIsMissing("service_instance_id")
 					})
 
-					Context("when credentials field is missing", func() {
-						assertPOSTReturns201WhenFieldIsMissing("credentials")
-					})
 				})
 
 				Context("when request body id field is invalid", func() {
@@ -259,7 +253,6 @@ func blueprint(ctx *common.TestContext, auth *common.SMExpect, async bool) commo
 			"id":                  bindingID,
 			"name":                bindingID + "name",
 			"service_instance_id": instanceID,
-			"credentials":         `{"password": "secret"}`,
 		}).Expect()
 
 	var binding map[string]interface{}
