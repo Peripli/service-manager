@@ -33,7 +33,7 @@ const planIDProperty = "service_plan_id"
 const ServiceInstanceVisibilityFilterName = "ServiceInstanceVisibilityFilter"
 
 // serviceInstanceVisibilityFilter ensures that the tenant making the provisioning/update request
-// has the necessary visibilities.
+// has the necessary visibilities - i.e. that he has the right to consume the requested plan.
 type serviceInstanceVisibilityFilter struct {
 	repository       storage.Repository
 	tenantIdentifier string

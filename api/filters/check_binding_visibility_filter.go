@@ -33,8 +33,8 @@ const serviceInstanceIDProperty = "service_instance_id"
 
 const ServiceBindingVisibilityFilterName = "ServiceBindingVisibilityFilter"
 
-// serviceBindingVisibilityFilter ensures that the tenant making the provisioning/update request
-// has the necessary visibilities.
+// serviceBindingVisibilityFilter ensures that the tenant making the create/delete bind request
+// is the actual owner of the service instance and that the bind request is for an instance created in the SM platform.
 type serviceBindingVisibilityFilter struct {
 	repository       storage.Repository
 	tenantIdentifier string

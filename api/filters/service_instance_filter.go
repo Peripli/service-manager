@@ -31,7 +31,8 @@ const platformIDProperty = "platform_id"
 
 const ServiceInstanceFilterName = "ServiceInstanceFilter"
 
-// ServiceInstanceFilter ensures that if a platform is provided for service instance that it's the SM Platform
+// ServiceInstanceFilter ensures that if a platform is provided for provisioning request that it's the SM Platform.
+// It also limits Patch and Delete requests to instances created in the SM platform.
 type ServiceInstanceFilter struct {
 }
 
