@@ -461,9 +461,7 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 	multitenancyFilters := filters.NewMultitenancyFilters(labelKey, extractTenantFunc)
 	smb.RegisterFiltersAfter(filters.ProtectedLabelsFilterName, multitenancyFilters...)
 	smb.RegisterFilters(
-		filters.NewServiceInstanceOwnershipFilter(smb.Storage, labelKey),
 		filters.NewServiceInstanceVisibilityFilter(smb.Storage, labelKey),
-		filters.NewServiceBindingOwnershipFilter(smb.Storage, labelKey),
 		filters.NewServiceBindingVisibilityFilter(smb.Storage, labelKey),
 	)
 

@@ -231,6 +231,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							ContainsMap(expectedBindingResponse).ContainsKey("id")
 					})
 				})
+
 				Context("instance ownership", func() {
 					When("tenant doesn't have ownership of instance", func() {
 						It("returns 404", func() {
@@ -263,17 +264,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Status(http.StatusCreated)
 
 							ctx.SMWithOAuthForTenant.DELETE(fmt.Sprintf("%s/%s", web.ServiceBindingsURL, postBindingRequest["id"])).
-								Expect().Status(http.StatusNotFound)
-						})
-					})
-
-					When("tenant doesn't have ownership of some instances in bulk delete", func() {
-						It("returns 404", func() {
-							smExpect.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
-								Expect().
-								Status(http.StatusCreated)
-
-							ctx.SMWithOAuthForTenant.DELETE(web.ServiceBindingsURL).
 								Expect().Status(http.StatusNotFound)
 						})
 					})

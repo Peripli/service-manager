@@ -55,7 +55,7 @@ func (*serviceBindingVisibilityFilter) Name() string {
 func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 
-	tenantID := query.RetrieveFromCriteria(f.tenantIdentifier, query.CriteriaForContext(ctx)...)[0]
+	tenantID := query.RetrieveFromCriteria(f.tenantIdentifier, query.CriteriaForContext(ctx)...)
 	if tenantID == "" {
 		log.C(ctx).Info("Tenant identifier not found in request criteria. Proceeding with the next handler...")
 		return next.Handle(req)
