@@ -17,10 +17,12 @@
 package service_binding_test
 
 import (
+	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/storage"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gofrs/uuid"
 
@@ -45,7 +47,7 @@ func TestServiceBindings(t *testing.T) {
 
 const (
 	TenantIdentifier = "tenant"
-	TenantValue      = "tenantID"
+	TenantIDValue    = "tenantID"
 )
 
 var _ = test.DescribeTestsFor(test.TestCase{
@@ -60,7 +62,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 		LabelKey:           TenantIdentifier,
 		TokenClaims: map[string]interface{}{
 			"cid": "tenancyClient",
-			"zid": TenantValue,
+			"zid": TenantIDValue,
 		},
 	},
 	ResourceType:                           types.ServiceBindingType,
@@ -86,7 +88,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				}
 
 				planID := newServicePlan(ctx)
-				ensurePlanVisibility(ctx.SMWithOAuth, types.SMPlatform, planID)
+				ensurePlanVisibility(ctx.SMRepository, types.SMPlatform, planID, TenantIDValue)
 
 				instanceBody := common.Object{
 					"id":               instanceID.String(),
@@ -340,28 +342,26 @@ func newServicePlan(ctx *common.TestContext) string {
 	return servicePlanID
 }
 
-func ensurePlanVisibility(SM *common.SMExpect, platformID, planID string) {
-	vis := &common.Object{
-		"platform_id":     platformID,
-		"service_plan_id": planID,
+func ensurePlanVisibility(repository storage.Repository, platformID, planID, tenantID string) {
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(fmt.Errorf("could not generate GUID for visibility: %s", err))
 	}
 
-	resp := SM.POST(web.VisibilitiesURL).
-		WithJSON(vis).Expect().Status(http.StatusCreated)
-
-	visID := resp.JSON().Object().Value("id").String().Raw()
-
-	patchLabelsBody := make(map[string]interface{})
-	patchLabelsBody["labels"] = []query.LabelChange{
-		{
-			Operation: query.AddLabelOperation,
-			Key:       TenantIdentifier,
-			Values:    []string{TenantValue},
+	currentTime := time.Now().UTC()
+	_, err = repository.Create(context.TODO(), &types.Visibility{
+		Base: types.Base{
+			ID:        UUID.String(),
+			UpdatedAt: currentTime,
+			CreatedAt: currentTime,
+			Labels: types.Labels{
+				TenantIdentifier: {tenantID},
+			},
 		},
+		ServicePlanID: planID,
+		PlatformID:    platformID,
+	})
+	if err != nil {
+		panic(err)
 	}
-
-	SM.PATCH(fmt.Sprintf("%s/%s", web.VisibilitiesURL, visID)).
-		WithJSON(patchLabelsBody).
-		Expect().
-		Status(http.StatusOK)
 }

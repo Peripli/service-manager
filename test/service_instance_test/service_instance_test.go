@@ -19,8 +19,9 @@ package service_test
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/Peripli/service-manager/storage"
 	"github.com/gavv/httpexpect"
+	"time"
 
 	"github.com/Peripli/service-manager/test/testutil/service_instance"
 	"github.com/gofrs/uuid"
@@ -303,7 +304,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					When("tenant has plan visibility", func() {
 						It("returns 201", func() {
-							ensurePlanVisibility(ctx.SMWithOAuth, types.SMPlatform, servicePlanID, TenantIDValue)
+							ensurePlanVisibility(ctx.SMRepository, types.SMPlatform, servicePlanID, TenantIDValue)
 							createInstance(ctx.SMWithOAuthForTenant, http.StatusCreated)
 						})
 					})
@@ -429,7 +430,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("instance visibility", func() {
 					When("tenant doesn't have plan visibility", func() {
 						It("returns 404", func() {
-							ensurePlanVisibility(ctx.SMWithOAuth, types.SMPlatform, servicePlanID, TenantIDValue)
+							ensurePlanVisibility(ctx.SMRepository, types.SMPlatform, servicePlanID, TenantIDValue)
 							createInstance(ctx.SMWithOAuthForTenant, http.StatusCreated)
 
 							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL + "/" + instanceID).
@@ -440,10 +441,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					When("tenant has plan visibility", func() {
 						It("returns 201", func() {
-							ensurePlanVisibility(ctx.SMWithOAuth, types.SMPlatform, servicePlanID, TenantIDValue)
+							ensurePlanVisibility(ctx.SMRepository, types.SMPlatform, servicePlanID, TenantIDValue)
 							createInstance(ctx.SMWithOAuthForTenant, http.StatusCreated)
 
-							ensurePlanVisibility(ctx.SMWithOAuth, types.SMPlatform, anotherServicePlanID, TenantIDValue)
+							ensurePlanVisibility(ctx.SMRepository, types.SMPlatform, anotherServicePlanID, TenantIDValue)
 							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL + "/" + instanceID).
 								WithJSON(common.Object{"service_plan_id": anotherServicePlanID}).
 								Expect().Status(http.StatusOK)
@@ -464,7 +465,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					When("tenant has ownership of instance", func() {
 						It("returns 200", func() {
-							ensurePlanVisibility(ctx.SMWithOAuth, types.SMPlatform, servicePlanID, TenantIDValue)
+							ensurePlanVisibility(ctx.SMRepository, types.SMPlatform, servicePlanID, TenantIDValue)
 							createInstance(ctx.SMWithOAuthForTenant, http.StatusCreated)
 
 							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL + "/" + instanceID).
@@ -497,7 +498,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					When("tenant has ownership of instance", func() {
 						It("returns 200", func() {
-							ensurePlanVisibility(ctx.SMWithOAuth, types.SMPlatform, servicePlanID, TenantIDValue)
+							ensurePlanVisibility(ctx.SMRepository, types.SMPlatform, servicePlanID, TenantIDValue)
 							createInstance(ctx.SMWithOAuthForTenant, http.StatusCreated)
 
 							ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL + "/" + instanceID).
@@ -547,28 +548,26 @@ func generateServicePlanIDs(ctx *common.TestContext, auth *common.SMExpect) *htt
 	return auth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw()))
 }
 
-func ensurePlanVisibility(SM *common.SMExpect, platformID, planID, tenantID string) {
-	vis := &common.Object{
-		"platform_id":     platformID,
-		"service_plan_id": planID,
+func ensurePlanVisibility(repository storage.Repository, platformID, planID, tenantID string) {
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(fmt.Errorf("could not generate GUID for visibility: %s", err))
 	}
 
-	resp := SM.POST(web.VisibilitiesURL).
-		WithJSON(vis).Expect().Status(http.StatusCreated)
-
-	visID := resp.JSON().Object().Value("id").String().Raw()
-
-	patchLabelsBody := make(map[string]interface{})
-	patchLabelsBody["labels"] = []query.LabelChange{
-		{
-			Operation: query.AddLabelOperation,
-			Key:       TenantIdentifier,
-			Values:    []string{tenantID},
+	currentTime := time.Now().UTC()
+	_, err = repository.Create(context.TODO(), &types.Visibility{
+		Base: types.Base{
+			ID:        UUID.String(),
+			UpdatedAt: currentTime,
+			CreatedAt: currentTime,
+			Labels: types.Labels{
+				TenantIdentifier: {tenantID},
+			},
 		},
+		ServicePlanID: planID,
+		PlatformID:    platformID,
+	})
+	if err != nil {
+		panic(err)
 	}
-
-	SM.PATCH(fmt.Sprintf("%s/%s", web.VisibilitiesURL, visID)).
-		WithJSON(patchLabelsBody).
-		Expect().
-		Status(http.StatusOK)
 }
