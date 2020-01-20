@@ -269,15 +269,13 @@ func Parse(criterionType CriterionType, expression string) ([]Criterion, error) 
 }
 
 // RetrieveFromCriteria searches for the value (rightOp) of a given key (leftOp) in a set of criteria
-func RetrieveFromCriteria(key string, criteria ...Criterion) string {
-	value := ""
+func RetrieveFromCriteria(key string, criteria ...Criterion) []string {
 	for _, criterion := range criteria {
 		if criterion.LeftOp == key {
-			value = criterion.RightOp[0]
-			break
+			return criterion.RightOp
 		}
 	}
-	return value
+	return []string{}
 }
 
 func isNumeric(str string) bool {

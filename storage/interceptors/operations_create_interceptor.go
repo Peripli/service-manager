@@ -48,7 +48,7 @@ func (c *operationsCreateInterceptor) OnTxCreate(h storage.InterceptCreateOnTxFu
 	return func(ctx context.Context, storage storage.Repository, obj types.Object) (types.Object, error) {
 		operation := obj.(*types.Operation)
 
-		tenantID := query.RetrieveFromCriteria(c.TenantIdentifier, query.CriteriaForContext(ctx)...)
+		tenantID := query.RetrieveFromCriteria(c.TenantIdentifier, query.CriteriaForContext(ctx)...)[0]
 
 		if tenantID == "" {
 			log.D().Debugf("Could not add %s label to operation with id %s. Label not found in context criteria.", c.TenantIdentifier, operation.ID)
