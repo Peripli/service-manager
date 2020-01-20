@@ -61,7 +61,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	SupportsAsyncOperations:                false,
 	ResourceBlueprint:                      blueprint(true),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
-	PatchResource:                          test.DefaultResourcePatch,
+	PatchResource:                          test.APIResourcePatch,
 	AdditionalTests: func(ctx *common.TestContext) {
 		Context("non-generic tests", func() {
 			BeforeEach(func() {

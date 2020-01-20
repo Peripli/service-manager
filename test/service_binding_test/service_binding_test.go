@@ -17,17 +17,14 @@
 package service_binding_test
 
 import (
-	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gofrs/uuid"
 
 	"testing"
 
-	"github.com/Peripli/service-manager/test/testutil/service_binding"
-
-	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -47,13 +44,12 @@ func TestServiceBindings(t *testing.T) {
 
 const (
 	TenantIdentifier = "tenant"
-	TenantValue      = "tenant_value"
 )
 
 var _ = test.DescribeTestsFor(test.TestCase{
 	API: web.ServiceBindingsURL,
 	SupportedOps: []test.Op{
-		test.Get, test.List,
+		test.Get, test.List, test.Delete, test.DeleteList,
 	},
 	MultitenancySettings: &test.MultitenancySettings{
 		ClientID:           "tenancyClient",
@@ -70,43 +66,202 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	DisableTenantResources:                 true,
 	ResourceBlueprint:                      blueprint,
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
-	ResourcePropertiesToIgnore:             []string{"credentials"},
-	PatchResource: func(ctx *common.TestContext, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange, _ bool) {
-		byID := query.ByField(query.EqualsOperator, "id", objID)
-		sb, err := ctx.SMRepository.Get(context.Background(), resourceType, byID)
-		if err != nil {
-			Fail(fmt.Sprintf("unable to retrieve resource %s: %s", resourceType, err))
-		}
+	ResourcePropertiesToIgnore:             []string{"volume_mounts", "endpoints", "bind_resource", "credentials"},
+	PatchResource:                          test.StorageResourcePatch,
+	AdditionalTests: func(ctx *common.TestContext) {
+		Context("additional non-generic tests", func() {
+			var (
+				postBindingRequest      common.Object
+				expectedBindingResponse common.Object
+			)
 
-		_, err = ctx.SMRepository.Update(context.Background(), sb, patchLabels)
-		if err != nil {
-			Fail(fmt.Sprintf("unable to update resource %s: %s", resourceType, err))
-		}
+			createInstance := func(body common.Object) {
+				ctx.SMWithOAuth.POST(web.ServiceInstancesURL).WithJSON(body).
+					Expect().
+					Status(http.StatusCreated)
+			}
+
+			createBinding := func(body common.Object) {
+				ctx.SMWithOAuth.POST(web.ServiceBindingsURL).WithJSON(body).
+					Expect().
+					Status(http.StatusCreated).
+					JSON().Object().
+					ContainsMap(expectedBindingResponse).ContainsKey("id")
+			}
+
+			BeforeEach(func() {
+				var err error
+				instanceID, err := uuid.NewV4()
+				if err != nil {
+					panic(err)
+				}
+
+				instanceBody := common.Object{
+					"id":               instanceID.String(),
+					"name":             "test-instance",
+					"service_plan_id":  newServicePlan(ctx),
+					"maintenance_info": "{}",
+				}
+				createInstance(instanceBody)
+
+				bindingID, err := uuid.NewV4()
+				if err != nil {
+					panic(err)
+				}
+
+				bindingName := "test-binding"
+
+				postBindingRequest = common.Object{
+					"id":                  bindingID.String(),
+					"name":                bindingName,
+					"service_instance_id": instanceID.String(),
+				}
+				expectedBindingResponse = common.Object{
+					"id":                  bindingID.String(),
+					"name":                bindingName,
+					"service_instance_id": instanceID.String(),
+				}
+			})
+
+			AfterEach(func() {
+				ctx.CleanupAdditionalResources()
+			})
+
+			Describe("POST", func() {
+				Context("when content type is not JSON", func() {
+					It("returns 415", func() {
+						ctx.SMWithOAuth.POST(web.ServiceBindingsURL).WithText("text").
+							Expect().
+							Status(http.StatusUnsupportedMediaType).
+							JSON().Object().
+							Keys().Contains("error", "description")
+					})
+				})
+
+				Context("when request body is not a valid JSON", func() {
+					It("returns 400", func() {
+						ctx.SMWithOAuth.POST(web.ServiceBindingsURL).
+							WithText("invalid json").
+							WithHeader("content-type", "application/json").
+							Expect().
+							Status(http.StatusBadRequest).
+							JSON().Object().
+							Keys().Contains("error", "description")
+					})
+				})
+
+				Context("when a request body field is missing", func() {
+					assertPOSTReturns400WhenFieldIsMissing := func(field string) {
+						BeforeEach(func() {
+							delete(postBindingRequest, field)
+							delete(expectedBindingResponse, field)
+						})
+
+						It("returns 400", func() {
+							ctx.SMWithOAuth.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
+								Expect().
+								Status(http.StatusBadRequest).
+								JSON().Object().
+								Keys().Contains("error", "description")
+						})
+					}
+
+					assertPOSTReturns201WhenFieldIsMissing := func(field string) {
+						BeforeEach(func() {
+							delete(postBindingRequest, field)
+							delete(expectedBindingResponse, field)
+						})
+
+						It("returns 201", func() {
+							createBinding(postBindingRequest)
+						})
+					}
+
+					Context("when id  field is missing", func() {
+						assertPOSTReturns201WhenFieldIsMissing("id")
+					})
+
+					Context("when name field is missing", func() {
+						assertPOSTReturns400WhenFieldIsMissing("name")
+					})
+
+					Context("when service_instance_id field is missing", func() {
+						assertPOSTReturns400WhenFieldIsMissing("service_instance_id")
+					})
+
+				})
+
+				Context("when request body id field is invalid", func() {
+					It("should return 400", func() {
+						postBindingRequest["id"] = "binding/1"
+						resp := ctx.SMWithOAuth.POST(web.ServiceBindingsURL).
+							WithJSON(postBindingRequest).
+							Expect().Status(http.StatusBadRequest).JSON().Object()
+
+						resp.Value("description").Equal("binding/1 contains invalid character(s)")
+					})
+				})
+
+				Context("With async query param", func() {
+					It("succeeds", func() {
+						resp := ctx.SMWithOAuth.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
+							WithQuery("async", "true").
+							Expect().
+							Status(http.StatusAccepted)
+
+						test.ExpectOperation(ctx.SMWithOAuth, resp, types.SUCCEEDED)
+
+						ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", web.ServiceBindingsURL, postBindingRequest["id"])).Expect().
+							Status(http.StatusOK).
+							JSON().Object().
+							ContainsMap(expectedBindingResponse).ContainsKey("id")
+					})
+				})
+			})
+
+		})
 	},
-	AdditionalTests: func(ctx *common.TestContext) {},
 })
 
-func blueprint(ctx *common.TestContext, auth *common.SMExpect, _ bool) common.Object {
-	instanceIDObj, err := uuid.NewV4()
+func blueprint(ctx *common.TestContext, auth *common.SMExpect, async bool) common.Object {
+	ID, err := uuid.NewV4()
 	if err != nil {
 		Fail(fmt.Sprintf("failed to generate instance GUID: %s", err))
 	}
-	instanceID := instanceIDObj.String()
+	instanceID := "instance-" + ID.String()
 
-	ctx.SMWithOAuth.POST(web.ServiceInstancesURL).WithJSON(common.Object{
-		"id":               instanceID,
-		"name":             instanceID + "name",
-		"service_plan_id":  newServicePlan(ctx),
-		"maintenance_info": "{}",
-	}).Expect().Status(http.StatusCreated)
+	resp := ctx.SMWithOAuth.POST(web.ServiceInstancesURL).
+		WithQuery("async", strconv.FormatBool(async)).
+		WithJSON(common.Object{
+			"id":               instanceID,
+			"name":             instanceID + "name",
+			"service_plan_id":  newServicePlan(ctx),
+			"maintenance_info": "{}",
+		}).Expect()
 
-	serviceBindingObj := service_binding.Prepare(instanceID, fmt.Sprintf(`{"%s":"%s"}`, TenantIdentifier, TenantValue), `{"password": "secret"}`)
-	_, err = ctx.SMRepository.Create(context.Background(), serviceBindingObj)
-	if err != nil {
-		Fail(fmt.Sprintf("could not create service binding: %s", err))
+	if async {
+		test.ExpectSuccessfulAsyncResourceCreation(resp, auth, instanceID, web.ServiceInstancesURL)
+	} else {
+		resp.Status(http.StatusCreated)
 	}
 
-	binding := auth.ListWithQuery(web.ServiceBindingsURL, fmt.Sprintf("fieldQuery=id eq '%s'", serviceBindingObj.ID)).First().Object().Raw()
+	bindingID := "binding-" + ID.String()
+
+	resp = ctx.SMWithOAuth.POST(web.ServiceBindingsURL).
+		WithQuery("async", strconv.FormatBool(async)).
+		WithJSON(common.Object{
+			"id":                  bindingID,
+			"name":                bindingID + "name",
+			"service_instance_id": instanceID,
+		}).Expect()
+
+	var binding map[string]interface{}
+	if async {
+		binding = test.ExpectSuccessfulAsyncResourceCreation(resp, auth, bindingID, web.ServiceBindingsURL)
+	} else {
+		binding = resp.Status(http.StatusCreated).JSON().Object().Raw()
+	}
+
 	delete(binding, "credentials")
 	return binding
 }

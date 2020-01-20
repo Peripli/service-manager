@@ -17,7 +17,9 @@ CREATE TABLE service_bindings
 
   created_at        timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at        timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  paging_sequence   BIGSERIAL
+  paging_sequence   BIGSERIAL,
+
+  ready             boolean NOT NULL
 );
 
 CREATE TABLE service_binding_labels

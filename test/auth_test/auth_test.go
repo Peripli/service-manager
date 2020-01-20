@@ -278,6 +278,32 @@ var _ = Describe("Service Manager Authentication", func() {
 			{"Invalid authorization schema", "DELETE", web.ServiceInstancesURL + "/999", invalidBasicAuthHeader},
 			{"Missing token in authorization header", "DELETE", web.ServiceInstancesURL + "/999", emptyBearerAuthHeader},
 			{"Invalid token in authorization header", "DELETE", web.ServiceInstancesURL + "/999", invalidBearerAuthHeader},
+
+			// SERVICE BINDINGS
+			{"Missing authorization header", "GET", web.ServiceBindingsURL + "/999", emptyAuthHeader},
+			{"Invalid authorization schema", "GET", web.ServiceBindingsURL + "/999", invalidBasicAuthHeader},
+			{"Missing token in authorization header", "GET", web.ServiceBindingsURL + "/999", emptyBearerAuthHeader},
+			{"Invalid token in authorization header", "GET", web.ServiceBindingsURL + "/999", invalidBearerAuthHeader},
+
+			{"Missing authorization header", "GET", web.ServiceBindingsURL + "/999/operations/999", emptyAuthHeader},
+			{"Invalid authorization schema", "GET", web.ServiceBindingsURL + "/999/operations/999", invalidBasicAuthHeader},
+			{"Missing token in authorization header", "GET", web.ServiceBindingsURL + "/999/operations/999", emptyBearerAuthHeader},
+			{"Invalid token in authorization header", "GET", web.ServiceBindingsURL + "/999/operations/999", invalidBearerAuthHeader},
+
+			{"Missing authorization header", "GET", web.ServiceBindingsURL, emptyAuthHeader},
+			{"Invalid authorization schema", "GET", web.ServiceBindingsURL, invalidBasicAuthHeader},
+			{"Missing token in authorization header", "GET", web.ServiceBindingsURL, emptyBearerAuthHeader},
+			{"Invalid token in authorization header", "GET", web.ServiceBindingsURL, invalidBearerAuthHeader},
+
+			{"Missing authorization header", "POST", web.ServiceBindingsURL, emptyAuthHeader},
+			{"Invalid authorization schema", "POST", web.ServiceBindingsURL, invalidBasicAuthHeader},
+			{"Missing token in authorization header", "POST", web.ServiceBindingsURL, emptyBearerAuthHeader},
+			{"Invalid token in authorization header", "POST", web.ServiceBindingsURL, invalidBearerAuthHeader},
+
+			{"Missing authorization header", "DELETE", web.ServiceBindingsURL + "/999", emptyAuthHeader},
+			{"Invalid authorization schema", "DELETE", web.ServiceBindingsURL + "/999", invalidBasicAuthHeader},
+			{"Missing token in authorization header", "DELETE", web.ServiceBindingsURL + "/999", emptyBearerAuthHeader},
+			{"Invalid token in authorization header", "DELETE", web.ServiceBindingsURL + "/999", invalidBearerAuthHeader},
 		}
 
 		for _, request := range authRequests {

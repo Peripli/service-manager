@@ -71,7 +71,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	SupportsAsyncOperations:                true,
 	ResourceBlueprint:                      blueprint(true),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
-	PatchResource:                          test.DefaultResourcePatch,
+	PatchResource:                          test.APIResourcePatch,
 	AdditionalTests: func(ctx *common.TestContext) {
 		Context("additional non-generic tests", func() {
 			var (
@@ -1752,14 +1752,7 @@ func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *com
 		var obj map[string]interface{}
 		resp := auth.POST(web.ServiceBrokersURL).WithQuery("async", strconv.FormatBool(async)).WithJSON(brokerJSON).Expect()
 		if async {
-			resp = resp.Status(http.StatusAccepted)
-			if err := test.ExpectOperation(auth, resp, types.SUCCEEDED); err != nil {
-				panic(err)
-			}
-
-			obj = auth.GET(web.ServiceBrokersURL + "/" + brokerID.String()).
-				Expect().JSON().Object().Raw()
-
+			obj = test.ExpectSuccessfulAsyncResourceCreation(resp, auth, brokerID.String(), web.ServiceBrokersURL)
 		} else {
 			obj = resp.Status(http.StatusCreated).JSON().Object().Raw()
 			delete(obj, "credentials")
