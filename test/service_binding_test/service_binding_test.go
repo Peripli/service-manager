@@ -129,13 +129,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					"id":                  bindingID.String(),
 					"name":                bindingName,
 					"service_instance_id": instanceID,
-					"credentials":         `{"password": "secret"}`,
 				}
 				expectedBindingResponse = common.Object{
 					"id":                  bindingID.String(),
 					"name":                bindingName,
 					"service_instance_id": instanceID,
-					"credentials":         `{"password": "secret"}`,
 				}
 			})
 
@@ -205,9 +203,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						assertPOSTReturns400WhenFieldIsMissing("service_instance_id")
 					})
 
-					Context("when credentials field is missing", func() {
-						assertPOSTReturns201WhenFieldIsMissing("credentials")
-					})
 				})
 
 				Context("when request body id field is invalid", func() {
@@ -236,7 +231,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							ContainsMap(expectedBindingResponse).ContainsKey("id")
 					})
 				})
-
 				Context("instance ownership", func() {
 					When("tenant doesn't have ownership of instance", func() {
 						It("returns 404", func() {
@@ -335,7 +329,6 @@ func blueprint(ctx *common.TestContext, auth *common.SMExpect, async bool) commo
 			"id":                  bindingID,
 			"name":                bindingID + "name",
 			"service_instance_id": instanceID,
-			"credentials":         `{"password": "secret"}`,
 		}).Expect()
 
 	var binding map[string]interface{}
