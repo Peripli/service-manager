@@ -62,43 +62,31 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 	}
 
 	var err error
-	instanceIDs := make([]string, 0)
+	var instanceID string
 
 	switch req.Method {
 	case http.MethodPost:
-		instanceID := gjson.GetBytes(req.Body, serviceInstanceIDProperty)
-		if !instanceID.Exists() {
+		instanceID = gjson.GetBytes(req.Body, serviceInstanceIDProperty).String()
+		if instanceID == "" {
 			log.C(ctx).Info("Service Instance ID is not provided in the request. Proceeding with the next handler...")
 			return next.Handle(req)
 		}
-		instanceIDs[0] = instanceID.String()
 	case http.MethodDelete:
-		bindingIDs := make([]string, 0)
 		bindingID := req.PathParams[web.PathParamResourceID]
 		if bindingID != "" {
-			bindingIDs[0] = bindingID
-		} else {
-			bindingIDs := query.RetrieveFromCriteria("id", query.CriteriaForContext(ctx)...)
-			if len(bindingIDs) == 0 {
-				log.C(ctx).Info("Service Binding ID is not provided in the request. Proceeding with the next handler...")
-				return next.Handle(req)
-			}
+			log.C(ctx).Info("Service Binding ID is not provided in the request. Proceeding with the next handler...")
+			return next.Handle(req)
 		}
-		instanceIDs, err = f.fetchInstanceIDs(ctx, tenantID, bindingIDs...)
-	}
-
-	if len(instanceIDs) == 0 {
-		return nil, &util.HTTPError{
-			ErrorType:   "NotFound",
-			Description: "could not find any tenant-specific instances related to the provided binding(s)",
-			StatusCode:  http.StatusNotFound,
+		instanceID, err = f.fetchInstanceID(ctx, tenantID, bindingID)
+		if err != nil {
+			return nil, err
 		}
 	}
 
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, platformIDProperty, types.SMPlatform),
-		query.ByField(query.InOperator, serviceInstanceIDProperty, instanceIDs...),
-		query.ByLabel(query.InOperator, f.tenantIdentifier, tenantID),
+		query.ByField(query.EqualsOperator, "id", instanceID),
+		query.ByLabel(query.EqualsOperator, f.tenantIdentifier, tenantID),
 	}
 
 	count, err := f.repository.Count(ctx, types.ServiceInstanceType, criteria...)
@@ -106,7 +94,7 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
 	}
 
-	if count == 0 {
+	if count != 1 {
 		return nil, &util.HTTPError{
 			ErrorType:   "NotFound",
 			Description: "could not find such service binding(s)",
@@ -121,29 +109,24 @@ func (*serviceBindingVisibilityFilter) FilterMatchers() []web.FilterMatcher {
 	return []web.FilterMatcher{
 		{
 			Matchers: []web.Matcher{
-				web.Path(web.ServiceBindingsURL),
-				web.Methods(http.MethodPost),
+				web.Path(web.ServiceBindingsURL + "/**"),
+				web.Methods(http.MethodPost, http.MethodDelete),
 			},
 		},
 	}
 }
 
-func (f *serviceBindingVisibilityFilter) fetchInstanceIDs(ctx context.Context, tenantID string, bindingIDs ...string) ([]string, error) {
+func (f *serviceBindingVisibilityFilter) fetchInstanceID(ctx context.Context, tenantID string, bindingID string) (string, error) {
 	criteria := []query.Criterion{
-		query.ByField(query.InOperator, serviceInstanceIDProperty, bindingIDs...),
-		query.ByLabel(query.InOperator, f.tenantIdentifier, tenantID),
+		query.ByField(query.EqualsOperator, "id", bindingID),
+		query.ByLabel(query.EqualsOperator, f.tenantIdentifier, tenantID),
 	}
 
-	objectList, err := f.repository.List(ctx, types.ServiceBindingType, criteria...)
+	object, err := f.repository.Get(ctx, types.ServiceBindingType, criteria...)
 	if err != nil {
-		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
+		return "", util.HandleStorageError(err, types.ServiceBindingType.String())
 	}
 
-	serviceBindings := objectList.(*types.ServiceBindings).ServiceBindings
-
-	instanceIDs := make([]string, 0)
-	for _, sb := range serviceBindings {
-		instanceIDs = append(instanceIDs, sb.ServiceInstanceID)
-	}
-	return instanceIDs, nil
+	sb := object.(*types.ServiceBinding)
+	return sb.ServiceInstanceID, nil
 }

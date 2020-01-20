@@ -71,13 +71,6 @@ func (c *ServiceBindingController) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodDelete,
-				Path:   c.resourceBaseURL,
-			},
-			Handler: c.DeleteObjects,
-		},
-		{
-			Endpoint: web.Endpoint{
-				Method: http.MethodDelete,
 				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, web.PathParamResourceID),
 			},
 			Handler: c.DeleteSingleObject,
