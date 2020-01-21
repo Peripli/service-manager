@@ -92,10 +92,8 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 		return next.Handle(req)
 	}
 	tenantLabels, ok := visibility.Labels[f.tenantIdentifier]
-	if ok {
-		if slice.StringsAnyEquals(tenantLabels, tenantID) {
-			return next.Handle(req)
-		}
+	if ok && slice.StringsAnyEquals(tenantLabels, tenantID) {
+		return next.Handle(req)
 	}
 
 	return nil, visibilityError
