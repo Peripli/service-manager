@@ -237,10 +237,10 @@ func (smb *ServiceManagerBuilder) registerSMPlatform() error {
 		Name: types.SMPlatform,
 	}); err != nil {
 		if err == util.ErrAlreadyExistsInStorage {
-			log.C(smb.ctx).Infof("platform %s already exists in SMDB...", "service-manager")
+			log.C(smb.ctx).Infof("platform %s already exists in SMDB...", types.SMPlatform)
 			return nil
 		}
-		return fmt.Errorf("could register service-manager platform during bootstrap: %s", err)
+		return fmt.Errorf("could not register %s platform during bootstrap: %s", types.SMPlatform, err)
 	}
 
 	return nil
