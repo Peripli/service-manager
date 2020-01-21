@@ -25,10 +25,10 @@ func (*CheckBrokerCredentialsFilter) Name() string {
 func (*CheckBrokerCredentialsFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	fields := gjson.GetManyBytes(req.Body, "broker_url", fmt.Sprintf(credentialsPath, "username"), fmt.Sprintf(credentialsPath, "password"))
 
-	if fields[0].Exists() && !fields[1].Exists() && !fields[2].Exists() {
+	if fields[0].Exists() && (!fields[1].Exists() || !fields[2].Exists()) {
 		return nil, &util.HTTPError{
 			ErrorType:   "BadRequest",
-			Description: "Updating an URl of a broker requires its basic credentials",
+			Description: "Updating an URL of a broker requires its basic credentials",
 			StatusCode:  http.StatusBadRequest,
 		}
 	}

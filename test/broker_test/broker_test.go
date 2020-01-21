@@ -821,25 +821,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							}
 						})
 
-						missingCredsTest := func(updatedBrokerJSON common.Object) {
-							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
-								WithJSON(updatedBrokerJSON).
-								Expect().
-								Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
-
-							assertInvocationCount(brokerServer.CatalogEndpointRequests, 0)
-
-							ctx.SMWithOAuth.GET(web.ServiceBrokersURL+"/"+brokerID).
-								Expect().
-								Status(http.StatusOK).
-								JSON().Object().
-								ContainsMap(expectedBrokerResponse).
-								Keys().NotContains("services", "credentials")
-						}
-
 						Context("credentials object is missing", func() {
 							It("returns 400", func() {
-								missingCredsTest(updatedBrokerJSON)
+								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
+									WithJSON(updatedBrokerJSON).
+									Expect().
+									Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
 							})
 						})
 
@@ -853,7 +840,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							})
 
 							It("returns 400", func() {
-								missingCredsTest(updatedBrokerJSON)
+								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
+									WithJSON(updatedBrokerJSON).
+									Expect().
+									Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
 							})
 						})
 
@@ -867,7 +857,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							})
 
 							It("returns 400", func() {
-								missingCredsTest(updatedBrokerJSON)
+								ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
+									WithJSON(updatedBrokerJSON).
+									Expect().
+									Status(http.StatusBadRequest).JSON().Object().Keys().Contains("error", "description")
 							})
 						})
 					})
