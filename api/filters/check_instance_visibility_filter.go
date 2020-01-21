@@ -60,32 +60,47 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 		return next.Handle(req)
 	}
 
+	criteria := []query.Criterion{
+		query.ByField(query.EqualsOrNilOperator, platformIDProperty, types.SMPlatform),
+		query.ByField(query.EqualsOperator, planIDProperty, planID),
+	}
+
+	list, err := f.repository.List(ctx, types.VisibilityType, criteria...)
+	if err != nil && err != util.ErrNotFoundInStorage {
+		return nil, util.HandleStorageError(err, types.VisibilityType.String())
+	}
+
+	visibilityError := &util.HTTPError{
+		ErrorType:   "NotFound",
+		Description: "could not find such service plan",
+		StatusCode:  http.StatusNotFound,
+	}
+	if list.Len() == 0 {
+		return nil, visibilityError
+	}
+
 	tenantID := query.RetrieveFromCriteria(f.tenantIdentifier, query.CriteriaForContext(ctx)...)
 	if tenantID == "" {
 		log.C(ctx).Info("Tenant identifier not found in request criteria. Proceeding with the next handler...")
 		return next.Handle(req)
 	}
 
-	criteria := []query.Criterion{
-		query.ByField(query.EqualsOperator, platformIDProperty, types.SMPlatform),
-		query.ByField(query.EqualsOperator, planIDProperty, planID),
-		query.ByLabel(query.InOperator, f.tenantIdentifier, tenantID),
-	}
-
-	_, err := f.repository.Get(ctx, types.VisibilityType, criteria...)
-	if err != nil {
-		if err == util.ErrNotFoundInStorage {
-			return nil, &util.HTTPError{
-				ErrorType:   "NotFound",
-				Description: "could not find such service plan",
-				StatusCode:  http.StatusNotFound,
+	visibilities := list.(*types.Visibilities).Visibilities
+	for _, v := range visibilities {
+		if len(v.PlatformID) == 0 {
+			return next.Handle(req)
+		}
+		tenantLabels, ok := v.Labels[f.tenantIdentifier]
+		if ok {
+			for _, tl := range tenantLabels {
+				if tl == tenantID {
+					return next.Handle(req)
+				}
 			}
 		}
-
-		return nil, util.HandleStorageError(err, types.VisibilityType.String())
 	}
 
-	return next.Handle(req)
+	return nil, visibilityError
 }
 
 func (*serviceInstanceVisibilityFilter) FilterMatchers() []web.FilterMatcher {

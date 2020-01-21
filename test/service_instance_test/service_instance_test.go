@@ -19,13 +19,13 @@ package service_test
 import (
 	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/storage"
+
 	"github.com/gavv/httpexpect"
-	"time"
+
+	"strconv"
 
 	"github.com/Peripli/service-manager/test/testutil/service_instance"
 	"github.com/gofrs/uuid"
-	"strconv"
 
 	"net/http"
 	"testing"
@@ -206,12 +206,15 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				When("a request body field is missing", func() {
 					assertPOSTReturns400WhenFieldIsMissing := func(field string) {
+						var servicePlanID string
 						BeforeEach(func() {
+							servicePlanID = postInstanceRequest["service_plan_id"].(string)
 							delete(postInstanceRequest, field)
 							delete(expectedInstanceResponse, field)
 						})
 
 						It("returns 400", func() {
+							test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, "")
 							ctx.SMWithOAuth.POST(web.ServiceInstancesURL).WithJSON(postInstanceRequest).
 								Expect().
 								Status(http.StatusBadRequest).
@@ -227,6 +230,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 
 						It("returns 201", func() {
+							test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), "")
 							createInstance(ctx.SMWithOAuth, http.StatusCreated)
 						})
 					}
@@ -250,6 +254,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				When("request body id field is invalid", func() {
 					It("should return 400", func() {
+						test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), "")
 						postInstanceRequest["id"] = "instance/1"
 						resp := ctx.SMWithOAuth.POST(web.ServiceInstancesURL).
 							WithJSON(postInstanceRequest).
@@ -274,6 +279,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("which is service-manager platform", func() {
 						It("should return 200", func() {
 							postInstanceRequest["platform_id"] = types.SMPlatform
+							test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), "")
 							createInstance(ctx.SMWithOAuth, http.StatusCreated)
 						})
 					})
@@ -281,6 +287,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				When("async query param", func() {
 					It("succeeds", func() {
+						test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), "")
 						resp := ctx.SMWithOAuth.POST(web.ServiceInstancesURL).WithJSON(postInstanceRequest).
 							WithQuery("async", "true").
 							Expect().
@@ -304,7 +311,19 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					When("tenant has plan visibility", func() {
 						It("returns 201", func() {
-							ensurePlanVisibility(ctx.SMRepository, types.SMPlatform, servicePlanID, TenantIDValue)
+							test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
+							createInstance(ctx.SMWithOAuthForTenant, http.StatusCreated)
+						})
+					})
+
+					When("plan has public visibility", func() {
+						It("for global returns 201", func() {
+							test.EnsurePublicPlanVisibility(ctx.SMRepository, servicePlanID)
+							createInstance(ctx.SMWithOAuth, http.StatusCreated)
+						})
+
+						It("for tenant returns 201", func() {
+							test.EnsurePublicPlanVisibility(ctx.SMRepository, servicePlanID)
 							createInstance(ctx.SMWithOAuthForTenant, http.StatusCreated)
 						})
 					})
@@ -347,6 +366,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				When("created_at provided in body", func() {
 					It("should not change created at", func() {
+						test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), "")
 						createInstance(ctx.SMWithOAuth, http.StatusCreated)
 
 						createdAt := "2015-01-01T00:00:00Z"
@@ -369,6 +389,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				When("platform_id provided in body", func() {
 					Context("which is not service-manager platform", func() {
 						It("should return 400", func() {
+							test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), "")
 							createInstance(ctx.SMWithOAuth, http.StatusCreated)
 
 							resp := ctx.SMWithOAuth.PATCH(web.ServiceInstancesURL + "/" + instanceID).
@@ -387,6 +408,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("which is service-manager platform", func() {
 						It("should return 200", func() {
+							test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), "")
 							createInstance(ctx.SMWithOAuth, http.StatusCreated)
 
 							ctx.SMWithOAuth.PATCH(web.ServiceInstancesURL + "/" + instanceID).
@@ -405,6 +427,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				When("fields are updated one by one", func() {
 					It("returns 200", func() {
+						test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), "")
 						createInstance(ctx.SMWithOAuth, http.StatusCreated)
 
 						for _, prop := range []string{"name", "maintenance_info"} {
@@ -430,7 +453,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("instance visibility", func() {
 					When("tenant doesn't have plan visibility", func() {
 						It("returns 404", func() {
-							ensurePlanVisibility(ctx.SMRepository, types.SMPlatform, servicePlanID, TenantIDValue)
+							test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 							createInstance(ctx.SMWithOAuthForTenant, http.StatusCreated)
 
 							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL + "/" + instanceID).
@@ -441,10 +464,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					When("tenant has plan visibility", func() {
 						It("returns 201", func() {
-							ensurePlanVisibility(ctx.SMRepository, types.SMPlatform, servicePlanID, TenantIDValue)
+							test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 							createInstance(ctx.SMWithOAuthForTenant, http.StatusCreated)
 
-							ensurePlanVisibility(ctx.SMRepository, types.SMPlatform, anotherServicePlanID, TenantIDValue)
+							test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, anotherServicePlanID, TenantIDValue)
 							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL + "/" + instanceID).
 								WithJSON(common.Object{"service_plan_id": anotherServicePlanID}).
 								Expect().Status(http.StatusOK)
@@ -455,6 +478,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("instance ownership", func() {
 					When("tenant doesn't have ownership of instance", func() {
 						It("returns 404", func() {
+							test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), "")
 							createInstance(ctx.SMWithOAuth, http.StatusCreated)
 
 							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL + "/" + instanceID).
@@ -465,7 +489,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					When("tenant has ownership of instance", func() {
 						It("returns 200", func() {
-							ensurePlanVisibility(ctx.SMRepository, types.SMPlatform, servicePlanID, TenantIDValue)
+							test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 							createInstance(ctx.SMWithOAuthForTenant, http.StatusCreated)
 
 							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL + "/" + instanceID).
@@ -480,6 +504,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("instance ownership", func() {
 					When("tenant doesn't have ownership of instance", func() {
 						It("returns 404", func() {
+							test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), "")
 							createInstance(ctx.SMWithOAuth, http.StatusCreated)
 
 							ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL + "/" + instanceID).
@@ -489,6 +514,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					When("tenant doesn't have ownership of some instances in bulk delete", func() {
 						It("returns 404", func() {
+							test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), "")
 							createInstance(ctx.SMWithOAuth, http.StatusCreated)
 
 							ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL).
@@ -498,7 +524,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					When("tenant has ownership of instance", func() {
 						It("returns 200", func() {
-							ensurePlanVisibility(ctx.SMRepository, types.SMPlatform, servicePlanID, TenantIDValue)
+							test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 							createInstance(ctx.SMWithOAuthForTenant, http.StatusCreated)
 
 							ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL + "/" + instanceID).
@@ -523,6 +549,7 @@ func blueprint(ctx *common.TestContext, auth *common.SMExpect, async bool) commo
 
 	instanceReqBody["service_plan_id"] = generateServicePlanIDs(ctx, auth).First().Object().Value("id").String().Raw()
 
+	test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, instanceReqBody["service_plan_id"].(string), "")
 	resp := auth.POST(web.ServiceInstancesURL).WithQuery("async", strconv.FormatBool(async)).WithJSON(instanceReqBody).Expect()
 
 	var instance map[string]interface{}
@@ -546,28 +573,4 @@ func generateServicePlanIDs(ctx *common.TestContext, auth *common.SMExpect) *htt
 	so := auth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerID)).First()
 
 	return auth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw()))
-}
-
-func ensurePlanVisibility(repository storage.Repository, platformID, planID, tenantID string) {
-	UUID, err := uuid.NewV4()
-	if err != nil {
-		panic(fmt.Errorf("could not generate GUID for visibility: %s", err))
-	}
-
-	currentTime := time.Now().UTC()
-	_, err = repository.Create(context.TODO(), &types.Visibility{
-		Base: types.Base{
-			ID:        UUID.String(),
-			UpdatedAt: currentTime,
-			CreatedAt: currentTime,
-			Labels: types.Labels{
-				TenantIdentifier: {tenantID},
-			},
-		},
-		ServicePlanID: planID,
-		PlatformID:    platformID,
-	})
-	if err != nil {
-		panic(err)
-	}
 }

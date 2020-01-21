@@ -28,7 +28,9 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
 	"github.com/gavv/httpexpect"
+	"github.com/gofrs/uuid"
 
 	"github.com/tidwall/gjson"
 
@@ -174,6 +176,38 @@ func ExpectOperationWithError(auth *common.SMExpect, asyncResp *httpexpect.Respo
 		}
 	}
 	return err
+}
+
+func EnsurePublicPlanVisibility(repository storage.Repository, planID string) {
+	EnsurePlanVisibility(repository, "", "", planID, "")
+}
+
+func EnsurePlanVisibility(repository storage.Repository, tenantIdentifier, platformID, planID, tenantID string) {
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(fmt.Errorf("could not generate GUID for visibility: %s", err))
+	}
+
+	var labels types.Labels = nil
+	if tenantID != "" {
+		labels = types.Labels{
+			tenantIdentifier: {tenantID},
+		}
+	}
+	currentTime := time.Now().UTC()
+	_, err = repository.Create(context.TODO(), &types.Visibility{
+		Base: types.Base{
+			ID:        UUID.String(),
+			UpdatedAt: currentTime,
+			CreatedAt: currentTime,
+			Labels:    labels,
+		},
+		ServicePlanID: planID,
+		PlatformID:    platformID,
+	})
+	if err != nil {
+		panic(err)
+	}
 }
 
 func DescribeTestsFor(t TestCase) bool {
