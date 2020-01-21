@@ -362,8 +362,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						WithJSON(platform).
 						Expect().Status(http.StatusCreated)
 
-					_, serviceInstance := service_instance.Prepare(ctx, platformID, "", "{}")
-					ctx.SMRepository.Create(context.Background(), serviceInstance)
+					service_instance.CreateInPlatform(ctx, platformID)
 				})
 
 				AfterEach(func() {

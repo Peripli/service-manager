@@ -47,6 +47,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 			Context(fmt.Sprintf("Existing resource of type %s", t.API), func() {
 				createTestResourceWithAuth := func(auth *common.SMExpect) (common.Object, string) {
 					testResource = t.ResourceBlueprint(ctx, auth, bool(responseMode))
+					stripObject(testResource)
 
 					By(fmt.Sprintf("[SETUP]: Verifying that test resource %v is not empty", testResource))
 					Expect(testResource).ToNot(BeEmpty())

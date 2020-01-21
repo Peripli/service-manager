@@ -155,7 +155,7 @@ var _ = BeforeEach(func() {
 })
 
 var _ = JustAfterEach(func() {
-	common.RemoveAllInstances(ctx.SMRepository, ctx.SMScheduler)
+	common.RemoveAllInstances(ctx)
 	common.RemoveAllOperations(ctx.SMRepository)
 })
 
@@ -363,7 +363,7 @@ type operationExpectations struct {
 	Type         types.OperationCategory
 	State        types.OperationState
 	ResourceID   string
-	ResourceType string
+	ResourceType types.ObjectType
 	Errors       json.RawMessage
 	ExternalID   string
 }

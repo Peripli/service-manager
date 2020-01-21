@@ -168,6 +168,10 @@ type ServiceInstanceInterceptor struct {
 func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		instance := obj.(*types.ServiceInstance)
+		if instance.PlatformID != types.SMPlatform {
+			return f(ctx, obj)
+		}
+
 		operation, found := operations.GetFromContext(ctx)
 		if !found {
 			return nil, fmt.Errorf("operation missing from context")
@@ -269,12 +273,16 @@ func (i *ServiceInstanceInterceptor) AroundTxDelete(f storage.InterceptDeleteAro
 		}
 
 		if instances.Len() != 0 {
+			instance := instances.ItemAt(0).(*types.ServiceInstance)
+			if instance.PlatformID != types.SMPlatform {
+				return f(ctx, deletionCriteria...)
+			}
+
 			operation, found := operations.GetFromContext(ctx)
 			if !found {
 				return fmt.Errorf("operation missing from context")
 			}
 
-			instance := instances.ItemAt(0).(*types.ServiceInstance)
 			if err := i.deleteSingleInstance(ctx, instance, operation); err != nil {
 				return err
 			}
