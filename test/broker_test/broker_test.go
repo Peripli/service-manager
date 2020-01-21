@@ -18,12 +18,13 @@ package broker_test
 import (
 	"context"
 	"fmt"
-	"github.com/gofrs/uuid"
 	"net/http"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/gofrs/uuid"
 
 	"github.com/Peripli/service-manager/test/testutil/service_instance"
 
@@ -759,6 +760,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						It("returns 200", func() {
 							updatedBrokerJSON := common.Object{
 								"broker_url": updatedBrokerServer.URL(),
+								"credentials": common.Object{
+									"basic": common.Object{
+										"username": brokerServer.Username,
+										"password": brokerServer.Password,
+									},
+								},
 							}
 							updatedBrokerServer.Username = brokerServer.Username
 							updatedBrokerServer.Password = brokerServer.Password
@@ -768,7 +775,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect().
 								Status(http.StatusOK).
 								JSON().Object().
-								ContainsMap(updatedBrokerJSON).
+								ContainsKey("broker_url").
 								Keys().NotContains("services", "credentials")
 
 							assertInvocationCount(brokerServer.CatalogEndpointRequests, 0)
@@ -778,7 +785,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Expect().
 								Status(http.StatusOK).
 								JSON().Object().
-								ContainsMap(updatedBrokerJSON).
+								ContainsKey("broker_url").
 								Keys().NotContains("services", "credentials")
 						})
 					})
@@ -788,6 +795,33 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							updatedBrokerJSON := common.Object{
 								"broker_url": updatedBrokerServer.URL(),
 							}
+							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
+								WithJSON(updatedBrokerJSON).
+								Expect().
+								Status(http.StatusBadRequest).JSON().Object().Keys().
+								Contains("error", "description")
+
+							assertInvocationCount(brokerServer.CatalogEndpointRequests, 0)
+
+							ctx.SMWithOAuth.GET(web.ServiceBrokersURL+"/"+brokerID).
+								Expect().
+								Status(http.StatusOK).
+								JSON().Object().
+								ContainsMap(expectedBrokerResponse).
+								Keys().NotContains("services", "credentials")
+						})
+					})
+
+					Context("when broker_url is changed but the credentials are missing", func() {
+						var updatedBrokerJSON common.Object
+
+						BeforeEach(func() {
+							updatedBrokerJSON = common.Object{
+								"broker_url": updatedBrokerServer.URL(),
+							}
+						})
+
+						missingCredsTest := func(updatedBrokerJSON common.Object) {
 							ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL+"/"+brokerID).
 								WithJSON(updatedBrokerJSON).
 								Expect().
@@ -801,9 +835,42 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								JSON().Object().
 								ContainsMap(expectedBrokerResponse).
 								Keys().NotContains("services", "credentials")
+						}
+
+						Context("credentials object is missing", func() {
+							It("returns 400", func() {
+								missingCredsTest(updatedBrokerJSON)
+							})
+						})
+
+						Context("username is missing", func() {
+							BeforeEach(func() {
+								updatedBrokerJSON["credentials"] = common.Object{
+									"basic": common.Object{
+										"password": "b",
+									},
+								}
+							})
+
+							It("returns 400", func() {
+								missingCredsTest(updatedBrokerJSON)
+							})
+						})
+
+						Context("password is missing", func() {
+							BeforeEach(func() {
+								updatedBrokerJSON["credentials"] = common.Object{
+									"basic": common.Object{
+										"username": "a",
+									},
+								}
+							})
+
+							It("returns 400", func() {
+								missingCredsTest(updatedBrokerJSON)
+							})
 						})
 					})
-
 				})
 
 				Context("when fields are updated one by one", func() {
