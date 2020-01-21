@@ -17,6 +17,7 @@
 package filters
 
 import (
+	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -92,10 +93,8 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 		}
 		tenantLabels, ok := v.Labels[f.tenantIdentifier]
 		if ok {
-			for _, tl := range tenantLabels {
-				if tl == tenantID {
-					return next.Handle(req)
-				}
+			if slice.StringsAnyEquals(tenantLabels, tenantID) {
+				return next.Handle(req)
 			}
 		}
 	}
