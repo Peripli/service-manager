@@ -17,11 +17,11 @@
 package filters
 
 import (
-	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/Peripli/service-manager/storage"
 	"net/http"
 
@@ -86,16 +86,15 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 		return next.Handle(req)
 	}
 
-	visibilities := list.(*types.Visibilities).Visibilities
-	for _, v := range visibilities {
-		if len(v.PlatformID) == 0 {
+	// There may be at most one visibility for the query - for SM platform or public for this plan
+	visibility := list.ItemAt(0).(*types.Visibility)
+	if len(visibility.PlatformID) == 0 { // public visibility
+		return next.Handle(req)
+	}
+	tenantLabels, ok := visibility.Labels[f.tenantIdentifier]
+	if ok {
+		if slice.StringsAnyEquals(tenantLabels, tenantID) {
 			return next.Handle(req)
-		}
-		tenantLabels, ok := v.Labels[f.tenantIdentifier]
-		if ok {
-			if slice.StringsAnyEquals(tenantLabels, tenantID) {
-				return next.Handle(req)
-			}
 		}
 	}
 
