@@ -180,6 +180,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 		fakeStorage.GetReturns(&types.ServiceBroker{
 			Base: types.Base{
 				UpdatedAt: updateTime,
+				Ready:     true,
 			},
 		}, nil)
 
@@ -246,6 +247,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 			_, err := interceptableRepository.Update(ctx, &types.ServiceBroker{
 				Base: types.Base{
 					UpdatedAt: updateTime,
+					Ready:     true,
 				},
 			}, query.LabelChanges{})
 
@@ -303,6 +305,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 				_, err = storage.Update(ctx, &types.ServiceBroker{
 					Base: types.Base{
 						UpdatedAt: updateTime,
+						Ready:     true,
 					},
 				}, query.LabelChanges{})
 				Expect(err).ShouldNot(HaveOccurred())
@@ -326,6 +329,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 						Base: types.Base{
 							// simulate the resource is updated when its retrieved again
 							UpdatedAt: updateTime.Add(time.Second),
+							Ready:     true,
 						},
 					}, nil
 				})
@@ -336,6 +340,7 @@ var _ = Describe("Interceptable TransactionalRepository", func() {
 					_, err := storage.Update(ctx, &types.ServiceBroker{
 						Base: types.Base{
 							UpdatedAt: updateTime,
+							Ready:     true,
 						},
 					}, query.LabelChanges{})
 

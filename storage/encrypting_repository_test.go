@@ -35,7 +35,8 @@ var _ = Describe("Encrypting Repository", func() {
 
 		objWithDecryptedPassword = &types.ServiceBroker{
 			Base: types.Base{
-				ID: "id",
+				ID:    "id",
+				Ready: true,
 			},
 			Credentials: &types.Credentials{
 				Basic: &types.Basic{
@@ -47,7 +48,8 @@ var _ = Describe("Encrypting Repository", func() {
 
 		objWithEncryptedPassword = &types.ServiceBroker{
 			Base: types.Base{
-				ID: "id",
+				ID:    "id",
+				Ready: true,
 			},
 			Credentials: &types.Credentials{
 				Basic: &types.Basic{

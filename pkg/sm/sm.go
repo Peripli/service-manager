@@ -52,6 +52,7 @@ import (
 
 	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/pkg/web"
+	osbc "github.com/kubernetes-sigs/go-open-service-broker-client/v2"
 )
 
 // ServiceManagerBuilder type is an extension point that allows adding additional filters, plugins and
@@ -63,6 +64,7 @@ type ServiceManagerBuilder struct {
 	Notificator         storage.Notificator
 	NotificationCleaner *storage.NotificationCleaner
 	OperationMaintainer *operations.Maintainer
+	OSBClientProvider   osbc.CreateFunc
 	ctx                 context.Context
 	wg                  *sync.WaitGroup
 	cfg                 *config.Settings
@@ -154,6 +156,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	}
 
 	operationMaintainer := operations.NewMaintainer(ctx, interceptableRepository, cfg.Operations)
+	osbClientProvider := osb.NewBrokerClientProvider(cfg.HTTPClient.SkipSSLValidation, int(cfg.HTTPClient.ResponseHeaderTimeout.Seconds()))
 
 	smb := &ServiceManagerBuilder{
 		API:                 API,
@@ -165,6 +168,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		wg:                  waitGroup,
 		cfg:                 cfg,
 		securityBuilder:     securityBuilder,
+		OSBClientProvider:   osbClientProvider,
 	}
 
 	smb.RegisterPlugins(osb.NewCatalogFilterByVisibilityPlugin(interceptableRepository))
@@ -190,7 +194,50 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		WithDeleteOnTxInterceptorProvider(types.VisibilityType, &interceptors.VisibilityDeleteNotificationsInterceptorProvider{}).Register().
 		WithCreateOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsCreateInterceptorProvider{}).Before(interceptors.BrokerCreateCatalogInterceptorName).Register().
 		WithUpdateOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsUpdateInterceptorProvider{}).Before(interceptors.BrokerUpdateCatalogInterceptorName).Register().
-		WithDeleteOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsDeleteInterceptorProvider{}).After(interceptors.BrokerDeleteCatalogInterceptorName).Register()
+		WithDeleteOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsDeleteInterceptorProvider{}).After(interceptors.BrokerDeleteCatalogInterceptorName).Register().
+		//TODO extract cfg
+		WithCreateAroundTxInterceptorProvider(types.ServiceInstanceType, &interceptors.ServiceInstanceCreateInterceptorProvider{
+			OSBClientCreateFunc:  osbClientProvider,
+			Repository:           interceptableRepository,
+			TenantKey:            "subaccount_id",
+			PollingInterval:      5 * time.Second,
+			MaxParallelDeletions: 100,
+		}).Register().
+		WithUpdateAroundTxInterceptorProvider(types.ServiceInstanceType, &interceptors.ServiceInstanceUpdateInterceptorProvider{
+			OSBClientCreateFunc:  osbClientProvider,
+			Repository:           interceptableRepository,
+			TenantKey:            "subaccount_id",
+			PollingInterval:      5 * time.Second,
+			MaxParallelDeletions: 100,
+		}).Register().
+		WithDeleteAroundTxInterceptorProvider(types.ServiceInstanceType, &interceptors.ServiceInstanceDeleteInterceptorProvider{
+			OSBClientCreateFunc:  osbClientProvider,
+			Repository:           interceptableRepository,
+			TenantKey:            "subaccount_id",
+			PollingInterval:      5 * time.Second,
+			MaxParallelDeletions: 100,
+		}).Register().
+		WithCreateAroundTxInterceptorProvider(types.ServiceBindingType, &interceptors.ServiceBindingCreateInterceptorProvider{
+			OSBClientCreateFunc:  osbClientProvider,
+			Repository:           interceptableRepository,
+			TenantKey:            "subaccount_id",
+			PollingInterval:      5 * time.Second,
+			MaxParallelDeletions: 100,
+		}).Register().
+		WithUpdateAroundTxInterceptorProvider(types.ServiceBindingType, &interceptors.ServiceBindingUpdateInterceptorProvider{
+			OSBClientCreateFunc:  osbClientProvider,
+			Repository:           interceptableRepository,
+			TenantKey:            "subaccount_id",
+			PollingInterval:      5 * time.Second,
+			MaxParallelDeletions: 100,
+		}).Register().
+		WithDeleteAroundTxInterceptorProvider(types.ServiceBindingType, &interceptors.ServiceBindingDeleteInterceptorProvider{
+			OSBClientCreateFunc:  osbClientProvider,
+			Repository:           interceptableRepository,
+			TenantKey:            "subaccount_id",
+			PollingInterval:      5 * time.Second,
+			MaxParallelDeletions: 100,
+		}).Register()
 
 	return smb, nil
 }
@@ -237,7 +284,7 @@ func (smb *ServiceManagerBuilder) registerSMPlatform() error {
 		Name: types.SMPlatform,
 	}); err != nil {
 		if err == util.ErrAlreadyExistsInStorage {
-			log.C(smb.ctx).Infof("platform %s already exists in SMDB...", "service-manager")
+			log.C(smb.ctx).Infof("platform %s already exists in SMDB and registration will be skipped...", "service-manager")
 			return nil
 		}
 		return fmt.Errorf("could register service-manager platform during bootstrap: %s", err)
@@ -463,7 +510,7 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 	smb.RegisterPlugins(osb.NewCheckInstanceOwnerPlugin(smb.Storage, labelKey))
 	smb.WithCreateOnTxInterceptorProvider(types.ServiceInstanceType, &interceptors.ServiceInstanceCreateInsterceptorProvider{
 		TenantIdentifier: labelKey,
-	}).Register()
+	}).AroundTxAfter(interceptors.ServiceInstanceCreateInterceptorProviderName).Register()
 	smb.WithCreateOnTxInterceptorProvider(types.OperationType, &interceptors.OperationsCreateInsterceptorProvider{
 		TenantIdentifier: labelKey,
 	}).Register()

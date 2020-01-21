@@ -61,6 +61,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 				Context("when the resource is global", func() {
 					BeforeEach(func() {
 						testResource, testResourceID = createTestResourceWithAuth(ctx.SMWithOAuth)
+						stripObject(testResource, t.ResourcePropertiesToIgnore...)
 					})
 
 					Context("when authenticating with global token", func() {
@@ -224,12 +225,13 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 							CreatedAt: time.Now(),
 							UpdatedAt: time.Now(),
 							Labels:    labels,
+							Ready:     true,
 						},
 						Description:   "test",
 						Type:          types.CREATE,
 						State:         types.IN_PROGRESS,
 						ResourceID:    resourceID,
-						ResourceType:  t.API,
+						ResourceType:  types.ObjectType(t.API),
 						CorrelationID: id.String(),
 					})
 

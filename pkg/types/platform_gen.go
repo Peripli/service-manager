@@ -6,9 +6,10 @@ import (
 	"encoding/json"
 
 	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
-const PlatformType ObjectType = "types.Platform"
+const PlatformType ObjectType = web.PlatformsURL
 
 type Platforms struct {
 	Platforms []*Platform `json:"platforms"`

@@ -90,6 +90,7 @@ var _ = Describe("Catalog CatalogFetcher", func() {
 			Base: types.Base{
 				ID:     id,
 				Labels: map[string][]string{},
+				Ready:  true,
 			},
 			Name:      name,
 			BrokerURL: url,

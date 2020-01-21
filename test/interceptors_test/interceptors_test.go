@@ -381,6 +381,9 @@ var _ = Describe("Interceptors", func() {
 				planID := plans.First().Object().Value("id").String().Raw()
 				clearStacks()
 				visibility := types.Visibility{
+					Base: types.Base{
+						Ready: true,
+					},
 					PlatformID:    platform.ID,
 					ServicePlanID: planID,
 				}
@@ -428,6 +431,9 @@ var _ = Describe("Interceptors", func() {
 					plans := ctx.SMWithBasic.List(web.ServicePlansURL)
 					planID := plans.First().Object().Value("id").String().Raw()
 					visibility := types.Visibility{
+						Base: types.Base{
+							Ready: true,
+						},
 						PlatformID:    platform.ID,
 						ServicePlanID: planID,
 					}

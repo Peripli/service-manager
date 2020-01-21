@@ -17,6 +17,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -29,9 +30,9 @@ type ServiceOfferingController struct {
 	*BaseController
 }
 
-func NewServiceOfferingController(options *Options) *ServiceOfferingController {
+func NewServiceOfferingController(ctx context.Context, options *Options) *ServiceOfferingController {
 	return &ServiceOfferingController{
-		BaseController: NewController(options, web.ServiceOfferingsURL, types.ServiceOfferingType, func() types.Object {
+		BaseController: NewController(ctx, options, web.ServiceOfferingsURL, types.ServiceOfferingType, func() types.Object {
 			return &types.ServiceOffering{}
 		}),
 	}

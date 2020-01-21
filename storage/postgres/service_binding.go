@@ -49,6 +49,7 @@ func (sb *ServiceBinding) ToObject() types.Object {
 			UpdatedAt:      sb.UpdatedAt,
 			Labels:         map[string][]string{},
 			PagingSequence: sb.PagingSequence,
+			Ready:          sb.Ready,
 		},
 		Name:              sb.Name,
 		ServiceInstanceID: sb.ServiceInstanceID,
@@ -59,7 +60,6 @@ func (sb *ServiceBinding) ToObject() types.Object {
 		Context:           getJSONRawMessage(sb.Context),
 		BindResource:      getJSONRawMessage(sb.BindResource),
 		Credentials:       sb.Credentials,
-		Ready:             sb.Ready,
 	}
 }
 

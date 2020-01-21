@@ -144,15 +144,11 @@ func ExpectOperation(auth *common.SMExpect, asyncResp *httpexpect.Response, expe
 
 func ExpectOperationWithError(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState, expectedErrMsg string) error {
 	operationURL := asyncResp.Header("Location").Raw()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	err := fmt.Errorf("unable to verify operation state (expected state = %s)", string(expectedState))
 	var operation *httpexpect.Object
 	for {
 		select {
-		case <-ctx.Done():
+		case <-time.After(10 * time.Second):
+			return fmt.Errorf("unable to verify operation state. Expected state %s was not reached within the test timeout period", string(expectedState))
 		default:
 			operation = auth.GET(operationURL).
 				Expect().Status(http.StatusOK).JSON().Object()
@@ -166,14 +162,13 @@ func ExpectOperationWithError(auth *common.SMExpect, asyncResp *httpexpect.Respo
 					errMsg := errs.Object().Value("message").String().Raw()
 
 					if !strings.Contains(errMsg, expectedErrMsg) {
-						err = fmt.Errorf("unable to verify operation - expected error message (%s), but got (%s)", expectedErrMsg, errs.String().Raw())
+						return fmt.Errorf("unable to verify operation - expected error message (%s), but got (%s)", expectedErrMsg, errs.String().Raw())
 					}
 				}
 				return nil
 			}
 		}
 	}
-	return err
 }
 
 func DescribeTestsFor(t TestCase) bool {

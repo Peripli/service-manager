@@ -17,12 +17,11 @@
 package service_test
 
 import (
-	"context"
 	"fmt"
 
-	"github.com/Peripli/service-manager/test/testutil/service_instance"
-	"github.com/gofrs/uuid"
 	"strconv"
+
+	"github.com/gofrs/uuid"
 
 	"net/http"
 	"testing"
@@ -52,7 +51,7 @@ const (
 var _ = test.DescribeTestsFor(test.TestCase{
 	API: web.ServiceInstancesURL,
 	SupportedOps: []test.Op{
-		test.Get, test.List, test.Delete, test.DeleteList, test.Patch,
+		test.Get, test.List, test.Delete, test.Patch,
 	},
 	MultitenancySettings: &test.MultitenancySettings{
 		ClientID:           "tenancyClient",
@@ -61,7 +60,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 		LabelKey:           TenantIdentifier,
 		TokenClaims: map[string]interface{}{
 			"cid": "tenancyClient",
-			"zid": "tenantID",
+			"zid": TenantValue,
 		},
 	},
 	ResourceType:                           types.ServiceInstanceType,
@@ -80,8 +79,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				instanceID string
 			)
 
-			createInstance := func() {
-				ctx.SMWithOAuth.POST(web.ServiceInstancesURL).WithJSON(postInstanceRequest).
+			createInstance := func(smClient *common.SMExpect) {
+				smClient.POST(web.ServiceInstancesURL).WithJSON(postInstanceRequest).
 					Expect().
 					Status(http.StatusCreated).
 					JSON().Object().
@@ -119,17 +118,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			})
 
 			Describe("GET", func() {
-				var serviceInstance *types.ServiceInstance
-
 				When("service instance contains tenant identifier in OSB context", func() {
 					BeforeEach(func() {
-						_, serviceInstance = service_instance.Prepare(ctx, ctx.TestPlatform.ID, "", fmt.Sprintf(`{"%s":"%s"}`, TenantIdentifier, TenantValue))
-						_, err := ctx.SMRepository.Create(context.Background(), serviceInstance)
-						Expect(err).ToNot(HaveOccurred())
+						createInstance(ctx.SMWithOAuthForTenant)
 					})
 
 					It("labels instance with tenant identifier", func() {
-						ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + serviceInstance.ID).Expect().
+						ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + postInstanceRequest["id"].(string)).Expect().
 							Status(http.StatusOK).
 							JSON().
 							Object().Path(fmt.Sprintf("$.labels[%s][*]", TenantIdentifier)).Array().Contains(TenantValue)
@@ -137,13 +132,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 				When("service instance doesn't contain tenant identifier in OSB context", func() {
 					BeforeEach(func() {
-						_, serviceInstance = service_instance.Prepare(ctx, ctx.TestPlatform.ID, "", "{}")
-						_, err := ctx.SMRepository.Create(context.Background(), serviceInstance)
-						Expect(err).ToNot(HaveOccurred())
+						createInstance(ctx.SMWithOAuth)
 					})
 
 					It("doesn't label instance with tenant identifier", func() {
-						obj := ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + serviceInstance.ID).Expect().
+						obj := ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + postInstanceRequest["id"].(string)).Expect().
 							Status(http.StatusOK).JSON().Object()
 
 						objMap := obj.Raw()
@@ -155,16 +148,15 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						}
 					})
 				})
+
 				When("service instance dashboard_url is not set", func() {
 					BeforeEach(func() {
-						_, serviceInstance = service_instance.Prepare(ctx, ctx.TestPlatform.ID, "", fmt.Sprintf(`{"%s":"%s"}`, TenantIdentifier, TenantValue))
-						serviceInstance.DashboardURL = ""
-						_, err := ctx.SMRepository.Create(context.Background(), serviceInstance)
-						Expect(err).ToNot(HaveOccurred())
+						postInstanceRequest["dashboard_url"] = ""
+						createInstance(ctx.SMWithOAuth)
 					})
 
 					It("doesn't return dashboard_url", func() {
-						ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + serviceInstance.ID).Expect().
+						ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + postInstanceRequest["id"].(string)).Expect().
 							Status(http.StatusOK).JSON().Object().NotContainsKey("dashboard_url")
 					})
 				})
@@ -216,7 +208,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 
 						It("returns 201", func() {
-							createInstance()
+							createInstance(ctx.SMWithOAuth)
 						})
 					}
 
@@ -263,7 +255,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Context("which is service-manager platform", func() {
 						It("should return 200", func() {
 							postInstanceRequest["platform_id"] = types.SMPlatform
-							createInstance()
+							createInstance(ctx.SMWithOAuth)
 						})
 					})
 				})
@@ -321,7 +313,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("when created_at provided in body", func() {
 					It("should not change created at", func() {
-						createInstance()
+						createInstance(ctx.SMWithOAuth)
 
 						createdAt := "2015-01-01T00:00:00Z"
 
@@ -343,7 +335,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("when platform_id provided in body", func() {
 					Context("which is not service-manager platform", func() {
 						It("should return 400", func() {
-							createInstance()
+							createInstance(ctx.SMWithOAuth)
 
 							resp := ctx.SMWithOAuth.PATCH(web.ServiceInstancesURL + "/" + instanceID).
 								WithJSON(common.Object{"platform_id": "test-platform-id"}).
@@ -361,7 +353,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 					Context("which is service-manager platform", func() {
 						It("should return 200", func() {
-							createInstance()
+							createInstance(ctx.SMWithOAuth)
 
 							ctx.SMWithOAuth.PATCH(web.ServiceInstancesURL + "/" + instanceID).
 								WithJSON(common.Object{"platform_id": types.SMPlatform}).
@@ -379,7 +371,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("when fields are updated one by one", func() {
 					It("returns 200", func() {
-						createInstance()
+						createInstance(ctx.SMWithOAuth)
 
 						for _, prop := range []string{"name", "maintenance_info"} {
 							updatedBrokerJSON := common.Object{}
@@ -435,7 +427,8 @@ func generateServicePlan(ctx *common.TestContext, auth *common.SMExpect) string 
 	cService := common.GenerateTestServiceWithPlans(cPaidPlan)
 	catalog := common.NewEmptySBCatalog()
 	catalog.AddService(cService)
-	brokerID, _, _ := ctx.RegisterBrokerWithCatalog(catalog)
+	brokerID, _, server := ctx.RegisterBrokerWithCatalog(catalog)
+	ctx.Servers[common.BrokerServerPrefix+brokerID] = server
 
 	so := auth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerID)).First()
 

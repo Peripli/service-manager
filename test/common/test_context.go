@@ -32,6 +32,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Peripli/service-manager/operations"
+
 	"github.com/Peripli/service-manager/api/extensions/security"
 
 	"github.com/gavv/httpexpect"
@@ -87,8 +89,8 @@ type TestContext struct {
 	SMWithOAuthForTenant *SMExpect
 	SMWithBasic          *SMExpect
 	SMRepository         storage.TransactionalRepository
-
-	TestPlatform *types.Platform
+	SMScheduler          *operations.Scheduler
+	TestPlatform         *types.Platform
 
 	Servers map[string]FakeServer
 }
@@ -315,7 +317,7 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener) *TestCon
 	}
 	wg := &sync.WaitGroup{}
 
-	smServer, smRepository := newSMServer(environment, wg, tcb.smExtensions, listener)
+	smServer, smRepository, smScheduler := newSMServer(environment, wg, tcb.smExtensions, listener)
 	tcb.Servers[SMServer] = smServer
 
 	SM := httpexpect.New(ginkgo.GinkgoT(), smServer.URL())
@@ -337,11 +339,12 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener) *TestCon
 		SMWithOAuthForTenant: &SMExpect{SMWithOAuthForTenant},
 		Servers:              tcb.Servers,
 		SMRepository:         smRepository,
+		SMScheduler:          smScheduler,
 	}
 
 	RemoveAllOperations(testContext.SMRepository)
 	RemoveAllBindings(testContext.SMRepository)
-	RemoveAllInstances(testContext.SMRepository)
+	RemoveAllInstances(testContext)
 	RemoveAllBrokers(testContext.SMWithOAuth)
 	RemoveAllPlatforms(testContext.SMWithOAuth)
 
@@ -380,7 +383,7 @@ func NewSMListener() (net.Listener, error) {
 	return nil, fmt.Errorf("unable to create sm listener: %s", err)
 }
 
-func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error, listener net.Listener) (*testSMServer, storage.TransactionalRepository) {
+func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error, listener net.Listener) (*testSMServer, storage.TransactionalRepository, *operations.Scheduler) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	cfg, err := config.New(smEnv)
@@ -416,10 +419,11 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 	}
 	testServer.Start()
 
+	scheduler := operations.NewScheduler(ctx, smb.Storage, cfg.Operations.JobTimeout, 1000, wg)
 	return &testSMServer{
 		cancel: cancel,
 		Server: testServer,
-	}, smb.Storage
+	}, smb.Storage, scheduler
 }
 
 func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object) (string, Object, *BrokerServer) {
@@ -544,7 +548,7 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 	if err := RemoveAllBindings(ctx.SMRepository); err != nil && err != util.ErrNotFoundInStorage {
 		panic(err)
 	}
-	if err := RemoveAllInstances(ctx.SMRepository); err != nil && err != util.ErrNotFoundInStorage {
+	if err := RemoveAllInstances(ctx); err != nil && err != util.ErrNotFoundInStorage {
 		panic(err)
 	}
 

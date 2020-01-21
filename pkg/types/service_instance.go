@@ -30,15 +30,15 @@ import (
 // ServiceInstance struct
 type ServiceInstance struct {
 	Base
-	Name            string          `json:"name"`
-	ServicePlanID   string          `json:"service_plan_id"`
-	PlatformID      string          `json:"platform_id"`
-	DashboardURL    string          `json:"-"`
-	MaintenanceInfo json.RawMessage `json:"maintenance_info,omitempty"`
-	Context         json.RawMessage `json:"-"`
-	PreviousValues  json.RawMessage `json:"-"`
-	Ready           bool            `json:"ready"`
-	Usable          bool            `json:"usable"`
+	Name            string                 `json:"name"`
+	ServicePlanID   string                 `json:"service_plan_id"`
+	PlatformID      string                 `json:"platform_id"`
+	DashboardURL    string                 `json:"-"`
+	MaintenanceInfo json.RawMessage        `json:"maintenance_info,omitempty"`
+	Context         json.RawMessage        `json:"-"`
+	PreviousValues  json.RawMessage        `json:"-"`
+	Parameters      map[string]interface{} `json:"parameters,omitempty"`
+	Usable          bool                   `json:"usable"`
 
 	LastOperation *Operation `json:"last_operation,omitempty"`
 }
@@ -62,14 +62,6 @@ func (e *ServiceInstance) Equals(obj Object) bool {
 	return true
 }
 
-func (e *ServiceInstance) SetLastOperation(lastOp *Operation) {
-	e.LastOperation = lastOp
-}
-
-func (e *ServiceInstance) GetLastOperation() *Operation {
-	return e.LastOperation
-}
-
 // Validate implements InputValidator and verifies all mandatory fields are populated
 func (e *ServiceInstance) Validate() error {
 	if util.HasRFC3986ReservedSymbols(e.ID) {
@@ -89,4 +81,12 @@ func (e *ServiceInstance) Validate() error {
 	}
 
 	return nil
+}
+
+func (e *ServiceInstance) SetLastOperation(lastOp *Operation) {
+	e.LastOperation = lastOp
+}
+
+func (e *ServiceInstance) GetLastOperation() *Operation {
+	return e.LastOperation
 }

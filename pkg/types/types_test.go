@@ -275,6 +275,7 @@ func createServiceInstance(now time.Time) Object {
 			Labels:    labels,
 			CreatedAt: now,
 			UpdatedAt: now.Add(time.Second * 10),
+			Ready:     true,
 		},
 		Name:            "name",
 		ServicePlanID:   "1",
@@ -283,7 +284,6 @@ func createServiceInstance(now time.Time) Object {
 		MaintenanceInfo: []byte("default"),
 		Context:         []byte("default"),
 		PreviousValues:  []byte("default"),
-		Ready:           true,
 		Usable:          true,
 	}
 }

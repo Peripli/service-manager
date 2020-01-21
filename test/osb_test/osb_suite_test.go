@@ -20,14 +20,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/env"
-	"github.com/Peripli/service-manager/pkg/multitenancy"
-	"github.com/Peripli/service-manager/pkg/sm"
-	"github.com/tidwall/gjson"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/Peripli/service-manager/pkg/multitenancy"
+	"github.com/Peripli/service-manager/pkg/sm"
+	"github.com/tidwall/gjson"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -154,8 +155,8 @@ var _ = BeforeEach(func() {
 })
 
 var _ = JustAfterEach(func() {
+	common.RemoveAllInstances(ctx.SMRepository, ctx.SMScheduler)
 	common.RemoveAllOperations(ctx.SMRepository)
-	common.RemoveAllInstances(ctx.SMRepository)
 })
 
 var _ = AfterSuite(func() {

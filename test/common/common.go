@@ -20,6 +20,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/Peripli/service-manager/storage"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -220,8 +222,87 @@ func RemoveAllNotifications(repository storage.Repository) error {
 	return repository.Delete(context.TODO(), types.NotificationType)
 }
 
-func RemoveAllInstances(repository storage.Repository) error {
-	return repository.Delete(context.TODO(), types.ServiceInstanceType)
+func RemoveAllInstances(ctx *TestContext) error {
+	objectList, err := ctx.SMRepository.List(context.TODO(), types.ServiceInstanceType)
+	if err != nil {
+		return err
+	}
+	for i := 0; i < objectList.Len(); i++ {
+		objectID := objectList.ItemAt(i).GetID()
+		instance := objectList.ItemAt(i).(*types.ServiceInstance)
+		planObject, err := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, query.ByField(query.EqualsOperator, "id", instance.ServicePlanID))
+		if err != nil {
+			return err
+		}
+		plan := planObject.(*types.ServicePlan)
+
+		serviceObject, err := ctx.SMRepository.Get(context.TODO(), types.ServiceOfferingType, query.ByField(query.EqualsOperator, "id", plan.ServiceOfferingID))
+		if err != nil {
+			return err
+		}
+		service := serviceObject.(*types.ServiceOffering)
+
+		brokerObject, err := ctx.SMRepository.Get(context.TODO(), types.ServiceBrokerType, query.ByField(query.EqualsOperator, "id", service.BrokerID))
+		if err != nil {
+			return err
+		}
+		broker := brokerObject.(*types.ServiceBroker)
+
+		if _, foundServer := ctx.Servers[BrokerServerPrefix+broker.ID]; !foundServer {
+			brokerServer := NewBrokerServerWithCatalog(SBCatalog(broker.Catalog))
+			broker.BrokerURL = brokerServer.URL()
+			UUID, err := uuid.NewV4()
+			if err != nil {
+				return fmt.Errorf("could not generate GUID: %s", err)
+			}
+			if _, err := ctx.SMScheduler.ScheduleSyncStorageAction(context.TODO(), &types.Operation{
+				Base: types.Base{
+					ID:        UUID.String(),
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+					Ready:     true,
+				},
+				Type:          types.UPDATE,
+				State:         types.IN_PROGRESS,
+				ResourceID:    broker.ID,
+				ResourceType:  types.ServiceBrokerType,
+				CorrelationID: "-",
+			}, func(ctx context.Context, repository storage.Repository) (object types.Object, e error) {
+				return repository.Update(ctx, broker, query.LabelChanges{})
+			}); err != nil {
+				return err
+			}
+
+		}
+
+		UUID, err := uuid.NewV4()
+		if err != nil {
+			return fmt.Errorf("could not generate GUID: %s", err)
+		}
+		if _, err := ctx.SMScheduler.ScheduleSyncStorageAction(context.TODO(), &types.Operation{
+			Base: types.Base{
+				ID:        UUID.String(),
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				Ready:     true,
+			},
+			Type:          types.DELETE,
+			State:         types.IN_PROGRESS,
+			ResourceID:    objectID,
+			ResourceType:  types.ServiceInstanceType,
+			CorrelationID: "-",
+		}, func(ctx context.Context, repository storage.Repository) (object types.Object, e error) {
+			byID := query.ByField(query.EqualsOperator, "id", objectID)
+			if err := repository.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
+				return nil, err
+			}
+			return nil, nil
+		}); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func RemoveAllBindings(repository storage.Repository) error {
@@ -296,6 +377,7 @@ func RegisterPlatformInSM(platformJSON Object, SM *SMExpect, headers map[string]
 			ID:        reply["id"].(string),
 			CreatedAt: createdAt,
 			UpdatedAt: updatedAt,
+			Ready:     true,
 		},
 		Credentials: &types.Credentials{
 			Basic: &types.Basic{
@@ -376,7 +458,8 @@ func GenerateRandomNotification() *types.Notification {
 
 	return &types.Notification{
 		Base: types.Base{
-			ID: uid.String(),
+			ID:    uid.String(),
+			Ready: true,
 		},
 		PlatformID: "",
 		Resource:   "notification",

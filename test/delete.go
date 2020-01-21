@@ -18,10 +18,11 @@ package test
 
 import (
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/gavv/httpexpect"
 	"net/http"
 	"strconv"
+
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/gavv/httpexpect"
 
 	. "github.com/onsi/gomega"
 
@@ -31,7 +32,6 @@ import (
 
 func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode ResponseMode) bool {
 	return Describe(fmt.Sprintf("DELETE %s", t.API), func() {
-
 		const notFoundMsg = "not found"
 
 		var (
@@ -64,6 +64,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 				By(fmt.Sprintf("[SETUP]: Verifying that test resource %v has an non empty id of type string", testResource))
 				testResourceID = testResource["id"].(string)
 				Expect(testResourceID).ToNot(BeEmpty())
+				stripObject(testResource, t.ResourcePropertiesToIgnore...)
 			}
 
 			verifyResourceDeletionWithErrorMsg := func(auth *common.SMExpect, deletionRequestResponseCode, getAfterDeletionRequestCode int, expectedOpState types.OperationState, expectedErrMsg string) {

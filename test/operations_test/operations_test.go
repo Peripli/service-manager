@@ -18,6 +18,12 @@ package operations_test
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -30,11 +36,6 @@ import (
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"net/http"
-	"strings"
-	"sync"
-	"testing"
-	"time"
 )
 
 const (
@@ -140,12 +141,16 @@ var _ = Describe("Operations", func() {
 					CreatedAt: time.Now(),
 					UpdatedAt: time.Now(),
 					Labels:    make(map[string][]string),
+					Ready:     true,
 				},
-				Type:          types.CREATE,
-				State:         types.IN_PROGRESS,
-				ResourceID:    "test-resource-id",
-				ResourceType:  web.ServiceBrokersURL,
-				CorrelationID: "test-correlation-id",
+				Description:       "",
+				Type:              types.CREATE,
+				State:             types.IN_PROGRESS,
+				ResourceID:        "test-resource-id",
+				ResourceType:      web.ServiceBrokersURL,
+				CorrelationID:     "test-correlation-id",
+				Reschedule:        false,
+				DeletionScheduled: time.Time{},
 			}
 
 			ctx = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
@@ -227,6 +232,7 @@ var _ = Describe("Operations", func() {
 						CreatedAt: time.Now(),
 						UpdatedAt: time.Now(),
 						Labels:    make(map[string][]string),
+						Ready:     true,
 					},
 					Type:          types.CREATE,
 					State:         types.IN_PROGRESS,
@@ -265,16 +271,9 @@ func (pc panicController) Routes() []web.Route {
 				Path:   testControllerURL,
 			},
 			Handler: func(req *web.Request) (resp *web.Response, err error) {
-				job := operations.Job{
-					ReqCtx:     context.Background(),
-					ObjectType: "test-type",
-					Operation:  pc.operation,
-					OperationFunc: func(ctx context.Context, repository storage.Repository) (object types.Object, e error) {
-						panic("test panic")
-					},
-				}
-
-				pc.scheduler.Schedule(job)
+				pc.scheduler.ScheduleAsyncStorageAction(context.TODO(), pc.operation, func(ctx context.Context, repository storage.Repository) (object types.Object, e error) {
+					panic("test panic")
+				})
 				return
 			},
 		},

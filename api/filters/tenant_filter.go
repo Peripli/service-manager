@@ -33,7 +33,7 @@ func newTenantCriteriaFilter(labelKey string, extractTenantFunc func(request *we
 	return &TenantFilter{
 		LabelKey:      labelKey,
 		FilterName:    TenantCriteriaFilterName,
-		Methods:       []string{http.MethodGet, http.MethodPost, http.MethodPatch, http.MethodDelete},
+		Methods:       []string{http.MethodGet, http.MethodPatch, http.MethodDelete},
 		ExtractTenant: extractTenantFunc,
 		LabelingFunc: func(request *web.Request, labelKey, labelValue string) error {
 			ctx := request.Context()

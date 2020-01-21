@@ -6,9 +6,10 @@ import (
 	"encoding/json"
 
 	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
-const OperationType ObjectType = "types.Operation"
+const OperationType ObjectType = web.OperationsURL
 
 type Operations struct {
 	Operations []*Operation `json:"operations"`

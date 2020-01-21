@@ -3,13 +3,13 @@
 package postgres
 
 import (
-	"database/sql"
-	"time"
-
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
+
+	"database/sql"
+	"time"
 )
 
 var _ PostgresEntity = &ServiceBinding{}

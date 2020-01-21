@@ -267,7 +267,8 @@ func blueprint(ctx *common.TestContext, auth *common.SMExpect, async bool) commo
 }
 
 func newServicePlan(ctx *common.TestContext) string {
-	brokerID, _, _ := ctx.RegisterBrokerWithCatalog(common.NewRandomSBCatalog())
+	brokerID, _, brokerServer := ctx.RegisterBrokerWithCatalog(common.NewRandomSBCatalog())
+	ctx.Servers[common.BrokerServerPrefix+brokerID] = brokerServer
 	so := ctx.SMWithOAuth.ListWithQuery(web.ServiceOfferingsURL, fmt.Sprintf("fieldQuery=broker_id eq '%s'", brokerID)).First()
 	servicePlanID := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw())).
 		First().Object().Value("id").String().Raw()
