@@ -17,9 +17,12 @@
 package service_binding_test
 
 import (
+	"context"
 	"fmt"
+	"github.com/Peripli/service-manager/storage"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gofrs/uuid"
 
@@ -44,12 +47,13 @@ func TestServiceBindings(t *testing.T) {
 
 const (
 	TenantIdentifier = "tenant"
+	TenantIDValue    = "tenantID"
 )
 
 var _ = test.DescribeTestsFor(test.TestCase{
 	API: web.ServiceBindingsURL,
 	SupportedOps: []test.Op{
-		test.Get, test.List, test.Delete, test.DeleteList,
+		test.Get, test.List, test.Delete,
 	},
 	MultitenancySettings: &test.MultitenancySettings{
 		ClientID:           "tenancyClient",
@@ -58,7 +62,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 		LabelKey:           TenantIdentifier,
 		TokenClaims: map[string]interface{}{
 			"cid": "tenancyClient",
-			"zid": "tenantID",
+			"zid": TenantIDValue,
 		},
 	},
 	ResourceType:                           types.ServiceBindingType,
@@ -73,16 +77,35 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			var (
 				postBindingRequest      common.Object
 				expectedBindingResponse common.Object
+
+				smExpect *common.SMExpect
 			)
 
-			createInstance := func(body common.Object) {
-				ctx.SMWithOAuth.POST(web.ServiceInstancesURL).WithJSON(body).
+			createInstance := func(SM *common.SMExpect) string {
+				instanceID, err := uuid.NewV4()
+				if err != nil {
+					panic(err)
+				}
+
+				planID := newServicePlan(ctx)
+				ensurePlanVisibility(ctx.SMRepository, types.SMPlatform, planID, TenantIDValue)
+
+				instanceBody := common.Object{
+					"id":               instanceID.String(),
+					"name":             "test-instance",
+					"service_plan_id":  planID,
+					"maintenance_info": "{}",
+				}
+
+				SM.POST(web.ServiceInstancesURL).WithJSON(instanceBody).
 					Expect().
 					Status(http.StatusCreated)
+
+				return instanceID.String()
 			}
 
-			createBinding := func(body common.Object) {
-				ctx.SMWithOAuth.POST(web.ServiceBindingsURL).WithJSON(body).
+			createBinding := func(SM *common.SMExpect, body common.Object) {
+				SM.POST(web.ServiceBindingsURL).WithJSON(body).
 					Expect().
 					Status(http.StatusCreated).
 					JSON().Object().
@@ -90,19 +113,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			}
 
 			BeforeEach(func() {
-				var err error
-				instanceID, err := uuid.NewV4()
-				if err != nil {
-					panic(err)
-				}
+				smExpect = ctx.SMWithOAuth // by default all requests are not tenant-scoped
+			})
 
-				instanceBody := common.Object{
-					"id":               instanceID.String(),
-					"name":             "test-instance",
-					"service_plan_id":  newServicePlan(ctx),
-					"maintenance_info": "{}",
-				}
-				createInstance(instanceBody)
+			JustBeforeEach(func() {
+				var err error
+				instanceID := createInstance(smExpect)
 
 				bindingID, err := uuid.NewV4()
 				if err != nil {
@@ -114,12 +130,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				postBindingRequest = common.Object{
 					"id":                  bindingID.String(),
 					"name":                bindingName,
-					"service_instance_id": instanceID.String(),
+					"service_instance_id": instanceID,
 				}
 				expectedBindingResponse = common.Object{
 					"id":                  bindingID.String(),
 					"name":                bindingName,
-					"service_instance_id": instanceID.String(),
+					"service_instance_id": instanceID,
 				}
 			})
 
@@ -130,7 +146,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			Describe("POST", func() {
 				Context("when content type is not JSON", func() {
 					It("returns 415", func() {
-						ctx.SMWithOAuth.POST(web.ServiceBindingsURL).WithText("text").
+						smExpect.POST(web.ServiceBindingsURL).WithText("text").
 							Expect().
 							Status(http.StatusUnsupportedMediaType).
 							JSON().Object().
@@ -140,7 +156,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("when request body is not a valid JSON", func() {
 					It("returns 400", func() {
-						ctx.SMWithOAuth.POST(web.ServiceBindingsURL).
+						smExpect.POST(web.ServiceBindingsURL).
 							WithText("invalid json").
 							WithHeader("content-type", "application/json").
 							Expect().
@@ -152,13 +168,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("when a request body field is missing", func() {
 					assertPOSTReturns400WhenFieldIsMissing := func(field string) {
-						BeforeEach(func() {
+						JustBeforeEach(func() {
 							delete(postBindingRequest, field)
 							delete(expectedBindingResponse, field)
 						})
 
 						It("returns 400", func() {
-							ctx.SMWithOAuth.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
+							smExpect.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
 								Expect().
 								Status(http.StatusBadRequest).
 								JSON().Object().
@@ -167,13 +183,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					}
 
 					assertPOSTReturns201WhenFieldIsMissing := func(field string) {
-						BeforeEach(func() {
+						JustBeforeEach(func() {
 							delete(postBindingRequest, field)
 							delete(expectedBindingResponse, field)
 						})
 
 						It("returns 201", func() {
-							createBinding(postBindingRequest)
+							createBinding(smExpect, postBindingRequest)
 						})
 					}
 
@@ -194,7 +210,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				Context("when request body id field is invalid", func() {
 					It("should return 400", func() {
 						postBindingRequest["id"] = "binding/1"
-						resp := ctx.SMWithOAuth.POST(web.ServiceBindingsURL).
+						resp := smExpect.POST(web.ServiceBindingsURL).
 							WithJSON(postBindingRequest).
 							Expect().Status(http.StatusBadRequest).JSON().Object()
 
@@ -204,17 +220,69 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 				Context("With async query param", func() {
 					It("succeeds", func() {
-						resp := ctx.SMWithOAuth.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
+						resp := smExpect.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
 							WithQuery("async", "true").
 							Expect().
 							Status(http.StatusAccepted)
 
-						test.ExpectOperation(ctx.SMWithOAuth, resp, types.SUCCEEDED)
+						test.ExpectOperation(smExpect, resp, types.SUCCEEDED)
 
-						ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", web.ServiceBindingsURL, postBindingRequest["id"])).Expect().
+						smExpect.GET(fmt.Sprintf("%s/%s", web.ServiceBindingsURL, postBindingRequest["id"])).Expect().
 							Status(http.StatusOK).
 							JSON().Object().
 							ContainsMap(expectedBindingResponse).ContainsKey("id")
+					})
+				})
+
+				Context("instance ownership", func() {
+					When("tenant doesn't have ownership of instance", func() {
+						It("returns 404", func() {
+							ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
+								WithJSON(postBindingRequest).
+								Expect().Status(http.StatusNotFound)
+						})
+					})
+
+					When("tenant has ownership of instance", func() {
+						BeforeEach(func() {
+							smExpect = ctx.SMWithOAuthForTenant
+						})
+
+						It("returns 201", func() {
+							smExpect.POST(web.ServiceBindingsURL).
+								WithJSON(postBindingRequest).
+								Expect().Status(http.StatusCreated)
+						})
+					})
+				})
+			})
+
+			Describe("DELETE", func() {
+				Context("instance ownership", func() {
+					When("tenant doesn't have ownership of binding", func() {
+						It("returns 404", func() {
+							smExpect.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
+								Expect().
+								Status(http.StatusCreated)
+
+							ctx.SMWithOAuthForTenant.DELETE(fmt.Sprintf("%s/%s", web.ServiceBindingsURL, postBindingRequest["id"])).
+								Expect().Status(http.StatusNotFound)
+						})
+					})
+
+					When("tenant has ownership of instance", func() {
+						BeforeEach(func() {
+							smExpect = ctx.SMWithOAuthForTenant
+						})
+
+						It("returns 200", func() {
+							smExpect.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
+								Expect().
+								Status(http.StatusCreated)
+
+							smExpect.DELETE(fmt.Sprintf("%s/%s", web.ServiceBindingsURL, postBindingRequest["id"])).
+								Expect().Status(http.StatusOK)
+						})
 					})
 				})
 			})
@@ -272,4 +340,28 @@ func newServicePlan(ctx *common.TestContext) string {
 	servicePlanID := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw())).
 		First().Object().Value("id").String().Raw()
 	return servicePlanID
+}
+
+func ensurePlanVisibility(repository storage.Repository, platformID, planID, tenantID string) {
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(fmt.Errorf("could not generate GUID for visibility: %s", err))
+	}
+
+	currentTime := time.Now().UTC()
+	_, err = repository.Create(context.TODO(), &types.Visibility{
+		Base: types.Base{
+			ID:        UUID.String(),
+			UpdatedAt: currentTime,
+			CreatedAt: currentTime,
+			Labels: types.Labels{
+				TenantIdentifier: {tenantID},
+			},
+		},
+		ServicePlanID: planID,
+		PlatformID:    platformID,
+	})
+	if err != nil {
+		panic(err)
+	}
 }

@@ -39,12 +39,12 @@
   version = "v1.5.1"
 
 [[projects]]
-  digest = "1:d04889482897652dedae6d8575b479c06fa3eb3c3abe248163b25d3df5fab43e"
+  digest = "1:3076a0751f5648f3ab1838abfba18bc5bf514cde7e3957500b62fba90633479a"
   name = "github.com/antlr/antlr4"
   packages = ["runtime/Go/antlr"]
   pruneopts = "UT"
-  revision = "be58ebffde8e29c154192c019608f0a5b8e6a064"
-  version = "4.7.2"
+  revision = "d569f917954406e599d780c009224aa14f1920de"
+  version = "4.8"
 
 [[projects]]
   branch = "master"
@@ -285,7 +285,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:cbc008e8b6866556c853447a1216480aeb10d12d7fd83058dfbb17fbe8f36355"
+  digest = "1:e8501d7fa801be523f103178ced935b37778925c7338f0f94e50c14a4d450f4a"
   name = "github.com/lib/pq"
   packages = [
     ".",
@@ -293,7 +293,7 @@
     "scram",
   ]
   pruneopts = "UT"
-  revision = "d6fd2025777896bf42bbb81fa748af573ad799f4"
+  revision = "9eb3fc897d6fd97dd4aad3d0404b54e2f7cc56be"
 
 [[projects]]
   digest = "1:5a0ef768465592efca0412f7e838cdc0826712f8447e70e6ccc52eb441e9ab13"
@@ -621,7 +621,7 @@
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "UT"
-  revision = "b77594299b429d05028403d72b68172959c7dad5"
+  revision = "59e60aa80a0c64fa4b088976ee16ad7f04252c25"
 
 [[projects]]
   digest = "1:28deae5fe892797ff37a317b5bcda96d11d1c90dadd89f1337651df3bc4c586e"

@@ -22,8 +22,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Peripli/service-manager/api"
-
 	"github.com/Peripli/service-manager/pkg/web"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -74,7 +72,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 							Context("when resource is created async and query param last_op is true", func() {
 								It("returns last operation with the resource", func() {
 									response := ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
-										WithQuery(api.QueryParamLastOp, "true").
+										WithQuery(web.QueryParamLastOp, "true").
 										Expect().
 										Status(http.StatusOK).JSON().Object()
 									result := response.Raw()
@@ -89,7 +87,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 							Context("when resource does not support async and query param last_op is true", func() {
 								It("returns error", func() {
 									ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
-										WithQuery(api.QueryParamLastOp, "true").
+										WithQuery(web.QueryParamLastOp, "true").
 										Expect().
 										Status(http.StatusBadRequest).JSON().Object().Value("description").String().Match("last operation is not supported for type *")
 								})
@@ -109,7 +107,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 								Context("when resource is created async and query param last_op is true", func() {
 									It("returns 404", func() {
 										ctx.SMWithOAuthForTenant.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
-											WithQuery(api.QueryParamLastOp, "true").
+											WithQuery(web.QueryParamLastOp, "true").
 											Expect().
 											Status(http.StatusNotFound)
 									})
@@ -144,7 +142,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 								Context("when resource is created async and query param last_op is true", func() {
 									It("returns last operation with the resource", func() {
 										response := ctx.SMWithOAuth.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
-											WithQuery(api.QueryParamLastOp, "true").
+											WithQuery(web.QueryParamLastOp, "true").
 											Expect().
 											Status(http.StatusOK).JSON().Object()
 										result := response.Raw()
@@ -167,7 +165,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 								Context("when resource is created async and query param last_op is true", func() {
 									It("returns last operation with the resource", func() {
 										response := ctx.SMWithOAuthForTenant.GET(fmt.Sprintf("%s/%s", t.API, testResourceID)).
-											WithQuery(api.QueryParamLastOp, "true").
+											WithQuery(web.QueryParamLastOp, "true").
 											Expect().
 											Status(http.StatusOK).JSON().Object()
 										result := response.Raw()

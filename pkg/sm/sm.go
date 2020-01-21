@@ -168,7 +168,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	}
 
 	smb.RegisterPlugins(osb.NewCatalogFilterByVisibilityPlugin(interceptableRepository))
-	smb.RegisterPluginsBefore(osb.CheckInstanceOwnerPluginName, osb.NewStoreServiceInstancesPlugin(interceptableRepository))
+	smb.RegisterPluginsBefore(osb.CheckInstanceOwnerhipPluginName, osb.NewStoreServiceInstancesPlugin(interceptableRepository))
 	smb.RegisterPluginsBefore(osb.StoreServiceInstancePluginName, osb.NewCheckVisibilityPlugin(interceptableRepository))
 	smb.RegisterPlugins(osb.NewCheckPlatformIDPlugin(interceptableRepository))
 
@@ -460,13 +460,20 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 
 	multitenancyFilters := filters.NewMultitenancyFilters(labelKey, extractTenantFunc)
 	smb.RegisterFiltersAfter(filters.ProtectedLabelsFilterName, multitenancyFilters...)
-	smb.RegisterPlugins(osb.NewCheckInstanceOwnerPlugin(smb.Storage, labelKey))
+	smb.RegisterFilters(
+		filters.NewServiceInstanceVisibilityFilter(smb.Storage, labelKey),
+		filters.NewServiceBindingVisibilityFilter(smb.Storage, labelKey),
+	)
+
+	smb.RegisterPlugins(osb.NewCheckInstanceOwnershipPlugin(smb.Storage, labelKey))
+
 	smb.WithCreateOnTxInterceptorProvider(types.ServiceInstanceType, &interceptors.ServiceInstanceCreateInsterceptorProvider{
 		TenantIdentifier: labelKey,
 	}).Register()
 	smb.WithCreateOnTxInterceptorProvider(types.OperationType, &interceptors.OperationsCreateInsterceptorProvider{
 		TenantIdentifier: labelKey,
 	}).Register()
+
 	return smb
 }
 
