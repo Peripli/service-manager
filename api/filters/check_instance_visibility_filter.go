@@ -21,6 +21,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/Peripli/service-manager/storage"
 	"net/http"
 
@@ -60,32 +61,42 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 		return next.Handle(req)
 	}
 
+	criteria := []query.Criterion{
+		query.ByField(query.EqualsOrNilOperator, platformIDProperty, types.SMPlatform),
+		query.ByField(query.EqualsOperator, planIDProperty, planID),
+	}
+
+	list, err := f.repository.List(ctx, types.VisibilityType, criteria...)
+	if err != nil && err != util.ErrNotFoundInStorage {
+		return nil, util.HandleStorageError(err, types.VisibilityType.String())
+	}
+
+	visibilityError := &util.HTTPError{
+		ErrorType:   "NotFound",
+		Description: "could not find such service plan",
+		StatusCode:  http.StatusNotFound,
+	}
+	if list.Len() == 0 {
+		return nil, visibilityError
+	}
+
 	tenantID := query.RetrieveFromCriteria(f.tenantIdentifier, query.CriteriaForContext(ctx)...)
 	if tenantID == "" {
 		log.C(ctx).Info("Tenant identifier not found in request criteria. Proceeding with the next handler...")
 		return next.Handle(req)
 	}
 
-	criteria := []query.Criterion{
-		query.ByField(query.EqualsOperator, platformIDProperty, types.SMPlatform),
-		query.ByField(query.EqualsOperator, planIDProperty, planID),
-		query.ByLabel(query.InOperator, f.tenantIdentifier, tenantID),
+	// There may be at most one visibility for the query - for SM platform or public for this plan
+	visibility := list.ItemAt(0).(*types.Visibility)
+	if len(visibility.PlatformID) == 0 { // public visibility
+		return next.Handle(req)
+	}
+	tenantLabels, ok := visibility.Labels[f.tenantIdentifier]
+	if ok && slice.StringsAnyEquals(tenantLabels, tenantID) {
+		return next.Handle(req)
 	}
 
-	_, err := f.repository.Get(ctx, types.VisibilityType, criteria...)
-	if err != nil {
-		if err == util.ErrNotFoundInStorage {
-			return nil, &util.HTTPError{
-				ErrorType:   "NotFound",
-				Description: "could not find such service plan",
-				StatusCode:  http.StatusNotFound,
-			}
-		}
-
-		return nil, util.HandleStorageError(err, types.VisibilityType.String())
-	}
-
-	return next.Handle(req)
+	return nil, visibilityError
 }
 
 func (*serviceInstanceVisibilityFilter) FilterMatchers() []web.FilterMatcher {

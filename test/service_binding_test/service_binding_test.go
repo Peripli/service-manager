@@ -17,12 +17,9 @@
 package service_binding_test
 
 import (
-	"context"
 	"fmt"
-	"github.com/Peripli/service-manager/storage"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gofrs/uuid"
 
@@ -88,7 +85,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				}
 
 				planID := newServicePlan(ctx)
-				ensurePlanVisibility(ctx.SMRepository, types.SMPlatform, planID, TenantIDValue)
+				test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, planID, TenantIDValue)
 
 				instanceBody := common.Object{
 					"id":               instanceID.String(),
@@ -298,12 +295,14 @@ func blueprint(ctx *common.TestContext, auth *common.SMExpect, async bool) commo
 	}
 	instanceID := "instance-" + ID.String()
 
+	servicePlanID := newServicePlan(ctx)
+	test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, "")
 	resp := ctx.SMWithOAuth.POST(web.ServiceInstancesURL).
 		WithQuery("async", strconv.FormatBool(async)).
 		WithJSON(common.Object{
 			"id":               instanceID,
 			"name":             instanceID + "name",
-			"service_plan_id":  newServicePlan(ctx),
+			"service_plan_id":  servicePlanID,
 			"maintenance_info": "{}",
 		}).Expect()
 
@@ -340,28 +339,4 @@ func newServicePlan(ctx *common.TestContext) string {
 	servicePlanID := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, "fieldQuery="+fmt.Sprintf("service_offering_id eq '%s'", so.Object().Value("id").String().Raw())).
 		First().Object().Value("id").String().Raw()
 	return servicePlanID
-}
-
-func ensurePlanVisibility(repository storage.Repository, platformID, planID, tenantID string) {
-	UUID, err := uuid.NewV4()
-	if err != nil {
-		panic(fmt.Errorf("could not generate GUID for visibility: %s", err))
-	}
-
-	currentTime := time.Now().UTC()
-	_, err = repository.Create(context.TODO(), &types.Visibility{
-		Base: types.Base{
-			ID:        UUID.String(),
-			UpdatedAt: currentTime,
-			CreatedAt: currentTime,
-			Labels: types.Labels{
-				TenantIdentifier: {tenantID},
-			},
-		},
-		ServicePlanID: planID,
-		PlatformID:    platformID,
-	})
-	if err != nil {
-		panic(err)
-	}
 }
