@@ -38,7 +38,6 @@ type ServiceBinding struct {
 	Context           sqlxtypes.JSONText     `db:"context"`
 	BindResource      sqlxtypes.JSONText     `db:"bind_resource"`
 	Credentials       string                 `db:"credentials"`
-	Ready             bool                   `db:"ready"`
 }
 
 func (sb *ServiceBinding) ToObject() types.Object {
@@ -75,6 +74,7 @@ func (*ServiceBinding) FromObject(object types.Object) (storage.Entity, bool) {
 			CreatedAt:      serviceBinding.CreatedAt,
 			UpdatedAt:      serviceBinding.UpdatedAt,
 			PagingSequence: serviceBinding.PagingSequence,
+			Ready:          serviceBinding.Ready,
 		},
 		Name:              serviceBinding.Name,
 		ServiceInstanceID: serviceBinding.ServiceInstanceID,
@@ -85,7 +85,6 @@ func (*ServiceBinding) FromObject(object types.Object) (storage.Entity, bool) {
 		Context:           getJSONText(serviceBinding.Context),
 		BindResource:      getJSONText(serviceBinding.BindResource),
 		Credentials:       serviceBinding.Credentials,
-		Ready:             serviceBinding.Ready,
 	}
 
 	return sb, true
