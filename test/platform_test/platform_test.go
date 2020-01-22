@@ -22,8 +22,6 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/Peripli/service-manager/test/testutil/service_instance"
-
 	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -362,7 +360,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						WithJSON(platform).
 						Expect().Status(http.StatusCreated)
 
-					service_instance.CreateInPlatform(ctx, platformID)
+					common.CreateInPlatform(ctx, platformID)
 				})
 
 				AfterEach(func() {

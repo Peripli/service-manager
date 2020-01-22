@@ -356,6 +356,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 			if listOpEntry.resourcesToExpectAfterOp != nil {
 				By(fmt.Sprintf("[TEST]: Verifying expected %s are returned after list operation", t.API))
 				for _, entity := range listOpEntry.resourcesToExpectAfterOp {
+					Expect(entity["ready"].(bool)).To(BeTrue())
 					stripObject(entity, t.ResourcePropertiesToIgnore...)
 					array.Contains(entity)
 				}
