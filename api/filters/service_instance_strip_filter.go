@@ -20,6 +20,7 @@ import (
 	"context"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"net/http"
 
@@ -41,6 +42,14 @@ func (*ServiceInstanceStripFilter) Name() string {
 }
 
 func (*ServiceInstanceStripFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
+	if gjson.GetBytes(req.Body, "id").Exists() {
+		return nil, &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: "Invalid request body - providing specific resource id is forbidden",
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+
 	var err error
 	req.Body, err = removePropertiesFromRequest(req.Context(), req.Body, serviceInstanceUnmodifiableProperties)
 	if err != nil {
@@ -63,14 +72,6 @@ func (*ServiceInstanceStripFilter) FilterMatchers() []web.FilterMatcher {
 func removePropertiesFromRequest(ctx context.Context, body []byte, props []string) ([]byte, error) {
 	var err error
 	for _, prop := range props {
-		if prop == "id" {
-			return nil, &util.HTTPError{
-				ErrorType:   "BadRequest",
-				Description: "Invalid request body - providing specific resource id is forbidden",
-				StatusCode:  http.StatusBadRequest,
-			}
-		}
-
 		body, err = sjson.DeleteBytes(body, prop)
 		if err != nil {
 			log.C(ctx).Errorf("Could not remove %s from body %s", prop, err)

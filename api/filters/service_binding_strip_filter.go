@@ -17,6 +17,8 @@
 package filters
 
 import (
+	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/tidwall/gjson"
 	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -37,6 +39,14 @@ func (*ServiceBindingStripFilter) Name() string {
 }
 
 func (*ServiceBindingStripFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
+	if gjson.GetBytes(req.Body, "id").Exists() {
+		return nil, &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: "Invalid request body - providing specific resource id is forbidden",
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+
 	var err error
 	req.Body, err = removePropertiesFromRequest(req.Context(), req.Body, serviceBindingUnmodifiableProperties)
 	if err != nil {

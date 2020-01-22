@@ -249,12 +249,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				When("request body id field is provided", func() {
 					It("should return 400", func() {
 						test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), "")
-						postInstanceRequest["id"] = "instance/1"
+						postInstanceRequest["id"] = "test-instance-id"
 						resp := ctx.SMWithOAuth.POST(web.ServiceInstancesURL).
 							WithJSON(postInstanceRequest).
 							Expect().Status(http.StatusBadRequest).JSON().Object()
 
-						resp.Value("description").Equal("instance/1 contains invalid character(s)")
+						Expect(resp.Value("description").String().Raw()).To(ContainSubstring("providing specific resource id is forbidden"))
 					})
 				})
 

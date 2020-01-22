@@ -189,14 +189,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 
 				Context("when request body id field is provided", func() {
-					It("should still generate a different GUID", func() {
-						bindingID := "test-binding-id"
-						postBindingRequest["id"] = bindingID
+					It("should return 400", func() {
+						postBindingRequest["id"] = "test-binding-id"
 						resp := smExpect.POST(web.ServiceBindingsURL).
 							WithJSON(postBindingRequest).
-							Expect().Status(http.StatusCreated).JSON().Object()
+							Expect().Status(http.StatusBadRequest).JSON().Object()
 
-						resp.Value("id").NotEqual(bindingID)
+						Expect(resp.Value("description").String().Raw()).To(ContainSubstring("providing specific resource id is forbidden"))
 					})
 				})
 
