@@ -63,6 +63,14 @@ func (*ServiceInstanceStripFilter) FilterMatchers() []web.FilterMatcher {
 func removePropertiesFromRequest(ctx context.Context, body []byte, props []string) ([]byte, error) {
 	var err error
 	for _, prop := range props {
+		if prop == "id" {
+			return nil, &util.HTTPError{
+				ErrorType:   "BadRequest",
+				Description: "Invalid request body - providing specific resource id is forbidden",
+				StatusCode:  http.StatusBadRequest,
+			}
+		}
+
 		body, err = sjson.DeleteBytes(body, prop)
 		if err != nil {
 			log.C(ctx).Errorf("Could not remove %s from body %s", prop, err)

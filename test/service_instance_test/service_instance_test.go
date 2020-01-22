@@ -19,14 +19,13 @@ package service_test
 import (
 	"context"
 	"fmt"
+	"github.com/gofrs/uuid"
 
 	"github.com/gavv/httpexpect"
 
 	"strconv"
 
 	"github.com/Peripli/service-manager/test/testutil/service_instance"
-	"github.com/gofrs/uuid"
-
 	"net/http"
 	"testing"
 
@@ -92,32 +91,27 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					Status(expectedStatus)
 
 				if resp.Raw().StatusCode == http.StatusCreated {
-					resp.JSON().Object().
-						ContainsMap(expectedInstanceResponse).ContainsKey("id").
+					obj := resp.JSON().Object()
+
+					obj.ContainsMap(expectedInstanceResponse).ContainsKey("id").
 						ValueEqual("platform_id", types.SMPlatform)
+
+					instanceID = obj.Value("id").String().Raw()
 				}
 			}
 
 			BeforeEach(func() {
-				id, err := uuid.NewV4()
-				if err != nil {
-					panic(err)
-				}
-
-				instanceID = id.String()
 				name := "test-instance"
 				plans := generateServicePlanIDs(ctx, ctx.SMWithOAuth)
 				servicePlanID = plans.Element(0).Object().Value("id").String().Raw()
 				anotherServicePlanID = plans.Element(1).Object().Value("id").String().Raw()
 
 				postInstanceRequest = common.Object{
-					"id":               instanceID,
 					"name":             name,
 					"service_plan_id":  servicePlanID,
 					"maintenance_info": "{}",
 				}
 				expectedInstanceResponse = common.Object{
-					"id":               instanceID,
 					"name":             name,
 					"service_plan_id":  servicePlanID,
 					"maintenance_info": "{}",
@@ -235,7 +229,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						})
 					}
 
-					Context("when id  field is missing", func() {
+					Context("when id field is missing", func() {
 						assertPOSTReturns201WhenFieldIsMissing("id")
 					})
 
@@ -252,7 +246,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 				})
 
-				When("request body id field is invalid", func() {
+				When("request body id field is provided", func() {
 					It("should return 400", func() {
 						test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), "")
 						postInstanceRequest["id"] = "instance/1"
@@ -293,9 +287,10 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							Expect().
 							Status(http.StatusAccepted)
 
-						test.ExpectOperation(ctx.SMWithOAuth, resp, types.SUCCEEDED)
+						op, err := test.ExpectOperation(ctx.SMWithOAuth, resp, types.SUCCEEDED)
+						Expect(err).To(BeNil())
 
-						ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + instanceID).Expect().
+						ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + op.Value("resource_id").String().Raw()).Expect().
 							Status(http.StatusOK).
 							JSON().Object().
 							ContainsMap(expectedInstanceResponse).ContainsKey("id")
@@ -538,15 +533,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 })
 
 func blueprint(ctx *common.TestContext, auth *common.SMExpect, async bool) common.Object {
-	instanceID, err := uuid.NewV4()
+	ID, err := uuid.NewV4()
 	if err != nil {
 		panic(err)
 	}
 
 	instanceReqBody := make(common.Object, 0)
-	instanceReqBody["id"] = instanceID.String()
-	instanceReqBody["name"] = "test-instance-" + instanceID.String()
-
+	instanceReqBody["name"] = "test-service-instance-" + ID.String()
 	instanceReqBody["service_plan_id"] = generateServicePlanIDs(ctx, auth).First().Object().Value("id").String().Raw()
 
 	test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, instanceReqBody["service_plan_id"].(string), "")
@@ -554,7 +547,7 @@ func blueprint(ctx *common.TestContext, auth *common.SMExpect, async bool) commo
 
 	var instance map[string]interface{}
 	if async {
-		instance = test.ExpectSuccessfulAsyncResourceCreation(resp, auth, instanceID.String(), web.ServiceInstancesURL)
+		instance = test.ExpectSuccessfulAsyncResourceCreation(resp, auth, web.ServiceInstancesURL)
 	} else {
 		instance = resp.Status(http.StatusCreated).JSON().Object().Raw()
 	}

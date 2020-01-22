@@ -35,7 +35,7 @@ func DescribePatchTestsFor(ctx *common.TestContext, t TestCase, responseMode Res
 			case Async:
 				resp.Status(http.StatusAccepted)
 
-				err := ExpectOperation(ctx.SMWithOAuth, resp, types.SUCCEEDED)
+				_, err := ExpectOperation(ctx.SMWithOAuth, resp, types.SUCCEEDED)
 				Expect(err).To(BeNil())
 			case Sync:
 				resp.Status(http.StatusOK)

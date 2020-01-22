@@ -83,7 +83,7 @@ var _ = Describe("Operations", func() {
 					WithQuery("async", "true").
 					Expect().
 					Status(http.StatusAccepted)
-				err := test.ExpectOperationWithError(ctx.SMWithOAuth, resp, types.FAILED, "job timed out")
+				_, err := test.ExpectOperationWithError(ctx.SMWithOAuth, resp, types.FAILED, "job timed out")
 				Expect(err).To(BeNil())
 			})
 		})

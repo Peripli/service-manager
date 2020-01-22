@@ -18,7 +18,6 @@ package broker_test
 import (
 	"context"
 	"fmt"
-	"github.com/gofrs/uuid"
 	"net/http"
 	"strconv"
 	"strings"
@@ -1739,12 +1738,6 @@ func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *com
 	return func(ctx *common.TestContext, auth *common.SMExpect, async bool) common.Object {
 		brokerJSON := common.GenerateRandomBroker()
 
-		brokerID, err := uuid.NewV4()
-		if err != nil {
-			panic(err)
-		}
-		brokerJSON["id"] = brokerID.String()
-
 		if !setNullFieldsValues {
 			delete(brokerJSON, "description")
 		}
@@ -1752,7 +1745,7 @@ func blueprint(setNullFieldsValues bool) func(ctx *common.TestContext, auth *com
 		var obj map[string]interface{}
 		resp := auth.POST(web.ServiceBrokersURL).WithQuery("async", strconv.FormatBool(async)).WithJSON(brokerJSON).Expect()
 		if async {
-			obj = test.ExpectSuccessfulAsyncResourceCreation(resp, auth, brokerID.String(), web.ServiceBrokersURL)
+			obj = test.ExpectSuccessfulAsyncResourceCreation(resp, auth, web.ServiceBrokersURL)
 		} else {
 			obj = resp.Status(http.StatusCreated).JSON().Object().Raw()
 			delete(obj, "credentials")
