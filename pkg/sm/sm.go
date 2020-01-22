@@ -474,6 +474,8 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 		TenantIdentifier: labelKey,
 	}).Register()
 
+	smb.RegisterControllers(&api.MarketplaceController{Repository: smb.Storage, ExtractTenantFunc: extractTenantFunc, VisibilityLabelKey: labelKey})
+
 	return smb
 }
 
