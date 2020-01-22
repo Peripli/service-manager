@@ -17,6 +17,11 @@
 package healthcheck_test
 
 import (
+	"context"
+	"github.com/Peripli/service-manager/pkg/env"
+	"github.com/Peripli/service-manager/pkg/sm"
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/pkg/web"
 	"net/http"
 	"testing"
 
@@ -31,23 +36,83 @@ func TestHealth(t *testing.T) {
 
 var _ = Describe("Healthcheck API", func() {
 
-	var ctx *common.TestContext
+	var (
+		ctxBuilder *common.TestContextBuilder
+		ctx        *common.TestContext
+	)
 
-	BeforeSuite(func() {
-		ctx = common.DefaultTestContext()
+	BeforeEach(func() {
+		ctxBuilder = common.NewTestContextBuilderWithSecurity()
 	})
 
-	AfterSuite(func() {
+	JustBeforeEach(func() {
+		ctx = ctxBuilder.Build()
+	})
+
+	AfterEach(func() {
 		ctx.Cleanup()
 	})
 
-	Describe("Get info handler", func() {
-		It("Returns correct response", func() {
-			ctx.SM.GET(healthcheck.URL).
-				Expect().
-				Status(http.StatusOK).JSON().Object().ContainsMap(map[string]interface{}{
-				"status": "UP",
+	Describe("Unauthorized", func() {
+		When("Get info handler", func() {
+			It("Returns correct response", func() {
+				ctx.SM.GET(healthcheck.URL).
+					Expect().
+					Status(http.StatusOK).JSON().Object().ContainsMap(map[string]interface{}{
+					"status": "UP",
+				})
+			})
+		})
+	})
+
+	Describe("Authorized", func() {
+		When("Get info handler", func() {
+			BeforeEach(func() {
+				ctxBuilder.WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
+					smb.RegisterFilters(&dummyAuthFilter{})
+					return nil
+				})
+			})
+
+			It("Doesn't include SM platform", func() {
+				respBody := ctx.SMWithOAuth.GET(healthcheck.URL).
+					Expect().
+					Status(http.StatusOK).JSON().Object()
+
+				respBody.NotContainsMap(map[string]interface{}{
+					"details": map[string]interface{}{
+						"platforms": map[string]interface{}{
+							"details": map[string]interface{}{
+								types.SMPlatform: map[string]interface{}{},
+							},
+						},
+					},
+				})
 			})
 		})
 	})
 })
+
+type dummyAuthFilter struct{}
+
+func (*dummyAuthFilter) Name() string {
+	return "dummyAuthFilter"
+}
+
+func (*dummyAuthFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
+	ctx := web.ContextWithAuthorization(req.Context())
+	req.Request = req.WithContext(ctx)
+
+	return next.Handle(req)
+}
+
+func (*dummyAuthFilter) FilterMatchers() []web.FilterMatcher {
+	return []web.FilterMatcher{
+		{
+			Matchers: []web.Matcher{
+				web.Path(web.MonitorHealthURL),
+				web.Methods(http.MethodGet),
+			},
+		},
+	}
+}
