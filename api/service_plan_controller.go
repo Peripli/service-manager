@@ -43,7 +43,7 @@ func (c *ServicePlanController) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   fmt.Sprintf("%s/{%s}", web.ServicePlansURL, PathParamResourceID),
+				Path:   fmt.Sprintf("%s/{%s}", web.ServicePlansURL, web.PathParamResourceID),
 			},
 			Handler: c.GetSingleObject,
 		},
@@ -57,7 +57,7 @@ func (c *ServicePlanController) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodPatch,
-				Path:   fmt.Sprintf("%s/{%s}", web.ServicePlansURL, PathParamResourceID),
+				Path:   fmt.Sprintf("%s/{%s}", web.ServicePlansURL, web.PathParamResourceID),
 			},
 			Handler: c.PatchObject,
 		},

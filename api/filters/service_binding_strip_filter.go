@@ -17,14 +17,11 @@
 package filters
 
 import (
-	"context"
+	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/tidwall/gjson"
 	"net/http"
 
-	"github.com/Peripli/service-manager/pkg/log"
-	"github.com/Peripli/service-manager/pkg/util"
-
 	"github.com/Peripli/service-manager/pkg/web"
-	"github.com/tidwall/sjson"
 )
 
 const ServiceBindingStripFilterName = "ServiceBindingStripFilter"
@@ -42,29 +39,20 @@ func (*ServiceBindingStripFilter) Name() string {
 }
 
 func (*ServiceBindingStripFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
+	if gjson.GetBytes(req.Body, "id").Exists() {
+		return nil, &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: "Invalid request body - providing specific resource id is forbidden",
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+
 	var err error
-	req.Body, err = removePropertiesFromRequest(
-		req.Context(), req.Body, serviceBindingUnmodifiableProperties)
+	req.Body, err = removePropertiesFromRequest(req.Context(), req.Body, serviceBindingUnmodifiableProperties)
 	if err != nil {
 		return nil, err
 	}
 	return next.Handle(req)
-}
-
-func removePropertiesFromRequest(ctx context.Context, body []byte, properties []string) ([]byte, error) {
-	var err error
-	for _, prop := range properties {
-		body, err = sjson.DeleteBytes(body, prop)
-		if err != nil {
-			log.C(ctx).Errorf("Could not remove %s from body %s", prop, err)
-			return nil, &util.HTTPError{
-				ErrorType:   "BadRequest",
-				Description: "Invalid request body",
-				StatusCode:  http.StatusBadRequest,
-			}
-		}
-	}
-	return body, nil
 }
 
 func (*ServiceBindingStripFilter) FilterMatchers() []web.FilterMatcher {

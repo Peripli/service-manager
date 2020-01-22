@@ -28,7 +28,9 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/Peripli/service-manager/storage"
 	"github.com/gavv/httpexpect"
+	"github.com/gofrs/uuid"
 
 	"github.com/tidwall/gjson"
 
@@ -104,7 +106,7 @@ func APIResourcePatch(ctx *common.TestContext, apiPath string, objID string, _ t
 
 	if async {
 		resp = resp.Status(http.StatusAccepted)
-		err := ExpectOperation(ctx.SMWithOAuth, resp, types.SUCCEEDED)
+		_, err := ExpectOperation(ctx.SMWithOAuth, resp, types.SUCCEEDED)
 		if err != nil {
 			panic(err)
 		}
@@ -126,23 +128,25 @@ func StorageResourcePatch(ctx *common.TestContext, _ string, objID string, resou
 	}
 }
 
-func ExpectSuccessfulAsyncResourceCreation(resp *httpexpect.Response, SM *common.SMExpect, resourceID, resourceURL string) map[string]interface{} {
+func ExpectSuccessfulAsyncResourceCreation(resp *httpexpect.Response, SM *common.SMExpect, resourceURL string) map[string]interface{} {
 	resp = resp.Status(http.StatusAccepted)
-	if err := ExpectOperation(SM, resp, types.SUCCEEDED); err != nil {
+
+	op, err := ExpectOperation(SM, resp, types.SUCCEEDED)
+	if err != nil {
 		panic(err)
 	}
 
-	obj := SM.GET(resourceURL + "/" + resourceID).
+	obj := SM.GET(resourceURL + "/" + op.Value("resource_id").String().Raw()).
 		Expect().Status(http.StatusOK).JSON().Object().Raw()
 
 	return obj
 }
 
-func ExpectOperation(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState) error {
+func ExpectOperation(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState) (*httpexpect.Object, error) {
 	return ExpectOperationWithError(auth, asyncResp, expectedState, "")
 }
 
-func ExpectOperationWithError(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState, expectedErrMsg string) error {
+func ExpectOperationWithError(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState, expectedErrMsg string) (*httpexpect.Object, error) {
 	operationURL := asyncResp.Header("Location").Raw()
 	var operation *httpexpect.Object
 	for {
@@ -165,9 +169,41 @@ func ExpectOperationWithError(auth *common.SMExpect, asyncResp *httpexpect.Respo
 						return fmt.Errorf("unable to verify operation - expected error message (%s), but got (%s)", expectedErrMsg, errs.String().Raw())
 					}
 				}
-				return nil
+				return operation, nil
 			}
 		}
+	}
+}
+
+func EnsurePublicPlanVisibility(repository storage.Repository, planID string) {
+	EnsurePlanVisibility(repository, "", "", planID, "")
+}
+
+func EnsurePlanVisibility(repository storage.Repository, tenantIdentifier, platformID, planID, tenantID string) {
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(fmt.Errorf("could not generate GUID for visibility: %s", err))
+	}
+
+	var labels types.Labels = nil
+	if tenantID != "" {
+		labels = types.Labels{
+			tenantIdentifier: {tenantID},
+		}
+	}
+	currentTime := time.Now().UTC()
+	_, err = repository.Create(context.TODO(), &types.Visibility{
+		Base: types.Base{
+			ID:        UUID.String(),
+			UpdatedAt: currentTime,
+			CreatedAt: currentTime,
+			Labels:    labels,
+		},
+		ServicePlanID: planID,
+		PlatformID:    platformID,
+	})
+	if err != nil {
+		panic(err)
 	}
 }
 

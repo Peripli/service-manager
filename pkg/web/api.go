@@ -27,6 +27,20 @@ import (
 	"github.com/Peripli/service-manager/pkg/util/slice"
 )
 
+const (
+	// PathParamID is the value used to denote the id of the requested entity
+	PathParamID = "id"
+
+	// PathParamResourceID is the value used to denote the id of the requested resource
+	PathParamResourceID = "resource_id"
+
+	// QueryParamAsync is the value used to denote the query key used to convey a client's intent whether the request should be executed async or not
+	QueryParamAsync = "async"
+
+	// QueryParamLastOp is the value used to denote the query key used to convey a client's intent to retrieve also the last operation associated with the requested resource
+	QueryParamLastOp = "last_op"
+)
+
 // API is the primary point for REST API registration
 type API struct {
 	// Controllers contains the registered controllers

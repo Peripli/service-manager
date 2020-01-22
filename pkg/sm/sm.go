@@ -172,7 +172,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	}
 
 	smb.RegisterPlugins(osb.NewCatalogFilterByVisibilityPlugin(interceptableRepository))
-	smb.RegisterPluginsBefore(osb.CheckInstanceOwnerPluginName, osb.NewStoreServiceInstancesPlugin(interceptableRepository))
+	smb.RegisterPluginsBefore(osb.CheckInstanceOwnerhipPluginName, osb.NewStoreServiceInstancesPlugin(interceptableRepository))
 	smb.RegisterPluginsBefore(osb.StoreServiceInstancePluginName, osb.NewCheckVisibilityPlugin(interceptableRepository))
 	smb.RegisterPlugins(osb.NewCheckPlatformIDPlugin(interceptableRepository))
 
@@ -284,10 +284,10 @@ func (smb *ServiceManagerBuilder) registerSMPlatform() error {
 		Name: types.SMPlatform,
 	}); err != nil {
 		if err == util.ErrAlreadyExistsInStorage {
-			log.C(smb.ctx).Infof("platform %s already exists in SMDB and registration will be skipped...", "service-manager")
+			log.C(smb.ctx).Infof("platform %s already exists in SMDB...", types.SMPlatform)
 			return nil
 		}
-		return fmt.Errorf("could register service-manager platform during bootstrap: %s", err)
+		return fmt.Errorf("could not register %s platform during bootstrap: %s", types.SMPlatform, err)
 	}
 
 	return nil
@@ -507,13 +507,20 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 
 	multitenancyFilters := filters.NewMultitenancyFilters(labelKey, extractTenantFunc)
 	smb.RegisterFiltersAfter(filters.ProtectedLabelsFilterName, multitenancyFilters...)
-	smb.RegisterPlugins(osb.NewCheckInstanceOwnerPlugin(smb.Storage, labelKey))
+	smb.RegisterFilters(
+		filters.NewServiceInstanceVisibilityFilter(smb.Storage, labelKey),
+		filters.NewServiceBindingVisibilityFilter(smb.Storage, labelKey),
+	)
+
+	smb.RegisterPlugins(osb.NewCheckInstanceOwnershipPlugin(smb.Storage, labelKey))
+
 	smb.WithCreateOnTxInterceptorProvider(types.ServiceInstanceType, &interceptors.ServiceInstanceCreateInsterceptorProvider{
 		TenantIdentifier: labelKey,
 	}).AroundTxAfter(interceptors.ServiceInstanceCreateInterceptorProviderName).Register()
 	smb.WithCreateOnTxInterceptorProvider(types.OperationType, &interceptors.OperationsCreateInsterceptorProvider{
 		TenantIdentifier: labelKey,
 	}).Register()
+
 	return smb
 }
 

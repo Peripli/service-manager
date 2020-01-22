@@ -39,7 +39,7 @@ func (m visibilityFilteringMiddleware) Run(req *web.Request, next web.Handler) (
 	}
 
 	resourceID := req.PathParams["resource_id"]
-	isSingleResource := (resourceID != "")
+	isSingleResource := resourceID != ""
 
 	if isSingleResource {
 		if isResourceVisible, err := m.IsResourceVisible(ctx, resourceID, platform.ID); err != nil {

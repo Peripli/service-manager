@@ -39,12 +39,12 @@
   version = "v1.5.1"
 
 [[projects]]
-  digest = "1:d04889482897652dedae6d8575b479c06fa3eb3c3abe248163b25d3df5fab43e"
+  digest = "1:3076a0751f5648f3ab1838abfba18bc5bf514cde7e3957500b62fba90633479a"
   name = "github.com/antlr/antlr4"
   packages = ["runtime/Go/antlr"]
   pruneopts = "UT"
-  revision = "be58ebffde8e29c154192c019608f0a5b8e6a064"
-  version = "4.7.2"
+  revision = "d569f917954406e599d780c009224aa14f1920de"
+  version = "4.8"
 
 [[projects]]
   branch = "master"

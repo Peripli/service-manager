@@ -79,7 +79,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 					Status(deletionRequestResponseCode)
 
 				if responseMode == Async {
-					err := ExpectOperationWithError(auth, resp, expectedOpState, expectedErrMsg)
+					_, err := ExpectOperationWithError(auth, resp, expectedOpState, expectedErrMsg)
 					Expect(err).To(BeNil())
 				}
 
@@ -158,7 +158,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 			verifyMissingResourceFailedDeletion := func(resp *httpexpect.Response, expectedErrMsg string) {
 				switch responseMode {
 				case Async:
-					err := ExpectOperationWithError(ctx.SMWithOAuth, resp, types.FAILED, expectedErrMsg)
+					_, err := ExpectOperationWithError(ctx.SMWithOAuth, resp, types.FAILED, expectedErrMsg)
 					Expect(err).To(BeNil())
 				case Sync:
 					resp.Status(http.StatusNotFound).JSON().Object().Keys().Contains("error", "description")

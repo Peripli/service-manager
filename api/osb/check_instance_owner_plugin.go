@@ -12,37 +12,37 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-const CheckInstanceOwnerPluginName = "CheckInstanceOwnerPlugin"
+const CheckInstanceOwnerhipPluginName = "CheckInstanceOwnershipPlugin"
 
-type checkInstanceOwnerPlugin struct {
+type checkInstanceOwnershipPlugin struct {
 	repository       storage.Repository
 	tenantIdentifier string
 }
 
-// NewCheckInstanceOwnerPlugin creates new plugin that checks the owner of the instance
-func NewCheckInstanceOwnerPlugin(repository storage.Repository, tenantIdentifier string) *checkInstanceOwnerPlugin {
-	return &checkInstanceOwnerPlugin{
+// NewCheckInstanceOwnershipPlugin creates new plugin that checks the owner of the instance
+func NewCheckInstanceOwnershipPlugin(repository storage.Repository, tenantIdentifier string) *checkInstanceOwnershipPlugin {
+	return &checkInstanceOwnershipPlugin{
 		repository:       repository,
 		tenantIdentifier: tenantIdentifier,
 	}
 }
 
 // Name returns the name of the plugin
-func (p *checkInstanceOwnerPlugin) Name() string {
-	return CheckInstanceOwnerPluginName
+func (p *checkInstanceOwnershipPlugin) Name() string {
+	return CheckInstanceOwnerhipPluginName
 }
 
 // Bind intercepts bind requests and check if the instance owner is the same as the one requesting the bind operation
-func (p *checkInstanceOwnerPlugin) Bind(req *web.Request, next web.Handler) (*web.Response, error) {
+func (p *checkInstanceOwnershipPlugin) Bind(req *web.Request, next web.Handler) (*web.Response, error) {
 	return p.assertOwner(req, next)
 }
 
 // UpdateService intercepts update service instance requests and check if the instance owner is the same as the one requesting the operation
-func (p *checkInstanceOwnerPlugin) UpdateService(req *web.Request, next web.Handler) (*web.Response, error) {
+func (p *checkInstanceOwnershipPlugin) UpdateService(req *web.Request, next web.Handler) (*web.Response, error) {
 	return p.assertOwner(req, next)
 }
 
-func (p *checkInstanceOwnerPlugin) assertOwner(req *web.Request, next web.Handler) (*web.Response, error) {
+func (p *checkInstanceOwnershipPlugin) assertOwner(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
 	callerTenantID := gjson.GetBytes(req.Body, "context."+p.tenantIdentifier).String()
 	if len(callerTenantID) == 0 {
