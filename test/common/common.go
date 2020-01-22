@@ -227,7 +227,7 @@ func RemoveAllInstances(ctx *TestContext) error {
 	}
 	for i := 0; i < objectList.Len(); i++ {
 		instance := objectList.ItemAt(i).(*types.ServiceInstance)
-		if err := Delete(ctx, instance); err != nil {
+		if err := DeleteInstance(ctx, instance); err != nil {
 			return err
 		}
 	}
@@ -235,8 +235,17 @@ func RemoveAllInstances(ctx *TestContext) error {
 	return nil
 }
 
-func RemoveAllBindings(repository storage.Repository) error {
-	return repository.Delete(context.TODO(), types.ServiceBindingType)
+func RemoveAllBindings(ctx *TestContext) error {
+	objectList, err := ctx.SMRepository.List(context.TODO(), types.ServiceBindingType)
+	if err != nil {
+		return err
+	}
+	for i := 0; i < objectList.Len(); i++ {
+		binding := objectList.ItemAt(i).(*types.ServiceBinding)
+		if err := DeleteBinding(ctx, binding); err != nil {
+			return err
+		}
+	}
 }
 
 func RemoveAllBrokers(SM *SMExpect) {

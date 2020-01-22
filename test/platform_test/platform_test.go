@@ -360,7 +360,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						WithJSON(platform).
 						Expect().Status(http.StatusCreated)
 
-					common.CreateInPlatform(ctx, platformID)
+					common.CreateInstanceInPlatform(ctx, platformID)
 				})
 
 				AfterEach(func() {

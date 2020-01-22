@@ -320,7 +320,7 @@ func (ds *Scheduler) handleActionResponse(ctx context.Context, jobError error, o
 			if err := updateOperationState(ctx, storage, opAfterJob, types.SUCCEEDED, nil); err != nil {
 				return err
 			}
-			if opAfterJob.Type != types.DELETE {
+			if opAfterJob.Type == types.CREATE {
 				if err := fetchAndUpdateResource(ctx, storage, opAfterJob.ResourceID, opAfterJob.ResourceType, func(obj types.Object) {
 					obj.SetReady(true)
 				}); err != nil {

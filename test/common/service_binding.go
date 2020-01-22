@@ -14,36 +14,12 @@ import (
 	. "github.com/onsi/ginkgo"
 )
 
-func Prepare(ctx *TestContext, planID string) (string, Object) {
-	var brokerID string
-	if planID == "" {
-		brokerID, planID = preparePlan(ctx)
-	}
-
-	instanceID, err := uuid.NewV4()
-	if err != nil {
-		Fail(fmt.Sprintf("failed to generate instance GUID: %s", err))
-	}
-
-	return brokerID, Object{
-		"id":              instanceID.String(),
-		"name":            "test-service-instance",
-		"service_plan_id": planID,
-		"dashboard_url":   "http://test-service.com/dashboard",
-	}
-}
-
-func CreateInPlatform(ctx *TestContext, platformID string) (string, *types.ServiceInstance) {
-	brokerID, planID := preparePlan(ctx)
-	return brokerID, CreateInPlatformForPlan(ctx, platformID, planID)
-}
-
-func CreateInPlatformForPlan(ctx *TestContext, platformID, planID string) *types.ServiceInstance {
+func CreateBinding(ctx *TestContext, instanceID string) *types.ServiceBinding {
 	operationID, err := uuid.NewV4()
 	if err != nil {
 		Fail(fmt.Sprintf("failed to generate instance GUID: %s", err))
 	}
-	instanceID, err := uuid.NewV4()
+	bindingID, err := uuid.NewV4()
 	if err != nil {
 		Fail(fmt.Sprintf("failed to generate instance GUID: %s", err))
 	}
@@ -55,33 +31,38 @@ func CreateInPlatformForPlan(ctx *TestContext, platformID, planID string) *types
 		},
 		Type:         types.CREATE,
 		State:        types.IN_PROGRESS,
-		ResourceID:   instanceID.String(),
-		ResourceType: types.ServiceInstanceType,
+		ResourceID:   bindingID.String(),
+		ResourceType: types.ServiceBindingType,
 	}
 
-	instance := &types.ServiceInstance{
+	binding := &types.ServiceBinding{
 		Base: types.Base{
-			ID:        instanceID.String(),
+			ID:        bindingID.String(),
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 			Ready:     true,
 		},
-		Name:          "test-service-instance",
-		ServicePlanID: planID,
-		PlatformID:    platformID,
-		DashboardURL:  "http://testurl.com",
+		Secured:           nil,
+		Name:              "test-service-binding",
+		ServiceInstanceID: instanceID,
 	}
 
-	if _, err := ctx.SMScheduler.ScheduleSyncStorageAction(context.TODO(), operation, func(ctx context.Context, repository storage.Repository) (object types.Object, e error) {
-		return repository.Create(ctx, instance)
+	if _, err := ctx.SMScheduler.ScheduleSyncStorageAction(context.TODO(), operation, func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+		return repository.Create(ctx, binding)
 	}); err != nil {
-		Fail(fmt.Sprintf("failed to create instance with name %s", instance.Name))
+		Fail(fmt.Sprintf("failed to create binding with name %s", binding.Name))
 	}
 
-	return instance
+	return binding
 }
 
-func Delete(ctx *TestContext, instance *types.ServiceInstance) error {
+func DeleteBinding(ctx *TestContext, binding *types.ServiceBinding) error {
+	instanceObject, err := ctx.SMRepository.Get(context.TODO(), types.ServiceInstanceType, query.ByField(query.EqualsOperator, "id", binding.ServiceInstanceID))
+	if err != nil {
+		return err
+	}
+	instance := instanceObject.(*types.ServiceInstance)
+
 	planObject, err := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, query.ByField(query.EqualsOperator, "id", instance.ServicePlanID))
 	if err != nil {
 		return err
@@ -141,11 +122,11 @@ func Delete(ctx *TestContext, instance *types.ServiceInstance) error {
 		Type:          types.DELETE,
 		State:         types.IN_PROGRESS,
 		ResourceID:    instance.ID,
-		ResourceType:  types.ServiceInstanceType,
+		ResourceType:  types.ServiceBindingType,
 		CorrelationID: "-",
 	}, func(ctx context.Context, repository storage.Repository) (types.Object, error) {
 		byID := query.ByField(query.EqualsOperator, "id", instance.ID)
-		if err := repository.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
+		if err := repository.Delete(ctx, types.ServiceBindingType, byID); err != nil {
 			return nil, err
 		}
 		return nil, nil
@@ -154,26 +135,4 @@ func Delete(ctx *TestContext, instance *types.ServiceInstance) error {
 	}
 
 	return nil
-}
-
-func preparePlan(ctx *TestContext) (string, string) {
-	cService := GenerateTestServiceWithPlans(GenerateFreeTestPlan())
-	catalog := NewEmptySBCatalog()
-	catalog.AddService(cService)
-	brokerID, _, brokerServer := ctx.RegisterBrokerWithCatalog(catalog)
-	ctx.Servers[BrokerServerPrefix+brokerID] = brokerServer
-
-	byBrokerID := query.ByField(query.EqualsOperator, "broker_id", brokerID)
-	obj, err := ctx.SMRepository.Get(context.Background(), types.ServiceOfferingType, byBrokerID)
-	if err != nil {
-		Fail(fmt.Sprintf("unable to fetch service offering: %s", err))
-	}
-
-	byServiceOfferingID := query.ByField(query.EqualsOperator, "service_offering_id", obj.GetID())
-	obj, err = ctx.SMRepository.Get(context.Background(), types.ServicePlanType, byServiceOfferingID)
-	if err != nil {
-		Fail(fmt.Sprintf("unable to service plan: %s", err))
-	}
-
-	return brokerID, obj.GetID()
 }

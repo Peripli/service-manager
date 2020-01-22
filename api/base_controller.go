@@ -442,6 +442,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	objFromDB.SetID(objectID)
 	objFromDB.SetCreatedAt(createdAt)
 	objFromDB.SetUpdatedAt(updatedAt)
+	objFromDB.SetReady(true)
 
 	labels, _, _ := query.ApplyLabelChangesToLabels(labelChanges, objFromDB.GetLabels())
 	objFromDB.SetLabels(labels)

@@ -1163,14 +1163,14 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 							BeforeEach(func() {
 								for _, planID := range planIDsForService {
-									serviceInstance := common.CreateInPlatformForPlan(ctx, ctx.TestPlatform.ID, planID)
+									serviceInstance := common.CreateInstanceInPlatformForPlan(ctx, ctx.TestPlatform.ID, planID)
 									serviceInstances = append(serviceInstances, serviceInstance)
 								}
 							})
 
 							AfterEach(func() {
 								for _, serviceInstance := range serviceInstances {
-									err := common.Delete(ctx, serviceInstance)
+									err := common.DeleteInstance(ctx, serviceInstance)
 									Expect(err).ToNot(HaveOccurred())
 								}
 							})
@@ -1349,12 +1349,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								removedPlanID := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=catalog_id eq '%s'", removedPlanCatalogID)).
 									First().Object().Value("id").String().Raw()
 
-								serviceInstance = common.CreateInPlatformForPlan(ctx, ctx.TestPlatform.ID, removedPlanID)
+								serviceInstance = common.CreateInstanceInPlatformForPlan(ctx, ctx.TestPlatform.ID, removedPlanID)
 
 							})
 
 							AfterEach(func() {
-								err := common.Delete(ctx, serviceInstance)
+								err := common.DeleteInstance(ctx, serviceInstance)
 								Expect(err).ToNot(HaveOccurred())
 							})
 
@@ -1669,11 +1669,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					)
 
 					BeforeEach(func() {
-						brokerID, serviceInstance = common.CreateInPlatform(ctx, ctx.TestPlatform.ID)
+						brokerID, serviceInstance = common.CreateInstanceInPlatform(ctx, ctx.TestPlatform.ID)
 					})
 
 					AfterEach(func() {
-						err := common.Delete(ctx, serviceInstance)
+						err := common.DeleteInstance(ctx, serviceInstance)
 						Expect(err).ToNot(HaveOccurred())
 					})
 

@@ -232,7 +232,17 @@ func checkSQLNoRows(err error) error {
 }
 
 func toNullString(s string) sql.NullString {
-	return sql.NullString{String: s, Valid: s != ""}
+	return sql.NullString{
+		String: s,
+		Valid:  s != "",
+	}
+}
+
+func toNullBool(b *bool) sql.NullBool {
+	return sql.NullBool{
+		Bool:  *b,
+		Valid: b != nil,
+	}
 }
 
 func getJSONText(item json.RawMessage) sqlxtypes.JSONText {

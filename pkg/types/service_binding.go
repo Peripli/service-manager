@@ -32,15 +32,16 @@ import (
 type ServiceBinding struct {
 	Base
 	Secured           `json:"-"`
-	Name              string          `json:"name"`
-	ServiceInstanceID string          `json:"service_instance_id"`
-	SyslogDrainURL    string          `json:"syslog_drain_url,omitempty"`
-	RouteServiceURL   string          `json:"route_service_url,omitempty"`
-	VolumeMounts      json.RawMessage `json:"volume_mounts,omitempty"`
-	Endpoints         json.RawMessage `json:"endpoints,omitempty"`
-	Context           json.RawMessage `json:"-"`
-	BindResource      json.RawMessage `json:"bind_resource,omitempty"`
-	Credentials       string          `json:"credentials"`
+	Name              string                 `json:"name"`
+	ServiceInstanceID string                 `json:"service_instance_id"`
+	SyslogDrainURL    string                 `json:"syslog_drain_url,omitempty"`
+	RouteServiceURL   string                 `json:"route_service_url,omitempty"`
+	VolumeMounts      json.RawMessage        `json:"volume_mounts,omitempty"`
+	Endpoints         json.RawMessage        `json:"endpoints,omitempty"`
+	Context           json.RawMessage        `json:"-"`
+	BindResource      json.RawMessage        `json:"bind_resource,omitempty"`
+	Credentials       string                 `json:"credentials"`
+	Parameters        map[string]interface{} `json:"parameters,omitempty"`
 
 	LastOperation *Operation `json:"last_operation,omitempty"`
 }
