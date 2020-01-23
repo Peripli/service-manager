@@ -24,8 +24,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gofrs/uuid"
-
 	"github.com/Peripli/service-manager/pkg/httpclient"
 	"github.com/Peripli/service-manager/pkg/web"
 
