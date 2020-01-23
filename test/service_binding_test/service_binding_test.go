@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/gavv/httpexpect"
 	"github.com/gofrs/uuid"
 
 	"testing"
@@ -64,7 +65,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	},
 	ResourceType:                           types.ServiceBindingType,
 	SupportsAsyncOperations:                true,
-	DisableTenantResources:                 true,
+	DisableTenantResources:                 false,
+	StrictlyTenantScoped:                   true,
 	ResourceBlueprint:                      blueprint,
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
 	ResourcePropertiesToIgnore:             []string{"volume_mounts", "endpoints", "bind_resource", "credentials"},
@@ -110,7 +112,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			}
 
 			BeforeEach(func() {
-				smExpect = ctx.SMWithOAuth // by default all requests are not tenant-scoped
+				smExpect = ctx.SMWithOAuthForTenant // by default all requests are tenant-scoped
 			})
 
 			JustBeforeEach(func() {
@@ -232,19 +234,15 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 
 				Context("instance ownership", func() {
-					When("tenant doesn't have ownership of instance", func() {
-						It("returns 404", func() {
-							ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
+					When("no tenant is specified", func() {
+						It("returns 400", func() {
+							ctx.SMWithOAuth.POST(web.ServiceBindingsURL).
 								WithJSON(postBindingRequest).
-								Expect().Status(http.StatusNotFound)
+								Expect().Status(http.StatusBadRequest)
 						})
 					})
 
 					When("tenant has ownership of instance", func() {
-						BeforeEach(func() {
-							smExpect = ctx.SMWithOAuthForTenant
-						})
-
 						It("returns 201", func() {
 							smExpect.POST(web.ServiceBindingsURL).
 								WithJSON(postBindingRequest).
@@ -257,12 +255,24 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			Describe("DELETE", func() {
 				Context("instance ownership", func() {
 					When("tenant doesn't have ownership of binding", func() {
+						var smWithOtherTenant *httpexpect.Expect
+						BeforeEach(func() {
+							oauthServer := ctx.Servers[common.OauthServer].(*common.OAuthServer)
+							accessToken := oauthServer.CreateToken(map[string]interface{}{
+								"cid": "tenancyClient",
+								"zid": "otherTenant",
+							})
+							smWithOtherTenant = ctx.SM.Builder(func(req *httpexpect.Request) {
+								req.WithHeader("Authorization", "Bearer "+accessToken)
+							})
+						})
+
 						It("returns 404", func() {
-							smExpect.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
+							ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).WithJSON(postBindingRequest).
 								Expect().
 								Status(http.StatusCreated)
 
-							ctx.SMWithOAuthForTenant.DELETE(fmt.Sprintf("%s/%s", web.ServiceBindingsURL, postBindingRequest["id"])).
+							smWithOtherTenant.DELETE(fmt.Sprintf("%s/%s", web.ServiceBindingsURL, postBindingRequest["id"])).
 								Expect().Status(http.StatusNotFound)
 						})
 					})
@@ -296,8 +306,8 @@ func blueprint(ctx *common.TestContext, auth *common.SMExpect, async bool) commo
 	instanceID := "instance-" + ID.String()
 
 	servicePlanID := newServicePlan(ctx)
-	test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, "")
-	resp := ctx.SMWithOAuth.POST(web.ServiceInstancesURL).
+	test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
+	resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
 		WithQuery("async", strconv.FormatBool(async)).
 		WithJSON(common.Object{
 			"id":               instanceID,
@@ -314,7 +324,7 @@ func blueprint(ctx *common.TestContext, auth *common.SMExpect, async bool) commo
 
 	bindingID := "binding-" + ID.String()
 
-	resp = ctx.SMWithOAuth.POST(web.ServiceBindingsURL).
+	resp = ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
 		WithQuery("async", strconv.FormatBool(async)).
 		WithJSON(common.Object{
 			"id":                  bindingID,
