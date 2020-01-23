@@ -402,7 +402,7 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 			Expect(visibilities["platform_id"]).To(Equal(""))
 		})
 
-		Context("when a plan is has no supported platforms", func() {
+		Context("when a plan has no supported platforms", func() {
 			BeforeEach(func() {
 				supportedPlatforms = []string{}
 			})
