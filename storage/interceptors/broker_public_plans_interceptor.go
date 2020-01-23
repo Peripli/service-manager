@@ -157,7 +157,9 @@ func resyncPublicPlanVisibilities(ctx context.Context, txStorage storage.Reposit
 	}
 
 	if isPlanPublic && !publicVisibilityExists {
-		persistVisibility(ctx, txStorage, "", planID, brokerID)
+		if err := persistVisibility(ctx, txStorage, "", planID, brokerID); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -208,7 +210,9 @@ func resyncPublicPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txS
 
 	if isPlanPublic {
 		for _, platform := range supportedPlatforms {
-			persistVisibility(ctx, txStorage, platform.ID, planID, brokerID)
+			if err := persistVisibility(ctx, txStorage, platform.ID, planID, brokerID); err != nil {
+				return err
+			}
 		}
 	}
 
