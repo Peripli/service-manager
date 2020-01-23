@@ -19,6 +19,8 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/util/slice"
+	"github.com/tidwall/gjson"
 	"reflect"
 
 	"github.com/Peripli/service-manager/pkg/util"
@@ -97,4 +99,25 @@ func (e *ServicePlan) Validate() error {
 	}
 
 	return nil
+}
+
+// SupportedPlatforms returns the supportedPlatforms provided in a plan's metadata (if a value is provided at all)
+func (e *ServicePlan) SupportedPlatforms() []string {
+	supportedPlatforms := gjson.GetBytes(e.Metadata, "supportedPlatforms")
+	if !supportedPlatforms.IsArray() {
+		return nil
+	}
+	array := supportedPlatforms.Array()
+	platforms := make([]string, len(array))
+	for i, p := range supportedPlatforms.Array() {
+		platforms[i] = p.String()
+	}
+	return platforms
+}
+
+// SupportsPlatform determines whether a specific platform is among the ones that a plan supports
+func (e *ServicePlan) SupportsPlatform(platform string) bool {
+	platforms := e.SupportedPlatforms()
+
+	return platforms == nil || slice.StringsAnyEquals(platforms, platform)
 }
