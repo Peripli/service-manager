@@ -61,21 +61,6 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 		return next.Handle(req)
 	}
 
-	byPlanID := query.ByField(query.EqualsOperator, "id", planID)
-	obj, err := f.repository.Get(ctx, types.ServicePlanType, byPlanID)
-	if err != nil {
-		return nil, util.HandleStorageError(err, types.ServicePlanType.String())
-	}
-
-	plan := obj.(*types.ServicePlan)
-	if plan.Free && !plan.SupportsPlatform(types.SMPlatform) {
-		return nil, &util.HTTPError{
-			ErrorType:   "BadRequest",
-			Description: "provisioning instances of the provided plan is not supported for the Service Manager platform",
-			StatusCode:  http.StatusBadRequest,
-		}
-	}
-
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOrNilOperator, platformIDProperty, types.SMPlatform),
 		query.ByField(query.EqualsOperator, planIDProperty, planID),
@@ -104,6 +89,21 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 	// There may be at most one visibility for the query - for SM platform or public for this plan
 	visibility := list.ItemAt(0).(*types.Visibility)
 	if len(visibility.PlatformID) == 0 { // public visibility
+		byPlanID := query.ByField(query.EqualsOperator, "id", planID)
+		obj, err := f.repository.Get(ctx, types.ServicePlanType, byPlanID)
+		if err != nil {
+			return nil, util.HandleStorageError(err, types.ServicePlanType.String())
+		}
+
+		plan := obj.(*types.ServicePlan)
+		if !plan.SupportsPlatform(types.SMPlatform) {
+			return nil, &util.HTTPError{
+				ErrorType:   "BadRequest",
+				Description: "provisioning instances of the provided plan is not supported for the Service Manager platform",
+				StatusCode:  http.StatusBadRequest,
+			}
+		}
+
 		return next.Handle(req)
 	}
 	tenantLabels, ok := visibility.Labels[f.tenantIdentifier]
