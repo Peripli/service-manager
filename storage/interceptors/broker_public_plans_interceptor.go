@@ -103,62 +103,97 @@ func resync(ctx context.Context, broker *types.ServiceBroker, txStorage storage.
 	for _, serviceOffering := range broker.Services {
 		for _, servicePlan := range serviceOffering.Plans {
 			planID := servicePlan.ID
-			isPublic, err := isCatalogPlanPublicFunc(broker, serviceOffering, servicePlan)
+			isPlanPublic, err := isCatalogPlanPublicFunc(broker, serviceOffering, servicePlan)
 			if err != nil {
 				return err
 			}
 
-			hasPublicVisibility := false
 			byServicePlanID := query.ByField(query.EqualsOperator, "service_plan_id", planID)
 			visibilitiesForPlan, err := txStorage.List(ctx, types.VisibilityType, byServicePlanID)
 			if err != nil {
 				return err
 			}
+
+			planSupportedPlatforms := servicePlan.SupportedPlatforms()
+
+			criteria := make([]query.Criterion, 0)
+			if planSupportedPlatforms != nil {
+				criteria = append(criteria, query.ByField(query.InOperator, "type", planSupportedPlatforms...))
+			}
+
+			platformList, err := txStorage.List(ctx, types.PlatformType, criteria...)
+			if err != nil {
+				return err
+			}
+
+			supportedPlatforms := platformList.(*types.Platforms).Platforms
+
 			for i := 0; i < visibilitiesForPlan.Len(); i++ {
 				visibility := visibilitiesForPlan.ItemAt(i).(*types.Visibility)
 				byVisibilityID := query.ByField(query.EqualsOperator, "id", visibility.ID)
-				if isPublic {
-					if visibility.PlatformID == "" {
-						hasPublicVisibility = true
-						continue
-					} else {
-						if err := txStorage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
-							return err
-						}
-					}
-				} else {
-					if visibility.PlatformID == "" {
-						if err := txStorage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
-							return err
+
+				shouldDeleteVisibility := true
+				for j := len(supportedPlatforms) - 1; j >= 0; j-- {
+					if isPlanPublic {
+						if visibility.PlatformID == supportedPlatforms[j].ID {
+							if len(visibility.Labels) == 0 {
+								supportedPlatforms = supportedPlatforms[:len(supportedPlatforms)-1]
+								shouldDeleteVisibility = false
+							}
+							break
 						}
 					} else {
-						continue
+						if visibility.PlatformID == supportedPlatforms[j].ID {
+							if len(visibility.Labels) != 0 {
+								shouldDeleteVisibility = false
+							}
+							break
+						}
 					}
 				}
+
+				if shouldDeleteVisibility {
+					if err := txStorage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
+						return err
+					}
+				}
+
 			}
 
-			if isPublic && !hasPublicVisibility {
-				UUID, err := uuid.NewV4()
-				if err != nil {
-					return fmt.Errorf("could not generate GUID for visibility: %s", err)
-				}
+			if isPlanPublic {
+				for _, platform := range supportedPlatforms {
+					visibility, err := buildVisibility(servicePlan.ID, platform.ID)
+					if err != nil {
+						return err
+					}
 
-				currentTime := time.Now().UTC()
-				planID, err := txStorage.Create(ctx, &types.Visibility{
-					Base: types.Base{
-						ID:        UUID.String(),
-						UpdatedAt: currentTime,
-						CreatedAt: currentTime,
-					},
-					ServicePlanID: servicePlan.ID,
-				})
-				if err != nil {
-					return err
-				}
+					planID, err := txStorage.Create(ctx, visibility)
+					if err != nil {
+						return err
+					}
 
-				log.C(ctx).Debugf("Created new public visibility for broker with id %s and plan with id %s", broker.ID, planID)
+					log.C(ctx).Debugf("Created new public visibility for broker with id %s, plan with id %s and platform with id %s", broker.ID, planID, platform.ID)
+				}
 			}
 		}
 	}
 	return nil
+}
+
+func buildVisibility(planID, platformID string) (*types.Visibility, error) {
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		return nil, fmt.Errorf("could not generate GUID for visibility: %s", err)
+	}
+
+	currentTime := time.Now().UTC()
+	return &types.Visibility{
+		Base: types.Base{
+			ID:        UUID.String(),
+			UpdatedAt: currentTime,
+			CreatedAt: currentTime,
+		},
+		ServicePlanID: planID,
+		PlatformID:    platformID,
+	}, nil
 }
