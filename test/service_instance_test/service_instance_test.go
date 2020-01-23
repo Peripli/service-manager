@@ -503,16 +503,9 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 			Describe("DELETE", func() {
 				Context("instance ownership", func() {
-					var smWithOtherTenant *httpexpect.Expect
+					var smWithOtherTenant *common.SMExpect
 					BeforeEach(func() {
-						oauthServer := ctx.Servers[common.OauthServer].(*common.OAuthServer)
-						accessToken := oauthServer.CreateToken(map[string]interface{}{
-							"cid": "tenancyClient",
-							"zid": "otherTenant",
-						})
-						smWithOtherTenant = ctx.SM.Builder(func(req *httpexpect.Request) {
-							req.WithHeader("Authorization", "Bearer "+accessToken)
-						})
+						smWithOtherTenant = ctx.NewTenantExpect("otherTenant")
 					})
 
 					When("tenant doesn't have ownership of instance", func() {

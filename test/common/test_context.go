@@ -503,6 +503,19 @@ func (ctx *TestContext) RegisterPlatform() *types.Platform {
 	return RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
 }
 
+func (ctx *TestContext) NewTenantExpect(tenantIdentifier string) *SMExpect {
+	oauthServer := ctx.Servers[OauthServer].(*OAuthServer)
+	accessToken := oauthServer.CreateToken(map[string]interface{}{
+		"cid": "tenancyClient",
+		"zid": tenantIdentifier,
+	})
+	return &SMExpect{
+		Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
+			req.WithHeader("Authorization", "Bearer "+accessToken)
+		}),
+	}
+}
+
 func (ctx *TestContext) CleanupBroker(id string) {
 	broker := ctx.Servers[BrokerServerPrefix+id]
 	ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL + "/" + id).Expect()
