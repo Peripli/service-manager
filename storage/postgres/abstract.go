@@ -240,13 +240,22 @@ func toNullString(s string) sql.NullString {
 
 func toNullBool(b *bool) sql.NullBool {
 	bFalse := false
+	isValid := b != nil
 	if b == nil {
 		b = &bFalse
 	}
 	return sql.NullBool{
 		Bool:  *b,
-		Valid: b != nil,
+		Valid: isValid,
 	}
+}
+
+func toBoolPointer(nullBool sql.NullBool) *bool {
+	if !nullBool.Valid {
+		return nil
+	}
+
+	return &nullBool.Bool
 }
 
 func getJSONText(item json.RawMessage) sqlxtypes.JSONText {

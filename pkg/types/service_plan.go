@@ -34,8 +34,8 @@ type ServicePlan struct {
 	CatalogID     string `json:"catalog_id"`
 	CatalogName   string `json:"catalog_name"`
 	Free          bool   `json:"free"`
-	Bindable      *bool  `json:"bindable"`
-	PlanUpdatable *bool  `json:"plan_updateable"`
+	Bindable      *bool  `json:"bindable,omitempty"`
+	PlanUpdatable *bool  `json:"plan_updateable,omitempty"`
 
 	Metadata               json.RawMessage `json:"metadata,omitempty"`
 	Schemas                json.RawMessage `json:"schemas,omitempty"`

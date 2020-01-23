@@ -148,7 +148,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 		var bindResponse *osbc.BindResponse
 		if !operation.Reschedule {
 			bindRequest := i.prepareBindRequest(instance, binding, service.CatalogID, plan.CatalogID)
-			log.C(ctx).Infof("Sending bind request %+v to broker with name %s", bindRequest)
+			log.C(ctx).Infof("Sending bind request %+v to broker with name %s", bindRequest, broker.Name)
 			bindResponse, err = osbClient.Bind(bindRequest)
 			if err != nil {
 				brokerError := &util.HTTPError{
@@ -416,7 +416,7 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 
 			switch pollingResponse.State {
 			case osbc.StateInProgress:
-				log.C(ctx).Infof("Polling of binding still in progress. Rescheduling polling last operation request %+v to broker with name %s for binding of instance with id %s and name %s...", pollingRequest, binding.ID, binding.Name)
+				log.C(ctx).Infof("Polling of binding still in progress. Rescheduling polling last operation request %+v for binding of instance with id %s and name %s...", pollingRequest, binding.ID, binding.Name)
 
 			case osbc.StateSucceeded:
 				log.C(ctx).Infof("Successfully finished polling operation for binding with id %s and name %s", binding.ID, binding.Name)

@@ -141,7 +141,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 		if !operation.Reschedule {
 			provisionRequest := i.prepareProvisionRequest(instance, service.CatalogID, plan.CatalogID)
 
-			log.C(ctx).Infof("Sending provision request %+v to broker with name %s", provisionRequest)
+			log.C(ctx).Infof("Sending provision request %+v to broker with name %s", provisionRequest, broker.Name)
 			provisionResponse, err = osbClient.ProvisionInstance(provisionRequest)
 			if err != nil {
 				brokerError := &util.HTTPError{
@@ -344,7 +344,7 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 			}
 			switch pollingResponse.State {
 			case osbc.StateInProgress:
-				log.C(ctx).Infof("Polling of instance still in progress. Rescheduling polling last operation request %+v to broker with name %s for provisioning of instance with id %s and name %s...", pollingRequest, instance.ID, instance.Name)
+				log.C(ctx).Infof("Polling of instance still in progress. Rescheduling polling last operation request %+v to for provisioning of instance with id %s and name %s...", pollingRequest, instance.ID, instance.Name)
 
 			case osbc.StateSucceeded:
 				log.C(ctx).Infof("Successfully finished polling operation for instance with id %s and name %s", instance.ID, instance.Name)
