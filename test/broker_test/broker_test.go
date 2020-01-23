@@ -1118,6 +1118,8 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						var planIDsForService []string
 
 						BeforeEach(func() {
+							planIDsForService = make([]string, 0)
+
 							catalogServiceID := gjson.Get(string(brokerServer.Catalog), "services.0.id").Str
 							Expect(catalogServiceID).ToNot(BeEmpty())
 
@@ -1160,6 +1162,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							var serviceInstances []*types.ServiceInstance
 
 							BeforeEach(func() {
+								serviceInstances = make([]*types.ServiceInstance, 0)
 								for _, planID := range planIDsForService {
 									serviceInstance := common.CreateInstanceInPlatformForPlan(ctx, ctx.TestPlatform.ID, planID)
 									serviceInstances = append(serviceInstances, serviceInstance)
