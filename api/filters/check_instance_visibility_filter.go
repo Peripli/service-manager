@@ -68,7 +68,7 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 	}
 
 	plan := obj.(*types.ServicePlan)
-	if !plan.SupportsPlatform(types.SMPlatform) {
+	if plan.Free && !plan.SupportsPlatform(types.SMPlatform) {
 		return nil, &util.HTTPError{
 			ErrorType:   "BadRequest",
 			Description: "provisioning instances of the provided plan is not supported for the Service Manager platform",
