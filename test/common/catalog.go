@@ -37,6 +37,7 @@ var testFreePlan = `
       "id": "%[1]s",
       "description": "test-description",
       "free": true,
+	  "bindable": true,  	
       "metadata": {
         "max_storage_tb": 5,
         "costs":[
@@ -66,6 +67,7 @@ var testPaidPlan = `
       "id": "%[1]s",
       "description": "test-description",
       "free": false,
+      "bindable": true,
       "metadata": {
         "max_storage_tb": 5,
         "costs":[

@@ -18,10 +18,10 @@ package service_test
 
 import (
 	"fmt"
+
 	"github.com/gofrs/uuid"
 
 	"github.com/gavv/httpexpect"
-
 
 	"strconv"
 
@@ -86,8 +86,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 			createInstance := func(SM *common.SMExpect, expectedStatus int) {
 				resp := SM.POST(web.ServiceInstancesURL).WithJSON(postInstanceRequest).
-			createInstance := func(smClient *common.SMExpect) {
-				smClient.POST(web.ServiceInstancesURL).WithJSON(postInstanceRequest).
 					Expect().
 					Status(expectedStatus)
 
@@ -127,11 +125,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			Describe("GET", func() {
 				When("service instance contains tenant identifier in OSB context", func() {
 					BeforeEach(func() {
-						createInstance(ctx.SMWithOAuthForTenant)
+						test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
+						createInstance(ctx.SMWithOAuthForTenant, http.StatusCreated)
 					})
 
 					It("labels instance with tenant identifier", func() {
-						ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + postInstanceRequest["id"].(string)).Expect().
+						ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID).Expect().
 							Status(http.StatusOK).
 							JSON().
 							Object().Path(fmt.Sprintf("$.labels[%s][*]", TenantIdentifier)).Array().Contains(TenantIDValue)
@@ -139,11 +138,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				})
 				When("service instance doesn't contain tenant identifier in OSB context", func() {
 					BeforeEach(func() {
-						createInstance(ctx.SMWithOAuth)
+						test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, "")
+						createInstance(ctx.SMWithOAuth, http.StatusCreated)
 					})
 
 					It("doesn't label instance with tenant identifier", func() {
-						obj := ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + postInstanceRequest["id"].(string)).Expect().
+						obj := ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + instanceID).Expect().
 							Status(http.StatusOK).JSON().Object()
 
 						objMap := obj.Raw()
@@ -159,11 +159,12 @@ var _ = test.DescribeTestsFor(test.TestCase{
 				When("service instance dashboard_url is not set", func() {
 					BeforeEach(func() {
 						postInstanceRequest["dashboard_url"] = ""
-						createInstance(ctx.SMWithOAuth)
+						test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), "")
+						createInstance(ctx.SMWithOAuth, http.StatusCreated)
 					})
 
 					It("doesn't return dashboard_url", func() {
-						ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + postInstanceRequest["id"].(string)).Expect().
+						ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + instanceID).Expect().
 							Status(http.StatusOK).JSON().Object().NotContainsKey("dashboard_url")
 					})
 				})
@@ -322,7 +323,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			Describe("PATCH", func() {
 				When("content type is not JSON", func() {
 					It("returns 415", func() {
-						instanceID := fmt.Sprintf("%s", postInstanceRequest["id"])
+						instanceID := fmt.Sprintf("%s", instanceID)
 						ctx.SMWithOAuth.PATCH(web.ServiceInstancesURL+"/"+instanceID).
 							WithText("text").
 							Expect().Status(http.StatusUnsupportedMediaType).
@@ -490,6 +491,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			})
 
 			Describe("DELETE", func() {
+				It("returns 405 for bulk delete", func() {
+					ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL).
+						Expect().Status(http.StatusMethodNotAllowed)
+				})
+
 				Context("instance ownership", func() {
 					When("tenant doesn't have ownership of instance", func() {
 						It("returns 404", func() {
@@ -497,16 +503,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							createInstance(ctx.SMWithOAuth, http.StatusCreated)
 
 							ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL + "/" + instanceID).
-								Expect().Status(http.StatusNotFound)
-						})
-					})
-
-					When("tenant doesn't have ownership of some instances in bulk delete", func() {
-						It("returns 404", func() {
-							test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), "")
-							createInstance(ctx.SMWithOAuth, http.StatusCreated)
-
-							ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL).
 								Expect().Status(http.StatusNotFound)
 						})
 					})

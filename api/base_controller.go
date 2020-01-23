@@ -215,7 +215,7 @@ func (c *BaseController) DeleteObjects(r *web.Request) (*web.Response, error) {
 	ctx := r.Context()
 	log.C(ctx).Debugf("Deleting %ss...", c.objectType)
 
-	isAsync := r.URL.Query().Get(QueryParamAsync)
+	isAsync := r.URL.Query().Get(web.QueryParamAsync)
 	if isAsync == "true" {
 		return nil, &util.HTTPError{
 			ErrorType:   "BadRequest",
@@ -271,7 +271,7 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 		CorrelationID: log.CorrelationIDFromContext(ctx),
 	}
 
-	isAsync := r.URL.Query().Get(QueryParamAsync)
+	isAsync := r.URL.Query().Get(web.QueryParamAsync)
 	if isAsync == "true" {
 		log.C(ctx).Debugf("Request will be executed asynchronously")
 		if err := c.checkAsyncSupport(); err != nil {

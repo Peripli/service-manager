@@ -59,7 +59,7 @@ var _ = Describe("Operations", func() {
 	Context("Scheduler", func() {
 		BeforeEach(func() {
 			postHook := func(e env.Environment, servers map[string]common.FakeServer) {
-				e.Set("operations.job_timeout", 2*time.Nanosecond)
+				e.Set("operations.job_timeout", 5*time.Nanosecond)
 				e.Set("operations.mark_orphans_interval", 1*time.Hour)
 			}
 
@@ -69,7 +69,9 @@ var _ = Describe("Operations", func() {
 		When("job timeout runs out", func() {
 			It("marks operation as failed", func() {
 				brokerServer := common.NewBrokerServer()
+				ctx.Servers[common.BrokerServerPrefix+"123"] = brokerServer
 				postBrokerRequestWithNoLabels := common.Object{
+					"id":         "123",
 					"name":       "test-broker",
 					"broker_url": brokerServer.URL(),
 					"credentials": common.Object{
@@ -84,7 +86,7 @@ var _ = Describe("Operations", func() {
 					WithQuery("async", "true").
 					Expect().
 					Status(http.StatusAccepted)
-				_, err := test.ExpectOperationWithError(ctx.SMWithOAuth, resp, types.FAILED, "job timed out")
+				_, err := test.ExpectOperationWithError(ctx.SMWithOAuth, resp, types.FAILED, "could not reach service broker")
 				Expect(err).To(BeNil())
 			})
 		})

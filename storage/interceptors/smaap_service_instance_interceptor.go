@@ -147,6 +147,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 				brokerError := &util.HTTPError{
 					ErrorType:   "BrokerError",
 					Description: fmt.Sprintf("Failed provisioning request %+v: %s", provisionRequest, err),
+					StatusCode:  http.StatusBadGateway,
 				}
 				if shouldStartOrphanMitigation(err) {
 					operation.DeletionScheduled = time.Now()
@@ -244,6 +245,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 		return &util.HTTPError{
 			ErrorType:   "BadRequest",
 			Description: fmt.Sprintf("could not delete instance due to %d existing bindings", bindingsCount),
+			StatusCode:  http.StatusBadRequest,
 		}
 	}
 
@@ -267,6 +269,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 			brokerError := &util.HTTPError{
 				ErrorType:   "BrokerError",
 				Description: fmt.Sprintf("Failed deprovisioning request %+v: %s", deprovisionRequest, err),
+				StatusCode:  http.StatusBadGateway,
 			}
 			if shouldStartOrphanMitigation(err) {
 				operation.DeletionScheduled = time.Now()
@@ -336,6 +339,7 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 					ErrorType: "BrokerError",
 					Description: fmt.Sprintf("Failed poll last operation request %+v for instance with id %s and name %s: %s",
 						pollingRequest, instance.ID, instance.Name, err),
+					StatusCode: http.StatusBadGateway,
 				}
 			}
 			switch pollingResponse.State {
@@ -370,6 +374,7 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 				return &util.HTTPError{
 					ErrorType:   "BrokerError",
 					Description: fmt.Sprintf("failed polling operation for instance with id %s and name %s due to polling last operation error: %s", instance.ID, instance.Name, errDescription),
+					StatusCode:  http.StatusBadGateway,
 				}
 			default:
 				return fmt.Errorf("invalid state during poll last operation for instance with id %s and name %s: %s", instance.ID, instance.Name, pollingResponse.State)
@@ -397,9 +402,10 @@ func prepare(ctx context.Context, repository storage.Repository, osbClientFunc o
 	}
 	broker := brokerObject.(*types.ServiceBroker)
 	osbClient, err := osbClientFunc(&osbc.ClientConfiguration{
-		Name:       broker.Name + " broker client",
-		URL:        broker.BrokerURL,
-		APIVersion: osbc.LatestAPIVersion(),
+		Name:                broker.Name + " broker client",
+		EnableAlphaFeatures: true,
+		URL:                 broker.BrokerURL,
+		APIVersion:          osbc.LatestAPIVersion(),
 		AuthConfig: &osbc.AuthConfig{
 			BasicAuthConfig: &osbc.BasicAuthConfig{
 				Username: broker.Credentials.Basic.Username,

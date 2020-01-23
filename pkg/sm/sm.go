@@ -224,13 +224,6 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 			PollingInterval:      5 * time.Second,
 			MaxParallelDeletions: 100,
 		}).Register().
-		WithUpdateAroundTxInterceptorProvider(types.ServiceBindingType, &interceptors.ServiceBindingUpdateInterceptorProvider{
-			OSBClientCreateFunc:  osbClientProvider,
-			Repository:           interceptableRepository,
-			TenantKey:            "subaccount_id",
-			PollingInterval:      5 * time.Second,
-			MaxParallelDeletions: 100,
-		}).Register().
 		WithDeleteAroundTxInterceptorProvider(types.ServiceBindingType, &interceptors.ServiceBindingDeleteInterceptorProvider{
 			OSBClientCreateFunc:  osbClientProvider,
 			Repository:           interceptableRepository,

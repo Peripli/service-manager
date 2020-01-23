@@ -18,8 +18,9 @@ package osb_test
 
 import (
 	"fmt"
-	"github.com/Peripli/service-manager/test/common"
 	"net/http"
+
+	"github.com/Peripli/service-manager/test/common"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"

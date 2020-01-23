@@ -19,6 +19,7 @@ package interceptors
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/log"
@@ -119,6 +120,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 			return nil, &util.HTTPError{
 				ErrorType:   "BrokerError",
 				Description: fmt.Sprintf("plan %s is not bindable", plan.CatalogName),
+				StatusCode:  http.StatusBadGateway,
 			}
 		}
 
@@ -126,6 +128,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 			return nil, &util.HTTPError{
 				ErrorType:   "OperationInProgress",
 				Description: fmt.Sprintf("creation of instance %s is still in progress", instance.Name),
+				StatusCode:  http.StatusUnprocessableEntity,
 			}
 		}
 
@@ -136,8 +139,9 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 
 		if isDeleting {
 			return nil, &util.HTTPError{
-				ErrorType:   "OperationIn",
+				ErrorType:   "OperationInProgress",
 				Description: fmt.Sprintf("instance %s is in state of delteion", instance.Name),
+				StatusCode:  http.StatusUnprocessableEntity,
 			}
 		}
 
@@ -150,6 +154,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 				brokerError := &util.HTTPError{
 					ErrorType:   "BrokerError",
 					Description: fmt.Sprintf("Failed bind request %+v: %s", bindRequest, err),
+					StatusCode:  http.StatusBadGateway,
 				}
 				if shouldStartOrphanMitigation(err) {
 					operation.DeletionScheduled = time.Now()
@@ -247,6 +252,7 @@ func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, bin
 			brokerError := &util.HTTPError{
 				ErrorType:   "BrokerError",
 				Description: fmt.Sprintf("Failed unbind request %+v: %s", unbindRequest, err),
+				StatusCode:  http.StatusBadGateway,
 			}
 			if shouldStartOrphanMitigation(err) {
 				operation.DeletionScheduled = time.Now()
@@ -301,7 +307,7 @@ func (i *ServiceBindingInterceptor) isInstanceDeleting(ctx context.Context, inst
 		return false, nil
 	}
 
-	return lastOperation.DeletionScheduled.IsZero(), nil
+	return !lastOperation.DeletionScheduled.IsZero(), nil
 }
 
 func getLastOperationByResourceID(ctx context.Context, resourceID string, repository storage.Repository) (*types.Operation, bool, error) {
@@ -404,6 +410,7 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 					ErrorType: "BrokerError",
 					Description: fmt.Sprintf("Failed poll last operation request %+v for binding with id %s and name %s: %s",
 						pollingRequest, binding.ID, binding.Name, err),
+					StatusCode: http.StatusBadGateway,
 				}
 			}
 
@@ -439,6 +446,7 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 				return &util.HTTPError{
 					ErrorType:   "BrokerError",
 					Description: fmt.Sprintf("failed polling operation for binding with id %s and name %s due to polling last operation error: %s", binding.ID, binding.Name, errDescription),
+					StatusCode:  http.StatusBadGateway,
 				}
 			default:
 				return fmt.Errorf("invalid state during poll last operation for binding with id %s and name %s: %s", binding.ID, binding.Name, pollingResponse.State)

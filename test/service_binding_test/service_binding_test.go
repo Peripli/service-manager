@@ -72,6 +72,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			var (
 				postBindingRequest      common.Object
 				expectedBindingResponse common.Object
+				bindingID               string
 
 				smExpect *common.SMExpect
 			)
@@ -94,11 +95,15 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			}
 
 			createBinding := func(SM *common.SMExpect, body common.Object) {
-				SM.POST(web.ServiceBindingsURL).WithJSON(body).
+				obj := SM.POST(web.ServiceBindingsURL).WithJSON(body).
 					Expect().
 					Status(http.StatusCreated).
-					JSON().Object().
-					ContainsMap(expectedBindingResponse).ContainsKey("id")
+					JSON().Object()
+
+				obj.ContainsMap(expectedBindingResponse).ContainsKey("id")
+
+				bindingID = obj.Value("id").String().Raw()
+
 			}
 
 			BeforeEach(func() {
@@ -122,6 +127,44 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 			AfterEach(func() {
 				ctx.CleanupAdditionalResources()
+			})
+
+			Describe("GET", func() {
+				When("service binding contains tenant identifier in OSB context", func() {
+					BeforeEach(func() {
+						smExpect = ctx.SMWithOAuthForTenant
+					})
+
+					It("labels instance with tenant identifier", func() {
+						createBinding(smExpect, postBindingRequest)
+
+						ctx.SMWithOAuthForTenant.GET(web.ServiceBindingsURL + "/" + bindingID).Expect().
+							Status(http.StatusOK).
+							JSON().
+							Object().Path(fmt.Sprintf("$.labels[%s][*]", TenantIdentifier)).Array().Contains(TenantIDValue)
+					})
+				})
+
+				When("service binding doesn't contain tenant identifier in OSB context", func() {
+					BeforeEach(func() {
+						smExpect = ctx.SMWithOAuth
+					})
+
+					It("doesn't label instance with tenant identifier", func() {
+						createBinding(smExpect, postBindingRequest)
+
+						obj := ctx.SMWithOAuth.GET(web.ServiceBindingsURL + "/" + bindingID).Expect().
+							Status(http.StatusOK).JSON().Object()
+
+						objMap := obj.Raw()
+						objLabels, exist := objMap["labels"]
+						if exist {
+							labels := objLabels.(map[string]interface{})
+							_, tenantLabelExists := labels[TenantIdentifier]
+							Expect(tenantLabelExists).To(BeFalse())
+						}
+					})
+				})
 			})
 
 			Describe("POST", func() {
@@ -240,6 +283,11 @@ var _ = test.DescribeTestsFor(test.TestCase{
 			})
 
 			Describe("DELETE", func() {
+				It("returns 405 for bulk delete", func() {
+					ctx.SMWithOAuthForTenant.DELETE(web.ServiceBindingsURL).
+						Expect().Status(http.StatusMethodNotAllowed)
+				})
+
 				Context("instance ownership", func() {
 					When("tenant doesn't have ownership of binding", func() {
 						It("returns 404", func() {

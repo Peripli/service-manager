@@ -343,7 +343,7 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener) *TestCon
 	}
 
 	RemoveAllOperations(testContext.SMRepository)
-	RemoveAllBindings(testContext.SMRepository)
+	RemoveAllBindings(testContext)
 	RemoveAllInstances(testContext)
 	RemoveAllBrokers(testContext.SMWithOAuth)
 	RemoveAllPlatforms(testContext.SMWithOAuth)
@@ -545,7 +545,7 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 	if err := RemoveAllNotifications(ctx.SMRepository); err != nil && err != util.ErrNotFoundInStorage {
 		panic(err)
 	}
-	if err := RemoveAllBindings(ctx.SMRepository); err != nil && err != util.ErrNotFoundInStorage {
+	if err := RemoveAllBindings(ctx); err != nil && err != util.ErrNotFoundInStorage {
 		panic(err)
 	}
 	if err := RemoveAllInstances(ctx); err != nil && err != util.ErrNotFoundInStorage {

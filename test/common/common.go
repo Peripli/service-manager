@@ -246,6 +246,8 @@ func RemoveAllBindings(ctx *TestContext) error {
 			return err
 		}
 	}
+
+	return nil
 }
 
 func RemoveAllBrokers(SM *SMExpect) {

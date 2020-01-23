@@ -239,6 +239,10 @@ func toNullString(s string) sql.NullString {
 }
 
 func toNullBool(b *bool) sql.NullBool {
+	bFalse := false
+	if b == nil {
+		b = &bFalse
+	}
 	return sql.NullBool{
 		Bool:  *b,
 		Valid: b != nil,

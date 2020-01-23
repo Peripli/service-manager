@@ -125,7 +125,7 @@ func DeleteBinding(ctx *TestContext, binding *types.ServiceBinding) error {
 		ResourceType:  types.ServiceBindingType,
 		CorrelationID: "-",
 	}, func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-		byID := query.ByField(query.EqualsOperator, "id", instance.ID)
+		byID := query.ByField(query.EqualsOperator, "id", binding.ID)
 		if err := repository.Delete(ctx, types.ServiceBindingType, byID); err != nil {
 			return nil, err
 		}

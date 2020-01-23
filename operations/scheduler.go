@@ -93,17 +93,26 @@ func (ds *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *
 		}
 
 		ds.wg.Add(1)
+		stateCtx := util.StateContext{Context: ctx}
 		go func(operation *types.Operation) {
 			defer func() {
 				if panicErr := recover(); panicErr != nil {
-					err = fmt.Errorf("job panicked while executing: %s", panicErr)
+					errMessage := fmt.Errorf("job panicked while executing: %s", panicErr)
+					op, opErr := ds.refetchOperation(stateCtx, operation)
+					if opErr != nil {
+						errMessage = fmt.Errorf("%s: setting new operation state failed: %s ", errMessage, opErr)
+					} else {
+						if opErr := updateOperationState(ctx, ds.repository, op, types.FAILED, &OperationError{Message: "job interrupted"}); opErr != nil {
+							errMessage = fmt.Errorf("%s: setting new operation state failed: %s ", errMessage, opErr)
+						}
+					}
 					debug.PrintStack()
+					err = errMessage
 				}
 				<-ds.workers
 				ds.wg.Done()
 			}()
 
-			stateCtx := util.StateContext{Context: ctx}
 			stateCtxWithOp, err := ds.addOperationToContext(stateCtx, operation)
 			if err != nil {
 				log.C(stateCtx).Error(err)
@@ -180,29 +189,24 @@ func (ds *Scheduler) checkForConcurrentOperations(ctx context.Context, operation
 		fallthrough
 	case types.UPDATE:
 		if isDeletionInProgress {
-			<-ds.workers
 			return &util.HTTPError{
 				ErrorType:   "ConcurrentOperationInProgress",
 				Description: "Deletion is currently in progress for this resource",
 				StatusCode:  http.StatusUnprocessableEntity,
 			}
 		}
-		fallthrough
-	case types.DELETE:
-		if isDeletionTimeoutExceeded {
-			<-ds.workers
-			return &util.HTTPError{
-				ErrorType:   "TimeoutExceeded",
-				Description: "Deletion of this resource has been attempted for over the maximum timeout period. All operations will be rejected",
-				StatusCode:  http.StatusUnprocessableEntity,
-			}
-		}
-
 		if isOperationTimeoutNotExceeded {
-			<-ds.workers
 			return &util.HTTPError{
 				ErrorType:   "ConcurrentOperationInProgress",
 				Description: "Another concurrent operation in progress for this resource",
+				StatusCode:  http.StatusUnprocessableEntity,
+			}
+		}
+	case types.DELETE:
+		if isDeletionTimeoutExceeded {
+			return &util.HTTPError{
+				ErrorType:   "TimeoutExceeded",
+				Description: "Deletion of this resource has been attempted for over the maximum timeout period. All operations will be rejected",
 				StatusCode:  http.StatusUnprocessableEntity,
 			}
 		}

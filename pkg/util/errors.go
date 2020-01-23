@@ -20,8 +20,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/log"
 	"net/http"
+
+	"github.com/Peripli/service-manager/pkg/log"
 )
 
 // HTTPError is an error type that provides error details that Service Manager error handlers would propagate to the client
@@ -58,6 +59,9 @@ func WriteError(ctx context.Context, err error, writer http.ResponseWriter) {
 			StatusCode:  http.StatusBadRequest,
 		}
 	case *HTTPError:
+		if t.StatusCode == 0 {
+			t.StatusCode = http.StatusInternalServerError
+		}
 		logger.Errorf("HTTPError: %s", err)
 		respError = t
 	default:

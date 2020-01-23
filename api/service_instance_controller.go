@@ -50,14 +50,14 @@ func (c *ServiceInstanceController) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamResourceID),
+				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, web.PathParamResourceID),
 			},
 			Handler: c.GetSingleObject,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodGet,
-				Path:   fmt.Sprintf("%s/{%s}%s/{%s}", c.resourceBaseURL, PathParamResourceID, web.OperationsURL, PathParamID),
+				Path:   fmt.Sprintf("%s/{%s}%s/{%s}", c.resourceBaseURL, web.PathParamResourceID, web.OperationsURL, web.PathParamID),
 			},
 			Handler: c.GetOperation,
 		},
@@ -71,14 +71,14 @@ func (c *ServiceInstanceController) Routes() []web.Route {
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodDelete,
-				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamResourceID),
+				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, web.PathParamResourceID),
 			},
 			Handler: c.DeleteSingleObject,
 		},
 		{
 			Endpoint: web.Endpoint{
 				Method: http.MethodPatch,
-				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, PathParamResourceID),
+				Path:   fmt.Sprintf("%s/{%s}", c.resourceBaseURL, web.PathParamResourceID),
 			},
 			Handler: c.PatchObject,
 		},

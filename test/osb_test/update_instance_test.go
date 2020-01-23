@@ -18,7 +18,10 @@ package osb_test
 
 import (
 	"fmt"
+
 	"github.com/Peripli/service-manager/pkg/query"
+
+	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/web"
@@ -26,7 +29,6 @@ import (
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
-	"net/http"
 )
 
 var _ = Describe("Update", func() {
