@@ -52,15 +52,6 @@ func (*ServiceInstanceFilter) Run(req *web.Request, next web.Handler) (*web.Resp
 			StatusCode:  http.StatusBadRequest,
 		}
 	}
-	// tenantID := query.RetrieveFromCriteria(f.tenantIdentifier, query.CriteriaForContext(reqCtx)...)
-	// if tenantID == "" {
-	// 	log.C(reqCtx).Errorf("Tenant identifier not found in request criteria.")
-	// 	return nil, &util.HTTPError{
-	// 		ErrorType:   "BadRequest",
-	// 		Description: "no tenant identifier provided",
-	// 		StatusCode:  http.StatusBadRequest,
-	// 	}
-	// }
 
 	var err error
 
