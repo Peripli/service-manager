@@ -15,7 +15,7 @@ import (
 
 const CheckVisibilityPluginName = "CheckVisibilityPlugin"
 
-const errPlanNotAccessible = &util.HTTPError{
+var errPlanNotAccessible = &util.HTTPError{
 	ErrorType:   "ServicePlanNotAccessible",
 	Description: "service plan is not accessible",
 	StatusCode:  http.StatusForbidden,
