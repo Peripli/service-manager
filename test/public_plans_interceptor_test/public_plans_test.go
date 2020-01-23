@@ -19,6 +19,8 @@ package interceptor_test
 import (
 	"context"
 	"fmt"
+	"github.com/gavv/httpexpect"
+	"math/rand"
 	"net/http"
 	"testing"
 
@@ -71,15 +73,19 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 	var newPublicPlan string
 	var oldPaidPlan string
 
+	findVisibilitiesForServicePlanID := func(servicePlanID string) *httpexpect.Array {
+		return ctx.SMWithOAuth.ListWithQuery(web.VisibilitiesURL, fmt.Sprintf("fieldQuery=service_plan_id eq '%s'", servicePlanID))
+	}
+
 	findOneVisibilityForServicePlanID := func(servicePlanID string) map[string]interface{} {
-		vs := ctx.SMWithOAuth.ListWithQuery(web.VisibilitiesURL, fmt.Sprintf("fieldQuery=service_plan_id eq '%s'", servicePlanID))
+		vs := findVisibilitiesForServicePlanID(servicePlanID)
 
 		vs.Length().Equal(1)
 		return vs.First().Object().Raw()
 	}
 
 	verifyZeroVisibilityForServicePlanID := func(servicePlanID string) {
-		vs := ctx.SMWithOAuth.ListWithQuery(web.VisibilitiesURL, fmt.Sprintf("fieldQuery=service_plan_id eq '%s'", servicePlanID))
+		vs := findVisibilitiesForServicePlanID(servicePlanID)
 		vs.Length().Equal(0)
 	}
 
@@ -258,10 +264,10 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 
 	Context("when an existing public plan is made paid", func() {
 		BeforeEach(func() {
-			tempCatalog, err := sjson.Set(testCatalog, "services.0.plans.0.free", false)
+			catalog, err := sjson.Set(testCatalog, "services.0.plans.0.free", false)
 			Expect(err).ToNot(HaveOccurred())
 
-			catalog, err := sjson.Set(tempCatalog, "services.0.plans.1.free", false)
+			catalog, err = sjson.Set(catalog, "services.0.plans.1.free", false)
 			Expect(err).ToNot(HaveOccurred())
 
 			existingBrokerServer.Catalog = common.SBCatalog(catalog)
@@ -350,6 +356,129 @@ var _ = Describe("Service Manager Public Plans Interceptor", func() {
 
 			visibilities := findOneVisibilityForServicePlanID(planID)
 			Expect(visibilities["platform_id"]).To(Equal(""))
+		})
+	})
+
+	Context("when a plan has specified supported platforms", func() {
+		It("creates a single public visibility with empty platform_id", func() {
+			plan := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=catalog_name eq '%s'", oldPublicPlanCatalogName))
+
+			plan.Path("$[*].metadata.supportedPlatforms").NotNull().Array().Empty()
+
+			planID := plan.First().Object().Value("id").String().Raw()
+			Expect(planID).ToNot(BeEmpty())
+
+			visibilities := findOneVisibilityForServicePlanID(planID)
+			Expect(visibilities["platform_id"]).To(Equal(""))
+
+			ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
+				WithJSON(common.Object{}).
+				Expect().
+				Status(http.StatusOK)
+
+			vis := findOneVisibilityForServicePlanID(planID)
+			Expect(vis["platform_id"]).To(Equal(""))
+		})
+	})
+
+	Context("when a plan has specified supported platforms", func() {
+		var supportedPlatforms []string
+		var planID string
+
+		JustBeforeEach(func() {
+			catalog, err := sjson.Set(testCatalog, "services.0.plans.0.metadata.supportedPlatforms", supportedPlatforms)
+			Expect(err).ToNot(HaveOccurred())
+
+			existingBrokerServer.Catalog = common.SBCatalog(catalog)
+
+			plan := ctx.SMWithOAuth.ListWithQuery(web.ServicePlansURL, fmt.Sprintf("fieldQuery=catalog_name eq '%s'", oldPublicPlanCatalogName))
+
+			plan.Path("$[*].metadata.supportedPlatforms").NotNull().Array().Empty()
+
+			planID = plan.First().Object().Value("id").String().Raw()
+			Expect(planID).ToNot(BeEmpty())
+
+			visibilities := findOneVisibilityForServicePlanID(planID)
+			Expect(visibilities["platform_id"]).To(Equal(""))
+		})
+
+		Context("when a plan is has no supported platforms", func() {
+			BeforeEach(func() {
+				supportedPlatforms = []string{}
+			})
+
+			It("creates a public visibility associated with the plan", func() {
+				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
+					WithJSON(common.Object{}).
+					Expect().
+					Status(http.StatusOK)
+
+				vis := findOneVisibilityForServicePlanID(planID)
+				Expect(vis["platform_id"]).To(Equal(""))
+			})
+		})
+
+		Context("when a plan supports only one platform type", func() {
+
+			BeforeEach(func() {
+				supportedPlatforms = []string{"cloudfoundry"}
+			})
+
+			It("creates a single public visibility for that platform", func() {
+				platform := ctx.RegisterPlatformWithType(supportedPlatforms[0])
+
+				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
+					WithJSON(common.Object{}).
+					Expect().
+					Status(http.StatusOK)
+
+				vis := findOneVisibilityForServicePlanID(planID)
+				Expect(vis["platform_id"]).To(Equal(platform.ID))
+			})
+		})
+
+		Context("when a plan supports multiple platform types", func() {
+
+			BeforeEach(func() {
+				supportedPlatforms = []string{"cloudfoundry", "kubernetes", "abap"}
+			})
+
+			It("creates a single visibility for each supported platform", func() {
+				var platformCount int
+
+				platformIDMap := make(map[string]bool)
+				for _, platformType := range supportedPlatforms {
+					count := rand.Intn(10-1) + 1
+					for i := 0; i < count; i++ {
+						plt := ctx.RegisterPlatformWithType(platformType)
+						platformIDMap[plt.ID] = true
+					}
+					platformCount += count
+				}
+
+				ctx.SMWithOAuth.PATCH(web.ServiceBrokersURL + "/" + existingBrokerID).
+					WithJSON(common.Object{}).
+					Expect().
+					Status(http.StatusOK)
+
+				vis := findVisibilitiesForServicePlanID(planID)
+				vis.Length().Equal(platformCount)
+
+				for i := 0; i < platformCount; i++ {
+					plt := vis.Element(i).Object()
+					plt.NotContainsKey("labels")
+
+					pltID := plt.Value("platform_id").String().Raw()
+					_, ok := platformIDMap[pltID]
+					if ok {
+						delete(platformIDMap, pltID)
+					} else {
+						Fail(fmt.Sprintf("unexpected platform_id with id (%s) was set to visibility", pltID))
+					}
+				}
+
+				Expect(len(platformIDMap)).To(Equal(0))
+			})
 		})
 	})
 })

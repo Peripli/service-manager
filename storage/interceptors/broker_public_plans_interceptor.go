@@ -103,6 +103,7 @@ func resync(ctx context.Context, broker *types.ServiceBroker, txStorage storage.
 	for _, serviceOffering := range broker.Services {
 		for _, servicePlan := range serviceOffering.Plans {
 			planID := servicePlan.ID
+
 			isPlanPublic, err := isCatalogPlanPublicFunc(broker, serviceOffering, servicePlan)
 			if err != nil {
 				return err
@@ -115,12 +116,12 @@ func resync(ctx context.Context, broker *types.ServiceBroker, txStorage storage.
 			}
 
 			supportedPlatformTypes := servicePlan.SupportedPlatforms()
-
-			if supportedPlatformTypes == nil { // all platforms are supported -> create single visibility with empty platform ID
+			if len(supportedPlatformTypes) == 0 { // all platforms are supported -> create single visibility with empty platform ID
 				err = resyncPublicPlanVisibilities(ctx, txStorage, planVisibilities, isPlanPublic, planID, broker.ID)
 			} else { // not all platforms are supported -> create single visibility for each supported platform
 				err = resyncPublicPlanVisibilitiesWithSupportedPlatforms(ctx, txStorage, planVisibilities, isPlanPublic, planID, broker.ID, supportedPlatformTypes)
 			}
+
 			if err != nil {
 				return err
 			}
@@ -175,7 +176,6 @@ func resyncPublicPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txS
 
 	for i := 0; i < planVisibilities.Len(); i++ {
 		visibility := planVisibilities.ItemAt(i).(*types.Visibility)
-		byVisibilityID := query.ByField(query.EqualsOperator, "id", visibility.ID)
 
 		shouldDeleteVisibility := true
 		for j := len(supportedPlatforms) - 1; j >= 0; j-- {
@@ -198,6 +198,7 @@ func resyncPublicPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txS
 		}
 
 		if shouldDeleteVisibility {
+			byVisibilityID := query.ByField(query.EqualsOperator, "id", visibility.ID)
 			if err := txStorage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
 				return err
 			}

@@ -491,13 +491,17 @@ func (ctx *TestContext) RegisterBroker() (string, Object, *BrokerServer) {
 }
 
 func (ctx *TestContext) RegisterPlatform() *types.Platform {
+	return ctx.RegisterPlatformWithType("test-type")
+}
+
+func (ctx *TestContext) RegisterPlatformWithType(platformType string) *types.Platform {
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		panic(err)
 	}
 	platformJSON := Object{
 		"name":        UUID.String(),
-		"type":        "testType",
+		"type":        platformType,
 		"description": "testDescrption",
 	}
 	return RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
