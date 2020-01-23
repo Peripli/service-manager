@@ -15,6 +15,12 @@ import (
 
 const CheckVisibilityPluginName = "CheckVisibilityPlugin"
 
+const errPlanNotAccessible = &util.HTTPError{
+	ErrorType:   "ServicePlanNotAccessible",
+	Description: "service plan is not accessible",
+	StatusCode:  http.StatusForbidden,
+}
+
 type checkVisibilityPlugin struct {
 	repository storage.Repository
 }
@@ -114,11 +120,7 @@ func (p *checkVisibilityPlugin) checkVisibility(req *web.Request, next web.Handl
 			}
 		}
 		log.C(ctx).Errorf("Service plan %v is not visible on platform %v", planID, platform.ID)
-		return nil, &util.HTTPError{
-			ErrorType:   "NotFound",
-			Description: "could not find such service plan",
-			StatusCode:  http.StatusNotFound,
-		}
+		return nil, errPlanNotAccessible
 	default:
 		for _, v := range visibilities.Visibilities {
 			if v.PlatformID == "" { // public visibility
@@ -129,10 +131,6 @@ func (p *checkVisibilityPlugin) checkVisibility(req *web.Request, next web.Handl
 			}
 		}
 		log.C(ctx).Errorf("Service plan %v is not visible on platform %v", planID, platform.ID)
-		return nil, &util.HTTPError{
-			ErrorType:   "NotFound",
-			Description: "could not find such service plan",
-			StatusCode:  http.StatusNotFound,
-		}
+		return nil, errPlanNotAccessible
 	}
 }
