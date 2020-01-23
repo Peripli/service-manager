@@ -109,85 +109,119 @@ func resync(ctx context.Context, broker *types.ServiceBroker, txStorage storage.
 			}
 
 			byServicePlanID := query.ByField(query.EqualsOperator, "service_plan_id", planID)
-			visibilitiesForPlan, err := txStorage.List(ctx, types.VisibilityType, byServicePlanID)
+			planVisibilities, err := txStorage.List(ctx, types.VisibilityType, byServicePlanID)
 			if err != nil {
 				return err
 			}
 
-			planSupportedPlatforms := servicePlan.SupportedPlatforms()
+			supportedPlatformTypes := servicePlan.SupportedPlatforms()
 
-			criteria := make([]query.Criterion, 0)
-			if planSupportedPlatforms != nil {
-				criteria = append(criteria, query.ByField(query.InOperator, "type", planSupportedPlatforms...))
+			if supportedPlatformTypes == nil {
+				err = resyncPublicPlanVisibilities(ctx, txStorage, planVisibilities, isPlanPublic, planID, broker.ID)
+			} else {
+				err = resyncPublicPlanVisibilitiesWithSupportedPlatforms(ctx, txStorage, planVisibilities, isPlanPublic, planID, broker.ID, supportedPlatformTypes)
 			}
-
-			platformList, err := txStorage.List(ctx, types.PlatformType, criteria...)
 			if err != nil {
 				return err
-			}
-
-			supportedPlatforms := platformList.(*types.Platforms).Platforms
-
-			for i := 0; i < visibilitiesForPlan.Len(); i++ {
-				visibility := visibilitiesForPlan.ItemAt(i).(*types.Visibility)
-				byVisibilityID := query.ByField(query.EqualsOperator, "id", visibility.ID)
-
-				shouldDeleteVisibility := true
-				for j := len(supportedPlatforms) - 1; j >= 0; j-- {
-					if isPlanPublic {
-						if visibility.PlatformID == supportedPlatforms[j].ID {
-							if len(visibility.Labels) == 0 {
-								supportedPlatforms = supportedPlatforms[:len(supportedPlatforms)-1]
-								shouldDeleteVisibility = false
-							}
-							break
-						}
-					} else {
-						if visibility.PlatformID == supportedPlatforms[j].ID {
-							if len(visibility.Labels) != 0 {
-								shouldDeleteVisibility = false
-							}
-							break
-						}
-					}
-				}
-
-				if shouldDeleteVisibility {
-					if err := txStorage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
-						return err
-					}
-				}
-
-			}
-
-			if isPlanPublic {
-				for _, platform := range supportedPlatforms {
-					visibility, err := buildVisibility(servicePlan.ID, platform.ID)
-					if err != nil {
-						return err
-					}
-
-					planID, err := txStorage.Create(ctx, visibility)
-					if err != nil {
-						return err
-					}
-
-					log.C(ctx).Debugf("Created new public visibility for broker with id %s, plan with id %s and platform with id %s", broker.ID, planID, platform.ID)
-				}
 			}
 		}
 	}
 	return nil
 }
 
-func buildVisibility(planID, platformID string) (*types.Visibility, error) {
+func resyncPublicPlanVisibilities(ctx context.Context, txStorage storage.Repository, planVisibilities types.ObjectList, isPlanPublic bool, planID, brokerID string) error {
+	publicVisibilityExists := false
+
+	for i := 0; i < planVisibilities.Len(); i++ {
+		visibility := planVisibilities.ItemAt(i).(*types.Visibility)
+		byVisibilityID := query.ByField(query.EqualsOperator, "id", visibility.ID)
+
+		shouldDeleteVisibility := true
+		if isPlanPublic {
+			if visibility.PlatformID == "" {
+				publicVisibilityExists = true
+				shouldDeleteVisibility = false
+			}
+		} else {
+			if visibility.PlatformID != "" {
+				shouldDeleteVisibility = false
+			}
+		}
+
+		if shouldDeleteVisibility {
+			if err := txStorage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
+				return err
+			}
+		}
+	}
+
+	if isPlanPublic && !publicVisibilityExists {
+		persistVisibility(ctx, txStorage, "", planID, brokerID)
+	}
+
+	return nil
+}
+
+func resyncPublicPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txStorage storage.Repository, planVisibilities types.ObjectList, isPlanPublic bool, planID, brokerID string, supportedPlatformTypes []string) error {
+	criteria := make([]query.Criterion, 0)
+	criteria = append(criteria, query.ByField(query.InOperator, "type", supportedPlatformTypes...))
+
+	platformList, err := txStorage.List(ctx, types.PlatformType, criteria...)
+	if err != nil {
+		return err
+	}
+
+	supportedPlatforms := platformList.(*types.Platforms).Platforms
+
+	for i := 0; i < planVisibilities.Len(); i++ {
+		visibility := planVisibilities.ItemAt(i).(*types.Visibility)
+		byVisibilityID := query.ByField(query.EqualsOperator, "id", visibility.ID)
+
+		shouldDeleteVisibility := true
+		for j := len(supportedPlatforms) - 1; j >= 0; j-- {
+			if isPlanPublic {
+				if visibility.PlatformID == supportedPlatforms[j].ID {
+					if len(visibility.Labels) == 0 {
+						supportedPlatforms = supportedPlatforms[:len(supportedPlatforms)-1]
+						shouldDeleteVisibility = false
+					}
+					break
+				}
+			} else {
+				if visibility.PlatformID == supportedPlatforms[j].ID {
+					if len(visibility.Labels) != 0 {
+						shouldDeleteVisibility = false
+					}
+					break
+				}
+			}
+		}
+
+		if shouldDeleteVisibility {
+			if err := txStorage.Delete(ctx, types.VisibilityType, byVisibilityID); err != nil {
+				return err
+			}
+		}
+
+	}
+
+	if isPlanPublic {
+		for _, platform := range supportedPlatforms {
+			persistVisibility(ctx, txStorage, platform.ID, planID, brokerID)
+		}
+	}
+
+	return nil
+}
+
+func persistVisibility(ctx context.Context, txStorage storage.Repository, platformID, planID, brokerID string) error {
 	UUID, err := uuid.NewV4()
 	if err != nil {
-		return nil, fmt.Errorf("could not generate GUID for visibility: %s", err)
+		return fmt.Errorf("could not generate GUID for visibility: %s", err)
 	}
 
 	currentTime := time.Now().UTC()
-	return &types.Visibility{
+	visibility := &types.Visibility{
 		Base: types.Base{
 			ID:        UUID.String(),
 			UpdatedAt: currentTime,
@@ -195,5 +229,13 @@ func buildVisibility(planID, platformID string) (*types.Visibility, error) {
 		},
 		ServicePlanID: planID,
 		PlatformID:    platformID,
-	}, nil
+	}
+
+	_, err = txStorage.Create(ctx, visibility)
+	if err != nil {
+		return err
+	}
+
+	log.C(ctx).Debugf("Created new public visibility for broker with id (%s), plan with id (%s) and platform with id (%s)", brokerID, planID, platformID)
+	return nil
 }
