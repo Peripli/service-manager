@@ -112,7 +112,7 @@ func APIResourcePatch(ctx *common.TestContext, tenantScoped bool, apiPath string
 
 	if async {
 		resp = resp.Status(http.StatusAccepted)
-		err := ExpectOperation(ctx.SMWithOAuth, resp, types.SUCCEEDED)
+		_, err := ExpectOperation(ctx.SMWithOAuth, resp, types.SUCCEEDED)
 		if err != nil {
 			panic(err)
 		}
@@ -134,23 +134,25 @@ func StorageResourcePatch(ctx *common.TestContext, _ bool, _ string, objID strin
 	}
 }
 
-func ExpectSuccessfulAsyncResourceCreation(resp *httpexpect.Response, SM *common.SMExpect, resourceID, resourceURL string) map[string]interface{} {
+func ExpectSuccessfulAsyncResourceCreation(resp *httpexpect.Response, SM *common.SMExpect, resourceURL string) map[string]interface{} {
 	resp = resp.Status(http.StatusAccepted)
-	if err := ExpectOperation(SM, resp, types.SUCCEEDED); err != nil {
+
+	op, err := ExpectOperation(SM, resp, types.SUCCEEDED)
+	if err != nil {
 		panic(err)
 	}
 
-	obj := SM.GET(resourceURL + "/" + resourceID).
+	obj := SM.GET(resourceURL + "/" + op.Value("resource_id").String().Raw()).
 		Expect().Status(http.StatusOK).JSON().Object().Raw()
 
 	return obj
 }
 
-func ExpectOperation(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState) error {
+func ExpectOperation(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState) (*httpexpect.Object, error) {
 	return ExpectOperationWithError(auth, asyncResp, expectedState, "")
 }
 
-func ExpectOperationWithError(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState, expectedErrMsg string) error {
+func ExpectOperationWithError(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState, expectedErrMsg string) (*httpexpect.Object, error) {
 	operationURL := asyncResp.Header("Location").Raw()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -177,11 +179,11 @@ func ExpectOperationWithError(auth *common.SMExpect, asyncResp *httpexpect.Respo
 						err = fmt.Errorf("unable to verify operation - expected error message (%s), but got (%s)", expectedErrMsg, errs.String().Raw())
 					}
 				}
-				return nil
+				return operation, nil
 			}
 		}
 	}
-	return err
+	return nil, err
 }
 
 func EnsurePublicPlanVisibility(repository storage.Repository, planID string) {
