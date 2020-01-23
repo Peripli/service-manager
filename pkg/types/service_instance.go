@@ -53,6 +53,7 @@ func (e *ServiceInstance) Equals(obj Object) bool {
 		e.PlatformID != instance.PlatformID ||
 		e.ServicePlanID != instance.ServicePlanID ||
 		e.DashboardURL != instance.DashboardURL ||
+		e.Ready != instance.Ready ||
 		!reflect.DeepEqual(e.PreviousValues, instance.PreviousValues) ||
 		!reflect.DeepEqual(e.Context, instance.Context) ||
 		!reflect.DeepEqual(e.MaintenanceInfo, instance.MaintenanceInfo) {
