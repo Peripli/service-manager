@@ -180,23 +180,13 @@ func resyncPublicPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txS
 		shouldDeleteVisibility := true
 
 		if isPlanPublic { // trying to match the current visibility to one of the supported platforms that should have visibilities
-			for j := len(supportedPlatforms) - 1; j >= 0; j-- {
-				if visibility.PlatformID == supportedPlatforms[j].ID {
-					if len(visibility.Labels) == 0 { // visibility is present, no need to create a new one or delete this one
-						supportedPlatforms = supportedPlatforms[:len(supportedPlatforms)-1]
-						shouldDeleteVisibility = false
-					}
-					break
-				}
+			if idx, matches := platformsAnyMatchesVisibility(supportedPlatforms, visibility); matches && len(visibility.Labels) == 0 { // visibility is present, no need to create a new one or delete this one
+				supportedPlatforms = append(supportedPlatforms[:idx], supportedPlatforms[idx+1:]...)
+				shouldDeleteVisibility = false
 			}
 		} else { // trying to match the current visibility to one of the supported platforms - if match is found and it has no labels - it's a public visibility and it has to be deleted
-			for _, supportedPlatform := range supportedPlatforms {
-				if visibility.PlatformID == supportedPlatform.ID {
-					if len(visibility.Labels) != 0 { // visibility is present, but has labels -> visibility for paid so don't delete it
-						shouldDeleteVisibility = false
-					}
-					break // no need to continue iteration due to unique constraint on (service_plan_id, platform_id)
-				}
+			if _, matches := platformsAnyMatchesVisibility(supportedPlatforms, visibility); matches && len(visibility.Labels) != 0 { // visibility is present, but has labels -> visibility for paid so don't delete it
+				shouldDeleteVisibility = false
 			}
 		}
 
@@ -217,6 +207,16 @@ func resyncPublicPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txS
 	}
 
 	return nil
+}
+
+// platformsAnyMatchesVisibility checks whether any of the platforms matches the provided visibility
+func platformsAnyMatchesVisibility(platforms []*types.Platform, visibility *types.Visibility) (int, bool) {
+	for i, platform := range platforms {
+		if visibility.ID == platform.ID {
+			return i, true
+		}
+	}
+	return -1, false
 }
 
 func persistVisibility(ctx context.Context, txStorage storage.Repository, platformID, planID, brokerID string) error {
