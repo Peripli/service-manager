@@ -119,7 +119,7 @@ func resync(ctx context.Context, broker *types.ServiceBroker, txStorage storage.
 			if len(supportedPlatformTypes) == 0 { // all platforms are supported -> create single visibility with empty platform ID
 				err = resyncPublicPlanVisibilities(ctx, txStorage, planVisibilities, isPlanPublic, planID, broker.ID)
 			} else { // not all platforms are supported -> create single visibility for each supported platform
-				err = resyncPublicPlanVisibilitiesWithSupportedPlatforms(ctx, txStorage, planVisibilities, isPlanPublic, planID, broker.ID, supportedPlatformTypes)
+				err = resyncPlanVisibilitiesWithSupportedPlatforms(ctx, txStorage, planVisibilities, isPlanPublic, planID, broker.ID, supportedPlatformTypes)
 			}
 
 			if err != nil {
@@ -165,7 +165,7 @@ func resyncPublicPlanVisibilities(ctx context.Context, txStorage storage.Reposit
 	return nil
 }
 
-func resyncPublicPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txStorage storage.Repository, planVisibilities types.ObjectList, isPlanPublic bool, planID, brokerID string, supportedPlatformTypes []string) error {
+func resyncPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txStorage storage.Repository, planVisibilities types.ObjectList, isPlanPublic bool, planID, brokerID string, supportedPlatformTypes []string) error {
 	bySupportedPlatformTypes := query.ByField(query.InOperator, "type", supportedPlatformTypes...)
 	platformList, err := txStorage.List(ctx, types.PlatformType, bySupportedPlatformTypes)
 	if err != nil {
@@ -179,13 +179,14 @@ func resyncPublicPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txS
 
 		shouldDeleteVisibility := true
 
+		idx, matches := platformsAnyMatchesVisibility(supportedPlatforms, visibility)
 		if isPlanPublic { // trying to match the current visibility to one of the supported platforms that should have visibilities
-			if idx, matches := platformsAnyMatchesVisibility(supportedPlatforms, visibility); matches && len(visibility.Labels) == 0 { // visibility is present, no need to create a new one or delete this one
+			if matches && len(visibility.Labels) == 0 { // visibility is present, no need to create a new one or delete this one
 				supportedPlatforms = append(supportedPlatforms[:idx], supportedPlatforms[idx+1:]...)
 				shouldDeleteVisibility = false
 			}
 		} else { // trying to match the current visibility to one of the supported platforms - if match is found and it has no labels - it's a public visibility and it has to be deleted
-			if _, matches := platformsAnyMatchesVisibility(supportedPlatforms, visibility); matches && len(visibility.Labels) != 0 { // visibility is present, but has labels -> visibility for paid so don't delete it
+			if matches && len(visibility.Labels) != 0 { // visibility is present, but has labels -> visibility for paid so don't delete it
 				shouldDeleteVisibility = false
 			}
 		}
