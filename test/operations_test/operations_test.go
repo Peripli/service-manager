@@ -49,7 +49,6 @@ func TestOperations(t *testing.T) {
 }
 
 var _ = Describe("Operations", func() {
-
 	var ctx *common.TestContext
 
 	AfterEach(func() {

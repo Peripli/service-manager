@@ -149,7 +149,7 @@ func ExpectOperation(auth *common.SMExpect, asyncResp *httpexpect.Response, expe
 func ExpectOperationWithError(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState, expectedErrMsg string) (*httpexpect.Object, error) {
 	operationURL := asyncResp.Header("Location").Raw()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
 	defer cancel()
 
 	err := fmt.Errorf("unable to verify operation state (expected state = %s)", string(expectedState))
@@ -163,7 +163,7 @@ func ExpectOperationWithError(auth *common.SMExpect, asyncResp *httpexpect.Respo
 			state := operation.Value("state").String().Raw()
 			if state == string(expectedState) {
 				errs := operation.Value("errors")
-				if expectedState == types.SUCCEEDED {
+				if expectedState == types.SUCCEEDED || expectedState == types.IN_PROGRESS {
 					errs.Null()
 				} else {
 					errs.NotNull()

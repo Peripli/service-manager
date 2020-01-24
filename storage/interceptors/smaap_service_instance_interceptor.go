@@ -254,6 +254,10 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 		return err
 	}
 
+	if !operation.DeletionScheduled.IsZero() {
+		log.C(ctx).Infof("Orphan mitigation in progress for instance with id %s and name %s triggered due to failure in operation %s", instance.ID, instance.Name, operation.Type)
+	}
+
 	var deprovisionResponse *osbc.DeprovisionResponse
 	if !operation.Reschedule {
 		deprovisionRequest := prepareDeprovisionRequest(instance, service.CatalogID, plan.CatalogID)
@@ -386,19 +390,19 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 func prepare(ctx context.Context, repository storage.Repository, osbClientFunc osbc.CreateFunc, instance *types.ServiceInstance) (osbc.Client, *types.ServiceBroker, *types.ServiceOffering, *types.ServicePlan, error) {
 	planObject, err := repository.Get(ctx, types.ServicePlanType, query.ByField(query.EqualsOperator, "id", instance.ServicePlanID))
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, util.HandleStorageError(err, types.ServicePlanType.String())
 	}
 	plan := planObject.(*types.ServicePlan)
 
 	serviceObject, err := repository.Get(ctx, types.ServiceOfferingType, query.ByField(query.EqualsOperator, "id", plan.ServiceOfferingID))
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, util.HandleStorageError(err, types.ServicePlanType.String())
 	}
 	service := serviceObject.(*types.ServiceOffering)
 
 	brokerObject, err := repository.Get(ctx, types.ServiceBrokerType, query.ByField(query.EqualsOperator, "id", service.BrokerID))
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, util.HandleStorageError(err, types.ServicePlanType.String())
 	}
 	broker := brokerObject.(*types.ServiceBroker)
 	osbClient, err := osbClientFunc(&osbc.ClientConfiguration{

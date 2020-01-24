@@ -57,6 +57,24 @@ func NewScheduler(smCtx context.Context, repository storage.TransactionalReposit
 	}
 }
 
+// when scheduled operation is already successful
+// when scheduled operation is not valid
+// when an error occurs while fetching last operation
+// when last operation is found
+// when last op is delete in progress
+// when last op
+// when last operation is not found
+
+//provision instance in SM
+// for synchronously, asynchronously
+// when another non rescheduable operation is already in progress for this instance
+// when broker is stopped/missing/crashed/unknown to sm/unresponsive/plan unknown/service unknown
+// when broker responds with synchronous success (instance stored, operation marked as success,nonrescheduable, deletiontimestampempty
+// when broker responds with sync error
+// that is non osb error
+// that is correctly formated osb error
+// that requires orphan mitigation
+
 // ScheduleSyncStorageAction stores the job's Operation entity in DB and synchronously executes the CREATE/UPDATE/DELETE DB transaction
 func (ds *Scheduler) ScheduleSyncStorageAction(ctx context.Context, operation *types.Operation, action storageAction) (types.Object, error) {
 	log.C(ctx).Infof("Scheduling sync %s operation with id %s for resource of type %s with id %s", operation.Type, operation.ID, operation.ResourceType.String(), operation.ResourceID)
@@ -144,7 +162,7 @@ func (ds *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *
 		}
 	}
 
-	return nil
+	return err
 }
 
 func (ds *Scheduler) scheduleAsyncStorageActionDelayed(ctx context.Context, operation *types.Operation, action storageAction, delay time.Duration) (err error) {
@@ -184,6 +202,7 @@ func (ds *Scheduler) checkForConcurrentOperations(ctx context.Context, operation
 	isDeletionInProgress := !lastOperation.DeletionScheduled.IsZero()
 	isDeletionTimeoutExceeded := isDeletionInProgress && time.Now().After(lastOperation.DeletionScheduled.Add(ds.deletionTimeout))
 	isOperationTimeoutNotExceeded := lastOperation.State == types.IN_PROGRESS && time.Now().Before(lastOperation.CreatedAt.Add(ds.jobTimeout))
+
 	switch operation.Type {
 	case types.CREATE:
 		fallthrough
@@ -311,6 +330,7 @@ func (ds *Scheduler) handleActionResponse(ctx context.Context, jobError error, o
 
 			log.C(ctx).Infof("Scheduling of required delete operation after actual operation with id %s failed", opAfterJob.ID)
 			//recursive, no need to handle error
+			// is deletion timestamp was set on the op, reschedule the same op with delete action
 			if err := ds.scheduleAsyncStorageActionDelayed(ctx, opAfterJob, deletionAction, ds.reschedulingDelay); err != nil {
 				return fmt.Errorf("scheduling of required deletion job failed with err: %s", err)
 			}

@@ -33,7 +33,7 @@ type BrokerServer struct {
 	*httptest.Server
 
 	CatalogHandler                 http.HandlerFunc // /v2/catalog
-	ServiceInstanceHandler         http.HandlerFunc // /v2/service_instances/{instance_id}
+	ServiceInstanceHandler         http.HandlerFunc // Provision/v2/service_instances/{instance_id}
 	ServiceInstanceLastOpHandler   http.HandlerFunc // /v2/service_instances/{instance_id}/last_operation
 	BindingHandler                 http.HandlerFunc // /v2/service_instances/{instance_id}/service_bindings/{binding_id}
 	BindingLastOpHandler           http.HandlerFunc // /v2/service_instances/{instance_id}/service_bindings/{binding_id}/last_operation
@@ -146,6 +146,50 @@ func (b *BrokerServer) initRouter() {
 	router.Use(b.saveRequestMiddleware)
 
 	b.router = router
+}
+
+func (b *BrokerServer) ServiceInstanceHandlerFunc(method string, handler func(rw http.ResponseWriter, req *http.Request)) {
+	currentHandler := b.ServiceInstanceHandler
+	b.ServiceInstanceHandler = func(rw http.ResponseWriter, req *http.Request) {
+		if req.Method == method {
+			handler(rw, req)
+			return
+		}
+		currentHandler(rw, req)
+	}
+}
+
+func (b *BrokerServer) ServiceInstanceLastOpHandlerFunc(method string, handler func(rw http.ResponseWriter, req *http.Request)) {
+	currentHandler := b.ServiceInstanceLastOpHandler
+	b.ServiceInstanceLastOpHandler = func(rw http.ResponseWriter, req *http.Request) {
+		if req.Method == method {
+			handler(rw, req)
+			return
+		}
+		currentHandler(rw, req)
+	}
+}
+
+func (b *BrokerServer) BindingHandlerFunc(method string, handler func(rw http.ResponseWriter, req *http.Request)) {
+	currentHandler := b.BindingHandler
+	b.ServiceInstanceHandler = func(rw http.ResponseWriter, req *http.Request) {
+		if req.Method == method {
+			handler(rw, req)
+			return
+		}
+		currentHandler(rw, req)
+	}
+}
+
+func (b *BrokerServer) BindingLastOpHandlerFunc(method string, handler func(rw http.ResponseWriter, req *http.Request)) {
+	currentHandler := b.BindingLastOpHandler
+	b.ServiceInstanceHandler = func(rw http.ResponseWriter, req *http.Request) {
+		if req.Method == method {
+			handler(rw, req)
+			return
+		}
+		currentHandler(rw, req)
+	}
 }
 
 func (b *BrokerServer) authenticationMiddleware(next http.Handler) http.Handler {
