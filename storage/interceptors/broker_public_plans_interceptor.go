@@ -166,10 +166,8 @@ func resyncPublicPlanVisibilities(ctx context.Context, txStorage storage.Reposit
 }
 
 func resyncPublicPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txStorage storage.Repository, planVisibilities types.ObjectList, isPlanPublic bool, planID, brokerID string, supportedPlatformTypes []string) error {
-	criteria := make([]query.Criterion, 0)
-	criteria = append(criteria, query.ByField(query.InOperator, "type", supportedPlatformTypes...))
-
-	platformList, err := txStorage.List(ctx, types.PlatformType, criteria...)
+	bySupportedPlatformTypes := query.ByField(query.InOperator, "type", supportedPlatformTypes...)
+	platformList, err := txStorage.List(ctx, types.PlatformType, bySupportedPlatformTypes)
 	if err != nil {
 		return err
 	}
@@ -180,21 +178,24 @@ func resyncPublicPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txS
 		visibility := planVisibilities.ItemAt(i).(*types.Visibility)
 
 		shouldDeleteVisibility := true
-		for j := len(supportedPlatforms) - 1; j >= 0; j-- {
-			if isPlanPublic {
+
+		if isPlanPublic { // trying to match the current visibility to one of the supported platforms that should have visibilities
+			for j := len(supportedPlatforms) - 1; j >= 0; j-- {
 				if visibility.PlatformID == supportedPlatforms[j].ID {
-					if len(visibility.Labels) == 0 {
+					if len(visibility.Labels) == 0 { // visibility is present, no need to create a new one or delete this one
 						supportedPlatforms = supportedPlatforms[:len(supportedPlatforms)-1]
 						shouldDeleteVisibility = false
 					}
 					break
 				}
-			} else {
-				if visibility.PlatformID == supportedPlatforms[j].ID {
-					if len(visibility.Labels) != 0 {
+			}
+		} else { // trying to match the current visibility to one of the supported platforms - if match is found and it has no labels - it's a public visibility and it has to be deleted
+			for _, supportedPlatform := range supportedPlatforms {
+				if visibility.PlatformID == supportedPlatform.ID {
+					if len(visibility.Labels) != 0 { // visibility is present, but has labels -> visibility for paid so don't delete it
 						shouldDeleteVisibility = false
 					}
-					break
+					break // no need to continue iteration due to unique constraint on (service_plan_id, platform_id)
 				}
 			}
 		}
@@ -205,7 +206,6 @@ func resyncPublicPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txS
 				return err
 			}
 		}
-
 	}
 
 	if isPlanPublic {
