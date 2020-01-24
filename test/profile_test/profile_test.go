@@ -77,8 +77,7 @@ var _ = Describe("Profile API", func() {
 			It("accepts "+name+" profile", func() {
 				profileURL := smURL + web.ProfileURL + "/" + name
 				cmd := exec.Command("go", "tool", "pprof", "-top", profileURL)
-				cmd.Env = append(os.Environ(),
-					"PPROF_TMPDIR="+tempDir)
+				cmd.Env = append(os.Environ(), "PPROF_TMPDIR="+tempDir)
 				cmd.Stdout = ginkgo.GinkgoWriter
 				cmd.Stderr = ginkgo.GinkgoWriter
 				common.Print("%s %s", cmd.Path, strings.Join(cmd.Args[1:], " "))
