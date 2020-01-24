@@ -17,38 +17,42 @@
 package profile_test
 
 import (
+	"io/ioutil"
 	"net/http"
+	"os"
+	"os/exec"
+	"strings"
 	"testing"
 
-	"github.com/Peripli/service-manager/pkg/web"
-
+	"github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 
+	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/test/common"
 )
 
 func TestProfile(t *testing.T) {
+	RegisterFailHandler(Fail)
 	RunSpecs(t, "Profile Suite")
 }
 
 var _ = Describe("Profile API", func() {
 
 	var ctx *common.TestContext
+	var smURL, tempDir string
 
 	BeforeSuite(func() {
 		ctx = common.DefaultTestContext()
+		smURL = ctx.Servers[common.SMServer].URL()
+		var err error
+		tempDir, err = ioutil.TempDir("", "pprof")
+		Expect(err).To(BeNil())
 	})
 
 	AfterSuite(func() {
 		ctx.Cleanup()
-	})
-
-	Describe("Get heap profile", func() {
-		It("Returns correct response", func() {
-			ctx.SM.GET(web.ProfileURL + "/heap").
-				Expect().
-				Status(http.StatusOK)
-		})
+		os.RemoveAll(tempDir)
 	})
 
 	Describe("Get unknown profile", func() {
@@ -57,5 +61,30 @@ var _ = Describe("Profile API", func() {
 				Expect().
 				Status(http.StatusNotFound)
 		})
+	})
+
+	Describe("pprof", func() {
+		profiles := []string{
+			"goroutine",
+			"threadcreate",
+			"heap",
+			"allocs",
+			"block",
+			"mutex",
+		}
+		for _, name := range profiles {
+			name := name
+			It("accepts "+name+" profile", func() {
+				profileURL := smURL + web.ProfileURL + "/" + name
+				cmd := exec.Command("go", "tool", "pprof", "-top", profileURL)
+				cmd.Env = append(os.Environ(),
+					"PPROF_TMPDIR="+tempDir)
+				cmd.Stdout = ginkgo.GinkgoWriter
+				cmd.Stderr = ginkgo.GinkgoWriter
+				common.Print("%s %s", cmd.Path, strings.Join(cmd.Args[1:], " "))
+				err := cmd.Run()
+				Expect(err).To(BeNil())
+			})
+		}
 	})
 })

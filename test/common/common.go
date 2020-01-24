@@ -411,7 +411,7 @@ func Print(message string, args ...interface{}) {
 	if len(args) == 0 {
 		_, err = fmt.Fprint(ginkgo.GinkgoWriter, "\n"+message+"\n")
 	} else {
-		_, err = fmt.Fprintf(ginkgo.GinkgoWriter, "\n"+message+"\n", args)
+		_, err = fmt.Fprintf(ginkgo.GinkgoWriter, "\n"+message+"\n", args...)
 	}
 	if err != nil {
 		panic(err)
