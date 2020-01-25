@@ -101,7 +101,8 @@ func (e *ServicePlan) Validate() error {
 	return nil
 }
 
-// SupportedPlatforms returns the supportedPlatforms provided in a plan's metadata (if a value is provided at all)
+// SupportedPlatforms returns the supportedPlatforms provided in a plan's metadata (if a value is provided at all).
+// If there are no supported platforms, an empty array is returned denoting that the plan is available to platforms of all types.
 func (e *ServicePlan) SupportedPlatforms() []string {
 	supportedPlatforms := gjson.GetBytes(e.Metadata, "supportedPlatforms")
 	if !supportedPlatforms.IsArray() {
