@@ -105,7 +105,7 @@ func (e *ServicePlan) Validate() error {
 func (e *ServicePlan) SupportedPlatforms() []string {
 	supportedPlatforms := gjson.GetBytes(e.Metadata, "supportedPlatforms")
 	if !supportedPlatforms.IsArray() {
-		return nil
+		return []string{}
 	}
 	array := supportedPlatforms.Array()
 	platforms := make([]string, len(array))
@@ -119,5 +119,5 @@ func (e *ServicePlan) SupportedPlatforms() []string {
 func (e *ServicePlan) SupportsPlatform(platform string) bool {
 	platforms := e.SupportedPlatforms()
 
-	return platforms == nil || slice.StringsAnyEquals(platforms, platform)
+	return len(platforms) == 0 || slice.StringsAnyEquals(platforms, platform)
 }
