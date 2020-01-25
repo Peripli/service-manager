@@ -213,7 +213,7 @@ func resyncPlanVisibilitiesWithSupportedPlatforms(ctx context.Context, txStorage
 // platformsAnyMatchesVisibility checks whether any of the platforms matches the provided visibility
 func platformsAnyMatchesVisibility(platforms []*types.Platform, visibility *types.Visibility) (int, bool) {
 	for i, platform := range platforms {
-		if visibility.ID == platform.ID {
+		if visibility.PlatformID == platform.ID {
 			return i, true
 		}
 	}
