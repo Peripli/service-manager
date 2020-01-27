@@ -40,26 +40,19 @@ func TestProfile(t *testing.T) {
 var _ = Describe("Profile API", func() {
 
 	var ctx *common.TestContext
-	var smURL, tempDir string
 
 	BeforeSuite(func() {
-		ctx = common.DefaultTestContext()
-		smURL = ctx.Servers[common.SMServer].URL()
-		var err error
-		tempDir, err = ioutil.TempDir("", "pprof")
-		Expect(err).To(BeNil())
+		ctx = common.NewTestContextBuilder().Build()
 	})
 
 	AfterSuite(func() {
 		ctx.Cleanup()
-		os.RemoveAll(tempDir)
 	})
 
 	Describe("Get unknown profile", func() {
 		It("Returns 404 response", func() {
-			ctx.SM.GET(web.ProfileURL + "/unknown").
-				Expect().
-				Status(http.StatusNotFound)
+			ctx.SMWithOAuth.GET(web.ProfileURL + "/unknown").
+				Expect().Status(http.StatusNotFound)
 		})
 	})
 
@@ -75,14 +68,21 @@ var _ = Describe("Profile API", func() {
 		for _, name := range profiles {
 			name := name
 			It("accepts "+name+" profile", func() {
-				profileURL := smURL + web.ProfileURL + "/" + name
-				cmd := exec.Command("go", "tool", "pprof", "-top", profileURL)
-				cmd.Env = append(os.Environ(), "PPROF_TMPDIR="+tempDir)
+				body := ctx.SMWithOAuth.GET(web.ProfileURL + "/" + name).
+					Expect().Status(http.StatusOK).Body().Raw()
+				f, err := ioutil.TempFile("", "profile")
+				Expect(err).To(BeNil())
+				fname := f.Name()
+				defer os.Remove(fname)
+				_, err = f.WriteString(body)
+				Expect(err).To(BeNil())
+				Expect(f.Close()).To(BeNil())
+
+				cmd := exec.Command("go", "tool", "pprof", "-top", fname)
 				cmd.Stdout = ginkgo.GinkgoWriter
 				cmd.Stderr = ginkgo.GinkgoWriter
 				common.Print("%s %s", cmd.Path, strings.Join(cmd.Args[1:], " "))
-				err := cmd.Run()
-				Expect(err).To(BeNil())
+				Expect(cmd.Run()).To(BeNil())
 			})
 		}
 	})
