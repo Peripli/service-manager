@@ -195,41 +195,35 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		WithCreateOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsCreateInterceptorProvider{}).Before(interceptors.BrokerCreateCatalogInterceptorName).Register().
 		WithUpdateOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsUpdateInterceptorProvider{}).Before(interceptors.BrokerUpdateCatalogInterceptorName).Register().
 		WithDeleteOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsDeleteInterceptorProvider{}).After(interceptors.BrokerDeleteCatalogInterceptorName).Register().
-		//TODO extract cfg
 		WithCreateAroundTxInterceptorProvider(types.ServiceInstanceType, &interceptors.ServiceInstanceCreateInterceptorProvider{
-			OSBClientCreateFunc:  osbClientProvider,
-			Repository:           interceptableRepository,
-			TenantKey:            "subaccount_id",
-			PollingInterval:      5 * time.Second,
-			MaxParallelDeletions: 100,
+			OSBClientCreateFunc: osbClientProvider,
+			Repository:          interceptableRepository,
+			TenantKey:           cfg.Multitenancy.LabelKey,
+			PollingInterval:     cfg.Operations.PollingInterval,
 		}).Register().
 		WithUpdateAroundTxInterceptorProvider(types.ServiceInstanceType, &interceptors.ServiceInstanceUpdateInterceptorProvider{
-			OSBClientCreateFunc:  osbClientProvider,
-			Repository:           interceptableRepository,
-			TenantKey:            "subaccount_id",
-			PollingInterval:      5 * time.Second,
-			MaxParallelDeletions: 100,
+			OSBClientCreateFunc: osbClientProvider,
+			Repository:          interceptableRepository,
+			TenantKey:           cfg.Multitenancy.LabelKey,
+			PollingInterval:     cfg.Operations.PollingInterval,
 		}).Register().
 		WithDeleteAroundTxInterceptorProvider(types.ServiceInstanceType, &interceptors.ServiceInstanceDeleteInterceptorProvider{
-			OSBClientCreateFunc:  osbClientProvider,
-			Repository:           interceptableRepository,
-			TenantKey:            "subaccount_id",
-			PollingInterval:      5 * time.Second,
-			MaxParallelDeletions: 100,
+			OSBClientCreateFunc: osbClientProvider,
+			Repository:          interceptableRepository,
+			TenantKey:           cfg.Multitenancy.LabelKey,
+			PollingInterval:     cfg.Operations.PollingInterval,
 		}).Register().
 		WithCreateAroundTxInterceptorProvider(types.ServiceBindingType, &interceptors.ServiceBindingCreateInterceptorProvider{
-			OSBClientCreateFunc:  osbClientProvider,
-			Repository:           interceptableRepository,
-			TenantKey:            "subaccount_id",
-			PollingInterval:      5 * time.Second,
-			MaxParallelDeletions: 100,
+			OSBClientCreateFunc: osbClientProvider,
+			Repository:          interceptableRepository,
+			TenantKey:           cfg.Multitenancy.LabelKey,
+			PollingInterval:     cfg.Operations.PollingInterval,
 		}).Register().
 		WithDeleteAroundTxInterceptorProvider(types.ServiceBindingType, &interceptors.ServiceBindingDeleteInterceptorProvider{
-			OSBClientCreateFunc:  osbClientProvider,
-			Repository:           interceptableRepository,
-			TenantKey:            "subaccount_id",
-			PollingInterval:      5 * time.Second,
-			MaxParallelDeletions: 100,
+			OSBClientCreateFunc: osbClientProvider,
+			Repository:          interceptableRepository,
+			TenantKey:           cfg.Multitenancy.LabelKey,
+			PollingInterval:     cfg.Operations.PollingInterval,
 		}).Register()
 
 	return smb, nil

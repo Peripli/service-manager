@@ -157,7 +157,7 @@ var _ = Describe("Operations", func() {
 			ctx = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 				testController := panicController{
 					operation: operation,
-					scheduler: operations.NewScheduler(ctx, smb.Storage, 10*time.Minute, 10, &sync.WaitGroup{}),
+					scheduler: operations.NewScheduler(ctx, smb.Storage, operations.DefaultSettings(), 10, &sync.WaitGroup{}),
 				}
 
 				smb.RegisterControllers(testController)
@@ -179,7 +179,7 @@ var _ = Describe("Operations", func() {
 					return respBody.Value("state").String().Raw()
 				}, 2*time.Second).Should(Equal("failed"))
 
-				Expect(respBody.Value("errors").Object().Value("message").String().Raw()).To(ContainSubstring("job interrupted"))
+				Expect(respBody.Value("errors").Object().Value("description").String().Raw()).To(ContainSubstring("job interrupted"))
 			})
 		})
 	})

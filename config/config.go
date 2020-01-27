@@ -18,6 +18,9 @@ package config
 
 import (
 	"fmt"
+
+	"github.com/Peripli/service-manager/pkg/multitenancy"
+
 	"github.com/Peripli/service-manager/operations"
 
 	"github.com/Peripli/service-manager/pkg/httpclient"
@@ -34,14 +37,15 @@ import (
 
 // Settings is used to setup the Service Manager
 type Settings struct {
-	Server     *server.Settings
-	Storage    *storage.Settings
-	Log        *log.Settings
-	API        *api.Settings
-	Operations *operations.Settings
-	WebSocket  *ws.Settings
-	HTTPClient *httpclient.Settings
-	Health     *health.Settings
+	Server       *server.Settings
+	Storage      *storage.Settings
+	Log          *log.Settings
+	API          *api.Settings
+	Operations   *operations.Settings
+	WebSocket    *ws.Settings
+	HTTPClient   *httpclient.Settings
+	Health       *health.Settings
+	Multitenancy *multitenancy.Settings
 }
 
 // AddPFlags adds the SM config flags to the provided flag set
@@ -53,14 +57,15 @@ func AddPFlags(set *pflag.FlagSet) {
 // DefaultSettings returns the default values for configuring the Service Manager
 func DefaultSettings() *Settings {
 	return &Settings{
-		Server:     server.DefaultSettings(),
-		Storage:    storage.DefaultSettings(),
-		Log:        log.DefaultSettings(),
-		API:        api.DefaultSettings(),
-		Operations: operations.DefaultSettings(),
-		WebSocket:  ws.DefaultSettings(),
-		HTTPClient: httpclient.DefaultSettings(),
-		Health:     health.DefaultSettings(),
+		Server:       server.DefaultSettings(),
+		Storage:      storage.DefaultSettings(),
+		Log:          log.DefaultSettings(),
+		API:          api.DefaultSettings(),
+		Operations:   operations.DefaultSettings(),
+		WebSocket:    ws.DefaultSettings(),
+		HTTPClient:   httpclient.DefaultSettings(),
+		Health:       health.DefaultSettings(),
+		Multitenancy: multitenancy.DefaultSettings(),
 	}
 }
 
@@ -78,7 +83,7 @@ func New(env env.Environment) (*Settings, error) {
 func (c *Settings) Validate() error {
 	validatable := []interface {
 		Validate() error
-	}{c.Server, c.Storage, c.Log, c.Health, c.API, c.Operations, c.WebSocket}
+	}{c.Server, c.Storage, c.Log, c.Health, c.API, c.Operations, c.WebSocket, c.Multitenancy}
 
 	for _, item := range validatable {
 		if err := item.Validate(); err != nil {

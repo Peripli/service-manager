@@ -48,6 +48,15 @@ func (uq *UnsupportedQueryError) Error() string {
 
 // WriteError sends a JSON containing the error to the response writer
 func WriteError(ctx context.Context, err error, writer http.ResponseWriter) {
+	logger := log.C(ctx)
+	respError := ToHTTPError(ctx, err)
+	sendErr := WriteJSON(writer, respError.StatusCode, respError)
+	if sendErr != nil {
+		logger.Errorf("Could not write error to response: %v", sendErr)
+	}
+}
+
+func ToHTTPError(ctx context.Context, err error) *HTTPError {
 	var respError *HTTPError
 	logger := log.C(ctx)
 	switch t := err.(type) {
@@ -73,10 +82,7 @@ func WriteError(ctx context.Context, err error, writer http.ResponseWriter) {
 		}
 	}
 
-	sendErr := WriteJSON(writer, respError.StatusCode, respError)
-	if sendErr != nil {
-		logger.Errorf("Could not write error to response: %v", sendErr)
-	}
+	return respError
 }
 
 // HandleResponseError builds an error from the given response

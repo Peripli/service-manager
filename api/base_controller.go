@@ -72,7 +72,7 @@ func NewController(ctx context.Context, options *Options, resourceBaseURL string
 		objectType:      objectType,
 		DefaultPageSize: options.APISettings.DefaultPageSize,
 		MaxPageSize:     options.APISettings.MaxPageSize,
-		scheduler:       operations.NewScheduler(ctx, options.Repository, options.OperationSettings.JobTimeout, poolSize, options.WaitGroup),
+		scheduler:       operations.NewScheduler(ctx, options.Repository, options.OperationSettings, poolSize, options.WaitGroup),
 	}
 
 	return controller
@@ -164,7 +164,8 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	result.SetReady(false)
 
 	action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-		return repository.Create(ctx, result)
+		object, err := repository.Create(ctx, result)
+		return object, util.HandleStorageError(err, c.objectType.String())
 	}
 
 	UUID, err := uuid.NewV4()
@@ -249,7 +250,8 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 	criteria := query.CriteriaForContext(ctx)
 
 	action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-		return nil, repository.Delete(ctx, c.objectType, criteria...)
+		err := repository.Delete(ctx, c.objectType, criteria...)
+		return nil, util.HandleStorageError(err, c.objectType.String())
 	}
 
 	UUID, err := uuid.NewV4()
@@ -441,7 +443,8 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 	objFromDB.SetLabels(labels)
 
 	action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-		return repository.Update(ctx, objFromDB, labelChanges, criteria...)
+		object, err := repository.Update(ctx, objFromDB, labelChanges, criteria...)
+		return object, util.HandleStorageError(err, c.objectType.String())
 	}
 
 	UUID, err := uuid.NewV4()
@@ -614,15 +617,6 @@ func pageFromObjectList(ctx context.Context, objectList types.ObjectList, count,
 		page.Token = generateTokenForItem(page.Items[len(page.Items)-1])
 	}
 	return page
-}
-
-func getResourceIDsFromCriteria(criteria []query.Criterion) []string {
-	for _, criterion := range criteria {
-		if criterion.LeftOp == "id" {
-			return criterion.RightOp
-		}
-	}
-	return []string{}
 }
 
 func newAsyncResponse(operationID, resourceID, resourceBaseURL string) (*web.Response, error) {

@@ -17,13 +17,14 @@
 package filters
 
 import (
+	"net/http"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/util/slice"
 	"github.com/Peripli/service-manager/storage"
-	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/tidwall/gjson"

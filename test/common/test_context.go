@@ -419,7 +419,7 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 	}
 	testServer.Start()
 
-	scheduler := operations.NewScheduler(ctx, smb.Storage, cfg.Operations.JobTimeout, 1000, wg)
+	scheduler := operations.NewScheduler(ctx, smb.Storage, cfg.Operations, 1000, wg)
 	return &testSMServer{
 		cancel: cancel,
 		Server: testServer,

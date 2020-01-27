@@ -66,8 +66,8 @@ type Operation struct {
 	CorrelationID string            `json:"correlation_id"`
 	ExternalID    string            `json:"-"`
 
-	Reschedule        bool      `json:"-"`
-	DeletionScheduled time.Time `json:"-"`
+	Reschedule        bool      `json:"reschedule"`
+	DeletionScheduled time.Time `json:"deletion_scheduled"`
 }
 
 func (e *Operation) Equals(obj Object) bool {

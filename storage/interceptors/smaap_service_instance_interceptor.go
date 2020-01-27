@@ -41,20 +41,18 @@ const ServiceInstanceCreateInterceptorProviderName = "ServiceInstanceCreateInter
 
 // ServiceInstanceCreateInterceptorProvider provides an interceptor that notifies the actual broker about instance creation
 type ServiceInstanceCreateInterceptorProvider struct {
-	OSBClientCreateFunc  osbc.CreateFunc
-	Repository           storage.TransactionalRepository
-	TenantKey            string
-	PollingInterval      time.Duration
-	MaxParallelDeletions int
+	OSBClientCreateFunc osbc.CreateFunc
+	Repository          storage.TransactionalRepository
+	TenantKey           string
+	PollingInterval     time.Duration
 }
 
 func (p *ServiceInstanceCreateInterceptorProvider) Provide() storage.CreateAroundTxInterceptor {
 	return &ServiceInstanceInterceptor{
-		osbClientCreateFunc:  p.OSBClientCreateFunc,
-		repository:           p.Repository,
-		tenantKey:            p.TenantKey,
-		pollingInterval:      p.PollingInterval,
-		maxParallelDeletions: p.MaxParallelDeletions,
+		osbClientCreateFunc: p.OSBClientCreateFunc,
+		repository:          p.Repository,
+		tenantKey:           p.TenantKey,
+		pollingInterval:     p.PollingInterval,
 	}
 }
 
@@ -66,20 +64,18 @@ const ServiceInstanceUpdateInterceptorProviderName = "ServiceInstanceUpdateInter
 
 // ServiceInstanceUpdateInterceptorProvider provides an interceptor that notifies the actual broker about instance updates
 type ServiceInstanceUpdateInterceptorProvider struct {
-	OSBClientCreateFunc  osbc.CreateFunc
-	Repository           storage.TransactionalRepository
-	TenantKey            string
-	PollingInterval      time.Duration
-	MaxParallelDeletions int
+	OSBClientCreateFunc osbc.CreateFunc
+	Repository          storage.TransactionalRepository
+	TenantKey           string
+	PollingInterval     time.Duration
 }
 
 func (p *ServiceInstanceUpdateInterceptorProvider) Provide() storage.UpdateAroundTxInterceptor {
 	return &ServiceInstanceInterceptor{
-		osbClientCreateFunc:  p.OSBClientCreateFunc,
-		repository:           p.Repository,
-		tenantKey:            p.TenantKey,
-		pollingInterval:      p.PollingInterval,
-		maxParallelDeletions: p.MaxParallelDeletions,
+		osbClientCreateFunc: p.OSBClientCreateFunc,
+		repository:          p.Repository,
+		tenantKey:           p.TenantKey,
+		pollingInterval:     p.PollingInterval,
 	}
 }
 
@@ -91,20 +87,18 @@ const ServiceInstanceDeleteInterceptorProviderName = "ServiceInstanceDeleteInter
 
 // ServiceInstanceDeleteInterceptorProvider provides an interceptor that notifies the actual broker about instance deletion
 type ServiceInstanceDeleteInterceptorProvider struct {
-	OSBClientCreateFunc  osbc.CreateFunc
-	Repository           storage.TransactionalRepository
-	TenantKey            string
-	PollingInterval      time.Duration
-	MaxParallelDeletions int
+	OSBClientCreateFunc osbc.CreateFunc
+	Repository          storage.TransactionalRepository
+	TenantKey           string
+	PollingInterval     time.Duration
 }
 
 func (p *ServiceInstanceDeleteInterceptorProvider) Provide() storage.DeleteAroundTxInterceptor {
 	return &ServiceInstanceInterceptor{
-		osbClientCreateFunc:  p.OSBClientCreateFunc,
-		repository:           p.Repository,
-		tenantKey:            p.TenantKey,
-		pollingInterval:      p.PollingInterval,
-		maxParallelDeletions: p.MaxParallelDeletions,
+		osbClientCreateFunc: p.OSBClientCreateFunc,
+		repository:          p.Repository,
+		tenantKey:           p.TenantKey,
+		pollingInterval:     p.PollingInterval,
 	}
 }
 
@@ -113,11 +107,10 @@ func (c *ServiceInstanceDeleteInterceptorProvider) Name() string {
 }
 
 type ServiceInstanceInterceptor struct {
-	osbClientCreateFunc  osbc.CreateFunc
-	repository           storage.TransactionalRepository
-	tenantKey            string
-	pollingInterval      time.Duration
-	maxParallelDeletions int
+	osbClientCreateFunc osbc.CreateFunc
+	repository          storage.TransactionalRepository
+	tenantKey           string
+	pollingInterval     time.Duration
 }
 
 func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
@@ -150,6 +143,13 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 					StatusCode:  http.StatusBadGateway,
 				}
 				if shouldStartOrphanMitigation(err) {
+					// store the instance so that later on we can do orphan mitigation
+					_, err := f(ctx, obj)
+					if err != nil {
+						return nil, fmt.Errorf("broker error %s caused orphan mitigation which required storing the resource which failed with: %s", brokerError, err)
+					}
+
+					// mark the operation as deletion scheduled meaning orphan mitigation is required
 					operation.DeletionScheduled = time.Now()
 					operation.Reschedule = false
 					if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
@@ -168,6 +168,10 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 				log.C(ctx).Infof("Successful asynchronous provisioning request %+v to broker %s returned response %+v",
 					provisionRequest, broker.Name, provisionResponse)
 				operation.Reschedule = true
+				if provisionResponse.OperationKey != nil {
+					operation.ExternalID = string(*provisionResponse.OperationKey)
+				}
+
 				if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
 					return nil, fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule", instance.ID)
 				}
@@ -185,7 +189,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 		instance = object.(*types.ServiceInstance)
 
 		if operation.Reschedule {
-			if err := i.pollServiceInstance(ctx, osbClient, instance, operation, broker.ID, service.CatalogID, plan.CatalogID, provisionResponse.OperationKey, true); err != nil {
+			if err := i.pollServiceInstance(ctx, osbClient, instance, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
 				return nil, err
 			}
 		}
@@ -275,6 +279,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 				Description: fmt.Sprintf("Failed deprovisioning request %+v: %s", deprovisionRequest, err),
 				StatusCode:  http.StatusBadGateway,
 			}
+
 			if shouldStartOrphanMitigation(err) {
 				operation.DeletionScheduled = time.Now()
 				operation.Reschedule = false
@@ -289,6 +294,10 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 			log.C(ctx).Infof("Successful asynchronous deprovisioning request %+v to broker %s returned response %+v",
 				deprovisionRequest, broker.Name, deprovisionResponse)
 			operation.Reschedule = true
+
+			if deprovisionResponse.OperationKey != nil {
+				operation.ExternalID = string(*deprovisionResponse.OperationKey)
+			}
 			if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
 				return fmt.Errorf("failed to update operation with id %s to mark that rescheduling is possible", operation.ID)
 			}
@@ -299,7 +308,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 	}
 
 	if operation.Reschedule {
-		if err := i.pollServiceInstance(ctx, osbClient, instance, operation, broker.ID, service.CatalogID, plan.CatalogID, deprovisionResponse.OperationKey, true); err != nil {
+		if err := i.pollServiceInstance(ctx, osbClient, instance, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
 			return err
 		}
 	}
@@ -307,12 +316,18 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 	return nil
 }
 
-func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, osbClient osbc.Client, instance *types.ServiceInstance, operation *types.Operation, brokerID, serviceCatalogID, planCatalogID string, operationKey *osbc.OperationKey, enableOrphanMitigation bool) error {
+func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, osbClient osbc.Client, instance *types.ServiceInstance, operation *types.Operation, brokerID, serviceCatalogID, planCatalogID, operationKey string, enableOrphanMitigation bool) error {
+	var key *osbc.OperationKey
+	if len(operation.ExternalID) != 0 {
+		opKey := osbc.OperationKey(operation.ExternalID)
+		key = &opKey
+	}
+
 	pollingRequest := &osbc.LastOperationRequest{
 		InstanceID:   instance.ID,
 		ServiceID:    &serviceCatalogID,
 		PlanID:       &planCatalogID,
-		OperationKey: operationKey,
+		OperationKey: key,
 		//TODO no OI for SM platform yet
 		OriginatingIdentity: nil,
 	}
@@ -381,7 +396,7 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 					StatusCode:  http.StatusBadGateway,
 				}
 			default:
-				return fmt.Errorf("invalid state during poll last operation for instance with id %s and name %s: %s", instance.ID, instance.Name, pollingResponse.State)
+				log.C(ctx).Errorf("invalid state during poll last operation for instance with id %s and name %s: %s. Continuing polling...", instance.ID, instance.Name, pollingResponse.State)
 			}
 		}
 	}
@@ -442,7 +457,7 @@ func (i *ServiceInstanceInterceptor) prepareProvisionRequest(instance *types.Ser
 	}
 	if len(i.tenantKey) != 0 {
 		if tenantValue, ok := instance.GetLabels()[i.tenantKey]; ok {
-			provisionRequest.Context[i.tenantKey] = tenantValue
+			provisionRequest.Context[i.tenantKey] = tenantValue[0]
 		}
 	}
 

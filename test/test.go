@@ -146,10 +146,11 @@ func ExpectOperation(auth *common.SMExpect, asyncResp *httpexpect.Response, expe
 	return ExpectOperationWithError(auth, asyncResp, expectedState, "")
 }
 
+//TODO this should be replaced as it does not verify enough
 func ExpectOperationWithError(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState, expectedErrMsg string) (*httpexpect.Object, error) {
 	operationURL := asyncResp.Header("Location").Raw()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	err := fmt.Errorf("unable to verify operation state (expected state = %s)", string(expectedState))
@@ -163,11 +164,11 @@ func ExpectOperationWithError(auth *common.SMExpect, asyncResp *httpexpect.Respo
 			state := operation.Value("state").String().Raw()
 			if state == string(expectedState) {
 				errs := operation.Value("errors")
-				if expectedState == types.SUCCEEDED || expectedState == types.IN_PROGRESS {
+				if expectedState == types.SUCCEEDED {
 					errs.Null()
 				} else {
 					errs.NotNull()
-					errMsg := errs.Object().Value("message").String().Raw()
+					errMsg := errs.Object().Value("description").String().Raw()
 
 					if !strings.Contains(errMsg, expectedErrMsg) {
 						err = fmt.Errorf("unable to verify operation - expected error message (%s), but got (%s)", expectedErrMsg, errs.String().Raw())

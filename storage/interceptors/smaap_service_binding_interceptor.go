@@ -39,20 +39,18 @@ const ServiceBindingCreateInterceptorProviderName = "ServiceBindingCreateInterce
 
 // ServiceBindingCreateInterceptorProvider provides an interceptor that notifies the actual broker about instance creation
 type ServiceBindingCreateInterceptorProvider struct {
-	OSBClientCreateFunc  osbc.CreateFunc
-	Repository           storage.TransactionalRepository
-	TenantKey            string
-	PollingInterval      time.Duration
-	MaxParallelDeletions int
+	OSBClientCreateFunc osbc.CreateFunc
+	Repository          storage.TransactionalRepository
+	TenantKey           string
+	PollingInterval     time.Duration
 }
 
 func (p *ServiceBindingCreateInterceptorProvider) Provide() storage.CreateAroundTxInterceptor {
 	return &ServiceBindingInterceptor{
-		osbClientCreateFunc:  p.OSBClientCreateFunc,
-		repository:           p.Repository,
-		tenantKey:            p.TenantKey,
-		pollingInterval:      p.PollingInterval,
-		maxParallelDeletions: p.MaxParallelDeletions,
+		osbClientCreateFunc: p.OSBClientCreateFunc,
+		repository:          p.Repository,
+		tenantKey:           p.TenantKey,
+		pollingInterval:     p.PollingInterval,
 	}
 }
 
@@ -64,20 +62,18 @@ const ServiceBindingDeleteInterceptorProviderName = "ServiceBindingDeleteInterce
 
 // ServiceBindingDeleteInterceptorProvider provides an interceptor that notifies the actual broker about instance deletion
 type ServiceBindingDeleteInterceptorProvider struct {
-	OSBClientCreateFunc  osbc.CreateFunc
-	Repository           storage.TransactionalRepository
-	TenantKey            string
-	PollingInterval      time.Duration
-	MaxParallelDeletions int
+	OSBClientCreateFunc osbc.CreateFunc
+	Repository          storage.TransactionalRepository
+	TenantKey           string
+	PollingInterval     time.Duration
 }
 
 func (p *ServiceBindingDeleteInterceptorProvider) Provide() storage.DeleteAroundTxInterceptor {
 	return &ServiceBindingInterceptor{
-		osbClientCreateFunc:  p.OSBClientCreateFunc,
-		repository:           p.Repository,
-		tenantKey:            p.TenantKey,
-		pollingInterval:      p.PollingInterval,
-		maxParallelDeletions: p.MaxParallelDeletions,
+		osbClientCreateFunc: p.OSBClientCreateFunc,
+		repository:          p.Repository,
+		tenantKey:           p.TenantKey,
+		pollingInterval:     p.PollingInterval,
 	}
 }
 
@@ -86,11 +82,10 @@ func (c *ServiceBindingDeleteInterceptorProvider) Name() string {
 }
 
 type ServiceBindingInterceptor struct {
-	osbClientCreateFunc  osbc.CreateFunc
-	repository           storage.TransactionalRepository
-	tenantKey            string
-	pollingInterval      time.Duration
-	maxParallelDeletions int
+	osbClientCreateFunc osbc.CreateFunc
+	repository          storage.TransactionalRepository
+	tenantKey           string
+	pollingInterval     time.Duration
 }
 
 func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
@@ -157,6 +152,13 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 					StatusCode:  http.StatusBadGateway,
 				}
 				if shouldStartOrphanMitigation(err) {
+					// store the instance so that later on we can do orphan mitigation
+					_, err := f(ctx, obj)
+					if err != nil {
+						return nil, fmt.Errorf("broker error %s caused orphan mitigation which required storing the resource which failed with: %s", brokerError, err)
+					}
+
+					// mark the operation as deletion scheduled meaning orphan mitigation is required
 					operation.DeletionScheduled = time.Now()
 					operation.Reschedule = false
 					if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
@@ -170,6 +172,9 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 				log.C(ctx).Infof("Successful asynchronous binding request %+v to broker %s returned response %+v",
 					bindRequest, broker.Name, bindResponse)
 				operation.Reschedule = true
+				if bindResponse.OperationKey != nil {
+					operation.ExternalID = string(*bindResponse.OperationKey)
+				}
 				if _, err := i.repository.Update(ctx, instance, query.LabelChanges{}); err != nil {
 					return nil, fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule", instance.ID)
 				}
@@ -186,7 +191,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 		binding = object.(*types.ServiceBinding)
 
 		if operation.Reschedule {
-			if err := i.pollServiceBinding(ctx, osbClient, binding, operation, broker.ID, service.CatalogID, plan.CatalogID, bindResponse.OperationKey, true); err != nil {
+			if err := i.pollServiceBinding(ctx, osbClient, binding, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
 				return nil, err
 			}
 		}
@@ -268,6 +273,10 @@ func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, bin
 			log.C(ctx).Infof("Successful asynchronous unbind request %+v to broker %s returned response %+v",
 				unbindRequest, broker.Name, unbindResponse)
 			operation.Reschedule = true
+
+			if unbindResponse.OperationKey != nil {
+				operation.ExternalID = string(*unbindResponse.OperationKey)
+			}
 			if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
 				return fmt.Errorf("failed to update operation with id %s to mark that rescheduling is possible", operation.ID)
 			}
@@ -278,7 +287,7 @@ func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, bin
 	}
 
 	if operation.Reschedule {
-		if err := i.pollServiceBinding(ctx, osbClient, binding, operation, broker.ID, service.CatalogID, plan.CatalogID, unbindResponse.OperationKey, true); err != nil {
+		if err := i.pollServiceBinding(ctx, osbClient, binding, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
 			return err
 		}
 	}
@@ -352,7 +361,7 @@ func (i *ServiceBindingInterceptor) prepareBindRequest(instance *types.ServiceIn
 	}
 	if len(i.tenantKey) != 0 {
 		if tenantValue, ok := instance.GetLabels()[i.tenantKey]; ok {
-			bindRequest.Context[i.tenantKey] = tenantValue
+			bindRequest.Context[i.tenantKey] = tenantValue[0]
 		}
 	}
 
@@ -373,13 +382,19 @@ func prepareUnbindRequest(instance *types.ServiceInstance, binding *types.Servic
 	return unbindRequest
 }
 
-func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbClient osbc.Client, binding *types.ServiceBinding, operation *types.Operation, brokerID, serviceCatalogID, planCatalogID string, operationKey *osbc.OperationKey, enableOrphanMitigation bool) error {
+func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbClient osbc.Client, binding *types.ServiceBinding, operation *types.Operation, brokerID, serviceCatalogID, planCatalogID, operationKey string, enableOrphanMitigation bool) error {
+	var key *osbc.OperationKey
+	if len(operation.ExternalID) != 0 {
+		opKey := osbc.OperationKey(operation.ExternalID)
+		key = &opKey
+	}
+
 	pollingRequest := &osbc.BindingLastOperationRequest{
 		InstanceID:   binding.ServiceInstanceID,
 		BindingID:    binding.ID,
 		ServiceID:    &serviceCatalogID,
 		PlanID:       &planCatalogID,
-		OperationKey: operationKey,
+		OperationKey: key,
 		//TODO no OI for SM platform yet
 		OriginatingIdentity: nil,
 	}

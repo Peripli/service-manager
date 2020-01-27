@@ -62,8 +62,8 @@ func CreateInstanceInPlatformForPlan(ctx *TestContext, platformID, planID string
 	return instance
 }
 
-func DeleteInstance(ctx *TestContext, instance *types.ServiceInstance) error {
-	planObject, err := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, query.ByField(query.EqualsOperator, "id", instance.ServicePlanID))
+func DeleteInstance(ctx *TestContext, instanceID, servicePlanID string) error {
+	planObject, err := ctx.SMRepository.Get(context.TODO(), types.ServicePlanType, query.ByField(query.EqualsOperator, "id", servicePlanID))
 	if err != nil {
 		return err
 	}
@@ -121,11 +121,11 @@ func DeleteInstance(ctx *TestContext, instance *types.ServiceInstance) error {
 		},
 		Type:          types.DELETE,
 		State:         types.IN_PROGRESS,
-		ResourceID:    instance.ID,
+		ResourceID:    instanceID,
 		ResourceType:  types.ServiceInstanceType,
 		CorrelationID: "-",
 	}, func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-		byID := query.ByField(query.EqualsOperator, "id", instance.ID)
+		byID := query.ByField(query.EqualsOperator, "id", instanceID)
 		if err := repository.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
 			return nil, err
 		}

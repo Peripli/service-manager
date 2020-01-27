@@ -1171,7 +1171,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 							AfterEach(func() {
 								for _, serviceInstance := range serviceInstances {
-									err := common.DeleteInstance(ctx, serviceInstance)
+									err := common.DeleteInstance(ctx, serviceInstance.ID, serviceInstance.ServicePlanID)
 									Expect(err).ToNot(HaveOccurred())
 								}
 							})
@@ -1355,7 +1355,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							})
 
 							AfterEach(func() {
-								err := common.DeleteInstance(ctx, serviceInstance)
+								err := common.DeleteInstance(ctx, serviceInstance.ID, serviceInstance.ServicePlanID)
 								Expect(err).ToNot(HaveOccurred())
 							})
 
@@ -1674,7 +1674,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					})
 
 					AfterEach(func() {
-						err := common.DeleteInstance(ctx, serviceInstance)
+						err := common.DeleteInstance(ctx, serviceInstance.ID, serviceInstance.ServicePlanID)
 						Expect(err).ToNot(HaveOccurred())
 					})
 

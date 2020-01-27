@@ -227,7 +227,7 @@ func RemoveAllInstances(ctx *TestContext) error {
 	}
 	for i := 0; i < objectList.Len(); i++ {
 		instance := objectList.ItemAt(i).(*types.ServiceInstance)
-		if err := DeleteInstance(ctx, instance); err != nil {
+		if err := DeleteInstance(ctx, instance.ID, instance.ServicePlanID); err != nil {
 			return err
 		}
 	}

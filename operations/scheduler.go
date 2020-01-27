@@ -47,33 +47,17 @@ type Scheduler struct {
 }
 
 // NewScheduler constructs a Scheduler
-func NewScheduler(smCtx context.Context, repository storage.TransactionalRepository, jobTimeout time.Duration, workerPoolSize int, wg *sync.WaitGroup) *Scheduler {
+func NewScheduler(smCtx context.Context, repository storage.TransactionalRepository, settings *Settings, poolSize int, wg *sync.WaitGroup) *Scheduler {
 	return &Scheduler{
-		smCtx:      smCtx,
-		repository: repository,
-		workers:    make(chan struct{}, workerPoolSize),
-		jobTimeout: jobTimeout,
-		wg:         wg,
+		smCtx:             smCtx,
+		repository:        repository,
+		workers:           make(chan struct{}, poolSize),
+		jobTimeout:        settings.JobTimeout,
+		deletionTimeout:   settings.ScheduledDeletionTimeout,
+		reschedulingDelay: settings.ReschedulingInterval,
+		wg:                wg,
 	}
 }
-
-// when scheduled operation is already successful
-// when scheduled operation is not valid
-// when an error occurs while fetching last operation
-// when last operation is found
-// when last op is delete in progress
-// when last op
-// when last operation is not found
-
-//provision instance in SM
-// for synchronously, asynchronously
-// when another non rescheduable operation is already in progress for this instance
-// when broker is stopped/missing/crashed/unknown to sm/unresponsive/plan unknown/service unknown
-// when broker responds with synchronous success (instance stored, operation marked as success,nonrescheduable, deletiontimestampempty
-// when broker responds with sync error
-// that is non osb error
-// that is correctly formated osb error
-// that requires orphan mitigation
 
 // ScheduleSyncStorageAction stores the job's Operation entity in DB and synchronously executes the CREATE/UPDATE/DELETE DB transaction
 func (ds *Scheduler) ScheduleSyncStorageAction(ctx context.Context, operation *types.Operation, action storageAction) (types.Object, error) {
@@ -101,7 +85,7 @@ func (ds *Scheduler) ScheduleSyncStorageAction(ctx context.Context, operation *t
 }
 
 // ScheduleAsyncStorageAction stores the job's Operation entity in DB asynchronously executes the CREATE/UPDATE/DELETE DB transaction in a goroutine
-func (ds *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *types.Operation, action storageAction) (err error) {
+func (ds *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *types.Operation, action storageAction) error {
 	select {
 	case ds.workers <- struct{}{}:
 		log.C(ctx).Infof("Scheduling async %s operation with id %s for resource of type %s with id %s", operation.Type, operation.ID, operation.ResourceType.String(), operation.ResourceID)
@@ -119,13 +103,17 @@ func (ds *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *
 					op, opErr := ds.refetchOperation(stateCtx, operation)
 					if opErr != nil {
 						errMessage = fmt.Errorf("%s: setting new operation state failed: %s ", errMessage, opErr)
-					} else {
-						if opErr := updateOperationState(ctx, ds.repository, op, types.FAILED, &OperationError{Message: "job interrupted"}); opErr != nil {
-							errMessage = fmt.Errorf("%s: setting new operation state failed: %s ", errMessage, opErr)
-						}
 					}
+
+					if opErr := updateOperationState(stateCtx, ds.repository, op, types.FAILED, &util.HTTPError{
+						ErrorType:   "InternalServerError",
+						Description: "job interrupted",
+						StatusCode:  http.StatusInternalServerError,
+					}); opErr != nil {
+						errMessage = fmt.Errorf("%s: setting new operation state failed: %s ", errMessage, opErr)
+					}
+					log.C(stateCtx).Errorf("panic error: %s", errMessage)
 					debug.PrintStack()
-					err = errMessage
 				}
 				<-ds.workers
 				ds.wg.Done()
@@ -162,29 +150,13 @@ func (ds *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *
 		}
 	}
 
-	return err
-}
-
-func (ds *Scheduler) scheduleAsyncStorageActionDelayed(ctx context.Context, operation *types.Operation, action storageAction, delay time.Duration) (err error) {
-	ds.wg.Add(1)
-	go func() {
-		defer ds.wg.Done()
-
-		select {
-		case <-ds.smCtx.Done():
-		case <-time.After(delay):
-			err = ds.ScheduleAsyncStorageAction(ctx, operation, action)
-		}
-	}()
-
-	return err
+	return nil
 }
 
 func (ds *Scheduler) getLastOperation(ctx context.Context, operation *types.Operation) (*types.Operation, bool, error) {
 	byResourceID := query.ByField(query.EqualsOperator, "resource_id", operation.ResourceID)
 	orderDesc := query.OrderResultBy("paging_sequence", query.DescOrder)
-	limitToOne := query.LimitResultBy(1)
-	lastOperationObject, err := ds.repository.Get(ctx, types.OperationType, byResourceID, orderDesc, limitToOne)
+	lastOperationObject, err := ds.repository.Get(ctx, types.OperationType, byResourceID, orderDesc)
 	if err != nil {
 		if err == util.ErrNotFoundInStorage {
 			return nil, false, nil
@@ -199,7 +171,7 @@ func (ds *Scheduler) getLastOperation(ctx context.Context, operation *types.Oper
 func (ds *Scheduler) checkForConcurrentOperations(ctx context.Context, operation *types.Operation, lastOperation *types.Operation) error {
 	log.C(ctx).Debugf("Checking if another operation is in progress to resource of type %s with id %s", operation.ResourceType.String(), operation.ResourceID)
 
-	isDeletionInProgress := !lastOperation.DeletionScheduled.IsZero()
+	isDeletionInProgress := !lastOperation.DeletionScheduled.IsZero() || (lastOperation.Type == types.DELETE && lastOperation.State == types.IN_PROGRESS)
 	isDeletionTimeoutExceeded := isDeletionInProgress && time.Now().After(lastOperation.DeletionScheduled.Add(ds.deletionTimeout))
 	isOperationTimeoutNotExceeded := lastOperation.State == types.IN_PROGRESS && time.Now().Before(lastOperation.CreatedAt.Add(ds.jobTimeout))
 
@@ -207,7 +179,7 @@ func (ds *Scheduler) checkForConcurrentOperations(ctx context.Context, operation
 	case types.CREATE:
 		fallthrough
 	case types.UPDATE:
-		if isDeletionInProgress {
+		if operation.DeletionScheduled.IsZero() && isDeletionInProgress {
 			return &util.HTTPError{
 				ErrorType:   "ConcurrentOperationInProgress",
 				Description: "Deletion is currently in progress for this resource",
@@ -240,7 +212,7 @@ func (ds *Scheduler) storeOrUpdateOperation(ctx context.Context, operation, last
 		if _, err := ds.repository.Create(ctx, operation); err != nil {
 			return util.HandleStorageError(err, types.OperationType.String())
 		}
-	} else if operation.Type == lastOperation.Type && operation.Reschedule {
+	} else if operation.Type == lastOperation.Type && (operation.Reschedule || !operation.DeletionScheduled.IsZero()) {
 		log.C(ctx).Infof("Updating rescheduled %s operation with id %s", operation.Type, operation.ID)
 		if _, err := ds.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
 			return util.HandleStorageError(err, types.OperationType.String())
@@ -269,17 +241,25 @@ func fetchAndUpdateResource(ctx context.Context, repository storage.Repository, 
 	return nil
 }
 
-func updateOperationState(ctx context.Context, repository storage.Repository, operation *types.Operation, state types.OperationState, opErr *OperationError) error {
+func updateOperationState(ctx context.Context, repository storage.Repository, operation *types.Operation, state types.OperationState, opErr error) error {
 	operation.State = state
 
 	if opErr != nil {
-		bytes, err := json.Marshal(opErr)
+		httpError := util.ToHTTPError(ctx, opErr)
+		bytes, err := json.Marshal(httpError)
 		if err != nil {
 			return err
 		}
-		operation.Errors = json.RawMessage(bytes)
+
+		if len(operation.Errors) == 0 {
+			log.C(ctx).Debugf("setting error of operation with id %s to %s", operation.ID, httpError)
+			operation.Errors = json.RawMessage(bytes)
+		} else {
+			log.C(ctx).Debugf("operation with id %s already has a root cause error %s. Current error %s will not be written", operation.ID, string(operation.Errors), httpError)
+		}
 	}
 
+	// this also updates updated_at which serves as "reporting" that someone is working on the operation
 	_, err := repository.Update(ctx, operation, query.LabelChanges{})
 	if err != nil {
 		return fmt.Errorf("failed to update state of operation with id %s to %s", operation.ID, state)
@@ -293,7 +273,7 @@ func (ds *Scheduler) refetchOperation(ctx context.Context, operation *types.Oper
 	opObject, opErr := ds.repository.Get(ctx, types.OperationType, query.ByField(query.EqualsOperator, "id", operation.ID))
 	if opErr != nil {
 		opErr = fmt.Errorf("failed to re-fetch currently executing operation with id %s from db: %s", operation.ID, opErr)
-		if err := updateOperationState(ctx, ds.repository, operation, types.FAILED, &OperationError{Message: "Internal Server Error"}); err != nil {
+		if err := updateOperationState(ctx, ds.repository, operation, types.FAILED, opErr); err != nil {
 			return nil, fmt.Errorf("setting new operation state due to err %s failed: %s", opErr, err)
 		}
 		return nil, opErr
@@ -310,7 +290,7 @@ func (ds *Scheduler) handleActionResponse(ctx context.Context, jobError error, o
 
 	// if an action error has occurred we mark the operation as failed and check if deletion has to be scheduled
 	if jobError != nil {
-		if opErr := updateOperationState(ctx, ds.repository, opAfterJob, types.FAILED, &OperationError{Message: jobError.Error()}); opErr != nil {
+		if opErr := updateOperationState(ctx, ds.repository, opAfterJob, types.FAILED, jobError); opErr != nil {
 			return fmt.Errorf("setting new operation state failed: %s", opErr)
 		}
 
@@ -318,33 +298,62 @@ func (ds *Scheduler) handleActionResponse(ctx context.Context, jobError error, o
 		isDeleteRescheduleRequired := !opAfterJob.DeletionScheduled.IsZero() &&
 			time.Now().Before(opAfterJob.DeletionScheduled.Add(ds.deletionTimeout)) &&
 			opAfterJob.State != types.SUCCEEDED
+
 		if isDeleteRescheduleRequired {
 			deletionAction := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
 				byID := query.ByField(query.EqualsOperator, "id", opAfterJob.ResourceID)
 				err := repository.Delete(ctx, opAfterJob.ResourceType, byID)
 				if err != nil {
-					return nil, err
+					if err == util.ErrNotFoundInStorage {
+						return nil, nil
+					}
+					return nil, util.HandleStorageError(err, opAfterJob.ResourceType.String())
 				}
 				return nil, nil
 			}
 
 			log.C(ctx).Infof("Scheduling of required delete operation after actual operation with id %s failed", opAfterJob.ID)
-			//recursive, no need to handle error
-			// is deletion timestamp was set on the op, reschedule the same op with delete action
-			if err := ds.scheduleAsyncStorageActionDelayed(ctx, opAfterJob, deletionAction, ds.reschedulingDelay); err != nil {
-				return fmt.Errorf("scheduling of required deletion job failed with err: %s", err)
+			// if deletion timestamp was set on the op, reschedule the same op with delete action
+			reschedulingDelayTimeout := time.After(ds.reschedulingDelay)
+			select {
+			case <-ds.smCtx.Done():
+				return fmt.Errorf("sm context canceled: %s", ds.smCtx.Err())
+			case <-reschedulingDelayTimeout:
+				if orphanMitigationErr := ds.ScheduleAsyncStorageAction(ctx, opAfterJob, deletionAction); orphanMitigationErr != nil {
+					return &util.HTTPError{
+						ErrorType:   "BrokerError",
+						Description: fmt.Sprintf("job failed with %s and orphan mitigation failed with %s", jobError, orphanMitigationErr),
+						StatusCode:  http.StatusBadGateway,
+					}
+				}
 			}
 		}
 		return jobError
-		// action did not return an error and operation does not need to be rescheduled so we mark it as success
 	}
+
 	if !opAfterJob.Reschedule {
 		if err := ds.repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
+			var finalState types.OperationState
+			if opAfterJob.Type != types.DELETE && !opAfterJob.DeletionScheduled.IsZero() {
+				// successful orphan mitigation for CREATE/UPDATE should still leave the operation as FAILED
+				finalState = types.FAILED
+			} else {
+				// a delete that succeed or an orphan mitigation caused by a delete that succeeded are both successful deletions
+				finalState = types.SUCCEEDED
+			}
+
+			// a non reschedulable operation has finished with no errors:
+			// this can either be an actual operation or an orphan mitigation triggered by an actual operation error
+			// in either case orphan mitigation needn't be scheduled any longer because being here means either an
+			// actual operation finished with no errors or an orphan mitigation caused by an actual operation finished with no errors
+			opAfterJob.DeletionScheduled = time.Time{}
 			log.C(ctx).Infof("Successfully executed %s operation with id %s for %s entity with id %s", opAfterJob.Type, opAfterJob.ID, opAfterJob.ResourceType, opAfterJob.ResourceID)
-			if err := updateOperationState(ctx, storage, opAfterJob, types.SUCCEEDED, nil); err != nil {
+			if err := updateOperationState(ctx, storage, opAfterJob, finalState, nil); err != nil {
 				return err
 			}
-			if opAfterJob.Type == types.CREATE {
+
+			// after a successful CREATE operation, update the ready field to true
+			if opAfterJob.Type == types.CREATE && finalState == types.SUCCEEDED {
 				if err := fetchAndUpdateResource(ctx, storage, opAfterJob.ResourceID, opAfterJob.ResourceType, func(obj types.Object) {
 					obj.SetReady(true)
 				}); err != nil {
@@ -352,6 +361,7 @@ func (ds *Scheduler) handleActionResponse(ctx context.Context, jobError error, o
 				}
 			}
 			return nil
+
 		}); err != nil {
 			return fmt.Errorf("failed to update resource ready or operation state after a successfully executing operation with id %s: %s", opAfterJob.ID, err)
 		}
@@ -368,7 +378,7 @@ func (ds *Scheduler) addOperationToContext(ctx context.Context, operation *types
 	ctxWithOp, setCtxErr := SetInContext(ctx, operation)
 	if setCtxErr != nil {
 		setCtxErr = fmt.Errorf("failed to set operation in job context: %s", setCtxErr)
-		if err := updateOperationState(ctx, ds.repository, operation, types.FAILED, &OperationError{Message: "Internal Server Error"}); err != nil {
+		if err := updateOperationState(ctx, ds.repository, operation, types.FAILED, setCtxErr); err != nil {
 			return nil, fmt.Errorf("setting new operation state due to err %s failed: %s", setCtxErr, err)
 		}
 		return nil, setCtxErr
