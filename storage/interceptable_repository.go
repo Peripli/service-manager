@@ -268,11 +268,6 @@ func (ir *queryScopedInterceptableRepository) Update(ctx context.Context, obj ty
 	// update to the same entity in the same transaction may be possible from an interceptor
 	inUpdate, _ := ctx.Value(updateInProgress).(bool)
 	if !oldObj.GetUpdatedAt().UTC().Equal(obj.GetUpdatedAt().UTC()) && !inUpdate {
-		utx11 := oldObj.GetUpdatedAt().UTC()
-		utx21 := obj.GetUpdatedAt().UTC()
-		fmt.Println(utx11)
-		fmt.Println(utx21)
-
 		return nil, util.ErrConcurrentResourceModification
 	}
 
