@@ -170,37 +170,153 @@ func (ds *Scheduler) getLastOperation(ctx context.Context, operation *types.Oper
 
 func (ds *Scheduler) checkForConcurrentOperations(ctx context.Context, operation *types.Operation, lastOperation *types.Operation) error {
 	log.C(ctx).Debugf("Checking if another operation is in progress to resource of type %s with id %s", operation.ResourceType.String(), operation.ResourceID)
+	if operation.External {
+		log.C(ctx).Debugf("Operation with id %s is marked as external and concurrent operations policies will not be checked", operation.ID)
+		return nil
+	}
 
-	isDeletionInProgress := !lastOperation.DeletionScheduled.IsZero() || (lastOperation.Type == types.DELETE && lastOperation.State == types.IN_PROGRESS)
-	isDeletionTimeoutExceeded := isDeletionInProgress && time.Now().After(lastOperation.DeletionScheduled.Add(ds.deletionTimeout))
-	isOperationTimeoutNotExceeded := lastOperation.State == types.IN_PROGRESS && time.Now().Before(lastOperation.CreatedAt.Add(ds.jobTimeout))
+	isDeletionInProgress := lastOperation.Type == types.DELETE && lastOperation.State == types.IN_PROGRESS &&
+		time.Now().Before(lastOperation.UpdatedAt.Add(ds.jobTimeout))
 
-	switch operation.Type {
+	isDeletionScheduled := !lastOperation.DeletionScheduled.IsZero()
+	isDeletionTimeoutExceeded := (isDeletionInProgress && time.Now().After(lastOperation.CreatedAt.Add(ds.deletionTimeout))) ||
+		(isDeletionScheduled && time.Now().After(lastOperation.DeletionScheduled.Add(ds.deletionTimeout)))
+
+	// for the outside world job timeout would have expired if the last update happened > job timeout time ago (this is worst case)
+	// an "old" updated_at means that for a while nobody was processing this operation
+	isLastOperationTimeoutNotExceeded := lastOperation.State == types.IN_PROGRESS && time.Now().Before(lastOperation.UpdatedAt.Add(ds.jobTimeout))
+
+	isAReschedule := lastOperation.Reschedule && operation.Reschedule
+
+	// depending on the last executed operation on the resource and the currently executing operation we determine if the
+	// currently executing operation should be allowed
+	switch lastOperation.Type {
 	case types.CREATE:
-		fallthrough
-	case types.UPDATE:
-		if operation.DeletionScheduled.IsZero() && isDeletionInProgress {
-			return &util.HTTPError{
-				ErrorType:   "ConcurrentOperationInProgress",
-				Description: "Deletion is currently in progress for this resource",
-				StatusCode:  http.StatusUnprocessableEntity,
+		switch operation.Type {
+		case types.CREATE:
+			// a create is in progress and operation timeout is not exceeded
+			// the new op is a create with no deletion scheduled and is not reschedule, so fail
+
+			// this means that when the last operation and the new operation which is either reschedulable or has a deletion scheduled
+			// it is up to the client to make sure such operations do not overlap
+			if isLastOperationTimeoutNotExceeded && !isDeletionScheduled && !isAReschedule {
+				return &util.HTTPError{
+					ErrorType:   "ConcurrentOperationInProgress",
+					Description: "Another concurrent operation in progress for this resource",
+					StatusCode:  http.StatusUnprocessableEntity,
+				}
 			}
+
+			// deletion was scheduled but deletion timeout was exceeded so disallow further delete attempts
+			if isDeletionTimeoutExceeded {
+				return &util.HTTPError{
+					ErrorType:   "TimeoutExceeded",
+					Description: "Deletion of this resource has been attempted for over the maximum timeout period. All operations will be rejected",
+					StatusCode:  http.StatusUnprocessableEntity,
+				}
+			}
+		case types.UPDATE:
+			// a create is in progress and job timeout is not exceeded
+			// the new op is an update - we don't allow updating something that is not yet created so fail
+			if isLastOperationTimeoutNotExceeded {
+				return &util.HTTPError{
+					ErrorType:   "ConcurrentOperationInProgress",
+					Description: "Another concurrent operation in progress for this resource",
+					StatusCode:  http.StatusUnprocessableEntity,
+				}
+			}
+		case types.DELETE:
+		// we allow deletes even if create is in progress
+		default:
+			// unknown operation type
+			return fmt.Errorf("operation type %s is unknown type", operation.Type)
 		}
-		if isOperationTimeoutNotExceeded {
+	case types.UPDATE:
+		switch operation.Type {
+		case types.CREATE:
+			// it doesnt really make sense to create something that was recently updated
 			return &util.HTTPError{
 				ErrorType:   "ConcurrentOperationInProgress",
 				Description: "Another concurrent operation in progress for this resource",
 				StatusCode:  http.StatusUnprocessableEntity,
 			}
+		case types.UPDATE:
+			// an update is in progress and job timeout is not exceeded
+			// the new op is an update with no deletion scheduled and is not a reschedule, so fail
+
+			// this means that when the last operation and the new operation which is either reschedulable or has a deletion scheduled
+			// it is up to the client to make sure such operations do not overlap
+			if isLastOperationTimeoutNotExceeded && !isDeletionScheduled && !isAReschedule {
+				return &util.HTTPError{
+					ErrorType:   "ConcurrentOperationInProgress",
+					Description: "Another concurrent operation in progress for this resource",
+					StatusCode:  http.StatusUnprocessableEntity,
+				}
+			}
+
+			// deletion was scheduled but deletion timeout was exceeded so disallow further delete attempts
+			if isDeletionTimeoutExceeded {
+				return &util.HTTPError{
+					ErrorType:   "TimeoutExceeded",
+					Description: "Deletion of this resource has been attempted for over the maximum timeout period. All operations will be rejected",
+					StatusCode:  http.StatusUnprocessableEntity,
+				}
+			}
+		case types.DELETE:
+			// we allow deletes even if update is in progress
+		default:
+			// unknown operation type
+			return fmt.Errorf("operation type %s is unknown type", operation.Type)
 		}
 	case types.DELETE:
-		if isDeletionTimeoutExceeded {
-			return &util.HTTPError{
-				ErrorType:   "TimeoutExceeded",
-				Description: "Deletion of this resource has been attempted for over the maximum timeout period. All operations will be rejected",
-				StatusCode:  http.StatusUnprocessableEntity,
+		switch operation.Type {
+		case types.CREATE:
+			// if the last op is a delete in progress or if it has a deletion scheduled, creates are not allowed
+			if isLastOperationTimeoutNotExceeded || isDeletionScheduled {
+				return &util.HTTPError{
+					ErrorType:   "ConcurrentOperationInProgress",
+					Description: "Deletion is currently in progress for this resource",
+					StatusCode:  http.StatusUnprocessableEntity,
+				}
 			}
+		case types.UPDATE:
+			// if delete is in progress or delete is scheduled, updates are not allowed
+			if isLastOperationTimeoutNotExceeded || isDeletionScheduled {
+				return &util.HTTPError{
+					ErrorType:   "ConcurrentOperationInProgress",
+					Description: "Deletion is currently in progress for this resource",
+					StatusCode:  http.StatusUnprocessableEntity,
+				}
+			}
+		case types.DELETE:
+			// a delete is in progress and job timeout is not exceeded
+			// the new op is a delete with no deletion scheduled and is not a reschedule, so fail
+
+			// this means that when the last operation and the new operation which is either reschedulable or has a deletion scheduled
+			// it is up to the client to make sure such operations do not overlap
+			if isLastOperationTimeoutNotExceeded && !isDeletionScheduled && !isAReschedule {
+				return &util.HTTPError{
+					ErrorType:   "ConcurrentOperationInProgress",
+					Description: "Deletion is currently in progress for this resource",
+					StatusCode:  http.StatusUnprocessableEntity,
+				}
+			}
+
+			// deletion was scheduled but deletion timeout was exceeded so disallow further delete attempts
+			if isDeletionTimeoutExceeded {
+				return &util.HTTPError{
+					ErrorType:   "TimeoutExceeded",
+					Description: "Deletion of this resource has been attempted for over the maximum timeout period. All operations will be rejected",
+					StatusCode:  http.StatusUnprocessableEntity,
+				}
+			}
+		default:
+			// unknown operation type
+			return fmt.Errorf("operation type %s is unknown type", operation.Type)
 		}
+	default:
+		// unknown operation type
+		return fmt.Errorf("operation type %s is unknown type", lastOperation.Type)
 	}
 
 	return nil

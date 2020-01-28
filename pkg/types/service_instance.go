@@ -35,7 +35,7 @@ type ServiceInstance struct {
 	PlatformID      string                 `json:"platform_id"`
 	DashboardURL    string                 `json:"-"`
 	MaintenanceInfo json.RawMessage        `json:"maintenance_info,omitempty"`
-	Context         json.RawMessage        `json:"-"`
+	Context         json.RawMessage        `json:"context"`
 	PreviousValues  json.RawMessage        `json:"-"`
 	Parameters      map[string]interface{} `json:"parameters,omitempty"`
 	Usable          bool                   `json:"usable"`

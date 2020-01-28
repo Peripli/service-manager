@@ -545,14 +545,13 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 	if err := RemoveAllNotifications(ctx.SMRepository); err != nil && err != util.ErrNotFoundInStorage {
 		panic(err)
 	}
+	if err := RemoveAllOperations(ctx.SMRepository); err != nil && err != util.ErrNotFoundInStorage {
+		panic(err)
+	}
 	if err := RemoveAllBindings(ctx); err != nil && err != util.ErrNotFoundInStorage {
 		panic(err)
 	}
 	if err := RemoveAllInstances(ctx); err != nil && err != util.ErrNotFoundInStorage {
-		panic(err)
-	}
-
-	if err := RemoveAllOperations(ctx.SMRepository); err != nil && err != util.ErrNotFoundInStorage {
 		panic(err)
 	}
 

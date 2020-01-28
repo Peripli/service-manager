@@ -39,7 +39,7 @@ type OperationExpectations struct {
 }
 
 func VerifyOperationExists(ctx *TestContext, operationURL string, expectations OperationExpectations) (string, string) {
-	timeoutDuration := 25000 * time.Second
+	timeoutDuration := 25 * time.Second
 	tickerInterval := 100 * time.Millisecond
 	ticker := time.NewTicker(tickerInterval)
 	timeout := time.After(timeoutDuration)

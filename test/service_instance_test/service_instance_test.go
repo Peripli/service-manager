@@ -142,7 +142,7 @@ var _ = DescribeTestsFor(TestCase{
 			}
 
 			verifyInstanceExists := func(instanceID string, ready bool) {
-				timeoutDuration := 25000 * time.Second
+				timeoutDuration := 25 * time.Second
 				tickerInterval := 100 * time.Millisecond
 				ticker := time.NewTicker(tickerInterval)
 				timeout := time.After(timeoutDuration)
@@ -160,7 +160,7 @@ var _ = DescribeTestsFor(TestCase{
 							Fail(fmt.Sprintf("more than one instance with id %s was found in SM", instanceID))
 						default:
 							instanceObject := instances.First().Object()
-							instanceObject.Path(fmt.Sprintf("$.labels[%s][*]", TenantIdentifier)).Array().Contains(TenantIDValue)
+							//instanceObject.Path(fmt.Sprintf("$.labels[%s][*]", TenantIdentifier)).Array().Contains(TenantIDValue)
 							readyField := instanceObject.Value("ready").Boolean().Raw()
 							if readyField != ready {
 								Fail(fmt.Sprintf("Expected instance with id %s to be ready %t but ready was %t", instanceID, ready, readyField))
@@ -207,11 +207,7 @@ var _ = DescribeTestsFor(TestCase{
 			})
 
 			AfterEach(func() {
-				ctx.SMRepository.Delete(context.TODO(), types.OperationType, query.ByField(query.EqualsOperator, "id", operationID))
-				DeleteInstance(ctx, instanceID, servicePlanID)
-				ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL + "/" + brokerID).Expect()
-				delete(ctx.Servers, BrokerServerPrefix+brokerID)
-				brokerServer.Close()
+				ctx.CleanupAdditionalResources()
 			})
 
 			Describe("GET", func() {

@@ -39,6 +39,7 @@ type Operation struct {
 	ExternalID        sql.NullString     `db:"external_id"`
 	Reschedule        bool               `db:"reschedule"`
 	DeletionScheduled time.Time          `db:"deletion_scheduled"`
+	External          bool               `db:"external"`
 }
 
 func (o *Operation) ToObject() types.Object {
@@ -60,6 +61,7 @@ func (o *Operation) ToObject() types.Object {
 		ExternalID:        o.ExternalID.String,
 		Reschedule:        o.Reschedule,
 		DeletionScheduled: o.DeletionScheduled,
+		External:          o.External,
 	}
 }
 
@@ -87,6 +89,7 @@ func (*Operation) FromObject(object types.Object) (storage.Entity, bool) {
 		ExternalID:        toNullString(operation.ExternalID),
 		Reschedule:        operation.Reschedule,
 		DeletionScheduled: operation.DeletionScheduled,
+		External:          operation.External,
 	}
 	return o, true
 }

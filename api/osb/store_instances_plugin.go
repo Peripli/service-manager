@@ -501,6 +501,7 @@ func (ssi *StoreServiceInstancePlugin) storeOperation(ctx context.Context, stora
 		ResourceType:  "/v1/service_instances",
 		CorrelationID: correlationID,
 		ExternalID:    resp.OperationData,
+		External:      true,
 	}
 
 	if _, err := storage.Create(ctx, operation); err != nil {
