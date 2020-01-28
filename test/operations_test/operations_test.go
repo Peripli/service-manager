@@ -18,6 +18,12 @@ package operations_test
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -30,11 +36,6 @@ import (
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"net/http"
-	"strings"
-	"sync"
-	"testing"
-	"time"
 )
 
 const (
@@ -184,19 +185,22 @@ var _ = Describe("Operations", func() {
 			cleanupInterval = 5 * time.Second
 		)
 
-		BeforeEach(func() {
-			postHook := func(e env.Environment, servers map[string]common.FakeServer) {
+		postHookWithOperationsConfig := func(jobTimeout, cleanupInterval time.Duration) func(e env.Environment, servers map[string]common.FakeServer) {
+			return func(e env.Environment, servers map[string]common.FakeServer) {
 				e.Set("operations.job_timeout", jobTimeout)
 				e.Set("operations.mark_orphans_interval", jobTimeout)
 				e.Set("operations.cleanup_interval", cleanupInterval)
 			}
+		}
 
-			ctx = common.NewTestContextBuilder().WithEnvPostExtensions(postHook).Build()
+		BeforeEach(func() {
+			postHook := postHookWithOperationsConfig(jobTimeout, cleanupInterval)
+			ctx = common.NewTestContextBuilderWithSecurity().WithEnvPostExtensions(postHook).Build()
 		})
 
 		When("Specified cleanup interval passes", func() {
-			Context("operation origin is external", func() {
-				It("Does not delete operations older than that interval", func() {
+			Context("operation origin is internal (Service Manager)", func() {
+				It("Deletes operations older than that interval", func() {
 					resp := ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL+"/non-existent-broker-id").WithQuery("async", true).
 						Expect().
 						Status(http.StatusAccepted)
@@ -210,8 +214,71 @@ var _ = Describe("Operations", func() {
 					Expect(err).To(BeNil())
 					Expect(count).To(Equal(1))
 
+					Eventually(func() int {
+						count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byID)
+						Expect(err).To(BeNil())
+
+						return count
+					}, cleanupInterval*2).Should(Equal(0))
+				})
+			})
+
+			Context("operation origin is external", func() {
+				const (
+					brokerAPIVersionHeaderKey   = "X-Broker-API-Version"
+					brokerAPIVersionHeaderValue = "2.13"
+
+					serviceID = "test-service-1"
+					planID    = "test-service-plan-1"
+
+					fastJobTimeout      = 1 * time.Second
+					fastCleanupInterval = 2 * time.Second
+				)
+
+				var (
+					brokerID     string
+					catalog      common.SBCatalog
+					brokerServer *common.BrokerServer
+				)
+
+				BeforeEach(func() {
+					postHook := postHookWithOperationsConfig(fastJobTimeout, fastCleanupInterval)
+					ctx = common.NewTestContextBuilderWithSecurity().WithEnvPostExtensions(postHook).Build()
+
+					catalog = simpleCatalog(serviceID, planID)
+					ctx.RegisterPlatform()
+					brokerID, _, brokerServer = ctx.RegisterBrokerWithCatalog(catalog)
+					brokerServer.ServiceInstanceHandler = func(rw http.ResponseWriter, _ *http.Request) {
+						rw.Header().Set("Content-Type", "application/json")
+						rw.WriteHeader(http.StatusAccepted)
+					}
+					common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, brokerID)
+				})
+
+				AfterEach(func() {
+					common.RemoveAllInstances(ctx.SMRepository)
+					ctx.CleanupBroker(brokerID)
+				})
+
+				It("Does not delete operations older than that interval", func() {
+
+					ctx.SMWithBasic.PUT(brokerServer.URL()+"/v1/osb/"+brokerID+"/v2/service_instances/12345").
+						WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+						WithQuery("async", true).
+						WithJSON(map[string]interface{}{
+							"service_id":        serviceID,
+							"plan_id":           planID,
+							"organization_guid": "my-org",
+						}).
+						Expect().Status(http.StatusAccepted)
+
+					byOrigin := query.ByField(query.EqualsOperator, "origin", string(types.EXTERNAL))
+					count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byOrigin)
+					Expect(err).To(BeNil())
+					Expect(count).To(Equal(1))
+
 					time.Sleep(cleanupInterval + time.Second)
-					count, err = ctx.SMRepository.Count(context.Background(), types.OperationType, byID)
+					count, err = ctx.SMRepository.Count(context.Background(), types.OperationType, byOrigin)
 					Expect(err).To(BeNil())
 					Expect(count).Should(Equal(1))
 				})
@@ -250,6 +317,21 @@ var _ = Describe("Operations", func() {
 		})
 	})
 })
+
+func simpleCatalog(serviceID, planID string) common.SBCatalog {
+	return common.SBCatalog(fmt.Sprintf(`{
+	  "services": [{
+			"name": "no-tags-no-metadata",
+			"id": "%s",
+			"description": "A fake service.",
+			"plans": [{
+				"name": "fake-plan-1",
+				"id": "%s",
+				"description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections."
+			}]
+		}]
+	}`, serviceID, planID))
+}
 
 type panicController struct {
 	operation *types.Operation

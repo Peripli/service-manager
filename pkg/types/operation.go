@@ -58,7 +58,7 @@ const (
 	// INTERNAL represents an operation that was triggered by service manager
 	INTERNAL OperationOrigin = "internal"
 
-	// EXTERNAL represents an operation that was triggered by service manager
+	// EXTERNAL represents an operation that was triggered by platform registered in service manager
 	EXTERNAL OperationOrigin = "external"
 )
 
