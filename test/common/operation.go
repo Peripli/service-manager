@@ -39,9 +39,7 @@ type OperationExpectations struct {
 }
 
 func VerifyOperationExists(ctx *TestContext, operationURL string, expectations OperationExpectations) (string, string) {
-	expectations.ResourceType = types.ServiceInstanceType
-
-	timeoutDuration := 25 * time.Second
+	timeoutDuration := 25000 * time.Second
 	tickerInterval := 100 * time.Millisecond
 	ticker := time.NewTicker(tickerInterval)
 	timeout := time.After(timeoutDuration)
@@ -53,7 +51,7 @@ func VerifyOperationExists(ctx *TestContext, operationURL string, expectations O
 		case <-ticker.C:
 			var operation map[string]interface{}
 			if len(operationURL) != 0 {
-				operation = ctx.SMWithOAuthForTenant.GET(operationURL).Expect().Status(http.StatusOK).JSON().Object().Raw()
+				operation = ctx.SMWithOAuth.GET(operationURL).Expect().Status(http.StatusOK).JSON().Object().Raw()
 
 				category := operation["type"].(string)
 				resourceType := operation["resource_type"].(string)

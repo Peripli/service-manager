@@ -242,7 +242,7 @@ func RemoveAllBindings(ctx *TestContext) error {
 	}
 	for i := 0; i < objectList.Len(); i++ {
 		binding := objectList.ItemAt(i).(*types.ServiceBinding)
-		if err := DeleteBinding(ctx, binding); err != nil {
+		if err := DeleteBinding(ctx, binding.ID, binding.ServiceInstanceID); err != nil {
 			return err
 		}
 	}
