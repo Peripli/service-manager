@@ -52,6 +52,16 @@ const (
 	FAILED OperationState = "failed"
 )
 
+type OperationOrigin string
+
+const (
+	// INTERNAL represents an operation that was triggered by service manager
+	INTERNAL OperationOrigin = "internal"
+
+	// EXTERNAL represents an operation that was triggered by service manager
+	EXTERNAL OperationOrigin = "external"
+)
+
 //go:generate smgen api Operation
 // Operation struct
 type Operation struct {
@@ -61,6 +71,7 @@ type Operation struct {
 	State         OperationState    `json:"state"`
 	ResourceID    string            `json:"resource_id"`
 	ResourceType  string            `json:"resource_type"`
+	Origin        OperationOrigin   `json:"origin"`
 	Errors        json.RawMessage   `json:"errors"`
 	CorrelationID string            `json:"correlation_id"`
 	ExternalID    string            `json:"-"`
@@ -79,6 +90,7 @@ func (e *Operation) Equals(obj Object) bool {
 		e.ExternalID != operation.ExternalID ||
 		e.State != operation.State ||
 		e.Type != operation.Type ||
+		e.Origin != operation.Origin ||
 		!reflect.DeepEqual(e.Errors, operation.Errors) {
 		return false
 	}

@@ -87,8 +87,12 @@ func (om *Maintainer) processOrphanOperations() {
 }
 
 func (om *Maintainer) cleanUpOldOperations() {
-	byDate := query.ByField(query.LessThanOperator, "created_at", util.ToRFCNanoFormat(time.Now().Add(-om.cleanupInterval)))
-	if err := om.repository.Delete(om.smCtx, types.OperationType, byDate); err != nil {
+	criteria := []query.Criterion{
+		query.ByField(query.EqualsOperator, "origin", string(types.INTERNAL)),
+		query.ByField(query.LessThanOperator, "created_at", util.ToRFCNanoFormat(time.Now().Add(-om.cleanupInterval))),
+	}
+
+	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil {
 		log.D().Debugf("Failed to cleanup operations: %s", err)
 		return
 	}

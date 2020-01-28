@@ -1,0 +1,5 @@
+BEGIN;
+
+ALTER TABLE operations DROP COLUMN origin;
+
+COMMIT;

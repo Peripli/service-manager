@@ -195,28 +195,27 @@ var _ = Describe("Operations", func() {
 		})
 
 		When("Specified cleanup interval passes", func() {
-			It("Deletes operations older than that interval", func() {
-				resp := ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL+"/non-existent-broker-id").WithQuery("async", true).
-					Expect().
-					Status(http.StatusAccepted)
+			Context("operation origin is external", func() {
+				It("Does not delete operations older than that interval", func() {
+					resp := ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL+"/non-existent-broker-id").WithQuery("async", true).
+						Expect().
+						Status(http.StatusAccepted)
 
-				locationHeader := resp.Header("Location").Raw()
-				split := strings.Split(locationHeader, "/")
-				operationID := split[len(split)-1]
+					locationHeader := resp.Header("Location").Raw()
+					split := strings.Split(locationHeader, "/")
+					operationID := split[len(split)-1]
 
-				byID := query.ByField(query.EqualsOperator, "id", operationID)
-				count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byID)
-				Expect(err).To(BeNil())
-				Expect(count).To(Equal(1))
-
-				Eventually(func() int {
+					byID := query.ByField(query.EqualsOperator, "id", operationID)
 					count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byID)
 					Expect(err).To(BeNil())
+					Expect(count).To(Equal(1))
 
-					return count
-				}, cleanupInterval*2).Should(Equal(0))
+					time.Sleep(cleanupInterval + time.Second)
+					count, err = ctx.SMRepository.Count(context.Background(), types.OperationType, byID)
+					Expect(err).To(BeNil())
+					Expect(count).Should(Equal(1))
+				})
 			})
-
 		})
 
 		When("Specified job timeout passes", func() {
