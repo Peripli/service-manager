@@ -18,6 +18,7 @@ package common
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -25,6 +26,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sync"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/gorilla/mux"
@@ -340,5 +342,48 @@ func SetResponse(rw http.ResponseWriter, status int, message map[string]interfac
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		rw.Write([]byte(err.Error()))
+	}
+}
+
+func DelayingHandler(done chan interface{}, reached chan<- interface{}) func(req *http.Request) (int, map[string]interface{}) {
+	return func(req *http.Request) (int, map[string]interface{}) {
+		brokerDelay := 300 * time.Second
+		timeoutContext, _ := context.WithTimeout(req.Context(), brokerDelay)
+		close(reached)
+		select {
+		case <-timeoutContext.Done():
+		case <-done:
+		}
+		return http.StatusTeapot, Object{}
+	}
+}
+
+func ParameterizedHandler(statusCode int, responseBody map[string]interface{}) func(_ *http.Request) (int, map[string]interface{}) {
+	return func(_ *http.Request) (int, map[string]interface{}) {
+		return statusCode, responseBody
+	}
+}
+
+func MultiplePollsRequiredHandler(state, finalState string) func(_ *http.Request) (int, map[string]interface{}) {
+	polls := 0
+	return func(_ *http.Request) (int, map[string]interface{}) {
+		if polls == 0 {
+			polls++
+			return http.StatusOK, Object{"state": state}
+		} else {
+			return http.StatusOK, Object{"state": finalState}
+		}
+	}
+}
+
+func MultipleErrorsBeforeSuccessHandler(initialStatusCode, finalStatusCode int, initialBody, finalBody Object) func(_ *http.Request) (int, map[string]interface{}) {
+	repeats := 0
+	return func(_ *http.Request) (int, map[string]interface{}) {
+		if repeats == 0 {
+			repeats++
+			return initialStatusCode, initialBody
+		} else {
+			return finalStatusCode, finalBody
+		}
 	}
 }

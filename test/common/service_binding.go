@@ -56,8 +56,8 @@ func CreateBinding(ctx *TestContext, instanceID string) *types.ServiceBinding {
 	return binding
 }
 
-func DeleteBinding(ctx *TestContext, binding *types.ServiceBinding) error {
-	instanceObject, err := ctx.SMRepository.Get(context.TODO(), types.ServiceInstanceType, query.ByField(query.EqualsOperator, "id", binding.ServiceInstanceID))
+func DeleteBinding(ctx *TestContext, bindingID, instanceID string) error {
+	instanceObject, err := ctx.SMRepository.Get(context.TODO(), types.ServiceInstanceType, query.ByField(query.EqualsOperator, "id", instanceID))
 	if err != nil {
 		return err
 	}
@@ -125,7 +125,7 @@ func DeleteBinding(ctx *TestContext, binding *types.ServiceBinding) error {
 		ResourceType:  types.ServiceBindingType,
 		CorrelationID: "-",
 	}, func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-		byID := query.ByField(query.EqualsOperator, "id", binding.ID)
+		byID := query.ByField(query.EqualsOperator, "id", bindingID)
 		if err := repository.Delete(ctx, types.ServiceBindingType, byID); err != nil {
 			return nil, err
 		}

@@ -141,49 +141,6 @@ var _ = DescribeTestsFor(TestCase{
 					Status(expectedStatusCode)
 			}
 
-			delayingHandler := func(done chan interface{}, reached chan<- interface{}) func(req *http.Request) (int, map[string]interface{}) {
-				return func(req *http.Request) (int, map[string]interface{}) {
-					brokerDelay := 300 * time.Second
-					timeoutContext, _ := context.WithTimeout(req.Context(), brokerDelay)
-					close(reached)
-					select {
-					case <-timeoutContext.Done():
-					case <-done:
-					}
-					return http.StatusTeapot, Object{}
-				}
-			}
-
-			parameterizedHandler := func(statusCode int, responseBody map[string]interface{}) func(_ *http.Request) (int, map[string]interface{}) {
-				return func(_ *http.Request) (int, map[string]interface{}) {
-					return statusCode, responseBody
-				}
-			}
-
-			multiplePollsRequiredHandler := func(state, finalState string) func(_ *http.Request) (int, map[string]interface{}) {
-				polls := 0
-				return func(_ *http.Request) (int, map[string]interface{}) {
-					if polls == 0 {
-						polls++
-						return http.StatusOK, Object{"state": state}
-					} else {
-						return http.StatusOK, Object{"state": finalState}
-					}
-				}
-			}
-
-			multipleErrorsBeforeSuccessHandler := func(initialStatusCode, finalStatusCode int, initialBody, finalBody Object) func(_ *http.Request) (int, map[string]interface{}) {
-				repeats := 0
-				return func(_ *http.Request) (int, map[string]interface{}) {
-					if repeats == 0 {
-						repeats++
-						return initialStatusCode, initialBody
-					} else {
-						return finalStatusCode, finalBody
-					}
-				}
-			}
-
 			verifyInstanceExists := func(instanceID string, ready bool) {
 				timeoutDuration := 25000 * time.Second
 				tickerInterval := 100 * time.Millisecond
@@ -202,7 +159,9 @@ var _ = DescribeTestsFor(TestCase{
 						case instances.Length().Raw() > 1:
 							Fail(fmt.Sprintf("more than one instance with id %s was found in SM", instanceID))
 						default:
-							readyField := instances.First().Object().Value("ready").Boolean().Raw()
+							instanceObject := instances.First().Object()
+							instanceObject.Path(fmt.Sprintf("$.labels[%s][*]", TenantIdentifier)).Array().Contains(TenantIDValue)
+							readyField := instanceObject.Value("ready").Boolean().Raw()
 							if readyField != ready {
 								Fail(fmt.Sprintf("Expected instance with id %s to be ready %t but ready was %t", instanceID, ready, readyField))
 							}
@@ -483,8 +442,8 @@ var _ = DescribeTestsFor(TestCase{
 
 							When("a create operation is already in progress", func() {
 								BeforeEach(func() {
-									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", parameterizedHandler(http.StatusAccepted, Object{"async": true}))
-									brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"1", delayingHandler(doneChannel, pollingStartedChannel))
+									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+									brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"1", DelayingHandler(doneChannel, pollingStartedChannel))
 
 									resp := createInstance(ctx.SMWithOAuthForTenant, true, http.StatusAccepted)
 
@@ -532,7 +491,7 @@ var _ = DescribeTestsFor(TestCase{
 
 							When("broker responds with synchronous success", func() {
 								BeforeEach(func() {
-									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", parameterizedHandler(http.StatusCreated, Object{"async": false}))
+									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusCreated, Object{"async": false}))
 								})
 
 								It("stores instance as ready=true and the operation as success, non rescheduable with no deletion scheduled", func() {
@@ -552,8 +511,8 @@ var _ = DescribeTestsFor(TestCase{
 
 							When("broker responds with asynchronous success", func() {
 								BeforeEach(func() {
-									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", parameterizedHandler(http.StatusAccepted, Object{"async": true}))
-									brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"1", multiplePollsRequiredHandler("in progress", "succeeded"))
+									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+									brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"1", MultiplePollsRequiredHandler("in progress", "succeeded"))
 								})
 
 								It("polling broker last operation until operation succeeds and eventually marks operation as success", func() {
@@ -589,8 +548,8 @@ var _ = DescribeTestsFor(TestCase{
 												"maintenance_info": "{}",
 											}
 
-											brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", parameterizedHandler(http.StatusAccepted, Object{"async": true}))
-											brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"1", parameterizedHandler(http.StatusOK, Object{"state": "in progress"}))
+											brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+											brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"1", ParameterizedHandler(http.StatusOK, Object{"state": "in progress"}))
 										})
 
 										AfterEach(func() {
@@ -620,8 +579,8 @@ var _ = DescribeTestsFor(TestCase{
 
 								When("polling responds with unexpected state and eventually with success state", func() {
 									BeforeEach(func() {
-										brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", parameterizedHandler(http.StatusAccepted, Object{"async": true}))
-										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"1", multiplePollsRequiredHandler("unknown", "succeeded"))
+										brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"1", MultiplePollsRequiredHandler("unknown", "succeeded"))
 									})
 
 									It("keeps polling and eventually updates the instance to ready true and operation to success", func() {
@@ -640,13 +599,13 @@ var _ = DescribeTestsFor(TestCase{
 
 								When("polling responds with unexpected state and eventually with failed state", func() {
 									BeforeEach(func() {
-										brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"2", parameterizedHandler(http.StatusAccepted, Object{"async": true}))
-										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"2", multiplePollsRequiredHandler("unknown", "failed"))
+										brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"2", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"2", MultiplePollsRequiredHandler("unknown", "failed"))
 									})
 
 									When("orphan mitigation deprovision synchronously succeeds", func() {
 										BeforeEach(func() {
-											brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", parameterizedHandler(http.StatusOK, Object{"async": false}))
+											brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusOK, Object{"async": false}))
 										})
 
 										It("deletes the instance and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
@@ -666,7 +625,7 @@ var _ = DescribeTestsFor(TestCase{
 
 									When("broker orphan mitigation deprovision synchronously fails with an error that will stop further orphan mitigation", func() {
 										BeforeEach(func() {
-											brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", parameterizedHandler(http.StatusBadRequest, Object{"error": "error"}))
+											brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusBadRequest, Object{"error": "error"}))
 										})
 
 										It("keeps in the instance with ready false and marks the operation with deletion scheduled", func() {
@@ -686,7 +645,7 @@ var _ = DescribeTestsFor(TestCase{
 
 									When("broker orphan mitigation deprovision synchronously fails with an error that will continue further orphan mitigation and eventually succeed", func() {
 										BeforeEach(func() {
-											brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", multipleErrorsBeforeSuccessHandler(
+											brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", MultipleErrorsBeforeSuccessHandler(
 												http.StatusInternalServerError, http.StatusOK,
 												Object{"error": "error"}, Object{"async": "false"},
 											))
@@ -710,8 +669,8 @@ var _ = DescribeTestsFor(TestCase{
 
 								When("polling returns an unexpected status code", func() {
 									BeforeEach(func() {
-										brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"3", parameterizedHandler(http.StatusAccepted, Object{"async": true}))
-										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"3", parameterizedHandler(http.StatusInternalServerError, Object{"error": "error"}))
+										brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"3", ParameterizedHandler(http.StatusInternalServerError, Object{"error": "error"}))
 									})
 
 									It("stores the instance as ready false and marks the operation as reschedulable", func() {
@@ -731,8 +690,8 @@ var _ = DescribeTestsFor(TestCase{
 
 								When("broker stops while polling", func() {
 									BeforeEach(func() {
-										brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"3", parameterizedHandler(http.StatusAccepted, Object{"async": true}))
-										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"3", delayingHandler(doneChannel, pollingStartedChannel))
+										brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"3", DelayingHandler(doneChannel, pollingStartedChannel))
 									})
 
 									It("keeps the instance as ready false and marks the operation as failed reschedulable with no orphan mitigation", func() {
@@ -778,7 +737,7 @@ var _ = DescribeTestsFor(TestCase{
 
 							When("provision responds with error that does not require orphan mitigation", func() {
 								BeforeEach(func() {
-									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"3", parameterizedHandler(http.StatusBadRequest, Object{"error": "error"}))
+									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"3", ParameterizedHandler(http.StatusBadRequest, Object{"error": "error"}))
 								})
 
 								It("does not store the instance and marks the operation as failed, non rescheduable with empty deletion scheduled", func() {
@@ -798,13 +757,13 @@ var _ = DescribeTestsFor(TestCase{
 
 							When("provision responds with error that requires orphan mitigation", func() {
 								BeforeEach(func() {
-									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"3", parameterizedHandler(http.StatusInternalServerError, Object{"error": "error"}))
+									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"3", ParameterizedHandler(http.StatusInternalServerError, Object{"error": "error"}))
 								})
 
 								When("orphan mitigation deprovision asynchronously succeeds", func() {
 									BeforeEach(func() {
-										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", parameterizedHandler(http.StatusAccepted, Object{"async": true}))
-										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", parameterizedHandler(http.StatusOK, Object{"state": "succeeded"}))
+										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", ParameterizedHandler(http.StatusOK, Object{"state": "succeeded"}))
 									})
 
 									It("deletes the instance and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
@@ -825,8 +784,8 @@ var _ = DescribeTestsFor(TestCase{
 								if testCase.async {
 									When("broker orphan mitigation deprovision asynchronously keeps failing with an error while polling", func() {
 										BeforeEach(func() {
-											brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", parameterizedHandler(http.StatusAccepted, Object{"async": true}))
-											brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", parameterizedHandler(http.StatusBadRequest, Object{"error": "error"}))
+											brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+											brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", ParameterizedHandler(http.StatusBadRequest, Object{"error": "error"}))
 										})
 
 										It("keeps the instance as ready false and marks the operation as deletion scheduled", func() {
@@ -847,9 +806,9 @@ var _ = DescribeTestsFor(TestCase{
 
 								When("broker orphan mitigation deprovision asynchronously fails with an error that will continue further orphan mitigation and eventually succeed", func() {
 									BeforeEach(func() {
-										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", parameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
 
-										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", multipleErrorsBeforeSuccessHandler(
+										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", MultipleErrorsBeforeSuccessHandler(
 											http.StatusOK, http.StatusOK,
 											Object{"state": "failed"}, Object{"state": "succeeded"},
 										))
@@ -882,7 +841,7 @@ var _ = DescribeTestsFor(TestCase{
 									var plans *httpexpect.Array
 									brokerID, brokerServer, plans = prepareBrokerWithCatalog(ctx, ctx.SMWithOAuth)
 									servicePlanID = plans.Element(0).Object().Value("id").String().Raw()
-									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", delayingHandler(doneChannel, pollingStartedChannel))
+									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", DelayingHandler(doneChannel, pollingStartedChannel))
 									postInstanceRequest = Object{
 										"name":             "test-instance",
 										"service_plan_id":  servicePlanID,
@@ -1155,8 +1114,8 @@ var _ = DescribeTestsFor(TestCase{
 
 							When("a delete operation is already in progress", func() {
 								BeforeEach(func() {
-									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", parameterizedHandler(http.StatusAccepted, Object{"async": true}))
-									brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"1", delayingHandler(doneChannel, reached))
+									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+									brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"1", DelayingHandler(doneChannel, reached))
 
 									resp := deleteInstance(ctx.SMWithOAuthForTenant, true, http.StatusAccepted)
 
@@ -1184,7 +1143,7 @@ var _ = DescribeTestsFor(TestCase{
 
 							When("broker responds with synchronous success", func() {
 								BeforeEach(func() {
-									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", parameterizedHandler(http.StatusOK, Object{"async": false}))
+									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", ParameterizedHandler(http.StatusOK, Object{"async": false}))
 								})
 
 								It("deletes the instance and stores a delete succeeded operation", func() {
@@ -1204,8 +1163,8 @@ var _ = DescribeTestsFor(TestCase{
 
 							When("broker responds with asynchronous success", func() {
 								BeforeEach(func() {
-									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", parameterizedHandler(http.StatusAccepted, Object{"async": true}))
-									brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"1", multiplePollsRequiredHandler("in progress", "succeeded"))
+									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+									brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"1", MultiplePollsRequiredHandler("in progress", "succeeded"))
 								})
 
 								It("polling broker last operation until operation succeeds and eventually marks operation as success", func() {
@@ -1224,8 +1183,8 @@ var _ = DescribeTestsFor(TestCase{
 
 								When("polling responds with unexpected state and eventually with success state", func() {
 									BeforeEach(func() {
-										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", parameterizedHandler(http.StatusAccepted, Object{"async": true}))
-										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"1", multiplePollsRequiredHandler("unknown", "succeeded"))
+										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"1", MultiplePollsRequiredHandler("unknown", "succeeded"))
 									})
 
 									It("keeps polling and eventually deletes the instance and marks the operation as success", func() {
@@ -1245,8 +1204,8 @@ var _ = DescribeTestsFor(TestCase{
 
 								When("polling responds with unexpected state and eventually with failed state", func() {
 									BeforeEach(func() {
-										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"2", parameterizedHandler(http.StatusAccepted, Object{"async": true}))
-										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"2", multiplePollsRequiredHandler("unknown", "failed"))
+										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"2", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"2", MultiplePollsRequiredHandler("unknown", "failed"))
 									})
 
 									When("orphan mitigation deprovision synchronously succeeds", func() {
@@ -1261,7 +1220,7 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"2", parameterizedHandler(http.StatusOK, Object{"async": false}))
+											brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"2", ParameterizedHandler(http.StatusOK, Object{"async": false}))
 
 											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.DELETE,
@@ -1287,7 +1246,7 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"2", parameterizedHandler(http.StatusBadRequest, Object{"error": "error"}))
+											brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"2", ParameterizedHandler(http.StatusBadRequest, Object{"error": "error"}))
 
 											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.DELETE,
@@ -1313,7 +1272,7 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"2", multipleErrorsBeforeSuccessHandler(
+											brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"2", MultipleErrorsBeforeSuccessHandler(
 												http.StatusInternalServerError, http.StatusOK,
 												Object{"error": "error"}, Object{"async": "false"},
 											))
@@ -1333,8 +1292,8 @@ var _ = DescribeTestsFor(TestCase{
 
 								When("polling returns an unexpected status code", func() {
 									BeforeEach(func() {
-										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", parameterizedHandler(http.StatusAccepted, Object{"async": true}))
-										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", parameterizedHandler(http.StatusInternalServerError, Object{"error": "error"}))
+										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", ParameterizedHandler(http.StatusInternalServerError, Object{"error": "error"}))
 									})
 
 									It("keeps the instance and stores the operation as reschedulable", func() {
@@ -1354,8 +1313,8 @@ var _ = DescribeTestsFor(TestCase{
 
 								When("broker stops while polling", func() {
 									BeforeEach(func() {
-										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", parameterizedHandler(http.StatusAccepted, Object{"async": true}))
-										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", delayingHandler(doneChannel, reached))
+										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", DelayingHandler(doneChannel, reached))
 									})
 
 									It("keeps the instance and stores the operation as reschedulable", func() {
@@ -1401,7 +1360,7 @@ var _ = DescribeTestsFor(TestCase{
 
 							When("deprovision responds with error that does not require orphan mitigation", func() {
 								BeforeEach(func() {
-									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", parameterizedHandler(http.StatusBadRequest, Object{"error": "error"}))
+									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusBadRequest, Object{"error": "error"}))
 								})
 
 								It("keeps the instance and marks the operation as failed", func() {
@@ -1420,7 +1379,7 @@ var _ = DescribeTestsFor(TestCase{
 
 							When("deprovision responds with error that requires orphan mitigation", func() {
 								BeforeEach(func() {
-									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", parameterizedHandler(http.StatusInternalServerError, Object{"error": "error"}))
+									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusInternalServerError, Object{"error": "error"}))
 								})
 
 								When("orphan mitigation deprovision asynchronously succeeds", func() {
@@ -1435,8 +1394,8 @@ var _ = DescribeTestsFor(TestCase{
 											DeletionScheduled: true,
 										})
 
-										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", parameterizedHandler(http.StatusAccepted, Object{"async": true}))
-										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", parameterizedHandler(http.StatusOK, Object{"state": "succeeded"}))
+										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", ParameterizedHandler(http.StatusOK, Object{"state": "succeeded"}))
 
 										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 											Category:          types.DELETE,
@@ -1463,8 +1422,8 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", parameterizedHandler(http.StatusAccepted, Object{"async": true}))
-											brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", parameterizedHandler(http.StatusBadRequest, Object{"error": "error"}))
+											brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+											brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", ParameterizedHandler(http.StatusBadRequest, Object{"error": "error"}))
 
 											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 												Category:          types.DELETE,
@@ -1491,8 +1450,8 @@ var _ = DescribeTestsFor(TestCase{
 											DeletionScheduled: true,
 										})
 
-										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", parameterizedHandler(http.StatusAccepted, Object{"async": true}))
-										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", multipleErrorsBeforeSuccessHandler(
+										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", MultipleErrorsBeforeSuccessHandler(
 											http.StatusOK, http.StatusOK,
 											Object{"state": "failed"}, Object{"state": "succeeded"},
 										))
@@ -1539,7 +1498,7 @@ var _ = DescribeTestsFor(TestCase{
 
 									verifyInstanceExists(instanceID, true)
 
-									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", delayingHandler(doneChannel, reached))
+									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", DelayingHandler(doneChannel, reached))
 
 								})
 
@@ -1563,7 +1522,7 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: true,
 									})
 
-									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", parameterizedHandler(http.StatusOK, Object{"async": false}))
+									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", ParameterizedHandler(http.StatusOK, Object{"async": false}))
 
 									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 										Category:          types.DELETE,
