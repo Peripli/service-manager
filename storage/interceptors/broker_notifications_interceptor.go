@@ -22,9 +22,7 @@ func NewBrokerNotificationsInterceptor() *NotificationsInterceptor {
 				}
 			} else {
 				for _, svc := range broker.Services {
-					for _, plan := range svc.Plans {
-						plans = append(plans, plan)
-					}
+					plans = append(plans, svc.Plans...)
 				}
 			}
 
@@ -140,7 +138,7 @@ func fetchBrokerPlans(ctx context.Context, brokerID string, repository storage.R
 }
 
 func getSupportedPlatformsForPlans(plans []*types.ServicePlan) []string {
-	platformTypes := make(map[string]bool, 0)
+	platformTypes := make(map[string]bool)
 	for _, plan := range plans {
 		types := plan.SupportedPlatforms()
 		for _, t := range types {
