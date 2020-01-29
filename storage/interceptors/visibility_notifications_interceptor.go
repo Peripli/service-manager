@@ -12,8 +12,8 @@ import (
 
 func NewVisibilityNotificationsInterceptor() *NotificationsInterceptor {
 	return &NotificationsInterceptor{
-		PlatformIdProviderFunc: func(ctx context.Context, obj types.Object) string {
-			return obj.(*types.Visibility).PlatformID
+		PlatformIDsProviderFunc: func(ctx context.Context, obj types.Object, _ storage.Repository) ([]string, error) {
+			return []string{obj.(*types.Visibility).PlatformID}, nil
 		},
 		AdditionalDetailsFunc: func(ctx context.Context, objects types.ObjectList, repository storage.Repository) (objectDetails, error) {
 			var visibilities []*types.Visibility

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/util/slice"
 	"net/http"
 	"testing"
 
@@ -48,8 +49,8 @@ type notificationTypeEntry struct {
 	ResourceUpdates []func() common.Object
 	// ResourceDeleteFunc is blueprint for resource deletion
 	ResourceDeleteFunc func(obj common.Object)
-	// ExpectedPlatformIDFunc calculates the expected platform ID for the given object
-	ExpectedPlatformIDFunc func(obj common.Object) string
+	// ExpectedPlatformIDsFunc calculates the expected platform IDs for the given object
+	ExpectedPlatformIDsFunc func(obj common.Object) []string
 	// ExpectedAdditionalPayloadFunc calculates the expected additional payload for the given object
 	ExpectedAdditionalPayloadFunc func(expected common.Object, repository storage.Repository) string
 	// Verify additional stuff such as creation of notifications for dependant entities
@@ -143,8 +144,16 @@ var _ = Describe("Notifications Suite", func() {
 			ResourceDeleteFunc: func(object common.Object) {
 				ctx.CleanupBroker(object["id"].(string))
 			},
-			ExpectedPlatformIDFunc: func(object common.Object) string {
-				return ""
+			ExpectedPlatformIDsFunc: func(object common.Object) []string {
+				objList, err := ctx.SMRepository.List(context.TODO(), types.PlatformType, query.ByField(query.NotEqualsOperator, "id", types.SMPlatform))
+				Expect(err).ToNot(HaveOccurred())
+
+				platformIDs := make([]string, 0)
+				for i := 0; i < objList.Len(); i++ {
+					platformIDs = append(platformIDs, objList.ItemAt(i).GetID())
+				}
+
+				return platformIDs
 			},
 			ExpectedAdditionalPayloadFunc: func(expected common.Object, repository storage.Repository) string {
 				serviceOfferings, err := catalog.Load(c, expected["id"].(string), ctx.SMRepository)
@@ -286,8 +295,8 @@ var _ = Describe("Notifications Suite", func() {
 				ctx.SMWithOAuth.DELETE(web.VisibilitiesURL + "/" + obj["id"].(string)).Expect().
 					Status(http.StatusOK)
 			},
-			ExpectedPlatformIDFunc: func(obj common.Object) string {
-				return obj["platform_id"].(string)
+			ExpectedPlatformIDsFunc: func(obj common.Object) []string {
+				return []string{obj["platform_id"].(string)}
 			},
 			ExpectedAdditionalPayloadFunc: func(expected common.Object, repository storage.Repository) string {
 				byPlanID := query.ByField(query.EqualsOperator, "id", expected["service_plan_id"].(string))
@@ -386,7 +395,8 @@ var _ = Describe("Notifications Suite", func() {
 					continue
 				}
 
-				if notification.PlatformID != entry.ExpectedPlatformIDFunc(objAfterOp) {
+				expectedPlatformIDs := entry.ExpectedPlatformIDsFunc(objAfterOp)
+				if !slice.StringsAnyEquals(expectedPlatformIDs, notification.PlatformID) {
 					continue
 				}
 
@@ -398,6 +408,7 @@ var _ = Describe("Notifications Suite", func() {
 				expectedPayload := entry.ExpectedAdditionalPayloadFunc(objAfterOp, ctx.SMRepository)
 				Expect(actualPayload).To(MatchUnorderedJSON(expectedPayload))
 				found = true
+				break
 			}
 
 			if !found {
@@ -417,7 +428,8 @@ var _ = Describe("Notifications Suite", func() {
 					continue
 				}
 
-				if notification.PlatformID != entry.ExpectedPlatformIDFunc(objAfterOp) {
+				expectedPlatformIDs := entry.ExpectedPlatformIDsFunc(objAfterOp)
+				if !slice.StringsAnyEquals(expectedPlatformIDs, notification.PlatformID) {
 					continue
 				}
 
@@ -429,6 +441,7 @@ var _ = Describe("Notifications Suite", func() {
 				Expect(actualPayload).To(MatchUnorderedJSON(expectedOldPayload))
 
 				found = true
+				break
 			}
 
 			if !found {
@@ -451,7 +464,8 @@ var _ = Describe("Notifications Suite", func() {
 					continue
 				}
 
-				if notification.PlatformID != entry.ExpectedPlatformIDFunc(objAfterOp) {
+				expectedPlatformIDs := entry.ExpectedPlatformIDsFunc(objAfterOp)
+				if !slice.StringsAnyEquals(expectedPlatformIDs, notification.PlatformID) {
 					continue
 				}
 
@@ -487,13 +501,15 @@ var _ = Describe("Notifications Suite", func() {
 				}
 
 				found = true
+				break
 			}
 
 			if !found {
 				Fail(fmt.Sprintf("Expected to find notification for resource type %s", entry.ResourceType))
 			}
 
-			if entry.ExpectedPlatformIDFunc(objBeforeOp) != entry.ExpectedPlatformIDFunc(objAfterOp) {
+			// when visibility platform_id changes:
+			if entry.ExpectedPlatformIDsFunc(objBeforeOp)[0] != entry.ExpectedPlatformIDsFunc(objAfterOp)[0] {
 				verifyCreationNotificationCreated(objAfterOp, notificationsAfterOp)
 				labels := objBeforeOp["labels"]
 				delete(objBeforeOp, "labels")
