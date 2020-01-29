@@ -53,10 +53,6 @@ func (c *CatalogFilterByVisibilityPlugin) FetchCatalog(req *web.Request, next we
 	if err := userCtx.Data(platform); err != nil {
 		return nil, err
 	}
-	if platform.Type != types.K8sPlatformType {
-		log.C(ctx).Debugf("Platform type is %s, which is not kubernetes. Skip filtering on visibilities", platform.Type)
-		return res, nil
-	}
 
 	brokerID := req.PathParams[BrokerIDPathParam]
 	visibleCatalogPlans, err := getVisiblePlansByBrokerIDAndPlatformID(ctx, c.repository, brokerID, platform.ID)
@@ -71,6 +67,10 @@ func getVisiblePlansByBrokerIDAndPlatformID(ctx context.Context, repository stor
 	offeringIDs, err := getOfferingIDsByBrokerID(ctx, repository, brokerID)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(offeringIDs) == 0 {
+		return map[string]bool{}, nil
 	}
 
 	plansList, err := repository.List(ctx, types.ServicePlanType, query.ByField(query.InOperator, "service_offering_id", offeringIDs...))

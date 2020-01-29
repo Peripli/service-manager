@@ -183,18 +183,14 @@ var _ = Describe("Catalog", func() {
 		Context("for platform with no visibilities", func() {
 			It("should return empty services catalog", func() {
 				assertBrokerPlansVisibleForPlatform(brokerID, k8sAgent)
-			})
-		})
-
-		Context("for cloud foundry platform", func() {
-			It("should return all services and plans, no matter the visibilities", func() {
-				assertBrokerPlansVisibleForPlatform(brokerID, ctx.SMWithBasic, plan1CatalogID, plan2CatalogID, plan3CatalogID)
+				assertBrokerPlansVisibleForPlatform(brokerID, ctx.SMWithBasic)
 			})
 		})
 
 		Context("for platform with visibilities for 2 plans from 2 services", func() {
 			It("should return 2 plans", func() {
 				assertBrokerPlansVisibleForPlatform(brokerID, k8sAgent)
+				assertBrokerPlansVisibleForPlatform(brokerID, ctx.SMWithBasic)
 
 				ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
 					"service_plan_id": plan1ID,
@@ -206,6 +202,19 @@ var _ = Describe("Catalog", func() {
 				}).Expect().Status(http.StatusCreated)
 
 				assertBrokerPlansVisibleForPlatform(brokerID, k8sAgent, plan3CatalogID, plan1CatalogID)
+				assertBrokerPlansVisibleForPlatform(brokerID, ctx.SMWithBasic)
+
+				ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
+					"service_plan_id": plan1ID,
+					"platform_id":     ctx.TestPlatform.ID,
+				}).Expect().Status(http.StatusCreated)
+				ctx.SMWithOAuth.POST(web.VisibilitiesURL).WithJSON(common.Object{
+					"service_plan_id": plan3ID,
+					"platform_id":     ctx.TestPlatform.ID,
+				}).Expect().Status(http.StatusCreated)
+
+				assertBrokerPlansVisibleForPlatform(brokerID, k8sAgent, plan3CatalogID, plan1CatalogID)
+				assertBrokerPlansVisibleForPlatform(brokerID, ctx.SMWithBasic, plan3CatalogID, plan1CatalogID)
 			})
 		})
 
