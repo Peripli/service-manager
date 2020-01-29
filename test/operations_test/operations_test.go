@@ -184,6 +184,8 @@ var _ = Describe("Operations", func() {
 			cleanupInterval = 5 * time.Second
 		)
 
+		var ctxBuilder *common.TestContextBuilder
+
 		postHookWithOperationsConfig := func(jobTimeout, cleanupInterval time.Duration) func(e env.Environment, servers map[string]common.FakeServer) {
 			return func(e env.Environment, servers map[string]common.FakeServer) {
 				e.Set("operations.job_timeout", jobTimeout)
@@ -192,9 +194,16 @@ var _ = Describe("Operations", func() {
 			}
 		}
 
+		assertOperationCount := func(expectedCount int, criterion ...query.Criterion) {
+			count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, criterion...)
+			Expect(err).To(BeNil())
+			Expect(count).To(Equal(expectedCount))
+		}
+
 		BeforeEach(func() {
 			postHook := postHookWithOperationsConfig(jobTimeout, cleanupInterval)
-			ctx = common.NewTestContextBuilderWithSecurity().WithEnvPostExtensions(postHook).Build()
+			ctxBuilder = common.NewTestContextBuilderWithSecurity().WithEnvPostExtensions(postHook)
+			ctx = ctxBuilder.Build()
 		})
 
 		When("Specified cleanup interval passes", func() {
@@ -215,14 +224,10 @@ var _ = Describe("Operations", func() {
 						Status(http.StatusAccepted)
 
 					byPlatformID := query.ByField(query.EqualsOperator, "platform_id", types.SERVICE_MANAGER_PLATFORM)
-
-					count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byPlatformID)
-					Expect(err).To(BeNil())
-					Expect(count).To(Equal(1))
+					assertOperationCount(1, byPlatformID)
 
 					time.Sleep(cleanupInterval + time.Second)
-					Expect(err).To(BeNil())
-					Expect(count).To(Equal(1))
+					assertOperationCount(1, byPlatformID)
 				})
 			})
 
@@ -240,6 +245,18 @@ var _ = Describe("Operations", func() {
 					catalog      common.SBCatalog
 					brokerServer *common.BrokerServer
 				)
+
+				asyncProvision := func() {
+					ctx.SMWithBasic.PUT(brokerServer.URL()+"/v1/osb/"+brokerID+"/v2/service_instances/12345").
+						WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+						WithQuery("async", true).
+						WithJSON(map[string]interface{}{
+							"service_id":        serviceID,
+							"plan_id":           planID,
+							"organization_guid": "my-org",
+						}).
+						Expect().Status(http.StatusAccepted)
+				}
 
 				BeforeEach(func() {
 					catalog = simpleCatalog(serviceID, planID)
@@ -259,21 +276,11 @@ var _ = Describe("Operations", func() {
 				})
 
 				It("Deletes operations older than that interval", func() {
-					ctx.SMWithBasic.PUT(brokerServer.URL()+"/v1/osb/"+brokerID+"/v2/service_instances/12345").
-						WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
-						WithQuery("async", true).
-						WithJSON(map[string]interface{}{
-							"service_id":        serviceID,
-							"plan_id":           planID,
-							"organization_guid": "my-org",
-						}).
-						Expect().Status(http.StatusAccepted)
+					asyncProvision()
 
 					byPlatformID := query.ByField(query.NotEqualsOperator, "platform_id", types.SERVICE_MANAGER_PLATFORM)
 
-					count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byPlatformID)
-					Expect(err).To(BeNil())
-					Expect(count).To(Equal(1))
+					assertOperationCount(1, byPlatformID)
 
 					Eventually(func() int {
 						count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byPlatformID)
@@ -281,6 +288,28 @@ var _ = Describe("Operations", func() {
 
 						return count
 					}, cleanupInterval*2).Should(Equal(0))
+				})
+
+				Context("Service Manager was restarted", func() {
+					It("Deletes operations older than that interval", func() {
+						asyncProvision()
+
+						byPlatformID := query.ByField(query.NotEqualsOperator, "platform_id", types.SERVICE_MANAGER_PLATFORM)
+
+						assertOperationCount(1, byPlatformID)
+
+						ctx.Servers[common.SMServer].Close()
+						ctxBuilder.RebuildSMInContext(ctx)
+
+						assertOperationCount(1, byPlatformID)
+
+						Eventually(func() int {
+							count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byPlatformID)
+							Expect(err).To(BeNil())
+
+							return count
+						}, cleanupInterval*2).Should(Equal(0))
+					})
 				})
 			})
 		})
