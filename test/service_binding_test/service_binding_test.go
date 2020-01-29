@@ -244,7 +244,7 @@ var _ = DescribeTestsFor(TestCase{
 				brokerServer.Close()
 			})
 
-			FDescribe("GET", func() {
+			Describe("GET", func() {
 				When("service binding contains tenant identifier in OSB context", func() {
 					BeforeEach(func() {
 						createBinding(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
@@ -262,8 +262,9 @@ var _ = DescribeTestsFor(TestCase{
 							Status(http.StatusOK).
 							JSON().
 							Object().Value("context").Object().Equal(map[string]interface{}{
-							"platform":      types.SMPlatform,
-							"instance_name": instanceName,
+							"platform":       types.SMPlatform,
+							"instance_name":  instanceName,
+							TenantIdentifier: TenantIDValue,
 						})
 					})
 				})
@@ -291,9 +292,8 @@ var _ = DescribeTestsFor(TestCase{
 							Status(http.StatusOK).
 							JSON().
 							Object().Value("context").Object().Equal(map[string]interface{}{
-							"platform":       types.SMPlatform,
-							"instance_name":  instanceName,
-							TenantIdentifier: TenantIDValue,
+							"platform":      types.SMPlatform,
+							"instance_name": instanceName,
 						})
 					})
 				})
