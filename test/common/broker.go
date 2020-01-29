@@ -275,7 +275,9 @@ func (b *BrokerServer) saveRequestMiddleware(next http.Handler) http.Handler {
 				panic(err)
 			}
 		}()
+		b.mutex.Lock()
 		b.LastRequest = req
+		b.mutex.Unlock()
 		bodyBytes, err := ioutil.ReadAll(req.Body)
 		req.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 
