@@ -88,5 +88,5 @@ As described above, important messages should be logged on _info_ level.
 
 ## Security
 
-⚠️ :warning: Be careful not to log sensitive data like passwords, tokens, personal data, etc.
+:warning: Be careful not to log sensitive data like passwords, tokens, personal data, etc.
 Pay special attention if you do some generic logging where you don't know the exact semantic of the values being logged.
