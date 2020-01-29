@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -200,26 +199,30 @@ var _ = Describe("Operations", func() {
 
 		When("Specified cleanup interval passes", func() {
 			Context("operation origin is internal (Service Manager)", func() {
-				It("Deletes operations older than that interval", func() {
-					resp := ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL+"/non-existent-broker-id").WithQuery("async", true).
+				const (
+					fastJobTimeout      = 1 * time.Second
+					fastCleanupInterval = 2 * time.Second
+				)
+
+				BeforeEach(func() {
+					postHook := postHookWithOperationsConfig(fastJobTimeout, fastCleanupInterval)
+					ctx = common.NewTestContextBuilderWithSecurity().WithEnvPostExtensions(postHook).Build()
+				})
+
+				It("Does not delete operations older than that interval", func() {
+					ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL+"/non-existent-broker-id").WithQuery("async", true).
 						Expect().
 						Status(http.StatusAccepted)
 
-					locationHeader := resp.Header("Location").Raw()
-					split := strings.Split(locationHeader, "/")
-					operationID := split[len(split)-1]
+					byPlatformID := query.ByField(query.EqualsOperator, "platform_id", types.SERVICE_MANAGER_PLATFORM)
 
-					byID := query.ByField(query.EqualsOperator, "id", operationID)
-					count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byID)
+					count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byPlatformID)
 					Expect(err).To(BeNil())
 					Expect(count).To(Equal(1))
 
-					Eventually(func() int {
-						count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byID)
-						Expect(err).To(BeNil())
-
-						return count
-					}, cleanupInterval*2).Should(Equal(0))
+					time.Sleep(cleanupInterval + time.Second)
+					Expect(err).To(BeNil())
+					Expect(count).To(Equal(1))
 				})
 			})
 
@@ -230,9 +233,6 @@ var _ = Describe("Operations", func() {
 
 					serviceID = "test-service-1"
 					planID    = "test-service-plan-1"
-
-					fastJobTimeout      = 1 * time.Second
-					fastCleanupInterval = 2 * time.Second
 				)
 
 				var (
@@ -242,9 +242,7 @@ var _ = Describe("Operations", func() {
 				)
 
 				BeforeEach(func() {
-					postHook := postHookWithOperationsConfig(fastJobTimeout, fastCleanupInterval)
-					ctx = common.NewTestContextBuilderWithSecurity().WithEnvPostExtensions(postHook).Build()
-
+					catalog = simpleCatalog(serviceID, planID)
 					catalog = simpleCatalog(serviceID, planID)
 					ctx.RegisterPlatform()
 					brokerID, _, brokerServer = ctx.RegisterBrokerWithCatalog(catalog)
@@ -260,8 +258,7 @@ var _ = Describe("Operations", func() {
 					ctx.CleanupBroker(brokerID)
 				})
 
-				It("Does not delete operations older than that interval", func() {
-
+				It("Deletes operations older than that interval", func() {
 					ctx.SMWithBasic.PUT(brokerServer.URL()+"/v1/osb/"+brokerID+"/v2/service_instances/12345").
 						WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
 						WithQuery("async", true).
@@ -272,15 +269,18 @@ var _ = Describe("Operations", func() {
 						}).
 						Expect().Status(http.StatusAccepted)
 
-					byOrigin := query.ByField(query.EqualsOperator, "origin", string(types.EXTERNAL))
-					count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byOrigin)
+					byPlatformID := query.ByField(query.NotEqualsOperator, "platform_id", types.SERVICE_MANAGER_PLATFORM)
+
+					count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byPlatformID)
 					Expect(err).To(BeNil())
 					Expect(count).To(Equal(1))
 
-					time.Sleep(cleanupInterval + time.Second)
-					count, err = ctx.SMRepository.Count(context.Background(), types.OperationType, byOrigin)
-					Expect(err).To(BeNil())
-					Expect(count).Should(Equal(1))
+					Eventually(func() int {
+						count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byPlatformID)
+						Expect(err).To(BeNil())
+
+						return count
+					}, cleanupInterval*2).Should(Equal(0))
 				})
 			})
 		})

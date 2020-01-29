@@ -498,7 +498,7 @@ func (ssi *StoreServiceInstancePlugin) storeOperation(ctx context.Context, stora
 		State:         state,
 		ResourceID:    req.GetInstanceID(),
 		ResourceType:  "/v1/service_instances",
-		Origin:        types.EXTERNAL,
+		PlatformID:    req.GetPlatformID(),
 		CorrelationID: correlationID,
 		ExternalID:    resp.OperationData,
 	}

@@ -52,14 +52,9 @@ const (
 	FAILED OperationState = "failed"
 )
 
-type OperationOrigin string
-
 const (
-	// INTERNAL represents an operation that was triggered by service manager
-	INTERNAL OperationOrigin = "internal"
-
-	// EXTERNAL represents an operation that was triggered by platform registered in service manager
-	EXTERNAL OperationOrigin = "external"
+	// SERVICE_MANAGER_PLATFORM represents the platfom ID of service manager
+	SERVICE_MANAGER_PLATFORM string = "service-manager"
 )
 
 //go:generate smgen api Operation
@@ -71,7 +66,7 @@ type Operation struct {
 	State         OperationState    `json:"state"`
 	ResourceID    string            `json:"resource_id"`
 	ResourceType  string            `json:"resource_type"`
-	Origin        OperationOrigin   `json:"origin"`
+	PlatformID    string            `json:"platform_id"`
 	Errors        json.RawMessage   `json:"errors"`
 	CorrelationID string            `json:"correlation_id"`
 	ExternalID    string            `json:"-"`
@@ -90,7 +85,7 @@ func (e *Operation) Equals(obj Object) bool {
 		e.ExternalID != operation.ExternalID ||
 		e.State != operation.State ||
 		e.Type != operation.Type ||
-		e.Origin != operation.Origin ||
+		e.PlatformID != operation.PlatformID ||
 		!reflect.DeepEqual(e.Errors, operation.Errors) {
 		return false
 	}

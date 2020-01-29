@@ -50,6 +50,9 @@ func NewMaintainer(smCtx context.Context, repository storage.Repository, options
 // Run starts the two recurring jobs responsible for cleaning up operations which are too old
 // and deleting orphan operations
 func (om *Maintainer) Run() {
+	om.cleanUpOldOperations()
+	om.markOrphanOperationsFailed()
+
 	go om.processOldOperations()
 	go om.processOrphanOperations()
 }
@@ -88,7 +91,7 @@ func (om *Maintainer) processOrphanOperations() {
 
 func (om *Maintainer) cleanUpOldOperations() {
 	criteria := []query.Criterion{
-		query.ByField(query.EqualsOperator, "origin", string(types.INTERNAL)),
+		query.ByField(query.NotEqualsOperator, "platform_id", types.SERVICE_MANAGER_PLATFORM),
 		query.ByField(query.LessThanOperator, "created_at", util.ToRFCNanoFormat(time.Now().Add(-om.cleanupInterval))),
 	}
 
