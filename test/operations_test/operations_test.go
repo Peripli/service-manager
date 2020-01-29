@@ -198,7 +198,7 @@ var _ = Describe("Operations", func() {
 		})
 
 		When("Specified cleanup interval passes", func() {
-			Context("operation origin is internal (Service Manager)", func() {
+			Context("operation platform is service Manager", func() {
 				const (
 					fastJobTimeout      = 1 * time.Second
 					fastCleanupInterval = 2 * time.Second
@@ -226,7 +226,7 @@ var _ = Describe("Operations", func() {
 				})
 			})
 
-			Context("operation origin is external", func() {
+			Context("operation platform is platform registered in service manager", func() {
 				const (
 					brokerAPIVersionHeaderKey   = "X-Broker-API-Version"
 					brokerAPIVersionHeaderValue = "2.13"
