@@ -66,7 +66,6 @@ type Operation struct {
 	CorrelationID string            `json:"correlation_id"`
 	ExternalID    string            `json:"-"`
 
-	External          bool      `json:"external"`
 	Reschedule        bool      `json:"reschedule"`
 	DeletionScheduled time.Time `json:"deletion_scheduled"`
 }

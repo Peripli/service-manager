@@ -23,6 +23,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/spf13/pflag"
+
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/tidwall/gjson"
 
@@ -214,6 +216,10 @@ var _ = DescribeTestsFor(TestCase{
 				brokerID, brokerServer, servicePlanID = newServicePlan(ctx)
 				EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 				createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
+				postBindingRequest = Object{
+					"name":                "test-binding",
+					"service_instance_id": instanceID,
+				}
 			})
 
 			JustBeforeEach(func() {
@@ -225,8 +231,8 @@ var _ = DescribeTestsFor(TestCase{
 
 			AfterEach(func() {
 				ctx.SMRepository.Delete(context.TODO(), types.OperationType, query.ByField(query.InOperator, "id", bindingOperationID, instanceOperationID))
-				DeleteInstance(ctx, instanceID, servicePlanID)
 				DeleteBinding(ctx, bindingID, instanceID)
+				DeleteInstance(ctx, instanceID, servicePlanID)
 				ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL + "/" + brokerID).Expect()
 				delete(ctx.Servers, BrokerServerPrefix+brokerID)
 				brokerServer.Close()
@@ -327,7 +333,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 							}
 
-							Context("when id  field is missing", func() {
+							Context("when id field is missing", func() {
 								assertPOSTReturns201WhenFieldIsMissing("id")
 							})
 
@@ -357,8 +363,8 @@ var _ = DescribeTestsFor(TestCase{
 						Context("OSB context", func() {
 							It("enriches the osb context with the tenant and sm platform", func() {
 								createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
-								for _, provisionRequest := range brokerServer.BindingEndpointRequests {
-									body, err := util.BodyToBytes(provisionRequest.Body)
+								for _, bindRequest := range brokerServer.BindingEndpointRequests {
+									body, err := util.BodyToBytes(bindRequest.Body)
 									Expect(err).ToNot(HaveOccurred())
 									tenantValue := gjson.GetBytes(body, "context."+TenantIdentifier).String()
 									Expect(tenantValue).To(Equal(TenantIDValue))
@@ -393,11 +399,466 @@ var _ = DescribeTestsFor(TestCase{
 								})
 							})
 						})
+
+						Context("broker scenarios", func() {
+							var doneChannel chan interface{}
+							var cancelCtx context.Context
+							var cancelFunc context.CancelFunc
+
+							BeforeEach(func() {
+								doneChannel = make(chan interface{})
+								cancelCtx, cancelFunc = context.WithCancel(context.Background())
+							})
+
+							AfterEach(func() {
+								close(doneChannel)
+								brokerServer.ResetHandlers()
+							})
+
+							When("instance creation is still in progress", func() {
+								It("fails to create binding", func() {
+
+								})
+							})
+
+							When("instance creation and orphan mitigation failed", func() {
+								It("fails to create binding", func() {
+
+								})
+							})
+
+							When("plan is not bindable", func() {
+								It("fails to create binding", func() {
+
+								})
+							})
+
+							When("a create operation is already in progress", func() {
+								BeforeEach(func() {
+									brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+									brokerServer.BindingLastOpHandlerFunc(http.MethodPut+"1", DelayingHandler(doneChannel, cancelFunc))
+
+									resp := createBinding(ctx.SMWithOAuthForTenant, true, http.StatusAccepted)
+
+									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.CREATE,
+										State:             types.IN_PROGRESS,
+										ResourceType:      types.ServiceBindingType,
+										Reschedulable:     true,
+										DeletionScheduled: false,
+									})
+
+									verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, false)
+								})
+
+								It("deletes succeed", func() {
+									resp := ctx.SMWithOAuthForTenant.DELETE(web.ServiceBindingsURL+"/"+bindingID).WithQuery("async", testCase.async).
+										Expect().StatusRange(httpexpect.Status2xx)
+
+									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.DELETE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceBindingType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+
+									verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+								})
+							})
+
+							When("instance does not exist", func() {
+								JustBeforeEach(func() {
+									postBindingRequest["service_instance_id"] = "non-existing-id"
+								})
+
+								It("bind fails", func() {
+									createBinding(ctx.SMWithOAuthForTenant, testCase.async, http.StatusNotFound)
+								})
+							})
+
+							When("broker responds with synchronous success", func() {
+								BeforeEach(func() {
+									brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusCreated, Object{"async": false}))
+								})
+
+								It("stores binding as ready=true and the operation as success, non rescheduable with no deletion scheduled", func() {
+									resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+
+									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.CREATE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceBindingType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+
+									verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+								})
+							})
+
+							When("broker responds with asynchronous success", func() {
+								BeforeEach(func() {
+									brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+									brokerServer.BindingLastOpHandlerFunc(http.MethodPut+"1", MultiplePollsRequiredHandler("in progress", "succeeded"))
+								})
+
+								It("polling broker last operation until operation succeeds and eventually marks operation as success", func() {
+									resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+
+									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.CREATE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceBindingType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+
+									verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+								})
+
+								if testCase.async {
+									When("job timeout is reached while polling", func() {
+										var oldCtx *TestContext
+										BeforeEach(func() {
+											oldCtx = ctx
+											ctx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+												Expect(set.Set("operations.job_timeout", (2 * time.Second).String())).ToNot(HaveOccurred())
+											}).Build()
+
+											brokerID, brokerServer, servicePlanID = newServicePlan(ctx)
+											EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
+											createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
+
+											brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+											brokerServer.BindingLastOpHandlerFunc(http.MethodPut+"1", ParameterizedHandler(http.StatusOK, Object{"state": "in progress"}))
+										})
+
+										AfterEach(func() {
+											ctx.SMRepository.Delete(context.TODO(), types.OperationType)
+											DeleteBinding(ctx, bindingID, instanceID)
+											DeleteInstance(ctx, instanceID, servicePlanID)
+											ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL + "/" + brokerID).Expect()
+											delete(ctx.Servers, BrokerServerPrefix+brokerID)
+											brokerServer.Close()
+											ctx = oldCtx
+										})
+
+										It("stores binding as ready false and the operation as reschedulable in progress", func() {
+											resp := createBinding(ctx.SMWithOAuthForTenant, true, http.StatusAccepted)
+
+											bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.CREATE,
+												State:             types.IN_PROGRESS,
+												ResourceType:      types.ServiceBindingType,
+												Reschedulable:     true,
+												DeletionScheduled: false,
+											})
+
+											verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, false)
+										})
+									})
+								}
+
+								When("polling responds with unexpected state and eventually with success state", func() {
+									BeforeEach(func() {
+										brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.BindingLastOpHandlerFunc(http.MethodPut+"1", MultiplePollsRequiredHandler("unknown", "succeeded"))
+									})
+
+									It("keeps polling and eventually updates the binding to ready true and operation to success", func() {
+										resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+
+										bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.CREATE,
+											State:             types.SUCCEEDED,
+											ResourceType:      types.ServiceBindingType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+										verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+									})
+								})
+
+								When("polling responds with unexpected state and eventually with failed state", func() {
+									BeforeEach(func() {
+										brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut+"2", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.BindingLastOpHandlerFunc(http.MethodPut+"2", MultiplePollsRequiredHandler("unknown", "failed"))
+									})
+
+									When("orphan mitigation unbind synchronously succeeds", func() {
+										BeforeEach(func() {
+											brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusOK, Object{"async": false}))
+										})
+
+										It("deletes the binding and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
+											resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+
+											bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.CREATE,
+												State:             types.FAILED,
+												ResourceType:      types.ServiceBindingType,
+												Reschedulable:     false,
+												DeletionScheduled: false,
+											})
+
+											verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+										})
+									})
+
+									When("broker orphan mitigation unbind synchronously fails with an error that will stop further orphan mitigation", func() {
+										BeforeEach(func() {
+											brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusBadRequest, Object{"error": "error"}))
+										})
+
+										It("keeps the binding with ready false and marks the operation with deletion scheduled", func() {
+											resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+
+											bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.CREATE,
+												State:             types.FAILED,
+												ResourceType:      types.ServiceBindingType,
+												Reschedulable:     false,
+												DeletionScheduled: true,
+											})
+
+											verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, !testCase.async)
+										})
+									})
+
+									When("broker orphan mitigation unbind synchronously fails with an error that will continue further orphan mitigation and eventually succeed", func() {
+										BeforeEach(func() {
+											brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"3", MultipleErrorsBeforeSuccessHandler(
+												http.StatusInternalServerError, http.StatusOK,
+												Object{"error": "error"}, Object{"async": "false"},
+											))
+										})
+
+										It("deletes the binding and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
+											resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+
+											bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.CREATE,
+												State:             types.FAILED,
+												ResourceType:      types.ServiceBindingType,
+												Reschedulable:     false,
+												DeletionScheduled: false,
+											})
+
+											verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+										})
+									})
+								})
+
+								When("polling returns an unexpected status code", func() {
+									BeforeEach(func() {
+										brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.BindingLastOpHandlerFunc(http.MethodPut+"3", ParameterizedHandler(http.StatusInternalServerError, Object{"error": "error"}))
+									})
+
+									It("stores the binding as ready false and marks the operation as reschedulable", func() {
+										resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+
+										bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.CREATE,
+											State:             types.FAILED,
+											ResourceType:      types.ServiceBindingType,
+											Reschedulable:     true,
+											DeletionScheduled: false,
+										})
+
+										verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, !testCase.async)
+									})
+								})
+
+								When("broker stops while polling", func() {
+									BeforeEach(func() {
+										brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.BindingLastOpHandlerFunc(http.MethodPut+"3", DelayingHandler(doneChannel, cancelFunc))
+									})
+
+									It("keeps the binding as ready false and marks the operation as failed reschedulable with no orphan mitigation", func() {
+										resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+
+										<-cancelCtx.Done()
+										brokerServer.Close()
+										delete(ctx.Servers, BrokerServerPrefix+brokerID)
+
+										bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.CREATE,
+											State:             types.FAILED,
+											ResourceType:      types.ServiceBindingType,
+											Reschedulable:     true,
+											DeletionScheduled: false,
+										})
+
+										verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, !testCase.async)
+									})
+								})
+							})
+
+							When("bind responds with error due to stopped broker", func() {
+								BeforeEach(func() {
+									brokerServer.Close()
+									delete(ctx.Servers, BrokerServerPrefix+brokerID)
+								})
+
+								It("does not store binding in SMDB and marks operation with failed", func() {
+									resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+
+									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.CREATE,
+										State:             types.FAILED,
+										ResourceType:      types.ServiceBindingType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+
+									verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+								})
+							})
+
+							When("bind responds with error that does not require orphan mitigation", func() {
+								BeforeEach(func() {
+									brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut+"3", ParameterizedHandler(http.StatusBadRequest, Object{"error": "error"}))
+								})
+
+								It("does not store the binding and marks the operation as failed, non rescheduable with empty deletion scheduled", func() {
+									resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+
+									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.CREATE,
+										State:             types.FAILED,
+										ResourceType:      types.ServiceBindingType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+
+									verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+								})
+							})
+
+							When("bind responds with error that requires orphan mitigation", func() {
+								BeforeEach(func() {
+									brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut+"3", ParameterizedHandler(http.StatusInternalServerError, Object{"error": "error"}))
+								})
+
+								When("orphan mitigation unbind asynchronously succeeds", func() {
+									BeforeEach(func() {
+										brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"3", ParameterizedHandler(http.StatusOK, Object{"state": "succeeded"}))
+									})
+
+									It("deletes the binding and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
+										resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+
+										bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.CREATE,
+											State:             types.FAILED,
+											ResourceType:      types.ServiceBindingType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+									})
+								})
+
+								if testCase.async {
+									When("broker orphan mitigation unbind asynchronously keeps failing with an error while polling", func() {
+										BeforeEach(func() {
+											brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+											brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"3", ParameterizedHandler(http.StatusBadRequest, Object{"error": "error"}))
+										})
+
+										It("keeps the binding as ready false and marks the operation as deletion scheduled", func() {
+											resp := createBinding(ctx.SMWithOAuthForTenant, true, http.StatusAccepted)
+
+											bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.CREATE,
+												State:             types.FAILED,
+												ResourceType:      types.ServiceBindingType,
+												Reschedulable:     true,
+												DeletionScheduled: true,
+											})
+
+											verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, false)
+										})
+									})
+								}
+
+								When("broker orphan mitigation unbind asynchronously fails with an error that will continue further orphan mitigation and eventually succeed", func() {
+									BeforeEach(func() {
+										brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+
+										brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"3", MultipleErrorsBeforeSuccessHandler(
+											http.StatusOK, http.StatusOK,
+											Object{"state": "failed"}, Object{"state": "succeeded"},
+										))
+									})
+
+									It("deletes the binding and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
+										resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+
+										bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.CREATE,
+											State:             types.FAILED,
+											ResourceType:      types.ServiceBindingType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+									})
+								})
+							})
+
+							When("bind responds with error due to times out", func() {
+								var oldCtx *TestContext
+								BeforeEach(func() {
+									oldCtx = ctx
+									ctx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+										Expect(set.Set("httpclient.response_header_timeout", (1 * time.Second).String())).ToNot(HaveOccurred())
+									}).Build()
+
+									brokerID, brokerServer, servicePlanID = newServicePlan(ctx)
+									EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
+									createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
+
+									brokerServer.BindingHandlerFunc(http.MethodPut, http.MethodPut+"1", DelayingHandler(doneChannel, cancelFunc))
+								})
+
+								AfterEach(func() {
+									ctx.SMRepository.Delete(context.TODO(), types.OperationType)
+									DeleteBinding(ctx, bindingID, instanceID)
+									DeleteInstance(ctx, instanceID, servicePlanID)
+									ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL + "/" + brokerID).Expect()
+									delete(ctx.Servers, BrokerServerPrefix+brokerID)
+									brokerServer.Close()
+									ctx = oldCtx
+								})
+
+								It("orphan mitigates the binding", func() {
+									resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+
+									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.CREATE,
+										State:             types.FAILED,
+										ResourceType:      types.ServiceBindingType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+
+									verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+								})
+							})
+						})
+
 					})
 				}
 			})
 
-			Describe("DELETE", func() {
+			FDescribe("DELETE", func() {
 				It("returns 405 for bulk delete", func() {
 					ctx.SMWithOAuthForTenant.DELETE(web.ServiceBindingsURL).
 						Expect().Status(http.StatusMethodNotAllowed)
@@ -455,10 +916,438 @@ var _ = DescribeTestsFor(TestCase{
 								})
 							})
 						})
+						Context("broker scenarios", func() {
+							var doneChannel chan interface{}
+							var cancelCtx context.Context
+							var cancelFunc context.CancelFunc
+
+							BeforeEach(func() {
+								doneChannel = make(chan interface{})
+								cancelCtx, cancelFunc = context.WithCancel(context.Background())
+
+								resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+								bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+									Category:          types.CREATE,
+									State:             types.SUCCEEDED,
+									ResourceType:      types.ServiceBindingType,
+									Reschedulable:     false,
+									DeletionScheduled: false,
+								})
+								verifyBindingExists(ctx.SMWithOAuth, bindingID, true)
+
+							})
+
+							AfterEach(func() {
+								close(doneChannel)
+							})
+
+							When("a delete operation is already in progress", func() {
+								BeforeEach(func() {
+									brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+									brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"1", DelayingHandler(doneChannel, cancelFunc))
+
+									resp := deleteBinding(ctx.SMWithOAuthForTenant, true, http.StatusAccepted)
+
+									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.DELETE,
+										State:             types.IN_PROGRESS,
+										ResourceType:      types.ServiceBindingType,
+										Reschedulable:     true,
+										DeletionScheduled: false,
+									})
+
+									verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+								})
+
+								It("deletes fail with operation in progress", func() {
+									deleteBinding(ctx.SMWithOAuthForTenant, testCase.async, http.StatusUnprocessableEntity)
+								})
+							})
+
+							When("broker responds with synchronous success", func() {
+								BeforeEach(func() {
+									brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"1", ParameterizedHandler(http.StatusOK, Object{"async": false}))
+								})
+
+								It("deletes the binding and stores a delete succeeded operation", func() {
+									resp := deleteBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedDeleteSuccessStatusCode)
+
+									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.DELETE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceBindingType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+
+									verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+								})
+							})
+
+							When("broker responds with asynchronous success", func() {
+								BeforeEach(func() {
+									brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+									brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"1", MultiplePollsRequiredHandler("in progress", "succeeded"))
+								})
+
+								It("polling broker last operation until operation succeeds and eventually marks operation as success", func() {
+									resp := deleteBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedDeleteSuccessStatusCode)
+
+									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.DELETE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceBindingType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+
+									verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+								})
+
+								When("polling responds with unexpected state and eventually with success state", func() {
+									BeforeEach(func() {
+										brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"1", MultiplePollsRequiredHandler("unknown", "succeeded"))
+									})
+
+									It("keeps polling and eventually deletes the binding and marks the operation as success", func() {
+										resp := deleteBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedDeleteSuccessStatusCode)
+
+										bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.DELETE,
+											State:             types.SUCCEEDED,
+											ResourceType:      types.ServiceBindingType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+									})
+								})
+
+								When("polling responds with unexpected state and eventually with failed state", func() {
+									BeforeEach(func() {
+										brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"2", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"2", MultiplePollsRequiredHandler("unknown", "failed"))
+									})
+
+									When("orphan mitigation unbind synchronously succeeds", func() {
+										It("deletes the binding and marks the operation as success", func() {
+											resp := deleteBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+
+											bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.DELETE,
+												State:             types.FAILED,
+												ResourceType:      types.ServiceBindingType,
+												Reschedulable:     false,
+												DeletionScheduled: true,
+											})
+
+											brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"2", ParameterizedHandler(http.StatusOK, Object{"async": false}))
+
+											bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.DELETE,
+												State:             types.SUCCEEDED,
+												ResourceType:      types.ServiceBindingType,
+												Reschedulable:     false,
+												DeletionScheduled: false,
+											})
+
+											verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+										})
+									})
+
+									When("broker orphan mitigation unbind synchronously fails with an unexpected error", func() {
+										It("keeps the binding and marks the operation with deletion scheduled", func() {
+											resp := deleteBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+
+											bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.DELETE,
+												State:             types.FAILED,
+												ResourceType:      types.ServiceBindingType,
+												Reschedulable:     false,
+												DeletionScheduled: true,
+											})
+
+											brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"2", ParameterizedHandler(http.StatusBadRequest, Object{"error": "error"}))
+
+											bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.DELETE,
+												State:             types.FAILED,
+												ResourceType:      types.ServiceBindingType,
+												Reschedulable:     false,
+												DeletionScheduled: true,
+											})
+
+											verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+										})
+									})
+
+									When("broker orphan mitigation unbind synchronously fails with an error that will continue further orphan mitigation and eventually succeed", func() {
+										It("deletes the binding and marks the operation that triggered the orphan mitigation as failed with no deletion scheduled and not reschedulable", func() {
+											resp := deleteBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+
+											bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.DELETE,
+												State:             types.FAILED,
+												ResourceType:      types.ServiceBindingType,
+												Reschedulable:     false,
+												DeletionScheduled: true,
+											})
+
+											brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"2", MultipleErrorsBeforeSuccessHandler(
+												http.StatusInternalServerError, http.StatusOK,
+												Object{"error": "error"}, Object{"async": false},
+											))
+
+											bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.DELETE,
+												State:             types.SUCCEEDED,
+												ResourceType:      types.ServiceBindingType,
+												Reschedulable:     false,
+												DeletionScheduled: false,
+											})
+
+											verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+										})
+									})
+								})
+
+								When("polling returns an unexpected status code", func() {
+									BeforeEach(func() {
+										brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"3", ParameterizedHandler(http.StatusInternalServerError, Object{"error": "error"}))
+									})
+
+									It("keeps the binding and stores the operation as reschedulable", func() {
+										resp := deleteBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+
+										bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.DELETE,
+											State:             types.FAILED,
+											ResourceType:      types.ServiceBindingType,
+											Reschedulable:     true,
+											DeletionScheduled: false,
+										})
+
+										verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+									})
+								})
+
+								When("broker stops while polling", func() {
+									BeforeEach(func() {
+										brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"3", DelayingHandler(doneChannel, cancelFunc))
+									})
+
+									It("keeps the binding and stores the operation as reschedulable", func() {
+										resp := deleteBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+
+										<-cancelCtx.Done()
+										brokerServer.Close()
+										delete(ctx.Servers, BrokerServerPrefix+brokerID)
+
+										bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.DELETE,
+											State:             types.FAILED,
+											ResourceType:      types.ServiceBindingType,
+											Reschedulable:     true,
+											DeletionScheduled: false,
+										})
+
+										verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+									})
+								})
+							})
+
+							When("unbind responds with error due to stopped broker", func() {
+								BeforeEach(func() {
+									brokerServer.Close()
+									delete(ctx.Servers, BrokerServerPrefix+brokerID)
+								})
+
+								It("keeps the binding and marks operation with failed", func() {
+									resp := deleteBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+
+									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.DELETE,
+										State:             types.FAILED,
+										ResourceType:      types.ServiceBindingType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+
+									verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+								})
+							})
+
+							When("unbind responds with error that does not require orphan mitigation", func() {
+								BeforeEach(func() {
+									brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusBadRequest, Object{"error": "error"}))
+								})
+
+								It("keeps the binding and marks the operation as failed", func() {
+									resp := deleteBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.DELETE,
+										State:             types.FAILED,
+										ResourceType:      types.ServiceBindingType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+
+									verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+								})
+							})
+
+							When("unbind responds with error that requires orphan mitigation", func() {
+								BeforeEach(func() {
+									brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusInternalServerError, Object{"error": "error"}))
+								})
+
+								When("orphan mitigation unbind asynchronously succeeds", func() {
+									It("deletes the binding and marks the operation as success", func() {
+										resp := deleteBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+
+										bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.DELETE,
+											State:             types.FAILED,
+											ResourceType:      types.ServiceBindingType,
+											Reschedulable:     false,
+											DeletionScheduled: true,
+										})
+
+										brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"3", ParameterizedHandler(http.StatusOK, Object{"state": "succeeded"}))
+
+										bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.DELETE,
+											State:             types.SUCCEEDED,
+											ResourceType:      types.ServiceBindingType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+									})
+								})
+
+								if testCase.async {
+									When("broker orphan mitigation unbind asynchronously keeps failing with an error while polling", func() {
+										It("keeps the binding and marks the operation as failed reschedulable with deletion scheduled", func() {
+											resp := deleteBinding(ctx.SMWithOAuthForTenant, true, http.StatusAccepted)
+
+											bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.DELETE,
+												State:             types.FAILED,
+												ResourceType:      types.ServiceBindingType,
+												Reschedulable:     false,
+												DeletionScheduled: true,
+											})
+
+											brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+											brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"3", ParameterizedHandler(http.StatusBadRequest, Object{"error": "error"}))
+
+											bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+												Category:          types.DELETE,
+												State:             types.FAILED,
+												ResourceType:      types.ServiceBindingType,
+												Reschedulable:     true,
+												DeletionScheduled: true,
+											})
+
+											verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
+										})
+									})
+								}
+
+								When("broker orphan mitigation unbind asynchronously fails with an error that will continue further orphan mitigation and eventually succeed", func() {
+									It("deletes the binding and marks the operation as success", func() {
+										resp := deleteBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+
+										bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.DELETE,
+											State:             types.FAILED,
+											ResourceType:      types.ServiceBindingType,
+											Reschedulable:     false,
+											DeletionScheduled: true,
+										})
+
+										brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"3", MultipleErrorsBeforeSuccessHandler(
+											http.StatusOK, http.StatusOK,
+											Object{"state": "failed"}, Object{"state": "succeeded"},
+										))
+
+										bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.DELETE,
+											State:             types.SUCCEEDED,
+											ResourceType:      types.ServiceBindingType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+									})
+								})
+							})
+
+							When("unbind responds with error due to times out", func() {
+								var oldCtx *TestContext
+								BeforeEach(func() {
+									oldCtx = ctx
+									ctx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+										Expect(set.Set("httpclient.response_header_timeout", (1 * time.Second).String())).ToNot(HaveOccurred())
+									}).Build()
+
+									brokerID, brokerServer, servicePlanID = newServicePlan(ctx)
+									EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
+									createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
+									postBindingRequest["service_instance_id"] = instanceID
+									createBinding(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
+
+									brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"1", DelayingHandler(doneChannel, cancelFunc))
+
+								})
+
+								AfterEach(func() {
+									ctx.SMRepository.Delete(context.TODO(), types.OperationType)
+									DeleteBinding(ctx, bindingID, instanceID)
+									DeleteInstance(ctx, instanceID, servicePlanID)
+									ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL + "/" + brokerID).Expect()
+									delete(ctx.Servers, BrokerServerPrefix+brokerID)
+									brokerServer.Close()
+									ctx = oldCtx
+								})
+
+								It("orphan mitigates the binding", func() {
+									resp := deleteBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+
+									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.DELETE,
+										State:             types.FAILED,
+										ResourceType:      types.ServiceBindingType,
+										Reschedulable:     false,
+										DeletionScheduled: true,
+									})
+
+									brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"1", ParameterizedHandler(http.StatusOK, Object{"async": false}))
+
+									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.DELETE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceBindingType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+
+									verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+								})
+							})
+						})
 					})
 				}
 			})
-
 		})
 	},
 })

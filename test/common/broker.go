@@ -128,31 +128,43 @@ func (b *BrokerServer) ResetCallHistory() {
 func (b *BrokerServer) initRouter() {
 	router := mux.NewRouter()
 	router.HandleFunc("/v2/catalog", func(rw http.ResponseWriter, req *http.Request) {
+		b.mutex.RLock()
+		defer b.mutex.RUnlock()
 		b.CatalogEndpointRequests = append(b.CatalogEndpointRequests, req)
 		b.CatalogHandler(rw, req)
 	}).Methods(http.MethodGet)
 
 	router.HandleFunc("/v2/service_instances/{instance_id}", func(rw http.ResponseWriter, req *http.Request) {
+		b.mutex.RLock()
+		defer b.mutex.RUnlock()
 		b.ServiceInstanceEndpointRequests = append(b.ServiceInstanceEndpointRequests, req)
 		b.ServiceInstanceHandler(rw, req)
 	}).Methods(http.MethodPut, http.MethodDelete, http.MethodGet, http.MethodPatch)
 
 	router.HandleFunc("/v2/service_instances/{instance_id}/service_bindings/{binding_id}", func(rw http.ResponseWriter, req *http.Request) {
+		b.mutex.RLock()
+		defer b.mutex.RUnlock()
 		b.BindingEndpointRequests = append(b.BindingEndpointRequests, req)
 		b.BindingHandler(rw, req)
 	}).Methods(http.MethodPut, http.MethodDelete, http.MethodGet)
 
 	router.HandleFunc("/v2/service_instances/{instance_id}/last_operation", func(rw http.ResponseWriter, req *http.Request) {
+		b.mutex.RLock()
+		defer b.mutex.RUnlock()
 		b.ServiceInstanceLastOpEndpointRequests = append(b.ServiceInstanceLastOpEndpointRequests, req)
 		b.ServiceInstanceLastOpHandler(rw, req)
 	}).Methods(http.MethodGet)
 
 	router.HandleFunc("/v2/service_instances/{instance_id}/service_bindings/{binding_id}/last_operation", func(rw http.ResponseWriter, req *http.Request) {
+		b.mutex.RLock()
+		defer b.mutex.RUnlock()
 		b.BindingLastOpEndpointRequests = append(b.BindingLastOpEndpointRequests, req)
 		b.BindingLastOpHandler(rw, req)
 	}).Methods(http.MethodGet)
 
 	router.HandleFunc("/v2/service_instances/{instance_id}/service_bindings/{binding_id}/adapt_credentials", func(rw http.ResponseWriter, req *http.Request) {
+		b.mutex.RLock()
+		defer b.mutex.RUnlock()
 		b.BindingAdaptCredentialsEndpointRequests = append(b.BindingAdaptCredentialsEndpointRequests, req)
 		b.BindingAdaptCredentialsHandler(rw, req)
 	}).Methods(http.MethodPost)
@@ -333,11 +345,11 @@ func SetResponse(rw http.ResponseWriter, status int, message map[string]interfac
 	}
 }
 
-func DelayingHandler(done chan interface{}, reached chan<- interface{}) func(req *http.Request) (int, map[string]interface{}) {
+func DelayingHandler(done chan interface{}, cancelFunc context.CancelFunc) func(req *http.Request) (int, map[string]interface{}) {
 	return func(req *http.Request) (int, map[string]interface{}) {
-		brokerDelay := 300 * time.Second
+		brokerDelay := 30 * time.Second
 		timeoutContext, _ := context.WithTimeout(req.Context(), brokerDelay)
-		close(reached)
+		cancelFunc()
 		select {
 		case <-timeoutContext.Done():
 		case <-done:

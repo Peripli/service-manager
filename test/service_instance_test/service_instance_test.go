@@ -25,8 +25,6 @@ import (
 
 	"github.com/Peripli/service-manager/pkg/util"
 
-	"github.com/Peripli/service-manager/pkg/query"
-
 	"github.com/spf13/pflag"
 
 	"github.com/gofrs/uuid"
@@ -91,7 +89,6 @@ var _ = DescribeTestsFor(TestCase{
 				anotherServicePlanID string
 				brokerID             string
 				brokerServer         *BrokerServer
-				operationID          string
 				instanceID           string
 			)
 
@@ -423,12 +420,13 @@ var _ = DescribeTestsFor(TestCase{
 
 						Context("broker scenarios", func() {
 							var doneChannel chan interface{}
-							var pollingStartedChannel chan interface{}
+							var cancelCtx context.Context
+							var cancelFunc context.CancelFunc
 
 							BeforeEach(func() {
 								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 								doneChannel = make(chan interface{})
-								pollingStartedChannel = make(chan interface{})
+								cancelCtx, cancelFunc = context.WithCancel(context.Background())
 							})
 
 							AfterEach(func() {
@@ -439,7 +437,7 @@ var _ = DescribeTestsFor(TestCase{
 							When("a create operation is already in progress", func() {
 								BeforeEach(func() {
 									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
-									brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"1", DelayingHandler(doneChannel, pollingStartedChannel))
+									brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"1", DelayingHandler(doneChannel, cancelFunc))
 
 									resp := createInstance(ctx.SMWithOAuthForTenant, true, http.StatusAccepted)
 
@@ -549,7 +547,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 
 										AfterEach(func() {
-											ctx.SMRepository.Delete(context.TODO(), types.OperationType, query.ByField(query.EqualsOperator, "id", operationID))
+											ctx.SMRepository.Delete(context.TODO(), types.OperationType)
 											DeleteInstance(ctx, instanceID, servicePlanID)
 											ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL + "/" + brokerID).Expect()
 											delete(ctx.Servers, BrokerServerPrefix+brokerID)
@@ -687,13 +685,13 @@ var _ = DescribeTestsFor(TestCase{
 								When("broker stops while polling", func() {
 									BeforeEach(func() {
 										brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
-										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"3", DelayingHandler(doneChannel, pollingStartedChannel))
+										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"3", DelayingHandler(doneChannel, cancelFunc))
 									})
 
 									It("keeps the instance as ready false and marks the operation as failed reschedulable with no orphan mitigation", func() {
 										resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
-										<-pollingStartedChannel
+										<-cancelCtx.Done()
 										brokerServer.Close()
 										delete(ctx.Servers, BrokerServerPrefix+brokerID)
 
@@ -837,7 +835,7 @@ var _ = DescribeTestsFor(TestCase{
 									var plans *httpexpect.Array
 									brokerID, brokerServer, plans = prepareBrokerWithCatalog(ctx, ctx.SMWithOAuth)
 									servicePlanID = plans.Element(0).Object().Value("id").String().Raw()
-									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", DelayingHandler(doneChannel, pollingStartedChannel))
+									brokerServer.ServiceInstanceHandlerFunc(http.MethodPut, http.MethodPut+"1", DelayingHandler(doneChannel, cancelFunc))
 									postInstanceRequest = Object{
 										"name":             "test-instance",
 										"service_plan_id":  servicePlanID,
@@ -846,7 +844,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 								AfterEach(func() {
-									ctx.SMRepository.Delete(context.TODO(), types.OperationType, query.ByField(query.EqualsOperator, "id", operationID))
+									ctx.SMRepository.Delete(context.TODO(), types.OperationType)
 									DeleteInstance(ctx, instanceID, servicePlanID)
 									ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL + "/" + brokerID).Expect()
 									delete(ctx.Servers, BrokerServerPrefix+brokerID)
@@ -1084,12 +1082,12 @@ var _ = DescribeTestsFor(TestCase{
 
 						Context("broker scenarios", func() {
 							var doneChannel chan interface{}
-							var reached chan interface{}
-
+							var cancelCtx context.Context
+							var cancelFunc context.CancelFunc
 							BeforeEach(func() {
 								EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 								doneChannel = make(chan interface{})
-								reached = make(chan interface{})
+								cancelCtx, cancelFunc = context.WithCancel(context.Background())
 								resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
 
 								instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
@@ -1111,7 +1109,7 @@ var _ = DescribeTestsFor(TestCase{
 							When("a delete operation is already in progress", func() {
 								BeforeEach(func() {
 									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
-									brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"1", DelayingHandler(doneChannel, reached))
+									brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"1", DelayingHandler(doneChannel, cancelFunc))
 
 									resp := deleteInstance(ctx.SMWithOAuthForTenant, true, http.StatusAccepted)
 
@@ -1134,6 +1132,35 @@ var _ = DescribeTestsFor(TestCase{
 								It("deletes fail with operation in progress", func() {
 									ctx.SMWithOAuthForTenant.DELETE(web.ServiceInstancesURL+"/"+instanceID).WithQuery("async", testCase.async).
 										Expect().Status(http.StatusUnprocessableEntity)
+								})
+							})
+
+							When("binding exists for the instance", func() {
+								It("fails to delete it and marks the operation as failed", func() {
+									ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
+										WithQuery("async", false).
+										WithJSON(Object{
+											"name":                "test-service-binding",
+											"service_instance_id": instanceID,
+										}).
+										Expect().
+										Status(http.StatusCreated)
+
+									expectedStatus := http.StatusBadRequest
+									if testCase.async {
+										expectedStatus = http.StatusAccepted
+									}
+									resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, expectedStatus)
+
+									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.DELETE,
+										State:             types.FAILED,
+										ResourceType:      types.ServiceInstanceType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+
+									verifyInstanceExists(instanceID, true)
 								})
 							})
 
@@ -1310,13 +1337,13 @@ var _ = DescribeTestsFor(TestCase{
 								When("broker stops while polling", func() {
 									BeforeEach(func() {
 										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
-										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", DelayingHandler(doneChannel, reached))
+										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", DelayingHandler(doneChannel, cancelFunc))
 									})
 
 									It("keeps the instance and stores the operation as reschedulable", func() {
 										resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 
-										<-reached
+										<-cancelCtx.Done()
 										brokerServer.Close()
 										delete(ctx.Servers, BrokerServerPrefix+brokerID)
 
@@ -1494,12 +1521,12 @@ var _ = DescribeTestsFor(TestCase{
 
 									verifyInstanceExists(instanceID, true)
 
-									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", DelayingHandler(doneChannel, reached))
+									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", DelayingHandler(doneChannel, cancelFunc))
 
 								})
 
 								AfterEach(func() {
-									ctx.SMRepository.Delete(context.TODO(), types.OperationType, query.ByField(query.EqualsOperator, "id", operationID))
+									ctx.SMRepository.Delete(context.TODO(), types.OperationType)
 									DeleteInstance(ctx, instanceID, servicePlanID)
 									ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL + "/" + brokerID).Expect()
 									delete(ctx.Servers, BrokerServerPrefix+brokerID)

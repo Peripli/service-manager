@@ -122,7 +122,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 		if isReady := i.isInstanceReady(instance); !isReady {
 			return nil, &util.HTTPError{
 				ErrorType:   "OperationInProgress",
-				Description: fmt.Sprintf("creation of instance %s is still in progress", instance.Name),
+				Description: fmt.Sprintf("creation of instance %s is still in progress or failed", instance.Name),
 				StatusCode:  http.StatusUnprocessableEntity,
 			}
 		}
@@ -175,7 +175,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 				if bindResponse.OperationKey != nil {
 					operation.ExternalID = string(*bindResponse.OperationKey)
 				}
-				if _, err := i.repository.Update(ctx, instance, query.LabelChanges{}); err != nil {
+				if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
 					return nil, fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule", instance.ID)
 				}
 			} else {
@@ -201,7 +201,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 
 func (i *ServiceBindingInterceptor) AroundTxDelete(f storage.InterceptDeleteAroundTxFunc) storage.InterceptDeleteAroundTxFunc {
 	return func(ctx context.Context, deletionCriteria ...query.Criterion) error {
-		bindings, err := i.repository.List(ctx, types.ServiceBrokerType, deletionCriteria...)
+		bindings, err := i.repository.List(ctx, types.ServiceBindingType, deletionCriteria...)
 		if err != nil {
 			return fmt.Errorf("failed to get bindings for deletion: %s", err)
 		}
@@ -316,7 +316,9 @@ func (i *ServiceBindingInterceptor) isInstanceDeleting(ctx context.Context, inst
 		return false, nil
 	}
 
-	return !lastOperation.DeletionScheduled.IsZero(), nil
+	deletionScheduled := !lastOperation.DeletionScheduled.IsZero()
+	deletionInProgress := lastOperation.Type == types.DELETE && lastOperation.State == types.IN_PROGRESS
+	return deletionScheduled || deletionInProgress, nil
 }
 
 func getLastOperationByResourceID(ctx context.Context, resourceID string, repository storage.Repository) (*types.Operation, bool, error) {
@@ -338,7 +340,14 @@ func getInstanceByID(ctx context.Context, instanceID string, repository storage.
 	byID := query.ByField(query.EqualsOperator, "id", instanceID)
 	instanceObject, err := repository.Get(ctx, types.ServiceInstanceType, byID)
 	if err != nil {
-		return nil, fmt.Errorf("could not fetch instance with id %s from db", instanceID)
+		if err == util.ErrNotFoundInStorage {
+			return nil, &util.HTTPError{
+				ErrorType:   "NotFound",
+				Description: err.Error(),
+				StatusCode:  http.StatusNotFound,
+			}
+		}
+		return nil, fmt.Errorf("could not fetch instance with id %s from db: %s", instanceID, util.HandleStorageError(err, types.ServiceInstanceType.String()))
 	}
 
 	return instanceObject.(*types.ServiceInstance), nil
@@ -464,7 +473,7 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 					StatusCode:  http.StatusBadGateway,
 				}
 			default:
-				return fmt.Errorf("invalid state during poll last operation for binding with id %s and name %s: %s", binding.ID, binding.Name, pollingResponse.State)
+				log.C(ctx).Errorf("invalid state during poll last operation for binding with id %s and name %s: %s", binding.ID, binding.Name, pollingResponse.State)
 			}
 		}
 	}

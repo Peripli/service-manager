@@ -170,10 +170,6 @@ func (ds *Scheduler) getLastOperation(ctx context.Context, operation *types.Oper
 
 func (ds *Scheduler) checkForConcurrentOperations(ctx context.Context, operation *types.Operation, lastOperation *types.Operation) error {
 	log.C(ctx).Debugf("Checking if another operation is in progress to resource of type %s with id %s", operation.ResourceType.String(), operation.ResourceID)
-	if operation.External {
-		log.C(ctx).Debugf("Operation with id %s is marked as external and concurrent operations policies will not be checked", operation.ID)
-		return nil
-	}
 
 	isDeletionInProgress := lastOperation.Type == types.DELETE && lastOperation.State == types.IN_PROGRESS &&
 		time.Now().Before(lastOperation.UpdatedAt.Add(ds.jobTimeout))
@@ -235,10 +231,12 @@ func (ds *Scheduler) checkForConcurrentOperations(ctx context.Context, operation
 		switch operation.Type {
 		case types.CREATE:
 			// it doesnt really make sense to create something that was recently updated
-			return &util.HTTPError{
-				ErrorType:   "ConcurrentOperationInProgress",
-				Description: "Another concurrent operation in progress for this resource",
-				StatusCode:  http.StatusUnprocessableEntity,
+			if isLastOperationTimeoutNotExceeded {
+				return &util.HTTPError{
+					ErrorType:   "ConcurrentOperationInProgress",
+					Description: "Another concurrent operation in progress for this resource",
+					StatusCode:  http.StatusUnprocessableEntity,
+				}
 			}
 		case types.UPDATE:
 			// an update is in progress and job timeout is not exceeded
