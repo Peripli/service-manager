@@ -458,6 +458,7 @@ func (ds *Scheduler) handleActionResponse(ctx context.Context, jobError error, o
 			} else {
 				// a delete that succeed or an orphan mitigation caused by a delete that succeeded are both successful deletions
 				finalState = types.SUCCEEDED
+				opAfterJob.Errors = json.RawMessage{}
 			}
 
 			// a non reschedulable operation has finished with no errors:

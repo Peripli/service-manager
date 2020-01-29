@@ -157,6 +157,7 @@ var _ = BeforeEach(func() {
 var _ = JustAfterEach(func() {
 	common.RemoveAllOperations(ctx.SMRepository)
 	common.RemoveAllInstances(ctx)
+	common.RemoveAllOperations(ctx.SMRepository)
 })
 
 var _ = AfterSuite(func() {
