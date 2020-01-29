@@ -125,11 +125,15 @@ func (ds *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *
 				return
 			}
 
-			stateCtxWithOpAndTimeout, cancel := context.WithTimeout(stateCtxWithOp, ds.jobTimeout)
-			defer cancel()
+			stateCtxWithOpAndTimeout, timeoutCtxCancel := context.WithTimeout(stateCtxWithOp, ds.jobTimeout)
+			defer timeoutCtxCancel()
 			go func() {
-				<-ds.smCtx.Done()
-				cancel()
+				select {
+				case <-ds.smCtx.Done():
+					timeoutCtxCancel()
+				case <-stateCtxWithOpAndTimeout.Done():
+				}
+
 			}()
 
 			var actionErr error
