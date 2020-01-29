@@ -139,7 +139,7 @@ var _ = DescribeTestsFor(TestCase{
 			}
 
 			verifyInstanceExists := func(instanceID string, ready bool) {
-				timeoutDuration := 25 * time.Second
+				timeoutDuration := 15 * time.Second
 				tickerInterval := 100 * time.Millisecond
 				ticker := time.NewTicker(tickerInterval)
 				timeout := time.After(timeoutDuration)
@@ -169,7 +169,7 @@ var _ = DescribeTestsFor(TestCase{
 			}
 
 			verifyInstanceDoesNotExist := func(instanceID string) {
-				timeoutDuration := 25 * time.Second
+				timeoutDuration := 15 * time.Second
 				tickerInterval := 100 * time.Millisecond
 				ticker := time.NewTicker(tickerInterval)
 				timeout := time.After(timeoutDuration)

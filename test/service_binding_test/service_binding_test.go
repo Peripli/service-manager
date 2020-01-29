@@ -163,7 +163,7 @@ var _ = DescribeTestsFor(TestCase{
 			}
 
 			verifyBindingExists := func(smClient *SMExpect, bindingID string, ready bool) {
-				timeoutDuration := 25 * time.Second
+				timeoutDuration := 15 * time.Second
 				tickerInterval := 100 * time.Millisecond
 				ticker := time.NewTicker(tickerInterval)
 				timeout := time.After(timeoutDuration)
@@ -193,7 +193,7 @@ var _ = DescribeTestsFor(TestCase{
 			}
 
 			verifyBindingDoesNotExist := func(smClient *SMExpect, bindingID string) {
-				timeoutDuration := 25 * time.Second
+				timeoutDuration := 15 * time.Second
 				tickerInterval := 100 * time.Millisecond
 				ticker := time.NewTicker(tickerInterval)
 				timeout := time.After(timeoutDuration)
