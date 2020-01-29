@@ -38,7 +38,7 @@ type ServiceBinding struct {
 	RouteServiceURL   string                 `json:"route_service_url,omitempty"`
 	VolumeMounts      json.RawMessage        `json:"volume_mounts,omitempty"`
 	Endpoints         json.RawMessage        `json:"endpoints,omitempty"`
-	Context           json.RawMessage        `json:"-"`
+	Context           json.RawMessage        `json:"context,omitempty"`
 	BindResource      json.RawMessage        `json:"bind_resource,omitempty"`
 	Credentials       string                 `json:"credentials"`
 	Parameters        map[string]interface{} `json:"parameters,omitempty"`

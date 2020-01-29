@@ -105,7 +105,6 @@ func DeleteBinding(ctx *TestContext, bindingID, instanceID string) error {
 		}); err != nil {
 			return err
 		}
-
 	}
 
 	UUID, err := uuid.NewV4()

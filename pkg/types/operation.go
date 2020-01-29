@@ -57,17 +57,17 @@ const (
 // Operation struct
 type Operation struct {
 	Base
-	Description   string            `json:"description"`
+	Description   string            `json:"description,omitempty"`
 	Type          OperationCategory `json:"type"`
 	State         OperationState    `json:"state"`
 	ResourceID    string            `json:"resource_id"`
 	ResourceType  ObjectType        `json:"resource_type"`
-	Errors        json.RawMessage   `json:"errors"`
+	Errors        json.RawMessage   `json:"errors,omitempty"`
 	CorrelationID string            `json:"correlation_id"`
 	ExternalID    string            `json:"-"`
 
 	Reschedule        bool      `json:"reschedule"`
-	DeletionScheduled time.Time `json:"deletion_scheduled"`
+	DeletionScheduled time.Time `json:"deletion_scheduled,omitempty"`
 }
 
 func (e *Operation) Equals(obj Object) bool {

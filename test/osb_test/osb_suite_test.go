@@ -155,8 +155,8 @@ var _ = BeforeEach(func() {
 })
 
 var _ = JustAfterEach(func() {
-	common.RemoveAllInstances(ctx)
 	common.RemoveAllOperations(ctx.SMRepository)
+	common.RemoveAllInstances(ctx)
 })
 
 var _ = AfterSuite(func() {
@@ -371,10 +371,9 @@ type operationExpectations struct {
 func verifyOperationExists(operationExpectations operationExpectations) {
 	byResourceID := query.ByField(query.EqualsOperator, "resource_id", operationExpectations.ResourceID)
 	byType := query.ByField(query.EqualsOperator, "type", string(operationExpectations.Type))
-	orderByCreation := query.OrderResultBy("created_at", query.AscOrder)
-	limitToOne := query.LimitResultBy(1)
+	orderByCreation := query.OrderResultBy("paging_sequence", query.DescOrder)
 
-	objectList, err := ctx.SMRepository.List(context.TODO(), types.OperationType, byType, byResourceID, orderByCreation, limitToOne)
+	objectList, err := ctx.SMRepository.List(context.TODO(), types.OperationType, byType, byResourceID, orderByCreation)
 	Expect(err).ToNot(HaveOccurred())
 	operation := objectList.ItemAt(0).(*types.Operation)
 	Expect(operation.Type).To(Equal(operationExpectations.Type))
@@ -387,7 +386,7 @@ func verifyOperationExists(operationExpectations operationExpectations) {
 
 func verifyOperationDoesNotExist(resourceID string, operationTypes ...string) {
 	byResourceID := query.ByField(query.EqualsOperator, "resource_id", resourceID)
-	orderByCreation := query.OrderResultBy("created_at", query.AscOrder)
+	orderByCreation := query.OrderResultBy("paging_sequence", query.DescOrder)
 	criterias := append([]query.Criterion{}, byResourceID, orderByCreation)
 	if len(operationTypes) != 0 {
 		byOperationTypes := query.ByField(query.InOperator, "type", fmt.Sprintf("(%s)", strings.Join(operationTypes, ",")))

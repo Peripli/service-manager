@@ -306,7 +306,7 @@ var _ = Describe("Deprovision", func() {
 
 			ctx.SMWithOAuth.List(web.ServiceInstancesURL).Path("$[*].id").Array().NotContains(SID)
 
-			verifyOperationDoesNotExist(SID)
+			verifyOperationDoesNotExist(SID, "delete")
 		})
 	})
 
@@ -327,7 +327,7 @@ var _ = Describe("Deprovision", func() {
 
 			ctx.SMWithOAuth.List(web.ServiceInstancesURL).Path("$[*].id").Array().NotContains(SID)
 
-			verifyOperationDoesNotExist(SID)
+			verifyOperationDoesNotExist(SID, "delete")
 		})
 	})
 
@@ -338,7 +338,7 @@ var _ = Describe("Deprovision", func() {
 
 			ctx.SMWithOAuth.List(web.ServiceInstancesURL).Path("$[*].id").Array().NotContains(SID)
 
-			verifyOperationDoesNotExist(SID)
+			verifyOperationDoesNotExist(SID, "delete")
 		})
 	})
 
@@ -349,7 +349,7 @@ var _ = Describe("Deprovision", func() {
 
 			ctx.SMWithOAuth.List(web.ServiceInstancesURL).Path("$[*].id").Array().NotContains(SID)
 
-			verifyOperationDoesNotExist(SID)
+			verifyOperationDoesNotExist(SID, "delete")
 		})
 	})
 

@@ -93,7 +93,7 @@ var _ = Describe("Update", func() {
 			ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + SID).
 				Expect().Status(expectedGetInstanceStatusCode)
 
-			verifyOperationDoesNotExist(SID, "UPDATE")
+			verifyOperationDoesNotExist(SID, "update")
 		},
 		Entry("when service_id is unknown to SM",
 			updateRequestBodyMapWith("service_id", "abcd1234"),
