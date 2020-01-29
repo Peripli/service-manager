@@ -22,3 +22,6 @@ api:
   skip_ssl_validation: false
 multitenancy:
   label_key: tenant
+operations:
+  polling_interval: 1ms
+  rescheduling_interval: 1ms
