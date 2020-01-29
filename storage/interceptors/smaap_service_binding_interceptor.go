@@ -18,6 +18,7 @@ package interceptors
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -143,6 +144,12 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 		var bindResponse *osbc.BindResponse
 		if !operation.Reschedule {
 			bindRequest := i.prepareBindRequest(instance, binding, service.CatalogID, plan.CatalogID)
+			contextBytes, err := json.Marshal(bindRequest.Context)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal OSB context %+v: %s", bindRequest.Context, err)
+			}
+			binding.Context = contextBytes
+
 			log.C(ctx).Infof("Sending bind request %+v to broker with name %s", bindRequest, broker.Name)
 			bindResponse, err = osbClient.Bind(bindRequest)
 			if err != nil {
@@ -369,7 +376,7 @@ func (i *ServiceBindingInterceptor) prepareBindRequest(instance *types.ServiceIn
 		OriginatingIdentity: nil,
 	}
 	if len(i.tenantKey) != 0 {
-		if tenantValue, ok := instance.GetLabels()[i.tenantKey]; ok {
+		if tenantValue, ok := binding.GetLabels()[i.tenantKey]; ok {
 			bindRequest.Context[i.tenantKey] = tenantValue[0]
 		}
 	}

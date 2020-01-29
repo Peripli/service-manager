@@ -83,6 +83,7 @@ var _ = DescribeTestsFor(TestCase{
 			var (
 				postBindingRequest  Object
 				instanceID          string
+				instanceName        string
 				instanceOperationID string
 				bindingID           string
 				bindingOperationID  string
@@ -113,7 +114,7 @@ var _ = DescribeTestsFor(TestCase{
 				},
 			}
 
-			createInstance := func(smClient *SMExpect, async bool, expectedStatusCode int) {
+			createInstance := func(smClient *SMExpect, async bool, expectedStatusCode int) *httpexpect.Response {
 				postInstanceRequest := Object{
 					"name":             "test-instance",
 					"service_plan_id":  servicePlanID,
@@ -134,6 +135,8 @@ var _ = DescribeTestsFor(TestCase{
 
 					instanceID = obj.Value("id").String().Raw()
 				}
+
+				return resp
 			}
 
 			createBinding := func(SM *SMExpect, async bool, expectedStatusCode int) *httpexpect.Response {
@@ -215,7 +218,10 @@ var _ = DescribeTestsFor(TestCase{
 			BeforeEach(func() {
 				brokerID, brokerServer, servicePlanID = newServicePlan(ctx)
 				EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
-				createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
+				resp := createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
+				instanceName = resp.JSON().Object().Value("name").String().Raw()
+				Expect(instanceName).ToNot(BeEmpty())
+
 				postBindingRequest = Object{
 					"name":                "test-binding",
 					"service_instance_id": instanceID,
@@ -238,22 +244,36 @@ var _ = DescribeTestsFor(TestCase{
 				brokerServer.Close()
 			})
 
-			Describe("GET", func() {
+			FDescribe("GET", func() {
 				When("service binding contains tenant identifier in OSB context", func() {
-					It("labels instance with tenant identifier", func() {
+					BeforeEach(func() {
 						createBinding(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
+					})
 
+					It("labels instance with tenant identifier", func() {
 						ctx.SMWithOAuthForTenant.GET(web.ServiceBindingsURL + "/" + bindingID).Expect().
 							Status(http.StatusOK).
 							JSON().
 							Object().Path(fmt.Sprintf("$.labels[%s][*]", TenantIdentifier)).Array().Contains(TenantIDValue)
 					})
+
+					It("returns OSB context with no tenant as part of the binding", func() {
+						ctx.SMWithOAuthForTenant.GET(web.ServiceBindingsURL + "/" + bindingID).Expect().
+							Status(http.StatusOK).
+							JSON().
+							Object().Value("context").Object().Equal(map[string]interface{}{
+							"platform":      types.SMPlatform,
+							"instance_name": instanceName,
+						})
+					})
 				})
 
 				When("service binding doesn't contain tenant identifier in OSB context", func() {
-					It("doesn't label instance with tenant identifier", func() {
+					BeforeEach(func() {
 						createBinding(ctx.SMWithOAuth, false, http.StatusCreated)
+					})
 
+					It("doesn't label instance with tenant identifier", func() {
 						obj := ctx.SMWithOAuth.GET(web.ServiceBindingsURL + "/" + bindingID).Expect().
 							Status(http.StatusOK).JSON().Object()
 
@@ -264,6 +284,17 @@ var _ = DescribeTestsFor(TestCase{
 							_, tenantLabelExists := labels[TenantIdentifier]
 							Expect(tenantLabelExists).To(BeFalse())
 						}
+					})
+
+					It("returns OSB context with tenant as part of the binding", func() {
+						ctx.SMWithOAuth.GET(web.ServiceBindingsURL + "/" + bindingID).Expect().
+							Status(http.StatusOK).
+							JSON().
+							Object().Value("context").Object().Equal(map[string]interface{}{
+							"platform":       types.SMPlatform,
+							"instance_name":  instanceName,
+							TenantIdentifier: TenantIDValue,
+						})
 					})
 				})
 			})
@@ -858,7 +889,7 @@ var _ = DescribeTestsFor(TestCase{
 				}
 			})
 
-			FDescribe("DELETE", func() {
+			Describe("DELETE", func() {
 				It("returns 405 for bulk delete", func() {
 					ctx.SMWithOAuthForTenant.DELETE(web.ServiceBindingsURL).
 						Expect().Status(http.StatusMethodNotAllowed)

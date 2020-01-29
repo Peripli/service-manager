@@ -208,10 +208,16 @@ var _ = DescribeTestsFor(TestCase{
 			})
 
 			Describe("GET", func() {
+				var instanceName string
+				BeforeEach(func() {
+
+				})
 				When("service instance contains tenant identifier in OSB context", func() {
 					BeforeEach(func() {
 						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
-						createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
+						resp := createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
+						instanceName = resp.JSON().Object().Value("name").String().Raw()
+						Expect(instanceName).ToNot(BeEmpty())
 					})
 
 					It("labels instance with tenant identifier", func() {
@@ -220,11 +226,25 @@ var _ = DescribeTestsFor(TestCase{
 							JSON().
 							Object().Path(fmt.Sprintf("$.labels[%s][*]", TenantIdentifier)).Array().Contains(TenantIDValue)
 					})
+
+					It("returns OSB context with tenant as part of the instance", func() {
+						ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID).Expect().
+							Status(http.StatusOK).
+							JSON().
+							Object().Value("context").Object().Equal(map[string]interface{}{
+							"platform":       types.SMPlatform,
+							"instance_name":  instanceName,
+							TenantIdentifier: TenantIDValue,
+						})
+					})
 				})
+
 				When("service instance doesn't contain tenant identifier in OSB context", func() {
 					BeforeEach(func() {
 						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, "")
-						createInstance(ctx.SMWithOAuth, false, http.StatusCreated)
+						resp := createInstance(ctx.SMWithOAuth, false, http.StatusCreated)
+						instanceName = resp.JSON().Object().Value("name").String().Raw()
+						Expect(instanceName).ToNot(BeEmpty())
 					})
 
 					It("doesn't label instance with tenant identifier", func() {
@@ -238,6 +258,16 @@ var _ = DescribeTestsFor(TestCase{
 							_, tenantLabelExists := labels[TenantIdentifier]
 							Expect(tenantLabelExists).To(BeFalse())
 						}
+					})
+
+					It("returns OSB context with no tenant as part of the instance", func() {
+						ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + instanceID).Expect().
+							Status(http.StatusOK).
+							JSON().
+							Object().Value("context").Object().Equal(map[string]interface{}{
+							"platform":      types.SMPlatform,
+							"instance_name": instanceName,
+						})
 					})
 				})
 

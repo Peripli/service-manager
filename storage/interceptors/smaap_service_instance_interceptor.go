@@ -18,6 +18,7 @@ package interceptors
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -133,6 +134,11 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 		var provisionResponse *osbc.ProvisionResponse
 		if !operation.Reschedule {
 			provisionRequest := i.prepareProvisionRequest(instance, service.CatalogID, plan.CatalogID)
+			contextBytes, err := json.Marshal(provisionRequest.Context)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal OSB context %+v: %s", provisionRequest.Context, err)
+			}
+			instance.Context = contextBytes
 
 			log.C(ctx).Infof("Sending provision request %+v to broker with name %s", provisionRequest, broker.Name)
 			provisionResponse, err = osbClient.ProvisionInstance(provisionRequest)
