@@ -163,10 +163,9 @@ func ExpectOperationWithError(auth *common.SMExpect, asyncResp *httpexpect.Respo
 				Expect().Status(http.StatusOK).JSON().Object()
 			state := operation.Value("state").String().Raw()
 			if state == string(expectedState) {
-				errs := operation.Value("errors")
 				if expectedState == types.SUCCEEDED {
-					errs.Null()
 				} else {
+					errs := operation.Value("errors")
 					errs.NotNull()
 					errMsg := errs.Object().Value("description").String().Raw()
 

@@ -1184,6 +1184,26 @@ var _ = DescribeTestsFor(TestCase{
 								})
 							})
 
+							When("broker responds with 410 GONE", func() {
+								BeforeEach(func() {
+									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", ParameterizedHandler(http.StatusGone, Object{}))
+								})
+
+								It("deletes the instance and stores a delete succeeded operation", func() {
+									resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedDeleteSuccessStatusCode)
+
+									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.DELETE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceInstanceType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+
+									verifyInstanceDoesNotExist(instanceID)
+								})
+							})
+
 							When("broker responds with asynchronous success", func() {
 								BeforeEach(func() {
 									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
@@ -1202,6 +1222,27 @@ var _ = DescribeTestsFor(TestCase{
 									})
 
 									verifyInstanceDoesNotExist(instanceID)
+								})
+
+								When("polling responds 410 GONE", func() {
+									BeforeEach(func() {
+										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"1", ParameterizedHandler(http.StatusGone, Object{}))
+									})
+
+									It("keeps polling and eventually deletes the binding and marks the operation as success", func() {
+										resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedDeleteSuccessStatusCode)
+
+										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.DELETE,
+											State:             types.SUCCEEDED,
+											ResourceType:      types.ServiceInstanceType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										verifyInstanceDoesNotExist(instanceID)
+									})
 								})
 
 								When("polling responds with unexpected state and eventually with success state", func() {

@@ -984,6 +984,26 @@ var _ = DescribeTestsFor(TestCase{
 								})
 							})
 
+							When("broker responds with 410 GONE", func() {
+								BeforeEach(func() {
+									brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"1", ParameterizedHandler(http.StatusGone, Object{}))
+								})
+
+								It("deletes the instance and stores a delete succeeded operation", func() {
+									resp := deleteBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedDeleteSuccessStatusCode)
+
+									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+										Category:          types.DELETE,
+										State:             types.SUCCEEDED,
+										ResourceType:      types.ServiceBindingType,
+										Reschedulable:     false,
+										DeletionScheduled: false,
+									})
+
+									verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+								})
+							})
+
 							When("broker responds with asynchronous success", func() {
 								BeforeEach(func() {
 									brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
@@ -1002,6 +1022,27 @@ var _ = DescribeTestsFor(TestCase{
 									})
 
 									verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+								})
+
+								When("polling responds 410 GONE", func() {
+									BeforeEach(func() {
+										brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"1", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.BindingLastOpHandlerFunc(http.MethodDelete+"1", ParameterizedHandler(http.StatusGone, Object{}))
+									})
+
+									It("keeps polling and eventually deletes the binding and marks the operation as success", func() {
+										resp := deleteBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedDeleteSuccessStatusCode)
+
+										bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+											Category:          types.DELETE,
+											State:             types.SUCCEEDED,
+											ResourceType:      types.ServiceBindingType,
+											Reschedulable:     false,
+											DeletionScheduled: false,
+										})
+
+										verifyBindingDoesNotExist(ctx.SMWithOAuthForTenant, bindingID)
+									})
 								})
 
 								When("polling responds with unexpected state and eventually with success state", func() {
