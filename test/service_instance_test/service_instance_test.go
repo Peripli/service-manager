@@ -671,7 +671,7 @@ var _ = DescribeTestsFor(TestCase{
 										BeforeEach(func() {
 											brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", MultipleErrorsBeforeSuccessHandler(
 												http.StatusInternalServerError, http.StatusOK,
-												Object{"error": "error"}, Object{"async": "false"},
+												Object{"error": "error"}, Object{"async": false},
 											))
 										})
 
@@ -1368,7 +1368,7 @@ var _ = DescribeTestsFor(TestCase{
 
 											brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"2", MultipleErrorsBeforeSuccessHandler(
 												http.StatusInternalServerError, http.StatusOK,
-												Object{"error": "error"}, Object{"async": "false"},
+												Object{"error": "error"}, Object{"async": false},
 											))
 
 											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
@@ -1579,6 +1579,7 @@ var _ = DescribeTestsFor(TestCase{
 										"service_plan_id":  servicePlanID,
 										"maintenance_info": "{}",
 									}
+
 									EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 									resp := createInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
 

@@ -661,7 +661,7 @@ var _ = DescribeTestsFor(TestCase{
 										BeforeEach(func() {
 											brokerServer.BindingHandlerFunc(http.MethodDelete, http.MethodDelete+"3", MultipleErrorsBeforeSuccessHandler(
 												http.StatusInternalServerError, http.StatusOK,
-												Object{"error": "error"}, Object{"async": "false"},
+												Object{"error": "error"}, Object{"async": false},
 											))
 										})
 
