@@ -289,3 +289,14 @@ func getJSONRawMessage(item sqlxtypes.JSONText) json.RawMessage {
 	}
 	return json.RawMessage(item)
 }
+
+func getJSONRawMessageFromString(str string) json.RawMessage {
+	if len(str) == 0 {
+		return nil
+	}
+	return json.RawMessage(str)
+}
+
+func getStringFromJSONRawMessage(message json.RawMessage) string {
+	return string(message)
+}

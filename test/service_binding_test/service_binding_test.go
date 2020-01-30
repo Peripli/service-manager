@@ -186,6 +186,9 @@ var _ = DescribeTestsFor(TestCase{
 							if readyField != ready {
 								Fail(fmt.Sprintf("Expected binding with id %s to be ready %t but ready was %t", bindingID, ready, readyField))
 							}
+							if credentials, ok := bindingObject.Raw()["credentials"]; ok {
+								Expect(credentials.(map[string]string)["binding_id"]).To(Equal(bindingID))
+							}
 							return
 						}
 					}
