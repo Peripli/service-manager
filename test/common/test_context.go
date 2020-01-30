@@ -358,46 +358,6 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener) *TestCon
 	return testContext
 }
 
-func (tcb *TestContextBuilder) RebuildSMInContext(ctx *TestContext) {
-	environment := tcb.Environment(tcb.envPreHooks...)
-
-	for _, envPostHook := range tcb.envPostHooks {
-		envPostHook(environment, tcb.Servers)
-	}
-	wg := &sync.WaitGroup{}
-
-	smServer, smRepository := newSMServer(environment, wg, tcb.smExtensions, nil)
-	tcb.Servers[SMServer] = smServer
-
-	SM := httpexpect.New(ginkgo.GinkgoT(), smServer.URL())
-	oauthServer := tcb.Servers[OauthServer].(*OAuthServer)
-	accessToken := oauthServer.CreateToken(tcb.defaultTokenClaims)
-	SMWithOAuth := SM.Builder(func(req *httpexpect.Request) {
-		req.WithHeader("Authorization", "Bearer "+accessToken).WithClient(tcb.HttpClient)
-	})
-
-	tenantAccessToken := oauthServer.CreateToken(tcb.tenantTokenClaims)
-	SMWithOAuthForTenant := SM.Builder(func(req *httpexpect.Request) {
-		req.WithHeader("Authorization", "Bearer "+tenantAccessToken).WithClient(tcb.HttpClient)
-	})
-
-	ctx.wg = wg
-	ctx.SM = &SMExpect{SM}
-	ctx.SMWithOAuth = &SMExpect{SMWithOAuth}
-	ctx.SM = &SMExpect{SMWithOAuthForTenant}
-	ctx.Servers = tcb.Servers
-	ctx.SMRepository = smRepository
-
-	if !tcb.shouldSkipBasicAuthClient {
-		SMWithBasic := SM.Builder(func(req *httpexpect.Request) {
-			platform := ctx.TestPlatform
-			username, password := platform.Credentials.Basic.Username, platform.Credentials.Basic.Password
-			req.WithBasicAuth(username, password).WithClient(tcb.HttpClient)
-		})
-		ctx.SMWithBasic = &SMExpect{SMWithBasic}
-	}
-}
-
 func NewSMListener() (net.Listener, error) {
 	minPort := 8100
 	maxPort := 9999

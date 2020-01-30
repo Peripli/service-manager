@@ -29,21 +29,23 @@ import (
 // Maintainer ensures that operations old enough are deleted
 // and that no orphan operations are left in the DB due to crashes/restarts of SM
 type Maintainer struct {
-	smCtx               context.Context
-	repository          storage.Repository
-	jobTimeout          time.Duration
-	markOrphansInterval time.Duration
-	cleanupInterval     time.Duration
+	smCtx                   context.Context
+	repository              storage.Repository
+	jobTimeout              time.Duration
+	markOrphansInterval     time.Duration
+	cleanupInterval         time.Duration
+	operationExpirationTime time.Duration
 }
 
 // NewMaintainer constructs a Maintainer
 func NewMaintainer(smCtx context.Context, repository storage.Repository, options *Settings) *Maintainer {
 	return &Maintainer{
-		smCtx:               smCtx,
-		repository:          repository,
-		jobTimeout:          options.JobTimeout,
-		markOrphansInterval: options.MarkOrphansInterval,
-		cleanupInterval:     options.CleanupInterval,
+		smCtx:                   smCtx,
+		repository:              repository,
+		jobTimeout:              options.JobTimeout,
+		markOrphansInterval:     options.MarkOrphansInterval,
+		cleanupInterval:         options.CleanupInterval,
+		operationExpirationTime: options.ExpirationTime,
 	}
 }
 
@@ -92,7 +94,7 @@ func (om *Maintainer) processOrphanOperations() {
 func (om *Maintainer) cleanUpOldOperations() {
 	criteria := []query.Criterion{
 		query.ByField(query.NotEqualsOperator, "platform_id", types.SERVICE_MANAGER_PLATFORM),
-		query.ByField(query.LessThanOperator, "created_at", util.ToRFCNanoFormat(time.Now().Add(-om.cleanupInterval))),
+		query.ByField(query.LessThanOperator, "created_at", util.ToRFCNanoFormat(time.Now().Add(-om.operationExpirationTime))),
 	}
 
 	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil {

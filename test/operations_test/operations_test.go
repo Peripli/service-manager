@@ -289,28 +289,6 @@ var _ = Describe("Operations", func() {
 						return count
 					}, cleanupInterval*2).Should(Equal(0))
 				})
-
-				Context("Service Manager was restarted", func() {
-					It("Deletes operations older than that interval", func() {
-						asyncProvision()
-
-						byPlatformID := query.ByField(query.NotEqualsOperator, "platform_id", types.SERVICE_MANAGER_PLATFORM)
-
-						assertOperationCount(1, byPlatformID)
-
-						ctx.Servers[common.SMServer].Close()
-						ctxBuilder.RebuildSMInContext(ctx)
-
-						assertOperationCount(1, byPlatformID)
-
-						Eventually(func() int {
-							count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byPlatformID)
-							Expect(err).To(BeNil())
-
-							return count
-						}, cleanupInterval*2).Should(Equal(0))
-					})
-				})
 			})
 		})
 
