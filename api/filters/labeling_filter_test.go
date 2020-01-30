@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Peripli/service-manager/api/filters"
-	"github.wdf.sap.corp/SvcManager/sm-sap/filters/container"
 	"net/http"
 	"testing"
 
