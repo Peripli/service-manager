@@ -116,11 +116,11 @@ func (f *TenantFilter) Run(request *web.Request, next web.Handler) (*web.Respons
 
 	userContext, found := web.UserFromContext(ctx)
 	if !found {
-		log.C(ctx).Infof("No user found in user context. Proceeding with empty tenant ID value...")
+		log.C(ctx).Debug("No user found in user context. Proceeding with empty tenant ID value...")
 		return next.Handle(request)
 	}
 	if userContext.AccessLevel == web.GlobalAccess {
-		log.C(ctx).Infof("Access level is Global. Proceeding with empty tenant ID value...")
+		log.C(ctx).Debug("Access level is Global. Proceeding with empty tenant ID value...")
 		return next.Handle(request)
 	}
 
