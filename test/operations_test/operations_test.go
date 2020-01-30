@@ -180,17 +180,19 @@ var _ = Describe("Operations", func() {
 
 	Context("Maintainer", func() {
 		const (
-			jobTimeout      = 3 * time.Second
-			cleanupInterval = 5 * time.Second
+			jobTimeout          = 3 * time.Second
+			cleanupInterval     = 5 * time.Second
+			operationExpiration = 2 * time.Second
 		)
 
 		var ctxBuilder *common.TestContextBuilder
 
-		postHookWithOperationsConfig := func(jobTimeout, cleanupInterval time.Duration) func(e env.Environment, servers map[string]common.FakeServer) {
+		postHookWithOperationsConfig := func(jobTimeout, cleanupInterval, operationExpiration time.Duration) func(e env.Environment, servers map[string]common.FakeServer) {
 			return func(e env.Environment, servers map[string]common.FakeServer) {
 				e.Set("operations.job_timeout", jobTimeout)
 				e.Set("operations.mark_orphans_interval", jobTimeout)
 				e.Set("operations.cleanup_interval", cleanupInterval)
+				e.Set("operations.expiration_time", operationExpiration)
 			}
 		}
 
@@ -201,7 +203,7 @@ var _ = Describe("Operations", func() {
 		}
 
 		BeforeEach(func() {
-			postHook := postHookWithOperationsConfig(jobTimeout, cleanupInterval)
+			postHook := postHookWithOperationsConfig(jobTimeout, cleanupInterval, operationExpiration)
 			ctxBuilder = common.NewTestContextBuilderWithSecurity().WithEnvPostExtensions(postHook)
 			ctx = ctxBuilder.Build()
 		})
@@ -209,12 +211,13 @@ var _ = Describe("Operations", func() {
 		When("Specified cleanup interval passes", func() {
 			Context("operation platform is service Manager", func() {
 				const (
-					fastJobTimeout      = 1 * time.Second
-					fastCleanupInterval = 2 * time.Second
+					fastJobTimeout          = 1 * time.Second
+					fastCleanupInterval     = 2 * time.Second
+					fastOperationExpiration = 1 * time.Second
 				)
 
 				BeforeEach(func() {
-					postHook := postHookWithOperationsConfig(fastJobTimeout, fastCleanupInterval)
+					postHook := postHookWithOperationsConfig(fastJobTimeout, fastCleanupInterval, fastOperationExpiration)
 					ctx = common.NewTestContextBuilderWithSecurity().WithEnvPostExtensions(postHook).Build()
 				})
 
