@@ -40,7 +40,7 @@ type ServiceBinding struct {
 	Endpoints         json.RawMessage        `json:"endpoints,omitempty"`
 	Context           json.RawMessage        `json:"context,omitempty"`
 	BindResource      json.RawMessage        `json:"bind_resource,omitempty"`
-	Credentials       string                 `json:"credentials"`
+	Credentials       json.RawMessage        `json:"credentials"`
 	Parameters        map[string]interface{} `json:"parameters,omitempty"`
 
 	LastOperation *Operation `json:"last_operation,omitempty"`
@@ -62,7 +62,7 @@ func (e *ServiceBinding) transform(ctx context.Context, transformationFunc func(
 	if err != nil {
 		return err
 	}
-	e.Credentials = string(transformedCredentials)
+	e.Credentials = transformedCredentials
 	return nil
 }
 

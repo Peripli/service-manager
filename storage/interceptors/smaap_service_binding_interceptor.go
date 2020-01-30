@@ -497,7 +497,7 @@ func (i *ServiceBindingInterceptor) enrichBindingWithBindingResponse(binding *ty
 			return fmt.Errorf("could not marshal binding credentials: %s", err)
 		}
 
-		binding.Credentials = string(credentialBytes)
+		binding.Credentials = credentialBytes
 	}
 
 	if response.RouteServiceURL != nil {

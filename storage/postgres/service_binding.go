@@ -18,6 +18,7 @@ package postgres
 
 import (
 	"database/sql"
+	"encoding/json"
 
 	"github.com/Peripli/service-manager/storage"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
@@ -58,7 +59,7 @@ func (sb *ServiceBinding) ToObject() types.Object {
 		Endpoints:         getJSONRawMessage(sb.Endpoints.JSONText),
 		Context:           getJSONRawMessage(sb.Context),
 		BindResource:      getJSONRawMessage(sb.BindResource),
-		Credentials:       sb.Credentials,
+		Credentials:       json.RawMessage(sb.Credentials),
 	}
 }
 
@@ -84,7 +85,7 @@ func (*ServiceBinding) FromObject(object types.Object) (storage.Entity, bool) {
 		Endpoints:         getNullJSONText(serviceBinding.Endpoints),
 		Context:           getJSONText(serviceBinding.Context),
 		BindResource:      getJSONText(serviceBinding.BindResource),
-		Credentials:       serviceBinding.Credentials,
+		Credentials:       string(serviceBinding.Credentials),
 	}
 
 	return sb, true
