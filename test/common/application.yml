@@ -11,7 +11,7 @@ websocket:
   ping_timeout: 6000ms
   write_timeout: 6000ms
 log:
-  level: debug
+  level: error
   format: text
 storage:
   uri: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
