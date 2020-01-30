@@ -1,0 +1,8 @@
+# GitHub code owners
+# See https://help.github.com/articles/about-codeowners/
+#
+# KEEP THIS FILE SORTED. Order is important. Last match takes precedence.
+
+# For plugins/** directory, each team can add a person required to review before merging. Otherwise Service Manager team will be the only reviewer.
+
+* @KirilKabakchiev @dotchev @dpanayotov @dzahariev @georgifarashev @NickyMateev @nyordanoff @pankrator @DimitarPetrov
