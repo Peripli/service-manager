@@ -175,6 +175,10 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 				return nil, brokerError
 			}
 
+			if err := i.enrichBindingWithBindingResponse(binding, bindResponse); err != nil {
+				return nil, fmt.Errorf("could not enrich binding details with binding response details: %s", err)
+			}
+
 			if bindResponse.Async {
 				log.C(ctx).Infof("Successful asynchronous binding request %+v to broker %s returned response %+v",
 					bindRequest, broker.Name, bindResponse)
@@ -484,4 +488,34 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 			}
 		}
 	}
+}
+
+func (i *ServiceBindingInterceptor) enrichBindingWithBindingResponse(binding *types.ServiceBinding, response *osbc.BindResponse) error {
+	if len(response.Credentials) != 0 {
+		credentialBytes, err := json.Marshal(response.Credentials)
+		if err != nil {
+			return fmt.Errorf("could not marshal binding credentials: %s", err)
+		}
+
+		binding.Credentials = string(credentialBytes)
+	}
+
+	if response.RouteServiceURL != nil {
+		binding.RouteServiceURL = *response.RouteServiceURL
+	}
+
+	if response.SyslogDrainURL != nil {
+		binding.SyslogDrainURL = *response.SyslogDrainURL
+	}
+
+	if len(response.VolumeMounts) != 0 {
+		volumeMountBytes, err := json.Marshal(response.VolumeMounts)
+		if err != nil {
+			return fmt.Errorf("could not marshal volume mounts: %s", err)
+		}
+
+		binding.VolumeMounts = volumeMountBytes
+	}
+
+	return nil
 }
