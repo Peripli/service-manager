@@ -90,17 +90,23 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 		Description: "could not find such service plan",
 		StatusCode:  http.StatusNotFound,
 	}
-	if list.Len() == 0 {
+ 	if list.Len() == 0 {
 		return nil, visibilityError
 	}
 
 	// There may be at most one visibility for the query - for SM platform or public for this plan
 	visibility := list.ItemAt(0).(*types.Visibility)
-	if len(visibility.PlatformID) == 0 { // public visibility
+	if len(visibility.PlatformID) == 0 {
+		// public visibility
 		return next.Handle(req)
 	}
 	tenantLabels, ok := visibility.Labels[f.tenantIdentifier]
-	if ok && slice.StringsAnyEquals(tenantLabels, tenantID) {
+	if !ok {
+		// decomposed public visibility for SM platform
+		return next.Handle(req)
+	}
+	if slice.StringsAnyEquals(tenantLabels, tenantID) {
+		// visibility for tenant
 		return next.Handle(req)
 	}
 

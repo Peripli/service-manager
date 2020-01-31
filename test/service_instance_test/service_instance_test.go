@@ -323,6 +323,13 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							createInstance(ctx.SMWithOAuthForTenant, http.StatusCreated)
 						})
 					})
+
+					When("plan is public, but supported only for CF Platform", func() {
+						It("should reject create instance", func() {
+							test.EnsurePublicPlanVisibilityForSupportedPlatforms(ctx.SMRepository, servicePlanID, []string{"cloudfoundry"})
+							createInstance(ctx.SMWithOAuthForTenant, 404)
+						})
+					})
 				})
 			})
 
@@ -441,7 +448,6 @@ var _ = test.DescribeTestsFor(test.TestCase{
 								Status(http.StatusOK).
 								JSON().Object().
 								ContainsMap(updatedBrokerJSON)
-
 						}
 					})
 				})

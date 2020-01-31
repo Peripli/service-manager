@@ -190,6 +190,17 @@ func EnsurePublicPlanVisibility(repository storage.Repository, planID string) {
 	EnsurePlanVisibility(repository, "", "", planID, "")
 }
 
+func EnsurePublicPlanVisibilityForSupportedPlatforms(repository storage.Repository, planID string, supportedPlatforms []string) {
+	list, err := repository.List(context.TODO(), types.PlatformType, query.ByField(query.InOperator, "type", supportedPlatforms...))
+	if err != nil {
+		panic(err)
+	}
+	platforms := list.(*types.Platforms)
+	for _, p := range platforms.Platforms {
+		EnsurePlanVisibility(repository, "", p.ID, planID, "")
+	}
+}
+
 func EnsurePlanVisibility(repository storage.Repository, tenantIdentifier, platformID, planID, tenantID string) {
 	UUID, err := uuid.NewV4()
 	if err != nil {

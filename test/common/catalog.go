@@ -207,7 +207,6 @@ func GenerateTestServiceWithPlans(plans ...string) string {
 	}
 
 	return GenerateTestServiceWithPlansWithID(UUID.String(), plans...)
-
 }
 
 func GenerateTestPlanWithID(planID string) string {
