@@ -92,38 +92,10 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 				verifyResourceDeletionWithErrorMsg(auth, deletionRequestResponseCode, getAfterDeletionRequestCode, expectedOpState, "")
 			}
 
-			Context("when the resource is global", func() {
-				BeforeEach(func() {
-					createResourceFunc(ctx.SMWithOAuth)
-				})
-
-				Context("when authenticating with basic auth", func() {
-					It("returns 401", func() {
-						ctx.SMWithBasic.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).WithQuery("async", asyncParam).
-							Expect().
-							Status(http.StatusUnauthorized).JSON().Object().Keys().Contains("error", "description")
-					})
-				})
-
-				Context("when authenticating with global token", func() {
-					It("returns 200", func() {
-						verifyResourceDeletion(ctx.SMWithOAuth, successfulDeletionRequestResponseCode, http.StatusNotFound, types.SUCCEEDED)
-					})
-				})
-
-				if !t.DisableTenantResources {
-					Context("when authenticating with tenant scoped token", func() {
-						It("returns 404", func() {
-							verifyResourceDeletionWithErrorMsg(ctx.SMWithOAuthForTenant, failedDeletionRequestResponseCode, http.StatusOK, types.FAILED, notFoundMsg)
-						})
-					})
-				}
-			})
-
-			if !t.DisableTenantResources {
-				Context("when the resource is tenant scoped", func() {
+			if !t.StrictlyTenantScoped {
+				Context("when the resource is global", func() {
 					BeforeEach(func() {
-						createResourceFunc(ctx.SMWithOAuthForTenant)
+						createResourceFunc(ctx.SMWithOAuth)
 					})
 
 					Context("when authenticating with basic auth", func() {
@@ -139,6 +111,38 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 							verifyResourceDeletion(ctx.SMWithOAuth, successfulDeletionRequestResponseCode, http.StatusNotFound, types.SUCCEEDED)
 						})
 					})
+
+					if !t.DisableTenantResources {
+						Context("when authenticating with tenant scoped token", func() {
+							It("returns 404", func() {
+								verifyResourceDeletionWithErrorMsg(ctx.SMWithOAuthForTenant, failedDeletionRequestResponseCode, http.StatusOK, types.FAILED, notFoundMsg)
+							})
+						})
+					}
+				})
+			}
+
+			if !t.DisableTenantResources || t.StrictlyTenantScoped {
+				Context("when the resource is tenant scoped", func() {
+					BeforeEach(func() {
+						createResourceFunc(ctx.SMWithOAuthForTenant)
+					})
+
+					Context("when authenticating with basic auth", func() {
+						It("returns 401", func() {
+							ctx.SMWithBasic.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).WithQuery("async", asyncParam).
+								Expect().
+								Status(http.StatusUnauthorized).JSON().Object().Keys().Contains("error", "description")
+						})
+					})
+
+					if !t.StrictlyTenantScoped {
+						Context("when authenticating with global token", func() {
+							It("returns 200", func() {
+								verifyResourceDeletion(ctx.SMWithOAuth, successfulDeletionRequestResponseCode, http.StatusNotFound, types.SUCCEEDED)
+							})
+						})
+					}
 
 					Context("when authenticating with tenant scoped token", func() {
 						It("returns 200", func() {
@@ -165,17 +169,31 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 			}
 
 			Context("when authenticating with basic auth", func() {
-				It("returns 404", func() {
-					resp := ctx.SMWithOAuth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).WithQuery("async", asyncParam).Expect()
-					verifyMissingResourceFailedDeletion(resp, notFoundMsg)
-				})
+				if t.StrictlyTenantScoped {
+					It("returns 401", func() {
+						resp := ctx.SMWithBasic.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).WithQuery("async", asyncParam).Expect()
+						resp.Status(http.StatusUnauthorized)
+					})
+				} else {
+					It("returns 401", func() {
+						resp := ctx.SMWithBasic.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).WithQuery("async", asyncParam).Expect()
+						resp.Status(http.StatusUnauthorized)
+					})
+				}
 			})
 
 			Context("when authenticating with global token", func() {
-				It("returns 404", func() {
-					resp := ctx.SMWithOAuth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).WithQuery("async", asyncParam).Expect()
-					verifyMissingResourceFailedDeletion(resp, notFoundMsg)
-				})
+				if t.StrictlyTenantScoped {
+					It("returns 400", func() {
+						resp := ctx.SMWithOAuth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).WithQuery("async", asyncParam).Expect()
+						resp.Status(http.StatusBadRequest)
+					})
+				} else {
+					It("returns 404", func() {
+						resp := ctx.SMWithOAuth.DELETE(fmt.Sprintf("%s/%s", t.API, testResourceID)).WithQuery("async", asyncParam).Expect()
+						verifyMissingResourceFailedDeletion(resp, notFoundMsg)
+					})
+				}
 			})
 		})
 	})

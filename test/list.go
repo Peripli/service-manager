@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/query"
+	"github.com/gavv/httpexpect"
 
 	. "github.com/onsi/ginkgo/extensions/table"
 
@@ -69,10 +70,17 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 			},
 		}
 
-		t.PatchResource(ctx, t.API, obj["id"].(string), t.ResourceType, patchLabels, bool(responseMode))
-		result := ctx.SMWithOAuth.GET(t.API + "/" + obj["id"].(string)).
-			Expect().
-			Status(http.StatusOK).JSON().Object()
+		t.PatchResource(ctx, t.StrictlyTenantScoped, t.API, obj["id"].(string), t.ResourceType, patchLabels, bool(responseMode))
+		var result *httpexpect.Object
+		if t.StrictlyTenantScoped {
+			result = ctx.SMWithOAuthForTenant.GET(t.API + "/" + obj["id"].(string)).
+				Expect().
+				Status(http.StatusOK).JSON().Object()
+		} else {
+			result = ctx.SMWithOAuth.GET(t.API + "/" + obj["id"].(string)).
+				Expect().
+				Status(http.StatusOK).JSON().Object()
+		}
 		result.ContainsKey("labels")
 		resultObject := result.Raw()
 		delete(resultObject, "credentials")
@@ -414,7 +422,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 						Values:    []string{labelValue},
 					},
 				}
-				t.PatchResource(ctx, t.API, obj["id"].(string), t.ResourceType, patchLabels, bool(responseMode))
+				t.PatchResource(ctx, t.StrictlyTenantScoped, t.API, obj["id"].(string), t.ResourceType, patchLabels, bool(responseMode))
 			})
 
 			It("returns 200", func() {
@@ -481,7 +489,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 						}
 
 						By(fmt.Sprintf("Attempting add one additional %s label with value %v to resoucre of type %s with id %s", labelKey, []string{objID}, t.API, objID))
-						t.PatchResource(ctx, t.API, objID, t.ResourceType, patchLabels, bool(responseMode))
+						t.PatchResource(ctx, t.StrictlyTenantScoped, t.API, objID, t.ResourceType, patchLabels, bool(responseMode))
 
 						object := ctx.SMWithOAuth.GET(t.API + "/" + objID).
 							Expect().

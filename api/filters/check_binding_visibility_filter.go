@@ -57,8 +57,12 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 
 	tenantID := query.RetrieveFromCriteria(f.tenantIdentifier, query.CriteriaForContext(ctx)...)
 	if tenantID == "" {
-		log.C(ctx).Info("Tenant identifier not found in request criteria. Proceeding with the next handler...")
-		return next.Handle(req)
+		log.C(ctx).Errorf("Tenant identifier not found in request criteria.")
+		return nil, &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: "no tenant identifier provided",
+			StatusCode:  http.StatusBadRequest,
+		}
 	}
 
 	var err error

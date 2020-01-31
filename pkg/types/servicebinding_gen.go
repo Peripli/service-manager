@@ -8,7 +8,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
-const ServiceBindingType ObjectType = "ServiceBinding"
+const ServiceBindingType ObjectType = "types.ServiceBinding"
 
 type ServiceBindings struct {
 	ServiceBindings []*ServiceBinding `json:"service_bindings"`
@@ -37,8 +37,10 @@ func (e *ServiceBinding) MarshalJSON() ([]byte, error) {
 		*E
 		CreatedAt *string `json:"created_at,omitempty"`
 		UpdatedAt *string `json:"updated_at,omitempty"`
+		Labels    Labels  `json:"labels,omitempty"`
 	}{
-		E: (*E)(e),
+		E:      (*E)(e),
+		Labels: e.Labels,
 	}
 	if !e.CreatedAt.IsZero() {
 		str := util.ToRFCNanoFormat(e.CreatedAt)

@@ -54,6 +54,20 @@ func (*serviceInstanceVisibilityFilter) Name() string {
 
 func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler) (*web.Response, error) {
 	ctx := req.Context()
+
+	tenantID := query.RetrieveFromCriteria(f.tenantIdentifier, query.CriteriaForContext(ctx)...)
+	if tenantID == "" {
+		log.C(ctx).Errorf("Tenant identifier not found in request criteria. Not able to create instance without tenant")
+		return nil, &util.HTTPError{
+			ErrorType:   "BadRequest",
+			Description: "no tenant identifier provided",
+			StatusCode:  http.StatusBadRequest,
+		}
+	}
+	if req.Method == http.MethodDelete {
+		return next.Handle(req)
+	}
+
 	planID := gjson.GetBytes(req.Body, planIDProperty).String()
 
 	if planID == "" {
@@ -80,12 +94,6 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 		return nil, visibilityError
 	}
 
-	tenantID := query.RetrieveFromCriteria(f.tenantIdentifier, query.CriteriaForContext(ctx)...)
-	if tenantID == "" {
-		log.C(ctx).Info("Tenant identifier not found in request criteria. Proceeding with the next handler...")
-		return next.Handle(req)
-	}
-
 	// There may be at most one visibility for the query - for SM platform or public for this plan
 	visibility := list.ItemAt(0).(*types.Visibility)
 	if len(visibility.PlatformID) == 0 { // public visibility
@@ -104,7 +112,7 @@ func (*serviceInstanceVisibilityFilter) FilterMatchers() []web.FilterMatcher {
 		{
 			Matchers: []web.Matcher{
 				web.Path(web.ServiceInstancesURL + "/**"),
-				web.Methods(http.MethodPost, http.MethodPatch),
+				web.Methods(http.MethodPost, http.MethodPatch, http.MethodDelete),
 			},
 		},
 	}

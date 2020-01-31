@@ -18,13 +18,14 @@ package filters
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
-	"net/http"
 )
 
 const platformIDProperty = "platform_id"
