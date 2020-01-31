@@ -19,6 +19,7 @@ package common
 import (
 	"crypto/rsa"
 	"encoding/json"
+	"github.com/gorilla/mux"
 	"net/http"
 	"net/http/httptest"
 	"time"
@@ -30,7 +31,7 @@ type OAuthServer struct {
 	BaseURL string
 
 	server     *httptest.Server
-	mux        *http.ServeMux
+	Router     *mux.Router
 	privateKey *rsa.PrivateKey // public key privateKey.PublicKey
 	signer     jwt.Signer
 	keyID      string
@@ -43,11 +44,11 @@ func NewOAuthServer() *OAuthServer {
 		privateKey: privateKey,
 		signer:     jwt.RS256(privateKey, &privateKey.PublicKey),
 		keyID:      "test-key",
-		mux:        http.NewServeMux(),
+		Router:     mux.NewRouter(),
 	}
-	os.mux.HandleFunc("/.well-known/openid-configuration", os.getOpenIDConfig)
-	os.mux.HandleFunc("/oauth/token", os.getToken)
-	os.mux.HandleFunc("/token_keys", os.getTokenKeys)
+	os.Router.HandleFunc("/.well-known/openid-configuration", os.getOpenIDConfig)
+	os.Router.HandleFunc("/oauth/token", os.getToken)
+	os.Router.HandleFunc("/token_keys", os.getTokenKeys)
 	os.Start()
 
 	return os
@@ -57,7 +58,7 @@ func (os *OAuthServer) Start() {
 	if os.server != nil {
 		panic("OAuth server already started")
 	}
-	os.server = httptest.NewServer(os.mux)
+	os.server = httptest.NewServer(os.Router)
 	os.BaseURL = os.server.URL
 }
 
