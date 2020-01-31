@@ -139,7 +139,7 @@ func (ds *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *
 			var actionErr error
 			var objectAfterAction types.Object
 			if objectAfterAction, actionErr = action(stateCtxWithOpAndTimeout, ds.repository); actionErr != nil {
-				log.C(stateCtx).Errorf("failed to execute action for %s operation with id %s for %s entity with id %s: %s", operation.Type, operation.ID, operation.ResourceType, operation.ResourceID, err)
+				log.C(stateCtx).Errorf("failed to execute action for %s operation with id %s for %s entity with id %s: %s", operation.Type, operation.ID, operation.ResourceType, operation.ResourceID, actionErr)
 			}
 
 			if err := ds.handleActionResponse(stateCtx, objectAfterAction, actionErr, operation); err != nil {

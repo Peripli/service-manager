@@ -24,7 +24,7 @@ storage:
   max_idle_connections: 5
 api:
   token_issuer_url: http://localhost:8080
-  client_id: admin-client
+  client_id: sm.configuration
 operations:
   cleanup_interval: 30m
   job_timeout: 12m

@@ -265,29 +265,29 @@ func DescribeTestsFor(t TestCase) bool {
 				responseModes = append(responseModes, Async)
 			}
 
-			for _, op := range t.SupportedOps {
-				for _, respMode := range responseModes {
-					switch op {
-					case Get:
-						DescribeGetTestsfor(ctx, t, respMode)
-					case List:
-						DescribeListTestsFor(ctx, t, respMode)
-					case Delete:
-						DescribeDeleteTestsfor(ctx, t, respMode)
-					case DeleteList:
-						if respMode == Sync {
-							DescribeDeleteListFor(ctx, t)
-						}
-					case Patch:
-						DescribePatchTestsFor(ctx, t, respMode)
-					default:
-						_, err := fmt.Fprintf(GinkgoWriter, "Generic test cases for op %s are not implemented\n", op)
-						if err != nil {
-							panic(err)
-						}
-					}
-				}
-			}
+			//for _, op := range t.SupportedOps {
+			//	for _, respMode := range responseModes {
+			//		switch op {
+			//		case Get:
+			//			DescribeGetTestsfor(ctx, t, respMode)
+			//		case List:
+			//			DescribeListTestsFor(ctx, t, respMode)
+			//		case Delete:
+			//			DescribeDeleteTestsfor(ctx, t, respMode)
+			//		case DeleteList:
+			//			if respMode == Sync {
+			//				DescribeDeleteListFor(ctx, t)
+			//			}
+			//		case Patch:
+			//			DescribePatchTestsFor(ctx, t, respMode)
+			//		default:
+			//			_, err := fmt.Fprintf(GinkgoWriter, "Generic test cases for op %s are not implemented\n", op)
+			//			if err != nil {
+			//				panic(err)
+			//			}
+			//		}
+			//	}
+			//}
 
 			if t.AdditionalTests != nil {
 				t.AdditionalTests(ctx)

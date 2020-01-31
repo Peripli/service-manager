@@ -366,7 +366,7 @@ func getInstanceByID(ctx context.Context, instanceID string, repository storage.
 		if err == util.ErrNotFoundInStorage {
 			return nil, &util.HTTPError{
 				ErrorType:   "NotFound",
-				Description: err.Error(),
+				Description: util.HandleStorageError(err, types.ServiceInstanceType.String()).Error(),
 				StatusCode:  http.StatusNotFound,
 			}
 		}

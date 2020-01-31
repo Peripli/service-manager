@@ -18,7 +18,6 @@ package common
 
 import (
 	"bytes"
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -26,7 +25,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sync"
-	"time"
 
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/gorilla/mux"
@@ -96,8 +94,8 @@ func (b *BrokerServer) Reset() {
 func (b *BrokerServer) ResetProperties() {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
-	b.Username = "buser"
-	b.Password = "bpassword"
+	b.Username = "admin"
+	b.Password = "admin"
 	c := NewRandomSBCatalog()
 	b.Catalog = c
 	b.LastRequestBody = []byte{}
@@ -170,7 +168,7 @@ func (b *BrokerServer) initRouter() {
 	}).Methods(http.MethodPost)
 
 	router.Use(b.authenticationMiddleware)
-	router.Use(b.saveRequestMiddleware)
+	//router.Use(b.saveRequestMiddleware)
 
 	b.router = router
 }
@@ -347,15 +345,9 @@ func SetResponse(rw http.ResponseWriter, status int, message map[string]interfac
 	}
 }
 
-func DelayingHandler(done chan interface{}, cancelFunc context.CancelFunc) func(req *http.Request) (int, map[string]interface{}) {
+func DelayingHandler(done chan interface{}) func(req *http.Request) (int, map[string]interface{}) {
 	return func(req *http.Request) (int, map[string]interface{}) {
-		brokerDelay := 30 * time.Second
-		timeoutContext, _ := context.WithTimeout(req.Context(), brokerDelay)
-		cancelFunc()
-		select {
-		case <-timeoutContext.Done():
-		case <-done:
-		}
+		<-done
 		return http.StatusTeapot, Object{}
 	}
 }

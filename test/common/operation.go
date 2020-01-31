@@ -38,17 +38,67 @@ type OperationExpectations struct {
 	Error             string
 }
 
-func VerifyOperationExists(ctx *TestContext, operationURL string, expectations OperationExpectations) (string, string) {
-	timeoutDuration := 45 * time.Second
-	tickerInterval := 100 * time.Millisecond
-	ticker := time.NewTicker(tickerInterval)
+type ResourceExpectations struct {
+	ID    string
+	Type  types.ObjectType
+	Ready bool
+}
+
+func VerifyResourceExists(smClient *SMExpect, expectations ResourceExpectations) {
+	timeoutDuration := 15 * time.Second
 	timeout := time.After(timeoutDuration)
-	defer ticker.Stop()
+	ticker := time.Tick(100 * time.Millisecond)
+	for {
+		select {
+		case <-timeout:
+			Fail(fmt.Sprintf("resource with type %s and id %s did not appear in SM after %.0f seconds", expectations.Type, expectations.ID, timeoutDuration.Seconds()))
+		case <-ticker:
+			resources := smClient.ListWithQuery(expectations.Type.String(), fmt.Sprintf("fieldQuery=id eq '%s'", expectations.ID))
+			switch {
+			case resources.Length().Raw() == 0:
+				By(fmt.Sprintf("Could not find resource with type %s and id %s in SM. Retrying...", expectations.Type, expectations.ID))
+			case resources.Length().Raw() > 1:
+				Fail(fmt.Sprintf("more than one resource with type %s and id %s was found in SM", expectations.Type, expectations.ID))
+			default:
+				resourceObject := resources.First().Object()
+				readyField := resourceObject.Value("ready").Boolean().Raw()
+				if readyField != expectations.Ready {
+					Fail(fmt.Sprintf("Expected resource with type %s and id %s to be ready %t but ready was %t", expectations.Type, expectations.ID, expectations.Ready, readyField))
+				}
+				return
+			}
+		}
+	}
+}
+func VerifyInstanceDoesNotExist(smClient *SMExpect, expectations ResourceExpectations) {
+	timeoutDuration := 15 * time.Second
+	timeout := time.After(timeoutDuration)
+	ticker := time.Tick(100 * time.Millisecond)
+	for {
+		select {
+		case <-timeout:
+			Fail(fmt.Sprintf("resource with type %s and id %s was still in SM after %.0f seconds", expectations.Type, expectations.ID, timeoutDuration.Seconds()))
+		case <-ticker:
+			resp := smClient.GET(expectations.Type.String() + "/" + expectations.ID).
+				Expect().Raw()
+			if resp.StatusCode != http.StatusNotFound {
+				By(fmt.Sprintf("Found resource with type %s and id %s but it should be deleted. Retrying...", expectations.Type, expectations.ID))
+			} else {
+				return
+			}
+		}
+	}
+}
+
+func VerifyOperationExists(ctx *TestContext, operationURL string, expectations OperationExpectations) (string, string) {
+	timeoutDuration := 15 * time.Second
+	timeout := time.After(timeoutDuration)
+	ticker := time.Tick(100 * time.Millisecond)
 	for {
 		select {
 		case <-timeout:
 			Fail(fmt.Sprintf("operation matching expectations did not appear in SM after %.0f seconds", timeoutDuration.Seconds()))
-		case <-ticker.C:
+		case <-ticker:
 			var operation map[string]interface{}
 			if len(operationURL) != 0 {
 				operation = ctx.SMWithOAuth.GET(operationURL).Expect().Status(http.StatusOK).JSON().Object().Raw()
