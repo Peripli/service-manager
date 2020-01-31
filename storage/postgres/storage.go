@@ -53,6 +53,7 @@ type Storage struct {
 	scheme                *scheme
 	isLocked              bool
 	mutex                 sync.Mutex
+	protectedLabels       []string
 }
 
 func (ps *Storage) Introduce(entity storage.Entity) {
@@ -68,6 +69,7 @@ func (ps *Storage) Open(settings *storage.Settings) error {
 	if err := settings.Validate(); err != nil {
 		return err
 	}
+	ps.protectedLabels = settings.ProtectedLabels
 
 	ps.mutex.Lock()
 	defer ps.mutex.Unlock()
@@ -91,7 +93,7 @@ func (ps *Storage) Open(settings *storage.Settings) error {
 		ps.layerOneEncryptionKey = []byte(settings.EncryptionKey)
 		ps.db.SetMaxIdleConns(settings.MaxIdleConnections)
 		ps.pgDB = ps.db
-		ps.queryBuilder = NewQueryBuilder(ps.pgDB)
+		ps.queryBuilder = NewQueryBuilder(ps.pgDB, ps.protectedLabels)
 
 		log.D().Debugf("Updating database schema using migrations from %s", settings.MigrationsURL)
 		if err := ps.updateSchema(settings.MigrationsURL, postgresDriverName); err != nil {
@@ -342,7 +344,7 @@ func (ps *Storage) InTransaction(ctx context.Context, f func(ctx context.Context
 	transactionalStorage := &Storage{
 		pgDB:                  tx,
 		db:                    ps.db,
-		queryBuilder:          NewQueryBuilder(tx),
+		queryBuilder:          NewQueryBuilder(tx, ps.protectedLabels),
 		scheme:                ps.scheme,
 		layerOneEncryptionKey: ps.layerOneEncryptionKey,
 	}

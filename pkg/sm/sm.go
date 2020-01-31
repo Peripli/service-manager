@@ -108,6 +108,8 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	// Initialize the storage with graceful termination
 	var transactionalRepository storage.TransactionalRepository
 	waitGroup := &sync.WaitGroup{}
+
+	cfg.Storage.ProtectedLabels = cfg.API.ProtectedLabels
 	if transactionalRepository, err = storage.InitializeWithSafeTermination(ctx, smStorage, cfg.Storage, waitGroup, encryptingDecorator); err != nil {
 		return nil, fmt.Errorf("error opening storage: %s", err)
 	}

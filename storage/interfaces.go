@@ -57,6 +57,7 @@ type Settings struct {
 	SkipSSLValidation  bool                  `mapstructure:"skip_ssl_validation" description:"whether to skip ssl verification when connecting to the storage"`
 	MaxIdleConnections int                   `mapstructure:"max_idle_connections" description:"sets the maximum number of connections in the idle connection pool"`
 	Notification       *NotificationSettings `mapstructure:"notification"`
+	ProtectedLabels    []string              `mapstructure:"-"`
 }
 
 // DefaultSettings returns default values for storage settings

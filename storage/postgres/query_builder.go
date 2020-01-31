@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/util/slice"
 	"regexp"
 	"strings"
 	"text/template"
@@ -75,13 +76,15 @@ DELETE FROM {{.ENTITY_TABLE}}
 
 // QueryBuilder is used to construct new queries. It is safe for concurrent usage
 type QueryBuilder struct {
-	db pgDB
+	db              pgDB
+	protectedLabels []string
 }
 
 // NewQueryBuilder constructs new query builder for the current db
-func NewQueryBuilder(db pgDB) *QueryBuilder {
+func NewQueryBuilder(db pgDB, protectedLabels []string) *QueryBuilder {
 	return &QueryBuilder{
-		db: db,
+		db:              db,
+		protectedLabels: protectedLabels,
 	}
 }
 
@@ -97,8 +100,17 @@ func (qb *QueryBuilder) NewQuery(entity PostgresEntity) *pgQuery {
 			operator: AND,
 		},
 		labelsWhereClause: &whereClauseTree{
-			operator: OR,
+			operator: AND,
+			children: []*whereClauseTree{
+				&whereClauseTree{
+					operator: AND, // for protected labels because they imply isolation semantics
+				},
+				&whereClauseTree{
+					operator: OR, // for user-provided labels
+				},
+			},
 		},
+		protectedLabels: qb.protectedLabels,
 	}
 }
 
@@ -124,6 +136,7 @@ type pgQuery struct {
 
 	fieldsWhereClause *whereClauseTree
 	labelsWhereClause *whereClauseTree
+	protectedLabels []string
 	shouldRebind      bool
 	err               error
 }
@@ -240,7 +253,23 @@ func (pq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
 				tableName: pq.entityTableName,
 			})
 		case query.LabelQuery:
-			pq.labelsWhereClause.children = append(pq.labelsWhereClause.children, &whereClauseTree{
+			var protectedLabelsSubtreeIndex int
+			var userProvidedLabelsSubtreeIndex int
+			for i, tree := range pq.labelsWhereClause.children {
+				if tree.operator == AND {
+					protectedLabelsSubtreeIndex = i
+				}
+				if tree.operator == OR {
+					userProvidedLabelsSubtreeIndex = i
+				}
+			}
+			var childToInsertIndex int
+			if slice.StringsAnyEquals(pq.protectedLabels, criterion.LeftOp) {
+				childToInsertIndex = protectedLabelsSubtreeIndex
+			} else {
+				childToInsertIndex = userProvidedLabelsSubtreeIndex
+			}
+			pq.labelsWhereClause.children[childToInsertIndex].children = append(pq.labelsWhereClause.children, &whereClauseTree{
 				operator: AND,
 				children: []*whereClauseTree{
 					{
