@@ -323,6 +323,26 @@ var _ = test.DescribeTestsFor(test.TestCase{
 							createInstance(ctx.SMWithOAuthForTenant, http.StatusCreated)
 						})
 					})
+
+					When("creating instance with same name", func() {
+						BeforeEach(func() {
+							test.EnsurePublicPlanVisibility(ctx.SMRepository, servicePlanID)
+							createInstance(ctx.SMWithOAuthForTenant, http.StatusCreated)
+						})
+
+						When("for the same tenant", func() {
+							It("should reject", func() {
+								createInstance(ctx.SMWithOAuthForTenant, http.StatusConflict)
+							})
+						})
+
+						When("for other tenant", func() {
+							It("should accept", func() {
+								otherTenantExpect := ctx.NewTenantExpect("other-tenant")
+								createInstance(otherTenantExpect, http.StatusCreated)
+							})
+						})
+					})
 				})
 			})
 

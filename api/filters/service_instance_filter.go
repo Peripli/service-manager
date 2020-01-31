@@ -28,7 +28,9 @@ import (
 	"github.com/tidwall/sjson"
 )
 
-const platformIDProperty = "platform_id"
+const (
+	platformIDProperty = "platform_id"
+)
 
 const ServiceInstanceFilterName = "ServiceInstanceFilter"
 

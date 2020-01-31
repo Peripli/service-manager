@@ -17,6 +17,7 @@
 package service_binding_test
 
 import (
+	"github.com/gofrs/uuid"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -277,11 +278,15 @@ var _ = test.DescribeTestsFor(test.TestCase{
 
 func blueprint(ctx *common.TestContext, auth *common.SMExpect, async bool) common.Object {
 	servicePlanID := newServicePlan(ctx)
+	UUID, err := uuid.NewV4()
+	if err != nil {
+		panic(fmt.Errorf("could not generate GUID for visibility: %s", err))
+	}
 	test.EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
 	resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
 		WithQuery("async", strconv.FormatBool(async)).
 		WithJSON(common.Object{
-			"name":             "test-service-instance",
+			"name":             "test-service-instance-" + UUID.String(),
 			"service_plan_id":  servicePlanID,
 			"maintenance_info": "{}",
 		}).Expect()

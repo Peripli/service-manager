@@ -29,7 +29,10 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-const planIDProperty = "service_plan_id"
+const (
+	planIDProperty = "service_plan_id"
+	nameProperty   = "name"
+)
 
 const ServiceInstanceVisibilityFilterName = "ServiceInstanceVisibilityFilter"
 
@@ -66,6 +69,23 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 	}
 	if req.Method == http.MethodDelete {
 		return next.Handle(req)
+	}
+
+	instanceName := gjson.GetBytes(req.Body, nameProperty).String()
+
+	instancesWithSameNameCount, err := f.repository.Count(ctx, types.ServiceInstanceType,
+		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
+		query.ByField(query.EqualsOperator, nameProperty, instanceName),
+		query.ByLabel(query.EqualsOperator, f.tenantIdentifier, tenantID))
+	if err != nil {
+		return nil, util.HandleStorageError(err, types.ServiceInstanceType.String())
+	}
+	if instancesWithSameNameCount > 0 {
+		return nil, &util.HTTPError{
+			ErrorType:   "Conflict",
+			Description: "instance with same name exists for the current tenant",
+			StatusCode:  http.StatusConflict,
+		}
 	}
 
 	planID := gjson.GetBytes(req.Body, planIDProperty).String()
