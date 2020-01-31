@@ -93,6 +93,7 @@ func (om *Maintainer) processOrphanOperations() {
 
 func (om *Maintainer) cleanUpOldOperations() {
 	criteria := []query.Criterion{
+		query.ByField(query.EqualsOperator, "state", string(types.FAILED)),
 		query.ByField(query.NotEqualsOperator, "platform_id", types.SERVICE_MANAGER_PLATFORM),
 		query.ByField(query.LessThanOperator, "created_at", util.ToRFCNanoFormat(time.Now().Add(-om.operationExpirationTime))),
 	}
