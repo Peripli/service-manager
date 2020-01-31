@@ -45,6 +45,12 @@ type ServiceBindingCreateInterceptorProvider struct {
 	TenantKey           string
 	PollingInterval     time.Duration
 }
+type bindResponseDetails struct {
+	Credentials     map[string]interface{}
+	SyslogDrainURL  *string
+	RouteServiceURL *string
+	VolumeMounts    []interface{}
+}
 
 func (p *ServiceBindingCreateInterceptorProvider) Provide() storage.CreateAroundTxInterceptor {
 	return &ServiceBindingInterceptor{
@@ -143,7 +149,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 
 		var bindResponse *osbc.BindResponse
 		if !operation.Reschedule {
-			bindRequest := i.prepareBindRequest(instance, binding, service.CatalogID, plan.CatalogID)
+			bindRequest := i.prepareBindRequest(instance, binding, service.CatalogID, plan.CatalogID, service.BindingsRetrievable)
 			contextBytes, err := json.Marshal(bindRequest.Context)
 			if err != nil {
 				return nil, fmt.Errorf("failed to marshal OSB context %+v: %s", bindRequest.Context, err)
@@ -175,7 +181,13 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 				return nil, brokerError
 			}
 
-			if err := i.enrichBindingWithBindingResponse(binding, bindResponse); err != nil {
+			bindResponseDetails := bindResponseDetails{
+				Credentials:     bindResponse.Credentials,
+				SyslogDrainURL:  bindResponse.SyslogDrainURL,
+				RouteServiceURL: bindResponse.RouteServiceURL,
+				VolumeMounts:    bindResponse.VolumeMounts,
+			}
+			if err := i.enrichBindingWithBindingResponse(binding, bindResponseDetails); err != nil {
 				return nil, fmt.Errorf("could not enrich binding details with binding response details: %s", err)
 			}
 
@@ -364,11 +376,11 @@ func getInstanceByID(ctx context.Context, instanceID string, repository storage.
 	return instanceObject.(*types.ServiceInstance), nil
 }
 
-func (i *ServiceBindingInterceptor) prepareBindRequest(instance *types.ServiceInstance, binding *types.ServiceBinding, serviceCatalogID, planCatalogID string) *osbc.BindRequest {
+func (i *ServiceBindingInterceptor) prepareBindRequest(instance *types.ServiceInstance, binding *types.ServiceBinding, serviceCatalogID, planCatalogID string, bindingRetrievable bool) *osbc.BindRequest {
 	bindRequest := &osbc.BindRequest{
 		BindingID:         binding.ID,
 		InstanceID:        instance.ID,
-		AcceptsIncomplete: true,
+		AcceptsIncomplete: bindingRetrievable,
 		ServiceID:         serviceCatalogID,
 		PlanID:            planCatalogID,
 		Parameters:        binding.Parameters,
@@ -461,6 +473,38 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 					return fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule", operation.ID)
 				}
 
+				getBindingRequest := &osbc.GetBindingRequest{
+					InstanceID: binding.ServiceInstanceID,
+					BindingID:  binding.ID,
+				}
+				bindingResponse, err := osbClient.GetBinding(getBindingRequest)
+				if err != nil {
+					brokerError := &util.HTTPError{
+						ErrorType:   "BrokerError",
+						Description: fmt.Sprintf("Failed get bind request %+v after successfully finished polling: %s", getBindingRequest, err),
+						StatusCode:  http.StatusBadGateway,
+					}
+					if shouldStartOrphanMitigation(err) {
+						// mark the operation as deletion scheduled meaning orphan mitigation is required
+						operation.DeletionScheduled = time.Now()
+						operation.Reschedule = false
+						if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
+							return fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s", operation.ID, brokerError, err)
+						}
+					}
+					return brokerError
+				}
+
+				bindResponseDetails := bindResponseDetails{
+					Credentials:     bindingResponse.Credentials,
+					SyslogDrainURL:  bindingResponse.SyslogDrainURL,
+					RouteServiceURL: bindingResponse.RouteServiceURL,
+					VolumeMounts:    bindingResponse.VolumeMounts,
+				}
+				if err := i.enrichBindingWithBindingResponse(binding, bindResponseDetails); err != nil {
+					return fmt.Errorf("could not enrich binding details with binding response details: %s", err)
+				}
+
 				return nil
 			case osbc.StateFailed:
 				log.C(ctx).Infof("Failed polling operation for binding with id %s and name %s", binding.ID, binding.Name)
@@ -490,7 +534,7 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 	}
 }
 
-func (i *ServiceBindingInterceptor) enrichBindingWithBindingResponse(binding *types.ServiceBinding, response *osbc.BindResponse) error {
+func (i *ServiceBindingInterceptor) enrichBindingWithBindingResponse(binding *types.ServiceBinding, response bindResponseDetails) error {
 	if len(response.Credentials) != 0 {
 		credentialBytes, err := json.Marshal(response.Credentials)
 		if err != nil {

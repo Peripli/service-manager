@@ -77,7 +77,7 @@ func (ds *Scheduler) ScheduleSyncStorageAction(ctx context.Context, operation *t
 		log.C(ctx).Errorf("failed to execute action for %s operation with id %s for %s entity with id %s: %s", operation.Type, operation.ID, operation.ResourceType, operation.ResourceID, actionErr)
 	}
 
-	if err := ds.handleActionResponse(&util.StateContext{Context: ctx}, actionErr, operation); err != nil {
+	if err := ds.handleActionResponse(&util.StateContext{Context: ctx}, object, actionErr, operation); err != nil {
 		return nil, err
 	}
 
@@ -137,11 +137,12 @@ func (ds *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *
 			}()
 
 			var actionErr error
-			if _, actionErr = action(stateCtxWithOpAndTimeout, ds.repository); actionErr != nil {
+			var objectAfterAction types.Object
+			if objectAfterAction, actionErr = action(stateCtxWithOpAndTimeout, ds.repository); actionErr != nil {
 				log.C(stateCtx).Errorf("failed to execute action for %s operation with id %s for %s entity with id %s: %s", operation.Type, operation.ID, operation.ResourceType, operation.ResourceID, err)
 			}
 
-			if err := ds.handleActionResponse(stateCtx, actionErr, operation); err != nil {
+			if err := ds.handleActionResponse(stateCtx, objectAfterAction, actionErr, operation); err != nil {
 				log.C(stateCtx).Error(err)
 			}
 		}(operation)
@@ -342,20 +343,14 @@ func (ds *Scheduler) storeOrUpdateOperation(ctx context.Context, operation, last
 	return nil
 }
 
-func fetchAndUpdateResource(ctx context.Context, repository storage.Repository, objectID string, objectType types.ObjectType, updateFunc func(obj types.Object)) error {
-	byID := query.ByField(query.EqualsOperator, "id", objectID)
-	objectFromDB, err := repository.Get(ctx, objectType, byID)
+func fetchAndUpdateResource(ctx context.Context, repository storage.Repository, objectAfterAction types.Object, updateFunc func(obj types.Object)) error {
+	updateFunc(objectAfterAction)
+	_, err := repository.Update(ctx, objectAfterAction, query.LabelChanges{})
 	if err != nil {
-		return fmt.Errorf("failed to retrieve object of type %s with id %s:%s", objectType.String(), objectID, err)
+		return fmt.Errorf("failed to update object with type %s and id %s", objectAfterAction.GetType(), objectAfterAction.GetID())
 	}
 
-	updateFunc(objectFromDB)
-	_, err = repository.Update(ctx, objectFromDB, query.LabelChanges{})
-	if err != nil {
-		return fmt.Errorf("failed to update object with type %s and id %s", objectType, objectID)
-	}
-
-	log.C(ctx).Infof("Successfully updated object of type %s and id %s ", objectType, objectID)
+	log.C(ctx).Infof("Successfully updated object of type %s and id %s ", objectAfterAction.GetType(), objectAfterAction.GetID())
 	return nil
 }
 
@@ -400,15 +395,15 @@ func (ds *Scheduler) refetchOperation(ctx context.Context, operation *types.Oper
 	return opObject.(*types.Operation), nil
 }
 
-func (ds *Scheduler) handleActionResponse(ctx context.Context, jobError error, opBeforeJob *types.Operation) error {
+func (ds *Scheduler) handleActionResponse(ctx context.Context, actionObject types.Object, actionError error, opBeforeJob *types.Operation) error {
 	opAfterJob, err := ds.refetchOperation(ctx, opBeforeJob)
 	if err != nil {
 		return err
 	}
 
 	// if an action error has occurred we mark the operation as failed and check if deletion has to be scheduled
-	if jobError != nil {
-		if opErr := updateOperationState(ctx, ds.repository, opAfterJob, types.FAILED, jobError); opErr != nil {
+	if actionError != nil {
+		if opErr := updateOperationState(ctx, ds.repository, opAfterJob, types.FAILED, actionError); opErr != nil {
 			return fmt.Errorf("setting new operation state failed: %s", opErr)
 		}
 
@@ -440,13 +435,13 @@ func (ds *Scheduler) handleActionResponse(ctx context.Context, jobError error, o
 				if orphanMitigationErr := ds.ScheduleAsyncStorageAction(ctx, opAfterJob, deletionAction); orphanMitigationErr != nil {
 					return &util.HTTPError{
 						ErrorType:   "BrokerError",
-						Description: fmt.Sprintf("job failed with %s and orphan mitigation failed with %s", jobError, orphanMitigationErr),
+						Description: fmt.Sprintf("job failed with %s and orphan mitigation failed with %s", actionError, orphanMitigationErr),
 						StatusCode:  http.StatusBadGateway,
 					}
 				}
 			}
 		}
-		return jobError
+		return actionError
 	}
 
 	if !opAfterJob.Reschedule {
@@ -473,7 +468,7 @@ func (ds *Scheduler) handleActionResponse(ctx context.Context, jobError error, o
 
 			// after a successful CREATE operation, update the ready field to true
 			if opAfterJob.Type == types.CREATE && finalState == types.SUCCEEDED {
-				if err := fetchAndUpdateResource(ctx, storage, opAfterJob.ResourceID, opAfterJob.ResourceType, func(obj types.Object) {
+				if err := fetchAndUpdateResource(ctx, storage, actionObject, func(obj types.Object) {
 					obj.SetReady(true)
 				}); err != nil {
 					return err
