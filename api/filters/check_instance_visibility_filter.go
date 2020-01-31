@@ -87,10 +87,10 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 
 	visibilityError := &util.HTTPError{
 		ErrorType:   "NotFound",
-		Description: "could not find such service plan",
+		Description: "could not find visibility for this plan",
 		StatusCode:  http.StatusNotFound,
 	}
- 	if list.Len() == 0 {
+	if list.Len() == 0 {
 		return nil, visibilityError
 	}
 
@@ -98,18 +98,22 @@ func (f *serviceInstanceVisibilityFilter) Run(req *web.Request, next web.Handler
 	visibility := list.ItemAt(0).(*types.Visibility)
 	if len(visibility.PlatformID) == 0 {
 		// public visibility
+		log.C(ctx).Infof("Found public visibility(%s) for plan with id %s for tenant with id %s", visibility.ID, planID, tenantID)
 		return next.Handle(req)
 	}
 	tenantLabels, ok := visibility.Labels[f.tenantIdentifier]
 	if !ok {
 		// decomposed public visibility for SM platform
+		log.C(ctx).Infof("Found decomposed public visibility(%s) for plan with id %s for tenant with id %s", visibility.ID, planID, tenantID)
 		return next.Handle(req)
 	}
 	if slice.StringsAnyEquals(tenantLabels, tenantID) {
 		// visibility for tenant
+		log.C(ctx).Infof("Found visibility(%s) for plan with id %s for tenant with id %s", visibility.ID, planID, tenantID)
 		return next.Handle(req)
 	}
 
+	log.C(ctx).Infof("Could not find visibility for plan with id %s for tenant with id %s", planID, tenantID)
 	return nil, visibilityError
 }
 
