@@ -112,7 +112,7 @@ func DescribeDeleteTestsfor(ctx *common.TestContext, t TestCase, responseMode Re
 						})
 					})
 
-					if !t.DisableTenantResources || t.StrictlyTenantScoped {
+					if !t.DisableTenantResources {
 						Context("when authenticating with tenant scoped token", func() {
 							It("returns 404", func() {
 								verifyResourceDeletionWithErrorMsg(ctx.SMWithOAuthForTenant, failedDeletionRequestResponseCode, http.StatusOK, types.FAILED, notFoundMsg)
