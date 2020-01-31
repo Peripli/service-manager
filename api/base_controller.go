@@ -581,6 +581,7 @@ func (c *BaseController) buildOperation(ctx context.Context, storage storage.Rep
 		Type:          category,
 		State:         state,
 		ResourceID:    resourceID,
+		PlatformID:    types.SERVICE_MANAGER_PLATFORM,
 		ResourceType:  c.resourceBaseURL,
 		CorrelationID: correlationID,
 	}

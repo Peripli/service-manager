@@ -52,6 +52,11 @@ const (
 	FAILED OperationState = "failed"
 )
 
+const (
+	// SERVICE_MANAGER_PLATFORM represents the platfom ID of service manager
+	SERVICE_MANAGER_PLATFORM string = "service-manager"
+)
+
 //go:generate smgen api Operation
 // Operation struct
 type Operation struct {
@@ -61,6 +66,7 @@ type Operation struct {
 	State         OperationState    `json:"state"`
 	ResourceID    string            `json:"resource_id"`
 	ResourceType  string            `json:"resource_type"`
+	PlatformID    string            `json:"platform_id"`
 	Errors        json.RawMessage   `json:"errors"`
 	CorrelationID string            `json:"correlation_id"`
 	ExternalID    string            `json:"-"`
@@ -79,6 +85,7 @@ func (e *Operation) Equals(obj Object) bool {
 		e.ExternalID != operation.ExternalID ||
 		e.State != operation.State ||
 		e.Type != operation.Type ||
+		e.PlatformID != operation.PlatformID ||
 		!reflect.DeepEqual(e.Errors, operation.Errors) {
 		return false
 	}

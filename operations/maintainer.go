@@ -29,27 +29,32 @@ import (
 // Maintainer ensures that operations old enough are deleted
 // and that no orphan operations are left in the DB due to crashes/restarts of SM
 type Maintainer struct {
-	smCtx               context.Context
-	repository          storage.Repository
-	jobTimeout          time.Duration
-	markOrphansInterval time.Duration
-	cleanupInterval     time.Duration
+	smCtx                   context.Context
+	repository              storage.Repository
+	jobTimeout              time.Duration
+	markOrphansInterval     time.Duration
+	cleanupInterval         time.Duration
+	operationExpirationTime time.Duration
 }
 
 // NewMaintainer constructs a Maintainer
 func NewMaintainer(smCtx context.Context, repository storage.Repository, options *Settings) *Maintainer {
 	return &Maintainer{
-		smCtx:               smCtx,
-		repository:          repository,
-		jobTimeout:          options.JobTimeout,
-		markOrphansInterval: options.MarkOrphansInterval,
-		cleanupInterval:     options.CleanupInterval,
+		smCtx:                   smCtx,
+		repository:              repository,
+		jobTimeout:              options.JobTimeout,
+		markOrphansInterval:     options.MarkOrphansInterval,
+		cleanupInterval:         options.CleanupInterval,
+		operationExpirationTime: options.ExpirationTime,
 	}
 }
 
 // Run starts the two recurring jobs responsible for cleaning up operations which are too old
 // and deleting orphan operations
 func (om *Maintainer) Run() {
+	om.cleanUpOldOperations()
+	om.markOrphanOperationsFailed()
+
 	go om.processOldOperations()
 	go om.processOrphanOperations()
 }
@@ -87,8 +92,13 @@ func (om *Maintainer) processOrphanOperations() {
 }
 
 func (om *Maintainer) cleanUpOldOperations() {
-	byDate := query.ByField(query.LessThanOperator, "created_at", util.ToRFCNanoFormat(time.Now().Add(-om.cleanupInterval)))
-	if err := om.repository.Delete(om.smCtx, types.OperationType, byDate); err != nil {
+	criteria := []query.Criterion{
+		query.ByField(query.EqualsOperator, "state", string(types.FAILED)),
+		query.ByField(query.NotEqualsOperator, "platform_id", types.SERVICE_MANAGER_PLATFORM),
+		query.ByField(query.LessThanOperator, "created_at", util.ToRFCNanoFormat(time.Now().Add(-om.operationExpirationTime))),
+	}
+
+	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil {
 		log.D().Debugf("Failed to cleanup operations: %s", err)
 		return
 	}

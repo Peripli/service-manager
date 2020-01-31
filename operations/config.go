@@ -22,8 +22,13 @@ import (
 )
 
 const (
-	minTimePeriod     = time.Nanosecond
-	defaultJobTimeout = 5 * time.Minute
+	minTimePeriod = time.Nanosecond
+
+	defaultMarkOrphansInterval = 24 * time.Hour
+	defaultJobTimeout          = 7*24*time.Hour - 1*time.Hour
+
+	defaultCleanupInterval = 1 * time.Hour
+	defaultExpirationTime  = 7 * 24 * time.Hour
 )
 
 // Settings type to be loaded from the environment
@@ -31,6 +36,7 @@ type Settings struct {
 	JobTimeout          time.Duration  `mapstructure:"job_timeout" description:"timeout for async operations"`
 	MarkOrphansInterval time.Duration  `mapstructure:"mark_orphans_interval" description:"interval denoting how often to mark orphan operations as failed"`
 	CleanupInterval     time.Duration  `mapstructure:"cleanup_interval" description:"cleanup interval of old operations"`
+	ExpirationTime      time.Duration  `mapstructure:"expiration_time" description:"after that time is passed since its creation, the operation can be cleaned up by the maintainer"`
 	DefaultPoolSize     int            `mapstructure:"default_pool_size" description:"default worker pool size"`
 	Pools               []PoolSettings `mapstructure:"pools" description:"defines the different available worker pools"`
 }
@@ -39,8 +45,9 @@ type Settings struct {
 func DefaultSettings() *Settings {
 	return &Settings{
 		JobTimeout:          defaultJobTimeout,
-		MarkOrphansInterval: defaultJobTimeout,
-		CleanupInterval:     10 * time.Minute,
+		MarkOrphansInterval: defaultMarkOrphansInterval,
+		CleanupInterval:     defaultCleanupInterval,
+		ExpirationTime:      defaultExpirationTime,
 		DefaultPoolSize:     20,
 		Pools:               []PoolSettings{},
 	}

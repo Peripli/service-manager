@@ -18,6 +18,11 @@ package operations_test
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -30,11 +35,6 @@ import (
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"net/http"
-	"strings"
-	"sync"
-	"testing"
-	"time"
 )
 
 const (
@@ -180,43 +180,109 @@ var _ = Describe("Operations", func() {
 
 	Context("Maintainer", func() {
 		const (
-			jobTimeout      = 3 * time.Second
-			cleanupInterval = 5 * time.Second
+			jobTimeout          = 1 * time.Second
+			cleanupInterval     = 2 * time.Second
+			operationExpiration = 2 * time.Second
 		)
 
-		BeforeEach(func() {
-			postHook := func(e env.Environment, servers map[string]common.FakeServer) {
+		var ctxBuilder *common.TestContextBuilder
+
+		postHookWithOperationsConfig := func() func(e env.Environment, servers map[string]common.FakeServer) {
+			return func(e env.Environment, servers map[string]common.FakeServer) {
 				e.Set("operations.job_timeout", jobTimeout)
 				e.Set("operations.mark_orphans_interval", jobTimeout)
 				e.Set("operations.cleanup_interval", cleanupInterval)
+				e.Set("operations.expiration_time", operationExpiration)
 			}
+		}
 
-			ctx = common.NewTestContextBuilder().WithEnvPostExtensions(postHook).Build()
+		assertOperationCount := func(expectedCount int, criterion ...query.Criterion) {
+			count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, criterion...)
+			Expect(err).To(BeNil())
+			Expect(count).To(Equal(expectedCount))
+		}
+
+		BeforeEach(func() {
+			postHook := postHookWithOperationsConfig()
+			ctxBuilder = common.NewTestContextBuilderWithSecurity().WithEnvPostExtensions(postHook)
+			ctx = ctxBuilder.Build()
 		})
 
 		When("Specified cleanup interval passes", func() {
-			It("Deletes operations older than that interval", func() {
-				resp := ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL+"/non-existent-broker-id").WithQuery("async", true).
-					Expect().
-					Status(http.StatusAccepted)
+			Context("operation platform is service Manager", func() {
 
-				locationHeader := resp.Header("Location").Raw()
-				split := strings.Split(locationHeader, "/")
-				operationID := split[len(split)-1]
+				It("Does not delete operations older than that interval", func() {
+					ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL+"/non-existent-broker-id").WithQuery("async", true).
+						Expect().
+						Status(http.StatusAccepted)
 
-				byID := query.ByField(query.EqualsOperator, "id", operationID)
-				count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byID)
-				Expect(err).To(BeNil())
-				Expect(count).To(Equal(1))
+					byPlatformID := query.ByField(query.EqualsOperator, "platform_id", types.SERVICE_MANAGER_PLATFORM)
+					assertOperationCount(1, byPlatformID)
 
-				Eventually(func() int {
-					count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byID)
-					Expect(err).To(BeNil())
-
-					return count
-				}, cleanupInterval*2).Should(Equal(0))
+					time.Sleep(cleanupInterval + time.Second)
+					assertOperationCount(1, byPlatformID)
+				})
 			})
 
+			Context("operation platform is platform registered in service manager", func() {
+				const (
+					brokerAPIVersionHeaderKey   = "X-Broker-API-Version"
+					brokerAPIVersionHeaderValue = "2.13"
+
+					serviceID = "test-service-1"
+					planID    = "test-service-plan-1"
+				)
+
+				var (
+					brokerID     string
+					catalog      common.SBCatalog
+					brokerServer *common.BrokerServer
+				)
+
+				asyncProvision := func() {
+					ctx.SMWithBasic.PUT(brokerServer.URL()+"/v1/osb/"+brokerID+"/v2/service_instances/12345").
+						WithHeader(brokerAPIVersionHeaderKey, brokerAPIVersionHeaderValue).
+						WithQuery("async", true).
+						WithJSON(map[string]interface{}{
+							"service_id":        serviceID,
+							"plan_id":           planID,
+							"organization_guid": "my-org",
+						}).
+						Expect().Status(http.StatusAccepted)
+				}
+
+				BeforeEach(func() {
+					catalog = simpleCatalog(serviceID, planID)
+					catalog = simpleCatalog(serviceID, planID)
+					ctx.RegisterPlatform()
+					brokerID, _, brokerServer = ctx.RegisterBrokerWithCatalog(catalog)
+					brokerServer.ServiceInstanceHandler = func(rw http.ResponseWriter, _ *http.Request) {
+						rw.Header().Set("Content-Type", "application/json")
+						rw.WriteHeader(http.StatusAccepted)
+					}
+					common.CreateVisibilitiesForAllBrokerPlans(ctx.SMWithOAuth, brokerID)
+				})
+
+				AfterEach(func() {
+					common.RemoveAllInstances(ctx.SMRepository)
+					ctx.CleanupBroker(brokerID)
+				})
+
+				It("Deletes operations older than that interval", func() {
+					asyncProvision()
+
+					byPlatformID := query.ByField(query.NotEqualsOperator, "platform_id", types.SERVICE_MANAGER_PLATFORM)
+
+					assertOperationCount(1, byPlatformID)
+
+					Eventually(func() int {
+						count, err := ctx.SMRepository.Count(context.Background(), types.OperationType, byPlatformID)
+						Expect(err).To(BeNil())
+
+						return count
+					}, cleanupInterval*2).Should(Equal(0))
+				})
+			})
 		})
 
 		When("Specified job timeout passes", func() {
@@ -251,6 +317,21 @@ var _ = Describe("Operations", func() {
 		})
 	})
 })
+
+func simpleCatalog(serviceID, planID string) common.SBCatalog {
+	return common.SBCatalog(fmt.Sprintf(`{
+	  "services": [{
+			"name": "no-tags-no-metadata",
+			"id": "%s",
+			"description": "A fake service.",
+			"plans": [{
+				"name": "fake-plan-1",
+				"id": "%s",
+				"description": "Shared fake Server, 5tb persistent disk, 40 max concurrent connections."
+			}]
+		}]
+	}`, serviceID, planID))
+}
 
 type panicController struct {
 	operation *types.Operation
