@@ -27,7 +27,6 @@ import (
 {{end}}
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
-
 )
 
 const {{.Type}}Type {{.TypesPackage}}ObjectType = web.{{.TypePlural}}URL
