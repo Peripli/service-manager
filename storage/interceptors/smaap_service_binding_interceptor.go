@@ -40,11 +40,9 @@ const ServiceBindingCreateInterceptorProviderName = "ServiceBindingCreateInterce
 
 // ServiceBindingCreateInterceptorProvider provides an interceptor that notifies the actual broker about instance creation
 type ServiceBindingCreateInterceptorProvider struct {
-	OSBClientCreateFunc osbc.CreateFunc
-	Repository          storage.TransactionalRepository
-	TenantKey           string
-	PollingInterval     time.Duration
+	*BaseSMAAPInterceptorProvider
 }
+
 type bindResponseDetails struct {
 	Credentials     map[string]interface{}
 	SyslogDrainURL  *string
@@ -69,10 +67,7 @@ const ServiceBindingDeleteInterceptorProviderName = "ServiceBindingDeleteInterce
 
 // ServiceBindingDeleteInterceptorProvider provides an interceptor that notifies the actual broker about instance deletion
 type ServiceBindingDeleteInterceptorProvider struct {
-	OSBClientCreateFunc osbc.CreateFunc
-	Repository          storage.TransactionalRepository
-	TenantKey           string
-	PollingInterval     time.Duration
+	*BaseSMAAPInterceptorProvider
 }
 
 func (p *ServiceBindingDeleteInterceptorProvider) Provide() storage.DeleteAroundTxInterceptor {
@@ -113,7 +108,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 			return nil, fmt.Errorf("operation missing from context")
 		}
 
-		osbClient, broker, service, plan, err := prepare(ctx, i.repository, i.osbClientCreateFunc, instance)
+		osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, instance)
 		if err != nil {
 			return nil, err
 		}
@@ -134,7 +129,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 			}
 		}
 
-		isDeleting, err := i.isInstanceDeleting(ctx, instance.ID)
+		isDeleting, err := i.isInstanceInDeletion(ctx, instance.ID)
 		if err != nil {
 			return nil, fmt.Errorf("could not determine instance state: %s", err)
 		}
@@ -260,7 +255,7 @@ func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, bin
 		return err
 	}
 
-	osbClient, broker, service, plan, err := prepare(ctx, i.repository, i.osbClientCreateFunc, instance)
+	osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, instance)
 	if err != nil {
 		return err
 	}
@@ -330,7 +325,7 @@ func (i *ServiceBindingInterceptor) isInstanceReady(instance *types.ServiceInsta
 	return instance.Ready
 }
 
-func (i *ServiceBindingInterceptor) isInstanceDeleting(ctx context.Context, instanceID string) (bool, error) {
+func (i *ServiceBindingInterceptor) isInstanceInDeletion(ctx context.Context, instanceID string) (bool, error) {
 	lastOperation, found, err := getLastOperationByResourceID(ctx, instanceID, i.repository)
 	if err != nil {
 		return false, fmt.Errorf("could not determine in instance is in process of deletion: %s", err)

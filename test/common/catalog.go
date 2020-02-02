@@ -36,7 +36,7 @@ var testFreePlan = `
       "name": "another-free-plan-name-%[1]s",
       "id": "%[1]s",
       "description": "test-description",
-      "free": true,
+	  "free": true,
 	  "bindable": true,  	
       "metadata": {
         "max_storage_tb": 5,

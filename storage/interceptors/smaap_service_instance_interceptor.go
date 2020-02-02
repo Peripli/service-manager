@@ -40,12 +40,16 @@ import (
 
 const ServiceInstanceCreateInterceptorProviderName = "ServiceInstanceCreateInterceptorProvider"
 
-// ServiceInstanceCreateInterceptorProvider provides an interceptor that notifies the actual broker about instance creation
-type ServiceInstanceCreateInterceptorProvider struct {
+type BaseSMAAPInterceptorProvider struct {
 	OSBClientCreateFunc osbc.CreateFunc
 	Repository          storage.TransactionalRepository
 	TenantKey           string
 	PollingInterval     time.Duration
+}
+
+// ServiceInstanceCreateInterceptorProvider provides an interceptor that notifies the actual broker about instance creation
+type ServiceInstanceCreateInterceptorProvider struct {
+	*BaseSMAAPInterceptorProvider
 }
 
 func (p *ServiceInstanceCreateInterceptorProvider) Provide() storage.CreateAroundTxInterceptor {
@@ -65,10 +69,7 @@ const ServiceInstanceUpdateInterceptorProviderName = "ServiceInstanceUpdateInter
 
 // ServiceInstanceUpdateInterceptorProvider provides an interceptor that notifies the actual broker about instance updates
 type ServiceInstanceUpdateInterceptorProvider struct {
-	OSBClientCreateFunc osbc.CreateFunc
-	Repository          storage.TransactionalRepository
-	TenantKey           string
-	PollingInterval     time.Duration
+	*BaseSMAAPInterceptorProvider
 }
 
 func (p *ServiceInstanceUpdateInterceptorProvider) Provide() storage.UpdateAroundTxInterceptor {
@@ -88,10 +89,7 @@ const ServiceInstanceDeleteInterceptorProviderName = "ServiceInstanceDeleteInter
 
 // ServiceInstanceDeleteInterceptorProvider provides an interceptor that notifies the actual broker about instance deletion
 type ServiceInstanceDeleteInterceptorProvider struct {
-	OSBClientCreateFunc osbc.CreateFunc
-	Repository          storage.TransactionalRepository
-	TenantKey           string
-	PollingInterval     time.Duration
+	*BaseSMAAPInterceptorProvider
 }
 
 func (p *ServiceInstanceDeleteInterceptorProvider) Provide() storage.DeleteAroundTxInterceptor {
@@ -128,7 +126,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 			return nil, fmt.Errorf("operation missing from context")
 		}
 
-		osbClient, broker, service, plan, err := prepare(ctx, i.repository, i.osbClientCreateFunc, instance)
+		osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, instance)
 		if err != nil {
 			return nil, err
 		}
@@ -261,7 +259,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 		}
 	}
 
-	osbClient, broker, service, plan, err := prepare(ctx, i.repository, i.osbClientCreateFunc, instance)
+	osbClient, broker, service, plan, err := preparePrerequisites(ctx, i.repository, i.osbClientCreateFunc, instance)
 	if err != nil {
 		return err
 	}
@@ -412,7 +410,7 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 	}
 }
 
-func prepare(ctx context.Context, repository storage.Repository, osbClientFunc osbc.CreateFunc, instance *types.ServiceInstance) (osbc.Client, *types.ServiceBroker, *types.ServiceOffering, *types.ServicePlan, error) {
+func preparePrerequisites(ctx context.Context, repository storage.Repository, osbClientFunc osbc.CreateFunc, instance *types.ServiceInstance) (osbc.Client, *types.ServiceBroker, *types.ServiceOffering, *types.ServicePlan, error) {
 	planObject, err := repository.Get(ctx, types.ServicePlanType, query.ByField(query.EqualsOperator, "id", instance.ServicePlanID))
 	if err != nil {
 		return nil, nil, nil, nil, util.HandleStorageError(err, types.ServicePlanType.String())

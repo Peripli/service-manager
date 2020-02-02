@@ -68,6 +68,7 @@ func ToHTTPError(ctx context.Context, err error) *HTTPError {
 			StatusCode:  http.StatusBadRequest,
 		}
 	case *HTTPError:
+		// if status code was not set, default to internal server error
 		if t.StatusCode == 0 {
 			t.StatusCode = http.StatusInternalServerError
 		}

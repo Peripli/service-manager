@@ -186,8 +186,8 @@ var _ = Describe("Operations", func() {
 
 	Context("Maintainer", func() {
 		const (
-			jobTimeout      = 1 * time.Millisecond
-			cleanupInterval = 1 * time.Second
+			jobTimeout      = 2 * time.Second
+			cleanupInterval = 5 * time.Second
 		)
 
 		BeforeEach(func() {
@@ -230,7 +230,6 @@ var _ = Describe("Operations", func() {
 				operation := &types.Operation{
 					Base: types.Base{
 						ID:        defaultOperationID,
-						CreatedAt: time.Now(),
 						UpdatedAt: time.Now(),
 						Labels:    make(map[string][]string),
 						Ready:     true,

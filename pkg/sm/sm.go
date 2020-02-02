@@ -194,36 +194,30 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		WithDeleteOnTxInterceptorProvider(types.VisibilityType, &interceptors.VisibilityDeleteNotificationsInterceptorProvider{}).Register().
 		WithCreateOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsCreateInterceptorProvider{}).Before(interceptors.BrokerCreateCatalogInterceptorName).Register().
 		WithUpdateOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsUpdateInterceptorProvider{}).Before(interceptors.BrokerUpdateCatalogInterceptorName).Register().
-		WithDeleteOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsDeleteInterceptorProvider{}).After(interceptors.BrokerDeleteCatalogInterceptorName).Register().
+		WithDeleteOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsDeleteInterceptorProvider{}).After(interceptors.BrokerDeleteCatalogInterceptorName).Register()
+
+	baseSMAAPInterceptorProvider := &interceptors.BaseSMAAPInterceptorProvider{
+		OSBClientCreateFunc: osbClientProvider,
+		Repository:          interceptableRepository,
+		TenantKey:           cfg.Multitenancy.LabelKey,
+		PollingInterval:     cfg.Operations.PollingInterval,
+	}
+
+	smb.
 		WithCreateAroundTxInterceptorProvider(types.ServiceInstanceType, &interceptors.ServiceInstanceCreateInterceptorProvider{
-			OSBClientCreateFunc: osbClientProvider,
-			Repository:          interceptableRepository,
-			TenantKey:           cfg.Multitenancy.LabelKey,
-			PollingInterval:     cfg.Operations.PollingInterval,
+			BaseSMAAPInterceptorProvider: baseSMAAPInterceptorProvider,
 		}).Register().
 		WithUpdateAroundTxInterceptorProvider(types.ServiceInstanceType, &interceptors.ServiceInstanceUpdateInterceptorProvider{
-			OSBClientCreateFunc: osbClientProvider,
-			Repository:          interceptableRepository,
-			TenantKey:           cfg.Multitenancy.LabelKey,
-			PollingInterval:     cfg.Operations.PollingInterval,
+			BaseSMAAPInterceptorProvider: baseSMAAPInterceptorProvider,
 		}).Register().
 		WithDeleteAroundTxInterceptorProvider(types.ServiceInstanceType, &interceptors.ServiceInstanceDeleteInterceptorProvider{
-			OSBClientCreateFunc: osbClientProvider,
-			Repository:          interceptableRepository,
-			TenantKey:           cfg.Multitenancy.LabelKey,
-			PollingInterval:     cfg.Operations.PollingInterval,
+			BaseSMAAPInterceptorProvider: baseSMAAPInterceptorProvider,
 		}).Register().
 		WithCreateAroundTxInterceptorProvider(types.ServiceBindingType, &interceptors.ServiceBindingCreateInterceptorProvider{
-			OSBClientCreateFunc: osbClientProvider,
-			Repository:          interceptableRepository,
-			TenantKey:           cfg.Multitenancy.LabelKey,
-			PollingInterval:     cfg.Operations.PollingInterval,
+			BaseSMAAPInterceptorProvider: baseSMAAPInterceptorProvider,
 		}).Register().
 		WithDeleteAroundTxInterceptorProvider(types.ServiceBindingType, &interceptors.ServiceBindingDeleteInterceptorProvider{
-			OSBClientCreateFunc: osbClientProvider,
-			Repository:          interceptableRepository,
-			TenantKey:           cfg.Multitenancy.LabelKey,
-			PollingInterval:     cfg.Operations.PollingInterval,
+			BaseSMAAPInterceptorProvider: baseSMAAPInterceptorProvider,
 		}).Register()
 
 	return smb, nil

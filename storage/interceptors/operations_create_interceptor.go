@@ -69,7 +69,9 @@ func (c *operationsCreateInterceptor) OnTxCreate(h storage.InterceptCreateOnTxFu
 		if labels == nil {
 			labels = types.Labels{}
 		}
-		labels[c.TenantIdentifier] = []string{tenantID}
+		if _, ok := labels[c.TenantIdentifier]; !ok {
+			labels[c.TenantIdentifier] = []string{tenantID}
+		}
 
 		log.C(ctx).Infof("Successfully labeled operation with id %s with %+v", operation.GetID(), operation.GetLabels())
 		operation.SetLabels(labels)

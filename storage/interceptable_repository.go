@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/util"
+
 	"github.com/Peripli/service-manager/pkg/log"
 
 	"github.com/Peripli/service-manager/pkg/query"
@@ -264,11 +266,10 @@ func (ir *queryScopedInterceptableRepository) Update(ctx context.Context, obj ty
 	// while the AroundTx hooks were being executed the stored resource actually changed - another concurrent update
 	// happened and finished concurrently and before this one so fail the request
 	// update to the same entity in the same transaction may be possible from an interceptor
-	//TODO this might not be necessary any more?
-	//inUpdate, _ := ctx.Value(updateInProgress).(bool)
-	//if !oldObj.GetUpdatedAt().UTC().Equal(obj.GetUpdatedAt().UTC()) && !inUpdate {
-	//	return nil, util.ErrConcurrentResourceModification
-	//}
+	inUpdate, _ := ctx.Value(updateInProgress).(bool)
+	if !oldObj.GetUpdatedAt().UTC().Equal(obj.GetUpdatedAt().UTC()) && !inUpdate {
+		return nil, util.ErrConcurrentResourceModification
+	}
 
 	if updateOnTxFunc, found := ir.updateOnTxFuncs[objectType]; found {
 		delete(ir.updateOnTxFuncs, objectType)
@@ -280,6 +281,7 @@ func (ir *queryScopedInterceptableRepository) Update(ctx context.Context, obj ty
 		ir.updateOnTxFuncs[objectType] = updateOnTxFunc
 
 	} else {
+		ctx = context.WithValue(ctx, updateInProgress, true)
 		updatedObj, err = updateObjFunc(ctx, ir, oldObj, obj, labelChanges...)
 	}
 

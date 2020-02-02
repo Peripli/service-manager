@@ -161,6 +161,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	currentTime := time.Now().UTC()
 	result.SetCreatedAt(currentTime)
 	result.SetUpdatedAt(currentTime)
+	// override ready provide from the request body
 	result.SetReady(false)
 
 	action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
@@ -202,7 +203,6 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 	}
 
 	log.C(ctx).Debugf("Request will be executed synchronously")
-	result.SetReady(true)
 	createdObj, err := c.scheduler.ScheduleSyncStorageAction(ctx, operation, action)
 	if err != nil {
 		return nil, util.HandleStorageError(err, c.objectType.String())

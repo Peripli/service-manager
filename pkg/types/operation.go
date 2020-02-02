@@ -66,7 +66,9 @@ type Operation struct {
 	CorrelationID string            `json:"correlation_id"`
 	ExternalID    string            `json:"-"`
 
-	Reschedule        bool      `json:"reschedule"`
+	//Reschedule specifies that the operation has reached a state after which it can be retried
+	Reschedule bool `json:"reschedule"`
+	// DeletionScheduled specifies the time when an operation was marked for deletion
 	DeletionScheduled time.Time `json:"deletion_scheduled,omitempty"`
 }
 

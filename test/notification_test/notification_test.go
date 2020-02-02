@@ -392,7 +392,9 @@ var _ = Describe("Notifications Suite", func() {
 
 				resource := gjson.GetBytes(notification.Payload, "new.resource").Value().(common.Object)
 				delete(resource, "updated_at")
+				delete(resource, "ready")
 				delete(objAfterOp, "updated_at")
+				delete(objAfterOp, "ready")
 				Expect(resource).To(Equal(objAfterOp))
 
 				actualPayload := gjson.GetBytes(notification.Payload, "new.additional").Raw

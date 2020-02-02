@@ -22,6 +22,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
+// operationCtxKey allows putting the currently running operation is the context. This is required for
+// some interceptors - based on the operation they execute different logic or they might update the actual operation
 type operationCtxKey struct{}
 
 func GetFromContext(ctx context.Context) (*types.Operation, bool) {
