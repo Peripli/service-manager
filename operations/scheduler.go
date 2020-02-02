@@ -554,7 +554,7 @@ func (s *Scheduler) executeOperationPreconditions(ctx context.Context, operation
 
 	if found {
 		if err := s.checkForConcurrentOperations(ctx, operation, lastOperation); err != nil {
-			log.C(ctx).Error("concurrent operation has been rejected: last operation is %+v, current operation is %+v and error is %s", lastOperation, operation, err)
+			log.C(ctx).Errorf("concurrent operation has been rejected: last operation is %+v, current operation is %+v and error is %s", lastOperation, operation, err)
 			return err
 		}
 	}
