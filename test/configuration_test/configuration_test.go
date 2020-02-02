@@ -77,7 +77,7 @@ var _ = Describe("Service Manager Config API", func() {
 				},
 				"log": {
 					"format": "text",
-					"level": "debug",
+					"level": "info",
 					"output": "ginkgowriter"
 				},
 				"multitenancy": {
