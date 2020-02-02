@@ -1,18 +1,18 @@
 server:
-  request_timeout: 4000000ms
-  shutdown_timeout: 4000000ms
+  request_timeout: 6s
+  shutdown_timeout: 6s
   port: 8081
   # max_body_bytes: 4000
   # max_header_bytes: 1000
 httpclient:
-  response_header_timeout: 1000000ms
-  tls_handshake_timeout: 1000000ms
-  idle_conn_timeout: 1000000ms
-  dial_timeout: 1000000ms
+  response_header_timeout: 6s
+  tls_handshake_timeout:  6s
+  idle_conn_timeout: 6s
+  dial_timeout: 6s
   skip_ssl_validation: false
 websocket:
-  ping_timeout: 6000ms
-  write_timeout: 6000ms
+  ping_timeout: 6s
+  write_timeout: 6s
 log:
   level: debug
   format: text
