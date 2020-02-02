@@ -13,7 +13,7 @@ services:
   - postgresql
 
 script:
-  - while sleep 9m; do echo "=====[ $SECONDS seconds still running ]====="; done &
+  - while sleep 9m; do echo "=====[already running for $SECONDS ...]====="; done &
   - make precommit
   - goveralls -coverprofile profile.cov -service=travis-ci
   - kill %1

@@ -331,7 +331,9 @@ func (b *BrokerServer) saveRequestMiddleware(next http.Handler) http.Handler {
 			})
 			return
 		}
+		b.mutex.Lock()
 		b.LastRequestBody = bodyBytes
+		b.mutex.Unlock()
 		next.ServeHTTP(w, req)
 	})
 }
