@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sync"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/gorilla/mux"
@@ -398,7 +399,12 @@ func SetResponse(rw http.ResponseWriter, status int, message map[string]interfac
 
 func DelayingHandler(done chan interface{}) func(req *http.Request) (int, map[string]interface{}) {
 	return func(req *http.Request) (int, map[string]interface{}) {
-		<-done
+		timeout := time.After(10 * time.Second)
+		select {
+		case <-done:
+		case <-timeout:
+		}
+
 		return http.StatusTeapot, Object{}
 	}
 }

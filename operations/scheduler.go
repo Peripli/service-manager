@@ -370,7 +370,6 @@ func fetchAndUpdateResource(ctx context.Context, repository storage.Repository, 
 
 func updateOperationState(ctx context.Context, repository storage.Repository, operation *types.Operation, state types.OperationState, opErr error) error {
 	operation.State = state
-	//operation.UpdatedAt = time.Now()
 
 	if opErr != nil {
 		httpError := util.ToHTTPError(ctx, opErr)
