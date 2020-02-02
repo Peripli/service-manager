@@ -97,7 +97,7 @@ func (qb *QueryBuilder) NewQuery(entity PostgresEntity) *pgQuery {
 			operator: AND,
 		},
 		labelsWhereClause: &whereClauseTree{
-			operator: OR,
+			operator: AND,
 		},
 	}
 }
