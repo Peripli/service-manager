@@ -117,6 +117,8 @@ type ServiceInstanceInterceptor struct {
 func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAroundTxFunc) storage.InterceptCreateAroundTxFunc {
 	return func(ctx context.Context, obj types.Object) (types.Object, error) {
 		instance := obj.(*types.ServiceInstance)
+		instance.Usable = true
+
 		if instance.PlatformID != types.SMPlatform {
 			return f(ctx, obj)
 		}
@@ -140,12 +142,12 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 			}
 			instance.Context = contextBytes
 
-			log.C(ctx).Infof("Sending provision request %+v to broker with name %s", provisionRequest, broker.Name)
+			log.C(ctx).Infof("Sending provision request %s to broker with name %s", logProvisionRequest(provisionRequest), broker.Name)
 			provisionResponse, err = osbClient.ProvisionInstance(provisionRequest)
 			if err != nil {
 				brokerError := &util.HTTPError{
 					ErrorType:   "BrokerError",
-					Description: fmt.Sprintf("Failed provisioning request %+v: %s", provisionRequest, err),
+					Description: fmt.Sprintf("Failed provisioning request %s: %s", logProvisionRequest(provisionRequest), err),
 					StatusCode:  http.StatusBadGateway,
 				}
 				if shouldStartOrphanMitigation(err) {
@@ -156,7 +158,7 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 					}
 
 					// mark the operation as deletion scheduled meaning orphan mitigation is required
-					operation.DeletionScheduled = time.Now()
+					operation.DeletionScheduled = time.Now().UTC()
 					operation.Reschedule = false
 					if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
 						return nil, fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s", operation.ID, brokerError, err)
@@ -171,19 +173,19 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 			}
 
 			if provisionResponse.Async {
-				log.C(ctx).Infof("Successful asynchronous provisioning request %+v to broker %s returned response %+v",
-					provisionRequest, broker.Name, provisionResponse)
+				log.C(ctx).Infof("Successful asynchronous provisioning request %s to broker %s returned response %s",
+					logProvisionRequest(provisionRequest), broker.Name, logProvisionResponse(provisionResponse))
 				operation.Reschedule = true
 				if provisionResponse.OperationKey != nil {
 					operation.ExternalID = string(*provisionResponse.OperationKey)
 				}
 
 				if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
-					return nil, fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule", instance.ID)
+					return nil, fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", instance.ID, err)
 				}
 			} else {
-				log.C(ctx).Infof("Successful synchronous provisioning %+v to broker %s returned response %+v",
-					provisionRequest, broker.Name, provisionResponse)
+				log.C(ctx).Infof("Successful synchronous provisioning %s to broker %s returned response %s",
+					logProvisionRequest(provisionRequest), broker.Name, logProvisionResponse(provisionResponse))
 
 			}
 		}
@@ -264,6 +266,7 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 		return err
 	}
 
+	// if deletion scheduled is true this means that either a delete or create operation failed and orphan mitigation was required
 	if !operation.DeletionScheduled.IsZero() {
 		log.C(ctx).Infof("Orphan mitigation in progress for instance with id %s and name %s triggered due to failure in operation %s", instance.ID, instance.Name, operation.Type)
 	}
@@ -272,17 +275,17 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 	if !operation.Reschedule {
 		deprovisionRequest := prepareDeprovisionRequest(instance, service.CatalogID, plan.CatalogID)
 
-		log.C(ctx).Infof("Sending deprovision request %+v to broker with name %s", deprovisionRequest, broker.Name)
+		log.C(ctx).Infof("Sending deprovision request %s to broker with name %s", logDeprovisionRequest(deprovisionRequest), broker.Name)
 		deprovisionResponse, err = osbClient.DeprovisionInstance(deprovisionRequest)
 		if err != nil {
 			if osbc.IsGoneError(err) {
-				log.C(ctx).Infof("Synchronous deprovisioning %+v to broker %s returned 410 GONE and is considered success",
-					deprovisionRequest, broker.Name)
+				log.C(ctx).Infof("Synchronous deprovisioning %s to broker %s returned 410 GONE and is considered success",
+					logDeprovisionRequest(deprovisionRequest), broker.Name)
 				return nil
 			}
 			brokerError := &util.HTTPError{
 				ErrorType:   "BrokerError",
-				Description: fmt.Sprintf("Failed deprovisioning request %+v: %s", deprovisionRequest, err),
+				Description: fmt.Sprintf("Failed deprovisioning request %s: %s", logDeprovisionRequest(deprovisionRequest), err),
 				StatusCode:  http.StatusBadGateway,
 			}
 
@@ -297,19 +300,19 @@ func (i *ServiceInstanceInterceptor) deleteSingleInstance(ctx context.Context, i
 		}
 
 		if deprovisionResponse.Async {
-			log.C(ctx).Infof("Successful asynchronous deprovisioning request %+v to broker %s returned response %+v",
-				deprovisionRequest, broker.Name, deprovisionResponse)
+			log.C(ctx).Infof("Successful asynchronous deprovisioning request %s to broker %s returned response %s",
+				logDeprovisionRequest(deprovisionRequest), broker.Name, logDeprovisionResponse(deprovisionResponse))
 			operation.Reschedule = true
 
 			if deprovisionResponse.OperationKey != nil {
 				operation.ExternalID = string(*deprovisionResponse.OperationKey)
 			}
 			if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
-				return fmt.Errorf("failed to update operation with id %s to mark that rescheduling is possible", operation.ID)
+				return fmt.Errorf("failed to update operation with id %s to mark that rescheduling is possible: %s", operation.ID, err)
 			}
 		} else {
-			log.C(ctx).Infof("Successful synchronous deprovisioning %+v to broker %s returned response %+v",
-				deprovisionRequest, broker.Name, deprovisionResponse)
+			log.C(ctx).Infof("Successful synchronous deprovisioning %s to broker %s returned response %s",
+				logDeprovisionRequest(deprovisionRequest), broker.Name, logDeprovisionResponse(deprovisionResponse))
 		}
 	}
 
@@ -347,7 +350,7 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 			//operation should be kept in progress in this case
 			return nil
 		case <-ticker.C:
-			log.C(ctx).Infof("Sending poll last operation request %+v for instance with id %s and name %s", pollingRequest, instance.ID, instance.Name)
+			log.C(ctx).Infof("Sending poll last operation request %s for instance with id %s and name %s", logPollInstanceRequest(pollingRequest), instance.ID, instance.Name)
 			pollingResponse, err := osbClient.PollLastOperation(pollingRequest)
 			if err != nil {
 				if osbc.IsGoneError(err) && operation.Type == types.DELETE {
@@ -355,39 +358,40 @@ func (i *ServiceInstanceInterceptor) pollServiceInstance(ctx context.Context, os
 
 					operation.Reschedule = false
 					if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
-						return fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule", operation.ID)
+						return fmt.Errorf("failed to update operation with id %s to mark that next execution should not be reschedulable", operation.ID)
 					}
 					return nil
 				}
 
 				return &util.HTTPError{
 					ErrorType: "BrokerError",
-					Description: fmt.Sprintf("Failed poll last operation request %+v for instance with id %s and name %s: %s",
-						pollingRequest, instance.ID, instance.Name, err),
+					Description: fmt.Sprintf("Failed poll last operation request %s for instance with id %s and name %s: %s",
+						logPollInstanceRequest(pollingRequest), instance.ID, instance.Name, err),
 					StatusCode: http.StatusBadGateway,
 				}
 			}
 			switch pollingResponse.State {
 			case osbc.StateInProgress:
-				log.C(ctx).Infof("Polling of instance still in progress. Rescheduling polling last operation request %+v to for provisioning of instance with id %s and name %s...", pollingRequest, instance.ID, instance.Name)
+				log.C(ctx).Infof("Polling of instance still in progress. Rescheduling polling last operation request %s to for provisioning of instance with id %s and name %s...",
+					logPollInstanceRequest(pollingRequest), instance.ID, instance.Name)
 
 			case osbc.StateSucceeded:
 				log.C(ctx).Infof("Successfully finished polling operation for instance with id %s and name %s", instance.ID, instance.Name)
 
 				operation.Reschedule = false
 				if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
-					return fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule", operation.ID)
+					return fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", operation.ID, err)
 				}
 
 				return nil
 			case osbc.StateFailed:
-				log.C(ctx).Infof("Failed polling operation for instance with id %s and name %s", instance.ID, instance.Name)
+				log.C(ctx).Infof("Failed polling operation for instance with id %s and name %s with response %s", instance.ID, instance.Name, logPollInstanceResponse(pollingResponse))
 				operation.Reschedule = false
 				if enableOrphanMitigation {
 					operation.DeletionScheduled = time.Now()
 				}
 				if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
-					return fmt.Errorf("failed to update operation with id %s after failed of last operation for instance with id %s", operation.ID, instance.ID)
+					return fmt.Errorf("failed to update operation with id %s after failed of last operation for instance with id %s: %s", operation.ID, instance.ID, err)
 				}
 
 				errDescription := ""
@@ -417,13 +421,13 @@ func prepare(ctx context.Context, repository storage.Repository, osbClientFunc o
 
 	serviceObject, err := repository.Get(ctx, types.ServiceOfferingType, query.ByField(query.EqualsOperator, "id", plan.ServiceOfferingID))
 	if err != nil {
-		return nil, nil, nil, nil, util.HandleStorageError(err, types.ServicePlanType.String())
+		return nil, nil, nil, nil, util.HandleStorageError(err, types.ServiceOfferingType.String())
 	}
 	service := serviceObject.(*types.ServiceOffering)
 
 	brokerObject, err := repository.Get(ctx, types.ServiceBrokerType, query.ByField(query.EqualsOperator, "id", service.BrokerID))
 	if err != nil {
-		return nil, nil, nil, nil, util.HandleStorageError(err, types.ServicePlanType.String())
+		return nil, nil, nil, nil, util.HandleStorageError(err, types.ServiceBrokerType.String())
 	}
 	broker := brokerObject.(*types.ServiceBroker)
 	osbClient, err := osbClientFunc(&osbc.ClientConfiguration{
@@ -496,4 +500,47 @@ func shouldStartOrphanMitigation(err error) bool {
 	}
 
 	return false
+}
+
+func logProvisionRequest(request *osbc.ProvisionRequest) string {
+	return fmt.Sprintf("context: %+v, instanceID: %s, planID: %s, serviceID: %s, acceptsIncomplete: %t",
+		request.Context, request.InstanceID, request.PlanID, request.ServiceID, request.AcceptsIncomplete)
+}
+
+func logProvisionResponse(response *osbc.ProvisionResponse) string {
+	return fmt.Sprintf("async: %t, dashboardURL: %s, operationKey: %s", response.Async, strPtrToStr(response.DashboardURL), opKeyPtrToStr(response.OperationKey))
+}
+
+func logDeprovisionRequest(request *osbc.DeprovisionRequest) string {
+	return fmt.Sprintf("instanceID: %s, planID: %s, serviceID: %s, acceptsIncomplete: %t",
+		request.InstanceID, request.PlanID, request.ServiceID, request.AcceptsIncomplete)
+}
+
+func logDeprovisionResponse(response *osbc.DeprovisionResponse) string {
+	return fmt.Sprintf("async: %t, operationKey: %s", response.Async, opKeyPtrToStr(response.OperationKey))
+}
+
+func logPollInstanceRequest(request *osbc.LastOperationRequest) string {
+	return fmt.Sprintf("instanceID: %s, planID: %s, serviceID: %s, operationKey: %s",
+		request.InstanceID, strPtrToStr(request.PlanID), strPtrToStr(request.ServiceID), opKeyPtrToStr(request.OperationKey))
+}
+
+func logPollInstanceResponse(response *osbc.LastOperationResponse) string {
+	return fmt.Sprintf("state: %s, description: %s", response.State, strPtrToStr(response.Description))
+}
+
+func strPtrToStr(sPtr *string) string {
+	if sPtr == nil {
+		return ""
+	}
+
+	return *sPtr
+}
+
+func opKeyPtrToStr(opKey *osbc.OperationKey) string {
+	if opKey == nil {
+		return ""
+	}
+
+	return string(*opKey)
 }

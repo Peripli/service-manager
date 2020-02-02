@@ -61,7 +61,7 @@ func NewScheduler(smCtx context.Context, repository storage.TransactionalReposit
 
 // ScheduleSyncStorageAction stores the job's Operation entity in DB and synchronously executes the CREATE/UPDATE/DELETE DB transaction
 func (ds *Scheduler) ScheduleSyncStorageAction(ctx context.Context, operation *types.Operation, action storageAction) (types.Object, error) {
-	log.C(ctx).Infof("Scheduling sync %s operation with id %s for resource of type %s with id %s", operation.Type, operation.ID, operation.ResourceType.String(), operation.ResourceID)
+	initialLogMessage(ctx, operation, false)
 
 	if err := ds.executeOperationPreconditions(ctx, operation); err != nil {
 		return nil, err
@@ -77,7 +77,7 @@ func (ds *Scheduler) ScheduleSyncStorageAction(ctx context.Context, operation *t
 		log.C(ctx).Errorf("failed to execute action for %s operation with id %s for %s entity with id %s: %s", operation.Type, operation.ID, operation.ResourceType, operation.ResourceID, actionErr)
 	}
 
-	if err := ds.handleActionResponse(&util.StateContext{Context: ctx}, object, actionErr, operation); err != nil {
+	if object, err = ds.handleActionResponse(&util.StateContext{Context: ctx}, object, actionErr, operation); err != nil {
 		return nil, err
 	}
 
@@ -88,7 +88,7 @@ func (ds *Scheduler) ScheduleSyncStorageAction(ctx context.Context, operation *t
 func (ds *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *types.Operation, action storageAction) error {
 	select {
 	case ds.workers <- struct{}{}:
-		log.C(ctx).Infof("Scheduling async %s operation with id %s for resource of type %s with id %s", operation.Type, operation.ID, operation.ResourceType.String(), operation.ResourceID)
+		initialLogMessage(ctx, operation, true)
 		if err := ds.executeOperationPreconditions(ctx, operation); err != nil {
 			<-ds.workers
 			return err
@@ -142,7 +142,7 @@ func (ds *Scheduler) ScheduleAsyncStorageAction(ctx context.Context, operation *
 				log.C(stateCtx).Errorf("failed to execute action for %s operation with id %s for %s entity with id %s: %s", operation.Type, operation.ID, operation.ResourceType, operation.ResourceID, actionErr)
 			}
 
-			if err := ds.handleActionResponse(stateCtx, objectAfterAction, actionErr, operation); err != nil {
+			if _, err := ds.handleActionResponse(stateCtx, objectAfterAction, actionErr, operation); err != nil {
 				log.C(stateCtx).Error(err)
 			}
 		}(operation)
@@ -343,19 +343,34 @@ func (ds *Scheduler) storeOrUpdateOperation(ctx context.Context, operation, last
 	return nil
 }
 
-func fetchAndUpdateResource(ctx context.Context, repository storage.Repository, objectAfterAction types.Object, updateFunc func(obj types.Object)) error {
+func updateResource(ctx context.Context, repository storage.Repository, objectAfterAction types.Object, updateFunc func(obj types.Object)) (types.Object, error) {
 	updateFunc(objectAfterAction)
-	_, err := repository.Update(ctx, objectAfterAction, query.LabelChanges{})
+	updatedObject, err := repository.Update(ctx, objectAfterAction, query.LabelChanges{})
 	if err != nil {
-		return fmt.Errorf("failed to update object with type %s and id %s", objectAfterAction.GetType(), objectAfterAction.GetID())
+		return nil, fmt.Errorf("failed to update object with type %s and id %s", objectAfterAction.GetType(), objectAfterAction.GetID())
 	}
 
 	log.C(ctx).Infof("Successfully updated object of type %s and id %s ", objectAfterAction.GetType(), objectAfterAction.GetID())
-	return nil
+	return updatedObject, nil
+}
+
+func fetchAndUpdateResource(ctx context.Context, repository storage.Repository, objectID string, objectType types.ObjectType, updateFunc func(obj types.Object)) error {
+	byID := query.ByField(query.EqualsOperator, "id", objectID)
+	objectFromDB, err := repository.Get(ctx, objectType, byID)
+	if err != nil {
+		if err == util.ErrNotFoundInStorage {
+			return nil
+		}
+		return fmt.Errorf("failed to retrieve object of type %s with id %s:%s", objectType.String(), objectID, err)
+	}
+
+	_, err = updateResource(ctx, repository, objectFromDB, updateFunc)
+	return err
 }
 
 func updateOperationState(ctx context.Context, repository storage.Repository, operation *types.Operation, state types.OperationState, opErr error) error {
 	operation.State = state
+	operation.UpdatedAt = time.Now()
 
 	if opErr != nil {
 		httpError := util.ToHTTPError(ctx, opErr)
@@ -395,97 +410,119 @@ func (ds *Scheduler) refetchOperation(ctx context.Context, operation *types.Oper
 	return opObject.(*types.Operation), nil
 }
 
-func (ds *Scheduler) handleActionResponse(ctx context.Context, actionObject types.Object, actionError error, opBeforeJob *types.Operation) error {
+func (ds *Scheduler) handleActionResponse(ctx context.Context, actionObject types.Object, actionError error, opBeforeJob *types.Operation) (types.Object, error) {
 	opAfterJob, err := ds.refetchOperation(ctx, opBeforeJob)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// if an action error has occurred we mark the operation as failed and check if deletion has to be scheduled
 	if actionError != nil {
+		return nil, ds.handleActionResponseFailure(ctx, actionError, opAfterJob)
+		// if no error occurred and op is not reschedulable (has finished), mark it as success
+	} else if !opAfterJob.Reschedule {
+		return ds.handleActionResponseSuccess(ctx, actionObject, opAfterJob)
+	}
+
+	log.C(ctx).Infof("%s operation with id %s for %s entity with id %s is marked as requiring a reschedule and will be kept in progress", opAfterJob.Type, opAfterJob.ID, opAfterJob.ResourceType, opAfterJob.ResourceID)
+	// action did not return an error but required a reschedule so we keep it in progress
+	return actionObject, nil
+}
+
+func (ds *Scheduler) handleActionResponseFailure(ctx context.Context, actionError error, opAfterJob *types.Operation) error {
+	if err := ds.repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
 		if opErr := updateOperationState(ctx, ds.repository, opAfterJob, types.FAILED, actionError); opErr != nil {
 			return fmt.Errorf("setting new operation state failed: %s", opErr)
 		}
-
-		// we want to schedule deletion if the operation is marked for deletion and the deletion timeout is not yet reached
-		isDeleteRescheduleRequired := !opAfterJob.DeletionScheduled.IsZero() &&
-			time.Now().Before(opAfterJob.DeletionScheduled.Add(ds.deletionTimeout)) &&
-			opAfterJob.State != types.SUCCEEDED
-
-		if isDeleteRescheduleRequired {
-			deletionAction := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-				byID := query.ByField(query.EqualsOperator, "id", opAfterJob.ResourceID)
-				err := repository.Delete(ctx, opAfterJob.ResourceType, byID)
-				if err != nil {
-					if err == util.ErrNotFoundInStorage {
-						return nil, nil
-					}
-					return nil, util.HandleStorageError(err, opAfterJob.ResourceType.String())
-				}
-				return nil, nil
-			}
-
-			log.C(ctx).Infof("Scheduling of required delete operation after actual operation with id %s failed", opAfterJob.ID)
-			// if deletion timestamp was set on the op, reschedule the same op with delete action
-			reschedulingDelayTimeout := time.After(ds.reschedulingDelay)
-			select {
-			case <-ds.smCtx.Done():
-				return fmt.Errorf("sm context canceled: %s", ds.smCtx.Err())
-			case <-reschedulingDelayTimeout:
-				if orphanMitigationErr := ds.ScheduleAsyncStorageAction(ctx, opAfterJob, deletionAction); orphanMitigationErr != nil {
-					return &util.HTTPError{
-						ErrorType:   "BrokerError",
-						Description: fmt.Sprintf("job failed with %s and orphan mitigation failed with %s", actionError, orphanMitigationErr),
-						StatusCode:  http.StatusBadGateway,
-					}
-				}
-			}
-		}
-		return actionError
-	}
-
-	if !opAfterJob.Reschedule {
-		if err := ds.repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-			var finalState types.OperationState
-			if opAfterJob.Type != types.DELETE && !opAfterJob.DeletionScheduled.IsZero() {
-				// successful orphan mitigation for CREATE/UPDATE should still leave the operation as FAILED
-				finalState = types.FAILED
-			} else {
-				// a delete that succeed or an orphan mitigation caused by a delete that succeeded are both successful deletions
-				finalState = types.SUCCEEDED
-				opAfterJob.Errors = json.RawMessage{}
-			}
-
-			// a non reschedulable operation has finished with no errors:
-			// this can either be an actual operation or an orphan mitigation triggered by an actual operation error
-			// in either case orphan mitigation needn't be scheduled any longer because being here means either an
-			// actual operation finished with no errors or an orphan mitigation caused by an actual operation finished with no errors
-			opAfterJob.DeletionScheduled = time.Time{}
-			log.C(ctx).Infof("Successfully executed %s operation with id %s for %s entity with id %s", opAfterJob.Type, opAfterJob.ID, opAfterJob.ResourceType, opAfterJob.ResourceID)
-			if err := updateOperationState(ctx, storage, opAfterJob, finalState, nil); err != nil {
+		// after a failed FAILED CREATE operation, update the ready field to false
+		if opAfterJob.Type == types.CREATE && opAfterJob.State == types.FAILED {
+			if err := fetchAndUpdateResource(ctx, storage, opAfterJob.ResourceID, opAfterJob.ResourceType, func(obj types.Object) {
+				obj.SetReady(false)
+			}); err != nil {
 				return err
 			}
-
-			// after a successful CREATE operation, update the ready field to true
-			if opAfterJob.Type == types.CREATE && finalState == types.SUCCEEDED {
-				if err := fetchAndUpdateResource(ctx, storage, actionObject, func(obj types.Object) {
-					obj.SetReady(true)
-				}); err != nil {
-					return err
-				}
-			}
-			return nil
-
-		}); err != nil {
-			return fmt.Errorf("failed to update resource ready or operation state after a successfully executing operation with id %s: %s", opAfterJob.ID, err)
 		}
-		log.C(ctx).Infof("Successful executed operation with ID (%s)", opAfterJob.ID)
-		// action did not return an error but required a reschedule so we keep it in progress
-	} else {
-		log.C(ctx).Infof("%s operation with id %s for %s entity with id %s is marked as requiring a reschedule and will be kept in progress", opAfterJob.Type, opAfterJob.ID, opAfterJob.ResourceType, opAfterJob.ResourceID)
+		return nil
+	}); err != nil {
+		return err
 	}
 
-	return nil
+	// we want to schedule deletion if the operation is marked for deletion and the deletion timeout is not yet reached
+	isDeleteRescheduleRequired := !opAfterJob.DeletionScheduled.IsZero() &&
+		time.Now().UTC().Before(opAfterJob.DeletionScheduled.Add(ds.deletionTimeout)) &&
+		opAfterJob.State != types.SUCCEEDED
+
+	if isDeleteRescheduleRequired {
+		deletionAction := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+			byID := query.ByField(query.EqualsOperator, "id", opAfterJob.ResourceID)
+			err := repository.Delete(ctx, opAfterJob.ResourceType, byID)
+			if err != nil {
+				if err == util.ErrNotFoundInStorage {
+					return nil, nil
+				}
+				return nil, util.HandleStorageError(err, opAfterJob.ResourceType.String())
+			}
+			return nil, nil
+		}
+
+		log.C(ctx).Infof("Scheduling of required delete operation after actual operation with id %s failed", opAfterJob.ID)
+		// if deletion timestamp was set on the op, reschedule the same op with delete action
+		reschedulingDelayTimeout := time.After(ds.reschedulingDelay)
+		select {
+		case <-ds.smCtx.Done():
+			return fmt.Errorf("sm context canceled: %s", ds.smCtx.Err())
+		case <-reschedulingDelayTimeout:
+			if orphanMitigationErr := ds.ScheduleAsyncStorageAction(ctx, opAfterJob, deletionAction); orphanMitigationErr != nil {
+				return &util.HTTPError{
+					ErrorType:   "BrokerError",
+					Description: fmt.Sprintf("job failed with %s and orphan mitigation failed with %s", actionError, orphanMitigationErr),
+					StatusCode:  http.StatusBadGateway,
+				}
+			}
+		}
+	}
+	return actionError
+}
+
+func (ds *Scheduler) handleActionResponseSuccess(ctx context.Context, actionObject types.Object, opAfterJob *types.Operation) (types.Object, error) {
+	if err := ds.repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
+		var finalState types.OperationState
+		if opAfterJob.Type != types.DELETE && !opAfterJob.DeletionScheduled.IsZero() {
+			// successful orphan mitigation for CREATE/UPDATE should still leave the operation as FAILED
+			finalState = types.FAILED
+		} else {
+			// a delete that succeed or an orphan mitigation caused by a delete that succeeded are both successful deletions
+			finalState = types.SUCCEEDED
+			opAfterJob.Errors = json.RawMessage{}
+		}
+
+		// a non reschedulable operation has finished with no errors:
+		// this can either be an actual operation or an orphan mitigation triggered by an actual operation error
+		// in either case orphan mitigation needn't be scheduled any longer because being here means either an
+		// actual operation finished with no errors or an orphan mitigation caused by an actual operation finished with no errors
+		opAfterJob.DeletionScheduled = time.Time{}
+		log.C(ctx).Infof("Successfully executed %s operation with id %s for %s entity with id %s", opAfterJob.Type, opAfterJob.ID, opAfterJob.ResourceType, opAfterJob.ResourceID)
+		if err := updateOperationState(ctx, storage, opAfterJob, finalState, nil); err != nil {
+			return err
+		}
+
+		// after a successful CREATE operation, update the ready field to true
+		if opAfterJob.Type == types.CREATE && finalState == types.SUCCEEDED {
+			var err error
+			if actionObject, err = updateResource(ctx, storage, actionObject, func(obj types.Object) {
+				obj.SetReady(true)
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+
+	}); err != nil {
+		return nil, fmt.Errorf("failed to update resource ready or operation state after a successfully executing operation with id %s: %s", opAfterJob.ID, err)
+	}
+	log.C(ctx).Infof("Successful executed operation with ID (%s)", opAfterJob.ID)
+
+	return actionObject, nil
 }
 
 func (ds *Scheduler) addOperationToContext(ctx context.Context, operation *types.Operation) (context.Context, error) {
@@ -517,6 +554,7 @@ func (ds *Scheduler) executeOperationPreconditions(ctx context.Context, operatio
 
 	if found {
 		if err := ds.checkForConcurrentOperations(ctx, operation, lastOperation); err != nil {
+			log.C(ctx).Error("concurrent operation has been rejected: last operation is %+v, current operation is %+v and error is %s", lastOperation, operation, err)
 			return err
 		}
 	}
@@ -526,4 +564,22 @@ func (ds *Scheduler) executeOperationPreconditions(ctx context.Context, operatio
 	}
 
 	return nil
+}
+
+func initialLogMessage(ctx context.Context, operation *types.Operation, async bool) {
+	var logPrefix string
+	if operation.Reschedule {
+		logPrefix = "Reschduling (reschedule=true)"
+	} else if !operation.DeletionScheduled.IsZero() {
+		logPrefix = "Scheduling orphan mitigation"
+	} else {
+		logPrefix = "Scheduling new"
+	}
+	if async {
+		logPrefix += " async"
+	} else {
+		logPrefix += " sync"
+	}
+	log.C(ctx).Infof("%s %s operation with id %s for resource of type %s with id %s", logPrefix, operation.Type, operation.ID, operation.ResourceType.String(), operation.ResourceID)
+
 }

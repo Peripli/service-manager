@@ -63,7 +63,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	AdditionalTests: func(ctx *common.TestContext) {
 		Context("non-generic tests", func() {
 			BeforeEach(func() {
-				common.RemoveAllPlatforms(ctx.SMWithOAuth)
+				common.RemoveAllPlatforms(ctx.SMRepository)
 			})
 
 			Describe("POST", func() {

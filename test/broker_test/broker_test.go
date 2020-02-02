@@ -142,7 +142,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					},
 					"labels": labels,
 				}
-				common.RemoveAllBrokers(ctx.SMWithOAuth)
+				common.RemoveAllBrokers(ctx.SMRepository)
 
 				repository = ctx.SMRepository
 			})

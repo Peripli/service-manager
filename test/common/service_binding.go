@@ -10,51 +10,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/gofrs/uuid"
-
-	. "github.com/onsi/ginkgo"
 )
-
-func CreateBinding(ctx *TestContext, instanceID string) *types.ServiceBinding {
-	operationID, err := uuid.NewV4()
-	if err != nil {
-		Fail(fmt.Sprintf("failed to generate instance GUID: %s", err))
-	}
-	bindingID, err := uuid.NewV4()
-	if err != nil {
-		Fail(fmt.Sprintf("failed to generate instance GUID: %s", err))
-	}
-	operation := &types.Operation{
-		Base: types.Base{
-			ID:        operationID.String(),
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		},
-		Type:         types.CREATE,
-		State:        types.IN_PROGRESS,
-		ResourceID:   bindingID.String(),
-		ResourceType: types.ServiceBindingType,
-	}
-
-	binding := &types.ServiceBinding{
-		Base: types.Base{
-			ID:        bindingID.String(),
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-			Ready:     true,
-		},
-		Secured:           nil,
-		Name:              "test-service-binding",
-		ServiceInstanceID: instanceID,
-	}
-
-	if _, err := ctx.SMScheduler.ScheduleSyncStorageAction(context.TODO(), operation, func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-		return repository.Create(ctx, binding)
-	}); err != nil {
-		Fail(fmt.Sprintf("failed to create binding with name %s", binding.Name))
-	}
-
-	return binding
-}
 
 func DeleteBinding(ctx *TestContext, bindingID, instanceID string) error {
 	instanceObject, err := ctx.SMRepository.Get(context.TODO(), types.ServiceInstanceType, query.ByField(query.EqualsOperator, "id", instanceID))

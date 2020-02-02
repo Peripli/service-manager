@@ -98,7 +98,7 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 	if count != 1 {
 		return nil, &util.HTTPError{
 			ErrorType:   "NotFound",
-			Description: "could not find such service instance",
+			Description: "service instance not found or not accessible",
 			StatusCode:  http.StatusNotFound,
 		}
 	}

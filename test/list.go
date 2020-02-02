@@ -50,46 +50,46 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 	var r []common.Object
 	var rWithMandatoryFields common.Object
 
-	//attachLabel := func(obj common.Object) common.Object {
-	//	patchLabels := []*query.LabelChange{
-	//		{
-	//			Operation: query.AddLabelOperation,
-	//			Key:       "labelKey1",
-	//			Values:    []string{"1"},
-	//		},
-	//		{
-	//			Operation: query.AddLabelOperation,
-	//			Key:       "labelKey2",
-	//			Values:    []string{"str"},
-	//		},
-	//		{
-	//			Operation: query.AddLabelOperation,
-	//			Key:       "labelKey3",
-	//			Values:    []string{`{"key1": "val1", "key2": "val2"}`},
-	//		},
-	//	}
-	//
-	//	t.PatchResource(ctx, t.API, obj["id"].(string), t.ResourceType, patchLabels, bool(responseMode))
-	//	result := ctx.SMWithOAuth.GET(t.API + "/" + obj["id"].(string)).
-	//		Expect().
-	//		Status(http.StatusOK).JSON().Object()
-	//	result.ContainsKey("labels")
-	//	resultObject := result.Raw()
-	//	delete(resultObject, "credentials")
-	//
-	//	return resultObject
-	//}
+	attachLabel := func(obj common.Object) common.Object {
+		patchLabels := []*query.LabelChange{
+			{
+				Operation: query.AddLabelOperation,
+				Key:       "labelKey1",
+				Values:    []string{"1"},
+			},
+			{
+				Operation: query.AddLabelOperation,
+				Key:       "labelKey2",
+				Values:    []string{"str"},
+			},
+			{
+				Operation: query.AddLabelOperation,
+				Key:       "labelKey3",
+				Values:    []string{`{"key1": "val1", "key2": "val2"}`},
+			},
+		}
+
+		t.PatchResource(ctx, t.API, obj["id"].(string), t.ResourceType, patchLabels, bool(responseMode))
+		result := ctx.SMWithOAuth.GET(t.API + "/" + obj["id"].(string)).
+			Expect().
+			Status(http.StatusOK).JSON().Object()
+		result.ContainsKey("labels")
+		resultObject := result.Raw()
+		delete(resultObject, "credentials")
+
+		return resultObject
+	}
 
 	By(fmt.Sprintf("Attempting to create a random resource of %s with mandatory fields only", t.API))
 	rWithMandatoryFields = t.ResourceWithoutNullableFieldsBlueprint(ctx, ctx.SMWithOAuth, bool(responseMode))
-	//for i := 0; i < 10; i++ {
-	//	By(fmt.Sprintf("Attempting to create a random resource of %s", t.API))
-	//
-	//	gen := t.ResourceBlueprint(ctx, ctx.SMWithOAuth, bool(responseMode))
-	//	gen = attachLabel(gen)
-	//	stripObject(gen, t.ResourcePropertiesToIgnore...)
-	//	r = append(r, gen)
-	//}
+	for i := 0; i < 5; i++ {
+		By(fmt.Sprintf("Attempting to create a random resource of %s", t.API))
+
+		gen := t.ResourceBlueprint(ctx, ctx.SMWithOAuth, bool(responseMode))
+		gen = attachLabel(gen)
+		stripObject(gen, t.ResourcePropertiesToIgnore...)
+		r = append(r, gen)
+	}
 
 	entries := []TableEntry{
 		Entry("returns 200",

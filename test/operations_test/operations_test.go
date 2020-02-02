@@ -186,8 +186,8 @@ var _ = Describe("Operations", func() {
 
 	Context("Maintainer", func() {
 		const (
-			jobTimeout      = 3 * time.Second
-			cleanupInterval = 5 * time.Second
+			jobTimeout      = 1 * time.Millisecond
+			cleanupInterval = 1 * time.Second
 		)
 
 		BeforeEach(func() {

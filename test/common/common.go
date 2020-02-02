@@ -20,6 +20,10 @@ import (
 	"context"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/util"
+
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/Peripli/service-manager/storage"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -212,22 +216,52 @@ func MapContains(actual Object, expected Object) {
 	}
 }
 
-func RemoveAllOperations(repository storage.Repository) error {
-	return repository.Delete(context.TODO(), types.OperationType)
+func RemoveAllOperations(repository storage.TransactionalRepository) {
+	removeAll(repository, types.OperationType)
 }
 
-func RemoveAllNotifications(repository storage.Repository) error {
-	return repository.Delete(context.TODO(), types.NotificationType)
+func RemoveAllNotifications(repository storage.TransactionalRepository) {
+	removeAll(repository, types.NotificationType)
 }
 
-func RemoveAllInstances(ctx *TestContext) error {
-	objectList, err := ctx.SMRepository.List(context.TODO(), types.ServiceInstanceType)
-	if err != nil {
-		return err
+func RemoveAllInstances(testCtx *TestContext) error {
+	if err := testCtx.SMRepository.InTransaction(context.TODO(), func(ctx context.Context, storage storage.Repository) error {
+		objectList, err := storage.List(context.TODO(), types.ServiceInstanceType)
+		if err != nil {
+			return err
+		}
+		for i := 0; i < objectList.Len(); i++ {
+			instance := objectList.ItemAt(i).(*types.ServiceInstance)
+			byID := query.ByField(query.EqualsOperator, "id", instance.ID)
+			if err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		if err != util.ErrNotFoundInStorage {
+			return err
+		}
 	}
-	for i := 0; i < objectList.Len(); i++ {
-		instance := objectList.ItemAt(i).(*types.ServiceInstance)
-		if err := DeleteInstance(ctx, instance.ID, instance.ServicePlanID); err != nil {
+	return nil
+}
+
+func RemoveAllBindings(testCtx *TestContext) error {
+	if err := testCtx.SMRepository.InTransaction(context.TODO(), func(ctx context.Context, storage storage.Repository) error {
+		objectList, err := storage.List(context.TODO(), types.ServiceBindingType)
+		if err != nil {
+			return err
+		}
+		for i := 0; i < objectList.Len(); i++ {
+			binding := objectList.ItemAt(i).(*types.ServiceBinding)
+			byID := query.ByField(query.EqualsOperator, "id", binding.ID)
+			if err := storage.Delete(ctx, types.ServiceBindingType, byID); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		if err != util.ErrNotFoundInStorage {
 			return err
 		}
 	}
@@ -235,40 +269,36 @@ func RemoveAllInstances(ctx *TestContext) error {
 	return nil
 }
 
-func RemoveAllBindings(ctx *TestContext) error {
-	objectList, err := ctx.SMRepository.List(context.TODO(), types.ServiceBindingType)
-	if err != nil {
-		return err
-	}
-	for i := 0; i < objectList.Len(); i++ {
-		binding := objectList.ItemAt(i).(*types.ServiceBinding)
-		if err := DeleteBinding(ctx, binding.ID, binding.ServiceInstanceID); err != nil {
-			return err
+func RemoveAllBrokers(repository storage.TransactionalRepository) {
+	removeAll(repository, types.ServiceBrokerType)
+}
+
+func RemoveAllPlatforms(repository storage.TransactionalRepository) {
+	removeAll(repository, types.PlatformType, query.ByField(query.NotEqualsOperator, "id", types.SMPlatform))
+}
+
+func RemoveAllVisibilities(repository storage.TransactionalRepository) {
+	removeAll(repository, types.VisibilityType)
+}
+
+func removeAll(repository storage.TransactionalRepository, entity types.ObjectType, queries ...query.Criterion) {
+	By("removing all " + entity.String())
+	if err := repository.InTransaction(context.TODO(), func(ctx context.Context, storage storage.Repository) error {
+		if len(queries) == 0 {
+			if err := storage.Delete(ctx, entity); err != nil {
+				return err
+			}
+		} else {
+			if err := storage.Delete(ctx, entity, queries...); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		if err != util.ErrNotFoundInStorage {
+			panic(err)
 		}
 	}
-
-	return nil
-}
-
-func RemoveAllBrokers(SM *SMExpect) {
-	removeAll(SM, "service_brokers", web.ServiceBrokersURL)
-}
-
-func RemoveAllPlatforms(SM *SMExpect) {
-	removeAll(SM, "platforms", web.PlatformsURL, fmt.Sprintf("fieldQuery=name ne '%s'", types.SMPlatform))
-}
-
-func RemoveAllVisibilities(SM *SMExpect) {
-	removeAll(SM, "visibilities", web.VisibilitiesURL)
-}
-
-func removeAll(SM *SMExpect, entity, rootURLPath string, queries ...string) {
-	By("removing all " + entity)
-	deleteCall := SM.DELETE(rootURLPath)
-	for _, query := range queries {
-		deleteCall.WithQueryString(query)
-	}
-	deleteCall.Expect()
 }
 
 func RegisterBrokerInSM(brokerJSON Object, SM *SMExpect, headers map[string]string) Object {

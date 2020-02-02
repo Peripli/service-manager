@@ -70,7 +70,7 @@ func VerifyResourceExists(smClient *SMExpect, expectations ResourceExpectations)
 		}
 	}
 }
-func VerifyInstanceDoesNotExist(smClient *SMExpect, expectations ResourceExpectations) {
+func VerifyResourceDoesNotExist(smClient *SMExpect, expectations ResourceExpectations) {
 	timeoutDuration := 15 * time.Second
 	timeout := time.After(timeoutDuration)
 	ticker := time.Tick(100 * time.Millisecond)

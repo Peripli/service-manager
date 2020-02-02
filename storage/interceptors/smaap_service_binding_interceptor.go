@@ -122,7 +122,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 			return nil, &util.HTTPError{
 				ErrorType:   "BrokerError",
 				Description: fmt.Sprintf("plan %s is not bindable", plan.CatalogName),
-				StatusCode:  http.StatusBadGateway,
+				StatusCode:  http.StatusBadRequest,
 			}
 		}
 
@@ -156,12 +156,12 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 			}
 			binding.Context = contextBytes
 
-			log.C(ctx).Infof("Sending bind request %+v to broker with name %s", bindRequest, broker.Name)
+			log.C(ctx).Infof("Sending bind request %s to broker with name %s", logBindRequest(bindRequest), broker.Name)
 			bindResponse, err = osbClient.Bind(bindRequest)
 			if err != nil {
 				brokerError := &util.HTTPError{
 					ErrorType:   "BrokerError",
-					Description: fmt.Sprintf("Failed bind request %+v: %s", bindRequest, err),
+					Description: fmt.Sprintf("Failed bind request %s: %s", logBindRequest(bindRequest), err),
 					StatusCode:  http.StatusBadGateway,
 				}
 				if shouldStartOrphanMitigation(err) {
@@ -192,18 +192,18 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 			}
 
 			if bindResponse.Async {
-				log.C(ctx).Infof("Successful asynchronous binding request %+v to broker %s returned response %+v",
-					bindRequest, broker.Name, bindResponse)
+				log.C(ctx).Infof("Successful asynchronous binding request %s to broker %s returned response %s",
+					logBindRequest(bindRequest), broker.Name, logBindResponse(bindResponse))
 				operation.Reschedule = true
 				if bindResponse.OperationKey != nil {
 					operation.ExternalID = string(*bindResponse.OperationKey)
 				}
 				if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
-					return nil, fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule", instance.ID)
+					return nil, fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", instance.ID, err)
 				}
 			} else {
-				log.C(ctx).Infof("Successful synchronous bind %+v to broker %s returned response %+v",
-					bindRequest, broker.Name, bindResponse)
+				log.C(ctx).Infof("Successful synchronous bind %s to broker %s returned response %s",
+					logBindRequest(bindRequest), broker.Name, logBindResponse(bindResponse))
 			}
 		}
 
@@ -269,17 +269,17 @@ func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, bin
 	if !operation.Reschedule {
 		unbindRequest := prepareUnbindRequest(instance, binding, service.CatalogID, plan.CatalogID)
 
-		log.C(ctx).Infof("Sending unbind request %+v to broker with name %s", unbindRequest, broker.Name)
+		log.C(ctx).Infof("Sending unbind request %s to broker with name %s", logUnbindRequest(unbindRequest), broker.Name)
 		unbindResponse, err = osbClient.Unbind(unbindRequest)
 		if err != nil {
 			if osbc.IsGoneError(err) {
-				log.C(ctx).Infof("Synchronous unbind %+v to broker %s returned 410 GONE and is considered success",
-					unbindRequest, broker.Name)
+				log.C(ctx).Infof("Synchronous unbind %s to broker %s returned 410 GONE and is considered success",
+					logUnbindRequest(unbindRequest), broker.Name)
 				return nil
 			}
 			brokerError := &util.HTTPError{
 				ErrorType:   "BrokerError",
-				Description: fmt.Sprintf("Failed unbind request %+v: %s", unbindRequest, err),
+				Description: fmt.Sprintf("Failed unbind request %s: %s", logUnbindRequest(unbindRequest), err),
 				StatusCode:  http.StatusBadGateway,
 			}
 			if shouldStartOrphanMitigation(err) {
@@ -293,19 +293,19 @@ func (i *ServiceBindingInterceptor) deleteSingleBinding(ctx context.Context, bin
 		}
 
 		if unbindResponse.Async {
-			log.C(ctx).Infof("Successful asynchronous unbind request %+v to broker %s returned response %+v",
-				unbindRequest, broker.Name, unbindResponse)
+			log.C(ctx).Infof("Successful asynchronous unbind request %s to broker %s returned response %s",
+				logUnbindRequest(unbindRequest), broker.Name, logUnbindResponse(unbindResponse))
 			operation.Reschedule = true
 
 			if unbindResponse.OperationKey != nil {
 				operation.ExternalID = string(*unbindResponse.OperationKey)
 			}
 			if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
-				return fmt.Errorf("failed to update operation with id %s to mark that rescheduling is possible", operation.ID)
+				return fmt.Errorf("failed to update operation with id %s to mark that rescheduling is possible: %s", operation.ID, err)
 			}
 		} else {
-			log.C(ctx).Infof("Successful synchronous unbind %+v to broker %s returned response %+v",
-				unbindRequest, broker.Name, unbindResponse)
+			log.C(ctx).Infof("Successful synchronous unbind %s to broker %s returned response %s",
+				logUnbindRequest(unbindRequest), broker.Name, logUnbindResponse(unbindResponse))
 		}
 	}
 
@@ -347,8 +347,7 @@ func (i *ServiceBindingInterceptor) isInstanceDeleting(ctx context.Context, inst
 func getLastOperationByResourceID(ctx context.Context, resourceID string, repository storage.Repository) (*types.Operation, bool, error) {
 	byResourceID := query.ByField(query.EqualsOperator, "resource_id", resourceID)
 	orderDesc := query.OrderResultBy("paging_sequence", query.DescOrder)
-	limitToOne := query.LimitResultBy(1)
-	lastOperationObject, err := repository.Get(ctx, types.OperationType, byResourceID, orderDesc, limitToOne)
+	lastOperationObject, err := repository.Get(ctx, types.OperationType, byResourceID, orderDesc)
 	if err != nil {
 		if err == util.ErrNotFoundInStorage {
 			return nil, false, nil
@@ -440,7 +439,8 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 			//operation should be kept in progress in this case
 			return nil
 		case <-ticker.C:
-			log.C(ctx).Infof("Sending poll last operation request %+v for binding with id %s and name %s", pollingRequest, binding.ID, binding.Name)
+			log.C(ctx).Infof("Sending poll last operation request %s for binding with id %s and name %s",
+				logPollBindingRequest(pollingRequest), binding.ID, binding.Name)
 			pollingResponse, err := osbClient.PollBindingLastOperation(pollingRequest)
 			if err != nil {
 				if osbc.IsGoneError(err) && operation.Type == types.DELETE {
@@ -448,40 +448,42 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 
 					operation.Reschedule = false
 					if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
-						return fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule", operation.ID)
+						return fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", operation.ID, err)
 					}
 					return nil
 				}
 
 				return &util.HTTPError{
 					ErrorType: "BrokerError",
-					Description: fmt.Sprintf("Failed poll last operation request %+v for binding with id %s and name %s: %s",
-						pollingRequest, binding.ID, binding.Name, err),
+					Description: fmt.Sprintf("Failed poll last operation request %s for binding with id %s and name %s: %s",
+						logPollBindingRequest(pollingRequest), binding.ID, binding.Name, err),
 					StatusCode: http.StatusBadGateway,
 				}
 			}
 
 			switch pollingResponse.State {
 			case osbc.StateInProgress:
-				log.C(ctx).Infof("Polling of binding still in progress. Rescheduling polling last operation request %+v for binding of instance with id %s and name %s...", pollingRequest, binding.ID, binding.Name)
+				log.C(ctx).Infof("Polling of binding still in progress. Rescheduling polling last operation request %s for binding of instance with id %s and name %s...",
+					logPollBindingRequest(pollingRequest), binding.ID, binding.Name)
 
 			case osbc.StateSucceeded:
 				log.C(ctx).Infof("Successfully finished polling operation for binding with id %s and name %s", binding.ID, binding.Name)
 
 				operation.Reschedule = false
 				if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
-					return fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule", operation.ID)
+					return fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", operation.ID, err)
 				}
 
 				getBindingRequest := &osbc.GetBindingRequest{
 					InstanceID: binding.ServiceInstanceID,
 					BindingID:  binding.ID,
 				}
+				log.C(ctx).Infof("Sending get binding request %s to broker with id %s", logGetBindingRequest(getBindingRequest), brokerID)
 				bindingResponse, err := osbClient.GetBinding(getBindingRequest)
 				if err != nil {
 					brokerError := &util.HTTPError{
 						ErrorType:   "BrokerError",
-						Description: fmt.Sprintf("Failed get bind request %+v after successfully finished polling: %s", getBindingRequest, err),
+						Description: fmt.Sprintf("Failed get bind request %s after successfully finished polling: %s", logGetBindingRequest(getBindingRequest), err),
 						StatusCode:  http.StatusBadGateway,
 					}
 					if shouldStartOrphanMitigation(err) {
@@ -489,12 +491,14 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 						operation.DeletionScheduled = time.Now()
 						operation.Reschedule = false
 						if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
-							return fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s", operation.ID, brokerError, err)
+							return fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s",
+								operation.ID, brokerError, err)
 						}
 					}
 					return brokerError
 				}
 
+				log.C(ctx).Infof("broker with id %s returned successful get binding response %s", brokerID, logGetBindingResponse(bindingResponse))
 				bindResponseDetails := bindResponseDetails{
 					Credentials:     bindingResponse.Credentials,
 					SyslogDrainURL:  bindingResponse.SyslogDrainURL,
@@ -507,13 +511,14 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 
 				return nil
 			case osbc.StateFailed:
-				log.C(ctx).Infof("Failed polling operation for binding with id %s and name %s", binding.ID, binding.Name)
+				log.C(ctx).Infof("Failed polling operation for binding with id %s and name %s with response %s",
+					binding.ID, binding.Name, logPollBindingResponse(pollingResponse))
 				operation.Reschedule = false
 				if enableOrphanMitigation {
 					operation.DeletionScheduled = time.Now()
 				}
 				if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
-					return fmt.Errorf("failed to update operation with id %s after failed of last operation for binding with id %s", operation.ID, binding.ID)
+					return fmt.Errorf("failed to update operation with id %s after failed of last operation for binding with id %s: %s", operation.ID, binding.ID, err)
 				}
 
 				errDescription := ""
@@ -562,4 +567,39 @@ func (i *ServiceBindingInterceptor) enrichBindingWithBindingResponse(binding *ty
 	}
 
 	return nil
+}
+
+func logBindRequest(request *osbc.BindRequest) string {
+	return fmt.Sprintf("context: %+v, bindingID: %s, instanceID: %s, planID: %s, serviceID: %s, acceptsIncomplete: %t",
+		request.Context, request.BindingID, request.InstanceID, request.PlanID, request.ServiceID, request.AcceptsIncomplete)
+}
+
+func logBindResponse(response *osbc.BindResponse) string {
+	return fmt.Sprintf("async: %t, operationKey: %s", response.Async, opKeyPtrToStr(response.OperationKey))
+}
+
+func logUnbindRequest(request *osbc.UnbindRequest) string {
+	return fmt.Sprintf("bindingID: %s, instanceID: %s, planID: %s, serviceID: %s, acceptsIncomplete: %t",
+		request.BindingID, request.InstanceID, request.PlanID, request.ServiceID, request.AcceptsIncomplete)
+}
+
+func logUnbindResponse(response *osbc.UnbindResponse) string {
+	return fmt.Sprintf("async: %t, operationKey: %s", response.Async, opKeyPtrToStr(response.OperationKey))
+}
+
+func logPollBindingRequest(request *osbc.BindingLastOperationRequest) string {
+	return fmt.Sprintf("bindingID: %s, instanceID: %s, planID: %s, serviceID: %s, operationKey: %s",
+		request.BindingID, request.InstanceID, strPtrToStr(request.PlanID), strPtrToStr(request.ServiceID), opKeyPtrToStr(request.OperationKey))
+}
+
+func logPollBindingResponse(response *osbc.LastOperationResponse) string {
+	return fmt.Sprintf("state: %s, description: %s", response.State, strPtrToStr(response.Description))
+}
+
+func logGetBindingRequest(request *osbc.GetBindingRequest) string {
+	return fmt.Sprintf("bindingID: %s, instanceID: %s", request.BindingID, request.InstanceID)
+}
+
+func logGetBindingResponse(response *osbc.GetBindingResponse) string {
+	return fmt.Sprintf("response redacted: <credentials present: %t>", len(response.Credentials) != 0)
 }

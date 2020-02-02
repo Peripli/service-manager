@@ -58,6 +58,8 @@ type BrokerServer struct {
 	router *mux.Router
 
 	mutex *sync.RWMutex
+
+	shouldRecordRequests bool
 }
 
 func (b *BrokerServer) URL() string {
@@ -78,11 +80,19 @@ func NewBrokerServer() *BrokerServer {
 func NewBrokerServerWithCatalog(catalog SBCatalog) *BrokerServer {
 	brokerServer := &BrokerServer{}
 	brokerServer.mutex = &sync.RWMutex{}
+	brokerServer.shouldRecordRequests = true
 	brokerServer.initRouter()
 	brokerServer.Reset()
 	brokerServer.Catalog = catalog
 	brokerServer.Server = httptest.NewServer(brokerServer.router)
 	return brokerServer
+}
+
+func (b *BrokerServer) ShouldRecordRequests(shouldRecordRequests bool) {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+
+	b.shouldRecordRequests = shouldRecordRequests
 }
 
 func (b *BrokerServer) Reset() {
@@ -127,49 +137,78 @@ func (b *BrokerServer) initRouter() {
 	router := mux.NewRouter()
 	router.HandleFunc("/v2/catalog", func(rw http.ResponseWriter, req *http.Request) {
 		b.mutex.RLock()
-		defer b.mutex.RUnlock()
-		b.CatalogEndpointRequests = append(b.CatalogEndpointRequests, req)
 		b.CatalogHandler(rw, req)
+		b.mutex.RUnlock()
+
+		if b.shouldRecordRequests {
+			b.mutex.Lock()
+			b.CatalogEndpointRequests = append(b.CatalogEndpointRequests, req)
+			b.mutex.Unlock()
+		}
 	}).Methods(http.MethodGet)
 
 	router.HandleFunc("/v2/service_instances/{instance_id}", func(rw http.ResponseWriter, req *http.Request) {
 		b.mutex.RLock()
-		defer b.mutex.RUnlock()
-		b.ServiceInstanceEndpointRequests = append(b.ServiceInstanceEndpointRequests, req)
 		b.ServiceInstanceHandler(rw, req)
+		b.mutex.RUnlock()
+
+		if b.shouldRecordRequests {
+			b.mutex.Lock()
+			b.ServiceInstanceEndpointRequests = append(b.ServiceInstanceEndpointRequests, req)
+			b.mutex.Unlock()
+		}
 	}).Methods(http.MethodPut, http.MethodDelete, http.MethodGet, http.MethodPatch)
 
 	router.HandleFunc("/v2/service_instances/{instance_id}/service_bindings/{binding_id}", func(rw http.ResponseWriter, req *http.Request) {
 		b.mutex.RLock()
-		defer b.mutex.RUnlock()
-		b.BindingEndpointRequests = append(b.BindingEndpointRequests, req)
 		b.BindingHandler(rw, req)
+		b.mutex.RUnlock()
+
+		if b.shouldRecordRequests {
+			b.mutex.Lock()
+			b.BindingEndpointRequests = append(b.BindingEndpointRequests, req)
+			b.mutex.Unlock()
+		}
 	}).Methods(http.MethodPut, http.MethodDelete, http.MethodGet)
 
 	router.HandleFunc("/v2/service_instances/{instance_id}/last_operation", func(rw http.ResponseWriter, req *http.Request) {
 		b.mutex.RLock()
-		defer b.mutex.RUnlock()
-		b.ServiceInstanceLastOpEndpointRequests = append(b.ServiceInstanceLastOpEndpointRequests, req)
 		b.ServiceInstanceLastOpHandler(rw, req)
+		b.mutex.RUnlock()
+
+		if b.shouldRecordRequests {
+			b.mutex.Lock()
+			b.ServiceInstanceLastOpEndpointRequests = append(b.ServiceInstanceLastOpEndpointRequests, req)
+			b.mutex.Unlock()
+		}
 	}).Methods(http.MethodGet)
 
 	router.HandleFunc("/v2/service_instances/{instance_id}/service_bindings/{binding_id}/last_operation", func(rw http.ResponseWriter, req *http.Request) {
 		b.mutex.RLock()
-		defer b.mutex.RUnlock()
-		b.BindingLastOpEndpointRequests = append(b.BindingLastOpEndpointRequests, req)
 		b.BindingLastOpHandler(rw, req)
+		b.mutex.RUnlock()
+
+		if b.shouldRecordRequests {
+			b.mutex.Lock()
+			b.BindingLastOpEndpointRequests = append(b.BindingLastOpEndpointRequests, req)
+			b.mutex.Unlock()
+		}
 	}).Methods(http.MethodGet)
 
 	router.HandleFunc("/v2/service_instances/{instance_id}/service_bindings/{binding_id}/adapt_credentials", func(rw http.ResponseWriter, req *http.Request) {
 		b.mutex.RLock()
-		defer b.mutex.RUnlock()
-		b.BindingAdaptCredentialsEndpointRequests = append(b.BindingAdaptCredentialsEndpointRequests, req)
 		b.BindingAdaptCredentialsHandler(rw, req)
+		b.mutex.RUnlock()
+
+		if b.shouldRecordRequests {
+			b.mutex.Lock()
+			b.BindingAdaptCredentialsEndpointRequests = append(b.BindingAdaptCredentialsEndpointRequests, req)
+			b.mutex.Unlock()
+		}
 	}).Methods(http.MethodPost)
 
 	router.Use(b.authenticationMiddleware)
-	//router.Use(b.saveRequestMiddleware)
-
+	router.Use(b.saveRequestMiddleware)
 	b.router = router
 }
 
@@ -267,15 +306,18 @@ func (b *BrokerServer) authenticationMiddleware(next http.Handler) http.Handler 
 
 func (b *BrokerServer) saveRequestMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if !b.shouldRecordRequests {
+			next.ServeHTTP(w, req)
+			return
+		}
+
 		defer func() {
 			err := req.Body.Close()
 			if err != nil {
 				panic(err)
 			}
 		}()
-		b.mutex.Lock()
 		b.LastRequest = req
-		b.mutex.Unlock()
 		bodyBytes, err := ioutil.ReadAll(req.Body)
 		req.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 
@@ -313,8 +355,15 @@ func (b *BrokerServer) defaultBindingHandler(rw http.ResponseWriter, req *http.R
 	if req.Method == http.MethodPut {
 		SetResponse(rw, http.StatusCreated, Object{
 			"credentials": Object{
-				"instance_id": mux.Vars(req)["instance_id"],
-				"binding_id":  mux.Vars(req)["binding_id"],
+				"user":     "user",
+				"password": "password",
+			},
+		})
+	} else if req.Method == http.MethodGet {
+		SetResponse(rw, http.StatusOK, Object{
+			"credentials": Object{
+				"user":     "user",
+				"password": "password",
 			},
 		})
 	} else {
@@ -331,8 +380,8 @@ func (b *BrokerServer) defaultBindingLastOpHandler(rw http.ResponseWriter, req *
 func (b *BrokerServer) defaultBindingAdaptCredentialsHandler(rw http.ResponseWriter, req *http.Request) {
 	SetResponse(rw, http.StatusOK, Object{
 		"credentials": Object{
-			"instance_id": mux.Vars(req)["instance_id"],
-			"binding_id":  mux.Vars(req)["binding_id"],
+			"user":     "user",
+			"password": "password",
 		},
 	})
 }
