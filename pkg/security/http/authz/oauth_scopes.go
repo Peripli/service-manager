@@ -65,11 +65,5 @@ func HasScope(user *web.UserContext, scope string) (bool, error) {
 	}
 	userScopes := claims.Scopes
 
-	for _, userScope := range userScopes {
-		if scope == userScope {
-			return true, nil
-		}
-	}
-
-	return false, nil
+	return slice.StringsAnyEquals(userScopes, scope), nil
 }
