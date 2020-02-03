@@ -26,8 +26,8 @@ import (
 type logicalOperator string
 
 const (
-	AND logicalOperator = "AND"
-	OR  logicalOperator = "OR"
+	AND       logicalOperator = "AND"
+	INTERSECT logicalOperator = "INTERSECT"
 )
 
 // whereClauseTree represents an sql where clause as tree structure with AND/OR on the nodes
@@ -36,8 +36,9 @@ type whereClauseTree struct {
 	dbTags    []tagType
 	tableName string
 
-	operator logicalOperator
-	children []*whereClauseTree
+	operator  logicalOperator
+	children  []*whereClauseTree
+	queryFunc func(childrenSQL []string) string
 }
 
 func (t *whereClauseTree) isLeaf() bool {
@@ -73,7 +74,12 @@ func (t *whereClauseTree) compileSQL() (string, []interface{}) {
 	case 1:
 		sql = childrenSQL[0]
 	default:
-		sql = fmt.Sprintf("(%s)", strings.Join(childrenSQL, fmt.Sprintf(" %s ", t.operator)))
+		if t.queryFunc == nil {
+			t.queryFunc = func(childrenSQL []string) string {
+				return fmt.Sprintf("(%s)", strings.Join(childrenSQL, fmt.Sprintf(" %s ", t.operator)))
+			}
+		}
+		sql = t.queryFunc(childrenSQL)
 	}
 
 	return sql, queryParams

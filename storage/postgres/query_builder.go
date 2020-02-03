@@ -87,7 +87,7 @@ func NewQueryBuilder(db pgDB) *QueryBuilder {
 
 // NewQuery constructs new queries for the current query builder db
 func (qb *QueryBuilder) NewQuery(entity PostgresEntity) *pgQuery {
-	return &pgQuery{
+	pq := &pgQuery{
 		labelEntity:     entity.LabelEntity(),
 		entityTableName: entity.TableName(),
 		entityTags:      getDBTags(entity, nil),
@@ -96,10 +96,11 @@ func (qb *QueryBuilder) NewQuery(entity PostgresEntity) *pgQuery {
 		fieldsWhereClause: &whereClauseTree{
 			operator: AND,
 		},
-		labelsWhereClause: &whereClauseTree{
-			operator: OR,
-		},
 	}
+	pq.labelsWhereClause = &whereClauseTree{queryFunc: func(childrenSQL []string) string {
+		return fmt.Sprintf("(%s IN (%s))", pq.labelEntity.ReferenceColumn(), strings.Join(childrenSQL, fmt.Sprintf(" %s ", INTERSECT)))
+	}}
+	return pq
 }
 
 type orderRule struct {
@@ -219,6 +220,18 @@ func (pq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
 	if pq.err != nil {
 		return pq
 	}
+	labelQueryCount := 0
+	for _, c := range criteria {
+		if c.Type == query.LabelQuery {
+			labelQueryCount++
+		}
+	}
+	var labelQueryFunc func(childrenSQL []string) string
+	if labelQueryCount > 1 {
+		labelQueryFunc = func(childrenSQL []string) string {
+			return fmt.Sprintf("(SELECT %s FROM %s WHERE (%s))", pq.labelEntity.ReferenceColumn(), pq.labelEntity.LabelsTableName(), strings.Join(childrenSQL, fmt.Sprintf(" %s ", AND)))
+		}
+	}
 	for _, criterion := range criteria {
 		if err := criterion.Validate(); err != nil {
 			pq.err = err
@@ -252,6 +265,7 @@ func (pq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
 						dbTags:    pq.labelEntityTags,
 					},
 				},
+				queryFunc: labelQueryFunc,
 			})
 		case query.ResultQuery:
 			pq.processResultCriteria(criterion)
