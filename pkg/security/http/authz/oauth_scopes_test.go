@@ -81,10 +81,9 @@ var _ = Describe("Oauth Scopes", func() {
 		}
 
 		When("no scopes are available", func() {
-			user, err := getUserContextWithToken(tokenDataNoScopes, nil)
+			user, _ := getUserContextWithToken(tokenDataNoScopes, nil)
 
 			It("is not found", func() {
-				Expect(err).ToNot(HaveOccurred())
 				found, err := HasScope(user, "the-scope")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(found).To(BeFalse())
@@ -92,10 +91,9 @@ var _ = Describe("Oauth Scopes", func() {
 		})
 
 		When("requested scope is not available", func() {
-			user, err := getUserContextWithToken(tokenDataWithoutRequestedScope, nil)
+			user, _ := getUserContextWithToken(tokenDataWithoutRequestedScope, nil)
 
 			It("is not found", func() {
-				Expect(err).ToNot(HaveOccurred())
 				found, err := HasScope(user, "the-scope")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(found).To(BeFalse())
@@ -103,9 +101,9 @@ var _ = Describe("Oauth Scopes", func() {
 		})
 
 		When("requested scope is available", func() {
-			user, err := getUserContextWithToken(tokenDataWithRequestedScope, nil)
+			user, _ := getUserContextWithToken(tokenDataWithRequestedScope, nil)
+
 			It("is found", func() {
-				Expect(err).ToNot(HaveOccurred())
 				found, err := HasScope(user, "the-scope")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(found).To(BeTrue())
@@ -113,9 +111,9 @@ var _ = Describe("Oauth Scopes", func() {
 		})
 
 		When("scope cannot be extracted from token", func() {
-			user, err := getUserContextWithToken(tokenDataWithRequestedScope, errors.New("failed to get user data"))
+			user, _ := getUserContextWithToken(tokenDataWithRequestedScope, errors.New("failed to get user data"))
+
 			It("is fails with an error", func() {
-				Expect(err).ToNot(HaveOccurred())
 				_, err := HasScope(user, "the-scope")
 				Expect(err).To(HaveOccurred())
 			})
