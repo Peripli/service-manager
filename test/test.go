@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/spf13/pflag"
 	"net/http"
 	"strconv"
 	"strings"
@@ -158,6 +159,9 @@ func DescribeTestsFor(t TestCase) bool {
 			if t.MultitenancySettings != nil {
 				ctxBuilder.
 					WithTenantTokenClaims(t.MultitenancySettings.TokenClaims).
+					WithEnvPreExtensions(func(set *pflag.FlagSet) {
+						set.Set("api.protected_labels", t.MultitenancySettings.LabelKey)
+					}).
 					WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 						smb.EnableMultitenancy(t.MultitenancySettings.LabelKey, func(request *web.Request) (string, error) {
 							extractTenantFromToken := multitenancy.ExtractTenantFromTokenWrapperFunc(t.MultitenancySettings.TenantTokenClaim)

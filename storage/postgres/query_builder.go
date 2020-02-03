@@ -136,7 +136,7 @@ type pgQuery struct {
 
 	fieldsWhereClause *whereClauseTree
 	labelsWhereClause *whereClauseTree
-	protectedLabels []string
+	protectedLabels   []string
 	shouldRebind      bool
 	err               error
 }
@@ -200,7 +200,7 @@ func (pq *pgQuery) resolveQueryTemplate(ctx context.Context, template string) (s
 		return "", fmt.Errorf("query builder requires the entity to have associated label entity")
 	}
 	hasFieldCriteria := len(pq.fieldsWhereClause.children) != 0 || len(pq.limit) != 0
-	hasLabelCriteria := len(pq.labelsWhereClause.children) != 0
+	hasLabelCriteria := len(pq.labelsWhereClause.children[0].children) != 0 || len(pq.labelsWhereClause.children[1].children) != 0
 	data := map[string]interface{}{
 		"hasFieldCriteria":  hasFieldCriteria,
 		"hasLabelCriteria":  hasLabelCriteria,
@@ -269,7 +269,7 @@ func (pq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
 			} else {
 				childToInsertIndex = userProvidedLabelsSubtreeIndex
 			}
-			pq.labelsWhereClause.children[childToInsertIndex].children = append(pq.labelsWhereClause.children, &whereClauseTree{
+			pq.labelsWhereClause.children[childToInsertIndex].children = append(pq.labelsWhereClause.children[childToInsertIndex].children, &whereClauseTree{
 				operator: AND,
 				children: []*whereClauseTree{
 					{
@@ -312,7 +312,7 @@ func (pq *pgQuery) limitSQL() string {
 // JOIN is used when a label quert is present, LEFT JOIN is used when no label query is present so that resultset includes
 // unlabelled resources
 func (pq *pgQuery) joinSQL() string {
-	if len(pq.labelsWhereClause.children) == 0 {
+	if len(pq.labelsWhereClause.children[0].children) == 0 && len(pq.labelsWhereClause.children[1].children) == 0 {
 		return "LEFT JOIN"
 	}
 	return "JOIN"

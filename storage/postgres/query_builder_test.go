@@ -58,7 +58,7 @@ var _ = Describe("Postgres Storage Query builder", func() {
 
 	BeforeEach(func() {
 		entity = &postgres.Visibility{}
-		qb = postgres.NewQueryBuilder(db)
+		qb = postgres.NewQueryBuilder(db, []string{})
 	})
 
 	Describe("List", func() {

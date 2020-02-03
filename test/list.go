@@ -44,6 +44,7 @@ type listOpEntry struct {
 	resourcesToExpectAfterOp    []common.Object
 	resourcesNotToExpectAfterOp []common.Object
 	expectedStatusCode          int
+	expect                      *common.SMExpect
 }
 
 func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode ResponseMode) bool {
@@ -79,19 +80,29 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 	}
 
 	By(fmt.Sprintf("Attempting to create a random resource of %s with mandatory fields only", t.API))
-	rWithMandatoryFields = t.ResourceWithoutNullableFieldsBlueprint(ctx, ctx.SMWithOAuth, bool(responseMode))
-	for i := 0; i < 10; i++ {
-		By(fmt.Sprintf("Attempting to create a random resource of %s", t.API))
 
-		gen := t.ResourceBlueprint(ctx, ctx.SMWithOAuth, bool(responseMode))
-		gen = attachLabel(gen)
-		delete(gen, "created_at")
-		delete(gen, "updated_at")
-		r = append(r, gen)
+	var SMExpects []*common.SMExpect
+	if !t.DisableTenantResources {
+		SMExpects = []*common.SMExpect{ctx.SMWithOAuth, ctx.SMWithOAuthForTenant}
+	} else {
+		SMExpects = []*common.SMExpect{ctx.SMWithOAuth}
+	}
+
+	for _, expect := range SMExpects {
+		rWithMandatoryFields = t.ResourceWithoutNullableFieldsBlueprint(ctx, expect, bool(responseMode))
+		for i := 0; i < 10; i++ {
+			By(fmt.Sprintf("Attempting to create a random resource of %s", t.API))
+
+			gen := t.ResourceBlueprint(ctx, expect, bool(responseMode))
+			gen = attachLabel(gen)
+			delete(gen, "created_at")
+			delete(gen, "updated_at")
+			r = append(r, gen)
+		}
 	}
 
 	entries := []TableEntry{
-		Entry("returns 200",
+		FEntry("returns 200",
 			listOpEntry{
 				resourcesToExpectBeforeOp: []common.Object{r[0]},
 				queryTemplate:             "%s eq '%v'",
@@ -100,6 +111,15 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 				expectedStatusCode:        http.StatusOK,
 			},
 		),
+		Entry("returns 200 and only tenat resources",
+			listOpEntry{
+				resourcesToExpectBeforeOp:   r[len(r):],
+				queryTemplate:               "%s eq '%v'",
+				queryArgs:                   r[len(r)/2],
+				resourcesNotToExpectAfterOp: r[:len(r)/2],
+				expectedStatusCode:          http.StatusOK,
+				expect:                      ctx.SMWithOAuthForTenant,
+			}),
 		Entry("returns 200",
 			listOpEntry{
 				resourcesToExpectBeforeOp:   []common.Object{r[0], r[1], r[2], r[3]},
@@ -314,7 +334,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 		unexpectedAfterOpIDs = common.ExtractResourceIDs(listOpEntry.resourcesNotToExpectAfterOp)
 
 		By(fmt.Sprintf("[TEST]: Verifying expected %s before operation after present", t.API))
-		beforeOpArray := ctx.SMWithOAuth.List(t.API)
+		beforeOpArray := auth.List(t.API)
 
 		for _, v := range beforeOpArray.Iter() {
 			obj := v.Object().Raw()
@@ -342,13 +362,13 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 
 		if listOpEntry.expectedStatusCode != http.StatusOK {
 			By(fmt.Sprintf("[TEST]: Verifying error and description fields are returned after list operation"))
-			req := ctx.SMWithOAuth.GET(t.API)
+			req := auth.GET(t.API)
 			if query != "" {
 				req = req.WithQueryString(query)
 			}
 			req.Expect().Status(listOpEntry.expectedStatusCode).JSON().Object().Keys().Contains("error", "description")
 		} else {
-			array := ctx.SMWithOAuth.ListWithQuery(t.API, query)
+			array := auth.ListWithQuery(t.API, query)
 			for _, v := range array.Iter() {
 				obj := v.Object().Raw()
 				delete(obj, "created_at")
@@ -438,7 +458,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 
 					It("returns only tenant specific resources", func() {
 						verifyListOpWithAuth(listOpEntry{
-							resourcesToExpectBeforeOp: []common.Object{r[0], r[1], rForTenant},
+							resourcesToExpectBeforeOp: []common.Object{rForTenant},
 							resourcesToExpectAfterOp:  []common.Object{rForTenant},
 							expectedStatusCode:        http.StatusOK,
 						}, "", ctx.SMWithOAuthForTenant)
@@ -491,6 +511,21 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 							Expect().
 							Status(http.StatusOK).JSON().Object()
 						object.Path(fmt.Sprintf("$.labels[%s][*]", labelKey)).Array().Contains(objID)
+					})
+
+					AfterEach(func() {
+						patchLabels := []*query.LabelChange{
+							{
+								Operation: query.RemoveLabelOperation,
+								Key:       labelKey,
+								Values:    []string{objID},
+							},
+						}
+						t.PatchResource(ctx, t.API, objID, t.ResourceType, patchLabels, bool(responseMode))
+						object := ctx.SMWithOAuth.GET(t.API + "/" + objID).
+							Expect().
+							Status(http.StatusOK).JSON().Object()
+						object.NotContainsKey(fmt.Sprintf("$.labels[%s]", labelKey))
 					})
 
 					It("successfully returns the item", func() {
@@ -600,6 +635,13 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 			// expand all field and label query test enties into Its wrapped by descriptive Contexts
 			for i := 0; i < len(entries); i++ {
 				params := entries[i].Parameters[0].(listOpEntry)
+				if t.DisableTenantResources && params.expect == ctx.SMWithOAuthForTenant {
+					continue
+				}
+				if params.expect == nil {
+					params.expect = ctx.SMWithOAuth
+					entries[i].Parameters[0] = params
+				}
 				if len(params.queryTemplate) == 0 {
 					panic("query templates missing")
 				}
@@ -615,40 +657,44 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 					for _, queryValue := range queryValues {
 						query := "fieldQuery" + "=" + queryValue
 						DescribeTable(fmt.Sprintf("%s", queryValue), func(test listOpEntry) {
-							verifyListOp(test, query)
+							verifyListOpWithAuth(test, query, test.expect)
 						}, entries[i])
 					}
 
 					if len(queryValues) > 1 {
 						DescribeTable(fmt.Sprintf("%s", multiQueryValue), func(test listOpEntry) {
-							verifyListOp(test, fquery)
+							verifyListOpWithAuth(test, fquery, test.expect)
 						}, entries[i])
 					}
 				})
 
-				labels := params.queryArgs["labels"]
+				labels := common.CopyObject(params.queryArgs)["labels"]
 				if labels != nil {
-					multiQueryValue, queryValues = expandLabelQuery(labels.(map[string]interface{}), params.queryTemplate)
+					labels := labels.(map[string]interface{})
+					if !t.DisableTenantResources {
+						delete(labels, t.MultitenancySettings.LabelKey)
+					}
+					multiQueryValue, queryValues = expandLabelQuery(labels, params.queryTemplate)
 					lquery := "labelQuery" + "=" + multiQueryValue
 
 					Context("with label query=", func() {
 						for _, queryValue := range queryValues {
 							query := "labelQuery" + "=" + queryValue
 							DescribeTable(fmt.Sprintf("%s", queryValue), func(test listOpEntry) {
-								verifyListOp(test, query)
+								verifyListOpWithAuth(test, query, test.expect)
 							}, entries[i])
 						}
 
 						if len(queryValues) > 1 {
 							DescribeTable(fmt.Sprintf("%s", multiQueryValue), func(test listOpEntry) {
-								verifyListOp(test, lquery)
+								verifyListOpWithAuth(test, lquery, test.expect)
 							}, entries[i])
 						}
 					})
 
 					Context("with multiple field and label queries", func() {
 						DescribeTable(fmt.Sprintf("%s", fquery+"&"+lquery), func(test listOpEntry) {
-							verifyListOp(test, fquery+"&"+lquery)
+							verifyListOpWithAuth(test, fquery+"&"+lquery, test.expect)
 						}, entries[i])
 					})
 				}
