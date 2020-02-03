@@ -239,27 +239,8 @@ func CreateNotification(ctx context.Context, repository storage.Repository, op t
 
 func determinePlatformIDs(oldPlatformIDs, updatedPlatformIDs []string) ([]string, []string, []string) {
 	preexistingPlatformIDs := slice.StringsIntersection(oldPlatformIDs, updatedPlatformIDs)
-	addedPlatformIDs := findDistinctStrings(updatedPlatformIDs, preexistingPlatformIDs)
-	removedPlatformIDs := findDistinctStrings(oldPlatformIDs, preexistingPlatformIDs)
+	addedPlatformIDs := slice.StringsDistinct(updatedPlatformIDs, preexistingPlatformIDs)
+	removedPlatformIDs := slice.StringsDistinct(oldPlatformIDs, preexistingPlatformIDs)
 
 	return preexistingPlatformIDs, addedPlatformIDs, removedPlatformIDs
-}
-
-func findDistinctStrings(str1, str2 []string) []string {
-	distinct := make([]string, 0)
-	for _, s1 := range str1 {
-		isDistinct := true
-		for _, s2 := range str2 {
-			if s1 == s2 {
-				isDistinct = false
-				break
-			}
-		}
-
-		if isDistinct {
-			distinct = append(distinct, s1)
-		}
-	}
-
-	return distinct
 }

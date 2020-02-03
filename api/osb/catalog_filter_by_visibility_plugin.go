@@ -55,7 +55,7 @@ func (c *CatalogFilterByVisibilityPlugin) FetchCatalog(req *web.Request, next we
 	}
 
 	brokerID := req.PathParams[BrokerIDPathParam]
-	visibleCatalogPlans, err := getVisiblePlansByBrokerIDAndPlatformID(ctx, c.repository, brokerID, platform.ID)
+	visibleCatalogPlans, err := getVisiblePlansByBrokerIDAndPlatformID(ctx, c.repository, brokerID, platform)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func (c *CatalogFilterByVisibilityPlugin) FetchCatalog(req *web.Request, next we
 	return res, err
 }
 
-func getVisiblePlansByBrokerIDAndPlatformID(ctx context.Context, repository storage.Repository, brokerID, platformID string) (map[string]bool, error) {
+func getVisiblePlansByBrokerIDAndPlatformID(ctx context.Context, repository storage.Repository, brokerID string, platform *types.Platform) (map[string]bool, error) {
 	offeringIDs, err := getOfferingIDsByBrokerID(ctx, repository, brokerID)
 	if err != nil {
 		return nil, err
@@ -78,13 +78,26 @@ func getVisiblePlansByBrokerIDAndPlatformID(ctx context.Context, repository stor
 		log.C(ctx).Errorf("Could not get %s: %v", types.ServicePlanType, err)
 		return nil, err
 	}
+
+	visibleCatalogPlans := make(map[string]bool)
+	if platform.Type == types.CFPlatformType {
+		for i := 0; i < plansList.Len(); i++ {
+			plan := plansList.ItemAt(i).(*types.ServicePlan)
+			if plan.SupportsPlatform(types.CFPlatformType) {
+				visibleCatalogPlans[plan.CatalogID] = true
+			}
+		}
+
+		return visibleCatalogPlans, nil
+	}
+
 	planIDs := make([]string, 0, plansList.Len())
 	for i := 0; i < plansList.Len(); i++ {
 		planIDs = append(planIDs, plansList.ItemAt(i).GetID())
 	}
 
 	visibilitiesList, err := repository.List(ctx, types.VisibilityType,
-		query.ByField(query.EqualsOrNilOperator, "platform_id", platformID),
+		query.ByField(query.EqualsOrNilOperator, "platform_id", platform.ID),
 		query.ByField(query.InOperator, "service_plan_id", planIDs...))
 	if err != nil {
 		log.C(ctx).Errorf("Could not get %s: %v", types.VisibilityType, err)
@@ -97,7 +110,6 @@ func getVisiblePlansByBrokerIDAndPlatformID(ctx context.Context, repository stor
 	}
 
 	plans := (plansList.(*types.ServicePlans)).ServicePlans
-	visibleCatalogPlans := make(map[string]bool)
 	for _, p := range plans {
 		if visiblePlans[p.ID] {
 			visibleCatalogPlans[p.CatalogID] = true

@@ -26,7 +26,8 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 )
 
-const K8sPlatformType string = "kubernetes"
+const CFPlatformType = "cloudfoundry"
+const K8sPlatformType = "kubernetes"
 const SMPlatform = "service-manager"
 
 //go:generate smgen api Platform
