@@ -326,16 +326,20 @@ func (s *Scheduler) checkForConcurrentOperations(ctx context.Context, operation 
 }
 
 func (s *Scheduler) storeOrUpdateOperation(ctx context.Context, operation, lastOperation *types.Operation) error {
+	// if a new operation is scheduled we need to store it
 	if lastOperation == nil || operation.ID != lastOperation.ID {
 		log.C(ctx).Infof("Storing %s operation with id %s", operation.Type, operation.ID)
 		if _, err := s.repository.Create(ctx, operation); err != nil {
 			return util.HandleStorageError(err, types.OperationType.String())
 		}
-	} else if operation.Type == lastOperation.Type && (operation.Reschedule || !operation.DeletionScheduled.IsZero()) {
+		// if its a reschedule of an existing operation (reschedule=true or deletion is scheduled), we need to update it
+		// so that maintainer can know if other maintainers are currently processing it
+	} else if operation.Reschedule || !operation.DeletionScheduled.IsZero() {
 		log.C(ctx).Infof("Updating rescheduled %s operation with id %s", operation.Type, operation.ID)
 		if _, err := s.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
 			return util.HandleStorageError(err, types.OperationType.String())
 		}
+		// otherwise we should not allow executing an existing operation again
 	} else {
 		return fmt.Errorf("operation with this id was already executed")
 	}
@@ -465,7 +469,8 @@ func (s *Scheduler) handleActionResponseFailure(ctx context.Context, actionError
 		}
 
 		log.C(ctx).Infof("Scheduling of required delete operation after actual operation with id %s failed", opAfterJob.ID)
-		// if deletion timestamp was set on the op, reschedule the same op with delete action
+		// if deletion timestamp was set on the op, reschedule the same op with delete action and wait for reschedulingDelay time
+		// so that we don't DOS the broker
 		reschedulingDelayTimeout := time.After(s.reschedulingDelay)
 		select {
 		case <-s.smCtx.Done():

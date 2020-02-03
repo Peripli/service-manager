@@ -159,9 +159,9 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		result.SetID(UUID.String())
 	}
 	currentTime := time.Now().UTC()
+	// override ready provide from the request body
 	result.SetCreatedAt(currentTime)
 	result.SetUpdatedAt(currentTime)
-	// override ready provide from the request body
 	result.SetReady(false)
 
 	action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
