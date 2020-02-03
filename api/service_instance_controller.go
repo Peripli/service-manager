@@ -32,7 +32,7 @@ type ServiceInstanceController struct {
 
 func NewServiceInstanceController(ctx context.Context, options *Options) *ServiceInstanceController {
 	return &ServiceInstanceController{
-		BaseController: NewAsyncController(ctx, options, web.ServiceInstancesURL, types.ServiceInstanceType, func() types.Object {
+		BaseController: NewAsyncController(ctx, options, web.ServiceInstancesURL, types.ServiceInstanceType, true, func() types.Object {
 			return &types.ServiceInstance{}
 		}),
 	}

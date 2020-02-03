@@ -92,7 +92,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 	return &web.API{
 		// Default controllers - more filters can be registered using the relevant API methods
 		Controllers: []web.Controller{
-			NewAsyncController(ctx, options, web.ServiceBrokersURL, types.ServiceBrokerType, func() types.Object {
+			NewAsyncController(ctx, options, web.ServiceBrokersURL, types.ServiceBrokerType, false, func() types.Object {
 				return &types.ServiceBroker{}
 			}),
 			NewController(ctx, options, web.PlatformsURL, types.PlatformType, func() types.Object {

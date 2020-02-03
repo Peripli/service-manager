@@ -46,14 +46,18 @@ const pagingLimitOffset = 1
 
 // BaseController provides common CRUD handlers for all object types in the service manager
 type BaseController struct {
-	scheduler       *operations.Scheduler
+	scheduler *operations.Scheduler
+
 	resourceBaseURL string
 	objectType      types.ObjectType
 	repository      storage.Repository
 	objectBlueprint func() types.Object
+
 	DefaultPageSize int
 	MaxPageSize     int
-	supportsAsync   bool
+
+	supportsAsync  bool
+	isAsyncDefault bool
 }
 
 // NewController returns a new base controller
@@ -79,9 +83,10 @@ func NewController(ctx context.Context, options *Options, resourceBaseURL string
 }
 
 // NewAsyncController returns a new base controller with a scheduler making it effectively an async controller
-func NewAsyncController(ctx context.Context, options *Options, resourceBaseURL string, objectType types.ObjectType, objectBlueprint func() types.Object) *BaseController {
+func NewAsyncController(ctx context.Context, options *Options, resourceBaseURL string, objectType types.ObjectType, isAsyncDefault bool, objectBlueprint func() types.Object) *BaseController {
 	controller := NewController(ctx, options, resourceBaseURL, objectType, objectBlueprint)
 	controller.supportsAsync = true
+	controller.isAsyncDefault = isAsyncDefault
 
 	return controller
 }
@@ -188,8 +193,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		CorrelationID: log.CorrelationIDFromContext(ctx),
 	}
 
-	isAsync := r.URL.Query().Get(web.QueryParamAsync)
-	if isAsync == "true" {
+	if c.shouldExecuteAsync(r) {
 		log.C(ctx).Debugf("Request will be executed asynchronously")
 		if err := c.checkAsyncSupport(); err != nil {
 			return nil, err
@@ -273,8 +277,7 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 		CorrelationID: log.CorrelationIDFromContext(ctx),
 	}
 
-	isAsync := r.URL.Query().Get(web.QueryParamAsync)
-	if isAsync == "true" {
+	if c.shouldExecuteAsync(r) {
 		log.C(ctx).Debugf("Request will be executed asynchronously")
 		if err := c.checkAsyncSupport(); err != nil {
 			return nil, err
@@ -466,8 +469,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		CorrelationID: log.CorrelationIDFromContext(ctx),
 	}
 
-	isAsync := r.URL.Query().Get(web.QueryParamAsync)
-	if isAsync == "true" {
+	if c.shouldExecuteAsync(r) {
 		log.C(ctx).Debugf("Request will be executed asynchronously")
 		if err := c.checkAsyncSupport(); err != nil {
 			return nil, err
@@ -582,6 +584,15 @@ func (c *BaseController) parsePageToken(ctx context.Context, token string) (stri
 		}
 	}
 	return targetPageSequence, nil
+}
+
+func (c *BaseController) shouldExecuteAsync(r *web.Request) bool {
+	async := r.URL.Query().Get(web.QueryParamAsync)
+	if async == "" {
+		return c.isAsyncDefault
+	}
+
+	return async == "true"
 }
 
 func (c *BaseController) checkAsyncSupport() error {
