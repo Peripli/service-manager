@@ -176,7 +176,7 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 				return nil, brokerError
 			}
 
-			bindResponseDetails := bindResponseDetails{
+			bindResponseDetails := &bindResponseDetails{
 				Credentials:     bindResponse.Credentials,
 				SyslogDrainURL:  bindResponse.SyslogDrainURL,
 				RouteServiceURL: bindResponse.RouteServiceURL,
@@ -469,39 +469,15 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 					return fmt.Errorf("failed to update operation with id %s to mark that next execution should be a reschedule: %s", operation.ID, err)
 				}
 
-				getBindingRequest := &osbc.GetBindingRequest{
-					InstanceID: binding.ServiceInstanceID,
-					BindingID:  binding.ID,
-				}
-				log.C(ctx).Infof("Sending get binding request %s to broker with id %s", logGetBindingRequest(getBindingRequest), brokerID)
-				bindingResponse, err := osbClient.GetBinding(getBindingRequest)
-				if err != nil {
-					brokerError := &util.HTTPError{
-						ErrorType:   "BrokerError",
-						Description: fmt.Sprintf("Failed get bind request %s after successfully finished polling: %s", logGetBindingRequest(getBindingRequest), err),
-						StatusCode:  http.StatusBadGateway,
+				// for async creation of bindings, an extra fetching of the binding is required to get the credentials
+				if operation.Type == types.CREATE {
+					bindingDetails, err := i.getBindingDetailsFromBroker(ctx, binding, operation, brokerID, osbClient)
+					if err != nil {
+						return err
 					}
-					if shouldStartOrphanMitigation(err) {
-						// mark the operation as deletion scheduled meaning orphan mitigation is required
-						operation.DeletionScheduled = time.Now()
-						operation.Reschedule = false
-						if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
-							return fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s",
-								operation.ID, brokerError, err)
-						}
+					if err := i.enrichBindingWithBindingResponse(binding, bindingDetails); err != nil {
+						return fmt.Errorf("could not enrich binding details with binding response details: %s", err)
 					}
-					return brokerError
-				}
-
-				log.C(ctx).Infof("broker with id %s returned successful get binding response %s", brokerID, logGetBindingResponse(bindingResponse))
-				bindResponseDetails := bindResponseDetails{
-					Credentials:     bindingResponse.Credentials,
-					SyslogDrainURL:  bindingResponse.SyslogDrainURL,
-					RouteServiceURL: bindingResponse.RouteServiceURL,
-					VolumeMounts:    bindingResponse.VolumeMounts,
-				}
-				if err := i.enrichBindingWithBindingResponse(binding, bindResponseDetails); err != nil {
-					return fmt.Errorf("could not enrich binding details with binding response details: %s", err)
 				}
 
 				return nil
@@ -534,7 +510,43 @@ func (i *ServiceBindingInterceptor) pollServiceBinding(ctx context.Context, osbC
 	}
 }
 
-func (i *ServiceBindingInterceptor) enrichBindingWithBindingResponse(binding *types.ServiceBinding, response bindResponseDetails) error {
+func (i *ServiceBindingInterceptor) getBindingDetailsFromBroker(ctx context.Context, binding *types.ServiceBinding, operation *types.Operation, brokerID string, osbClient osbc.Client) (*bindResponseDetails, error) {
+	getBindingRequest := &osbc.GetBindingRequest{
+		InstanceID: binding.ServiceInstanceID,
+		BindingID:  binding.ID,
+	}
+	log.C(ctx).Infof("Sending get binding request %s to broker with id %s", logGetBindingRequest(getBindingRequest), brokerID)
+	bindingResponse, err := osbClient.GetBinding(getBindingRequest)
+	if err != nil {
+		brokerError := &util.HTTPError{
+			ErrorType:   "BrokerError",
+			Description: fmt.Sprintf("Failed get bind request %s after successfully finished polling: %s", logGetBindingRequest(getBindingRequest), err),
+			StatusCode:  http.StatusBadGateway,
+		}
+		if shouldStartOrphanMitigation(err) {
+			// mark the operation as deletion scheduled meaning orphan mitigation is required
+			operation.DeletionScheduled = time.Now()
+			operation.Reschedule = false
+			if _, err := i.repository.Update(ctx, operation, query.LabelChanges{}); err != nil {
+				return nil, fmt.Errorf("failed to update operation with id %s to schedule orphan mitigation after broker error %s: %s",
+					operation.ID, brokerError, err)
+			}
+		}
+		return nil, brokerError
+	}
+
+	log.C(ctx).Infof("broker with id %s returned successful get binding response %s", brokerID, logGetBindingResponse(bindingResponse))
+	bindResponseDetails := &bindResponseDetails{
+		Credentials:     bindingResponse.Credentials,
+		SyslogDrainURL:  bindingResponse.SyslogDrainURL,
+		RouteServiceURL: bindingResponse.RouteServiceURL,
+		VolumeMounts:    bindingResponse.VolumeMounts,
+	}
+
+	return bindResponseDetails, nil
+}
+
+func (i *ServiceBindingInterceptor) enrichBindingWithBindingResponse(binding *types.ServiceBinding, response *bindResponseDetails) error {
 	if len(response.Credentials) != 0 {
 		credentialBytes, err := json.Marshal(response.Credentials)
 		if err != nil {
