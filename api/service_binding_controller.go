@@ -32,7 +32,7 @@ type ServiceBindingController struct {
 
 func NewServiceBindingController(ctx context.Context, options *Options) *ServiceBindingController {
 	return &ServiceBindingController{
-		BaseController: NewAsyncController(ctx, options, web.ServiceBindingsURL, types.ServiceBindingType, func() types.Object {
+		BaseController: NewAsyncController(ctx, options, web.ServiceBindingsURL, types.ServiceBindingType, true, func() types.Object {
 			return &types.ServiceBinding{}
 		}),
 	}
