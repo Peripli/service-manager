@@ -82,7 +82,8 @@ SELECT visibilities.*,
        visibility_labels.updated_at    "visibility_labels.updated_at",
        visibility_labels.visibility_id "visibility_labels.visibility_id"
 FROM visibilities
-         LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id ;`)))
+         LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
+ORDER BY visibilities.paging_sequence ASC ;`)))
 				Expect(queryArgs).To(HaveLen(0))
 			})
 		})
@@ -107,7 +108,8 @@ SELECT visibilities.*,
        visibility_labels.visibility_id "visibility_labels.visibility_id"
 FROM visibilities
 	JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
-WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence FROM matching_resources) ;`)))
+WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence FROM matching_resources)
+ORDER BY visibilities.paging_sequence ASC ;`)))
 				Expect(queryArgs).To(HaveLen(2))
 				Expect(queryArgs[0]).Should(Equal("labelKey"))
 				Expect(queryArgs[1]).Should(Equal("labelValue"))
@@ -133,7 +135,8 @@ SELECT visibilities.*,
        visibility_labels.visibility_id "visibility_labels.visibility_id"
 FROM visibilities
          LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
-WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence FROM matching_resources) ;`)))
+WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence FROM matching_resources)
+ORDER BY visibilities.paging_sequence ASC ;`)))
 				Expect(queryArgs).To(HaveLen(1))
 				Expect(queryArgs[0]).Should(Equal("1"))
 			})
@@ -232,7 +235,8 @@ SELECT visibilities.*,
        visibility_labels.visibility_id "visibility_labels.visibility_id"
 FROM visibilities
          LEFT JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
-WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence FROM matching_resources) ;`)))
+WHERE visibilities.paging_sequence IN (SELECT matching_resources.paging_sequence FROM matching_resources)
+ORDER BY visibilities.paging_sequence ASC ;`)))
 				Expect(queryArgs).To(HaveLen(1))
 				Expect(queryArgs[0]).Should(Equal("10"))
 			})

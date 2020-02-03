@@ -382,6 +382,10 @@ func (pq *pgQuery) orderBySQL() string {
 		}
 		sql = sql[:len(sql)-1]
 	}
+
+	if sql == "" {
+		sql = fmt.Sprintf("ORDER BY %s.paging_sequence ASC", pq.entityTableName)
+	}
 	return sql
 }
 
