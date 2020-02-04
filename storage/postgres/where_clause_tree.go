@@ -89,7 +89,10 @@ func criterionSQL(c query.Criterion, dbTags []tagType, tableAlias string) (strin
 	var dbCast string
 	if strings.ContainsRune(c.LeftOp, '.') || c.Operator == query.ContainsOperator {
 		dbCast = "::jsonb"
-		leftOp = strings.Join(strings.Split(c.LeftOp, "."), "->")
+		segments := strings.Split(c.LeftOp, ".")
+		baseField := segments[0]
+		quotedSegments := fmt.Sprintf("'%s'", strings.Join(segments[1:], "'->"))
+		leftOp = fmt.Sprintf("%s->%s", baseField, quotedSegments)
 	} else {
 		ttype := findTagType(dbTags, c.LeftOp)
 		dbCast = determineCastByType(ttype)
