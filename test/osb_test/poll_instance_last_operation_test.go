@@ -19,10 +19,11 @@ package osb_test
 import (
 	"context"
 	"fmt"
+	"net/http"
+
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/test/common"
 	"github.com/gavv/httpexpect"
-	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"

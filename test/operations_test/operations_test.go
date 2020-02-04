@@ -18,6 +18,12 @@ package operations_test
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/Peripli/service-manager/operations"
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/query"
@@ -30,11 +36,6 @@ import (
 	"github.com/gavv/httpexpect"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"net/http"
-	"strings"
-	"sync"
-	"testing"
-	"time"
 )
 
 const (
@@ -48,7 +49,6 @@ func TestOperations(t *testing.T) {
 }
 
 var _ = Describe("Operations", func() {
-
 	var ctx *common.TestContext
 
 	AfterEach(func() {
@@ -58,7 +58,7 @@ var _ = Describe("Operations", func() {
 	Context("Scheduler", func() {
 		BeforeEach(func() {
 			postHook := func(e env.Environment, servers map[string]common.FakeServer) {
-				e.Set("operations.job_timeout", 2*time.Nanosecond)
+				e.Set("operations.job_timeout", 5*time.Nanosecond)
 				e.Set("operations.mark_orphans_interval", 1*time.Hour)
 			}
 
@@ -68,7 +68,9 @@ var _ = Describe("Operations", func() {
 		When("job timeout runs out", func() {
 			It("marks operation as failed", func() {
 				brokerServer := common.NewBrokerServer()
+				ctx.Servers[common.BrokerServerPrefix+"123"] = brokerServer
 				postBrokerRequestWithNoLabels := common.Object{
+					"id":         "123",
 					"name":       "test-broker",
 					"broker_url": brokerServer.URL(),
 					"credentials": common.Object{
@@ -83,7 +85,7 @@ var _ = Describe("Operations", func() {
 					WithQuery("async", "true").
 					Expect().
 					Status(http.StatusAccepted)
-				_, err := test.ExpectOperationWithError(ctx.SMWithOAuth, resp, types.FAILED, "job timed out")
+				_, err := test.ExpectOperationWithError(ctx.SMWithOAuth, resp, types.FAILED, "could not reach service broker")
 				Expect(err).To(BeNil())
 			})
 		})
@@ -140,18 +142,22 @@ var _ = Describe("Operations", func() {
 					CreatedAt: time.Now(),
 					UpdatedAt: time.Now(),
 					Labels:    make(map[string][]string),
+					Ready:     true,
 				},
-				Type:          types.CREATE,
-				State:         types.IN_PROGRESS,
-				ResourceID:    "test-resource-id",
-				ResourceType:  web.ServiceBrokersURL,
-				CorrelationID: "test-correlation-id",
+				Description:       "",
+				Type:              types.CREATE,
+				State:             types.IN_PROGRESS,
+				ResourceID:        "test-resource-id",
+				ResourceType:      web.ServiceBrokersURL,
+				CorrelationID:     "test-correlation-id",
+				Reschedule:        false,
+				DeletionScheduled: time.Time{},
 			}
 
 			ctx = common.NewTestContextBuilder().WithSMExtensions(func(ctx context.Context, smb *sm.ServiceManagerBuilder, e env.Environment) error {
 				testController := panicController{
 					operation: operation,
-					scheduler: operations.NewScheduler(ctx, smb.Storage, 10*time.Minute, 10, &sync.WaitGroup{}),
+					scheduler: operations.NewScheduler(ctx, smb.Storage, operations.DefaultSettings(), 10, &sync.WaitGroup{}),
 				}
 
 				smb.RegisterControllers(testController)
@@ -173,14 +179,14 @@ var _ = Describe("Operations", func() {
 					return respBody.Value("state").String().Raw()
 				}, 2*time.Second).Should(Equal("failed"))
 
-				Expect(respBody.Value("errors").Object().Value("message").String().Raw()).To(ContainSubstring("job interrupted"))
+				Expect(respBody.Value("errors").Object().Value("description").String().Raw()).To(ContainSubstring("job interrupted"))
 			})
 		})
 	})
 
 	Context("Maintainer", func() {
 		const (
-			jobTimeout      = 3 * time.Second
+			jobTimeout      = 2 * time.Second
 			cleanupInterval = 5 * time.Second
 		)
 
@@ -224,9 +230,9 @@ var _ = Describe("Operations", func() {
 				operation := &types.Operation{
 					Base: types.Base{
 						ID:        defaultOperationID,
-						CreatedAt: time.Now(),
 						UpdatedAt: time.Now(),
 						Labels:    make(map[string][]string),
+						Ready:     true,
 					},
 					Type:          types.CREATE,
 					State:         types.IN_PROGRESS,
@@ -265,16 +271,9 @@ func (pc panicController) Routes() []web.Route {
 				Path:   testControllerURL,
 			},
 			Handler: func(req *web.Request) (resp *web.Response, err error) {
-				job := operations.Job{
-					ReqCtx:     context.Background(),
-					ObjectType: "test-type",
-					Operation:  pc.operation,
-					OperationFunc: func(ctx context.Context, repository storage.Repository) (object types.Object, e error) {
-						panic("test panic")
-					},
-				}
-
-				pc.scheduler.Schedule(job)
+				pc.scheduler.ScheduleAsyncStorageAction(context.TODO(), pc.operation, func(ctx context.Context, repository storage.Repository) (object types.Object, e error) {
+					panic("test panic")
+				})
 				return
 			},
 		},

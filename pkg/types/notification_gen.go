@@ -6,9 +6,10 @@ import (
 	"encoding/json"
 
 	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
-const NotificationType ObjectType = "types.Notification"
+const NotificationType ObjectType = web.NotificationsURL
 
 type Notifications struct {
 	Notifications []*Notification `json:"notifications"`

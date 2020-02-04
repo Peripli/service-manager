@@ -230,7 +230,12 @@ var _ = Describe("Interceptors", func() {
 				createModificationInterceptors[types.PlatformType].OnTxCreateStub = func(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 					return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) (types.Object, error) {
 						By("calling storage update, should call update interceptor")
-						_, err := txStorage.Update(ctx, platform1, query.LabelChanges{})
+						byID := query.ByField(query.EqualsOperator, "id", platform1.ID)
+						platformFromDB, err := txStorage.Get(ctx, types.PlatformType, byID)
+						if err != nil {
+							return nil, err
+						}
+						_, err = txStorage.Update(ctx, platformFromDB, query.LabelChanges{})
 						if err != nil {
 							return nil, err
 						}
@@ -260,7 +265,12 @@ var _ = Describe("Interceptors", func() {
 				createModificationInterceptors[types.PlatformType].OnTxCreateStub = func(f storage.InterceptCreateOnTxFunc) storage.InterceptCreateOnTxFunc {
 					return func(ctx context.Context, txStorage storage.Repository, newObject types.Object) (types.Object, error) {
 						By("calling storage update, should call update interceptor")
-						_, err := txStorage.Update(ctx, platform1, query.LabelChanges{})
+						byID := query.ByField(query.EqualsOperator, "id", platform1.ID)
+						platformFromDB, err := txStorage.Get(ctx, types.PlatformType, byID)
+						if err != nil {
+							return nil, err
+						}
+						_, err = txStorage.Update(ctx, platformFromDB, query.LabelChanges{})
 						if err != nil {
 							return nil, err
 						}
@@ -381,6 +391,9 @@ var _ = Describe("Interceptors", func() {
 				planID := plans.First().Object().Value("id").String().Raw()
 				clearStacks()
 				visibility := types.Visibility{
+					Base: types.Base{
+						Ready: true,
+					},
 					PlatformID:    platform.ID,
 					ServicePlanID: planID,
 				}
@@ -428,6 +441,9 @@ var _ = Describe("Interceptors", func() {
 					plans := ctx.SMWithBasic.List(web.ServicePlansURL)
 					planID := plans.First().Object().Value("id").String().Raw()
 					visibility := types.Visibility{
+						Base: types.Base{
+							Ready: true,
+						},
 						PlatformID:    platform.ID,
 						ServicePlanID: planID,
 					}

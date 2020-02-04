@@ -18,6 +18,7 @@ package interceptors
 
 import (
 	"context"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
@@ -48,9 +49,19 @@ func (c *operationsCreateInterceptor) OnTxCreate(h storage.InterceptCreateOnTxFu
 	return func(ctx context.Context, storage storage.Repository, obj types.Object) (types.Object, error) {
 		operation := obj.(*types.Operation)
 
-		tenantID := query.RetrieveFromCriteria(c.TenantIdentifier, query.CriteriaForContext(ctx)...)
+		criteria := query.CriteriaForContext(ctx)
+
+		//In order for this to work tenant criteria filter need to also be enabled on POST
+		var tenantID string
+		for _, criterion := range criteria {
+			if criterion.LeftOp == c.TenantIdentifier {
+				tenantID = criterion.RightOp[0]
+				break
+			}
+		}
+
 		if tenantID == "" {
-			log.D().Debugf("Could not add %s label to operation with id %s. Label not found in context criteria.", c.TenantIdentifier, operation.ID)
+			log.C(ctx).Infof("Could not add %s label to operation with id %s. Label not found in context criteria.", c.TenantIdentifier, operation.ID)
 			return h(ctx, storage, operation)
 		}
 
@@ -58,8 +69,11 @@ func (c *operationsCreateInterceptor) OnTxCreate(h storage.InterceptCreateOnTxFu
 		if labels == nil {
 			labels = types.Labels{}
 		}
-		labels[c.TenantIdentifier] = []string{tenantID}
+		if _, ok := labels[c.TenantIdentifier]; !ok {
+			labels[c.TenantIdentifier] = []string{tenantID}
+		}
 
+		log.C(ctx).Infof("Successfully labeled operation with id %s with %+v", operation.GetID(), operation.GetLabels())
 		operation.SetLabels(labels)
 
 		return h(ctx, storage, operation)

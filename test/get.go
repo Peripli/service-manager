@@ -45,6 +45,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 			Context(fmt.Sprintf("Existing resource of type %s", t.API), func() {
 				createTestResourceWithAuth := func(auth *common.SMExpect) (common.Object, string) {
 					testResource = t.ResourceBlueprint(ctx, auth, bool(responseMode))
+					stripObject(testResource)
 
 					By(fmt.Sprintf("[SETUP]: Verifying that test resource %v is not empty", testResource))
 					Expect(testResource).ToNot(BeEmpty())
@@ -59,6 +60,7 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 				Context("when the resource is global", func() {
 					BeforeEach(func() {
 						testResource, testResourceID = createTestResourceWithAuth(ctx.SMWithOAuth)
+						stripObject(testResource, t.ResourcePropertiesToIgnore...)
 					})
 
 					Context("when authenticating with global token", func() {
@@ -222,12 +224,13 @@ func DescribeGetTestsfor(ctx *common.TestContext, t TestCase, responseMode Respo
 							CreatedAt: time.Now(),
 							UpdatedAt: time.Now(),
 							Labels:    labels,
+							Ready:     true,
 						},
 						Description:   "test",
 						Type:          types.CREATE,
 						State:         types.IN_PROGRESS,
 						ResourceID:    resourceID,
-						ResourceType:  t.API,
+						ResourceType:  types.ObjectType(t.API),
 						CorrelationID: id.String(),
 					})
 

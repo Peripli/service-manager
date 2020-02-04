@@ -146,7 +146,8 @@ var _ = Describe("Notificator", func() {
 		wg = &sync.WaitGroup{}
 		defaultPlatform = &types.Platform{
 			Base: types.Base{
-				ID: "platformID",
+				ID:    "platformID",
+				Ready: true,
 			},
 		}
 		fakeNotificationStorage = &postgresfakes.FakeNotificationStorage{}
@@ -197,7 +198,8 @@ var _ = Describe("Notificator", func() {
 		JustBeforeEach(func() {
 			secondPlatform = &types.Platform{
 				Base: types.Base{
-					ID: "platform2",
+					ID:    "platform2",
+					Ready: true,
 				},
 			}
 			testNotificator.RegisterFilter(func(recipients []*types.Platform, notification *types.Notification) []*types.Platform {

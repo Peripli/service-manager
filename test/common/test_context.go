@@ -32,6 +32,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Peripli/service-manager/operations"
+
 	"github.com/Peripli/service-manager/api/extensions/security"
 
 	"github.com/gavv/httpexpect"
@@ -44,7 +46,6 @@ import (
 	"github.com/Peripli/service-manager/pkg/env"
 	"github.com/Peripli/service-manager/pkg/sm"
 	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/storage"
 )
@@ -87,8 +88,8 @@ type TestContext struct {
 	SMWithOAuthForTenant *SMExpect
 	SMWithBasic          *SMExpect
 	SMRepository         storage.TransactionalRepository
-
-	TestPlatform *types.Platform
+	SMScheduler          *operations.Scheduler
+	TestPlatform         *types.Platform
 
 	Servers map[string]FakeServer
 }
@@ -304,10 +305,14 @@ func (tcb *TestContextBuilder) WithSMExtensions(fs ...func(ctx context.Context, 
 }
 
 func (tcb *TestContextBuilder) Build() *TestContext {
-	return tcb.BuildWithListener(nil)
+	return tcb.BuildWithListener(nil, true)
 }
 
-func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener) *TestContext {
+func (tcb *TestContextBuilder) BuildWithoutCleanup() *TestContext {
+	return tcb.BuildWithListener(nil, false)
+}
+
+func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener, cleanup bool) *TestContext {
 	environment := tcb.Environment(tcb.envPreHooks...)
 
 	for _, envPostHook := range tcb.envPostHooks {
@@ -315,7 +320,7 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener) *TestCon
 	}
 	wg := &sync.WaitGroup{}
 
-	smServer, smRepository := newSMServer(environment, wg, tcb.smExtensions, listener)
+	smServer, smRepository, smScheduler := newSMServer(environment, wg, tcb.smExtensions, listener)
 	tcb.Servers[SMServer] = smServer
 
 	SM := httpexpect.New(ginkgo.GinkgoT(), smServer.URL())
@@ -337,14 +342,18 @@ func (tcb *TestContextBuilder) BuildWithListener(listener net.Listener) *TestCon
 		SMWithOAuthForTenant: &SMExpect{SMWithOAuthForTenant},
 		Servers:              tcb.Servers,
 		SMRepository:         smRepository,
+		SMScheduler:          smScheduler,
 	}
 
-	RemoveAllOperations(testContext.SMRepository)
-	RemoveAllBindings(testContext.SMRepository)
-	RemoveAllInstances(testContext.SMRepository)
-	RemoveAllBrokers(testContext.SMWithOAuth)
-	RemoveAllPlatforms(testContext.SMWithOAuth)
-
+	if cleanup {
+		RemoveAllBindings(testContext)
+		RemoveAllInstances(testContext)
+		RemoveAllBrokers(testContext.SMRepository)
+		RemoveAllPlatforms(testContext.SMRepository)
+		RemoveAllOperations(testContext.SMRepository)
+	} else {
+		testContext.SMWithOAuth.DELETE(web.PlatformsURL + "/" + "tcb-platform-test").Expect()
+	}
 	if !tcb.shouldSkipBasicAuthClient {
 		platformJSON := MakePlatform("tcb-platform-test", "tcb-platform-test", "platform-type", "test-platform")
 		platform := RegisterPlatformInSM(platformJSON, testContext.SMWithOAuth, map[string]string{})
@@ -380,7 +389,7 @@ func NewSMListener() (net.Listener, error) {
 	return nil, fmt.Errorf("unable to create sm listener: %s", err)
 }
 
-func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error, listener net.Listener) (*testSMServer, storage.TransactionalRepository) {
+func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx context.Context, smb *sm.ServiceManagerBuilder, env env.Environment) error, listener net.Listener) (*testSMServer, storage.TransactionalRepository, *operations.Scheduler) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	cfg, err := config.New(smEnv)
@@ -416,10 +425,11 @@ func newSMServer(smEnv env.Environment, wg *sync.WaitGroup, fs []func(ctx contex
 	}
 	testServer.Start()
 
+	scheduler := operations.NewScheduler(ctx, smb.Storage, cfg.Operations, 1000, wg)
 	return &testSMServer{
 		cancel: cancel,
 		Server: testServer,
-	}, smb.Storage
+	}, smb.Storage, scheduler
 }
 
 func (ctx *TestContext) RegisterBrokerWithCatalogAndLabels(catalog SBCatalog, brokerData Object) (string, Object, *BrokerServer) {
@@ -538,19 +548,10 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 		return
 	}
 
-	if err := RemoveAllNotifications(ctx.SMRepository); err != nil && err != util.ErrNotFoundInStorage {
-		panic(err)
-	}
-	if err := RemoveAllBindings(ctx.SMRepository); err != nil && err != util.ErrNotFoundInStorage {
-		panic(err)
-	}
-	if err := RemoveAllInstances(ctx.SMRepository); err != nil && err != util.ErrNotFoundInStorage {
-		panic(err)
-	}
-
-	if err := RemoveAllOperations(ctx.SMRepository); err != nil && err != util.ErrNotFoundInStorage {
-		panic(err)
-	}
+	RemoveAllNotifications(ctx.SMRepository)
+	RemoveAllBindings(ctx)
+	RemoveAllInstances(ctx)
+	RemoveAllOperations(ctx.SMRepository)
 
 	ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL).Expect()
 

@@ -24,6 +24,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Peripli/service-manager/pkg/util"
+
 	"time"
 
 	"github.com/Peripli/service-manager/pkg/query"
@@ -146,6 +148,7 @@ func ExpectOperation(auth *common.SMExpect, asyncResp *httpexpect.Response, expe
 	return ExpectOperationWithError(auth, asyncResp, expectedState, "")
 }
 
+//TODO this should be replaced as it does not verify enough
 func ExpectOperationWithError(auth *common.SMExpect, asyncResp *httpexpect.Response, expectedState types.OperationState, expectedErrMsg string) (*httpexpect.Object, error) {
 	operationURL := asyncResp.Header("Location").Raw()
 
@@ -162,12 +165,11 @@ func ExpectOperationWithError(auth *common.SMExpect, asyncResp *httpexpect.Respo
 				Expect().Status(http.StatusOK).JSON().Object()
 			state := operation.Value("state").String().Raw()
 			if state == string(expectedState) {
-				errs := operation.Value("errors")
 				if expectedState == types.SUCCEEDED {
-					errs.Null()
 				} else {
+					errs := operation.Value("errors")
 					errs.NotNull()
-					errMsg := errs.Object().Value("message").String().Raw()
+					errMsg := errs.Object().Value("description").String().Raw()
 
 					if !strings.Contains(errMsg, expectedErrMsg) {
 						err = fmt.Errorf("unable to verify operation - expected error message (%s), but got (%s)", expectedErrMsg, errs.String().Raw())
@@ -185,6 +187,13 @@ func EnsurePublicPlanVisibility(repository storage.Repository, planID string) {
 }
 
 func EnsurePlanVisibility(repository storage.Repository, tenantIdentifier, platformID, planID, tenantID string) {
+	byPlanID := query.ByField(query.EqualsOperator, "service_plan_id", planID)
+	byPlatformID := query.ByField(query.EqualsOperator, "platform_id", platformID)
+	if err := repository.Delete(context.TODO(), types.VisibilityType, byPlanID, byPlatformID); err != nil {
+		if err != util.ErrNotFoundInStorage {
+			panic(err)
+		}
+	}
 	UUID, err := uuid.NewV4()
 	if err != nil {
 		panic(fmt.Errorf("could not generate GUID for visibility: %s", err))

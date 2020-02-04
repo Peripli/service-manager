@@ -36,7 +36,8 @@ var testFreePlan = `
       "name": "another-free-plan-name-%[1]s",
       "id": "%[1]s",
       "description": "test-description",
-      "free": true,
+	  "free": true,
+	  "bindable": true,  	
       "metadata": {
         "max_storage_tb": 5,
         "costs":[
@@ -66,6 +67,7 @@ var testPaidPlan = `
       "id": "%[1]s",
       "description": "test-description",
       "free": false,
+      "bindable": true,
       "metadata": {
         "max_storage_tb": 5,
         "costs":[
@@ -164,7 +166,14 @@ func NewRandomSBCatalog() SBCatalog {
 	plan1 := GeneratePaidTestPlan()
 	plan2 := GenerateFreeTestPlan()
 	plan3 := GenerateFreeTestPlan()
-	service1 := GenerateTestServiceWithPlans(plan1, plan2, plan3)
+	plan4 := GenerateFreeTestPlan()
+	var err error
+	plan4, err = sjson.Set(plan4, "bindable", false)
+	if err != nil {
+		panic(err)
+	}
+
+	service1 := GenerateTestServiceWithPlans(plan1, plan2, plan3, plan4)
 
 	catalog := NewEmptySBCatalog()
 	catalog.AddService(service1)

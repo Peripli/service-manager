@@ -2,10 +2,11 @@ package test
 
 import (
 	"fmt"
-	"github.com/Peripli/service-manager/pkg/types"
-	"github.com/gavv/httpexpect"
 	"net/http"
 	"strconv"
+
+	"github.com/Peripli/service-manager/pkg/types"
+	"github.com/gavv/httpexpect"
 
 	. "github.com/onsi/gomega"
 

@@ -267,7 +267,7 @@ func (ir *queryScopedInterceptableRepository) Update(ctx context.Context, obj ty
 	// happened and finished concurrently and before this one so fail the request
 	// update to the same entity in the same transaction may be possible from an interceptor
 	inUpdate, _ := ctx.Value(updateInProgress).(bool)
-	if !oldObj.GetUpdatedAt().UTC().Equal(obj.GetUpdatedAt().UTC()) && !inUpdate {
+	if !oldObj.GetUpdatedAt().UTC().Equal(obj.GetUpdatedAt().UTC()) && !inUpdate && obj.GetType() != types.OperationType {
 		return nil, util.ErrConcurrentResourceModification
 	}
 
@@ -281,6 +281,7 @@ func (ir *queryScopedInterceptableRepository) Update(ctx context.Context, obj ty
 		ir.updateOnTxFuncs[objectType] = updateOnTxFunc
 
 	} else {
+		ctx = context.WithValue(ctx, updateInProgress, true)
 		updatedObj, err = updateObjFunc(ctx, ir, oldObj, obj, labelChanges...)
 	}
 

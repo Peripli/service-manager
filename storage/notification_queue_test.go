@@ -29,6 +29,9 @@ var _ = Describe("NotificationQueue", func() {
 
 	BeforeEach(func() {
 		notification = &types.Notification{
+			Base: types.Base{
+				Ready: true,
+			},
 			PlatformID: "123",
 		}
 	})

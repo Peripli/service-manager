@@ -20,6 +20,10 @@ import (
 	"context"
 	"time"
 
+	"github.com/Peripli/service-manager/pkg/util"
+
+	"github.com/Peripli/service-manager/pkg/query"
+
 	"github.com/Peripli/service-manager/storage"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -212,41 +216,89 @@ func MapContains(actual Object, expected Object) {
 	}
 }
 
-func RemoveAllOperations(repository storage.Repository) error {
-	return repository.Delete(context.TODO(), types.OperationType)
+func RemoveAllOperations(repository storage.TransactionalRepository) {
+	removeAll(repository, types.OperationType)
 }
 
-func RemoveAllNotifications(repository storage.Repository) error {
-	return repository.Delete(context.TODO(), types.NotificationType)
+func RemoveAllNotifications(repository storage.TransactionalRepository) {
+	removeAll(repository, types.NotificationType)
 }
 
-func RemoveAllInstances(repository storage.Repository) error {
-	return repository.Delete(context.TODO(), types.ServiceInstanceType)
-}
-
-func RemoveAllBindings(repository storage.Repository) error {
-	return repository.Delete(context.TODO(), types.ServiceBindingType)
-}
-
-func RemoveAllBrokers(SM *SMExpect) {
-	removeAll(SM, "service_brokers", web.ServiceBrokersURL)
-}
-
-func RemoveAllPlatforms(SM *SMExpect) {
-	removeAll(SM, "platforms", web.PlatformsURL, fmt.Sprintf("fieldQuery=name ne '%s'", types.SMPlatform))
-}
-
-func RemoveAllVisibilities(SM *SMExpect) {
-	removeAll(SM, "visibilities", web.VisibilitiesURL)
-}
-
-func removeAll(SM *SMExpect, entity, rootURLPath string, queries ...string) {
-	By("removing all " + entity)
-	deleteCall := SM.DELETE(rootURLPath)
-	for _, query := range queries {
-		deleteCall.WithQueryString(query)
+func RemoveAllInstances(testCtx *TestContext) error {
+	if err := testCtx.SMRepository.InTransaction(context.TODO(), func(ctx context.Context, storage storage.Repository) error {
+		objectList, err := storage.List(context.TODO(), types.ServiceInstanceType)
+		if err != nil {
+			return err
+		}
+		for i := 0; i < objectList.Len(); i++ {
+			instance := objectList.ItemAt(i).(*types.ServiceInstance)
+			byID := query.ByField(query.EqualsOperator, "id", instance.ID)
+			if err := storage.Delete(ctx, types.ServiceInstanceType, byID); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		if err != util.ErrNotFoundInStorage {
+			return err
+		}
 	}
-	deleteCall.Expect()
+	return nil
+}
+
+func RemoveAllBindings(testCtx *TestContext) error {
+	if err := testCtx.SMRepository.InTransaction(context.TODO(), func(ctx context.Context, storage storage.Repository) error {
+		objectList, err := storage.List(context.TODO(), types.ServiceBindingType)
+		if err != nil {
+			return err
+		}
+		for i := 0; i < objectList.Len(); i++ {
+			binding := objectList.ItemAt(i).(*types.ServiceBinding)
+			byID := query.ByField(query.EqualsOperator, "id", binding.ID)
+			if err := storage.Delete(ctx, types.ServiceBindingType, byID); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		if err != util.ErrNotFoundInStorage {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func RemoveAllBrokers(repository storage.TransactionalRepository) {
+	removeAll(repository, types.ServiceBrokerType)
+}
+
+func RemoveAllPlatforms(repository storage.TransactionalRepository) {
+	removeAll(repository, types.PlatformType, query.ByField(query.NotEqualsOperator, "id", types.SMPlatform))
+}
+
+func RemoveAllVisibilities(repository storage.TransactionalRepository) {
+	removeAll(repository, types.VisibilityType)
+}
+
+func removeAll(repository storage.TransactionalRepository, entity types.ObjectType, queries ...query.Criterion) {
+	By("removing all " + entity.String())
+	if err := repository.InTransaction(context.TODO(), func(ctx context.Context, storage storage.Repository) error {
+		if len(queries) == 0 {
+			if err := storage.Delete(ctx, entity); err != nil {
+				return err
+			}
+		} else {
+			if err := storage.Delete(ctx, entity, queries...); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		if err != util.ErrNotFoundInStorage {
+			panic(err)
+		}
+	}
 }
 
 func RegisterBrokerInSM(brokerJSON Object, SM *SMExpect, headers map[string]string) Object {
@@ -296,6 +348,7 @@ func RegisterPlatformInSM(platformJSON Object, SM *SMExpect, headers map[string]
 			ID:        reply["id"].(string),
 			CreatedAt: createdAt,
 			UpdatedAt: updatedAt,
+			Ready:     true,
 		},
 		Credentials: &types.Credentials{
 			Basic: &types.Basic{
@@ -376,7 +429,8 @@ func GenerateRandomNotification() *types.Notification {
 
 	return &types.Notification{
 		Base: types.Base{
-			ID: uid.String(),
+			ID:    uid.String(),
+			Ready: true,
 		},
 		PlatformID: "",
 		Resource:   "notification",

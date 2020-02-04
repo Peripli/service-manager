@@ -43,7 +43,7 @@ var _ = Describe("Provision", func() {
 			ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + SID).
 				Expect().Status(expectedGetInstanceStatusCode)
 
-			verifyOperationDoesNotExist(SID)
+			verifyOperationDoesNotExist(SID, "create")
 		},
 		Entry("when service_id is unknown to SM",
 			provisionRequestBodyMapWith("service_id", "abcd1234"),
@@ -300,7 +300,7 @@ var _ = Describe("Provision", func() {
 
 			ctx.SMWithOAuth.List(web.ServiceInstancesURL).Path("$[*].id").Array().NotContains(SID)
 
-			verifyOperationDoesNotExist(SID)
+			verifyOperationDoesNotExist(SID, "create")
 		})
 	})
 
@@ -311,7 +311,7 @@ var _ = Describe("Provision", func() {
 
 			ctx.SMWithOAuth.List(web.ServiceInstancesURL).Path("$[*].id").Array().NotContains(SID)
 
-			verifyOperationDoesNotExist(SID)
+			verifyOperationDoesNotExist(SID, "create")
 		})
 	})
 
@@ -322,7 +322,7 @@ var _ = Describe("Provision", func() {
 
 			ctx.SMWithOAuth.List(web.ServiceInstancesURL).Path("$[*].id").Array().NotContains(SID)
 
-			verifyOperationDoesNotExist(SID)
+			verifyOperationDoesNotExist(SID, "create")
 		})
 	})
 

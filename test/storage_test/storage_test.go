@@ -32,7 +32,8 @@ var _ = Describe("Test", func() {
 		ctx = common.NewTestContextBuilderWithSecurity().Build()
 		platform, err = ctx.SMRepository.Create(context.Background(), &types.Platform{
 			Base: types.Base{
-				ID: "id",
+				ID:    "id",
+				Ready: true,
 			},
 			Description: "desc",
 			Name:        "platform_name",

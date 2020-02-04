@@ -37,7 +37,6 @@ type ServiceInstance struct {
 	Context         sqlxtypes.JSONText `db:"context"`
 	PreviousValues  sqlxtypes.JSONText `db:"previous_values"`
 	Usable          bool               `db:"usable"`
-	Ready           bool               `db:"ready"`
 }
 
 func (si *ServiceInstance) ToObject() types.Object {
@@ -48,6 +47,7 @@ func (si *ServiceInstance) ToObject() types.Object {
 			UpdatedAt:      si.UpdatedAt,
 			Labels:         map[string][]string{},
 			PagingSequence: si.PagingSequence,
+			Ready:          si.Ready,
 		},
 		Name:            si.Name,
 		ServicePlanID:   si.ServicePlanID,
@@ -57,7 +57,6 @@ func (si *ServiceInstance) ToObject() types.Object {
 		Context:         getJSONRawMessage(si.Context),
 		PreviousValues:  getJSONRawMessage(si.PreviousValues),
 		Usable:          si.Usable,
-		Ready:           si.Ready,
 	}
 }
 
@@ -73,6 +72,7 @@ func (*ServiceInstance) FromObject(object types.Object) (storage.Entity, bool) {
 			CreatedAt:      serviceInstance.CreatedAt,
 			UpdatedAt:      serviceInstance.UpdatedAt,
 			PagingSequence: serviceInstance.PagingSequence,
+			Ready:          serviceInstance.Ready,
 		},
 		Name:            serviceInstance.Name,
 		ServicePlanID:   serviceInstance.ServicePlanID,
@@ -82,7 +82,6 @@ func (*ServiceInstance) FromObject(object types.Object) (storage.Entity, bool) {
 		Context:         getJSONText(serviceInstance.Context),
 		PreviousValues:  getJSONText(serviceInstance.PreviousValues),
 		Usable:          serviceInstance.Usable,
-		Ready:           serviceInstance.Ready,
 	}
 
 	return si, true

@@ -183,6 +183,7 @@ func CreateNotification(ctx context.Context, repository storage.Repository, op t
 			CreatedAt: currentTime,
 			UpdatedAt: currentTime,
 			Labels:    map[string][]string{},
+			Ready:     true,
 		},
 		Resource:      resource,
 		Type:          op,

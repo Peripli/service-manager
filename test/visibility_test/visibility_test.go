@@ -90,7 +90,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 					"labels":          labels,
 				}
 
-				common.RemoveAllVisibilities(ctx.SMWithOAuth)
+				common.RemoveAllVisibilities(ctx.SMRepository)
 
 			})
 

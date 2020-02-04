@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/Peripli/service-manager/pkg/util"
 )
@@ -56,14 +57,19 @@ const (
 // Operation struct
 type Operation struct {
 	Base
-	Description   string            `json:"description"`
+	Description   string            `json:"description,omitempty"`
 	Type          OperationCategory `json:"type"`
 	State         OperationState    `json:"state"`
 	ResourceID    string            `json:"resource_id"`
-	ResourceType  string            `json:"resource_type"`
-	Errors        json.RawMessage   `json:"errors"`
+	ResourceType  ObjectType        `json:"resource_type"`
+	Errors        json.RawMessage   `json:"errors,omitempty"`
 	CorrelationID string            `json:"correlation_id"`
 	ExternalID    string            `json:"-"`
+
+	// Reschedule specifies that the operation has reached a state after which it can be retried (checkpoint)
+	Reschedule bool `json:"reschedule"`
+	// DeletionScheduled specifies the time when an operation was marked for deletion
+	DeletionScheduled time.Time `json:"deletion_scheduled,omitempty"`
 }
 
 func (e *Operation) Equals(obj Object) bool {
@@ -101,11 +107,11 @@ func (o *Operation) Validate() error {
 	}
 
 	if o.ResourceID == "" {
-		return fmt.Errorf("missing resource_id")
+		return fmt.Errorf("missing resource id")
 	}
 
 	if o.ResourceType == "" {
-		return fmt.Errorf("missing resource_type")
+		return fmt.Errorf("missing resource type")
 	}
 
 	return nil

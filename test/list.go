@@ -82,7 +82,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 
 	By(fmt.Sprintf("Attempting to create a random resource of %s with mandatory fields only", t.API))
 	rWithMandatoryFields = t.ResourceWithoutNullableFieldsBlueprint(ctx, ctx.SMWithOAuth, bool(responseMode))
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 5; i++ {
 		By(fmt.Sprintf("Attempting to create a random resource of %s", t.API))
 
 		gen := t.ResourceBlueprint(ctx, ctx.SMWithOAuth, bool(responseMode))
@@ -356,6 +356,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 			if listOpEntry.resourcesToExpectAfterOp != nil {
 				By(fmt.Sprintf("[TEST]: Verifying expected %s are returned after list operation", t.API))
 				for _, entity := range listOpEntry.resourcesToExpectAfterOp {
+					Expect(entity["ready"].(bool)).To(BeTrue())
 					stripObject(entity, t.ResourcePropertiesToIgnore...)
 					array.Contains(entity)
 				}

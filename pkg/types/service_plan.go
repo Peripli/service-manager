@@ -34,8 +34,8 @@ type ServicePlan struct {
 	CatalogID     string `json:"catalog_id"`
 	CatalogName   string `json:"catalog_name"`
 	Free          bool   `json:"free"`
-	Bindable      bool   `json:"bindable"`
-	PlanUpdatable bool   `json:"plan_updateable"`
+	Bindable      *bool  `json:"bindable,omitempty"`
+	PlanUpdatable *bool  `json:"plan_updateable,omitempty"`
 
 	Metadata               json.RawMessage `json:"metadata,omitempty"`
 	Schemas                json.RawMessage `json:"schemas,omitempty"`
@@ -52,10 +52,14 @@ func (e *ServicePlan) Equals(obj Object) bool {
 
 	plan := obj.(*ServicePlan)
 	if e.Name != plan.Name ||
-		e.PlanUpdatable != plan.PlanUpdatable ||
-		e.Bindable != plan.Bindable ||
 		e.ServiceOfferingID != plan.ServiceOfferingID ||
 		e.Free != plan.Free ||
+		(e.Bindable == nil && plan.Bindable != nil) ||
+		(e.Bindable != nil && plan.Bindable == nil) ||
+		(e.Bindable != nil && plan.Bindable != nil && *e.Bindable != *plan.Bindable) ||
+		(e.PlanUpdatable == nil && plan.PlanUpdatable != nil) ||
+		(e.PlanUpdatable != nil && plan.PlanUpdatable == nil) ||
+		(e.PlanUpdatable != nil && plan.PlanUpdatable != nil && *e.PlanUpdatable != *plan.PlanUpdatable) ||
 		e.CatalogID != plan.CatalogID ||
 		e.CatalogName != plan.CatalogName ||
 		e.Description != plan.Description ||
