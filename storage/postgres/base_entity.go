@@ -32,6 +32,7 @@ type BaseEntity struct {
 	CreatedAt      time.Time `db:"created_at"`
 	UpdatedAt      time.Time `db:"updated_at"`
 	PagingSequence int64     `db:"paging_sequence,auto_increment"`
+	Ready          bool      `db:"ready"`
 }
 
 func (e *BaseEntity) GetID() string {

@@ -24,40 +24,49 @@ type Base struct {
 	UpdatedAt      time.Time `json:"updated_at"`
 	Labels         Labels    `json:"labels,omitempty"`
 	PagingSequence int64     `json:"-"`
+	Ready          bool      `json:"ready"`
 }
 
-func (e *Base) SetID(id string) {
-	e.ID = id
+func (b *Base) SetID(id string) {
+	b.ID = id
 }
 
-func (e *Base) GetID() string {
-	return e.ID
+func (b *Base) GetID() string {
+	return b.ID
 }
 
-func (e *Base) SetCreatedAt(time time.Time) {
-	e.CreatedAt = time
+func (b *Base) SetCreatedAt(time time.Time) {
+	b.CreatedAt = time
 }
 
-func (e *Base) GetCreatedAt() time.Time {
-	return e.CreatedAt
+func (b *Base) GetCreatedAt() time.Time {
+	return b.CreatedAt
 }
 
-func (e *Base) SetUpdatedAt(time time.Time) {
-	e.UpdatedAt = time
+func (b *Base) SetUpdatedAt(time time.Time) {
+	b.UpdatedAt = time
 }
 
-func (e *Base) GetUpdatedAt() time.Time {
-	return e.UpdatedAt
+func (b *Base) GetUpdatedAt() time.Time {
+	return b.UpdatedAt
 }
 
-func (e *Base) SetLabels(labels Labels) {
-	e.Labels = labels
+func (b *Base) SetLabels(labels Labels) {
+	b.Labels = labels
 }
 
-func (e *Base) GetLabels() Labels {
-	return e.Labels
+func (b *Base) GetLabels() Labels {
+	return b.Labels
 }
 
-func (e *Base) GetPagingSequence() int64 {
-	return e.PagingSequence
+func (b *Base) GetPagingSequence() int64 {
+	return b.PagingSequence
+}
+
+func (b *Base) SetReady(ready bool) {
+	b.Ready = ready
+}
+
+func (b *Base) GetReady() bool {
+	return b.Ready
 }

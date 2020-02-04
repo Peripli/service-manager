@@ -18,13 +18,14 @@ package filters
 
 import (
 	"context"
+	"net/http"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 	"github.com/tidwall/gjson"
-	"net/http"
 
 	"github.com/Peripli/service-manager/pkg/web"
 )
@@ -97,7 +98,7 @@ func (f *serviceBindingVisibilityFilter) Run(req *web.Request, next web.Handler)
 	if count != 1 {
 		return nil, &util.HTTPError{
 			ErrorType:   "NotFound",
-			Description: "could not find such service binding(s)",
+			Description: "service instance not found or not accessible",
 			StatusCode:  http.StatusNotFound,
 		}
 	}

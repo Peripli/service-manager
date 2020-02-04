@@ -17,10 +17,11 @@
 package osb_test
 
 import (
+	"net/http"
+
 	"github.com/Peripli/service-manager/pkg/web"
 	"github.com/Peripli/service-manager/test/common"
 	"github.com/gavv/httpexpect"
-	"net/http"
 
 	. "github.com/onsi/ginkgo"
 )

@@ -22,8 +22,6 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/Peripli/service-manager/test/testutil/service_instance"
-
 	"github.com/Peripli/service-manager/pkg/query"
 
 	"github.com/Peripli/service-manager/pkg/web"
@@ -65,7 +63,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	AdditionalTests: func(ctx *common.TestContext) {
 		Context("non-generic tests", func() {
 			BeforeEach(func() {
-				common.RemoveAllPlatforms(ctx.SMWithOAuth)
+				common.RemoveAllPlatforms(ctx.SMRepository)
 			})
 
 			Describe("POST", func() {
@@ -362,8 +360,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 						WithJSON(platform).
 						Expect().Status(http.StatusCreated)
 
-					_, serviceInstance := service_instance.Prepare(ctx, platformID, "", "{}")
-					ctx.SMRepository.Create(context.Background(), serviceInstance)
+					common.CreateInstanceInPlatform(ctx, platformID)
 				})
 
 				AfterEach(func() {

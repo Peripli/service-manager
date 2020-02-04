@@ -38,7 +38,6 @@ type ServiceBinding struct {
 	Context           sqlxtypes.JSONText     `db:"context"`
 	BindResource      sqlxtypes.JSONText     `db:"bind_resource"`
 	Credentials       string                 `db:"credentials"`
-	Ready             bool                   `db:"ready"`
 }
 
 func (sb *ServiceBinding) ToObject() types.Object {
@@ -49,6 +48,7 @@ func (sb *ServiceBinding) ToObject() types.Object {
 			UpdatedAt:      sb.UpdatedAt,
 			Labels:         map[string][]string{},
 			PagingSequence: sb.PagingSequence,
+			Ready:          sb.Ready,
 		},
 		Name:              sb.Name,
 		ServiceInstanceID: sb.ServiceInstanceID,
@@ -58,8 +58,7 @@ func (sb *ServiceBinding) ToObject() types.Object {
 		Endpoints:         getJSONRawMessage(sb.Endpoints.JSONText),
 		Context:           getJSONRawMessage(sb.Context),
 		BindResource:      getJSONRawMessage(sb.BindResource),
-		Credentials:       sb.Credentials,
-		Ready:             sb.Ready,
+		Credentials:       getJSONRawMessageFromString(sb.Credentials),
 	}
 }
 
@@ -75,6 +74,7 @@ func (*ServiceBinding) FromObject(object types.Object) (storage.Entity, bool) {
 			CreatedAt:      serviceBinding.CreatedAt,
 			UpdatedAt:      serviceBinding.UpdatedAt,
 			PagingSequence: serviceBinding.PagingSequence,
+			Ready:          serviceBinding.Ready,
 		},
 		Name:              serviceBinding.Name,
 		ServiceInstanceID: serviceBinding.ServiceInstanceID,
@@ -84,8 +84,7 @@ func (*ServiceBinding) FromObject(object types.Object) (storage.Entity, bool) {
 		Endpoints:         getNullJSONText(serviceBinding.Endpoints),
 		Context:           getJSONText(serviceBinding.Context),
 		BindResource:      getJSONText(serviceBinding.BindResource),
-		Credentials:       serviceBinding.Credentials,
-		Ready:             serviceBinding.Ready,
+		Credentials:       getStringFromJSONRawMessage(serviceBinding.Credentials),
 	}
 
 	return sb, true

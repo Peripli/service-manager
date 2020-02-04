@@ -6,9 +6,10 @@ import (
 	"encoding/json"
 
 	"github.com/Peripli/service-manager/pkg/util"
+	"github.com/Peripli/service-manager/pkg/web"
 )
 
-const ServicePlanType ObjectType = "types.ServicePlan"
+const ServicePlanType ObjectType = web.ServicePlansURL
 
 type ServicePlans struct {
 	ServicePlans []*ServicePlan `json:"service_plans"`

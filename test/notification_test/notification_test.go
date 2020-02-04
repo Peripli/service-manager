@@ -401,6 +401,10 @@ var _ = Describe("Notifications Suite", func() {
 				}
 
 				resource := gjson.GetBytes(notification.Payload, "new.resource").Value().(common.Object)
+				delete(resource, "updated_at")
+				delete(resource, "ready")
+				delete(objAfterOp, "updated_at")
+				delete(objAfterOp, "ready")
 				Expect(resource).To(Equal(objAfterOp))
 
 				actualPayload := gjson.GetBytes(notification.Payload, "new.additional").Raw
@@ -434,6 +438,8 @@ var _ = Describe("Notifications Suite", func() {
 				}
 
 				resource := gjson.GetBytes(notification.Payload, "old.resource").Value().(common.Object)
+				delete(resource, "updated_at")
+				delete(objAfterOp, "updated_at")
 				Expect(resource).To(Equal(objAfterOp))
 
 				actualPayload := gjson.GetBytes(notification.Payload, "old.additional").Raw
@@ -473,6 +479,8 @@ var _ = Describe("Notifications Suite", func() {
 				oldResource := gjson.GetBytes(notification.Payload, "old.resource").Value().(common.Object)
 				labels := objBeforeOp["labels"]
 				delete(objBeforeOp, "labels")
+				delete(objBeforeOp, "updated_at")
+				delete(oldResource, "updated_at")
 				Expect(oldResource).To(Equal(objBeforeOp))
 				objBeforeOp["labels"] = labels
 
@@ -485,6 +493,8 @@ var _ = Describe("Notifications Suite", func() {
 				labels = objAfterOp["labels"]
 				delete(objAfterOp, "labels")
 				delete(newResource, "labels")
+				delete(objAfterOp, "updated_at")
+				delete(newResource, "updated_at")
 				Expect(newResource).To(Equal(objAfterOp))
 				objAfterOp["labels"] = labels
 

@@ -17,6 +17,8 @@
 package postgres
 
 import (
+	"database/sql"
+
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
@@ -28,11 +30,11 @@ type ServicePlan struct {
 	Name        string `db:"name"`
 	Description string `db:"description"`
 
-	Free          bool   `db:"free"`
-	Bindable      bool   `db:"bindable"`
-	PlanUpdatable bool   `db:"plan_updateable"`
-	CatalogID     string `db:"catalog_id"`
-	CatalogName   string `db:"catalog_name"`
+	Free          bool         `db:"free"`
+	Bindable      sql.NullBool `db:"bindable"`
+	PlanUpdatable sql.NullBool `db:"plan_updateable"`
+	CatalogID     string       `db:"catalog_id"`
+	CatalogName   string       `db:"catalog_name"`
 
 	Metadata               sqlxtypes.JSONText `db:"metadata"`
 	Schemas                sqlxtypes.JSONText `db:"schemas"`
@@ -49,14 +51,15 @@ func (sp *ServicePlan) ToObject() types.Object {
 			CreatedAt:      sp.CreatedAt,
 			UpdatedAt:      sp.UpdatedAt,
 			PagingSequence: sp.PagingSequence,
+			Ready:          sp.Ready,
 		},
 		Name:                   sp.Name,
 		Description:            sp.Description,
 		CatalogID:              sp.CatalogID,
 		CatalogName:            sp.CatalogName,
 		Free:                   sp.Free,
-		Bindable:               sp.Bindable,
-		PlanUpdatable:          sp.PlanUpdatable,
+		Bindable:               toBoolPointer(sp.Bindable),
+		PlanUpdatable:          toBoolPointer(sp.PlanUpdatable),
 		Metadata:               getJSONRawMessage(sp.Metadata),
 		Schemas:                getJSONRawMessage(sp.Schemas),
 		MaximumPollingDuration: sp.MaximumPollingDuration,
@@ -76,12 +79,13 @@ func (sp *ServicePlan) FromObject(object types.Object) (storage.Entity, bool) {
 			CreatedAt:      plan.CreatedAt,
 			UpdatedAt:      plan.UpdatedAt,
 			PagingSequence: plan.PagingSequence,
+			Ready:          plan.Ready,
 		},
 		Name:                   plan.Name,
 		Description:            plan.Description,
 		Free:                   plan.Free,
-		Bindable:               plan.Bindable,
-		PlanUpdatable:          plan.PlanUpdatable,
+		Bindable:               toNullBool(plan.Bindable),
+		PlanUpdatable:          toNullBool(plan.PlanUpdatable),
 		CatalogID:              plan.CatalogID,
 		CatalogName:            plan.CatalogName,
 		Metadata:               getJSONText(plan.Metadata),

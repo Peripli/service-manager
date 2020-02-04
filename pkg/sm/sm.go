@@ -52,6 +52,7 @@ import (
 
 	"github.com/Peripli/service-manager/api/filters"
 	"github.com/Peripli/service-manager/pkg/web"
+	osbc "github.com/kubernetes-sigs/go-open-service-broker-client/v2"
 )
 
 // ServiceManagerBuilder type is an extension point that allows adding additional filters, plugins and
@@ -63,6 +64,7 @@ type ServiceManagerBuilder struct {
 	Notificator         storage.Notificator
 	NotificationCleaner *storage.NotificationCleaner
 	OperationMaintainer *operations.Maintainer
+	OSBClientProvider   osbc.CreateFunc
 	ctx                 context.Context
 	wg                  *sync.WaitGroup
 	cfg                 *config.Settings
@@ -154,6 +156,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	}
 
 	operationMaintainer := operations.NewMaintainer(ctx, interceptableRepository, cfg.Operations)
+	osbClientProvider := osb.NewBrokerClientProvider(cfg.HTTPClient.SkipSSLValidation, int(cfg.HTTPClient.ResponseHeaderTimeout.Seconds()))
 
 	smb := &ServiceManagerBuilder{
 		API:                 API,
@@ -165,6 +168,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		wg:                  waitGroup,
 		cfg:                 cfg,
 		securityBuilder:     securityBuilder,
+		OSBClientProvider:   osbClientProvider,
 	}
 
 	smb.RegisterPlugins(osb.NewCatalogFilterByVisibilityPlugin(interceptableRepository))
@@ -191,6 +195,30 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		WithCreateOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsCreateInterceptorProvider{}).Before(interceptors.BrokerCreateCatalogInterceptorName).Register().
 		WithUpdateOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsUpdateInterceptorProvider{}).Before(interceptors.BrokerUpdateCatalogInterceptorName).Register().
 		WithDeleteOnTxInterceptorProvider(types.ServiceBrokerType, &interceptors.BrokerNotificationsDeleteInterceptorProvider{}).After(interceptors.BrokerDeleteCatalogInterceptorName).Register()
+
+	baseSMAAPInterceptorProvider := &interceptors.BaseSMAAPInterceptorProvider{
+		OSBClientCreateFunc: osbClientProvider,
+		Repository:          interceptableRepository,
+		TenantKey:           cfg.Multitenancy.LabelKey,
+		PollingInterval:     cfg.Operations.PollingInterval,
+	}
+
+	smb.
+		WithCreateAroundTxInterceptorProvider(types.ServiceInstanceType, &interceptors.ServiceInstanceCreateInterceptorProvider{
+			BaseSMAAPInterceptorProvider: baseSMAAPInterceptorProvider,
+		}).Register().
+		WithUpdateAroundTxInterceptorProvider(types.ServiceInstanceType, &interceptors.ServiceInstanceUpdateInterceptorProvider{
+			BaseSMAAPInterceptorProvider: baseSMAAPInterceptorProvider,
+		}).Register().
+		WithDeleteAroundTxInterceptorProvider(types.ServiceInstanceType, &interceptors.ServiceInstanceDeleteInterceptorProvider{
+			BaseSMAAPInterceptorProvider: baseSMAAPInterceptorProvider,
+		}).Register().
+		WithCreateAroundTxInterceptorProvider(types.ServiceBindingType, &interceptors.ServiceBindingCreateInterceptorProvider{
+			BaseSMAAPInterceptorProvider: baseSMAAPInterceptorProvider,
+		}).Register().
+		WithDeleteAroundTxInterceptorProvider(types.ServiceBindingType, &interceptors.ServiceBindingDeleteInterceptorProvider{
+			BaseSMAAPInterceptorProvider: baseSMAAPInterceptorProvider,
+		}).Register()
 
 	return smb, nil
 }
@@ -469,7 +497,7 @@ func (smb *ServiceManagerBuilder) EnableMultitenancy(labelKey string, extractTen
 
 	smb.WithCreateOnTxInterceptorProvider(types.ServiceInstanceType, &interceptors.ServiceInstanceCreateInsterceptorProvider{
 		TenantIdentifier: labelKey,
-	}).Register()
+	}).AroundTxAfter(interceptors.ServiceInstanceCreateInterceptorProviderName).Register()
 	smb.WithCreateOnTxInterceptorProvider(types.OperationType, &interceptors.OperationsCreateInsterceptorProvider{
 		TenantIdentifier: labelKey,
 	}).Register()

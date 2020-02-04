@@ -69,20 +69,30 @@ var _ = Describe("Service Manager Config API", func() {
 					}
 				},
 				"httpclient": {
-					"dial_timeout": "10000ms",
-					"idle_conn_timeout": "10000ms",
-					"response_header_timeout": "10000ms",
+					"dial_timeout": "4000ms",
+					"idle_conn_timeout": "4000ms",
+					"response_header_timeout": "40000ms",
 					"skip_ssl_validation": false,
-					"tls_handshake_timeout": "10000ms"
+					"tls_handshake_timeout": "4000ms"
 				},
 				"log": {
 					"format": "text",
-					"level": "debug",
+					"level": "info",
 					"output": "ginkgowriter"
 				},
 				"multitenancy": {
 					"label_key": "tenant"
 				},
+				"operations": {
+					"cleanup_interval": "10m0s",
+					"default_pool_size": 20,
+					"job_timeout": "5m0s",
+					"mark_orphans_interval": "5m0s",
+					"polling_interval": "1ms",
+					"pools": "",
+					"rescheduling_interval": "1ms",
+					"scheduled_deletion_timeout": "12h0m0s"
+				  },
 				"server": {
 					"host": "",
 					"max_body_bytes": 1048576,
@@ -105,8 +115,8 @@ var _ = Describe("Service Manager Config API", func() {
 					"uri": "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"
 				},
 				"websocket": {
-					"ping_timeout": "6000ms",
-					"write_timeout": "6000ms"
+					"ping_timeout": "4000ms",
+					"write_timeout": "4000ms"
 				}
 			}`
 			respBody := ctx.SMWithOAuth.GET(web.ConfigURL).

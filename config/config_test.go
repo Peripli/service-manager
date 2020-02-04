@@ -18,10 +18,11 @@ package config_test
 
 import (
 	"fmt"
-	"github.com/Peripli/service-manager/operations"
-	"github.com/Peripli/service-manager/pkg/health"
 	"testing"
 	"time"
+
+	"github.com/Peripli/service-manager/operations"
+	"github.com/Peripli/service-manager/pkg/health"
 
 	"github.com/Peripli/service-manager/api"
 	cfg "github.com/Peripli/service-manager/config"
@@ -82,6 +83,7 @@ var _ = Describe("config", func() {
 			fatal = true
 			failuresThreshold = 1
 			interval = 30 * time.Second
+			config.Multitenancy.LabelKey = "tenant"
 		})
 
 		Context("health indicator with negative threshold", func() {
@@ -259,6 +261,27 @@ var _ = Describe("config", func() {
 			})
 		})
 
+		Context("when operation scheduled deletion timeoutt is < 0", func() {
+			It("returns an error", func() {
+				config.Operations.ScheduledDeletionTimeout = -time.Second
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("when operation rescheduling interval < 0", func() {
+			It("returns an error", func() {
+				config.Operations.ReschedulingInterval = -time.Second
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("when operation polling interval < 0", func() {
+			It("returns an error", func() {
+				config.Operations.PollingInterval = -time.Second
+				assertErrorDuringValidate()
+			})
+		})
+
 		Context("when operation default pool size is <= 0", func() {
 			It("returns an error", func() {
 				config.Operations.DefaultPoolSize = 0
@@ -274,6 +297,13 @@ var _ = Describe("config", func() {
 						Size:     0,
 					},
 				}
+				assertErrorDuringValidate()
+			})
+		})
+
+		Context("when multitenancy label key is empty", func() {
+			It("returns an error", func() {
+				config.Multitenancy.LabelKey = ""
 				assertErrorDuringValidate()
 			})
 		})

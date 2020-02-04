@@ -18,6 +18,8 @@ package postgres
 
 import (
 	"database/sql"
+	"time"
+
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/storage"
 	sqlxtypes "github.com/jmoiron/sqlx/types"
@@ -27,14 +29,16 @@ import (
 //go:generate smgen storage operation github.com/Peripli/service-manager/pkg/types:Operation
 type Operation struct {
 	BaseEntity
-	Description   sql.NullString     `db:"description"`
-	Type          string             `db:"type"`
-	State         string             `db:"state"`
-	ResourceID    string             `db:"resource_id"`
-	ResourceType  string             `db:"resource_type"`
-	Errors        sqlxtypes.JSONText `db:"errors"`
-	CorrelationID sql.NullString     `db:"correlation_id"`
-	ExternalID    sql.NullString     `db:"external_id"`
+	Description       sql.NullString     `db:"description"`
+	Type              string             `db:"type"`
+	State             string             `db:"state"`
+	ResourceID        string             `db:"resource_id"`
+	ResourceType      string             `db:"resource_type"`
+	Errors            sqlxtypes.JSONText `db:"errors"`
+	CorrelationID     sql.NullString     `db:"correlation_id"`
+	ExternalID        sql.NullString     `db:"external_id"`
+	Reschedule        bool               `db:"reschedule"`
+	DeletionScheduled time.Time          `db:"deletion_scheduled"`
 }
 
 func (o *Operation) ToObject() types.Object {
@@ -44,15 +48,18 @@ func (o *Operation) ToObject() types.Object {
 			CreatedAt:      o.CreatedAt,
 			UpdatedAt:      o.UpdatedAt,
 			PagingSequence: o.PagingSequence,
+			Ready:          o.Ready,
 		},
-		Description:   o.Description.String,
-		Type:          types.OperationCategory(o.Type),
-		State:         types.OperationState(o.State),
-		ResourceID:    o.ResourceID,
-		ResourceType:  o.ResourceType,
-		Errors:        getJSONRawMessage(o.Errors),
-		CorrelationID: o.CorrelationID.String,
-		ExternalID:    o.ExternalID.String,
+		Description:       o.Description.String,
+		Type:              types.OperationCategory(o.Type),
+		State:             types.OperationState(o.State),
+		ResourceID:        o.ResourceID,
+		ResourceType:      types.ObjectType(o.ResourceType),
+		Errors:            getJSONRawMessage(o.Errors),
+		CorrelationID:     o.CorrelationID.String,
+		ExternalID:        o.ExternalID.String,
+		Reschedule:        o.Reschedule,
+		DeletionScheduled: o.DeletionScheduled,
 	}
 }
 
@@ -68,15 +75,18 @@ func (*Operation) FromObject(object types.Object) (storage.Entity, bool) {
 			CreatedAt:      operation.CreatedAt,
 			UpdatedAt:      operation.UpdatedAt,
 			PagingSequence: operation.PagingSequence,
+			Ready:          operation.Ready,
 		},
-		Description:   toNullString(operation.Description),
-		Type:          string(operation.Type),
-		State:         string(operation.State),
-		ResourceID:    operation.ResourceID,
-		ResourceType:  operation.ResourceType,
-		Errors:        getJSONText(operation.Errors),
-		CorrelationID: toNullString(operation.CorrelationID),
-		ExternalID:    toNullString(operation.ExternalID),
+		Description:       toNullString(operation.Description),
+		Type:              string(operation.Type),
+		State:             string(operation.State),
+		ResourceID:        operation.ResourceID,
+		ResourceType:      operation.ResourceType.String(),
+		Errors:            getJSONText(operation.Errors),
+		CorrelationID:     toNullString(operation.CorrelationID),
+		ExternalID:        toNullString(operation.ExternalID),
+		Reschedule:        operation.Reschedule,
+		DeletionScheduled: operation.DeletionScheduled,
 	}
 	return o, true
 }

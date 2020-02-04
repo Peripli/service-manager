@@ -33,16 +33,23 @@ type Settings struct {
 	CleanupInterval     time.Duration  `mapstructure:"cleanup_interval" description:"cleanup interval of old operations"`
 	DefaultPoolSize     int            `mapstructure:"default_pool_size" description:"default worker pool size"`
 	Pools               []PoolSettings `mapstructure:"pools" description:"defines the different available worker pools"`
+
+	ScheduledDeletionTimeout time.Duration `mapstructure:"scheduled_deletion_timeout" description:"the maximum allowed timeout for auto rescheduling of operation actions"`
+	ReschedulingInterval     time.Duration `mapstructure:"rescheduling_interval" description:"the interval between auto rescheduling of operation actions"`
+	PollingInterval          time.Duration `mapstructure:"polling_interval" description:"the interval between polls for async requests"`
 }
 
 // DefaultSettings returns default values for API settings
 func DefaultSettings() *Settings {
 	return &Settings{
-		JobTimeout:          defaultJobTimeout,
-		MarkOrphansInterval: defaultJobTimeout,
-		CleanupInterval:     10 * time.Minute,
-		DefaultPoolSize:     20,
-		Pools:               []PoolSettings{},
+		JobTimeout:               defaultJobTimeout,
+		MarkOrphansInterval:      defaultJobTimeout,
+		CleanupInterval:          10 * time.Minute,
+		DefaultPoolSize:          20,
+		Pools:                    []PoolSettings{},
+		ScheduledDeletionTimeout: 12 * time.Hour,
+		ReschedulingInterval:     1 * time.Second,
+		PollingInterval:          1 * time.Second,
 	}
 }
 
@@ -56,6 +63,15 @@ func (s *Settings) Validate() error {
 	}
 	if s.CleanupInterval <= minTimePeriod {
 		return fmt.Errorf("validate Settings: CleanupInterval must be larger than %s", minTimePeriod)
+	}
+	if s.ScheduledDeletionTimeout <= minTimePeriod {
+		return fmt.Errorf("validate Settings: ScheduledDeletionTimeout must be larger than %s", minTimePeriod)
+	}
+	if s.ReschedulingInterval <= minTimePeriod {
+		return fmt.Errorf("validate Settings: ReschedulingInterval must be larger than %s", minTimePeriod)
+	}
+	if s.PollingInterval <= minTimePeriod {
+		return fmt.Errorf("validate Settings: PollingInterval must be larger than %s", minTimePeriod)
 	}
 	if s.DefaultPoolSize <= 0 {
 		return fmt.Errorf("validate Settings: DefaultPoolSize must be larger than 0")
@@ -82,9 +98,4 @@ func (ps *PoolSettings) Validate() error {
 	}
 
 	return nil
-}
-
-// OperationError holds an error message returned from an execution of an async job
-type OperationError struct {
-	Message string `json:"message"`
 }

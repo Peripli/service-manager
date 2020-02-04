@@ -235,7 +235,15 @@ func setProps(object interface{}, propPath string) []propChange {
 					path:  currentPath,
 					value: time.Now(),
 				})
+			case *bool:
+				falseVal := false
+				result = append(result, propChange{
+					path:  currentPath,
+					value: &falseVal,
+				})
 			default:
+				val := f.Value()
+				fmt.Println(val)
 				result = append(result, setProps(f.Value(), currentPath)...)
 			}
 		}
@@ -275,6 +283,7 @@ func createServiceInstance(now time.Time) Object {
 			Labels:    labels,
 			CreatedAt: now,
 			UpdatedAt: now.Add(time.Second * 10),
+			Ready:     true,
 		},
 		Name:            "name",
 		ServicePlanID:   "1",
@@ -283,7 +292,6 @@ func createServiceInstance(now time.Time) Object {
 		MaintenanceInfo: []byte("default"),
 		Context:         []byte("default"),
 		PreviousValues:  []byte("default"),
-		Ready:           true,
 		Usable:          true,
 	}
 }
@@ -312,6 +320,7 @@ func createServicePlan(now time.Time) Object {
 	labels := Labels{
 		"label_key": []string{"value"},
 	}
+	trueVar := true
 	return &ServicePlan{
 		Base: Base{
 			ID:             "id",
@@ -325,8 +334,8 @@ func createServicePlan(now time.Time) Object {
 		CatalogID:         "1",
 		CatalogName:       "catname",
 		Free:              true,
-		Bindable:          true,
-		PlanUpdatable:     true,
+		Bindable:          &trueVar,
+		PlanUpdatable:     &trueVar,
 		Metadata:          []byte("metadata"),
 		Schemas:           []byte("schema"),
 		ServiceOfferingID: "1",

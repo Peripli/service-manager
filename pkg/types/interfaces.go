@@ -65,6 +65,8 @@ type Object interface {
 	SetUpdatedAt(time time.Time)
 	GetUpdatedAt() time.Time
 	GetPagingSequence() int64
+	SetReady(bool)
+	GetReady() bool
 }
 
 func Equals(obj, other Object) bool {
