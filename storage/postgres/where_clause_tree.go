@@ -30,15 +30,25 @@ const (
 	INTERSECT logicalOperator = "INTERSECT"
 )
 
+// queryFunc is a helper struct to allow for dynamic changing of the function that builds the sql template statements
+type queryFunc struct {
+	buildSQL func(childrenSQL []string) string
+}
+
+var defaultQueryFunc = &queryFunc{
+	buildSQL: func(childrenSQL []string) string {
+		return fmt.Sprintf("(%s)", strings.Join(childrenSQL, fmt.Sprintf(" %s ", AND)))
+	},
+}
+
 // whereClauseTree represents an sql where clause as tree structure with AND/OR on the nodes
 type whereClauseTree struct {
 	criterion query.Criterion
 	dbTags    []tagType
 	tableName string
 
-	operator  logicalOperator
 	children  []*whereClauseTree
-	queryFunc func(childrenSQL []string) string
+	queryFunc *queryFunc
 }
 
 func (t *whereClauseTree) isLeaf() bool {
@@ -75,11 +85,9 @@ func (t *whereClauseTree) compileSQL() (string, []interface{}) {
 		sql = childrenSQL[0]
 	default:
 		if t.queryFunc == nil {
-			t.queryFunc = func(childrenSQL []string) string {
-				return fmt.Sprintf("(%s)", strings.Join(childrenSQL, fmt.Sprintf(" %s ", t.operator)))
-			}
+			t.queryFunc = defaultQueryFunc
 		}
-		sql = t.queryFunc(childrenSQL)
+		sql = t.queryFunc.buildSQL(childrenSQL)
 	}
 
 	return sql, queryParams

@@ -17,6 +17,7 @@
 package test
 
 import (
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -49,13 +50,16 @@ type listOpEntry struct {
 func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode ResponseMode) bool {
 	var r []common.Object
 	var rWithMandatoryFields common.Object
+	commonLabelKey := "labelKey1"
+	commonLabelValue := "1"
+	separatingLabelKey := "separation"
 
 	attachLabel := func(obj common.Object) common.Object {
 		patchLabels := []*query.LabelChange{
 			{
 				Operation: query.AddLabelOperation,
-				Key:       "labelKey1",
-				Values:    []string{"1"},
+				Key:       commonLabelKey,
+				Values:    []string{commonLabelValue},
 			},
 			{
 				Operation: query.AddLabelOperation,
@@ -66,6 +70,16 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 				Operation: query.AddLabelOperation,
 				Key:       "labelKey3",
 				Values:    []string{`{"key1": "val1", "key2": "val2"}`},
+			},
+			{
+				Operation: query.AddLabelOperation,
+				Key:       separatingLabelKey,
+				Values: func() []string {
+					buff := make([]byte, 10)
+					rand.Read(buff)
+					str := base64.StdEncoding.EncodeToString(buff)
+					return []string{str}
+				}(),
 			},
 		}
 
@@ -215,7 +229,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 				queryTemplate: "%s en '%v'",
 				queryArgs: common.Object{
 					"labels": map[string]interface{}{
-						"labelKey1": []interface{}{
+						commonLabelKey: []interface{}{
 							"str",
 						},
 					}},
@@ -405,9 +419,20 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 			})
 		})
 
+		Context("with separating label query and common label query", func() {
+			It("returns 200 with correct item in response", func() {
+				separatingLabelValue := common.CopyLabels(r[0])[separatingLabelKey].([]interface{})[0].(string)
+				array := ctx.SMWithOAuth.ListWithQuery(t.API, fmt.Sprintf("labelQuery=%s eq %s and %s eq '%s'", commonLabelKey, commonLabelValue, separatingLabelKey, separatingLabelValue))
+				array.Length().Equal(1)
+				returnedIDs := array.Path("$[*].id").Array()
+				returnedIDs.NotContains(r[1]["id"], r[2]["id"], r[3]["id"])
+				returnedIDs.Contains(r[0]["id"])
+			})
+		})
+
 		Context("when query contains special symbols", func() {
 			var obj common.Object
-			labelKey := "labelKey1"
+			labelKey := commonLabelKey
 			labelValue := "symbols!that@are#url$encoded%when^making a*request("
 			BeforeEach(func() {
 				obj = t.ResourceBlueprint(ctx, ctx.SMWithOAuth, bool(responseMode))
