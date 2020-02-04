@@ -176,16 +176,11 @@ func (s *Scheduler) getResourceLastOperation(ctx context.Context, operation *typ
 func (s *Scheduler) checkForConcurrentOperations(ctx context.Context, operation *types.Operation, lastOperation *types.Operation) error {
 	log.C(ctx).Debugf("Checking if another operation is in progress to resource of type %s with id %s", operation.ResourceType.String(), operation.ResourceID)
 
-	isDeletionInProgress := lastOperation.Type == types.DELETE && lastOperation.State == types.IN_PROGRESS &&
-		time.Now().Before(lastOperation.UpdatedAt.Add(s.jobTimeout))
-
 	isDeletionScheduled := !lastOperation.DeletionScheduled.IsZero()
-	isDeletionTimeoutExceeded := (isDeletionInProgress && time.Now().After(lastOperation.CreatedAt.Add(s.deletionTimeout))) ||
-		(isDeletionScheduled && time.Now().After(lastOperation.DeletionScheduled.Add(s.deletionTimeout)))
 
 	// for the outside world job timeout would have expired if the last update happened > job timeout time ago (this is worst case)
 	// an "old" updated_at means that for a while nobody was processing this operation
-	isLastOperationTimeoutNotExceeded := lastOperation.State == types.IN_PROGRESS && time.Now().Before(lastOperation.UpdatedAt.Add(s.jobTimeout))
+	isLastOpInProgress := lastOperation.State == types.IN_PROGRESS && time.Now().Before(lastOperation.UpdatedAt.Add(s.jobTimeout))
 
 	isAReschedule := lastOperation.Reschedule && operation.Reschedule
 
@@ -200,26 +195,17 @@ func (s *Scheduler) checkForConcurrentOperations(ctx context.Context, operation 
 
 			// this means that when the last operation and the new operation which is either reschedulable or has a deletion scheduled
 			// it is up to the client to make sure such operations do not overlap
-			if isLastOperationTimeoutNotExceeded && !isDeletionScheduled && !isAReschedule {
+			if isLastOpInProgress && !isDeletionScheduled && !isAReschedule {
 				return &util.HTTPError{
 					ErrorType:   "ConcurrentOperationInProgress",
 					Description: "Another concurrent operation in progress for this resource",
 					StatusCode:  http.StatusUnprocessableEntity,
 				}
 			}
-
-			// deletion was scheduled but deletion timeout was exceeded so disallow further delete attempts
-			if isDeletionTimeoutExceeded {
-				return &util.HTTPError{
-					ErrorType:   "TimeoutExceeded",
-					Description: "Deletion of this resource has been attempted for over the maximum timeout period. All operations will be rejected",
-					StatusCode:  http.StatusUnprocessableEntity,
-				}
-			}
 		case types.UPDATE:
 			// a create is in progress and job timeout is not exceeded
 			// the new op is an update - we don't allow updating something that is not yet created so fail
-			if isLastOperationTimeoutNotExceeded {
+			if isLastOpInProgress {
 				return &util.HTTPError{
 					ErrorType:   "ConcurrentOperationInProgress",
 					Description: "Another concurrent operation in progress for this resource",
@@ -236,7 +222,7 @@ func (s *Scheduler) checkForConcurrentOperations(ctx context.Context, operation 
 		switch operation.Type {
 		case types.CREATE:
 			// it doesnt really make sense to create something that was recently updated
-			if isLastOperationTimeoutNotExceeded {
+			if isLastOpInProgress {
 				return &util.HTTPError{
 					ErrorType:   "ConcurrentOperationInProgress",
 					Description: "Another concurrent operation in progress for this resource",
@@ -249,19 +235,10 @@ func (s *Scheduler) checkForConcurrentOperations(ctx context.Context, operation 
 
 			// this means that when the last operation and the new operation which is either reschedulable or has a deletion scheduled
 			// it is up to the client to make sure such operations do not overlap
-			if isLastOperationTimeoutNotExceeded && !isDeletionScheduled && !isAReschedule {
+			if isLastOpInProgress && !isDeletionScheduled && !isAReschedule {
 				return &util.HTTPError{
 					ErrorType:   "ConcurrentOperationInProgress",
 					Description: "Another concurrent operation in progress for this resource",
-					StatusCode:  http.StatusUnprocessableEntity,
-				}
-			}
-
-			// deletion was scheduled but deletion timeout was exceeded so disallow further delete attempts
-			if isDeletionTimeoutExceeded {
-				return &util.HTTPError{
-					ErrorType:   "TimeoutExceeded",
-					Description: "Deletion of this resource has been attempted for over the maximum timeout period. All operations will be rejected",
 					StatusCode:  http.StatusUnprocessableEntity,
 				}
 			}
@@ -275,7 +252,7 @@ func (s *Scheduler) checkForConcurrentOperations(ctx context.Context, operation 
 		switch operation.Type {
 		case types.CREATE:
 			// if the last op is a delete in progress or if it has a deletion scheduled, creates are not allowed
-			if isLastOperationTimeoutNotExceeded || isDeletionScheduled {
+			if isLastOpInProgress || isDeletionScheduled {
 				return &util.HTTPError{
 					ErrorType:   "ConcurrentOperationInProgress",
 					Description: "Deletion is currently in progress for this resource",
@@ -284,7 +261,7 @@ func (s *Scheduler) checkForConcurrentOperations(ctx context.Context, operation 
 			}
 		case types.UPDATE:
 			// if delete is in progress or delete is scheduled, updates are not allowed
-			if isLastOperationTimeoutNotExceeded || isDeletionScheduled {
+			if isLastOpInProgress || isDeletionScheduled {
 				return &util.HTTPError{
 					ErrorType:   "ConcurrentOperationInProgress",
 					Description: "Deletion is currently in progress for this resource",
@@ -297,19 +274,10 @@ func (s *Scheduler) checkForConcurrentOperations(ctx context.Context, operation 
 
 			// this means that when the last operation and the new operation which is either reschedulable or has a deletion scheduled
 			// it is up to the client to make sure such operations do not overlap
-			if isLastOperationTimeoutNotExceeded && !isDeletionScheduled && !isAReschedule {
+			if isLastOpInProgress && !isDeletionScheduled && !isAReschedule {
 				return &util.HTTPError{
 					ErrorType:   "ConcurrentOperationInProgress",
 					Description: "Deletion is currently in progress for this resource",
-					StatusCode:  http.StatusUnprocessableEntity,
-				}
-			}
-
-			// deletion was scheduled but deletion timeout was exceeded so disallow further delete attempts
-			if isDeletionTimeoutExceeded {
-				return &util.HTTPError{
-					ErrorType:   "TimeoutExceeded",
-					Description: "Deletion of this resource has been attempted for over the maximum timeout period. All operations will be rejected",
 					StatusCode:  http.StatusUnprocessableEntity,
 				}
 			}
