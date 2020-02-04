@@ -593,9 +593,27 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 								Status(http.StatusOK).JSON().Object().Raw()
 						})
 
-						It("deletes only tenant specific resources without label query", func() {
+						It("deletes only tenant specific resources label query", func() {
 							labelQuery := fmt.Sprintf("labelQuery=%s eq '%s'", commonLabelKey, commonLabelValue)
-							resourceCntBeforeDelete := ctx.SMWithOAuth.ListWithQuery(t.API, labelQuery).Contains(rForTenant).Length().Raw()
+							expectResources := func(resourcesToExpect []common.Object) {
+								for _, obj := range resourcesToExpect {
+									delete(obj, "updated_at")
+									delete(obj, "created_at")
+								}
+								array := ctx.SMWithOAuth.ListWithQuery(t.API, labelQuery)
+								for _, item := range array.Iter() {
+									obj := item.Object().Raw()
+									delete(obj, "updated_at")
+									delete(obj, "created_at")
+								}
+								for _, obj := range resourcesToExpect {
+									array.Contains(obj)
+								}
+							}
+							// r1 and rForTenant are both labeled
+							resourcesBeforeDeletion := []common.Object{r[1], rForTenant}
+							expectResources(resourcesBeforeDeletion)
+							// delete providing labelQuery matching both r1 and rForTenant, but using tenant auth
 							verifyDeleteListOpHelperWithAuth(deleteOpEntry{
 								resourcesToExpectBeforeOp: func() []common.Object {
 									return []common.Object{rForTenant}
@@ -608,7 +626,9 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 								},
 								expectedStatusCode: http.StatusOK,
 							}, labelQuery, ctx.SMWithOAuthForTenant)
-							ctx.SMWithOAuth.ListWithQuery(t.API, labelQuery).NotContains(rForTenant).Length().Lt(resourceCntBeforeDelete)
+							//only tenant resource matching the label query must be deleted
+							resourcesAfterDeletion := []common.Object{r[1]}
+							expectResources(resourcesAfterDeletion)
 						})
 
 						It("deletes only tenant specific resources without label query", func() {
