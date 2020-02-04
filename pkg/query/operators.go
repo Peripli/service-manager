@@ -16,6 +16,24 @@
 
 package query
 
+type containsOperator string
+
+func (c containsOperator) String() string {
+	return string(c)
+}
+
+func (c containsOperator) Type() OperatorType {
+	return UnivariateOperator
+}
+
+func (c containsOperator) IsNullable() bool {
+	return false
+}
+
+func (c containsOperator) IsNumeric() bool {
+	return false
+}
+
 const (
 	// EqualsOperator takes two operands and tests if they are equal
 	EqualsOperator eqOperator = "eq"
@@ -34,9 +52,9 @@ const (
 	// NotInOperator takes two operands and tests if the left is not contained in the right
 	NotInOperator notInOperator = "notin"
 	// EqualsOrNilOperator takes two operands and tests if the left is equal to the right, or if the left is nil
-	EqualsOrNilOperator enOperator = "en"
-
-	NoOperator noOperator = "nop"
+	EqualsOrNilOperator enOperator       = "en"
+	ContainsOperator    containsOperator = "contains"
+	NoOperator          noOperator       = "nop"
 )
 
 type eqOperator string

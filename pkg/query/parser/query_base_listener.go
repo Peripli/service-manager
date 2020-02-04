@@ -1,3 +1,5 @@
+// Code generated from /Users/i322053/goworkspace/src/github.com/Peripli/service-manager/pkg/query/Query.g4 by ANTLR 4.8. DO NOT EDIT.
+
 package parser // Query
 
 import "github.com/antlr/antlr4/runtime/Go/antlr"

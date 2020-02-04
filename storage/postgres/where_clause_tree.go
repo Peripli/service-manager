@@ -30,6 +30,8 @@ const (
 	OR  logicalOperator = "OR"
 )
 
+const containsQueryDelimiter = "<contains>"
+
 // whereClauseTree represents an sql where clause as tree structure with AND/OR on the nodes
 type whereClauseTree struct {
 	criterion query.Criterion
@@ -83,16 +85,23 @@ func criterionSQL(c query.Criterion, dbTags []tagType, tableAlias string) (strin
 	rightOpBindVar, rightOpQueryValue := buildRightOp(c.Operator, c.RightOp)
 	sqlOperation := translateOperationToSQLEquivalent(c.Operator)
 
-	ttype := findTagType(dbTags, c.LeftOp)
-	dbCast := determineCastByType(ttype)
+	leftOp := c.LeftOp
+	var dbCast string
+	if strings.ContainsRune(c.LeftOp, '.') || c.Operator == query.ContainsOperator {
+		dbCast = "::jsonb"
+		leftOp = strings.Join(strings.Split(c.LeftOp, "."), "->")
+	} else {
+		ttype := findTagType(dbTags, c.LeftOp)
+		dbCast = determineCastByType(ttype)
+	}
 	var clause string
 	if tableAlias != "" {
-		clause = fmt.Sprintf("%s.%s%s %s %s", tableAlias, c.LeftOp, dbCast, sqlOperation, rightOpBindVar)
+		clause = fmt.Sprintf("(%s.%s)%s %s %s", tableAlias, leftOp, dbCast, sqlOperation, rightOpBindVar)
 	} else {
-		clause = fmt.Sprintf("%s%s %s %s", c.LeftOp, dbCast, sqlOperation, rightOpBindVar)
+		clause = fmt.Sprintf("%s%s %s %s", leftOp, dbCast, sqlOperation, rightOpBindVar)
 	}
 	if c.Operator.IsNullable() {
-		clause = fmt.Sprintf("(%s OR %s IS NULL)", clause, c.LeftOp)
+		clause = fmt.Sprintf("(%s OR %s IS NULL)", clause, leftOp)
 	}
 	return clause, rightOpQueryValue
 }
@@ -127,6 +136,8 @@ func translateOperationToSQLEquivalent(operator query.Operator) string {
 		return "="
 	case query.NotEqualsOperator:
 		return "!="
+	case query.ContainsOperator:
+		return containsQueryDelimiter
 	default:
 		return strings.ToUpper(operator.String())
 	}

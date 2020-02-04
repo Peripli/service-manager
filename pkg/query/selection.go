@@ -81,7 +81,7 @@ var (
 		EqualsOperator, NotEqualsOperator,
 		GreaterThanOperator, LessThanOperator,
 		GreaterThanOrEqualOperator, LessThanOrEqualOperator,
-		InOperator, NotInOperator, EqualsOrNilOperator,
+		InOperator, NotInOperator, EqualsOrNilOperator, ContainsOperator,
 	}
 	// CriteriaTypes returns the supported query criteria types
 	CriteriaTypes = []CriterionType{FieldQuery, LabelQuery}

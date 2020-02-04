@@ -230,7 +230,7 @@ func (pq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
 		switch criterion.Type {
 		case query.FieldQuery:
 			columns := columnsByTags(pq.entityTags)
-			if !columns[criterion.LeftOp] {
+			if !columns[criterion.LeftOp] && !strings.ContainsRune(criterion.LeftOp, '.') {
 				pq.err = &util.UnsupportedQueryError{Message: fmt.Sprintf("unsupported field query key: %s", criterion.LeftOp)}
 				return pq
 			}
@@ -341,6 +341,7 @@ func (pq *pgQuery) finalizeSQL(ctx context.Context, sql string) (string, error) 
 	space := regexp.MustCompile(`\s+`)
 	sql = space.ReplaceAllString(sql, " ")
 	sql = strings.TrimSpace(sql)
+	sql = strings.Replace(sql, containsQueryDelimiter, "?", -1)
 	log.C(ctx).Debugf("Executing postgres query: %s", sql)
 
 	return sql, nil
