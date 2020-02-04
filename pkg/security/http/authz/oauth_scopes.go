@@ -53,3 +53,17 @@ func findMostRestrictiveAccessLevel(levels []web.AccessLevel) web.AccessLevel {
 	}
 	return min
 }
+
+// Checks whether the user has the requested scope
+func HasScope(user *web.UserContext, scope string) (bool, error) {
+	var claims struct {
+		Scopes []string `json:"scope"`
+	}
+
+	if err := user.Data(&claims); err != nil {
+		return false, fmt.Errorf("could not extract scopes from token: %v", err)
+	}
+	userScopes := claims.Scopes
+
+	return slice.StringsAnyEquals(userScopes, scope), nil
+}
