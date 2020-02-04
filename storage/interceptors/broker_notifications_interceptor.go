@@ -15,7 +15,7 @@ func NewBrokerNotificationsInterceptor() *NotificationsInterceptor {
 
 			var err error
 			plans := make([]*types.ServicePlan, 0)
-			if len(broker.Services) == 0 {
+			if len(broker.Services) == 0 { // broker create/update might be triggered inside an existing transaction, which will result in not loading the broker catalog
 				plans, err = fetchBrokerPlans(ctx, broker.ID, repository)
 				if err != nil {
 					return nil, err

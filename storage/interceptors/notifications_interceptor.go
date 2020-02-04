@@ -80,6 +80,11 @@ func (ni *NotificationsInterceptor) OnTxUpdate(h storage.InterceptUpdateOnTxFunc
 			return nil, err
 		}
 
+		// Scheduler updates the `ready` property of resources once an operation has ended - we should not create MODIFIED notifications in these cases
+		if oldObject.GetReady() != updatedObject.GetReady() {
+			return updatedObject, nil
+		}
+
 		detailsMap, err := ni.AdditionalDetailsFunc(ctx, types.NewObjectArray(updatedObject), repository)
 		if err != nil {
 			return nil, err
