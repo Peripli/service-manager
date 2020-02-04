@@ -17,7 +17,6 @@
 package test
 
 import (
-	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -52,7 +51,6 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 	var rWithMandatoryFields common.Object
 	commonLabelKey := "labelKey1"
 	commonLabelValue := "1"
-	separatingLabelKey := "separation"
 
 	attachLabel := func(obj common.Object) common.Object {
 		patchLabels := []*query.LabelChange{
@@ -70,16 +68,6 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 				Operation: query.AddLabelOperation,
 				Key:       "labelKey3",
 				Values:    []string{`{"key1": "val1", "key2": "val2"}`},
-			},
-			{
-				Operation: query.AddLabelOperation,
-				Key:       separatingLabelKey,
-				Values: func() []string {
-					buff := make([]byte, 10)
-					rand.Read(buff)
-					str := base64.StdEncoding.EncodeToString(buff)
-					return []string{str}
-				}(),
 			},
 		}
 
@@ -328,7 +316,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 		unexpectedAfterOpIDs = common.ExtractResourceIDs(listOpEntry.resourcesNotToExpectAfterOp)
 
 		By(fmt.Sprintf("[TEST]: Verifying expected %s before operation after present", t.API))
-		beforeOpArray := ctx.SMWithOAuth.List(t.API)
+		beforeOpArray := auth.List(t.API)
 
 		for _, v := range beforeOpArray.Iter() {
 			obj := v.Object().Raw()
@@ -356,13 +344,13 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 
 		if listOpEntry.expectedStatusCode != http.StatusOK {
 			By(fmt.Sprintf("[TEST]: Verifying error and description fields are returned after list operation"))
-			req := ctx.SMWithOAuth.GET(t.API)
+			req := auth.GET(t.API)
 			if query != "" {
 				req = req.WithQueryString(query)
 			}
 			req.Expect().Status(listOpEntry.expectedStatusCode).JSON().Object().Keys().Contains("error", "description")
 		} else {
-			array := ctx.SMWithOAuth.ListWithQuery(t.API, query)
+			array := auth.ListWithQuery(t.API, query)
 			for _, v := range array.Iter() {
 				obj := v.Object().Raw()
 				delete(obj, "created_at")
@@ -419,17 +407,6 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 			})
 		})
 
-		Context("with separating label query and common label query", func() {
-			It("returns 200 with correct item in response", func() {
-				separatingLabelValue := common.CopyLabels(r[0])[separatingLabelKey].([]interface{})[0].(string)
-				array := ctx.SMWithOAuth.ListWithQuery(t.API, fmt.Sprintf("labelQuery=%s eq %s and %s eq '%s'", commonLabelKey, commonLabelValue, separatingLabelKey, separatingLabelValue))
-				array.Length().Equal(1)
-				returnedIDs := array.Path("$[*].id").Array()
-				returnedIDs.NotContains(r[1]["id"], r[2]["id"], r[3]["id"])
-				returnedIDs.Contains(r[0]["id"])
-			})
-		})
-
 		Context("when query contains special symbols", func() {
 			var obj common.Object
 			labelKey := commonLabelKey
@@ -459,6 +436,26 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 
 					BeforeEach(func() {
 						rForTenant = t.ResourceBlueprint(ctx, ctx.SMWithOAuthForTenant, bool(responseMode))
+						patchLabels := []*query.LabelChange{
+							{
+								Operation: query.AddLabelOperation,
+								Key:       commonLabelKey,
+								Values:    []string{commonLabelValue},
+							},
+						}
+						resourceID := rForTenant["id"].(string)
+						t.PatchResource(ctx, t.API, resourceID, t.ResourceType, patchLabels, bool(responseMode))
+						rForTenant = ctx.SMWithOAuth.GET(t.API + "/" + resourceID).
+							Expect().
+							Status(http.StatusOK).JSON().Object().Raw()
+					})
+
+					It("returns only resource for this tenant", func() {
+						verifyListOpWithAuth(listOpEntry{
+							resourcesToExpectAfterOp:    []common.Object{rForTenant},
+							resourcesNotToExpectAfterOp: r,
+							expectedStatusCode:          http.StatusOK,
+						}, fmt.Sprintf("labelQuery=%s eq %s", commonLabelKey, commonLabelValue), ctx.SMWithOAuthForTenant)
 					})
 
 					It("returns only tenant specific resources", func() {
