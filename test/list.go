@@ -450,7 +450,7 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 							Status(http.StatusOK).JSON().Object().Raw()
 					})
 
-					It("returns only resource for this tenant", func() {
+					It("returns only tenant specific resources with common label query", func() {
 						verifyListOpWithAuth(listOpEntry{
 							resourcesToExpectAfterOp:    []common.Object{rForTenant},
 							resourcesNotToExpectAfterOp: r,
@@ -458,9 +458,9 @@ func DescribeListTestsFor(ctx *common.TestContext, t TestCase, responseMode Resp
 						}, fmt.Sprintf("labelQuery=%s eq %s", commonLabelKey, commonLabelValue), ctx.SMWithOAuthForTenant)
 					})
 
-					It("returns only tenant specific resources", func() {
+					It("returns only tenant specific resources without label query", func() {
 						verifyListOpWithAuth(listOpEntry{
-							resourcesToExpectBeforeOp: []common.Object{r[0], r[1], rForTenant},
+							resourcesToExpectBeforeOp: []common.Object{rForTenant},
 							resourcesToExpectAfterOp:  []common.Object{rForTenant},
 							expectedStatusCode:        http.StatusOK,
 						}, "", ctx.SMWithOAuthForTenant)
