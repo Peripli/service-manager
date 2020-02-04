@@ -87,7 +87,7 @@ func NewQueryBuilder(db pgDB) *QueryBuilder {
 
 // NewQuery constructs new queries for the current query builder db
 func (qb *QueryBuilder) NewQuery(entity PostgresEntity) *pgQuery {
-	pq := &pgQuery{
+	return &pgQuery{
 		labelEntity:       entity.LabelEntity(),
 		entityTableName:   entity.TableName(),
 		entityTags:        getDBTags(entity, nil),
@@ -95,14 +95,13 @@ func (qb *QueryBuilder) NewQuery(entity PostgresEntity) *pgQuery {
 		db:                qb.db,
 		fieldsWhereClause: &whereClauseTree{},
 		labelsWhereClause: &whereClauseTree{
-			queryFunc: &queryFunc{
+			sqlBuilder: &treeSqlBuilder{
 				buildSQL: func(childrenSQL []string) string {
 					return fmt.Sprintf("(%s IN (%s))", entity.LabelEntity().ReferenceColumn(), strings.Join(childrenSQL, fmt.Sprintf(" %s ", INTERSECT)))
 				},
 			},
 		},
 	}
-	return pq
 }
 
 type orderRule struct {
@@ -223,7 +222,7 @@ func (pq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
 		return pq
 	}
 	labelQueryCount := 0
-	var actualFunc = *defaultQueryFunc
+	var builder = *defaultTreeSqlBuilder
 	var subSelectStatementFunc = func(childrenSQL []string) string {
 		return fmt.Sprintf("(SELECT %s FROM %s WHERE (%s))", pq.labelEntity.ReferenceColumn(), pq.labelEntity.LabelsTableName(), strings.Join(childrenSQL, fmt.Sprintf(" %s ", AND)))
 	}
@@ -250,7 +249,7 @@ func (pq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
 		case query.LabelQuery:
 			labelQueryCount++
 			if labelQueryCount > 1 { // 2 or more labelQueries need to be intersected
-				actualFunc.buildSQL = subSelectStatementFunc
+				builder.buildSQL = subSelectStatementFunc
 			}
 			pq.labelsWhereClause.children = append(pq.labelsWhereClause.children, &whereClauseTree{
 				children: []*whereClauseTree{
@@ -263,7 +262,7 @@ func (pq *pgQuery) WithCriteria(criteria ...query.Criterion) *pgQuery {
 						dbTags:    pq.labelEntityTags,
 					},
 				},
-				queryFunc: &actualFunc,
+				sqlBuilder: &builder,
 			})
 		case query.ResultQuery:
 			pq.processResultCriteria(criterion)
