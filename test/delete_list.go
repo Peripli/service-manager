@@ -42,8 +42,8 @@ type deleteOpEntry struct {
 func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 	var r []common.Object
 	var rWithMandatoryFields common.Object
-	commonLabelKey := "commonLabelKey"
-	commonLabelValue := "1"
+	commonLabelKey := "labelKey2"
+	commonLabelValue := "str1"
 
 	entriesWithQuery := []TableEntry{
 		Entry("returns 200 for operator =",
@@ -374,18 +374,13 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 			},
 			{
 				Operation: query.AddLabelOperation,
-				Key:       "labelKey2",
+				Key:       commonLabelKey,
 				Values:    []string{fmt.Sprintf("str%d", i)},
 			},
 			{
 				Operation: query.AddLabelOperation,
 				Key:       "labelKey3",
 				Values:    []string{fmt.Sprintf(`{"key%d": "val%d"}`, i, i)},
-			},
-			{
-				Operation: query.AddLabelOperation,
-				Key:       commonLabelKey,
-				Values:    []string{commonLabelValue},
 			},
 		}
 		patchLabelsBody["labels"] = patchLabels
@@ -599,7 +594,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 						})
 
 						It("deletes only tenant specific resources without label query", func() {
-							labelQuery := fmt.Sprintf("labelQuery=%s eq %s", commonLabelKey, commonLabelValue)
+							labelQuery := fmt.Sprintf("labelQuery=%s eq '%s'", commonLabelKey, commonLabelValue)
 							resourceCntBeforeDelete := ctx.SMWithOAuth.ListWithQuery(t.API, labelQuery).Contains(rForTenant).Length().Raw()
 							verifyDeleteListOpHelperWithAuth(deleteOpEntry{
 								resourcesToExpectBeforeOp: func() []common.Object {
