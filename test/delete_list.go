@@ -42,6 +42,8 @@ type deleteOpEntry struct {
 func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 	var r []common.Object
 	var rWithMandatoryFields common.Object
+	commonLabelKey := "commonLabelKey"
+	commonLabelValue := "1"
 
 	entriesWithQuery := []TableEntry{
 		Entry("returns 200 for operator =",
@@ -380,6 +382,11 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 				Key:       "labelKey3",
 				Values:    []string{fmt.Sprintf(`{"key%d": "val%d"}`, i, i)},
 			},
+			{
+				Operation: query.AddLabelOperation,
+				Key:       commonLabelKey,
+				Values:    []string{commonLabelValue},
+			},
 		}
 		patchLabelsBody["labels"] = patchLabels
 
@@ -440,7 +447,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 
 		if deleteListOpEntry.resourcesToExpectBeforeOp != nil {
 			By(fmt.Sprintf("[TEST]: Verifying expected %s before operation are present", t.API))
-			beforeOpArray := ctx.SMWithOAuth.List(t.API)
+			beforeOpArray := auth.List(t.API)
 
 			for _, v := range beforeOpArray.Iter() {
 				obj := v.Object().Raw()
@@ -469,7 +476,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 			By(fmt.Sprintf("[TEST]: Verifying error and description fields are returned after operation"))
 			resp.JSON().Object().Keys().Contains("error", "description")
 		} else {
-			afterOpArray := ctx.SMWithOAuth.List(t.API)
+			afterOpArray := auth.List(t.API)
 
 			for _, v := range afterOpArray.Iter() {
 				obj := v.Object().Raw()
@@ -577,18 +584,48 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 
 						BeforeEach(func() {
 							rForTenant = t.ResourceBlueprint(ctx, ctx.SMWithOAuthForTenant, false)
+							patchLabels := []*query.LabelChange{
+								{
+									Operation: query.AddLabelOperation,
+									Key:       commonLabelKey,
+									Values:    []string{commonLabelValue},
+								},
+							}
+							resourceID := rForTenant["id"].(string)
+							t.PatchResource(ctx, t.API, resourceID, t.ResourceType, patchLabels, false)
+							rForTenant = ctx.SMWithOAuth.GET(t.API + "/" + resourceID).
+								Expect().
+								Status(http.StatusOK).JSON().Object().Raw()
 						})
 
-						It("deletes only tenant specific resources", func() {
+						It("deletes only tenant specific resources without label query", func() {
+							labelQuery := fmt.Sprintf("labelQuery=%s eq %s", commonLabelKey, commonLabelValue)
+							resourceCntBeforeDelete := ctx.SMWithOAuth.ListWithQuery(t.API, labelQuery).Contains(rForTenant).Length().Raw()
 							verifyDeleteListOpHelperWithAuth(deleteOpEntry{
 								resourcesToExpectBeforeOp: func() []common.Object {
-									return []common.Object{r[0], r[1], rForTenant}
+									return []common.Object{rForTenant}
 								},
 								resourcesNotToExpectAfterOp: func() []common.Object {
 									return []common.Object{rForTenant}
 								},
 								resourcesToExpectAfterOp: func() []common.Object {
-									return []common.Object{r[0], r[1]}
+									return []common.Object{}
+								},
+								expectedStatusCode: http.StatusOK,
+							}, labelQuery, ctx.SMWithOAuthForTenant)
+							ctx.SMWithOAuth.ListWithQuery(t.API, labelQuery).NotContains(rForTenant).Length().Lt(resourceCntBeforeDelete)
+						})
+
+						It("deletes only tenant specific resources without label query", func() {
+							verifyDeleteListOpHelperWithAuth(deleteOpEntry{
+								resourcesToExpectBeforeOp: func() []common.Object {
+									return []common.Object{rForTenant}
+								},
+								resourcesNotToExpectAfterOp: func() []common.Object {
+									return []common.Object{rForTenant}
+								},
+								resourcesToExpectAfterOp: func() []common.Object {
+									return []common.Object{}
 								},
 								expectedStatusCode: http.StatusOK,
 							}, "", ctx.SMWithOAuthForTenant)
