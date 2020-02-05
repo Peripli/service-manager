@@ -33,6 +33,7 @@ const (
 
 // Settings type to be loaded from the environment
 type Settings struct {
+	// TODO: rename this to actionTimeout
 	JobTimeout          time.Duration  `mapstructure:"job_timeout" description:"timeout for async operations"`
 	MarkOrphansInterval time.Duration  `mapstructure:"mark_orphans_interval" description:"interval denoting how often to mark orphan operations as failed"`
 	CleanupInterval     time.Duration  `mapstructure:"cleanup_interval" description:"cleanup interval of old operations"`
@@ -40,23 +41,23 @@ type Settings struct {
 	DefaultPoolSize     int            `mapstructure:"default_pool_size" description:"default worker pool size"`
 	Pools               []PoolSettings `mapstructure:"pools" description:"defines the different available worker pools"`
 
-	ScheduledDeletionTimeout time.Duration `mapstructure:"scheduled_deletion_timeout" description:"the maximum allowed timeout for auto rescheduling of operation actions"`
-	ReschedulingInterval     time.Duration `mapstructure:"rescheduling_interval" description:"the interval between auto rescheduling of operation actions"`
-	PollingInterval          time.Duration `mapstructure:"polling_interval" description:"the interval between polls for async requests"`
+	ReconciliationOperationTimeout time.Duration `mapstructure:"reconciliation_operation_timeout" description:"the maximum allowed timeout for auto rescheduling of operation actions"`
+	ReschedulingInterval           time.Duration `mapstructure:"rescheduling_interval" description:"the interval between auto rescheduling of operation actions"`
+	PollingInterval                time.Duration `mapstructure:"polling_interval" description:"the interval between polls for async requests"`
 }
 
 // DefaultSettings returns default values for API settings
 func DefaultSettings() *Settings {
 	return &Settings{
-		JobTimeout:               defaultJobTimeout,
-		MarkOrphansInterval:      defaultMarkOrphansInterval,
-		CleanupInterval:          defaultCleanupInterval,
-		ExpirationTime:           defaultExpirationTime,
-		DefaultPoolSize:          20,
-		Pools:                    []PoolSettings{},
-		ScheduledDeletionTimeout: 12 * time.Hour,
-		ReschedulingInterval:     1 * time.Second,
-		PollingInterval:          1 * time.Second,
+		JobTimeout:                     defaultJobTimeout,
+		MarkOrphansInterval:            defaultMarkOrphansInterval,
+		CleanupInterval:                defaultCleanupInterval,
+		ExpirationTime:                 defaultExpirationTime,
+		DefaultPoolSize:                20,
+		Pools:                          []PoolSettings{},
+		ReconciliationOperationTimeout: 12 * time.Hour,
+		ReschedulingInterval:           1 * time.Second,
+		PollingInterval:                1 * time.Second,
 	}
 }
 
@@ -71,8 +72,8 @@ func (s *Settings) Validate() error {
 	if s.CleanupInterval <= minTimePeriod {
 		return fmt.Errorf("validate Settings: CleanupInterval must be larger than %s", minTimePeriod)
 	}
-	if s.ScheduledDeletionTimeout <= minTimePeriod {
-		return fmt.Errorf("validate Settings: ScheduledDeletionTimeout must be larger than %s", minTimePeriod)
+	if s.ReconciliationOperationTimeout <= minTimePeriod {
+		return fmt.Errorf("validate Settings: ReconciliationOperationTimeout must be larger than %s", minTimePeriod)
 	}
 	if s.ReschedulingInterval <= minTimePeriod {
 		return fmt.Errorf("validate Settings: ReschedulingInterval must be larger than %s", minTimePeriod)

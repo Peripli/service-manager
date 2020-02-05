@@ -41,7 +41,7 @@ type Scheduler struct {
 	repository        storage.TransactionalRepository
 	workers           chan struct{}
 	jobTimeout        time.Duration
-	deletionTimeout   time.Duration
+	deletionTimeout   time.Duration // TODO: do we want to rename this to the general reconciliationOperationTimeout or keep it the more specific deletionTimeout?
 	reschedulingDelay time.Duration
 	wg                *sync.WaitGroup
 }
@@ -53,7 +53,7 @@ func NewScheduler(smCtx context.Context, repository storage.TransactionalReposit
 		repository:        repository,
 		workers:           make(chan struct{}, poolSize),
 		jobTimeout:        settings.JobTimeout,
-		deletionTimeout:   settings.ScheduledDeletionTimeout,
+		deletionTimeout:   settings.ReconciliationOperationTimeout,
 		reschedulingDelay: settings.ReschedulingInterval,
 		wg:                wg,
 	}

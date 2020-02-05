@@ -28,7 +28,7 @@ api:
 operations:
   cleanup_interval: 30m
   job_timeout: 12m
-  scheduled_deletion_timeout: 12h
+  reconciliation_operation_timeout: 12h
   polling_interval: 5s
   rescheduling_interval: 5s
   pools:

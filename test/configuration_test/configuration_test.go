@@ -91,7 +91,7 @@ var _ = Describe("Service Manager Config API", func() {
 					"polling_interval": "1ms",
 					"pools": "",
 					"rescheduling_interval": "1ms",
-					"scheduled_deletion_timeout": "12h0m0s"
+					"reconciliation_operation_timeout": "12h0m0s"
 				  },
 				"server": {
 					"host": "",

@@ -263,7 +263,7 @@ var _ = Describe("config", func() {
 
 		Context("when operation scheduled deletion timeoutt is < 0", func() {
 			It("returns an error", func() {
-				config.Operations.ScheduledDeletionTimeout = -time.Second
+				config.Operations.ReconciliationOperationTimeout = -time.Second
 				assertErrorDuringValidate()
 			})
 		})

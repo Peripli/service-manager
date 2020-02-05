@@ -748,7 +748,7 @@ var _ = DescribeTestsFor(TestCase{
 										BeforeEach(func() {
 											oldCtx = ctx
 											ctx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
-												Expect(set.Set("operations.scheduled_deletion_timeout", (2 * time.Millisecond).String())).ToNot(HaveOccurred())
+												Expect(set.Set("operations.reconciliation_operation_timeout", (2 * time.Millisecond).String())).ToNot(HaveOccurred())
 											}).BuildWithoutCleanup()
 										})
 
@@ -1396,7 +1396,7 @@ var _ = DescribeTestsFor(TestCase{
 										BeforeEach(func() {
 											oldCtx = ctx
 											ctx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
-												Expect(set.Set("operations.scheduled_deletion_timeout", (2 * time.Millisecond).String())).ToNot(HaveOccurred())
+												Expect(set.Set("operations.reconciliation_operation_timeout", (2 * time.Millisecond).String())).ToNot(HaveOccurred())
 											}).BuildWithoutCleanup()
 										})
 
