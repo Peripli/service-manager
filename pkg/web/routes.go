@@ -44,4 +44,7 @@ const (
 
 	// OperationsURL is the URL path fetch operations
 	OperationsURL = "/operations"
+
+	// ProfileURL is the Configuration API base URL path
+	ProfileURL = "/" + apiVersion + "/profile"
 )
