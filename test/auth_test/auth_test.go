@@ -304,6 +304,12 @@ var _ = Describe("Service Manager Authentication", func() {
 			{"Invalid authorization schema", "DELETE", web.ServiceBindingsURL + "/999", invalidBasicAuthHeader},
 			{"Missing token in authorization header", "DELETE", web.ServiceBindingsURL + "/999", emptyBearerAuthHeader},
 			{"Invalid token in authorization header", "DELETE", web.ServiceBindingsURL + "/999", invalidBearerAuthHeader},
+
+			// PROFILE
+			{"Missing authorization header", "GET", web.ProfileURL + "/heap", emptyAuthHeader},
+			{"Invalid authorization schema", "GET", web.ProfileURL + "/heap", invalidBasicAuthHeader},
+			{"Missing token in authorization header", "GET", web.ProfileURL + "/heap", emptyBearerAuthHeader},
+			{"Invalid token in authorization header", "GET", web.ProfileURL + "/heap", invalidBearerAuthHeader},
 		}
 
 		for _, request := range authRequests {

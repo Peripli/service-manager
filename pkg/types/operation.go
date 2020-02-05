@@ -63,6 +63,7 @@ type Operation struct {
 	ResourceID    string            `json:"resource_id"`
 	ResourceType  ObjectType        `json:"resource_type"`
 	Errors        json.RawMessage   `json:"errors,omitempty"`
+	PlatformID    string            `json:"platform_id"`
 	CorrelationID string            `json:"correlation_id"`
 	ExternalID    string            `json:"-"`
 
@@ -85,6 +86,7 @@ func (e *Operation) Equals(obj Object) bool {
 		e.ExternalID != operation.ExternalID ||
 		e.State != operation.State ||
 		e.Type != operation.Type ||
+		e.PlatformID != operation.PlatformID ||
 		!reflect.DeepEqual(e.Errors, operation.Errors) {
 		return false
 	}

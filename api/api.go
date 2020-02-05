@@ -26,6 +26,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/env"
 
 	"github.com/Peripli/service-manager/api/configuration"
+	"github.com/Peripli/service-manager/api/profile"
 
 	"github.com/Peripli/service-manager/pkg/query"
 
@@ -125,6 +126,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			&configuration.Controller{
 				Environment: e,
 			},
+			&profile.Controller{},
 		},
 		// Default filters - more filters can be registered using the relevant API methods
 		Filters: []web.Filter{
@@ -139,6 +141,7 @@ func New(ctx context.Context, e env.Environment, options *Options) (*web.API, er
 			&filters.PatchOnlyLabelsFilter{},
 			filters.NewPlansFilterByVisibility(options.Repository),
 			filters.NewServicesFilterByVisibility(options.Repository),
+			&filters.CheckBrokerCredentialsFilter{},
 		},
 		Registry: health.NewDefaultRegistry(),
 	}, nil
