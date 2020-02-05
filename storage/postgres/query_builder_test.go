@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -278,8 +279,11 @@ WITH matching_resources as (SELECT DISTINCT visibilities.paging_sequence
                             WHERE ((visibilities.id::text != ? AND
                                     visibilities.service_plan_id::text NOT IN (?, ?, ?) AND
                                     (visibilities.platform_id::text = ? OR platform_id IS NULL)) AND
-                                   ((key::text = ? AND val::text = ?) OR (key::text = ? AND val::text IN (?, ?)) OR
-                                    (key::text = ? AND val::text != ?)))
+									(visibility_id IN ((SELECT visibility_id FROM visibility_labels WHERE (key::text = ? AND val::text = ?))
+										INTERSECT
+										(SELECT visibility_id FROM visibility_labels WHERE (key::text = ? AND val::text IN (?, ?)))
+										INTERSECT
+										(SELECT visibility_id FROM visibility_labels WHERE (key::text = ? AND val::text != ?)))))
                             ORDER BY visibilities.paging_sequence ASC
                             LIMIT ?)
 SELECT visibilities.*,
@@ -336,6 +340,7 @@ FROM visibilities ;`)))
 					WithCriteria(query.ByLabel(query.EqualsOperator, "labelKey", "labelValue")).
 					Count(ctx)
 				Expect(err).ShouldNot(HaveOccurred())
+				fmt.Println(executedQuery)
 				Expect(executedQuery).Should(Equal(trim(`
 SELECT COUNT(DISTINCT visibilities.id)
 FROM visibilities
@@ -439,8 +444,11 @@ FROM visibilities
 WHERE ((visibilities.id::text != ? AND
 	visibilities.service_plan_id::text NOT IN (?, ?, ?) AND
 		(visibilities.platform_id::text = ? OR platform_id IS NULL)) AND
-		((key::text = ? AND val::text = ?) OR (key::text = ? AND val::text IN (?, ?)) OR
-		(key::text = ? AND val::text != ?)))
+		(visibility_id IN ((SELECT visibility_id FROM visibility_labels WHERE (key::text = ? AND val::text = ?))
+										INTERSECT
+										(SELECT visibility_id FROM visibility_labels WHERE (key::text = ? AND val::text IN (?, ?)))
+										INTERSECT
+										(SELECT visibility_id FROM visibility_labels WHERE (key::text = ? AND val::text != ?)))))
 LIMIT ?;`)))
 				Expect(queryArgs).To(HaveLen(13))
 				Expect(queryArgs[0]).Should(Equal("1"))
@@ -489,7 +497,9 @@ DELETE
 FROM visibilities USING (SELECT visibilities.id
                          FROM visibilities
                                   JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
-                         WHERE ((key::text = ? AND val::text = ?) OR (key::text = ? AND val::text IN (?, ?)))) t
+						 WHERE (visibility_id IN ((SELECT visibility_id FROM visibility_labels WHERE (key::text = ? AND val::text = ?))
+										INTERSECT
+										(SELECT visibility_id FROM visibility_labels WHERE (key::text = ? AND val::text IN (?, ?)))))) t
 WHERE visibilities.id = t.id ;`)))
 				Expect(queryArgs).To(HaveLen(5))
 				Expect(queryArgs[0]).Should(Equal("left1"))
@@ -581,8 +591,11 @@ FROM visibilities USING (SELECT visibilities.id
                                   JOIN visibility_labels ON visibilities.id = visibility_labels.visibility_id
                          WHERE ((visibilities.id::text != ? AND visibilities.service_plan_id::text NOT IN (?, ?, ?) AND
                                  (visibilities.platform_id::text = ? OR platform_id IS NULL)) AND
-                                ((key::text = ? AND val::text = ?) OR (key::text = ? AND val::text IN (?, ?)) OR
-                                 (key::text = ? AND val::text != ?)))) t
+								 (visibility_id IN ((SELECT visibility_id FROM visibility_labels WHERE (key::text = ? AND val::text = ?))
+										INTERSECT
+										(SELECT visibility_id FROM visibility_labels WHERE (key::text = ? AND val::text IN (?, ?)))
+										INTERSECT
+										(SELECT visibility_id FROM visibility_labels WHERE (key::text = ? AND val::text != ?)))))) t
 WHERE visibilities.id = t.id RETURNING *;`)))
 				Expect(queryArgs).To(HaveLen(12))
 				Expect(queryArgs[0]).Should(Equal("1"))
