@@ -386,7 +386,7 @@ func (i *ServiceBindingInterceptor) prepareBindRequest(instance *types.ServiceIn
 		OriginatingIdentity: nil,
 	}
 	if len(i.tenantKey) != 0 {
-		if tenantValue, ok := binding.GetLabels()[i.tenantKey]; ok {
+		if tenantValue, ok := binding.GetLabels()[i.tenantKey]; ok && len(bindRequest.Context) == 0 {
 			bindRequest.Context[i.tenantKey] = tenantValue[0]
 		}
 	}

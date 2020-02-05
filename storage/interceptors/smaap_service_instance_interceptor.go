@@ -464,7 +464,7 @@ func (i *ServiceInstanceInterceptor) prepareProvisionRequest(instance *types.Ser
 		OriginatingIdentity: nil,
 	}
 	if len(i.tenantKey) != 0 {
-		if tenantValue, ok := instance.GetLabels()[i.tenantKey]; ok {
+		if tenantValue, ok := instance.GetLabels()[i.tenantKey]; ok && len(provisionRequest.Context) == 0 {
 			provisionRequest.Context[i.tenantKey] = tenantValue[0]
 		}
 	}
