@@ -17,24 +17,26 @@
 package operations
 
 import (
-	"context"
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
+	"golang.org/x/net/context"
 	"time"
 )
 
 // Maintainer ensures that operations old enough are deleted
 // and that no orphan operations are left in the DB due to crashes/restarts of SM
 type Maintainer struct {
-	smCtx                   context.Context
-	repository              storage.Repository
+	smCtx      context.Context
+	repository storage.Repository
+
 	jobTimeout              time.Duration
-	markOrphansInterval     time.Duration
-	cleanupInterval         time.Duration
 	operationExpirationTime time.Duration
+
+	markOrphansInterval time.Duration
+	cleanupInterval     time.Duration
 }
 
 // NewMaintainer constructs a Maintainer
@@ -43,59 +45,51 @@ func NewMaintainer(smCtx context.Context, repository storage.Repository, options
 		smCtx:                   smCtx,
 		repository:              repository,
 		jobTimeout:              options.JobTimeout,
+		operationExpirationTime: options.ExpirationTime,
 		markOrphansInterval:     options.MarkOrphansInterval,
 		cleanupInterval:         options.CleanupInterval,
-		operationExpirationTime: options.ExpirationTime,
 	}
 }
 
 // Run starts the two recurring jobs responsible for cleaning up operations which are too old
 // and deleting orphan operations
 func (om *Maintainer) Run() {
-	om.cleanUpOldOperations()
+	// TODO: Should all maintainer funcs be run initially?
+	om.cleanupExternalOperations()
+	om.cleanupInternalSuccessfulOperations()
+	om.cleanupInternalFailedOperations()
 	om.markOrphanOperationsFailed()
 
-	go om.processOldOperations()
-	go om.processOrphanOperations()
+	go om.processOperations(om.cleanupExternalOperations, om.cleanupInterval)
+	go om.processOperations(om.cleanupInternalSuccessfulOperations, om.cleanupInterval)
+	go om.processOperations(om.cleanupInternalFailedOperations, 2*om.cleanupInterval)
+	go om.processOperations(om.markOrphanOperationsFailed, om.markOrphansInterval)
 }
 
-// processOldOperations cleans up periodically all operations which are older than some specified time
-func (om *Maintainer) processOldOperations() {
-	ticker := time.NewTicker(om.cleanupInterval)
+// TODO: Consider some kind of Maintainer Func abstraction
+func (om *Maintainer) processOperations(maintainerFunc func(), interval time.Duration) {
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			om.cleanUpOldOperations()
+			maintainerFunc()
 		case <-om.smCtx.Done():
 			ticker.Stop()
-			log.C(om.smCtx).Info("Server is shutting down. Stopping old operations maintainer...")
+			log.C(om.smCtx).Info("Server is shutting down. Stopping operations maintainer...")
 			return
 		}
 	}
 }
 
-// processOrphanOperations periodically checks for operations which are stuck in state IN_PROGRESS and updates their status to FAILED
-func (om *Maintainer) processOrphanOperations() {
-	ticker := time.NewTicker(om.markOrphansInterval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			om.markOrphanOperationsFailed()
-		case <-om.smCtx.Done():
-			ticker.Stop()
-			log.C(om.smCtx).Info("Server is shutting down. Stopping stuck operations maintainer...")
-			return
-		}
-	}
-}
+// TODO: fix (specialize) maintainer func logs
+// TODO: Leave out the last operation for each resource id
 
-func (om *Maintainer) cleanUpOldOperations() {
+// cleanUpExternalOperations cleans up periodically all external operations which are older than some specified time
+func (om *Maintainer) cleanupExternalOperations() {
 	criteria := []query.Criterion{
-		query.ByField(query.EqualsOperator, "state", string(types.FAILED)),
 		query.ByField(query.NotEqualsOperator, "platform_id", types.SMPlatform),
-		query.ByField(query.LessThanOperator, "created_at", util.ToRFCNanoFormat(time.Now().Add(-om.operationExpirationTime))),
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.operationExpirationTime))),
 	}
 
 	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil {
@@ -105,6 +99,39 @@ func (om *Maintainer) cleanUpOldOperations() {
 	log.D().Debug("Successfully cleaned up operations")
 }
 
+// cleanupInternalSuccessfulOperations cleans up periodically all successful internal operations which are older than some specified time
+func (om *Maintainer) cleanupInternalSuccessfulOperations() {
+	criteria := []query.Criterion{
+		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
+		query.ByField(query.EqualsOperator, "state", string(types.SUCCEEDED)),
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.operationExpirationTime))),
+	}
+
+	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil {
+		log.D().Debugf("Failed to cleanup operations: %s", err)
+		return
+	}
+	log.D().Debug("Successfully cleaned up operations")
+}
+
+// cleanupInternalFailedOperations cleans up periodically all failed internal operations which are older than some specified time
+func (om *Maintainer) cleanupInternalFailedOperations() {
+	criteria := []query.Criterion{
+		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
+		query.ByField(query.EqualsOperator, "state", string(types.FAILED)),
+		query.ByField(query.EqualsOperator, "reschedule", "false"),
+		query.ByField(query.EqualsOperator, "deletion_scheduled", "0001-01-01 00:00:00+00"),
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.operationExpirationTime))),
+	}
+
+	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil {
+		log.D().Debugf("Failed to cleanup operations: %s", err)
+		return
+	}
+	log.D().Debug("Successfully cleaned up operations")
+}
+
+// markOrphanOperationsFailed periodically checks for operations which are stuck in state IN_PROGRESS and updates their status to FAILED
 func (om *Maintainer) markOrphanOperationsFailed() {
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),

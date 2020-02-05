@@ -24,11 +24,11 @@ import (
 const (
 	minTimePeriod = time.Nanosecond
 
-	defaultMarkOrphansInterval = 24 * time.Hour
-	defaultJobTimeout          = 7*24*time.Hour - 1*time.Hour
+	defaultJobTimeout     = 7*24*time.Hour - 1*time.Hour
+	defaultExpirationTime = 7 * 24 * time.Hour
 
-	defaultCleanupInterval = 1 * time.Hour
-	defaultExpirationTime  = 7 * 24 * time.Hour
+	defaultMarkOrphansInterval = 24 * time.Hour
+	defaultCleanupInterval     = 24 * time.Hour
 )
 
 // Settings type to be loaded from the environment
