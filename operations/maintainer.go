@@ -152,7 +152,7 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.jobTimeout))),
 		query.ByField(query.GreaterThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.reconciliationOperationTimeout))),
 	}
-	// TODO: consiedr using timeAfter for readdibility
+	// TODO: consider using timeAfter for readibility
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
 	if err != nil {
@@ -168,15 +168,23 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 
 		switch operation.Type {
 		case types.CREATE:
+			object, err := om.repository.Get(om.smCtx, operation.ResourceType, query.ByField(query.EqualsOperator, "id", operation.ResourceID))
+			if err != nil {
+				log.D().Errorf("Failed to fetch resource with ID (%s) for operation with ID (%s): %s", operation.ResourceID, operation.ID, err)
+				return
+			}
+
 			action = func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-				object, err := repository.Create(ctx, result)
+				object, err := repository.Create(ctx, object)
 				return object, util.HandleStorageError(err, operation.ResourceType.String())
 			}
-		case types.UPDATE:
-			action = func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-				object, err := repository.Update(ctx, objFromDB, labelChanges, criteria...)
-				return object, util.HandleStorageError(err, operation.ResourceType.String())
-			}
+			/*
+				case types.UPDATE:
+					action = func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+						object, err := repository.Update(ctx, objFromDB, labelChanges, criteria...)
+						return object, util.HandleStorageError(err, operation.ResourceType.String())
+					}
+			*/
 		case types.DELETE:
 			byID := query.ByField(query.EqualsOperator, "id", operation.ResourceID)
 
