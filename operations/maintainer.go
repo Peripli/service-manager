@@ -45,6 +45,7 @@ type Maintainer struct {
 
 // NewMaintainer constructs a Maintainer
 func NewMaintainer(smCtx context.Context, repository storage.Repository, options *Settings) *Maintainer {
+	// TODO: do we need a waitgroup
 	// TODO: bootstrap scheduler & reconciliationOperationTimeout
 	return &Maintainer{
 		smCtx:                   smCtx,
@@ -60,13 +61,13 @@ func NewMaintainer(smCtx context.Context, repository storage.Repository, options
 // and deleting orphan operations
 func (om *Maintainer) Run() {
 	// TODO: Should all maintainer funcs be run initially?
-	om.cleanupExternalOperations()
-	om.cleanupInternalSuccessfulOperations()
-	om.cleanupInternalFailedOperations()
+	go om.cleanupExternalOperations()
+	go om.cleanupInternalSuccessfulOperations()
+	go om.cleanupInternalFailedOperations()
 
-	om.rescheduleUnprocessedOperations()
-	om.rescheduleOrphanMitigationOperations()
-	om.markOrphanOperationsFailed()
+	go om.rescheduleUnprocessedOperations()
+	go om.rescheduleOrphanMitigationOperations()
+	go om.markOrphanOperationsFailed()
 
 	go om.processOperations(om.cleanupExternalOperations, om.cleanupInterval)
 	go om.processOperations(om.cleanupInternalSuccessfulOperations, om.cleanupInterval)
