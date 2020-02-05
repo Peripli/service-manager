@@ -384,7 +384,7 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		patchLabelsBody["labels"] = patchLabels
 
 		By(fmt.Sprintf("Attempting to patch resource of %s with labels as labels are declared supported", t.API))
-		t.PatchResource(ctx, t.API, obj["id"].(string), t.ResourceType, patchLabels, false)
+		t.PatchResource(ctx, t.StrictlyTenantScoped, t.API, obj["id"].(string), t.ResourceType, patchLabels, false)
 
 		result := ctx.SMWithOAuth.GET(t.API + "/" + obj["id"].(string)).
 			Expect().
@@ -489,7 +489,11 @@ func DescribeDeleteListFor(ctx *common.TestContext, t TestCase) bool {
 		}
 	}
 	verifyDeleteListOpHelper := func(deleteListOpEntry deleteOpEntry, query string) {
-		verifyDeleteListOpHelperWithAuth(deleteListOpEntry, query, ctx.SMWithOAuth)
+		if t.StrictlyTenantScoped {
+			verifyDeleteListOpHelperWithAuth(deleteListOpEntry, query, ctx.SMWithOAuthForTenant)
+		} else {
+			verifyDeleteListOpHelperWithAuth(deleteListOpEntry, query, ctx.SMWithOAuth)
+		}
 	}
 
 	verifyDeleteListOp := func(entry deleteOpEntry) {
