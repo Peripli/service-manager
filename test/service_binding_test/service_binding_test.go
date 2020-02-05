@@ -70,7 +70,8 @@ var _ = DescribeTestsFor(TestCase{
 	},
 	ResourceType:                           types.ServiceBindingType,
 	SupportsAsyncOperations:                true,
-	DisableTenantResources:                 true,
+	DisableTenantResources:                 false,
+	StrictlyTenantScoped:                   true,
 	ResourceBlueprint:                      blueprint,
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
 	ResourcePropertiesToIgnore:             []string{"volume_mounts", "endpoints", "bind_resource", "credentials"},
@@ -277,35 +278,6 @@ var _ = DescribeTestsFor(TestCase{
 						})
 					})
 				})
-
-				When("service binding doesn't contain tenant identifier in OSB context", func() {
-					BeforeEach(func() {
-						createBinding(ctx.SMWithOAuth, false, http.StatusCreated)
-					})
-
-					It("doesn't label instance with tenant identifier", func() {
-						obj := ctx.SMWithOAuth.GET(web.ServiceBindingsURL + "/" + bindingID).Expect().
-							Status(http.StatusOK).JSON().Object()
-
-						objMap := obj.Raw()
-						objLabels, exist := objMap["labels"]
-						if exist {
-							labels := objLabels.(map[string]interface{})
-							_, tenantLabelExists := labels[TenantIdentifier]
-							Expect(tenantLabelExists).To(BeFalse())
-						}
-					})
-
-					It("returns OSB context with tenant as part of the binding", func() {
-						ctx.SMWithOAuth.GET(web.ServiceBindingsURL + "/" + bindingID).Expect().
-							Status(http.StatusOK).
-							JSON().
-							Object().Value("context").Object().Equal(map[string]interface{}{
-							"platform":      types.SMPlatform,
-							"instance_name": instanceName,
-						})
-					})
-				})
 			})
 
 			Describe("POST", func() {
@@ -360,7 +332,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 								It("returns 201", func() {
-									resp := createBinding(ctx.SMWithOAuth, testCase.async, testCase.expectedCreateSuccessStatusCode)
+									resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
 									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 										Category:          types.CREATE,
 										State:             types.SUCCEEDED,
@@ -422,11 +394,12 @@ var _ = DescribeTestsFor(TestCase{
 						Context("instance visibility", func() {
 							When("tenant doesn't have ownership of instance", func() {
 								BeforeEach(func() {
-									createInstance(ctx.SMWithOAuth, false, http.StatusCreated)
+									createInstance(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
 								})
 
 								It("returns 404", func() {
-									createBinding(ctx.SMWithOAuthForTenant, testCase.async, http.StatusNotFound)
+									otherTenantExpect := ctx.NewTenantExpect("other-tenant")
+									createBinding(otherTenantExpect, testCase.async, http.StatusNotFound)
 								})
 							})
 
@@ -984,7 +957,7 @@ var _ = DescribeTestsFor(TestCase{
 						Context("instance ownership", func() {
 							When("tenant doesn't have ownership of binding", func() {
 								It("returns 404", func() {
-									resp := createBinding(ctx.SMWithOAuth, testCase.async, testCase.expectedCreateSuccessStatusCode)
+									resp := createBinding(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
 									bindingID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 										Category:          types.CREATE,
 										State:             types.SUCCEEDED,
@@ -992,15 +965,16 @@ var _ = DescribeTestsFor(TestCase{
 										Reschedulable:     false,
 										DeletionScheduled: false,
 									})
-									verifyBindingExists(ctx.SMWithOAuth, bindingID, true)
+									verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
 
 									expectedCode := http.StatusNotFound
 									if testCase.async {
 										expectedCode = http.StatusAccepted
 									}
-									deleteBinding(ctx.SMWithOAuthForTenant, testCase.async, expectedCode)
+									smWithOtherTenant := ctx.NewTenantExpect("other-tenant")
+									deleteBinding(smWithOtherTenant, testCase.async, expectedCode)
 
-									verifyBindingExists(ctx.SMWithOAuth, bindingID, true)
+									verifyBindingExists(ctx.SMWithOAuthForTenant, bindingID, true)
 
 								})
 							})
@@ -1485,8 +1459,8 @@ var _ = DescribeTestsFor(TestCase{
 
 func blueprint(ctx *TestContext, auth *SMExpect, async bool) Object {
 	_, _, servicePlanID := newServicePlan(ctx, true)
-	EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, "")
-	resp := ctx.SMWithOAuth.POST(web.ServiceInstancesURL).
+	EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, TenantIDValue)
+	resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
 		WithQuery("async", strconv.FormatBool(async)).
 		WithJSON(Object{
 			"name":             "test-service-instance",
@@ -1501,7 +1475,7 @@ func blueprint(ctx *TestContext, auth *SMExpect, async bool) Object {
 		instance = resp.Status(http.StatusCreated).JSON().Object().Raw()
 	}
 
-	resp = ctx.SMWithOAuth.POST(web.ServiceBindingsURL).
+	resp = ctx.SMWithOAuthForTenant.POST(web.ServiceBindingsURL).
 		WithQuery("async", strconv.FormatBool(async)).
 		WithJSON(Object{
 			"name":                "test-service-binding",

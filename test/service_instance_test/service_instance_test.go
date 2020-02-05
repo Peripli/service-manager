@@ -74,7 +74,8 @@ var _ = DescribeTestsFor(TestCase{
 	},
 	ResourceType:                           types.ServiceInstanceType,
 	SupportsAsyncOperations:                true,
-	DisableTenantResources:                 true,
+	DisableTenantResources:                 false,
+	StrictlyTenantScoped:                   true,
 	ResourceBlueprint:                      blueprint,
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
 	ResourcePropertiesToIgnore:             []string{"platform_id"},
@@ -243,47 +244,15 @@ var _ = DescribeTestsFor(TestCase{
 					})
 				})
 
-				When("service instance doesn't contain tenant identifier in OSB context", func() {
-					BeforeEach(func() {
-						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, servicePlanID, "")
-						resp := createInstanceWithAsync(ctx.SMWithOAuth, false, http.StatusCreated)
-						instanceName = resp.JSON().Object().Value("name").String().Raw()
-						Expect(instanceName).ToNot(BeEmpty())
-					})
-
-					It("doesn't label instance with tenant identifier", func() {
-						obj := ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + instanceID).Expect().
-							Status(http.StatusOK).JSON().Object()
-
-						objMap := obj.Raw()
-						objLabels, exist := objMap["labels"]
-						if exist {
-							labels := objLabels.(map[string]interface{})
-							_, tenantLabelExists := labels[TenantIdentifier]
-							Expect(tenantLabelExists).To(BeFalse())
-						}
-					})
-
-					It("returns OSB context with no tenant as part of the instance", func() {
-						ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + instanceID).Expect().
-							Status(http.StatusOK).
-							JSON().
-							Object().Value("context").Object().Equal(map[string]interface{}{
-							"platform":      types.SMPlatform,
-							"instance_name": instanceName,
-						})
-					})
-				})
-
 				When("service instance dashboard_url is not set", func() {
 					BeforeEach(func() {
 						postInstanceRequest["dashboard_url"] = ""
-						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), "")
-						createInstanceWithAsync(ctx.SMWithOAuth, false, http.StatusCreated)
+						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), TenantIDValue)
+						createInstanceWithAsync(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
 					})
 
 					It("doesn't return dashboard_url", func() {
-						ctx.SMWithOAuth.GET(web.ServiceInstancesURL + "/" + instanceID).Expect().
+						ctx.SMWithOAuthForTenant.GET(web.ServiceInstancesURL + "/" + instanceID).Expect().
 							Status(http.StatusOK).JSON().Object().NotContainsKey("dashboard_url")
 					})
 				})
@@ -392,7 +361,7 @@ var _ = DescribeTestsFor(TestCase{
 							Context("which is not service-manager platform", func() {
 								It("should return 400", func() {
 									postInstanceRequest["platform_id"] = "test-platform-id"
-									resp := ctx.SMWithOAuth.POST(web.ServiceInstancesURL).
+									resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).
 										WithJSON(postInstanceRequest).
 										WithQuery("async", testCase.async).
 										Expect().Status(http.StatusBadRequest).JSON().Object()
@@ -404,8 +373,8 @@ var _ = DescribeTestsFor(TestCase{
 							Context("which is service-manager platform", func() {
 								It(fmt.Sprintf("should return %d", testCase.expectedCreateSuccessStatusCode), func() {
 									postInstanceRequest["platform_id"] = types.SMPlatform
-									EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), "")
-									createInstanceWithAsync(ctx.SMWithOAuth, testCase.async, testCase.expectedCreateSuccessStatusCode)
+									EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), TenantIDValue)
+									createInstanceWithAsync(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
 								})
 							})
 						})
@@ -445,11 +414,6 @@ var _ = DescribeTestsFor(TestCase{
 							})
 
 							When("plan has public visibility", func() {
-								It(fmt.Sprintf("for global returns %d", testCase.expectedCreateSuccessStatusCode), func() {
-									EnsurePublicPlanVisibility(ctx.SMRepository, servicePlanID)
-									createInstanceWithAsync(ctx.SMWithOAuth, testCase.async, testCase.expectedCreateSuccessStatusCode)
-								})
-
 								It(fmt.Sprintf("for tenant returns %d", testCase.expectedCreateSuccessStatusCode), func() {
 									EnsurePublicPlanVisibility(ctx.SMRepository, servicePlanID)
 									createInstanceWithAsync(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
@@ -909,7 +873,7 @@ var _ = DescribeTestsFor(TestCase{
 
 				When("instance is missing", func() {
 					It("returns 404", func() {
-						ctx.SMWithOAuth.PATCH(web.ServiceInstancesURL+"/no_such_id").
+						ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL+"/no_such_id").
 							WithJSON(postInstanceRequest).
 							Expect().Status(http.StatusNotFound).
 							JSON().Object().
@@ -931,14 +895,14 @@ var _ = DescribeTestsFor(TestCase{
 
 				When("created_at provided in body", func() {
 					It("should not change created at", func() {
-						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), "")
-						resp := createInstance(ctx.SMWithOAuth, http.StatusAccepted)
+						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), TenantIDValue)
+						resp := createInstance(ctx.SMWithOAuthForTenant, http.StatusAccepted)
 						instance := ExpectSuccessfulAsyncResourceCreation(resp, ctx.SMWithOAuth, web.ServiceInstancesURL)
 						instanceID := instance["id"].(string)
 
 						createdAt := "2015-01-01T00:00:00Z"
 
-						resp = ctx.SMWithOAuth.PATCH(web.ServiceInstancesURL + "/" + instanceID).
+						resp = ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL + "/" + instanceID).
 							WithJSON(Object{"created_at": createdAt}).
 							Expect().
 							Status(http.StatusAccepted)
@@ -957,8 +921,8 @@ var _ = DescribeTestsFor(TestCase{
 				When("platform_id provided in body", func() {
 					Context("which is not service-manager platform", func() {
 						It("should return 400", func() {
-							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), "")
-							createInstanceWithAsync(ctx.SMWithOAuth, false, http.StatusCreated)
+							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), TenantIDValue)
+							createInstanceWithAsync(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
 
 							resp := ctx.SMWithOAuth.PATCH(web.ServiceInstancesURL + "/" + instanceID).
 								WithJSON(Object{"platform_id": "test-platform-id"}).
@@ -976,12 +940,12 @@ var _ = DescribeTestsFor(TestCase{
 
 					Context("which is service-manager platform", func() {
 						It("should return 200", func() {
-							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), "")
-							resp := createInstance(ctx.SMWithOAuth, http.StatusAccepted)
+							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), TenantIDValue)
+							resp := createInstance(ctx.SMWithOAuthForTenant, http.StatusAccepted)
 							instance := ExpectSuccessfulAsyncResourceCreation(resp, ctx.SMWithOAuth, web.ServiceInstancesURL)
 							instanceID := instance["id"].(string)
 
-							resp = ctx.SMWithOAuth.PATCH(web.ServiceInstancesURL + "/" + instanceID).
+							resp = ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL + "/" + instanceID).
 								WithJSON(Object{"platform_id": types.SMPlatform}).
 								Expect().Status(http.StatusAccepted)
 
@@ -1000,15 +964,15 @@ var _ = DescribeTestsFor(TestCase{
 
 				When("fields are updated one by one", func() {
 					It("returns 200", func() {
-						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), "")
-						resp := createInstance(ctx.SMWithOAuth, http.StatusAccepted)
+						EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), TenantIDValue)
+						resp := createInstance(ctx.SMWithOAuthForTenant, http.StatusAccepted)
 						instance := ExpectSuccessfulAsyncResourceCreation(resp, ctx.SMWithOAuth, web.ServiceInstancesURL)
 						instanceID := instance["id"].(string)
 
 						for _, prop := range []string{"name", "maintenance_info"} {
 							updatedBrokerJSON := Object{}
 							updatedBrokerJSON[prop] = "updated-" + prop
-							resp = ctx.SMWithOAuth.PATCH(web.ServiceInstancesURL + "/" + instanceID).
+							resp = ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL + "/" + instanceID).
 								WithJSON(updatedBrokerJSON).
 								Expect().
 								Status(http.StatusAccepted)
@@ -1057,10 +1021,11 @@ var _ = DescribeTestsFor(TestCase{
 				Context("instance ownership", func() {
 					When("tenant doesn't have ownership of instance", func() {
 						It("returns 404", func() {
-							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), "")
-							createInstanceWithAsync(ctx.SMWithOAuth, false, http.StatusCreated)
+							EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), TenantIDValue)
+							createInstanceWithAsync(ctx.SMWithOAuthForTenant, false, http.StatusCreated)
 
-							ctx.SMWithOAuthForTenant.PATCH(web.ServiceInstancesURL + "/" + instanceID).
+							otherTenantExpect := ctx.NewTenantExpect("other-tenant")
+							otherTenantExpect.PATCH(web.ServiceInstancesURL + "/" + instanceID).
 								WithJSON(Object{"service_plan_id": anotherServicePlanID}).
 								Expect().Status(http.StatusNotFound)
 						})
@@ -1106,8 +1071,8 @@ var _ = DescribeTestsFor(TestCase{
 						Context("instance ownership", func() {
 							When("tenant doesn't have ownership of instance", func() {
 								It("returns 404", func() {
-									EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), "")
-									resp := createInstanceWithAsync(ctx.SMWithOAuth, testCase.async, testCase.expectedCreateSuccessStatusCode)
+									EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, postInstanceRequest["service_plan_id"].(string), TenantIDValue)
+									resp := createInstanceWithAsync(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
 									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
 										Category:          types.CREATE,
 										State:             types.SUCCEEDED,
@@ -1119,7 +1084,8 @@ var _ = DescribeTestsFor(TestCase{
 									if testCase.async {
 										expectedCode = http.StatusAccepted
 									}
-									deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, expectedCode)
+									otherTenantExpect := ctx.NewTenantExpect("other-tenant")
+									deleteInstance(otherTenantExpect, testCase.async, expectedCode)
 								})
 							})
 
@@ -1667,8 +1633,8 @@ func blueprint(ctx *TestContext, auth *SMExpect, async bool) Object {
 	_, _, array := prepareBrokerWithCatalog(ctx, auth)
 	instanceReqBody["service_plan_id"] = array.First().Object().Value("id").String().Raw()
 
-	EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, instanceReqBody["service_plan_id"].(string), "")
-	resp := auth.POST(web.ServiceInstancesURL).WithQuery("async", strconv.FormatBool(async)).WithJSON(instanceReqBody).Expect()
+	EnsurePlanVisibility(ctx.SMRepository, TenantIdentifier, types.SMPlatform, instanceReqBody["service_plan_id"].(string), TenantIDValue)
+	resp := ctx.SMWithOAuthForTenant.POST(web.ServiceInstancesURL).WithQuery("async", strconv.FormatBool(async)).WithJSON(instanceReqBody).Expect()
 
 	var instance map[string]interface{}
 	if async {

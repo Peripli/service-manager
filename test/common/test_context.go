@@ -513,6 +513,19 @@ func (ctx *TestContext) RegisterPlatform() *types.Platform {
 	return RegisterPlatformInSM(platformJSON, ctx.SMWithOAuth, map[string]string{})
 }
 
+func (ctx *TestContext) NewTenantExpect(tenantIdentifier string) *SMExpect {
+	oauthServer := ctx.Servers[OauthServer].(*OAuthServer)
+	accessToken := oauthServer.CreateToken(map[string]interface{}{
+		"cid": "tenancyClient",
+		"zid": tenantIdentifier,
+	})
+	return &SMExpect{
+		Expect: ctx.SM.Builder(func(req *httpexpect.Request) {
+			req.WithHeader("Authorization", "Bearer "+accessToken)
+		}),
+	}
+}
+
 func (ctx *TestContext) CleanupBroker(id string) {
 	broker := ctx.Servers[BrokerServerPrefix+id]
 	ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL + "/" + id).Expect()
@@ -556,15 +569,16 @@ func (ctx *TestContext) CleanupAdditionalResources() {
 	ctx.SMWithOAuth.DELETE(web.ServiceBrokersURL).Expect()
 
 	ctx.CleanupPlatforms()
-	var smServer FakeServer
+	serversToDelete := make([]string, 0)
 	for serverName, server := range ctx.Servers {
-		if serverName == SMServer {
-			smServer = server
-		} else {
+		if serverName != SMServer && serverName != OauthServer {
+			serversToDelete = append(serversToDelete, serverName)
 			server.Close()
 		}
 	}
-	ctx.Servers = map[string]FakeServer{SMServer: smServer}
+	for _, sname := range serversToDelete {
+		delete(ctx.Servers, sname)
+	}
 
 	for _, conn := range ctx.wsConnections {
 		conn.Close()

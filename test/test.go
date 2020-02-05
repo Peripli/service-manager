@@ -82,10 +82,11 @@ type TestCase struct {
 
 	MultitenancySettings   *MultitenancySettings
 	DisableTenantResources bool
+	StrictlyTenantScoped   bool
 
 	ResourceBlueprint                      func(ctx *common.TestContext, smClient *common.SMExpect, async bool) common.Object
 	ResourceWithoutNullableFieldsBlueprint func(ctx *common.TestContext, smClient *common.SMExpect, async bool) common.Object
-	PatchResource                          func(ctx *common.TestContext, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange, async bool)
+	PatchResource                          func(ctx *common.TestContext, tenantScoped bool, apiPath string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange, async bool)
 
 	AdditionalTests func(ctx *common.TestContext)
 }
@@ -99,12 +100,18 @@ func stripObject(obj common.Object, properties ...string) {
 	}
 }
 
-func APIResourcePatch(ctx *common.TestContext, apiPath string, objID string, _ types.ObjectType, patchLabels []*query.LabelChange, async bool) {
+func APIResourcePatch(ctx *common.TestContext, tenantScoped bool, apiPath string, objID string, _ types.ObjectType, patchLabels []*query.LabelChange, async bool) {
 	patchLabelsBody := make(map[string]interface{})
 	patchLabelsBody["labels"] = patchLabels
 
 	By(fmt.Sprintf("Attempting to patch resource of %s with labels as labels are declared supported", apiPath))
-	resp := ctx.SMWithOAuth.PATCH(apiPath+"/"+objID).WithQuery("async", strconv.FormatBool(async)).WithJSON(patchLabelsBody).Expect()
+	var resp *httpexpect.Response
+
+	if tenantScoped {
+		resp = ctx.SMWithOAuthForTenant.PATCH(apiPath+"/"+objID).WithQuery("async", strconv.FormatBool(async)).WithJSON(patchLabelsBody).Expect()
+	} else {
+		resp = ctx.SMWithOAuth.PATCH(apiPath+"/"+objID).WithQuery("async", strconv.FormatBool(async)).WithJSON(patchLabelsBody).Expect()
+	}
 
 	if async {
 		resp = resp.Status(http.StatusAccepted)
@@ -117,7 +124,7 @@ func APIResourcePatch(ctx *common.TestContext, apiPath string, objID string, _ t
 	}
 }
 
-func StorageResourcePatch(ctx *common.TestContext, _ string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange, _ bool) {
+func StorageResourcePatch(ctx *common.TestContext, _ bool, _ string, objID string, resourceType types.ObjectType, patchLabels []*query.LabelChange, _ bool) {
 	byID := query.ByField(query.EqualsOperator, "id", objID)
 	sb, err := ctx.SMRepository.Get(context.Background(), resourceType, byID)
 	if err != nil {
