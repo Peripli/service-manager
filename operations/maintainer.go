@@ -66,7 +66,7 @@ func (om *Maintainer) Run() {
 
 	om.rescheduleUnprocessedOperations()
 	om.rescheduleOrphanMitigationOperations()
-	//om.markOrphanOperationsFailed()
+	om.markOrphanOperationsFailed()
 
 	go om.processOperations(om.cleanupExternalOperations, om.cleanupInterval)
 	go om.processOperations(om.cleanupInternalSuccessfulOperations, om.cleanupInterval)
@@ -74,7 +74,7 @@ func (om *Maintainer) Run() {
 
 	go om.processOperations(om.rescheduleUnprocessedOperations, om.jobTimeout/2)
 	go om.processOperations(om.rescheduleOrphanMitigationOperations, om.jobTimeout/2)
-	//go om.processOperations(om.markOrphanOperationsFailed, om.markOrphansInterval)
+	go om.processOperations(om.markOrphanOperationsFailed, om.markOrphansInterval)
 }
 
 // TODO: Consider some kind of Maintainer Func abstraction
@@ -107,7 +107,7 @@ func (om *Maintainer) cleanupExternalOperations() {
 		log.D().Debugf("Failed to cleanup operations: %s", err)
 		return
 	}
-	log.D().Debug("Successfully cleaned up operations")
+	log.D().Debug("Finished cleaning up external operations")
 }
 
 // cleanupInternalSuccessfulOperations cleans up all successful internal operations which are older than some specified time
@@ -122,7 +122,7 @@ func (om *Maintainer) cleanupInternalSuccessfulOperations() {
 		log.D().Debugf("Failed to cleanup operations: %s", err)
 		return
 	}
-	log.D().Debug("Successfully cleaned up operations")
+	log.D().Debug("Finished cleaning up successful internal operations")
 }
 
 // cleanupInternalFailedOperations cleans up all failed internal operations which are older than some specified time
@@ -139,7 +139,7 @@ func (om *Maintainer) cleanupInternalFailedOperations() {
 		log.D().Debugf("Failed to cleanup operations: %s", err)
 		return
 	}
-	log.D().Debug("Successfully cleaned up operations")
+	log.D().Debug("Finished cleaning up failed internal operations")
 }
 
 // rescheduleUnprocessedOperations reschedules IN_PROGRESS operations which are reschedulable, not scheduled for deletion and no goroutine is processing at the moment
@@ -152,6 +152,7 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.jobTimeout))),
 		query.ByField(query.GreaterThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.reconciliationOperationTimeout))),
 	}
+	// TODO: consiedr using timeAfter for readdibility
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
 	if err != nil {
@@ -228,11 +229,13 @@ func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 	log.D().Debug("Finished rescheduling unprocessed orphan mitigation operations")
 }
 
-// markOrphanOperationsFailed checks for operations which are stuck in state IN_PROGRESS and updates their status to FAILED
+// markOrphanOperationsFailed checks for operations which are stuck in state IN_PROGRESS, updates their status to FAILED and schedules a delete action
 func (om *Maintainer) markOrphanOperationsFailed() {
 	criteria := []query.Criterion{
+		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
-		query.ByField(query.LessThanOperator, "created_at", util.ToRFCNanoFormat(time.Now().Add(-om.jobTimeout))),
+		query.ByField(query.EqualsOperator, "reschedule", "false"),
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.jobTimeout))),
 	}
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
@@ -244,12 +247,24 @@ func (om *Maintainer) markOrphanOperationsFailed() {
 	operations := objectList.(*types.Operations)
 	for i := 0; i < operations.Len(); i++ {
 		operation := operations.ItemAt(i).(*types.Operation)
-		operation.State = types.FAILED
+		operation.DeletionScheduled = time.Now()
 
 		if _, err := om.repository.Update(om.smCtx, operation, query.LabelChanges{}); err != nil {
 			log.D().Debugf("Failed to update orphan operation with ID (%s) state to FAILED: %s", operation.ID, err)
+			continue
+		}
+
+		byID := query.ByField(query.EqualsOperator, "id", operation.ResourceID)
+		action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+			err := repository.Delete(ctx, operation.ResourceType, byID)
+			return nil, util.HandleStorageError(err, operation.ResourceType.String())
+		}
+
+		// TODO: which ctx should we use?
+		if err := om.scheduler.ScheduleAsyncStorageAction(om.smCtx, operation, action); err != nil {
+			log.D().Debugf("Failed to schedule delete action for operation with ID (%s): %s", operation.ID, err)
 		}
 	}
 
-	log.D().Debug("Successfully marked orphan operations as failed")
+	log.D().Debug("Finished marking orphan operations as failed")
 }
