@@ -23,6 +23,7 @@ import (
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 	"golang.org/x/net/context"
+	"sync"
 	"time"
 )
 
@@ -41,19 +42,22 @@ type Maintainer struct {
 
 	markOrphansInterval time.Duration
 	cleanupInterval     time.Duration
+
+	wg *sync.WaitGroup
 }
 
 // NewMaintainer constructs a Maintainer
-func NewMaintainer(smCtx context.Context, repository storage.Repository, options *Settings) *Maintainer {
-	// TODO: do we need a waitgroup
-	// TODO: bootstrap scheduler & reconciliationOperationTimeout
+func NewMaintainer(smCtx context.Context, repository storage.TransactionalRepository, options *Settings, wg *sync.WaitGroup) *Maintainer {
 	return &Maintainer{
-		smCtx:                   smCtx,
-		repository:              repository,
-		jobTimeout:              options.JobTimeout,
-		operationExpirationTime: options.ExpirationTime,
-		markOrphansInterval:     options.MarkOrphansInterval,
-		cleanupInterval:         options.CleanupInterval,
+		smCtx:                          smCtx,
+		repository:                     repository,
+		scheduler:                      NewScheduler(smCtx, repository, options, options.DefaultPoolSize, wg),
+		jobTimeout:                     options.JobTimeout,
+		operationExpirationTime:        options.ExpirationTime,
+		reconciliationOperationTimeout: options.ReconciliationOperationTimeout,
+		markOrphansInterval:            options.MarkOrphansInterval,
+		cleanupInterval:                options.CleanupInterval,
+		wg:                             wg,
 	}
 }
 
@@ -85,7 +89,9 @@ func (om *Maintainer) processOperations(maintainerFunc func(), interval time.Dur
 	for {
 		select {
 		case <-ticker.C:
+			om.wg.Add(1)
 			maintainerFunc()
+			om.wg.Done()
 		case <-om.smCtx.Done():
 			ticker.Stop()
 			log.C(om.smCtx).Info("Server is shutting down. Stopping operations maintainer...")
