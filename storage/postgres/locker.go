@@ -18,8 +18,14 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/log"
 )
+
+const advisoryLockKey = "pg_try_advisory_lock"
+
+var ErrLockAcquisition = errors.New("failed to acquire lock")
 
 type Locker struct {
 	*Storage
@@ -29,32 +35,68 @@ type Locker struct {
 
 // Lock acquires a database lock so that only one process can manipulate the encryption key.
 // Returns an error if the process has already acquired the lock
-func (pl *Locker) Lock(ctx context.Context) error {
-	pl.mutex.Lock()
-	defer pl.mutex.Unlock()
-	if pl.isLocked {
+func (l *Locker) Lock(ctx context.Context) error {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	if l.isLocked {
 		return fmt.Errorf("lock is already acquired")
 	}
-	if _, err := pl.db.ExecContext(ctx, "SELECT pg_try_advisory_lock($1)", pl.AdvisoryIndex); err != nil {
+	if _, err := l.db.ExecContext(ctx, "SELECT pg_advisory_lock($1)", l.AdvisoryIndex); err != nil {
 		return err
 	}
-	pl.isLocked = true
+	l.isLocked = true
+
+	return nil
+}
+
+// Lock acquires a database lock so that only one process can manipulate the encryption key.
+// Returns an error if the process has already acquired the lock
+func (l *Locker) TryLock(ctx context.Context) error {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	if l.isLocked {
+		return fmt.Errorf("lock is already acquired")
+	}
+
+	rows, err := l.db.QueryxContext(ctx, "SELECT pg_try_advisory_lock($1)", l.AdvisoryIndex)
+	if err != nil {
+		return err
+	}
+
+	m := map[string]interface{}{}
+	for rows.Next() {
+		if err = rows.MapScan(m); err != nil {
+			return err
+		}
+	}
+
+	locked, found := m[advisoryLockKey]
+	if !found || locked != true {
+		return ErrLockAcquisition
+	}
+
+	l.isLocked = true
 
 	return nil
 }
 
 // Unlock releases the database lock.
-func (pl *Locker) Unlock(ctx context.Context) error {
-	pl.mutex.Lock()
-	defer pl.mutex.Unlock()
-	if !pl.isLocked {
+func (l *Locker) Unlock(ctx context.Context) error {
+	log.C(ctx).Infof("Attempting to unlock advisory lock with index (%d)", l.AdvisoryIndex)
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	if !l.isLocked {
+		log.C(ctx).Infof("Locker with advisory index (%d) is not locked, so no attempt to unlock it", l.AdvisoryIndex)
 		return nil
 	}
 
-	if _, err := pl.db.ExecContext(ctx, "SELECT pg_advisory_unlock($1)", pl.AdvisoryIndex); err != nil {
+	log.C(ctx).Infof("Executing unlock of locker with advisory index (%d)", l.AdvisoryIndex)
+	if _, err := l.db.ExecContext(ctx, "SELECT pg_advisory_unlock($1)", l.AdvisoryIndex); err != nil {
+		log.C(ctx).Infof("Failed to unlock locker with advisory index (%d)", l.AdvisoryIndex)
 		return err
 	}
-	pl.isLocked = false
+	l.isLocked = false
 
+	log.C(ctx).Infof("Successfully unlocked locker with advisory index (%d)", l.AdvisoryIndex)
 	return nil
 }

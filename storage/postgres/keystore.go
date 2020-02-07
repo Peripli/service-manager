@@ -19,7 +19,6 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"time"
 
 	"github.com/Peripli/service-manager/storage"
@@ -74,42 +73,6 @@ func (s *Safe) RowsToList(rows *sqlx.Rows) (types.ObjectList, error) {
 }
 
 func (s *Safe) LabelEntity() PostgresLabel {
-	return nil
-}
-
-// Lock acquires a database lock so that only one process can manipulate the encryption key.
-// Returns an error if the process has already acquired the lock
-func (s *Storage) Lock(ctx context.Context) error {
-	s.checkOpen()
-
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	if s.isLocked {
-		return fmt.Errorf("lock is already acquired")
-	}
-	if _, err := s.db.ExecContext(ctx, "SELECT pg_advisory_lock($1)", securityLockIndex); err != nil {
-		return err
-	}
-	s.isLocked = true
-
-	return nil
-}
-
-// Unlock releases the database lock.
-func (s *Storage) Unlock(ctx context.Context) error {
-	s.checkOpen()
-
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	if !s.isLocked {
-		return nil
-	}
-
-	if _, err := s.db.ExecContext(ctx, "SELECT pg_advisory_unlock($1)", securityLockIndex); err != nil {
-		return err
-	}
-	s.isLocked = false
-
 	return nil
 }
 

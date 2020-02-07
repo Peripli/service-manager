@@ -22,14 +22,15 @@ type Locker interface {
 	// Lock locks the storage so that only one process can manipulate the encryption key. Returns an error if the process has already acquired the lock
 	Lock(ctx context.Context) error
 
+	// TryLock tries to lock the storage so that only one process can manipulate the encryption key. Returns an error if the process has already acquired the lock
+	TryLock(ctx context.Context) error
+
 	// Unlock releases the acquired lock.
 	Unlock(ctx context.Context) error
 }
 
 // KeyStore interface for encryption key operations
 type KeyStore interface {
-	Locker
-
 	// GetEncryptionKey returns the encryption key from the storage after applying the specified transformation function
 	GetEncryptionKey(ctx context.Context, transformationFunc func(context.Context, []byte, []byte) ([]byte, error)) ([]byte, error)
 

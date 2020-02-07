@@ -14,7 +14,7 @@ websocket:
   ping_timeout: 6000ms
   write_timeout: 6000ms
 log:
-  level: error
+  level: debug
   format: kibana
 storage:
   #  name: sm-postgres

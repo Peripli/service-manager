@@ -121,19 +121,19 @@ func (om *Maintainer) processOperations(functor MaintainerFunctor) {
 		select {
 		case <-ticker.C:
 			func() {
-				log.C(om.smCtx).Info("Attempting to retrieve lock for maintainer func [%s]", functor.name)
-				err := om.operationLockers[functor.name].Lock(om.smCtx)
+				log.C(om.smCtx).Infof("Attempting to retrieve lock for maintainer functor (%s)", functor.name)
+				err := om.operationLockers[functor.name].TryLock(om.smCtx)
 				if err != nil {
-					log.C(om.smCtx).Info("Failed to retrieve lock for maintainer func [%s]: %s", functor.name, err)
+					log.C(om.smCtx).Infof("Failed to retrieve lock for maintainer functor (%s): %s", functor.name, err)
 					return
 				}
 				defer om.operationLockers[functor.name].Unlock(om.smCtx)
-				log.C(om.smCtx).Info("Successfully retrieved lock for maintainer func [%s]", functor.name)
+				log.C(om.smCtx).Infof("Successfully retrieved lock for maintainer functor (%s)", functor.name)
 
 				om.wg.Add(1)
-				log.C(om.smCtx).Info("Starting execution of maintainer func [%s]", functor.name)
+				log.C(om.smCtx).Infof("Starting execution of maintainer functor (%s)", functor.name)
 				functor.execute()
-				log.C(om.smCtx).Info("Finished execution of maintainer func [%s]", functor.name)
+				log.C(om.smCtx).Infof("Finished execution of maintainer functor (%s)", functor.name)
 				om.wg.Done()
 			}()
 		case <-om.smCtx.Done():
@@ -152,6 +152,7 @@ func (om *Maintainer) cleanupExternalOperations() {
 	}
 
 	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil {
+		// TODO: Check if err is not found
 		log.D().Debugf("Failed to cleanup operations: %s", err)
 		return
 	}
