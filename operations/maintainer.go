@@ -109,32 +109,37 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 // and deleting orphan operations
 func (om *Maintainer) Run() {
 	for _, functor := range om.functors {
-		go functor.execute()
-		go om.processOperations(functor)
+		functor := functor
+		maintainerFunc := func() {
+			log.C(om.smCtx).Infof("Attempting to retrieve lock for maintainer functor (%s)", functor.name)
+			err := om.operationLockers[functor.name].TryLock(om.smCtx)
+			if err != nil {
+				log.C(om.smCtx).Infof("Failed to retrieve lock for maintainer functor (%s): %s", functor.name, err)
+				return
+			}
+			defer om.operationLockers[functor.name].Unlock(om.smCtx)
+			log.C(om.smCtx).Infof("Successfully retrieved lock for maintainer functor (%s)", functor.name)
+
+			functor.execute()
+		}
+
+		go maintainerFunc()
+		go om.processOperations(maintainerFunc, functor.name, functor.interval)
 	}
 }
 
-func (om *Maintainer) processOperations(functor MaintainerFunctor) {
-	ticker := time.NewTicker(functor.interval)
+func (om *Maintainer) processOperations(functor func(), functorName string, interval time.Duration) {
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
 			func() {
-				log.C(om.smCtx).Infof("Attempting to retrieve lock for maintainer functor (%s)", functor.name)
-				err := om.operationLockers[functor.name].TryLock(om.smCtx)
-				if err != nil {
-					log.C(om.smCtx).Infof("Failed to retrieve lock for maintainer functor (%s): %s", functor.name, err)
-					return
-				}
-				defer om.operationLockers[functor.name].Unlock(om.smCtx)
-				log.C(om.smCtx).Infof("Successfully retrieved lock for maintainer functor (%s)", functor.name)
-
 				om.wg.Add(1)
-				log.C(om.smCtx).Infof("Starting execution of maintainer functor (%s)", functor.name)
-				functor.execute()
-				log.C(om.smCtx).Infof("Finished execution of maintainer functor (%s)", functor.name)
-				om.wg.Done()
+				defer om.wg.Done()
+				log.C(om.smCtx).Infof("Starting execution of maintainer functor (%s)", functorName)
+				functor()
+				log.C(om.smCtx).Infof("Finished execution of maintainer functor (%s)", functorName)
 			}()
 		case <-om.smCtx.Done():
 			ticker.Stop()
@@ -151,8 +156,7 @@ func (om *Maintainer) cleanupExternalOperations() {
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.ExpirationTime))),
 	}
 
-	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil {
-		// TODO: Check if err is not found
+	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
 		log.D().Debugf("Failed to cleanup operations: %s", err)
 		return
 	}
@@ -167,7 +171,7 @@ func (om *Maintainer) cleanupInternalSuccessfulOperations() {
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.ExpirationTime))),
 	}
 
-	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil {
+	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
 		log.D().Debugf("Failed to cleanup operations: %s", err)
 		return
 	}
@@ -184,7 +188,7 @@ func (om *Maintainer) cleanupInternalFailedOperations() {
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.ExpirationTime))),
 	}
 
-	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil {
+	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil && err != util.ErrNotFoundInStorage {
 		log.D().Debugf("Failed to cleanup operations: %s", err)
 		return
 	}
@@ -242,7 +246,6 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 			}
 		}
 
-		// TODO: which ctx should we use?
 		if err := om.scheduler.ScheduleAsyncStorageAction(om.smCtx, operation, action); err != nil {
 			log.D().Debugf("Failed to reschedule unprocessed operation with ID (%s): %s", operation.ID, err)
 		}

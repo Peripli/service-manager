@@ -18,65 +18,93 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/Peripli/service-manager/pkg/log"
 )
 
-const advisoryLockKey = "pg_try_advisory_lock"
-
 var ErrLockAcquisition = errors.New("failed to acquire lock")
+var ErrUnlockAcquisition = errors.New("failed to unlock")
 
 type Locker struct {
 	*Storage
 	isLocked      bool
 	AdvisoryIndex int
+	lockerCon     *sql.Conn
 }
 
 // Lock acquires a database lock so that only one process can manipulate the encryption key.
 // Returns an error if the process has already acquired the lock
 func (l *Locker) Lock(ctx context.Context) error {
+	log.C(ctx).Infof("Attempting to lock advisory lock with index (%d)", l.AdvisoryIndex)
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
-	if l.isLocked {
+	if l.isLocked || l.lockerCon != nil {
+		log.C(ctx).Infof("Locker with advisory index (%d) is locked, so no attempt to lock it", l.AdvisoryIndex)
 		return fmt.Errorf("lock is already acquired")
 	}
-	if _, err := l.db.ExecContext(ctx, "SELECT pg_advisory_lock($1)", l.AdvisoryIndex); err != nil {
+
+	var err error
+	if l.lockerCon, err = l.db.Conn(ctx); err != nil {
 		return err
 	}
+
+	log.C(ctx).Infof("Executing lock of locker with advisory index (%d)", l.AdvisoryIndex)
+	_, err = l.lockerCon.QueryContext(ctx, "SELECT pg_advisory_lock($1)", l.AdvisoryIndex)
+	if err != nil {
+		l.release()
+		log.C(ctx).Infof("Failed to lock locker with advisory index (%d)", l.AdvisoryIndex)
+		return err
+	}
+
 	l.isLocked = true
 
+	log.C(ctx).Infof("Successfully locked locker with advisory index (%d)", l.AdvisoryIndex)
 	return nil
 }
 
 // Lock acquires a database lock so that only one process can manipulate the encryption key.
 // Returns an error if the process has already acquired the lock
 func (l *Locker) TryLock(ctx context.Context) error {
+	log.C(ctx).Infof("Attempting to try_lock advisory lock with index (%d)", l.AdvisoryIndex)
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
-	if l.isLocked {
-		return fmt.Errorf("lock is already acquired")
+	if l.isLocked || l.lockerCon != nil {
+		log.C(ctx).Infof("Locker with advisory index (%d) is locked, so no attempt to try_lock it", l.AdvisoryIndex)
+		return fmt.Errorf("try_lock is already acquired")
 	}
 
-	rows, err := l.db.QueryxContext(ctx, "SELECT pg_try_advisory_lock($1)", l.AdvisoryIndex)
-	if err != nil {
+	var err error
+	if l.lockerCon, err = l.db.Conn(ctx); err != nil {
 		return err
 	}
 
-	m := map[string]interface{}{}
+	log.C(ctx).Infof("Executing try_lock of locker with advisory index (%d)", l.AdvisoryIndex)
+	rows, err := l.lockerCon.QueryContext(ctx, "SELECT pg_try_advisory_lock($1)", l.AdvisoryIndex)
+	if err != nil {
+		l.release()
+		log.C(ctx).Infof("Failed to try_lock locker with advisory index (%d)", l.AdvisoryIndex)
+		return err
+	}
+
+	var locked bool
 	for rows.Next() {
-		if err = rows.MapScan(m); err != nil {
+		if err = rows.Scan(&locked); err != nil {
+			l.release()
 			return err
 		}
 	}
 
-	locked, found := m[advisoryLockKey]
-	if !found || locked != true {
+	if !locked {
+		l.release()
+		log.C(ctx).Infof("Failed to try_lock locker with advisory index (%d) - either already locked or failed to lock", l.AdvisoryIndex)
 		return ErrLockAcquisition
 	}
 
 	l.isLocked = true
 
+	log.C(ctx).Infof("Successfully try_locked locker with advisory index (%d)", l.AdvisoryIndex)
 	return nil
 }
 
@@ -85,18 +113,38 @@ func (l *Locker) Unlock(ctx context.Context) error {
 	log.C(ctx).Infof("Attempting to unlock advisory lock with index (%d)", l.AdvisoryIndex)
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
-	if !l.isLocked {
+	if !l.isLocked || l.lockerCon == nil {
 		log.C(ctx).Infof("Locker with advisory index (%d) is not locked, so no attempt to unlock it", l.AdvisoryIndex)
 		return nil
 	}
+	defer l.release()
 
 	log.C(ctx).Infof("Executing unlock of locker with advisory index (%d)", l.AdvisoryIndex)
-	if _, err := l.db.ExecContext(ctx, "SELECT pg_advisory_unlock($1)", l.AdvisoryIndex); err != nil {
+	rows, err := l.lockerCon.QueryContext(ctx, "SELECT pg_advisory_unlock($1)", l.AdvisoryIndex)
+	if err != nil {
 		log.C(ctx).Infof("Failed to unlock locker with advisory index (%d)", l.AdvisoryIndex)
 		return err
 	}
+
+	var unlocked bool
+	for rows.Next() {
+		if err = rows.Scan(&unlocked); err != nil {
+			return err
+		}
+	}
+
+	if !unlocked {
+		log.C(ctx).Infof("Failed to unlock locker with advisory index (%d) - either already unlocked or failed to unlock", l.AdvisoryIndex)
+		return ErrUnlockAcquisition
+	}
+
 	l.isLocked = false
 
 	log.C(ctx).Infof("Successfully unlocked locker with advisory index (%d)", l.AdvisoryIndex)
 	return nil
+}
+
+func (l *Locker) release() {
+	l.lockerCon.Close()
+	l.lockerCon = nil
 }
