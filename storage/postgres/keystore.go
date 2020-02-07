@@ -33,6 +33,11 @@ const (
 	SafeTable         = "safe"
 )
 
+// EncryptingLocker builds an encrypting storage.Locker with the pre-defined lock index
+func EncryptingLocker(storage *Storage) storage.Locker {
+	return &Locker{Storage: storage, AdvisoryIndex: securityLockIndex}
+}
+
 // Safe represents a secret entity
 type Safe struct {
 	Secret    []byte    `db:"secret"`

@@ -106,7 +106,7 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	}
 
 	// Decorate the storage with credentials encryption/decryption
-	encryptingDecorator := storage.EncryptingDecorator(ctx, &security.AESEncrypter{}, smStorage)
+	encryptingDecorator := storage.EncryptingDecorator(ctx, &security.AESEncrypter{}, smStorage, postgres.EncryptingLocker(smStorage))
 
 	// Initialize the storage with graceful termination
 	var transactionalRepository storage.TransactionalRepository

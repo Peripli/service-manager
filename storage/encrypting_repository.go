@@ -14,6 +14,9 @@ import (
 	"github.com/Peripli/service-manager/pkg/types"
 )
 
+// LockerCreatorFunc is a function building a storage.Locker with a specific advisory index
+type LockerCreatorFunc func(advisoryIndex int) Locker
+
 // Locker provides basic Lock/Unlock functionality
 type Locker interface {
 	// Lock locks the storage so that only one process can manipulate the encryption key. Returns an error if the process has already acquired the lock
@@ -35,16 +38,16 @@ type KeyStore interface {
 }
 
 // EncryptingDecorator creates a TransactionalRepositoryDecorator that can be used to add encrypting/decrypting logic to a TransactionalRepository
-func EncryptingDecorator(ctx context.Context, encrypter security.Encrypter, keyStore KeyStore) TransactionalRepositoryDecorator {
+func EncryptingDecorator(ctx context.Context, encrypter security.Encrypter, keyStore KeyStore, locker Locker) TransactionalRepositoryDecorator {
 	return func(next TransactionalRepository) (TransactionalRepository, error) {
 		ctx, cancelFunc := context.WithTimeout(ctx, 2*time.Second)
 		defer cancelFunc()
 
-		if err := keyStore.Lock(ctx); err != nil {
+		if err := locker.Lock(ctx); err != nil {
 			return nil, err
 		}
 		defer func() {
-			if err := keyStore.Unlock(ctx); err != nil {
+			if err := locker.Unlock(ctx); err != nil {
 				log.C(ctx).WithError(err).Error("error while unlocking keystore")
 			}
 		}()
