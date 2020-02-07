@@ -155,8 +155,8 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		Settings: *cfg.Storage,
 	}
 
-	postgresLockerCreatorFunc := func(repository storage.TransactionalRepository, advisoryIndex int) storage.Locker {
-		return &postgres.Locker{Storage: repository.(*postgres.Storage), AdvisoryIndex: advisoryIndex}
+	postgresLockerCreatorFunc := func(advisoryIndex int) storage.Locker {
+		return &postgres.Locker{Storage: transactionalRepository.(*postgres.Storage), AdvisoryIndex: advisoryIndex}
 	}
 
 	operationMaintainer := operations.NewMaintainer(ctx, interceptableRepository, postgresLockerCreatorFunc, cfg.Operations, waitGroup)

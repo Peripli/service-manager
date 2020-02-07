@@ -37,7 +37,7 @@ type MaintainerFunctor struct {
 }
 
 // LockerCreatorFunc is a function building a storage.Locker with a specific advisory index
-type LockerCreatorFunc func(repository storage.TransactionalRepository, advisoryIndex int) storage.Locker
+type LockerCreatorFunc func(advisoryIndex int) storage.Locker
 
 // Maintainer ensures that operations old enough are deleted
 // and that no orphan operations are left in the DB due to crashes/restarts of SM
@@ -99,7 +99,7 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 	operationLockers := make(map[string]storage.Locker)
 	advisoryLockStartIndex := initialOperationsLockIndex
 	for _, functor := range maintainer.functors {
-		operationLockers[functor.name] = lockedCreatorFunc(repository, advisoryLockStartIndex)
+		operationLockers[functor.name] = lockedCreatorFunc(advisoryLockStartIndex)
 		advisoryLockStartIndex++
 	}
 
