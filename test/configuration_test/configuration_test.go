@@ -84,7 +84,7 @@ var _ = Describe("Service Manager Config API", func() {
 					"label_key": "tenant"
 				},
 				"operations": {
-					"cleanup_interval": "1h0m0s",
+					"cleanup_interval": "24h0m0s",
 					"default_pool_size": 20,
 					"job_timeout": "167h0m0s",
 					"mark_orphans_interval": "24h0m0s",

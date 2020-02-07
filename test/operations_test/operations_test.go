@@ -291,7 +291,7 @@ var _ = Describe("Operations", func() {
 		})
 
 		When("Specified job timeout passes", func() {
-			It("Marks orphans as failed operations", func() {
+			FIt("Marks orphans as failed operations", func() {
 				operation := &types.Operation{
 					Base: types.Base{
 						ID:        defaultOperationID,
@@ -303,6 +303,7 @@ var _ = Describe("Operations", func() {
 					State:         types.IN_PROGRESS,
 					ResourceID:    "test-resource-id",
 					ResourceType:  web.ServiceBrokersURL,
+					PlatformID:    types.SMPlatform,
 					CorrelationID: "test-correlation-id",
 				}
 

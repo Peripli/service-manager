@@ -82,7 +82,6 @@ func (om *Maintainer) Run() {
 	go om.processOperations(om.markOrphanOperationsFailed, om.markOrphansInterval)
 }
 
-// TODO: Consider some kind of Maintainer Func abstraction
 func (om *Maintainer) processOperations(maintainerFunc func(), interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -99,9 +98,6 @@ func (om *Maintainer) processOperations(maintainerFunc func(), interval time.Dur
 		}
 	}
 }
-
-// TODO: fix (specialize) maintainer func logs
-// TODO: Leave out the last operation for each resource id
 
 // cleanUpExternalOperations cleans up periodically all external operations which are older than some specified time
 func (om *Maintainer) cleanupExternalOperations() {
@@ -185,12 +181,12 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 				object, err := repository.Create(ctx, object)
 				return object, util.HandleStorageError(err, operation.ResourceType.String())
 			}
-			/*
-				case types.UPDATE:
-					action = func(ctx context.Context, repository storage.Repository) (types.Object, error) {
-						object, err := repository.Update(ctx, objFromDB, labelChanges, criteria...)
-						return object, util.HandleStorageError(err, operation.ResourceType.String())
-					}
+			/* TODO: Uncomment and adapt once update flow is enabled
+			case types.UPDATE:
+				action = func(ctx context.Context, repository storage.Repository) (types.Object, error) {
+					object, err := repository.Update(ctx, objFromDB, labelChanges, criteria...)
+					return object, util.HandleStorageError(err, operation.ResourceType.String())
+				}
 			*/
 		case types.DELETE:
 			byID := query.ByField(query.EqualsOperator, "id", operation.ResourceID)
@@ -235,7 +231,6 @@ func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 			return nil, util.HandleStorageError(err, operation.ResourceType.String())
 		}
 
-		// TODO: which ctx should we use?
 		if err := om.scheduler.ScheduleAsyncStorageAction(om.smCtx, operation, action); err != nil {
 			log.D().Debugf("Failed to reschedule unprocessed orphan mitigation operation with ID (%s): %s", operation.ID, err)
 		}
@@ -275,7 +270,6 @@ func (om *Maintainer) markOrphanOperationsFailed() {
 			return nil, util.HandleStorageError(err, operation.ResourceType.String())
 		}
 
-		// TODO: which ctx should we use?
 		if err := om.scheduler.ScheduleAsyncStorageAction(om.smCtx, operation, action); err != nil {
 			log.D().Debugf("Failed to schedule delete action for operation with ID (%s): %s", operation.ID, err)
 		}
