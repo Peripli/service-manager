@@ -103,6 +103,8 @@ func NewMaintainer(smCtx context.Context, repository storage.TransactionalReposi
 		advisoryLockStartIndex++
 	}
 
+	maintainer.operationLockers = operationLockers
+
 	return maintainer
 }
 
