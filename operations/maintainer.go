@@ -121,15 +121,19 @@ func (om *Maintainer) processOperations(functor MaintainerFunctor) {
 		select {
 		case <-ticker.C:
 			func() {
+				log.C(om.smCtx).Info("Attempting to retrieve lock for maintainer func [%s]", functor.name)
 				err := om.operationLockers[functor.name].Lock(om.smCtx)
 				if err != nil {
-					log.C(om.smCtx).Info("logs")
+					log.C(om.smCtx).Info("Failed to retrieve lock for maintainer func [%s]: %s", functor.name, err)
 					return
 				}
 				defer om.operationLockers[functor.name].Unlock(om.smCtx)
+				log.C(om.smCtx).Info("Successfully retrieved lock for maintainer func [%s]", functor.name)
 
 				om.wg.Add(1)
+				log.C(om.smCtx).Info("Starting execution of maintainer func [%s]", functor.name)
 				functor.execute()
+				log.C(om.smCtx).Info("Finished execution of maintainer func [%s]", functor.name)
 				om.wg.Done()
 			}()
 		case <-om.smCtx.Done():
