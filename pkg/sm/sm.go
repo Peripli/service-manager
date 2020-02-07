@@ -155,6 +155,10 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 		Settings: *cfg.Storage,
 	}
 
+	postgresLockerCreatorFunc := func(repository storage.TransactionalRepository, advisoryIndex int) storage.Locker {
+		return &postgres.Locker{Storage: repository.(*postgres.Storage), AdvisoryIndex: advisoryIndex}
+	}
+
 	operationMaintainer := operations.NewMaintainer(ctx, interceptableRepository, cfg.Operations, waitGroup)
 	osbClientProvider := osb.NewBrokerClientProvider(cfg.HTTPClient.SkipSSLValidation, int(cfg.HTTPClient.ResponseHeaderTimeout.Seconds()))
 

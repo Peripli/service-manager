@@ -27,7 +27,17 @@ import (
 	"time"
 )
 
-type ActionFunc func(ctx context.Context, repository storage.Repository) (types.Object, error)
+const initialOperationsLockIndex = 200
+
+// MaintainerFunctor represents a named maintainer function which runs over a pre-defined period
+type MaintainerFunctor struct {
+	name     string
+	interval time.Duration
+	execute  func()
+}
+
+// LockerCreatorFunc is a function building a storage.Locker with a specific advisory index
+type LockerCreatorFunc func(repository storage.TransactionalRepository, advisoryIndex int) storage.Locker
 
 // Maintainer ensures that operations old enough are deleted
 // and that no orphan operations are left in the DB due to crashes/restarts of SM
@@ -36,61 +46,93 @@ type Maintainer struct {
 	repository storage.Repository
 	scheduler  *Scheduler
 
-	jobTimeout                     time.Duration
-	operationExpirationTime        time.Duration
-	reconciliationOperationTimeout time.Duration
+	settings *Settings
+	wg       *sync.WaitGroup
 
-	markOrphansInterval time.Duration
-	cleanupInterval     time.Duration
-
-	wg *sync.WaitGroup
+	functors         []MaintainerFunctor
+	operationLockers map[string]storage.Locker
 }
 
 // NewMaintainer constructs a Maintainer
-func NewMaintainer(smCtx context.Context, repository storage.TransactionalRepository, options *Settings, wg *sync.WaitGroup) *Maintainer {
-	return &Maintainer{
-		smCtx:                          smCtx,
-		repository:                     repository,
-		scheduler:                      NewScheduler(smCtx, repository, options, options.DefaultPoolSize, wg),
-		jobTimeout:                     options.JobTimeout,
-		operationExpirationTime:        options.ExpirationTime,
-		reconciliationOperationTimeout: options.ReconciliationOperationTimeout,
-		markOrphansInterval:            options.MarkOrphansInterval,
-		cleanupInterval:                options.CleanupInterval,
-		wg:                             wg,
+func NewMaintainer(smCtx context.Context, repository storage.TransactionalRepository, lockedCreatorFunc LockerCreatorFunc, options *Settings, wg *sync.WaitGroup) *Maintainer {
+	maintainer := &Maintainer{
+		smCtx:      smCtx,
+		repository: repository,
+		scheduler:  NewScheduler(smCtx, repository, options, options.DefaultPoolSize, wg),
+		settings:   options,
+		wg:         wg,
 	}
+
+	maintainer.functors = []MaintainerFunctor{
+		{
+			name:     "cleanupExternalOperations",
+			execute:  maintainer.cleanupExternalOperations,
+			interval: options.CleanupInterval,
+		},
+		{
+			name:     "cleanupInternalSuccessfulOperations",
+			execute:  maintainer.cleanupInternalSuccessfulOperations,
+			interval: options.CleanupInterval,
+		},
+		{
+			name:     "cleanupInternalFailedOperations",
+			execute:  maintainer.cleanupInternalFailedOperations,
+			interval: 2 * options.CleanupInterval,
+		},
+		{
+			name:     "rescheduleUnprocessedOperations",
+			execute:  maintainer.rescheduleUnprocessedOperations,
+			interval: options.JobTimeout / 2,
+		},
+		{
+			name:     "rescheduleOrphanMitigationOperations",
+			execute:  maintainer.rescheduleOrphanMitigationOperations,
+			interval: options.JobTimeout / 2,
+		},
+		{
+			name:     "markOrphanOperationsFailed",
+			execute:  maintainer.markOrphanOperationsFailed,
+			interval: options.MarkOrphansInterval,
+		},
+	}
+
+	operationLockers := make(map[string]storage.Locker)
+	advisoryLockStartIndex := initialOperationsLockIndex
+	for _, functor := range maintainer.functors {
+		operationLockers[functor.name] = lockedCreatorFunc(repository, advisoryLockStartIndex)
+		advisoryLockStartIndex++
+	}
+
+	return maintainer
 }
 
 // Run starts the two recurring jobs responsible for cleaning up operations which are too old
 // and deleting orphan operations
 func (om *Maintainer) Run() {
-	// TODO: Should all maintainer funcs be run initially?
-	go om.cleanupExternalOperations()
-	go om.cleanupInternalSuccessfulOperations()
-	go om.cleanupInternalFailedOperations()
-
-	go om.rescheduleUnprocessedOperations()
-	go om.rescheduleOrphanMitigationOperations()
-	go om.markOrphanOperationsFailed()
-
-	go om.processOperations(om.cleanupExternalOperations, om.cleanupInterval)
-	go om.processOperations(om.cleanupInternalSuccessfulOperations, om.cleanupInterval)
-	go om.processOperations(om.cleanupInternalFailedOperations, 2*om.cleanupInterval)
-
-	go om.processOperations(om.rescheduleUnprocessedOperations, om.jobTimeout/2)
-	go om.processOperations(om.rescheduleOrphanMitigationOperations, om.jobTimeout/2)
-	go om.processOperations(om.markOrphanOperationsFailed, om.markOrphansInterval)
+	for _, functor := range om.functors {
+		go functor.execute()
+		go om.processOperations(functor)
+	}
 }
 
-func (om *Maintainer) processOperations(maintainerFunc func(), interval time.Duration) {
-	ticker := time.NewTicker(interval)
+func (om *Maintainer) processOperations(functor MaintainerFunctor) {
+	ticker := time.NewTicker(functor.interval)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			om.wg.Add(1)
-			maintainerFunc()
-			om.wg.Done()
+			func() {
+				err := om.operationLockers[functor.name].Lock(om.smCtx)
+				if err != nil {
+					log.C(om.smCtx).Info("logs")
+					return
+				}
+				defer om.operationLockers[functor.name].Unlock(om.smCtx)
+
+				om.wg.Add(1)
+				functor.execute()
+				om.wg.Done()
+			}()
 		case <-om.smCtx.Done():
 			ticker.Stop()
 			log.C(om.smCtx).Info("Server is shutting down. Stopping operations maintainer...")
@@ -103,7 +145,7 @@ func (om *Maintainer) processOperations(maintainerFunc func(), interval time.Dur
 func (om *Maintainer) cleanupExternalOperations() {
 	criteria := []query.Criterion{
 		query.ByField(query.NotEqualsOperator, "platform_id", types.SMPlatform),
-		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.operationExpirationTime))),
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.ExpirationTime))),
 	}
 
 	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil {
@@ -118,7 +160,7 @@ func (om *Maintainer) cleanupInternalSuccessfulOperations() {
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOperator, "state", string(types.SUCCEEDED)),
-		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.operationExpirationTime))),
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.ExpirationTime))),
 	}
 
 	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil {
@@ -135,7 +177,7 @@ func (om *Maintainer) cleanupInternalFailedOperations() {
 		query.ByField(query.EqualsOperator, "state", string(types.FAILED)),
 		query.ByField(query.EqualsOperator, "reschedule", "false"),
 		query.ByField(query.EqualsOperator, "deletion_scheduled", "0001-01-01 00:00:00+00"),
-		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.operationExpirationTime))),
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.ExpirationTime))),
 	}
 
 	if err := om.repository.Delete(om.smCtx, types.OperationType, criteria...); err != nil {
@@ -152,8 +194,8 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 		query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
 		query.ByField(query.EqualsOperator, "reschedule", "true"),
 		query.ByField(query.EqualsOperator, "deletion_scheduled", "0001-01-01 00:00:00+00"),
-		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.jobTimeout))),
-		query.ByField(query.GreaterThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.reconciliationOperationTimeout))),
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.JobTimeout))),
+		query.ByField(query.GreaterThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.ReconciliationOperationTimeout))),
 	}
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
@@ -210,8 +252,8 @@ func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.NotEqualsOperator, "deletion_scheduled", "0001-01-01 00:00:00+00"),
-		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.jobTimeout))),
-		query.ByField(query.GreaterThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.reconciliationOperationTimeout))),
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.JobTimeout))),
+		query.ByField(query.GreaterThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.ReconciliationOperationTimeout))),
 	}
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
@@ -244,7 +286,7 @@ func (om *Maintainer) markOrphanOperationsFailed() {
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
 		query.ByField(query.EqualsOperator, "reschedule", "false"),
-		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.jobTimeout))),
+		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.JobTimeout))),
 	}
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)

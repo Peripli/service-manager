@@ -291,7 +291,7 @@ var _ = Describe("Operations", func() {
 		})
 
 		When("Specified job timeout passes", func() {
-			FIt("Marks orphans as failed operations", func() {
+			It("Marks orphans as failed operations", func() {
 				operation := &types.Operation{
 					Base: types.Base{
 						ID:        defaultOperationID,
