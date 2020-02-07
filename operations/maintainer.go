@@ -155,7 +155,6 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.jobTimeout))),
 		query.ByField(query.GreaterThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.reconciliationOperationTimeout))),
 	}
-	// TODO: consider using timeAfter for readibility
 
 	objectList, err := om.repository.List(om.smCtx, types.OperationType, criteria...)
 	if err != nil {
