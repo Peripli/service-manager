@@ -34,6 +34,7 @@ type Operation struct {
 	State             string             `db:"state"`
 	ResourceID        string             `db:"resource_id"`
 	ResourceType      string             `db:"resource_type"`
+	PlatformID        string             `db:"platform_id"`
 	Errors            sqlxtypes.JSONText `db:"errors"`
 	CorrelationID     sql.NullString     `db:"correlation_id"`
 	ExternalID        sql.NullString     `db:"external_id"`
@@ -55,6 +56,7 @@ func (o *Operation) ToObject() types.Object {
 		State:             types.OperationState(o.State),
 		ResourceID:        o.ResourceID,
 		ResourceType:      types.ObjectType(o.ResourceType),
+		PlatformID:        o.PlatformID,
 		Errors:            getJSONRawMessage(o.Errors),
 		CorrelationID:     o.CorrelationID.String,
 		ExternalID:        o.ExternalID.String,
@@ -82,6 +84,7 @@ func (*Operation) FromObject(object types.Object) (storage.Entity, bool) {
 		State:             string(operation.State),
 		ResourceID:        operation.ResourceID,
 		ResourceType:      operation.ResourceType.String(),
+		PlatformID:        operation.PlatformID,
 		Errors:            getJSONText(operation.Errors),
 		CorrelationID:     toNullString(operation.CorrelationID),
 		ExternalID:        toNullString(operation.ExternalID),

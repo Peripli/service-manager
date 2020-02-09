@@ -204,6 +204,17 @@ func New(ctx context.Context, cancel context.CancelFunc, e env.Environment, cfg 
 	}
 
 	smb.
+		WithCreateAroundTxInterceptorProvider(types.ServiceInstanceType, &interceptors.UniqueInstanceNameCreateInterceptorProvider{
+			TenantIdentifier: cfg.Multitenancy.LabelKey,
+			Repository:       interceptableRepository,
+		}).Register().
+		WithUpdateAroundTxInterceptorProvider(types.ServiceInstanceType, &interceptors.UniqueInstanceNameUpdateInterceptorProvider{
+			TenantIdentifier: cfg.Multitenancy.LabelKey,
+			Repository:       interceptableRepository,
+		}).Register().
+		WithCreateAroundTxInterceptorProvider(types.ServiceBindingType, &interceptors.UniqueBindingNameCreateInterceptorProvider{
+			Repository: interceptableRepository,
+		}).Register().
 		WithCreateAroundTxInterceptorProvider(types.ServiceInstanceType, &interceptors.ServiceInstanceCreateInterceptorProvider{
 			BaseSMAAPInterceptorProvider: baseSMAAPInterceptorProvider,
 		}).Register().

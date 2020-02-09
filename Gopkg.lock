@@ -43,7 +43,7 @@
   name = "github.com/antlr/antlr4"
   packages = ["runtime/Go/antlr"]
   pruneopts = "UT"
-  revision = "d569f917954406e599d780c009224aa14f1920de"
+  revision = "7a3f40bc341ddfb463d6e0aa1a6265064d020cb6"
   version = "4.8"
 
 [[projects]]
@@ -256,7 +256,7 @@
   revision = "2ba0fc60eb4a54030f3a6d73ff0a047349c7eeca"
 
 [[projects]]
-  digest = "1:60a4c716301192a7be42f363c41b2b1fab64ae80d9db4453c702b13b05ccddeb"
+  digest = "1:cb7edefacdcbfd95b7611c11b3b027404fa39a66fdc91f6366e1811cbdb5cd3e"
   name = "github.com/klauspost/compress"
   packages = [
     "flate",
@@ -264,8 +264,8 @@
     "zlib",
   ]
   pruneopts = "UT"
-  revision = "f61bac3a179b270c811148ce2a1f819dfc82825f"
-  version = "v1.9.7"
+  revision = "459b83aadb42b806aed42f0f4b3240c8834e0cc1"
+  version = "v1.9.8"
 
 [[projects]]
   digest = "1:31e761d97c76151dde79e9d28964a812c46efc5baee4085b86f68f0c654450de"
@@ -475,12 +475,12 @@
   version = "v1.4.0"
 
 [[projects]]
-  digest = "1:719b772d0c56bbf1acd3a748f88b9d02ff6da543994b5d7e1adf052eb5b693a1"
+  digest = "1:fcea9aca14ce388baeb3afd42bc3302089393f78f9531212aed88d60a134a921"
   name = "github.com/tidwall/gjson"
   packages = ["."]
   pruneopts = "UT"
-  revision = "5c2e4b382486589dad7478130a364ee2fa6a068b"
-  version = "v1.3.5"
+  revision = "d10932a0d0b5f1618759b6259b05f7cb7bea0c25"
+  version = "v1.4.0"
 
 [[projects]]
   digest = "1:8453ddbed197809ee8ca28b06bd04e127bec9912deb4ba451fea7a1eca578328"
@@ -617,11 +617,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:e13350b7207ecc34977340d53522e0335dd36ed86ca7c346a36d2e88eb0fadfc"
+  digest = "1:8a44970c7e8c0a1c8646af14605c1ffd31374074d68101c2e11d7761df12c9d1"
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "UT"
-  revision = "59e60aa80a0c64fa4b088976ee16ad7f04252c25"
+  revision = "e047566fdf82409bf7a52212cf71df83ea2772fb"
 
 [[projects]]
   digest = "1:28deae5fe892797ff37a317b5bcda96d11d1c90dadd89f1337651df3bc4c586e"
@@ -706,12 +706,12 @@
   revision = "dd632973f1e7218eb1089048e0798ec9ae7dceb8"
 
 [[projects]]
-  digest = "1:b75b3deb2bce8bc079e16bb2aecfe01eb80098f5650f9e93e5643ca8b7b73737"
+  digest = "1:55b110c99c5fdc4f14930747326acce56b52cfce60b24b1c03ef686ac0e46bb1"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
   pruneopts = "UT"
-  revision = "1f64d6156d11335c3f22d9330b0ad14fc1e789ce"
-  version = "v2.2.7"
+  revision = "53403b58ad1b561927d19068c655246f2db79d48"
+  version = "v2.2.8"
 
 [solve-meta]
   analyzer-name = "dep"

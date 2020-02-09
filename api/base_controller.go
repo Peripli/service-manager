@@ -190,6 +190,7 @@ func (c *BaseController) CreateObject(r *web.Request) (*web.Response, error) {
 		State:         types.IN_PROGRESS,
 		ResourceID:    result.GetID(),
 		ResourceType:  c.objectType,
+		PlatformID:    types.SMPlatform,
 		CorrelationID: log.CorrelationIDFromContext(ctx),
 	}
 
@@ -274,6 +275,7 @@ func (c *BaseController) DeleteSingleObject(r *web.Request) (*web.Response, erro
 		State:         types.IN_PROGRESS,
 		ResourceID:    objectID,
 		ResourceType:  c.objectType,
+		PlatformID:    types.SMPlatform,
 		CorrelationID: log.CorrelationIDFromContext(ctx),
 	}
 
@@ -466,6 +468,7 @@ func (c *BaseController) PatchObject(r *web.Request) (*web.Response, error) {
 		State:         types.IN_PROGRESS,
 		ResourceID:    objFromDB.GetID(),
 		ResourceType:  c.objectType,
+		PlatformID:    types.SMPlatform,
 		CorrelationID: log.CorrelationIDFromContext(ctx),
 	}
 

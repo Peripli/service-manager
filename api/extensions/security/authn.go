@@ -53,7 +53,9 @@ func Register(ctx context.Context, cfg *config.Settings, smb *sm.ServiceManagerB
 		web.NotificationsURL+"/**",
 		web.ServiceInstancesURL+"/**",
 		web.ServiceBindingsURL+"/**",
-		web.ConfigURL+"/**").
+		web.ConfigURL+"/**",
+		web.ProfileURL+"/**",
+	).
 		Method(http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete).
 		WithAuthentication(bearerAuthenticator).Required()
 
