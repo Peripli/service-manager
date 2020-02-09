@@ -144,7 +144,10 @@ func (i *ServiceBindingInterceptor) AroundTxCreate(f storage.InterceptCreateArou
 
 		var bindResponse *osbc.BindResponse
 		if !operation.Reschedule {
-			bindRequest := i.prepareBindRequest(instance, binding, service.CatalogID, plan.CatalogID, service.BindingsRetrievable)
+			bindRequest, err := i.prepareBindRequest(instance, binding, service.CatalogID, plan.CatalogID, service.BindingsRetrievable)
+			if err != nil {
+				return nil, fmt.Errorf("failed to prepare bind request: %s", err)
+			}
 			contextBytes, err := json.Marshal(bindRequest.Context)
 			if err != nil {
 				return nil, fmt.Errorf("failed to marshal OSB context %+v: %s", bindRequest.Context, err)
@@ -370,7 +373,31 @@ func getInstanceByID(ctx context.Context, instanceID string, repository storage.
 	return instanceObject.(*types.ServiceInstance), nil
 }
 
-func (i *ServiceBindingInterceptor) prepareBindRequest(instance *types.ServiceInstance, binding *types.ServiceBinding, serviceCatalogID, planCatalogID string, bindingRetrievable bool) *osbc.BindRequest {
+func (i *ServiceBindingInterceptor) prepareBindRequest(instance *types.ServiceInstance, binding *types.ServiceBinding, serviceCatalogID, planCatalogID string, bindingRetrievable bool) (*osbc.BindRequest, error) {
+	context := make(map[string]interface{})
+	if len(instance.Context) != 0 {
+		if err := json.Unmarshal(instance.Context, &context); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal already present OSB context: %s", err)
+		}
+	} else {
+		context = map[string]interface{}{
+			"platform":      types.SMPlatform,
+			"instance_name": instance.Name,
+		}
+
+		if len(i.tenantKey) != 0 {
+			if tenantValue, ok := instance.GetLabels()[i.tenantKey]; ok {
+				context[i.tenantKey] = tenantValue[0]
+			}
+		}
+
+		contextBytes, err := json.Marshal(context)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal OSB context %+v: %s", context, err)
+		}
+		instance.Context = contextBytes
+	}
+
 	bindRequest := &osbc.BindRequest{
 		BindingID:         binding.ID,
 		InstanceID:        instance.ID,
@@ -378,20 +405,12 @@ func (i *ServiceBindingInterceptor) prepareBindRequest(instance *types.ServiceIn
 		ServiceID:         serviceCatalogID,
 		PlanID:            planCatalogID,
 		Parameters:        binding.Parameters,
-		Context: map[string]interface{}{
-			"platform":      types.SMPlatform,
-			"instance_name": instance.Name,
-		},
+		Context:           context,
 		//TODO no OI for SM platform yet
 		OriginatingIdentity: nil,
 	}
-	if len(i.tenantKey) != 0 {
-		if tenantValue, ok := binding.GetLabels()[i.tenantKey]; ok && len(bindRequest.Context) == 0 {
-			bindRequest.Context[i.tenantKey] = tenantValue[0]
-		}
-	}
 
-	return bindRequest
+	return bindRequest, nil
 }
 
 func prepareUnbindRequest(instance *types.ServiceInstance, binding *types.ServiceBinding, serviceCatalogID, planCatalogID string) *osbc.UnbindRequest {
