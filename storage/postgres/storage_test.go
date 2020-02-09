@@ -18,6 +18,7 @@ package postgres
 
 import (
 	"context"
+
 	"github.com/Peripli/service-manager/storage"
 
 	. "github.com/onsi/ginkgo"
@@ -26,22 +27,6 @@ import (
 
 var _ = Describe("Postgres Storage", func() {
 	pgStorage := &Storage{}
-
-	Describe("Lock", func() {
-		Context("Called with uninitialized db", func() {
-			It("Should panic", func() {
-				Expect(func() { pgStorage.Lock(context.TODO()) }).To(Panic())
-			})
-		})
-	})
-
-	Context("Unlock", func() {
-		Context("Called with uninitialized db", func() {
-			It("Should panic", func() {
-				Expect(func() { pgStorage.Unlock(context.TODO()) }).To(Panic())
-			})
-		})
-	})
 
 	Context("GetEncryptionKey", func() {
 		Context("Called with uninitialized db", func() {

@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
 	"github.com/Peripli/service-manager/pkg/log"
 )
 
@@ -51,12 +52,13 @@ func (l *Locker) Lock(ctx context.Context) error {
 	}
 
 	log.C(ctx).Infof("Executing lock of locker with advisory index (%d)", l.AdvisoryIndex)
-	_, err = l.lockerCon.QueryContext(ctx, "SELECT pg_advisory_lock($1)", l.AdvisoryIndex)
+	rows, err := l.lockerCon.QueryContext(ctx, "SELECT pg_advisory_lock($1)", l.AdvisoryIndex)
 	if err != nil {
 		l.release()
 		log.C(ctx).Infof("Failed to lock locker with advisory index (%d)", l.AdvisoryIndex)
 		return err
 	}
+	defer rows.Close()
 
 	l.isLocked = true
 
@@ -87,6 +89,7 @@ func (l *Locker) TryLock(ctx context.Context) error {
 		log.C(ctx).Infof("Failed to try_lock locker with advisory index (%d)", l.AdvisoryIndex)
 		return err
 	}
+	defer rows.Close()
 
 	var locked bool
 	for rows.Next() {
@@ -125,6 +128,7 @@ func (l *Locker) Unlock(ctx context.Context) error {
 		log.C(ctx).Infof("Failed to unlock locker with advisory index (%d)", l.AdvisoryIndex)
 		return err
 	}
+	defer rows.Close()
 
 	var unlocked bool
 	for rows.Next() {
