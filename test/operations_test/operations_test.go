@@ -198,6 +198,7 @@ var _ = Describe("Operations", func() {
 				e.Set("operations.mark_orphans_interval", jobTimeout)
 				e.Set("operations.cleanup_interval", cleanupInterval)
 				e.Set("operations.expiration_time", operationExpiration)
+				e.Set("operations.reconciliation_operation_timeout", 9999*time.Hour)
 			}
 		}
 
@@ -211,6 +212,61 @@ var _ = Describe("Operations", func() {
 			postHook := postHookWithOperationsConfig()
 			ctxBuilder = common.NewTestContextBuilderWithSecurity().WithEnvPostExtensions(postHook)
 			ctx = ctxBuilder.Build()
+		})
+
+		Context("Staled operations", func() {
+			BeforeEach(func() {
+				resource := &types.Platform{
+					Base: types.Base{
+						ID:        "resource_id",
+						CreatedAt: time.Now(),
+						UpdatedAt: time.Now(),
+						Labels:    map[string][]string{},
+						Ready:     false,
+					},
+					Type: "cloudfoundry",
+					Name: "platform-name",
+					Credentials: &types.Credentials{
+						Basic: &types.Basic{
+							Username: "",
+							Password: "",
+						},
+					},
+					Active: false,
+				}
+				object, err := ctx.SMRepository.Create(context.Background(), resource)
+				Expect(err).To(BeNil())
+				Expect(object).To(Not(BeNil()))
+
+				operation := &types.Operation{
+					Base: types.Base{
+						ID:        defaultOperationID,
+						UpdatedAt: time.Now().Add(-time.Hour),
+						Labels:    make(map[string][]string),
+						Ready:     false,
+					},
+					Type:          types.CREATE,
+					Reschedule:    true,
+					State:         types.IN_PROGRESS,
+					ResourceID:    resource.GetID(),
+					ResourceType:  resource.GetType(),
+					PlatformID:    types.SMPlatform,
+					CorrelationID: "test-correlation-id",
+				}
+
+				object, err = ctx.SMRepository.Create(context.Background(), operation)
+				Expect(err).To(BeNil())
+				Expect(object).To(Not(BeNil()))
+			})
+
+			It("should reschedule them", func() {
+				Eventually(func() bool {
+					byID := query.ByField(query.EqualsOperator, "id", defaultOperationID)
+					object, err := ctx.SMRepository.Get(context.Background(), types.OperationType, byID)
+					Expect(err).To(BeNil())
+					return object.GetUpdatedAt().After(time.Now().Add(-time.Hour))
+				}, jobTimeout*5).Should(BeTrue())
+			})
 		})
 
 		When("Specified cleanup interval passes", func() {

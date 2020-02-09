@@ -17,14 +17,15 @@
 package operations
 
 import (
+	"sync"
+	"time"
+
 	"github.com/Peripli/service-manager/pkg/log"
 	"github.com/Peripli/service-manager/pkg/query"
 	"github.com/Peripli/service-manager/pkg/types"
 	"github.com/Peripli/service-manager/pkg/util"
 	"github.com/Peripli/service-manager/storage"
 	"golang.org/x/net/context"
-	"sync"
-	"time"
 )
 
 const initialOperationsLockIndex = 200
@@ -222,6 +223,7 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 		case types.CREATE:
 			object, err := om.repository.Get(om.smCtx, operation.ResourceType, query.ByField(query.EqualsOperator, "id", operation.ResourceID))
 			if err != nil {
+				// TODO: Configure logger with correlation ID of the operation
 				log.D().Errorf("Failed to fetch resource with ID (%s) for operation with ID (%s): %s", operation.ResourceID, operation.ID, err)
 				return
 			}
