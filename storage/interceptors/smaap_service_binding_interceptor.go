@@ -375,8 +375,8 @@ func getInstanceByID(ctx context.Context, instanceID string, repository storage.
 
 func (i *ServiceBindingInterceptor) prepareBindRequest(instance *types.ServiceInstance, binding *types.ServiceBinding, serviceCatalogID, planCatalogID string, bindingRetrievable bool) (*osbc.BindRequest, error) {
 	context := make(map[string]interface{})
-	if len(instance.Context) != 0 {
-		if err := json.Unmarshal(instance.Context, &context); err != nil {
+	if len(binding.Context) != 0 {
+		if err := json.Unmarshal(binding.Context, &context); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal already present OSB context: %s", err)
 		}
 	} else {
@@ -386,7 +386,7 @@ func (i *ServiceBindingInterceptor) prepareBindRequest(instance *types.ServiceIn
 		}
 
 		if len(i.tenantKey) != 0 {
-			if tenantValue, ok := instance.GetLabels()[i.tenantKey]; ok {
+			if tenantValue, ok := binding.GetLabels()[i.tenantKey]; ok {
 				context[i.tenantKey] = tenantValue[0]
 			}
 		}
@@ -395,7 +395,7 @@ func (i *ServiceBindingInterceptor) prepareBindRequest(instance *types.ServiceIn
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal OSB context %+v: %s", context, err)
 		}
-		instance.Context = contextBytes
+		binding.Context = contextBytes
 	}
 
 	bindRequest := &osbc.BindRequest{
