@@ -18,6 +18,7 @@ package service_test
 
 import (
 	"fmt"
+	"github.com/Peripli/service-manager/pkg/env"
 	"time"
 
 	"github.com/tidwall/gjson"
@@ -80,7 +81,7 @@ var _ = DescribeTestsFor(TestCase{
 	ResourceWithoutNullableFieldsBlueprint: blueprint,
 	ResourcePropertiesToIgnore:             []string{"platform_id"},
 	PatchResource:                          APIResourcePatch,
-	AdditionalTests: func(ctx *TestContext) {
+	AdditionalTests: func(ctx *TestContext, t *TestCase) {
 		Context("additional non-generic tests", func() {
 			var (
 				postInstanceRequest Object
@@ -144,7 +145,7 @@ var _ = DescribeTestsFor(TestCase{
 					Status(expectedStatusCode)
 			}
 
-			verifyInstanceExists := func(instanceID string, ready bool) {
+			verifyInstanceExists := func(ctx *TestContext, instanceID string, ready bool) {
 				timeoutDuration := 15 * time.Second
 				tickerInterval := 100 * time.Millisecond
 				ticker := time.NewTicker(tickerInterval)
@@ -323,7 +324,7 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyInstanceExists(instanceID, true)
+									verifyInstanceExists(ctx, instanceID, true)
 								})
 							}
 
@@ -445,7 +446,7 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyInstanceExists(instanceID, false)
+									verifyInstanceExists(ctx, instanceID, false)
 								})
 
 								AfterEach(func() {
@@ -499,7 +500,7 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyInstanceExists(instanceID, true)
+									verifyInstanceExists(ctx, instanceID, true)
 								})
 							})
 
@@ -520,7 +521,7 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyInstanceExists(instanceID, true)
+									verifyInstanceExists(ctx, instanceID, true)
 								})
 
 								if testCase.async {
@@ -552,7 +553,7 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: false,
 											})
 
-											verifyInstanceExists(instanceID, false)
+											verifyInstanceExists(ctx, instanceID, false)
 										})
 									})
 								}
@@ -573,7 +574,7 @@ var _ = DescribeTestsFor(TestCase{
 											Reschedulable:     false,
 											DeletionScheduled: false,
 										})
-										verifyInstanceExists(instanceID, true)
+										verifyInstanceExists(ctx, instanceID, true)
 									})
 								})
 
@@ -623,7 +624,7 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											verifyInstanceExists(instanceID, false)
+											verifyInstanceExists(ctx, instanceID, false)
 										})
 									})
 
@@ -668,9 +669,60 @@ var _ = DescribeTestsFor(TestCase{
 											DeletionScheduled: false,
 										})
 
-										verifyInstanceExists(instanceID, false)
+										verifyInstanceExists(ctx, instanceID, false)
 									})
 								})
+
+								if testCase.async {
+									When("while polling SM crashes", func() {
+										var newCtx *TestContext
+										var isProvisioned = false
+
+										postHookWithShutdownTimeout := func() func(e env.Environment, servers map[string]FakeServer) {
+											return func(e env.Environment, servers map[string]FakeServer) {
+												e.Set("server.shutdown_timeout", 1*time.Second)
+											}
+										}
+
+										BeforeEach(func() {
+											ctxMaintainerBuilder := t.ContextBuilder.WithEnvPostExtensions(postHookWithShutdownTimeout())
+											newCtx = ctxMaintainerBuilder.BuildWithoutCleanup()
+
+											brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodPut+"1", func(_ *http.Request) (int, map[string]interface{}) {
+												if isProvisioned {
+													return http.StatusOK, Object{"state": "succeeded"}
+												} else {
+													return http.StatusOK, Object{"state": "in progress"}
+												}
+											})
+										})
+
+										It("should start polling again through maintainer once SM restarts", func() {
+											resp := createInstanceWithAsync(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedCreateSuccessStatusCode)
+
+											operationExpectation := OperationExpectations{
+												Category:          types.CREATE,
+												State:             types.IN_PROGRESS,
+												ResourceType:      types.ServiceInstanceType,
+												Reschedulable:     true,
+												DeletionScheduled: false,
+											}
+
+											instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), operationExpectation)
+											verifyInstanceExists(newCtx, instanceID, false)
+
+											newCtx.CleanupAll(false)
+
+											isProvisioned = true
+
+											operationExpectation.State = types.SUCCEEDED
+											operationExpectation.Reschedulable = false
+
+											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), operationExpectation)
+											verifyInstanceExists(ctx, instanceID, true)
+										})
+									})
+								}
 							})
 
 							When("provision responds with error due to stopped broker", func() {
@@ -767,7 +819,7 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											verifyInstanceExists(instanceID, false)
+											verifyInstanceExists(ctx, instanceID, false)
 										})
 									})
 								})
@@ -790,7 +842,7 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											verifyInstanceExists(instanceID, false)
+											verifyInstanceExists(ctx, instanceID, false)
 										})
 									})
 								}
@@ -1127,7 +1179,7 @@ var _ = DescribeTestsFor(TestCase{
 									DeletionScheduled: false,
 								})
 
-								verifyInstanceExists(instanceID, true)
+								verifyInstanceExists(ctx, instanceID, true)
 							})
 
 							When("a delete operation is already in progress", func() {
@@ -1148,7 +1200,7 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyInstanceExists(instanceID, true)
+									verifyInstanceExists(ctx, instanceID, true)
 								})
 
 								AfterEach(func() {
@@ -1198,7 +1250,7 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyInstanceExists(instanceID, true)
+									verifyInstanceExists(ctx, instanceID, true)
 								})
 							})
 
@@ -1358,7 +1410,7 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											verifyInstanceExists(instanceID, true)
+											verifyInstanceExists(ctx, instanceID, true)
 										})
 									})
 
@@ -1415,7 +1467,7 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											verifyInstanceExists(instanceID, true)
+											verifyInstanceExists(ctx, instanceID, true)
 										})
 									})
 								})
@@ -1437,7 +1489,7 @@ var _ = DescribeTestsFor(TestCase{
 											DeletionScheduled: false,
 										})
 
-										verifyInstanceExists(instanceID, true)
+										verifyInstanceExists(ctx, instanceID, true)
 									})
 								})
 							})
@@ -1459,7 +1511,7 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyInstanceExists(instanceID, true)
+									verifyInstanceExists(ctx, instanceID, true)
 								})
 							})
 
@@ -1478,7 +1530,7 @@ var _ = DescribeTestsFor(TestCase{
 										DeletionScheduled: false,
 									})
 
-									verifyInstanceExists(instanceID, true)
+									verifyInstanceExists(ctx, instanceID, true)
 								})
 							})
 
@@ -1538,7 +1590,7 @@ var _ = DescribeTestsFor(TestCase{
 												DeletionScheduled: true,
 											})
 
-											verifyInstanceExists(instanceID, true)
+											verifyInstanceExists(ctx, instanceID, true)
 										})
 									})
 								}

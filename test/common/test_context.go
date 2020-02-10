@@ -538,11 +538,17 @@ func (ctx *TestContext) CleanupBroker(id string) {
 }
 
 func (ctx *TestContext) Cleanup() {
+	ctx.CleanupAll(true)
+}
+
+func (ctx *TestContext) CleanupAll(cleanupResources bool) {
 	if ctx == nil {
 		return
 	}
 
-	ctx.CleanupAdditionalResources()
+	if cleanupResources {
+		ctx.CleanupAdditionalResources()
+	}
 
 	for _, server := range ctx.Servers {
 		server.Close()

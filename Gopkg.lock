@@ -586,7 +586,7 @@
     "pbkdf2",
   ]
   pruneopts = "UT"
-  revision = "a0c6ece9d31a0ebfbd3ddf2d290cfb1265ba47c7"
+  revision = "ecb85df213405b7d32e4d73cb5bbaace2ec88881"
 
 [[projects]]
   branch = "master"

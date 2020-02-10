@@ -60,7 +60,7 @@ var _ = test.DescribeTestsFor(test.TestCase{
 	ResourceBlueprint:                      blueprint(true),
 	ResourceWithoutNullableFieldsBlueprint: blueprint(false),
 	PatchResource:                          test.APIResourcePatch,
-	AdditionalTests: func(ctx *common.TestContext) {
+	AdditionalTests: func(ctx *common.TestContext, t *test.TestCase) {
 		Context("non-generic tests", func() {
 			BeforeEach(func() {
 				common.RemoveAllPlatforms(ctx.SMRepository)

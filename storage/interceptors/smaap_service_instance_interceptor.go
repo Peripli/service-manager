@@ -186,13 +186,13 @@ func (i *ServiceInstanceInterceptor) AroundTxCreate(f storage.InterceptCreateAro
 					logProvisionRequest(provisionRequest), broker.Name, logProvisionResponse(provisionResponse))
 
 			}
-		}
 
-		object, err := f(ctx, obj)
-		if err != nil {
-			return nil, err
+			object, err := f(ctx, obj)
+			if err != nil {
+				return nil, err
+			}
+			instance = object.(*types.ServiceInstance)
 		}
-		instance = object.(*types.ServiceInstance)
 
 		if operation.Reschedule {
 			if err := i.pollServiceInstance(ctx, osbClient, instance, operation, broker.ID, service.CatalogID, plan.CatalogID, operation.ExternalID, true); err != nil {
