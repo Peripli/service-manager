@@ -843,6 +843,54 @@ var _ = DescribeTestsFor(TestCase{
 											verifyInstanceExists(ctx, instanceID, false)
 										})
 									})
+
+									When("SM crashes while orphan mitigating", func() {
+										var newCtx *TestContext
+										var isDeprovisioned = false
+
+										postHookWithShutdownTimeout := func() func(e env.Environment, servers map[string]FakeServer) {
+											return func(e env.Environment, servers map[string]FakeServer) {
+												e.Set("server.shutdown_timeout", 1*time.Second)
+											}
+										}
+
+										BeforeEach(func() {
+											ctxMaintainerBuilder := t.ContextBuilder.WithEnvPostExtensions(postHookWithShutdownTimeout())
+											newCtx = ctxMaintainerBuilder.BuildWithoutCleanup()
+
+											brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"1", func(_ *http.Request) (int, map[string]interface{}) {
+												if isDeprovisioned {
+													return http.StatusOK, Object{"state": "succeeded"}
+												} else {
+													return http.StatusOK, Object{"state": "in progress"}
+												}
+											})
+										})
+
+										FIt("should restart orphan mitigation through maintainer and eventually succeeds", func() {
+											resp := createInstanceWithAsync(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+
+											operationExpectations := OperationExpectations{
+												Category:          types.CREATE,
+												State:             types.FAILED,
+												ResourceType:      types.ServiceInstanceType,
+												Reschedulable:     false,
+												DeletionScheduled: true,
+											}
+
+											instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), operationExpectations)
+
+											newCtx.CleanupAll(false)
+
+											isDeprovisioned = true
+
+											operationExpectations.DeletionScheduled = false
+											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), operationExpectations)
+
+											verifyInstanceDoesNotExist(instanceID)
+										})
+
+									})
 								}
 
 								When("broker orphan mitigation deprovision asynchronously fails with an error that will continue further orphan mitigation and eventually succeed", func() {
