@@ -216,6 +216,7 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 	operations := objectList.(*types.Operations)
 	for i := 0; i < operations.Len(); i++ {
 		operation := operations.ItemAt(i).(*types.Operation)
+		logger := log.ForContext(om.smCtx).WithField(log.FieldCorrelationID, operation.CorrelationID)
 
 		var action storageAction
 
@@ -224,7 +225,7 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 			object, err := om.repository.Get(om.smCtx, operation.ResourceType, query.ByField(query.EqualsOperator, "id", operation.ResourceID))
 			if err != nil {
 				// TODO: Configure logger with correlation ID of the operation
-				log.D().Errorf("Failed to fetch resource with ID (%s) for operation with ID (%s): %s", operation.ResourceID, operation.ID, err)
+				logger.Warnf("Failed to fetch resource with ID (%s) for operation with ID (%s): %s", operation.ResourceID, operation.ID, err)
 				return
 			}
 
@@ -249,7 +250,7 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 		}
 
 		if err := om.scheduler.ScheduleAsyncStorageAction(om.smCtx, operation, action); err != nil {
-			log.D().Debugf("Failed to reschedule unprocessed operation with ID (%s): %s", operation.ID, err)
+			logger.Warnf("Failed to reschedule unprocessed operation with ID (%s): %s", operation.ID, err)
 		}
 	}
 
@@ -274,6 +275,8 @@ func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 	operations := objectList.(*types.Operations)
 	for i := 0; i < operations.Len(); i++ {
 		operation := operations.ItemAt(i).(*types.Operation)
+		logger := log.ForContext(om.smCtx).WithField(log.FieldCorrelationID, operation.CorrelationID)
+
 		byID := query.ByField(query.EqualsOperator, "id", operation.ResourceID)
 
 		action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
@@ -282,7 +285,7 @@ func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 		}
 
 		if err := om.scheduler.ScheduleAsyncStorageAction(om.smCtx, operation, action); err != nil {
-			log.D().Debugf("Failed to reschedule unprocessed orphan mitigation operation with ID (%s): %s", operation.ID, err)
+			logger.Warnf("Failed to reschedule unprocessed orphan mitigation operation with ID (%s): %s", operation.ID, err)
 		}
 	}
 
@@ -307,10 +310,12 @@ func (om *Maintainer) markOrphanOperationsFailed() {
 	operations := objectList.(*types.Operations)
 	for i := 0; i < operations.Len(); i++ {
 		operation := operations.ItemAt(i).(*types.Operation)
+		logger := log.ForContext(om.smCtx).WithField(log.FieldCorrelationID, operation.CorrelationID)
+
 		operation.DeletionScheduled = time.Now()
 
 		if _, err := om.repository.Update(om.smCtx, operation, query.LabelChanges{}); err != nil {
-			log.D().Debugf("Failed to update orphan operation with ID (%s) state to FAILED: %s", operation.ID, err)
+			logger.Warnf("Failed to update orphan operation with ID (%s) state to FAILED: %s", operation.ID, err)
 			continue
 		}
 
@@ -321,7 +326,7 @@ func (om *Maintainer) markOrphanOperationsFailed() {
 		}
 
 		if err := om.scheduler.ScheduleAsyncStorageAction(om.smCtx, operation, action); err != nil {
-			log.D().Debugf("Failed to schedule delete action for operation with ID (%s): %s", operation.ID, err)
+			logger.Warnf("Failed to schedule delete action for operation with ID (%s): %s", operation.ID, err)
 		}
 	}
 
