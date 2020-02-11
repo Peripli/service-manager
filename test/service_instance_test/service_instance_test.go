@@ -843,56 +843,57 @@ var _ = DescribeTestsFor(TestCase{
 											verifyInstanceExists(ctx, instanceID, false)
 										})
 									})
+								}
 
-									When("SM crashes while orphan mitigating", func() {
-										var newCtx *TestContext
-										var isDeprovisioned = false
+								When("SM crashes while orphan mitigating", func() {
+									var newCtx *TestContext
+									var isDeprovisioned = false
 
-										postHookWithShutdownTimeout := func() func(e env.Environment, servers map[string]FakeServer) {
-											return func(e env.Environment, servers map[string]FakeServer) {
-												e.Set("server.shutdown_timeout", 1*time.Second)
+									postHookWithShutdownTimeout := func() func(e env.Environment, servers map[string]FakeServer) {
+										return func(e env.Environment, servers map[string]FakeServer) {
+											e.Set("server.shutdown_timeout", 1*time.Second)
+										}
+									}
+
+									BeforeEach(func() {
+										ctxMaintainerBuilder := t.ContextBuilder.WithEnvPostExtensions(postHookWithShutdownTimeout())
+										newCtx = ctxMaintainerBuilder.BuildWithoutCleanup()
+
+										brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+										brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", func(_ *http.Request) (int, map[string]interface{}) {
+											if isDeprovisioned {
+												return http.StatusOK, Object{"state": "succeeded"}
+											} else {
+												return http.StatusOK, Object{"state": "in progress"}
 											}
+										})
+									})
+
+									It("should restart orphan mitigation through maintainer and eventually succeeds", func() {
+										resp := createInstanceWithAsync(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+
+										operationExpectations := OperationExpectations{
+											Category:          types.CREATE,
+											State:             types.FAILED,
+											ResourceType:      types.ServiceInstanceType,
+											Reschedulable:     true,
+											DeletionScheduled: true,
 										}
 
-										BeforeEach(func() {
-											ctxMaintainerBuilder := t.ContextBuilder.WithEnvPostExtensions(postHookWithShutdownTimeout())
-											newCtx = ctxMaintainerBuilder.BuildWithoutCleanup()
+										instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), operationExpectations)
 
-											brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
-											brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", func(_ *http.Request) (int, map[string]interface{}) {
-												if isDeprovisioned {
-													return http.StatusOK, Object{"state": "succeeded"}
-												} else {
-													return http.StatusOK, Object{"state": "in progress"}
-												}
-											})
-										})
+										newCtx.CleanupAll(false)
 
-										FIt("should restart orphan mitigation through maintainer and eventually succeeds", func() {
-											resp := createInstanceWithAsync(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+										isDeprovisioned = true
 
-											operationExpectations := OperationExpectations{
-												Category:          types.CREATE,
-												State:             types.FAILED,
-												ResourceType:      types.ServiceInstanceType,
-												Reschedulable:     false,
-												DeletionScheduled: true,
-											}
+										operationExpectations.DeletionScheduled = false
+										operationExpectations.Reschedulable = false
+										instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), operationExpectations)
 
-											instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), operationExpectations)
-
-											newCtx.CleanupAll(false)
-
-											isDeprovisioned = true
-
-											operationExpectations.DeletionScheduled = false
-											instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), operationExpectations)
-
-											verifyInstanceDoesNotExist(instanceID)
-										})
-
+										verifyInstanceDoesNotExist(instanceID)
 									})
-								}
+
+								})
 
 								When("broker orphan mitigation deprovision asynchronously fails with an error that will continue further orphan mitigation and eventually succeed", func() {
 									BeforeEach(func() {
@@ -1385,7 +1386,7 @@ var _ = DescribeTestsFor(TestCase{
 											})
 										})
 
-										It("should start restart polling through maintainer and eventually deletes the instance", func() {
+										It("should restart polling through maintainer and eventually deletes the instance", func() {
 											resp := deleteInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedDeleteSuccessStatusCode)
 
 											operationExpectation := OperationExpectations{
@@ -1397,6 +1398,7 @@ var _ = DescribeTestsFor(TestCase{
 											}
 
 											instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), operationExpectation)
+
 											verifyInstanceExists(newCtx, instanceID, true)
 
 											newCtx.CleanupAll(false)
@@ -1726,25 +1728,29 @@ var _ = DescribeTestsFor(TestCase{
 							})
 
 							When("deprovision responds with error due to times out", func() {
+								var newCtx *TestContext
 								var doneChannel chan interface{}
 
 								BeforeEach(func() {
 									doneChannel = make(chan interface{})
 
-									ctx = NewTestContextBuilderWithSecurity().WithEnvPreExtensions(func(set *pflag.FlagSet) {
+									newCtx = t.ContextBuilder.WithEnvPreExtensions(func(set *pflag.FlagSet) {
 										Expect(set.Set("httpclient.response_header_timeout", (1 * time.Second).String())).ToNot(HaveOccurred())
 									}).BuildWithoutCleanup()
 
 									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", DelayingHandler(doneChannel))
+								})
 
+								AfterEach(func() {
+									newCtx.CleanupAll(false)
 								})
 
 								It("orphan mitigates the instance", func() {
-									resp := deleteInstance(ctx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
+									resp := deleteInstance(newCtx.SMWithOAuthForTenant, testCase.async, testCase.expectedBrokerFailureStatusCode)
 									<-time.After(1100 * time.Millisecond)
 									close(doneChannel)
 
-									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+									instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
 										Category:          types.DELETE,
 										State:             types.FAILED,
 										ResourceType:      types.ServiceInstanceType,
@@ -1754,7 +1760,7 @@ var _ = DescribeTestsFor(TestCase{
 
 									brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"1", ParameterizedHandler(http.StatusOK, Object{"async": false}))
 
-									instanceID, _ = VerifyOperationExists(ctx, resp.Header("Location").Raw(), OperationExpectations{
+									instanceID, _ = VerifyOperationExists(newCtx, resp.Header("Location").Raw(), OperationExpectations{
 										Category:          types.DELETE,
 										State:             types.SUCCEEDED,
 										ResourceType:      types.ServiceInstanceType,

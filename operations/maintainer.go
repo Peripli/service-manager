@@ -224,7 +224,6 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 		case types.CREATE:
 			object, err := om.repository.Get(om.smCtx, operation.ResourceType, query.ByField(query.EqualsOperator, "id", operation.ResourceID))
 			if err != nil {
-				// TODO: Configure logger with correlation ID of the operation
 				logger.Warnf("Failed to fetch resource with ID (%s) for operation with ID (%s): %s", operation.ResourceID, operation.ID, err)
 				return
 			}
@@ -245,7 +244,13 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 
 			action = func(ctx context.Context, repository storage.Repository) (types.Object, error) {
 				err := repository.Delete(ctx, operation.ResourceType, byID)
-				return nil, util.HandleStorageError(err, operation.ResourceType.String())
+				if err != nil {
+					if err == util.ErrNotFoundInStorage {
+						return nil, nil
+					}
+					return nil, util.HandleStorageError(err, operation.ResourceType.String())
+				}
+				return nil, nil
 			}
 		}
 
@@ -281,7 +286,13 @@ func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 
 		action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
 			err := repository.Delete(ctx, operation.ResourceType, byID)
-			return nil, util.HandleStorageError(err, operation.ResourceType.String())
+			if err != nil {
+				if err == util.ErrNotFoundInStorage {
+					return nil, nil
+				}
+				return nil, util.HandleStorageError(err, operation.ResourceType.String())
+			}
+			return nil, nil
 		}
 
 		if err := om.scheduler.ScheduleAsyncStorageAction(om.smCtx, operation, action); err != nil {
