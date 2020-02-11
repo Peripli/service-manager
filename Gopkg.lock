@@ -256,7 +256,7 @@
   revision = "2ba0fc60eb4a54030f3a6d73ff0a047349c7eeca"
 
 [[projects]]
-  digest = "1:cb7edefacdcbfd95b7611c11b3b027404fa39a66fdc91f6366e1811cbdb5cd3e"
+  digest = "1:1d965d8955ca44e9c963e24fdf0517033ca1820b6643ec546106dc2040ed54a0"
   name = "github.com/klauspost/compress"
   packages = [
     "flate",
@@ -264,8 +264,8 @@
     "zlib",
   ]
   pruneopts = "UT"
-  revision = "459b83aadb42b806aed42f0f4b3240c8834e0cc1"
-  version = "v1.9.8"
+  revision = "b9d5dc7bd435c628cb0c658ce7f556409007ea71"
+  version = "v1.10.0"
 
 [[projects]]
   digest = "1:31e761d97c76151dde79e9d28964a812c46efc5baee4085b86f68f0c654450de"
@@ -475,12 +475,12 @@
   version = "v1.4.0"
 
 [[projects]]
-  digest = "1:fcea9aca14ce388baeb3afd42bc3302089393f78f9531212aed88d60a134a921"
+  digest = "1:13503b1b68ee704913caf452f02968fa313a9934e67d951ed0d39ca8e230d5e0"
   name = "github.com/tidwall/gjson"
   packages = ["."]
   pruneopts = "UT"
-  revision = "d10932a0d0b5f1618759b6259b05f7cb7bea0c25"
-  version = "v1.4.0"
+  revision = "0360deb6d803e8c271363ce5f6c85d6cd843a3a0"
+  version = "v1.5.0"
 
 [[projects]]
   digest = "1:8453ddbed197809ee8ca28b06bd04e127bec9912deb4ba451fea7a1eca578328"
@@ -586,7 +586,7 @@
     "pbkdf2",
   ]
   pruneopts = "UT"
-  revision = "ecb85df213405b7d32e4d73cb5bbaace2ec88881"
+  revision = "86ce3cb696783b739e41e834e2eead3e1b4aa3fb"
 
 [[projects]]
   branch = "master"
@@ -751,7 +751,6 @@
     "github.com/spf13/viper",
     "github.com/tidwall/gjson",
     "github.com/tidwall/sjson",
-    "golang.org/x/net/context",
     "gopkg.in/square/go-jose.v2/json",
     "gopkg.in/yaml.v2",
   ]
