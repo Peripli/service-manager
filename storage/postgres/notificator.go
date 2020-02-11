@@ -150,6 +150,22 @@ func (n *Notificator) addConsumer(platform *types.Platform, queue storage.Notifi
 	return atomic.LoadInt64(&n.lastKnownRevision), nil
 }
 
+func (n *Notificator) GetLastRevision() (int64, error) {
+	currentLastKnownRevision := atomic.LoadInt64(&n.lastKnownRevision)
+
+	if currentLastKnownRevision != types.InvalidRevision {
+		return currentLastKnownRevision, nil
+	}
+
+	fetchedLastKnownRevision, err := n.storage.GetLastRevision(n.ctx)
+	if err != nil {
+		return types.InvalidRevision, err
+	}
+
+	atomic.StoreInt64(&n.lastKnownRevision, fetchedLastKnownRevision)
+	return fetchedLastKnownRevision, nil
+}
+
 func (n *Notificator) RegisterConsumer(consumer *types.Platform, lastKnownRevision int64) (storage.NotificationQueue, int64, error) {
 	if atomic.LoadInt32(&n.isConnected) == aFalse {
 		return nil, types.InvalidRevision, errors.New("cannot register consumer - Notificator is not running")

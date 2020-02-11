@@ -89,7 +89,7 @@ var _ = Describe("Notificator", func() {
 		Expect(<-receivedNotificationChan).To(Equal(expectedNotification))
 	}
 
-	newNotificator := func(queueSize int) storage.Notificator {
+	newNotificator := func(queueSize int, lastKnownRevision int64) storage.Notificator {
 		return &Notificator{
 			queueSize:       queueSize,
 			connectionMutex: &sync.Mutex{},
@@ -164,7 +164,7 @@ var _ = Describe("Notificator", func() {
 			runningFunc = f
 			return fakeNotificationConnection
 		}
-		testNotificator = newNotificator(defaultQueueSize)
+		testNotificator = newNotificator(defaultQueueSize, types.InvalidRevision)
 	})
 
 	AfterEach(func() {
@@ -322,6 +322,42 @@ var _ = Describe("Notificator", func() {
 			})
 		})
 
+	})
+
+	Describe("GetLastRevision", func() {
+		It("Should return current last known revision", func() {
+			notificator := newNotificator(defaultQueueSize, defaultLastRevision)
+			lastRevision, err := notificator.GetLastRevision()
+			Expect(err).ToNot(HaveOccurred())
+			Expect(lastRevision).To(Equal(defaultLastRevision))
+
+		})
+
+		Context("When storage GetLastRevision fails", func() {
+			BeforeEach(func() {
+				fakeNotificationStorage.GetLastRevisionReturns(types.InvalidRevision, expectedError)
+			})
+
+			It("Should return error", func() {
+				notificator := newNotificator(defaultQueueSize, defaultLastRevision)
+				lastRevision, err := notificator.GetLastRevision()
+				Expect(err).To(HaveOccurred())
+				Expect(lastRevision).To(Equal(types.InvalidRevision))
+			})
+		})
+
+		Context("When storage GetLastRevision fetches successfully", func() {
+			BeforeEach(func() {
+				fakeNotificationStorage.GetLastRevisionReturns(defaultLastRevision, nil)
+			})
+
+			It ("Should return the newly fetched revision", func() {
+				notificator := newNotificator(defaultQueueSize, types.InvalidRevision)
+				lastRevision, err := notificator.GetLastRevision()
+				Expect(err).ToNot(HaveOccurred())
+				Expect(lastRevision).To(Equal(defaultLastRevision))
+			})
+		})
 	})
 
 	Describe("RegisterConsumer", func() {
@@ -565,7 +601,7 @@ var _ = Describe("Notificator", func() {
 
 			BeforeEach(func() {
 				runningFunc = nil
-				testNotificator = newNotificator(0)
+				testNotificator = newNotificator(0, types.InvalidRevision)
 				Expect(testNotificator.Start(ctx, wg)).ToNot(HaveOccurred())
 				Expect(runningFunc).ToNot(BeNil())
 				notificationChannel = make(chan *pq.Notification, 2)

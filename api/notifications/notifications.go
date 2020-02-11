@@ -52,6 +52,12 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	_, err = c.notificator.GetLastRevision()
+	if err != nil {
+		return nil, err
+	}
+
 	notificationQueue, lastKnownToSMRevision, err := c.notificator.RegisterConsumer(platform, revisionKnownToProxy)
 	if err != nil {
 		if err == util.ErrInvalidNotificationRevision {

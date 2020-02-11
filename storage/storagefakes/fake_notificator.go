@@ -10,6 +10,18 @@ import (
 )
 
 type FakeNotificator struct {
+	GetLastRevisionStub        func() (int64, error)
+	getLastRevisionMutex       sync.RWMutex
+	getLastRevisionArgsForCall []struct {
+	}
+	getLastRevisionReturns struct {
+		result1 int64
+		result2 error
+	}
+	getLastRevisionReturnsOnCall map[int]struct {
+		result1 int64
+		result2 error
+	}
 	RegisterConsumerStub        func(*types.Platform, int64) (storage.NotificationQueue, int64, error)
 	registerConsumerMutex       sync.RWMutex
 	registerConsumerArgsForCall []struct {
@@ -56,6 +68,61 @@ type FakeNotificator struct {
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
+}
+
+func (fake *FakeNotificator) GetLastRevision() (int64, error) {
+	fake.getLastRevisionMutex.Lock()
+	ret, specificReturn := fake.getLastRevisionReturnsOnCall[len(fake.getLastRevisionArgsForCall)]
+	fake.getLastRevisionArgsForCall = append(fake.getLastRevisionArgsForCall, struct {
+	}{})
+	fake.recordInvocation("GetLastRevision", []interface{}{})
+	fake.getLastRevisionMutex.Unlock()
+	if fake.GetLastRevisionStub != nil {
+		return fake.GetLastRevisionStub()
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	fakeReturns := fake.getLastRevisionReturns
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeNotificator) GetLastRevisionCallCount() int {
+	fake.getLastRevisionMutex.RLock()
+	defer fake.getLastRevisionMutex.RUnlock()
+	return len(fake.getLastRevisionArgsForCall)
+}
+
+func (fake *FakeNotificator) GetLastRevisionCalls(stub func() (int64, error)) {
+	fake.getLastRevisionMutex.Lock()
+	defer fake.getLastRevisionMutex.Unlock()
+	fake.GetLastRevisionStub = stub
+}
+
+func (fake *FakeNotificator) GetLastRevisionReturns(result1 int64, result2 error) {
+	fake.getLastRevisionMutex.Lock()
+	defer fake.getLastRevisionMutex.Unlock()
+	fake.GetLastRevisionStub = nil
+	fake.getLastRevisionReturns = struct {
+		result1 int64
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeNotificator) GetLastRevisionReturnsOnCall(i int, result1 int64, result2 error) {
+	fake.getLastRevisionMutex.Lock()
+	defer fake.getLastRevisionMutex.Unlock()
+	fake.GetLastRevisionStub = nil
+	if fake.getLastRevisionReturnsOnCall == nil {
+		fake.getLastRevisionReturnsOnCall = make(map[int]struct {
+			result1 int64
+			result2 error
+		})
+	}
+	fake.getLastRevisionReturnsOnCall[i] = struct {
+		result1 int64
+		result2 error
+	}{result1, result2}
 }
 
 func (fake *FakeNotificator) RegisterConsumer(arg1 *types.Platform, arg2 int64) (storage.NotificationQueue, int64, error) {
@@ -280,6 +347,8 @@ func (fake *FakeNotificator) UnregisterConsumerReturnsOnCall(i int, result1 erro
 func (fake *FakeNotificator) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
+	fake.getLastRevisionMutex.RLock()
+	defer fake.getLastRevisionMutex.RUnlock()
 	fake.registerConsumerMutex.RLock()
 	defer fake.registerConsumerMutex.RUnlock()
 	fake.registerFilterMutex.RLock()

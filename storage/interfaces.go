@@ -233,6 +233,9 @@ type Notificator interface {
 
 	// RegisterFilter adds a new filter which decides if a platform should receive given notification
 	RegisterFilter(f ReceiversFilterFunc)
+
+	// GetLastRevision returns the latest revision available
+	GetLastRevision() (int64, error)
 }
 
 // ReceiversFilterFunc filters recipients for a given notifications

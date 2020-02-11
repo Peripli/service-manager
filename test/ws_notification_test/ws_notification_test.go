@@ -192,7 +192,7 @@ var _ = Describe("WS", func() {
 				queryParams[notifications.LastKnownRevisionQueryParam] = strconv.FormatInt(notification.Revision, 10)
 			})
 
-			It("should receive only these after the revision that it knowns", func() {
+			It("should receive only these after the revision that it knows", func() {
 				expectNotification(wsconn, notification2.ID, notification2.PlatformID)
 			})
 		})
