@@ -402,8 +402,7 @@ func (s *Scheduler) handleActionResponse(ctx context.Context, actionObject types
 
 func (s *Scheduler) handleActionResponseFailure(ctx context.Context, actionError error, opAfterJob *types.Operation) error {
 	if err := s.repository.InTransaction(ctx, func(ctx context.Context, storage storage.Repository) error {
-		// TODO: WHY IS s.repository used here instead of storage?
-		if opErr := updateOperationState(ctx, s.repository, opAfterJob, types.FAILED, actionError); opErr != nil {
+		if opErr := updateOperationState(ctx, storage, opAfterJob, types.FAILED, actionError); opErr != nil {
 			return fmt.Errorf("setting new operation state failed: %s", opErr)
 		}
 		// after a failed FAILED CREATE operation, update the ready field to false

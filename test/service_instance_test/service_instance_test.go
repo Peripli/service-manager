@@ -858,7 +858,8 @@ var _ = DescribeTestsFor(TestCase{
 											ctxMaintainerBuilder := t.ContextBuilder.WithEnvPostExtensions(postHookWithShutdownTimeout())
 											newCtx = ctxMaintainerBuilder.BuildWithoutCleanup()
 
-											brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"1", func(_ *http.Request) (int, map[string]interface{}) {
+											brokerServer.ServiceInstanceHandlerFunc(http.MethodDelete, http.MethodDelete+"3", ParameterizedHandler(http.StatusAccepted, Object{"async": true}))
+											brokerServer.ServiceInstanceLastOpHandlerFunc(http.MethodDelete+"3", func(_ *http.Request) (int, map[string]interface{}) {
 												if isDeprovisioned {
 													return http.StatusOK, Object{"state": "succeeded"}
 												} else {
@@ -919,7 +920,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 							})
 
-							When("provision responds with error due to times out", func() {
+							When("provision responds with error due to time out", func() {
 								var doneChannel chan interface{}
 								var oldCtx *TestContext
 
