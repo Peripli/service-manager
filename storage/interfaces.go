@@ -236,6 +236,9 @@ type Notificator interface {
 
 	// GetLastRevision returns the latest revision available
 	GetLastRevision() (int64, error)
+
+	// IsRevisionValid returns whether a given revision is valid or not, and an error if any
+	IsRevisionValid(revision int64) (bool, error)
 }
 
 // ReceiversFilterFunc filters recipients for a given notifications

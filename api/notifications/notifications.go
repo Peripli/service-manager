@@ -43,6 +43,16 @@ func (c *Controller) handleWS(req *web.Request) (*web.Response, error) {
 		}
 	}
 
+	if revisionKnownToProxy != types.InvalidRevision {
+		isProxyRevisionValid, err := c.notificator.IsRevisionValid(revisionKnownToProxy)
+		if err != nil {
+			return nil, err
+		}
+		if !isProxyRevisionValid {
+			return util.NewJSONResponse(http.StatusGone, nil)
+		}
+	}
+
 	user, ok := web.UserFromContext(req.Context())
 	if !ok {
 		return nil, errors.New("user details not found in request context")

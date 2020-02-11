@@ -159,6 +159,17 @@ func (n *Notificator) GetLastRevision() (int64, error) {
 	return fetchedLastKnownRevision, nil
 }
 
+func (n *Notificator) IsRevisionValid(revision int64) (bool, error) {
+	if _, err := n.storage.GetNotificationByRevision(n.ctx, revision); err != nil {
+		if err == util.ErrNotFoundInStorage {
+			log.C(n.ctx).WithError(err).Debugf("Notification with revision %d not found in storage", revision)
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
 func (n *Notificator) RegisterConsumer(consumer *types.Platform, lastKnownRevisionToProxy int64, lastKnownRevisionToSM int64) (storage.NotificationQueue, error) {
 	if atomic.LoadInt32(&n.isConnected) == aFalse {
 		return nil, errors.New("cannot register consumer - Notificator is not running")
@@ -202,14 +213,6 @@ func (n *Notificator) filterRecipients(recipients []*types.Platform, notificatio
 }
 
 func (n *Notificator) replaceQueueWithMissingNotificationsQueue(queue storage.NotificationQueue, lastKnownRevision, lastKnownRevisionToSM int64, platform *types.Platform) (storage.NotificationQueue, error) {
-	if _, err := n.storage.GetNotificationByRevision(n.ctx, lastKnownRevision); err != nil {
-		if err == util.ErrNotFoundInStorage {
-			log.C(n.ctx).WithError(err).Debugf("Notification with revision %d not found in storage", lastKnownRevision)
-			return nil, util.ErrInvalidNotificationRevision
-		}
-		return nil, err
-	}
-
 	missedNotifications, err := n.storage.ListNotifications(n.ctx, platform.ID, lastKnownRevision, lastKnownRevisionToSM)
 	if err != nil {
 		return nil, err
