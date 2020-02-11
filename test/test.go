@@ -63,7 +63,7 @@ const (
 	Sync  ResponseMode = false
 	Async ResponseMode = true
 
-	JobTimeout          = 30 * time.Second
+	JobTimeout          = 15 * time.Second
 	cleanupInterval     = 60 * time.Second
 	operationExpiration = 60 * time.Second
 )
@@ -71,7 +71,6 @@ const (
 func postHookWithOperationsConfig() func(e env.Environment, servers map[string]common.FakeServer) {
 	return func(e env.Environment, servers map[string]common.FakeServer) {
 		e.Set("operations.action_timeout", JobTimeout)
-		e.Set("operations.mark_orphans_interval", JobTimeout)
 		e.Set("operations.cleanup_interval", cleanupInterval)
 		e.Set("operations.lifespan", operationExpiration)
 		e.Set("operations.reconciliation_operation_timeout", 9999*time.Hour)

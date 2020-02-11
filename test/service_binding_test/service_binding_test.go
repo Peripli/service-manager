@@ -602,7 +602,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 							})
 
-							When("SM crashes after storing operation before storing resource", func() {
+							XWhen("SM crashes after storing operation before storing resource", func() {
 								var newCtx *TestContext
 
 								postHookWithShutdownTimeout := func() func(e env.Environment, servers map[string]FakeServer) {
@@ -739,7 +739,7 @@ var _ = DescribeTestsFor(TestCase{
 										})
 									})
 
-									When("SM crashes while polling", func() {
+									XWhen("SM crashes while polling", func() {
 										var newCtx *TestContext
 										var isBound atomic.Value
 
@@ -1005,7 +1005,7 @@ var _ = DescribeTestsFor(TestCase{
 									})
 								}
 
-								When("SM crashes while orphan mitigating", func() {
+								XWhen("SM crashes while orphan mitigating", func() {
 									var newCtx *TestContext
 									var isUnbound atomic.Value
 
@@ -1327,7 +1327,7 @@ var _ = DescribeTestsFor(TestCase{
 								})
 
 								if testCase.async {
-									When("SM crashes while polling", func() {
+									XWhen("SM crashes while polling", func() {
 										var newCtx *TestContext
 										var isBound atomic.Value
 
