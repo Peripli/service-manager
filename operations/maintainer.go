@@ -28,7 +28,10 @@ import (
 	"golang.org/x/net/context"
 )
 
-const initialOperationsLockIndex = 200
+const (
+	initialOperationsLockIndex = 200
+	ZeroTime                   = "0001-01-01 00:00:00+00"
+)
 
 // MaintainerFunctor represents a named maintainer function which runs over a pre-defined period
 type MaintainerFunctor struct {
@@ -185,7 +188,7 @@ func (om *Maintainer) cleanupInternalFailedOperations() {
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOperator, "state", string(types.FAILED)),
 		query.ByField(query.EqualsOperator, "reschedule", "false"),
-		query.ByField(query.EqualsOperator, "deletion_scheduled", "0001-01-01 00:00:00+00"),
+		query.ByField(query.EqualsOperator, "deletion_scheduled", ZeroTime),
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.ExpirationTime))),
 	}
 
@@ -202,7 +205,7 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
 		query.ByField(query.EqualsOperator, "reschedule", "true"),
-		query.ByField(query.EqualsOperator, "deletion_scheduled", "0001-01-01 00:00:00+00"),
+		query.ByField(query.EqualsOperator, "deletion_scheduled", ZeroTime),
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.JobTimeout))),
 		query.ByField(query.GreaterThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.ReconciliationOperationTimeout))),
 	}
@@ -266,7 +269,7 @@ func (om *Maintainer) rescheduleUnprocessedOperations() {
 func (om *Maintainer) rescheduleOrphanMitigationOperations() {
 	criteria := []query.Criterion{
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
-		query.ByField(query.NotEqualsOperator, "deletion_scheduled", "0001-01-01 00:00:00+00"),
+		query.ByField(query.NotEqualsOperator, "deletion_scheduled", ZeroTime),
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.JobTimeout))),
 		query.ByField(query.GreaterThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.ReconciliationOperationTimeout))),
 	}
@@ -309,6 +312,7 @@ func (om *Maintainer) markOrphanOperationsFailed() {
 		query.ByField(query.EqualsOperator, "platform_id", types.SMPlatform),
 		query.ByField(query.EqualsOperator, "state", string(types.IN_PROGRESS)),
 		query.ByField(query.EqualsOperator, "reschedule", "false"),
+		query.ByField(query.EqualsOperator, "deletion_scheduled", ZeroTime),
 		query.ByField(query.LessThanOperator, "updated_at", util.ToRFCNanoFormat(time.Now().Add(-om.settings.JobTimeout))),
 	}
 
@@ -333,7 +337,13 @@ func (om *Maintainer) markOrphanOperationsFailed() {
 		byID := query.ByField(query.EqualsOperator, "id", operation.ResourceID)
 		action := func(ctx context.Context, repository storage.Repository) (types.Object, error) {
 			err := repository.Delete(ctx, operation.ResourceType, byID)
-			return nil, util.HandleStorageError(err, operation.ResourceType.String())
+			if err != nil {
+				if err == util.ErrNotFoundInStorage {
+					return nil, nil
+				}
+				return nil, util.HandleStorageError(err, operation.ResourceType.String())
+			}
+			return nil, nil
 		}
 
 		if err := om.scheduler.ScheduleAsyncStorageAction(om.smCtx, operation, action); err != nil {
